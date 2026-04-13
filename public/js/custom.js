@@ -11355,8 +11355,8 @@ function kvkkGerekli(randevu_id, hizmetid, result1, dogrulamaKodu,dogrulamaSorul
         cancelButtonClass: 'btn btn-danger',
     }).then(function(result) {
         if (result.value) {
-            // KVKK işlemi olduğunu belirt
-            randevuyaGeldiIsaretle(randevu_id, hizmetid, dogrulamaKodu, result.value, dogrulamaSoruldu,dogrulamaSorulduGonderilecek);
+            // KVKK işlemi olduğunu belirt - isKvkkProcess = true (7. parametre)
+            randevuyaGeldiIsaretle(randevu_id, hizmetid, dogrulamaKodu, result.value, dogrulamaSoruldu,dogrulamaSorulduGonderilecek, true);
         }
     });
 }
