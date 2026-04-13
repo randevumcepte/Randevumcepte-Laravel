@@ -1,0 +1,594 @@
+@if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
+@section('content')
+<div class="row pb-10">
+
+               <div class="{{($isletme->santral_aktif) ? 'col-xl-2 col-lg-2  col-md-6 col-sm-6 col-xs-6 col-6 mb-20' : 'col-xl-3 col-lg-3  col-md-6 col-sm-6 col-xs-6 col-6 mb-20'}}">
+                  <div class="card-box height-100-p widget-style3">
+                     <div class="d-flex flex-wrap">
+                        <div class="widget-data">
+                           <div class="weight-700 font-24 text-dark">{{$randevusayisi}}</div>
+                           <div class="font-14 text-secondary weight-500">
+                               Randevu
+                           </div>
+                        </div>
+                        <div class="widget-icon" style="background-color: rgb(70, 203, 218);">
+                           <div class="icon" data-color="#fff">
+                              <i class="icon-copy dw dw-calendar1"></i>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               <div class="{{($isletme->santral_aktif) ? 'col-xl-2 col-lg-2  col-md-6 col-sm-6 col-xs-6 col-6 mb-20' : 'col-xl-3 col-lg-3  col-md-6 col-sm-6 col-xs-6 col-6 mb-20'}}">
+                  <div class="card-box height-100-p widget-style3">
+                     <div class="d-flex flex-wrap">
+                        <div class="widget-data">
+                           <div class="weight-700 font-24 text-dark">{{(!is_string($on_gorusmeler)) ? $on_gorusmeler->count() : 0}}</div>
+                           <div class="font-14 text-secondary weight-500">
+                              Ön Görüşme
+                           </div>
+                        </div>
+                        <div class="widget-icon" style="background-color:rgb(146, 0, 188)">
+                           <div class="icon" data-color="#fff">
+                              
+                              <span class="icon-copy fa fa-user-plus"></span>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+                
+               <div class="{{($isletme->santral_aktif) ? 'col-xl-2 col-lg-2  col-md-6 col-sm-6 col-xs-6 col-6 mb-20' : 'col-xl-3 col-lg-3  col-md-6 col-sm-6 col-xs-6 col-6 mb-20'}}">
+                  <div class="card-box height-100-p widget-style3">
+                     <div class="d-flex flex-wrap">
+                        <div class="widget-data">
+                           <div class="weight-700 font-24 text-dark">{{$gunluk_urun_satislari->count()}}</div>
+                           <div class="font-14 text-secondary weight-500">
+                             Ürün Satışı
+                           </div>
+                        </div>
+                        <div class="widget-icon" style="background-color: rgb(0, 109, 190) ">
+                           <div class="icon">
+                              <i
+                                 class="micon bi bi-tags"
+                                 aria-hidden="true"
+                              ></i>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               
+               <div class="{{($isletme->santral_aktif) ? 'col-xl-2 col-lg-2  col-md-6 col-sm-6 col-xs-6 col-6 mb-20' : 'col-xl-3 col-lg-3 col-md-6 col-sm-6 col-xs-6 col-6 mb-20'}}">
+                  <div class="card-box height-100-p widget-style3">
+                     <div class="d-flex flex-wrap">
+                        <div class="widget-data">
+                           <div class="weight-700 font-24 text-dark">{{$gunluk_paket_satislari->count()}}</div>
+                           <div class="font-14 text-secondary weight-500">Paket Satışı</div> 
+                        </div>
+                        <div class="widget-icon" style="background-color:rgb(234, 67, 242)">
+                           <div class="icon" data-color="#fff">
+                              
+                              <i class="icon-copy fa fa-gift" ></i>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               @if($isletme->santral_aktif)
+               <div class="col-xl-4 col-lg-4  col-md-12 col-sm-12 col-xs-12 col-12 mb-20">
+                  <div class="card-box height-100-p widget-style3">
+                     <div class="d-flex flex-wrap">
+                        <div class="widget-data">
+                              <div class="row">
+                                 
+                                 <div class="col-6 col-xs-6 col-sm-6">
+                                    <div style="border:1px solid lightgray;border-radius: 10px">
+                                       <div class="font-14 text-secondary weight-500" style="text-align: center;">
+                                           <span style='color: #28a745;'>Başarılı Arama </span>
+                                       </div>
+                                       <div class="weight-700 font-24 text-dark" style="text-align: center;">
+                                          <span style='color: #28a745;'>{{($isletme->uyelik_turu > 1) ? $santral_raporlari['gelen_arama'] + $santral_raporlari['giden_arama'] : '0'}}</span>
+                                       </div>
+                                    </div>
+                                    
+                                 </div>
+                                 <div class="col-6 col-xs-6 col-sm-6" style="text-align:center;">
+                                    <div style="border:1px solid lightgray;border-radius: 10px">
+                                       <div class="font-14 text-secondary weight-500">
+                                          <span style='color: red;'>Cevapsız Arama </span>
+                                       </div>
+                                       <div class="weight-700 font-24 text-dark" style="text-align:center;">
+                                         <span style='color: red;'> {{($isletme->uyelik_turu > 1) ? $santral_raporlari['cevapsiz_arama'] : '0'}}</span>
+                                       </div>
+                                    </div>
+                                   
+                                 </div>
+                              </div>
+                        </div>
+                        <div class="widget-icon" style="background-color:#5C008E">
+                           <div class="icon" data-color="#fff">
+                              
+                             <i class="icon-copy fa fa-phone-square" aria-hidden="true"></i>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               @endif
+               <div class="col-lg-12 col-md-12 col-sm-12 mb-30">
+
+                     <div class="pd-20 card-box">
+                         <h2 style="margin-bottom:20px">Günlük Özet</h2>
+                        <div class="tab">
+                        
+                           <ul class="nav nav-tabs element" role="tablist" style=" overflow-y: hidden; height: 50px;
+                           
+ 
+
+                           ">
+                           <li class="nav-item">
+                                 <button class="btn btn-outline-primary active" data-toggle="tab" href="#e_asistan" role="tab" aria-selected="true">E-Asistan</button>
+                              </li>
+                              <li class="nav-item">
+                                 <button class="btn btn-outline-primary" style="margin-left: 20px;display: inline-block;" data-toggle="tab" href="#son-randevular" role="tab" aria-selected="false">Randevular</button>
+                              </li>
+                              <li class="nav-item" style="margin-left: 20px;display: inline-block;">
+                                 <button
+                                    class="btn btn-outline-primary"
+                                    data-toggle="tab"
+                                    href="#on-gorusmeler"
+                                    role="tab"
+                                    aria-selected="false"
+                                    >Ön Görüşmeler</button
+                                 >
+                              </li>
+                              <li class="nav-item" style="margin-left: 20px;">
+                                 <button
+                                    class="btn btn-outline-primary"
+                                    data-toggle="tab"
+                                    href="#urun-satislari"
+                                    role="tab"
+                                    aria-selected="false"
+                                    >Ürün Satışları</button
+                                 >
+                              </li>
+                              <li class="nav-item" style="margin-left: 20px;display: inline-block;">
+                                 <button
+                                    class="btn btn-outline-primary"
+                                    data-toggle="tab"
+                                    href="#paket-satislari"
+                                    role="tab"
+                                    aria-selected="false"
+                                    >Paket Satışları</button
+                                 >
+                              </li>
+                           
+                              <li class="nav-item" style="margin-left: 20px;display: inline-block;">
+                                 <button
+                                    class="btn btn-outline-primary"
+                                    data-toggle="tab"
+                                    href="#alacak-hatirlatmalari"
+                                    role="tab"
+                                    aria-selected="false"
+                                    >Alacak Hatırlatmaları</button
+                                 >
+                              </li>
+                             
+                              <li class="nav-item" style="margin-left: 20px;display: inline-block;display: none;">
+                                 <button
+                                    class="btn btn-outline-primary"
+                                    data-toggle="tab"
+                                    href="#etkinlikler_ozet"
+                                    role="tab"
+                                    aria-selected="false"
+                                    >Etkinlikler</button
+                                 >
+                              </li>
+                               <li class="nav-item" style="margin-left: 20px;display: inline-block;">
+                                 <button
+                                    class="btn btn-outline-primary"
+                                    data-toggle="tab"
+                                    href="#yorumlar"
+                                    role="tab"
+                                    aria-selected="false"
+                                    >Müşteri Yorumları</button
+                                 >
+                              </li>
+                           </ul>
+                          
+                           <div class="tab-content">
+                           <div
+                                 class="tab-pane fade show active"
+                                 id="e_asistan"
+                                 role="tabpanel" style="margin-top: 20px;  
+ height: auto;"
+                              >
+                                 <div class="tab"
+
+                           >
+                                     <ul class="nav nav-tabs " role="tablist" >
+                                       <li class="nav-item">
+                                          <a class="nav-link active" data-toggle="tab" href="#bugunku_gorevler" role="tab" aria-selected="true"  >Bugünkü Görevlerim</a>
+                                       </li>
+                                       <li class="nav-item">
+                                          <a class="nav-link" data-toggle="tab" href="#yarinki_gorevler" role="tab" aria-selected="false" >Yarınki Görevlerim</a>
+                                       </li>
+                                     
+                                    </ul>
+                                    <div class="tab-content">
+                                       <div class="tab-pane fade show active" id="bugunku_gorevler" role="tab-panel" style="margin-top: 20px; ">
+
+                                         <table class="data-table table stripe hover nowrap" id="bugunkugorevtablo">
+                                             <thead >
+                                             
+                                                <th>Tarih</th>
+                                                <th>Mesaj</th>
+                                                <th>Durum </th>
+                                             
+                                                   <th></th>
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+                                           
+                                       </div>
+                                       <div class="tab-pane fade show" id="yarinki_gorevler" role="tab-panel" style="margin-top: 20px;">
+                                          <table class="data-table table stripe hover nowrap" id="yarinkigorevtablo">
+                                             <thead>
+                                             <th>Tarih</th>
+                                                <th>Mesaj</th>
+                                                <th>Durum </th>
+                                             
+                                                   <th></th>
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+                                       </div>
+                                       
+                                    </div>
+                                 </div>
+                                 
+                              </div>
+                              <div
+                                 class="tab-pane fade show"
+                                 id="yorumlar"
+                                 role="tabpanel" style="margin-top: 20px;"
+                              >
+                                     <table class="data-table table stripe hover nowrap" id="musteri_yorumlari">
+                                             <thead>
+                                                <th>Tarih & Saat</th>
+                                                <th>Müşteri</th>
+                                                <th>Yorum</th>
+                                                <th>Puan</th> 
+                                                
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+
+                              </div>
+                              <div
+                                 class="tab-pane fade show"
+                                 id="son-randevular"
+                                 role="tabpanel" style="margin-top: 20px;  
+ height: auto;"
+                              >
+                                 <div class="tab"
+
+                           >
+                                     <ul class="nav nav-tabs " role="tablist" >
+                                       <li class="nav-item">
+                                          <a class="nav-link active" data-toggle="tab" href="#tum-randevular" role="tab" aria-selected="true"  >Tüm Randevular</a>
+                                       </li>
+                                       <li class="nav-item">
+                                          <a class="nav-link" data-toggle="tab" href="#salon-randevu" role="tab" aria-selected="false" >Salon Tarafından Oluşturulan</a>
+                                       </li>
+                                       <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#web-randevu" role="tab" aria-selected="false" >Web Üzerinden Oluşturulan</a>
+
+                                       </li>
+                                       <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#uygulama-randevu" role="tab" aria-selected="false" >Uygulama Üzerinden Oluşturulan</a>
+
+                                       </li>
+                                    </ul>
+                                    <div class="tab-content">
+                                       <div class="tab-pane fade show active" id="tum-randevular" role="tab-panel" style="margin-top: 20px; ">
+
+                                         <table class="data-table table stripe hover nowrap" id="randevu_liste_tum">
+                                             <thead >
+                                                <th>Müşteri</th>
+                                                <th>Telefon Numarası</th>
+                                                <th>Hizmetler</th>
+                                                 
+                                                <th>Tarih</th>
+                                                <th>Saat</th>
+                                                <th>Durum </th>
+                                             
+                                                <th>Oluşturan</th>
+                                                   <th></th>
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+                                           
+                                       </div>
+                                       <div class="tab-pane fade show" id="salon-randevu" role="tab-panel" style="margin-top: 20px;">
+                                          <table class="data-table table stripe hover nowrap" id="randevu_liste_salon">
+                                             <thead>
+                                                <th>Müşteri</th>
+                                                <th>Telefon Numarası</th>
+                                                <th>Hizmetler</th>
+                                                 
+                                                <th>Tarih</th>
+                                                <th>Saat</th>
+                                                <th>Durum </th>
+                                             
+                                                <th>Oluşturan</th>
+                                                   <th></th>
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+                                       </div>
+                                          <div class="tab-pane fade show" id="web-randevu" role="tab-panel" style="margin-top: 20px;">
+                                          <table class="data-table table stripe hover nowrap" id="randevu_liste_web">
+                                             <thead>
+                                                <th>Müşteri</th>
+                                                <th>Telefon Numarası</th>
+                                                <th>Hizmetler</th>
+                                                 
+                                                <th>Tarih</th>
+                                                <th>Saat</th>
+                                                <th>Durum </th>
+                                             
+                                                <th>Oluşturan</th>
+                                                   <th></th>
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+                                       </div>
+                                       <div class="tab-pane fade show" id="uygulama-randevu" role="tab-panel" style="margin-top: 20px;">
+                                          <table class="data-table table stripe hover nowrap" id="randevu_liste_uygulama">
+                                             <thead>
+                                                <th>Müşteri</th>
+                                                <th>Telefon Numarası</th>
+                                                <th>Hizmetler</th>
+                                                 
+                                                <th>Tarih</th>
+                                                <th>Saat</th>
+                                                <th>Durum </th>
+                                             
+                                                <th>Oluşturan</th>
+                                                   <th></th>
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+                                       </div>
+                                    </div>
+                                 </div>
+                                 
+                              </div>
+                                <div
+                                 class="tab-pane fade show "
+                                 id="son-randevular"
+                                 role="tabpanel" style="margin-top: 20px;  
+ height: auto;"
+                              >
+                                 <div class="tab"
+
+                           >
+                                     <ul class="nav nav-tabs " role="tablist" >
+                                       <li class="nav-item">
+                                          <a class="nav-link active" data-toggle="tab" href="#tum-randevular" role="tab" aria-selected="true"  >Tüm Randevular</a>
+                                       </li>
+                                       <li class="nav-item">
+                                          <a class="nav-link" data-toggle="tab" href="#salon-randevu" role="tab" aria-selected="false" >Salon Tarafından Oluşturulan</a>
+                                       </li>
+                                       <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#web-randevu" role="tab" aria-selected="false" >Web Üzerinden Oluşturulan</a>
+
+                                       </li>
+                                       <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#uygulama-randevu" role="tab" aria-selected="false" >Uygulama Üzerinden Oluşturulan</a>
+
+                                       </li>
+                                    </ul>
+                                    <div class="tab-content">
+                                       <div class="tab-pane fade show active" id="tum-randevular" role="tab-panel" style="margin-top: 20px; ">
+
+                                         <table class="data-table table stripe hover nowrap" id="randevu_liste_tum">
+                                             <thead >
+                                                <th>Müşteri</th>
+                                                <th>Telefon Numarası</th>
+                                                <th>Hizmetler</th>
+                                                 
+                                                <th>Tarih</th>
+                                                <th>Saat</th>
+                                                <th>Durum </th>
+                                             
+                                                <th>Oluşturan</th>
+                                                   <th></th>
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+                                           
+                                       </div>
+                                       <div class="tab-pane fade show" id="salon-randevu" role="tab-panel" style="margin-top: 20px;">
+                                          <table class="data-table table stripe hover nowrap" id="randevu_liste_salon">
+                                             <thead>
+                                                <th>Müşteri</th>
+                                                <th>Telefon Numarası</th>
+                                                <th>Hizmetler</th>
+                                                 
+                                                <th>Tarih</th>
+                                                <th>Saat</th>
+                                                <th>Durum </th>
+                                             
+                                                <th>Oluşturan</th>
+                                                   <th></th>
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+                                       </div>
+                                          <div class="tab-pane fade show" id="web-randevu" role="tab-panel" style="margin-top: 20px;">
+                                          <table class="data-table table stripe hover nowrap" id="randevu_liste_web">
+                                             <thead>
+                                                <th>Müşteri</th>
+                                                <th>Telefon Numarası</th>
+                                                <th>Hizmetler</th>
+                                                 
+                                                <th>Tarih</th>
+                                                <th>Saat</th>
+                                                <th>Durum </th>
+                                             
+                                                <th>Oluşturan</th>
+                                                   <th></th>
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+                                       </div>
+                                       <div class="tab-pane fade show" id="uygulama-randevu" role="tab-panel" style="margin-top: 20px;">
+                                          <table class="data-table table stripe hover nowrap" id="randevu_liste_uygulama">
+                                             <thead>
+                                                <th>Müşteri</th>
+                                                <th>Telefon Numarası</th>
+                                                <th>Hizmetler</th>
+                                                 
+                                                <th>Tarih</th>
+                                                <th>Saat</th>
+                                                <th>Durum </th>
+                                             
+                                                <th>Oluşturan</th>
+                                                   <th></th>
+                                             </thead>
+                                             <tbody>
+                                            
+                                             </tbody>
+                                        </table>
+                                       </div>
+                                    </div>
+                                 </div>
+                                 
+                              </div>
+                              <div
+                                 class="tab-pane fade show"
+                                 id="urun-satislari"
+                                 role="tabpanel" style="margin-top: 20px;"
+                              >
+                                  
+                                       
+                                   <table id="adisyon_liste_ozet_urun" class="data-table table stripe hover nowrap">
+                                     <thead>
+                                       <tr>
+                                         <th>Müşteri</th>
+                                         <th>Ürün</th>
+                                       
+                                         
+                                         <th>Satan</th>
+                                         <th>Fiyat (₺)</th>
+                                         <th class="datatable-nosort"></th>
+                                       </tr>
+                                     </thead>
+                                     <tbody>
+                                       
+                                        
+                                     </tbody>
+                                   </table>
+                                  
+                              
+                              </div>
+                              <div
+                                 class="tab-pane fade show"
+                                 id="on-gorusmeler"
+                                 role="tabpanel" style="margin-top: 20px;"
+                              >
+                                  
+                                    <table class="data-table table stripe hover nowrap" id="on_gorusme_liste_gunluk">
+                                    <thead>
+                                       <th>
+                                                   <div class="dt-checkbox">
+                                                      <input
+                                                         type="checkbox"
+                                                          
+                                                         id="hepsini_sec_liste"
+                                                      />
+                                                      <span class="dt-checkbox-label"></span>
+                                                   </div>
+                                      </th>
+                                      <th>Oluşturma</th>
+                                      <th>Müşteri</th>
+                                      <th>Müşteri Tipi</th>
+                                      <th>Telefon</th> 
+                                      <th>Hatırlatma</th>
+                                      <th>Paket</th>
+                                      <th>Görüşmeyi Yapan</th>
+                                      <th>Durum</th>
+                                      <th>İşlemler</th>
+                                    </thead>
+                                    <tbody>
+                                      
+                                    </tbody>
+                                  </table>
+                              
+                              </div>
+                              <div class="tab-pane fade" id="alacak-hatirlatmalari" role="tabpanel" style="margin-top: 20px;">
+                                 <table id="alacak_hatirlatmalari" class="data-table table stripe hover nowrap">
+                                     <thead>
+                                       <tr>
+                                         <th>Müşteri</th>
+                                         <th>Planlanan Ödeme Tarihi</th>
+                                         <th>Tutar</th>
+                                    
+                                       </tr>
+                                     </thead>
+                                     <tbody>
+                                       
+                                        
+                                     </tbody>
+                                   </table>
+                              </div>
+                              <div class="tab-pane fade" id="paket-satislari" role="tabpanel" style="margin-top: 20px;">
+                                 <table id="adisyon_liste_ozet_paket" class="data-table table stripe hover nowrap">
+                                     <thead>
+                                       <tr>
+                                         <th>Müşteri</th>
+                                         <th>Paket</th>
+                                          
+                                         
+                                         <th>Satan</th>
+                                         <th>Fiyat (₺)</th>
+                                         <th class="datatable-nosort"></th>
+                                       </tr>
+                                     </thead>
+                                     <tbody>
+                                       
+                                        
+                                     </tbody>
+                                 </table>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+</div>
+
+ 
+@endsection

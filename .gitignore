@@ -1,0 +1,44 @@
+# Laravel core
+/vendor
+/node_modules
+
+# Environment
+.env
+.env.*.local
+
+# Logs
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/dbyedekler/*
+
+# Cache
+/bootstrap/cache/*.php
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo	
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PHPUnit
+.phpunit.result.cache
+
+# npm / build
+/public/build
+/public/hot
+
+# Laravel Mix / Vite
+/resources/dist
+
+# Debug
+npm-debug.log
+yarn-error.log
+
+# Sail
+/docker-compose.override.yml

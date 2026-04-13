@@ -1,0 +1,104 @@
+// Mixins
+
+// creates the triangle appended to the rectangles in the progress bar
+@mixin arrow() {
+    border-bottom: 50px solid transparent;
+    border-top: 50px solid transparent;
+    content: " ";
+    display: block;   
+    height: 0;
+    left: 100%;
+    margin-top: -50px;
+    position: absolute;
+    top: 50%;   
+    width: 0;
+}
+
+.progress-bar {
+    list-style: none;
+    overflow: hidden; // necessary to cut off top and bottom parts of triangles 
+    font: 14px Helvetica;
+    font-weight: 600;
+    display: flex;
+    counter-reset: li; // necessary to insert numbers before text
+    
+    &__steps {
+        background: #ddd;
+        color: #666;
+        width: 33%;
+        position: relative;
+        cursor: default;        
+        // remove default ordered list number styles
+        list-style-image: none;
+        list-style-type: none;
+        padding: 20px 5px;
+        text-align: center;
+        
+        @media screen and (min-width: 800px) {
+            padding: 20px 0 20px 65px; // create padding-left to position text
+            text-align: left;
+        }
+        
+        &:first-child {
+            @media screen and (min-width: 800px) {
+                padding: 20px 0 20px 30px;
+            }          
+        }
+        
+        // appended triangle
+        &:after {
+            @media screen and (min-width: 800px) {
+                @include arrow();          
+                border-left: 30px solid #ddd;
+                z-index: 2;
+            }
+
+        }
+        
+        // prepend triangle cutout to create separation border
+        &:before {
+            @media screen and (min-width: 800px) {
+                @include arrow();            
+                border-left: 30px solid #fff;
+                z-index: 1;
+                margin-left: 5px;
+            }
+        }      
+    }
+    
+    .current {
+        background: #647d5e;
+        color: #fff;
+        
+        &:after {
+            border-left: 30px solid #647d5e;
+        }
+    }
+}
+
+.progress-bar__steps--numbers {       
+    &:before {
+        @media screen and (min-width: 800px) {
+        // add numbers to the list items
+        content: counter(li) " ";
+        counter-increment: li;
+        // separate the numbers from the text
+        margin-right: 15px;
+        // add background circles
+        background: transparent;
+        border: 1px solid #666;
+        border-radius: 50%;
+        display: inline-block;
+        height: 20px;
+        line-height: 20px; // make the line-height the same as the height so that number aligns vertically
+        text-align: center;
+        width: 20px;      
+    }
+    
+        }
+        
+    .current &:before {
+        background: white;
+        color: #647d5e;
+    }
+}

@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "neon-emitter-410111",
+  "private_key_id": "d4474f1f1f0af3536a1da8dd066c7ed800a05a27",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCreikK8stI45o/\nNMQvGYH7ytAZuI+8sirHYFFBDR/bl+WuBJLJvSM0edN0Rz21MvlYcHisNgiKCugB\nUDypt0EHLeYkWF6DrEZGflm1fx1d1p6ITV79/UekL7UTHW/fdF1nLzFhltZ2duCp\nDQ40MqqbGoEJ/zOoTE4gzp+Fu85Gs+eepVnyziegn8pbp5WjVH+SMhIEk1IqOfkM\n0SMb8+nauoSUuS7CXIHEsla0dcQicpvwkVcrCtBobH61IL8ubj42PkMv0QM9O666\nzooeNXp0qxxJXMoPs8tei4uZIYEFYj8Zg5ODp6Hyd8tNkHsbkA1/qhDv+Y4rakO2\nPFm+nhuhAgMBAAECggEAA1ngDvV3OQ2voEAW/GemdWX9gp8ree/Oa7aLZ/bKcldp\n1uiCeNxQIZCm6/0PbOjZ3BtYlF769D2p0oq/oL5y0CHav0eV00Ns3ShPdv9Mst6E\nmxvN+S83tPL0ujKnUsnaoG9Y6vQQbWC927fkWOtLj7vpHSmmWAnjtfrrvaiRq6qE\nqpjee23/gzz4lyLeBnKiG0z050T4cTZV4Io6o+d3g/DK/wG16dslYc8YEEc90iRw\nPCKoaHzfA818lbN6biHX5xjdJejuPJ3Dy4+xaeSWNZelj2WR3j01tpeiMfMaeSGC\nfNlf1RizHlktB+UfT0seez9GJlAw0FYW7euNXq+DxQKBgQDkAEAIkUDHkOyAfsv/\n+/5NynUqPegC39RtlcHKfOpeg6mowyOyhWfqJS6xc7bhAbvnqyGu4tgJm95phJTW\nUd4UnUeMbOJzkJrK+1WDSrBuB3pQK6/CM0fDa5CEfPnzC3+J8udL+2nlkpchrVXB\nD/+EWzDa5q4hM6w2LoW/gwBz7QKBgQDAiPOEyotwGswO7QG63mw4fVGgn14QCodO\noCok+ZAU4MYD4qHxp+5MYE5aLCWOpoiOR1tCtmC/xLWVBvVSU+N06lAQASEzxNBh\nKMNwJbiypK/XpoUNGJ8CveRu+4OQ7XI/8p5Xh1XUJqb4dyw+iM4x0gVMtKBM7l4B\niQQmJ0A4BQKBgDk3DtqXiMgLyC2epBbC59ghnDFTg6tk++vcDtt/aVj6dVLSVVzx\nOVh6qDMDtLrWMo86VKOMbWZL5Q5ZpPf7Z12I8nF8yX7ypMWXOKhPz+JsofcIX3y+\nXZ3emk+FBTxGgGTfvcdFeheQJ7jdxI1ENHzEXYgxJzVRwD+AgTPD7hMpAoGBAJWa\nFHYrF5udBs/WMxDrgPWH0qRXELSwKaDbbMPcMqs2WEZuk9z82nn4HwmL4gbsuZCs\nO2oj4htAEsPga0B0NHoFEv7Mkery0+Oa0/lRJimRM50CI8IgTnXH7TabMgirp6mu\nsIBchUFaY0UO/I7+qBEoGrwWYbRFR0A0IcgvmYOtAoGAYi78V87h1I8R4z0DO66+\nETfKzu8U2L7tAmsz/xTqW94FDYjxbYEUM9pxijcvXUQhWo4+zsSoyjjo5sJ7CmXA\nrW1gHt5gE+WJ8x10839i4qiPRbNNZsa8ZEDLaopvDil9DejI1M1jdU3O4gyS0pWa\np1+LI8+rmO+L9s4nO6/1AjE=\n-----END PRIVATE KEY-----\n",
+  "client_email": "randevumcepte-nlp@neon-emitter-410111.iam.gserviceaccount.com",
+  "client_id": "104279845836137748375",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/randevumcepte-nlp%40neon-emitter-410111.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

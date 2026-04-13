@@ -1,0 +1,138 @@
+<?php return array (
+  'providers' => 
+  array (
+    0 => 'Illuminate\\Auth\\AuthServiceProvider',
+    1 => 'Illuminate\\Broadcasting\\BroadcastServiceProvider',
+    2 => 'Illuminate\\Cache\\CacheServiceProvider',
+    3 => 'Illuminate\\Cookie\\CookieServiceProvider',
+    4 => 'Illuminate\\Database\\DatabaseServiceProvider',
+    5 => 'Illuminate\\Encryption\\EncryptionServiceProvider',
+    6 => 'Illuminate\\Filesystem\\FilesystemServiceProvider',
+    7 => 'Illuminate\\Foundation\\Providers\\FoundationServiceProvider',
+    8 => 'Illuminate\\Hashing\\HashServiceProvider',
+    9 => 'Illuminate\\Mail\\MailServiceProvider',
+    10 => 'Illuminate\\Pagination\\PaginationServiceProvider',
+    11 => 'Illuminate\\Queue\\QueueServiceProvider',
+    12 => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
+    13 => 'Illuminate\\Session\\SessionServiceProvider',
+    14 => 'Illuminate\\Translation\\TranslationServiceProvider',
+    15 => 'Illuminate\\Validation\\ValidationServiceProvider',
+    16 => 'Illuminate\\View\\ViewServiceProvider',
+    17 => 'Barryvdh\\Debugbar\\ServiceProvider',
+    18 => 'Barryvdh\\DomPDF\\ServiceProvider',
+    19 => 'Hesto\\MultiAuth\\MultiAuthServiceProvider',
+    20 => 'HTMLMin\\HTMLMin\\HTMLMinServiceProvider',
+    21 => 'Intervention\\HttpAuth\\Laravel\\HttpAuthServiceProvider',
+    22 => 'Intervention\\Image\\ImageServiceProvider',
+    23 => 'Laravel\\Passport\\PassportServiceProvider',
+    24 => 'Laravel\\Tinker\\TinkerServiceProvider',
+    25 => 'Maatwebsite\\Excel\\ExcelServiceProvider',
+    26 => 'SimpleSoftwareIO\\QrCode\\QrCodeServiceProvider',
+    27 => 'Spatie\\Permission\\PermissionServiceProvider',
+    28 => 'Maatwebsite\\Excel\\ExcelServiceProvider',
+    29 => 'Laravel\\Passport\\PassportServiceProvider',
+    30 => 'App\\Providers\\AppServiceProvider',
+    31 => 'App\\Providers\\AuthServiceProvider',
+    32 => 'App\\Providers\\BroadcastServiceProvider',
+    33 => 'App\\Providers\\EventServiceProvider',
+    34 => 'App\\Providers\\RouteServiceProvider',
+    35 => 'Barryvdh\\DomPDF\\ServiceProvider',
+    36 => 'SimpleSoftwareIO\\QrCode\\QrCodeServiceProvider',
+    37 => 'Spatie\\Permission\\PermissionServiceProvider',
+    38 => 'Intervention\\Image\\ImageServiceProvider',
+    39 => 'HTMLMin\\HTMLMin\\HTMLMinServiceProvider',
+    40 => 'Barryvdh\\Debugbar\\ServiceProvider',
+  ),
+  'eager' => 
+  array (
+    0 => 'Illuminate\\Auth\\AuthServiceProvider',
+    1 => 'Illuminate\\Cookie\\CookieServiceProvider',
+    2 => 'Illuminate\\Database\\DatabaseServiceProvider',
+    3 => 'Illuminate\\Encryption\\EncryptionServiceProvider',
+    4 => 'Illuminate\\Filesystem\\FilesystemServiceProvider',
+    5 => 'Illuminate\\Foundation\\Providers\\FoundationServiceProvider',
+    6 => 'Illuminate\\Pagination\\PaginationServiceProvider',
+    7 => 'Illuminate\\Session\\SessionServiceProvider',
+    8 => 'Illuminate\\View\\ViewServiceProvider',
+    9 => 'Barryvdh\\Debugbar\\ServiceProvider',
+    10 => 'Barryvdh\\DomPDF\\ServiceProvider',
+    11 => 'Hesto\\MultiAuth\\MultiAuthServiceProvider',
+    12 => 'HTMLMin\\HTMLMin\\HTMLMinServiceProvider',
+    13 => 'Intervention\\HttpAuth\\Laravel\\HttpAuthServiceProvider',
+    14 => 'Intervention\\Image\\ImageServiceProvider',
+    15 => 'Laravel\\Passport\\PassportServiceProvider',
+    16 => 'Maatwebsite\\Excel\\ExcelServiceProvider',
+    17 => 'SimpleSoftwareIO\\QrCode\\QrCodeServiceProvider',
+    18 => 'Spatie\\Permission\\PermissionServiceProvider',
+    19 => 'Maatwebsite\\Excel\\ExcelServiceProvider',
+    20 => 'Laravel\\Passport\\PassportServiceProvider',
+    21 => 'App\\Providers\\AppServiceProvider',
+    22 => 'App\\Providers\\AuthServiceProvider',
+    23 => 'App\\Providers\\BroadcastServiceProvider',
+    24 => 'App\\Providers\\EventServiceProvider',
+    25 => 'App\\Providers\\RouteServiceProvider',
+    26 => 'Barryvdh\\DomPDF\\ServiceProvider',
+    27 => 'SimpleSoftwareIO\\QrCode\\QrCodeServiceProvider',
+    28 => 'Spatie\\Permission\\PermissionServiceProvider',
+    29 => 'Intervention\\Image\\ImageServiceProvider',
+    30 => 'HTMLMin\\HTMLMin\\HTMLMinServiceProvider',
+    31 => 'Barryvdh\\Debugbar\\ServiceProvider',
+  ),
+  'deferred' => 
+  array (
+    'Illuminate\\Broadcasting\\BroadcastManager' => 'Illuminate\\Broadcasting\\BroadcastServiceProvider',
+    'Illuminate\\Contracts\\Broadcasting\\Factory' => 'Illuminate\\Broadcasting\\BroadcastServiceProvider',
+    'Illuminate\\Contracts\\Broadcasting\\Broadcaster' => 'Illuminate\\Broadcasting\\BroadcastServiceProvider',
+    'cache' => 'Illuminate\\Cache\\CacheServiceProvider',
+    'cache.store' => 'Illuminate\\Cache\\CacheServiceProvider',
+    'memcached.connector' => 'Illuminate\\Cache\\CacheServiceProvider',
+    'hash' => 'Illuminate\\Hashing\\HashServiceProvider',
+    'hash.driver' => 'Illuminate\\Hashing\\HashServiceProvider',
+    'mailer' => 'Illuminate\\Mail\\MailServiceProvider',
+    'swift.mailer' => 'Illuminate\\Mail\\MailServiceProvider',
+    'swift.transport' => 'Illuminate\\Mail\\MailServiceProvider',
+    'Illuminate\\Mail\\Markdown' => 'Illuminate\\Mail\\MailServiceProvider',
+    'queue' => 'Illuminate\\Queue\\QueueServiceProvider',
+    'queue.worker' => 'Illuminate\\Queue\\QueueServiceProvider',
+    'queue.listener' => 'Illuminate\\Queue\\QueueServiceProvider',
+    'queue.failer' => 'Illuminate\\Queue\\QueueServiceProvider',
+    'queue.connection' => 'Illuminate\\Queue\\QueueServiceProvider',
+    'auth.password' => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
+    'auth.password.broker' => 'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider',
+    'translator' => 'Illuminate\\Translation\\TranslationServiceProvider',
+    'translation.loader' => 'Illuminate\\Translation\\TranslationServiceProvider',
+    'validator' => 'Illuminate\\Validation\\ValidationServiceProvider',
+    'validation.presence' => 'Illuminate\\Validation\\ValidationServiceProvider',
+    'command.tinker' => 'Laravel\\Tinker\\TinkerServiceProvider',
+  ),
+  'when' => 
+  array (
+    'Illuminate\\Broadcasting\\BroadcastServiceProvider' => 
+    array (
+    ),
+    'Illuminate\\Cache\\CacheServiceProvider' => 
+    array (
+    ),
+    'Illuminate\\Hashing\\HashServiceProvider' => 
+    array (
+    ),
+    'Illuminate\\Mail\\MailServiceProvider' => 
+    array (
+    ),
+    'Illuminate\\Queue\\QueueServiceProvider' => 
+    array (
+    ),
+    'Illuminate\\Auth\\Passwords\\PasswordResetServiceProvider' => 
+    array (
+    ),
+    'Illuminate\\Translation\\TranslationServiceProvider' => 
+    array (
+    ),
+    'Illuminate\\Validation\\ValidationServiceProvider' => 
+    array (
+    ),
+    'Laravel\\Tinker\\TinkerServiceProvider' => 
+    array (
+    ),
+  ),
+);

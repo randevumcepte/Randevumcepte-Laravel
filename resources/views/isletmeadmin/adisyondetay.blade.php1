@@ -1,0 +1,457 @@
+@if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
+@section('content')
+ 
+
+   {!!csrf_field()!!}
+     @if(\App\Senetler::where('adisyon_id',$adisyon->id)->count() == 1)
+     <input type="hidden" id='adisyonsenetid' value="{{\App\Senetler::where('adisyon_id',$adisyon->id)->value('id')}}">
+    @endif
+     @if(\App\TaksitliTahsilatlar::where('adisyon_id',$adisyon->id)->count() == 1)
+     <input type="hidden" id='adisyontaksitlitahsilatid' value="{{\App\TaksitliTahsilatlar::where('adisyon_id',$adisyon->id)->value('id')}}">
+    @endif
+   <input type="hidden" id='tahsilat_sayisi' value="{{$tahsilat_sayisi}}">
+   <input type="hidden" name="adisyon_id" value="{{$adisyon->id}}">
+   <div class="page-header">
+      <div class="row">
+         <div class="col-md-6 col-sm-6">
+            <div class="title">
+               <h1 style="font-size:20px">{{$sayfa_baslik}}</h1>
+            </div>
+            <nav aria-label="breadcrumb" role="navigation">
+               <ol class="breadcrumb">
+                  <li class="breadcrumb-item">
+                     <a href="/isletmeyonetim">Ana Sayfa</a>
+                  </li>
+                  <li class="breadcrumb-item">
+                     <a href="/isletmeyonetim/musteriler">Adisyonlar</a>
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                     {{$sayfa_baslik}}
+                  </li>
+               </ol>
+            </nav>
+         </div>
+         <div class="col-md-6 col-sm-6">
+            @if(\App\Adisyonlar::where('user_id',$adisyon->user_id)->where('salon_id',$isletme->id)->count()>3 
+                  && 
+               date('Y-m-d H:i:s', strtotime('+90 days',strtotime(\App\Adisyonlar::where('user_id',$adisyon->user_id)->where('salon_id',$isletme->id)->orderBy('id','desc')->value('created_at')))) < date('Y-m-d H:i:s', strtotime('+90 days', strtotime(date('Y-m-d H:i:s')))))
+            <img src="/public/img/sadik-1.png" style="width: 100px; height:auto;">
+            
+            @elseif(\App\Adisyonlar::where('user_id',$adisyon->user_id)->where('salon_id',$isletme->id)->count()==0)
+            <img src="/public/img/pasif-1.png" style="width: 100px; height:auto;">
+            @else
+            <img src="/public/img/aktif-1.png" style="width: 100px; height:auto;">
+            @endif
+      </div>
+      </div>
+   </div>
+   <div class="row">
+      <div class="col-md-9"> 
+         <div class="card-box pd-5"  style="margin-bottom:20px">
+          <form id="adisyon_tahsilat"  method="POST">
+            <div class="modal-header">
+               <h2>Tahsilat</h2>
+            </div>
+            <div class="modal-body">
+               {!!csrf_field()!!}
+               <input type="hidden" name="adisyon_id" value="{{$adisyon->id}}">
+               <input type="hidden" name="tahsilat_id" id='tahsilat_id'>
+               <input type="hidden" name="sube" value="{{$isletme->id}}">
+               <input type="hidden" id='senetli_toplam_tutar' name="senetli_toplam_tutar" value="{{\App\SenetVadeleri::join('senetler','senet_vadeleri.senet_id','=','senetler.id')->where('senetler.adisyon_id',$adisyon->id)->sum('senet_vadeleri.tutar')}}">
+               <div class="row">
+                  <div class="col-md-12">
+                     <div class="row" style="margin-bottom: 20px;">
+                       
+                        <div class="col-2">
+                           
+                           <button type="button" data-toggle="modal" data-target="#adisyon_yeni_hizmet_modal" id="adisyon_hizmet_ekle_button" class="btn btn-info btn-block adisyon_ekle_buttonlar"  style="font-size:12px">Hizmet Ekle</button>
+                           
+                        </div>
+                        <div class="col-2" style="padding-left: 0;">
+                            
+                           <button type="button" data-toggle="modal" id="adisyon_urun_ekle_button" data-target="#urun_satisi_modal" data-value='{{$adisyon->id}}'onclick="modalbaslikata('Yeni Ürün Satışı Ekle','')" class="btn  btn-danger  btn-block adisyon_ekle_buttonlar"  style="font-size:12px">Ürün Ekle</button>
+                           
+                        </div>
+                        <div class="col-2" style="padding-left: 0;">
+                            
+                           <button type="button" data-toggle="modal" id="adisyon_paket_ekle_button" data-target="#paket_satisi_modal" data-value='{{$adisyon->id}}' class="btn  btn-primary  btn-block adisyon_ekle_buttonlar" style="font-size:12px">Paket Ekle</button>
+                           
+                        </div>
+                       
+                        <div class="col-md-6 text-right" id="tahsilats_type">
+                           
+                                 @if(\App\Senetler::where('adisyon_id',$adisyon->id)->count() >= 1 || \App\TaksitliTahsilatlar::where('adisyon_id',$adisyon->id)->count()>=1)
+                                    <button type="button" class="btn btn-success" id='senetle_veya_taksitle_tahsil_et'> Alacaklar</button>
+                                 @endif
+                                 
+                                 @if(\App\SenetVadeleri::join('senetler','senet_vadeleri.senet_id','=','senetler.id')->where('senetler.adisyon_id',$adisyon->id)->sum('senet_vadeleri.tutar')+\App\TaksitVadeleri::join('taksitli_tahsilatlar','taksit_vadeleri.taksitli_tahsilat_id','=','taksitli_tahsilatlar.id')->where('taksitli_tahsilatlar.adisyon_id',$adisyon->id)->sum('taksit_vadeleri.tutar')< $toplam_tutar-$tahsilat_tutari)
+
+                                 <button type="button" id='yeni_taksitli_tahsilat_olusur' href="#" data-toggle="modal" data-target="#yeni_taksitli_tahsilat_modal" data-value='{{$adisyon->id}}' class="btn  btn-primary" style="font-weight: bold;">Taksit Yap</button> 
+                                @endif
+
+                           
+                          
+
+                           @if(\App\TaksitliTahsilatlar::where('adisyon_id',$adisyon->id)->count() != 1)
+                              
+                           @endif
+                        </div>
+                       </div>
+                       <div id='adisyon_tahsilati_hizmetler'>
+                           @foreach($adisyon->hizmetler as $hizmet)
+                           
+                           <div class="row" style="background:#cce5ff;margin:5px 0 5px 0; padding:5px;font-size:14px" id="adisyon_tahsilat_hiz" data-value="0">
+
+                              <div class="col-md-4 col-2 col-xs-2 col-sm-2">
+                                 <input type="hidden" class='adisyon_kalemler' name="adisyon_odeme_hizmet[]" value="{{$hizmet->fiyat-\App\TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->sum('tutar')}}" data-value="{{$hizmet->id}}">
+                                 
+                                  {{$hizmet->hizmet->hizmet_adi}} 
+                              </div>
+                              <div class="col-md-3 col-3 col-xs-3 col-sm-3">
+                                 @if($hizmet->personel_id !== null)
+                                    {{$hizmet->personel->personel_adi}} 
+                                 @else
+                                    {{$hizmet->cihaz->cihaz_adi}} 
+                                 @endif
+
+                              </div>
+                              <div class="col-md-2">
+                                   
+                                  1 adet
+                              </div>
+                             
+                              <div class="col-md-2" style="text-align:right">
+                                    <input type="hidden" class="form-control" name="hizmet_fiyati_adisyon" data-value="{{$hizmet->id}}" value="{{$hizmet->fiyat}}">
+
+                                    <span name="adisyon_hizmet_tahsilat_tutari" data-value="{{$hizmet->id}}">{{number_format($hizmet->fiyat - \App\TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->sum('tutar'),2,',','.')}}</span> ₺
+                                    <input type="hidden" name="adisyon_hizmet_tahsilat_tutari[]" data-value="{{$hizmet->id}}" data-inputmask =" 'alias' : 'currency'">
+                                    <input type="hidden" name="adisyon_hizmet_tahsilat_tutari_girilen[]" data-value="{{$hizmet->id}}" value="{{$hizmet->fiyat - \App\TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->sum('tutar') }}"  data-inputmask =" 'alias' : 'currency'">
+                                 </div>
+                                 <div class="col-md-1">
+                                    <button  type="button" style="padding:1px; border-radius: 0; line-height: 1px ; font-size:12px;background-color: transparent; border-color: transparent;color:#dc3545"  name="hizmet_formdan_sil_adisyon_mevcut"  data-value="{{$hizmet->id}}" class="btn btn-danger"><i class="icon-copy fa fa-remove"></i></button>
+                              </div>
+                           </div>
+                           @endforeach
+                        </div>
+                        <div id='adisyon_tahsilati_urunler'>
+                         @foreach($adisyon->urunler as $urun)
+                       
+                           <div class="row" style="background:#cce5ff;margin:5px 0 5px 0; padding:5px;font-size:14px" id="adisyon_tahsilat_urn" data-value="0">
+
+                              <div class="col-md-4 col-2 col-xs-2 col-sm-2">
+                                 <input type="hidden" class='adisyon_kalemler' name="adisyon_odeme_urun[]" value="{{$urun->fiyat - \App\TahsilatUrunler::where('adisyon_urun_id',$urun->id)->sum('tutar')}}" data-value="{{$urun->id}}">
+                                 {{$urun->urun->urun_adi}}
+                              </div>
+                              <div class="col-md-3  col-3 col-xs-3 col-sm-3">
+                                  {{$urun->personel->personel_adi}}
+
+                              </div>
+                              <div class="col-md-2">
+                                    {{$urun->adet}} adet
+
+                              </div> 
+                              
+                              <div class="col-md-2" style="text-align:right">
+                                    <input type="hidden" name="urun_fiyati_adisyon[]" value="{{$urun->fiyat}}"> 
+                                     
+                                    <span name="adisyon_urun_tahsilat_tutari" data-value="{{$urun->id}}">{{number_format($urun->fiyat - \App\TahsilatUrunler::where('adisyon_urun_id',$urun->id)->sum('tutar'),2,',','.')}}</span> ₺
+                                    <input type="hidden" name="adisyon_urun_tahsilat_tutari[]" data-value="{{$urun->id}}" value="" data-inputmask =" 'alias' : 'currency'">
+                                    <input type="hidden" name="adisyon_urun_tahsilat_tutari_girilen[]" data-value="{{$urun->id}}" value="{{$urun->fiyat - \App\TahsilatUrunler::where('adisyon_urun_id',$urun->id)->sum('tutar')}}"  data-inputmask =" 'alias' : 'currency'">
+                                 </div>
+                                 <div class="col-md-1">
+                                     <button type="button"  style="padding:1px; border-radius: 0; line-height: 1px ; font-size:12px;background-color: transparent; border-color: transparent;color:#dc3545"  name="urun_formdan_sil" data-value="{{$urun->id}}" class="btn btn-danger"><i class="icon-copy fa fa-remove"></i></button>
+                                 </div>
+                           </div>
+                        @endforeach
+                        </div>
+                        <div id='adisyon_tahsilati_paketler'>
+
+                         @foreach($adisyon->paketler as $paket)
+                           
+                           <div class="row" style="background:#cce5ff;margin:5px 0 5px 0; padding:5px;font-size:14px" id="adisyon_tahsilat_pkt" data-value="0">
+
+                              <div class="col-md-4 col-2 col-xs-2 col-sm-2">
+                                 @if($paket->senet_id == null && $paket->taksitli_tahsilat_id == null )
+                                 <input type="checkbox" name="paket_tahsilattan_cikar"  data-value="{{$paket->id}}">
+                                 @endif
+                                 <input type="hidden"  class='adisyon_kalemler' name="adisyon_odeme_paket[]" value="{{$paket->fiyat - \App\TahsilatPaketler::where('adisyon_paket_id',$paket->id)->sum('tutar')}}" data-value="{{$paket->id}}">
+                                 {{$paket->paket->paket_adi}}
+                              </div>
+                              <div class="col-md-3  col-3 col-xs-3 col-sm-3">
+                                  {{$paket->personel->personel_adi}}
+
+                              </div>
+                               <div class="col-md-2">
+                                  1 adet
+                              </div>
+                              <div class="col-md-2"  style="text-align:right">
+                                 <input type="hidden" name="paket_fiyati_adisyon[]" value="{{$paket->fiyat}}"> 
+                                     <span name="adisyon_paket_tahsilat_tutari" data-value="{{$paket->id}}">
+
+
+
+                                        </span> ₺
+                                     
+                                     <input type="hidden" name="adisyon_paket_tahsilat_tutari[]" data-value="{{$paket->id}}" value="" data-inputmask =" 'alias' : 'currency'">
+                                     <input type="hidden" name="adisyon_paket_tahsilat_tutari_girilen[]" data-value="{{$paket->id}}" value="{{$paket->fiyat - \App\TahsilatPaketler::where('adisyon_paket_id',$paket->id)->sum('tutar')}}"  data-inputmask =" 'alias' : 'currency'">
+                              </div>
+                              <div class="col-md-1">
+
+                                      <button type="button" style="padding:1px; border-radius: 0; line-height: 1px ; font-size:12px;background-color: transparent; border-color: transparent;color:#dc3545"  name="paket_formdan_sil" data-value="{{$paket->id}}" class="btn btn-danger"><i class="icon-copy fa fa-remove"></i></button>
+
+                              </div>
+                            
+                           </div>
+                        @endforeach
+                     </div>
+                  </div>
+               </div>
+               <div class="row" data-value="0">
+                  <div class="col-md-2 col-sm-6 col-xs-6 col-6 ">
+                     <div class="form-group">
+                        <label>Tarih</label>
+                        <input type="text" required class="form-control" name="tahsilat_tarihi" id='tahsilat_tarihi' value="{{date('Y-m-d')}}" autocomplete="off">
+                     </div>
+                  </div>
+                  <div class="col-md-2 col-sm-6 col-xs-6 col-6 ">
+                     <div class="form-group">
+                        <label style="width: 100%">Birim Tutar (₺)</label>
+                        <input  class="form-control try-currency" id='birim_tutar' value="{{number_format($toplam_tutar-$tahsilat_tutari,2,',','.')}}"   style="font-size:20px" >
+                        <input type="hidden" name="tahsilat_tutari" id='tahsilat_tutari' class="form-control">
+                        <input type="hidden" name="tahsilat_tutari_numeric" id='tahsilat_tutari_numeric' class="form-control">
+                     </div>
+                  </div>
+                  <div class="col-md-2 col-sm-6 col-xs-6 col-6 ">
+                     <div class="form-group">
+
+                        <label id='musteri_indirimi'>Müşteri İndirimi (%)</label>
+                        @if(\App\Adisyonlar::where('user_id',$adisyon->user_id)->where('salon_id',$isletme->id)->count()>3 
+                              && 
+                           date('Y-m-d H:i:s', strtotime('+90 days',strtotime(\App\Adisyonlar::where('user_id',$adisyon->user_id)->where('salon_id',$isletme->id)->orderBy('id','desc')->value('created_at')))) < date('Y-m-d H:i:s', strtotime('+90 days', strtotime(date('Y-m-d H:i:s')))))
+                                       <input type="tel" id="s_musteri_indirim" value="{{$isletme->sadik_musteri_indirim_yuzde}} " disabled class="form-control" style="font-size:20px">
+                                          @elseif(\App\Adisyonlar::where('user_id',$adisyon->user_id)->where('salon_id',$isletme->id)->count()==0)
+                         <input type="tel" id="p_musteri_indirim" value="{{$isletme->pasif_musteri_indirim_yuzde}} "  disabled class="form-control" style="font-size:20px">
+                           @else
+                        <input type="tel" id="a_musteri_indirim" value="{{$isletme->aktif_musteri_indirim_yuzde}} " disabled class="form-control" style="font-size:20px">
+                        @endif
+
+                     </div>
+                  </div>
+                  <div class="col-md-3 col-sm-6 col-xs-6 col-6 ">
+                     <div class="form-group">
+                        <label>İndirim (₺)</label>
+
+                        <input {{$adisyon->indirim_tutari ? 'disabled' : ''}} type="tel" name="indirim_tutari" id='indirim_tutari' class="form-control try-currency" value="{{$adisyon->indirim_tutari ? number_format($adisyon->indirim_tutari,2,',','.') : 0}}">
+                       
+                     </div>
+                  </div>
+                  <div class="col-md-3 col-sm-6 col-xs-6 col-6 ">
+                     <div class="form-group">
+                        <label>Ödenecek Tutar (₺)</label>
+                        
+                        <input type="tel" style="font-size: 20px; background-color: #d4edda; border-color: #c3e6cb;" class="form-control try-currency"  name="indirimli_toplam_tahsilat_tutari" id="indirimli_toplam_tahsilat_tutari" value="0">
+                     </div>
+                  </div>
+                 
+                  <div class="col-md-6 col-sm-6 col-xs-6 col-6 ">
+                     <div class="form-group input-icons">
+                        <label>Planlanan Alacak Tarihi</label>
+                        <i class="fa fa-calendar icon-inside-input" id="planlanan_icon"></i>
+                        <input type="text" class="form-control date-picker" name="planlanan_alacak_tarihi" id='planlanan_alacak_tarihi' style="padding-left:50px;" autocomplete="off">
+                     </div>
+                  </div>
+                  <div class="col-md-6 col-sm-6 col-xs-6 col-6 ">
+                     <div class="form-group">
+                        <label>Alacak Tutarı (₺)</label>
+                        <input type="tel" class="form-control try-currency" name="odenecek_tutar" id='odenecek_tutar'>
+                     </div>
+                  </div>
+                  <div class="col-md-6 col-sm-6 col-xs-6 col-6 ">
+                     <div class="form-group">
+                        <label>Ödeme Yönetmi</label>
+                        <select class="form-control" id='adisyon_tahsilat_odeme_yontemi' name="odeme_yontemi">
+                           @foreach(\App\OdemeYontemleri::all() as $odeme_yontemi)
+                           <option value="{{$odeme_yontemi->id}}">{{$odeme_yontemi->odeme_yontemi}}</option>
+                           @endforeach
+                        </select>
+                     </div>
+                  </div>
+               
+                  <div class="col-md-6  ">
+                     <div class="form-group">
+                        <label>Notlar</label>
+                        <textarea name="tahsilat_notlari" id='tahsilat_notlari' class="form-control"></textarea>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <div class="modal-footer" style="display:block">
+               <div class="row">
+                 
+                  <div class="col-md-6">
+                     <button type="submit" class="btn btn-success btn-lg btn-block"> <i class="fa fa-money"></i>
+                     Tahsil Et </button>
+                  </div>
+                  
+                   
+               </div>
+            </div>
+         </form></div>
+      </div>
+      <div class="col-md-3">
+         <div id="odeme_kayit_bolumu">
+            <h2>Ödeme</h2>
+            
+            <div class="card-box pd-20"  style="margin-bottom:20px">
+               <div class="row">
+                  <div class="col-12 col-xs-12 col-sm-12">
+                     <b style="width: 100%;">Alacak Tutarı (₺)</b>
+                  </div>
+                  <div class="col-md-12">
+                     <span id="tahsil_edilecek_kalan_tutar" style="color:#ff0000;font-size:30px">
+                        {{number_format($toplam_tutar-$tahsilat_tutari,2,',','.')}}
+                     </span>
+                  </div>
+                   
+                  <div class="col-md-12">
+                   
+                     <table class="table" style="margin-top:20px">
+                        <thead id="tahsilat_durumu">
+                           <tr>
+                              <td colspan="4" style='border:none;font-weight: bold;padding: 20px 0 20px 0;font-size: 16px;'>Adisyon Özeti</td>
+                           </tr>
+                           <tr>
+                              <td colspan="3">Birim Fiyat (₺)</td>
+                              <td id='hizmet_urunler_toplam_fiyat' style="text-align:right;"> {{number_format($toplam_tutar-$tahsilat_tutari,2,',','.')}}</td>
+                           </tr>
+                           <tr>
+                              <td colspan="3">İndirim Tutarı (₺)</td>
+                              <td id='uygulanan_indirim_tutari' style="text-align:right;">{{$adisyon->indirim_tutari ? number_format($adisyon->indirim_tutari,2,',','.') : 0}}</td>
+                           </tr>
+                           <tr style="font-weight: bold; color: green;">
+                              <td colspan="3">
+                                 Ödenen Tutar (₺): 
+                              </td>
+                              <td id="tahsil_edilen_tutar" style="text-align:right;">
+                                 {{number_format($tahsilat_tutari,2,',','.')}}
+                              </td>
+                           </tr>
+                             <tr style="font-weight: bold; color: red;">
+                              <td colspan="3">
+                                 Alacak Tutarı (₺): 
+                              </td>
+                              <td class="tahsil_edilecek_kalan_tutar" style="text-align:right;">
+                                   {{number_format($toplam_tutar-$tahsilat_tutari,2,',','.')}}
+                              </td>
+                           </tr>
+                          
+                           
+                        </thead>
+                        <tbody id="tahsilat_listesi">
+                           <tr>
+                              <td colspan="4" style='border:none;font-weight: bold;padding: 20px 0 20px 0;font-size: 16px;'>Ödeme Akışı</td>
+                           </tr>
+                           @foreach($tahsilatlar as $key=>$tahsilat)
+                           <tr>
+                              <td>{{$key+1}}. Ödeme</td>
+                              <td>{{date('d.m.Y',strtotime($tahsilat->odeme_tarihi))}} </td>
+                              <td>{{number_format($tahsilat->tutar,2,',','.')}} </td>
+                              <td>
+                                 {{$tahsilat->odeme_yontemi->odeme_yontemi}}
+                              </td>
+                              <td>
+                                 <button type="button" style="padding:1px; border-radius: 0; line-height: 1px ; font-size:12px;background-color: transparent; border-color: transparent;color:#dc3545" name="tahsilat_adisyondan_sil" data-value="{{$tahsilat->id}}" class="btn btn-danger"><i class="icon-copy fa fa-remove"></i></button>
+                              </td>
+                           </tr>
+                           @endforeach
+                        </tbody>
+                        
+                     </table>
+                  </div>
+               </div>
+            </div>
+            <button type="submit" class="btn btn-success" style="width:100%;margin-top: 10px;display: none;">Değişiklikleri Kaydet</button>
+         </div>
+      </div>
+   </div>
+</form>
+ 
+<div
+   id="tahsilat_modal"
+   class="modal modal-top fade calendar-modal"
+   >
+   <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="max-height: 90%;">
+
+      </div>
+     
+   </div>
+</div>
+<div
+   id="alacak_modal_adisyon"
+   class="modal modal-top fade calendar-modal"
+   >
+   <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="max-height: 90%;">
+         <form id="alacak_formu"  method="POST">
+            <div class="modal-header">
+               <h2>Yeni Alacak</h2>
+            </div>
+            <div class="modal-body">
+               {!!csrf_field()!!}
+               <input type="hidden" name="adisyon_id" value="{{$adisyon->id}}">
+               <div class="row" data-value="0">
+                  <div class="col-md-6">
+                     <div class="form-group">
+                        <label>Tarih</label>
+                        <input type="text" required class="form-control date-picker" name="olusturma_tarih" value="{{date('Y-m-d')}}" autocomplete="off">
+                     </div>
+                  </div>
+                  <div class="col-md-6">
+                     <div class="form-group">
+                        <label>Tutar (₺)</label>
+                        <input type="tel" name="tahsilat_tutari" required class="form-control">
+                     </div>
+                  </div>
+                  <div class="col-md-12">
+                     <div class="form-group">
+                        <label>Planlanan Ödeme Tarihi</label>
+                        <input type="text" class="form-control date-picker" name="planlanan_odeme_tarihi" autocomplete="off">
+                     </div>
+                  </div>
+               </div>
+               <div class="row">
+                  <div class="col-md-12">
+                     <div class="form-group">
+                        <label>Notlar</label>
+                        <textarea name="alacak_notlari" class="form-control"></textarea>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <div class="modal-footer" style="display:block">
+               <div class="row">
+                  <div class="col-md-6">
+                     <button type="submit" class="btn btn-success btn-lg btn-block"> <i class="fa fa-save"></i>
+                     Kaydet </button>
+                  </div>
+                  <div class="col-md-6">
+                     <button  
+                        type="button"
+                        class="btn btn-danger btn-lg btn-block"
+                        data-dismiss="modal"
+                        > <i class="fa fa-times"></i>
+                     Kapat
+                     </button>
+                  </div>
+               </div>
+            </div>
+      </div>
+   
+   </div>
+</div>
+
+<div id="hata"></div>
+</div>
+
+@endsection

@@ -1,0 +1,162 @@
+<div id="formugondermodal" class="modal modal-top fade calendar-modal">
+    <div class="modal-dialog modal-dailog-centered" style="max-width: 750px">
+        <form id="arsivformekleme">
+            {{ csrf_field() }}
+            <input type="hidden" name="sube" value="{{$isletme->id}}">
+            <input type="hidden" name="arsiv_id" id="arsiv_id" value="">
+            <div class="modal-content" style="min-height: 320px;">
+                <div class="modal-header">
+                    <h4 class="h4">Form Oluştur</h4>
+                    <button
+                        type="button"
+                        class="close"
+                        data-dismiss="modal"
+                        aria-hidden="true"
+                    >
+                    ×
+                    </button>
+                </div>
+                <div class="modal-body" style="padding:1rem 1rem 0rem 1rem;">
+                    <div class="row">
+                        <div class="col-md-3 col-sm-6 col-xs-6 col-6 form-group">
+                            <label>Form/Sözleşme Türü</label>
+                            <select name="formtaslaklari" id="formtaslaklari" class="form-control opsiyonelSelect" style="width: 100%;">
+                                @foreach(\App\FormTaslaklari::where('salon_id',$isletme->id)->orWhereNull('salon_id')->get() as $formTaslak)
+                                <option></option>
+                                <option value="{{$formTaslak->id}}">{{$formTaslak->form_adi}}</option>
+                                @endforeach
+                              
+
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-sm-6 col-xs-6 col-6 form-group">
+                            <label>Müşteri</label>
+                            <select name="formmusterisec" id="formmusterisec" class="form-control opsiyonelSelect musteri_secimi" style="width: 100%;">
+                                <option></option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group">
+                            <label>Cep Telefon</label>
+                            <input class="form-control" required type="tel" name="formmustericeptelefon" id="formmustericeptelefon">
+                        </div>
+                        
+                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group">
+                            <label>TC Kimlik No</label>
+                            <input class="form-control" required type="tel" name="formmusterikimlikno" id="formmusterikimlikno">
+                        </div>
+                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group">
+                            <label>Cinsiyet</label>
+                            <select name="formmustericinsiyet" id="formmustericinsiyet" class="form-control">
+                                <option value="0">Kadın</option>
+                                <option value="1">Erkek</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group">
+                            <label>Doğum Tarihi</label>
+                            <input type="text" name="formmusteriyas" id='formmusteriyas' class="form-control" value="">
+                        </div>
+                        <div class="col-md-3 col-sm-6 col-xs-6 col-6">
+                            <label>İşlemi Yapan Personel</label>
+                            <select name="formpersonelsec" id="formpersonelsec" class="form-control opsiyonelSelect personel_secimi" style="width: 100%;">
+                                <option></option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group">
+                            <label>Personel Cep Telefon</label>
+                            <input class="form-control" required type="tel" name="formmpersonelceptelefon" id="formpersonelceptelefon">
+                        </div>
+                        <!--Hizmet Alanı - Gizli olarak başlangıçta -->
+                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group hizmet-alani" style="display: none;">
+                            <label>Hizmet</label>
+                            <select style="width:100%" class="form-control opsiyonelSelect hizmet_secimi" name="hizmetSozlesmesiHizmet" id="hizmetSozlesmesiHizmet"></select>
+                        </div>
+                        <!-- Kapora ve Toplam Ücret Alanları - Gizli olarak başlangıçta -->
+                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group ucret-alani" style="display: none;">
+                            <label>Toplam Ücret (₺)</label>
+                            <input class="form-control" type="tel" name="toplam_ucret" id="toplam_ucret" placeholder="0.00">
+                        </div>
+                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group ucret-alani" style="display: none;">
+                            <label>Kapora (₺)</label>
+                            <input class="form-control" type="tel" name="kapora" id="kapora" placeholder="0.00">
+                        </div>
+
+                    </div>
+                </div>
+                <div class="modal-footer" style="justify-content: center;">
+                    <div class="col-md-6 col-xs-6 col-6 col-sm-6">
+                        <button type="submit" class="btn btn-success btn-block">Gönder</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Form türü değiştiğinde kontrol et
+    $('#formtaslaklari').change(function() {
+        var selectedValue = $(this).val();
+        
+        // Gelin Başı (9) veya Riskli Saç (10) seçildiğinde
+        if (selectedValue == '9' || selectedValue == '10' ) {
+            $('.ucret-alani').slideDown(300);
+            $('#toplam_ucret').prop('required', true);
+            $('#kapora').prop('required', true);
+        }
+
+         else {
+            $('.ucret-alani').slideUp(300);
+
+            $('#toplam_ucret').prop('required', false);
+            $('#kapora').prop('required', false);
+        }
+        if(selectedValue == "12")
+        {
+           $('.hizmet-alani').slideDown(300);
+            $('.ucret-alani').slideDown(300);
+            $('#toplam_ucret').prop('required', true);
+            $('#kapora').prop('required', false);
+        }
+        else if(selectedValue != '9' && selectedValue != '10')
+        {
+            $('.hizmet-alani').slideUp(300);
+            $('#toplam_ucret').prop('required', false);
+            $('#kapora').prop('required', false);
+            $('.ucret-alani').slideUp(300);
+        }
+
+
+    });
+
+    // Modal kapandığında alanları temizle
+    $('#formugondermodal').on('hidden.bs.modal', function() {
+        $('.ucret-alani').hide();
+        $('#toplam_ucret').val('');
+        $('#kapora').val('');
+        $('#toplam_ucret').prop('required', false);
+        $('#kapora').prop('required', false);
+    });
+
+    // Form gönderiminde validasyon
+    $('#arsivformekleme').submit(function(e) {
+        var selectedForm = $('#formtaslaklari').val();
+        var toplamUcret = $('#toplam_ucret').val();
+        var kapora = $('#kapora').val();
+
+        // Gelin Başı veya Riskli Saç için ücret kontrolü
+        if ((selectedForm == '9' || selectedForm == '10') && (!toplamUcret || !kapora)) {
+            e.preventDefault();
+            alert('Gelin Başı ve Riskli Saç sözleşmeleri için Toplam Ücret ve Kapora alanları zorunludur!');
+            return false;
+        }
+
+        // Kapora toplam ücretten fazla olamaz
+        if (toplamUcret && kapora && parseFloat(kapora) > parseFloat(toplamUcret)) {
+            e.preventDefault();
+            alert('Kapora miktarı toplam ücretten fazla olamaz!');
+            return false;
+        }
+    });
+});
+</script>

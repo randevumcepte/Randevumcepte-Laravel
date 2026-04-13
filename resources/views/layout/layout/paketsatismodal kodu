@@ -1,0 +1,136 @@
+<div
+   id="paket_satisi_modal"
+   class="modal modal-top fade calendar-modal"
+   >
+   <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="max-height: 90%;">
+         <form id="paket_satisi"  method="POST">
+            <div class="modal-header">
+               <h2 class="modal_baslik"></h2>
+            </div>
+            <div class="modal-body">
+               {!!csrf_field()!!}
+                
+                
+               <div class="row" data-value="0">
+                     <div class="col-md-12">
+                        <div class="form-group">
+                           <label>Tarih</label>
+
+                           <input type="text" required class="form-control date-picker" name="paket_satis_tarihi" value="{{date('Y-m-d')}}">
+                        </div>
+                     </div>
+               </div>
+
+               <div class="row">
+                  
+                  <div class="col-md-12">
+                     <div class="form-group">
+                        <label>Müşteri</label>
+                        <select name="musteri" id="musteri_paket" class="form-control custom-select2" style="width:100%">
+                           @foreach(\App\MusteriPortfoy::where('salon_id',Auth::user()->salon_id)->get() as $musteri)
+                           <option value="{{$musteri->user_id}}">{{$musteri->users->name}}</option>
+                           @endforeach
+                        </select>
+                     </div>
+                  </div>
+               </div>
+               <div class="paketler_bolumu">
+                  <div class="row" data-value="0">
+                     <div class="col-md-2">
+                        <div class="form-group">
+                          <label>Adet</label>
+                          <input type="tel" required name="adet" id="paketadet" class="form-control" required>
+                         
+                          
+                        </div>
+                     </div>
+                     <div class="col-md-3">
+                        <div class="form-group">
+                          <label>Tip</label>
+                          <select name="tip" id="pakettip" class="form-control">
+                             <option value="1">Seans</option>
+                             <option value="0">Dakika</option>
+                          </select>
+                    
+                          
+                        </div>
+                     </div>
+                     <div class="col-md-3">
+                        <div class="form-group">
+                           <label>Hizmet</label>
+                           <select name="hizmet" id="pakethizmet" class="form-control custom-select2" style="width:100%">
+                           @foreach(\App\SalonHizmetler::where('salon_id',Auth::user()->salon_id) as $hizmetliste)
+                              <option value="{{$hizmetliste->hizmet_id}}">{{$hizmetliste->hizmetler->hizmet_adi}}</option>
+                           @endforeach
+                           </select>
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                        <div class="form-group">
+                           <label>Fiyat (₺)</label>
+                           <input type="tel" name="fiyat" id="paketfiyat" class="form-control" required>
+                        </div>
+                     </div>
+                     <div class="col-md-2">
+                           <div class="form-group">
+                              <label style="visibility: hidden;width: 100%;">Kaldır</label>
+                              <button type="button" name="paket_formdan_sil"  data-value="0" class="btn btn-danger" disabled><i class="icon-copy fa fa-remove"></i></button>
+                           </div>
+                     </div>
+                  </div> 
+               </div>
+               <div class="row">
+                  <div class="col-md-6">
+                     <div class="form-group">
+                        <button type="button" id="bir_paket_daha_ekle" class="btn btn-secondary btn-lg btn-block">
+                        Yeni Paket Ekle
+                        </button>
+                     </div>
+                  </div>
+                  <div class="col-md-6">
+                     <div class="form-group">
+                        <button type="button" id="kayitli_paketlerden_sec" class="btn btn-primary btn-lg btn-block">Kayıtlı Paketlerden Seç</button>
+                     </div>
+                  </div>
+               </div>
+               <div class="row">
+                  <div class="col-md-12">
+                     <div class="form-group">
+                        <label>Satıcı</label>
+                        <select name="paket_satici[]" class="form-control custom-select2" style="width: 100%;">
+                           @foreach(\App\Personeller::where('salon_id',Auth::user()->salon_id)->get() as $personel)
+                           <option value="{{$personel->id}}">{{$personel->personel_adi}}</option>
+                           @endforeach
+                        </select>
+                     </div>
+                  </div>
+                  <div class="col-md-12">
+                     <div class="form-group">
+                        <label>Notlar</label>
+                        <textarea name="paket_satis_notlari" class="form-control"></textarea>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <div class="modal-footer" style="display: block;">
+               <div class="row">
+                  <div class="col-md-6">
+                     <button type="submit" class="btn btn-success btn-lg btn-block">Kaydet</button>
+                  </div>
+                  <div class="col-md-6">
+                        <button  
+                  class="btn btn-danger btn-lg btn-block"
+                  data-dismiss="modal"
+                  >
+                     Kapat
+               </button>
+                  </div>
+               </div>
+            
+            
+            </div>
+      </div>
+      </form>
+   </div>
+</div>

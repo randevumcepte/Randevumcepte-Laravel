@@ -1,0 +1,731 @@
+@extends('layouts.layout_satisortakligi')
+
+@section('content')
+
+<?php $toplam = 0; 
+
+   $talep_edilen_toplam = 0;
+
+   use Carbon\Carbon;
+
+   $datetime = Carbon::now('Europe/Istanbul');
+
+   
+
+   ?>
+
+@foreach($musteriler as $guncel_musteri)
+
+@foreach(\App\Musteri_Formlari_Hizmetler::where('form_id',$guncel_musteri->id)->get() as $basarili_satis_hizmetler)
+
+@if($guncel_musteri->devam_eden_odeme)
+
+@if($guncel_musteri->bayi_hakedis_odeme_durumu_id == 3)
+
+<?php $toplam+=($basarili_satis_hizmetler->ucret/20); ?>
+
+@else
+
+<?php $talep_edilen_toplam+=($basarili_satis_hizmetler->ucret/20); ?>
+
+@endif
+
+@else
+
+@if($guncel_musteri->bayi_hakedis_odeme_durumu_id == 3)
+
+<?php $toplam+=($basarili_satis_hizmetler->ucret/10); ?>
+
+@else
+
+<?php $talep_edilen_toplam+=($basarili_satis_hizmetler->ucret/10); ?>
+
+@endif
+
+@endif
+
+@endforeach
+
+@endforeach
+
+<div class="header pb-6 d-flex align-items-center" style="min-height: 274px;">
+
+   <span class="mask bg-gradient-default opacity-8"></span>
+
+   <!-- Header container -->
+
+   <div class="container-fluid d-flex align-items-center">
+
+      <div class="row">
+
+         <div class="col-lg-7 col-md-10">
+
+            <h1 class="display-2 text-white">İn-Ortak Paneli</h1>
+
+            <p class="text-white mt-0 mb-5">Bu bölümde aktif ve pasif müşterilerinizi ve yapılan satışlardan hakedişlerinizi görebilirsiniz</p>
+
+         </div>
+
+      </div>
+
+   </div>
+
+</div>
+
+<!-- Page content -->
+
+<div class="container-fluid mt--6">
+
+   <div class="row">
+
+      <div class="col-xl-5 order-xl-2">
+
+         <div class="card card-profile">
+
+             
+
+            <div class="row justify-content-center">
+
+               <div class="col-lg-3 order-lg-2">
+
+                  <div class="card-profile-image">
+
+                     <img src="{{secure_asset('public/satisortakligipanel/assets/img/auth.png')}}" class="rounded-circle" style="    background: #fff;">
+
+                     </a>
+
+                  </div>
+
+               </div>
+
+            </div>
+
+            <div class="card-header text-center border-0 pt-8 pt-md-4 pb-0 pb-md-4" style="display: none">
+
+               <div class="d-flex justify-content-between">
+
+                  <a href="#" class="btn btn-sm btn-info mr-4">Canlı Destek</a>
+
+                  <a href="#" class="btn btn-sm btn-default float-right">Mesaj Gönder</a>
+
+               </div>
+
+            </div>
+
+            <div class="card-body pt-0" style="margin-top:50px">
+
+               <div class="row">
+
+                  <div class="col">
+
+                     <div class="text-center">
+
+                        <h5 class="h3" style="margin-top: 20px;font-size:20px">
+
+                           {{Auth::user()->ad_soyad}}
+
+                        </h5>
+
+                     </div>
+
+                     <div class="card-profile-stats d-flex justify-content-center" style="padding: 0">
+
+                        <div>
+
+                           <span class="heading text-success" id="bayi_guncel_hakedis" data-value="<?php echo $toplam; ?>" style="font-size:25px;font-weight: bold"><?php echo $toplam;?> <span style="font-size:20px">₺</span></span>
+
+                           <span class="description" style="color:#000;">Güncel Hakediş Tutarı</span>
+
+                        </div>
+
+                        <div>
+
+                           <span class="heading text-success" style="font-size: 25px;font-weight: ">{{$aktif_musteriler}}</span>
+
+                           <a href="/İn-Ortak/aktif-musteriler"><span class="description" style="color:#000;">Aktif Müşteri</span></a>
+
+                        </div>
+
+                     </div>
+
+                  </div>
+
+               </div>
+
+            </div>
+
+         </div>
+
+         <!-- Progress track -->
+
+      </div>
+
+      <div class="col-xl-7 order-xl-1">
+
+         <div class="row">
+
+            <div class="col-lg-6">
+
+               <div class="card bg-gradient-info border-0">
+
+                  <!-- Card body -->
+
+                  <a href="/İn-Ortak/aktif-musteriler">
+
+                     <div class="card-body">
+
+                        <div class="row">
+
+                           <div class="col">
+
+                              <h5 class="card-title text-uppercase text-muted mb-0 text-white">
+
+                                 <!--<img src="{{asset ('public/satisortakligipanel/assets/img/brand/google-ads-logo-dark.png')}}" style="width: 100%; height: auto" >-->
+
+                                 AKTİF MÜŞTERİLER
+
+                              </h5>
+
+                              <span class="h2 font-weight-bold mb-0 text-white" style="font-size: 40px">{{$aktif_musteriler}} </span>
+
+                           </div>
+
+                           <div class="col-auto">
+
+                              <div class="icon icon-shape bg-white text-dark rounded-circle shadow">
+
+                                 <i class="ni ni-money-coins"></i>
+
+                              </div>
+
+                           </div>
+
+                        </div>
+
+                     </div>
+
+                  </a>
+
+               </div>
+
+            </div>
+
+            <div class="col-lg-6">
+
+               <div class="card bg-gradient-danger border-0">
+
+                  <!-- Card body -->
+
+                  <a href="/İn-Ortak/pasif-musteriler">
+
+                     <div class="card-body">
+
+                        <div class="row">
+
+                           <div class="col">
+
+                              <h5 class="card-title text-uppercase text-muted mb-0 text-white">
+
+                                 PASİF MÜŞTERİLER
+
+                              </h5>
+
+                              <span class="h2 font-weight-bold mb-0 text-white" style="font-size: 40px">{{$pasif_musteriler}}</span>
+
+                           </div>
+
+                           <div class="col-auto">
+
+                              <div class="icon icon-shape bg-white text-dark rounded-circle shadow">
+
+                                 <i class="ni ni-chart-pie-35"></i>
+
+                              </div>
+
+                           </div>
+
+                        </div>
+
+                     </div>
+
+                  </a>
+
+               </div>
+
+            </div>
+
+            <div class="col-lg-6" style="display:none">
+
+               <div class="card bg-gradient-warning border-0">
+
+                  <!-- Card body -->
+
+                  <a href="/İn-Ortak/ads-musterileri">
+
+                     <div class="card-body">
+
+                        <div class="row">
+
+                           <div class="col">
+
+                              <h5 class="card-title text-uppercase text-muted mb-0 text-white">
+
+                                 ADS MÜŞTERİLERİ
+
+                              </h5>
+
+                              <span class="h2 font-weight-bold mb-0 text-white" style="font-size: 40px">
+
+                              {{$ads_musterileri}}
+
+                              </span>
+
+                           </div>
+
+                           <div class="col-auto">
+
+                              <div class="icon icon-shape bg-white text-dark rounded-circle shadow">
+
+                                 <i class="ni ni-active-40"></i>
+
+                              </div>
+
+                           </div>
+
+                        </div>
+
+                     </div>
+
+                  </a>
+
+               </div>
+
+            </div>
+
+            <div class="col-lg-6" style="display:none">
+
+               <div class="card bg-gradient-success border-0">
+
+                  <!-- Card body -->
+
+                  <a href="/İn-Ortak/ajans-musterileri">
+
+                     <div class="card-body">
+
+                        <div class="row">
+
+                           <div class="col">
+
+                              <h5 class="card-title text-uppercase text-muted mb-0 text-white">
+
+                                 AJANS MÜŞTERİLERİ
+
+                              </h5>
+
+                              <span class="h2 font-weight-bold mb-0 text-white" style="font-size: 40px">
+
+                              {{$ajans_musterileri}}
+
+                              </span>
+
+                           </div>
+
+                           <div class="col-auto">
+
+                              <div class="icon icon-shape bg-white text-dark rounded-circle shadow">
+
+                                 <i class="ni ni-chart-bar-32"></i>
+
+                              </div>
+
+                           </div>
+
+                        </div>
+
+                     </div>
+
+                  </a>
+
+               </div>
+
+            </div>
+
+            <div class="col-lg-6">
+
+               <div class="card bg-gradient-default border-0">
+
+                  <!-- Card body -->
+
+                  <a href="/İn-Ortak/gecmis-odemeler">
+
+                     <div class="card-body">
+
+                        <div class="row">
+
+                           <div class="col">
+
+                              <h5 class="card-title text-uppercase text-muted mb-0 text-white">
+
+                                 <!--<img src="{{asset ('public/satisortakligipanel/assets/img/brand/google-ads-logo-dark.png')}}" style="width: 100%; height: auto" >-->
+
+                                 GEÇMİŞ ÖDEMELER
+
+                              </h5>
+
+                              <span class="h2 font-weight-bold mb-0 text-white" style="font-size: 40px">
+
+                              {{$gecmis_odemeler}} ₺
+
+                              </span>
+
+                           </div>
+
+                           <div class="col-auto">
+
+                              <div class="icon icon-shape bg-white text-dark rounded-circle shadow">
+
+                                 <i class="ni ni-money-coins"></i>
+
+                              </div>
+
+                           </div>
+
+                        </div>
+
+                     </div>
+
+                  </a>
+
+               </div>
+
+            </div>
+
+            <div class="col-lg-6">
+
+               <div class="card bg-gradient-warning border-0">
+
+                  <!-- Card body -->
+
+                  <a href="/İn-Ortak/odeme-talepleri">
+
+                     <div class="card-body">
+
+                        <div class="row">
+
+                           <div class="col">
+
+                              <h5 class="card-title text-uppercase text-muted mb-0 text-white">
+
+                                 <!--<img src="{{asset ('public/satisortakligipanel/assets/img/brand/google-ads-logo-dark.png')}}" style="width: 100%; height: auto" >-->
+
+                                 TALEP EDİLEN HAKEDİŞ
+
+                              </h5>
+
+                              <span class="h2 font-weight-bold mb-0 text-white" style="font-size: 40px">
+
+                              {{$talep_edilen_hakedis}} ₺
+
+                              </span>
+
+                           </div>
+
+                           <div class="col-auto">
+
+                              <div class="icon icon-shape bg-white text-dark rounded-circle shadow">
+
+                                 <i class="ni ni-money-coins"></i>
+
+                              </div>
+
+                           </div>
+
+                        </div>
+
+                     </div>
+
+                  </a>
+
+               </div>
+
+            </div>
+
+         </div>
+
+      </div>
+
+   </div>
+
+   <div class="col-xl-12 order-xl-3">
+
+      <div class="card">
+
+         <!-- Card header -->
+
+         <div class="card-header border-0">
+
+            <h3 class="mb-0">Güncel Yönlendirilen Firmalar
+
+               @if($toplam == 0)
+
+               <button type="button" disabled id="odeme_talep_et_button" style="float: right;" class="btn btn-primary" data-toggle="modal" data-target="#modal-default"><i class="ni ni-money-coins"></i>Ödeme Talep Et</button>
+
+               @else
+
+               <button type="button"  id="odeme_talep_et_button" style="float: right;" class="btn btn-primary" data-toggle="modal" data-target="#modal-default"><i class="ni ni-money-coins"></i>Ödeme Talep Et</button>
+
+               @endif
+
+            </h3>
+
+         </div>
+
+         <div class="table-responsive">
+
+            <table class="table align-items-center table-flush">
+
+               <thead class="thead-light">
+
+                  <tr>
+
+                     <th>#</th>
+
+                     <th>Firma Unvanı</th>
+
+                     <th>Firma Yetkilisi</th>
+
+                     <th>ADS</th>
+
+                     <th>Sosyal Medya</th>
+
+                     <th>Ajans</th>
+
+                     <th>Hakediş</th>
+
+                  </tr>
+
+               </thead>
+
+               <tbody class="list">
+
+                  @foreach($musteri_bilgileri as $musteri_form)
+
+                  @if($musteri_form->musteri->bayi_id == Auth::user()->id)
+
+                  <tr>
+
+                     <td>{{$musteri_form->id}}</td>
+
+                     <td><a href="/İn-Ortak/firma-detay-dokum/{{$musteri_form->musteri->id}}">{{$musteri_form->musteri->firma_unvani}}</a></td>
+
+                     <td>{{$musteri_form->musteri->ad_soyad}}</td>
+
+                     <td name="ads_odeme">
+
+                        @foreach(\App\Musteri_Formlari_Hizmetler::where('form_id',$musteri_form->id)->get() as $hizmetler)
+
+                        @if($hizmetler->hizmet_id == 1)
+
+                        {{$hizmetler->ucret}} ₺
+
+                        @endif
+
+                        @endforeach
+
+                     </td>
+
+                     <td name="sosyal_medya_odeme">
+
+                        <?php $hizmet_sosyal_medya_ucret = 0;?>
+
+                        @foreach(\App\Musteri_Formlari_Hizmetler::where('form_id',$musteri_form->id)->get() as $hizmetler)
+
+                        @if($hizmetler->hizmet_id == 2 ||$hizmetler->hizmet_id ==3)
+
+                        <?php $hizmet_sosyal_medya_ucret += $hizmetler->ucret;?>
+
+                        @endif
+
+                        @endforeach
+
+                        <?php  echo $hizmet_sosyal_medya_ucret; ?> ₺
+
+                     </td>
+
+                     <td name="ajans_odeme"> 
+
+                        <?php $hizmet_ajans_ucret = 0;?>
+
+                        @foreach(\App\Musteri_Formlari_Hizmetler::where('form_id',$musteri_form->id)->get() as $hizmetler)
+
+                        @if($hizmetler->hizmet_id != 2 && $hizmetler->hizmet_id !=3 && $hizmetler->hizmet_id !=1)
+
+                        <?php $hizmet_ajans_ucret += $hizmetler->ucret;?>
+
+                        @endif
+
+                        @endforeach
+
+                        <?php  echo $hizmet_ajans_ucret; ?> ₺
+
+                     </td>
+
+                     @if($musteri_form->bayi_hakedis_odeme_durumu_id == 1)
+
+                     <td class="bg-warning text-white">
+
+                        @endif
+
+                        @if($musteri_form->bayi_hakedis_odeme_durumu_id == 3)
+
+                     <td class="bg-success text-white">
+
+                        @endif
+
+                        <?php $hizmet_hakedis = 0;?>
+
+                        @foreach(\App\Musteri_Formlari_Hizmetler::where('form_id',$musteri_form->id)->get() as $hizmetler)
+
+                        <?php $hizmet_hakedis += $hizmetler->ucret;?>
+
+                        @endforeach
+
+                        @if($musteri_form->devam_eden_odeme)
+
+                        <?php  echo $hizmet_hakedis/20; ?> ₺
+
+                        @else
+
+                        <?php  echo $hizmet_hakedis/10; ?> ₺
+
+                        @endif
+
+                     </td>
+
+                  </tr>
+
+                  @endif
+
+                  @endforeach()
+
+                  <tr>
+
+                     <td colspan=6 class="text-right" style="font-size:20px;font-weight: bold">TOPLAM : </td>
+
+                     <td>
+
+                        {{$toplam+$talep_edilen_toplam}} ₺
+
+                     </td>
+
+                  </tr>
+
+                  @if(!$musteri_bilgileri)
+
+                  <tr>
+
+                     <td colspan="7" style="color:#ff0000; font-weight: bold; text-align: center;">
+
+                        Henüz satışı gerçekleşmiş müşteriniz bulunmamaktadır
+
+                     </td>
+
+                  </tr>
+
+                  @endif
+
+                  </tr>
+
+               </tbody>
+
+            </table>
+
+         </div>
+
+      </div>
+
+   </div>
+
+   <div class="modal fade" id="modal-default" tabindex="-1" role="dialog" aria-labelledby="modal-default" aria-hidden="true" style="display: none;">
+
+      <div class="modal-dialog modal- modal-dialog-centered modal-" role="document">
+
+         <div class="modal-content">
+
+            <div class="modal-header">
+
+               <h6 class="modal-title" id="modal-title-default">ÖDEME TALEBİ</h6>
+
+               <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+
+               <span aria-hidden="true">×</span>
+
+               </button>
+
+            </div>
+
+            <form id="odeme_talep_et_formu" enctype='multipart/form-data'  method="POST">
+
+               @csrf
+
+               <div class="modal-body">
+
+                  <div class="card card-pricing bg-success border-0 text-center mb-4" style="padding:0">
+
+                     <div class="card-header bg-transparent" style="padding: 0">
+
+                        <h4 class="text-uppercase ls-1 text-white py-3 mb-0" style="padding: 0">GÜNCEL HAKEDİŞ TUTARINIZ</h4>
+
+                     </div>
+
+                     <div class="card-body px-lg-7" style="padding: 0">
+
+                        <input type="hidden" name="hakedis_miktari" id="hakedis_miktari">
+
+                        <div class="display-2 text-white" id="hakedis_miktari_text"></div>
+
+                     </div>
+
+                  </div>
+
+                  <div class="alert alert-info fade show" role="alert">
+
+                     <span class="alert-icon"><i class="fa fa-info"></i></span>
+
+                     <span class="alert-text"><strong>Bilgi Notu!</strong> Hakedişinizi hesabınıza transfer edebilmemiz için lütfen komisyon faturanızı veya gider pusulanızı ekleyiniz.</span>
+
+                  </div>
+
+                  <div class="form-group">
+
+                     <label>Belge ekleyin</label>
+
+                     <input type="file" id="komisyon_fatura_gider_pusulasi" required name="komisyon_fatura_gider_pusulasi" class="form-control">
+
+                  </div>
+
+               </div>
+
+               <div class="modal-footer">
+
+                  <button type="submit" class="btn btn-primary"><i class="ni ni-send"></i>Ödeme Talebi Gönder</button>
+
+                  <button type="button" class="btn btn-danger  ml-auto" data-dismiss="modal"><i class="fa fa-times-circle"></i>Kapat</button>
+
+               </div>
+
+            </form>
+
+         </div>
+
+      </div>
+
+   </div>
+
+</div>
+
+</div>
+
+<div id="hata"></div>
+
+@endsection

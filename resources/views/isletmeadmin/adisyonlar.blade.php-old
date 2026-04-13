@@ -1,0 +1,727 @@
+@if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
+@section('content')
+<div class="page-header">
+   <div class="row">
+      <div class="col-md-6 col-sm-6">
+         <div class="title">
+            <h1 style="font-size:20px">{{$sayfa_baslik}}</h1>
+         </div>
+         <nav aria-label="breadcrumb" role="navigation">
+            <ol class="breadcrumb">
+               <li class="breadcrumb-item">
+                  <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
+               </li>
+               <li class="breadcrumb-item active" aria-current="page">
+                  {{$sayfa_baslik}}
+               </li>
+            </ol>
+         </nav>
+      </div>
+      <div class="col-md-6 col-sm-6 text-right">
+         <a href="/isletmeyonetim/yenitahsilat{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}"  class="btn btn-success btn-lg yenieklebuton"><i class="fa fa-plus"></i> Yeni Satış & Tahsilat</a>
+      </div>
+   </div>
+</div>
+<div class="card-box mb-30">
+   
+   <div class="pb-20" style="padding-top:20px">
+
+      <div class="row" style="padding: 0 30px 20px 30px">
+        <div class="col-sm-3 col-xs-12 col-12">
+                <label>Zaman Aralığı</label>
+                <select class="form-control" id="satis_zamana_gore_filtre" >
+                   
+                    <option  value="{{date('Y-m-d')}} / {{date('Y-m-d')}}">Bugün</option>
+                    <option value="{{date('Y-m-d', strtotime('-1 days',strtotime(date('Y-m-d'))))}} / {{date('Y-m-d', strtotime('-1 days',strtotime(date('Y-m-d'))))}}">Dün</option>
+                    <option selected value="<?php  echo date('Y-m-01') . " / ". date('Y-m-t'); ?>">Bu ay</option>
+                    <option value="<?php  echo date('Y-m-01',strtotime('-1 months')) . " / ". date('Y-m-t',strtotime('-1 months')); ?>">Geçen ay</option>
+                    <option value="<?php echo date('Y-01-01') . " / ". date('Y-12-31'); ?>">Bu yıl</option>
+                    <option value="<?php echo date(date('Y',strtotime('-1 year')).'-01-01') . " / ". date(date('Y',strtotime('-1 year')).'-12-31'); ?>">Geçen yıl</option>
+                    <option value="ozel">Özel</option>
+                  </select>
+                </div>
+                <div class="col-sm-3  col-xs-6 col-6"  id="satis_zamana_gore_filtre1" style="display:none;"> 
+                   <label>Başlangıç Tarihi</label>
+                    <input
+                      class="form-control"
+                      placeholder="Başlangıç Tarihini seçiniz.."
+                      type="text" id="satisbaslangictarihi" 
+                    />
+                 </div>
+                  <div class="col-sm-3 col-xs-6 col-6"  id="satis_zamana_gore_filtre2" style="display:none;">
+                    <label>Bitiş Tarihi</label>
+                    <input
+                      class="form-control"
+                      placeholder="Bitiş tarihini seçiniz.."
+                      type="text" id="satisbitistarihi"
+                    />
+                 </div>
+          <div class="col-sm-3  col-xs-6 col-6" > 
+                     <label>Personele Göre Filtrele</label>
+                     <select class="form-control personel_secimi" id='satisPersonelFiltre' style="width:100%">
+                        <option></option>
+                     </select>
+                  </div>
+      </div>
+      <ul class=" nav nav-tabs element" role="tablist">
+         <li class="nav-item" style="margin-left: 20px;">
+            <button 
+               class="btn btn-outline-primary active"
+               data-toggle="tab"
+               href="#tum_adisyonlar"
+               role="tab"
+               aria-selected="false" 
+               style="width: 120px;" 
+               >
+            Tümü
+            </button>
+         </li>
+         <li class="nav-item" style="margin-left: 20px;display: inline-block; ">
+            <button 
+               class="btn btn-outline-primary"
+               data-toggle="tab"
+               href="#hizmet_adisyonlar"
+               role="tab"
+               aria-selected="false" 
+               style="width: 160px;" 
+               >
+            Hizmetler/İşlemler <span id='satis_takibi_islem_sayisi'></span>
+            </button>
+         </li>
+         <li class="nav-item" style="margin-left: 20px;display: inline-block;">
+            <button 
+               class="btn btn-outline-primary"
+               data-toggle="tab"
+               href="#ürün_adisyonlar"
+               role="tab"
+               aria-selected="false" 
+               style="width: 120px;" 
+               >
+            Ürünler <span id='satis_takibi_urun_sayisi'></span>
+            </button>
+         </li>
+         <li class="nav-item" style="margin-left: 20px;display: inline-block;">
+            <button 
+               class="btn btn-outline-primary"
+               data-toggle="tab"
+               href="#paket_adisyonlar"
+               role="tab"
+               style="width: 120px;" 
+               aria-selected="false" 
+               >
+            Paketler <span id='satis_takibi_paket_sayisi'></span>
+            </button>
+         </li>
+         <li class="nav-item" style="margin-left: 20px;display: inline-block;">
+            <button 
+               class="btn btn-outline-primary"
+               data-toggle="tab"
+               href="#taksitli_alacaklar"
+               role="tab"
+               style="width: 120px;" 
+               aria-selected="false" 
+               >
+            Taksitler  
+            </button>
+         </li>
+      </ul>
+      <div class="tab-content" style="padding: 0 30px 0 30px;">
+         <div class="tab-pane fade show active" id="tum_adisyonlar" role="tab-panel" style="margin-top: 20px;">
+            <table class="data-table table stripe hover nowrap" id="adisyon_liste">
+               <thead>
+                  <th>Satış Tarihi</th>
+                 
+                  <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                  <th>Yaklaşan Ödeme Tarihi</th>
+                 
+                  <th>Adisyon İçeriği </th>
+                  <th>Toplam ₺</th>
+                  <th>Ödenen ₺</th>
+                  <th>Kalan ₺</th>
+                  <th>İşlemler</th>
+               </thead>
+               <tbody>
+               </tbody>
+            </table>
+         </div>
+         <div class="tab-pane fade show" id="hizmet_adisyonlar" role="tab-panel" style="margin-top: 20px;">
+            <table class="data-table table stripe hover nowrap" id="adisyon_liste_hizmet">
+               <thead>
+                  <th>Satış Tarihi</th>
+                 
+                  <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                  <th>Yaklaşan Ödeme Tarihi</th>
+                  <th>Adisyon İçeriği </th>
+                  <th>Toplam ₺</th>
+                  <th>Ödenen ₺</th>
+                  <th>Kalan ₺</th>
+                  <th>İşlemler</th>
+               </thead>
+               <tbody>
+               </tbody>
+            </table>
+         </div>
+         <div class="tab-pane fade show " id="ürün_adisyonlar" role="tab-panel" style="margin-top: 20px;">
+            <table class="data-table table stripe hover nowrap" id="adisyon_liste_urun">
+               <thead>
+                  <th>Satış Tarihi</th>
+                 
+                  <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                  <th>Yaklaşan Ödeme Tarihi</th>
+                  <th>Adisyon İçeriği </th>
+                  <th>Toplam ₺</th>
+                  <th>Ödenen ₺</th>
+                  <th>Kalan ₺</th>
+                  <th>İşlemler</th>
+               </thead>
+               <tbody>
+               </tbody>
+            </table>
+         </div>
+         <div class="tab-pane fade show" id="paket_adisyonlar" role="tab-panel" style="margin-top: 20px;">
+            <table class="data-table table stripe hover nowrap" id="adisyon_liste_paket">
+               <thead>
+                  <th>Satış Tarihi</th>
+                  
+                  <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                  <th>Yaklaşan Ödeme Tarihi</th>
+                  <th>Adisyon İçeriği </th>
+                  <th>Toplam ₺</th>
+                  <th>Ödenen ₺</th>
+                  <th>Kalan ₺</th>
+                  <th>İşlemler</th>
+               </thead>
+               <tbody>
+               </tbody>
+            </table>
+         </div>
+         <div class="tab-pane fade show" id="taksitli_alacaklar" role="tab-panel" style="margin-top: 20px;">
+            <div class="tab">
+               <ul class="nav nav-tabs element" role="tablist" >
+                  <li class="nav-item">
+                     <a class="nav-link active" data-toggle="tab" href="#tum_taksit" role="tab" aria-selected="true" style="height: 80px;" >Tümü</a>
+                  </li>
+                  <li class="nav-item">
+                     <a class="nav-link" data-toggle="tab" href="#acik_taksit" role="tab" aria-selected="false" style="height: 80px;">Açık Taksitler</a>
+                  </li>
+                  <li class="nav-item">
+                     <a class="nav-link" data-toggle="tab" href="#kapali_taksit" role="tab"aria-selected="false" style="height: 80px;">Kapalı Taksitler</a>
+                  </li>
+                  <li class="nav-item">
+                     <a class="nav-link" data-toggle="tab" href="#gecikmis_taksit" role="tab"aria-selected="false" style="height: 80px;">Gecikmiş Taksitler</a>
+                  </li>
+               </ul>
+               <div class="tab-content">
+                  <div class="tab-pane fade show active" id="tum_taksit" role="tab-panel" style="margin-top: 20px; ">
+                     <table class="data-table table stripe hover nowrap" id="tum_taksitler">
+                        <thead>
+                           <tr>
+                              <th>Durum</th>
+                              <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                              <th>Vade Sayısı</th>
+                              <th>Ödenmiş</th>
+                              <th>Ödenmemiş</th>
+                              <th>Yaklaşan Taksit</th>
+                              <th>İşlemler</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                     </table>
+                  </div>
+                  <div class="tab-pane fade show " id="acik_taksit" role="tab-panel" style="margin-top: 20px; ">
+                     <table class="data-table table stripe hover nowrap" id="acik_taksitler">
+                        <thead>
+                           <tr>
+                              <th>Durum</th>
+                              <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                              <th>Vade Sayısı</th>
+                              <th>Ödenmiş</th>
+                              <th>Ödenmemiş</th>
+                              <th>Yaklaşan Taksit</th>
+                              <th>İşlemler</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                     </table>
+                  </div>
+                  <div class="tab-pane fade show " id="kapali_taksit" role="tab-panel" style="margin-top: 20px; ">
+                     <table class="data-table table stripe hover nowrap" id="kapali_taksitler">
+                        <thead>
+                           <tr>
+                              <th>Durum</th>
+                              <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                              <th>Vade Sayısı</th>
+                              <th>Ödenmiş</th>
+                              <th>Ödenmemiş</th>
+                              <th>Yaklaşan Taksit</th>
+                              <th>İşlemler</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                     </table>
+                  </div>
+                  <div class="tab-pane fade show " id="gecikmis_taksit" role="tab-panel" style="margin-top: 20px; ">
+                     <table class="data-table table stripe hover nowrap" id="gecikmis_taksitler">
+                        <thead>
+                           <tr>
+                              <th>Durum</th>
+                              <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                              <th>Vade Sayısı</th>
+                              <th>Ödenmiş</th>
+                              <th>Ödenmemiş</th>
+                              <th>Yaklaşan Taksit</th>
+                              <th>İşlemler</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                     </table>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>
+<script>
+$(document).ready(function() {
+    // DataTables instance'larını saklamak için obje
+    var dataTablesInstances = {};
+    var activeTableId = null; // Aktif tablo ID'sini takip et
+    
+    // Personel seçimi için select2
+    initializePersonelSelect();
+    
+    // Datepicker ayarları
+    $('#satisbaslangictarihi, #satisbitistarihi').datepicker({
+        maxDate: new Date(),
+        language: "tr",
+        autoClose: true,
+        dateFormat: "yyyy-mm-dd",
+        onSelect: function(selectedDate) {
+            if ($('#satisbaslangictarihi').val() && $('#satisbitistarihi').val()) {
+                setTimeout(function() {
+                    applyFilters();
+                }, 300);
+            }
+        }
+    });
+  
+    // Zaman aralığı select değiştiğinde
+    $('#satis_zamana_gore_filtre').on('change', function() {
+        var selectedValue = $(this).val();
+        
+        if (selectedValue === 'ozel') {
+            $('#satis_zamana_gore_filtre1, #satis_zamana_gore_filtre2').show();
+        } else {
+            $('#satis_zamana_gore_filtre1, #satis_zamana_gore_filtre2').hide();
+            setTimeout(function() {
+                applyFilters();
+            }, 100);
+        }
+    });
+    
+    // Özel tarih inputları değiştiğinde
+    $('#satisbaslangictarihi, #satisbitistarihi').on('change', function() {
+        if ($('#satisbaslangictarihi').val() && $('#satisbitistarihi').val()) {
+            setTimeout(function() {
+                applyFilters();
+            }, 300);
+        }
+    });
+    
+    // Personel seçimi değiştiğinde
+    $('#satisPersonelFiltre').on('change', function() {
+        applyFilters();
+    });
+    
+    // Tab değiştiğinde
+    $('button[data-toggle="tab"], .nav-link[data-toggle="tab"]').on('shown.bs.tab', function(e) {
+        var target = $(e.target).attr("href") || $(e.relatedTarget).attr("href");
+        var tableId = getTableIdFromTab(target);
+        
+        if (tableId) {
+            // Önceki tablonun responsive özelliklerini temizle
+            if (activeTableId && dataTablesInstances[activeTableId]) {
+                try {
+                    // DataTables responsive instance'ını temizle
+                    if (dataTablesInstances[activeTableId].responsive) {
+                        dataTablesInstances[activeTableId].responsive.destroy();
+                    }
+                } catch (e) {
+                    console.log('Responsive temizleme hatası:', e);
+                }
+            }
+            
+            // Yeni aktif tabloyu güncelle
+            activeTableId = tableId;
+            
+            // Tab'ın görünür olmasını bekle
+            setTimeout(function() {
+                refreshSpecificTable(tableId);
+            }, 50);
+        }
+    });
+    
+    // Sayfa yüklendiğinde aktif tab'ın tablosunu başlat
+    setTimeout(function() {
+        var activeTab = $('.tab-pane.active');
+        if (activeTab.length) {
+            var tableId = getTableIdFromTab(activeTab.attr('id'));
+            if (tableId) {
+                activeTableId = tableId;
+                initializeDataTable(tableId);
+            }
+        }
+        // İlk filtreleme
+        setTimeout(function() {
+            applyFilters();
+        }, 500);
+    }, 300);
+    
+    // Tab ID'sine göre tablo ID'sini bul
+    function getTableIdFromTab(tabId) {
+        var tableMap = {
+            'tum_adisyonlar': '#adisyon_liste',
+            'hizmet_adisyonlar': '#adisyon_liste_hizmet',
+            'ürün_adisyonlar': '#adisyon_liste_urun',
+            'paket_adisyonlar': '#adisyon_liste_paket',
+            'tum_taksit': '#tum_taksitler',
+            'acik_taksit': '#acik_taksitler',
+            'kapali_taksit': '#kapali_taksitler',
+            'gecikmis_taksit': '#gecikmis_taksitler'
+        };
+        
+        // Eğer tabId '#' ile başlıyorsa temizle
+        if (tabId && tabId.startsWith('#')) {
+            tabId = tabId.substring(1);
+        }
+        
+        return tableMap[tabId];
+    }
+    
+    // Filtreleri uygulama fonksiyonu
+    function applyFilters() {
+        var personelId = $('#satisPersonelFiltre').val() || '';
+        var selectedRange = $('#satis_zamana_gore_filtre').val();
+        var startDate, endDate;
+        
+        if (selectedRange === 'ozel') {
+            startDate = $('#satisbaslangictarihi').val();
+            endDate = $('#satisbitistarihi').val();
+            
+            if (!startDate || !endDate) {
+                var today = new Date();
+                startDate = today.toISOString().split('T')[0];
+                endDate = startDate;
+            }
+        } else {
+            var dates = selectedRange.split(' / ');
+            startDate = dates[0];
+            endDate = dates[1];
+        }
+        
+        if (!isValidDate(startDate) || !isValidDate(endDate)) {
+            console.error('Geçersiz tarih formatı');
+            return;
+        }
+        
+        // Aktif tab'daki tabloyu yenile
+        if (activeTableId) {
+            refreshSpecificTable(activeTableId, personelId, startDate, endDate);
+        }
+    }
+    
+    // Belirli bir tabloyu yenile
+    function refreshSpecificTable(tableId, personelId, startDate, endDate) {
+        // Eğer parametreler verilmediyse, UI'dan al
+        if (!personelId && !startDate && !endDate) {
+            personelId = $('#satisPersonelFiltre').val() || '';
+            var selectedRange = $('#satis_zamana_gore_filtre').val();
+            
+            if (selectedRange === 'ozel') {
+                startDate = $('#satisbaslangictarihi').val();
+                endDate = $('#satisbitistarihi').val();
+                if (!startDate || !endDate) {
+                    var today = new Date();
+                    startDate = today.toISOString().split('T')[0];
+                    endDate = startDate;
+                }
+            } else {
+                var dates = selectedRange.split(' / ');
+                startDate = dates[0];
+                endDate = dates[1];
+            }
+        }
+        
+        // Tablo türünü belirle
+        var tur = 0; // Varsayılan: Tümü
+        switch(tableId) {
+            case '#adisyon_liste_hizmet':
+                tur = 1;
+                break;
+            case '#adisyon_liste_urun':
+                tur = 3;
+                break;
+            case '#adisyon_liste_paket':
+                tur = 2;
+                break;
+        }
+        
+        // Tablo zaten başlatılmış mı kontrol et ve temizle
+        if (dataTablesInstances[tableId]) {
+            try {
+                // Önce responsive'yi temizle
+                if (dataTablesInstances[tableId].responsive) {
+                    dataTablesInstances[tableId].responsive.destroy();
+                }
+                
+                // DataTable instance'ını tamamen yok et
+                dataTablesInstances[tableId].clear().destroy();
+            } catch (e) {
+                console.log('Temizleme hatası:', e);
+            }
+            
+            delete dataTablesInstances[tableId];
+            
+            // Tabloyu tamamen temizle
+            $(tableId).empty();
+            
+            // Orijinal HTML yapısını geri yükle
+            restoreTableHTML(tableId);
+        }
+        
+        // Yeni instance oluştur
+        initializeDataTable(tableId, tur, personelId, startDate, endDate);
+    }
+    
+    // Tablo HTML yapısını geri yükle
+    function restoreTableHTML(tableId) {
+        var originalHTML = '';
+        
+        switch(tableId) {
+            case '#adisyon_liste':
+                originalHTML = `
+                    <thead>
+                        <th>Satış Tarihi</th>
+                        <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                        <th>Yaklaşan Ödeme Tarihi</th>
+                        <th>Adisyon İçeriği</th>
+                        <th>Toplam ₺</th>
+                        <th>Ödenen ₺</th>
+                        <th>Kalan ₺</th>
+                        <th>İşlemler</th>
+                    </thead>
+                    <tbody></tbody>
+                `;
+                break;
+            case '#adisyon_liste_hizmet':
+                originalHTML = `
+                    <thead>
+                        <th>Satış Tarihi</th>
+                        <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                        <th>Yaklaşan Ödeme Tarihi</th>
+                        <th>Adisyon İçeriği</th>
+                        <th>Toplam ₺</th>
+                        <th>Ödenen ₺</th>
+                        <th>Kalan ₺</th>
+                        <th>İşlemler</th>
+                    </thead>
+                    <tbody></tbody>
+                `;
+                break;
+                 case '#adisyon_liste_urun':
+                originalHTML = `
+                    <thead>
+                        <th>Satış Tarihi</th>
+                        <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                        <th>Yaklaşan Ödeme Tarihi</th>
+                        <th>Adisyon İçeriği</th>
+                        <th>Toplam ₺</th>
+                        <th>Ödenen ₺</th>
+                        <th>Kalan ₺</th>
+                        <th>İşlemler</th>
+                    </thead>
+                    <tbody></tbody>
+                `;
+                break;
+                 case '#adisyon_liste_paket':
+                originalHTML = `
+                    <thead>
+                        <th>Satış Tarihi</th>
+                        <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
+                        <th>Yaklaşan Ödeme Tarihi</th>
+                        <th>Adisyon İçeriği</th>
+                        <th>Toplam ₺</th>
+                        <th>Ödenen ₺</th>
+                        <th>Kalan ₺</th>
+                        <th>İşlemler</th>
+                    </thead>
+                    <tbody></tbody>
+                `;
+                break;
+            // Diğer tablolar için benzer şekilde...
+        }
+        
+        $(tableId).html(originalHTML);
+    }
+    
+    // DataTable başlatma fonksiyonu
+    function initializeDataTable(tableId, tur = 0, personelId = '', startDate = '', endDate = '') {
+        // Parametreler yoksa UI'dan al
+        if (personelId === '' && startDate === '' && endDate === '') {
+            personelId = $('#satisPersonelFiltre').val() || '';
+            var selectedRange = $('#satis_zamana_gore_filtre').val();
+            
+            if (selectedRange === 'ozel') {
+                startDate = $('#satisbaslangictarihi').val();
+                endDate = $('#satisbitistarihi').val();
+                if (!startDate || !endDate) {
+                    var today = new Date();
+                    startDate = today.toISOString().split('T')[0];
+                    endDate = startDate;
+                }
+            } else {
+                var dates = selectedRange.split(' / ');
+                startDate = dates[0];
+                endDate = dates[1];
+            }
+        }
+        
+        // Tarih aralığını oluştur
+        var tarihAraligi = startDate + ' / ' + endDate;
+        if (!startDate || !endDate) {
+            var today = new Date();
+            var defaultDate = today.toISOString().split('T')[0];
+            tarihAraligi = defaultDate + ' / ' + defaultDate;
+        }
+        
+        // URL parametreleri
+        var urlParams = new URLSearchParams(window.location.search);
+        var sube = urlParams.get('sube') || '';
+        
+        console.log('Tabloyu başlatıyorum:', tableId, 'Tarih:', tarihAraligi, 'Personel:', personelId);
+        
+        var table = $(tableId).DataTable({
+            autoWidth: false,
+            responsive:false,
+            processing: true,
+            serverSide: true,
+            deferRender: true,
+            destroy: true, // Önceki instance'ı temizle
+            ajax: {
+                url: "/isletmeyonetim/adisyon-filtreli-getir",
+                type: "GET",
+                data: function(d) {
+                    return {
+                        sube: sube,
+                        tur: tur,
+                        musteri_id: '',
+                        tariharaligi: tarihAraligi,
+                        personel_id: personelId,
+                        draw: d.draw,
+                        start: d.start,
+                        length: d.length,
+                        search: { value: d.search.value },
+                        order: d.order
+                    };
+                },
+                error: function(xhr, error, code) {
+                    console.error('DataTables AJAX error for ' + tableId + ':', error);
+                    $(tableId + ' tbody').html(
+                        '<tr><td colspan="8" class="text-center">Veri yüklenirken bir hata oluştu.</td></tr>'
+                    );
+                }
+            },
+            columns: [
+                { data: 'acilis_tarihi' },
+                { data: 'musteri' },
+                { data: 'planlanan_alacak_tarihi' },
+                { data: 'icerik' },
+                { data: 'toplam' },
+                { data: 'odenen' },
+                { data: 'kalan_tutar' },
+                { data: 'islemler' }
+            ],
+            order: [[0, "desc"]],
+            pageLength: 10,
+            lengthMenu: [10, 25, 50, 100],
+            language: {
+                url: "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
+                searchPlaceholder: "Ara",
+                paginate: {
+                    next: '<i class="ion-chevron-right"></i>',
+                    previous: '<i class="ion-chevron-left"></i>'  
+                },
+                processing: '<div class="spinner-border text-primary" role="status"><span class="sr-only">Yükleniyor...</span></div> Yükleniyor...',
+                emptyTable: "Tabloda veri bulunmamaktadır.",
+                info: "_START_-_END_ arası _TOTAL_ kayıt",
+                infoEmpty: "0-0 arası 0 kayıt",
+                infoFiltered: "(_MAX_ kayıttan filtrelendi)",
+                loadingRecords: "Yükleniyor...",
+                zeroRecords: "Eşleşen kayıt bulunamadı."
+            },
+            initComplete: function(settings, json) {
+                console.log(tableId + ' tablosu başarıyla yüklendi');
+            },
+            drawCallback: function(settings) {
+                // Tablo çizildikten sonra responsive özellikleri güncelle
+                if (table.responsive) {
+                    table.responsive.recalc();
+                }
+            }
+        });
+        
+        // Instance'ı sakla
+        dataTablesInstances[tableId] = table;
+        
+        return table;
+    }
+    
+    // Tarih formatını kontrol eden yardımcı fonksiyon
+    function isValidDate(dateString) {
+        var regEx = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateString.match(regEx)) return false;
+        var d = new Date(dateString);
+        var dNum = d.getTime();
+        if (!dNum && dNum !== 0) return false;
+        return d.toISOString().slice(0, 10) === dateString;
+    }
+    
+    // Personel dropdown'ını başlatma fonksiyonu
+    function initializePersonelSelect() {
+        var urlParams = new URLSearchParams(window.location.search);
+        var sube = urlParams.get('sube') || '';
+        
+        $.ajax({
+            url: '/isletmeyonetim/personel_listesi_getir',
+            type: 'GET',
+            data: { sube: sube },
+            success: function(response) {
+                var select = $('#satisPersonelFiltre');
+                select.empty();
+                select.append('<option value="">Tüm Personeller</option>');
+                
+                $.each(response, function(index, personel) {
+                    select.append('<option value="' + personel.id + '">' + personel.personel_adi + '</option>');
+                });
+                
+                select.select2({
+                    placeholder: "Personel seçin",
+                    allowClear: true,
+                    width: '100%'
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error('Personel listesi yüklenirken hata:', error);
+                $('#satisPersonelFiltre').html('<option value="">Tüm Personeller</option>');
+            }
+        });
+    }
+});
+</script>
+
+@endsection()

@@ -1,0 +1,132 @@
+if(isset($request->taksit_vade_id))
+{
+    // Ödenecek toplam tutarı float olarak al
+    $tahsilatTutari = (float) $tahsilat->tutar;
+
+    foreach($request->taksit_vade_id as $_key => $taksitvadesi)
+    {
+        $taksit_vade = TaksitVadeleri::find($taksitvadesi);
+
+        // Bu taksit için önceki ödemeleri al
+        $onceki_odeme = (float) TahsilatHizmetler::where('taksitli_tahsilat_id', $taksit_vade->taksitli_tahsilat_id)->sum('tutar')
+                        + (float) TahsilatUrunler::where('taksitli_tahsilat_id', $taksit_vade->taksitli_tahsilat_id)->sum('tutar')
+                        + (float) TahsilatPaketler::where('taksitli_tahsilat_id', $taksit_vade->taksitli_tahsilat_id)->sum('tutar');
+
+        // Kalan borç = taksit tutarı - önceki ödemeler
+        $kalan_taksit = (float)$taksit_vade->tutar - $onceki_odeme;
+        $kalan_taksit = $kalan_taksit > 0 ? $kalan_taksit : 0;
+
+        if($kalan_taksit <= 0) {
+            // Bu taksit zaten tamamen ödenmiş, bir sonraki taksite geç
+            continue;
+        }
+
+        // Bu taksite yapılacak kısmi ödeme
+        $kismi_odeme = min($tahsilatTutari, $kalan_taksit);
+
+        // Adisyon kalemlerini tek bir array’de topla
+        $kalemler = [];
+
+        $kalemler['hizmet'] = AdisyonHizmetler::where('taksitli_tahsilat_id', $taksit_vade->taksitli_tahsilat_id)->get();
+        $kalemler['urun'] = AdisyonUrunler::where('taksitli_tahsilat_id', $taksit_vade->taksitli_tahsilat_id)->get();
+        $kalemler['paket'] = AdisyonPaketler::where('taksitli_tahsilat_id', $taksit_vade->taksitli_tahsilat_id)->get();
+
+        // Her kalem tipi için ödemeyi yap
+        foreach($kalemler as $tip => $items)
+        {
+            // Önce toplam kalan borcu hesapla (bu taksite ait kalan borç)
+            $toplam_kalan_borc = 0;
+            foreach($items as $item)
+            {
+                switch($tip)
+                {
+                    case 'hizmet':
+                        $onceki = (float) TahsilatHizmetler::where('adisyon_hizmet_id', $item->id)->sum('tutar');
+                        $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
+                        break;
+                    case 'urun':
+                        $onceki = (float) TahsilatUrunler::where('adisyon_urun_id', $item->id)->sum('tutar');
+                        $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
+                        break;
+                    case 'paket':
+                        $onceki = (float) TahsilatPaketler::where('adisyon_paket_id', $item->id)->sum('tutar');
+                        $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
+                        break;
+                }
+
+                $toplam_kalan_borc += $kalan > 0 ? $kalan : 0;
+            }
+
+            // Kısmi ödemeyi kalan borca oransal dağıt
+            foreach($items as $item)
+            {
+                switch($tip)
+                {
+                    case 'hizmet':
+                        $onceki = (float) TahsilatHizmetler::where('adisyon_hizmet_id', $item->id)->sum('tutar');
+                        $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
+                        $kalan = $kalan > 0 ? $kalan : 0;
+
+                        if($kalan > 0 && $toplam_kalan_borc > 0)
+                        {
+                            $odeme_tutari = ($kalan / $toplam_kalan_borc) * $kismi_odeme;
+
+                            $odeme = new TahsilatHizmetler();
+                            $odeme->adisyon_hizmet_id = $item->id;
+                            $odeme->tahsilat_id = $tahsilat->id;
+                            $odeme->tutar = $odeme_tutari;
+                            $odeme->save();
+                        }
+                        break;
+
+                    case 'urun':
+                        $onceki = (float) TahsilatUrunler::where('adisyon_urun_id', $item->id)->sum('tutar');
+                        $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
+                        $kalan = $kalan > 0 ? $kalan : 0;
+
+                        if($kalan > 0 && $toplam_kalan_borc > 0)
+                        {
+                            $odeme_tutari = ($kalan / $toplam_kalan_borc) * $kismi_odeme;
+
+                            $odeme = new TahsilatUrunler();
+                            $odeme->adisyon_urun_id = $item->id;
+                            $odeme->tahsilat_id = $tahsilat->id;
+                            $odeme->tutar = $odeme_tutari;
+                            $odeme->aciklama = "(($item->fiyat - $item->indirim_tutari - $onceki)/$toplam_kalan_borc) * $kismi_odeme";
+                            $odeme->save();
+                        }
+                        break;
+
+                    case 'paket':
+                        $onceki = (float) TahsilatPaketler::where('adisyon_paket_id', $item->id)->sum('tutar');
+                        $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
+                        $kalan = $kalan > 0 ? $kalan : 0;
+
+                        if($kalan > 0 && $toplam_kalan_borc > 0)
+                        {
+                            $odeme_tutari = ($kalan / $toplam_kalan_borc) * $kismi_odeme;
+
+                            $odeme = new TahsilatPaketler();
+                            $odeme->adisyon_paket_id = $item->id;
+                            $odeme->tahsilat_id = $tahsilat->id;
+                            $odeme->tutar = $odeme_tutari;
+                            $odeme->aciklama = "(($item->fiyat - $item->indirim_tutari - $onceki)/$toplam_kalan_borc) * $kismi_odeme";
+                            $odeme->save();
+                        }
+                        break;
+                }
+            }
+        }
+
+        // Bu taksit için kalan borcu güncelle
+        $taksit_vade->tutar = $kalan_taksit - $kismi_odeme;
+        $taksit_vade->odendi = $taksit_vade->tutar <= 0;
+        $taksit_vade->save();
+
+        // Tahsilat tutarını düş
+        $tahsilatTutari -= $kismi_odeme;
+
+        if($tahsilatTutari <= 0)
+            break; // Ödeme bitti
+    }
+}
