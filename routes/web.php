@@ -121,7 +121,7 @@ Route::prefix('/satisortakligi')->group(function(){
 	Route::get('/','SatisOrtakligiController@index')->name('satisortakligi.dashboard');
 	Route::get('/kayitol','HomeController@satisortagikayitol');
 	Route::get('/girisyap', 'SatisOrtakligi\LoginController@showLoginForm')->name('satisortakligi.login');
-	Route::post('/girisyap','SatisOrtakligi\LoginController@login')->name('satisortakligi.login.submit')->middleware('throttle:5,1');
+	Route::post('/girisyap','SatisOrtakligi\LoginController@login')->name('satisortakligi.login.submit')->middleware('throttle:30,1');
 	Route::get('/sifremiunuttum','SatisOrtakligi\LoginController@sifremiunuttum');
 	Route::post('/sifregonder','SatisOrtakligi\LoginController@sifregonder');
 	Route::post('/sifredegistir','SatisOrtakligi\LoginController@sifredegistir');		
@@ -181,7 +181,7 @@ Route::prefix('sistemyonetim')->group(function() {
 	Route::get('/','AdminController@index')->name('superadmin.dashboard');
 	Route::get('/girisyap', 'AuthSuperAdmin\LoginController@showSuperAdminLoginForm')->name('superadmin.login');
 
-	Route::post('/girisyap','AuthSuperAdmin\LoginController@login')->name('superadmin.login.submit')->middleware('throttle:5,1');;
+	Route::post('/girisyap','AuthSuperAdmin\LoginController@login')->name('superadmin.login.submit')->middleware('throttle:30,1');
 	Route::get('/isletmeler','AdminController@isletmeler')->name('superadmin.isletmeler');
     Route::get('/avantajlar','AdminController@avantajlar')->name('superadmin.avantajlar');
     Route::get('/yeniavantaj','AdminController@yeniavantaj');
@@ -232,7 +232,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 
 	
 	Route::get('/girisyap', 'AuthStoreAdmin\LoginController@showStoreAdminLoginForm')->name('isletmeadmin.login');
-	Route::post('/girisyap','AuthStoreAdmin\LoginController@login')->name('isletmeyonetim.login.submit')->middleware('throttle:5,1');
+	Route::post('/girisyap','AuthStoreAdmin\LoginController@login')->name('isletmeyonetim.login.submit')->middleware('throttle:30,1');
 	Route::post('/satisortagiornekhesapgirisi','AuthStoreAdmin\LoginController@satisortagiornekhesapgirisi');
 	Route::get('/sifremiunuttum','AuthStoreAdmin\LoginController@sifremiunuttum')->name('isletmeadmin.sifremiunuttum');
 	Route::post('/sifregonder','AuthStoreAdmin\LoginController@sifregonder');
