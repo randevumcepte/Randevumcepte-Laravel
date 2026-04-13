@@ -20234,22 +20234,25 @@ class StoreAdminController extends Controller
             // 1b: Kullanıcı "Gönder" dediyse → kod gönder ve doğrula
             if($dogrulamaSorulduGonderilecek)
             {
-                // Kod henüz gönderilmediyse SMS gönder
-                if(!$randevu->dogrulama_sms_gonderildi)
+                // Kod henüz girilmediyse → SMS gönder ve kod iste
+                if(empty($request->dogrulama_kodu))
                 {
-                    self::randevu_dogrulama_kodu_gonder($request);
-                    // DB'den yeniden yükle (dogrulama kodu güncellendi)
-                    $randevu->refresh();
+                    if(!$randevu->dogrulama_sms_gonderildi)
+                    {
+                        self::randevu_dogrulama_kodu_gonder($request);
+                    }
+                    return array(
+                        'dogrulamaGerekli' => 1,
+                        'hatamesaj' => 'Lütfen doğrulama kodunu giriniz'
+                    );
                 }
 
-                // Kod henüz girilmediyse veya hatalıysa → tekrar iste
-                if(empty($request->dogrulama_kodu) || $randevu->dogrulama != $request->dogrulama_kodu)
+                // Kod girilmiş → doğrula (yeni SMS göndermeden!)
+                if($randevu->dogrulama != $request->dogrulama_kodu)
                 {
                     return array(
                         'dogrulamaGerekli' => 1,
-                        'hatamesaj' => empty($request->dogrulama_kodu)
-                            ? 'Lütfen doğrulama kodunu giriniz'
-                            : 'Doğrulama kodu hatalı, lütfen yeniden deneyiniz'
+                        'hatamesaj' => 'Doğrulama kodu hatalı, lütfen yeniden deneyiniz'
                     );
                 }
                 Log::info('Doğrulama kodu doğrulandı');
