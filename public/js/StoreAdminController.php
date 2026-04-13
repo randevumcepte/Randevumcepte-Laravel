@@ -11271,9 +11271,9 @@ DB::raw('
         $mesajlar = array();
 
         // ============================================================
-        // ADIM 1: DOĞRULAMA AKIŞI (seansVar durumundan bağımsız)
+        // ADIM 1: DOĞRULAMA AKIŞI (sadece seanslı randevularda)
         // ============================================================
-        if($dogrulama_kodu_ayari)
+        if($seansVar > 0 && $dogrulama_kodu_ayari)
         {
             // 1a: Henüz sorulmadıysa → "Doğrulama gönderilsin mi?" diye sor
             if(!$dogrulamaSoruldu)
