@@ -10549,62 +10549,173 @@ DB::raw('
     }
     public function randevugeldiisaretle(Request $request)
     {
-
-
-
-
+        Log::info('Geldi işaretle başladı');
         $randevu = Randevular::where('id',$request->randevuid)->first();
         $seansVar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id)->where('hizmet_id',$request->hizmetId)->first();
         $randevuHizmet = RandevuHizmetler::where('hizmet_id',$request->hizmetId)->where('randevu_id',$randevu->id)->first();
         $dogrulama_kodu_ayari = SalonSMSAyarlari::where('salon_id',$randevu->salon_id)->where('ayar_id',16)->value('musteri');
         $mesaj = "";
         $mesajlar = array();
-        foreach($randevu->hizmetler as $hizmet)
+
+        // ADIM 1: Doğrulama ayarı aktifse ve henüz doğrulama sorulmadıysa, kullanıcıya sor
+        if($dogrulama_kodu_ayari && !$request->dogrulamaSoruldu)
         {
-           if($seansVar && $seansVar->hizmet_id != $hizmet->hizmet_id)
-
-           // salon_id 65 olan randevular için mesaj gönderme
-           if ($randevu->salon_id != 65 && $randevu->salon_id!=191) {
-            if(SalonSMSAyarlari::where('salon_id',$randevu->salon_id)->where('ayar_id',21)->value('personel')==1){
-                $mesaj = $randevu->users->name . " isimli müşteriniz " . date('H:i', strtotime($hizmet->saat)) . " " . $hizmet->hizmetler->hizmet_adi . " randevusu için salonunuza gelmiştir.";
-            $yetkiliid = Personeller::where('id', $hizmet->personel_id)->value('yetkili_id');
-            array_push($mesajlar, array(
-                "to" => IsletmeYetkilileri::where('id', $yetkiliid)->value('gsm1'),
-                "message" => $mesaj
-            ));
-           }
-
-        self::bildirimekle($request, $randevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, Auth::guard('isletmeyonetim')->user()->profil_resim, $randevu->id);
-        $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id', $hizmet->personeller->yetkili_id)->pluck('bildirim_id')->toArray();
-        self::bildirimgonder($bildirimkimlikleri, "Yeni Randevu", $mesaj, $randevu->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
-    }
+            return array('dogrulamaSorulsun' => true);
         }
-        self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
-      
-        if(($dogrulama_kodu_ayari && $randevu->dogrulama == $request->dogrulama_kodu) || !$dogrulama_kodu_ayari)
+
+        // ADIM 2: Doğrulama gönderilecekse ve henüz kod girilmediyse, SMS gönder
+        if($dogrulama_kodu_ayari && $request->dogrulamaSorulduGonderilecek && empty($request->dogrulama_kodu))
         {
-            if($seansVar)
+            $random = str_shuffle('1234567890');
+            $kod = substr($random, 0, 4);
+            $randevu->dogrulama = $kod;
+            $randevu->save();
+            $smsMesaj = array(
+                array("to" => $randevu->users->cep_telefon, "message" => "Doğrulama kodunuz : " . $kod),
+            );
+            self::sms_gonder_bildirimli($request, $smsMesaj, false, 1, false);
+            return array('dogrulamaGerekli' => true);
+        }
+
+        // ADIM 3: Doğrulama kodu girilmişse, kontrol et
+        if($dogrulama_kodu_ayari && $request->dogrulamaSorulduGonderilecek && !empty($request->dogrulama_kodu))
+        {
+            if($randevu->dogrulama != $request->dogrulama_kodu)
             {
-                $seansVar->geldi = true;
-                $seansVar->save();
+                return array(
+                    'hatali' => 1,
+                    'hatamesaj' => 'Doğrulama kodu hatalı, lütfen yeniden deneyiniz'
+                );
+            }
+        }
+
+        // ADIM 4: KVKK onay kontrolü
+        $kvkkOnayiAktif = SalonSMSAyarlari::where('salon_id',$randevu->salon_id)->where('ayar_id',22)->value('musteri');
+        if($kvkkOnayiAktif == 1 && !$request->isKvkkProcess)
+        {
+            $kvkkOnay = KVKKOnay::where('salon_id',$randevu->salon_id)->where('user_id',$randevu->user_id)->first();
+            if(!$kvkkOnay || !$kvkkOnay->onaylandi)
+            {
+                $random = str_shuffle('1234567890');
+                $olusturulanOnayKodu = substr($random, 0, 4);
+                if(!$kvkkOnay){
+                    $kvkkOnay = new KVKKOnay();
+                    $kvkkOnay->salon_id = $randevu->salon_id;
+                    $kvkkOnay->user_id = $randevu->user_id;
+                }
+                $kvkkOnay->onay_kodu = $olusturulanOnayKodu;
+                $kvkkOnay->save();
+                $onayMesaji = "Sn. ".$randevu->users->name.", ".$olusturulanOnayKodu." numarali onay kodunu ilgiliye soyleyerek KVKK Aydinlatma Metni'ne gore kisisel verilerinizin islenmesine izin vermis olacaksiniz";
+                self::sms_gonder_bildirimli($request,array(array("to"=>$randevu->users->cep_telefon,"message"=>$onayMesaji)),false,1,false);
+                return array(
+                    'onayGerekli' => true,
+                    'title' => 'KVKK Onayı',
+                    'mesaj' => '<p>Müşterinin cep telefonuna gönderilen KVKK onay kodunu giriniz.</p>',
+                    'status' => 'warning',
+                    'showCloseButton' => false,
+                    'showCancelButton' => true,
+                    'showConfirmButton' => true,
+                );
+            }
+        }
+
+        // ADIM 4b: KVKK onay kodu girilmişse doğrula
+        if($kvkkOnayiAktif == 1 && $request->isKvkkProcess && !empty($request->kvkkOnayKodu))
+        {
+            $kvkkOnay = KVKKOnay::where('salon_id',$randevu->salon_id)->where('user_id',$randevu->user_id)->where('onay_kodu',$request->kvkkOnayKodu)->first();
+            if(!$kvkkOnay)
+            {
+                return array(
+                    'onayGerekli' => true,
+                    'title' => 'KVKK Onayı',
+                    'mesaj' => '<p>Girdiğiniz onay kodu hatalı, lütfen tekrar deneyiniz.</p>',
+                    'status' => 'warning',
+                    'showCloseButton' => false,
+                    'showCancelButton' => true,
+                    'showConfirmButton' => true,
+                );
+            }
+            $kvkkOnay->onaylandi = true;
+            $kvkkOnay->save();
+        }
+
+        // ADIM 5: Seans düşümü kontrolü
+        if($seansVar && !$request->seansDusmeYapildi)
+        {
+            $adisyonPaket = AdisyonPaketler::where('id',$seansVar->adisyon_paket_id)->first();
+            if($adisyonPaket)
+            {
+                $seanslar = AdisyonPaketSeanslar::where('adisyon_paket_id',$adisyonPaket->id)->whereNull('geldi')->get();
+                if($seanslar->count() > 0)
+                {
+                    $seansHtml = '<div class="text-left">';
+                    foreach($seanslar as $seans)
+                    {
+                        $checked = ($seans->id == $seansVar->id) ? 'checked' : '';
+                        $seansHtml .= '<div class="form-check"><label class="form-check-label"><input type="checkbox" class="form-check-input" name="seansGirdileri[]" data-value="'.$seans->id.'" '.$checked.'> Seans #'.$seans->id.' - '.date('d.m.Y',strtotime($seans->seans_tarih)).'</label></div>';
+                    }
+                    $seansHtml .= '</div>';
+                    return array(
+                        'seansDusumuBildir' => true,
+                        'seanslar' => $seansHtml,
+                    );
+                }
+            }
+        }
+
+        // ADIM 5b: Seans düşümü yapıldıysa seansları güncelle
+        if($request->seansDusmeYapildi && $request->has('seansGirdileri'))
+        {
+            foreach($request->seansGirdileri as $seansId)
+            {
+                $seans = AdisyonPaketSeanslar::where('id',$seansId)->first();
+                if($seans)
+                {
+                    $seans->geldi = true;
+                    $seans->save();
+                }
+            }
+        }
+
+        // ADIM 6: Geldi olarak işaretle
+        if($seansVar)
+        {
+            $seansVar->geldi = true;
+            $seansVar->save();
+            if($randevuHizmet)
+            {
                 $randevuHizmet->seansa_geldi = true;
                 $randevuHizmet->save();
             }
-            
-            $randevu->randevuya_geldi = true;
-            $randevu->save();
-          
-            
-            return array('mesaj'=>'Başarılı');
         }
-        else
+
+        $randevu->randevuya_geldi = true;
+        $randevu->save();
+
+        // Bildirimleri gönder
+        foreach($randevu->hizmetler as $hizmet)
         {
-            return array(
-                'hatali' => 1,
-                'hatamesaj' => 'Doğrulama kodu hatalı, lütfen yeniden deneyiniz'
-            );
-            exit;
+            // salon_id 65 ve 191 olan randevular için mesaj gönderme
+            if ($randevu->salon_id != 65 && $randevu->salon_id != 191) {
+                if(SalonSMSAyarlari::where('salon_id',$randevu->salon_id)->where('ayar_id',21)->value('personel')==1){
+                    $mesaj = $randevu->users->name . " isimli müşteriniz " . date('H:i', strtotime($hizmet->saat)) . " " . $hizmet->hizmetler->hizmet_adi . " randevusu için salonunuza gelmiştir.";
+                    $yetkiliid = Personeller::where('id', $hizmet->personel_id)->value('yetkili_id');
+                    array_push($mesajlar, array(
+                        "to" => IsletmeYetkilileri::where('id', $yetkiliid)->value('gsm1'),
+                        "message" => $mesaj
+                    ));
+                }
+
+                self::bildirimekle($request, $randevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, Auth::guard('isletmeyonetim')->user()->profil_resim, $randevu->id);
+                $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id', $hizmet->personeller->yetkili_id)->pluck('bildirim_id')->toArray();
+                self::bildirimgonder($bildirimkimlikleri, "Yeni Randevu", $mesaj, $randevu->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+            }
         }
+        if(count($mesajlar)>0){
+            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
+        }
+
+        return array('geldiIsaretlendi' => true);
     }
     /*
     public function randevutahsilet(Request $request)
