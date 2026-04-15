@@ -640,3 +640,6 @@ Route::get('/check-memory', function () {
     return 'Memory Limit: ' . ini_get('memory_limit');
 });
 
+// GitHub Webhook - Otomatik Deploy
+Route::post('/deploy-webhook', 'DeployController@webhook')->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
+
