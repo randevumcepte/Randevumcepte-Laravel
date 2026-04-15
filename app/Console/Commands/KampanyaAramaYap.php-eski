@@ -1,0 +1,151 @@
+<?php
+
+namespace App\Console\Commands;
+use Illuminate\Console\Command;
+use Illuminate\Http\Request;
+use App\KampanyaYonetimi;
+use App\KampanyaKatilimcilari;
+use App\MusteriPortfoy;
+use App\SalonEAsistanAyarlari;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Log;
+class KampanyaAramaYap extends Command
+{
+	/**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'kampanyaarama:yap';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Kampanya Aramaları';
+
+    /**
+     * Create a new command instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
+    /**
+     * Execute the console command.
+     *
+     * @return mixed
+     */
+    public function handle()
+    {   
+    	$controller = app()->make(Controller::class);
+
+		// Kampanyaları alın (örnek satır, kendi sorgunuza göre açabilirsiniz)
+		$kampanyalar = KampanyaYonetimi::where('asistan_tarih_saat','<=', now())->where('aktifmi',1)->where('arama_ile_gonderim',1)->get();
+
+		$hatirlatmaAramaParametre = [];
+
+		foreach ($kampanyalar as $kampanya) {
+			if($kampanya->salon_id==20)
+			{
+				// Eğer salon ayarları bu kampanyaya izin veriyorsa
+			    $ayarAcikMi = SalonEAsistanAyarlari::where('salon_id', $kampanya->salon_id)
+			        ->where('ayar_id', 8)
+			        ->value('acik_kapali');
+
+			    if ($ayarAcikMi) {
+			        foreach ($kampanya->kampanya_katilimcilari as $katilimci) {
+			            // Katılımcı kara listede değilse
+			            $karaListedeMi = MusteriPortfoy::where('user_id', $katilimci->user_id)
+			                ->where('salon_id', $kampanya->salon_id)
+			                ->value('kara_liste');
+
+
+			            if ($karaListedeMi != 1) {
+
+			            	$aranabilir = false;
+			            	$aramaTarihSaatiIcinde = date('d.m.Y H:i') >= date('d.m.Y H:i', strtotime($kampanya->asistan_tarih_saat));
+			            	$tekrarArandi = $katilimci->tekrar_arandi;
+			            	$tekrarAranacak = $katilimci->tekrar_aranacak;
+			            	
+
+			            	
+
+			            	/*if (
+			                    (
+			                    	(date('d.m.Y H:i') >= date('d.m.Y H:i', strtotime($kampanya->asistan_tarih_saat)) &&) || date('d.m.Y H:i', strtotime($katilimci->tekrar_arama_tarih_saat)) == date('d.m.Y H:i')
+			                    )
+			                     && ($kampanya->hatirlatma_gorevi_iptal != true || $kampanya->hatirlatma_gorevi_iptal == null) 
+			                     && ($katilimci->tekrar_arandi != true || $katilimci->tekrar_arandi == null)
+			                )	*/
+			                if( (($aramaTarihSaatiIcinde && ($tekrarArandi === null ) && (  $tekrarAranacak === null) ) || ($tekrarAranacak==1 && date('d.m.Y H:i', strtotime($katilimci->tekrar_arama_tarih_saat)) == date('d.m.Y H:i') ) ) &&  !$kampanya->hatirlatma_gorevi_iptal)
+			            	{
+
+								Log::info('arama saati : '.$aramaTarihSaatiIcinde);
+				            	Log::info('Tekrar arandı : '.$tekrarArandi);
+				            	Log::info('Tekrar aranacak : '.$tekrarAranacak);
+				            	Log::info('Tekrar arama saat : '.date('d.m.Y H:i', strtotime($katilimci->tekrar_arama_tarih_saat)));
+				            	$beyHanimStr = '';
+				            	$musteriAdStr = $katilimci->musteri->name;
+				            	if($katilimci->musteri->cinsiyet === 0){
+
+				            		$beyHanimStr = 'hanım';
+				            		$musteriAdi = explode(' ',$katilimci->musteri->name);
+				            		$musteriAdStr = $musteriAdi[0].' '.$beyHanimStr;
+				            	}
+
+				            	if($katilimci->musteri->cinsiyet === 1 ){
+
+				            		$beyHanimStr = 'bey';
+				            		$musteriAdi = explode(' ',$katilimci->musteri->name);
+				            		$musteriAdStr = $musteriAdi[0].' '.$beyHanimStr;
+				            	}
+
+			            		if($controller->hatirlatmaSaatiIcinde(date('H:i'))){
+			            			 $hatirlatmaAramaParametre[] = [
+				                        "alacakIdler" => "",
+				                        "randevuid" => "",
+				                        "kampanyaKatilimci" => $katilimci->id,
+				                        "katilimci" => $katilimci->id,
+				                        "mesaj" => "Merhaba " . $musteriAdStr . ". Sizi " .
+				                            $kampanya->salon->santral_telaffuz_hatirlatma_aramasi . " arıyorum efendim. " .
+				                            $kampanya->mesaj,
+				                        "tel" => $katilimci->musteri->cep_telefon,
+				                        "salonId" => $kampanya->salon_id,
+				                        "exten" => 3,
+				                    ];
+			            		}
+			            		else
+			                    {
+		                            //if(date("H:i") > date("H:i",strtotime("19:30")))
+		                              //  $katilimci->tekrar_arama_tarih_saat = date("Y-m-d",strtotime("+ 1 days", strtotime(date("Y-m-d"))))." 10:00:00";
+		                            //else
+		                                $katilimci->tekrar_arama_tarih_saat = date("Y-m-d"). " 10:00:00";
+		                            $katilimci->save();
+		                        
+			                    }
+
+			            	} 
+			               
+			            }
+			        }
+			    }
+			}
+		   
+		}
+
+		// Çağrı başlatılıyor
+		if (count($hatirlatmaAramaParametre) > 0) {
+		    Log::info('Kampanya araması başlatılıyor');
+		    $controller->hatirlatmaaramasiyap($hatirlatmaAramaParametre);
+		} else {
+		    Log::info('Yapılacak kampanya araması yok');
+		}
+
+    }
+
+}

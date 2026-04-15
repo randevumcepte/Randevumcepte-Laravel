@@ -11334,7 +11334,7 @@ function dogrulama_islemleri(randevu_id,hizmetid,dogrulamaKodu,dogrulamaSoruldu,
                             cancelButtonClass: 'btn btn-danger',
                         }).then(function (result) {
                             if(result.value){
-                                randevuyaGeldiIsaretle(randevu_id,hizmetid,result.value,'',dogrulamaSoruldu,dogrulamaSorulduGonderilecek);
+                                randevuyaGeldiIsaretle(randevu_id,hizmetid,result.value,'',true,false);
                                
                             }
                         })

@@ -1,0 +1,707 @@
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use Illuminate\Http\Request;
+use App\Randevular;
+use App\User;
+use App\Salonlar;
+use App\SalonSMSAyarlari;
+use App\IsletmeYetkilileri;
+use App\MusteriPortfoy;
+use App\Adisyonlar;
+use App\SMSIletimRaporlari;
+use App\Alacaklar;
+use App\Bildirimler;
+use App\Personeller;
+use App\Senetler;
+use App\SenetVadeleri;
+use App\Ajanda;
+use App\SabitNumaralar;
+use App\SalonSantralAyarlari;
+use App\KampanyaYonetimi;
+use App\KampanyaKatilimcilari;
+use App\SatisOrtakligiModel\SatisOrtaklari;
+use App\SatisOrtakligiModel\Musteri_Formlari;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use App\EAsistanAyarlari;
+use App\SalonEAsistanAyarlari;
+use App\Http\Controllers\Controller;
+use App\BildirimKimlikleri;
+
+class SMSGonder extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'sms:gonder';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Command description';
+
+    /**
+     * Create a new command instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
+    /**
+     * Execute the console command.
+     *
+     * @return mixed
+     */
+    public function handle()
+    {    
+               
+
+
+
+        $randevular = Randevular::has('hizmetler')->where('durum',1)->where('user_id','!=',2012)->where(function($q){
+            $q->where('randevuya_geldi',null);
+            $q->orWhere('randevuya_geldi','!=',0);
+        })->whereBetween('tarih',[date('Y-m-d'),date('Y-m-d',strtotime('+ 1 days',strtotime(date('Y-m-d'))))])->get();      
+        $controller = app()->make(Controller::class);
+       
+        $mesajlar = [];
+        Log::info('sms ve bildirim gönderilecek randevu sayısı '.$randevular->count());
+        foreach ($randevular as $key => $value) {
+
+            if($value->salon_id !== null || $value->salon_id != 0)
+            {
+                $randevutarihsaat = date('d.m.Y',strtotime($value->tarih)).' '.date('H:i',strtotime($value->saat)); 
+
+                if($value->salonlar)
+                {
+                    if(date('d.m.Y H:i') == date('d.m.Y H:i',strtotime('-'.$value->salonlar->randevu_sms_hatirlatma.' hours',strtotime($randevutarihsaat)))){
+                    
+                        if(SalonSMSAyarlari::where('salon_id',$value->salon_id)->where('ayar_id',1)->value('musteri'))
+                        { 
+                            
+                            $controller->sms_gonder($value->salon_id,array(array("to"=>$value->users->cep_telefon,"message"=>'İyi günler. Bugün '.date('H:i',strtotime($value->saat)).' saatinde '.$value->salonlar->salon_adi.' tarafından oluşturulan randevunuzu hatırlatmak isteriz.' ))); 
+                            
+                        }
+                    
+
+                    } 
+                    if(date('d.m.Y H:i') == date('d.m.Y H:i',strtotime('-24 hours',strtotime($randevutarihsaat))) ){
+                        if(SalonSMSAyarlari::where('salon_id',$value->salon_id)->where('ayar_id',6)->value('musteri'))
+                        {
+                            
+                            
+                            $controller->sms_gonder($value->salon_id,array(array("to"=>$value->users->cep_telefon,"message"=>'İyi günler. Yarın '.date('H:i',strtotime($value->saat)).' saatinde '.$value->salonlar->salon_adi.' tarafından oluşturulan randevunuzu hatırlatmak isteriz.' ))); 
+                        }          
+
+                    }
+                } 
+                foreach($value->hizmetler as $hizmet)
+                {
+
+
+                    
+                    $randevutarihsaat = date('d.m.Y',strtotime($value->tarih)).' '.date('H:i:s',strtotime($hizmet->saat)); 
+                    Log::info($value->salon_id.' için randevutarihsaat '.$randevutarihsaat);
+                    if(date('d.m.Y H:i') == date('d.m.Y H:i',strtotime('-'.$value->salonlar->randevu_sms_hatirlatma.' hours',strtotime($randevutarihsaat)))){
+
+
+
+                        $mesaj = $value->users->name .' isimli müşterinin bugün '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmet->hizmetler->hizmet_adi.' randevusunu hatırlatmak isteriz.';
+                        
+                        if(SalonSMSAyarlari::where('salon_id',$value->salon_id)->where('ayar_id',1)->value('personel'))
+                        {
+                            $controller->sms_gonder($value->salon_id,array(array("to"=>Personeller::where('id',$hizmet->personel_id)->value('cep_telefon'),"message"=>$mesaj ))); 
+                        }
+                            
+                        $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',Personeller::where('salon_id',$value->salon_id)->pluck('id')->toArray())->whereNotNull('bildirim_id')->pluck('bildirim_id')->toArray(); 
+                        Log::info("Bildirim gidecek personel sayısı ".count($bildirimkimlikleri));
+                        $bildirimkimlikleri = array_merge($bildirimkimlikleri,self::yonetici_kimlikleri($value->salon_id));
+                        Log::info("Bildirim gidecek toplam personel sayısı ".count($bildirimkimlikleri));
+                            
+
+                    
+                        self::bildirimgonder($bildirimkimlikleri,$mesaj,"Randevu Hatırlatma",$value->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+
+
+                        self::bildirimekle($value->salon_id,$mesaj,'#',$hizmet->personel_id,$value->user_id,$value->users->profil_resim,$value->id,null);
+
+                        if($value->salonlar->bildirim_app_id != null && $value->salonlar->bildirim_channel_id != null && $value->salonlar->bildirim_api_key) 
+                            self::bildirimgonder($bildirimkimlikleri,$mesaj,"Randevu Hatırlatma",$value->salon_id,$value->salonlar->bildirim_channel_id,$value->salonlar->bildirim_app_id,$value->salonlar->bildirim_api_key); 
+                    }
+                     
+                } 
+            }
+                     
+
+        }
+        $bugun = Carbon::today();
+        $dogumGunleri = MusteriPortfoy::whereHas('users', function($q) use ($bugun) {
+            $q->whereMonth('dogum_tarihi', $bugun->month)
+              ->whereDay('dogum_tarihi', $bugun->day);
+        })
+        ->with(['users' => function($q) use ($bugun) {
+            $q->whereMonth('dogum_tarihi', $bugun->month)
+              ->whereDay('dogum_tarihi', $bugun->day);
+        }])->where('aktif',1)->get();
+
+        foreach($dogumGunleri as $dogumGunu)
+        {
+
+            if(SalonSMSAyarlari::where('salon_id',$dogumGunu->salon_id)->where('ayar_id',8)->value('musteri') && date('H:i')==date('H:i',strtotime('15:17'))) 
+            {
+                 $mesaj = array(
+                                    array(
+                                        "to"=>$dogumGunu->users->cep_telefon , 
+                                        "message"=>'Sayın '.$dogumGunu->users->name.' '. $dogumGunu->salonlar->salon_adi .' olarak doğum gününüzü kutlar, sağlıklı, mutlu ve başarılı dolu seneler dileriz.' 
+                                    )
+                );
+                Log::info('salon_id '.$dogumGunu->salon_id);
+                $controller->sms_gonder($dogumGunu->salon_id,$mesaj); 
+            }
+        }     
+
+        $notlar=Ajanda::where('ajanda_tarih',date('Y-m-d'))->get();
+        foreach ($notlar as $not) {
+           
+            if ($not->ajanda_hatirlatma==1) {
+
+                if (date('d.m.Y H:i')== date('d.m.Y H:i',strtotime('-'.$not->ajanda_hatirlatma_saat.' hours', strtotime( date('d.m.Y H:i',strtotime($not->ajanda_tarih.' '.$not->ajanda_saat))) ))) {
+                    $not->aciklama = date('d.m.Y H:i',strtotime('-'.$not->ajanda_hatirlatma_saat.' hours', strtotime( date('d.m.Y H:i',strtotime($not->ajanda_tarih.' '.$not->ajanda_saat))) ));
+                    $not->save();
+                    $not_hatirlatma=$not->personel->cep_telefon;
+                    $notmesaj='Sayın '.$not->personel->personel_adi.'. Bugün '.$not->ajanda_saat.' saatinde '.$not->ajanda_baslik.' adında notunuz vardır hatırlatmak isteriz.';
+                    $mesaj = array(array(
+                                    'to'=>$not_hatirlatma,
+                                    'message'=>$notmesaj,
+                    ));
+                    if(SalonSMSAyarlari::where('salon_id',$not->salon_id)->where('ayar_id',17)->value('personel'))
+                        $controller->sms_gonder($not->salon_id,$mesaj);
+                    self::bildirimekle($not->salon_id,$notmesaj,'#not-'.$not->id,$not->ajanda_olusturan,null,IsletmeYetkilileri::where('id',$not->personel->yetkili_id)->value('profil_resim'),null,null);
+                } 
+                
+            
+            }
+        }
+
+        /*$musteriler = MusteriPortfoy::all();
+        foreach($musteriler as $musteri)
+        {
+            $yetkililer = Personeller::join('model_has_roles','salon_personelleri.yetkili_id','=','model_has_roles.model_id')->where('salon_personelleri.salon_id',$musteri->salon_id)->whereIn('model_has_roles.role_id',[1,2,3,4])->get(['salon_personelleri.id','salon_personelleri.cep_telefon','salon_personelleri.personel_adi']);
+
+
+            if(SalonSMSAyarlari::where('salon_id',$musteri->salon_id)->where('ayar_id',8)->value('musteri'))
+            {
+                if($musteri->users->dogum_tarihi !== null)
+                {
+                    if(date('m-d H:i') == date('m-d 09:00', strtotime($musteri->users->dogum_tarihi.' 09:00')))
+                    {
+
+                        $mesaj = array(
+                                    array(
+                                        "to"=>$musteri->users->cep_telefon , 
+                                        "message"=>'Sayın '.$musteri->users->name.' '. $musteri->salonlar->salon_adi .' olarak doğum gününüzü kutlar, sağlıklı, mutlu ve başarılı dolu seneler dileriz.' 
+                                    )
+                        );
+                        
+                        $controller->sms_gonder($musteri->salon_id,$mesaj); 
+                    }
+                }
+              
+            }
+
+            if(SalonEAsistanAyarlari::where('salon_id', $musteri->salon_id)->where('ayar_id', 1)->value('acik_kapali') == 1) {
+                $alacaklar = Alacaklar::where('user_id', $musteri->user_id)
+                ->where(function ($q) use($controller) {
+                    $q->where(function ($q2) use($controller) {
+                            if($controller->hatirlatmaSaatiIcinde(date('H:i')))
+                                $q2->where('planlanan_odeme_tarihi', date('Y-m-d', strtotime('+2 days')))
+                                    ->where(function ($q3) {
+                                    $q3->whereNull('hatirlatma_aramasi_yapildi')
+                                       ->orWhere('hatirlatma_aramasi_yapildi', '!=', 1);
+                                });
+                        
+                    });
+
+                    $q->orWhere(function ($q2) {
+                        $q2->where('hatirlatma_aramasi_yapildi', 1)
+                            ->where('hatirlatma_ulasilamadi', 1)
+                            ->where('tekrar_arama_tarih_saat', 'like', '%' . date('Y-m-d H:i') . '%');
+                    });
+                    $q->orWhere(function ($q2) {
+                            
+                        $q2->where(function ($q3) {
+                                    $q3->whereNull('hatirlatma_aramasi_yapildi')
+                                       ->orWhere('hatirlatma_aramasi_yapildi', '!=', 1);
+                        });
+                        $q2->where('tekrar_arama_tarih_saat', 'like', '%' . date('Y-m-d H:i') . '%');
+                        
+                    }); 
+                })
+                ->where(function ($q) {
+                    $q->whereNull('hatirlatma_gorevi_iptal')
+                      ->orWhere('hatirlatma_gorevi_iptal', '!=', 1);
+                })
+                ->where('salon_id', $musteri->salon_id)
+                ->where(function($q){
+                    $q->whereNull('tekrar_arandi')->orWhere('tekrar_arandi','!=',1);
+                })
+                ->orderBy('planlanan_odeme_tarihi', 'asc')
+                ->get();
+                if($alacaklar->count()>0)
+                {
+
+                    $metin = "";
+                    $tarihler = "";
+                    $toplamtutar = 0;
+
+                    foreach ($alacaklar as $key => $alacak) { 
+                        $toplamtutar += $alacak->tutar;
+
+                        // **Hata düzeltilmesi: `$key = 0` yanlış, `===` kullanılmalı**
+                        if ($key === 0) {
+                            $tarihler .= $alacak->planlanan_odeme_tarihi;
+                        } elseif ($key > 0 && $alacaklar[$key]->planlanan_odeme_tarihi != $alacaklar[$key - 1]->planlanan_odeme_tarihi && $key != $alacaklar->count() - 1) {
+                            $tarihler .= ", " . $alacak->planlanan_odeme_tarihi;
+                        } elseif ($key == $alacaklar->count() - 1) {
+                            $tarihler .= " ve " . $alacak->planlanan_odeme_tarihi;
+                        }
+                        if(!$controller->hatirlatmaSaatiIcinde(date('H:i')))
+                        {
+                            if(date("H:i") > date("H:i",strtotime("19:30")))
+                                $alacak->tekrar_arama_tarih_saat = date("Y-m-d",strtotime("+ 1 days", strtotime(date("Y-m-d"))))." 10:00:00";
+                            else
+                                $alacak->tekrar_arama_tarih_saat = date("Y-m-d"). " 10:00:00";
+                            $alacak->save();
+                        }
+
+
+                    }
+                    
+                    $mesaj = "Sayın " . $musteri->users->name . ". Sizi ".$musteri->salonlar->salon_adi." adına arıyorum. " . $tarihler . 
+                        " tarihinde ödemeniz gereken toplam " . $toplamtutar . 
+                        " TL borcunuz bulunmaktadır. Ödemeyi bu tarihte gerçekleştirecekseniz biri, vade güncelleme yapmak istiyorsanız operatöre bağlanmak için ikiyi tuşlayınız.";
+
+                    $controller->hatirlatmaaramasiyap(
+                        $musteri->salon_id,
+                        $musteri->users->cep_telefon,
+                        $mesaj,
+                        "",
+                        $alacaklar->pluck('id')->toArray(),
+                        "",
+                        2
+                    );
+                }
+               
+            }
+
+            
+            if(date('H:i')=='14:10')
+            {
+                $bir_gun_sonraki_alacaklar = Alacaklar::where('user_id',$musteri->user_id)->where('salon_id',$musteri->salon_id)->where('planlanan_odeme_tarihi',date('Y-m-d',strtotime('+1 days',strtotime(date('Y-m-d')))))->get();
+                $bugunku_alacaklar = Alacaklar::where('user_id',$musteri->user_id)->where('salon_id',$musteri->salon_id)->where('planlanan_odeme_tarihi',date('Y-m-d'))->get(); 
+                foreach($bir_gun_sonraki_alacaklar as $bir_gun_sonraki_alacak)
+                {
+                    $bildirimmesaj = 'Sayın '.$musteri->users->name.' '.$musteri->salonlar->salon_adi.' için yarın ödemeniz gereken '. number_format($bir_gun_sonraki_alacak->tutar,2,',','.').' TL borcunuzun olduğunu hatırlatmak isteriz.';
+                    $mesaj = array(
+                        array(
+                            "to"=>$musteri->users->cep_telefon , 
+                            "message"=>$bildirimmesaj,
+                           
+                        )
+                    );
+                    self::sms_gonder($musteri->salon_id,$mesaj);
+                    foreach($yetkililer as $yetkili)
+                    {
+                        $bildirimmesaj = 'Sayın '.$yetkili->personel_adi. ' '.$musteri->users->name.' isimli müşterinizin yarın '.number_format($bir_gun_sonraki_alacak->tutar,2,',','.').' TL alacağınız olduğunu hatırlatmak isteriz.';
+                        $mesaj = array(array(
+                            'to'=>$yetkili->cep_telefon,
+                            'message'=>$bildirimmesaj,
+                        ));
+                       
+                        self::sms_gonder($musteri->salon_id,$mesaj);
+                        
+                        self::bildirimekle($musteri->salon_id,$bildirimmesaj,'#',$yetkili->id,$musteri->user_id,$musteri->users->profil_resim,null,null);
+                        $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$yetkili->id)->pluck('bildirim_id')->toArray(); 
+                        self::bildirimgonder($bildirimkimlikleri,"Alacak Hatırlatma",$bildirimmesaj,$musteri->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+                        if($musteri->salonlar->bildirim_app_id != null && $musteri->salonlar->bildirim_channel_id != null)
+                            self::bildirimgonder($bildirimkimlikleri,"Alacak Hatırlatma",$bildirimmesaj,$musteri->salon_id,$musteri->salonlar->bildirim_channel_id,$musteri->salonlar->bildirim_app_id,'os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+
+                    }
+                   
+                }
+                foreach($bugunku_alacaklar as $bugunku_alacak)
+                {
+                    $bildirimmesaj = 'Sayın '.$musteri->users->name.' '.$musteri->salonlar->salon_adi.' için '. number_format($bugunku_alacak->tutar,2,',','.').' TL borcunuzun olduğunu hatırlatmak isteriz. Tahsilat için lütfen iletişime geçin. 0'.$musteri->salonlar->telefon_1;
+                    $mesaj = array(
+                        array(
+                            "to"=>$musteri->users->cep_telefon , 
+                            "message"=> $bildirimmesaj1,
+                            //Sayın Anıl Orbey, Ceren Ceviz Estetik için 100 TL borcunuz bulunduğunu hatırlatmak isteriz. Tahsilat için lütfen iletişime geçin. 05316237563 
+                        )
+                    );
+                    self::sms_gonder($musteri->salon_id,$mesaj);
+                    foreach($yetkililer as $yetkili)
+                    {
+                        $bildirimmesaj = 'Sayın '.$yetkili->personel_adi. ' '.$musteri->users->name.' isimli müşterinizin yarın '.number_format($bugunku_alacak->tutar,2,',','.').' TL alacağınız olduğunu hatırlatmak isteriz. Tahsilat için lütfen müşterinizi arayınız. 0'.$musteri->users->cep_telefon;
+                        $mesaj = array(array(
+                            'to'=>$yetkili->cep_telefon,
+                            'message'=> $bildirimmesaj
+                        ));
+                        self::sms_gonder($musteri->salon_id,$mesaj);
+                        self::bildirimekle($musteri->salon_id,$bildirimmesaj,'#',$yetkili->id,$musteri->user_id,$musteri->users->profil_resim,null,null);
+                        $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$yetkili->id)->pluck('bildirim_id')->toArray(); 
+                        self::bildirimgonder($bildirimkimlikleri,"Alacak Hatırlatma",$bildirimmesaj,$musteri->salon_id);
+                         
+                    }
+                    
+                }
+                $senetler = Senetler::where('user_id',$musteri->user_id)->get();
+                foreach($senetler as $senet)
+                {
+                  
+                    foreach($senet->vadeler as $vade)
+                    {
+                         
+                        if($vade->vade_tarih == date('Y-m-d') && !$vade->odendi )
+                        {
+
+                            $mesaj = array(
+                                array(
+                                    "to"=>$musteri->users->cep_telefon , 
+                                    "message"=>'Sayın '.$musteri->users->name.' '.$musteri->salonlar->salon_adi.' tarafından düzenlenmiş senedinizin bugün ödenmesi gereken '. number_format($vade->tutar,2,',','.').' TL tutarın olduğunu hatırlatmak isteriz. Tahsilat için lütfen iletişime geçin. 0'.$musteri->salonlar->telefon_1,
+                                    //Sayın Anıl Orbey, Ceren Ceviz Estetik için 100 TL borcunuz bulunduğunu hatırlatmak isteriz. Tahsilat için lütfen iletişime geçin. 05316237563 
+                                )
+                            );
+                            self::sms_gonder($musteri->salon_id,$mesaj);
+                            foreach($yetkililer as $yetkili)
+                            {
+                                $bildirimmesaj = 'Sayın '.$yetkili->personel_adi. ' '.$musteri->users->name.' isimli müşterinize düzenlenmiş senedin bugün ödenmesi gereken '.number_format($vade->tutar,2,',','.').' TL tutarın olduğunu hatırlatmak isteriz. Tahsilat için lütfen müşterinizi arayınız. 0'.$musteri->users->cep_telefon;
+                                $mesaj =array(array(
+                                    'to'=>$yetkili->cep_telefon,
+                                    'message'=>$bildirimmesaj,
+                                ));
+                                self::sms_gonder($musteri->salon_id,$mesaj);
+                                self::bildirimekle($musteri->salon_id,$bildirimmesaj,'#',$yetkili->id,$musteri->user_id,$musteri->users->profil_resim,null,null);
+                                $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$yetkili->id)->pluck('bildirim_id')->toArray(); 
+                                self::bildirimgonder($bildirimkimlikleri,"Senet Borcu Hatırlatma",$bildirimmesaj,$musteri->salon_id);
+
+                                
+
+                            }
+            
+                        }
+                        if($vade->vade_tarih == date('Y-m-d',strtotime('+1 days',strtotime(date('Y-m-d')))) && !$vade->odendi )
+                        {
+                            $mesaj = array(
+                                array(
+                                    "to"=>$musteri->users->cep_telefon , 
+                                    "message"=>'Sayın '.$musteri->users->name.' '.$musteri->salonlar->salon_adi.' tarafından düzenlenmiş senedinizin yarın ödenmesi gereken '. number_format($vade->tutar,2,',','.').' TL tutarın olduğunu hatırlatmak isteriz.',
+                                    //Sayın Anıl Orbey, Ceren Ceviz Estetik için 100 TL borcunuz bulunduğunu hatırlatmak isteriz. Tahsilat için lütfen iletişime geçin. 05316237563 
+                                )
+                            );
+                            self::sms_gonder($musteri->salon_id,$mesaj);
+                            foreach($yetkililer as $yetkili)
+                            {
+                                $bildirimmesaj = 'Sayın '.$yetkili->personel_adi. ' '.$musteri->users->name.' isimli müşterinize düzenlenmiş senedin yarın ödenmesi gereken '.number_format($vade->tutar,2,',','.').' TL tutarın olduğunu hatırlatmak isteriz.';
+                                $mesaj = array(array(
+                                    'to'=> $yetkili->cep_telefon,
+                                    'message'=> $bildirimmesaj,
+                                ));
+                                self::sms_gonder($musteri->salon_id,$mesaj);
+                                self::bildirimekle($musteri->salon_id,$bildirimmesaj,'#',$yetkili->id,$musteri->user_id,$musteri->users->profil_resim,null,null);
+                                $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$yetkili->id)->pluck('bildirim_id')->toArray(); 
+                                self::bildirimgonder($bildirimkimlikleri,"Senet Borcu Hatırlatma",$bildirimmesaj,$musteri->salon_id);
+                                
+
+                            }
+            
+                        }
+                        if($vade->vade_tarih == date('Y-m-d',strtotime('-1 days',strtotime(date('Y-m-d')))) && !$vade->odendi )
+                        {
+                            $mesaj = array(
+                                array(
+                                    "to"=>$musteri->users->cep_telefon , 
+                                    "message"=>'Sayın '.$musteri->users->name.' '.$musteri->salonlar->salon_adi.' tarafından düzenlenmiş '.date('d.m.Y',strtotime(date($vade->vade_tarih))) .' vade tarihli '.number_format($vade->tutar,2,',','.').' TL tutarındaki senedinizin ödenmemiş olduğunu hatırlatmak isteriz. '
+                                   
+                                )
+                            );
+                            self::sms_gonder($musteri->salon_id,$mesaj);
+                            foreach($yetkililer as $yetkili)
+                            {
+                                $bildirimmesaj = 'Sayın '.$yetkili->personel_adi. ' '.$musteri->users->name.' isimli müşterinize düzenlenmiş '.date('d.m.Y',strtotime(date($vade->vade_tarih))) .' vade tarihli '.number_format($vade->tutar,2,',','.').' TL tutarındaki senedin ödenmemiş olduğunu hatırlatmak isteriz.';
+                                $mesaj = array(array(
+                                    'to'=>$yetkili->cep_telefon,
+                                    'message'=>$bildirimmesaj,
+                                ));
+                                self::sms_gonder($musteri->salon_id,$mesaj);
+                                self::bildirimekle($musteri->salon_id,$bildirimmesaj,'#',$yetkili->id,$musteri->user_id,$musteri->users->profil_resim,null,null);
+                                $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$yetkili->id)->pluck('bildirim_id')->toArray(); 
+                                self::bildirimgonder($bildirimkimlikleri,"Senet Borcu Hatırlatma",$bildirimmesaj,$musteri->salon_id);
+                                
+
+                            }
+                        }
+                    }
+                }
+            }
+
+            
+           
+            
+            if(SalonSMSAyarlari::where('salon_id',$musteri->salon_id)->where('ayar_id',5)->value('musteri'))
+            {
+                $sonislem = Adisyonlar::where('user_id',$musteri->user_id)->where('salon_id',$musteri->salon_id)->orderBy('id','desc')->first();
+                if($sonislem){
+                    if(date('Y-m-d H:i')==date('Y-m-d H:i',strtotime('+60 days',strtotime($sonislem->created_at))))
+                    {
+                        self::sms_gonder($musteri->salon_id,array(array("to"=>$musteri->users->cep_telefon,"message"=>'Sayın '.$musteri->users->name.' '. $value->salonlar->salon_adi .' olarak sizi çok özledik! 60 gündür sizi aramızda görmediğimizi farkettik. Size özel hazırladığımız kampanyaları öğrenmek için lütfen bize ulaşın. 0'.$value->salonlar->telefon_1))); 
+                    }
+                }   
+              
+            }
+
+        }*/
+        $senet_vadeleri = SenetVadeleri::where('vade_tarih','<',date('Y-m-d'))->get();
+        foreach($senet_vadeleri as $vade)
+        {
+            if(!$vade->odendi)
+            {
+                $senet = Senetler::where('id',$vade->senet_id)->first();
+                $mesaj = 'Sayın '.$senet->musteri->name .' '.date('d.m.Y',strtotime($vade->vade_tarih)) .' vade tarihli '.money_format('%i',$vade->tutar).' ₺ tutarındaki senedinizin ödenmemiş olduğunu hatırlatmak isteriz.';
+                $postUrl="http://api.efetech.net.tr/v2/sms/basic";
+
+                $apiKey = $senet->salon->sms_apikey;
+                $headers = array(
+                     'Authorization: Key '.$apiKey,
+                     'Content-Type: application/json',
+                     'Accept: application/json'
+                );
+                $postData = json_encode( array( "originator"=> $senet->salon->sms_baslik, "message"=> $mesaj, "to"=>$senet->musteri->cep_telefon,"encoding"=>"auto") );
+                
+
+             
+                $ch=curl_init();
+                curl_setopt($ch,CURLOPT_URL,$postUrl);
+                curl_setopt($ch,CURLOPT_POSTFIELDS,$postData);
+                curl_setopt($ch,CURLOPT_POST,1);
+                curl_setopt($ch,CURLOPT_TIMEOUT,5);
+                curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
+                curl_setopt($ch,CURLOPT_HTTPHEADER,$headers);
+                    
+                $response=curl_exec($ch);
+                curl_close($ch);
+            }
+        }
+        
+
+       
+        $satisortaklari = SatisOrtaklari::where('pasif_ortak',0)->get();
+        foreach($satisortaklari as $satisortagi)
+        {
+            $demosuolanlar = self::satis_ortakligi_icin_filtreli_musteri_listesi('demolar',$satisortagi->id,'');
+            $aktifsuresibitenler = self::satis_ortakligi_icin_filtreli_musteri_listesi('aktifsuresibitenler','',$satisortagi->id);
+
+            foreach($demosuolanlar as $demosuolan)
+            {
+                if($demosuolan['kalan_sure'] <= 3 && date('H:i')==date('11:00'))
+                {
+                    $bildirimmesaj = 'Sayın '.$satisortagi->ad_soyad.'. '.$demosuolan['salon_adi'].' demo hesabının süresinin bitmesine '.$demosuolan['kalan_sure'].' gün kalmış olduğunu hatırlatmak isteriz. Satış işlemleri ile ilgilenmek için bildirime tıklayınız.';
+                    $bildirimurl = 'https://app.randevumcepte.com.tr/satisortakligi/demosu-olan-musteriler';
+                    $smsmesaj = 'Sayın '.$satisortagi->ad_soyad.'. '.$demosuolan['salon_adi'].' demo hesabının süresinin bitmesine '.$demosuolan['kalan_sure'].' gün kalmış olduğunu hatırlatmak isteriz. Satış işlemleri ile ilgilenmek için satış ortaklığı panelinizi kontrol ediniz.';
+                }
+
+            }
+            foreach($aktifsuresibitenler as $aktifsuresibiten)
+            {
+                if($aktifsuresibiten['kalan_sure'] <= 15 && date('H:i')==date('11:00'))
+                {
+                    $bildirimmesaj = 'Sayın '.$satisortagi->ad_soyad.'. '.$demosuolan['salon_adi'].' hesabının lisans süresinin bitmesine '.$aktifsuresibiten['kalan_sure'].' gün kalmış olduğunu hatırlatmak isteriz. Paket yenileme işlemleri ile ilgilenmek için bildirime tıklayınız.';
+                    $bildirimurl = 'https://app.randevumcepte.com.tr/satisortakligi/aktif-musteriler';
+
+                    $smsmesaj = 'Sayın '.$satisortagi->ad_soyad.'. '.$aktifsuresibiten['salon_adi'].'  hesabının lisans süresinin bitmesine '.$aktifsuresibiten['kalan_sure'].' gün kalmış olduğunu hatırlatmak isteriz. Paket yenileme işlemleri ile ilgilenmek için satış ortaklığı panelinizi kontrol ediniz.';
+                    self::bildirimekle(null,$bildirimmesaj,$url,null,null,$imgurl,null,$satisortagi->id);
+                    $bildirimkimlikleri = BildirimKimlikleri::where('satis_ortagi_id',$satisortagi->id)->pluck('bildirim_id')->toArray(); 
+                    //self::bildirimgonder();
+                }
+            }
+        }
+
+        
+     
+        
+    }
+   
+    public function satis_ortakligi_icin_filtreli_musteri_listesi($querydurum, $satis_ortagi, $satan_satis_ortagi)
+    {
+    $query = Musteri_Formlari::query();
+    if($satis_ortagi != '')
+        $query->where('satis_ortagi_id',$satis_ortagi);
+    if($satan_satis_ortagi != '')
+        $query->where('satan_satis_ortagi',$satan_satis_ortagi);
+
+    // Duruma göre filtreleme
+    if ($querydurum == "pasif") {
+        $query->where('durum_id', '!=', 7)
+            ->whereHas('salon', function ($salonQuery) {
+                $salonQuery->where('hesap_acildi', '!=', true); // Hesap açılmayanlar
+            });
+    } elseif ($querydurum == 'aktif') {
+        $query->where('durum_id', '=', 7);
+    } elseif ($querydurum == 'demolar') {
+        $query->where('durum_id', '!=', 7)
+            ->whereHas('salon', function ($q) {
+                $q->where('demo_hesabi', true)
+                    ->where('hesap_acildi', true);
+            });
+    } elseif ($querydurum == 'satisolmamis') {
+        $query->where('durum_id', '!=', 7)
+            ->whereHas('salon', function ($q) {
+                $q->where('uyelik_bitis_tarihi', '<=', date('Y-m-d'))
+                    ->where('demo_hesabi', true);
+            });
+    } elseif ($querydurum == 'aktifsuresibitenler') {
+        $query->where('durum_id', '7')
+            ->whereHas('salon', function ($salonQuery) {
+                $salonQuery->whereDate('uyelik_bitis_tarihi', '<=', now()->addMonth()); // 1 ay içinde bitiş tarihi olanları alıyoruz
+            });
+    }
+
+    // Veriyi çek ve map ile işleyerek döndür
+    return $query->with('salon') // İlişkili salon verisini yükle
+        ->get() // Verileri çek
+        ->map(function ($musteri) use ($querydurum) {
+            // Durum butonlarını belirle
+            $durum = '';
+            $menu = '';
+            
+
+            if ($musteri->durum_id != 7 && $musteri->salon->hesap_acildi != true){
+                $durum = '<button class="btn btn-dark btn-sm" style="background-color:grey">Pasif</button>';
+            }
+            elseif ($musteri->durum_id == 6){
+                $durum = '<button class="btn btn-warning btn-sm">Ödeme Bekleniyor</button>';
+            }
+            elseif ($musteri->durum_id == 7){
+                $durum = '<button class="btn btn-success btn-sm">Aktif</button>';
+            }
+            elseif ($musteri->durum_id != 7 && $musteri->salon->demo_hesabi == true && $musteri->salon->hesap_acildi == true){
+                $durum = '<button class="btn btn-primary btn-sm">Demo Hesabı Açıldı</button>';
+            }
+            elseif ($musteri->durum_id != 7 && $musteri->salon->uyelik_bitis_tarihi <= date('Y-m-d') && $musteri->salon->demo_hesabi == true)
+                $durum = '<button class="btn btn-info btn-sm">Satışı Gerçekleşmedi</button>';
+
+            // Kullanıcı bilgilerini döndür
+            return [
+                
+                'salon_adi' => $musteri->salon->salon_adi ?? null,
+                'yetkili_bilgisi' => $musteri->salon ? $musteri->salon->yetkili_adi : null,
+                'yetkili_telefon' => $musteri->salon ? $musteri->salon->yetkili_telefon : null,
+                'created_at' => $musteri->salon ? Carbon::parse($musteri->salon->created_at)->format('d.m.Y') : null,
+                'satilan_paket' => $musteri->hizmetler
+                    ? $musteri->hizmetler->map(function ($paket) use ($querydurum) {
+                        $periyotyazi = '';
+                        if ($paket->periyot == 'aylik') $periyotyazi = 'Aylık';
+                        if ($paket->periyot == 'yillik') $periyotyazi = 'Yıllık';
+                        return $paket->uyelik->uyelik_adi . ' ' . $periyotyazi;
+                    })->implode('<br>')
+                    : null,
+                'durum' => $durum,
+                'kalan_sure' => $musteri->salon ? self::lisans_sure_kontrol($musteri->salon->id)  : null
+            ];
+        });
+    }
+
+    
+    public function bildirimekle($salonid,$mesaj,$url,$personelid,$musteriid,$imgurl,$randevuid,$satisortagiid)
+    {
+        $bildirim = new Bildirimler();
+        $bildirim->aciklama = $mesaj;
+        $bildirim->salon_id = $salonid;
+        $bildirim->personel_id = $personelid;
+        $bildirim->satis_ortagi_id = $satisortagiid;
+        $bildirim->url = $url;
+        $bildirim->tarih_saat = date('Y-m-d H:i:s');
+        $bildirim->okundu = false;
+        $bildirim->user_id = $musteriid;
+        $bildirim->img_src = $imgurl;
+        $bildirim->randevu_id = $randevuid;
+        $bildirim->save();
+    }
+    public function bildirimgonder($bildirimkimlikleri,$mesaj,$baslik,$salonid,$channelid,$appid,$key)
+    {
+        $salon = Salonlar::where('id',$salonid)->first();
+        $post_url_push_notification = "https://api.onesignal.com/notifications?c=push";
+
+        $headers_push_notification = array(
+                                        'Accept: application/json',
+                                        'Authorization: Key '.$key,
+                                        'Content-Type: application/json',
+        );
+
+         
+        $post_data_push_notification = 
+            json_encode( 
+            
+                array( 
+                    "app_id"=> $appid,
+                 
+                    "include_player_ids" =>  $bildirimkimlikleri,
+                    "android_channel_id" => $channelid,
+                    "contents" => array("en"=>  $mesaj),
+                    "headings" =>  array("en"=> $baslik),
+                    "sound" => "default",
+                     
+                ) 
+            );
+        $ch_push_notification=curl_init();
+        curl_setopt($ch_push_notification,CURLOPT_URL,$post_url_push_notification);
+        curl_setopt($ch_push_notification,CURLOPT_POSTFIELDS,$post_data_push_notification);
+        curl_setopt($ch_push_notification,CURLOPT_POST,1);
+        curl_setopt($ch_push_notification,CURLOPT_TIMEOUT,5);
+        curl_setopt($ch_push_notification,CURLOPT_RETURNTRANSFER,1);
+        curl_setopt($ch_push_notification,CURLOPT_HTTPHEADER,$headers_push_notification);
+        $response_push_notifications=curl_exec($ch_push_notification);
+        curl_close($ch_push_notification);
+    }
+    
+    public function lisans_sure_kontrol($salonid)
+    { 
+        $isletme = Salonlar::where('id',$salonid)->first();
+        $from_time = strtotime(date('Y-m-d H:i:s'));
+        $to_time = strtotime(date($isletme->uyelik_bitis_tarihi.' 23:59:59'));
+        $diff = round(($to_time - $from_time) / (3600*24),0);
+        if($isletme->uyelik_bitis_tarihi == null||$isletme->uyelik_bitis_tarihi == '' )
+            $diff .= '-';
+        return $diff;
+    }
+    public function yonetici_kimlikleri($salon_id)
+    {
+        $yonetici =  Personeller::join('model_has_roles','salon_personelleri.yetkili_id','=','model_has_roles.model_id')->where('salon_personelleri.salon_id',$salon_id)->where('model_has_roles.role_id','<','5')->pluck('salon_personelleri.id')->toArray();
+        $yoneticiCol =  Personeller::join('model_has_roles','salon_personelleri.yetkili_id','=','model_has_roles.model_id')->where('salon_personelleri.salon_id',$salon_id)->where('model_has_roles.role_id','<','5')->get();
+        foreach($yoneticiCol as $yon)
+        {
+              Log::info($salon_id.' için yöneticiler '.$yon->personel_adi);
+        }
+      
+
+        return BildirimKimlikleri::whereIn('isletme_yetkili_id',$yonetici)->pluck('bildirim_id')->toArray();
+
+    }
+    public function yonetici_idleri($salon_id){
+        return Personeller::join('model_has_roles','salon_personelleri.yetkili_id','=','model_has_roles.model_id')->where('salon_personelleri.salon_id',$salon_id)->where('model_has_roles.role_id','<','5')->pluck('personller.id')->toArray();
+    }
+   
+
+
+}
+

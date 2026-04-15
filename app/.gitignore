@@ -1,3 +1,22 @@
-*
-!public/
-!.gitignore
+# Kullanici tarafindan olusturulan dosyalar - git'e gitmez
+public/*
+!public/.gitignore
+*.xlsx
+*.xls
+*.csv
+
+# Gizli anahtarlar ve servis hesaplari
+firebase/
+
+# Log ve sistem dosyalari
+error_log
+*.log
+desktop.ini
+cookies.txt
+
+# Arsiv ve binary dosyalar
+*.zip
+*.gz
+*.jpg
+*.jpeg
+*.png

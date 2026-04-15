@@ -1,0 +1,222 @@
+<?php
+
+namespace App\Http\Controllers\AuthStoreAdmin;
+
+use App\Http\Controllers\Controller;
+ use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
+use App\BildirimKimlikleri;
+use App\IsletmeYetkilileri;
+use App\Salonlar;
+use App\Personeller;
+use App\SMSIletimRaporlari;
+use Hash;
+use Illuminate\Support\Facades\Session;
+
+class LoginController extends Controller
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Login Controller
+    |--------------------------------------------------------------------------
+    |
+    | This controller handles authenticating users for the application and
+    | redirecting them to your home screen. The controller uses a trait
+    | to conveniently provide its functionality to your applications.
+    |
+    */
+
+    //use AuthenticatesUsers;
+
+    /**
+     * Where to redirect users after login.
+     *
+     * @var string
+     */
+    //protected $redirectTo = '/';
+
+    /**
+     * Create a new controller instance.
+     *
+     * @return void
+     */
+     use AuthenticatesUsers;
+     protected $redirectTo = '/isletmeyonetim';
+    public function __construct()
+    {
+        $this->middleware('guest:isletmeyonetim')->except(['logout']);
+    }
+    public function satisortagiornekhesapgirisi(Request $request)
+{
+    $user = IsletmeYetkilileri::find(1); // ID'si 1 olan kullanıcı
+
+    if (!$user) {
+        return redirect('/')->with('error', 'Kullanıcı bulunamadı!');
+    }
+
+    try {
+        // Kullanıcıyı özel guard ile giriş yaptır
+        Auth::guard('satisortakligi')->logout();
+        Auth::guard('isletmeyonetim')->login($user);
+        
+        // Oturum açıldıktan sonra, oturum bilgisini manuel olarak kontrol edebiliriz
+        if (Auth::guard('isletmeyonetim')->check()) {
+            // Oturum başarılı bir şekilde açıldıysa, session'ı manuel olarak kontrol et ve güncelle
+            Session::put('isletmeyonetim_user', $user); // Kullanıcıyı manuel olarak session'a ekle
+            return redirect('/isletmeyonetim/randevular');
+        } else {
+            // Oturum açma işlemi başarısız olursa hata mesajı göster
+            echo 'Oturum açılırken bir hata oluştu!';
+            exit();
+        }
+        
+    } catch (\Exception $e) {
+        // Hata mesajı
+         echo 'Oturum açılırken bir hata oluştu!';
+            exit();
+        
+    }
+}
+    public function showStoreAdminLoginForm(){
+        if(!Auth::user()){
+
+            return view('isletmeadmin.login');
+            exit;
+        }
+        else
+        {
+            return redirect('/isletmeyonetim/randevular');
+            exit;
+        }
+    }
+    public function login(Request $request){
+        $credential = array();
+        $credential2 = array();
+        if(is_numeric($request->email)){
+             $this->validate($request,[
+            'gsm1' => 'email',
+            'gsm2' => 'email',           
+            'password' => 'required|min:3',
+          ]);
+             $credential = ['gsm1' => $request->email, 'password' =>$request->password];
+             $credential2 =['gsm2' => $request->email,'password' =>$request->password];
+        }
+        else{
+            $this->validate($request,[
+            'email' => 'email',
+           
+            'password' => 'required|min:3',
+             ]);
+            $credential =['email' => $request->email, 'password' =>$request->password];
+        }
+       
+        //  Auth::guard('isletmeyonetim')->user()->id)
+        if((Auth::guard('isletmeyonetim')->attempt($credential,$request->member) ) || Auth::guard('isletmeyonetim')->attempt($credential2, $request->member)){
+
+             if(BildirimKimlikleri::where('isletme_yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('bildirim_id',$request->bildirimid)->where('cihaz',$request->header('User-Agent'))->count()>0)
+                BildirimKimlikleri::where('isletme_yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('bildirim_id',$request->bildirimid)->where('cihaz',$request->header('User-Agent'))->delete();
+             
+            $bildirimkimligi = new BildirimKimlikleri();
+            $bildirimkimligi->isletme_yetkili_id = Auth::guard('isletmeyonetim')->user()->id;
+            $bildirimkimligi->bildirim_id = $request->bildirimid;
+            $bildirimkimligi->cihaz = $request->header('User-Agent');
+            $bildirimkimligi->save();
+             
+           // Auth::guard('isletmeyonetim')->logoutOtherDevices($request->password);
+            return redirect()->route('isletmeadmin.randevular');
+            /*if(Auth::guard('isletmeyonetim')->user()->hasRole('Personel'))
+            {
+
+                
+                exit;
+             }
+             else{
+                return redirect()->route('isletmeadmin.dashboard');
+                exit;
+             }*/
+            
+        } 
+        return back()->with('error', 'Yanlış kullanıcı adı veya şifre girdiniz!');
+    }
+    public function sifremiunuttum(Request $request)
+    {
+        return view('isletmeadmin.sifremiunuttum');
+    }
+    public function sifregonder(Request $request)
+    {   
+        $yetkili = IsletmeYetkilileri::where('gsm1',$request->telefon)->whereHas('yetkili_olunan_isletmeler',function($q){
+            $q->where('aktif',true);
+        })->first();
+        if($yetkili)
+        {
+            $random = str_shuffle('1234567890');
+            $kod = substr($random, 0, 4);
+            $yetkili->dogrulama_kodu = $kod;
+            $yetkili->save();
+            $isletme = Salonlar::where('id',$yetkili->salon_id)->first();
+         
+            $headers = array(
+                 'Authorization: Key LSS3WTaRVz5kD33yTqXuny1W9fKBBYD5GRSD2o6Bo9L5',
+                 'Content-Type: application/json',
+                 'Accept: application/json'
+            );
+            $mesaj = array(
+                array("to"=>$yetkili->gsm1,"message"=>$kod.' Bu doğrulama kodunu kullanarak şfirenizi sıfırlayabilirsiniz.'),
+
+            );
+            $postData = json_encode( array( "originator"=> "RANDVMCEPTE", "messages"=>$mesaj ,"encoding"=>"auto") );
+
+            $ch=curl_init();
+            curl_setopt($ch,CURLOPT_URL,'http://api.efetech.net.tr/v2/sms/multi');
+            curl_setopt($ch,CURLOPT_POSTFIELDS,$postData);
+            curl_setopt($ch,CURLOPT_POST,1);
+            curl_setopt($ch,CURLOPT_TIMEOUT,5);
+            curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
+            curl_setopt($ch,CURLOPT_HTTPHEADER,$headers);
+                    
+            $response = curl_exec($ch);
+             
+            return array(
+                'status'=>true,
+                'mesaj'=>''
+            );
+            exit;
+
+        }
+        else
+        {
+            return array(
+                'status'=>false,
+                'mesaj'=>'Sistemde girdiğiniz telefon numarasına ait kullanıcı bulunamadı'
+            );
+            exit;
+        }
+
+
+
+    }
+    public function sifredegistir(Request $request)
+    {
+        $yetkili = IsletmeYetkilileri::where('dogrulama_kodu',$request->dogrulama_kodu)->first();
+        if($yetkili)
+        {
+            $yetkili->password = Hash::make($request->sifre);
+            $yetkili->save();
+            return array(
+                'status' => true,
+                'redirect' => '/isletmeyonetim/girisyap'
+            );
+            exit;
+        }
+        else
+        {
+            return array(
+                'status' => false,
+                'redirect' => ''
+            );
+        }
+
+    }
+
+}

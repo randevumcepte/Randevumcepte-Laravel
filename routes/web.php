@@ -63,6 +63,7 @@ Route::get('/save-excel', function () {
     Route::get('/basarisizislem',function(){
     	return view('odemebasarisiz');
     });*/
+     Route::post('/webhook','HomeController@webhook');
     Route::get('/bulkmailgonder','MailController@test');
     Route::get('/smsgonder','SMSController@sendSMS');
     Route::get('/isletmeyonetim/seopaketleri','HomeController@seobasvuru');
@@ -631,6 +632,7 @@ Route::get('/paketVarmiKontrolu','StoreAdminController@paketVarmiKontrolu');
 Route::post('/seansEkle','StoreAdminController@seansEkle');
 Route::post('/seansGuncelle','StoreAdminController@seansGuncelle');
 	Route::get('/seansGetir','StoreAdminController@seans_getir');
+	Route::post('/randevuGeldiGelmediIsaretiKaldir','StoreAdminController@randevuGeldiGelmediIsaretiKaldir');
 });
 Route::get('/run-schedule', function () {
     \Illuminate\Support\Facades\Artisan::call('schedule:run');
