@@ -1,6 +1,7 @@
 <?php
 /**
- * GitHub Webhook - Push sonrasi sunucuda git pull calistirir
+ * GitHub Webhook - Push sonrasi deploy flag dosyasi olusturur
+ * Cron job her dakika flag'i kontrol edip git pull calistirir
  * URL: https://apptest.randevumcepte.com.tr/github-webhook.php
  */
 
@@ -52,19 +53,21 @@ if ($branch !== 'main') {
     exit(0);
 }
 
-// Git pull calistir
-$projectDir = dirname(__DIR__);
-$output = [];
-$returnCode = 0;
+// Deploy flag dosyasi olustur - cron job bunu kontrol edecek
+$flagFile = dirname(__DIR__) . '/storage/.deploy-flag';
+$flagData = json_encode([
+    'branch' => $branch,
+    'commit' => isset($data['after']) ? $data['after'] : '',
+    'time' => date('Y-m-d H:i:s'),
+]);
 
-exec("cd {$projectDir} && git pull origin main 2>&1", $output, $returnCode);
+$written = file_put_contents($flagFile, $flagData);
 
 $result = [
-    'success' => $returnCode === 0,
-    'branch'  => $branch,
-    'output'  => implode("\n", $output),
-    'time'    => date('Y-m-d H:i:s'),
+    'success' => $written !== false,
+    'message' => $written !== false ? 'Deploy flag created, cron will pull shortly' : 'Failed to create flag file',
+    'time' => date('Y-m-d H:i:s'),
 ];
 
-http_response_code($returnCode === 0 ? 200 : 500);
+http_response_code($written !== false ? 200 : 500);
 echo json_encode($result);
