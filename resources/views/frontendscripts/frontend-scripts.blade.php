@@ -304,6 +304,19 @@
                     }
                 }
                 
+                // Saat kapama sekmesi icin tarih, saat ve personel doldur
+                $('#saat_kapama input[name="tarih"]').val(tarihsaattext[0]);
+                $('#kapama_saat_baslangic').val(tarihsaattext[1]);
+
+                if ($('#randevu_ayarina_gore').val() == 1) {
+                    var kapamaPersonelOption = new Option(event.resourceTitle, event.resourceId, true, true);
+                    $('#saat_kapama select[name="personel"]').empty().append('<option></option>').append(kapamaPersonelOption).trigger('change');
+                }
+                if ($('#randevu_ayarina_gore').val() == 3 && event.personelId != "") {
+                    var kapamaPersonelOption = new Option(event.personelAdi, event.personelId, true, true);
+                    $('#saat_kapama select[name="personel"]').empty().append('<option></option>').append(kapamaPersonelOption).trigger('change');
+                }
+
                 jQuery("#modal-view-event-add").modal();
             }
             return false;
