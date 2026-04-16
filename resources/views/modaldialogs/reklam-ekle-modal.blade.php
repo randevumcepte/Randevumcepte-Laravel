@@ -102,7 +102,9 @@
                                     @endforeach
                                  
                                     @foreach($gruplar as $grup2)
+                                       @if(isset($grup2['id']))
                                        <option value="haricigrup-{{ $grup2['id'] }}">{{ $grup2['grup_adi'] }}</option>
+                                       @endif
                                     @endforeach
                                 
                               </select>
