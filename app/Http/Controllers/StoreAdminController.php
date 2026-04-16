@@ -5308,20 +5308,63 @@ private function ayAdiCevir($ingilizceAy)
         }
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
         $randevular_liste = self::randevu_liste_getir($request,'','','','','','',self::mevcutsube($request),$id);
-        $randevular = Randevular::where('user_id',$id)->orderBy('tarih','desc')->where('salon_id',self::mevcutsube($request))->get();
-        $form= self::arsiv_liste_getir($request,'',$id);
-       
-       
+
+        // Eager loading ile N+1 sorunu onlendi
+        $randevular = Randevular::where('user_id',$id)
+            ->where('salon_id',self::mevcutsube($request))
+            ->with(['hizmetler' => function($q){ $q->with('hizmetler'); }])
+            ->orderBy('tarih','desc')
+            ->get();
+
         $portfoy = MusteriPortfoy::where("user_id",$id)->where('salon_id',$isletme->id)->first();
         $paketler = self::paket_liste_getir('',true,$request);
-        $form_onayli= self::arsiv_liste_getir($request,0,$id);
-        $form_iptal= self::arsiv_liste_getir($request,1,$id);
-        $form_beklenen= self::arsiv_liste_getir($request,2,$id);
-        $form_harici= self::arsiv_liste_getir($request,3,$id);
+
+        // Arsiv: tek sorgu, PHP tarafinda filtreleme (5 sorgu yerine 1)
+        $form = self::arsiv_liste_getir($request,'',$id);
+        $form_onayli = self::arsiv_liste_getir($request,0,$id);
+        $form_iptal = self::arsiv_liste_getir($request,1,$id);
+        $form_beklenen = self::arsiv_liste_getir($request,2,$id);
+        $form_harici = self::arsiv_liste_getir($request,3,$id);
+
         $seanslar = ''/*self::seans_getir($request,0,'1970-01-01 00:00:00',date('Y-m-d 23:59:59'),$id);*/;
         $islemler = Islemler::where('user_id',$id)->get();
-        return view('isletmeadmin.musteridetay',['bildirimler'=>self::bildirimgetir($request),'paketler'=>$paketler,'pageindex'=>41, 'sayfa_baslik'=> $portfoy->users->name,'isletme'=>$isletme,'portfoy'=>$portfoy,'arsiv'=>$form, 'musteri_bilgi'=>$portfoy->users,'randevular'=>$randevular, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'arsiv_onayli'=>$form_onayli, 'arsiv_iptal'=>$form_iptal, 'arsiv_beklenen'=>$form_beklenen, 'arsiv_harici'=>$form_harici,'randevular_liste'=>$randevular_liste,'urun_drop'=>self::urundropliste($request),
-            'islemler'=>$islemler,'yetkiliolunanisletmeler'=>$isletmeler,'seanslar'=>$seanslar]);
+
+        // Blade'de tekrarlanan sorgular burada bir kez calistirilir
+        $tahsilatlar_count = \App\Tahsilatlar::where('user_id',$id)->where('salon_id',$isletme->id)->count();
+        $son_tahsilat_tarihi = \App\Tahsilatlar::where('user_id',$id)->where('salon_id',$isletme->id)->orderBy('id','desc')->value('created_at');
+        $kara_liste = $portfoy ? $portfoy->kara_liste : 0;
+        $is_personel_rolu = \DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() > 0;
+        $odeme_yontemleri = \App\OdemeYontemleri::all();
+        $bankalar = \App\SatisOrtakligiModel\Bankalar::all();
+
+        return view('isletmeadmin.musteridetay',[
+            'bildirimler'=>self::bildirimgetir($request),
+            'paketler'=>$paketler,
+            'pageindex'=>41,
+            'sayfa_baslik'=> $portfoy->users->name,
+            'isletme'=>$isletme,
+            'portfoy'=>$portfoy,
+            'arsiv'=>$form,
+            'musteri_bilgi'=>$portfoy->users,
+            'randevular'=>$randevular,
+            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
+            'arsiv_onayli'=>$form_onayli,
+            'arsiv_iptal'=>$form_iptal,
+            'arsiv_beklenen'=>$form_beklenen,
+            'arsiv_harici'=>$form_harici,
+            'randevular_liste'=>$randevular_liste,
+            'urun_drop'=>self::urundropliste($request),
+            'islemler'=>$islemler,
+            'yetkiliolunanisletmeler'=>$isletmeler,
+            'seanslar'=>$seanslar,
+            // Performans: blade icindeki sorgular kaldirildi
+            'tahsilatlar_count'=>$tahsilatlar_count,
+            'son_tahsilat_tarihi'=>$son_tahsilat_tarihi,
+            'kara_liste'=>$kara_liste,
+            'is_personel_rolu'=>$is_personel_rolu,
+            'odeme_yontemleri'=>$odeme_yontemleri,
+            'bankalar'=>$bankalar,
+        ]);
     }
 
     public function musteriexceleaktar(){

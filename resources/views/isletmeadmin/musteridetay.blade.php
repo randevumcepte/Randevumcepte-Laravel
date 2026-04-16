@@ -19,11 +19,9 @@
          </nav>
       </div>
       <div class="col-md-1 col-sm-6 col-6">
-         @if(\App\Tahsilatlar::where('user_id',$musteri_bilgi->id)->where('salon_id',$isletme->id)->count()>3 
-         && 
-         date('Y-m-d H:i:s', strtotime('+90 days',strtotime(\App\Tahsilatlar::where('user_id',$musteri_bilgi->id)->where('salon_id',$isletme->id)->orderBy('id','desc')->value('created_at')))) < date('Y-m-d H:i:s', strtotime('+90 days', strtotime(date('Y-m-d H:i:s')))))
+         @if($tahsilatlar_count > 3 && $son_tahsilat_tarihi && strtotime('+90 days', strtotime($son_tahsilat_tarihi)) < strtotime('+90 days'))
          <img src="/public/img/sadik-1.png" style="width: 100px; height:auto;">
-         @elseif(\App\Tahsilatlar::where('user_id',$musteri_bilgi->id)->where('salon_id',$isletme->id)->count()==0)
+         @elseif($tahsilatlar_count == 0)
          <img src="/public/img/pasif-1.png" style="width: 100px; height:auto;">
          @else
          <img src="/public/img/aktif-1.png" style="width: 100px; height:auto;">
@@ -43,12 +41,12 @@
             </button>
          </div>
          @endif
-         @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+         @if(!$is_personel_rolu)
          <div class="d-inline-block">
-            <button style='display:{{(\App\MusteriPortfoy::where('user_id',$musteri_bilgi->id)->where('salon_id',$isletme->id)->value('kara_liste')!=1) ? "inline-block": "none"}}' class="btn btn-primary btn-lg" id='musteri_sms_kara_listeye_ekle' data-value='{{$musteri_bilgi->id}}'>
+            <button style='display:{{($kara_liste != 1) ? "inline-block": "none"}}' class="btn btn-primary btn-lg" id='musteri_sms_kara_listeye_ekle' data-value='{{$musteri_bilgi->id}}'>
             <i class="fa fa-times"></i> Kara Listeye Ekle
             </button>
-            <button style='display:{{(\App\MusteriPortfoy::where('user_id',$musteri_bilgi->id)->where('salon_id',$isletme->id)->value('kara_liste')==1) ? "inline-block": "none"}}' class="btn btn-dark btn-lg" id='musteri_sms_kara_listeden_cikar' data-value='{{$musteri_bilgi->id}}'>
+            <button style='display:{{($kara_liste == 1) ? "inline-block": "none"}}' class="btn btn-dark btn-lg" id='musteri_sms_kara_listeden_cikar' data-value='{{$musteri_bilgi->id}}'>
             <i class="fa fa-check"></i> Kara Listeden Çıkar
             </button>
          </div>
@@ -83,7 +81,7 @@
                   aria-selected="false"
                   >Randevular</a>
             </li>
-            @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+            @if(!$is_personel_rolu)
             <li class="nav-item" style="margin:5px">
                <a
                   class="btn btn-outline-primary "
@@ -929,7 +927,7 @@
                      <div class="form-group">
                         <label>Ödeme Yönetmi</label>
                         <select class="form-control" id='adisyon_tahsilat_odeme_yontemi' name="odeme_yontemi">
-                           @foreach(\App\OdemeYontemleri::all() as $odeme_yontemi)
+                           @foreach($odeme_yontemleri as $odeme_yontemi)
                            <option value="{{$odeme_yontemi->id}}">{{$odeme_yontemi->odeme_yontemi}}</option>
                            @endforeach
                         </select>
@@ -940,7 +938,7 @@
                         <label>Banka (opsiyonel)</label>
                         <select class="form-control" id='adisyon_tahsilat_banka' name="banka">
                            <option value=''>Seçiniz...</option>
-                           @foreach(\App\SatisOrtakligiModel\Bankalar::all() as $banka)
+                           @foreach($bankalar as $banka)
                            <option value="{{$banka->id}}">{{$banka->banka}}</option>
                            @endforeach
                         </select>
