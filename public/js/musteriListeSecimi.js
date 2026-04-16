@@ -116,6 +116,7 @@ class MusteriSecimi {
 
     bireyselSecimToggle(userId, isChecked) {
         console.log('bireyselSecimToggle:', userId, isChecked, typeof userId);
+        console.log('this === window.musteriSecimi:', this === window.musteriSecimi);
         if (isChecked) {
             this.state.seciliIdler.add(userId);
         } else {
