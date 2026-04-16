@@ -430,6 +430,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/kampanyasil','StoreAdminController@kampanya_sil');
 	Route::post('/etkinliksil','StoreAdminController@etkinlik_sil');
 	Route::post('/kampanyaekleduzenle','StoreAdminController@kampanyaekleduzenle');
+	Route::get('/kampanya-sablon-filtre','StoreAdminController@kampanyaSablonFiltre');
 	Route::get('/etkinlikduzenle','StoreAdminController@etkinlikduzenle');
 	Route::post('/seanstanrandevuolustur','StoreAdminController@seanstanrandevuolustur');
 	Route::get('/randevudetayigetir','StoreAdminController@randevudetayigetir');

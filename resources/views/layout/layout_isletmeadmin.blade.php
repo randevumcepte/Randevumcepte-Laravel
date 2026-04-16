@@ -4202,7 +4202,8 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
       <script src="{{secure_asset('public/js/custom.js?v=222.2')}}"></script>
-  
+      <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
+
       @include('frontendscripts.frontend-scripts')
       @if($pageindex==111)
       <script type="text/javascript">

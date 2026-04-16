@@ -13500,88 +13500,178 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
         $paketler = self::paket_liste_getir('',true,$request);
         $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
-         
-        $kampanya_katilimci_musteriler = MusteriPortfoy::where('salon_id', self::mevcutsube($request))
-            ->where('aktif', true)
-            ->get(); // Her sayfada 50 kayıt göster
-        return view('isletmeadmin.kampanya_yonetimi',['paketler'=>$paketler,'pageindex'=>22,'sayfa_baslik'=>'Reklam Yönetimi','isletme'=>$isletme,'bildirimler'=>self::bildirimgetir($request),'kampanya_yonetimi'=>self::paket_kampanyalar($request), 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
-            'yetkiliolunanisletmeler'=>$isletmeler,'kampanya_katilimci_musteriler'=>$kampanya_katilimci_musteriler]);
+
+
+        return view('isletmeadmin.kampanya_yonetimi',[ 'paketler'=>$paketler,'pageindex'=>22,'sayfa_baslik'=>'Reklam Yönetimi','isletme'=>$isletme,'bildirimler'=>self::bildirimgetir($request),'kampanya_yonetimi'=>self::paket_kampanyalar($request), 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
+            'yetkiliolunanisletmeler'=>$isletmeler,'gruplar'=>self::grup_sms_liste_getir($request)]);
     }
     public function paket_kampanyalar(Request $request)
-    {
-       return DB::table('kampanya_yonetimi')->join('kampanya_katilimcilari','kampanya_yonetimi.id','=','kampanya_katilimcilari.kampanya_id')->select('kampanya_yonetimi.paket_isim as paket_isim','kampanya_yonetimi.seans as seans',
-        DB::raw("CONCAT(FORMAT(kampanya_yonetimi.fiyat, 2, 'tr_TR'), ' ₺') as fiyat"),
-        'kampanya_yonetimi.hizmet_adi as hizmet_adi',
-        DB::raw('COUNT(kampanya_yonetimi.id) as katilimci_sayisi'),
-        DB::raw('CONCAT("<div class=\"dropdown\">
-                        <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\"
-                                  href=\"#\"
-                                  role=\"button\"
-                                  data-toggle=\"dropdown\"
-                                ><i class=\"dw dw-more\"></i>
+{
+    return DB::table('kampanya_yonetimi')
+        ->leftJoin('kampanya_katilimcilari', 'kampanya_yonetimi.id', '=', 'kampanya_katilimcilari.kampanya_id')
+        ->leftJoin('hizmetler', 'kampanya_yonetimi.hizmet_id', '=', 'hizmetler.id')
+        ->leftJoin('urunler', 'kampanya_yonetimi.urun_id', '=', 'urunler.id')
+        ->select(
+            DB::raw('DATE_FORMAT(kampanya_yonetimi.baslangic_tarihi, "%d.%m.%Y") as baslangic_tarihi'),
+            DB::raw('DATE_FORMAT(kampanya_yonetimi.bitis_tarihi, "%d.%m.%Y") as bitis_tarihi'),
+
+            DB::raw('CASE
+                WHEN kampanya_yonetimi.gorev_turu = 2 THEN DATE_FORMAT(kampanya_yonetimi.sms_tarih_saat, "%H:%i")
+                WHEN kampanya_yonetimi.gorev_turu = 1 THEN DATE_FORMAT(kampanya_yonetimi.asistan_tarih_saat, "%H:%i")
+                WHEN kampanya_yonetimi.gorev_turu = 3 OR kampanya_yonetimi.gorev_turu = 4 THEN DATE_FORMAT(kampanya_yonetimi.bildirim_tarih_saat, "%H:%i")
+                END as arama_saati'),
+
+            'kampanya_yonetimi.indirim_turu as indirim_turu',
+            'kampanya_yonetimi.musteri_turu as musteri_turu',
+
+            DB::raw('CONCAT(COALESCE(hizmetler.hizmet_adi, ""), COALESCE(urunler.urun_adi, "")) as hizmet_adi'),
+
+            DB::raw('CASE
+                WHEN kampanya_yonetimi.gorev_turu = 2 THEN "SMS"
+                WHEN kampanya_yonetimi.gorev_turu = 1 THEN "Arama"
+                WHEN kampanya_yonetimi.gorev_turu = 3 THEN "Bildirim"
+                WHEN kampanya_yonetimi.gorev_turu = 4 THEN "Bilgilendirme"
+                WHEN kampanya_yonetimi.gorev_turu IS NULL THEN ""
+                END as gorev_turu'),
+
+            'kampanya_yonetimi.paket_isim as kampanya',
+            'kampanya_yonetimi.seans as seans',
+
+            DB::raw("CONCAT(FORMAT(kampanya_yonetimi.fiyat, 2, 'tr_TR'), ' ₺') as fiyat"),
+
+            DB::raw('COUNT(kampanya_yonetimi.id) as katilimci_sayisi'),
+
+            DB::raw('CONCAT(
+                "<div class=\"dropdown\">
+                    <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\"
+                      href=\"#\"
+                      role=\"button\"
+                      data-toggle=\"dropdown\">
+                        <i class=\"dw dw-more\"></i>
+                    </a>
+                    <div class=\"dropdown-menu dropdown-menu-right dropdown-menu-icon-list\">
+                        <a class=\"dropdown-item\" href=\"#\" data-toggle=\"modal\" name=\"kampanya_detay\" data-target=\"#kampanya_detay_modal\" data-value=\"", kampanya_yonetimi.id, "\">
+                            <i class=\"fa fa-eye\"></i> Reklam Raporu
                         </a>
-                        <div class=\"dropdown-menu dropdown-menu-right dropdown-menu-icon-list\">
-                                    <a class=\"dropdown-item\" href=\"#\"  data-toggle=\"modal\" name=\"kampanya_detay\" data-target=\"#kampanya_detay_modal\" data-value=\"",kampanya_yonetimi.id,"\"><i class=\"fa fa-eye\"></i> Reklam Raporu</a>
-                    <a class=\"dropdown-item\" href=\"#\" name=\"kampanya_sil\" data-value=\"",kampanya_yonetimi.id,"\"><i class=\"dw dw-delete-3\"></i>Sil</a></div></div>") AS islemler'))->where('kampanya_yonetimi.salon_id',self::mevcutsube($request))->groupBy('kampanya_yonetimi.id')->where('kampanya_yonetimi.aktifmi',true)->get();
-    }
-     public function kampanyadetay(Request $request)
-    {
-      $katilimcilar=DB::table('kampanya_katilimcilari')->join('users','kampanya_katilimcilari.user_id','=','users.id')
-      ->select('users.name as ad_soyad','users.cep_telefon as telefon', DB::raw('CASE WHEN kampanya_katilimcilari.durum IS NULL THEN "Bekleniyor" WHEN kampanya_katilimcilari.durum=0 THEN "Katılmıyor" WHEN kampanya_katilimcilari.durum=1 THEN "Katılıyor" END as durum'),
-        DB::raw('CONCAT("<input type=\"checkbox\" name=\"sec\" value=\"",users.id,"\">",users.name) AS sms_liste')
-    )->where('kampanya_katilimcilari.kampanya_id',$request->kampanyaid)->get();
-      $katilimcilar_katilanlar=DB::table('kampanya_katilimcilari')->join('users','kampanya_katilimcilari.user_id','=','users.id')
-      ->select('users.name as ad_soyad','users.cep_telefon as telefon')->where('kampanya_katilimcilari.kampanya_id',$request->kampanyaid)->where('kampanya_katilimcilari.durum',true)->get();
-       $katilimcilar_katilmayanlar=DB::table('kampanya_katilimcilari')->join('users','kampanya_katilimcilari.user_id','=','users.id')
-      ->select('users.name as ad_soyad','users.cep_telefon as telefon')->where('kampanya_katilimcilari.kampanya_id',$request->kampanyaid)->where('kampanya_katilimcilari.durum',false)->where('kampanya_katilimcilari.durum','!=',null)->get();
-      $katilimcilar_beklenen=DB::table('kampanya_katilimcilari')->join('users','kampanya_katilimcilari.user_id','=','users.id')
-      ->select('users.name as ad_soyad','users.cep_telefon as telefon')->where('kampanya_katilimcilari.kampanya_id',$request->kampanyaid)->where('kampanya_katilimcilari.durum',null)->get();
+                        <a class=\"dropdown-item\" href=\"#\" name=\"kampanya_sil\" data-value=\"", kampanya_yonetimi.id, "\" >
+                            <i class=\"dw dw-delete-3\"></i> Sil
+                        </a>
+                    </div>
+                </div>") AS islemler'),
 
-
-       $katilimcilar_arama=DB::table('kampanya_katilimcilari')->join('users','kampanya_katilimcilari.user_id','=','users.id')
-      ->select('users.name as ad_soyad','users.cep_telefon as telefon', DB::raw('CASE WHEN kampanya_katilimcilari.durum_asistan IS NULL THEN "Bekleniyor" WHEN kampanya_katilimcilari.durum_asistan=0 THEN "Katılmıyor" WHEN kampanya_katilimcilari.durum_asistan=1 THEN "Katılıyor" END as durum'),
-        DB::raw('CONCAT("<input type=\"checkbox\" name=\"sec\" value=\"",users.id,"\">",users.name) AS sms_liste')
-    )->where('kampanya_katilimcilari.kampanya_id',$request->kampanyaid)->get();
-      $katilimcilar_katilanlar_arama=DB::table('kampanya_katilimcilari')->join('users','kampanya_katilimcilari.user_id','=','users.id')
-      ->select('users.name as ad_soyad','users.cep_telefon as telefon')->where('kampanya_katilimcilari.kampanya_id',$request->kampanyaid)->where('kampanya_katilimcilari.durum_asistan',true)->get();
-       
-       $katilimcilar_katilmayanlar_arama=DB::table('kampanya_katilimcilari')->join('users','kampanya_katilimcilari.user_id','=','users.id')
-      ->select('users.name as ad_soyad','users.cep_telefon as telefon')->where('kampanya_katilimcilari.kampanya_id',$request->kampanyaid)->where('kampanya_katilimcilari.durum_asistan',false)->where('kampanya_katilimcilari.durum_asistan','!=',null)->get();
-
-      $katilimcilar_beklenen_arama=DB::table('kampanya_katilimcilari')->join('users','kampanya_katilimcilari.user_id','=','users.id')
-      ->select('users.name as ad_soyad','users.cep_telefon as telefon')->where('kampanya_katilimcilari.kampanya_id',$request->kampanyaid)->where('kampanya_katilimcilari.durum_asistan',null)->get();
-      
-
-
-      $kampanya=DB::table('kampanya_yonetimi')->join('kampanya_katilimcilari','kampanya_yonetimi.id','=','kampanya_katilimcilari.kampanya_id')
-       ->select(
-          DB::raw('COUNT(kampanya_katilimcilari.kampanya_id) as katilimci_sayisi'),
-         'kampanya_yonetimi.seans as seans',
-         'kampanya_yonetimi.hizmet_adi as hizmet_adi',
-          'kampanya_yonetimi.paket_isim as paket_isim',
-          'kampanya_yonetimi.fiyat as fiyat'
+            DB::raw('CONCAT(
+                "<a title=\"Reklam Raporu\" style=\"color:white; margin-right: 5px;\" data-toggle=\"modal\" name=\"kampanya_detay\" data-target=\"#kampanya_detay_modal\" data-value=\"", kampanya_yonetimi.id, "\" class=\"btn btn-primary btn-sm\">
+                    <i class=\"fa fa-eye\"></i>
+                </a>
+                <a title=\"Sil\" style=\"color:white;\" href=\"#\" name=\"kampanya_sil\" data-value=\"", kampanya_yonetimi.id, "\"  class=\"btn btn-danger btn-sm\">
+                    <i class=\"fa fa-trash\"></i>
+                </a>") as islemler_buton')
         )
-       ->groupBy('kampanya_katilimcilari.kampanya_id')->where('kampanya_yonetimi.id',$request->kampanyaid)->first();
-    return array(
-      'katilimcilar'=>$katilimcilar,
-      'kampanya'=>$kampanya,
-      'katilimcilar_katilanlar'=>$katilimcilar_katilanlar,
-      'katilimcilar_katilmayanlar'=>$katilimcilar_katilmayanlar,
-      'katilimcilar_beklenen'=>$katilimcilar_beklenen,
-      'kampanyaid'=>$request->kampanyaid,
-      'beklenen_count'=>$katilimcilar_beklenen->count(),
-      'katilmayan_count'=>$katilimcilar_katilmayanlar->count(),
-      'katilimcilar_arama'=>$katilimcilar_arama,
-      'katilimcilar_katilanlar_arama'=>$katilimcilar_katilanlar_arama,
-      'katilimcilar_katilmayanlar_arama'=>$katilimcilar_katilmayanlar_arama,
-      'katilimcilar_beklenen_arama'=>$katilimcilar_beklenen_arama,
-      'beklenen_count_arama'=>$katilimcilar_beklenen_arama->count(),
-      'katilmayan_count_arama'=>$katilimcilar_katilmayanlar_arama->count(),
-    );
+        ->where('kampanya_yonetimi.salon_id', self::mevcutsube($request))
+        ->groupBy('kampanya_yonetimi.id')
+        ->where('kampanya_yonetimi.aktifmi', true)
+        ->get();
+}
+    public function kampanyadetay(Request $request)
+    {
+    $kampanyaId = $request->kampanyaid;
+    $salonId    = $request->sube;
+
+    $page    = $request->input('page', 1);
+    $perPage = $request->input('perPage', 100);
+    $search  = trim($request->search ?? '');
+    $query = KampanyaKatilimcilari::where('kampanya_id', $kampanyaId);
+
+    if ($request->katilimDurumu == 2) {
+        $query->where('indirim_kodu_kullanildi', 1);
+    } elseif ($request->katilimDurumu == 3) {
+        $query->where('indirim_kodu_kullanildi', 0);
+    } elseif ($request->katilimDurumu == 4) {
+        $query->whereNull('indirim_kodu_kullanildi');
     }
+
+    if ($search !== '') {
+        $query->whereHas('musteri', function ($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%");
+        });
+    }
+
+    $query->join('users', 'users.id', '=', 'kampanya_katilimcilari.user_id')
+          ->select('kampanya_katilimcilari.*')
+          ->orderBy('users.name', 'asc');
+
+    $query->with('musteri');
+
+    $total = (clone $query)->count();
+
+    $katilimcilar = $query
+        ->skip(($page - 1) * $perPage)
+        ->take($perPage)
+        ->get();
+
+    $katilimcilarDatasi = $katilimcilar->map(function ($item) use ($salonId) {
+        $telefon = $item->musteri->cep_telefon ?? '';
+        $telefonGizlenmis = $telefon;
+
+        $rol = self::kullaniciRolu(
+            request()->sube,
+            Auth::guard('isletmeyonetim')->user()->id
+        );
+
+        if ($telefonGizlenmis !== '' && $rol == 5) {
+            $telefonGizlenmis = self::telefonGizle($telefon);
+        }
+
+        if ($item->indirim_kodu_kullanildi === null) {
+            $katilimDurumu = '<button class="btn btn-warning btn-sm">Beklemede</button>';
+        } elseif ($item->indirim_kodu_kullanildi === 1) {
+            $katilimDurumu = '<button class="btn btn-success btn-sm">Kod Kullanıldı</button>';
+        } else {
+            $katilimDurumu = '<button class="btn btn-danger btn-sm">Kod Kullanılmadı</button>';
+        }
+
+        return [
+            'id'       => $item->id,
+            'ad_soyad' => $item->musteri->name ?? '',
+            'telefon'  => $telefonGizlenmis,
+            'durum'    => $katilimDurumu,
+        ];
+    });
+
+    $kampanya = DB::table('kampanya_yonetimi')
+        ->join('kampanya_katilimcilari', 'kampanya_yonetimi.id', '=', 'kampanya_katilimcilari.kampanya_id')
+        ->leftJoin('hizmetler', 'kampanya_yonetimi.hizmet_id', '=', 'hizmetler.id')
+        ->leftJoin('urunler', 'kampanya_yonetimi.urun_id', '=', 'urunler.id')
+        ->select(
+            DB::raw('COUNT(kampanya_katilimcilari.kampanya_id) as katilimci_sayisi'),
+            'kampanya_yonetimi.seans',
+            DB::raw('CONCAT(COALESCE(hizmetler.hizmet_adi,""), COALESCE(urunler.urun_adi,"")) as hizmet_adi'),
+            DB::raw('CASE
+                WHEN kampanya_yonetimi.gorev_turu = 2 THEN "SMS"
+                WHEN kampanya_yonetimi.gorev_turu = 1 THEN "Arama"
+                ELSE ""
+            END as gorev_turu'),
+            'kampanya_yonetimi.paket_isim',
+            'kampanya_yonetimi.fiyat',
+            'kampanya_yonetimi.mesaj as mesaj',
+        )
+        ->where('kampanya_yonetimi.id', $kampanyaId)
+        ->groupBy('kampanya_katilimcilari.kampanya_id')
+        ->first();
+
+    return response()->json([
+        'kampanya'   => $kampanya,
+        'kampanyaid'=> $kampanyaId,
+        'data'       => $katilimcilarDatasi,
+        'total'      => $total,
+        'page'       => $page,
+        'perPage'    => $perPage
+    ]);
+}
+
     public function kampanyaAramaYap(Request $request)
     {
-        
+
     }
     public function kampanyaekleduzenle(Request $request)
     {
@@ -13593,124 +13683,152 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $kampanya_yonetimi = new KampanyaYonetimi();
         $hizmetUrunPaket ='';
         if($request->hizmetUrunPaket != '')
-        {   
+        {
             if(str_contains($request->hizmetUrunPaket,'urun'))
             {
                 $hupArr = explode('-',$request->hizmetUrunPaket);
-                $urunAdi = Urunler::where('id',$hupArr[1])->value('urun_adi');
-                $kampanya_yonetimi->paket_isim = $urunAdi;
-                $kampanya_hizmet_adi = $urunAdi;
+                $urunAdi = Urunler::where('id',$hupArr[1])->first();
+                $kampanya_yonetimi->paket_isim = $urunAdi->urun_adi;
+                $kampanya_yonetimi->urun_id = $urunAdi->id;
 
             }
             elseif(str_contains($request->hizmetUrunPaket,'hizmet'))
             {
                 $hupArr = explode('-',$request->hizmetUrunPaket);
-                $hizmetAdi = Hizmetler::where('id',$hupArr[1])->value('hizmet_adi');
-                $kampanya_yonetimi->paket_isim = $hizmetAdi;
-                $kampanya_hizmet_adi = $hizmetAdi;
+                $hizmetAdi = Hizmetler::where('id',$hupArr[1])->first();
+                $kampanya_yonetimi->paket_isim = $hizmetAdi->hizmet_adi;
+                $kampanya_yonetimi->hizmet_id = $hizmetAdi->id;
+
             }
             else
             {
-                $paketAdi = Paketler::where('id',$request->hizmetUrunPaket)->value('paket_adi');
-                $kampanya_yonetimi->paket_isim = $paketAdi;
-                $kampanya_yonetimi->hizmet_adi = $paketAdi;
+                $paketAdi = Paketler::where('id',$request->hizmetUrunPaket)->first();
+                $kampanya_yonetimi->paket_isim = $paketAdi->paket_adi;
+                $kampanya_yonetimi->paket_id = $paketAdi->id;
             }
         }
-         
-        //$kampanya_yonetimi->paket_isim = Paketler::where('id',$request->hizmetUrunPaket)->value('paket_adi');
-        //$kampanya_yonetimi->hizmet_adi = $request->kampanyapakethizmet;
-        //$kampanya_yonetimi->fiyat = $request->kampanyapaketfiyat;
-        //$kampanya_yonetimi->seans = $request->kampanyapaketseans;
+
+
         $kampanya_yonetimi->salon_id = self::mevcutsube($request);
-        $kampanya_yonetimi->indirim_yuzde = $request->kampanyaIndirim;
+
+        $kampanya_yonetimi->gorev_turu = $request->gorevTuru;
+        if($request->etkinlikRandevuTarihi!='')
+            $kampanya_yonetimi->randevu_tarihi = $request->etkinlikRandevuTarihi;
+
         $kampanya_yonetimi->aktifmi=1;
         $cinsiyet = '';
+        $grup = '';
+        $tarih = '';
         if($request->katilimciTuru== 'erkekler')
             $cinsiyet = '1';
-        if($request->katilimciTuru=='kadinlar')
+        else if($request->katilimciTuru=='kadinlar')
             $cinsiyet = '0' ;
+
+
         $request->merge([
             'salonId' => $request->sube,
-            'filtre' => $request->gelmeyenMusteri,
+            'filtre' => $request->gelenGelmeyenMusteri ?? '',
             'musteriAdi' => '',
             'cinsiyet' => $cinsiyet,
             'kampanyaYayinlaniyor'=>true,
+            'sablonId'=>$request->seciliSablonId,
+            'grup'=>$request->musteriGruplari,
         ]);
 
-        $kampanya_yonetimi->mesaj = preg_replace('/^([^.!?]*[.!?]\s*){2}/u', '', $request->kampanya_sms);
 
-        
+        $katilimcilar = self::musteriportfoydropliste($request);
 
-        //$kampanya_yonetimi->mesaj=$request->kampanya_sms;
+
+        $musteriData = $katilimcilar->getData(true);
+        $kampanya_yonetimi->indirim_kodu = $request->kampanyaKodu;
+
+
+        $kampanyaMetinSMS = self::kampanyaIceriginiGoruntule($request);
+
+        $kampanya_yonetimi->mesaj = $request->gorevTuru==1 ?  preg_replace('/^([^.!?]*[.!?]\s*){2}/u', '', $request->kampanya_sms) : $kampanyaMetinSMS['promptStr'];
+        $kampanya_yonetimi->musteri_turu = $musteriData['musteriTuru'];
+        $kampanya_yonetimi->baslangic_tarihi = $request->asistan_tarih;
+        $kampanya_yonetimi->bitis_tarihi = $request->kampanyaGecerlilikTarihi;
+        $indirimTuru = '';
+        if($request->gorevTuru != 4 && $request->etkinlikRandevuTarihi == '')
+            $kampanya_yonetimi->indirim_turu = $request->indirimTuruYazili;
+
+        $kampanya_yonetimi->randevu_tarihi = $request->etkinlikRandevuTarihi;
+
+        $seciliSablon = KampanyaSablonlari::where('id',$request->seciliSablonId)->first();
+        if($seciliSablon)
+            $kampanya_yonetimi->paket_isim = $seciliSablon->baslik;
+
+
         if($request->gorevTuru == 1)
             $kampanya_yonetimi->arama_ile_gonderim= true;
-        if($request->gorevTuru ==2)
+        if($request->gorevTuru == 2)
             $kampanya_yonetimi->sms_ile_gonderim= true;
+        if($request->gorevTuru == 3 || $request->gorevTuru == 4)
+            $kampanya_yonetimi->bildirim_ile_gonderim= true;
         $kampanya_yonetimi->asistan_tarih_saat = date('Y-m-d H:i:s', strtotime($request->asistan_tarih." ".$request->asistan_saat));
         $kampanya_yonetimi->sms_tarih_saat = date('Y-m-d H:i:s', strtotime($request->asistan_tarih." ".$request->asistan_saat));
+        $kampanya_yonetimi->bildirim_tarih_saat = date('Y-m-d H:i:s', strtotime($request->asistan_tarih." ".$request->asistan_saat));
         $kampanya_yonetimi->save();
         $katilimcilar = KampanyaKatilimcilari::where('id',$kampanya_yonetimi->id)->delete();
         $gsm = array();
-        $mesajlar=array(); 
-       
+        $mesajlar=array();
 
-       
-         
-        $katilimcilar = self::musteriportfoydropliste($request);
 
-        
-        $data = $katilimcilar->getData(true); // true: array olarak al
 
-        foreach($data['musteriIdler'] as $katilimci) {
-            $yenikatilimci = new KampanyaKatilimcilari();
-            $yenikatilimci->kampanya_id = $kampanya_yonetimi->id;
-            $yenikatilimci->user_id = $katilimci;
-            $yenikatilimci->indirim_kodu = 'IND101';
-            $yenikatilimci->save();
+       $insertData = [];
+
+        $now = now();
+
+        foreach ($musteriData['musteriIdler'] as $katilimci) {
+            $insertData[] = [
+                'kampanya_id' =>  $kampanya_yonetimi->id,
+                'user_id' => $katilimci,
+                'indirim_kodu'=>$request->kampanyaKodu,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
         }
-        
-        
 
-        /*if(isset($request->kampanya_katilimci_musteriler)){
-            foreach($request->kampanya_katilimci_musteriler as $katilimci)
-            {
-                $yenikatilimci = new KampanyaKatilimcilari();
-                $yenikatilimci->kampanya_id = $kampanya_yonetimi->id;
-                $yenikatilimci->user_id = $katilimci;
-                $yenikatilimci->save();
-                /*$toplumusteri = User::where('id',$katilimci)->first();
-                $katilim_link = '';
-                if(SalonSMSAyarlari::where('ayar_id',10)->where('salon_id',$kampanya_yonetimi->salon_id)->value('musteri')==1)
-                    $katilim_link = ' Katılım için : https://'.$_SERVER['HTTP_HOST'].'/kampanyakatilim/'.$kampanya_yonetimi->id.'/'.$toplumusteri->id;
-                if($request->bildirim_yontemi==1 || $request->bildirim_yontemi == 3)
-                    self::hatirlatmaaramasiyap($kampanya_yonetimi->salon_id,$yenikatilimci->musteri->cep_telefon,"Sayın ".$yenikatilimci->musteri->name. ". Sizi ".$kampanya_yonetimi->salon->salon_adi. " adına bir kampanyamız hakkında bilgilendirmek için arıyorum. ".$request->kampanya_sms." Kampanyamıza katılacaksanız biri katılmayacaksız ikiyi tuşlayınız. ","","",$yenikatilimci->id,3);
-               
-                
+        $chunks = array_chunk($insertData, 1000);
+        foreach ($chunks as $chunk) {
+            KampanyaKatilimcilari::insert($chunk);
+        }
+        $controller = app(\App\Http\Controllers\BildirimController::class);
+        $personeller = Personeller::where('salon_id',$kampanya_yonetimi->salon_id)->pluck('id')->toArray();
+        $bildirimKimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$personeller)->whereNotNull('bildirim_id')->where('salon_id',$kampanya_yonetimi->salon_id)->get();
 
-            }
-        }  
-        if (isset($request->grup_katilimci_musteriler)) {
-            foreach($request->grup_katilimci_musteriler as $grupkatilimci)
-            {
-                $grupkatilimcilar=GrupSmsKatilimcilari::where('grup_id',$grupkatilimci)->get();
-                foreach ($grupkatilimcilar as $grup) {
-                    $yenikatilimci = new KampanyaKatilimcilari();
-                    $yenikatilimci->kampanya_id = $kampanya_yonetimi->id;
-                    $yenikatilimci->user_id = $grup->user_id;
-                    $yenikatilimci->save();
-                    $toplumusteri = User::where('id',$grup->user_id)->first();
-                    $katilim_link = '';
-                    /*if(SalonSMSAyarlari::where('ayar_id',10)->where('salon_id',$kampanya_yonetimi->salon_id)->value('musteri')==1)
-                        $katilim_link = ' Katılım için : https://'.$_SERVER['HTTP_HOST'].'/kampanyakatilim/'.$kampanya_yonetimi->id.'/'.$toplumusteri->id;
-                    if(MusteriPortfoy::where('user_id',$toplumusteri->id)->where('salon_id',$kampanya_yonetimi->salon_id)->value('kara_liste')!=1)
-                        array_push($mesajlar, array("to"=>$grup->musteri->cep_telefon,"message"=> $request->kampanya_sms .$katilim_link));
-                    if($request->bildirim_yontemi==1 || $request->bildirim_yontemi == 3)
-                        self::hatirlatmaaramasiyap($kampanya_yonetimi->salon_id,$yenikatilimci->musteri->cep_telefon,"Sayın ".$yenikatilimci->musteri->name. ". Sizi ".$kampanya_yonetimi->salon->salon_adi. " adına bir kampanyamız hakkında bilgilendirmek için arıyorum. ".$request->kampanya_sms." Kampanyamıza katılacaksanız biri katılmayacaksız ikiyi tuşlayınız. ","","",$yenikatilimci->id,3);
-                     
-                }
-            }
-        } */
-        
+        foreach($bildirimKimlikleri  as $token)
+        {
+             $data = [
+                    'category' => 'reklam',
+                    'buttons' => json_encode([  ]),
+                    'userInfo'=>'',
+                    'salonId'=>$kampanya_yonetimi->salon_id,
+                    'bildirimlereGitYonetici'=>"1",
+                    'kullaniciRolu'=>Personeller::where('id',$token->isletme_yetkili_id)->value('role_id'),
+                    'type'=>'',
+            ];
+            $controller->bildirimGonder(
+                    'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+                    $token->bildirim_id,
+                    "Yeni Reklam Kampanyası Oluşturma",
+                    "Sisteme ".$kampanya_yonetimi->paket_isim." ile ilgili reklam kaydını başarıyla olşturdunuz.",
+                    $data,
+                     $kampanya_yonetimi->salon_id,
+                    null,
+                    '/public/yeni_panel/vendors/images/eczane24-icon.jpg',
+                    'kampanya',
+                    null,
+                    null,
+                    null,
+                    null,
+                    $token->isletme_yetkili_id,
+                    $kampanya_yonetimi->id,
+            );
+        }
+
+
         return array(
           "mesaj" => "Kampanya başarıyla kaydedildi",
           "gonder"=>$gonder,
