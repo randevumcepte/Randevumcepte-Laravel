@@ -14284,8 +14284,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         // Yeni format: musteri_idler JSON olarak geliyor
         $musteriIdler = [];
+        \Log::info('grupsmsekle request:', $request->all());
         if($request->has('musteri_idler')) {
-            $musteriIdler = json_decode($request->musteri_idler, true) ?: [];
+            $decoded = json_decode($request->musteri_idler, true);
+            $musteriIdler = is_array($decoded) ? $decoded : [];
+            \Log::info('musteri_idler decoded:', ['count' => count($musteriIdler), 'ids' => array_slice($musteriIdler, 0, 5)]);
         } elseif($request->has('duallistbox_demo1')) {
             $musteriIdler = $request->duallistbox_demo1;
         }
