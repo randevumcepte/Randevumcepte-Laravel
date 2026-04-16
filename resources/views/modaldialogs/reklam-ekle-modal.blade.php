@@ -102,7 +102,7 @@
                                     @endforeach
                                  
                                     @foreach($gruplar as $grup2)
-                                       <option value="haricigrup-{{ $grup2->id }}">{{ $grup2->grup_adi }}</option>
+                                       <option value="haricigrup-{{ $grup2['id'] }}">{{ $grup2['grup_adi'] }}</option>
                                     @endforeach
                                 
                               </select>
