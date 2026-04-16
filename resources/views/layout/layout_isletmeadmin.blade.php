@@ -4201,7 +4201,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=222.1')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=222.2')}}"></script>
   
       @include('frontendscripts.frontend-scripts')
       @if($pageindex==111)
