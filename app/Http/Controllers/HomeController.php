@@ -1017,7 +1017,7 @@ $salon = Salonlar::where('domain', $domain)->first();
              }
              else
              {
-                 $postUrl = "http://api.efetech.net.tr/v2/sms/basic";
+                 $postUrl = "https://api.efetech.net.tr/v2/sms/basic";
                 $apiKey = $salon->sms_apikey; // should match with Server key
                 $headers = array(
                      'Authorization: Key '.$apiKey,
@@ -1128,7 +1128,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         }
         else
         {
-             $postUrl = "http://api.efetech.net.tr/v2/sms/basic";
+             $postUrl = "https://api.efetech.net.tr/v2/sms/basic";
                 $apiKey = $salon->sms_apikey; // should match with Server key
                 $headers = array(
                      'Authorization: Key '.$apiKey,
@@ -1815,6 +1815,13 @@ $salon = Salonlar::where('domain', $domain)->first();
         return view('isletmeadmin.musteriformugonder5',['title'=>FormTaslaklari::where('id',$form->form_id)->value('form_adi').' Soruları '.$isletme->salon_adi,'user'=>$user,'isletme'=>$isletme,'arsiv'=>$form]);
 
     }
+       public function arsivmusteriform6(Request $request,$id,$user_id){
+        $form=Arsiv::where('id',$id)->first();
+        $isletme = Salonlar::where('id',$form->salon_id)->first();
+        $user = User::where('id',$user_id)->first();
+        return view('isletmeadmin.musteriformugonder6',['title'=>FormTaslaklari::where('id',$form->form_id)->value('form_adi').' Soruları '.$isletme->salon_adi,'user'=>$user,'isletme'=>$isletme,'arsiv'=>$form]);
+
+    }
     public function personelonamformugonderme2(Request $request){
 
         $form=Arsiv::where('id',$request->arsiv_id)->first();
@@ -2302,10 +2309,6 @@ $salon = Salonlar::where('domain', $domain)->first();
         echo file_get_contents($cookieFile);
 
         curl_close($ch);
-    }
-    public function webhook(Request $request)
-    {
-        
     }
    
     

@@ -168,7 +168,7 @@ class CustomerController extends Controller
             }
             else
             {
-                $postUrl = "http://api.efetech.net.tr/v2/sms/basic";
+                $postUrl = "https://api.efetech.net.tr/v2/sms/basic";
                 $apiKey = $isletme->sms_apikey; // should match with Server key
                 $headers = array(
                      'Authorization: Key '.$apiKey,
