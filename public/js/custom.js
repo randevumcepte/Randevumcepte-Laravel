@@ -21410,60 +21410,121 @@ function turkLiraFormat(num) {
 }
 
 
-$(document).on('click','div[name="kampanyaSablonSecim"]',function(e){
-    e.preventDefault();
+function kampanyaSablonIcerikGetir(sablonId, kampanyaMetin, preloaderGoster, yuzdeAcik) {
+    $('#seciliSablonId').val(sablonId);
+
+    // Her .kampanyaSablonSecim kutusuna bak
+    $('.kampanyaSablonSecim').each(function() {
+        var $box = $(this);
+        var dataVal = $box.attr('data-value');
+        var $p = $box.find('p').first();
+        var $sil = $box.find('a[name="sablonSil"]').first();
+        var $duzenle = $box.find('a[name="smsTaslakDuzenle"]').first();
+
+        if (dataVal === sablonId) {
+            $p.css({ padding:'5px', backgroundColor:'red', color:'white', borderRadius:'20px', borderBottomLeftRadius:'0', fontSize:'15px', overflow:'hidden' });
+            $sil.css({ color:'white', fontSize:'22px', marginLeft:'5px', marginTop:'-2px' });
+            $duzenle.css({ color:'white', fontSize:'20px' });
+        } else {
+            $p.css({ padding:'5px', backgroundColor:'#e2e2e2', color:'black', borderRadius:'20px', borderBottomLeftRadius:'0', fontSize:'15px', overflow:'hidden' });
+            $sil.css({ color:'red', fontSize:'22px', marginLeft:'5px', marginTop:'-2px' });
+            $duzenle.css({ color:'#0055B4', fontSize:'20px' });
+        }
+    });
+
+    let indirimSecenek = yuzdeAcik;
+    let indirimTuru = '';
+    if(indirimSecenek)
+        indirimTuru = 'indirimYuzde';
+    else
+        indirimTuru = 'xAlyOde';
 
     var isValid = true;
-    /*if($('#kampanyaGecerlilikTarihi').val()!='' && $('#hizmetUrunPaket').val()!='' && $('#kampanyaIndirim').val() != '' )
-        isValid = true;
-    var warningtext = '';
-    if($('#hizmetUrunPaket').val()=='')
-        warningtext += '-Kampanyayı duyurmak istediğiniz hizmet, ürün veya paketinizi seçmeniz gerekir.';
-    if($('#kampanyaGecerlilikTarihi').val()=='')
-        warningtext += '<br>-Kampanya geçerlilik tarihini belirtiniz gerekir.';
-    if($('#kampanyaIndirim').val() == '')
-         warningtext += '<br>-Uygulayacağınız indirim miktarını belirtiniz gerekir.';*/
- 
     if(isValid)
     {
          $.ajax({
             url: '/isletmeyonetim/kampanyaIceriginiGoruntule',
             method: 'GET',
             dataType:'json',
-            data: {salonId:$('input[name="sube"]').val(),kampanyaMetin:$(this).text(),kampanyaIndirim:$('#kampanyaIndirim').val(),gecerlilikTarihi:$('#kampanyaGecerlilikTarihi').val(),hizmetUrunPaket:$('#hizmetUrunPaket').val(),sablonId:$(this).attr('data-value')},
+            data: {randevuTarihi:$('#etkinlikRandevuTarihi').val(), gorevTuru:$('#gorevTuru').val(), indirimTuru:indirimTuru, Xal:$('#Xal').val(), Yode:$('#Yode').val(), salonId:$('input[name="sube"]').val(), kampanyaMetin:kampanyaMetin, kampanyaIndirim:$('#kampanyaIndirim').val(), gecerlilikTarihi:$('#kampanyaGecerlilikTarihi').val(), hizmetUrunPaket:$('#hizmetUrunPaket').val(), sablonId:sablonId},
             beforeSend: function() {
-                $('#preloader').show();
+                if(preloaderGoster) $('#preloader').show();
             },
             success: function(result) {
-                 $('#preloader').hide();
+                if(preloaderGoster) $('#preloader').hide();
                 $('#kampanyaPrompt').empty();
                 $('#kampanyaPrompt').append(result.promptStr);
+                $('#kampanyaKodu').val(result.kampanyaKodu);
+                if(typeof SMScountChar === 'function') SMScountChar(result.promptStr);
                 $('#calinacak_kayit').attr('src',result.calinacakMetin.trim());
                 var audio = $("#kampanyaSesKaydiCal")[0];
                 audio.load();
             },
              error: function(request, status, error) {
-                $('#preloader').hide();
+                if(preloaderGoster) $('#preloader').hide();
                 $('#hata').html(request.responseText);
             }
         });
         $('html, body').animate({ scrollTop: $('#kampanyaPrompt').offset().top }, 'slow');
     }
-    else{
-         swal(
-                            {
-                                type: "warning",
-                                title: "Uyarı",
-                                html:  'Şablon seçmeden önce;<br><br>'+warningtext,
-                                showCloseButton: false,
-                                showCancelButton: false,
-                                showConfirmButton:false,
-                                timer:5000,
-                            }
-        );
+}
+$(document).on('click','div[name="kampanyaSablonSecim"]',function(e){
+    var sablonId = $(this).attr('data-value');
+    $('#hizmetUrunPaket').val(null).trigger('change');
+    $('#kampanyaKategori').val(null);
+    $('#katilimciTuru').val(null).trigger('change');
+    $('#gelenGelmeyenMusteri').val(null).trigger('change');
+    if($(this).attr('data-value')==36)
+    {
+        $('#randevuVer').prop('checked',true);
+        $('.randevuVerBolumu').each(function(e){ $(this).attr('style','visibility:visible'); });
     }
-
-   
+    else{
+        $('#randevuVer').prop('checked',false);
+        $('.randevuVerBolumu').each(function(e){ $(this).attr('style','visibility:hidden'); });
+    }
+    kampanyaSablonIcerikGetir($(this).attr('data-value'),$(this).text(),true,$('#indirimTuru').is(':checked'));
+});
+$(document).on('click', 'a[name="smsTaslakDuzenle"]', function (e) {
+    e.stopPropagation();
+    const sablonId = $(this).attr('data-value');
+    const metin = $(this).attr('data-text').split('|');
+    $('#sablonId').val(sablonId);
+    $('#sablonsmsmesaj_duzenleme').val(metin[1]);
+    $('#sablon_adi_duzenleme').val(metin[0]);
+    $('#sablon_duzenle_modal').modal('show');
+});
+$(document).on('click','a[name="sablonSil"]',function(e){
+    e.stopPropagation();
+    sablonId = $(this).attr('data-value');
+    swal({
+        title: "Emin misiniz?",
+        html: "Şablon silme işlemi geri alınamaz!",
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: '#00bc8c',
+        confirmButtonText: 'Sil',
+        cancelButtonText: "Vazgeç",
+        focusConfirm: false,
+    }).then(function(result) {
+        if(result.value){
+            $.ajax({
+                url: '/isletmeyonetim/sablonSil',
+                method: 'POST',
+                data: { sablonId: sablonId, _token: $('input[name="_token"]').val() },
+                dataType:'text',
+                success: function () {
+                    $('.kampanyaSablonSecim[data-value="sablon-' + sablonId + '"]').remove();
+                },
+                error: function (xhr) {
+                    console.error("Error:", xhr.statusText);
+                }
+            });
+        }
+    });
+});
+$('#kampanyaMetniGuncelle').on('click',function(e){
+    kampanyaSablonIcerikGetir($('#seciliSablonId').val(),$('a[name="kampanyaSablonSecim"][data-value="'+$('#seciliSablonId').val()+'"]').text(),true,$('#indirimTuru').is(':checked'));
 });
 $('#katilimciTuru,#gelmeyenMusteri').change(function(e){
     let cinsiyet = '';

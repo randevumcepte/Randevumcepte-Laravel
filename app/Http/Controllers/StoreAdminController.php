@@ -20805,6 +20805,11 @@ DB::raw('
         }
         curl_close($ch);
     }
+    public function sablonSil(Request $request)
+    {
+        SMSTaslaklari::where('id',$request->sablonId)->delete();
+        return 'başarılı';
+    }
     public function kampanyaSablonFiltre(Request $request)
     {
 
