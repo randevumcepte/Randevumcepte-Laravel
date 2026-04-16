@@ -50,12 +50,10 @@
         var saat  = simdi.getHours().toString().padStart(2,'0');
         var dakika = simdi.getMinutes().toString().padStart(2,'0');
         var saniye = simdi.getSeconds().toString().padStart(2,'0');
-
-        console.log('Mevcut saat '+saat + ":" + dakika + ":" + saniye);
     }
 
-    saatGuncelle();              // İlk yüklemede göster
-    setInterval(saatGuncelle, 1000); // Her saniye güncelle
+    saatGuncelle();
+    setInterval(saatGuncelle, 1000);
 
  </script>
 
