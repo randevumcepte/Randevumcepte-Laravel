@@ -47,7 +47,7 @@ class MusteriSecimi {
         });
 
         // Bireysel müşteri checkbox'ları
-        $(this.config.containerId).on('change', '.musteri-secimi-checkbox', function(e) {
+        $(document).on('change', this.config.containerId + ' .musteri-secimi-checkbox', function(e) {
             self.bireyselSecimToggle($(this).val(), e.target.checked);
         });
 
