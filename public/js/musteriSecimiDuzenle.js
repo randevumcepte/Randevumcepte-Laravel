@@ -1,33 +1,37 @@
-class MusteriSecimi {
+class MusteriSecimiDuzenle {
     constructor(config) {
-        this.config = {
-            containerId: '#musteriListesiGrupSMS',
-            seciliMusteriSayisi: '#grupSMSSeciliMusteriler',
-            hepsiniSecButon: '#tumunuSecGrupSMS',
-            musteriAramaInput: '#musteriarama_grupsms',
+       this.config = {
+            containerId: '#musteriListesiGrupSMSDuzenle',
+            seciliMusteriSayisi: '#grupSMSSeciliMusterilerDuzenle',
+            hepsiniSecButon: '#tumunuSecGrupSMSDuzenle',
+            musteriAramaInput: '#musteriarama_grupsmsDuzenle',
             ajaxUrl: '/isletmeyonetim/musteriportfoydropliste',
-            yukleniyorElement: '#musteriYukleniyor',
-            ilkMesajElement: '#musteriListesiIlkMesaj',
-            toplamMusteriSayisi: '#toplamMusteriSayisi',
-            toplamMusteriSayisiFooter: '#toplamMusteriSayisiFooter',
-            gosterilenMusteriSayisi: '#gosterilenMusteriSayisi',
+            yukleniyorElement: '#musteriYukleniyorDuzenle',
+            ilkMesajElement: '#musteriListesiIlkMesajDuzenle',
+            toplamMusteriSayisi: '#toplamMusteriSayisiDuzenle',
+            toplamMusteriSayisiFooter: '#toplamMusteriSayisiFooterDuzenle',
+            gosterilenMusteriSayisi: '#gosterilenMusteriSayisiDuzenle',
+            mevcutSeciliIdler: [], // BU SATIRI EKLEYİN
             ...config
         };
 
         this.state = {
             hepsiSecili: false,
-            seciliIdler: new Set(),
+            seciliIdler: new Set(this.config.mevcutSeciliIdler.map(String)),
             toplamMusteriler: 0,
             currentPage: 1,
-            perPage: 1000, // Sayfa başına daha az öğe (performans için)
+            perPage: 1000,
             aramaTerimi: '',
             currentFilter: '0',
             isLoading: false,
             isFirstLoad: true,
             lastSearchTime: 0,
-            searchDelay: 500, // Arama gecikmesi (ms)
+            searchDelay: 500,
             hasMore: true,
-            allCustomers: [] // Tüm müşterileri cache'le
+            allCustomers: [],
+            scrollLocked :false,
+
+            mevcutMusterilerYuklendi: false // Yeni ekle
         };
 
         this.init();
@@ -71,7 +75,7 @@ class MusteriSecimi {
         });
 
         // Modal açıldığında
-        $('#grup_sms_olustur_modal').on('shown.bs.modal', function() {
+        $('#grup_sms_duzenle_modal').on('shown.bs.modal', function() {
             if (self.state.isFirstLoad) {
                 self.musterileriGetir(1, false);
             }
@@ -144,8 +148,8 @@ class MusteriSecimi {
                 const hepsiniSecItem = $(`
                     <div class="musteri-item hepsini-sec" style="background: #f8f9fa; padding: 10px 15px;">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="tumunuSecGrupSMS">
-                            <label class="form-check-label font-weight-600" for="tumunuSecGrupSMS">
+                            <input class="form-check-input" type="checkbox" id="tumunuSecGrupSMSDuzenle">
+                            <label class="form-check-label font-weight-600" for="tumunuSecGrupSMSDuzenle">
                                 Tümünü Seç
                             </label>
                         </div>
@@ -166,8 +170,9 @@ class MusteriSecimi {
     }
 
     createMusteriItem(customer) {
-        const userId = customer.id;
-        const isChecked = this.state.seciliIdler.has(userId) || this.state.hepsiSecili;
+         const userId = String(customer.id);
+    const isChecked =
+        this.state.hepsiSecili || this.state.seciliIdler.has(userId);
         const ad = customer.name || customer.ad || customer.isim || '(İsimsiz)';
         const telefon = customer.phone || customer.telefon || '';
         
@@ -187,14 +192,21 @@ class MusteriSecimi {
         `);
     }
 
-    updateCounts(newItemsCount, append) {
-        const totalItems = this.state.allCustomers.length;
-        const shownItems = $(this.config.containerId + ' .musteri-item').length - 1; // Tümünü seç hariç
-        
-        $(this.config.gosterilenMusteriSayisi).text(shownItems);
-        $(this.config.toplamMusteriSayisi).text(`${totalItems} müşteri`);
-        $(this.config.toplamMusteriSayisiFooter).text(totalItems);
+    updateCounts() {
+        const seciliSayisi = this.state.hepsiSecili
+            ? this.state.toplamMusteriler
+            : this.state.seciliIdler.size;
+
+        $(this.config.seciliMusteriSayisi)
+            .text(`${seciliSayisi} müşteri seçildi`);
+
+        $(this.config.toplamMusteriSayisi)
+            .text(`${this.state.toplamMusteriler} müşteri`);
+
+        $(this.config.toplamMusteriSayisiFooter)
+            .text(this.state.toplamMusteriler);
     }
+
 
     musterileriGetir(page = 1, append = false) {
         if (this.state.isLoading) return;
@@ -244,8 +256,32 @@ class MusteriSecimi {
         
         this.musteriListesiRenderEt(customers, append);
         this.seciliElemanSayisiniGuncelle();
-    }
+        this.restoreSelections();
+        this.state.scrollLocked = false;
 
+
+    }
+    restoreSelections() {
+        $(this.config.containerId + ' .musteri-secimi-checkbox').each((_, el) => {
+           const id = String($(el).val());
+            if (this.state.seciliIdler.has(id)) {
+                $(el).prop('checked', true);
+            }
+        });
+    }
+    mevcutIdleriGuncelle(idler) {
+        this.state.seciliIdler = new Set(idler.map(String));
+
+        this.state.hepsiSecili = false;
+
+        // Görünen checkbox'ları tekrar işaretle
+        $(this.config.containerId + ' .musteri-secimi-checkbox').each((_, el) => {
+            const id = String($(el).val());
+            $(el).prop('checked', this.state.seciliIdler.has(id));
+        });
+
+        this.seciliElemanSayisiniGuncelle();
+    }
     handleError(xhr, append) {
         console.error('Müşteri yükleme hatası:', xhr);
         
@@ -262,25 +298,22 @@ class MusteriSecimi {
         }
     }
 
-  handleScroll($container) {
-    const scrollTop = $container.scrollTop();
-    const containerHeight = $container.innerHeight();
-    const scrollHeight = $container[0].scrollHeight;
+    handleScroll($container) {
+        if (this.state.scrollLocked) return;
 
-    if (scrollTop + containerHeight >= scrollHeight - 100) {
+        const scrollTop = $container.scrollTop();
+        const containerHeight = $container.innerHeight();
+        const scrollHeight = $container[0].scrollHeight;
 
-        if (
-            this.state.hasMore &&
-            !this.state.isLoading &&
-            this.state.currentPage > this.state.lastLoadedPage
-        ) {
-            this.state.lastLoadedPage = this.state.currentPage;
-            this.musterileriGetir(this.state.currentPage, true);
-            this.state.currentPage++;
+        if (scrollTop + containerHeight >= scrollHeight - 100) {
+            if (this.state.hasMore && !this.state.isLoading) {
+                this.state.scrollLocked = true;
+                this.state.currentPage++;
+
+                this.musterileriGetir(this.state.currentPage, true);
+            }
         }
     }
-}
-
 
 
     seciliElemanSayisiniGuncelle() {
@@ -299,7 +332,7 @@ class MusteriSecimi {
         } else if (!this.state.isFirstLoad) {
             // Alt kısımda mini loading göster
             $(this.config.containerId).append(`
-                <div class="text-center py-2" id="miniLoading">
+                <div class="text-center py-2" id="miniLoadingDuzenle">
                     <div class="spinner-border spinner-border-sm text-secondary" role="status">
                         <span class="sr-only">Yükleniyor...</span>
                     </div>
@@ -310,7 +343,7 @@ class MusteriSecimi {
 
     hideLoading() {
         $(this.config.yukleniyorElement).hide();
-        $('#miniLoading').remove();
+        $('#miniLoadingDuzenle').remove();
     }
 
     escapeHtml(text) {
@@ -328,19 +361,71 @@ class MusteriSecimi {
 
 // Document Ready
 $(document).ready(function() {
-    window.musteriSecimi = new MusteriSecimi();
+    window.musteriSecimi = new MusteriSecimiDuzenle();
     
     // Form submit
-    $('#grup_sms_formu').on('submit', function(e) {
+    $('#grup_sms_formuDuzenle').on('submit', function(e) {
         e.preventDefault();
         
-        handleGrupOlustur();
+        handleGrupDuzenle();
+    });
+    // Grup düzenleme modal'ı açılırken mevcut müşteri ID'lerini al
+    $('#grup_sms_tablo').on('click', 'button[name="grup_duzenle"]', function(e) {
+        console.log('Düzenle açıldı');
+        const grupId = $(this).attr('data-value');
+        const tds = $(this).closest('tr').children('td');
+        const grupAdi = tds[0].innerHTML.trim();
+        
+        $('#grup_adiDuzenle').val(grupAdi);
+        $('#grup_idDuzenle').val(grupId);
+        
+        // Modal'ı göster
+        $('#grup_sms_duzenle_modal').modal('show');
+        
+        // Mevcut müşterileri getir
+        $.ajax({
+            url: '/isletmeyonetim/grup-bilgileri-getir',
+            method: 'POST',
+            data: {
+                grup_id: grupId,
+                _token: $('input[name="_token"]').val()
+            },
+            dataType: 'json',
+            success: function(response) {
+                console.log('AJAX response:', response);
+                if (response.success) {
+                    const mevcutMusteriIdleri = response.musteri_idler || [];
+                    console.log('Mevcut müşteri ID\'leri:', mevcutMusteriIdleri);
+                    
+                    // İlk kontrol: window.musteriSecimiDuzenle var mı?
+                    console.log('window.musteriSecimi:', window.musteriSecimi);
+                    console.log('typeof:', typeof window.musteriSecimi);
+                    
+                    if (typeof window.musteriSecimi === 'undefined') {
+                        console.log('Instance yok, yeni oluşturuluyor...');
+                        window.musteriSecimi = new MusteriSecimiDuzenle({
+                            mevcutSeciliIdler: mevcutMusteriIdleri
+                        });
+                    } else {
+                        console.log('Instance var, güncelleniyor...');
+                        // Instance varsa güncelle
+                        window.musteriSecimi.mevcutIdleriGuncelle(mevcutMusteriIdleri);
+                        
+                    }
+                } else {
+                    console.error('Grup bilgileri alınamadı:', response);
+                }
+            },
+            error: function(xhr) {
+                console.error('AJAX hatası:', xhr);
+            }
+        });
     });
 });
 
-function handleGrupOlustur() {
+function handleGrupDuzenle() {
     const seciliMusteriler = window.musteriSecimi.getSelectedIdsForForm();
-    const grupAdi = $('#grup_adi').val().trim();
+    const grupAdi = $('#grup_adiDuzenle').val().trim();
     
     if (!grupAdi) {
         showAlert('Lütfen grup adı giriniz!', 'warning');
@@ -357,16 +442,16 @@ function handleGrupOlustur() {
         return;
     }
     
-    const formData = new FormData($('#grup_sms_formu')[0]);
+    const formData = new FormData($('#grup_sms_formuDuzenle')[0]);
     formData.append('musteri_idler', JSON.stringify(seciliMusteriler));
     console.log('müşteri idler '+JSON.stringify(seciliMusteriler));
     // Submit butonunu disable et
-    const submitBtn = $('#grup_sms_formu button[type="submit"]');
+    const submitBtn = $('#grup_sms_formuDuzenle button[type="submit"]');
     const originalText = submitBtn.html();
     submitBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Kaydediliyor...');
     
     $.ajax({
-        url: $('#grup_sms_formu').attr('action') || '/isletmeyonetim/grup-olustur',
+        url: $('#grup_sms_formuDuzenle').attr('action') || '/isletmeyonetim/grup-olustur',
         method: 'POST',
         data: formData,
         processData: false,
@@ -374,11 +459,9 @@ function handleGrupOlustur() {
         success: function(response) {
             if (response.success) {
                 showAlert('Grup başarıyla oluşturuldu!', 'success');
-                $('#grup_sms_olustur_modal').modal('hide');
-                $('#grup_adi').val('');
-                // Tabloyu yenile
+                $('#grup_sms_duzenle_modal').modal('hide');
+                $('#grup_adiDuzenle').val('');
                 $('#grup_sms_tablo').DataTable().destroy();
-                $('#musteriGruplari').append('<option value="'+response.id+'">'+response.grupAdi+'</option>');
                 $('#grup_sms_tablo').DataTable({
              
                    autoWidth: false,
@@ -400,7 +483,6 @@ function handleGrupOlustur() {
                    },
              
                 });
-                
             } else {
                 showAlert(response.message || 'Bir hata oluştu!', 'error');
             }
@@ -442,7 +524,7 @@ function showAlert(message, type = 'info') {
 }
 
 function modalbaslikata(baslik, formId) {
-    $('#grupSMSModalLabel').text(baslik);
+    $('#grupSMSModalLabelDuzenle').text(baslik);
     // Formu resetle
     $('#' + formId)[0].reset();
     // Müşteri seçimini resetle
@@ -451,6 +533,6 @@ function modalbaslikata(baslik, formId) {
         window.musteriSecimi.state.hepsiSecili = false;
         window.musteriSecimi.seciliElemanSayisiniGuncelle();
         $('.musteri-secimi-checkbox').prop('checked', false);
-        $('#tumunuSecGrupSMS').prop('checked', false);
+        $('#tumunuSecGrupSMSDuzenle').prop('checked', false);
     }
 }
