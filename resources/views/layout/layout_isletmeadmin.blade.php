@@ -4198,7 +4198,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <script src="{{secure_asset('public/js/custom.js?v=222.2')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
-      <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=11.6')}}"></script>
+      <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
       <script src="{{secure_asset('public/js/musteriSecimiDuzenle.js?v=10.4')}}"></script>
       @endif
 

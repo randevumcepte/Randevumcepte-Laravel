@@ -43,12 +43,16 @@ class MusteriSecimi {
 
         // Tümünü Seç
         $(document).on('change', this.config.hepsiniSecButon, function(e) {
-            self.tumunuSecToggle(e.target.checked);
+            if (window.musteriSecimi) {
+                window.musteriSecimi.tumunuSecToggle(e.target.checked);
+            }
         });
 
-        // Bireysel müşteri checkbox'ları
+        // Bireysel müşteri checkbox'ları - window.musteriSecimi uzerinden calisir
         $(document).on('change', this.config.containerId + ' .musteri-secimi-checkbox', function(e) {
-            self.bireyselSecimToggle($(this).val(), e.target.checked);
+            if (window.musteriSecimi) {
+                window.musteriSecimi.bireyselSecimToggle($(this).val(), e.target.checked);
+            }
         });
 
         // Arama input - Debounce ile
