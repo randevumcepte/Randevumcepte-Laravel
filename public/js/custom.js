@@ -21410,7 +21410,7 @@ function turkLiraFormat(num) {
 }
 
 
-$(document).on('click','a[name="kampanyaSablonSecim"]',function(e){
+$(document).on('click','div[name="kampanyaSablonSecim"]',function(e){
     e.preventDefault();
 
     var isValid = true;
