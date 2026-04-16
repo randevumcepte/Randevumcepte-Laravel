@@ -13225,63 +13225,7 @@ $('input[name="musteri_telefon"]').change(function(){
                     }
     });
 });
-$('#grup_sms_formu').on('submit',function(e){
-    e.preventDefault();
-        var formData = new FormData();
-        var data1 = $('#grup_sms_formu').serializeArray();
-        $.each(data1,function(key,input){
-            formData.append(input.name,input.value);
-        });
-         $.ajax({
-                    type: "POST",
-                    url: '/isletmeyonetim/grupsmsekle',
-                    dataType: "json",
-                    data:formData,
-                      headers: {
-            'X-CSRF-TOKEN': $('input[name="_token"]').val() },
-                    processData: false,
-                    contentType: false,
-                    beforeSend:function(){
-                        $('#preloader').show();
-                  },
-                    success: function(result)  {
-                        $('#preloader').hide();
-                         $('button[data-dismiss="modal"]').trigger('click');
-                        swal(
-                            {
-                                type: "success",
-                                title: "Başarılı",
-                                text:  result.mesaj,
-                                  showCloseButton: false,
-                            showCancelButton: false,
-                            showConfirmButton:false,
-                            timer:3000,
-                            }
-                        );
-                        $('#grup_sms_tablo').DataTable().destroy();
-                        $('#grup_sms_tablo').DataTable({
-                             columns:[
-                                    { data: 'grup_adi', className: "text-center",   },
-                      { data: 'grup_katilimci_sayisi',className: "text-center", },
-                      { data: 'islemler',className: "text-right"  },
-                        ],
-                        data: result.grup,
-                   "language" : {
-                       "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
-                       searchPlaceholder: "Ara",
-                       paginate: {
-                           next: '<i class="ion-chevron-right"></i>',
-                           previous: '<i class="ion-chevron-left"></i>'
-                       }
-                    },
-                        });
-                    },
-                    error: function (request, status, error) {
-                        $('#preloader').hide();
-                         document.getElementById('hata').innerHTML = request.responseText;
-                    }
-        });
-});
+// grup_sms_formu submit handler musteriListeSecimi.js icinde tanimli
 $('#sendbutton').click(function(e){
     e.preventDefault();
                $.ajax({

@@ -360,7 +360,7 @@ function handleGrupOlustur() {
     submitBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Kaydediliyor...');
     
     $.ajax({
-        url: $('#grup_sms_formu').attr('action') || '/isletmeyonetim/grup-olustur',
+        url: $('#grup_sms_formu').attr('action') || '/isletmeyonetim/grupsmsekle',
         method: 'POST',
         data: formData,
         processData: false,

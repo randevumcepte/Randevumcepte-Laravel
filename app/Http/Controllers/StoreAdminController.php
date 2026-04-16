@@ -14281,17 +14281,38 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $grupsms->aktif_mi = true;
         $grupsms->save();
         $grup_katilimcilar = GrupSmsKatilimcilari::where('grup_id',$grupsms->id)->delete();
-        foreach($request->duallistbox_demo1 as $key => $grup_katilimci)
-        {
-            $grup_yenikatilimci = new GrupSmsKatilimcilari();
-            $grup_yenikatilimci->grup_id = $grupsms->id;
-            $grup_yenikatilimci->user_id = $grup_katilimci;
-            $grup_yenikatilimci->save();
+
+        // Yeni format: musteri_idler JSON olarak geliyor
+        $musteriIdler = [];
+        if($request->has('musteri_idler')) {
+            $musteriIdler = json_decode($request->musteri_idler, true) ?: [];
+        } elseif($request->has('duallistbox_demo1')) {
+            $musteriIdler = $request->duallistbox_demo1;
         }
-        return array(
-          "mesaj" => "Grup Başarıyla Oluşturuldu",
+
+        $insertData = [];
+        $now = now();
+        foreach($musteriIdler as $grup_katilimci)
+        {
+            $insertData[] = [
+                'grup_id' => $grupsms->id,
+                'user_id' => $grup_katilimci,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+        $chunks = array_chunk($insertData, 1000);
+        foreach ($chunks as $chunk) {
+            GrupSmsKatilimcilari::insert($chunk);
+        }
+
+        return response()->json([
+          'success' => true,
+          'mesaj' => 'Grup Başarıyla Oluşturuldu',
+          'id' => $grupsms->id,
+          'grupAdi' => $grupsms->grup_adi,
           'grup' => self::grup_sms_liste_getir($request)
-        );
+        ]);
     }
     public function santral_ayar_kaydet(Request $request)
     {
