@@ -324,12 +324,14 @@ class MusteriSecimi {
 
 // Document Ready
 $(document).ready(function() {
-    window.musteriSecimi = new MusteriSecimi();
-    
-    // Form submit
-    $('#grup_sms_formu').on('submit', function(e) {
+    // Zaten olusturulmussa tekrar olusturma
+    if (!window.musteriSecimi) {
+        window.musteriSecimi = new MusteriSecimi();
+    }
+
+    // Form submit - cift binding onleme
+    $('#grup_sms_formu').off('submit').on('submit', function(e) {
         e.preventDefault();
-        
         handleGrupOlustur();
     });
 });
