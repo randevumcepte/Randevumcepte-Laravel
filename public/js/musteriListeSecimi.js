@@ -27,7 +27,6 @@ class MusteriSecimi {
             lastSearchTime: 0,
             searchDelay: 500, // Arama gecikmesi (ms)
             hasMore: true,
-            lastLoadedPage: 0,
             allCustomers: [] // Tüm müşterileri cache'le
         };
 
@@ -61,7 +60,6 @@ class MusteriSecimi {
             searchTimeout = setTimeout(() => {
                 self.state.aramaTerimi = searchTerm;
                 self.state.currentPage = 1;
-                self.state.lastLoadedPage = 0;
                 self.state.hasMore = true;
                 self.musterileriGetir(1, false);
             }, self.state.searchDelay);
@@ -237,14 +235,13 @@ class MusteriSecimi {
 
         if (page === 1) {
             this.state.allCustomers = customers.slice();
-            this.state.lastLoadedPage = 1;
-            this.state.currentPage = 2;
         } else {
             this.state.allCustomers.push(...customers);
         }
 
         this.state.toplamMusteriler = total;
-        this.state.hasMore = (page * this.state.perPage) < total;
+        this.state.currentPage = page + 1;
+        this.state.hasMore = customers.length >= this.state.perPage;
 
         this.musteriListesiRenderEt(customers, append);
         this.seciliElemanSayisiniGuncelle();
@@ -272,15 +269,8 @@ class MusteriSecimi {
     const scrollHeight = $container[0].scrollHeight;
 
     if (scrollTop + containerHeight >= scrollHeight - 100) {
-
-        if (
-            this.state.hasMore &&
-            !this.state.isLoading &&
-            this.state.currentPage > this.state.lastLoadedPage
-        ) {
-            this.state.lastLoadedPage = this.state.currentPage;
+        if (this.state.hasMore && !this.state.isLoading) {
             this.musterileriGetir(this.state.currentPage, true);
-            this.state.currentPage++;
         }
     }
 }
