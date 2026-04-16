@@ -13839,6 +13839,47 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         KampanyaYonetimi::where('id',$request->kampanya_id)->update(['aktifmi'=>false]);
         return self::paket_kampanyalar($request);
     }
+    public function kampanyakatilimcisil(Request $request){
+        try {
+            $katilimci = KampanyaKatilimcilari::where('id', $request->id)->first();
+            if (!$katilimci) {
+                return response()->json(['success' => false, 'message' => 'Katılımcı bulunamadı.']);
+            }
+            $katilimci->delete();
+            return response()->json(['success' => true, 'message' => 'Katılımcı başarıyla silindi.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Silme işlemi sırasında bir hata oluştu: ' . $e->getMessage()]);
+        }
+    }
+    public function kampanyakatilimciekle(Request $request)
+    {
+        try {
+            $request->validate(['kampanyaid' => 'required|integer', 'musteriid' => 'required|integer']);
+            $mevcutKatilimci = KampanyaKatilimcilari::where('kampanya_id', $request->kampanyaid)
+                ->where('user_id', $request->musteriid)->first();
+            if ($mevcutKatilimci) {
+                return response()->json(['success' => false, 'message' => 'Bu müşteri zaten kampanyaya kayıtlıdır.', 'type' => 'warning']);
+            }
+            $ilkKatilimci = KampanyaKatilimcilari::where('kampanya_id', $request->kampanyaid)->first();
+            if (!$ilkKatilimci) {
+                return response()->json(['success' => false, 'message' => 'Kampanya bulunamadı veya geçersiz.', 'type' => 'error']);
+            }
+            $katilimci = new KampanyaKatilimcilari();
+            $katilimci->kampanya_id = $request->kampanyaid;
+            $katilimci->user_id = $request->musteriid;
+            $katilimci->indirim_kodu = $ilkKatilimci->indirim_kodu;
+            if ($request->has('durum')) {
+                $katilimci->durum = $request->durum;
+            }
+            $katilimci->save();
+            return response()->json([
+                'success' => true, 'message' => 'Katılımcı başarıyla eklendi.', 'type' => 'success',
+                'data' => ['id' => $katilimci->id, 'ad_soyad' => $katilimci->musteri->name ?? 'Müşteri', 'telefon' => $katilimci->musteri->cep_telefon ?? '']
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Katılımcı eklenirken bir hata oluştu: ' . $e->getMessage(), 'type' => 'error']);
+        }
+    }
     public function etkinlik_sil(Request $request){
         Etkinlikler::where('id',$request->etkinlik_id)->update(['aktifmi'=>false]);
         return self::etkinlikyukle($request);
