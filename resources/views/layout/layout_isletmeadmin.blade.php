@@ -2593,30 +2593,24 @@ document.addEventListener('DOMContentLoaded', function() {
          $(document).ready(function(){
          
               $('#kampanyayonetim_tablo').DataTable({
-         
+
                  autoWidth: false,
-         
-                  responsive: true,
-         
-                   columns:[         
-                     
-         
-                      { data: 'paket_isim'   },
-         
-                      { data: 'seans', className:"ortaya-yasli" },
-         
-                     { data: 'katilimci_sayisi'  ,   className:"ortaya-yasli" },
-         
-                      { data: 'hizmet_adi'   },
-         
-                      { data: 'fiyat', className:"saga-yasli"},
-         
-                      { data: 'islemler', className:"saga-yasli" }, 
-         
-                      
-         
+                 pageLength: 100,
+                 responsive: true,
+
+                   columns:[
+                      { data: 'gorev_turu' },
+                      { data: 'kampanya', className:"ortaya-yasli" },
+                      { data: 'baslangic_tarihi', className:"ortaya-yasli" },
+                      { data: 'bitis_tarihi', className:"ortaya-yasli" },
+                      { data: 'arama_saati', className:"ortaya-yasli" },
+                      { data: 'hizmet_adi' },
+                      { data: 'indirim_turu', className:"ortaya-yasli" },
+                      { data: 'musteri_turu', className:"ortaya-yasli" },
+                      { data: 'katilimci_sayisi', className:"ortaya-yasli" },
+                      { data: 'islemler', className:"saga-yasli" },
                    ],
-         
+
                    data: <?php echo $kampanya_yonetimi; ?>,
          
          
