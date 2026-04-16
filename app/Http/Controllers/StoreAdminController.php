@@ -14751,6 +14751,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $grupSMS = $grup->map(function($group) {
 
             return [
+                'id'=>$group->id,
                 'grup_katilimci_sayisi'=>$group->musteriler->count(),
                 'grup_adi'=>$group->grup_adi,
                 
