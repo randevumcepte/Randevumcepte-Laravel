@@ -113,14 +113,14 @@
                               <label>Katılım Durumu</label>
                               <select id="gelenGelmeyenMusteri" name="gelenGelmeyenMusteri" class="form-control">
                                  <option value="">Tümü</option>
-                                 <option value="1">Son 1 yıllık hastalar</option>
-                                 <option value="2">Son 2 yıllık hastalar</option>
-                                 <option value="3">Son 3 yıllık hastalar</option>
-                                 <option value="4">Son 4 yıllık hastalar</option>
-                                 <option value="5">Son 5 yıllık hastalar</option>
-                                 <option value="6">Sadık hastalar</option>
-                                 <option value="7">Aktif hastalar</option>
-                                 <option value="8">Pasif hastalar</option>
+                                 <option value="1">Son 1 yıllık müşteriler</option>
+                                 <option value="2">Son 2 yıllık müşteriler</option>
+                                 <option value="3">Son 3 yıllık müşteriler</option>
+                                 <option value="4">Son 4 yıllık müşteriler</option>
+                                 <option value="5">Son 5 yıllık müşteriler</option>
+                                 <option value="6">Sadık müşteriler</option>
+                                 <option value="7">Aktif müşteriler</option>
+                                 <option value="8">Pasif müşteriler</option>
                               </select>
                            </div>
                            
