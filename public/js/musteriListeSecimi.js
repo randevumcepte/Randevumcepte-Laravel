@@ -115,6 +115,7 @@ class MusteriSecimi {
     }
 
     bireyselSecimToggle(userId, isChecked) {
+        console.log('bireyselSecimToggle:', userId, isChecked, typeof userId);
         if (isChecked) {
             this.state.seciliIdler.add(userId);
         } else {
@@ -335,6 +336,8 @@ $(document).ready(function() {
 function handleGrupOlustur() {
     const seciliMusteriler = window.musteriSecimi.getSelectedIdsForForm();
     const grupAdi = $('#grup_adi').val().trim();
+    console.log('handleGrupOlustur - seciliIdler size:', window.musteriSecimi.state.seciliIdler.size);
+    console.log('handleGrupOlustur - seciliMusteriler:', seciliMusteriler);
     
     if (!grupAdi) {
         showAlert('Lütfen grup adı giriniz!', 'warning');
