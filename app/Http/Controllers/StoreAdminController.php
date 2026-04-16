@@ -20774,7 +20774,7 @@ DB::raw('
 
         $metinDuzeltimis = str_replace('SMS','esemes',$metin);
        
-        $url = "https://santral2.randevumcepte.com.tr/monitor/kampanyaMetniniSeseDonustur2.php";
+        $url = "https://santral.randevumcepte.com.tr/monitor/kampanyaMetniniSeseDonustur2.php";
         $payload = json_encode(['kampanyaMetin' => $metinDuzeltimis], JSON_UNESCAPED_UNICODE);
 
         $ch = curl_init();
