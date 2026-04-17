@@ -14526,31 +14526,72 @@ $('#kampanyaTuru').change(function(e){
             });
     }
 }); 
-$('#gorevTuru,#kampanyaTuru').change(function(e){
+$(document).on('change', '#kampanyaTuru,#gorevTuru',function(e){
     e.preventDefault();
-     $.ajax({
-                    type: "GET",
-                    url: '/isletmeyonetim/kampanya-sablon-filtre',
-                    dataType: "json",
-                    data : {salonId:$('input[name="sube"]').val(),tur:$('#gorevTuru').val(),kategori:$('#kampanyaTuru').val()},
-                    beforeSend: function() {
-                        $("#preloader").show();
-                    },
-                    success: function(result)  {
-                        $("#preloader").hide();
-                       
-                        $('#hizmetUrunPaket').select2('destroy');
-                        $('#hizmetUrunPaket').select2({
-                            data:result.secimMenusu,
-                        });
-                        $('#kampanyaSablonBolumu').empty()
-                        $('#kampanyaSablonBolumu').append(result.sablonlar);
-                    },
-                    error: function (request, status, error) {
-                        $("#preloader").hide();
-                        document.getElementById('hata').innerHTML = request.responseText;
-                    }
-            });
+    if($(this).attr('id')=='gorevTuru')
+    {
+        $('#kampanyaPrompt').empty();
+        $('#hizmetUrunPaket').val(null).trigger('change');
+        $('#kampanyaKategori').val(null).trigger('change');
+        $('#katilimciTuru').val(null).trigger('change');
+        $('#gelenGelmeyenMusteri').val(null).trigger('change');
+        if(typeof SMScountChar === 'function') SMScountChar('');
+        if($(this).val()=='2' || $(this).val()=='3')
+        {
+            $('#indirimTuru').attr('disabled',false);
+            $('#indirimBolumu').attr('style','visibility:visible;padding:10px 0 0 10px; display: flex; align-items: center; gap: 8px;');
+            $('#indirimInput').attr('style','visibility:visible');
+            $('#musteriDanisanFiltre').attr('style','display:block');
+            $('#katilimFiltre').attr('style','display:block');
+            $('#hizmetUrunFiltre').attr('style','display:block');
+            $('#kategoriFiltre').attr('style','display:block');
+            $('#kampanyaSesKaydiCal').attr('style','display:none');
+            $('#karaktersayisi').attr('style','display:block');
+            $('#kampanyaTuru').empty();
+            $('#kampanyaTuru').append('<option value="">Tümü</option><option value="1">Tek SMSler</option><option value="2">Uzun SMSler</option><option value="3">Kaydedilen SMSler</option>');
+            $('#sablon_olustur').attr('style','display:inline');
+            $('#kampanyaSablonFiltre').attr('style','display: block;');
+            $('#planlamaYazi').removeClass('col-md-12').addClass('col-md-6');
+        }
+        else if($(this).val()=='4')
+        {
+            $('#indirimTuru').attr('disabled',true);
+            $('#indirimBolumu').attr('style','visibility:hidden');
+            $('#indirimInput').attr('style','visibility:hidden');
+            $('#musteriDanisanFiltre').attr('style','display:none');
+            $('#katilimFiltre').attr('style','display:none');
+            $('#hizmetUrunFiltre').attr('style','display:none');
+            $('#kategoriFiltre').attr('style','display:none');
+            $('#sablon_olustur').attr('style','display:inline');
+            $('#kampanyaSablonFiltre').attr('style','display:none');
+            $('#planlamaYazi').removeClass('col-md-6').addClass('col-md-12');
+        }
+        else if($(this).val()=='1'){
+            $('#indirimTuru').attr('disabled',false);
+            $('#indirimBolumu').attr('style','visibility:visible;padding:10px 0 0 10px; display: flex; align-items: center; gap: 8px;');
+            $('#indirimInput').attr('style','visibility:visible');
+            $('#musteriDanisanFiltre').attr('style','display:block');
+            $('#katilimFiltre').attr('style','display:block');
+            $('#hizmetUrunFiltre').attr('style','display:block');
+            $('#kategoriFiltre').attr('style','display:block');
+            $('#kampanyaSesKaydiCal').attr('style','display:block');
+            $('#kampanyaTuru').empty();
+            $('#karaktersayisi').attr('style','display:none');
+            $('#kampanyaTuru').append('<option value="">Tümü</option>');
+            $('#sablon_olustur').attr('style','display:none');
+            $('#kampanyaSablonFiltre').attr('style','display:none;');
+            $('#planlamaYazi').removeClass('col-md-12').addClass('col-md-6');
+        }
+        else
+        {
+            $('#kampanyaSesKaydiCal').attr('style','display:block');
+            $('#karaktersayisi').attr('style','display:none');
+            $('#kampanyaTuru option').show();
+            $('#sablon_olustur').attr('style','display:none');
+            $('#kampanyaSablonFiltre').attr('style','display:none;');
+        }
+    }
+    kampanyaSablonGetir();
 });
 
 

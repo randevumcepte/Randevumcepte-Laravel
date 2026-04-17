@@ -20812,24 +20812,44 @@ DB::raw('
     }
     public function kampanyaSablonFiltre(Request $request)
     {
-
         $sablonlar = KampanyaSablonlari::where(function($q) use ($request){
-            if($request->tur !='')
-                $q->where('tur',$request->tur); 
+            if($request->gorevTuru !='') {
+                $q->where('gorev_turu',$request->gorevTuru);
+            }
         })->where(function($q) use ($request){
-            if($request->kategori != '')
-                $q->where('kategori',$request->kategori);
+            if($request->kampanyaTuru != '')
+            {
+                $q->where('tur',$request->kampanyaTuru);
+            }
         })->get();
+        $hariciSablonlar = '';
+
+        if(($request->gorevTuru==2 ||$request->gorevTuru==3 ||$request->gorevTuru==4 || $request->gorevTuru=='')&& ($request->kampanyaTuru=='' || $request->kampanyaTuru == 3))
+            $hariciSablonlar = SMSTaslaklari::where('salon_id',$request->salonId)->orderBy('id','desc')->get();
+
         $html = '';
+
+        if($hariciSablonlar !='')
+        {
+            foreach($hariciSablonlar as $sablon)
+            {
+                $html .= '<div class="kampanyaSablonSecim" title="Metni Seç" data-value="sablon-'.$sablon->id.'" style="position:relative; cursor: pointer" name="kampanyaSablonSecim">
+                           <p style="padding:5px;background-color: #f2f2f2; border-radius: 20px;border-bottom-left-radius: 0;color:black;font-size:15px; overflow: hidden;">
+                              '.$sablon->baslik.' <a name="sablonSil" title="Şablon Sil" data-value="'.$sablon->id.'" style="float:right;z-index:9999999;font-size: 22px;color: red;margin-left: 5px;font-weight: 100;margin-top: -2px;"><i class="fa fa-remove"></i></a>  &nbsp;<a name="smsTaslakDuzenle" data-text="'.$sablon->baslik.'|'.$sablon->taslak_icerik.'" title="Şablon Düzenle" data-value="'.$sablon->id.'" style="float:right;z-index:9999999;font-size: 20px; color: #0055B4;"><i class="fa fa-edit"></i></a>
+                           </p>
+                        </div> ';
+            }
+        }
+
         foreach($sablonlar as $sablon)
         {
-            $html .= '<a class="kampanyaSablonSecim" title="Metni Seç" data-value="'.$sablon->id.'" style="position:relative; cursor: pointer;" name="kampanyaSablonSecim">
-                           <p style="border:1px solid grey;padding:5px;background-color: #e4e4e2; border-radius: 20px;border-bottom-left-radius: 0;color:black;font-size:15px; overflow: hidden;
-                              ">
+            $html .= '<div class="kampanyaSablonSecim" title="Metni Seç" data-value="'.$sablon->id.'" style="position:relative; cursor: pointer;" name="kampanyaSablonSecim">
+                           <p style="padding:5px;background-color: #f2f2f2; border-radius: 20px;border-bottom-left-radius: 0;color:black;font-size:15px; overflow: hidden;">
                               '.$sablon->baslik.'
                            </p>
-                        </a>';
+                        </div>';
         }
+
         $secimMenusu = '';
         if($request->kategori == '1')
             $secimMenusu = self::hizmet_secimi_2($request);
