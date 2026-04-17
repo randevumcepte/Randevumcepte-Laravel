@@ -21627,14 +21627,17 @@ $(document).on('hidden.bs.modal', '#sablon_olustur_modal, #sablon_duzenle_modal'
         $('body').addClass('modal-open');
     }
 });
-$('#katilimciTuru,#gelmeyenMusteri').change(function(e){
+$('#katilimciTuru,#gelenGelmeyenMusteri,#musteriGruplari').change(function(e){
     let cinsiyet = '';
+    let tarih ='';
+    let grup = $('#musteriGruplari').val();
 
     if($('#katilimciTuru').val()=='kadinlar')
         cinsiyet = '0';
-    if($('#katilimciTuru').val()=='erkekler')
+    else if($('#katilimciTuru').val()=='erkekler')
         cinsiyet = '1';
-    let currentFilter = $('#gelmeyenMusteri').val();
+
+    let currentFilter = $('#gelenGelmeyenMusteri').val();
     $.ajax({
         url: '/isletmeyonetim/musteriportfoydropliste',
         method: 'POST',
@@ -21644,6 +21647,7 @@ $('#katilimciTuru,#gelmeyenMusteri').change(function(e){
           perPage: 100,
           filtre: currentFilter,
           cinsiyet : cinsiyet,
+          grup : grup,
           search: '',
           _token: $('input[name="_token"]').val()
         },
@@ -21652,7 +21656,7 @@ $('#katilimciTuru,#gelmeyenMusteri').change(function(e){
           $('#kampanya_katilimci_sayisi').empty();
           $('#kampanya_katilimci_sayisi').append(res.total);
         },
-        
+
         error: function (xhr) {
           console.error("Error:", xhr.statusText);
         }
