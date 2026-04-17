@@ -4026,17 +4026,30 @@ hasphonenumber = true;
             $('#preloader').show();
         },
        success: function(result)  {
-            $('#preloader').hide();
+
+            //$('#preloader').hide();
              if (result.liste!='') {
                 $('#taslaklarbolumu2').empty();
                 $('#sablon_formu').trigger('reset');
+                $('#sablon_formu_duzenleme').trigger('reset');
                $('#taslaklarbolumu2').append(result.liste);
              }
-              // Modal acik kalsin diye swal yerine toast bildirim
-              var toastHtml = '<div class="alert alert-success alert-dismissible fade show" style="position:fixed;top:20px;right:20px;z-index:99999;min-width:300px;">' + (result.sonuc || 'Şablon başarıyla kaydedildi') + '<button type="button" class="close" data-dismiss="alert"><span>&times;</span></button></div>';
-              $('body').append(toastHtml);
-              setTimeout(function(){ $('.alert-dismissible').alert('close'); }, 3000);
-              kampanyaSablonGetir();
+              //$('.modal_kapat').trigger('click');
+             $('#sablon_olustur_modal').modal('hide');
+             $('#sablon_duzenle_modal').modal('hide');
+
+                swal(
+                            {
+                                type: "success",
+                                title: "Başarılı",
+                                text:  result.sonuc,
+                                showConfirmButton:false,
+                                showCancelButton:false,
+                                showCloseButton:false,
+                                timer:2000,
+                            }
+                        );
+                 kampanyaSablonGetir();
         },
         error: function (request, status, error) {
             $('#preloader').hide();
