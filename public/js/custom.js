@@ -4034,21 +4034,6 @@ hasphonenumber = true;
                 $('#sablon_formu_duzenleme').trigger('reset');
                $('#taslaklarbolumu2').append(result.liste);
              }
-              //$('.modal_kapat').trigger('click');
-             $('#sablon_olustur_modal').modal('hide');
-             $('#sablon_duzenle_modal').modal('hide');
-
-                swal(
-                            {
-                                type: "success",
-                                title: "Başarılı",
-                                text:  result.sonuc,
-                                showConfirmButton:false,
-                                showCancelButton:false,
-                                showCloseButton:false,
-                                timer:2000,
-                            }
-                        );
                  kampanyaSablonGetir();
         },
         error: function (request, status, error) {
@@ -4070,7 +4055,6 @@ hasphonenumber = true;
                 $('#sablon_formu_duzenleme').trigger('reset');
                $('#taslaklarbolumu2').append(result.liste);
              }
-              $('#sablon_olustur_modal').modal('hide');
               $('#sablon_duzenle_modal').modal('hide');
                 swal(
                             {
@@ -21635,6 +21619,12 @@ function kampanyaSablonGetir()
         }
     });
 }
+// Ic ice modal fix: sablon_olustur_modal kapaninca yeni_kampanya_modal acik kalsin
+$(document).on('hidden.bs.modal', '#sablon_olustur_modal, #sablon_duzenle_modal', function () {
+    if ($('#yeni_kampanya_modal').hasClass('show') || $('#yeni_kampanya_modal').is(':visible')) {
+        $('body').addClass('modal-open');
+    }
+});
 $('#katilimciTuru,#gelmeyenMusteri').change(function(e){
     let cinsiyet = '';
 
