@@ -4042,7 +4042,9 @@ hasphonenumber = true;
                                 showCloseButton:false,
                                 timer:2000,
                             }
-                        );
+                        ).then(function(){
+                            $('#sablon_olustur_modal').modal('show');
+                        });
               kampanyaSablonGetir();
         },
         error: function (request, status, error) {
