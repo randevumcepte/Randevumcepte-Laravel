@@ -4030,11 +4030,8 @@ hasphonenumber = true;
              if (result.liste!='') {
                 $('#taslaklarbolumu2').empty();
                 $('#sablon_formu').trigger('reset');
-                $('#sablon_formu_duzenleme').trigger('reset');
                $('#taslaklarbolumu2').append(result.liste);
              }
-              $('#sablon_olustur_modal').modal('hide');
-              $('#sablon_duzenle_modal').modal('hide');
                 swal(
                             {
                                 type: "success",
