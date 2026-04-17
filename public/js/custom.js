@@ -4034,7 +4034,8 @@ hasphonenumber = true;
                 $('#sablon_formu_duzenleme').trigger('reset');
                $('#taslaklarbolumu2').append(result.liste);
              }
-                 kampanyaSablonGetir();
+            $('#sablon_olustur_modal').modal('hide');    
+             kampanyaSablonGetir();
         },
         error: function (request, status, error) {
             $('#preloader').hide();
@@ -4067,6 +4068,7 @@ hasphonenumber = true;
                                 timer:2000,
                             }
                         );
+                $('#sablon_duzenle_modal').modal('hide');            
               kampanyaSablonGetir();
         },
         error: function (request, status, error) {
