@@ -84,100 +84,36 @@ class Controller extends BaseController
         })
         ->exists();
     }
-   protected function hasAppointmentConflict($personelId, $startSlot, $endSlot, $salonId)
+   protected function hasAppointmentConflict($resourceId, $startSlot, $endSlot, $salonId, $excludeRandevuId = null)
 {
-    // Tarihi doğru formatla
     $tarih = $startSlot->format('Y-m-d');
-    
-    // Saatleri doğru formatla (saniyesiz)
-    $startTime = $startSlot->format('H:i:00');
-    $endTime = $endSlot->format('H:i:00');
-    
-    Log::info("🔍 Çakışma kontrolü - Personel: $personelId, Tarih: $tarih, Saat: $startTime - $endTime");
-    
-    $cakisma = Randevular::where('tarih', $tarih)
-        ->where('salon_id', $salonId)
-        ->where('durum', '<=', 1)
-        ->whereHas('hizmetler', function ($q) use ($startTime, $endTime, $personelId) {
-            // Personel kontrolü
-            $q->where('personel_id', $personelId)
-              ->where(function ($q2) use ($startTime, $endTime) {
-                  // MEVCUT RANDEVU İLE ÇAKIŞMA KONTROLÜ
-                  $q2->where(function ($q3) use ($startTime, $endTime) {
-                      // Yeni randevu, mevcut randevunun içinde mi?
-                      $q3->where('saat', '<=', $startTime)
-                         ->where('saat_bitis', '>=', $endTime);
-                  })->orWhere(function ($q3) use ($startTime, $endTime) {
-                      // Yeni randevu, mevcut randevuyu tamamen kapsıyor mu?
-                      $q3->where('saat', '>=', $startTime)
-                         ->where('saat_bitis', '<=', $endTime);
-                  })->orWhere(function ($q3) use ($startTime, $endTime) {
-                      // Yeni randevunun başlangıcı, mevcut randevunun içinde mi?
-                      $q3->where('saat', '<=', $startTime)
-                         ->where('saat_bitis', '>', $startTime);
-                  })->orWhere(function ($q3) use ($startTime, $endTime) {
-                      // Yeni randevunun bitişi, mevcut randevunun içinde mi?
-                      $q3->where('saat', '<', $endTime)
-                         ->where('saat_bitis', '>=', $endTime);
-                  });
-              });
-        })
-        ->exists();
-    
-    if (!$cakisma) {
-        // Cihaz kontrolü
-        $cakisma = Randevular::where('tarih', $tarih)
+    // DB'de saat alanları H:i formatinda saklaniyor (randevuyaHizmetEkle). TIME veya VARCHAR kolonu da ayni formatla karsilastir.
+    $startTime = $startSlot->format('H:i');
+    $endTime = $endSlot->format('H:i');
+
+    Log::info("🔍 Cakisma kontrolu - Kaynak: $resourceId, Tarih: $tarih, Saat: $startTime - $endTime" . ($excludeRandevuId ? ", haric: $excludeRandevuId" : ""));
+
+    $buildQuery = function ($column) use ($tarih, $salonId, $excludeRandevuId, $resourceId, $startTime, $endTime) {
+        $q = Randevular::where('tarih', $tarih)
             ->where('salon_id', $salonId)
-            ->where('durum', '<=', 1)
-            ->whereHas('hizmetler', function ($q) use ($startTime, $endTime, $personelId) {
-                $q->where('cihaz_id', $personelId)
-                  ->where(function ($q2) use ($startTime, $endTime) {
-                      $q2->where(function ($q3) use ($startTime, $endTime) {
-                          $q3->where('saat', '<=', $startTime)
-                             ->where('saat_bitis', '>=', $endTime);
-                      })->orWhere(function ($q3) use ($startTime, $endTime) {
-                          $q3->where('saat', '>=', $startTime)
-                             ->where('saat_bitis', '<=', $endTime);
-                      })->orWhere(function ($q3) use ($startTime, $endTime) {
-                          $q3->where('saat', '<=', $startTime)
-                             ->where('saat_bitis', '>', $startTime);
-                      })->orWhere(function ($q3) use ($startTime, $endTime) {
-                          $q3->where('saat', '<', $endTime)
-                             ->where('saat_bitis', '>=', $endTime);
-                      });
-                  });
-            })
-            ->exists();
-    }
-    
-    if (!$cakisma) {
-        // Oda kontrolü
-        $cakisma = Randevular::where('tarih', $tarih)
-            ->where('salon_id', $salonId)
-            ->where('durum', '<=', 1)
-            ->whereHas('hizmetler', function ($q) use ($startTime, $endTime, $personelId) {
-                $q->where('oda_id', $personelId)
-                  ->where(function ($q2) use ($startTime, $endTime) {
-                      $q2->where(function ($q3) use ($startTime, $endTime) {
-                          $q3->where('saat', '<=', $startTime)
-                             ->where('saat_bitis', '>=', $endTime);
-                      })->orWhere(function ($q3) use ($startTime, $endTime) {
-                          $q3->where('saat', '>=', $startTime)
-                             ->where('saat_bitis', '<=', $endTime);
-                      })->orWhere(function ($q3) use ($startTime, $endTime) {
-                          $q3->where('saat', '<=', $startTime)
-                             ->where('saat_bitis', '>', $startTime);
-                      })->orWhere(function ($q3) use ($startTime, $endTime) {
-                          $q3->where('saat', '<', $endTime)
-                             ->where('saat_bitis', '>=', $endTime);
-                      });
-                  });
-            })
-            ->exists();
-    }
-    
-    Log::info("📊 Çakışma sonucu: " . ($cakisma ? 'VAR' : 'YOK'));
-    
+            ->where('durum', '<=', 1);
+        if ($excludeRandevuId) {
+            $q->where('id', '!=', $excludeRandevuId);
+        }
+        return $q->whereHas('hizmetler', function ($qh) use ($column, $resourceId, $startTime, $endTime) {
+            $qh->where($column, $resourceId)
+               // Klasik overlap: mevcut.saat < yeni.bitis AND mevcut.bitis > yeni.baslangic
+               ->where('saat', '<', $endTime)
+               ->where('saat_bitis', '>', $startTime);
+        });
+    };
+
+    $cakisma = $buildQuery('personel_id')->exists();
+    if (!$cakisma) $cakisma = $buildQuery('cihaz_id')->exists();
+    if (!$cakisma) $cakisma = $buildQuery('oda_id')->exists();
+
+    Log::info("📊 Cakisma sonucu: " . ($cakisma ? 'VAR' : 'YOK'));
+
     return $cakisma;
 }
     protected function convertToBugunYarin($tarih)
@@ -195,7 +131,9 @@ class Controller extends BaseController
             $molaStart = Carbon::parse($startSlot->toDateString() . " " . $mola->baslangic);
             $molaEnd = Carbon::parse($startSlot->toDateString() . " " . $mola->bitis);
 
-            if ($startSlot->between($molaStart, $molaEnd) || $endSlot->between($molaStart, $molaEnd)) {
+            // Klasik overlap: slot.start < mola.end AND slot.end > mola.start.
+            // Eski between() mantigi slot molayi tamamen kapsadiginda cakismayi kaciriyor, ayrica sinir eslesmelerinde yanlis positive veriyordu.
+            if ($startSlot->lt($molaEnd) && $endSlot->gt($molaStart)) {
                 return true;
             }
         }
@@ -1184,8 +1122,8 @@ class Controller extends BaseController
         $eskiOdaIdler =null;
         $olusturmaGuncelleme = "";
 
-        $cihazlar = Cihazlar::where('salon_id',$salon_id)->where('aktifmi',true)->where('durum',1)->get();
-        $personeller = Personeller::where('salon_id', $salon_id)->where('aktif', true)->where('role_id', 5)->get();
+        $cihazlar = collect();
+        $personeller = collect();
         $odalar = null;
 
         $randevu="";
@@ -1234,6 +1172,10 @@ class Controller extends BaseController
             else{
                 $salon_id = $salonHizmet->salon_id;
             }
+            // Yeni randevu senaryosunda kaynaklari (cihaz/personel) $salon_id belirlendikten sonra yukle.
+            // Eskiden basta bos $salon_id ile yukleniyordu; cihaz-bazli isletmelerde hicbir cihaz bulunamiyordu.
+            $cihazlar = Cihazlar::where('salon_id',$salon_id)->where('aktifmi',true)->where('durum',1)->get();
+            $personeller = Personeller::where('salon_id', $salon_id)->where('aktif', true)->where('role_id', 5)->get();
         }
 
         $startDate = "";
@@ -1298,21 +1240,41 @@ class Controller extends BaseController
             $checkDate = $startDate->format('Y-m-d');
             $dayOfWeek = $startDate->dayOfWeek;
             if($dayOfWeek == 0) $dayOfWeek = 7;
-            
+
             Log::info("🔍 Kontrol edilen gün: " . $checkDate . " - Gün: " . $dayOfWeek);
-            
+
+            // Gecmis tarih/saat reddi (5 dk tolerans: cagri aninda anons gecikmesi).
+            // Guncelleme senaryosunda (randevuid != "") bile gecmise randevu olusturulmamalidir.
+            if ($startDate->lt(Carbon::now()->subMinutes(5))) {
+                Log::info("❌ Gecmis tarih/saat istendi: " . $startDate->format('Y-m-d H:i'));
+                return response()->json([
+                    'success' => false,
+                    'metin' => base64_encode('Geçmiş bir tarih ve saat için randevu oluşturamıyoruz. Lütfen ileri bir tarih ve saat söyleyin.'),
+                    "tarihsaat" => $tarihSaat
+                ]);
+            }
+
             // Salon çalışma saatleri kontrolü
             $salonCalismaSaatleri = SalonCalismaSaatleri::where('salon_id', $salon_id)
                 ->where('haftanin_gunu', $dayOfWeek)
                 ->where('calisiyor', 1)
                 ->first();
-            
-            if ($salonCalismaSaatleri) {
+
+            if (!$salonCalismaSaatleri) {
+                Log::info("❌ Salon bu gun kapali: " . $checkDate);
+                return response()->json([
+                    'success' => false,
+                    'metin' => base64_encode('İşletmemiz belirttiğiniz gün kapalıdır. Lütfen başka bir gün söyleyin.'),
+                    "tarihsaat" => $tarihSaat
+                ]);
+            }
+
+            {
                 $salonMolaSaatleri = SalonMolaSaatleri::where('salon_id', $salon_id)
                     ->where('haftanin_gunu', $dayOfWeek)
                     ->where('mola_var', 1)
                     ->get();
-                
+
                 $startSlot = $startDate->copy();
                 $sureDk = 0;
                 if($paketBilgisi != null)
@@ -1333,9 +1295,31 @@ class Controller extends BaseController
                 else
                     $sureDk = $salonHizmet ? $salonHizmet->sure_dk : RandevuHizmetler::where('randevu_id', $randevuid)->sum('sure_dk');
                 $endSlot = $startSlot->copy()->addMinutes($sureDk);
-                
+
                 Log::info("⏰ Kontrol edilen slot: " . $startSlot->format('Y-m-d H:i:s') . " - " . $endSlot->format('Y-m-d H:i:s'));
-                
+
+                // Salon calisma saati araligi kontrolu: istenen slot salonun calisma penceresinde olmali.
+                $salonStartBoundary = Carbon::parse($checkDate . " " . $salonCalismaSaatleri->baslangic_saati);
+                $salonEndBoundary = Carbon::parse($checkDate . " " . $salonCalismaSaatleri->bitis_saati);
+                if ($startSlot->lt($salonStartBoundary) || $endSlot->gt($salonEndBoundary)) {
+                    Log::info("❌ Istenen slot salon calisma saatleri disinda: " . $startSlot->format('H:i') . "-" . $endSlot->format('H:i') . " (salon " . $salonStartBoundary->format('H:i') . "-" . $salonEndBoundary->format('H:i') . ")");
+                    return response()->json([
+                        'success' => false,
+                        'metin' => base64_encode('Belirttiğiniz saat işletme çalışma saatleri dışındadır. Çalışma saatlerimiz ' . $salonStartBoundary->format('H:i') . ' ile ' . $salonEndBoundary->format('H:i') . ' arasındadır.'),
+                        "tarihsaat" => $tarihSaat
+                    ]);
+                }
+
+                // Salon genel mola kontrolu: istenen slot salon molasina denk geliyorsa reddet.
+                if ($salonMolaSaatleri && $salonMolaSaatleri->count() > 0 && $this->isInBreak($startSlot, $endSlot, $salonMolaSaatleri)) {
+                    Log::info("❌ Istenen slot salon molasinda");
+                    return response()->json([
+                        'success' => false,
+                        'metin' => base64_encode('Belirttiğiniz saat işletmemizin mola saatine denk geliyor. Lütfen başka bir saat söyleyin.'),
+                        "tarihsaat" => $tarihSaat
+                    ]);
+                }
+
                 // PERSONEL KONTROLÜ
                 foreach ($personeller as $personel) {
                     $personelCalismaSaatleri = PersonelCalismaSaatleri::where('personel_id', $personel->id)
@@ -1379,7 +1363,7 @@ class Controller extends BaseController
                     
                     if ($odalar->count() > 0) {
                         foreach ($odalar as $oda) {
-                            if (!$this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id)) {
+                            if (!$this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                                 Log::info("✅ UYGUN BULUNDU! Personel: " . $personel->id . ", Oda: " . $oda->oda_id);
                                 
                                 return response()->json([
@@ -1399,7 +1383,7 @@ class Controller extends BaseController
                         }
                     } else {
                         // Odasız personel
-                        if (!$this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id)) {
+                        if (!$this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                             Log::info("✅ UYGUN BULUNDU (odasız)! Personel: " . $personel->id);
                             
                             return response()->json([
@@ -1448,7 +1432,7 @@ class Controller extends BaseController
                     
                     if ($molaSaatleri && $this->isInBreak($startSlot, $endSlot, $molaSaatleri)) continue;
                     
-                    if (!$this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id)) {
+                    if (!$this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                         Log::info("✅ UYGUN BULUNDU (cihaz)! Cihaz: " . $cihaz->id);
                         
                         return response()->json([
@@ -1539,7 +1523,7 @@ class Controller extends BaseController
                         $odalar = OdaPersonelleri::where('personel_id',$personel->id)->where('salon_id',$salon_id)->get();
                         
                         foreach($odalar as $oda) {
-                            if ($this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id)) {
+                            if ($this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                                 continue;
                             }
                             else{
@@ -1561,7 +1545,7 @@ class Controller extends BaseController
                         }
                         
                         if($odalar->count()== 0){
-                            if ($this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id)) {
+                            if ($this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                                 continue;
                             }
                             else
@@ -1606,7 +1590,7 @@ class Controller extends BaseController
                             continue;
                         }
                         
-                        if ($this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id)) {
+                        if ($this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                             continue;
                         }
                         
@@ -1771,7 +1755,7 @@ class Controller extends BaseController
                     
                     if ($odalar->count() > 0) {
                         foreach ($odalar as $oda) {
-                            if (!$this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id)) {
+                            if (!$this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                                 Log::info("✅ UYGUN BULUNDU! Personel: " . $personel->id . ", Oda: " . $oda->oda_id);
                                 
                                 return response()->json([
@@ -1791,7 +1775,7 @@ class Controller extends BaseController
                         }
                     } else {
                         // Odasız personel
-                        if (!$this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id)) {
+                        if (!$this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                             Log::info("✅ UYGUN BULUNDU (odasız)! Personel: " . $personel->id);
                             
                             return response()->json([
@@ -1840,7 +1824,7 @@ class Controller extends BaseController
                     
                     if ($molaSaatleri && $this->isInBreak($startSlot, $endSlot, $molaSaatleri)) continue;
                     
-                    if (!$this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id)) {
+                    if (!$this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                         Log::info("✅ UYGUN BULUNDU (cihaz)! Cihaz: " . $cihaz->id);
                         
                         return response()->json([
@@ -1931,7 +1915,7 @@ class Controller extends BaseController
                         $odalar = OdaPersonelleri::where('personel_id',$personel->id)->where('salon_id',$salon_id)->get();
                         
                         foreach($odalar as $oda) {
-                            if ($this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id)) {
+                            if ($this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                                 continue;
                             }
                             else{
@@ -1953,7 +1937,7 @@ class Controller extends BaseController
                         }
                         
                         if($odalar->count()== 0){
-                            if ($this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id)) {
+                            if ($this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                                 continue;
                             }
                             else
@@ -1998,7 +1982,7 @@ class Controller extends BaseController
                             continue;
                         }
                         
-                        if ($this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id)) {
+                        if ($this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                             continue;
                         }
                         
