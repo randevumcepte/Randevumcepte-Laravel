@@ -18932,16 +18932,35 @@ public function arsivformekleme(Request $request){
 public function musteriportfoydropliste(Request $request)
     {
 
-        $salonId = $request->input('salonId', self::mevcutsube($request));//self::mevcutsube($request);
+        $salonId = $request->input('salonId', self::mevcutsube($request));
         $filtre = $request->input('filtre', 0);
         $musteriAdi = $request->input('search', '');
         $cinsiyet = $request->input('cinsiyet','');
-         
+        $grup = $request->grup;
+
+        $musteriTuru = '';
+        if($cinsiyet == '0')
+            $musteriTuru = 'Kadın ';
+        elseif($cinsiyet == '1')
+            $musteriTuru = 'Erkek ';
+        else
+            $musteriTuru = 'Tüm';
+
+        if($filtre=="1") $musteriTuru .= 'Son 1 yıllık ';
+        if($filtre=="2") $musteriTuru .= 'Son 2 yıllık ';
+        if($filtre=="3") $musteriTuru .= 'Son 3 yıllık ';
+        if($filtre=="4") $musteriTuru .= 'Son 4 yıllık ';
+        if($filtre=="5") $musteriTuru .= 'Son 5 yıllık ';
+        if($filtre=="6") $musteriTuru .= 'Sadık ';
+        if($filtre=="7") $musteriTuru .= 'Aktif';
+        if($filtre=="8") $musteriTuru .= 'Pasif';
+
         $query = DB::table('musteri_portfoy')
-            ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
-            ->where('musteri_portfoy.salon_id', $salonId)
-            ->where('musteri_portfoy.aktif', true)->where(function($q) use ($cinsiyet){
-                if($cinsiyet != '')
+            ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')->where(function($q){
+                $q->where('users.cep_telefon','!=',null)->where('users.cep_telefon','!=','');
+            })
+            ->where('musteri_portfoy.salon_id', $salonId)->where(function($q) use ($cinsiyet){
+                if($cinsiyet !== null && $cinsiyet != '')
                     $q->where('users.cinsiyet',$cinsiyet);
             })
             ->select('musteri_portfoy.user_id as id', 'users.name as name');
@@ -18950,8 +18969,35 @@ public function musteriportfoydropliste(Request $request)
             $query->where('users.name', 'LIKE', '%'.$musteriAdi.'%');
         }
 
+        if($grup!='')
+        {
+            $grupStr = explode('-',$grup);
+            if($grupStr[0] == 'hastagrup')
+            {
+                $userIds = ReceteGrubuHastalari::where('grup_id',$grupStr[1])->groupBy('user_id')->pluck('user_id')->toArray();
+                $query->whereIn('users.id',$userIds);
+                $musteriTuru = ' '.ReceteGrubu::where('id',$grupStr[1])->value('grup_adi');
+            }
+            if($grupStr[0] == 'haricigrup')
+            {
+                $userIds = GrupSMSKatilimcilari::where('grup_id',$grupStr[1])->pluck('user_id')->toArray();
+                $musteriTuru = ' '.GrupSMS::where('id',$grupStr[1])->value('grup_adi');
+                $query->whereIn('users.id',$userIds);
+            }
+        }
+
         switch ($filtre) {
-            case 1: // Sadık Müşteriler (3+ tahsilat)
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+                $query->where(function($q) use($filtre){
+                    $baslangicTarihi = now()->subYears($filtre)->startOfYear();
+                    $q->where('musteri_portfoy.created_at', '>=', $baslangicTarihi);
+                });
+                break;
+            case 6: // Sadık Müşteriler (3+ tahsilat)
                 $query->whereExists(function($q) use ($salonId) {
                     $q->select(DB::raw(1))
                       ->from('tahsilatlar')
@@ -18961,8 +19007,8 @@ public function musteriportfoydropliste(Request $request)
                       ->havingRaw('COUNT(*) >= 3');
                 });
                 break;
-                
-            case 2: // Aktif Müşteriler (1-2 tahsilat)
+
+            case 7: // Aktif Müşteriler (1-2 tahsilat)
                 $query->whereExists(function($q) use ($salonId) {
                     $q->select(DB::raw(1))
                       ->from('tahsilatlar')
@@ -18972,8 +19018,8 @@ public function musteriportfoydropliste(Request $request)
                       ->havingRaw('COUNT(*) BETWEEN 1 AND 2');
                 });
                 break;
-                
-            case 3: // Pasif Müşteriler (0 tahsilat)
+
+            case 8: // Pasif Müşteriler (0 tahsilat)
                 $query->whereNotExists(function($q) use ($salonId) {
                     $q->select(DB::raw(1))
                       ->from('tahsilatlar')
@@ -18981,23 +19027,12 @@ public function musteriportfoydropliste(Request $request)
                       ->where('tahsilatlar.salon_id', $salonId);
                 });
                 break;
-                
-            case 4: // 15 Gün Gelmeyenler
-            case 5: // 30 Gün Gelmeyenler
-            case 6: // 45 Gün Gelmeyenler
-            case 7: // 60 Gün Gelmeyenler
-                $days = [4=>15, 5=>30, 6=>45, 7=>60][$filtre];
-                $dateLimit = now()->subDays($days)->toDateString();
-                
-                $query->whereNotExists(function($q) use ($salonId, $dateLimit) {
-                    $q->select(DB::raw(1))
-                      ->from('tahsilatlar')
-                      ->whereRaw('tahsilatlar.user_id = musteri_portfoy.user_id')
-                      ->where('tahsilatlar.salon_id', $salonId)
-                      ->where('tahsilatlar.odeme_tarihi', '>=', $dateLimit);
-                });
-                break;
         }
+
+        if($request->grup=='')
+            $musteriTuru .= ' müşteriler';
+        else
+            $musteriTuru .= ' grubu';
 
         // Get total count first
         $total = $query->count();
@@ -19005,7 +19040,7 @@ public function musteriportfoydropliste(Request $request)
         // Get paginated results
         $page = $request->input('page', 1);
         $perPage = $request->input('perPage', 100);
-        
+
         $results = $query->orderBy('users.name')
             ->skip(($page - 1) * $perPage)
             ->take($perPage)
@@ -19021,6 +19056,7 @@ public function musteriportfoydropliste(Request $request)
             'musteriAdi'=>$musteriAdi,
             'filtre'=>$filtre,
             'salonId'=>$salonId,
+            'musteriTuru'=>$musteriTuru,
         ]);
     }
     public function urundropliste(Request $request)
