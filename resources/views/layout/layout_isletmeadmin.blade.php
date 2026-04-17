@@ -1142,6 +1142,7 @@
       @endif
       @if($pageindex==22)
       @include('modaldialogs.reklam-ekle-modal')
+      @include('modaldialogs.sablon-ekle-modal')
       @endif
       @if($pageindex==1 || $pageindex==22 || $pageindex==60)
 

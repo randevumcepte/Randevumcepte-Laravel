@@ -4030,20 +4030,59 @@ hasphonenumber = true;
              if (result.liste!='') {
                 $('#taslaklarbolumu2').empty();
                 $('#sablon_formu').trigger('reset');
+                $('#sablon_formu_duzenleme').trigger('reset');
                $('#taslaklarbolumu2').append(result.liste);
              }
-              $('.modal_kapat').trigger('click');
-              $('#sablon_formu').trigger('reset');
+              $('#sablon_olustur_modal').modal('hide');
+              $('#sablon_duzenle_modal').modal('hide');
                 swal(
                             {
                                 type: "success",
                                 title: "Başarılı",
                                 text:  result.sonuc,
+                                showConfirmButton:false,
+                                showCancelButton:false,
+                                showCloseButton:false,
+                                timer:2000,
                             }
                         );
+              kampanyaSablonGetir();
         },
         error: function (request, status, error) {
             $('#preloader').hide();
+             document.getElementById('hata').innerHTML = request.responseText;
+        }
+    });
+  });
+  $('#smsSablonGuncelle').click(function(e){
+             $.ajax({
+        type: "GET",
+        url: '/isletmeyonetim/smstaslakolarakkaydet',
+        dataType: "json",
+        data : $('#sablon_formu_duzenleme').serialize(),
+       success: function(result)  {
+             if (result.liste!='') {
+                $('#taslaklarbolumu2').empty();
+                $('#sablon_formu').trigger('reset');
+                $('#sablon_formu_duzenleme').trigger('reset');
+               $('#taslaklarbolumu2').append(result.liste);
+             }
+              $('#sablon_olustur_modal').modal('hide');
+              $('#sablon_duzenle_modal').modal('hide');
+                swal(
+                            {
+                                type: "success",
+                                title: "Başarılı",
+                                text:  result.sonuc,
+                                showConfirmButton:false,
+                                showCancelButton:false,
+                                showCloseButton:false,
+                                timer:2000,
+                            }
+                        );
+              kampanyaSablonGetir();
+        },
+        error: function (request, status, error) {
              document.getElementById('hata').innerHTML = request.responseText;
         }
     });
@@ -21526,6 +21565,32 @@ $(document).on('click','a[name="sablonSil"]',function(e){
 $('#kampanyaMetniGuncelle').on('click',function(e){
     kampanyaSablonIcerikGetir($('#seciliSablonId').val(),$('a[name="kampanyaSablonSecim"][data-value="'+$('#seciliSablonId').val()+'"]').text(),true,$('#indirimTuru').is(':checked'));
 });
+function kampanyaSablonGetir()
+{
+    const salonId = $('input[name="sube"]').val();
+    const gorevTuru = $('#gorevTuru').val();
+    const kampanyaTuru = $('#kampanyaTuru').val();
+
+    $.ajax({
+        type: "GET",
+        url: '/isletmeyonetim/kampanya-sablon-filtre',
+        dataType: "json",
+        data: {
+            salonId: salonId,
+            gorevTuru: gorevTuru,
+            kampanyaTuru: kampanyaTuru,
+        },
+        beforeSend: function() { $("#preloader").show(); },
+        success: function(result) {
+            $("#preloader").hide();
+            $('#kampanyaSablonBolumu').empty().html(result.sablonlar);
+        },
+        error: function(request, status, error) {
+            $("#preloader").hide();
+            $('#hata').html(request.responseText);
+        }
+    });
+}
 $('#katilimciTuru,#gelmeyenMusteri').change(function(e){
     let cinsiyet = '';
 

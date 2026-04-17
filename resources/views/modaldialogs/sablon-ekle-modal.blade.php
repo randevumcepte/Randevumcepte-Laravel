@@ -16,7 +16,7 @@
                   <div class="col-md-12">
                      <input
                         class="form-control form-group" id="sablon_adi" name='sablon_adi'
-                        placeholder="Şablon Adı"
+                        placeholder="Başlık"
                        
                         type="text"
                         />
@@ -65,7 +65,7 @@
                   <div class="col-md-12">
                      <input
                         class="form-control form-group" id="sablon_adi_duzenleme" name='sablon_adi'
-                        placeholder="Şablon Adı"
+                        placeholder="Başlık"
                       
                         type="text"
                         />
