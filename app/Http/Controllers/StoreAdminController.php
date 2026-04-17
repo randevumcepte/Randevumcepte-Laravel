@@ -125,7 +125,6 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\App;
 use Carbon\Carbon;
 use App\OdaPersonelleri;
-use App\KampanyaSablonlari;
 use App\CarkifelekDilimleri;
 use App\CarkifelekSistemi;
 
