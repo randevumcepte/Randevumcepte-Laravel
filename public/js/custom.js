@@ -14578,7 +14578,7 @@ $(document).on('change', '#kampanyaTuru,#gorevTuru',function(e){
             $('#kampanyaTuru').empty();
             $('#karaktersayisi').attr('style','display:none');
             $('#kampanyaTuru').append('<option value="">Tümü</option>');
-            $('#sablon_olustur').attr('style','display:none');
+            //$('#sablon_olustur').attr('style','display:none');
             $('#kampanyaSablonFiltre').attr('style','display:none;');
             $('#planlamaYazi').removeClass('col-md-12').addClass('col-md-6');
         }
@@ -14587,7 +14587,7 @@ $(document).on('change', '#kampanyaTuru,#gorevTuru',function(e){
             $('#kampanyaSesKaydiCal').attr('style','display:block');
             $('#karaktersayisi').attr('style','display:none');
             $('#kampanyaTuru option').show();
-            $('#sablon_olustur').attr('style','display:none');
+            //$('#sablon_olustur').attr('style','display:none');
             $('#kampanyaSablonFiltre').attr('style','display:none;');
         }
     }

@@ -155,7 +155,7 @@
                            @endforeach
                         </div>
                         <div style="margin-top:10px"></div>
-                        <button class="btn btn-success btn-sm" style="display:none" data-toggle="modal" id="sablon_olustur" data-target="#sablon_olustur_modal"> 
+                        <button class="btn btn-success btn-sm" data-toggle="modal" id="sablon_olustur" data-target="#sablon_olustur_modal"> 
                            <i class="fa fa-plus"></i> Şablon Ekle
                         </button>
                      </div>
