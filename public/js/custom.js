@@ -14426,91 +14426,53 @@ $('#reklam_asistan_ve_sms_ile_gonder').click(function(e){
     kampanyaolustur(3);
 });
 
-$('#kampanyaTuru').change(function(e){
-    e.preventDefault();
-     
-    if($(this).val()=='1')
-    {
-         $.ajax({
-                    type: "GET",
-                    url: '/isletmeyonetim/hizmet-secimi-2',
-                    dataType: "json",
-                    data : {salonId:$('input[name="sube"]').val()},
-                    beforeSend: function() {
-                        $("#preloader").show();
-                    },
-                    success: function(result)  {
-                        $("#preloader").hide();
-                        $('#hizmetUrunPaket').select2('destroy');
-                        $('#hizmetUrunPaket').empty();
-                        $('#hizmetUrunPaket').select2({
-                            data:result,
-                            allowClear: true,
-                            placeholder :'Seçiniz...',
-                        });
-                       
-                    },
-                    error: function (request, status, error) {
-                        $("#preloader").hide();
-                        document.getElementById('hata').innerHTML = request.responseText;
-                    }
-            });
-    }
-    if($(this).val()=='2')
-    {
-         $.ajax({
-                    type: "GET",
-                    url: '/isletmeyonetim/urun-secimi',
-                    dataType: "json",
-                    data : {salonId:$('input[name="sube"]').val()},
-                    beforeSend: function() {
-                        $("#preloader").show();
-                    },
-                    success: function(result)  {
-                        $("#preloader").hide();
-                        $('#hizmetUrunPaket').select2('destroy');
-                        $('#hizmetUrunPaket').empty();
-                        $('#hizmetUrunPaket').select2({
-                            allowClear: true,
-                            placeholder :'Seçiniz...',
-                            data:result,
-                        });
+function initSelect2HizmetUrun(result) {
+    const $select = $('#hizmetUrunPaket');
+    $select.select2('destroy');
+    $select.empty();
+    $select.append('<option></option>');
+    $select.select2({
+        data: result.map(item => ({
+            id: item.id,
+            text: item.text
+        })),
+        allowClear: true,
+        placeholder: 'Seçiniz...',
+        dropdownParent: $('#yeni_kampanya_modal'),
+        width: '100%'
+    });
+    $select.val(null).trigger('change');
+}
 
-                       
-                    },
-                    error: function (request, status, error) {
-                        $("#preloader").hide();
-                        document.getElementById('hata').innerHTML = request.responseText;
-                    }
-            });
+$('#kampanyaKategori').change(function(e){
+    const salonId = $('input[name="sube"]').val();
+    const kampanyaTuru = $('#kampanyaTuru').val();
+    const kategoriId = $('#kampanyaKategori').val();
+
+    let url = '';
+    if (kategoriId.includes('urun-')) {
+        url = '/isletmeyonetim/urun-secimi';
+    } else if (kategoriId.includes('paket-')) {
+        url = '/isletmeyonetim/paket-secimi';
+    } else {
+        url = '/isletmeyonetim/hizmet-secimi-2';
     }
-    if($(this).val()=='3')
-    {
-         $.ajax({
-                    type: "GET",
-                    url: '/isletmeyonetim/paket-secimi',
-                    dataType: "json",
-                    data : {salonId:$('input[name="sube"]').val()},
-                    beforeSend: function() {
-                        $("#preloader").show();
-                    },
-                    success: function(result)  {
-                        $("#preloader").hide();
-                       
-                        $('#hizmetUrunPaket').select2('destroy');
-                        $('#hizmetUrunPaket').empty();
-                        $('#hizmetUrunPaket').select2({
-                            allowClear: true,
-                            placeholder :'Seçiniz...',
-                            data:result,
-                        });
-                    },
-                    error: function (request, status, error) {
-                        $("#preloader").hide();
-                        document.getElementById('hata').innerHTML = request.responseText;
-                    }
-            });
-    }
+
+    $.ajax({
+        type: 'GET',
+        url: url,
+        dataType: 'json',
+        data: { salonId, kategoriId },
+        beforeSend: function() { $('#preloader').show(); },
+        success: function(result) {
+            initSelect2HizmetUrun(result);
+        },
+        complete: function() { $('#preloader').hide(); },
+        error: function() {
+            $('#preloader').hide();
+            alert('Veri alınırken bir hata oluştu.');
+        }
+    });
 }); 
 $(document).on('change', '#kampanyaTuru,#gorevTuru',function(e){
     e.preventDefault();

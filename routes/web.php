@@ -435,6 +435,9 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/kampanyakatilimcisil','StoreAdminController@kampanyakatilimcisil');
 	Route::post('/kampanyakatilimciekle','StoreAdminController@kampanyakatilimciekle');
 	Route::post('/sablonSil','StoreAdminController@sablonSil');
+	Route::get('/hizmet-secimi-2','StoreAdminController@hizmet_secimi_2');
+	Route::get('/urun-secimi','StoreAdminController@urun_secimi');
+	Route::get('/paket-secimi','StoreAdminController@paket_secimi');
 	Route::get('/etkinlikduzenle','StoreAdminController@etkinlikduzenle');
 	Route::post('/seanstanrandevuolustur','StoreAdminController@seanstanrandevuolustur');
 	Route::get('/randevudetayigetir','StoreAdminController@randevudetayigetir');
