@@ -82,6 +82,7 @@ class SMSController extends Controller
                $tekilKredi = ($adet > 0) ? round($toplamKredi / $adet, 4) : $toplamKredi;
 
                $sonuc[$tur][] = [
+                    'id' => $item->id,
                     'date' => $tarihGosterim,
                     'count' => $adet,
                     'price' => $tekilKredi,
@@ -96,6 +97,120 @@ class SMSController extends Controller
 
           Cache::put($cacheKey, $sonuc, 180);
           return $sonuc;
+     }
+
+     public function voiceTelekomRaporDetayGetir($salonId, $pkgID)
+     {
+          $isletme = Salonlar::where('id', $salonId)->first();
+          if (!$isletme || empty($isletme->sms_user_name) || empty($isletme->sms_secret) || empty($pkgID)) {
+               return ['basarili' => false, 'mesaj' => 'Kimlik veya paket bilgisi eksik', 'kayitlar' => []];
+          }
+
+          require_once app_path('VoiceTelekom/Sms/SmsApi.php');
+          require_once app_path('VoiceTelekom/Sms/GetSmsReportDetails.php');
+
+          try {
+               $smsApi = new \SmsApi('smsvt.voicetelekom.com', $isletme->sms_user_name, $isletme->sms_secret, '9588');
+               $request = new \GetSmsReportDetails();
+               $request->pkgID = $pkgID;
+               $request->pageIndex = 0;
+               $request->pageSize = 1000;
+
+               $response = $smsApi->getSmsReportDetails($request);
+               if ($response->err !== null) {
+                    return ['basarili' => false, 'mesaj' => $response->err->message, 'kayitlar' => []];
+               }
+          } catch (\Exception $e) {
+               return ['basarili' => false, 'mesaj' => $e->getMessage(), 'kayitlar' => []];
+          }
+
+          $numaralar = array_unique(array_map(function($item){ return preg_replace('/\D/', '', $item->target); }, $response->list));
+          $numaralar = array_values(array_filter($numaralar));
+          $adHaritasi = self::adHaritasiniHazirla($salonId, $numaralar);
+
+          $kayitlar = [];
+          foreach ($response->list as $detay) {
+               $temiz = preg_replace('/\D/', '', $detay->target);
+               $ad = isset($adHaritasi[$temiz]) ? $adHaritasi[$temiz] : '';
+               $kayitlar[] = [
+                    'telefon' => $detay->target,
+                    'ad' => $ad,
+                    'operator' => $detay->operator ?? '',
+                    'durum' => self::vtDetayDurumEtiket(intval($detay->state)),
+                    'iletim_tarihi' => self::vtTarihOkunur($detay->deliveryDate ?? $detay->processingDate ?? $detay->sendingDate ?? ''),
+               ];
+          }
+
+          return ['basarili' => true, 'kayitlar' => $kayitlar];
+     }
+
+     private static function adHaritasiniHazirla($salonId, array $numaralar)
+     {
+          if (empty($numaralar)) {
+               return [];
+          }
+
+          $varyasyonlar = [];
+          foreach ($numaralar as $num) {
+               $varyasyonlar[] = $num;
+               if (strlen($num) === 12 && substr($num, 0, 2) === '90') {
+                    $varyasyonlar[] = substr($num, 2);
+               }
+               if (strlen($num) === 10) {
+                    $varyasyonlar[] = '90' . $num;
+               }
+               if (strlen($num) === 11 && substr($num, 0, 1) === '0') {
+                    $varyasyonlar[] = substr($num, 1);
+                    $varyasyonlar[] = '90' . substr($num, 1);
+               }
+          }
+          $varyasyonlar = array_values(array_unique($varyasyonlar));
+
+          $musteriIdleri = \DB::table('musteri_portfoy')->where('salon_id', $salonId)->pluck('user_id')->toArray();
+          $kullanicilar = \DB::table('users')
+               ->whereIn('id', $musteriIdleri)
+               ->whereIn('cep_telefon', $varyasyonlar)
+               ->select('cep_telefon', 'name')
+               ->get();
+
+          $harita = [];
+          foreach ($kullanicilar as $k) {
+               $t = preg_replace('/\D/', '', $k->cep_telefon);
+               $harita[$t] = $k->name;
+               if (strlen($t) === 10) {
+                    $harita['90' . $t] = $k->name;
+               }
+               if (strlen($t) === 11 && substr($t, 0, 1) === '0') {
+                    $harita['90' . substr($t, 1)] = $k->name;
+                    $harita[substr($t, 1)] = $k->name;
+               }
+               if (strlen($t) === 12 && substr($t, 0, 2) === '90') {
+                    $harita[substr($t, 2)] = $k->name;
+               }
+          }
+          return $harita;
+     }
+
+     private static function vtDetayDurumEtiket($state)
+     {
+          $harita = [
+               -2 => 'İptal Edildi',
+               -1 => 'Operatör Reddetti',
+                0 => 'Bekliyor',
+                1 => 'Gönderiliyor',
+                2 => 'Gönderildi',
+                3 => 'Ulaştı',
+                4 => 'Ulaşmadı',
+                5 => 'Zaman Aşımı',
+          ];
+          return isset($harita[$state]) ? $harita[$state] : '—';
+     }
+
+     private static function vtTarihOkunur($tarihHam)
+     {
+          if (!$tarihHam) return '';
+          $ts = strtotime($tarihHam);
+          return $ts ? date('d.m.Y H:i:s', $ts) : $tarihHam;
      }
 
      private static function vtBaslikTanimla($title)

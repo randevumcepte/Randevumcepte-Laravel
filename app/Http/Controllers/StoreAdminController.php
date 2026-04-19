@@ -15939,6 +15939,21 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'etkinlik' => $smsraporetkinlik,
         );
     }
+
+    public function sms_rapor_detay(Request $request)
+    {
+        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        if (!$isletme || $isletme->yeni_sms != 1) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Bu islem yalnizca VoiceTelekom entegrasyonunda calisir', 'kayitlar' => []]);
+        }
+        $pkgID = $request->input('pkg_id');
+        if (empty($pkgID)) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Paket kimligi bulunamadi', 'kayitlar' => []]);
+        }
+        $smsController = app()->make(SMSController::class);
+        return response()->json($smsController->voiceTelekomRaporDetayGetir($isletme->id, $pkgID));
+    }
+
     public function smsraportest(Request $request)
     {
 
@@ -17596,8 +17611,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         } else {
           
             $rapor = array();
-            
-            foreach($results as $key=>$result){
+            $cdrListesi = isset($results['data']) && is_array($results['data']) ? $results['data'] : (is_array($results) ? $results : []);
+            foreach($cdrListesi as $key=>$result){
+                if(!is_array($result)) continue;
                 $raporaEkle = false;
                 $durum = '';
                 $musteriAdi = '';

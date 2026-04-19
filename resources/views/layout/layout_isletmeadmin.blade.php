@@ -2847,11 +2847,16 @@ document.addEventListener('DOMContentLoaded', function() {
                            return 'İptal Edildi';
          
                         if(data==99)
-         
+
                            return 'Gönderildi';
-         
-                     }}, 
-         
+
+                     }},
+
+                     { data: 'id', orderable: false, searchable: false, 'render': function(data, type, row, meta){
+                         if (!data) return '<span class="text-muted">-</span>';
+                         return '<button type="button" class="btn btn-sm btn-outline-info sms-rapor-detay-btn" data-pkg-id="' + data + '"><i class="fa fa-list"></i> Detay</button>';
+                     }},
+
                    ],
          
                    data: <?php echo $raporlar['bildirim']; ?>,
@@ -2949,11 +2954,16 @@ document.addEventListener('DOMContentLoaded', function() {
                            return 'İptal Edildi';
          
                         if(data==99)
-         
+
                            return 'Gönderildi';
-         
-                     }}, 
-         
+
+                     }},
+
+                     { data: 'id', orderable: false, searchable: false, 'render': function(data, type, row, meta){
+                         if (!data) return '<span class="text-muted">-</span>';
+                         return '<button type="button" class="btn btn-sm btn-outline-info sms-rapor-detay-btn" data-pkg-id="' + data + '"><i class="fa fa-list"></i> Detay</button>';
+                     }},
+
                    ],
          
                    data: <?php echo $raporlar['grup']; ?>,
@@ -3051,11 +3061,16 @@ document.addEventListener('DOMContentLoaded', function() {
                            return 'İptal Edildi';
          
                         if(data==99)
-         
+
                            return 'Gönderildi';
-         
-                     }}, 
-         
+
+                     }},
+
+                     { data: 'id', orderable: false, searchable: false, 'render': function(data, type, row, meta){
+                         if (!data) return '<span class="text-muted">-</span>';
+                         return '<button type="button" class="btn btn-sm btn-outline-info sms-rapor-detay-btn" data-pkg-id="' + data + '"><i class="fa fa-list"></i> Detay</button>';
+                     }},
+
                    ],
          
                    data: <?php echo $raporlar['filtre']; ?>,
@@ -3155,11 +3170,16 @@ document.addEventListener('DOMContentLoaded', function() {
                            return 'İptal Edildi';
          
                         if(data==99)
-         
+
                            return 'Gönderildi';
-         
-                     }}, 
-         
+
+                     }},
+
+                     { data: 'id', orderable: false, searchable: false, 'render': function(data, type, row, meta){
+                         if (!data) return '<span class="text-muted">-</span>';
+                         return '<button type="button" class="btn btn-sm btn-outline-info sms-rapor-detay-btn" data-pkg-id="' + data + '"><i class="fa fa-list"></i> Detay</button>';
+                     }},
+
                    ],
          
                    data: <?php echo $raporlar['toplu']; ?>,
@@ -3257,11 +3277,16 @@ document.addEventListener('DOMContentLoaded', function() {
                            return 'İptal Edildi';
          
                         if(data==99)
-         
+
                            return 'Gönderildi';
-         
-                     }}, 
-         
+
+                     }},
+
+                     { data: 'id', orderable: false, searchable: false, 'render': function(data, type, row, meta){
+                         if (!data) return '<span class="text-muted">-</span>';
+                         return '<button type="button" class="btn btn-sm btn-outline-info sms-rapor-detay-btn" data-pkg-id="' + data + '"><i class="fa fa-list"></i> Detay</button>';
+                     }},
+
                    ],
          
                    data: <?php echo $raporlar['kampanya']; ?>,

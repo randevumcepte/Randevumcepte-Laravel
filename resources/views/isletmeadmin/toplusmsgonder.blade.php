@@ -406,6 +406,7 @@
                              <th>Toplam Kredi</th>
                              <th>Mesaj İçeriği</th>
                              <th>Durum</th>
+                             <th>Detay</th>
 
                            </tr>
                           </thead>
@@ -426,6 +427,7 @@
                              <th>Toplam Kredi</th>
                              <th>Mesaj İçeriği</th>
                              <th>Durum</th>
+                             <th>Detay</th>
 
                            </tr>
                           </thead>
@@ -446,6 +448,7 @@
                              <th>Toplam Kredi</th>
                              <th>Mesaj İçeriği</th>
                              <th>Durum</th>
+                             <th>Detay</th>
 
                            </tr>
                           </thead>
@@ -466,6 +469,7 @@
                              <th>Toplam Kredi</th>
                              <th>Mesaj İçeriği</th>
                              <th>Durum</th>
+                             <th>Detay</th>
 
                            </tr>
                           </thead>
@@ -486,6 +490,7 @@
                              <th>Toplam Kredi</th>
                              <th>Mesaj İçeriği</th>
                              <th>Durum</th>
+                             <th>Detay</th>
 
                            </tr>
                           </thead>
@@ -932,12 +937,48 @@
             
 
              </div>
-          
+
            </div>
          </div>
        </div>
      </div>
    </div>
+
+ <!-- SMS rapor detay modal -->
+ <div id="sms_rapor_detay_modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+     <div class="modal-content">
+       <div class="modal-header">
+         <h5 class="modal-title">SMS Gönderim Detayı</h5>
+         <button type="button" class="close" data-dismiss="modal" aria-label="Kapat">
+           <span aria-hidden="true">&times;</span>
+         </button>
+       </div>
+       <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+         <div id="sms_rapor_detay_yukleniyor" class="text-center py-4" style="display:none;">
+           <div class="spinner-border text-primary" role="status"><span class="sr-only">Yükleniyor...</span></div>
+           <p class="mt-2 mb-0 text-muted">Alıcılar getiriliyor...</p>
+         </div>
+         <div id="sms_rapor_detay_hata" class="alert alert-warning" style="display:none;"></div>
+         <table class="table table-sm table-striped" id="sms_rapor_detay_tablo" style="display:none;">
+           <thead>
+             <tr>
+               <th>Müşteri</th>
+               <th>Telefon</th>
+               <th>Operatör</th>
+               <th>Durum</th>
+               <th>İletim Tarihi</th>
+             </tr>
+           </thead>
+           <tbody></tbody>
+         </table>
+       </div>
+       <div class="modal-footer">
+         <button type="button" class="btn btn-secondary" data-dismiss="modal">Kapat</button>
+       </div>
+     </div>
+   </div>
+ </div>
 
  <!--karaliste  ekle -->
       <div
@@ -1307,6 +1348,64 @@
         $('#sablonsmsform').on('submit', function(e){
             e.preventDefault();
             return false;
+        });
+
+        $(document).on('click', '.sms-rapor-detay-btn', function(e){
+            e.preventDefault();
+            var pkgId = $(this).attr('data-pkg-id');
+            if (!pkgId) {
+                return;
+            }
+            var $modal = $('#sms_rapor_detay_modal');
+            var $loading = $('#sms_rapor_detay_yukleniyor');
+            var $hata = $('#sms_rapor_detay_hata');
+            var $tablo = $('#sms_rapor_detay_tablo');
+            var $tbody = $tablo.find('tbody');
+
+            $tbody.empty();
+            $tablo.hide();
+            $hata.hide().text('');
+            $loading.show();
+            $modal.modal('show');
+
+            $.ajax({
+                type: 'POST',
+                url: '/isletmeyonetim/sms-rapor-detay',
+                dataType: 'json',
+                data: {
+                    _token: $('input[name="_token"]').val(),
+                    sube: $('#sablonsmsform input[name="sube"]').val() || $('input[name="sube"]').first().val(),
+                    pkg_id: pkgId
+                },
+                success: function(res){
+                    $loading.hide();
+                    if (!res.basarili) {
+                        $hata.text(res.mesaj || 'Detay alınamadı').show();
+                        return;
+                    }
+                    if (!res.kayitlar || res.kayitlar.length === 0) {
+                        $hata.text('Bu paket için alıcı kaydı bulunamadı.').show();
+                        return;
+                    }
+                    var escape = function(t){ var d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; };
+                    var html = '';
+                    res.kayitlar.forEach(function(k){
+                        html += '<tr>'
+                             + '<td>' + (k.ad ? escape(k.ad) : '<span class="text-muted">Kayıtlı Değil</span>') + '</td>'
+                             + '<td>' + escape(k.telefon) + '</td>'
+                             + '<td>' + escape(k.operator) + '</td>'
+                             + '<td>' + escape(k.durum) + '</td>'
+                             + '<td>' + escape(k.iletim_tarihi) + '</td>'
+                             + '</tr>';
+                    });
+                    $tbody.html(html);
+                    $tablo.show();
+                },
+                error: function(){
+                    $loading.hide();
+                    $hata.text('Sunucuya ulaşılamadı, lütfen tekrar deneyin.').show();
+                }
+            });
         });
     });
 

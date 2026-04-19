@@ -490,6 +490,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/musteridetaybilgi','StoreAdminController@musteridetaybilgi');
 	Route::post('/kampanyabeklenensms', 'StoreAdminController@kampanyabeklenensms');
 	Route::get('/sms-raporlari','StoreAdminController@sms_raporlari');
+	Route::post('/sms-rapor-detay','StoreAdminController@sms_rapor_detay');
 	Route::post('/etkinlikbeklenensms', 'StoreAdminController@etkinlikbeklenensms');
 	Route::post('/personelsifregonder','StoreAdminController@personelsifregonder');
 	Route::post('/personelaktifpasifyap','StoreAdminController@personelaktifpasifyap');
