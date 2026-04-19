@@ -946,13 +946,25 @@
 
  <!-- SMS rapor detay modal -->
  <style>
-   #sms_rapor_detay_modal .modal-dialog { max-width: 1100px; width: 95%; }
+   #sms_rapor_detay_modal { display: none; }
+   #sms_rapor_detay_modal.show { display: flex !important; align-items: center; justify-content: center; }
+   #sms_rapor_detay_modal .modal-dialog {
+     max-width: 1100px !important;
+     width: 95% !important;
+     margin: 0 auto !important;
+     pointer-events: auto;
+   }
+   #sms_rapor_detay_modal .modal-content {
+     width: 100%;
+     border-radius: 8px;
+     box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+   }
    #sms_rapor_detay_modal .modal-body { padding: 20px 24px; }
    #sms_rapor_detay_tablo { width: 100%; margin-bottom: 0; }
    #sms_rapor_detay_tablo thead th {
-     background-color: #000;
-     color: #fff;
-     border-color: #000;
+     background-color: #000 !important;
+     color: #fff !important;
+     border-color: #000 !important;
      font-weight: 600;
      padding: 12px 14px;
      white-space: nowrap;
@@ -963,7 +975,7 @@
    }
  </style>
  <div id="sms_rapor_detay_modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
-   <div class="modal-dialog modal-dialog-centered" role="document">
+   <div class="modal-dialog" role="document">
      <div class="modal-content">
        <div class="modal-header">
          <h5 class="modal-title">SMS Gönderim Detayı</h5>
