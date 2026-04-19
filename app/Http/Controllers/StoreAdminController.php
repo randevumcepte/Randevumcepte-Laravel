@@ -17620,17 +17620,17 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 $dahili = '';
                 $telefon = '';
                 $avatar = '';
-                $channel = $result['channel'];
+                $channel = $result['channel'] ?? '';
                 $aramaButonu = '';
                 $sesKaydi = '';
                 $dahili = '';
-                if (preg_match('/^[^\/]+\/([^-\s]+)/', $channel, $m)) {
+                if ($channel && preg_match('/^[^\/]+\/([^-\s]+)/', $channel, $m)) {
                     $dahili = preg_replace('/\D/', '', $m[1]); // sadece rakamları alır
-                }  
-                
-                if($result['dcontext']=='from-internal')
+                }
+
+                if(($result['dcontext'] ?? '')=='from-internal')
                 {
-                    if($result['disposition']=='NO ANSWER' || $result['disposition']=='BUSY'){
+                    if(($result['disposition'] ?? '')=='NO ANSWER' || ($result['disposition'] ?? '')=='BUSY'){
                         $durum = '<button class="btn btn-danger">ULAŞILAMADI</button>'; //giden arama ulaşılamadı,
                         $basarisiz_arama++;
                     }
