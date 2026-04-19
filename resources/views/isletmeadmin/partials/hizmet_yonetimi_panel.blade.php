@@ -203,7 +203,7 @@
             </div>
             <div class="hy-stat">
                <div class="hy-stat-label">Personel</div>
-               <div class="hy-stat-value">{{count($personeller ?? [])}}</div>
+               <div class="hy-stat-value">{{$aktif_personel_sayisi ?? 0}}</div>
             </div>
          </div>
       </div>
@@ -384,7 +384,7 @@
                      <div class="form-group">
                         <label>Hizmeti Sunan Personeller & Cihazlar</label>
                         <select name="personel_ids[]" id="hy_edit_personeller" multiple class="form-control" style="width:100%">
-                           @foreach($personeller as $personel)
+                           @foreach(\App\Personeller::where('salon_id',$isletme->id)->where('aktif',1)->get() as $personel)
                               <option value="{{$personel->id}}">{{$personel->personel_adi}}</option>
                            @endforeach
                            @foreach(\App\Cihazlar::where('salon_id',$isletme->id)->where('aktifmi',1)->get() as $cihaz)

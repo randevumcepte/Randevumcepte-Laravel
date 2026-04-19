@@ -1491,33 +1491,57 @@ public function carkverilerigetir(Request $request)
         $cihazlar=self::cihaz_liste_getir($request,"");
         $odalar=self::oda_liste_getir($request,'');
 
-        // Hizmet Yönetimi sekmesi için gruplu veri
+        // Hizmet Yönetimi sekmesi için gruplu veri (performans için eager + 3 toplu sorgu)
         $isletmeid_hy = self::mevcutsube($request);
         $kategoriler_hy = Hizmet_Kategorisi::all();
-        $salon_hizmetler_hy = SalonHizmetler::where('salon_id',$isletmeid_hy)->where('aktif',1)->whereNull('santral_hizmeti')->get();
+        $salon_hizmetler_hy = SalonHizmetler::with('hizmetler:id,hizmet_adi,hizmet_kategori_id,cinsiyet')
+            ->where('salon_id',$isletmeid_hy)
+            ->where('aktif',1)
+            ->whereNull('santral_hizmeti')
+            ->get();
+        $hizmet_ids_hy = $salon_hizmetler_hy->pluck('hizmet_id')->toArray();
+
+        $personel_map = [];
+        if(!empty($hizmet_ids_hy)){
+            $personel_rows = \DB::table('personel_sunulan_hizmetler')
+                ->join('salon_personelleri','personel_sunulan_hizmetler.personel_id','=','salon_personelleri.id')
+                ->where('salon_personelleri.salon_id',$isletmeid_hy)
+                ->whereIn('personel_sunulan_hizmetler.hizmet_id',$hizmet_ids_hy)
+                ->select('personel_sunulan_hizmetler.hizmet_id','salon_personelleri.personel_adi')
+                ->get();
+            foreach($personel_rows as $pr){
+                $personel_map[$pr->hizmet_id] = ($personel_map[$pr->hizmet_id] ?? '').$pr->personel_adi.', ';
+            }
+            $cihaz_rows = \DB::table('cihaz_sunulan_hizmetler')
+                ->join('cihazlar','cihaz_sunulan_hizmetler.cihaz_id','=','cihazlar.id')
+                ->where('cihazlar.salon_id',$isletmeid_hy)
+                ->whereIn('cihaz_sunulan_hizmetler.hizmet_id',$hizmet_ids_hy)
+                ->select('cihaz_sunulan_hizmetler.hizmet_id','cihazlar.cihaz_adi')
+                ->get();
+            foreach($cihaz_rows as $cr){
+                $personel_map[$cr->hizmet_id] = ($personel_map[$cr->hizmet_id] ?? '').$cr->cihaz_adi.', ';
+            }
+        }
+
         $hizmet_gruplari = [];
         foreach($salon_hizmetler_hy as $sh){
             $kategori_id = $sh->hizmet_kategori_id ?? ($sh->hizmetler ? $sh->hizmetler->hizmet_kategori_id : null);
             if(!$kategori_id) continue;
             if(!isset($hizmet_gruplari[$kategori_id])) $hizmet_gruplari[$kategori_id] = [];
-            $personel_str = '';
-            $personel_listesi = PersonelHizmetler::whereHas('personeller',function($q) use($isletmeid_hy){$q->where('salon_id',$isletmeid_hy);})->where('hizmet_id',$sh->hizmet_id)->get();
-            foreach($personel_listesi as $p){ $personel_str .= $p->personeller->personel_adi.', '; }
-            $cihaz_listesi = CihazHizmetler::whereHas('cihaz',function($q) use($isletmeid_hy){$q->where('salon_id',$isletmeid_hy);})->where('hizmet_id',$sh->hizmet_id)->get();
-            foreach($cihaz_listesi as $c){ $personel_str .= $c->cihaz->cihaz_adi.', '; }
-            $personel_str = rtrim($personel_str, ', ');
             $hizmet_gruplari[$kategori_id][] = [
                 'id' => $sh->id,
                 'hizmet_id' => $sh->hizmet_id,
                 'hizmet_adi' => $sh->hizmetler ? $sh->hizmetler->hizmet_adi : 'Bilinmeyen',
                 'sure_dk' => $sh->sure_dk,
                 'fiyat' => $sh->baslangic_fiyat,
-                'personeller' => $personel_str,
+                'personeller' => rtrim($personel_map[$sh->hizmet_id] ?? '', ', '),
                 'cinsiyet' => $sh->hizmetler ? $sh->hizmetler->cinsiyet : null,
             ];
         }
 
-        return view('isletmeadmin.ayarlar',['hizmetler'=>$hizmetler,'hizmet_gruplari'=>$hizmet_gruplari,'kategoriler'=>$kategoriler_hy,'bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Hesap Ayarları','pageindex' => 9,'salongorselleri'=> $salongorselleri,'saloncalismasaatleri'=>$saloncalismasaatleri,'personeller' => $personeller, 'salonhizmetler' => $salonhizmetler,'isletme'=> $isletme,'sayfa_baslik' => $isletme->salon_adi.' | Detayları & Düzenle', 'etiketler' => $etiketler,'isletmeturulistesi' => $isletmeturu_html,'gorseller_html' => $gorseller_html,'hizmetlistesi'=>$hizmetlistesi_html,'salongorselkapak'=>$salongorselkapak,'subeler'=>$subeler,'salonmolasaatleri'=>$salonmolasaatleri,'urunler'=> $urunler,'paketler'=>$paketler,'paketler_liste'=>$paketler_liste,'roller'=>Role::all(),'cihazlar'=>$cihazlar,'odalar'=>$odalar,'aramaterimleri'=>$aramaterimleri, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
+        $aktif_personel_sayisi = Personeller::where('salon_id',$isletmeid_hy)->where('aktif',1)->count();
+
+        return view('isletmeadmin.ayarlar',['hizmetler'=>$hizmetler,'hizmet_gruplari'=>$hizmet_gruplari,'kategoriler'=>$kategoriler_hy,'aktif_personel_sayisi'=>$aktif_personel_sayisi,'bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Hesap Ayarları','pageindex' => 9,'salongorselleri'=> $salongorselleri,'saloncalismasaatleri'=>$saloncalismasaatleri,'personeller' => $personeller, 'salonhizmetler' => $salonhizmetler,'isletme'=> $isletme,'sayfa_baslik' => $isletme->salon_adi.' | Detayları & Düzenle', 'etiketler' => $etiketler,'isletmeturulistesi' => $isletmeturu_html,'gorseller_html' => $gorseller_html,'hizmetlistesi'=>$hizmetlistesi_html,'salongorselkapak'=>$salongorselkapak,'subeler'=>$subeler,'salonmolasaatleri'=>$salonmolasaatleri,'urunler'=> $urunler,'paketler'=>$paketler,'paketler_liste'=>$paketler_liste,'roller'=>Role::all(),'cihazlar'=>$cihazlar,'odalar'=>$odalar,'aramaterimleri'=>$aramaterimleri, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
     public function randevuyukle(Request $request,$takvim_turu,$tarih1,$tarih2){
