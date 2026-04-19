@@ -1087,6 +1087,51 @@ let hizmetDataCache = {};
 let seciliMusteriId = null;
 let musteriPaketleri = [];
 
+// Randevu modali icin: aktif personel + aktif & musait cihaz + aktif & musait oda listeleri
+window.randevuModalData = {
+    personeller: [
+        @foreach(\App\Personeller::where('salon_id',$isletme->id)->where('aktif',1)->orderBy('personel_adi','asc')->get() as $p)
+            { id: {{ (int)$p->id }}, ad: @json($p->personel_adi) },
+        @endforeach
+    ],
+    cihazlar: [
+        @foreach(\App\Cihazlar::where('salon_id',$isletme->id)->where('aktifmi',1)->where('durum',1)->orderBy('cihaz_adi','asc')->get() as $c)
+            { id: {{ (int)$c->id }}, ad: @json($c->cihaz_adi) },
+        @endforeach
+    ],
+    odalar: [
+        @foreach(\App\Odalar::where('salon_id',$isletme->id)->where('aktifmi',1)->where('durum',1)->orderBy('oda_adi','asc')->get() as $o)
+            { id: {{ (int)$o->id }}, ad: @json($o->oda_adi) },
+        @endforeach
+    ]
+};
+
+// Bir select elementine verilen liste ile option'lari doldur (mevcut deger korunur)
+function doldurSelect($sel, liste){
+    if(!$sel || !$sel.length) return;
+    var mevcut = $sel.val();
+    $sel.empty().append('<option></option>');
+    liste.forEach(function(item){
+        $sel.append(new Option(item.ad, item.id, false, false));
+    });
+    if(mevcut !== null && mevcut !== undefined && mevcut !== '') $sel.val(mevcut);
+}
+
+// Tum .personel-select, .cihaz-select, .oda-select ve yardimci personelleri doldur
+function doldurRandevuSecenekleri(){
+    $('#modal-view-event-add .personel-select, #modal-view-event-add .personel_secimi').each(function(){
+        // Hizmet select'ini atla (hizmet-select class'i var)
+        if($(this).hasClass('hizmet-select')) return;
+        doldurSelect($(this), window.randevuModalData.personeller);
+    });
+    $('#modal-view-event-add .cihaz-select').each(function(){
+        doldurSelect($(this), window.randevuModalData.cihazlar);
+    });
+    $('#modal-view-event-add .oda-select').each(function(){
+        doldurSelect($(this), window.randevuModalData.odalar);
+    });
+}
+
 $(document).ready(function() {
     // Tab değişimlerini takip et ve butonları göster/gizle
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
@@ -1446,7 +1491,10 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         `;
         
         $('.hizmetler_bolumu').append(newRow);
-        
+
+        // Yeni satirdaki personel/cihaz/oda secimlerini aktif+musait olanlarla doldur
+        doldurRandevuSecenekleri();
+
         initSelect2();
         $('.hizmet-sil[data-value="0"]').removeAttr('disabled');
         
@@ -1773,9 +1821,12 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     $('#modal-view-event-add').on('shown.bs.modal', function() {
         $('.custom-select2').select2('destroy');
         $('.opsiyonelSelect').select2('destroy');
-        
+
         hizmetDataCache = {};
-        
+
+        // Personel/cihaz/oda secimlerini aktif + musait olanlarla doldur
+        doldurRandevuSecenekleri();
+
         setTimeout(() => {
             initSelect2();
             updateRandevuOzeti();
