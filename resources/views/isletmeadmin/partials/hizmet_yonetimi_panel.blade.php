@@ -266,10 +266,6 @@
                <div class="hy-stat-label">Kategori</div>
                <div class="hy-stat-value">{{$toplam_kategori}}</div>
             </div>
-            <div class="hy-stat">
-               <div class="hy-stat-label">Personel</div>
-               <div class="hy-stat-value">{{$aktif_personel_sayisi ?? 0}}</div>
-            </div>
          </div>
       </div>
    </div>
