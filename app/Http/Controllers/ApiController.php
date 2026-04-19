@@ -12737,6 +12737,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                     $portfoy->save();
 
+                    $returnvar = $mevcut;
+
                 }
 
                 return $returnvar;
