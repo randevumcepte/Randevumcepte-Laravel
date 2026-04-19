@@ -363,6 +363,14 @@
     margin-top: 3px !important;
     font-size: 0.8rem !important;
 }
+/* Secim yapildiysa arama kutusunun placeholder'i gizlensin (secim uzerine binmesin) */
+#modal-view-event-add .select2-selection--multiple .select2-selection__choice ~ li .select2-search__field::placeholder,
+#modal-view-event-add .select2-selection--multiple:has(.select2-selection__choice) .select2-search__field::placeholder {
+    color: transparent !important;
+}
+#modal-view-event-add .select2-selection--multiple:has(.select2-selection__choice) .select2-search__field {
+    min-width: 4px !important;
+}
 #modal-view-event-add .hizmet-select + .select2-container .select2-selection__rendered {
     padding: 0 !important;
 }
@@ -1192,8 +1200,23 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     }
     
     // Hizmet select2 event handler'larini bagla (re-init sonrasi yeniden cagrilmali)
+    // Secim durumuna gore placeholder'i gizle/goster
+    function hizmetPlaceholderGuncelle($sel){
+        var varMi = ($sel.val() || []).length > 0;
+        var $search = $sel.next('.select2-container').find('.select2-search__field');
+        if(varMi){
+            $search.attr('placeholder','').css('min-width','4px');
+        } else {
+            $search.attr('placeholder', $sel.data('placeholder-orijinal') || '').css('min-width','');
+        }
+    }
+
     function attachHizmetSelect2Events($sel){
-        $sel.off('select2:select select2:unselect select2:open')
+        // Orijinal placeholder'i sakla
+        var phOrig = $sel.next('.select2-container').find('.select2-search__field').attr('placeholder') || '';
+        if(phOrig) $sel.data('placeholder-orijinal', phOrig);
+
+        $sel.off('select2:select select2:unselect select2:open change.phUp')
             .on('select2:select', function(e){
                 const service = e.params.data;
                 const index = $(this).data('index');
@@ -1210,15 +1233,21 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                 }
                 updateHizmetDetaylari(index);
                 updateRandevuOzeti();
+                hizmetPlaceholderGuncelle($(this));
             })
             .on('select2:unselect', function(){
                 const index = $(this).data('index');
                 updateHizmetDetaylari(index);
                 updateRandevuOzeti();
+                hizmetPlaceholderGuncelle($(this));
             })
             .on('select2:open', function(){
                 setTimeout(function(){ $('.select2-search__field').focus(); }, 100);
-            });
+            })
+            .on('change.phUp', function(){ hizmetPlaceholderGuncelle($(this)); });
+
+        // Baslangicta bir kez ayarla
+        hizmetPlaceholderGuncelle($sel);
     }
 
     function initHizmetSelect2Tek($sel, placeholder){
