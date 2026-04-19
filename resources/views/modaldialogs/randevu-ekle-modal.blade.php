@@ -323,7 +323,90 @@
 
 .select2-container .select2-selection--single {
     height: inherit !important;
-    
+
+}
+
+/* Hizmet select'i icin stabil ve kullanisli multi-select */
+#modal-view-event-add .hizmet-select + .select2-container .select2-selection--multiple {
+    min-height: 40px !important;
+    max-height: 120px;
+    overflow-y: auto;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    padding: 4px 30px 4px 6px !important;
+    background: #fff;
+}
+#modal-view-event-add .hizmet-select + .select2-container--default.select2-container--focus .select2-selection--multiple,
+#modal-view-event-add .hizmet-select + .select2-container--default.select2-container--open .select2-selection--multiple {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+}
+#modal-view-event-add .hizmet-select + .select2-container .select2-selection__choice {
+    background: #eef2ff !important;
+    color: #4338ca !important;
+    border: 1px solid #c7d2fe !important;
+    border-radius: 6px !important;
+    padding: 3px 10px 3px 8px !important;
+    margin: 2px 3px 2px 0 !important;
+    font-size: 0.78rem !important;
+    line-height: 1.2 !important;
+}
+#modal-view-event-add .hizmet-select + .select2-container .select2-selection__choice__remove {
+    color: #6366f1 !important;
+    margin-right: 4px !important;
+    font-weight: 700 !important;
+    border-right: none !important;
+    padding-right: 4px !important;
+}
+#modal-view-event-add .hizmet-select + .select2-container .select2-search--inline .select2-search__field {
+    min-width: 80px !important;
+    margin-top: 3px !important;
+    font-size: 0.8rem !important;
+}
+#modal-view-event-add .hizmet-select + .select2-container .select2-selection__rendered {
+    padding: 0 !important;
+}
+/* Dropdown option modern */
+#modal-view-event-add .hy-secim-option {
+    display: flex;
+    flex-direction: column;
+    padding: 2px 0;
+    line-height: 1.3;
+}
+#modal-view-event-add .hy-secim-option-ad {
+    color: #111827;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+#modal-view-event-add .hy-secim-option-kat {
+    color: #6b7280;
+    font-size: 0.72rem;
+    margin-top: 2px;
+}
+/* Secili satir + hover */
+#modal-view-event-add .select2-results__option--highlighted {
+    background: #6366f1 !important;
+}
+#modal-view-event-add .select2-results__option--highlighted .hy-secim-option-ad,
+#modal-view-event-add .select2-results__option--highlighted .hy-secim-option-kat {
+    color: #fff !important;
+}
+#modal-view-event-add .select2-results__option[aria-selected=true] {
+    background: #f0f4ff !important;
+}
+#modal-view-event-add .select2-results__option[aria-selected=true] .hy-secim-option-ad {
+    color: #4338ca !important;
+    font-weight: 600;
+}
+#modal-view-event-add .select2-dropdown {
+    border-radius: 8px !important;
+    border: 2px solid #e5e7eb !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
+}
+#modal-view-event-add .select2-search--dropdown .select2-search__field {
+    border-radius: 6px !important;
+    padding: 6px 10px !important;
+    border: 1px solid #d1d5db !important;
 }
 
 .modal-content {
@@ -1144,6 +1227,8 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             placeholder: placeholder || 'Önce personel veya cihaz seçin...',
             allowClear: true,
             width: '100%',
+            multiple: true,
+            closeOnSelect: false,
             dropdownParent: $('#modal-view-event-add'),
             language: {
                 noResults: function(){ return 'Bu personel/cihaz için hizmet atanmamış'; },
@@ -1868,39 +1953,22 @@ function formatHizmetSonuc(hizmet) {
         return hizmet.text;
     }
 
-    const sure = hizmet.sure || 0;
-    const fiyat = hizmet.fiyat || 0;
     const kategori = hizmet.kategori || '';
 
     var $result = $(
-        '<div class="hizmet-search-result">' +
-            '<div class="row align-items-center">' +
-                '<div class="col-8">' +
-                    '<span class="hizmet-ad fw-bold" style="color:#111827; font-size: 0.85rem;">' + hizmet.text + '</span>' +
-                    (kategori ? '<div class="small text-muted" style="font-size: 0.75rem;">' + kategori + '</div>' : '') +
-                '</div>' +
-                '<div class="col-4 text-right">' +
-                    '<span class="badge bg-light-blue mr-1" style="font-size: 0.7rem;">' + sure + ' dk</span>' +
-                    '<span class="badge bg-light-green" style="font-size: 0.7rem;">' + parseFloat(fiyat).toFixed(2) + ' ₺</span>' +
-                '</div>' +
-            '</div>' +
+        '<div class="hy-secim-option">' +
+            '<span class="hy-secim-option-ad">' + hizmet.text + '</span>' +
+            (kategori ? '<span class="hy-secim-option-kat">' + kategori + '</span>' : '') +
         '</div>'
     );
 
     return $result;
 }
 
-// Seçili hizmeti formatlama
+// Seçili hizmeti formatlama (sade: sadece ad)
 function formatHizmetSecim(hizmet) {
-    if (!hizmet.id) {
-        return hizmet.text;
-    }
-    
-    const cachedData = hizmetDataCache[hizmet.id] || hizmet;
-    const sure = cachedData.sure || 0;
-    const fiyat = cachedData.fiyat || 0;
-    
-    return hizmet.text + ' (' + sure + 'dk - ' + parseFloat(fiyat).toFixed(2) + '₺)';
+    if (!hizmet.id) return hizmet.text;
+    return hizmet.text;
 }
  // Form resetleme fonksiyonu
   function resetForm() {
