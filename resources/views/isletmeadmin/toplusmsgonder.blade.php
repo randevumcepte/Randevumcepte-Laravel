@@ -250,8 +250,8 @@
                           
                         </div>
                         <div class="form-group">
-                          <button type="button" id="toplusmsgonder" class="btn btn-success">Toplu SMS'i Gönder</button>
-                          
+                          <button type="button" id="topluSmsGonderButon" class="btn btn-success">Toplu SMS'i Gönder</button>
+
                         </div>
                      </div>
                       <div class="col-md-6">
@@ -261,7 +261,7 @@
                                   <div class="row" id="arama_musteri_liste_TopluSMS" style="margin-bottom: 40px;">
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                          <input type="text" id="musteriarama_toplusms" name="musteriarama_toplusms" class="form-control" placeholder="Müşteri arayın...">
+                                          <input type="text" id="musteriarama_toplusms" class="form-control" placeholder="Müşteri arayın..." autocomplete="off">
                                         </div>
                                     </div>
                                     <div class="col-md-3"><button id="topluSMSTumMusterileriSec" type="button" class="btn btn-info btn-block">Tümünü Seç</button></div>
@@ -1233,54 +1233,57 @@
         }
     };
 
-    function bindTopluSmsGonderHandler(){
-        $('#toplusmsgonder').off('click').on('click', function(e){
-            e.preventDefault();
-            var mesaj = $('#smsmesaj').val().trim();
-            var idler = TopluSMSSecici.getSeciliIdler();
-            if (!mesaj || idler.length === 0) {
+    function gonderimiBaslat(){
+        var mesaj = $('#smsmesaj').val().trim();
+        var idler = TopluSMSSecici.getSeciliIdler();
+        if (!mesaj || idler.length === 0) {
+            swal({
+                type: 'warning',
+                title: 'Uyarı',
+                text: 'Lütfen alıcıları seçip mesajınızı yazınız!',
+                showCloseButton: false,
+                showCancelButton: false,
+                showConfirmButton: false,
+                timer: 3000
+            });
+            return;
+        }
+        var payload = {
+            _token: $('input[name="_token"]').val(),
+            sube: $('#sablonsmsform input[name="sube"]').val(),
+            toplu_id: $('#smstopluid').val(),
+            sablon_baslik: $('#sablon_baslik').val(),
+            smsmesaj: mesaj,
+            musteri_idler: JSON.stringify(idler)
+        };
+        $.ajax({
+            type: 'POST',
+            url: '/isletmeyonetim/toplusmsgonder',
+            dataType: 'json',
+            data: payload,
+            beforeSend: function(){ $('#preloader').show(); },
+            success: function(result){
                 swal({
-                    type: 'warning',
-                    title: 'Uyarı',
-                    text: 'Lütfen alıcıları seçip mesajınızı yazınız!',
+                    type: result.status,
+                    title: result.title,
+                    text: result.text,
                     showCloseButton: false,
                     showCancelButton: false,
                     showConfirmButton: false,
                     timer: 3000
                 });
-                return;
-            }
-            var formData = $('#sablonsmsform').serializeArray();
-            formData.push({ name: 'musteri_idler', value: JSON.stringify(idler) });
-            $.ajax({
-                type: 'POST',
-                url: '/isletmeyonetim/toplusmsgonder',
-                dataType: 'json',
-                data: formData,
-                beforeSend: function(){ $('#preloader').show(); },
-                success: function(result){
-                    swal({
-                        type: result.status,
-                        title: result.title,
-                        text: result.text,
-                        showCloseButton: false,
-                        showCancelButton: false,
-                        showConfirmButton: false,
-                        timer: 3000
-                    });
-                    $('#preloader').hide();
-                    if (result.status === 'success') {
-                        $('#smsmesaj').val('');
-                        $('#sablon_baslik').val('');
-                        TopluSMSSecici.sifirla();
-                    }
-                },
-                error: function(request){
-                    $('#preloader').hide();
-                    var hata = document.getElementById('hata');
-                    if (hata) hata.innerHTML = request.responseText;
+                $('#preloader').hide();
+                if (result.status === 'success') {
+                    $('#smsmesaj').val('');
+                    $('#sablon_baslik').val('');
+                    TopluSMSSecici.sifirla();
                 }
-            });
+            },
+            error: function(request){
+                $('#preloader').hide();
+                var hata = document.getElementById('hata');
+                if (hata) hata.innerHTML = request.responseText;
+            }
         });
     }
 
@@ -1288,7 +1291,23 @@
         $('a[href="#sablon_ayarlari"], button[href="#sablon_ayarlari"]').on('shown.bs.tab click', function(){
             TopluSMSSecici.init();
         });
-        setTimeout(bindTopluSmsGonderHandler, 0);
+
+        $('#topluSmsGonderButon').on('click', function(e){
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            gonderimiBaslat();
+        });
+
+        $('#musteriarama_toplusms').on('keydown', function(e){
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+            }
+        });
+
+        $('#sablonsmsform').on('submit', function(e){
+            e.preventDefault();
+            return false;
+        });
     });
 
     window.TopluSMSSecici = TopluSMSSecici;
