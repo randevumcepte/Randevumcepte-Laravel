@@ -21269,17 +21269,22 @@ DB::raw('
         if(!$sh) return response()->json(['status'=>'error','message'=>'Hizmet bulunamadı']);
 
         $hizmet = Hizmetler::where('id',$sh->hizmet_id)->first();
-        // Havuz hizmeti (ozel_hizmet=false veya baska salona ait) ad/kategori/cinsiyet degisemez
+        // Havuz hizmeti (ozel_hizmet=false veya baska salona ait) ise ad ve kategori degisemez;
+        // cinsiyet, sure, fiyat ve personel atamasi her hizmet icin degistirilebilir.
         $is_ozel_duzenlenebilir = $hizmet && ($hizmet->ozel_hizmet == 1 || $hizmet->ozel_hizmet === true) && $hizmet->salon_id == $isletmeid;
 
+        // Cinsiyet her zaman guncellenebilir
+        if($hizmet && $request->has('cinsiyet')){
+            $hizmet->cinsiyet = $request->cinsiyet;
+        }
         if($is_ozel_duzenlenebilir){
             if($request->has('hizmet_adi') && $request->hizmet_adi != ''){
                 $hizmet->hizmet_adi = $request->hizmet_adi;
             }
-            if($request->has('cinsiyet')) $hizmet->cinsiyet = $request->cinsiyet;
-            $hizmet->save();
             if($request->has('kategori_id')) $sh->hizmet_kategori_id = $request->kategori_id;
         }
+        if($hizmet) $hizmet->save();
+
         // Sure, fiyat ve personel atamasi her hizmet icin degistirilebilir
         if($request->has('fiyat')) $sh->baslangic_fiyat = $request->fiyat;
         if($request->has('sure_dk')) $sh->sure_dk = $request->sure_dk;

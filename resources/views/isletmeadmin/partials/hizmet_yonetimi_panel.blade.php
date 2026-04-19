@@ -411,7 +411,7 @@
             <div class="modal-body hy-modal-body">
                <div id="hy_edit_locked_info" class="hy-locked-banner" style="display:none;">
                   <i class="fa fa-lock"></i>
-                  <span>Bu hizmet sistem havuzundan eklenmiştir. Hizmet adı, kategori ve cinsiyet değiştirilemez; sadece süre, fiyat ve personel ataması güncellenebilir.</span>
+                  <span>Bu hizmet sistem havuzundan eklenmiştir. <strong>Hizmet adı</strong> ve <strong>kategori</strong> değiştirilemez; süre, fiyat, cinsiyet ve personel ataması güncellenebilir.</span>
                </div>
                <div class="row">
                   <div class="col-md-6">
@@ -561,16 +561,14 @@ $(document).ready(function(){
       var c = row.data('cinsiyet');
       $('#hy_edit_cinsiyet').val(c !== undefined && c !== null ? c : '').trigger('change');
 
-      // Havuz hizmetleri: ad & kategori & cinsiyet readonly/disabled
+      // Havuz hizmetleri: sadece ad & kategori kilitli; cinsiyet, sure, fiyat, personel acik
       if(isOzel){
          $('#hy_edit_hizmet_adi').prop('readonly', false).removeClass('hy-locked');
          $('#hy_edit_kategori_id').prop('disabled', false).removeClass('hy-locked');
-         $('#hy_edit_cinsiyet').prop('disabled', false).removeClass('hy-locked');
          $('#hy_edit_locked_info').hide();
       } else {
          $('#hy_edit_hizmet_adi').prop('readonly', true).addClass('hy-locked');
          $('#hy_edit_kategori_id').prop('disabled', true).addClass('hy-locked');
-         $('#hy_edit_cinsiyet').prop('disabled', true).addClass('hy-locked');
          $('#hy_edit_locked_info').show();
       }
 
@@ -725,7 +723,6 @@ $(document).ready(function(){
       // Locked durumu sifirla
       $('#hy_edit_hizmet_adi').prop('readonly', false).removeClass('hy-locked');
       $('#hy_edit_kategori_id').prop('disabled', false).removeClass('hy-locked');
-      $('#hy_edit_cinsiyet').prop('disabled', false).removeClass('hy-locked');
       $('#hy_edit_locked_info').hide();
    });
    $('#yeni_hizmet_modal').on('hidden.bs.modal', function(){
