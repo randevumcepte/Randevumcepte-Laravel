@@ -33,7 +33,7 @@ class SMSController extends Controller
                return $bosSonuc;
           }
 
-          $cacheKey = 'vt_sms_rapor_' . $salonId . '_' . $gunSayisi;
+          $cacheKey = 'vt_sms_rapor_v2_' . $salonId . '_' . $gunSayisi;
           $cached = Cache::get($cacheKey);
           if ($cached !== null) {
                return $cached;
@@ -95,7 +95,7 @@ class SMSController extends Controller
                $sonuc[$anahtar] = collect($liste);
           }
 
-          Cache::put($cacheKey, $sonuc, 180);
+          Cache::put($cacheKey, $sonuc, 3);
           return $sonuc;
      }
 
