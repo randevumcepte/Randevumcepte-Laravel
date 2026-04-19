@@ -329,12 +329,39 @@
 /* Hizmet select'i icin stabil ve kullanisli multi-select */
 #modal-view-event-add .hizmet-select + .select2-container .select2-selection--multiple {
     min-height: 40px !important;
-    max-height: 120px;
-    overflow-y: auto;
+    max-height: 40px !important;
+    height: 40px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
     border: 1px solid #d1d5db !important;
     border-radius: 6px !important;
     padding: 4px 30px 4px 6px !important;
     background: #fff;
+    box-sizing: border-box;
+}
+#modal-view-event-add .hizmet-select + .select2-container .select2-selection__rendered {
+    display: inline-flex !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    align-items: center !important;
+    height: 100% !important;
+    padding: 0 !important;
+}
+/* Tum chip'ler ve search inline tek satir */
+#modal-view-event-add .hizmet-select + .select2-container .select2-selection__choice,
+#modal-view-event-add .hizmet-select + .select2-container .select2-search--inline {
+    display: inline-flex !important;
+    flex-shrink: 0 !important;
+    vertical-align: middle !important;
+}
+/* Scrollbar inceltme */
+#modal-view-event-add .hizmet-select + .select2-container .select2-selection--multiple::-webkit-scrollbar {
+    height: 4px;
+}
+#modal-view-event-add .hizmet-select + .select2-container .select2-selection--multiple::-webkit-scrollbar-thumb {
+    background: #c7d2fe;
+    border-radius: 2px;
 }
 #modal-view-event-add .hizmet-select + .select2-container--default.select2-container--focus .select2-selection--multiple,
 #modal-view-event-add .hizmet-select + .select2-container--default.select2-container--open .select2-selection--multiple {
@@ -410,6 +437,18 @@
     border-radius: 8px !important;
     border: 2px solid #e5e7eb !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
+    margin-top: 2px;
+}
+/* Clear button'u (x) dikey ortalama, selection alanini buyutmesin */
+#modal-view-event-add .hizmet-select + .select2-container .select2-selection__clear {
+    position: absolute !important;
+    right: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+    height: auto !important;
+    font-size: 18px !important;
 }
 #modal-view-event-add .select2-search--dropdown .select2-search__field {
     border-radius: 6px !important;
