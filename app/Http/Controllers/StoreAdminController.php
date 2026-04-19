@@ -1494,7 +1494,7 @@ public function carkverilerigetir(Request $request)
         // Hizmet Yönetimi sekmesi için gruplu veri (performans için eager + 3 toplu sorgu)
         $isletmeid_hy = self::mevcutsube($request);
         $kategoriler_hy = Hizmet_Kategorisi::all();
-        $salon_hizmetler_hy = SalonHizmetler::with('hizmetler:id,hizmet_adi,hizmet_kategori_id,cinsiyet')
+        $salon_hizmetler_hy = SalonHizmetler::with('hizmetler:id,hizmet_adi,hizmet_kategori_id,cinsiyet,ozel_hizmet,salon_id')
             ->where('salon_id',$isletmeid_hy)
             ->where('aktif',1)
             ->whereNull('santral_hizmeti')
@@ -1528,6 +1528,11 @@ public function carkverilerigetir(Request $request)
             $kategori_id = $sh->hizmet_kategori_id ?? ($sh->hizmetler ? $sh->hizmetler->hizmet_kategori_id : null);
             if(!$kategori_id) continue;
             if(!isset($hizmet_gruplari[$kategori_id])) $hizmet_gruplari[$kategori_id] = [];
+            // Havuz hizmeti mi, ozel hizmet mi? (ozel_hizmet=true ve salon_id bu isletme ise duzenlenebilir)
+            $is_ozel = false;
+            if($sh->hizmetler){
+                $is_ozel = ($sh->hizmetler->ozel_hizmet == 1 || $sh->hizmetler->ozel_hizmet === true) && $sh->hizmetler->salon_id == $isletmeid_hy;
+            }
             $hizmet_gruplari[$kategori_id][] = [
                 'id' => $sh->id,
                 'hizmet_id' => $sh->hizmet_id,
@@ -1536,6 +1541,7 @@ public function carkverilerigetir(Request $request)
                 'fiyat' => $sh->baslangic_fiyat,
                 'personeller' => rtrim($personel_map[$sh->hizmet_id] ?? '', ', '),
                 'cinsiyet' => $sh->hizmetler ? $sh->hizmetler->cinsiyet : null,
+                'ozel_hizmet' => $is_ozel,
             ];
         }
 
@@ -21215,17 +21221,21 @@ DB::raw('
         $sh = SalonHizmetler::where('id',$request->salon_hizmet_id)->where('salon_id',$isletmeid)->first();
         if(!$sh) return response()->json(['status'=>'error','message'=>'Hizmet bulunamadı']);
 
-        if($request->has('hizmet_adi') && $request->hizmet_adi != ''){
-            $hizmet = Hizmetler::where('id',$sh->hizmet_id)->first();
-            if($hizmet){
+        $hizmet = Hizmetler::where('id',$sh->hizmet_id)->first();
+        // Havuz hizmeti (ozel_hizmet=false veya baska salona ait) ad/kategori/cinsiyet degisemez
+        $is_ozel_duzenlenebilir = $hizmet && ($hizmet->ozel_hizmet == 1 || $hizmet->ozel_hizmet === true) && $hizmet->salon_id == $isletmeid;
+
+        if($is_ozel_duzenlenebilir){
+            if($request->has('hizmet_adi') && $request->hizmet_adi != ''){
                 $hizmet->hizmet_adi = $request->hizmet_adi;
-                if($request->has('cinsiyet')) $hizmet->cinsiyet = $request->cinsiyet;
-                $hizmet->save();
             }
+            if($request->has('cinsiyet')) $hizmet->cinsiyet = $request->cinsiyet;
+            $hizmet->save();
+            if($request->has('kategori_id')) $sh->hizmet_kategori_id = $request->kategori_id;
         }
+        // Sure, fiyat ve personel atamasi her hizmet icin degistirilebilir
         if($request->has('fiyat')) $sh->baslangic_fiyat = $request->fiyat;
         if($request->has('sure_dk')) $sh->sure_dk = $request->sure_dk;
-        if($request->has('kategori_id')) $sh->hizmet_kategori_id = $request->kategori_id;
         $sh->save();
 
         if($request->has('personel_ids')){

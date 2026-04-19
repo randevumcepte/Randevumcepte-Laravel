@@ -176,6 +176,28 @@
 .hy-modal-body .form-control { border-radius: 10px; border: 2px solid var(--hy-gray-200); padding: 10px 14px; font-size: 14px; transition: all 0.2s; }
 .hy-modal-body .form-control:focus { border-color: var(--hy-primary); box-shadow: 0 0 0 4px var(--hy-primary-light); }
 
+/* Locked (havuzdan gelen hizmet) alan stili */
+.hy-modal-body .form-control.hy-locked, .hy-modal-body select.hy-locked { background: var(--hy-gray-100) !important; color: var(--hy-gray-500) !important; cursor: not-allowed; border-color: var(--hy-gray-200) !important; }
+.hy-modal-body .form-control.hy-locked:focus, .hy-modal-body select.hy-locked:focus { box-shadow:none !important; border-color: var(--hy-gray-200) !important; }
+.hy-locked-banner { background: linear-gradient(135deg, #fef9c3, #fef3c7); color: #92400e; padding: 12px 14px; border-radius: 10px; font-size:13px; line-height:1.5; margin-bottom:16px; display:flex; gap:10px; align-items:flex-start; border:1px solid #fcd34d; }
+.hy-locked-banner i { font-size:16px; flex-shrink:0; margin-top:1px; }
+.hy-locked-banner span { flex:1; }
+
+/* Select2 - modern gorunum */
+.select2-container--default .select2-selection--multiple,
+.select2-container--default .select2-selection--single { border: 2px solid var(--hy-gray-200) !important; border-radius: 10px !important; min-height: 44px !important; padding: 4px 8px !important; transition: all 0.2s !important; }
+.select2-container--default.select2-container--focus .select2-selection--multiple,
+.select2-container--default.select2-container--focus .select2-selection--single,
+.select2-container--default.select2-container--open .select2-selection--multiple,
+.select2-container--default.select2-container--open .select2-selection--single { border-color: var(--hy-primary) !important; box-shadow: 0 0 0 4px var(--hy-primary-light) !important; }
+.select2-container--default .select2-selection--multiple .select2-selection__choice { background: var(--hy-primary) !important; border: none !important; color:#fff !important; border-radius: 8px !important; padding: 4px 10px !important; margin: 4px 4px 0 0 !important; font-size: 13px !important; font-weight: 500 !important; }
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove { color: rgba(255,255,255,0.8) !important; margin-right: 6px !important; font-size: 16px !important; font-weight: 700 !important; }
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover { color: #fff !important; }
+.select2-dropdown { border: 2px solid var(--hy-gray-200) !important; border-radius: 10px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; }
+.select2-container--default .select2-results__option--highlighted[aria-selected] { background: var(--hy-primary) !important; }
+.select2-search__field { padding: 6px !important; border-radius: 6px !important; }
+.select2-container--open { z-index: 99999 !important; }
+
 /* Tum modallari dikey ortalama + responsive genislik */
 #hy_duzenle_modal.modal, #hy_kategori_ekle_modal.modal, #hizmet_secimi_modal.modal, #personel_sec_modal.modal, #yeni_hizmet_modal.modal { display: none; }
 #hy_duzenle_modal.modal.show, #hy_kategori_ekle_modal.modal.show, #hizmet_secimi_modal.modal.show, #personel_sec_modal.modal.show, #yeni_hizmet_modal.modal.show { display: flex !important; align-items:center; justify-content:center; padding: 0 !important; }
@@ -315,7 +337,8 @@
                           data-fiyat="{{$hizmet['fiyat']}}"
                           data-sure="{{$hizmet['sure_dk']}}"
                           data-kategori-id="{{$kategori->id}}"
-                          data-cinsiyet="{{$hizmet['cinsiyet']}}">
+                          data-cinsiyet="{{$hizmet['cinsiyet']}}"
+                          data-ozel-hizmet="{{$hizmet['ozel_hizmet'] ? 1 : 0}}">
                         <div class="hy-hizmet-adi">
                            <span>{{$hizmet['hizmet_adi']}}</span>{!!$cinsiyet_html!!}
                         </div>
@@ -341,7 +364,8 @@
                           data-fiyat="{{$hizmet['fiyat']}}"
                           data-sure="{{$hizmet['sure_dk']}}"
                           data-kategori-id="{{$kategori->id}}"
-                          data-cinsiyet="{{$hizmet['cinsiyet']}}">
+                          data-cinsiyet="{{$hizmet['cinsiyet']}}"
+                          data-ozel-hizmet="{{$hizmet['ozel_hizmet'] ? 1 : 0}}">
                         <div class="hy-mobile-top">
                            <div class="hy-mobile-title">
                               <h4>{{$hizmet['hizmet_adi']}} {!!$cinsiyet_html!!}</h4>
@@ -381,10 +405,14 @@
             <input type="hidden" name="sube" value="{{$isletme->id}}">
             <input type="hidden" name="salon_hizmet_id" id="hy_edit_salon_hizmet_id">
             <div class="modal-header">
-               <h2>Hizmet Düzenle</h2>
+               <h2><i class="fa fa-pencil"></i> Hizmet Düzenle</h2>
                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
             </div>
             <div class="modal-body hy-modal-body">
+               <div id="hy_edit_locked_info" class="hy-locked-banner" style="display:none;">
+                  <i class="fa fa-lock"></i>
+                  <span>Bu hizmet sistem havuzundan eklenmiştir. Hizmet adı, kategori ve cinsiyet değiştirilemez; sadece süre, fiyat ve personel ataması güncellenebilir.</span>
+               </div>
                <div class="row">
                   <div class="col-md-6">
                      <div class="form-group">
@@ -508,8 +536,23 @@ $(document).ready(function(){
    });
 
    // --- Düzenle ---
+   // Select2'yi bir kere global init et (modal show'da destroy+re-init yapılır)
+   function hyInitSelect2(){
+      var $sel = $('#hy_edit_personeller');
+      if($sel.length && !$sel.hasClass('select2-hidden-accessible')){
+         $sel.select2({
+            placeholder: 'Personel veya cihaz seçin...',
+            dropdownParent: $('#hy_duzenle_modal'),
+            width: '100%',
+            closeOnSelect: false
+         });
+      }
+   }
+
    $(document).on('click', '.hy-hizmet-duzenle', function(){
       var row = $(this).closest('.hy-hizmet-row, .hy-mobile-card');
+      var isOzel = parseInt(row.data('ozel-hizmet')) === 1;
+
       $('#hy_edit_salon_hizmet_id').val(row.data('salon-hizmet-id'));
       $('#hy_edit_hizmet_adi').val(row.data('hizmet-adi'));
       $('#hy_edit_fiyat').val(row.data('fiyat'));
@@ -517,9 +560,31 @@ $(document).ready(function(){
       $('#hy_edit_kategori_id').val(row.data('kategori-id')).trigger('change');
       var c = row.data('cinsiyet');
       $('#hy_edit_cinsiyet').val(c !== undefined && c !== null ? c : '').trigger('change');
-      $('#hy_edit_personeller').val(null).trigger('change');
+
+      // Havuz hizmetleri: ad & kategori & cinsiyet readonly/disabled
+      if(isOzel){
+         $('#hy_edit_hizmet_adi').prop('readonly', false).removeClass('hy-locked');
+         $('#hy_edit_kategori_id').prop('disabled', false).removeClass('hy-locked');
+         $('#hy_edit_cinsiyet').prop('disabled', false).removeClass('hy-locked');
+         $('#hy_edit_locked_info').hide();
+      } else {
+         $('#hy_edit_hizmet_adi').prop('readonly', true).addClass('hy-locked');
+         $('#hy_edit_kategori_id').prop('disabled', true).addClass('hy-locked');
+         $('#hy_edit_cinsiyet').prop('disabled', true).addClass('hy-locked');
+         $('#hy_edit_locked_info').show();
+      }
+
+      // Personelleri önce temizle, modal açıldıktan sonra Select2 init et ve doldur
+      var $sel = $('#hy_edit_personeller');
+      // Eski Select2'yi yok et (modal baska yerden acildiysa stale state olabilir)
+      if($sel.hasClass('select2-hidden-accessible')){
+         $sel.select2('destroy');
+      }
+      $sel.val(null);
 
       var hizmetId = row.data('hizmet-id');
+      $('#hy_duzenle_modal').modal('show');
+
       $.ajax({
          type: 'GET',
          url: '/isletmeyonetim/hizmetpersonelsecimigetir',
@@ -529,12 +594,14 @@ $(document).ready(function(){
             var $tmp = $('<div>').html(html);
             var checkedIds = [];
             $tmp.find('input[type=checkbox]:checked').each(function(){ checkedIds.push($(this).val()); });
-            if(checkedIds.length > 0){
-               $('#hy_edit_personeller').val(checkedIds).trigger('change');
-            }
+            if(checkedIds.length > 0) $sel.val(checkedIds);
+            hyInitSelect2();
+            $sel.trigger('change');
+         },
+         error: function(){
+            hyInitSelect2();
          }
       });
-      $('#hy_duzenle_modal').modal('show');
    });
 
    // --- Düzenleme submit ---
@@ -651,7 +718,15 @@ $(document).ready(function(){
       var $f = $('#hy_duzenle_formu');
       if($f.length) $f[0].reset();
       $f.find('button[type=submit]').prop('disabled', false);
-      $('#hy_edit_personeller').val(null).trigger('change');
+      // Select2'yi destroy et - bir sonraki acilista temiz olsun
+      var $sel = $('#hy_edit_personeller');
+      if($sel.hasClass('select2-hidden-accessible')) $sel.select2('destroy');
+      $sel.val(null);
+      // Locked durumu sifirla
+      $('#hy_edit_hizmet_adi').prop('readonly', false).removeClass('hy-locked');
+      $('#hy_edit_kategori_id').prop('disabled', false).removeClass('hy-locked');
+      $('#hy_edit_cinsiyet').prop('disabled', false).removeClass('hy-locked');
+      $('#hy_edit_locked_info').hide();
    });
    $('#yeni_hizmet_modal').on('hidden.bs.modal', function(){
       var $f = $('#yeni_hizmet_formu');
