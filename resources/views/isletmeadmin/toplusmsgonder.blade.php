@@ -945,8 +945,25 @@
    </div>
 
  <!-- SMS rapor detay modal -->
+ <style>
+   #sms_rapor_detay_modal .modal-dialog { max-width: 1100px; width: 95%; }
+   #sms_rapor_detay_modal .modal-body { padding: 20px 24px; }
+   #sms_rapor_detay_tablo { width: 100%; margin-bottom: 0; }
+   #sms_rapor_detay_tablo thead th {
+     background-color: #000;
+     color: #fff;
+     border-color: #000;
+     font-weight: 600;
+     padding: 12px 14px;
+     white-space: nowrap;
+   }
+   #sms_rapor_detay_tablo tbody td {
+     padding: 10px 14px;
+     vertical-align: middle;
+   }
+ </style>
  <div id="sms_rapor_detay_modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
-   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+   <div class="modal-dialog modal-dialog-centered" role="document">
      <div class="modal-content">
        <div class="modal-header">
          <h5 class="modal-title">SMS Gönderim Detayı</h5>
@@ -954,13 +971,13 @@
            <span aria-hidden="true">&times;</span>
          </button>
        </div>
-       <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+       <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
          <div id="sms_rapor_detay_yukleniyor" class="text-center py-4" style="display:none;">
            <div class="spinner-border text-primary" role="status"><span class="sr-only">Yükleniyor...</span></div>
            <p class="mt-2 mb-0 text-muted">Alıcılar getiriliyor...</p>
          </div>
          <div id="sms_rapor_detay_hata" class="alert alert-warning" style="display:none;"></div>
-         <table class="table table-sm table-striped" id="sms_rapor_detay_tablo" style="display:none;">
+         <table class="table table-striped" id="sms_rapor_detay_tablo" style="display:none;">
            <thead>
              <tr>
                <th>Müşteri</th>
