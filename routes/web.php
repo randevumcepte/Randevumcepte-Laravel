@@ -275,7 +275,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/randevubilgiguncelle','StoreAdminController@randevubilgiguncelle');
 	//Route::middleware('role:Hesap Sahibi,Süpervizör,Yönetici')->get('/ayarlar','StoreAdminController@ayarlar');
 	Route::get('/ayarlar','StoreAdminController@ayarlar');
-	Route::get('/hizmet-yonetimi','StoreAdminController@hizmetYonetimi');
+	Route::get('/hizmet-yonetimi', function(){ return redirect('/isletmeyonetim/ayarlar?p=hizmetler'); });
 	Route::post('/hizmet-yonetimi/guncelle','StoreAdminController@hizmetYonetimiGuncelle');
 	Route::post('/hizmet-yonetimi/kategori-ekle','StoreAdminController@hizmetKategoriEkle');
 	Route::post('/hizmet-yonetimi/kategori-sil','StoreAdminController@hizmetKategoriSil');

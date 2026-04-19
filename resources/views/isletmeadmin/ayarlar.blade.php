@@ -983,28 +983,7 @@
                id="hizmetler"
                role="tabpanel"
                >
-               <div class="row" style="border-bottom: 1px solid #e2e2e2;margin-bottom: 10px;padding-bottom: 10px;">
-                  <div class="col-6 col-xs-6 col-sm-6">
-                     <h2 class="text-blue">Hizmetler</h2>
-                  </div>
-                  <div class="col-6 col-xs-6 col-sm-6 text-right">
-                     <button  class="btn btn-success" data-toggle="modal" data-target="#hizmet_secimi_modal"><i class="fa fa-plus"></i> Yeni Hizmet</button>
-                  </div>
-               </div>
-               <div class="pd-20">
-                  <table class="data-table table stripe hover nowrap" id="hizmet_liste">
-                     <thead>
-                        <tr>
-                           <th>Hizmet</th>
-                           <th>Hizmet Personelleri</th>
-                           <th class="datatable-nosort">İşlemler</th>
-                        </tr>
-                     </thead>
-                     <tbody>
-                        
-                     </tbody>
-                  </table>
-               </div>
+               @include('isletmeadmin.partials.hizmet_yonetimi_panel')
             </div>
             <div
                class="tab-pane fade {{($_GET['p']=='cihazlar') ? 'active show' : ''}}"

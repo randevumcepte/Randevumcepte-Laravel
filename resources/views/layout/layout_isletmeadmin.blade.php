@@ -1036,16 +1036,6 @@
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0  && DB::table('model_has_roles')->where('role_id',4)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <li>
-                     @if($pageindex==70)
-                     <a href="/isletmeyonetim/hizmet-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/hizmet-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-scissors"></span>
-                     <span class="mtext">Hizmet Yönetimi</span>
-                     </a>
-                  </li>
-                  <li>
                      @if($pageindex==9)
                      <a href="/isletmeyonetim/ayarlar?p=temelbilgiler&{{(isset($_GET['sube'])) ? 'sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
