@@ -433,11 +433,14 @@
     color: #4338ca !important;
     font-weight: 600;
 }
-#modal-view-event-add .select2-dropdown {
+#modal-view-event-add .select2-dropdown,
+body > .select2-container .select2-dropdown {
     border-radius: 8px !important;
     border: 2px solid #e5e7eb !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
 }
+/* Hizmet dropdown'i modal uzerinde gorunmeli (body'ye eklenir) */
+body > .select2-container--open { z-index: 99999 !important; }
 /* Clear button'u (x) dikey ortalama, selection alanini buyutmesin */
 #modal-view-event-add .hizmet-select + .select2-container .select2-selection__clear {
     position: absolute !important;
@@ -1341,13 +1344,14 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
 
     function initHizmetSelect2Tek($sel, placeholder){
         if($sel.hasClass('select2-hidden-accessible')){ try{ $sel.select2('destroy'); }catch(e){} }
+        // Not: dropdownParent vermiyoruz -> default (body). Boylece modal scroll ve
+        // diger elementler dropdown pozisyonunu bozmuyor. z-index ile modal uzerinde kalir.
         $sel.select2({
             placeholder: placeholder || 'Önce personel veya cihaz seçin...',
             allowClear: true,
             width: '100%',
             multiple: true,
             closeOnSelect: false,
-            dropdownParent: $('#modal-view-event-add'),
             language: {
                 noResults: function(){ return 'Bu personel/cihaz için hizmet atanmamış'; },
                 searching: function(){ return 'Aranıyor...'; }
@@ -1359,57 +1363,15 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         attachHizmetSelect2Events($sel);
     }
 
-    // Modal scroll edildiginde aktif dropdown'i yeniden hizala
-    $(document).off('scroll.hizmetDropdown').on('scroll.hizmetDropdown', '#modal-view-event-add', function(){
-        if($('.select2-container--open').length) hizmetDropdownAsagiZorla();
-    });
-
-    // Select2 dropdown'unu select'in tam altina manuel konumlandir.
-    // Modal scroll'u ve hizmet-detaylari elementi dropdown'u asagi itiyordu.
-    function hizmetDropdownAsagiZorla($sel){
+    // Select2 dropdown'unu her zaman asagi zorla (--above -> --below sinif degisimi)
+    function hizmetDropdownAsagiZorla(){
         setTimeout(function(){
             var $open = $('.select2-container--open');
             if(!$open.length) return;
-
-            // --above/--below siniflari duzelt
             $open.removeClass('select2-container--above').addClass('select2-container--below');
-            $open.find('.select2-dropdown').removeClass('select2-dropdown--above').addClass('select2-dropdown--below');
-
-            // Tetikleyen select'i bul: $sel parametresi yoksa DOM'dan hesapla
-            var $target = $sel && $sel.length ? $sel : null;
-            if(!$target){
-                var $sc = $open.find('.select2-selection');
-                if($sc.length){
-                    // select2 container'inin kardesi olan hidden select
-                    $target = $open.prev('select');
-                }
-            }
-            if(!$target || !$target.length) return;
-
-            // Selection box (gorunen kutu) - bu select'in bir sonraki kardesinin select2-container'i
-            var $container = $target.next('.select2-container');
-            var $selBox = $container.find('.select2-selection').first();
-            var $dropdown = $open.find('.select2-dropdown');
-            if(!$selBox.length || !$dropdown.length) return;
-
-            var modalEl = document.getElementById('modal-view-event-add');
-            if(!modalEl) return;
-
-            var selRect = $selBox[0].getBoundingClientRect();
-            var modalRect = modalEl.getBoundingClientRect();
-
-            // Dropdown'in modal icindeki konumu: selection'in altina yapistir
-            var top = (selRect.bottom - modalRect.top) + modalEl.scrollTop + 2;
-            var left = (selRect.left - modalRect.left) + modalEl.scrollLeft;
-
-            $dropdown.css({
-                'position': 'absolute',
-                'top': top + 'px',
-                'left': left + 'px',
-                'width': selRect.width + 'px',
-                'bottom': 'auto',
-                'margin': '0'
-            });
+            $open.find('.select2-dropdown')
+                 .removeClass('select2-dropdown--above')
+                 .addClass('select2-dropdown--below');
         }, 0);
     }
 
