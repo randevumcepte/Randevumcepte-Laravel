@@ -1329,12 +1329,20 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             })
             .on('select2:open', function(){
                 var $me = $(this);
-                hizmetDropdownAsagiZorla($me);
+                var index = $me.data('index');
+                // Dropdown acikken hizmet-detaylari'yi gizle ki dropdown selection'in
+                // hemen altinda gorunsun (araya girmesin)
+                $('#hizmet-detaylari-' + index).hide();
+                hizmetDropdownAsagiZorla();
                 setTimeout(function(){ $('.select2-search__field').focus(); }, 100);
             })
+            .on('select2:close', function(){
+                var index = $(this).data('index');
+                // Dropdown kapaninca tekrar goster
+                $('#hizmet-detaylari-' + index).show();
+            })
             .on('select2:select select2:unselect', function(){
-                // Secim sonrasi dropdown asagida kalsin
-                hizmetDropdownAsagiZorla($(this));
+                hizmetDropdownAsagiZorla();
             })
             .on('change.phUp', function(){ hizmetPlaceholderGuncelle($(this)); });
 
