@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 use App\Salonlar;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 
 
 class SMSController extends Controller
@@ -31,12 +30,6 @@ class SMSController extends Controller
           $isletme = Salonlar::where('id', $salonId)->first();
           if (!$isletme || empty($isletme->sms_user_name) || empty($isletme->sms_secret)) {
                return $bosSonuc;
-          }
-
-          $cacheKey = 'vt_sms_rapor_v2_' . $salonId . '_' . $gunSayisi;
-          $cached = Cache::get($cacheKey);
-          if ($cached !== null) {
-               return $cached;
           }
 
           require_once app_path('VoiceTelekom/Sms/SmsApi.php');
@@ -95,7 +88,6 @@ class SMSController extends Controller
                $sonuc[$anahtar] = collect($liste);
           }
 
-          Cache::put($cacheKey, $sonuc, 3);
           return $sonuc;
      }
 
