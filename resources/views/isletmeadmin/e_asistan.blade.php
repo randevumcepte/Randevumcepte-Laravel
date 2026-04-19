@@ -72,16 +72,16 @@
                   
                   </div>
                   <table class="data-table table stripe hover nowrap" id="bugunkugorevtablo">
-                                             <thead >
-                                             
-                                                
-                                                <th>Mesaj</th>
-                                                <th>Durum </th>
-                                             
-                                                   
+                                             <thead>
+                                                <th>Başlık</th>
+                                                <th>İçerik</th>
+                                                <th>Arama Saati</th>
+                                                <th>Durum</th>
+                                                <th>Sonuç</th>
+                                                <th>İşlemler</th>
                                              </thead>
                                              <tbody>
-                                            
+
                                              </tbody>
                                         </table>
                                            
@@ -99,13 +99,14 @@
                
                   <table class="data-table table stripe hover nowrap" id="yarinkigorevtablo">
                                              <thead>
-                                            
-                                                <th>Mesaj</th>
-                                                <th>Durum </th>
-                                              
+                                                <th>Başlık</th>
+                                                <th>İçerik</th>
+                                                <th>Arama Saati</th>
+                                                <th>Durum</th>
+                                                <th>İşlemler</th>
                                              </thead>
                                              <tbody>
-                                            
+
                                              </tbody>
                                         </table>
                  
