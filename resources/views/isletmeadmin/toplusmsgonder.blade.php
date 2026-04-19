@@ -39,23 +39,13 @@
            <div class="row clearfix">
              <div class=" col-md-12 col-sm-12">
                <ul class="nav nav-tabs element" role="tablist" style="overflow-x:scroll;height: 80px; ">
-                <li class="nav-item">
-                  <button href="#grup_sms"
-                  class="btn btn-outline-primary active  "
+                 <li class="nav-item">
+                  <button href="#filtreli_sms"
+                  class="btn btn-outline-primary active"
                   data-toggle='tab'
                   role="tab"
-                  style="width: 150px;height: 60px;" 
+                   style="width: 150px;height: 60px;"
                   aria-selected="true"
-                  > Gruplara SMS Gönder </button>
-                
-                 <li class="nav-item">
-                  <buton href="#filtreli_sms"
-                  class="btn btn-outline-primary"
-                  data-toggle='tab'
-                  role="tab" 
-                   style="width: 150px;height: 60px;margin-left: 10px;" 
-                  aria-selected="false" 
-               
                   > Filtreli SMS Gönder </button>
                 </li>
                  <li class="nav-item">
@@ -104,32 +94,7 @@
              </div>
              <div class="col-md-12 col-sm-12" style="margin-top: 10px;">
               <div class="tab-content">
-                   <div class="tab-pane fade show active" id="grup_sms" role="tabpanel">
-                 <div class="pd-20">
-                  <div class="row" style="border-bottom: 1px solid #e2e2e2;margin-bottom: 10px;padding-bottom: 10px;">
-                    <div class="col-6 col-xs-6 col-sm-6">
-                     <h2 class="text-blue">Grup Sms Gönder</h2>
-                   </div>
-                   <div class="col-6 col-xs-6 col-sm-6 text-right">
-                     <button class="btn btn-success" onclick="modalbaslikata('Yeni Grup','grup_sms_formu')" data-toggle="modal" id='grup_olustur_buton' data-target="#grup_sms_olustur_modal"> <i class="fa fa-plus"></i> Grup Oluştur</button>
-                   </div>
-                  </div>
-                   <table class="data-table table stripe hover nowrap" id="grup_sms_tablo">
-                     <thead>
-                       <tr>
-                         <th>Grup Adı </th>
-                         <th>Müşteri Sayısı</th>
-                         <th></th>
-                       </tr>
-                     </thead>
-                     <tbody>
-                      
-                     </tbody>
-                   </table>
-                 </div>
-               </div>
-                 
-               <div class="tab-pane fade show" id="filtreli_sms" role="tabpanel">
+               <div class="tab-pane fade show active" id="filtreli_sms" role="tabpanel">
                  <div class="pd-20">
                   <div class="row" style="border-bottom: 1px solid #e2e2e2;margin-bottom: 10px;padding-bottom: 10px;">
                     <div class="col-6 col-xs-6 col-sm-6">
@@ -293,16 +258,32 @@
                           <div class="col-sm-12">
                               <div class="container">
                                   <label>Müşterileri Seçiniz</label>
-                                   <select multiple="multiple"  name="duallistbox_demo2[]" style="height: 220px;"  id="toplu_musteri">
-                                      @foreach(\App\MusteriPortfoy::where('salon_id',$isletme->id)->limit(5000)->get() as $mevcutmusteri)
-                                      <option value="{{$mevcutmusteri->user_id}}">{{$mevcutmusteri->users->name}}</option>
-                                    @endforeach
-                                    </select>
-   
+                                  <div class="row" id="arama_musteri_liste_TopluSMS" style="margin-bottom: 40px;">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                          <input type="text" id="musteriarama_toplusms" name="musteriarama_toplusms" class="form-control" placeholder="Müşteri arayın...">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3"><button id="topluSMSTumMusterileriSec" type="button" class="btn btn-info btn-block">Tümünü Seç</button></div>
+                                    <div class="col-md-3"><button id="topluSMSTumMusterileriKaldir" type="button" class="btn btn-info btn-block">Tümünü Kaldır</button></div>
+                                    <div class="col-md-12">
+                                      <div id="musteriListesiTopluSMS" style="width:100%;border:1px solid #e2e2e2;border-radius: 5px;height: 260px;overflow-y: auto;">
+                                        <div class="text-center py-4 text-muted" id="topluSMSIlkMesaj">
+                                          <i class="fa fa-users fa-2x mb-2"></i>
+                                          <p class="mb-0">Müşteriler yükleniyor...</p>
+                                        </div>
+                                      </div>
+                                      <div id="topluSMSYukleniyor" class="text-center py-2" style="display:none;">
+                                        <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                                        <span class="text-muted">Yükleniyor...</span>
+                                      </div>
+                                      <div id="topluSMSSeciliMusteriler" style="margin-top: 10px; font-weight: bold;">
+                                           0 müşteri seçildi
+                                      </div>
+                                    </div>
+                                  </div>
                               </div>
-                            
                           </div>
-                                  
                       </div>
                     </div>
 
@@ -957,250 +938,6 @@
        </div>
      </div>
    </div>
-      <!--grup sms ekle -->
-      <div
-         id="grup_sms_olustur_modal"
-         class="modal modal-top fade calendar-modal"
-        
-         >
-         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="max-height: 90%;">
-               <form id="grup_sms_formu"  method="POST">
-                 {{ csrf_field() }}
-                <input type="hidden" name="sube" value="{{$isletme->id}}">
-                <input type="hidden" name="grup_id">
-                  <div class="modal-header">
-                     <h2 class="modal_baslik"></h2>
-                  </div>
-                  <div class="modal-body">
-                     <div class="row">
-                        
-                        <div class="col-sm-12 col-md-12">
-                         
-                            <label>Grup Adı</label>
-                             <input
-                              class="form-control" id="grup_adi" name='grup_adi'
-                              placeholder="Grup Adı"
-                              type="text"
-                              />
-                      
-                          
-                        </div>
-                    
-                       <div class="col-md-12">
-                       
-                           
-         <div class="container">
-           
-         
-                                  <label>Müşterileri Seçiniz</label>
-                                  <div class="row" id="arama_musteri_liste_SMS" style="margin-bottom: 40px;">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                          <input type="text" id="musteriarama_grupsms" name="musteriarama_grupsms" class="form-control" placeholder="Müşteri arayın...">
-
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3"><button id="grupSMSTumMusterileriSec" type="button" class="btn btn-info btn-block">Tümünü Seç</button></div>
-                                    <div class="col-md-3"> <button id="grupSMSTumMusterileriKaldir" type="button" class="btn btn-info btn-block">Tümünü Kaldır</button></div>
-                                    <div class="col-md-12">
-                                      <div id="musteriListesiGrupSMS" style="width:100%;border:1px solid #e2e2e2;border-radius: 5px;height: 200px;overflow-y: scroll;">
-            
-                                      </div>
-                                      <div class="loading" style="display: none;">Yükleniyor...</div>
-                                      <div id="grupSMSSeciliMusteriler" style="margin-top: 20px; font-weight: bold;">
-                                           0 müşteri seçildi
-                                      </div>
-        
-   
-      
-
-                                   
-      
-
-    </div>
-  </div>
-</div>
-                     
-
-                       </div>
-                     </div>
-                  </div>
-                  <div class="modal-footer" style="display:block">
-                     <div class="row">
-                        <div class="col-md-6">
-                           <button type="submit"
-                              class="btn btn-success btn-lg btn-block"> <i class="icon-copy dw dw-add"></i>
-                           Kaydet</button>
-                        </div>
-                        <div class="col-md-6">
-                           <button 
-                              type="button"
-                              class="btn btn-danger btn-lg btn-block "
-                              data-dismiss="modal"
-                              > <i class="fa fa-times"></i>
-                           Kapat
-                           </button>
-                        </div>
-                     </div>
-                  </div>
-            
-            </form>
-         </div>
-      </div>
-      </div>
-
-
-  <!--grup sms duzenle -->
-      <div
-         id="grup_sms_duzenle_modal"
-         class="modal modal-top fade calendar-modal"
-        
-         >
-         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="max-height: 90%;">
-               <form id="grup_sms_formu_duzenle"  method="POST">
-                 {{ csrf_field() }}
-                <input type="hidden" name="sube" value="{{$isletme->id}}">
-                <input type="hidden" name="grup_id" id='grup_duzenle_grup_id'>
-                  <div class="modal-header">
-                     <h2 >Grup Düzenle</h2>
-                  </div>
-                  <div class="modal-body">
-                     <div class="row">
-                        
-                        <div class="col-sm-12 col-md-12">
-                         
-                            <label>Grup Adı</label>
-                             <input
-                              class="form-control" id="grup_ad" name='grup_ad'
-                              placeholder="Grup Adı"
-                              type="text"
-                              />
-                          
-                        </div>
-                    
-                       <div class="col-md-12">
-                         
-                           
-         <div class="container">
-  <label>Müşterileri Seçiniz</label>
-  <div class="row" id="grup_musteri_liste_duzenle" style="margin-bottom: 40px;">
-    <div class="col" >
-      
-        <select multiple="multiple" size="30" name="duallistbox_demo1[]" title="duallistbox_demo1[]" id="grup_musteri_duzenle">
-     {!!$musteridanisansecimi!!}
-  </select>
-   
-      
-
-    </div>
-  </div>
-</div>
-                        
-
-                       </div>
-                     </div>
-                  </div>
-                  <div class="modal-footer" style="display:block">
-                     <div class="row">
-                        <div class="col-md-6">
-                           <button type="submit"
-                            
-                              class="btn btn-success btn-lg btn-block"> <i class="icon-copy dw dw-add"></i>
-                           Kaydet</button>
-                        </div>
-                        <div class="col-md-6">
-                           <button 
-                              type="button"
-                              class="btn btn-danger btn-lg btn-block "
-                              data-dismiss="modal"
-                              > <i class="fa fa-times"></i>
-                           Kapat
-                           </button>
-                        </div>
-                     </div>
-                  </div>
-            
-            </form>
-         </div>
-      </div>
-      </div>
-
-<!--grup sms gönder -->
-      <div
-         id="grup_sms_gonder_modal"
-         class="modal modal-top fade calendar-modal"
-        
-         >
-         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="max-height: 90%; width: 100%;">
-               <form id="grup_sms_gonderme_formu"   method="POST">
-                {{csrf_field()}}
-                <input type="hidden" name="grup_id" id="smsgrupid">
-                  <div class="modal-header">
-                     <h2>SMS Gönder</h2>
-                  </div>
-                  <div class="modal-body">
-                     <div class="row">
-                        <div class="col-md-6">
-                          
-                            <label>Grup Adı</label>
-                             <input
-                              class="form-control" id="sms_grup_adi" 
-                              
-                              type="text"
-                              />
-                     
-                        </div>
-                        <div class="col-md-6">
-                   
-                            <label>Şablon Seçiniz</label>
-                          <select class="form-control" id='sablon_sec_grup_sms'>
-                            <option value="">Seçiniz</option> 
-                            @foreach(\App\SMSTaslaklari::where('salon_id',$isletme->id)->get() as $sablon)
-                            <option value="{{$sablon->taslak_icerik}}">{{$sablon->baslik}}</option>
-                            @endforeach
-                          </select>
-                         
-                          
-                        </div>
-                        
-                        <div class="col-md-12">
-                         
-                            <label>Mesaj İçeriği</label>
-                           <textarea class="form-control" style="height: 150px;" id="grup_mesaj" name="grup_mesaj"></textarea>
-                       
-                          
-                        </div>
-                      <br>
-                      <br>
-              
-                     </div>
-                  </div>
-                  <div class="modal-footer" style="display:block">
-                     <div class="row">
-                        <div class="col-md-6">
-                           <button type="button" id="sendbutton"
-                               class="btn btn-success btn-lg btn-block"> <i class="icon-copy dw dw-add"></i>
-                           Gönder</button>
-                        </div>
-                        <div class="col-md-6">
-                           <button 
-                              type="button"
-                              class="btn btn-danger btn-lg btn-block modal_kapat"
-                              data-dismiss="modal"
-                              > <i class="fa fa-times"></i>
-                           Kapat
-                           </button>
-                        </div>
-                     </div>
-                  </div>
-            </div>
-            </form>
-         </div>
-      </div>
-      </div>
 
  <!--karaliste  ekle -->
       <div
@@ -1317,8 +1054,245 @@
          </div>
       </div>
       </div>
- 
 
-  
- 
+
+<script>
+(function(){
+    var TopluSMSSecici = {
+        config: {
+            container: '#musteriListesiTopluSMS',
+            aramaInput: '#musteriarama_toplusms',
+            sayac: '#topluSMSSeciliMusteriler',
+            tumuSecBtn: '#topluSMSTumMusterileriSec',
+            tumuKaldirBtn: '#topluSMSTumMusterileriKaldir',
+            yukleniyor: '#topluSMSYukleniyor',
+            ilkMesaj: '#topluSMSIlkMesaj',
+            ajaxUrl: '/isletmeyonetim/musteriportfoydropliste'
+        },
+        state: {
+            seciliIdler: new Set(),
+            hepsiSecili: false,
+            toplamMusteriler: 0,
+            currentPage: 1,
+            perPage: 200,
+            aramaTerimi: '',
+            isLoading: false,
+            isFirstLoad: true,
+            hasMore: true,
+            baslatildi: false
+        },
+        escapeHtml: function(text){
+            var d = document.createElement('div');
+            d.textContent = text == null ? '' : text;
+            return d.innerHTML;
+        },
+        init: function(){
+            if (this.state.baslatildi) return;
+            this.state.baslatildi = true;
+            this.bindEvents();
+            this.musterileriGetir(1, false);
+        },
+        bindEvents: function(){
+            var self = this;
+            var searchTimeout;
+            $(self.config.aramaInput).on('input', function(){
+                clearTimeout(searchTimeout);
+                var term = $(this).val().trim();
+                searchTimeout = setTimeout(function(){
+                    self.state.aramaTerimi = term;
+                    self.state.currentPage = 1;
+                    self.state.hasMore = true;
+                    self.musterileriGetir(1, false);
+                }, 400);
+            });
+            $(self.config.container).on('scroll', function(){
+                var el = this;
+                if (self.state.isLoading || !self.state.hasMore) return;
+                if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120) {
+                    self.musterileriGetir(self.state.currentPage, true);
+                }
+            });
+            $(self.config.container).on('change', '.toplu-musteri-cb', function(){
+                var id = String($(this).val());
+                if (this.checked) {
+                    self.state.seciliIdler.add(id);
+                } else {
+                    self.state.seciliIdler.delete(id);
+                    if (self.state.hepsiSecili) {
+                        self.state.hepsiSecili = false;
+                    }
+                }
+                self.sayaciGuncelle();
+            });
+            $(self.config.tumuSecBtn).on('click', function(){ self.tumunuSec(); });
+            $(self.config.tumuKaldirBtn).on('click', function(){ self.tumunuKaldir(); });
+        },
+        musterileriGetir: function(page, append){
+            var self = this;
+            if (self.state.isLoading) return;
+            self.state.isLoading = true;
+            if (!append) {
+                $(self.config.yukleniyor).show();
+            } else {
+                $(self.config.container).append('<div class="text-center py-2" id="topluSMSMiniLoading"><div class="spinner-border spinner-border-sm text-secondary"></div></div>');
+            }
+            $.ajax({
+                url: self.config.ajaxUrl,
+                method: 'POST',
+                dataType: 'json',
+                data: {
+                    page: page,
+                    perPage: self.state.perPage,
+                    filtre: 0,
+                    search: self.state.aramaTerimi,
+                    salonId: $('#sablonsmsform input[name="sube"]').val() || $('input[name="sube"]').first().val(),
+                    _token: $('input[name="_token"]').val()
+                },
+                success: function(res){
+                    var customers = res.customers || [];
+                    self.state.toplamMusteriler = res.total || 0;
+                    self.state.currentPage = page + 1;
+                    self.state.hasMore = customers.length >= self.state.perPage;
+                    self.render(customers, append);
+                },
+                error: function(){
+                    if (!append) {
+                        $(self.config.container).html('<div class="text-center py-4 text-danger"><i class="fa fa-exclamation-triangle"></i> Müşteriler yüklenemedi.</div>');
+                    }
+                },
+                complete: function(){
+                    self.state.isLoading = false;
+                    $(self.config.yukleniyor).hide();
+                    $('#topluSMSMiniLoading').remove();
+                }
+            });
+        },
+        render: function(customers, append){
+            var self = this;
+            var $list = $(self.config.container);
+            if (!append) {
+                $list.empty();
+                if (customers.length === 0) {
+                    $list.html('<div class="text-center py-4 text-muted"><i class="fa fa-search fa-2x mb-2"></i><p class="mb-0">Müşteri bulunamadı.</p></div>');
+                    self.sayaciGuncelle();
+                    return;
+                }
+            }
+            var html = '';
+            customers.forEach(function(c){
+                var id = String(c.id);
+                var checked = (self.state.hepsiSecili || self.state.seciliIdler.has(id)) ? 'checked' : '';
+                var ad = self.escapeHtml(c.name || c.ad || '(İsimsiz)');
+                html += '<label class="d-flex align-items-center mb-0" style="padding:8px 12px;border-bottom:1px solid #f0f0f0;cursor:pointer;margin:0;">'
+                     + '<input type="checkbox" class="toplu-musteri-cb" value="' + id + '" ' + checked + ' style="margin-right:10px;">'
+                     + '<span>' + ad + '</span>'
+                     + '</label>';
+            });
+            $list.append(html);
+            self.sayaciGuncelle();
+        },
+        sayaciGuncelle: function(){
+            var sayi = this.state.hepsiSecili ? this.state.toplamMusteriler : this.state.seciliIdler.size;
+            $(this.config.sayac).text(sayi + ' müşteri seçildi');
+        },
+        tumunuSec: function(){
+            var self = this;
+            self.state.hepsiSecili = true;
+            $.ajax({
+                url: self.config.ajaxUrl,
+                method: 'POST',
+                dataType: 'json',
+                data: {
+                    page: 1,
+                    perPage: 1000000,
+                    filtre: 0,
+                    search: self.state.aramaTerimi,
+                    salonId: $('#sablonsmsform input[name="sube"]').val() || $('input[name="sube"]').first().val(),
+                    _token: $('input[name="_token"]').val()
+                },
+                beforeSend: function(){ $(self.config.yukleniyor).show(); },
+                success: function(res){
+                    self.state.seciliIdler = new Set((res.musteriIdler || []).map(String));
+                    $(self.config.container + ' .toplu-musteri-cb').prop('checked', true);
+                    self.sayaciGuncelle();
+                },
+                complete: function(){ $(self.config.yukleniyor).hide(); }
+            });
+        },
+        tumunuKaldir: function(){
+            this.state.hepsiSecili = false;
+            this.state.seciliIdler.clear();
+            $(this.config.container + ' .toplu-musteri-cb').prop('checked', false);
+            this.sayaciGuncelle();
+        },
+        getSeciliIdler: function(){
+            return Array.from(this.state.seciliIdler);
+        },
+        sifirla: function(){
+            this.tumunuKaldir();
+        }
+    };
+
+    function bindTopluSmsGonderHandler(){
+        $('#toplusmsgonder').off('click').on('click', function(e){
+            e.preventDefault();
+            var mesaj = $('#smsmesaj').val().trim();
+            var idler = TopluSMSSecici.getSeciliIdler();
+            if (!mesaj || idler.length === 0) {
+                swal({
+                    type: 'warning',
+                    title: 'Uyarı',
+                    text: 'Lütfen alıcıları seçip mesajınızı yazınız!',
+                    showCloseButton: false,
+                    showCancelButton: false,
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+                return;
+            }
+            var formData = $('#sablonsmsform').serializeArray();
+            formData.push({ name: 'musteri_idler', value: JSON.stringify(idler) });
+            $.ajax({
+                type: 'POST',
+                url: '/isletmeyonetim/toplusmsgonder',
+                dataType: 'json',
+                data: formData,
+                beforeSend: function(){ $('#preloader').show(); },
+                success: function(result){
+                    swal({
+                        type: result.status,
+                        title: result.title,
+                        text: result.text,
+                        showCloseButton: false,
+                        showCancelButton: false,
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
+                    $('#preloader').hide();
+                    if (result.status === 'success') {
+                        $('#smsmesaj').val('');
+                        $('#sablon_baslik').val('');
+                        TopluSMSSecici.sifirla();
+                    }
+                },
+                error: function(request){
+                    $('#preloader').hide();
+                    var hata = document.getElementById('hata');
+                    if (hata) hata.innerHTML = request.responseText;
+                }
+            });
+        });
+    }
+
+    $(document).ready(function(){
+        $('a[href="#sablon_ayarlari"], button[href="#sablon_ayarlari"]').on('shown.bs.tab click', function(){
+            TopluSMSSecici.init();
+        });
+        setTimeout(bindTopluSmsGonderHandler, 0);
+    });
+
+    window.TopluSMSSecici = TopluSMSSecici;
+})();
+</script>
+
 @endsection

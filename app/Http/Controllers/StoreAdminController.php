@@ -4935,52 +4935,58 @@ private function ayAdiCevir($ingilizceAy)
     public function toplusmsgonderme(Request $request){
 
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+
+        $musteriIdler = $request->input('musteri_idler');
+        if (is_string($musteriIdler)) {
+            $decoded = json_decode($musteriIdler, true);
+            $musteriIdler = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($musteriIdler) || count($musteriIdler) === 0) {
+            $musteriIdler = is_array($request->duallistbox_demo2) ? $request->duallistbox_demo2 : [];
+        }
+        $musteriIdler = array_values(array_unique(array_filter(array_map('intval', $musteriIdler))));
+
+        if (count($musteriIdler) === 0) {
+            return array(
+                'text' => 'Lütfen en az 1 müşteri seçiniz!',
+                'title' => 'Uyarı',
+                'status' => 'warning',
+            );
+        }
+
         if($isletme->yeni_sms==1)
         {
-            if(count($request->duallistbox_demo2) == 0)
+            $telefonlar = MusteriPortfoy::whereIn('user_id',$musteriIdler)->whereHas('users',function($q){
+                $q->whereNotNull('cep_telefon');
+            })->where('salon_id',$request->sube)->with('users:id,cep_telefon')->get()->pluck('users.cep_telefon')->flatten();
+            $smsController = app()->make(SMSController::class);
+            $gonderildi = $smsController->cokluSMSGonderVoiceTelekom($telefonlar,$request->smsmesaj,$isletme->id,'Toplu SMS');
+            if($gonderildi)
             {
-                  return array(
-                    'text' => 'Lütfen en az 1 müşteri seçiniz!',
-                    'title' => 'Uyarı',
-                    'status' => 'warning',
+                return array(
+                    'title' => 'Başarılı',
+                    'status' => 'success',
+                    'text' => 'Mesajlar başarıyla alıcılarınıza gönderildi.'
                 );
             }
             else
-            {
-                $telefonlar = MusteriPortfoy::whereIn('user_id',$request->duallistbox_demo2)->whereHas('users',function($q){
-                    $q->whereNotNull('cep_telefon');
-                })->where('salon_id',$request->sube)->with('users:id,cep_telefon')->get()->pluck('users.cep_telefon')->flatten(); 
-                 $smsController = app()->make(SMSController::class);
-                 $gonderildi = $smsController->cokluSMSGonderVoiceTelekom($telefonlar,$request->smsmesaj,$isletme->id,'Toplu SMS');
-                 if($gonderildi)
-                 {
-                    return array(
-                        'title' => 'Başarılı',
-                        'status' => 'success',
-                        'text' => 'Mesajlar başarıyla alıcılarınıza gönderildi.'
-                    );
-                 }
-                 else
-                    return array(
-                        'title' => 'Hata',
-                        'status' => 'error',
-                        'text' => 'Mesajlarınız gönderilirken bir hata oluştu. Hata : '.$gonderildi,
-                    );
-
-            }
+                return array(
+                    'title' => 'Hata',
+                    'status' => 'error',
+                    'text' => 'Mesajlarınız gönderilirken bir hata oluştu. Hata : '.$gonderildi,
+                );
         }
         else
         {
-            $gsm = array();
             $mesajlar=array();
-            foreach ($request->duallistbox_demo2 as $musteri) {
+            foreach ($musteriIdler as $musteri) {
                 $toplumusteri = User::where('id',$musteri)->first();
+                if(!$toplumusteri) continue;
                 if(MusteriPortfoy::where('user_id',$toplumusteri->id)->where('salon_id',$isletme->id)->value('kara_liste')!=1)
                     array_push($mesajlar, array("to"=>$toplumusteri->cep_telefon,"message"=> $request->smsmesaj));
             }
             if(count($mesajlar) > 0){
                 return self::sms_gonder_bildirimli($request,$mesajlar,true,4,false);
-                exit;
             }
             else
             {
@@ -4989,10 +4995,9 @@ private function ayAdiCevir($ingilizceAy)
                     'title' => 'Hata',
                     'status' => 'error',
                 );
-                exit;
             }
         }
-       
+
     }
     public function musteriliste(Request $request){
         $isletmeler = '';

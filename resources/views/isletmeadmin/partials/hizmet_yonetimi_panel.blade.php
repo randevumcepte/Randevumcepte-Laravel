@@ -688,27 +688,45 @@ $(document).ready(function(){
       if(!$target.length) return;
       $target.empty();
       var $rows = $('#secilmeyen_hizmetler_liste tr');
-      if($rows.length === 0){
-         $target.html('<div class="hy-secim-empty"><i class="fa fa-check-circle" style="font-size:28px; color:#d1d5db; display:block; margin-bottom:8px;"></i>Eklenecek hizmet kalmadı.<br><small>Yeni hizmet oluşturmak için aşağıdaki butonu kullanabilirsiniz.</small></div>');
-         return;
-      }
+      var emptyHtml = '<div class="hy-secim-empty"><i class="fa fa-check-circle" style="font-size:28px; color:#d1d5db; display:block; margin-bottom:8px;"></i>Eklenecek hizmet kalmadı.<br><small>Yeni hizmet oluşturmak için aşağıdaki butonu kullanabilirsiniz.</small></div>';
+      if($rows.length === 0){ $target.html(emptyHtml); return; }
+
+      // 1) Grupla
+      var gruplar = [];
+      var current = null;
       $rows.each(function(){
          var $tr = $(this);
          var $cb = $tr.find('input[type=checkbox][name="salon_hizmetleri[]"]');
          if($cb.length === 0){
-            // Kategori başlığı
             var katAdi = $tr.find('strong').text().trim();
-            if(katAdi) $target.append('<div class="hy-secim-kategori">'+katAdi+'</div>');
-         } else {
-            var hId = $cb.val();
-            var hAd = $tr.find('td').eq(1).text().trim();
-            var isChecked = $cb.is(':checked');
-            var $item = $('<div class="hy-secim-item'+(isChecked ? ' selected' : '')+'" data-hizmet-id="'+hId+'">'+
-               '<span class="hy-secim-checkbox">'+(isChecked ? '<i class="fa fa-check"></i>' : '')+'</span>'+
-               '<span class="hy-secim-item-label">'+hAd+'</span>'+
-               '</div>');
-            $target.append($item);
+            if(katAdi){
+               current = { ad: katAdi, items: [] };
+               gruplar.push(current);
+            }
+         } else if(current){
+            current.items.push({
+               id: $cb.val(),
+               ad: $tr.find('td').eq(1).text().trim(),
+               checked: $cb.is(':checked')
+            });
          }
+      });
+
+      // 2) Bos kategorileri ele (hizmet icermeyen ekstra kategoriler gosterilmez)
+      var visible = gruplar.filter(function(g){ return g.items.length > 0; });
+      if(visible.length === 0){ $target.html(emptyHtml); return; }
+
+      // 3) Render
+      visible.forEach(function(g){
+         $target.append('<div class="hy-secim-kategori">'+g.ad+'</div>');
+         g.items.forEach(function(it){
+            var $el = $('<div class="hy-secim-item'+(it.checked ? ' selected' : '')+'" data-hizmet-id="'+it.id+'">'+
+               '<span class="hy-secim-checkbox">'+(it.checked ? '<i class="fa fa-check"></i>' : '')+'</span>'+
+               '<span class="hy-secim-item-label"></span>'+
+               '</div>');
+            $el.find('.hy-secim-item-label').text(it.ad);
+            $target.append($el);
+         });
       });
    }
    $('#hizmet_secimi_modal').on('shown.bs.modal', function(){
@@ -746,10 +764,16 @@ $(document).ready(function(){
          var ad = $(this).find('.hy-secim-item-label').text().toLowerCase();
          if(ad.indexOf(q) > -1) $(this).show(); else $(this).hide();
       });
-      // Boş kategorileri de gizle
+      // Boş kalan kategorileri gizle (altında görünür item kalmadıysa)
       $('.hy-secim-kategori').each(function(){
-         var $next = $(this).nextUntil('.hy-secim-kategori', '.hy-secim-item:visible');
-         if($next.length === 0) $(this).hide(); else $(this).show();
+         var $header = $(this);
+         var gorunurItem = 0;
+         var $next = $header.next();
+         while($next.length && !$next.hasClass('hy-secim-kategori')){
+            if($next.hasClass('hy-secim-item') && $next.is(':visible')) gorunurItem++;
+            $next = $next.next();
+         }
+         if(gorunurItem === 0) $header.hide(); else $header.show();
       });
    });
 });
