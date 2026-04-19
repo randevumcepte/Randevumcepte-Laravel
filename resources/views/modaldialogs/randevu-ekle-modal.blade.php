@@ -438,27 +438,6 @@
     border: 2px solid #e5e7eb !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
 }
-/* Hizmet select dropdown'i hep selection'in altinda, 100% genislikte (parent'a gore) */
-.hizmet-select + .select2-container--open,
-.col-12 > .select2-container--open {
-    width: 100% !important;
-    left: 0 !important;
-}
-.hizmet-select + .select2-container .select2-dropdown,
-.col-12 > .select2-container .select2-dropdown {
-    top: 100% !important;
-    left: 0 !important;
-    margin-top: 2px !important;
-    position: absolute !important;
-    width: 100% !important;
-}
-/* Yukari acilma (--above) tum varyantlari asagi zorla */
-.select2-container--open.select2-container--above .select2-dropdown--above {
-    top: 100% !important;
-    bottom: auto !important;
-    border-radius: 8px !important;
-    margin-top: 2px !important;
-}
 /* Clear button'u (x) dikey ortalama, selection alanini buyutmesin */
 #modal-view-event-add .hizmet-select + .select2-container .select2-selection__clear {
     position: absolute !important;
@@ -1346,7 +1325,12 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                 hizmetPlaceholderGuncelle($(this));
             })
             .on('select2:open', function(){
+                hizmetDropdownAsagiZorla();
                 setTimeout(function(){ $('.select2-search__field').focus(); }, 100);
+            })
+            .on('select2:select select2:unselect', function(){
+                // Secim sonrasi da dropdown asagida kalsin
+                hizmetDropdownAsagiZorla();
             })
             .on('change.phUp', function(){ hizmetPlaceholderGuncelle($(this)); });
 
@@ -1356,18 +1340,13 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
 
     function initHizmetSelect2Tek($sel, placeholder){
         if($sel.hasClass('select2-hidden-accessible')){ try{ $sel.select2('destroy'); }catch(e){} }
-        // Parent'i select'in direkt container'i yap - dropdown hep ayni yerden acilir
-        var $parent = $sel.closest('.col-12');
-        if(!$parent.length) $parent = $sel.parent();
-        $parent.css('position','relative');
-
         $sel.select2({
             placeholder: placeholder || 'Önce personel veya cihaz seçin...',
             allowClear: true,
             width: '100%',
             multiple: true,
             closeOnSelect: false,
-            dropdownParent: $parent,
+            dropdownParent: $('#modal-view-event-add'),
             language: {
                 noResults: function(){ return 'Bu personel/cihaz için hizmet atanmamış'; },
                 searching: function(){ return 'Aranıyor...'; }
@@ -1377,6 +1356,21 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             templateSelection: formatHizmetSecim
         });
         attachHizmetSelect2Events($sel);
+    }
+
+    // Select2 dropdown'unu her zaman asagi zorla (--above durumunu bastir)
+    // Modal body scroll'unu bozdugu icin select2'nin yukari acma davranisini engelliyoruz.
+    function hizmetDropdownAsagiZorla(){
+        setTimeout(function(){
+            var $open = $('.select2-container--open');
+            if(!$open.length) return;
+            if($open.hasClass('select2-container--above')){
+                $open.removeClass('select2-container--above').addClass('select2-container--below');
+            }
+            $open.find('.select2-dropdown--above')
+                 .removeClass('select2-dropdown--above')
+                 .addClass('select2-dropdown--below');
+        }, 0);
     }
 
     // Hizmet select2'lerini başlatma fonksiyonu (local options; personel/cihaz secildiginde doldurulur)
