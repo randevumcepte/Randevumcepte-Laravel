@@ -16898,15 +16898,19 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             ->whereIn('hizmet_id', $hizmet_idleri)
             ->get();
 
+        // Kategori adlari tek sorguda
+        $kategori_idleri = $salon_hizmetler->pluck('hizmet_kategori_id')->filter()->unique()->values()->all();
+        $kategoriler = Hizmet_Kategorisi::whereIn('id',$kategori_idleri)->pluck('hizmet_kategorisi_adi','id')->toArray();
+
         $results = $salon_hizmetler->filter(function($sh){ return $sh->hizmetler !== null; })
-            ->map(function($sh){
+            ->map(function($sh) use ($kategoriler){
+                $kat_id = $sh->hizmet_kategori_id ?: ($sh->hizmetler ? $sh->hizmetler->hizmet_kategori_id : null);
                 return [
                     'id' => $sh->hizmet_id,
                     'ad' => $sh->hizmetler->hizmet_adi,
                     'sure' => (int) $sh->sure_dk,
                     'fiyat' => (float) $sh->baslangic_fiyat,
-                    'kategori' => '',
-                    'renk' => '#6366f1',
+                    'kategori' => ($kat_id && isset($kategoriler[$kat_id])) ? $kategoriler[$kat_id] : '',
                 ];
             })->values();
 

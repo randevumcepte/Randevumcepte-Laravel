@@ -1863,22 +1863,21 @@ function formatHizmetSonuc(hizmet) {
     if (hizmet.loading) {
         return '<div class="loading-results"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>';
     }
-    
+
     if (!hizmet.id) {
         return hizmet.text;
     }
-    
+
     const sure = hizmet.sure || 0;
     const fiyat = hizmet.fiyat || 0;
-    const kategori = hizmet.kategori || 'Genel';
-    const renk = hizmet.renk || '#007bff';
-    
+    const kategori = hizmet.kategori || '';
+
     var $result = $(
         '<div class="hizmet-search-result">' +
             '<div class="row align-items-center">' +
                 '<div class="col-8">' +
-                    '<span class="hizmet-ad fw-bold" style="color: ' + renk + '; font-size: 0.85rem;">' + hizmet.text + '</span>' +
-                    '<div class="small text-muted" style="font-size: 0.75rem;">' + kategori + '</div>' +
+                    '<span class="hizmet-ad fw-bold" style="color:#111827; font-size: 0.85rem;">' + hizmet.text + '</span>' +
+                    (kategori ? '<div class="small text-muted" style="font-size: 0.75rem;">' + kategori + '</div>' : '') +
                 '</div>' +
                 '<div class="col-4 text-right">' +
                     '<span class="badge bg-light-blue mr-1" style="font-size: 0.7rem;">' + sure + ' dk</span>' +
@@ -1887,7 +1886,7 @@ function formatHizmetSonuc(hizmet) {
             '</div>' +
         '</div>'
     );
-    
+
     return $result;
 }
 
