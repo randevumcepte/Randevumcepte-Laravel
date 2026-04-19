@@ -167,14 +167,57 @@
 @keyframes hyFadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
 .hy-kategori-card { animation: hyFadeIn 0.3s ease-out; }
 
-#hy_duzenle_modal .modal-content, #hy_kategori_ekle_modal .modal-content { border-radius: 16px; border:none; overflow:hidden; box-shadow: 0 25px 80px rgba(0,0,0,0.2); }
-#hy_duzenle_modal .modal-header, #hy_kategori_ekle_modal .modal-header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color:#fff; border-bottom:none; padding: 18px 22px; }
-#hy_duzenle_modal .modal-header h2, #hy_kategori_ekle_modal .modal-header h2 { color:#fff; font-size:17px; font-weight:700; margin:0; }
-#hy_duzenle_modal .close, #hy_kategori_ekle_modal .close { color:#fff; opacity:0.9; font-size:26px; font-weight:300; }
+#hy_duzenle_modal .modal-content, #hy_kategori_ekle_modal .modal-content, #hizmet_secimi_modal .modal-content, #personel_sec_modal .modal-content, #yeni_hizmet_modal .modal-content { border-radius: 16px; border:none; overflow:hidden; box-shadow: 0 25px 80px rgba(0,0,0,0.2); }
+#hy_duzenle_modal .modal-header, #hy_kategori_ekle_modal .modal-header, #hizmet_secimi_modal .modal-header, #personel_sec_modal .modal-header, #yeni_hizmet_modal .modal-header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color:#fff; border-bottom:none; padding: 18px 22px; display:flex; justify-content:space-between; align-items:center; }
+#hy_duzenle_modal .modal-header h2, #hy_kategori_ekle_modal .modal-header h2, #hizmet_secimi_modal .modal-header h2, #personel_sec_modal .modal-header h2, #yeni_hizmet_modal .modal-header h2 { color:#fff; font-size:17px; font-weight:700; margin:0; }
+#hy_duzenle_modal .close, #hy_kategori_ekle_modal .close, #hizmet_secimi_modal .close, #personel_sec_modal .close, #yeni_hizmet_modal .close { color:#fff; opacity:0.9; font-size:26px; font-weight:300; text-shadow:none; }
 .hy-modal-body { padding: 22px; }
 .hy-modal-body label { font-weight:600; color: var(--hy-gray-700); font-size:13px; margin-bottom:6px; }
 .hy-modal-body .form-control { border-radius: 10px; border: 2px solid var(--hy-gray-200); padding: 10px 14px; font-size: 14px; transition: all 0.2s; }
 .hy-modal-body .form-control:focus { border-color: var(--hy-primary); box-shadow: 0 0 0 4px var(--hy-primary-light); }
+
+/* Tum modallari dikey ortalama + responsive genislik */
+#hy_duzenle_modal.modal, #hy_kategori_ekle_modal.modal, #hizmet_secimi_modal.modal, #personel_sec_modal.modal, #yeni_hizmet_modal.modal { display: none; }
+#hy_duzenle_modal.modal.show, #hy_kategori_ekle_modal.modal.show, #hizmet_secimi_modal.modal.show, #personel_sec_modal.modal.show, #yeni_hizmet_modal.modal.show { display: flex !important; align-items:center; justify-content:center; padding: 0 !important; }
+#hy_duzenle_modal .modal-dialog, #hy_kategori_ekle_modal .modal-dialog, #hizmet_secimi_modal .modal-dialog, #personel_sec_modal .modal-dialog, #yeni_hizmet_modal .modal-dialog { margin: 1.75rem auto; display:flex; align-items:center; min-height:calc(100% - 3.5rem); }
+#personel_sec_modal .modal-dialog { max-width: 800px !important; width: auto !important; }
+#personel_sec_modal .modal-content { width: auto !important; min-width: 0 !important; max-width: 100% !important; }
+@media (max-width: 991px){
+   #personel_sec_modal .modal-dialog, #hy_duzenle_modal .modal-dialog, #hizmet_secimi_modal .modal-dialog, #yeni_hizmet_modal .modal-dialog { max-width: calc(100% - 24px) !important; margin: 12px auto; }
+   #personel_sec_modal .modal-content { width: 100% !important; }
+}
+
+/* DataTable wrapper'i tamamen gizle (eski custom.js init'i visible element yaratmasin) */
+#hizmet_liste_wrapper, #hizmet_liste_filter, #hizmet_liste_info, #hizmet_liste_paginate, #hizmet_liste_length, #hizmet_liste { display: none !important; position:absolute !important; left:-9999px !important; height:0 !important; }
+
+/* Hizmet Secimi modernize */
+.hy-secim-header-actions { display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:14px; }
+.hy-secim-search { position:relative; margin-bottom:12px; }
+.hy-secim-search input { width:100%; padding: 12px 14px 12px 44px; border-radius:10px; border:2px solid var(--hy-gray-200); background: var(--hy-gray-50); font-size:14px; transition:all 0.2s; }
+.hy-secim-search input:focus { outline:none; border-color: var(--hy-primary); background:#fff; box-shadow: 0 0 0 4px var(--hy-primary-light); }
+.hy-secim-search i { position:absolute; left:16px; top:50%; transform:translateY(-50%); color: var(--hy-gray-500); }
+.hy-secim-info { background: var(--hy-primary-light); color: var(--hy-primary-dark); padding: 10px 14px; border-radius:10px; font-size:13px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.hy-secim-info strong { font-weight:700; }
+.hy-secim-list { max-height: min(55vh, 420px); overflow-y:auto; border-radius:10px; border:1px solid var(--hy-gray-200); background:#fff; }
+.hy-secim-list::-webkit-scrollbar { width:8px; }
+.hy-secim-list::-webkit-scrollbar-thumb { background: var(--hy-gray-300); border-radius:4px; }
+.hy-secim-kategori { padding: 10px 16px; background: linear-gradient(135deg, #fafbff, #f4f6ff); border-bottom: 1px solid var(--hy-gray-200); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color: var(--hy-primary-dark); position:sticky; top:0; z-index:2; }
+.hy-secim-kategori:first-child { border-top:none; }
+.hy-secim-item { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--hy-gray-100); cursor:pointer; transition: background 0.15s; user-select:none; }
+.hy-secim-item:hover { background: var(--hy-primary-light); }
+.hy-secim-item.selected { background: var(--hy-primary-light); }
+.hy-secim-item:last-child { border-bottom:none; }
+.hy-secim-checkbox { width:20px; height:20px; border-radius:6px; border:2px solid var(--hy-gray-300); flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:11px; transition: all 0.15s; background:#fff; }
+.hy-secim-item.selected .hy-secim-checkbox { background: var(--hy-primary); border-color: var(--hy-primary); }
+.hy-secim-item input[type=checkbox] { display:none; }
+.hy-secim-item-label { flex:1; color: var(--hy-gray-900); font-size:14px; font-weight:500; }
+.hy-secim-empty { padding: 40px 20px; text-align:center; color: var(--hy-gray-500); font-size:13px; }
+.hy-secim-footer { padding: 16px 22px; background: var(--hy-gray-50); border-top:1px solid var(--hy-gray-200); display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+.hy-secim-footer .btn { padding: 12px 18px; border-radius:10px; font-weight:600; font-size:14px; }
+@media (max-width:576px){
+   .hy-secim-header-actions { grid-template-columns: 1fr; }
+   .hy-secim-footer { grid-template-columns: 1fr; }
+}
 </style>
 
 <div class="hizmet-yonetim-wrapper">
@@ -226,7 +269,9 @@
    </div>
 
    {{-- Gizli placeholder: custom.js icindeki $('#hizmet_liste').DataTable() cagrilarinin hata atmamasi icin --}}
-   <table id="hizmet_liste" style="display:none;"><thead><tr><th></th><th></th><th></th></tr></thead><tbody></tbody></table>
+   <div style="display:none !important; position:absolute; left:-9999px; top:-9999px; visibility:hidden; height:0; overflow:hidden;" aria-hidden="true">
+      <table id="hizmet_liste"><thead><tr><th></th><th></th><th></th></tr></thead><tbody></tbody></table>
+   </div>
 
    <div id="hy_kategori_liste">
       @if(!isset($hizmet_gruplari) || count($hizmet_gruplari) == 0)
@@ -635,6 +680,77 @@ $(document).ready(function(){
       if($btn.prop('disabled')) return false;
       $btn.prop('disabled', true);
       setTimeout(function(){ location.reload(); }, 1800);
+   });
+
+   // --- Hizmet Secimi modal: gizli tablodan modern liste olustur ---
+   function renderHizmetSecimListesi(){
+      var $target = $('#hy_secim_render');
+      if(!$target.length) return;
+      $target.empty();
+      var $rows = $('#secilmeyen_hizmetler_liste tr');
+      if($rows.length === 0){
+         $target.html('<div class="hy-secim-empty"><i class="fa fa-check-circle" style="font-size:28px; color:#d1d5db; display:block; margin-bottom:8px;"></i>Eklenecek hizmet kalmadı.<br><small>Yeni hizmet oluşturmak için aşağıdaki butonu kullanabilirsiniz.</small></div>');
+         return;
+      }
+      $rows.each(function(){
+         var $tr = $(this);
+         var $cb = $tr.find('input[type=checkbox][name="salon_hizmetleri[]"]');
+         if($cb.length === 0){
+            // Kategori başlığı
+            var katAdi = $tr.find('strong').text().trim();
+            if(katAdi) $target.append('<div class="hy-secim-kategori">'+katAdi+'</div>');
+         } else {
+            var hId = $cb.val();
+            var hAd = $tr.find('td').eq(1).text().trim();
+            var isChecked = $cb.is(':checked');
+            var $item = $('<div class="hy-secim-item'+(isChecked ? ' selected' : '')+'" data-hizmet-id="'+hId+'">'+
+               '<span class="hy-secim-checkbox">'+(isChecked ? '<i class="fa fa-check"></i>' : '')+'</span>'+
+               '<span class="hy-secim-item-label">'+hAd+'</span>'+
+               '</div>');
+            $target.append($item);
+         }
+      });
+   }
+   $('#hizmet_secimi_modal').on('shown.bs.modal', function(){
+      renderHizmetSecimListesi();
+      $('#hizmet_ara').val('');
+      $('.hy-secim-item').show();
+      $('.hy-secim-kategori').show();
+   });
+   // Modern item'a tıklandığında arka plandaki checkbox'u toggle et
+   $(document).on('click', '.hy-secim-item', function(){
+      var hId = $(this).data('hizmet-id');
+      var $cb = $('#secilmeyen_hizmetler_liste input[type=checkbox][value="'+hId+'"]');
+      var yeni = !$cb.is(':checked');
+      $cb.prop('checked', yeni);
+      $(this).toggleClass('selected', yeni);
+      $(this).find('.hy-secim-checkbox').html(yeni ? '<i class="fa fa-check"></i>' : '');
+      // "Hepsini seç" checkbox'ı güncelle
+      var hepsi = $('#secilmeyen_hizmetler_liste input[type=checkbox]').length;
+      var secili = $('#secilmeyen_hizmetler_liste input[type=checkbox]:checked').length;
+      $('#tum_hizmetleri_sec').prop('checked', hepsi > 0 && hepsi === secili);
+   });
+   // selects() / deSelect() / #tum_hizmetleri_sec ile modern UI'yi senkronize et
+   $(document).on('change', '#tum_hizmetleri_sec, #secilmeyen_hizmetler_liste input[type=checkbox]', function(){
+      $('.hy-secim-item').each(function(){
+         var hId = $(this).data('hizmet-id');
+         var checked = $('#secilmeyen_hizmetler_liste input[value="'+hId+'"]').is(':checked');
+         $(this).toggleClass('selected', checked);
+         $(this).find('.hy-secim-checkbox').html(checked ? '<i class="fa fa-check"></i>' : '');
+      });
+   });
+   // Arama kutusu modern listede de çalışsın
+   $(document).on('keyup', '#hizmet_ara', function(){
+      var q = $(this).val().toLowerCase();
+      $('.hy-secim-item').each(function(){
+         var ad = $(this).find('.hy-secim-item-label').text().toLowerCase();
+         if(ad.indexOf(q) > -1) $(this).show(); else $(this).hide();
+      });
+      // Boş kategorileri de gizle
+      $('.hy-secim-kategori').each(function(){
+         var $next = $(this).nextUntil('.hy-secim-kategori', '.hy-secim-item:visible');
+         if($next.length === 0) $(this).hide(); else $(this).show();
+      });
    });
 });
 </script>

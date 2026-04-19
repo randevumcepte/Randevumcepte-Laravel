@@ -1501,56 +1501,52 @@
    class="modal modal-top fade calendar-modal"
    >
    <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content" style="max-height: 90%;">
+      <div class="modal-content" style="max-height: 90vh;">
          <form id='hizmet_ekle_formu' method="POST">
             <input type="hidden" name="sube" value="{{$isletme->id}}">
             <div class="modal-header">
-               <h2>Hizmet Seçimi</h2>
+               <h2><i class="fa fa-list-ul"></i> Hizmet Seçimi</h2>
+               <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body hy-modal-body" style="padding:20px 22px;">
                {!!csrf_field()!!}
-               <div class="row">
-                  <div class="col-md-6">  
-                     <input type="button" class="btn btn-primary" style="width: 100%" onclick='selects()' value="Hepsini Seç"/>
-                  </div>
-                  <div class="col-md-6"> 
-                     <input type="button" class="btn btn-secondary" style="width: 100%" onclick='deSelect()' value="Hiçbirini Seçme"/> 
-                  </div>
+
+               <div class="hy-secim-info">
+                  <i class="fa fa-info-circle"></i>
+                  <span>Listeden eklemek istediğiniz hizmetlere tıklayın — seçtikten sonra <strong>personel atamak</strong> için "Devam Et" butonuna basın. Listede yoksa kendi hizmetinizi oluşturun.</span>
                </div>
-               <div class="row" style="margin-top:20px">
-                  <div class="col-md-6">
-                     <div class="form-group">
-                        <input
-                           type="text"
-                           class="form-control search-input"
-                           placeholder="Hizmet Ara"
-                           id='hizmet_ara'/>
-                     </div>
-                  </div>
-                  <div class="col-md-6">
-                     <button class="btn btn-primary" type="button" data-value="0" data-toggle="modal" data-target="#yeni_hizmet_modal" style="width: 100%"><i class="fa fa-plus"></i> Listede olmayan hizmet</button>
-                  </div>
-                  <div class="col-md-12"  style="overflow-y: auto; max-height: 300px ">
-                     <button type="button" style="display:none" id='hizmet_personel_ekle_modal_ac' data-toggle="modal" data-target="#personel_sec_modal" ></button>
-                     <table class="table" id="hizmet_sec_tablo">
-                        <thead>
-                           <tr>
-                              <td><input type="checkbox" id='tum_hizmetleri_sec'></td>
-                              <td>Hizmet</td>
-                           </tr>
-                        </thead>
-                        <tbody id='secilmeyen_hizmetler_liste'>
+
+               <div class="hy-secim-search">
+                  <i class="fa fa-search"></i>
+                  <input type="text" placeholder="Hizmet ara..." id='hizmet_ara' autocomplete="off" />
+               </div>
+
+               <div class="hy-secim-header-actions">
+                  <button type="button" class="btn btn-outline-primary" onclick="selects()"><i class="fa fa-check-square-o"></i> Hepsini Seç</button>
+                  <button type="button" class="btn btn-outline-secondary" onclick="deSelect()"><i class="fa fa-square-o"></i> Temizle</button>
+               </div>
+
+               <div class="hy-secim-list">
+                  <button type="button" style="display:none" id='hizmet_personel_ekle_modal_ac' data-toggle="modal" data-target="#personel_sec_modal"></button>
+                  <table class="table" id="hizmet_sec_tablo" style="display:none;">
+                     <thead>
+                        <tr>
+                           <td><input type="checkbox" id='tum_hizmetleri_sec'></td>
+                           <td>Hizmet</td>
+                        </tr>
+                     </thead>
+                     <tbody id='secilmeyen_hizmetler_liste'>
                             
                          
                         @foreach(\App\Hizmet_Kategorisi::all() as $hizmet_kategorisi)
 
 @if(\App\Hizmetler::where(
    function($q) use ($isletme, $hizmet_kategorisi)
-   { 
+   {
       // Ozel hizmet ve salon_id, girilen salon_id'sine eşitse
       $q->where('ozel_hizmet', true);
       $q->where('salon_id', $isletme->id);
-      $q->whereNotIn('id', \App\SalonHizmetler::where('salon_id', $isletme->id)->where('aktif', true)->pluck('hizmet_id'));   
+      $q->whereNotIn('id', \App\SalonHizmetler::where('salon_id', $isletme->id)->where('aktif', true)->pluck('hizmet_id'));
    }
 )->orWhere(
    function($q) use ($isletme, $hizmet_kategorisi){
@@ -1577,10 +1573,10 @@
 
 @foreach(\App\Hizmetler::where(
    function($q) use ($isletme, $hizmet_kategorisi)
-   { 
+   {
       // Salon hizmetlerini listele
       $q->where('salon_id', $isletme->id);
-      $q->whereNotIn('id', \App\SalonHizmetler::where('salon_id', $isletme->id)->where('aktif', true)->pluck('hizmet_id'));   
+      $q->whereNotIn('id', \App\SalonHizmetler::where('salon_id', $isletme->id)->where('aktif', true)->pluck('hizmet_id'));
    }
 )->orWhere(
    function($q) use ($isletme, $hizmet_kategorisi){
@@ -1610,26 +1606,16 @@
 @endforeach
 
 
-                           </tbody>
-                     </table>
-                  </div>
+                     </tbody>
+                  </table>
+
+                  {{-- Modern secim listesi (JS ile doldurulur: #hizmet_sec_tablo'dan veri okunur) --}}
+                  <div id="hy_secim_render"></div>
                </div>
             </div>
-            <div class="modal-footer" style="display:block">
-               <div class="row" data-value="0">
-                  <div class="col-md-9">
-                     <button type="button" class="btn btn-success btn-lg btn-block" id='hizmet_personel_ekleme_butonu'>Hizmetlerin ekleneceği personelleri seç </button>
-                  </div>
-                  <div class="col-md-3">
-                     <button  
-                        type="button"
-                        class="btn btn-danger btn-lg btn-block"
-                        data-dismiss="modal"
-                        > <i class="fa fa-times"></i>
-                     Kapat
-                     </button>
-                  </div>
-               </div>
+            <div class="hy-secim-footer">
+               <button type="button" class="btn btn-outline-primary" data-toggle="modal" data-target="#yeni_hizmet_modal"><i class="fa fa-plus"></i> Listede Olmayan Hizmet</button>
+               <button type="button" class="btn btn-success" id='hizmet_personel_ekleme_butonu'><i class="fa fa-arrow-right"></i> Devam Et — Personel Seç</button>
             </div>
          </form>
       </div>
