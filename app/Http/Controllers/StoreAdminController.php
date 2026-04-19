@@ -16862,6 +16862,42 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $html .= '<option value="'.$secilihizmet->id.'">'.$secilihizmet->hizmet_adi.'</option>';
         return $html;
     }
+
+    // Randevu modali icin: personel/cihaz'a atanmis hizmetleri sure+fiyat ile JSON doner
+    public function personelCihazHizmetleriJson(Request $request)
+    {
+        $isletmeid = self::mevcutsube($request);
+        $hizmet_idleri = [];
+        if($request->personel_id != ''){
+            $hizmet_idleri = array_merge($hizmet_idleri, PersonelHizmetler::where('personel_id',$request->personel_id)->pluck('hizmet_id')->toArray());
+        }
+        if($request->cihaz_id != ''){
+            $hizmet_idleri = array_merge($hizmet_idleri, CihazHizmetler::where('cihaz_id',$request->cihaz_id)->pluck('hizmet_id')->toArray());
+        }
+        $hizmet_idleri = array_values(array_unique($hizmet_idleri));
+        if(empty($hizmet_idleri)) return response()->json(['results'=>[]]);
+
+        $salon_hizmetler = SalonHizmetler::with('hizmetler:id,hizmet_adi,hizmet_kategori_id')
+            ->where('salon_id',$isletmeid)
+            ->where('aktif',1)
+            ->whereIn('hizmet_id', $hizmet_idleri)
+            ->get();
+
+        $results = $salon_hizmetler->filter(function($sh){ return $sh->hizmetler !== null; })
+            ->map(function($sh){
+                return [
+                    'id' => $sh->hizmet_id,
+                    'ad' => $sh->hizmetler->hizmet_adi,
+                    'sure' => (int) $sh->sure_dk,
+                    'fiyat' => (float) $sh->baslangic_fiyat,
+                    'kategori' => '',
+                    'renk' => '#6366f1',
+                ];
+            })->values();
+
+        return response()->json(['results' => $results]);
+    }
+
     public function taksitleri_getir(Request $request,$filtre,$musteriid)
     {
            

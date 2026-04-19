@@ -1,17 +1,3 @@
-<style>
-/* Randevu modal Select2: dropdown modal disina sizmasin, imlec asagi kaymasin */
-#modal-view-event-add .select2-container--open { z-index: 99999; }
-#modal-view-event-add .select2-dropdown { z-index: 99999 !important; border-radius: 10px; border: 2px solid #e5e7eb; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-#modal-view-event-add .select2-container--default .select2-selection--single,
-#modal-view-event-add .select2-container--default .select2-selection--multiple { border: 1px solid #d1d5db; border-radius: 6px; min-height: 40px; padding: 4px 8px; }
-#modal-view-event-add .select2-container--default.select2-container--focus .select2-selection--single,
-#modal-view-event-add .select2-container--default.select2-container--open .select2-selection--single { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
-#modal-view-event-add .randevu-hizmet-select + .select2-container .select2-selection__rendered { line-height: 30px !important; }
-#modal-view-event-add .randevu-hizmet-select + .select2-container .select2-selection__arrow { height: 38px !important; }
-/* Modal body'nin overflow'unu visible yap ki select2 dropdown taşabilsin */
-#modal-view-event-add .hizmetler_bolumu { overflow: visible; }
-</style>
-
 <div
             id="modal-view-event-add"
             class="modal modal-top fade calendar-modal"
@@ -147,7 +133,7 @@
                                           </div>
                                           <div class="col-md-3 col-sm-6 col-xs-6 col-6">
                                              <label>Hizmet</label>
-                                             <select name="randevuhizmetleriyeni[]" class="form-control custom-select2 randevu-hizmet-select" data-full-html="" style="width: 100%;">
+                                             <select name="randevuhizmetleriyeni[]" class="form-control custom-select2" style="width: 100%;">
                                                  {!!$hizmet_drop!!}
                                              </select>
                                           </div>
@@ -321,89 +307,3 @@
                </form>
             </div>
          </div>
-
-<script>
-(function(){
-   // Randevu-ekle modali: hizmet select'i icin iyilestirmeler
-   // 1) Personel/cihaz secildiyse hizmetleri onlara ait olanlarla filtrele
-   // 2) Select2 dropdownParent modal'a ayarla (imlec asagi kaymasin)
-   var $modal = $('#modal-view-event-add');
-   if(!$modal.length) return;
-
-   // Orijinal tum-hizmet option listesini sakla (reset icin)
-   function captureFullHtml(){
-      $modal.find('select.randevu-hizmet-select').each(function(){
-         if(!$(this).attr('data-full-html')){
-            $(this).attr('data-full-html', $(this).html());
-         }
-      });
-   }
-
-   // Select2'yi modal icinde yeniden init et (dropdownParent ile)
-   function reInitSelect2InRow($row){
-      $row.find('select.custom-select2, select.opsiyonelSelect').each(function(){
-         var $sel = $(this);
-         if($sel.hasClass('select2-hidden-accessible')){
-            try { $sel.select2('destroy'); } catch(e){}
-         }
-         $sel.removeAttr('data-select2-id').removeAttr('id');
-         $sel.find('option').removeAttr('data-select2-id');
-         var opts = { width: '100%', dropdownParent: $modal };
-         if($sel.hasClass('opsiyonelSelect')){
-            opts.placeholder = 'Seçiniz';
-            opts.allowClear = true;
-         }
-         $sel.select2(opts);
-      });
-   }
-
-   // Modal her goruntulendiginde dropdownParent'li select2 ile re-init
-   $modal.on('shown.bs.modal', function(){
-      captureFullHtml();
-      $modal.find('.hizmetler_bolumu > .row').each(function(){
-         reInitSelect2InRow($(this));
-      });
-   });
-
-   // Personel veya cihaz degistiginde ayni satirdaki hizmetleri filtrele
-   $modal.on('change', 'select[name="randevupersonelleriyeni[]"], select[name="randevucihazlariyeni[]"]', function(){
-      var $row = $(this).closest('.row');
-      var personelId = $row.find('select[name="randevupersonelleriyeni[]"]').val() || '';
-      var cihazId = $row.find('select[name="randevucihazlariyeni[]"]').val() || '';
-      var $hizmet = $row.find('select.randevu-hizmet-select');
-      if(!$hizmet.length) return;
-
-      // Hicbiri secilmediyse tum hizmetleri geri yukle
-      if(personelId === '' && cihazId === ''){
-         var full = $hizmet.attr('data-full-html') || '';
-         if(full){
-            var eskiDeger = $hizmet.val();
-            if($hizmet.hasClass('select2-hidden-accessible')){ try{$hizmet.select2('destroy');}catch(e){} }
-            $hizmet.html(full);
-            $hizmet.val(eskiDeger);
-            $hizmet.select2({ width: '100%', dropdownParent: $modal });
-         }
-         return;
-      }
-
-      $.ajax({
-         type: 'GET',
-         url: '/isletmeyonetim/personelcihazhizmetlerinigetir',
-         data: { personel_id: personelId, cihaz_id: cihazId },
-         dataType: 'text',
-         success: function(html){
-            if($hizmet.hasClass('select2-hidden-accessible')){ try{$hizmet.select2('destroy');}catch(e){} }
-            // Bos option + gelen option'lar
-            $hizmet.html('<option value="">— Hizmet seçiniz —</option>' + (html || ''));
-            $hizmet.removeAttr('data-select2-id').removeAttr('id');
-            $hizmet.find('option').removeAttr('data-select2-id');
-            $hizmet.select2({ width: '100%', dropdownParent: $modal });
-            $hizmet.trigger('change'); // sure/fiyat guncellensin
-         },
-         error: function(){
-            console.warn('Hizmet listesi getirilemedi');
-         }
-      });
-   });
-})();
-</script>

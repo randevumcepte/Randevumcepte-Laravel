@@ -1108,99 +1108,113 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         initHizmetSelect2();
     }
     
-    // Hizmet select2'lerini başlatma fonksiyonu
-    function initHizmetSelect2() {
-        $('.hizmet-select').select2({
-            placeholder: 'Hizmet ara veya seçin...',
+    // Hizmet select2 event handler'larini bagla (re-init sonrasi yeniden cagrilmali)
+    function attachHizmetSelect2Events($sel){
+        $sel.off('select2:select select2:unselect select2:open')
+            .on('select2:select', function(e){
+                const service = e.params.data;
+                const index = $(this).data('index');
+                if(!service || !service.id) return;
+                if(!hizmetDataCache[service.id]){
+                    hizmetDataCache[service.id] = {
+                        id: service.id,
+                        text: service.text || service.ad,
+                        sure: service.sure || 0,
+                        fiyat: service.fiyat || 0,
+                        kategori: service.kategori || '',
+                        renk: service.renk || '#6366f1'
+                    };
+                }
+                updateHizmetDetaylari(index);
+                updateRandevuOzeti();
+            })
+            .on('select2:unselect', function(){
+                const index = $(this).data('index');
+                updateHizmetDetaylari(index);
+                updateRandevuOzeti();
+            })
+            .on('select2:open', function(){
+                setTimeout(function(){ $('.select2-search__field').focus(); }, 100);
+            });
+    }
+
+    function initHizmetSelect2Tek($sel, placeholder){
+        if($sel.hasClass('select2-hidden-accessible')){ try{ $sel.select2('destroy'); }catch(e){} }
+        $sel.select2({
+            placeholder: placeholder || 'Önce personel veya cihaz seçin...',
             allowClear: true,
             width: '100%',
             dropdownParent: $('#modal-view-event-add'),
             language: {
-                noResults: function() {
-                    return "Hizmet bulunamadı";
-                },
-                searching: function() {
-                    return "Aranıyor...";
-                }
+                noResults: function(){ return 'Bu personel/cihaz için hizmet atanmamış'; },
+                searching: function(){ return 'Aranıyor...'; }
             },
-            minimumInputLength: 1,
-            ajax: {
-                url: '/api/hizmet-ara',
-                dataType: 'json',
-                delay: 300,
-                data: function(params) {
-                    return {
-                        search: params.term,
-                        page: params.page || 1,
-                        isletme_id: '{{$isletme->id}}',
-                        sube_id: '{{$isletme->id}}',
-                        limit: 20
-                    };
-                },
-                processResults: function(data, params) {
-                    params.page = params.page || 1;
-                    
-                    if (data.results) {
-                        data.results.forEach(function(hizmet) {
-                            if (hizmet.id && !hizmetDataCache[hizmet.id]) {
-                                hizmetDataCache[hizmet.id] = {
-                                    id: hizmet.id,
-                                    text: hizmet.ad,
-                                    sure: hizmet.sure || 0,
-                                    fiyat: hizmet.fiyat || 0,
-                                    kategori: hizmet.kategori || '',
-                                    renk: hizmet.renk || '#007bff'
-                                };
-                            }
-                        });
-                    }
-                    
-                    return {
-                        results: data.results || [],
-                        pagination: {
-                            more: data.has_more || false
-                        }
-                    };
-                },
-                cache: true
-            },
-            escapeMarkup: function(markup) {
-                return markup;
-            },
+            escapeMarkup: function(markup){ return markup; },
             templateResult: formatHizmetSonuc,
             templateSelection: formatHizmetSecim
-        }).on('select2:select', function(e) {
-            const service = e.params.data;
-            const index = $(this).data('index');
-            
-            if (!service || !service.id) {
-                return;
-            }
-            
-            if (!hizmetDataCache[service.id]) {
-                hizmetDataCache[service.id] = {
-                    id: service.id,
-                    text: service.text || service.ad,
-                    sure: service.sure || 0,
-                    fiyat: service.fiyat || 0,
-                    kategori: service.kategori || '',
-                    renk: service.renk || '#007bff'
-                };
-            }
-            
-            updateHizmetDetaylari(index);
-            updateRandevuOzeti();
-            
-        }).on('select2:unselect', function(e) {
-            const index = $(this).data('index');
-            updateHizmetDetaylari(index);
-            updateRandevuOzeti();
-            
-        }).on('select2:open', function() {
-            setTimeout(function() {
-                $('.select2-search__field').focus();
-            }, 100);
         });
+        attachHizmetSelect2Events($sel);
+    }
+
+    // Hizmet select2'lerini başlatma fonksiyonu (local options; personel/cihaz secildiginde doldurulur)
+    function initHizmetSelect2() {
+        $('.hizmet-select').each(function(){
+            initHizmetSelect2Tek($(this));
+        });
+
+        // Personel veya cihaz secildiginde: ayni satirdaki hizmet select'ini doldur
+        $(document).off('change.hizmetLoad', 'select[name="randevupersonelleriyeni[]"], select[name^="randevucihazlariyeni"]')
+            .on('change.hizmetLoad', 'select[name="randevupersonelleriyeni[]"], select[name^="randevucihazlariyeni"]', function(){
+                var $row = $(this).closest('.row');
+                var personelId = $row.find('select[name="randevupersonelleriyeni[]"]').val() || '';
+                var cihazId = $row.find('select[name^="randevucihazlariyeni"]').val() || '';
+                var $hizmet = $row.find('.hizmet-select');
+                if(!$hizmet.length) return;
+
+                // Iki secim de bos ise: hizmet listesini temizle
+                if(personelId === '' && cihazId === ''){
+                    $hizmet.empty().append('<option></option>');
+                    initHizmetSelect2Tek($hizmet, 'Önce personel veya cihaz seçin...');
+                    $hizmet.trigger('change');
+                    return;
+                }
+
+                $.ajax({
+                    url: '/isletmeyonetim/personel-cihaz-hizmetleri-json',
+                    type: 'GET',
+                    dataType: 'json',
+                    data: { personel_id: personelId, cihaz_id: cihazId, sube: '{{$isletme->id}}' },
+                    success: function(resp){
+                        var list = (resp && resp.results) ? resp.results : [];
+                        list.forEach(function(h){
+                            hizmetDataCache[h.id] = {
+                                id: h.id,
+                                text: h.ad,
+                                sure: h.sure || 0,
+                                fiyat: h.fiyat || 0,
+                                kategori: h.kategori || '',
+                                renk: h.renk || '#6366f1'
+                            };
+                        });
+
+                        var secili = $hizmet.val() || [];
+                        if($hizmet.hasClass('select2-hidden-accessible')){ try{$hizmet.select2('destroy');}catch(e){} }
+                        $hizmet.empty().append('<option></option>');
+                        list.forEach(function(h){
+                            $hizmet.append(new Option(h.ad, h.id, false, false));
+                        });
+                        var korunan = (Array.isArray(secili) ? secili : []).filter(function(id){
+                            return list.some(function(h){ return String(h.id) === String(id); });
+                        });
+                        $hizmet.val(korunan);
+                        initHizmetSelect2Tek($hizmet, list.length ? 'Hizmet seçin...' : 'Atanmış hizmet bulunamadı');
+                        $hizmet.trigger('change');
+                    },
+                    error: function(){
+                        console.warn('Hizmetler yüklenemedi');
+                    }
+                });
+            });
     }
     
     // Tarih seçiciyi başlat

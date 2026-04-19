@@ -515,14 +515,19 @@ $(document).ready(function(){
 
    // --- Arama filtresi (desktop + mobile) ---
    $('#hy_hizmet_ara').on('keyup', function(){
-      var q = $(this).val().toLowerCase();
+      var q = $(this).val().toLowerCase().trim();
+      // Temiz: inline display style'larini sifirla -> CSS default'lara don
+      if(q === ''){
+         $('.hy-hizmet-row, .hy-mobile-card, .hy-kategori-card').each(function(){ this.style.display = ''; });
+         return;
+      }
       $('.hy-hizmet-row, .hy-mobile-card').each(function(){
          var ad = ($(this).data('hizmet-adi')||'').toString().toLowerCase();
-         if(ad.indexOf(q) > -1) $(this).css('display',''); else $(this).hide();
+         this.style.display = (ad.indexOf(q) > -1) ? '' : 'none';
       });
       $('.hy-kategori-card').each(function(){
          var gorunur = $(this).find('.hy-hizmet-row:visible, .hy-mobile-card:visible').length;
-         if(gorunur > 0) $(this).show(); else $(this).hide();
+         this.style.display = (gorunur > 0) ? '' : 'none';
       });
    });
 
