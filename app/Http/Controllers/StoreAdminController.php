@@ -1547,7 +1547,35 @@ public function carkverilerigetir(Request $request)
 
         $aktif_personel_sayisi = Personeller::where('salon_id',$isletmeid_hy)->where('aktif',1)->count();
 
-        return view('isletmeadmin.ayarlar',['hizmetler'=>$hizmetler,'hizmet_gruplari'=>$hizmet_gruplari,'kategoriler'=>$kategoriler_hy,'aktif_personel_sayisi'=>$aktif_personel_sayisi,'bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Hesap Ayarları','pageindex' => 9,'salongorselleri'=> $salongorselleri,'saloncalismasaatleri'=>$saloncalismasaatleri,'personeller' => $personeller, 'salonhizmetler' => $salonhizmetler,'isletme'=> $isletme,'sayfa_baslik' => $isletme->salon_adi.' | Detayları & Düzenle', 'etiketler' => $etiketler,'isletmeturulistesi' => $isletmeturu_html,'gorseller_html' => $gorseller_html,'hizmetlistesi'=>$hizmetlistesi_html,'salongorselkapak'=>$salongorselkapak,'subeler'=>$subeler,'salonmolasaatleri'=>$salonmolasaatleri,'urunler'=> $urunler,'paketler'=>$paketler,'paketler_liste'=>$paketler_liste,'roller'=>Role::all(),'cihazlar'=>$cihazlar,'odalar'=>$odalar,'aramaterimleri'=>$aramaterimleri, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
+        // Sistemden eklenebilir hizmetler: 50-100 sorguyu 2 sorguya indir
+        $aktif_hizmet_idleri = SalonHizmetler::where('salon_id',$isletmeid_hy)->where('aktif',true)->pluck('hizmet_id')->toArray();
+        $eklenebilir_hizmetler = Hizmetler::where(function($q) use ($isletmeid_hy, $aktif_hizmet_idleri){
+                // Bu isletmenin ozel hizmetleri (aktif olmayanlar)
+                $q->where('ozel_hizmet', true)
+                  ->where('salon_id', $isletmeid_hy)
+                  ->whereNotIn('id', $aktif_hizmet_idleri);
+            })->orWhere(function($q) use ($isletmeid_hy, $aktif_hizmet_idleri){
+                // Sistem hizmetleri (salon_id null)
+                $q->whereNull('salon_id')
+                  ->whereNotIn('id', $aktif_hizmet_idleri)
+                  ->where('id', '!=', 463);
+            })->orWhere(function($q) use ($isletmeid_hy){
+                // Baska isletmelere ait ozel hizmetler
+                $q->where('ozel_hizmet', true)
+                  ->where('salon_id', '!=', $isletmeid_hy)
+                  ->where('id', '!=', 463);
+            })
+            ->select('id','hizmet_adi','hizmet_kategori_id')
+            ->orderBy('hizmet_kategori_id')
+            ->orderBy('hizmet_adi')
+            ->get()
+            ->groupBy('hizmet_kategori_id');
+
+        // Personel & cihaz ham veri (view icindeki foreach icin)
+        $personeller_raw = Personeller::where('salon_id',$isletmeid_hy)->where('aktif',1)->get(['id','personel_adi']);
+        $cihazlar_raw = \App\Cihazlar::where('salon_id',$isletmeid_hy)->where('aktifmi',1)->get(['id','cihaz_adi']);
+
+        return view('isletmeadmin.ayarlar',['hizmetler'=>$hizmetler,'hizmet_gruplari'=>$hizmet_gruplari,'kategoriler'=>$kategoriler_hy,'aktif_personel_sayisi'=>$aktif_personel_sayisi,'eklenebilir_hizmetler'=>$eklenebilir_hizmetler,'personeller_raw'=>$personeller_raw,'cihazlar_raw'=>$cihazlar_raw,'bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Hesap Ayarları','pageindex' => 9,'salongorselleri'=> $salongorselleri,'saloncalismasaatleri'=>$saloncalismasaatleri,'personeller' => $personeller, 'salonhizmetler' => $salonhizmetler,'isletme'=> $isletme,'sayfa_baslik' => $isletme->salon_adi.' | Detayları & Düzenle', 'etiketler' => $etiketler,'isletmeturulistesi' => $isletmeturu_html,'gorseller_html' => $gorseller_html,'hizmetlistesi'=>$hizmetlistesi_html,'salongorselkapak'=>$salongorselkapak,'subeler'=>$subeler,'salonmolasaatleri'=>$salonmolasaatleri,'urunler'=> $urunler,'paketler'=>$paketler,'paketler_liste'=>$paketler_liste,'roller'=>Role::all(),'cihazlar'=>$cihazlar,'odalar'=>$odalar,'aramaterimleri'=>$aramaterimleri, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
     public function randevuyukle(Request $request,$takvim_turu,$tarih1,$tarih2){
@@ -2890,16 +2918,32 @@ private function ayAdiCevir($ingilizceAy)
     {
         $isletmeId = self::mevcutsube($request);
         $personeller = Personeller::where('salon_id',$isletmeId)->orderBy('takvim_sirasi','asc')->get();
-        $formatted = $personeller->map(function($personel, $index) use($request,$personeller,$isletmeId){
+
+        // Performans: yetkili ve rol bilgilerini tek sorguda cek (N+1 kaldirildi)
+        $yetkili_idleri = $personeller->pluck('yetkili_id')->filter()->unique()->values()->all();
+        $yetkililer_map = [];
+        $roller_map = [];
+        if(!empty($yetkili_idleri)){
+            $yetkililer_map = IsletmeYetkilileri::whereIn('id',$yetkili_idleri)->get()->keyBy('id');
+            $roller_rows = DB::table('roles')
+                ->join('model_has_roles','model_has_roles.role_id','=','roles.id')
+                ->whereIn('model_has_roles.model_id',$yetkili_idleri)
+                ->where('model_has_roles.salon_id',$isletmeId)
+                ->select('model_has_roles.model_id','roles.name')
+                ->get();
+            foreach($roller_rows as $r){ $roller_map[$r->model_id] = $r->name; }
+        }
+
+        $formatted = $personeller->map(function($personel, $index) use($request,$personeller,$isletmeId,$yetkililer_map,$roller_map){
             $isFirst = ($index === 0); // İlk kayıt mı?
             $isLast = ($index === $personeller->count() - 1); // Son kayıt mı?
             $isMiddle = !$isFirst && !$isLast; // Ara kayıt mı?
-            $yetkili = IsletmeYetkilileri::where('id',$personel->yetkili_id)->first();
+            $yetkili = isset($yetkililer_map[$personel->yetkili_id]) ? $yetkililer_map[$personel->yetkili_id] : null;
             $personel_adi = $yetkili ? $yetkili->name : $personel->personel_adi;
             $telefon = $yetkili ? $yetkili->gsm1 : '';
             $hesapturu = '';
             if($yetkili)
-                $hesapturu = DB::table('roles')->join('model_has_roles','model_has_roles.role_id','=','roles.id')->where('model_has_roles.model_id',$yetkili->id)->where('model_has_roles.salon_id',$isletmeId)->value('name');
+                $hesapturu = $roller_map[$yetkili->id] ?? '';
             $durum = $personel->aktif ? '<button class="btn btn-success">Aktif</button>' : '<button class="btn btn-danger">Pasif</button>';
             $islemler = '<div class="dropdown"><a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
                 </a>
@@ -6065,48 +6109,51 @@ private function ayAdiCevir($ingilizceAy)
         );
     }
     public function hizmet_liste_getir(Request $request,$returntext,$secilmeyenhizmetler){
-        $hizmet_liste = "";
-
         $isletmeid = self::mevcutsube($request);
-     
-            $hizmet_liste = SalonHizmetler::where('salon_id',$isletmeid)->where('aktif',1)->whereNull('santral_hizmeti')->get();
-            $hizmetler = [];
-            $formatted = $hizmet_liste->map(function ($hizmet)  use ($isletmeid,$secilmeyenhizmetler,$returntext){
-            $personeller = PersonelHizmetler::whereHas('personeller',function($q) use($isletmeid){$q->where('salon_id',$isletmeid);})->where('hizmet_id',$hizmet->hizmet_id)->get();
 
-            $personelStr = "";
-            $cihazStr = "";
-            foreach($personeller as $personel)
-            {
-                $personelStr .= $personel->personeller->personel_adi.", ";
-            }
+        // Performans: eager load + toplu sorgu (N+1 kaldirildi)
+        $hizmet_liste = SalonHizmetler::with('hizmetler:id,hizmet_adi')
+            ->where('salon_id',$isletmeid)
+            ->where('aktif',1)
+            ->whereNull('santral_hizmeti')
+            ->get();
+        $hizmet_idleri = $hizmet_liste->pluck('hizmet_id')->toArray();
 
-            $cihazlar = CihazHizmetler::whereHas('cihaz',function($q) use($isletmeid){$q->where('salon_id',$isletmeid);})->where('hizmet_id',$hizmet->hizmet_id)->get();
-            foreach($cihazlar as $cihaz)
-            {
-                $personelStr .= $cihaz->cihaz->cihaz_adi.", ";
-            } 
+        $personel_map = [];
+        if(!empty($hizmet_idleri)){
+            $pr = \DB::table('personel_sunulan_hizmetler')
+                ->join('salon_personelleri','personel_sunulan_hizmetler.personel_id','=','salon_personelleri.id')
+                ->where('salon_personelleri.salon_id',$isletmeid)
+                ->whereIn('personel_sunulan_hizmetler.hizmet_id',$hizmet_idleri)
+                ->select('personel_sunulan_hizmetler.hizmet_id','salon_personelleri.personel_adi')
+                ->get();
+            foreach($pr as $row){ $personel_map[$row->hizmet_id] = ($personel_map[$row->hizmet_id] ?? '').$row->personel_adi.', '; }
+            $cr = \DB::table('cihaz_sunulan_hizmetler')
+                ->join('cihazlar','cihaz_sunulan_hizmetler.cihaz_id','=','cihazlar.id')
+                ->where('cihazlar.salon_id',$isletmeid)
+                ->whereIn('cihaz_sunulan_hizmetler.hizmet_id',$hizmet_idleri)
+                ->select('cihaz_sunulan_hizmetler.hizmet_id','cihazlar.cihaz_adi')
+                ->get();
+            foreach($cr as $row){ $personel_map[$row->hizmet_id] = ($personel_map[$row->hizmet_id] ?? '').$row->cihaz_adi.', '; }
+        }
+
+        $formatted = $hizmet_liste->map(function($hizmet) use ($personel_map){
             return [
-                    'hizmet_adi'=>$hizmet->hizmetler->hizmet_adi,
-                    'personel'=> $personelStr,
-                    'islemler'=> '<div class="dropdown">
-                        <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle"
-                                  href="#"
-                                  role="button"
-                                  data-toggle="dropdown"
-                                ><i class="dw dw-more"></i>
-                        </a>
+                'hizmet_adi' => $hizmet->hizmetler ? $hizmet->hizmetler->hizmet_adi : '',
+                'personel' => $personel_map[$hizmet->hizmet_id] ?? '',
+                'islemler' => '<div class="dropdown">
+                        <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i></a>
                         <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-                                    <a class="dropdown-item"  name="hizmet_duzenle" data-value="'.$hizmet->id.'"><i class="fa fa-edit"></i> Düzenle</a>
-                                    <a class="dropdown-item" href="#" name="hizmet_sil" data-value="'.$hizmet->id.'"><i class="fa fa-remove"></i> Sil</a>
-                                </div> </div>',
+                           <a class="dropdown-item" name="hizmet_duzenle" data-value="'.$hizmet->id.'"><i class="fa fa-edit"></i> Düzenle</a>
+                           <a class="dropdown-item" href="#" name="hizmet_sil" data-value="'.$hizmet->id.'"><i class="fa fa-remove"></i> Sil</a>
+                        </div></div>',
             ];
         });
         return array(
             'status'=>$returntext,
             'hizmet_liste'=> $formatted,
             'secilmeyen_hizmetler'=>$secilmeyenhizmetler,
-        ) ;
+        );
          
        /*DB::table('salon_sunulan_hizmetler')->
         join('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')

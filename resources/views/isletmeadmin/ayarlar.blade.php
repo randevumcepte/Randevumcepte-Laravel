@@ -1538,72 +1538,23 @@
                      <tbody id='secilmeyen_hizmetler_liste'>
                             
                          
-                        @foreach(\App\Hizmet_Kategorisi::all() as $hizmet_kategorisi)
-
-@if(\App\Hizmetler::where(
-   function($q) use ($isletme, $hizmet_kategorisi)
-   {
-      // Ozel hizmet ve salon_id, girilen salon_id'sine eşitse
-      $q->where('ozel_hizmet', true);
-      $q->where('salon_id', $isletme->id);
-      $q->whereNotIn('id', \App\SalonHizmetler::where('salon_id', $isletme->id)->where('aktif', true)->pluck('hizmet_id'));
-   }
-)->orWhere(
-   function($q) use ($isletme, $hizmet_kategorisi){
-      // salon_id null olanlar her zaman görünmeli
-      $q->whereNull('salon_id');
-      $q->whereNotIn('id', \App\SalonHizmetler::where('salon_id', $isletme->id)->where('aktif', true)->pluck('hizmet_id'));
-      $q->where('hizmet_kategori_id', $hizmet_kategorisi->id);
-      $q->where('id', '!=', 463);
-   }
-)->orWhere(
-   function($q) use ($isletme, $hizmet_kategorisi){
-      // Ozel hizmet, salon_id'si girilen salon id'siyle eşleşmiyorsa
-      $q->where('ozel_hizmet', true);
-      $q->where('salon_id', '!=', $isletme->id);
-      $q->where('hizmet_kategori_id', $hizmet_kategorisi->id);
-      $q->where('id', '!=', 463);
-   }
-)->select('hizmet_adi')->distinct()->count() > 0)
-
-<tr style="background: #e2e2e2;">
-   <td></td>
-   <td><strong>{{$hizmet_kategorisi->hizmet_kategorisi_adi}}</strong></td>
-</tr>
-
-@foreach(\App\Hizmetler::where(
-   function($q) use ($isletme, $hizmet_kategorisi)
-   {
-      // Salon hizmetlerini listele
-      $q->where('salon_id', $isletme->id);
-      $q->whereNotIn('id', \App\SalonHizmetler::where('salon_id', $isletme->id)->where('aktif', true)->pluck('hizmet_id'));
-   }
-)->orWhere(
-   function($q) use ($isletme, $hizmet_kategorisi){
-      // salon_id null olanları her zaman göster
-      $q->whereNull('salon_id');
-      $q->whereNotIn('id', \App\SalonHizmetler::where('salon_id', $isletme->id)->where('aktif', true)->pluck('hizmet_id'));
-      $q->where('hizmet_kategori_id', $hizmet_kategorisi->id);
-      $q->where('id', '!=', 463);
-   }
-)->orWhere(
-   function($q) use ($isletme, $hizmet_kategorisi){
-      // Ozel hizmet, salon_id'si girilen salon id'siyle eşleşenleri getir
-      $q->where('ozel_hizmet', true);
-      $q->where('salon_id', $isletme->id);
-      $q->where('hizmet_kategori_id', $hizmet_kategorisi->id);
-      $q->where('id', '!=', 463);
-   }
-)->select('hizmet_adi', 'id')->distinct()->get() as $secilmeyenhizmetler)
-
-<tr>
-   <td><input type="checkbox" name="salon_hizmetleri[]" value="{{$secilmeyenhizmetler->id}}"></td>
-   <td>{{$secilmeyenhizmetler->hizmet_adi}}</td>
-</tr>
-
-@endforeach
-@endif
-@endforeach
+                        {{-- Performans: kategori bazli gruplari controller'da hazirlandi (50-100 query -> 2 query) --}}
+                        @isset($eklenebilir_hizmetler)
+                           @foreach(\App\Hizmet_Kategorisi::all() as $hizmet_kategorisi)
+                              @if(isset($eklenebilir_hizmetler[$hizmet_kategorisi->id]) && count($eklenebilir_hizmetler[$hizmet_kategorisi->id]) > 0)
+                                 <tr style="background: #e2e2e2;">
+                                    <td></td>
+                                    <td><strong>{{$hizmet_kategorisi->hizmet_kategorisi_adi}}</strong></td>
+                                 </tr>
+                                 @foreach($eklenebilir_hizmetler[$hizmet_kategorisi->id] as $secilmeyenhizmetler)
+                                    <tr>
+                                       <td><input type="checkbox" name="salon_hizmetleri[]" value="{{$secilmeyenhizmetler->id}}"></td>
+                                       <td>{{$secilmeyenhizmetler->hizmet_adi}}</td>
+                                    </tr>
+                                 @endforeach
+                              @endif
+                           @endforeach
+                        @endisset
 
 
                      </tbody>
@@ -1685,10 +1636,10 @@
                      <div class="form-group">
                         <label>Hizmeti Sunan Personeller & Cihazlar</label>
                         <select name="personeller[]" multiple class="form-control custom-select2" style="width:100%">
-                           @foreach(\App\Personeller::where('salon_id',$isletme->id)->where('aktif',1)->get() as $personel)
-                              <option value="{{$personel->id}}">{{$personel->personel_adi}}</option> 
+                           @foreach(($personeller_raw ?? []) as $personel)
+                              <option value="{{$personel->id}}">{{$personel->personel_adi}}</option>
                            @endforeach
-                           @foreach(\App\Cihazlar::where('salon_id',$isletme->id)->where('aktifmi',1)->get() as $cihaz)
+                           @foreach(($cihazlar_raw ?? []) as $cihaz)
                               <option value="cihaz-{{$cihaz->id}}">{{$cihaz->cihaz_adi}}</option>
                            @endforeach
                         </select>
