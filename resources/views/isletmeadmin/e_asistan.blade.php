@@ -1,5 +1,12 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
+<style>
+   #bugunku_e_asistan h2.text-blue,
+   #yarinki_gorevler h2.text-blue,
+   #e_asistan_ayarlari h2.text-blue { color: #7800B3 !important; }
+   #e_asistan_ayarlari .card-box h6 { color: #7800B3 !important; }
+   .page-header h1 { color: #7800B3 !important; }
+</style>
 <div class="page-header">
       <div class="row">
          <div class="col-md-6 col-sm-6">
