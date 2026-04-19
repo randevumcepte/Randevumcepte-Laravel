@@ -77,6 +77,7 @@ class SMSController extends Controller
                $sonuc[$tur][] = [
                     'id' => $item->id,
                     'date' => $tarihGosterim,
+                    'date_sort' => $tarihHam ? strtotime($tarihHam) : 0,
                     'count' => $adet,
                     'price' => $tekilKredi,
                     'msgdetails' => $item->content,
@@ -85,6 +86,13 @@ class SMSController extends Controller
           }
 
           foreach ($sonuc as $anahtar => $liste) {
+               usort($liste, function($a, $b){
+                    return $b['date_sort'] - $a['date_sort'];
+               });
+               foreach ($liste as &$satir) {
+                    unset($satir['date_sort']);
+               }
+               unset($satir);
                $sonuc[$anahtar] = collect($liste);
           }
 
