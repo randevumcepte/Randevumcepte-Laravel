@@ -238,6 +238,23 @@
 (function(){
     window.duzenleHizmetIndex = 0;
 
+    // Eski custom.js randevu_duzenle click handler'ini bypass et — bizim modal akisi calissin
+    $(function(){
+        // Once eski handler'lari kaldir (namespace yok ama sadece bu selector icin)
+        $(document).off('click', 'a[name="randevu_duzenle"], button[name="randevu_duzenle"], [name="randevu_duzenle"]');
+        // Kendi click handler'imizi en erken bagla
+        $(document).on('click', '[name="randevu_duzenle"]', function(e){
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            var randevuId = $(this).attr('data-value');
+            if(!randevuId){ return; }
+            $('#duzenlenecek_randevu_id').val(randevuId);
+            // Eski custom.js kalintisi olan HTML'i agresif temizle
+            $('.hizmetler_bolumu_randevu_duzenleme').empty();
+            $('#randevu-duzenle-modal').modal('show');
+        });
+    });
+
     // Ham veri pencereye atandi - hizmetler/personel/cihaz/oda cache'leri ekleme modalinda
     // zaten hazirlaniyor (window.randevuHizmetVerisi, window.randevuModalData)
 
@@ -461,8 +478,11 @@
         });
     });
 
-    // Guvenceli fallback: eger 3 saniye icinde ozet dolmazsa boş state goster
+    // Guvenceli fallback: modal aciladan sonra eski HTML kalintilarini temizle
     $('#randevu-duzenle-modal').on('shown.bs.modal', function(){
+        // Eski custom.js'in ekledigi .row'lar (hizmet-satiri-duzenle olmayanlar) temizle
+        $('.hizmetler_bolumu_randevu_duzenleme > .row').not('.hizmet-satiri-duzenle').remove();
+        // 3 saniye icinde ozet dolmazsa
         setTimeout(function(){
             var $oz = $('#randevu-duzenle-ozeti');
             if($oz.find('p.fw-bold').text() === 'Yükleniyor...'){
