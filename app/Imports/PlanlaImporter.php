@@ -13,15 +13,20 @@ use App\Personeller;
 use App\Randevular;
 use App\RandevuHizmetler;
 use Illuminate\Support\Facades\Log;
-use Symfony\Component\Console\Output\OutputInterface;
+use Illuminate\Support\Facades\Schema;
 
 /**
- * Planla.co'dan cekilen JSON verileri randevumcepte modellerine map eder.
+ * Planla.co connect-api verisini randevumcepte DB'sine aktarir.
+ * Endpoint: POST /connect-api, meta: {version:"1", category:<cat>, event:"read"}
  *
- * NOT: Gercek planla endpoint yapisi probe asamasindan sonra netlestiginde
- * fetchMusteriler / fetchHizmetler / fetchRandevular metodlarindaki endpoint + key
- * eslesmeleri kesinlestirilecek. Suan en yaygin pattern'lari deneyen generic bir
- * yapi var; birden fazla key varyantini destekleyerek calisir.
+ * Ogrenilmis veri yapisi (connectRaw dumplarindan):
+ * - customers:  _id, fullName, phone, countryCode, email, notes, createdAt(unix)
+ * - services:   _id, title, time(str-dk), price(str, empty=0), order, createdAt
+ * - appointments: _id, customer[id], service[id], employee[id], status[str],
+ *                 appointmentDate(YYYY-MM-DD), appointmentTime(HH:MM), notes, createdAt
+ * - employees:  _id, fullName, phone, email, color, workingHours, services
+ *
+ * ID'ler MongoDB ObjectId (24-char hex) -> planla*Map tablolarinda string olarak tutulur.
  */
 class PlanlaImporter
 {
@@ -29,15 +34,13 @@ class PlanlaImporter
     private $client;
     /** @var int */
     private $salonId;
-    /** @var OutputInterface */
     private $out;
-    private $counts = ['musteri' => 0, 'hizmet' => 0, 'randevu' => 0];
-    /** @var array planla_service_id => local hizmet_id */
+    private $counts = ['personel' => 0, 'hizmet' => 0, 'musteri' => 0, 'randevu' => 0, 'skipped' => 0];
+    /** @var array planla _id => local id */
     private $hizmetMap = [];
-    /** @var array planla_customer_id => local user_id */
     private $musteriMap = [];
-    /** @var array planla_staff_id => local personel_id */
     private $personelMap = [];
+    private $defaultKategoriId = null;
 
     public function __construct(PlanlaClient $client, $salonId, $out = null)
     {
@@ -46,45 +49,14 @@ class PlanlaImporter
         $this->out = $out;
     }
 
-    public function importPersoneller()
-    {
-        $this->log('Personel cekiliyor (category=employees)...');
-        $items = $this->fetchCategory('employees');
-        if (empty($items)) { $this->log('Personel bulunamadi.'); return; }
-        foreach ($items as $row) {
-            $ad = $this->pick($row, ['name', 'fullName', 'ad_soyad']);
-            if (!$ad) {
-                $ad = trim($this->pick($row, ['firstName','first_name','ad'], '') . ' ' . $this->pick($row, ['lastName','last_name','soyad'], ''));
-            }
-            if (!$ad) continue;
-            $planlaId = $this->pick($row, ['id', '_id', 'uuid']);
-            $p = Personeller::where('personel_adi', $ad)->where('salon_id', $this->salonId)->first();
-            if (!$p) {
-                $p = new Personeller();
-                $p->personel_adi = $ad;
-                $p->salon_id = $this->salonId;
-                $p->aktif = 1;
-                $p->save();
-            }
-            if ($planlaId) $this->personelMap[$planlaId] = $p->id;
-        }
-        $this->log('Personel aktarim: ' . count($this->personelMap));
-    }
-
     public function summary()
     {
         return $this->counts;
     }
 
-    // ---- Fetch katmani -------------------------------------------------
-
-    /**
-     * Planla connect-api'den bir kategori okur. Cevap:
-     *   {success:true, data:[{...}, ...], unchanged:bool, lastUpdated:...}
-     */
-    private function fetchCategory($category, array $dataPayload = [])
+    private function fetchCategory($category)
     {
-        $resp = $this->client->connectApi($category, $dataPayload, [
+        $resp = $this->client->connectApi($category, [], [
             'category' => $category,
             'event'    => 'read',
         ]);
@@ -92,8 +64,9 @@ class PlanlaImporter
             $this->log("  category={$category} -> JSON donmedi");
             return [];
         }
-        if (isset($resp['data']) && is_array($resp['data']) && isset($resp['data'][0])) {
-            $this->log("  category={$category} -> " . count($resp['data']) . ' kayit');
+        if (isset($resp['data']) && is_array($resp['data']) && (isset($resp['data'][0]) || empty($resp['data']))) {
+            $cnt = count($resp['data']);
+            $this->log("  category={$category} -> {$cnt} kayit");
             return $resp['data'];
         }
         if (isset($resp['meta']['error']) || isset($resp['error'])) {
@@ -103,24 +76,28 @@ class PlanlaImporter
         return [];
     }
 
-    private function pick(array $row, array $keys, $default = null)
+    // ---- Personel ------------------------------------------------------
+
+    public function importPersoneller()
     {
-        foreach ($keys as $k) {
-            if (array_key_exists($k, $row) && $row[$k] !== null && $row[$k] !== '') {
-                return $row[$k];
+        $this->log('Personel cekiliyor (category=employees)...');
+        $items = $this->fetchCategory('employees');
+        foreach ($items as $row) {
+            $planlaId = isset($row['_id']) ? $row['_id'] : null;
+            $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
+            if (!$ad) continue;
+            $p = Personeller::where('personel_adi', $ad)->where('salon_id', $this->salonId)->first();
+            if (!$p) {
+                $p = new Personeller();
+                $p->personel_adi = $ad;
+                $p->salon_id = $this->salonId;
+                $p->aktif = 1;
+                $p->save();
             }
-            // nested dotted
-            if (strpos($k, '.') !== false) {
-                $parts = explode('.', $k);
-                $v = $row;
-                foreach ($parts as $p) {
-                    if (is_array($v) && array_key_exists($p, $v)) { $v = $v[$p]; }
-                    else { $v = null; break; }
-                }
-                if ($v !== null && $v !== '') return $v;
-            }
+            if ($planlaId) $this->personelMap[$planlaId] = $p->id;
+            $this->counts['personel']++;
         }
-        return $default;
+        $this->log('Personel aktarim: ' . $this->counts['personel']);
     }
 
     // ---- Hizmetler -----------------------------------------------------
@@ -129,28 +106,26 @@ class PlanlaImporter
     {
         $this->log('Hizmetler cekiliyor (category=services)...');
         $items = $this->fetchCategory('services');
-        if (empty($items)) {
-            $this->log('Hizmet bulunamadi (endpoint dogru degil olabilir).');
-            return;
-        }
+        $kategoriId = $this->defaultKategoriId();
 
         foreach ($items as $row) {
-            $name = $this->pick($row, ['hizmet_adi', 'ad', 'name', 'title', 'service_name']);
-            if (!$name) continue;
-            $kategoriAdi = $this->pick($row, ['kategori.ad', 'kategori_adi', 'category.name', 'category_name', 'category'], 'Genel');
-            $sure = (int) $this->pick($row, ['sure_dk', 'sure', 'duration', 'minutes', 'duration_minutes'], 30);
-            $fiyat = (float) $this->pick($row, ['fiyat', 'price', 'amount'], 0);
-            $planlaId = $this->pick($row, ['id', 'uuid']);
+            $planlaId = isset($row['_id']) ? $row['_id'] : null;
+            $title = isset($row['title']) ? trim($row['title']) : '';
+            if (!$title) continue;
+            $sure = (int) (isset($row['time']) ? $row['time'] : 30);
+            if ($sure <= 0) $sure = 30;
+            $fiyat = 0;
+            if (isset($row['price']) && $row['price'] !== '') {
+                $fiyat = (float) preg_replace('/[^0-9.]/', '', str_replace(',', '.', (string) $row['price']));
+            }
 
-            $kategoriId = $this->kategoriEkleVeyaGetir($kategoriAdi);
-
-            $hizmet = Hizmetler::where('hizmet_adi', $name)->where('hizmet_kategori_id', $kategoriId)->first();
+            $hizmet = Hizmetler::where('hizmet_adi', $title)->where('hizmet_kategori_id', $kategoriId)->first();
             if (!$hizmet) {
                 $hizmet = new Hizmetler();
-                $hizmet->hizmet_adi = $name;
+                $hizmet->hizmet_adi = $title;
                 $hizmet->hizmet_kategori_id = $kategoriId;
                 $hizmet->ozel_hizmet = true;
-                if (\Schema::hasColumn('hizmetler', 'salon_id')) {
+                if (Schema::hasColumn('hizmetler', 'salon_id')) {
                     $hizmet->salon_id = $this->salonId;
                 }
                 $hizmet->save();
@@ -176,15 +151,18 @@ class PlanlaImporter
         $this->log('Hizmet aktarim: ' . $this->counts['hizmet']);
     }
 
-    private function kategoriEkleVeyaGetir($ad)
+    private function defaultKategoriId()
     {
+        if ($this->defaultKategoriId) return $this->defaultKategoriId;
+        $ad = 'Planla';
         $k = Hizmet_Kategorisi::where('hizmet_kategorisi_adi', $ad)->first();
         if (!$k) {
             $k = new Hizmet_Kategorisi();
             $k->hizmet_kategorisi_adi = $ad;
             $k->save();
         }
-        return $k->id;
+        $this->defaultKategoriId = $k->id;
+        return $this->defaultKategoriId;
     }
 
     private function ensureKategoriRenk($kategoriId)
@@ -209,25 +187,14 @@ class PlanlaImporter
     {
         $this->log('Musteriler cekiliyor (category=customers)...');
         $items = $this->fetchCategory('customers');
-        if (empty($items)) {
-            $this->log('Musteri bulunamadi.');
-            return;
-        }
-
         foreach ($items as $row) {
-            $ad   = $this->pick($row, ['ad_soyad', 'name', 'full_name', 'isim_soyisim']);
-            if (!$ad) {
-                $ad = trim($this->pick($row, ['ad', 'first_name'], '') . ' ' . $this->pick($row, ['soyad', 'last_name'], ''));
-            }
-            if (!$ad) continue;
-            $tel = $this->pick($row, ['cep_telefon', 'phone', 'mobile', 'telefon', 'gsm']);
-            $tel = $this->telefonNormalize($tel);
-            $email = $this->pick($row, ['email', 'eposta', 'mail']);
-            $cinsiyet = $this->cinsiyetMap($this->pick($row, ['cinsiyet', 'gender']));
-            $dogum = $this->pick($row, ['dogum_tarihi', 'birthdate', 'dob', 'birth_date']);
-            $tc = $this->pick($row, ['tc_kimlik_no', 'tc', 'tckn', 'identity']);
-            $not = $this->pick($row, ['aciklama', 'not', 'notes', 'description']);
-            $planlaId = $this->pick($row, ['id', 'uuid']);
+            $planlaId = isset($row['_id']) ? $row['_id'] : null;
+            $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
+            if (!$ad) { $this->counts['skipped']++; continue; }
+            $tel = $this->telefonNormalize(isset($row['phone']) ? $row['phone'] : null);
+            $email = !empty($row['email']) ? trim($row['email']) : null;
+            $notes = !empty($row['notes']) ? trim($row['notes']) : null;
+            $created = !empty($row['createdAt']) ? date('Y-m-d H:i:s', (int) $row['createdAt']) : date('Y-m-d H:i:s');
 
             $user = null;
             if ($tel) {
@@ -241,11 +208,9 @@ class PlanlaImporter
                 $user->name = $ad;
                 $user->cep_telefon = $tel;
                 if ($email) $user->email = $email;
-                if ($cinsiyet !== null) $user->cinsiyet = $cinsiyet;
-                if ($tc) $user->tc_kimlik_no = $tc;
-                if ($dogum) $user->dogum_tarihi = $this->tarihNormalize($dogum);
-                $user->ozel_notlar = $not;
+                $user->ozel_notlar = $notes;
                 $user->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                $user->created_at = $created;
                 $user->save();
             }
 
@@ -255,7 +220,8 @@ class PlanlaImporter
                 $portfoy->user_id = $user->id;
                 $portfoy->salon_id = $this->salonId;
                 $portfoy->aktif = 1;
-                $portfoy->ozel_notlar = $not;
+                $portfoy->ozel_notlar = $notes;
+                $portfoy->created_at = $created;
                 $portfoy->save();
             }
 
@@ -265,29 +231,13 @@ class PlanlaImporter
         $this->log('Musteri aktarim: ' . $this->counts['musteri']);
     }
 
-    private function cinsiyetMap($v)
-    {
-        if ($v === null || $v === '') return null;
-        $v = mb_strtolower((string) $v);
-        if (in_array($v, ['kadin', 'kadın', 'k', 'female', 'f', '0'], true)) return 0;
-        if (in_array($v, ['erkek', 'e', 'male', 'm', '1'], true)) return 1;
-        return null;
-    }
-
     private function telefonNormalize($tel)
     {
         if (!$tel) return null;
-        $tel = preg_replace('/[^0-9]/', '', $tel);
+        $tel = preg_replace('/[^0-9]/', '', (string) $tel);
         $tel = preg_replace('/^90/', '', $tel);
         $tel = preg_replace('/^0/', '', $tel);
         return $tel ?: null;
-    }
-
-    private function tarihNormalize($t)
-    {
-        if (!$t) return null;
-        $ts = strtotime($t);
-        return $ts ? date('Y-m-d', $ts) : null;
     }
 
     // ---- Randevular ----------------------------------------------------
@@ -296,40 +246,36 @@ class PlanlaImporter
     {
         $this->log('Randevular cekiliyor (category=appointments)...');
         $items = $this->fetchCategory('appointments');
-        if (empty($items)) {
-            $this->log('Randevu bulunamadi.');
-            return;
-        }
 
+        // Eger hizmet/musteri/personel map'leri bos ve gerekli ise, oncesinde import'u yaptigimizdan emin olalim
+        if (empty($this->musteriMap)) $this->buildMusteriMap();
+        if (empty($this->hizmetMap))  $this->buildHizmetMap();
+        if (empty($this->personelMap)) $this->buildPersonelMap();
+
+        $i = 0;
         foreach ($items as $row) {
-            $tarih = $this->tarihNormalize($this->pick($row, ['tarih', 'date', 'start_date', 'appointment_date']));
-            $saat  = $this->pick($row, ['saat', 'time', 'start_time']);
-            if (!$saat) {
-                $start = $this->pick($row, ['start', 'start_at', 'start_datetime', 'begins_at']);
-                if ($start) {
-                    $ts = strtotime($start);
-                    if ($ts) {
-                        if (!$tarih) $tarih = date('Y-m-d', $ts);
-                        $saat = date('H:i:s', $ts);
-                    }
-                }
-            } else {
-                $saat = date('H:i:s', strtotime($saat));
-            }
-            if (!$tarih || !$saat) continue;
+            $i++;
+            $tarih = isset($row['appointmentDate']) ? $row['appointmentDate'] : null;
+            $saat  = isset($row['appointmentTime']) ? $row['appointmentTime'] : null;
+            if (!$tarih || !$saat) { $this->counts['skipped']++; continue; }
+            if (strlen($saat) === 5) $saat .= ':00';
 
-            $planlaMusteriId = $this->pick($row, ['musteri_id', 'customer_id', 'client_id', 'musteri.id', 'customer.id']);
-            $userId = isset($this->musteriMap[$planlaMusteriId]) ? $this->musteriMap[$planlaMusteriId] : null;
-            if (!$userId) {
-                $tel = $this->telefonNormalize($this->pick($row, ['musteri.cep_telefon', 'customer.phone', 'telefon', 'phone']));
-                if ($tel) {
-                    $u = User::where('cep_telefon', $tel)->first();
-                    if ($u) $userId = $u->id;
-                }
-            }
-            if (!$userId) continue;
+            $customerIds = isset($row['customer']) && is_array($row['customer']) ? $row['customer'] : [];
+            $serviceIds  = isset($row['service'])  && is_array($row['service'])  ? $row['service']  : [];
+            $employeeIds = isset($row['employee']) && is_array($row['employee']) ? $row['employee'] : [];
+            $status      = isset($row['status'])   && is_array($row['status'])   ? $row['status']   : [];
 
-            $planlaId = $this->pick($row, ['id', 'uuid']);
+            $planlaCustomerId = reset($customerIds) ?: null;
+            $userId = $planlaCustomerId && isset($this->musteriMap[$planlaCustomerId])
+                ? $this->musteriMap[$planlaCustomerId] : null;
+            if (!$userId) { $this->counts['skipped']++; continue; }
+
+            $personelId = null;
+            $planlaEmpId = reset($employeeIds) ?: null;
+            if ($planlaEmpId && isset($this->personelMap[$planlaEmpId])) {
+                $personelId = $this->personelMap[$planlaEmpId];
+            }
+
             $r = Randevular::where('tarih', $tarih)->where('saat', $saat)
                 ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
             if (!$r) $r = new Randevular();
@@ -339,47 +285,79 @@ class PlanlaImporter
             $r->salon_id = $this->salonId;
             $r->durum = 1;
             $r->salon = 1;
-            $durumStr = (string) $this->pick($row, ['durum', 'status', 'state'], '');
-            if (stripos($durumStr, 'geldi') !== false || in_array(mb_strtolower($durumStr), ['completed', 'attended', 'done'])) {
+            if ($personelId) $r->olusturan_personel_id = $personelId;
+            $statusStr = strtolower(implode(',', $status));
+            if (strpos($statusStr, 'complet') !== false || strpos($statusStr, 'done') !== false) {
                 $r->randevuya_geldi = 1;
-            } elseif (stripos($durumStr, 'gelmedi') !== false || in_array(mb_strtolower($durumStr), ['no-show', 'no_show', 'missed'])) {
+            } elseif (strpos($statusStr, 'cancel') !== false || strpos($statusStr, 'no') !== false || strpos($statusStr, 'absent') !== false) {
                 $r->randevuya_geldi = 0;
             }
+            if (!empty($row['notes'])) $r->personel_notu = $row['notes'];
+            if (!empty($row['createdAt'])) $r->created_at = date('Y-m-d H:i:s', (int) $row['createdAt']);
             $r->save();
 
-            $hizmetlerArr = $this->pick($row, ['hizmetler', 'services', 'items'], []);
-            if (!is_array($hizmetlerArr)) $hizmetlerArr = [];
+            // Hizmetleri randevuya ekle
             $baslangic = $saat;
-            foreach ($hizmetlerArr as $h) {
-                $hId = null;
-                $pHId = $this->pick(is_array($h) ? $h : [], ['hizmet_id', 'service_id', 'hizmet.id', 'service.id', 'id']);
-                if ($pHId && isset($this->hizmetMap[$pHId])) $hId = $this->hizmetMap[$pHId];
-                if (!$hId) {
-                    $hName = $this->pick(is_array($h) ? $h : [], ['hizmet_adi', 'name', 'hizmet.ad', 'service.name']);
-                    if ($hName) {
-                        $hz = Hizmetler::where('hizmet_adi', $hName)->first();
-                        if ($hz) $hId = $hz->id;
-                    }
-                }
-                if (!$hId) continue;
-                $sure = (int) $this->pick(is_array($h) ? $h : [], ['sure_dk', 'duration', 'minutes'], 30);
+            foreach ($serviceIds as $sid) {
+                if (!isset($this->hizmetMap[$sid])) continue;
+                $localHizmetId = $this->hizmetMap[$sid];
+                $sh = SalonHizmetler::where('salon_id', $this->salonId)->where('hizmet_id', $localHizmetId)->first();
+                $sure = $sh ? (int) $sh->sure_dk : 30;
+                if ($sure <= 0) $sure = 30;
                 $bitis = date('H:i:s', strtotime('+' . $sure . ' minutes', strtotime($baslangic)));
 
-                $rh = RandevuHizmetler::where('randevu_id', $r->id)->where('hizmet_id', $hId)->first();
+                $rh = RandevuHizmetler::where('randevu_id', $r->id)->where('hizmet_id', $localHizmetId)->first();
                 if (!$rh) $rh = new RandevuHizmetler();
                 $rh->randevu_id = $r->id;
-                $rh->hizmet_id = $hId;
+                $rh->hizmet_id = $localHizmetId;
                 $rh->saat = $baslangic;
                 $rh->saat_bitis = $bitis;
                 $rh->sure_dk = $sure;
+                if ($personelId) $rh->personel_id = $personelId;
                 $rh->save();
                 $baslangic = $bitis;
             }
-
-            if ($planlaId) { /* map tutmuyoruz randevu icin */ }
             $this->counts['randevu']++;
+            if ($i % 500 === 0) $this->log("  ..{$i} randevu islendi");
         }
         $this->log('Randevu aktarim: ' . $this->counts['randevu']);
+    }
+
+    // ---- Haritalari disardan yeniden kur (command ayri ayri tip secerse) ----
+
+    private function buildMusteriMap()
+    {
+        // Bu calisma yeniden-calistirma senaryolarinda lazim.
+        // Planla _id -> local user_id: Planla'dan tekrar cek, telefon match'le DB'dekini bul.
+        foreach ($this->fetchCategory('customers') as $row) {
+            $planlaId = isset($row['_id']) ? $row['_id'] : null;
+            $tel = $this->telefonNormalize(isset($row['phone']) ? $row['phone'] : null);
+            if (!$planlaId || !$tel) continue;
+            $u = User::where('cep_telefon', $tel)->first();
+            if ($u) $this->musteriMap[$planlaId] = $u->id;
+        }
+    }
+
+    private function buildHizmetMap()
+    {
+        foreach ($this->fetchCategory('services') as $row) {
+            $planlaId = isset($row['_id']) ? $row['_id'] : null;
+            $title = isset($row['title']) ? trim($row['title']) : '';
+            if (!$planlaId || !$title) continue;
+            $h = Hizmetler::where('hizmet_adi', $title)->first();
+            if ($h) $this->hizmetMap[$planlaId] = $h->id;
+        }
+    }
+
+    private function buildPersonelMap()
+    {
+        foreach ($this->fetchCategory('employees') as $row) {
+            $planlaId = isset($row['_id']) ? $row['_id'] : null;
+            $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
+            if (!$planlaId || !$ad) continue;
+            $p = Personeller::where('personel_adi', $ad)->where('salon_id', $this->salonId)->first();
+            if ($p) $this->personelMap[$planlaId] = $p->id;
+        }
     }
 
     private function log($msg)
