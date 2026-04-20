@@ -327,7 +327,7 @@
             <!-- Modal Footer -->
             <div class="modal-footer" style="padding: 8px 16px;">
                 @if(!Auth::guard('isletmeyonetim')->user()->hasRole('Personel') && !Auth::guard('isletmeyonetim')->user()->hasRole('Sosyal Medya Uzmanı'))
-                <button type="submit" form="saat_kapama" class="btn btn-warning btn-sm" id="saat-kapama-kaydet" style="padding: 5px 12px; font-size: 0.85rem;">
+                <button type="submit" form="saat_kapama" class="btn btn-warning btn-sm" id="saat-kapama-kaydet" style="padding: 5px 12px; font-size: 0.85rem; display:none;">
                     <i class="icon-copy fa fa-save"></i> Saat Kapama Kaydet
                 </button>
                 @endif
@@ -2065,6 +2065,8 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         setTimeout(() => {
             initSelect2();
             updateRandevuOzeti();
+            // Tab durumuna gore butonlari guncelle (varsayilan: Randevu tab -> kaydet gizli)
+            if (typeof updateFooterButtons === 'function') updateFooterButtons();
         }, 100);
     });
 
