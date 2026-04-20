@@ -16881,41 +16881,45 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     // Randevu duzenle modali icin: randevu + hizmetleri JSON formatinda doner (ekleme modal template'i ile uyumlu)
     public function randevuDuzenleJson(Request $request)
     {
-        $randevu_id = $request->randevu_id;
-        $isletmeid = self::mevcutsube($request);
+        try {
+            $randevu_id = $request->randevu_id;
+            if(!$randevu_id) return response()->json(['error' => 'randevu_id gerekli'], 400);
 
-        $randevu = Randevular::where('id', $randevu_id)->first();
-        if(!$randevu) return response()->json(['error' => 'Randevu bulunamadı'], 404);
+            $randevu = Randevular::where('id', $randevu_id)->first();
+            if(!$randevu) return response()->json(['error' => 'Randevu bulunamadı'], 404);
 
-        $hizmetler = RandevuHizmetler::where('randevu_id', $randevu_id)->get()->map(function($rh){
-            return [
-                'randevu_hizmet_id' => $rh->id,
-                'hizmet_id' => $rh->hizmet_id,
-                'personel_id' => $rh->personel_id,
-                'cihaz_id' => $rh->cihaz_id,
-                'oda_id' => $rh->oda_id,
-                'saat' => $rh->saat,
-                'sure_dk' => (int) $rh->sure_dk,
-                'fiyat' => (float) $rh->fiyat,
-            ];
-        })->values();
+            $hizmetler = RandevuHizmetler::where('randevu_id', $randevu_id)->get()->map(function($rh){
+                return [
+                    'randevu_hizmet_id' => $rh->id,
+                    'hizmet_id' => $rh->hizmet_id,
+                    'personel_id' => $rh->personel_id,
+                    'cihaz_id' => $rh->cihaz_id,
+                    'oda_id' => $rh->oda_id,
+                    'saat' => $rh->saat ?? null,
+                    'sure_dk' => (int) ($rh->sure_dk ?? 0),
+                    'fiyat' => (float) ($rh->fiyat ?? 0),
+                ];
+            })->values();
 
-        $musteri_adi = '';
-        if($randevu->musteri_id){
-            $musteri = \App\User::where('id', $randevu->musteri_id)->first();
-            if($musteri) $musteri_adi = $musteri->name;
+            $musteri_adi = '';
+            if($randevu->user_id){
+                $musteri = \App\User::where('id', $randevu->user_id)->first();
+                if($musteri) $musteri_adi = $musteri->name;
+            }
+
+            return response()->json([
+                'randevu_id' => $randevu->id,
+                'musteri_id' => $randevu->user_id,
+                'musteri_adi' => $musteri_adi,
+                'tarih' => $randevu->tarih,
+                'saat' => $randevu->saat,
+                'personel_notu' => $randevu->personel_notu ?? '',
+                'sms_hatirlatma' => (bool) ($randevu->sms_hatirlatma ?? false),
+                'hizmetler' => $hizmetler,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Sunucu hatası: ' . $e->getMessage()], 500);
         }
-
-        return response()->json([
-            'randevu_id' => $randevu->id,
-            'musteri_id' => $randevu->musteri_id,
-            'musteri_adi' => $musteri_adi,
-            'tarih' => $randevu->tarih,
-            'saat' => $randevu->saat,
-            'personel_notu' => $randevu->notlar ?? '',
-            'sms_hatirlatma' => (bool) ($randevu->sms_hatirlatma ?? false),
-            'hizmetler' => $hizmetler,
-        ]);
     }
 
     // Randevu modali icin: tum hizmetler + personel/cihaz eslemeleri (tek AJAX)

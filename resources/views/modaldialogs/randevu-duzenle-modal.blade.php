@@ -181,7 +181,8 @@
 #randevu-duzenle-modal .form-control { border: 1px solid #d1d5db; border-radius: 6px; }
 #randevu-duzenle-modal .form-control:focus { border-color:#6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
 
-/* Tom Select (duzenle-hizmet-select) stilleri */
+/* Tom Select stilleri — ekleme modali ile birebir ayni */
+#randevu-duzenle-modal .ts-wrapper { min-height: 40px; }
 #randevu-duzenle-modal .ts-wrapper.multi .ts-control {
     min-height: 40px !important;
     padding: 4px 8px !important;
@@ -191,9 +192,46 @@
     flex-wrap: wrap !important;
 }
 #randevu-duzenle-modal .ts-wrapper.focus .ts-control { border-color:#6366f1 !important; box-shadow:0 0 0 3px rgba(99,102,241,0.15) !important; }
-#randevu-duzenle-modal .ts-wrapper.multi .ts-control > .item { background:#eef2ff !important; color:#4338ca !important; border:1px solid #c7d2fe !important; border-radius:6px !important; padding:3px 26px 3px 10px !important; margin:2px 3px 2px 0 !important; font-size:0.78rem !important; }
-#randevu-duzenle-modal .ts-wrapper.plugin-remove_button .item .remove { color:#6366f1 !important; padding:0 6px !important; font-weight:700 !important; }
+#randevu-duzenle-modal .ts-wrapper.multi .ts-control > .item { background:#eef2ff !important; color:#4338ca !important; border:1px solid #c7d2fe !important; border-radius:6px !important; padding:3px 26px 3px 10px !important; margin:2px 3px 2px 0 !important; font-size:0.78rem !important; position:relative; }
+#randevu-duzenle-modal .ts-wrapper.plugin-remove_button .item .remove { color:#6366f1 !important; border-left:none !important; padding:0 6px !important; line-height:1 !important; font-weight:700 !important; }
 #randevu-duzenle-modal .ts-wrapper.plugin-remove_button .item .remove:hover { background:#6366f1 !important; color:#fff !important; border-radius:0 4px 4px 0 !important; }
+.ts-dropdown, .ts-dropdown-content { background:#fff !important; }
+#randevu-duzenle-modal .ts-dropdown {
+    background:#fff !important;
+    border:2px solid #e5e7eb !important;
+    border-radius:8px !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
+    margin-top:4px;
+    z-index: 100000;
+    opacity:1 !important;
+}
+#randevu-duzenle-modal .ts-dropdown .active { background:#6366f1 !important; color:#fff !important; }
+#randevu-duzenle-modal .ts-dropdown .option { padding:8px 12px !important; background:#fff !important; }
+#randevu-duzenle-modal .ts-dropdown .option:hover { background:#f3f4f6 !important; }
+#randevu-duzenle-modal .ts-wrapper.disabled .ts-control { background:#f9fafb !important; opacity:0.7; }
+
+/* Hizmet satiri görsel (ekleme modali ile ayni) */
+#randevu-duzenle-modal .hizmet-satiri-duzenle {
+    background: #fff;
+}
+#randevu-duzenle-modal .hizmet-satiri-duzenle .card-header {
+    background-color: #f8f9fa !important;
+}
+
+/* Select2 opsiyonel select'ler - ekleme modali ile ayni */
+#randevu-duzenle-modal .select2-container--default .select2-selection--single {
+    height: 30px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+}
+#randevu-duzenle-modal .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 28px !important;
+    padding-left: 10px !important;
+    font-size: 0.8rem !important;
+}
+#randevu-duzenle-modal .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 28px !important;
+}
 </style>
 
 <script>
@@ -416,10 +454,21 @@
                     }, 100);
                 }
             },
-            error: function(){
-                $('#randevu-duzenle-ozeti').html('<div class="text-danger text-center py-3">Randevu bilgisi alınamadı</div>');
+            error: function(xhr){
+                console.error('Randevu duzenle JSON hatasi:', xhr.status, xhr.responseText);
+                $('#randevu-duzenle-ozeti').html('<div class="text-danger text-center py-3">Randevu bilgisi alınamadı<br><small>' + (xhr.responseText || 'HTTP ' + xhr.status) + '</small></div>');
             }
         });
+    });
+
+    // Guvenceli fallback: eger 3 saniye icinde ozet dolmazsa boş state goster
+    $('#randevu-duzenle-modal').on('shown.bs.modal', function(){
+        setTimeout(function(){
+            var $oz = $('#randevu-duzenle-ozeti');
+            if($oz.find('p.fw-bold').text() === 'Yükleniyor...'){
+                duzenleUpdateOzeti();
+            }
+        }, 3000);
     });
 })();
 </script>
