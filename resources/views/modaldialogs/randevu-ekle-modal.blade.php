@@ -2121,13 +2121,18 @@ function updateHizmetDetaylari(index) {
     const selectElement = $(`.hizmet-select[data-index="${index}"]`);
     const selectedServices = getHizmetSecimi(selectElement);
     const container = $(`#hizmet-detaylari-${index}`);
-    
+
     container.empty();
-    
-    const validServices = selectedServices.filter(service => 
-        service && service.id && service.text && service.text.trim() !== ''
-    );
-    
+
+    // Sadece id'si olan secimleri al (text bossa cache'ten al)
+    const validServices = selectedServices
+        .filter(service => service && service.id)
+        .map(function(service){
+            var cached = hizmetDataCache[service.id];
+            var text = (service.text && String(service.text).trim()) || (cached ? cached.text : '') || String(service.id);
+            return Object.assign({}, service, { text: text });
+        });
+
     validServices.forEach((service, serviceIndex) => {
         const cachedData = hizmetDataCache[service.id] || service;
         const sure = cachedData.sure || 0;
@@ -2135,9 +2140,6 @@ function updateHizmetDetaylari(index) {
         const renk = cachedData.renk || '#007bff';
         const serviceText = cachedData.text || service.text || '';
         const checkboxDisabled = serviceIndex === 0 ? 'disabled' : '';
-        if (!serviceText.trim()) {
-            return;
-        }
         
         const hizmetDetayHtml = `
             <div class="hizmet-detay-item">
