@@ -385,12 +385,24 @@
     color: #fff !important;
     border-radius: 0 4px 4px 0 !important;
 }
+/* Global: tum Tom Select dropdown'lar icin beyaz arka plan */
+.ts-dropdown, .ts-dropdown-content {
+    background: #ffffff !important;
+}
 #modal-view-event-add .ts-dropdown {
+    background: #ffffff !important;
     border: 2px solid #e5e7eb !important;
     border-radius: 8px !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
     margin-top: 4px;
     z-index: 100000;
+    opacity: 1 !important;
+}
+#modal-view-event-add .ts-dropdown .option {
+    background: #ffffff !important;
+}
+#modal-view-event-add .ts-dropdown .option:hover {
+    background: #f3f4f6 !important;
 }
 #modal-view-event-add .ts-dropdown .active {
     background: #6366f1 !important;
