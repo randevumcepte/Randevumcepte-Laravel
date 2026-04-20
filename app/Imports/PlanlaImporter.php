@@ -140,7 +140,7 @@ class PlanlaImporter
     {
         $this->log('Hizmetler cekiliyor...');
         $items = $this->fetchPaginated([
-            '/api/hizmetler', '/api/services', '/api/v1/hizmetler', '/api/v1/services',
+            '/services',
         ]);
         if (empty($items)) {
             $this->log('Hizmet bulunamadi (endpoint dogru degil olabilir).');
@@ -222,8 +222,7 @@ class PlanlaImporter
     {
         $this->log('Musteriler cekiliyor...');
         $items = $this->fetchPaginated([
-            '/api/musteriler', '/api/customers', '/api/clients',
-            '/api/v1/musteriler', '/api/v1/customers',
+            '/customers',
         ]);
         if (empty($items)) {
             $this->log('Musteri bulunamadi.');
@@ -311,9 +310,10 @@ class PlanlaImporter
     public function importRandevular()
     {
         $this->log('Randevular cekiliyor...');
+        // Appointments/bookings SPA route'u net degil; sign-in sonrasi frontend'de /statistics
+        // veya /customers detayinda yukleniyor olabilir. Once common path'lari deneyelim.
         $items = $this->fetchPaginated([
-            '/api/randevular', '/api/appointments', '/api/bookings',
-            '/api/v1/randevular', '/api/v1/appointments',
+            '/appointments', '/bookings', '/schedules', '/calendar',
         ]);
         if (empty($items)) {
             $this->log('Randevu bulunamadi.');

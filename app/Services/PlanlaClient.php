@@ -283,31 +283,28 @@ class PlanlaClient
      */
     public function probe()
     {
+        // Planla.co SPA route'lari: ayni path'lere Accept:application/json ile JSON donebilir
         $pages = [
-            // JSON API candidates
-            '/api/musteriler', '/api/customers', '/api/clients', '/api/users',
-            '/api/v1/musteriler', '/api/v1/customers',
-            '/api/randevular', '/api/appointments', '/api/bookings',
-            '/api/v1/randevular', '/api/v1/appointments',
-            '/api/hizmetler', '/api/services',
-            '/api/v1/hizmetler', '/api/v1/services',
-            '/api/personeller', '/api/staff', '/api/employees',
-            '/api/v1/personeller',
-            '/api/settings', '/api/profile', '/api/account',
-            '/api/kategoriler', '/api/categories',
-            // SSR HTML candidates
-            '/musteriler', '/customers',
-            '/randevular', '/appointments',
-            '/hizmetler', '/services',
-            '/personeller', '/staff',
-            '/dashboard', '/panel', '/anasayfa',
+            '/customers', '/services', '/employees',
+            '/finances', '/packages', '/products', '/reviews',
+            '/statistics', '/payments', '/settings',
+            // Nested list denemeleri
+            '/customers/list', '/services/list', '/employees/list',
+            '/customers?limit=1', '/services?limit=1',
+            // Eski denemeler (dokumante icin)
+            '/api/customers', '/api/services', '/api/employees',
         ];
 
         $results = [];
         $i = 0;
+        $jsonHeaders = array_merge($this->authHeaders(), [
+            'Accept'           => 'application/json, text/plain, */*',
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Referer'          => self::BASE_ADMIN . '/customers',
+        ]);
         foreach ($pages as $p) {
             try {
-                $resp = $this->http->get($p, ['headers' => $this->authHeaders()]);
+                $resp = $this->http->get($p, ['headers' => $jsonHeaders]);
             } catch (RequestException $e) {
                 $results[$p] = 'EXC:' . $e->getMessage();
                 continue;
@@ -318,8 +315,9 @@ class PlanlaClient
             $len    = strlen($body);
             $slug   = "probe_{$this->slug($p)}_{$status}";
             $this->dump($slug, $body, $resp->getHeaders());
-            $results[$p] = "status={$status} len={$len} type={$ctype}";
-            if (++$i % 10 === 0) usleep(500000); // 10 istekte bir 0.5sn bekle (rate limit: 30/dk)
+            $isJson = stripos($ctype, 'json') !== false;
+            $results[$p] = "status={$status} len={$len} type={$ctype}" . ($isJson ? ' [JSON!]' : '');
+            if (++$i % 10 === 0) usleep(500000);
         }
         return $results;
     }
@@ -427,7 +425,11 @@ class PlanlaClient
     {
         try {
             $resp = $this->http->get($path, [
-                'headers' => array_merge($this->authHeaders(), ['Accept' => 'application/json']),
+                'headers' => array_merge($this->authHeaders(), [
+                    'Accept'           => 'application/json, text/plain, */*',
+                    'X-Requested-With' => 'XMLHttpRequest',
+                    'Referer'          => self::BASE_ADMIN . $path,
+                ]),
                 'query'   => $query,
             ]);
         } catch (RequestException $e) {
@@ -435,6 +437,8 @@ class PlanlaClient
             return null;
         }
         $body = (string) $resp->getBody();
+        $ctype = $resp->getHeaderLine('Content-Type');
+        if (stripos($ctype, 'json') === false) return null;
         $j = json_decode($body, true);
         return is_array($j) ? $j : null;
     }
