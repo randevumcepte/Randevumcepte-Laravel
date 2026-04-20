@@ -1519,9 +1519,23 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                 var idx = $sel.data('index');
                 updateHizmetDetaylari(idx);
                 updateRandevuOzeti();
+            },
+            onItemAdd: function(){
+                var idx = $sel.data('index');
+                updateHizmetDetaylari(idx);
+                updateRandevuOzeti();
+            },
+            onItemRemove: function(){
+                var idx = $sel.data('index');
+                updateHizmetDetaylari(idx);
+                updateRandevuOzeti();
             }
         });
         window.hizmetTomInstances[$sel.data('index')] = ts;
+        // Manuel native change tetikle (delegation listener'i da calsin)
+        ts.on('change', function(){
+            $sel.trigger('change');
+        });
         return ts;
     }
 
@@ -1585,6 +1599,16 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     // Tum hizmet-select'leri Tom Select ile baslat (takvim turune gore davran)
     function initHizmetSelect2() {
         var t = window.randevuTakvimTuru;
+
+        // Guvenceli native change delegation - Tom Select onChange tetiklenmese de calisir
+        $(document).off('change.hizmetDetay', '.hizmet-select')
+            .on('change.hizmetDetay', '.hizmet-select', function(){
+                var idx = $(this).data('index');
+                if(idx !== undefined && idx !== null){
+                    updateHizmetDetaylari(idx);
+                    updateRandevuOzeti();
+                }
+            });
 
         // Ilk kurulum: placeholder'li bos Tom Select
         $('.hizmet-select').each(function(){
