@@ -298,7 +298,7 @@
                 '</div></div>' +
                 '<div class="col-md-6 mb-1">' +
                   '<label class="form-label" style="font-size:0.8rem;">Hizmetler (Çoklu Seçim)</label>' +
-                  '<select name="randevuhizmetleriyeni" id="duzenlerandevuhizmetleriyeni_'+idx+'" multiple class="form-control duzenle-hizmet-select" data-index="'+idx+'" style="width:100%;font-size:0.8rem;min-height:30px;"><option></option></select>' +
+                  '<select name="randevuhizmetleriyeni[]" id="duzenlerandevuhizmetleriyeni_'+idx+'" multiple class="form-control duzenle-hizmet-select" data-index="'+idx+'" style="width:100%;font-size:0.8rem;min-height:30px;"><option></option></select>' +
                 '</div>' +
                 '<div class="col-12 mt-1 duzenle-hizmet-detaylari" id="duzenle-hizmet-detaylari-'+idx+'" style="font-size:0.8rem;"></div>' +
               '</div></div>' +

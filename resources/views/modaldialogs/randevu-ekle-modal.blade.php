@@ -148,7 +148,7 @@
                                                             <!-- Sağ kolon: Hizmet Seçimi -->
                                                             <div class="col-md-6 mb-1">
                                                                 <label class="form-label" style="font-size: 0.8rem;">Hizmetler (Çoklu Seçim)</label>
-                                                                <select name="randevuhizmetleriyeni" id="randevuhizmetleriyeni_0" multiple class="form-control hizmet-select" data-index="0" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
+                                                                <select name="randevuhizmetleriyeni[]" id="randevuhizmetleriyeni_0" multiple class="form-control hizmet-select" data-index="0" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                                                     <option></option>
                                                                 </select>
                                                             </div>
@@ -1743,7 +1743,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                         <!-- Sağ kolon: Hizmet Seçimi -->
                         <div class="col-md-6 mb-1">
                             <label class="form-label" style="font-size: 0.8rem;">Hizmetler (Çoklu Seçim)</label>
-                            <select name="randevuhizmetleriyeni" id="randevuhizmetleriyeni_${newIndex}" multiple class="form-control hizmet-select" data-index="${newIndex}" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
+                            <select name="randevuhizmetleriyeni[]" id="randevuhizmetleriyeni_${newIndex}" multiple class="form-control hizmet-select" data-index="${newIndex}" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                 <option></option>
                             </select>
                         </div>
