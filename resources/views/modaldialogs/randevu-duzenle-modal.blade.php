@@ -418,8 +418,14 @@
     // Modal acilisi - randevu ID window.duzenlenecekRandevuId veya #duzenlenecek_randevu_id'den
     $('#randevu-duzenle-modal').on('show.bs.modal', function(e){
         console.log('[DUZENLE] show.bs.modal tetiklendi');
+        // ONCE randevu ID'yi yakala (reset() hidden input'u da temizler!)
+        var randevuId = $('#duzenlenecek_randevu_id').val() || window.duzenlenecekRandevuId;
+        console.log('[DUZENLE] yakalanan randevu_id:', randevuId);
+
         // Form'u temizle
         $('#randevuduzenleform')[0].reset();
+        // Reset sonrasi hidden randevu_id'yi geri yaz
+        $('#duzenlenecek_randevu_id').val(randevuId);
         $('.hizmetler_bolumu_randevu_duzenleme').empty();
         window.duzenleHizmetIndex = 0;
         $('#randevu-duzenle-ozeti').html('<div class="text-center text-muted py-3"><p>Yükleniyor...</p></div>');
@@ -427,7 +433,6 @@
         // Hizmet verisi cache - kendi fetch'imizi kullan (ekleme modalina bagimli degil)
         duzenleFetchHizmetVerisi();
 
-        var randevuId = $('#duzenlenecek_randevu_id').val() || window.duzenlenecekRandevuId;
         if(!randevuId) return;
 
         // Randevu detayini cek
