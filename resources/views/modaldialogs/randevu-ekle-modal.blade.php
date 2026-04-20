@@ -2186,7 +2186,7 @@ function updateHizmetDetaylari(index) {
                         <label class="form-label small" style="font-size: 0.7rem;">Süre (dakika)</label>
                         <input type="number" 
                                class="form-control form-control-sm hizmet-suresi" 
-                               name="hizmet_sureleri-${service.id}" 
+                               name="hizmet_suresi[]" 
                                value="${sure}" 
                                min="0" 
                                step="5"
@@ -2196,7 +2196,7 @@ function updateHizmetDetaylari(index) {
                         <label class="form-label small" style="font-size: 0.7rem;">Fiyat (₺)</label>
                         <input type="number" 
                                class="form-control form-control-sm hizmet-fiyati" 
-                               name="hizmet_fiyatlari-${service.id}" 
+                               name="hizmet_fiyat[]" 
                                value="${fiyat}" 
                                min="0" 
                                step="0.01"

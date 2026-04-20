@@ -409,11 +409,11 @@
                   '<div class="row g-1">' +
                     '<div class="col-md-6">' +
                       '<label style="font-size:0.7rem;">Süre (dakika)</label>' +
-                      '<input type="number" class="form-control form-control-sm hizmet-suresi" name="hizmet_sureleri-'+id+'" value="'+sure+'" min="0" step="5" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
+                      '<input type="number" class="form-control form-control-sm hizmet-suresi" name="hizmet_suresi[]" value="'+sure+'" min="0" step="5" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
                     '</div>' +
                     '<div class="col-md-6">' +
                       '<label style="font-size:0.7rem;">Fiyat (₺)</label>' +
-                      '<input type="number" class="form-control form-control-sm hizmet-fiyati" name="hizmet_fiyatlari-'+id+'" value="'+fiyat+'" min="0" step="0.01" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
+                      '<input type="number" class="form-control form-control-sm hizmet-fiyati" name="hizmet_fiyat[]" value="'+fiyat+'" min="0" step="0.01" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
                     '</div>' +
                   '</div>' +
                 '</div>';
@@ -466,14 +466,14 @@
             var $hz = $row.find('.duzenle-hizmet-select');
             var ts = $hz[0] && $hz[0].tomselect;
             if(!ts) return;
-            ts.items.forEach(function(id){
+            var $sureInputs = $row.find('input.hizmet-suresi');
+            var $fiyatInputs = $row.find('input.hizmet-fiyati');
+            ts.items.forEach(function(id, i){
                 var opt = ts.options[id];
                 if(!opt) return;
-                // Detay input'lari varsa onlardan (kullanicinin degistirdigi deger)
-                var $sureInput = $row.find('input[name="hizmet_sureleri-'+id+'"]');
-                var $fiyatInput = $row.find('input[name="hizmet_fiyatlari-'+id+'"]');
-                var sure = $sureInput.length ? Number($sureInput.val()) : Number(opt.sure || 0);
-                var fiyat = $fiyatInput.length ? Number($fiyatInput.val()) : Number(opt.fiyat || 0);
+                // Detay input'lari varsa onlardan (kullanicinin degistirdigi deger), siradaki input
+                var sure = $sureInputs.eq(i).length ? Number($sureInputs.eq(i).val()) : Number(opt.sure || 0);
+                var fiyat = $fiyatInputs.eq(i).length ? Number($fiyatInputs.eq(i).val()) : Number(opt.fiyat || 0);
                 toplamSure += sure;
                 toplamFiyat += fiyat;
                 hizmetSayisi++;
@@ -561,10 +561,13 @@
                                 ts.addItem(String(h.hizmet_id), false); // false=event fire et -> onChange -> detay render
                                 // Randevudan gelen gercek sure/fiyat degerlerini detay input'larina yaz
                                 setTimeout(function(){
-                                    var $sInp = $row.find('input[name="hizmet_sureleri-'+h.hizmet_id+'"]');
-                                    var $fInp = $row.find('input[name="hizmet_fiyatlari-'+h.hizmet_id+'"]');
-                                    if($sInp.length && h.sure_dk) $sInp.val(h.sure_dk);
-                                    if($fInp.length && h.fiyat) $fInp.val(h.fiyat);
+                                    // Son eklenen sure/fiyat input'u (bu hizmet icin render edilen)
+                                    var $sureInputs = $row.find('input.hizmet-suresi');
+                                    var $fiyatInputs = $row.find('input.hizmet-fiyati');
+                                    var $lastSure = $sureInputs.last();
+                                    var $lastFiyat = $fiyatInputs.last();
+                                    if($lastSure.length && h.sure_dk) $lastSure.val(h.sure_dk);
+                                    if($lastFiyat.length && h.fiyat) $lastFiyat.val(h.fiyat);
                                 }, 50);
                             }
                         }, 100);
