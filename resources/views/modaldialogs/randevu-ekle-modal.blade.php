@@ -1435,7 +1435,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         // Personel veya cihaz secildiginde: ayni satirdaki hizmet select'ini doldur
         $(document).off('change.hizmetLoad', 'select[name="randevupersonelleriyeni[]"], select[name^="randevucihazlariyeni"]')
             .on('change.hizmetLoad', 'select[name="randevupersonelleriyeni[]"], select[name^="randevucihazlariyeni"]', function(){
-                var $row = $(this).closest('.row');
+                var $row = $(this).closest('.hizmet-satiri');
                 var personelId = $row.find('select[name="randevupersonelleriyeni[]"]').val() || '';
                 var cihazId = $row.find('select[name^="randevucihazlariyeni"]').val() || '';
                 var $hizmet = $row.find('.hizmet-select');
