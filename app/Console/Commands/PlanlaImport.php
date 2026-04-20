@@ -13,6 +13,7 @@ class PlanlaImport extends Command
         {--password= : Planla.co sifresi}
         {--salon= : Hedef salon_id (randevumcepte tarafinda)}
         {--probe : Sadece login + endpoint kesif; veri yazmaz}
+        {--probe-api : Login + POST /connect-api action varyantlarini tara}
         {--analyze : Login olmadan Site.js bundle\'ini indirip icinden endpoint ve payload cikarir}
         {--only= : Sadece bu tip(ler)i al (virgulle: musteri,hizmet,randevu)}';
 
@@ -24,6 +25,7 @@ class PlanlaImport extends Command
         $password = $this->option('password');
         $salonId  = $this->option('salon');
         $probe    = (bool) $this->option('probe');
+        $probeApi = (bool) $this->option('probe-api');
         $analyze  = (bool) $this->option('analyze');
         $only     = $this->option('only');
 
@@ -100,7 +102,17 @@ class PlanlaImport extends Command
             foreach ($results as $p => $r) {
                 $this->line(str_pad($p, 40) . ' -> ' . $r);
             }
-            $this->info('Probe tamam. Dump dizinindeki *.body dosyalarini inceleyin, data donen endpoint\'leri bildirin; importer mapping i ona gore bitirilecek.');
+            $this->info('Probe tamam.');
+            return 0;
+        }
+
+        if ($probeApi) {
+            $this->info('POST /connect-api action varyantlari taraniyor...');
+            $results = $client->probeConnectApi();
+            foreach ($results as $a => $r) {
+                $this->line(str_pad($a, 30) . ' -> ' . $r);
+            }
+            $this->info('connect-api probe tamam. "OK" isaretli action\'lar gercek endpoint. Dump dizinindeki connect_*.body dosyalarindan JSON yapisini inceleyebilirsiniz.');
             return 0;
         }
 

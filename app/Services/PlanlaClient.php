@@ -532,6 +532,98 @@ class PlanlaClient
         return $body;
     }
 
+    /**
+     * Planla.co'nun tek data endpoint'i: POST /connect-api
+     * Body yapisi: {meta: {version:"1", action:"..."}, data: {...}}
+     * Cevap: {meta:{...}, data:{...}} veya hata.
+     *
+     * @param string $action Action adi (readCustomers, readServices, ...)
+     * @param array  $data   Payload (opsiyonel)
+     * @param array  $meta   Ek meta alanlari
+     * @return array|null    JSON decode edilmis cevap veya null
+     */
+    public function connectApi($action, array $data = [], array $meta = [])
+    {
+        $body = [
+            'meta' => array_merge(['version' => '1', 'action' => $action], $meta),
+            'data' => (object) $data,
+        ];
+        $headers = array_merge($this->authHeaders(), [
+            'Accept'           => 'application/json, text/plain, */*',
+            'Content-Type'     => 'application/json',
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Referer'          => self::BASE_ADMIN . '/',
+            'Origin'           => self::BASE_ADMIN,
+        ]);
+        try {
+            $resp = $this->http->post('/connect-api', [
+                'headers' => $headers,
+                'body'    => json_encode($body, JSON_UNESCAPED_UNICODE),
+            ]);
+        } catch (RequestException $e) {
+            Log::warning('connectApi exception: ' . $e->getMessage());
+            return null;
+        }
+        $status = $resp->getStatusCode();
+        $respBody = (string) $resp->getBody();
+        $ctype = $resp->getHeaderLine('Content-Type');
+        $this->dump('connect_' . $action . '_' . $status, $respBody, $resp->getHeaders());
+        if (stripos($ctype, 'json') === false) return null;
+        $j = json_decode($respBody, true);
+        return is_array($j) ? $j : null;
+    }
+
+    /**
+     * Muhtemel action isimlerini dener, hangilerinin data dondurdugunu raporlar.
+     */
+    public function probeConnectApi(array $actions = null)
+    {
+        if ($actions === null) {
+            $actions = [
+                // Read actions (okuma)
+                'readCustomers', 'readServices', 'readAppointments', 'readEmployees',
+                'readPackages', 'readProducts', 'readReviews', 'readStatistics',
+                'readSettings', 'readFinances', 'readAccount', 'readBusiness',
+                'readCategories', 'readStaff', 'readClients', 'readBookings',
+                'readCustomerList', 'readAppointmentList', 'readServiceList',
+                'listCustomers', 'listServices', 'listAppointments', 'listEmployees',
+                'getCustomers', 'getServices', 'getAppointments', 'getEmployees',
+                'readAllCustomers', 'readAllServices', 'readAllAppointments',
+                // Bulk/export variants
+                'exportCustomers', 'exportAppointments',
+                // Single-word
+                'customers', 'services', 'appointments', 'employees',
+            ];
+        }
+        $results = [];
+        $i = 0;
+        foreach ($actions as $a) {
+            $resp = $this->connectApi($a);
+            if ($resp === null) {
+                $results[$a] = 'no-json';
+            } elseif (isset($resp['meta']['error']) || isset($resp['error'])) {
+                $err = isset($resp['error']) ? $resp['error'] : $resp['meta']['error'];
+                if (is_array($err)) $err = json_encode($err);
+                $results[$a] = 'ERR: ' . substr($err, 0, 80);
+            } else {
+                $dataKeys = [];
+                if (isset($resp['data']) && is_array($resp['data'])) {
+                    $dataKeys = array_slice(array_keys($resp['data']), 0, 8);
+                }
+                $count = 0;
+                if (isset($resp['data']) && is_array($resp['data'])) {
+                    if (isset($resp['data'][0])) $count = count($resp['data']);
+                    elseif (isset($resp['data']['list']) && is_array($resp['data']['list'])) $count = count($resp['data']['list']);
+                    elseif (isset($resp['data']['data']) && is_array($resp['data']['data'])) $count = count($resp['data']['data']);
+                    elseif (isset($resp['data']['items']) && is_array($resp['data']['items'])) $count = count($resp['data']['items']);
+                }
+                $results[$a] = 'OK keys=' . implode(',', $dataKeys) . ' count=' . $count;
+            }
+            if (++$i % 10 === 0) usleep(500000);
+        }
+        return $results;
+    }
+
     public function getJson($path, array $query = [])
     {
         try {
