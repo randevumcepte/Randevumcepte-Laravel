@@ -579,52 +579,33 @@ class PlanlaClient
     }
 
     /**
-     * Farkli meta sekil varyantlarini + category/action isimlerini dener.
-     * "Category couldn't found" hatasi gorulunce meta.category field'i zorunlu oldugu anlasildi.
+     * meta shape: {version, category, event} tespit edildi.
+     * category dogru ama event yoktu ("Event couldn't found" hatasi).
+     * Bu tarama category x event matrisini dener.
      */
-    public function probeConnectApi(array $actions = null)
+    public function probeConnectApi(array $categories = null, array $events = null)
     {
-        if ($actions === null) {
-            $actions = [
-                // read+ functional names
-                'readCustomers', 'readServices', 'readAppointments', 'readEmployees',
-                'readPackages', 'readProducts', 'readReviews', 'readStatistics',
-                'readSettings', 'readFinances', 'readAccount', 'readBusiness',
-                'readCategories',
-                // list+
-                'listCustomers', 'listServices', 'listAppointments', 'listEmployees',
-                // single-word (category only)
+        if ($categories === null) {
+            $categories = [
                 'customers', 'services', 'appointments', 'employees',
                 'packages', 'products', 'reviews', 'statistics', 'settings',
-                'finances', 'account', 'business', 'categories',
-                // capitalized
-                'Customers', 'Services', 'Appointments', 'Employees',
+                'finances', 'account', 'categories',
             ];
         }
-        // Meta shape varyantlari
-        $shapes = [
-            'cat-only'      => function ($a) { return ['category' => $a]; },
-            'cat+read'      => function ($a) { return ['category' => $a, 'action' => 'read']; },
-            'cat+list'      => function ($a) { return ['category' => $a, 'action' => 'list']; },
-            'cat+method'    => function ($a) { return ['category' => $a, 'method' => 'read']; },
-            'cat-act-split' => function ($a) {
-                // readCustomers -> category=customers, action=read
-                if (preg_match('/^([a-z]+)([A-Z][a-zA-Z]+)$/', $a, $m)) {
-                    return ['category' => lcfirst($m[2]), 'action' => $m[1]];
-                }
-                return null;
-            },
-        ];
-
+        if ($events === null) {
+            $events = [
+                'read', 'list', 'all', 'getAll', 'readAll', 'fetchAll',
+                'find', 'search', 'index', 'get',
+                'readList', 'getList', 'listAll',
+            ];
+        }
         $results = [];
         $i = 0;
-        foreach ($shapes as $sname => $sf) {
-            foreach ($actions as $a) {
-                $meta = $sf($a);
-                if ($meta === null) continue;
-                $metaFull = array_merge(['version' => '1'], $meta);
-                $resp = $this->connectApiRaw($metaFull, []);
-                $key = $sname . ':' . $a;
+        foreach ($categories as $cat) {
+            foreach ($events as $ev) {
+                $meta = ['version' => '1', 'category' => $cat, 'event' => $ev];
+                $resp = $this->connectApiRaw($meta, []);
+                $key = $cat . ':' . $ev;
                 if ($resp === null) {
                     $results[$key] = 'no-json';
                 } elseif (isset($resp['meta']['error']) || isset($resp['error']) || isset($resp['data']['error'])) {
@@ -632,18 +613,17 @@ class PlanlaClient
                          : (isset($resp['meta']['error']) ? $resp['meta']['error']
                          : $resp['data']['error']);
                     if (is_array($err)) $err = json_encode($err);
-                    $results[$key] = 'ERR: ' . substr($err, 0, 90);
+                    $results[$key] = 'ERR: ' . substr($err, 0, 100);
                 } else {
                     $topKeys = array_slice(array_keys($resp), 0, 6);
                     $dataKeys = [];
                     $count = 0;
-                    if (isset($resp['data'])) {
-                        if (is_array($resp['data'])) {
-                            $dataKeys = array_slice(array_keys($resp['data']), 0, 8);
-                            if (isset($resp['data'][0])) $count = count($resp['data']);
-                            elseif (isset($resp['data']['list']) && is_array($resp['data']['list'])) $count = count($resp['data']['list']);
-                            elseif (isset($resp['data']['items']) && is_array($resp['data']['items'])) $count = count($resp['data']['items']);
-                        }
+                    if (isset($resp['data']) && is_array($resp['data'])) {
+                        $dataKeys = array_slice(array_keys($resp['data']), 0, 10);
+                        if (isset($resp['data'][0])) $count = count($resp['data']);
+                        elseif (isset($resp['data']['list']) && is_array($resp['data']['list'])) $count = count($resp['data']['list']);
+                        elseif (isset($resp['data']['items']) && is_array($resp['data']['items'])) $count = count($resp['data']['items']);
+                        elseif (isset($resp['data']['data']) && is_array($resp['data']['data'])) $count = count($resp['data']['data']);
                     }
                     $results[$key] = 'OK top=[' . implode(',', $topKeys) . '] data.keys=[' . implode(',', $dataKeys) . '] count=' . $count;
                 }
