@@ -518,11 +518,15 @@
         if($hz.length) duzenleHizmetSelectOptionsYukle($hz, null, personelId, cihazId);
     });
 
-    // Yeni satir ekle butonu
-    $(document).on('click', '#bir_hizmet_daha_ekle_randevu_duzenleme', function(e){
+    // Yeni satir ekle butonu (custom.js'in eski handler'ini bypass et - capture phase)
+    document.addEventListener('click', function(e){
+        var target = e.target.closest && e.target.closest('#bir_hizmet_daha_ekle_randevu_duzenleme');
+        if(!target) return;
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         duzenleYeniHizmetSatiri();
-    });
+    }, true);
 
     // Satir sil
     $(document).on('click', '#randevu-duzenle-modal .duzenle-hizmet-sil', function(){
