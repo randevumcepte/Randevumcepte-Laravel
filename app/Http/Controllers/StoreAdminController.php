@@ -1548,21 +1548,21 @@ public function carkverilerigetir(Request $request)
         $aktif_personel_sayisi = Personeller::where('salon_id',$isletmeid_hy)->where('aktif',1)->count();
 
         // Sistemden eklenebilir hizmetler: 50-100 sorguyu 2 sorguya indir
+        // Sadece sistem havuzu hizmetleri (salon_id=null) + bu salonun kendi ozel hizmetleri
+        // Baska isletmelerin ozel hizmetleri LISTELENMEZ
         $aktif_hizmet_idleri = SalonHizmetler::where('salon_id',$isletmeid_hy)->where('aktif',true)->pluck('hizmet_id')->toArray();
         $eklenebilir_hizmetler = Hizmetler::where(function($q) use ($isletmeid_hy, $aktif_hizmet_idleri){
                 // Bu isletmenin ozel hizmetleri (aktif olmayanlar)
                 $q->where('ozel_hizmet', true)
                   ->where('salon_id', $isletmeid_hy)
                   ->whereNotIn('id', $aktif_hizmet_idleri);
-            })->orWhere(function($q) use ($isletmeid_hy, $aktif_hizmet_idleri){
-                // Sistem hizmetleri (salon_id null)
+            })->orWhere(function($q) use ($aktif_hizmet_idleri){
+                // Sistem havuzu hizmetleri (salon_id null, ozel_hizmet=false/null)
                 $q->whereNull('salon_id')
+                  ->where(function($q2){
+                      $q2->where('ozel_hizmet', false)->orWhereNull('ozel_hizmet');
+                  })
                   ->whereNotIn('id', $aktif_hizmet_idleri)
-                  ->where('id', '!=', 463);
-            })->orWhere(function($q) use ($isletmeid_hy){
-                // Baska isletmelere ait ozel hizmetler
-                $q->where('ozel_hizmet', true)
-                  ->where('salon_id', '!=', $isletmeid_hy)
                   ->where('id', '!=', 463);
             })
             ->select('id','hizmet_adi','hizmet_kategori_id')
