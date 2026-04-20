@@ -1772,21 +1772,39 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             window.randevuSecimleriniGuncelle();
         }
 
-        initSelect2();
+        // SADECE yeni satirdaki hizmet-select'i Tom Select ile init et (eski satirlarin secimleri kaybolmasin)
+        var $yeniSatir = $('.hizmet-satiri').last();
+        $yeniSatir.find('.hizmet-select').each(function(){
+            var $s = $(this);
+            var t = window.randevuTakvimTuru;
+            var ph = (t === 1) ? 'Önce personel seçin...' : (t === 2 ? 'Önce cihaz seçin...' : 'Hizmet seçin...');
+            tomDestroyHizmet($s);
+            $s.empty();
+            initHizmetTom($s, ph);
+            if(t === 0 || t === 3){
+                yukleHizmetler($s, { hepsi: 1 });
+            }
+        });
+        // Select2'leri sadece yeni satir icin init et
+        $yeniSatir.find('.opsiyonelSelect').each(function(){
+            try { $(this).select2({ placeholder: 'Seçiniz', allowClear: true }); } catch(e){}
+        });
+        $yeniSatir.find('.custom-select2').not('.hizmet-select').each(function(){
+            try { $(this).select2({ width: '100%' }); } catch(e){}
+        });
         $('.hizmet-sil[data-value="0"]').removeAttr('disabled');
         
         hizmetSatirSayisi++;
         updateRandevuOzeti();
         
-        // Yeni satir eklendiginde sayfayi oraya kaydir (container scroll kaldirildi, window scroll kullanilir)
+        // Yeni satir eklendiginde sayfayi oraya kaydir
         setTimeout(function() {
             var $last = $('.hizmet-satiri').last();
             if($last.length && $last[0].scrollIntoView){
                 $last[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }, 100);
-
-        select2YenidenYukle();
+        // select2YenidenYukle() cagrilmiyor - eski satirlarin secimlerini sifirlar
     });
     
     // Hizmet satırını sil
@@ -2157,18 +2175,8 @@ function updateHizmetDetaylari(index) {
         
         const hizmetDetayHtml = `
             <div class="hizmet-detay-item">
-                <div class="hizmet-detay-header">
+                <div class="hizmet-detay-header" style="display:flex; justify-content:space-between; align-items:center;">
                     <span class="hizmet-ad" style="color: ${renk}; font-size: 0.8rem;">${serviceText}</span>
-                    <input 
-                        type="checkbox"
-                        
-                        name="usttekiyleBirlestir-${service.id}"
-
-                        id="usttekiyleBirlestir-${service.id}"
-                        ${checkboxDisabled}
-                        style="margin-top: 0;"
-                    >
-                    <label class="form-check-label ms-1" for="usttekiyleBirlestir-${service.id}" style="font-size: 0.75rem; margin-left:5px">Üstteki Hizmetle Birleştir</label>
                     <button type="button" class="btn btn-sm btn-outline-danger hizmet-kaldir" data-index="${index}" data-service-id="${service.id}" style="padding: 1px 4px; font-size: 0.7rem;">
                         <i class="fa fa-times"></i>
                     </button>

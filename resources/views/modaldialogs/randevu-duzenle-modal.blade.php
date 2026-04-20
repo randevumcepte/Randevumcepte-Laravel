@@ -347,7 +347,11 @@
                         item: function(data, escape){ return '<div>'+escape(data.text)+'</div>'; },
                         no_results: function(){ return '<div style="padding:12px;color:#6b7280;">Hizmet bulunamadı</div>'; }
                     },
-                    onChange: function(){ duzenleUpdateOzeti(); }
+                    onChange: function(){
+                        var idx = $hz.data('index');
+                        duzenleRenderHizmetDetay(idx);
+                        duzenleUpdateOzeti();
+                    }
                 });
                 // Options'a hizmet verilerini yukle
                 duzenleHizmetSelectOptionsYukle($hz, ts);
@@ -382,6 +386,55 @@
         ts.refreshOptions(false);
     }
 
+    // Hizmet secimi sonrasi sure/fiyat input'larini render et (ekleme modali gibi)
+    function duzenleRenderHizmetDetay(index){
+        var $sel = $('.duzenle-hizmet-select[data-index="'+index+'"]');
+        if(!$sel.length) return;
+        var ts = $sel[0] && $sel[0].tomselect;
+        var $container = $('#duzenle-hizmet-detaylari-'+index);
+        $container.empty();
+        if(!ts) return;
+        ts.items.forEach(function(id){
+            var opt = ts.options[id] || {};
+            var ad = opt.text || '';
+            var sure = Number(opt.sure) || 0;
+            var fiyat = Number(opt.fiyat) || 0;
+            var html =
+                '<div class="hizmet-detay-item" style="background:#fafbff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-top:6px;">' +
+                  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                    '<span style="font-size:0.82rem;font-weight:600;color:#111827;">'+ad+'</span>' +
+                    '<button type="button" class="btn btn-sm btn-outline-danger duzenle-hizmet-kaldir" data-index="'+index+'" data-service-id="'+id+'" style="padding:1px 6px;font-size:0.7rem;">' +
+                      '<i class="fa fa-times"></i></button>' +
+                  '</div>' +
+                  '<div class="row g-1">' +
+                    '<div class="col-md-6">' +
+                      '<label style="font-size:0.7rem;">Süre (dakika)</label>' +
+                      '<input type="number" class="form-control form-control-sm hizmet-suresi" name="hizmet_sureleri-'+id+'" value="'+sure+'" min="0" step="5" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
+                    '</div>' +
+                    '<div class="col-md-6">' +
+                      '<label style="font-size:0.7rem;">Fiyat (₺)</label>' +
+                      '<input type="number" class="form-control form-control-sm hizmet-fiyati" name="hizmet_fiyatlari-'+id+'" value="'+fiyat+'" min="0" step="0.01" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
+                    '</div>' +
+                  '</div>' +
+                '</div>';
+            $container.append(html);
+        });
+    }
+
+    // Detay icindeki hizmet kaldirma butonu
+    $(document).on('click', '.duzenle-hizmet-kaldir', function(){
+        var idx = $(this).data('index');
+        var sid = $(this).data('service-id');
+        var $sel = $('.duzenle-hizmet-select[data-index="'+idx+'"]');
+        var ts = $sel[0] && $sel[0].tomselect;
+        if(ts) ts.removeItem(String(sid));
+    });
+
+    // Sure/fiyat degisince ozeti guncelle
+    $(document).on('input', '#randevu-duzenle-modal .hizmet-suresi, #randevu-duzenle-modal .hizmet-fiyati', function(){
+        duzenleUpdateOzeti();
+    });
+
     // Duzenleme satirindaki personel/cihaz degisince hizmet select'i yenile
     $(document).on('change', '#randevu-duzenle-modal .duzenle-personel-select, #randevu-duzenle-modal .duzenle-cihaz-select', function(){
         var t = window.randevuTakvimTuru;
@@ -405,20 +458,25 @@
         duzenleUpdateOzeti();
     });
 
-    // Ozet guncelle
+    // Ozet guncelle - detay input'lari varsa onlardan oku, yoksa option metadata'sindan
     function duzenleUpdateOzeti(){
         var toplamSure = 0, toplamFiyat = 0, hizmetSayisi = 0;
         $('#randevu-duzenle-modal .hizmet-satiri-duzenle').each(function(){
-            var $hz = $(this).find('.duzenle-hizmet-select');
+            var $row = $(this);
+            var $hz = $row.find('.duzenle-hizmet-select');
             var ts = $hz[0] && $hz[0].tomselect;
             if(!ts) return;
             ts.items.forEach(function(id){
                 var opt = ts.options[id];
-                if(opt){
-                    toplamSure += Number(opt.sure || 0);
-                    toplamFiyat += Number(opt.fiyat || 0);
-                    hizmetSayisi++;
-                }
+                if(!opt) return;
+                // Detay input'lari varsa onlardan (kullanicinin degistirdigi deger)
+                var $sureInput = $row.find('input[name="hizmet_sureleri-'+id+'"]');
+                var $fiyatInput = $row.find('input[name="hizmet_fiyatlari-'+id+'"]');
+                var sure = $sureInput.length ? Number($sureInput.val()) : Number(opt.sure || 0);
+                var fiyat = $fiyatInput.length ? Number($fiyatInput.val()) : Number(opt.fiyat || 0);
+                toplamSure += sure;
+                toplamFiyat += fiyat;
+                hizmetSayisi++;
             });
         });
         var html;
@@ -496,12 +554,18 @@
                             var $hz = $row.find('.duzenle-hizmet-select');
                             var ts = $hz[0] && $hz[0].tomselect;
                             if(ts && h.hizmet_id){
-                                // Option yoksa hemen ekle (kategori/sure/fiyat cache'ten)
                                 if(!ts.options[h.hizmet_id] && window.randevuHizmetVerisi){
                                     var hData = window.randevuHizmetVerisi.tum.find(function(x){ return String(x.id) === String(h.hizmet_id); });
                                     if(hData){ ts.addOption({ value: hData.id, text: hData.ad, kategori: hData.kategori || '', sure: hData.sure, fiyat: hData.fiyat }); }
                                 }
-                                ts.addItem(String(h.hizmet_id), true);
+                                ts.addItem(String(h.hizmet_id), false); // false=event fire et -> onChange -> detay render
+                                // Randevudan gelen gercek sure/fiyat degerlerini detay input'larina yaz
+                                setTimeout(function(){
+                                    var $sInp = $row.find('input[name="hizmet_sureleri-'+h.hizmet_id+'"]');
+                                    var $fInp = $row.find('input[name="hizmet_fiyatlari-'+h.hizmet_id+'"]');
+                                    if($sInp.length && h.sure_dk) $sInp.val(h.sure_dk);
+                                    if($fInp.length && h.fiyat) $fInp.val(h.fiyat);
+                                }, 50);
                             }
                         }, 100);
                     });
