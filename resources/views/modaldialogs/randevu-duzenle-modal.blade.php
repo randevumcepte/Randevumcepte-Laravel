@@ -122,42 +122,6 @@
     </div>
 </div>
 
-<!-- Hizmet satiri template (yeni randevu ile birebir ayni) -->
-<template id="duzenle-hizmet-satiri-template">
-    <div class="hizmet-satiri-duzenle card mb-2" data-value="__INDEX__" style="border: 1px solid #dee2e6;">
-        <div class="card-header py-1 d-flex justify-content-between align-items-center" style="padding: 4px 8px; background-color: #f8f9fa;">
-            <span class="fw-bold" style="font-size: 0.85rem;">Hizmet #__NUM__</span>
-            <button type="button" name="hizmet_formdan_sil" data-value="__INDEX__" class="btn btn-sm btn-danger duzenle-hizmet-sil" style="padding: 2px 6px; font-size: 0.7rem;">
-                <i class="icon-copy fa fa-trash"></i> Sil
-            </button>
-        </div>
-        <div class="card-body p-2">
-            <div class="row g-2">
-                <div class="col-md-6">
-                    <div class="row g-2">
-                        <div class="col-12 mb-1 secim-personel" style="{{ $__dz_personel_style }}">
-                            <label class="form-label" style="font-size: 0.8rem;">Personel</label>
-                            <select name="randevupersonelleriyeni[]" class="form-control opsiyonelSelect personel-select duzenle-personel-select" data-index="__INDEX__" style="width: 100%; height: 30px; font-size: 0.8rem;"><option></option></select>
-                        </div>
-                        <div class="col-12 mb-1 secim-cihaz" style="{{ $__dz_cihaz_style }}">
-                            <label class="form-label" style="font-size: 0.8rem;">Cihaz</label>
-                            <select name="randevucihazlariyeni[]" class="form-control opsiyonelSelect cihaz-select duzenle-cihaz-select" data-index="__INDEX__" style="width: 100%; height: 30px; font-size: 0.8rem;"><option></option></select>
-                        </div>
-                        <div class="col-12 mb-1 secim-oda" style="{{ $__dz_oda_style }}">
-                            <label class="form-label" style="font-size: 0.8rem;">Oda</label>
-                            <select name="randevuodalariyeni[]" class="form-control opsiyonelSelect oda-select duzenle-oda-select" data-index="__INDEX__" style="width:100%; height: 30px; font-size: 0.8rem;"><option></option></select>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-1">
-                    <label class="form-label" style="font-size: 0.8rem;">Hizmetler (Çoklu Seçim)</label>
-                    <select name="randevuhizmetleriyeni" id="duzenlerandevuhizmetleriyeni___INDEX__" multiple class="form-control duzenle-hizmet-select" data-index="__INDEX__" style="width: 100%; font-size: 0.8rem; min-height: 30px;"><option></option></select>
-                </div>
-                <div class="col-12 mt-1 duzenle-hizmet-detaylari" id="duzenle-hizmet-detaylari-__INDEX__" style="font-size: 0.8rem;"></div>
-            </div>
-        </div>
-    </div>
-</template>
 
 <style>
 #randevu-duzenle-modal .modal-content {
@@ -279,13 +243,43 @@
     // Ham veri pencereye atandi - hizmetler/personel/cihaz/oda cache'leri ekleme modalinda
     // zaten hazirlaniyor (window.randevuHizmetVerisi, window.randevuModalData)
 
-    // Template'ten yeni hizmet satiri olustur
+    // Yeni hizmet satiri olustur (template dependency yok, direkt HTML string)
+    var DZ_PERSONEL_STYLE = @json($__dz_personel_style);
+    var DZ_CIHAZ_STYLE = @json($__dz_cihaz_style);
+    var DZ_ODA_STYLE = @json($__dz_oda_style);
+
     function duzenleYeniHizmetSatiri(){
-        var tpl = document.getElementById('duzenle-hizmet-satiri-template');
-        if(!tpl) return null;
         var idx = window.duzenleHizmetIndex++;
         var num = $('.hizmet-satiri-duzenle').length + 1;
-        var html = tpl.innerHTML.replace(/__INDEX__/g, idx).replace(/__NUM__/g, num);
+        var html =
+            '<div class="hizmet-satiri-duzenle card mb-2" data-value="'+idx+'" style="border: 1px solid #dee2e6;">' +
+              '<div class="card-header py-1 d-flex justify-content-between align-items-center" style="padding:4px 8px; background:#f8f9fa;">' +
+                '<span class="fw-bold" style="font-size:0.85rem;">Hizmet #'+num+'</span>' +
+                '<button type="button" name="hizmet_formdan_sil" data-value="'+idx+'" class="btn btn-sm btn-danger duzenle-hizmet-sil" style="padding:2px 6px; font-size:0.7rem;">' +
+                  '<i class="icon-copy fa fa-trash"></i> Sil</button>' +
+              '</div>' +
+              '<div class="card-body p-2"><div class="row g-2">' +
+                '<div class="col-md-6"><div class="row g-2">' +
+                  '<div class="col-12 mb-1 secim-personel" style="'+DZ_PERSONEL_STYLE+'">' +
+                    '<label class="form-label" style="font-size:0.8rem;">Personel</label>' +
+                    '<select name="randevupersonelleriyeni[]" class="form-control opsiyonelSelect personel-select duzenle-personel-select" data-index="'+idx+'" style="width:100%;height:30px;font-size:0.8rem;"><option></option></select>' +
+                  '</div>' +
+                  '<div class="col-12 mb-1 secim-cihaz" style="'+DZ_CIHAZ_STYLE+'">' +
+                    '<label class="form-label" style="font-size:0.8rem;">Cihaz</label>' +
+                    '<select name="randevucihazlariyeni[]" class="form-control opsiyonelSelect cihaz-select duzenle-cihaz-select" data-index="'+idx+'" style="width:100%;height:30px;font-size:0.8rem;"><option></option></select>' +
+                  '</div>' +
+                  '<div class="col-12 mb-1 secim-oda" style="'+DZ_ODA_STYLE+'">' +
+                    '<label class="form-label" style="font-size:0.8rem;">Oda</label>' +
+                    '<select name="randevuodalariyeni[]" class="form-control opsiyonelSelect oda-select duzenle-oda-select" data-index="'+idx+'" style="width:100%;height:30px;font-size:0.8rem;"><option></option></select>' +
+                  '</div>' +
+                '</div></div>' +
+                '<div class="col-md-6 mb-1">' +
+                  '<label class="form-label" style="font-size:0.8rem;">Hizmetler (Çoklu Seçim)</label>' +
+                  '<select name="randevuhizmetleriyeni" id="duzenlerandevuhizmetleriyeni_'+idx+'" multiple class="form-control duzenle-hizmet-select" data-index="'+idx+'" style="width:100%;font-size:0.8rem;min-height:30px;"><option></option></select>' +
+                '</div>' +
+                '<div class="col-12 mt-1 duzenle-hizmet-detaylari" id="duzenle-hizmet-detaylari-'+idx+'" style="font-size:0.8rem;"></div>' +
+              '</div></div>' +
+            '</div>';
         var $el = $(html);
         $('.hizmetler_bolumu_randevu_duzenleme').append($el);
         // Personel/cihaz/oda options doldur (ekleme modalindaki mantik)
