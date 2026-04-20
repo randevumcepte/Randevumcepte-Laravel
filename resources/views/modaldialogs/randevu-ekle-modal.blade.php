@@ -10,6 +10,10 @@
     $__oda_style      = in_array($__takvim_turu, [1, 2]) ? 'display:none;' : '';
     $__yardimci_style = 'display:none;'; // her zaman gizli
 @endphp
+
+{{-- Tom Select — sadece Randevu modalinda hizmet secimi icin kullanilir --}}
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <div id="modal-view-event-add" class="modal modal-top fade calendar-modal" data-backdrop="static" data-keyboard="false">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 1200px;">
         <div class="modal-content">
@@ -341,6 +345,85 @@
 .select2-container .select2-selection--single {
     height: inherit !important;
 
+}
+
+/* Tom Select ozel stili */
+#modal-view-event-add .ts-wrapper {
+    min-height: 40px;
+}
+#modal-view-event-add .ts-wrapper.multi .ts-control {
+    min-height: 40px !important;
+    padding: 4px 8px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    background: #fff !important;
+    flex-wrap: wrap !important;
+}
+#modal-view-event-add .ts-wrapper.focus .ts-control {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+}
+#modal-view-event-add .ts-wrapper.multi .ts-control > .item {
+    background: #eef2ff !important;
+    color: #4338ca !important;
+    border: 1px solid #c7d2fe !important;
+    border-radius: 6px !important;
+    padding: 3px 26px 3px 10px !important;
+    margin: 2px 3px 2px 0 !important;
+    font-size: 0.78rem !important;
+    position: relative;
+}
+#modal-view-event-add .ts-wrapper.plugin-remove_button .item .remove {
+    color: #6366f1 !important;
+    border-left: none !important;
+    padding: 0 6px !important;
+    line-height: 1 !important;
+    font-weight: 700 !important;
+}
+#modal-view-event-add .ts-wrapper.plugin-remove_button .item .remove:hover {
+    background: #6366f1 !important;
+    color: #fff !important;
+    border-radius: 0 4px 4px 0 !important;
+}
+#modal-view-event-add .ts-dropdown {
+    border: 2px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
+    margin-top: 4px;
+    z-index: 100000;
+}
+#modal-view-event-add .ts-dropdown .active {
+    background: #6366f1 !important;
+    color: #fff !important;
+}
+#modal-view-event-add .ts-dropdown .option {
+    padding: 8px 12px !important;
+}
+#modal-view-event-add .ts-dropdown .hy-ts-option {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+#modal-view-event-add .ts-dropdown .hy-ts-ad {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #111827;
+}
+#modal-view-event-add .ts-dropdown .active .hy-ts-ad,
+#modal-view-event-add .ts-dropdown .active .hy-ts-kat { color: #fff !important; }
+#modal-view-event-add .ts-dropdown .hy-ts-kat {
+    font-size: 0.72rem;
+    color: #6b7280;
+}
+#modal-view-event-add .ts-dropdown .no-results {
+    padding: 12px;
+    color: #6b7280;
+    text-align: center;
+    font-size: 0.85rem;
+}
+#modal-view-event-add .ts-wrapper.disabled .ts-control {
+    background: #f9fafb !important;
+    opacity: 0.7;
 }
 
 /* Hizmet select'i icin stabil ve kullanisli multi-select */
@@ -1297,9 +1380,10 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         $('#softPaketSecimModal').remove();
     }
     
-    // Müşteri temizlendiğinde hizmetleri de temizle
+    // Müşteri temizlendiğinde hizmetleri de temizle (Tom Select & native)
     $('.hizmet_secimi').each(function() {
-        $(this).val(null).trigger('change');
+        if(this.tomselect){ try { this.tomselect.clear(true); } catch(e){} }
+        else $(this).val(null).trigger('change');
     });
     updateRandevuOzeti();
 });
@@ -1328,149 +1412,161 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         initHizmetSelect2();
     }
     
-    // Hizmet select2 event handler'larini bagla (re-init sonrasi yeniden cagrilmali)
-    // Secim durumuna gore placeholder'i gizle/goster
-    function hizmetPlaceholderGuncelle($sel){
-        var varMi = ($sel.val() || []).length > 0;
-        var $search = $sel.next('.select2-container').find('.select2-search__field');
-        if(varMi){
-            $search.attr('placeholder','').css('min-width','4px');
-        } else {
-            $search.attr('placeholder', $sel.data('placeholder-orijinal') || '').css('min-width','');
+    // Hizmet-select'ten secili servisleri [{id, text}] seklinde dondurur (Tom Select veya native)
+    function getHizmetSecimi($sel){
+        if(!$sel || !$sel.length) return [];
+        var el = $sel[0];
+        if(el && el.tomselect){
+            var ts = el.tomselect;
+            return ts.items.map(function(id){
+                var opt = ts.options[id];
+                return { id: id, text: opt ? opt.text : '' };
+            });
         }
-    }
-
-    function attachHizmetSelect2Events($sel){
-        // Orijinal placeholder'i sakla
-        var phOrig = $sel.next('.select2-container').find('.select2-search__field').attr('placeholder') || '';
-        if(phOrig) $sel.data('placeholder-orijinal', phOrig);
-
-        $sel.off('select2:select select2:unselect select2:open change.phUp')
-            .on('select2:select', function(e){
-                const service = e.params.data;
-                const index = $(this).data('index');
-                if(!service || !service.id) return;
-                if(!hizmetDataCache[service.id]){
-                    hizmetDataCache[service.id] = {
-                        id: service.id,
-                        text: service.text || service.ad,
-                        sure: service.sure || 0,
-                        fiyat: service.fiyat || 0,
-                        kategori: service.kategori || '',
-                        renk: service.renk || '#6366f1'
-                    };
-                }
-                updateHizmetDetaylari(index);
-                updateRandevuOzeti();
-                hizmetPlaceholderGuncelle($(this));
-            })
-            .on('select2:unselect', function(){
-                const index = $(this).data('index');
-                updateHizmetDetaylari(index);
-                updateRandevuOzeti();
-                hizmetPlaceholderGuncelle($(this));
-            })
-            .on('select2:open', function(){
-                var $me = $(this);
-                var index = $me.data('index');
-                // Dropdown acikken hizmet-detaylari'yi gizle ki dropdown selection'in
-                // hemen altinda gorunsun (araya girmesin)
-                $('#hizmet-detaylari-' + index).hide();
-                hizmetDropdownAsagiZorla();
-                setTimeout(function(){ $('.select2-search__field').focus(); }, 100);
-            })
-            .on('select2:close', function(){
-                var index = $(this).data('index');
-                // Dropdown kapaninca tekrar goster
-                $('#hizmet-detaylari-' + index).show();
-            })
-            .on('select2:select select2:unselect', function(){
-                hizmetDropdownAsagiZorla();
-            })
-            .on('change.phUp', function(){ hizmetPlaceholderGuncelle($(this)); });
-
-        // Baslangicta bir kez ayarla
-        hizmetPlaceholderGuncelle($sel);
-    }
-
-    function initHizmetSelect2Tek($sel, placeholder){
-        if($sel.hasClass('select2-hidden-accessible')){ try{ $sel.select2('destroy'); }catch(e){} }
-        // Not: dropdownParent vermiyoruz -> default (body). Boylece modal scroll ve
-        // diger elementler dropdown pozisyonunu bozmuyor. z-index ile modal uzerinde kalir.
-        $sel.select2({
-            placeholder: placeholder || 'Önce personel veya cihaz seçin...',
-            allowClear: true,
-            width: '100%',
-            multiple: true,
-            closeOnSelect: false,
-            language: {
-                noResults: function(){ return 'Bu personel/cihaz için hizmet atanmamış'; },
-                searching: function(){ return 'Aranıyor...'; }
-            },
-            escapeMarkup: function(markup){ return markup; },
-            templateResult: formatHizmetSonuc,
-            templateSelection: formatHizmetSecim
+        var vals = $sel.val() || [];
+        if(!Array.isArray(vals)) vals = vals ? [vals] : [];
+        return vals.map(function(id){
+            var txt = $sel.find('option[value="'+id+'"]').text();
+            return { id: id, text: txt };
         });
-        attachHizmetSelect2Events($sel);
     }
 
-    // Select2 dropdown'unu her zaman asagi zorla (--above -> --below sinif degisimi)
-    function hizmetDropdownAsagiZorla(){
-        setTimeout(function(){
-            var $open = $('.select2-container--open');
-            if(!$open.length) return;
-            $open.removeClass('select2-container--above').addClass('select2-container--below');
-            $open.find('.select2-dropdown')
-                 .removeClass('select2-dropdown--above')
-                 .addClass('select2-dropdown--below');
-        }, 0);
-    }
+    // ===================== Tom Select ile Hizmet Secimi =====================
+    // Select2 yerine Tom Select kullanilir — modal scroll/pozisyon problemi olmaz.
 
     // Takvim turu: 0=Hizmete gore, 1=Personele gore, 2=Cihaza gore, 3=Odaya gore
     window.randevuTakvimTuru = {{ (int)($isletme->randevu_takvim_turu ?? 0) }};
 
-    // Yardimci: hizmet listesini verilen parametrelerle yukler
-    function yukleHizmetler($hizmet, params){
-        $.ajax({
-            url: '/isletmeyonetim/personel-cihaz-hizmetleri-json',
-            type: 'GET',
-            dataType: 'json',
-            data: Object.assign({ sube: '{{$isletme->id}}' }, params || {}),
-            success: function(resp){
-                var list = (resp && resp.results) ? resp.results : [];
-                var fallback = resp && resp.fallback === true;
-                list.forEach(function(h){
-                    hizmetDataCache[h.id] = {
-                        id: h.id, text: h.ad,
-                        sure: h.sure || 0, fiyat: h.fiyat || 0,
-                        kategori: h.kategori || '', renk: h.renk || '#6366f1'
-                    };
-                });
-                var secili = $hizmet.val() || [];
-                if($hizmet.hasClass('select2-hidden-accessible')){ try{$hizmet.select2('destroy');}catch(e){} }
-                $hizmet.empty().append('<option></option>');
-                list.forEach(function(h){ $hizmet.append(new Option(h.ad, h.id, false, false)); });
-                var korunan = (Array.isArray(secili) ? secili : []).filter(function(id){
-                    return list.some(function(h){ return String(h.id) === String(id); });
-                });
-                $hizmet.val(korunan);
-                var ph = list.length ? (fallback ? 'Tüm hizmetler' : 'Hizmet seçin...') : 'Hizmet bulunamadı';
-                initHizmetSelect2Tek($hizmet, ph);
-                $hizmet.trigger('change');
-            },
-            error: function(){ console.warn('Hizmetler yüklenemedi'); }
-        });
+    // Her hizmet-select icin TomSelect instance'i sakla (data-index -> instance)
+    window.hizmetTomInstances = window.hizmetTomInstances || {};
+
+    function tomDestroyHizmet($sel){
+        var el = $sel[0];
+        if(!el) return;
+        if(el.tomselect){
+            try { el.tomselect.destroy(); } catch(e){}
+        }
     }
 
-    // Hizmet select2'lerini başlatma fonksiyonu
-    function initHizmetSelect2() {
-        $('.hizmet-select').each(function(){
-            initHizmetSelect2Tek($(this));
+    // Hizmet select'ini Tom Select ile baslat
+    function initHizmetTom($sel, placeholder){
+        tomDestroyHizmet($sel);
+        var el = $sel[0];
+        var ph = placeholder || 'Önce personel veya cihaz seçin...';
+        var ts = new TomSelect(el, {
+            plugins: ['remove_button'],
+            placeholder: ph,
+            allowEmptyOption: true,
+            persist: false,
+            maxOptions: null,
+            hideSelected: true,
+            closeAfterSelect: false,
+            searchField: ['text', 'kategori'],
+            render: {
+                option: function(data, escape){
+                    var kat = data.kategori ? '<div class="hy-ts-kat">' + escape(data.kategori) + '</div>' : '';
+                    return '<div class="hy-ts-option"><div class="hy-ts-ad">' + escape(data.text) + '</div>' + kat + '</div>';
+                },
+                item: function(data, escape){
+                    return '<div>' + escape(data.text) + '</div>';
+                },
+                no_results: function(){
+                    return '<div class="no-results">Hizmet bulunamadı</div>';
+                }
+            },
+            onChange: function(val){
+                var idx = $sel.data('index');
+                updateHizmetDetaylari(idx);
+                updateRandevuOzeti();
+            }
+        });
+        window.hizmetTomInstances[$sel.data('index')] = ts;
+        return ts;
+    }
+
+    // Bir select'i verilen hizmet listesiyle doldur (Tom Select)
+    function doldurHizmetTom($hizmet, liste, placeholder){
+        var idx = $hizmet.data('index');
+        var secili = $hizmet.val() || [];
+        if(!Array.isArray(secili)) secili = secili ? [secili] : [];
+
+        // Native select'e option'lari koy (form submit icin gerekli)
+        tomDestroyHizmet($hizmet);
+        $hizmet.empty();
+        liste.forEach(function(h){
+            $hizmet.append(new Option(h.ad, h.id, false, false));
         });
 
+        var ts = initHizmetTom($hizmet, placeholder);
+
+        // Option'lara kategori meta'si ekle (render'da kullanilsin)
+        liste.forEach(function(h){
+            if(ts.options[h.id]){
+                ts.options[h.id].kategori = h.kategori || '';
+            }
+        });
+        ts.refreshOptions(false);
+
+        // Onceki secimleri koru (yeni listede varsa)
+        var korunan = secili.filter(function(id){
+            return liste.some(function(h){ return String(h.id) === String(id); });
+        });
+        if(korunan.length) ts.setValue(korunan, true); // silent
+    }
+
+    // Client-side filtreleme (mevcut verisi kullanir)
+    function filtrelenmisHizmetler(personelId, cihazId){
+        var v = window.randevuHizmetVerisi;
+        if(!v) return { liste: [], fallback: false };
+        var izinli = null;
+        var hp = personelId ? (v.personel[personelId] || null) : null;
+        var hc = cihazId ? (v.cihaz[cihazId] || null) : null;
+        if(hp && hp.length) izinli = hp.slice();
+        if(hc && hc.length) izinli = (izinli ? izinli : []).concat(hc);
+        if(izinli && izinli.length){
+            izinli = Array.from(new Set(izinli.map(String)));
+            return { liste: v.tum.filter(function(h){ return izinli.indexOf(String(h.id)) > -1; }), fallback: false };
+        }
+        return { liste: v.tum.slice(), fallback: !!(personelId || cihazId) };
+    }
+
+    // Hizmet secimini AJAX cache'e gore yukle
+    function yukleHizmetler($hizmet, params){
+        params = params || {};
+        var fn = function(){
+            if(params.hepsi){
+                doldurHizmetTom($hizmet, window.randevuHizmetVerisi.tum, 'Tüm hizmetler');
+                return;
+            }
+            var personelId = params.personel_id || '';
+            var cihazId = params.cihaz_id || '';
+            var f = filtrelenmisHizmetler(personelId, cihazId);
+            var ph = f.liste.length
+                ? (f.fallback ? 'Tüm hizmetler' : 'Hizmet seçin...')
+                : 'Hizmet bulunamadı';
+            doldurHizmetTom($hizmet, f.liste, ph);
+        };
+        if(!window.randevuHizmetVerisi) fetchRandevuHizmetVerisi(fn); else fn();
+    }
+
+    // Tum hizmet-select'leri Tom Select ile baslat (takvim turune gore davran)
+    function initHizmetSelect2() {
         var t = window.randevuTakvimTuru;
 
-        // Odaya gore (3) veya Hizmete gore (0): oda/hic secim gerekmez, tum hizmetler
+        // Ilk kurulum: placeholder'li bos Tom Select
+        $('.hizmet-select').each(function(){
+            var $s = $(this);
+            var ph;
+            if(t === 0 || t === 3) ph = 'Hizmet seçin...';
+            else if(t === 1) ph = 'Önce personel seçin...';
+            else if(t === 2) ph = 'Önce cihaz seçin...';
+            else ph = 'Hizmet seçin...';
+            tomDestroyHizmet($s);
+            $s.empty();
+            initHizmetTom($s, ph);
+        });
+
+        // Hizmete gore (0) / Odaya gore (3): tum hizmetler yuklensin
         if(t === 0 || t === 3){
             $('.hizmet-select').each(function(){
                 yukleHizmetler($(this), { hepsi: 1 });
@@ -1478,7 +1574,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             return;
         }
 
-        // Personele gore (1) veya Cihaza gore (2): ilgili secim degisince filtrele
+        // Personele gore (1) / Cihaza gore (2): secim degisince filtrele
         $(document).off('change.hizmetLoad', 'select[name="randevupersonelleriyeni[]"], select[name^="randevucihazlariyeni"]')
             .on('change.hizmetLoad', 'select[name="randevupersonelleriyeni[]"], select[name^="randevucihazlariyeni"]', function(){
                 var $row = $(this).closest('.hizmet-satiri');
@@ -1487,15 +1583,12 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                 var $hizmet = $row.find('.hizmet-select');
                 if(!$hizmet.length) return;
 
-                // Iki secim de bos ise placeholder goster, secim bekle
                 if(personelId === '' && cihazId === ''){
-                    if($hizmet.hasClass('select2-hidden-accessible')){ try{$hizmet.select2('destroy');}catch(e){} }
-                    $hizmet.empty().append('<option></option>');
-                    initHizmetSelect2Tek($hizmet, t === 1 ? 'Önce personel seçin...' : 'Önce cihaz seçin...');
-                    $hizmet.trigger('change');
+                    tomDestroyHizmet($hizmet);
+                    $hizmet.empty();
+                    initHizmetTom($hizmet, t === 1 ? 'Önce personel seçin...' : 'Önce cihaz seçin...');
                     return;
                 }
-                // Filtreli olarak yukle (backend sonuc bossa tum hizmetlere fallback yapar)
                 yukleHizmetler($hizmet, { personel_id: personelId, cihaz_id: cihazId });
             });
     }
@@ -1523,13 +1616,14 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         const index = $(this).data('index');
         const serviceId = $(this).data('service-id');
         const selectElement = $(`.hizmet-select[data-index="${index}"]`);
-        
-        let currentSelections = selectElement.select2('data');
-        currentSelections = currentSelections.filter(item => item.id != serviceId);
-        
-        selectElement.val(currentSelections.map(item => item.id)).trigger('change');
-        selectElement.select2('data', currentSelections);
-        
+        var ts = selectElement[0] ? selectElement[0].tomselect : null;
+        if(ts){
+            ts.removeItem(String(serviceId));
+        } else {
+            // Fallback: native select
+            var vals = (selectElement.val() || []).filter(v => String(v) != String(serviceId));
+            selectElement.val(vals).trigger('change');
+        }
         updateHizmetDetaylari(index);
         updateRandevuOzeti();
     });
@@ -1715,7 +1809,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         let hizmetDetaylari = [];
         
         $('.hizmet-satiri').each(function(index) {
-            const selectedServices = $(this).find('.hizmet-select').select2('data');
+            const selectedServices = getHizmetSecimi($(this).find('.hizmet-select'));
             
             if (selectedServices && selectedServices.length > 0) {
                 hasServices = true;
@@ -1929,21 +2023,20 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         language: 'tr'
     });
     
-    // Hizmet kaldırma butonu
+    // Hizmet kaldırma butonu (ikinci handler)
     $(document).on('click', '.hizmet-kaldir', function(e) {
         e.preventDefault();
         const index = $(this).data('index');
         const serviceId = $(this).data('service-id');
         const selectElement = $(`.hizmet-select[data-index="${index}"]`);
-        
-        let currentSelections = selectElement.select2('data') || [];
-        currentSelections = currentSelections.filter(item => 
-            item && item.id && item.id.toString() !== serviceId.toString()
-        );
-        
-        const selectedIds = currentSelections.map(item => item.id);
-        selectElement.val(selectedIds).trigger('change');
-        
+        var ts = selectElement[0] ? selectElement[0].tomselect : null;
+        if(ts){
+            ts.removeItem(String(serviceId));
+        } else {
+            var currentSelections = getHizmetSecimi(selectElement)
+                .filter(item => item && item.id && item.id.toString() !== serviceId.toString());
+            selectElement.val(currentSelections.map(i => i.id)).trigger('change');
+        }
         updateHizmetDetaylari(index);
         updateRandevuOzeti();
     });
@@ -1955,13 +2048,19 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
 
     // Modal açıldığında select2'leri yeniden başlat
     $('#modal-view-event-add').on('shown.bs.modal', function() {
-        $('.custom-select2').select2('destroy');
-        $('.opsiyonelSelect').select2('destroy');
+        // Hizmet-select Tom Select kullanir; Select2 destroy'dan hariç tut
+        try { $('.custom-select2').not('.hizmet-select').select2('destroy'); } catch(e){}
+        try { $('.opsiyonelSelect').not('.hizmet-select').select2('destroy'); } catch(e){}
 
         hizmetDataCache = {};
+        window.randevuHizmetVerisi = null;
+        window._randevuHizmetVerisiPending = null;
 
         // Personel/cihaz/oda secimlerini aktif + musait olanlarla doldur
         doldurRandevuSecenekleri();
+
+        // Hizmet verisini paralel olarak cek
+        fetchRandevuHizmetVerisi();
 
         setTimeout(() => {
             initSelect2();
@@ -1974,7 +2073,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
 // Hizmet detaylarını güncelle
 function updateHizmetDetaylari(index) {
     const selectElement = $(`.hizmet-select[data-index="${index}"]`);
-    const selectedServices = selectElement.select2('data') || [];
+    const selectedServices = getHizmetSecimi(selectElement);
     const container = $(`#hizmet-detaylari-${index}`);
     
     container.empty();
@@ -2066,8 +2165,8 @@ function updateRandevuOzeti() {
     let totalSureByService = {};
     
     $('.hizmet-satiri').each(function() {
-        const selectedServices = $(this).find('.hizmet-select').select2('data');
-        
+        const selectedServices = getHizmetSecimi($(this).find('.hizmet-select'));
+
         if (selectedServices && selectedServices.length > 0) {
             $(this).find('.hizmet-suresi').each(function() {
                 totalFormDuration += parseFloat($(this).val()) || 0;
@@ -2152,10 +2251,10 @@ function updateRandevuOzeti() {
     }
 }
 
-// Select2 yeniden yükleme fonksiyonu
+// Select2 yeniden yükleme fonksiyonu (hizmet-select Tom Select kullaniyor, ona dokunma)
 function select2YenidenYukle() {
-    $('.custom-select2').select2('destroy');
-    $('.opsiyonelSelect').select2('destroy');
+    try { $('.custom-select2').not('.hizmet-select').select2('destroy'); } catch(e){}
+    try { $('.opsiyonelSelect').not('.hizmet-select').select2('destroy'); } catch(e){}
     initSelect2();
 }
 
@@ -2189,8 +2288,13 @@ function formatHizmetSecim(hizmet) {
  // Form resetleme fonksiyonu
   function resetForm() {
     $('.hizmet-satiri').slice(1).remove();
-    
-    $('.hizmet-satiri[data-value="0"]').find('select').val(null).trigger('change');
+
+    // Hizmet-select Tom Select kullanir: native val degisimi TS'i etkilemez, TS API ile temizle
+    $('.hizmet-satiri[data-value="0"]').find('.hizmet-select').each(function(){
+        var el = this;
+        if(el.tomselect){ try { el.tomselect.clear(true); } catch(e){} }
+    });
+    $('.hizmet-satiri[data-value="0"]').find('select').not('.hizmet-select').val(null).trigger('change');
     $('.hizmet-satiri[data-value="0"]').find('input[type="number"], textarea').val('');
     $('#hizmet-detaylari-0').empty();
     $('.hizmet-sil[data-value="0"]').attr('disabled', true);
