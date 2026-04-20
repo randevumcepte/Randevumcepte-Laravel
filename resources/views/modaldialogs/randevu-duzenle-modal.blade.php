@@ -466,17 +466,26 @@
         var $container = $('#duzenle-hizmet-detaylari-'+index);
         $container.empty();
         if(!ts) return;
-        ts.items.forEach(function(id){
+        ts.items.forEach(function(id, i){
             var opt = ts.options[id] || {};
             var ad = opt.text || '';
             var sure = Number(opt.sure) || 0;
             var fiyat = Number(opt.fiyat) || 0;
+            var birlestirNum = i + 1;
+            var birlestirDisabled = i === 0 ? 'disabled' : '';
+            var birlestirOpacity = i === 0 ? 'opacity:0.4;' : '';
             var html =
                 '<div class="hizmet-detay-item" style="background:#fafbff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-top:6px;">' +
-                  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;">' +
                     '<span style="font-size:0.82rem;font-weight:600;color:#111827;">'+ad+'</span>' +
-                    '<button type="button" class="btn btn-sm btn-outline-danger duzenle-hizmet-kaldir" data-index="'+index+'" data-service-id="'+id+'" style="padding:1px 6px;font-size:0.7rem;">' +
-                      '<i class="fa fa-times"></i></button>' +
+                    '<div style="display:flex;align-items:center;gap:8px;">' +
+                      '<label style="font-size:0.72rem;margin:0;display:flex;align-items:center;gap:4px;'+birlestirOpacity+'">' +
+                        '<input type="checkbox" name="birlestir'+birlestirNum+'" '+birlestirDisabled+' style="margin:0;">' +
+                        'Üstteki ile birleştir' +
+                      '</label>' +
+                      '<button type="button" class="btn btn-sm btn-outline-danger duzenle-hizmet-kaldir" data-index="'+index+'" data-service-id="'+id+'" style="padding:1px 6px;font-size:0.7rem;">' +
+                        '<i class="fa fa-times"></i></button>' +
+                    '</div>' +
                   '</div>' +
                   '<div class="row g-1">' +
                     '<div class="col-md-6">' +
