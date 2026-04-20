@@ -144,6 +144,75 @@ class SMSController extends Controller
           return ['basarili' => true, 'kayitlar' => $kayitlar];
      }
 
+     public function efetechRaporDetayGetir($salonId, $raporId)
+     {
+          $isletme = Salonlar::where('id', $salonId)->first();
+          if (!$isletme || empty($isletme->sms_apikey) || empty($raporId)) {
+               return ['basarili' => false, 'mesaj' => 'Kimlik veya rapor bilgisi eksik', 'kayitlar' => []];
+          }
+
+          try {
+               $ch = curl_init();
+               curl_setopt($ch, CURLOPT_URL, 'https://api.efetech.net.tr/v2/get/report');
+               curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+               curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['id' => intval($raporId)]));
+               curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+               curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+               curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+               curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+               curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Authorization: Key ' . $isletme->sms_apikey,
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+               ]);
+               $raw = curl_exec($ch);
+               $httpKod = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+               curl_close($ch);
+          } catch (\Exception $e) {
+               return ['basarili' => false, 'mesaj' => $e->getMessage(), 'kayitlar' => []];
+          }
+
+          $cevap = json_decode($raw, true);
+          if (!is_array($cevap) || empty($cevap['status']['successful']) || empty($cevap['response']['message']['details'])) {
+               $mesaj = $cevap['status']['description'] ?? ('efetech cevap hatasi (HTTP ' . $httpKod . ')');
+               return ['basarili' => false, 'mesaj' => $mesaj, 'kayitlar' => []];
+          }
+
+          $detaylar = $cevap['response']['message']['details'];
+          $numaralar = array_values(array_unique(array_map(function($d){
+               return preg_replace('/\D/', '', $d['to'] ?? '');
+          }, $detaylar)));
+          $numaralar = array_filter($numaralar);
+          $adHaritasi = self::adHaritasiniHazirla($salonId, $numaralar);
+
+          $kayitlar = [];
+          foreach ($detaylar as $detay) {
+               $to = $detay['to'] ?? '';
+               $temiz = preg_replace('/\D/', '', $to);
+               $ad = $adHaritasi[$temiz] ?? '';
+               $kayitlar[] = [
+                    'telefon' => $to,
+                    'ad' => $ad,
+                    'operator' => '',
+                    'durum' => self::efetechDetayDurumEtiket(intval($detay['status'] ?? -1)),
+                    'iletim_tarihi' => !empty($detay['time']) ? date('d.m.Y H:i:s', strtotime($detay['time'])) : '',
+               ];
+          }
+
+          return ['basarili' => true, 'kayitlar' => $kayitlar];
+     }
+
+     private static function efetechDetayDurumEtiket($state)
+     {
+          $harita = [
+               0 => 'Bekliyor',
+               1 => 'İletildi',
+               2 => 'İletilemedi',
+               99 => 'Bilgi Yok',
+          ];
+          return $harita[$state] ?? '—';
+     }
+
      private static function adHaritasiniHazirla($salonId, array $numaralar)
      {
           if (empty($numaralar)) {

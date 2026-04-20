@@ -15924,12 +15924,21 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             return $smsController->voiceTelekomRaporlariGetir($isletme->id);
         }
 
-        $smsraportoplu = DB::table('sms_iletim_raporlari')->select(DB::raw('CONCAT("<span style=\"display:none\">",DATE_FORMAT(updated_at,"%Y%m%d%H%i%s"),"</span>",DATE_FORMAT(updated_at,"%d.%m.%Y %H:%i:%s")) as date'),'adet as count','kredi as price','aciklama as msgdetails', 'durum as status')->where('salon_id',self::mevcutsube($request))->where('tur',4)->get();
-        $smsraporbildirim = DB::table('sms_iletim_raporlari')->select(DB::raw('CONCAT("<span style=\"display:none\">",DATE_FORMAT(updated_at,"%Y%m%d%H%i%s"),"</span>",DATE_FORMAT(updated_at,"%d.%m.%Y %H:%i:%s")) as date'),'adet as count','kredi as price','aciklama as msgdetails', 'durum as status')->where('salon_id',self::mevcutsube($request))->where(function($q){$q->where('tur',1); $q->orWhere('tur',''); $q->orWhere('tur',null);})->get();
-        $smsraporgrup = DB::table('sms_iletim_raporlari')->select(DB::raw('CONCAT("<span style=\"display:none\">",DATE_FORMAT(updated_at,"%Y%m%d%H%i%s"),"</span>",DATE_FORMAT(updated_at,"%d.%m.%Y %H:%i:%s")) as date'),'adet as count','kredi as price','aciklama as msgdetails', 'durum as status')->where('salon_id',self::mevcutsube($request))->where('tur',2)->get();
-        $smsraporfiltre = DB::table('sms_iletim_raporlari')->select(DB::raw('CONCAT("<span style=\"display:none\">",DATE_FORMAT(updated_at,"%Y%m%d%H%i%s"),"</span>",DATE_FORMAT(updated_at,"%d.%m.%Y %H:%i:%s")) as date'),'adet as count','kredi as price','aciklama as msgdetails', 'durum as status')->where('salon_id',self::mevcutsube($request))->where('tur',3)->get();
-        $smsraporkampanya = DB::table('sms_iletim_raporlari')->select(DB::raw('CONCAT("<span style=\"display:none\">",DATE_FORMAT(updated_at,"%Y%m%d%H%i%s"),"</span>",DATE_FORMAT(updated_at,"%d.%m.%Y %H:%i:%s")) as date'),'adet as count','kredi as price','aciklama as msgdetails', 'durum as status')->where('salon_id',self::mevcutsube($request))->where('tur',5)->get();
-        $smsraporetkinlik = DB::table('sms_iletim_raporlari')->select(DB::raw('CONCAT("<span style=\"display:none\">",DATE_FORMAT(updated_at,"%Y%m%d%H%i%s"),"</span>",DATE_FORMAT(updated_at,"%d.%m.%Y %H:%i:%s")) as date'),'adet as count','kredi as price','aciklama as msgdetails', 'durum as status')->where('salon_id',self::mevcutsube($request))->where('tur',6)->get();
+        $legacyKolonlar = [
+            'rapor_id as id',
+            DB::raw('CONCAT("<span style=\"display:none\">",DATE_FORMAT(updated_at,"%Y%m%d%H%i%s"),"</span>",DATE_FORMAT(updated_at,"%d.%m.%Y %H:%i:%s")) as date'),
+            'adet as count',
+            'kredi as price',
+            'aciklama as msgdetails',
+            'durum as status',
+        ];
+        $salonIdLegacy = self::mevcutsube($request);
+        $smsraportoplu = DB::table('sms_iletim_raporlari')->select($legacyKolonlar)->where('salon_id',$salonIdLegacy)->where('tur',4)->orderBy('updated_at','desc')->get();
+        $smsraporbildirim = DB::table('sms_iletim_raporlari')->select($legacyKolonlar)->where('salon_id',$salonIdLegacy)->where(function($q){$q->where('tur',1); $q->orWhere('tur',''); $q->orWhere('tur',null);})->orderBy('updated_at','desc')->get();
+        $smsraporgrup = DB::table('sms_iletim_raporlari')->select($legacyKolonlar)->where('salon_id',$salonIdLegacy)->where('tur',2)->orderBy('updated_at','desc')->get();
+        $smsraporfiltre = DB::table('sms_iletim_raporlari')->select($legacyKolonlar)->where('salon_id',$salonIdLegacy)->where('tur',3)->orderBy('updated_at','desc')->get();
+        $smsraporkampanya = DB::table('sms_iletim_raporlari')->select($legacyKolonlar)->where('salon_id',$salonIdLegacy)->where('tur',5)->orderBy('updated_at','desc')->get();
+        $smsraporetkinlik = DB::table('sms_iletim_raporlari')->select($legacyKolonlar)->where('salon_id',$salonIdLegacy)->where('tur',6)->orderBy('updated_at','desc')->get();
         return array(
             'toplu' => $smsraportoplu,
             'bildirim' => $smsraporbildirim,
@@ -15943,15 +15952,18 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     public function sms_rapor_detay(Request $request)
     {
         $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
-        if (!$isletme || $isletme->yeni_sms != 1) {
-            return response()->json(['basarili' => false, 'mesaj' => 'Bu islem yalnizca VoiceTelekom entegrasyonunda calisir', 'kayitlar' => []]);
+        if (!$isletme) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Isletme bulunamadi', 'kayitlar' => []]);
         }
-        $pkgID = $request->input('pkg_id');
-        if (empty($pkgID)) {
+        $paketId = $request->input('pkg_id');
+        if (empty($paketId)) {
             return response()->json(['basarili' => false, 'mesaj' => 'Paket kimligi bulunamadi', 'kayitlar' => []]);
         }
         $smsController = app()->make(SMSController::class);
-        return response()->json($smsController->voiceTelekomRaporDetayGetir($isletme->id, $pkgID));
+        if ($isletme->yeni_sms == 1) {
+            return response()->json($smsController->voiceTelekomRaporDetayGetir($isletme->id, $paketId));
+        }
+        return response()->json($smsController->efetechRaporDetayGetir($isletme->id, $paketId));
     }
 
     public function smsraportest(Request $request)
