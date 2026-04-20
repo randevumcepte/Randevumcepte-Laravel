@@ -1437,6 +1437,65 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     // Takvim turu: 0=Hizmete gore, 1=Personele gore, 2=Cihaza gore, 3=Odaya gore
     window.randevuTakvimTuru = {{ (int)($isletme->randevu_takvim_turu ?? 0) }};
 
+    // Client-side hizmet cache: modal acilisinda bir kez doldurulur
+    window.randevuHizmetVerisi = null;
+    window._randevuHizmetVerisiPending = null;
+
+    function fetchRandevuHizmetVerisi(onReady){
+        if(window.randevuHizmetVerisi){ if(onReady) onReady(); return; }
+        if(window._randevuHizmetVerisiPending){
+            if(onReady) window._randevuHizmetVerisiPending.push(onReady);
+            return;
+        }
+        window._randevuHizmetVerisiPending = onReady ? [onReady] : [];
+        var bitir = function(){
+            var pending = window._randevuHizmetVerisiPending || [];
+            window._randevuHizmetVerisiPending = null;
+            pending.forEach(function(fn){ try { if(fn) fn(); } catch(e){} });
+        };
+        $.ajax({
+            url: '/isletmeyonetim/randevu-modal-hizmet-verisi',
+            type: 'GET',
+            dataType: 'json',
+            data: { sube: '{{$isletme->id}}' },
+            success: function(resp){
+                window.randevuHizmetVerisi = {
+                    tum: (resp && resp.tum_hizmetler) ? resp.tum_hizmetler : [],
+                    personel: (resp && resp.personel_hizmet_map) ? resp.personel_hizmet_map : {},
+                    cihaz: (resp && resp.cihaz_hizmet_map) ? resp.cihaz_hizmet_map : {}
+                };
+                window.randevuHizmetVerisi.tum.forEach(function(h){
+                    hizmetDataCache[h.id] = {
+                        id: h.id, text: h.ad,
+                        sure: h.sure || 0, fiyat: h.fiyat || 0,
+                        kategori: h.kategori || '', renk: h.renk || '#6366f1'
+                    };
+                });
+                bitir();
+            },
+            error: function(){
+                console.warn('Hizmet verisi yuklenemedi');
+                bitir();
+            }
+        });
+    }
+
+    // Client-side filtreleme (personel/cihaz bazli)
+    function filtrelenmisHizmetler(personelId, cihazId){
+        var v = window.randevuHizmetVerisi;
+        if(!v) return { liste: [], fallback: false };
+        var izinli = null;
+        var hp = personelId ? (v.personel[personelId] || null) : null;
+        var hc = cihazId ? (v.cihaz[cihazId] || null) : null;
+        if(hp && hp.length) izinli = hp.slice();
+        if(hc && hc.length) izinli = (izinli ? izinli : []).concat(hc);
+        if(izinli && izinli.length){
+            izinli = Array.from(new Set(izinli.map(String)));
+            return { liste: v.tum.filter(function(h){ return izinli.indexOf(String(h.id)) > -1; }), fallback: false };
+        }
+        return { liste: v.tum.slice(), fallback: !!(personelId || cihazId) };
+    }
+
     // Her hizmet-select icin TomSelect instance'i sakla (data-index -> instance)
     window.hizmetTomInstances = window.hizmetTomInstances || {};
 
@@ -1512,22 +1571,6 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             return liste.some(function(h){ return String(h.id) === String(id); });
         });
         if(korunan.length) ts.setValue(korunan, true); // silent
-    }
-
-    // Client-side filtreleme (mevcut verisi kullanir)
-    function filtrelenmisHizmetler(personelId, cihazId){
-        var v = window.randevuHizmetVerisi;
-        if(!v) return { liste: [], fallback: false };
-        var izinli = null;
-        var hp = personelId ? (v.personel[personelId] || null) : null;
-        var hc = cihazId ? (v.cihaz[cihazId] || null) : null;
-        if(hp && hp.length) izinli = hp.slice();
-        if(hc && hc.length) izinli = (izinli ? izinli : []).concat(hc);
-        if(izinli && izinli.length){
-            izinli = Array.from(new Set(izinli.map(String)));
-            return { liste: v.tum.filter(function(h){ return izinli.indexOf(String(h.id)) > -1; }), fallback: false };
-        }
-        return { liste: v.tum.slice(), fallback: !!(personelId || cihazId) };
     }
 
     // Hizmet secimini AJAX cache'e gore yukle
