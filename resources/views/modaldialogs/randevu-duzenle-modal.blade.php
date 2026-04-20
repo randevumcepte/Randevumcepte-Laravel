@@ -226,27 +226,21 @@
         });
     }
 
-    // Eski custom.js randevu_duzenle click handler'ini bypass et
-    $(function(){
-        // Custom.js her selectoru ayri off: tam string match gerekir
-        $(document).off('click', 'a[name="randevu_duzenle"]');
-        $(document).off('click', 'button[name="randevu_duzenle"]');
-        $(document).off('click', '[name="randevu_duzenle"]');
-        $(document).off('click', 'a[name=\'randevu_duzenle\']');
-        // Kendi click handler'imizi bagla
-        $(document).on('click', '[name="randevu_duzenle"]', function(e){
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            var randevuId = $(this).attr('data-value');
-            console.log('[DUZENLE] click', randevuId, 'input bulundu mu?', $('#duzenlenecek_randevu_id').length);
-            if(!randevuId){ return; }
-            // Hem global degisken hem DOM input
-            window.duzenlenecekRandevuId = randevuId;
-            $('#duzenlenecek_randevu_id').val(randevuId);
-            $('.hizmetler_bolumu_randevu_duzenleme').empty();
-            $('#randevu-duzenle-modal').modal('show');
-        });
-    });
+    // Eski custom.js handler'i capture phase ile bypass et (jQuery bubble handler'lardan once calisir)
+    document.addEventListener('click', function(e){
+        var target = e.target.closest && e.target.closest('[name="randevu_duzenle"]');
+        if(!target) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        var randevuId = target.getAttribute('data-value');
+        console.log('[DUZENLE] capture click', randevuId);
+        if(!randevuId){ return; }
+        window.duzenlenecekRandevuId = randevuId;
+        $('#duzenlenecek_randevu_id').val(randevuId);
+        $('.hizmetler_bolumu_randevu_duzenleme').empty();
+        $('#randevu-duzenle-modal').modal('show');
+    }, true); // capture = true, bubble handler'lardan once calisir
 
     // Ham veri pencereye atandi - hizmetler/personel/cihaz/oda cache'leri ekleme modalinda
     // zaten hazirlaniyor (window.randevuHizmetVerisi, window.randevuModalData)
