@@ -517,6 +517,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/adisyon-sil','StoreAdminController@adisyon_sil');
 	Route::get('/personelcihazhizmetlerinigetir','StoreAdminController@personelcihazhizmetlerinigetir');
 	Route::get('/personel-cihaz-hizmetleri-json','StoreAdminController@personelCihazHizmetleriJson');
+	Route::get('/randevu-modal-hizmet-verisi','StoreAdminController@randevuModalHizmetVerisi');
  	Route::post('/pakettahsilatagit','StoreAdminController@pakettahsilatagit')->name('pakettahsilatagit');
  	
  	Route::post('/uruntahsilatagit','StoreAdminController@uruntahsilatagit')->name('uruntahsilatagit');

@@ -16878,6 +16878,70 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return $html;
     }
 
+    // Randevu modali icin: tum hizmetler + personel/cihaz eslemeleri (tek AJAX)
+    public function randevuModalHizmetVerisi(Request $request)
+    {
+        $isletmeid = self::mevcutsube($request);
+        $salon_hizmetler = SalonHizmetler::with('hizmetler:id,hizmet_adi,hizmet_kategori_id')
+            ->where('salon_id',$isletmeid)
+            ->where('aktif',1)
+            ->whereNull('santral_hizmeti')
+            ->get();
+
+        $kategori_idleri = $salon_hizmetler->pluck('hizmet_kategori_id')->filter()->unique()->values()->all();
+        $kategoriler = Hizmet_Kategorisi::whereIn('id',$kategori_idleri)->pluck('hizmet_kategorisi_adi','id')->toArray();
+
+        $tum_hizmetler = $salon_hizmetler->filter(function($sh){ return $sh->hizmetler !== null; })
+            ->map(function($sh) use ($kategoriler){
+                $kat_id = $sh->hizmet_kategori_id ?: ($sh->hizmetler ? $sh->hizmetler->hizmet_kategori_id : null);
+                return [
+                    'id' => $sh->hizmet_id,
+                    'ad' => $sh->hizmetler->hizmet_adi,
+                    'sure' => (int) $sh->sure_dk,
+                    'fiyat' => (float) $sh->baslangic_fiyat,
+                    'kategori' => ($kat_id && isset($kategoriler[$kat_id])) ? $kategoriler[$kat_id] : '',
+                ];
+            })->values();
+
+        $hizmet_idleri = $salon_hizmetler->pluck('hizmet_id')->toArray();
+        $personel_hizmet_map = new \stdClass();
+        $cihaz_hizmet_map = new \stdClass();
+
+        if(!empty($hizmet_idleri)){
+            $pm = [];
+            $rows = \DB::table('personel_sunulan_hizmetler')
+                ->join('salon_personelleri','personel_sunulan_hizmetler.personel_id','=','salon_personelleri.id')
+                ->where('salon_personelleri.salon_id',$isletmeid)
+                ->whereIn('personel_sunulan_hizmetler.hizmet_id',$hizmet_idleri)
+                ->select('personel_sunulan_hizmetler.personel_id','personel_sunulan_hizmetler.hizmet_id')
+                ->get();
+            foreach($rows as $r){
+                if(!isset($pm[$r->personel_id])) $pm[$r->personel_id] = [];
+                $pm[$r->personel_id][] = (int)$r->hizmet_id;
+            }
+            $personel_hizmet_map = (object) $pm;
+
+            $cm = [];
+            $rows = \DB::table('cihaz_sunulan_hizmetler')
+                ->join('cihazlar','cihaz_sunulan_hizmetler.cihaz_id','=','cihazlar.id')
+                ->where('cihazlar.salon_id',$isletmeid)
+                ->whereIn('cihaz_sunulan_hizmetler.hizmet_id',$hizmet_idleri)
+                ->select('cihaz_sunulan_hizmetler.cihaz_id','cihaz_sunulan_hizmetler.hizmet_id')
+                ->get();
+            foreach($rows as $r){
+                if(!isset($cm[$r->cihaz_id])) $cm[$r->cihaz_id] = [];
+                $cm[$r->cihaz_id][] = (int)$r->hizmet_id;
+            }
+            $cihaz_hizmet_map = (object) $cm;
+        }
+
+        return response()->json([
+            'tum_hizmetler' => $tum_hizmetler,
+            'personel_hizmet_map' => $personel_hizmet_map,
+            'cihaz_hizmet_map' => $cihaz_hizmet_map,
+        ]);
+    }
+
     // Randevu modali icin: personel/cihaz'a atanmis hizmetleri sure+fiyat ile JSON doner
     // Fallback: personel/cihaz filtresi var ama sonuc bossa, ya da hepsi=1 ise tum aktif hizmetler doner
     public function personelCihazHizmetleriJson(Request $request)
