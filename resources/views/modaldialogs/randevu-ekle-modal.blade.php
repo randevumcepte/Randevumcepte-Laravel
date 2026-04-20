@@ -1540,11 +1540,19 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
 
         var ts = initHizmetTom($hizmet, placeholder);
 
-        // Option'lara kategori meta'si ekle (render'da kullanilsin)
+        // Option'lara meta (kategori, sure, fiyat) ekle — updateHizmetDetaylari bunlari kullanir
         liste.forEach(function(h){
             if(ts.options[h.id]){
                 ts.options[h.id].kategori = h.kategori || '';
+                ts.options[h.id].sure = h.sure || 0;
+                ts.options[h.id].fiyat = h.fiyat || 0;
             }
+            // hizmetDataCache'i guncel tut ki updateHizmetDetaylari dogru gostersin
+            hizmetDataCache[h.id] = {
+                id: h.id, text: h.ad,
+                sure: h.sure || 0, fiyat: h.fiyat || 0,
+                kategori: h.kategori || '', renk: h.renk || '#6366f1'
+            };
         });
         ts.refreshOptions(false);
 
