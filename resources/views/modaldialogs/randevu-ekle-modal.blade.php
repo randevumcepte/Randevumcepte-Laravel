@@ -148,7 +148,7 @@
                                                             <!-- Sağ kolon: Hizmet Seçimi -->
                                                             <div class="col-md-6 mb-1">
                                                                 <label class="form-label" style="font-size: 0.8rem;">Hizmetler (Çoklu Seçim)</label>
-                                                                <select name="randevuhizmetleriyeni" id="randevuhizmetleriyeni_0" multiple class="form-control custom-select2 hizmet_secimi hizmet-select" data-index="0" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
+                                                                <select name="randevuhizmetleriyeni" id="randevuhizmetleriyeni_0" multiple class="form-control hizmet-select" data-index="0" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                                                     <option></option>
                                                                 </select>
                                                             </div>
@@ -1739,7 +1739,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                         <!-- Sağ kolon: Hizmet Seçimi -->
                         <div class="col-md-6 mb-1">
                             <label class="form-label" style="font-size: 0.8rem;">Hizmetler (Çoklu Seçim)</label>
-                            <select name="randevuhizmetleriyeni" id="randevuhizmetleriyeni_${newIndex}" multiple class="form-control custom-select2 hizmet_secimi hizmet-select" data-index="${newIndex}" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
+                            <select name="randevuhizmetleriyeni" id="randevuhizmetleriyeni_${newIndex}" multiple class="form-control hizmet-select" data-index="${newIndex}" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                 <option></option>
                             </select>
                         </div>
@@ -2091,7 +2091,14 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
 
     // Modal açıldığında select2'leri yeniden başlat
     $('#modal-view-event-add').on('shown.bs.modal', function() {
-        // Hizmet-select Tom Select kullanir; Select2 destroy'dan hariç tut
+        // Guvence: eger hizmet-select'e yanlislikla Select2 eklenmisse onu da destroy et
+        $('.hizmet-select').each(function(){
+            if($(this).hasClass('select2-hidden-accessible')){
+                try { $(this).select2('destroy'); } catch(e){}
+            }
+            // Select2 tarafindan eklenen container'i da temizle (double dropdown'a karsi)
+            $(this).next('.select2-container').remove();
+        });
         try { $('.custom-select2').not('.hizmet-select').select2('destroy'); } catch(e){}
         try { $('.opsiyonelSelect').not('.hizmet-select').select2('destroy'); } catch(e){}
 
