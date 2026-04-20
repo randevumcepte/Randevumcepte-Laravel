@@ -141,7 +141,8 @@ class PlanlaImporter
                 $sh->bolum = 2;
             }
             $sh->sure_dk = $sure;
-            $sh->fiyat = $fiyat;
+            $sh->baslangic_fiyat = $fiyat;
+            $sh->son_fiyat = $fiyat;
             $sh->save();
             $this->ensureKategoriRenk($kategoriId);
 
