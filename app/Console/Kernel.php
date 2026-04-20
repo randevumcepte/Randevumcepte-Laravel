@@ -21,6 +21,7 @@ class Kernel extends ConsoleKernel
         Commands\RandevuHatirlatmaAramasiYap::class,
         Commands\AlacakHatirlatmaAramasiYap::class,
         Commands\TekrarAramaHatirlat::class,
+        Commands\PlanlaImport::class,
        //Commands\NLPTokenGuncelle::class,
        //Commands\AvantajYayindanKaldir::class,
        //Commands\RandevuGuncelle::class,
