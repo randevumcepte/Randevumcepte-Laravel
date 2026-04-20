@@ -1,4 +1,11 @@
-{{-- Randevu Duzenle Modal - Modern (2026). Eski hali randevu-duzenle-modal-eski.blade.php'de yedek. --}}
+{{-- Randevu Duzenle Modal - Ekleme modali ile birebir ayni yapi. Eski sade hali randevu-duzenle-modal-eski.blade.php'de. --}}
+@php
+    $__dz_takvim_turu = $isletme->randevu_takvim_turu ?? 0;
+    $__dz_personel_style = in_array($__dz_takvim_turu, [2, 3]) ? 'display:none;' : '';
+    $__dz_cihaz_style    = in_array($__dz_takvim_turu, [1, 3]) ? 'display:none;' : '';
+    $__dz_oda_style      = in_array($__dz_takvim_turu, [1, 2]) ? 'display:none;' : '';
+    $__dz_yardimci_style = 'display:none;';
+@endphp
 <div id="randevu-duzenle-modal" class="modal modal-top fade calendar-modal" data-backdrop="static" data-keyboard="false">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 1200px;">
         <div class="modal-content">
@@ -17,71 +24,140 @@
                     @endif
                     <input type="hidden" name="sube" value="{{$isletme->id}}">
 
-                    <!-- Temel Bilgiler -->
-                    <div class="card mb-2">
-                        <div class="card-header py-1">
-                            <h6 class="mb-0" style="font-size: 0.9rem;">Temel Bilgiler</h6>
-                        </div>
-                        <div class="card-body p-2">
-                            <div class="row">
-                                <div class="col-lg-4 col-md-6 col-sm-12 mb-2">
-                                    <label class="form-label" style="font-size: 0.8rem;">@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</label>
-                                    <select name="adsoyad" id="randevuduzenle_musteri_id" class="form-control" style="width: 100%; height: 32px; font-size: 0.85rem;"></select>
+                    <div class="row">
+                        <!-- Sol Taraf: Temel Bilgiler ve Hizmetler -->
+                        <div class="col-md-8">
+                            <!-- Temel Bilgiler -->
+                            <div class="card mb-2">
+                                <div class="card-header py-1">
+                                    <h6 class="mb-0" style="font-size: 0.9rem;">Temel Bilgiler</h6>
                                 </div>
-                                <div class="col-lg-2 col-md-6 col-sm-12 mb-2">
-                                    <label class="form-label" style="visibility: hidden; font-size: 0.8rem;">Yeni müşteri</label>
-                                    <button class="btn btn-outline-primary w-100 yanitsiz_musteri_ekleme" type="button" data-toggle="modal" data-target="#musteri-bilgi-modal" style="padding: 4px 8px; font-size: 0.8rem; height: 32px;">
-                                        Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif
+                                <div class="card-body p-2">
+                                    <div class="row">
+                                        <div class="col-lg-4 col-md-3 col-sm-12 mb-2">
+                                            <label class="form-label" style="font-size: 0.8rem;">@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</label>
+                                            <select name="adsoyad" id="randevuduzenle_musteri_id" class="form-control opsiyonelSelect musteri_secimi" style="width: 100%; height: 32px; font-size: 0.85rem;">
+                                                <option></option>
+                                            </select>
+                                        </div>
+                                        <div class="col-lg-2 col-md-3 col-sm-12 mb-2">
+                                            <label class="form-label" style="visibility: hidden; font-size: 0.8rem;">Yeni müşteri</label>
+                                            <button class="btn btn-outline-primary w-100 yanitsiz_musteri_ekleme" type="button" data-toggle="modal" data-target="#musteri-bilgi-modal" style="padding: 4px 8px; font-size: 0.8rem; height: 32px;">
+                                                Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif
+                                            </button>
+                                        </div>
+                                        <div class="col-lg-3 col-md-3 col-sm-12 mb-2">
+                                            <label class="form-label" style="font-size: 0.8rem;">Tarih</label>
+                                            <input required placeholder="Tarih" type="text" class="form-control" name="tarih" id="randevuduzenle_tarih" autocomplete="off" style="height: 32px; font-size: 0.85rem;" />
+                                        </div>
+                                        <div class="col-lg-3 col-md-3 col-sm-12 mb-2">
+                                            <label class="form-label" style="font-size: 0.8rem;">Saat</label>
+                                            <select name="saat" class="form-control" id="randevuduzenle_saat" style="height: 32px; font-size: 0.85rem;">
+                                                @for($j = strtotime(date('07:00')) ; $j < strtotime(date('23:15')); $j+=(15*60))
+                                                <option value="{{date('H:i',$j)}}:00">{{date('H:i',$j)}}</option>
+                                                @endfor
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Hizmetler Bölümü -->
+                            <div class="card mb-2">
+                                <div class="card-header py-1 d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0" style="font-size: 0.9rem;">Hizmetler</h6>
+                                    <button type="button" id="bir_hizmet_daha_ekle_randevu_duzenleme" class="btn btn-outline-success btn-sm" style="padding: 3px 8px; font-size: 0.75rem;">
+                                        <i class="icon-copy fi-plus"></i> Yeni Hizmet Ekle
                                     </button>
                                 </div>
-                                <div class="col-lg-3 col-md-6 col-sm-12 mb-2">
-                                    <label class="form-label" style="font-size: 0.8rem;">Tarih</label>
-                                    <input required placeholder="Tarih" type="text" class="form-control" name="tarih" id="randevuduzenle_tarih" autocomplete="off" style="height: 32px; font-size: 0.85rem;" />
+                                <div class="card-body p-2 hizmetler_bolumu_randevu_duzenleme" style="overflow: visible;">
+                                    {{-- Hizmet satirlari JS ile dinamik olarak bu container'a eklenir (ekleme modalinin template'i ile ayni) --}}
                                 </div>
-                                <div class="col-lg-3 col-md-6 col-sm-12 mb-2">
-                                    <label class="form-label" style="font-size: 0.8rem;">Saat</label>
-                                    <select name="saat" class="form-control" id="randevuduzenle_saat" style="height: 32px; font-size: 0.85rem;">
-                                        @for($j = strtotime(date('07:00')) ; $j < strtotime(date('23:15')); $j+=(15*60))
-                                        <option value="{{date('H:i',$j)}}:00">{{date('H:i',$j)}}</option>
-                                        @endfor
-                                    </select>
+                            </div>
+
+                            <!-- Notlar -->
+                            <div class="card mb-2">
+                                <div class="card-header py-1">
+                                    <h6 class="mb-0" style="font-size: 0.9rem;">Notlar</h6>
                                 </div>
-                                <div class="col-12">
-                                    <label class="form-label" style="font-size: 0.8rem;">Personel Notu</label>
-                                    <textarea class="form-control" name="personel_notu" id="randevuduzenle_personel_notu" placeholder="Randevu ile ilgili notlarınızı buraya yazın..." rows="2" style="min-height: 60px; font-size: 0.85rem;"></textarea>
+                                <div class="card-body p-2">
+                                    <div class="col-12">
+                                        <label class="form-label" style="font-size: 0.8rem;">Personel Notu</label>
+                                        <textarea class="form-control" name="personel_notu" id="randevuduzenle_personel_notu" placeholder="Randevu ile ilgili notlarınızı buraya yazın..." rows="2" style="min-height: 60px; font-size: 0.85rem;"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sağ Taraf: Özet -->
+                        <div class="col-md-4">
+                            <div class="card mb-2">
+                                <div class="card-header py-1">
+                                    <h6 class="mb-0" style="font-size: 0.9rem;">Randevu Özeti</h6>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div id="randevu-duzenle-ozeti" style="min-height: 180px; font-size: 0.85rem;">
+                                        <div class="text-center text-muted py-3">
+                                            <i class="fa fa-edit fa-lg mb-2" style="opacity: 0.3;"></i>
+                                            <p class="mb-1 fw-bold" style="font-size: 0.9rem;">Yükleniyor...</p>
+                                            <p class="small mb-0" style="font-size: 0.75rem;">Randevu bilgileri getiriliyor</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Hizmetler -->
-                    <div class="card mb-2">
-                        <div class="card-header py-1 d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0" style="font-size: 0.9rem;">Hizmetler</h6>
-                            <button type="button" id="bir_hizmet_daha_ekle_randevu_duzenleme" class="btn btn-outline-success btn-sm" style="padding: 3px 8px; font-size: 0.75rem;">
-                                <i class="icon-copy fi-plus"></i> Yeni Hizmet Ekle
-                            </button>
-                        </div>
-                        <div class="card-body p-2">
-                            {{-- Hizmet satirlari custom.js tarafindan bu container'a HTML olarak eklenir --}}
-                            <div class="hizmetler_bolumu_randevu_duzenleme" style="overflow: visible;"></div>
-                        </div>
-                    </div>
                 </form>
             </div>
-
             <!-- Modal Footer -->
             <div class="modal-footer" style="padding: 8px 16px;">
                 <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" style="padding: 5px 12px; font-size: 0.85rem;">
                     <i class="icon-copy fa fa-times"></i> İptal
                 </button>
-                <button type="submit" form="randevuduzenleform" class="btn btn-success btn-sm" style="padding: 5px 12px; font-size: 0.85rem;">
+                <button type="submit" form="randevuduzenleform" class="btn btn-success btn-sm" id="randevu-guncelle-btn" style="padding: 5px 12px; font-size: 0.85rem;">
                     <i class="icon-copy fa fa-save"></i> Randevuyu Güncelle
                 </button>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Hizmet satiri template (yeni randevu ile birebir ayni) -->
+<template id="duzenle-hizmet-satiri-template">
+    <div class="hizmet-satiri-duzenle card mb-2" data-value="__INDEX__" style="border: 1px solid #dee2e6;">
+        <div class="card-header py-1 d-flex justify-content-between align-items-center" style="padding: 4px 8px; background-color: #f8f9fa;">
+            <span class="fw-bold" style="font-size: 0.85rem;">Hizmet #__NUM__</span>
+            <button type="button" name="hizmet_formdan_sil" data-value="__INDEX__" class="btn btn-sm btn-danger duzenle-hizmet-sil" style="padding: 2px 6px; font-size: 0.7rem;">
+                <i class="icon-copy fa fa-trash"></i> Sil
+            </button>
+        </div>
+        <div class="card-body p-2">
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <div class="row g-2">
+                        <div class="col-12 mb-1 secim-personel" style="{{ $__dz_personel_style }}">
+                            <label class="form-label" style="font-size: 0.8rem;">Personel</label>
+                            <select name="randevupersonelleriyeni[]" class="form-control opsiyonelSelect personel-select duzenle-personel-select" data-index="__INDEX__" style="width: 100%; height: 30px; font-size: 0.8rem;"><option></option></select>
+                        </div>
+                        <div class="col-12 mb-1 secim-cihaz" style="{{ $__dz_cihaz_style }}">
+                            <label class="form-label" style="font-size: 0.8rem;">Cihaz</label>
+                            <select name="randevucihazlariyeni[]" class="form-control opsiyonelSelect cihaz-select duzenle-cihaz-select" data-index="__INDEX__" style="width: 100%; height: 30px; font-size: 0.8rem;"><option></option></select>
+                        </div>
+                        <div class="col-12 mb-1 secim-oda" style="{{ $__dz_oda_style }}">
+                            <label class="form-label" style="font-size: 0.8rem;">Oda</label>
+                            <select name="randevuodalariyeni[]" class="form-control opsiyonelSelect oda-select duzenle-oda-select" data-index="__INDEX__" style="width:100%; height: 30px; font-size: 0.8rem;"><option></option></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-1">
+                    <label class="form-label" style="font-size: 0.8rem;">Hizmetler (Çoklu Seçim)</label>
+                    <select name="randevuhizmetleriyeni" id="duzenlerandevuhizmetleriyeni___INDEX__" multiple class="form-control duzenle-hizmet-select" data-index="__INDEX__" style="width: 100%; font-size: 0.8rem; min-height: 30px;"><option></option></select>
+                </div>
+                <div class="col-12 mt-1 duzenle-hizmet-detaylari" id="duzenle-hizmet-detaylari-__INDEX__" style="font-size: 0.8rem;"></div>
+            </div>
+        </div>
+    </div>
+</template>
 
 <style>
 #randevu-duzenle-modal .modal-content {
@@ -96,35 +172,254 @@
     border-radius: 8px 8px 0 0;
     padding: 12px 16px;
 }
-#randevu-duzenle-modal .modal-header .close {
-    color: #fff;
-    opacity: 0.85;
-    text-shadow: none;
-    font-size: 1.5rem;
-    margin: 0;
-    padding: 0 6px;
-}
-#randevu-duzenle-modal .modal-header .close:hover { opacity: 1; }
+#randevu-duzenle-modal .modal-header .close { color:#fff; opacity:0.85; text-shadow:none; font-size:1.5rem; }
+#randevu-duzenle-modal .modal-header .close:hover { opacity:1; }
 #randevu-duzenle-modal .modal-body { max-height: calc(100vh - 180px); overflow-y: auto; }
 #randevu-duzenle-modal .card { border: 1px solid #e5e7eb; border-radius: 8px; }
-#randevu-duzenle-modal .card-header { background: #f8f9fa; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; }
-#randevu-duzenle-modal .card-body { padding: 10px 12px; }
-#randevu-duzenle-modal label.form-label { font-weight: 500; color: #495057; margin-bottom: 2px; }
+#randevu-duzenle-modal .card-header { background:#f8f9fa; padding:8px 12px; border-bottom:1px solid #e5e7eb; }
+#randevu-duzenle-modal label.form-label { font-weight:500; color:#495057; margin-bottom:2px; }
 #randevu-duzenle-modal .form-control { border: 1px solid #d1d5db; border-radius: 6px; }
-#randevu-duzenle-modal .form-control:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
-/* hizmet satirlari (backend HTML snippet) - modern kart gorunumu */
-#randevu-duzenle-modal .hizmetler_bolumu_randevu_duzenleme > .row {
-    background: #fafbff;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    margin: 6px 0;
-    padding: 8px;
-}
-#randevu-duzenle-modal .hizmetler_bolumu_randevu_duzenleme > .row:hover { background: #f4f6ff; }
-#randevu-duzenle-modal .select2-container--default .select2-selection--single,
-#randevu-duzenle-modal .select2-container--default .select2-selection--multiple {
+#randevu-duzenle-modal .form-control:focus { border-color:#6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+
+/* Tom Select (duzenle-hizmet-select) stilleri */
+#randevu-duzenle-modal .ts-wrapper.multi .ts-control {
+    min-height: 40px !important;
+    padding: 4px 8px !important;
     border: 1px solid #d1d5db !important;
     border-radius: 6px !important;
-    min-height: 32px !important;
+    background: #fff !important;
+    flex-wrap: wrap !important;
 }
+#randevu-duzenle-modal .ts-wrapper.focus .ts-control { border-color:#6366f1 !important; box-shadow:0 0 0 3px rgba(99,102,241,0.15) !important; }
+#randevu-duzenle-modal .ts-wrapper.multi .ts-control > .item { background:#eef2ff !important; color:#4338ca !important; border:1px solid #c7d2fe !important; border-radius:6px !important; padding:3px 26px 3px 10px !important; margin:2px 3px 2px 0 !important; font-size:0.78rem !important; }
+#randevu-duzenle-modal .ts-wrapper.plugin-remove_button .item .remove { color:#6366f1 !important; padding:0 6px !important; font-weight:700 !important; }
+#randevu-duzenle-modal .ts-wrapper.plugin-remove_button .item .remove:hover { background:#6366f1 !important; color:#fff !important; border-radius:0 4px 4px 0 !important; }
 </style>
+
+<script>
+(function(){
+    window.duzenleHizmetIndex = 0;
+
+    // Ham veri pencereye atandi - hizmetler/personel/cihaz/oda cache'leri ekleme modalinda
+    // zaten hazirlaniyor (window.randevuHizmetVerisi, window.randevuModalData)
+
+    // Template'ten yeni hizmet satiri olustur
+    function duzenleYeniHizmetSatiri(){
+        var tpl = document.getElementById('duzenle-hizmet-satiri-template');
+        if(!tpl) return null;
+        var idx = window.duzenleHizmetIndex++;
+        var num = $('.hizmet-satiri-duzenle').length + 1;
+        var html = tpl.innerHTML.replace(/__INDEX__/g, idx).replace(/__NUM__/g, num);
+        var $el = $(html);
+        $('.hizmetler_bolumu_randevu_duzenleme').append($el);
+        // Personel/cihaz/oda options doldur (ekleme modalindaki mantik)
+        if(typeof window.doldurRandevuSecenekleri === 'function'){
+            // Sadece duzenle select'lerini doldur
+            var rmd = window.randevuModalData || {};
+            $el.find('.duzenle-personel-select').each(function(){
+                var $s = $(this); $s.empty().append('<option></option>');
+                (rmd.personeller || []).forEach(function(p){ $s.append(new Option(p.ad, p.id)); });
+            });
+            $el.find('.duzenle-cihaz-select').each(function(){
+                var $s = $(this); $s.empty().append('<option></option>');
+                (rmd.cihazlar || []).forEach(function(c){ $s.append(new Option(c.ad, c.id)); });
+            });
+            $el.find('.duzenle-oda-select').each(function(){
+                var $s = $(this); $s.empty().append('<option></option>');
+                (rmd.odalar || []).forEach(function(o){ $s.append(new Option(o.ad, o.id)); });
+            });
+        }
+        // Select2 init (personel/cihaz/oda)
+        $el.find('.opsiyonelSelect').each(function(){
+            try { $(this).select2({ placeholder: 'Seçiniz', allowClear: true, dropdownParent: $('#randevu-duzenle-modal') }); } catch(e){}
+        });
+        // Tom Select init (hizmet)
+        var $hz = $el.find('.duzenle-hizmet-select');
+        if($hz.length && window.TomSelect){
+            var ph = 'Hizmet seçin...';
+            try {
+                var ts = new TomSelect($hz[0], {
+                    plugins: ['remove_button'],
+                    placeholder: ph,
+                    allowEmptyOption: true,
+                    persist: false,
+                    maxOptions: null,
+                    closeAfterSelect: false,
+                    searchField: ['text', 'kategori'],
+                    render: {
+                        option: function(data, escape){
+                            var kat = data.kategori ? '<div style="font-size:.72rem;color:#6b7280;">' + escape(data.kategori) + '</div>' : '';
+                            return '<div><div style="font-weight:500;">'+escape(data.text)+'</div>'+kat+'</div>';
+                        },
+                        item: function(data, escape){ return '<div>'+escape(data.text)+'</div>'; },
+                        no_results: function(){ return '<div style="padding:12px;color:#6b7280;">Hizmet bulunamadı</div>'; }
+                    },
+                    onChange: function(){ duzenleUpdateOzeti(); }
+                });
+                // Options'a hizmet verilerini yukle
+                duzenleHizmetSelectOptionsYukle($hz, ts);
+            } catch(e){ console.warn('Tom Select init hata:', e); }
+        }
+        return $el;
+    }
+
+    // Hizmet select options'i doldur (tum hizmetler veya personel/cihaz filtreli)
+    function duzenleHizmetSelectOptionsYukle($hz, tsParam, personelId, cihazId){
+        var ts = tsParam || ($hz[0] && $hz[0].tomselect);
+        if(!ts || !window.randevuHizmetVerisi) return;
+        var v = window.randevuHizmetVerisi;
+        var liste;
+        if(personelId || cihazId){
+            var izinli = [];
+            if(personelId && v.personel[personelId]) izinli = izinli.concat(v.personel[personelId]);
+            if(cihazId && v.cihaz[cihazId]) izinli = izinli.concat(v.cihaz[cihazId]);
+            izinli = Array.from(new Set(izinli.map(String)));
+            if(izinli.length){
+                liste = v.tum.filter(function(h){ return izinli.indexOf(String(h.id)) > -1; });
+            } else {
+                liste = v.tum.slice(); // atama yoksa hepsi
+            }
+        } else {
+            liste = v.tum.slice();
+        }
+        ts.clearOptions();
+        liste.forEach(function(h){
+            ts.addOption({ value: h.id, text: h.ad, kategori: h.kategori || '', sure: h.sure || 0, fiyat: h.fiyat || 0 });
+        });
+        ts.refreshOptions(false);
+    }
+
+    // Duzenleme satirindaki personel/cihaz degisince hizmet select'i yenile
+    $(document).on('change', '#randevu-duzenle-modal .duzenle-personel-select, #randevu-duzenle-modal .duzenle-cihaz-select', function(){
+        var t = window.randevuTakvimTuru;
+        if(t === 0 || t === 3) return; // filtre yok
+        var $row = $(this).closest('.hizmet-satiri-duzenle');
+        var personelId = $row.find('.duzenle-personel-select').val() || '';
+        var cihazId = $row.find('.duzenle-cihaz-select').val() || '';
+        var $hz = $row.find('.duzenle-hizmet-select');
+        if($hz.length) duzenleHizmetSelectOptionsYukle($hz, null, personelId, cihazId);
+    });
+
+    // Yeni satir ekle butonu
+    $(document).on('click', '#bir_hizmet_daha_ekle_randevu_duzenleme', function(e){
+        e.preventDefault();
+        duzenleYeniHizmetSatiri();
+    });
+
+    // Satir sil
+    $(document).on('click', '#randevu-duzenle-modal .duzenle-hizmet-sil', function(){
+        $(this).closest('.hizmet-satiri-duzenle').remove();
+        duzenleUpdateOzeti();
+    });
+
+    // Ozet guncelle
+    function duzenleUpdateOzeti(){
+        var toplamSure = 0, toplamFiyat = 0, hizmetSayisi = 0;
+        $('#randevu-duzenle-modal .hizmet-satiri-duzenle').each(function(){
+            var $hz = $(this).find('.duzenle-hizmet-select');
+            var ts = $hz[0] && $hz[0].tomselect;
+            if(!ts) return;
+            ts.items.forEach(function(id){
+                var opt = ts.options[id];
+                if(opt){
+                    toplamSure += Number(opt.sure || 0);
+                    toplamFiyat += Number(opt.fiyat || 0);
+                    hizmetSayisi++;
+                }
+            });
+        });
+        var html;
+        if(hizmetSayisi === 0){
+            html = '<div class="text-center text-muted py-3"><i class="fa fa-edit fa-lg mb-2" style="opacity:.3;"></i><p class="mb-1 fw-bold">Hizmet seçilmedi</p></div>';
+        } else {
+            html = '<div class="d-flex justify-content-between py-1"><strong>Hizmet sayısı:</strong><span>'+hizmetSayisi+'</span></div>' +
+                   '<div class="d-flex justify-content-between py-1"><strong>Toplam süre:</strong><span>'+toplamSure+' dk</span></div>' +
+                   '<div class="d-flex justify-content-between py-1"><strong>Toplam tutar:</strong><span style="color:#10b981;font-weight:700;">'+toplamFiyat.toFixed(2)+' ₺</span></div>';
+        }
+        $('#randevu-duzenle-ozeti').html(html);
+    }
+
+    // Modal acilisi - randevu ID window.duzenlenecekRandevuId veya #duzenlenecek_randevu_id'den
+    $('#randevu-duzenle-modal').on('show.bs.modal', function(e){
+        // Form'u temizle
+        $('#randevuduzenleform')[0].reset();
+        $('.hizmetler_bolumu_randevu_duzenleme').empty();
+        window.duzenleHizmetIndex = 0;
+        $('#randevu-duzenle-ozeti').html('<div class="text-center text-muted py-3"><p>Yükleniyor...</p></div>');
+
+        // Hizmet verisi cache (ekleme modalinin verisi yoksa cek)
+        if(typeof fetchRandevuHizmetVerisi === 'function' && !window.randevuHizmetVerisi){
+            fetchRandevuHizmetVerisi();
+        }
+
+        var randevuId = $('#duzenlenecek_randevu_id').val() || window.duzenlenecekRandevuId;
+        if(!randevuId) return;
+
+        // Randevu detayini cek
+        $.ajax({
+            url: '/isletmeyonetim/randevu-duzenle-json',
+            type: 'GET',
+            dataType: 'json',
+            data: { randevu_id: randevuId, sube: $('input[name="sube"]', '#randevuduzenleform').val() },
+            success: function(data){
+                if(!data || data.error){ console.warn(data); return; }
+
+                $('#duzenlenecek_randevu_id').val(data.randevu_id);
+                $('#randevuduzenle_tarih').val(data.tarih);
+                $('#randevuduzenle_saat').val(data.saat);
+                $('#randevuduzenle_personel_notu').val(data.personel_notu);
+
+                // Musteri select'i — mevcut musteri select akisiyla set et
+                var $m = $('#randevuduzenle_musteri_id');
+                if($m.length && data.musteri_id){
+                    if($m.find('option[value="'+data.musteri_id+'"]').length === 0){
+                        $m.append(new Option(data.musteri_adi || ('#'+data.musteri_id), data.musteri_id, true, true));
+                    }
+                    $m.val(data.musteri_id).trigger('change');
+                }
+
+                // Hizmet verisi cache hazir degilse bekle
+                var hizmetleriYukle = function(){
+                    data.hizmetler.forEach(function(h){
+                        var $row = duzenleYeniHizmetSatiri();
+                        if(!$row) return;
+                        // Set personel, cihaz, oda
+                        setTimeout(function(){
+                            if(h.personel_id) $row.find('.duzenle-personel-select').val(h.personel_id).trigger('change');
+                            if(h.cihaz_id) $row.find('.duzenle-cihaz-select').val(h.cihaz_id).trigger('change');
+                            if(h.oda_id) $row.find('.duzenle-oda-select').val(h.oda_id).trigger('change');
+                            // Hizmet select - Tom Select
+                            var $hz = $row.find('.duzenle-hizmet-select');
+                            var ts = $hz[0] && $hz[0].tomselect;
+                            if(ts && h.hizmet_id){
+                                // Option yoksa hemen ekle (kategori/sure/fiyat cache'ten)
+                                if(!ts.options[h.hizmet_id] && window.randevuHizmetVerisi){
+                                    var hData = window.randevuHizmetVerisi.tum.find(function(x){ return String(x.id) === String(h.hizmet_id); });
+                                    if(hData){ ts.addOption({ value: hData.id, text: hData.ad, kategori: hData.kategori || '', sure: hData.sure, fiyat: hData.fiyat }); }
+                                }
+                                ts.addItem(String(h.hizmet_id), true);
+                            }
+                        }, 100);
+                    });
+                    setTimeout(duzenleUpdateOzeti, 300);
+                };
+
+                if(window.randevuHizmetVerisi){
+                    hizmetleriYukle();
+                } else {
+                    // Cache hazir olmasini bekle (max 2sn)
+                    var tries = 0;
+                    var timer = setInterval(function(){
+                        tries++;
+                        if(window.randevuHizmetVerisi){ clearInterval(timer); hizmetleriYukle(); }
+                        else if(tries > 20){ clearInterval(timer); hizmetleriYukle(); /* yine dene */ }
+                    }, 100);
+                }
+            },
+            error: function(){
+                $('#randevu-duzenle-ozeti').html('<div class="text-danger text-center py-3">Randevu bilgisi alınamadı</div>');
+            }
+        });
+    });
+})();
+</script>
