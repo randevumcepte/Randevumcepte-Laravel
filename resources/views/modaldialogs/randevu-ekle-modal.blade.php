@@ -98,7 +98,7 @@
                                                     <i class="icon-copy fi-plus"></i> Yeni Hizmet Ekle
                                                 </button>
                                             </div>
-                                            <div class="card-body p-2 hizmetler_bolumu" style="max-height: 350px; overflow-y: auto;">
+                                            <div class="card-body p-2 hizmetler_bolumu" style="overflow: visible;">
                                                 <!-- Hizmet Satırı 0 -->
                                                 <div class="hizmet-satiri card mb-2" data-value="0" style="border: 1px solid #dee2e6;">
                                                     <div class="card-header py-1 d-flex justify-content-between align-items-center" style="padding: 4px 8px; background-color: #f8f9fa;">
@@ -662,29 +662,11 @@ h1, h2 {
     padding: 10px;
 }
 
-/* Hizmetler Scroll Alanı */
+/* Hizmetler bölümü: dropdown'un taşması icin scroll yok, auto yukseklik */
 .hizmetler_bolumu {
-    max-height: 350px;
-    overflow-y: auto;
+    height: auto;
+    overflow: visible !important;
     padding-right: 4px;
-}
-
-.hizmetler_bolumu::-webkit-scrollbar {
-    width: 4px;
-}
-
-.hizmetler_bolumu::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 2px;
-}
-
-.hizmetler_bolumu::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 2px;
-}
-
-.hizmetler_bolumu::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
 }
 
 /* Form Element Stilleri */
@@ -1774,8 +1756,12 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         hizmetSatirSayisi++;
         updateRandevuOzeti();
         
+        // Yeni satir eklendiginde sayfayi oraya kaydir (container scroll kaldirildi, window scroll kullanilir)
         setTimeout(function() {
-            $('.hizmetler_bolumu').scrollTop($('.hizmetler_bolumu')[0].scrollHeight);
+            var $last = $('.hizmet-satiri').last();
+            if($last.length && $last[0].scrollIntoView){
+                $last[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }, 100);
 
         select2YenidenYukle();
