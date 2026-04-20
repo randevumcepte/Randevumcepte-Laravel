@@ -124,10 +124,31 @@
 
 
 <style>
+/* Modal ortalama: Bootstrap default davranisi zorla */
+#randevu-duzenle-modal {
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+    display: none;
+}
+#randevu-duzenle-modal.show {
+    display: block !important;
+}
+#randevu-duzenle-modal .modal-dialog {
+    max-width: 1200px !important;
+    width: auto !important;
+    margin: 1.75rem auto !important;
+    min-height: calc(100% - 3.5rem);
+    display: flex;
+    align-items: center;
+}
 #randevu-duzenle-modal .modal-content {
+    width: 100%;
     border-radius: 8px;
     border: none;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+@media (min-width: 1250px) {
+    #randevu-duzenle-modal .modal-dialog { max-width: 1200px !important; }
 }
 #randevu-duzenle-modal .modal-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
