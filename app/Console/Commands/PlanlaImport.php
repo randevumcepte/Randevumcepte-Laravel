@@ -33,8 +33,8 @@ class PlanlaImport extends Command
             $this->error('--email ve --password zorunlu (analyze disinda).');
             return 1;
         }
-        if (!$probe && !$analyze && !$salonId) {
-            $this->error('Import icin --salon zorunlu. Kesif icin --probe veya --analyze kullanin.');
+        if (!$probe && !$probeApi && !$analyze && !$salonId) {
+            $this->error('Import icin --salon zorunlu. Kesif icin --probe / --probe-api / --analyze kullanin.');
             return 1;
         }
 
