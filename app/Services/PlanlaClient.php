@@ -93,6 +93,7 @@ class PlanlaClient
 
         // 2) JSON API login denemeleri (Next.js / React SPA olma ihtimaline karsi)
         $jsonLoginEndpoints = [
+            '/sign-in',
             '/api/auth/login',
             '/api/auth/signin',
             '/api/v1/auth/login',
@@ -100,6 +101,7 @@ class PlanlaClient
             '/auth/login',
             '/api/user/login',
             '/api/sign-in',
+            '/api/auth/sign-in',
         ];
         foreach ($jsonLoginEndpoints as $path) {
             $res = $this->tryJsonLogin($path, $csrfMeta);
@@ -337,27 +339,69 @@ class PlanlaClient
         $js = (string) $resp->getBody();
         $this->dump('bundle_site_js', $js, $resp->getHeaders());
 
-        $endpoints = [];
-        if (preg_match_all('#["\'`](/api/[a-zA-Z0-9/_\-.$?={}:]+)["\'`]#', $js, $m)) {
-            $endpoints = array_values(array_unique($m[1]));
+        // Tum path-benzeri stringler (", ', `)
+        $paths = [];
+        foreach (['"', "'", '`'] as $q) {
+            $pat = '#' . preg_quote($q, '#') . '(/[a-zA-Z][a-zA-Z0-9/_\-.\$]{2,80})' . preg_quote($q, '#') . '#';
+            if (preg_match_all($pat, $js, $m)) {
+                $paths = array_merge($paths, $m[1]);
+            }
         }
+        $paths = array_values(array_unique($paths));
+
+        // Axios/fetch cagrilari (daha guvenilir isaretci)
+        $calls = [];
+        $callPatterns = [
+            '#axios\.(?:get|post|put|delete|patch)\(["\'`]([^"\'`]+)["\'`]#i',
+            '#\.request\(\s*\{[^}]*url\s*:\s*["\'`]([^"\'`]+)["\'`]#i',
+            '#fetch\(\s*["\'`]([^"\'`]+)["\'`]#i',
+            '#url\s*:\s*["\'`](/[a-zA-Z][^"\'`]{2,80})["\'`]#i',
+        ];
+        foreach ($callPatterns as $p) {
+            if (preg_match_all($p, $js, $m)) $calls = array_merge($calls, $m[1]);
+        }
+        $calls = array_values(array_unique($calls));
+
+        // baseURL / API_URL
+        $baseUrls = [];
+        if (preg_match_all('#(?:baseURL|base_url|API_URL|apiUrl|apiURL|API_BASE|API_ENDPOINT)\s*[:=]\s*["\'`]([^"\'`]+)["\'`]#i', $js, $m)) {
+            $baseUrls = array_values(array_unique($m[1]));
+        }
+
+        // Planla domains (daha genis)
         $urls = [];
-        if (preg_match_all('#https?://[a-zA-Z0-9.\-]+\.planla[a-zA-Z0-9./?=_\-]*#', $js, $m)) {
+        if (preg_match_all('#https?://[a-zA-Z0-9.\-]*planla[a-zA-Z0-9.\-/?=_&]*#', $js, $m)) {
             $urls = array_values(array_unique($m[0]));
         }
+
+        // Login/auth pathleri (tum path havuzundan)
+        $loginPaths = [];
+        foreach (array_merge($paths, $calls) as $p) {
+            if (preg_match('#(sign[-_]?in|login|auth|session)#i', $p)) $loginPaths[] = $p;
+        }
+        $loginPaths = array_values(array_unique($loginPaths));
+
+        // Data endpoint adaylari
+        $dataPaths = [];
+        foreach (array_merge($paths, $calls) as $p) {
+            if (preg_match('#(customer|musteri|client|appointment|randevu|booking|service|hizmet|staff|personel|employee|calendar|ajanda|kategori|categor|branch|sube)#i', $p)) {
+                $dataPaths[] = $p;
+            }
+        }
+        $dataPaths = array_values(array_unique($dataPaths));
+
         $payloadHints = [];
         if (preg_match_all('#\{[^{}]{0,200}(password|sifre)[^{}]{0,200}\}#', $js, $m)) {
             $payloadHints = array_slice(array_values(array_unique($m[0])), 0, 10);
-        }
-        $loginPaths = [];
-        foreach ($endpoints as $e) {
-            if (preg_match('#(sign|login|auth)#i', $e)) $loginPaths[] = $e;
         }
 
         $summary = [
             'bundle_size'    => strlen($js),
             'login_paths'    => $loginPaths,
-            'api_endpoints'  => $endpoints,
+            'data_paths'     => $dataPaths,
+            'base_urls'      => $baseUrls,
+            'http_calls'     => array_slice($calls, 0, 60),
+            'all_paths'      => array_slice($paths, 0, 120),
             'planla_urls'    => $urls,
             'payload_hints'  => $payloadHints,
         ];

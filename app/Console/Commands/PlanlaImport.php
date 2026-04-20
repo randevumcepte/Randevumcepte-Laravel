@@ -49,13 +49,16 @@ class PlanlaImport extends Command
             }
             $s = $res['summary'];
             $this->line('Bundle boyut: ' . $s['bundle_size'] . ' byte');
-            $this->line('Login path adaylari: ' . implode(', ', $s['login_paths']));
-            $this->line('Planla URL\'leri: ' . implode(', ', $s['planla_urls']));
-            $this->line('Toplam /api endpoint: ' . count($s['api_endpoints']));
-            $this->line('Ilk 30 endpoint:');
-            foreach (array_slice($s['api_endpoints'], 0, 30) as $e) {
-                $this->line('  ' . $e);
-            }
+            $this->line('Base URL adaylari: ' . implode(', ', $s['base_urls']));
+            $this->line('Planla domain URL\'leri: ' . implode(', ', $s['planla_urls']));
+            $this->line('--- Login/auth path adaylari (' . count($s['login_paths']) . ') ---');
+            foreach ($s['login_paths'] as $e) $this->line('  ' . $e);
+            $this->line('--- Data path adaylari (' . count($s['data_paths']) . ') ---');
+            foreach ($s['data_paths'] as $e) $this->line('  ' . $e);
+            $this->line('--- HTTP call (' . count($s['http_calls']) . ' adet, ilk 40) ---');
+            foreach (array_slice($s['http_calls'], 0, 40) as $e) $this->line('  ' . $e);
+            $this->line('--- Tum path-benzeri stringler (ilk 40) ---');
+            foreach (array_slice($s['all_paths'], 0, 40) as $e) $this->line('  ' . $e);
             $this->info('Tam analiz: ' . $client->dumpDir() . '/bundle_analysis.body');
             return 0;
         }
