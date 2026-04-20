@@ -1274,8 +1274,8 @@ function doldurRandevuSecenekleri(){
 }
 
 $(document).ready(function() {
-    // Tab değişimlerini takip et ve butonları göster/gizle
-    $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
+    // Tab değişimlerini takip et ve butonları göster/gizle — sadece bu modal icinde
+    $('#modal-view-event-add').on('shown.bs.tab', 'a[data-toggle="tab"]', function(e) {
         updateFooterButtons();
     });
     $('#modal-view-event-add').on('show.bs.modal', function() {
@@ -1289,20 +1289,20 @@ $(document).ready(function() {
     updateFooterButtons();
     
     function updateFooterButtons() {
-        const activeTabId = $('.tab-pane.active').attr('id');
-        
-        if (activeTabId === 'yeni-randevu') {
-            // Randevu tab'ı aktif
-            $('#randevu-olustur').show();
+        // SADECE bu modal icindeki tab'i kontrol et (ayarlar vs baska tab'lar bu mantigi bozmasin)
+        const activeTabId = $('#modal-view-event-add .tab-pane.active').attr('id');
+        var $kaydetBtn = $('#modal-view-event-add #saat-kapama-kaydet');
+        var $olusturBtn = $('#modal-view-event-add #randevu-olustur');
+
+        if (activeTabId === 'saat-kapama') {
             @if(!Auth::guard('isletmeyonetim')->user()->hasRole('Personel') && !Auth::guard('isletmeyonetim')->user()->hasRole('Sosyal Medya Uzmanı'))
-            $('#saat-kapama-kaydet').hide();
+            $kaydetBtn.show();
             @endif
-        } else if (activeTabId === 'saat-kapama') {
-            // Saat kapama tab'ı aktif
-            @if(!Auth::guard('isletmeyonetim')->user()->hasRole('Personel') && !Auth::guard('isletmeyonetim')->user()->hasRole('Sosyal Medya Uzmanı'))
-            $('#saat-kapama-kaydet').show();
-            @endif
-            $('#randevu-olustur').hide();
+            $olusturBtn.hide();
+        } else {
+            // Varsayilan: yeni-randevu veya bilinmeyen -> randevu olustur goster, kaydet gizle
+            $olusturBtn.show();
+            $kaydetBtn.hide();
         }
     }
     
