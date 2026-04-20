@@ -2680,9 +2680,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             $('#karaliste_sms_tablo').DataTable({
                  autoWidth: false,
-                 responsive: true,
+                 responsive: false,
                  processing: true,
                  serverSide: true,
+                 deferRender: true,
+                 destroy: true,
                  pageLength: 10,
                  lengthMenu: [10, 25, 50, 100],
                  "order": [[ 2, "desc" ]],
@@ -2765,11 +2767,13 @@ document.addEventListener('DOMContentLoaded', function() {
                });
          
                $('#bildirim_sms_raporlari').DataTable({
-         
+
                   autoWidth: false,
-         
-                  responsive: true,
-         
+
+                  responsive: false,
+                  deferRender: true,
+                  destroy: true,
+
                   "order": [[ 0, "desc" ]],
          
                   columns:[
@@ -2884,11 +2888,13 @@ document.addEventListener('DOMContentLoaded', function() {
                });
          
                $('#grup_sms_raporlari').DataTable({
-         
+
                   autoWidth: false,
-         
-                  responsive: true,
-         
+
+                  responsive: false,
+                  deferRender: true,
+                  destroy: true,
+
                   "order": [[ 0, "desc" ]],
          
                   columns:[
@@ -3003,11 +3009,13 @@ document.addEventListener('DOMContentLoaded', function() {
                });
          
                $('#filtreli_sms_raporlari').DataTable({
-         
+
                   autoWidth: false,
-         
-                  responsive: true,
-         
+
+                  responsive: false,
+                  deferRender: true,
+                  destroy: true,
+
                   "order": [[ 0, "desc" ]],
          
                   columns:[
@@ -3124,11 +3132,13 @@ document.addEventListener('DOMContentLoaded', function() {
          
          
                $('#toplu_sms_raporlari').DataTable({
-         
+
                   autoWidth: false,
-         
-                  responsive: true,
-         
+
+                  responsive: false,
+                  deferRender: true,
+                  destroy: true,
+
                   "order": [[ 0, "desc" ]],
          
                   columns:[
@@ -3243,11 +3253,13 @@ document.addEventListener('DOMContentLoaded', function() {
                });
          
                $('#kampanya_sms_raporlari').DataTable({
-         
+
                   autoWidth: false,
-         
-                  responsive: true,
-         
+
+                  responsive: false,
+                  deferRender: true,
+                  destroy: true,
+
                   "order": [[ 0, "desc" ]],
          
                   columns:[
