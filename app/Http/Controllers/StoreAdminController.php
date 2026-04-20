@@ -15952,10 +15952,21 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $draw = intval($request->input('draw', 1));
         $start = intval($request->input('start', 0));
         $length = intval($request->input('length', 10));
-        $aramaDegeri = trim((string)$request->input('search.value', ''));
-        $yon = strtolower((string)$request->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
 
-        $length = ($length <= 0) ? 10 : min($length, 200);
+        $aramaDegeri = $request->input('search.value', $request->input('search', ''));
+        if (is_array($aramaDegeri)) {
+            $aramaDegeri = isset($aramaDegeri['value']) ? $aramaDegeri['value'] : '';
+        }
+        $aramaDegeri = trim((string)$aramaDegeri);
+
+        $orderDir = $request->input('order.0.dir');
+        if (empty($orderDir)) {
+            $order = $request->input('order', []);
+            if (is_array($order) && isset($order[0]['dir'])) $orderDir = $order[0]['dir'];
+        }
+        $yon = strtolower((string)$orderDir) === 'asc' ? 'asc' : 'desc';
+
+        $length = ($length <= 0) ? 10 : min($length, 500);
 
         $bosYanit = [
             'draw' => $draw,
@@ -15971,7 +15982,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if ($isletme->yeni_sms == 1) {
             $smsController = app()->make(SMSController::class);
             $raporlar = $smsController->voiceTelekomRaporlariGetir($isletme->id);
-            $tumListe = isset($raporlar[$tur]) ? $raporlar[$tur]->toArray() : [];
+            $tumListe = isset($raporlar[$tur]) ? $raporlar[$tur]->values()->all() : [];
             $toplam = count($tumListe);
 
             if ($aramaDegeri !== '') {
@@ -15984,6 +15995,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             if ($yon === 'asc') {
                 $tumListe = array_reverse($tumListe);
             }
+
+            \Log::info('sms_raporlari_sayfali yeni_sms=1', [
+                'salon' => $isletme->id, 'tur' => $tur, 'toplam' => $toplam,
+                'filtreli' => $filtreli, 'start' => $start, 'length' => $length,
+            ]);
 
             return response()->json([
                 'draw' => $draw,
@@ -16024,10 +16040,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             ->take($length)
             ->get();
 
+        \Log::info('sms_raporlari_sayfali legacy', [
+            'salon' => $isletme->id, 'tur' => $tur, 'toplam' => $toplam,
+            'filtreli' => $filtreli, 'start' => $start, 'length' => $length, 'donen' => $satirlar->count(),
+        ]);
+
         return response()->json([
             'draw' => $draw,
-            'recordsTotal' => $toplam,
-            'recordsFiltered' => $filtreli,
+            'recordsTotal' => intval($toplam),
+            'recordsFiltered' => intval($filtreli),
             'data' => $satirlar,
         ]);
     }
