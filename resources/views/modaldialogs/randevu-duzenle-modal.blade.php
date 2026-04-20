@@ -238,8 +238,10 @@
             e.preventDefault();
             e.stopImmediatePropagation();
             var randevuId = $(this).attr('data-value');
-            console.log('[DUZENLE] click', randevuId);
+            console.log('[DUZENLE] click', randevuId, 'input bulundu mu?', $('#duzenlenecek_randevu_id').length);
             if(!randevuId){ return; }
+            // Hem global degisken hem DOM input
+            window.duzenlenecekRandevuId = randevuId;
             $('#duzenlenecek_randevu_id').val(randevuId);
             $('.hizmetler_bolumu_randevu_duzenleme').empty();
             $('#randevu-duzenle-modal').modal('show');
@@ -418,9 +420,9 @@
     // Modal acilisi - randevu ID window.duzenlenecekRandevuId veya #duzenlenecek_randevu_id'den
     $('#randevu-duzenle-modal').on('show.bs.modal', function(e){
         console.log('[DUZENLE] show.bs.modal tetiklendi');
-        // ONCE randevu ID'yi yakala (reset() hidden input'u da temizler!)
-        var randevuId = $('#duzenlenecek_randevu_id').val() || window.duzenlenecekRandevuId;
-        console.log('[DUZENLE] yakalanan randevu_id:', randevuId);
+        // Global degiskeni once dene (kesin kayipsiz)
+        var randevuId = window.duzenlenecekRandevuId || $('#duzenlenecek_randevu_id').val();
+        console.log('[DUZENLE] yakalanan randevu_id:', randevuId, 'global:', window.duzenlenecekRandevuId, 'input:', $('#duzenlenecek_randevu_id').val(), 'input elem sayisi:', $('#duzenlenecek_randevu_id').length);
 
         // Form'u temizle
         $('#randevuduzenleform')[0].reset();
