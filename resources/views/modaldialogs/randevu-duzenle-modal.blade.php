@@ -7,7 +7,7 @@
     $__dz_yardimci_style = 'display:none;';
 @endphp
 <div id="randevu-duzenle-modal" class="modal modal-top fade calendar-modal" data-backdrop="static" data-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 1200px;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 1200px; width: 95%; margin-left: auto; margin-right: auto;">
         <div class="modal-content">
             <div class="modal-header">
                 <h4 class="h4" style="color:white">
@@ -124,6 +124,14 @@
 
 
 <style>
+#randevu-duzenle-modal {
+    padding-right: 0 !important;
+}
+#randevu-duzenle-modal .modal-dialog {
+    margin: 1.75rem auto !important;
+    max-width: 1200px;
+    width: calc(100% - 30px);
+}
 #randevu-duzenle-modal .modal-content {
     border-radius: 8px;
     border: none;
