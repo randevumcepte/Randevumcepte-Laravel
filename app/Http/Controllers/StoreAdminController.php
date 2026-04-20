@@ -16879,24 +16879,34 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
 
     // Randevu modali icin: personel/cihaz'a atanmis hizmetleri sure+fiyat ile JSON doner
+    // Fallback: personel/cihaz filtresi var ama sonuc bossa, ya da hepsi=1 ise tum aktif hizmetler doner
     public function personelCihazHizmetleriJson(Request $request)
     {
         $isletmeid = self::mevcutsube($request);
+        $hepsi = $request->hepsi == 1 || $request->hepsi === '1' || $request->hepsi === true;
         $hizmet_idleri = [];
-        if($request->personel_id != ''){
+        $filtre_verildi = false;
+
+        if(!$hepsi && $request->personel_id != ''){
+            $filtre_verildi = true;
             $hizmet_idleri = array_merge($hizmet_idleri, PersonelHizmetler::where('personel_id',$request->personel_id)->pluck('hizmet_id')->toArray());
         }
-        if($request->cihaz_id != ''){
+        if(!$hepsi && $request->cihaz_id != ''){
+            $filtre_verildi = true;
             $hizmet_idleri = array_merge($hizmet_idleri, CihazHizmetler::where('cihaz_id',$request->cihaz_id)->pluck('hizmet_id')->toArray());
         }
         $hizmet_idleri = array_values(array_unique($hizmet_idleri));
-        if(empty($hizmet_idleri)) return response()->json(['results'=>[]]);
 
-        $salon_hizmetler = SalonHizmetler::with('hizmetler:id,hizmet_adi,hizmet_kategori_id')
+        $query = SalonHizmetler::with('hizmetler:id,hizmet_adi,hizmet_kategori_id')
             ->where('salon_id',$isletmeid)
             ->where('aktif',1)
-            ->whereIn('hizmet_id', $hizmet_idleri)
-            ->get();
+            ->whereNull('santral_hizmeti');
+
+        // Filtre verilmediyse veya filtre sonucu bossa (fallback) -> tum aktif hizmetler
+        if($filtre_verildi && !empty($hizmet_idleri)){
+            $query->whereIn('hizmet_id', $hizmet_idleri);
+        }
+        $salon_hizmetler = $query->get();
 
         // Kategori adlari tek sorguda
         $kategori_idleri = $salon_hizmetler->pluck('hizmet_kategori_id')->filter()->unique()->values()->all();
@@ -16914,7 +16924,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 ];
             })->values();
 
-        return response()->json(['results' => $results]);
+        return response()->json([
+            'results' => $results,
+            'fallback' => !($filtre_verildi && !empty($hizmet_idleri)), // frontend'e fallback durumu bildir
+        ]);
     }
 
     public function taksitleri_getir(Request $request,$filtre,$musteriid)
