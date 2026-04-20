@@ -301,23 +301,38 @@ class PlanlaClient
             'Accept'           => 'application/json, text/plain, */*',
             'X-Requested-With' => 'XMLHttpRequest',
             'Referer'          => self::BASE_ADMIN . '/customers',
+            'Origin'           => self::BASE_ADMIN,
         ]);
+        $methods = [
+            'GET'        => function ($p, $headers) { return $this->http->get($p, ['headers' => $headers]); },
+            'POST_empty' => function ($p, $headers) {
+                return $this->http->post($p, [
+                    'headers' => array_merge($headers, ['Content-Type' => 'application/json']),
+                    'body'    => '{}',
+                ]);
+            },
+        ];
         foreach ($pages as $p) {
-            try {
-                $resp = $this->http->get($p, ['headers' => $jsonHeaders]);
-            } catch (RequestException $e) {
-                $results[$p] = 'EXC:' . $e->getMessage();
-                continue;
+            foreach ($methods as $mname => $caller) {
+                try {
+                    $resp = $caller($p, $jsonHeaders);
+                } catch (RequestException $e) {
+                    $results["{$mname} {$p}"] = 'EXC:' . $e->getMessage();
+                    continue;
+                }
+                $status = $resp->getStatusCode();
+                $body   = (string) $resp->getBody();
+                $ctype  = $resp->getHeaderLine('Content-Type');
+                $len    = strlen($body);
+                $slug   = "probe_{$mname}_{$this->slug($p)}_{$status}";
+                $this->dump($slug, $body, $resp->getHeaders());
+                $isJson = stripos($ctype, 'json') !== false;
+                $marker = '';
+                if ($isJson) $marker = ' [JSON!]';
+                elseif ($status !== 200 && $status !== 404) $marker = ' [!' . $status . ']';
+                $results["{$mname} {$p}"] = "status={$status} len={$len} type={$ctype}" . $marker;
+                if (++$i % 10 === 0) usleep(500000);
             }
-            $status = $resp->getStatusCode();
-            $body   = (string) $resp->getBody();
-            $ctype  = $resp->getHeaderLine('Content-Type');
-            $len    = strlen($body);
-            $slug   = "probe_{$this->slug($p)}_{$status}";
-            $this->dump($slug, $body, $resp->getHeaders());
-            $isJson = stripos($ctype, 'json') !== false;
-            $results[$p] = "status={$status} len={$len} type={$ctype}" . ($isJson ? ' [JSON!]' : '');
-            if (++$i % 10 === 0) usleep(500000);
         }
         return $results;
     }
@@ -393,6 +408,36 @@ class PlanlaClient
             $payloadHints = array_slice(array_values(array_unique($m[0])), 0, 10);
         }
 
+        // Path string'lerinin etrafindaki JS context'i (gercek HTTP call pattern'ini bulmak icin)
+        $contexts = [];
+        $interesting = ['customers', 'services', 'employees', 'appointments', 'bookings', 'sign-in'];
+        foreach ($interesting as $needle) {
+            $quoted = '"/' . $needle . '"';
+            $pos = 0;
+            $count = 0;
+            while (($p = strpos($js, $quoted, $pos)) !== false && $count < 3) {
+                $start = max(0, $p - 180);
+                $len = min(400, strlen($js) - $start);
+                $contexts[$needle . '#' . $count] = substr($js, $start, $len);
+                $pos = $p + strlen($quoted);
+                $count++;
+            }
+        }
+
+        // Http client instance'lari (axios.create, API kurucu)
+        $httpInit = [];
+        foreach (['axios\\.create\\s*\\([^)]{0,400}\\)', 'new\\s+[A-Z][a-zA-Z]*Api\\s*\\([^)]{0,200}\\)', 'createApi\\s*\\([^)]{0,400}\\)'] as $p) {
+            if (preg_match_all('#' . $p . '#', $js, $m)) {
+                $httpInit = array_merge($httpInit, array_slice(array_unique($m[0]), 0, 5));
+            }
+        }
+
+        // GraphQL / socket.io / ws ipuclari
+        $protocols = [];
+        foreach (['graphql', 'subscription', 'io\\(["\'`]', 'socket\\.io', 'new WebSocket', '/ws/', '/api/v', '/v[0-9]+/'] as $p) {
+            if (preg_match('#' . $p . '#i', $js, $m)) $protocols[] = trim($m[0]);
+        }
+
         $summary = [
             'bundle_size'    => strlen($js),
             'login_paths'    => $loginPaths,
@@ -402,6 +447,9 @@ class PlanlaClient
             'all_paths'      => array_slice($paths, 0, 120),
             'planla_urls'    => $urls,
             'payload_hints'  => $payloadHints,
+            'path_contexts'  => $contexts,
+            'http_init'      => $httpInit,
+            'protocols'      => $protocols,
         ];
         $this->dump('bundle_analysis', json_encode($summary, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         return ['ok' => true, 'summary' => $summary];

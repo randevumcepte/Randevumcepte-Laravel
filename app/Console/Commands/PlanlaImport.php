@@ -57,8 +57,17 @@ class PlanlaImport extends Command
             foreach ($s['data_paths'] as $e) $this->line('  ' . $e);
             $this->line('--- HTTP call (' . count($s['http_calls']) . ' adet, ilk 40) ---');
             foreach (array_slice($s['http_calls'], 0, 40) as $e) $this->line('  ' . $e);
+            $this->line('--- HTTP init (axios.create, vs.) ---');
+            foreach ($s['http_init'] as $e) $this->line('  ' . $e);
+            $this->line('--- Protokol isaretcileri (graphql/socket/ws/v1) ---');
+            foreach ($s['protocols'] as $e) $this->line('  ' . $e);
             $this->line('--- Tum path-benzeri stringler (ilk 40) ---');
             foreach (array_slice($s['all_paths'], 0, 40) as $e) $this->line('  ' . $e);
+            $this->line('--- Path context\'leri (her path icin etraftaki JS kodu) ---');
+            foreach ($s['path_contexts'] as $key => $ctx) {
+                $this->line('### ' . $key);
+                $this->line('  ' . str_replace("\n", ' ', $ctx));
+            }
             $this->info('Tam analiz: ' . $client->dumpDir() . '/bundle_analysis.body');
             return 0;
         }
