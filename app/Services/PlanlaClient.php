@@ -544,11 +544,12 @@ class PlanlaClient
      */
     public function connectApi($action, array $data = [], array $meta = [])
     {
-        $baseMeta = ['version' => '1'];
-        // Geriye uyumluluk: eger $meta bos ve $action bir string ise, onu category olarak ekle
-        if (empty($meta)) {
-            $baseMeta['category'] = $action;
-        }
+        // Planla meta sekli: {version, category, event}
+        $baseMeta = [
+            'version'  => '1',
+            'category' => $action,
+            'event'    => 'read',
+        ];
         $body = [
             'meta' => array_merge($baseMeta, $meta),
             'data' => (object) $data,

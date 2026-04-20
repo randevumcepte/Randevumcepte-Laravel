@@ -46,6 +46,31 @@ class PlanlaImporter
         $this->out = $out;
     }
 
+    public function importPersoneller()
+    {
+        $this->log('Personel cekiliyor (category=employees)...');
+        $items = $this->fetchCategory('employees');
+        if (empty($items)) { $this->log('Personel bulunamadi.'); return; }
+        foreach ($items as $row) {
+            $ad = $this->pick($row, ['name', 'fullName', 'ad_soyad']);
+            if (!$ad) {
+                $ad = trim($this->pick($row, ['firstName','first_name','ad'], '') . ' ' . $this->pick($row, ['lastName','last_name','soyad'], ''));
+            }
+            if (!$ad) continue;
+            $planlaId = $this->pick($row, ['id', '_id', 'uuid']);
+            $p = Personeller::where('personel_adi', $ad)->where('salon_id', $this->salonId)->first();
+            if (!$p) {
+                $p = new Personeller();
+                $p->personel_adi = $ad;
+                $p->salon_id = $this->salonId;
+                $p->aktif = 1;
+                $p->save();
+            }
+            if ($planlaId) $this->personelMap[$planlaId] = $p->id;
+        }
+        $this->log('Personel aktarim: ' . count($this->personelMap));
+    }
+
     public function summary()
     {
         return $this->counts;
@@ -54,63 +79,27 @@ class PlanlaImporter
     // ---- Fetch katmani -------------------------------------------------
 
     /**
-     * Sayfalanmis veri ceker. Donus: dizi (tum items). Birden fazla path ve param kombinasyonunu dener.
+     * Planla connect-api'den bir kategori okur. Cevap:
+     *   {success:true, data:[{...}, ...], unchanged:bool, lastUpdated:...}
      */
-    private function fetchPaginated(array $paths, $pageParam = 'page', $perPageParam = 'per_page', $perPage = 100)
+    private function fetchCategory($category, array $dataPayload = [])
     {
-        foreach ($paths as $path) {
-            $all = [];
-            $page = 1;
-            $tries = 0;
-            while ($tries < 200) {
-                $resp = $this->client->getJson($path, [$pageParam => $page, $perPageParam => $perPage]);
-                if (!is_array($resp)) {
-                    break;
-                }
-                $items = $this->extractItems($resp);
-                if (empty($items)) {
-                    break;
-                }
-                $all = array_merge($all, $items);
-                // Pagination detection
-                $hasMore = false;
-                if (isset($resp['meta']['current_page'], $resp['meta']['last_page'])) {
-                    $hasMore = $resp['meta']['current_page'] < $resp['meta']['last_page'];
-                } elseif (isset($resp['current_page'], $resp['last_page'])) {
-                    $hasMore = $resp['current_page'] < $resp['last_page'];
-                } elseif (isset($resp['next_page_url'])) {
-                    $hasMore = !empty($resp['next_page_url']);
-                } else {
-                    $hasMore = count($items) >= $perPage;
-                }
-                if (!$hasMore) break;
-                $page++;
-                $tries++;
-            }
-            if (!empty($all)) {
-                $this->log("  path={$path} -> " . count($all) . " kayit");
-                return $all;
-            }
+        $resp = $this->client->connectApi($category, $dataPayload, [
+            'category' => $category,
+            'event'    => 'read',
+        ]);
+        if (!is_array($resp)) {
+            $this->log("  category={$category} -> JSON donmedi");
+            return [];
         }
-        return [];
-    }
-
-    private function extractItems(array $resp)
-    {
-        foreach (['data', 'items', 'results', 'rows', 'records'] as $k) {
-            if (isset($resp[$k]) && is_array($resp[$k])) {
-                // Laravel paginator nested: data.data
-                if (isset($resp[$k]['data']) && is_array($resp[$k]['data'])) {
-                    return $resp[$k]['data'];
-                }
-                // index-0 varsa list'tir
-                if (isset($resp[$k][0]) || empty($resp[$k])) {
-                    return $resp[$k];
-                }
-            }
+        if (isset($resp['data']) && is_array($resp['data']) && isset($resp['data'][0])) {
+            $this->log("  category={$category} -> " . count($resp['data']) . ' kayit');
+            return $resp['data'];
         }
-        // top level list
-        if (isset($resp[0])) return $resp;
+        if (isset($resp['meta']['error']) || isset($resp['error'])) {
+            $err = isset($resp['error']) ? $resp['error'] : $resp['meta']['error'];
+            $this->log("  category={$category} -> hata: " . (is_array($err) ? json_encode($err) : $err));
+        }
         return [];
     }
 
@@ -138,10 +127,8 @@ class PlanlaImporter
 
     public function importHizmetler()
     {
-        $this->log('Hizmetler cekiliyor...');
-        $items = $this->fetchPaginated([
-            '/services',
-        ]);
+        $this->log('Hizmetler cekiliyor (category=services)...');
+        $items = $this->fetchCategory('services');
         if (empty($items)) {
             $this->log('Hizmet bulunamadi (endpoint dogru degil olabilir).');
             return;
@@ -220,10 +207,8 @@ class PlanlaImporter
 
     public function importMusteriler()
     {
-        $this->log('Musteriler cekiliyor...');
-        $items = $this->fetchPaginated([
-            '/customers',
-        ]);
+        $this->log('Musteriler cekiliyor (category=customers)...');
+        $items = $this->fetchCategory('customers');
         if (empty($items)) {
             $this->log('Musteri bulunamadi.');
             return;
@@ -309,12 +294,8 @@ class PlanlaImporter
 
     public function importRandevular()
     {
-        $this->log('Randevular cekiliyor...');
-        // Appointments/bookings SPA route'u net degil; sign-in sonrasi frontend'de /statistics
-        // veya /customers detayinda yukleniyor olabilir. Once common path'lari deneyelim.
-        $items = $this->fetchPaginated([
-            '/appointments', '/bookings', '/schedules', '/calendar',
-        ]);
+        $this->log('Randevular cekiliyor (category=appointments)...');
+        $items = $this->fetchCategory('appointments');
         if (empty($items)) {
             $this->log('Randevu bulunamadi.');
             return;
