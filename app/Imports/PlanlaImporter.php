@@ -10,10 +10,15 @@ use App\Hizmet_Kategorisi;
 use App\SalonHizmetler;
 use App\SalonHizmetKategoriRenkleri;
 use App\Personeller;
+use App\PersonelCalismaSaatleri;
+use App\IsletmeYetkilileri;
 use App\Randevular;
 use App\RandevuHizmetler;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Planla.co connect-api verisini randevumcepte DB'sine aktarir.
@@ -86,18 +91,76 @@ class PlanlaImporter
             $planlaId = isset($row['_id']) ? $row['_id'] : null;
             $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
             if (!$ad) continue;
+
+            $tel = $this->telefonNormalize(isset($row['phone']) ? $row['phone'] : null);
+            $email = !empty($row['email']) ? trim($row['email']) : null;
+
             $p = Personeller::where('personel_adi', $ad)->where('salon_id', $this->salonId)->first();
             if (!$p) {
+                // 1) IsletmeYetkilileri (personel login hesabi)
+                $yetkili = new IsletmeYetkilileri();
+                $yetkili->name = $ad;
+                $yetkili->gsm1 = $tel;
+                if ($email) $yetkili->email = $email;
+                $yetkili->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                $yetkili->password = Hash::make(Str::random(10));
+                $yetkili->aktif = 1;
+                $yetkili->save();
+
+                // 2) Takvim sirasi + renk hesapla
+                $sonSira = Personeller::where('salon_id', $this->salonId)->max('takvim_sirasi');
+                $sira = ($sonSira ? $sonSira : 0) + 1;
+                $sonRenk = Personeller::where('salon_id', $this->salonId)->orderBy('id', 'desc')->value('renk');
+                if (!$sonRenk || $sonRenk >= 10) $renk = 1; else $renk = $sonRenk + 1;
+
+                // 3) Personeller
                 $p = new Personeller();
                 $p->personel_adi = $ad;
+                $p->cep_telefon = $tel;
                 $p->salon_id = $this->salonId;
+                $p->yetkili_id = $yetkili->id;
+                $p->role_id = 5;
                 $p->aktif = 1;
+                $p->takvimde_gorunsun = 1;
+                $p->takvim_sirasi = $sira;
+                $p->renk = $renk;
                 $p->save();
+
+                // 4) model_has_roles (Spatie permission)
+                DB::insert(
+                    'INSERT INTO model_has_roles (role_id, model_type, model_id, salon_id) VALUES (?, ?, ?, ?)',
+                    [5, 'App\\IsletmeYetkilileri', $yetkili->id, $this->salonId]
+                );
+
+                // 5) PersonelCalismaSaatleri (7 gun)
+                $this->personelCalismaSaatleriYaz($p->id, isset($row['workingHours']) ? $row['workingHours'] : []);
             }
             if ($planlaId) $this->personelMap[$planlaId] = $p->id;
             $this->counts['personel']++;
         }
         $this->log('Personel aktarim: ' . $this->counts['personel']);
+    }
+
+    private function personelCalismaSaatleriYaz($personelId, $workingHours)
+    {
+        $gunler = [
+            1 => 'monday', 2 => 'tuesday', 3 => 'wednesday', 4 => 'thursday',
+            5 => 'friday', 6 => 'saturday', 7 => 'sunday',
+        ];
+        PersonelCalismaSaatleri::where('personel_id', $personelId)->delete();
+        foreach ($gunler as $num => $eng) {
+            $g = isset($workingHours[$eng]) && is_array($workingHours[$eng]) ? $workingHours[$eng] : [];
+            $calisiyor = (isset($g['status']) && $g['status'] === 'open') ? 1 : 0;
+            $baslangic = !empty($g['opening']) ? $g['opening'] : '09:00';
+            $bitis     = !empty($g['closing']) ? $g['closing'] : '21:00';
+            $pcs = new PersonelCalismaSaatleri();
+            $pcs->personel_id = $personelId;
+            $pcs->haftanin_gunu = $num;
+            $pcs->calisiyor = $calisiyor;
+            $pcs->baslangic_saati = $baslangic;
+            $pcs->bitis_saati = $bitis;
+            $pcs->save();
+        }
     }
 
     // ---- Hizmetler -----------------------------------------------------
