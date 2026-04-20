@@ -1,3 +1,19 @@
+@php
+    // Randevu takvim turune gore personel / cihaz / oda secimlerinin gorunurlugu
+    // 0: Hizmete Gore (hepsi gorunur)
+    // 1: Personele Gore (sadece personel)
+    // 2: Cihaza Gore (sadece cihaz)
+    // 3: Odaya Gore (sadece oda)
+    $__takvim_turu = $isletme->randevu_takvim_turu ?? 0;
+    $__personel_style = in_array($__takvim_turu, [2, 3]) ? 'display:none;' : '';
+    $__cihaz_style    = in_array($__takvim_turu, [1, 3]) ? 'display:none;' : '';
+    $__oda_style      = in_array($__takvim_turu, [1, 2]) ? 'display:none;' : '';
+    $__yardimci_style = 'display:none;'; // her zaman gizli
+    $__tek_secim = in_array($__takvim_turu, [1, 2, 3]);
+    $__col_class = $__tek_secim
+        ? 'col-xl-12 col-lg-12 col-md-12 col-sm-12'
+        : 'col-xl-3 col-lg-3 col-md-3 col-sm-12';
+@endphp
 <div id="modal-view-event-add" class="modal modal-top fade calendar-modal" data-backdrop="static" data-keyboard="false">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 1200px;">
         <div class="modal-content">
@@ -94,30 +110,30 @@
                                                     <div class="card-body p-2">
                                                         <div class="row g-2">
                                                             <!-- Personel -->
-                                                            <div class="col-xl-3 col-lg-3 col-md-3 col-sm-12 mb-1">
+                                                            <div class="{{ $__takvim_turu == 1 ? $__col_class : 'col-xl-3 col-lg-3 col-md-3 col-sm-12' }} mb-1" style="{{ $__personel_style }}">
                                                                 <label class="form-label" style="font-size: 0.8rem;">Personel</label>
                                                                 <select name="randevupersonelleriyeni[]" class="form-control opsiyonelSelect personel_secimi personel-select" data-index="0" style="width: 100%; height: 30px; font-size: 0.8rem;">
                                                                     <option></option>
                                                                 </select>
                                                             </div>
-                                                            
+
                                                             <!-- Yardımcı Personel -->
-                                                            <div class="col-xl-3 col-lg-3 col-md-3 col-sm-12 mb-1">
+                                                            <div class="col-xl-3 col-lg-3 col-md-3 col-sm-12 mb-1" style="{{ $__yardimci_style }}">
                                                                 <label class="form-label" style="font-size: 0.8rem;">Yardımcı Personel</label>
                                                                 <select name="randevuyardimcipersonelleriyeni" id="randevuyardimcipersonelleriyeni_0" multiple class="form-control custom-select2 personel_secimi" data-index="0" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                                                 </select>
                                                             </div>
-                                                            
+
                                                             <!-- Cihaz -->
-                                                            <div class="col-xl-3 col-lg-3 col-md-3 col-sm-12 mb-1">
+                                                            <div class="{{ $__takvim_turu == 2 ? $__col_class : 'col-xl-3 col-lg-3 col-md-3 col-sm-12' }} mb-1" style="{{ $__cihaz_style }}">
                                                                 <label class="form-label" style="font-size: 0.8rem;">Cihaz</label>
                                                                 <select name="randevucihazlariyeni[]" class="form-control opsiyonelSelect cihaz_secimi cihaz-select" data-index="0" style="width: 100%; height: 30px; font-size: 0.8rem;">
                                                                     <option></option>
                                                                 </select>
                                                             </div>
-                                                            
+
                                                             <!-- Oda -->
-                                                            <div class="col-xl-3 col-lg-3 col-md-3 col-sm-12 mb-1">
+                                                            <div class="{{ $__takvim_turu == 3 ? $__col_class : 'col-xl-3 col-lg-3 col-md-3 col-sm-12' }} mb-1" style="{{ $__oda_style }}">
                                                                 <label class="form-label" style="font-size: 0.8rem;">Oda</label>
                                                                 <select name="randevuodalariyeni[]" class="form-control opsiyonelSelect oda_secimi oda-select" data-index="0" style="width:100%; height: 30px; font-size: 0.8rem;">
                                                                     <option></option>
@@ -1515,24 +1531,24 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                 </div>
                 <div class="card-body p-2">
                     <div class="row g-2">
-                        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-1">
+                        <div class="{{ $__takvim_turu == 1 ? $__col_class : 'col-xl-3 col-lg-4 col-md-6 col-sm-12' }} mb-1" style="{{ $__personel_style }}">
                             <label class="form-label" style="font-size: 0.8rem;">Personel</label>
                             <select name="randevupersonelleriyeni[]" class="form-control opsiyonelSelect personel_secimi personel-select" data-index="${newIndex}" style="width: 100%; height: 30px; font-size: 0.8rem;">
                                 <option></option>
                             </select>
                         </div>
-                        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-1">
+                        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-1" style="{{ $__yardimci_style }}">
                             <label class="form-label" style="font-size: 0.8rem;">Yardımcı Personel</label>
                             <select name="randevuyardimcipersonelleriyeni" id="randevuyardimcipersonelleriyeni_${newIndex}" multiple class="form-control custom-select2 personel_secimi" data-index="${newIndex}" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                             </select>
                         </div>
-                        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-1">
+                        <div class="{{ $__takvim_turu == 2 ? $__col_class : 'col-xl-3 col-lg-4 col-md-6 col-sm-12' }} mb-1" style="{{ $__cihaz_style }}">
                             <label class="form-label" style="font-size: 0.8rem;">Cihaz</label>
                             <select name="randevucihazlariyeni[]" class="form-control opsiyonelSelect cihaz_secimi cihaz-select" data-index="${newIndex}" style="width: 100%; height: 30px; font-size: 0.8rem;">
                                 <option></option>
                             </select>
                         </div>
-                        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-1">
+                        <div class="{{ $__takvim_turu == 3 ? $__col_class : 'col-xl-3 col-lg-4 col-md-6 col-sm-12' }} mb-1" style="{{ $__oda_style }}">
                             <label class="form-label" style="font-size: 0.8rem;">Oda</label>
                             <select name="randevuodalariyeni[]" class="form-control opsiyonelSelect oda_secimi oda-select" data-index="${newIndex}" style="width:100%; height: 30px; font-size: 0.8rem;">
                                 <option></option>
