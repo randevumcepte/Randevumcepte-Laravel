@@ -544,8 +544,13 @@ class PlanlaClient
      */
     public function connectApi($action, array $data = [], array $meta = [])
     {
+        $baseMeta = ['version' => '1'];
+        // Geriye uyumluluk: eger $meta bos ve $action bir string ise, onu category olarak ekle
+        if (empty($meta)) {
+            $baseMeta['category'] = $action;
+        }
         $body = [
-            'meta' => array_merge(['version' => '1', 'action' => $action], $meta),
+            'meta' => array_merge($baseMeta, $meta),
             'data' => (object) $data,
         ];
         $headers = array_merge($this->authHeaders(), [
@@ -574,54 +579,109 @@ class PlanlaClient
     }
 
     /**
-     * Muhtemel action isimlerini dener, hangilerinin data dondurdugunu raporlar.
+     * Farkli meta sekil varyantlarini + category/action isimlerini dener.
+     * "Category couldn't found" hatasi gorulunce meta.category field'i zorunlu oldugu anlasildi.
      */
     public function probeConnectApi(array $actions = null)
     {
         if ($actions === null) {
             $actions = [
-                // Read actions (okuma)
+                // read+ functional names
                 'readCustomers', 'readServices', 'readAppointments', 'readEmployees',
                 'readPackages', 'readProducts', 'readReviews', 'readStatistics',
                 'readSettings', 'readFinances', 'readAccount', 'readBusiness',
-                'readCategories', 'readStaff', 'readClients', 'readBookings',
-                'readCustomerList', 'readAppointmentList', 'readServiceList',
+                'readCategories',
+                // list+
                 'listCustomers', 'listServices', 'listAppointments', 'listEmployees',
-                'getCustomers', 'getServices', 'getAppointments', 'getEmployees',
-                'readAllCustomers', 'readAllServices', 'readAllAppointments',
-                // Bulk/export variants
-                'exportCustomers', 'exportAppointments',
-                // Single-word
+                // single-word (category only)
                 'customers', 'services', 'appointments', 'employees',
+                'packages', 'products', 'reviews', 'statistics', 'settings',
+                'finances', 'account', 'business', 'categories',
+                // capitalized
+                'Customers', 'Services', 'Appointments', 'Employees',
             ];
         }
+        // Meta shape varyantlari
+        $shapes = [
+            'cat-only'      => function ($a) { return ['category' => $a]; },
+            'cat+read'      => function ($a) { return ['category' => $a, 'action' => 'read']; },
+            'cat+list'      => function ($a) { return ['category' => $a, 'action' => 'list']; },
+            'cat+method'    => function ($a) { return ['category' => $a, 'method' => 'read']; },
+            'cat-act-split' => function ($a) {
+                // readCustomers -> category=customers, action=read
+                if (preg_match('/^([a-z]+)([A-Z][a-zA-Z]+)$/', $a, $m)) {
+                    return ['category' => lcfirst($m[2]), 'action' => $m[1]];
+                }
+                return null;
+            },
+        ];
+
         $results = [];
         $i = 0;
-        foreach ($actions as $a) {
-            $resp = $this->connectApi($a);
-            if ($resp === null) {
-                $results[$a] = 'no-json';
-            } elseif (isset($resp['meta']['error']) || isset($resp['error'])) {
-                $err = isset($resp['error']) ? $resp['error'] : $resp['meta']['error'];
-                if (is_array($err)) $err = json_encode($err);
-                $results[$a] = 'ERR: ' . substr($err, 0, 80);
-            } else {
-                $dataKeys = [];
-                if (isset($resp['data']) && is_array($resp['data'])) {
-                    $dataKeys = array_slice(array_keys($resp['data']), 0, 8);
+        foreach ($shapes as $sname => $sf) {
+            foreach ($actions as $a) {
+                $meta = $sf($a);
+                if ($meta === null) continue;
+                $metaFull = array_merge(['version' => '1'], $meta);
+                $resp = $this->connectApiRaw($metaFull, []);
+                $key = $sname . ':' . $a;
+                if ($resp === null) {
+                    $results[$key] = 'no-json';
+                } elseif (isset($resp['meta']['error']) || isset($resp['error']) || isset($resp['data']['error'])) {
+                    $err = isset($resp['error']) ? $resp['error']
+                         : (isset($resp['meta']['error']) ? $resp['meta']['error']
+                         : $resp['data']['error']);
+                    if (is_array($err)) $err = json_encode($err);
+                    $results[$key] = 'ERR: ' . substr($err, 0, 90);
+                } else {
+                    $topKeys = array_slice(array_keys($resp), 0, 6);
+                    $dataKeys = [];
+                    $count = 0;
+                    if (isset($resp['data'])) {
+                        if (is_array($resp['data'])) {
+                            $dataKeys = array_slice(array_keys($resp['data']), 0, 8);
+                            if (isset($resp['data'][0])) $count = count($resp['data']);
+                            elseif (isset($resp['data']['list']) && is_array($resp['data']['list'])) $count = count($resp['data']['list']);
+                            elseif (isset($resp['data']['items']) && is_array($resp['data']['items'])) $count = count($resp['data']['items']);
+                        }
+                    }
+                    $results[$key] = 'OK top=[' . implode(',', $topKeys) . '] data.keys=[' . implode(',', $dataKeys) . '] count=' . $count;
                 }
-                $count = 0;
-                if (isset($resp['data']) && is_array($resp['data'])) {
-                    if (isset($resp['data'][0])) $count = count($resp['data']);
-                    elseif (isset($resp['data']['list']) && is_array($resp['data']['list'])) $count = count($resp['data']['list']);
-                    elseif (isset($resp['data']['data']) && is_array($resp['data']['data'])) $count = count($resp['data']['data']);
-                    elseif (isset($resp['data']['items']) && is_array($resp['data']['items'])) $count = count($resp['data']['items']);
-                }
-                $results[$a] = 'OK keys=' . implode(',', $dataKeys) . ' count=' . $count;
+                if (++$i % 15 === 0) usleep(800000);
             }
-            if (++$i % 10 === 0) usleep(500000);
         }
         return $results;
+    }
+
+    /**
+     * connect-api'yi tam kontrollu meta + data ile cagirir.
+     */
+    public function connectApiRaw(array $meta, array $data = [])
+    {
+        $body = ['meta' => (object) $meta, 'data' => (object) $data];
+        $headers = array_merge($this->authHeaders(), [
+            'Accept'           => 'application/json, text/plain, */*',
+            'Content-Type'     => 'application/json',
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Referer'          => self::BASE_ADMIN . '/',
+            'Origin'           => self::BASE_ADMIN,
+        ]);
+        try {
+            $resp = $this->http->post('/connect-api', [
+                'headers' => $headers,
+                'body'    => json_encode($body, JSON_UNESCAPED_UNICODE),
+            ]);
+        } catch (RequestException $e) {
+            return null;
+        }
+        $status = $resp->getStatusCode();
+        $respBody = (string) $resp->getBody();
+        $ctype = $resp->getHeaderLine('Content-Type');
+        $metaSlug = $this->slug(json_encode($meta));
+        $this->dump('connectRaw_' . substr($metaSlug, 0, 60) . '_' . $status, $respBody, $resp->getHeaders());
+        if (stripos($ctype, 'json') === false) return null;
+        $j = json_decode($respBody, true);
+        return is_array($j) ? $j : null;
     }
 
     public function getJson($path, array $query = [])
