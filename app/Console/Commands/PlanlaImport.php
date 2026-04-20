@@ -13,6 +13,7 @@ class PlanlaImport extends Command
         {--password= : Planla.co sifresi}
         {--salon= : Hedef salon_id (randevumcepte tarafinda)}
         {--probe : Sadece login + endpoint kesif; veri yazmaz}
+        {--analyze : Login olmadan Site.js bundle\'ini indirip icinden endpoint ve payload cikarir}
         {--only= : Sadece bu tip(ler)i al (virgulle: musteri,hizmet,randevu)}';
 
     protected $description = 'Planla.co hesabindan musteri/hizmet/randevu verisini cekip randevumcepte DB sine aktarir.';
@@ -23,20 +24,41 @@ class PlanlaImport extends Command
         $password = $this->option('password');
         $salonId  = $this->option('salon');
         $probe    = (bool) $this->option('probe');
+        $analyze  = (bool) $this->option('analyze');
         $only     = $this->option('only');
 
-        if (!$email || !$password) {
-            $this->error('--email ve --password zorunlu.');
+        if (!$analyze && (!$email || !$password)) {
+            $this->error('--email ve --password zorunlu (analyze disinda).');
             return 1;
         }
-        if (!$probe && !$salonId) {
-            $this->error('Import icin --salon zorunlu. Kesif icin --probe kullanin.');
+        if (!$probe && !$analyze && !$salonId) {
+            $this->error('Import icin --salon zorunlu. Kesif icin --probe veya --analyze kullanin.');
             return 1;
         }
 
         $this->info('Planla client baslatiliyor...');
-        $client = new PlanlaClient($email, $password);
+        $client = new PlanlaClient($email ?: 'x', $password ?: 'x');
         $this->line('Dump dizini: ' . $client->dumpDir());
+
+        if ($analyze) {
+            $this->info('Site.js bundle indiriliyor ve analiz ediliyor...');
+            $res = $client->analyzeBundle();
+            if (!$res['ok']) {
+                $this->error('Bundle indirilemedi: ' . $res['detail']);
+                return 3;
+            }
+            $s = $res['summary'];
+            $this->line('Bundle boyut: ' . $s['bundle_size'] . ' byte');
+            $this->line('Login path adaylari: ' . implode(', ', $s['login_paths']));
+            $this->line('Planla URL\'leri: ' . implode(', ', $s['planla_urls']));
+            $this->line('Toplam /api endpoint: ' . count($s['api_endpoints']));
+            $this->line('Ilk 30 endpoint:');
+            foreach (array_slice($s['api_endpoints'], 0, 30) as $e) {
+                $this->line('  ' . $e);
+            }
+            $this->info('Tam analiz: ' . $client->dumpDir() . '/bundle_analysis.body');
+            return 0;
+        }
 
         $this->info('Login deneniyor...');
         $login = $client->login();

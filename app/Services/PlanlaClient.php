@@ -154,6 +154,9 @@ class PlanlaClient
             $status = $resp->getStatusCode();
             $body   = (string) $resp->getBody();
             $this->dump("login_json_{$this->slug($path)}_v{$idx}_{$status}", $body, $resp->getHeaders());
+            if ($this->bodyIndicatesFailure($body)) {
+                continue;
+            }
 
             if ($status >= 200 && $status < 300) {
                 // Token arama
@@ -197,8 +200,12 @@ class PlanlaClient
                 continue;
             }
             $status = $resp->getStatusCode();
+            $body = (string) $resp->getBody();
             $dumpName = "login_form_{$this->slug($path)}_v{$idx}_{$status}";
-            $this->dump($dumpName, (string) $resp->getBody(), $resp->getHeaders());
+            $this->dump($dumpName, $body, $resp->getHeaders());
+            if ($this->bodyIndicatesFailure($body)) {
+                continue;
+            }
             if ($status >= 200 && $status < 400) {
                 if ($this->isLoggedIn()) {
                     return ['ok' => true, 'detail' => "Form login ok via {$path} variant {$idx}"];
@@ -206,6 +213,18 @@ class PlanlaClient
             }
         }
         return ['ok' => false, 'detail' => ''];
+    }
+
+    private function bodyIndicatesFailure($body)
+    {
+        if ($body === '') return false;
+        $j = json_decode($body, true);
+        if (is_array($j)) {
+            if (isset($j['success']) && $j['success'] === false) return true;
+            if (isset($j['status']) && in_array($j['status'], ['error', 'fail'], true)) return true;
+            if (!empty($j['error']) && empty($j['token']) && empty($j['access_token'])) return true;
+        }
+        return false;
     }
 
     /**
@@ -231,14 +250,25 @@ class PlanlaClient
                     $endedAtSignIn = true;
                 }
             }
-            if ($status === 200 && !$endedAtSignIn && stripos($body, 'sign-in') === false) {
+            // SPA shell'de isAuthenticated:false varsa login OLMAMISTIR (false positif koruma)
+            if (stripos($body, '"isAuthenticated":false') !== false) {
+                continue;
+            }
+            if ($status === 200 && stripos($body, '"isAuthenticated":true') !== false) {
+                return true;
+            }
+            if ($status === 200 && !$endedAtSignIn && stripos($body, 'sign-in') === false && !$this->looksLikeJson($body)) {
+                // SSR rendered page (non-SPA) ve sign-in redirect yok
                 return true;
             }
             if ($status === 200 && $this->looksLikeJson($body)) {
-                // API endpoint authenticated data dondurdu
                 $j = json_decode($body, true);
-                if (is_array($j) && (isset($j['id']) || isset($j['user']) || isset($j['data']))) {
-                    return true;
+                if (is_array($j)) {
+                    if (isset($j['success']) && $j['success'] === false) continue;
+                    if (!empty($j['error'])) continue;
+                    if (isset($j['id']) || isset($j['user']) || isset($j['data']) || isset($j['email'])) {
+                        return true;
+                    }
                 }
             }
         }
@@ -272,6 +302,7 @@ class PlanlaClient
         ];
 
         $results = [];
+        $i = 0;
         foreach ($pages as $p) {
             try {
                 $resp = $this->http->get($p, ['headers' => $this->authHeaders()]);
@@ -286,8 +317,52 @@ class PlanlaClient
             $slug   = "probe_{$this->slug($p)}_{$status}";
             $this->dump($slug, $body, $resp->getHeaders());
             $results[$p] = "status={$status} len={$len} type={$ctype}";
+            if (++$i % 10 === 0) usleep(500000); // 10 istekte bir 0.5sn bekle (rate limit: 30/dk)
         }
         return $results;
+    }
+
+    /**
+     * Site.js bundle'ini indirir ve icinden /api, login payload anahtarlari, URL pattern'larini cikarir.
+     * Bundle analizinde login endpoint + gercek data endpoint'leri tespit edilir.
+     */
+    public function analyzeBundle($bundleUrl = null)
+    {
+        if (!$bundleUrl) $bundleUrl = self::BASE_ADMIN . '/Site.js?v=862';
+        try {
+            $resp = $this->http->get($bundleUrl);
+        } catch (RequestException $e) {
+            return ['ok' => false, 'detail' => $e->getMessage()];
+        }
+        $js = (string) $resp->getBody();
+        $this->dump('bundle_site_js', $js, $resp->getHeaders());
+
+        $endpoints = [];
+        if (preg_match_all('#["\'`](/api/[a-zA-Z0-9/_\-.$?={}:]+)["\'`]#', $js, $m)) {
+            $endpoints = array_values(array_unique($m[1]));
+        }
+        $urls = [];
+        if (preg_match_all('#https?://[a-zA-Z0-9.\-]+\.planla[a-zA-Z0-9./?=_\-]*#', $js, $m)) {
+            $urls = array_values(array_unique($m[0]));
+        }
+        $payloadHints = [];
+        if (preg_match_all('#\{[^{}]{0,200}(password|sifre)[^{}]{0,200}\}#', $js, $m)) {
+            $payloadHints = array_slice(array_values(array_unique($m[0])), 0, 10);
+        }
+        $loginPaths = [];
+        foreach ($endpoints as $e) {
+            if (preg_match('#(sign|login|auth)#i', $e)) $loginPaths[] = $e;
+        }
+
+        $summary = [
+            'bundle_size'    => strlen($js),
+            'login_paths'    => $loginPaths,
+            'api_endpoints'  => $endpoints,
+            'planla_urls'    => $urls,
+            'payload_hints'  => $payloadHints,
+        ];
+        $this->dump('bundle_analysis', json_encode($summary, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        return ['ok' => true, 'summary' => $summary];
     }
 
     public function getHtml($path, $tag = null)
