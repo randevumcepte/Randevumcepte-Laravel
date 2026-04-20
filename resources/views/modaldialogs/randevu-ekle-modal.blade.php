@@ -1395,7 +1395,8 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     }
     
     // Hizmet-select'ten secili servisleri [{id, text}] seklinde dondurur (Tom Select veya native)
-    function getHizmetSecimi($sel){
+    // window'a at ki global updateHizmetDetaylari erisebilsin
+    window.getHizmetSecimi = function($sel){
         if(!$sel || !$sel.length) return [];
         var el = $sel[0];
         if(el && el.tomselect){
@@ -1411,7 +1412,8 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             var txt = $sel.find('option[value="'+id+'"]').text();
             return { id: id, text: txt };
         });
-    }
+    };
+    var getHizmetSecimi = window.getHizmetSecimi;
 
     // ===================== Tom Select ile Hizmet Secimi =====================
     // Select2 yerine Tom Select kullanilir — modal scroll/pozisyon problemi olmaz.
