@@ -1287,15 +1287,11 @@ public function carkverilerigetir(Request $request)
         $paketler = self::paket_liste_getir("",true,$request);
         $grup=self::grup_sms_liste_getir($request);
        
-        $raporlar =self::sms_raporlari($request);
-         $portfoy = MusteriPortfoy::where('salon_id',self::mevcutsube($request))->groupBy('user_id')->get();
-        $karaliste = DB::table('users')->join('musteri_portfoy','musteri_portfoy.user_id','=','users.id')->select(
-            'users.name as ad_soyad',
-            'users.cep_telefon as telefon',
-            DB::raw('DATE_FORMAT(musteri_portfoy.updated_at,"%d.%m.%Y") as eklenme_tarihi'),
-            DB::raw('CONCAT("<button class=\"btn btn-primary\" name=\"numara_karalisteden_kaldir\" data-value=\"",users.id,"\">Numarayı Listeden Kaldır</button>") AS islemler')
-        )->where('musteri_portfoy.salon_id',self::mevcutsube($request))->where('musteri_portfoy.kara_liste',1)->get();
-         
+        // Raporlar ve karaliste artik DataTable server-side ajax uzerinden yukleniyor;
+        // sayfa ilk acilisinda bu tablolari pre-fetch etmeye gerek yok.
+        $raporlar = ['toplu'=>collect([]),'bildirim'=>collect([]),'grup'=>collect([]),'filtre'=>collect([]),'kampanya'=>collect([]),'etkinlik'=>collect([])];
+        $karaliste = collect([]);
+        $portfoy = MusteriPortfoy::where('salon_id',self::mevcutsube($request))->groupBy('user_id')->get();
 
         return view('isletmeadmin.toplusmsgonder',['portfoy' => $portfoy,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'Toplu SMS Gönder','pageindex' => 106,'isletme'=>$isletme,'taslaklar'=>$taslaklar,'grup'=>$grup,'sms_ayarlari'=>$sms_ayarlari,'raporlar'=>$raporlar,'karaliste'=>$karaliste, 'sayfa_baslik'=>'SMS Yönetimi' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'musteridanisansecimi'=>self::musteriportfoydropliste($request)]);
     }
@@ -15947,6 +15943,143 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'kampanya' => $smsraporkampanya,
             'etkinlik' => $smsraporetkinlik,
         );
+    }
+
+    public function sms_raporlari_sayfali(Request $request)
+    {
+        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        $tur = $request->input('tur', 'bildirim');
+        $draw = intval($request->input('draw', 1));
+        $start = intval($request->input('start', 0));
+        $length = intval($request->input('length', 10));
+        $aramaDegeri = trim((string)$request->input('search.value', ''));
+        $yon = strtolower((string)$request->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $length = ($length <= 0) ? 10 : min($length, 200);
+
+        $bosYanit = [
+            'draw' => $draw,
+            'recordsTotal' => 0,
+            'recordsFiltered' => 0,
+            'data' => [],
+        ];
+
+        if (!$isletme) {
+            return response()->json($bosYanit);
+        }
+
+        if ($isletme->yeni_sms == 1) {
+            $smsController = app()->make(SMSController::class);
+            $raporlar = $smsController->voiceTelekomRaporlariGetir($isletme->id);
+            $tumListe = isset($raporlar[$tur]) ? $raporlar[$tur]->toArray() : [];
+            $toplam = count($tumListe);
+
+            if ($aramaDegeri !== '') {
+                $tumListe = array_values(array_filter($tumListe, function($satir) use ($aramaDegeri) {
+                    return stripos($satir['msgdetails'] ?? '', $aramaDegeri) !== false;
+                }));
+            }
+            $filtreli = count($tumListe);
+
+            if ($yon === 'asc') {
+                $tumListe = array_reverse($tumListe);
+            }
+
+            return response()->json([
+                'draw' => $draw,
+                'recordsTotal' => $toplam,
+                'recordsFiltered' => $filtreli,
+                'data' => array_slice($tumListe, $start, $length),
+            ]);
+        }
+
+        $turMap = ['bildirim' => 1, 'grup' => 2, 'filtre' => 3, 'toplu' => 4, 'kampanya' => 5, 'etkinlik' => 6];
+        $turNum = $turMap[$tur] ?? 1;
+
+        $sorgu = DB::table('sms_iletim_raporlari')->where('salon_id', $isletme->id);
+        if ($tur === 'bildirim') {
+            $sorgu->where(function($q){ $q->where('tur', 1)->orWhere('tur', '')->orWhereNull('tur'); });
+        } else {
+            $sorgu->where('tur', $turNum);
+        }
+
+        $toplam = (clone $sorgu)->count();
+
+        if ($aramaDegeri !== '') {
+            $sorgu->where('aciklama', 'LIKE', '%' . $aramaDegeri . '%');
+        }
+        $filtreli = (clone $sorgu)->count();
+
+        $satirlar = $sorgu
+            ->select([
+                'rapor_id as id',
+                DB::raw('CONCAT("<span style=\"display:none\">",DATE_FORMAT(updated_at,"%Y%m%d%H%i%s"),"</span>",DATE_FORMAT(updated_at,"%d.%m.%Y %H:%i:%s")) as date'),
+                'adet as count',
+                'kredi as price',
+                'aciklama as msgdetails',
+                'durum as status',
+            ])
+            ->orderBy('updated_at', $yon)
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        return response()->json([
+            'draw' => $draw,
+            'recordsTotal' => $toplam,
+            'recordsFiltered' => $filtreli,
+            'data' => $satirlar,
+        ]);
+    }
+
+    public function sms_karaliste_sayfali(Request $request)
+    {
+        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        $draw = intval($request->input('draw', 1));
+        $start = intval($request->input('start', 0));
+        $length = intval($request->input('length', 10));
+        $aramaDegeri = trim((string)$request->input('search.value', ''));
+
+        $length = ($length <= 0) ? 10 : min($length, 200);
+
+        if (!$isletme) {
+            return response()->json(['draw' => $draw, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []]);
+        }
+
+        $temel = DB::table('users')
+            ->join('musteri_portfoy', 'musteri_portfoy.user_id', '=', 'users.id')
+            ->where('musteri_portfoy.salon_id', $isletme->id)
+            ->where('musteri_portfoy.kara_liste', 1);
+
+        $toplam = (clone $temel)->count();
+
+        if ($aramaDegeri !== '') {
+            $temel->where(function($q) use ($aramaDegeri) {
+                $q->where('users.name', 'LIKE', '%' . $aramaDegeri . '%')
+                  ->orWhere('users.cep_telefon', 'LIKE', '%' . $aramaDegeri . '%');
+            });
+        }
+        $filtreli = (clone $temel)->count();
+
+        $yon = strtolower((string)$request->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $satirlar = $temel
+            ->select(
+                'users.name as ad_soyad',
+                'users.cep_telefon as telefon',
+                DB::raw('DATE_FORMAT(musteri_portfoy.updated_at,"%d.%m.%Y") as eklenme_tarihi'),
+                DB::raw('CONCAT("<button class=\"btn btn-primary\" name=\"numara_karalisteden_kaldir\" data-value=\"",users.id,"\">Numarayı Listeden Kaldır</button>") AS islemler')
+            )
+            ->orderBy('musteri_portfoy.updated_at', $yon)
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        return response()->json([
+            'draw' => $draw,
+            'recordsTotal' => $toplam,
+            'recordsFiltered' => $filtreli,
+            'data' => $satirlar,
+        ]);
     }
 
     public function sms_rapor_detay(Request $request)
