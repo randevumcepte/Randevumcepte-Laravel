@@ -226,13 +226,19 @@
         });
     }
 
-    // Eski custom.js randevu_duzenle click handler'ini bypass et — bizim modal akisi calissin
+    // Eski custom.js randevu_duzenle click handler'ini bypass et
     $(function(){
-        $(document).off('click', 'a[name="randevu_duzenle"], button[name="randevu_duzenle"], [name="randevu_duzenle"]');
+        // Custom.js her selectoru ayri off: tam string match gerekir
+        $(document).off('click', 'a[name="randevu_duzenle"]');
+        $(document).off('click', 'button[name="randevu_duzenle"]');
+        $(document).off('click', '[name="randevu_duzenle"]');
+        $(document).off('click', 'a[name=\'randevu_duzenle\']');
+        // Kendi click handler'imizi bagla
         $(document).on('click', '[name="randevu_duzenle"]', function(e){
             e.preventDefault();
             e.stopImmediatePropagation();
             var randevuId = $(this).attr('data-value');
+            console.log('[DUZENLE] click', randevuId);
             if(!randevuId){ return; }
             $('#duzenlenecek_randevu_id').val(randevuId);
             $('.hizmetler_bolumu_randevu_duzenleme').empty();
@@ -411,6 +417,7 @@
 
     // Modal acilisi - randevu ID window.duzenlenecekRandevuId veya #duzenlenecek_randevu_id'den
     $('#randevu-duzenle-modal').on('show.bs.modal', function(e){
+        console.log('[DUZENLE] show.bs.modal tetiklendi');
         // Form'u temizle
         $('#randevuduzenleform')[0].reset();
         $('.hizmetler_bolumu_randevu_duzenleme').empty();
@@ -430,6 +437,7 @@
             dataType: 'json',
             data: { randevu_id: randevuId, sube: $('input[name="sube"]', '#randevuduzenleform').val() },
             success: function(data){
+                console.log('[DUZENLE] randevu-duzenle-json success:', data);
                 if(!data || data.error){ console.warn(data); return; }
 
                 $('#duzenlenecek_randevu_id').val(data.randevu_id);
@@ -448,6 +456,12 @@
 
                 // Hizmet verisi cache hazir degilse bekle
                 var hizmetleriYukle = function(){
+                    console.log('[DUZENLE] hizmetleriYukle basladi, hizmet sayisi:', (data.hizmetler || []).length);
+                    if(!data.hizmetler || !Array.isArray(data.hizmetler)){
+                        console.warn('[DUZENLE] hizmetler array degil:', data.hizmetler);
+                        duzenleUpdateOzeti();
+                        return;
+                    }
                     data.hizmetler.forEach(function(h){
                         var $row = duzenleYeniHizmetSatiri();
                         if(!$row) return;
