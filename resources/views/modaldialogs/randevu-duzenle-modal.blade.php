@@ -191,8 +191,11 @@
     opacity:1 !important;
 }
 #randevu-duzenle-modal .ts-dropdown .active { background:#6366f1 !important; color:#fff !important; }
-#randevu-duzenle-modal .ts-dropdown .option { padding:8px 12px !important; background:#fff !important; }
-#randevu-duzenle-modal .ts-dropdown .option:hover { background:#f3f4f6 !important; }
+#randevu-duzenle-modal .ts-dropdown .option { padding:8px 12px !important; background:#fff !important; color:#111827 !important; }
+#randevu-duzenle-modal .ts-dropdown .option:hover,
+#randevu-duzenle-modal .ts-dropdown .option.active { background:#6366f1 !important; color:#fff !important; }
+#randevu-duzenle-modal .ts-dropdown .option:hover *,
+#randevu-duzenle-modal .ts-dropdown .option.active * { color:#fff !important; }
 #randevu-duzenle-modal .ts-wrapper.disabled .ts-control { background:#f9fafb !important; opacity:0.7; }
 
 /* Hizmet satiri görsel (ekleme modali ile ayni) */

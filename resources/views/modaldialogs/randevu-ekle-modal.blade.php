@@ -400,9 +400,16 @@
 }
 #modal-view-event-add .ts-dropdown .option {
     background: #ffffff !important;
+    color: #111827 !important;
 }
-#modal-view-event-add .ts-dropdown .option:hover {
-    background: #f3f4f6 !important;
+#modal-view-event-add .ts-dropdown .option:hover,
+#modal-view-event-add .ts-dropdown .option.active {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+}
+#modal-view-event-add .ts-dropdown .option:hover *,
+#modal-view-event-add .ts-dropdown .option.active * {
+    color: #ffffff !important;
 }
 #modal-view-event-add .ts-dropdown .active {
     background: #6366f1 !important;
