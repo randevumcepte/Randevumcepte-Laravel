@@ -238,18 +238,39 @@
 (function(){
     window.duzenleHizmetIndex = 0;
 
+    // Kendi fetch fonksiyonumuz - ekleme modalinin scope'una bagimsiz
+    function duzenleFetchHizmetVerisi(onReady){
+        if(window.randevuHizmetVerisi){ if(onReady) onReady(); return; }
+        var subeId = $('input[name=sube]', '#randevuduzenleform').val() || '{{$isletme->id}}';
+        $.ajax({
+            url: '/isletmeyonetim/randevu-modal-hizmet-verisi',
+            type: 'GET',
+            dataType: 'json',
+            data: { sube: subeId },
+            success: function(resp){
+                window.randevuHizmetVerisi = {
+                    tum: (resp && resp.tum_hizmetler) ? resp.tum_hizmetler : [],
+                    personel: (resp && resp.personel_hizmet_map) ? resp.personel_hizmet_map : {},
+                    cihaz: (resp && resp.cihaz_hizmet_map) ? resp.cihaz_hizmet_map : {}
+                };
+                if(onReady) onReady();
+            },
+            error: function(xhr){
+                console.error('Hizmet verisi yuklenemedi:', xhr.status);
+                if(onReady) onReady();
+            }
+        });
+    }
+
     // Eski custom.js randevu_duzenle click handler'ini bypass et — bizim modal akisi calissin
     $(function(){
-        // Once eski handler'lari kaldir (namespace yok ama sadece bu selector icin)
         $(document).off('click', 'a[name="randevu_duzenle"], button[name="randevu_duzenle"], [name="randevu_duzenle"]');
-        // Kendi click handler'imizi en erken bagla
         $(document).on('click', '[name="randevu_duzenle"]', function(e){
             e.preventDefault();
             e.stopImmediatePropagation();
             var randevuId = $(this).attr('data-value');
             if(!randevuId){ return; }
             $('#duzenlenecek_randevu_id').val(randevuId);
-            // Eski custom.js kalintisi olan HTML'i agresif temizle
             $('.hizmetler_bolumu_randevu_duzenleme').empty();
             $('#randevu-duzenle-modal').modal('show');
         });
@@ -402,10 +423,8 @@
         window.duzenleHizmetIndex = 0;
         $('#randevu-duzenle-ozeti').html('<div class="text-center text-muted py-3"><p>Yükleniyor...</p></div>');
 
-        // Hizmet verisi cache (ekleme modalinin verisi yoksa cek)
-        if(typeof fetchRandevuHizmetVerisi === 'function' && !window.randevuHizmetVerisi){
-            fetchRandevuHizmetVerisi();
-        }
+        // Hizmet verisi cache - kendi fetch'imizi kullan (ekleme modalina bagimli degil)
+        duzenleFetchHizmetVerisi();
 
         var randevuId = $('#duzenlenecek_randevu_id').val() || window.duzenlenecekRandevuId;
         if(!randevuId) return;
@@ -462,13 +481,10 @@
                 if(window.randevuHizmetVerisi){
                     hizmetleriYukle();
                 } else {
-                    // Cache hazir olmasini bekle (max 2sn)
-                    var tries = 0;
-                    var timer = setInterval(function(){
-                        tries++;
-                        if(window.randevuHizmetVerisi){ clearInterval(timer); hizmetleriYukle(); }
-                        else if(tries > 20){ clearInterval(timer); hizmetleriYukle(); /* yine dene */ }
-                    }, 100);
+                    // Cache yoksa fetch et + tamamlanince yukle
+                    duzenleFetchHizmetVerisi(function(){
+                        hizmetleriYukle();
+                    });
                 }
             },
             error: function(xhr){
