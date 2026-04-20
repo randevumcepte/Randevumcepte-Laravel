@@ -193,17 +193,13 @@ class PlanlaImporter
             $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
             if (!$ad) { $this->counts['skipped']++; continue; }
             $tel = $this->telefonNormalize(isset($row['phone']) ? $row['phone'] : null);
+            if (!$tel) { $this->counts['skipped']++; continue; }
             $email = !empty($row['email']) ? trim($row['email']) : null;
             $notes = !empty($row['notes']) ? trim($row['notes']) : null;
             $created = !empty($row['createdAt']) ? date('Y-m-d H:i:s', (int) $row['createdAt']) : date('Y-m-d H:i:s');
 
-            $user = null;
-            if ($tel) {
-                $user = User::where('cep_telefon', $tel)->first();
-            }
-            if (!$user && $email) {
-                $user = User::where('email', $email)->first();
-            }
+            // Sadece telefon numarasi ile lookup
+            $user = User::where('cep_telefon', $tel)->first();
             if (!$user) {
                 $user = new User();
                 $user->name = $ad;
