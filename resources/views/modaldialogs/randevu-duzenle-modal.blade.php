@@ -247,6 +247,78 @@
         });
     }
 
+    // Custom.js submit handler'ini bypass et - form scope'lu dogru validation yap
+    document.addEventListener('submit', function(e){
+        if(!e.target || e.target.id !== 'randevuduzenleform') return;
+        // Custom.js validation bug'i: cihaz selector form scope degil, document-wide. Override et.
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+
+        var formScope = $('#randevuduzenleform');
+        var personelveyacihasecili = true;
+        formScope.find('select[name="randevupersonelleriyeni[]"]').each(function(index){
+            var $cihaz = formScope.find('select[name="randevucihazlariyeni[]"]').eq(index);
+            var $oda = formScope.find('select[name="randevuodalariyeni[]"]').eq(index);
+            if($(this).val() == '' && $cihaz.val() == '' && $oda.val() == ''){
+                personelveyacihasecili = false;
+            }
+        });
+        if(!personelveyacihasecili){
+            swal({ type:'warning', title:'Uyarı', text:'Her hizmet satırı için en az bir personel, cihaz veya oda seçin', showConfirmButton:false, timer:3000 });
+            return;
+        }
+
+        // AJAX - custom.js'in yaptigi ile ayni (validation atlanmis)
+        $('#preloader').show();
+        $.ajax({
+            type: 'POST',
+            url: '/isletmeyonetim/randevuguncelle',
+            dataType: 'json',
+            data: formScope.serialize(),
+            success: function(result){
+                $('#preloader').hide();
+                if(result.cakismavar){
+                    swal({
+                        type:'warning',
+                        title:"<h2 style='font-size:40px;font-weight:bold;color:#fff'>Uyarı</h2>",
+                        background:'#ff0000',
+                        html:"<p style='color:#fff;font-size:20px'>Bu randevu aşağıdakilerle çakışmaktadır</p>"+result.cakismavar+"<p style='color:#fff;font-size:20px;padding:10px;border:1px solid #fff;border-radius:10px;margin:0 20px 0 20px'>Yine de kayıt etmek istiyor musunuz?</p>",
+                        showCancelButton:true,
+                        confirmButtonText:'Randevuyu Güncelle',
+                        cancelButtonText:'Vazgeç'
+                    }).then(function(res){
+                        if(res.value){
+                            $.ajax({
+                                type:'POST',
+                                url:'/isletmeyonetim/randevuguncelle',
+                                dataType:'json',
+                                data: formScope.serialize() + '&cakisanrandevuekle=1',
+                                beforeSend: function(){ $('#preloader').show(); },
+                                success: function(r){
+                                    $('#preloader').hide();
+                                    swal({type:'success',title:'Başarılı',html:r.success,showConfirmButton:false,timer:r.timer||2500});
+                                    $('#randevu-duzenle-modal').modal('hide');
+                                    if($('#calendar').length) takvimyukle(false,false);
+                                },
+                                error: function(xhr){ $('#preloader').hide(); swal({type:'error',title:'Hata',text:'Güncelleme başarısız: '+xhr.status,showConfirmButton:false,timer:2500}); }
+                            });
+                        }
+                    });
+                } else {
+                    swal({type:'success',title:'Başarılı',html:result.success,showConfirmButton:false,timer:result.timer||2500});
+                    $('#randevu-duzenle-modal').modal('hide');
+                    if($('#calendar').length) takvimyukle(true,false);
+                }
+            },
+            error: function(xhr){
+                $('#preloader').hide();
+                swal({type:'error',title:'Hata',text:'Güncelleme başarısız: '+xhr.status,showConfirmButton:false,timer:3000});
+                console.error(xhr.responseText);
+            }
+        });
+    }, true); // capture phase
+
     // Eski custom.js handler'i capture phase ile bypass et (jQuery bubble handler'lardan once calisir)
     document.addEventListener('click', function(e){
         var target = e.target.closest && e.target.closest('[name="randevu_duzenle"]');
