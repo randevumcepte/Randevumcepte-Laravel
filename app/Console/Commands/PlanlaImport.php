@@ -68,6 +68,19 @@ class PlanlaImport extends Command
                 $this->line('### ' . $key);
                 $this->line('  ' . str_replace("\n", ' ', $ctx));
             }
+            $this->line('--- url:"..."+method:"..." pattern\'leri (' . count($s['url_fields']) . ') ---');
+            foreach ($s['url_fields'] as $e) $this->line('  ' . $e);
+            $this->line('--- operation_opts (postOptions/getOptions/mutation/query) (' . count($s['operation_opts']) . ', ilk 20) ---');
+            foreach (array_slice($s['operation_opts'], 0, 20) as $e) $this->line('  ' . $e);
+            $this->line('--- queryKey\'ler (' . count($s['query_keys']) . ') ---');
+            foreach ($s['query_keys'] as $e) $this->line('  ' . $e);
+            $this->line('--- wrapper call\'lar (useQuery/useMutation) (' . count($s['wrapper_calls']) . ', ilk 20) ---');
+            foreach (array_slice($s['wrapper_calls'], 0, 20) as $e) $this->line('  ' . $e);
+            $this->line('--- Keyword context\'leri (graphql/connect-api/subscription) ---');
+            foreach ($s['keyword_ctx'] as $k => $ctx) {
+                $this->line('### ' . $k);
+                $this->line('  ' . str_replace("\n", ' ', $ctx));
+            }
             $this->info('Tam analiz: ' . $client->dumpDir() . '/bundle_analysis.body');
             return 0;
         }

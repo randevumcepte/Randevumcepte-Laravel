@@ -438,6 +438,64 @@ class PlanlaClient
             if (preg_match('#' . $p . '#i', $js, $m)) $protocols[] = trim($m[0]);
         }
 
+        // postOptions / getOptions / useQuery / useMutation url'leri
+        $operationOptions = [];
+        foreach (['postOptions', 'getOptions', 'putOptions', 'deleteOptions', 'requestOptions', 'mutation', 'query'] as $opt) {
+            $pat = '#' . $opt . '\\s*:\\s*\\{[^{}]{0,300}\\}#';
+            if (preg_match_all($pat, $js, $m)) {
+                foreach (array_slice(array_unique($m[0]), 0, 8) as $hit) $operationOptions[] = $hit;
+            }
+        }
+
+        // url:"..." + method:"..." pattern'leri
+        $urlFields = [];
+        if (preg_match_all('#url\\s*:\\s*["\'`]([^"\'`]{2,100})["\'`][^{}]{0,60}method\\s*:\\s*["\'`]([a-z]+)["\'`]#i', $js, $m, PREG_SET_ORDER)) {
+            foreach (array_slice($m, 0, 40) as $row) {
+                $urlFields[] = $row[2] . ' ' . $row[1];
+            }
+        }
+        if (preg_match_all('#method\\s*:\\s*["\'`]([a-z]+)["\'`][^{}]{0,60}url\\s*:\\s*["\'`]([^"\'`]{2,100})["\'`]#i', $js, $m, PREG_SET_ORDER)) {
+            foreach (array_slice($m, 0, 40) as $row) {
+                $urlFields[] = $row[1] . ' ' . $row[2];
+            }
+        }
+        if (preg_match_all('#url\\s*:\\s*["\'`](/[a-zA-Z][^"\'`]{2,100})["\'`]#', $js, $m)) {
+            foreach (array_slice(array_unique($m[1]), 0, 40) as $u) $urlFields[] = 'url=' . $u;
+        }
+        $urlFields = array_values(array_unique($urlFields));
+
+        // queryKey arraylari (React Query)
+        $queryKeys = [];
+        if (preg_match_all('#queryKey\\s*:\\s*\\[([^\\]]{0,200})\\]#', $js, $m)) {
+            $queryKeys = array_slice(array_values(array_unique($m[1])), 0, 30);
+        }
+
+        // graphql / connect-api context
+        $keywordCtx = [];
+        foreach (['graphql', 'connect-api', 'subscription'] as $kw) {
+            $pos = 0; $count = 0;
+            while (($p = stripos($js, $kw, $pos)) !== false && $count < 5) {
+                $start = max(0, $p - 120);
+                $keywordCtx[$kw . '#' . $count] = substr($js, $start, 280);
+                $pos = $p + strlen($kw);
+                $count++;
+            }
+        }
+
+        // Api wrapper cagrilari (Apollo client useQuery, axios wrapper vs.)
+        $wrapperCalls = [];
+        foreach ([
+            '#useQuery\\s*\\([^)]{0,200}\\)#',
+            '#useMutation\\s*\\([^)]{0,200}\\)#',
+            '#useGet\\s*\\([^)]{0,200}\\)#',
+            '#usePost\\s*\\([^)]{0,200}\\)#',
+            '#useApi\\s*\\([^)]{0,200}\\)#',
+        ] as $p) {
+            if (preg_match_all($p, $js, $m)) {
+                foreach (array_slice(array_unique($m[0]), 0, 10) as $hit) $wrapperCalls[] = $hit;
+            }
+        }
+
         $summary = [
             'bundle_size'    => strlen($js),
             'login_paths'    => $loginPaths,
@@ -450,6 +508,11 @@ class PlanlaClient
             'path_contexts'  => $contexts,
             'http_init'      => $httpInit,
             'protocols'      => $protocols,
+            'operation_opts' => $operationOptions,
+            'url_fields'     => $urlFields,
+            'query_keys'     => $queryKeys,
+            'keyword_ctx'    => $keywordCtx,
+            'wrapper_calls'  => $wrapperCalls,
         ];
         $this->dump('bundle_analysis', json_encode($summary, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         return ['ok' => true, 'summary' => $summary];
