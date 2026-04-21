@@ -1409,11 +1409,30 @@
 
         // DataTable'lar SMS Raporlari / Kara Liste tablarinin icinde init oldugu
         // icin parent gizliyken olculerini hesaplayamiyor ve pagination gorunmez
-        // kaliyor. Ilgili tab acildiginda columns.adjust + draw ile yenileniyor.
+        // kaliyor. Ilgili tab acildiginda tabloyu zorla tazeliyoruz + wrapper'a
+        // gorunurluk CSS'i basiyoruz.
         function smsRaporTabloYenile(tableId) {
-            if ($.fn.dataTable.isDataTable('#' + tableId)) {
-                $('#' + tableId).DataTable().columns.adjust().draw(false);
+            console.log('[smsRaporTabloYenile] calisiyor', tableId);
+            if (!$.fn.dataTable.isDataTable('#' + tableId)) {
+                console.warn('[smsRaporTabloYenile] DataTable yok:', tableId);
+                return;
             }
+            var dt = $('#' + tableId).DataTable();
+            dt.columns.adjust();
+            dt.draw(false);
+            var $wrapper = $('#' + tableId + '_wrapper');
+            $wrapper.find('.top, .bottom, .dataTables_paginate, .dataTables_info, .dataTables_length, .dataTables_filter').each(function(){
+                this.style.setProperty('display', 'block', 'important');
+                this.style.setProperty('visibility', 'visible', 'important');
+            });
+            $wrapper.find('.dataTables_paginate .pagination').each(function(){
+                this.style.setProperty('display', 'flex', 'important');
+            });
+            $wrapper.find('.dataTables_paginate .page-item').each(function(){
+                this.style.setProperty('display', 'inline-block', 'important');
+            });
+            console.log('[smsRaporTabloYenile] bitti', tableId,
+                'paginate visible=', $wrapper.find('.dataTables_paginate').is(':visible'));
         }
         var smsRaporAltTabEslesme = {
             'otomatik_sms_raporlar': 'bildirim_sms_raporlari',
@@ -1422,23 +1441,22 @@
             'filtreli_sms_raporlar': 'filtreli_sms_raporlari',
             'kampanya_sms_raporlar': 'kampanya_sms_raporlari'
         };
-        $('button[href="#sms_raporlari"]').on('shown.bs.tab click', function(){
+        $(document).on('shown.bs.tab click', 'button[href="#sms_raporlari"], [data-target="#sms_raporlari"]', function(){
             setTimeout(function(){
                 var $aktif = $('#sms_raporlari').find('.tab-content .tab-pane.active').first();
-                var subId = $aktif.attr('id');
-                if (smsRaporAltTabEslesme[subId]) {
-                    smsRaporTabloYenile(smsRaporAltTabEslesme[subId]);
-                }
-            }, 50);
+                var subId = $aktif.attr('id') || 'otomatik_sms_raporlar';
+                var tableId = smsRaporAltTabEslesme[subId];
+                if (tableId) smsRaporTabloYenile(tableId);
+            }, 150);
         });
         Object.keys(smsRaporAltTabEslesme).forEach(function(subId){
             var tableId = smsRaporAltTabEslesme[subId];
-            $('button[href="#' + subId + '"]').on('shown.bs.tab click', function(){
-                setTimeout(function(){ smsRaporTabloYenile(tableId); }, 50);
+            $(document).on('shown.bs.tab click', 'button[href="#' + subId + '"]', function(){
+                setTimeout(function(){ smsRaporTabloYenile(tableId); }, 150);
             });
         });
-        $('button[href="#sms_kara_liste"]').on('shown.bs.tab click', function(){
-            setTimeout(function(){ smsRaporTabloYenile('karaliste_sms_tablo'); }, 50);
+        $(document).on('shown.bs.tab click', 'button[href="#sms_kara_liste"]', function(){
+            setTimeout(function(){ smsRaporTabloYenile('karaliste_sms_tablo'); }, 150);
         });
 
         $(document).on('click', '.sms-rapor-detay-btn', function(e){
