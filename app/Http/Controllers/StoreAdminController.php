@@ -1287,11 +1287,14 @@ public function carkverilerigetir(Request $request)
         $paketler = self::paket_liste_getir("",true,$request);
         $grup=self::grup_sms_liste_getir($request);
        
-        // Raporlar ve karaliste artik DataTable server-side ajax uzerinden yukleniyor;
-        // sayfa ilk acilisinda bu tablolari pre-fetch etmeye gerek yok.
-        $raporlar = ['toplu'=>collect([]),'bildirim'=>collect([]),'grup'=>collect([]),'filtre'=>collect([]),'kampanya'=>collect([]),'etkinlik'=>collect([])];
-        $karaliste = collect([]);
+        $raporlar = self::sms_raporlari($request);
         $portfoy = MusteriPortfoy::where('salon_id',self::mevcutsube($request))->groupBy('user_id')->get();
+        $karaliste = DB::table('users')->join('musteri_portfoy','musteri_portfoy.user_id','=','users.id')->select(
+            'users.name as ad_soyad',
+            'users.cep_telefon as telefon',
+            DB::raw('DATE_FORMAT(musteri_portfoy.updated_at,"%d.%m.%Y") as eklenme_tarihi'),
+            DB::raw('CONCAT("<button class=\"btn btn-primary\" name=\"numara_karalisteden_kaldir\" data-value=\"",users.id,"\">Numarayı Listeden Kaldır</button>") AS islemler')
+        )->where('musteri_portfoy.salon_id',self::mevcutsube($request))->where('musteri_portfoy.kara_liste',1)->get();
 
         return view('isletmeadmin.toplusmsgonder',['portfoy' => $portfoy,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'Toplu SMS Gönder','pageindex' => 106,'isletme'=>$isletme,'taslaklar'=>$taslaklar,'grup'=>$grup,'sms_ayarlari'=>$sms_ayarlari,'raporlar'=>$raporlar,'karaliste'=>$karaliste, 'sayfa_baslik'=>'SMS Yönetimi' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'musteridanisansecimi'=>self::musteriportfoydropliste($request)]);
     }

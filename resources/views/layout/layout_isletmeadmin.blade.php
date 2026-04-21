@@ -2680,30 +2680,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             $('#karaliste_sms_tablo').DataTable({
                  autoWidth: false,
-                 responsive: false,
-                 processing: true,
-                 serverSide: true,
-                 deferRender: true,
-                 destroy: true,
-                 pageLength: 10,
-                 lengthMenu: [10, 25, 50, 100],
-                 dom: '<"top"lf>rt<"bottom"ip>',
-                 "order": [[ 2, "desc" ]],
-                 ajax: {
-                     url: '/isletmeyonetim/sms-karaliste-sayfali',
-                     type: 'POST',
-                     data: function(d){
-                         d._token = $('input[name="_token"]').first().val();
-                         d.sube = $('input[name="sube"]').first().val();
-                     },
-                     dataSrc: 'data'
-                 },
+                 responsive: true,
                  columns:[
-                      { data: 'ad_soyad', className: "text-center", orderable: false },
-                      { data: 'telefon', className: "text-center", orderable: false },
+                      { data: 'ad_soyad', className: "text-center" },
+                      { data: 'telefon', className: "text-center" },
                       { data: 'eklenme_tarihi', className: "text-center" },
-                      { data: 'islemler', className: "text-right", orderable: false, searchable: false }
+                      { data: 'islemler', className: "text-right" }
                  ],
+                 data: <?php echo $karaliste; ?>,
                  "language" : {
                      "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
                      searchPlaceholder: "Ara",
@@ -2772,12 +2756,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                   autoWidth: false,
 
-                  responsive: false,
-                  deferRender: true,
-                  destroy: true,
-                  processing: true,
-
-                  dom: '<"top"lf>rt<"bottom"ip>',
+                  responsive: true,
 
                   "order": [[ 0, "desc" ]],
          
@@ -2856,20 +2835,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                    ],
          
-                   processing: true,
-                   serverSide: true,
-                   pageLength: 10,
-                   lengthMenu: [10, 25, 50, 100],
-                   ajax: {
-                       url: '/isletmeyonetim/sms-raporlari-sayfali',
-                       type: 'POST',
-                       data: function(d){
-                           d._token = $('input[name="_token"]').first().val();
-                           d.sube = $('input[name="sube"]').first().val();
-                           d.tur = 'bildirim';
-                       },
-                       dataSrc: 'data'
-                   },
+                   data: <?php echo $raporlar['bildirim']; ?>,
          
                   
          
@@ -2897,12 +2863,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                   autoWidth: false,
 
-                  responsive: false,
-                  deferRender: true,
-                  destroy: true,
-                  processing: true,
-
-                  dom: '<"top"lf>rt<"bottom"ip>',
+                  responsive: true,
 
                   "order": [[ 0, "desc" ]],
          
@@ -2981,19 +2942,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                    ],
          
-                   processing: true,
-                   serverSide: true,
-                   pageLength: 10,
-                   lengthMenu: [10, 25, 50, 100],
-                   ajax: {
-                       url: '/isletmeyonetim/sms-raporlari-sayfali',
-                       type: 'POST',
-                       data: function(d){
-                           d._token = $('input[name="_token"]').first().val();
-                           d.sube = $('input[name="sube"]').first().val();
-                           d.tur = 'grup';
-                       }
-                   },
+                   data: <?php echo $raporlar['grup']; ?>,
          
                   
          
@@ -3021,12 +2970,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                   autoWidth: false,
 
-                  responsive: false,
-                  deferRender: true,
-                  destroy: true,
-                  processing: true,
-
-                  dom: '<"top"lf>rt<"bottom"ip>',
+                  responsive: true,
 
                   "order": [[ 0, "desc" ]],
          
@@ -3105,19 +3049,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                    ],
          
-                   processing: true,
-                   serverSide: true,
-                   pageLength: 10,
-                   lengthMenu: [10, 25, 50, 100],
-                   ajax: {
-                       url: '/isletmeyonetim/sms-raporlari-sayfali',
-                       type: 'POST',
-                       data: function(d){
-                           d._token = $('input[name="_token"]').first().val();
-                           d.sube = $('input[name="sube"]').first().val();
-                           d.tur = 'filtre';
-                       }
-                   },
+                   data: <?php echo $raporlar['filtre']; ?>,
          
                   
          
@@ -3147,12 +3079,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                   autoWidth: false,
 
-                  responsive: false,
-                  deferRender: true,
-                  destroy: true,
-                  processing: true,
-
-                  dom: '<"top"lf>rt<"bottom"ip>',
+                  responsive: true,
 
                   "order": [[ 0, "desc" ]],
          
@@ -3231,19 +3158,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                    ],
          
-                   processing: true,
-                   serverSide: true,
-                   pageLength: 10,
-                   lengthMenu: [10, 25, 50, 100],
-                   ajax: {
-                       url: '/isletmeyonetim/sms-raporlari-sayfali',
-                       type: 'POST',
-                       data: function(d){
-                           d._token = $('input[name="_token"]').first().val();
-                           d.sube = $('input[name="sube"]').first().val();
-                           d.tur = 'toplu';
-                       }
-                   },
+                   data: <?php echo $raporlar['toplu']; ?>,
          
                   
          
@@ -3271,12 +3186,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                   autoWidth: false,
 
-                  responsive: false,
-                  deferRender: true,
-                  destroy: true,
-                  processing: true,
-
-                  dom: '<"top"lf>rt<"bottom"ip>',
+                  responsive: true,
 
                   "order": [[ 0, "desc" ]],
          
@@ -3355,19 +3265,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                    ],
          
-                   processing: true,
-                   serverSide: true,
-                   pageLength: 10,
-                   lengthMenu: [10, 25, 50, 100],
-                   ajax: {
-                       url: '/isletmeyonetim/sms-raporlari-sayfali',
-                       type: 'POST',
-                       data: function(d){
-                           d._token = $('input[name="_token"]').first().val();
-                           d.sube = $('input[name="sube"]').first().val();
-                           d.tur = 'kampanya';
-                       }
-                   },
+                   data: <?php echo $raporlar['kampanya']; ?>,
          
                   
          
