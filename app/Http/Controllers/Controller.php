@@ -1174,8 +1174,8 @@ class Controller extends BaseController
             }
             // Yeni randevu senaryosunda kaynaklari (cihaz/personel) $salon_id belirlendikten sonra yukle.
             // Eskiden basta bos $salon_id ile yukleniyordu; cihaz-bazli isletmelerde hicbir cihaz bulunamiyordu.
-            $cihazlar = Cihazlar::where('salon_id',$salon_id)->where('aktifmi',true)->where('durum',1)->get();
-            $personeller = Personeller::where('salon_id', $salon_id)->where('aktif', true)->where('role_id', 5)->get();
+            $cihazlar = Cihazlar::where('salon_id',$salon_id)->where('aktifmi',true)->where('durum',1)->orderBy('takvim_sirasi','asc')->get();
+            $personeller = Personeller::where('salon_id', $salon_id)->where('aktif', true)->where('role_id', 5)->orderBy('takvim_sirasi','asc')->get();
         }
 
         $startDate = "";
@@ -1210,9 +1210,9 @@ class Controller extends BaseController
             })->where('hizmet_id', $salonHizmet->hizmet_id)->pluck('personel_id')->toArray();
             
             if(count($hizmetVerenPersoneller)>0)
-                $personeller = Personeller::whereIn('id', $hizmetVerenPersoneller)->where('aktif', true)->get();/*where('role_id', 5)->*/
+                $personeller = Personeller::whereIn('id', $hizmetVerenPersoneller)->where('aktif', true)->orderBy('takvim_sirasi','asc')->get();/*where('role_id', 5)->*/
             else
-                $personeller = Personeller::where('salon_id', $salon_id)->where('aktif', true)->get();/*where('role_id', 5)->*/
+                $personeller = Personeller::where('salon_id', $salon_id)->where('aktif', true)->orderBy('takvim_sirasi','asc')->get();/*where('role_id', 5)->*/
         }
         if($paketBilgisi != null)
         {
@@ -1225,11 +1225,11 @@ class Controller extends BaseController
             $hizmetVerenPersoneller = PersonelHizmetler::whereHas('personeller', function($q) use($salon_id){
                 $q->where('salon_id',$salon_id);
             })->whereIn('hizmet_id', $pHizmetler)->pluck('personel_id')->toArray();
-            
+
             if(count($hizmetVerenPersoneller)>0)
-                $personeller = Personeller::whereIn('id', $hizmetVerenPersoneller)->where('aktif', true)->get();/*where('role_id', 5)->*/
+                $personeller = Personeller::whereIn('id', $hizmetVerenPersoneller)->where('aktif', true)->orderBy('takvim_sirasi','asc')->get();/*where('role_id', 5)->*/
             else
-                $personeller = Personeller::where('salon_id', $salon_id)->where('aktif', true)->get();/*where('role_id', 5)->*/
+                $personeller = Personeller::where('salon_id', $salon_id)->where('aktif', true)->orderBy('takvim_sirasi','asc')->get();/*where('role_id', 5)->*/
         }
 
         $tarihIncelendi = false;
@@ -1299,7 +1299,7 @@ class Controller extends BaseController
 
                 if ($salonSaatUygun && $molaUygun && $takvimTuru == 3) {
                     // ODA-TABANLI: dogrudan salonun aktif odalari uzerinden kontrol
-                    $salonOdalari = Odalar::where('salon_id', $salon_id)->where('aktifmi', true)->where('durum', true)->get();
+                    $salonOdalari = Odalar::where('salon_id', $salon_id)->where('aktifmi', true)->where('durum', true)->orderBy('takvim_sirasi', 'asc')->get();
                     foreach ($salonOdalari as $oda) {
                         if ($this->hasAppointmentConflict($oda->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) continue;
                         Log::info("✅ EXACT UYGUN (oda-based)! Oda: " . $oda->id);
@@ -1520,7 +1520,7 @@ class Controller extends BaseController
                     if ($endSlot->gt(Carbon::parse($checkDate . " " . ($salonCalismaSaatleri->bitis_saati ?? "18:00")))) continue;
                     if ($salonMolaSaatleri && $this->isInBreak($startSlot, $endSlot, $salonMolaSaatleri)) continue;
 
-                    $salonOdalari = Odalar::where('salon_id',$salon_id)->where('aktifmi',true)->where('durum',true)->get();
+                    $salonOdalari = Odalar::where('salon_id',$salon_id)->where('aktifmi',true)->where('durum',true)->orderBy('takvim_sirasi','asc')->get();
                     foreach ($salonOdalari as $oda) {
                         if ($randevuid != "" && is_array($eskiOdaIdler) && in_array($oda->id, $eskiOdaIdler) && $startSlot->eq($eskiBaslangic) && $endSlot->eq($eskiBitis)) {
                             continue;
