@@ -9309,9 +9309,17 @@ $('#odabilgiduzenle').on('submit',function(e){
                 success: function(result)  {
                     $('#preloader').hide();
                     $('#oda_adi').val(result.oda_adi);
-                    var newOption = new Option(result.personel_adi, result.personel_id, true, true);
-                    $('#oda_personeli').append(newOption).trigger('change');
-                    
+                    $('#oda_personeli').empty();
+                    var secili_personeller = [];
+                    if(result.personeller && result.personeller.length > 0){
+                        result.personeller.forEach(function(p){
+                            var newOption = new Option(p.ad_soyad, p.id, true, true);
+                            $('#oda_personeli').append(newOption);
+                            secili_personeller.push(String(p.id));
+                        });
+                    }
+                    $('#oda_personeli').val(secili_personeller).trigger('change');
+
                     $('#duzenlenecek_oda_id').val(result.id);
                     $('#oda_duzenle_modal2').modal();
                 },

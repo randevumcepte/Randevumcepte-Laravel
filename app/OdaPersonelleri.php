@@ -21,7 +21,7 @@ class OdaPersonelleri extends Model
     }
     public function oda()
     {
-        return $this->belongsTo(Odalar::class,'personel_id');
+        return $this->belongsTo(Odalar::class,'oda_id');
     }
     
 

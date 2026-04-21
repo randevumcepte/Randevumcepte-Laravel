@@ -12455,11 +12455,20 @@ DB::raw('
     public function odadetayigetir(Request $request)
     {
         $oda = Odalar::where('id',$request->oda_id)->first();
+        $odaPersonelleri = OdaPersonelleri::where('oda_id',$request->oda_id)->get();
+        $personeller = [];
+        foreach($odaPersonelleri as $op){
+            if($op->personel){
+                $personeller[] = [
+                    'id' => $op->personel_id,
+                    'ad_soyad' => $op->personel->personel_adi
+                ];
+            }
+        }
         return array(
             'oda_adi' => $oda->oda_adi,
-            'personel_id'=>$oda->personel_id ?? null,
-            'personel_adi'=>$oda->personel_id!=null ? $oda->personel->personel_adi : null,
-            'id'=>$oda->id
+            'personeller' => $personeller,
+            'id' => $oda->id
         );
     }
     public function oda_liste_getir(Request $request,$returntext){
