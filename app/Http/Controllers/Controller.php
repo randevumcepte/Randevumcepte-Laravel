@@ -1295,8 +1295,31 @@ class Controller extends BaseController
                 $salonSaatUygun = !($startSlot->lt($salonStartBoundary) || $endSlot->gt($salonEndBoundary));
                 $molaUygun = !($salonMolaSaatleri && $salonMolaSaatleri->count() > 0 && $this->isInBreak($startSlot, $endSlot, $salonMolaSaatleri));
 
-                if ($salonSaatUygun && $molaUygun) {
-                    // PERSONEL KONTROLÜ
+                $takvimTuru = Salonlar::where('id', $salon_id)->value('randevu_takvim_turu');
+
+                if ($salonSaatUygun && $molaUygun && $takvimTuru == 3) {
+                    // ODA-TABANLI: dogrudan salonun aktif odalari uzerinden kontrol
+                    $salonOdalari = Odalar::where('salon_id', $salon_id)->where('aktifmi', true)->where('durum', true)->get();
+                    foreach ($salonOdalari as $oda) {
+                        if ($this->hasAppointmentConflict($oda->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) continue;
+                        Log::info("✅ EXACT UYGUN (oda-based)! Oda: " . $oda->id);
+                        $exactResult = [
+                            'success' => true,
+                            'tarihsaat' => $startSlot->format('Y-m-d H:i'),
+                            'personelid' => $oda->personel_id ?? 0,
+                            'hizmetid' => $salonHizmet ? $salonHizmet->hizmet_id : "",
+                            'sure' => $sureDk,
+                            'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
+                            'randevuid' => $randevuid,
+                            'odaid' => $oda->id,
+                            "hizmetbulunamadi" => false,
+                            'personelSecimiGerekli' => false,
+                            'alternatifOneri' => false,
+                        ];
+                        break;
+                    }
+                } else if ($salonSaatUygun && $molaUygun) {
+                    // PERSONEL KONTROLÜ (takvim_turu 0/1/default)
                     foreach ($personeller as $personel) {
                         $personelCalismaSaatleri = PersonelCalismaSaatleri::where('personel_id', $personel->id)
                             ->where('haftanin_gunu', $dayOfWeek)
@@ -1369,8 +1392,8 @@ class Controller extends BaseController
                         }
                     }
 
-                    // CİHAZ KONTROLÜ
-                    if ($exactResult === null) {
+                    // CİHAZ KONTROLÜ (sadece cihaz-bazli takvimde — takvim_turu=2)
+                    if ($exactResult === null && $takvimTuru == 2) {
                         foreach ($cihazlar as $cihaz) {
                             if ($salonHizmet != "") {
                                 if (!CihazHizmetler::where('cihaz_id', $cihaz->id)->where('hizmet_id', $salonHizmet->hizmet_id)->exists()) continue;
@@ -1484,9 +1507,44 @@ class Controller extends BaseController
                 Log::info('step geçiyor');
                 continue;
             }
-            
+
+            $normalTakvimTuru = Salonlar::where('id',$salon_id)->value('randevu_takvim_turu');
+
             foreach (range($salonStart->timestamp, $salonEnd->timestamp, $step) as $timestamp) {
-                if(Salonlar::where('id',$salon_id)->value('randevu_takvim_turu')!=2 )
+                if ($normalTakvimTuru == 3) {
+                    // ODA-TABANLI salon: aktif odalari gez, oda cakismasi yoksa uygun
+                    $startSlot = Carbon::createFromTimestamp($timestamp);
+                    $sureDk = $salonHizmet ? $salonHizmet->sure_dk : RandevuHizmetler::where('randevu_id', $randevuid)->sum('sure_dk');
+                    $endSlot = $startSlot->copy()->addMinutes($sureDk);
+
+                    if ($endSlot->gt(Carbon::parse($checkDate . " " . ($salonCalismaSaatleri->bitis_saati ?? "18:00")))) continue;
+                    if ($salonMolaSaatleri && $this->isInBreak($startSlot, $endSlot, $salonMolaSaatleri)) continue;
+
+                    $salonOdalari = Odalar::where('salon_id',$salon_id)->where('aktifmi',true)->where('durum',true)->get();
+                    foreach ($salonOdalari as $oda) {
+                        if ($randevuid != "" && is_array($eskiOdaIdler) && in_array($oda->id, $eskiOdaIdler) && $startSlot->eq($eskiBaslangic) && $endSlot->eq($eskiBitis)) {
+                            continue;
+                        }
+                        if ($this->hasAppointmentConflict($oda->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) continue;
+
+                        return response()->json([
+                            'success' => true,
+                            'tarihsaat' => $startSlot->format('Y-m-d H:i'),
+                            'personelid' => $oda->personel_id ?? 0,
+                            'hizmetid' => $salonHizmet->hizmet_id ?? "",
+                            'sure' => $sureDk,
+                            'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
+                            'metin' => $randevuid != "" ? base64_encode(self::convertToBugunYarin($randevu->tarih)." saat ".$randevu->saat ." randevunuzu " . self::convertToBugunYarin($startSlot->format('Y-m-d')) . " saat " . $startSlot->format('H:i') . " olarak güncelleyebiliriz. Randevunuzu güncellemek için biri, operatöre bağlanmak için ikiyi tuşlayınız") : base64_encode(($salonHizmet && $salonHizmet->hizmetler ? $salonHizmet->hizmetler->hizmet_adi : 'Hizmet'). " için " . self::convertToBugunYarin($startSlot->format('Y-m-d')) . " " . $startSlot->format('H:i') . " saatinde uygun randevu bulunmaktadır. Randevunuzu oluşturmak istiyor musunuz?"),
+                            'randevuid' => $randevuid,
+                            'odaid' => $oda->id,
+                            "hizmetbulunamadi" => false,
+                            'personelSecimiGerekli' => false,
+                            'alternatifOneri' => $alternatifMode,
+                            'orijinalTarihSaat' => $orijinalTarihSaat,
+                        ]);
+                    }
+                }
+                else if ($normalTakvimTuru != 2)
                 {
                     foreach ($personeller as $personel) {
                         $personelCalismaSaatleri = PersonelCalismaSaatleri::where('personel_id', $personel->id)->where('haftanin_gunu', $dayOfWeek)->where('calisiyor', 1)->first();
