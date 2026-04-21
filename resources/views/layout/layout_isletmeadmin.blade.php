@@ -2876,6 +2876,12 @@ document.addEventListener('DOMContentLoaded', function() {
                            return json.data || [];
                        }
                    },
+                   initComplete: function(settings, json){
+                       var w = document.getElementById('bildirim_sms_raporlari_wrapper');
+                       console.log('[bildirim_sms_raporlari] initComplete, wrapper HTML:', w ? w.outerHTML.substring(0, 2000) : 'WRAPPER YOK');
+                       console.log('[bildirim_sms_raporlari] paginate element:', $('#bildirim_sms_raporlari_wrapper .dataTables_paginate').length);
+                       console.log('[bildirim_sms_raporlari] info element:', $('#bildirim_sms_raporlari_wrapper .dataTables_info').length);
+                   },
          
                   
          
