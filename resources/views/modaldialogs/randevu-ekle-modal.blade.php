@@ -148,7 +148,7 @@
                                                             <!-- Sağ kolon: Hizmet Seçimi -->
                                                             <div class="col-md-6 mb-1">
                                                                 <label class="form-label" style="font-size: 0.8rem;">Hizmetler (Çoklu Seçim)</label>
-                                                                <select name="randevuhizmetleriyeni[]" id="randevuhizmetleriyeni_0" multiple class="form-control hizmet-select" data-index="0" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
+                                                                <select name="randevuhizmetleriyeni_0[]" id="randevuhizmetleriyeni_0" multiple class="form-control hizmet-select" data-index="0" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                                                     <option></option>
                                                                 </select>
                                                             </div>
@@ -1750,7 +1750,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                         <!-- Sağ kolon: Hizmet Seçimi -->
                         <div class="col-md-6 mb-1">
                             <label class="form-label" style="font-size: 0.8rem;">Hizmetler (Çoklu Seçim)</label>
-                            <select name="randevuhizmetleriyeni[]" id="randevuhizmetleriyeni_${newIndex}" multiple class="form-control hizmet-select" data-index="${newIndex}" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
+                            <select name="randevuhizmetleriyeni_${newIndex}[]" id="randevuhizmetleriyeni_${newIndex}" multiple class="form-control hizmet-select" data-index="${newIndex}" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                 <option></option>
                             </select>
                         </div>
@@ -2201,7 +2201,7 @@ function updateHizmetDetaylari(index) {
                         <label class="form-label small" style="font-size: 0.7rem;">Süre (dakika)</label>
                         <input type="number" 
                                class="form-control form-control-sm hizmet-suresi" 
-                               name="hizmet_suresi[]" 
+                               name="hizmet_sureleri-${service.id}" 
                                value="${sure}" 
                                min="0" 
                                step="5"
@@ -2211,7 +2211,7 @@ function updateHizmetDetaylari(index) {
                         <label class="form-label small" style="font-size: 0.7rem;">Fiyat (₺)</label>
                         <input type="number" 
                                class="form-control form-control-sm hizmet-fiyati" 
-                               name="hizmet_fiyat[]" 
+                               name="hizmet_fiyatlari-${service.id}" 
                                value="${fiyat}" 
                                min="0" 
                                step="0.01"
