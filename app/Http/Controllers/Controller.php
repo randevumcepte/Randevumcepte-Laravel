@@ -1322,6 +1322,12 @@ class Controller extends BaseController
                             ->where('salon_id', $salon_id)
                             ->get();
 
+                        // Personelin baska bir kaynakta (oda/cihaz) cakisan randevusu var mi?
+                        if ($this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
+                            Log::info("❌ EXACT: Personel " . $personel->id . " bu slotta baska randevuda");
+                            continue;
+                        }
+
                         if ($odalarPersonel->count() > 0) {
                             foreach ($odalarPersonel as $oda) {
                                 if (!$this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
@@ -1498,6 +1504,11 @@ class Controller extends BaseController
                         
                         // Eğer bu eski randevu ise, çakışma kontrolünde eski zamanı görmezden gel
                         if ($randevuid != "" && in_array($personel->id, $eskiPersonelIdler) /*$eskiPersonelId == $personel->id*/ && $startSlot->eq($eskiBaslangic) && $endSlot->eq($eskiBitis)) {
+                            continue;
+                        }
+
+                        // Personelin baska kaynakta (oda/cihaz) cakisan randevusu var mi?
+                        if ($this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                             continue;
                         }
 
