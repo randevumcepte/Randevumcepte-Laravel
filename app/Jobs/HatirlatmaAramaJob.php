@@ -15,21 +15,38 @@ class HatirlatmaAramaJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $aramaListesi;
+    protected $salonId;
+    protected $kaynakId;
 
-    public function __construct(array $aramaListesi)
+    public $timeout = 1800;
+    public $tries = 3;
+
+    public function __construct(array $aramaListesi, $salonId = null, $kaynakId = null)
     {
         $this->aramaListesi = $aramaListesi;
+        $this->salonId = $salonId;
+        $this->kaynakId = $kaynakId;
     }
 
     public function handle()
     {
+        Log::info('Hatırlatma arama job çalışıyor. Salon: ' . $this->salonId .
+            ', Kaynak: ' . $this->kaynakId .
+            ', Kayıt: ' . count($this->aramaListesi));
+
         $controller = app()->make(Controller::class);
 
-        Log::info('Hatırlatma arama job çalışıyor. (' . count($this->aramaListesi) . ' kayıt)');
         try {
             $controller->hatirlatmaaramasiyap($this->aramaListesi);
+            Log::info('Arama job başarıyla tamamlandı.');
         } catch (\Throwable $e) {
             Log::error('HatirlatmaAramaJob hata: ' . $e->getMessage());
+            throw $e;
         }
+    }
+
+    public function failed(\Throwable $exception)
+    {
+        Log::critical('HatirlatmaAramaJob tamamen başarısız oldu: ' . $exception->getMessage());
     }
 }

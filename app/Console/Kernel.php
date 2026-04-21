@@ -13,20 +13,19 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-       Commands\DBYedekAl::class,
+        Commands\DBYedekAl::class,
 
-       Commands\SMSGonder::class,
-       Commands\KampanyaAramaYap::class,
+        Commands\SMSGonder::class,
+        Commands\RandevuSMSHatirlatma::class,
+        Commands\DogumGunuSMSHatirlatma::class,
+        Commands\AlacakSMSHatirlatma::class,
+
+        Commands\KampanyaAramaYap::class,
         Commands\KampanyaSMSGonder::class,
         Commands\RandevuHatirlatmaAramasiYap::class,
         Commands\AlacakHatirlatmaAramasiYap::class,
         Commands\TekrarAramaHatirlat::class,
         Commands\PlanlaImport::class,
-       //Commands\NLPTokenGuncelle::class,
-       //Commands\AvantajYayindanKaldir::class,
-       //Commands\RandevuGuncelle::class,
-       //Commands\SenetOdenmediBildirim::class,
-
     ];
 
     /**
@@ -37,20 +36,21 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-      $schedule->command('sms:gonder')->withoutOverlapping()->everyMinute();
-      $schedule->command('randevuarama:yap')->everyMinute();
-      //$schedule->command('kampanyaarama:yap')->withoutOverlapping()->everyMinute();
-      //$schedule->command('kampanyasms:gonder')->withoutOverlapping()->everyMinute();
-      $schedule->command('alacakhatirlatma:aramayap')->withoutOverlapping()->everyMinute();
-      $schedule->command('arama:hatirlat')->withoutOverlapping()->everyMinute();
-      ///$schedule->command('dbyedek:al')->cron('*/15 * * * *')->withoutOverlapping();
-       $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();
+        // SMS komutları
+        $schedule->command('sms:gonder')->withoutOverlapping()->everyMinute();
+        $schedule->command('randevusms:hatirlat')->withoutOverlapping()->everyMinute();
+        $schedule->command('dogumgunusms:hatirlat')->withoutOverlapping()->everyMinute();
+        $schedule->command('alacaksms:hatirlat')->withoutOverlapping()->everyMinute();
 
-      //$schedule->command('nlptoken:guncelle')->everyMinute();
-      //$schedule->command('randevu:guncelle')->everyMinute();
-      //$schedule->command('senetodenmedi:bildirim')->everyMinute();
+        // Arama hatırlatmaları
+        $schedule->command('randevuarama:yap')->withoutOverlapping()->everyMinute();
+        //$schedule->command('kampanyaarama:yap')->withoutOverlapping()->everyMinute();
+        //$schedule->command('kampanyasms:gonder')->withoutOverlapping()->everyMinute();
+        $schedule->command('alacakhatirlatma:aramayap')->withoutOverlapping()->everyMinute();
+        $schedule->command('arama:hatirlat')->withoutOverlapping()->everyMinute();
 
-
+        // Yedek
+        $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();
     }
 
     /**
@@ -61,6 +61,5 @@ class Kernel extends ConsoleKernel
     protected function commands()
     {
         require base_path('routes/console.php');
-
     }
 }
