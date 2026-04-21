@@ -302,6 +302,9 @@
                                     $('#preloader').hide();
                                     swal({type:'success',title:'Başarılı',html:r.success,showConfirmButton:false,timer:r.timer||2500});
                                     $('#randevu-duzenle-modal').modal('hide');
+                                    $('#modal-view-event').modal('hide');
+                                    $('.modal-backdrop').remove();
+                                    $('body').removeClass('modal-open').css('padding-right','');
                                     if($('#calendar').length) takvimyukle(false,false);
                                 },
                                 error: function(xhr){ $('#preloader').hide(); swal({type:'error',title:'Hata',text:'Güncelleme başarısız: '+xhr.status,showConfirmButton:false,timer:2500}); }
@@ -311,6 +314,9 @@
                 } else {
                     swal({type:'success',title:'Başarılı',html:result.success,showConfirmButton:false,timer:result.timer||2500});
                     $('#randevu-duzenle-modal').modal('hide');
+                    $('#modal-view-event').modal('hide');
+                    $('.modal-backdrop').remove();
+                    $('body').removeClass('modal-open').css('padding-right','');
                     if($('#calendar').length) takvimyukle(true,false);
                 }
             },
