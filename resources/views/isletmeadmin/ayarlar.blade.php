@@ -2457,11 +2457,13 @@
                </div>
                <div class="form-group">
                   <label>Personel</label>
-                  <select name="oda_personeli[]" multiple style="width:100%" class="form-control  personel_secimi" required >
-                     <option></option>
+                  <select name="oda_personeli[]" multiple style="width:100%" class="form-control oda_personel_secimi" required >
+                     @foreach($personeller_raw as $per)
+                        <option value="{{ $per->id }}">{{ $per->personel_adi }}</option>
+                     @endforeach
                   </select>
                </div>
-               
+
             </div>
 
             <div class="modal-footer" style="display:block">
@@ -2475,7 +2477,7 @@
                      <button id="modal_kapat"
                         type="button"
                         class="btn btn-danger btn-lg btn-block"
-                        data-dismiss="modal" 
+                        data-dismiss="modal"
                         ><i class="fa fa times"></i>
                      Kapat
                      </button>
@@ -2507,8 +2509,10 @@
                </div>
                <div class="form-group">
                   <label>Personel</label>
-                  <select name="oda_personeli[]" multiple id="oda_personeli" style="width:100%" class="form-control  personel_secimi" required >
-                     <option></option>
+                  <select name="oda_personeli[]" multiple id="oda_personeli" style="width:100%" class="form-control oda_personel_secimi" required >
+                     @foreach($personeller_raw as $per)
+                        <option value="{{ $per->id }}">{{ $per->personel_adi }}</option>
+                     @endforeach
                   </select>
                </div>
                

@@ -9314,19 +9314,13 @@ $('#odabilgiduzenle').on('submit',function(e){
                     $('#preloader').hide();
                     $('#oda_adi').val(result.oda_adi);
 
-                    var $sel = $('#oda_personeli');
-                    $sel.val(null).trigger('change');
-                    $sel.find('option').remove();
-
+                    var secili_personeller = [];
                     if(result.personeller && result.personeller.length > 0){
-                        var secili_personeller = [];
                         result.personeller.forEach(function(p){
-                            var newOption = new Option(p.ad_soyad, p.id, true, true);
-                            $sel.append(newOption);
                             secili_personeller.push(String(p.id));
                         });
-                        $sel.val(secili_personeller).trigger('change');
                     }
+                    $('#oda_personeli').val(secili_personeller).trigger('change');
 
                     $('#duzenlenecek_oda_id').val(result.id);
                     $('#oda_duzenle_modal2').modal();
@@ -18384,6 +18378,16 @@ $(document).on('click', '#sablonkapatmodal', function () {
 
         },
         minimumInputLength: 0 // En az 2 harf girilince aramaya başla
+        });
+     });
+     $('.oda_personel_secimi').each(function(){
+        $(this).select2({
+            placeholder: "Personel seçin",
+            allowClear: true,
+            language: {
+                noResults: function(){ return "Sonuç bulunamadı."; },
+                searching: function(){ return "Aranıyor..."; }
+            }
         });
      });
      $('.cihaz_secimi').each(function(){
