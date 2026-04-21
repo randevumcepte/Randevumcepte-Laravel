@@ -305,12 +305,15 @@ class PlanlaImporter
     public function importRandevular()
     {
         $this->log('Randevular cekiliyor (category=appointments)...');
-        $items = $this->fetchCategory('appointments');
 
-        // Eger hizmet/musteri/personel map'leri bos ve gerekli ise, oncesinde import'u yaptigimizdan emin olalim
-        if (empty($this->musteriMap)) $this->buildMusteriMap();
+        // Randevu aktariminda customer/service/employee ID'leri Planla ObjectId.
+        // Randevu kacmamasi icin map'te olmayan Planla musterilerini otomatik olustur
+        // (telefonsuz olsalar da placeholder olarak).
+        $this->ensureAllMusterilerMapped();
         if (empty($this->hizmetMap))  $this->buildHizmetMap();
         if (empty($this->personelMap)) $this->buildPersonelMap();
+
+        $items = $this->fetchCategory('appointments');
 
         $i = 0;
         foreach ($items as $row) {
@@ -387,8 +390,7 @@ class PlanlaImporter
 
     private function buildMusteriMap()
     {
-        // Bu calisma yeniden-calistirma senaryolarinda lazim.
-        // Planla _id -> local user_id: Planla'dan tekrar cek, telefon match'le DB'dekini bul.
+        // Planla _id -> local user_id: telefondan match (import sonrasi sync).
         foreach ($this->fetchCategory('customers') as $row) {
             $planlaId = isset($row['_id']) ? $row['_id'] : null;
             $tel = $this->telefonNormalize(isset($row['phone']) ? $row['phone'] : null);
@@ -396,6 +398,61 @@ class PlanlaImporter
             $u = User::where('cep_telefon', $tel)->first();
             if ($u) $this->musteriMap[$planlaId] = $u->id;
         }
+    }
+
+    /**
+     * Randevu aktarimi icin: Planla'daki tum musterilerin map'te karsiligi olmasini garanti eder.
+     * Eksik olanlar (telefonsuz, dbde bulunamayan) icin placeholder User + portfoy yaratilir.
+     * Bu sayede hicbir randevu 'customer bulunamadi' sebebiyle kaybedilmez.
+     */
+    private function ensureAllMusterilerMapped()
+    {
+        $this->log('Musteri map kuruluyor (eksik olanlar olusturuluyor)...');
+        $yeni = 0;
+        $bulundu = 0;
+        foreach ($this->fetchCategory('customers') as $row) {
+            $planlaId = isset($row['_id']) ? $row['_id'] : null;
+            if (!$planlaId) continue;
+            if (isset($this->musteriMap[$planlaId])) { $bulundu++; continue; }
+
+            $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
+            if (!$ad) $ad = 'Planla ' . substr($planlaId, -6);
+            $tel = $this->telefonNormalize(isset($row['phone']) ? $row['phone'] : null);
+            $email = !empty($row['email']) ? trim($row['email']) : null;
+            $notes = !empty($row['notes']) ? trim($row['notes']) : null;
+            $created = !empty($row['createdAt']) ? date('Y-m-d H:i:s', (int) $row['createdAt']) : date('Y-m-d H:i:s');
+
+            $user = null;
+            if ($tel) {
+                $user = User::where('cep_telefon', $tel)->first();
+            }
+            if (!$user) {
+                $user = new User();
+                $user->name = $ad;
+                $user->cep_telefon = $tel; // null olabilir
+                if ($email) $user->email = $email;
+                $user->ozel_notlar = $notes;
+                $user->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                $user->created_at = $created;
+                $user->save();
+                $yeni++;
+            } else {
+                $bulundu++;
+            }
+
+            $portfoy = MusteriPortfoy::where('user_id', $user->id)->where('salon_id', $this->salonId)->first();
+            if (!$portfoy) {
+                $portfoy = new MusteriPortfoy();
+                $portfoy->user_id = $user->id;
+                $portfoy->salon_id = $this->salonId;
+                $portfoy->aktif = 1;
+                $portfoy->ozel_notlar = $notes;
+                $portfoy->created_at = $created;
+                $portfoy->save();
+            }
+            $this->musteriMap[$planlaId] = $user->id;
+        }
+        $this->log("Musteri map tamam: bulundu={$bulundu}, yeni olusturulan={$yeni}, toplam map=" . count($this->musteriMap));
     }
 
     private function buildHizmetMap()
