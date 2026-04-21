@@ -35,23 +35,46 @@ class SMSController extends Controller
           require_once app_path('VoiceTelekom/Sms/SmsApi.php');
           require_once app_path('VoiceTelekom/Sms/GetSmsReports.php');
 
+          $tumKalemler = [];
+          $pageSize = 1000;
+          $maxSayfa = 20; // 20.000 kayit sinir, guvenlik icin sonsuz dongu onlemi
+          $baslangic = date('Y-m-d H:i', strtotime('-' . intval($gunSayisi) . ' days'));
+          $bitis = date('Y-m-d H:i');
+
           try {
                $smsApi = new \SmsApi('smsvt.voicetelekom.com', $isletme->sms_user_name, $isletme->sms_secret, '9588');
-               $request = new \GetSmsReports();
-               $request->startDate = date('Y-m-d H:i', strtotime('-' . intval($gunSayisi) . ' days'));
-               $request->finishDate = date('Y-m-d H:i');
-               $request->pageIndex = 0;
-               $request->pageSize = 1000;
 
-               $response = $smsApi->getSmsReports($request);
-               if ($response->err !== null) {
-                    Log::warning('VoiceTelekom rapor alinamadi salon=' . $salonId . ' hata=' . $response->err->message);
-                    return $bosSonuc;
+               for ($sayfa = 0; $sayfa < $maxSayfa; $sayfa++) {
+                    $request = new \GetSmsReports();
+                    $request->startDate = $baslangic;
+                    $request->finishDate = $bitis;
+                    $request->pageIndex = $sayfa;
+                    $request->pageSize = $pageSize;
+
+                    $response = $smsApi->getSmsReports($request);
+                    if ($response->err !== null) {
+                         Log::warning('VoiceTelekom rapor alinamadi salon=' . $salonId . ' sayfa=' . $sayfa . ' hata=' . $response->err->message);
+                         if ($sayfa === 0) return $bosSonuc;
+                         break;
+                    }
+
+                    $gelen = is_array($response->list) ? $response->list : [];
+                    if (count($gelen) === 0) break;
+
+                    foreach ($gelen as $item) {
+                         $tumKalemler[] = $item;
+                    }
+
+                    // Tum kayitlari aldiysak dongu sonlanir
+                    if (isset($response->totalRecord) && count($tumKalemler) >= intval($response->totalRecord)) break;
+                    if (count($gelen) < $pageSize) break;
                }
           } catch (\Exception $e) {
                Log::warning('VoiceTelekom rapor exception salon=' . $salonId . ' hata=' . $e->getMessage());
-               return $bosSonuc;
+               if (empty($tumKalemler)) return $bosSonuc;
           }
+
+          Log::info('VoiceTelekom rapor iterasyon tamamlandi salon=' . $salonId . ' toplam=' . count($tumKalemler));
 
           $sonuc = [
                'toplu' => [],
@@ -62,7 +85,7 @@ class SMSController extends Controller
                'etkinlik' => [],
           ];
 
-          foreach ($response->list as $item) {
+          foreach ($tumKalemler as $item) {
                $tur = self::vtBaslikTanimla($item->title);
                $tarihHam = $item->processingDate ?: $item->sendingDate;
                if (!$tarihHam && isset($item->createDate)) {
