@@ -1231,10 +1231,12 @@ class Controller extends BaseController
             else
                 $personeller = Personeller::where('salon_id', $salon_id)->where('aktif', true)->get();/*where('role_id', 5)->*/
         }
-        
-        $tarihIncelendi = false;
 
-        // TARİHSAAT VARSA - DİREKT O SAATİ KONTROL ET
+        $tarihIncelendi = false;
+        $alternatifMode = false;
+        $orijinalTarihSaat = $tarihSaat;
+
+        // TARİHSAAT VARSA - ÖNCE O SAATİ KONTROL ET; UYGUN DEĞİLSE İLERİYE DOĞRU EN YAKIN UYGUNU ARA
         if($tarihSaat != "") {
             $day = 0;
             $checkDate = $startDate->format('Y-m-d');
@@ -1243,15 +1245,32 @@ class Controller extends BaseController
 
             Log::info("🔍 Kontrol edilen gün: " . $checkDate . " - Gün: " . $dayOfWeek);
 
-            // Gecmis tarih/saat reddi (5 dk tolerans: cagri aninda anons gecikmesi).
-            // Guncelleme senaryosunda (randevuid != "") bile gecmise randevu olusturulmamalidir.
+            // Gecmis tarih/saat reddi (5 dk tolerans): geriye dogru arama yapamayiz → hard fail.
             if ($startDate->lt(Carbon::now()->subMinutes(5))) {
                 Log::info("❌ Gecmis tarih/saat istendi: " . $startDate->format('Y-m-d H:i'));
                 return response()->json([
                     'success' => false,
                     'metin' => base64_encode('Geçmiş bir tarih ve saat için randevu oluşturamıyoruz. Lütfen ileri bir tarih ve saat söyleyin.'),
-                    "tarihsaat" => $tarihSaat
+                    "tarihsaat" => $tarihSaat,
+                    'alternatifOneri' => false,
                 ]);
+            }
+
+            $exactResult = null;
+
+            // Süre hesaplama (hem exact hem fallback için gerekli)
+            $sureDk = 0;
+            if($paketBilgisi != null) {
+                if($paketBilgisi['paketSuresi'] != null) {
+                    $sureDk = $paketBilgisi['paketSuresi'];
+                } else {
+                    foreach($paketBilgisi['hizmetler'] as $pHizmet) {
+                        $salonHizmet = SalonHizmetler::where('hizmet_id',$pHizmet['hizmet_id'])->where('salon_id',$salon_id)->first();
+                        $sureDk += $salonHizmet->sure_dk;
+                    }
+                }
+            } else {
+                $sureDk = $salonHizmet ? $salonHizmet->sure_dk : RandevuHizmetler::where('randevu_id', $randevuid)->sum('sure_dk');
             }
 
             // Salon çalışma saatleri kontrolü
@@ -1260,226 +1279,188 @@ class Controller extends BaseController
                 ->where('calisiyor', 1)
                 ->first();
 
-            if (!$salonCalismaSaatleri) {
-                Log::info("❌ Salon bu gun kapali: " . $checkDate);
-                return response()->json([
-                    'success' => false,
-                    'metin' => base64_encode('İşletmemiz belirttiğiniz gün kapalıdır. Lütfen başka bir gün söyleyin.'),
-                    "tarihsaat" => $tarihSaat
-                ]);
-            }
-
-            {
+            if ($salonCalismaSaatleri) {
                 $salonMolaSaatleri = SalonMolaSaatleri::where('salon_id', $salon_id)
                     ->where('haftanin_gunu', $dayOfWeek)
                     ->where('mola_var', 1)
                     ->get();
 
                 $startSlot = $startDate->copy();
-                $sureDk = 0;
-                if($paketBilgisi != null)
-                {
-                    if($paketBilgisi['paketSuresi'] != null)
-                    {
-                        $sureDk=$paketBilgisi['paketSuresi'];
-                    }
-                    else
-                    {
-                        foreach($paketBilgisi['hizmetler'] as $pHizmet)
-                        {
-                            $salonHizmet = SalonHizmetler::where('hizmet_id',$pHizmet['hizmet_id'])->where('salon_id',$salon_id)->first();
-                            $sureDk += $salonHizmet->sure_dk;
-                        }
-                    }
-                }
-                else
-                    $sureDk = $salonHizmet ? $salonHizmet->sure_dk : RandevuHizmetler::where('randevu_id', $randevuid)->sum('sure_dk');
                 $endSlot = $startSlot->copy()->addMinutes($sureDk);
 
                 Log::info("⏰ Kontrol edilen slot: " . $startSlot->format('Y-m-d H:i:s') . " - " . $endSlot->format('Y-m-d H:i:s'));
 
-                // Salon calisma saati araligi kontrolu: istenen slot salonun calisma penceresinde olmali.
                 $salonStartBoundary = Carbon::parse($checkDate . " " . $salonCalismaSaatleri->baslangic_saati);
                 $salonEndBoundary = Carbon::parse($checkDate . " " . $salonCalismaSaatleri->bitis_saati);
-                if ($startSlot->lt($salonStartBoundary) || $endSlot->gt($salonEndBoundary)) {
-                    Log::info("❌ Istenen slot salon calisma saatleri disinda: " . $startSlot->format('H:i') . "-" . $endSlot->format('H:i') . " (salon " . $salonStartBoundary->format('H:i') . "-" . $salonEndBoundary->format('H:i') . ")");
-                    return response()->json([
-                        'success' => false,
-                        'metin' => base64_encode('Belirttiğiniz saat işletme çalışma saatleri dışındadır. Çalışma saatlerimiz ' . $salonStartBoundary->format('H:i') . ' ile ' . $salonEndBoundary->format('H:i') . ' arasındadır.'),
-                        "tarihsaat" => $tarihSaat
-                    ]);
-                }
+                $salonSaatUygun = !($startSlot->lt($salonStartBoundary) || $endSlot->gt($salonEndBoundary));
+                $molaUygun = !($salonMolaSaatleri && $salonMolaSaatleri->count() > 0 && $this->isInBreak($startSlot, $endSlot, $salonMolaSaatleri));
 
-                // Salon genel mola kontrolu: istenen slot salon molasina denk geliyorsa reddet.
-                if ($salonMolaSaatleri && $salonMolaSaatleri->count() > 0 && $this->isInBreak($startSlot, $endSlot, $salonMolaSaatleri)) {
-                    Log::info("❌ Istenen slot salon molasinda");
-                    return response()->json([
-                        'success' => false,
-                        'metin' => base64_encode('Belirttiğiniz saat işletmemizin mola saatine denk geliyor. Lütfen başka bir saat söyleyin.'),
-                        "tarihsaat" => $tarihSaat
-                    ]);
-                }
+                if ($salonSaatUygun && $molaUygun) {
+                    // PERSONEL KONTROLÜ
+                    foreach ($personeller as $personel) {
+                        $personelCalismaSaatleri = PersonelCalismaSaatleri::where('personel_id', $personel->id)
+                            ->where('haftanin_gunu', $dayOfWeek)
+                            ->where('calisiyor', 1)
+                            ->first();
 
-                // PERSONEL KONTROLÜ
-                foreach ($personeller as $personel) {
-                    $personelCalismaSaatleri = PersonelCalismaSaatleri::where('personel_id', $personel->id)
-                        ->where('haftanin_gunu', $dayOfWeek)
-                        ->where('calisiyor', 1)
-                        ->first();
-                    
-                    if (!$personelCalismaSaatleri) {
-                        Log::info("❌ Personel " . $personel->id . " bu gün çalışmıyor");
-                        continue;
-                    }
-                    
-                    $personelStart = Carbon::parse($checkDate . " " . $personelCalismaSaatleri->baslangic_saati);
-                    $personelEnd = Carbon::parse($checkDate . " " . $personelCalismaSaatleri->bitis_saati);
-                    
-                    Log::info("👤 Personel " . $personel->id . " çalışma: " . $personelStart->format('H:i') . " - " . $personelEnd->format('H:i'));
-                    
-                    // Çalışma saatleri kontrolü
-                    if ($startSlot->lt($personelStart) || $endSlot->gt($personelEnd)) {
-                        Log::info("❌ Personel " . $personel->id . " çalışma saatleri dışında");
-                        continue;
-                    }
-                    
-                    // Mola kontrolü
-                    $personelMolaSaatleri = PersonelMolaSaatleri::where('personel_id', $personel->id)
-                        ->where('haftanin_gunu', $dayOfWeek)
-                        ->where('mola_var', 1)
-                        ->get();
-                    
-                    $molaSaatleri = $personelMolaSaatleri->isEmpty() ? $salonMolaSaatleri : $personelMolaSaatleri;
-                    
-                    if ($molaSaatleri && $this->isInBreak($startSlot, $endSlot, $molaSaatleri)) {
-                        Log::info("❌ Personel " . $personel->id . " mola saatinde");
-                        continue;
-                    }
-                    
-                    // Oda kontrolü
-                    $odalar = OdaPersonelleri::where('personel_id', $personel->id)
-                        ->where('salon_id', $salon_id)
-                        ->get();
-                    
-                    if ($odalar->count() > 0) {
-                        foreach ($odalar as $oda) {
-                            if (!$this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
-                                Log::info("✅ UYGUN BULUNDU! Personel: " . $personel->id . ", Oda: " . $oda->oda_id);
-                                
-                                return response()->json([
+                        if (!$personelCalismaSaatleri) continue;
+
+                        $personelStart = Carbon::parse($checkDate . " " . $personelCalismaSaatleri->baslangic_saati);
+                        $personelEnd = Carbon::parse($checkDate . " " . $personelCalismaSaatleri->bitis_saati);
+
+                        if ($startSlot->lt($personelStart) || $endSlot->gt($personelEnd)) continue;
+
+                        $personelMolaSaatleri = PersonelMolaSaatleri::where('personel_id', $personel->id)
+                            ->where('haftanin_gunu', $dayOfWeek)
+                            ->where('mola_var', 1)
+                            ->get();
+
+                        $molaSaatleri = $personelMolaSaatleri->isEmpty() ? $salonMolaSaatleri : $personelMolaSaatleri;
+                        if ($molaSaatleri && $this->isInBreak($startSlot, $endSlot, $molaSaatleri)) continue;
+
+                        $odalarPersonel = OdaPersonelleri::where('personel_id', $personel->id)
+                            ->where('salon_id', $salon_id)
+                            ->get();
+
+                        if ($odalarPersonel->count() > 0) {
+                            foreach ($odalarPersonel as $oda) {
+                                if (!$this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
+                                    Log::info("✅ EXACT UYGUN! Personel: " . $personel->id . ", Oda: " . $oda->oda_id);
+                                    $exactResult = [
+                                        'success' => true,
+                                        'tarihsaat' => $startSlot->format('Y-m-d H:i'),
+                                        'personelid' => $personel->id,
+                                        'hizmetid' => $salonHizmet ? $salonHizmet->hizmet_id : "",
+                                        'sure' => $sureDk,
+                                        'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
+                                        'randevuid' => $randevuid,
+                                        'odaid' => $oda->oda_id,
+                                        "hizmetbulunamadi" => false,
+                                        'personelSecimiGerekli' => false,
+                                        'alternatifOneri' => false,
+                                    ];
+                                    break 2;
+                                }
+                            }
+                        } else {
+                            if (!$this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
+                                Log::info("✅ EXACT UYGUN (odasız)! Personel: " . $personel->id);
+                                $exactResult = [
                                     'success' => true,
                                     'tarihsaat' => $startSlot->format('Y-m-d H:i'),
-                                    'personelid' => $personel->id,                           
-                                    'hizmetid' =>  $salonHizmet ? $salonHizmet->hizmet_id : "",
+                                    'personelid' => $personel->id,
+                                    'hizmetid' => $salonHizmet->hizmet_id ?? "",
                                     'sure' => $sureDk,
                                     'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
-                                    //'metin' => $randevuid !="" ?  base64_encode(self::convertToBugunYarin($randevu->tarih)." saat ".$randevu->saat ." randevunuzu " . self::convertToBugunYarin($startSlot->format('Y-m-d')) . " saat " . $startSlot->format('H:i') . " olarak güncelleyebiliriz. Randevunuzu güncellemek için biri, operatöre bağlanmak için ikiyi tuşlayınız")  : base64_encode($salonHizmet->hizmetler->hizmet_adi. " için " . self::convertToBugunYarin($startSlot->format('Y-m-d')) . " ". $startSlot->format('H:i') . " te uygun randevu bulunmaktadır. Randevunuzu oluşturmak istiyor musunuz?"),
-                                    'randevuid'=>$randevuid,
-                                    'odaid'=>$oda->oda_id,
-                                    "hizmetbulunamadi"=>false,
-                                    'personelSecimiGerekli'=>false,
-                                ]);
+                                    'randevuid' => $randevuid,
+                                    'odaid' => '',
+                                    "hizmetbulunamadi" => false,
+                                    'personelSecimiGerekli' => false,
+                                    'alternatifOneri' => false,
+                                ];
+                                break;
                             }
                         }
-                    } else {
-                        // Odasız personel
-                        if (!$this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
-                            Log::info("✅ UYGUN BULUNDU (odasız)! Personel: " . $personel->id);
-                            
-                            return response()->json([
-                                'success' => true,
-                                'tarihsaat' => $startSlot->format('Y-m-d H:i'),
-                                'personelid' => $personel->id,                           
-                                'hizmetid' => $salonHizmet->hizmet_id ?? "",
-                                'sure' => $sureDk,
-                                'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
-                                //'metin' => $randevuid !="" ?  base64_encode(self::convertToBugunYarin($randevu->tarih)." saat ".$randevu->saat ." randevunuzu " . self::convertToBugunYarin($startSlot->format('Y-m-d')) . " saat " . $startSlot->format('H:i') . " olarak güncelleyebiliriz. Randevunuzu güncellemek için biri, operatöre bağlanmak için ikiyi tuşlayınız")  : base64_encode($salonHizmet->hizmetler->hizmet_adi. " için " . self::convertToBugunYarin($startSlot->format('Y-m-d')) . " ". $startSlot->format('H:i') . " saatinde uygun randevu bulunmaktadır. Randevunuzu  oluşturmak istiyor musunuz?"),
-                                'randevuid'=>$randevuid,
-                                'odaid'=>'',
-                                "hizmetbulunamadi"=>false,
-                                'personelSecimiGerekli'=>false,
-                            ]);
+                    }
+
+                    // CİHAZ KONTROLÜ
+                    if ($exactResult === null) {
+                        foreach ($cihazlar as $cihaz) {
+                            if ($salonHizmet != "") {
+                                if (!CihazHizmetler::where('cihaz_id', $cihaz->id)->where('hizmet_id', $salonHizmet->hizmet_id)->exists()) continue;
+                            }
+
+                            $cihazCalismaSaatleri = CihazCalismaSaatleri::where('cihaz_id', $cihaz->id)
+                                ->where('haftanin_gunu', $dayOfWeek)
+                                ->where('calisiyor', 1)
+                                ->first();
+
+                            if (!$cihazCalismaSaatleri) continue;
+
+                            $cihazStart = Carbon::parse($checkDate . " " . $cihazCalismaSaatleri->baslangic_saati);
+                            $cihazEnd = Carbon::parse($checkDate . " " . $cihazCalismaSaatleri->bitis_saati);
+
+                            if ($startSlot->lt($cihazStart) || $endSlot->gt($cihazEnd)) continue;
+
+                            $cihazMolaSaatleri = CihazMolaSaatleri::where('cihaz_id', $cihaz->id)
+                                ->where('haftanin_gunu', $dayOfWeek)
+                                ->where('mola_var', 1)
+                                ->get();
+
+                            $molaSaatleri = $cihazMolaSaatleri->isEmpty() ? $salonMolaSaatleri : $cihazMolaSaatleri;
+                            if ($molaSaatleri && $this->isInBreak($startSlot, $endSlot, $molaSaatleri)) continue;
+
+                            if (!$this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
+                                Log::info("✅ EXACT UYGUN (cihaz)! Cihaz: " . $cihaz->id);
+                                $exactResult = [
+                                    'success' => true,
+                                    'tarihsaat' => $startSlot->format('Y-m-d H:i'),
+                                    'personelid' => $cihaz->id,
+                                    'hizmetid' => $salonHizmet->hizmet_id ?? "",
+                                    'sure' => $sureDk,
+                                    'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
+                                    'randevuid' => $randevuid,
+                                    'odaid' => '',
+                                    "hizmetbulunamadi" => false,
+                                    'personelSecimiGerekli' => false,
+                                    'alternatifOneri' => false,
+                                ];
+                                break;
+                            }
                         }
                     }
+                } else {
+                    Log::info("ℹ️ Istenen slot salon saat/mola disi → en yakin uygun aranacak");
                 }
-                
-                // CİHAZ KONTROLÜ
-                foreach ($cihazlar as $cihaz) {
-                    if ($salonHizmet != "") {
-                        if (!CihazHizmetler::where('cihaz_id', $cihaz->id)->where('hizmet_id', $salonHizmet->hizmet_id)->exists()) {
-                            continue;
-                        }
-                    }
-                    
-                    $cihazCalismaSaatleri = CihazCalismaSaatleri::where('cihaz_id', $cihaz->id)
-                        ->where('haftanin_gunu', $dayOfWeek)
-                        ->where('calisiyor', 1)
-                        ->first();
-                    
-                    if (!$cihazCalismaSaatleri) continue;
-                    
-                    $cihazStart = Carbon::parse($checkDate . " " . $cihazCalismaSaatleri->baslangic_saati);
-                    $cihazEnd = Carbon::parse($checkDate . " " . $cihazCalismaSaatleri->bitis_saati);
-                    
-                    if ($startSlot->lt($cihazStart) || $endSlot->gt($cihazEnd)) continue;
-                    
-                    $cihazMolaSaatleri = CihazMolaSaatleri::where('cihaz_id', $cihaz->id)
-                        ->where('haftanin_gunu', $dayOfWeek)
-                        ->where('mola_var', 1)
-                        ->get();
-                    
-                    $molaSaatleri = $cihazMolaSaatleri->isEmpty() ? $salonMolaSaatleri : $cihazMolaSaatleri;
-                    
-                    if ($molaSaatleri && $this->isInBreak($startSlot, $endSlot, $molaSaatleri)) continue;
-                    
-                    if (!$this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
-                        Log::info("✅ UYGUN BULUNDU (cihaz)! Cihaz: " . $cihaz->id);
-                        
-                        return response()->json([
-                            'success' => true,
-                            'tarihsaat' => $startSlot->format('Y-m-d H:i'),
-                            'personelid' => $cihaz->id,
-                            'hizmetid' => $salonHizmet->hizmet_id ?? "",
-                            'sure' => $sureDk,
-                            'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
-                            //'metin' => $randevuid !="" ?  base64_encode(self::convertToBugunYarin($randevu->tarih)." saat ".$randevu->saat ." randevunuzu " . self::convertToBugunYarin($startSlot->format('Y-m-d')) . " saat " . $startSlot->format('H:i') . " olarak güncelleyebiliriz. Randevunuzu güncellemek için biri, operatöre bağlanmak için ikiyi tuşlayınız")  : base64_encode($salonHizmet->hizmetler->hizmet_adi. " için " . self::convertToBugunYarin($startSlot->format('Y-m-d')) . " ". $startSlot->format('H:i') . " saatinde uygun randevu bulunmaktadır. Randevunuzu  oluşturmak istiyor musunuz?"),
-                            'randevuid'=>$randevuid,
-                            'odaid'=>'',
-                            "hizmetbulunamadi"=>false,
-                            'personelSecimiGerekli'=>false,
-                        ]);
-                    }
-                }
-                
-                Log::info("❌ İstenen saatte uygun randevu bulunamadı: " . $tarihSaat);
-                return response()->json(['success' => false, 'metin' => base64_encode('Belirttiğiniz saatte uygun randevu bulunamadı.'), "tarihsaat"=>$tarihSaat]);
+            } else {
+                Log::info("ℹ️ Salon " . $checkDate . " kapali → en yakin uygun aranacak");
+            }
+
+            if ($exactResult !== null) {
+                return response()->json($exactResult);
+            }
+
+            // Exact bulunamadi → nearest-available aramasi icin normal akisa dus
+            Log::info("🔁 Exact slot uygun degil, en yakin uygun aranacak (alternatifMode=true).");
+            $alternatifMode = true;
+            $tarihSaat = ""; // normal akış nearest-available scan yapsın ($startDate zaten istenen tarih/saat)
+            // Caller tarihSaat varken maxDaysToCheck=1 gonderiyor; alternatif arama icin genis pencere gerekli
+            if ($maxDaysToCheck < 30) {
+                $maxDaysToCheck = 30;
             }
         }
 
-        // NORMAL AKIŞ (tarihSaat yoksa) - ORJİNAL KODUN TAMAMI
+        // NORMAL AKIŞ (tarihSaat yoksa veya alternatif arama) - ORJİNAL KODUN TAMAMI
         for ($day = 0; $day < $maxDaysToCheck; $day++) {
             $checkDate = Carbon::parse($startDate)->addDays($day)->toDateString();
             $dayOfWeek = Carbon::parse($checkDate)->dayOfWeek;
             if($dayOfWeek == 0) $dayOfWeek =7;
-            
+
             // İşletmenin çalışma saatlerini al
             $salonCalismaSaatleri = SalonCalismaSaatleri::where('salon_id', $salon_id)->where('haftanin_gunu', $dayOfWeek)->where('calisiyor', 1)->first();
-            
+
             if (!$salonCalismaSaatleri) continue;
 
-            if($tarihSaat == ''){
+            if($tarihSaat == '' && !$alternatifMode){
                 if ($day == 0 && date('H:i') > date('H:i', strtotime($salonCalismaSaatleri->bitis_saati))) continue;
             }
 
             $salonMolaSaatleri = SalonMolaSaatleri::where('salon_id', $salon_id)->where('haftanin_gunu', $dayOfWeek)->where('mola_var', 1)->get();
 
-            $salonStart = $day == 0 && $randevuid=="" ? Carbon::parse(self::roundDateTimeToNearestFiveMinutes(date('H:i', strtotime('+ 1 hour', strtotime(date('Y-m-d H:i')))))) : Carbon::parse($checkDate . " " . ($salonCalismaSaatleri->baslangic_saati ?? "09:00"));
-            
+            if ($alternatifMode && $day == 0 && $randevuid == "") {
+                // Alternatif arama: istenen tarih/saat'ten basla (salon acilisina clamp)
+                $istekZamani = Carbon::parse($orijinalTarihSaat);
+                $salonAcilis = Carbon::parse($checkDate . " " . ($salonCalismaSaatleri->baslangic_saati ?? "09:00"));
+                $salonStart = $istekZamani->gt($salonAcilis) ? $istekZamani : $salonAcilis;
+            } else {
+                $salonStart = $day == 0 && $randevuid=="" ? Carbon::parse(self::roundDateTimeToNearestFiveMinutes(date('H:i', strtotime('+ 1 hour', strtotime(date('Y-m-d H:i')))))) : Carbon::parse($checkDate . " " . ($salonCalismaSaatleri->baslangic_saati ?? "09:00"));
+            }
+
             if($tarihSaat != "" && $day==0 && !$tarihIncelendi){
                 $salonStart = Carbon::parse($tarihSaat);
                 $tarihIncelendi = true;
             }
-            
+
             $step = 15 * 60;
 
             if($tarihSaat != ''){
@@ -1519,9 +1500,9 @@ class Controller extends BaseController
                         if ($randevuid != "" && in_array($personel->id, $eskiPersonelIdler) /*$eskiPersonelId == $personel->id*/ && $startSlot->eq($eskiBaslangic) && $endSlot->eq($eskiBitis)) {
                             continue;
                         }
-                        
+
                         $odalar = OdaPersonelleri::where('personel_id',$personel->id)->where('salon_id',$salon_id)->get();
-                        
+
                         foreach($odalar as $oda) {
                             if ($this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                                 continue;
@@ -1531,7 +1512,7 @@ class Controller extends BaseController
                                 return response()->json([
                                     'success' => true,
                                     'tarihsaat' => $startSlot->format('Y-m-d H:i'),
-                                    'personelid' => $personel->id,                           
+                                    'personelid' => $personel->id,
                                     'hizmetid' => $salonHizmet->hizmet_id ?? "",
                                     'sure' => $sureDk,
                                     'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
@@ -1540,10 +1521,12 @@ class Controller extends BaseController
                                     'odaid'=>$odaId,
                                     "hizmetbulunamadi"=>false,
                                     'personelSecimiGerekli'=>false,
+                                    'alternatifOneri' => $alternatifMode,
+                                    'orijinalTarihSaat' => $orijinalTarihSaat,
                                 ]);
                             }
                         }
-                        
+
                         if($odalar->count()== 0){
                             if ($this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                                 continue;
@@ -1552,7 +1535,7 @@ class Controller extends BaseController
                                 return response()->json([
                                     'success' => true,
                                     'tarihsaat' => $startSlot->format('Y-m-d H:i'),
-                                    'personelid' => $personel->id,                           
+                                    'personelid' => $personel->id,
                                     'hizmetid' => $salonHizmet->hizmet_id ?? "",
                                     'sure' => $sureDk,
                                     'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
@@ -1561,6 +1544,8 @@ class Controller extends BaseController
                                     'odaid'=>$odaId,
                                     "hizmetbulunamadi"=>false,
                                     'personelSecimiGerekli'=>false,
+                                    'alternatifOneri' => $alternatifMode,
+                                    'orijinalTarihSaat' => $orijinalTarihSaat,
                                 ]);
                         }
                     }
@@ -1589,11 +1574,11 @@ class Controller extends BaseController
                         if ($randevuid != "" && in_array($cihaz->id,$eskiCihazIdler) /*$eskiCihazId == $cihaz->id*/ && $startSlot->eq($eskiBaslangic) && $endSlot->eq($eskiBitis)) {
                             continue;
                         }
-                        
+
                         if ($this->hasAppointmentConflict($cihaz->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                             continue;
                         }
-                        
+
                         return response()->json([
                             'success' => true,
                             'tarihsaat' => $startSlot->format('Y-m-d H:i'),
@@ -1606,13 +1591,21 @@ class Controller extends BaseController
                             'odaid'=>'',
                             "hizmetbulunamadi"=>false,
                             'personelSecimiGerekli'=>false,
+                            'alternatifOneri' => $alternatifMode,
+                            'orijinalTarihSaat' => $orijinalTarihSaat,
                         ]);
                     }
                 }
             }
         }
 
-        return response()->json(['success' => false, 'metin' => base64_encode('Uygun randevu tarihi bulunamadı.'), "tarihsaat"=>""]);
+        return response()->json([
+            'success' => false,
+            'metin' => base64_encode($alternatifMode ? 'İleri tarihli uygun randevu bulunamadı. Lütfen başka bir tarih ve saat söyleyin.' : 'Uygun randevu tarihi bulunamadı.'),
+            "tarihsaat" => "",
+            'alternatifOneri' => false,
+            'orijinalTarihSaat' => $orijinalTarihSaat,
+        ]);
     }
     /*public function enyakinuygunrandevubul($randevuid, $salonHizmet, $maxDaysToCheck = 30, $tarihSaat)  
     {
