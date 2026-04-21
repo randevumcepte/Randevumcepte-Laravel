@@ -1249,6 +1249,7 @@ console.log("İlk satır hizmet detayları:", <?php echo json_encode($seanslar[0
                        columns:[
                        { data: 'siralama', className: "text-center"},
                        {data:'oda_adi'},
+                       {data:'personeller'},
                          {data:'durum'},
                            {data:'oda_aciklama'},
                          { data: 'islemler'   },

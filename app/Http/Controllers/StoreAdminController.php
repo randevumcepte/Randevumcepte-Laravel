@@ -12504,13 +12504,22 @@ DB::raw('
                                     <a class="dropdown-item" href="#"  name="oda_sil" data-value="'.$oda->id.'"
                                        ><i class="dw dw-delete-3"></i> Sil</a
                                        ></div></div>';
+            $odaPersonelleri = OdaPersonelleri::where('oda_id',$oda->id)->get();
+            $personelBadges = '';
+            foreach($odaPersonelleri as $op){
+                if($op->personel){
+                    $personelBadges .= '<span class="badge badge-primary" style="margin:2px 4px 2px 0;font-size:12px;">'.htmlspecialchars($op->personel->personel_adi, ENT_QUOTES, 'UTF-8').'</span>';
+                }
+            }
+            if($personelBadges === '') $personelBadges = '<span class="text-muted">-</span>';
+
             return [
                 'siralama'=> $siralama,
                 'durum'=> $oda->durum==0 ? "Müsait Değil" : "Müsait",
                 'oda_adi'=>$oda->oda_adi,
                 'oda_aciklama'=>$oda->aciklama,
-
-                'islemler'=>$islemler, 
+                'personeller'=>$personelBadges,
+                'islemler'=>$islemler,
             ];
         });
       /*$odalar= DB::table('odalar')->select('odalar.oda_adi as oda_adi',

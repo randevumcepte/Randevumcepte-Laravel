@@ -9210,7 +9210,9 @@ $('#yenicihazbilgiekle').on('submit',function(e){
                   autoWidth: false,
                    responsive: true,
                        columns:[
+                       { data: 'siralama', className: "text-center"},
                        {data:'oda_adi'},
+                       {data:'personeller'},
                          {data:'durum'},
                            {data:'oda_aciklama'},
                          { data: 'islemler'   },
@@ -9270,7 +9272,9 @@ $('#odabilgiduzenle').on('submit',function(e){
                     autoWidth: false,
                     responsive: true,
                     columns:[
+                        { data: 'siralama', className: "text-center"},
                         {data:'oda_adi'},
+                        {data:'personeller'},
                         {data:'durum'},
                         {data:'oda_aciklama'},
                         { data: 'islemler'   },
@@ -9309,16 +9313,20 @@ $('#odabilgiduzenle').on('submit',function(e){
                 success: function(result)  {
                     $('#preloader').hide();
                     $('#oda_adi').val(result.oda_adi);
-                    $('#oda_personeli').empty();
-                    var secili_personeller = [];
+
+                    var $sel = $('#oda_personeli');
+                    $sel.val(null).trigger('change');
+                    $sel.find('option').remove();
+
                     if(result.personeller && result.personeller.length > 0){
+                        var secili_personeller = [];
                         result.personeller.forEach(function(p){
                             var newOption = new Option(p.ad_soyad, p.id, true, true);
-                            $('#oda_personeli').append(newOption);
+                            $sel.append(newOption);
                             secili_personeller.push(String(p.id));
                         });
+                        $sel.val(secili_personeller).trigger('change');
                     }
-                    $('#oda_personeli').val(secili_personeller).trigger('change');
 
                     $('#duzenlenecek_oda_id').val(result.id);
                     $('#oda_duzenle_modal2').modal();
@@ -9358,7 +9366,9 @@ $('#odabilgiduzenle').on('submit',function(e){
                         $('#oda_tablo').DataTable().destroy();
                         $('#oda_tablo').DataTable({
                                 columns:[
+                                        { data: 'siralama', className: "text-center"},
                                         {data:'oda_adi'},
+                                        {data:'personeller'},
                                         { data: 'durum' },
                                           {data:'oda_aciklama'},
                                         {data : 'islemler'},
@@ -9412,7 +9422,9 @@ $('#oda_duzenle').on('submit',function(e){
                         $('#oda_tablo').DataTable().destroy();
                         $('#oda_tablo').DataTable({
                                 columns:[
+                                        { data: 'siralama', className: "text-center"},
                                         {data:'oda_adi'},
+                                        {data:'personeller'},
                                         { data: 'durum' },
                                         {data:'oda_aciklama'},
                                         {data : 'islemler'},
@@ -9479,7 +9491,9 @@ $('#oda_tablo').on('click','a[name="oda_sil"]',function(e){
                         $('#oda_tablo').DataTable().destroy();
                         $('#oda_tablo').DataTable({
                                 columns:[
+                                        { data: 'siralama', className: "text-center"},
                                         { data: 'oda_adi' },
+                                        { data: 'personeller'},
                                         { data: 'durum' },
                                         { data: 'oda_aciklama'},
                                         {data : 'islemler'},
