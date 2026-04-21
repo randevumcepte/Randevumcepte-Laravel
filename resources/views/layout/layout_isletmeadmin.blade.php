@@ -2694,6 +2694,10 @@ document.addEventListener('DOMContentLoaded', function() {
                      data: function(d){
                          d._token = $('input[name="_token"]').first().val();
                          d.sube = $('input[name="sube"]').first().val();
+                     },
+                     dataSrc: function(json){
+                         console.log('[karaliste] response:', json);
+                         return json.data || [];
                      }
                  },
                  columns:[
@@ -2862,6 +2866,10 @@ document.addEventListener('DOMContentLoaded', function() {
                            d._token = $('input[name="_token"]').first().val();
                            d.sube = $('input[name="sube"]').first().val();
                            d.tur = 'bildirim';
+                       },
+                       dataSrc: function(json){
+                           console.log('[bildirim_sms_raporlari] response:', json);
+                           return json.data || [];
                        }
                    },
          
