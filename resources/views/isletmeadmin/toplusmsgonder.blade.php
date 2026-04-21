@@ -1412,27 +1412,32 @@
         // kaliyor. Ilgili tab acildiginda tabloyu zorla tazeliyoruz + wrapper'a
         // gorunurluk CSS'i basiyoruz.
         function smsRaporTabloYenile(tableId) {
-            console.log('[smsRaporTabloYenile] calisiyor', tableId);
             if (!$.fn.dataTable.isDataTable('#' + tableId)) {
                 console.warn('[smsRaporTabloYenile] DataTable yok:', tableId);
                 return;
             }
             var dt = $('#' + tableId).DataTable();
-            dt.columns.adjust();
-            dt.draw(false);
-            var $wrapper = $('#' + tableId + '_wrapper');
-            $wrapper.find('.top, .bottom, .dataTables_paginate, .dataTables_info, .dataTables_length, .dataTables_filter').each(function(){
-                this.style.setProperty('display', 'block', 'important');
-                this.style.setProperty('visibility', 'visible', 'important');
-            });
-            $wrapper.find('.dataTables_paginate .pagination').each(function(){
-                this.style.setProperty('display', 'flex', 'important');
-            });
-            $wrapper.find('.dataTables_paginate .page-item').each(function(){
-                this.style.setProperty('display', 'inline-block', 'important');
-            });
-            console.log('[smsRaporTabloYenile] bitti', tableId,
-                'paginate visible=', $wrapper.find('.dataTables_paginate').is(':visible'));
+            // Onceki ajax yanitinin recordsTotal'i eski/bozuksa state'i
+            // yenilemek icin ajax.reload ile taze veri cekiyoruz.
+            // callback'te columns.adjust ile olculeri de duzeltiyoruz.
+            dt.ajax.reload(function(json){
+                dt.columns.adjust();
+                console.log('[smsRaporTabloYenile]', tableId,
+                    'recordsTotal=', json && json.recordsTotal,
+                    'recordsFiltered=', json && json.recordsFiltered,
+                    'data.length=', (json && json.data ? json.data.length : 0));
+                var $wrapper = $('#' + tableId + '_wrapper');
+                $wrapper.find('.top, .bottom, .dataTables_paginate, .dataTables_info, .dataTables_length, .dataTables_filter').each(function(){
+                    this.style.setProperty('display', 'block', 'important');
+                    this.style.setProperty('visibility', 'visible', 'important');
+                });
+                $wrapper.find('.dataTables_paginate .pagination').each(function(){
+                    this.style.setProperty('display', 'flex', 'important');
+                });
+                $wrapper.find('.dataTables_paginate .page-item').each(function(){
+                    this.style.setProperty('display', 'inline-block', 'important');
+                });
+            }, false);
         }
         var smsRaporAltTabEslesme = {
             'otomatik_sms_raporlar': 'bildirim_sms_raporlari',
