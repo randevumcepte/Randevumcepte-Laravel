@@ -2696,10 +2696,7 @@ document.addEventListener('DOMContentLoaded', function() {
                          d._token = $('input[name="_token"]').first().val();
                          d.sube = $('input[name="sube"]').first().val();
                      },
-                     dataSrc: function(json){
-                         console.log('[karaliste] response:', json);
-                         return json.data || [];
-                     }
+                     dataSrc: 'data'
                  },
                  columns:[
                       { data: 'ad_soyad', className: "text-center", orderable: false },
@@ -2871,24 +2868,7 @@ document.addEventListener('DOMContentLoaded', function() {
                            d.sube = $('input[name="sube"]').first().val();
                            d.tur = 'bildirim';
                        },
-                       dataSrc: function(json){
-                           console.log('[bildirim_sms_raporlari] response:', json);
-                           return json.data || [];
-                       }
-                   },
-                   drawCallback: function(settings){
-                       var $p = $('#bildirim_sms_raporlari_wrapper .dataTables_paginate');
-                       var $i = $('#bildirim_sms_raporlari_wrapper .dataTables_info');
-                       var $proc = $('#bildirim_sms_raporlari_processing');
-                       console.log('[bildirim_sms_raporlari] drawCallback:',
-                           'paginate visible=', $p.is(':visible'),
-                           'paginate display=', $p.css('display'),
-                           'paginate html=', $p.html(),
-                           'info visible=', $i.is(':visible'),
-                           'info text=', $i.text(),
-                           'processing display=', $proc.css('display'),
-                           'bottom div=', $('#bildirim_sms_raporlari_wrapper .bottom').html()
-                       );
+                       dataSrc: 'data'
                    },
          
                   

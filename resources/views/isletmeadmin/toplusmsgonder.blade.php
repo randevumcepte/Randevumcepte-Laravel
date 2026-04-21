@@ -1407,6 +1407,40 @@
             return false;
         });
 
+        // DataTable'lar SMS Raporlari / Kara Liste tablarinin icinde init oldugu
+        // icin parent gizliyken olculerini hesaplayamiyor ve pagination gorunmez
+        // kaliyor. Ilgili tab acildiginda columns.adjust + draw ile yenileniyor.
+        function smsRaporTabloYenile(tableId) {
+            if ($.fn.dataTable.isDataTable('#' + tableId)) {
+                $('#' + tableId).DataTable().columns.adjust().draw(false);
+            }
+        }
+        var smsRaporAltTabEslesme = {
+            'otomatik_sms_raporlar': 'bildirim_sms_raporlari',
+            'toplu_sms_raporlar': 'toplu_sms_raporlari',
+            'grup_sms_raporlar': 'grup_sms_raporlari',
+            'filtreli_sms_raporlar': 'filtreli_sms_raporlari',
+            'kampanya_sms_raporlar': 'kampanya_sms_raporlari'
+        };
+        $('button[href="#sms_raporlari"]').on('shown.bs.tab click', function(){
+            setTimeout(function(){
+                var $aktif = $('#sms_raporlari').find('.tab-content .tab-pane.active').first();
+                var subId = $aktif.attr('id');
+                if (smsRaporAltTabEslesme[subId]) {
+                    smsRaporTabloYenile(smsRaporAltTabEslesme[subId]);
+                }
+            }, 50);
+        });
+        Object.keys(smsRaporAltTabEslesme).forEach(function(subId){
+            var tableId = smsRaporAltTabEslesme[subId];
+            $('button[href="#' + subId + '"]').on('shown.bs.tab click', function(){
+                setTimeout(function(){ smsRaporTabloYenile(tableId); }, 50);
+            });
+        });
+        $('button[href="#sms_kara_liste"]').on('shown.bs.tab click', function(){
+            setTimeout(function(){ smsRaporTabloYenile('karaliste_sms_tablo'); }, 50);
+        });
+
         $(document).on('click', '.sms-rapor-detay-btn', function(e){
             e.preventDefault();
             var pkgId = $(this).attr('data-pkg-id');
