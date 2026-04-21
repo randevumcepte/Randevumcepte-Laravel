@@ -1299,7 +1299,7 @@ class Controller extends BaseController
 
                 if ($salonSaatUygun && $molaUygun && $takvimTuru == 3) {
                     // ODA-TABANLI: dogrudan salonun aktif odalari uzerinden kontrol
-                    $salonOdalari = Odalar::where('salon_id', $salon_id)->where('aktifmi', true)->orderBy('takvim_sirasi', 'asc')->get();
+                    $salonOdalari = Odalar::where('salon_id', $salon_id)->where('aktifmi', 1)->orderBy('takvim_sirasi', 'asc')->get();
                     Log::info("🏠 Oda listesi (aday): " . $salonOdalari->pluck('id')->implode(','));
                     foreach ($salonOdalari as $oda) {
                         if ($this->hasAppointmentConflict($oda->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) continue;
@@ -1344,7 +1344,10 @@ class Controller extends BaseController
 
                         $odalarPersonel = OdaPersonelleri::where('personel_id', $personel->id)
                             ->where('salon_id', $salon_id)
-                            ->get();
+                            ->whereHas('oda', function($q){ $q->where('aktifmi', 1); })
+                            ->get()
+                            ->sortBy(function($op){ return $op->oda->takvim_sirasi ?? 999999; })
+                            ->values();
 
                         // Personelin baska bir kaynakta (oda/cihaz) cakisan randevusu var mi?
                         if ($this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
@@ -1521,7 +1524,7 @@ class Controller extends BaseController
                     if ($endSlot->gt(Carbon::parse($checkDate . " " . ($salonCalismaSaatleri->bitis_saati ?? "18:00")))) continue;
                     if ($salonMolaSaatleri && $this->isInBreak($startSlot, $endSlot, $salonMolaSaatleri)) continue;
 
-                    $salonOdalari = Odalar::where('salon_id',$salon_id)->where('aktifmi',true)->orderBy('takvim_sirasi','asc')->get();
+                    $salonOdalari = Odalar::where('salon_id',$salon_id)->where('aktifmi',1)->orderBy('takvim_sirasi','asc')->get();
                     Log::info("🏠 Oda listesi (aday, normal akis): " . $salonOdalari->pluck('id')->implode(','));
                     foreach ($salonOdalari as $oda) {
                         if ($randevuid != "" && is_array($eskiOdaIdler) && in_array($oda->id, $eskiOdaIdler) && $startSlot->eq($eskiBaslangic) && $endSlot->eq($eskiBitis)) {
@@ -1572,7 +1575,12 @@ class Controller extends BaseController
                             continue;
                         }
 
-                        $odalar = OdaPersonelleri::where('personel_id',$personel->id)->where('salon_id',$salon_id)->get();
+                        $odalar = OdaPersonelleri::where('personel_id',$personel->id)
+                            ->where('salon_id',$salon_id)
+                            ->whereHas('oda', function($q){ $q->where('aktifmi', 1); })
+                            ->get()
+                            ->sortBy(function($op){ return $op->oda->takvim_sirasi ?? 999999; })
+                            ->values();
 
                         foreach($odalar as $oda) {
                             if ($this->hasAppointmentConflict($oda->oda_id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
