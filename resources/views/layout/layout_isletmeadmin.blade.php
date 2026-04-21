@@ -2687,6 +2687,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  destroy: true,
                  pageLength: 10,
                  lengthMenu: [10, 25, 50, 100],
+                 dom: '<"top"lf>rt<"bottom"ip>',
                  "order": [[ 2, "desc" ]],
                  ajax: {
                      url: '/isletmeyonetim/sms-karaliste-sayfali',
@@ -2777,6 +2778,9 @@ document.addEventListener('DOMContentLoaded', function() {
                   responsive: false,
                   deferRender: true,
                   destroy: true,
+                  processing: true,
+
+                  dom: '<"top"lf>rt<"bottom"ip>',
 
                   "order": [[ 0, "desc" ]],
          
@@ -2902,6 +2906,9 @@ document.addEventListener('DOMContentLoaded', function() {
                   responsive: false,
                   deferRender: true,
                   destroy: true,
+                  processing: true,
+
+                  dom: '<"top"lf>rt<"bottom"ip>',
 
                   "order": [[ 0, "desc" ]],
          
@@ -3023,6 +3030,9 @@ document.addEventListener('DOMContentLoaded', function() {
                   responsive: false,
                   deferRender: true,
                   destroy: true,
+                  processing: true,
+
+                  dom: '<"top"lf>rt<"bottom"ip>',
 
                   "order": [[ 0, "desc" ]],
          
@@ -3146,6 +3156,9 @@ document.addEventListener('DOMContentLoaded', function() {
                   responsive: false,
                   deferRender: true,
                   destroy: true,
+                  processing: true,
+
+                  dom: '<"top"lf>rt<"bottom"ip>',
 
                   "order": [[ 0, "desc" ]],
          
@@ -3267,6 +3280,9 @@ document.addEventListener('DOMContentLoaded', function() {
                   responsive: false,
                   deferRender: true,
                   destroy: true,
+                  processing: true,
+
+                  dom: '<"top"lf>rt<"bottom"ip>',
 
                   "order": [[ 0, "desc" ]],
          

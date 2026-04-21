@@ -944,6 +944,34 @@
      </div>
    </div>
 
+ <!-- SMS Raporlari DataTable gorunurluk zorlamasi -->
+ <style>
+   #bildirim_sms_raporlari_wrapper .dataTables_paginate,
+   #toplu_sms_raporlari_wrapper .dataTables_paginate,
+   #grup_sms_raporlari_wrapper .dataTables_paginate,
+   #filtreli_sms_raporlari_wrapper .dataTables_paginate,
+   #kampanya_sms_raporlari_wrapper .dataTables_paginate,
+   #karaliste_sms_tablo_wrapper .dataTables_paginate,
+   #bildirim_sms_raporlari_wrapper .dataTables_info,
+   #toplu_sms_raporlari_wrapper .dataTables_info,
+   #grup_sms_raporlari_wrapper .dataTables_info,
+   #filtreli_sms_raporlari_wrapper .dataTables_info,
+   #kampanya_sms_raporlari_wrapper .dataTables_info,
+   #karaliste_sms_tablo_wrapper .dataTables_info,
+   #bildirim_sms_raporlari_wrapper .dataTables_length,
+   #toplu_sms_raporlari_wrapper .dataTables_length,
+   #grup_sms_raporlari_wrapper .dataTables_length,
+   #filtreli_sms_raporlari_wrapper .dataTables_length,
+   #kampanya_sms_raporlari_wrapper .dataTables_length,
+   #karaliste_sms_tablo_wrapper .dataTables_length {
+     display: block !important;
+     visibility: visible !important;
+     opacity: 1 !important;
+     margin: 10px 0;
+   }
+   .dataTables_paginate .pagination { display: flex !important; flex-wrap: wrap; }
+   .dataTables_paginate .page-item { display: inline-block; }
+ </style>
  <!-- SMS rapor detay modal -->
  <style>
    #sms_rapor_detay_modal { display: none; }
