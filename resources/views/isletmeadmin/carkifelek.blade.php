@@ -89,14 +89,14 @@
     }
 
     .wheel-container {
-        flex: 0 0 320px;
+        flex: 0 0 430px;
         text-align: center;
     }
 
     .wheel-wrapper {
         position: relative;
-        width: 250px;
-        height: 250px;
+        width: 380px;
+        height: 380px;
         margin: 0 auto 15px;
     }
 
@@ -625,7 +625,7 @@
             if (currentLine) { lines.push(currentLine); }
             if (lines.length > 3) { lines = [lines[0], lines[1], lines[2] + '...']; }
 
-            const lineHeight = 10;
+            const lineHeight = 12;
             const startY = textY - ((lines.length - 1) * lineHeight / 2);
 
             lines.forEach((line, lineIndex) => {
@@ -635,9 +635,9 @@
                 textElement.setAttribute('text-anchor', 'middle');
                 textElement.setAttribute('class', 'slice-text-line');
 
-                let fontSize = 8;
-                if (slices.length > 12) fontSize = 6;
-                else if (slices.length > 8) fontSize = 7;
+                let fontSize = 10;
+                if (slices.length > 12) fontSize = 7;
+                else if (slices.length > 8) fontSize = 9;
 
                 textElement.setAttribute('font-size', fontSize);
                 textElement.textContent = line;
@@ -649,7 +649,7 @@
             probabilityText.setAttribute('y', startY + (lines.length * lineHeight) + 2);
             probabilityText.setAttribute('text-anchor', 'middle');
             probabilityText.setAttribute('class', 'slice-text-line');
-            probabilityText.setAttribute('font-size', '6');
+            probabilityText.setAttribute('font-size', '8');
             probabilityText.setAttribute('fill', 'rgba(255,255,255,0.8)');
             probabilityText.textContent = `${slice.probability}%`;
 
