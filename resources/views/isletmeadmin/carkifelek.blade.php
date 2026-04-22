@@ -685,11 +685,6 @@
         const n   = slices.length;
         const ang = 360 / n;
 
-        // Dış kenardaki kabarcık yarıçapı — dilim sayısına göre
-        const circR = n <= 6 ? 26 : n <= 8 ? 23 : n <= 10 ? 21 : 19;
-        // Kabarcık merkezi: dış rimden biraz içeride
-        const bubDist = R - circR - 2;
-
         slices.forEach((sl, i) => {
             const sa = i * ang, ea = (i + 1) * ang;
             const sr = (sa - 90) * Math.PI / 180;
@@ -706,48 +701,105 @@
             path.setAttribute('stroke-width', '2');
             wheelEl.appendChild(path);
 
-            /* Kabarcık (beyaz daire / kazanan → altın) */
-            const tAng = sa + ang / 2;
-            const tRad = (tAng - 90) * Math.PI / 180;
-            const bx   = CX + bubDist * Math.cos(tRad);
-            const by   = CY + bubDist * Math.sin(tRad);
-            const isWinner = i === selectedIdx;
+            const tAng    = sa + ang / 2;
+            const tRad    = (tAng - 90) * Math.PI / 180;
+            const textRot = tAng <= 180 ? tAng - 90 : tAng - 270;   // her zaman okunabilir radyal
+            const isWin   = i === selectedIdx;
+            const tipObj  = TIPS.find(t => t.id === (sl.tip || 'bos')) || TIPS[4];
 
-            const circ = svgEl('circle');
-            circ.setAttribute('cx', bx);
-            circ.setAttribute('cy', by);
-            circ.setAttribute('r',  circR);
-            circ.setAttribute('fill',   isWinner ? '#FFD700' : 'white');
-            circ.setAttribute('stroke', isWinner ? '#e6a800' : 'rgba(0,0,0,.15)');
-            circ.setAttribute('stroke-width', isWinner ? '2' : '1');
-            if (isWinner) circ.setAttribute('filter', 'drop-shadow(0 0 4px rgba(255,215,0,.7))');
-            wheelEl.appendChild(circ);
-
-            /* Kabarcık içi metin — yatay, koyu renk */
-            const label  = buildAutoName(sl);
-            // Kabarcık içine sığan karakter sayısı: yatay chord = 2*circR
-            const fs     = n <= 6 ? 11 : n <= 8 ? 10 : 9;
-            const maxCh  = Math.max(4, Math.floor(circR * 1.7 / (fs * 0.58)));
-            const lh     = fs + 2;
-
-            let lines = wrapText(label, maxCh);
-            if (lines.length > 2) {
-                lines = [label.length > maxCh ? label.slice(0, maxCh - 1) + '…' : label];
-            }
-            const sy = by - ((lines.length - 1) * lh / 2);
-
-            lines.forEach((ln, li) => {
+            function addText(x, y, content, fs, fw, fill, strokeC, strokeW) {
+                const g = svgEl('g');
+                g.setAttribute('transform', `rotate(${textRot}, ${x}, ${y})`);
                 const t = svgEl('text');
-                t.setAttribute('x', bx);
-                t.setAttribute('y', sy + li * lh);
+                t.setAttribute('x', x); t.setAttribute('y', y);
                 t.setAttribute('text-anchor', 'middle');
                 t.setAttribute('dominant-baseline', 'middle');
                 t.setAttribute('font-size', fs);
-                t.setAttribute('font-weight', '800');
-                t.setAttribute('fill', isWinner ? '#5c3a00' : '#1a1a2e');
-                t.textContent = ln;
-                wheelEl.appendChild(t);
-            });
+                t.setAttribute('font-weight', fw);
+                t.setAttribute('fill', fill);
+                t.setAttribute('paint-order', 'stroke');
+                t.setAttribute('stroke', strokeC);
+                t.setAttribute('stroke-width', strokeW);
+                t.setAttribute('stroke-linejoin', 'round');
+                t.textContent = content;
+                g.appendChild(t); wheelEl.appendChild(g);
+            }
+
+            if (tipObj.hasDeger && sl.deger != null) {
+                /* ── Sayısal ödül ─────────────────────────────────────────
+                   Dış kenarda büyük rakam + içeride küçük kategori etiketi */
+
+                const numDist = R - (n <= 8 ? 21 : 18);   // rim'e yakın
+                const catDist = n <= 8 ? 70 : 62;          // iç bölge
+
+                const numStr  = sl.tip.includes('indirimi') ? '%' + sl.deger : String(sl.deger);
+                const catStr  = sl.tip === 'puan' ? 'Puan'
+                              : sl.tip === 'hizmet_indirimi' ? 'Hizmet'
+                              : 'Ürün';
+                const numFs   = n <= 8 ? 16 : 14;
+                const catFs   = n <= 8 ? 11 : 9;
+
+                const numFill  = isWin ? '#FFD700' : 'white';
+                const numStr2  = isWin ? 'rgba(100,55,0,.95)' : 'rgba(0,0,0,.75)';
+
+                const nx = CX + numDist * Math.cos(tRad);
+                const ny = CY + numDist * Math.sin(tRad);
+                addText(nx, ny, numStr, numFs, '900', numFill, numStr2, '3.5');
+
+                const cx2 = CX + catDist * Math.cos(tRad);
+                const cy2 = CY + catDist * Math.sin(tRad);
+                addText(cx2, cy2, catStr, catFs, '700', 'rgba(255,255,255,.92)', 'rgba(0,0,0,.5)', '2');
+
+            } else {
+                /* ── Metin ödülü (Tekrar Dene / Boş / özel isim) ─────────
+                   Dilim ortasında radyal yazı, 2 satıra kadar */
+
+                const dist  = n <= 8 ? 76 : 68;
+                const fs    = n <= 8 ? 12 : 10;
+                const maxCh = Math.max(6, Math.floor(80 / (fs * 0.60)));
+                const lh    = fs + 3;
+                const label = buildAutoName(sl);
+                let lines   = wrapText(label, maxCh);
+                if (lines.length > 2)
+                    lines = [label.length > maxCh ? label.slice(0, maxCh - 1) + '…' : label];
+
+                const tx = CX + dist * Math.cos(tRad);
+                const ty = CY + dist * Math.sin(tRad);
+                const sy = ty - ((lines.length - 1) * lh / 2);
+
+                const fill  = isWin ? '#FFD700' : 'white';
+                const strk  = isWin ? 'rgba(100,55,0,.9)' : 'rgba(0,0,0,.55)';
+
+                const g = svgEl('g');
+                g.setAttribute('transform', `rotate(${textRot}, ${tx}, ${ty})`);
+                lines.forEach((ln, li) => {
+                    const t = svgEl('text');
+                    t.setAttribute('x', tx); t.setAttribute('y', sy + li * lh);
+                    t.setAttribute('text-anchor', 'middle');
+                    t.setAttribute('dominant-baseline', 'middle');
+                    t.setAttribute('font-size', fs);
+                    t.setAttribute('font-weight', '700');
+                    t.setAttribute('fill', fill);
+                    t.setAttribute('paint-order', 'stroke');
+                    t.setAttribute('stroke', strk);
+                    t.setAttribute('stroke-width', '2.5');
+                    t.setAttribute('stroke-linejoin', 'round');
+                    t.textContent = ln;
+                    g.appendChild(t);
+                });
+                wheelEl.appendChild(g);
+            }
+
+            /* Kazanan: dış kenarda altın yay */
+            if (isWin) {
+                const arc = svgEl('path');
+                arc.setAttribute('d', `M ${x1} ${y1} A ${R} ${R} 0 ${lg} 1 ${x2} ${y2}`);
+                arc.setAttribute('fill', 'none');
+                arc.setAttribute('stroke', '#FFD700');
+                arc.setAttribute('stroke-width', '5');
+                arc.setAttribute('filter', 'drop-shadow(0 0 3px rgba(255,215,0,.8))');
+                wheelEl.appendChild(arc);
+            }
         });
 
         /* Center mask */
