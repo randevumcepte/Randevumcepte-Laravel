@@ -715,19 +715,28 @@
             }
 
             /* Radyal yazı — merkez→dış, harfler hiç ters değil */
-            const tAng = sa + ang / 2;         // dilim orta açısı (0=üst, saat yönü)
+            const tAng = sa + ang / 2;
             const tRad = (tAng - 90) * Math.PI / 180;
-            const dist = n <= 6 ? 82 : n <= 8 ? 79 : n <= 10 ? 75 : 70;
-            const tx   = CX + dist * Math.cos(tRad);
-            const ty   = CY + dist * Math.sin(tRad);
+
+            // Hub kenarı (36) ile kazanan bandı (R-14=116) arasındaki merkez
+            const hubR  = 36, bandR = R - 14;
+            const dist  = Math.round((hubR + bandR) / 2);   // ≈ 76
+            const radLen = bandR - hubR;                     // ≈ 80px, yazı boyunca radyal alan
+
+            const tx = CX + dist * Math.cos(tRad);
+            const ty = CY + dist * Math.sin(tRad);
 
             // Radyal formül: üst yarı tAng-90, alt yarı tAng-270 (flip → harfler dik kalır)
             const textRot = tAng <= 180 ? tAng - 90 : tAng - 270;
 
-            const fs    = n <= 6 ? 12 : n <= 8 ? 10 : n <= 10 ? 9 : 8;
-            const maxCh = n <= 6 ? 11 : n <= 8 ? 9 : n <= 10 ? 7 : 6;
-            const maxLn = n <= 8 ? 2 : 1;
+            // Yay genişliği (yazı yüksekliğini kısıtlar): 2·dist·sin(π/n)
+            const arcW = 2 * dist * Math.sin(Math.PI / n);
+            // Font: 2 satır için toplam yükseklik yay genişliğinin %85'ine sığmalı
+            const maxLn = 2;
+            const fs    = Math.min(16, Math.max(11, Math.floor(arcW * 0.85 / (maxLn * 1.25))));
             const lh    = fs + 3;
+            // Radyal yön boyunca kaç karakter sığar (karakter genişliği ≈ fs × 0.6)
+            const maxCh = Math.max(6, Math.floor(radLen / (fs * 0.60)));
 
             let lines = wrapText(sl.name, maxCh);
             if (lines.length > maxLn) {
