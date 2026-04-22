@@ -951,9 +951,16 @@
 
     /* ── Save ── */
     window.saveSlices = async function () {
-        // DOM → state
+        // DOM → state senkronizasyonu (oninput yetersiz kaldığında güvence)
         document.querySelectorAll('.s-name').forEach(el => {
-            slices[+el.dataset.i].name = el.value || `Ödül ${+el.dataset.i + 1}`;
+            const i = +el.dataset.i;
+            if (slices[i]) slices[i].name = el.value || buildAutoName(slices[i]);
+        });
+        document.querySelectorAll('.s-deger').forEach(el => {
+            const i = +el.dataset.i;
+            if (!slices[i]) return;
+            const v = parseFloat(el.value);
+            slices[i].deger = isNaN(v) ? null : v;
         });
 
         if (selectedIdx < 0 || selectedIdx >= slices.length) {
@@ -967,9 +974,8 @@
         const saveBtn = document.getElementById('save-btn');
         if (!statusOnly) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Kaydediliyor...'; }
 
-        // Kazanan=100, diğerleri=0
         const payload = slices.map((sl, i) => ({
-            name:        sl.name,
+            name:        buildAutoName(sl),   // her zaman tip+deger'den üretilen isim
             color:       sl.color,
             probability: i === selectedIdx ? 100 : 0,
             tip:         sl.tip   || 'bos',
@@ -987,19 +993,25 @@
             if (data.success) {
                 if (!statusOnly) {
                     showToast('Ayar kaydedildi! 🎉', 'success');
-                    if (data.data && data.data.dilimler) {
-                        slices = data.data.dilimler.map(d => ({
+                    // Sunucudan gelen veriyi yalnızca migration çalıştıysa kullan
+                    // (tip/deger kolonu varsa); yoksa client state'i koru
+                    const srv = data.data && data.data.dilimler;
+                    const serverHasTip = srv && srv.length && srv[0].tip && srv[0].tip !== 'bos'
+                                        || (srv && slices.some(s => s.tip !== 'bos'));
+                    if (srv && serverHasTip) {
+                        slices = srv.map((d, idx) => ({
                             name:        d.dilim_ismi,
                             color:       d.renk_kodu,
                             probability: parseInt(d.dilim_olasilik) || 0,
-                            tip:         d.tip   || 'bos',
-                            deger:       d.deger != null ? parseFloat(d.deger) : null,
+                            tip:         d.tip   || slices[idx]?.tip  || 'bos',
+                            deger:       d.deger != null ? parseFloat(d.deger) : (slices[idx]?.deger ?? null),
                         }));
-                        const found = slices.findIndex(s => s.probability === 100);
-                        selectedIdx = found >= 0 ? found : 0;
-                        cntVal.textContent = slices.length;
-                        render();
                     }
+                    // Kazanan güncelle, count yaz, state ile render
+                    const found = slices.findIndex(s => s.probability === 100);
+                    if (found >= 0) selectedIdx = found;
+                    cntVal.textContent = slices.length;
+                    render();
                 }
             } else {
                 showToast(data.message || 'Bir hata oluştu!', 'error');
