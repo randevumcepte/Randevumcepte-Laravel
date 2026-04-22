@@ -728,28 +728,27 @@
 
             if (tipObj.hasDeger && sl.deger != null) {
                 /* ── Sayısal ödül ─────────────────────────────────────────
-                   Dış kenarda büyük rakam (yatay) + içeride küçük kategori etiketi */
+                   Dilim ortasında üst üste: büyük rakam (yatay) + küçük etiket (yatay) */
 
-                const numDist = R - (n <= 8 ? 21 : 18);   // rim'e yakın
-                const catDist = n <= 8 ? 70 : 62;          // iç bölge
+                const dist   = n <= 8 ? 82 : 72;
+                const tx     = CX + dist * Math.cos(tRad);
+                const ty     = CY + dist * Math.sin(tRad);
 
-                const numStr  = sl.tip.includes('indirimi') ? '%' + sl.deger : String(sl.deger);
-                const catStr  = sl.tip === 'puan' ? 'Puan'
-                              : sl.tip === 'hizmet_indirimi' ? 'Hizmet'
-                              : 'Ürün';
-                const numFs   = n <= 8 ? 16 : 14;
-                const catFs   = n <= 8 ? 11 : 9;
+                const numStr = sl.tip.includes('indirimi') ? '%' + sl.deger : String(sl.deger);
+                const catStr = sl.tip === 'puan' ? 'Puan'
+                             : sl.tip === 'hizmet_indirimi' ? 'Hizmet'
+                             : 'Ürün';
+                const numFs  = n <= 8 ? 17 : 14;
+                const catFs  = n <= 8 ? 10 : 8;
+                const gap    = 3;
 
-                const numFill  = isWin ? '#FFD700' : 'white';
-                const numStr2  = isWin ? 'rgba(100,55,0,.95)' : 'rgba(0,0,0,.75)';
+                const numFill = isWin ? '#FFD700' : 'white';
+                const numStrk = isWin ? 'rgba(100,55,0,.95)' : 'rgba(0,0,0,.75)';
 
-                const nx = CX + numDist * Math.cos(tRad);
-                const ny = CY + numDist * Math.sin(tRad);
-                addText(nx, ny, numStr, numFs, '900', numFill, numStr2, '3.5', 0);
-
-                const cx2 = CX + catDist * Math.cos(tRad);
-                const cy2 = CY + catDist * Math.sin(tRad);
-                addText(cx2, cy2, catStr, catFs, '700', 'rgba(255,255,255,.92)', 'rgba(0,0,0,.5)', '2');
+                // Rakam ve etiket dikey ortalanmış: rakam üstte, etiket altta
+                const totalH = numFs + gap + catFs;
+                addText(tx, ty - totalH / 2 + numFs / 2,  numStr, numFs, '900', numFill, numStrk, '3.5', 0);
+                addText(tx, ty + totalH / 2 - catFs / 2,  catStr, catFs, '700', 'rgba(255,255,255,.92)', 'rgba(0,0,0,.5)', '2', 0);
 
             } else {
                 /* ── Metin ödülü (Tekrar Dene / Boş / özel isim) ─────────
