@@ -545,7 +545,7 @@
                 </div>
             </div>
 
-            <p class="mgmt-hint">Kazandırmak istediğiniz dilimi seçin — müşteri çarkı ne kadar çevirirse çevirsin o dilim çıkar.</p>
+            <p class="mgmt-hint">Kazandırmak istediğiniz dilimi seçin — müşteri çarkı ne kadar çevirirse çevirsin o dilim çıkar. (Min 6 · Maks 12 dilim)</p>
 
             <div class="slices-body" id="slices-list"></div>
 
@@ -700,44 +700,68 @@
             path.setAttribute('stroke-width', '1.5');
             wheelEl.appendChild(path);
 
-            /* Text */
+            /* Text — dilim sayısına göre adaptif */
             const tAng = sa + ang / 2;
             const tRad = (tAng - 90) * Math.PI / 180;
-            const dist = slices.length <= 8 ? 90 : 78;
+            const n    = slices.length;
+            // yazıyı merkeze yakın tut ki çember dışına taşmasın
+            const dist = n <= 6 ? 88 : n <= 8 ? 85 : n <= 10 ? 80 : 76;
             const tx   = CX + dist * Math.cos(tRad);
             const ty   = CY + dist * Math.sin(tRad);
 
             const g = svgEl('g');
             g.setAttribute('transform', `rotate(${tAng}, ${tx}, ${ty})`);
 
-            const maxCh = slices.length > 10 ? 8 : 11;
-            const lines = wrapText(sl.name, maxCh);
-            const fs    = slices.length > 12 ? 8 : slices.length > 8 ? 9 : 11;
-            const lh    = fs + 4;
-            const sy    = ty - ((lines.length - 1) * lh / 2);
+            // font + karakter limiti tablosu
+            const fs     = n <= 6 ? 12 : n <= 8 ? 10 : n <= 10 ? 9 : 8;
+            const maxCh  = n <= 6 ? 12 : n <= 8 ? 9 : n <= 10 ? 7 : 6;
+            const maxLn  = n <= 8 ? 2 : 1;   // 9+ dilimde tek satır
+            const lh     = fs + 3;
+
+            let lines = wrapText(sl.name, maxCh);
+            if (lines.length > maxLn) {
+                // tek satıra sığdır, gerekirse kırp
+                const full = sl.name.replace(/\s+/g, ' ');
+                lines = [full.length > maxCh ? full.slice(0, maxCh - 1) + '…' : full];
+            }
+            const sy = ty - ((lines.length - 1) * lh / 2);
 
             lines.forEach((ln, li) => {
                 const t = svgEl('text');
                 t.setAttribute('x', tx);
                 t.setAttribute('y', sy + li * lh);
                 t.setAttribute('text-anchor', 'middle');
+                t.setAttribute('dominant-baseline', 'middle');
                 t.setAttribute('font-size', fs);
                 t.setAttribute('font-weight', '700');
                 t.setAttribute('fill', 'white');
+                t.setAttribute('paint-order', 'stroke');
+                t.setAttribute('stroke', 'rgba(0,0,0,.3)');
+                t.setAttribute('stroke-width', '2');
+                t.setAttribute('stroke-linejoin', 'round');
                 t.textContent = ln;
                 g.appendChild(t);
             });
 
-            /* Kazanan dilim yıldızı */
-            if (i === selectedIdx) {
+            /* Kazanan yıldızı — sadece 8 dilime kadar göster, fazlasında çok kalabalık */
+            if (i === selectedIdx && n <= 10) {
                 const star = svgEl('text');
                 star.setAttribute('x', tx);
-                star.setAttribute('y', sy + lines.length * lh + 2);
+                star.setAttribute('y', sy + lines.length * lh + 1);
                 star.setAttribute('text-anchor', 'middle');
-                star.setAttribute('font-size', Math.max(fs, 9));
+                star.setAttribute('font-size', Math.max(fs - 1, 7));
                 star.setAttribute('fill', '#FFD700');
                 star.textContent = '★';
                 g.appendChild(star);
+            } else if (i === selectedIdx) {
+                // 11-12 dilimde: dilim kenarına küçük nokta
+                const dot = svgEl('circle');
+                const dotR = (tAng - 90) * Math.PI / 180;
+                dot.setAttribute('cx', CX + (dist - fs - 4) * Math.cos(dotR));
+                dot.setAttribute('cy', CY + (dist - fs - 4) * Math.sin(dotR));
+                dot.setAttribute('r', 4);
+                dot.setAttribute('fill', '#FFD700');
+                wheelEl.appendChild(dot);
             }
 
             wheelEl.appendChild(g);
@@ -848,7 +872,8 @@
     /* ── Count control ── */
     window.changeCount = function (delta) {
         const next = slices.length + delta;
-        if (next < 6) { showToast('En az 6 dilim olmalıdır.', 'error'); return; }
+        if (next < 6)  { showToast('En az 6 dilim olmalıdır.', 'error');  return; }
+        if (next > 12) { showToast('En fazla 12 dilim eklenebilir.', 'error'); return; }
         if (delta < 0) {
             slices = slices.slice(0, next);
             if (selectedIdx >= slices.length) selectedIdx = slices.length - 1;
