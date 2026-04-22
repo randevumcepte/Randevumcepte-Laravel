@@ -347,15 +347,14 @@ function formKaydet() {
       },
       success: function(resp) {
          if (resp && resp.basarili) {
-            Swal.fire('Başarılı', formId ? 'Form güncellendi.' : 'Form oluşturuldu.', 'success').then(function() {
-               location.reload();
-            });
+            $('#formSablonModal').modal('hide');
+            setTimeout(function(){ location.reload(); }, 300);
          } else {
-            Swal.fire('Hata', (resp && resp.mesaj) ? resp.mesaj : 'Bir hata oluştu.', 'error');
+            alert((resp && resp.mesaj) ? resp.mesaj : 'Bir hata oluştu.');
          }
       },
       error: function(xhr) {
-         Swal.fire('Hata', 'Sunucu hatası: ' + xhr.status + ' - ' + xhr.statusText, 'error');
+         alert('Sunucu hatası: ' + xhr.status + '. Lütfen tekrar deneyin.');
       }
    });
 }
@@ -366,20 +365,27 @@ function formSil(formId, formAdi) {
    $('#silOnayModal').modal('show');
 }
 
-$('#silOnayBtn').click(function() {
+$(document).on('click', '#silOnayBtn', function() {
    if (!silinecekFormId) return;
-   $.post('/isletmeyonetim/form-sablonlari-sil', {
-      _token: $('input[name=_token]').first().val(),
-      sube: '{{$isletme->id}}',
-      form_id: silinecekFormId
-   }, function(resp) {
-      $('#silOnayModal').modal('hide');
-      if (resp && resp.basarili) {
-         Swal.fire('Başarılı', 'Form silindi.', 'success').then(function() {
-            location.reload();
-         });
-      } else {
-         Swal.fire('Hata', resp.mesaj || 'Bir hata oluştu.', 'error');
+   $.ajax({
+      url: '/isletmeyonetim/form-sablonlari-sil',
+      type: 'POST',
+      dataType: 'json',
+      data: {
+         _token: $('meta[name=csrf-token]').attr('content') || $('input[name=_token]').first().val(),
+         sube: '{{$isletme->id}}',
+         form_id: silinecekFormId
+      },
+      success: function(resp) {
+         $('#silOnayModal').modal('hide');
+         if (resp && resp.basarili) {
+            setTimeout(function(){ location.reload(); }, 200);
+         } else {
+            alert(resp.mesaj || 'Bir hata oluştu.');
+         }
+      },
+      error: function(xhr) {
+         alert('Sunucu hatası: ' + xhr.status);
       }
    });
 });

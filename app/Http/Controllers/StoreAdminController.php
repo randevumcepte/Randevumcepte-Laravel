@@ -21861,17 +21861,21 @@ DB::raw('
     }
 
     public function formSablonlariSil(Request $request){
-        $sube = self::mevcutsube($request);
-        $form = FormTaslaklari::where('id',$request->form_id)->where('salon_id',$sube)->first();
-        if(!$form){
-            return response()->json(['basarili'=>false,'mesaj'=>'Form bulunamadı.']);
+        try {
+            $sube = self::mevcutsube($request);
+            $form = FormTaslaklari::where('id',$request->form_id)->where('salon_id',$sube)->first();
+            if(!$form){
+                return response()->json(['basarili'=>false,'mesaj'=>'Form bulunamadı.']);
+            }
+            $kullanimSayisi = Arsiv::where('form_id',$form->id)->count();
+            if($kullanimSayisi > 0){
+                return response()->json(['basarili'=>false,'mesaj'=>'Bu form '.$kullanimSayisi.' kayıtta kullanılmaktadır. Silinemez.']);
+            }
+            $form->delete();
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
-        $kullanimSayisi = Arsiv::where('form_id',$form->id)->count();
-        if($kullanimSayisi > 0){
-            return response()->json(['basarili'=>false,'mesaj'=>'Bu form şablonu '.$kullanimSayisi.' kayıtta kullanılmaktadır. Silinemez.']);
-        }
-        $form->delete();
-        return response()->json(['basarili'=>true]);
     }
 
 }
