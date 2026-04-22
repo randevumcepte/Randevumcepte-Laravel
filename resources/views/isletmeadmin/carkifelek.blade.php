@@ -323,41 +323,50 @@
 }
 .s-name:focus { outline: none; border-color: var(--purple); }
 
-.s-prob-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.s-prob {
-    width: 58px;
-    padding: 8px 6px;
-    background: white;
-    border: 1.5px solid #e9ecef;
+/* Kazanan seç butonu */
+.pick-btn {
+    flex-shrink: 0;
+    padding: 7px 14px;
     border-radius: 8px;
-    font-size: 13px; font-weight: 700; color: var(--purple);
-    text-align: center;
-    transition: border-color .2s;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid #e0e0e0;
+    background: white;
+    color: var(--mid);
+    transition: all .2s;
+    white-space: nowrap;
 }
-.s-prob:focus { outline: none; border-color: var(--purple); }
-.s-pct { font-size: 12px; color: var(--mid); font-weight: 500; }
+.pick-btn:hover { border-color: var(--green); color: var(--green); }
+.pick-btn.winner {
+    background: linear-gradient(135deg, var(--green), var(--teal));
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 3px 10px rgba(0,184,148,.35);
+}
+
+/* Kazanan dilim satır vurgusu */
+.slice-item.winner-row {
+    border-color: var(--green);
+    background: rgba(0,184,148,.06);
+    box-shadow: 0 2px 14px rgba(0,184,148,.12);
+}
 
 /* Footer */
 .mgmt-foot {
     padding: 16px 28px 24px;
     border-top: 1px solid #f0f2f8;
 }
-.prob-bar-bg {
-    height: 8px; background: #f0f2f8;
-    border-radius: 8px; overflow: hidden; margin-bottom: 8px;
+.winner-info {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    background: rgba(0,184,148,.08);
+    border: 1.5px solid rgba(0,184,148,.25);
+    border-radius: 12px;
+    margin-bottom: 14px;
 }
-.prob-bar-fill {
-    height: 100%; border-radius: 8px;
-    background: linear-gradient(90deg, var(--purple), var(--purple-l));
-    transition: width .4s ease, background .3s;
-}
-.prob-label {
-    text-align: center; font-size: 13px; font-weight: 600;
-    margin-bottom: 16px; color: var(--mid);
-    transition: color .3s;
-}
-.prob-label.ok   { color: var(--green); }
-.prob-label.over { color: var(--red); }
+.winner-icon { font-size: 20px; }
+.winner-label { font-size: 12px; color: var(--mid); font-weight: 500; }
+.winner-name  { font-size: 15px; font-weight: 800; color: var(--green); }
 
 .save-btn {
     width: 100%;
@@ -503,16 +512,19 @@
                 </div>
             </div>
 
-            <p class="mgmt-hint">İsim ve olasılık değerlerini düzenleyin. Toplam olasılık %100 olmalıdır.</p>
+            <p class="mgmt-hint">Kazandırmak istediğiniz dilimi seçin — müşteri çarkı ne kadar çevirirse çevirsin o dilim çıkar.</p>
 
             <div class="slices-body" id="slices-list"></div>
 
             <div class="mgmt-foot">
-                <div class="prob-bar-bg">
-                    <div class="prob-bar-fill" id="prob-fill" style="width:100%"></div>
+                <div class="winner-info" id="winner-info">
+                    <span class="winner-icon">🏆</span>
+                    <div>
+                        <div class="winner-label">Çıkacak dilim:</div>
+                        <div class="winner-name" id="winner-name">Seçilmedi</div>
+                    </div>
                 </div>
-                <p class="prob-label ok" id="prob-label">Toplam: %100 ✓</p>
-                <button class="save-btn" id="save-btn" onclick="saveSlices()">💾 Dilimleri Kaydet</button>
+                <button class="save-btn" id="save-btn" onclick="saveSlices()">💾 Ayarı Kaydet</button>
             </div>
         </div>
 
@@ -551,23 +563,23 @@
 
     /* ── State ── */
     let slices = [
-        { name: '100 TL',       color: COLORS[0],  probability: 10 },
-        { name: '50 TL',        color: COLORS[1],  probability: 15 },
-        { name: '20 TL',        color: COLORS[2],  probability: 20 },
-        { name: '10 TL',        color: COLORS[3],  probability: 25 },
-        { name: '5 TL',         color: COLORS[4],  probability: 20 },
-        { name: 'Tekrar Dene',  color: COLORS[5],  probability: 10 }
+        { name: '100 TL',       color: COLORS[0]  },
+        { name: '50 TL',        color: COLORS[1]  },
+        { name: '20 TL',        color: COLORS[2]  },
+        { name: '10 TL',        color: COLORS[3]  },
+        { name: '5 TL',         color: COLORS[4]  },
+        { name: 'Tekrar Dene',  color: COLORS[5]  }
     ];
-    let isActive = true;
-    let currentRot = 0;
-    let spinning = false;
+    let selectedIdx = 0;   // admin'in seçtiği kazanan dilim
+    let isActive    = true;
+    let currentRot  = 0;
+    let spinning    = false;
 
     /* ── Elements ── */
     const wheelEl     = document.getElementById('wheel');
     const slicesList  = document.getElementById('slices-list');
     const cntVal      = document.getElementById('cnt-val');
-    const probFill    = document.getElementById('prob-fill');
-    const probLabel   = document.getElementById('prob-label');
+    const winnerName  = document.getElementById('winner-name');
     const spinBtn     = document.getElementById('spin-btn');
     const statusToggle= document.getElementById('status-toggle');
     const statusPill  = document.getElementById('status-pill');
@@ -602,10 +614,13 @@
                 isActive = data.data.aktifmi == 1;
                 if (data.data.dilimler && data.data.dilimler.length > 0) {
                     slices = data.data.dilimler.map(d => ({
-                        name:        d.name,
-                        color:       d.color || COLORS[0],
-                        probability: parseInt(d.probability) || 1
+                        name:  d.name,
+                        color: d.color || COLORS[0],
+                        probability: parseInt(d.probability) || 0
                     }));
+                    // probability=100 olan dilim kazanan (yoksa 0. dilim)
+                    const found = slices.findIndex(s => s.probability === 100);
+                    selectedIdx = found >= 0 ? found : 0;
                     cntVal.textContent = slices.length;
                 }
             }
@@ -617,7 +632,7 @@
     function render() {
         renderWheel();
         renderList();
-        updateProbBar();
+        updateWinnerUI();
         updateStatusUI();
     }
 
@@ -671,15 +686,17 @@
                 g.appendChild(t);
             });
 
-            /* Probability */
-            const pt = svgEl('text');
-            pt.setAttribute('x', tx);
-            pt.setAttribute('y', sy + lines.length * lh + 1);
-            pt.setAttribute('text-anchor', 'middle');
-            pt.setAttribute('font-size', Math.max(fs - 2, 6));
-            pt.setAttribute('fill', 'rgba(255,255,255,.72)');
-            pt.textContent = `${sl.probability}%`;
-            g.appendChild(pt);
+            /* Kazanan dilim yıldızı */
+            if (i === selectedIdx) {
+                const star = svgEl('text');
+                star.setAttribute('x', tx);
+                star.setAttribute('y', sy + lines.length * lh + 2);
+                star.setAttribute('text-anchor', 'middle');
+                star.setAttribute('font-size', Math.max(fs, 9));
+                star.setAttribute('fill', '#FFD700');
+                star.textContent = '★';
+                g.appendChild(star);
+            }
 
             wheelEl.appendChild(g);
         });
@@ -696,8 +713,9 @@
     function renderList() {
         slicesList.innerHTML = '';
         slices.forEach((sl, i) => {
+            const isWinner = i === selectedIdx;
             const div = document.createElement('div');
-            div.className = 'slice-item';
+            div.className = 'slice-item' + (isWinner ? ' winner-row' : '');
             div.innerHTML = `
                 <div class="s-num">${i + 1}</div>
                 <div class="s-color" style="background:${esc(sl.color)}" title="Renk seç">
@@ -707,34 +725,19 @@
                 <input type="text" class="s-name" value="${esc(sl.name)}"
                     data-i="${i}" placeholder="Dilim adı"
                     oninput="window.CK.name(this)" onblur="window.CK.name(this)">
-                <div class="s-prob-wrap">
-                    <input type="number" class="s-prob" value="${sl.probability}"
-                        min="1" max="100" data-i="${i}" oninput="window.CK.prob(this)">
-                    <span class="s-pct">%</span>
-                </div>
+                <button class="pick-btn${isWinner ? ' winner' : ''}"
+                        onclick="window.CK.pick(${i})">
+                    ${isWinner ? '★ Kazanan' : 'Seç'}
+                </button>
             `;
             slicesList.appendChild(div);
         });
     }
 
-    function updateProbBar() {
-        const total = slices.reduce((s, sl) => s + (parseInt(sl.probability) || 0), 0);
-        const pct   = Math.min(total, 100);
-        probFill.style.width = pct + '%';
-        if (total === 100) {
-            probFill.style.background = `linear-gradient(90deg, var(--green), var(--teal))`;
-            probLabel.className = 'prob-label ok';
-            probLabel.textContent = 'Toplam: %100 ✓';
-        } else if (total > 100) {
-            probFill.style.background = `linear-gradient(90deg, var(--red), var(--orange))`;
-            probLabel.className = 'prob-label over';
-            probLabel.textContent = `Toplam: %${total} — %100 olmalı`;
-        } else {
-            probFill.style.background = `linear-gradient(90deg, var(--purple), var(--purple-l))`;
-            probLabel.className = 'prob-label';
-            probLabel.style.color = 'var(--mid)';
-            probLabel.textContent = `Toplam: %${total} — %${100 - total} eksik`;
-        }
+    function updateWinnerUI() {
+        winnerName.textContent = slices[selectedIdx]
+            ? slices[selectedIdx].name
+            : 'Seçilmedi';
     }
 
     function updateStatusUI() {
@@ -760,12 +763,11 @@
             const i = +input.dataset.i;
             slices[i].name = input.value || `Ödül ${i + 1}`;
             renderWheel();
+            updateWinnerUI();
         },
-        prob(input) {
-            const i = +input.dataset.i;
-            slices[i].probability = parseInt(input.value) || 0;
-            updateProbBar();
-            renderWheel();
+        pick(i) {
+            selectedIdx = i;
+            render();
         }
     };
 
@@ -775,35 +777,33 @@
         if (next < 6) { showToast('En az 6 dilim olmalıdır.', 'error'); return; }
         if (delta < 0) {
             slices = slices.slice(0, next);
+            if (selectedIdx >= slices.length) selectedIdx = slices.length - 1;
         } else {
             const idx = slices.length % COLORS.length;
-            slices.push({ name: `Ödül ${slices.length + 1}`, color: COLORS[idx], probability: 0 });
+            slices.push({ name: `Ödül ${slices.length + 1}`, color: COLORS[idx] });
         }
         cntVal.textContent = slices.length;
         render();
     };
 
-    /* ── Spin ── */
+    /* ── Spin — her zaman selectedIdx'e döner ── */
     window.testSpin = function () {
         if (spinning || slices.length < 2) return;
         spinning = true;
         spinBtn.disabled = true;
         spinBtn.textContent = '⏳ Çevriliyor...';
 
-        const tIdx   = weightedRandom();
         const ang    = 360 / slices.length;
+        // Kazanan dilim içinde küçük rastgele sapma — görünüm doğal
+        const jitter = (Math.random() - 0.5) * ang * 0.6;
+        const stopAt = (selectedIdx + 0.5) * ang + jitter;
+        const offset = ((360 - stopAt) % 360 + 360) % 360;
 
-        // Kazanan dilimdeki rastgele bir nokta (merkez ± %40 genişlik)
-        // — görünüm doğal, ama kazanan dilim içinde kalır
-        const jitter  = (Math.random() - 0.5) * ang * 0.8;
-        const stopAt  = (tIdx + 0.5) * ang + jitter;          // orijinal çarktaki açı (üstten CW)
-        const offset  = ((360 - stopAt) % 360 + 360) % 360;   // döndürme miktarı (mod 360)
-
-        const nSpins  = (6 + Math.floor(Math.random() * 4)) * 360;
-        const curMod  = ((currentRot % 360) + 360) % 360;
-        let   diff    = offset - curMod;
+        const nSpins = (6 + Math.floor(Math.random() * 4)) * 360;
+        const curMod = ((currentRot % 360) + 360) % 360;
+        let   diff   = offset - curMod;
         if (diff < 0) diff += 360;
-        currentRot   += nSpins + diff;
+        currentRot  += nSpins + diff;
 
         wheelEl.style.transition = 'transform 5.5s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
         wheelEl.style.transform  = `rotate(${currentRot}deg)`;
@@ -812,29 +812,9 @@
             spinning = false;
             spinBtn.disabled = false;
             spinBtn.textContent = '🎲 Test Et';
-            // Sonucu görselden oku — visual ile modal her zaman aynı
-            showResultModal(sliceAtPointer());
+            showResultModal(selectedIdx);
         }, 5700);
     };
-
-    // Animasyon bittikten sonra ok'un gösterdiği dilimi hesapla
-    function sliceAtPointer() {
-        const ang    = 360 / slices.length;
-        const rotMod = ((currentRot % 360) + 360) % 360;
-        const atTop  = (360 - rotMod + 360) % 360;   // orijinal çarktaki açı
-        return Math.floor(atTop / ang) % slices.length;
-    }
-
-    function weightedRandom() {
-        const total = slices.reduce((s, sl) => s + sl.probability, 0);
-        if (!total) return Math.floor(Math.random() * slices.length);
-        let r = Math.random() * total;
-        for (let i = 0; i < slices.length; i++) {
-            r -= slices[i].probability;
-            if (r <= 0) return i;
-        }
-        return slices.length - 1;
-    }
 
     /* ── Modal ── */
     function showResultModal(idx) {
@@ -852,17 +832,13 @@
 
     /* ── Save ── */
     window.saveSlices = async function () {
-        // Sync DOM → state
+        // DOM → state
         document.querySelectorAll('.s-name').forEach(el => {
             slices[+el.dataset.i].name = el.value || `Ödül ${+el.dataset.i + 1}`;
         });
-        document.querySelectorAll('.s-prob').forEach(el => {
-            slices[+el.dataset.i].probability = parseInt(el.value) || 0;
-        });
 
-        const total = slices.reduce((s, sl) => s + sl.probability, 0);
-        if (total !== 100) {
-            showToast(`Toplam olasılık %100 olmalı (şu an %${total})`, 'error');
+        if (selectedIdx < 0 || selectedIdx >= slices.length) {
+            showToast('Lütfen önce bir kazanan dilim seçin.', 'error');
             return;
         }
         await saveToServer(false);
@@ -872,22 +848,31 @@
         const saveBtn = document.getElementById('save-btn');
         if (!statusOnly) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Kaydediliyor...'; }
 
+        // Kazanan=100, diğerleri=0
+        const payload = slices.map((sl, i) => ({
+            name:        sl.name,
+            color:       sl.color,
+            probability: i === selectedIdx ? 100 : 0
+        }));
+
         try {
             const res  = await fetch('{{ route("isletmeadmin.carkdilimekle") }}', {
                 method: 'POST',
                 headers: HEADERS,
-                body: JSON.stringify({ dilimler: slices, aktifmi: isActive ? 1 : 0 })
+                body: JSON.stringify({ dilimler: payload, aktifmi: isActive ? 1 : 0 })
             });
             const data = await res.json();
             if (data.success) {
                 if (!statusOnly) {
-                    showToast('Dilimler başarıyla kaydedildi! 🎉', 'success');
+                    showToast('Ayar kaydedildi! 🎉', 'success');
                     if (data.data && data.data.dilimler) {
                         slices = data.data.dilimler.map(d => ({
                             name:        d.dilim_ismi,
                             color:       d.renk_kodu,
-                            probability: parseInt(d.dilim_olasilik) || 1
+                            probability: parseInt(d.dilim_olasilik) || 0
                         }));
+                        const found = slices.findIndex(s => s.probability === 100);
+                        selectedIdx = found >= 0 ? found : 0;
                         cntVal.textContent = slices.length;
                         render();
                     }
@@ -899,7 +884,7 @@
             showToast('Bağlantı hatası!', 'error');
         }
 
-        if (!statusOnly) { saveBtn.disabled = false; saveBtn.textContent = '💾 Dilimleri Kaydet'; }
+        if (!statusOnly) { saveBtn.disabled = false; saveBtn.textContent = '💾 Ayarı Kaydet'; }
     }
 
     /* ── Toast ── */

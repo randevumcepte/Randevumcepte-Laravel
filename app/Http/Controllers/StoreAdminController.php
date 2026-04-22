@@ -264,10 +264,10 @@ public function carkdilimekle(Request $request)
             
             $probability = (int) round($probability);
             
-            if ($probability <= 0 || $probability > 100) {
+            if ($probability < 0 || $probability > 100) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Geçersiz olasılık değeri: ' . ($dilim['probability'] ?? 'undefined') . '. Sadece 1-100 arası tam sayılar kullanılmalıdır!'
+                    'message' => 'Geçersiz olasılık değeri: ' . ($dilim['probability'] ?? 'undefined') . '. 0-100 arası tam sayı olmalıdır!'
                 ]);
             }
             
@@ -288,11 +288,12 @@ public function carkdilimekle(Request $request)
         Log::info('Temizlenmiş dilimler:', $cleanedDilimler);
         Log::info('Toplam olasılık: ' . $totalProbability);
         
-        // Toplam olasılık kontrolü
-        if ($totalProbability !== 100) {
+        // Kazanan dilim kontrolü: tam olarak bir dilim 100, gerisi 0 olmalı
+        $kazananSayisi = collect($cleanedDilimler)->where('probability', 100)->count();
+        if ($kazananSayisi !== 1 || $totalProbability !== 100) {
             return response()->json([
                 'success' => false,
-                'message' => 'Toplam olasılık tam olarak %100 olmalıdır! Şu an: %' . $totalProbability
+                'message' => 'Lütfen tam olarak bir dilimi kazanan olarak seçin.'
             ]);
         }
         
