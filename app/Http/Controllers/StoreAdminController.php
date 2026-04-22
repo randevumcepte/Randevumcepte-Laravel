@@ -273,15 +273,24 @@ public function carkdilimekle(Request $request)
             
             $totalProbability += $probability;
             
-            // Kupon mu değerini kontrol et
-            $kupon_mu = isset($dilim['kupon_mu']) ? (int) $dilim['kupon_mu'] : 0;
-            $kupon_mu = $kupon_mu ? 1 : 0;
-            
+            // Dilim tipi ve değeri
+            $validTips = ['puan', 'hizmet_indirimi', 'urun_indirimi', 'tekrar_dene', 'bos'];
+            $tip   = isset($dilim['tip']) && in_array($dilim['tip'], $validTips)
+                     ? $dilim['tip'] : 'bos';
+            $deger = in_array($tip, ['puan', 'hizmet_indirimi', 'urun_indirimi'])
+                     ? (isset($dilim['deger']) && $dilim['deger'] !== null ? (float)$dilim['deger'] : null)
+                     : null;
+
+            // kupon_mu: indirim tiplerinde otomatik 1
+            $kupon_mu = in_array($tip, ['hizmet_indirimi', 'urun_indirimi']) ? 1 : 0;
+
             $cleanedDilimler[] = [
-                'name' => $dilim['name'] ?? 'Ödül ' . ($index + 1),
-                'color' => $dilim['color'] ?? $this->getRandomColor($index),
+                'name'        => $dilim['name'] ?? 'Ödül ' . ($index + 1),
+                'color'       => $dilim['color'] ?? $this->getRandomColor($index),
                 'probability' => $probability,
-                'kupon_mu' => $kupon_mu
+                'tip'         => $tip,
+                'deger'       => $deger,
+                'kupon_mu'    => $kupon_mu,
             ];
         }
         
@@ -326,23 +335,27 @@ public function carkdilimekle(Request $request)
         $savedSlices = [];
         foreach ($cleanedDilimler as $index => $dilim) {
             $slice = CarkifelekDilimleri::create([
-                'cark_id' => $carkifelek->id,
-                'dilim_ismi' => $dilim['name'],
+                'cark_id'        => $carkifelek->id,
+                'dilim_ismi'     => $dilim['name'],
                 'dilim_olasilik' => $dilim['probability'],
-                'renk_kodu' => $dilim['color'],
-                'kupon_mu' => $dilim['kupon_mu'],
-                'sira' => $index + 1,
-                'created_at' => now(),
-                'updated_at' => now()
+                'renk_kodu'      => $dilim['color'],
+                'tip'            => $dilim['tip'],
+                'deger'          => $dilim['deger'],
+                'kupon_mu'       => $dilim['kupon_mu'],
+                'sira'           => $index + 1,
+                'created_at'     => now(),
+                'updated_at'     => now()
             ]);
-            
+
             $savedSlices[] = [
-                'id' => $slice->id,
-                'dilim_ismi' => $slice->dilim_ismi,
+                'id'             => $slice->id,
+                'dilim_ismi'     => $slice->dilim_ismi,
                 'dilim_olasilik' => (int)$slice->dilim_olasilik,
-                'renk_kodu' => $slice->renk_kodu,
-                'kupon_mu' => (int)$slice->kupon_mu,
-                'sira' => $slice->sira
+                'renk_kodu'      => $slice->renk_kodu,
+                'tip'            => $slice->tip,
+                'deger'          => $slice->deger,
+                'kupon_mu'       => (int)$slice->kupon_mu,
+                'sira'           => $slice->sira
             ];
             
             Log::info('Dilim kaydedildi: ' . $slice->dilim_ismi . ' - Olasılık: ' . $slice->dilim_olasilik);
@@ -403,11 +416,13 @@ public function carkverilerigetir(Request $request)
             ->get()
             ->map(function ($dilim) {
                 return [
-                    'name' => $dilim->dilim_ismi,
+                    'name'        => $dilim->dilim_ismi,
                     'probability' => (int)$dilim->dilim_olasilik,
-                    'color' => $dilim->renk_kodu,
-                    'kupon_mu' => (int)$dilim->kupon_mu,
-                    'sira' => $dilim->sira
+                    'color'       => $dilim->renk_kodu,
+                    'tip'         => $dilim->tip   ?? 'bos',
+                    'deger'       => $dilim->deger !== null ? (float)$dilim->deger : null,
+                    'kupon_mu'    => (int)$dilim->kupon_mu,
+                    'sira'        => $dilim->sira
                 ];
             })
             ->values();

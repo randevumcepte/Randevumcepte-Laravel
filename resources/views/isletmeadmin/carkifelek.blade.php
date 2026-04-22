@@ -281,7 +281,7 @@
 .slices-body::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
 
 .slice-item {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; flex-direction: column; align-items: stretch;
     padding: 9px 12px;
     background: #f8f9ff;
     border: 1.5px solid #ececff;
@@ -290,6 +290,39 @@
     transition: all .2s;
 }
 .slice-item:hover { border-color: var(--purple-l); box-shadow: 0 2px 14px rgba(108,92,231,.1); }
+.slice-top { display: flex; align-items: center; gap: 10px; }
+.slice-bot { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.tip-pills { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; }
+.tip-pill {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1.5px solid #e0e0e0;
+    background: white;
+    color: var(--mid);
+    font-size: 11px; font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+}
+.tip-pill:hover { border-color: var(--purple-l); color: var(--purple); }
+.tip-pill.active {
+    background: linear-gradient(135deg, var(--purple), var(--purple-l));
+    border-color: transparent;
+    color: white;
+}
+.deger-wrap { display: none; align-items: center; gap: 4px; }
+.deger-wrap.show { display: flex; }
+.s-deger {
+    width: 90px;
+    padding: 5px 8px;
+    background: white;
+    border: 1.5px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 12px; font-weight: 600; color: var(--dark);
+    transition: border-color .2s;
+}
+.s-deger:focus { outline: none; border-color: var(--purple); }
+.deger-unit { font-size: 12px; font-weight: 700; color: var(--mid); }
 
 .s-num {
     width: 24px; height: 24px;
@@ -555,6 +588,14 @@
         '#FF922B','#20C997','#4DABF7','#DA77F2','#F783AC',
         '#E64980','#7950F2','#4C6EF5','#228BE6','#099268'
     ];
+    const TIPS = [
+        { id: 'puan',            label: '💰 Puan',     hasDeger: true,  unit: 'puan' },
+        { id: 'hizmet_indirimi', label: '✂️ Hizmet %', hasDeger: true,  unit: '%'    },
+        { id: 'urun_indirimi',   label: '📦 Ürün %',   hasDeger: true,  unit: '%'    },
+        { id: 'tekrar_dene',     label: '🔄 Tekrar',   hasDeger: false, unit: ''     },
+        { id: 'bos',             label: '— Boş',        hasDeger: false, unit: ''     },
+    ];
+
     const HEADERS = {
         'Content-Type': 'application/json',
         'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') || {}).content || '',
@@ -563,12 +604,12 @@
 
     /* ── State ── */
     let slices = [
-        { name: '100 TL',       color: COLORS[0]  },
-        { name: '50 TL',        color: COLORS[1]  },
-        { name: '20 TL',        color: COLORS[2]  },
-        { name: '10 TL',        color: COLORS[3]  },
-        { name: '5 TL',         color: COLORS[4]  },
-        { name: 'Tekrar Dene',  color: COLORS[5]  }
+        { name: '100 Puan',    color: COLORS[0], tip: 'puan',           deger: 100  },
+        { name: '%20 Hizmet',  color: COLORS[1], tip: 'hizmet_indirimi',deger: 20   },
+        { name: '%10 Ürün',    color: COLORS[2], tip: 'urun_indirimi',  deger: 10   },
+        { name: '50 Puan',     color: COLORS[3], tip: 'puan',           deger: 50   },
+        { name: 'Tekrar Dene', color: COLORS[4], tip: 'tekrar_dene',    deger: null },
+        { name: 'Boş',         color: COLORS[5], tip: 'bos',            deger: null }
     ];
     let selectedIdx = 0;   // admin'in seçtiği kazanan dilim
     let isActive    = true;
@@ -614,11 +655,12 @@
                 isActive = data.data.aktifmi == 1;
                 if (data.data.dilimler && data.data.dilimler.length > 0) {
                     slices = data.data.dilimler.map(d => ({
-                        name:  d.name,
-                        color: d.color || COLORS[0],
-                        probability: parseInt(d.probability) || 0
+                        name:        d.name,
+                        color:       d.color || COLORS[0],
+                        probability: parseInt(d.probability) || 0,
+                        tip:         d.tip   || 'bos',
+                        deger:       d.deger != null ? parseFloat(d.deger) : null,
                     }));
-                    // probability=100 olan dilim kazanan (yoksa 0. dilim)
                     const found = slices.findIndex(s => s.probability === 100);
                     selectedIdx = found >= 0 ? found : 0;
                     cntVal.textContent = slices.length;
@@ -714,30 +756,49 @@
         slicesList.innerHTML = '';
         slices.forEach((sl, i) => {
             const isWinner = i === selectedIdx;
+            const tipObj   = TIPS.find(t => t.id === (sl.tip || 'bos')) || TIPS[4];
+            const degerVal = sl.deger != null ? sl.deger : '';
+            const placeholder = tipObj.id === 'puan' ? 'Puan miktarı' : 'Yüzde (%)';
+
             const div = document.createElement('div');
             div.className = 'slice-item' + (isWinner ? ' winner-row' : '');
             div.innerHTML = `
-                <div class="s-num">${i + 1}</div>
-                <div class="s-color" style="background:${esc(sl.color)}" title="Renk seç">
-                    <input type="color" value="${esc(sl.color)}" data-i="${i}"
-                        oninput="window.CK.color(this)" onchange="window.CK.color(this)">
+                <div class="slice-top">
+                    <div class="s-num">${i + 1}</div>
+                    <div class="s-color" style="background:${esc(sl.color)}" title="Renk seç">
+                        <input type="color" value="${esc(sl.color)}" data-i="${i}"
+                            oninput="window.CK.color(this)" onchange="window.CK.color(this)">
+                    </div>
+                    <input type="text" class="s-name" value="${esc(sl.name)}"
+                        data-i="${i}" placeholder="Dilim adı"
+                        oninput="window.CK.name(this)" onblur="window.CK.name(this)">
+                    <button class="pick-btn${isWinner ? ' winner' : ''}" onclick="window.CK.pick(${i})">
+                        ${isWinner ? '★ Kazanan' : 'Seç'}
+                    </button>
                 </div>
-                <input type="text" class="s-name" value="${esc(sl.name)}"
-                    data-i="${i}" placeholder="Dilim adı"
-                    oninput="window.CK.name(this)" onblur="window.CK.name(this)">
-                <button class="pick-btn${isWinner ? ' winner' : ''}"
-                        onclick="window.CK.pick(${i})">
-                    ${isWinner ? '★ Kazanan' : 'Seç'}
-                </button>
+                <div class="slice-bot">
+                    <div class="tip-pills">
+                        ${TIPS.map(t => `<button class="tip-pill${sl.tip === t.id ? ' active' : ''}" onclick="window.CK.setTip(${i},'${t.id}')">${t.label}</button>`).join('')}
+                    </div>
+                    <div class="deger-wrap${tipObj.hasDeger ? ' show' : ''}" data-i="${i}">
+                        <input type="number" class="s-deger" data-i="${i}" min="0" step="any"
+                               value="${degerVal}" placeholder="${placeholder}"
+                               oninput="window.CK.setDeger(this)">
+                        <span class="deger-unit">${tipObj.unit}</span>
+                    </div>
+                </div>
             `;
             slicesList.appendChild(div);
         });
     }
 
     function updateWinnerUI() {
-        winnerName.textContent = slices[selectedIdx]
-            ? slices[selectedIdx].name
-            : 'Seçilmedi';
+        const sl = slices[selectedIdx];
+        if (!sl) { winnerName.textContent = 'Seçilmedi'; return; }
+        const tipObj = TIPS.find(t => t.id === (sl.tip || 'bos')) || TIPS[4];
+        let desc = sl.name;
+        if (tipObj.hasDeger && sl.deger != null) desc += ` · ${sl.deger}${tipObj.unit}`;
+        winnerName.textContent = desc;
     }
 
     function updateStatusUI() {
@@ -768,6 +829,19 @@
         pick(i) {
             selectedIdx = i;
             render();
+        },
+        setTip(i, tip) {
+            slices[i].tip = tip;
+            const tipObj = TIPS.find(t => t.id === tip) || TIPS[4];
+            if (!tipObj.hasDeger) slices[i].deger = null;
+            renderList();
+            updateWinnerUI();
+        },
+        setDeger(input) {
+            const i   = +input.dataset.i;
+            const val = parseFloat(input.value);
+            slices[i].deger = isNaN(val) ? null : val;
+            updateWinnerUI();
         }
     };
 
@@ -780,7 +854,7 @@
             if (selectedIdx >= slices.length) selectedIdx = slices.length - 1;
         } else {
             const idx = slices.length % COLORS.length;
-            slices.push({ name: `Ödül ${slices.length + 1}`, color: COLORS[idx] });
+            slices.push({ name: `Ödül ${slices.length + 1}`, color: COLORS[idx], tip: 'bos', deger: null });
         }
         cntVal.textContent = slices.length;
         render();
@@ -852,7 +926,9 @@
         const payload = slices.map((sl, i) => ({
             name:        sl.name,
             color:       sl.color,
-            probability: i === selectedIdx ? 100 : 0
+            probability: i === selectedIdx ? 100 : 0,
+            tip:         sl.tip   || 'bos',
+            deger:       sl.deger != null ? sl.deger : null,
         }));
 
         try {
@@ -869,7 +945,9 @@
                         slices = data.data.dilimler.map(d => ({
                             name:        d.dilim_ismi,
                             color:       d.renk_kodu,
-                            probability: parseInt(d.dilim_olasilik) || 0
+                            probability: parseInt(d.dilim_olasilik) || 0,
+                            tip:         d.tip   || 'bos',
+                            deger:       d.deger != null ? parseFloat(d.deger) : null,
                         }));
                         const found = slices.findIndex(s => s.probability === 100);
                         selectedIdx = found >= 0 ? found : 0;

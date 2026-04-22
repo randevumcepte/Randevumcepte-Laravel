@@ -13,10 +13,19 @@ class CarkifelekDilimleri extends Model
         'dilim_ismi',
         'dilim_olasilik',
         'renk_kodu',
-        'kupon_mu', // KUPON MU ALANI EKLENDİ
+        'tip',
+        'deger',
+        'kupon_mu',
         'sira',
         'created_at',
         'updated_at',
+    ];
+
+    protected $casts = [
+        'deger'         => 'float',
+        'dilim_olasilik'=> 'integer',
+        'kupon_mu'      => 'integer',
+        'sira'          => 'integer',
     ];
 
     public function cark()
