@@ -682,45 +682,55 @@
         wheelEl.innerHTML = '';
         if (!slices.length) return;
 
-        const ang = 360 / slices.length;
+        const n   = slices.length;
+        const ang = 360 / n;
 
         slices.forEach((sl, i) => {
-            const sa  = i * ang, ea = (i + 1) * ang;
-            const sr  = (sa - 90) * Math.PI / 180;
-            const er  = (ea - 90) * Math.PI / 180;
-            const x1  = CX + R * Math.cos(sr), y1 = CY + R * Math.sin(sr);
-            const x2  = CX + R * Math.cos(er), y2 = CY + R * Math.sin(er);
-            const lg  = ang > 180 ? 1 : 0;
+            const sa = i * ang, ea = (i + 1) * ang;
+            const sr = (sa - 90) * Math.PI / 180;
+            const er = (ea - 90) * Math.PI / 180;
+            const x1 = CX + R * Math.cos(sr), y1 = CY + R * Math.sin(sr);
+            const x2 = CX + R * Math.cos(er), y2 = CY + R * Math.sin(er);
+            const lg = ang > 180 ? 1 : 0;
 
-            /* Slice */
+            /* Dilim */
             const path = svgEl('path');
             path.setAttribute('d', `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 ${lg} 1 ${x2} ${y2} Z`);
             path.setAttribute('fill', sl.color);
-            path.setAttribute('stroke', 'rgba(255,255,255,.55)');
+            path.setAttribute('stroke', 'rgba(255,255,255,.6)');
             path.setAttribute('stroke-width', '1.5');
             wheelEl.appendChild(path);
 
-            /* Text — dilim sayısına göre adaptif */
+            /* Kazanan: dış kenar altın bandı */
+            if (i === selectedIdx) {
+                const rInner = R - 16;
+                const xi1 = CX + rInner * Math.cos(sr), yi1 = CY + rInner * Math.sin(sr);
+                const xi2 = CX + rInner * Math.cos(er), yi2 = CY + rInner * Math.sin(er);
+                const band = svgEl('path');
+                band.setAttribute('d', `M ${x1} ${y1} A ${R} ${R} 0 ${lg} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${rInner} ${rInner} 0 ${lg} 0 ${xi1} ${yi1} Z`);
+                band.setAttribute('fill', 'rgba(255,215,0,.45)');
+                band.setAttribute('stroke', 'none');
+                wheelEl.appendChild(band);
+            }
+
+            /* Yatay yazı — rotate YOK */
             const tAng = sa + ang / 2;
             const tRad = (tAng - 90) * Math.PI / 180;
-            const n    = slices.length;
-            // yazıyı merkeze yakın tut ki çember dışına taşmasın
-            const dist = n <= 6 ? 88 : n <= 8 ? 85 : n <= 10 ? 80 : 76;
+            // yazı mesafesi: kazanan bantta yer açmak için biraz daha içe al
+            const dist = n <= 6 ? 80 : n <= 8 ? 76 : n <= 10 ? 72 : 68;
             const tx   = CX + dist * Math.cos(tRad);
             const ty   = CY + dist * Math.sin(tRad);
 
-            const g = svgEl('g');
-            g.setAttribute('transform', `rotate(${tAng}, ${tx}, ${ty})`);
-
-            // font + karakter limiti tablosu
-            const fs     = n <= 6 ? 12 : n <= 8 ? 10 : n <= 10 ? 9 : 8;
-            const maxCh  = n <= 6 ? 12 : n <= 8 ? 9 : n <= 10 ? 7 : 6;
-            const maxLn  = n <= 8 ? 2 : 1;   // 9+ dilimde tek satır
-            const lh     = fs + 3;
+            // font büyüklüğü tablosu
+            const fs    = n <= 6 ? 11 : n <= 8 ? 10 : n <= 10 ? 9 : 8;
+            // yatay genişlik ≈ chord: 2*dist*sin(π/n), karakter başı ~fs*0.6px
+            const chW   = Math.floor((2 * dist * Math.sin(Math.PI / n)) / (fs * 0.62));
+            const maxCh = Math.max(4, Math.min(chW, 12));
+            const maxLn = n <= 8 ? 2 : 1;
+            const lh    = fs + 3;
 
             let lines = wrapText(sl.name, maxCh);
             if (lines.length > maxLn) {
-                // tek satıra sığdır, gerekirse kırp
                 const full = sl.name.replace(/\s+/g, ' ');
                 lines = [full.length > maxCh ? full.slice(0, maxCh - 1) + '…' : full];
             }
@@ -733,38 +743,15 @@
                 t.setAttribute('text-anchor', 'middle');
                 t.setAttribute('dominant-baseline', 'middle');
                 t.setAttribute('font-size', fs);
-                t.setAttribute('font-weight', '700');
+                t.setAttribute('font-weight', '800');
                 t.setAttribute('fill', 'white');
                 t.setAttribute('paint-order', 'stroke');
-                t.setAttribute('stroke', 'rgba(0,0,0,.3)');
-                t.setAttribute('stroke-width', '2');
+                t.setAttribute('stroke', 'rgba(0,0,0,.5)');
+                t.setAttribute('stroke-width', '2.5');
                 t.setAttribute('stroke-linejoin', 'round');
                 t.textContent = ln;
-                g.appendChild(t);
+                wheelEl.appendChild(t);  // doğrudan wheelEl'e ekle (g transform yok)
             });
-
-            /* Kazanan yıldızı — sadece 8 dilime kadar göster, fazlasında çok kalabalık */
-            if (i === selectedIdx && n <= 10) {
-                const star = svgEl('text');
-                star.setAttribute('x', tx);
-                star.setAttribute('y', sy + lines.length * lh + 1);
-                star.setAttribute('text-anchor', 'middle');
-                star.setAttribute('font-size', Math.max(fs - 1, 7));
-                star.setAttribute('fill', '#FFD700');
-                star.textContent = '★';
-                g.appendChild(star);
-            } else if (i === selectedIdx) {
-                // 11-12 dilimde: dilim kenarına küçük nokta
-                const dot = svgEl('circle');
-                const dotR = (tAng - 90) * Math.PI / 180;
-                dot.setAttribute('cx', CX + (dist - fs - 4) * Math.cos(dotR));
-                dot.setAttribute('cy', CY + (dist - fs - 4) * Math.sin(dotR));
-                dot.setAttribute('r', 4);
-                dot.setAttribute('fill', '#FFD700');
-                wheelEl.appendChild(dot);
-            }
-
-            wheelEl.appendChild(g);
         });
 
         /* Center mask */
