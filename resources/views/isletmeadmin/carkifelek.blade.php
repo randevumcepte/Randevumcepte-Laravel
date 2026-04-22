@@ -685,6 +685,11 @@
         const n   = slices.length;
         const ang = 360 / n;
 
+        // Dış kenardaki kabarcık yarıçapı — dilim sayısına göre
+        const circR = n <= 6 ? 26 : n <= 8 ? 23 : n <= 10 ? 21 : 19;
+        // Kabarcık merkezi: dış rimden biraz içeride
+        const bubDist = R - circR - 2;
+
         slices.forEach((sl, i) => {
             const sa = i * ang, ea = (i + 1) * ang;
             const sr = (sa - 90) * Math.PI / 180;
@@ -697,75 +702,52 @@
             const path = svgEl('path');
             path.setAttribute('d', `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 ${lg} 1 ${x2} ${y2} Z`);
             path.setAttribute('fill', sl.color);
-            path.setAttribute('stroke', 'rgba(255,255,255,.6)');
-            path.setAttribute('stroke-width', '1.5');
+            path.setAttribute('stroke', 'rgba(255,255,255,.7)');
+            path.setAttribute('stroke-width', '2');
             wheelEl.appendChild(path);
 
-            /* Kazanan: dış kenar altın bandı */
-            if (i === selectedIdx) {
-                const rInner = R - 14;
-                const xi1 = CX + rInner * Math.cos(sr), yi1 = CY + rInner * Math.sin(sr);
-                const xi2 = CX + rInner * Math.cos(er), yi2 = CY + rInner * Math.sin(er);
-                const band = svgEl('path');
-                band.setAttribute('d', `M ${x1} ${y1} A ${R} ${R} 0 ${lg} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${rInner} ${rInner} 0 ${lg} 0 ${xi1} ${yi1} Z`);
-                band.setAttribute('fill', 'rgba(255,215,0,.5)');
-                band.setAttribute('stroke', 'rgba(255,215,0,.8)');
-                band.setAttribute('stroke-width', '1');
-                wheelEl.appendChild(band);
-            }
-
-            /* Radyal yazı — merkez→dış, harfler hiç ters değil */
+            /* Kabarcık (beyaz daire / kazanan → altın) */
             const tAng = sa + ang / 2;
             const tRad = (tAng - 90) * Math.PI / 180;
+            const bx   = CX + bubDist * Math.cos(tRad);
+            const by   = CY + bubDist * Math.sin(tRad);
+            const isWinner = i === selectedIdx;
 
-            // Hub kenarı (36) ile kazanan bandı (R-14=116) arasındaki merkez
-            const hubR  = 36, bandR = R - 14;
-            const dist  = Math.round((hubR + bandR) / 2);   // ≈ 76
-            const radLen = bandR - hubR;                     // ≈ 80px, yazı boyunca radyal alan
+            const circ = svgEl('circle');
+            circ.setAttribute('cx', bx);
+            circ.setAttribute('cy', by);
+            circ.setAttribute('r',  circR);
+            circ.setAttribute('fill',   isWinner ? '#FFD700' : 'white');
+            circ.setAttribute('stroke', isWinner ? '#e6a800' : 'rgba(0,0,0,.15)');
+            circ.setAttribute('stroke-width', isWinner ? '2' : '1');
+            if (isWinner) circ.setAttribute('filter', 'drop-shadow(0 0 4px rgba(255,215,0,.7))');
+            wheelEl.appendChild(circ);
 
-            const tx = CX + dist * Math.cos(tRad);
-            const ty = CY + dist * Math.sin(tRad);
+            /* Kabarcık içi metin — yatay, koyu renk */
+            const label  = buildAutoName(sl);
+            // Kabarcık içine sığan karakter sayısı: yatay chord = 2*circR
+            const fs     = n <= 6 ? 11 : n <= 8 ? 10 : 9;
+            const maxCh  = Math.max(4, Math.floor(circR * 1.7 / (fs * 0.58)));
+            const lh     = fs + 2;
 
-            // Radyal formül: üst yarı tAng-90, alt yarı tAng-270 (flip → harfler dik kalır)
-            const textRot = tAng <= 180 ? tAng - 90 : tAng - 270;
-
-            // Yay genişliği (yazı yüksekliğini kısıtlar): 2·dist·sin(π/n)
-            const arcW = 2 * dist * Math.sin(Math.PI / n);
-            // Font: 2 satır için toplam yükseklik yay genişliğinin %85'ine sığmalı
-            // n≤8 → 2 satır (yay genişliği taşır), n>8 → 1 satır (dar dilimlerde taşma önler)
-            const maxLn = n <= 8 ? 2 : 1;
-            const fs    = Math.min(16, Math.max(11, Math.floor(arcW * 0.85 / (maxLn * 1.25))));
-            const lh    = fs + 3;
-            const maxCh = Math.max(6, Math.floor(radLen / (fs * 0.60)));
-
-            const label = buildAutoName(slices[i]);   // tip+deger'den oluşan etiket
             let lines = wrapText(label, maxCh);
-            if (lines.length > maxLn) {
+            if (lines.length > 2) {
                 lines = [label.length > maxCh ? label.slice(0, maxCh - 1) + '…' : label];
             }
-            const sy = ty - ((lines.length - 1) * lh / 2);
-
-            const g = svgEl('g');
-            g.setAttribute('transform', `rotate(${textRot}, ${tx}, ${ty})`);
+            const sy = by - ((lines.length - 1) * lh / 2);
 
             lines.forEach((ln, li) => {
                 const t = svgEl('text');
-                t.setAttribute('x', tx);
+                t.setAttribute('x', bx);
                 t.setAttribute('y', sy + li * lh);
                 t.setAttribute('text-anchor', 'middle');
                 t.setAttribute('dominant-baseline', 'middle');
                 t.setAttribute('font-size', fs);
-                t.setAttribute('font-weight', '600');
-                t.setAttribute('fill', 'white');
-                t.setAttribute('paint-order', 'stroke');
-                t.setAttribute('stroke', 'rgba(0,0,0,.55)');
-                t.setAttribute('stroke-width', '2.5');
-                t.setAttribute('stroke-linejoin', 'round');
+                t.setAttribute('font-weight', '800');
+                t.setAttribute('fill', isWinner ? '#5c3a00' : '#1a1a2e');
                 t.textContent = ln;
-                g.appendChild(t);
+                wheelEl.appendChild(t);
             });
-
-            wheelEl.appendChild(g);
         });
 
         /* Center mask */
