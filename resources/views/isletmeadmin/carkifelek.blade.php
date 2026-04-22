@@ -707,9 +707,10 @@
             const isWin   = i === selectedIdx;
             const tipObj  = TIPS.find(t => t.id === (sl.tip || 'bos')) || TIPS[4];
 
-            function addText(x, y, content, fs, fw, fill, strokeC, strokeW) {
+            function addText(x, y, content, fs, fw, fill, strokeC, strokeW, rot) {
+                const r = (rot !== undefined) ? rot : textRot;
                 const g = svgEl('g');
-                g.setAttribute('transform', `rotate(${textRot}, ${x}, ${y})`);
+                g.setAttribute('transform', `rotate(${r}, ${x}, ${y})`);
                 const t = svgEl('text');
                 t.setAttribute('x', x); t.setAttribute('y', y);
                 t.setAttribute('text-anchor', 'middle');
@@ -727,7 +728,7 @@
 
             if (tipObj.hasDeger && sl.deger != null) {
                 /* ── Sayısal ödül ─────────────────────────────────────────
-                   Dış kenarda büyük rakam + içeride küçük kategori etiketi */
+                   Dış kenarda büyük rakam (yatay) + içeride küçük kategori etiketi */
 
                 const numDist = R - (n <= 8 ? 21 : 18);   // rim'e yakın
                 const catDist = n <= 8 ? 70 : 62;          // iç bölge
@@ -744,7 +745,7 @@
 
                 const nx = CX + numDist * Math.cos(tRad);
                 const ny = CY + numDist * Math.sin(tRad);
-                addText(nx, ny, numStr, numFs, '900', numFill, numStr2, '3.5');
+                addText(nx, ny, numStr, numFs, '900', numFill, numStr2, '3.5', 0);
 
                 const cx2 = CX + catDist * Math.cos(tRad);
                 const cy2 = CY + catDist * Math.sin(tRad);
