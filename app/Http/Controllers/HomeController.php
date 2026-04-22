@@ -2310,6 +2310,103 @@ $salon = Salonlar::where('domain', $domain)->first();
 
         curl_close($ch);
     }
-   
-    
+    public function sitemap(Request $request)
+    {
+        $domain = str_replace('www.', '', $_SERVER['HTTP_HOST']);
+        $salon = Salonlar::where('domain', $domain)->first();
+        if (!$salon) {
+            abort(404);
+        }
+
+        $aramaterimleri = AramaTerimleri::where('salon_id', $salon->id)->get();
+        $host = 'https://' . $_SERVER['HTTP_HOST'];
+        $urls = [
+            ['loc' => $host . '/', 'priority' => '1.0', 'changefreq' => 'weekly'],
+        ];
+
+        if ($salon->il_id && $salon->ilce_id && $salon->salon_turu_id) {
+            $turu    = self::turkishSlug(optional(SalonTuru::find($salon->salon_turu_id))->salon_turu_adi ?? 'isletme');
+            $il      = self::turkishSlug(optional(Iller::find($salon->il_id))->il_adi ?? '');
+            $ilce    = self::turkishSlug(optional(Ilceler::find($salon->ilce_id))->ilce_adi ?? '');
+            $salonAdi = self::turkishSlug($salon->salon_adi);
+
+            foreach ($aramaterimleri as $keyword) {
+                $arama = self::turkishSlug($keyword->arama_terimi);
+                $urls[] = [
+                    'loc'        => "{$host}/{$turu}/{$il}/{$ilce}/{$salon->id}/{$salonAdi}/{$arama}/{$keyword->id}",
+                    'priority'   => '0.8',
+                    'changefreq' => 'weekly',
+                ];
+            }
+        }
+
+        return response()
+            ->view('sitemap', ['urls' => $urls])
+            ->header('Content-Type', 'application/xml');
+    }
+
+    public function robots(Request $request)
+    {
+        $host = 'https://' . $_SERVER['HTTP_HOST'];
+        return response()
+            ->view('robots', ['host' => $host])
+            ->header('Content-Type', 'text/plain');
+    }
+
+    private static function turkishSlug($text)
+    {
+        return str_replace(' ', '-', str_replace(
+            ['Ç', 'Ğ', 'İ', 'Ö', 'Ş', 'Ü', 'ç', 'ğ', 'ı', 'ö', 'ş', 'ü'],
+            ['C', 'G', 'I', 'O', 'S', 'U', 'c', 'g', 'i', 'o', 's', 'u'],
+            mb_strtolower($text)
+        ));
+    }
+
+    // ── Dinamik Onam Formu (müşteri tarafı) ─────────────────────────────────
+
+    public function onamFormSayfasi(Request $request, $arsiv_id, $user_id)
+    {
+        $arsiv = Arsiv::where('id', $arsiv_id)->first();
+        if (!$arsiv) abort(404);
+
+        $form = FormTaslaklari::where('id', $arsiv->form_id)->first();
+        if (!$form || !$form->is_dinamik) abort(404);
+
+        $isletme = Salonlar::where('id', $arsiv->salon_id)->first();
+        $musteri = User::where('id', $user_id)->first();
+        $sorular = $form->sorular_json ? json_decode($form->sorular_json, true) : [];
+
+        return view('onamform.musteri_form', [
+            'arsiv'         => $arsiv,
+            'isletme'       => $isletme,
+            'musteri'       => $musteri,
+            'form_baslik'   => $form->form_adi,
+            'aciklama'      => $form->aciklama ?? '',
+            'sorular'       => $sorular,
+            'zaten_dolduruldu' => (bool) $arsiv->cevapladi,
+        ]);
+    }
+
+    public function onamFormKaydet(Request $request)
+    {
+        $arsiv = Arsiv::where('id', $request->arsiv_id)->first();
+        if (!$arsiv) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Form bulunamadı.']);
+        }
+
+        if ($arsiv->cevapladi) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Bu form zaten doldurulmuş.']);
+        }
+
+        if (trim($arsiv->dogrulama_kodu) !== trim($request->dogrulama_kodu)) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Onay kodu hatalı. Lütfen SMS ile gelen kodu kontrol edin.']);
+        }
+
+        $arsiv->cevaplar_json = $request->cevaplar_json;
+        $arsiv->musteri_imza  = $request->musteri_imza;
+        $arsiv->cevapladi     = true;
+        $arsiv->save();
+
+        return response()->json(['basarili' => true]);
+    }
 }

@@ -879,9 +879,21 @@
                   @endif
                   @endif
                   @endif
+                  @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  <li>
+                        @if($pageindex==51)
+                        <a href="/isletmeyonetim/form-sablonlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                        @else
+                        <a href="/isletmeyonetim/form-sablonlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                        @endif
+                        <span class="micon bi bi-file-earmark-text"></span
+                           ><span class="mtext">Form Şablonları</span>
+                        </a>
+                  </li>
+                  @endif
                   @if($isletme->uyelik_turu>1)
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
-                  
+
                   <li>
                         @if($pageindex==50)
                         <a href="/isletmeyonetim/arsivyonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -4198,7 +4210,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=222.6')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=222.7')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>

@@ -18654,9 +18654,15 @@ public function arsivformekleme(Request $request){
         $gsm = array();
         $mesajlar = array();
         $mesajlar2 = array();
-        
+
+        // Dinamik form şablonu ise yeni /onam-form URL'ini kullan
+        $isDinamik = FormTaslaklari::where('id', $request->formtaslaklari)->value('is_dinamik');
+        if ($isDinamik && $request->formmusterisec) {
+            $katilim_link = ' Onam formunu doldurmak için: https://'.$_SERVER['HTTP_HOST'].'/onam-form/'.$form->id.'/'.$form->user_id.' | Onay Kodu: '.$kod;
+            array_push($mesajlar, array("to" => $request->formmustericeptelefon, "message" => $katilim_link));
+        }
         // form_id 9 veya 10 ise sadece personele mesaj gönder
-        if ($request->formtaslaklari == 9) {
+        else if ($request->formtaslaklari == 9) {
             // Sadece personele mesaj gönder
            if ($request->formmusterisec) {
                 $katilim_link = ' Formu doldurmak için : https://'.$_SERVER['HTTP_HOST'].'/musteriformdoldurma2/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
@@ -18753,7 +18759,12 @@ public function arsivformekleme(Request $request){
         $form->durum=null;
         $form->save();
         if ($form->user_id) {
-            $katilim_link = ' Formu doldurmak için : https://'.$_SERVER['HTTP_HOST'].'/musteriformdoldurma/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+            $isDinamik = FormTaslaklari::where('id', $form->form_id)->value('is_dinamik');
+            if ($isDinamik) {
+                $katilim_link = ' Onam formunu doldurmak için: https://'.$_SERVER['HTTP_HOST'].'/onam-form/'.$form->id.'/'.$form->user_id.' | Onay Kodu: '.$kod;
+            } else {
+                $katilim_link = ' Formu doldurmak için : https://'.$_SERVER['HTTP_HOST'].'/musteriformdoldurma/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+            }
             if(MusteriPortfoy::where('user_id',$form->user_id)->where('salon_id',$form->salon_id)->value('kara_liste')!=1)
                     array_push($mesajlar, array("to"=>$form->musteri->cep_telefon,"message"=>$katilim_link));
         }
@@ -18792,30 +18803,46 @@ public function arsivformekleme(Request $request){
     }
     public function formindir(Request $request){
         $arsiv = Arsiv::where('id',$request->arsivid)->first();
-        $taslak = FormTaslaklari::where('id',$arsiv->form_id)->value('taslak');
+        $formTaslak = FormTaslaklari::where('id',$arsiv->form_id)->first();
         $harici = $arsiv->uzanti;
-        $baslik=FormTaslaklari::where('id',$arsiv->form_id)->value('form_adi');
+        $baslik = $formTaslak ? $formTaslak->form_adi : 'form';
         $isletme=Salonlar::where('id',self::mevcutsube($request))->first();
-        if($arsiv->form_id!=0){
-               $pdf = PDF::loadView($taslak, [
+        if($arsiv->form_id != 0){
+            if ($formTaslak && $formTaslak->is_dinamik) {
+                $sorular = $formTaslak->sorular_json ? json_decode($formTaslak->sorular_json, true) : [];
+                $cevaplarRaw = $arsiv->cevaplar_json ? json_decode($arsiv->cevaplar_json, true) : [];
+                $cevaplar = [];
+                foreach ($cevaplarRaw as $item) {
+                    $cevaplar[$item['indeks']] = $item['cevap'];
+                }
+                $pdf = PDF::loadView('onamform.dinamik_form_pdf', [
+                    'arsiv'    => $arsiv,
+                    'isletme'  => $isletme,
+                    'sorular'  => $sorular,
+                    'cevaplar' => $cevaplar,
+                    'form_adi' => $baslik,
+                    'aciklama' => $formTaslak->aciklama ?? '',
+                ])->setOptions(['defaultFont' => 'DejaVu Sans']);
+                return $pdf->download($baslik.'.pdf');
+            }
+            $taslak = $formTaslak ? $formTaslak->taslak : null;
+            if (!$taslak) return abort(404);
+            $pdf = PDF::loadView($taslak, [
                 'title' => date('Y-m-d-H-i-s'),
                 'arsiv'=>$arsiv,
                 'isletme'=>$isletme
-            ])->setOptions(['defaultFont' => 'sans-serif',
-            ]);
-             return $pdf->download($baslik.'.pdf');
-             exit();
+            ])->setOptions(['defaultFont' => 'sans-serif']);
+            return $pdf->download($baslik.'.pdf');
         }
         else{
-         return $pdf = response()->download($harici);
-            exit();
+            return response()->download($harici);
         }
     }
-     public function formyazdir(Request $request)
+    public function formyazdir(Request $request)
     {
         $arsiv = Arsiv::where('id',$request->arsiv_id)->first();
-        $taslak = FormTaslaklari::where('id',$arsiv->form_id)->value('taslak2');
-        $baslik=FormTaslaklari::where('id',$arsiv->form_id)->value('form_adi');
+        $formTaslak = FormTaslaklari::where('id',$arsiv->form_id)->first();
+        $baslik = $formTaslak ? $formTaslak->form_adi : 'form';
         $isletme=Salonlar::where('id',self::mevcutsube($request))->first();
         if(isset($request->bildirimid))
         {
@@ -18823,13 +18850,31 @@ public function arsivformekleme(Request $request){
             $bildirim->okundu = true;
             $bildirim->save();
         }
-                   $html = view($taslak, [
-                    'title' => date('Y-m-d-H-i-s'),
-                    'arsiv'=>$arsiv,
-                    'isletme'=>$isletme
-                ]);
-                return $html->render();
-                exit();
+        if ($formTaslak && $formTaslak->is_dinamik) {
+            $sorular = $formTaslak->sorular_json ? json_decode($formTaslak->sorular_json, true) : [];
+            $cevaplarRaw = $arsiv->cevaplar_json ? json_decode($arsiv->cevaplar_json, true) : [];
+            $cevaplar = [];
+            foreach ($cevaplarRaw as $item) {
+                $cevaplar[$item['indeks']] = $item['cevap'];
+            }
+            $html = view('onamform.dinamik_form_pdf', [
+                'arsiv'    => $arsiv,
+                'isletme'  => $isletme,
+                'sorular'  => $sorular,
+                'cevaplar' => $cevaplar,
+                'form_adi' => $baslik,
+                'aciklama' => $formTaslak->aciklama ?? '',
+            ]);
+            return $html->render();
+        }
+        $taslak = $formTaslak ? $formTaslak->taslak2 : null;
+        if (!$taslak) return abort(404);
+        $html = view($taslak, [
+            'title' => date('Y-m-d-H-i-s'),
+            'arsiv'=>$arsiv,
+            'isletme'=>$isletme
+        ]);
+        return $html->render();
     }
     public function arsivonaylaform(Request $request){
         $form = Arsiv::where('id',$request->arsiv_id)->first();
@@ -21714,6 +21759,107 @@ DB::raw('
             return response()->json(['status'=>'error','message'=>'Bu kategoride hizmetler bulunmaktadır. Önce hizmetleri siliniz.']);
         }
         return response()->json(['status'=>'success','message'=>'Kategori başarıyla silindi']);
+    }
+
+    // ── Dinamik Form Şablonları ──────────────────────────────────────────────
+
+    private function dinamikFormKolonlariOlustur(){
+        try {
+            $cols = array_column(\DB::select("SHOW COLUMNS FROM formtaslaklari"), 'Field');
+            if(!in_array('is_dinamik',$cols)){
+                \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN aciklama TEXT NULL AFTER form_adi");
+                \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN sorular_json TEXT NULL AFTER aciklama");
+                \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN is_dinamik TINYINT(1) NOT NULL DEFAULT 0 AFTER sorular_json");
+            }
+            $arsivCols = array_column(\DB::select("SHOW COLUMNS FROM arsiv"), 'Field');
+            if(!in_array('cevaplar_json',$arsivCols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN cevaplar_json TEXT NULL AFTER dogrulama_kodu");
+            }
+        } catch(\Exception $e){
+            \Log::error('Dinamik form kolon oluşturma hatası: '.$e->getMessage());
+        }
+    }
+
+    public function formSablonlari(Request $request){
+        $this->dinamikFormKolonlariOlustur();
+        $isletmeler = '';
+        $isletme = '';
+        if(Auth::guard('satisortakligi')->check()){
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+        if(!in_array(self::mevcutsube($request),$isletmeler)){
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(!Auth::guard('satisortakligi')->check()){
+            if(self::personelmi($request)){
+                return redirect()->route('isletmeadmin.randevular');
+            }
+        }
+        $paketler = self::paket_liste_getir('',true,$request);
+        $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
+        $formlar = FormTaslaklari::where('is_dinamik',1)->where('salon_id',self::mevcutsube($request))->orderByDesc('id')->get();
+        return view('isletmeadmin.form_sablonlari',[
+            'bildirimler' => self::bildirimgetir($request),
+            'paketler' => $paketler,
+            'sayfa_baslik' => 'Form Şablonları',
+            'pageindex' => 51,
+            'isletme' => $isletme,
+            'kalan_uyelik_suresi' => $kalan_uyelik_suresi,
+            'yetkiliolunanisletmeler' => $isletmeler,
+            'formlar' => $formlar,
+        ]);
+    }
+
+    public function formSablonlariGetir(Request $request){
+        $sube = self::mevcutsube($request);
+        $form = FormTaslaklari::where('id',$request->id)->where('salon_id',$sube)->first();
+        if(!$form){
+            return response()->json(['hata'=>true]);
+        }
+        return response()->json($form);
+    }
+
+    public function formSablonlariKaydet(Request $request){
+        $sube = self::mevcutsube($request);
+        $form = new FormTaslaklari();
+        $form->salon_id = $sube;
+        $form->form_adi = $request->form_adi;
+        $form->aciklama = $request->aciklama;
+        $form->sorular_json = $request->sorular_json;
+        $form->is_dinamik = true;
+        $form->save();
+        return response()->json(['basarili'=>true,'id'=>$form->id]);
+    }
+
+    public function formSablonlariGuncelle(Request $request){
+        $sube = self::mevcutsube($request);
+        $form = FormTaslaklari::where('id',$request->form_id)->where('salon_id',$sube)->first();
+        if(!$form){
+            return response()->json(['basarili'=>false,'mesaj'=>'Form bulunamadı.']);
+        }
+        $form->form_adi = $request->form_adi;
+        $form->aciklama = $request->aciklama;
+        $form->sorular_json = $request->sorular_json;
+        $form->save();
+        return response()->json(['basarili'=>true]);
+    }
+
+    public function formSablonlariSil(Request $request){
+        $sube = self::mevcutsube($request);
+        $form = FormTaslaklari::where('id',$request->form_id)->where('salon_id',$sube)->first();
+        if(!$form){
+            return response()->json(['basarili'=>false,'mesaj'=>'Form bulunamadı.']);
+        }
+        $kullanimSayisi = Arsiv::where('form_id',$form->id)->count();
+        if($kullanimSayisi > 0){
+            return response()->json(['basarili'=>false,'mesaj'=>'Bu form şablonu '.$kullanimSayisi.' kayıtta kullanılmaktadır. Silinemez.']);
+        }
+        $form->delete();
+        return response()->json(['basarili'=>true]);
     }
 
 }

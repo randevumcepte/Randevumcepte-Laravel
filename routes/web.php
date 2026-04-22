@@ -64,11 +64,20 @@ Route::get('/save-excel', function () {
     	return view('odemebasarisiz');
     });*/
      Route::post('/webhook','HomeController@webhook');
+
+    // Deploy tetikleyici — sunucuyu git pull + migrate çalıştırır (kullanımdan sonra silin)
+    Route::get('/deploy-trigger-rm2026', function() {
+        $flag = storage_path('.deploy-flag');
+        file_put_contents($flag, date('Y-m-d H:i:s'));
+        return 'Deploy tetiklendi. Yaklaşık 1 dakika içinde sunucu güncellenecek.';
+    });
     Route::get('/bulkmailgonder','MailController@test');
     Route::get('/smsgonder','SMSController@sendSMS');
     Route::get('/isletmeyonetim/seopaketleri','HomeController@seobasvuru');
 	 Route::get('/musteriformdoldurma/{id}/{userid}','HomeController@arsivmusteriform');
 	 	 Route::get('/musteriformdoldurma2/{id}/{userid}','HomeController@arsivmusteriform2');
+	 Route::get('/onam-form/{arsiv_id}/{user_id}','HomeController@onamFormSayfasi');
+	 Route::post('/onam-form-kaydet','HomeController@onamFormKaydet');
 	 	 Route::get('/musteriformdoldurma3/{id}/{userid}','HomeController@arsivmusteriform3');
 
 	
@@ -101,8 +110,10 @@ Route::get('/save-excel', function () {
    Route::get('/sifregonder','HomeController@sifregonder');
    Route::get('/sifregonder2','HomeController@sifregonder2');
    Route::post('/salonlar','HomeController@salonara')->name('salonara');
-	Route::get('/{isletme_adi}-{isletme_id}', 'HomeController@salonDetay_anasayfa')->name('salondetaylari'); 
-	Route::get('/', 'HomeController@salonDetay'); 
+	Route::get('/sitemap.xml', 'HomeController@sitemap');
+	Route::get('/robots.txt', 'HomeController@robots');
+	Route::get('/{isletme_adi}-{isletme_id}', 'HomeController@salonDetay_anasayfa')->name('salondetaylari');
+	Route::get('/', 'HomeController@salonDetay');
 	//Route::get('/', 'HomeController@salonDetay_anasayfa'); 
 	Route::get('/avantajsatinal/{kampanyaid}','HomeController@avantajsatinal');
 	Route::get('/{isletme_turu}/{il}/{ilce}/{isletme_id}/{isletme_adi}/{arama_terimi}/{arama_terim_id}', 'HomeController@salonDetay_altsayfa')->name('salondetaylari_altsayfa'); 
@@ -554,6 +565,11 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/santral-token','StoreAdminController@santral_token_al');
 	Route::get('/arsivyonetimi','StoreAdminController@arsivyonetimi')->name('isletmeadmin.arsivyonetimi');
 	Route::get('/formolusturma','StoreAdminController@formolusturma')->name('isletmeadmin.formolusturma');
+	Route::get('/form-sablonlari','StoreAdminController@formSablonlari')->name('isletmeadmin.formSablonlari');
+	Route::get('/form-sablonlari-getir','StoreAdminController@formSablonlariGetir');
+	Route::post('/form-sablonlari-kaydet','StoreAdminController@formSablonlariKaydet');
+	Route::post('/form-sablonlari-guncelle','StoreAdminController@formSablonlariGuncelle');
+	Route::post('/form-sablonlari-sil','StoreAdminController@formSablonlariSil');
 	Route::get('/formmusteribilgigetir','StoreAdminController@formmusteribilgigetir');
 	Route::get('/formpersonelbilgigetir','StoreAdminController@formpersonelbilgigetir');
 	Route::get('/onamformmikropdf', 'StoreAdminController@onamformindir')->name('download');

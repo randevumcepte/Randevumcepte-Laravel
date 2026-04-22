@@ -21,12 +21,24 @@
                         <div class="col-md-3 col-sm-6 col-xs-6 col-6 form-group">
                             <label>Form/Sözleşme Türü</label>
                             <select name="formtaslaklari" id="formtaslaklari" class="form-control opsiyonelSelect" style="width: 100%;">
-                                @foreach(\App\FormTaslaklari::where('salon_id',$isletme->id)->orWhereNull('salon_id')->get() as $formTaslak)
-                                <option></option>
-                                <option value="{{$formTaslak->id}}">{{$formTaslak->form_adi}}</option>
-                                @endforeach
-                              
-
+                                @php
+                                    $sistemFormlari = \App\FormTaslaklari::whereNull('salon_id')->get();
+                                    $salonFormlari  = \App\FormTaslaklari::where('salon_id',$isletme->id)->get();
+                                @endphp
+                                @if($salonFormlari->count())
+                                <optgroup label="— Özel Formlarınız —">
+                                    @foreach($salonFormlari as $formTaslak)
+                                    <option value="{{$formTaslak->id}}" data-dinamik="{{$formTaslak->is_dinamik ? '1' : '0'}}">{{$formTaslak->form_adi}}</option>
+                                    @endforeach
+                                </optgroup>
+                                @endif
+                                @if($sistemFormlari->count())
+                                <optgroup label="— Sistem Formları —">
+                                    @foreach($sistemFormlari as $formTaslak)
+                                    <option value="{{$formTaslak->id}}" data-dinamik="0">{{$formTaslak->form_adi}}</option>
+                                    @endforeach
+                                </optgroup>
+                                @endif
                             </select>
                         </div>
                         <div class="col-md-3 col-sm-6 col-xs-6 col-6 form-group">
