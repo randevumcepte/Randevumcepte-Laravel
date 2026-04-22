@@ -703,29 +703,29 @@
 
             /* Kazanan: dış kenar altın bandı */
             if (i === selectedIdx) {
-                const rInner = R - 16;
+                const rInner = R - 14;
                 const xi1 = CX + rInner * Math.cos(sr), yi1 = CY + rInner * Math.sin(sr);
                 const xi2 = CX + rInner * Math.cos(er), yi2 = CY + rInner * Math.sin(er);
                 const band = svgEl('path');
                 band.setAttribute('d', `M ${x1} ${y1} A ${R} ${R} 0 ${lg} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${rInner} ${rInner} 0 ${lg} 0 ${xi1} ${yi1} Z`);
-                band.setAttribute('fill', 'rgba(255,215,0,.45)');
-                band.setAttribute('stroke', 'none');
+                band.setAttribute('fill', 'rgba(255,215,0,.5)');
+                band.setAttribute('stroke', 'rgba(255,215,0,.8)');
+                band.setAttribute('stroke-width', '1');
                 wheelEl.appendChild(band);
             }
 
-            /* Yatay yazı — rotate YOK */
-            const tAng = sa + ang / 2;
+            /* Radyal yazı — merkez→dış, harfler hiç ters değil */
+            const tAng = sa + ang / 2;         // dilim orta açısı (0=üst, saat yönü)
             const tRad = (tAng - 90) * Math.PI / 180;
-            // yazı mesafesi: kazanan bantta yer açmak için biraz daha içe al
-            const dist = n <= 6 ? 80 : n <= 8 ? 76 : n <= 10 ? 72 : 68;
+            const dist = n <= 6 ? 82 : n <= 8 ? 79 : n <= 10 ? 75 : 70;
             const tx   = CX + dist * Math.cos(tRad);
             const ty   = CY + dist * Math.sin(tRad);
 
-            // font büyüklüğü tablosu
-            const fs    = n <= 6 ? 11 : n <= 8 ? 10 : n <= 10 ? 9 : 8;
-            // yatay genişlik ≈ chord: 2*dist*sin(π/n), karakter başı ~fs*0.6px
-            const chW   = Math.floor((2 * dist * Math.sin(Math.PI / n)) / (fs * 0.62));
-            const maxCh = Math.max(4, Math.min(chW, 12));
+            // Radyal formül: üst yarı tAng-90, alt yarı tAng-270 (flip → harfler dik kalır)
+            const textRot = tAng <= 180 ? tAng - 90 : tAng - 270;
+
+            const fs    = n <= 6 ? 12 : n <= 8 ? 10 : n <= 10 ? 9 : 8;
+            const maxCh = n <= 6 ? 11 : n <= 8 ? 9 : n <= 10 ? 7 : 6;
             const maxLn = n <= 8 ? 2 : 1;
             const lh    = fs + 3;
 
@@ -735,6 +735,9 @@
                 lines = [full.length > maxCh ? full.slice(0, maxCh - 1) + '…' : full];
             }
             const sy = ty - ((lines.length - 1) * lh / 2);
+
+            const g = svgEl('g');
+            g.setAttribute('transform', `rotate(${textRot}, ${tx}, ${ty})`);
 
             lines.forEach((ln, li) => {
                 const t = svgEl('text');
@@ -746,12 +749,14 @@
                 t.setAttribute('font-weight', '800');
                 t.setAttribute('fill', 'white');
                 t.setAttribute('paint-order', 'stroke');
-                t.setAttribute('stroke', 'rgba(0,0,0,.5)');
+                t.setAttribute('stroke', 'rgba(0,0,0,.55)');
                 t.setAttribute('stroke-width', '2.5');
                 t.setAttribute('stroke-linejoin', 'round');
                 t.textContent = ln;
-                wheelEl.appendChild(t);  // doğrudan wheelEl'e ekle (g transform yok)
+                g.appendChild(t);
             });
+
+            wheelEl.appendChild(g);
         });
 
         /* Center mask */
