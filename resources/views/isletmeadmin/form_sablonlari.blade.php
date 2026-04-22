@@ -136,9 +136,6 @@
    </div>
 </div>
 
-@endsection
-
-@section('js')
 <script>
 var soruSayaci = 0;
 var silinecekFormId = null;
@@ -379,3 +376,4 @@ $('#silOnayBtn').click(function() {
 });
 </script>
 @endsection
+
