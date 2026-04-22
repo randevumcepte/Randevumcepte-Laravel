@@ -790,10 +790,16 @@
         spinBtn.disabled = true;
         spinBtn.textContent = '⏳ Çevriliyor...';
 
-        const tIdx    = weightedRandom();
-        const ang     = 360 / slices.length;
-        const offset  = 360 - (tIdx + 0.5) * ang;
-        const nSpins  = (5 + Math.floor(Math.random() * 4)) * 360;
+        const tIdx   = weightedRandom();
+        const ang    = 360 / slices.length;
+
+        // Kazanan dilimdeki rastgele bir nokta (merkez ± %40 genişlik)
+        // — görünüm doğal, ama kazanan dilim içinde kalır
+        const jitter  = (Math.random() - 0.5) * ang * 0.8;
+        const stopAt  = (tIdx + 0.5) * ang + jitter;          // orijinal çarktaki açı (üstten CW)
+        const offset  = ((360 - stopAt) % 360 + 360) % 360;   // döndürme miktarı (mod 360)
+
+        const nSpins  = (6 + Math.floor(Math.random() * 4)) * 360;
         const curMod  = ((currentRot % 360) + 360) % 360;
         let   diff    = offset - curMod;
         if (diff < 0) diff += 360;
@@ -806,9 +812,18 @@
             spinning = false;
             spinBtn.disabled = false;
             spinBtn.textContent = '🎲 Test Et';
-            showResultModal(tIdx);
+            // Sonucu görselden oku — visual ile modal her zaman aynı
+            showResultModal(sliceAtPointer());
         }, 5700);
     };
+
+    // Animasyon bittikten sonra ok'un gösterdiği dilimi hesapla
+    function sliceAtPointer() {
+        const ang    = 360 / slices.length;
+        const rotMod = ((currentRot % 360) + 360) % 360;
+        const atTop  = (360 - rotMod + 360) % 360;   // orijinal çarktaki açı
+        return Math.floor(atTop / ang) % slices.length;
+    }
 
     function weightedRandom() {
         const total = slices.reduce((s, sl) => s + sl.probability, 0);
