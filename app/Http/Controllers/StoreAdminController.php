@@ -403,12 +403,13 @@ public function carkverilerigetir(Request $request)
             ->map(function ($dilim) {
                 return [
                     'name' => $dilim->dilim_ismi,
-                    'probability' => $dilim->dilim_olasilik,
+                    'probability' => (int)$dilim->dilim_olasilik,
                     'color' => $dilim->renk_kodu,
-                    'kupon_mu' => (int)$dilim->kupon_mu, // INTEGER OLARAK GÖNDER
+                    'kupon_mu' => (int)$dilim->kupon_mu,
                     'sira' => $dilim->sira
                 ];
-            });
+            })
+            ->values();
         
         return response()->json([
             'success' => true,

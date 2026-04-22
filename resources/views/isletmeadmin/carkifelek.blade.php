@@ -537,28 +537,25 @@
 
             if (data.success && data.data) {
                 isWheelActive = data.data.aktifmi == 1;
-                updateStatusUI();
 
                 if (data.data.dilimler && data.data.dilimler.length > 0) {
                     slices = data.data.dilimler.map(dilim => ({
                         name: dilim.name,
                         color: dilim.color || colorPalette[Math.floor(Math.random() * colorPalette.length)],
-                        probability: dilim.probability
+                        probability: parseInt(dilim.probability) || 1
                     }));
 
                     sliceCountInput.value = slices.length;
-                    renderWheel();
-                    renderSlicesList();
-                    updateTotalProbability();
                 }
             }
         } catch (error) {
             console.error('Cark verileri yuklenirken hata:', error);
-            renderWheel();
-            renderSlicesList();
-            updateTotalProbability();
-            updateStatusUI();
         }
+
+        renderWheel();
+        renderSlicesList();
+        updateTotalProbability();
+        updateStatusUI();
     }
 
     function renderWheel() {
