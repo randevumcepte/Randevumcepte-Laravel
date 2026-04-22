@@ -333,20 +333,29 @@ function formKaydet() {
    var formId = $('#form_id_gizli').val();
    var url = formId ? '/isletmeyonetim/form-sablonlari-guncelle' : '/isletmeyonetim/form-sablonlari-kaydet';
 
-   $.post(url, {
-      _token: $('input[name=_token]').first().val(),
-      sube: '{{$isletme->id}}',
-      form_id: formId,
-      form_adi: formAdi,
-      aciklama: $('#form_aciklama_input').val(),
-      sorular_json: JSON.stringify(sorular)
-   }, function(resp) {
-      if (resp && resp.basarili) {
-         Swal.fire('Başarılı', formId ? 'Form güncellendi.' : 'Form oluşturuldu.', 'success').then(function() {
-            location.reload();
-         });
-      } else {
-         Swal.fire('Hata', resp.mesaj || 'Bir hata oluştu.', 'error');
+   $.ajax({
+      url: url,
+      type: 'POST',
+      dataType: 'json',
+      data: {
+         _token: $('meta[name=csrf-token]').attr('content') || $('input[name=_token]').first().val(),
+         sube: '{{$isletme->id}}',
+         form_id: formId,
+         form_adi: formAdi,
+         aciklama: $('#form_aciklama_input').val(),
+         sorular_json: JSON.stringify(sorular)
+      },
+      success: function(resp) {
+         if (resp && resp.basarili) {
+            Swal.fire('Başarılı', formId ? 'Form güncellendi.' : 'Form oluşturuldu.', 'success').then(function() {
+               location.reload();
+            });
+         } else {
+            Swal.fire('Hata', (resp && resp.mesaj) ? resp.mesaj : 'Bir hata oluştu.', 'error');
+         }
+      },
+      error: function(xhr) {
+         Swal.fire('Hata', 'Sunucu hatası: ' + xhr.status + ' - ' + xhr.statusText, 'error');
       }
    });
 }

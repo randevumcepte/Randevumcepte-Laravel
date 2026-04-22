@@ -21824,28 +21824,40 @@ DB::raw('
     }
 
     public function formSablonlariKaydet(Request $request){
-        $sube = self::mevcutsube($request);
-        $form = new FormTaslaklari();
-        $form->salon_id = $sube;
-        $form->form_adi = $request->form_adi;
-        $form->aciklama = $request->aciklama;
-        $form->sorular_json = $request->sorular_json;
-        $form->is_dinamik = true;
-        $form->save();
-        return response()->json(['basarili'=>true,'id'=>$form->id]);
+        try {
+            $this->dinamikFormKolonlariOlustur();
+            $sube = self::mevcutsube($request);
+            $form = new FormTaslaklari();
+            $form->salon_id = $sube;
+            $form->form_adi = $request->form_adi;
+            $form->aciklama = $request->aciklama;
+            $form->sorular_json = $request->sorular_json;
+            $form->is_dinamik = 1;
+            $form->save();
+            return response()->json(['basarili'=>true,'id'=>$form->id]);
+        } catch(\Exception $e){
+            \Log::error('formSablonlariKaydet hata: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
     }
 
     public function formSablonlariGuncelle(Request $request){
-        $sube = self::mevcutsube($request);
-        $form = FormTaslaklari::where('id',$request->form_id)->where('salon_id',$sube)->first();
-        if(!$form){
-            return response()->json(['basarili'=>false,'mesaj'=>'Form bulunamadı.']);
+        try {
+            $this->dinamikFormKolonlariOlustur();
+            $sube = self::mevcutsube($request);
+            $form = FormTaslaklari::where('id',$request->form_id)->where('salon_id',$sube)->first();
+            if(!$form){
+                return response()->json(['basarili'=>false,'mesaj'=>'Form bulunamadı.']);
+            }
+            $form->form_adi = $request->form_adi;
+            $form->aciklama = $request->aciklama;
+            $form->sorular_json = $request->sorular_json;
+            $form->save();
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            \Log::error('formSablonlariGuncelle hata: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
-        $form->form_adi = $request->form_adi;
-        $form->aciklama = $request->aciklama;
-        $form->sorular_json = $request->sorular_json;
-        $form->save();
-        return response()->json(['basarili'=>true]);
     }
 
     public function formSablonlariSil(Request $request){
