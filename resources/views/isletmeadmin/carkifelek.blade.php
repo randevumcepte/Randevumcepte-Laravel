@@ -938,6 +938,7 @@
                 body: JSON.stringify({ dilimler: payload, aktifmi: isActive ? 1 : 0 })
             });
             const data = await res.json();
+            console.log('[Çark kaydet] yanıt:', data);
             if (data.success) {
                 if (!statusOnly) {
                     showToast('Ayar kaydedildi! 🎉', 'success');

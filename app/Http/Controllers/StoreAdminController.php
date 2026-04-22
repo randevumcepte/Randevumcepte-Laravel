@@ -327,37 +327,43 @@ public function carkdilimekle(Request $request)
             Log::info('Mevcut çark güncellendi. ID: ' . $carkifelek->id . ', Aktif mi: ' . $carkifelek->aktifmi);
         }
         
+        // tip/deger kolonlarının tabloda var mı kontrol et (migration yoksa skip)
+        $hasTip   = \Schema::hasColumn('carkifelek_dilimleri', 'tip');
+        $hasDeger = \Schema::hasColumn('carkifelek_dilimleri', 'deger');
+
         // Önce mevcut dilimleri sil
         $deletedCount = CarkifelekDilimleri::where('cark_id', $carkifelek->id)->delete();
         Log::info('Silinen eski dilim sayısı: ' . $deletedCount);
-        
+
         // Yeni dilimleri ekle
         $savedSlices = [];
         foreach ($cleanedDilimler as $index => $dilim) {
-            $slice = CarkifelekDilimleri::create([
+            $row = [
                 'cark_id'        => $carkifelek->id,
                 'dilim_ismi'     => $dilim['name'],
                 'dilim_olasilik' => $dilim['probability'],
                 'renk_kodu'      => $dilim['color'],
-                'tip'            => $dilim['tip'],
-                'deger'          => $dilim['deger'],
                 'kupon_mu'       => $dilim['kupon_mu'],
                 'sira'           => $index + 1,
                 'created_at'     => now(),
-                'updated_at'     => now()
-            ]);
+                'updated_at'     => now(),
+            ];
+            if ($hasTip)   $row['tip']   = $dilim['tip'];
+            if ($hasDeger) $row['deger'] = $dilim['deger'];
+
+            $slice = CarkifelekDilimleri::create($row);
 
             $savedSlices[] = [
                 'id'             => $slice->id,
                 'dilim_ismi'     => $slice->dilim_ismi,
                 'dilim_olasilik' => (int)$slice->dilim_olasilik,
                 'renk_kodu'      => $slice->renk_kodu,
-                'tip'            => $slice->tip,
-                'deger'          => $slice->deger,
+                'tip'            => $hasTip   ? $slice->tip   : 'bos',
+                'deger'          => $hasDeger ? $slice->deger : null,
                 'kupon_mu'       => (int)$slice->kupon_mu,
-                'sira'           => $slice->sira
+                'sira'           => $slice->sira,
             ];
-            
+
             Log::info('Dilim kaydedildi: ' . $slice->dilim_ismi . ' - Olasılık: ' . $slice->dilim_olasilik);
         }
         
@@ -411,16 +417,19 @@ public function carkverilerigetir(Request $request)
             ]);
         }
         
+        $hasTip   = \Schema::hasColumn('carkifelek_dilimleri', 'tip');
+        $hasDeger = \Schema::hasColumn('carkifelek_dilimleri', 'deger');
+
         $dilimler = CarkifelekDilimleri::where('cark_id', $carkifelek->id)
             ->orderBy('sira', 'asc')
             ->get()
-            ->map(function ($dilim) {
+            ->map(function ($dilim) use ($hasTip, $hasDeger) {
                 return [
                     'name'        => $dilim->dilim_ismi,
                     'probability' => (int)$dilim->dilim_olasilik,
                     'color'       => $dilim->renk_kodu,
-                    'tip'         => $dilim->tip   ?? 'bos',
-                    'deger'       => $dilim->deger !== null ? (float)$dilim->deger : null,
+                    'tip'         => $hasTip   ? ($dilim->tip ?? 'bos') : 'bos',
+                    'deger'       => $hasDeger && $dilim->deger !== null ? (float)$dilim->deger : null,
                     'kupon_mu'    => (int)$dilim->kupon_mu,
                     'sira'        => $dilim->sira
                 ];
