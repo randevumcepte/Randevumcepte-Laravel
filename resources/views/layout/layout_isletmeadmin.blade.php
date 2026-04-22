@@ -2,6 +2,7 @@
    <head>
       <!-- Basic Page Info -->
       <meta charset="utf-8" />
+      <meta name="csrf-token" content="{{ csrf_token() }}">
       <title>{{$sayfa_baslik}} | {{$isletme->salon_adi}} Yönetim Paneli</title>
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
       
