@@ -977,7 +977,7 @@
                         ><span class="mtext">Ajanda</span>
                      </a>
                   </li>
-                      <li style="display:none;">
+                      <li>
                      @if($pageindex==500)
                      <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
