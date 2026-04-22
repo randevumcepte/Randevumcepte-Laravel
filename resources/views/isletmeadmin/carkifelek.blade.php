@@ -728,7 +728,7 @@
 
             if (tipObj.hasDeger && sl.deger != null) {
                 /* ── Sayısal ödül ─────────────────────────────────────────
-                   Dilim ortasında üst üste: büyük rakam (yatay) + küçük etiket (yatay) */
+                   Dilime teğet (tangential) yönde: büyük rakam + küçük etiket üst üste */
 
                 const dist   = n <= 8 ? 82 : 72;
                 const tx     = CX + dist * Math.cos(tRad);
@@ -745,10 +745,28 @@
                 const numFill = isWin ? '#FFD700' : 'white';
                 const numStrk = isWin ? 'rgba(100,55,0,.95)' : 'rgba(0,0,0,.75)';
 
-                // Rakam ve etiket dikey ortalanmış: rakam üstte, etiket altta
                 const totalH = numFs + gap + catFs;
-                addText(tx, ty - totalH / 2 + numFs / 2,  numStr, numFs, '900', numFill, numStrk, '3.5', 0);
-                addText(tx, ty + totalH / 2 - catFs / 2,  catStr, catFs, '700', 'rgba(255,255,255,.92)', 'rgba(0,0,0,.5)', '2', 0);
+                const numYOff = -totalH / 2 + numFs / 2;
+                const catYOff =  totalH / 2 - catFs / 2;
+
+                // Tek grup — tAng kadar döndür (dilime teğet, referans görsel gibi)
+                const tg = svgEl('g');
+                tg.setAttribute('transform', `rotate(${tAng}, ${tx}, ${ty})`);
+
+                function mkT(yOff, txt, fs, fw, fill, strk, sw) {
+                    const t = svgEl('text');
+                    t.setAttribute('x', tx); t.setAttribute('y', ty + yOff);
+                    t.setAttribute('text-anchor', 'middle');
+                    t.setAttribute('dominant-baseline', 'middle');
+                    t.setAttribute('font-size', fs); t.setAttribute('font-weight', fw);
+                    t.setAttribute('fill', fill); t.setAttribute('paint-order', 'stroke');
+                    t.setAttribute('stroke', strk); t.setAttribute('stroke-width', sw);
+                    t.setAttribute('stroke-linejoin', 'round');
+                    t.textContent = txt; return t;
+                }
+                tg.appendChild(mkT(numYOff, numStr, numFs, '900', numFill, numStrk, '3.5'));
+                tg.appendChild(mkT(catYOff, catStr, catFs, '700', 'rgba(255,255,255,.92)', 'rgba(0,0,0,.5)', '2'));
+                wheelEl.appendChild(tg);
 
             } else {
                 /* ── Metin ödülü (Tekrar Dene / Boş / özel isim) ─────────
