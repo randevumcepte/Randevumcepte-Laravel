@@ -993,24 +993,9 @@
             if (data.success) {
                 if (!statusOnly) {
                     showToast('Ayar kaydedildi! 🎉', 'success');
-                    // Sunucudan gelen veriyi yalnızca migration çalıştıysa kullan
-                    // (tip/deger kolonu varsa); yoksa client state'i koru
-                    const srv = data.data && data.data.dilimler;
-                    const serverHasTip = srv && srv.length && srv[0].tip && srv[0].tip !== 'bos'
-                                        || (srv && slices.some(s => s.tip !== 'bos'));
-                    if (srv && serverHasTip) {
-                        slices = srv.map((d, idx) => ({
-                            name:        d.dilim_ismi,
-                            color:       d.renk_kodu,
-                            probability: parseInt(d.dilim_olasilik) || 0,
-                            tip:         d.tip   || slices[idx]?.tip  || 'bos',
-                            deger:       d.deger != null ? parseFloat(d.deger) : (slices[idx]?.deger ?? null),
-                        }));
-                    }
-                    // Kazanan güncelle, count yaz, state ile render
-                    const found = slices.findIndex(s => s.probability === 100);
-                    if (found >= 0) selectedIdx = found;
-                    cntVal.textContent = slices.length;
+                    // Sunucu yanıtıyla slices'i ASLA güncelleme.
+                    // Kayıt başarılıysa mevcut client state doğrudur; üzerine yazmak
+                    // migration çalışmamışsa tip/deger kaybına yol açar.
                     render();
                 }
             } else {
