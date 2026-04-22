@@ -732,16 +732,16 @@
             // Yay genişliği (yazı yüksekliğini kısıtlar): 2·dist·sin(π/n)
             const arcW = 2 * dist * Math.sin(Math.PI / n);
             // Font: 2 satır için toplam yükseklik yay genişliğinin %85'ine sığmalı
-            const maxLn = 2;
+            // n≤8 → 2 satır (yay genişliği taşır), n>8 → 1 satır (dar dilimlerde taşma önler)
+            const maxLn = n <= 8 ? 2 : 1;
             const fs    = Math.min(16, Math.max(11, Math.floor(arcW * 0.85 / (maxLn * 1.25))));
             const lh    = fs + 3;
-            // Radyal yön boyunca kaç karakter sığar (karakter genişliği ≈ fs × 0.6)
             const maxCh = Math.max(6, Math.floor(radLen / (fs * 0.60)));
 
-            let lines = wrapText(sl.name, maxCh);
+            const label = buildAutoName(slices[i]);   // tip+deger'den oluşan etiket
+            let lines = wrapText(label, maxCh);
             if (lines.length > maxLn) {
-                const full = sl.name.replace(/\s+/g, ' ');
-                lines = [full.length > maxCh ? full.slice(0, maxCh - 1) + '…' : full];
+                lines = [label.length > maxCh ? label.slice(0, maxCh - 1) + '…' : label];
             }
             const sy = ty - ((lines.length - 1) * lh / 2);
 
@@ -755,7 +755,7 @@
                 t.setAttribute('text-anchor', 'middle');
                 t.setAttribute('dominant-baseline', 'middle');
                 t.setAttribute('font-size', fs);
-                t.setAttribute('font-weight', '800');
+                t.setAttribute('font-weight', '600');
                 t.setAttribute('fill', 'white');
                 t.setAttribute('paint-order', 'stroke');
                 t.setAttribute('stroke', 'rgba(0,0,0,.55)');
@@ -817,13 +817,23 @@
         });
     }
 
+    /* tip + deger'den otomatik etiket üretir — çark ve modal aynı değeri gösterir */
+    function buildAutoName(sl) {
+        const d = sl.deger;
+        switch (sl.tip) {
+            case 'puan':            return d != null ? d + ' Puan'       : (sl.name || 'Puan');
+            case 'hizmet_indirimi': return d != null ? '%' + d + ' Hizmet' : (sl.name || 'Hizmet İnd.');
+            case 'urun_indirimi':   return d != null ? '%' + d + ' Ürün'   : (sl.name || 'Ürün İnd.');
+            case 'tekrar_dene':     return 'Tekrar Dene';
+            case 'bos':             return 'Boş';
+            default:                return sl.name || 'Ödül';
+        }
+    }
+
     function updateWinnerUI() {
         const sl = slices[selectedIdx];
         if (!sl) { winnerName.textContent = 'Seçilmedi'; return; }
-        const tipObj = TIPS.find(t => t.id === (sl.tip || 'bos')) || TIPS[4];
-        let desc = sl.name;
-        if (tipObj.hasDeger && sl.deger != null) desc += ` · ${sl.deger}${tipObj.unit}`;
-        winnerName.textContent = desc;
+        winnerName.textContent = buildAutoName(sl);
     }
 
     function updateStatusUI() {
@@ -859,13 +869,22 @@
             slices[i].tip = tip;
             const tipObj = TIPS.find(t => t.id === tip) || TIPS[4];
             if (!tipObj.hasDeger) slices[i].deger = null;
+            // İsim alanını otomatik güncelle
+            slices[i].name = buildAutoName(slices[i]);
             renderList();
+            renderWheel();
             updateWinnerUI();
         },
         setDeger(input) {
             const i   = +input.dataset.i;
             const val = parseFloat(input.value);
             slices[i].deger = isNaN(val) ? null : val;
+            // İsim alanını otomatik güncelle (DOM'da da yansısın)
+            const newName = buildAutoName(slices[i]);
+            slices[i].name = newName;
+            const nameEl = document.querySelector(`.s-name[data-i="${i}"]`);
+            if (nameEl) nameEl.value = newName;
+            renderWheel();
             updateWinnerUI();
         }
     };
@@ -918,7 +937,7 @@
 
     /* ── Modal ── */
     function showResultModal(idx) {
-        resultText.textContent = slices[idx].name;
+        resultText.textContent = buildAutoName(slices[idx]);
         resultModal.classList.add('show');
     }
     window.closeModal = function () { resultModal.classList.remove('show'); };
