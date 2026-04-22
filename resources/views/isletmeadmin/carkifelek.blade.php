@@ -5,848 +5,926 @@
 @endif
 @extends($_layout)
 @section('content')
+
 <style>
-    :root {
-        --primary-color: #6c5ce7;
-        --secondary-color: #a29bfe;
-        --accent-color: #fd79a8;
-        --dark-color: #2d3436;
-        --light-color: #f5f6fa;
-        --success-color: #00b894;
-        --warning-color: #fdcb6e;
-        --danger-color: #d63031;
-        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
+:root {
+    --purple:   #6c5ce7;
+    --purple-l: #a29bfe;
+    --pink:     #fd79a8;
+    --gold:     #fdcb6e;
+    --green:    #00b894;
+    --teal:     #00cec9;
+    --red:      #d63031;
+    --orange:   #e17055;
+    --dark:     #1a1a2e;
+    --mid:      #636e72;
+    --bg:       #f0f2f8;
+    --white:    #ffffff;
+    --card-r:   20px;
+    --sh:       0 4px 24px rgba(0,0,0,.08);
+    --sh-lg:    0 16px 56px rgba(0,0,0,.14);
+}
 
-    .cark-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-    }
+.ck-page * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    .cark-container header {
-        text-align: center;
-        margin-bottom: 25px;
-    }
+.ck-page {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    padding: 24px;
+    min-height: calc(100vh - 60px);
+}
 
-    .cark-container header h2 {
-        color: var(--primary-color);
-        font-size: 24px;
-        margin-bottom: 5px;
-    }
+/* ── Header ─────────────────────────────────── */
+.ck-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--white);
+    border-radius: var(--card-r);
+    padding: 20px 28px;
+    box-shadow: var(--sh);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.ck-header-left { display: flex; align-items: center; gap: 16px; }
+.ck-header-icon {
+    width: 52px; height: 52px;
+    background: linear-gradient(135deg, var(--purple), var(--purple-l));
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    box-shadow: 0 6px 16px rgba(108,92,231,.35);
+    flex-shrink: 0;
+}
+.ck-header h1 { font-size: 20px; font-weight: 800; color: var(--dark); margin-bottom: 3px; }
+.ck-header p  { font-size: 13px; color: var(--mid); }
 
-    .cark-container .description {
-        color: #666;
-        font-size: 14px;
-        margin: 0;
-    }
+.status-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 18px; border-radius: 50px;
+    font-size: 14px; font-weight: 600;
+    transition: all .3s;
+}
+.status-pill.on  { background: rgba(0,184,148,.12); color: var(--green); }
+.status-pill.off { background: rgba(214,48,49,.12);  color: var(--red); }
+.status-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: currentColor;
+    animation: blink 2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
 
-    .status-indicator {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 500;
-        margin-top: 10px;
-    }
+/* ── Grid ────────────────────────────────────── */
+.ck-grid {
+    display: grid;
+    grid-template-columns: 460px 1fr;
+    gap: 24px;
+    align-items: start;
+}
+@media(max-width:1100px){ .ck-grid{ grid-template-columns:1fr; } }
 
-    .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-    }
+/* ── Wheel Panel ─────────────────────────────── */
+.wheel-panel {
+    background: linear-gradient(145deg, #160630 0%, #2b1a68 55%, #0e1b33 100%);
+    border-radius: var(--card-r);
+    padding: 28px 24px 24px;
+    text-align: center;
+    box-shadow: 0 24px 64px rgba(43,26,104,.45);
+    position: relative;
+    overflow: hidden;
+}
+.wheel-panel::before {
+    content: '';
+    position: absolute;
+    top: -60%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle at 50% 28%, rgba(108,92,231,.18) 0%, transparent 60%);
+    pointer-events: none;
+}
 
-    .status-active {
-        background: rgba(0, 184, 148, 0.1);
-        color: var(--success-color);
-    }
+.wp-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: rgba(255,255,255,.45);
+    margin-bottom: 20px;
+}
 
-    .status-active .status-dot {
-        background: var(--success-color);
-    }
+/* Pointer */
+.pointer-wrap { display: flex; justify-content: center; margin-bottom: -4px; position: relative; z-index: 10; }
+.pointer {
+    width: 0; height: 0;
+    border-left: 13px solid transparent;
+    border-right: 13px solid transparent;
+    border-top: 30px solid #FFD700;
+    filter: drop-shadow(0 4px 10px rgba(255,215,0,.55));
+}
 
-    .status-inactive {
-        background: rgba(214, 48, 49, 0.1);
-        color: var(--danger-color);
-    }
+/* Outer glow ring */
+.wheel-glow {
+    display: inline-block;
+    padding: 7px;
+    background: conic-gradient(from 0deg, var(--purple), var(--purple-l), var(--pink), var(--gold), var(--green), var(--purple));
+    border-radius: 50%;
+    box-shadow: 0 0 32px rgba(108,92,231,.5), 0 0 72px rgba(108,92,231,.25);
+    animation: spinRing 10s linear infinite;
+}
+@keyframes spinRing { to { filter: hue-rotate(360deg); } }
 
-    .status-inactive .status-dot {
-        background: var(--danger-color);
-    }
+.wheel-wrap {
+    position: relative;
+    width: 360px; height: 360px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #160630;
+    display: inline-block;
+    vertical-align: top;
+}
+@media(max-width:520px){
+    .wheel-wrap { width: 280px; height: 280px; }
+    .ck-grid { gap: 16px; }
+}
 
-    .main-content {
-        display: flex;
-        gap: 30px;
-        align-items: flex-start;
-    }
+#wheel {
+    width: 100%; height: 100%;
+    transform-origin: 50% 50%;
+    transition: transform 5.5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+}
 
-    @media (max-width: 768px) {
-        .main-content {
-            flex-direction: column;
-        }
-    }
+.wheel-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 66px; height: 66px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 4px 20px rgba(0,0,0,.35), 0 0 0 4px rgba(255,255,255,.25);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    z-index: 5;
+    transition: transform .2s;
+}
+.wheel-center:hover { transform: translate(-50%, -50%) scale(1.05); }
+.wheel-center img { max-width: 54px; max-height: 54px; object-fit: contain; }
 
-    .wheel-container {
-        flex: 0 0 430px;
-        text-align: center;
-    }
+/* Spin button */
+.spin-btn {
+    margin-top: 22px;
+    padding: 14px 44px;
+    background: linear-gradient(135deg, var(--gold), var(--orange));
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-size: 16px; font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 28px rgba(225,112,85,.45);
+    transition: all .25s;
+    letter-spacing: .5px;
+}
+.spin-btn:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(225,112,85,.55); }
+.spin-btn:active:not(:disabled) { transform: translateY(0); }
+.spin-btn:disabled { opacity: .6; cursor: not-allowed; }
 
-    .wheel-wrapper {
-        position: relative;
-        width: 380px;
-        height: 380px;
-        margin: 0 auto 15px;
-    }
+/* Toggle row */
+.wp-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    background: rgba(255,255,255,.06);
+    border-radius: 12px;
+    margin-top: 14px;
+}
+.wp-row-label { color: rgba(255,255,255,.7); font-size: 14px; font-weight: 500; }
+.toggle { position: relative; width: 52px; height: 28px; cursor: pointer; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.tslider {
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,.18);
+    border-radius: 28px; transition: .3s;
+}
+.tslider::before {
+    content: '';
+    position: absolute;
+    width: 22px; height: 22px;
+    left: 3px; top: 3px;
+    background: white; border-radius: 50%;
+    transition: .3s;
+    box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.toggle input:checked + .tslider { background: var(--green); }
+.toggle input:checked + .tslider::before { transform: translateX(24px); }
 
-    .wheel-wrapper svg {
-        width: 100%;
-        height: 100%;
-    }
+/* Logo upload row */
+.logo-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px;
+    background: rgba(255,255,255,.06);
+    border-radius: 12px;
+    margin-top: 10px;
+}
+.logo-row-label { color: rgba(255,255,255,.65); font-size: 13px; }
+.logo-btn {
+    padding: 7px 18px;
+    background: rgba(255,255,255,.14);
+    color: white;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: .2s;
+}
+.logo-btn:hover { background: rgba(255,255,255,.24); }
 
-    .wheel-center {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: white;
-        box-shadow: var(--shadow);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-    }
+/* ── Management Panel ────────────────────────── */
+.mgmt-panel {
+    background: var(--white);
+    border-radius: var(--card-r);
+    box-shadow: var(--sh);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
 
-    .wheel-center-logo {
-        max-width: 40px;
-        max-height: 40px;
-        object-fit: contain;
-    }
+.mgmt-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 28px 18px;
+    border-bottom: 1px solid #f0f2f8;
+}
+.mgmt-head h2 { font-size: 17px; font-weight: 800; color: var(--dark); }
 
-    .logo-upload-container {
-        margin: 10px 0;
-        text-align: center;
-    }
+.count-ctrl {
+    display: flex; align-items: center;
+    background: #f0f2f8;
+    border-radius: 10px; overflow: hidden;
+}
+.cnt-btn {
+    width: 36px; height: 36px;
+    background: none; border: none;
+    font-size: 20px; font-weight: 700;
+    color: var(--purple); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s;
+}
+.cnt-btn:hover { background: rgba(108,92,231,.12); }
+.cnt-val { min-width: 38px; text-align: center; font-size: 15px; font-weight: 700; color: var(--dark); }
 
-    .logo-upload-label {
-        display: block;
-        font-size: 13px;
-        font-weight: 500;
-        margin-bottom: 5px;
-        color: var(--dark-color);
-    }
+.mgmt-hint {
+    padding: 10px 28px 6px;
+    font-size: 12px; color: var(--mid);
+}
 
-    .logo-upload-btn {
-        display: inline-block;
-        padding: 6px 14px;
-        background: var(--primary-color);
-        color: white;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 13px;
-        transition: background 0.2s;
-    }
+.slices-body {
+    padding: 10px 28px 4px;
+    max-height: 440px;
+    overflow-y: auto;
+    flex: 1;
+}
+.slices-body::-webkit-scrollbar { width: 4px; }
+.slices-body::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
 
-    .logo-upload-btn:hover {
-        background: #5a4bd1;
-    }
+.slice-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    background: #f8f9ff;
+    border: 1.5px solid #ececff;
+    border-radius: 12px;
+    margin-bottom: 7px;
+    transition: all .2s;
+}
+.slice-item:hover { border-color: var(--purple-l); box-shadow: 0 2px 14px rgba(108,92,231,.1); }
 
-    .logo-upload-info {
-        font-size: 11px;
-        color: #999;
-        margin-top: 5px;
-    }
+.s-num {
+    width: 24px; height: 24px;
+    background: linear-gradient(135deg, var(--purple), var(--purple-l));
+    color: white; border-radius: 7px;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.s-color {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 2.5px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    cursor: pointer; flex-shrink: 0;
+    position: relative; overflow: hidden;
+}
+.s-color input[type="color"] {
+    position: absolute; inset: -6px;
+    width: calc(100% + 12px); height: calc(100% + 12px);
+    opacity: 0; cursor: pointer; border: none; padding: 0;
+}
+.s-name {
+    flex: 1; min-width: 0;
+    padding: 8px 12px;
+    background: white;
+    border: 1.5px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 500; color: var(--dark);
+    transition: border-color .2s;
+}
+.s-name:focus { outline: none; border-color: var(--purple); }
 
-    .controls {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        margin-top: 15px;
-    }
+.s-prob-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.s-prob {
+    width: 58px;
+    padding: 8px 6px;
+    background: white;
+    border: 1.5px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 700; color: var(--purple);
+    text-align: center;
+    transition: border-color .2s;
+}
+.s-prob:focus { outline: none; border-color: var(--purple); }
+.s-pct { font-size: 12px; color: var(--mid); font-weight: 500; }
 
-    .controls button {
-        padding: 8px 18px;
-        border: none;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-        color: white;
-    }
+/* Footer */
+.mgmt-foot {
+    padding: 16px 28px 24px;
+    border-top: 1px solid #f0f2f8;
+}
+.prob-bar-bg {
+    height: 8px; background: #f0f2f8;
+    border-radius: 8px; overflow: hidden; margin-bottom: 8px;
+}
+.prob-bar-fill {
+    height: 100%; border-radius: 8px;
+    background: linear-gradient(90deg, var(--purple), var(--purple-l));
+    transition: width .4s ease, background .3s;
+}
+.prob-label {
+    text-align: center; font-size: 13px; font-weight: 600;
+    margin-bottom: 16px; color: var(--mid);
+    transition: color .3s;
+}
+.prob-label.ok   { color: var(--green); }
+.prob-label.over { color: var(--red); }
 
-    .controls .btn-success {
-        background: var(--success-color);
-    }
+.save-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--purple), var(--purple-l));
+    color: white; border: none;
+    border-radius: 12px;
+    font-size: 15px; font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 22px rgba(108,92,231,.35);
+    transition: all .25s;
+    letter-spacing: .3px;
+}
+.save-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(108,92,231,.45); }
+.save-btn:active:not(:disabled) { transform: translateY(0); }
+.save-btn:disabled { opacity: .6; cursor: not-allowed; }
 
-    .controls .btn-success:hover {
-        background: #00a381;
-    }
+/* ── Modal ───────────────────────────────────── */
+.modal-ov {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(6px);
+    z-index: 9999;
+    align-items: center; justify-content: center;
+}
+.modal-ov.show { display: flex; }
+.modal-box {
+    background: white;
+    border-radius: 24px;
+    padding: 40px 32px;
+    text-align: center;
+    max-width: 360px; width: 90%;
+    box-shadow: 0 32px 80px rgba(0,0,0,.25);
+    animation: popIn .4s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes popIn { from{transform:scale(.7);opacity:0} to{transform:scale(1);opacity:1} }
+.modal-emoji { font-size: 58px; margin-bottom: 14px; display: block; }
+.modal-box h2 { font-size: 22px; font-weight: 800; color: var(--dark); margin-bottom: 6px; }
+.modal-sub { font-size: 14px; color: var(--mid); margin-bottom: 10px; }
+.modal-result {
+    font-size: 28px; font-weight: 800; color: var(--purple);
+    padding: 12px 24px;
+    background: rgba(108,92,231,.08);
+    border-radius: 12px;
+    margin: 10px 0 22px;
+    word-break: break-word;
+}
+.modal-close {
+    padding: 12px 36px;
+    background: linear-gradient(135deg, var(--purple), var(--purple-l));
+    color: white; border: none; border-radius: 50px;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(108,92,231,.3);
+    transition: .2s;
+}
+.modal-close:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(108,92,231,.4); }
 
-    .controls .btn-danger {
-        background: var(--danger-color);
-    }
-
-    .controls .btn-danger:hover {
-        background: #c0392b;
-    }
-
-    .slice-management {
-        flex: 1;
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: var(--shadow);
-    }
-
-    .slice-management h2 {
-        font-size: 18px;
-        color: var(--dark-color);
-        margin-bottom: 15px;
-    }
-
-    .slice-management h3 {
-        font-size: 15px;
-        color: var(--dark-color);
-        margin: 15px 0 8px;
-    }
-
-    .slice-count-control {
-        margin-bottom: 10px;
-    }
-
-    .slice-count-control .form-group {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .slice-count-control label {
-        font-size: 13px;
-        font-weight: 500;
-        white-space: nowrap;
-    }
-
-    .slice-count-control input[type="number"] {
-        width: 70px;
-        padding: 6px 8px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 13px;
-        text-align: center;
-    }
-
-    .slices-list {
-        max-height: 400px;
-        overflow-y: auto;
-    }
-
-    .slice-item {
-        display: flex;
-        align-items: center;
-        padding: 8px 10px;
-        border: 1px solid #eee;
-        border-radius: 8px;
-        margin-bottom: 6px;
-        background: var(--light-color);
-    }
-
-    .slice-info {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        width: 100%;
-    }
-
-    .slice-color {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-    .slice-details {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex: 1;
-    }
-
-    .slice-name-input {
-        flex: 1;
-        padding: 5px 8px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 13px;
-        min-width: 0;
-    }
-
-    .slice-name-input:focus,
-    .probability-input:focus {
-        outline: none;
-        border-color: var(--primary-color);
-    }
-
-    .slice-probability {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 13px;
-        white-space: nowrap;
-    }
-
-    .probability-input {
-        width: 55px;
-        padding: 5px 6px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 13px;
-        text-align: center;
-    }
-
-    .total-probability {
-        margin-top: 12px;
-        padding: 8px 14px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        text-align: center;
-        background: rgba(108, 92, 231, 0.1);
-        color: var(--dark-color);
-    }
-
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        z-index: 9999;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .modal-content {
-        background: white;
-        padding: 30px;
-        border-radius: 12px;
-        text-align: center;
-        max-width: 400px;
-        width: 90%;
-        margin: auto;
-        position: relative;
-        top: 50%;
-        transform: translateY(-50%);
-    }
-
-    .modal-content h2 {
-        color: var(--primary-color);
-        margin-bottom: 10px;
-    }
-
-    .modal-content button {
-        margin-top: 15px;
-        padding: 8px 24px;
-        background: var(--primary-color);
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-    }
-
-    .notification {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 12px 20px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        z-index: 10000;
-        transform: translateX(120%);
-        transition: transform 0.3s ease;
-        color: white;
-    }
-
-    .notification.show {
-        transform: translateX(0);
-    }
-
-    .notification.success {
-        background: var(--success-color);
-    }
-
-    .notification.error {
-        background: var(--danger-color);
-    }
-
-    .slice-text-line {
-        fill: white;
-        font-weight: bold;
-        pointer-events: none;
-    }
+/* ── Toast ───────────────────────────────────── */
+.toast {
+    position: fixed; top: 24px; right: 24px;
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-size: 14px; font-weight: 600;
+    color: white; z-index: 99999;
+    box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    transform: translateX(140%);
+    transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+    display: flex; align-items: center; gap: 10px;
+    max-width: 340px;
+}
+.toast.show { transform: translateX(0); }
+.toast.success { background: linear-gradient(135deg, var(--green), var(--teal)); }
+.toast.error   { background: linear-gradient(135deg, var(--red), var(--orange)); }
 </style>
 
-<div class="cark-container">
-    <header>
-        <h2>Carkifelek Sistemi</h2>
-        <p class="description">Dilim sayisini belirleyin, olasiliklerini ve isimlerini ayarlayin.</p>
-        <div class="status-indicator" id="status-indicator">
-            <div class="status-dot"></div>
+<div class="ck-page">
+
+    {{-- Header --}}
+    <div class="ck-header">
+        <div class="ck-header-left">
+            <div class="ck-header-icon">🎡</div>
+            <div>
+                <h1>Çarkıfelek Sistemi</h1>
+                <p>Dilimlerinizi düzenleyin, müşterilerinize özel ödüller sunun</p>
+            </div>
+        </div>
+        <div class="status-pill on" id="status-pill">
+            <span class="status-dot"></span>
             <span id="status-text">Aktif</span>
         </div>
-    </header>
+    </div>
 
-    <div class="main-content">
-        <div class="wheel-container">
-            <div class="wheel-wrapper">
-                <svg id="wheel" viewBox="0 0 250 250"></svg>
-                <div class="wheel-center">
-                    <img id="wheel-logo" src="{{($isletme->logo !== null ? '/'.$isletme->logo : '/public/isletmeyonetim_assets/img/avatar.png' )}}" alt="Logo" class="wheel-center-logo">
+    {{-- Main Grid --}}
+    <div class="ck-grid">
+
+        {{-- Wheel Panel --}}
+        <div class="wheel-panel">
+            <p class="wp-label">Önizleme</p>
+
+            <div class="pointer-wrap">
+                <div class="pointer"></div>
+            </div>
+
+            <div class="wheel-glow">
+                <div class="wheel-wrap">
+                    <svg id="wheel" viewBox="0 0 300 300"></svg>
+                    <div class="wheel-center" onclick="document.getElementById('ck-logo-input').click()" title="Logo değiştir">
+                        <img id="wheel-logo"
+                             src="{{ $isletme->logo !== null ? '/'.$isletme->logo : '/public/isletmeyonetim_assets/img/avatar.png' }}"
+                             alt="Logo">
+                    </div>
                 </div>
             </div>
 
-            <div class="logo-upload-container">
-                <label class="logo-upload-label">Logo Yukle</label>
-                <input type="file" id="isletmelogo" name="isletmelogo" accept="image/*" style="display:none;" />
-                <div class="logo-upload-btn" onclick="document.getElementById('isletmelogo').click();">
-                    <i class="fa fa-pencil"></i> Logo Sec
-                </div>
-                <div class="logo-upload-info">Maksimum 240px genisliginde veya 100px yuksekligine sahip olmalidir</div>
+            <div>
+                <button class="spin-btn" id="spin-btn" onclick="testSpin()">🎲 Test Et</button>
             </div>
 
-            <div class="controls">
-                <button id="toggle-status-btn">Carki Pasif Et</button>
-                <button id="save-slices-btn" class="btn-success">Dilimleri Kaydet</button>
+            <div class="wp-row" style="margin-top:20px">
+                <span class="wp-row-label">Çark Durumu</span>
+                <label class="toggle">
+                    <input type="checkbox" id="status-toggle" checked onchange="toggleStatus()">
+                    <span class="tslider"></span>
+                </label>
+            </div>
+
+            <div class="logo-row">
+                <span class="logo-row-label">📷 Logo Değiştir</span>
+                <input type="file" id="ck-logo-input" accept="image/*" style="display:none">
+                <button class="logo-btn" onclick="document.getElementById('ck-logo-input').click()">Seç</button>
             </div>
         </div>
 
-        <div class="slice-management">
-            <h2>Dilim Yonetimi</h2>
-
-            <div class="slice-count-control">
-                <div class="form-group">
-                    <label for="slice-count">Dilim Sayisi (En az 6)</label>
-                    <input type="number" id="slice-count" min="6" value="6">
+        {{-- Management Panel --}}
+        <div class="mgmt-panel">
+            <div class="mgmt-head">
+                <h2>Dilim Yönetimi</h2>
+                <div class="count-ctrl">
+                    <button class="cnt-btn" onclick="changeCount(-1)">−</button>
+                    <span class="cnt-val" id="cnt-val">6</span>
+                    <button class="cnt-btn" onclick="changeCount(1)">+</button>
                 </div>
             </div>
 
-            <h3>Mevcut Dilimler</h3>
-            <p style="margin-bottom: 10px; font-size: 14px; color: #666;">Dilim isimlerini ve olasiliklarini asagidan duzenleyebilirsiniz. Dusuk olasilik = daha az gelme sansi</p>
+            <p class="mgmt-hint">İsim ve olasılık değerlerini düzenleyin. Toplam olasılık %100 olmalıdır.</p>
 
-            <div class="slices-list" id="slices-list">
-                <!-- Dilimler buraya eklenecek -->
-            </div>
+            <div class="slices-body" id="slices-list"></div>
 
-            <div class="total-probability" id="total-probability">
-                Toplam Olasilik: 100%
+            <div class="mgmt-foot">
+                <div class="prob-bar-bg">
+                    <div class="prob-bar-fill" id="prob-fill" style="width:100%"></div>
+                </div>
+                <p class="prob-label ok" id="prob-label">Toplam: %100 ✓</p>
+                <button class="save-btn" id="save-btn" onclick="saveSlices()">💾 Dilimleri Kaydet</button>
             </div>
         </div>
+
     </div>
 </div>
 
-<div class="modal" id="result-modal">
-    <div class="modal-content">
-        <h2>Tebrikler!</h2>
-        <p id="result-text">100 TL kazandiniz!</p>
-        <button id="close-modal">Kapat</button>
+{{-- Result Modal --}}
+<div class="modal-ov" id="result-modal">
+    <div class="modal-box">
+        <span class="modal-emoji">🎉</span>
+        <h2>Sonuç!</h2>
+        <p class="modal-sub">Test çevirme sonucu:</p>
+        <div class="modal-result" id="modal-result-text"></div>
+        <button class="modal-close" onclick="closeModal()">Kapat</button>
     </div>
 </div>
 
-<div class="notification" id="notification"></div>
+{{-- Toast --}}
+<div class="toast" id="toast"></div>
 
 <script>
-    // Renk paleti - otomatik atama icin
-    const colorPalette = [
-        '#6c5ce7', '#a29bfe', '#fd79a8', '#fdcb6e', '#00b894',
-        '#e17055', '#74b9ff', '#55efc4', '#ffeaa7', '#fab1a0',
-        '#a29bfe', '#81ecec', '#dfe6e9', '#b2bec3', '#636e72',
-        '#0984e3', '#00b894', '#fdcb6e', '#e17055', '#d63031'
+(function () {
+    /* ── Constants ── */
+    const CX = 150, CY = 150, R = 130;
+    const COLORS = [
+        '#FF6B6B','#FF8E53','#FFC107','#51CF66','#339AF0',
+        '#CC5DE8','#F06595','#74C0FC','#63E6BE','#FFD43B',
+        '#FF922B','#20C997','#4DABF7','#DA77F2','#F783AC',
+        '#E64980','#7950F2','#4C6EF5','#228BE6','#099268'
     ];
-
-    // Dilimleri saklamak icin dizi
-    let slices = [
-        { name: "100 TL", color: colorPalette[0], probability: 10 },
-        { name: "50 TL", color: colorPalette[1], probability: 15 },
-        { name: "20 TL", color: colorPalette[2], probability: 20 },
-        { name: "10 TL", color: colorPalette[3], probability: 25 },
-        { name: "5 TL", color: colorPalette[4], probability: 20 },
-        { name: "Tekrar Dene", color: colorPalette[5], probability: 10 }
-    ];
-
-    let isWheelActive = true;
-
-    const wheel = document.getElementById('wheel');
-    const sliceCountInput = document.getElementById('slice-count');
-    const slicesList = document.getElementById('slices-list');
-    const totalProbabilityElement = document.getElementById('total-probability');
-    const resultModal = document.getElementById('result-modal');
-    const resultText = document.getElementById('result-text');
-    const closeModal = document.getElementById('close-modal');
-    const toggleStatusBtn = document.getElementById('toggle-status-btn');
-    const saveSlicesBtn = document.getElementById('save-slices-btn');
-    const statusIndicator = document.getElementById('status-indicator');
-    const statusText = document.getElementById('status-text');
-    const notification = document.getElementById('notification');
-    const logoInput = document.getElementById('isletmelogo');
-    const wheelLogo = document.getElementById('wheel-logo');
-
-    const headers = {
+    const HEADERS = {
         'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') || {}).content || '',
         'Accept': 'application/json'
     };
 
-    document.addEventListener('DOMContentLoaded', function() {
-        loadWheelData();
-        sliceCountInput.addEventListener('change', updateSlicesCount);
+    /* ── State ── */
+    let slices = [
+        { name: '100 TL',       color: COLORS[0],  probability: 10 },
+        { name: '50 TL',        color: COLORS[1],  probability: 15 },
+        { name: '20 TL',        color: COLORS[2],  probability: 20 },
+        { name: '10 TL',        color: COLORS[3],  probability: 25 },
+        { name: '5 TL',         color: COLORS[4],  probability: 20 },
+        { name: 'Tekrar Dene',  color: COLORS[5],  probability: 10 }
+    ];
+    let isActive = true;
+    let currentRot = 0;
+    let spinning = false;
 
-        logoInput.addEventListener('change', function(e) {
+    /* ── Elements ── */
+    const wheelEl     = document.getElementById('wheel');
+    const slicesList  = document.getElementById('slices-list');
+    const cntVal      = document.getElementById('cnt-val');
+    const probFill    = document.getElementById('prob-fill');
+    const probLabel   = document.getElementById('prob-label');
+    const spinBtn     = document.getElementById('spin-btn');
+    const statusToggle= document.getElementById('status-toggle');
+    const statusPill  = document.getElementById('status-pill');
+    const statusText  = document.getElementById('status-text');
+    const toast       = document.getElementById('toast');
+    const wheelLogo   = document.getElementById('wheel-logo');
+    const logoInput   = document.getElementById('ck-logo-input');
+    const resultModal = document.getElementById('result-modal');
+    const resultText  = document.getElementById('modal-result-text');
+
+    /* ── Init ── */
+    document.addEventListener('DOMContentLoaded', () => {
+        loadData();
+        logoInput.addEventListener('change', function () {
             if (this.files && this.files[0]) {
-                const file = this.files[0];
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('Dosya boyutu 5MB\'dan kucuk olmalidir.');
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    wheelLogo.src = e.target.result;
-                }
-                reader.readAsDataURL(file);
+                const fr = new FileReader();
+                fr.onload = e => { wheelLogo.src = e.target.result; };
+                fr.readAsDataURL(this.files[0]);
             }
         });
-
-        saveSlicesBtn.addEventListener('click', saveSlicesToServer);
+        resultModal.addEventListener('click', e => {
+            if (e.target === resultModal) closeModal();
+        });
     });
 
-    async function loadWheelData() {
+    /* ── Load from server ── */
+    async function loadData() {
         try {
-            const response = await fetch('{{ route("isletmeadmin.carkverilerigetir") }}', {
-                method: 'GET',
-                headers: headers
-            });
-
-            const data = await response.json();
-
+            const res  = await fetch('{{ route("isletmeadmin.carkverilerigetir") }}', { headers: HEADERS });
+            const data = await res.json();
             if (data.success && data.data) {
-                isWheelActive = data.data.aktifmi == 1;
-
+                isActive = data.data.aktifmi == 1;
                 if (data.data.dilimler && data.data.dilimler.length > 0) {
-                    slices = data.data.dilimler.map(dilim => ({
-                        name: dilim.name,
-                        color: dilim.color || colorPalette[Math.floor(Math.random() * colorPalette.length)],
-                        probability: parseInt(dilim.probability) || 1
+                    slices = data.data.dilimler.map(d => ({
+                        name:        d.name,
+                        color:       d.color || COLORS[0],
+                        probability: parseInt(d.probability) || 1
                     }));
-
-                    sliceCountInput.value = slices.length;
+                    cntVal.textContent = slices.length;
                 }
             }
-        } catch (error) {
-            console.error('Cark verileri yuklenirken hata:', error);
-        }
+        } catch (e) { console.error('Veri yüklenemedi:', e); }
+        render();
+    }
 
+    /* ── Render ── */
+    function render() {
         renderWheel();
-        renderSlicesList();
-        updateTotalProbability();
+        renderList();
+        updateProbBar();
         updateStatusUI();
     }
 
     function renderWheel() {
-        wheel.innerHTML = '';
-        const totalProbability = slices.reduce((sum, slice) => sum + slice.probability, 0);
-        const sliceAngle = 360 / slices.length;
+        wheelEl.innerHTML = '';
+        if (!slices.length) return;
 
-        slices.forEach((slice, index) => {
-            const startAngle = index * sliceAngle;
-            const endAngle = (index + 1) * sliceAngle;
+        const ang = 360 / slices.length;
 
-            const startRad = (startAngle - 90) * Math.PI / 180;
-            const endRad = (endAngle - 90) * Math.PI / 180;
+        slices.forEach((sl, i) => {
+            const sa  = i * ang, ea = (i + 1) * ang;
+            const sr  = (sa - 90) * Math.PI / 180;
+            const er  = (ea - 90) * Math.PI / 180;
+            const x1  = CX + R * Math.cos(sr), y1 = CY + R * Math.sin(sr);
+            const x2  = CX + R * Math.cos(er), y2 = CY + R * Math.sin(er);
+            const lg  = ang > 180 ? 1 : 0;
 
-            const x1 = 125 + 100 * Math.cos(startRad);
-            const y1 = 125 + 100 * Math.sin(startRad);
-            const x2 = 125 + 100 * Math.cos(endRad);
-            const y2 = 125 + 100 * Math.sin(endRad);
+            /* Slice */
+            const path = svgEl('path');
+            path.setAttribute('d', `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 ${lg} 1 ${x2} ${y2} Z`);
+            path.setAttribute('fill', sl.color);
+            path.setAttribute('stroke', 'rgba(255,255,255,.55)');
+            path.setAttribute('stroke-width', '1.5');
+            wheelEl.appendChild(path);
 
-            const largeArcFlag = sliceAngle > 180 ? 1 : 0;
+            /* Text */
+            const tAng = sa + ang / 2;
+            const tRad = (tAng - 90) * Math.PI / 180;
+            const dist = slices.length <= 8 ? 90 : 78;
+            const tx   = CX + dist * Math.cos(tRad);
+            const ty   = CY + dist * Math.sin(tRad);
 
-            const pathData = [
-                `M 125 125`,
-                `L ${x1} ${y1}`,
-                `A 100 100 0 ${largeArcFlag} 1 ${x2} ${y2}`,
-                `Z`
-            ].join(' ');
+            const g = svgEl('g');
+            g.setAttribute('transform', `rotate(${tAng}, ${tx}, ${ty})`);
 
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.setAttribute('d', pathData);
-            path.setAttribute('fill', slice.color);
-            path.setAttribute('stroke', 'white');
-            path.setAttribute('stroke-width', '2');
-            path.setAttribute('data-name', slice.name);
-            wheel.appendChild(path);
+            const maxCh = slices.length > 10 ? 8 : 11;
+            const lines = wrapText(sl.name, maxCh);
+            const fs    = slices.length > 12 ? 8 : slices.length > 8 ? 9 : 11;
+            const lh    = fs + 4;
+            const sy    = ty - ((lines.length - 1) * lh / 2);
 
-            const textAngle = startAngle + sliceAngle / 2;
-            const textRad = (textAngle - 90) * Math.PI / 180;
-            let textDistance = 65;
-
-            const textX = 125 + textDistance * Math.cos(textRad);
-            const textY = 125 + textDistance * Math.sin(textRad);
-
-            const textGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            textGroup.setAttribute('transform', `rotate(${textAngle}, ${textX}, ${textY})`);
-            textGroup.setAttribute('class', 'slice-text');
-
-            const maxCharsPerLine = 10;
-            let lines = [];
-            const words = slice.name.split(' ');
-            let currentLine = '';
-
-            for (let i = 0; i < words.length; i++) {
-                const word = words[i];
-                if (word.length > maxCharsPerLine) {
-                    if (currentLine) { lines.push(currentLine); currentLine = ''; }
-                    for (let j = 0; j < word.length; j += maxCharsPerLine) {
-                        lines.push(word.substring(j, j + maxCharsPerLine));
-                    }
-                } else if ((currentLine + ' ' + word).length <= maxCharsPerLine) {
-                    currentLine = currentLine ? currentLine + ' ' + word : word;
-                } else {
-                    if (currentLine) { lines.push(currentLine); }
-                    currentLine = word;
-                }
-            }
-            if (currentLine) { lines.push(currentLine); }
-            if (lines.length > 3) { lines = [lines[0], lines[1], lines[2] + '...']; }
-
-            const lineHeight = 12;
-            const startY = textY - ((lines.length - 1) * lineHeight / 2);
-
-            lines.forEach((line, lineIndex) => {
-                const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                textElement.setAttribute('x', textX);
-                textElement.setAttribute('y', startY + (lineIndex * lineHeight));
-                textElement.setAttribute('text-anchor', 'middle');
-                textElement.setAttribute('class', 'slice-text-line');
-
-                let fontSize = 10;
-                if (slices.length > 12) fontSize = 7;
-                else if (slices.length > 8) fontSize = 9;
-
-                textElement.setAttribute('font-size', fontSize);
-                textElement.textContent = line;
-                textGroup.appendChild(textElement);
+            lines.forEach((ln, li) => {
+                const t = svgEl('text');
+                t.setAttribute('x', tx);
+                t.setAttribute('y', sy + li * lh);
+                t.setAttribute('text-anchor', 'middle');
+                t.setAttribute('font-size', fs);
+                t.setAttribute('font-weight', '700');
+                t.setAttribute('fill', 'white');
+                t.textContent = ln;
+                g.appendChild(t);
             });
 
-            const probabilityText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            probabilityText.setAttribute('x', textX);
-            probabilityText.setAttribute('y', startY + (lines.length * lineHeight) + 2);
-            probabilityText.setAttribute('text-anchor', 'middle');
-            probabilityText.setAttribute('class', 'slice-text-line');
-            probabilityText.setAttribute('font-size', '8');
-            probabilityText.setAttribute('fill', 'rgba(255,255,255,0.8)');
-            probabilityText.textContent = `${slice.probability}%`;
+            /* Probability */
+            const pt = svgEl('text');
+            pt.setAttribute('x', tx);
+            pt.setAttribute('y', sy + lines.length * lh + 1);
+            pt.setAttribute('text-anchor', 'middle');
+            pt.setAttribute('font-size', Math.max(fs - 2, 6));
+            pt.setAttribute('fill', 'rgba(255,255,255,.72)');
+            pt.textContent = `${sl.probability}%`;
+            g.appendChild(pt);
 
-            textGroup.appendChild(probabilityText);
-            wheel.appendChild(textGroup);
+            wheelEl.appendChild(g);
         });
+
+        /* Center mask */
+        const cc = svgEl('circle');
+        cc.setAttribute('cx', CX); cc.setAttribute('cy', CY); cc.setAttribute('r', 33);
+        cc.setAttribute('fill', 'white');
+        cc.setAttribute('stroke', 'rgba(255,255,255,.8)');
+        cc.setAttribute('stroke-width', '3');
+        wheelEl.appendChild(cc);
     }
 
-    function renderSlicesList() {
+    function renderList() {
         slicesList.innerHTML = '';
-
-        slices.forEach((slice, index) => {
-            const sliceItem = document.createElement('div');
-            sliceItem.className = 'slice-item';
-
-            sliceItem.innerHTML = `
-                <div class="slice-info">
-                    <div class="slice-color" style="background-color: ${slice.color}"></div>
-                    <div class="slice-details">
-                        <input type="text" class="slice-name-input" value="${slice.name}" data-index="${index}" placeholder="Dilim adi">
-                        <div class="slice-probability">
-                            Olasilik:
-                            <input type="number" class="probability-input" value="${slice.probability}" min="1" max="100" data-index="${index}">
-                            %
-                        </div>
-                    </div>
+        slices.forEach((sl, i) => {
+            const div = document.createElement('div');
+            div.className = 'slice-item';
+            div.innerHTML = `
+                <div class="s-num">${i + 1}</div>
+                <div class="s-color" style="background:${esc(sl.color)}" title="Renk seç">
+                    <input type="color" value="${esc(sl.color)}" data-i="${i}"
+                        oninput="window.CK.color(this)" onchange="window.CK.color(this)">
+                </div>
+                <input type="text" class="s-name" value="${esc(sl.name)}"
+                    data-i="${i}" placeholder="Dilim adı"
+                    oninput="window.CK.name(this)" onblur="window.CK.name(this)">
+                <div class="s-prob-wrap">
+                    <input type="number" class="s-prob" value="${sl.probability}"
+                        min="1" max="100" data-i="${i}" oninput="window.CK.prob(this)">
+                    <span class="s-pct">%</span>
                 </div>
             `;
-
-            slicesList.appendChild(sliceItem);
-        });
-
-        document.querySelectorAll('.slice-name-input').forEach(input => {
-            input.addEventListener('change', function() {
-                const index = parseInt(this.getAttribute('data-index'));
-                const newName = this.value.trim();
-                if (!newName) { this.value = slices[index].name; alert('Lutfen bir dilim adi girin.'); return; }
-                slices[index].name = newName;
-                renderWheel();
-            });
-            input.addEventListener('keypress', function(e) { if (e.key === 'Enter') this.blur(); });
-        });
-
-        document.querySelectorAll('.probability-input').forEach(input => {
-            input.addEventListener('change', function() {
-                const index = parseInt(this.getAttribute('data-index'));
-                const newProbability = parseInt(this.value);
-                if (isNaN(newProbability) || newProbability < 1) { this.value = slices[index].probability; alert('Olasilik en az 1 olmalidir.'); return; }
-                slices[index].probability = newProbability;
-                updateTotalProbability();
-                renderWheel();
-            });
+            slicesList.appendChild(div);
         });
     }
 
-    function updateSlicesCount() {
-        const count = parseInt(sliceCountInput.value);
-        if (isNaN(count) || count < 6) { alert('Lutfen en az 6 dilim belirleyin.'); sliceCountInput.value = slices.length; return; }
-
-        if (count !== slices.length) {
-            const equalProbability = Math.floor(100 / count);
-            const remainder = 100 - (equalProbability * count);
-            const newSlices = [];
-
-            for (let i = 0; i < count; i++) {
-                const colorIndex = i % colorPalette.length;
-                const probability = equalProbability + (i < remainder ? 1 : 0);
-
-                if (i < slices.length) {
-                    newSlices.push({ name: slices[i].name, color: slices[i].color, probability: probability });
-                } else {
-                    newSlices.push({ name: `Odul ${i+1}`, color: colorPalette[colorIndex], probability: probability });
-                }
-            }
-
-            slices = newSlices;
-            renderWheel();
-            renderSlicesList();
-            updateTotalProbability();
-            showNotification(`Cark ${count} dilime guncellendi`, 'success');
-        }
-    }
-
-    async function saveSlicesToServer() {
-        document.querySelectorAll('.slice-name-input').forEach(input => {
-            const index = parseInt(input.getAttribute('data-index'));
-            slices[index].name = input.value.trim() || `Odul ${index+1}`;
-        });
-
-        document.querySelectorAll('.probability-input').forEach(input => {
-            const index = parseInt(input.getAttribute('data-index'));
-            const probability = parseInt(input.value);
-            slices[index].probability = isNaN(probability) ? 1 : probability;
-        });
-
-        const totalProbability = slices.reduce((sum, slice) => sum + slice.probability, 0);
-        if (totalProbability !== 100) {
-            showNotification(`Toplam olasilik %100 olmalidir. Su an: %${totalProbability}`, 'error');
-            return;
-        }
-
-        renderWheel();
-
-        try {
-            const response = await fetch('{{ route("isletmeadmin.carkdilimekle") }}', {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({ dilimler: slices, aktifmi: isWheelActive ? 1 : 0 })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                showNotification('Dilimler basariyla kaydedildi!', 'success');
-                if (data.data && data.data.dilimler) {
-                    slices = data.data.dilimler.map(dilim => ({
-                        name: dilim.dilim_ismi,
-                        color: dilim.renk_kodu,
-                        probability: dilim.dilim_olasilik
-                    }));
-                    renderWheel();
-                    renderSlicesList();
-                }
-            } else {
-                showNotification(data.message || 'Dilimler kaydedilirken hata olustu!', 'error');
-            }
-        } catch (error) {
-            console.error('Kaydetme hatasi:', error);
-            showNotification('Dilimler kaydedilirken hata olustu!', 'error');
-        }
-    }
-
-    function updateTotalProbability() {
-        const totalProbability = slices.reduce((sum, slice) => sum + slice.probability, 0);
-        totalProbabilityElement.textContent = `Toplam Olasilik: ${totalProbability}%`;
-
-        if (totalProbability !== 100) {
-            totalProbabilityElement.style.backgroundColor = '#ffebee';
-            totalProbabilityElement.style.color = '#d32f2f';
+    function updateProbBar() {
+        const total = slices.reduce((s, sl) => s + (parseInt(sl.probability) || 0), 0);
+        const pct   = Math.min(total, 100);
+        probFill.style.width = pct + '%';
+        if (total === 100) {
+            probFill.style.background = `linear-gradient(90deg, var(--green), var(--teal))`;
+            probLabel.className = 'prob-label ok';
+            probLabel.textContent = 'Toplam: %100 ✓';
+        } else if (total > 100) {
+            probFill.style.background = `linear-gradient(90deg, var(--red), var(--orange))`;
+            probLabel.className = 'prob-label over';
+            probLabel.textContent = `Toplam: %${total} — %100 olmalı`;
         } else {
-            totalProbabilityElement.style.backgroundColor = 'rgba(108, 92, 231, 0.1)';
-            totalProbabilityElement.style.color = 'var(--dark-color)';
+            probFill.style.background = `linear-gradient(90deg, var(--purple), var(--purple-l))`;
+            probLabel.className = 'prob-label';
+            probLabel.style.color = 'var(--mid)';
+            probLabel.textContent = `Toplam: %${total} — %${100 - total} eksik`;
         }
     }
 
     function updateStatusUI() {
-        if (isWheelActive) {
-            statusIndicator.className = 'status-indicator status-active';
+        statusToggle.checked = isActive;
+        if (isActive) {
+            statusPill.className = 'status-pill on';
             statusText.textContent = 'Aktif';
-            toggleStatusBtn.textContent = 'Carki Pasif Et';
-            toggleStatusBtn.className = 'btn-danger';
         } else {
-            statusIndicator.className = 'status-indicator status-inactive';
+            statusPill.className = 'status-pill off';
             statusText.textContent = 'Pasif';
-            toggleStatusBtn.textContent = 'Carki Aktif Et';
-            toggleStatusBtn.className = 'btn-success';
         }
     }
 
-    function showNotification(message, type) {
-        notification.textContent = message;
-        notification.className = `notification ${type} show`;
-        setTimeout(() => { notification.classList.remove('show'); }, 3000);
+    /* ── Input handlers (exposed globally) ── */
+    window.CK = {
+        color(input) {
+            const i = +input.dataset.i;
+            slices[i].color = input.value;
+            input.closest('.s-color').style.background = input.value;
+            renderWheel();
+        },
+        name(input) {
+            const i = +input.dataset.i;
+            slices[i].name = input.value || `Ödül ${i + 1}`;
+            renderWheel();
+        },
+        prob(input) {
+            const i = +input.dataset.i;
+            slices[i].probability = parseInt(input.value) || 0;
+            updateProbBar();
+            renderWheel();
+        }
+    };
+
+    /* ── Count control ── */
+    window.changeCount = function (delta) {
+        const next = slices.length + delta;
+        if (next < 6) { showToast('En az 6 dilim olmalıdır.', 'error'); return; }
+        if (delta < 0) {
+            slices = slices.slice(0, next);
+        } else {
+            const idx = slices.length % COLORS.length;
+            slices.push({ name: `Ödül ${slices.length + 1}`, color: COLORS[idx], probability: 0 });
+        }
+        cntVal.textContent = slices.length;
+        render();
+    };
+
+    /* ── Spin ── */
+    window.testSpin = function () {
+        if (spinning || slices.length < 2) return;
+        spinning = true;
+        spinBtn.disabled = true;
+        spinBtn.textContent = '⏳ Çevriliyor...';
+
+        const tIdx    = weightedRandom();
+        const ang     = 360 / slices.length;
+        const offset  = 360 - (tIdx + 0.5) * ang;
+        const nSpins  = (5 + Math.floor(Math.random() * 4)) * 360;
+        const curMod  = ((currentRot % 360) + 360) % 360;
+        let   diff    = offset - curMod;
+        if (diff < 0) diff += 360;
+        currentRot   += nSpins + diff;
+
+        wheelEl.style.transition = 'transform 5.5s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+        wheelEl.style.transform  = `rotate(${currentRot}deg)`;
+
+        setTimeout(() => {
+            spinning = false;
+            spinBtn.disabled = false;
+            spinBtn.textContent = '🎲 Test Et';
+            showResultModal(tIdx);
+        }, 5700);
+    };
+
+    function weightedRandom() {
+        const total = slices.reduce((s, sl) => s + sl.probability, 0);
+        if (!total) return Math.floor(Math.random() * slices.length);
+        let r = Math.random() * total;
+        for (let i = 0; i < slices.length; i++) {
+            r -= slices[i].probability;
+            if (r <= 0) return i;
+        }
+        return slices.length - 1;
     }
 
-    toggleStatusBtn.addEventListener('click', function() {
-        isWheelActive = !isWheelActive;
+    /* ── Modal ── */
+    function showResultModal(idx) {
+        resultText.textContent = slices[idx].name;
+        resultModal.classList.add('show');
+    }
+    window.closeModal = function () { resultModal.classList.remove('show'); };
+
+    /* ── Toggle status ── */
+    window.toggleStatus = function () {
+        isActive = statusToggle.checked;
         updateStatusUI();
-        saveStatusToServer();
-    });
+        saveToServer(true);
+    };
 
-    async function saveStatusToServer() {
-        try {
-            const response = await fetch('{{ route("isletmeadmin.carkdilimekle") }}', {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({ aktifmi: isWheelActive ? 1 : 0, dilimler: slices })
-            });
+    /* ── Save ── */
+    window.saveSlices = async function () {
+        // Sync DOM → state
+        document.querySelectorAll('.s-name').forEach(el => {
+            slices[+el.dataset.i].name = el.value || `Ödül ${+el.dataset.i + 1}`;
+        });
+        document.querySelectorAll('.s-prob').forEach(el => {
+            slices[+el.dataset.i].probability = parseInt(el.value) || 0;
+        });
 
-            const data = await response.json();
-
-            if (data.success) {
-                showNotification(`Cark ${isWheelActive ? 'aktif' : 'pasif'} edildi!`, 'success');
-            } else {
-                showNotification('Durum guncellenirken hata olustu!', 'error');
-                isWheelActive = !isWheelActive;
-                updateStatusUI();
-            }
-        } catch (error) {
-            console.error('Durum guncelleme hatasi:', error);
-            showNotification('Durum guncellenirken hata olustu!', 'error');
-            isWheelActive = !isWheelActive;
-            updateStatusUI();
+        const total = slices.reduce((s, sl) => s + sl.probability, 0);
+        if (total !== 100) {
+            showToast(`Toplam olasılık %100 olmalı (şu an %${total})`, 'error');
+            return;
         }
+        await saveToServer(false);
+    };
+
+    async function saveToServer(statusOnly) {
+        const saveBtn = document.getElementById('save-btn');
+        if (!statusOnly) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Kaydediliyor...'; }
+
+        try {
+            const res  = await fetch('{{ route("isletmeadmin.carkdilimekle") }}', {
+                method: 'POST',
+                headers: HEADERS,
+                body: JSON.stringify({ dilimler: slices, aktifmi: isActive ? 1 : 0 })
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (!statusOnly) {
+                    showToast('Dilimler başarıyla kaydedildi! 🎉', 'success');
+                    if (data.data && data.data.dilimler) {
+                        slices = data.data.dilimler.map(d => ({
+                            name:        d.dilim_ismi,
+                            color:       d.renk_kodu,
+                            probability: parseInt(d.dilim_olasilik) || 1
+                        }));
+                        cntVal.textContent = slices.length;
+                        render();
+                    }
+                }
+            } else {
+                showToast(data.message || 'Bir hata oluştu!', 'error');
+            }
+        } catch (e) {
+            showToast('Bağlantı hatası!', 'error');
+        }
+
+        if (!statusOnly) { saveBtn.disabled = false; saveBtn.textContent = '💾 Dilimleri Kaydet'; }
     }
 
-    closeModal.addEventListener('click', function() { resultModal.style.display = 'none'; });
-    window.addEventListener('click', function(event) { if (event.target === resultModal) resultModal.style.display = 'none'; });
+    /* ── Toast ── */
+    let toastTimer;
+    function showToast(msg, type) {
+        clearTimeout(toastTimer);
+        toast.className = `toast ${type} show`;
+        toast.textContent = msg;
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    /* ── Helpers ── */
+    function svgEl(tag) { return document.createElementNS('http://www.w3.org/2000/svg', tag); }
+
+    function wrapText(str, max) {
+        const words = str.split(' ');
+        const lines = [];
+        let line = '';
+        for (const w of words) {
+            if (w.length > max) {
+                if (line) { lines.push(line); line = ''; }
+                for (let j = 0; j < w.length; j += max) lines.push(w.slice(j, j + max));
+            } else if ((line ? line + ' ' + w : w).length <= max) {
+                line = line ? line + ' ' + w : w;
+            } else {
+                if (line) lines.push(line);
+                line = w;
+            }
+        }
+        if (line) lines.push(line);
+        if (lines.length > 3) lines = [lines[0], lines[1], lines[2].slice(0, max - 1) + '…'];
+        return lines;
+    }
+
+    function esc(str) {
+        return String(str)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+})();
 </script>
+
 @endsection
