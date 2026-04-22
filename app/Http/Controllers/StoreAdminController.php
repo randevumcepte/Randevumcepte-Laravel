@@ -6234,7 +6234,7 @@ private function ayAdiCevir($ingilizceAy)
            // $kalan_tutar = $adisyon_toplam_tutar - $tahsil_edilen_tutar;
         //$adisyon_html =  self::adsiyon_urun_liste_getir($request,$adisyon_id);
 
-        return self::musteri_tahsilatlari($request,$request->musteri_id,($request->adisyonsuz=='1' ? '' : $adisyon_id),$request->satisDuzenle);
+        return self::musteri_tahsilatlari($request,$request->musteri_id,$adisyon_id,$request->satisDuzenle);
     }
     public function adsiyon_urun_liste_getir(Request $request,$adisyon_id)
     {
@@ -7079,7 +7079,7 @@ private function ayAdiCevir($ingilizceAy)
             //if(isset($request->tahsilatekrani))
             //{
 
-                return self::musteri_tahsilatlari($request,$request->musteri_id,($request->adisyonsuz=='1' ? '' : $adisyon_id),$request->satisDuzenle);
+                return self::musteri_tahsilatlari($request,$request->musteri_id,$adisyon_id,$request->satisDuzenle);
               //  exit;
             //}
             //else
@@ -10561,7 +10561,8 @@ DB::raw('
             'adisyonduzenleme' => $adisyon_duzenleme,
             'tahsil_edilen' => number_format($tahsil_edilen_tutar, 2, ',', '.'),
             'kalan_tutar' => number_format($kalan_tutar, 2, ',', '.'),
-            'tum_tahsilatlar' => self::musteri_tahsilatlari($request,$request->musteri_id,($request->adisyonsuz=='1' ? '' : $adisyon_id),$request->satisDuzenle),
+            'tum_tahsilatlar' => self::musteri_tahsilatlari($request,$request->musteri_id,$adisyon_id,$request->satisDuzenle),
+            'adisyonId' => $adisyon_id,
         ];
     }
     public function adisyon_paket_satis_getir($adisyon_id,$visibility,$paket_id)

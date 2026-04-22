@@ -848,6 +848,7 @@
             <input type="hidden" name='sube' value="{{$isletme->id}}">
             <input type="hidden" name="tahsilat_ekrani" id='tahsilat_ekrani' value="1">
             <input type="hidden" name="tahsilat_tutari" id='toplam_tahsilat_tutari' >
+            <input type="hidden" name="adisyon_id" id="session_adisyon_id" value="">
             <div class="modal-header">
                <div class="col-6 col-xs-6 col-sm-6">
                   <h2>Tahsilat</h2>

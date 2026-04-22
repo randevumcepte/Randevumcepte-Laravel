@@ -5991,6 +5991,7 @@ $('#adisyon_hizmet_formu').on('submit',function(e){
         if($('#tahsilat_ekrani').length){
             formData.append('tahsilatekrani',$('#tahsilat_ekrani').val());
             formData.append('adisyonsuz',$('#adisyonsuz').val());
+            formData.set('adisyon_id',$('#session_adisyon_id').val() || '');
 
             formData.append('satisDuzenle',false);
             formData.append('musteri_id',$('select[name="tahsilat_musteri_id"]').val());
@@ -6024,6 +6025,8 @@ $('#adisyon_hizmet_formu').on('submit',function(e){
                     },
                     success: function(result)  {
                         $("#preloader").hide();
+                        if(result && result.adisyonId && $('#session_adisyon_id').length)
+                            $('#session_adisyon_id').val(result.adisyonId);
                         $('#adisyon_hizmet_formu')[0].reset();
                         $('#adisyon_hizmet_modal_kapat').trigger('click');
 
@@ -6033,8 +6036,8 @@ $('#adisyon_hizmet_formu').on('submit',function(e){
 
 
                         });
-                        $('select[name="adisyonhizmetpersonelleriyeni[]"]').val(null).trigger('change'); 
-                         $('select[name="adisyonhizmetleriyeni[]"]').val(null).trigger('change'); 
+                        $('select[name="adisyonhizmetpersonelleriyeni[]"]').val(null).trigger('change');
+                         $('select[name="adisyonhizmetleriyeni[]"]').val(null).trigger('change');
                         if($('#tahsilat_ekrani').length>0 || $('#satis_takibi_ekrani').length>0)
                         {
                             if($('#tum_tahsilatlar').length)
@@ -6047,7 +6050,7 @@ $('#adisyon_hizmet_formu').on('submit',function(e){
                                 $('#tum_tahsilatlar_duzenleme').empty();
                                 $('#tum_tahsilatlar_duzenleme').append(result.kalemler);
                             }
-                            
+
 
                             tahsilatyenidenhesapla();
                         }
@@ -6650,6 +6653,7 @@ $(document).on('submit','#adisyon_urun_satisi',function(e) {
     console.log("Müşteri id "+$('select[name="musteri_adi_yeni_urun"]').val());
     formData.append('tahsilatekrani',$('#tahsilat_ekrani').val());
     formData.append('adisyonsuz',$('#adisyonsuz').val());
+    formData.set('adisyon_id',$('#session_adisyon_id').val() || '');
     $('#tum_tahsilatlar input[name="adisyon_urun_id[]"]').each(function(e){
          formData.append('adisyon_urun_id[]',$(this).val());
 
@@ -6682,6 +6686,8 @@ $(document).on('submit','#adisyon_urun_satisi',function(e) {
                    success: function(result)  {
                         $("#preloader").hide();
                         console.log(result);
+                        if(result && result.adisyonId && $('#session_adisyon_id').length)
+                            $('#session_adisyon_id').val(result.adisyonId);
 
                         const previousDisabledValue = $('select[name="musteri_adi_yeni_urun"]').val();
 
@@ -7268,6 +7274,8 @@ $(document).on('submit','#adisyon_tahsilat',function(e){
             },
             success: function(result)  {
                 $("#preloader").hide();
+                if(result && result.adisyonId && $('#session_adisyon_id').length)
+                    $('#session_adisyon_id').val(result.adisyonId);
                 swal(
                     {
                         type: 'success',
@@ -7279,7 +7287,7 @@ $(document).on('submit','#adisyon_tahsilat',function(e){
                         timer:3000,
                     }
                 );
-                
+
                 if($('#tahsilat_ekrani').length )
                 {
                     $('#tum_tahsilatlar').empty();
@@ -8203,6 +8211,7 @@ $('#paket_satisi').off('submit').on('submit',function(e){
     formData.append('musteri_id',$('select[name="musteri_adi_yeni_paket"]').val());
     formData.append('tahsilatekrani',$('#tahsilat_ekrani').val());
     formData.append('adisyonsuz',$('#adisyonsuz').val());
+    formData.set('adisyon_id',$('#session_adisyon_id').val() || '');
      $('#tum_tahsilatlar input[name="adisyon_urun_id[]"]').each(function(e){
          formData.append('adisyon_urun_id[]',$(this).val());
 
@@ -8236,7 +8245,11 @@ $('#paket_satisi').off('submit').on('submit',function(e){
                 },
                success: function(result)  {
                     $('#preloader').hide();
-                    
+                    if($('#session_adisyon_id').length){
+                        var _paketAdisyonId = (result && result.tum_tahsilatlar && result.tum_tahsilatlar.adisyonId) ? result.tum_tahsilatlar.adisyonId : (result && result.adisyonId ? result.adisyonId : '');
+                        if(_paketAdisyonId) $('#session_adisyon_id').val(_paketAdisyonId);
+                    }
+
                     const previousDisabledValue = $('select[name="musteri_adi_yeni_paket"]').val();
 
                     $('#paket_satisi').trigger('reset');
@@ -12126,6 +12139,8 @@ $('#taksitli_tahsilat_formu').on('submit',function(e){
         },
         success: function(result)  {
              $("#preloader").hide();
+             if(result && result.adisyonId && $('#session_adisyon_id').length)
+                 $('#session_adisyon_id').val(result.adisyonId);
              swal(
                 {
                     type: "success",
@@ -19892,6 +19907,8 @@ $('select[name="tahsilat_musteri_id"]').change(function(){
                  $('#musteri_indirimi').val(0);
                  $('#tum_tahsilatlar').empty();
                  $('#tahsilat_listesi').empty();
+                 if($('#session_adisyon_id').length)
+                    $('#session_adisyon_id').val('');
     if($(this).val()!=0)
     {
         $('.adisyon_ekle_buttonlar').each(function(){
