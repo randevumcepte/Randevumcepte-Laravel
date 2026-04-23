@@ -757,12 +757,32 @@
                 nt.textContent = numStr;
                 ng.appendChild(nt); wheelEl.appendChild(ng);
 
-                // Yazı: iç bölgede radyal dikey — sl.name'den okur (yazı alanı bunu kontrol eder)
+                // Yazı: iç bölgede radyal dikey, sarmalı — sl.name'den okur
                 const innerLabel = sl.name || catStr;
-                const catDist = n <= 8 ? 68 : 60;
+                const catDist    = n <= 8 ? 68 : 60;
                 const cx2 = CX + catDist * Math.cos(tRad);
                 const cy2 = CY + catDist * Math.sin(tRad);
-                addText(cx2, cy2, innerLabel, catFs, '700', 'rgba(255,255,255,.92)', 'rgba(0,0,0,.5)', '2');
+                const catMaxCh   = Math.max(4, Math.floor(55 / (catFs * 0.62)));
+                let   catLines   = wrapText(innerLabel, catMaxCh);
+                if (catLines.length > 2) catLines = [innerLabel.slice(0, catMaxCh - 1) + '…'];
+                const catLH  = catFs + 2;
+                const catSY  = cy2 - ((catLines.length - 1) * catLH / 2);
+                const catG   = svgEl('g');
+                catG.setAttribute('transform', `rotate(${textRot}, ${cx2}, ${cy2})`);
+                catLines.forEach((ln, li) => {
+                    const t = svgEl('text');
+                    t.setAttribute('x', cx2); t.setAttribute('y', catSY + li * catLH);
+                    t.setAttribute('text-anchor', 'middle');
+                    t.setAttribute('dominant-baseline', 'middle');
+                    t.setAttribute('font-size', catFs); t.setAttribute('font-weight', '700');
+                    t.setAttribute('fill', 'rgba(255,255,255,.92)');
+                    t.setAttribute('paint-order', 'stroke');
+                    t.setAttribute('stroke', 'rgba(0,0,0,.5)');
+                    t.setAttribute('stroke-width', '2');
+                    t.setAttribute('stroke-linejoin', 'round');
+                    t.textContent = ln; catG.appendChild(t);
+                });
+                wheelEl.appendChild(catG);
 
             } else {
                 /* ── Metin ödülü (Tekrar Dene / Boş / özel isim) ─────────
