@@ -1098,12 +1098,191 @@
         }, 9200);
     };
 
+    /* ══════════════════════════════════════════
+       KUTLAMA — canvas konfeti + balon + fişek
+       ══════════════════════════════════════════ */
+    let celebCanvas = null, celebCtx2d = null, celebRAF = null;
+    let celebParticles = [];
+
+    function startCelebration() {
+        if (!celebCanvas) {
+            celebCanvas = document.createElement('canvas');
+            celebCanvas.style.cssText =
+                'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9998;pointer-events:none';
+            document.body.appendChild(celebCanvas);
+            celebCtx2d = celebCanvas.getContext('2d');
+        }
+        celebCanvas.width  = window.innerWidth;
+        celebCanvas.height = window.innerHeight;
+        celebCanvas.style.display = 'block';
+        celebParticles = [];
+
+        const colors = ['#FF6B6B','#FFE66D','#4ECDC4','#A29BFE','#FD79A8',
+                        '#6C5CE7','#00B894','#FDCB6E','#E17055','#74B9FF'];
+
+        /* — Konfeti (120 parça, üstten düşer) — */
+        for (let i = 0; i < 120; i++) {
+            celebParticles.push({
+                type:'confetti',
+                x: Math.random() * celebCanvas.width,
+                y: -20 - Math.random() * 300,
+                vx: (Math.random() - 0.5) * 3,
+                vy: 3 + Math.random() * 5,
+                rot: Math.random() * 360, rotS: (Math.random() - 0.5) * 9,
+                w: 6 + Math.random() * 8, h: 3 + Math.random() * 5,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                alpha: 1,
+            });
+        }
+
+        /* — Balonlar (14 adet, alttan yükselir) — */
+        for (let i = 0; i < 14; i++) {
+            celebParticles.push({
+                type:'balloon',
+                x: 40 + Math.random() * (celebCanvas.width - 80),
+                y: celebCanvas.height + 30 + Math.random() * 120,
+                vx: (Math.random() - 0.5) * 1.4,
+                vy: -(2 + Math.random() * 2.8),
+                sway: Math.random() * Math.PI * 2,
+                swayS: 0.02 + Math.random() * 0.02,
+                r: 18 + Math.random() * 14,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                alpha: 1,
+            });
+        }
+
+        /* — Havai fişek patlamaları (5 adet, sıralı) — */
+        for (let b = 0; b < 5; b++) {
+            const bx = 80 + Math.random() * (celebCanvas.width - 160);
+            const by = 60 + Math.random() * (celebCanvas.height * 0.45);
+            const bc = colors[Math.floor(Math.random() * colors.length)];
+            setTimeout(() => {
+                for (let p = 0; p < 32; p++) {
+                    const ang   = (p / 32) * Math.PI * 2;
+                    const speed = 3 + Math.random() * 6;
+                    celebParticles.push({
+                        type:'spark', x:bx, y:by,
+                        vx: Math.cos(ang) * speed,
+                        vy: Math.sin(ang) * speed,
+                        r: 3 + Math.random() * 3,
+                        color: bc, alpha:1, life:1,
+                    });
+                }
+            }, b * 500);
+        }
+
+        if (celebRAF) cancelAnimationFrame(celebRAF);
+        animateCelebration();
+        playCheer();
+    }
+
+    function animateCelebration() {
+        if (!celebCtx2d) return;
+        const W = celebCanvas.width, H = celebCanvas.height;
+        celebCtx2d.clearRect(0, 0, W, H);
+
+        celebParticles.forEach(p => {
+            if (p.alpha <= 0.01) return;
+            celebCtx2d.save();
+            celebCtx2d.globalAlpha = p.alpha;
+
+            if (p.type === 'confetti') {
+                p.x += p.vx; p.y += p.vy; p.vy += 0.09; p.rot += p.rotS;
+                if (p.y > H + 20) { p.alpha = 0; celebCtx2d.restore(); return; }
+                celebCtx2d.translate(p.x, p.y);
+                celebCtx2d.rotate(p.rot * Math.PI / 180);
+                celebCtx2d.fillStyle = p.color;
+                celebCtx2d.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+
+            } else if (p.type === 'balloon') {
+                p.sway += p.swayS;
+                p.x += p.vx + Math.sin(p.sway) * 0.6; p.y += p.vy;
+                if (p.y < -70) { p.alpha = 0; celebCtx2d.restore(); return; }
+                celebCtx2d.translate(p.x, p.y);
+                // Gövde
+                celebCtx2d.beginPath();
+                celebCtx2d.arc(0, 0, p.r, 0, Math.PI * 2);
+                celebCtx2d.fillStyle = p.color; celebCtx2d.fill();
+                // Parlaklık
+                celebCtx2d.beginPath();
+                celebCtx2d.arc(-p.r*.3, -p.r*.3, p.r*.27, 0, Math.PI*2);
+                celebCtx2d.fillStyle = 'rgba(255,255,255,0.38)'; celebCtx2d.fill();
+                // İp
+                celebCtx2d.beginPath();
+                celebCtx2d.moveTo(0, p.r);
+                celebCtx2d.quadraticCurveTo(5, p.r+14, -3, p.r+28);
+                celebCtx2d.strokeStyle = 'rgba(255,255,255,0.55)';
+                celebCtx2d.lineWidth = 1.2; celebCtx2d.stroke();
+
+            } else if (p.type === 'spark') {
+                p.x += p.vx; p.y += p.vy; p.vy += 0.18;
+                p.life -= 0.022; p.alpha = Math.max(0, p.life);
+                celebCtx2d.beginPath();
+                celebCtx2d.arc(p.x, p.y, Math.max(0.5, p.r * p.life), 0, Math.PI*2);
+                celebCtx2d.fillStyle = p.color; celebCtx2d.fill();
+            }
+            celebCtx2d.restore();
+        });
+
+        celebRAF = requestAnimationFrame(animateCelebration);
+    }
+
+    function stopCelebration() {
+        if (celebRAF) { cancelAnimationFrame(celebRAF); celebRAF = null; }
+        if (celebCanvas) celebCanvas.style.display = 'none';
+        celebParticles = [];
+    }
+
+    /* — Ses: alkış gürültüsü + kazanma fanfarı — */
+    function playCheer() {
+        try {
+            const ctx = getAudioCtx();
+            if (ctx.state === 'suspended') ctx.resume();
+            const now = ctx.currentTime;
+
+            /* Alkış — modüleli gürültü */
+            const dur = 4, sr = ctx.sampleRate;
+            const buf = ctx.createBuffer(2, sr * dur, sr);
+            for (let ch = 0; ch < 2; ch++) {
+                const d = buf.getChannelData(ch);
+                for (let i = 0; i < d.length; i++) {
+                    const t   = i / sr;
+                    const env = t < 0.5 ? t / 0.5 : t < 3 ? 1 : Math.pow(1-(t-3)/1, 1.5);
+                    const mod = 0.5 + 0.5 * Math.abs(Math.sin(t * 7.5 + ch * 0.4 + Math.random()*.05));
+                    d[i] = (Math.random() * 2 - 1) * mod * env * 0.3;
+                }
+            }
+            const src  = ctx.createBufferSource(); src.buffer = buf;
+            const bp   = ctx.createBiquadFilter();
+            bp.type = 'bandpass'; bp.frequency.value = 1600; bp.Q.value = 0.7;
+            const gv   = ctx.createGain(); gv.gain.value = 2.2;
+            src.connect(bp); bp.connect(gv); gv.connect(ctx.destination);
+            src.start(now);
+
+            /* Kazanma fanfarı — Do Majör arpeji */
+            [[0,523],[280,659],[520,784],[720,880],[880,1047]].forEach(([ms, freq]) => {
+                const osc = ctx.createOscillator(), g = ctx.createGain();
+                osc.type = 'sine'; osc.frequency.value = freq;
+                const t0 = now + ms/1000;
+                g.gain.setValueAtTime(0, t0);
+                g.gain.linearRampToValueAtTime(0.2, t0 + 0.06);
+                g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.5);
+                osc.connect(g); g.connect(ctx.destination);
+                osc.start(t0); osc.stop(t0 + 0.6);
+            });
+        } catch(e) {}
+    }
+
     /* ── Modal ── */
     function showResultModal(idx) {
         resultText.textContent = buildFullName(slices[idx]);
         resultModal.classList.add('show');
+        startCelebration();
     }
-    window.closeModal = function () { resultModal.classList.remove('show'); };
+    window.closeModal = function () {
+        resultModal.classList.remove('show');
+        stopCelebration();
+    };
 
     /* ── Toggle status ── */
     window.toggleStatus = function () {
