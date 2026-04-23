@@ -18,7 +18,7 @@
       .isletme-baslik p { margin: 5px 0 0; opacity: 0.85; font-size: 14px; }
       .form-kart { background: white; border-radius: 0 0 10px 10px; box-shadow: 0 2px 15px rgba(0,0,0,0.08); padding: 30px; }
       .aciklama-kutusu { background: #f8f9fa; border-left: 4px solid #5C008E; padding: 12px 16px; border-radius: 4px; margin-bottom: 24px; font-size: 13px; color: #555; }
-      .soru-satiri { margin-bottom: 18px; padding: 14px 16px; background: #fafafa; border: 1px solid #e9ecef; border-radius: 8px; }
+      .soru-satiri { margin-bottom: 12px; padding: 12px 16px; background: #fafafa; border: 1px solid #e9ecef; border-radius: 8px; }
       .soru-satiri.bilgi-metni { background: #e8f4fd; border-color: #bee3f8; }
       .soru-etiketi { font-weight: 600; font-size: 14px; color: #333; margin-bottom: 10px; display: block; }
       .soru-etiketi .zorunlu { color: red; margin-left: 3px; }
@@ -84,15 +84,46 @@
       <hr style="margin: 20px 0;">
 
       <div id="sorular_bolumu">
+         @php $soruNo = 1; @endphp
          @foreach($sorular as $idx => $soru)
-            @if($soru['tip'] === 'bilgi_metni')
+            @php $tip = $soru['tip']; @endphp
+
+            @if($tip === 'bolum_basligi')
+               <div style="background:#e9ecef; padding:8px 14px; font-weight:700; font-size:14px; text-transform:uppercase; border-radius:4px; margin:16px 0 8px;">
+                  {{ $soru['soru'] }}
+               </div>
+
+            @elseif($tip === 'alt_baslik')
+               <div style="font-weight:700; font-size:13px; text-align:center; text-decoration:underline; margin:10px 0 6px;">
+                  {{ $soru['soru'] }}
+               </div>
+
+            @elseif($tip === 'metin_blogu')
+               <div style="font-size:13px; color:#444; margin:6px 0 10px; line-height:1.6; text-align:justify;">
+                  {!! nl2br(e($soru['soru'])) !!}
+               </div>
+
+            @elseif($tip === 'madde_listesi')
+               <ul style="font-size:13px; color:#444; margin:4px 0 10px 20px; line-height:1.7; padding:0;">
+                  @foreach(array_filter(array_map('trim', explode("\n", $soru['soru']))) as $madde)
+                     <li>{{ $madde }}</li>
+                  @endforeach
+               </ul>
+
+            @elseif($tip === 'not_kutusu')
+               <div style="background:#f5f5f5; border:1px solid #ccc; border-radius:4px; padding:10px 14px; font-size:12px; color:#555; margin:8px 0; font-weight:600;">
+                  {{ $soru['soru'] }}
+               </div>
+
+            @elseif($tip === 'bilgi_metni')
                <div class="soru-satiri bilgi-metni">
                   <p style="margin:0; font-size:13px; color:#2c5282;">{!! nl2br(e($soru['soru'])) !!}</p>
                </div>
-            @elseif($soru['tip'] === 'evet_hayir')
+
+            @elseif($tip === 'evet_hayir')
                <div class="soru-satiri">
                   <span class="soru-etiketi">
-                     {{ $idx + 1 }}. {{ $soru['soru'] }}
+                     {{ $soruNo++ }}. {{ $soru['soru'] }}
                      @if(!empty($soru['zorunlu'])) <span class="zorunlu">*</span> @endif
                   </span>
                   <div class="evet-hayir-grup" id="grup_{{ $idx }}">
@@ -102,24 +133,27 @@
                   <input type="hidden" id="cevap_{{ $idx }}" value="" data-tip="evet_hayir" data-zorunlu="{{ !empty($soru['zorunlu']) ? '1' : '0' }}">
                   <div class="hata-mesaji" id="hata_{{ $idx }}">Bu soruyu cevaplamak zorunludur.</div>
                </div>
-            @elseif($soru['tip'] === 'metin')
+
+            @elseif($tip === 'metin')
                <div class="soru-satiri">
                   <label class="soru-etiketi">
-                     {{ $idx + 1 }}. {{ $soru['soru'] }}
+                     {{ $soruNo++ }}. {{ $soru['soru'] }}
                      @if(!empty($soru['zorunlu'])) <span class="zorunlu">*</span> @endif
                   </label>
                   <input type="text" class="form-control" id="cevap_{{ $idx }}" placeholder="Cevabınızı yazın..." data-tip="metin" data-zorunlu="{{ !empty($soru['zorunlu']) ? '1' : '0' }}">
                   <div class="hata-mesaji" id="hata_{{ $idx }}">Bu alan zorunludur.</div>
                </div>
-            @elseif($soru['tip'] === 'uzun_metin')
+
+            @elseif($tip === 'uzun_metin')
                <div class="soru-satiri">
                   <label class="soru-etiketi">
-                     {{ $idx + 1 }}. {{ $soru['soru'] }}
+                     {{ $soruNo++ }}. {{ $soru['soru'] }}
                      @if(!empty($soru['zorunlu'])) <span class="zorunlu">*</span> @endif
                   </label>
                   <textarea class="form-control" id="cevap_{{ $idx }}" rows="3" placeholder="Cevabınızı yazın..." data-tip="uzun_metin" data-zorunlu="{{ !empty($soru['zorunlu']) ? '1' : '0' }}"></textarea>
                   <div class="hata-mesaji" id="hata_{{ $idx }}">Bu alan zorunludur.</div>
                </div>
+
             @endif
          @endforeach
       </div>

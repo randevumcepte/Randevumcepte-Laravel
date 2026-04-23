@@ -24,7 +24,7 @@
       <table class="data-table table stripe hover nowrap" id="form_sablonlari_liste">
          <thead>
             <th>Form Adı</th>
-            <th>Soru Sayısı</th>
+            <th>Eleman Sayısı</th>
             <th>Oluşturulma</th>
             <th>İşlemler</th>
          </thead>
@@ -34,7 +34,7 @@
                <td>{{$form->form_adi}}</td>
                <td>
                   @if($form->sorular_json)
-                     {{ count(json_decode($form->sorular_json, true) ?? []) }} soru
+                     {{ count(json_decode($form->sorular_json, true) ?? []) }} eleman
                   @else
                      -
                   @endif
@@ -44,6 +44,9 @@
                   <button class="btn btn-sm btn-primary" onclick="formDuzenle({{$form->id}})">
                      <i class="fa fa-edit"></i> Düzenle
                   </button>
+                  <a href="/isletmeyonetim/bosFormIndirDinamik?formId={{$form->id}}&sube={{$isletme->id}}" class="btn btn-sm btn-info" target="_blank">
+                     <i class="fa fa-download"></i> PDF
+                  </a>
                   <button class="btn btn-sm btn-danger" onclick="formSil({{$form->id}}, '{{addslashes($form->form_adi)}}')">
                      <i class="fa fa-trash"></i> Sil
                   </button>
@@ -57,13 +60,13 @@
 
 {{-- Form Oluştur/Düzenle Modal --}}
 <div id="formSablonModal" class="modal modal-top fade calendar-modal">
-   <div class="modal-dialog" style="max-width: 900px">
+   <div class="modal-dialog" style="max-width: 950px">
       <div class="modal-content">
          <div class="modal-header">
             <h4 class="h4" id="modalBaslik">Yeni Form Şablonu</h4>
             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
          </div>
-         <div class="modal-body">
+         <div class="modal-body" style="max-height:80vh; overflow-y:auto;">
             {{ csrf_field() }}
             <input type="hidden" id="form_id_gizli" value="">
             <input type="hidden" name="sube" value="{{$isletme->id}}">
@@ -71,38 +74,52 @@
             <div class="row">
                <div class="col-md-8 form-group">
                   <label><b>Form Adı *</b></label>
-                  <input type="text" id="form_adi_input" class="form-control" placeholder="Örn: Cilt Bakımı Onam Formu" maxlength="200">
+                  <input type="text" id="form_adi_input" class="form-control" placeholder="Örn: Lazer Epilasyon Onam Formu" maxlength="200">
                </div>
                <div class="col-md-12 form-group">
-                  <label><b>Form Açıklaması / Üst Metin</b></label>
-                  <textarea id="form_aciklama_input" class="form-control" rows="2" placeholder="Formun üst kısmında görünecek açıklama metni..."></textarea>
+                  <label><b>Form Başlık Açıklaması</b> <small class="text-muted">(formun hemen üstünde gri kutuda gösterilir)</small></label>
+                  <textarea id="form_aciklama_input" class="form-control" rows="2" placeholder="Bu formdaki açıklamaların amacı..."></textarea>
                </div>
             </div>
 
             <hr>
-            <h5><b>Sorular</b></h5>
-            <p class="text-muted" style="font-size:13px;">Müşterilerin cevaplayacağı soruları aşağıya ekleyin.</p>
+            <h5><b>Form İçeriği</b></h5>
+            <p class="text-muted" style="font-size:12px;">
+               Aşağıdaki butonlarla form elemanları ekleyin. Sürükle bırak yerine ↑↓ butonlarıyla sıralayabilirsiniz.
+            </p>
 
-            <div id="sorular_konteyneri">
-               {{-- Sorular buraya eklenir --}}
-            </div>
+            <div id="sorular_konteyneri"></div>
 
-            <div class="row" style="margin-top:10px;">
+            <div class="row mt-2">
                <div class="col-md-12">
-                  <div class="btn-group">
-                     <button type="button" class="btn btn-outline-primary btn-sm" onclick="soruEkle('evet_hayir')">
-                        <i class="fa fa-plus"></i> Evet/Hayır Sorusu
-                     </button>
-                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="soruEkle('metin')">
-                        <i class="fa fa-plus"></i> Metin Girişi
-                     </button>
-                     <button type="button" class="btn btn-outline-info btn-sm" onclick="soruEkle('uzun_metin')">
-                        <i class="fa fa-plus"></i> Uzun Metin
-                     </button>
-                     <button type="button" class="btn btn-outline-warning btn-sm" onclick="soruEkle('bilgi_metni')">
-                        <i class="fa fa-plus"></i> Bilgi/Açıklama Metni
-                     </button>
-                  </div>
+                  <div class="mb-1"><small class="text-muted font-weight-bold">YAPI ELEMANLARI</small></div>
+                  <button type="button" class="btn btn-outline-dark btn-sm mb-1" onclick="soruEkle('bolum_basligi')">
+                     <i class="fa fa-header"></i> Bölüm Başlığı
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm mb-1" onclick="soruEkle('alt_baslik')">
+                     <i class="fa fa-bold"></i> Alt Başlık
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm mb-1" onclick="soruEkle('metin_blogu')">
+                     <i class="fa fa-paragraph"></i> Metin Bloğu
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm mb-1" onclick="soruEkle('madde_listesi')">
+                     <i class="fa fa-list-ul"></i> Madde Listesi
+                  </button>
+                  <button type="button" class="btn btn-outline-info btn-sm mb-1" onclick="soruEkle('not_kutusu')">
+                     <i class="fa fa-exclamation-circle"></i> Not Kutusu
+                  </button>
+               </div>
+               <div class="col-md-12 mt-2">
+                  <div class="mb-1"><small class="text-muted font-weight-bold">MÜŞTERİ CEVAPLI ALANLAR</small></div>
+                  <button type="button" class="btn btn-outline-primary btn-sm mb-1" onclick="soruEkle('evet_hayir')">
+                     <i class="fa fa-check-square-o"></i> Evet/Hayır Sorusu
+                  </button>
+                  <button type="button" class="btn btn-outline-success btn-sm mb-1" onclick="soruEkle('metin')">
+                     <i class="fa fa-minus"></i> Kısa Metin Girişi
+                  </button>
+                  <button type="button" class="btn btn-outline-warning btn-sm mb-1" onclick="soruEkle('uzun_metin')">
+                     <i class="fa fa-align-left"></i> Uzun Metin Girişi
+                  </button>
                </div>
             </div>
          </div>
@@ -140,116 +157,71 @@
 var soruSayaci = 0;
 var silinecekFormId = null;
 
+var TIP_RENK = {
+   bolum_basligi: { renk: '#343a40', etiket: 'Bölüm Başlığı', badge: 'badge-dark' },
+   alt_baslik:    { renk: '#6c757d', etiket: 'Alt Başlık',    badge: 'badge-secondary' },
+   metin_blogu:   { renk: '#6c757d', etiket: 'Metin Bloğu',   badge: 'badge-secondary' },
+   madde_listesi: { renk: '#6c757d', etiket: 'Madde Listesi', badge: 'badge-secondary' },
+   not_kutusu:    { renk: '#17a2b8', etiket: 'Not Kutusu',    badge: 'badge-info' },
+   evet_hayir:    { renk: '#5C008E', etiket: 'Evet/Hayır',    badge: 'badge-primary' },
+   metin:         { renk: '#28a745', etiket: 'Kısa Metin',    badge: 'badge-success' },
+   uzun_metin:    { renk: '#ffc107', etiket: 'Uzun Metin',    badge: 'badge-warning' },
+   bilgi_metni:   { renk: '#17a2b8', etiket: 'Bilgi Metni',   badge: 'badge-info' },
+};
+
 function soruEkle(tip, mevcutSoru) {
    soruSayaci++;
    var idx = soruSayaci;
    var soru = mevcutSoru || { soru: '', tip: tip, zorunlu: false };
+   var meta = TIP_RENK[tip] || { renk: '#999', etiket: tip, badge: 'badge-secondary' };
 
-   var html = '';
+   var aksiyon = '';
+   var zorunluKutucuk = tip === 'evet_hayir' || tip === 'metin' || tip === 'uzun_metin'
+      ? `<label style="font-size:12px;"><input type="checkbox" class="soru-zorunlu" ${soru.zorunlu ? 'checked' : ''}> Zorunlu</label>`
+      : `<input type="hidden" class="soru-zorunlu" value="0">`;
 
-   if (tip === 'bilgi_metni') {
-      html = `
-      <div class="soru-satiri card mb-2" id="soru_${idx}" style="border-left: 4px solid #17a2b8;">
-         <div class="card-body p-2">
-            <div class="row align-items-center">
-               <div class="col-md-1 text-center">
-                  <span class="badge badge-info" style="font-size:11px;">#${idx}</span><br>
-                  <small class="text-muted" style="font-size:10px;">Metin</small>
-               </div>
-               <div class="col-md-9">
-                  <textarea class="form-control soru-metni" rows="2" placeholder="Bilgi/açıklama metni (müşteri cevaplamaz, sadece okur)..." style="font-size:13px;">${soru.soru || ''}</textarea>
-               </div>
-               <div class="col-md-1 text-center">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="soruYukariTasi(${idx})" title="Yukarı">↑</button><br>
-                  <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="soruAsagiTasi(${idx})" title="Aşağı">↓</button>
-               </div>
-               <div class="col-md-1 text-center">
-                  <button type="button" class="btn btn-sm btn-danger" onclick="soruSil(${idx})" title="Sil"><i class="fa fa-trash"></i></button>
-               </div>
-            </div>
-            <input type="hidden" class="soru-tip" value="bilgi_metni">
-            <input type="hidden" class="soru-zorunlu" value="0">
-         </div>
-      </div>`;
-   } else if (tip === 'evet_hayir') {
-      html = `
-      <div class="soru-satiri card mb-2" id="soru_${idx}" style="border-left: 4px solid #5C008E;">
-         <div class="card-body p-2">
-            <div class="row align-items-center">
-               <div class="col-md-1 text-center">
-                  <span class="badge badge-primary" style="font-size:11px;">#${idx}</span><br>
-                  <small class="text-muted" style="font-size:10px;">E/H</small>
-               </div>
-               <div class="col-md-7">
-                  <input type="text" class="form-control soru-metni" placeholder="Soru metni..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;">
-               </div>
-               <div class="col-md-2 text-center">
-                  <label style="font-size:12px;"><input type="checkbox" class="soru-zorunlu" ${soru.zorunlu ? 'checked' : ''}> Zorunlu</label>
-               </div>
-               <div class="col-md-1 text-center">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="soruYukariTasi(${idx})" title="Yukarı">↑</button><br>
-                  <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="soruAsagiTasi(${idx})" title="Aşağı">↓</button>
-               </div>
-               <div class="col-md-1 text-center">
-                  <button type="button" class="btn btn-sm btn-danger" onclick="soruSil(${idx})" title="Sil"><i class="fa fa-trash"></i></button>
-               </div>
-            </div>
-            <input type="hidden" class="soru-tip" value="evet_hayir">
-         </div>
-      </div>`;
-   } else if (tip === 'metin') {
-      html = `
-      <div class="soru-satiri card mb-2" id="soru_${idx}" style="border-left: 4px solid #28a745;">
-         <div class="card-body p-2">
-            <div class="row align-items-center">
-               <div class="col-md-1 text-center">
-                  <span class="badge badge-success" style="font-size:11px;">#${idx}</span><br>
-                  <small class="text-muted" style="font-size:10px;">Metin</small>
-               </div>
-               <div class="col-md-7">
-                  <input type="text" class="form-control soru-metni" placeholder="Soru metni..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;">
-               </div>
-               <div class="col-md-2 text-center">
-                  <label style="font-size:12px;"><input type="checkbox" class="soru-zorunlu" ${soru.zorunlu ? 'checked' : ''}> Zorunlu</label>
-               </div>
-               <div class="col-md-1 text-center">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="soruYukariTasi(${idx})" title="Yukarı">↑</button><br>
-                  <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="soruAsagiTasi(${idx})" title="Aşağı">↓</button>
-               </div>
-               <div class="col-md-1 text-center">
-                  <button type="button" class="btn btn-sm btn-danger" onclick="soruSil(${idx})" title="Sil"><i class="fa fa-trash"></i></button>
-               </div>
-            </div>
-            <input type="hidden" class="soru-tip" value="metin">
-         </div>
-      </div>`;
-   } else if (tip === 'uzun_metin') {
-      html = `
-      <div class="soru-satiri card mb-2" id="soru_${idx}" style="border-left: 4px solid #ffc107;">
-         <div class="card-body p-2">
-            <div class="row align-items-center">
-               <div class="col-md-1 text-center">
-                  <span class="badge badge-warning" style="font-size:11px;">#${idx}</span><br>
-                  <small class="text-muted" style="font-size:10px;">Uzun</small>
-               </div>
-               <div class="col-md-7">
-                  <input type="text" class="form-control soru-metni" placeholder="Soru metni..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;">
-               </div>
-               <div class="col-md-2 text-center">
-                  <label style="font-size:12px;"><input type="checkbox" class="soru-zorunlu" ${soru.zorunlu ? 'checked' : ''}> Zorunlu</label>
-               </div>
-               <div class="col-md-1 text-center">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="soruYukariTasi(${idx})" title="Yukarı">↑</button><br>
-                  <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="soruAsagiTasi(${idx})" title="Aşağı">↓</button>
-               </div>
-               <div class="col-md-1 text-center">
-                  <button type="button" class="btn btn-sm btn-danger" onclick="soruSil(${idx})" title="Sil"><i class="fa fa-trash"></i></button>
-               </div>
-            </div>
-            <input type="hidden" class="soru-tip" value="uzun_metin">
-         </div>
-      </div>`;
+   var girdi = '';
+   if (tip === 'bolum_basligi') {
+      girdi = `<input type="text" class="form-control soru-metni font-weight-bold" placeholder="BÖLÜM BAŞLIĞI (büyük harf önerilir)..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;font-weight:bold;">`;
+   } else if (tip === 'alt_baslik') {
+      girdi = `<input type="text" class="form-control soru-metni" placeholder="Alt başlık metni (kalın gösterilir)..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;">`;
+   } else if (tip === 'metin_blogu') {
+      girdi = `<textarea class="form-control soru-metni" rows="3" placeholder="Paragraf metni..." style="font-size:13px;">${escapeHtml(soru.soru || '')}</textarea>`;
+   } else if (tip === 'madde_listesi') {
+      girdi = `<textarea class="form-control soru-metni" rows="4" placeholder="Her satıra bir madde yazın:\nKızarıklık (eritem).\nYan etki sadece geçici..." style="font-size:13px;">${escapeHtml(soru.soru || '')}</textarea>
+               <small class="text-muted">Her satır ayrı bir madde olarak gösterilir (• işaretiyle)</small>`;
+   } else if (tip === 'not_kutusu') {
+      girdi = `<textarea class="form-control soru-metni" rows="2" placeholder="Not kutusu metni (kenarlıklı gri kutuda gösterilir)..." style="font-size:13px;">${escapeHtml(soru.soru || '')}</textarea>`;
+   } else if (tip === 'bilgi_metni') {
+      girdi = `<textarea class="form-control soru-metni" rows="2" placeholder="Bilgi/açıklama metni..." style="font-size:13px;">${escapeHtml(soru.soru || '')}</textarea>`;
+   } else {
+      girdi = `<input type="text" class="form-control soru-metni" placeholder="Soru metni..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;">`;
    }
+
+   var html = `
+   <div class="soru-satiri card mb-2" id="soru_${idx}" style="border-left: 4px solid ${meta.renk};">
+      <div class="card-body p-2">
+         <div class="row align-items-start">
+            <div class="col-md-1 text-center pt-1">
+               <span class="badge ${meta.badge}" style="font-size:10px;">${meta.etiket}</span>
+            </div>
+            <div class="col-md-8">
+               ${girdi}
+            </div>
+            <div class="col-md-1 text-center pt-1">
+               ${zorunluKutucuk}
+            </div>
+            <div class="col-md-1 text-center">
+               <button type="button" class="btn btn-sm btn-outline-secondary btn-block mb-1" onclick="soruYukariTasi(${idx})" title="Yukarı">↑</button>
+               <button type="button" class="btn btn-sm btn-outline-secondary btn-block" onclick="soruAsagiTasi(${idx})" title="Aşağı">↓</button>
+            </div>
+            <div class="col-md-1 text-center pt-1">
+               <button type="button" class="btn btn-sm btn-danger" onclick="soruSil(${idx})" title="Sil"><i class="fa fa-trash"></i></button>
+            </div>
+         </div>
+         <input type="hidden" class="soru-tip" value="${tip}">
+      </div>
+   </div>`;
 
    $('#sorular_konteyneri').append(html);
 }
@@ -287,7 +259,7 @@ function yeniFormAc() {
 function formDuzenle(formId) {
    $.get('/isletmeyonetim/form-sablonlari-getir?id=' + formId + '&sube={{$isletme->id}}', function(data) {
       if (!data || data.hata) {
-         Swal.fire('Hata', 'Form bilgileri alınamadı.', 'error');
+         alert('Form bilgileri alınamadı.');
          return;
       }
       $('#form_id_gizli').val(data.id);
@@ -309,7 +281,7 @@ function formDuzenle(formId) {
 function formKaydet() {
    var formAdi = $('#form_adi_input').val().trim();
    if (!formAdi) {
-      Swal.fire('Uyarı', 'Form adı zorunludur.', 'warning');
+      alert('Form adı zorunludur.');
       return;
    }
 
@@ -319,14 +291,11 @@ function formKaydet() {
       var metin = $(this).find('.soru-metni').val().trim();
       var zorunluEl = $(this).find('.soru-zorunlu');
       var zorunlu = zorunluEl.is('[type=checkbox]') ? zorunluEl.is(':checked') : false;
-
-      if (metin || tip === 'bilgi_metni') {
-         sorular.push({ tip: tip, soru: metin, zorunlu: zorunlu });
-      }
+      sorular.push({ tip: tip, soru: metin, zorunlu: zorunlu });
    });
 
    if (sorular.length === 0) {
-      Swal.fire('Uyarı', 'En az bir soru ekleyin.', 'warning');
+      alert('En az bir eleman ekleyin.');
       return;
    }
 
@@ -391,4 +360,3 @@ $(document).on('click', '#silOnayBtn', function() {
 });
 </script>
 @endsection
-

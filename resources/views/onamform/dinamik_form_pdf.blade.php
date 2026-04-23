@@ -3,35 +3,40 @@
 <head>
 <meta charset="utf-8">
 <style>
-   body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #222; }
-   h3 { text-align: center; margin-bottom: 4px; }
-   .subtitle { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 2px; text-decoration: underline; }
-   .isletme { text-align: center; font-size: 13px; margin-bottom: 16px; }
-   hr { border: 1px solid #999; margin: 10px 0; }
-   .info-tablo { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
-   .info-tablo td { padding: 3px 6px; font-size: 12px; }
-   .info-tablo .etiket { font-weight: bold; width: 35%; }
-   .soru-blok { margin-bottom: 8px; border-bottom: 1px dotted #ccc; padding-bottom: 6px; }
-   .soru-metin { font-weight: bold; font-size: 12px; }
-   .soru-cevap { margin-top: 3px; font-size: 12px; padding-left: 10px; color: #333; }
-   .bilgi-metni { background: #f5f5f5; padding: 6px; font-size: 11px; color: #444; margin-bottom: 8px; }
+   body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #111; margin: 0; padding: 0; }
+   .header-isletme { text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 2px; }
+   .header-form-adi { text-align: center; font-size: 14px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; }
+   .ust-aciklama { background: #f0f0f0; border: 1px solid #ccc; padding: 6px 8px; font-size: 10px; color: #333; margin-bottom: 10px; font-style: italic; }
+   hr { border: 0; border-top: 1px solid #aaa; margin: 6px 0; }
+   .info-tablo { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+   .info-tablo td { padding: 3px 4px; font-size: 11px; }
+   .info-tablo .etiket { font-weight: bold; width: 22%; }
+   .bolum-basligi { background: #d0d0d0; padding: 5px 8px; font-weight: bold; font-size: 12px; text-transform: uppercase; margin: 10px 0 4px 0; }
+   .alt-baslik { font-weight: bold; font-size: 11px; text-align: center; margin: 6px 0 4px 0; text-decoration: underline; }
+   .metin-blogu { font-size: 10.5px; margin: 4px 0 6px 0; line-height: 1.5; text-align: justify; }
+   .madde-listesi { margin: 4px 0 6px 16px; padding: 0; }
+   .madde-listesi li { font-size: 10.5px; margin-bottom: 2px; }
+   .not-kutusu { background: #f5f5f5; border: 1px solid #bbb; padding: 6px 8px; font-size: 10px; color: #333; margin: 6px 0; }
+   .bilgi-metni { background: #f5f5f5; padding: 5px 8px; font-size: 10px; color: #444; margin: 4px 0; }
+   .eh-tablo { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
+   .eh-tablo tr td { padding: 3px 4px; font-size: 10.5px; vertical-align: middle; border-bottom: 1px dotted #ddd; }
+   .eh-tablo tr td:first-child { width: 78%; }
+   .eh-tablo tr td:last-child { width: 22%; text-align: right; white-space: nowrap; }
+   .metin-soru-blok { margin-bottom: 6px; border-bottom: 1px dotted #ddd; padding-bottom: 4px; }
+   .metin-soru-metin { font-weight: bold; font-size: 10.5px; }
+   .metin-soru-cevap { font-size: 10.5px; padding-left: 8px; color: #222; margin-top: 2px; }
    .imza-alani { margin-top: 20px; }
-   .imza-alani table { width: 100%; }
-   .imza-alani td { vertical-align: bottom; padding: 5px; }
-   .imza-kutu { border: 1px dashed #888; height: 70px; text-align: center; }
-   .tarih-alani { margin-top: 16px; font-size: 11px; color: #555; }
-   .evethayir-evet { color: #c0392b; font-weight: bold; }
-   .evethayir-hayir { color: #27ae60; font-weight: bold; }
+   .imza-kutu { border: 1px dashed #888; height: 70px; text-align: center; vertical-align: middle; }
 </style>
 </head>
 <body>
 
-<div class="isletme">{{ $isletme->salon_adi }}</div>
-<div class="subtitle">{{ $form_adi }}</div>
+<div class="header-isletme">{{ $isletme->salon_adi }}</div>
+<div class="header-form-adi">{{ $form_adi }}</div>
 <hr>
 
 @if($aciklama)
-<div class="bilgi-metni">{{ $aciklama }}</div>
+<div class="ust-aciklama">{{ $aciklama }}</div>
 @endif
 
 <table class="info-tablo">
@@ -51,49 +56,104 @@
 
 <hr>
 
-@foreach($sorular as $idx => $soru)
-   @if($soru['tip'] === 'bilgi_metni')
-      <div class="bilgi-metni">{{ $soru['soru'] }}</div>
-   @else
-      <div class="soru-blok">
-         <div class="soru-metin">{{ $idx + 1 }}. {{ $soru['soru'] }}</div>
-         <div class="soru-cevap">
-            @if(isset($cevaplar[$idx]))
-               @if($soru['tip'] === 'evet_hayir')
-                  @if($cevaplar[$idx] === 'evet')
-                     <span class="evethayir-evet">✔ Evet</span>
-                  @elseif($cevaplar[$idx] === 'hayir')
-                     <span class="evethayir-hayir">✔ Hayır</span>
-                  @else
-                     -
-                  @endif
+@php
+   $elemanlar = [];
+   foreach ($sorular as $idx => $soru) {
+      $elemanlar[] = ['idx' => $idx, 'soru' => $soru];
+   }
+   $toplam = count($elemanlar);
+   $i = 0;
+@endphp
+
+@while($i < $toplam)
+@php $item = $elemanlar[$i]; $soru = $item['soru']; $idx = $item['idx']; $tip = $soru['tip']; @endphp
+
+@if($tip === 'bolum_basligi')
+   <div class="bolum-basligi">{{ $soru['soru'] }}</div>
+   @php $i++; @endphp
+
+@elseif($tip === 'alt_baslik')
+   <div class="alt-baslik">{{ $soru['soru'] }}</div>
+   @php $i++; @endphp
+
+@elseif($tip === 'metin_blogu')
+   <div class="metin-blogu">{{ $soru['soru'] }}</div>
+   @php $i++; @endphp
+
+@elseif($tip === 'madde_listesi')
+   <ul class="madde-listesi">
+      @foreach(array_filter(array_map('trim', explode("\n", $soru['soru']))) as $madde)
+         <li>{{ $madde }}</li>
+      @endforeach
+   </ul>
+   @php $i++; @endphp
+
+@elseif($tip === 'not_kutusu')
+   <div class="not-kutusu">{{ $soru['soru'] }}</div>
+   @php $i++; @endphp
+
+@elseif($tip === 'bilgi_metni')
+   <div class="bilgi-metni">{{ $soru['soru'] }}</div>
+   @php $i++; @endphp
+
+@elseif($tip === 'evet_hayir')
+   <table class="eh-tablo">
+   @while($i < $toplam && $elemanlar[$i]['soru']['tip'] === 'evet_hayir')
+      @php $ehItem = $elemanlar[$i]; $ehIdx = $ehItem['idx']; $ehSoru = $ehItem['soru']; @endphp
+      <tr>
+         <td>&#9702; {{ $ehSoru['soru'] }}</td>
+         <td>
+            @if(isset($cevaplar[$ehIdx]))
+               @if($cevaplar[$ehIdx] === 'evet')
+                  <b style="color:#c0392b;">&#9745; Evet</b>&nbsp;&#9744; Hayir
+               @elseif($cevaplar[$ehIdx] === 'hayir')
+                  &#9744; Evet&nbsp;<b style="color:#27ae60;">&#9745; Hayir</b>
                @else
-                  {{ $cevaplar[$idx] ?: '-' }}
+                  &#9744; Evet&nbsp;&#9744; Hayir
                @endif
             @else
-               -
+               &#9744; Evet&nbsp;&#9744; Hayir
             @endif
-         </div>
-      </div>
-   @endif
-@endforeach
+         </td>
+      </tr>
+      @php $i++; @endphp
+   @endwhile
+   </table>
+
+@elseif($tip === 'metin' || $tip === 'uzun_metin')
+   <div class="metin-soru-blok">
+      <div class="metin-soru-metin">{{ $soru['soru'] }}</div>
+      <div class="metin-soru-cevap">{{ isset($cevaplar[$idx]) ? $cevaplar[$idx] : '-' }}</div>
+   </div>
+   @php $i++; @endphp
+
+@else
+   @php $i++; @endphp
+@endif
+
+@endwhile
 
 <div class="imza-alani">
-   <table>
+   <table width="100%">
       <tr>
-         <td style="width:60%;">
-            <div class="imza-kutu">
+         <td style="width:55%; vertical-align:bottom;">
+            <table width="100%"><tr><td class="imza-kutu">
                @if($arsiv->musteri_imza && str_starts_with($arsiv->musteri_imza, 'data:'))
                   <img src="{{ $arsiv->musteri_imza }}" style="max-height:65px; max-width:180px;">
                @else
-                  <span style="color:#aaa; font-size:11px;">İmza</span>
+                  <span style="color:#aaa; font-size:10px;">Imza</span>
                @endif
-            </div>
-            <div style="text-align:center; font-size:11px; margin-top:4px;">Müşteri İmzası</div>
+            </td></tr></table>
+            <div style="text-align:center; font-size:10px; margin-top:3px;">Musteri Imzasi</div>
          </td>
-         <td style="width:40%; font-size:11px; color:#555;">
+         <td style="width:45%; font-size:10px; color:#555; padding-left:15px; vertical-align:bottom;">
             <p>Tarih: {{ $arsiv->created_at ? date('d.m.Y', strtotime($arsiv->created_at)) : '' }}</p>
-            <p>Durum: @if($arsiv->durum == 1) Onaylandı @elseif($arsiv->durum == 0) İptal Edildi @else Beklemede @endif</p>
+            <p>Durum:
+               @if($arsiv->durum == 1) Onaylandi
+               @elseif($arsiv->durum == 0) Iptal Edildi
+               @else Beklemede
+               @endif
+            </p>
          </td>
       </tr>
    </table>
