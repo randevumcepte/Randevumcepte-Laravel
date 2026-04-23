@@ -1,5 +1,13 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
+@if(request()->embed == 1)
+<style>
+   .header, .left-side-bar, .mobile-menu-overlay, nav[aria-label="breadcrumb"], .breadcrumb { display: none !important; }
+   .main-container { margin-left: 0 !important; padding-top: 10px !important; }
+   body { background: transparent !important; }
+   .page-header { padding-top: 0 !important; }
+</style>
+@endif
 <div class="page-header">
    <div class="row">
       <div class="col-md-6 col-sm-12">

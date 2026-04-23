@@ -25,7 +25,6 @@
         
             <a href="#" data-toggle="modal" type="button" data-target="#formugondermodal"  class="btn btn-success btn-lg yenieklebuton501"><i class="fa fa-paper-plane"></i> Yeni Form Gönder</a>
               <a href="#" data-toggle="modal" type="button" data-target="#haricibelgeeklemodal" class="btn btn-primary btn-lg yenieklebuton502"><i class="fa fa-plus"></i> Belge Ekle</a>
-              <a href="/isletmeyonetim/form-sablonlari?sube={{$isletme->id}}" class="btn btn-warning btn-lg"><i class="fa fa-file-text-o"></i> Form Şablonları</a>
 
           
       </div>
@@ -82,6 +81,17 @@
                role="tab"
                aria-selected="false" style="min-width: 120px;"
                >Harici Belgeler</button
+               >
+            </li>
+              <li class="nav-item" style="margin-left: 20px;">
+              <button
+               class="btn btn-outline-primary "
+               data-toggle="tab"
+               href="#form_sablonlari_tab"
+               role="tab"
+               aria-selected="false" style="min-width: 120px;"
+               onclick="formSablonlariTabAc()"
+               >Form Şablonları</button
                >
             </li>
           </ul>
@@ -157,12 +167,23 @@
       <th>İşlemler</th>
         </thead>
          <tbody>
-                    
+
                   </tbody>
 </table>
             </div>
+            <div class="tab-pane fade show" id="form_sablonlari_tab" role="tab-panel" style="margin-top: 20px;">
+               <iframe id="form_sablonlari_iframe" src="about:blank" style="width:100%; height:80vh; border:1px solid #e0e0e0; border-radius:4px;"></iframe>
+            </div>
           </div>
-        </div>    
+        </div>
+<script>
+function formSablonlariTabAc(){
+   var ifr = document.getElementById('form_sablonlari_iframe');
+   if(ifr && (ifr.src === 'about:blank' || !ifr.src.includes('form-sablonlari'))){
+      ifr.src = '/isletmeyonetim/form-sablonlari?sube={{$isletme->id}}&embed=1';
+   }
+}
+</script>
 
 
 
