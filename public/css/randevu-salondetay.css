@@ -1,0 +1,809 @@
+/* ==========================================================================
+   Salon Detay — Customer Booking Area Premium Restyle
+   Targets existing IDs/classes in salondetaylari.blade.php without
+   modifying JS bindings. Uses !important where needed to defeat inline
+   styles and legacy style.css rules (v=1.9).
+   ========================================================================== */
+
+:root {
+    --rdvs-primary: #5C008E;
+    --rdvs-primary-light: #7B2FB8;
+    --rdvs-primary-dark: #3D005E;
+    --rdvs-primary-soft: #F3ECFA;
+    --rdvs-primary-softer: #FAF5FF;
+    --rdvs-accent: #FF4E00;
+    --rdvs-success: #10B981;
+    --rdvs-border: #E5E7EB;
+    --rdvs-border-light: #F1F3F7;
+    --rdvs-text: #1F2937;
+    --rdvs-text-muted: #6B7280;
+    --rdvs-text-soft: #9CA3AF;
+    --rdvs-bg: #F8F9FC;
+    --rdvs-shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.05);
+    --rdvs-shadow: 0 4px 16px rgba(92, 0, 142, 0.08);
+    --rdvs-shadow-lg: 0 12px 34px rgba(92, 0, 142, 0.14);
+    --rdvs-radius-sm: 10px;
+    --rdvs-radius: 16px;
+    --rdvs-radius-lg: 22px;
+}
+
+/* ---------- Stepper navigations (desktop + mobile) ---------- */
+.randevumenu {
+    display: flex !important;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 8px !important;
+    list-style: none;
+    padding: 14px !important;
+    margin: 0 0 20px !important;
+    background: #fff;
+    border-radius: var(--rdvs-radius) !important;
+    box-shadow: var(--rdvs-shadow);
+    border: none !important;
+}
+.randevumenu::before, .randevumenu::after { display: none !important; }
+.randevumenu > li {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    position: relative;
+}
+.randevumenu > li > a {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    color: var(--rdvs-text-muted) !important;
+    border: none !important;
+    text-decoration: none !important;
+    font-family: inherit !important;
+    transition: background .18s ease, color .18s ease, box-shadow .18s ease !important;
+    height: 100% !important;
+}
+.randevumenu > li:not(.active) > a:hover { background: var(--rdvs-primary-softer) !important; }
+.randevumenu > li.active > a {
+    background: linear-gradient(135deg, var(--rdvs-primary), var(--rdvs-primary-light)) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 20px rgba(92, 0, 142, 0.28) !important;
+}
+.randevuadimlarirakam {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    border-radius: 50% !important;
+    background: var(--rdvs-primary-soft) !important;
+    color: var(--rdvs-primary) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+.randevumenu > li.active .randevuadimlarirakam {
+    background: rgba(255, 255, 255, 0.22) !important;
+    color: #fff !important;
+}
+.randevuadimbaslik {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+}
+
+/* Show navigation1 on desktop, navigation2 on mobile */
+#randevunavigation1 { display: flex !important; }
+#randevunavigation2 { display: none !important; }
+@media (max-width: 767px) {
+    #randevunavigation1 { display: none !important; }
+    #randevunavigation2 { display: flex !important; }
+    .randevumenu { padding: 8px !important; gap: 4px !important; }
+    .randevumenu > li > a { padding: 6px 4px !important; flex-direction: column !important; gap: 4px !important; justify-content: center !important; text-align: center; }
+    .randevuadimlarirakam { width: 28px !important; height: 28px !important; min-width: 28px !important; font-size: 12px !important; }
+    .randevuadimbaslik { font-size: 10px !important; }
+}
+
+/* ---------- Booking wrapper cards ---------- */
+#randevusistemi {
+    background: transparent !important;
+    padding: 0 !important;
+}
+#hizmetsecimbolumu,
+#personelsecimbolumu,
+#tarihsaatsecimbolumu,
+#onaybolumu,
+#randevudokumu {
+    background: #fff;
+    border-radius: var(--rdvs-radius) !important;
+    box-shadow: var(--rdvs-shadow);
+    padding: 22px 24px !important;
+    margin-bottom: 16px;
+    border: 1px solid rgba(16, 24, 40, 0.03);
+}
+#personelsecimbolumu:empty { display: none !important; }
+
+/* Section titles inside booking area */
+#randevusistemi p[style*="font-weight:bold"],
+#randevusistemi p[style*="font-weight: bold"] {
+    font-size: 17px !important;
+    font-weight: 700 !important;
+    color: var(--rdvs-text) !important;
+    margin: 0 0 14px !important;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#randevusistemi p[style*="font-weight:bold"]::before,
+#randevusistemi p[style*="font-weight: bold"]::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 18px;
+    background: linear-gradient(180deg, var(--rdvs-primary), var(--rdvs-primary-light));
+    border-radius: 2px;
+}
+
+/* ---------- Service category accordion ---------- */
+.accordion {
+    width: 100% !important;
+    background: var(--rdvs-border-light) !important;
+    color: var(--rdvs-text) !important;
+    padding: 14px 44px 14px 18px !important;
+    border: none !important;
+    border-radius: 12px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em;
+    text-align: left !important;
+    cursor: pointer;
+    margin: 6px 0 !important;
+    transition: background .18s ease, color .18s ease !important;
+    position: relative;
+    outline: none !important;
+}
+.accordion::after {
+    content: '+' !important;
+    position: absolute !important;
+    right: 18px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 50% !important;
+    background: #fff !important;
+    color: var(--rdvs-primary) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 700 !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    transition: transform .22s ease, background .22s ease !important;
+    float: none !important;
+    padding: 0 !important;
+    font-family: inherit !important;
+}
+.accordion.active,
+.accordion:hover {
+    background: linear-gradient(135deg, var(--rdvs-primary), var(--rdvs-primary-light)) !important;
+    color: #fff !important;
+}
+.accordion.active::after {
+    content: '\2212' !important; /* minus */
+    background: rgba(255, 255, 255, 0.22) !important;
+    color: #fff !important;
+    transform: translateY(-50%) rotate(180deg) !important;
+}
+.panel_accordion {
+    background: #fff !important;
+    border: 1px solid var(--rdvs-border-light) !important;
+    border-radius: 0 0 12px 12px !important;
+    padding: 4px 14px !important;
+    margin-top: -6px !important;
+    margin-bottom: 6px !important;
+    overflow: hidden;
+    transition: all .2s ease;
+}
+
+/* ---------- Service table rows ---------- */
+.hizmettablo { width: 100% !important; }
+.hizmettablo tr { border-bottom: 1px solid var(--rdvs-border-light) !important; }
+.hizmettablo tr:last-child { border-bottom: none !important; }
+.hizmettablo tr td {
+    padding: 12px 8px !important;
+    vertical-align: middle !important;
+    font-size: 14px !important;
+    color: var(--rdvs-text) !important;
+}
+.hizmettablo tr:hover td { background: var(--rdvs-primary-softer); }
+
+/* Custom checkbox - modernized */
+.checkboxcontainer {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    padding-left: 0 !important;
+}
+.checkmark {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 7px !important;
+    background: #fff !important;
+    border: 2px solid var(--rdvs-border) !important;
+    transition: all .15s ease !important;
+}
+.checkboxcontainer:hover input ~ .checkmark {
+    border-color: var(--rdvs-primary) !important;
+    background: var(--rdvs-primary-soft) !important;
+}
+.checkboxcontainer input:checked ~ .checkmark {
+    background: linear-gradient(135deg, var(--rdvs-primary), var(--rdvs-primary-light)) !important;
+    border-color: var(--rdvs-primary) !important;
+    box-shadow: 0 4px 10px rgba(92, 0, 142, 0.3) !important;
+}
+.checkmark::after {
+    left: 6px !important;
+    top: 2px !important;
+    width: 6px !important;
+    height: 11px !important;
+    border: solid #fff !important;
+    border-width: 0 2.5px 2.5px 0 !important;
+    transform: rotate(45deg) !important;
+}
+
+/* Price chip — restyle the <p class="btn btn-primary small btn-rounded"> inside hizmettablo */
+.hizmettablo .btn.btn-primary.btn-rounded {
+    background: var(--rdvs-primary-softer) !important;
+    color: var(--rdvs-primary) !important;
+    border: 1px solid rgba(92, 0, 142, 0.18) !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    padding: 6px 14px !important;
+    border-radius: 999px !important;
+    white-space: nowrap;
+    min-width: 96px;
+    opacity: 1 !important;
+    box-shadow: none !important;
+}
+
+/* ---------- Tabs (Kadın / Erkek Bölümü) ---------- */
+#randevusistemi .nav-tabs {
+    border: none !important;
+    gap: 6px;
+    margin-bottom: 14px !important;
+    padding: 4px;
+    background: var(--rdvs-border-light);
+    border-radius: 12px;
+    display: inline-flex !important;
+}
+#randevusistemi .nav-tabs .nav-item { list-style: none; margin: 0; padding: 0; }
+#randevusistemi .nav-tabs .nav-link {
+    border: none !important;
+    background: transparent !important;
+    color: var(--rdvs-text-muted) !important;
+    font-weight: 600 !important;
+    padding: 9px 18px !important;
+    border-radius: 10px !important;
+    font-size: 14px;
+    transition: all .15s ease !important;
+}
+#randevusistemi .nav-tabs .nav-link:hover { color: var(--rdvs-primary) !important; }
+#randevusistemi .nav-tabs .nav-link.active {
+    background: #fff !important;
+    color: var(--rdvs-primary) !important;
+    box-shadow: 0 2px 8px rgba(92, 0, 142, 0.15) !important;
+}
+
+/* ---------- Date chips (replace horizontal scroll with wrap grid) ---------- */
+.tarihler, #tarihtablosu {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 18px;
+}
+.tarihler .input-radio,
+#tarihtablosu .input-radio {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: relative;
+}
+.tarihler .input-radio > input[type="radio"],
+#tarihtablosu .input-radio > input[type="radio"] {
+    position: absolute !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 0; height: 0;
+}
+.tarihler .input-radio > ins,
+#tarihtablosu .input-radio > ins { display: none !important; }
+.tarihler .input-radio label,
+#tarihtablosu .input-radio label {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 13px 8px !important;
+    border: 2px solid var(--rdvs-border) !important;
+    border-radius: 12px !important;
+    background: #fff !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    color: var(--rdvs-text) !important;
+    text-align: center !important;
+    min-height: 54px;
+    transition: all .15s ease !important;
+    margin: 0 !important;
+    line-height: 1.25;
+}
+.tarihler .input-radio label:hover,
+#tarihtablosu .input-radio label:hover {
+    border-color: var(--rdvs-primary-light) !important;
+    background: var(--rdvs-primary-softer) !important;
+    transform: translateY(-1px);
+    box-shadow: var(--rdvs-shadow-sm);
+}
+.tarihler .input-radio input[type="radio"]:checked + label,
+#tarihtablosu .input-radio input[type="radio"]:checked + label,
+.tarihler .input-radio.checked label,
+#tarihtablosu .input-radio.checked label {
+    border-color: var(--rdvs-primary) !important;
+    background: linear-gradient(135deg, var(--rdvs-primary), var(--rdvs-primary-light)) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 18px rgba(92, 0, 142, 0.28) !important;
+    transform: translateY(-1px);
+}
+
+/* ---------- Time chips ---------- */
+.saatler, #saatsecimtablosu {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    text-align: left !important;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 6px;
+}
+#saatsecimtablosu:empty::before {
+    content: 'Önce tarih seçin, uygun saatler burada görünecek.';
+    grid-column: 1 / -1;
+    display: block;
+    text-align: center;
+    color: var(--rdvs-text-soft);
+    padding: 26px 14px;
+    font-size: 14px;
+    background: var(--rdvs-border-light);
+    border-radius: var(--rdvs-radius-sm);
+    border: 1px dashed var(--rdvs-border);
+}
+#saatsecimtablosu .input-radio {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: relative;
+}
+#saatsecimtablosu .input-radio > input[type="radio"] {
+    position: absolute !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 0; height: 0;
+}
+#saatsecimtablosu .input-radio > ins { display: none !important; }
+#saatsecimtablosu .input-radio label {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 11px 6px !important;
+    border: 2px solid var(--rdvs-border) !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    cursor: pointer !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    color: var(--rdvs-text) !important;
+    margin: 0 !important;
+    min-height: 42px;
+    letter-spacing: 0.03em;
+    transition: all .15s ease !important;
+}
+#saatsecimtablosu .input-radio label:hover {
+    border-color: var(--rdvs-primary-light) !important;
+    background: var(--rdvs-primary-softer) !important;
+    transform: translateY(-1px);
+}
+#saatsecimtablosu .input-radio input[type="radio"]:checked + label,
+#saatsecimtablosu .input-radio.checked label {
+    border-color: var(--rdvs-primary) !important;
+    background: linear-gradient(135deg, var(--rdvs-primary), var(--rdvs-primary-light)) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 16px rgba(92, 0, 142, 0.28) !important;
+}
+
+/* ---------- Navigation buttons (DEVAM ET, GERI DON, Gönder) ---------- */
+#personelsecimadiminagec,
+#onayadiminagec,
+#randevuonayla_auth {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    background: linear-gradient(135deg, var(--rdvs-primary), var(--rdvs-primary-light)) !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 14px 24px !important;
+    border-radius: 14px !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+    letter-spacing: 0.02em;
+    box-shadow: 0 8px 22px rgba(92, 0, 142, 0.28) !important;
+    transition: transform .15s ease, box-shadow .15s ease !important;
+    width: 100% !important;
+    margin-top: 18px !important;
+    margin-bottom: 6px !important;
+}
+#personelsecimadiminagec:hover,
+#onayadiminagec:hover,
+#randevuonayla_auth:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(92, 0, 142, 0.4) !important;
+    color: #fff !important;
+}
+#personelsecimadiminagec i,
+#onayadiminagec i,
+#randevuonayla_auth i { font-size: 13px; }
+
+#personelseckisminageridon,
+#tarihsaatseckisminageridon {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    background: #fff !important;
+    color: var(--rdvs-text) !important;
+    border: 1.5px solid var(--rdvs-border) !important;
+    padding: 9px 18px !important;
+    border-radius: 10px !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    letter-spacing: 0 !important;
+    box-shadow: none !important;
+    width: auto !important;
+    transition: all .15s ease !important;
+}
+#personelseckisminageridon:hover,
+#tarihsaatseckisminageridon:hover {
+    background: var(--rdvs-primary-soft) !important;
+    color: var(--rdvs-primary) !important;
+    border-color: var(--rdvs-primary) !important;
+}
+
+/* Send-code button (#sifregonder) and confirmation yes button */
+#sifregonder {
+    background: linear-gradient(135deg, var(--rdvs-primary), var(--rdvs-primary-light)) !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 11px 18px !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    width: 100% !important;
+    box-shadow: 0 4px 14px rgba(92, 0, 142, 0.25) !important;
+}
+#sifregonder:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(92, 0, 142, 0.35) !important; color: #fff !important; }
+
+#randevuonaylabutton {
+    background: linear-gradient(135deg, #10B981, #059669) !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 14px 24px !important;
+    border-radius: 14px !important;
+    font-weight: 700 !important;
+    font-size: 16px !important;
+    box-shadow: 0 8px 22px rgba(16, 185, 129, 0.32) !important;
+    width: 100% !important;
+    margin-top: 10px;
+    letter-spacing: 0.02em;
+    transition: transform .15s ease, box-shadow .15s ease !important;
+}
+#randevuonaylabutton:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(16, 185, 129, 0.42) !important; color: #fff !important; }
+
+/* ---------- Phone / email inputs in personal info ---------- */
+#kisiselbilgileralani input[type="tel"],
+#kisiselbilgileralani input[type="email"],
+#kisiselbilgileralani input[type="number"],
+#kisiselbilgileralani input[type="text"],
+#kisiselbilgileralani textarea {
+    width: 100% !important;
+    padding: 12px 14px !important;
+    border: 1.5px solid var(--rdvs-border) !important;
+    border-radius: 10px !important;
+    font-size: 14px !important;
+    font-family: inherit !important;
+    color: var(--rdvs-text) !important;
+    background: #fff !important;
+    transition: border-color .15s ease, box-shadow .15s ease !important;
+}
+#kisiselbilgileralani input:focus,
+#kisiselbilgileralani textarea:focus {
+    outline: none !important;
+    border-color: var(--rdvs-primary) !important;
+    box-shadow: 0 0 0 3px rgba(92, 0, 142, 0.12) !important;
+}
+#kisiselbilgileralani label {
+    display: block;
+    font-size: 13px !important;
+    color: var(--rdvs-text);
+    font-weight: 600 !important;
+    margin-bottom: 6px !important;
+}
+
+/* Welcome/hata messages inside kisiselbilgi area */
+#hosgeldinizbildirimalani:not(:empty),
+#sifrealaniregister:not(:empty) {
+    background: var(--rdvs-primary-softer);
+    border: 1px solid rgba(92, 0, 142, 0.12);
+    border-radius: var(--rdvs-radius-sm);
+    padding: 12px 14px !important;
+    margin-top: 12px !important;
+    font-size: 14px;
+}
+#epostahata:not(:empty) {
+    color: #DC2626;
+    font-size: 13px;
+    margin-top: 6px;
+    padding: 8px 12px;
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    border-radius: 8px;
+}
+
+/* ---------- Confirmation table (randevuozetonay) ---------- */
+.randevuozetonay {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+.randevuozetonay tr td {
+    padding: 12px 10px !important;
+    border-bottom: 1px solid var(--rdvs-border-light) !important;
+    vertical-align: top !important;
+    font-size: 14px !important;
+}
+.randevuonaybaslik {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    color: var(--rdvs-text) !important;
+    display: inline-block;
+    margin: 6px 0 18px !important;
+    letter-spacing: -0.01em;
+    position: relative;
+}
+.randevuonaybaslik::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--rdvs-primary), var(--rdvs-primary-light));
+    border-radius: 2px;
+    margin: 8px auto 0;
+}
+
+/* Date & time badges inside randevuozetonay (orange bordered pills) */
+.randevuozetonay td div[style*="border:2px solid #FF4E00"],
+.randevuozetonay td div[style*="border: 2px solid #FF4E00"] {
+    border: 1.5px solid var(--rdvs-primary) !important;
+    background: var(--rdvs-primary-softer) !important;
+    color: var(--rdvs-primary) !important;
+    padding: 6px 16px !important;
+    border-radius: 999px !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    float: none !important;
+    align-items: center;
+    gap: 6px;
+}
+.randevuozetonay td div[style*="border:2px solid #FF4E00"] > span,
+.randevuozetonay td div[style*="border: 2px solid #FF4E00"] > span {
+    float: none !important;
+    color: inherit !important;
+}
+.randevuozetonay textarea[name="randevunotu"] {
+    width: 100% !important;
+    height: 90px !important;
+    padding: 12px 14px !important;
+    border: 1.5px solid var(--rdvs-border) !important;
+    border-radius: 10px !important;
+    font-family: inherit !important;
+    font-size: 14px !important;
+    resize: vertical;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.randevuozetonay textarea[name="randevunotu"]:focus {
+    outline: none !important;
+    border-color: var(--rdvs-primary) !important;
+    box-shadow: 0 0 0 3px rgba(92, 0, 142, 0.12) !important;
+}
+#gizlilikkosulukabul {
+    width: 16px; height: 16px;
+    accent-color: var(--rdvs-primary);
+    margin-right: 4px;
+    vertical-align: middle;
+}
+.randevuozetonay a {
+    color: var(--rdvs-primary) !important;
+    text-decoration: underline;
+}
+
+/* ---------- Confirmation notification ---------- */
+#randevuonaybildirim:empty { display: none !important; }
+#randevuonaybildirim {
+    background: var(--rdvs-primary-soft) !important;
+    color: var(--rdvs-primary) !important;
+    border: 1px solid rgba(92, 0, 142, 0.14) !important;
+    border-radius: var(--rdvs-radius-sm) !important;
+    padding: 12px 16px !important;
+    margin-top: 14px !important;
+    font-weight: 500 !important;
+    text-align: center !important;
+    box-shadow: none !important;
+    line-height: 1.5 !important;
+}
+
+/* ---------- Right-side summary sidebar ---------- */
+#randevuozetbolumu {
+    position: sticky;
+    top: 20px;
+    align-self: flex-start;
+}
+.secilenhizmetlertablo {
+    background: #fff !important;
+    border-radius: var(--rdvs-radius) !important;
+    box-shadow: var(--rdvs-shadow-lg) !important;
+    overflow: hidden;
+    border: 1px solid rgba(16, 24, 40, 0.03);
+}
+.secilenhizmetlertablo .baslik {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px;
+    background: linear-gradient(135deg, var(--rdvs-primary), var(--rdvs-primary-dark)) !important;
+    color: #fff !important;
+    padding: 18px 22px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    letter-spacing: -0.01em;
+}
+.secilenhizmetlertablo .baslik::before {
+    content: '\f073';
+    font-family: 'FontAwesome';
+    font-size: 18px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.secilenhizmetlertablo .randevuozet {
+    margin: 0 !important;
+    padding: 0 22px !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+}
+.secilenhizmetlertablo .randevuozet tr {
+    border-bottom: 1px solid var(--rdvs-border-light) !important;
+}
+.secilenhizmetlertablo .randevuozet tr:last-child { border-bottom: none !important; }
+.secilenhizmetlertablo .randevuozet td {
+    padding: 14px 0 !important;
+    vertical-align: top !important;
+    font-size: 13px !important;
+}
+.secilenhizmetlertablo .randevuozet td:first-child {
+    width: 110px !important;
+    color: var(--rdvs-text-soft) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding-right: 10px !important;
+}
+.secilenhizmetlertablo .randevuozet td:last-child {
+    color: var(--rdvs-text) !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+}
+#secilenhizmetlistebos,
+#personellistebos,
+#tarihsaatbos {
+    color: var(--rdvs-text-soft) !important;
+    font-style: italic;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+}
+#secilenhizmetliste,
+#personelliste,
+#tarihsaat {
+    color: var(--rdvs-text) !important;
+    font-size: 14px !important;
+    line-height: 1.6;
+}
+
+/* ---------- Mobile layout: put summary at top ---------- */
+@media (max-width: 991px) {
+    #randevusistemi { order: 2; }
+    #randevuozetbolumu {
+        position: static;
+        margin-bottom: 16px;
+        order: 1;
+    }
+    /* Ensure parent .row is flex so order applies */
+    #randevusistemi, #randevuozetbolumu { flex-basis: 100% !important; max-width: 100% !important; }
+}
+
+/* ---------- Çarkıfelek banner polish (existing gradient is fine, just margin) ---------- */
+.block > .container > .row + .row[style*="margin-top:18px"] {
+    margin-bottom: 4px;
+}
+
+/* ---------- Hide legacy text-heavy inline underline & float remnants ---------- */
+#randevusistemi .btn-primary.btn-rounded.width-100 i.fa-chevron-right + i.fa-chevron-right {
+    display: none; /* single chevron is cleaner */
+}
+
+/* Section divider between booking and rest of salon page */
+.block > .container > .row:nth-of-type(3) { margin-top: 36px !important; position: relative; }
+
+/* Spacing cleanup for the column containers */
+.col-lg-8#randevusistemi,
+#randevusistemi.col-lg-8 { padding: 0 12px; }
+.col-lg-4#randevuozetbolumu,
+#randevuozetbolumu.col-lg-4 { padding: 0 12px; }
+
+/* Remove the stray unclosed <p> before "Tarih Seçimi" heading: just style defensively */
+#tarihsaatsecimbolumu > p:empty { display: none !important; }
+
+/* ---------- Randevudokumu (confirmation block inside onaybolumu) ---------- */
+#randevudokumu {
+    background: linear-gradient(180deg, #fff, #FAF5FF 100%) !important;
+    border: 1px solid rgba(92, 0, 142, 0.08);
+}
+
+/* ---------- Google Maps toggle block styling ---------- */
+#googlemapsarea iframe { border-radius: var(--rdvs-radius) !important; border: 1px solid var(--rdvs-border) !important; }
+#mapshidingbutton {
+    background: #fff !important;
+    color: var(--rdvs-primary) !important;
+    border: 1.5px solid var(--rdvs-primary) !important;
+    border-radius: 10px !important;
+    margin-top: 10px;
+    padding: 9px 18px !important;
+    font-weight: 600 !important;
+}

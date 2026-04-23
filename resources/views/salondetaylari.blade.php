@@ -145,14 +145,13 @@
                      
                   </div>
             </aside>
-            <button id="personelsecimadiminagec"  class="btn btn-primary width-100 btn-rounded" style="width:100%; margin-top: 10px; margin-bottom: 10px">DEVAM ET <i class="fa fa-chevron-right"></i><i class="fa fa-chevron-right"></i></button>
+            <button id="personelsecimadiminagec"  class="btn btn-primary width-100 btn-rounded" style="width:100%; margin-top: 10px; margin-bottom: 10px">DEVAM ET <i class="fa fa-chevron-right"></i></button>
             </div> 
             <div id="personelsecimbolumu" style="padding-top:10px">
             </div>
             <div id="tarihsaatsecimbolumu">
-               <button id='personelseckisminageridon' style='width:200px;border-radius:60px' class='btn btn-primary'><< GERİ DÖN</button>
-               <p style='font-size:20px; font-weight:bold; margin-top:15px'>Tarih Seçimi</
-               <p>
+               <button id='personelseckisminageridon' style='width:auto' class='btn btn-primary'><i class="fa fa-arrow-left"></i> Geri Dön</button>
+               <p style='font-size:20px; font-weight:bold; margin-top:15px'>Tarih Seçimi</p>
                <div id="tarihtablosu" class="tarihler">
                   <div class="input-radio"><input type="radio" id="bugun" name="randevutarihi" value="{{date('Y-m-d')}}" checked> <label for="bugun">Bugün</label></div>
                   <div class="input-radio"><input type="radio" id="yarin" name="randevutarihi" value="{{date('Y-m-d',strtotime('+1 days',strtotime(date('Y-m-d'))))}}"> <label for="yarin">Yarın</label></div>
@@ -163,13 +162,12 @@
                <p style='font-size:20px; font-weight:bold;margin-top: 15px'>Saat Seçimi</p>
                <div id="saatsecimtablosu" class="saatler">
                </div>
-               <button id="onayadiminagec" class="btn btn-primary width-100 btn-rounded" style="width:100%; margin-top: 10px; margin-bottom: 10px">DEVAM ET <i class="fa fa-chevron-right"></i><i class="fa fa-chevron-right"></i></button>
+               <button id="onayadiminagec" class="btn btn-primary width-100 btn-rounded" style="width:100%; margin-top: 10px; margin-bottom: 10px">DEVAM ET <i class="fa fa-chevron-right"></i></button>
             </div>
             <div id="onaybolumu">
                <div id="kisiselbilgileralani">
-                  <button id='tarihsaatseckisminageridon' style='width:200px;border-radius:60px' class='btn btn-primary'><< GERİ DÖN</button>
-                  <p style='font-size:20px; font-weight:bold'>
-                  <p style="font-size:20px; font-weight: bold">Kişisel Bilgiler ve Onay</p>
+                  <button id='tarihsaatseckisminageridon' style='width:auto' class='btn btn-primary'><i class="fa fa-arrow-left"></i> Geri Dön</button>
+                  <p style="font-size:20px; font-weight: bold; margin-top:15px">Kişisel Bilgiler ve Onay</p>
                   @if(!Auth::check())
                   <div class="form-group" style="margin-bottom: 20px;height: 40px">
                      <div style="width: 60%;float: left;">
@@ -193,7 +191,7 @@
                      <label>Cep Telefonu</label>
                      <input type="number" disabled id="ceptelefon" name="ceptelefon" value="{{Auth::user()->cep_telefon}}">
                   </div>
-                  <button id="randevuonayla_auth" class="btn btn-primary width-100 btn-rounded" style="width:100%; margin-top: 10px; margin-bottom: 10px">DEVAM ET <i class="fa fa-chevron-right"></i><i class="fa fa-chevron-right"></i></button>
+                  <button id="randevuonayla_auth" class="btn btn-primary width-100 btn-rounded" style="width:100%; margin-top: 10px; margin-bottom: 10px">DEVAM ET <i class="fa fa-chevron-right"></i></button>
                   @endif
                </div>
                <div id="randevudokumu">

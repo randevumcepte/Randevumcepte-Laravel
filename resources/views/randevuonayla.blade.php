@@ -1,129 +1,124 @@
 @extends('layout.layout_randevuonayla')
 @section('content')
-          
-          
-             <section class="block">
-                <div class="container">
 
-                    <div class="row">
-                        <!--============ Listing Detail =============================================================-->
-                        <div class="col-md-12" style="border-radius: 4px;border: 1px solid #e4e4e2">
-                            <div class="col-md-12 randevuozetbaslik">
-                                 <h3 style="font-size:20px">Yeni Randevu Onayı</h3>
-                                 </div>
-                                 <form id="randevuonayformu" method="POST">
-                                     {!! csrf_field() !!}
-                                    
-                                 <table class="randevuozet" style="font-size:15px">
-                                    <tr>
-                                        <td style="width: 170px">Salon adı : </td>
+<div class="rdv-booking-v2">
+    <div id="preloader"></div>
 
-                                        <td>
-                                            <div class="col-md-12">
-                                            <input type="hidden" name="salonno" value="{{$salon->id}}">{{$salon->salon_adi}}
-                                        </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>Seçilen hizmetler : </td>
-                                        <td>
-                                          <div class="col-md-12"> 
-                                            @foreach($secilenhizmetler as $key => $value)
-                                                 <input type="hidden" name="hizmetler[]" value="{{$value->id}}">
-                                                {{$value->hizmet_adi}}
-                                               @if($key+1 != $secilenhizmetler->count())
-                                                    ,&nbsp;
-                                                @endif
-                                             
-                                             @endforeach
-                                          </div>
-                                        </td>
+    <div class="rdv-confirm-wrap">
+        <div class="rdv-confirm-card">
+            <div class="rdv-confirm-header">
+                <div class="rdv-confirm-header__icon">
+                    <i class="fa fa-calendar-check-o"></i>
+                </div>
+                <h1>Randevu Onayı</h1>
+                <p>Aşağıdaki bilgileri kontrol ederek randevunuzu tamamlayın.</p>
+            </div>
 
-                                    </tr>
-                                    <tr>
-                                        <td>Personeller : </td>
-                                        <td>
-                                              <?php $personelparametre = explode('_',$personelparametre); ?>
-                                               @foreach($personelparametre as $personelparametre1)
-                                                    @if($personelparametre1 != null || $personelparametre1 != '')
-                                                      <div class="col-md-2" style="float: left;">
-                                                     <input type="hidden" name="personeller[]" value="{{\App\Personeller::where('id',$personelparametre1)->value('id')}}">
-                                                        <div class="author small" style="position: relative;">
-                                                         <div class="author-image" style="float: none">
-                                                            <div class="background-image">
-                                                                 @if(\App\Personeller::where('id',$personelparametre1)->value('profil_resmi') == '' ||\App\Personeller::where('id',$personelparametre1)->value('profil_resmi') == null)
-                                                                    @if(\App\Personeller::where('id',$personelparametre1)->value('cinsiyet')==0)
-                                                                      <img src="{{secure_asset('public/img/author0.jpg')}}" alt="Profil Resmi" />
-                                                                    @else
-                                                                        <img src="{{secure_asset('public/img/author1.jpg')}}" alt="Profil Resmi" />
-                                                                    @endif
-                                                                 @else
-                                                                      <img src="{{secure_asset(\App\Personeller::where('id',$personelparametre1)->value('profil_resmi'))}}" alt="Profil Resmi" />
-                                                                @endif
-                                                            </div></div></div>
-                                                        {{\App\Personeller::where('id',$personelparametre1)->value('personel_adi')}} <br />
-                                                @endif
-                                                </div>
-                                             @endforeach
-                                            
+            <form id="randevuonayformu" method="POST">
+                {!! csrf_field() !!}
 
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>Randevu tarihi : </td><td>
-                                            <div class="col-md-12">
-                                             <input type="hidden" name="randevutarihi" value="{{$randevutarihi}}"></div>
-                                         {{$randevutarihi}}</td>
-                                     
-                                        <td></td>
-                                    </tr>
-                                    <tr>
-                                          <td>Randevu saati :</td><td>
-                                            <div class="col-md-12">
-                                         <input type="hidden" name="randevusaati" value="{{str_replace('_',':',$randevusaati)}}">
-                                           {{$randevusaati}}
-                                       </div>
-                                       </td>
-                                        <td></td>
-                                    </tr>
-                                    <tr>
-                                        <td colspan="2">Randevu aldığınızda kullanım ve gizlilik koşullarını kabul etmiş sayılırsınız</td>
-                                    </tr>
-                                    <tr>
-                                        <td colspan="2">Yukarıda detayları listelenen randevunuzu onaylamak istiyor musunuz? &nbsp;    <button type="button" id="randevuonaylabutton" class="btn btn-success">Evet</button>
-                                            <button class="btn btn-danger">Hayır</button>
-                                        
-                                        </td>
-                                        
-                                    </tr>
-
-                                 </table>
-                                   <div id="randevuonaybildirim"> </div>
-                             </form>
-                           
-                                 
-
-                            
+                <div class="rdv-confirm-body">
+                    {{-- Salon --}}
+                    <div class="rdv-confirm-row">
+                        <div class="rdv-confirm-row__icon"><i class="fa fa-building-o"></i></div>
+                        <div class="rdv-confirm-row__label">Salon adı</div>
+                        <div class="rdv-confirm-row__value">
+                            <input type="hidden" name="salonno" value="{{$salon->id}}">
+                            {{$salon->salon_adi}}
                         </div>
-                        <!--============ End Listing Detail =========================================================-->
-                        <!--============ Sidebar ====================================================================-->
-                       <!-- <div class="col-md-4">
-                             
-                             
-                        </div>-->
-                         
-                       
+                    </div>
+
+                    {{-- Services --}}
+                    <div class="rdv-confirm-row">
+                        <div class="rdv-confirm-row__icon"><i class="fa fa-list-alt"></i></div>
+                        <div class="rdv-confirm-row__label">Seçilen hizmetler</div>
+                        <div class="rdv-confirm-row__value">
+                            @foreach($secilenhizmetler as $key => $value)
+                                <input type="hidden" name="hizmetler[]" value="{{$value->id}}">
+                                {{$value->hizmet_adi}}@if($key+1 != $secilenhizmetler->count()), @endif
+                            @endforeach
+                        </div>
+                    </div>
+
+                    {{-- Personnel --}}
+                    <div class="rdv-confirm-row">
+                        <div class="rdv-confirm-row__icon"><i class="fa fa-users"></i></div>
+                        <div class="rdv-confirm-row__label">Personeller</div>
+                        <div class="rdv-confirm-row__value">
+                            <?php $personelparametre = explode('_',$personelparametre); ?>
+                            <ul class="rdv-personel-list">
+                                @foreach($personelparametre as $personelparametre1)
+                                    @if($personelparametre1 != null || $personelparametre1 != '')
+                                        <li class="rdv-personel-chip">
+                                            <input type="hidden" name="personeller[]" value="{{\App\Personeller::where('id',$personelparametre1)->value('id')}}">
+                                            @if(\App\Personeller::where('id',$personelparametre1)->value('profil_resmi') == '' || \App\Personeller::where('id',$personelparametre1)->value('profil_resmi') == null)
+                                                @if(\App\Personeller::where('id',$personelparametre1)->value('cinsiyet')==0)
+                                                    <img src="{{secure_asset('public/img/author0.jpg')}}" alt="Profil Resmi" />
+                                                @else
+                                                    <img src="{{secure_asset('public/img/author1.jpg')}}" alt="Profil Resmi" />
+                                                @endif
+                                            @else
+                                                <img src="{{secure_asset(\App\Personeller::where('id',$personelparametre1)->value('profil_resmi'))}}" alt="Profil Resmi" />
+                                            @endif
+                                            <span>{{\App\Personeller::where('id',$personelparametre1)->value('personel_adi')}}</span>
+                                        </li>
+                                    @endif
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+
+                    {{-- Date --}}
+                    <div class="rdv-confirm-row">
+                        <div class="rdv-confirm-row__icon"><i class="fa fa-calendar"></i></div>
+                        <div class="rdv-confirm-row__label">Randevu tarihi</div>
+                        <div class="rdv-confirm-row__value">
+                            <input type="hidden" name="randevutarihi" value="{{$randevutarihi}}">
+                            {{$randevutarihi}}
+                        </div>
+                    </div>
+
+                    {{-- Time --}}
+                    <div class="rdv-confirm-row">
+                        <div class="rdv-confirm-row__icon"><i class="fa fa-clock-o"></i></div>
+                        <div class="rdv-confirm-row__label">Randevu saati</div>
+                        <div class="rdv-confirm-row__value">
+                            <input type="hidden" name="randevusaati" value="{{str_replace('_',':',$randevusaati)}}">
+                            {{$randevusaati}}
+                        </div>
                     </div>
                 </div>
-                <!--end container-->
-            </section> 
-           <script>
-          
-           </script>
 
-          
+                <div class="rdv-confirm-footer">
+                    <p class="rdv-confirm-footer__text">
+                        <i class="fa fa-info-circle" style="color:#5C008E"></i>
+                        Randevu aldığınızda <a href="/kullanici-sozlesmesi" style="color:#5C008E;font-weight:500">kullanım</a> ve
+                        <a href="/gizlilik-politikasi" style="color:#5C008E;font-weight:500">gizlilik</a> koşullarını kabul etmiş sayılırsınız.
+                    </p>
 
-        
-           
+                    <p class="rdv-confirm-footer__text" style="font-weight:500;color:#1F2937;margin-bottom:16px">
+                        Yukarıda detayları listelenen randevunuzu onaylamak istiyor musunuz?
+                    </p>
+
+                    <div class="rdv-confirm-actions">
+                        <button type="button" class="rdv-btn rdv-btn--outline">
+                            <i class="fa fa-times"></i> Hayır
+                        </button>
+                        <button type="button" id="randevuonaylabutton" class="rdv-btn rdv-btn--success">
+                            <i class="fa fa-check"></i> Evet, Onayla
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div id="randevuonaybildirim"></div>
+
+        {{-- Preserve legacy table structure for any JS that might query it --}}
+        <table class="randevuozet" style="display:none">
+            <tr><td></td><td></td></tr>
+        </table>
+    </div>
+</div>
+
 @endsection
-        

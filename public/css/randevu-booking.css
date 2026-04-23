@@ -1,0 +1,856 @@
+/* ==========================================================================
+   Randevu Al — Premium Booking UI
+   Scope: .rdv-booking-v2
+   ========================================================================== */
+
+.rdv-booking-v2 {
+    --rdv-primary: #5C008E;
+    --rdv-primary-light: #7B2FB8;
+    --rdv-primary-soft: #F3ECFA;
+    --rdv-primary-softer: #FAF5FF;
+    --rdv-accent: #F59E0B;
+    --rdv-success: #10B981;
+    --rdv-success-soft: #DCFCE7;
+    --rdv-danger: #EF4444;
+    --rdv-bg: #F8F9FC;
+    --rdv-card: #FFFFFF;
+    --rdv-border: #E5E7EB;
+    --rdv-border-light: #F1F3F7;
+    --rdv-text: #1F2937;
+    --rdv-text-muted: #6B7280;
+    --rdv-text-soft: #9CA3AF;
+    --rdv-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+    --rdv-shadow: 0 4px 16px rgba(92, 0, 142, 0.08);
+    --rdv-shadow-lg: 0 12px 32px rgba(92, 0, 142, 0.14);
+    --rdv-radius-sm: 10px;
+    --rdv-radius: 16px;
+    --rdv-radius-lg: 22px;
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--rdv-text);
+    background: var(--rdv-bg);
+    padding: 30px 0 60px;
+}
+
+.rdv-booking-v2 * { box-sizing: border-box; }
+
+/* ---------- Page header ---------- */
+.rdv-page-head {
+    max-width: 1180px;
+    margin: 0 auto 24px;
+    padding: 0 15px;
+}
+.rdv-page-head h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--rdv-text);
+    margin: 0 0 6px;
+    letter-spacing: -0.02em;
+}
+.rdv-page-head p {
+    color: var(--rdv-text-muted);
+    font-size: 15px;
+    margin: 0;
+}
+
+/* ---------- Stepper ---------- */
+.rdv-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin: 0 0 28px;
+    padding: 18px 24px;
+    background: var(--rdv-card);
+    border-radius: var(--rdv-radius);
+    box-shadow: var(--rdv-shadow);
+}
+.rdv-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+    min-width: 0;
+}
+.rdv-step__circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #ECE8F4;
+    color: var(--rdv-primary);
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all .22s ease;
+}
+.rdv-step__text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+.rdv-step__label {
+    font-size: 12px;
+    color: var(--rdv-text-soft);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.rdv-step__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--rdv-text);
+}
+.rdv-step__divider {
+    flex: 1;
+    min-width: 12px;
+    height: 2px;
+    background: var(--rdv-border);
+    border-radius: 1px;
+}
+.rdv-step--active .rdv-step__circle {
+    background: linear-gradient(135deg, var(--rdv-primary), var(--rdv-primary-light));
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(92, 0, 142, 0.32);
+    transform: scale(1.05);
+}
+.rdv-step--active .rdv-step__title { color: var(--rdv-primary); }
+.rdv-step--done .rdv-step__circle {
+    background: var(--rdv-success);
+    color: #fff;
+}
+.rdv-step--done .rdv-step__circle::before {
+    content: '\f00c';
+    font-family: 'FontAwesome';
+    font-size: 14px;
+}
+.rdv-step--done .rdv-step__circle > span { display: none; }
+
+/* ---------- Layout grid ---------- */
+.rdv-layout {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 15px;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 28px;
+    align-items: start;
+}
+@media (max-width: 991px) {
+    .rdv-layout { grid-template-columns: 1fr; }
+}
+
+/* ---------- Step card ---------- */
+.rdv-card {
+    background: var(--rdv-card);
+    border-radius: var(--rdv-radius);
+    box-shadow: var(--rdv-shadow);
+    padding: 26px 28px;
+    margin-bottom: 18px;
+    border: 1px solid rgba(16, 24, 40, 0.03);
+    transition: box-shadow .2s ease, transform .2s ease;
+}
+.rdv-card:hover { box-shadow: var(--rdv-shadow-lg); }
+.rdv-card__head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+.rdv-card__num {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--rdv-primary), var(--rdv-primary-light));
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(92, 0, 142, 0.25);
+}
+.rdv-card__title-wrap { flex: 1; min-width: 0; }
+.rdv-card__title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--rdv-text);
+    letter-spacing: -0.01em;
+}
+.rdv-card__subtitle {
+    font-size: 13px;
+    color: var(--rdv-text-muted);
+    margin-top: 2px;
+}
+.rdv-card__body { padding: 0; }
+
+/* ---------- Service chip list ---------- */
+.rdv-service-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.rdv-service-list:empty { display: none; }
+.rdv-service-list li {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, rgba(92, 0, 142, 0.06), rgba(123, 47, 184, 0.08));
+    color: var(--rdv-primary);
+    padding: 9px 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid rgba(92, 0, 142, 0.14);
+    transition: transform .15s ease;
+}
+.rdv-service-list li:hover { transform: translateY(-1px); }
+.rdv-service-list li::before {
+    content: '\f00c';
+    font-family: 'FontAwesome';
+    color: var(--rdv-success);
+    font-size: 12px;
+}
+
+/* ---------- Buttons ---------- */
+.rdv-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 22px;
+    border-radius: 12px;
+    font-family: inherit;
+    font-weight: 500;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    text-decoration: none;
+    line-height: 1;
+    white-space: nowrap;
+}
+.rdv-btn:focus { outline: none; }
+.rdv-btn--primary {
+    background: linear-gradient(135deg, var(--rdv-primary), var(--rdv-primary-light));
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(92, 0, 142, 0.3);
+}
+.rdv-btn--primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(92, 0, 142, 0.4);
+    color: #fff;
+    text-decoration: none;
+}
+.rdv-btn--ghost {
+    background: var(--rdv-primary-soft);
+    color: var(--rdv-primary);
+    border: 1px solid transparent;
+}
+.rdv-btn--ghost:hover {
+    background: #E9DDF5;
+    color: var(--rdv-primary);
+    text-decoration: none;
+}
+.rdv-btn--outline {
+    background: transparent;
+    color: var(--rdv-text);
+    border: 1.5px solid var(--rdv-border);
+}
+.rdv-btn--outline:hover {
+    background: #F9FAFB;
+    border-color: var(--rdv-primary);
+    color: var(--rdv-primary);
+    text-decoration: none;
+}
+.rdv-btn--success {
+    background: linear-gradient(135deg, #10B981, #059669);
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.3);
+}
+.rdv-btn--success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(16, 185, 129, 0.4);
+    color: #fff;
+    text-decoration: none;
+}
+.rdv-btn--danger {
+    background: #fff;
+    color: var(--rdv-danger);
+    border: 1.5px solid #FECACA;
+}
+.rdv-btn--danger:hover {
+    background: #FEF2F2;
+    color: var(--rdv-danger);
+    text-decoration: none;
+}
+.rdv-btn--sm { padding: 8px 14px; font-size: 13px; border-radius: 10px; }
+.rdv-btn--block { width: 100%; }
+.rdv-btn i { font-size: 14px; }
+
+/* ---------- Selected summary row (after choosing) ---------- */
+.rdv-selected {
+    background: var(--rdv-primary-softer);
+    border: 1px dashed rgba(92, 0, 142, 0.25);
+    border-radius: var(--rdv-radius-sm);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.rdv-selected__value {
+    flex: 1;
+    min-width: 0;
+    color: var(--rdv-text);
+    font-weight: 500;
+    font-size: 14px;
+}
+.rdv-selected__value ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.rdv-selected__value ul li {
+    background: #fff;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--rdv-primary);
+    border: 1px solid rgba(92, 0, 142, 0.14);
+}
+
+/* ---------- Personnel select-group ---------- */
+.rdv-staff-group {
+    background: var(--rdv-border-light);
+    border-radius: var(--rdv-radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+}
+@media (max-width: 575px) {
+    .rdv-staff-group { grid-template-columns: 1fr; }
+}
+.rdv-staff-group__label {
+    font-size: 14px;
+    color: var(--rdv-text);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.rdv-staff-group__label::before {
+    content: '\f0c0';
+    font-family: 'FontAwesome';
+    color: var(--rdv-primary);
+    font-size: 13px;
+}
+.rdv-staff-group select {
+    width: 100%;
+    min-width: 180px;
+    padding: 10px 36px 10px 14px;
+    border: 1.5px solid var(--rdv-border);
+    background: #fff;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--rdv-text);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.rdv-staff-group select:focus {
+    outline: none;
+    border-color: var(--rdv-primary);
+    box-shadow: 0 0 0 3px rgba(92, 0, 142, 0.12);
+}
+
+/* ---------- Date chips ---------- */
+.rdv-date-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+    margin-bottom: 4px;
+}
+.rdv-date-grid .input-radio {
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+.rdv-date-grid .input-radio input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+}
+.rdv-date-grid .input-radio > ins { display: none !important; }
+.rdv-date-grid .input-radio label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 10px;
+    border: 2px solid var(--rdv-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all .15s ease;
+    background: #fff;
+    text-align: center;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--rdv-text);
+    min-height: 58px;
+    line-height: 1.3;
+    margin: 0;
+}
+.rdv-date-grid .input-radio label:hover {
+    border-color: var(--rdv-primary-light);
+    background: var(--rdv-primary-softer);
+    transform: translateY(-1px);
+    box-shadow: var(--rdv-shadow-sm);
+}
+.rdv-date-grid .input-radio input[type="radio"]:checked + label,
+.rdv-date-grid .input-radio.checked label {
+    border-color: var(--rdv-primary);
+    background: linear-gradient(135deg, var(--rdv-primary), var(--rdv-primary-light));
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(92, 0, 142, 0.28);
+    transform: translateY(-1px);
+}
+
+/* ---------- Time chips ---------- */
+.rdv-time-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    gap: 10px;
+    margin-top: 4px;
+}
+.rdv-time-grid:empty::before {
+    content: 'Önce tarih seçiniz';
+    grid-column: 1 / -1;
+    display: block;
+    text-align: center;
+    color: var(--rdv-text-soft);
+    padding: 30px 0;
+    font-size: 14px;
+    background: var(--rdv-border-light);
+    border-radius: var(--rdv-radius-sm);
+    border: 1px dashed var(--rdv-border);
+}
+/* When server returns time slots, it likely injects .input-radio items — same styling */
+#saatsecimtablosu .input-radio {
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+#saatsecimtablosu .input-radio input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+}
+#saatsecimtablosu .input-radio > ins { display: none !important; }
+#saatsecimtablosu .input-radio label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 11px 6px;
+    border: 2px solid var(--rdv-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all .15s ease;
+    background: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--rdv-text);
+    min-height: 42px;
+    margin: 0;
+    letter-spacing: 0.02em;
+}
+#saatsecimtablosu .input-radio label:hover {
+    border-color: var(--rdv-primary-light);
+    background: var(--rdv-primary-softer);
+    transform: translateY(-1px);
+}
+#saatsecimtablosu .input-radio input[type="radio"]:checked + label,
+#saatsecimtablosu .input-radio.checked label {
+    border-color: var(--rdv-primary);
+    background: linear-gradient(135deg, var(--rdv-primary), var(--rdv-primary-light));
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(92, 0, 142, 0.28);
+}
+/* Wrap children of saat container into grid */
+#saatsecimtablosu {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    gap: 10px;
+}
+
+/* ---------- Form fields ---------- */
+.rdv-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+.rdv-field label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--rdv-text);
+}
+.rdv-input,
+.rdv-booking-v2 input[type="email"],
+.rdv-booking-v2 input[type="text"],
+.rdv-booking-v2 input[type="tel"],
+.rdv-booking-v2 input[type="password"] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--rdv-border);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--rdv-text);
+    background: #fff;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.rdv-input:focus,
+.rdv-booking-v2 input[type="email"]:focus,
+.rdv-booking-v2 input[type="text"]:focus,
+.rdv-booking-v2 input[type="tel"]:focus,
+.rdv-booking-v2 input[type="password"]:focus {
+    outline: none;
+    border-color: var(--rdv-primary);
+    box-shadow: 0 0 0 3px rgba(92, 0, 142, 0.12);
+}
+
+/* ---------- Info notice ---------- */
+.rdv-notice {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    color: #78350F;
+    padding: 12px 14px;
+    border-radius: var(--rdv-radius-sm);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-top: 16px;
+}
+.rdv-notice i { color: var(--rdv-accent); font-size: 16px; margin-top: 1px; }
+
+/* ---------- Summary sidebar ---------- */
+.rdv-summary {
+    background: var(--rdv-card);
+    border-radius: var(--rdv-radius);
+    box-shadow: var(--rdv-shadow-lg);
+    overflow: hidden;
+    position: sticky;
+    top: 20px;
+}
+.rdv-summary__head {
+    background: linear-gradient(135deg, var(--rdv-primary), #3D005E);
+    color: #fff;
+    padding: 22px 26px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.rdv-summary__head i {
+    font-size: 18px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.rdv-summary__head h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #fff;
+}
+.rdv-summary__head small {
+    display: block;
+    opacity: 0.85;
+    font-size: 12px;
+    font-weight: 400;
+    margin-top: 2px;
+}
+.rdv-summary__body { padding: 18px 26px 22px; }
+.rdv-summary__row {
+    display: flex;
+    gap: 12px;
+    padding: 13px 0;
+    border-bottom: 1px dashed var(--rdv-border);
+    font-size: 14px;
+}
+.rdv-summary__row:last-child { border-bottom: none; }
+.rdv-summary__icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--rdv-primary-soft);
+    color: var(--rdv-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+}
+.rdv-summary__col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.rdv-summary__label {
+    color: var(--rdv-text-soft);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.rdv-summary__value {
+    color: var(--rdv-text);
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+.rdv-summary__value--empty { color: var(--rdv-text-soft); font-style: italic; font-weight: 400; }
+.rdv-summary__cta {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rdv-border);
+    font-size: 12px;
+    color: var(--rdv-text-muted);
+    line-height: 1.5;
+    text-align: center;
+}
+.rdv-summary__cta i { color: var(--rdv-success); margin-right: 4px; }
+
+/* ---------- Action bar ---------- */
+.rdv-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+/* ---------- Preloader ---------- */
+.rdv-booking-v2 #preloader {
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(2px);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.rdv-booking-v2 #preloader::after {
+    content: '';
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--rdv-primary-soft);
+    border-top-color: var(--rdv-primary);
+    border-radius: 50%;
+    animation: rdvSpin .9s linear infinite;
+}
+@keyframes rdvSpin { to { transform: rotate(360deg); } }
+
+/* ---------- Confirmation page (randevuonayla) ---------- */
+.rdv-confirm-wrap {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+.rdv-confirm-card {
+    background: var(--rdv-card);
+    border-radius: var(--rdv-radius-lg);
+    box-shadow: var(--rdv-shadow-lg);
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+.rdv-confirm-header {
+    background: linear-gradient(135deg, var(--rdv-primary), var(--rdv-primary-light));
+    color: #fff;
+    padding: 32px 32px 28px;
+    text-align: center;
+    position: relative;
+}
+.rdv-confirm-header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -12px;
+    height: 24px;
+    background: radial-gradient(circle at 12px -12px, transparent 10px, #fff 11px) 0 0 / 24px 24px;
+}
+.rdv-confirm-header__icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    font-size: 30px;
+}
+.rdv-confirm-header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: #fff;
+    letter-spacing: -0.02em;
+}
+.rdv-confirm-header p {
+    opacity: 0.9;
+    font-size: 14px;
+    margin: 0;
+}
+.rdv-confirm-body {
+    padding: 32px;
+}
+.rdv-confirm-row {
+    display: grid;
+    grid-template-columns: 44px 140px 1fr;
+    gap: 14px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--rdv-border-light);
+    align-items: center;
+}
+.rdv-confirm-row:last-child { border-bottom: none; }
+@media (max-width: 575px) {
+    .rdv-confirm-row { grid-template-columns: 44px 1fr; }
+    .rdv-confirm-row__label { grid-column: 1 / -1; padding-left: 58px; margin-bottom: -10px; }
+}
+.rdv-confirm-row__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--rdv-primary-soft);
+    color: var(--rdv-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.rdv-confirm-row__label {
+    color: var(--rdv-text-muted);
+    font-size: 13px;
+    font-weight: 500;
+}
+.rdv-confirm-row__value {
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--rdv-text);
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+.rdv-personel-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.rdv-personel-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px 6px 6px;
+    background: var(--rdv-primary-softer);
+    border: 1px solid rgba(92, 0, 142, 0.12);
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--rdv-text);
+    font-weight: 500;
+}
+.rdv-personel-chip img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.rdv-confirm-footer {
+    background: var(--rdv-border-light);
+    padding: 22px 32px;
+    text-align: center;
+    border-top: 1px solid var(--rdv-border);
+}
+.rdv-confirm-footer__text {
+    font-size: 13px;
+    color: var(--rdv-text-muted);
+    margin: 0 0 14px;
+    line-height: 1.5;
+}
+.rdv-confirm-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.rdv-confirm-actions .rdv-btn { min-width: 140px; }
+
+/* ---------- Empty/placeholder states ---------- */
+.rdv-empty-hint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    background: var(--rdv-border-light);
+    border: 1px dashed var(--rdv-border);
+    border-radius: var(--rdv-radius-sm);
+    color: var(--rdv-text-muted);
+    font-size: 13px;
+}
+.rdv-empty-hint i { color: var(--rdv-text-soft); }
+
+/* ---------- Responsive tweaks ---------- */
+@media (max-width: 767px) {
+    .rdv-booking-v2 { padding: 20px 0 40px; }
+    .rdv-card { padding: 20px; }
+    .rdv-page-head h1 { font-size: 22px; }
+    .rdv-stepper { padding: 14px; gap: 2px; }
+    .rdv-step__text { display: none; }
+    .rdv-confirm-body { padding: 22px; }
+    .rdv-confirm-footer { padding: 18px 22px; }
+}
+
+/* ---------- Override loose legacy helpers leaking from style.css ---------- */
+.rdv-booking-v2 .row > [class*="col-"] { float: none; }
+.rdv-booking-v2 h2, .rdv-booking-v2 h3 { margin-top: 0; }
+.rdv-booking-v2 ul { list-style: none; }

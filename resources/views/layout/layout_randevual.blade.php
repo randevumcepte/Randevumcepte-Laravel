@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{{secure_asset('public/css/selectize.css')}}" type="text/css">
     <link rel="stylesheet" href="{{secure_asset('public/css/style.css')}}">
     <link rel="stylesheet" href="{{secure_asset('public/css/user.css')}}">
+    <link rel="stylesheet" href="{{secure_asset('public/css/randevu-booking.css')}}">
 
     <link rel="stylesheet" href="{{secure_asset('public/css/owl.carousel.min.css')}}" type="text/css">
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
