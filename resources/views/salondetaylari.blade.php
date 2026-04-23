@@ -82,7 +82,47 @@
    </div>
    @endif
 
-   <div class="row" style="margin-top:20px">
+   {{-- ======================= LUXE HERO BANNER ========================= --}}
+   <div class="lx-hero" id="lxHero">
+      @if(!empty($salongorselikapak))
+         <div class="lx-hero__bg" style="background-image:url('{{secure_asset($salongorselikapak)}}');"></div>
+      @endif
+      <div class="lx-hero__grid">
+         <div class="lx-hero__left">
+            <span class="lx-hero__eyebrow">Online Randevu</span>
+            <h2 class="lx-hero__title">{{$salon->salon_adi}} <em>&times;</em> Size Özel</h2>
+            <p class="lx-hero__sub">Saniyeler içinde randevunuzu oluşturun. Dilediğiniz hizmeti, personeli ve saati seçin — gerisini biz hallederiz.</p>
+            <div class="lx-hero__meta">
+               @if($salonpuanlar->count() > 0)
+                  <span class="lx-hero__chip"><i class="fa fa-star"></i> {{ number_format($salonpuanlar->sum('puan')/$salonpuanlar->count(), 1) }} / 5</span>
+               @endif
+               <span class="lx-hero__chip"><i class="fa fa-users"></i> {{$personeller->count()}} Personel</span>
+               <span class="lx-hero__chip"><i class="fa fa-map-marker"></i> {{ $salon->ilce->ilce_adi ?? $salon->il->il_adi ?? 'Türkiye' }}</span>
+               <span class="lx-hero__chip"><i class="fa fa-shield"></i> Güvenli & Anında Onay</span>
+            </div>
+         </div>
+         <div class="lx-hero__right">
+            <div class="lx-progress" id="lxProgress" data-lstep="1">
+               <div class="lx-progress__track"><div class="lx-progress__bar" style="width:12.5%"></div></div>
+               <div class="lx-progress__dots" style="position:absolute;top:34px;left:14px;right:14px;">
+                  <span class="lx-progress__dot is-active" data-lxs="1"><span>1</span></span>
+                  <span class="lx-progress__dot" data-lxs="2"><span>2</span></span>
+                  <span class="lx-progress__dot" data-lxs="3"><span>3</span></span>
+                  <span class="lx-progress__dot" data-lxs="4"><span>4</span></span>
+               </div>
+               <div class="lx-progress__labels">
+                  <span class="lx-progress__label is-active" data-lxl="1">Hizmet</span>
+                  <span class="lx-progress__label" data-lxl="2">Personel</span>
+                  <span class="lx-progress__label" data-lxl="3">Tarih &amp; Saat</span>
+                  <span class="lx-progress__label" data-lxl="4">Onay</span>
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+   {{-- ======================= /LUXE HERO =============================== --}}
+
+   <div class="row rdv-luxe-bookingrow" style="margin-top:20px">
       <div class="col-lg-8" id="randevusistemi">
          <div id="hizmetsecimbolumu">
             <aside class="sidebar">
@@ -636,10 +676,67 @@
    }
    });
    }
-   
-   
-                                              
-                                           
+
+   /* ============== LUXE HERO — progress sync ============== */
+   (function(){
+       var sections = {
+           1: document.getElementById('hizmetsecimbolumu'),
+           2: document.getElementById('personelsecimbolumu'),
+           3: document.getElementById('tarihsaatsecimbolumu'),
+           4: document.getElementById('onaybolumu')
+       };
+       var bar  = document.querySelector('#lxProgress .lx-progress__bar');
+       var dots = document.querySelectorAll('#lxProgress .lx-progress__dot');
+       var labs = document.querySelectorAll('#lxProgress .lx-progress__label');
+       if (!bar || !dots.length) return;
+
+       function isVisible(el){
+           if (!el) return false;
+           var cs = window.getComputedStyle(el);
+           if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+           return el.offsetParent !== null || cs.position === 'fixed';
+       }
+       function setStep(n){
+           var pct = [12.5, 37.5, 62.5, 92][n-1];
+           bar.style.width = pct + '%';
+           dots.forEach(function(d){
+               var s = parseInt(d.getAttribute('data-lxs'),10);
+               d.classList.remove('is-active','is-done');
+               if (s < n) d.classList.add('is-done');
+               else if (s === n) d.classList.add('is-active');
+           });
+           labs.forEach(function(l){
+               var s = parseInt(l.getAttribute('data-lxl'),10);
+               l.classList.remove('is-active','is-done');
+               if (s < n) l.classList.add('is-done');
+               else if (s === n) l.classList.add('is-active');
+           });
+           document.getElementById('lxProgress').setAttribute('data-lstep', n);
+       }
+       function detect(){
+           var active = 1;
+           if (isVisible(sections[4])) active = 4;
+           else if (isVisible(sections[3])) active = 3;
+           else if (isVisible(sections[2])) active = 2;
+           else active = 1;
+           setStep(active);
+       }
+       detect();
+
+       ['personelsecimadiminagec','onayadiminagec','randevuonayla_auth',
+        'personelseckisminageridon','tarihsaatseckisminageridon'].forEach(function(id){
+           var b = document.getElementById(id);
+           if (b) b.addEventListener('click', function(){ setTimeout(detect, 60); });
+       });
+
+       // Observe display changes on each step section
+       Object.keys(sections).forEach(function(k){
+           var el = sections[k];
+           if (!el) return;
+           new MutationObserver(function(){ setTimeout(detect, 30); })
+               .observe(el, { attributes: true, attributeFilter: ['style','class'] });
+       });
+   })();
 </script>
 <!--end block-->
 @endsection
