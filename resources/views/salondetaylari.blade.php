@@ -60,6 +60,28 @@
          </li>
       </ul>
    </div>
+
+   @php
+       $_aktifCark = \App\CarkifelekSistemi::where('salon_id', $salon->id)->where('aktifmi', 1)->first();
+       $_cark_dilim_sayisi = $_aktifCark ? \App\CarkifelekDilimleri::where('cark_id', $_aktifCark->id)->count() : 0;
+   @endphp
+   @if($_aktifCark && $_cark_dilim_sayisi >= 2)
+   <div class="row" style="margin-top:18px">
+      <div class="col-12">
+         <a href="{{ url('/cark/'.$salon->id) }}" style="display:block;text-decoration:none;">
+            <div style="background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 50%,#fd79a8 100%);border-radius:16px;padding:16px 22px;color:#fff;display:flex;align-items:center;gap:14px;box-shadow:0 10px 26px rgba(108,92,231,.3);transition:.25s;">
+               <div style="font-size:38px;line-height:1;">🎡</div>
+               <div style="flex:1;">
+                  <div style="font-size:17px;font-weight:800;letter-spacing:-.3px;">Çarkıfelek — Size Özel Ödüller!</div>
+                  <div style="font-size:13px;opacity:.92;margin-top:2px;">Onaylanmış randevularınız üzerinden çarkı çevirip puan ve indirim kazanın.</div>
+               </div>
+               <div style="font-size:20px;">›</div>
+            </div>
+         </a>
+      </div>
+   </div>
+   @endif
+
    <div class="row" style="margin-top:20px">
       <div class="col-lg-8" id="randevusistemi">
          <div id="hizmetsecimbolumu">

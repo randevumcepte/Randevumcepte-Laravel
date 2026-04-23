@@ -32,7 +32,12 @@ Route::group(['middleware' => ['auth']],function(){
 	Route::get('/favorilerim', 'CustomerController@favoriler');
 	Route::get('/firsatlarim', 'CustomerController@firsatlar');
 	Route::get('/yorumyap','CustomerController@yorumyap')->name('yorumyap');
-}); 
+
+	/* Çarkıfelek — müşteri tarafı */
+	Route::get('/cark/{salonId}',       'CarkifelekMusteriController@goster')->name('cark.goster');
+	Route::post('/cark/cevir',          'CarkifelekMusteriController@cevir')->name('cark.cevir');
+	Route::get('/odullerim',            'CarkifelekMusteriController@odullerim')->name('cark.odullerim');
+});
 
 Route::group(['middleware' => ['web']], function () {
 Route::get('/save-excel', function () {
