@@ -728,45 +728,40 @@
 
             if (tipObj.hasDeger && sl.deger != null) {
                 /* ── Sayısal ödül ─────────────────────────────────────────
-                   Dilime teğet (tangential) yönde: büyük rakam + küçük etiket üst üste */
-
-                const dist   = n <= 8 ? 82 : 72;
-                const tx     = CX + dist * Math.cos(tRad);
-                const ty     = CY + dist * Math.sin(tRad);
+                   Rakam: dilime teğet (tangential) yatay
+                   Yazı (Puan/Hizmet/Ürün): radyal dikey — eski gibi */
 
                 const numStr = sl.tip.includes('indirimi') ? '%' + sl.deger : String(sl.deger);
                 const catStr = sl.tip === 'puan' ? 'Puan'
                              : sl.tip === 'hizmet_indirimi' ? 'Hizmet'
                              : 'Ürün';
                 const numFs  = n <= 8 ? 17 : 14;
-                const catFs  = n <= 8 ? 10 : 8;
-                const gap    = 3;
+                const catFs  = n <= 8 ? 11 : 9;
 
-                const numFill = isWin ? '#FFD700' : 'white';
-                const numStrk = isWin ? 'rgba(100,55,0,.95)' : 'rgba(0,0,0,.75)';
+                // Rakam: dış bölgede teğet (tAng) döndürülmüş, her zaman beyaz
+                const numDist = n <= 8 ? 92 : 82;
+                const nx = CX + numDist * Math.cos(tRad);
+                const ny = CY + numDist * Math.sin(tRad);
+                const ng = svgEl('g');
+                ng.setAttribute('transform', `rotate(${tAng}, ${nx}, ${ny})`);
+                const nt = svgEl('text');
+                nt.setAttribute('x', nx); nt.setAttribute('y', ny);
+                nt.setAttribute('text-anchor', 'middle');
+                nt.setAttribute('dominant-baseline', 'middle');
+                nt.setAttribute('font-size', numFs); nt.setAttribute('font-weight', '900');
+                nt.setAttribute('fill', 'white');
+                nt.setAttribute('paint-order', 'stroke');
+                nt.setAttribute('stroke', 'rgba(0,0,0,.75)');
+                nt.setAttribute('stroke-width', '3.5');
+                nt.setAttribute('stroke-linejoin', 'round');
+                nt.textContent = numStr;
+                ng.appendChild(nt); wheelEl.appendChild(ng);
 
-                const totalH = numFs + gap + catFs;
-                const numYOff = -totalH / 2 + numFs / 2;
-                const catYOff =  totalH / 2 - catFs / 2;
-
-                // Tek grup — tAng kadar döndür (dilime teğet, referans görsel gibi)
-                const tg = svgEl('g');
-                tg.setAttribute('transform', `rotate(${tAng}, ${tx}, ${ty})`);
-
-                function mkT(yOff, txt, fs, fw, fill, strk, sw) {
-                    const t = svgEl('text');
-                    t.setAttribute('x', tx); t.setAttribute('y', ty + yOff);
-                    t.setAttribute('text-anchor', 'middle');
-                    t.setAttribute('dominant-baseline', 'middle');
-                    t.setAttribute('font-size', fs); t.setAttribute('font-weight', fw);
-                    t.setAttribute('fill', fill); t.setAttribute('paint-order', 'stroke');
-                    t.setAttribute('stroke', strk); t.setAttribute('stroke-width', sw);
-                    t.setAttribute('stroke-linejoin', 'round');
-                    t.textContent = txt; return t;
-                }
-                tg.appendChild(mkT(numYOff, numStr, numFs, '900', numFill, numStrk, '3.5'));
-                tg.appendChild(mkT(catYOff, catStr, catFs, '700', 'rgba(255,255,255,.92)', 'rgba(0,0,0,.5)', '2'));
-                wheelEl.appendChild(tg);
+                // Yazı: iç bölgede radyal (textRot) dikey — değişmez
+                const catDist = n <= 8 ? 68 : 60;
+                const cx2 = CX + catDist * Math.cos(tRad);
+                const cy2 = CY + catDist * Math.sin(tRad);
+                addText(cx2, cy2, catStr, catFs, '700', 'rgba(255,255,255,.92)', 'rgba(0,0,0,.5)', '2');
 
             } else {
                 /* ── Metin ödülü (Tekrar Dene / Boş / özel isim) ─────────
