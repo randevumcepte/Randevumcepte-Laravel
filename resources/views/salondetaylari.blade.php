@@ -317,8 +317,7 @@
                            <div id="secilenhizmetlistebos">
                               Henüz hizmet seçmediniz... 
                            </div>
-                           <div id="secilenhizmetliste" >
-               </form>
+                           <div id="secilenhizmetliste" ></div>
                </td>
                </tr>
                <tr style="border-bottom: 1px solid #e4e4e2">

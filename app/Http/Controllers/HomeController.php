@@ -1184,11 +1184,19 @@ $salon = Salonlar::where('domain', $domain)->first();
          $hizmetler_html = "";
             $personeller_html = "";
 
-             $hizmetliste = Hizmetler::whereIn('id',$request->secilenhizmetler)->get();
-            
+             $secilenHizmetIds = $request->secilenhizmetler ?? [];
+             $secilenPersonelIds = $request->secilenpersoneller ?? [];
+             $hizmetliste = Hizmetler::whereIn('id', $secilenHizmetIds)->get();
+
              foreach ($hizmetliste as $key => $value) {
                  $hizmetler_html .= "<input type='hidden' name='hizmetler[]' value='".$value->id."'>".$value->hizmet_adi."&nbsp;";
-                  $personelliste = Personeller::where('id',$request->secilenpersoneller[$key])->first();
+                  $personelId = $secilenPersonelIds[$key] ?? 0;
+                  $personelliste = Personeller::where('id', $personelId)->first();
+                  if (!$personelliste) {
+                      $personeller_html .= "<input type='hidden' name='personeller[]' value='0'>
+                        <div class='col-md-3' style='float:left; margin:10px;font-size:14px'>Farketmez</div>&nbsp;";
+                      continue;
+                  }
                    $personeller_html .= "<input type='hidden' name='personeller[]' value='".$personelliste->id."'>
                   <div class='col-md-3' style='float:left; margin:10px;font-size:14px'><div class='author small' style='position: relative;'>
                     <div class='author-image' style='float: none'>";
@@ -1197,8 +1205,8 @@ $salon = Salonlar::where('domain', $domain)->first();
                         $personeller_html .= '<div class="background-image" style="background-image: url(/public/img/author0.jpg);"><img src="http://'.$_SERVER['HTTP_HOST'].'/public/img/author0.jpg" alt="Profil resmi">';
                     else
                         $personeller_html .= '<div class="background-image" style="background-image: url(/public/img/author1.jpg);"><img src="http://'.$_SERVER['HTTP_HOST'].'/public/img/author1.jpg" alt="Profil resmi">';
-                                                                  
-                                                               
+
+
                }
                else
 
@@ -1207,18 +1215,21 @@ $salon = Salonlar::where('domain', $domain)->first();
                 $personeller_html .= "</div></div></div>".$personelliste->personel_adi."</div>&nbsp;";
 
              }
-            
-                
-             
-            $randevusaati = '<input type="hidden" name="randevusaati" value="'.date('H:i:s', strtotime($request->randevutarihivesaati)).'">'.date('H:i', strtotime($request->randevutarihivesaati));
-            $randevutarihi =  '<input type="hidden" name="randevutarihi" value="'.date('Y-m-d', strtotime($request->randevutarihivesaati)).'">'.date('d.m.Y', strtotime($request->randevutarihivesaati));
+
+            $tarihSaatRaw = $request->randevutarihivesaati;
+            if (empty($tarihSaatRaw) || !strtotime($tarihSaatRaw)) {
+                return response()->json(['error' => 'Lütfen geçerli bir tarih ve saat seçiniz.'], 422);
+            }
+            $tarihSaatTs = strtotime($tarihSaatRaw);
+            $randevusaati = '<input type="hidden" name="randevusaati" value="'.date('H:i:s', $tarihSaatTs).'">'.date('H:i', $tarihSaatTs);
+            $randevutarihi = '<input type="hidden" name="randevutarihi" value="'.date('Y-m-d', $tarihSaatTs).'">'.date('d.m.Y', $tarihSaatTs);
              $randevudokumu = array();
              $randevudokumu['hizmetler'] = $hizmetler_html;
              $randevudokumu['personeller'] = $personeller_html;
              $randevudokumu['randevutarihi'] = $randevutarihi;
              $randevudokumu['randevusaati'] = $randevusaati;
             return  $randevudokumu;
-      
+
      }
      public function randevuonayla1(Request $request){
         $credential = ['cep_telefon' => $request->ceptelefon, 'password' =>$request->sifre];
@@ -1238,12 +1249,19 @@ $salon = Salonlar::where('domain', $domain)->first();
             $hizmetler_html = "";
             $personeller_html = "";
 
-             $hizmetliste = Hizmetler::whereIn('id',$request->secilenhizmetler)->get();
-             
+             $secilenHizmetIds = $request->secilenhizmetler ?? [];
+             $secilenPersonelIds = $request->secilenpersoneller ?? [];
+             $hizmetliste = Hizmetler::whereIn('id', $secilenHizmetIds)->get();
+
              foreach ($hizmetliste as $key => $value) {
                  $hizmetler_html .= "<input type='hidden' name='hizmetler[]' value='".$value->id."'>".$value->hizmet_adi."&nbsp;";
-                 
-                 $personelliste = Personeller::where('id',$request->secilenpersoneller[$key])->first();
+                 $personelId = $secilenPersonelIds[$key] ?? 0;
+                 $personelliste = Personeller::where('id', $personelId)->first();
+                 if (!$personelliste) {
+                     $personeller_html .= "<input type='hidden' name='personeller[]' value='0'>
+                        <div class='col-md-3' style='float:left; margin:10px;font-size:14px'>Farketmez</div>&nbsp;";
+                     continue;
+                 }
                   $personeller_html .= "<input type='hidden' name='personeller[]' value='".$personelliste->id."'>
                   <div class='col-md-3' style='float:left; margin:10px;font-size:14px'><div class='author small' style='position: relative;'>
                     <div class='author-image' style='float: none'>";
@@ -1252,8 +1270,8 @@ $salon = Salonlar::where('domain', $domain)->first();
                         $personeller_html .= '<div class="background-image" style="background-image: url(/public/img/author0.jpg);"><img src="http://'.$_SERVER['HTTP_HOST'].'/public/img/author0.jpg" alt="Profil resmi">';
                     else
                         $personeller_html .= '<div class="background-image" style="background-image: url(/public/img/author1.jpg);"><img src="http://'.$_SERVER['HTTP_HOST'].'/public/img/author1.jpg" alt="Profil resmi">';
-                                                                  
-                                                               
+
+
                }
                else
 
@@ -1262,9 +1280,14 @@ $salon = Salonlar::where('domain', $domain)->first();
                 $personeller_html .= "</div></div></div>".$personelliste->personel_adi."</div>&nbsp;";
 
              }
-           
-            $randevusaati = '<input type="hidden" name="randevusaati" value="'.date('H:i:s', strtotime($request->randevutarihivesaati)).'">'.date('H:i', strtotime($request->randevutarihivesaati));
-            $randevutarihi =  '<input type="hidden" name="randevutarihi" value="'.date('Y-m-d', strtotime($request->randevutarihivesaati)).'">'.date('d.m.Y', strtotime($request->randevutarihivesaati));
+
+            $tarihSaatRaw = $request->randevutarihivesaati;
+            if (empty($tarihSaatRaw) || !strtotime($tarihSaatRaw)) {
+                return response()->json(['error' => 'Lütfen geçerli bir tarih ve saat seçiniz.'], 422);
+            }
+            $tarihSaatTs = strtotime($tarihSaatRaw);
+            $randevusaati = '<input type="hidden" name="randevusaati" value="'.date('H:i:s', $tarihSaatTs).'">'.date('H:i', $tarihSaatTs);
+            $randevutarihi = '<input type="hidden" name="randevutarihi" value="'.date('Y-m-d', $tarihSaatTs).'">'.date('d.m.Y', $tarihSaatTs);
              $randevudokumu = array();
              $randevudokumu['hizmetler'] = $hizmetler_html;
              $randevudokumu['personeller'] = $personeller_html;
