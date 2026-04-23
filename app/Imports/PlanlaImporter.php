@@ -256,17 +256,20 @@ class PlanlaImporter
             $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
             if (!$ad) { $this->counts['skipped']++; continue; }
             $tel = $this->telefonNormalize(isset($row['phone']) ? $row['phone'] : null);
-            if (!$tel) { $this->counts['skipped']++; continue; }
             $email = !empty($row['email']) ? trim($row['email']) : null;
             $notes = !empty($row['notes']) ? trim($row['notes']) : null;
             $created = !empty($row['createdAt']) ? date('Y-m-d H:i:s', (int) $row['createdAt']) : date('Y-m-d H:i:s');
 
-            // Sadece telefon numarasi ile lookup
-            $user = User::where('cep_telefon', $tel)->first();
+            $user = null;
+            if ($tel) {
+                $user = User::where('cep_telefon', $tel)->first();
+            }
             if (!$user) {
+                // Telefon yoksa planla_id tabanli sentetik placeholder; cep_telefon NOT NULL olsa da kaydeder
+                $effectiveTel = $tel ?: ('planla_' . substr($planlaId, -10));
                 $user = new User();
                 $user->name = $ad;
-                $user->cep_telefon = $tel;
+                $user->cep_telefon = $effectiveTel;
                 if ($email) $user->email = $email;
                 $user->ozel_notlar = $notes;
                 $user->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
@@ -410,6 +413,8 @@ class PlanlaImporter
         $this->log('Musteri map kuruluyor (eksik olanlar olusturuluyor)...');
         $yeni = 0;
         $bulundu = 0;
+        $hata = 0;
+        $hataOrnek = null;
         foreach ($this->fetchCategory('customers') as $row) {
             $planlaId = isset($row['_id']) ? $row['_id'] : null;
             if (!$planlaId) continue;
@@ -427,32 +432,47 @@ class PlanlaImporter
                 $user = User::where('cep_telefon', $tel)->first();
             }
             if (!$user) {
-                $user = new User();
-                $user->name = $ad;
-                $user->cep_telefon = $tel; // null olabilir
-                if ($email) $user->email = $email;
-                $user->ozel_notlar = $notes;
-                $user->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
-                $user->created_at = $created;
-                $user->save();
-                $yeni++;
+                // Telefon yoksa sentetik bir placeholder ver - boylece cep_telefon NOT NULL kisidi atlanir,
+                // duplicate olmamasi icin planla_id tabanli unique string kullaniyoruz
+                $effectiveTel = $tel ?: ('planla_' . substr($planlaId, -10));
+                try {
+                    $user = new User();
+                    $user->name = $ad;
+                    $user->cep_telefon = $effectiveTel;
+                    if ($email) $user->email = $email;
+                    $user->ozel_notlar = $notes;
+                    $user->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                    $user->created_at = $created;
+                    $user->save();
+                    $yeni++;
+                } catch (\Exception $e) {
+                    $hata++;
+                    if (!$hataOrnek) $hataOrnek = $e->getMessage();
+                    Log::warning('[PlanlaImporter] user olusturma hatasi: ' . $e->getMessage() . ' | planla_id=' . $planlaId);
+                    continue;
+                }
             } else {
                 $bulundu++;
             }
 
-            $portfoy = MusteriPortfoy::where('user_id', $user->id)->where('salon_id', $this->salonId)->first();
-            if (!$portfoy) {
-                $portfoy = new MusteriPortfoy();
-                $portfoy->user_id = $user->id;
-                $portfoy->salon_id = $this->salonId;
-                $portfoy->aktif = 1;
-                $portfoy->ozel_notlar = $notes;
-                $portfoy->created_at = $created;
-                $portfoy->save();
+            try {
+                $portfoy = MusteriPortfoy::where('user_id', $user->id)->where('salon_id', $this->salonId)->first();
+                if (!$portfoy) {
+                    $portfoy = new MusteriPortfoy();
+                    $portfoy->user_id = $user->id;
+                    $portfoy->salon_id = $this->salonId;
+                    $portfoy->aktif = 1;
+                    $portfoy->ozel_notlar = $notes;
+                    $portfoy->created_at = $created;
+                    $portfoy->save();
+                }
+            } catch (\Exception $e) {
+                Log::warning('[PlanlaImporter] portfoy olusturma hatasi: ' . $e->getMessage() . ' | user_id=' . $user->id);
             }
             $this->musteriMap[$planlaId] = $user->id;
         }
-        $this->log("Musteri map tamam: bulundu={$bulundu}, yeni olusturulan={$yeni}, toplam map=" . count($this->musteriMap));
+        $this->log("Musteri map: bulundu={$bulundu}, yeni={$yeni}, hata={$hata}, map=" . count($this->musteriMap));
+        if ($hataOrnek) $this->log("Ornek hata: " . $hataOrnek);
     }
 
     private function buildHizmetMap()
