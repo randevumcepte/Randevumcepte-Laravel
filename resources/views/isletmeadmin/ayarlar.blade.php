@@ -1168,8 +1168,20 @@
                role="tabpanel"
                >
                <div class="pd-20">
+                  <div class="row" style="border-bottom:1px solid #e2e2e2;margin-bottom:15px;padding-bottom:10px;">
+                     <div class="col-6">
+                        <h2 class="text-blue">Form Taslakları</h2>
+                        <p class="text-muted" style="font-size:13px;">İşletmenize özel onam formları ve sözleşmeler. Buradan oluşturduğunuz formlar sadece size aittir.</p>
+                     </div>
+                     <div class="col-6 text-right">
+                        <a href="/isletmeyonetim/form-sablonlari?sube={{ $isletme->id }}" class="btn btn-success">
+                           <i class="fa fa-plus"></i> Yeni Form Oluştur
+                        </a>
+                     </div>
+                  </div>
                   <div class="gallery-wrap">
                      <ul class="row">
+                        @if(false)
                            <li class="col-lg-3 col-md-6 col-sm-12">
                         <div class="da-card box-shadow">
                            <div class="da-card-photo">
@@ -1385,6 +1397,7 @@
                            </div>
                         </div>
                      </li>
+                        @endif
                      @php
                         try {
                             $dinamikFormlar = DB::table('formtaslaklari')
@@ -1396,6 +1409,13 @@
                             $dinamikFormlar = collect();
                         }
                      @endphp
+                     @if($dinamikFormlar->isEmpty())
+                        <li class="col-12 text-center" style="padding:40px 20px; background:#f8f9fa; border-radius:8px; margin-top:15px;">
+                           <i class="fa fa-file-text-o" style="font-size:48px; color:#c0c4c8;"></i>
+                           <h5 style="margin-top:15px; color:#6c757d;">Henüz form şablonu oluşturmadınız</h5>
+                           <p class="text-muted">Sağ üstteki "Yeni Form Oluştur" butonuyla işletmenize özel onam formları ve sözleşmeler hazırlayabilirsiniz.</p>
+                        </li>
+                     @endif
                      @foreach($dinamikFormlar as $df)
                      <li class="col-lg-3 col-md-6 col-sm-12">
                         <div class="da-card box-shadow">
@@ -1669,7 +1689,7 @@
                   <div class="col-md-6">
                      <div class="form-group">
                         <label>Hizmet fiyatı (₺)</label>
-                        <input type="tel" name="hizmet_fiyati" class="form-control">
+                        <input type="text" inputmode="decimal" name="hizmet_fiyati" class="form-control hy-fiyat-input" placeholder="0,00" autocomplete="off">
                      </div>
                   </div>
                   <div class="col-md-6">

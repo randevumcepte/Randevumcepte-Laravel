@@ -22,22 +22,14 @@
                             <label>Form/Sözleşme Türü</label>
                             <select name="formtaslaklari" id="formtaslaklari" class="form-control opsiyonelSelect" style="width: 100%;">
                                 @php
-                                    $sistemFormlari = \App\FormTaslaklari::whereNull('salon_id')->get();
-                                    $salonFormlari  = \App\FormTaslaklari::where('salon_id',$isletme->id)->get();
+                                    $salonFormlari = \App\FormTaslaklari::where('salon_id',$isletme->id)->get();
                                 @endphp
                                 @if($salonFormlari->count())
-                                <optgroup label="— Özel Formlarınız —">
                                     @foreach($salonFormlari as $formTaslak)
                                     <option value="{{$formTaslak->id}}" data-dinamik="{{$formTaslak->is_dinamik ? '1' : '0'}}">{{$formTaslak->form_adi}}</option>
                                     @endforeach
-                                </optgroup>
-                                @endif
-                                @if($sistemFormlari->count())
-                                <optgroup label="— Sistem Formları —">
-                                    @foreach($sistemFormlari as $formTaslak)
-                                    <option value="{{$formTaslak->id}}" data-dinamik="0">{{$formTaslak->form_adi}}</option>
-                                    @endforeach
-                                </optgroup>
+                                @else
+                                    <option value="" disabled>Henüz form oluşturmadınız — Ayarlar &gt; Form Taslakları</option>
                                 @endif
                             </select>
                         </div>
