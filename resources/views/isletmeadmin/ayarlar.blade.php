@@ -1386,23 +1386,32 @@
                         </div>
                      </li>
                      @php
-                        $dinamikFormlar = DB::table('formtaslaklari')
-                            ->where('salon_id', $isletme->id)
-                            ->where('is_dinamik', 1)
-                            ->orderBy('id','desc')
-                            ->get();
+                        try {
+                            $dinamikFormlar = DB::table('formtaslaklari')
+                                ->where('salon_id', $isletme->id)
+                                ->where('is_dinamik', 1)
+                                ->orderBy('id','desc')
+                                ->get();
+                        } catch(\Exception $e) {
+                            $dinamikFormlar = collect();
+                        }
                      @endphp
                      @foreach($dinamikFormlar as $df)
                      <li class="col-lg-3 col-md-6 col-sm-12">
                         <div class="da-card box-shadow">
-                           <div class="da-card-photo" style="background: linear-gradient(135deg,#6c63ff,#48c774); min-height:160px; display:flex; align-items:center; justify-content:center;">
-                              <div style="text-align:center; padding:20px;">
-                                 <i class="fa fa-file-text-o" style="font-size:48px; color:#fff; opacity:0.8;"></i>
+                           <div class="da-card-photo">
+                              <div style="background:linear-gradient(135deg,#6c63ff,#48c774);min-height:190px;display:flex;align-items:center;justify-content:center;">
+                                 <i class="fa fa-file-text-o" style="font-size:60px;color:rgba(255,255,255,0.7);"></i>
                               </div>
                               <div class="da-overlay">
                                  <div class="da-social">
                                     <h5 class="mb-10 color-white pd-20">{{ $df->form_adi }}</h5>
                                     <ul class="clearfix">
+                                       <li>
+                                          <a href="/isletmeyonetim/bosFormIndirDinamik?formId={{ $df->id }}&sube={{ $isletme->id }}" title="PDF İndir">
+                                             <i class="fa fa-download"></i>
+                                          </a>
+                                       </li>
                                        <li>
                                           <a href="/isletmeyonetim/form-sablonlari?sube={{ $isletme->id }}" title="Düzenle">
                                              <i class="fa fa-pencil"></i>

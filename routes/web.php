@@ -661,6 +661,7 @@ Route::get('/personel_listesi_getir','StoreAdminController@personel_listesi_geti
 	Route::post('/paketSecimKaydet','StoreAdminController@paketSecimKaydet');
 
 Route::get('/bosFormIndir','StoreAdminController@bosFormIndir');
+Route::get('/bosFormIndirDinamik','StoreAdminController@bosFormIndirDinamik');
 Route::get('/satisDetaylariveDuzenleme','StoreAdminController@satisDetaylariveDuzenleme');
 Route::get('/paketVarmiKontrolu','StoreAdminController@paketVarmiKontrolu');
 Route::post('/seansEkle','StoreAdminController@seansEkle');

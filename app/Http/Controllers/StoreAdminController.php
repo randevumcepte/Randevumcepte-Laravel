@@ -20814,6 +20814,23 @@ DB::raw('
              exit();
         
     }
+    public function bosFormIndirDinamik(Request $request)
+    {
+        $taslak = FormTaslaklari::where('id', $request->formId)
+            ->where('salon_id', self::mevcutsube($request))
+            ->first();
+        if (!$taslak) return abort(404);
+        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        $sorular = $taslak->sorular_json ? json_decode($taslak->sorular_json, true) : [];
+        $pdf = PDF::loadView('onamform.dinamik_form_bos_pdf', [
+            'form_adi' => $taslak->form_adi,
+            'aciklama' => $taslak->aciklama ?? '',
+            'sorular'  => $sorular,
+            'isletme'  => $isletme,
+        ])->setOptions(['defaultFont' => 'DejaVu Sans']);
+        return $pdf->download($taslak->form_adi . '.pdf');
+    }
+
     public function raporlar(Request $request)
     {
         $isletmeler = '';
