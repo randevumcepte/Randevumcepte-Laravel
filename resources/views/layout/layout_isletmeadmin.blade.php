@@ -884,30 +884,22 @@
                   @endif
                   @endif
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
-                  <li>
-                        @if($pageindex==51)
-                        <a href="/isletmeyonetim/form-sablonlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                        @else
-                        <a href="/isletmeyonetim/form-sablonlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                  <li class="dropdown {{ ($pageindex==50 || $pageindex==51) ? 'show' : '' }}">
+                     <a href="javascript:;" class="dropdown-toggle {{ ($pageindex==50 || $pageindex==51) ? 'active' : '' }}">
+                        <span class="micon bi bi-file-earmark-text"></span>
+                        <span class="mtext">Form Yönetimi</span>
+                     </a>
+                     <ul class="submenu" style="{{ ($pageindex==50 || $pageindex==51) ? 'display:block;' : '' }}">
+                        <li><a href="/isletmeyonetim/form-sablonlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="{{ $pageindex==51 ? 'active' : '' }}">Form Şablonları</a></li>
+                        @if($isletme->uyelik_turu>1)
+                        <li><a href="/isletmeyonetim/arsivyonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="{{ $pageindex==50 ? 'active' : '' }}">Arşiv Yönetimi</a></li>
                         @endif
-                        <span class="micon bi bi-file-earmark-text"></span
-                           ><span class="mtext">Form Şablonları</span>
-                        </a>
+                     </ul>
                   </li>
                   @endif
                   @if($isletme->uyelik_turu>1)
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
 
-                  <li>
-                        @if($pageindex==50)
-                        <a href="/isletmeyonetim/arsivyonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                        @else
-                        <a href="/isletmeyonetim/arsivyonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                        @endif
-                        <span class="micon bi bi-calendar4-week"></span
-                           ><span class="mtext">Arşiv Yönetimi</span>
-                        </a>
-                  </li>
                   <li>
                         @if($pageindex==14)
                         <a href="/isletmeyonetim/seanstakip{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
