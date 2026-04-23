@@ -13,6 +13,8 @@ use App\SalonPuanOdulleri;
 use App\Hizmet_Kategorisi;
 use App\Hizmetler;
 use App\SalonTuru;
+use App\Iller;
+use App\Ilceler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +34,8 @@ class CarkifelekMusteriController extends Controller
             'hizmetler'          => Hizmetler::all(),
             'salonturleri'       => SalonTuru::all(),
             'salonlar'           => Salonlar::limit(20)->get(),
+            'iller'              => Iller::all(),
+            'ilceler'            => Ilceler::all(),
             'salon'              => Salonlar::where('domain', $host)->first(),
         ];
     }
