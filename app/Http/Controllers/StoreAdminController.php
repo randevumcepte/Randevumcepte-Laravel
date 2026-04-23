@@ -9244,28 +9244,27 @@ DB::raw('
     public function musteri_tahsilatlari(Request $request,$musteriid,$adisyon_id,$satisDuzenle)
     {
         
-        $acik_adisyonlar = '';
+        $acik_adisyonlar = collect();
         if($adisyon_id == ''){
-            //$acik_adisyonlar = self::adisyon_yukle_tahsilat($request,'','','1970-01-01',date('Y-m-d'),$musteriid,'',$adisyon_id);
             $urunler = isset($request->adisyon_urun_id) ? AdisyonUrunler::whereIn('id',$request->adisyon_urun_id)->pluck('adisyon_id')->toArray() : array();
             $paketler = isset($request->adisyon_paket_id) ? AdisyonPaketler::whereIn('id',$request->adisyon_paket_id)->pluck('adisyon_id')->toArray() : array();
             $hizmetler = isset($request->adisyon_hizmet_id) ? AdisyonHizmetler::whereIn('id',$request->adisyon_hizmet_id)->pluck('adisyon_id')->toArray() : array();
             $adisyonIdler = array_unique(array_merge($urunler,$paketler,$hizmetler));
-            Log::info('Kalem sayıları '.count($adisyonIdler));
 
             if(count($adisyonIdler) > 0){
-                Log::info('adisyon idler '.json_encode($adisyonIdler));
-                Log::info('max adisyon id '.max($adisyonIdler));
-                $acik_adisyonlar = Adisyonlar::whereIn('id',$adisyonIdler)->orWhere('id','>',max($adisyonIdler))->get();
-
+                $acik_adisyonlar = Adisyonlar::whereIn('id',$adisyonIdler)
+                    ->where('user_id',$musteriid)
+                    ->where('salon_id',$request->sube)
+                    ->get();
             }
             else
             {
-                $sonAdisyon = Adisyonlar::where('user_id',$musteriid)->where('salon_id',$request->sube)->orderBy('id','desc')->first();
-                Log::info('Son adisyon '.$sonAdisyon);
-                $acik_adisyonlar = Adisyonlar::where('id','>=',$sonAdisyon->id)->get();
-                Log::info('Açık adisyonlar '.$acik_adisyonlar);
-                //$acik_adisyonlar = self::adisyon_yukle_tahsilat($request,'','','1970-01-01',date('Y-m-d'),$musteriid,'',$adisyon_id);
+                $sonAdisyon = Adisyonlar::where('user_id',$musteriid)
+                    ->where('salon_id',$request->sube)
+                    ->orderBy('id','desc')
+                    ->first();
+                if($sonAdisyon)
+                    $acik_adisyonlar = Adisyonlar::where('id',$sonAdisyon->id)->get();
             }
         }
         else
