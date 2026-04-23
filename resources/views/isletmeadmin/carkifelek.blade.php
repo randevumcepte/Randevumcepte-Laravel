@@ -757,11 +757,12 @@
                 nt.textContent = numStr;
                 ng.appendChild(nt); wheelEl.appendChild(ng);
 
-                // Yazı: iç bölgede radyal (textRot) dikey — değişmez
+                // Yazı: iç bölgede radyal dikey — sl.name'den okur (yazı alanı bunu kontrol eder)
+                const innerLabel = sl.name || catStr;
                 const catDist = n <= 8 ? 68 : 60;
                 const cx2 = CX + catDist * Math.cos(tRad);
                 const cy2 = CY + catDist * Math.sin(tRad);
-                addText(cx2, cy2, catStr, catFs, '700', 'rgba(255,255,255,.92)', 'rgba(0,0,0,.5)', '2');
+                addText(cx2, cy2, innerLabel, catFs, '700', 'rgba(255,255,255,.92)', 'rgba(0,0,0,.5)', '2');
 
             } else {
                 /* ── Metin ödülü (Tekrar Dene / Boş / özel isim) ─────────
@@ -864,23 +865,33 @@
         });
     }
 
-    /* tip + deger'den otomatik etiket üretir — çark ve modal aynı değeri gösterir */
+    /* Çark iç etiketi için kısa kategori adı (yazı alanı bunu override edebilir) */
     function buildAutoName(sl) {
         const d = sl.deger;
         switch (sl.tip) {
-            case 'puan':            return d != null ? d + ' Puan'       : (sl.name || 'Puan');
-            case 'hizmet_indirimi': return d != null ? '%' + d + ' Hizmet' : (sl.name || 'Hizmet İnd.');
-            case 'urun_indirimi':   return d != null ? '%' + d + ' Ürün'   : (sl.name || 'Ürün İnd.');
+            case 'puan':            return d != null ? 'Puan'        : (sl.name || 'Puan');
+            case 'hizmet_indirimi': return d != null ? 'Hizmet İnd.' : (sl.name || 'Hizmet İnd.');
+            case 'urun_indirimi':   return d != null ? 'Ürün İnd.'   : (sl.name || 'Ürün İnd.');
             case 'tekrar_dene':     return 'Tekrar Dene';
             case 'bos':             return 'Boş';
             default:                return sl.name || 'Ödül';
         }
     }
 
+    /* Modal/kazanan paneli için tam açıklama ("22 Puan", "%20 Hizmet İnd." vb.) */
+    function buildFullName(sl) {
+        const tipObj = TIPS.find(t => t.id === (sl.tip || 'bos')) || TIPS[4];
+        if (tipObj.hasDeger && sl.deger != null) {
+            const numStr = sl.tip.includes('indirimi') ? '%' + sl.deger : sl.deger;
+            return numStr + ' ' + (sl.name || buildAutoName(sl));
+        }
+        return sl.name || buildAutoName(sl);
+    }
+
     function updateWinnerUI() {
         const sl = slices[selectedIdx];
         if (!sl) { winnerName.textContent = 'Seçilmedi'; return; }
-        winnerName.textContent = buildAutoName(sl);
+        winnerName.textContent = buildFullName(sl);
     }
 
     function updateStatusUI() {
@@ -926,11 +937,7 @@
             const i   = +input.dataset.i;
             const val = parseFloat(input.value);
             slices[i].deger = isNaN(val) ? null : val;
-            // İsim alanını otomatik güncelle (DOM'da da yansısın)
-            const newName = buildAutoName(slices[i]);
-            slices[i].name = newName;
-            const nameEl = document.querySelector(`.s-name[data-i="${i}"]`);
-            if (nameEl) nameEl.value = newName;
+            // İsim alanına dokunma — kullanıcı istediği yazıyı yazabilsin
             renderWheel();
             updateWinnerUI();
         }
@@ -984,7 +991,7 @@
 
     /* ── Modal ── */
     function showResultModal(idx) {
-        resultText.textContent = buildAutoName(slices[idx]);
+        resultText.textContent = buildFullName(slices[idx]);
         resultModal.classList.add('show');
     }
     window.closeModal = function () { resultModal.classList.remove('show'); };
