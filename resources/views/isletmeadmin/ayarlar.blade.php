@@ -1385,9 +1385,39 @@
                            </div>
                         </div>
                      </li>
+                     @php
+                        $dinamikFormlar = DB::table('formtaslaklari')
+                            ->where('salon_id', $isletme->id)
+                            ->where('is_dinamik', 1)
+                            ->orderBy('id','desc')
+                            ->get();
+                     @endphp
+                     @foreach($dinamikFormlar as $df)
+                     <li class="col-lg-3 col-md-6 col-sm-12">
+                        <div class="da-card box-shadow">
+                           <div class="da-card-photo" style="background: linear-gradient(135deg,#6c63ff,#48c774); min-height:160px; display:flex; align-items:center; justify-content:center;">
+                              <div style="text-align:center; padding:20px;">
+                                 <i class="fa fa-file-text-o" style="font-size:48px; color:#fff; opacity:0.8;"></i>
+                              </div>
+                              <div class="da-overlay">
+                                 <div class="da-social">
+                                    <h5 class="mb-10 color-white pd-20">{{ $df->form_adi }}</h5>
+                                    <ul class="clearfix">
+                                       <li>
+                                          <a href="/isletmeyonetim/form-sablonlari?sube={{ $isletme->id }}" title="Düzenle">
+                                             <i class="fa fa-pencil"></i>
+                                          </a>
+                                       </li>
+                                    </ul>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </li>
+                     @endforeach
                      </ul>
                   </div>
-                   
+
             </div>
             <div
                class="tab-pane fade {{($_GET['p']=='urunler') ? 'active show' : ''}}"
@@ -2628,5 +2658,33 @@
    function thisFileUploadLogo() {
        document.getElementById("isletmelogo").click();
    };
+</script>
+<script>
+$(document).ready(function(){
+   // Tab değiştiğinde URL'i güncelle — böylece herhangi bir location.reload() doğru tab'a döner
+   var tabPMap = {
+      'isletme-bilgileri': 'temelbilgiler',
+      'isletme-subeleri': 'subeler',
+      'calisma-saatleri': 'calismasaatleri',
+      'personeller': 'personeller',
+      'cihazlar': 'cihazlar',
+      'hizmetler': 'hizmetler',
+      'odalar': 'odalar',
+      'randevu-ayarlari': 'randevuayarlari',
+      'musteri_indirimleri': 'musteri_indirimleri',
+      'form_taslaklari': 'form_taslaklari',
+      'urunler': 'urunler',
+      'paketler': 'paketler'
+   };
+   $('a[data-toggle="tab"]').on('shown.bs.tab', function(){
+      var tabId = $(this).attr('href').replace('#','');
+      var pVal = tabPMap[tabId];
+      if(pVal){
+         var sube = new URLSearchParams(window.location.search).get('sube') || '';
+         var newUrl = window.location.pathname + '?p=' + pVal + (sube ? '&sube=' + sube : '');
+         history.replaceState(null, '', newUrl);
+      }
+   });
+});
 </script>
 @endsection
