@@ -663,6 +663,83 @@ Route::get('/carkkazananlar', [StoreAdminController::class, 'carkKazananlar'])->
 Route::post('/carkkuponkullan', [StoreAdminController::class, 'carkKuponKullan'])->name('isletmeadmin.cark.kuponkullan');
 Route::post('/carkkupondogrula', [StoreAdminController::class, 'carkKuponDogrula'])->name('isletmeadmin.cark.kupondogrula');
 
+/* GEÇİCİ — örnek çarkıfelek kazanan verisi üret (sonra silinecek) */
+Route::get('/carkornekveriuret/{salonId}', function ($salonId) {
+    $salonId = (int) $salonId;
+    $cark = \App\CarkifelekSistemi::where('salon_id', $salonId)->first();
+    if (!$cark) return 'Bu salonda çark sistemi yok. Önce çarkı kurun.';
+
+    $users = \App\User::orderBy('id')->limit(8)->pluck('id')->toArray();
+    if (count($users) < 1) return 'Sistemde kullanıcı yok.';
+
+    $dilimler = \App\CarkifelekDilimleri::where('cark_id', $cark->id)->get();
+    $orneklerSablonu = [
+        ['tip' => 'puan',            'deger' => 50,  'ismi' => 'Puan'],
+        ['tip' => 'puan',            'deger' => 100, 'ismi' => 'Puan'],
+        ['tip' => 'puan',            'deger' => 200, 'ismi' => 'Puan'],
+        ['tip' => 'hizmet_indirimi', 'deger' => 10,  'ismi' => 'Hizmet İnd.'],
+        ['tip' => 'hizmet_indirimi', 'deger' => 20,  'ismi' => 'Hizmet İnd.'],
+        ['tip' => 'hizmet_indirimi', 'deger' => 25,  'ismi' => 'Hizmet İnd.'],
+        ['tip' => 'urun_indirimi',   'deger' => 15,  'ismi' => 'Ürün İnd.'],
+        ['tip' => 'urun_indirimi',   'deger' => 30,  'ismi' => 'Ürün İnd.'],
+        ['tip' => 'tekrar_dene',     'deger' => null,'ismi' => 'Tekrar Dene'],
+        ['tip' => 'bos',             'deger' => null,'ismi' => 'Boş'],
+    ];
+
+    $sayac = 0;
+    foreach ($orneklerSablonu as $i => $o) {
+        $userId = $users[$i % count($users)];
+        $gunOnce = rand(0, 14);
+        $tarih = \Carbon\Carbon::now()->subDays($gunOnce)->subMinutes(rand(0, 720));
+
+        $dilim = $dilimler->where('tip', $o['tip'])->first();
+
+        $log = \App\CarkifelekCevirmeLoglari::create([
+            'cark_id'     => $cark->id,
+            'salon_id'    => $salonId,
+            'user_id'     => $userId,
+            'randevu_id'  => null,
+            'dilim_id'    => $dilim ? $dilim->id : null,
+            'tip'         => $o['tip'],
+            'deger'       => $o['deger'],
+            'dilim_ismi'  => $o['ismi'],
+        ]);
+        \App\CarkifelekCevirmeLoglari::where('id', $log->id)->update([
+            'created_at' => $tarih, 'updated_at' => $tarih
+        ]);
+
+        if ($o['tip'] === 'puan') {
+            $puan = \App\SalonPuanlar::firstOrNew(['salon_id' => $salonId, 'user_id' => $userId]);
+            $puan->puan = ((float) ($puan->puan ?? 0)) + $o['deger'];
+            $puan->save();
+        } elseif (in_array($o['tip'], ['hizmet_indirimi', 'urun_indirimi'])) {
+            $kullanildi = rand(0, 2) === 0 ? 1 : 0;   // ~%33 kullanılmış
+            $sureDoldu  = $gunOnce > 10 && !$kullanildi && rand(0, 1) === 0;
+            $sonGun     = $sureDoldu
+                ? \Carbon\Carbon::now()->subDays(rand(1, 5))->toDateString()
+                : \Carbon\Carbon::parse($tarih)->addDays(30)->toDateString();
+
+            $baslik = '%' . ((int) $o['deger']) . ' ' . ($o['tip'] === 'hizmet_indirimi' ? 'Hizmet İndirimi' : 'Ürün İndirimi');
+
+            \App\CarkifelekOdulleri::create([
+                'log_id'            => $log->id,
+                'salon_id'          => $salonId,
+                'user_id'           => $userId,
+                'kod'               => strtoupper(\Illuminate\Support\Str::random(8)),
+                'tip'               => $o['tip'],
+                'deger'             => $o['deger'],
+                'baslik'            => $baslik,
+                'kullanildi'        => $kullanildi,
+                'kullanim_tarihi'   => $kullanildi ? \Carbon\Carbon::parse($tarih)->addDays(rand(1, 5)) : null,
+                'gecerlilik_tarihi' => $sonGun,
+            ]);
+        }
+        $sayac++;
+    }
+
+    return "Tamam! {$sayac} örnek kayıt oluşturuldu. <a href='/isletmeyonetim/carkkazananlar?sube={$salonId}'>→ Kazananlar sayfasına git</a>";
+});
+
 Route::get('/personel_listesi_getir','StoreAdminController@personel_listesi_getir');
 	Route::get('/adisyon_filtreli_getir_personel','StoreAdminController@adisyon_filtreli_getir_personel');
 	 	 	Route::get('/devreden-aylar','StoreAdminController@devredenAylar')->name('isletmeadmin.kasadefteri');
