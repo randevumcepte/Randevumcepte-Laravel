@@ -22,7 +22,7 @@
                             <label>Form/Sözleşme Türü</label>
                             <select name="formtaslaklari" id="formtaslaklari" class="form-control opsiyonelSelect" style="width: 100%;">
                                 @php
-                                    $salonFormlari = \App\FormTaslaklari::where('salon_id',$isletme->id)->get();
+                                    $salonFormlari = \App\FormTaslaklari::where('salon_id',$isletme->id)->orderBy('sira','asc')->orderByDesc('id')->get();
                                 @endphp
                                 @if($salonFormlari->count())
                                     @foreach($salonFormlari as $formTaslak)

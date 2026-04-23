@@ -22091,6 +22091,9 @@ DB::raw('
                 \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN sorular_json TEXT NULL AFTER aciklama");
                 \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN is_dinamik TINYINT(1) NOT NULL DEFAULT 0 AFTER sorular_json");
             }
+            if(!in_array('sira',$cols)){
+                \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN sira INT NOT NULL DEFAULT 0");
+            }
             $arsivCols = array_column(\DB::select("SHOW COLUMNS FROM arsiv"), 'Field');
             if(!in_array('cevaplar_json',$arsivCols)){
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN cevaplar_json TEXT NULL AFTER dogrulama_kodu");
@@ -22124,7 +22127,7 @@ DB::raw('
         }
         $paketler = self::paket_liste_getir('',true,$request);
         $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
-        $formlar = FormTaslaklari::where('is_dinamik',1)->where('salon_id',self::mevcutsube($request))->orderByDesc('id')->get();
+        $formlar = FormTaslaklari::where('is_dinamik',1)->where('salon_id',self::mevcutsube($request))->orderBy('sira','asc')->orderByDesc('id')->get();
         return view('isletmeadmin.form_sablonlari',[
             'bildirimler' => self::bildirimgetir($request),
             'paketler' => $paketler,
@@ -22195,6 +22198,32 @@ DB::raw('
                 return response()->json(['basarili'=>false,'mesaj'=>'Bu form '.$kullanimSayisi.' kayıtta kullanılmaktadır. Silinemez.']);
             }
             $form->delete();
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function formSablonlariSiraGuncelle(Request $request){
+        try {
+            $this->dinamikFormKolonlariOlustur();
+            $sube = self::mevcutsube($request);
+            $formId = (int) $request->form_id;
+            $yon = $request->yon; // 'yukari' veya 'asagi'
+            $mevcut = \DB::table('formtaslaklari')->where('id',$formId)->where('salon_id',$sube)->first();
+            if(!$mevcut) return response()->json(['basarili'=>false,'mesaj'=>'Form bulunamadı.']);
+            $formlar = \DB::table('formtaslaklari')->where('salon_id',$sube)->orderBy('sira','asc')->orderBy('id','desc')->get();
+            $ids = $formlar->pluck('id')->toArray();
+            $pos = array_search($formId, $ids);
+            if($pos === false) return response()->json(['basarili'=>false,'mesaj'=>'Form listede yok.']);
+            if($yon === 'yukari' && $pos > 0){
+                $tmp = $ids[$pos-1]; $ids[$pos-1] = $ids[$pos]; $ids[$pos] = $tmp;
+            } elseif($yon === 'asagi' && $pos < count($ids)-1){
+                $tmp = $ids[$pos+1]; $ids[$pos+1] = $ids[$pos]; $ids[$pos] = $tmp;
+            }
+            foreach($ids as $i => $id){
+                \DB::table('formtaslaklari')->where('id',$id)->update(['sira'=>$i]);
+            }
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);

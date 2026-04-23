@@ -29,8 +29,9 @@
 
 <div class="card-box mb-30">
    <div style="padding: 20px">
-      <table class="data-table table stripe hover nowrap" id="form_sablonlari_liste">
+      <table class="table stripe hover" id="form_sablonlari_liste">
          <thead>
+            <th style="width:70px;">Sıra</th>
             <th>Form Adı</th>
             <th>Eleman Sayısı</th>
             <th>Oluşturulma</th>
@@ -38,7 +39,11 @@
          </thead>
          <tbody>
             @foreach($formlar as $form)
-            <tr>
+            <tr data-form-id="{{$form->id}}">
+               <td style="white-space:nowrap;">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formSiraDegistir({{$form->id}}, 'yukari')" title="Yukarı"><i class="fa fa-arrow-up"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formSiraDegistir({{$form->id}}, 'asagi')" title="Aşağı"><i class="fa fa-arrow-down"></i></button>
+               </td>
                <td>{{$form->form_adi}}</td>
                <td>
                   @if($form->sorular_json)
@@ -340,6 +345,29 @@ function formSil(formId, formAdi) {
    silinecekFormId = formId;
    $('#silMesaji').text('"' + formAdi + '" form şablonunu silmek istediğinize emin misiniz?');
    $('#silOnayModal').modal('show');
+}
+
+function formSiraDegistir(formId, yon) {
+   var $satir = $('tr[data-form-id="'+formId+'"]');
+   if(yon === 'yukari'){
+      var $prev = $satir.prev('tr[data-form-id]');
+      if($prev.length) $satir.insertBefore($prev);
+   } else {
+      var $next = $satir.next('tr[data-form-id]');
+      if($next.length) $satir.insertAfter($next);
+   }
+   $.ajax({
+      url: '/isletmeyonetim/form-sablonlari-sira-guncelle',
+      type: 'POST',
+      dataType: 'json',
+      data: {
+         _token: $('meta[name=csrf-token]').attr('content') || $('input[name=_token]').first().val(),
+         sube: '{{$isletme->id}}',
+         form_id: formId,
+         yon: yon
+      },
+      error: function(xhr){ console.warn('Sıra güncelleme hatası:', xhr.status); }
+   });
 }
 
 $(document).on('click', '#silOnayBtn', function() {

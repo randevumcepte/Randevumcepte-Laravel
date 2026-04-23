@@ -579,6 +579,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/form-sablonlari-kaydet','StoreAdminController@formSablonlariKaydet');
 	Route::post('/form-sablonlari-guncelle','StoreAdminController@formSablonlariGuncelle');
 	Route::post('/form-sablonlari-sil','StoreAdminController@formSablonlariSil');
+	Route::post('/form-sablonlari-sira-guncelle','StoreAdminController@formSablonlariSiraGuncelle');
 	Route::get('/formmusteribilgigetir','StoreAdminController@formmusteribilgigetir');
 	Route::get('/formpersonelbilgigetir','StoreAdminController@formpersonelbilgigetir');
 	Route::get('/onamformmikropdf', 'StoreAdminController@onamformindir')->name('download');
