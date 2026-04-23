@@ -78,12 +78,103 @@ table.kz-tbl tr:hover td { background:#fafbff; }
 #toast { position:fixed; top:20px; right:20px; z-index:9999; padding:14px 20px; background:#10b981; color:#fff; border-radius:10px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,.2); display:none; }
 #toast.show { display:block; }
 #toast.err  { background:#ef4444; }
+
+/* Doğrulama kutusu */
+.dg-box {
+    background: linear-gradient(135deg,#fef3c7 0%,#fed7aa 100%);
+    border: 2px solid #f59e0b;
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 8px 24px rgba(245,158,11,.18);
+}
+.dg-head { display:flex; align-items:center; gap:12px; margin-bottom: 14px; }
+.dg-head .ic { font-size: 30px; }
+.dg-head h2  { margin:0; font-size:17px; font-weight:800; color:#92400e; letter-spacing:-.3px; }
+.dg-head p   { margin:2px 0 0; font-size:12px; color:#78350f; opacity:.85; }
+.dg-form { display:flex; gap:10px; align-items:stretch; flex-wrap:wrap; }
+.dg-form input {
+    flex:1; min-width:180px;
+    padding: 14px 18px; border: 2px solid #f59e0b;
+    border-radius: 10px; background:#fff;
+    font-size: 22px; font-weight: 800; letter-spacing: 5px;
+    font-family: monospace; text-transform: uppercase;
+    text-align: center; color: #92400e;
+    transition:.2s;
+}
+.dg-form input:focus { outline:none; border-color:#d97706; box-shadow:0 0 0 4px rgba(245,158,11,.2); }
+.dg-form button {
+    padding: 0 28px; min-height:52px;
+    background:#92400e; color:#fff; border:none; border-radius:10px;
+    font-size:14px; font-weight:700; cursor:pointer; transition:.2s;
+    letter-spacing:.3px;
+}
+.dg-form button:hover { background:#78350f; transform:translateY(-2px); }
+.dg-form button:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+
+/* Sonuç kartı */
+.dg-result {
+    margin-top:16px; padding: 20px 22px;
+    background:#fff; border-radius:14px;
+    border-left: 6px solid #6c5ce7;
+    box-shadow: 0 6px 18px rgba(0,0,0,.08);
+    display:none;
+}
+.dg-result.show { display:block; animation: slidein .3s ease-out; }
+.dg-result.gecerli    { border-left-color:#10b981; }
+.dg-result.kullanildi { border-left-color:#dc2626; }
+.dg-result.sure_doldu { border-left-color:#9ca3af; }
+.dg-result.hata       { border-left-color:#ef4444; }
+@keyframes slidein { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+
+.dgr-row { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:14px; }
+.dgr-info { flex:1; min-width:240px; }
+.dgr-bn {
+    display:inline-block; padding:5px 14px; border-radius:20px;
+    font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px;
+    margin-bottom:8px;
+}
+.dgr-bn.gecerli    { background:#d1fae5; color:#065f46; }
+.dgr-bn.kullanildi { background:#fee2e2; color:#991b1b; }
+.dgr-bn.sure_doldu { background:#f3f4f6; color:#6b7280; }
+
+.dgr-baslik { font-size:26px; font-weight:800; color:#6c5ce7; margin:4px 0 12px; }
+.dgr-detay { font-size:13px; color:#374151; line-height:1.8; }
+.dgr-detay b { color:#111827; font-weight:700; }
+.dgr-detay .lbl { display:inline-block; min-width:100px; color:#6b7280; font-weight:500; }
+
+.dgr-act { min-width:220px; text-align:right; }
+.dgr-act button {
+    padding: 14px 22px; border-radius:10px; border:none;
+    font-size:14px; font-weight:800; cursor:pointer; transition:.2s;
+    width:100%;
+}
+.btn-onay { background:#10b981; color:#fff; }
+.btn-onay:hover { background:#059669; transform:translateY(-2px); box-shadow:0 8px 20px rgba(16,185,129,.35); }
+.btn-geri-al { background:#f3f4f6; color:#374151; border:1px solid #d1d5db; }
+.btn-geri-al:hover { background:#fee2e2; color:#991b1b; border-color:#fca5a5; }
+.dgr-act .note { display:block; margin-top:8px; font-size:11px; color:#6b7280; }
 </style>
 
 <div class="kz-wrap">
     <div class="kz-hero">
         <h1>🏆 Çarkıfelek Kazananlar</h1>
-        <p>Çarkıfelek çevirme geçmişi ve kazanılan kuponlar. Müşteri kuponu getirdiğinde "Kullanıldı" butonuyla işaretleyin.</p>
+        <p>Çarkıfelek çevirme geçmişi ve kazanılan kuponlar. Müşteri kuponu getirdiğinde aşağıdaki kutuya kodu girin ve onaylayın.</p>
+    </div>
+
+    <div class="dg-box">
+        <div class="dg-head">
+            <span class="ic">🔍</span>
+            <div>
+                <h2>Kupon Doğrulama</h2>
+                <p>Müşterinin elindeki kodu yazın, detayları görün ve tek tıkla kullanım onayı verin.</p>
+            </div>
+        </div>
+        <form class="dg-form" onsubmit="event.preventDefault(); kuponDogrula();">
+            <input type="text" id="dg-kod" maxlength="12" placeholder="ÖRN: AB3XY7Q2" autocomplete="off">
+            <button type="submit" id="dg-btn">🔍 Doğrula</button>
+        </form>
+        <div class="dg-result" id="dg-result"></div>
     </div>
 
     <div class="kz-ozet">
@@ -245,8 +336,116 @@ table.kz-tbl tr:hover td { background:#fafbff; }
 <div id="toast"></div>
 
 <script>
-const KULLAN_URL = '{{ route("isletmeadmin.cark.kuponkullan") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
+const KULLAN_URL  = '{{ route("isletmeadmin.cark.kuponkullan") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
+const DOGRULA_URL = '{{ route("isletmeadmin.cark.kupondogrula") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
 const CSRF = '{{ csrf_token() }}';
+
+/* Kupon doğrulama — kutudan kod gir, detayları anında göster */
+let _dgAktif = null;
+async function kuponDogrula() {
+    const inp = document.getElementById('dg-kod');
+    const btn = document.getElementById('dg-btn');
+    const res = document.getElementById('dg-result');
+    const kod = (inp.value || '').trim().toUpperCase();
+    if (!kod) { inp.focus(); return; }
+
+    btn.disabled = true; btn.textContent = '⏳ Kontrol...';
+    res.className = 'dg-result';
+    res.innerHTML = '';
+
+    try {
+        const resp = await fetch(DOGRULA_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+            body: JSON.stringify({ kod: kod }),
+        });
+        const data = await resp.json();
+        btn.disabled = false; btn.textContent = '🔍 Doğrula';
+
+        if (!data.success) {
+            res.classList.add('show', 'hata');
+            res.innerHTML = '<div style="display:flex;align-items:center;gap:14px;"><div style="font-size:40px;">❌</div><div><h3 style="margin:0 0 4px;color:#991b1b;font-weight:800;">Geçersiz Kod</h3><p style="margin:0;color:#7f1d1d;">' + (data.message || 'Kod bulunamadı') + '</p></div></div>';
+            return;
+        }
+        renderDogrulaSonuc(data.odul);
+    } catch (e) {
+        btn.disabled = false; btn.textContent = '🔍 Doğrula';
+        res.classList.add('show', 'hata');
+        res.innerHTML = '<div>Bağlantı hatası. Lütfen tekrar deneyin.</div>';
+    }
+}
+
+function renderDogrulaSonuc(o) {
+    const res = document.getElementById('dg-result');
+    _dgAktif = o;
+    const rozet = {
+        gecerli:    '<span class="dgr-bn gecerli">● Geçerli</span>',
+        kullanildi: '<span class="dgr-bn kullanildi">✓ Zaten Kullanıldı</span>',
+        sure_doldu: '<span class="dgr-bn sure_doldu">⊘ Süresi Dolmuş</span>',
+    }[o.durum] || '';
+    const btnAlan = o.durum === 'gecerli'
+        ? '<button class="btn-onay" onclick="dgOnayla('+o.id+', this)">✓ Kullanıldı Olarak İşaretle</button><span class="note">Tek tıkla anında onay verir</span>'
+        : (o.durum === 'kullanildi'
+            ? '<button class="btn-geri-al" onclick="dgOnayla('+o.id+', this, \'geri_al\')">↺ Kullanımı Geri Al</button><span class="note">Hatalı işaretlediyseniz</span>'
+            : '<span style="color:#9ca3af;font-size:13px;">Süresi dolmuş — işlem yapılamaz</span>');
+
+    res.className = 'dg-result show ' + o.durum;
+    res.innerHTML =
+        '<div class="dgr-row">' +
+            '<div class="dgr-info">' +
+                rozet +
+                '<div class="dgr-baslik">'+ o.baslik +'</div>' +
+                '<div class="dgr-detay">' +
+                    '<div><span class="lbl">Müşteri:</span> <b>'+ o.musteri_adi +'</b></div>' +
+                    (o.musteri_tel   ? '<div><span class="lbl">Telefon:</span> '+ o.musteri_tel + '</div>' : '') +
+                    (o.musteri_email ? '<div><span class="lbl">E-posta:</span> '+ o.musteri_email +'</div>' : '') +
+                    '<div><span class="lbl">Kazanma:</span> '+ (o.kazanma_tarihi || '-') +'</div>' +
+                    '<div><span class="lbl">Son Kullanım:</span> '+ (o.gecerlilik || 'Süresiz') +'</div>' +
+                    (o.kullanildi && o.kullanim_tarihi
+                        ? '<div><span class="lbl">Kullanıldı:</span> <b style="color:#dc2626;">'+ o.kullanim_tarihi +'</b></div>' : '') +
+                '</div>' +
+            '</div>' +
+            '<div class="dgr-act">' + btnAlan + '</div>' +
+        '</div>';
+}
+
+async function dgOnayla(id, btn, aksiyon) {
+    aksiyon = aksiyon || 'kullan';
+    btn.disabled = true;
+    btn.textContent = '⏳ İşleniyor...';
+    try {
+        const resp = await fetch(KULLAN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+            body: JSON.stringify({ odul_id: id, aksiyon: aksiyon }),
+        });
+        const data = await resp.json();
+        if (!data.success) { showToast(data.message || 'Hata', true); btn.disabled=false; return; }
+        showToast(aksiyon === 'kullan' ? '✓ Kupon kullanıldı olarak işaretlendi' : '↺ Kullanım geri alındı');
+        // Doğrulama kutusu içeriğini yenile
+        if (_dgAktif) {
+            _dgAktif.kullanildi = aksiyon === 'kullan' ? 1 : 0;
+            _dgAktif.kullanim_tarihi = data.kullanim_tarihi;
+            _dgAktif.durum = aksiyon === 'kullan' ? 'kullanildi' : 'gecerli';
+            renderDogrulaSonuc(_dgAktif);
+        }
+        // Alt tabloyu da tazele
+        setTimeout(() => location.reload(), 1200);
+    } catch (e) {
+        showToast('Bağlantı hatası', true);
+        btn.disabled = false;
+    }
+}
+
+// Kutuya yazınca otomatik büyük harf + 8 harf sonrası Enter tetikle
+document.addEventListener('DOMContentLoaded', () => {
+    const inp = document.getElementById('dg-kod');
+    if (!inp) return;
+    inp.addEventListener('input', e => {
+        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
+    inp.focus();
+});
 
 function showToast(msg, err) {
     const t = document.getElementById('toast');

@@ -537,6 +537,54 @@ public function carkverilerigetir(Request $request)
     }
 
     /**
+     * Admin: Kupon kodu ile doğrulama — müşteri salona geldiğinde
+     *        kodu giriyor, detayları gösteriyoruz.
+     */
+    public function carkKuponDogrula(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+        $kod = strtoupper(trim($request->input('kod', '')));
+
+        if ($kod === '') {
+            return response()->json(['success' => false, 'message' => 'Kod boş olamaz.']);
+        }
+
+        $odul = CarkifelekOdulleri::where('kod', $kod)->first();
+        if (!$odul) {
+            return response()->json(['success' => false, 'message' => 'Bu kod sisteme kayıtlı değil.']);
+        }
+
+        if ((int) $odul->salon_id !== (int) $salon_id) {
+            return response()->json(['success' => false, 'message' => 'Bu kupon başka bir salona ait.']);
+        }
+
+        $user = User::find($odul->user_id);
+        $gecmis = $odul->gecerlilik_tarihi && \Carbon\Carbon::parse($odul->gecerlilik_tarihi)->isPast();
+
+        $durum = $odul->kullanildi ? 'kullanildi'
+               : ($gecmis ? 'sure_doldu' : 'gecerli');
+
+        return response()->json([
+            'success' => true,
+            'odul' => [
+                'id'                => $odul->id,
+                'kod'               => $odul->kod,
+                'baslik'            => $odul->baslik,
+                'tip'               => $odul->tip,
+                'deger'             => $odul->deger,
+                'musteri_adi'       => $user->name ?? ('#'.$odul->user_id),
+                'musteri_email'     => $user->email ?? null,
+                'musteri_tel'       => $user->cep_telefon ?? ($user->telefon ?? null),
+                'kazanma_tarihi'    => $odul->created_at ? $odul->created_at->format('d.m.Y H:i') : null,
+                'gecerlilik'        => $odul->gecerlilik_tarihi ? \Carbon\Carbon::parse($odul->gecerlilik_tarihi)->format('d.m.Y') : 'Süresiz',
+                'kullanildi'        => (int) $odul->kullanildi,
+                'kullanim_tarihi'   => $odul->kullanim_tarihi ? \Carbon\Carbon::parse($odul->kullanim_tarihi)->format('d.m.Y H:i') : null,
+                'durum'             => $durum,
+            ],
+        ]);
+    }
+
+    /**
      * Admin: Kupon kullanıldı olarak işaretle / geri al.
      */
     public function carkKuponKullan(Request $request)
