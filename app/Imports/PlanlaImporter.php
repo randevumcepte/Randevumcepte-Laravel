@@ -260,13 +260,11 @@ class PlanlaImporter
             $notes = !empty($row['notes']) ? trim($row['notes']) : null;
             $created = !empty($row['createdAt']) ? date('Y-m-d H:i:s', (int) $row['createdAt']) : date('Y-m-d H:i:s');
 
-            $user = null;
-            if ($tel) {
-                $user = User::where('cep_telefon', $tel)->first();
-            }
+            // Etkili telefon: gercek varsa o, yoksa planla_id tabanli sentetik placeholder
+            // Lookup da bu key'den yapildigi icin tekrar calistirmalarda duplicate olmaz
+            $effectiveTel = $tel ?: ('planla_' . substr($planlaId, -10));
+            $user = User::where('cep_telefon', $effectiveTel)->first();
             if (!$user) {
-                // Telefon yoksa planla_id tabanli sentetik placeholder; cep_telefon NOT NULL olsa da kaydeder
-                $effectiveTel = $tel ?: ('planla_' . substr($planlaId, -10));
                 $user = new User();
                 $user->name = $ad;
                 $user->cep_telefon = $effectiveTel;
@@ -427,14 +425,11 @@ class PlanlaImporter
             $notes = !empty($row['notes']) ? trim($row['notes']) : null;
             $created = !empty($row['createdAt']) ? date('Y-m-d H:i:s', (int) $row['createdAt']) : date('Y-m-d H:i:s');
 
-            $user = null;
-            if ($tel) {
-                $user = User::where('cep_telefon', $tel)->first();
-            }
+            // Etkili telefon: gercek varsa o, yoksa planla_id tabanli placeholder.
+            // Lookup hep bu key uzerinden -> tekrar calistirma idempotent.
+            $effectiveTel = $tel ?: ('planla_' . substr($planlaId, -10));
+            $user = User::where('cep_telefon', $effectiveTel)->first();
             if (!$user) {
-                // Telefon yoksa sentetik bir placeholder ver - boylece cep_telefon NOT NULL kisidi atlanir,
-                // duplicate olmamasi icin planla_id tabanli unique string kullaniyoruz
-                $effectiveTel = $tel ?: ('planla_' . substr($planlaId, -10));
                 try {
                     $user = new User();
                     $user->name = $ad;
