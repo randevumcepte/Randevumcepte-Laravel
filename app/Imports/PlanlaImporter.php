@@ -251,7 +251,10 @@ class PlanlaImporter
     {
         $this->log('Musteriler cekiliyor (category=customers)...');
         $items = $this->fetchCategory('customers');
+        $i = 0;
         foreach ($items as $row) {
+            $i++;
+            if ($i % 500 === 0) $this->log("  ..{$i} musteri islendi (aktarilan: {$this->counts['musteri']}, skipped: {$this->counts['skipped']})");
             $planlaId = isset($row['_id']) ? $row['_id'] : null;
             $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
             if (!$ad) { $this->counts['skipped']++; continue; }

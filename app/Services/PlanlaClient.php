@@ -50,7 +50,8 @@ class PlanlaClient
             'base_uri'        => self::BASE_ADMIN,
             'cookies'         => $this->jar,
             'allow_redirects' => ['max' => 5, 'track_redirects' => true],
-            'timeout'         => 30,
+            'timeout'         => 300,
+            'connect_timeout' => 30,
             'http_errors'     => false,
             'verify'          => false,
             'headers'         => [
