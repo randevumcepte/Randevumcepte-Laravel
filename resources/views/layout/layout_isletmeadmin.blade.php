@@ -884,26 +884,16 @@
                   @endif
                   @endif
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
-                  <li class="form-yonetimi-dropdown">
-                     <a href="javascript:;" class="dropdown-toggle {{ ($pageindex==50 || $pageindex==51) ? 'active' : '' }}" onclick="formYonetimiToggle(this); return false;">
+                  <li>
+                     @if($pageindex==50 || $pageindex==51)
+                     <a href="/isletmeyonetim/arsivyonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arsivyonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
                         <span class="micon bi bi-file-earmark-text"></span>
                         <span class="mtext">Form Yönetimi</span>
-                        <span style="float:right; margin-right:10px;">▾</span>
                      </a>
-                     <ul class="form-yonetimi-submenu" style="list-style:none; padding-left:30px; margin:0; {{ ($pageindex==50 || $pageindex==51) ? 'display:block;' : 'display:none;' }}">
-                        <li><a href="/isletmeyonetim/form-sablonlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" style="display:block; padding:8px 12px; font-size:13px; {{ $pageindex==51 ? 'color:#5C008E; font-weight:600;' : 'color:#555;' }}">▸ Form Şablonları</a></li>
-                        @if($isletme->uyelik_turu>1)
-                        <li><a href="/isletmeyonetim/arsivyonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" style="display:block; padding:8px 12px; font-size:13px; {{ $pageindex==50 ? 'color:#5C008E; font-weight:600;' : 'color:#555;' }}">▸ Arşiv Yönetimi</a></li>
-                        @endif
-                     </ul>
                   </li>
-                  <script>
-                  function formYonetimiToggle(el) {
-                     var sub = $(el).closest('li').find('.form-yonetimi-submenu');
-                     if (sub.is(':visible')) sub.slideUp(150);
-                     else sub.slideDown(150);
-                  }
-                  </script>
                   @endif
                   @if($isletme->uyelik_turu>1)
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
