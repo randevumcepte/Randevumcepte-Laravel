@@ -725,13 +725,17 @@
                         >
                      @endif
                      @endif
+                     @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                     <a class="dropdown-item" href="/isletmeyonetim/form-sablonlari?sube={{$isletme->id}}"
+                        ><i class="fa fa-file-text-o"></i> Yeni Form Oluştur</a>
+                     @endif
                   </div>
                </div>
             </div>
             @endif
             <div class="user-info-dropdown">
                <div class="dropdown">
-                  <a
+                  <
                      class="dropdown-toggle"
                      href="#"
                      role="button"
@@ -4107,7 +4111,7 @@
          <script src="{{secure_asset('public/yeni_panel/src/plugins/jquery-steps/jquery.steps.js')}}"></script>
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif   
-      <script src="{{secure_asset('public/js/custom.js?v=218.5')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=218.6')}}"></script>
       <script src="{{secure_asset('public/js/randevuModu.js?v=2.1')}}"></script>
 
  

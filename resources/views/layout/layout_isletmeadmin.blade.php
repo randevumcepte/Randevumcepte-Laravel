@@ -722,6 +722,10 @@
                         >
                      @endif
                      @endif
+                     @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                     <a class="dropdown-item" href="/isletmeyonetim/form-sablonlari?sube={{$isletme->id}}"
+                        ><i class="fa fa-file-text-o"></i> Yeni Form Oluştur</a>
+                     @endif
                   </div>
                </div>
             </div>
@@ -4210,7 +4214,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=222.7')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=222.8')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
