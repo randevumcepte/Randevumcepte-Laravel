@@ -256,8 +256,9 @@ class PlanlaImporter
             $i++;
             if ($i % 500 === 0) $this->log("  ..{$i} musteri islendi (aktarilan: {$this->counts['musteri']}, skipped: {$this->counts['skipped']})");
             $planlaId = isset($row['_id']) ? $row['_id'] : null;
+            if (!$planlaId) { $this->counts['skipped']++; continue; }
             $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
-            if (!$ad) { $this->counts['skipped']++; continue; }
+            if (!$ad) $ad = 'Planla ' . substr($planlaId, -6);
             $tel = $this->telefonNormalize(isset($row['phone']) ? $row['phone'] : null);
             $email = !empty($row['email']) ? trim($row['email']) : null;
             $notes = !empty($row['notes']) ? trim($row['notes']) : null;
