@@ -127,6 +127,8 @@ use Carbon\Carbon;
 use App\OdaPersonelleri;
 use App\CarkifelekDilimleri;
 use App\CarkifelekSistemi;
+use App\CarkifelekCevirmeLoglari;
+use App\CarkifelekOdulleri;
 
 class StoreAdminController extends Controller
 {
@@ -466,6 +468,103 @@ public function carkverilerigetir(Request $request)
         ]);
     }
 }
+
+    /**
+     * Admin: Çarkıfelek kazananlar ve kuponlar listesi.
+     */
+    public function carkKazananlar(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+        $isletme  = Salonlar::where('id', $salon_id)->first();
+
+        $yetkiler = Auth::guard('isletmeyonetim')->check()
+            ? Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray()
+            : [];
+        if (!in_array($salon_id, $yetkiler) && !Auth::guard('satisortakligi')->check()) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+
+        $filtre = $request->input('filtre', 'tumu');
+
+        $loglar = CarkifelekCevirmeLoglari::where('salon_id', $salon_id)
+            ->orderByDesc('created_at')
+            ->limit(500)
+            ->get();
+
+        $q = CarkifelekOdulleri::where('salon_id', $salon_id);
+        if ($filtre === 'gecerli') {
+            $q->where('kullanildi', 0)
+              ->where(function ($w) {
+                  $w->whereNull('gecerlilik_tarihi')->orWhere('gecerlilik_tarihi', '>=', now()->toDateString());
+              });
+        } elseif ($filtre === 'kullanildi') {
+            $q->where('kullanildi', 1);
+        } elseif ($filtre === 'sure_doldu') {
+            $q->where('kullanildi', 0)
+              ->whereNotNull('gecerlilik_tarihi')
+              ->where('gecerlilik_tarihi', '<', now()->toDateString());
+        }
+        $odulluler = $q->orderByDesc('created_at')->limit(500)->get();
+
+        $userIds = $loglar->pluck('user_id')->merge($odulluler->pluck('user_id'))->unique()->filter();
+        $users   = User::whereIn('id', $userIds)->get()->keyBy('id');
+
+        $ozet = [
+            'toplam_cevirme'   => CarkifelekCevirmeLoglari::where('salon_id', $salon_id)->count(),
+            'bugun_cevirme'    => CarkifelekCevirmeLoglari::where('salon_id', $salon_id)->whereDate('created_at', now()->toDateString())->count(),
+            'kullanilmamis'    => CarkifelekOdulleri::where('salon_id', $salon_id)->where('kullanildi', 0)->count(),
+            'kullanilmis'      => CarkifelekOdulleri::where('salon_id', $salon_id)->where('kullanildi', 1)->count(),
+        ];
+
+        $paketler = self::paket_liste_getir('', true, $request);
+        $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
+
+        return view('isletmeadmin.cark_kazananlar', [
+            'bildirimler'          => self::bildirimgetir($request),
+            'paketler'             => $paketler,
+            'sayfa_baslik'         => 'Çarkıfelek Kazananlar',
+            'pageindex'            => 501,
+            'isletme'              => $isletme,
+            'kalan_uyelik_suresi'  => $kalan_uyelik_suresi,
+            'urun_drop'            => self::urundropliste($request),
+            'yetkiliolunanisletmeler' => $yetkiler,
+            'loglar'               => $loglar,
+            'odulluler'            => $odulluler,
+            'users'                => $users,
+            'ozet'                 => $ozet,
+            'filtre'               => $filtre,
+        ]);
+    }
+
+    /**
+     * Admin: Kupon kullanıldı olarak işaretle / geri al.
+     */
+    public function carkKuponKullan(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+        $odul_id  = (int) $request->input('odul_id');
+        $aksiyon  = $request->input('aksiyon', 'kullan'); // kullan | geri_al
+
+        $odul = CarkifelekOdulleri::where('id', $odul_id)->where('salon_id', $salon_id)->first();
+        if (!$odul) {
+            return response()->json(['success' => false, 'message' => 'Ödül bulunamadı.']);
+        }
+
+        if ($aksiyon === 'geri_al') {
+            $odul->kullanildi = 0;
+            $odul->kullanim_tarihi = null;
+        } else {
+            $odul->kullanildi = 1;
+            $odul->kullanim_tarihi = now();
+        }
+        $odul->save();
+
+        return response()->json([
+            'success'          => true,
+            'kullanildi'       => (int) $odul->kullanildi,
+            'kullanim_tarihi'  => $odul->kullanim_tarihi ? $odul->kullanim_tarihi->format('d.m.Y H:i') : null,
+        ]);
+    }
 
     public function sube_yetki_kontrol_et($request)
     {

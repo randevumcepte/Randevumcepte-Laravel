@@ -659,6 +659,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	 	 	Route::get('/carkifelek','StoreAdminController@carkifelek')->name('isletmeadmin.carkifelek');
 	 	 	Route::post('/carkdilimekle', [StoreAdminController::class, 'carkdilimekle'])->name('isletmeadmin.carkdilimekle');
 Route::get('/carkverilerigetir', [StoreAdminController::class, 'carkverilerigetir'])->name('isletmeadmin.carkverilerigetir');
+Route::get('/carkkazananlar', [StoreAdminController::class, 'carkKazananlar'])->name('isletmeadmin.cark.kazananlar');
+Route::post('/carkkuponkullan', [StoreAdminController::class, 'carkKuponKullan'])->name('isletmeadmin.cark.kuponkullan');
 
 Route::get('/personel_listesi_getir','StoreAdminController@personel_listesi_getir');
 	Route::get('/adisyon_filtreli_getir_personel','StoreAdminController@adisyon_filtreli_getir_personel');
