@@ -18576,7 +18576,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $arsiv_iptal=self::arsiv_liste_getir($request,1,'');
         $arsiv_beklenen=self::arsiv_liste_getir($request,2,'');
         $arsiv_harici=self::arsiv_liste_getir($request,3,'');
-        return view('isletmeadmin.arsivyonetimi',['bildirimler'=>self::bildirimgetir($request),'arsiv'=>$arsiv,'arsiv_onayli'=>$arsiv_onayli, 'arsiv_iptal'=>$arsiv_iptal, 'arsiv_beklenen'=>$arsiv_beklenen, 'arsiv_harici'=>$arsiv_harici,   'paketler'=>$paketler,'sayfa_baslik'=>'Arşiv Yönetimi','pageindex' => 50,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),
+        return view('isletmeadmin.arsivyonetimi',['bildirimler'=>self::bildirimgetir($request),'arsiv'=>$arsiv,'arsiv_onayli'=>$arsiv_onayli, 'arsiv_iptal'=>$arsiv_iptal, 'arsiv_beklenen'=>$arsiv_beklenen, 'arsiv_harici'=>$arsiv_harici,   'paketler'=>$paketler,'sayfa_baslik'=>'Form Yönetimi','pageindex' => 50,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
     public function arsiv_liste_getir(Request $request,$sorgu,$user_id){
