@@ -95,6 +95,47 @@ class PlanlaImport extends Command
             return 0;
         }
 
+        if ($diagnose) {
+            $this->info("Salon {$salonId} randevularinda sorunlu user_id taramasi...");
+            $toplam = \App\Randevular::where('salon_id', $salonId)->count();
+            $this->line("Toplam randevu: {$toplam}");
+
+            $orphanCount = \App\Randevular::where('salon_id', $salonId)
+                ->leftJoin('users', 'randevular.user_id', '=', 'users.id')
+                ->whereNull('users.id')->count();
+            $orphan = \App\Randevular::where('salon_id', $salonId)
+                ->leftJoin('users', 'randevular.user_id', '=', 'users.id')
+                ->whereNull('users.id')
+                ->select('randevular.id', 'randevular.user_id', 'randevular.tarih', 'randevular.saat')
+                ->limit(20)->get();
+            $this->line("\n[A] user_id users'ta YOK (orphan) - toplam: {$orphanCount} (ilk 20):");
+            foreach ($orphan as $r) {
+                $this->line("  randevu_id={$r->id} user_id={$r->user_id} tarih={$r->tarih} saat={$r->saat}");
+            }
+
+            $portfoysuzCount = \App\Randevular::where('randevular.salon_id', $salonId)
+                ->join('users', 'randevular.user_id', '=', 'users.id')
+                ->leftJoin('musteri_portfoy', function ($j) use ($salonId) {
+                    $j->on('musteri_portfoy.user_id', '=', 'users.id')
+                      ->where('musteri_portfoy.salon_id', '=', $salonId);
+                })
+                ->whereNull('musteri_portfoy.id')->count();
+            $portfoysuz = \App\Randevular::where('randevular.salon_id', $salonId)
+                ->join('users', 'randevular.user_id', '=', 'users.id')
+                ->leftJoin('musteri_portfoy', function ($j) use ($salonId) {
+                    $j->on('musteri_portfoy.user_id', '=', 'users.id')
+                      ->where('musteri_portfoy.salon_id', '=', $salonId);
+                })
+                ->whereNull('musteri_portfoy.id')
+                ->select('randevular.id', 'randevular.user_id', 'users.name', 'users.cep_telefon')
+                ->limit(20)->get();
+            $this->line("\n[B] user var ama bu salonun portfoyunde YOK - toplam: {$portfoysuzCount} (ilk 20):");
+            foreach ($portfoysuz as $r) {
+                $this->line("  randevu_id={$r->id} user_id={$r->user_id} name={$r->name} tel={$r->cep_telefon}");
+            }
+            return 0;
+        }
+
         $this->info('Login deneniyor...');
         $login = $client->login();
         $this->line('Login sonuc: ' . ($login['ok'] ? 'OK' : 'FAIL') . ' - ' . $login['method']);
@@ -121,49 +162,6 @@ class PlanlaImport extends Command
                 $this->line(str_pad($a, 30) . ' -> ' . $r);
             }
             $this->info('connect-api probe tamam.');
-            return 0;
-        }
-
-        if ($diagnose) {
-            $this->info("Salon {$salonId} randevularinda sorunlu user_id taramasi...");
-            $toplam = \App\Randevular::where('salon_id', $salonId)->count();
-            $this->line("Toplam randevu: {$toplam}");
-
-            // Orphan user_id: users tablosunda yok
-            $orphan = \App\Randevular::where('salon_id', $salonId)
-                ->leftJoin('users', 'randevular.user_id', '=', 'users.id')
-                ->whereNull('users.id')
-                ->select('randevular.id', 'randevular.user_id', 'randevular.tarih', 'randevular.saat')
-                ->limit(20)->get();
-            $orphanCount = \App\Randevular::where('salon_id', $salonId)
-                ->leftJoin('users', 'randevular.user_id', '=', 'users.id')
-                ->whereNull('users.id')->count();
-            $this->line("\n[A] user_id users'ta YOK (orphan) - toplam: {$orphanCount} (ilk 20):");
-            foreach ($orphan as $r) {
-                $this->line("  randevu_id={$r->id} user_id={$r->user_id} tarih={$r->tarih} saat={$r->saat}");
-            }
-
-            // Portfoyde olmayan user
-            $portfoysuz = \App\Randevular::where('randevular.salon_id', $salonId)
-                ->join('users', 'randevular.user_id', '=', 'users.id')
-                ->leftJoin('musteri_portfoy', function ($j) use ($salonId) {
-                    $j->on('musteri_portfoy.user_id', '=', 'users.id')
-                      ->where('musteri_portfoy.salon_id', '=', $salonId);
-                })
-                ->whereNull('musteri_portfoy.id')
-                ->select('randevular.id', 'randevular.user_id', 'users.name', 'users.cep_telefon')
-                ->limit(20)->get();
-            $portfoysuzCount = \App\Randevular::where('randevular.salon_id', $salonId)
-                ->join('users', 'randevular.user_id', '=', 'users.id')
-                ->leftJoin('musteri_portfoy', function ($j) use ($salonId) {
-                    $j->on('musteri_portfoy.user_id', '=', 'users.id')
-                      ->where('musteri_portfoy.salon_id', '=', $salonId);
-                })
-                ->whereNull('musteri_portfoy.id')->count();
-            $this->line("\n[B] user var ama bu salonun portfoyunde YOK - toplam: {$portfoysuzCount} (ilk 20):");
-            foreach ($portfoysuz as $r) {
-                $this->line("  randevu_id={$r->id} user_id={$r->user_id} name={$r->name} tel={$r->cep_telefon}");
-            }
             return 0;
         }
 
