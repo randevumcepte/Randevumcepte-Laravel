@@ -922,16 +922,24 @@
     margin: 8px 0 22px !important;
     letter-spacing: -0.02em;
     position: relative;
-    padding: 0 20px 14px;
+    padding: 0 4px 14px !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border-radius: 0 !important;
+    opacity: 1 !important;
+    height: auto !important;
+    line-height: 1.2 !important;
+    text-align: center;
 }
 .randevuonaybaslik::after {
-    content: '';
-    display: block;
-    width: 48px;
+    content: '' !important;
+    display: block !important;
+    width: 56px;
     height: 4px;
-    background: var(--lx-g-main);
-    border-radius: 99px;
+    background: var(--lx-g-main) !important;
+    border-radius: 99px !important;
     margin: 12px auto 0;
+    position: static !important;
 }
 
 .randevuozetonay { width: 100% !important; border-collapse: separate !important; border-spacing: 0 !important; }
