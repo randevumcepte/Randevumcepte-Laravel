@@ -21791,6 +21791,9 @@ DB::raw('
             if(!in_array('cevaplar_json',$arsivCols)){
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN cevaplar_json TEXT NULL AFTER dogrulama_kodu");
             }
+            if(!in_array('musteri_imza',$arsivCols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN musteri_imza MEDIUMTEXT NULL AFTER cevaplar_json");
+            }
         } catch(\Exception $e){
             \Log::error('Dinamik form kolon oluşturma hatası: '.$e->getMessage());
         }
