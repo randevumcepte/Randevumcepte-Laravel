@@ -37,6 +37,10 @@ Route::group(['middleware' => ['auth']],function(){
 	Route::get('/cark/{salonId}',       'CarkifelekMusteriController@goster')->name('cark.goster');
 	Route::post('/cark/cevir',          'CarkifelekMusteriController@cevir')->name('cark.cevir');
 	Route::get('/odullerim',            'CarkifelekMusteriController@odullerim')->name('cark.odullerim');
+
+	/* Puan ödülleri — müşteri tarafı */
+	Route::get('/puanodullerim/{salonId?}', 'CarkifelekMusteriController@puanOdullerim')->name('cark.puanodullerim');
+	Route::post('/puanodultalep',           'CarkifelekMusteriController@puanOdulTalep')->name('cark.puanodul.talep');
 });
 
 Route::group(['middleware' => ['web']], function () {
@@ -662,6 +666,11 @@ Route::get('/carkverilerigetir', [StoreAdminController::class, 'carkverilerigeti
 Route::get('/carkkazananlar', [StoreAdminController::class, 'carkKazananlar'])->name('isletmeadmin.cark.kazananlar');
 Route::post('/carkkuponkullan', [StoreAdminController::class, 'carkKuponKullan'])->name('isletmeadmin.cark.kuponkullan');
 Route::post('/carkkupondogrula', [StoreAdminController::class, 'carkKuponDogrula'])->name('isletmeadmin.cark.kupondogrula');
+
+/* Puan ödülleri — admin yönetim */
+Route::get('/puanodulleri',      [StoreAdminController::class, 'puanOdulleri'])->name('isletmeadmin.puanodulleri');
+Route::post('/puanodulkaydet',   [StoreAdminController::class, 'puanOdulKaydet'])->name('isletmeadmin.puanodul.kaydet');
+Route::post('/puanodulsil',      [StoreAdminController::class, 'puanOdulSil'])->name('isletmeadmin.puanodul.sil');
 
 /* GEÇİCİ — örnek çarkıfelek kazanan verisi üret (sonra silinecek) */
 Route::get('/carkornekveriuret/{salonId}', function ($salonId) {

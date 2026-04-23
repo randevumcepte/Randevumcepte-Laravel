@@ -9,6 +9,7 @@ use App\CarkifelekOdulleri;
 use App\Randevular;
 use App\Salonlar;
 use App\SalonPuanlar;
+use App\SalonPuanOdulleri;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -164,6 +165,109 @@ class CarkifelekMusteriController extends Controller
             ],
             'odulKodu'    => $sonuc['odul']->kod ?? null,
             'kalanHak'    => max(0, count($kullanilabilir) - 1),
+        ]);
+    }
+
+    /**
+     * Müşterinin salon bazlı puan merdiveni sayfası.
+     */
+    public function puanOdullerim(Request $request, $salonId = null)
+    {
+        if (!Auth::check()) return redirect('/login');
+
+        $userId = Auth::id();
+
+        // Müşterinin puanı olan salonları getir — biri istenmişse onu seç
+        $puanKayitlari = SalonPuanlar::where('user_id', $userId)
+            ->where('puan', '>', 0)
+            ->get();
+
+        if ($puanKayitlari->isEmpty() && !$salonId) {
+            return view('carkifelek.puan_odullerim_bos');
+        }
+
+        $salonId = $salonId ? (int) $salonId : (int) $puanKayitlari->first()->salon_id;
+        $salon   = Salonlar::find($salonId);
+        if (!$salon) abort(404);
+
+        $puanBakiyesi = (float) (SalonPuanlar::where('user_id', $userId)->where('salon_id', $salonId)->value('puan') ?: 0);
+
+        $odulSeviyeleri = SalonPuanOdulleri::where('salon_id', $salonId)
+            ->where('aktif', 1)
+            ->orderBy('puan_esigi')
+            ->get();
+
+        $tumSalonlar = Salonlar::whereIn('id', $puanKayitlari->pluck('salon_id'))->get()->keyBy('id');
+
+        return view('carkifelek.puan_odullerim', [
+            'salon'          => $salon,
+            'salonId'        => $salonId,
+            'puanBakiyesi'   => $puanBakiyesi,
+            'odulSeviyeleri' => $odulSeviyeleri,
+            'puanKayitlari'  => $puanKayitlari,
+            'tumSalonlar'    => $tumSalonlar,
+        ]);
+    }
+
+    /**
+     * AJAX: Müşteri bir puan ödülü talep ediyor.
+     * Puanı düşer, kupon oluşur.
+     */
+    public function puanOdulTalep(Request $request)
+    {
+        if (!Auth::check()) {
+            return response()->json(['success' => false, 'message' => 'Giriş yapmalısınız.'], 401);
+        }
+
+        $userId  = Auth::id();
+        $salonId = (int) $request->input('salon_id');
+        $odulId  = (int) $request->input('odul_id');
+
+        $odul = SalonPuanOdulleri::where('id', $odulId)
+            ->where('salon_id', $salonId)
+            ->where('aktif', 1)
+            ->first();
+        if (!$odul) {
+            return response()->json(['success' => false, 'message' => 'Ödül bulunamadı veya pasif.']);
+        }
+
+        $puanKaydi = SalonPuanlar::where('salon_id', $salonId)->where('user_id', $userId)->first();
+        $mevcutPuan = $puanKaydi ? (float) $puanKaydi->puan : 0;
+
+        if ($mevcutPuan < $odul->puan_esigi) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Yetersiz puan. Gerekli: ' . $odul->puan_esigi . ', mevcut: ' . ((int) $mevcutPuan),
+            ]);
+        }
+
+        $sonuc = \DB::transaction(function () use ($puanKaydi, $odul, $salonId, $userId) {
+            // Puanı düş
+            $puanKaydi->puan = ((float) $puanKaydi->puan) - (float) $odul->puan_esigi;
+            $puanKaydi->save();
+
+            // Kupon tipi: hizmet/ürün indirimi veya "hediye" (de hizmet_indirimi gibi davranır ama başlık farklı)
+            $kuponTip = in_array($odul->tip, ['hizmet_indirimi', 'urun_indirimi']) ? $odul->tip : 'hizmet_indirimi';
+
+            $kupon = CarkifelekOdulleri::create([
+                'log_id'            => null,
+                'salon_id'          => $salonId,
+                'user_id'           => $userId,
+                'kod'               => strtoupper(\Illuminate\Support\Str::random(8)),
+                'tip'               => $kuponTip,
+                'deger'             => $odul->deger ?: 0,
+                'baslik'            => $odul->baslik,
+                'gecerlilik_tarihi' => \Carbon\Carbon::now()->addDays(60)->toDateString(),
+            ]);
+
+            return $kupon;
+        });
+
+        return response()->json([
+            'success'      => true,
+            'kod'          => $sonuc->kod,
+            'baslik'       => $sonuc->baslik,
+            'kalanPuan'    => (int) ($puanKaydi->puan),
         ]);
     }
 

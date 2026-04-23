@@ -54,6 +54,14 @@
         <p>Çarkıfelekten kazandığınız kuponları burada görebilirsiniz. Salonda randevu aldığınızda kupon kodunu ilgili personele söyleyin.</p>
     </div>
 
+    <div style="background:linear-gradient(135deg,#10b981 0%,#3b82f6 100%); color:#fff; padding:14px 20px; border-radius:14px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div>
+            <b style="font-size:15px;">⭐ Puanlarınızla Özel Ödüller Alın</b>
+            <div style="font-size:12px; opacity:.9; margin-top:2px;">Biriktirdiğiniz puanları indirimlere ve hediyelere dönüştürün.</div>
+        </div>
+        <a href="{{ route('cark.puanodullerim') }}" style="padding:9px 22px; background:#fff; color:#3b82f6; border-radius:50px; text-decoration:none; font-weight:700; font-size:13px; white-space:nowrap;">Puan Ödüllerim →</a>
+    </div>
+
     @if($odullerim->isEmpty())
         <div class="od-empty">
             <div class="od-empty-icon">🎡</div>

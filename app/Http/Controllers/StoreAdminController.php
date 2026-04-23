@@ -129,6 +129,7 @@ use App\CarkifelekDilimleri;
 use App\CarkifelekSistemi;
 use App\CarkifelekCevirmeLoglari;
 use App\CarkifelekOdulleri;
+use App\SalonPuanOdulleri;
 
 class StoreAdminController extends Controller
 {
@@ -534,6 +535,88 @@ public function carkverilerigetir(Request $request)
             'ozet'                 => $ozet,
             'filtre'               => $filtre,
         ]);
+    }
+
+    /**
+     * Admin: Puan Ödülleri yönetim sayfası (puan merdiveni)
+     */
+    public function puanOdulleri(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+        $isletme  = Salonlar::where('id', $salon_id)->first();
+
+        $yetkiler = Auth::guard('isletmeyonetim')->check()
+            ? Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray()
+            : [];
+        if (!in_array($salon_id, $yetkiler) && !Auth::guard('satisortakligi')->check()) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+
+        $odulSeviyeleri = SalonPuanOdulleri::where('salon_id', $salon_id)
+            ->orderBy('puan_esigi')
+            ->get();
+
+        $paketler = self::paket_liste_getir('', true, $request);
+        $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
+
+        return view('isletmeadmin.puan_odulleri', [
+            'bildirimler'           => self::bildirimgetir($request),
+            'paketler'              => $paketler,
+            'sayfa_baslik'          => 'Puan Ödülleri',
+            'pageindex'             => 502,
+            'isletme'               => $isletme,
+            'kalan_uyelik_suresi'   => $kalan_uyelik_suresi,
+            'urun_drop'             => self::urundropliste($request),
+            'yetkiliolunanisletmeler' => $yetkiler,
+            'odulSeviyeleri'        => $odulSeviyeleri,
+        ]);
+    }
+
+    /**
+     * Admin: Puan ödülü kaydet (yeni veya güncelleme)
+     */
+    public function puanOdulKaydet(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+        $id       = (int) $request->input('id', 0);
+
+        $data = [
+            'salon_id'   => $salon_id,
+            'puan_esigi' => max(1, (int) $request->input('puan_esigi', 0)),
+            'baslik'     => trim($request->input('baslik', '')),
+            'aciklama'   => trim($request->input('aciklama', '')) ?: null,
+            'tip'        => $request->input('tip', 'hizmet_indirimi'),
+            'deger'      => $request->input('deger') !== null && $request->input('deger') !== '' ? (float) $request->input('deger') : null,
+            'aktif'      => (int) $request->input('aktif', 1),
+            'sira'       => (int) $request->input('sira', 0),
+        ];
+
+        if ($data['baslik'] === '' || $data['puan_esigi'] < 1) {
+            return response()->json(['success' => false, 'message' => 'Başlık ve puan eşiği zorunlu.']);
+        }
+
+        if ($id > 0) {
+            $m = SalonPuanOdulleri::where('id', $id)->where('salon_id', $salon_id)->first();
+            if (!$m) return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı.']);
+            $m->update($data);
+        } else {
+            SalonPuanOdulleri::create($data);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Admin: Puan ödülü sil
+     */
+    public function puanOdulSil(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+        $id       = (int) $request->input('id', 0);
+        $m = SalonPuanOdulleri::where('id', $id)->where('salon_id', $salon_id)->first();
+        if (!$m) return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı.']);
+        $m->delete();
+        return response()->json(['success' => true]);
     }
 
     /**

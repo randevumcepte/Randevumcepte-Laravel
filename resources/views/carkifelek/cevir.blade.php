@@ -179,7 +179,10 @@
             @else
                 Çevirme hakkınız bulunmuyor. Salonumuzda randevu alıp onaylatırsanız hak kazanırsınız.
             @endif
-            <br><a href="{{ route('cark.odullerim') }}" class="odullerim-link">🎁 Kazandığım Ödüller</a>
+            <br>
+            <a href="{{ route('cark.odullerim') }}" class="odullerim-link">🎁 Kazandığım Kuponlar</a>
+            &nbsp;&nbsp;·&nbsp;&nbsp;
+            <a href="{{ route('cark.puanodullerim') }}" class="odullerim-link">⭐ Puan Ödüllerim</a>
         </div>
     </div>
 </div>
