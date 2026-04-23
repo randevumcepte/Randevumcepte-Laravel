@@ -1,5 +1,6 @@
-@extends('layout.layout')
+@extends('layout.layout_cark')
 
+@section('title', 'Kuponlarım')
 @section('content')
 <style>
 .od-page { max-width: 860px; margin: 40px auto; padding: 20px; }

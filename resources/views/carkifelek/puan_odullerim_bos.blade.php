@@ -1,5 +1,6 @@
-@extends('layout.layout')
+@extends('layout.layout_cark')
 
+@section('title', 'Puan Ödüllerim')
 @section('content')
 <div style="max-width:680px;margin:80px auto;padding:40px 28px;background:#fff;border-radius:20px;box-shadow:0 10px 40px rgba(0,0,0,.08);text-align:center;">
     <div style="font-size:64px;margin-bottom:14px;">⭐</div>

@@ -1,5 +1,6 @@
-@extends('layout.layout')
+@extends('layout.layout_cark')
 
+@section('title', 'Puan Ödüllerim')
 @section('content')
 <style>
 .pm-page { max-width: 860px; margin: 40px auto; padding: 0 16px 80px; }

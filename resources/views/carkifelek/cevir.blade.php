@@ -1,5 +1,6 @@
-@extends('layout.layout')
+@extends('layout.layout_cark')
 
+@section('title', 'Çarkı Çevir')
 @section('content')
 <style>
 :root {
