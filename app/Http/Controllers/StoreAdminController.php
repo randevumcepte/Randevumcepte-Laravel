@@ -18533,6 +18533,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return $result2["access_token"];
     }
     public function arsivyonetimi(Request $request){
+        $this->dinamikFormKolonlariOlustur();
          $isletmeler = '';
         $isletme='';
         if(Auth::guard('satisortakligi')->check())
