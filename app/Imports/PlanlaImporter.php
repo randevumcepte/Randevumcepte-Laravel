@@ -257,9 +257,9 @@ class PlanlaImporter
             if ($i % 500 === 0) $this->log("  ..{$i} musteri islendi (aktarilan: {$this->counts['musteri']}, skipped: {$this->counts['skipped']})");
             $planlaId = isset($row['_id']) ? $row['_id'] : null;
             if (!$planlaId) { $this->counts['skipped']++; continue; }
-            $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
-            if (!$ad) $ad = 'Planla ' . substr($planlaId, -6);
             $tel = $this->telefonNormalize(isset($row['phone']) ? $row['phone'] : null);
+            $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
+            if (!$ad) $ad = $tel ?: ('Planla ' . substr($planlaId, -6));
             $email = !empty($row['email']) ? trim($row['email']) : null;
             $notes = !empty($row['notes']) ? trim($row['notes']) : null;
             $created = !empty($row['createdAt']) ? date('Y-m-d H:i:s', (int) $row['createdAt']) : date('Y-m-d H:i:s');
@@ -422,9 +422,9 @@ class PlanlaImporter
             if (!$planlaId) continue;
             if (isset($this->musteriMap[$planlaId])) { $bulundu++; continue; }
 
-            $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
-            if (!$ad) $ad = 'Planla ' . substr($planlaId, -6);
             $tel = $this->telefonNormalize(isset($row['phone']) ? $row['phone'] : null);
+            $ad = isset($row['fullName']) ? trim($row['fullName']) : '';
+            if (!$ad) $ad = $tel ?: ('Planla ' . substr($planlaId, -6));
             $email = !empty($row['email']) ? trim($row['email']) : null;
             $notes = !empty($row['notes']) ? trim($row['notes']) : null;
             $created = !empty($row['createdAt']) ? date('Y-m-d H:i:s', (int) $row['createdAt']) : date('Y-m-d H:i:s');
