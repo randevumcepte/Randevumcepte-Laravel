@@ -1,12 +1,12 @@
 <div id="formugondermodal" class="modal modal-top fade calendar-modal">
-    <div class="modal-dialog modal-dailog-centered" style="max-width: 750px">
+    <div class="modal-dialog modal-dailog-centered" style="max-width: 600px">
         <form id="arsivformekleme">
             {{ csrf_field() }}
             <input type="hidden" name="sube" value="{{$isletme->id}}">
             <input type="hidden" name="arsiv_id" id="arsiv_id" value="">
-            <div class="modal-content" style="min-height: 320px;">
+            <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="h4">Form Oluştur</h4>
+                    <h4 class="h4">Form Gönder</h4>
                     <button
                         type="button"
                         class="close"
@@ -16,10 +16,10 @@
                     ×
                     </button>
                 </div>
-                <div class="modal-body" style="padding:1rem 1rem 0rem 1rem;">
+                <div class="modal-body" style="padding:20px;">
                     <div class="row">
-                        <div class="col-md-3 col-sm-6 col-xs-6 col-6 form-group">
-                            <label>Form/Sözleşme Türü</label>
+                        <div class="col-md-12 form-group">
+                            <label><b>Form/Sözleşme Türü</b></label>
                             <select name="formtaslaklari" id="formtaslaklari" class="form-control opsiyonelSelect" style="width: 100%;">
                                 @php
                                     $salonFormlari = \App\FormTaslaklari::where('salon_id',$isletme->id)->orderBy('sira','asc')->orderByDesc('id')->get();
@@ -33,37 +33,35 @@
                                 @endif
                             </select>
                         </div>
-                        <div class="col-md-3 col-sm-6 col-xs-6 col-6 form-group">
-                            <label>Müşteri</label>
+                        <div class="col-md-6 form-group">
+                            <label><b>Müşteri</b></label>
                             <select name="formmusterisec" id="formmusterisec" class="form-control opsiyonelSelect musteri_secimi" style="width: 100%;">
                                 <option></option>
                             </select>
                         </div>
-                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group">
-                            <label>Cep Telefon</label>
+                        <div class="col-md-6 form-group">
+                            <label><b>Cep Telefon</b></label>
                             <input class="form-control" required type="tel" name="formmustericeptelefon" id="formmustericeptelefon">
                         </div>
-                        
+
                         <input type="hidden" name="formmusterikimlikno" id="formmusterikimlikno" value="">
                         <input type="hidden" name="formmustericinsiyet" id="formmustericinsiyet" value="0">
                         <input type="hidden" name="formmusteriyas" id='formmusteriyas' value="">
                         <input type="hidden" name="formpersonelsec" id="formpersonelsec" value="">
                         <input type="hidden" name="formmpersonelceptelefon" id="formpersonelceptelefon" value="">
-                        <!--Hizmet Alanı - Gizli olarak başlangıçta -->
-                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group hizmet-alani" style="display: none;">
+
+                        <div class="col-md-6 form-group hizmet-alani" style="display: none;">
                             <label>Hizmet</label>
                             <select style="width:100%" class="form-control opsiyonelSelect hizmet_secimi" name="hizmetSozlesmesiHizmet" id="hizmetSozlesmesiHizmet"></select>
                         </div>
-                        <!-- Kapora ve Toplam Ücret Alanları - Gizli olarak başlangıçta -->
-                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group ucret-alani" style="display: none;">
+                        <div class="col-md-6 form-group ucret-alani" style="display: none;">
                             <label>Toplam Ücret (₺)</label>
                             <input class="form-control" type="tel" name="toplam_ucret" id="toplam_ucret" placeholder="0.00">
                         </div>
-                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group ucret-alani" style="display: none;">
+                        <div class="col-md-6 form-group ucret-alani" style="display: none;">
                             <label>Kapora (₺)</label>
                             <input class="form-control" type="tel" name="kapora" id="kapora" placeholder="0.00">
                         </div>
-
                     </div>
                 </div>
                 <div class="modal-footer" style="justify-content: center;">
