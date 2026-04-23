@@ -586,17 +586,40 @@
 }
 
 /* ---------- TIME GRID ---------- */
-.saatler, #saatsecimtablosu {
+/* The server returns: <div class="saatler"><div class="input-radio">...</div>...</div>
+   so #saatsecimtablosu has a .saatler wrapper. We use `display: contents` on the
+   inner wrapper so the .input-radio items flow directly into the outer grid. */
+#saatsecimtablosu {
     background: transparent !important;
     border: none !important;
     padding: 0 !important;
     text-align: left !important;
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)) !important;
     gap: 10px !important;
     margin-bottom: 6px;
+    width: 100% !important;
 }
-#saatsecimtablosu:empty::before {
+#saatsecimtablosu > .saatler {
+    display: contents !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: auto !important;
+    text-align: left !important;
+}
+/* Fallback for browsers without display:contents: still force grid + wipe legacy look */
+@supports not (display: contents) {
+    #saatsecimtablosu > .saatler {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)) !important;
+        gap: 10px !important;
+    }
+    #saatsecimtablosu { display: block !important; }
+}
+#saatsecimtablosu:empty::before,
+#saatsecimtablosu > .saatler:empty::before {
     content: 'Önce bir tarih seçin → uygun saatler burada listelenecek.';
     grid-column: 1 / -1;
     display: block;
@@ -609,49 +632,91 @@
     border: 1.5px dashed var(--lx-line-2);
     font-weight: 500;
 }
-#saatsecimtablosu .input-radio {
+/* "Seçtiğiniz tarih için uygun randevu bulunamadı" gibi server mesajı */
+#saatsecimtablosu > .saatler > p,
+#saatsecimtablosu > p {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--lx-muted);
+    padding: 22px 14px;
+    font-size: 14px;
+    background: var(--lx-bg);
+    border-radius: var(--lx-radius-sm);
+    border: 1.5px dashed var(--lx-line-2);
+    margin: 0 !important;
+    font-weight: 500;
+}
+#saatsecimtablosu .input-radio,
+#saatsecimtablosu > .saatler > .input-radio {
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
-    position: relative;
+    position: relative !important;
+    width: auto !important;
+    min-width: 0 !important;
+    float: none !important;
 }
-#saatsecimtablosu .input-radio > input[type="radio"] {
+#saatsecimtablosu .input-radio > input[type="radio"],
+#saatsecimtablosu > .saatler > .input-radio > input[type="radio"] {
     position: absolute !important;
     opacity: 0 !important;
     pointer-events: none !important;
-    width: 0; height: 0;
+    width: 0 !important; height: 0 !important;
 }
-#saatsecimtablosu .input-radio > ins { display: none !important; }
-#saatsecimtablosu .input-radio label {
+#saatsecimtablosu .input-radio > ins,
+#saatsecimtablosu > .saatler > .input-radio > ins { display: none !important; }
+#saatsecimtablosu .input-radio label,
+#saatsecimtablosu > .saatler > .input-radio label {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 13px 8px !important;
+    padding: 12px 6px !important;
     border: 2px solid var(--lx-line) !important;
     border-radius: 12px !important;
     background: #fff !important;
     cursor: pointer !important;
     font-weight: 700 !important;
-    font-size: 14.5px !important;
+    font-size: 14px !important;
     color: var(--lx-ink) !important;
     margin: 0 !important;
-    min-height: 46px;
+    min-height: 44px;
+    width: 100% !important;
     letter-spacing: 0.02em;
     transition: all .2s ease !important;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
-#saatsecimtablosu .input-radio label:hover {
+#saatsecimtablosu .input-radio label:hover,
+#saatsecimtablosu > .saatler > .input-radio label:hover {
     border-color: var(--lx-brand-2) !important;
     background: rgba(168, 85, 247, 0.05) !important;
     transform: translateY(-2px) !important;
     box-shadow: 0 6px 14px -6px rgba(124, 58, 237, 0.25);
 }
 #saatsecimtablosu .input-radio input[type="radio"]:checked + label,
-#saatsecimtablosu .input-radio.checked label {
+#saatsecimtablosu .input-radio.checked label,
+#saatsecimtablosu > .saatler > .input-radio input[type="radio"]:checked + label,
+#saatsecimtablosu > .saatler > .input-radio.checked label {
     border-color: transparent !important;
     background: var(--lx-g-main) !important;
     color: #fff !important;
     box-shadow: var(--lx-glow) !important;
+}
+/* Disabled (dolu) saatler */
+#saatsecimtablosu .input-radio input[type="radio"]:disabled + label,
+#saatsecimtablosu > .saatler > .input-radio input[type="radio"]:disabled + label {
+    background: var(--lx-bg) !important;
+    color: var(--lx-soft) !important;
+    border-color: var(--lx-line) !important;
+    cursor: not-allowed !important;
+    text-decoration: line-through;
+    opacity: 0.55;
+}
+#saatsecimtablosu .input-radio input[type="radio"]:disabled + label:hover,
+#saatsecimtablosu > .saatler > .input-radio input[type="radio"]:disabled + label:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    background: var(--lx-bg) !important;
 }
 
 /* ---------- CTA BUTTONS ---------- */
