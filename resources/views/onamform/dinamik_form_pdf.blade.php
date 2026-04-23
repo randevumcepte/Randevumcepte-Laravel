@@ -154,6 +154,9 @@
                @else Beklemede
                @endif
             </p>
+            <p style="margin-top:6px; padding:4px 8px; background:#fff8dc; border:1px solid #d4a017; border-radius:3px; font-size:10px; color:#333;">
+               <b>SMS Onay Kodu:</b> <span style="font-family:'DejaVu Sans Mono', monospace; letter-spacing:2px; font-weight:bold;">{{ $arsiv->dogrulama_kodu ?? '-' }}</span>
+            </p>
          </td>
       </tr>
    </table>

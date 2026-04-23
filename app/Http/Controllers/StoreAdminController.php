@@ -18800,6 +18800,23 @@ public function arsivformekleme(Request $request){
             'telefon'=>$ceptelefon,
         );
     }
+    private function onayKoduFooter($arsiv){
+        $kod = $arsiv->dogrulama_kodu ?? '-';
+        $tarih = $arsiv->created_at ? date('d.m.Y H:i', strtotime($arsiv->created_at)) : '';
+        return '<div style="margin-top:8px; padding:6px 10px; background:#fff8dc; border:1px solid #d4a017; text-align:center; font-size:11px; font-family: DejaVu Sans, sans-serif;">
+            <b>SMS ONAY KODU:</b> <span style="letter-spacing:4px; font-weight:bold; font-size:13px;">'.e($kod).'</span>
+            '.($tarih ? ' &nbsp;|&nbsp; Tarih: '.$tarih : '').'
+        </div>';
+    }
+
+    private function htmlOnayKoduEkle($html, $arsiv){
+        $footer = $this->onayKoduFooter($arsiv);
+        if(stripos($html, '</body>') !== false){
+            return str_ireplace('</body>', $footer.'</body>', $html);
+        }
+        return $html.$footer;
+    }
+
     public function formgoster(Request $request){
         $arsiv = Arsiv::where('id',$request->arsivid)->first();
         if(!$arsiv) return abort(404);
@@ -18826,11 +18843,13 @@ public function arsivformekleme(Request $request){
             }
             $taslak = $formTaslak ? $formTaslak->taslak : null;
             if(!$taslak) return abort(404);
-            $pdf = PDF::loadView($taslak, [
+            $html = view($taslak, [
                 'title' => date('Y-m-d-H-i-s'),
                 'arsiv' => $arsiv,
                 'isletme' => $isletme
-            ])->setOptions(['defaultFont' => 'sans-serif']);
+            ])->render();
+            $html = $this->htmlOnayKoduEkle($html, $arsiv);
+            $pdf = PDF::loadHTML($html)->setOptions(['defaultFont' => 'sans-serif']);
             return $pdf->stream($baslik.'.pdf');
         } else {
             return response()->file($arsiv->uzanti);
@@ -18863,11 +18882,13 @@ public function arsivformekleme(Request $request){
             }
             $taslak = $formTaslak ? $formTaslak->taslak : null;
             if (!$taslak) return abort(404);
-            $pdf = PDF::loadView($taslak, [
+            $html = view($taslak, [
                 'title' => date('Y-m-d-H-i-s'),
                 'arsiv'=>$arsiv,
                 'isletme'=>$isletme
-            ])->setOptions(['defaultFont' => 'sans-serif']);
+            ])->render();
+            $html = $this->htmlOnayKoduEkle($html, $arsiv);
+            $pdf = PDF::loadHTML($html)->setOptions(['defaultFont' => 'sans-serif']);
             return $pdf->download($baslik.'.pdf');
         }
         else{
@@ -18900,8 +18921,8 @@ public function arsivformekleme(Request $request){
                 'cevaplar' => $cevaplar,
                 'form_adi' => $baslik,
                 'aciklama' => $formTaslak->aciklama ?? '',
-            ]);
-            return $html->render();
+            ])->render();
+            return $html;
         }
         $taslak = $formTaslak ? $formTaslak->taslak2 : null;
         if (!$taslak) return abort(404);
@@ -18909,8 +18930,9 @@ public function arsivformekleme(Request $request){
             'title' => date('Y-m-d-H-i-s'),
             'arsiv'=>$arsiv,
             'isletme'=>$isletme
-        ]);
-        return $html->render();
+        ])->render();
+        $html = $this->htmlOnayKoduEkle($html, $arsiv);
+        return $html;
     }
     public function arsivonaylaform(Request $request){
         $form = Arsiv::where('id',$request->arsiv_id)->first();
