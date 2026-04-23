@@ -44,31 +44,11 @@
                             <input class="form-control" required type="tel" name="formmustericeptelefon" id="formmustericeptelefon">
                         </div>
                         
-                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group">
-                            <label>TC Kimlik No</label>
-                            <input class="form-control" required type="tel" name="formmusterikimlikno" id="formmusterikimlikno">
-                        </div>
-                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group">
-                            <label>Cinsiyet</label>
-                            <select name="formmustericinsiyet" id="formmustericinsiyet" class="form-control">
-                                <option value="0">Kadın</option>
-                                <option value="1">Erkek</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group">
-                            <label>Doğum Tarihi</label>
-                            <input type="text" name="formmusteriyas" id='formmusteriyas' class="form-control" value="">
-                        </div>
-                        <div class="col-md-3 col-sm-6 col-xs-6 col-6">
-                            <label>İşlemi Yapan Personel</label>
-                            <select name="formpersonelsec" id="formpersonelsec" class="form-control opsiyonelSelect personel_secimi" style="width: 100%;">
-                                <option></option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group">
-                            <label>Personel Cep Telefon</label>
-                            <input class="form-control" required type="tel" name="formmpersonelceptelefon" id="formpersonelceptelefon">
-                        </div>
+                        <input type="hidden" name="formmusterikimlikno" id="formmusterikimlikno" value="">
+                        <input type="hidden" name="formmustericinsiyet" id="formmustericinsiyet" value="0">
+                        <input type="hidden" name="formmusteriyas" id='formmusteriyas' value="">
+                        <input type="hidden" name="formpersonelsec" id="formpersonelsec" value="">
+                        <input type="hidden" name="formmpersonelceptelefon" id="formpersonelceptelefon" value="">
                         <!--Hizmet Alanı - Gizli olarak başlangıçta -->
                         <div class="col-md-3 col-xs-6 col-sm-6 col-6 form-group hizmet-alani" style="display: none;">
                             <label>Hizmet</label>
