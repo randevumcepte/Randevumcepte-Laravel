@@ -10,6 +10,9 @@ use App\Randevular;
 use App\Salonlar;
 use App\SalonPuanlar;
 use App\SalonPuanOdulleri;
+use App\Hizmet_Kategorisi;
+use App\Hizmetler;
+use App\SalonTuru;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +21,21 @@ use Carbon\Carbon;
 
 class CarkifelekMusteriController extends Controller
 {
+    /**
+     * Layout (layout/layout.blade.php) için zorunlu olan ortak değişkenleri döner.
+     */
+    private function layoutData()
+    {
+        $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : null;
+        return [
+            'hizmetkategorileri' => Hizmet_Kategorisi::limit(8)->get(),
+            'hizmetler'          => Hizmetler::all(),
+            'salonturleri'       => SalonTuru::all(),
+            'salonlar'           => Salonlar::limit(20)->get(),
+            'salon'              => Salonlar::where('domain', $host)->first(),
+        ];
+    }
+
     /**
      * Müşterinin bu salondaki çevirme hakkı:
      *   Onaylanmış (durum=1) randevu sayısı – bu randevulardan log'a yazılmış olanlar
@@ -53,7 +71,7 @@ class CarkifelekMusteriController extends Controller
 
         $cark = CarkifelekSistemi::where('salon_id', $salonId)->first();
         if (!$cark || !$cark->aktifmi) {
-            return view('carkifelek.pasif', compact('salon'));
+            return view('carkifelek.pasif', array_merge($this->layoutData(), ['salon' => $salon]));
         }
 
         $dilimler = CarkifelekDilimleri::where('cark_id', $cark->id)
@@ -61,7 +79,7 @@ class CarkifelekMusteriController extends Controller
             ->get();
 
         if ($dilimler->count() < 2) {
-            return view('carkifelek.pasif', compact('salon'));
+            return view('carkifelek.pasif', array_merge($this->layoutData(), ['salon' => $salon]));
         }
 
         $kullanilabilir = $this->kalanHak($salonId, Auth::id());
@@ -76,14 +94,14 @@ class CarkifelekMusteriController extends Controller
             ];
         })->values()->toArray();
 
-        return view('carkifelek.cevir', [
+        return view('carkifelek.cevir', array_merge($this->layoutData(), [
             'salon'           => $salon,
             'cark'            => $cark,
             'dilimler'        => $dilimler,
             'dilimlerJson'    => $dilimlerJson,
             'kalanHak'        => count($kullanilabilir),
             'randevuIdleri'   => $kullanilabilir,
-        ]);
+        ]));
     }
 
     /**
@@ -194,7 +212,7 @@ class CarkifelekMusteriController extends Controller
             ->get();
 
         if ($puanKayitlari->isEmpty() && !$salonId) {
-            return view('carkifelek.puan_odullerim_bos');
+            return view('carkifelek.puan_odullerim_bos', $this->layoutData());
         }
 
         $salonId = $salonId ? (int) $salonId : (int) $puanKayitlari->first()->salon_id;
@@ -210,14 +228,14 @@ class CarkifelekMusteriController extends Controller
 
         $tumSalonlar = Salonlar::whereIn('id', $puanKayitlari->pluck('salon_id'))->get()->keyBy('id');
 
-        return view('carkifelek.puan_odullerim', [
+        return view('carkifelek.puan_odullerim', array_merge($this->layoutData(), [
             'salon'          => $salon,
             'salonId'        => $salonId,
             'puanBakiyesi'   => $puanBakiyesi,
             'odulSeviyeleri' => $odulSeviyeleri,
             'puanKayitlari'  => $puanKayitlari,
             'tumSalonlar'    => $tumSalonlar,
-        ]);
+        ]));
     }
 
     /**
@@ -295,7 +313,7 @@ class CarkifelekMusteriController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        return view('carkifelek.odullerim', compact('odullerim'));
+        return view('carkifelek.odullerim', array_merge($this->layoutData(), ['odullerim' => $odullerim]));
     }
 
     /* ───────── yardımcılar ───────── */
