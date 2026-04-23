@@ -738,8 +738,8 @@
                 const numFs  = n <= 8 ? 17 : 14;
                 const catFs  = n <= 8 ? 11 : 9;
 
-                // Rakam: dış bölgede teğet (tAng) döndürülmüş, her zaman beyaz
-                const numDist = n <= 8 ? 92 : 82;
+                // Rakam: her zaman dış kenara sabit (yazıdan bağımsız)
+                const numDist = R - (n <= 8 ? 16 : 13);
                 const nx = CX + numDist * Math.cos(tRad);
                 const ny = CY + numDist * Math.sin(tRad);
                 const ng = svgEl('g');
