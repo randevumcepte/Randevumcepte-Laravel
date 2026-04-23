@@ -22501,3 +22501,87 @@ $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', function(){
         history.replaceState(null, '', window.location.pathname + '?p=' + pVal + (sube ? '&sube='+sube : ''));
     }
 });
+
+// Tüm sayı inputlarındaki spinner ok işaretlerini kaldır (ayarlar sayfası hizmet yönetimi için)
+(function(){
+    var css = 'input[type=number]::-webkit-outer-spin-button,'
+            + 'input[type=number]::-webkit-inner-spin-button{'
+            + '-webkit-appearance:none !important;margin:0 !important;}'
+            + 'input[type=number]{-moz-appearance:textfield !important;}';
+    var style = document.createElement('style');
+    style.type = 'text/css';
+    style.setAttribute('data-hy-nospin','1');
+    if(style.styleSheet){ style.styleSheet.cssText = css; }
+    else { style.appendChild(document.createTextNode(css)); }
+    (document.head || document.getElementsByTagName('head')[0]).appendChild(style);
+})();
+
+// ============================================================================
+// TL FİYAT FORMATLAYICI — Global helper
+// Format: binlik ayraç nokta "." / ondalık ayraç virgül ","  (örn: 1.234,56)
+// Kullanım: class="hy-fiyat-input" eklenen her input'ta otomatik devreye girer
+// Dinamik eklenen input'lar için de çalışır (delegated event).
+// ============================================================================
+window.HyFiyat = {
+    parse: function(val){
+        if(val === null || val === undefined || val === '') return 0;
+        if(typeof val === 'number') return val;
+        var s = String(val).trim();
+        if(s === '') return 0;
+        if(s.indexOf(',') !== -1){
+            return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+        }
+        return parseFloat(s) || 0;
+    },
+    format: function(val){
+        var n = this.parse(val);
+        return n.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    },
+    _liveFormat: function(el){
+        var v = el.value;
+        var cleaned = v.replace(/[^\d,]/g,'');
+        var parts = cleaned.split(',');
+        var intPart = parts[0].replace(/^0+(?=\d)/,'');
+        intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+        if(intPart === '') intPart = '0';
+        var decPart = parts.length > 1 ? parts.slice(1).join('').substring(0,2) : null;
+        el.value = (decPart !== null) ? intPart + ',' + decPart : intPart;
+    },
+    _completeDecimals: function(el){
+        var v = el.value;
+        if(v === '' || v === '0') return;
+        var parts = v.split(',');
+        if(parts.length === 1) el.value = parts[0] + ',00';
+        else if(parts[1].length === 0) el.value = parts[0] + ',00';
+        else if(parts[1].length === 1) el.value = parts[0] + ',' + parts[1] + '0';
+    },
+    formatInput: function(el){
+        if(!el) return;
+        var v = el.value;
+        if(v === '' || v === null || v === undefined) return;
+        el.value = this.format(v);
+        el.setAttribute('data-hyformatted','1');
+    }
+};
+
+// Delegated event binding — sayfada mevcut veya dinamik eklenen tüm .hy-fiyat-input için çalışır
+$(document).on('input', '.hy-fiyat-input', function(){
+    window.HyFiyat._liveFormat(this);
+    this.setAttribute('data-hyformatted','1');
+});
+$(document).on('focusout blur', '.hy-fiyat-input', function(){
+    window.HyFiyat._completeDecimals(this);
+});
+$(document).on('focus', '.hy-fiyat-input', function(){
+    // İlk focus'ta mevcut ham değer varsa formatla
+    if(!this.getAttribute('data-hyformatted') && this.value){
+        window.HyFiyat.formatInput(this);
+    }
+});
+
+$(document).ready(function(){
+    // Sayfa yüklendiğinde mevcut fiyat inputlarını formatla
+    $('.hy-fiyat-input').each(function(){
+        if(this.value) window.HyFiyat.formatInput(this);
+    });
+});

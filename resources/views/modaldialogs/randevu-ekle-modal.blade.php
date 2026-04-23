@@ -14,18 +14,19 @@
 {{-- Tom Select — sadece Randevu modalinda hizmet secimi icin kullanilir --}}
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-<div id="modal-view-event-add" class="modal modal-top fade calendar-modal" data-backdrop="static" data-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 1200px;">
+<div id="modal-view-event-add" class="modal modal-top fade calendar-modal randevu-modal-compact" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 780px;">
         <div class="modal-content">
             <div class="modal-header">
-                <h4 class="h4" style="color:white">
+                <h4 class="h4" style="color:white; display:flex; align-items:center; gap:8px;">
+                    <i class="fa fa-calendar-plus-o" style="font-size:0.95rem;opacity:0.9;"></i>
                     <span>Yeni Randevu</span>
                 </h4>
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true" id='randevu_modal_kapat'>
                     ×
                 </button>
             </div>
-            <div class="modal-body" style="padding: 1rem;">
+            <div class="modal-body">
                 <div class="tab">
                     <ul class="nav nav-tabs" role="tablist">
                         <li class="nav-item">
@@ -38,7 +39,7 @@
                         @endif
                         <!-- Paketleri Göster Butonu -->
                         <li class="nav-item ml-auto">
-                            <button type="button" class="btn btn-info btn-sm" id="paketleri-goster-btn" style="margin-top: 5px;" disabled>
+                            <button type="button" class="btn btn-info btn-sm" id="paketleri-goster-btn" disabled>
                                 <i class="icon-copy fa fa-gift"></i> Paketleri Göster
                             </button>
                         </li>
@@ -48,38 +49,39 @@
                         <div class="tab-pane fade show active" id="yeni-randevu" role="tabpanel">
                             <form id="yenirandevuekleform" method="POST" action="#">
                                 {!!csrf_field()!!}
+                                {{-- Gizli ozet konteyneri: updateRandevuOzeti() JS tarafindan hala calisir, sadece kullaniciya gosterilmez --}}
+                                <div id="randevu-ozeti" style="display:none;"></div>
                                 <div class="row">
-                                    <!-- Sol Taraf: Temel Bilgiler ve Hizmetler -->
-                                    <div class="col-md-8">
+                                    <!-- Tum icerik tek sutunda -->
+                                    <div class="col-12">
                                         <!-- Temel Bilgiler -->
                                         <div class="card mb-2">
                                             <div class="card-header py-1">
                                                 <h6 class="mb-0" style="font-size: 0.9rem;">Temel Bilgiler</h6>
                                             </div>
                                             <div class="card-body p-2">
-                                                <div class="row">
-                                                    <div class="col-lg-4 col-md-3 col-sm-12 mb-2">
+                                                <div class="row g-2">
+                                                    <div class="col-lg-5 col-md-12 col-sm-12 mb-2">
                                                         <input type="hidden" name="sube" value="{{$isletme->id}}">
                                                         @if($pageindex==2)
                                                         <input type="hidden" name="takvim_sayfasi" value="1">
                                                         @endif
-                                                        <label class="form-label" style="font-size: 0.8rem;">@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</label>
-                                                        <select name="adsoyad" id="randevuekle_musteri_id" class="form-control opsiyonelSelect musteri_secimi" style="width: 100%; height: 32px; font-size: 0.85rem;">
-                                                            <option></option>
-                                                        </select>
+                                                        <label class="form-label">@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</label>
+                                                        <div class="d-flex" style="gap:6px;">
+                                                            <select name="adsoyad" id="randevuekle_musteri_id" class="form-control opsiyonelSelect musteri_secimi" style="flex:1; height: 32px; font-size: 0.85rem;">
+                                                                <option></option>
+                                                            </select>
+                                                            <button class="btn btn-outline-primary yanitsiz_musteri_ekleme" type="button" data-toggle="modal" data-target="#musteri-bilgi-modal" title="Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29)Danışan @else Müşteri @endif ekle" style="padding: 0 10px; height: 32px; white-space: nowrap;">
+                                                                <i class="fa fa-plus"></i> Yeni
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                    <div class="col-lg-2 col-md-3 col-sm-12 mb-2">
-                                                        <label class="form-label" style="visibility: hidden; font-size: 0.8rem;">Yeni müşteri</label>
-                                                        <button class="btn btn-outline-primary w-100 yanitsiz_musteri_ekleme" type="button" data-toggle="modal" data-target="#musteri-bilgi-modal" style="padding: 4px 8px; font-size: 0.8rem; height: 32px;">
-                                                           Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif
-                                                        </button>
-                                                    </div>
-                                                    <div class="col-lg-3 col-md-3 col-sm-12 mb-2">
-                                                        <label class="form-label" style="font-size: 0.8rem;">Tarih</label>
+                                                    <div class="col-lg-4 col-md-6 col-sm-6 mb-2">
+                                                        <label class="form-label">Tarih</label>
                                                         <input required placeholder="Tarih" type="text" class="form-control" name="tarih" id="randevutarihiyeni" autocomplete="off" novalidate value="{{date('Y-m-d')}}" style="height: 32px; font-size: 0.85rem;" />
                                                     </div>
-                                                    <div class="col-lg-3 col-md-3 col-sm-12 mb-2">
-                                                        <label class="form-label" style="font-size: 0.8rem;">Saat</label>
+                                                    <div class="col-lg-3 col-md-6 col-sm-6 mb-2">
+                                                        <label class="form-label">Saat</label>
                                                         <select id='randevu_saat' name="saat" class="form-control" style="height: 32px; font-size: 0.85rem;">
                                                             @for($j = strtotime(date('07:00')) ; $j < strtotime(date('23:15')); $j+=(15*60))
                                                             <option value="{{date('H:i',$j)}}:00">{{date('H:i',$j)}}</option>
@@ -165,78 +167,52 @@
                                             </div>
                                         </div>
 
-                                        <!-- Notlar Bölümü -->
-                                        <div class="card mb-2">
-                                            <div class="card-header py-1">
-                                                <h6 class="mb-0" style="font-size: 0.9rem;">Notlar</h6>
-                                            </div>
-                                            <div class="card-body p-2">
-                                                <div class="row">
-                                                    <div class="col-12">
+                                        <!-- Notlar + Tekrarlayan Randevu yan yana -->
+                                        <div class="row g-2">
+                                            <div class="col-md-7">
+                                                <div class="card mb-2">
+                                                    <div class="card-header py-1">
+                                                        <h6 class="mb-0" style="font-size: 0.9rem;">Notlar</h6>
+                                                    </div>
+                                                    <div class="card-body p-2">
                                                         <label class="form-label" style="font-size: 0.8rem;">Personel Notu</label>
                                                         <textarea class="form-control" name="personel_notu" placeholder="Randevu ile ilgili notlarınızı buraya yazın..." rows="2" style="min-height: 60px; font-size: 0.85rem;"></textarea>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Sağ Taraf: Özet ve Tekrarlayan Randevu -->
-                                    <div class="col-md-4">
-                                        <!-- Randevu Özeti -->
-                                        <div class="card mb-2">
-                                            <div class="card-header py-1">
-                                                <h6 class="mb-0" style="font-size: 0.9rem;">Randevu Özeti</h6>
-                                            </div>
-                                            <div class="card-body p-2">
-                                                <div id="randevu-ozeti" style="min-height: 180px; font-size: 0.85rem;">
-                                                    <div class="text-center text-muted py-3">
-                                                        <i class="fa fa-search fa-lg mb-2" style="opacity: 0.3;"></i>
-                                                        <p class="mb-1 fw-bold" style="font-size: 0.9rem;">Henüz hizmet seçilmedi</p>
-                                                        <p class="small mb-0" style="font-size: 0.75rem;">Hizmet eklemek için yukarıdan arama yapın</p>
+                                            <div class="col-md-5">
+                                                <div class="card mb-2">
+                                                    <div class="card-header py-1 d-flex justify-content-between align-items-center">
+                                                        <h6 class="mb-0" style="font-size: 0.9rem;">Tekrarlayan Randevu</h6>
+                                                        <span><input class="form-check-input" style="height: 14px; width: 28px;" id="tekrarlayan" name="tekrarlayan" type="checkbox"></span>
                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Tekrarlayan Randevu -->
-                                        <div class="card">
-                                            <div class="card-header py-1 d-flex justify-content-between align-items-center">
-                                                <h6 class="mb-0" style="font-size: 0.9rem;">Tekrarlayan Randevu</h6>
-                                                <span><input class="form-check-input" style="height: 14px; width: 28px;" id="tekrarlayan" name="tekrarlayan" type="checkbox"></span>
-                                            </div>
-                                            <div class="card-body p-2">
-                                                <div class="row">
-                                                    <div class="col-6">
-                                                        <label class="form-label small mb-1" style="font-size: 0.75rem;">Sıklık</label>
-                                                        <select class="form-control tekrar_randevu form-control-sm" name="tekrar_sikligi" disabled style="height: 28px; font-size: 0.75rem; padding: 2px 5px;">
-                                                            <option value="+1 day">Her gün</option>
-                                                            <option value="+2 days">2 günde bir</option>
-                                                            <option value="+3 days">3 günde bir</option>
-                                                            <option value="+4 days">4 günde bir</option>
-                                                            <option value="+5 days">5 günde bir</option>
-                                                            <option value="+6 days">6 günde bir</option>
-                                                            <option value="+1 week">Haftada bir</option>
-                                                            <option value="+2 weeks">2 Haftada bir</option>
-                                                            <option value="+3 weeks">3 Haftada bir</option>
-                                                            <option value="+4 weeks">4 Haftada bir</option>
-                                                            <option value="+1 month">Her ay</option>
-                                                            <option value="+45 days">45 günde bir</option>
-                                                            <option value="+2 months">2 ayda bir</option>
-                                                            <option value="+3 months">3 ayda bir</option>
-                                                            <option value="+6 months">6 ayda bir</option>
-                                                        </select>
-                                                    </div>
-                                                    
-                                                    <div class="col-6">
-                                                        <label class="form-label small mb-1" style="font-size: 0.75rem;">Tekrar Sayısı</label>
-                                                        <input type="tel" name="tekrar_sayisi" class="form-control tekrar_randevu form-control-sm" required value="0" disabled style="height: 28px; font-size: 0.75rem; padding: 2px 5px;">
-                                                    </div>
-                                                    
-                                                    <div class="col-12 mt-2">
-                                                        <small class="text-muted" style="font-size: 0.7rem;">
-                                                            <i class="fa fa-info-circle"></i> Tekrarlayan randevular otomatik olarak belirtilen aralıklarla oluşturulacaktır.
-                                                        </small>
+                                                    <div class="card-body p-2">
+                                                        <div class="row g-2">
+                                                            <div class="col-7">
+                                                                <label class="form-label small mb-1" style="font-size: 0.72rem;">Sıklık</label>
+                                                                <select class="form-control tekrar_randevu form-control-sm" name="tekrar_sikligi" disabled style="height: 28px; font-size: 0.75rem; padding: 2px 5px;">
+                                                                    <option value="+1 day">Her gün</option>
+                                                                    <option value="+2 days">2 günde bir</option>
+                                                                    <option value="+3 days">3 günde bir</option>
+                                                                    <option value="+4 days">4 günde bir</option>
+                                                                    <option value="+5 days">5 günde bir</option>
+                                                                    <option value="+6 days">6 günde bir</option>
+                                                                    <option value="+1 week">Haftada bir</option>
+                                                                    <option value="+2 weeks">2 Haftada bir</option>
+                                                                    <option value="+3 weeks">3 Haftada bir</option>
+                                                                    <option value="+4 weeks">4 Haftada bir</option>
+                                                                    <option value="+1 month">Her ay</option>
+                                                                    <option value="+45 days">45 günde bir</option>
+                                                                    <option value="+2 months">2 ayda bir</option>
+                                                                    <option value="+3 months">3 ayda bir</option>
+                                                                    <option value="+6 months">6 ayda bir</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-5">
+                                                                <label class="form-label small mb-1" style="font-size: 0.72rem;">Tekrar Sayısı</label>
+                                                                <input type="tel" name="tekrar_sayisi" class="form-control tekrar_randevu form-control-sm" required value="0" disabled style="height: 28px; font-size: 0.75rem; padding: 2px 5px;">
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1220,6 +1196,233 @@ input:checked + .slider:before {
     padding: 1px 4px !important;
     font-size: 0.7rem !important;
     line-height: 1;
+}
+
+/* ==================== KOMPAKT MODAL TASARIMI ==================== */
+.randevu-modal-compact .modal-content {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(17, 24, 39, 0.25);
+}
+
+.randevu-modal-compact .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 10px 16px;
+    border-bottom: none;
+    position: relative;
+}
+.randevu-modal-compact .modal-header::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #f59e0b, #10b981, #6366f1);
+    opacity: 0.85;
+}
+.randevu-modal-compact .modal-header h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    margin: 0;
+}
+
+.randevu-modal-compact .modal-body {
+    padding: 12px 14px 10px !important;
+    max-height: 72vh;
+}
+
+.randevu-modal-compact .nav-tabs {
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 10px;
+    padding-bottom: 0;
+    align-items: center;
+}
+
+.randevu-modal-compact .nav-tabs .nav-link {
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #6b7280;
+    border-radius: 6px 6px 0 0;
+    transition: all 0.15s ease;
+}
+.randevu-modal-compact .nav-tabs .nav-link.active {
+    color: #4f46e5;
+    border-bottom: 2px solid #6366f1;
+    background: transparent;
+}
+
+.randevu-modal-compact #paketleri-goster-btn {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    border: none;
+    color: white;
+    padding: 5px 12px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(14, 165, 233, 0.25);
+}
+.randevu-modal-compact #paketleri-goster-btn:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
+}
+
+.randevu-modal-compact .card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: none;
+    margin-bottom: 8px;
+    background: #fff;
+}
+
+.randevu-modal-compact .card-header {
+    background: #f9fafb;
+    padding: 6px 10px;
+    border-bottom: 1px solid #eef0f3;
+}
+
+.randevu-modal-compact .card-header h6 {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #374151;
+    letter-spacing: 0.1px;
+}
+
+.randevu-modal-compact .card-body {
+    padding: 8px 10px;
+}
+
+.randevu-modal-compact .form-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #4b5563;
+    margin-bottom: 3px;
+    letter-spacing: 0.1px;
+}
+
+.randevu-modal-compact .form-control,
+.randevu-modal-compact .opsiyonelSelect {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    transition: all 0.15s ease;
+}
+.randevu-modal-compact .form-control:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* Hizmet Satırı — daha zarif */
+.randevu-modal-compact .hizmet-satiri {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 7px;
+    margin-bottom: 8px;
+    background: #fff;
+    overflow: hidden;
+}
+.randevu-modal-compact .hizmet-satiri .card-header {
+    background: linear-gradient(90deg, #f3f4f6 0%, #fafbfc 100%) !important;
+    padding: 5px 10px !important;
+    border-bottom: 1px solid #e5e7eb;
+}
+.randevu-modal-compact .hizmet-satiri .card-header .fw-bold {
+    color: #4338ca;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.randevu-modal-compact .hizmet-satiri .hizmet-sil {
+    padding: 2px 8px !important;
+    font-size: 0.7rem !important;
+    border-radius: 5px;
+}
+
+/* Outline buton — Yeni Müşteri vb. */
+.randevu-modal-compact .btn-outline-primary {
+    border-color: #c7d2fe;
+    color: #4f46e5;
+    font-size: 0.78rem;
+    font-weight: 500;
+    border-radius: 6px;
+}
+.randevu-modal-compact .btn-outline-primary:hover {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: white;
+}
+.randevu-modal-compact .btn-outline-success {
+    border-color: #bbf7d0;
+    color: #059669;
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 5px;
+}
+.randevu-modal-compact .btn-outline-success:hover {
+    background: #10b981;
+    border-color: #10b981;
+    color: white;
+}
+
+/* Özet kart — hafif vurgulu kenar */
+.randevu-modal-compact .ozet-card {
+    border-left: 3px solid #6366f1 !important;
+    background: linear-gradient(180deg, #fafbff 0%, #ffffff 100%);
+}
+
+.ozet-bos-durum {
+    text-align: center;
+    padding: 14px 8px;
+    color: #9ca3af;
+}
+.ozet-bos-icon {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 8px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #eef2ff 0%, #f3e8ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a5b4fc;
+    font-size: 1.1rem;
+}
+
+/* Tekrarlayan — daha temiz */
+.randevu-modal-compact #tekrarlayan {
+    width: 32px !important;
+    height: 18px !important;
+    cursor: pointer;
+}
+
+/* Modal footer — daha kompakt */
+.randevu-modal-compact .modal-footer {
+    background: #f9fafb;
+    padding: 8px 14px;
+    border-top: 1px solid #eef0f3;
+}
+.randevu-modal-compact .modal-footer .btn-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: none;
+    padding: 6px 16px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+.randevu-modal-compact .modal-footer .btn-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+}
+
+/* Küçük ekranlarda kolonlar birbirinin altina binsin — 2-kolon layout kuvvetlice buyusun */
+@media (max-width: 991px) {
+    .randevu-modal-compact .modal-dialog {
+        max-width: 95% !important;
+        margin: 10px auto;
+    }
+}
+
+/* Icon-copy boyutunu sabitle */
+.randevu-modal-compact .icon-copy {
+    margin-right: 3px;
 }
 </style>
 
@@ -2209,12 +2412,13 @@ function updateHizmetDetaylari(index) {
                     </div>
                     <div class="col-md-6">
                         <label class="form-label small" style="font-size: 0.7rem;">Fiyat (₺)</label>
-                        <input type="number" 
-                               class="form-control form-control-sm hizmet-fiyati" 
-                               name="hizmet_fiyatlari-${service.id}" 
-                               value="${fiyat}" 
-                               min="0" 
-                               step="0.01"
+                        <input type="text"
+                               inputmode="decimal"
+                               class="form-control form-control-sm hizmet-fiyati hy-fiyat-input"
+                               name="hizmet_fiyatlari-${service.id}"
+                               value="${fiyat}"
+                               placeholder="0,00"
+                               autocomplete="off"
                                style="height: 26px; padding: 2px 6px; font-size: 0.75rem;">
                     </div>
                 </div>

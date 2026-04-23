@@ -198,6 +198,17 @@
 .select2-search__field { padding: 6px !important; border-radius: 6px !important; }
 .select2-container--open { z-index: 99999 !important; }
 
+/* Sayı inputlarından ok (spinner) kaldır */
+.hizmet-yonetim-wrapper input[type=number]::-webkit-outer-spin-button,
+.hizmet-yonetim-wrapper input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.hizmet-yonetim-wrapper input[type=number] { -moz-appearance: textfield; }
+#hy_duzenle_modal input[type=number]::-webkit-outer-spin-button,
+#hy_duzenle_modal input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#hy_duzenle_modal input[type=number] { -moz-appearance: textfield; }
+#yeni_hizmet_modal input[type=number]::-webkit-outer-spin-button,
+#yeni_hizmet_modal input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#yeni_hizmet_modal input[type=number] { -moz-appearance: textfield; }
+
 /* Tum modallari dikey ortalama + responsive genislik */
 #hy_duzenle_modal.modal, #hy_kategori_ekle_modal.modal, #hizmet_secimi_modal.modal, #personel_sec_modal.modal, #yeni_hizmet_modal.modal { display: none; }
 #hy_duzenle_modal.modal.show, #hy_kategori_ekle_modal.modal.show, #hizmet_secimi_modal.modal.show, #personel_sec_modal.modal.show, #yeni_hizmet_modal.modal.show { display: flex !important; align-items:center; justify-content:center; padding: 0 !important; }
@@ -425,7 +436,7 @@
                   <div class="col-md-3">
                      <div class="form-group">
                         <label>Fiyat (₺)</label>
-                        <input type="number" step="0.01" name="fiyat" id="hy_edit_fiyat" required class="form-control">
+                        <input type="text" inputmode="decimal" name="fiyat" id="hy_edit_fiyat" required class="form-control hy-fiyat-input" placeholder="0,00" autocomplete="off">
                      </div>
                   </div>
                   <div class="col-md-6">
@@ -511,7 +522,50 @@
 </div>
 
 <script>
+// TL fiyat formatlayıcı: "1.234,56" ↔ 1234.56
+window.HyFiyat = {
+   parse: function(val){
+      if(val === null || val === undefined || val === '') return 0;
+      if(typeof val === 'number') return val;
+      var s = String(val);
+      if(s.indexOf(',') !== -1){
+         return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+      }
+      return parseFloat(s) || 0;
+   },
+   format: function(val){
+      var n = this.parse(val);
+      return n.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
+   },
+   // Input alanına canlı formatlama bağla
+   bind: function($input){
+      $input.on('input.hyfiyat', function(){
+         var el = this;
+         var v = el.value;
+         // Rakam ve virgül dışındaki karakterleri kaldır
+         var cleaned = v.replace(/[^\d,]/g,'');
+         var parts = cleaned.split(',');
+         // İlk virgülü koru, sonrakiler birleşir
+         var intPart = parts[0].replace(/^0+(?=\d)/,'');
+         intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+         if(intPart === '') intPart = '0';
+         var decPart = parts.length > 1 ? parts.slice(1).join('').substring(0,2) : null;
+         el.value = (decPart !== null) ? intPart + ',' + decPart : intPart;
+      });
+      $input.on('focusout.hyfiyat', function(){
+         var v = $(this).val();
+         if(v === '' || v === '0') return;
+         var parts = v.split(',');
+         if(parts.length === 1) $(this).val(parts[0] + ',00');
+         else if(parts[1].length === 0) $(this).val(parts[0] + ',00');
+         else if(parts[1].length === 1) $(this).val(parts[0] + ',' + parts[1] + '0');
+      });
+   }
+};
+
 $(document).ready(function(){
+   // TL fiyat input'larına formatlayıcı bağla
+   window.HyFiyat.bind($('.hy-fiyat-input'));
 
    // --- Arama filtresi (desktop + mobile) ---
    $('#hy_hizmet_ara').on('keyup', function(){
@@ -556,7 +610,7 @@ $(document).ready(function(){
 
       $('#hy_edit_salon_hizmet_id').val(row.data('salon-hizmet-id'));
       $('#hy_edit_hizmet_adi').val(row.data('hizmet-adi'));
-      $('#hy_edit_fiyat').val(row.data('fiyat'));
+      $('#hy_edit_fiyat').val(window.HyFiyat.format(row.data('fiyat')));
       $('#hy_edit_sure_dk').val(row.data('sure'));
       $('#hy_edit_kategori_id').val(row.data('kategori-id')).trigger('change');
       var c = row.data('cinsiyet');
@@ -622,7 +676,7 @@ $(document).ready(function(){
             swal({ type: result.status==='success'?'success':'error', title: result.status==='success'?'Başarılı':'Hata', text: result.message, showConfirmButton: false, timer: 1800 });
             if(result.status === 'success'){
                var shId   = $('#hy_edit_salon_hizmet_id').val();
-               var newFiyat  = parseFloat($('#hy_edit_fiyat').val()) || 0;
+               var newFiyat  = window.HyFiyat.parse($('#hy_edit_fiyat').val());
                var newSure   = parseInt($('#hy_edit_sure_dk').val()) || 0;
                var newAd     = $('#hy_edit_hizmet_adi').val();
                var newCinsiyet = $('#hy_edit_cinsiyet').val();

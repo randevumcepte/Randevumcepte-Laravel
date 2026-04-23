@@ -503,7 +503,7 @@
                     '</div>' +
                     '<div class="col-md-6">' +
                       '<label style="font-size:0.7rem;">Fiyat (₺)</label>' +
-                      '<input type="number" class="form-control form-control-sm hizmet-fiyati" name="hizmet_fiyat[]" value="'+fiyat+'" min="0" step="0.01" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
+                      '<input type="text" inputmode="decimal" class="form-control form-control-sm hizmet-fiyati hy-fiyat-input" name="hizmet_fiyat[]" value="'+fiyat+'" placeholder="0,00" autocomplete="off" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
                     '</div>' +
                   '</div>' +
                 '</div>';

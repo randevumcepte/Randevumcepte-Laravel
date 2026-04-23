@@ -153,6 +153,21 @@ class StoreAdminController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
+    /**
+     * TL formatındaki fiyat string'ini ("1.234,56" veya "113,00") float'a çevirir.
+     * Sayısal değerleri olduğu gibi döner. Örn: "1.234,56" → 1234.56, "113" → 113.0
+     */
+    public static function parseFiyat($val)
+    {
+        if($val === null || $val === '') return 0.0;
+        if(is_numeric($val)) return (float) $val;
+        $s = (string) $val;
+        if(strpos($s, ',') !== false){
+            return (float) str_replace(',', '.', str_replace('.', '', $s));
+        }
+        return (float) $s;
+    }
+
     public function mevcutsube($request)
     {
         $sube = "";
@@ -3402,7 +3417,7 @@ private function ayAdiCevir($ingilizceAy)
                         $yenirandevuhizmetpersonel->personel_id = $yeniRandevuBilgileri['personeller'][$key];
                         $yenirandevuhizmetpersonel->oda_id = $yeniRandevuBilgileri['odalari'][$key];
                         $yenirandevuhizmetpersonel->sure_dk = $request->hizmet_suresi[$key];
-                        $yenirandevuhizmetpersonel->fiyat = $request->hizmet_fiyat[$key];
+                        $yenirandevuhizmetpersonel->fiyat = self::parseFiyat($request->hizmet_fiyat[$key]);
                         
                         $birsonraki = $key + 1;
                         
@@ -3434,7 +3449,7 @@ private function ayAdiCevir($ingilizceAy)
                                     $yardimci_personel->personel_id = $yardimci_personel_id;
                                     $yardimci_personel->oda_id = $yeniRandevuBilgileri['odalari'][$key];
                                     $yardimci_personel->sure_dk = $request->hizmet_suresi[$key];
-                                    $yardimci_personel->fiyat = $request->hizmet_fiyat[$key];
+                                    $yardimci_personel->fiyat = self::parseFiyat($request->hizmet_fiyat[$key]);
                                     $yardimci_personel->saat = $yenirandevuhizmetpersonel->saat;
                                     $yardimci_personel->saat_bitis = $yenirandevuhizmetpersonel->saat_bitis;
                                     $yardimci_personel->yardimci_personel = true;
@@ -4147,7 +4162,7 @@ private function ayAdiCevir($ingilizceAy)
                         $yenirandevuhizmetpersonel->personel_id = $personel_id;
                         $yenirandevuhizmetpersonel->oda_id = $oda_id;
                         $yenirandevuhizmetpersonel->sure_dk = $request->{"hizmet_sureleri-$rHizmet"};
-                        $yenirandevuhizmetpersonel->fiyat = $request->{"hizmet_fiyatlari-$rHizmet"};
+                        $yenirandevuhizmetpersonel->fiyat = self::parseFiyat($request->{"hizmet_fiyatlari-$rHizmet"});
                         
                          
                         $yenirandevuhizmetpersonel->saat = $yenisaatbaslangic;
@@ -12081,7 +12096,7 @@ DB::raw('
         $sunulanhizmet->hizmet_id = $yenihizmet->id;
         $sunulanhizmet->hizmet_kategori_id = $request->hizmet_kategorisi;
         $sunulanhizmet->bolum = $request->cinsiyet;
-        $sunulanhizmet->baslangic_fiyat = $request->hizmet_fiyati;
+        $sunulanhizmet->baslangic_fiyat = self::parseFiyat($request->hizmet_fiyati);
         $sunulanhizmet->aktif = true;
         $sunulanhizmet->sure_dk = $request->hizmet_sure;
         $sunulanhizmet->salon_id = $request->sube;
@@ -21792,7 +21807,7 @@ DB::raw('
         if($hizmet) $hizmet->save();
 
         // Sure, fiyat ve personel atamasi her hizmet icin degistirilebilir
-        if($request->has('fiyat')) $sh->baslangic_fiyat = $request->fiyat;
+        if($request->has('fiyat')) $sh->baslangic_fiyat = self::parseFiyat($request->fiyat);
         if($request->has('sure_dk')) $sh->sure_dk = $request->sure_dk;
         $sh->save();
 

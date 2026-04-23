@@ -153,7 +153,7 @@
                                           </div>
                                           <div class="col-md-3 col-sm-6 col-xs-6 col-6">
                                              <label>Fiyat</label>
-                                             <input type="tel" class="form-control" name="hizmet_fiyat[]" value="{{
+                                             <input type="text" inputmode="decimal" class="form-control hy-fiyat-input" name="hizmet_fiyat[]" placeholder="0,00" autocomplete="off" value="{{
                                                 (\App\SalonHizmetler::where('salon_id',$isletme->id)->where('aktif',true)->first()!==null) ? \App\SalonHizmetler::where('salon_id',$isletme->id)->where('aktif',true)->value('baslangic_fiyat') : ''}}">
                                           </div>
                                           <div class="col-md-1  col-sm-6 col-xs-6 col-6">

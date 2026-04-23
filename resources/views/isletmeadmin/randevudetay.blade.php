@@ -103,7 +103,7 @@
                      <div class="col-md-2">
                         <div class="form-group">
                            <label>Fiyat (₺)</label>
-                           <input type="tel" class="form-control" name="hizmet_fiyati_adisyon[]" value="{{$hizmet->fiyat}}">
+                           <input type="text" inputmode="decimal" class="form-control hy-fiyat-input" name="hizmet_fiyati_adisyon[]" placeholder="0,00" autocomplete="off" value="{{$hizmet->fiyat}}">
                         </div>
                      </div>
                      <div class="col-md-2">
@@ -389,7 +389,7 @@
                      <div class="col-md-2">
                         <div class="form-group">
                            <label>Fiyat (₺)</label>
-                           <input type="tel" class="form-control" name="hizmet_fiyat[]" required>
+                           <input type="text" inputmode="decimal" class="form-control hy-fiyat-input" name="hizmet_fiyat[]" placeholder="0,00" autocomplete="off" required>
                         </div>
                      </div>
                      <div class="col-md-2">
