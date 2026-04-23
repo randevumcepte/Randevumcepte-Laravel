@@ -16,6 +16,7 @@ class PlanlaImport extends Command
         {--probe-api : Login + POST /connect-api action varyantlarini tara}
         {--analyze : Login olmadan Site.js bundle\'ini indirip icinden endpoint ve payload cikarir}
         {--dupes : Planla musterilerinde telefon mukerrer/adsiz/telefonsuz sayilarini raporla}
+        {--diagnose : Salon randevularinda portfoye bagli olmayan kullanici atamalarini listele}
         {--only= : Sadece bu tip(ler)i al (virgulle: musteri,hizmet,randevu)}';
 
     protected $description = 'Planla.co hesabindan musteri/hizmet/randevu verisini cekip randevumcepte DB sine aktarir.';
@@ -28,6 +29,7 @@ class PlanlaImport extends Command
         $probe    = (bool) $this->option('probe');
         $probeApi = (bool) $this->option('probe-api');
         $dupes    = (bool) $this->option('dupes');
+        $diagnose = (bool) $this->option('diagnose');
         $analyze  = (bool) $this->option('analyze');
         $only     = $this->option('only');
 
@@ -35,8 +37,12 @@ class PlanlaImport extends Command
             $this->error('--email ve --password zorunlu (analyze disinda).');
             return 1;
         }
-        if (!$probe && !$probeApi && !$dupes && !$analyze && !$salonId) {
-            $this->error('Import icin --salon zorunlu. Kesif icin --probe / --probe-api / --dupes / --analyze kullanin.');
+        if (!$probe && !$probeApi && !$dupes && !$diagnose && !$analyze && !$salonId) {
+            $this->error('Import icin --salon zorunlu.');
+            return 1;
+        }
+        if ($diagnose && !$salonId) {
+            $this->error('--diagnose icin --salon zorunlu.');
             return 1;
         }
 
@@ -115,6 +121,49 @@ class PlanlaImport extends Command
                 $this->line(str_pad($a, 30) . ' -> ' . $r);
             }
             $this->info('connect-api probe tamam.');
+            return 0;
+        }
+
+        if ($diagnose) {
+            $this->info("Salon {$salonId} randevularinda sorunlu user_id taramasi...");
+            $toplam = \App\Randevular::where('salon_id', $salonId)->count();
+            $this->line("Toplam randevu: {$toplam}");
+
+            // Orphan user_id: users tablosunda yok
+            $orphan = \App\Randevular::where('salon_id', $salonId)
+                ->leftJoin('users', 'randevular.user_id', '=', 'users.id')
+                ->whereNull('users.id')
+                ->select('randevular.id', 'randevular.user_id', 'randevular.tarih', 'randevular.saat')
+                ->limit(20)->get();
+            $orphanCount = \App\Randevular::where('salon_id', $salonId)
+                ->leftJoin('users', 'randevular.user_id', '=', 'users.id')
+                ->whereNull('users.id')->count();
+            $this->line("\n[A] user_id users'ta YOK (orphan) - toplam: {$orphanCount} (ilk 20):");
+            foreach ($orphan as $r) {
+                $this->line("  randevu_id={$r->id} user_id={$r->user_id} tarih={$r->tarih} saat={$r->saat}");
+            }
+
+            // Portfoyde olmayan user
+            $portfoysuz = \App\Randevular::where('randevular.salon_id', $salonId)
+                ->join('users', 'randevular.user_id', '=', 'users.id')
+                ->leftJoin('musteri_portfoy', function ($j) use ($salonId) {
+                    $j->on('musteri_portfoy.user_id', '=', 'users.id')
+                      ->where('musteri_portfoy.salon_id', '=', $salonId);
+                })
+                ->whereNull('musteri_portfoy.id')
+                ->select('randevular.id', 'randevular.user_id', 'users.name', 'users.cep_telefon')
+                ->limit(20)->get();
+            $portfoysuzCount = \App\Randevular::where('randevular.salon_id', $salonId)
+                ->join('users', 'randevular.user_id', '=', 'users.id')
+                ->leftJoin('musteri_portfoy', function ($j) use ($salonId) {
+                    $j->on('musteri_portfoy.user_id', '=', 'users.id')
+                      ->where('musteri_portfoy.salon_id', '=', $salonId);
+                })
+                ->whereNull('musteri_portfoy.id')->count();
+            $this->line("\n[B] user var ama bu salonun portfoyunde YOK - toplam: {$portfoysuzCount} (ilk 20):");
+            foreach ($portfoysuz as $r) {
+                $this->line("  randevu_id={$r->id} user_id={$r->user_id} name={$r->name} tel={$r->cep_telefon}");
+            }
             return 0;
         }
 
