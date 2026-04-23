@@ -109,14 +109,21 @@
 }
 
 /* Pointer */
-.pointer-wrap { display: flex; justify-content: center; margin-bottom: -4px; position: relative; z-index: 10; }
+.pointer-wrap { display: flex; justify-content: center; margin-bottom: -16px; position: relative; z-index: 10; }
 .pointer {
-    width: 0; height: 0;
-    border-left: 13px solid transparent;
-    border-right: 13px solid transparent;
-    border-top: 30px solid #FFD700;
-    filter: drop-shadow(0 4px 10px rgba(255,215,0,.55));
+    display: block;
+    transform-origin: 50% 20%;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,.55));
 }
+@keyframes pinBounce {
+    0%  { transform: rotate(0deg); }
+    25% { transform: rotate(24deg); }
+    55% { transform: rotate(-7deg); }
+    75% { transform: rotate(10deg); }
+    90% { transform: rotate(-3deg); }
+   100% { transform: rotate(0deg); }
+}
+.pointer.tick { animation: pinBounce .28s cubic-bezier(.36,.07,.19,.97); }
 
 /* Outer glow ring */
 .wheel-glow {
@@ -501,7 +508,29 @@
             <p class="wp-label">Önizleme</p>
 
             <div class="pointer-wrap">
-                <div class="pointer"></div>
+                <svg id="pointer-pin" class="pointer" viewBox="0 0 32 54" width="32" height="54" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="pg" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%"   stop-color="#7f1d1d"/>
+                            <stop offset="40%"  stop-color="#ef4444"/>
+                            <stop offset="70%"  stop-color="#fca5a5"/>
+                            <stop offset="100%" stop-color="#7f1d1d"/>
+                        </linearGradient>
+                        <linearGradient id="pg2" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%"   stop-color="#92400e"/>
+                            <stop offset="50%"  stop-color="#fbbf24"/>
+                            <stop offset="100%" stop-color="#92400e"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- ok gövdesi -->
+                    <polygon points="16,54 2,10 30,10" fill="url(#pg)" stroke="#7f1d1d" stroke-width="1"/>
+                    <!-- baş kapağı -->
+                    <rect x="2" y="0" width="28" height="12" rx="5" fill="url(#pg)" stroke="#7f1d1d" stroke-width="1"/>
+                    <!-- parlak çizgi -->
+                    <polygon points="16,48 8,14 13,14" fill="rgba(255,255,255,0.18)"/>
+                    <!-- uç top -->
+                    <circle cx="16" cy="54" r="4" fill="url(#pg2)" stroke="#78350f" stroke-width="1"/>
+                </svg>
             </div>
 
             <div class="wheel-glow">
@@ -979,6 +1008,62 @@
         render();
     };
 
+    /* ── Web Audio — tık sesi ── */
+    let _audioCtx = null;
+    function getAudioCtx() {
+        if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return _audioCtx;
+    }
+    function playTick(vol) {
+        try {
+            const ctx = getAudioCtx();
+            if (ctx.state === 'suspended') ctx.resume();
+            const now = ctx.currentTime;
+            const len = Math.floor(ctx.sampleRate * 0.055);
+            const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+            const d   = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) {
+                const t = i / len;
+                d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 4) * (vol || 0.45);
+            }
+            const src  = ctx.createBufferSource();
+            src.buffer = buf;
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(1, now);
+            src.connect(gain);
+            gain.connect(ctx.destination);
+            src.start(now);
+        } catch(e) {}
+    }
+
+    /* ── Tick döngüsü — spin sırasında dilim geçişlerini seslendirir ── */
+    function startTickLoop() {
+        const pinEl    = document.getElementById('pointer-pin');
+        const n        = slices.length;
+        const sliceAng = 360 / n;
+        let lastTick   = -1;
+
+        function frame() {
+            if (!spinning) return;
+            // Mevcut döngü açısını computed style'dan oku
+            const mat   = new DOMMatrix(window.getComputedStyle(wheelEl).transform);
+            const angle = (Math.atan2(mat.b, mat.a) * 180 / Math.PI + 360) % 360;
+            const idx   = Math.floor(((360 - angle) % 360) / sliceAng) % n;
+
+            if (idx !== lastTick) {
+                lastTick = idx;
+                playTick(0.45);
+                if (pinEl) {
+                    pinEl.classList.remove('tick');
+                    void pinEl.offsetWidth;
+                    pinEl.classList.add('tick');
+                }
+            }
+            requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+    }
+
     /* ── Spin — her zaman selectedIdx'e döner ── */
     window.testSpin = function () {
         if (spinning || slices.length < 2) return;
@@ -986,8 +1071,10 @@
         spinBtn.disabled = true;
         spinBtn.textContent = '⏳ Çevriliyor...';
 
+        // AudioContext kullanıcı hareketi sonrası başlatılmalı
+        try { getAudioCtx().resume(); } catch(e) {}
+
         const ang    = 360 / slices.length;
-        // Kazanan dilim içinde küçük rastgele sapma — görünüm doğal
         const jitter = (Math.random() - 0.5) * ang * 0.6;
         const stopAt = (selectedIdx + 0.5) * ang + jitter;
         const offset = ((360 - stopAt) % 360 + 360) % 360;
@@ -1000,6 +1087,8 @@
 
         wheelEl.style.transition = 'transform 5.5s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
         wheelEl.style.transform  = `rotate(${currentRot}deg)`;
+
+        startTickLoop();
 
         setTimeout(() => {
             spinning = false;
