@@ -621,7 +621,7 @@ $(document).ready(function(){
             $('#hy_duzenle_modal').modal('hide');
             swal({ type: result.status==='success'?'success':'error', title: result.status==='success'?'Başarılı':'Hata', text: result.message, showConfirmButton: false, timer: 1800 });
             if(result.status === 'success'){
-               setTimeout(function(){ location.reload(); }, 1200);
+               setTimeout(hyReloadHizmetlerTab, 1200);
             } else {
                $btn.prop('disabled', false);
             }
@@ -748,11 +748,15 @@ $(document).ready(function(){
    });
 
    // --- Yeni hizmet / sistemden ekle / personel seçim: submit'de çift tıklamayı engelle + sayfayı yenile ---
+   function hyReloadHizmetlerTab(){
+      var sube = new URLSearchParams(window.location.search).get('sube') || '';
+      window.location.href = window.location.pathname + '?p=hizmetler' + (sube ? '&sube=' + sube : '');
+   }
    $(document).on('submit', '#yeni_hizmet_formu, #hizmet_personel_formu', function(){
       var $btn = $(this).find('button[type=submit]');
       if($btn.prop('disabled')) return false;
       $btn.prop('disabled', true);
-      setTimeout(function(){ location.reload(); }, 1800);
+      setTimeout(hyReloadHizmetlerTab, 1800);
    });
 
    // --- Hizmet Secimi modal: gizli tablodan modern liste olustur ---
