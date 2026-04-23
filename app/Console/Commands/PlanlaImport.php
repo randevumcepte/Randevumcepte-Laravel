@@ -98,33 +98,27 @@ class PlanlaImport extends Command
         }
 
         if ($fixOlusturan) {
-            $this->info("Salon {$salonId} randevularinda bozuk olusturan_personel_id taranir + duzeltilir...");
-            $default = \App\Personeller::where('salon_id', $salonId)->where('aktif', 1)->orderBy('id')->value('id');
-            if (!$default) $default = \App\Personeller::where('salon_id', $salonId)->orderBy('id')->value('id');
-            if (!$default) { $this->error('Salonda personel yok'); return 1; }
-            $this->line("Default personel_id: {$default}");
-
-            // olusturan_personel_id gecerli personel degil
-            $bozuk = \App\Randevular::where('randevular.salon_id', $salonId)
-                ->whereNotNull('randevular.olusturan_personel_id')
-                ->where('randevular.olusturan_personel_id', '!=', 0)
-                ->leftJoin('personeller', 'personeller.id', '=', 'randevular.olusturan_personel_id')
-                ->whereNull('personeller.id')
-                ->pluck('randevular.id');
-            $this->line("Bozuk referansli randevu sayisi: " . $bozuk->count());
-
-            // Sifir veya null olanlar da default'a donsun (view 'salon=1 && !== null' kontrolu var)
-            $nullOrZero = \App\Randevular::where('salon_id', $salonId)
-                ->where(function ($q) {
-                    $q->whereNull('olusturan_personel_id')->orWhere('olusturan_personel_id', 0);
-                })->pluck('id');
-            $this->line("NULL/0 olanlar: " . $nullOrZero->count());
-
-            $hepsi = $bozuk->merge($nullOrZero)->unique();
-            $this->line("Toplam guncellenecek: " . $hepsi->count());
-            if ($hepsi->count() > 0) {
-                \App\Randevular::whereIn('id', $hepsi)->update(['olusturan_personel_id' => $default]);
-                $this->info("Guncellendi.");
+            $this->info("Salon {$salonId}: Planla randevularinda olusturan_personel_id'yi NULL, salon=0 yap...");
+            // Planla importinin izi: ya olusturan_personel_id=0 ya da gecersiz referans
+            // Guvenli kriter: salon=1 ve olusturan_personel_id salon personellerinden degil
+            $salonPersIds = \App\Personeller::where('salon_id', $salonId)->pluck('id');
+            $etkilenen = \App\Randevular::where('salon_id', $salonId)
+                ->where(function ($q) use ($salonPersIds) {
+                    $q->where('olusturan_personel_id', 0)
+                      ->orWhereNull('olusturan_personel_id')
+                      ->orWhereNotIn('olusturan_personel_id', $salonPersIds);
+                })
+                ->count();
+            $this->line("Etkilenen randevu: {$etkilenen}");
+            if ($etkilenen > 0) {
+                \App\Randevular::where('salon_id', $salonId)
+                    ->where(function ($q) use ($salonPersIds) {
+                        $q->where('olusturan_personel_id', 0)
+                          ->orWhereNull('olusturan_personel_id')
+                          ->orWhereNotIn('olusturan_personel_id', $salonPersIds);
+                    })
+                    ->update(['olusturan_personel_id' => null, 'salon' => 0]);
+                $this->info('Guncellendi: olusturan_personel_id=NULL, salon=0');
             }
             return 0;
         }
