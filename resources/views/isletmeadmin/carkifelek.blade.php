@@ -429,7 +429,7 @@
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,.55);
     backdrop-filter: blur(6px);
-    z-index: 9999;
+    z-index: 10000;
     align-items: center; justify-content: center;
 }
 .modal-ov.show { display: flex; }
@@ -437,6 +437,7 @@
     background: white;
     border-radius: 24px;
     padding: 40px 32px;
+    position: relative; z-index: 10002;
     text-align: center;
     max-width: 360px; width: 90%;
     box-shadow: 0 32px 80px rgba(0,0,0,.25);
@@ -1108,7 +1109,7 @@
         if (!celebCanvas) {
             celebCanvas = document.createElement('canvas');
             celebCanvas.style.cssText =
-                'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9998;pointer-events:none';
+                'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:10001;pointer-events:none';
             document.body.appendChild(celebCanvas);
             celebCtx2d = celebCanvas.getContext('2d');
         }
