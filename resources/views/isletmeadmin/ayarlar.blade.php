@@ -100,16 +100,6 @@
                            
                            >Müşteri İndirimleri</a>
                      </li>
-                       <li class="nav-item">
-                        <a
-                           class="nav-link {{($_GET['p']=='form_taslaklari') ? 'active' : ''}}"
-                           data-toggle="tab"
-                           href="#form_taslaklari"
-                           role="tab"
-                           aria-selected="{{($_GET['p']=='form_taslaklari') ? 'true':'false'}}"
-                          
-                           >Form Taslakları</a>
-                     </li>
                   </ul>
                </div>
                <div class="col-md-12 col-sm-12" style="margin-top:32px">
@@ -1162,8 +1152,8 @@
                   </form>
                </div>
             </div>
-                <div
-               class="tab-pane fade {{($_GET['p']=='form_taslaklari') ? 'active show' : ''}}"
+                <div style="display:none;"
+               class="tab-pane fade"
                id="form_taslaklari"
                role="tabpanel"
                >
