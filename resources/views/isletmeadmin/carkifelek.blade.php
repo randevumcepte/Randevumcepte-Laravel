@@ -1079,13 +1079,13 @@
         const stopAt = (selectedIdx + 0.5) * ang + jitter;
         const offset = ((360 - stopAt) % 360 + 360) % 360;
 
-        const nSpins = (6 + Math.floor(Math.random() * 4)) * 360;
+        const nSpins = (12 + Math.floor(Math.random() * 5)) * 360;
         const curMod = ((currentRot % 360) + 360) % 360;
         let   diff   = offset - curMod;
         if (diff < 0) diff += 360;
         currentRot  += nSpins + diff;
 
-        wheelEl.style.transition = 'transform 5.5s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+        wheelEl.style.transition = 'transform 9s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
         wheelEl.style.transform  = `rotate(${currentRot}deg)`;
 
         startTickLoop();
@@ -1095,7 +1095,7 @@
             spinBtn.disabled = false;
             spinBtn.textContent = '🎲 Test Et';
             showResultModal(selectedIdx);
-        }, 5700);
+        }, 9200);
     };
 
     /* ── Modal ── */
