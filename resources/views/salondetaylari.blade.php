@@ -160,18 +160,7 @@
                                     {{$hizmetfiyatlistesi->hizmetler->hizmet_adi}}
                                  </td>
                                  <td>
-                                    @if($hizmetfiyatlistesi->baslangic_fiyat==null&& $hizmetfiyatlistesi->son_fiyat == null)
                                     <p class="btn btn-primary small btn-rounded" style="width:100%; background-color:#5C008E; opacity: 1; text-align: center">Bilgi Alınız</p>
-                                    @else
-                                    @if($hizmetfiyatlistesi->baslangic_fiyat == $hizmetfiyatlistesi->son_fiyat)
-                                    <p class="btn btn-primary small btn-rounded" style="width:100%; background-color:#5C008E; opacity: 1; text-align: center">
-                                       {{$hizmetfiyatlistesi->baslangic_fiyat}} <span class="simge-tl">&#8378;</span> 
-                                    </p>
-                                    @else
-                                    <p class="btn btn-primary small btn-rounded" style="width:100%; background-color:#5C008E; opacity: 1; text-align: center">   {{$hizmetfiyatlistesi->baslangic_fiyat}} ~ {{$hizmetfiyatlistesi->son_fiyat}} <span class="simge-tl">&#8378;</span>  
-                                    </p>
-                                    @endif
-                                    @endif
                                  </td>
                               </tr>
                               @endif
