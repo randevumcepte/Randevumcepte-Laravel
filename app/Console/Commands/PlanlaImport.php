@@ -17,6 +17,7 @@ class PlanlaImport extends Command
         {--analyze : Login olmadan Site.js bundle\'ini indirip icinden endpoint ve payload cikarir}
         {--dupes : Planla musterilerinde telefon mukerrer/adsiz/telefonsuz sayilarini raporla}
         {--diagnose : Salon randevularinda portfoye bagli olmayan kullanici atamalarini listele}
+        {--fix-olusturan : Gecerli personele bagli olmayan olusturan_personel_id degerlerini salonun default personeline ayarla}
         {--only= : Sadece bu tip(ler)i al (virgulle: musteri,hizmet,randevu)}';
 
     protected $description = 'Planla.co hesabindan musteri/hizmet/randevu verisini cekip randevumcepte DB sine aktarir.';
@@ -30,19 +31,20 @@ class PlanlaImport extends Command
         $probeApi = (bool) $this->option('probe-api');
         $dupes    = (bool) $this->option('dupes');
         $diagnose = (bool) $this->option('diagnose');
+        $fixOlusturan = (bool) $this->option('fix-olusturan');
         $analyze  = (bool) $this->option('analyze');
         $only     = $this->option('only');
 
-        if (!$analyze && !$diagnose && (!$email || !$password)) {
-            $this->error('--email ve --password zorunlu (analyze/diagnose disinda).');
+        if (!$analyze && !$diagnose && !$fixOlusturan && (!$email || !$password)) {
+            $this->error('--email ve --password zorunlu.');
             return 1;
         }
-        if (!$probe && !$probeApi && !$dupes && !$diagnose && !$analyze && !$salonId) {
+        if (!$probe && !$probeApi && !$dupes && !$diagnose && !$fixOlusturan && !$analyze && !$salonId) {
             $this->error('Import icin --salon zorunlu.');
             return 1;
         }
-        if ($diagnose && !$salonId) {
-            $this->error('--diagnose icin --salon zorunlu.');
+        if (($diagnose || $fixOlusturan) && !$salonId) {
+            $this->error('--diagnose / --fix-olusturan icin --salon zorunlu.');
             return 1;
         }
 
@@ -92,6 +94,38 @@ class PlanlaImport extends Command
                 $this->line('  ' . str_replace("\n", ' ', $ctx));
             }
             $this->info('Tam analiz: ' . $client->dumpDir() . '/bundle_analysis.body');
+            return 0;
+        }
+
+        if ($fixOlusturan) {
+            $this->info("Salon {$salonId} randevularinda bozuk olusturan_personel_id taranir + duzeltilir...");
+            $default = \App\Personeller::where('salon_id', $salonId)->where('aktif', 1)->orderBy('id')->value('id');
+            if (!$default) $default = \App\Personeller::where('salon_id', $salonId)->orderBy('id')->value('id');
+            if (!$default) { $this->error('Salonda personel yok'); return 1; }
+            $this->line("Default personel_id: {$default}");
+
+            // olusturan_personel_id gecerli personel degil
+            $bozuk = \App\Randevular::where('randevular.salon_id', $salonId)
+                ->whereNotNull('randevular.olusturan_personel_id')
+                ->where('randevular.olusturan_personel_id', '!=', 0)
+                ->leftJoin('personeller', 'personeller.id', '=', 'randevular.olusturan_personel_id')
+                ->whereNull('personeller.id')
+                ->pluck('randevular.id');
+            $this->line("Bozuk referansli randevu sayisi: " . $bozuk->count());
+
+            // Sifir veya null olanlar da default'a donsun (view 'salon=1 && !== null' kontrolu var)
+            $nullOrZero = \App\Randevular::where('salon_id', $salonId)
+                ->where(function ($q) {
+                    $q->whereNull('olusturan_personel_id')->orWhere('olusturan_personel_id', 0);
+                })->pluck('id');
+            $this->line("NULL/0 olanlar: " . $nullOrZero->count());
+
+            $hepsi = $bozuk->merge($nullOrZero)->unique();
+            $this->line("Toplam guncellenecek: " . $hepsi->count());
+            if ($hepsi->count() > 0) {
+                \App\Randevular::whereIn('id', $hepsi)->update(['olusturan_personel_id' => $default]);
+                $this->info("Guncellendi.");
+            }
             return 0;
         }
 

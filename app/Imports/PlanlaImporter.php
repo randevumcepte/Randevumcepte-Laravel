@@ -318,6 +318,17 @@ class PlanlaImporter
         if (empty($this->hizmetMap))  $this->buildHizmetMap();
         if (empty($this->personelMap)) $this->buildPersonelMap();
 
+        // Planla'da olup bizim Personeller'da bulunmayan employee varsa randevuya yine
+        // bir olusturan personel atamak zorunda; takvim view'i (StoreAdminController line 1768)
+        // salon==1 + olusturan_personel_id set ise ->name erisiyor ve NULL relation olursa patliyor.
+        // Salon'un ilk aktif personelini default yaratici olarak kullan.
+        $defaultPersonelId = Personeller::where('salon_id', $this->salonId)
+            ->where('aktif', 1)->orderBy('id')->value('id');
+        if (!$defaultPersonelId) {
+            $defaultPersonelId = Personeller::where('salon_id', $this->salonId)->orderBy('id')->value('id');
+        }
+        $this->log('Default olusturan_personel_id (fallback): ' . ($defaultPersonelId ?: 'yok'));
+
         $items = $this->fetchCategory('appointments');
 
         $i = 0;
@@ -343,6 +354,8 @@ class PlanlaImporter
             if ($planlaEmpId && isset($this->personelMap[$planlaEmpId])) {
                 $personelId = $this->personelMap[$planlaEmpId];
             }
+            // Eslesme yoksa salon default personeline dus (takvim view'i NULL relation'da patliyor)
+            if (!$personelId) $personelId = $defaultPersonelId;
 
             $r = Randevular::where('tarih', $tarih)->where('saat', $saat)
                 ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
@@ -353,7 +366,7 @@ class PlanlaImporter
             $r->salon_id = $this->salonId;
             $r->durum = 1;
             $r->salon = 1;
-            if ($personelId) $r->olusturan_personel_id = $personelId;
+            $r->olusturan_personel_id = $personelId;
             $statusStr = strtolower(implode(',', $status));
             if (strpos($statusStr, 'complet') !== false || strpos($statusStr, 'done') !== false) {
                 $r->randevuya_geldi = 1;
