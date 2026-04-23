@@ -15,6 +15,7 @@ class PlanlaImport extends Command
         {--probe : Sadece login + endpoint kesif; veri yazmaz}
         {--probe-api : Login + POST /connect-api action varyantlarini tara}
         {--analyze : Login olmadan Site.js bundle\'ini indirip icinden endpoint ve payload cikarir}
+        {--dupes : Planla musterilerinde telefon mukerrer/adsiz/telefonsuz sayilarini raporla}
         {--only= : Sadece bu tip(ler)i al (virgulle: musteri,hizmet,randevu)}';
 
     protected $description = 'Planla.co hesabindan musteri/hizmet/randevu verisini cekip randevumcepte DB sine aktarir.';
@@ -26,6 +27,7 @@ class PlanlaImport extends Command
         $salonId  = $this->option('salon');
         $probe    = (bool) $this->option('probe');
         $probeApi = (bool) $this->option('probe-api');
+        $dupes    = (bool) $this->option('dupes');
         $analyze  = (bool) $this->option('analyze');
         $only     = $this->option('only');
 
@@ -33,8 +35,8 @@ class PlanlaImport extends Command
             $this->error('--email ve --password zorunlu (analyze disinda).');
             return 1;
         }
-        if (!$probe && !$probeApi && !$analyze && !$salonId) {
-            $this->error('Import icin --salon zorunlu. Kesif icin --probe / --probe-api / --analyze kullanin.');
+        if (!$probe && !$probeApi && !$dupes && !$analyze && !$salonId) {
+            $this->error('Import icin --salon zorunlu. Kesif icin --probe / --probe-api / --dupes / --analyze kullanin.');
             return 1;
         }
 
@@ -112,7 +114,35 @@ class PlanlaImport extends Command
             foreach ($results as $a => $r) {
                 $this->line(str_pad($a, 30) . ' -> ' . $r);
             }
-            $this->info('connect-api probe tamam. "OK" isaretli action\'lar gercek endpoint. Dump dizinindeki connect_*.body dosyalarindan JSON yapisini inceleyebilirsiniz.');
+            $this->info('connect-api probe tamam.');
+            return 0;
+        }
+
+        if ($dupes) {
+            $this->info('Musteriler cekiliyor (category=customers)...');
+            $resp = $client->connectApi('customers');
+            $data = isset($resp['data']) && is_array($resp['data']) ? $resp['data'] : [];
+            $this->line('Toplam Planla musteri: ' . count($data));
+            $telMap = []; $telsiz = 0; $adsiz = 0; $idsiz = 0;
+            foreach ($data as $r) {
+                if (empty($r['_id'])) { $idsiz++; continue; }
+                $tel = preg_replace('/[^0-9]/', '', isset($r['phone']) ? (string) $r['phone'] : '');
+                $tel = preg_replace('/^90/', '', $tel);
+                $tel = preg_replace('/^0/', '', $tel);
+                $ad = isset($r['fullName']) ? trim($r['fullName']) : '';
+                if (!$tel) $telsiz++;
+                if (!$ad) $adsiz++;
+                if ($tel) $telMap[$tel] = (isset($telMap[$tel]) ? $telMap[$tel] : 0) + 1;
+            }
+            $this->line('_id bos: ' . $idsiz);
+            $this->line('Telefonsuz: ' . $telsiz);
+            $this->line('Adsiz: ' . $adsiz);
+            $dupTel = array_filter($telMap, function ($c) { return $c > 1; });
+            $this->line('Unique telefon sayisi: ' . count($telMap));
+            $this->line('Mukerrer telefonlu kaynak kayit adedi: ' . count($dupTel));
+            $this->line('Mukerrer nedeniyle uretilen fazlalik: ' . (array_sum($dupTel) - count($dupTel)));
+            $ilk5 = array_slice($dupTel, 0, 10, true);
+            foreach ($ilk5 as $t => $c) $this->line("  tel={$t} -> {$c} kayit");
             return 0;
         }
 
