@@ -1,6 +1,0 @@
-{
-  "permissionMode": "bypassPermissions",
-  "claude-code.environment": {
-    "CLAUDE_CODE_FORK_SUBAGENT": "1"
-  }
-}

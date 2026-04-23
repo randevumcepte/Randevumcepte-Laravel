@@ -42,3 +42,5 @@ yarn-error.log
 
 # Sail
 /docker-compose.override.yml
+# Claude Code local settings
+.claude/
