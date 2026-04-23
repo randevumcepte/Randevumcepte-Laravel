@@ -15,7 +15,7 @@
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <div id="modal-view-event-add" class="modal modal-top fade calendar-modal randevu-modal-compact" data-backdrop="static" data-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 1000px; margin-left: auto; margin-right: auto;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 1200px;">
         <div class="modal-content">
             <div class="modal-header">
                 <h4 class="h4" style="color:white; display:flex; align-items:center; gap:8px;">
@@ -1199,6 +1199,25 @@ input:checked + .slider:before {
 }
 
 /* ==================== KOMPAKT MODAL TASARIMI ==================== */
+/* Bulletproof yatay ortalama: flex tabanli, Bootstrap'in scrollbar-telafi
+   padding'i sola kaydirmayi engelle */
+.randevu-modal-compact.modal {
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+}
+.randevu-modal-compact.modal.show {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+.randevu-modal-compact .modal-dialog {
+    margin: 0 auto !important;
+    width: 100%;
+}
+body.modal-open {
+    padding-right: 0 !important;
+}
+
 .randevu-modal-compact .modal-content {
     border-radius: 10px;
     overflow: hidden;
