@@ -809,13 +809,6 @@
             }
         });
 
-        /* Center mask */
-        const cc = svgEl('circle');
-        cc.setAttribute('cx', CX); cc.setAttribute('cy', CY); cc.setAttribute('r', 33);
-        cc.setAttribute('fill', 'white');
-        cc.setAttribute('stroke', 'rgba(255,255,255,.8)');
-        cc.setAttribute('stroke-width', '3');
-        wheelEl.appendChild(cc);
     }
 
     function renderList() {
