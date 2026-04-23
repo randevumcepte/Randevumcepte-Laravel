@@ -583,6 +583,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/musteriformugonder','StoreAdminController@musteriformugonder')->name('isletmeadmin.musteriformugonder');
 	Route::get('/formindir','StoreAdminController@formindir');
 	Route::get('/formyazdir','StoreAdminController@formyazdir');
+	Route::get('/formgoster','StoreAdminController@formgoster');
 	Route::post('/arsivonaylaform','StoreAdminController@arsivonaylaform');
 	Route::post('/arsiviptalform','StoreAdminController@arsiviptalform');
 	Route::post('/haricibelgeekleme','StoreAdminController@haricibelgeekleme');
