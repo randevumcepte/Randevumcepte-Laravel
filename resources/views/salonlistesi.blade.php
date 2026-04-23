@@ -48,11 +48,10 @@
                                         <h4 class="location">
                                             <a href="/{{ str_replace(' ','-',str_replace(['Ç','Ğ','İ','Ö','Ş','Ü','ç','ğ','ı','ö','ş','ü'],['C','G','I','O','S','U','c','g','i','o','s','u'],mb_strtolower($salon->salon_turu->salon_turu_adi))) }}/{{ str_replace(' ','-',str_replace(['Ç','Ğ','İ','Ö','Ş','Ü','ç','ğ','ı','ö','ş','ü'],['C','G','I','O','S','U','c','g','i','o','s','u'],mb_strtolower($salon->il->il_adi))) }}">{{$salon->il->il_adi}}&nbsp;>&nbsp;</a><a href="{{ str_replace(' ','-',str_replace(['Ç','Ğ','İ','Ö','Ş','Ü','ç','ğ','ı','ö','ş','ü'],['C','G','I','O','S','U','c','g','i','o','s','u'],mb_strtolower($salon->salon_turu->salon_turu_adi))) }}/{{ str_replace(' ','-',str_replace(['Ç','Ğ','İ','Ö','Ş','Ü','ç','ğ','ı','ö','ş','ü'],['C','G','I','O','S','U','c','g','i','o','s','u'],mb_strtolower($salon->il->il_adi))) }}/{{ str_replace(' ','-',str_replace(['Ç','Ğ','İ','Ö','Ş','Ü','ç','ğ','ı','ö','ş','ü'],['C','G','I','O','S','U','c','g','i','o','s','u'],mb_strtolower($salon->ilce->ilce_adi))) }}">{{$salon->ilce->ilce_adi}} {{$salon->salon_turu->salon_turu_adi}}</a>
                                         </h4>
-                                        <div class="price">{{\App\SalonHizmetler::where('salon_id' ,'=', $salon->id)->min('baslangic_fiyat')}} <span class="simge-tl">&#8378;</span><span style="font-size: 10px">'den itibaren <span></div>
+                                        <div class="price">Bilgi Alınız</div>
                                         <div class="meta">
                                             <figure>
-                                                <span style="color:#FF4E00;font-size: 50px;padding:0">{{\App\SalonHizmetler::where('salon_id' ,'=', $salon->id)->min('baslangic_fiyat')}} <span class="simge-tl" style="font-size:30px;margin-left: -10px">&#8378;</span> 
-                                                <span style="font-size:10px;margin-left: -10px">den itibaren</span></span>
+                                                <span style="color:#FF4E00;font-size: 28px;padding:0">Bilgi Alınız</span>
                                             </figure>
                                            
                                             
