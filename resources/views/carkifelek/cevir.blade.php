@@ -208,15 +208,7 @@
 
 <script>
 (function() {
-    const DILIMLER = @json($dilimler->map(function($d){
-        return [
-            'id'     => $d->id,
-            'ismi'   => $d->dilim_ismi,
-            'renk'   => $d->renk_kodu,
-            'tip'    => $d->tip ?? 'bos',
-            'deger'  => $d->deger !== null ? (float) $d->deger : null,
-        ];
-    }));
+    const DILIMLER = {!! json_encode($dilimlerJson) !!};
     const SALON_ID = {{ $salon->id }};
     const CSRF     = '{{ csrf_token() }}';
     const CEVIR_URL= '{{ route("cark.cevir") }}';

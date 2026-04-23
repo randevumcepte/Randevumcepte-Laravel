@@ -66,10 +66,21 @@ class CarkifelekMusteriController extends Controller
 
         $kullanilabilir = $this->kalanHak($salonId, Auth::id());
 
+        $dilimlerJson = $dilimler->map(function ($d) {
+            return [
+                'id'    => $d->id,
+                'ismi'  => $d->dilim_ismi,
+                'renk'  => $d->renk_kodu,
+                'tip'   => isset($d->tip) ? $d->tip : 'bos',
+                'deger' => $d->deger !== null ? (float) $d->deger : null,
+            ];
+        })->values()->toArray();
+
         return view('carkifelek.cevir', [
             'salon'           => $salon,
             'cark'            => $cark,
             'dilimler'        => $dilimler,
+            'dilimlerJson'    => $dilimlerJson,
             'kalanHak'        => count($kullanilabilir),
             'randevuIdleri'   => $kullanilabilir,
         ]);
