@@ -33,8 +33,8 @@ class PlanlaImport extends Command
         $analyze  = (bool) $this->option('analyze');
         $only     = $this->option('only');
 
-        if (!$analyze && (!$email || !$password)) {
-            $this->error('--email ve --password zorunlu (analyze disinda).');
+        if (!$analyze && !$diagnose && (!$email || !$password)) {
+            $this->error('--email ve --password zorunlu (analyze/diagnose disinda).');
             return 1;
         }
         if (!$probe && !$probeApi && !$dupes && !$diagnose && !$analyze && !$salonId) {
