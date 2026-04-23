@@ -23,7 +23,7 @@
       <div class="col-md-6 col-sm-12 text-right">
      
         
-            <a href="#" data-toggle="modal" type="button" data-target="#formugondermodal"  class="btn btn-success btn-lg yenieklebuton501"><i class="fa fa-paper-plane"></i> Yeni Form Gönder</a>
+            <a href="#" data-toggle="modal" type="button" data-target="#formugondermodal"  class="btn btn-success btn-lg yenieklebuton501"><i class="fa fa-paper-plane"></i> Form Gönder</a>
               <a href="#" data-toggle="modal" type="button" data-target="#haricibelgeeklemodal" class="btn btn-primary btn-lg yenieklebuton502"><i class="fa fa-plus"></i> Belge Ekle</a>
 
           
