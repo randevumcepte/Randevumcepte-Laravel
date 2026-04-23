@@ -71,54 +71,6 @@ Route::get('/save-excel', function () {
         file_put_contents($flag, date('Y-m-d H:i:s'));
         return 'Deploy tetiklendi. Yaklaşık 1 dakika içinde sunucu güncellenecek.';
     });
-    Route::get('/init-sample-forms-rm2026', function() {
-        $salonId = 20;
-        $sorular = [
-            ['tip'=>'bolum_basligi','soru'=>'LAZER EPİLASYON NEDİR VE NE AMAÇLA KULLANILIR?','zorunlu'=>false],
-            ['tip'=>'metin_blogu','soru'=>'Bu form, lazerle epilasyon uygulaması ve bunun olası risk ve komplikasyonları (istenmeyen sonuçları) hakkında bilgilendirmeye yöneliktir. Lütfen formu dikkatlice okuyunuz. Sorularınız ya da anlamadığınız noktalar varsa lütfen doktorunuzdan yardım isteyiniz. Lazerle epilasyon, istenmeyen kılların yok edilmesi tedavisidir. Lazer ışığının hedefi kıl folikülü çevresinde bulunan renk hücreleridir. Bu nedenle epilasyonun başarısı kılın rengi ile doğru orantılıdır. Beyaz kıllara lazer epilasyon hiç etkili olmayıp, tüylerde de başarı şansı oldukça düşüktür. Lazer ile istenmeyen kıllara işlem yapılır. Uygulama sırasında hem hastanın hem de doktorun gözleri lazer ışınlarından korunmalıdır. Genellikle lokal anestezi gerektirmeyen bir işlemdir.','zorunlu'=>false],
-            ['tip'=>'bolum_basligi','soru'=>'LAZER EPİLASYON UYGULAMASI ÖNCESİNDE DİKKAT EDİLECEK HUSUSLAR NELERDİR?','zorunlu'=>false],
-            ['tip'=>'alt_baslik','soru'=>'Lütfen aşağıdaki soruları eksiksiz olarak yanıtlayınız.','zorunlu'=>false],
-            ['tip'=>'evet_hayir','soru'=>'Uygulama alanında veya vücudunuzda enfeksiyonunuz var mı?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Şeker gibi kronik bir hastalığınız var mı?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Alerji, bağışıklık sistemi veya romatizmal bir hastalığınız var mı?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Bir operasyon geçirdiniz mi?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Aktif deri hastalığınız var mı veya uçuk ataklarınız olur mu?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Kanamaya yatkınlığınız var mı?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Hepatit(HBsAg, HCV) veya AIDS(HIV) pozitifliğiniz var mı?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Gebelik riski, gebelik ya da emzirme durumunuz var mı?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Son 1 hafta içinde herhangi bir ilaç kullandınız mı?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Son 3 gün içinde kan sulandırıcı ilaç (aspirin vb.) kullandınız mı?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Son 1 ay içinde herhangi bir dermatolojik, estetik işlem yapıldı mı?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Son birkaç hafta içinde güneş veya solaryum ile bronzlaştınız mı?','zorunlu'=>true],
-            ['tip'=>'evet_hayir','soru'=>'Daha önce bu işlemden yaptırdı iseniz bir olumsuzluk oldu mu?','zorunlu'=>true],
-            ['tip'=>'not_kutusu','soru'=>'SORULARA EVET YANITI VERDİĞİNİZDE VEYA SORULAR DIŞINDA AÇIKLAMAK İSTEDİĞİNİZ DURUMLARI AŞAĞIYA YAZINIZ.','zorunlu'=>false],
-            ['tip'=>'uzun_metin','soru'=>'Açıklama / Ek Bilgi','zorunlu'=>false],
-            ['tip'=>'bolum_basligi','soru'=>'UYGULAMA SONRASINDA OLUŞABİLECEK YAN ETKİLER NELERDİR?','zorunlu'=>false],
-            ['tip'=>'metin_blogu','soru'=>'Tüm tıbbi işlemlerde veya kozmetik uygulamalarda olduğu gibi bu işlemde de bazı riskler vardır.','zorunlu'=>false],
-            ['tip'=>'madde_listesi','soru'=>"Kızarıklık (eritem).\nYan etki sadece geçici olabilen kızarıklıktır. Nadiren geçici ödem (şişlik) de görülebilir.\nUygulama alanında lokal ödem.\nKıl foliküllerinin kabarması.\nYanık.\nUygulama bölgesinde renk koyulaşması veya açılması.\nÜst dudak uygulamalarında eğer varsa varolan uçukta yayılma.\nYüz bölgesinde nadirende olsa ince tüylerin yayılması.\nBeklenmeyen bir etki gelişirse lütfen kliniğimize başvurunuz.",'zorunlu'=>false],
-        ];
-        $aciklama = 'Bu formdaki açıklamaların amacı sizi endişelendirmek için değil, uygulanacak işlemin öncesi-sırası-sonrası ve olası riskleri hakkında bilimsel çerçevede aydınlatmaktır. Lütfen dikkatlice okuyunuz. Soru veya anlamadığınız noktalar varsa, yardım isteyiniz.';
-        try {
-            $cols = array_column(DB::select("SHOW COLUMNS FROM formtaslaklari"), 'Field');
-            if (!in_array('is_dinamik', $cols)) {
-                DB::statement("ALTER TABLE formtaslaklari ADD COLUMN aciklama TEXT NULL");
-                DB::statement("ALTER TABLE formtaslaklari ADD COLUMN sorular_json TEXT NULL");
-                DB::statement("ALTER TABLE formtaslaklari ADD COLUMN is_dinamik TINYINT(1) NOT NULL DEFAULT 0");
-            }
-            DB::table('formtaslaklari')->insert([
-                'salon_id'    => $salonId,
-                'form_adi'    => 'LAZER EPİLASYON HAKKINDA BİLGİLENDİRME VE ONAM FORMU',
-                'aciklama'    => $aciklama,
-                'sorular_json'=> json_encode($sorular, JSON_UNESCAPED_UNICODE),
-                'is_dinamik'  => 1,
-                'created_at'  => now(),
-                'updated_at'  => now(),
-            ]);
-            return 'Lazer Epilasyon formu oluşturuldu.';
-        } catch(\Exception $e) {
-            return 'Hata: '.$e->getMessage();
-        }
-    });
     Route::get('/bulkmailgonder','MailController@test');
     Route::get('/smsgonder','SMSController@sendSMS');
     Route::get('/isletmeyonetim/seopaketleri','HomeController@seobasvuru');
