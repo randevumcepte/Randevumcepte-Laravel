@@ -156,23 +156,6 @@
     transition: transform 5.5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
 }
 
-.wheel-center {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 66px; height: 66px;
-    border-radius: 50%;
-    background: white;
-    box-shadow: 0 4px 20px rgba(0,0,0,.35), 0 0 0 4px rgba(255,255,255,.25);
-    display: flex; align-items: center; justify-content: center;
-    overflow: hidden;
-    cursor: pointer;
-    z-index: 5;
-    transition: transform .2s;
-}
-.wheel-center:hover { transform: translate(-50%, -50%) scale(1.05); }
-.wheel-center img { max-width: 54px; max-height: 54px; object-fit: contain; }
-
 /* Spin button */
 .spin-btn {
     margin-top: 22px;
@@ -218,27 +201,6 @@
 }
 .toggle input:checked + .tslider { background: var(--green); }
 .toggle input:checked + .tslider::before { transform: translateX(24px); }
-
-/* Logo upload row */
-.logo-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 18px;
-    background: rgba(255,255,255,.06);
-    border-radius: 12px;
-    margin-top: 10px;
-}
-.logo-row-label { color: rgba(255,255,255,.65); font-size: 13px; }
-.logo-btn {
-    padding: 7px 18px;
-    background: rgba(255,255,255,.14);
-    color: white;
-    border: 1px solid rgba(255,255,255,.2);
-    border-radius: 8px;
-    font-size: 13px; font-weight: 500;
-    cursor: pointer;
-    transition: .2s;
-}
-.logo-btn:hover { background: rgba(255,255,255,.24); }
 
 /* ── Management Panel ────────────────────────── */
 .mgmt-panel {
@@ -537,11 +499,6 @@
             <div class="wheel-glow">
                 <div class="wheel-wrap">
                     <svg id="wheel" viewBox="0 0 300 300"></svg>
-                    <div class="wheel-center" onclick="document.getElementById('ck-logo-input').click()" title="Logo değiştir">
-                        <img id="wheel-logo"
-                             src="{{ $isletme->logo !== null ? '/'.$isletme->logo : '/public/isletmeyonetim_assets/img/avatar.png' }}"
-                             alt="Logo">
-                    </div>
                 </div>
             </div>
 
@@ -557,11 +514,6 @@
                 </label>
             </div>
 
-            <div class="logo-row">
-                <span class="logo-row-label">📷 Logo Değiştir</span>
-                <input type="file" id="ck-logo-input" accept="image/*" style="display:none">
-                <button class="logo-btn" onclick="document.getElementById('ck-logo-input').click()">Seç</button>
-            </div>
         </div>
 
         {{-- Management Panel --}}
@@ -656,21 +608,12 @@
     const statusPill  = document.getElementById('status-pill');
     const statusText  = document.getElementById('status-text');
     const toast       = document.getElementById('toast');
-    const wheelLogo   = document.getElementById('wheel-logo');
-    const logoInput   = document.getElementById('ck-logo-input');
     const resultModal = document.getElementById('result-modal');
     const resultText  = document.getElementById('modal-result-text');
 
     /* ── Init ── */
     document.addEventListener('DOMContentLoaded', () => {
         loadData();
-        logoInput.addEventListener('change', function () {
-            if (this.files && this.files[0]) {
-                const fr = new FileReader();
-                fr.onload = e => { wheelLogo.src = e.target.result; };
-                fr.readAsDataURL(this.files[0]);
-            }
-        });
         resultModal.addEventListener('click', e => {
             if (e.target === resultModal) closeModal();
         });

@@ -621,7 +621,27 @@ $(document).ready(function(){
             $('#hy_duzenle_modal').modal('hide');
             swal({ type: result.status==='success'?'success':'error', title: result.status==='success'?'Başarılı':'Hata', text: result.message, showConfirmButton: false, timer: 1800 });
             if(result.status === 'success'){
-               setTimeout(hyReloadHizmetlerTab, 1200);
+               var shId   = $('#hy_edit_salon_hizmet_id').val();
+               var newFiyat  = parseFloat($('#hy_edit_fiyat').val()) || 0;
+               var newSure   = parseInt($('#hy_edit_sure_dk').val()) || 0;
+               var newAd     = $('#hy_edit_hizmet_adi').val();
+               var newCinsiyet = $('#hy_edit_cinsiyet').val();
+               var fiyatStr  = newFiyat.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₺';
+               var cinsiyetMap = {'0':'<span class="hy-cinsiyet-badge hy-cinsiyet-0">Kadın</span>','1':'<span class="hy-cinsiyet-badge hy-cinsiyet-1">Erkek</span>','2':'<span class="hy-cinsiyet-badge hy-cinsiyet-2">Unisex</span>'};
+               var cinsiyetHtml = cinsiyetMap[newCinsiyet] || '';
+               var $row = $('.hy-hizmet-row[data-salon-hizmet-id="'+shId+'"]');
+               $row.attr({'data-fiyat':newFiyat,'data-sure':newSure,'data-hizmet-adi':newAd,'data-cinsiyet':newCinsiyet});
+               $row.find('.hy-chip-price').text(fiyatStr);
+               $row.find('.hy-chip-time').html('<i class="fa fa-clock-o"></i> '+newSure+' dk');
+               var $adiDiv = $row.find('.hy-hizmet-adi');
+               $adiDiv.find('span').first().text(newAd);
+               $adiDiv.find('.hy-cinsiyet-badge').remove();
+               if(cinsiyetHtml) $adiDiv.append(cinsiyetHtml);
+               var $card = $('.hy-mobile-card[data-salon-hizmet-id="'+shId+'"]');
+               $card.attr({'data-fiyat':newFiyat,'data-sure':newSure,'data-hizmet-adi':newAd,'data-cinsiyet':newCinsiyet});
+               $card.find('.hy-chip-price').text(fiyatStr);
+               $card.find('.hy-chip-time').html('<i class="fa fa-clock-o"></i> '+newSure+' dk');
+               $card.find('.hy-mobile-title h4').html(newAd + (cinsiyetHtml ? ' '+cinsiyetHtml : ''));
             } else {
                $btn.prop('disabled', false);
             }

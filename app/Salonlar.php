@@ -19,7 +19,17 @@ class Salonlar extends Model
     {
         return $this->belongsTo(Iller::class,'il_id');
     }
-     
+
+    public function ilce()
+    {
+        return $this->belongsTo(\App\Ilceler::class,'ilce_id');
+    }
+
+    public function salon_turu()
+    {
+        return $this->belongsTo(\App\SalonTuru::class,'salon_turu_id');
+    }
+
 
 
    

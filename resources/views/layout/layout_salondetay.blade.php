@@ -8,18 +8,25 @@
        <title>{{ucwords($aramaterimisayfa)}} | {{$salon->salon_adi}} </title>
        <meta name="description" content="{{$salon->meta_description}}">
        
+       <link rel="canonical" href="https://{{$_SERVER['HTTP_HOST']}}">
+       <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
        <meta property="og:locale" content="tr_TR">
-       <meta property="og:url" content="https://{{$_SERVER['HTTP_HOST']}}">
-       <meta property="og:type" content="article">
-       <meta property="og:title" content="{{$salon->salon_adi}}">
+       <meta property="og:site_name" content="{{$salon->salon_adi}}">
+       <meta property="og:url" content="https://{{$_SERVER['HTTP_HOST']}}{{request()->getPathInfo()}}">
+       <meta property="og:type" content="website">
+       <meta property="og:title" content="{{ucwords($aramaterimisayfa)}} | {{$salon->salon_adi}}">
        <meta property="og:description" content="{{$salon->meta_description}}">
-       @if($_SERVER['HTTP_HOST'].\App\SalonGorselleri::where('salon_id',$salon->id)->where('kapak_fotografi',1)->value('salon_gorseli') != '' || $_SERVER['HTTP_HOST'].\App\SalonGorselleri::where('salon_id',$salon->id)->where('kapak_fotografi',1)->value('salon_gorseli') != null )
-       <meta property="og:image" content="https://{{$_SERVER['HTTP_HOST']}}{{\App\SalonGorselleri::where('salon_id',$salon->id)->where('kapak_fotografi',1)->value('salon_gorseli')}}">
+       @php $kapakGorsel = \App\SalonGorselleri::where('salon_id',$salon->id)->where('kapak_fotografi',1)->value('salon_gorseli'); @endphp
+       @if($kapakGorsel)
+       <meta property="og:image" content="https://{{$_SERVER['HTTP_HOST']}}{{$kapakGorsel}}">
        @else
        <meta property="og:image" content="https://{{$_SERVER['HTTP_HOST']}}/public/img/randevumcepte.jpg">
        @endif
-       <meta property="og:image:width" content="1351">
-       <meta property="og:image:height" content="624">
+       <meta property="og:image:width" content="1200">
+       <meta property="og:image:height" content="630">
+       <meta name="twitter:card" content="summary_large_image">
+       <meta name="twitter:title" content="{{ucwords($aramaterimisayfa)}} | {{$salon->salon_adi}}">
+       <meta name="twitter:description" content="{{$salon->meta_description}}">
       
       <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700|Varela+Round" rel="stylesheet">
       <link rel="stylesheet" href="{{secure_asset('public/bootstrap/css/bootstrap.css')}}" type="text/css">
@@ -34,7 +41,6 @@
       <link rel="stylesheet" href="{{secure_asset('public/css/owl.carousel.min.css')}}" type="text/css">
       <script src="{{secure_asset('public/js/jquery.sticky-kit.min.js')}}"></script>
       <link rel="stylesheet" href="{{secure_asset('public/css/style_gallery.css')}}" type="text/css"/>
-      <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
       <script src="{{secure_asset('public/js/OneSignalSDKWorker.js')}}"></script>
       <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" defer></script>
       <script>
@@ -67,6 +73,23 @@
              z-index: 10;
          }
       </style>
+   <script type="application/ld+json">
+   {
+     "@context": "https://schema.org",
+     "@type": "LocalBusiness",
+     "name": "{{ $salon->salon_adi }}",
+     "description": "{{ $salon->meta_description }}",
+     "url": "https://{{ $_SERVER['HTTP_HOST'] }}",
+     "telephone": "{{ $salon->telefon_1 ?? '' }}",
+     "address": {
+       "@type": "PostalAddress",
+       "streetAddress": "{{ $salon->adres ?? '' }}",
+       "addressCountry": "TR"
+     }@if($kapakGorsel ?? false),
+     "image": "https://{{ $_SERVER['HTTP_HOST'] }}{{ $kapakGorsel }}"@endif
+     @if($salon->facebook_sayfa ?? false),"sameAs": ["{{ $salon->facebook_sayfa }}"@if($salon->instagram_sayfa ?? false),"{{ $salon->instagram_sayfa }}"@endif]@endif
+   }
+   </script>
    </head>
    <body>
       <div id="preloader">
@@ -217,8 +240,8 @@
            
             <div class="page-title">
                <div class="container" style="text-align: center">
-                  <h1 style="font-size:20px;display:none">{{$aramaterimisayfa}}</h1>
-                  <p style="font-size:30px; opacity: 1">{{$salon->salon_adi}} Randevu Sistemi</p>
+                  <h1 style="font-size:22px;color:white;margin-bottom:4px">{{ucwords($aramaterimisayfa)}}</h1>
+                  <p style="font-size:26px; opacity: 1">{{$salon->salon_adi}} Randevu Sistemi</p>
                    
                   
                   <!--end container--> 

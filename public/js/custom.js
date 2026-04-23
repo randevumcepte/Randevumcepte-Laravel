@@ -22478,9 +22478,26 @@ $(document).on('show.bs.modal', '#modal-view-event-add', function() {
 
 $(document).on('hidden.bs.modal', '#softPaketSecimModal', function() {
     $(this).remove();
-    
+
     // Seçim değişkenlerini temizle
     if (typeof window.selectedPackageIds !== 'undefined') {
         window.selectedPackageIds = [];
+    }
+});
+
+// Ayarlar sayfası: tab değişince URL'i güncelle (location.reload() doğru tab'a dönüş için)
+$(document).on('shown.bs.tab', 'a[data-toggle="tab"]', function(){
+    var tabPMap = {
+        'isletme-bilgileri':'temelbilgiler','isletme-subeleri':'subeler',
+        'calisma-saatleri':'calismasaatleri','personeller':'personeller',
+        'cihazlar':'cihazlar','hizmetler':'hizmetler','odalar':'odalar',
+        'randevu-ayarlari':'randevuayarlari','musteri_indirimleri':'musteri_indirimleri',
+        'form_taslaklari':'form_taslaklari','urunler':'urunler','paketler':'paketler'
+    };
+    var tabId = $(this).attr('href').replace('#','');
+    var pVal = tabPMap[tabId];
+    if(pVal && window.location.pathname.indexOf('ayarlar') > -1){
+        var sube = new URLSearchParams(window.location.search).get('sube') || '';
+        history.replaceState(null, '', window.location.pathname + '?p=' + pVal + (sube ? '&sube='+sube : ''));
     }
 });
