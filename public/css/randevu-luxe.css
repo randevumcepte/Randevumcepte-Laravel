@@ -734,21 +734,26 @@ body {
     color: #fff !important;
     box-shadow: var(--lx-glow) !important;
 }
-/* Disabled (dolu) saatler */
+/* Disabled (dolu) saatler — kirmizi ton, net ayirt edilir */
 #saatsecimtablosu .input-radio input[type="radio"]:disabled + label,
 #saatsecimtablosu > .saatler > .input-radio input[type="radio"]:disabled + label {
-    background: var(--lx-bg) !important;
-    color: var(--lx-soft) !important;
-    border-color: var(--lx-line) !important;
+    background: #FEF2F2 !important;
+    color: #DC2626 !important;
+    border-color: #FECACA !important;
     cursor: not-allowed !important;
-    text-decoration: line-through;
-    opacity: 0.55;
+    text-decoration: line-through !important;
+    text-decoration-color: rgba(220, 38, 38, 0.6) !important;
+    text-decoration-thickness: 2px !important;
+    opacity: 1 !important;
+    font-weight: 700 !important;
 }
 #saatsecimtablosu .input-radio input[type="radio"]:disabled + label:hover,
 #saatsecimtablosu > .saatler > .input-radio input[type="radio"]:disabled + label:hover {
     transform: none !important;
     box-shadow: none !important;
-    background: var(--lx-bg) !important;
+    background: #FEE2E2 !important;
+    border-color: #FCA5A5 !important;
+    color: #B91C1C !important;
 }
 
 /* ---------- CTA BUTTONS ---------- */
