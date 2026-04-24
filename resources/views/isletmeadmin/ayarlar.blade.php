@@ -167,33 +167,11 @@
                            .rm-qr-btn { background:#5C008E; border-color:#5C008E; color:#fff; font-weight:600; }
                            .rm-qr-btn:hover { background:#48006e; border-color:#48006e; color:#fff; }
 
-                           /* Ekran ortasında sabit FAB — nereden edit edilirse edilsin tek tıkla kaydet */
-                           #rmFloatingSave {
-                              position: fixed;
-                              bottom: 22px; right: 22px;
-                              background: #5C008E; color:#fff;
-                              border:none; border-radius: 50px;
-                              padding: 14px 26px;
-                              font-weight: 700; font-size: 15px;
-                              box-shadow: 0 10px 28px rgba(92,0,142,.35), 0 4px 10px rgba(0,0,0,.08);
-                              z-index: 1050;
-                              display: none;
-                              align-items: center; gap: 8px;
-                              transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
-                           }
-                           #rmFloatingSave:hover {
-                              background:#48006e;
-                              transform: translateY(-2px);
-                              box-shadow: 0 14px 34px rgba(92,0,142,.45), 0 6px 14px rgba(0,0,0,.1);
-                           }
-                           #rmFloatingSave i { font-size: 16px; }
-                           #rmFloatingSave.is-visible { display: inline-flex; }
                            @media (max-width: 600px) {
                               .rm-tb__header { flex-direction:column; align-items:flex-start; }
                               .rm-savebar { flex-wrap:wrap; }
                               .rm-savebar__hint { width:100%; margin:0 0 8px; }
                               .rm-savebar .btn-save { width:100%; min-width:0; }
-                              #rmFloatingSave { bottom: 14px; right: 14px; left: 14px; justify-content:center; }
                            }
                         </style>
 
@@ -616,33 +594,6 @@
                               </div>
 
                            </form>
-
-                           {{-- Ekran sağ altında sabit floating Kaydet butonu (form dışında, form="" ile submit eder) --}}
-                           <button type="submit" form="isletme_temel_bilgiler" id="rmFloatingSave" title="Tüm değişiklikleri kaydet">
-                              <i class="fa fa-save"></i> Kaydet
-                           </button>
-                           <script>
-                              (function(){
-                                 var fab = document.getElementById('rmFloatingSave');
-                                 if(!fab) return;
-                                 function isTemelActive(){
-                                    var pane = document.getElementById('isletme-bilgileri');
-                                    return pane && pane.classList.contains('active') && pane.classList.contains('show');
-                                 }
-                                 function sync(){
-                                    if(isTemelActive()) fab.classList.add('is-visible');
-                                    else fab.classList.remove('is-visible');
-                                 }
-                                 // İlk yüklemede
-                                 sync();
-                                 // Bootstrap tab geçişlerinde
-                                 document.querySelectorAll('a[data-toggle="tab"]').forEach(function(a){
-                                    a.addEventListener('click', function(){ setTimeout(sync, 60); });
-                                 });
-                                 // URL değişikliklerinde (p= parametresi vs.) yedek
-                                 window.addEventListener('hashchange', sync);
-                              })();
-                           </script>
                         </div>
                      </div>
                      <div
