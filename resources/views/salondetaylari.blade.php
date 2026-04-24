@@ -641,6 +641,16 @@
                   <h3>Müşteri Memnuniyeti</h3>
                   <p>{{$salonyorumlar->count()}}+ mutlu müşterimizin deneyimini siz de yaşayın.</p>
                </div>
+               <div class="slp-feature">
+                  <div class="slp-feature__icon"><i class="fa fa-gift"></i></div>
+                  <h3>Sadakat Ödülleri</h3>
+                  <p>Her ziyaretinizde puan kazanın, çarkı çevirin ve özel indirim fırsatları elde edin.</p>
+               </div>
+               <div class="slp-feature">
+                  <div class="slp-feature__icon"><i class="fa fa-coffee"></i></div>
+                  <h3>Konforlu Ortam</h3>
+                  <p>Keyifle vakit geçirebileceğiniz ferah, şık ve modern bir atmosfer sizi bekliyor.</p>
+               </div>
             </div>
          </section>
 
