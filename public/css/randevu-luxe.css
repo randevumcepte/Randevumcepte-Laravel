@@ -1268,6 +1268,13 @@ body {
     min-height: auto !important;
     height: auto !important;
     padding: 0 !important;
+    z-index: 100 !important; /* navbar + dropdown'lar her zaman en ustte */
+}
+/* Dropdown'lari hero/sticky alanlarinin uzerine cikar */
+.page.home-page > .hero.has-dark-background .navbar-nav .nav-item.has-child > ul.child,
+.page.home-page > .hero.has-dark-background .profildropdown-content {
+    z-index: 99999 !important;
+    position: absolute;
 }
 
 /* Kill all decorative layers from old header */

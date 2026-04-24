@@ -64,7 +64,124 @@
    @php
        $_aktifCark = \App\CarkifelekSistemi::where('salon_id', $salon->id)->where('aktifmi', 1)->first();
        $_cark_dilim_sayisi = $_aktifCark ? \App\CarkifelekDilimleri::where('cark_id', $_aktifCark->id)->count() : 0;
+       // Salon acik mi? Bugunun calisma saati
+       $_bugun = (int) date('N');
+       $_bugunCalisma = $saloncalismasaatleri->first(function($c) use ($_bugun) {
+           return $c->haftanin_gunu == $_bugun;
+       });
+       $_simdiAcik = false;
+       if ($_bugunCalisma && $_bugunCalisma->calisiyor == 1) {
+           $_simdiAcik = (date('H:i') >= date('H:i', strtotime($_bugunCalisma->baslangic_saati))
+                       && date('H:i') <= date('H:i', strtotime($_bugunCalisma->bitis_saati)));
+       }
+       $_bugunMetin = $_bugunCalisma && $_bugunCalisma->calisiyor == 1
+           ? date('H:i', strtotime($_bugunCalisma->baslangic_saati)).' - '.date('H:i', strtotime($_bugunCalisma->bitis_saati))
+           : 'Bugün Kapalı';
+       $_ortPuan = $salonpuanlar->count() > 0 ? number_format($salonpuanlar->sum('puan') / $salonpuanlar->count(), 1) : null;
+       $_hizmetSayisi = $salonsunulanhizmetler ? $salonsunulanhizmetler->where('aktif', 1)->count() : 0;
    @endphp
+
+   {{-- =========================== SALON LANDING HERO =========================== --}}
+   <section class="slp-hero">
+      @if(!empty($salongorselikapak))
+         <div class="slp-hero__bg" style="background-image:url('{{secure_asset($salongorselikapak)}}');"></div>
+      @endif
+      <div class="slp-hero__scrim"></div>
+      <div class="slp-hero__inner container">
+         <div class="slp-hero__left">
+            <span class="slp-hero__eyebrow"><i class="fa fa-bolt"></i> {{$salon->salon_turu->salon_turu_adi ?? 'Güzellik & Bakım'}}</span>
+            <h1 class="slp-hero__title">{{$salon->salon_adi}}</h1>
+            <p class="slp-hero__sub">
+               @if(!empty($salon->meta_description))
+                  {{ \Illuminate\Support\Str::limit($salon->meta_description, 160) }}
+               @else
+                  Profesyonel ekibimiz ve modern hizmet anlayışımızla sizi en iyi şekilde ağırlamak için buradayız.
+               @endif
+            </p>
+            <div class="slp-hero__meta">
+               @if($_ortPuan)
+                  <span class="slp-hero__chip"><i class="fa fa-star"></i> {{$_ortPuan}} / 5 ({{$salonyorumlar->count()}} yorum)</span>
+               @endif
+               <span class="slp-hero__chip"><i class="fa fa-map-marker"></i> {{ $salon->ilce->ilce_adi ?? 'Türkiye' }}</span>
+               @if($_simdiAcik)
+                  <span class="slp-hero__chip slp-hero__chip--open"><i class="fa fa-circle"></i> Şu an Açık · {{$_bugunMetin}}</span>
+               @else
+                  <span class="slp-hero__chip"><i class="fa fa-clock-o"></i> {{$_bugunMetin}}</span>
+               @endif
+            </div>
+            <div class="slp-hero__cta">
+               <a href="#randevu-al" class="slp-btn slp-btn--primary">
+                  <i class="fa fa-calendar-check-o"></i> Randevu Al
+               </a>
+               @if(!empty($salon->telefon_1))
+                  <a href="tel:{{$salon->telefon_1}}" class="slp-btn slp-btn--ghost">
+                     <i class="fa fa-phone"></i> Hemen Ara
+                  </a>
+               @endif
+            </div>
+         </div>
+         <div class="slp-hero__right">
+            <div class="slp-hero__card">
+               <div class="slp-hero__card-head">
+                  @if(!empty($salon->logo))
+                     <div class="slp-hero__card-logo"><img src="{{secure_asset($salon->logo)}}" alt="{{$salon->salon_adi}}"></div>
+                  @endif
+                  <div>
+                     <h3 class="slp-hero__card-name">{{$salon->salon_adi}}</h3>
+                     <div class="slp-hero__card-status">
+                        @if($_simdiAcik)
+                           <span class="slp-dot"></span> Açık · {{$_bugunMetin}}
+                        @else
+                           <span class="slp-dot" style="background:#F59E0B; box-shadow: 0 0 10px #F59E0B;"></span> {{$_bugunMetin}}
+                        @endif
+                     </div>
+                  </div>
+               </div>
+               <div class="slp-hero__card-row">
+                  <i class="fa fa-map-marker"></i>
+                  <span>{{ \Illuminate\Support\Str::limit($salon->adres, 90) }}</span>
+               </div>
+               @if(!empty($salon->telefon_1))
+                  <div class="slp-hero__card-row">
+                     <i class="fa fa-phone"></i>
+                     <span>{{$salon->telefon_1}}</span>
+                  </div>
+               @endif
+               <div class="slp-hero__card-row">
+                  <i class="fa fa-users"></i>
+                  <span>{{$personeller->count()}} profesyonel personel</span>
+               </div>
+            </div>
+         </div>
+      </div>
+   </section>
+
+   {{-- =========================== QUICK STATS BAR =========================== --}}
+   <div class="slp-stats">
+      <div class="slp-stats__grid">
+         <div class="slp-stat">
+            <i class="fa fa-users"></i>
+            <span class="slp-stat__num">{{$personeller->count()}}</span>
+            <span class="slp-stat__lbl">Personel</span>
+         </div>
+         <div class="slp-stat">
+            <i class="fa fa-magic"></i>
+            <span class="slp-stat__num">{{$_hizmetSayisi}}</span>
+            <span class="slp-stat__lbl">Hizmet</span>
+         </div>
+         <div class="slp-stat">
+            <i class="fa fa-star"></i>
+            <span class="slp-stat__num">{{$_ortPuan ?? '—'}}</span>
+            <span class="slp-stat__lbl">Puan</span>
+         </div>
+         <div class="slp-stat">
+            <i class="fa fa-comments-o"></i>
+            <span class="slp-stat__num">{{$salonyorumlar->count()}}</span>
+            <span class="slp-stat__lbl">Yorum</span>
+         </div>
+      </div>
+   </div>
+
    @if($_aktifCark && $_cark_dilim_sayisi >= 2)
    <div class="row" style="margin-top:18px">
       <div class="col-12">
