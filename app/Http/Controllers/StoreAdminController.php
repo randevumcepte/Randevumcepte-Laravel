@@ -17986,6 +17986,42 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             ->pluck('salon_id')->toArray();
         return in_array($current, $yetkili) ? $current : null;
     }
+
+    public function whatsappKanalDurum(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $ayar = \App\SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 6)->first();
+        return response()->json([
+            'aktif' => $ayar ? (int) $ayar->whatsapp_musteri === 1 : false,
+            'sms_aktif' => $ayar ? (int) $ayar->musteri === 1 : false,
+        ]);
+    }
+
+    public function whatsappKanalToggle(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $yeniDeger = (int) $request->input('aktif', 0) === 1 ? 1 : 0;
+
+        $ayar = \App\SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 6)->first();
+        if (!$ayar) {
+            $ayar = new \App\SalonSMSAyarlari();
+            $ayar->salon_id = $salonId;
+            $ayar->ayar_id = 6;
+            $ayar->musteri = 1;
+            $ayar->personel = 0;
+        }
+        $ayar->whatsapp_musteri = $yeniDeger;
+        $ayar->save();
+
+        return response()->json([
+            'ok' => true,
+            'aktif' => $yeniDeger === 1,
+        ]);
+    }
     
 
     public function ajanda_liste_getir(Request $request, $returntext){

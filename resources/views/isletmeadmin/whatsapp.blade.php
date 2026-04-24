@@ -61,6 +61,20 @@
                 <button type="button" class="btn-wa" id="wa-start-btn">WhatsApp'ı Bağla</button>
                 <button type="button" class="btn-wa btn-wa-danger" id="wa-logout-btn" style="display:none">Oturumu Kapat</button>
             </div>
+
+            <div id="wa-kanal-box" style="margin-top:24px; padding:16px; background:#f7f9fc; border-radius:8px; border:1px solid #e3e8f0; text-align:left; display:none;">
+                <label style="display:flex; align-items:center; gap:12px; cursor:pointer; margin:0;">
+                    <input type="checkbox" id="wa-kanal-switch" style="width:18px; height:18px; cursor:pointer;">
+                    <div>
+                        <div style="font-weight:600; color:#222;">WhatsApp üzerinden hatırlatma gönder</div>
+                        <div style="color:#666; font-size:13px; margin-top:2px;">
+                            Açık: 1 gün öncesi randevu hatırlatması önce WhatsApp'tan gönderilir, başarısızsa SMS'e düşer.
+                            Kapalı: Sadece SMS kullanılır.
+                        </div>
+                    </div>
+                </label>
+                <div id="wa-kanal-status" style="margin-top:10px; font-size:13px; color:#1a7f3e; display:none;">✓ Ayar kaydedildi</div>
+            </div>
         </div>
 
         <div class="wa-info">
@@ -198,6 +212,41 @@
         });
     });
 
+    // Kanal ayari toggle
+    var kanalBox = document.getElementById('wa-kanal-box');
+    var kanalSwitch = document.getElementById('wa-kanal-switch');
+    var kanalStatus = document.getElementById('wa-kanal-status');
+
+    function loadKanalDurum(){
+        fetchJson('/isletmeyonetim/whatsapp/kanal-durum' + qs).then(function(res){
+            if(res.status === 200){
+                kanalBox.style.display = 'block';
+                kanalSwitch.checked = !!res.body.aktif;
+            }
+        });
+    }
+
+    kanalSwitch.addEventListener('change', function(){
+        var val = kanalSwitch.checked ? 1 : 0;
+        kanalSwitch.disabled = true;
+        var fd = new FormData();
+        fd.append('aktif', val);
+        fetchJson('/isletmeyonetim/whatsapp/kanal-toggle' + qs, { method:'POST', body: fd }).then(function(res){
+            kanalSwitch.disabled = false;
+            if(res.status === 200){
+                kanalStatus.style.display = 'block';
+                setTimeout(function(){ kanalStatus.style.display = 'none'; }, 2000);
+            } else {
+                kanalSwitch.checked = !kanalSwitch.checked;
+                alert('Ayar kaydedilemedi');
+            }
+        }).catch(function(){
+            kanalSwitch.disabled = false;
+            kanalSwitch.checked = !kanalSwitch.checked;
+        });
+    });
+
+    loadKanalDurum();
     tick();
     setInterval(tick, 4000);
 })();

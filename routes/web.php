@@ -305,6 +305,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/whatsapp/durum','StoreAdminController@whatsappDurum')->name('whatsapp.durum');
 	Route::get('/whatsapp/qr','StoreAdminController@whatsappQR')->name('whatsapp.qr');
 	Route::post('/whatsapp/cikis','StoreAdminController@whatsappCikis')->name('whatsapp.cikis');
+	Route::get('/whatsapp/kanal-durum','StoreAdminController@whatsappKanalDurum')->name('whatsapp.kanal.durum');
+	Route::post('/whatsapp/kanal-toggle','StoreAdminController@whatsappKanalToggle')->name('whatsapp.kanal.toggle');
 	Route::get('/hizmet-yonetimi', function(){ return redirect('/isletmeyonetim/ayarlar?p=hizmetler'); });
 	Route::post('/hizmet-yonetimi/guncelle','StoreAdminController@hizmetYonetimiGuncelle');
 	Route::post('/hizmet-yonetimi/kategori-ekle','StoreAdminController@hizmetKategoriEkle');
