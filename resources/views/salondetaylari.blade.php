@@ -468,11 +468,25 @@
       </div>{{-- /.slp-drawer__panel --}}
    </div>{{-- /.slp-drawer --}}
 
-   {{-- ============ FLOATING "RANDEVU AL" BUTTON (FAB) ================ --}}
-   <a href="#randevu-al" class="slp-fab" data-slp-open aria-label="Randevu Al">
-      <span class="slp-fab__icon"><i class="fa fa-calendar-check-o"></i></span>
-      <span>Randevu Al</span>
-   </a>
+   {{-- ============ BOTTOM DOCK — ORTADA CIFT BUTON (HEMEN ARA + RANDEVU AL) ============ --}}
+   <div class="slp-dock" role="region" aria-label="Hizli aksiyonlar">
+      @if(!empty($salon->telefon_1))
+         <a href="tel:{{$salon->telefon_1}}" class="slp-dock__btn slp-dock__btn--call" aria-label="Hemen Ara">
+            <span class="slp-dock__icon slp-dock__icon--call"><i class="fa fa-phone"></i></span>
+            <span class="slp-dock__label">
+               <span class="slp-dock__top">Hemen Ara</span>
+               <span class="slp-dock__sub">{{$salon->telefon_1}}</span>
+            </span>
+         </a>
+      @endif
+      <a href="#randevu-al" data-slp-open class="slp-dock__btn slp-dock__btn--book" aria-label="Randevu Al">
+         <span class="slp-dock__icon"><i class="fa fa-calendar-check-o"></i></span>
+         <span class="slp-dock__label">
+            <span class="slp-dock__top">Randevu Al</span>
+            <span class="slp-dock__sub">Saniyeler içinde</span>
+         </span>
+      </a>
+   </div>
 
          <div class="row">
             <div id="hata"></div>
