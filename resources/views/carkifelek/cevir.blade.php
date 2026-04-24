@@ -170,13 +170,21 @@
             </div>
         </div>
 
-        <button class="cevir-btn" id="cevir-btn" onclick="cevirCarki()" {{ $kalanHak < 1 ? 'disabled' : '' }}>
-            🎲 Çarkı Çevir
+        @php $_disabled = ($kalanHak < 1) || $bugunCevirdi; @endphp
+        <button class="cevir-btn" id="cevir-btn" onclick="cevirCarki()" {{ $_disabled ? 'disabled' : '' }}>
+            @if($bugunCevirdi)
+                ✓ Bugün Çevirdiniz
+            @else
+                🎲 Çarkı Çevir
+            @endif
         </button>
 
         <div class="hak-info">
-            @if($kalanHak > 0)
-                <b>{{ $kalanHak }}</b> çevirme hakkınız var. Her onaylı randevunuz size 1 hak kazandırır.
+            @if($bugunCevirdi)
+                Bugün çarkıfeleği çevirdiniz.<br>
+                Bir sonraki çevirme: <b>yarın {{ $yarinSaat }}</b> veya yeni onaylı randevunuzdan sonra.
+            @elseif($kalanHak > 0)
+                <b>{{ $kalanHak }}</b> çevirme hakkınız var. Günde 1 kez çevirebilirsiniz; yeni onaylı randevularınız yeni hak kazandırır.
             @else
                 Çevirme hakkınız bulunmuyor. Salonumuzda randevu alıp onaylatırsanız hak kazanırsınız.
             @endif
@@ -577,10 +585,9 @@
 
         setTimeout(() => {
             hakEl.textContent = data.kalanHak;
-            // Başarılı çevirmeden sonra buton bir daha aktif olmaz;
-            // kalan hak varsa bile tekrar çevirmek için sayfa yenilenmeli
+            // Günde 1 çevirme sınırı — buton pasif kalır; yarın 00:00 veya yeni randevu ile tekrar aktif olur
             cevirBtn.disabled   = true;
-            cevirBtn.textContent = data.kalanHak > 0 ? '✓ Çevrildi — Sayfayı Yenileyin' : '✓ Çevrildi';
+            cevirBtn.textContent = '✓ Bugün Çevirdiniz';
             showResult(data.dilim, data.odulKodu);
             // spinning kasıtlı olarak true bırakılıyor — yeni spin engellensin
         }, 9200);

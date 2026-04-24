@@ -62,6 +62,19 @@ class CarkifelekMusteriController extends Controller
     }
 
     /**
+     * Müşteri bugün (yerel tarih) bu salonda çarkı çevirdi mi?
+     * "tekrar_dene" sayılmaz — gerçek çekilen bir ödül var mı?
+     */
+    private function bugunCevirdi($salonId, $userId)
+    {
+        return CarkifelekCevirmeLoglari::where('salon_id', $salonId)
+            ->where('user_id', $userId)
+            ->where('tip', '!=', 'tekrar_dene')
+            ->whereDate('created_at', \Carbon\Carbon::today())
+            ->exists();
+    }
+
+    /**
      * Çark sayfasını gösterir.
      */
     public function goster($salonId)
@@ -87,6 +100,10 @@ class CarkifelekMusteriController extends Controller
         }
 
         $kullanilabilir = $this->kalanHak($salonId, Auth::id());
+        $bugunCevirdi   = $this->bugunCevirdi($salonId, Auth::id());
+
+        // Yarın 00:00 — sonraki çevirme hakkının açılacağı saat
+        $yarin = \Carbon\Carbon::tomorrow()->format('d.m.Y H:i');
 
         $dilimlerJson = $dilimler->map(function ($d) {
             return [
@@ -105,6 +122,8 @@ class CarkifelekMusteriController extends Controller
             'dilimlerJson'    => $dilimlerJson,
             'kalanHak'        => count($kullanilabilir),
             'randevuIdleri'   => $kullanilabilir,
+            'bugunCevirdi'    => $bugunCevirdi,
+            'yarinSaat'       => $yarin,
         ]));
     }
 
@@ -128,6 +147,15 @@ class CarkifelekMusteriController extends Controller
         $kullanilabilir = $this->kalanHak($salonId, $userId);
         if (empty($kullanilabilir)) {
             return response()->json(['success' => false, 'message' => 'Çevirme hakkınız bulunmuyor. Onaylanmış randevunuz olmalı.']);
+        }
+
+        // Günde 1 kez — bugün çevirdi mi kontrolü
+        if ($this->bugunCevirdi($salonId, $userId)) {
+            $yarin = \Carbon\Carbon::tomorrow()->format('d.m.Y H:i');
+            return response()->json([
+                'success' => false,
+                'message' => 'Bugün çarkı çevirdiniz. Bir sonraki çevirme: ' . $yarin . ' (yarın 00:00) veya yeni onaylı randevunuzdan sonra.',
+            ]);
         }
 
         $randevuId = $kullanilabilir[0];
