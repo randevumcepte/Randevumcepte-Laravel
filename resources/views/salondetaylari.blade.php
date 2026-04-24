@@ -103,12 +103,14 @@
          </div>
          <div class="lx-hero__right">
             <div class="lx-progress" id="lxProgress" data-lstep="1">
-               <div class="lx-progress__track"><div class="lx-progress__bar" style="width:12.5%"></div></div>
-               <div class="lx-progress__dots" style="position:absolute;top:34px;left:14px;right:14px;">
-                  <span class="lx-progress__dot is-active" data-lxs="1"><span>1</span></span>
-                  <span class="lx-progress__dot" data-lxs="2"><span>2</span></span>
-                  <span class="lx-progress__dot" data-lxs="3"><span>3</span></span>
-                  <span class="lx-progress__dot" data-lxs="4"><span>4</span></span>
+               <div class="lx-progress__track">
+                  <div class="lx-progress__bar" style="width:12.5%"></div>
+                  <div class="lx-progress__dots">
+                     <span class="lx-progress__dot is-active" data-lxs="1"><span>1</span></span>
+                     <span class="lx-progress__dot" data-lxs="2"><span>2</span></span>
+                     <span class="lx-progress__dot" data-lxs="3"><span>3</span></span>
+                     <span class="lx-progress__dot" data-lxs="4"><span>4</span></span>
+                  </div>
                </div>
                <div class="lx-progress__labels">
                   <span class="lx-progress__label is-active" data-lxl="1">Hizmet</span>

@@ -163,7 +163,8 @@
     height: 4px;
     background: rgba(255, 255, 255, 0.12);
     border-radius: 99px;
-    margin: 28px 14px 18px;
+    margin: 36px 18px 36px;
+    overflow: visible;
 }
 .lx-progress__bar {
     position: absolute;
@@ -176,11 +177,15 @@
 }
 .lx-progress__dots {
     position: absolute;
-    inset: 0;
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0;
+    pointer-events: none;
 }
 .lx-progress__dot {
     width: 28px;
