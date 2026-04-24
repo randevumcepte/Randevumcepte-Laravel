@@ -1955,9 +1955,9 @@
                </div>
                {{-- ================= TANITIM SAYFASI ALANLARI ================= --}}
                <div class="row">
-                  <div class="col-md-12">
-                     <h3 style="font-size: 15px; font-weight: bold; margin-top: 6px;">Tanıtım Sayfası Bilgileri (opsiyonel)</h3>
-                     <p style="color:#888; font-size:12px; margin:0 0 10px">Bu bilgiler salonunuzun tanıtım sayfasında personel kartlarında gösterilir.</p>
+                  <div class="col-md-12" style="margin-top:10px; border-top:1px solid #e2e2e2; padding-top:10px;">
+                     <h3 style="font-size: 15px; font-weight: bold; margin-bottom:2px;"><i class="fa fa-id-card-o" style="color:#007bff;"></i> Tanıtım Sayfası Bilgileri <small style="color:#888; font-weight:normal;">(opsiyonel)</small></h3>
+                     <p style="color:#888; font-size:12px; margin:0 0 10px">Bu bilgiler işletmenizin online tanıtım sayfasında personel kartlarında müşterilere gösterilir.</p>
                   </div>
                   <div class="col-md-6">
                      <div class="form-group">
@@ -1979,8 +1979,9 @@
                   </div>
                   <div class="col-md-12">
                      <div class="form-group">
-                        <label>Kısa Açıklama / Biyografi</label>
-                        <textarea class="form-control" id="aciklama" name="aciklama" rows="3" maxlength="600" placeholder="Ör: 10 yılı aşkın deneyimiyle müşterilerine en uygun saç stilini öneriyor. Özel gün makyajı ve balyaj konusunda uzmandır."></textarea>
+                        <label>Detaylı Açıklama / Biyografi</label>
+                        <textarea class="form-control" id="aciklama" name="aciklama" rows="4" maxlength="1500" placeholder="Ör: 10 yılı aşkın deneyimiyle müşterilerine en uygun saç stilini öneriyor. Özel gün makyajı ve balyaj konusunda uzmandır. İtalya ve Paris'te aldığı ileri düzey eğitimlerle modern kesim tekniklerini salonumuza taşımaktadır."></textarea>
+                        <small style="color:#888;">Maksimum 1500 karakter. Personelin tecrübesi, eğitimleri ve uzmanlığını özetleyin.</small>
                      </div>
                   </div>
                </div>
@@ -2209,32 +2210,32 @@
                         </tbody>
                      </table>
                   </div>
-                  <div class="col-md-12">
-                     <h3 style="font-size: 15px; font-weight: bold;">Hak Ediş Ayarları
-                     </h3>
+                  <div class="col-md-12" style="margin-top:10px; border-top:1px solid #e2e2e2; padding-top:10px;">
+                     <h3 style="font-size: 15px; font-weight: bold; margin-bottom:2px;"><i class="fa fa-money" style="color:#28a745;"></i> Prim & Hak Ediş Ayarları</h3>
+                     <p style="color:#888; font-size:12px; margin:0 0 10px">Personelin aylık maaşı ve tahsil edilen tutarlar üzerinden alacağı prim yüzdeleri. Hak ediş raporlarında otomatik hesaplanır.</p>
                   </div>
-                  <div class="col-md-2">
+                  <div class="col-md-3">
                      <div class="form-group">
-                        <label>Sabit Maaş</label>
-                        <input type="tel" id='personel_maas' name="personel_maas" class="form-control">
-                     </div>
-                  </div>
-                  <div class="col-md-4">
-                     <div class="form-group">
-                        <label>Hizmet Primi Hak Edişi (%)</label>
-                        <input type="tel" id='hizmet_prim_yuzde' name="hizmet_prim_yuzde" class="form-control">
+                        <label>Sabit Maaş (₺)</label>
+                        <input type="number" step="0.01" min="0" id='personel_maas' name="personel_maas" class="form-control" placeholder="Ör: 15000">
                      </div>
                   </div>
                   <div class="col-md-3">
                      <div class="form-group">
-                        <label>Ürün Primi Hak Edişi (%)</label>
-                        <input type="tel" id='urun_prim_yuzde' name="urun_prim_yuzde" class="form-control">
+                        <label>Hizmet Primi (%)</label>
+                        <input type="number" step="0.01" min="0" max="100" id='hizmet_prim_yuzde' name="hizmet_prim_yuzde" class="form-control" placeholder="Ör: 20">
                      </div>
                   </div>
                   <div class="col-md-3">
                      <div class="form-group">
-                        <label>Paket Primi Hak Edişi (%)</label>
-                        <input type="tel" id='paket_prim_yuzde' name="paket_prim_yuzde" class="form-control">
+                        <label>Ürün Primi (%)</label>
+                        <input type="number" step="0.01" min="0" max="100" id='urun_prim_yuzde' name="urun_prim_yuzde" class="form-control" placeholder="Ör: 10">
+                     </div>
+                  </div>
+                  <div class="col-md-3">
+                     <div class="form-group">
+                        <label>Paket Primi (%)</label>
+                        <input type="number" step="0.01" min="0" max="100" id='paket_prim_yuzde' name="paket_prim_yuzde" class="form-control" placeholder="Ör: 15">
                      </div>
                   </div>
                </div>

@@ -938,11 +938,21 @@
                      @endif
                       <span class="micon bi bi-bar-chart-fill"></span
                         ><span class="mtext">
-                     Satış Raporları  
+                     Satış Raporları
                      </span>
                      </a>
                   </li>
-                  @endif   
+                  <li>
+                     @if($pageindex==402)
+                     <a href="/isletmeyonetim/primraporu{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/primraporu{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                      <span class="micon bi bi-cash-coin"></span>
+                      <span class="mtext">Prim & Hak Ediş</span>
+                     </a>
+                  </li>
+                  @endif
                   @endif
                   
 

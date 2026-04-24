@@ -2432,4 +2432,43 @@ $salon = Salonlar::where('domain', $domain)->first();
 
         return response()->json(['basarili' => true]);
     }
+
+    public function personelDetayPublic(Request $request, $isletme_adi, $isletme_id, $personel_id)
+    {
+        $salon = Salonlar::where('domain', $_SERVER['HTTP_HOST'])->where('id', $isletme_id)->first();
+        if (!$salon) abort(404);
+
+        $personel = Personeller::where('id', $personel_id)->where('salon_id', $salon->id)->where('aktif', 1)->first();
+        if (!$personel) abort(404);
+
+        $yetkili = \App\IsletmeYetkilileri::where('personel_id', $personel->id)->first();
+        $profilResim = $yetkili ? $yetkili->profil_resim : null;
+        if (empty($profilResim)) {
+            $profilResim = $personel->cinsiyet == 0 ? 'public/img/author0.jpg' : 'public/img/author1.jpg';
+        }
+        $adSoyad = $yetkili && $yetkili->name ? $yetkili->name : $personel->personel_adi;
+
+        $digerPersoneller = Personeller::where('salon_id', $salon->id)
+            ->where('id', '!=', $personel->id)
+            ->where('aktif', 1)
+            ->limit(8)
+            ->get();
+
+        $sunulanHizmetler = PersonelHizmetler::where('personel_id', $personel->id)
+            ->get()
+            ->pluck('hizmetler')
+            ->filter()
+            ->unique('id')
+            ->values();
+
+        return view('personeldetay_public', [
+            'salon'            => $salon,
+            'personel'         => $personel,
+            'profilResim'      => $profilResim,
+            'adSoyad'          => $adSoyad,
+            'digerPersoneller' => $digerPersoneller,
+            'sunulanHizmetler' => $sunulanHizmetler,
+            'aramaterimisayfa' => $adSoyad,
+        ]);
+    }
 }

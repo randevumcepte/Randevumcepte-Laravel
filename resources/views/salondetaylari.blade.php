@@ -684,7 +684,7 @@
                            <span class="slp-team-card__specialty">{{$per->unvan}}</span>
                         @endif
                         @if(!empty($per->aciklama))
-                           <p class="slp-team-card__bio">{{$per->aciklama}}</p>
+                           <p class="slp-team-card__bio">{{ \Illuminate\Support\Str::limit($per->aciklama, 140) }}</p>
                         @endif
                         <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
                            @if(!empty($per->yillik_tecrube))
@@ -696,6 +696,11 @@
                               </a>
                            @endif
                         </div>
+                        @if(!empty($per->aciklama) || !empty($per->uzmanlik) || !empty($per->yillik_tecrube) || !empty($per->instagram))
+                           <a class="slp-team-card__detail" href="{{url('/'.str_slug($salon->salon_adi).'-'.$salon->id.'/personel/'.$per->id)}}" style="display:inline-block; margin-top:12px; padding:8px 16px; background:#007bff; color:#fff; border-radius:20px; font-size:12px; font-weight:600; text-decoration:none; transition:all .2s">
+                              Detaylı Görüntüle <i class="fa fa-arrow-right" style="margin-left:4px"></i>
+                           </a>
+                        @endif
                      </div>
                   @endif
                @endforeach

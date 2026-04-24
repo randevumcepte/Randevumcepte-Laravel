@@ -130,6 +130,7 @@ use App\CarkifelekSistemi;
 use App\CarkifelekCevirmeLoglari;
 use App\CarkifelekOdulleri;
 use App\SalonPuanOdulleri;
+use App\PersonelPrimHareketi;
 
 class StoreAdminController extends Controller
 {
@@ -22323,6 +22324,203 @@ DB::raw('
         } catch(\Exception $e){
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
+    }
+
+    // ============================================================
+    // PRIM & HAK EDIS RAPORU
+    // ============================================================
+
+    public function primRaporu(Request $request)
+    {
+        $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+        $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+
+        if(!in_array(self::mevcutsube($request),$isletmeler)){
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(str_contains(self::lisans_sure_kontrol($request),'-')){
+            return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+        }
+        if(self::personelmi($request)){
+            return redirect()->route('isletmeadmin.randevular');
+        }
+
+        $yil = (int)($request->yil ?? date('Y'));
+        $ay  = (int)($request->ay ?? date('n'));
+        if($ay < 1 || $ay > 12) $ay = (int)date('n');
+
+        $tarih1 = sprintf('%04d-%02d-01', $yil, $ay);
+        $tarih2 = date('Y-m-t', strtotime($tarih1));
+
+        $rapor = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2);
+
+        return view('isletmeadmin.primraporu', [
+            'bildirimler'         => self::bildirimgetir($request),
+            'sayfa_baslik'        => 'Prim & Hak Ediş',
+            'pageindex'           => 402,
+            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
+            'yetkiliolunanisletmeler' => $isletmeler,
+            'isletme'             => $isletme,
+            'rapor'               => $rapor,
+            'yil'                 => $yil,
+            'ay'                  => $ay,
+            'tarih1'              => $tarih1,
+            'tarih2'              => $tarih2,
+        ]);
+    }
+
+    private function primHakedisVerisi($salonId, $tarih1, $tarih2)
+    {
+        $personeller = Personeller::where('salon_id', $salonId)->where('aktif', 1)->orderBy('takvim_sirasi','asc')->get();
+
+        $adisyonlar = Adisyonlar::with([
+                'hizmetler.personel','urunler.personel','paketler.personel',
+            ])
+            ->where('salon_id', $salonId)
+            ->whereBetween('tarih',[$tarih1,$tarih2])
+            ->get();
+
+        $primMap = [];
+        foreach($personeller as $p){
+            $primMap[$p->id] = [
+                'hizmet_geliri'=>0,'hizmet_primi'=>0,
+                'urun_geliri'=>0,'urun_primi'=>0,
+                'paket_geliri'=>0,'paket_primi'=>0,
+            ];
+        }
+
+        $hizmetItems = $adisyonlar->flatMap(fn($a)=>$a->hizmetler)->filter(fn($i)=>$i->personel);
+        foreach($hizmetItems->groupBy('personel_id') as $pid => $items){
+            if(!isset($primMap[$pid])) continue;
+            $kazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $items->pluck('id'))->sum('tutar');
+            $yuzde = $items->first()->personel->hizmet_prim_yuzde ?? 0;
+            $primMap[$pid]['hizmet_geliri'] = (float)$kazanc;
+            $primMap[$pid]['hizmet_primi']  = (float)$kazanc * ((float)$yuzde)/100;
+        }
+
+        $urunItems = $adisyonlar->flatMap(fn($a)=>$a->urunler)->filter(fn($i)=>$i->personel);
+        foreach($urunItems->groupBy('personel_id') as $pid => $items){
+            if(!isset($primMap[$pid])) continue;
+            $kazanc = TahsilatUrunler::whereIn('adisyon_urun_id', $items->pluck('id'))->sum('tutar');
+            $yuzde = $items->first()->personel->urun_prim_yuzde ?? 0;
+            $primMap[$pid]['urun_geliri'] = (float)$kazanc;
+            $primMap[$pid]['urun_primi']  = (float)$kazanc * ((float)$yuzde)/100;
+        }
+
+        $paketItems = $adisyonlar->flatMap(fn($a)=>$a->paketler)->filter(fn($i)=>$i->personel);
+        foreach($paketItems->groupBy('personel_id') as $pid => $items){
+            if(!isset($primMap[$pid])) continue;
+            $kazanc = TahsilatPaketler::whereIn('adisyon_paket_id', $items->pluck('id'))->sum('tutar');
+            $yuzde = $items->first()->personel->paket_prim_yuzde ?? 0;
+            $primMap[$pid]['paket_geliri'] = (float)$kazanc;
+            $primMap[$pid]['paket_primi']  = (float)$kazanc * ((float)$yuzde)/100;
+        }
+
+        $hareketler = PersonelPrimHareketi::where('salon_id',$salonId)
+            ->whereBetween('tarih',[$tarih1,$tarih2])
+            ->get()
+            ->groupBy('personel_id');
+
+        $sonuc = [];
+        foreach($personeller as $p){
+            $primRow = $primMap[$p->id];
+            $primToplam = $primRow['hizmet_primi'] + $primRow['urun_primi'] + $primRow['paket_primi'];
+
+            $bonus = 0; $kesinti = 0;
+            $persHareketler = $hareketler->get($p->id, collect());
+            foreach($persHareketler as $h){
+                if($h->tip === 'bonus') $bonus += (float)$h->tutar;
+                else $kesinti += (float)$h->tutar;
+            }
+
+            $maas = (float)($p->maas ?? 0);
+            $toplam = $maas + $primToplam + $bonus - $kesinti;
+
+            $sonuc[] = [
+                'personel_id'   => $p->id,
+                'personel_adi'  => $p->personel_adi,
+                'maas'          => $maas,
+                'hizmet_primi'  => (float)$primRow['hizmet_primi'],
+                'urun_primi'    => (float)$primRow['urun_primi'],
+                'paket_primi'   => (float)$primRow['paket_primi'],
+                'prim_toplam'   => (float)$primToplam,
+                'bonus'         => (float)$bonus,
+                'kesinti'       => (float)$kesinti,
+                'net_hakedis'   => (float)$toplam,
+                'hizmet_geliri' => (float)$primRow['hizmet_geliri'],
+                'urun_geliri'   => (float)$primRow['urun_geliri'],
+                'paket_geliri'  => (float)$primRow['paket_geliri'],
+                'hareket_sayisi'=> $persHareketler->count(),
+            ];
+        }
+
+        return $sonuc;
+    }
+
+    public function primHareketEkle(Request $request)
+    {
+        try{
+            $salonId = self::mevcutsube($request);
+            $personel = Personeller::where('id',$request->personel_id)->where('salon_id',$salonId)->first();
+            if(!$personel){
+                return response()->json(['basarili'=>false,'mesaj'=>'Personel bulunamadı.']);
+            }
+
+            $tip = $request->tip === 'kesinti' ? 'kesinti' : 'bonus';
+            $tutar = (float)str_replace([','], ['.'], $request->tutar);
+            if($tutar <= 0){
+                return response()->json(['basarili'=>false,'mesaj'=>'Tutar 0\'dan büyük olmalı.']);
+            }
+
+            $tarih = $request->tarih ?: date('Y-m-d');
+            if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tarih)) $tarih = date('Y-m-d');
+
+            PersonelPrimHareketi::create([
+                'personel_id'       => $personel->id,
+                'salon_id'          => $salonId,
+                'tarih'             => $tarih,
+                'tip'               => $tip,
+                'tutar'             => $tutar,
+                'aciklama'          => mb_substr((string)$request->aciklama, 0, 300),
+                'ekleyen_yetkili_id'=> Auth::guard('isletmeyonetim')->user()->id ?? null,
+            ]);
+
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function primHareketSil(Request $request)
+    {
+        try{
+            $salonId = self::mevcutsube($request);
+            $hareket = PersonelPrimHareketi::where('id',$request->id)->where('salon_id',$salonId)->first();
+            if(!$hareket){
+                return response()->json(['basarili'=>false,'mesaj'=>'Kayıt bulunamadı.']);
+            }
+            $hareket->delete();
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function primHareketListesi(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $personelId = (int)$request->personel_id;
+        $tarih1 = $request->tarih1 ?: date('Y-m-01');
+        $tarih2 = $request->tarih2 ?: date('Y-m-t');
+
+        $hareketler = PersonelPrimHareketi::where('salon_id',$salonId)
+            ->where('personel_id',$personelId)
+            ->whereBetween('tarih',[$tarih1,$tarih2])
+            ->orderBy('tarih','desc')
+            ->orderBy('id','desc')
+            ->get();
+
+        return response()->json(['basarili'=>true,'hareketler'=>$hareketler]);
     }
 
 }

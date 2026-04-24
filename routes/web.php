@@ -126,6 +126,7 @@ Route::get('/save-excel', function () {
    Route::post('/salonlar','HomeController@salonara')->name('salonara');
 	Route::get('/sitemap.xml', 'HomeController@sitemap');
 	Route::get('/robots.txt', 'HomeController@robots');
+	Route::get('/{isletme_adi}-{isletme_id}/personel/{personel_id}', 'HomeController@personelDetayPublic')->where('personel_id','[0-9]+')->name('personeldetay_public');
 	Route::get('/{isletme_adi}-{isletme_id}', 'HomeController@salonDetay_anasayfa')->name('salondetaylari');
 	Route::get('/', 'HomeController@salonDetay');
 	//Route::get('/', 'HomeController@salonDetay_anasayfa'); 
@@ -668,6 +669,10 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/arama-listesi-arandi-isaretle','StoreAdminController@arama_listesi_arandi_isaretle');
 	Route::post('/aramaListesineSesKaydiEkle','StoreAdminController@aramaListesineSesKaydiEkle');
 	Route::get('/raporlar','StoreAdminController@raporlar');
+	Route::get('/primraporu','StoreAdminController@primRaporu')->name('isletmeadmin.primraporu');
+	Route::post('/primhareketekle','StoreAdminController@primHareketEkle');
+	Route::post('/primhareketsil','StoreAdminController@primHareketSil');
+	Route::get('/primhareketlistesi','StoreAdminController@primHareketListesi');
 	Route::get('/hizmetRaporFiltre','StoreAdminController@hizmetRaporFiltre');
 	Route::get('/urunRaporFiltre','StoreAdminController@urunRaporFiltre');
 	Route::get('/paketRaporFiltre','StoreAdminController@paketRaporFiltre');
