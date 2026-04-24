@@ -4,13 +4,21 @@ const path = require('path');
 const fs = require('fs');
 const QRCode = require('qrcode');
 const axios = require('axios');
-const {
-  default: makeWASocket,
-  useMultiFileAuthState,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  Browsers,
-} = require('@whiskeysockets/baileys');
+
+// Baileys v6 artik ESM-only; CommonJS'ten dinamik import ile yuklüyoruz.
+let _baileys = null;
+const loadBaileys = async () => {
+  if (_baileys) return _baileys;
+  const mod = await import('@whiskeysockets/baileys');
+  _baileys = {
+    makeWASocket: mod.default || mod.makeWASocket,
+    useMultiFileAuthState: mod.useMultiFileAuthState,
+    DisconnectReason: mod.DisconnectReason,
+    fetchLatestBaileysVersion: mod.fetchLatestBaileysVersion,
+    Browsers: mod.Browsers,
+  };
+  return _baileys;
+};
 
 const config = require('./config');
 const logger = require('./logger');
@@ -88,6 +96,14 @@ const createSession = async (salonId) => {
 
   const dir = sessionDir(salonId);
   fs.mkdirSync(dir, { recursive: true });
+
+  const {
+    makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason,
+    fetchLatestBaileysVersion,
+    Browsers,
+  } = await loadBaileys();
 
   const { state, saveCreds } = await useMultiFileAuthState(dir);
   const { version } = await fetchLatestBaileysVersion();
