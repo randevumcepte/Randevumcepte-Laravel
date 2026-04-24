@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -201,19 +202,25 @@ class CarkifelekMusteriController extends Controller
             $hasPrize = in_array($secilen->tip, ['puan', 'hizmet_indirimi', 'urun_indirimi']) && $secilen->deger;
             $kayitGerekli = $hasPrize;
 
-            // Log kaydet (user_id null, session_id dolu)
-            CarkifelekCevirmeLoglari::create([
+            // Log kaydet — misafir için user_id=0 (kayıt sonrası gerçek user_id'ye güncellenir)
+            $logData = [
                 'cark_id'     => $cark->id,
                 'salon_id'    => $salonId,
-                'user_id'     => null,
-                'session_id'  => $request->session()->getId(),
-                'misafir_ip'  => $request->ip(),
+                'user_id'     => 0,
                 'randevu_id'  => null,
                 'dilim_id'    => $secilen->id,
                 'tip'         => $secilen->tip,
                 'deger'       => $secilen->deger,
                 'dilim_ismi'  => $secilen->dilim_ismi,
-            ]);
+            ];
+            // session_id/misafir_ip migration'ı geçtiyse yaz
+            if (Schema::hasColumn('carkifelek_cevirme_loglari', 'session_id')) {
+                $logData['session_id'] = $request->session()->getId();
+            }
+            if (Schema::hasColumn('carkifelek_cevirme_loglari', 'misafir_ip')) {
+                $logData['misafir_ip'] = $request->ip();
+            }
+            CarkifelekCevirmeLoglari::create($logData);
 
             // Bugün çevirdi işareti (tekrar_dene hariç)
             if ($secilen->tip !== 'tekrar_dene') {
@@ -447,10 +454,12 @@ class CarkifelekMusteriController extends Controller
                 $odulKodu = $kupon->kod;
             }
 
-            // Log'daki user_id null olanı bu user'a bağla
-            CarkifelekCevirmeLoglari::where('session_id', session()->getId())
-                ->whereNull('user_id')
-                ->update(['user_id' => $user->id]);
+            // Log'daki misafir kayıtları (user_id=0) bu user'a bağla
+            if (Schema::hasColumn('carkifelek_cevirme_loglari', 'session_id')) {
+                CarkifelekCevirmeLoglari::where('session_id', session()->getId())
+                    ->where('user_id', 0)
+                    ->update(['user_id' => $user->id]);
+            }
         });
 
         // İşletmeye bildirim — yalnızca YENİ üyelikse
