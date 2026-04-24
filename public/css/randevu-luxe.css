@@ -41,9 +41,11 @@
 /* Keep the page breathing */
 .block > .container { max-width: 1200px; }
 
-/* ---------- HERO BANNER ---------- */
+/* ---------- HERO BANNER (sticky) ---------- */
 .lx-hero {
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 50;
     margin: 22px 0 28px;
     padding: 42px 44px;
     border-radius: var(--lx-radius-lg);
@@ -52,6 +54,48 @@
     background: var(--lx-g-dark);
     isolation: isolate;
     box-shadow: 0 30px 80px -20px rgba(26, 11, 46, 0.5);
+    transition: padding .28s cubic-bezier(.4,0,.2,1),
+                margin .28s cubic-bezier(.4,0,.2,1),
+                border-radius .28s cubic-bezier(.4,0,.2,1),
+                box-shadow .28s ease;
+}
+
+/* Compact state: triggered via JS (.is-compact) when scrolled past threshold */
+.lx-hero.is-compact {
+    padding: 14px 26px !important;
+    margin: 0 0 22px !important;
+    border-radius: 0 0 var(--lx-radius) var(--lx-radius) !important;
+    box-shadow: 0 12px 32px -12px rgba(26, 11, 46, 0.55) !important;
+}
+.lx-hero.is-compact::before,
+.lx-hero.is-compact::after { display: none !important; }
+.lx-hero.is-compact .lx-hero__bg { display: none !important; }
+.lx-hero.is-compact .lx-hero__eyebrow,
+.lx-hero.is-compact .lx-hero__sub,
+.lx-hero.is-compact .lx-hero__meta { display: none !important; }
+.lx-hero.is-compact .lx-hero__title {
+    font-size: 20px !important;
+    margin: 0 !important;
+    text-shadow: none !important;
+}
+.lx-hero.is-compact .lx-hero__grid {
+    grid-template-columns: auto 1fr !important;
+    gap: 24px !important;
+    align-items: center !important;
+}
+.lx-hero.is-compact .lx-progress {
+    padding: 8px 16px !important;
+}
+.lx-hero.is-compact .lx-progress__track {
+    margin: 18px 14px 6px !important;
+}
+.lx-hero.is-compact .lx-progress__labels {
+    display: none !important;
+}
+.lx-hero.is-compact .lx-progress__dot {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 10px !important;
 }
 .lx-hero::before,
 .lx-hero::after {
@@ -263,7 +307,13 @@
     padding: 0 !important;
 }
 #randevusistemi { order: 2; min-width: 0; }
-#randevuozetbolumu { order: 1; min-width: 0; position: sticky; top: 20px; }
+#randevuozetbolumu {
+    order: 1;
+    min-width: 0;
+    position: sticky;
+    top: calc(var(--lx-hero-h, 180px) + 16px);
+    transition: top .28s cubic-bezier(.4,0,.2,1);
+}
 
 @media (max-width: 991px) {
     .rdv-luxe-bookingrow {
