@@ -269,6 +269,15 @@
     #randevusistemi { order: 1; }
 }
 
+/* Onay adiminda ozet sidebar gizlenince sayfa tek sutuna dussun */
+.rdv-luxe-bookingrow:has(> #randevuozetbolumu[style*="display:none"]),
+.rdv-luxe-bookingrow:has(> #randevuozetbolumu[style*="display: none"]),
+.rdv-luxe-bookingrow:has(> #randevusistemi.col-md-12) {
+    grid-template-columns: 1fr !important;
+    max-width: 820px;
+    margin: 0 auto !important;
+}
+
 /* ---------- CONTENT STEP CONTAINERS ---------- */
 #hizmetsecimbolumu,
 #personelsecimbolumu,
