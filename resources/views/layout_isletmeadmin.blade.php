@@ -790,7 +790,7 @@
                      ><span class="mtext">Reklam Yönetimi</span>
                      </a>
                   </li>
-                  <li style="display:none;">
+                  <li>
                            @if($pageindex==20)
                            <a href="/isletmeyonetim/etkinlik{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                            @else
