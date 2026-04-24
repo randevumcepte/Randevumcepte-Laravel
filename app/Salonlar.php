@@ -8,7 +8,14 @@ class Salonlar extends Model
 {
 	protected $table = 'salonlar';
     protected $fillable = [
-        'salon_adi', 'adres' , 'satis_ortagi_id','pasif_ortak_id','il_id','ilce_id','telefon_1','telefon_2','telefon_3' ,'yetkili_adi','yetkili_telefon','hesap_acildi' ];
+        'salon_adi', 'adres' , 'satis_ortagi_id','pasif_ortak_id','il_id','ilce_id','telefon_1','telefon_2','telefon_3' ,'yetkili_adi','yetkili_telefon','hesap_acildi',
+        'whatsapp_aktif','whatsapp_durum','whatsapp_numara','whatsapp_baglanti_tarihi','whatsapp_gunluk_limit','whatsapp_warmup_baslangic','whatsapp_son_hata' ];
+
+    protected $casts = [
+        'whatsapp_aktif' => 'boolean',
+        'whatsapp_baglanti_tarihi' => 'datetime',
+        'whatsapp_warmup_baslangic' => 'datetime',
+    ];
     //protected $with =  ['il', 'ilce', 'salon_turu','calisma_saatleri','mola_saatleri'];
     public function personeller()
     {

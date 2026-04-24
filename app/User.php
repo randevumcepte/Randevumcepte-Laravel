@@ -17,7 +17,11 @@ class User extends Authenticatable
     
 
     protected $fillable = [
-        'name',   'password','cep_telefon'
+        'name',   'password','cep_telefon','whatsapp_onay'
+    ];
+
+    protected $casts = [
+        'whatsapp_onay' => 'boolean',
     ];
 
     /**

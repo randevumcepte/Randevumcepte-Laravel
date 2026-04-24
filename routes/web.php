@@ -300,6 +300,11 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/randevubilgiguncelle','StoreAdminController@randevubilgiguncelle');
 	//Route::middleware('role:Hesap Sahibi,Süpervizör,Yönetici')->get('/ayarlar','StoreAdminController@ayarlar');
 	Route::get('/ayarlar','StoreAdminController@ayarlar');
+	Route::get('/whatsapp','StoreAdminController@whatsapp')->name('whatsapp.sayfa');
+	Route::post('/whatsapp/baslat','StoreAdminController@whatsappBaslat')->name('whatsapp.baslat');
+	Route::get('/whatsapp/durum','StoreAdminController@whatsappDurum')->name('whatsapp.durum');
+	Route::get('/whatsapp/qr','StoreAdminController@whatsappQR')->name('whatsapp.qr');
+	Route::post('/whatsapp/cikis','StoreAdminController@whatsappCikis')->name('whatsapp.cikis');
 	Route::get('/hizmet-yonetimi', function(){ return redirect('/isletmeyonetim/ayarlar?p=hizmetler'); });
 	Route::post('/hizmet-yonetimi/guncelle','StoreAdminController@hizmetYonetimiGuncelle');
 	Route::post('/hizmet-yonetimi/kategori-ekle','StoreAdminController@hizmetKategoriEkle');
@@ -774,6 +779,8 @@ Route::get('/run-schedule', function () {
     \Illuminate\Support\Facades\Artisan::call('schedule:run');
     return 'Schedule çalıştırıldı!';
 });
+
+Route::post('/webhook/whatsapp','WhatsAppWebhookController@handle')->name('whatsapp.webhook');
 Route::get('/check-memory', function () {
     return 'Memory Limit: ' . ini_get('memory_limit');
 });

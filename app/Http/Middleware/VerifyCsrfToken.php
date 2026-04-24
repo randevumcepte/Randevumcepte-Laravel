@@ -15,5 +15,6 @@ class VerifyCsrfToken extends BaseVerifier
          '/odemebasarisiz',
          '/odemebasarili/*/*',
          '/webhook',
+         '/webhook/*',
     ];
 }

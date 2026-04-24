@@ -15322,7 +15322,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     {
         $isletmeler = '';
         $isletme = '';
-        
+
         if (Auth::guard('satisortakligi')->check()) {
             $isletmeler = [15];
             $isletme = Salonlar::where('id', 15)->first();
@@ -15330,25 +15330,22 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
         }
-    
+
         if (!in_array(self::mevcutsube($request), $isletmeler)) {
             return view('isletmeadmin.yetkisizerisim');
         }
-    
+
         if (str_contains(self::lisans_sure_kontrol($request), '-')) {
             return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
         }
-    
+
         if (count($isletmeler) > 1 && !isset($_GET['sube'])) {
             return view('isletmeadmin.isletmesec', ['isletmeler' => $isletmeler, 'isletme' => $isletme]);
         }
-    
-        // Get the QR code by calling the function
-        $qrCode = $this->generateQRCode(); // This method generates the QR code
-    
+
         $paketler = self::paket_liste_getir('', true, $request);
         $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
-    
+
         return view('isletmeadmin.whatsapp', [
             'bildirimler' => self::bildirimgetir($request),
             'paketler' => $paketler,
@@ -15361,8 +15358,85 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'hizmet_drop' => self::hizmetdropliste($request),
             'personel_drop' => self::personeldropliste($request, []),
             'yetkiliolunanisletmeler' => $isletmeler,
-            'qr_code' => $qrCode['qr_code'],  // Pass the QR code to the view
         ]);
+    }
+
+    public function whatsappBaslat(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $svc = app(\App\Services\WhatsAppService::class);
+        $res = $svc->startSession($salonId);
+
+        if ($res['ok'] ?? false) {
+            Salonlar::where('id', $salonId)->update([
+                'whatsapp_aktif' => 1,
+                'whatsapp_durum' => $res['body']['status'] ?? 'connecting',
+            ]);
+        }
+        return response()->json($res['body'] ?? ['error' => 'servis-erisilemiyor'], $res['status'] ?: 502);
+    }
+
+    public function whatsappDurum(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $svc = app(\App\Services\WhatsAppService::class);
+        $res = $svc->status($salonId);
+        $body = $res['body'] ?? ['status' => 'servis-kapali'];
+
+        if (($res['ok'] ?? false) && isset($body['status'])) {
+            $update = ['whatsapp_durum' => $body['status']];
+            if ($body['status'] === 'connected') {
+                $salon = Salonlar::find($salonId);
+                if ($salon && !$salon->whatsapp_baglanti_tarihi) {
+                    $update['whatsapp_baglanti_tarihi'] = now();
+                    $update['whatsapp_warmup_baslangic'] = now();
+                }
+                if (!empty($body['phone'])) $update['whatsapp_numara'] = $body['phone'];
+            }
+            Salonlar::where('id', $salonId)->update($update);
+        }
+        return response()->json($body);
+    }
+
+    public function whatsappQR(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $svc = app(\App\Services\WhatsAppService::class);
+        $res = $svc->qr($salonId);
+        return response()->json($res['body'] ?? ['error' => 'qr-yok'], $res['status'] ?: 404);
+    }
+
+    public function whatsappCikis(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $svc = app(\App\Services\WhatsAppService::class);
+        $svc->logout($salonId);
+        Salonlar::where('id', $salonId)->update([
+            'whatsapp_aktif' => 0,
+            'whatsapp_durum' => 'cikis-yapildi',
+            'whatsapp_numara' => null,
+            'whatsapp_baglanti_tarihi' => null,
+            'whatsapp_warmup_baslangic' => null,
+        ]);
+        return response()->json(['ok' => true]);
+    }
+
+    protected function whatsappYetkiliSalon(Request $request)
+    {
+        if (Auth::guard('satisortakligi')->check()) return 15;
+        $current = self::mevcutsube($request);
+        $yetkili = Auth::guard('isletmeyonetim')->user()
+            ->yetkili_olunan_isletmeler->where('aktif', 1)
+            ->pluck('salon_id')->toArray();
+        return in_array($current, $yetkili) ? $current : null;
     }
     
 
