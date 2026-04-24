@@ -3083,6 +3083,11 @@ private function ayAdiCevir($ingilizceAy)
             $personel->paket_prim_yuzde = $request->paket_prim_yuzde;
             $personel->yetkili_id = $yetkili->id;
             $personel->role_id = $rol_id;
+            // Tanitim sayfasi icin eklenen alanlar (nullable)
+            if ($request->has('uzmanlik'))       $personel->uzmanlik       = $request->uzmanlik;
+            if ($request->has('aciklama'))       $personel->aciklama       = $request->aciklama;
+            if ($request->has('yillik_tecrube')) $personel->yillik_tecrube = $request->yillik_tecrube ?: null;
+            if ($request->has('instagram'))      $personel->instagram      = $request->instagram;
             $personel->save();
             PersonelCalismaSaatleri::where('personel_id',$personel->id)->delete();
             for($i=1;$i<=7;$i++){

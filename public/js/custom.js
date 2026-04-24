@@ -9574,6 +9574,11 @@ $('#personel_tablo').on('click','a[name="personel_detayi"]',function(){
                         $('#urun_prim_yuzde').val(result.personelbilgi.urun_prim_yuzde);
                         $('#paket_prim_yuzde').val(result.personelbilgi.paket_prim_yuzde);
                         $('#personel_maas').val(result.personelbilgi.maas);
+                        // Tanitim sayfasi alanlari
+                        $('#uzmanlik').val(result.personelbilgi.uzmanlik || '');
+                        $('#yillik_tecrube').val(result.personelbilgi.yillik_tecrube || '');
+                        $('#instagram').val(result.personelbilgi.instagram || '');
+                        $('#aciklama').val(result.personelbilgi.aciklama || '');
                         if(result.hesapturu=='Hesap Sahibi'){
                             $('#sistem_yetki').prop('disabled',true);
                         }

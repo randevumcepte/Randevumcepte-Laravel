@@ -10,7 +10,8 @@ class Personeller extends Model
     protected $table = 'salon_personelleri';
     //protected $with = ['salonlar','randevuhizmetler'];
     protected $fillable = [
-        'personel_adi', 'salon_id' ,'yetkili_id','cep_telefon'
+        'personel_adi', 'salon_id' ,'yetkili_id','cep_telefon',
+        'uzmanlik','aciklama','yillik_tecrube','instagram'
     ];
    
     public function salonlar()

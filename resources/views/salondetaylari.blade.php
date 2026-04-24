@@ -480,256 +480,368 @@
          <div class="row">
             <div id="hata"></div>
          </div>
-         <div class="row">
-            <!--============ Listing Detail =============================================================-->
-            <div class="col-md-12">
-               <div class="gallery-carousel-thumbs owl-carousel">
-                  @foreach($salongorselleri as $carouselgorsel)
-                  @if($carouselgorsel->salon_id== $salon->id)
-                  <a class="owl-thumb active-thumb background-image" onclick="buyut('{{secure_asset($carouselgorsel->salon_gorseli)}}');">
-                  <img src="{{secure_asset($carouselgorsel->salon_gorseli)}}" name="salon_gorselleri" alt="Salon Görseli" data-src="{{secure_asset($carouselgorsel->salon_gorseli)}}" />
-                  </a>
+
+         {{-- ================= HAKKIMIZDA / STORY ================= --}}
+         @if(!empty($salon->aciklama))
+         <section class="slp-section">
+            <div class="slp-section__head">
+               <span class="slp-eyebrow">Hakkımızda</span>
+               <h2 class="slp-section__title">Sadece bir salon değil, bir deneyim.</h2>
+               <p class="slp-section__sub">Profesyonel ekibimiz, modern anlayışımız ve kişisel dokunuşlarımızla sizi ağırlıyoruz.</p>
+            </div>
+            <div class="slp-story-grid">
+               <div class="slp-story__text">
+                  <p>{!! nl2br(e($salon->aciklama)) !!}</p>
+               </div>
+               <div class="slp-story__image">
+                  @if(!empty($salongorselikapak))
+                     <img src="{{secure_asset($salongorselikapak)}}" alt="{{$salon->salon_adi}}" loading="lazy">
+                  @elseif($salongorselleri->where('salon_id',$salon->id)->count())
+                     <img src="{{secure_asset($salongorselleri->where('salon_id',$salon->id)->first()->salon_gorseli)}}" alt="{{$salon->salon_adi}}" loading="lazy">
                   @endif
+                  <div class="slp-story__badge">
+                     <strong>{{$_ortPuan ?? '5.0'}}</strong>
+                     <span>{{$salonyorumlar->count()}} Yorum</span>
+                  </div>
+               </div>
+            </div>
+         </section>
+         @endif
+
+         {{-- ================= HIZMETLER ================= --}}
+         @if($salonsunulanhizmetler_kategori && $salonsunulanhizmetler_kategori->count())
+         <section class="slp-section slp-section--alt">
+            <div class="slp-section__head">
+               <span class="slp-eyebrow">Hizmetler</span>
+               <h2 class="slp-section__title">Profesyonel Hizmetlerimiz</h2>
+               <p class="slp-section__sub">Sizi en iyi şekilde ağırlamak için geniş hizmet yelpazemiz.</p>
+            </div>
+            @php
+               $_kategoriIconMap = [
+                   'saç' => 'fa-magic',
+                   'makyaj' => 'fa-paint-brush',
+                   'tırnak' => 'fa-hand-peace-o',
+                   'cilt' => 'fa-heart',
+                   'kaş' => 'fa-eye',
+                   'masaj' => 'fa-spa',
+                   'epilasyon' => 'fa-bolt',
+                   'gelin' => 'fa-diamond',
+                   'sakal' => 'fa-user',
+                   'bay' => 'fa-male',
+                   'bayan' => 'fa-female',
+               ];
+            @endphp
+            <div class="slp-services-grid">
+               @foreach($salonsunulanhizmetler_kategori as $kat)
+                  @php
+                     $_katAdi = $kat->hizmet_kategorisi->hizmet_kategorisi_adi ?? '';
+                     $_katSayi = $salonsunulanhizmetler->where('hizmet_kategori_id', $kat->hizmet_kategori_id)->where('aktif', 1)->count();
+                     $_katIcon = 'fa-magic';
+                     foreach ($_kategoriIconMap as $kw => $ic) {
+                         if (mb_stripos($_katAdi, $kw) !== false) { $_katIcon = $ic; break; }
+                     }
+                  @endphp
+                  <div class="slp-service-card">
+                     <div class="slp-service-card__icon"><i class="fa {{$_katIcon}}"></i></div>
+                     <h3>{{$_katAdi}}</h3>
+                     <p>{{$_katSayi}} hizmet seçeneği</p>
+                     <a href="#randevu-al" data-slp-open>Randevu Al <i class="fa fa-arrow-right"></i></a>
+                  </div>
+               @endforeach
+            </div>
+         </section>
+         @endif
+
+         {{-- ================= NEDEN BIZ / FEATURES ================= --}}
+         <section class="slp-section">
+            <div class="slp-section__head">
+               <span class="slp-eyebrow">Neden Biz?</span>
+               <h2 class="slp-section__title">Farkımız Detaylarda</h2>
+               <p class="slp-section__sub">{{$salon->salon_adi}}'i tercih etmeniz için pek çok sebep var.</p>
+            </div>
+            <div class="slp-features-grid">
+               <div class="slp-feature">
+                  <div class="slp-feature__icon"><i class="fa fa-user-md"></i></div>
+                  <h3>Uzman Ekip</h3>
+                  <p>Alanında deneyimli profesyonel personelimiz en yeni teknikleri kullanarak hizmet veriyor.</p>
+               </div>
+               <div class="slp-feature">
+                  <div class="slp-feature__icon"><i class="fa fa-heart"></i></div>
+                  <h3>Hijyenik Ortam</h3>
+                  <p>Tüm ekipman ve alanlarımız her kullanım öncesi özenle dezenfekte edilir.</p>
+               </div>
+               <div class="slp-feature">
+                  <div class="slp-feature__icon"><i class="fa fa-mobile"></i></div>
+                  <h3>Online Randevu</h3>
+                  <p>7/24 dilediğiniz saatte birkaç tıkla randevunuzu anında onaylayın.</p>
+               </div>
+               <div class="slp-feature">
+                  <div class="slp-feature__icon"><i class="fa fa-diamond"></i></div>
+                  <h3>Kaliteli Ürünler</h3>
+                  <p>Sadece güvenilir markaların profesyonel serilerini kullanıyoruz.</p>
+               </div>
+               <div class="slp-feature">
+                  <div class="slp-feature__icon"><i class="fa fa-clock-o"></i></div>
+                  <h3>Dakiklik</h3>
+                  <p>Randevu saatinize tam zamanında başlıyor, vaktinize değer veriyoruz.</p>
+               </div>
+               <div class="slp-feature">
+                  <div class="slp-feature__icon"><i class="fa fa-star"></i></div>
+                  <h3>Müşteri Memnuniyeti</h3>
+                  <p>{{$salonyorumlar->count()}}+ mutlu müşterimizin deneyimini siz de yaşayın.</p>
+               </div>
+            </div>
+         </section>
+
+         {{-- ================= EKIBIMIZ ================= --}}
+         @if($personeller && $personeller->count())
+         <section class="slp-section slp-section--alt">
+            <div class="slp-section__head">
+               <span class="slp-eyebrow">Ekibimiz</span>
+               <h2 class="slp-section__title">Profesyonel Ekibimizle Tanışın</h2>
+               <p class="slp-section__sub">Her biri alanında uzman, gülümseyen yüzler sizi bekliyor.</p>
+            </div>
+            <div class="slp-team-grid">
+               @foreach($personeller as $per)
+                  @if($per->salon_id == $salon->id)
+                     @php
+                        $_perResim = \App\IsletmeYetkilileri::where('personel_id',$per->id)->value('profil_resim');
+                        if (empty($_perResim)) {
+                            $_perResim = $per->cinsiyet==0 ? 'public/img/author0.jpg' : 'public/img/author1.jpg';
+                        }
+                        $_perName = \App\IsletmeYetkilileri::where('personel_id',$per->id)->value('name');
+                        if (empty($_perName)) $_perName = $per->personel_adi;
+                     @endphp
+                     <div class="slp-team-card">
+                        <div class="slp-team-card__avatar">
+                           <img src="{{secure_asset($_perResim)}}" alt="{{$_perName}}" loading="lazy">
+                        </div>
+                        <h4 class="slp-team-card__name">{{$_perName}}</h4>
+                        @if(!empty($per->uzmanlik))
+                           <span class="slp-team-card__specialty">{{$per->uzmanlik}}</span>
+                        @elseif(!empty($per->unvan))
+                           <span class="slp-team-card__specialty">{{$per->unvan}}</span>
+                        @endif
+                        @if(!empty($per->aciklama))
+                           <p class="slp-team-card__bio">{{$per->aciklama}}</p>
+                        @endif
+                        <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
+                           @if(!empty($per->yillik_tecrube))
+                              <span class="slp-team-card__exp"><i class="fa fa-star"></i> {{$per->yillik_tecrube}}+ yıl tecrübe</span>
+                           @endif
+                           @if(!empty($per->instagram))
+                              <a class="slp-team-card__ig" href="https://instagram.com/{{ltrim($per->instagram,'@')}}" target="_blank" rel="noopener">
+                                 <i class="fa fa-instagram"></i> @{{ltrim($per->instagram,'@')}}
+                              </a>
+                           @endif
+                        </div>
+                     </div>
+                  @endif
+               @endforeach
+            </div>
+         </section>
+         @endif
+
+         {{-- ================= GALERI ================= --}}
+         @if($salongorselleri && $salongorselleri->where('salon_id',$salon->id)->count())
+         <section class="slp-section">
+            <div class="slp-section__head">
+               <span class="slp-eyebrow">Galeri</span>
+               <h2 class="slp-section__title">Salonumuzdan Kareler</h2>
+               <p class="slp-section__sub">Görsellerimizle atmosferimizi yakından tanıyın.</p>
+            </div>
+            <div class="slp-gallery">
+               @foreach($salongorselleri as $g)
+                  @if($g->salon_id == $salon->id)
+                     <div class="slp-gallery__item" onclick="buyut('{{secure_asset($g->salon_gorseli)}}');" role="button" tabindex="0">
+                        <img src="{{secure_asset($g->salon_gorseli)}}" alt="Salon Görseli" loading="lazy">
+                     </div>
+                  @endif
+               @endforeach
+            </div>
+         </section>
+         @endif
+
+         {{-- ================= SAATLER + HARITA ================= --}}
+         @if(($saloncalismasaatleri && $saloncalismasaatleri->count()) || !empty($salon->maps_iframe))
+         <section class="slp-section slp-section--alt">
+            <div class="slp-section__head">
+               <span class="slp-eyebrow">Ziyaret</span>
+               <h2 class="slp-section__title">Çalışma Saatleri &amp; Konum</h2>
+               <p class="slp-section__sub">Açık olduğumuz saatleri ve adresimizi buradan görüntüleyebilirsiniz.</p>
+            </div>
+            <div class="slp-hourmap-grid">
+               <div class="slp-hours">
+                  <h3><i class="fa fa-clock-o"></i> Çalışma Saatleri</h3>
+                  @php $_gunler = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar']; @endphp
+                  @for($_i=1; $_i<=7; $_i++)
+                     @php
+                        $_cs = $saloncalismasaatleri->firstWhere('haftanin_gunu', $_i);
+                        $_isToday = ((int) date('N')) === $_i;
+                     @endphp
+                     <div class="slp-hours__row {{$_isToday ? 'slp-hours__row--today' : ''}}">
+                        <span class="slp-hours__day">
+                           {{$_gunler[$_i-1]}}@if($_isToday) · Bugün @endif
+                        </span>
+                        <span class="slp-hours__time {{$_cs && $_cs->calisiyor ? '' : 'slp-hours__time--closed'}}">
+                           @if($_cs && $_cs->calisiyor)
+                              {{date('H:i', strtotime($_cs->baslangic_saati))}} – {{date('H:i', strtotime($_cs->bitis_saati))}}
+                           @else
+                              Kapalı
+                           @endif
+                        </span>
+                     </div>
+                  @endfor
+               </div>
+               <div class="slp-map">
+                  @if(!empty($salon->maps_iframe))
+                     <iframe src="{{$salon->maps_iframe}}" allowfullscreen></iframe>
+                  @else
+                     <div style="height:320px; display:flex; align-items:center; justify-content:center; background:var(--slp-bg); color:var(--slp-muted); font-size:14px;">
+                        <i class="fa fa-map-marker" style="font-size:28px; margin-right:10px; opacity:.4;"></i> Konum henüz eklenmedi
+                     </div>
+                  @endif
+                  <div class="slp-map__addr">
+                     <i class="fa fa-map-marker"></i>
+                     <span>{{$salon->adres}}</span>
+                  </div>
+               </div>
+            </div>
+         </section>
+         @endif
+         {{-- ================= MUSTERI YORUMLARI ================= --}}
+         <section class="slp-section">
+            <div class="slp-section__head">
+               <span class="slp-eyebrow">Müşteri Yorumları</span>
+               <h2 class="slp-section__title">
+                  @if($_ortPuan)
+                     {{$_ortPuan}}/5 · {{$salonyorumlar->count()}} Yorum
+                  @else
+                     Müşteri Deneyimleri
+                  @endif
+               </h2>
+               <p class="slp-section__sub">Bizi tercih eden değerli müşterilerimizin deneyimleri.</p>
+            </div>
+
+            @if(Auth::check() && \App\SalonYorumlar::where('salon_id',$salon->id)->where('user_id',Auth::user()->id)->count() == 0)
+               <div class="slp-review-form-wrap">
+                  <h3>Deneyiminizi Paylaşın</h3>
+                  <form id="salonyorumyap" action="{{route('yorumyap')}}" method="get">
+                     <div class="form-group">
+                        <input type="hidden" value="{{$salon->id}}" name="yorum_isletmeid">
+                        <label style="display:block; margin-bottom:6px; font-weight:600;">Puanlama</label>
+                        <div style="display:flex; gap:6px; margin-bottom:14px;">
+                           @for($_r=1; $_r<=5; $_r++)
+                              <input type="radio" value="{{$_r}}" id="puanlama{{$_r}}" name="puanlama" {{$_r==5?'checked':''}} required style="display:none">
+                              <label for="puanlama{{$_r}}" style="cursor:pointer; margin:0;"><div class="rating" data-rating="{{$_r}}"></div></label>
+                           @endfor
+                        </div>
+                        <textarea class="form-control" required rows="3" placeholder="Deneyiminizi yazın..." name="yorumtext_yorum" id="yorumtext_yorum" style="resize:vertical; border:1.5px solid var(--slp-line-2); border-radius:10px; padding:12px;"></textarea>
+                        <button type="submit" class="slp-btn slp-btn--primary" style="margin-top:14px;">
+                           <i class="fa fa-paper-plane"></i> Yorumu Gönder
+                        </button>
+                     </div>
+                  </form>
+               </div>
+            @endif
+
+            @if($salonyorumlar && $salonyorumlar->count())
+               <div class="slp-reviews-grid">
+                  @foreach($salonyorumlar as $_yorum)
+                     @php
+                        $_yUser = \App\User::where('id', $_yorum->user_id)->first();
+                        $_yName = $_yUser->name ?? 'Müşteri';
+                        $_yPic  = $_yUser && !empty($_yUser->profil_resim) ? $_yUser->profil_resim : null;
+                        if (empty($_yPic)) {
+                            $_yPic = ($_yUser && $_yUser->cinsiyet == 0) ? 'public/img/author0.jpg' : 'public/img/author1.jpg';
+                        }
+                        $_yPuan = \App\SalonPuanlar::where('user_id', $_yorum->user_id)->where('salon_id', $salon->id)->value('puan') ?? 0;
+                     @endphp
+                     <div class="slp-review">
+                        <div class="slp-review__head">
+                           <div class="slp-review__avatar">
+                              <img src="{{secure_asset($_yPic)}}" alt="{{$_yName}}" loading="lazy">
+                           </div>
+                           <div style="flex:1; min-width:0;">
+                              <p class="slp-review__name">{{$_yName}}</p>
+                              <div class="slp-review__date">
+                                 @if(date('d')==date('d',strtotime($_yorum->updated_at)))
+                                    Bugün {{date('H:i',strtotime($_yorum->updated_at))}}
+                                 @elseif(date('d')-1 == date('d',strtotime($_yorum->updated_at)))
+                                    Dün {{date('H:i',strtotime($_yorum->updated_at))}}
+                                 @else
+                                    {{date('d.m.Y',strtotime($_yorum->updated_at))}}
+                                 @endif
+                              </div>
+                           </div>
+                           <div class="slp-review__stars">
+                              @for($_i=1; $_i<=5; $_i++)<i class="fa fa-star" style="opacity:{{$_i <= $_yPuan ? 1 : 0.22}}"></i>@endfor
+                           </div>
+                        </div>
+                        <p class="slp-review__text">{{$_yorum->yorum}}</p>
+                     </div>
                   @endforeach
                </div>
-               @if($aramaterimimeta != '' || $aramaterimimeta != null)
-               <section style="text-align: center;">
-                  Etiketler : {{$aramaterimimeta}}
-               </section>
-               @endif
-               <!--end Gallery Carousel-->
-               <!--Description-->
-               @if($salon->aciklama != null ||$salon->aciklama != '')
-               <section>
-                  <p class="salondetaybasliklar">Açıklama</p>
-                  <p>
-                     {{$salon->aciklama}}
-                  </p>
-               </section>
-               @endif
-               <section>
-                  <div class="row">
-                     <div class="col-md-12" style="margin:30px 0 30px 0">
-                        <p class="salondetaybasliklar">Adres</p>
-                        <p>{{$salon->adres}}</p>
-                        @if($salon->maps_iframe != null ||$salon->maps_iframe != '')
-                        <iframe src="{{$salon->maps_iframe}}" style="width:100%; height: 300px;border:2px solid #FF4E00;border-radius: 4px"  frameborder="0" style="border:0" allowfullscreen></iframe>
-                        @endif
-                     </div>
-                  </div>
-                  @if($saloncalismasaatleri->count()>0 && $personeller->count()>0)       
-                  <div class="row">
-                     <div class="col-md-6" style="padding:20px;">
-                        <p class="salondetaybasliklar">Çalışma Saatleri</p>
-                        @foreach($saloncalismasaatleri as $calismasaatleri)
-                        @if($calismasaatleri->salon_id == $salon->id)
-                        <div class="row" style="min-height: 35px; padding-top: 5px; border-top: 1px solid rgba(0,0,0,.1);">
-                           <div style="width: 50%;padding-left: 20px">
-                              @if($calismasaatleri->haftanin_gunu == 1) Pazartesi
-                              @elseif($calismasaatleri->haftanin_gunu == 2) Salı
-                              @elseif($calismasaatleri->haftanin_gunu == 3) Çarşamba
-                              @elseif($calismasaatleri->haftanin_gunu == 4) Perşembe
-                              @elseif($calismasaatleri->haftanin_gunu == 5) Cuma
-                              @elseif($calismasaatleri->haftanin_gunu == 6) Cumartesi
-                              @elseif($calismasaatleri->haftanin_gunu == 7) Pazar
-                              @endif
-                           </div>
-                           <div style="width: 50%;padding-right: 20px">
-                              @if($calismasaatleri->calisiyor==1)
-                              {{date('H:i',strtotime($calismasaatleri->baslangic_saati))}} - {{date('H:i',strtotime($calismasaatleri->bitis_saati))}}
-                              @else
-                              Kapalı
-                              @endif
-                           </div>
-                        </div>
-                        @endif
-                        @endforeach
-                     </div>
-                     <div class="col-md-6" style="padding:20px;">
-                        <p class="salondetaybasliklar">Personeller</p>
-                        <div class="row" style="padding:0 20px 0 20px">
-                           @foreach($personeller as $salonpersonelleri)
-                           @if($salonpersonelleri->salon_id == $salon->id)
-                           <div style="font-size: 12px; width: 25%">
-                              <div class="author small" style="position: relative;">
-                                 <div class="author-image" style="float: none">
-                                    <div class="background-image image-wrapper">
-                                       @if(\App\IsletmeYetkilileri::where('personel_id',$salonpersonelleri->id)->value('profil_resim') == null || \App\IsletmeYetkilileri::where('personel_id',$salonpersonelleri->id)->value('profil_resim') == '')
-                                       @if($salonpersonelleri->cinsiyet==0)
-                                       <img src="{{secure_asset('public/img/author0.jpg')}}" alt="Profil resmi">
-                                       @else
-                                       <img src="{{secure_asset('public/img/author1.jpg')}}" alt="Profil resmi">
-                                       @endif
-                                       @else
-                                       <img src="{{\App\IsletmeYetkilileri::where('personel_id',$salonpersonelleri->id)->value('profil_resim')}}" alt="Profil resmi">
-                                       @endif
-                                    </div>
-                                 </div>
-                              </div>
-                              {{\App\IsletmeYetkilileri::where('personel_id',$salonpersonelleri->id)->value('name')}} 
-                           </div>
-                           @endif
-                           @endforeach
-                        </div>
-                     </div>
-                  </div>
+            @else
+               <p style="text-align:center; color:var(--slp-muted); padding:20px;">Henüz yorum yapılmamış — ilk yorumu yapan siz olun!</p>
+            @endif
+         </section>
+
+         {{-- ================= FINAL CTA BANNER ================= --}}
+         <div class="slp-cta">
+            <div class="slp-cta__inner">
+               <div class="slp-cta__text">
+                  <h2>Size Özel Deneyime Hazır mısınız?</h2>
+                  <p>Saniyeler içinde randevunuzu oluşturun, uzman ekibimizle tanışmaya gelin.</p>
+               </div>
+               <div class="slp-cta__actions">
+                  <a href="#randevu-al" class="slp-btn slp-btn--primary" data-slp-open>
+                     <i class="fa fa-calendar-check-o"></i> Hemen Randevu Al
+                  </a>
+                  @if(!empty($salon->telefon_1))
+                     <a href="tel:{{$salon->telefon_1}}" class="slp-btn slp-btn--ghost">
+                        <i class="fa fa-phone"></i> Bizi Arayın
+                     </a>
                   @endif
-               </section>
-               <section>
-                  <p class="salondetaybasliklar">Müşteri Yorumları</p>
-                  <div class="comments">
-                     <div class="row">
-                        <div class="col-md-6">
-                           @if(Auth::check() && \App\SalonYorumlar::where('salon_id',$salon->id)->where('user_id',Auth::user()->id)->count() ==0)
-                           <form id="salonyorumyap" action="{{route('yorumyap')}}" method="get">
-                              <div class="form-group">
-                                 <input type="hidden" value="{{$salon->id}}" name="yorum_isletmeid">
-                                 <label>Puanlama</label>
-                                 <input required type="radio" value="1" id="puanlama1" name="puanlama">
-                                 <label for="puanlama1">
-                                    <div class="rating" data-rating="1"></div>
-                                 </label>
-                                 <input required type="radio" value="2" id="puanlama2" name="puanlama">
-                                 <label for="puanlama2">
-                                    <div class="rating" data-rating="2"></div>
-                                 </label>
-                                 <input required type="radio" value="3" id="puanlama3" name="puanlama">
-                                 <label for="puanlama3">
-                                    <div class="rating" data-rating="3"></div>
-                                 </label>
-                                 <input required type="radio" value="4" id="puanlama4" name="puanlama">
-                                 <label for="puanlama4">
-                                    <div class="rating" data-rating="4"></div>
-                                 </label>
-                                 <input checked required type="radio" value="5" id="puanlama5" name="puanlama">
-                                 <label for="puanlama5">
-                                    <div class="rating" data-rating="5"></div>
-                                 </label>
-                                 <textarea class="form-control" required style="border-radius: 0" type="text" placeholder="Yorumunuzu Yazın" name="yorumtext_yorum" id="#yorumtext_yorum"></textarea>
-                                 <button type="submit" class="btn btn-primary" style="margin-top:10px">Gönder</button>
-                              </div>
-                           </form>
-                           @endif
-                        </div>
-                     </div>
-                     <div class="row">
-                        <div class="col-md-6" style="float: left;">
-                           <div class="float-left">
-                              @if($salonpuanlar->count()>0)
-                              <div class="rating" data-rating="{{$salonpuanlar->sum('puan')/$salonpuanlar->count()}}">
-                              </div>
-                              @else
-                              <div class="rating" data-rating="0"></div>
-                              @endif
-                           </div>
-                           {{$salonyorumlar->count()}} Yorum, 
-                           {{$salonpuanlar->count()}}
-                           Puanlama
-                        </div>
-                        <div class="col-md-6" style="float:left;text-align: right;">
-                           @if($salonpuanlar->count()>0)
-                           [{{$salonpuanlar->sum('puan')/$salonpuanlar->count()}}/5]
-                           @else
-                           [0/5]
-                           @endif
-                        </div>
-                     </div>
-                     @foreach($salonyorumlar as $salonyorum)
-                     <div class="comment">
-                        <div class="author">
-                           <a href="#" class="author-image">
-                              <div class="background-image">
-                                 @if(\App\User::where('id',$salonyorum->user_id)->value('profil_resim')==null || \App\User::where('id',$salonyorum->user_id)->value('profil_resim')=='')
-                                 @if(\App\User::where('id',$salonyorum->user_id)->value('cinsiyet')==0)
-                                 <img src="{{secure_asset('public/img/author0.jpg')}}" alt="Profil resmi">
-                                 @else
-                                 <img src="{{secure_asset('public/img/author1.jpg')}}" alt="Profil resmi">
-                                 @endif
-                                 @else
-                                 <img src="{{secure_asset(\App\User::where('id',$salonyorum->user_id)->value('profil_resim'))}}" alt="Profil resmi">
-                                 @endif
-                              </div>
-                           </a>
-                           <div class="author-description">
-                              <p> 
-                                 {{\App\User::where('id',$salonyorum->user_id)->value('name')}} 
-                              </p>
-                              <div class="meta">
-                                 <span>
-                                 @if(date('d')==date('d',strtotime($salonyorum->updated_at)))
-                                 Bugün {{date('H:i',strtotime($salonyorum->updated_at))}}
-                                 @elseif(date('d')-1 == date('d',strtotime($salonyorum->updated_at)))
-                                 Dün {{date('H:i',strtotime($salonyorum->updated_at))}}
-                                 @else
-                                 {{date('d.m.Y H:i',strtotime($salonyorum->updated_at))}}
-                                 @endif
-                                 </span>
-                              </div>
-                              <!--end meta-->
-                              <p>
-                                 {{$salonyorum->yorum}}
-                              </p>
-                              <p>
-                                 @if(\App\SalonPuanlar::where('user_id',$salonyorum->user_id)->where('salon_id',$salon->id)->value('puan') > 0)
-                              <div class="rating" data-rating="{{\App\SalonPuanlar::where('user_id',$salonyorum->user_id)->where('salon_id',$salon->id)->value('puan')}}"></div>
-                              @else
-                              <div class="rating" data-rating="0"></div>
-                              @endif
-                              </p>
-                           </div>
-                           <!--end author-description-->
-                        </div>
-                        <!--end author-->
-                     </div>
-                     @endforeach
-                     <!--end comment-->
-                  </div>
-               </section>
-               <!--end Details and Locations-->
-               <!--Features-->
-               <section style="display: none">
-                  <div class="row">
-                     <div class="col-md-6" style="text-align: center;">
-                        @if($aramaterimlerihepsi)
-                        @foreach($aramaterimlerihepsi as $key => $value)
-                        <?php $i = number_format(sizeof($aramaterimlerihepsi)/2); ?>
-                        @for($j=1; $j<=$i;$j++) 
-                        @if($j-1 === $key)
-                        @if($j===1)
-                        <p>{{$value}}</p>
-                        @else
-                        <h2>{{$value}}</h2>
-                        @endif
-                        @endif
-                        @endfor
-                        @endforeach
-                        @endif
-                     </div>
-                     <div class="col-md-6" style="text-align: center;">
-                        @if($aramaterimlerihepsi)
-                        @foreach($aramaterimlerihepsi as $key => $value)
-                        <?php $i = number_format(sizeof($aramaterimlerihepsi)/2); ?>
-                        @for($j=$i+1; $j<=sizeof($aramaterimlerihepsi);$j++) 
-                        @if($j-1 === $key)
-                        @if($key != 5)
-                        <h2>{{$value}}</h2>
-                        @else
-                        <h3>{{$value}}</h3>
-                        @endif
-                        @endif
-                        @endfor
-                        @endforeach
-                        @endif
-                     </div>
-                  </div>
-               </section>
-               <!--End Author-->
+               </div>
             </div>
-            <!--============ End Listing Detail =========================================================-->
-            <!--============ Sidebar ====================================================================-->
          </div>
-         <!--============ End Sidebar ================================================================-->
-      </div>
+
+         {{-- ================= ILETISIM ================= --}}
+         <section class="slp-section slp-section--tight">
+            <div class="slp-section__head">
+               <span class="slp-eyebrow">İletişim</span>
+               <h2 class="slp-section__title">Bize Ulaşın</h2>
+            </div>
+            <div class="slp-contact-grid">
+               <div class="slp-contact-card">
+                  <div class="slp-contact-card__icon"><i class="fa fa-map-marker"></i></div>
+                  <p class="slp-contact-card__lbl">Adres</p>
+                  <p class="slp-contact-card__val">{{$salon->adres}}</p>
+               </div>
+               @if(!empty($salon->telefon_1))
+                  <div class="slp-contact-card">
+                     <div class="slp-contact-card__icon"><i class="fa fa-phone"></i></div>
+                     <p class="slp-contact-card__lbl">Telefon</p>
+                     <p class="slp-contact-card__val"><a href="tel:{{$salon->telefon_1}}">{{$salon->telefon_1}}</a></p>
+                  </div>
+               @endif
+               <div class="slp-contact-card">
+                  <div class="slp-contact-card__icon"><i class="fa fa-share-alt"></i></div>
+                  <p class="slp-contact-card__lbl">Sosyal Medya</p>
+                  <div class="slp-contact-card__social">
+                     @if(!empty($salon->instagram_sayfa))
+                        <a href="https://instagram.com/{{ltrim($salon->instagram_sayfa,'@')}}" target="_blank" rel="noopener" aria-label="Instagram"><i class="fa fa-instagram"></i></a>
+                     @endif
+                     @if(!empty($salon->facebook_sayfa))
+                        <a href="{{$salon->facebook_sayfa}}" target="_blank" rel="noopener" aria-label="Facebook"><i class="fa fa-facebook"></i></a>
+                     @endif
+                     <a href="#randevu-al" data-slp-open aria-label="Randevu Al"><i class="fa fa-calendar"></i></a>
+                  </div>
+               </div>
+            </div>
+         </section>
+
    </div>
    <!--end container-->
 </section>

@@ -1844,15 +1844,46 @@
                      <div class="form-group">
                         <label>Hesap Türü</label>
                         <select class="form-control" name="sistem_yetki" id="sistem_yetki">
-                           
+
                            <option disabled value="Hesap Sahibi">Hesap Sahibi</option>
                            @foreach($roller as $key => $rol)
                               @if($key != 0 && $key != 5)
                               <option value="{{$rol->name}}">{{$rol->name}}</option>
                               @endif
                            @endforeach
-                          
+
                         </select>
+                     </div>
+                  </div>
+               </div>
+               {{-- ================= TANITIM SAYFASI ALANLARI ================= --}}
+               <div class="row">
+                  <div class="col-md-12">
+                     <h3 style="font-size: 15px; font-weight: bold; margin-top: 6px;">Tanıtım Sayfası Bilgileri (opsiyonel)</h3>
+                     <p style="color:#888; font-size:12px; margin:0 0 10px">Bu bilgiler salonunuzun tanıtım sayfasında personel kartlarında gösterilir.</p>
+                  </div>
+                  <div class="col-md-6">
+                     <div class="form-group">
+                        <label>Uzmanlık Alanı</label>
+                        <input class="form-control" id="uzmanlik" name="uzmanlik" type="text" placeholder="Ör: Saç Boyama · Balyaj · Kaynak" maxlength="200">
+                     </div>
+                  </div>
+                  <div class="col-md-3">
+                     <div class="form-group">
+                        <label>Yıllık Tecrübe</label>
+                        <input class="form-control" id="yillik_tecrube" name="yillik_tecrube" type="number" min="0" max="80" placeholder="Ör: 8">
+                     </div>
+                  </div>
+                  <div class="col-md-3">
+                     <div class="form-group">
+                        <label>Instagram Kullanıcı Adı</label>
+                        <input class="form-control" id="instagram" name="instagram" type="text" placeholder="kullaniciadi" maxlength="150">
+                     </div>
+                  </div>
+                  <div class="col-md-12">
+                     <div class="form-group">
+                        <label>Kısa Açıklama / Biyografi</label>
+                        <textarea class="form-control" id="aciklama" name="aciklama" rows="3" maxlength="600" placeholder="Ör: 10 yılı aşkın deneyimiyle müşterilerine en uygun saç stilini öneriyor. Özel gün makyajı ve balyaj konusunda uzmandır."></textarea>
                      </div>
                   </div>
                </div>

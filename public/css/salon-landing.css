@@ -995,3 +995,358 @@ body.slp-drawer-open .slp-fab {
 
 /* Hide legacy below-booking anchor — drawer opens instead */
 .slp-booking-anchor { display: none; }
+
+/* ==========================================================================
+   ABOUT / STORY — 2 kolon, text + fotograf / vurgu karti
+   ========================================================================== */
+.slp-story-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 40px;
+    align-items: center;
+    max-width: 1080px;
+    margin: 0 auto;
+}
+@media (max-width: 991px) {
+    .slp-story-grid { grid-template-columns: 1fr; gap: 28px; }
+}
+.slp-story__text {
+    font-size: 16px;
+    line-height: 1.8;
+    color: var(--slp-ink-2);
+}
+.slp-story__text p { margin: 0 0 14px; }
+.slp-story__text p:last-child { margin: 0; }
+.slp-story__image {
+    position: relative;
+    border-radius: 22px;
+    overflow: hidden;
+    aspect-ratio: 4/5;
+    box-shadow: 0 20px 48px rgba(124, 58, 237, 0.2);
+}
+.slp-story__image img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.slp-story__image::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 60%, rgba(76, 29, 149, 0.35));
+}
+.slp-story__badge {
+    position: absolute;
+    left: -16px; bottom: 24px;
+    background: var(--slp-g-main);
+    color: #fff;
+    padding: 16px 24px;
+    border-radius: 16px;
+    box-shadow: var(--slp-glow);
+    z-index: 1;
+}
+.slp-story__badge strong { display: block; font-size: 32px; font-weight: 800; line-height: 1; }
+.slp-story__badge span { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.92; margin-top: 4px; }
+
+/* ==========================================================================
+   NEDEN BIZ / FEATURES GRID
+   ========================================================================== */
+.slp-features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 18px;
+}
+.slp-feature {
+    background: #fff;
+    border: 1px solid var(--slp-line);
+    border-radius: 18px;
+    padding: 26px 22px;
+    transition: all .22s ease;
+    position: relative;
+    overflow: hidden;
+}
+.slp-feature:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgba(124, 58, 237, 0.12);
+    border-color: var(--slp-brand-2);
+}
+.slp-feature__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: var(--slp-g-main);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-bottom: 16px;
+    box-shadow: var(--slp-glow);
+}
+.slp-feature h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--slp-ink);
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+}
+.slp-feature p {
+    font-size: 13.5px;
+    color: var(--slp-muted);
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* ==========================================================================
+   GALLERI — modern grid, ilk resim buyuk
+   ========================================================================== */
+.slp-gallery {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 180px;
+    gap: 14px;
+}
+.slp-gallery__item {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--slp-line);
+    transition: transform .25s ease, box-shadow .25s ease;
+}
+.slp-gallery__item:hover {
+    transform: scale(1.015);
+    box-shadow: 0 18px 40px rgba(16, 24, 40, 0.16);
+    z-index: 1;
+}
+.slp-gallery__item img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform .45s ease;
+}
+.slp-gallery__item:hover img { transform: scale(1.07); }
+.slp-gallery__item::after {
+    content: '\f00e';
+    font-family: 'FontAwesome';
+    position: absolute;
+    right: 14px; bottom: 14px;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--slp-brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity .22s ease, transform .22s ease;
+    transform: translateY(6px);
+}
+.slp-gallery__item:hover::after { opacity: 1; transform: translateY(0); }
+.slp-gallery__item:first-child {
+    grid-column: span 2;
+    grid-row: span 2;
+}
+@media (max-width: 767px) {
+    .slp-gallery { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 140px; gap: 10px; }
+    .slp-gallery__item:first-child { grid-column: span 2; grid-row: span 2; }
+}
+
+/* ==========================================================================
+   YORUM FORMU — mevcut form kalsin ama tazelensin
+   ========================================================================== */
+.slp-review-form-wrap {
+    max-width: 680px;
+    margin: 0 auto 32px;
+    background: #fff;
+    border: 1px solid var(--slp-line);
+    border-radius: 18px;
+    padding: 26px;
+}
+.slp-review-form-wrap h3 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0 0 14px;
+    color: var(--slp-ink);
+}
+
+/* ==========================================================================
+   CONTACT / FOOTER CTA
+   ========================================================================== */
+.slp-contact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+@media (max-width: 767px) { .slp-contact-grid { grid-template-columns: 1fr; } }
+.slp-contact-card {
+    background: #fff;
+    border: 1px solid var(--slp-line);
+    border-radius: 18px;
+    padding: 26px;
+    text-align: center;
+    transition: all .2s ease;
+}
+.slp-contact-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 34px rgba(124, 58, 237, 0.15);
+    border-color: var(--slp-brand-2);
+}
+.slp-contact-card__icon {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    margin: 0 auto 14px;
+    background: var(--slp-g-main);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: var(--slp-glow);
+}
+.slp-contact-card__lbl {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--slp-muted);
+    margin: 0 0 6px;
+}
+.slp-contact-card__val {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--slp-ink);
+    margin: 0;
+    word-break: break-word;
+}
+.slp-contact-card a {
+    color: inherit;
+    text-decoration: none;
+}
+.slp-contact-card__social {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+}
+.slp-contact-card__social a {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--slp-bg);
+    color: var(--slp-brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    transition: all .18s ease;
+}
+.slp-contact-card__social a:hover {
+    background: var(--slp-g-main);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   CTA — final call (already styled above; enrich)
+   ========================================================================== */
+.slp-cta__text h2 { line-height: 1.15; }
+.slp-cta__actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+@media (max-width: 767px) {
+    .slp-cta__actions { width: 100%; }
+    .slp-cta__actions .slp-btn { flex: 1; justify-content: center; }
+}
+
+/* ==========================================================================
+   Update stats bar: biraz daha dolu hissi
+   ========================================================================== */
+.slp-stats { margin-top: -44px; }
+
+/* ==========================================================================
+   Ekibimiz — uzmanlik + bio eklenmis gelismis kart
+   ========================================================================== */
+.slp-team-card__specialty {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--slp-brand);
+    padding: 4px 10px;
+    background: rgba(124, 58, 237, 0.08);
+    border-radius: 999px;
+    margin-top: 6px;
+}
+.slp-team-card__bio {
+    font-size: 13px;
+    color: var(--slp-muted);
+    line-height: 1.55;
+    margin: 10px 0 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.slp-team-card__exp {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--slp-soft);
+    font-weight: 600;
+}
+.slp-team-card__exp i { color: var(--slp-gold); }
+.slp-team-card__ig {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--slp-brand);
+    font-weight: 600;
+    text-decoration: none;
+}
+.slp-team-card__ig:hover { color: var(--slp-pink); }
+
+/* ==========================================================================
+   Eski inline fb like / yorum bolumlerini duzene sok
+   ========================================================================== */
+.comments .comment {
+    background: #fff;
+    border: 1px solid var(--slp-line);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 12px;
+}
+.comments .comment .author { display: flex; gap: 12px; align-items: flex-start; }
+.comments .comment .author-image {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.comments .comment .author-image img { width: 100%; height: 100%; object-fit: cover; }
+.comments .comment .author-description { flex: 1; min-width: 0; }
+.comments .comment .author-description > p:first-child {
+    font-weight: 700;
+    color: var(--slp-ink);
+    margin: 0 0 4px;
+    font-size: 14px;
+}
+.comments .comment .meta {
+    font-size: 12px;
+    color: var(--slp-soft);
+    margin-bottom: 6px;
+}
+.comments .comment p {
+    color: var(--slp-ink-2);
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0 0 6px;
+}
