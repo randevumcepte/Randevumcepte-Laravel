@@ -694,26 +694,15 @@
                .observe(el, { attributes: true, attributeFilter: ['style','class'] });
        });
 
-       /* --- Sticky hero: compact mode on scroll + publish height var --- */
+       /* --- Sticky hero: publish height var so summary sidebar knows how far to push --- */
        var hero = document.getElementById('lxHero');
        if (hero) {
-           var COMPACT_THRESHOLD = 120;
            function measureHero() {
                document.documentElement.style.setProperty('--lx-hero-h', hero.offsetHeight + 'px');
            }
-           function onScrollHero() {
-               var y = window.pageYOffset || document.documentElement.scrollTop;
-               if (y > COMPACT_THRESHOLD) hero.classList.add('is-compact');
-               else hero.classList.remove('is-compact');
-               // Re-measure after transition settles
-               window.requestAnimationFrame(measureHero);
-           }
-           window.addEventListener('scroll', onScrollHero, { passive: true });
            window.addEventListener('resize', measureHero);
-           // Initial
+           window.addEventListener('load', measureHero);
            measureHero();
-           // Re-measure after the CSS transition ends too
-           hero.addEventListener('transitionend', measureHero);
        }
    })();
 </script>
