@@ -230,73 +230,40 @@
                   <form id="randevuonayformu" method="POST">
                      {!! csrf_field() !!}
                      <input type="hidden" id="onesignalid" name="onesignalid">
-                     <table class="randevuozetonay">
-                        <tr>
-                           <td style="width: 190px">Salon adı : </td>
-                           <td>
-                              <div class="col-md-12">
-                                 <input type="hidden" name="salonno" value="{{$salon->id}}">{{$salon->salon_adi}}
-                              </div>
-                           </td>
-                           <td colspan="2" rowspan="2" >
-                              <div class="col-md-12">
-                                 Seçilen Personeller
-                              </div>
-                              <div class="col-md-12">
-                                 <div id="secilenpersoneldokumu">
-                                 </div>
-                              </div>
-                           </td>
-                        </tr>
-                        <tr>
-                           <td>Seçilen hizmetler : </td>
-                           <td>
-                              <div class="col-md-12">
-                                 <div id="secilenhizmetdokumu">
-                                 </div>
-                              </div>
-                           </td>
-                           <td>
-                           </td>
-                           <td>
-                           </td>
-                        </tr>
-                        <tr>
-                           <td colspan="2">
-                              <div style="position:relative;float:left;border:2px solid #FF4E00; border-radius: 60px;padding:0 10px 0 10px">
-                                 <span style="float:left"> Tarih&nbsp;&nbsp;:&nbsp;&nbsp;</span>
-                                 <div id="randevutarihidokumu" style="float: left;">
-                                 </div>
-                              </div>
-                           </td>
-                           <td colspan="2">
-                              <div style="position:relative;float:left;border:2px solid #FF4E00; border-radius: 60px;padding:0 10px 0 10px">
-                                 <span style="float:left">Saat&nbsp;&nbsp;:&nbsp;&nbsp;</span>
-                                 <div id="randevusaatidokumu" style="float: left;">
-                                 </div>
-                              </div>
-                           </td>
-                        </tr>
-                        <tr>
-                           <td colspan="4">
-                              <textarea name="randevunotu" style="width:100%;height: 100px;" placeholder="Randevu için notunuz..."></textarea>
-                           </td>
-                        </tr>
-                        <tr>
-                           <td colspan="4"><input type="checkbox" checked id="gizlilikkosulukabul"> <a href="/kullanim-ve-gizlik-kosullari" target="_blank"> Kullanım ve gizlilik koşulları </a>sayfasını okudum ve kabul ediyorum  </td>
-                        </tr>
-                        <tr>
-                           <td colspan="4">Yukarıda detayları listelenen randevunuzu onaylamak istiyor musunuz? 
-                           </td>
-                        </tr>
-                        <tr>
-                           <td colspan=4>
-                              <button type="button" id="randevuonaylabutton" class="btn btn-success btn-rounded" style="width:100%; float: left;">Evet</button> &nbsp;&nbsp;
-                           </td>
-                           <td>
-                           </td>
-                        </tr>
-                     </table>
+                     <input type="hidden" name="salonno" value="{{$salon->id}}">
+                     <div class="randevuozetonay">
+                        <div class="rdv-onay-grid">
+                           <div class="rdv-onay-field">
+                              <span class="rdv-onay-label">Salon adı</span>
+                              <div class="rdv-onay-value">{{$salon->salon_adi}}</div>
+                           </div>
+                           <div class="rdv-onay-field">
+                              <span class="rdv-onay-label">Seçilen hizmetler</span>
+                              <div class="rdv-onay-value" id="secilenhizmetdokumu"></div>
+                           </div>
+                           <div class="rdv-onay-field rdv-onay-field--full">
+                              <span class="rdv-onay-label">Seçilen personeller</span>
+                              <div class="rdv-onay-value rdv-onay-personel" id="secilenpersoneldokumu"></div>
+                           </div>
+                        </div>
+                        <div class="rdv-onay-datetime">
+                           <div class="rdv-onay-pill">
+                              <span class="rdv-onay-pill-label">Tarih</span>
+                              <div class="rdv-onay-pill-value" id="randevutarihidokumu"></div>
+                           </div>
+                           <div class="rdv-onay-pill">
+                              <span class="rdv-onay-pill-label">Saat</span>
+                              <div class="rdv-onay-pill-value" id="randevusaatidokumu"></div>
+                           </div>
+                        </div>
+                        <textarea name="randevunotu" placeholder="Randevu için notunuz..."></textarea>
+                        <label class="rdv-onay-check">
+                           <input type="checkbox" checked id="gizlilikkosulukabul">
+                           <span><a href="/kullanim-ve-gizlik-kosullari" target="_blank">Kullanım ve gizlilik koşulları</a> sayfasını okudum ve kabul ediyorum</span>
+                        </label>
+                        <p class="rdv-onay-confirm">Yukarıda detayları listelenen randevunuzu onaylamak istiyor musunuz?</p>
+                        <button type="button" id="randevuonaylabutton" class="btn btn-success btn-rounded">Evet</button>
+                     </div>
                      <div id="randevuonaybildirim" class="btn btn-success btn-rounded" style="width: 100%; text-align: center;"> </div>
                   </form>
                </div>

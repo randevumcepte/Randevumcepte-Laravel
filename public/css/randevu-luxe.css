@@ -942,43 +942,127 @@
     position: static !important;
 }
 
-.randevuozetonay { width: 100% !important; border-collapse: separate !important; border-spacing: 0 !important; }
-.randevuozetonay tr td {
-    padding: 14px 12px !important;
-    border-bottom: 1px solid var(--lx-line) !important;
-    vertical-align: top !important;
-    font-size: 14.5px !important;
-    color: var(--lx-ink);
-    line-height: 1.5;
+.randevuozetonay { width: 100%; display: block; }
+.rdv-onay-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 18px;
+    margin-bottom: 18px;
 }
-.randevuozetonay tr:last-child td { border-bottom: none !important; }
-.randevuozetonay td div[style*="border:2px solid #FF4E00"],
-.randevuozetonay td div[style*="border: 2px solid #FF4E00"] {
-    background: var(--lx-g-main) !important;
-    border: none !important;
-    color: #fff !important;
-    padding: 10px 18px !important;
-    border-radius: 999px !important;
-    font-weight: 700 !important;
-    display: inline-flex !important;
+.rdv-onay-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid var(--lx-line);
+    border-radius: 14px;
+    min-width: 0;
+}
+.rdv-onay-field--full { grid-column: 1 / -1; }
+.rdv-onay-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--lx-muted);
+}
+.rdv-onay-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--lx-ink);
+    line-height: 1.45;
+    word-break: break-word;
+}
+.rdv-onay-value:empty::before {
+    content: '—';
+    color: var(--lx-soft);
+    font-weight: 500;
+}
+.rdv-onay-personel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.rdv-onay-personel .col-md-3 {
     float: none !important;
+    margin: 0 !important;
+    padding: 4px 12px 4px 4px !important;
+    width: auto !important;
+    display: inline-flex !important;
     align-items: center;
     gap: 8px;
-    box-shadow: var(--lx-glow);
-}
-.randevuozetonay td div[style*="border:2px solid #FF4E00"] > span,
-.randevuozetonay td div[style*="border: 2px solid #FF4E00"] > span {
-    float: none !important;
-    color: inherit !important;
-    opacity: 0.85;
+    background: var(--lx-bg);
+    border: 1px solid var(--lx-line);
+    border-radius: 999px;
+    font-size: 13.5px !important;
     font-weight: 600;
+    color: var(--lx-ink);
+}
+.rdv-onay-personel .author.small { margin: 0 !important; padding: 0 !important; }
+.rdv-onay-personel .author-image {
+    width: 30px !important;
+    height: 30px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-shrink: 0;
+}
+.rdv-onay-personel .author-image .background-image,
+.rdv-onay-personel .author-image img {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 50% !important;
+    object-fit: cover;
+    display: block;
+}
+.rdv-onay-datetime {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+.rdv-onay-pill {
+    flex: 1 1 140px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--lx-g-main);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-weight: 700;
+    box-shadow: var(--lx-glow);
+    min-width: 0;
+}
+.rdv-onay-pill-label { font-size: 13px; opacity: .85; font-weight: 600; }
+.rdv-onay-pill-value {
+    font-size: 15px;
+    font-weight: 700;
+    min-width: 0;
+    word-break: break-word;
+}
+.rdv-onay-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13.5px;
+    color: var(--lx-ink);
+    margin: 14px 0 4px;
+    cursor: pointer;
+    line-height: 1.45;
 }
 #gizlilikkosulukabul {
     width: 18px; height: 18px;
     accent-color: var(--lx-brand);
-    margin-right: 6px;
-    vertical-align: middle;
+    margin: 2px 0 0;
+    flex-shrink: 0;
     cursor: pointer;
+}
+.rdv-onay-confirm {
+    margin: 10px 0 4px;
+    font-size: 14.5px;
+    color: var(--lx-ink-2);
 }
 .randevuozetonay a {
     color: var(--lx-brand) !important;
@@ -986,7 +1070,11 @@
     text-decoration: none;
     border-bottom: 1px dotted var(--lx-brand-2);
 }
-.randevuozetonay textarea[name="randevunotu"] { height: 84px !important; resize: vertical; }
+.randevuozetonay textarea[name="randevunotu"] { height: 96px !important; resize: vertical; }
+
+@media (max-width: 520px) {
+    .rdv-onay-grid { grid-template-columns: 1fr; }
+}
 
 #randevuonaybildirim:empty { display: none !important; }
 #randevuonaybildirim {
