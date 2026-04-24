@@ -4060,14 +4060,27 @@ private function ayAdiCevir($ingilizceAy)
     }
      public function mevcutisletmeduzenleme(Request $request){
         $isletme = Salonlar::where('id',Auth::guard('isletmeyonetim')->user()->salon_id)->first();
-        $isletme->salon_adi = $request->isletmeadi;
-        $isletme->adres = $request->adres;
-        $isletme->il_id = $request->il;
-        $isletme->ilce_id = $request->ilce;
-        $isletme->aciklama = $request->aciklama;
-        $isletme->facebook_sayfa = $request->facebookadres;
-        $isletme->instagram_sayfa = $request->instagramaccesstoken;
-        $isletme->maps_iframe = $request->googlemapskaydi;
+        // Sadece formda mevcut alanlari guncelle — mevcut veriyi null'a cevirme
+        if ($request->has('isletmeadi'))            $isletme->salon_adi = $request->isletmeadi;
+        if ($request->has('adres'))                 $isletme->adres = $request->adres;
+        if ($request->has('il'))                    $isletme->il_id = $request->il;
+        if ($request->has('ilce'))                  $isletme->ilce_id = $request->ilce;
+        if ($request->has('aciklama'))              $isletme->aciklama = $request->aciklama;
+        if ($request->has('telefon_1'))             $isletme->telefon_1 = $request->telefon_1;
+        if ($request->has('facebookadres'))         $isletme->facebook_sayfa = $request->facebookadres;
+        if ($request->has('instagramaccesstoken')) {
+            $_ig = trim($request->instagramaccesstoken);
+            // Eger URL gelirse sakla; @ile baslarsa temizle; duz kullanici adiysa oldugu gibi
+            $isletme->instagram_sayfa = $_ig;
+        }
+        if ($request->has('googlemapskaydi')) {
+            $_raw = trim($request->googlemapskaydi);
+            // Eger kullanici full <iframe ...> HTML'i yapistirdiysa src="..." URL'sini ayikla
+            if (stripos($_raw, '<iframe') !== false && preg_match('/src=["\']([^"\']+)["\']/i', $_raw, $_m)) {
+                $_raw = $_m[1];
+            }
+            $isletme->maps_iframe = $_raw;
+        }
         if(isset($_FILES["isletmelogo"]["name"])){
               $dosya  = $request->isletmelogo;
                $kaynak = $_FILES["isletmelogo"]["tmp_name"];

@@ -694,8 +694,20 @@
                   @endfor
                </div>
                <div class="slp-map">
-                  @if(!empty($salon->maps_iframe))
-                     <iframe src="{{$salon->maps_iframe}}" allowfullscreen></iframe>
+                  @php
+                     $_mapsSrc = $salon->maps_iframe ?? null;
+                     // Admin yalnizca iframe HTML yapistirdiysa src'yi cikar
+                     if ($_mapsSrc && stripos($_mapsSrc, '<iframe') !== false && preg_match('/src=["\']([^"\']+)["\']/i', $_mapsSrc, $_mm)) {
+                         $_mapsSrc = $_mm[1];
+                     }
+                     // Bos ise adres'ten otomatik Google Maps embed fallback
+                     if (empty($_mapsSrc) && !empty($salon->adres)) {
+                         $_adresQuery = urlencode(trim($salon->adres.' '.($salon->ilce->ilce_adi ?? '').' '.($salon->il->il_adi ?? '')));
+                         $_mapsSrc = 'https://maps.google.com/maps?q='.$_adresQuery.'&output=embed';
+                     }
+                  @endphp
+                  @if(!empty($_mapsSrc))
+                     <iframe src="{{$_mapsSrc}}" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
                   @else
                      <div style="height:320px; display:flex; align-items:center; justify-content:center; background:var(--slp-bg); color:var(--slp-muted); font-size:14px;">
                         <i class="fa fa-map-marker" style="font-size:28px; margin-right:10px; opacity:.4;"></i> Konum henüz eklenmedi
@@ -704,6 +716,11 @@
                   <div class="slp-map__addr">
                      <i class="fa fa-map-marker"></i>
                      <span>{{$salon->adres}}</span>
+                     @if(!empty($salon->adres))
+                        <a href="https://www.google.com/maps/search/?api=1&query={{urlencode($salon->adres.' '.($salon->ilce->ilce_adi ?? '').' '.($salon->il->il_adi ?? ''))}}" target="_blank" rel="noopener" style="margin-left:auto; color:var(--slp-brand); font-weight:600; font-size:13px; white-space:nowrap;">
+                           <i class="fa fa-external-link"></i> Yol Tarifi
+                        </a>
+                     @endif
                   </div>
                </div>
             </div>

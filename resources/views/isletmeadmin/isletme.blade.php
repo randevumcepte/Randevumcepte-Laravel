@@ -52,19 +52,69 @@
                </div>
             </div>
          </div>
-         <div class="row" style="display:none">
+         {{-- ============ TANITIM SAYFASI BILGILERI ============ --}}
+         <div class="row">
             <div class="col-md-12">
                <div class="panel panel-default">
                   <div class="panel-heading panel-heading-divider">
-                    Hakkında & Açıklama
-                    <div class="tools">
-                        <button type="button" data-modal="md-scale" class="btn btn-space btn-primary md-trigger"><span style="color:white" class="icon icon mdi mdi-accounts-add"></span> </button>
-                      
-                     
-                    </div>
+                     Tanıtım Sayfası Bilgileri
+                     <span style="font-size:12px; color:#888; font-weight:400; margin-left:8px;">
+                        Bu alanlar müşteri tanıtım sayfanızda (randevumcepte.com.tr salon sayfanız) görüntülenir.
+                     </span>
                   </div>
                   <div class="panel-body">
-                     <textarea name="aciklama"   placeholder="Açıklama & hakkımızda yazısı ekle..." class="form-control">{{$isletme->aciklama}}</textarea>
+                     <div class="row">
+                        <div class="col-md-12">
+                           <div class="form-group">
+                              <label>Hakkımızda / Açıklama</label>
+                              <textarea name="aciklama" rows="4" placeholder="Salonunuzu tanıtan kısa bir yazı yazın. (Örn: 2010 yılından beri İstanbul Kadıköy'de müşterilerimize hizmet veriyoruz. Uzman kadromuz ve modern ekipmanlarımızla...)" class="form-control" maxlength="1200">{{$isletme->aciklama}}</textarea>
+                              <small style="color:#888;">Bu yazı tanıtım sayfasında "Hakkımızda" bölümünde gösterilir.</small>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="row">
+                        <div class="col-md-6">
+                           <div class="form-group">
+                              <label>Telefon</label>
+                              <input type="tel" name="telefon_1" value="{{$isletme->telefon_1 ?? ''}}" placeholder="0212 555 55 55" class="form-control">
+                              <small style="color:#888;">Tanıtım sayfasında "Hemen Ara" butonunda kullanılır.</small>
+                           </div>
+                        </div>
+                        <div class="col-md-6">
+                           <div class="form-group">
+                              <label>Adres</label>
+                              <input type="text" name="adres" value="{{$isletme->adres ?? ''}}" placeholder="Mahalle, cadde, no, ilçe" class="form-control">
+                           </div>
+                        </div>
+                     </div>
+                     <div class="row">
+                        <div class="col-md-12">
+                           <div class="form-group">
+                              <label>Google Maps Konum Kodu</label>
+                              <textarea name="googlemapskaydi" rows="3" placeholder='Google Maps&apos;ten "Paylaş → Haritayı yerleştir" diyerek kopyaladığınız iframe kodunu veya sadece src URL&apos;sini buraya yapıştırın. Hem tam iframe hem URL kabul edilir.' class="form-control">{{$isletme->maps_iframe ?? ''}}</textarea>
+                              <small style="color:#888;">
+                                 <i class="fa fa-info-circle"></i>
+                                 Nasıl alınır:
+                                 <a href="https://www.google.com/maps" target="_blank" style="color:#5C008E;font-weight:600;">maps.google.com</a>
+                                 → konumunuzu bulun → <b>Paylaş</b> → <b>Haritayı yerleştir</b> → <b>HTML&apos;yi kopyala</b> → buraya yapıştırın.
+                              </small>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="row">
+                        <div class="col-md-6">
+                           <div class="form-group">
+                              <label><i class="fa fa-facebook" style="color:#1877F2;"></i> Facebook Sayfası</label>
+                              <input type="url" name="facebookadres" value="{{$isletme->facebook_sayfa ?? ''}}" placeholder="https://facebook.com/salonunuz" class="form-control">
+                           </div>
+                        </div>
+                        <div class="col-md-6">
+                           <div class="form-group">
+                              <label><i class="fa fa-instagram" style="color:#E4405F;"></i> Instagram</label>
+                              <input type="text" name="instagramaccesstoken" value="{{$isletme->instagram_sayfa ?? ''}}" placeholder="@kullaniciadi veya https://instagram.com/kullaniciadi" class="form-control">
+                           </div>
+                        </div>
+                     </div>
                   </div>
                </div>
             </div>

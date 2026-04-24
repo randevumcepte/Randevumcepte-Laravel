@@ -597,6 +597,12 @@
     font-size: 18px;
     margin-top: 1px;
 }
+.slp-map__addr > span { flex: 1; }
+.slp-map__addr a {
+    text-decoration: none;
+    transition: transform .15s ease;
+}
+.slp-map__addr a:hover { transform: translateX(2px); }
 
 /* ---------- Yorumlar ---------- */
 .slp-reviews-grid {
