@@ -83,9 +83,6 @@
 
    {{-- =========================== SALON LANDING HERO =========================== --}}
    <section class="slp-hero">
-      @if(!empty($salongorselikapak))
-         <div class="slp-hero__bg" style="background-image:url('{{secure_asset($salongorselikapak)}}');"></div>
-      @endif
       <div class="slp-hero__scrim"></div>
       <div class="slp-hero__inner container">
          <div class="slp-hero__left">

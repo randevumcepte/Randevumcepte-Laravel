@@ -17,15 +17,18 @@
     --lx-line-2: #E2DDEC;
     --lx-bg: #F7F5FB;
     --lx-card: #FFFFFF;
-    --lx-brand: #7C3AED;
-    --lx-brand-2: #A855F7;
-    --lx-pink: #EC4899;
-    --lx-rose: #F472B6;
-    --lx-g-main: linear-gradient(100deg, #7C3AED 0%, #A855F7 45%, #EC4899 100%);
-    --lx-g-main-rev: linear-gradient(280deg, #7C3AED 0%, #A855F7 45%, #EC4899 100%);
-    --lx-g-dark: linear-gradient(135deg, #1A0B2E 0%, #2E1065 38%, #5B21B6 72%, #7C3AED 100%);
-    --lx-glow: 0 10px 32px rgba(124, 58, 237, 0.28);
-    --lx-glow-lg: 0 20px 48px rgba(124, 58, 237, 0.35);
+    /* Randevumcepte marka paleti — tek ton mor ailesi */
+    --lx-brand: #5C008E;
+    --lx-brand-2: #7B2FB8;
+    --lx-brand-3: #A855F7;
+    --lx-brand-dark: #3D005E;
+    --lx-pink: #7B2FB8; /* legacy alias */
+    --lx-rose: #A855F7; /* legacy alias */
+    --lx-g-main: linear-gradient(100deg, #5C008E 0%, #7B2FB8 55%, #A855F7 100%);
+    --lx-g-main-rev: linear-gradient(280deg, #5C008E 0%, #7B2FB8 55%, #A855F7 100%);
+    --lx-g-dark: linear-gradient(135deg, #1E0036 0%, #2A003E 40%, #3D005E 70%, #5C008E 100%);
+    --lx-glow: 0 10px 32px rgba(92, 0, 142, 0.28);
+    --lx-glow-lg: 0 20px 48px rgba(92, 0, 142, 0.35);
     --lx-radius-sm: 12px;
     --lx-radius: 18px;
     --lx-radius-lg: 26px;
@@ -73,12 +76,12 @@ body {
 }
 .lx-hero::before {
     width: 420px; height: 420px;
-    background: radial-gradient(circle, rgba(236, 72, 153, 0.55), transparent 70%);
+    background: radial-gradient(circle, rgba(123, 47, 184, 0.55), transparent 70%);
     top: -160px; right: -80px;
 }
 .lx-hero::after {
     width: 360px; height: 360px;
-    background: radial-gradient(circle, rgba(124, 58, 237, 0.6), transparent 70%);
+    background: radial-gradient(circle, rgba(92, 0, 142, 0.6), transparent 70%);
     bottom: -160px; left: -80px;
 }
 .lx-hero__bg {
@@ -105,14 +108,14 @@ body {
     font-weight: 600;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: #F472B6;
+    color: #A855F7;
     margin-bottom: 14px;
 }
 .lx-hero__eyebrow::before {
     content: '';
     width: 28px;
     height: 1px;
-    background: linear-gradient(90deg, transparent, #F472B6);
+    background: linear-gradient(90deg, transparent, #A855F7);
 }
 .lx-hero__title {
     font-size: 40px;
@@ -125,7 +128,7 @@ body {
 }
 .lx-hero__title em {
     font-style: normal;
-    background: linear-gradient(90deg, #F472B6 0%, #FBBF24 100%);
+    background: linear-gradient(90deg, #A855F7 0%, #FBBF24 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -182,7 +185,7 @@ body {
     background: var(--lx-g-main);
     border-radius: 99px;
     transition: width .6s cubic-bezier(.77,0,.18,1);
-    box-shadow: 0 0 20px rgba(236, 72, 153, 0.6);
+    box-shadow: 0 0 20px rgba(123, 47, 184, 0.6);
 }
 .lx-progress__dots {
     position: absolute;
@@ -200,7 +203,7 @@ body {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: #1A0B2E;
+    background: #2A003E;
     border: 2px solid rgba(255, 255, 255, 0.25);
     transition: all .3s ease;
     position: relative;
@@ -225,9 +228,9 @@ body {
 .lx-progress__dot.is-done > span { display: none; }
 .lx-progress__dot.is-active {
     background: #fff;
-    border-color: #F472B6;
+    border-color: #A855F7;
     color: var(--lx-brand);
-    box-shadow: 0 0 0 6px rgba(244, 114, 182, 0.25), 0 0 24px rgba(236, 72, 153, 0.6);
+    box-shadow: 0 0 0 6px rgba(123, 47, 184, 0.25), 0 0 24px rgba(123, 47, 184, 0.6);
     transform: scale(1.15);
 }
 .lx-progress__labels {
@@ -247,7 +250,7 @@ body {
     min-width: 0;
 }
 .lx-progress__label.is-active { color: #fff; }
-.lx-progress__label.is-done { color: rgba(244, 114, 182, 0.9); }
+.lx-progress__label.is-done { color: rgba(123, 47, 184, 0.9); }
 
 @media (max-width: 991px) {
     .lx-hero { padding: 28px 24px; border-radius: var(--lx-radius); }
@@ -308,7 +311,7 @@ body {
     padding: 28px 30px !important;
     margin-bottom: 18px;
     border: 1px solid var(--lx-line);
-    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.04), 0 20px 60px -30px rgba(124, 58, 237, 0.15);
+    box-shadow: 0 2px 8px rgba(92, 0, 142, 0.04), 0 20px 60px -30px rgba(92, 0, 142, 0.15);
     animation: lxFadeUp .5s ease both;
 }
 #personelsecimbolumu:empty { display: none !important; }
@@ -364,7 +367,7 @@ body {
 #randevusistemi .nav-tabs .nav-link.active {
     background: var(--lx-card) !important;
     color: var(--lx-ink) !important;
-    box-shadow: 0 2px 10px rgba(124, 58, 237, 0.15) !important;
+    box-shadow: 0 2px 10px rgba(92, 0, 142, 0.15) !important;
 }
 
 /* Service category accordion */
@@ -403,17 +406,17 @@ body {
     justify-content: center !important;
     line-height: 1 !important;
     transition: all .3s ease !important;
-    box-shadow: 0 2px 6px rgba(124, 58, 237, 0.12);
+    box-shadow: 0 2px 6px rgba(92, 0, 142, 0.12);
     float: none !important;
 }
 .accordion:not(.active)::after { content: '\f067' !important; /* plus */ }
-.accordion.active::after { content: '\f068' !important; /* minus */ background: #fff !important; color: #EC4899 !important; }
+.accordion.active::after { content: '\f068' !important; /* minus */ background: #fff !important; color: #7B2FB8 !important; }
 .accordion:hover {
     background: #fff !important;
     border-color: var(--lx-brand-2) !important;
     color: var(--lx-ink) !important;
     transform: translateY(-1px);
-    box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.2);
+    box-shadow: 0 8px 24px -8px rgba(92, 0, 142, 0.2);
 }
 .accordion.active {
     background: var(--lx-g-main) !important;
@@ -459,7 +462,7 @@ body {
     text-align: right !important;
 }
 .hizmettablo tr:hover td {
-    background: linear-gradient(90deg, rgba(124, 58, 237, 0.05), rgba(236, 72, 153, 0.04)) !important;
+    background: linear-gradient(90deg, rgba(92, 0, 142, 0.05), rgba(123, 47, 184, 0.04)) !important;
 }
 
 /* Modern checkbox */
@@ -484,12 +487,12 @@ body {
 }
 .checkboxcontainer:hover input ~ .checkmark {
     border-color: var(--lx-brand-2) !important;
-    background: rgba(168, 85, 247, 0.06) !important;
+    background: rgba(123, 47, 184, 0.06) !important;
 }
 .checkboxcontainer input:checked ~ .checkmark {
     background: var(--lx-g-main) !important;
     border-color: transparent !important;
-    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35) !important;
+    box-shadow: 0 4px 14px rgba(92, 0, 142, 0.35) !important;
     animation: lxPop .35s cubic-bezier(.34,1.56,.64,1);
 }
 .checkmark::after {
@@ -505,7 +508,7 @@ body {
 .hizmettablo .btn.btn-primary.btn-rounded {
     background: #fff !important;
     color: var(--lx-brand) !important;
-    border: 1.5px solid rgba(124, 58, 237, 0.2) !important;
+    border: 1.5px solid rgba(92, 0, 142, 0.2) !important;
     font-weight: 700 !important;
     font-size: 12.5px !important;
     padding: 7px 14px !important;
@@ -520,7 +523,7 @@ body {
     background: var(--lx-g-main) !important;
     color: #fff !important;
     border-color: transparent !important;
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3) !important;
+    box-shadow: 0 4px 12px rgba(92, 0, 142, 0.3) !important;
 }
 .simge-tl { font-weight: 800; }
 
@@ -589,9 +592,9 @@ body {
 .tarihler .input-radio label:hover,
 #tarihtablosu .input-radio label:hover {
     border-color: var(--lx-brand-2) !important;
-    background: rgba(168, 85, 247, 0.04) !important;
+    background: rgba(123, 47, 184, 0.04) !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 10px 24px -8px rgba(124, 58, 237, 0.25);
+    box-shadow: 0 10px 24px -8px rgba(92, 0, 142, 0.25);
 }
 .tarihler .input-radio input[type="radio"]:checked + label,
 #tarihtablosu .input-radio input[type="radio"]:checked + label,
@@ -718,9 +721,9 @@ body {
 #saatsecimtablosu .input-radio label:hover,
 #saatsecimtablosu > .saatler > .input-radio label:hover {
     border-color: var(--lx-brand-2) !important;
-    background: rgba(168, 85, 247, 0.05) !important;
+    background: rgba(123, 47, 184, 0.05) !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 14px -6px rgba(124, 58, 237, 0.25);
+    box-shadow: 0 6px 14px -6px rgba(92, 0, 142, 0.25);
 }
 #saatsecimtablosu .input-radio input[type="radio"]:checked + label,
 #saatsecimtablosu .input-radio.checked label,
@@ -891,7 +894,7 @@ body {
 .randevuozetonay textarea:focus {
     outline: none !important;
     border-color: var(--lx-brand) !important;
-    box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12) !important;
+    box-shadow: 0 0 0 4px rgba(92, 0, 142, 0.12) !important;
 }
 #kisiselbilgileralani label {
     display: block;
@@ -921,8 +924,8 @@ body {
 
 #hosgeldinizbildirimalani:not(:empty),
 #sifrealaniregister:not(:empty) {
-    background: linear-gradient(120deg, rgba(124, 58, 237, 0.06), rgba(236, 72, 153, 0.04));
-    border: 1px solid rgba(124, 58, 237, 0.15);
+    background: linear-gradient(120deg, rgba(92, 0, 142, 0.06), rgba(123, 47, 184, 0.04));
+    border: 1px solid rgba(92, 0, 142, 0.15);
     border-radius: var(--lx-radius-sm);
     padding: 14px 16px !important;
     margin-top: 14px !important;
@@ -941,7 +944,7 @@ body {
 /* ---------- CONFIRMATION (randevudokumu) ---------- */
 #randevudokumu {
     background: linear-gradient(180deg, #fff 0%, var(--lx-bg) 100%) !important;
-    border: 1px solid rgba(124, 58, 237, 0.12) !important;
+    border: 1px solid rgba(92, 0, 142, 0.12) !important;
 }
 .randevuonaybaslik {
     font-size: 26px !important;
@@ -1107,9 +1110,9 @@ body {
 
 #randevuonaybildirim:empty { display: none !important; }
 #randevuonaybildirim {
-    background: linear-gradient(120deg, rgba(124, 58, 237, 0.08), rgba(236, 72, 153, 0.05)) !important;
+    background: linear-gradient(120deg, rgba(92, 0, 142, 0.08), rgba(123, 47, 184, 0.05)) !important;
     color: var(--lx-brand) !important;
-    border: 1px solid rgba(124, 58, 237, 0.18) !important;
+    border: 1px solid rgba(92, 0, 142, 0.18) !important;
     border-radius: var(--lx-radius-sm) !important;
     padding: 14px 18px !important;
     margin-top: 16px !important;
@@ -1125,8 +1128,8 @@ body {
     -webkit-backdrop-filter: blur(24px) saturate(1.4);
     border-radius: var(--lx-radius-lg) !important;
     overflow: hidden;
-    border: 1px solid rgba(124, 58, 237, 0.1) !important;
-    box-shadow: 0 20px 60px -20px rgba(124, 58, 237, 0.25),
+    border: 1px solid rgba(92, 0, 142, 0.1) !important;
+    box-shadow: 0 20px 60px -20px rgba(92, 0, 142, 0.25),
                 0 1px 0 rgba(255, 255, 255, 0.8) inset;
     position: relative;
 }
@@ -1153,7 +1156,7 @@ body {
     letter-spacing: -0.01em;
     position: relative;
     z-index: 1;
-    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.2);
+    box-shadow: 0 4px 16px rgba(92, 0, 142, 0.2);
 }
 #randevuozetbolumu .baslik::before {
     content: '\f073';
@@ -1354,11 +1357,11 @@ body {
     background: var(--lx-g-main) !important;
     border-color: transparent !important;
     color: #fff !important;
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.22) !important;
+    box-shadow: 0 4px 12px rgba(92, 0, 142, 0.22) !important;
 }
 .page.home-page > .hero.has-dark-background .navbar-nav .btn.btn-primary.btn-framed[href*="isletmeyonetim"]:hover {
     color: #fff !important;
-    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35) !important;
+    box-shadow: 0 8px 20px rgba(92, 0, 142, 0.35) !important;
     transform: translateY(-1px);
 }
 
@@ -1395,7 +1398,7 @@ body {
     background: #fff !important;
     border-color: var(--lx-brand-2) !important;
     color: var(--lx-brand) !important;
-    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.15) !important;
+    box-shadow: 0 4px 14px rgba(92, 0, 142, 0.15) !important;
 }
 .page.home-page > .hero.has-dark-background .navbar-nav .nav-item.has-child > ul.child {
     background: #fff !important;
