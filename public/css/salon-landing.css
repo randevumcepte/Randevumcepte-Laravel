@@ -829,13 +829,14 @@
     opacity: 1;
 }
 
-/* Close button — sabit, panel üstünde kayarken de görünür */
+/* Close button — sabit, panel uzerinde kayarken de gorunur.
+   z-index: 200 -> lx-hero'nun sticky z:50 ustunde kalir. */
 .slp-drawer__close {
     position: sticky;
     top: 14px;
     margin-left: auto;
-    margin-right: 14px;
-    z-index: 20;
+    margin-right: 20px;
+    z-index: 200;
     width: 44px;
     height: 44px;
     border-radius: 50%;
@@ -843,19 +844,48 @@
     border: 1px solid var(--slp-line-2);
     color: var(--slp-ink);
     font-size: 16px;
+    font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 6px 18px rgba(16, 24, 40, 0.12);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18),
+                0 0 0 4px rgba(255, 255, 255, 0.9);
     transition: all .18s ease;
     float: right;
+    outline: none;
 }
+.slp-drawer__close i { line-height: 1; }
 .slp-drawer__close:hover {
     background: var(--slp-g-main);
     color: #fff;
     border-color: transparent;
-    transform: scale(1.06);
+    transform: scale(1.08);
+    box-shadow: 0 10px 26px rgba(92, 0, 142, 0.4),
+                0 0 0 4px rgba(255, 255, 255, 0.9);
+}
+.slp-drawer__close:focus-visible {
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18),
+                0 0 0 3px var(--slp-brand),
+                0 0 0 6px rgba(92, 0, 142, 0.25);
+}
+
+/* Drawer panel'de scrollbar tipini ince yap, kenarda yer ayir */
+.slp-drawer__panel {
+    scrollbar-width: thin;
+    scrollbar-color: var(--slp-line-2) transparent;
+}
+.slp-drawer__panel::-webkit-scrollbar { width: 10px; }
+.slp-drawer__panel::-webkit-scrollbar-thumb {
+    background: var(--slp-line-2);
+    border-radius: 99px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+.slp-drawer__panel::-webkit-scrollbar-thumb:hover {
+    background: var(--slp-brand-2);
+    background-clip: content-box;
+    border: 2px solid transparent;
 }
 
 .slp-drawer__body {
