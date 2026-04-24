@@ -66,14 +66,188 @@
     line-height: 1.6;
 }
 
-/* ---------- HERO ---------- */
+/* ---------- HERO — full viewport width (breakout) ---------- */
 .slp-hero {
     position: relative;
-    min-height: 460px;
+    min-height: 560px;
     overflow: hidden;
     color: #fff;
-    margin-bottom: 0;
     z-index: 1;
+    /* Container icinde olmasina ragmen viewport'un tam genisligini kapla */
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+    margin-top: -5rem; /* .block padding-top'u sifirla */
+    margin-bottom: 28px;
+    border-radius: 0;
+}
+
+/* ---------- Hero TOP BAR (logo + profile chip) ---------- */
+.slp-hero__topbar {
+    position: relative;
+    z-index: 3;
+    padding: 18px 0;
+}
+.slp-hero__topbar-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+.slp-hero__logo {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    transition: transform .18s ease;
+}
+.slp-hero__logo:hover { transform: scale(1.03); }
+.slp-hero__logo img {
+    max-height: 56px;
+    width: auto;
+    filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.25));
+    background: #fff;
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+.slp-hero__nav {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    position: relative;
+}
+.slp-hero__userwrap { position: relative; }
+.slp-hero__userchip {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 18px 5px 5px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    color: #fff;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    outline: none;
+    transition: all .2s ease;
+}
+.slp-hero__userchip img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.slp-hero__userchip:hover {
+    background: rgba(255, 255, 255, 0.24);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+.slp-hero__userchip[aria-expanded="true"] {
+    background: rgba(255, 255, 255, 0.24);
+}
+
+/* Dropdown menu */
+.slp-hero__menu {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    min-width: 220px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 18px 44px rgba(10, 5, 24, 0.3),
+                0 2px 6px rgba(10, 5, 24, 0.08);
+    padding: 6px;
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+    z-index: 100;
+}
+.slp-hero__menu.is-open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+.slp-hero__menu a {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    color: var(--slp-ink);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all .15s ease;
+}
+.slp-hero__menu a i {
+    width: 16px;
+    color: var(--slp-brand);
+    font-size: 14px;
+}
+.slp-hero__menu a:hover {
+    background: var(--slp-bg);
+    color: var(--slp-brand);
+}
+.slp-hero__menu hr {
+    border: none;
+    border-top: 1px solid var(--slp-line);
+    margin: 4px 8px;
+}
+
+/* Giris yap / uye ol (auth disi) */
+.slp-hero__auth-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 20px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    color: #fff;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    transition: all .18s ease;
+}
+.slp-hero__auth-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+.slp-hero__auth-btn--primary {
+    background: #fff;
+    color: var(--slp-brand);
+    border-color: transparent;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.slp-hero__auth-btn--primary:hover {
+    background: #F9FAFB;
+    color: var(--slp-brand);
+}
+
+@media (max-width: 640px) {
+    .slp-hero { min-height: auto; }
+    .slp-hero__topbar { padding: 14px 0; }
+    .slp-hero__topbar-inner { padding: 0 14px; }
+    .slp-hero__logo img { max-height: 42px; padding: 3px 8px; border-radius: 10px; }
+    .slp-hero__userchip { padding: 3px 12px 3px 3px; font-size: 12px; }
+    .slp-hero__userchip img { width: 30px; height: 30px; }
+    .slp-hero__userchip span { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .slp-hero__auth-btn { padding: 8px 14px; font-size: 12px; }
+    .slp-hero__menu { min-width: 190px; }
 }
 .slp-hero__bg {
     position: absolute;

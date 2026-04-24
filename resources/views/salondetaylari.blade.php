@@ -84,6 +84,46 @@
    {{-- =========================== SALON LANDING HERO =========================== --}}
    <section class="slp-hero">
       <div class="slp-hero__scrim"></div>
+
+      {{-- Top bar: logo + profil/auth (eski beyaz navbar bu alana tasindi) --}}
+      <div class="slp-hero__topbar">
+         <div class="slp-hero__topbar-inner">
+            <a href="/" class="slp-hero__logo" aria-label="Anasayfa">
+               @if(!empty($salon->logo))
+                  <img src="{{ secure_asset($salon->logo) }}" alt="{{ $salon->salon_adi }}">
+               @else
+                  <img src="{{ secure_asset('public/img/randevumcepte.jpg') }}" alt="Randevumcepte">
+               @endif
+            </a>
+            <div class="slp-hero__nav">
+               @if(Auth::check())
+                  <div class="slp-hero__userwrap">
+                     <button type="button" class="slp-hero__userchip" id="slpUserChip" aria-haspopup="true" aria-expanded="false">
+                        @if(!empty(Auth::user()->profil_resim))
+                           <img src="{{ secure_asset(Auth::user()->profil_resim) }}" alt="">
+                        @else
+                           <img src="{{ secure_asset('public/img/auth.png') }}" alt="">
+                        @endif
+                        <span>{{ mb_strtoupper(Auth::user()->name) }}</span>
+                        <i class="fa fa-caret-down" style="margin-left:4px; font-size:11px;"></i>
+                     </button>
+                     <div class="slp-hero__menu" id="slpUserMenu" role="menu">
+                        <a href="/profilim" role="menuitem"><i class="fa fa-user"></i> Profilim</a>
+                        <a href="/randevularim" role="menuitem"><i class="fa fa-calendar-check-o"></i> Randevularım</a>
+                        <a href="/ayarlarim" role="menuitem"><i class="fa fa-cog"></i> Ayarlarım</a>
+                        <hr>
+                        <a href="#" role="menuitem" onclick="event.preventDefault(); document.getElementById('logout-form-slp').submit();"><i class="fa fa-sign-out"></i> Çıkış Yap</a>
+                        <form id="logout-form-slp" action="{{ route('logout') }}" method="POST" style="display:none;">{{ csrf_field() }}</form>
+                     </div>
+                  </div>
+               @else
+                  <a href="/login" class="slp-hero__auth-btn">Giriş Yap</a>
+                  <a href="/register" class="slp-hero__auth-btn slp-hero__auth-btn--primary">Üye Ol</a>
+               @endif
+            </div>
+         </div>
+      </div>
+
       <div class="slp-hero__inner container">
          <div class="slp-hero__left">
             <span class="slp-hero__eyebrow"><i class="fa fa-bolt"></i> {{$salon->salon_turu->salon_turu_adi ?? 'Güzellik & Bakım'}}</span>
@@ -970,6 +1010,30 @@
            new MutationObserver(function(){ setTimeout(detect, 30); })
                .observe(el, { attributes: true, attributeFilter: ['style','class'] });
        });
+
+       /* --- Hero topbar user chip dropdown --- */
+       (function(){
+           var chip = document.getElementById('slpUserChip');
+           var menu = document.getElementById('slpUserMenu');
+           if (!chip || !menu) return;
+           chip.addEventListener('click', function(e){
+               e.stopPropagation();
+               var open = menu.classList.toggle('is-open');
+               chip.setAttribute('aria-expanded', open ? 'true' : 'false');
+           });
+           document.addEventListener('click', function(e){
+               if (!menu.contains(e.target) && !chip.contains(e.target)) {
+                   menu.classList.remove('is-open');
+                   chip.setAttribute('aria-expanded', 'false');
+               }
+           });
+           document.addEventListener('keydown', function(e){
+               if (e.key === 'Escape') {
+                   menu.classList.remove('is-open');
+                   chip.setAttribute('aria-expanded', 'false');
+               }
+           });
+       })();
 
        /* --- Sticky hero: publish height var so summary sidebar knows how far to push --- */
        var hero = document.getElementById('lxHero');
