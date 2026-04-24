@@ -33,14 +33,19 @@ Route::group(['middleware' => ['auth']],function(){
 	Route::get('/firsatlarim', 'CustomerController@firsatlar');
 	Route::get('/yorumyap','CustomerController@yorumyap')->name('yorumyap');
 
-	/* Çarkıfelek — müşteri tarafı */
-	Route::get('/cark/{salonId}',       'CarkifelekMusteriController@goster')->name('cark.goster');
-	Route::post('/cark/cevir',          'CarkifelekMusteriController@cevir')->name('cark.cevir');
 	Route::get('/odullerim',            'CarkifelekMusteriController@odullerim')->name('cark.odullerim');
 
 	/* Puan ödülleri — müşteri tarafı */
 	Route::get('/puanodullerim/{salonId?}', 'CarkifelekMusteriController@puanOdullerim')->name('cark.puanodullerim');
 	Route::post('/puanodultalep',           'CarkifelekMusteriController@puanOdulTalep')->name('cark.puanodul.talep');
+});
+
+/* Çarkıfelek — misafir erişimi serbest; kayıt kısmı kendi içinde zorlar */
+Route::group(['middleware' => ['web']], function () {
+	Route::get('/cark/{salonId}',   'CarkifelekMusteriController@goster')->name('cark.goster');
+	Route::post('/cark/cevir',      'CarkifelekMusteriController@cevir')->name('cark.cevir');
+	Route::post('/cark/smskod',     'CarkifelekMusteriController@smsKodGonder')->name('cark.smskod');
+	Route::post('/cark/smsdogrula', 'CarkifelekMusteriController@smsKodDogrula')->name('cark.smsdogrula');
 });
 
 Route::group(['middleware' => ['web']], function () {

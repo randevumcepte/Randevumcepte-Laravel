@@ -15,9 +15,15 @@ use App\Hizmetler;
 use App\SalonTuru;
 use App\Iller;
 use App\Ilceler;
+use App\User;
+use App\Bildirimler;
+use App\MusteriPortfoy;
+use App\SmsDogrulamaKodlari;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -75,14 +81,10 @@ class CarkifelekMusteriController extends Controller
     }
 
     /**
-     * Çark sayfasını gösterir.
+     * Çark sayfasını gösterir — misafir de erişebilir.
      */
-    public function goster($salonId)
+    public function goster(Request $request, $salonId)
     {
-        if (!Auth::check()) {
-            return redirect('/login')->with('error', 'Çarkı çevirmek için giriş yapmalısınız.');
-        }
-
         $salon = Salonlar::find($salonId);
         if (!$salon) abort(404, 'Salon bulunamadı.');
 
@@ -91,19 +93,26 @@ class CarkifelekMusteriController extends Controller
             return view('carkifelek.pasif', array_merge($this->layoutData(), ['salon' => $salon]));
         }
 
-        $dilimler = CarkifelekDilimleri::where('cark_id', $cark->id)
-            ->orderBy('sira')
-            ->get();
-
+        $dilimler = CarkifelekDilimleri::where('cark_id', $cark->id)->orderBy('sira')->get();
         if ($dilimler->count() < 2) {
             return view('carkifelek.pasif', array_merge($this->layoutData(), ['salon' => $salon]));
         }
 
-        $kullanilabilir = $this->kalanHak($salonId, Auth::id());
-        $bugunCevirdi   = $this->bugunCevirdi($salonId, Auth::id());
+        // Misafir veya üye — durumu ayır
+        $isMisafir    = !Auth::check();
+        $kullanilabilir = [];
+        $bugunCevirdi   = false;
 
-        // Yarın 00:00 — sonraki çevirme hakkının açılacağı saat
-        $yarin = \Carbon\Carbon::tomorrow()->format('d.m.Y H:i');
+        if ($isMisafir) {
+            // Session tabanlı "bugün çevirdi mi"
+            $sessionKey = "cark_bugun_{$salonId}";
+            $bugunCevirdi = $request->session()->get($sessionKey) === Carbon::today()->toDateString();
+        } else {
+            $kullanilabilir = $this->kalanHak($salonId, Auth::id());
+            $bugunCevirdi   = $this->bugunCevirdi($salonId, Auth::id());
+        }
+
+        $yarin = Carbon::tomorrow()->format('d.m.Y H:i');
 
         $dilimlerJson = $dilimler->map(function ($d) {
             return [
@@ -120,45 +129,55 @@ class CarkifelekMusteriController extends Controller
             'cark'            => $cark,
             'dilimler'        => $dilimler,
             'dilimlerJson'    => $dilimlerJson,
-            'kalanHak'        => count($kullanilabilir),
+            'kalanHak'        => $isMisafir ? 1 : count($kullanilabilir),
             'randevuIdleri'   => $kullanilabilir,
             'bugunCevirdi'    => $bugunCevirdi,
             'yarinSaat'       => $yarin,
+            'isMisafir'       => $isMisafir,
         ]));
     }
 
     /**
-     * AJAX: Çarkı çevirir, ödülü işler, sonucu döner.
+     * AJAX: Çarkı çevirir, ödülü işler, sonucu döner. Misafir de çevirebilir.
+     * - Üye ise: direkt puan/kupon yaratılır.
+     * - Misafir ise: ödül bilgisi session'a yazılır; müşteri kayıt olduktan sonra işlenir.
      */
     public function cevir(Request $request)
     {
-        if (!Auth::check()) {
-            return response()->json(['success' => false, 'message' => 'Giriş yapmalısınız.'], 401);
-        }
-
-        $userId  = Auth::id();
-        $salonId = (int) $request->input('salon_id');
+        $isMisafir = !Auth::check();
+        $userId    = $isMisafir ? null : Auth::id();
+        $salonId   = (int) $request->input('salon_id');
 
         $cark = CarkifelekSistemi::where('salon_id', $salonId)->first();
         if (!$cark || !$cark->aktifmi) {
             return response()->json(['success' => false, 'message' => 'Çarkıfelek şu an aktif değil.']);
         }
 
-        $kullanilabilir = $this->kalanHak($salonId, $userId);
-        if (empty($kullanilabilir)) {
-            return response()->json(['success' => false, 'message' => 'Çevirme hakkınız bulunmuyor. Onaylanmış randevunuz olmalı.']);
-        }
+        $randevuId = null;
+        $sessionKey = "cark_bugun_{$salonId}";
 
-        // Günde 1 kez — bugün çevirdi mi kontrolü
-        if ($this->bugunCevirdi($salonId, $userId)) {
-            $yarin = \Carbon\Carbon::tomorrow()->format('d.m.Y H:i');
-            return response()->json([
-                'success' => false,
-                'message' => 'Bugün çarkı çevirdiniz. Bir sonraki çevirme: ' . $yarin . ' (yarın 00:00) veya yeni onaylı randevunuzdan sonra.',
-            ]);
+        if ($isMisafir) {
+            // Misafir: session'dan bugün çevirdi mi
+            if ($request->session()->get($sessionKey) === Carbon::today()->toDateString()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bugün çarkı çevirdiniz. Yarın tekrar deneyebilirsiniz.',
+                ]);
+            }
+        } else {
+            $kullanilabilir = $this->kalanHak($salonId, $userId);
+            if (empty($kullanilabilir)) {
+                return response()->json(['success' => false, 'message' => 'Çevirme hakkınız bulunmuyor. Onaylanmış randevunuz olmalı.']);
+            }
+            if ($this->bugunCevirdi($salonId, $userId)) {
+                $yarin = Carbon::tomorrow()->format('d.m.Y H:i');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bugün çarkı çevirdiniz. Bir sonraki çevirme: ' . $yarin . ' veya yeni onaylı randevunuzdan sonra.',
+                ]);
+            }
+            $randevuId = $kullanilabilir[0];
         }
-
-        $randevuId = $kullanilabilir[0];
 
         $dilimler = CarkifelekDilimleri::where('cark_id', $cark->id)->orderBy('sira')->get();
         if ($dilimler->count() < 2) {
@@ -174,58 +193,296 @@ class CarkifelekMusteriController extends Controller
             return $d->id === $secilen->id;
         });
 
-        // İşlemi atomik yapalım
-        $sonuc = DB::transaction(function () use ($cark, $secilen, $salonId, $userId, $randevuId) {
-            $log = CarkifelekCevirmeLoglari::create([
+        // Üye: direkt işle; Misafir: session'a pending_odul yaz, kayıt sonrası işlenir
+        $odulKodu = null;
+        $kayitGerekli = false;
+
+        if ($isMisafir) {
+            $hasPrize = in_array($secilen->tip, ['puan', 'hizmet_indirimi', 'urun_indirimi']) && $secilen->deger;
+            $kayitGerekli = $hasPrize;
+
+            // Log kaydet (user_id null, session_id dolu)
+            CarkifelekCevirmeLoglari::create([
                 'cark_id'     => $cark->id,
                 'salon_id'    => $salonId,
-                'user_id'     => $userId,
-                'randevu_id'  => $randevuId,
+                'user_id'     => null,
+                'session_id'  => $request->session()->getId(),
+                'misafir_ip'  => $request->ip(),
+                'randevu_id'  => null,
                 'dilim_id'    => $secilen->id,
                 'tip'         => $secilen->tip,
                 'deger'       => $secilen->deger,
                 'dilim_ismi'  => $secilen->dilim_ismi,
             ]);
 
-            $odul = null;
-
-            if ($secilen->tip === 'puan' && $secilen->deger) {
-                $puanKaydi = SalonPuanlar::firstOrNew([
-                    'salon_id' => $salonId,
-                    'user_id'  => $userId,
-                ]);
-                $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $secilen->deger;
-                $puanKaydi->save();
-
-            } elseif (in_array($secilen->tip, ['hizmet_indirimi', 'urun_indirimi']) && $secilen->deger) {
-                $kod  = strtoupper(Str::random(8));
-                $odul = CarkifelekOdulleri::create([
-                    'log_id'            => $log->id,
-                    'salon_id'          => $salonId,
-                    'user_id'           => $userId,
-                    'kod'               => $kod,
-                    'tip'               => $secilen->tip,
-                    'deger'             => $secilen->deger,
-                    'baslik'            => $this->baslikUret($secilen),
-                    'gecerlilik_tarihi' => Carbon::now()->addDays(30)->toDateString(),
-                ]);
+            // Bugün çevirdi işareti (tekrar_dene hariç)
+            if ($secilen->tip !== 'tekrar_dene') {
+                $request->session()->put($sessionKey, Carbon::today()->toDateString());
             }
 
-            return compact('log', 'odul');
-        });
+            // Pending ödül session'a
+            if ($hasPrize) {
+                $request->session()->put('cark_pending_odul', [
+                    'salon_id'     => $salonId,
+                    'cark_id'      => $cark->id,
+                    'dilim_id'     => $secilen->id,
+                    'tip'          => $secilen->tip,
+                    'deger'        => (float) $secilen->deger,
+                    'baslik'       => $this->baslikUret($secilen),
+                    'dilim_ismi'   => $secilen->dilim_ismi,
+                    'created_at'   => Carbon::now()->timestamp,
+                ]);
+            }
+        } else {
+            // Üye — atomik işlem
+            $sonuc = DB::transaction(function () use ($cark, $secilen, $salonId, $userId, $randevuId) {
+                $log = CarkifelekCevirmeLoglari::create([
+                    'cark_id'     => $cark->id,
+                    'salon_id'    => $salonId,
+                    'user_id'     => $userId,
+                    'randevu_id'  => $randevuId,
+                    'dilim_id'    => $secilen->id,
+                    'tip'         => $secilen->tip,
+                    'deger'       => $secilen->deger,
+                    'dilim_ismi'  => $secilen->dilim_ismi,
+                ]);
+                $odul = null;
+                if ($secilen->tip === 'puan' && $secilen->deger) {
+                    $puanKaydi = SalonPuanlar::firstOrNew(['salon_id' => $salonId, 'user_id' => $userId]);
+                    $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $secilen->deger;
+                    $puanKaydi->save();
+                } elseif (in_array($secilen->tip, ['hizmet_indirimi', 'urun_indirimi']) && $secilen->deger) {
+                    $odul = CarkifelekOdulleri::create([
+                        'log_id'            => $log->id,
+                        'salon_id'          => $salonId,
+                        'user_id'           => $userId,
+                        'kod'               => strtoupper(Str::random(8)),
+                        'tip'               => $secilen->tip,
+                        'deger'             => $secilen->deger,
+                        'baslik'            => $this->baslikUret($secilen),
+                        'gecerlilik_tarihi' => Carbon::now()->addDays(30)->toDateString(),
+                    ]);
+                }
+                return compact('log', 'odul');
+            });
+            $odulKodu = $sonuc['odul']->kod ?? null;
+        }
 
         return response()->json([
-            'success'     => true,
-            'dilimIndex'  => (int) $secilenIndex,
-            'dilim'       => [
+            'success'      => true,
+            'dilimIndex'   => (int) $secilenIndex,
+            'dilim'        => [
                 'id'     => $secilen->id,
                 'ismi'   => $secilen->dilim_ismi,
                 'tip'    => $secilen->tip,
                 'deger'  => $secilen->deger,
                 'baslik' => $this->baslikUret($secilen),
             ],
-            'odulKodu'    => $sonuc['odul']->kod ?? null,
-            'kalanHak'    => max(0, count($kullanilabilir) - 1),
+            'odulKodu'     => $odulKodu,
+            'kayitGerekli' => $kayitGerekli,
+            'isMisafir'    => $isMisafir,
+            'kalanHak'     => $isMisafir ? 0 : max(0, count($kullanilabilir) - 1),
+        ]);
+    }
+
+    /**
+     * AJAX: Misafir için telefona SMS doğrulama kodu gönderir.
+     */
+    public function smsKodGonder(Request $request)
+    {
+        $telefon = preg_replace('/[^0-9]/', '', $request->input('telefon', ''));
+        $ad      = trim($request->input('ad', ''));
+        $soyad   = trim($request->input('soyad', ''));
+
+        if (strlen($telefon) === 11 && $telefon[0] === '0') {
+            $telefon = substr($telefon, 1); // başındaki 0'ı at
+        }
+        if (strlen($telefon) !== 10 || $telefon[0] !== '5') {
+            return response()->json(['success' => false, 'message' => 'Geçerli bir cep telefon numarası girin (5XX...).']);
+        }
+        if ($ad === '' || $soyad === '') {
+            return response()->json(['success' => false, 'message' => 'Ad ve soyad zorunlu.']);
+        }
+
+        // Pending ödül yoksa neden kayıt yapalım?
+        if (!$request->session()->has('cark_pending_odul')) {
+            return response()->json(['success' => false, 'message' => 'Önce çarkı çevirmelisiniz.']);
+        }
+
+        // Rate limit — aynı numaraya 60 saniye içinde 1 kere
+        $sonKod = SmsDogrulamaKodlari::where('telefon', $telefon)
+            ->where('amac', 'cark_kayit')
+            ->orderByDesc('created_at')->first();
+        if ($sonKod && Carbon::parse($sonKod->created_at)->diffInSeconds(Carbon::now()) < 60) {
+            return response()->json(['success' => false, 'message' => 'Çok sık deniyorsunuz. Lütfen 1 dakika bekleyin.']);
+        }
+
+        $kod = str_pad((string) random_int(1000, 9999), 4, '0', STR_PAD_LEFT);
+        SmsDogrulamaKodlari::create([
+            'telefon'        => $telefon,
+            'kod'            => $kod,
+            'ip'             => $request->ip(),
+            'amac'           => 'cark_kayit',
+            'son_gecerlilik' => Carbon::now()->addMinutes(5),
+            'dogrulandi'     => 0,
+        ]);
+
+        // Kayıt sırasında kullanılacak isim bilgisini session'a yaz
+        $request->session()->put('cark_kayit_bilgi', compact('ad', 'soyad', 'telefon'));
+
+        // Gerçek SMS gönderimi — Salon SMS ayarları tanımlıysa
+        $pending = $request->session()->get('cark_pending_odul');
+        $salonId = $pending['salon_id'] ?? null;
+        $gonderildi = false;
+        if ($salonId) {
+            try {
+                $salon = Salonlar::find($salonId);
+                if ($salon && $salon->sms_user_name && $salon->sms_secret) {
+                    require_once app_path('VoiceTelekom/Sms/SmsApi.php');
+                    require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
+                    require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
+                    $smsApi = new \SmsApi('smsvt.voicetelekom.com', $salon->sms_user_name, $salon->sms_secret);
+                    $req = new \SendSingleSms();
+                    $req->title   = 'Doğrulama';
+                    $req->content = $salon->salon_adi . ' çarkıfelek doğrulama kodunuz: ' . $kod;
+                    $req->number  = '90' . $telefon;
+                    $req->encoding = 0;
+                    $req->customID = 'cark_' . date('Ymd_His') . '_' . substr(md5(microtime()), 0, 8);
+                    $req->sender   = $salon->sms_baslik ?: 'RANDEVUMCEPTE';
+                    $req->skipAhsQuery = true;
+                    $smsApi->sendSingleSms($req);
+                    $gonderildi = true;
+                }
+            } catch (\Exception $e) {
+                Log::warning('Cark SMS gönderilemedi: ' . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Telefonunuza 4 haneli kod gönderildi. Lütfen kodu girin.',
+            // DEV AMAÇLI: SMS sağlayıcı yoksa kodu response'ta dön (test için). Prod'da kaldır.
+            'dev_kod' => $gonderildi ? null : $kod,
+        ]);
+    }
+
+    /**
+     * AJAX: SMS kodunu doğrular → User create → Auth::login → pending ödülü işler.
+     * İşletmeye bildirim oluşturur.
+     */
+    public function smsKodDogrula(Request $request)
+    {
+        $kod = trim($request->input('kod', ''));
+        $bilgi = $request->session()->get('cark_kayit_bilgi');
+        $pending = $request->session()->get('cark_pending_odul');
+
+        if (!$bilgi || !$pending) {
+            return response()->json(['success' => false, 'message' => 'Oturum süresi doldu. Baştan başlayın.']);
+        }
+
+        $telefon = $bilgi['telefon'];
+
+        $kayit = SmsDogrulamaKodlari::where('telefon', $telefon)
+            ->where('amac', 'cark_kayit')
+            ->where('kod', $kod)
+            ->where('dogrulandi', 0)
+            ->where('son_gecerlilik', '>=', Carbon::now())
+            ->orderByDesc('created_at')->first();
+
+        if (!$kayit) {
+            return response()->json(['success' => false, 'message' => 'Kod hatalı veya süresi dolmuş.']);
+        }
+
+        $kayit->dogrulandi = 1;
+        $kayit->save();
+
+        // Mevcut kullanıcı var mı?
+        $user = User::where('cep_telefon', $telefon)->first();
+        $yeniUyelik = false;
+
+        if (!$user) {
+            $user = User::create([
+                'name'        => trim($bilgi['ad'] . ' ' . $bilgi['soyad']),
+                'cep_telefon' => $telefon,
+                'password'    => Hash::make(Str::random(16)), // kullanıcı şifresi SMS akışına kurulmamış
+            ]);
+            $yeniUyelik = true;
+        }
+
+        Auth::login($user);
+
+        // MusteriPortfoy ilişkisi (yoksa oluştur)
+        try {
+            if (class_exists(MusteriPortfoy::class)) {
+                MusteriPortfoy::firstOrCreate([
+                    'user_id'  => $user->id,
+                    'salon_id' => $pending['salon_id'],
+                ], ['aktif' => 1]);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Cark MusteriPortfoy oluşturulamadı: ' . $e->getMessage());
+        }
+
+        // Pending ödülü kupona/puana dönüştür
+        $odulKodu = null;
+        DB::transaction(function () use (&$odulKodu, $pending, $user) {
+            if ($pending['tip'] === 'puan' && $pending['deger']) {
+                $puanKaydi = SalonPuanlar::firstOrNew([
+                    'salon_id' => $pending['salon_id'],
+                    'user_id'  => $user->id,
+                ]);
+                $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $pending['deger'];
+                $puanKaydi->save();
+            } elseif (in_array($pending['tip'], ['hizmet_indirimi', 'urun_indirimi'])) {
+                $kupon = CarkifelekOdulleri::create([
+                    'log_id'            => null,
+                    'salon_id'          => $pending['salon_id'],
+                    'user_id'           => $user->id,
+                    'kod'               => strtoupper(Str::random(8)),
+                    'tip'               => $pending['tip'],
+                    'deger'             => $pending['deger'],
+                    'baslik'            => $pending['baslik'],
+                    'gecerlilik_tarihi' => Carbon::now()->addDays(30)->toDateString(),
+                ]);
+                $odulKodu = $kupon->kod;
+            }
+
+            // Log'daki user_id null olanı bu user'a bağla
+            CarkifelekCevirmeLoglari::where('session_id', session()->getId())
+                ->whereNull('user_id')
+                ->update(['user_id' => $user->id]);
+        });
+
+        // İşletmeye bildirim — yalnızca YENİ üyelikse
+        if ($yeniUyelik) {
+            try {
+                $bildirim = new Bildirimler();
+                $bildirim->salon_id    = $pending['salon_id'];
+                $bildirim->user_id     = $user->id;
+                $bildirim->baslik      = '🤖 Yeni Müşteri Kaydı (Yapay Zeka)';
+                $bildirim->aciklama    = 'Çarkıfelek üzerinden yeni bir müşteri kaydedildi: '
+                                       . $user->name . ' (0' . $telefon . '). Pending ödül: ' . $pending['baslik'];
+                $bildirim->url         = '/isletmeyonetim/carkkazananlar';
+                $bildirim->img_src     = null;
+                $bildirim->tarih_saat  = Carbon::now();
+                $bildirim->okundu      = 0;
+                $bildirim->butonlar    = json_encode([]);
+                $bildirim->save();
+            } catch (\Exception $e) {
+                Log::warning('Cark bildirim kaydedilemedi: ' . $e->getMessage());
+            }
+        }
+
+        // Session temizle
+        $request->session()->forget('cark_pending_odul');
+        $request->session()->forget('cark_kayit_bilgi');
+
+        return response()->json([
+            'success'  => true,
+            'odulKodu' => $odulKodu,
+            'baslik'   => $pending['baslik'],
+            'tip'      => $pending['tip'],
+            'yeniUye'  => $yeniUyelik,
         ]);
     }
 

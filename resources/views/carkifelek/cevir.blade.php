@@ -202,6 +202,8 @@
         <h2>Tebrikler!</h2>
         <p class="modal-sub">Kazandığınız ödül:</p>
         <div class="modal-result" id="result-text">—</div>
+
+        {{-- ÜYE İSE / ÖDÜL YOKSA: kod alanı --}}
         <div id="code-wrap" style="display:none;">
             <div class="modal-code">
                 <span class="modal-code-label">Kupon Kodunuz</span>
@@ -209,7 +211,35 @@
             </div>
             <p style="font-size:12px;color:#636e72;margin-bottom:8px;">Bu kodu 30 gün içinde salonda kullanabilirsiniz.</p>
         </div>
-        <button class="modal-close" onclick="closeResult()">Tamam</button>
+
+        {{-- MİSAFİR + ÖDÜL VAR: Kayıt formu (telefon) --}}
+        <div id="kayit-form" style="display:none;">
+            <div style="background:#fef3c7;border:1.5px dashed #f59e0b;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+                <b style="color:#92400e;font-size:14px;">🔒 Ödülünüzü almak için hızlı kayıt</b>
+                <p style="font-size:12px;color:#78350f;margin:4px 0 0;">Telefonunuza SMS ile 4 haneli kod gönderilecek.</p>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+                <input type="text" id="ky-ad"    placeholder="Ad"    style="flex:1;padding:11px 12px;border:2px solid #e5e7eb;border-radius:9px;font-size:14px;">
+                <input type="text" id="ky-soyad" placeholder="Soyad" style="flex:1;padding:11px 12px;border:2px solid #e5e7eb;border-radius:9px;font-size:14px;">
+            </div>
+            <div style="margin-bottom:10px;">
+                <input type="tel" id="ky-tel" placeholder="5XX XXX XX XX" maxlength="13" style="width:100%;padding:11px 12px;border:2px solid #e5e7eb;border-radius:9px;font-size:15px;letter-spacing:1px;">
+            </div>
+            <button class="modal-close" id="btn-smskod" onclick="smsKodGonder()" style="width:100%;">📨 SMS Gönder</button>
+        </div>
+
+        {{-- MİSAFİR — kod giriş adımı --}}
+        <div id="kod-dogrula" style="display:none;">
+            <div style="background:#dbeafe;border:1.5px dashed #3b82f6;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+                <b style="color:#1e40af;font-size:14px;">✓ SMS Gönderildi</b>
+                <p style="font-size:12px;color:#1e3a8a;margin:4px 0 0;"><span id="gonderilen-tel"></span> numarasına gelen 4 haneli kodu girin.</p>
+            </div>
+            <input type="text" id="kd-kod" maxlength="4" placeholder="• • • •" style="width:100%;padding:14px;border:2px solid #3b82f6;border-radius:10px;font-size:28px;font-weight:800;letter-spacing:14px;text-align:center;font-family:monospace;margin-bottom:10px;">
+            <button class="modal-close" id="btn-dogrula" onclick="smsKodDogrula()" style="width:100%;">✓ Doğrula ve Kodu Al</button>
+            <a href="#" onclick="event.preventDefault(); geriDon()" style="display:block;margin-top:10px;text-align:center;font-size:12px;color:#6b7280;">← Telefonu değiştir</a>
+        </div>
+
+        <button class="modal-close" id="btn-tamam" onclick="closeResult()" style="display:none;">Tamam</button>
     </div>
 </div>
 
@@ -220,7 +250,9 @@
     const DILIMLER = {!! json_encode($dilimlerJson) !!};
     const SALON_ID = {{ $salon->id }};
     const CSRF     = '{{ csrf_token() }}';
-    const CEVIR_URL= '{{ route("cark.cevir") }}';
+    const CEVIR_URL    = '{{ route("cark.cevir") }}';
+    const SMSKOD_URL   = '{{ route("cark.smskod") }}';
+    const SMSDOG_URL   = '{{ route("cark.smsdogrula") }}';
 
     const CX = 150, CY = 150, R = 130;
     const wheelEl   = document.getElementById('wheel');
@@ -516,16 +548,32 @@
         setTimeout(() => toastEl.classList.remove('show'), 3500);
     }
 
-    /* Sonucu göster */
-    function showResult(d, kod) {
-        const fullLabel = buildFullLabel(d);
-        resText.textContent = fullLabel;
-        if (kod) {
+    /* Modal adım yönetimi */
+    function setStep(step) {
+        document.getElementById('code-wrap').style.display    = step === 'kod' ? 'block' : 'none';
+        document.getElementById('kayit-form').style.display    = step === 'kayit' ? 'block' : 'none';
+        document.getElementById('kod-dogrula').style.display   = step === 'dogrula' ? 'block' : 'none';
+        document.getElementById('btn-tamam').style.display     = (step === 'kod' || step === 'bos') ? 'block' : 'none';
+    }
+
+    /* Sonucu göster — üye ise kupon / misafir + ödül ise kayıt / misafir + ödül yoksa sade */
+    let _sonDilim = null;
+    function showResult(d, kod, kayitGerekli) {
+        _sonDilim = d;
+        resText.textContent = buildFullLabel(d);
+
+        if (kayitGerekli) {
+            // Misafir + ödül var → kayıt formu
+            setStep('kayit');
+        } else if (kod) {
+            // Üye + kupon
             codeEl.textContent = kod;
-            codeWrap.style.display = 'block';
+            setStep('kod');
         } else {
-            codeWrap.style.display = 'none';
+            // Sade — Tekrar Dene / Boş / Puan üye
+            setStep('bos');
         }
+
         resModal.classList.add('show');
         startCeleb();
     }
@@ -534,6 +582,89 @@
         resModal.classList.remove('show');
         stopCeleb();
     };
+
+    /* === Kayıt akışı === */
+    window.smsKodGonder = async function() {
+        const ad    = document.getElementById('ky-ad').value.trim();
+        const soyad = document.getElementById('ky-soyad').value.trim();
+        let tel     = document.getElementById('ky-tel').value.replace(/\D/g, '');
+        if (!ad || !soyad) { showToast('Ad ve soyad zorunlu'); return; }
+        if (tel.length === 11 && tel[0] === '0') tel = tel.substring(1);
+        if (tel.length !== 10 || tel[0] !== '5') { showToast('Geçerli cep telefon girin (5XX...)'); return; }
+
+        const btn = document.getElementById('btn-smskod');
+        btn.disabled = true; btn.textContent = '⏳ Gönderiliyor...';
+
+        try {
+            const resp = await fetch(SMSKOD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept':'application/json' },
+                body: JSON.stringify({ ad: ad, soyad: soyad, telefon: tel }),
+            });
+            const data = await resp.json();
+            btn.disabled = false; btn.textContent = '📨 SMS Gönder';
+            if (!data.success) { showToast(data.message || 'Hata'); return; }
+
+            document.getElementById('gonderilen-tel').textContent = '0' + tel;
+            if (data.dev_kod) {
+                showToast('SMS sağlayıcı yok — kod: ' + data.dev_kod);
+            } else {
+                showToast('Kod gönderildi!');
+            }
+            setStep('dogrula');
+            setTimeout(() => document.getElementById('kd-kod').focus(), 100);
+        } catch (e) {
+            btn.disabled = false; btn.textContent = '📨 SMS Gönder';
+            showToast('Bağlantı hatası');
+        }
+    };
+
+    window.smsKodDogrula = async function() {
+        const kod = document.getElementById('kd-kod').value.trim();
+        if (kod.length !== 4) { showToast('4 haneli kodu girin'); return; }
+
+        const btn = document.getElementById('btn-dogrula');
+        btn.disabled = true; btn.textContent = '⏳ Doğrulanıyor...';
+
+        try {
+            const resp = await fetch(SMSDOG_URL, {
+                method: 'POST',
+                headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept':'application/json' },
+                body: JSON.stringify({ kod: kod }),
+            });
+            const data = await resp.json();
+            btn.disabled = false; btn.textContent = '✓ Doğrula ve Kodu Al';
+            if (!data.success) { showToast(data.message || 'Hatalı kod'); return; }
+
+            // Kupon kodunu göster
+            if (data.odulKodu) {
+                codeEl.textContent = data.odulKodu;
+                setStep('kod');
+                showToast('🎉 Hesabınız oluşturuldu, kupon hazır!');
+            } else {
+                // Puan kazanılmış olabilir — kod yok ama işlem tamam
+                setStep('bos');
+                showToast('🎉 Hesabınız oluşturuldu, puanınız eklendi!');
+            }
+        } catch (e) {
+            btn.disabled = false; btn.textContent = '✓ Doğrula ve Kodu Al';
+            showToast('Bağlantı hatası');
+        }
+    };
+
+    window.geriDon = function() {
+        setStep('kayit');
+    };
+
+    // Telefon inputunda tuşlamada biçimlendirme yap (opsiyonel)
+    document.addEventListener('DOMContentLoaded', () => {
+        const tel = document.getElementById('ky-tel');
+        if (tel) {
+            tel.addEventListener('input', e => {
+                e.target.value = e.target.value.replace(/[^0-9]/g, '').substring(0, 11);
+            });
+        }
+    });
 
     /* Çevir — AJAX */
     window.cevirCarki = async function() {
@@ -585,10 +716,9 @@
 
         setTimeout(() => {
             hakEl.textContent = data.kalanHak;
-            // Günde 1 çevirme sınırı — buton pasif kalır; yarın 00:00 veya yeni randevu ile tekrar aktif olur
             cevirBtn.disabled   = true;
             cevirBtn.textContent = '✓ Bugün Çevirdiniz';
-            showResult(data.dilim, data.odulKodu);
+            showResult(data.dilim, data.odulKodu, data.kayitGerekli);
             // spinning kasıtlı olarak true bırakılıyor — yeni spin engellensin
         }, 9200);
     };
