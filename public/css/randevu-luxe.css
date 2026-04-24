@@ -41,6 +41,13 @@
 /* Keep the page breathing */
 .block > .container { max-width: 1200px; }
 
+/* ---------- Fix position:sticky: style.css body{overflow-x:hidden} sticky'i oldurur ---------- */
+/* overflow-x: clip yatay scroll'u engellemeye devam eder ama sticky'i serbest birakir  */
+html,
+body {
+    overflow-x: clip !important;
+}
+
 /* ---------- HERO BANNER (sticky, full-size, no shrink) ---------- */
 .lx-hero {
     position: sticky;
