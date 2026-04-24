@@ -764,3 +764,234 @@
     .slp-cta { padding: 44px 20px; margin: 30px 0; border-radius: 18px; }
     .slp-cta h2 { font-size: 24px; }
 }
+
+/* ==========================================================================
+   RANDEVU DRAWER — full-screen overlay booking experience
+   Desktop: centered modal (max 1200px × 94vh)
+   Mobile:  slide-up full-screen sheet
+   ========================================================================== */
+.slp-drawer {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .32s ease, visibility 0s linear .32s;
+}
+.slp-drawer.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity .32s ease, visibility 0s linear 0s;
+}
+
+.slp-drawer__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 5, 24, 0.72);
+    backdrop-filter: blur(10px) saturate(1.2);
+    -webkit-backdrop-filter: blur(10px) saturate(1.2);
+    cursor: pointer;
+}
+
+.slp-drawer__panel {
+    position: relative;
+    background: #fff;
+    border-radius: 22px;
+    width: min(1200px, 94vw);
+    max-height: 94vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-shadow: 0 40px 90px rgba(10, 5, 24, 0.45);
+    transform: translateY(40px) scale(.96);
+    opacity: 0;
+    transition: transform .4s cubic-bezier(.16,1,.3,1),
+                opacity .28s ease .06s;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 32px;
+}
+.slp-drawer.is-open .slp-drawer__panel {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+
+/* Close button — sabit, panel üstünde kayarken de görünür */
+.slp-drawer__close {
+    position: sticky;
+    top: 14px;
+    margin-left: auto;
+    margin-right: 14px;
+    z-index: 20;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid var(--slp-line-2);
+    color: var(--slp-ink);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 18px rgba(16, 24, 40, 0.12);
+    transition: all .18s ease;
+    float: right;
+}
+.slp-drawer__close:hover {
+    background: var(--slp-g-main);
+    color: #fff;
+    border-color: transparent;
+    transform: scale(1.06);
+}
+
+.slp-drawer__body {
+    padding: 0 20px;
+    clear: both;
+    min-height: min-content;
+}
+
+/* Drawer icindeki lx-hero -- sticky kalsin ama panel konteyneri icinde */
+.slp-drawer__panel .lx-hero {
+    margin-top: 0 !important;
+    border-radius: var(--lx-radius) !important;
+}
+.slp-drawer__panel #randevuozetbolumu {
+    top: calc(var(--lx-hero-h, 180px) + 14px) !important;
+}
+
+/* Body scroll-lock utility */
+body.slp-drawer-open {
+    overflow: hidden !important;
+    touch-action: none;
+}
+
+/* Mobile: full-screen slide-up */
+@media (max-width: 767px) {
+    .slp-drawer { align-items: flex-end; }
+    .slp-drawer__panel {
+        width: 100vw;
+        max-height: 100vh;
+        height: 100vh;
+        border-radius: 18px 18px 0 0;
+        transform: translateY(100%);
+        padding-bottom: 20px;
+    }
+    .slp-drawer.is-open .slp-drawer__panel {
+        transform: translateY(0);
+    }
+    .slp-drawer__body { padding: 0 14px; }
+    .slp-drawer__close {
+        top: 10px;
+        margin-right: 10px;
+        width: 40px;
+        height: 40px;
+    }
+    /* Top drag handle */
+    .slp-drawer__panel::before {
+        content: '';
+        display: block;
+        width: 44px;
+        height: 4px;
+        background: var(--slp-line-2);
+        border-radius: 99px;
+        margin: 10px auto 0;
+    }
+}
+
+/* ==========================================================================
+   FLOATING "RANDEVU AL" BUTTON (FAB)
+   Desktop: sag alt kose pill
+   Mobile:  alt bant genis buton
+   ========================================================================== */
+.slp-fab {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 50;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 26px 14px 18px;
+    border-radius: 999px;
+    background: var(--slp-g-main);
+    background-size: 160% 100%;
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 14px 34px rgba(124, 58, 237, 0.42),
+                0 0 0 4px rgba(255, 255, 255, 0.6);
+    transition: all .3s cubic-bezier(.4,0,.2,1);
+    animation: slpFabIn .5s cubic-bezier(.16,1,.3,1) .4s both;
+}
+.slp-fab:hover {
+    background-position: 100% 0;
+    transform: translateY(-3px);
+    box-shadow: 0 20px 44px rgba(124, 58, 237, 0.55),
+                0 0 0 4px rgba(255, 255, 255, 0.7);
+    color: #fff;
+    text-decoration: none;
+}
+.slp-fab__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+/* Pulse ring animation */
+.slp-fab::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    border: 2px solid rgba(168, 85, 247, 0.55);
+    animation: slpFabPulse 2.2s ease-out infinite;
+    pointer-events: none;
+}
+@keyframes slpFabPulse {
+    0%   { transform: scale(1); opacity: .8; }
+    100% { transform: scale(1.22); opacity: 0; }
+}
+@keyframes slpFabIn {
+    from { transform: translateY(30px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+}
+
+/* Drawer acikken FAB'i gizle */
+body.slp-drawer-open .slp-fab {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(20px);
+}
+
+/* Mobile: alt bant tam genis */
+@media (max-width: 767px) {
+    .slp-fab {
+        left: 14px;
+        right: 14px;
+        bottom: 14px;
+        justify-content: center;
+        padding: 14px 20px;
+        font-size: 15px;
+        border-radius: 16px;
+    }
+    .slp-fab::after {
+        border-radius: 16px;
+    }
+}
+
+/* Hide legacy below-booking anchor — drawer opens instead */
+.slp-booking-anchor { display: none; }

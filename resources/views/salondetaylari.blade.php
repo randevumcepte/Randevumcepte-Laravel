@@ -110,7 +110,7 @@
                @endif
             </div>
             <div class="slp-hero__cta">
-               <a href="#randevu-al" class="slp-btn slp-btn--primary">
+               <a href="#randevu-al" class="slp-btn slp-btn--primary" data-slp-open>
                   <i class="fa fa-calendar-check-o"></i> Randevu Al
                </a>
                @if(!empty($salon->telefon_1))
@@ -198,6 +198,15 @@
       </div>
    </div>
    @endif
+
+   {{-- ====================== RANDEVU DRAWER BASLANGIC ===================== --}}
+   <div class="slp-drawer" id="slpDrawer" role="dialog" aria-modal="true" aria-label="Randevu Oluştur" aria-hidden="true">
+      <div class="slp-drawer__backdrop" data-slp-close></div>
+      <div class="slp-drawer__panel">
+         <button type="button" class="slp-drawer__close" data-slp-close aria-label="Kapat">
+            <i class="fa fa-times"></i>
+         </button>
+         <div class="slp-drawer__body">
 
    {{-- ======================= LUXE HERO BANNER ========================= --}}
    <div class="lx-hero" id="lxHero">
@@ -457,6 +466,17 @@
                </div>
             </div>
          </div>
+
+         </div>{{-- /.slp-drawer__body --}}
+      </div>{{-- /.slp-drawer__panel --}}
+   </div>{{-- /.slp-drawer --}}
+
+   {{-- ============ FLOATING "RANDEVU AL" BUTTON (FAB) ================ --}}
+   <a href="#randevu-al" class="slp-fab" data-slp-open aria-label="Randevu Al">
+      <span class="slp-fab__icon"><i class="fa fa-calendar-check-o"></i></span>
+      <span>Randevu Al</span>
+   </a>
+
          <div class="row">
             <div id="hata"></div>
          </div>
@@ -820,6 +840,74 @@
            window.addEventListener('resize', measureHero);
            window.addEventListener('load', measureHero);
            measureHero();
+       }
+
+       /* ============== RANDEVU DRAWER — open/close/hash/scroll-lock ============== */
+       var drawer = document.getElementById('slpDrawer');
+       if (drawer) {
+           var HASH = '#randevu-al';
+           var body = document.body;
+
+           function openDrawer(pushHash) {
+               if (drawer.classList.contains('is-open')) return;
+               drawer.classList.add('is-open');
+               drawer.setAttribute('aria-hidden', 'false');
+               body.classList.add('slp-drawer-open');
+               if (pushHash !== false && window.location.hash !== HASH) {
+                   history.pushState({ rdvOpen: true }, '', HASH);
+               }
+               // Re-measure lx-hero inside drawer after layout settles
+               setTimeout(function(){
+                   if (typeof measureHero === 'function') measureHero();
+               }, 420);
+           }
+
+           function closeDrawer(popHash) {
+               if (!drawer.classList.contains('is-open')) return;
+               drawer.classList.remove('is-open');
+               drawer.setAttribute('aria-hidden', 'true');
+               body.classList.remove('slp-drawer-open');
+               if (popHash !== false && window.location.hash === HASH) {
+                   history.replaceState(null, '', window.location.pathname + window.location.search);
+               }
+           }
+
+           // Open triggers: any [data-slp-open]
+           document.addEventListener('click', function(e){
+               var openEl = e.target.closest ? e.target.closest('[data-slp-open]') : null;
+               if (openEl) {
+                   e.preventDefault();
+                   openDrawer(true);
+                   return;
+               }
+               var closeEl = e.target.closest ? e.target.closest('[data-slp-close]') : null;
+               if (closeEl) {
+                   e.preventDefault();
+                   closeDrawer(true);
+               }
+           });
+
+           // ESC kapatir
+           document.addEventListener('keydown', function(e){
+               if (e.key === 'Escape' && drawer.classList.contains('is-open')) {
+                   closeDrawer(true);
+               }
+           });
+
+           // Hash degisince (geri tusu vb.) senkronla
+           window.addEventListener('hashchange', function(){
+               if (window.location.hash === HASH) openDrawer(false);
+               else closeDrawer(false);
+           });
+           window.addEventListener('popstate', function(){
+               if (window.location.hash === HASH) openDrawer(false);
+               else closeDrawer(false);
+           });
+
+           // Ilk yukleme: URL zaten #randevu-al ise otomatik ac
+           if (window.location.hash === HASH) {
+               setTimeout(function(){ openDrawer(false); }, 60);
+           }
        }
    })();
 </script>
