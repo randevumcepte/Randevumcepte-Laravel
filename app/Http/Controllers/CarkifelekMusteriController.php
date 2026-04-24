@@ -86,6 +86,7 @@ class CarkifelekMusteriController extends Controller
      */
     public function goster(Request $request, $salonId)
     {
+        $this->tablolariGaranti();
         $salon = Salonlar::find($salonId);
         if (!$salon) abort(404, 'Salon bulunamadı.');
 
@@ -145,6 +146,7 @@ class CarkifelekMusteriController extends Controller
      */
     public function cevir(Request $request)
     {
+        $this->tablolariGaranti();
         $isMisafir = !Auth::check();
         $userId    = $isMisafir ? null : Auth::id();
         $salonId   = (int) $request->input('salon_id');
@@ -293,10 +295,95 @@ class CarkifelekMusteriController extends Controller
     }
 
     /**
+     * Çarkıfelek sisteminin ihtiyaç duyduğu tablolar yoksa runtime'da oluşturur
+     * (migration çalıştırılamadığı ortamlar için güvence).
+     */
+    private function tablolariGaranti()
+    {
+        if (!Schema::hasTable('sms_dogrulama_kodlari')) {
+            Schema::create('sms_dogrulama_kodlari', function ($table) {
+                $table->increments('id');
+                $table->string('telefon', 20);
+                $table->string('kod', 6);
+                $table->string('ip', 45)->nullable();
+                $table->string('amac', 50)->default('cark_kayit');
+                $table->timestamp('son_gecerlilik');
+                $table->tinyInteger('dogrulandi')->default(0);
+                $table->timestamps();
+                $table->index(['telefon', 'amac']);
+                $table->index('son_gecerlilik');
+            });
+        }
+        if (!Schema::hasTable('carkifelek_cevirme_loglari')) {
+            Schema::create('carkifelek_cevirme_loglari', function ($table) {
+                $table->increments('id');
+                $table->unsignedInteger('cark_id');
+                $table->unsignedInteger('salon_id');
+                $table->unsignedInteger('user_id')->default(0);
+                $table->string('session_id', 100)->nullable();
+                $table->string('misafir_ip', 45)->nullable();
+                $table->unsignedInteger('randevu_id')->nullable();
+                $table->unsignedInteger('dilim_id')->nullable();
+                $table->string('tip', 50)->default('bos');
+                $table->decimal('deger', 10, 2)->nullable();
+                $table->string('dilim_ismi', 150)->nullable();
+                $table->timestamps();
+                $table->index(['salon_id', 'user_id']);
+                $table->index('randevu_id');
+            });
+        } else {
+            // Eski tabloda eksik kolonlar varsa ekle
+            Schema::table('carkifelek_cevirme_loglari', function ($table) {
+                if (!Schema::hasColumn('carkifelek_cevirme_loglari', 'session_id')) {
+                    $table->string('session_id', 100)->nullable()->after('user_id');
+                }
+                if (!Schema::hasColumn('carkifelek_cevirme_loglari', 'misafir_ip')) {
+                    $table->string('misafir_ip', 45)->nullable()->after('session_id');
+                }
+            });
+        }
+        if (!Schema::hasTable('carkifelek_odulleri')) {
+            Schema::create('carkifelek_odulleri', function ($table) {
+                $table->increments('id');
+                $table->unsignedInteger('log_id')->nullable();
+                $table->unsignedInteger('salon_id');
+                $table->unsignedInteger('user_id');
+                $table->string('kod', 12)->unique();
+                $table->string('tip', 50);
+                $table->decimal('deger', 10, 2);
+                $table->string('baslik', 150)->nullable();
+                $table->tinyInteger('kullanildi')->default(0);
+                $table->timestamp('kullanim_tarihi')->nullable();
+                $table->date('gecerlilik_tarihi')->nullable();
+                $table->timestamps();
+                $table->index(['salon_id', 'user_id']);
+                $table->index('kullanildi');
+            });
+        }
+        if (!Schema::hasTable('salon_puan_odulleri')) {
+            Schema::create('salon_puan_odulleri', function ($table) {
+                $table->increments('id');
+                $table->unsignedInteger('salon_id');
+                $table->integer('puan_esigi');
+                $table->string('baslik', 150);
+                $table->string('aciklama', 300)->nullable();
+                $table->string('tip', 50);
+                $table->decimal('deger', 10, 2)->nullable();
+                $table->tinyInteger('aktif')->default(1);
+                $table->integer('sira')->default(0);
+                $table->timestamps();
+                $table->index(['salon_id', 'aktif']);
+            });
+        }
+    }
+
+    /**
      * AJAX: Misafir için telefona SMS doğrulama kodu gönderir.
      */
     public function smsKodGonder(Request $request)
     {
+        $this->tablolariGaranti();
+
         $telefon = preg_replace('/[^0-9]/', '', $request->input('telefon', ''));
         $ad      = trim($request->input('ad', ''));
         $soyad   = trim($request->input('soyad', ''));
@@ -379,6 +466,8 @@ class CarkifelekMusteriController extends Controller
      */
     public function smsKodDogrula(Request $request)
     {
+        $this->tablolariGaranti();
+
         $kod = trim($request->input('kod', ''));
         $bilgi = $request->session()->get('cark_kayit_bilgi');
         $pending = $request->session()->get('cark_pending_odul');
