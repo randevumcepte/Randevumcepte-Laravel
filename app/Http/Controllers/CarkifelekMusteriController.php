@@ -104,14 +104,18 @@ class CarkifelekMusteriController extends Controller
         $isMisafir    = !Auth::check();
         $kullanilabilir = [];
         $bugunCevirdi   = false;
+        $sessionKey = "cark_bugun_{$salonId}";
+        $sessionBugunMarker = $request->session()->get($sessionKey) === Carbon::today()->toDateString();
 
         if ($isMisafir) {
-            // Session tabanlı "bugün çevirdi mi"
-            $sessionKey = "cark_bugun_{$salonId}";
-            $bugunCevirdi = $request->session()->get($sessionKey) === Carbon::today()->toDateString();
+            $bugunCevirdi = $sessionBugunMarker;
         } else {
             $kullanilabilir = $this->kalanHak($salonId, Auth::id());
             $bugunCevirdi   = $this->bugunCevirdi($salonId, Auth::id());
+            // Defans: kayıt sonrası session marker'ı hâlâ varsa, log bulunmasa bile çevirmiş say
+            if (!$bugunCevirdi && $sessionBugunMarker) {
+                $bugunCevirdi = true;
+            }
         }
 
         $yarin = Carbon::tomorrow()->format('d.m.Y H:i');
@@ -468,6 +472,9 @@ class CarkifelekMusteriController extends Controller
     {
         $this->tablolariGaranti();
 
+        // Auth::login session ID'yi yenileyebilir — eski ID'yi yakala
+        $eskiSessionId = $request->session()->getId();
+
         $kod = trim($request->input('kod', ''));
         $bilgi = $request->session()->get('cark_kayit_bilgi');
         $pending = $request->session()->get('cark_pending_odul');
@@ -504,6 +511,9 @@ class CarkifelekMusteriController extends Controller
             ]);
             $yeniUyelik = true;
         }
+
+        // Eski session ID'yi global olarak transaction içine geçir
+        $GLOBALS['_eski_session_id'] = $eskiSessionId;
 
         Auth::login($user);
 
@@ -544,10 +554,22 @@ class CarkifelekMusteriController extends Controller
             }
 
             // Log'daki misafir kayıtları (user_id=0) bu user'a bağla
+            // ESKİ session ID'yi kullan — Auth::login session'ı yenilemiş olabilir
             if (Schema::hasColumn('carkifelek_cevirme_loglari', 'session_id')) {
-                CarkifelekCevirmeLoglari::where('session_id', session()->getId())
+                CarkifelekCevirmeLoglari::where('session_id', $GLOBALS['_eski_session_id'] ?? '')
                     ->where('user_id', 0)
                     ->update(['user_id' => $user->id]);
+            }
+            // Ek güvence: pending'deki bilgilerden bugünkü user_id=0 olan
+            // SON guest log'unu bul ve user'a bağla (session uyuşmazlığına karşı)
+            $sonGuestLog = CarkifelekCevirmeLoglari::where('salon_id', $pending['salon_id'])
+                ->where('user_id', 0)
+                ->where('dilim_id', $pending['dilim_id'])
+                ->whereDate('created_at', \Carbon\Carbon::today())
+                ->orderByDesc('id')->first();
+            if ($sonGuestLog) {
+                $sonGuestLog->user_id = $user->id;
+                $sonGuestLog->save();
             }
         });
 
