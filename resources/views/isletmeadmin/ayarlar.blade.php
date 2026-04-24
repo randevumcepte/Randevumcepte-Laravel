@@ -109,267 +109,330 @@
                         id="isletme-bilgileri"
                         role="tabpanel"
                         >
-                        <div class="row" style="border-bottom: 1px solid #e2e2e2;margin-bottom: 10px;padding-bottom: 10px;">
-                           <div class="col-6 col-xs-6 col-sm-6">
-                              <h2 class="text-blue">Temel Ayarlar</h2>
+                        {{-- ==== MODERN TEMEL BİLGİLER PANELİ ==== --}}
+                        <style>
+                           .rm-tb { padding: 0 4px; }
+                           .rm-tb__header {
+                              display:flex; align-items:center; justify-content:space-between;
+                              gap:16px; padding:18px 20px; margin-bottom:18px;
+                              background: linear-gradient(135deg, #faf5ff 0%, #fff 100%);
+                              border:1px solid #ede1f7; border-left:4px solid #5C008E;
+                              border-radius:12px;
+                           }
+                           .rm-tb__header h2 { color:#5C008E; margin:0; font-size:22px; font-weight:700; }
+                           .rm-tb__header p { color:#6b7280; margin:4px 0 0; font-size:13px; }
+                           .rm-card {
+                              background:#fff; border:1px solid #ececf1; border-radius:14px;
+                              box-shadow: 0 2px 6px rgba(17,17,26,.03);
+                              margin-bottom:18px; overflow:hidden;
+                           }
+                           .rm-card__head {
+                              padding:14px 20px; border-bottom:1px solid #f1f1f5;
+                              background:#fafafc;
+                           }
+                           .rm-card__head h3 {
+                              margin:0; font-size:16px; font-weight:700; color:#2d2143;
+                              display:flex; align-items:center; gap:10px;
+                           }
+                           .rm-card__head h3 i { color:#5C008E; }
+                           .rm-card__head small { display:block; color:#6b7280; margin-top:4px; font-size:12.5px; }
+                           .rm-card__body { padding:20px; }
+                           .rm-card__body .form-group label { font-weight:600; color:#3a2e57; font-size:13px; }
+                           .rm-tb textarea.form-control { min-height:110px; resize:vertical; }
+                           .rm-logo-wrap { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+                           .rm-logo-wrap .profile-photo { margin:0; }
+                           .rm-logo-hint { color:#6b7280; font-size:12px; max-width:320px; }
+                           .rm-input-inline { display:flex; gap:8px; }
+                           .rm-input-inline .form-control { flex:1; }
+                           .rm-input-inline .btn { white-space:nowrap; }
+                           /* In-form Kaydet barı (sayfa sonu) */
+                           .rm-savebar {
+                              position: sticky; bottom: 0;
+                              background: rgba(255,255,255,.96);
+                              backdrop-filter: saturate(140%) blur(8px);
+                              -webkit-backdrop-filter: saturate(140%) blur(8px);
+                              border-top:1px solid #ece6f3;
+                              padding:12px 16px; margin: 10px -20px -20px;
+                              display:flex; justify-content:flex-end; gap:10px; align-items:center;
+                              z-index: 20;
+                              box-shadow: 0 -6px 18px rgba(92,0,142,.06);
+                           }
+                           .rm-savebar__hint { color:#6b7280; font-size:12.5px; margin-right:auto; }
+                           .rm-savebar .btn-save {
+                              background:#5C008E; border-color:#5C008E; color:#fff; font-weight:700;
+                              padding:10px 22px; border-radius:10px; min-width:180px;
+                              box-shadow: 0 6px 16px rgba(92,0,142,.25);
+                           }
+                           .rm-savebar .btn-save:hover { background:#48006e; border-color:#48006e; }
+                           .rm-qr-btn { background:#5C008E; border-color:#5C008E; color:#fff; font-weight:600; }
+                           .rm-qr-btn:hover { background:#48006e; border-color:#48006e; color:#fff; }
+
+                           /* Ekran ortasında sabit FAB — nereden edit edilirse edilsin tek tıkla kaydet */
+                           #rmFloatingSave {
+                              position: fixed;
+                              bottom: 22px; right: 22px;
+                              background: #5C008E; color:#fff;
+                              border:none; border-radius: 50px;
+                              padding: 14px 26px;
+                              font-weight: 700; font-size: 15px;
+                              box-shadow: 0 10px 28px rgba(92,0,142,.35), 0 4px 10px rgba(0,0,0,.08);
+                              z-index: 1050;
+                              display: none;
+                              align-items: center; gap: 8px;
+                              transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+                           }
+                           #rmFloatingSave:hover {
+                              background:#48006e;
+                              transform: translateY(-2px);
+                              box-shadow: 0 14px 34px rgba(92,0,142,.45), 0 6px 14px rgba(0,0,0,.1);
+                           }
+                           #rmFloatingSave i { font-size: 16px; }
+                           #rmFloatingSave.is-visible { display: inline-flex; }
+                           @media (max-width: 600px) {
+                              .rm-tb__header { flex-direction:column; align-items:flex-start; }
+                              .rm-savebar { flex-wrap:wrap; }
+                              .rm-savebar__hint { width:100%; margin:0 0 8px; }
+                              .rm-savebar .btn-save { width:100%; min-width:0; }
+                              #rmFloatingSave { bottom: 14px; right: 14px; left: 14px; justify-content:center; }
+                           }
+                        </style>
+
+                        <div class="rm-tb">
+                           <div class="rm-tb__header">
+                              <div>
+                                 <h2><i class="fa fa-store" style="margin-right:6px;"></i> Temel Ayarlar</h2>
+                                 <p>Buradaki bilgiler müşterilerin gördüğü <b>tanıtım sayfasında</b> yayınlanır. Eksiksiz doldurmanız işletmenizin daha iyi görünmesini sağlar.</p>
+                              </div>
+                              <button type="button" class="btn rm-qr-btn" data-toggle="modal" data-target="#qr_kod_modal">
+                                 <i class="fa fa-qrcode"></i> QR Kodu Gör
+                              </button>
                            </div>
-                           <div class="col-6 col-xs-6 col-sm-6 text-right">
-                              <button style="max-width: 100%" class="btn btn-primary" type="button" data-toggle="modal" data-target="#qr_kod_modal"><i class="icon-copy fa fa-qrcode" aria-hidden="true"></i> QR Kodu Gör</button>
-                           </div>
-                        </div>
-                        <div class="pd-20">
+
                            <form id="isletme_temel_bilgiler" method="POST">
                               <input type="hidden" name="sube" value="{{$isletme->id}}">
                               {!! csrf_field() !!}
-                              <div class="row" data-value=0>
-                                 <div class="col-md-6" data-vale=0>
-                                   
-                           <div class=" col-md-12">
-                                 <div class="form-group">
-                                    <label>Logo (maksimum 240px genişliğinde veya 100px yüksekliğine sahip olmalıdır)</label>
-                                     <input type="file" id="isletmelogo" name='isletmelogo' style="display:none;" />
-                                    <div class="profile-photo">
-                                       <a
-                                          href="#"
-                                          class="edit-avatar" style='background: #fff;' onclick="thisFileUploadLogo();"
-                                          ><i class="fa fa-pencil"></i
-                                       ></a>
-                                       <img
-                                          id="profillogo"
-                                          src="{{($isletme->logo !== null ? '/'.$isletme->logo : '/public/isletmeyonetim_assets/img/avatar.png' )}}"
-                                          alt=""
-                                          class="avatar-photo"  style="background: #444;object-fit: cover; width: 240; height: auto;border-radius: 0;"
-                                       />
+
+                              {{-- ==== 1) İŞLETME KİMLİĞİ ==== --}}
+                              <div class="rm-card">
+                                 <div class="rm-card__head">
+                                    <h3><i class="fa fa-id-card-o"></i> İşletme Kimliği</h3>
+                                    <small>Logo, isim, tür ve iletişim bilgileri. Tanıtım sayfasında en üstte gösterilir.</small>
+                                 </div>
+                                 <div class="rm-card__body">
+                                    <div class="rm-logo-wrap" style="margin-bottom:18px">
+                                       <input type="file" id="isletmelogo" name='isletmelogo' style="display:none;" />
+                                       <div class="profile-photo">
+                                          <a href="#" class="edit-avatar" style='background:#fff;' onclick="thisFileUploadLogo();"><i class="fa fa-pencil"></i></a>
+                                          <img id="profillogo"
+                                             src="{{($isletme->logo !== null ? '/'.$isletme->logo : '/public/isletmeyonetim_assets/img/avatar.png' )}}"
+                                             alt=""
+                                             class="avatar-photo" style="background:#444;object-fit:cover;width:140px;height:140px;border-radius:12px;" />
+                                       </div>
+                                       <div class="rm-logo-hint">
+                                          <strong>Logo Yükle</strong><br>
+                                          Maksimum 240px genişliğinde veya 100px yüksekliğinde olmalı. Kalem simgesine tıklayarak değiştirebilirsiniz.
+                                       </div>
                                     </div>
 
-                                 </div>
-                           <div class="form-group">
-                           <label>İşletme Adı</label>
-                           <input type="text" name="isletme_adi" value="{{$isletme->salon_adi}}" required class="form-control">
-                           </div>
-                           </div>
-                           <div class="col-md-12">
-                           <div class="form-group ">
-                           <label>İşletme Türü</label>
-                           <select class="form-control custom-select2" name="isletme_turu"  style="width:100%">
-                           @foreach(\App\SalonTuru::all() as $isletme_turu) 
-                           <option value="{{$isletme_turu->id}}" {{($isletme_turu->id == $isletme->salon_turu_id) ? 'selected' : ''}}>{{$isletme_turu->salon_turu_adi}}</option>
-                           @endforeach
-                           </select>
-                           </div>
-                           </div>
-                           <div class=" col-md-12">
-                           <div class="form-group">
-                           <label>Adres</label>
-                           <input type="text" name="isletme_adres" value="{{$isletme->adres}}" class="form-control">
-                           </div>
-                           </div>
-                           <div class=" col-md-12">
-                           <div class="form-group">
-                           <label>Telefon</label>
-                           <input required data-inputmask =" 'mask' : '5999999999'" type="text" name="isletme_telefon" value="{{$isletme->telefon_1}}" class="form-control">
-                           </div>
-                           </div>
-                           </div>
-                           <div class="col-md-6" data-value=0>
-                           <div class="row">
-                           <div class="col-md-6">
-                           <div class="form-group">
-                           <label>Online Randevu URL</label>
-                           <input
-                              type="text"
-                              required class="form-control"
-                              placeholder="Online randevu link"
-                              value="https://{{$isletme->domain}}"
-                              id="myInput"
-                              />
-                           </div>
-                           </div>
-                           <div class="col-md-3" >
-                           <div class="form-group">
-                           <label style="visibility: hidden;width: 100%;">kopyala</label>
-                           <button class="btn btn-success btn-block" type="button" onclick="myFunction()">Kopyala</button>
-                           </div>
-                           </div>
-                           <div class="col-md-3" >
-                           <div class="form-group">
-                           <label style="visibility: hidden;width: 100%;">link</label>
-                           <a target="_blank" href="https://{{$isletme->domain}}">  <button class="btn btn-primary btn-block" type="button"><i class="bi bi-eye"></i></button></a>
-                           </div>
-                           </div>
-                           </div>
-                           <div class="row">
-                           <div class="col-md-6">
-                           <div class="form-group">
-                           <label>Instagram URL</label>
-                           <input
-                              type="text"
-                              class="form-control"
-                              placeholder="Instagram Link"
-                              value="{{$isletme->instagram_sayfa}}"
-                              id="instagram_url" name='instagram_url'
-                              />
-                           </div>
-                           </div>
-                           <div class="col-md-3" >
-                           <div class="form-group">
-                           <label style="visibility: hidden;width: 100%;">kopyala</label>
-                           <button class="btn btn-success btn-block"  type="button" onclick="myFunction2()">Kopyala</button>
-                           </div>
-                           </div>
-                           <div class="col-md-3" >
-                           <div class="form-group">
-                           <label style="visibility: hidden;width: 100%;">link</label>
-                           <a target="_blank" href="{{$isletme->instagram_sayfa}}">
-                           <button class="btn btn-primary btn-block" type="button"><i class="bi bi-eye"></i></button>
-                           </a>
-                           </div>
-                           </div>
-                           </div>
-                           <div class="row">
-                           <div class="col-md-6">
-                           <div class="form-group">
-                           <label>Facebook URL</label>
-                           <input
-                              type="text"
-                              class="form-control" name='facebook_url'
-                              placeholder="Facebook Link"
-                              value="{{$isletme->facebook_sayfa}}"
-                              id="facebook_url"
-                              />
-                           </div>
-                           </div>
-                           <div class="col-md-3" >
-                           <div class="form-group">
-                           <label style="visibility: hidden;width: 100%;">kopyala</label>
-                           <button class="btn btn-success btn-block"  type="button" onclick="myFunction3()">Kopyala</button>
-                           </div>
-                           </div>
-                           <div class="col-md-3" >
-                           <div class="form-group">
-                           <label style="visibility: hidden;width: 100%;">link</label>
-                           <a target="_blank" href="{{$isletme->facebook_sayfa}}">
-                           <button class="btn btn-primary btn-block" type="button"><i class="bi bi-eye"></i></button>
-                           </a>
-                           </div>
-                           </div>
-                           </div>
-                           <div class="row">
-                              <div class="col-md-6">
-                                 <label>Whatsapp</label>
-                                 <input type="tel" name="whatsapp" class="form-control" data-inputmask =" 'mask' : '5999999999'" value="{{$isletme->whatsapp}}">
-                              </div>
-                           </div>
-                           <div class="row">
-                           <div class="col-md-6">
-                           <div class="form-group">
-                           <label>Uygulama URL</label>
-                           <button class="btn btn-primary btn-block"  type="button" ><i class="icon-copy bi bi-apple"></i> IOS</button>
-                           </div>
-                           </div>
-                           <div class="col-md-6" >
-                           <label style="visibility: hidden;width: 100%;">android</label>
-                           <button class="btn btn-primary btn-block"  type="button" ><i class="icon-copy fi-social-android"></i> Android</button>
-                           </div>
-                           </div>
-                           </div>
-                           </div>
-                           <script>
-                              function myFunction() {
-                                var copyText = document.getElementById("myInput");
-                                copyText.select();
-                                copyText.setSelectionRange(0, 99999);
-                                navigator.clipboard.writeText(copyText.value);
-                                
-                                
-                              
-                              }
-                              function myFunction2(){
-                              var copyText = document.getElementById("myInput2");
-                                copyText.select();
-                                copyText.setSelectionRange(0, 99999);
-                                navigator.clipboard.writeText(copyText.value);
-                              
-                              }
-                              function myFunction3(){
-                              
-                                  var copyText = document.getElementById("myInput3");
-                                copyText.select();
-                                copyText.setSelectionRange(0, 99999);
-                                navigator.clipboard.writeText(copyText.value);
-                              }
-                              function myFunction4() {
-                               
-                                  var copyText = document.getElementById("myInput4");
-                                copyText.select();
-                                copyText.setSelectionRange(0, 99999);
-                                navigator.clipboard.writeText(copyText.value);
-                              }
-                              
-                           </script>
-                           <h2  class="text-blue">Fatura Ayarları</h2>
-                           <div class="row">
-                              <div class="col-md-6">
-                                 <div class="form-group">
-                                    <label>Firma Adı/Ünvanı</label>
-                                    <input type="text" class="form-control" name="vergi_adi" value="{{$isletme->vergi_adi}}">
+                                    <div class="row">
+                                       <div class="col-md-6">
+                                          <div class="form-group">
+                                             <label>İşletme Adı</label>
+                                             <input type="text" name="isletme_adi" value="{{$isletme->salon_adi}}" required class="form-control">
+                                          </div>
+                                       </div>
+                                       <div class="col-md-6">
+                                          <div class="form-group">
+                                             <label>İşletme Türü</label>
+                                             <select class="form-control custom-select2" name="isletme_turu" style="width:100%">
+                                                @foreach(\App\SalonTuru::all() as $isletme_turu)
+                                                <option value="{{$isletme_turu->id}}" {{($isletme_turu->id == $isletme->salon_turu_id) ? 'selected' : ''}}>{{$isletme_turu->salon_turu_adi}}</option>
+                                                @endforeach
+                                             </select>
+                                          </div>
+                                       </div>
+                                       <div class="col-md-8">
+                                          <div class="form-group">
+                                             <label>Adres</label>
+                                             <input type="text" name="isletme_adres" value="{{$isletme->adres}}" class="form-control" placeholder="İşletmenizin açık adresi">
+                                          </div>
+                                       </div>
+                                       <div class="col-md-4">
+                                          <div class="form-group">
+                                             <label>Telefon</label>
+                                             <input required data-inputmask=" 'mask' : '5999999999'" type="text" name="isletme_telefon" value="{{$isletme->telefon_1}}" class="form-control" placeholder="5XX XXX XX XX">
+                                          </div>
+                                       </div>
+                                       <div class="col-md-4">
+                                          <div class="form-group">
+                                             <label><i class="fa fa-whatsapp" style="color:#25D366"></i> WhatsApp</label>
+                                             <input type="tel" name="whatsapp" class="form-control" data-inputmask=" 'mask' : '5999999999'" value="{{$isletme->whatsapp}}" placeholder="5XX XXX XX XX">
+                                          </div>
+                                       </div>
+                                    </div>
                                  </div>
                               </div>
-                              <div class="col-md-6">
-                                 <div class="form-group">
-                                    <label>Vergi Adresi</label>
-                                    <input type="text" name="vergi_adresi" class="form-control" value="{{$isletme->vergi_adresi}}">
-                                 </div>
-                              </div>
-                              <div class="col-md-4">
-                                 <div class="form-group">
-                                    <label>Vergi / TC No</label>
-                                    <input type="tel" class="form-control" name="vergi_tc_no" value="{{$isletme->vergi_no}}" data-inputmask =" 'mask' : '99999999999'" >
-                                 </div>
-                              </div>
-                              <div class="col-md-4">
-                                 <div class="form-group">
-                                    <label>Vergi Dairesi</label>
-                                    <input type="text" name="vergi_dairesi" class="form-control" value="{{$isletme->vergi_dairesi}}">
-                                 </div>
-                              </div>
-                              <div class="col-md-4">
-                                 <div class="form-group">
-                                    <label>KDV oranı (%)</label>
-                                    <input type="tel" name="kdv_orani" class="form-control" value="{{$isletme->kdv_orani}}">
-                                 </div>
-                              </div>
-                           </div>
-                           <div class="row">
-                              <div class="col-md-6">
-                                 <h2 class="text-blue">SEO Ayarları</h2>
-                                 <div class="form-group">
-                                    <label>Online Randevu Sayfası Açıklaması (Online randevu sayfanızın arama motorlarında görünmesini istediğiniz açıklama.)</label>
-                                    <textarea class="form-control" name="seo_description" placeholder="Ör. Kalıcı makyaj, cilt bakımı, lazer ve güzelliğe dair tüm hizmetler için güzellik merkezimizde hizmetinizde.">{{$isletme->meta_description}}</textarea>
-                                 </div>
-                                 <div class="form-group">
-                                    <label>Online randevu sayfanızın arama motorlarında çıkmasını istediğiniz lokasyon bazlı anahtar kelimeler. Ör. izmirde güzellik merkezi. <b>NOT : (Tüm kelimeler küçük harflerden oluşmalıdır.)</b></label>
-                                    <?php $aramaterimisayisi = $aramaterimleri->count(); ?>
-                                    @foreach($aramaterimleri as $key => $aramaterimi)
-                                       <input type="text" name="anahtar_kelimeler[]" style="text-transform: lowercase;" placeholder="Anahtar Kelime {{$key+1}}" class="form-control" value="{{$aramaterimi->arama_terimi}}"> 
-                                    @endforeach
-                                    @if($aramaterimleri->count() < 6)
-                                       @for($i=$aramaterimleri->count()+1; $i<=6; $i++)
-                                          <input type="text" name="anahtar_kelimeler[]" placeholder="Anahtar Kelime {{$i}}" class="form-control"> 
-                                       @endfor
-                                    @endif
 
+                              {{-- ==== 2) İŞLETME TANITIMI (HAKKIMIZDA) ==== --}}
+                              <div class="rm-card">
+                                 <div class="rm-card__head">
+                                    <h3><i class="fa fa-bullhorn"></i> İşletme Tanıtımı</h3>
+                                    <small>Müşterilerin tanıtım sayfanızda <b>"Hakkımızda"</b> bölümünde göreceği metin. Sizi kısa ve samimi bir dille anlatın.</small>
                                  </div>
-                                  <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
+                                 <div class="rm-card__body">
+                                    <div class="form-group" style="margin-bottom:0">
+                                       <label>İşletme Açıklaması</label>
+                                       <textarea class="form-control" name="isletme_aciklama" rows="5" maxlength="1500"
+                                          placeholder="Örn. 2010'dan bu yana Karşıyaka'da hizmet veriyoruz. Uzman kadromuz ve hijyenik ortamımızla saç bakımı, kalıcı makyaj ve cilt bakımında farkı hissedeceksiniz...">{{$isletme->aciklama}}</textarea>
+                                       <small class="text-muted">Müşterinin gözünde samimi ve güven veren bir tanıtım, randevu alma oranını artırır.</small>
+                                    </div>
+                                 </div>
                               </div>
-                              <div class="col-md-6">
-                                 <h2 class="text-blue">Kapak Resmi</h2>
-                                    <div class="profile-photo" style="width: 100%;">
-                                       <a
-                                          href="#"
-                                          class="edit-avatar" onclick="thisFileUpload();" style='background: #fff;'
-                                          ><i class="fa fa-pencil"></i
-                                          ></a>
+
+                              {{-- ==== 3) İLETİŞİM & LİNKLER ==== --}}
+                              <div class="rm-card">
+                                 <div class="rm-card__head">
+                                    <h3><i class="fa fa-link"></i> İletişim & Sosyal Medya Linkleri</h3>
+                                    <small>Online randevu sayfanızın linki ve sosyal medya profilleri. Müşteriler bu linkler üzerinden size ulaşır.</small>
+                                 </div>
+                                 <div class="rm-card__body">
+                                    <div class="form-group">
+                                       <label>Online Randevu URL</label>
+                                       <div class="rm-input-inline">
+                                          <input type="text" required class="form-control" placeholder="Online randevu link" value="https://{{$isletme->domain}}" id="myInput" readonly>
+                                          <button class="btn btn-success" type="button" onclick="myFunction()"><i class="fa fa-copy"></i> Kopyala</button>
+                                          <a target="_blank" href="https://{{$isletme->domain}}"><button class="btn btn-primary" type="button"><i class="fa fa-external-link"></i></button></a>
+                                       </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                       <label><i class="fa fa-instagram" style="color:#E1306C"></i> Instagram URL</label>
+                                       <div class="rm-input-inline">
+                                          <input type="text" class="form-control" placeholder="https://instagram.com/..." value="{{$isletme->instagram_sayfa}}" id="instagram_url" name='instagram_url'>
+                                          <button class="btn btn-success" type="button" onclick="myFunction2()"><i class="fa fa-copy"></i> Kopyala</button>
+                                          <a target="_blank" href="{{$isletme->instagram_sayfa}}"><button class="btn btn-primary" type="button"><i class="fa fa-external-link"></i></button></a>
+                                       </div>
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom:0">
+                                       <label><i class="fa fa-facebook-official" style="color:#1877F2"></i> Facebook URL</label>
+                                       <div class="rm-input-inline">
+                                          <input type="text" class="form-control" name='facebook_url' placeholder="https://facebook.com/..." value="{{$isletme->facebook_sayfa}}" id="facebook_url">
+                                          <button class="btn btn-success" type="button" onclick="myFunction3()"><i class="fa fa-copy"></i> Kopyala</button>
+                                          <a target="_blank" href="{{$isletme->facebook_sayfa}}"><button class="btn btn-primary" type="button"><i class="fa fa-external-link"></i></button></a>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+
+                              <script>
+                                 function myFunction() {
+                                   var copyText = document.getElementById("myInput");
+                                   copyText.select();
+                                   copyText.setSelectionRange(0, 99999);
+                                   navigator.clipboard.writeText(copyText.value);
+                                 }
+                                 function myFunction2(){
+                                   var copyText = document.getElementById("instagram_url");
+                                   copyText.select();
+                                   copyText.setSelectionRange(0, 99999);
+                                   navigator.clipboard.writeText(copyText.value);
+                                 }
+                                 function myFunction3(){
+                                   var copyText = document.getElementById("facebook_url");
+                                   copyText.select();
+                                   copyText.setSelectionRange(0, 99999);
+                                   navigator.clipboard.writeText(copyText.value);
+                                 }
+                                 function myFunction4() {
+                                   var copyText = document.getElementById("myInput4");
+                                   copyText.select();
+                                   copyText.setSelectionRange(0, 99999);
+                                   navigator.clipboard.writeText(copyText.value);
+                                 }
+                              </script>
+
+                              {{-- ==== 4) FATURA AYARLARI ==== --}}
+                              <div class="rm-card">
+                                 <div class="rm-card__head">
+                                    <h3><i class="fa fa-file-text-o"></i> Fatura Ayarları</h3>
+                                    <small>Adisyon ve fatura kesimlerinde kullanılacak yasal bilgiler.</small>
+                                 </div>
+                                 <div class="rm-card__body">
+                                    <div class="row">
+                                       <div class="col-md-6">
+                                          <div class="form-group">
+                                             <label>Firma Adı / Ünvanı</label>
+                                             <input type="text" class="form-control" name="vergi_adi" value="{{$isletme->vergi_adi}}">
+                                          </div>
+                                       </div>
+                                       <div class="col-md-6">
+                                          <div class="form-group">
+                                             <label>Vergi Adresi</label>
+                                             <input type="text" name="vergi_adresi" class="form-control" value="{{$isletme->vergi_adresi}}">
+                                          </div>
+                                       </div>
+                                       <div class="col-md-4">
+                                          <div class="form-group">
+                                             <label>Vergi / TC No</label>
+                                             <input type="tel" class="form-control" name="vergi_tc_no" value="{{$isletme->vergi_no}}" data-inputmask=" 'mask' : '99999999999'">
+                                          </div>
+                                       </div>
+                                       <div class="col-md-4">
+                                          <div class="form-group">
+                                             <label>Vergi Dairesi</label>
+                                             <input type="text" name="vergi_dairesi" class="form-control" value="{{$isletme->vergi_dairesi}}">
+                                          </div>
+                                       </div>
+                                       <div class="col-md-4">
+                                          <div class="form-group">
+                                             <label>KDV Oranı (%)</label>
+                                             <input type="tel" name="kdv_orani" class="form-control" value="{{$isletme->kdv_orani}}">
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+
+                              {{-- ==== 5) SEO & KAPAK ==== --}}
+                              <div class="row">
+                                 <div class="col-md-6">
+                                    <div class="rm-card" style="height:calc(100% - 18px);">
+                                       <div class="rm-card__head">
+                                          <h3><i class="fa fa-search"></i> SEO Ayarları</h3>
+                                          <small>Google gibi arama motorlarında işletmenizin görünümünü iyileştirir.</small>
+                                       </div>
+                                       <div class="rm-card__body">
+                                          <div class="form-group">
+                                             <label>Online Randevu Sayfası SEO Açıklaması</label>
+                                             <textarea class="form-control" name="seo_description" placeholder="Ör. Kalıcı makyaj, cilt bakımı, lazer ve güzelliğe dair tüm hizmetler için güzellik merkezimiz hizmetinizde.">{{$isletme->meta_description}}</textarea>
+                                             <small class="text-muted">Arama motorlarında çıkacak kısa tanıtım (maks. 160 karakter önerilir).</small>
+                                          </div>
+                                          <div class="form-group" style="margin-bottom:0">
+                                             <label>Lokasyon Bazlı Anahtar Kelimeler</label>
+                                             <small class="text-muted d-block" style="margin-bottom:8px">Ör. <i>izmirde güzellik merkezi</i>. Tüm kelimeler küçük harfle yazılmalıdır.</small>
+                                             <?php $aramaterimisayisi = $aramaterimleri->count(); ?>
+                                             @foreach($aramaterimleri as $key => $aramaterimi)
+                                                <input type="text" name="anahtar_kelimeler[]" style="text-transform: lowercase;margin-bottom:6px;" placeholder="Anahtar Kelime {{$key+1}}" class="form-control" value="{{$aramaterimi->arama_terimi}}">
+                                             @endforeach
+                                             @if($aramaterimleri->count() < 6)
+                                                @for($i=$aramaterimleri->count()+1; $i<=6; $i++)
+                                                   <input type="text" name="anahtar_kelimeler[]" style="margin-bottom:6px;" placeholder="Anahtar Kelime {{$i}}" class="form-control">
+                                                @endfor
+                                             @endif
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                                 <div class="col-md-6">
+                                    <div class="rm-card" style="height:calc(100% - 18px);">
+                                       <div class="rm-card__head">
+                                          <h3><i class="fa fa-image"></i> Kapak Resmi</h3>
+                                          <small>Tanıtım sayfasının üst kısmında görünen büyük görsel. (Önerilen: 1600×600px)</small>
+                                       </div>
+                                       <div class="rm-card__body">
+                                          <div class="profile-photo" style="width:100%;">
+                                             <a href="#" class="edit-avatar" onclick="thisFileUpload();" style='background:#fff;'><i class="fa fa-pencil"></i></a>
                                        @if(\App\SalonGorselleri::where('salon_id',$isletme->id)->where('kapak_fotografi',1)->value('salon_gorseli')!= null || \App\SalonGorselleri::where('salon_id',$isletme->id)->where('kapak_fotografi',1)->value('salon_gorseli')!= '')
                                        <img
                                           id="profilkapak"
@@ -517,27 +580,69 @@
                                           </div>
                                        </div>
                                     </div>
-                              </div>
-                           </div>
-                           <div class="row">
-                              <div class="col-xs-6 col-sm-6">
-                                  <h2  class="text-blue" style="margin-bottom:30px">İşletme Görselleri</h2>
-                              </div>
-                              <div class="col-md-6 col-xs-6">
-                                 <div class="single-file-input2">
-                                     <input type="file" id="isletmegorselleri" name="isletmegorselleri" multiple="">
-                                      <div id="gorseleklemetext" class="btn btn-primary">İşletme Görsellerini Ekleyin (Max:{{12-$salongorselleri->count()}} adet)</div>
+                                       </div>
+                                    </div>
                                  </div>
                               </div>
-                           </div>
-                          
-                           <div class="gallery-wrap">
-                              <ul class="row"  id='gorselbolumu'>
-                                  {!!$gorseller_html!!}
-                              </ul>
-                           </div>
-                          
+
+                              {{-- ==== 6) İŞLETME GÖRSELLERİ (GALERİ) ==== --}}
+                              <div class="rm-card">
+                                 <div class="rm-card__head" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                                    <div>
+                                       <h3><i class="fa fa-picture-o"></i> İşletme Görselleri</h3>
+                                       <small>Müşterinin tanıtım sayfasında göreceği galeri fotoğrafları. En fazla 12 adet ekleyebilirsiniz.</small>
+                                    </div>
+                                    <div class="single-file-input2" style="margin:0;">
+                                       <input type="file" id="isletmegorselleri" name="isletmegorselleri" multiple="">
+                                       <div id="gorseleklemetext" class="btn" style="background:#5C008E;color:#fff;font-weight:600;border-radius:10px;padding:10px 18px;">
+                                          <i class="fa fa-plus"></i> Görsel Ekle (Kalan: {{12-$salongorselleri->count()}})
+                                       </div>
+                                    </div>
+                                 </div>
+                                 <div class="rm-card__body">
+                                    <div class="gallery-wrap">
+                                       <ul class="row" id='gorselbolumu'>
+                                          {!!$gorseller_html!!}
+                                       </ul>
+                                    </div>
+                                 </div>
+                              </div>
+
+                              {{-- Formun sonundaki normal Kaydet butonu (yedek) --}}
+                              <div style="padding: 16px 0 120px; text-align:right;">
+                                 <button type="submit" style="background:#5C008E;color:#fff;border:none;font-weight:700;padding:12px 28px;border-radius:10px;box-shadow:0 6px 16px rgba(92,0,142,.25);min-width:200px;">
+                                    <i class="fa fa-save"></i> Kaydet
+                                 </button>
+                              </div>
+
                            </form>
+
+                           {{-- Ekran sağ altında sabit floating Kaydet butonu (form dışında, form="" ile submit eder) --}}
+                           <button type="submit" form="isletme_temel_bilgiler" id="rmFloatingSave" title="Tüm değişiklikleri kaydet">
+                              <i class="fa fa-save"></i> Kaydet
+                           </button>
+                           <script>
+                              (function(){
+                                 var fab = document.getElementById('rmFloatingSave');
+                                 if(!fab) return;
+                                 function isTemelActive(){
+                                    var pane = document.getElementById('isletme-bilgileri');
+                                    return pane && pane.classList.contains('active') && pane.classList.contains('show');
+                                 }
+                                 function sync(){
+                                    if(isTemelActive()) fab.classList.add('is-visible');
+                                    else fab.classList.remove('is-visible');
+                                 }
+                                 // İlk yüklemede
+                                 sync();
+                                 // Bootstrap tab geçişlerinde
+                                 document.querySelectorAll('a[data-toggle="tab"]').forEach(function(a){
+                                    a.addEventListener('click', function(){ setTimeout(sync, 60); });
+                                 });
+                                 // URL değişikliklerinde (p= parametresi vs.) yedek
+                                 window.addEventListener('hashchange', sync);
+                              })();
+                           </script>
                         </div>
                      </div>
                      <div

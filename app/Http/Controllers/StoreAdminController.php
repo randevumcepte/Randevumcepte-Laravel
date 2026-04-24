@@ -7199,6 +7199,7 @@ private function ayAdiCevir($ingilizceAy)
         $isletme->vergi_adresi = $request->vergi_adresi;
         $isletme->kdv_orani = $request->kdv_orani;
         $isletme->meta_description = $request->seo_description;
+        $isletme->aciklama = $request->isletme_aciklama;
         $isletme->facebook_sayfa = $request->facebook_url;
         $isletme->instagram_sayfa = $request->instagram_url;
         $isletme->whatsapp = $request->whatsapp;
