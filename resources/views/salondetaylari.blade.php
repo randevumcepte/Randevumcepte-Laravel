@@ -261,13 +261,13 @@
                <div class="tab-content" id="myTabContent">
                   <div class="tab-pane fade show active" id="bayan" role="tabpanel" aria-labelledby="bayan-tab">
                      @foreach($salonsunulanhizmetler_kategori as $key=>$kategori_baslik)
-                         
+
                             @if($key==0)
-                                <button class="accordion active">{{$kategori_baslik->hizmet_kategorisi->hizmet_kategorisi_adi}} Hizmetleri
+                                <button type="button" class="accordion active" data-kategori-id="{{$kategori_baslik->hizmet_kategori_id}}">{{$kategori_baslik->hizmet_kategorisi->hizmet_kategorisi_adi}} Hizmetleri
                                 </button>
                                 <div class="panel_accordion" style="display: block;">
                             @else
-                                <button class="accordion">{{$kategori_baslik->hizmet_kategorisi->hizmet_kategorisi_adi}} Hizmetleri
+                                <button type="button" class="accordion" data-kategori-id="{{$kategori_baslik->hizmet_kategori_id}}">{{$kategori_baslik->hizmet_kategorisi->hizmet_kategorisi_adi}} Hizmetleri
                                 </button>
                                 <div class="panel_accordion">
                             @endif
@@ -542,7 +542,7 @@
                      <div class="slp-service-card__icon"><i class="fa {{$_katIcon}}"></i></div>
                      <h3>{{$_katAdi}}</h3>
                      <p>{{$_katSayi}} hizmet seçeneği</p>
-                     <a href="#randevu-al" data-slp-open>Randevu Al <i class="fa fa-arrow-right"></i></a>
+                     <a href="#randevu-al" data-slp-open data-slp-category="{{$kat->hizmet_kategori_id}}">Randevu Al <i class="fa fa-arrow-right"></i></a>
                   </div>
                @endforeach
             </div>
@@ -974,7 +974,7 @@
            var HASH = '#randevu-al';
            var body = document.body;
 
-           function openDrawer(pushHash) {
+           function openDrawer(pushHash, categoryId) {
                if (drawer.classList.contains('is-open')) return;
                drawer.classList.add('is-open');
                drawer.setAttribute('aria-hidden', 'false');
@@ -986,6 +986,41 @@
                setTimeout(function(){
                    if (typeof measureHero === 'function') measureHero();
                }, 420);
+               // Hedef kategori varsa ilgili akordiyonu ac, digerlerini kapat, ustune kaydir
+               if (categoryId) {
+                   setTimeout(function(){ activateCategory(categoryId); }, 200);
+               }
+           }
+
+           function activateCategory(categoryId) {
+               var hsec = document.getElementById('hizmetsecimbolumu');
+               if (!hsec) return;
+               var targetBtn = hsec.querySelector('.accordion[data-kategori-id="' + categoryId + '"]');
+               if (!targetBtn) return;
+               // Tum akordiyonlari kapat
+               hsec.querySelectorAll('.accordion').forEach(function(b){
+                   b.classList.remove('active');
+                   var panel = b.nextElementSibling;
+                   if (panel && panel.classList.contains('panel_accordion')) {
+                       panel.style.display = 'none';
+                   }
+               });
+               // Hedefi ac
+               targetBtn.classList.add('active');
+               var targetPanel = targetBtn.nextElementSibling;
+               if (targetPanel && targetPanel.classList.contains('panel_accordion')) {
+                   targetPanel.style.display = 'block';
+               }
+               // Panel icinde hedefi goster
+               setTimeout(function(){
+                   var panelEl = document.querySelector('.slp-drawer__panel');
+                   if (panelEl && targetBtn.offsetParent !== null) {
+                       panelEl.scrollTo({
+                           top: targetBtn.offsetTop - 80,
+                           behavior: 'smooth'
+                       });
+                   }
+               }, 300);
            }
 
            function closeDrawer(popHash) {
@@ -998,12 +1033,19 @@
                }
            }
 
-           // Open triggers: any [data-slp-open]
+           // Open triggers: any [data-slp-open]; [data-slp-category] hint'i varsa
+           // drawer aciliktan sonra o kategori akordiyonu aciktir.
            document.addEventListener('click', function(e){
                var openEl = e.target.closest ? e.target.closest('[data-slp-open]') : null;
                if (openEl) {
                    e.preventDefault();
-                   openDrawer(true);
+                   var catId = openEl.getAttribute('data-slp-category');
+                   if (drawer.classList.contains('is-open') && catId) {
+                       // Drawer zaten aciksa sadece kategori degistir
+                       activateCategory(catId);
+                   } else {
+                       openDrawer(true, catId);
+                   }
                    return;
                }
                var closeEl = e.target.closest ? e.target.closest('[data-slp-close]') : null;
