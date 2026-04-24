@@ -576,15 +576,13 @@
         startTickLoop();
 
         setTimeout(() => {
-            spinning = false;
             hakEl.textContent = data.kalanHak;
-            if (data.kalanHak > 0) {
-                cevirBtn.disabled = false;
-                cevirBtn.textContent = '🎲 Çarkı Çevir';
-            } else {
-                cevirBtn.textContent = 'Hakkınız Bitti';
-            }
+            // Başarılı çevirmeden sonra buton bir daha aktif olmaz;
+            // kalan hak varsa bile tekrar çevirmek için sayfa yenilenmeli
+            cevirBtn.disabled   = true;
+            cevirBtn.textContent = data.kalanHak > 0 ? '✓ Çevrildi — Sayfayı Yenileyin' : '✓ Çevrildi';
             showResult(data.dilim, data.odulKodu);
+            // spinning kasıtlı olarak true bırakılıyor — yeni spin engellensin
         }, 9200);
     };
 
