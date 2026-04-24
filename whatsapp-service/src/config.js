@@ -1,6 +1,28 @@
 'use strict';
 
-require('dotenv').config?.();
+const fs = require('fs');
+const path = require('path');
+
+// Basit .env yukleyici (dotenv paketine ihtiyac yok)
+(function loadEnvFile() {
+  const envPath = path.resolve(__dirname, '..', '.env');
+  if (!fs.existsSync(envPath)) return;
+  try {
+    const content = fs.readFileSync(envPath, 'utf8');
+    for (const rawLine of content.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+      const eq = line.indexOf('=');
+      if (eq <= 0) continue;
+      const key = line.slice(0, eq).trim();
+      let val = line.slice(eq + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (!(key in process.env)) process.env[key] = val;
+    }
+  } catch (_) {}
+})();
 
 const parseIntList = (v, fallback) =>
   (v || fallback).split(',').map((x) => parseInt(x.trim(), 10)).filter((n) => !isNaN(n));
