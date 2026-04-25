@@ -109,25 +109,12 @@
 
 
 <style>
-/* Modal ortalama - en sert override (Bootstrap modal-dialog-centered flex davranisi etkisiz) */
-#randevu-duzenle-modal {
-    padding-right: 0 !important;
-    padding-left: 0 !important;
-    overflow-y: auto !important;
-}
+/* Modal genisligi: Bootstrap default, sadece max-width ve auto margin */
 #randevu-duzenle-modal .modal-dialog {
-    max-width: 1200px !important;
-    width: calc(100% - 32px) !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    margin-top: 1.75rem !important;
-    margin-bottom: 1.75rem !important;
-    display: block !important;
-    align-items: unset !important;
-    min-height: unset !important;
+    max-width: 1200px;
+    margin: 1.75rem auto;
 }
 #randevu-duzenle-modal .modal-content {
-    width: 100% !important;
     border-radius: 8px;
     border: none;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);

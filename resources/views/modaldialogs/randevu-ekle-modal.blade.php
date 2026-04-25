@@ -553,24 +553,10 @@ body > .select2-container--open { z-index: 99999 !important; }
     border: 1px solid #d1d5db !important;
 }
 
-/* Modal yatay ortalama: duzenleme modaliyla ayni davranis */
-#modal-view-event-add {
-    padding-right: 0 !important;
-    padding-left: 0 !important;
-}
+/* Modal genisligi: Bootstrap default, sadece max-width ve auto margin */
 #modal-view-event-add .modal-dialog {
-    max-width: 1200px !important;
-    width: auto !important;
-    margin: 1.75rem auto !important;
-    min-height: calc(100% - 3.5rem);
-    display: flex;
-    align-items: center;
-}
-#modal-view-event-add .modal-content {
-    width: 100%;
-}
-@media (min-width: 1250px) {
-    #modal-view-event-add .modal-dialog { max-width: 1200px !important; }
+    max-width: 1200px;
+    margin: 1.75rem auto;
 }
 
 .modal-content {
