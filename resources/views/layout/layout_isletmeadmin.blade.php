@@ -134,7 +134,7 @@
          />
       <!-- Google Font -->
       <!-- CSS -->
-      <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/vendors/styles/core.css?v=1.10')}}" />
+      <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/vendors/styles/core.css?v=1.11')}}" />
       <link
          rel="stylesheet"
          type="text/css"
@@ -170,7 +170,7 @@
          href="{{secure_asset('public/yeni_panel/src/plugins/jquery-steps/jquery.steps.css')}}"
          />
       @endif
-      <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/vendors/styles/style.css?v=20.4')}}" />
+      <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/vendors/styles/style.css?v=20.5')}}" />
       <script src="{{secure_asset('public/js/OneSignalSDKWorker.js')}}"></script>
       <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
       <script>
@@ -4234,7 +4234,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=222.9')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=223.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
