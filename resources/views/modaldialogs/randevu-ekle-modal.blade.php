@@ -554,9 +554,10 @@ body > .select2-container--open { z-index: 99999 !important; }
 }
 
 /* Modal genisligi (1200px max - Bootstrap 4 modal-xl boyutu) */
-#modal-view-event-add .modal-dialog {
-    max-width: 1200px;
-    margin: 1.75rem auto;
+#modal-view-event-add.modal .modal-dialog,
+.modal#modal-view-event-add .modal-dialog {
+    max-width: 1200px !important;
+    margin: 1.75rem auto !important;
 }
 
 .modal-content {

@@ -110,9 +110,10 @@
 
 <style>
 /* Modal genisligi (1200px max - Bootstrap 4 modal-xl boyutu) */
-#randevu-duzenle-modal .modal-dialog {
-    max-width: 1200px;
-    margin: 1.75rem auto;
+#randevu-duzenle-modal.modal .modal-dialog,
+.modal#randevu-duzenle-modal .modal-dialog {
+    max-width: 1200px !important;
+    margin: 1.75rem auto !important;
 }
 #randevu-duzenle-modal .modal-content {
     border-radius: 8px;
