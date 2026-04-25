@@ -109,10 +109,11 @@
 
 
 <style>
-/* Modal genisligi: Bootstrap default, sadece max-width ve auto margin */
+/* Modal genisligi: style.css'deki eski Bootstrap 3 kurali (width:600px @768px+) ezilmeli */
 #randevu-duzenle-modal .modal-dialog {
-    max-width: 1200px;
-    margin: 1.75rem auto;
+    width: auto !important;
+    max-width: 1200px !important;
+    margin: 1.75rem auto !important;
 }
 #randevu-duzenle-modal .modal-content {
     border-radius: 8px;
