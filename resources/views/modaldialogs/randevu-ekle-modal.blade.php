@@ -1225,14 +1225,12 @@ input:checked + .slider:before {
     padding-right: 0 !important;
     padding-left: 0 !important;
 }
-.randevu-modal-compact.modal.show {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
+/* display:flex Bootstrap default 'display:block'i ezerken modal-dialog
+   flex item olarak max-width'i bazen kucultebiliyor. Block birakalim. */
 .randevu-modal-compact .modal-dialog {
-    margin: 0 auto !important;
-    width: 100%;
+    margin: 1.75rem auto !important;
+    max-width: 1200px !important;
+    width: auto !important;
 }
 body.modal-open {
     padding-right: 0 !important;

@@ -6801,8 +6801,42 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             "last_page" => $paketler->lastPage(),
         ];*/
 
-          
 
+
+    }
+
+    public function seansEkle(Request $request)
+    {
+        $seans = new AdisyonPaketSeanslar();
+        if ($request->paket == 1) {
+            $seans->seans_tarih = date('Y-m-d');
+            $seans->adisyon_paket_id = $request->paketId;
+            $seans->hizmet_id = $request->hizmetId;
+        }
+        if ($request->paket == 0) {
+            $seans->seans_tarih = date('Y-m-d');
+            $seans->adisyon_hizmet_id = $request->paketId;
+            $seans->hizmet_id = $request->hizmetId;
+        }
+        $seans->geldi = $request->geldi;
+        $seans->save();
+
+        return response()->json(['hatali' => '0', 'mesaj' => 'Başarılı', 'id' => $seans->id]);
+    }
+
+    public function seansGuncelle(Request $request)
+    {
+        $seans = AdisyonPaketSeanslar::where('id', $request->seansId)->first();
+        if (!$seans) {
+            return response()->json(['hatali' => '1', 'mesaj' => 'Seans bulunamadı']);
+        }
+        if ($request->geldi === '' || $request->geldi === null) {
+            $seans->delete();
+        } else {
+            $seans->geldi = $request->geldi;
+            $seans->save();
+        }
+        return response()->json(['hatali' => '0', 'mesaj' => 'Başarılı']);
     }
 
     public function senetler(Request $request, $salonid)

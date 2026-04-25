@@ -262,6 +262,8 @@ Route::post('/bildirimkimligiekleguncelle','ApiController@bildirimkimligieklegun
         Route::post('/versiyonAppKontrol','ApiController@versiyonAppKontrol');
     Route::post('/salonAppyUrunSatisEkle','ApiController@salonAppyUrunSatisEkle');
     Route::post('/randevuGeldiGelmediIsaretiKaldir','ApiController@randevuGeldiGelmediIsaretiKaldir');
-    
+    Route::post('/seansEkle','ApiController@seansEkle');
+    Route::post('/seansGuncelle','ApiController@seansGuncelle');
+
 });
   
