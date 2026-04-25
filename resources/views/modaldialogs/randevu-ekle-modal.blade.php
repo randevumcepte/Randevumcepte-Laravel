@@ -1451,6 +1451,53 @@ let hizmetDataCache = {};
 let seciliMusteriId = null;
 let musteriPaketleri = [];
 
+// Tom Select uyumlu addServicesToForm — paket popup'tan gelen hizmetleri aktif Tom Select'e ekler
+window.addServicesToForm = function(hizmetData, result, showSuccessMessage){
+    if(!hizmetData || !hizmetData.length){ return; }
+    var $sel = $('#yenirandevuekleform .hizmet-select').first();
+    if(!$sel.length) return;
+    var el = $sel[0];
+    var ts = el.tomselect;
+    if(!ts){
+        // Tom Select henuz init olmamissa biraz bekle, tekrar dene
+        setTimeout(function(){ window.addServicesToForm(hizmetData, result, showSuccessMessage); }, 200);
+        return;
+    }
+    ts.clear(true); // mevcut secimleri sessizce temizle
+    var ids = [];
+    hizmetData.forEach(function(item){
+        if(!item || !item.id) return;
+        ts.addOption({
+            value: String(item.id),
+            text: item.text,
+            kategori: item.tur === 'paket' ? ('Paket: ' + (item.paket_adi || '')) : 'Hizmet',
+            sure: item.sure || 0,
+            fiyat: item.fiyat || 0,
+            seans: item.seans,
+            paket_adi: item.paket_adi || null,
+            tur: item.tur,
+            paket_id: item.paket_id || null,
+            adisyon_hizmet_id: item.adisyon_hizmet_id || null,
+            adisyon_paket_id: item.adisyon_paket_id || null
+        });
+        // Cache de guncel olsun
+        hizmetDataCache[item.id] = {
+            id: item.id, text: item.text,
+            sure: item.sure || 0, fiyat: item.fiyat || 0,
+            kategori: item.tur === 'paket' ? ('Paket: ' + (item.paket_adi || '')) : 'Hizmet',
+            renk: item.tur === 'paket' ? '#f59e0b' : '#3b82f6'
+        };
+        ids.push(String(item.id));
+    });
+    ts.refreshOptions(false);
+    ts.setValue(ids, false); // false = onChange tetikle -> updateHizmetDetaylari + updateRandevuOzeti
+    // Soft paket modal'i kapat
+    if($('#softPaketSecimModal').length){
+        $('#softPaketSecimModal').modal('hide');
+        setTimeout(function(){ $('#softPaketSecimModal').remove(); }, 300);
+    }
+};
+
 // Randevu modali icin: aktif personel + aktif & musait cihaz + aktif & musait oda listeleri
 window.randevuModalData = {
     personeller: [
