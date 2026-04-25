@@ -14803,6 +14803,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',1)->update(['personel'=>true]);
         else
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',1)->update(['personel'=>false]);
+        SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',1)
+            ->update(['whatsapp_musteri' => isset($request->randevuayar_1_whatsapp_musteri) ? 1 : 0]);
         if(isset($request->randevuayar_2_musteri))
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',2)->update(['musteri'=>true]);
         else
@@ -14835,6 +14837,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',6)->update(['personel'=>true]);
         else
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',6)->update(['personel'=>false]);
+        SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',6)
+            ->update(['whatsapp_musteri' => isset($request->randevuayar_6_whatsapp_musteri) ? 1 : 0]);
         if(isset($request->randevuayar_7_musteri))
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',7)->update(['musteri'=>true]);
         else
