@@ -719,9 +719,15 @@ class Controller extends BaseController
     }
    public function sms_gonder($salonid,$mesajlar)
     {
-
-
-
+        $alicilar = array_column((array) $mesajlar, 'to');
+        $ilkMesaj = isset($mesajlar[0]['message']) ? $mesajlar[0]['message'] : '';
+        Log::info('[SMS-API] sms_gonder cagrildi', [
+            'salon_id' => $salonid,
+            'alici_sayisi' => count($alicilar),
+            'ilk_alici' => $alicilar[0] ?? null,
+            'mesaj_uzunluk' => strlen($ilkMesaj),
+            'caller' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'] ?? null,
+        ]);
 
         $isletme = $salonid != '' ? Salonlar::where('id',$salonid)->first() : '';
 
@@ -731,7 +737,20 @@ class Controller extends BaseController
             $apiKey = $isletme->sms_apikey;
         else
             $apiKey = "LSS3WTaRVz5kD33yTqXuny1W9fKBBYD5GRSD2o6Bo9L5";
-        Log::info($isletme->salon_adi.' yeni sms ten mi '.$isletme->yeni_sms);
+
+        if (!$isletme) {
+            Log::warning('[SMS-API] salon bulunamadi — global API key ile devam', ['salon_id' => $salonid]);
+        } else {
+            Log::info('[SMS-API] saglayici secimi', [
+                'salon_id' => $salonid,
+                'salon' => $isletme->salon_adi,
+                'yeni_sms' => (int) $isletme->yeni_sms,
+                'baslik' => $isletme->sms_baslik,
+                'apikey_var' => !empty($isletme->sms_apikey),
+                'sms_user' => $isletme->sms_user_name,
+                'sms_secret_var' => !empty($isletme->sms_secret),
+            ]);
+        }
         if($isletme != '' && $isletme->yeni_sms == 1)
         {
 
@@ -740,17 +759,17 @@ class Controller extends BaseController
             require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
             //$smsApi = new \SmsApi("smsvt.voicetelekom.com","webfirmam","nBJeB5xb*4");
             $smsApi = new \SmsApi("smsvt.voicetelekom.com",$isletme->sms_user_name,$isletme->sms_secret);
-            
+
             $request = new \SendMultiSms(); // başına "\" koyman lazım
-        
-           
+
+
             $request->content = $mesajlar[0]['message'];
             $request->title = 'Bildirim';
-            $toList = array_column($mesajlar, 'to'); 
+            $toList = array_column($mesajlar, 'to');
             $request->numbers = $toList;
             $request->encoding = 0;
             $request->sender = $isletme->sms_baslik;
- 
+
             $request->skipAhsQuery = true;
 
             //İleri tarihli gönderim için
@@ -761,13 +780,30 @@ class Controller extends BaseController
 
             //Paket periyodik olarak gönderilecekse
             //$request->periodicSettings = new PeriodicSettings();
-            //$request->periodicSettings->interval = 1; 
+            //$request->periodicSettings->interval = 1;
             //$request->periodicSettings->amount = 1000;
 
             //Rapor push olarak alınmak isteniyorsa ilgili url girilir
             //$request->pushUrl = "https://webhook.site/8d7ed0f7"
 
-            $response = $smsApi->sendMultiSms($request);
+            try {
+                $t0 = microtime(true);
+                $response = $smsApi->sendMultiSms($request);
+                $sureMs = (int) ((microtime(true) - $t0) * 1000);
+                Log::info('[SMS-API] VoiceTelekom yanit', [
+                    'salon_id' => $salonid,
+                    'sure_ms' => $sureMs,
+                    'pkgID' => $response->pkgID ?? null,
+                    'err_status' => $response->err->status ?? null,
+                    'err_code' => $response->err->code ?? null,
+                    'err_message' => $response->err->message ?? null,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('[SMS-API] VoiceTelekom istisna', [
+                    'salon_id' => $salonid, 'err' => $e->getMessage(),
+                ]);
+                return;
+            }
 
             if($response->err == null){
                 Log::info("MessageId: ".$response->pkgID."\n");
@@ -778,7 +814,7 @@ class Controller extends BaseController
             }
 
 
-      
+
         }
         else
         {
@@ -787,23 +823,38 @@ class Controller extends BaseController
                  'Content-Type: application/json',
                  'Accept: application/json'
             );
-            
+
             $postData = json_encode( array( "originator"=> ($salonid != '' ? $isletme->sms_baslik : 'RANDVMCEPTE'), "messages"=> $mesajlar,"encoding"=>"auto") );
 
+            $t0 = microtime(true);
             $ch=curl_init();
             curl_setopt($ch,CURLOPT_URL,'https://api.efetech.net.tr/v2/sms/multi');
             curl_setopt($ch,CURLOPT_POSTFIELDS,$postData);
             curl_setopt($ch,CURLOPT_POST,1);
             curl_setopt($ch,CURLOPT_TIMEOUT,5);
             curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
-            curl_setopt($ch,CURLOPT_HTTPHEADER,$headers); 
-            $response=curl_exec($ch); 
+            curl_setopt($ch,CURLOPT_HTTPHEADER,$headers);
+            $response=curl_exec($ch);
+            $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr = curl_error($ch);
+            $sureMs = (int) ((microtime(true) - $t0) * 1000);
+            curl_close($ch);
 
-         
             $decoded = json_decode($response,true);
+            Log::info('[SMS-API] efetech yanit', [
+                'salon_id' => $salonid,
+                'http' => $http,
+                'sure_ms' => $sureMs,
+                'curl_err' => $curlErr ?: null,
+                'response_id' => $decoded['response']['message']['id'] ?? null,
+                'response_count' => $decoded['response']['message']['count'] ?? null,
+                'response_total_price' => $decoded['response']['message']['total_price'] ?? null,
+                'response_status' => $decoded['status'] ?? null,
+                'response_error' => $decoded['error'] ?? ($decoded['errors'] ?? null),
+            ]);
             if($salonid!="")
             {
-                if(count($decoded["response"])!=0 && $decoded != null){ 
+                if($decoded != null && isset($decoded['response']) && count($decoded['response'])!=0){
                     $rapor = new SMSIletimRaporlari();
                     $rapor->salon_id = $salonid;
                     $rapor->tur = 1;
@@ -815,13 +866,18 @@ class Controller extends BaseController
 
                     $durum = self::sms_rapor_getir($decoded["response"]["message"]["id"],$isletme);
                     $rapor->durum = 0;
-                    $rapor->save(); 
-                } 
+                    $rapor->save();
+                } else {
+                    Log::warning('[SMS-API] efetech response bos veya hatali — rapor yazilmadi', [
+                        'salon_id' => $salonid,
+                        'raw' => is_string($response) ? substr($response, 0, 300) : null,
+                    ]);
+                }
             }
         }
-     
-        
-    } 
+
+
+    }
     public function sms_rapor_getir($raporid,$isletme)
     {
         $headers = array(

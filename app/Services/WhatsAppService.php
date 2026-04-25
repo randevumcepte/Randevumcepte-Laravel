@@ -42,16 +42,34 @@ class WhatsAppService
 
     public function sendReminder(Salonlar $salon, $to, $message, $randevuId = null, $userId = null)
     {
+        Log::info('[WA] sendReminder cagrildi', [
+            'salon_id' => $salon->id, 'randevu_id' => $randevuId, 'user_id' => $userId,
+            'telefon_raw' => $to, 'baseUrl' => $this->baseUrl,
+        ]);
+
         $normalized = $this->normalizePhone($to);
         if (!$normalized) {
+            Log::warning('[WA] invalid-phone', ['salon_id' => $salon->id, 'telefon' => $to]);
             return ['ok' => false, 'error' => 'invalid-phone'];
         }
 
         if (!$this->canSendToday($salon)) {
+            Log::warning('[WA] daily-cap-reached veya kanal kapali', [
+                'salon_id' => $salon->id,
+                'wa_aktif' => (int) ($salon->whatsapp_aktif ?? 0),
+                'wa_durum' => $salon->whatsapp_durum,
+                'gunluk_limit' => (int) ($salon->whatsapp_gunluk_limit ?: 0),
+            ]);
             return ['ok' => false, 'error' => 'daily-cap-reached'];
         }
 
         if (!$this->withinBusinessHours()) {
+            Log::warning('[WA] outside-business-hours', [
+                'salon_id' => $salon->id,
+                'simdi_saat' => (int) now()->format('H'),
+                'baslangic' => (int) config('whatsapp.business_hours.start', 9),
+                'bitis' => (int) config('whatsapp.business_hours.end', 21),
+            ]);
             return ['ok' => false, 'error' => 'outside-business-hours'];
         }
 
@@ -64,6 +82,13 @@ class WhatsAppService
                 ?: optional($salon->whatsapp_baglanti_tarihi)->toIso8601String(),
             'dailyLimit' => (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 150)),
             'logId' => $logId,
+        ]);
+
+        Log::info('[WA] service yanit', [
+            'salon_id' => $salon->id, 'randevu_id' => $randevuId, 'logId' => $logId,
+            'status' => $response['status'] ?? 0,
+            'error' => $response['error'] ?? null,
+            'body' => $response['body'] ?? null,
         ]);
 
         // 202 Accepted = kuyruğa alındı, webhook ile sent/failed bildirecek
@@ -187,6 +212,7 @@ class WhatsAppService
     protected function request($method, $path, array $body = null)
     {
         $url = $this->baseUrl . $path;
+        $t0 = microtime(true);
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
@@ -206,15 +232,22 @@ class WhatsAppService
         $raw = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlErr = curl_error($ch);
+        $sureMs = (int) ((microtime(true) - $t0) * 1000);
         curl_close($ch);
 
         if ($raw === false) {
-            Log::warning('whatsapp service curl error', ['path' => $path, 'err' => $curlErr]);
+            Log::warning('[WA] curl hata', [
+                'method' => $method, 'url' => $url, 'err' => $curlErr, 'sure_ms' => $sureMs,
+            ]);
             return ['ok' => false, 'error' => 'service-unreachable', 'status' => 0];
         }
 
         $decoded = json_decode($raw, true);
         $ok = $status >= 200 && $status < 300;
+        Log::info('[WA] http istek', [
+            'method' => $method, 'url' => $url, 'status' => $status, 'sure_ms' => $sureMs,
+            'body_kb' => round(strlen($raw) / 1024, 2),
+        ]);
         return [
             'ok' => $ok,
             'status' => $status,

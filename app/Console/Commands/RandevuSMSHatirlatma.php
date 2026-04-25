@@ -33,29 +33,70 @@ class RandevuSMSHatirlatma extends Command
         $controller = app()->make(Controller::class);
         $wa = app(WhatsAppService::class);
 
-        Log::info('randevu SMS/bildirim gönderilecek randevu sayısı ' . $randevular->count());
+        Log::info('[RND-SMS] cron tick', [
+            'simdi' => date('d.m.Y H:i'),
+            'aday_randevu_sayisi' => $randevular->count(),
+        ]);
 
         foreach ($randevular as $value) {
-            if ($value->salon_id === null || $value->salon_id == 0) continue;
-            if (!$value->salonlar) continue;
+            if ($value->salon_id === null || $value->salon_id == 0) {
+                Log::info('[RND-SMS] atlandi (salon_id yok)', ['randevu_id' => $value->id]);
+                continue;
+            }
+            if (!$value->salonlar) {
+                Log::info('[RND-SMS] atlandi (salon ilişkisi yok)', ['randevu_id' => $value->id, 'salon_id' => $value->salon_id]);
+                continue;
+            }
 
             $randevutarihsaat = date('d.m.Y', strtotime($value->tarih)) . ' ' . date('H:i', strtotime($value->saat));
+            $simdi = date('d.m.Y H:i');
+            $tetikSalonSaat = date('d.m.Y H:i', strtotime('-' . $value->salonlar->randevu_sms_hatirlatma . ' hours', strtotime($randevutarihsaat)));
+            $tetik24Saat = date('d.m.Y H:i', strtotime('-24 hours', strtotime($randevutarihsaat)));
+
+            Log::info('[RND-SMS] randevu inceleniyor', [
+                'randevu_id' => $value->id,
+                'salon_id' => $value->salon_id,
+                'salon' => $value->salonlar->salon_adi,
+                'tarih_saat' => $randevutarihsaat,
+                'simdi' => $simdi,
+                'salon_hatirlatma_saat' => $value->salonlar->randevu_sms_hatirlatma,
+                'tetik_salon' => $tetikSalonSaat,
+                'tetik_24h' => $tetik24Saat,
+                'wa_aktif' => (int) ($value->salonlar->whatsapp_aktif ?? 0),
+                'wa_durum' => $value->salonlar->whatsapp_durum,
+            ]);
 
             // Müşteriye hatırlatma (salon kendi belirlediği X saat önce) — WhatsApp + SMS fallback
-            if (date('d.m.Y H:i') == date('d.m.Y H:i', strtotime('-' . $value->salonlar->randevu_sms_hatirlatma . ' hours', strtotime($randevutarihsaat)))) {
+            if ($simdi == $tetikSalonSaat) {
                 $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->first();
+                Log::info('[RND-SMS] müşteri salon-saati tetiklendi', [
+                    'randevu_id' => $value->id,
+                    'ayar_var' => (bool) $ayar,
+                    'ayar_musteri' => $ayar ? (int) $ayar->musteri : null,
+                    'ayar_wa_musteri' => $ayar ? (int) ($ayar->whatsapp_musteri ?? 0) : null,
+                ]);
                 if ($ayar && $ayar->musteri) {
                     $mesaj = 'Bugün ' . date('H:i', strtotime($value->saat)) . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
                     $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj);
+                } elseif ($ayar) {
+                    Log::info('[RND-SMS] müşteri SMS toggle kapali — atlandi', ['randevu_id' => $value->id]);
                 }
             }
 
             // Müşteriye 24 saat önce hatırlatma — TEK WhatsApp NOKTASI (SMS fallback'li)
-            if (date('d.m.Y H:i') == date('d.m.Y H:i', strtotime('-24 hours', strtotime($randevutarihsaat)))) {
+            if ($simdi == $tetik24Saat) {
                 $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 6)->first();
+                Log::info('[RND-SMS] müşteri 24h tetiklendi', [
+                    'randevu_id' => $value->id,
+                    'ayar_var' => (bool) $ayar,
+                    'ayar_musteri' => $ayar ? (int) $ayar->musteri : null,
+                    'ayar_wa_musteri' => $ayar ? (int) ($ayar->whatsapp_musteri ?? 0) : null,
+                ]);
                 if ($ayar && $ayar->musteri) {
                     $mesaj = 'Yarın ' . date('H:i', strtotime($value->saat)) . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
                     $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj);
+                } elseif ($ayar) {
+                    Log::info('[RND-SMS] 24h müşteri SMS toggle kapali — atlandi', ['randevu_id' => $value->id]);
                 }
             }
 
@@ -114,20 +155,35 @@ class RandevuSMSHatirlatma extends Command
 
     protected function personeleGonder(WhatsAppService $wa, Controller $controller, $salon, $telefon, $mesajBase, $ayar, $randevuId)
     {
-        if (!$telefon) return;
+        if (!$telefon) {
+            Log::info('[RND-SMS] personel telefon yok — atlandi', ['salon_id' => $salon->id, 'randevu_id' => $randevuId]);
+            return;
+        }
 
         $whatsappKanaliAcik = !empty($ayar->whatsapp_personel)
             && $salon->whatsapp_aktif
             && $salon->whatsapp_durum === 'connected';
 
+        Log::info('[RND-SMS] personel kanal karar', [
+            'salon_id' => $salon->id,
+            'randevu_id' => $randevuId,
+            'telefon' => $telefon,
+            'wa_personel_toggle' => (int) ($ayar->whatsapp_personel ?? 0),
+            'wa_aktif' => (int) ($salon->whatsapp_aktif ?? 0),
+            'wa_durum' => $salon->whatsapp_durum,
+            'wa_kanali_acik' => $whatsappKanaliAcik,
+        ]);
+
         $whatsappBasarili = false;
         if ($whatsappKanaliAcik) {
             $sonuc = $wa->sendReminder($salon, $telefon, $mesajBase, $randevuId, null);
+            Log::info('[RND-SMS] personel WA sonuc', [
+                'salon_id' => $salon->id, 'randevu_id' => $randevuId, 'sonuc' => $sonuc,
+            ]);
             if ($sonuc['ok'] ?? false) {
                 $whatsappBasarili = true;
-                Log::info('WhatsApp personel hatırlatma başarılı', ['salon_id' => $salon->id, 'randevu_id' => $randevuId]);
             } else {
-                Log::warning('WhatsApp personel hatırlatma başarısız', [
+                Log::warning('[RND-SMS] personel WA başarısız → SMS fallback', [
                     'salon_id' => $salon->id, 'randevu_id' => $randevuId,
                     'error' => $sonuc['error'] ?? 'unknown',
                 ]);
@@ -135,6 +191,9 @@ class RandevuSMSHatirlatma extends Command
         }
 
         if (!$whatsappBasarili) {
+            Log::info('[RND-SMS] personel SMS gönderiliyor', [
+                'salon_id' => $salon->id, 'randevu_id' => $randevuId, 'telefon' => $telefon,
+            ]);
             $controller->sms_gonder($salon->id, [[
                 'to' => $telefon,
                 'message' => $mesajBase,
@@ -146,7 +205,13 @@ class RandevuSMSHatirlatma extends Command
     {
         $salon = $randevu->salonlar;
         $musteri = $randevu->users;
-        if (!$musteri || !$musteri->cep_telefon) return;
+        if (!$musteri || !$musteri->cep_telefon) {
+            Log::info('[RND-SMS] müşteri telefon yok — atlandi', [
+                'salon_id' => $salon->id ?? null, 'randevu_id' => $randevu->id,
+                'musteri_var' => (bool) $musteri,
+            ]);
+            return;
+        }
 
         $whatsappDenendi = false;
         $whatsappBasarili = false;
@@ -157,15 +222,29 @@ class RandevuSMSHatirlatma extends Command
 
         $musteriOnayli = !Schema::hasColumn('users', 'whatsapp_onay') || (int) ($musteri->whatsapp_onay ?? 1) === 1;
 
+        Log::info('[RND-SMS] müşteri kanal karar', [
+            'salon_id' => $salon->id,
+            'randevu_id' => $randevu->id,
+            'musteri_id' => $musteri->id,
+            'telefon' => $musteri->cep_telefon,
+            'wa_musteri_toggle' => (int) ($ayar->whatsapp_musteri ?? 0),
+            'wa_aktif' => (int) ($salon->whatsapp_aktif ?? 0),
+            'wa_durum' => $salon->whatsapp_durum,
+            'wa_kanali_acik' => $whatsappKanaliAcik,
+            'musteri_onayli' => $musteriOnayli,
+        ]);
+
         if ($whatsappKanaliAcik && $musteriOnayli) {
             $whatsappDenendi = true;
             $personalized = $wa->varyMessage($mesajBase, $musteri->name);
             $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $personalized, $randevu->id, $musteri->id);
+            Log::info('[RND-SMS] müşteri WA sonuc', [
+                'salon_id' => $salon->id, 'randevu_id' => $randevu->id, 'sonuc' => $sonuc,
+            ]);
             if ($sonuc['ok'] ?? false) {
                 $whatsappBasarili = true;
-                Log::info('WhatsApp hatırlatma başarılı', ['salon_id' => $salon->id, 'randevu_id' => $randevu->id]);
             } else {
-                Log::warning('WhatsApp hatırlatma başarısız', [
+                Log::warning('[RND-SMS] müşteri WA başarısız → SMS fallback', [
                     'salon_id' => $salon->id,
                     'randevu_id' => $randevu->id,
                     'error' => $sonuc['error'] ?? 'unknown',
@@ -175,13 +254,16 @@ class RandevuSMSHatirlatma extends Command
 
         if (!$whatsappBasarili) {
             $smsMesaj = 'İyi günler. ' . $mesajBase;
+            Log::info('[RND-SMS] müşteri SMS gönderiliyor', [
+                'salon_id' => $salon->id,
+                'randevu_id' => $randevu->id,
+                'telefon' => $musteri->cep_telefon,
+                'wa_denendi' => $whatsappDenendi,
+            ]);
             $controller->sms_gonder($salon->id, [[
                 'to' => $musteri->cep_telefon,
                 'message' => $smsMesaj,
             ]]);
-            if ($whatsappDenendi && config('whatsapp.fallback_to_sms', true)) {
-                Log::info('SMS fallback yapıldı', ['salon_id' => $salon->id, 'randevu_id' => $randevu->id]);
-            }
         }
     }
 
