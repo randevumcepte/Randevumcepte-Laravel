@@ -663,10 +663,6 @@
                                         <label class="custom-control-label" for="customCheck14">Personel</label>
 
                                   </div>
-                                  <div class="col-md-12 custom-control custom-checkbox mb-5" style="margin-top:6px;border-top:1px dashed #e3e8f0;padding-top:8px;">
-                                        <input type="checkbox" class="custom-control-input" id="customCheckWa6" {{(!empty($sms_ayarlari[5]->whatsapp_musteri)) ? 'checked' : ''}} name='randevuayar_6_whatsapp_musteri'>
-                                        <label class="custom-control-label" for="customCheckWa6" style="color:#25D366;font-weight:600;">📱 WhatsApp ile gönder (başarısızsa SMS'e düşer)</label>
-                                  </div>
                                </div>
                             </div>
 
@@ -779,10 +775,6 @@
                                         <input type="checkbox" class="custom-control-input" {{($sms_ayarlari[0]->personel) ? 'checked' : ''}} name='randevuayar_1_personel' id="customCheck2">
                                         <label class="custom-control-label" for="customCheck2">Personel</label>
 
-                                  </div>
-                                  <div class="col-md-12 custom-control custom-checkbox mb-5" style="margin-top:6px;border-top:1px dashed #e3e8f0;padding-top:8px;">
-                                        <input type="checkbox" class="custom-control-input" id="customCheckWa1" {{(!empty($sms_ayarlari[0]->whatsapp_musteri)) ? 'checked' : ''}} name='randevuayar_1_whatsapp_musteri'>
-                                        <label class="custom-control-label" for="customCheckWa1" style="color:#25D366;font-weight:600;">📱 WhatsApp ile gönder (başarısızsa SMS'e düşer)</label>
                                   </div>
                                </div>
                                <p style="font-weight: 5px;">Kaç saat önce gönderilecek?</p>
