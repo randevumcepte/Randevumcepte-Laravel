@@ -74,7 +74,7 @@ class SMSGonder extends Command
                 continue;
             }
 
-            $mesaj = 'Sayın ' . $senet->musteri->name . ' ' . date('d.m.Y', strtotime($vade->vade_tarih)) . ' vade tarihli ' . money_format('%i', $vade->tutar) . ' ₺ tutarındaki senedinizin ödenmemiş olduğunu hatırlatmak isteriz.';
+            $mesaj = 'Sayın ' . $senet->musteri->name . ' ' . date('d.m.Y', strtotime($vade->vade_tarih)) . ' vade tarihli ' . number_format((float) $vade->tutar, 2, ',', '.') . ' ₺ tutarındaki senedinizin ödenmemiş olduğunu hatırlatmak isteriz.';
             $headers = [
                 'Authorization: Key ' . $senet->salon->sms_apikey,
                 'Content-Type: application/json',
