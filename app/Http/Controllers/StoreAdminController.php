@@ -17993,10 +17993,16 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
-        $ayar = \App\SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 6)->first();
+        $ayar1 = \App\SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 1)->first();
+        $ayar6 = \App\SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 6)->first();
+
+        $aktif = ($ayar1 && (int) $ayar1->whatsapp_musteri === 1)
+              || ($ayar6 && (int) $ayar6->whatsapp_musteri === 1);
+
         return response()->json([
-            'aktif' => $ayar ? (int) $ayar->whatsapp_musteri === 1 : false,
-            'sms_aktif' => $ayar ? (int) $ayar->musteri === 1 : false,
+            'aktif' => $aktif,
+            'sms_aktif_aynigun' => $ayar1 ? (int) $ayar1->musteri === 1 : false,
+            'sms_aktif_24sa' => $ayar6 ? (int) $ayar6->musteri === 1 : false,
         ]);
     }
 
@@ -18007,16 +18013,18 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         $yeniDeger = (int) $request->input('aktif', 0) === 1 ? 1 : 0;
 
-        $ayar = \App\SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 6)->first();
-        if (!$ayar) {
-            $ayar = new \App\SalonSMSAyarlari();
-            $ayar->salon_id = $salonId;
-            $ayar->ayar_id = 6;
-            $ayar->musteri = 1;
-            $ayar->personel = 0;
+        foreach ([1, 6] as $ayarId) {
+            $ayar = \App\SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', $ayarId)->first();
+            if (!$ayar) {
+                $ayar = new \App\SalonSMSAyarlari();
+                $ayar->salon_id = $salonId;
+                $ayar->ayar_id = $ayarId;
+                $ayar->musteri = 0;
+                $ayar->personel = 0;
+            }
+            $ayar->whatsapp_musteri = $yeniDeger;
+            $ayar->save();
         }
-        $ayar->whatsapp_musteri = $yeniDeger;
-        $ayar->save();
 
         return response()->json([
             'ok' => true,
