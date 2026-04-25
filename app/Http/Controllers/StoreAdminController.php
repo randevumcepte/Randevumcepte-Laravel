@@ -14803,9 +14803,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',1)
                 ->update(['musteri'=>false, 'whatsapp_musteri'=>0]);
         if(isset($request->randevuayar_1_personel))
-            SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',1)->update(['personel'=>true]);
+            SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',1)
+                ->update(['personel'=>true, 'whatsapp_personel'=>1]);
         else
-            SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',1)->update(['personel'=>false]);
+            SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',1)
+                ->update(['personel'=>false, 'whatsapp_personel'=>0]);
         if(isset($request->randevuayar_2_musteri))
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',2)->update(['musteri'=>true]);
         else
@@ -14838,9 +14840,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',6)
                 ->update(['musteri'=>false, 'whatsapp_musteri'=>0]);
         if(isset($request->randevuayar_6_personel))
-            SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',6)->update(['personel'=>true]);
+            SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',6)
+                ->update(['personel'=>true, 'whatsapp_personel'=>1]);
         else
-            SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',6)->update(['personel'=>false]);
+            SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',6)
+                ->update(['personel'=>false, 'whatsapp_personel'=>0]);
         if(isset($request->randevuayar_7_musteri))
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',7)->update(['musteri'=>true]);
         else

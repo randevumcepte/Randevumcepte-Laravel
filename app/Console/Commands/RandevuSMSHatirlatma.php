@@ -70,11 +70,10 @@ class RandevuSMSHatirlatma extends Command
 
                 $mesaj = $value->users->name . ' isimli müşterinin bugün ' . date('H:i', strtotime($hizmet->saat)) . ' saatli ' . $hizmet->hizmetler->hizmet_adi . ' randevusunu hatırlatmak isteriz.';
 
-                if (SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->value('personel')) {
-                    $controller->sms_gonder($value->salon_id, [[
-                        'to' => Personeller::where('id', $hizmet->personel_id)->value('cep_telefon'),
-                        'message' => $mesaj,
-                    ]]);
+                $personelAyari = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->first();
+                if ($personelAyari && $personelAyari->personel) {
+                    $personelTelefon = Personeller::where('id', $hizmet->personel_id)->value('cep_telefon');
+                    $this->personeleGonder($wa, $controller, $value->salonlar, $personelTelefon, $mesaj, $personelAyari, $value->id);
                 }
 
                 $bildirimkimlikleri = BildirimKimlikleri::whereIn(
@@ -110,6 +109,36 @@ class RandevuSMSHatirlatma extends Command
                     );
                 }
             }
+        }
+    }
+
+    protected function personeleGonder(WhatsAppService $wa, Controller $controller, $salon, $telefon, $mesajBase, $ayar, $randevuId)
+    {
+        if (!$telefon) return;
+
+        $whatsappKanaliAcik = !empty($ayar->whatsapp_personel)
+            && $salon->whatsapp_aktif
+            && $salon->whatsapp_durum === 'connected';
+
+        $whatsappBasarili = false;
+        if ($whatsappKanaliAcik) {
+            $sonuc = $wa->sendReminder($salon, $telefon, $mesajBase, $randevuId, null);
+            if ($sonuc['ok'] ?? false) {
+                $whatsappBasarili = true;
+                Log::info('WhatsApp personel hatırlatma başarılı', ['salon_id' => $salon->id, 'randevu_id' => $randevuId]);
+            } else {
+                Log::warning('WhatsApp personel hatırlatma başarısız', [
+                    'salon_id' => $salon->id, 'randevu_id' => $randevuId,
+                    'error' => $sonuc['error'] ?? 'unknown',
+                ]);
+            }
+        }
+
+        if (!$whatsappBasarili) {
+            $controller->sms_gonder($salon->id, [[
+                'to' => $telefon,
+                'message' => $mesajBase,
+            ]]);
         }
     }
 
