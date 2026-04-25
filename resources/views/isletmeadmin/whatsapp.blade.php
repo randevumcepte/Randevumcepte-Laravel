@@ -68,7 +68,7 @@
                     <div>
                         <div style="font-weight:600; color:#222;">WhatsApp üzerinden hatırlatma gönder</div>
                         <div style="color:#666; font-size:13px; margin-top:2px;">
-                            Açık: 1 gün öncesi randevu hatırlatması önce WhatsApp'tan gönderilir, başarısızsa SMS'e düşer.
+                            Açık: <b>1 gün öncesi</b> ve <b>salon hatırlatma saatinde (örn. 2 saat önce)</b> hatırlatmalar önce WhatsApp'tan gider, başarısızsa SMS'e düşer.
                             Kapalı: Sadece SMS kullanılır.
                         </div>
                     </div>

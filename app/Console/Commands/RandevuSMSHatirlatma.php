@@ -41,13 +41,12 @@ class RandevuSMSHatirlatma extends Command
 
             $randevutarihsaat = date('d.m.Y', strtotime($value->tarih)) . ' ' . date('H:i', strtotime($value->saat));
 
-            // Müşteriye hatırlatma (salon saati — aynı gün) — SADECE SMS, WhatsApp DEĞİL
+            // Müşteriye hatırlatma (salon kendi belirlediği X saat önce) — WhatsApp + SMS fallback
             if (date('d.m.Y H:i') == date('d.m.Y H:i', strtotime('-' . $value->salonlar->randevu_sms_hatirlatma . ' hours', strtotime($randevutarihsaat)))) {
-                if (SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->value('musteri')) {
-                    $controller->sms_gonder($value->salon_id, [[
-                        'to' => $value->users->cep_telefon,
-                        'message' => 'İyi günler. Bugün ' . date('H:i', strtotime($value->saat)) . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.',
-                    ]]);
+                $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->first();
+                if ($ayar && $ayar->musteri) {
+                    $mesaj = 'Bugün ' . date('H:i', strtotime($value->saat)) . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
+                    $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj);
                 }
             }
 
