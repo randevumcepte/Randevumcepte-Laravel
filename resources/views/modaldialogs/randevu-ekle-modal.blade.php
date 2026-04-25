@@ -553,11 +553,10 @@ body > .select2-container--open { z-index: 99999 !important; }
     border: 1px solid #d1d5db !important;
 }
 
-/* Modal genisligi: style.css'deki eski Bootstrap 3 kurali (width:600px @768px+) ezilmeli */
+/* Modal genisligi (1200px max - Bootstrap 4 modal-xl boyutu) */
 #modal-view-event-add .modal-dialog {
-    width: auto !important;
-    max-width: 1200px !important;
-    margin: 1.75rem auto !important;
+    max-width: 1200px;
+    margin: 1.75rem auto;
 }
 
 .modal-content {
