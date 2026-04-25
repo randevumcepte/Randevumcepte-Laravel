@@ -682,7 +682,20 @@ h1, h2 {
     height: auto;
     overflow: visible !important;
     padding-right: 4px;
+    position: relative;
 }
+/* Tum nested container'lar overflow:visible - dropdown'lar kirpilmasin */
+#modal-view-event-add .card,
+#modal-view-event-add .card-body,
+#modal-view-event-add .hizmetler_bolumu,
+#modal-view-event-add .hizmet-satiri,
+#modal-view-event-add .hizmet-satiri .card-body,
+#modal-view-event-add .hizmet-satiri .row {
+    overflow: visible !important;
+}
+/* Tom Select dropdown z-index modal uzerinde */
+.ts-dropdown { z-index: 100000 !important; }
+body > .select2-container--open { z-index: 100001 !important; }
 
 /* Form Element Stilleri */
 .form-label {
