@@ -25,8 +25,8 @@
                     <input type="hidden" name="sube" value="{{$isletme->id}}">
 
                     <div class="row">
-                        <!-- Sol Taraf: Temel Bilgiler ve Hizmetler -->
-                        <div class="col-md-8">
+                        <!-- Tam genislik: Temel Bilgiler ve Hizmetler -->
+                        <div class="col-md-12">
                             <!-- Temel Bilgiler -->
                             <div class="card mb-2">
                                 <div class="card-header py-1">
@@ -89,24 +89,9 @@
                             </div>
                         </div>
 
-                        <!-- Sağ Taraf: Özet -->
-                        <div class="col-md-4">
-                            <div class="card mb-2">
-                                <div class="card-header py-1">
-                                    <h6 class="mb-0" style="font-size: 0.9rem;">Randevu Özeti</h6>
-                                </div>
-                                <div class="card-body p-2">
-                                    <div id="randevu-duzenle-ozeti" style="min-height: 180px; font-size: 0.85rem;">
-                                        <div class="text-center text-muted py-3">
-                                            <i class="fa fa-edit fa-lg mb-2" style="opacity: 0.3;"></i>
-                                            <p class="mb-1 fw-bold" style="font-size: 0.9rem;">Yükleniyor...</p>
-                                            <p class="small mb-0" style="font-size: 0.75rem;">Randevu bilgileri getiriliyor</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
+                    {{-- Gizli ozet alani: duzenleUpdateOzeti hata vermesin diye --}}
+                    <div id="randevu-duzenle-ozeti" style="display:none;"></div>
                 </form>
             </div>
             <!-- Modal Footer -->
@@ -124,31 +109,28 @@
 
 
 <style>
-/* Modal ortalama: Bootstrap default davranisi zorla */
+/* Modal ortalama - en sert override (Bootstrap modal-dialog-centered flex davranisi etkisiz) */
 #randevu-duzenle-modal {
     padding-right: 0 !important;
     padding-left: 0 !important;
-    display: none;
-}
-#randevu-duzenle-modal.show {
-    display: block !important;
+    overflow-y: auto !important;
 }
 #randevu-duzenle-modal .modal-dialog {
     max-width: 1200px !important;
-    width: auto !important;
-    margin: 1.75rem auto !important;
-    min-height: calc(100% - 3.5rem);
-    display: flex;
-    align-items: center;
+    width: calc(100% - 32px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: 1.75rem !important;
+    margin-bottom: 1.75rem !important;
+    display: block !important;
+    align-items: unset !important;
+    min-height: unset !important;
 }
 #randevu-duzenle-modal .modal-content {
-    width: 100%;
+    width: 100% !important;
     border-radius: 8px;
     border: none;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-@media (min-width: 1250px) {
-    #randevu-duzenle-modal .modal-dialog { max-width: 1200px !important; }
 }
 #randevu-duzenle-modal .modal-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
