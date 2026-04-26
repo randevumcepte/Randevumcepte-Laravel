@@ -66,15 +66,15 @@
                                                         @if($pageindex==2)
                                                         <input type="hidden" name="takvim_sayfasi" value="1">
                                                         @endif
-                                                        <label class="form-label">@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</label>
-                                                        <div class="d-flex" style="gap:6px;">
-                                                            <select name="adsoyad" id="randevuekle_musteri_id" class="form-control opsiyonelSelect musteri_secimi" style="flex:1; height: 50px; font-size: 1rem;">
-                                                                <option></option>
-                                                            </select>
-                                                            <button class="btn btn-outline-primary yanitsiz_musteri_ekleme" type="button" data-toggle="modal" data-target="#musteri-bilgi-modal" title="Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29)Danışan @else Müşteri @endif ekle" style="padding: 0 14px; height: 40px; white-space: nowrap; font-size: 0.85rem;">
+                                                        <div class="d-flex justify-content-between align-items-center" style="margin-bottom:4px;">
+                                                            <label class="form-label mb-0">@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</label>
+                                                            <button class="btn btn-sm btn-outline-primary yanitsiz_musteri_ekleme" type="button" data-toggle="modal" data-target="#musteri-bilgi-modal" title="Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29)Danışan @else Müşteri @endif ekle" style="padding: 2px 10px; font-size: 0.75rem; white-space: nowrap;">
                                                                 <i class="fa fa-plus"></i> Yeni
                                                             </button>
                                                         </div>
+                                                        <select name="adsoyad" id="randevuekle_musteri_id" class="form-control opsiyonelSelect musteri_secimi" style="width: 100%; height: 50px; font-size: 1rem;">
+                                                            <option></option>
+                                                        </select>
                                                     </div>
                                                     <div class="col-lg-4 col-md-6 col-sm-6 mb-2">
                                                         <label class="form-label">Tarih</label>
@@ -117,7 +117,7 @@
                                                                     <!-- Personel -->
                                                                     <div class="col-12 mb-1 secim-personel" style="{{ $__personel_style }}">
                                                                         <label class="form-label" style="font-size: 0.8rem;">Personel</label>
-                                                                        <select name="randevupersonelleriyeni[]" class="form-control opsiyonelSelect personel_secimi personel-select" data-index="0" style="width: 100%; height: 30px; font-size: 0.8rem;">
+                                                                        <select name="randevupersonelleriyeni[]" class="form-control personel_secimi personel-select" data-index="0" style="width: 100%; min-height: 38px; font-size: 0.85rem;">
                                                                             <option></option>
                                                                         </select>
                                                                     </div>
@@ -366,6 +366,18 @@
     border-radius: 6px !important;
     background: #fff !important;
     flex-wrap: wrap !important;
+}
+/* Tek secimli Tom Select (personel-select) — multi ile ayni gorsel dil */
+#modal-view-event-add .ts-wrapper.single .ts-control {
+    min-height: 38px !important;
+    padding: 6px 10px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    background: #fff !important;
+    font-size: 0.85rem !important;
+}
+#modal-view-event-add .ts-wrapper.single .ts-control > .item {
+    line-height: 24px !important;
 }
 #modal-view-event-add .ts-wrapper.focus .ts-control {
     border-color: #6366f1 !important;
@@ -1605,6 +1617,40 @@ function doldurRandevuSecenekleri(){
     $('#modal-view-event-add .oda-select').each(function(){
         doldurSelect($(this), window.randevuModalData.odalar);
     });
+    // Personel selectlerini Tom Select'e cevir (form submit name'i degismez)
+    initPersonelTomAll();
+}
+
+// Personel select Tom Select destroy/init helpers — submit parametresi degisikligi yok.
+function tomDestroyPersonel($sel){
+    var el = $sel && $sel[0];
+    if(!el) return;
+    if(el.tomselect){ try { el.tomselect.destroy(); } catch(e){} }
+}
+
+function initPersonelTom($sel){
+    if(!$sel || !$sel.length || typeof TomSelect === 'undefined') return null;
+    tomDestroyPersonel($sel);
+    var el = $sel[0];
+    return new TomSelect(el, {
+        plugins: ['clear_button'],
+        placeholder: 'Personel seçin...',
+        allowEmptyOption: true,
+        persist: false,
+        maxOptions: null,
+        searchField: ['text'],
+        render: {
+            no_results: function(){
+                return '<div class="no-results">Personel bulunamadı</div>';
+            }
+        }
+    });
+}
+
+function initPersonelTomAll(){
+    $('#modal-view-event-add .personel-select').each(function(){
+        initPersonelTom($(this));
+    });
 }
 
 $(document).ready(function() {
@@ -2057,7 +2103,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                             <div class="row g-2">
                                 <div class="col-12 mb-1 secim-personel" style="{{ $__personel_style }}">
                                     <label class="form-label" style="font-size: 0.8rem;">Personel</label>
-                                    <select name="randevupersonelleriyeni[]" class="form-control opsiyonelSelect personel_secimi personel-select" data-index="${newIndex}" style="width: 100%; height: 30px; font-size: 0.8rem;">
+                                    <select name="randevupersonelleriyeni[]" class="form-control personel_secimi personel-select" data-index="${newIndex}" style="width: 100%; min-height: 38px; font-size: 0.85rem;">
                                         <option></option>
                                     </select>
                                 </div>
@@ -2125,12 +2171,16 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                 yukleHizmetler($s, { hepsi: 1 });
             }
         });
-        // Select2'leri sadece yeni satir icin init et
-        $yeniSatir.find('.opsiyonelSelect').each(function(){
+        // Select2'leri sadece yeni satir icin init et (personel-select Tom Select kullanir, atlanir)
+        $yeniSatir.find('.opsiyonelSelect').not('.personel-select').each(function(){
             try { $(this).select2({ placeholder: 'Seçiniz', allowClear: true }); } catch(e){}
         });
         $yeniSatir.find('.custom-select2').not('.hizmet-select').each(function(){
             try { $(this).select2({ width: '100%' }); } catch(e){}
+        });
+        // Yeni satirdaki personel-select'i Tom Select ile baslat
+        $yeniSatir.find('.personel-select').each(function(){
+            initPersonelTom($(this));
         });
         $('.hizmet-sil[data-value="0"]').removeAttr('disabled');
         
@@ -2708,12 +2758,12 @@ function formatHizmetSecim(hizmet) {
   function resetForm() {
     $('.hizmet-satiri').slice(1).remove();
 
-    // Hizmet-select Tom Select kullanir: native val degisimi TS'i etkilemez, TS API ile temizle
-    $('.hizmet-satiri[data-value="0"]').find('.hizmet-select').each(function(){
+    // Hizmet-select ve personel-select Tom Select kullanir: native val degisimi TS'i etkilemez, TS API ile temizle
+    $('.hizmet-satiri[data-value="0"]').find('.hizmet-select, .personel-select').each(function(){
         var el = this;
         if(el.tomselect){ try { el.tomselect.clear(true); } catch(e){} }
     });
-    $('.hizmet-satiri[data-value="0"]').find('select').not('.hizmet-select').val(null).trigger('change');
+    $('.hizmet-satiri[data-value="0"]').find('select').not('.hizmet-select').not('.personel-select').val(null).trigger('change');
     $('.hizmet-satiri[data-value="0"]').find('input[type="number"], textarea').val('');
     $('#hizmet-detaylari-0').empty();
     $('.hizmet-sil[data-value="0"]').attr('disabled', true);
