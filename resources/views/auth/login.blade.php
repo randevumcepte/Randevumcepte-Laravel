@@ -9,7 +9,12 @@
     <div class="login-container">
         <!-- Left Side - Hero -->
         <div class="login-header">
-            <img src="{{secure_asset('public/img/loginbg.jpg')}}" alt="" class="login-hero-bg">
+            <video class="login-hero-bg login-hero-video"
+                   autoplay muted loop playsinline
+                   preload="metadata"
+                   poster="{{secure_asset('public/img/loginbg.jpg')}}">
+                <source src="{{secure_asset('public/videos/login-bg.m4v')}}" type="video/mp4">
+            </video>
 
             <div class="login-hero-text">
                 <h1 class="login-title">RANDEVU</h1>
