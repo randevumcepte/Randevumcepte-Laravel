@@ -6682,72 +6682,109 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ['path' => request()->url(), 'query' => request()->query()]
         );
         $result = [];
-         
+
+        $paketRowIds = [];
+        $hizmetRowIds = [];
+        $adisyonIds = [];
+        $paketIds = [];
         foreach ($paginated as $item) {
-            $adisyon = Adisyonlar::find($item['adisyon_id']);
+            $adisyonIds[$item['adisyon_id']] = true;
+            if ($item['type'] === 'paket') {
+                $paketRowIds[] = $item['id'];
+                $paketIds[$item['data']->paket_id] = true;
+            } else {
+                $hizmetRowIds[] = $item['id'];
+            }
+        }
 
-            if ($adisyon) {
-                if ($item['type'] === 'paket') {
-                    $paket = $item['data'];
-                    $seanslar = AdisyonPaketSeanslar::with(['randevu.hizmetler','randevu.users','randevu.hizmetler.cihaz','randevu.hizmetler.personeller','randevu.hizmetler.oda'])->where("adisyon_paket_id", $paket->id)->get();
-                    $toplamSeansSayisi = $paket->seans_sayisi;
-                    
-                    $gelinenSeansSayisi = 0;
-                    $gelinmeyenSeansSayisi = 0;
-                    if($seanslar->count() >0)
-                    {
-                        foreach($seanslar as $seans)
-                        {
-                            if($seans->geldi===1)
-                                $gelinenSeansSayisi++;
-                            if(($seans->geldi!==null && $seans->geldi ===0)||$seans->iptal)
-                                $gelinmeyenSeansSayisi++;
+        $adisyonlarById = Adisyonlar::with('musteri')
+            ->whereIn('id', array_keys($adisyonIds))
+            ->get()
+            ->keyBy('id');
 
-                        }
-                    }
-                    $bekleyenSeansSayisi = $paket->bekleyen_seans - $gelinenSeansSayisi -$gelinmeyenSeansSayisi;
-                     
-                    $result[] = [
-                        'adisyon' => $adisyon->id,
-                        'musteri' => $adisyon->musteri,
-                        'paket' => $paket->paket->paket_adi." (P)",
-                        'seanslar' => $seanslar,
-                        'toplamSeansSayisi'=>$paket->seans_sayisi,
-                        'bekleyenSeansSayisi'=>$bekleyenSeansSayisi,
-                        'gelinenSeansSayisi'=>$gelinenSeansSayisi,
-                        'gelinmeyenSeansSayisi'=>$gelinmeyenSeansSayisi,
-                    ];
-                } else if ($item['type'] === 'hizmet') {
-                    $hizmet = $item['data'];
+        $seansSelect = ['id','adisyon_paket_id','adisyon_hizmet_id','hizmet_id','seans_no','seans_tarih','seans_saat','geldi','iptal','randevu_id'];
+        $paketSeanslarById = empty($paketRowIds) ? collect() :
+            AdisyonPaketSeanslar::with('hizmet:id,hizmet_adi')
+                ->whereIn('adisyon_paket_id', $paketRowIds)
+                ->select($seansSelect)
+                ->get()
+                ->groupBy('adisyon_paket_id');
+        $hizmetSeanslarById = empty($hizmetRowIds) ? collect() :
+            AdisyonPaketSeanslar::with('hizmet:id,hizmet_adi')
+                ->whereIn('adisyon_hizmet_id', $hizmetRowIds)
+                ->select($seansSelect)
+                ->get()
+                ->groupBy('adisyon_hizmet_id');
 
-                    $seanslar = AdisyonPaketSeanslar::with(['randevu.hizmetler','randevu.users','randevu.hizmetler.cihaz','randevu.hizmetler.personeller','randevu.hizmetler.oda'])->where("adisyon_hizmet_id", $hizmet->id)->get();
-                    $toplamSeansSayisi = $hizmet->seans_sayisi;
-                    
-                    $gelinenSeansSayisi = 0;
-                    $gelinmeyenSeansSayisi = 0;
-                    if($seanslar->count() >0)
-                    {
-                        foreach($seanslar as $seans)
-                        {
-                            if($seans->geldi===1)
-                                $gelinenSeansSayisi++;
-                            if(($seans->geldi!==null && $seans->geldi ===0)||$seans->iptal)
-                                $gelinmeyenSeansSayisi++;
+        $paketHizmetlerByPaketId = empty($paketIds) ? collect() :
+            DB::table('paket_hizmetler')
+                ->join('hizmetler', 'paket_hizmetler.hizmet_id', '=', 'hizmetler.id')
+                ->whereIn('paket_hizmetler.paket_id', array_keys($paketIds))
+                ->select('paket_hizmetler.paket_id as paket_id', 'hizmetler.id as id', 'hizmetler.hizmet_adi')
+                ->get()
+                ->groupBy('paket_id');
 
-                        }
-                    }
-                    $bekleyenSeansSayisi = $hizmet->bekleyen_seans - $gelinenSeansSayisi -$gelinmeyenSeansSayisi;
-                    $result[] = [
-                        'adisyon' => $adisyon->id,
-                        'musteri' => $adisyon->musteri,
-                        'paket' => $hizmet->hizmet->hizmet_adi." (H)" ?? null,
-                        'seanslar' => $seanslar,
-                        'toplamSeansSayisi'=>$hizmet->seans_sayisi,
-                        'bekleyenSeansSayisi'=>$bekleyenSeansSayisi,
-                        'gelinenSeansSayisi'=>$gelinenSeansSayisi,
-                        'gelinmeyenSeansSayisi'=>$gelinmeyenSeansSayisi,
-                    ];
+        foreach ($paginated as $item) {
+            $adisyon = $adisyonlarById[$item['adisyon_id']] ?? null;
+            if (!$adisyon) continue;
+
+            if ($item['type'] === 'paket') {
+                $paket = $item['data'];
+                $seanslar = $paketSeanslarById[$paket->id] ?? collect();
+
+                $gelinenSeansSayisi = 0;
+                $gelinmeyenSeansSayisi = 0;
+                foreach ($seanslar as $seans) {
+                    if ($seans->geldi === 1) $gelinenSeansSayisi++;
+                    if (($seans->geldi !== null && $seans->geldi === 0) || $seans->iptal) $gelinmeyenSeansSayisi++;
                 }
+                $bekleyenSeansSayisi = $paket->bekleyen_seans - $gelinenSeansSayisi - $gelinmeyenSeansSayisi;
+
+                $result[] = [
+                    'adisyon' => $adisyon->id,
+                    'musteri' => $adisyon->musteri,
+                    'paket' => $paket->paket->paket_adi . " (P)",
+                    'seanslar' => $seanslar->values(),
+                    'toplamSeansSayisi' => $paket->seans_sayisi,
+                    'bekleyenSeansSayisi' => $bekleyenSeansSayisi,
+                    'gelinenSeansSayisi' => $gelinenSeansSayisi,
+                    'gelinmeyenSeansSayisi' => $gelinmeyenSeansSayisi,
+                    'tip' => 'paket',
+                    'paketHizmetId' => $paket->id,
+                    'hizmetler' => $paketHizmetlerByPaketId[$paket->paket_id] ?? collect(),
+                ];
+            } else if ($item['type'] === 'hizmet') {
+                $hizmet = $item['data'];
+                $seanslar = $hizmetSeanslarById[$hizmet->id] ?? collect();
+
+                $gelinenSeansSayisi = 0;
+                $gelinmeyenSeansSayisi = 0;
+                foreach ($seanslar as $seans) {
+                    if ($seans->geldi === 1) $gelinenSeansSayisi++;
+                    if (($seans->geldi !== null && $seans->geldi === 0) || $seans->iptal) $gelinmeyenSeansSayisi++;
+                }
+                $bekleyenSeansSayisi = $hizmet->bekleyen_seans - $gelinenSeansSayisi - $gelinmeyenSeansSayisi;
+
+                $tekHizmet = collect([
+                    (object)[
+                        'id' => $hizmet->hizmet_id,
+                        'hizmet_adi' => optional($hizmet->hizmet)->hizmet_adi,
+                    ],
+                ]);
+
+                $result[] = [
+                    'adisyon' => $adisyon->id,
+                    'musteri' => $adisyon->musteri,
+                    'paket' => $hizmet->hizmet->hizmet_adi . " (H)" ?? null,
+                    'seanslar' => $seanslar->values(),
+                    'toplamSeansSayisi' => $hizmet->seans_sayisi,
+                    'bekleyenSeansSayisi' => $bekleyenSeansSayisi,
+                    'gelinenSeansSayisi' => $gelinenSeansSayisi,
+                    'gelinmeyenSeansSayisi' => $gelinmeyenSeansSayisi,
+                    'tip' => 'hizmet',
+                    'paketHizmetId' => $hizmet->id,
+                    'hizmetler' => $tekHizmet,
+                ];
             }
         }
         return response()->json([
