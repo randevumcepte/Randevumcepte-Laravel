@@ -1,38 +1,40 @@
 @extends('layout.layout_login')
 
 @section('content')
+<?php
+    $salonAdi = \App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('salon_adi');
+    $logo = \App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('logo');
+?>
 <div class="login-wrapper">
     <div class="login-container">
         <!-- Left Side - Hero -->
         <div class="login-header">
-            <video class="login-video-bg" autoplay muted loop playsinline preload="auto">
-                <source src="{{secure_asset('public/videos/login-bg.m4v')}}" type="video/mp4">
-            </video>
-
-            <img src="{{secure_asset(\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('logo'))}}" alt="{{\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('salon_adi')}}" class="login-logo">
+            <img src="{{secure_asset('public/img/loginbg.jpg')}}" alt="" class="login-hero-bg">
 
             <div class="login-hero-text">
-                <h1 class="login-title">Hoş<br>Geldiniz.</h1>
-                <p class="login-subtitle">{{\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('salon_adi')}} randevu sistemine giriş yaparak randevularınızı yönetebilir, kampanyaları takip edebilir ve hizmetlerimizden hızlıca faydalanabilirsiniz.</p>
+                <h1 class="login-title">RANDEVU</h1>
+                <span class="login-subtitle">CEPTE GÜZELLİK</span>
             </div>
 
-            <div class="login-social">
-                <p class="login-social-label">Hızlı Bağlantılar</p>
-                <div class="login-social-buttons">
-                    <a href="/register" class="login-social-btn">
-                        <i class="fa fa-user-plus"></i> Üye Ol
-                    </a>
-                    <a href="/isletmeyonetim/girisyap" class="login-social-btn">
-                        <i class="fa fa-briefcase"></i> İşletme Girişi
-                    </a>
-                </div>
+            <div class="login-hero-dots">
+                <span class="active"></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
             </div>
         </div>
 
         <!-- Right Side - Form -->
         <div class="login-body">
-            <h2 class="login-body-title">Giriş Yap</h2>
-            <p class="login-body-subtitle">Hesabınız yok mu? <a href="/register">Hemen kayıt olun</a>, bir dakikadan kısa sürer.</p>
+            <span class="login-deco-plus p1">+</span>
+            <span class="login-deco-plus p2">+</span>
+            <span class="login-deco-plus p3">+</span>
+
+            <img src="{{secure_asset($logo)}}" alt="{{$salonAdi}}" class="login-mini-logo">
+
+            <h2 class="login-body-title">Hoş Geldiniz!</h2>
+            <p class="login-body-subtitle">Hesabınız yok mu? <a href="/register">Üye olun</a></p>
 
             <form role="form" method="POST" action="{{ route('login') }}">
                 {{ csrf_field() }}
@@ -47,28 +49,26 @@
                 </div>
                 @endif
 
-                <div class="login-form-group">
-                    <label for="cep_telefon" class="login-form-label">Cep Telefonu</label>
+                <div class="login-form-group icon-phone">
                     <input
                         name="cep_telefon"
                         type="text"
                         class="login-form-input"
                         id="cep_telefon"
-                        placeholder="5XXXXXXXXX"
+                        placeholder="Cep Telefonu (5XXXXXXXXX)"
                         maxlength="10"
                         required
                         value="{{ old('cep_telefon') }}"
                         autofocus>
                 </div>
 
-                <div class="login-form-group">
-                    <label for="password" class="login-form-label">Şifre</label>
+                <div class="login-form-group icon-lock">
                     <input
                         name="password"
                         type="password"
                         class="login-form-input"
                         id="password"
-                        placeholder="••••••••"
+                        placeholder="Şifre"
                         required>
                 </div>
 
@@ -83,6 +83,12 @@
                 <div class="login-btn-row">
                     <button type="submit" id="girisyap" class="login-btn">Giriş Yap</button>
                 </div>
+
+                <div class="login-divider">veya</div>
+
+                <a href="/isletmeyonetim/girisyap" class="login-btn-secondary">
+                    <i class="fa fa-briefcase"></i> İşletme Girişi
+                </a>
             </form>
         </div>
     </div>

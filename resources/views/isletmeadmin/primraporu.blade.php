@@ -255,10 +255,21 @@ $(function(){
   var _tarih1 = '{{$tarih1}}';
   var _tarih2 = '{{$tarih2}}';
 
+  var _ayAdi = $('#primRaporFiltre select[name="ay"] option:selected').text();
+  var _yilAdi = $('#primRaporFiltre select[name="yil"] option:selected').text();
+  var _isletmeAdi = @json($isletme->salon_adi);
+  var _dosyaAdi = 'Prim_Hakedis_'+_ayAdi+'_'+_yilAdi;
+
   $('#primrapor_tablo').DataTable({
     pageLength: 50,
     order: [[8,'desc']],
-    language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/tr.json' }
+    language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/tr.json' },
+    dom: '<"d-flex justify-content-between align-items-center mb-2"<"d-flex"l><"d-flex"B>>frtip',
+    buttons: [
+      { extend: 'excelHtml5',  text: '<i class="fa fa-file-excel-o"></i> Excel',  className: 'btn btn-success btn-sm', title: _dosyaAdi, exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } },
+      { extend: 'pdfHtml5',    text: '<i class="fa fa-file-pdf-o"></i> PDF',      className: 'btn btn-danger btn-sm',  title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', orientation: 'landscape', pageSize: 'A4', exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } },
+      { extend: 'print',       text: '<i class="fa fa-print"></i> Yazdır',         className: 'btn btn-secondary btn-sm', title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } }
+    ]
   });
 
   $(document).on('click','.prim-bonus-ekle', function(){
