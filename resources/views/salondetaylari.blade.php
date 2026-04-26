@@ -247,9 +247,6 @@
 
    {{-- ======================= LUXE HERO BANNER ========================= --}}
    <div class="lx-hero" id="lxHero">
-      @if(!empty($salongorselikapak))
-         <div class="lx-hero__bg" style="background-image:url('{{secure_asset($salongorselikapak)}}');"></div>
-      @endif
       <div class="lx-hero__grid">
          <div class="lx-hero__left">
             <span class="lx-hero__eyebrow">Online Randevu</span>
