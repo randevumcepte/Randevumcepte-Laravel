@@ -14,7 +14,7 @@
 {{-- Tom Select — sadece Randevu modalinda hizmet secimi icin kullanilir --}}
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-<div id="modal-view-event-add" class="modal modal-top fade calendar-modal randevu-modal-compact" data-backdrop="static" data-keyboard="false">
+<div id="modal-view-event-add" class="modal modal-top fade calendar-modal" data-backdrop="static" data-keyboard="false">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 1200px;">
         <div class="modal-content">
             <div class="modal-header">
@@ -554,10 +554,21 @@ body > .select2-container--open { z-index: 99999 !important; }
 }
 
 /* Modal genisligi (1200px max - Bootstrap 4 modal-xl boyutu) */
+#modal-view-event-add {
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+}
+#modal-view-event-add .modal-dialog,
 #modal-view-event-add.modal .modal-dialog,
 .modal#modal-view-event-add .modal-dialog {
     max-width: 1200px !important;
+    width: auto !important;
     margin: 1.75rem auto !important;
+}
+#modal-view-event-add .modal-content {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(17, 24, 39, 0.25);
 }
 
 .modal-content {
