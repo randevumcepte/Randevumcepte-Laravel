@@ -220,20 +220,60 @@
    </div>
 
    @if($_aktifCark && $_cark_dilim_sayisi >= 2)
-   <div class="row" style="margin-top:18px">
-      <div class="col-12">
-         <a href="{{ url('/cark/'.$salon->id) }}" style="display:block;text-decoration:none;">
-            <div style="background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 50%,#fd79a8 100%);border-radius:16px;padding:16px 22px;color:#fff;display:flex;align-items:center;gap:14px;box-shadow:0 10px 26px rgba(108,92,231,.3);transition:.25s;">
-               <div style="font-size:38px;line-height:1;">🎡</div>
-               <div style="flex:1;">
-                  <div style="font-size:17px;font-weight:800;letter-spacing:-.3px;">Çarkıfelek — Size Özel Ödüller!</div>
-                  <div style="font-size:13px;opacity:.92;margin-top:2px;">Onaylanmış randevularınız üzerinden çarkı çevirip puan ve indirim kazanın.</div>
+      {{-- ============ CARKIFELEK SECTION (eski silik banner yerine) ============ --}}
+      <a href="{{ url('/cark/'.$salon->id) }}" class="cark-section" aria-label="Çarkıfelek'i çevir, ödül kazan">
+         <div class="cark-section__inner">
+            <div class="cark-section__visual">
+               <div class="cark-wheel cark-wheel--lg">
+                  <span class="cark-wheel__pointer"></span>
+                  <span class="cark-wheel__hub"><i class="fa fa-gift"></i></span>
                </div>
-               <div style="font-size:20px;">›</div>
+               <div class="cark-section__sparkles">
+                  <span>✨</span><span>🎁</span><span>⭐</span>
+               </div>
             </div>
-         </a>
+            <div class="cark-section__content">
+               <span class="cark-section__eyebrow"><i class="fa fa-bolt"></i> Sana Özel · Hediye Çarkı</span>
+               <h2 class="cark-section__title">Çarkı Çevir, <em>Hediyeni</em> Kap!</h2>
+               <p class="cark-section__sub">Onaylanan her randevuyla çark hakkı kazanırsın. Puan, indirim ve sürpriz hediyeler seni bekliyor.</p>
+               <span class="cark-section__cta">
+                  <i class="fa fa-bolt"></i> Şimdi Tam Zamanı, Çevir!
+                  <i class="fa fa-long-arrow-right cark-section__cta-arrow"></i>
+               </span>
+            </div>
+         </div>
+      </a>
+
+      {{-- ============ CARKIFELEK POPUP (sayfa acilinca otomatik) ============ --}}
+      <div class="cark-popup" id="carkPopup" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="carkPopupTitle">
+         <div class="cark-popup__backdrop" data-cark-close></div>
+         <div class="cark-popup__panel">
+            <button type="button" class="cark-popup__close" data-cark-close aria-label="Kapat">
+               <i class="fa fa-times"></i>
+            </button>
+            <div class="cark-popup__decor cark-popup__decor--1">✨</div>
+            <div class="cark-popup__decor cark-popup__decor--2">🎁</div>
+            <div class="cark-popup__decor cark-popup__decor--3">⭐</div>
+            <div class="cark-popup__decor cark-popup__decor--4">💎</div>
+            <div class="cark-popup__wheel-wrap">
+               <div class="cark-wheel cark-wheel--xl">
+                  <span class="cark-wheel__pointer"></span>
+                  <span class="cark-wheel__hub"><i class="fa fa-gift"></i></span>
+               </div>
+            </div>
+            <div class="cark-popup__content">
+               <span class="cark-popup__eyebrow">🎰 Şimdi Tam Zamanı</span>
+               <h2 class="cark-popup__title" id="carkPopupTitle">Çarkı Çevir,<br><em>Hediyeni Kazan!</em></h2>
+               <p class="cark-popup__sub">{{ $salon->salon_adi }}'a özel sürpriz çarkıfelek seni bekliyor. Bedava deneme hakkı şimdi açık!</p>
+               <a href="{{ url('/cark/'.$salon->id) }}" class="cark-popup__cta" data-cark-spin>
+                  <i class="fa fa-bolt"></i>
+                  <span>ŞİMDİ ÇEVİR</span>
+                  <i class="fa fa-long-arrow-right"></i>
+               </a>
+               <button type="button" class="cark-popup__skip" data-cark-close>Belki daha sonra</button>
+            </div>
+         </div>
       </div>
-   </div>
    @endif
 
    {{-- ====================== RANDEVU DRAWER BASLANGIC ===================== --}}
@@ -1108,6 +1148,93 @@
            new MutationObserver(function(){ setTimeout(detect, 30); })
                .observe(el, { attributes: true, attributeFilter: ['style','class'] });
        });
+
+       /* --- Carkifelek auto-popup + spinning wheel sound --- */
+       (function(){
+           var pop = document.getElementById('carkPopup');
+           if (!pop) return;
+           var SEEN = 'rdvCarkPopupSeen';
+           var DELAY = 1600;
+
+           function open(){
+               pop.classList.add('is-open');
+               pop.setAttribute('aria-hidden', 'false');
+               document.body.classList.add('cark-popup-open');
+               try { sessionStorage.setItem(SEEN, '1'); } catch(e){}
+               playWheelSound();
+           }
+           function close(){
+               pop.classList.remove('is-open');
+               pop.setAttribute('aria-hidden', 'true');
+               document.body.classList.remove('cark-popup-open');
+           }
+
+           // Web Audio ile cark ticking sesi (asset gerektirmez)
+           function playWheelSound(){
+               try {
+                   var Ctx = window.AudioContext || window.webkitAudioContext;
+                   if (!Ctx) return;
+                   var ctx = new Ctx();
+                   if (ctx.state === 'suspended' && ctx.resume) {
+                       ctx.resume().catch(function(){});
+                   }
+                   var ticks = 14;
+                   var spacing = 95;
+                   for (var i = 0; i < ticks; i++) {
+                       (function(idx){
+                           setTimeout(function(){
+                               var osc = ctx.createOscillator();
+                               var gain = ctx.createGain();
+                               osc.type = 'square';
+                               osc.frequency.value = 1100 + Math.random() * 350;
+                               gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                               gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+                               osc.connect(gain).connect(ctx.destination);
+                               osc.start();
+                               osc.stop(ctx.currentTime + 0.05);
+                           }, idx * spacing);
+                       })(i);
+                   }
+                   // Final 'ding' sound
+                   setTimeout(function(){
+                       var osc = ctx.createOscillator();
+                       var gain = ctx.createGain();
+                       osc.type = 'sine';
+                       osc.frequency.setValueAtTime(880, ctx.currentTime);
+                       osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.18);
+                       gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+                       osc.connect(gain).connect(ctx.destination);
+                       osc.start();
+                       osc.stop(ctx.currentTime + 0.7);
+                   }, ticks * spacing + 60);
+               } catch(e){}
+           }
+
+           // Daha onceden gosterildiyse acma
+           var alreadySeen = false;
+           try { alreadySeen = sessionStorage.getItem(SEEN) === '1'; } catch(e){}
+           if (!alreadySeen) {
+               setTimeout(open, DELAY);
+           }
+
+           // Kapatma triggers
+           document.addEventListener('click', function(e){
+               var c = e.target.closest && e.target.closest('[data-cark-close]');
+               if (c) { e.preventDefault(); close(); }
+           });
+           document.addEventListener('keydown', function(e){
+               if (e.key === 'Escape' && pop.classList.contains('is-open')) close();
+           });
+           // CTA tiklayinca: kisa bir anim'dan sonra kapatip yonlendirme normal akista (href tetikler)
+           var spinBtn = pop.querySelector('[data-cark-spin]');
+           if (spinBtn) {
+               spinBtn.addEventListener('click', function(e){
+                   playWheelSound();
+                   try { sessionStorage.setItem(SEEN, '1'); } catch(err){}
+               });
+           }
+       })();
 
        /* --- WhatsApp chat widget --- */
        (function(){
