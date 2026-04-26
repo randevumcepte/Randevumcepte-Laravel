@@ -12,6 +12,9 @@
 
         <!-- Login Body -->
         <div class="login-body">
+            <h2 class="login-body-title">Giriş Yap</h2>
+            <p class="login-body-subtitle">Hesabınıza erişmek için bilgilerinizi girin</p>
+
             <form role="form" method="POST" action="{{ route('login') }}">
                 {{ csrf_field() }}
                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
@@ -55,13 +58,13 @@
                 <div class="login-forgot" style="display: none;">
                     <a href="#">Şifrenizi mi unuttunuz?</a>
                 </div>
-            </form>
-        </div>
 
-        <!-- Login Footer -->
-        <div class="login-footer">
-            <p class="login-footer-text">Hesabınız yok mu?</p>
-            <a href="/register" class="login-footer-link">Hemen Kayıt Olun</a>
+                <!-- Login Footer - Inside Form -->
+                <div class="login-footer">
+                    <p class="login-footer-text">Hesabınız yok mu?</p>
+                    <a href="/register" class="login-footer-link">Hemen Kayıt Olun</a>
+                </div>
+            </form>
         </div>
     </div>
 </div>
