@@ -1,61 +1,68 @@
 @extends('layout.layout_login')
 
 @section('content')
-  <section class="block">
-                <div class="container">
-                    <div class="row justify-content-center">
-                        <div class="col-md-4">
-                            <form class="form-clearfix" role="form" method="POST" action="{{ route('login') }}">
-                        {{ csrf_field() }}
-                         <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                                <div class="form-group{{ $errors->has('cep_telefon') ? ' has-error' : '' }}">
-                                  
-                                    <input name="cep_telefon" style="border-radius: 60px" type="text" class="form-control" id="cep_telefon" placeholder="Cep telefon (başında 0 olmadan 5XXXXXXXXX)" maxlength="10" required  value="{{ old('cep_telefon') }}" required autofocus> 
-                                   
-                                </div>
-                                <!--end form-group-->
-                                <div class="form-group{{ $errors->has('password') ? ' has-error' : '' }}">
-                                     
-                                    <input name="password"  style="border-radius: 60px" type="password" class="form-control" id="password" placeholder="Şifre..." required>
-                                   
-                                </div>
-                                   @if ($errors->has('cep_telefon') || $errors->has('password'))
-                                <div class="form-group">
+<div class="login-wrapper">
+    <div class="login-container">
+        <!-- Login Header -->
+        <div class="login-header">
+            <img src="{{secure_asset(\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('logo'))}}" alt="{{\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('salon_adi')}}" class="login-logo">
+            <h1 class="login-title">Hoş Geldiniz</h1>
+            <p class="login-subtitle">Hesabınıza giriş yapın</p>
+        </div>
 
-                                    <span class="help-block" style="border-radius: 10px;  background-color: #dc3545;color:white;padding: 10px;float: left;position: relative;margin-bottom: 10px">
-                                        <div style="width: 10%;float: left;">
-                                            <img src="{{secure_asset('public/img/error.png')}}" width="20" height="20" alt="Giriş Hatası">
-                                        </div>
-                                        <div style="width: 90%;float: left;">
-                                        Giriş yapılamadı : Kullanıcı bilgileriniz sistemdekiler ile eşleşmemektedir.
-                                    </div>
-                                         
-                                    </span>
+        <!-- Login Body -->
+        <div class="login-body">
+            <form role="form" method="POST" action="{{ route('login') }}">
+                {{ csrf_field() }}
+                <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
-                               
-                                </div>
-                                 @endif
-                                <div class="form-group">
-                                    <button type="submit" id="girisyap" class="btn btn-primary btn-rounded" style="width: 100%">Giriş Yap</button>
-                                </div>
-                                <div class="form-group" style="text-align: center; display: none;">
-                                    <a href="#" class="link">Şifrenizi mi unuttunuz.</a>
-                                </div>
-                                <div class="form-group" style="text-align: center;">
-                                    Bir hesabınız yok mu? <br/>
-                                    <a style="color:#ff4e00;font-size: 16px" href="/register">Kayıt Ol</a>
-                                </div>
-                                <!--end form-group-->
-                                
-                            </form>
-                           
-                        </div>
-                        <!--end col-md-6-->
-                    </div>
-                    <!--end row-->
+                @if ($errors->has('cep_telefon') || $errors->has('password'))
+                <div class="login-error">
+                    <svg class="login-error-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <p class="login-error-text">Giriş yapılamadı. Kullanıcı bilgileriniz sistemdekiler ile eşleşmemektedir.</p>
                 </div>
-                <!--end container-->
-            </section>
+                @endif
 
+                <div class="login-form-group">
+                    <label for="cep_telefon" class="login-form-label">Cep Telefonu</label>
+                    <input
+                        name="cep_telefon"
+                        type="text"
+                        class="login-form-input"
+                        id="cep_telefon"
+                        placeholder="5XXXXXXXXX"
+                        maxlength="10"
+                        required
+                        value="{{ old('cep_telefon') }}"
+                        autofocus>
+                </div>
 
+                <div class="login-form-group">
+                    <label for="password" class="login-form-label">Şifre</label>
+                    <input
+                        name="password"
+                        type="password"
+                        class="login-form-input"
+                        id="password"
+                        placeholder="••••••••"
+                        required>
+                </div>
+
+                <button type="submit" id="girisyap" class="login-btn">Giriş Yap</button>
+
+                <div class="login-forgot" style="display: none;">
+                    <a href="#">Şifrenizi mi unuttunuz?</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Login Footer -->
+        <div class="login-footer">
+            <p class="login-footer-text">Hesabınız yok mu?</p>
+            <a href="/register" class="login-footer-link">Hemen Kayıt Olun</a>
+        </div>
+    </div>
+</div>
 @endsection

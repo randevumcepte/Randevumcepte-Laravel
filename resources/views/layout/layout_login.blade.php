@@ -11,6 +11,7 @@
       <link rel="stylesheet" href="{{secure_asset('public/css/user.css')}}">
       <link rel="stylesheet" href="{{secure_asset('public/css/navigationmobilemenu.css')}}">
       <link rel="stylesheet" href="{{secure_asset('public/css/navigationmobilemenu.css')}}">
+      <link rel="stylesheet" href="{{secure_asset('public/css/modern-login.css')}}">
        <link
          rel="apple-touch-icon"
          sizes="180x180"
@@ -30,7 +31,7 @@
          />
       <title>Giriş Yap | {{\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('salon_adi')}}</title>
    </head>
-   <body>
+   <body class="modern-login">
       <div class="page home-page">
       <!--*********************************************************************************************************-->
       <!--************ HERO ***************************************************************************************-->
