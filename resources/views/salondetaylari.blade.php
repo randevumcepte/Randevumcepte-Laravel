@@ -597,21 +597,8 @@
                <h2 class="slp-section__title">Sadece bir salon değil, bir deneyim.</h2>
                <p class="slp-section__sub">Profesyonel ekibimiz, modern anlayışımız ve kişisel dokunuşlarımızla sizi ağırlıyoruz.</p>
             </div>
-            <div class="slp-story-grid">
-               <div class="slp-story__text">
-                  <p>{!! nl2br(e($salon->aciklama)) !!}</p>
-               </div>
-               <div class="slp-story__image">
-                  @if(!empty($salongorselikapak))
-                     <img src="{{secure_asset($salongorselikapak)}}" alt="{{$salon->salon_adi}}" loading="lazy">
-                  @elseif($salongorselleri->where('salon_id',$salon->id)->count())
-                     <img src="{{secure_asset($salongorselleri->where('salon_id',$salon->id)->first()->salon_gorseli)}}" alt="{{$salon->salon_adi}}" loading="lazy">
-                  @endif
-                  <div class="slp-story__badge">
-                     <strong>{{$_ortPuan ?? '5.0'}}</strong>
-                     <span>{{$salonyorumlar->count()}} Yorum</span>
-                  </div>
-               </div>
+            <div class="slp-about">
+               <p>{!! nl2br(e($salon->aciklama)) !!}</p>
             </div>
          </section>
          @endif
