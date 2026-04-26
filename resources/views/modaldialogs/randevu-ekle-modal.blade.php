@@ -1525,7 +1525,8 @@ let seciliMusteriId = null;
 let musteriPaketleri = [];
 
 // Tom Select uyumlu addServicesToForm — paket popup'tan gelen hizmetleri aktif Tom Select'e ekler
-window.addServicesToForm = function(hizmetData, result, showSuccessMessage){
+// custom.js icindeki orijinal fonksiyon hoisting ile bizim atamayi ezmesin diye DOMContentLoaded sonrasi yaziyoruz
+function _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage){
     console.log('[PAKET] addServicesToForm cagrildi:', hizmetData);
     if(!hizmetData || !hizmetData.length){ console.warn('[PAKET] hizmetData bos'); return; }
     var $sel = $('#yenirandevuekleform .hizmet-select').first();
@@ -1536,7 +1537,7 @@ window.addServicesToForm = function(hizmetData, result, showSuccessMessage){
     console.log('[PAKET] Tom Select instance:', !!ts);
     if(!ts){
         console.log('[PAKET] TS yok, 200ms sonra tekrar dene');
-        setTimeout(function(){ window.addServicesToForm(hizmetData, result, showSuccessMessage); }, 200);
+        setTimeout(function(){ _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage); }, 200);
         return;
     }
     ts.clear(true); // mevcut secimleri sessizce temizle
@@ -1572,7 +1573,18 @@ window.addServicesToForm = function(hizmetData, result, showSuccessMessage){
         $('#softPaketSecimModal').modal('hide');
         setTimeout(function(){ $('#softPaketSecimModal').remove(); }, 300);
     }
-};
+}
+
+// custom.js'in `function addServicesToForm` hoisting'i bizim atamayi ezdigi icin
+// DOMContentLoaded sonrasi window.addServicesToForm'u override et
+$(window).on('load', function(){
+    window.addServicesToForm = _yeniRandevuAddServicesToForm;
+    console.log('[PAKET] addServicesToForm override aktif (window load)');
+});
+$(document).ready(function(){
+    // Erken override (modal acilirken hazir olsun)
+    window.addServicesToForm = _yeniRandevuAddServicesToForm;
+});
 
 // Randevu modali icin: aktif personel + aktif & musait cihaz + aktif & musait oda listeleri
 window.randevuModalData = {
