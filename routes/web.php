@@ -228,6 +228,14 @@ Route::prefix('sistemyonetim')->group(function() {
 	Route::post('/calismasaatiguncelle','AdminController@calismasaatiguncelle');
 	Route::get('/personeldetay/{id}','AdminController@personeldetay');
 	Route::get('/yeniisletme','AdminController@yeniisletme');
+
+	// WhatsApp Yönetim Paneli
+	Route::get('/whatsapp-panel', 'WhatsAppPanelController@index')->name('superadmin.whatsapp.panel');
+	Route::get('/whatsapp-panel/dashboard-data', 'WhatsAppPanelController@dashboardData');
+	Route::get('/whatsapp-panel/salonlar-data', 'WhatsAppPanelController@salonlarData');
+	Route::get('/whatsapp-panel/loglar-data', 'WhatsAppPanelController@loglarData');
+	Route::get('/whatsapp-panel/grafik-data', 'WhatsAppPanelController@grafikData');
+	Route::get('/whatsapp-panel/mesaj/{id}', 'WhatsAppPanelController@mesajDetay');
 	Route::get('/yetkililer','AdminController@isletmeyetkilileri');
 	Route::get('/yetkilidetay/{id}','AdminController@yetkilidetay');
 	Route::post('/yetkilidetayduzenleme','AdminController@yetkilidetayguncelle');
