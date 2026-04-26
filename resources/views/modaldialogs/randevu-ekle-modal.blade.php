@@ -68,21 +68,21 @@
                                                         @endif
                                                         <label class="form-label">@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</label>
                                                         <div class="d-flex" style="gap:6px;">
-                                                            <select name="adsoyad" id="randevuekle_musteri_id" class="form-control opsiyonelSelect musteri_secimi" style="flex:1; height: 32px; font-size: 0.85rem;">
+                                                            <select name="adsoyad" id="randevuekle_musteri_id" class="form-control opsiyonelSelect musteri_secimi" style="flex:1; height: 40px; font-size: 0.9rem;">
                                                                 <option></option>
                                                             </select>
-                                                            <button class="btn btn-outline-primary yanitsiz_musteri_ekleme" type="button" data-toggle="modal" data-target="#musteri-bilgi-modal" title="Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29)Danışan @else Müşteri @endif ekle" style="padding: 0 10px; height: 32px; white-space: nowrap;">
+                                                            <button class="btn btn-outline-primary yanitsiz_musteri_ekleme" type="button" data-toggle="modal" data-target="#musteri-bilgi-modal" title="Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29)Danışan @else Müşteri @endif ekle" style="padding: 0 14px; height: 40px; white-space: nowrap; font-size: 0.85rem;">
                                                                 <i class="fa fa-plus"></i> Yeni
                                                             </button>
                                                         </div>
                                                     </div>
                                                     <div class="col-lg-4 col-md-6 col-sm-6 mb-2">
                                                         <label class="form-label">Tarih</label>
-                                                        <input required placeholder="Tarih" type="text" class="form-control" name="tarih" id="randevutarihiyeni" autocomplete="off" novalidate value="{{date('Y-m-d')}}" style="height: 32px; font-size: 0.85rem;" />
+                                                        <input required placeholder="Tarih" type="text" class="form-control" name="tarih" id="randevutarihiyeni" autocomplete="off" novalidate value="{{date('Y-m-d')}}" style="height: 40px; font-size: 0.9rem;" />
                                                     </div>
                                                     <div class="col-lg-3 col-md-6 col-sm-6 mb-2">
                                                         <label class="form-label">Saat</label>
-                                                        <select id='randevu_saat' name="saat" class="form-control" style="height: 32px; font-size: 0.85rem;">
+                                                        <select id='randevu_saat' name="saat" class="form-control" style="height: 40px; font-size: 0.9rem;">
                                                             @for($j = strtotime(date('07:00')) ; $j < strtotime(date('23:15')); $j+=(15*60))
                                                             <option value="{{date('H:i',$j)}}:00">{{date('H:i',$j)}}</option>
                                                             @endfor
@@ -332,6 +332,27 @@
 .select2-container .select2-selection--single {
     height: inherit !important;
 
+}
+
+/* Musteri secimi Select2 boyutu — Tom Select ile butunluk icin 40px */
+#modal-view-event-add #randevuekle_musteri_id + .select2-container .select2-selection--single {
+    height: 40px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    padding: 4px 8px !important;
+}
+#modal-view-event-add #randevuekle_musteri_id + .select2-container .select2-selection--single .select2-selection__rendered {
+    line-height: 30px !important;
+    font-size: 0.9rem !important;
+    padding-left: 4px !important;
+}
+#modal-view-event-add #randevuekle_musteri_id + .select2-container .select2-selection--single .select2-selection__arrow {
+    height: 38px !important;
+}
+#modal-view-event-add #randevuekle_musteri_id + .select2-container--default.select2-container--focus .select2-selection--single,
+#modal-view-event-add #randevuekle_musteri_id + .select2-container--default.select2-container--open .select2-selection--single {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
 }
 
 /* Tom Select ozel stili */
