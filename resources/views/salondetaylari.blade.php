@@ -528,6 +528,63 @@
       </a>
    </div>
 
+   {{-- ============ WHATSAPP FLOATING CHAT WIDGET (sag taraf) ============ --}}
+   @if(!empty($salon->telefon_1))
+      @php
+         // Telefon numarasini wa.me formatina cevir (sadece rakam, basina 90 ekle)
+         $_waDigits = preg_replace('/\D/', '', $salon->telefon_1 ?? '');
+         if (strlen($_waDigits) === 11 && substr($_waDigits, 0, 1) === '0') {
+             $_waNumber = '9' . $_waDigits; // 0531... -> 90531...
+         } elseif (strlen($_waDigits) === 10 && substr($_waDigits, 0, 1) === '5') {
+             $_waNumber = '90' . $_waDigits; // 531... -> 90531...
+         } elseif (strlen($_waDigits) >= 12 && substr($_waDigits, 0, 2) === '90') {
+             $_waNumber = $_waDigits; // 90... oldugu gibi
+         } else {
+             $_waNumber = $_waDigits;
+         }
+         $_waMsg = urlencode('Merhaba, '.$salon->salon_adi.' hakkında bilgi almak istiyorum.');
+         $_waLink = 'https://wa.me/'.$_waNumber.'?text='.$_waMsg;
+      @endphp
+      <div class="slp-wa" id="slpWa">
+         <button type="button" class="slp-wa__fab" id="slpWaToggle" aria-label="WhatsApp ile yazışın">
+            <i class="fa fa-whatsapp"></i>
+            <span class="slp-wa__pulse"></span>
+            <span class="slp-wa__badge">1</span>
+         </button>
+         <div class="slp-wa__panel" id="slpWaPanel" role="dialog" aria-hidden="true" aria-label="WhatsApp Sohbet">
+            <div class="slp-wa__header">
+               <div class="slp-wa__avatar">
+                  @if(!empty($salon->logo))
+                     <img src="{{ secure_asset($salon->logo) }}" alt="{{ $salon->salon_adi }}">
+                  @else
+                     <i class="fa fa-comments"></i>
+                  @endif
+                  <span class="slp-wa__online" title="Çevrimiçi"></span>
+               </div>
+               <div class="slp-wa__head-info">
+                  <div class="slp-wa__name">{{ $salon->salon_adi }}</div>
+                  <div class="slp-wa__status"><span class="slp-wa__dot"></span> Genellikle dakikalar içinde yanıtlar</div>
+               </div>
+               <button type="button" class="slp-wa__close" id="slpWaClose" aria-label="Kapat">
+                  <i class="fa fa-times"></i>
+               </button>
+            </div>
+            <div class="slp-wa__body">
+               <div class="slp-wa__bubble">
+                  Merhaba 👋<br>
+                  <strong>{{ $salon->salon_adi }}</strong>'a hoş geldiniz!<br>
+                  Hizmetler, fiyatlar veya randevu hakkında sorularınızı cevaplayalım.
+               </div>
+            </div>
+            <div class="slp-wa__footer">
+               <a href="{{ $_waLink }}" target="_blank" rel="noopener" class="slp-wa__cta">
+                  <i class="fa fa-whatsapp"></i> WhatsApp'ta Yazın
+               </a>
+            </div>
+         </div>
+      </div>
+   @endif
+
          <div class="row">
             <div id="hata"></div>
          </div>
@@ -1025,6 +1082,35 @@
            new MutationObserver(function(){ setTimeout(detect, 30); })
                .observe(el, { attributes: true, attributeFilter: ['style','class'] });
        });
+
+       /* --- WhatsApp chat widget --- */
+       (function(){
+           var wa = document.getElementById('slpWa');
+           var toggle = document.getElementById('slpWaToggle');
+           var closeBtn = document.getElementById('slpWaClose');
+           if (!wa || !toggle) return;
+           function openWa(){ wa.classList.add('is-open'); toggle.setAttribute('aria-expanded', 'true'); }
+           function closeWa(){ wa.classList.remove('is-open'); toggle.setAttribute('aria-expanded', 'false'); }
+           toggle.addEventListener('click', function(e){
+               e.stopPropagation();
+               wa.classList.contains('is-open') ? closeWa() : openWa();
+           });
+           if (closeBtn) {
+               closeBtn.addEventListener('click', function(e){
+                   e.stopPropagation();
+                   closeWa();
+               });
+           }
+           document.addEventListener('click', function(e){
+               if (!wa.contains(e.target)) closeWa();
+           });
+           document.addEventListener('keydown', function(e){
+               if (e.key === 'Escape') closeWa();
+           });
+           // Ilk yuklemede badge dikkat cekmek icin sallanir
+           setTimeout(function(){ toggle.classList.add('is-jiggle'); }, 1200);
+           setTimeout(function(){ toggle.classList.remove('is-jiggle'); }, 4400);
+       })();
 
        /* --- Hero topbar user chip dropdown --- */
        (function(){

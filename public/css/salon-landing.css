@@ -1284,6 +1284,294 @@ body.slp-drawer-open .slp-dock {
 body { padding-bottom: 80px; }
 @media (max-width: 640px) { body { padding-bottom: 76px; } }
 
+/* ==========================================================================
+   WHATSAPP CHAT WIDGET — sag tarafta yuzer, tiklayinca chat panel acilir
+   ========================================================================== */
+.slp-wa {
+    position: fixed;
+    right: 24px;
+    bottom: 110px; /* alt dock'un ustunde */
+    z-index: 70;
+}
+.slp-wa__fab {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+    color: #fff;
+    font-size: 30px;
+    cursor: pointer;
+    box-shadow: 0 12px 28px rgba(37, 211, 102, 0.45),
+                0 4px 12px rgba(0, 0, 0, 0.18);
+    transition: transform .22s cubic-bezier(.4,0,.2,1), box-shadow .22s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+}
+.slp-wa__fab i { line-height: 1; }
+.slp-wa__fab:hover {
+    transform: scale(1.08) rotate(-4deg);
+    box-shadow: 0 16px 36px rgba(37, 211, 102, 0.55),
+                0 6px 14px rgba(0, 0, 0, 0.2);
+}
+.slp-wa__fab:focus-visible {
+    box-shadow: 0 12px 28px rgba(37, 211, 102, 0.45),
+                0 0 0 4px rgba(37, 211, 102, 0.35);
+}
+.slp-wa__pulse {
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 2px solid rgba(37, 211, 102, 0.6);
+    animation: slpWaPulse 2.2s ease-out infinite;
+    pointer-events: none;
+}
+@keyframes slpWaPulse {
+    0%   { transform: scale(1);    opacity: .85; }
+    100% { transform: scale(1.55); opacity: 0; }
+}
+.slp-wa__badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #DC2626;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 22px;
+    text-align: center;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.4);
+}
+.slp-wa.is-open .slp-wa__badge { display: none; }
+
+/* Hafif sallanma (3 sn arasinda 1 kez) — dikkat cekici */
+.slp-wa__fab.is-jiggle {
+    animation: slpWaJiggle 0.7s cubic-bezier(.36,.07,.19,.97) 2;
+}
+@keyframes slpWaJiggle {
+    0%, 100% { transform: rotate(0deg); }
+    20% { transform: rotate(-12deg); }
+    40% { transform: rotate(12deg); }
+    60% { transform: rotate(-8deg); }
+    80% { transform: rotate(8deg); }
+}
+
+/* Chat panel */
+.slp-wa__panel {
+    position: absolute;
+    right: 0;
+    bottom: 76px;
+    width: 340px;
+    max-width: calc(100vw - 28px);
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 32px 64px rgba(10, 5, 24, 0.28),
+                0 8px 16px rgba(10, 5, 24, 0.12);
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(20px) scale(.96);
+    transform-origin: bottom right;
+    pointer-events: none;
+    transition: opacity .25s ease,
+                transform .3s cubic-bezier(.16,1,.3,1);
+}
+.slp-wa.is-open .slp-wa__panel {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.slp-wa__header {
+    padding: 16px 18px;
+    background: linear-gradient(135deg, #075E54 0%, #128C7E 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.slp-wa__avatar {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.slp-wa__avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.slp-wa__avatar i { color: rgba(255, 255, 255, 0.85); font-size: 20px; }
+.slp-wa__online {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #4ADE80;
+    border: 2px solid #075E54;
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+}
+.slp-wa__head-info {
+    flex: 1;
+    min-width: 0;
+}
+.slp-wa__name {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.slp-wa__status {
+    font-size: 11px;
+    opacity: 0.9;
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.slp-wa__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #4ADE80;
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.7);
+    animation: slpWaDotPulse 1.6s ease-in-out infinite;
+}
+@keyframes slpWaDotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+.slp-wa__close {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16);
+    border: none;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background .15s ease;
+}
+.slp-wa__close:hover { background: rgba(255, 255, 255, 0.32); }
+
+/* Chat body — WhatsApp tarzi soft beige + bubble */
+.slp-wa__body {
+    padding: 22px 16px 14px;
+    background: #ECE5DD;
+    background-image:
+        radial-gradient(circle at 18% 15%, rgba(255,255,255,0.5) 1px, transparent 1px),
+        radial-gradient(circle at 78% 60%, rgba(0,0,0,0.04) 1px, transparent 1px);
+    background-size: 36px 36px, 52px 52px;
+    min-height: 110px;
+    animation: slpWaBubbleIn 0.45s cubic-bezier(.16,1,.3,1) 0.1s both;
+}
+.slp-wa.is-open .slp-wa__bubble {
+    animation: slpWaBubbleIn 0.45s cubic-bezier(.16,1,.3,1) 0.1s both;
+}
+@keyframes slpWaBubbleIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.slp-wa__bubble {
+    position: relative;
+    background: #fff;
+    border-radius: 4px 14px 14px 14px;
+    padding: 12px 14px;
+    font-size: 14px;
+    color: var(--slp-ink);
+    line-height: 1.55;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    max-width: 86%;
+}
+.slp-wa__bubble strong { color: #075E54; }
+.slp-wa__bubble::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.slp-wa__footer {
+    padding: 14px 18px 16px;
+    background: #fff;
+}
+.slp-wa__cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #25D366;
+    color: #fff;
+    padding: 13px 22px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    box-shadow: 0 6px 16px rgba(37, 211, 102, 0.32);
+    transition: all .2s cubic-bezier(.4,0,.2,1);
+}
+.slp-wa__cta i { font-size: 18px; }
+.slp-wa__cta:hover {
+    background: #1DA851;
+    color: #fff;
+    transform: translateY(-2px);
+    text-decoration: none;
+    box-shadow: 0 12px 26px rgba(37, 211, 102, 0.45);
+}
+
+/* Drawer acikken WhatsApp da gizle (cakisma yok) */
+body.slp-drawer-open .slp-wa {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(20px);
+    transition: opacity .2s ease, transform .2s ease;
+}
+
+/* Mobil */
+@media (max-width: 640px) {
+    .slp-wa {
+        right: 14px;
+        bottom: 90px;
+    }
+    .slp-wa__fab {
+        width: 54px;
+        height: 54px;
+        font-size: 26px;
+    }
+    .slp-wa__panel {
+        width: calc(100vw - 28px);
+        right: 0;
+        bottom: 70px;
+    }
+}
+
 /* Hide legacy below-booking anchor — drawer opens instead */
 .slp-booking-anchor { display: none; }
 
