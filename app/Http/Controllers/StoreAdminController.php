@@ -16618,8 +16618,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     public function isletmegorselekle(Request $request)
     {
         if(isset($_FILES["isletmegorselleri"]["name"])){
-            $salongorselleri = '';
-            for($i=0;$i<count($_FILES["isletmegorselleri"]["name"]);$i++){
+            $mevcutSayi = SalonGorselleri::where('salon_id',$request->sube)->where('kapak_fotografi','!=',1)->count();
+            $kalanSlot = max(0, 12 - $mevcutSayi);
+            $yuklenecek = min(count($_FILES["isletmegorselleri"]["name"]), $kalanSlot);
+            for($i=0;$i<$yuklenecek;$i++){
                 $salongorselleri = new SalonGorselleri();
                 $image = $request->isletmegorselleri[$i];
                 $filename = strtotime(date('H:i:s')). '-' .$_FILES["isletmegorselleri"]["name"][$i] . '.' . $image->getClientOriginalExtension();
