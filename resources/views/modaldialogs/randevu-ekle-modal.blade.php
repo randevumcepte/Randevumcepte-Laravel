@@ -68,7 +68,7 @@
                                                         @endif
                                                         <label class="form-label">@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</label>
                                                         <div class="d-flex" style="gap:6px;">
-                                                            <select name="adsoyad" id="randevuekle_musteri_id" class="form-control opsiyonelSelect musteri_secimi" style="flex:1; height: 40px; font-size: 0.9rem;">
+                                                            <select name="adsoyad" id="randevuekle_musteri_id" class="form-control opsiyonelSelect musteri_secimi" style="flex:1; height: 50px; font-size: 1rem;">
                                                                 <option></option>
                                                             </select>
                                                             <button class="btn btn-outline-primary yanitsiz_musteri_ekleme" type="button" data-toggle="modal" data-target="#musteri-bilgi-modal" title="Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29)Danışan @else Müşteri @endif ekle" style="padding: 0 14px; height: 40px; white-space: nowrap; font-size: 0.85rem;">
@@ -78,11 +78,11 @@
                                                     </div>
                                                     <div class="col-lg-4 col-md-6 col-sm-6 mb-2">
                                                         <label class="form-label">Tarih</label>
-                                                        <input required placeholder="Tarih" type="text" class="form-control" name="tarih" id="randevutarihiyeni" autocomplete="off" novalidate value="{{date('Y-m-d')}}" style="height: 40px; font-size: 0.9rem;" />
+                                                        <input required placeholder="Tarih" type="text" class="form-control" name="tarih" id="randevutarihiyeni" autocomplete="off" novalidate value="{{date('Y-m-d')}}" style="height: 50px; font-size: 1rem;" />
                                                     </div>
                                                     <div class="col-lg-3 col-md-6 col-sm-6 mb-2">
                                                         <label class="form-label">Saat</label>
-                                                        <select id='randevu_saat' name="saat" class="form-control" style="height: 40px; font-size: 0.9rem;">
+                                                        <select id='randevu_saat' name="saat" class="form-control" style="height: 50px; font-size: 1rem;">
                                                             @for($j = strtotime(date('07:00')) ; $j < strtotime(date('23:15')); $j+=(15*60))
                                                             <option value="{{date('H:i',$j)}}:00">{{date('H:i',$j)}}</option>
                                                             @endfor
@@ -334,20 +334,20 @@
 
 }
 
-/* Musteri secimi Select2 boyutu — Tom Select ile butunluk icin 40px */
+/* Musteri secimi Select2 boyutu — buyuk ve belirgin */
 #modal-view-event-add #randevuekle_musteri_id + .select2-container .select2-selection--single {
-    height: 40px !important;
+    height: 50px !important;
     border: 1px solid #d1d5db !important;
     border-radius: 6px !important;
-    padding: 4px 8px !important;
+    padding: 6px 10px !important;
 }
 #modal-view-event-add #randevuekle_musteri_id + .select2-container .select2-selection--single .select2-selection__rendered {
-    line-height: 30px !important;
-    font-size: 0.9rem !important;
+    line-height: 36px !important;
+    font-size: 1rem !important;
     padding-left: 4px !important;
 }
 #modal-view-event-add #randevuekle_musteri_id + .select2-container .select2-selection--single .select2-selection__arrow {
-    height: 38px !important;
+    height: 48px !important;
 }
 #modal-view-event-add #randevuekle_musteri_id + .select2-container--default.select2-container--focus .select2-selection--single,
 #modal-view-event-add #randevuekle_musteri_id + .select2-container--default.select2-container--open .select2-selection--single {
