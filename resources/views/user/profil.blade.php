@@ -1,132 +1,193 @@
-
-
 @extends('layout.layout_profil')
 @section('content')
-           
-           <section class="block">
-                <div class="container">
-                    <div class="row">
-                        <div class="col-md-12" >
 
-                             <ul class="nav nav-pills" id="myTab-pills" role="tablist" style="text-align: center;">
-                                    <li class="nav-item">
-                                        <a class="nav-link active icon" href="/profilim"><i class="fa fa-user" style="color:white"></i>Profilim</a>
-                                    </li>
-                                    <li class="nav-item">
-                                       <a class="nav-link icon" href="/randevularim">
-                                    <i class="fa fa-heart"></i>Randevularım
-                                        </a>
-                                    </li>
-                                       <li class="nav-item">
-                                         <a class="nav-link icon" href="/ayarlarim">
-                                             <i class="fa fa-recycle"></i>Ayarlarım
-                                        </a> 
-                                    </li>
-                                </ul>
-                        
+<!-- Modern Navigation Pills -->
+<div class="modern-nav-pills">
+    <a href="/profilim" class="nav-pill-item active">
+        <i class="fa fa-user"></i>
+        <span>Profilim</span>
+    </a>
+    <a href="/randevularim" class="nav-pill-item">
+        <i class="fa fa-calendar"></i>
+        <span>Randevularım</span>
+    </a>
+    <a href="/ayarlarim" class="nav-pill-item">
+        <i class="fa fa-cog"></i>
+        <span>Ayarlarım</span>
+    </a>
+</div>
+
+<!-- Profile Main Container -->
+<section class="profile-main-container">
+    <div class="container">
+        <form class="form" enctype="multipart/form-data" method="POST" value="{{ csrf_token() }}" action="{{route('musteri_profil_guncelleme')}}">
+            {{ csrf_field() }}
+
+            <div class="row">
+                <!-- Left Column - Form -->
+                <div class="col-lg-8 col-md-7">
+                    <div class="profile-card">
+                        <div class="profile-card-header">
+                            <h2>
+                                <i class="fa fa-id-card"></i>
+                                Profil Bilgilerim
+                            </h2>
                         </div>
-                        <!--end col-md-3-->
-                        <div class="col-md-12">
-                            <form class="form" enctype="multipart/form-data" method="POST" value="{{ csrf_token() }}" action="{{route('musteri_profil_guncelleme')}}">
-                                 {{ csrf_field() }}
-                                <div class="row">
-                                    <div class="col-md-9"  style="margin-top: 30px">
-                                        <h2 style="margin-bottom: 30px">Profil Bilgilerim</h2>
-                                        
-                                             
-                                          <div class="col-md-6" style="float: left;">     
-                                            <div class="form-group">
-                                                        <label for="name" class="col-form-label required">Ad Soyad</label>
-                                                        <input style="border-radius: 60px" name="name" type="text" class="form-control" id="name" placeholder="Your Name" value="{{Auth::user()->name}}" required>
-                                            </div>
-                                                
-                                            <div class="form-group">
-                                                <label for="cep_telofon" class="col-form-label required">Cep Telefonu</label>
-                                                <input style="border-radius: 60px"  name="cep_telofon" type="number" class="form-control" id="cep_telofon" required placeholder="Cep Telefonu" value="{{Auth::user()->cep_telefon}}">
-                                            </div>
-                                             <div class="form-group">
-                                                        <label for="email" class="col-form-label required">E-posta</label>
-                                                        <input style="border-radius: 60px"  name="email" type="text" class="form-control" id="email" placeholder="E-posta" value="{{Auth::user()->email}}" required>
-                                            </div>
-                                            <!--end form-group-->
-                                             
-                                        </div>
-                                        <div class="col-md-6" style="float: left;">
-                                            
-                                                
-                                            <div class="form-group">
-                                                <label for="ev_telofon" class="col-form-label">Ev Telefonu</label>
-                                                <input style="border-radius: 60px"  name="ev_telofon" type="number" class="form-control" id="ev_telofon" placeholder="Ev Telefonu" value="{{Auth::user()->ev_telefon}}">
-                                            </div>
-                                             <div class="form-group">
-                                                <label for="cep_telofon" class="col-form-label ">Doğum Tarihi</label>
-                                                <input style="border-radius: 60px"  name="dogum_tarihi" type="date" class="form-control" id="dogum_tarihi" placeholder="Doğum Tarihi" value="{{Auth::user()->dogum_tarihi}}">
-                                            </div>
-                                            <div class="form-group">
-                                                    <label for="cinsiyet" class="col-form-label ">Cinsiyet</label>
-                                                     <select name="cinsiyet" style="border-radius: 60px"  id="cinsiyet" data-placeholder="Cinsiyet Seçin"> 
-                                                     @if(Auth::user()->cinsiyet==1)
-                                                      <option value="0">Kadın</option>
-                                                       
-                                                      <option value="1" selected="true">
-                                                         Erkek
-                                                      </option>
-                                                      @else
-                                                        <option value="0" selected="true">Kadın</option>
-                                                       
-                                                      <option value="1">
-                                                         Erkek
-                                                      </option>
-                                                      @endif
-                                                     
-                                                   
-                                                      
-                                                
-                                            </select>
-
-                                            </div>
-                                           
-                                        </div>
-                                            
-                                    </div>
-                                    <!--end col-md-8-->
-                                    <div class="col-md-3"  style="margin-top: 30px">
-                                        <div class="profile-image">
-                                            <div class="image background-image">
-                                                @if(Auth::user()->profil_resim != '' || Auth::user()->profil_resim != null)
-                                                 <img src="{{secure_asset(Auth::user()->profil_resim)}}" alt="">
-                                              
-                                                @else
-                                                 <img src="{{secure_asset('public/img/author-09.jpg')}}" alt="">
-                                                @endif
-
-                                            </div>
-                                            <div class="single-file-input">
-                                                <input type="file" id="profil_resim" name="profil_resim">
-                                                <div class="btn btn-framed btn-primary small btn-rounded">Resim Yükle</div>
-                                                 <a href="{{route('musteri_profil_resmi_kaldirma')}}" class="btn btn-framed btn-primary small btn-rounded">Resmi Sil</a>
-                                            </div>
-
-                                        </div>
-                                    </div>
-
+                        <div class="profile-card-body">
+                            <div class="profile-form-row">
+                                <div class="modern-form-group">
+                                    <label for="name" class="required">
+                                        <i class="fa fa-user"></i>
+                                        Ad Soyad
+                                    </label>
+                                    <input
+                                        name="name"
+                                        type="text"
+                                        class="modern-form-control"
+                                        id="name"
+                                        placeholder="Adınız ve Soyadınız"
+                                        value="{{Auth::user()->name}}"
+                                        required>
                                 </div>
-                                <div class="row" style="position: relative;float: left;width: 100%;text-align: left;margin-top:20px">
-                                    <div class="col-md-12">
-                                      <div class="col-md-12">
-                                       <div class="form-group">
-                                                  <button id="profilbilgiguncelle" type="submit" class="btn btn-primary btn-rounded" style="width: 100%">Bilgileri Güncelle</button>
-                                            </div>
-                                          </div>
-                                    </div>
+
+                                <div class="modern-form-group">
+                                    <label for="cep_telofon" class="required">
+                                        <i class="fa fa-mobile"></i>
+                                        Cep Telefonu
+                                    </label>
+                                    <input
+                                        name="cep_telofon"
+                                        type="number"
+                                        class="modern-form-control"
+                                        id="cep_telofon"
+                                        placeholder="5XX XXX XX XX"
+                                        value="{{Auth::user()->cep_telefon}}"
+                                        required>
                                 </div>
-                            </form>
+                            </div>
+
+                            <div class="profile-form-row">
+                                <div class="modern-form-group">
+                                    <label for="email" class="required">
+                                        <i class="fa fa-envelope"></i>
+                                        E-posta
+                                    </label>
+                                    <input
+                                        name="email"
+                                        type="email"
+                                        class="modern-form-control"
+                                        id="email"
+                                        placeholder="ornek@email.com"
+                                        value="{{Auth::user()->email}}"
+                                        required>
+                                </div>
+
+                                <div class="modern-form-group">
+                                    <label for="ev_telofon">
+                                        <i class="fa fa-phone"></i>
+                                        Ev Telefonu
+                                    </label>
+                                    <input
+                                        name="ev_telofon"
+                                        type="number"
+                                        class="modern-form-control"
+                                        id="ev_telofon"
+                                        placeholder="0XXX XXX XX XX"
+                                        value="{{Auth::user()->ev_telefon}}">
+                                </div>
+                            </div>
+
+                            <div class="profile-form-row">
+                                <div class="modern-form-group">
+                                    <label for="dogum_tarihi">
+                                        <i class="fa fa-birthday-cake"></i>
+                                        Doğum Tarihi
+                                    </label>
+                                    <input
+                                        name="dogum_tarihi"
+                                        type="date"
+                                        class="modern-form-control"
+                                        id="dogum_tarihi"
+                                        value="{{Auth::user()->dogum_tarihi}}">
+                                </div>
+
+                                <div class="modern-form-group">
+                                    <label for="cinsiyet">
+                                        <i class="fa fa-venus-mars"></i>
+                                        Cinsiyet
+                                    </label>
+                                    <select name="cinsiyet" class="modern-form-control" id="cinsiyet">
+                                        @if(Auth::user()->cinsiyet==1)
+                                            <option value="0">Kadın</option>
+                                            <option value="1" selected="true">Erkek</option>
+                                        @else
+                                            <option value="0" selected="true">Kadın</option>
+                                            <option value="1">Erkek</option>
+                                        @endif
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <!--end row-->
                 </div>
-                <!--end container-->
-            </section>
-          
+
+                <!-- Right Column - Profile Image -->
+                <div class="col-lg-4 col-md-5">
+                    <div class="profile-card">
+                        <div class="profile-card-header">
+                            <h2>
+                                <i class="fa fa-camera"></i>
+                                Profil Resmi
+                            </h2>
+                        </div>
+                        <div class="profile-card-body">
+                            <div class="profile-image-section">
+                                <div class="profile-image-wrapper">
+                                    <div class="profile-image-container">
+                                        @if(Auth::user()->profil_resim != '' && Auth::user()->profil_resim != null)
+                                            <img src="{{secure_asset(Auth::user()->profil_resim)}}" alt="Profil Resmi">
+                                        @else
+                                            <img src="{{secure_asset('public/img/author-09.jpg')}}" alt="Profil Resmi">
+                                        @endif
+                                    </div>
+                                    <div class="profile-image-badge">
+                                        <i class="fa fa-star"></i>
+                                    </div>
+                                </div>
+
+                                <div class="profile-image-actions">
+                                    <div class="file-input-wrapper">
+                                        <input type="file" id="profil_resim" name="profil_resim" accept="image/*">
+                                        <button type="button" class="btn-upload">
+                                            <i class="fa fa-upload"></i>
+                                            <span>Resim Yükle</span>
+                                        </button>
+                                    </div>
+                                    <a href="{{route('musteri_profil_resmi_kaldirma')}}" class="btn-delete">
+                                        <i class="fa fa-trash"></i>
+                                        <span>Resmi Sil</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="btn-submit-wrapper">
+                        <button id="profilbilgiguncelle" type="submit" class="btn-submit">
+                            <span>Bilgileri Güncelle</span>
+                            <i class="fa fa-check"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
 @endsection
         

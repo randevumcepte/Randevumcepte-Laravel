@@ -11,6 +11,7 @@
       <link rel="stylesheet" href="{{secure_asset('public/css/user.css')}}">
       <link rel="stylesheet" href="{{secure_asset('public/css/navigationmobilemenu.css')}}">
       <link rel="stylesheet" href="{{secure_asset('public/css/owl.carousel.min.css')}}" type="text/css">
+      <link rel="stylesheet" href="{{secure_asset('public/css/modern-profile.css')}}">
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
       <link
          rel="stylesheet"
@@ -177,29 +178,17 @@
                </div>
                <!--end container-->
             </div>
-            <div class="page-title">
-               <div class="container" style="text-align: center">
-                  <h1>Profilim</h1>
-                  <p style="opacity: 1">Profil bilgilerinizi ve randev görüntüleyin</p>
-                  <p style="opacity: 1">Gerekli güncellemeleri uygulayın</p>
-               </div>
-               <!--end container-->
-            </div>
-            <!--============ End Page Title =====================================================================-->
-            <div class="background">
-                     
-                     <div class="background-image">
-                        @if(\App\SalonGorselleri::where('salon_id',$salon->id)->where('kapak_fotografi',1)->count()==1)
-                        <img style="opacity:0.5" src="{{secure_asset(\App\SalonGorselleri::where('salon_id',$salon->id)->where('kapak_fotografi',1)->value('salon_gorseli'))}}" alt="Background">
-                        @else
-                        <img style="opacity:0.5" src="/public/img/randevumcepte.jpg">
-                        @endif
-                        
-                        
-                    </div>
-                   
+            <!--============ Modern Hero Section =====================================================================-->
+            <div class="profile-hero">
+               <div class="profile-hero-content">
+                  <div class="container">
+                     <h1>Hoş Geldiniz, {{Auth::user()->name}}</h1>
+                     <p>Profil bilgilerinizi görüntüleyin ve güncelleyin</p>
+                     <p>Randevularınızı takip edin, ayarlarınızı yönetin</p>
                   </div>
-            <!--end background-->
+               </div>
+            </div>
+            <!--============ End Modern Hero Section =====================================================================-->
       </header>
     
       <section class="content">
