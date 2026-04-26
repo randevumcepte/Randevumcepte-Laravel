@@ -528,6 +528,48 @@
       </a>
    </div>
 
+   {{-- ============ SAGDA SABIT SOSYAL MEDYA SERIDI ============ --}}
+   @php
+      $_igRaw = trim($salon->instagram_sayfa ?? '');
+      $_igUrl = '';
+      if (!empty($_igRaw)) {
+          $_igUrl = preg_match('#^https?://#i', $_igRaw)
+              ? $_igRaw
+              : 'https://instagram.com/' . ltrim($_igRaw, '@');
+      }
+      $_fbRaw = trim($salon->facebook_sayfa ?? '');
+      $_fbUrl = '';
+      if (!empty($_fbRaw)) {
+          $_fbUrl = preg_match('#^https?://#i', $_fbRaw)
+              ? $_fbRaw
+              : 'https://facebook.com/' . ltrim($_fbRaw, '@');
+      }
+   @endphp
+   @if(!empty($_igUrl) || !empty($_fbUrl))
+      <aside class="slp-social" aria-label="Sosyal Medya Hesaplari">
+         @if(!empty($_igUrl))
+            <a href="{{ $_igUrl }}" target="_blank" rel="noopener" class="slp-social__btn slp-social__btn--ig" aria-label="Instagram'da takip et" title="Instagram'da takip et">
+               <i class="fa fa-instagram"></i>
+            </a>
+         @endif
+         @if(!empty($_fbUrl))
+            <a href="{{ $_fbUrl }}" target="_blank" rel="noopener" class="slp-social__btn slp-social__btn--fb" aria-label="Facebook sayfasi" title="Facebook sayfasi">
+               <i class="fa fa-facebook"></i>
+            </a>
+         @endif
+         @if(!empty($salon->telefon_1))
+            <a href="tel:{{ $salon->telefon_1 }}" class="slp-social__btn slp-social__btn--phone" aria-label="Telefon ile ara" title="Telefon">
+               <i class="fa fa-phone"></i>
+            </a>
+         @endif
+         @if(!empty($salon->maps_iframe) || !empty($salon->adres))
+            <a href="https://www.google.com/maps/search/?api=1&query={{ urlencode(($salon->adres ?? '').' '.($salon->ilce->ilce_adi ?? '').' '.($salon->il->il_adi ?? '')) }}" target="_blank" rel="noopener" class="slp-social__btn slp-social__btn--map" aria-label="Yol Tarifi" title="Yol Tarifi">
+               <i class="fa fa-map-marker"></i>
+            </a>
+         @endif
+      </aside>
+   @endif
+
    {{-- ============ WHATSAPP FLOATING CHAT WIDGET (sag taraf) ============ --}}
    @if(!empty($salon->telefon_1))
       @php

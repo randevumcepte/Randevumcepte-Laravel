@@ -1285,6 +1285,90 @@ body { padding-bottom: 80px; }
 @media (max-width: 640px) { body { padding-bottom: 76px; } }
 
 /* ==========================================================================
+   SAG ORTADA SABIT SOSYAL MEDYA SERIDI
+   Dikey pill, glassmorphism. Hover'da platform rengi + sola kayma.
+   ========================================================================== */
+.slp-social {
+    position: fixed;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 999px;
+    box-shadow: 0 14px 36px rgba(16, 24, 40, 0.16),
+                0 2px 6px rgba(16, 24, 40, 0.06);
+    animation: slpSocialIn .55s cubic-bezier(.16,1,.3,1) .3s both;
+}
+@keyframes slpSocialIn {
+    from { opacity: 0; transform: translate(20px, -50%); }
+    to   { opacity: 1; transform: translate(0, -50%); }
+}
+.slp-social__btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--slp-ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    text-decoration: none;
+    border: 1px solid var(--slp-line);
+    transition: transform .22s cubic-bezier(.4,0,.2,1),
+                background .22s ease,
+                color .22s ease,
+                border-color .22s ease,
+                box-shadow .22s ease;
+    position: relative;
+    overflow: hidden;
+}
+.slp-social__btn:hover {
+    transform: translateX(-4px) scale(1.08);
+    text-decoration: none;
+    color: #fff !important;
+    border-color: transparent;
+    box-shadow: 0 8px 22px rgba(16, 24, 40, 0.22);
+}
+.slp-social__btn--ig:hover {
+    background: linear-gradient(135deg, #F58529 0%, #DD2A7B 50%, #8134AF 100%);
+}
+.slp-social__btn--fb:hover {
+    background: #1877F2;
+}
+.slp-social__btn--phone:hover {
+    background: linear-gradient(135deg, #22C55E, #16A34A);
+}
+.slp-social__btn--map:hover {
+    background: var(--slp-g-main);
+}
+
+/* Drawer acikken sosyal seridi gizle */
+body.slp-drawer-open .slp-social {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(20px, -50%);
+}
+
+/* Mobil: cok dar olabilir, daha kompakt */
+@media (max-width: 640px) {
+    .slp-social {
+        right: 8px;
+        padding: 5px;
+        gap: 5px;
+    }
+    .slp-social__btn { width: 38px; height: 38px; font-size: 15px; }
+}
+
+/* ==========================================================================
    WHATSAPP CHAT WIDGET — sag tarafta yuzer, tiklayinca chat panel acilir
    ========================================================================== */
 .slp-wa {
