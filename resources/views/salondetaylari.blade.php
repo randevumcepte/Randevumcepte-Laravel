@@ -833,17 +833,35 @@
 
          {{-- ================= GALERI ================= --}}
          @if($salongorselleri && $salongorselleri->where('salon_id',$salon->id)->count())
+         @php
+            $_isletmeAdminLogged = Auth::guard('isletmeyonetim')->check()
+                && Auth::guard('isletmeyonetim')->user()->salon_id == $salon->id;
+         @endphp
          <section class="slp-section">
             <div class="slp-section__head">
                <span class="slp-eyebrow">Galeri</span>
                <h2 class="slp-section__title">Salonumuzdan Kareler</h2>
                <p class="slp-section__sub">Görsellerimizle atmosferimizi yakından tanıyın.</p>
+               @if($_isletmeAdminLogged)
+                  <p style="font-size:12px;color:var(--slp-soft);margin-top:8px;">
+                     <i class="fa fa-info-circle"></i> Sadece sizin görebildiğiniz: yanlış yüklenen bir görseli kaldırmak için üzerine gelip kırmızı çöp ikonuna tıklayın.
+                  </p>
+               @endif
             </div>
             <div class="slp-gallery">
                @foreach($salongorselleri as $g)
                   @if($g->salon_id == $salon->id)
-                     <div class="slp-gallery__item" onclick="buyut('{{secure_asset($g->salon_gorseli)}}');" role="button" tabindex="0">
-                        <img src="{{secure_asset($g->salon_gorseli)}}" alt="Salon Görseli" loading="lazy">
+                     <div class="slp-gallery__item {{$_isletmeAdminLogged ? 'is-admin' : ''}}" data-gorsel-id="{{$g->id}}">
+                        <img src="{{secure_asset($g->salon_gorseli)}}" alt="Salon Görseli" loading="lazy" onclick="buyut('{{secure_asset($g->salon_gorseli)}}');">
+                        @if($_isletmeAdminLogged)
+                           <button type="button"
+                                   class="slp-gallery__delete"
+                                   data-gorsel-id="{{$g->id}}"
+                                   title="Görseli kaldır"
+                                   aria-label="Görseli kaldır">
+                              <i class="fa fa-trash"></i>
+                           </button>
+                        @endif
                      </div>
                   @endif
                @endforeach
@@ -1148,6 +1166,47 @@
            new MutationObserver(function(){ setTimeout(detect, 30); })
                .observe(el, { attributes: true, attributeFilter: ['style','class'] });
        });
+
+       /* --- Galeri admin sil butonu (sadece isletmeyonetim guard'inda gosterilir) --- */
+       (function(){
+           var btns = document.querySelectorAll('.slp-gallery__delete');
+           if (!btns.length) return;
+           btns.forEach(function(btn){
+               btn.addEventListener('click', function(e){
+                   e.preventDefault();
+                   e.stopPropagation();
+                   var id = btn.getAttribute('data-gorsel-id');
+                   if (!id) return;
+                   if (!confirm('Bu görseli galeriden silmek istediğinize emin misiniz? Geri alınamaz.')) return;
+                   var item = btn.closest('.slp-gallery__item');
+                   if (item) item.style.opacity = '0.4';
+                   var form = new FormData();
+                   form.append('gorselid', id);
+                   form.append('_token', document.querySelector('meta[name="_token"]')?.content
+                                       || document.querySelector('meta[name="csrf-token"]')?.content || '');
+                   fetch('/isletmeyonetim/gorselsil?gorselid=' + encodeURIComponent(id), {
+                       method: 'GET',
+                       credentials: 'same-origin',
+                       headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                   }).then(function(r){
+                       if (r.ok) {
+                           if (item) {
+                               item.style.transition = 'opacity .25s ease, transform .25s ease';
+                               item.style.transform = 'scale(.85)';
+                               item.style.opacity = '0';
+                               setTimeout(function(){ item.remove(); }, 280);
+                           }
+                       } else {
+                           alert('Silme başarısız oldu. Tekrar deneyiniz.');
+                           if (item) item.style.opacity = '1';
+                       }
+                   }).catch(function(){
+                       alert('Bağlantı hatası. Tekrar deneyiniz.');
+                       if (item) item.style.opacity = '1';
+                   });
+               });
+           });
+       })();
 
        /* --- Carkifelek auto-popup + spinning wheel sound --- */
        (function(){

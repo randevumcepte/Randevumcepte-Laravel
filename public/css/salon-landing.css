@@ -2217,6 +2217,43 @@ body.slp-drawer-open .slp-wa {
     grid-column: span 2;
     grid-row: span 2;
 }
+
+/* Admin sil butonu — sadece .is-admin class'i (isletmeyonetim guard) varken gosterilir */
+.slp-gallery__delete {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(220, 38, 38, 0.95);
+    color: #fff;
+    border: 2px solid #fff;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 4;
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
+    opacity: 0;
+    transform: translateY(-6px) scale(0.85);
+    transition: all .2s cubic-bezier(.4,0,.2,1);
+}
+.slp-gallery__item.is-admin:hover .slp-gallery__delete,
+.slp-gallery__item.is-admin:focus-within .slp-gallery__delete {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+.slp-gallery__delete:hover {
+    background: #B91C1C;
+    transform: scale(1.1) !important;
+    box-shadow: 0 8px 22px rgba(220, 38, 38, 0.6);
+}
+.slp-gallery__item.is-admin {
+    cursor: default;
+}
+.slp-gallery__item.is-admin > img { cursor: zoom-in; }
 @media (max-width: 767px) {
     .slp-gallery { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 140px; gap: 10px; }
     .slp-gallery__item:first-child { grid-column: span 2; grid-row: span 2; }
