@@ -1471,13 +1471,16 @@ let musteriPaketleri = [];
 
 // Tom Select uyumlu addServicesToForm — paket popup'tan gelen hizmetleri aktif Tom Select'e ekler
 window.addServicesToForm = function(hizmetData, result, showSuccessMessage){
-    if(!hizmetData || !hizmetData.length){ return; }
+    console.log('[PAKET] addServicesToForm cagrildi:', hizmetData);
+    if(!hizmetData || !hizmetData.length){ console.warn('[PAKET] hizmetData bos'); return; }
     var $sel = $('#yenirandevuekleform .hizmet-select').first();
+    console.log('[PAKET] hizmet-select bulundu mu?', $sel.length);
     if(!$sel.length) return;
     var el = $sel[0];
     var ts = el.tomselect;
+    console.log('[PAKET] Tom Select instance:', !!ts);
     if(!ts){
-        // Tom Select henuz init olmamissa biraz bekle, tekrar dene
+        console.log('[PAKET] TS yok, 200ms sonra tekrar dene');
         setTimeout(function(){ window.addServicesToForm(hizmetData, result, showSuccessMessage); }, 200);
         return;
     }
