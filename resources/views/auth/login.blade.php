@@ -2,15 +2,16 @@
 
 @section('content')
 <div class="login-wrapper">
-    <!-- Full Screen Video Background -->
-    <video class="login-video-bg" autoplay muted loop playsinline preload="auto">
-        <source src="{{secure_asset('public/videos/login-bg.m4v')}}" type="video/mp4">
-    </video>
-
-    <!-- Floating Login Card -->
     <div class="login-container">
-        <!-- Login Header (Hidden in CSS) -->
-        <div class="login-header"></div>
+        <!-- Left Side - Video Section -->
+        <div class="login-header">
+            <video class="login-video-bg" autoplay muted loop playsinline preload="auto">
+                <source src="{{secure_asset('public/videos/login-bg.m4v')}}" type="video/mp4">
+            </video>
+            <img src="{{secure_asset(\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('logo'))}}" alt="{{\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('salon_adi')}}" class="login-logo">
+            <h1 class="login-title">Hoş Geldiniz</h1>
+            <p class="login-subtitle">Randevu sisteminize giriş yapın</p>
+        </div>
 
         <!-- Login Body -->
         <div class="login-body">
