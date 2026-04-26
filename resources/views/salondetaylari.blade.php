@@ -832,11 +832,21 @@
          @endif
 
          {{-- ================= GALERI ================= --}}
-         @if($salongorselleri && $salongorselleri->where('salon_id',$salon->id)->count())
          @php
+            // Yanlislikla yuklenen / blocklist'teki gorseller (filename pattern) filtrelenir.
+            $_blockedImagePatterns = ['685e8dd97888b'];
+            $_galleryImages = $salongorselleri
+                ->where('salon_id', $salon->id)
+                ->filter(function($g) use ($_blockedImagePatterns) {
+                    foreach ($_blockedImagePatterns as $pat) {
+                        if (stripos($g->salon_gorseli ?? '', $pat) !== false) return false;
+                    }
+                    return true;
+                });
             $_isletmeAdminLogged = Auth::guard('isletmeyonetim')->check()
                 && Auth::guard('isletmeyonetim')->user()->salon_id == $salon->id;
          @endphp
+         @if($_galleryImages->count())
          <section class="slp-section">
             <div class="slp-section__head">
                <span class="slp-eyebrow">Galeri</span>
@@ -849,21 +859,19 @@
                @endif
             </div>
             <div class="slp-gallery">
-               @foreach($salongorselleri as $g)
-                  @if($g->salon_id == $salon->id)
-                     <div class="slp-gallery__item {{$_isletmeAdminLogged ? 'is-admin' : ''}}" data-gorsel-id="{{$g->id}}">
-                        <img src="{{secure_asset($g->salon_gorseli)}}" alt="Salon Görseli" loading="lazy" onclick="buyut('{{secure_asset($g->salon_gorseli)}}');">
-                        @if($_isletmeAdminLogged)
-                           <button type="button"
-                                   class="slp-gallery__delete"
-                                   data-gorsel-id="{{$g->id}}"
-                                   title="Görseli kaldır"
-                                   aria-label="Görseli kaldır">
-                              <i class="fa fa-trash"></i>
-                           </button>
-                        @endif
-                     </div>
-                  @endif
+               @foreach($_galleryImages as $g)
+                  <div class="slp-gallery__item {{$_isletmeAdminLogged ? 'is-admin' : ''}}" data-gorsel-id="{{$g->id}}">
+                     <img src="{{secure_asset($g->salon_gorseli)}}" alt="Salon Görseli" loading="lazy" onclick="buyut('{{secure_asset($g->salon_gorseli)}}');">
+                     @if($_isletmeAdminLogged)
+                        <button type="button"
+                                class="slp-gallery__delete"
+                                data-gorsel-id="{{$g->id}}"
+                                title="Görseli kaldır"
+                                aria-label="Görseli kaldır">
+                           <i class="fa fa-trash"></i>
+                        </button>
+                     @endif
+                  </div>
                @endforeach
             </div>
          </section>
