@@ -545,7 +545,7 @@
               : 'https://facebook.com/' . ltrim($_fbRaw, '@');
       }
    @endphp
-   @if(!empty($_igUrl) || !empty($_fbUrl))
+   @if(!empty($_igUrl) || !empty($_fbUrl) || !empty($salon->telefon_1) || !empty($salon->adres))
       <aside class="slp-social" aria-label="Sosyal Medya Hesaplari">
          @if(!empty($_igUrl))
             <a href="{{ $_igUrl }}" target="_blank" rel="noopener" class="slp-social__btn slp-social__btn--ig" aria-label="Instagram'da takip et" title="Instagram'da takip et">
