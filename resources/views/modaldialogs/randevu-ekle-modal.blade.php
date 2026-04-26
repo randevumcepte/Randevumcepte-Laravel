@@ -2221,14 +2221,15 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             $('.birlestir-checkbox[data-index="0"]').prop('disabled', true);
         } else {
             $(this).closest('.hizmet-satiri').remove();
-            
+
             if ($('.hizmet-satiri').length === 1) {
                 $('.hizmet-sil:first').attr('disabled', true);
             }
-            
-            //reorganizeRowIndexes();
+
+            // Satir silindikten sonra index'leri sirayla yeniden yaz (form submit'inde key2 ile hizmet eslesmesi bozulmasin)
+            reorganizeRowIndexes();
         }
-        
+
         updateRandevuOzeti();
     });
     
@@ -2244,28 +2245,21 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             $(this).find('.hizmet-select').attr('data-index', index);
             $(this).find('.oda-select').attr('data-index', index);
             $(this).find('.hizmet-sil').attr('data-value', index);
-            
+
             $(this).find('.personel-select').attr('name', 'randevupersonelleriyeni[]');
-            $(this).find('.yardimci-personel-select').attr('name', 'randevuyardimcipersonelleriyeni');
+            $(this).find('.yardimci-personel-select').attr('name', 'randevuyardimcipersonelleriyeni').attr('id', 'randevuyardimcipersonelleriyeni_' + index);
             $(this).find('.cihaz-select').attr('name', 'randevucihazlariyeni[]');
-            $(this).find('.hizmet-select').attr('name', 'randevuhizmetleriyeni');
+            $(this).find('.hizmet-select').attr('name', 'randevuhizmetleriyeni_' + index + '[]').attr('id', 'randevuhizmetleriyeni_' + index);
             $(this).find('.oda-select').attr('name', 'randevuodalariyeni[]');
-            
+
             const detayContainer = $(this).find('[id^="hizmet-detaylari-"]');
             detayContainer.attr('id', 'hizmet-detaylari-' + index);
-            
-            $(this).find('input.hizmet-suresi').each(function() {
-                const oldName = $(this).attr('name');
-                const newName = oldName.replace(/\[(\d+)\]/, '[' + index + ']');
-                $(this).attr('name', newName);
-            });
-            
-            $(this).find('input.hizmet-fiyati').each(function() {
-                const oldName = $(this).attr('name');
-                const newName = oldName.replace(/\[(\d+)\]/, '[' + index + ']');
-                $(this).attr('name', newName);
-            });
-            
+
+            // birlestir checkbox'in name'i index bagli (birlestir{index}) -> backend birlestir{key2+1} kontrol eder
+            // Ekstra: birlestir{0} (yani ilk satir) backend'de zaten kontrol edilmez
+            $(this).find('.birlestir-checkbox').attr('name', 'birlestir' + index).attr('data-index', index).attr('id', 'customCheck' + index);
+            $(this).find('label.form-check-label').attr('for', 'customCheck' + index);
+
             hizmetSatirSayisi++;
         });
     }
@@ -2273,7 +2267,10 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     // Form gönderilmeden önce toplam süre ve fiyatları hesapla
     $('#yenirandevuekleform').on('submit', function(e) {
         e.preventDefault();
-        
+
+        // Satir indekslerini sirali (0..N-1) yap; backend foreach($randevupersonelleriyeni as $key2) ile $request->{"randevuhizmetleriyeni_{$key2}"} eslesmesi icin sart
+        try { reorganizeRowIndexes(); } catch(err){ console.warn('reorganizeRowIndexes hata:', err); }
+
         let totalFormDuration = 0;
         let totalFormPrice = 0;
         let hasServices = false;

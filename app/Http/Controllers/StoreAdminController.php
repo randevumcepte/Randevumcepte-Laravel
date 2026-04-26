@@ -4392,7 +4392,9 @@ private function ayAdiCevir($ingilizceAy)
                         $oda_id = $request->randevuodalariyeni[$key2];
                     }
                     $hizmetlerToplami = 0;
-                    foreach($request->{"randevuhizmetleriyeni_{$key2}"} as $_key=>  $rHizmet)
+                    $rHizmetler = $request->{"randevuhizmetleriyeni_{$key2}"};
+                    if(!is_array($rHizmetler) || empty($rHizmetler)) { continue; }
+                    foreach($rHizmetler as $_key=>  $rHizmet)
                     {
                         array_push($hizmet_sureleri_okunan,$request->{"hizmet_sureleri-$rHizmet"});
                         $yenirandevuhizmetpersonel = new RandevuHizmetler();
