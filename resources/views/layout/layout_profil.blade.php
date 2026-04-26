@@ -178,17 +178,6 @@
                </div>
                <!--end container-->
             </div>
-            <!--============ Modern Hero Section =====================================================================-->
-            <div class="profile-hero">
-               <div class="profile-hero-content">
-                  <div class="container">
-                     <h1>Hoş Geldiniz, {{Auth::user()->name}}</h1>
-                     <p>Profil bilgilerinizi görüntüleyin ve güncelleyin</p>
-                     <p>Randevularınızı takip edin, ayarlarınızı yönetin</p>
-                  </div>
-               </div>
-            </div>
-            <!--============ End Modern Hero Section =====================================================================-->
       </header>
     
       <section class="content">

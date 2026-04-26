@@ -14,63 +14,11 @@
     --shadow-xl: 0 20px 60px rgba(92, 0, 142, 0.25);
 }
 
-/* Hero Section - Gradient Background */
-.profile-hero {
-    background: var(--gradient-main);
-    padding: 60px 0 120px;
-    position: relative;
-    overflow: hidden;
-}
-
-.profile-hero::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -10%;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-    border-radius: 50%;
-    animation: float 20s infinite ease-in-out;
-}
-
-.profile-hero::after {
-    content: '';
-    position: absolute;
-    bottom: -30%;
-    left: -5%;
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
-    border-radius: 50%;
-    animation: float 15s infinite ease-in-out reverse;
-}
-
-@keyframes float {
-    0%, 100% { transform: translateY(0) translateX(0); }
-    50% { transform: translateY(-30px) translateX(20px); }
-}
-
-.profile-hero-content {
-    position: relative;
-    z-index: 2;
-    text-align: center;
-    color: white;
-}
-
-.profile-hero h1 {
-    font-size: 48px;
-    font-weight: 700;
-    margin-bottom: 15px;
-    text-shadow: 0 2px 20px rgba(0,0,0,0.2);
-    animation: fadeInDown 0.8s ease-out;
-}
-
-.profile-hero p {
-    font-size: 18px;
-    opacity: 0.95;
-    margin-bottom: 10px;
-    animation: fadeInUp 0.8s ease-out 0.2s both;
+/* Clean Background */
+.content {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    min-height: calc(100vh - 90px);
+    padding-top: 50px;
 }
 
 /* Modern Navigation Pills */
@@ -78,9 +26,7 @@
     display: flex;
     justify-content: center;
     gap: 15px;
-    margin: -60px 0 40px;
-    position: relative;
-    z-index: 10;
+    margin: 0 0 40px;
     padding: 0 20px;
 }
 
@@ -126,7 +72,6 @@
 
 /* Main Profile Container */
 .profile-main-container {
-    margin-top: 40px;
     padding-bottom: 60px;
 }
 
@@ -492,21 +437,13 @@ select.modern-form-control {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .profile-hero {
-        padding: 40px 0 100px;
-    }
-
-    .profile-hero h1 {
-        font-size: 32px;
-    }
-
-    .profile-hero p {
-        font-size: 15px;
+    .content {
+        padding-top: 30px;
     }
 
     .modern-nav-pills {
         flex-direction: column;
-        margin: -50px 20px 30px;
+        margin: 0 20px 30px;
     }
 
     .modern-nav-pills .nav-pill-item {
@@ -549,12 +486,12 @@ select.modern-form-control {
 }
 
 @media (max-width: 480px) {
-    .profile-hero h1 {
-        font-size: 26px;
+    .content {
+        padding-top: 20px;
     }
 
     .modern-nav-pills {
-        margin: -40px 15px 20px;
+        margin: 0 15px 20px;
     }
 
     .modern-nav-pills .nav-pill-item {
