@@ -395,20 +395,22 @@
                                  </div>
                               </div>
 
-                              {{-- ==== 5) SEO & KAPAK ==== --}}
-                              <div class="row">
-                                 <div class="col-md-6">
-                                    <div class="rm-card" style="height:calc(100% - 18px);">
-                                       <div class="rm-card__head">
-                                          <h3><i class="fa fa-search"></i> SEO Ayarları</h3>
-                                          <small>Google gibi arama motorlarında işletmenizin görünümünü iyileştirir.</small>
-                                       </div>
-                                       <div class="rm-card__body">
-                                          <div class="form-group">
+                              {{-- ==== 5) SEO AYARLARI ==== --}}
+                              <div class="rm-card">
+                                 <div class="rm-card__head">
+                                    <h3><i class="fa fa-search"></i> SEO Ayarları</h3>
+                                    <small>Google gibi arama motorlarında işletmenizin görünümünü iyileştirir.</small>
+                                 </div>
+                                 <div class="rm-card__body">
+                                    <div class="row">
+                                       <div class="col-md-6">
+                                          <div class="form-group" style="margin-bottom:0">
                                              <label>Online Randevu Sayfası SEO Açıklaması</label>
-                                             <textarea class="form-control" name="seo_description" placeholder="Ör. Kalıcı makyaj, cilt bakımı, lazer ve güzelliğe dair tüm hizmetler için güzellik merkezimiz hizmetinizde.">{{$isletme->meta_description}}</textarea>
+                                             <textarea class="form-control" name="seo_description" rows="6" placeholder="Ör. Kalıcı makyaj, cilt bakımı, lazer ve güzelliğe dair tüm hizmetler için güzellik merkezimiz hizmetinizde.">{{$isletme->meta_description}}</textarea>
                                              <small class="text-muted">Arama motorlarında çıkacak kısa tanıtım (maks. 160 karakter önerilir).</small>
                                           </div>
+                                       </div>
+                                       <div class="col-md-6">
                                           <div class="form-group" style="margin-bottom:0">
                                              <label>Lokasyon Bazlı Anahtar Kelimeler</label>
                                              <small class="text-muted d-block" style="margin-bottom:8px">Ör. <i>izmirde güzellik merkezi</i>. Tüm kelimeler küçük harfle yazılmalıdır.</small>
@@ -422,165 +424,6 @@
                                                 @endfor
                                              @endif
                                           </div>
-                                       </div>
-                                    </div>
-                                 </div>
-                                 <div class="col-md-6">
-                                    <div class="rm-card" style="height:calc(100% - 18px);">
-                                       <div class="rm-card__head">
-                                          <h3><i class="fa fa-image"></i> Kapak Resmi</h3>
-                                          <small>Tanıtım sayfasının üst kısmında görünen büyük görsel. (Önerilen: 1600×600px)</small>
-                                       </div>
-                                       <div class="rm-card__body">
-                                          <div class="profile-photo" style="width:100%;">
-                                             <a href="#" class="edit-avatar" onclick="thisFileUpload();" style='background:#fff;'><i class="fa fa-pencil"></i></a>
-                                       @if(\App\SalonGorselleri::where('salon_id',$isletme->id)->where('kapak_fotografi',1)->value('salon_gorseli')!= null || \App\SalonGorselleri::where('salon_id',$isletme->id)->where('kapak_fotografi',1)->value('salon_gorseli')!= '')
-                                       <img
-                                          id="profilkapak"
-                                          src="{{secure_asset(\App\SalonGorselleri::where('salon_id',$isletme->id)->where('kapak_fotografi',1)->value('salon_gorseli'))}}"
-                                          alt=""
-                                          class="avatar-photo" style="object-fit: cover; width: 100%; height:auto;border-radius: 0; float: left;margin-bottom: 20px;"
-                                          />
-                                       @else
-                                       <img
-                                          id="profilkapak"
-                                          src="/public/img/randevumcepte.jpg"
-                                          alt=""
-                                          class="avatar-photo" style="object-fit: cover; width: 100%; height:auto;border-radius: 0; float:left; margin-bottom:20px"
-                                          />
-                                       @endif
-                                       <div
-                                          class="modal fade"
-                                          id="modal"
-                                          tabindex="-1"
-                                          role="dialog"
-                                          aria-labelledby="modalLabel"
-                                          aria-hidden="true"
-                                          >
-                                          <div
-                                             class="modal-dialog"
-                                             role="document"
-                                             >
-                                             <div class="modal-content">
-                                                <div class="modal-body pd-5">
-                                                   <div class="img-container">
-                                                      @if(\App\SalonGorselleri::where('salon_id',$isletme->id)->where('kapak_fotografi',1)->value('salon_gorseli')!= null || \App\SalonGorselleri::where('salon_id',$isletme->id)->where('kapak_fotografi',1)->value('salon_gorseli')!= '')
-                                                      <img                                       
-                                                         src="{{secure_asset(\App\SalonGorselleri::where('salon_id',$isletme->id)->where('kapak_fotografi',1)->value('salon_gorseli'))}}"
-                                                         alt="Avatar"
-                                                         />
-                                                      @else
-                                                      <img                                       
-                                                         src="/public/isletmeyonetim_assets/img/user-profile-display.png"
-                                                         alt="Avatar"
-                                                         />
-                                                      @endif
-                                                      <input type="file" id="isletmekapakfoto" name='isletmekapakfoto' style="display:none;" />
-                                                   </div>
-                                                </div>
-                                                <div class="modal-footer" style="display: block;">
-                                                   <div class="row">
-                                                      <div class="col-6 col-xs-6 col-sm-6">
-                                                         <button id="button" name="button" value="Upload" class="btn btn-primary btn-lg btn-block" onclick="thisFileUpload();"><i class="fa fa-upload"></i> Fotoğraf Yükle</button>
-                                                      </div>
-                                                      <div class="col-6 col-xs-6 col-sm-6">
-                                                         <button type="button" class="btn btn-danger btn-lg btn-block" data-dismiss="modal"><i class="fa fa-times"></i>
-                                                         Kapat
-                                                         </button>
-                                                      </div>
-                                                   </div>
-                                                </div>
-                                             </div>
-                                          </div>
-                                       </div>
-                                       <button id="crop_modal_ac" type="button"  data-toggle="modal" data-target="#crop_modal" style="display:none"> modal aç</button> <button id="crop_modal_ac2" type="button"  data-toggle="modal" data-target="#crop_modal2" style="display:none"> modal aç</button>                   
-                                       <div
-                                          class="modal fade"
-                                          id="crop_modal"
-                                          tabindex="-1"
-                                          role="dialog"
-                                          aria-labelledby="modalLabel"
-                                          aria-hidden="true"
-                                          >
-                                          <div
-                                             class="modal-dialog"
-                                             role="document"
-                                             >
-                                             <div class="modal-content">
-                                                <div class="modal-body pd-5">
-                                                   <div class="img-container">
-                                                      <div class="row">
-                                                         <div class="col-md-12">
-                                                            <!--  default image where we will set the src via jquery-->
-                                                            @if(Auth::guard('satisortakligi')->check())
-                                                             <img id="croppedimg" src="{{(Auth::guard('satisortakligi')->user()->profil_resim !== null ? Auth::guard('satisortakligi')->user()->profil_resim : '/public/isletmeyonetim_assets/img/avatar.png' )}}" style="display:block;max-width: 100%;position: relative;height: auto;">
-                                                            @else
-                                                            <img id="croppedimg" src="{{(Auth::guard('isletmeyonetim')->user()->profil_resim !== null ? Auth::guard('isletmeyonetim')->user()->profil_resim : '/public/isletmeyonetim_assets/img/avatar.png' )}}" style="display:block;max-width: 100%;position: relative;height: auto;">
-                                                            @endif
-                                                         </div>
-                                                      </div>
-                                                   </div>
-                                                </div>
-                                                <div class="modal-footer" style="display: block;">
-                                                   <div class="row">
-                                                      <div class="col-6 col-xs-6 col-sm-6">
-                                                         <button type="button" id="crop" class="btn btn-primary btn-lg btn-block">Kırp</button>
-                                                      </div>
-                                                      <div class="col-6 col-xs-6 col-sm-6">
-                                                         <button type="button" id="crop_modal_kapat" class="btn btn-danger btn-lg btn-block" data-dismiss="modal"><i class="fa fa-times"></i>
-                                                         Kapat
-                                                         </button>
-                                                      </div>
-                                                   </div>
-                            
-                                                </div>
-                                             </div>
-                                          </div>
-                                       </div>
-                                       <div
-                                          class="modal fade"
-                                          id="crop_modal2"
-                                          tabindex="-1"
-                                          role="dialog"
-                                          aria-labelledby="modalLabel"
-                                          aria-hidden="true"
-                                          >
-                                          <div
-                                             class="modal-dialog"
-                                             role="document"
-                                             >
-                                             <div class="modal-content">
-                                                <div class="modal-body pd-5">
-                                                   <div class="img-container">
-                                                      <div class="row">
-                                                         <div class="col-md-12">
-                                                            <!--  default image where we will set the src via jquery-->
-                                                            @if(Auth::guard('satisortakligi')->check())
-                                                              <img id="croppedimg2" src="{{(Auth::guard('satisortakligi')->user()->profil_resim !== null ? Auth::guard('satisortakligi')->user()->profil_resim : '/public/isletmeyonetim_assets/img/avatar.png' )}}" style="display:block;max-width: 100%;position: relative;height: auto;">
-                                                            @else
-                                                            <img id="croppedimg2" src="{{(Auth::guard('isletmeyonetim')->user()->profil_resim !== null ? Auth::guard('isletmeyonetim')->user()->profil_resim : '/public/isletmeyonetim_assets/img/avatar.png' )}}" style="display:block;max-width: 100%;position: relative;height: auto;">
-                                                            @endif
-                                                         </div>
-                                                      </div>
-                                                   </div>
-                                                </div>
-                                                <div class="modal-footer" style="display: block;">
-                                                   <div class="row">
-                                                      <div class="col-6 col-xs-6 col-sm-6">
-                                                         <button type="button" id="crop2" class="btn btn-primary btn-lg btn-block">Kırp</button>
-                                                      </div>
-                                                      <div class="col-6 col-xs-6 col-sm-6">
-                                                         <button type="button" id="crop_modal_kapat2" class="btn btn-danger btn-lg btn-block" data-dismiss="modal"><i class="fa fa-times"></i>
-                                                         Kapat
-                                                         </button>
-                                                      </div>
-                                                   </div>
-                            
-                                                </div>
-                                             </div>
-                                          </div>
-                                       </div>
-                                    </div>
                                        </div>
                                     </div>
                                  </div>
