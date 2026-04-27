@@ -11,20 +11,7 @@ class WhatsAppPanelController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(function ($request, $next) {
-            $superAdminEmails = ['webfirmam1035@gmail.com'];
-
-            if (\Illuminate\Support\Facades\Auth::guard('sistemyonetim')->check()) {
-                return $next($request);
-            }
-            if (\Illuminate\Support\Facades\Auth::guard('isletmeyonetim')->check()) {
-                $email = \Illuminate\Support\Facades\Auth::guard('isletmeyonetim')->user()->email ?? null;
-                if (in_array($email, $superAdminEmails, true)) {
-                    return $next($request);
-                }
-            }
-            return redirect('/isletmeyonetim/girisyap');
-        });
+        $this->middleware('auth:sistemyonetim');
     }
 
     public function index()
