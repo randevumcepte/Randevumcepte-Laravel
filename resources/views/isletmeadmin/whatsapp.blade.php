@@ -84,6 +84,7 @@
                 <li>Müşterinin WhatsApp'ı yoksa veya iletilemezse, mesaj <b>otomatik SMS</b> olarak gider — hiçbir hatırlatma kaybolmaz.</li>
                 <li>Mesajlar müşterilere <b>doğal aralıklarla, kişiselleştirilmiş</b> şekilde iletilir (her müşteriye özel selamlama ve metin).</li>
                 <li><b>İlk hafta hazırlık dönemi:</b> Numaranızın WhatsApp Business sisteminde stabil çalışması için ilk 7 gün günlük gönderim sayısı kademeli artar (1. gün 15, 7. gün tam kapasite).</li>
+                <li><b>1 gün öncesi hatırlatma:</b> Yarınki tüm randevular için bugün <b>12:00-17:00</b> arasında bir kez gönderilir. Müşteri iptal/erteleme isterse salonun açık olduğu saatlerde sizi arayabilir.</li>
                 <li><b>Çalışma saatleri:</b> Müşterilerinize gece geç saatte rahatsız edici mesaj gitmemesi için gönderimler gündüz saatlerinde yapılır.</li>
                 <li>Bağlantı koparsa veya bir sorun olduğunda <b>panel size haber verir</b>, hatırlatmalar otomatik SMS'e geçer.</li>
                 <li><b>İpucu:</b> En az 2 haftadır kullanılan, WhatsApp Business uygulaması yüklü bir numara bağlamak en sağlıklı sonucu verir.</li>
