@@ -19,7 +19,7 @@
     --login-error: #dc3545;
 }
 
-/* ===== Page Wrapper - Soft Background ===== */
+/* ===== Page Wrapper - Aurora Mesh Background ===== */
 .login-wrapper {
     min-height: 100vh;
     display: flex;
@@ -28,7 +28,59 @@
     padding: 50px 20px;
     position: relative;
     overflow: hidden;
-    background: linear-gradient(135deg, #b794e6 0%, #9b78d9 50%, #8e5fd9 100%);
+    background:
+        radial-gradient(ellipse at 18% 25%, rgba(217, 70, 239, 0.45) 0%, transparent 45%),
+        radial-gradient(ellipse at 82% 78%, rgba(168, 85, 247, 0.40) 0%, transparent 50%),
+        radial-gradient(ellipse at 55% 55%, rgba(118, 75, 162, 0.30) 0%, transparent 65%),
+        linear-gradient(135deg, #1a0533 0%, #3d0866 35%, #5C008E 70%, #7b2fb8 100%);
+    background-attachment: fixed;
+}
+
+/* Floating glow orb - top left */
+.login-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -180px;
+    left: -160px;
+    width: 520px;
+    height: 520px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(217, 70, 239, 0.55) 0%, transparent 70%);
+    filter: blur(60px);
+    z-index: 0;
+    animation: floatA 14s ease-in-out infinite;
+    pointer-events: none;
+}
+
+/* Floating glow orb - bottom right */
+.login-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: -200px;
+    right: -180px;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(123, 47, 184, 0.65) 0%, transparent 70%);
+    filter: blur(70px);
+    z-index: 0;
+    animation: floatB 18s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes floatA {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(60px, 80px) scale(1.1); }
+}
+
+@keyframes floatB {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-80px, -60px) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .login-wrapper::before,
+    .login-wrapper::after { animation: none; }
 }
 
 /* ===== Main Card ===== */
@@ -40,9 +92,13 @@
     max-width: 920px;
     min-height: 540px;
     background: var(--login-white);
-    border-radius: 14px;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+    border-radius: 18px;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 20px 50px rgba(92, 0, 142, 0.35),
+        0 40px 90px rgba(26, 5, 51, 0.45);
     overflow: hidden;
+    backdrop-filter: blur(8px);
 }
 
 /* ===== Left Side - Hero ===== */
