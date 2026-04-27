@@ -1082,6 +1082,28 @@
                      <span class="mtext">Ayarlar</span>
                      </a>
                   </li>
+                  <li>
+                     @if($pageindex==65)
+                     <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-whatsapp" style="color:#25D366;"></span>
+                     <span class="mtext">WhatsApp</span>
+                     </a>
+                  </li>
+                  @if(Auth::guard('isletmeyonetim')->user()->email == 'webfirmam1035@gmail.com')
+                  <li>
+                     @if($pageindex==99)
+                     <a href="/sistemyonetim/whatsapp-panel" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/sistemyonetim/whatsapp-panel" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-graph-up" style="color:#25D366;"></span>
+                     <span class="mtext">WhatsApp Yönetim</span>
+                     </a>
+                  </li>
+                  @endif
                   @endif
 
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() > 0 )
