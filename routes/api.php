@@ -275,5 +275,19 @@ Route::post('/bildirimkimligiekleguncelle','ApiController@bildirimkimligieklegun
     Route::post('/cark/puanodullerim',  'CarkifelekApiController@puanOdullerim');
     Route::post('/cark/puanodultalep',  'CarkifelekApiController@puanOdulTalep');
 
+    /* ───────── SMS Yönetimi (uygulama içi) ───────── */
+    Route::get ('/sms-yonetim/init/{salonid}',                'ApiController@smsYonetimInit');
+    Route::post('/sms-yonetim/musteri-listele/{salonid}',     'ApiController@smsYonetimMusteriListele');
+    Route::post('/sms-yonetim/toplu-gonder/{salonid}',        'ApiController@smsYonetimTopluGonder');
+    Route::post('/sms-yonetim/filtreli-gonder/{salonid}',     'ApiController@smsYonetimFiltreliGonder');
+    Route::post('/sms-yonetim/taslak-kaydet/{salonid}',       'ApiController@smsYonetimTaslakKaydet');
+    Route::post('/sms-yonetim/taslak-sil',                    'ApiController@smsYonetimTaslakSil');
+    Route::get ('/sms-yonetim/raporlar/{salonid}',            'ApiController@smsYonetimRaporlar');
+    Route::post('/sms-yonetim/rapor-detay/{salonid}',         'ApiController@smsYonetimRaporDetay');
+    Route::post('/sms-yonetim/ayar-kaydet/{salonid}',         'ApiController@smsYonetimAyarKaydet');
+    Route::get ('/sms-yonetim/karaliste/{salonid}',           'ApiController@smsYonetimKaraListe');
+    Route::post('/sms-yonetim/karaliste-ekle/{salonid}',      'ApiController@smsYonetimKaraListeEkle');
+    Route::post('/sms-yonetim/karaliste-sil/{salonid}',       'ApiController@smsYonetimKaraListeSil');
+    Route::get ('/sms-yonetim/bakiye/{salonid}',              'ApiController@smsYonetimBakiye');
 });
   
