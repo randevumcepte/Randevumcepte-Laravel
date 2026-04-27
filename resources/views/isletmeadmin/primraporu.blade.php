@@ -9,9 +9,183 @@
   $toplamNet = array_sum(array_column($rapor,'net_hakedis'));
 @endphp
 <style>
-  .primRapor-ozet .widget-style3{transition:transform .15s}
-  .primRapor-ozet .widget-style3:hover{transform:translateY(-2px)}
-  #primrapor_tablo td,#primrapor_tablo th{vertical-align:middle}
+  /* ============ Marka Renk Degiskenleri ============ */
+  :root{
+    --rmc-purple-1:#5C008E;
+    --rmc-purple-2:#7B2FB8;
+    --rmc-purple-3:#9D5DC8;
+    --rmc-purple-soft:#B88ED8;
+    --rmc-purple-bg:#f7f1fb;
+    --rmc-grad: linear-gradient(135deg,#5C008E 0%,#7B2FB8 50%,#9D5DC8 100%);
+    --rmc-grad-soft: linear-gradient(135deg,#9D5DC8 0%,#B88ED8 100%);
+    --rmc-success:#10b981;
+    --rmc-success-bg:#ecfdf5;
+    --rmc-danger:#ef4444;
+    --rmc-danger-bg:#fef2f2;
+    --rmc-text:#2d1b3f;
+    --rmc-muted:#8a8295;
+    --rmc-border:#ece6f2;
+    --rmc-shadow-sm: 0 2px 8px rgba(92,0,142,.08);
+    --rmc-shadow-md: 0 8px 24px rgba(92,0,142,.12);
+    --rmc-shadow-lg: 0 18px 50px rgba(92,0,142,.18);
+  }
+
+  /* ============ Sayfa Arka Plan ============ */
+  body{ background:#fbfafc; }
+  .min-height-200px{ background: transparent; }
+
+  /* ============ Hero / Page Header ============ */
+  .pr-hero{
+    background: var(--rmc-grad);
+    border-radius: 24px;
+    padding: 28px 32px;
+    color:#fff;
+    position:relative;
+    overflow:hidden;
+    margin-bottom:22px;
+    box-shadow: var(--rmc-shadow-md);
+  }
+  .pr-hero::before{
+    content:''; position:absolute; top:-80px; right:-80px; width:280px; height:280px;
+    background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 70%);
+    border-radius:50%;
+  }
+  .pr-hero::after{
+    content:''; position:absolute; bottom:-60px; left:-60px; width:220px; height:220px;
+    background: radial-gradient(circle, rgba(184,142,216,.25) 0%, transparent 70%);
+    border-radius:50%;
+  }
+  .pr-hero__inner{ position:relative; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .pr-hero__title{ display:flex; align-items:center; gap:14px; }
+  .pr-hero__icon{
+    width:54px; height:54px; border-radius:14px; background:rgba(255,255,255,.18);
+    display:flex; align-items:center; justify-content:center; font-size:22px; backdrop-filter: blur(6px);
+  }
+  .pr-hero__title h1{ font-size:24px; font-weight:700; margin:0; color:#fff; letter-spacing:-.3px; }
+  .pr-hero__title p{ margin:4px 0 0; color:rgba(255,255,255,.82); font-size:13px; }
+  .pr-hero__period{
+    background:rgba(255,255,255,.18); padding:10px 18px; border-radius:30px;
+    font-size:13px; font-weight:600; backdrop-filter: blur(8px); display:inline-flex; align-items:center; gap:8px;
+  }
+
+  /* ============ Filtre Bar ============ */
+  .pr-filter{
+    background:#fff; border-radius:18px; padding:18px 22px; margin-bottom:22px;
+    box-shadow: var(--rmc-shadow-sm); border:1px solid var(--rmc-border);
+    display:flex; align-items:end; gap:18px; flex-wrap:wrap;
+  }
+  .pr-filter label{ font-size:11px; font-weight:700; color:var(--rmc-muted); letter-spacing:.5px; text-transform:uppercase; margin-bottom:6px; display:block; }
+  .pr-filter select{
+    border:2px solid var(--rmc-border); border-radius:12px; padding:10px 14px; font-weight:600;
+    color:var(--rmc-text); background:#fafbfc; font-size:14px; min-width:160px; transition:all .15s;
+  }
+  .pr-filter select:focus{ outline:none; border-color:var(--rmc-purple-2); background:#fff; box-shadow: 0 0 0 4px rgba(123,47,184,.08); }
+  .pr-filter__group{ flex:0 0 auto; }
+  .pr-filter__spacer{ flex:1; }
+
+  /* ============ Ozet Widget'lari ============ */
+  .pr-stats{
+    display:grid; grid-template-columns: repeat(5, 1fr); gap:14px; margin-bottom:22px;
+  }
+  @media(max-width:1100px){ .pr-stats{ grid-template-columns: repeat(2, 1fr); } }
+  @media(max-width:600px){ .pr-stats{ grid-template-columns: 1fr; } }
+  .pr-stat{
+    background:#fff; border-radius:18px; padding:18px 20px;
+    box-shadow: var(--rmc-shadow-sm); border:1px solid var(--rmc-border);
+    transition: all .25s cubic-bezier(.2,.8,.2,1); position:relative; overflow:hidden;
+  }
+  .pr-stat:hover{ transform:translateY(-3px); box-shadow: var(--rmc-shadow-md); }
+  .pr-stat__icon{
+    width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:700; margin-bottom:12px; color:#fff;
+  }
+  .pr-stat__lbl{ font-size:11px; color:var(--rmc-muted); font-weight:700; letter-spacing:.5px; text-transform:uppercase; margin-bottom:4px; }
+  .pr-stat__val{ font-size:22px; font-weight:700; color:var(--rmc-text); letter-spacing:-.3px; }
+  .pr-stat__val small{ font-size:13px; color:var(--rmc-muted); margin-left:4px; font-weight:600; }
+  .pr-stat--maas .pr-stat__icon{ background: linear-gradient(135deg,#9D5DC8,#B88ED8); }
+  .pr-stat--prim .pr-stat__icon{ background: linear-gradient(135deg,#7B2FB8,#9D5DC8); }
+  .pr-stat--bonus .pr-stat__icon{ background: linear-gradient(135deg,#10b981,#34d399); }
+  .pr-stat--bonus .pr-stat__val{ color:#059669; }
+  .pr-stat--kesinti .pr-stat__icon{ background: linear-gradient(135deg,#ef4444,#f87171); }
+  .pr-stat--kesinti .pr-stat__val{ color:#dc2626; }
+  .pr-stat--net{
+    grid-column: span 1; background: var(--rmc-grad); color:#fff; border:0; position:relative;
+  }
+  .pr-stat--net::after{
+    content:''; position:absolute; top:0; right:0; width:120px; height:120px;
+    background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 70%);
+    border-radius:50%; transform:translate(40%,-40%);
+  }
+  .pr-stat--net .pr-stat__icon{ background:rgba(255,255,255,.22); backdrop-filter: blur(6px); }
+  .pr-stat--net .pr-stat__lbl{ color:rgba(255,255,255,.85); }
+  .pr-stat--net .pr-stat__val{ color:#fff; font-size:24px; }
+
+  /* ============ Tablo Karti ============ */
+  .pr-table-card{
+    background:#fff; border-radius:18px; padding:8px 8px 14px;
+    box-shadow: var(--rmc-shadow-sm); border:1px solid var(--rmc-border); margin-bottom:22px;
+  }
+  .pr-table-toolbar{
+    padding:14px 18px 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  }
+  .pr-table-toolbar h3{ margin:0; font-size:16px; font-weight:700; color:var(--rmc-text); display:flex; align-items:center; gap:8px; }
+  .pr-table-toolbar h3 i{ color:var(--rmc-purple-2); }
+
+  #primrapor_tablo{ width:100% !important; border-collapse: separate; border-spacing:0; }
+  #primrapor_tablo thead th{
+    background:#fafbfc !important; color:var(--rmc-muted); font-size:11px; font-weight:700;
+    letter-spacing:.5px; text-transform:uppercase; border:0 !important;
+    padding:14px 12px !important; vertical-align:middle; white-space:nowrap;
+  }
+  #primrapor_tablo tbody td{
+    border-bottom:1px solid #f4f0f8 !important; border-top:0 !important; padding:14px 12px !important;
+    vertical-align:middle; font-size:13.5px; color:var(--rmc-text);
+  }
+  #primrapor_tablo tbody tr:hover td{ background:#fbfaff !important; }
+  #primrapor_tablo tbody tr:last-child td{ border-bottom:0 !important; }
+  .pr-cell-personel{ font-weight:700; font-size:14px; }
+  .pr-cell-personel .pr-avatar{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:34px; height:34px; border-radius:50%; background:var(--rmc-purple-bg); color:var(--rmc-purple-1);
+    font-weight:700; font-size:13px; margin-right:10px; vertical-align:middle;
+  }
+  .pr-cell-bonus{ color:#059669; font-weight:600; }
+  .pr-cell-kesinti{ color:#dc2626; font-weight:600; }
+  .pr-cell-net{
+    background: linear-gradient(90deg, rgba(123,47,184,.06), rgba(157,93,200,.04));
+    border-radius:8px;
+  }
+  .pr-cell-net strong{ color:var(--rmc-purple-1) !important; font-size:15px; }
+  .pr-action-btn{
+    width:34px; height:34px; border-radius:10px; border:0; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; transition:all .15s;
+    margin-right:4px;
+  }
+  .pr-action-btn--ekle{ background:var(--rmc-success-bg); color:var(--rmc-success); }
+  .pr-action-btn--ekle:hover{ background:var(--rmc-success); color:#fff; transform:translateY(-1px); }
+  .pr-action-btn--liste{ background:var(--rmc-purple-bg); color:var(--rmc-purple-1); }
+  .pr-action-btn--liste:hover{ background:var(--rmc-purple-2); color:#fff; transform:translateY(-1px); }
+
+  /* DataTable controls override */
+  .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter{ padding: 6px 14px; }
+  .dataTables_wrapper .dataTables_length select, .dataTables_wrapper .dataTables_filter input{
+    border:2px solid var(--rmc-border); border-radius:10px; padding:6px 10px; background:#fafbfc;
+  }
+  .dataTables_wrapper .dataTables_filter input:focus, .dataTables_wrapper .dataTables_length select:focus{
+    outline:none; border-color:var(--rmc-purple-2); background:#fff;
+  }
+  .dt-buttons .btn{ border-radius:10px !important; font-weight:600; padding:6px 12px; }
+  .dt-buttons .btn-success{ background:var(--rmc-grad-soft) !important; border:0 !important; color:#fff; }
+  .dt-buttons .btn-danger{ background: linear-gradient(135deg,#ef4444,#dc2626) !important; border:0 !important; }
+  .dt-buttons .btn-secondary{ background: linear-gradient(135deg,#64748b,#475569) !important; border:0 !important; }
+  .dataTables_paginate .page-link{
+    color:var(--rmc-purple-2) !important; border-radius:8px !important; margin: 0 2px;
+    border-color:var(--rmc-border) !important;
+  }
+  .dataTables_paginate .page-item.active .page-link{
+    background: var(--rmc-grad) !important; border-color:transparent !important; color:#fff !important;
+  }
+  .dataTables_info{ color:var(--rmc-muted) !important; font-size:13px; padding:14px 18px !important; }
 
   /* ============ Prim Hareket Modal — Modern Tasarim ============ */
   #primHareketListeModal .modal-dialog,
@@ -24,8 +198,8 @@
   #primHareketListeModal .modal-content,
   #primHareketModal .modal-content{
     border: 0;
-    border-radius: 18px;
-    box-shadow: 0 25px 60px rgba(0,0,0,.25);
+    border-radius: 22px;
+    box-shadow: var(--rmc-shadow-lg);
     overflow: hidden;
     width: 100%;
     animation: primModalIn .35s cubic-bezier(.2,.8,.2,1);
@@ -34,47 +208,55 @@
 
   #primHareketListeModal .modal-header,
   #primHareketModal .modal-header{
-    background: linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#ec4899 100%);
-    color: #fff; border: 0; padding: 20px 26px;
+    background: var(--rmc-grad);
+    color: #fff; border: 0; padding: 22px 28px;
     position: relative;
   }
+  #primHareketListeModal .modal-header::before,
+  #primHareketModal .modal-header::before{
+    content:''; position:absolute; top:-40px; right:-40px; width:160px; height:160px;
+    background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 70%);
+    border-radius:50%;
+  }
+  #primHareketListeModal .modal-header > div,
+  #primHareketModal .modal-header > div{ position:relative; z-index:2; }
   #primHareketListeModal .modal-header .modal-title,
   #primHareketModal .modal-header .modal-title{
-    color: #fff; font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 10px;
+    color: #fff; font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 10px; margin:0;
   }
   #primHareketListeModal .modal-header .close,
   #primHareketModal .modal-header .close{
     color: #fff; opacity: .85; font-size: 28px; font-weight: 300; text-shadow: none;
-    position: absolute; right: 18px; top: 14px;
+    position: absolute; right: 22px; top: 18px; z-index:3;
   }
   #primHareketListeModal .modal-header .close:hover,
   #primHareketModal .modal-header .close:hover{ opacity: 1; }
   .prim-modal-personel{
-    display:inline-block; margin-top:6px; padding:4px 12px; background:rgba(255,255,255,.22);
+    display:inline-block; margin-top:8px; padding:4px 14px; background:rgba(255,255,255,.22);
     border-radius:20px; font-size:12px; font-weight:600; backdrop-filter: blur(6px);
   }
   .prim-modal-donem{
-    color: rgba(255,255,255,.9); font-size:12px; margin-left:8px; font-weight:500;
+    color: rgba(255,255,255,.92); font-size:12px; margin-left:8px; font-weight:500;
   }
 
-  #primHareketListeModal .modal-body{ padding: 22px 26px; background:#fafbfc; }
-  #primHareketModal .modal-body{ padding: 22px 26px; }
+  #primHareketListeModal .modal-body{ padding: 24px 28px; background:#fbfafc; }
+  #primHareketModal .modal-body{ padding: 24px 28px; }
   #primHareketListeModal .modal-footer,
   #primHareketModal .modal-footer{
-    border-top: 1px solid #eef0f3; padding: 14px 22px; background:#fff;
+    border-top: 1px solid var(--rmc-border); padding: 14px 24px; background:#fff;
   }
 
   /* Ozet kartlari (liste modal usten) */
-  .prim-ozet-row{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:18px; }
+  .prim-ozet-row{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:20px; }
   .prim-ozet-card{
     padding:14px 16px; border-radius:14px; background:#fff;
-    box-shadow: 0 2px 6px rgba(0,0,0,.04); border:1px solid #eef0f3;
+    box-shadow: var(--rmc-shadow-sm); border:1px solid var(--rmc-border);
   }
-  .prim-ozet-card .lbl{ font-size:11px; color:#9ca3af; font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
+  .prim-ozet-card .lbl{ font-size:11px; color:var(--rmc-muted); font-weight:700; letter-spacing:.5px; text-transform:uppercase; }
   .prim-ozet-card .val{ font-size:18px; font-weight:700; margin-top:4px; }
-  .prim-ozet-card.bonus .val{ color:#10b981; }
-  .prim-ozet-card.kesinti .val{ color:#ef4444; }
-  .prim-ozet-card.net .val{ color:#6366f1; }
+  .prim-ozet-card.bonus .val{ color:var(--rmc-success); }
+  .prim-ozet-card.kesinti .val{ color:var(--rmc-danger); }
+  .prim-ozet-card.net .val{ color:var(--rmc-purple-1); }
 
   /* Hareket karti */
   .hareketler-listesi{
@@ -92,21 +274,21 @@
     transition: all .2s; border-bottom: 0;
   }
   .hareket-item:hover{ box-shadow: 0 4px 12px rgba(0,0,0,.08); transform: translateX(2px); }
-  .hareket-item.tip-bonus{ border-left-color:#10b981; }
-  .hareket-item.tip-kesinti{ border-left-color:#ef4444; }
+  .hareket-item.tip-bonus{ border-left-color:var(--rmc-success); }
+  .hareket-item.tip-kesinti{ border-left-color:var(--rmc-danger); }
 
   .hareket-icon{
     width: 42px; height: 42px; border-radius: 50%; display:flex; align-items:center; justify-content:center;
     flex-shrink: 0; font-size: 18px;
   }
-  .hareket-icon.bonus{ background:#dcfce7; color:#10b981; }
-  .hareket-icon.kesinti{ background:#fee2e2; color:#ef4444; }
+  .hareket-icon.bonus{ background:var(--rmc-success-bg); color:var(--rmc-success); }
+  .hareket-icon.kesinti{ background:var(--rmc-danger-bg); color:var(--rmc-danger); }
 
   .hareket-info{ flex:1; min-width:0; }
   .hareket-info .row1{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .hareket-info .tutar{ font-size: 17px; font-weight: 700; }
-  .hareket-info .tutar.bonus{ color:#10b981; }
-  .hareket-info .tutar.kesinti{ color:#ef4444; }
+  .hareket-info .tutar.bonus{ color:var(--rmc-success); }
+  .hareket-info .tutar.kesinti{ color:var(--rmc-danger); }
   .hareket-info .tarih{ font-size: 12px; color:#9ca3af; font-weight:500; display:inline-flex; align-items:center; gap:4px; }
   .hareket-info .aciklama{ font-size: 13px; color:#4b5563; margin-top: 4px; line-height: 1.45; }
 
@@ -138,29 +320,29 @@
     display:flex; flex-direction:column; align-items:center; gap:6px;
   }
   .prim-tip-radio label .ic{ font-size: 22px; }
-  .prim-tip-radio input[value=bonus]:checked + label{ border-color:#10b981; background:#ecfdf5; color:#065f46; }
-  .prim-tip-radio input[value=kesinti]:checked + label{ border-color:#ef4444; background:#fef2f2; color:#991b1b; }
-  .prim-tip-radio input[value=bonus] + label .ic{ color:#10b981; }
-  .prim-tip-radio input[value=kesinti] + label .ic{ color:#ef4444; }
+  .prim-tip-radio input[value=bonus]:checked + label{ border-color:var(--rmc-success); background:var(--rmc-success-bg); color:#065f46; }
+  .prim-tip-radio input[value=kesinti]:checked + label{ border-color:var(--rmc-danger); background:var(--rmc-danger-bg); color:#991b1b; }
+  .prim-tip-radio input[value=bonus] + label .ic{ color:var(--rmc-success); }
+  .prim-tip-radio input[value=kesinti] + label .ic{ color:var(--rmc-danger); }
 
   .prim-form-group{ margin-bottom: 16px; }
-  .prim-form-group label{ font-weight:600; color:#374151; font-size:13px; margin-bottom:6px; display:block; }
-  .prim-form-group .form-control{ border-radius:10px; border-color:#e5e7eb; padding: 10px 14px; font-size:14px; }
-  .prim-form-group .form-control:focus{ border-color:#6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+  .prim-form-group label{ font-weight:700; color:var(--rmc-text); font-size:13px; margin-bottom:6px; display:block; }
+  .prim-form-group .form-control{ border-radius:12px; border:2px solid var(--rmc-border); padding: 10px 14px; font-size:14px; background:#fafbfc; }
+  .prim-form-group .form-control:focus{ border-color:var(--rmc-purple-2); background:#fff; box-shadow: 0 0 0 4px rgba(123,47,184,.08); }
   .prim-tutar-input{ position:relative; }
   .prim-tutar-input .form-control{ padding-left: 36px; font-size:18px; font-weight:700; }
-  .prim-tutar-input::before{ content:'₺'; position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#9ca3af; font-size:16px; font-weight:700; z-index:2; }
+  .prim-tutar-input::before{ content:'₺'; position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--rmc-purple-2); font-size:16px; font-weight:700; z-index:2; }
 
   .prim-btn-kaydet{
-    background: linear-gradient(135deg,#6366f1,#8b5cf6); border:0;
-    color:#fff; font-weight:600; padding:10px 28px; border-radius:10px;
-    transition:all .2s; box-shadow: 0 4px 12px rgba(99,102,241,.3);
+    background: var(--rmc-grad); border:0;
+    color:#fff; font-weight:600; padding:10px 28px; border-radius:12px;
+    transition:all .2s; box-shadow: 0 4px 14px rgba(92,0,142,.3);
   }
-  .prim-btn-kaydet:hover{ transform: translateY(-1px); box-shadow: 0 6px 18px rgba(99,102,241,.4); color:#fff; }
+  .prim-btn-kaydet:hover{ transform: translateY(-1px); box-shadow: 0 8px 22px rgba(92,0,142,.4); color:#fff; }
   .prim-btn-iptal{
-    background:#f3f4f6; color:#6b7280; border:0; padding:10px 22px; border-radius:10px; font-weight:600;
+    background:#f3f0f7; color:var(--rmc-purple-1); border:0; padding:10px 22px; border-radius:12px; font-weight:600;
   }
-  .prim-btn-iptal:hover{ background:#e5e7eb; color:#374151; }
+  .prim-btn-iptal:hover{ background:var(--rmc-purple-bg); color:var(--rmc-purple-1); }
 
   @media(max-width:600px){
     .prim-ozet-row{ grid-template-columns: 1fr; }
@@ -169,112 +351,80 @@
   }
 </style>
 
-<div class="page-header">
-  <div class="row">
-    <div class="col-md-12 col-sm-12">
-      <div class="title">
-        <h1 style="font-size:20px"><i class="fa fa-money" style="color:#28a745"></i> {{$sayfa_baslik}}</h1>
+<div class="pr-hero">
+  <div class="pr-hero__inner">
+    <div class="pr-hero__title">
+      <div class="pr-hero__icon"><i class="fa fa-money"></i></div>
+      <div>
+        <h1>{{$sayfa_baslik}}</h1>
+        <p>Personel başına aylık maaş, prim ve hak ediş takibi</p>
       </div>
-      <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-          <li class="breadcrumb-item">
-            <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
-          </li>
-          <li class="breadcrumb-item active">{{$sayfa_baslik}}</li>
-        </ol>
-      </nav>
+    </div>
+    <div class="pr-hero__period">
+      <i class="fa fa-calendar"></i>
+      {{date('d.m.Y', strtotime($tarih1))}} — {{date('d.m.Y', strtotime($tarih2))}}
     </div>
   </div>
 </div>
 
-<div class="card-box mb-30">
-  <div class="pd-20">
-    <form method="get" id="primRaporFiltre" class="row">
-      <input type="hidden" name="sube" value="{{$isletme->id}}">
-      <div class="col-md-3 col-sm-4 col-6">
-        <label>Ay</label>
-        <select class="form-control" name="ay" onchange="document.getElementById('primRaporFiltre').submit()">
-          @foreach($aylar as $ayNo => $ayAdi)
-            <option value="{{$ayNo}}" {{$ayNo==$ay?'selected':''}}>{{$ayAdi}}</option>
-          @endforeach
-        </select>
-      </div>
-      <div class="col-md-3 col-sm-4 col-6">
-        <label>Yıl</label>
-        <select class="form-control" name="yil" onchange="document.getElementById('primRaporFiltre').submit()">
-          @for($y=date('Y'); $y>=date('Y')-4; $y--)
-            <option value="{{$y}}" {{$y==$yil?'selected':''}}>{{$y}}</option>
-          @endfor
-        </select>
-      </div>
-      <div class="col-md-6 col-sm-4 col-12 text-right" style="align-self:end; margin-top:10px">
-        <span style="color:#888; font-size:13px"><i class="fa fa-calendar"></i> {{date('d.m.Y', strtotime($tarih1))}} - {{date('d.m.Y', strtotime($tarih2))}}</span>
-      </div>
-    </form>
+<form method="get" id="primRaporFiltre" class="pr-filter">
+  <input type="hidden" name="sube" value="{{$isletme->id}}">
+  <div class="pr-filter__group">
+    <label>Ay</label>
+    <select name="ay" onchange="document.getElementById('primRaporFiltre').submit()">
+      @foreach($aylar as $ayNo => $ayAdi)
+        <option value="{{$ayNo}}" {{$ayNo==$ay?'selected':''}}>{{$ayAdi}}</option>
+      @endforeach
+    </select>
   </div>
-
-  <div class="pd-20 primRapor-ozet">
-    <div class="row">
-      <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6 col-6 mb-20">
-        <div class="card-box height-100-p widget-style3">
-          <div class="d-flex flex-wrap">
-            <div class="widget-data">
-              <div class="weight-700 font-18 text-dark">{{number_format($toplamMaas,2,',','.')}}</div>
-              <div class="font-13 text-secondary weight-500">Toplam Maaş ₺</div>
-            </div>
-            <div class="widget-icon" style="background-color:#6c757d"><div class="icon" style="color:#fff">₺</div></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6 col-6 mb-20">
-        <div class="card-box height-100-p widget-style3">
-          <div class="d-flex flex-wrap">
-            <div class="widget-data">
-              <div class="weight-700 font-18 text-dark">{{number_format($toplamPrim,2,',','.')}}</div>
-              <div class="font-13 text-secondary weight-500">Toplam Prim ₺</div>
-            </div>
-            <div class="widget-icon" style="background-color:#17a2b8"><div class="icon" style="color:#fff">%</div></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6 col-6 mb-20">
-        <div class="card-box height-100-p widget-style3">
-          <div class="d-flex flex-wrap">
-            <div class="widget-data">
-              <div class="weight-700 font-18 text-dark" style="color:#28a745">{{number_format($toplamBonus,2,',','.')}}</div>
-              <div class="font-13 text-secondary weight-500">Toplam Bonus ₺</div>
-            </div>
-            <div class="widget-icon" style="background-color:#28a745"><div class="icon" style="color:#fff">+</div></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6 col-6 mb-20">
-        <div class="card-box height-100-p widget-style3">
-          <div class="d-flex flex-wrap">
-            <div class="widget-data">
-              <div class="weight-700 font-18 text-dark" style="color:#dc3545">{{number_format($toplamKesinti,2,',','.')}}</div>
-              <div class="font-13 text-secondary weight-500">Toplam Kesinti ₺</div>
-            </div>
-            <div class="widget-icon" style="background-color:#dc3545"><div class="icon" style="color:#fff">−</div></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-xl-4 col-lg-8 col-md-8 col-sm-12 col-12 mb-20">
-        <div class="card-box height-100-p widget-style3" style="background:linear-gradient(90deg,#007bff,#0056b3); color:#fff">
-          <div class="d-flex flex-wrap">
-            <div class="widget-data">
-              <div class="weight-700 font-22" style="color:#fff">{{number_format($toplamNet,2,',','.')}} ₺</div>
-              <div class="font-14 weight-500" style="color:rgba(255,255,255,0.85)">NET ÖDENECEK (Maaş+Prim+Bonus−Kesinti)</div>
-            </div>
-            <div class="widget-icon" style="background-color:rgba(255,255,255,0.18)"><div class="icon" style="color:#fff"><i class="fa fa-credit-card"></i></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
+  <div class="pr-filter__group">
+    <label>Yıl</label>
+    <select name="yil" onchange="document.getElementById('primRaporFiltre').submit()">
+      @for($y=date('Y'); $y>=date('Y')-4; $y--)
+        <option value="{{$y}}" {{$y==$yil?'selected':''}}>{{$y}}</option>
+      @endfor
+    </select>
   </div>
+  <div class="pr-filter__spacer"></div>
+  <div class="pr-filter__group" style="font-size:12px; color:var(--rmc-muted)">
+    <i class="fa fa-info-circle"></i> Ay/Yıl seçimini değiştirdiğinizde rapor otomatik yenilenir.
+  </div>
+</form>
 
-  <div class="pd-20">
-    <table class="data-table table stripe hover nowrap" id="primrapor_tablo" style="width:100%">
+<div class="pr-stats">
+  <div class="pr-stat pr-stat--maas">
+    <div class="pr-stat__icon">₺</div>
+    <div class="pr-stat__lbl">Toplam Maaş</div>
+    <div class="pr-stat__val">{{number_format($toplamMaas,2,',','.')}} <small>₺</small></div>
+  </div>
+  <div class="pr-stat pr-stat--prim">
+    <div class="pr-stat__icon">%</div>
+    <div class="pr-stat__lbl">Toplam Prim</div>
+    <div class="pr-stat__val">{{number_format($toplamPrim,2,',','.')}} <small>₺</small></div>
+  </div>
+  <div class="pr-stat pr-stat--bonus">
+    <div class="pr-stat__icon">＋</div>
+    <div class="pr-stat__lbl">Toplam Bonus</div>
+    <div class="pr-stat__val">{{number_format($toplamBonus,2,',','.')}} <small>₺</small></div>
+  </div>
+  <div class="pr-stat pr-stat--kesinti">
+    <div class="pr-stat__icon">−</div>
+    <div class="pr-stat__lbl">Toplam Kesinti</div>
+    <div class="pr-stat__val">{{number_format($toplamKesinti,2,',','.')}} <small>₺</small></div>
+  </div>
+  <div class="pr-stat pr-stat--net">
+    <div class="pr-stat__icon"><i class="fa fa-credit-card"></i></div>
+    <div class="pr-stat__lbl">Net Ödenecek</div>
+    <div class="pr-stat__val">{{number_format($toplamNet,2,',','.')}} <small>₺</small></div>
+  </div>
+</div>
+
+<div class="pr-table-card">
+  <div class="pr-table-toolbar">
+    <h3><i class="fa fa-users"></i> Personel Bazında Hak Ediş</h3>
+  </div>
+  <div style="padding: 0 14px 6px">
+    <table class="data-table table hover nowrap" id="primrapor_tablo" style="width:100%">
       <thead>
         <tr>
           <th>Personel</th>
@@ -291,21 +441,22 @@
       </thead>
       <tbody>
         @foreach($rapor as $r)
+          @php $bas = mb_strtoupper(mb_substr($r['personel_adi'],0,1,'UTF-8'),'UTF-8'); @endphp
           <tr>
-            <td><strong>{{$r['personel_adi']}}</strong></td>
+            <td class="pr-cell-personel"><span class="pr-avatar">{{$bas}}</span>{{$r['personel_adi']}}</td>
             <td>{{number_format($r['maas'],2,',','.')}} ₺</td>
             <td>{{number_format($r['hizmet_primi'],2,',','.')}} ₺</td>
             <td>{{number_format($r['urun_primi'],2,',','.')}} ₺</td>
             <td>{{number_format($r['paket_primi'],2,',','.')}} ₺</td>
             <td><strong>{{number_format($r['prim_toplam'],2,',','.')}} ₺</strong></td>
-            <td style="color:#28a745"><strong>+{{number_format($r['bonus'],2,',','.')}}</strong>@if($r['hareket_sayisi']>0) <small style="color:#999">({{$r['hareket_sayisi']}})</small>@endif</td>
-            <td style="color:#dc3545"><strong>−{{number_format($r['kesinti'],2,',','.')}}</strong></td>
-            <td style="background:#f1f8ff"><strong style="font-size:15px; color:#007bff">{{number_format($r['net_hakedis'],2,',','.')}} ₺</strong></td>
+            <td class="pr-cell-bonus">+{{number_format($r['bonus'],2,',','.')}}@if($r['hareket_sayisi']>0) <small style="color:var(--rmc-muted); font-weight:500">({{$r['hareket_sayisi']}})</small>@endif</td>
+            <td class="pr-cell-kesinti">−{{number_format($r['kesinti'],2,',','.')}}</td>
+            <td class="pr-cell-net"><strong>{{number_format($r['net_hakedis'],2,',','.')}} ₺</strong></td>
             <td>
-              <button class="btn btn-sm btn-success prim-bonus-ekle" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Bonus/Kesinti Ekle">
+              <button class="pr-action-btn pr-action-btn--ekle prim-bonus-ekle" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Bonus/Kesinti Ekle">
                 <i class="fa fa-plus"></i>
               </button>
-              <button class="btn btn-sm btn-info prim-hareket-goster" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Hareketleri Görüntüle">
+              <button class="pr-action-btn pr-action-btn--liste prim-hareket-goster" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Hareketleri Görüntüle">
                 <i class="fa fa-list"></i>
               </button>
             </td>
