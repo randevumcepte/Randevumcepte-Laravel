@@ -20768,4 +20768,482 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         }
 
     }
+
+    // ============================================================
+    // SMS YÖNETİMİ (Uygulama içi SMS yönetim sayfası API'ları)
+    // ============================================================
+
+    public function smsYonetimInit(Request $request, $salonid)
+    {
+        $isletme = Salonlar::where('id',$salonid)->first();
+        if(!$isletme){
+            return response()->json(['basarili'=>false,'mesaj'=>'İşletme bulunamadı']);
+        }
+
+        $userId = $request->input('userId');
+        $isAdmin = false;
+        if($userId){
+            $isAdmin = DB::table('model_has_roles')
+                ->where('role_id',1)
+                ->where('model_id',$userId)
+                ->where('salon_id',$isletme->id)
+                ->count() > 0;
+        }
+
+        $ayarlar = SalonSMSAyarlari::where('salon_id',$isletme->id)
+            ->orderBy('ayar_id','asc')
+            ->get(['ayar_id','musteri','personel'])
+            ->map(function($a){
+                return [
+                    'ayar_id'=>(int)$a->ayar_id,
+                    'musteri'=>(bool)$a->musteri,
+                    'personel'=>(bool)$a->personel,
+                ];
+            });
+
+        $taslaklar = SMSTaslaklari::where(function($q) use($isletme){
+                $q->where('salon_id',$isletme->id)->orWhereNull('salon_id');
+            })
+            ->orderBy('id','desc')
+            ->get(['id','baslik','taslak_icerik','salon_id']);
+
+        $kalanSms = 0;
+        try{
+            if($isletme->yeni_sms == 1 && !empty($isletme->sms_user_name) && !empty($isletme->sms_secret)){
+                require_once app_path('VoiceTelekom/Sms/SmsApi.php');
+                $smsApi = new \SmsApi('smsvt.voicetelekom.com',$isletme->sms_user_name,$isletme->sms_secret);
+                $response = $smsApi->getCredit();
+                if($response && $response->err === null){
+                    $kalanSms = $response->credit;
+                }
+            } elseif(!empty($isletme->sms_apikey)){
+                $headers = [
+                    'Authorization: Key '.$isletme->sms_apikey,
+                    'Content-Type: application/json',
+                    'Accept: application/json'
+                ];
+                $ch = curl_init();
+                curl_setopt($ch,CURLOPT_URL,'https://api.efetech.net.tr/v2/get/balance');
+                curl_setopt($ch,CURLOPT_POST,1);
+                curl_setopt($ch,CURLOPT_TIMEOUT,5);
+                curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
+                curl_setopt($ch,CURLOPT_HTTPHEADER,$headers);
+                $resp = curl_exec($ch);
+                curl_close($ch);
+                $decoded = json_decode($resp,true);
+                if(is_array($decoded) && isset($decoded['response']['balance'])){
+                    $kalanSms = $decoded['response']['balance'];
+                }
+            }
+        } catch(\Exception $e){
+            Log::warning('smsYonetimInit bakiye alinamadi salon='.$isletme->id.' hata='.$e->getMessage());
+        }
+
+        return response()->json([
+            'basarili'=>true,
+            'isAdmin'=>$isAdmin,
+            'kalan_sms'=>$kalanSms,
+            'sms_baslik'=>$isletme->sms_baslik,
+            'yeni_sms'=>(int)$isletme->yeni_sms,
+            'randevu_sms_hatirlatma'=>(int)$isletme->randevu_sms_hatirlatma,
+            'ayarlar'=>$ayarlar,
+            'taslaklar'=>$taslaklar,
+        ]);
+    }
+
+    public function smsYonetimMusteriListele(Request $request, $salonid)
+    {
+        $page = (int)$request->input('page',1);
+        $perPage = (int)$request->input('perPage',200);
+        $search = trim((string)$request->input('search',''));
+        $cinsiyet = $request->input('cinsiyet','');
+        $karaliste = (int)$request->input('karaliste',0);
+
+        $query = DB::table('musteri_portfoy')
+            ->join('users','musteri_portfoy.user_id','=','users.id')
+            ->where('musteri_portfoy.salon_id',$salonid)
+            ->where(function($q){
+                $q->whereNotNull('users.cep_telefon')->where('users.cep_telefon','!=','');
+            })
+            ->select('musteri_portfoy.user_id as id','users.name as name','users.cep_telefon as telefon');
+
+        if($karaliste === 1){
+            $query->where('musteri_portfoy.kara_liste',1);
+        }
+
+        if($cinsiyet !== '' && $cinsiyet !== null){
+            $query->where('users.cinsiyet',$cinsiyet);
+        }
+
+        if($search !== ''){
+            $query->where(function($q) use($search){
+                $q->where('users.name','LIKE','%'.$search.'%')
+                  ->orWhere('users.cep_telefon','LIKE','%'.$search.'%');
+            });
+        }
+
+        $total = (clone $query)->count();
+        $tumIdler = (clone $query)->pluck('users.id')->toArray();
+
+        $rows = $query->orderBy('users.name')
+            ->skip(($page-1)*$perPage)
+            ->take($perPage)
+            ->get();
+
+        return response()->json([
+            'total'=>$total,
+            'page'=>$page,
+            'perPage'=>$perPage,
+            'customers'=>$rows,
+            'musteriIdler'=>$tumIdler,
+        ]);
+    }
+
+    public function smsYonetimTopluGonder(Request $request, $salonid)
+    {
+        $isletme = Salonlar::where('id',$salonid)->first();
+        if(!$isletme){
+            return response()->json(['status'=>'error','title'=>'Hata','text'=>'İşletme bulunamadı']);
+        }
+
+        $musteriIdler = $request->input('musteri_idler');
+        if(is_string($musteriIdler)){
+            $decoded = json_decode($musteriIdler,true);
+            $musteriIdler = is_array($decoded) ? $decoded : [];
+        }
+        if(!is_array($musteriIdler) || count($musteriIdler) === 0){
+            return response()->json(['status'=>'warning','title'=>'Uyarı','text'=>'Lütfen en az 1 müşteri seçiniz!']);
+        }
+        $musteriIdler = array_values(array_unique(array_filter(array_map('intval',$musteriIdler))));
+
+        $mesaj = trim((string)$request->input('smsmesaj',''));
+        if($mesaj === ''){
+            return response()->json(['status'=>'warning','title'=>'Uyarı','text'=>'Mesaj içeriği boş olamaz']);
+        }
+
+        $request->merge(['sube'=>$isletme->id]);
+
+        if($isletme->yeni_sms == 1){
+            $telefonlar = MusteriPortfoy::whereIn('user_id',$musteriIdler)
+                ->where('salon_id',$isletme->id)
+                ->where(function($q){ $q->where('kara_liste','!=',1)->orWhereNull('kara_liste'); })
+                ->whereHas('users',function($q){ $q->whereNotNull('cep_telefon')->where('cep_telefon','!=',''); })
+                ->with('users:id,cep_telefon')
+                ->get()
+                ->pluck('users.cep_telefon')
+                ->flatten();
+
+            if($telefonlar->count() === 0){
+                return response()->json(['status'=>'error','title'=>'Hata','text'=>'Geçerli telefon numarası bulunamadı']);
+            }
+            $smsController = app()->make(SMSController::class);
+            $sonuc = $smsController->cokluSMSGonderVoiceTelekom($telefonlar,$mesaj,$isletme->id,'Toplu SMS');
+            if($sonuc){
+                return response()->json(['status'=>'success','title'=>'Başarılı','text'=>'Mesajlar başarıyla gönderildi.']);
+            }
+            return response()->json(['status'=>'error','title'=>'Hata','text'=>'Mesajlarınız gönderilirken bir hata oluştu.']);
+        }
+
+        $mesajlar = [];
+        foreach($musteriIdler as $musteriId){
+            $musteri = User::where('id',$musteriId)->first();
+            if(!$musteri || empty($musteri->cep_telefon)) continue;
+            $kara = MusteriPortfoy::where('user_id',$musteri->id)->where('salon_id',$isletme->id)->value('kara_liste');
+            if($kara != 1){
+                $mesajlar[] = ['to'=>$musteri->cep_telefon,'message'=>$mesaj];
+            }
+        }
+        if(count($mesajlar) === 0){
+            return response()->json(['status'=>'error','title'=>'Hata','text'=>'Seçili müşteriler kara listenizde olduğu için mesaj gönderilemedi']);
+        }
+        $sonuc = $this->sms_gonder_bildirimli($request,$mesajlar,true,4,false,$isletme->id);
+        if(is_array($sonuc)) return response()->json($sonuc);
+        return response()->json(['status'=>'success','title'=>'Başarılı','text'=>'Mesajlar gönderildi']);
+    }
+
+    public function smsYonetimFiltreliGonder(Request $request, $salonid)
+    {
+        $isletme = Salonlar::where('id',$salonid)->first();
+        if(!$isletme){
+            return response()->json(['status'=>'error','title'=>'Hata','text'=>'İşletme bulunamadı']);
+        }
+
+        $musteriIdler = $request->input('musteri_idler');
+        if(is_string($musteriIdler)){
+            $decoded = json_decode($musteriIdler,true);
+            $musteriIdler = is_array($decoded) ? $decoded : [];
+        }
+        if(!is_array($musteriIdler) || count($musteriIdler) === 0){
+            return response()->json(['status'=>'warning','title'=>'Uyarı','text'=>'Lütfen en az 1 müşteri seçiniz!']);
+        }
+        $musteriIdler = array_values(array_unique(array_filter(array_map('intval',$musteriIdler))));
+
+        $mesaj = trim((string)$request->input('filtre_sms',''));
+        if($mesaj === ''){
+            return response()->json(['status'=>'warning','title'=>'Uyarı','text'=>'Mesaj içeriği boş olamaz']);
+        }
+
+        $request->merge(['sube'=>$isletme->id]);
+
+        if($isletme->yeni_sms == 1){
+            $telefonlar = MusteriPortfoy::whereIn('user_id',$musteriIdler)
+                ->where('salon_id',$isletme->id)
+                ->where(function($q){ $q->where('kara_liste','!=',1)->orWhereNull('kara_liste'); })
+                ->whereHas('users',function($q){ $q->whereNotNull('cep_telefon')->where('cep_telefon','!=',''); })
+                ->with('users:id,cep_telefon')
+                ->get()
+                ->pluck('users.cep_telefon')
+                ->flatten();
+            if($telefonlar->count() === 0){
+                return response()->json(['status'=>'error','title'=>'Hata','text'=>'Geçerli telefon numarası bulunamadı']);
+            }
+            $smsController = app()->make(SMSController::class);
+            $sonuc = $smsController->cokluSMSGonderVoiceTelekom($telefonlar,$mesaj,$isletme->id,'Filtreli SMS');
+            if($sonuc){
+                return response()->json(['status'=>'success','title'=>'Başarılı','text'=>'Mesajlar başarıyla gönderildi.']);
+            }
+            return response()->json(['status'=>'error','title'=>'Hata','text'=>'Mesajlarınız gönderilirken bir hata oluştu.']);
+        }
+
+        $mesajlar = [];
+        foreach($musteriIdler as $musteriId){
+            $musteri = User::where('id',$musteriId)->first();
+            if(!$musteri || empty($musteri->cep_telefon)) continue;
+            $kara = MusteriPortfoy::where('user_id',$musteri->id)->where('salon_id',$isletme->id)->value('kara_liste');
+            if($kara != 1){
+                $mesajlar[] = ['to'=>$musteri->cep_telefon,'message'=>$mesaj];
+            }
+        }
+        if(count($mesajlar) === 0){
+            return response()->json(['status'=>'error','title'=>'Hata','text'=>'Seçili müşteriler kara listenizde olduğu için mesaj gönderilemedi']);
+        }
+        $sonuc = $this->sms_gonder_bildirimli($request,$mesajlar,true,3,false,$isletme->id);
+        if(is_array($sonuc)) return response()->json($sonuc);
+        return response()->json(['status'=>'success','title'=>'Başarılı','text'=>'Mesajlar gönderildi']);
+    }
+
+    public function smsYonetimTaslakKaydet(Request $request, $salonid)
+    {
+        $baslik = trim((string)$request->input('baslik',''));
+        $icerik = trim((string)$request->input('icerik',''));
+        if($baslik === '' || $icerik === ''){
+            return response()->json(['basarili'=>false,'mesaj'=>'Şablon adı ve mesaj içeriği boş olamaz']);
+        }
+        $taslakId = $request->input('id');
+        $taslak = null;
+        if($taslakId){
+            $taslak = SMSTaslaklari::where('id',$taslakId)->where('salon_id',$salonid)->first();
+        }
+        if(!$taslak){
+            $taslak = new SMSTaslaklari();
+            $taslak->salon_id = $salonid;
+        }
+        $taslak->baslik = $baslik;
+        $taslak->taslak_icerik = $icerik;
+        $taslak->save();
+
+        $taslaklar = SMSTaslaklari::where(function($q) use($salonid){
+                $q->where('salon_id',$salonid)->orWhereNull('salon_id');
+            })
+            ->orderBy('id','desc')
+            ->get(['id','baslik','taslak_icerik','salon_id']);
+
+        return response()->json(['basarili'=>true,'mesaj'=>'Şablon başarıyla kaydedildi','taslaklar'=>$taslaklar]);
+    }
+
+    public function smsYonetimTaslakSil(Request $request)
+    {
+        $taslakId = $request->input('id');
+        $salonId = $request->input('salonId');
+        if(!$taslakId || !$salonId){
+            return response()->json(['basarili'=>false,'mesaj'=>'Şablon kimliği eksik']);
+        }
+        SMSTaslaklari::where('id',$taslakId)->where('salon_id',$salonId)->delete();
+        $taslaklar = SMSTaslaklari::where(function($q) use($salonId){
+                $q->where('salon_id',$salonId)->orWhereNull('salon_id');
+            })
+            ->orderBy('id','desc')
+            ->get(['id','baslik','taslak_icerik','salon_id']);
+        return response()->json(['basarili'=>true,'mesaj'=>'Şablon silindi','taslaklar'=>$taslaklar]);
+    }
+
+    public function smsYonetimRaporlar(Request $request, $salonid)
+    {
+        $isletme = Salonlar::where('id',$salonid)->first();
+        if(!$isletme){
+            return response()->json(['basarili'=>false,'mesaj'=>'İşletme bulunamadı']);
+        }
+        if($isletme->yeni_sms == 1){
+            $smsController = app()->make(SMSController::class);
+            $raporlar = $smsController->voiceTelekomRaporlariGetir($isletme->id);
+            return response()->json([
+                'basarili'=>true,
+                'yeni_sms'=>1,
+                'bildirim'=>collect($raporlar['bildirim'] ?? [])->values(),
+                'toplu'=>collect($raporlar['toplu'] ?? [])->values(),
+                'grup'=>collect($raporlar['grup'] ?? [])->values(),
+                'filtre'=>collect($raporlar['filtre'] ?? [])->values(),
+                'kampanya'=>collect($raporlar['kampanya'] ?? [])->values(),
+                'etkinlik'=>collect($raporlar['etkinlik'] ?? [])->values(),
+            ]);
+        }
+        $kolonlar = [
+            'rapor_id as id',
+            DB::raw('DATE_FORMAT(updated_at,"%d.%m.%Y %H:%i:%s") as date'),
+            'adet as count',
+            'kredi as price',
+            'aciklama as msgdetails',
+            'durum as status',
+        ];
+        $bildirim = DB::table('sms_iletim_raporlari')->select($kolonlar)->where('salon_id',$salonid)->where(function($q){ $q->where('tur',1)->orWhereNull('tur'); })->orderBy('updated_at','desc')->get();
+        $toplu = DB::table('sms_iletim_raporlari')->select($kolonlar)->where('salon_id',$salonid)->where('tur',4)->orderBy('updated_at','desc')->get();
+        $grup = DB::table('sms_iletim_raporlari')->select($kolonlar)->where('salon_id',$salonid)->where('tur',2)->orderBy('updated_at','desc')->get();
+        $filtre = DB::table('sms_iletim_raporlari')->select($kolonlar)->where('salon_id',$salonid)->where('tur',3)->orderBy('updated_at','desc')->get();
+        $kampanya = DB::table('sms_iletim_raporlari')->select($kolonlar)->where('salon_id',$salonid)->where('tur',5)->orderBy('updated_at','desc')->get();
+        $etkinlik = DB::table('sms_iletim_raporlari')->select($kolonlar)->where('salon_id',$salonid)->where('tur',6)->orderBy('updated_at','desc')->get();
+        return response()->json([
+            'basarili'=>true,
+            'yeni_sms'=>0,
+            'bildirim'=>$bildirim,
+            'toplu'=>$toplu,
+            'grup'=>$grup,
+            'filtre'=>$filtre,
+            'kampanya'=>$kampanya,
+            'etkinlik'=>$etkinlik,
+        ]);
+    }
+
+    public function smsYonetimRaporDetay(Request $request, $salonid)
+    {
+        $isletme = Salonlar::where('id',$salonid)->first();
+        if(!$isletme){
+            return response()->json(['basarili'=>false,'mesaj'=>'İşletme bulunamadı','kayitlar'=>[]]);
+        }
+        $pkgId = $request->input('pkg_id');
+        if(empty($pkgId)){
+            return response()->json(['basarili'=>false,'mesaj'=>'Paket kimliği eksik','kayitlar'=>[]]);
+        }
+        $smsController = app()->make(SMSController::class);
+        if($isletme->yeni_sms == 1){
+            return response()->json($smsController->voiceTelekomRaporDetayGetir($isletme->id,$pkgId));
+        }
+        return response()->json($smsController->efetechRaporDetayGetir($isletme->id,$pkgId));
+    }
+
+    public function smsYonetimAyarKaydet(Request $request, $salonid)
+    {
+        $ayarlar = $request->input('ayarlar');
+        if(is_string($ayarlar)){
+            $decoded = json_decode($ayarlar,true);
+            $ayarlar = is_array($decoded) ? $decoded : [];
+        }
+        if(!is_array($ayarlar)){
+            $ayarlar = [];
+        }
+        // SMS toggle ayarlarinin paralel WhatsApp alanlarini da yoneten ayar_id'leri
+        $whatsappEslenikler = [1,3,6,14];
+        foreach($ayarlar as $ayar){
+            $ayarId = isset($ayar['ayar_id']) ? (int)$ayar['ayar_id'] : 0;
+            if($ayarId <= 0) continue;
+            $musteri = !empty($ayar['musteri']);
+            $personel = !empty($ayar['personel']);
+            $update = [
+                'musteri'=>$musteri,
+                'personel'=>$personel,
+            ];
+            if(in_array($ayarId,$whatsappEslenikler)){
+                $update['whatsapp_musteri'] = $musteri ? 1 : 0;
+                $update['whatsapp_personel'] = $personel ? 1 : 0;
+            }
+            SalonSMSAyarlari::where('salon_id',$salonid)->where('ayar_id',$ayarId)->update($update);
+        }
+
+        $randevuHatirlatma = $request->input('randevu_sms_hatirlatma');
+        if($randevuHatirlatma !== null){
+            $salon = Salonlar::where('id',$salonid)->first();
+            if($salon){
+                $salon->randevu_sms_hatirlatma = (int)$randevuHatirlatma;
+                $salon->save();
+            }
+        }
+
+        return response()->json(['basarili'=>true,'mesaj'=>'SMS ayarları başarıyla kaydedildi']);
+    }
+
+    public function smsYonetimKaraListe(Request $request, $salonid)
+    {
+        $rows = DB::table('musteri_portfoy')
+            ->join('users','musteri_portfoy.user_id','=','users.id')
+            ->where('musteri_portfoy.salon_id',$salonid)
+            ->where('musteri_portfoy.kara_liste',1)
+            ->select(
+                'users.id as user_id',
+                'users.name as ad_soyad',
+                'users.cep_telefon as telefon',
+                DB::raw('DATE_FORMAT(musteri_portfoy.updated_at,"%d.%m.%Y") as eklenme_tarihi')
+            )
+            ->orderBy('musteri_portfoy.updated_at','desc')
+            ->get();
+        return response()->json(['basarili'=>true,'kayitlar'=>$rows]);
+    }
+
+    public function smsYonetimKaraListeEkle(Request $request, $salonid)
+    {
+        $userId = $request->input('user_id');
+        if(!$userId){
+            return response()->json(['basarili'=>false,'mesaj'=>'Kullanıcı seçiniz']);
+        }
+        $portfoy = MusteriPortfoy::where('user_id',$userId)->where('salon_id',$salonid)->first();
+        if(!$portfoy){
+            $portfoy = new MusteriPortfoy();
+            $portfoy->user_id = $userId;
+            $portfoy->salon_id = $salonid;
+            $portfoy->aktif = true;
+        }
+        $portfoy->kara_liste = 1;
+        $portfoy->save();
+        return response()->json(['basarili'=>true,'mesaj'=>'Kara listeye eklendi']);
+    }
+
+    public function smsYonetimKaraListeSil(Request $request, $salonid)
+    {
+        $userId = $request->input('user_id');
+        if(!$userId){
+            return response()->json(['basarili'=>false,'mesaj'=>'Kullanıcı seçiniz']);
+        }
+        MusteriPortfoy::where('user_id',$userId)->where('salon_id',$salonid)->update(['kara_liste'=>0]);
+        return response()->json(['basarili'=>true,'mesaj'=>'Kara listeden çıkarıldı']);
+    }
+
+    public function smsYonetimBakiye(Request $request, $salonid)
+    {
+        $isletme = Salonlar::where('id',$salonid)->first();
+        if(!$isletme){
+            return response()->json(['basarili'=>false,'kalan_sms'=>0]);
+        }
+        $kalanSms = 0;
+        try{
+            if($isletme->yeni_sms == 1 && !empty($isletme->sms_user_name) && !empty($isletme->sms_secret)){
+                require_once app_path('VoiceTelekom/Sms/SmsApi.php');
+                $smsApi = new \SmsApi('smsvt.voicetelekom.com',$isletme->sms_user_name,$isletme->sms_secret);
+                $resp = $smsApi->getCredit();
+                if($resp && $resp->err === null) $kalanSms = $resp->credit;
+            } elseif(!empty($isletme->sms_apikey)){
+                $headers = ['Authorization: Key '.$isletme->sms_apikey,'Content-Type: application/json','Accept: application/json'];
+                $ch = curl_init();
+                curl_setopt($ch,CURLOPT_URL,'https://api.efetech.net.tr/v2/get/balance');
+                curl_setopt($ch,CURLOPT_POST,1);
+                curl_setopt($ch,CURLOPT_TIMEOUT,5);
+                curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
+                curl_setopt($ch,CURLOPT_HTTPHEADER,$headers);
+                $resp = curl_exec($ch);
+                curl_close($ch);
+                $decoded = json_decode($resp,true);
+                if(is_array($decoded) && isset($decoded['response']['balance'])) $kalanSms = $decoded['response']['balance'];
+            }
+        } catch(\Exception $e){
+            Log::warning('smsYonetimBakiye hata salon='.$salonid.' '.$e->getMessage());
+        }
+        return response()->json(['basarili'=>true,'kalan_sms'=>$kalanSms]);
+    }
 }

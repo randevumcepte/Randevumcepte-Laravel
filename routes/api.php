@@ -265,5 +265,15 @@ Route::post('/bildirimkimligiekleguncelle','ApiController@bildirimkimligieklegun
     Route::post('/seansEkle','ApiController@seansEkle');
     Route::post('/seansGuncelle','ApiController@seansGuncelle');
 
+    /* ───────── Çarkıfelek (müşteri uygulaması) ───────── */
+    Route::get ('/cark/durum',          'CarkifelekApiController@durum');
+    Route::post('/cark/durum',          'CarkifelekApiController@durum');
+    Route::post('/cark/cevir',          'CarkifelekApiController@cevir');
+    Route::get ('/cark/odullerim',      'CarkifelekApiController@odullerim');
+    Route::post('/cark/odullerim',      'CarkifelekApiController@odullerim');
+    Route::get ('/cark/puanodullerim',  'CarkifelekApiController@puanOdullerim');
+    Route::post('/cark/puanodullerim',  'CarkifelekApiController@puanOdullerim');
+    Route::post('/cark/puanodultalep',  'CarkifelekApiController@puanOdulTalep');
+
 });
   
