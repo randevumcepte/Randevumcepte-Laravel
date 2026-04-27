@@ -605,10 +605,30 @@
 </div>
 
 <style>
+#hizmetiAlanMusterilerModal{
+   position: fixed !important;
+   top: 0 !important; left: 0 !important;
+   right: 0 !important; bottom: 0 !important;
+   width: 100vw !important; height: 100vh !important;
+   z-index: 10550 !important;
+   display: none;
+   overflow-x: hidden;
+   overflow-y: auto;
+}
+#hizmetiAlanMusterilerModal.show{ display: block; }
 #hizmetiAlanMusterilerModal .modal-dialog{
    max-width: 1100px;
    width: 95%;
-   margin: 1.5rem auto;
+   margin: 1.5rem auto !important;
+   min-height: calc(100% - 3rem);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   pointer-events: none;
+}
+#hizmetiAlanMusterilerModal .modal-content{
+   width: 100%;
+   pointer-events: auto;
 }
 #hizmetiAlanMusterilerModal .modal-content{
    border: none;

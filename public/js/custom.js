@@ -9021,9 +9021,13 @@ $(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
     var hizmetAdi = $(this).data('adi') || '';
     if(!hizmetId) return;
 
+    var $hamModal = $('#hizmetiAlanMusterilerModal');
+    if($hamModal.parent()[0] !== document.body){
+        $hamModal.appendTo('body');
+    }
     $('#hizmetiAlanMusteriler_hizmetAdi').text(hizmetAdi);
     $('#hizmetiAlanMusteriler_icerik').html('<div class="ham-loading"><div class="ham-spinner"></div><div style="margin-top:14px; font-weight:500;">Yükleniyor...</div></div>');
-    $('#hizmetiAlanMusterilerModal').modal('show');
+    $hamModal.modal('show');
 
     function hamEsc(s){ return $('<div>').text(s == null ? '' : s).html(); }
     function hamFmt(s){ return hamEsc(s); }
