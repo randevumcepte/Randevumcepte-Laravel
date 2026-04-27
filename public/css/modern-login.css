@@ -11,10 +11,10 @@
     --login-text: #2d3748;
     --login-muted: #9aa3b2;
     --login-input-bg: #f1f3f6;
-    --login-cta: #8ed64a;
-    --login-cta-2: #6fb82e;
-    --login-fb: #3b5998;
-    --login-fb-2: #2d4373;
+    --login-cta: #5C008E;
+    --login-cta-2: #d946ef;
+    --login-fb: #3d0866;
+    --login-fb-2: #1a0533;
     --login-white: #ffffff;
     --login-error: #dc3545;
 }
@@ -422,7 +422,7 @@
     display: block;
     width: 100%;
     padding: 16px 24px;
-    background: linear-gradient(180deg, var(--login-cta) 0%, var(--login-cta-2) 100%);
+    background: linear-gradient(135deg, var(--login-cta) 0%, var(--login-cta-2) 100%);
     color: var(--login-white);
     border: none;
     border-radius: 30px;
@@ -432,13 +432,27 @@
     text-transform: uppercase;
     cursor: pointer;
     transition: all 0.25s ease;
-    box-shadow: 0 10px 22px rgba(142, 214, 74, 0.4);
+    box-shadow:
+        0 10px 22px rgba(92, 0, 142, 0.40),
+        0 4px 10px rgba(217, 70, 239, 0.25);
     text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.18) 0%, transparent 60%);
+    pointer-events: none;
 }
 
 .login-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 14px 28px rgba(142, 214, 74, 0.5);
+    box-shadow:
+        0 14px 30px rgba(92, 0, 142, 0.50),
+        0 6px 14px rgba(217, 70, 239, 0.35);
 }
 
 .login-btn:active {
@@ -464,17 +478,17 @@
     margin: 0 12px;
 }
 
-/* Secondary (Facebook-style) Button */
+/* Secondary (Outline) Button */
 .login-btn-secondary {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
     width: 100%;
-    padding: 14px 20px;
-    background: linear-gradient(180deg, var(--login-fb) 0%, var(--login-fb-2) 100%);
-    color: var(--login-white);
-    border: none;
+    padding: 13px 20px;
+    background: transparent;
+    color: var(--login-cta);
+    border: 2px solid var(--login-cta);
     border-radius: 30px;
     font-size: 13px;
     font-weight: 800;
@@ -482,15 +496,16 @@
     text-transform: uppercase;
     cursor: pointer;
     transition: all 0.25s ease;
-    box-shadow: 0 8px 18px rgba(59, 89, 152, 0.35);
     text-decoration: none;
 }
 
 .login-btn-secondary:hover {
-    transform: translateY(-2px);
+    background: linear-gradient(135deg, var(--login-fb) 0%, var(--login-cta) 100%);
     color: var(--login-white);
+    border-color: var(--login-fb);
     text-decoration: none;
-    box-shadow: 0 12px 24px rgba(59, 89, 152, 0.45);
+    box-shadow: 0 10px 22px rgba(61, 8, 102, 0.35);
+    transform: translateY(-2px);
 }
 
 .login-btn-secondary i {
