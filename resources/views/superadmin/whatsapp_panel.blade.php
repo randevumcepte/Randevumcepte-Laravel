@@ -62,6 +62,11 @@
 #waChart { max-height:300px; }
 .wa-chart-container { background:#fff; border-radius:10px; padding:20px; box-shadow:0 1px 4px rgba(0,0,0,.05); margin-bottom:20px; }
 
+.wa-btn-mini { display:inline-block; padding:5px 10px; border-radius:5px; font-size:11px; font-weight:600; text-decoration:none; border:1px solid #dee2e6; background:#fff; color:#333; cursor:pointer; }
+.wa-btn-mini:hover { background:#f7f9fc; }
+.wa-btn-mini-primary { background:#25D366; color:#fff; border-color:#25D366; }
+.wa-btn-mini-primary:hover { background:#1ebe57; color:#fff; }
+
 .wa-spinner { display:inline-block; width:16px; height:16px; border:2px solid #ddd; border-top-color:#25D366; border-radius:50%; animation:waspin 0.8s linear infinite; }
 @keyframes waspin { to { transform:rotate(360deg); } }
 </style>
@@ -113,9 +118,9 @@
                 <thead><tr>
                     <th>ID</th><th>Salon</th><th>Numara</th><th>Durum</th>
                     <th>Limit (gün)</th><th>Bugün</th><th>Hafta</th>
-                    <th>Bağlandı</th><th>Son Hata</th>
+                    <th>Bağlandı</th><th>Son Hata</th><th>İşlem</th>
                 </tr></thead>
-                <tbody><tr><td colspan="9">Yükleniyor...</td></tr></tbody>
+                <tbody><tr><td colspan="10">Yükleniyor...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -244,11 +249,14 @@
             return true;
         });
         if (rows.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#999;padding:30px;">Filtre eşleşmesi yok</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#999;padding:30px;">Filtre eşleşmesi yok</td></tr>';
             return;
         }
         tbody.innerHTML = rows.map(function(r){
             var durumClass = r.durum || 'gri';
+            var yonetUrl = '/isletmeyonetim/whatsapp?sube=' + r.id;
+            var loglarBtn = '<button class="wa-btn-mini" data-salon-id="' + r.id + '" data-action="loglar">📨 Loglar</button>';
+            var yonetBtn = '<a class="wa-btn-mini wa-btn-mini-primary" href="' + yonetUrl + '" target="_blank">🔧 Yönet</a>';
             return '<tr>'
                 + '<td>' + r.id + '</td>'
                 + '<td><b>' + escHtml(r.salon_adi) + '</b></td>'
@@ -259,8 +267,19 @@
                 + '<td>' + r.hafta_toplam + '</td>'
                 + '<td>' + escHtml(r.baglanti_tarihi || '—') + '</td>'
                 + '<td style="color:#dc3545;font-size:12px;">' + escHtml(r.son_hata || '') + '</td>'
+                + '<td style="white-space:nowrap;">' + yonetBtn + ' ' + loglarBtn + '</td>'
                 + '</tr>';
         }).join('');
+
+        // Salon log'una hızlı geçiş
+        document.querySelectorAll('#salonTable button[data-action="loglar"]').forEach(function(b){
+            b.addEventListener('click', function(){
+                var sid = b.dataset.salonId;
+                document.querySelector('.wa-tab[data-tab="loglar"]').click();
+                document.getElementById('logSalonId').value = sid;
+                yukleLoglar(1);
+            });
+        });
     }
     document.getElementById('filterSalonDurum').addEventListener('change', renderSalonlar);
     document.getElementById('filterSalonArama').addEventListener('input', renderSalonlar);
