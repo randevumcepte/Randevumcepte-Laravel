@@ -80,18 +80,13 @@
         <div class="wa-info">
             <h3>Nasıl Çalışır?</h3>
             <ul>
-                <li>WhatsApp kanalı <b>SADECE</b> randevudan <b>1 gün önceki hatırlatma</b> için kullanılır. Onay/iptal/doğum günü gibi diğer mesajlar SMS olarak gider.</li>
-                <li>SMS ayarlarınızda "WhatsApp" seçili müşteriler için önce WhatsApp denenir, başarısız olursa otomatik SMS'e düşer.</li>
-                <li><b>Ban riskini en aza indirmek için:</b>
-                    <ul>
-                        <li>Mesajlar <b>1-2 dakika aralıklarla</b> ve her müşteriye özel metinle gönderilir (insan davranışı).</li>
-                        <li>Yeni bağlanan numaralarda günlük limit 7 gün boyunca kademeli artar (ilk gün 15 mesaj).</li>
-                        <li>Sadece {{ config('whatsapp.business_hours.start', 9) }}:00 - {{ config('whatsapp.business_hours.end', 21) }}:00 arasında gönderim yapılır.</li>
-                        <li>Müşteri numarası WhatsApp'ta yoksa atlanır.</li>
-                        <li><b>Otomatik durdurma:</b> Ardışık 3 başarısızlıkta veya WhatsApp'tan ban/rate-limit sinyali gelince oturum anında kapatılır, yetkiliye SMS + panel bildirimi gider.</li>
-                    </ul>
-                </li>
-                <li><b>Önemli:</b> WhatsApp Business uygulaması yüklü, en az 2 hafta eski bir numara kullanın.</li>
+                <li>WhatsApp bağlandıktan sonra SMS Ayarları'nda <b>"Müşteri" işaretli</b> randevu hatırlatmaları, müşterilerinize <b>kendi WhatsApp numaranız</b> üzerinden iletilir.</li>
+                <li>Müşterinin WhatsApp'ı yoksa veya iletilemezse, mesaj <b>otomatik SMS</b> olarak gider — hiçbir hatırlatma kaybolmaz.</li>
+                <li>Mesajlar müşterilere <b>doğal aralıklarla, kişiselleştirilmiş</b> şekilde iletilir (her müşteriye özel selamlama ve metin).</li>
+                <li><b>İlk hafta hazırlık dönemi:</b> Numaranızın WhatsApp Business sisteminde stabil çalışması için ilk 7 gün günlük gönderim sayısı kademeli artar (1. gün 15, 7. gün tam kapasite).</li>
+                <li><b>Çalışma saatleri:</b> Müşterilerinize gece geç saatte rahatsız edici mesaj gitmemesi için gönderimler gündüz saatlerinde yapılır.</li>
+                <li>Bağlantı koparsa veya bir sorun olduğunda <b>panel size haber verir</b>, hatırlatmalar otomatik SMS'e geçer.</li>
+                <li><b>İpucu:</b> En az 2 haftadır kullanılan, WhatsApp Business uygulaması yüklü bir numara bağlamak en sağlıklı sonucu verir.</li>
             </ul>
             <div class="wa-meta">
                 <div>Günlük limit: <b id="wa-daily-limit">{{ $isletme->whatsapp_gunluk_limit ?? 150 }}</b></div>
