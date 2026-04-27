@@ -19,7 +19,7 @@
     --login-error: #dc3545;
 }
 
-/* ===== Page Wrapper with Diagonal Stripes ===== */
+/* ===== Page Wrapper - Soft Background ===== */
 .login-wrapper {
     min-height: 100vh;
     display: flex;
@@ -28,31 +28,7 @@
     padding: 50px 20px;
     position: relative;
     overflow: hidden;
-    background: var(--login-purple);
-}
-
-/* Diagonal stripes overlay */
-.login-wrapper::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(115deg,
-            transparent 0%,
-            transparent 18%,
-            var(--login-teal) 18%,
-            var(--login-teal) 26%,
-            transparent 26%,
-            transparent 42%,
-            var(--login-pink) 42%,
-            var(--login-pink) 50%,
-            transparent 50%,
-            transparent 70%,
-            var(--login-purple-2) 70%,
-            var(--login-purple-2) 78%,
-            transparent 78%);
-    z-index: 0;
-    opacity: 0.95;
+    background: linear-gradient(135deg, #b794e6 0%, #9b78d9 50%, #8e5fd9 100%);
 }
 
 /* ===== Main Card ===== */
