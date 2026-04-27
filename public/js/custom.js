@@ -9062,10 +9062,10 @@ $(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
 
             var html = '';
             html += '<div class="ham-summary">';
-            html += '  <div class="ham-chip">Kayıt Sayısı:<strong>'+result.length+'</strong></div>';
-            html += '  <div class="ham-chip">Toplam Fiyat:<strong>'+tl(toplamFiyat)+' ₺</strong></div>';
-            html += '  <div class="ham-chip">Toplam Ödenen:<strong style="color:#1ba94c">'+tl(toplamOdenen)+' ₺</strong></div>';
-            html += '  <div class="ham-chip">Toplam Kalan:<strong style="color:#e44d6d">'+tl(toplamKalan)+' ₺</strong></div>';
+            html += '  <div class="ham-chip">Kayıt Sayısı <strong>'+result.length+'</strong></div>';
+            html += '  <div class="ham-chip">Toplam Fiyat <strong>'+tl(toplamFiyat)+' ₺</strong></div>';
+            html += '  <div class="ham-chip ham-chip-success">Toplam Ödenen <strong>'+tl(toplamOdenen)+' ₺</strong></div>';
+            html += '  <div class="ham-chip ham-chip-danger">Toplam Kalan <strong>'+tl(toplamKalan)+' ₺</strong></div>';
             html += '</div>';
 
             html += '<div style="overflow-x:auto;">';

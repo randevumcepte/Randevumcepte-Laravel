@@ -614,40 +614,46 @@
    border: none;
    border-radius: 16px;
    overflow: hidden;
-   box-shadow: 0 25px 60px rgba(80,30,180,0.25);
+   box-shadow: 0 20px 50px rgba(15,23,42,0.18);
+}
+#hizmetiAlanMusterilerModal .ham-accent-bar{
+   height: 4px;
+   background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
 }
 #hizmetiAlanMusterilerModal .ham-header{
-   background: linear-gradient(135deg, #7E3FF2 0%, #B45CFF 50%, #FF6FB5 100%);
-   color: #fff;
+   background: #ffffff;
+   color: #1e293b;
    padding: 22px 28px;
    display: flex;
    align-items: center;
    justify-content: space-between;
    gap: 16px;
+   border-bottom: 1px solid #f1f5f9;
 }
 #hizmetiAlanMusterilerModal .ham-header .ham-icon{
-   width: 52px; height: 52px;
-   border-radius: 14px;
-   background: rgba(255,255,255,0.18);
+   width: 48px; height: 48px;
+   border-radius: 12px;
+   background: #eef2ff;
+   color: #6366f1;
    display:flex; align-items:center; justify-content:center;
-   font-size: 24px;
+   font-size: 22px;
    flex-shrink:0;
 }
 #hizmetiAlanMusterilerModal .ham-header h4{
-   margin:0; font-size:20px; font-weight:700;
+   margin:0; font-size:19px; font-weight:700; color:#0f172a;
 }
 #hizmetiAlanMusterilerModal .ham-header .ham-sub{
-   font-size:13px; opacity:.9; margin-top:4px; font-weight:500;
+   font-size:13px; color:#64748b; margin-top:3px; font-weight:500;
 }
 #hizmetiAlanMusterilerModal .ham-close{
-   color:#fff; opacity:.85; background:rgba(255,255,255,.15);
+   color:#94a3b8; background:#f1f5f9;
    border:none; border-radius:10px; width:38px; height:38px;
-   font-size:22px; line-height:1; cursor:pointer; transition:.2s;
+   font-size:22px; line-height:1; cursor:pointer; transition:.15s;
 }
-#hizmetiAlanMusterilerModal .ham-close:hover{ opacity:1; background:rgba(255,255,255,.28); }
+#hizmetiAlanMusterilerModal .ham-close:hover{ background:#e2e8f0; color:#475569; }
 #hizmetiAlanMusterilerModal .ham-body{
-   padding: 24px 28px;
-   background: #faf8ff;
+   padding: 22px 28px;
+   background: #f8fafc;
    max-height: 65vh;
    overflow-y: auto;
 }
@@ -655,63 +661,65 @@
    display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px;
 }
 #hizmetiAlanMusterilerModal .ham-chip{
-   background:#fff; border-radius:12px; padding:10px 16px;
-   box-shadow:0 2px 8px rgba(126,63,242,0.08);
-   font-size:13px; color:#5a4080; font-weight:600;
+   background:#fff; border:1px solid #e2e8f0; border-radius:12px;
+   padding:12px 18px; font-size:13px; color:#64748b; font-weight:500;
+   display:flex; align-items:baseline; gap:8px;
 }
-#hizmetiAlanMusterilerModal .ham-chip strong{ color:#7E3FF2; font-size:15px; margin-left:6px; }
+#hizmetiAlanMusterilerModal .ham-chip strong{ color:#0f172a; font-size:16px; font-weight:700; }
+#hizmetiAlanMusterilerModal .ham-chip.ham-chip-success strong{ color:#16a34a; }
+#hizmetiAlanMusterilerModal .ham-chip.ham-chip-danger strong{ color:#dc2626; }
 #hizmetiAlanMusterilerModal .ham-table{
    width:100%; border-collapse: separate; border-spacing:0;
    background:#fff; border-radius:12px; overflow:hidden;
-   box-shadow:0 4px 16px rgba(126,63,242,0.10);
+   border:1px solid #e2e8f0;
 }
 #hizmetiAlanMusterilerModal .ham-table thead th{
-   background: linear-gradient(135deg,#7E3FF2,#B45CFF);
-   color:#fff; font-weight:600; font-size:13px;
-   padding:14px 12px; text-align:left; border:none;
-   text-transform:uppercase; letter-spacing:.4px;
+   background: #f8fafc;
+   color:#475569; font-weight:600; font-size:12px;
+   padding:14px 14px; text-align:left; border:none;
+   text-transform:uppercase; letter-spacing:.5px;
+   border-bottom:1px solid #e2e8f0;
 }
 #hizmetiAlanMusterilerModal .ham-table tbody td{
-   padding:14px 12px; border-bottom:1px solid #f0eaff; font-size:14px; color:#3a2a5a;
+   padding:14px 14px; border-bottom:1px solid #f1f5f9; font-size:14px; color:#334155;
 }
 #hizmetiAlanMusterilerModal .ham-table tbody tr:last-child td{ border-bottom:none; }
-#hizmetiAlanMusterilerModal .ham-table tbody tr:hover td{ background:#f6f0ff; }
-#hizmetiAlanMusterilerModal .ham-table .ham-musteri{ font-weight:600; color:#2a1a4a; }
-#hizmetiAlanMusterilerModal .ham-table .ham-tel{ color:#6a5b8a; font-size:13px; }
+#hizmetiAlanMusterilerModal .ham-table tbody tr:hover td{ background:#f8fafc; }
+#hizmetiAlanMusterilerModal .ham-table .ham-musteri{ font-weight:600; color:#0f172a; }
+#hizmetiAlanMusterilerModal .ham-table .ham-tel{ color:#64748b; font-size:13px; }
 #hizmetiAlanMusterilerModal .ham-table .ham-personel-badge{
    display:inline-block; padding:4px 12px; border-radius:20px;
-   background:#ede4ff; color:#7E3FF2; font-size:12px; font-weight:600;
+   background:#eef2ff; color:#4f46e5; font-size:12px; font-weight:600;
 }
 #hizmetiAlanMusterilerModal .ham-table .ham-amount{ font-weight:600; text-align:right; white-space:nowrap; }
-#hizmetiAlanMusterilerModal .ham-table .ham-fiyat{ color:#2a1a4a; }
-#hizmetiAlanMusterilerModal .ham-table .ham-odenen{ color:#1ba94c; }
-#hizmetiAlanMusterilerModal .ham-table .ham-kalan{ color:#e44d6d; }
+#hizmetiAlanMusterilerModal .ham-table .ham-fiyat{ color:#0f172a; }
+#hizmetiAlanMusterilerModal .ham-table .ham-odenen{ color:#16a34a; }
+#hizmetiAlanMusterilerModal .ham-table .ham-kalan{ color:#dc2626; }
 #hizmetiAlanMusterilerModal .ham-empty{
-   text-align:center; padding:50px 20px; color:#9e8fc7;
+   text-align:center; padding:50px 20px; color:#94a3b8;
 }
 #hizmetiAlanMusterilerModal .ham-empty .ham-empty-icon{
-   font-size:48px; margin-bottom:12px; opacity:.5;
+   font-size:48px; margin-bottom:12px; opacity:.6;
 }
 #hizmetiAlanMusterilerModal .ham-loading{
-   text-align:center; padding:60px 20px; color:#7E3FF2;
+   text-align:center; padding:60px 20px; color:#64748b;
 }
 #hizmetiAlanMusterilerModal .ham-spinner{
    display:inline-block; width:40px; height:40px;
-   border:4px solid #ede4ff; border-top-color:#7E3FF2;
+   border:3px solid #e2e8f0; border-top-color:#6366f1;
    border-radius:50%; animation: hamSpin .8s linear infinite;
 }
 @keyframes hamSpin { to { transform: rotate(360deg); } }
 #hizmetiAlanMusterilerModal .ham-footer{
    padding:16px 28px; background:#fff;
-   display:flex; justify-content:flex-end; border-top:1px solid #f0eaff;
+   display:flex; justify-content:flex-end; border-top:1px solid #f1f5f9;
 }
 #hizmetiAlanMusterilerModal .ham-footer .btn-kapat{
-   background: linear-gradient(135deg,#7E3FF2,#B45CFF);
-   color:#fff; border:none; padding:10px 28px; border-radius:10px;
-   font-weight:600; cursor:pointer; transition:.2s;
-   box-shadow:0 4px 12px rgba(126,63,242,0.3);
+   background:#6366f1; color:#fff; border:none;
+   padding:10px 26px; border-radius:10px;
+   font-weight:600; font-size:14px; cursor:pointer; transition:.15s;
 }
-#hizmetiAlanMusterilerModal .ham-footer .btn-kapat:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(126,63,242,0.4); }
+#hizmetiAlanMusterilerModal .ham-footer .btn-kapat:hover{ background:#4f46e5; }
 
 @media (max-width: 768px){
    #hizmetiAlanMusterilerModal .ham-header{ padding:18px; }
@@ -723,6 +731,7 @@
 <div class="modal fade" id="hizmetiAlanMusterilerModal" tabindex="-1" role="dialog" aria-labelledby="hizmetiAlanMusterilerModalLabel" aria-hidden="true">
    <div class="modal-dialog modal-dialog-centered" role="document">
       <div class="modal-content">
+         <div class="ham-accent-bar"></div>
          <div class="ham-header">
             <div style="display:flex; align-items:center; gap:16px; flex:1; min-width:0;">
                <div class="ham-icon"><i class="dw dw-eye"></i></div>
