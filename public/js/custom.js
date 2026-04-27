@@ -9022,8 +9022,11 @@ $(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
     if(!hizmetId) return;
 
     $('#hizmetiAlanMusteriler_hizmetAdi').text(hizmetAdi);
-    $('#hizmetiAlanMusteriler_icerik').html('<div class="text-center text-muted">Yükleniyor...</div>');
+    $('#hizmetiAlanMusteriler_icerik').html('<div class="ham-loading"><div class="ham-spinner"></div><div style="margin-top:14px; font-weight:500;">Yükleniyor...</div></div>');
     $('#hizmetiAlanMusterilerModal').modal('show');
+
+    function hamEsc(s){ return $('<div>').text(s == null ? '' : s).html(); }
+    function hamFmt(s){ return hamEsc(s); }
 
     $.ajax({
         type: 'GET',
@@ -9039,36 +9042,65 @@ $(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
         },
         success: function(result){
             if(!result || result.length === 0){
-                $('#hizmetiAlanMusteriler_icerik').html('<div class="text-center text-muted py-3">Seçili dönem ve filtreye uyan kayıt bulunamadı.</div>');
+                $('#hizmetiAlanMusteriler_icerik').html(
+                    '<div class="ham-empty">'+
+                    '<div class="ham-empty-icon"><i class="dw dw-search"></i></div>'+
+                    '<div style="font-size:15px; font-weight:600; color:#5a4080;">Kayıt bulunamadı</div>'+
+                    '<div style="margin-top:6px; font-size:13px;">Seçili dönem ve filtreye uyan müşteri yok.</div>'+
+                    '</div>'
+                );
                 return;
             }
-            var html = '<div class="table-responsive">';
-            html += '<table class="table table-striped table-hover" style="width:100%">';
+
+            var toplamFiyat = 0, toplamOdenen = 0, toplamKalan = 0;
+            result.forEach(function(r){
+                toplamFiyat  += parseFloat(String(r.fiyat).replace(/\./g,'').replace(',','.'))  || 0;
+                toplamOdenen += parseFloat(String(r.odenen).replace(/\./g,'').replace(',','.')) || 0;
+                toplamKalan  += parseFloat(String(r.kalan).replace(/\./g,'').replace(',','.'))  || 0;
+            });
+            function tl(n){ return n.toLocaleString('tr-TR',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+            var html = '';
+            html += '<div class="ham-summary">';
+            html += '  <div class="ham-chip">Kayıt Sayısı:<strong>'+result.length+'</strong></div>';
+            html += '  <div class="ham-chip">Toplam Fiyat:<strong>'+tl(toplamFiyat)+' ₺</strong></div>';
+            html += '  <div class="ham-chip">Toplam Ödenen:<strong style="color:#1ba94c">'+tl(toplamOdenen)+' ₺</strong></div>';
+            html += '  <div class="ham-chip">Toplam Kalan:<strong style="color:#e44d6d">'+tl(toplamKalan)+' ₺</strong></div>';
+            html += '</div>';
+
+            html += '<div style="overflow-x:auto;">';
+            html += '<table class="ham-table">';
             html += '<thead><tr>';
             html += '<th>Tarih</th>';
             html += '<th>Müşteri</th>';
             html += '<th>Telefon</th>';
             html += '<th>Personel</th>';
-            html += '<th class="text-right">Fiyat ₺</th>';
-            html += '<th class="text-right">Ödenen ₺</th>';
-            html += '<th class="text-right">Kalan ₺</th>';
+            html += '<th style="text-align:right;">Fiyat ₺</th>';
+            html += '<th style="text-align:right;">Ödenen ₺</th>';
+            html += '<th style="text-align:right;">Kalan ₺</th>';
             html += '</tr></thead><tbody>';
             result.forEach(function(r){
                 html += '<tr>';
-                html += '<td>'+r.tarih+'</td>';
-                html += '<td>'+r.musteri_adi+'</td>';
-                html += '<td>'+r.telefon+'</td>';
-                html += '<td>'+r.personel+'</td>';
-                html += '<td class="text-right">'+r.fiyat+'</td>';
-                html += '<td class="text-right">'+r.odenen+'</td>';
-                html += '<td class="text-right">'+r.kalan+'</td>';
+                html += '<td>'+hamFmt(r.tarih)+'</td>';
+                html += '<td class="ham-musteri">'+hamFmt(r.musteri_adi)+'</td>';
+                html += '<td class="ham-tel">'+hamFmt(r.telefon)+'</td>';
+                html += '<td><span class="ham-personel-badge">'+hamFmt(r.personel)+'</span></td>';
+                html += '<td class="ham-amount ham-fiyat">'+hamFmt(r.fiyat)+'</td>';
+                html += '<td class="ham-amount ham-odenen">'+hamFmt(r.odenen)+'</td>';
+                html += '<td class="ham-amount ham-kalan">'+hamFmt(r.kalan)+'</td>';
                 html += '</tr>';
             });
             html += '</tbody></table></div>';
             $('#hizmetiAlanMusteriler_icerik').html(html);
         },
         error: function(){
-            $('#hizmetiAlanMusteriler_icerik').html('<div class="text-center text-danger py-3">Veriler yüklenirken bir hata oluştu.</div>');
+            $('#hizmetiAlanMusteriler_icerik').html(
+                '<div class="ham-empty" style="color:#e44d6d;">'+
+                '<div class="ham-empty-icon"><i class="dw dw-warning"></i></div>'+
+                '<div style="font-size:15px; font-weight:600;">Bir hata oluştu</div>'+
+                '<div style="margin-top:6px; font-size:13px;">Veriler yüklenirken hata. Lütfen tekrar deneyin.</div>'+
+                '</div>'
+            );
         }
     });
 });

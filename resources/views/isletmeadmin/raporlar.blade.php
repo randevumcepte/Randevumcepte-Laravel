@@ -604,25 +604,145 @@
    </div>
 </div>
 
+<style>
+#hizmetiAlanMusterilerModal .modal-dialog{
+   max-width: 1100px;
+   width: 95%;
+   margin: 1.5rem auto;
+}
+#hizmetiAlanMusterilerModal .modal-content{
+   border: none;
+   border-radius: 16px;
+   overflow: hidden;
+   box-shadow: 0 25px 60px rgba(80,30,180,0.25);
+}
+#hizmetiAlanMusterilerModal .ham-header{
+   background: linear-gradient(135deg, #7E3FF2 0%, #B45CFF 50%, #FF6FB5 100%);
+   color: #fff;
+   padding: 22px 28px;
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 16px;
+}
+#hizmetiAlanMusterilerModal .ham-header .ham-icon{
+   width: 52px; height: 52px;
+   border-radius: 14px;
+   background: rgba(255,255,255,0.18);
+   display:flex; align-items:center; justify-content:center;
+   font-size: 24px;
+   flex-shrink:0;
+}
+#hizmetiAlanMusterilerModal .ham-header h4{
+   margin:0; font-size:20px; font-weight:700;
+}
+#hizmetiAlanMusterilerModal .ham-header .ham-sub{
+   font-size:13px; opacity:.9; margin-top:4px; font-weight:500;
+}
+#hizmetiAlanMusterilerModal .ham-close{
+   color:#fff; opacity:.85; background:rgba(255,255,255,.15);
+   border:none; border-radius:10px; width:38px; height:38px;
+   font-size:22px; line-height:1; cursor:pointer; transition:.2s;
+}
+#hizmetiAlanMusterilerModal .ham-close:hover{ opacity:1; background:rgba(255,255,255,.28); }
+#hizmetiAlanMusterilerModal .ham-body{
+   padding: 24px 28px;
+   background: #faf8ff;
+   max-height: 65vh;
+   overflow-y: auto;
+}
+#hizmetiAlanMusterilerModal .ham-summary{
+   display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px;
+}
+#hizmetiAlanMusterilerModal .ham-chip{
+   background:#fff; border-radius:12px; padding:10px 16px;
+   box-shadow:0 2px 8px rgba(126,63,242,0.08);
+   font-size:13px; color:#5a4080; font-weight:600;
+}
+#hizmetiAlanMusterilerModal .ham-chip strong{ color:#7E3FF2; font-size:15px; margin-left:6px; }
+#hizmetiAlanMusterilerModal .ham-table{
+   width:100%; border-collapse: separate; border-spacing:0;
+   background:#fff; border-radius:12px; overflow:hidden;
+   box-shadow:0 4px 16px rgba(126,63,242,0.10);
+}
+#hizmetiAlanMusterilerModal .ham-table thead th{
+   background: linear-gradient(135deg,#7E3FF2,#B45CFF);
+   color:#fff; font-weight:600; font-size:13px;
+   padding:14px 12px; text-align:left; border:none;
+   text-transform:uppercase; letter-spacing:.4px;
+}
+#hizmetiAlanMusterilerModal .ham-table tbody td{
+   padding:14px 12px; border-bottom:1px solid #f0eaff; font-size:14px; color:#3a2a5a;
+}
+#hizmetiAlanMusterilerModal .ham-table tbody tr:last-child td{ border-bottom:none; }
+#hizmetiAlanMusterilerModal .ham-table tbody tr:hover td{ background:#f6f0ff; }
+#hizmetiAlanMusterilerModal .ham-table .ham-musteri{ font-weight:600; color:#2a1a4a; }
+#hizmetiAlanMusterilerModal .ham-table .ham-tel{ color:#6a5b8a; font-size:13px; }
+#hizmetiAlanMusterilerModal .ham-table .ham-personel-badge{
+   display:inline-block; padding:4px 12px; border-radius:20px;
+   background:#ede4ff; color:#7E3FF2; font-size:12px; font-weight:600;
+}
+#hizmetiAlanMusterilerModal .ham-table .ham-amount{ font-weight:600; text-align:right; white-space:nowrap; }
+#hizmetiAlanMusterilerModal .ham-table .ham-fiyat{ color:#2a1a4a; }
+#hizmetiAlanMusterilerModal .ham-table .ham-odenen{ color:#1ba94c; }
+#hizmetiAlanMusterilerModal .ham-table .ham-kalan{ color:#e44d6d; }
+#hizmetiAlanMusterilerModal .ham-empty{
+   text-align:center; padding:50px 20px; color:#9e8fc7;
+}
+#hizmetiAlanMusterilerModal .ham-empty .ham-empty-icon{
+   font-size:48px; margin-bottom:12px; opacity:.5;
+}
+#hizmetiAlanMusterilerModal .ham-loading{
+   text-align:center; padding:60px 20px; color:#7E3FF2;
+}
+#hizmetiAlanMusterilerModal .ham-spinner{
+   display:inline-block; width:40px; height:40px;
+   border:4px solid #ede4ff; border-top-color:#7E3FF2;
+   border-radius:50%; animation: hamSpin .8s linear infinite;
+}
+@keyframes hamSpin { to { transform: rotate(360deg); } }
+#hizmetiAlanMusterilerModal .ham-footer{
+   padding:16px 28px; background:#fff;
+   display:flex; justify-content:flex-end; border-top:1px solid #f0eaff;
+}
+#hizmetiAlanMusterilerModal .ham-footer .btn-kapat{
+   background: linear-gradient(135deg,#7E3FF2,#B45CFF);
+   color:#fff; border:none; padding:10px 28px; border-radius:10px;
+   font-weight:600; cursor:pointer; transition:.2s;
+   box-shadow:0 4px 12px rgba(126,63,242,0.3);
+}
+#hizmetiAlanMusterilerModal .ham-footer .btn-kapat:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(126,63,242,0.4); }
+
+@media (max-width: 768px){
+   #hizmetiAlanMusterilerModal .ham-header{ padding:18px; }
+   #hizmetiAlanMusterilerModal .ham-body{ padding:16px; }
+   #hizmetiAlanMusterilerModal .ham-table thead th,
+   #hizmetiAlanMusterilerModal .ham-table tbody td{ padding:10px 8px; font-size:12px; }
+}
+</style>
 <div class="modal fade" id="hizmetiAlanMusterilerModal" tabindex="-1" role="dialog" aria-labelledby="hizmetiAlanMusterilerModalLabel" aria-hidden="true">
-   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+   <div class="modal-dialog modal-dialog-centered" role="document">
       <div class="modal-content">
-         <div class="modal-header">
-            <h4 class="modal-title" id="hizmetiAlanMusterilerModalLabel">
-               <i class="dw dw-eye"></i> Hizmeti Alan Müşteriler
-               <small class="text-muted" id="hizmetiAlanMusteriler_hizmetAdi" style="display:block; font-size:12px"></small>
-            </h4>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Kapat">
-               <span aria-hidden="true">&times;</span>
-            </button>
+         <div class="ham-header">
+            <div style="display:flex; align-items:center; gap:16px; flex:1; min-width:0;">
+               <div class="ham-icon"><i class="dw dw-eye"></i></div>
+               <div style="flex:1; min-width:0;">
+                  <h4 id="hizmetiAlanMusterilerModalLabel">Hizmeti Alan Müşteriler</h4>
+                  <div class="ham-sub" id="hizmetiAlanMusteriler_hizmetAdi"></div>
+               </div>
+            </div>
+            <button type="button" class="ham-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
          </div>
-         <div class="modal-body">
+         <div class="ham-body">
             <div id="hizmetiAlanMusteriler_icerik">
-               <div class="text-center text-muted">Yükleniyor...</div>
+               <div class="ham-loading">
+                  <div class="ham-spinner"></div>
+                  <div style="margin-top:14px; font-weight:500;">Yükleniyor...</div>
+               </div>
             </div>
          </div>
-         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Kapat</button>
+         <div class="ham-footer">
+            <button type="button" class="btn-kapat" data-dismiss="modal">Kapat</button>
          </div>
       </div>
    </div>
