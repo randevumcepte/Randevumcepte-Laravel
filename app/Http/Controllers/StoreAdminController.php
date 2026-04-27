@@ -18004,6 +18004,137 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return in_array($current, $yetkili) ? $current : null;
     }
 
+    // ─── Salon kendi WhatsApp istatistikleri (sadece kendi verisi) ───
+
+    public function whatsappOzetData(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $today = \Carbon\Carbon::today();
+        $weekStart = \Carbon\Carbon::today()->subDays(6);
+        $monthStart = \Carbon\Carbon::today()->subDays(29);
+
+        $base = DB::table('whatsapp_gonderim_loglari')->where('salon_id', $salonId);
+        $bugunToplam = (clone $base)->whereDate('created_at', $today)->count();
+        $bugunBasari = (clone $base)->whereDate('created_at', $today)->where('durum', 1)->count();
+        $bugunFail = (clone $base)->whereDate('created_at', $today)->where('durum', 2)->count();
+        $bugunFallback = (clone $base)->whereDate('created_at', $today)->where('durum', 3)->count();
+
+        $haftaToplam = (clone $base)->whereDate('created_at', '>=', $weekStart)->count();
+        $haftaBasari = (clone $base)->whereDate('created_at', '>=', $weekStart)->where('durum', 1)->count();
+
+        $ayToplam = (clone $base)->whereDate('created_at', '>=', $monthStart)->count();
+        $ayBasari = (clone $base)->whereDate('created_at', '>=', $monthStart)->where('durum', 1)->count();
+
+        $basariOrani = $haftaToplam > 0 ? round(($haftaBasari / $haftaToplam) * 100, 1) : 0;
+
+        $salon = Salonlar::find($salonId);
+
+        // Son 30 gün günlük trend
+        $start = \Carbon\Carbon::today()->subDays(29);
+        $trend = DB::table('whatsapp_gonderim_loglari')
+            ->select(DB::raw('DATE(created_at) as tarih'), 'durum', DB::raw('COUNT(*) as adet'))
+            ->where('salon_id', $salonId)
+            ->whereDate('created_at', '>=', $start)
+            ->groupBy('tarih', 'durum')->get();
+
+        $gunler = [];
+        for ($i = 0; $i < 30; $i++) {
+            $g = \Carbon\Carbon::today()->subDays(29 - $i)->format('Y-m-d');
+            $gunler[$g] = ['gun' => $g, 'basari' => 0, 'fail' => 0, 'fallback' => 0];
+        }
+        foreach ($trend as $r) {
+            $key = $r->tarih;
+            if (!isset($gunler[$key])) continue;
+            if ((int) $r->durum === 1) $gunler[$key]['basari'] = (int) $r->adet;
+            if ((int) $r->durum === 2) $gunler[$key]['fail'] = (int) $r->adet;
+            if ((int) $r->durum === 3) $gunler[$key]['fallback'] = (int) $r->adet;
+        }
+
+        return response()->json([
+            'durum' => $salon->whatsapp_durum,
+            'numara' => $salon->whatsapp_numara,
+            'gunluk_limit' => (int) ($salon->whatsapp_gunluk_limit ?: 150),
+            'bugun' => ['toplam' => $bugunToplam, 'basari' => $bugunBasari, 'fail' => $bugunFail, 'fallback' => $bugunFallback],
+            'hafta' => ['toplam' => $haftaToplam, 'basari' => $haftaBasari],
+            'ay' => ['toplam' => $ayToplam, 'basari' => $ayBasari],
+            'basariOrani' => $basariOrani,
+            'gunler' => array_values($gunler),
+        ]);
+    }
+
+    public function whatsappLoglarData(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $q = DB::table('whatsapp_gonderim_loglari as wl')
+            ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
+            ->select('wl.id', 'wl.user_id', 'wl.randevu_id', 'wl.telefon', 'wl.mesaj',
+                'wl.durum', 'wl.hata', 'wl.mesaj_id', 'wl.gonderim_tarihi', 'wl.created_at',
+                'u.name as musteri_adi')
+            ->where('wl.salon_id', $salonId);
+
+        if ($durum = $request->input('durum')) $q->where('wl.durum', $durum);
+        if ($telefon = $request->input('telefon')) $q->where('wl.telefon', 'like', '%' . $telefon . '%');
+        if ($baslangic = $request->input('baslangic')) $q->whereDate('wl.created_at', '>=', $baslangic);
+        if ($bitis = $request->input('bitis')) $q->whereDate('wl.created_at', '<=', $bitis);
+        if ($arama = $request->input('arama')) $q->where('wl.mesaj', 'like', '%' . $arama . '%');
+
+        $perPage = min((int) $request->input('per_page', 50), 200);
+        $page = max((int) $request->input('page', 1), 1);
+        $toplam = (clone $q)->count();
+        $rows = $q->orderByDesc('wl.id')->offset(($page - 1) * $perPage)->limit($perPage)->get();
+
+        return response()->json([
+            'rows' => $rows, 'toplam' => $toplam,
+            'page' => $page, 'per_page' => $perPage,
+            'son_sayfa' => (int) ceil($toplam / $perPage),
+        ]);
+    }
+
+    public function whatsappAlicilarData(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $rows = DB::table('whatsapp_gonderim_loglari as wl')
+            ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
+            ->select(
+                'wl.telefon',
+                DB::raw('MAX(u.name) as musteri_adi'),
+                DB::raw('COUNT(*) as toplam'),
+                DB::raw('SUM(CASE WHEN wl.durum = 1 THEN 1 ELSE 0 END) as basari'),
+                DB::raw('SUM(CASE WHEN wl.durum = 2 THEN 1 ELSE 0 END) as fail'),
+                DB::raw('SUM(CASE WHEN wl.durum = 3 THEN 1 ELSE 0 END) as fallback'),
+                DB::raw('MAX(wl.created_at) as son_mesaj'),
+                DB::raw('MIN(wl.created_at) as ilk_mesaj')
+            )
+            ->where('wl.salon_id', $salonId)
+            ->groupBy('wl.telefon')
+            ->orderByDesc('son_mesaj')
+            ->limit(500)
+            ->get();
+
+        return response()->json(['rows' => $rows, 'toplam' => $rows->count()]);
+    }
+
+    public function whatsappAliciGecmisData(Request $request, $telefon)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $rows = DB::table('whatsapp_gonderim_loglari')
+            ->where('salon_id', $salonId)
+            ->where('telefon', $telefon)
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get(['id', 'mesaj', 'durum', 'hata', 'mesaj_id', 'gonderim_tarihi', 'created_at', 'randevu_id']);
+
+        return response()->json(['rows' => $rows]);
+    }
+
     /**
      * Transactional mesaj (iptal, güncelleme, onay vs.) için WhatsApp-first + SMS fallback.
      * WhatsApp kanalı açıksa Node'a kuyruğa atar (webhook ile fail olursa SMS otomatik gider).

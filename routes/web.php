@@ -320,6 +320,11 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/whatsapp/cikis','StoreAdminController@whatsappCikis')->name('whatsapp.cikis');
 	Route::get('/whatsapp/kanal-durum','StoreAdminController@whatsappKanalDurum')->name('whatsapp.kanal.durum');
 	Route::post('/whatsapp/kanal-toggle','StoreAdminController@whatsappKanalToggle')->name('whatsapp.kanal.toggle');
+	// Salon kendi istatistikleri (sadece kendi salonu, başkasını göremez)
+	Route::get('/whatsapp/ozet-data','StoreAdminController@whatsappOzetData')->name('whatsapp.ozet.data');
+	Route::get('/whatsapp/loglar-data','StoreAdminController@whatsappLoglarData')->name('whatsapp.loglar.data');
+	Route::get('/whatsapp/aliciler-data','StoreAdminController@whatsappAlicilarData')->name('whatsapp.aliciler.data');
+	Route::get('/whatsapp/alici/{telefon}/gecmis','StoreAdminController@whatsappAliciGecmisData')->name('whatsapp.alici.gecmis');
 	Route::get('/hizmet-yonetimi', function(){ return redirect('/isletmeyonetim/ayarlar?p=hizmetler'); });
 	Route::post('/hizmet-yonetimi/guncelle','StoreAdminController@hizmetYonetimiGuncelle');
 	Route::post('/hizmet-yonetimi/kategori-ekle','StoreAdminController@hizmetKategoriEkle');
