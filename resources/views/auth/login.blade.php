@@ -17,8 +17,7 @@
             </video>
 
             <div class="login-hero-text">
-                <h1 class="login-title">RANDEVU</h1>
-                <span class="login-subtitle">CEPTE GÜZELLİK</span>
+                <h1 class="login-title">{{ $salonAdi }}</h1>
             </div>
 
         </div>

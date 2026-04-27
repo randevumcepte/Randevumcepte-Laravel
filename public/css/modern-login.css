@@ -146,24 +146,30 @@
 
 .login-title {
     color: var(--login-white);
-    font-size: 72px;
+    font-size: clamp(28px, 4.2vw, 46px);
     font-weight: 900;
-    line-height: 1;
-    letter-spacing: -2px;
+    line-height: 1.08;
+    letter-spacing: -0.5px;
     margin: 0;
     text-align: left;
-    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.15);
+    text-transform: uppercase;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
+    max-width: 100%;
 }
 
 .login-subtitle {
     display: inline-block;
     color: var(--login-white);
-    font-size: 18px;
+    font-size: 14px;
     font-weight: 600;
-    letter-spacing: 4px;
-    margin: 6px 0 0;
+    letter-spacing: 3px;
+    margin: 8px 0 0;
     text-align: left;
     max-width: none;
+    text-transform: uppercase;
+    opacity: 0.9;
 }
 
 .login-social {
@@ -220,9 +226,11 @@
 .login-deco-plus.p3 { right: 30px; top: 70%; color: var(--login-pink); font-size: 12px; }
 
 .login-mini-logo {
-    width: 36px;
-    height: 36px;
-    margin: 0 0 18px;
+    width: auto;
+    height: 64px;
+    max-width: 180px;
+    object-fit: contain;
+    margin: 0 0 22px;
     display: block;
 }
 
@@ -509,15 +517,6 @@
         padding: 0 30px 50px;
     }
 
-    .login-title {
-        font-size: 56px;
-    }
-
-    .login-subtitle {
-        font-size: 15px;
-        letter-spacing: 3px;
-    }
-
     .login-body {
         padding: 40px 30px;
     }
@@ -543,15 +542,6 @@
 
     .login-hero-text {
         padding: 0 22px 50px;
-    }
-
-    .login-title {
-        font-size: 44px;
-    }
-
-    .login-subtitle {
-        font-size: 13px;
-        letter-spacing: 2px;
     }
 
     .login-body {
