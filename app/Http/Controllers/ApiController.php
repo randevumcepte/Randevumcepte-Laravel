@@ -10442,37 +10442,43 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
          Log::info('randevu geldi işaretlenecek');
         $randevu = Randevular::where("id", $request->randevuid)->first();
 
-        $dogrulama_kodu_ayari = SalonSMSAyarlari::where(
+        $seansVar = AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)->count();
+        Log::info('paket seans var mı? '.$seansVar);
 
-            "salon_id",
-
-            $randevu->salon_id
-
-        )
-
-            ->where("ayar_id", 16)
-
-            ->value("musteri");
           $kvkkAyari = SalonSMSAyarlari::where('salon_id', $randevu->salon_id)
         ->where('ayar_id', 22)
         ->value('musteri');
 
-        if ($dogrulama_kodu_ayari &&  ($randevu->dogrulama != $request->dogrulama_kodu || $randevu->dogrulama == null)) {
+        if ($seansVar > 0) {
+            $dogrulama_kodu_ayari = SalonSMSAyarlari::where(
 
-            self::dogrulama_kodu_gonder($request);
-            Log::info('doğrulama kodu gidecek uygulamadan ');
-            return response()->json([
+                "salon_id",
 
-                "hatali" => "2",
+                $randevu->salon_id
 
-                "mesaj" =>
+            )
 
-                    "Lütfen müşteri/danışanın telefon numarasına gönderilen doğrulama kodunu giriniz!",
+                ->where("ayar_id", 16)
 
-            ]);
+                ->value("musteri");
 
-            exit();
+            if ($dogrulama_kodu_ayari &&  ($randevu->dogrulama != $request->dogrulama_kodu || $randevu->dogrulama == null)) {
 
+                self::dogrulama_kodu_gonder($request);
+                Log::info('doğrulama kodu gidecek uygulamadan ');
+                return response()->json([
+
+                    "hatali" => "2",
+
+                    "mesaj" =>
+
+                        "Lütfen müşteri/danışanın telefon numarasına gönderilen doğrulama kodunu giriniz!",
+
+                ]);
+
+                exit();
+
+            }
         }
          $portfoy = MusteriPortfoy::where('user_id', $randevu->user_id)
                 ->where('salon_id', $randevu->salon_id)
@@ -10553,33 +10559,40 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $randevu = Randevular::where("id", $request->randevuid)->first();
 
+        $seansVar = AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)->get();
+
+        if ($seansVar->count() > 0) {
+            if ($request->seansDusumuYap == '1') {
+                foreach ($seansVar as $seans) {
+                    $seans->geldi = false;
+                    $seans->save();
+                }
+                foreach ($randevu->hizmetler as $randevuHizmet) {
+                    $randevuHizmet->seansa_geldi = false;
+                    $randevuHizmet->save();
+                }
+            } else if ($request->seansDusumuYap == '') {
+                $hizmetler = '';
+                foreach ($seansVar as $key => $seans) {
+                    $hizmetler .= $seans->hizmet->hizmet_adi;
+                    if ($key < $seansVar->count() - 2) {
+                        $hizmetler .= ', ';
+                    } else if ($key == $seansVar->count() - 2) {
+                        $hizmetler .= ' ve ';
+                    }
+                }
+                return response()->json([
+                    'mesaj' => $hizmetler . ' seansından düşülsün mü?',
+                    'seansDusmeOnayi' => true,
+                ]);
+            }
+        }
+
         $randevu->randevuya_geldi = false;
 
         $randevu->save();
 
-        if (
-
-            AdisyonPaketSeanslar::where(
-
-                "randevu_id",
-
-                $request->randevuid
-
-            )->count() != 0
-
-        ) {
-
-            $seans = AdisyonPaketSeanslar::where(
-
-                "randevu_id",
-
-                $request->randevuid
-
-            )->update(["geldi" => false]);
-
-        }
-
-        return "Başarılı";
+        return ["mesaj" => "Başarılı"];
 
     }
 
@@ -11830,14 +11843,15 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $paket = Paketler::where("id", $request->paketid)->first();
         $adisyon_paket_id = self::paketsatisiekleguncelle(
             $adisyon_id,
-            $request->adisyon_paket_id,   
+            $request->adisyon_paket_id,
             $request->paketid,
             $request->paketfiyat,
             $request->paketbaslangictarihi,
             $request->seansaralikgun,
             $request->personel_id,
             null,
-            null
+            null,
+            $request->seans_sayisi
         );
 
         /*$adisyon_paket = AdisyonPaketler::where(
@@ -12069,7 +12083,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $seans_araligi,
         $personel_id,
         $senet_id,
-        $taksitli_tahsilat_id
+        $taksitli_tahsilat_id,
+        $seans_sayisi = null
     ) {
         $paketBilgi = Paketler::where('id',$paket_id)->first();
         $adisyon_paket = "";
@@ -12087,15 +12102,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $adisyon_paket->baslangic_tarihi = $baslangic_tarihi;
         $adisyon_paket->seans_araligi = $seans_araligi;
         $adisyon_paket->personel_id = $personel_id;
-        
+
 
         $adisyon_paket->senet_id = $senet_id;
 
         $adisyon_paket->taksitli_tahsilat_id = $taksitli_tahsilat_id;
 
-        $adisyon_paket->seans_sayisi = $paketBilgi->hizmetler->sum('seans');
+        $effectiveSeans = ($seans_sayisi !== null && $seans_sayisi !== '')
+            ? (int) $seans_sayisi
+            : (int) $paketBilgi->hizmetler->sum('seans');
+        $adisyon_paket->seans_sayisi = $effectiveSeans;
         $adisyon_paket->kullanilan_seans = 0;
-        $adisyon_paket->bekleyen_seans = $paketBilgi->hizmetler->sum('seans');
+        $adisyon_paket->bekleyen_seans = $effectiveSeans;
         $adisyon_paket->kullanilmayan_seans = 0;
 
         $adisyon_paket->otomatik_randevu_olusturuldu = false;
