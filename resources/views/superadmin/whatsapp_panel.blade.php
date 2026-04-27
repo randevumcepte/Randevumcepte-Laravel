@@ -92,6 +92,23 @@
         <div class="wa-stat-grid" id="waStatsGrid">
             <div class="wa-stat-card"><div class="wa-stat-label">Yükleniyor...</div><div class="wa-stat-value">—</div></div>
         </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px;">
+            <div class="wa-chart-container">
+                <h4 style="margin-top:0;">Mesaj Türü Dağılımı (son 30 gün)</h4>
+                <table class="wa-table" id="tipDagilimTable">
+                    <thead><tr><th>Tür</th><th>Toplam</th><th>Başarı</th><th>Fail</th><th>SMS↓</th></tr></thead>
+                    <tbody><tr><td colspan="5">Yükleniyor...</td></tr></tbody>
+                </table>
+            </div>
+            <div class="wa-chart-container">
+                <h4 style="margin-top:0;">En Çok Mesaj Atan Salonlar (Top 10, son 30 gün)</h4>
+                <table class="wa-table" id="topSalonTable">
+                    <thead><tr><th>#</th><th>Salon</th><th>Mesaj</th></tr></thead>
+                    <tbody><tr><td colspan="3">Yükleniyor...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     {{-- SALONLAR --}}
@@ -145,6 +162,7 @@
             <div class="group"><label>Mesaj İçinde Ara</label><input type="text" id="logArama" placeholder="..."></div>
             <div class="group"><button class="wa-btn" id="logFiltreUygula">Filtrele</button></div>
             <div class="group"><button class="wa-btn secondary" id="logFiltreSifirla">Sıfırla</button></div>
+            <div class="group"><button class="wa-btn" id="logCsvIndir" style="background:#0d6efd;">📥 Excel İndir</button></div>
         </div>
         <div style="overflow-x:auto;">
             <table class="wa-table" id="logTable">
@@ -246,6 +264,31 @@
             html += '<div class="wa-stat-card ' + basariClass + '"><div class="wa-stat-label">✅ Haftalık Başarı</div><div class="wa-stat-value">' + d.basariOrani + '%</div></div>';
             document.getElementById('waStatsGrid').innerHTML = html;
             document.getElementById('waLastUpdate').textContent = 'Son güncelleme: ' + new Date().toLocaleTimeString('tr-TR');
+        });
+        yukleTipDagilim();
+    }
+
+    function yukleTipDagilim(){
+        fetchJson('/sistemyonetim/whatsapp-panel/tip-dagilim?gun=30').then(function(d){
+            var tipBody = document.querySelector('#tipDagilimTable tbody');
+            if (!d.tipler || d.tipler.length === 0) {
+                tipBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;">Veri yok</td></tr>';
+            } else {
+                tipBody.innerHTML = d.tipler.sort(function(a,b){return b.toplam-a.toplam;}).map(function(t){
+                    return '<tr><td><b>' + escHtml(t.tip) + '</b></td><td>' + t.toplam + '</td>'
+                        + '<td><span class="wa-badge success">' + t.basari + '</span></td>'
+                        + '<td><span class="wa-badge fail">' + t.fail + '</span></td>'
+                        + '<td><span class="wa-badge fallback">' + t.fallback + '</span></td></tr>';
+                }).join('');
+            }
+            var topBody = document.querySelector('#topSalonTable tbody');
+            if (!d.topSalon || d.topSalon.length === 0) {
+                topBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;">Veri yok</td></tr>';
+            } else {
+                topBody.innerHTML = d.topSalon.map(function(s, i){
+                    return '<tr><td>' + (i+1) + '</td><td><b>' + escHtml(s.salon_adi || ('#' + s.salon_id)) + '</b></td><td>' + s.adet + '</td></tr>';
+                }).join('');
+            }
         });
     }
 
@@ -366,6 +409,16 @@
     document.getElementById('logFiltreSifirla').addEventListener('click', function(){
         ['logSalonId','logDurum','logTelefon','logBaslangic','logBitis','logArama'].forEach(function(id){ document.getElementById(id).value = ''; });
         yukleLoglar(1);
+    });
+    document.getElementById('logCsvIndir').addEventListener('click', function(){
+        var params = new URLSearchParams();
+        ['logSalonId','logDurum','logTelefon','logBaslangic','logBitis','logArama'].forEach(function(id){
+            var v = document.getElementById(id).value;
+            var key = {logSalonId:'salon_id', logDurum:'durum', logTelefon:'telefon',
+                       logBaslangic:'baslangic', logBitis:'bitis', logArama:'arama'}[id];
+            if (v) params.set(key, v);
+        });
+        window.location.href = '/sistemyonetim/whatsapp-panel/loglar-csv?' + params.toString();
     });
 
     function logDetay(id){

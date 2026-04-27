@@ -236,6 +236,109 @@ class WhatsAppPanelController extends Controller
     }
 
     /**
+     * Loglarin CSV export — Loglar tab'indaki ayni filtrelerle UTF-8 BOM'lu CSV iner.
+     */
+    public function loglarCsv(Request $request)
+    {
+        $q = DB::table('whatsapp_gonderim_loglari as wl')
+            ->leftJoin('salonlar as s', 's.id', '=', 'wl.salon_id')
+            ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
+            ->select(
+                'wl.id', 'wl.salon_id', 's.salon_adi',
+                'u.name as musteri_adi', 'wl.telefon',
+                'wl.durum', 'wl.hata', 'wl.mesaj_id',
+                'wl.gonderim_tarihi', 'wl.created_at', 'wl.mesaj'
+            );
+
+        if ($salonId = $request->input('salon_id')) $q->where('wl.salon_id', $salonId);
+        if ($durum = $request->input('durum')) $q->where('wl.durum', $durum);
+        if ($telefon = $request->input('telefon')) $q->where('wl.telefon', 'like', '%' . $telefon . '%');
+        if ($baslangic = $request->input('baslangic')) $q->whereDate('wl.created_at', '>=', $baslangic);
+        if ($bitis = $request->input('bitis')) $q->whereDate('wl.created_at', '<=', $bitis);
+        if ($arama = $request->input('arama')) $q->where('wl.mesaj', 'like', '%' . $arama . '%');
+
+        $rows = $q->orderByDesc('wl.id')->limit(50000)->get();
+
+        $durumLabel = [0 => 'Kuyrukta', 1 => 'Gönderildi', 2 => 'Başarısız', 3 => "SMS'e Düştü"];
+
+        $filename = 'whatsapp_loglari_' . date('Ymd_His') . '.csv';
+        $callback = function () use ($rows, $durumLabel) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM (Excel Türkçe karakter için)
+            fputcsv($out, ['ID','Salon ID','Salon','Müşteri','Telefon','Durum','Hata','Mesaj ID','Gönderim Tarihi','Oluşturulma','Mesaj'], ';');
+            foreach ($rows as $r) {
+                fputcsv($out, [
+                    $r->id, $r->salon_id, $r->salon_adi, $r->musteri_adi,
+                    $r->telefon, $durumLabel[$r->durum] ?? $r->durum, $r->hata,
+                    $r->mesaj_id, $r->gonderim_tarihi, $r->created_at,
+                    str_replace(["\n","\r"], ' ', (string) $r->mesaj),
+                ], ';');
+            }
+            fclose($out);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    /**
+     * Mesaj türü dağılımı (ayar_id bazinda) — son N gün
+     */
+    public function tipDagilim(Request $request)
+    {
+        $gun = (int) $request->input('gun', 30);
+        $gun = max(1, min($gun, 365));
+        $start = Carbon::today()->subDays($gun - 1);
+
+        // wl.randevu_id null olabilir; ayar_id ile direk eslesme yok ama mesaj icerigine bakarak ayrim
+        // Pratik yaklaşım: mesaj icerigi pattern + tarih bazinda grup
+        $rows = DB::table('whatsapp_gonderim_loglari')
+            ->select(
+                DB::raw("CASE
+                    WHEN mesaj LIKE 'Yarın%' OR mesaj LIKE '%Yarın%saatinde%' THEN '1 gün öncesi hatırlatma'
+                    WHEN mesaj LIKE 'Bugün%' OR mesaj LIKE '%Bugün%saatinde%' THEN 'Yaklaşan hatırlatma'
+                    WHEN mesaj LIKE '%iptal edilmiştir%' OR mesaj LIKE '%reddedilmiştir%' THEN 'İptal/Red'
+                    WHEN mesaj LIKE '%güncellenmiştir%' THEN 'Güncelleme'
+                    ELSE 'Diğer'
+                END as tip"),
+                'durum',
+                DB::raw('COUNT(*) as adet')
+            )
+            ->whereDate('created_at', '>=', $start)
+            ->groupBy('tip', 'durum')
+            ->get();
+
+        $tipler = [];
+        foreach ($rows as $r) {
+            if (!isset($tipler[$r->tip])) {
+                $tipler[$r->tip] = ['tip' => $r->tip, 'toplam' => 0, 'basari' => 0, 'fail' => 0, 'fallback' => 0];
+            }
+            $tipler[$r->tip]['toplam'] += (int) $r->adet;
+            if ((int) $r->durum === 1) $tipler[$r->tip]['basari'] += (int) $r->adet;
+            if ((int) $r->durum === 2) $tipler[$r->tip]['fail'] += (int) $r->adet;
+            if ((int) $r->durum === 3) $tipler[$r->tip]['fallback'] += (int) $r->adet;
+        }
+
+        // Top 10 salon
+        $topSalon = DB::table('whatsapp_gonderim_loglari as wl')
+            ->leftJoin('salonlar as s', 's.id', '=', 'wl.salon_id')
+            ->select('wl.salon_id', 's.salon_adi', DB::raw('COUNT(*) as adet'))
+            ->whereDate('wl.created_at', '>=', $start)
+            ->groupBy('wl.salon_id', 's.salon_adi')
+            ->orderByDesc('adet')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'gun' => $gun,
+            'tipler' => array_values($tipler),
+            'topSalon' => $topSalon,
+        ]);
+    }
+
+    /**
      * Salonun alıcı detayları — hangi numaralara kaç mesaj gitmiş, son ne zaman
      */
     public function salonAliciDetay(Request $request, $salonId)

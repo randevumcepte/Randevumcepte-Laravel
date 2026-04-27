@@ -238,6 +238,8 @@ Route::prefix('sistemyonetim')->group(function() {
 	Route::get('/whatsapp-panel/mesaj/{id}', 'WhatsAppPanelController@mesajDetay');
 	Route::get('/whatsapp-panel/salon/{salonId}/aliciler', 'WhatsAppPanelController@salonAliciDetay');
 	Route::get('/whatsapp-panel/salon/{salonId}/alici/{telefon}/gecmis', 'WhatsAppPanelController@aliciMesajGecmisi');
+	Route::get('/whatsapp-panel/loglar-csv', 'WhatsAppPanelController@loglarCsv');
+	Route::get('/whatsapp-panel/tip-dagilim', 'WhatsAppPanelController@tipDagilim');
 	Route::get('/yetkililer','AdminController@isletmeyetkilileri');
 	Route::get('/yetkilidetay/{id}','AdminController@yetkilidetay');
 	Route::post('/yetkilidetayduzenleme','AdminController@yetkilidetayguncelle');
