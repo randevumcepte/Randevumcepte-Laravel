@@ -187,167 +187,187 @@
   }
   .dataTables_info{ color:var(--rmc-muted) !important; font-size:13px; padding:14px 18px !important; }
 
-  /* ============ Prim Hareket Modal — Modern Tasarim ============ */
-  #primHareketListeModal .modal-dialog,
-  #primHareketModal .modal-dialog{
-    max-width: 720px !important;
-    width: 92vw;
-    margin: 1.75rem auto !important;
-    display: flex; align-items: center; min-height: calc(100vh - 3.5rem);
+  /* ============ MODAL: Slate/Indigo Pattern (raporlar.blade.php referansi) ============ */
+  #primHareketModal, #primHareketListeModal{
+    position: fixed !important;
+    top:0 !important; left:0 !important; right:0 !important; bottom:0 !important;
+    width:100vw !important; height:100vh !important;
+    z-index: 10550 !important;
+    overflow-x: hidden; overflow-y: auto;
   }
-  #primHareketListeModal .modal-content,
-  #primHareketModal .modal-content{
-    border: 0;
-    border-radius: 22px;
-    box-shadow: var(--rmc-shadow-lg);
-    overflow: hidden;
-    width: 100%;
-    animation: primModalIn .35s cubic-bezier(.2,.8,.2,1);
+  #primHareketModal .modal-dialog, #primHareketListeModal .modal-dialog{
+    max-width: 720px; width: 95%;
+    margin: 1.5rem auto !important;
+    min-height: calc(100% - 3rem);
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
   }
-  @keyframes primModalIn{ from{ opacity:0; transform: translateY(20px) scale(.96);} to{ opacity:1; transform: translateY(0) scale(1);} }
+  #primHareketListeModal .modal-dialog{ max-width: 860px; }
+  #primHareketModal .modal-content, #primHareketListeModal .modal-content{
+    width: 100%; pointer-events: auto;
+    border: 0; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 20px 50px rgba(15,23,42,.18);
+  }
+  .pm-accent-bar{
+    height: 4px;
+    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+  }
+  .pm-header{
+    background: #ffffff; color: #1e293b;
+    padding: 22px 28px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .pm-header__left{ display:flex; align-items:center; gap:16px; flex:1; min-width:0; }
+  .pm-icon{
+    width:48px; height:48px; border-radius:12px;
+    background:#eef2ff; color:#6366f1;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; flex-shrink:0;
+  }
+  .pm-header h4{ margin:0; font-size:19px; font-weight:700; color:#0f172a; }
+  .pm-sub{ font-size:13px; color:#64748b; margin-top:3px; font-weight:500; }
+  .pm-sub .donem{ color:#475569; }
+  .pm-close{
+    color:#94a3b8; background:#f1f5f9;
+    border:none; border-radius:10px; width:38px; height:38px;
+    font-size:22px; line-height:1; cursor:pointer; transition:.15s;
+  }
+  .pm-close:hover{ background:#e2e8f0; color:#475569; }
 
-  #primHareketListeModal .modal-header,
-  #primHareketModal .modal-header{
-    background: var(--rmc-grad);
-    color: #fff; border: 0; padding: 22px 28px;
-    position: relative;
+  .pm-body{
+    padding: 22px 28px; background: #f8fafc;
+    max-height: 65vh; overflow-y: auto;
   }
-  #primHareketListeModal .modal-header::before,
-  #primHareketModal .modal-header::before{
-    content:''; position:absolute; top:-40px; right:-40px; width:160px; height:160px;
-    background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 70%);
-    border-radius:50%;
-  }
-  #primHareketListeModal .modal-header > div,
-  #primHareketModal .modal-header > div{ position:relative; z-index:2; }
-  #primHareketListeModal .modal-header .modal-title,
-  #primHareketModal .modal-header .modal-title{
-    color: #fff; font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 10px; margin:0;
-  }
-  #primHareketListeModal .modal-header .close,
-  #primHareketModal .modal-header .close{
-    color: #fff; opacity: .85; font-size: 28px; font-weight: 300; text-shadow: none;
-    position: absolute; right: 22px; top: 18px; z-index:3;
-  }
-  #primHareketListeModal .modal-header .close:hover,
-  #primHareketModal .modal-header .close:hover{ opacity: 1; }
-  .prim-modal-personel{
-    display:inline-block; margin-top:8px; padding:4px 14px; background:rgba(255,255,255,.22);
-    border-radius:20px; font-size:12px; font-weight:600; backdrop-filter: blur(6px);
-  }
-  .prim-modal-donem{
-    color: rgba(255,255,255,.92); font-size:12px; margin-left:8px; font-weight:500;
-  }
+  .pm-body::-webkit-scrollbar{ width:8px; }
+  .pm-body::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:4px; }
 
-  #primHareketListeModal .modal-body{ padding: 24px 28px; background:#fbfafc; }
-  #primHareketModal .modal-body{ padding: 24px 28px; }
-  #primHareketListeModal .modal-footer,
-  #primHareketModal .modal-footer{
-    border-top: 1px solid var(--rmc-border); padding: 14px 24px; background:#fff;
+  .pm-footer{
+    padding:16px 28px; background:#fff;
+    display:flex; justify-content:flex-end; gap:10px;
+    border-top:1px solid #f1f5f9;
   }
+  .pm-btn-primary{
+    background:#6366f1; color:#fff; border:none;
+    padding:10px 26px; border-radius:10px;
+    font-weight:600; font-size:14px; cursor:pointer; transition:.15s;
+  }
+  .pm-btn-primary:hover{ background:#4f46e5; color:#fff; }
+  .pm-btn-secondary{
+    background:#f1f5f9; color:#475569; border:none;
+    padding:10px 22px; border-radius:10px;
+    font-weight:600; font-size:14px; cursor:pointer; transition:.15s;
+  }
+  .pm-btn-secondary:hover{ background:#e2e8f0; color:#1e293b; }
 
-  /* Ozet kartlari (liste modal usten) */
-  .prim-ozet-row{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:20px; }
-  .prim-ozet-card{
-    padding:14px 16px; border-radius:14px; background:#fff;
-    box-shadow: var(--rmc-shadow-sm); border:1px solid var(--rmc-border);
+  /* Liste modal - ozet chip'leri */
+  .pm-summary{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+  .pm-chip{
+    background:#fff; border:1px solid #e2e8f0; border-radius:12px;
+    padding:12px 18px; font-size:13px; color:#64748b; font-weight:500;
+    display:flex; align-items:baseline; gap:8px;
   }
-  .prim-ozet-card .lbl{ font-size:11px; color:var(--rmc-muted); font-weight:700; letter-spacing:.5px; text-transform:uppercase; }
-  .prim-ozet-card .val{ font-size:18px; font-weight:700; margin-top:4px; }
-  .prim-ozet-card.bonus .val{ color:var(--rmc-success); }
-  .prim-ozet-card.kesinti .val{ color:var(--rmc-danger); }
-  .prim-ozet-card.net .val{ color:var(--rmc-purple-1); }
+  .pm-chip strong{ color:#0f172a; font-size:16px; font-weight:700; }
+  .pm-chip-success strong{ color:#16a34a; }
+  .pm-chip-danger strong{ color:#dc2626; }
+  .pm-chip-net strong{ color:#6366f1; }
 
   /* Hareket karti */
-  .hareketler-listesi{
-    max-height: 360px; overflow-y: auto;
-    background: transparent; border: 0; padding: 0;
-    display: flex; flex-direction: column; gap: 10px;
+  .pm-list{ display:flex; flex-direction:column; gap:10px; }
+  .pm-item{
+    display:flex; align-items:center; gap:14px;
+    background:#fff; border-radius:12px; padding:14px 16px;
+    border:1px solid #e2e8f0; transition: all .15s;
   }
-  .hareketler-listesi::-webkit-scrollbar{ width:6px; }
-  .hareketler-listesi::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:3px; }
+  .pm-item:hover{ border-color:#cbd5e1; box-shadow: 0 4px 12px rgba(15,23,42,.06); }
+  .pm-item--bonus{ border-left: 4px solid #16a34a; }
+  .pm-item--kesinti{ border-left: 4px solid #dc2626; }
 
-  .hareket-item{
-    display: flex !important; align-items:center; gap: 14px;
-    background: #fff; border-radius: 12px; padding: 14px 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.04); border-left: 4px solid transparent;
-    transition: all .2s; border-bottom: 0;
-  }
-  .hareket-item:hover{ box-shadow: 0 4px 12px rgba(0,0,0,.08); transform: translateX(2px); }
-  .hareket-item.tip-bonus{ border-left-color:var(--rmc-success); }
-  .hareket-item.tip-kesinti{ border-left-color:var(--rmc-danger); }
-
-  .hareket-icon{
-    width: 42px; height: 42px; border-radius: 50%; display:flex; align-items:center; justify-content:center;
-    flex-shrink: 0; font-size: 18px;
-  }
-  .hareket-icon.bonus{ background:var(--rmc-success-bg); color:var(--rmc-success); }
-  .hareket-icon.kesinti{ background:var(--rmc-danger-bg); color:var(--rmc-danger); }
-
-  .hareket-info{ flex:1; min-width:0; }
-  .hareket-info .row1{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .hareket-info .tutar{ font-size: 17px; font-weight: 700; }
-  .hareket-info .tutar.bonus{ color:var(--rmc-success); }
-  .hareket-info .tutar.kesinti{ color:var(--rmc-danger); }
-  .hareket-info .tarih{ font-size: 12px; color:#9ca3af; font-weight:500; display:inline-flex; align-items:center; gap:4px; }
-  .hareket-info .aciklama{ font-size: 13px; color:#4b5563; margin-top: 4px; line-height: 1.45; }
-
-  .prim-hareket-sil{
-    cursor:pointer; width: 34px; height:34px; border-radius:50%;
+  .pm-item__icon{
+    width:42px; height:42px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    color:#94a3b8; background:transparent; border:0; transition:all .2s; flex-shrink:0;
+    flex-shrink:0; font-size:16px;
   }
-  .prim-hareket-sil:hover{ color:#ef4444; background:#fee2e2; }
+  .pm-item--bonus .pm-item__icon{ background:#dcfce7; color:#16a34a; }
+  .pm-item--kesinti .pm-item__icon{ background:#fee2e2; color:#dc2626; }
+  .pm-item__body{ flex:1; min-width:0; }
+  .pm-item__row1{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .pm-item__badge{
+    padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700;
+    letter-spacing:.4px;
+  }
+  .pm-item--bonus .pm-item__badge{ background:#dcfce7; color:#15803d; }
+  .pm-item--kesinti .pm-item__badge{ background:#fee2e2; color:#991b1b; }
+  .pm-item__tutar{ font-size:17px; font-weight:700; }
+  .pm-item--bonus .pm-item__tutar{ color:#16a34a; }
+  .pm-item--kesinti .pm-item__tutar{ color:#dc2626; }
+  .pm-item__tarih{ font-size:12px; color:#94a3b8; font-weight:500; display:inline-flex; align-items:center; gap:5px; }
+  .pm-item__aciklama{ font-size:13px; color:#475569; margin-top:5px; line-height:1.5; }
+  .pm-item__sil{
+    width:34px; height:34px; border-radius:10px;
+    background:transparent; color:#94a3b8; border:0;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:.15s; flex-shrink:0;
+  }
+  .pm-item__sil:hover{ background:#fee2e2; color:#dc2626; }
 
-  /* Empty state */
-  .hareket-empty{
-    text-align:center; padding: 40px 20px; color:#9ca3af;
+  /* Empty / Loading */
+  .pm-empty{ text-align:center; padding:50px 20px; color:#94a3b8; }
+  .pm-empty__icon{
+    width:72px; height:72px; border-radius:50%; background:#eef2ff;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:32px; color:#6366f1; margin-bottom:14px;
   }
-  .hareket-empty .icon{
-    width:72px; height:72px; border-radius:50%; background:#f3f4f6;
-    display:inline-flex; align-items:center; justify-content:center; font-size:32px;
-    color:#cbd5e1; margin-bottom:14px;
+  .pm-empty__baslik{ font-size:15px; font-weight:600; color:#475569; margin-bottom:4px; }
+  .pm-empty__alt{ font-size:13px; color:#94a3b8; }
+  .pm-loading{ text-align:center; padding:60px 20px; color:#64748b; }
+  .pm-spinner{
+    display:inline-block; width:40px; height:40px;
+    border:3px solid #e2e8f0; border-top-color:#6366f1;
+    border-radius:50%; animation: pmSpin .8s linear infinite;
   }
-  .hareket-empty .baslik{ font-size:15px; font-weight:600; color:#6b7280; margin-bottom:4px; }
-  .hareket-empty .alt{ font-size:13px; color:#9ca3af; }
+  @keyframes pmSpin{ to { transform: rotate(360deg); } }
 
-  /* Bonus/Kesinti ekleme modal — tip secici buyuk butonlar */
-  .prim-tip-radio{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-  .prim-tip-radio input[type=radio]{ display:none; }
-  .prim-tip-radio label{
-    cursor:pointer; padding:14px 16px; border-radius:12px; border:2px solid #e5e7eb;
-    text-align:center; font-weight:600; transition:all .15s; margin:0;
+  /* Form (ekleme modal) */
+  .pm-form-group{ margin-bottom:16px; }
+  .pm-form-group label{
+    font-weight:700; color:#475569; font-size:12px;
+    margin-bottom:6px; display:block;
+    letter-spacing:.4px; text-transform:uppercase;
+  }
+  .pm-form-group .form-control, .pm-form-group input, .pm-form-group textarea{
+    border-radius:10px; border:1px solid #e2e8f0; padding:10px 14px;
+    font-size:14px; background:#fff; color:#0f172a; transition:.15s; width:100%;
+  }
+  .pm-form-group .form-control:focus, .pm-form-group input:focus, .pm-form-group textarea:focus{
+    outline:none; border-color:#6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.1);
+  }
+  .pm-tutar-input{ position:relative; }
+  .pm-tutar-input .form-control{ padding-left:36px; font-size:18px; font-weight:700; }
+  .pm-tutar-input::before{
+    content:'₺'; position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    color:#6366f1; font-size:16px; font-weight:700; z-index:2;
+  }
+  .pm-tip-radio{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .pm-tip-radio input[type=radio]{ display:none; }
+  .pm-tip-radio label{
+    cursor:pointer; padding:14px 16px; border-radius:12px;
+    border:2px solid #e2e8f0; background:#fff;
+    text-align:center; font-weight:600; transition:.15s; margin:0;
     display:flex; flex-direction:column; align-items:center; gap:6px;
+    color:#475569;
   }
-  .prim-tip-radio label .ic{ font-size: 22px; }
-  .prim-tip-radio input[value=bonus]:checked + label{ border-color:var(--rmc-success); background:var(--rmc-success-bg); color:#065f46; }
-  .prim-tip-radio input[value=kesinti]:checked + label{ border-color:var(--rmc-danger); background:var(--rmc-danger-bg); color:#991b1b; }
-  .prim-tip-radio input[value=bonus] + label .ic{ color:var(--rmc-success); }
-  .prim-tip-radio input[value=kesinti] + label .ic{ color:var(--rmc-danger); }
-
-  .prim-form-group{ margin-bottom: 16px; }
-  .prim-form-group label{ font-weight:700; color:var(--rmc-text); font-size:13px; margin-bottom:6px; display:block; }
-  .prim-form-group .form-control{ border-radius:12px; border:2px solid var(--rmc-border); padding: 10px 14px; font-size:14px; background:#fafbfc; }
-  .prim-form-group .form-control:focus{ border-color:var(--rmc-purple-2); background:#fff; box-shadow: 0 0 0 4px rgba(123,47,184,.08); }
-  .prim-tutar-input{ position:relative; }
-  .prim-tutar-input .form-control{ padding-left: 36px; font-size:18px; font-weight:700; }
-  .prim-tutar-input::before{ content:'₺'; position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--rmc-purple-2); font-size:16px; font-weight:700; z-index:2; }
-
-  .prim-btn-kaydet{
-    background: var(--rmc-grad); border:0;
-    color:#fff; font-weight:600; padding:10px 28px; border-radius:12px;
-    transition:all .2s; box-shadow: 0 4px 14px rgba(92,0,142,.3);
-  }
-  .prim-btn-kaydet:hover{ transform: translateY(-1px); box-shadow: 0 8px 22px rgba(92,0,142,.4); color:#fff; }
-  .prim-btn-iptal{
-    background:#f3f0f7; color:var(--rmc-purple-1); border:0; padding:10px 22px; border-radius:12px; font-weight:600;
-  }
-  .prim-btn-iptal:hover{ background:var(--rmc-purple-bg); color:var(--rmc-purple-1); }
+  .pm-tip-radio label .ic{ font-size:22px; }
+  .pm-tip-radio input[value=bonus]:checked + label{ border-color:#16a34a; background:#f0fdf4; color:#15803d; }
+  .pm-tip-radio input[value=kesinti]:checked + label{ border-color:#dc2626; background:#fef2f2; color:#991b1b; }
+  .pm-tip-radio input[value=bonus] + label .ic{ color:#16a34a; }
+  .pm-tip-radio input[value=kesinti] + label .ic{ color:#dc2626; }
 
   @media(max-width:600px){
-    .prim-ozet-row{ grid-template-columns: 1fr; }
-    #primHareketListeModal .modal-dialog,
-    #primHareketModal .modal-dialog{ width: 96vw; }
+    .pm-summary{ flex-direction:column; }
+    .pm-chip{ width:100%; }
+    .pm-header{ padding:18px; }
+    .pm-body{ padding:16px; }
   }
 </style>
 
@@ -471,21 +491,25 @@
 <div class="modal fade" id="primHareketModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
+      <div class="pm-accent-bar"></div>
       <form id="primHareketForm">
         {!!csrf_field()!!}
         <input type="hidden" name="sube" value="{{$isletme->id}}">
         <input type="hidden" name="personel_id" id="primHareket_personelId">
-        <div class="modal-header">
-          <div>
-            <h4 class="modal-title"><i class="fa fa-plus-circle"></i> <span>Prim Hareketi Ekle</span></h4>
-            <span class="prim-modal-personel" id="primHareket_personelAdi"></span>
+        <div class="pm-header">
+          <div class="pm-header__left">
+            <div class="pm-icon"><i class="fa fa-plus"></i></div>
+            <div style="flex:1; min-width:0;">
+              <h4>Prim Hareketi Ekle</h4>
+              <div class="pm-sub" id="primHareket_personelAdi"></div>
+            </div>
           </div>
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <button type="button" class="pm-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
         </div>
-        <div class="modal-body">
-          <div class="prim-form-group">
+        <div class="pm-body">
+          <div class="pm-form-group">
             <label>Hareket Tipi</label>
-            <div class="prim-tip-radio">
+            <div class="pm-tip-radio">
               <input type="radio" id="prtip_bonus" name="tip" value="bonus" checked>
               <label for="prtip_bonus"><span class="ic">＋</span>Bonus / Ek Ödeme</label>
               <input type="radio" id="prtip_kesinti" name="tip" value="kesinti">
@@ -494,28 +518,28 @@
           </div>
           <div class="row">
             <div class="col-md-6">
-              <div class="prim-form-group">
+              <div class="pm-form-group">
                 <label>Tutar</label>
-                <div class="prim-tutar-input">
+                <div class="pm-tutar-input">
                   <input type="number" step="0.01" min="0.01" class="form-control" name="tutar" placeholder="0,00" required>
                 </div>
               </div>
             </div>
             <div class="col-md-6">
-              <div class="prim-form-group">
+              <div class="pm-form-group">
                 <label>Tarih</label>
                 <input type="date" class="form-control" name="tarih" value="{{date('Y-m-d')}}" required>
               </div>
             </div>
           </div>
-          <div class="prim-form-group">
-            <label>Açıklama <small style="color:#9ca3af; font-weight:400">(opsiyonel)</small></label>
+          <div class="pm-form-group">
+            <label>Açıklama <small style="color:#94a3b8; font-weight:500; text-transform:none; letter-spacing:0">(opsiyonel)</small></label>
             <textarea class="form-control" name="aciklama" rows="2" maxlength="300" placeholder="Ör: Ay sonu performans bonusu / Geç gelme kesintisi"></textarea>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="prim-btn-iptal" data-dismiss="modal">İptal</button>
-          <button type="submit" class="prim-btn-kaydet"><i class="fa fa-check"></i> Kaydet</button>
+        <div class="pm-footer">
+          <button type="button" class="pm-btn-secondary" data-dismiss="modal">İptal</button>
+          <button type="submit" class="pm-btn-primary"><i class="fa fa-check"></i> Kaydet</button>
         </div>
       </form>
     </div>
@@ -526,35 +550,32 @@
 <div class="modal fade" id="primHareketListeModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
-      <div class="modal-header">
-        <div>
-          <h4 class="modal-title"><i class="fa fa-history"></i> <span>Prim Hareketleri</span></h4>
-          <span class="prim-modal-personel" id="primListe_personelAdi"></span>
-          <span class="prim-modal-donem"><i class="fa fa-calendar"></i> {{date('d.m.Y', strtotime($tarih1))}} — {{date('d.m.Y', strtotime($tarih2))}}</span>
+      <div class="pm-accent-bar"></div>
+      <div class="pm-header">
+        <div class="pm-header__left">
+          <div class="pm-icon"><i class="fa fa-history"></i></div>
+          <div style="flex:1; min-width:0;">
+            <h4>Prim Hareketleri</h4>
+            <div class="pm-sub">
+              <span id="primListe_personelAdi" style="font-weight:600; color:#0f172a"></span>
+              <span class="donem"> &nbsp;·&nbsp; <i class="fa fa-calendar"></i> {{date('d.m.Y', strtotime($tarih1))}} — {{date('d.m.Y', strtotime($tarih2))}}</span>
+            </div>
+          </div>
         </div>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <button type="button" class="pm-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
       </div>
-      <div class="modal-body">
-        <div class="prim-ozet-row" id="primListe_ozet" style="display:none">
-          <div class="prim-ozet-card bonus">
-            <div class="lbl">Toplam Bonus</div>
-            <div class="val" id="primListe_toplamBonus">0,00 ₺</div>
-          </div>
-          <div class="prim-ozet-card kesinti">
-            <div class="lbl">Toplam Kesinti</div>
-            <div class="val" id="primListe_toplamKesinti">0,00 ₺</div>
-          </div>
-          <div class="prim-ozet-card net">
-            <div class="lbl">Net Etki</div>
-            <div class="val" id="primListe_netEtki">0,00 ₺</div>
-          </div>
+      <div class="pm-body">
+        <div class="pm-summary" id="primListe_ozet" style="display:none">
+          <div class="pm-chip pm-chip-success">Toplam Bonus <strong id="primListe_toplamBonus">0,00 ₺</strong></div>
+          <div class="pm-chip pm-chip-danger">Toplam Kesinti <strong id="primListe_toplamKesinti">0,00 ₺</strong></div>
+          <div class="pm-chip pm-chip-net">Net Etki <strong id="primListe_netEtki">0,00 ₺</strong></div>
         </div>
-        <div class="hareketler-listesi" id="primHareketListesi">
-          <div class="text-center text-muted" style="padding:30px">Yükleniyor...</div>
+        <div id="primHareketListesi">
+          <div class="pm-loading"><div class="pm-spinner"></div><div style="margin-top:14px; font-weight:500">Yükleniyor...</div></div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="prim-btn-iptal" data-dismiss="modal">Kapat</button>
+      <div class="pm-footer">
+        <button type="button" class="pm-btn-primary" data-dismiss="modal">Kapat</button>
       </div>
     </div>
   </div>
@@ -585,12 +606,15 @@ $(function(){
   });
 
   $(document).on('click','.prim-bonus-ekle', function(){
+    var $m = $('#primHareketModal');
+    if($m.parent()[0] !== document.body) $m.appendTo('body');
     $('#primHareket_personelId').val($(this).data('value'));
     $('#primHareket_personelAdi').text($(this).data('adi'));
     $('#primHareketForm')[0].reset();
     $('#primHareket_personelId').val($(this).data('value'));
     $('#primHareketForm input[name="tarih"]').val('{{date("Y-m-d")}}');
-    $('#primHareketModal').modal('show');
+    $('#prtip_bonus').prop('checked', true);
+    $m.modal('show');
   });
 
   $('#primHareketForm').on('submit', function(e){
@@ -620,12 +644,14 @@ $(function(){
   function _escHtml(s){ return $('<div>').text(s||'').html(); }
 
   $(document).on('click','.prim-hareket-goster', function(){
+    var $m = $('#primHareketListeModal');
+    if($m.parent()[0] !== document.body) $m.appendTo('body');
     var pid = $(this).data('value');
     var adi = $(this).data('adi');
     $('#primListe_personelAdi').text(adi);
     $('#primListe_ozet').hide();
-    $('#primHareketListesi').html('<div class="text-center text-muted" style="padding:30px"><i class="fa fa-spinner fa-spin fa-2x" style="color:#6366f1"></i><div style="margin-top:10px">Yükleniyor...</div></div>');
-    $('#primHareketListeModal').modal('show');
+    $('#primHareketListesi').html('<div class="pm-loading"><div class="pm-spinner"></div><div style="margin-top:14px; font-weight:500">Yükleniyor...</div></div>');
+    $m.modal('show');
 
     $.ajax({
       url: '/isletmeyonetim/primhareketlistesi',
@@ -634,17 +660,17 @@ $(function(){
       success: function(res){
         if(!res.basarili || !res.hareketler || res.hareketler.length===0){
           $('#primHareketListesi').html(
-            '<div class="hareket-empty">'+
-              '<div class="icon"><i class="fa fa-inbox"></i></div>'+
-              '<div class="baslik">Bu dönemde kayıt yok</div>'+
-              '<div class="alt">Tabloda "+" butonuyla bonus veya kesinti ekleyebilirsiniz.</div>'+
+            '<div class="pm-empty">'+
+              '<div class="pm-empty__icon"><i class="fa fa-inbox"></i></div>'+
+              '<div class="pm-empty__baslik">Bu dönemde kayıt yok</div>'+
+              '<div class="pm-empty__alt">Tabloda + butonuyla bonus veya kesinti ekleyebilirsiniz.</div>'+
             '</div>'
           );
           return;
         }
 
         var toplamBonus = 0, toplamKesinti = 0;
-        var html = '';
+        var html = '<div class="pm-list">';
         res.hareketler.forEach(function(h){
           var isBonus = h.tip === 'bonus';
           var tutarNum = parseFloat(h.tutar||0);
@@ -653,28 +679,29 @@ $(function(){
           var tarihStr = h.tarih ? (new Date(h.tarih)).toLocaleDateString('tr-TR') : '';
           var icon = isBonus ? '<i class="fa fa-arrow-up"></i>' : '<i class="fa fa-arrow-down"></i>';
           var tipKisaltma = isBonus ? 'BONUS' : 'KESİNTİ';
-          var tipBadge = isBonus ? 'prim-tip-bonus' : 'prim-tip-kesinti';
           var tutarSign = isBonus ? '+' : '−';
+          var modCls = isBonus ? 'pm-item--bonus' : 'pm-item--kesinti';
 
-          html += '<div class="hareket-item tip-'+(isBonus?'bonus':'kesinti')+'">';
-          html += '  <div class="hareket-icon '+(isBonus?'bonus':'kesinti')+'">'+icon+'</div>';
-          html += '  <div class="hareket-info">';
-          html += '    <div class="row1">';
-          html += '      <span class="prim-tip-badge '+tipBadge+'">'+tipKisaltma+'</span>';
-          html += '      <span class="tutar '+(isBonus?'bonus':'kesinti')+'">'+tutarSign+tutarStr+' ₺</span>';
-          html += '      <span class="tarih"><i class="fa fa-calendar"></i> '+tarihStr+'</span>';
+          html += '<div class="pm-item '+modCls+'">';
+          html += '  <div class="pm-item__icon">'+icon+'</div>';
+          html += '  <div class="pm-item__body">';
+          html += '    <div class="pm-item__row1">';
+          html += '      <span class="pm-item__badge">'+tipKisaltma+'</span>';
+          html += '      <span class="pm-item__tutar">'+tutarSign+tutarStr+' ₺</span>';
+          html += '      <span class="pm-item__tarih"><i class="fa fa-calendar"></i> '+tarihStr+'</span>';
           html += '    </div>';
-          if(h.aciklama){ html += '    <div class="aciklama">'+_escHtml(h.aciklama)+'</div>'; }
+          if(h.aciklama){ html += '    <div class="pm-item__aciklama">'+_escHtml(h.aciklama)+'</div>'; }
           html += '  </div>';
-          html += '  <button class="prim-hareket-sil" data-id="'+h.id+'" title="Sil"><i class="fa fa-trash"></i></button>';
+          html += '  <button class="pm-item__sil prim-hareket-sil" data-id="'+h.id+'" title="Sil"><i class="fa fa-trash"></i></button>';
           html += '</div>';
         });
+        html += '</div>';
 
         $('#primListe_toplamBonus').text(_formatTL(toplamBonus)+' ₺');
         $('#primListe_toplamKesinti').text(_formatTL(toplamKesinti)+' ₺');
         var net = toplamBonus - toplamKesinti;
-        $('#primListe_netEtki').text((net>=0?'+':'')+_formatTL(net)+' ₺').css('color', net>=0?'#10b981':'#ef4444');
-        $('#primListe_ozet').css('display','grid');
+        $('#primListe_netEtki').text((net>=0?'+':'')+_formatTL(net)+' ₺');
+        $('#primListe_ozet').css('display','flex');
 
         $('#primHareketListesi').html(html);
       }
