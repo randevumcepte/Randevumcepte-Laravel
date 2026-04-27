@@ -165,6 +165,23 @@
   .pr-action-btn--ekle:hover{ background:var(--rmc-success); color:#fff; transform:translateY(-1px); }
   .pr-action-btn--liste{ background:var(--rmc-purple-bg); color:var(--rmc-purple-1); }
   .pr-action-btn--liste:hover{ background:var(--rmc-purple-2); color:#fff; transform:translateY(-1px); }
+  .pr-action-btn--ode{
+    width:auto; padding:0 12px; gap:6px;
+    background: linear-gradient(135deg,#7B2FB8,#9D5DC8); color:#fff; font-weight:600; font-size:12.5px;
+  }
+  .pr-action-btn--ode:hover{ background: linear-gradient(135deg,#5C008E,#7B2FB8); transform:translateY(-1px); color:#fff; }
+  .pr-odendi-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#dcfce7; color:#15803d; padding:5px 12px; border-radius:20px;
+    font-size:12px; font-weight:700; cursor:pointer; transition:.15s;
+    border:1px solid #bbf7d0;
+  }
+  .pr-odendi-badge:hover{ background:#bbf7d0; }
+  .pr-odendi-badge i{ font-size:11px; }
+  tr.pr-row-odendi td.pr-cell-net{
+    background: linear-gradient(90deg, rgba(22,163,74,.08), rgba(22,163,74,.04)) !important;
+  }
+  tr.pr-row-odendi td.pr-cell-net strong{ color:#15803d !important; }
 
   /* DataTable controls override */
   .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter{ padding: 6px 14px; }
@@ -456,13 +473,14 @@
           <th>Bonus</th>
           <th>Kesinti</th>
           <th>NET Ödenecek</th>
+          <th>Durum</th>
           <th class="datatable-nosort">İşlemler</th>
         </tr>
       </thead>
       <tbody>
         @foreach($rapor as $r)
           @php $bas = mb_strtoupper(mb_substr($r['personel_adi'],0,1,'UTF-8'),'UTF-8'); @endphp
-          <tr>
+          <tr class="{{ $r['odendi'] ? 'pr-row-odendi' : '' }}">
             <td class="pr-cell-personel"><span class="pr-avatar">{{$bas}}</span>{{$r['personel_adi']}}</td>
             <td>{{number_format($r['maas'],2,',','.')}} ₺</td>
             <td>{{number_format($r['hizmet_primi'],2,',','.')}} ₺</td>
@@ -473,6 +491,20 @@
             <td class="pr-cell-kesinti">−{{number_format($r['kesinti'],2,',','.')}}</td>
             <td class="pr-cell-net"><strong>{{number_format($r['net_hakedis'],2,',','.')}} ₺</strong></td>
             <td>
+              @if($r['odendi'])
+                <span class="pr-odendi-badge prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayını görüntüle">
+                  <i class="fa fa-check-circle"></i> Ödendi
+                </span>
+              @else
+                <span style="color:var(--rmc-muted); font-size:12px"><i class="fa fa-clock-o"></i> Bekliyor</span>
+              @endif
+            </td>
+            <td style="white-space:nowrap">
+              @if(!$r['odendi'])
+                <button class="pr-action-btn pr-action-btn--ode prim-ode" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" data-net="{{$r['net_hakedis']}}" title="Prim/Maaş Öde">
+                  <i class="fa fa-credit-card"></i> Öde
+                </button>
+              @endif
               <button class="pr-action-btn pr-action-btn--ekle prim-bonus-ekle" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Bonus/Kesinti Ekle">
                 <i class="fa fa-plus"></i>
               </button>
@@ -546,6 +578,104 @@
   </div>
 </div>
 
+{{-- ========== Prim Öde Modal ========== --}}
+<div class="modal fade" id="primOdeModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="pm-accent-bar"></div>
+      <form id="primOdeForm">
+        {!!csrf_field()!!}
+        <input type="hidden" name="sube" value="{{$isletme->id}}">
+        <input type="hidden" name="personel_id" id="primOde_personelId">
+        <input type="hidden" name="donem" value="{{ sprintf('%04d-%02d', $yil, $ay) }}">
+        <div class="pm-header">
+          <div class="pm-header__left">
+            <div class="pm-icon" style="background:#dcfce7; color:#16a34a"><i class="fa fa-credit-card"></i></div>
+            <div style="flex:1; min-width:0;">
+              <h4>Prim / Maaş Öde</h4>
+              <div class="pm-sub">
+                <span id="primOde_personelAdi" style="font-weight:600; color:#0f172a"></span>
+                <span class="donem"> &nbsp;·&nbsp; @php $aylar2=[1=>'Ocak',2=>'Şubat',3=>'Mart',4=>'Nisan',5=>'Mayıs',6=>'Haziran',7=>'Temmuz',8=>'Ağustos',9=>'Eylül',10=>'Ekim',11=>'Kasım',12=>'Aralık']; @endphp{{$aylar2[$ay]}} {{$yil}} dönemi</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="pm-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
+        </div>
+        <div class="pm-body">
+          <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px 18px; margin-bottom:16px">
+            <div style="font-size:11px; color:#64748b; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-bottom:6px">Hesaplanan Net Hak Ediş</div>
+            <div style="font-size:24px; font-weight:800; color:#6366f1" id="primOde_netLabel">0,00 ₺</div>
+            <div style="font-size:12px; color:#94a3b8; margin-top:4px">Maaş + Prim Toplam + Bonus − Kesinti</div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="pm-form-group">
+                <label>Ödenecek Tutar</label>
+                <div class="pm-tutar-input">
+                  <input type="number" step="0.01" min="0.01" class="form-control" name="tutar" id="primOde_tutar" required>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="pm-form-group">
+                <label>Ödeme Tarihi</label>
+                <input type="date" class="form-control" name="odeme_tarihi" value="{{date('Y-m-d')}}" required>
+              </div>
+            </div>
+          </div>
+          <div class="pm-form-group">
+            <label>Ödeme Yöntemi</label>
+            <select class="form-control" name="odeme_yontemi">
+              <option value="">Seçiniz...</option>
+              <option value="Nakit">Nakit</option>
+              <option value="Banka Havalesi">Banka Havalesi</option>
+              <option value="Kredi Kartı">Kredi Kartı</option>
+              <option value="Diğer">Diğer</option>
+            </select>
+          </div>
+          <div class="pm-form-group">
+            <label>Açıklama <small style="color:#94a3b8; font-weight:500; text-transform:none; letter-spacing:0">(opsiyonel)</small></label>
+            <textarea class="form-control" name="aciklama" rows="2" maxlength="300" placeholder="Ör: Nisan 2026 prim ödemesi"></textarea>
+          </div>
+        </div>
+        <div class="pm-footer">
+          <button type="button" class="pm-btn-secondary" data-dismiss="modal">İptal</button>
+          <button type="submit" class="pm-btn-primary" style="background:#16a34a"><i class="fa fa-check"></i> Ödemeyi Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- ========== Ödeme Detay Modal ========== --}}
+<div class="modal fade" id="primOdemeDetayModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="pm-accent-bar"></div>
+      <div class="pm-header">
+        <div class="pm-header__left">
+          <div class="pm-icon" style="background:#dcfce7; color:#16a34a"><i class="fa fa-check-circle"></i></div>
+          <div style="flex:1; min-width:0;">
+            <h4>Ödeme Detayı</h4>
+            <div class="pm-sub" id="primOdemeDetay_personelAdi" style="font-weight:600; color:#0f172a"></div>
+          </div>
+        </div>
+        <button type="button" class="pm-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
+      </div>
+      <div class="pm-body">
+        <div id="primOdemeDetay_icerik"></div>
+      </div>
+      <div class="pm-footer">
+        <button type="button" class="pm-btn-secondary" data-dismiss="modal">Kapat</button>
+        <button type="button" class="pm-btn-primary prim-odeme-geri-al" style="background:#dc2626" id="primOdemeDetay_geriAl">
+          <i class="fa fa-times"></i> Ödemeyi Geri Al
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {{-- ========== Hareket Geçmişi Modal ========== --}}
 <div class="modal fade" id="primHareketListeModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog" role="document">
@@ -605,6 +735,11 @@ $(function(){
     ]
   });
 
+  var _donem = '{{ sprintf("%04d-%02d", $yil, $ay) }}';
+  var _raporData = @json($rapor);
+  var _raporIndex = {};
+  _raporData.forEach(function(r){ _raporIndex[r.personel_id] = r; });
+
   $(document).on('click','.prim-bonus-ekle', function(){
     var $m = $('#primHareketModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
@@ -615,6 +750,97 @@ $(function(){
     $('#primHareketForm input[name="tarih"]').val('{{date("Y-m-d")}}');
     $('#prtip_bonus').prop('checked', true);
     $m.modal('show');
+  });
+
+  // ============ PRIM ODE ============
+  $(document).on('click','.prim-ode', function(){
+    var $m = $('#primOdeModal');
+    if($m.parent()[0] !== document.body) $m.appendTo('body');
+    var pid = $(this).data('value');
+    var net = parseFloat($(this).data('net')) || 0;
+    $('#primOde_personelId').val(pid);
+    $('#primOde_personelAdi').text($(this).data('adi'));
+    $('#primOde_netLabel').text(_formatTL(net) + ' ₺');
+    $('#primOdeForm')[0].reset();
+    $('#primOde_personelId').val(pid);
+    $('#primOdeForm input[name="donem"]').val(_donem);
+    $('#primOde_tutar').val(net.toFixed(2));
+    $('#primOdeForm input[name="odeme_tarihi"]').val('{{date("Y-m-d")}}');
+    $m.modal('show');
+  });
+
+  $('#primOdeForm').on('submit', function(e){
+    e.preventDefault();
+    $.ajax({
+      url: '/isletmeyonetim/primode',
+      method: 'POST',
+      data: $(this).serialize(),
+      headers: {'X-CSRF-TOKEN': _csrf},
+      success: function(res){
+        if(res.basarili){
+          $('#primOdeModal').modal('hide');
+          swal({title:'Ödeme kaydedildi', type:'success', timer:1300, showConfirmButton:false})
+            .then(()=>location.reload()).catch(()=>location.reload());
+        } else {
+          swal({title:'Hata', text: res.mesaj || 'Kaydedilemedi', type:'error'});
+        }
+      },
+      error: function(){ swal({title:'Hata', text:'Sunucu hatası', type:'error'}); }
+    });
+  });
+
+  // Ödeme detayını göster + geri al
+  $(document).on('click','.prim-odeme-detay', function(){
+    var $m = $('#primOdemeDetayModal');
+    if($m.parent()[0] !== document.body) $m.appendTo('body');
+    var pid = $(this).data('value');
+    var adi = $(this).data('adi');
+    var r = _raporIndex[pid];
+    if(!r || !r.odendi){ return; }
+    $('#primOdemeDetay_personelAdi').text(adi);
+    $('#primOdemeDetay_geriAl').data('odeme-id', r.odeme_id);
+    var tarihStr = r.odeme_tarihi ? (new Date(r.odeme_tarihi)).toLocaleDateString('tr-TR') : '-';
+    var html = '';
+    html += '<div style="background:#dcfce7; border:1px solid #bbf7d0; border-radius:12px; padding:16px 18px; margin-bottom:14px">';
+    html += '  <div style="font-size:11px; color:#15803d; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-bottom:6px"><i class="fa fa-check-circle"></i> Ödendi</div>';
+    html += '  <div style="font-size:26px; font-weight:800; color:#15803d">'+_formatTL(r.odeme_tutar)+' ₺</div>';
+    html += '</div>';
+    html += '<div class="pm-summary" style="margin-bottom:0">';
+    html += '  <div class="pm-chip">Tarih <strong>'+tarihStr+'</strong></div>';
+    if(r.odeme_yontemi){ html += '  <div class="pm-chip">Yöntem <strong>'+_escHtml(r.odeme_yontemi)+'</strong></div>'; }
+    html += '</div>';
+    if(r.odeme_aciklama){
+      html += '<div style="margin-top:14px; padding:14px 16px; background:#fff; border:1px solid #e2e8f0; border-radius:12px">';
+      html += '  <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px">Açıklama</div>';
+      html += '  <div style="font-size:14px; color:#334155">'+_escHtml(r.odeme_aciklama)+'</div>';
+      html += '</div>';
+    }
+    $('#primOdemeDetay_icerik').html(html);
+    $m.modal('show');
+  });
+
+  $(document).on('click','.prim-odeme-geri-al', function(){
+    var odemeId = $(this).data('odeme-id');
+    if(!odemeId) return;
+    swal({
+      title: 'Ödeme geri alınsın mı?',
+      text: 'Bu işlem ödeme kaydını siler. Personel tekrar "ödenmemiş" duruma geçecek.',
+      type: 'warning', showCancelButton: true,
+      confirmButtonText: 'Geri Al', cancelButtonText: 'Vazgeç',
+      confirmButtonClass: 'btn btn-danger'
+    }).then(function(r){
+      if(!r.value) return;
+      $.ajax({
+        url: '/isletmeyonetim/primodemesil',
+        method: 'POST',
+        data: { id: odemeId, sube: _sube, _token: _csrf },
+        headers: {'X-CSRF-TOKEN': _csrf},
+        success: function(res){
+          if(res.basarili){ location.reload(); }
+          else { swal({title:'Hata', text: res.mesaj || 'Silinemedi', type:'error'}); }
+        }
+      });
+    });
   });
 
   $('#primHareketForm').on('submit', function(e){

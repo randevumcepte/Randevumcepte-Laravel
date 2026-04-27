@@ -131,6 +131,7 @@ use App\CarkifelekCevirmeLoglari;
 use App\CarkifelekOdulleri;
 use App\SalonPuanOdulleri;
 use App\PersonelPrimHareketi;
+use App\PersonelMaasOdemesi;
 
 class StoreAdminController extends Controller
 {
@@ -22584,6 +22585,12 @@ DB::raw('
             ->get()
             ->groupBy('personel_id');
 
+        $donem = substr($tarih1, 0, 7);
+        $odemeler = PersonelMaasOdemesi::where('salon_id',$salonId)
+            ->where('donem',$donem)
+            ->get()
+            ->keyBy('personel_id');
+
         $sonuc = [];
         foreach($personeller as $p){
             $primRow = $primMap[$p->id];
@@ -22598,6 +22605,9 @@ DB::raw('
 
             $maas = (float)($p->maas ?? 0);
             $toplam = $maas + $primToplam + $bonus - $kesinti;
+
+            $odeme = $odemeler->get($p->id);
+            $odendi = $odeme ? true : false;
 
             $sonuc[] = [
                 'personel_id'   => $p->id,
@@ -22614,6 +22624,12 @@ DB::raw('
                 'urun_geliri'   => (float)$primRow['urun_geliri'],
                 'paket_geliri'  => (float)$primRow['paket_geliri'],
                 'hareket_sayisi'=> $persHareketler->count(),
+                'odendi'        => $odendi,
+                'odeme_id'      => $odeme ? $odeme->id : null,
+                'odeme_tutar'   => $odeme ? (float)$odeme->tutar : 0,
+                'odeme_tarihi'  => $odeme ? optional($odeme->odeme_tarihi)->format('Y-m-d') : null,
+                'odeme_yontemi' => $odeme ? $odeme->odeme_yontemi : null,
+                'odeme_aciklama'=> $odeme ? $odeme->aciklama : null,
             ];
         }
 
@@ -22684,6 +22700,71 @@ DB::raw('
             ->get();
 
         return response()->json(['basarili'=>true,'hareketler'=>$hareketler]);
+    }
+
+    public function primOde(Request $request)
+    {
+        try{
+            $salonId = self::mevcutsube($request);
+            $personel = Personeller::where('id',$request->personel_id)->where('salon_id',$salonId)->first();
+            if(!$personel){
+                return response()->json(['basarili'=>false,'mesaj'=>'Personel bulunamadı.']);
+            }
+
+            $donem = $request->donem;
+            if(!preg_match('/^\d{4}-\d{2}$/', $donem)){
+                return response()->json(['basarili'=>false,'mesaj'=>'Geçersiz dönem.']);
+            }
+
+            $tutar = (float)str_replace([','], ['.'], $request->tutar);
+            if($tutar <= 0){
+                return response()->json(['basarili'=>false,'mesaj'=>'Tutar 0\'dan büyük olmalı.']);
+            }
+
+            $odemeTarihi = $request->odeme_tarihi ?: date('Y-m-d');
+            if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $odemeTarihi)) $odemeTarihi = date('Y-m-d');
+
+            $mevcut = PersonelMaasOdemesi::where('personel_id',$personel->id)
+                ->where('salon_id',$salonId)
+                ->where('donem',$donem)
+                ->first();
+
+            $data = [
+                'personel_id'        => $personel->id,
+                'salon_id'           => $salonId,
+                'donem'              => $donem,
+                'tutar'              => $tutar,
+                'odeme_tarihi'       => $odemeTarihi,
+                'odeme_yontemi'      => mb_substr((string)$request->odeme_yontemi, 0, 60),
+                'aciklama'           => mb_substr((string)$request->aciklama, 0, 300),
+                'ekleyen_yetkili_id' => Auth::guard('isletmeyonetim')->user()->id ?? null,
+            ];
+
+            if($mevcut){
+                $mevcut->update($data);
+            } else {
+                PersonelMaasOdemesi::create($data);
+            }
+
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function primOdemeSil(Request $request)
+    {
+        try{
+            $salonId = self::mevcutsube($request);
+            $kayit = PersonelMaasOdemesi::where('id',$request->id)->where('salon_id',$salonId)->first();
+            if(!$kayit){
+                return response()->json(['basarili'=>false,'mesaj'=>'Ödeme kaydı bulunamadı.']);
+            }
+            $kayit->delete();
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
     }
 
 }
