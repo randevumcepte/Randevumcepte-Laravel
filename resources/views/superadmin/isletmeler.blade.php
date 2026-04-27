@@ -49,7 +49,17 @@
                         	<a href="/sistemyonetim/isletmedetay/{{$isletmeliste->id}}" title="Detaylar & Düzenle" class="icon"><i class="mdi mdi-settings"></i></a>
 
                           @if($isletmeliste->uyelik_turu == 1 ||$isletmeliste->uyelik_turu==3)
-                          <a href="/{{ str_replace(' ','-',str_replace(['Ç','Ğ','İ','Ö','Ş','Ü','ç','ğ','ı','ö','ş','ü'],['C','G','I','O','S','U','c','g','i','o','s','u'],mb_strtolower($isletmeliste->salon_turu->salon_turu_adi))) }}/{{ str_replace(' ','-',str_replace(['Ç','Ğ','İ','Ö','Ş','Ü','ç','ğ','ı','ö','ş','ü'],['C','G','I','O','S','U','c','g','i','o','s','u'],mb_strtolower($isletmeliste->il->il_adi))) }}/{{ str_replace(' ','-',str_replace(['Ç','Ğ','İ','Ö','Ş','Ü','ç','ğ','ı','ö','ş','ü'],['C','G','I','O','S','U','c','g','i','o','s','u'],mb_strtolower($isletmeliste->ilce->ilce_adi))) }}/{{$isletmeliste->id}}/{{str_replace(' ','-',str_replace(['Ç','Ğ','İ','Ö','Ş','Ü','ç','ğ','ı','ö','ş','ü'],['C','G','I','O','S','U','c','g','i','o','s','u'],mb_strtolower($isletmeliste->salon_adi))) }}" target="_blank" title="İşletmeyi sayfada görüntüle"><span class="mdi mdi-search-in-page"></span></a>
+                          @php
+                              $slugify = function($s){
+                                  return $s ? str_replace(' ','-',str_replace(['Ç','Ğ','İ','Ö','Ş','Ü','ç','ğ','ı','ö','ş','ü'],['C','G','I','O','S','U','c','g','i','o','s','u'],mb_strtolower($s))) : null;
+                              };
+                              $tur = optional($isletmeliste->salon_turu)->salon_turu_adi;
+                              $il = optional($isletmeliste->il)->il_adi;
+                              $ilce = optional($isletmeliste->ilce)->ilce_adi;
+                          @endphp
+                          @if($tur && $il && $ilce)
+                          <a href="/{{ $slugify($tur) }}/{{ $slugify($il) }}/{{ $slugify($ilce) }}/{{$isletmeliste->id}}/{{ $slugify($isletmeliste->salon_adi) }}" target="_blank" title="İşletmeyi sayfada görüntüle"><span class="mdi mdi-search-in-page"></span></a>
+                          @endif
                           @if($isletmeliste->uyelik_turu == 3)
                           <a href="/sistemyonetim/avantajlar" title="İşletmenin avantajlarını görüntüle"><span class="mdi mdi-search-in-page"></span></a>
                           @endif
