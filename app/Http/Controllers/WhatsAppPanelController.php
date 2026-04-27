@@ -236,6 +236,58 @@ class WhatsAppPanelController extends Controller
     }
 
     /**
+     * Salonun alıcı detayları — hangi numaralara kaç mesaj gitmiş, son ne zaman
+     */
+    public function salonAliciDetay(Request $request, $salonId)
+    {
+        $salon = Salonlar::find($salonId);
+        if (!$salon) return response()->json(['error' => 'salon-bulunamadi'], 404);
+
+        $aliciList = DB::table('whatsapp_gonderim_loglari as wl')
+            ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
+            ->select(
+                'wl.telefon',
+                DB::raw('MAX(u.name) as musteri_adi'),
+                DB::raw('MAX(wl.user_id) as user_id'),
+                DB::raw('COUNT(*) as toplam'),
+                DB::raw('SUM(CASE WHEN wl.durum = 1 THEN 1 ELSE 0 END) as basari'),
+                DB::raw('SUM(CASE WHEN wl.durum = 2 THEN 1 ELSE 0 END) as fail'),
+                DB::raw('SUM(CASE WHEN wl.durum = 3 THEN 1 ELSE 0 END) as fallback'),
+                DB::raw('MAX(wl.created_at) as son_mesaj'),
+                DB::raw('MIN(wl.created_at) as ilk_mesaj')
+            )
+            ->where('wl.salon_id', $salonId)
+            ->groupBy('wl.telefon')
+            ->orderByDesc('son_mesaj')
+            ->limit(500)
+            ->get();
+
+        return response()->json([
+            'salon' => [
+                'id' => $salon->id,
+                'salon_adi' => $salon->salon_adi,
+                'whatsapp_numara' => $salon->whatsapp_numara,
+            ],
+            'aliciList' => $aliciList,
+            'toplamAlici' => $aliciList->count(),
+        ]);
+    }
+
+    /**
+     * Belirli salon-telefon kombinasyonunun mesaj geçmişi
+     */
+    public function aliciMesajGecmisi(Request $request, $salonId, $telefon)
+    {
+        $rows = DB::table('whatsapp_gonderim_loglari')
+            ->where('salon_id', $salonId)
+            ->where('telefon', $telefon)
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get(['id', 'mesaj', 'durum', 'hata', 'mesaj_id', 'gonderim_tarihi', 'created_at', 'randevu_id']);
+        return response()->json(['rows' => $rows]);
+    }
+
+    /**
      * Tek mesaj detayı — tam metin + zaman çizelgesi
      */
     public function mesajDetay(Request $request, $id)

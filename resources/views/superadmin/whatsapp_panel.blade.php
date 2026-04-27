@@ -177,6 +177,26 @@
     </div>
 </div>
 
+<div class="wa-modal" id="aliciModal">
+    <div class="wa-modal-content" style="max-width:900px;">
+        <div class="wa-modal-header">
+            <h4 style="margin:0;" id="aliciModalBaslik">Alıcılar</h4>
+            <span class="wa-modal-close" onclick="document.getElementById('aliciModal').classList.remove('show')">×</span>
+        </div>
+        <div id="aliciModalBody">Yükleniyor...</div>
+    </div>
+</div>
+
+<div class="wa-modal" id="aliciGecmisModal">
+    <div class="wa-modal-content" style="max-width:700px;">
+        <div class="wa-modal-header">
+            <h4 style="margin:0;" id="aliciGecmisBaslik">Mesaj Geçmişi</h4>
+            <span class="wa-modal-close" onclick="document.getElementById('aliciGecmisModal').classList.remove('show')">×</span>
+        </div>
+        <div id="aliciGecmisBody">Yükleniyor...</div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 (function(){
@@ -255,6 +275,7 @@
         tbody.innerHTML = rows.map(function(r){
             var durumClass = r.durum || 'gri';
             var yonetUrl = '/isletmeyonetim/whatsapp?sube=' + r.id;
+            var aliciBtn = '<button class="wa-btn-mini" data-salon-id="' + r.id + '" data-salon-adi="' + escHtml(r.salon_adi) + '" data-action="aliciler">👥 Alıcılar</button>';
             var loglarBtn = '<button class="wa-btn-mini" data-salon-id="' + r.id + '" data-action="loglar">📨 Loglar</button>';
             var yonetBtn = '<a class="wa-btn-mini wa-btn-mini-primary" href="' + yonetUrl + '" target="_blank">🔧 Yönet</a>';
             return '<tr>'
@@ -267,7 +288,7 @@
                 + '<td>' + r.hafta_toplam + '</td>'
                 + '<td>' + escHtml(r.baglanti_tarihi || '—') + '</td>'
                 + '<td style="color:#dc3545;font-size:12px;">' + escHtml(r.son_hata || '') + '</td>'
-                + '<td style="white-space:nowrap;">' + yonetBtn + ' ' + loglarBtn + '</td>'
+                + '<td style="white-space:nowrap;">' + yonetBtn + ' ' + aliciBtn + ' ' + loglarBtn + '</td>'
                 + '</tr>';
         }).join('');
 
@@ -278,6 +299,13 @@
                 document.querySelector('.wa-tab[data-tab="loglar"]').click();
                 document.getElementById('logSalonId').value = sid;
                 yukleLoglar(1);
+            });
+        });
+
+        // Salonun alıcı detaylarını aç
+        document.querySelectorAll('#salonTable button[data-action="aliciler"]').forEach(function(b){
+            b.addEventListener('click', function(){
+                aciAliciModal(b.dataset.salonId, b.dataset.salonAdi);
             });
         });
     }
@@ -364,6 +392,75 @@
                 html += '<tr><td style="padding:6px;color:#666;font-weight:600;width:140px;">' + r[0] + '</td><td style="padding:6px;">' + escHtml(r[1]) + '</td></tr>';
             });
             html += '</table><h5 style="margin-top:18px;">Mesaj İçeriği</h5><div style="background:#f7f9fc;padding:12px;border-radius:6px;white-space:pre-wrap;font-family:monospace;font-size:13px;">' + escHtml(l.mesaj) + '</div>';
+            body.innerHTML = html;
+        });
+    }
+
+    // ───────── ALICILAR (salon bazlı) ─────────
+    window.aciAliciModal = function(salonId, salonAdi){
+        var modal = document.getElementById('aliciModal');
+        var body = document.getElementById('aliciModalBody');
+        document.getElementById('aliciModalBaslik').textContent = '👥 ' + salonAdi + ' — Alıcılar';
+        modal.classList.add('show');
+        body.innerHTML = '<span class="wa-spinner"></span> Yükleniyor...';
+        fetchJson('/sistemyonetim/whatsapp-panel/salon/' + salonId + '/aliciler').then(function(d){
+            if (d.error) { body.innerHTML = '<div style="color:#dc3545;">' + d.error + '</div>'; return; }
+            var rows = d.aliciList || [];
+            if (rows.length === 0) {
+                body.innerHTML = '<div style="text-align:center;color:#999;padding:30px;">Bu salon henüz mesaj atmamış</div>';
+                return;
+            }
+            var html = '<div style="margin-bottom:12px;color:#666;">'
+                + '<b>' + d.toplamAlici + '</b> farklı alıcıya mesaj gönderilmiş.'
+                + (d.salon.whatsapp_numara ? ' Gönderen: <b>' + escHtml(d.salon.whatsapp_numara) + '</b>' : '')
+                + '</div>';
+            html += '<div style="overflow:auto;max-height:60vh;"><table class="wa-table">';
+            html += '<thead><tr><th>Müşteri</th><th>Telefon</th><th>Toplam</th><th>Durum</th><th>İlk</th><th>Son</th><th></th></tr></thead><tbody>';
+            rows.forEach(function(r){
+                html += '<tr>'
+                    + '<td><b>' + escHtml(r.musteri_adi || '—') + '</b></td>'
+                    + '<td>' + escHtml(r.telefon) + '</td>'
+                    + '<td>' + r.toplam + '</td>'
+                    + '<td><span class="wa-badge success">✓' + r.basari + '</span> '
+                    + '<span class="wa-badge fail">✗' + r.fail + '</span> '
+                    + '<span class="wa-badge fallback">⤵' + r.fallback + '</span></td>'
+                    + '<td style="font-size:11px;color:#666;">' + escHtml(fmtDate(r.ilk_mesaj)) + '</td>'
+                    + '<td style="font-size:11px;color:#666;">' + escHtml(fmtDate(r.son_mesaj)) + '</td>'
+                    + '<td><button class="wa-btn-mini" data-salon-id="' + salonId + '" data-telefon="' + escHtml(r.telefon) + '" data-musteri="' + escHtml(r.musteri_adi || '') + '">📋 Geçmiş</button></td>'
+                    + '</tr>';
+            });
+            html += '</tbody></table></div>';
+            body.innerHTML = html;
+            body.querySelectorAll('button[data-telefon]').forEach(function(btn){
+                btn.addEventListener('click', function(){
+                    aciAliciGecmis(btn.dataset.salonId, btn.dataset.telefon, btn.dataset.musteri);
+                });
+            });
+        });
+    };
+
+    function aciAliciGecmis(salonId, telefon, musteriAdi){
+        var modal = document.getElementById('aliciGecmisModal');
+        var body = document.getElementById('aliciGecmisBody');
+        document.getElementById('aliciGecmisBaslik').textContent = '📋 ' + (musteriAdi || telefon) + ' — Mesaj Geçmişi';
+        modal.classList.add('show');
+        body.innerHTML = '<span class="wa-spinner"></span> Yükleniyor...';
+        fetchJson('/sistemyonetim/whatsapp-panel/salon/' + salonId + '/alici/' + encodeURIComponent(telefon) + '/gecmis').then(function(d){
+            var rows = d.rows || [];
+            if (rows.length === 0) { body.innerHTML = '<div style="text-align:center;color:#999;padding:30px;">Mesaj yok</div>'; return; }
+            var html = '<div style="display:flex;flex-direction:column;gap:10px;max-height:65vh;overflow:auto;">';
+            rows.forEach(function(r){
+                var badge = DURUM_BADGE[r.durum] || 'gri';
+                var label = DURUM_LABEL[r.durum] || r.durum;
+                html += '<div style="background:#f7f9fc;border-left:3px solid #25D366;padding:10px 14px;border-radius:6px;">'
+                    + '<div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:6px;">'
+                    + '<span><b>' + escHtml(fmtDate(r.created_at)) + '</b>' + (r.randevu_id ? ' — Randevu #' + r.randevu_id : '') + '</span>'
+                    + '<span class="wa-badge ' + badge + '">' + label + '</span></div>'
+                    + '<div style="white-space:pre-wrap;font-size:13px;color:#333;">' + escHtml(r.mesaj) + '</div>'
+                    + (r.hata ? '<div style="margin-top:6px;color:#dc3545;font-size:11px;">Hata: ' + escHtml(r.hata) + '</div>' : '')
+                    + '</div>';
+            });
+            html += '</div>';
             body.innerHTML = html;
         });
     }
