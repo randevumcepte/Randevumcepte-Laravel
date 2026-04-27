@@ -21998,116 +21998,139 @@ DB::raw('
                      $user->name . '</strong> isimli müşteriye ait paket/hizmetler:</div>';
     }
     
-    // TEK HİZMETLER - düzeltildi
+    // TEK HİZMETLER - kalan seans seans takibindeki formulle hesaplanir (bekleyen_seans kolonu guvenilir degil)
     foreach($randevuOlusturulmamisHizmetAdisyonuVarmi as $hizmetSeanslari) {
         foreach($hizmetSeanslari->hizmetler as $hizmetA) {
-            if ($hizmetA->bekleyen_seans > 0 && $hizmetA->hizmet) {
-                $hizmetAdi = $hizmetA->hizmet->hizmet_adi;
-                $seansSayisi = $hizmetA->bekleyen_seans;
-                
-                $onayMetni .= '- ' . $seansSayisi . ' seans ' . $hizmetAdi . '<br>';
-                
-                // PAKET HİZMETLERİ DİZİSİNE EKLE (hizmet bazlı)
-                $paketHizmetleri[] = [
+            if (!$hizmetA->hizmet) continue;
+            // Seans takibi formulu (8590-8622): toplam - kullanilan(geldi=1) - kullanilmayan(geldi=0)
+            $toplamSeansHizmet = (int)($hizmetA->seans_sayisi ?? $hizmetA->bekleyen_seans ?? 0);
+            $kullanilanHizmet = DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $hizmetA->id)
+                ->where('geldi', 1)
+                ->count();
+            $kullanilmayanHizmet = DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $hizmetA->id)
+                ->where('geldi', 0)
+                ->count();
+            $kalanSeansHizmet = max(0, $toplamSeansHizmet - $kullanilanHizmet - $kullanilmayanHizmet);
+            if ($kalanSeansHizmet <= 0) continue; // Tukenmis hizmetleri popup'a hic dahil etme
+
+            $hizmetAdi = $hizmetA->hizmet->hizmet_adi;
+            $seansSayisi = $kalanSeansHizmet;
+
+            $onayMetni .= '- ' . $seansSayisi . ' seans ' . $hizmetAdi . '<br>';
+
+            // PAKET HİZMETLERİ DİZİSİNE EKLE (hizmet bazlı)
+            $paketHizmetleri[] = [
+                'id' => $hizmetA->hizmet_id,
+                'text' => $hizmetAdi,
+                'seans' => $seansSayisi,
+                'tur' => 'hizmet',
+                'sure' => $hizmetA->sure ?? 0,
+                'original_seans' => $seansSayisi,
+                'paket_adi' => null,
+                'adisyon_hizmet_id' => $hizmetA->id
+            ];
+
+            // PAKET DETAYLARI DİZİSİNE EKLE (paket/hizmet bazlı)
+            $paketDetaylari[] = [
+                'index' => $paketIndex++,
+                'adi' => $hizmetAdi,
+                'seans' => $seansSayisi,
+                'tur' => 'Tek Hizmet',
+                'sure' => $hizmetA->sure ?? 0,
+                'hizmet_id' => $hizmetA->hizmet_id,
+                'type' => 'hizmet',
+                'adisyon_hizmet_id' => $hizmetA->id,
+                'paket_id' => null,
+                'toplamSeans' => $seansSayisi,
+                'icerik' => [[
                     'id' => $hizmetA->hizmet_id,
                     'text' => $hizmetAdi,
                     'seans' => $seansSayisi,
-                    'tur' => 'hizmet',
-                    'sure' => $hizmetA->sure ?? 0,
-                    'original_seans' => $seansSayisi, // Orijinal seans sayısını da sakla
-                    'paket_adi' => null,
-                    'adisyon_hizmet_id' => $hizmetA->id // AdisyonHizmetler tablosundaki ID
-                ];
-                
-                // PAKET DETAYLARI DİZİSİNE EKLE (paket/hizmet bazlı)
-                $paketDetaylari[] = [
-                    'index' => $paketIndex++,
-                    'adi' => $hizmetAdi,
-                    'seans' => $seansSayisi,
-                    'tur' => 'Tek Hizmet',
-                    'sure' => $hizmetA->sure ?? 0,
-                    'hizmet_id' => $hizmetA->hizmet_id,
-                    'type' => 'hizmet',
-                    'adisyon_hizmet_id' => $hizmetA->id, // AdisyonHizmetler tablosundaki ID
-                    'paket_id' => null,
-                    'toplamSeans' => $seansSayisi,
-                    // Bu paket/hizmete ait hizmetleri ayrıca belirt
-                    'icerik' => [[
-                        'id' => $hizmetA->hizmet_id,
-                        'text' => $hizmetAdi,
-                        'seans' => $seansSayisi,
-                        'sure' => $hizmetA->sure ?? 0
-                    ]]
-                ];
-            }
+                    'sure' => $hizmetA->sure ?? 0
+                ]]
+            ];
         }
     }
-    
-    // PAKETLER - düzeltildi
+
+    // PAKETLER - kalan seans (round bazli) hesaplanir
     foreach($randevuOlusturulmamisPaketAdisyonuVarmi as $paketSeanslari) {
         foreach($paketSeanslari->paketler as $paketA) {
-            if ($paketA->bekleyen_seans > 0 && $paketA->paket) {
-                $paketAdi = $paketA->paket->paket_adi;
-                $seansSayisi = $paketA->bekleyen_seans;
-                
-                $onayMetni .= '<div class="package-group mt-2"><strong>📦 ' . 
-                             $paketAdi . '</strong> (' . $seansSayisi . ' seans)</div>';
-                
-                // Bu paketin içerdiği hizmetler
-                $paketHizmetleriArray = [];
-                $hizmetIdleri = [];
-                
-                if ($paketA->paket->hizmetler) {
-                    foreach($paketA->paket->hizmetler as $hizmetP) {
-                        if ($hizmetP->hizmet) {
-                            // PAKET HİZMETLERİ DİZİSİNE EKLE (hizmet bazlı)
-                            $paketHizmetleri[] = [
-                                'id' => $hizmetP->hizmet_id,
-                                'text' => $hizmetP->hizmet->hizmet_adi,
-                                'seans' => $seansSayisi,
-                                'paket_adi' => $paketAdi,
-                                'tur' => 'paket',
-                                'sure' => $hizmetP->sure ?? 0,
-                                'original_seans' => $seansSayisi,
-                                'adisyon_paket_id' => $paketA->id // AdisyonPaketler tablosundaki ID
-                            ];
-                            
-                            $paketHizmetleriArray[] = [
-                                'id' => $hizmetP->hizmet_id,
-                                'text' => $hizmetP->hizmet->hizmet_adi,
-                                'seans' => $seansSayisi,
-                                'sure' => $hizmetP->sure ?? 0
-                            ];
-                            
-                            $hizmetIdleri[] = $hizmetP->hizmet_id;
-                        }
-                    }
-                }
-                
-                // PAKET DETAYLARI DİZİSİNE EKLE (paket/hizmet bazlı)
-                $paketDetaylari[] = [
-                    'index' => $paketIndex++,
-                    'adi' => $paketAdi,
+            if (!$paketA->paket) continue;
+            $hizmetSayisi = $paketA->paket->hizmetler ? count($paketA->paket->hizmetler) : 0;
+            if ($hizmetSayisi <= 0) continue;
+            // Round basina seans sayisi (adisyon_paketler.seans_sayisi)
+            $seansPerHizmet = (int)($paketA->seans_sayisi ?? $paketA->bekleyen_seans ?? 0);
+            $toplamSeansPaket = $seansPerHizmet * $hizmetSayisi;
+            $kullanilanPaket = DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_paket_id', $paketA->id)
+                ->where('geldi', 1)
+                ->count();
+            $kullanilmayanPaket = DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_paket_id', $paketA->id)
+                ->where('geldi', 0)
+                ->count();
+            $bekleyenToplamPaket = $toplamSeansPaket - $kullanilanPaket - $kullanilmayanPaket;
+            // Per-hizmet kalan = bekleyen / hizmet sayisi
+            $kalanSeansPaket = max(0, (int)floor($bekleyenToplamPaket / $hizmetSayisi));
+            if ($kalanSeansPaket <= 0) continue; // Tukenmis paketleri popup'a dahil etme
+
+            $paketAdi = $paketA->paket->paket_adi;
+            $seansSayisi = $kalanSeansPaket;
+
+            $onayMetni .= '<div class="package-group mt-2"><strong>📦 ' .
+                         $paketAdi . '</strong> (' . $seansSayisi . ' seans)</div>';
+
+            $paketHizmetleriArray = [];
+            $hizmetIdleri = [];
+
+            foreach($paketA->paket->hizmetler as $hizmetP) {
+                if (!$hizmetP->hizmet) continue;
+                $paketHizmetleri[] = [
+                    'id' => $hizmetP->hizmet_id,
+                    'text' => $hizmetP->hizmet->hizmet_adi,
                     'seans' => $seansSayisi,
-                    'tur' => 'Paket: ' . $paketAdi,
-                    'sure' => $paketA->paket->sure ?? 0,
-                    'hizmet_id' => $hizmetIdleri, // Paketin içerdiği hizmet ID'leri
-                    'paket_id' => $paketA->paket_id,
-                    'type' => 'paket',
-                    'adisyon_paket_id' => $paketA->id, // AdisyonPaketler tablosundaki ID
-                    'toplamSeans' => $seansSayisi,
-                    // Bu paketin içerdiği hizmetler
-                    'icerik' => $paketHizmetleriArray
+                    'paket_adi' => $paketAdi,
+                    'tur' => 'paket',
+                    'sure' => $hizmetP->sure ?? 0,
+                    'original_seans' => $seansSayisi,
+                    'adisyon_paket_id' => $paketA->id
                 ];
+                $paketHizmetleriArray[] = [
+                    'id' => $hizmetP->hizmet_id,
+                    'text' => $hizmetP->hizmet->hizmet_adi,
+                    'seans' => $seansSayisi,
+                    'sure' => $hizmetP->sure ?? 0
+                ];
+                $hizmetIdleri[] = $hizmetP->hizmet_id;
             }
+
+            $paketDetaylari[] = [
+                'index' => $paketIndex++,
+                'adi' => $paketAdi,
+                'seans' => $seansSayisi,
+                'tur' => 'Paket: ' . $paketAdi,
+                'sure' => $paketA->paket->sure ?? 0,
+                'hizmet_id' => $hizmetIdleri,
+                'paket_id' => $paketA->paket_id,
+                'type' => 'paket',
+                'adisyon_paket_id' => $paketA->id,
+                'toplamSeans' => $seansSayisi,
+                'icerik' => $paketHizmetleriArray
+            ];
         }
     }
+
+    // Tukenmis filtre sonrasi hicbir paket/hizmet kalmadiysa popup'i ac(tirma)ma
+    $paketVarMi = !empty($paketDetaylari);
+
     Log::info(json_encode($paketDetaylari));
     return response()->json([
-        'paketRandevuOnayiGerekli' => $onayGerekli,
+        'paketRandevuOnayiGerekli' => $paketVarMi ? $onayGerekli : false,
         'onayMetni' => $onayMetni,
-        'paketHizmetleri' => $paketHizmetleri, // Tüm hizmetler (hizmet bazlı)
-        'paketDetaylari' => $paketDetaylari,   // Paket/hizmet detayları (seçim için)
+        'paketHizmetleri' => $paketHizmetleri,
+        'paketDetaylari' => $paketDetaylari,
         'toplamSeans' => count($paketHizmetleri),
         'userName' => $user->name,
         'paketVarMi' => $paketVarMi
