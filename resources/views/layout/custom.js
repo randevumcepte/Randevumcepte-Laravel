@@ -16756,13 +16756,13 @@ $('#secilenpaket_satis_yap').click(function(e){
                 "<div class='col-md-6'><label>Fiyat</label><input type='tel' class='form-control' name='paket_satis_fiyat[]' style='height:38px;margin-bottom:10px'></div>"+
                 "</div> ";
     });
-    if(i==0 || $('select[name="paket_satis_musteri_id"]').val()==0 )
+    if(i==0 || $('select[name="paket_satis_musteri_id"]').val()==0 || !$('select[name="paket_satis_personel_id"]').val())
     {
           swal(
                 {
                     type: 'warning',
                     title: 'Uyarı',
-                    text: 'Satış yapmadan önce lütfen paket ve müşteri seçiniz.',
+                    text: 'Satış yapmadan önce lütfen paket, müşteri ve satıcı personel seçiniz.',
                     showCloseButton: false,
                     showCancelButton: false,
                     showConfirmButton:false,

@@ -10607,7 +10607,6 @@ DB::raw('
         }
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
         $paketler = self::paket_liste_getir("",false,$request);
-        //$personeller = Personeller::where('salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->get();
         return view('isletmeadmin.paketsatislari',['paketler'=>$paketler, 'bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Paketler','pageindex' => 13,'isletme' => $isletme,  'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'yetkiliolunanisletmeler'=>$isletmeler]);
     }
     public function paketsatislarigetir(Request $request)
@@ -17612,11 +17611,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function pakettahsilatagit(Request $request){
         $bilgi = Paketler::whereIn('id',$request->paket_bilgi)->get();
-        
+
         $paketler = self::paket_liste_getir("",true,$request);
         $isletme =Salonlar::where('id',self::mevcutsube($request))->first();
         $adisyon_id = self::yeni_adisyon_olustur($request->paket_satis_musteri_id,$request->sube,'Paket Satışı',date('Y-m-d'));
         $hizmete_ait_randevu = array();
+        $satici_personel_id = !empty($request->paket_satis_personel_id)
+            ? $request->paket_satis_personel_id
+            : Personeller::where('salon_id',$request->sube)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id');
         foreach($bilgi as $key => $paket)
         {
             $toplamtutar=$request->paket_satis_fiyat[$key];
@@ -17625,7 +17627,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             {
                 $toplamtutar+=$hizmet->fiyat;
             }*/
-            $adisyon_paket_id = self::adisyona_paket_ekle($request,$adisyon_id,$paket->id,$toplamtutar,'','',Personeller::where('salon_id',$request->sube)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id'),null,null,$request->paket_satis_seans[$key]);
+            $adisyon_paket_id = self::adisyona_paket_ekle($request,$adisyon_id,$paket->id,$toplamtutar,'','',$satici_personel_id,null,null,$request->paket_satis_seans[$key]);
             /*$paket_mevcut = Paketler::where('id',$paket->id)->first();
             $seanstarih = '';
             $yenisaatbaslangic = '';

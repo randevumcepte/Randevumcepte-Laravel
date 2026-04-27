@@ -21,16 +21,19 @@
                            </ol>
                         </nav>
                      </div>
-                     <div class="col-md-6 col-sm-6 col-xs-6 col-6 text-right"> 
+                     <div class="col-md-6 col-sm-6 col-xs-6 col-6 text-right">
                           <select class="form-control custom-select2 musteri_secimi"  name="paket_satis_musteri_id" style="width: 150px">
                               <option></option>
-                               
-                               
+
+
+                           </select>
+                          <select class="form-control custom-select2 personel_secimi" name="paket_satis_personel_id" style="width: 180px; margin-left: 5px;">
+                              <option value=""></option>
                            </select>
                            <a  style="margin-left: 10px;"  title="Tahsil Et" id="secilenpaket_satis_yap" href="isletmeyonetim/adisyondetay" type="button" class="btn btn-primary btn-lg yenieklebuton502">Satış Yap</a>
-                         
-                         
-                         
+
+
+
                            <button style="margin-left: 3px;margin-right: 3px;" data-toggle="modal" data-target="#paket-modal" type="button" class="btn btn-success yenieklebuton501">
                               <i class="fa fa-plus"></i> Yeni Paket
                            </button>
