@@ -126,7 +126,13 @@
               <div class="left-sidebar-content">
                 <ul class="sidebar-elements">
                   <li class="divider">Hoşgeldiniz : {{Auth::user()->name}} <br />Sistem Yönetim Paneli</li>
-                  
+
+                  <li class="{{ $pageindex == 99 ? 'active' : '' }}">
+                    <a href="/sistemyonetim/whatsapp-panel">
+                      <span class="icon mdi mdi-whatsapp"></span> WhatsApp Yönetim
+                    </a>
+                  </li>
+
                   @if($pageindex==1 ||$pageindex == 2)
 
                   <li class="parent"><a href="#">İşletmeler</a>
