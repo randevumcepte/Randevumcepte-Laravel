@@ -21561,12 +21561,87 @@ DB::raw('
                 'toplamTutarNumeric'=>$items->sum('fiyat'),
                 'toplamKazancNumeric'=>$toplamKazanc,
                 'borcNumeric'=>$items->sum('fiyat') - $toplamKazanc,
-                'islemler'=> ' <a title="Detaylı Bilgi" name="hizmeti_alan_musteriler" data-value""  href="" class="btn btn-info"><i class="dw dw-eye"></i> </a>'
+                'islemler'=> ' <a title="Detaylı Bilgi" name="hizmeti_alan_musteriler" data-value="'.($items->first()->hizmet_id).'" data-adi="'.htmlspecialchars($items->first()->hizmet->hizmet_adi ?? '', ENT_QUOTES).'" href="javascript:void(0)" class="btn btn-info"><i class="dw dw-eye"></i> </a>'
             ];
         })->values();
 
         return $raporlar;
     }
+
+    public function hizmetiAlanMusteriler(Request $request)
+    {
+        $salonId  = $request->salonId;
+        $hizmetId = $request->hizmetId;
+        $personel = $request->personel ?? '';
+
+        $tarih1 = date('Y-m-01');
+        $tarih2 = date('Y-m-d');
+        if($request->zaman == 'ozel'){
+            if($request->baslangicTarihi != '') $tarih1 = $request->baslangicTarihi;
+            if($request->bitisTarihi    != '') $tarih2 = $request->bitisTarihi;
+        } else if($request->zaman) {
+            $parcalar = explode(' / ', $request->zaman);
+            if(count($parcalar) == 2){
+                $tarih1 = $parcalar[0];
+                $tarih2 = $parcalar[1];
+            }
+        }
+
+        if(!$salonId || !$hizmetId){
+            return response()->json(['hata'=>'Eksik parametre'], 422);
+        }
+
+        $isletmeler = [];
+        if(Auth::guard('satisortakligi')->check()){
+            $isletmeler = [15];
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()
+                ->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+        }
+        if(!in_array($salonId, $isletmeler)){
+            return response()->json(['hata'=>'Yetkisiz erişim'], 403);
+        }
+
+        $adisyonlar = Adisyonlar::with(['musteri'])
+            ->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$tarih1, $tarih2])
+            ->whereHas('hizmetler', function($q) use($hizmetId, $personel){
+                $q->where('hizmet_id', $hizmetId);
+                if($personel != '') $q->where('personel_id', $personel);
+            })
+            ->get();
+
+        $sonuc = collect();
+        foreach($adisyonlar as $adisyon){
+            $kalemler = $adisyon->hizmetler->where('hizmet_id', $hizmetId);
+            if($personel != ''){
+                $kalemler = $kalemler->where('personel_id', $personel);
+            }
+            foreach($kalemler as $h){
+                $odenen = TahsilatHizmetler::where('adisyon_hizmet_id', $h->id)->sum('tutar');
+                $tarihRaw = $h->islem_tarihi ?: $adisyon->tarih;
+                $personelAdi = optional($h->personel)->personel_adi ?: '-';
+                $sonuc->push([
+                    'tarih_sirala' => $tarihRaw,
+                    'tarih'        => $tarihRaw ? date('d.m.Y', strtotime($tarihRaw)) : '-',
+                    'musteri_adi'  => optional($adisyon->musteri)->name ?: '-',
+                    'telefon'      => optional($adisyon->musteri)->cep_telefon ?: '-',
+                    'personel'     => $personelAdi,
+                    'fiyat'        => number_format($h->fiyat, 2, ',', '.'),
+                    'odenen'       => number_format($odenen, 2, ',', '.'),
+                    'kalan'        => number_format($h->fiyat - $odenen, 2, ',', '.'),
+                ]);
+            }
+        }
+
+        $sonuc = $sonuc->sortByDesc('tarih_sirala')->values()->map(function($r){
+            unset($r['tarih_sirala']);
+            return $r;
+        });
+
+        return response()->json($sonuc);
+    }
+
      public function urunRaporlari($salonId,$tarih1,$tarih2,$personel)
     {
         // 1. Adisyonları çek

@@ -9014,6 +9014,64 @@ $('#tarihe_gore_filtre').on('paste keyup keydown change',function(e){
 $('#hizmetRaporPersonelFiltre').change(function(e){
     hizmetRaporFiltre($('#hizmet_rapor_baslangic_tarihi').val(),$('#hizmet_rapor_bitis_tarihi').val());
 });
+
+$(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
+    e.preventDefault();
+    var hizmetId = $(this).data('value');
+    var hizmetAdi = $(this).data('adi') || '';
+    if(!hizmetId) return;
+
+    $('#hizmetiAlanMusteriler_hizmetAdi').text(hizmetAdi);
+    $('#hizmetiAlanMusteriler_icerik').html('<div class="text-center text-muted">Yükleniyor...</div>');
+    $('#hizmetiAlanMusterilerModal').modal('show');
+
+    $.ajax({
+        type: 'GET',
+        url: '/isletmeyonetim/hizmetiAlanMusteriler',
+        dataType: 'json',
+        data: {
+            salonId: $('input[name="sube"]').val(),
+            hizmetId: hizmetId,
+            zaman: $('#hizmet_rapor_zamana_gore_filtre').val(),
+            baslangicTarihi: $('#hizmet_rapor_baslangic_tarihi').val(),
+            bitisTarihi: $('#hizmet_rapor_bitis_tarihi').val(),
+            personel: $('#hizmetRaporPersonelFiltre').val()
+        },
+        success: function(result){
+            if(!result || result.length === 0){
+                $('#hizmetiAlanMusteriler_icerik').html('<div class="text-center text-muted py-3">Seçili dönem ve filtreye uyan kayıt bulunamadı.</div>');
+                return;
+            }
+            var html = '<div class="table-responsive">';
+            html += '<table class="table table-striped table-hover" style="width:100%">';
+            html += '<thead><tr>';
+            html += '<th>Tarih</th>';
+            html += '<th>Müşteri</th>';
+            html += '<th>Telefon</th>';
+            html += '<th>Personel</th>';
+            html += '<th class="text-right">Fiyat ₺</th>';
+            html += '<th class="text-right">Ödenen ₺</th>';
+            html += '<th class="text-right">Kalan ₺</th>';
+            html += '</tr></thead><tbody>';
+            result.forEach(function(r){
+                html += '<tr>';
+                html += '<td>'+r.tarih+'</td>';
+                html += '<td>'+r.musteri_adi+'</td>';
+                html += '<td>'+r.telefon+'</td>';
+                html += '<td>'+r.personel+'</td>';
+                html += '<td class="text-right">'+r.fiyat+'</td>';
+                html += '<td class="text-right">'+r.odenen+'</td>';
+                html += '<td class="text-right">'+r.kalan+'</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            $('#hizmetiAlanMusteriler_icerik').html(html);
+        },
+        error: function(){
+            $('#hizmetiAlanMusteriler_icerik').html('<div class="text-center text-danger py-3">Veriler yüklenirken bir hata oluştu.</div>');
+        }
+    });
+});
 $('#urunRaporPersonelFiltre').change(function(e){
     urunRaporFiltre($('#urun_rapor_baslangic_tarihi').val(),$('#urun_rapor_bitis_tarihi').val());
 });

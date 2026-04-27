@@ -218,7 +218,7 @@
                        <td>{{ $rapor->toplamKazanc }}</td>
                        <td>{{ $rapor->borc  }}</td>
                        <td>
-                           <a title="Detaylı Bilgi" href='' class='btn btn-info'>
+                           <a title="Detaylı Bilgi" name="hizmeti_alan_musteriler" data-value="{{ $rapor->id }}" data-adi="{{ $rapor->hizmet_adi }}" href="javascript:void(0)" class="btn btn-info">
                                <i class='dw dw-eye'></i>
                            </a>
                        </td>
@@ -598,8 +598,32 @@
                </tbody>
                </table>
          </div>
-        
-         
+
+
+      </div>
+   </div>
+</div>
+
+<div class="modal fade" id="hizmetiAlanMusterilerModal" tabindex="-1" role="dialog" aria-labelledby="hizmetiAlanMusterilerModalLabel" aria-hidden="true">
+   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+      <div class="modal-content">
+         <div class="modal-header">
+            <h4 class="modal-title" id="hizmetiAlanMusterilerModalLabel">
+               <i class="dw dw-eye"></i> Hizmeti Alan Müşteriler
+               <small class="text-muted" id="hizmetiAlanMusteriler_hizmetAdi" style="display:block; font-size:12px"></small>
+            </h4>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Kapat">
+               <span aria-hidden="true">&times;</span>
+            </button>
+         </div>
+         <div class="modal-body">
+            <div id="hizmetiAlanMusteriler_icerik">
+               <div class="text-center text-muted">Yükleniyor...</div>
+            </div>
+         </div>
+         <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Kapat</button>
+         </div>
       </div>
    </div>
 </div>
