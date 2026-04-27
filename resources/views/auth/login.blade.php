@@ -21,13 +21,6 @@
                 <span class="login-subtitle">CEPTE GÜZELLİK</span>
             </div>
 
-            <div class="login-hero-dots">
-                <span class="active"></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
         </div>
 
         <!-- Right Side - Form -->

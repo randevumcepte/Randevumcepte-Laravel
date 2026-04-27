@@ -134,28 +134,6 @@
     max-width: none;
 }
 
-/* Carousel dots */
-.login-hero-dots {
-    position: absolute;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 8px;
-    z-index: 3;
-}
-
-.login-hero-dots span {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.5);
-}
-
-.login-hero-dots span.active {
-    background: var(--login-white);
-}
-
 .login-social {
     display: none; /* not used in this design */
 }
