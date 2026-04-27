@@ -595,7 +595,7 @@
               <h4>Prim / Maaş Öde</h4>
               <div class="pm-sub">
                 <span id="primOde_personelAdi" style="font-weight:600; color:#0f172a"></span>
-                <span class="donem"> &nbsp;·&nbsp; @php $aylar2=[1=>'Ocak',2=>'Şubat',3=>'Mart',4=>'Nisan',5=>'Mayıs',6=>'Haziran',7=>'Temmuz',8=>'Ağustos',9=>'Eylül',10=>'Ekim',11=>'Kasım',12=>'Aralık']; @endphp{{$aylar2[$ay]}} {{$yil}} dönemi</span>
+                <span class="donem"> &nbsp;·&nbsp; {{$aylar[$ay]}} {{$yil}} dönemi</span>
               </div>
             </div>
           </div>
