@@ -83,20 +83,39 @@ class RandevuSMSHatirlatma extends Command
                 }
             }
 
-            // Müşteriye 24 saat önce hatırlatma — TEK WhatsApp NOKTASI (SMS fallback'li)
-            if ($simdi == $tetik24Saat) {
-                $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 6)->first();
-                Log::info('[RND-SMS] müşteri 24h tetiklendi', [
-                    'randevu_id' => $value->id,
-                    'ayar_var' => (bool) $ayar,
-                    'ayar_musteri' => $ayar ? (int) $ayar->musteri : null,
-                    'ayar_wa_musteri' => $ayar ? (int) ($ayar->whatsapp_musteri ?? 0) : null,
-                ]);
-                if ($ayar && $ayar->musteri) {
-                    $mesaj = 'Yarın ' . date('H:i', strtotime($value->saat)) . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
-                    $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj);
-                } elseif ($ayar) {
-                    Log::info('[RND-SMS] 24h müşteri SMS toggle kapali — atlandi', ['randevu_id' => $value->id]);
+            // Müşteriye 1 gün öncesi hatırlatma — günün 12:00-17:00 penceresinde,
+            // id'ye göre dakikalara dağıtılmış (her randevu tek bir dakikada), tek seferlik
+            $yarinTarih = date('Y-m-d', strtotime('+1 day'));
+            $nowMinuteOfDay = (int) date('G') * 60 + (int) date('i');
+            $winStart = 12 * 60; // 12:00
+            $winEnd = 17 * 60;   // 17:00
+
+            if ($value->tarih === $yarinTarih
+                && $nowMinuteOfDay >= $winStart && $nowMinuteOfDay < $winEnd
+                && empty($value->hatirlatma_gunonce_gonderildi)) {
+
+                $bucketSize = $winEnd - $winStart; // 300 dk
+                $stagger = ((int) $value->id) % $bucketSize;
+                $targetMinute = $winStart + $stagger;
+
+                if ($nowMinuteOfDay >= $targetMinute) {
+                    $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 6)->first();
+                    Log::info('[RND-SMS] 1 gün öncesi (12-17 penceresi) tetiklendi', [
+                        'randevu_id' => $value->id,
+                        'stagger_dk' => $stagger,
+                        'hedef_dk' => $targetMinute,
+                        'simdi_dk' => $nowMinuteOfDay,
+                        'ayar_var' => (bool) $ayar,
+                        'ayar_musteri' => $ayar ? (int) $ayar->musteri : null,
+                        'ayar_wa_musteri' => $ayar ? (int) ($ayar->whatsapp_musteri ?? 0) : null,
+                    ]);
+                    if ($ayar && $ayar->musteri) {
+                        $mesaj = 'Yarın ' . date('H:i', strtotime($value->saat)) . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
+                        $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj);
+                    }
+                    \Illuminate\Support\Facades\DB::table('randevular')
+                        ->where('id', $value->id)
+                        ->update(['hatirlatma_gunonce_gonderildi' => now()]);
                 }
             }
 
