@@ -76,8 +76,10 @@ class RandevuSMSHatirlatma extends Command
                     'ayar_wa_musteri' => $ayar ? (int) ($ayar->whatsapp_musteri ?? 0) : null,
                 ]);
                 if ($ayar && $ayar->musteri) {
-                    $mesaj = 'Bugün ' . date('H:i', strtotime($value->saat)) . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
-                    $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj);
+                    $saat = date('H:i', strtotime($value->saat));
+                    $mesaj = 'Bugün ' . $saat . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
+                    $templateCtx = ['key' => 'yaklasan', 'params' => [$saat, $value->salonlar->salon_adi]];
+                    $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj, $templateCtx);
                 } elseif ($ayar) {
                     Log::info('[RND-SMS] müşteri SMS toggle kapali — atlandi', ['randevu_id' => $value->id]);
                 }
@@ -110,8 +112,10 @@ class RandevuSMSHatirlatma extends Command
                         'ayar_wa_musteri' => $ayar ? (int) ($ayar->whatsapp_musteri ?? 0) : null,
                     ]);
                     if ($ayar && $ayar->musteri) {
-                        $mesaj = 'Yarın ' . date('H:i', strtotime($value->saat)) . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
-                        $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj);
+                        $saat = date('H:i', strtotime($value->saat));
+                        $mesaj = 'Yarın ' . $saat . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
+                        $templateCtx = ['key' => '1gun', 'params' => [$saat, $value->salonlar->salon_adi]];
+                        $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj, $templateCtx);
                     }
                     \Illuminate\Support\Facades\DB::table('randevular')
                         ->where('id', $value->id)
@@ -220,7 +224,7 @@ class RandevuSMSHatirlatma extends Command
         }
     }
 
-    protected function musteriyeGonder(WhatsAppService $wa, Controller $controller, $randevu, $ayar, $mesajBase)
+    protected function musteriyeGonder(WhatsAppService $wa, Controller $controller, $randevu, $ayar, $mesajBase, $templateCtx = null)
     {
         $salon = $randevu->salonlar;
         $musteri = $randevu->users;
@@ -235,9 +239,20 @@ class RandevuSMSHatirlatma extends Command
         $whatsappDenendi = false;
         $whatsappBasarili = false;
 
-        $whatsappKanaliAcik = !empty($ayar->whatsapp_musteri)
-            && $salon->whatsapp_aktif
-            && $salon->whatsapp_durum === 'connected';
+        $saglayici = $salon->whatsapp_saglayici ?? 'baileys';
+        if ($saglayici === 'cloud_api') {
+            // Cloud API: token + phone_number_id + ilgili template adı varsa kanal açık
+            $templateField = isset($templateCtx['key']) ? 'cloud_api_template_' . $templateCtx['key'] : null;
+            $whatsappKanaliAcik = !empty($ayar->whatsapp_musteri)
+                && !empty($salon->cloud_api_token)
+                && !empty($salon->cloud_api_phone_number_id)
+                && ($templateField ? !empty($salon->{$templateField}) : false);
+        } else {
+            // Baileys: aktif + connected
+            $whatsappKanaliAcik = !empty($ayar->whatsapp_musteri)
+                && $salon->whatsapp_aktif
+                && $salon->whatsapp_durum === 'connected';
+        }
 
         $musteriOnayli = !Schema::hasColumn('users', 'whatsapp_onay') || (int) ($musteri->whatsapp_onay ?? 1) === 1;
 
@@ -255,8 +270,11 @@ class RandevuSMSHatirlatma extends Command
 
         if ($whatsappKanaliAcik && $musteriOnayli) {
             $whatsappDenendi = true;
-            $personalized = $wa->varyMessage($mesajBase, $musteri->name);
-            $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $personalized, $randevu->id, $musteri->id);
+            // Cloud API için varyasyon kapalı (template'ler sabit), Baileys için varyasyon açık
+            $personalized = ($saglayici === 'cloud_api')
+                ? $mesajBase
+                : $wa->varyMessage($mesajBase, $musteri->name);
+            $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $personalized, $randevu->id, $musteri->id, $templateCtx);
             Log::info('[RND-SMS] müşteri WA sonuc', [
                 'salon_id' => $salon->id, 'randevu_id' => $randevu->id, 'sonuc' => $sonuc,
             ]);

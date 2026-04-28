@@ -40,13 +40,13 @@ class WhatsAppService
         return $this->request('POST', "/session/{$salonId}/logout");
     }
 
-    public function sendReminder(Salonlar $salon, $to, $message, $randevuId = null, $userId = null)
+    /**
+     * Hatırlatma gönderir. Salon `whatsapp_saglayici`'ya göre Baileys veya Cloud API.
+     *
+     * @param array|null $templateCtx Cloud API kullanırken: ['key' => '1gun|yaklasan|iptal|guncelleme', 'params' => [...]]
+     */
+    public function sendReminder(Salonlar $salon, $to, $message, $randevuId = null, $userId = null, $templateCtx = null)
     {
-        Log::info('[WA] sendReminder cagrildi', [
-            'salon_id' => $salon->id, 'randevu_id' => $randevuId, 'user_id' => $userId,
-            'telefon_raw' => $to, 'baseUrl' => $this->baseUrl,
-        ]);
-
         $normalized = $this->normalizePhone($to);
         if (!$normalized) {
             Log::warning('[WA] invalid-phone', ['salon_id' => $salon->id, 'telefon' => $to]);
@@ -54,29 +54,28 @@ class WhatsAppService
         }
 
         if (!$this->canSendToday($salon)) {
-            Log::warning('[WA] daily-cap-reached veya kanal kapali', [
-                'salon_id' => $salon->id,
-                'wa_aktif' => (int) ($salon->whatsapp_aktif ?? 0),
-                'wa_durum' => $salon->whatsapp_durum,
-                'gunluk_limit' => (int) ($salon->whatsapp_gunluk_limit ?: 0),
-            ]);
             return ['ok' => false, 'error' => 'daily-cap-reached'];
         }
 
         if (!$this->withinBusinessHours()) {
-            Log::warning('[WA] outside-business-hours', [
-                'salon_id' => $salon->id,
-                'simdi_saat' => (int) now()->format('H'),
-                'baslangic' => (int) config('whatsapp.business_hours.start', 9),
-                'bitis' => (int) config('whatsapp.business_hours.end', 21),
-            ]);
             return ['ok' => false, 'error' => 'outside-business-hours'];
         }
 
-        $logId = $this->logPending($salon->id, $userId, $randevuId, $normalized, $message);
+        $saglayici = $salon->whatsapp_saglayici ?? 'baileys';
+
+        if ($saglayici === 'cloud_api') {
+            return $this->sendViaCloudApi($salon, $normalized, $message, $randevuId, $userId, $templateCtx);
+        }
+
+        return $this->sendViaBaileys($salon, $normalized, $message, $randevuId, $userId);
+    }
+
+    protected function sendViaBaileys(Salonlar $salon, $to, $message, $randevuId, $userId)
+    {
+        $logId = $this->logPending($salon->id, $userId, $randevuId, $to, $message);
 
         $response = $this->request('POST', "/session/{$salon->id}/send", [
-            'to' => $normalized,
+            'to' => $to,
             'message' => $message,
             'warmupStart' => optional($salon->whatsapp_warmup_baslangic)->toIso8601String()
                 ?: optional($salon->whatsapp_baglanti_tarihi)->toIso8601String(),
@@ -84,26 +83,63 @@ class WhatsAppService
             'logId' => $logId,
         ]);
 
-        Log::info('[WA] service yanit', [
-            'salon_id' => $salon->id, 'randevu_id' => $randevuId, 'logId' => $logId,
-            'status' => $response['status'] ?? 0,
-            'error' => $response['error'] ?? null,
-            'body' => $response['body'] ?? null,
-        ]);
-
         // 202 Accepted = kuyruğa alındı, webhook ile sent/failed bildirecek
         if (($response['status'] ?? 0) === 202) {
-            return ['ok' => true, 'queued' => true, 'logId' => $logId];
+            return ['ok' => true, 'queued' => true, 'logId' => $logId, 'provider' => 'baileys'];
         }
 
         // 4xx/5xx = hemen başarısız, SMS fallback tetiklenmeli
         $err = $response['error'] ?? ($response['body']['error'] ?? 'unknown');
         $this->markFailed($logId, $err);
-        return ['ok' => false, 'error' => $err, 'status' => $response['status'] ?? 0, 'logId' => $logId];
+        return ['ok' => false, 'error' => $err, 'status' => $response['status'] ?? 0, 'logId' => $logId, 'provider' => 'baileys'];
+    }
+
+    protected function sendViaCloudApi(Salonlar $salon, $to, $message, $randevuId, $userId, $templateCtx)
+    {
+        $logId = $this->logPending($salon->id, $userId, $randevuId, $to, $message);
+
+        // Template adını salon ayarlarından çöz (key: '1gun', 'yaklasan', 'iptal', 'guncelleme')
+        $templateKey = $templateCtx['key'] ?? null;
+        $params = $templateCtx['params'] ?? [];
+
+        $templateMap = [
+            '1gun' => $salon->cloud_api_template_1gun,
+            'yaklasan' => $salon->cloud_api_template_yaklasan,
+            'iptal' => $salon->cloud_api_template_iptal,
+            'guncelleme' => $salon->cloud_api_template_guncelleme,
+        ];
+        $templateName = $templateKey && isset($templateMap[$templateKey]) ? $templateMap[$templateKey] : null;
+
+        if (!$templateName) {
+            $this->markFailed($logId, 'cloud-template-not-configured');
+            return ['ok' => false, 'error' => 'cloud-template-not-configured', 'logId' => $logId, 'provider' => 'cloud_api'];
+        }
+
+        $client = app(WhatsAppCloudApiClient::class);
+        $resp = $client->sendTemplate($salon, $to, $templateName, $params);
+
+        if ($resp['ok']) {
+            $this->markSent($logId, $resp['messageId'] ?? null);
+            return ['ok' => true, 'queued' => false, 'logId' => $logId, 'messageId' => $resp['messageId'], 'provider' => 'cloud_api'];
+        }
+
+        $this->markFailed($logId, $resp['error'] ?? 'unknown');
+        return ['ok' => false, 'error' => $resp['error'] ?? 'unknown', 'status' => $resp['status'] ?? 0, 'logId' => $logId, 'provider' => 'cloud_api'];
     }
 
     public function canSendToday(Salonlar $salon)
     {
+        $saglayici = $salon->whatsapp_saglayici ?? 'baileys';
+
+        if ($saglayici === 'cloud_api') {
+            // Cloud API'de salon-level aktif/durum/limit kontrolü gevşek (Meta'nın kendi limit'leri var)
+            if (empty($salon->cloud_api_token) || empty($salon->cloud_api_phone_number_id)) {
+                return false;
+            }
+            return true;
+        }
+
+        // Baileys: aktif + connected + warmup cap
         if (!$salon->whatsapp_aktif || $salon->whatsapp_durum !== 'connected') {
             return false;
         }
