@@ -616,8 +616,8 @@
             <button type="button" class="pm-quick-btn pm-quick-btn--ode pm-quick-ode">
               <i class="fa fa-credit-card"></i> Öde
             </button>
-            <button type="button" class="pm-quick-btn pm-quick-btn--bonus pm-quick-btn--aktif" disabled>
-              <i class="fa fa-plus-circle"></i> Hareket
+            <button type="button" class="pm-quick-btn pm-quick-btn--bonus pm-quick-bonus">
+              <i class="fa fa-plus-circle"></i> Bonus
             </button>
             <button type="button" class="pm-quick-btn pm-quick-btn--kesinti pm-quick-kesinti">
               <i class="fa fa-minus-circle"></i> Kesinti
@@ -703,7 +703,6 @@
               <i class="fa fa-history"></i> Hareketler
             </button>
           </div>
-
           <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px">
             <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px">
               <div style="font-size:10.5px; color:#64748b; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-bottom:4px">Net Hak Ediş</div>
@@ -779,6 +778,20 @@
         <button type="button" class="pm-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
       </div>
       <div class="pm-body">
+        <div class="pm-quick-actions">
+          <button type="button" class="pm-quick-btn pm-quick-btn--ode pm-quick-ode">
+            <i class="fa fa-credit-card"></i> Öde
+          </button>
+          <button type="button" class="pm-quick-btn pm-quick-btn--bonus pm-quick-bonus">
+            <i class="fa fa-plus-circle"></i> Bonus
+          </button>
+          <button type="button" class="pm-quick-btn pm-quick-btn--kesinti pm-quick-kesinti">
+            <i class="fa fa-minus-circle"></i> Kesinti
+          </button>
+          <button type="button" class="pm-quick-btn pm-quick-btn--liste pm-quick-hareketler">
+            <i class="fa fa-history"></i> Hareketler
+          </button>
+        </div>
         <div class="pm-summary" id="primOdemeDetay_ozet" style="display:none">
           <div class="pm-chip pm-chip-success">Toplam Ödenen <strong id="primOdemeDetay_toplam">0,00 ₺</strong></div>
           <div class="pm-chip">Net Hak Ediş <strong id="primOdemeDetay_net">0,00 ₺</strong></div>
@@ -814,6 +827,20 @@
         <button type="button" class="pm-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
       </div>
       <div class="pm-body">
+        <div class="pm-quick-actions">
+          <button type="button" class="pm-quick-btn pm-quick-btn--ode pm-quick-ode">
+            <i class="fa fa-credit-card"></i> Öde
+          </button>
+          <button type="button" class="pm-quick-btn pm-quick-btn--bonus pm-quick-bonus">
+            <i class="fa fa-plus-circle"></i> Bonus
+          </button>
+          <button type="button" class="pm-quick-btn pm-quick-btn--kesinti pm-quick-kesinti">
+            <i class="fa fa-minus-circle"></i> Kesinti
+          </button>
+          <button type="button" class="pm-quick-btn pm-quick-btn--liste pm-quick-btn--aktif" disabled>
+            <i class="fa fa-history"></i> Hareketler
+          </button>
+        </div>
         <div class="pm-summary" id="primListe_ozet" style="display:none">
           <div class="pm-chip pm-chip-success">Toplam Bonus <strong id="primListe_toplamBonus">0,00 ₺</strong></div>
           <div class="pm-chip pm-chip-danger">Toplam Kesinti <strong id="primListe_toplamKesinti">0,00 ₺</strong></div>
@@ -873,24 +900,33 @@ $(function(){
     $m.modal('show');
   }
 
-  // ============ Ode modal icindeki quick-action butonlari ============
-  $('#primOde_quickBonus').on('click', function(){
-    var pid = $('#primOde_personelId').val();
-    var adi = $('#primOde_personelAdi').text();
-    $('#primOdeModal').modal('hide');
-    setTimeout(function(){ openBonusKesintiModal(pid, adi, 'bonus'); }, 200);
+  // ============ Quick-action butonlari (tum modallarda ortak) ============
+  function _closeAllPrimModals(){
+    $('#primOdeModal,#primHareketModal,#primHareketListeModal,#primOdemeDetayModal').modal('hide');
+  }
+  $(document).on('click','.pm-quick-ode', function(){
+    if(!_aktifPersonel) return;
+    var p = _aktifPersonel;
+    _closeAllPrimModals();
+    setTimeout(function(){ openOdeModal(p.id, p.adi); }, 220);
   });
-  $('#primOde_quickKesinti').on('click', function(){
-    var pid = $('#primOde_personelId').val();
-    var adi = $('#primOde_personelAdi').text();
-    $('#primOdeModal').modal('hide');
-    setTimeout(function(){ openBonusKesintiModal(pid, adi, 'kesinti'); }, 200);
+  $(document).on('click','.pm-quick-bonus', function(){
+    if(!_aktifPersonel) return;
+    var p = _aktifPersonel;
+    _closeAllPrimModals();
+    setTimeout(function(){ openBonusKesintiModal(p.id, p.adi, 'bonus'); }, 220);
   });
-  $('#primOde_quickHareketler').on('click', function(){
-    var pid = $('#primOde_personelId').val();
-    var adi = $('#primOde_personelAdi').text();
-    $('#primOdeModal').modal('hide');
-    setTimeout(function(){ openHareketListeModal(pid, adi); }, 200);
+  $(document).on('click','.pm-quick-kesinti', function(){
+    if(!_aktifPersonel) return;
+    var p = _aktifPersonel;
+    _closeAllPrimModals();
+    setTimeout(function(){ openBonusKesintiModal(p.id, p.adi, 'kesinti'); }, 220);
+  });
+  $(document).on('click','.pm-quick-hareketler', function(){
+    if(!_aktifPersonel) return;
+    var p = _aktifPersonel;
+    _closeAllPrimModals();
+    setTimeout(function(){ openHareketListeModal(p.id, p.adi); }, 220);
   });
 
   // ============ Aktif personel state ============
