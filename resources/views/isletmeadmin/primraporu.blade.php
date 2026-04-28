@@ -952,32 +952,69 @@ $(function(){
   }
 
   // ============ Quick-action butonlari (tum modallarda ortak) ============
-  function _closeAllPrimModals(){
-    $('#primOdeModal,#primHareketModal,#primHareketListeModal,#primOdemeDetayModal').modal('hide');
+  var _PRIM_MODAL_IDS = '#primOdeModal,#primHareketModal,#primHareketListeModal,#primOdemeDetayModal';
+
+  function _isModalOpen(sel){
+    var el = document.querySelector(sel);
+    if(!el) return false;
+    return el.classList.contains('show') || el.classList.contains('in')
+        || (el.style && el.style.display === 'block');
   }
+
+  function _switchModal(openFn){
+    // Acik modal var mi?
+    var $active = $(_PRIM_MODAL_IDS).filter(function(){
+      return $(this).hasClass('show') || $(this).hasClass('in')
+          || $(this).css('display') === 'block';
+    });
+    if($active.length === 0){
+      openFn();
+      return;
+    }
+    // Mevcut modal kapansin, sonra hedefi ac (hidden event'inde)
+    $active.one('hidden.bs.modal', function(){
+      // Backdrop ve body durumunu garanti temizle
+      setTimeout(function(){
+        if($('.modal.show, .modal.in').length === 0){
+          $('.modal-backdrop').remove();
+          $('body').removeClass('modal-open').css('padding-right','');
+        }
+        openFn();
+      }, 60);
+    });
+    $active.modal('hide');
+  }
+
   $(document).on('click','.pm-quick-ode', function(){
     if(!_aktifPersonel) return;
     var p = _aktifPersonel;
-    _closeAllPrimModals();
-    setTimeout(function(){ openOdeModal(p.id, p.adi); }, 220);
+    if(_isModalOpen('#primOdeModal')) return; // zaten Ode modalindayiz
+    _switchModal(function(){ openOdeModal(p.id, p.adi); });
   });
   $(document).on('click','.pm-quick-bonus', function(){
     if(!_aktifPersonel) return;
     var p = _aktifPersonel;
-    _closeAllPrimModals();
-    setTimeout(function(){ openBonusKesintiModal(p.id, p.adi, 'bonus'); }, 220);
+    // Zaten Hareket modalindaysak sadece radio'yu degistir
+    if(_isModalOpen('#primHareketModal')){
+      $('#prtip_bonus').prop('checked', true);
+      return;
+    }
+    _switchModal(function(){ openBonusKesintiModal(p.id, p.adi, 'bonus'); });
   });
   $(document).on('click','.pm-quick-kesinti', function(){
     if(!_aktifPersonel) return;
     var p = _aktifPersonel;
-    _closeAllPrimModals();
-    setTimeout(function(){ openBonusKesintiModal(p.id, p.adi, 'kesinti'); }, 220);
+    if(_isModalOpen('#primHareketModal')){
+      $('#prtip_kesinti').prop('checked', true);
+      return;
+    }
+    _switchModal(function(){ openBonusKesintiModal(p.id, p.adi, 'kesinti'); });
   });
   $(document).on('click','.pm-quick-hareketler', function(){
     if(!_aktifPersonel) return;
     var p = _aktifPersonel;
-    _closeAllPrimModals();
-    setTimeout(function(){ openHareketListeModal(p.id, p.adi); }, 220);
+    if(_isModalOpen('#primHareketListeModal')) return;
+    _switchModal(function(){ openHareketListeModal(p.id, p.adi); });
   });
 
   // ============ Aktif personel state ============
