@@ -46,8 +46,19 @@
 
                 <form method="post" action="/sistemyonetim/v2/ticket/{{ $ticket->id }}/yanit" class="sy-mt-18">
                     @csrf
-                    <div class="sy-form-group">
-                        <textarea name="mesaj" class="sy-textarea" rows="4" placeholder="Yanıt yaz..." required></textarea>
+                    <div class="sy-form-group" style="position:relative">
+                        <div class="sy-flex-row" style="justify-content:space-between;margin-bottom:6px">
+                            <label style="margin:0">Yanıt</label>
+                            <button type="button" class="sy-btn sy-btn-sm sy-btn-soft" id="hcAcButton"><span class="mdi mdi-message-text-fast"></span> Hazır Cevap</button>
+                        </div>
+                        <textarea name="mesaj" id="ticketYanitArea" class="sy-textarea" rows="5" placeholder="Yanıt yaz... (hazır cevap için /kisayol veya butonu kullan)" required></textarea>
+
+                        <div id="hcPanel" style="display:none;position:absolute;right:0;top:0;width:340px;background:#fff;border:1px solid var(--sy-border-strong);border-radius:10px;box-shadow:var(--sy-shadow-lg);z-index:50;max-height:380px;overflow-y:auto">
+                            <div style="padding:10px;border-bottom:1px solid var(--sy-border);background:var(--sy-surface-2)">
+                                <input type="text" id="hcArama" class="sy-input" placeholder="Hazır cevap ara..." style="height:32px;font-size:12px;padding:6px 10px">
+                            </div>
+                            <div id="hcListe" style="padding:6px"><div class="sy-text-muted sy-fs-12" style="padding:14px;text-align:center">Yükleniyor...</div></div>
+                        </div>
                     </div>
                     <div class="sy-flex-row" style="justify-content:space-between">
                         <label class="sy-flex-row sy-fs-13">
@@ -56,6 +67,65 @@
                         <button class="sy-btn sy-btn-primary"><span class="mdi mdi-send"></span> Yanıtla</button>
                     </div>
                 </form>
+
+                @push('scripts')
+                <script>
+                (function(){
+                    const btn = document.getElementById('hcAcButton');
+                    const panel = document.getElementById('hcPanel');
+                    const arama = document.getElementById('hcArama');
+                    const liste = document.getElementById('hcListe');
+                    const area = document.getElementById('ticketYanitArea');
+                    if (!btn) return;
+
+                    let cache = null;
+                    function yukle(q) {
+                        const url = '/sistemyonetim/v2/api/hazir-cevap' + (q ? '?q=' + encodeURIComponent(q) : '');
+                        fetch(url).then(r => r.json()).then(d => {
+                            cache = d;
+                            if (!d.length) { liste.innerHTML = '<div class="sy-text-muted sy-fs-12" style="padding:14px;text-align:center">Sonuç yok</div>'; return; }
+                            liste.innerHTML = d.map(c =>
+                                '<div class="hcItem" data-id="'+c.id+'" data-icerik="'+escAttr(c.icerik)+'" style="padding:10px;border-radius:6px;cursor:pointer;border-bottom:1px solid #f2eef9">'+
+                                '<div style="font-weight:600;font-size:13px">'+esc(c.baslik)+(c.kisayol?' <span class="sy-text-muted sy-fs-12">'+esc(c.kisayol)+'</span>':'')+'</div>'+
+                                '<div class="sy-text-muted sy-fs-12">'+esc(c.icerik.substring(0,80))+(c.icerik.length>80?'...':'')+'</div>'+
+                                '</div>'
+                            ).join('');
+                            liste.querySelectorAll('.hcItem').forEach(el => {
+                                el.addEventListener('mouseover', () => el.style.background = '#f5f0fa');
+                                el.addEventListener('mouseout', () => el.style.background = '');
+                                el.addEventListener('click', () => {
+                                    const icerik = el.dataset.icerik;
+                                    const id = el.dataset.id;
+                                    if (area.value.trim()) area.value += '\n\n' + icerik; else area.value = icerik;
+                                    panel.style.display = 'none';
+                                    area.focus();
+                                    fetch('/sistemyonetim/v2/api/hazir-cevap/' + id + '/kullan', { method:'POST', headers:{'X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content} });
+                                });
+                            });
+                        });
+                    }
+                    function esc(t){return String(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+                    function escAttr(t){return esc(t);}
+
+                    btn.addEventListener('click', e => {
+                        e.preventDefault();
+                        if (panel.style.display === 'none' || !panel.style.display) {
+                            panel.style.display = 'block';
+                            arama.focus();
+                            yukle();
+                        } else {
+                            panel.style.display = 'none';
+                        }
+                    });
+                    arama.addEventListener('input', e => yukle(e.target.value.trim()));
+                    document.addEventListener('click', e => {
+                        if (!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                            panel.style.display = 'none';
+                        }
+                    });
+                })();
+                </script>
+                @endpush
             </div>
         </div>
     </div>

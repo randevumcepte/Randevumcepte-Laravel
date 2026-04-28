@@ -342,6 +342,22 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::get('/duyuru/{id}/duzenle', 'DuyuruController@duzenle');
     Route::put('/duyuru/{id}', 'DuyuruController@guncelle');
     Route::delete('/duyuru/{id}', 'DuyuruController@sil');
+
+    // Analiz: Risk + Performans + Hazir cevap + Dashboard chart
+    Route::get('/risk', 'AnalizController@riskliSalonlar');
+    Route::get('/performans', 'AnalizController@ekipPerformansi');
+
+    Route::get('/hazir-cevap', 'AnalizController@hazirCevaplar');
+    Route::get('/hazir-cevap/yeni', 'AnalizController@hazirCevapYeni');
+    Route::post('/hazir-cevap', 'AnalizController@hazirCevapKaydet');
+    Route::get('/hazir-cevap/{id}/duzenle', 'AnalizController@hazirCevapDuzenle');
+    Route::put('/hazir-cevap/{id}', 'AnalizController@hazirCevapGuncelle');
+    Route::delete('/hazir-cevap/{id}', 'AnalizController@hazirCevapSil');
+
+    // API
+    Route::get('/api/hazir-cevap', 'AnalizController@hazirCevapJson');
+    Route::post('/api/hazir-cevap/{id}/kullan', 'AnalizController@hazirCevapKullan');
+    Route::get('/api/dashboard-chart', 'AnalizController@dashboardChartData');
 });
 
 // Salon paneli — destek + duyuru okundu

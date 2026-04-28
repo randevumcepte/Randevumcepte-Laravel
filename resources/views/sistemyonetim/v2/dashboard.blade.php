@@ -145,28 +145,102 @@
     </div>
 </div>
 
-<div class="sy-card sy-mt-24">
-    <div class="sy-card-head"><h3>Son 7 Gün</h3></div>
-    <div class="sy-card-body">
-        <table class="sy-table">
-            <thead>
-                <tr><th>Tarih</th><th>Yeni Salon</th><th>Randevu</th></tr>
-            </thead>
-            <tbody>
-                @php
-                    $gunler = ['Mon'=>'Pazartesi','Tue'=>'Salı','Wed'=>'Çarşamba','Thu'=>'Perşembe','Fri'=>'Cuma','Sat'=>'Cumartesi','Sun'=>'Pazar'];
-                @endphp
-                @foreach($trend as $t)
-                    @php $c = \Carbon\Carbon::parse($t['tarih']); @endphp
-                    <tr>
-                        <td>{{ $c->format('d.m.Y') }} ({{ $gunler[$c->format('D')] ?? '' }})</td>
-                        <td><strong>{{ $t['salon'] }}</strong></td>
-                        <td><strong>{{ $t['randevu'] }}</strong></td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
+<div class="sy-grid-2 sy-mt-24">
+    <div class="sy-card">
+        <div class="sy-card-head">
+            <h3>Trend</h3>
+            <div class="sy-flex-row">
+                <select id="chartGun" class="sy-select" style="height:32px;padding:5px 10px;font-size:12px">
+                    <option value="7">7 gün</option>
+                    <option value="30" selected>30 gün</option>
+                    <option value="90">90 gün</option>
+                </select>
+            </div>
+        </div>
+        <div class="sy-card-body">
+            <canvas id="chartTrend" height="120"></canvas>
+        </div>
+    </div>
+
+    <div class="sy-card">
+        <div class="sy-card-head"><h3>Talep Dağılımı</h3></div>
+        <div class="sy-card-body">
+            <div class="sy-grid-2">
+                <div>
+                    <div class="sy-text-muted sy-fs-12" style="margin-bottom:6px;text-align:center">Kategori</div>
+                    <canvas id="chartKategori" height="180"></canvas>
+                </div>
+                <div>
+                    <div class="sy-text-muted sy-fs-12" style="margin-bottom:6px;text-align:center">Durum</div>
+                    <canvas id="chartDurum" height="180"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+let chartTrend = null, chartKategori = null, chartDurum = null;
+const morRenkler = ['#6d3aaa','#8a5cc7','#d9b3f5','#5C008E','#a872e8','#7B2FB8','#9D5DC8','#bf91e6','#5dd4d8','#f3a8c8','#d99a1f','#d04d5e'];
+
+function loadCharts(gun) {
+    fetch('/sistemyonetim/v2/api/dashboard-chart?gun=' + gun)
+        .then(r => r.json())
+        .then(d => {
+            // Trend chart
+            const ctx = document.getElementById('chartTrend').getContext('2d');
+            if (chartTrend) chartTrend.destroy();
+            chartTrend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: d.tarihler,
+                    datasets: [
+                        { label: 'Yeni Salon', data: d.salon, borderColor: '#6d3aaa', backgroundColor: 'rgba(109,58,170,0.1)', tension: 0.35, fill: true },
+                        { label: 'Randevu',    data: d.randevu, borderColor: '#5dd4d8', backgroundColor: 'rgba(93,212,216,0.1)', tension: 0.35, fill: true, yAxisID: 'y1' },
+                        { label: 'Talep',      data: d.ticket, borderColor: '#d99a1f', backgroundColor: 'rgba(217,154,31,0.1)', tension: 0.35, fill: true },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+                    scales: {
+                        y:  { beginAtZero: true, position: 'left' },
+                        y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } },
+                    }
+                }
+            });
+
+            // Kategori
+            const kLabels = Object.keys(d.kategori_dagilim);
+            const kData = Object.values(d.kategori_dagilim);
+            if (chartKategori) chartKategori.destroy();
+            chartKategori = new Chart(document.getElementById('chartKategori'), {
+                type: 'doughnut',
+                data: { labels: kLabels, datasets: [{ data: kData, backgroundColor: morRenkler, borderWidth: 0 }] },
+                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } } }
+            });
+
+            // Durum
+            const sLabels = Object.keys(d.durum_dagilim);
+            const sData = Object.values(d.durum_dagilim);
+            const sRenk = sLabels.map(l => ({ acik: '#d04d5e', islemde: '#d99a1f', bekliyor: '#4a8bdc', cozumlendi: '#2cae71', kapali: '#777589' }[l] || '#777589'));
+            if (chartDurum) chartDurum.destroy();
+            chartDurum = new Chart(document.getElementById('chartDurum'), {
+                type: 'doughnut',
+                data: { labels: sLabels, datasets: [{ data: sData, backgroundColor: sRenk, borderWidth: 0 }] },
+                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } } }
+            });
+        });
+}
+document.addEventListener('DOMContentLoaded', () => {
+    loadCharts(30);
+    document.getElementById('chartGun').addEventListener('change', e => loadCharts(e.target.value));
+});
+</script>
+@endpush
 
 @endsection

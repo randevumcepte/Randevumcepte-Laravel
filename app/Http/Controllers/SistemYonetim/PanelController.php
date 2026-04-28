@@ -179,6 +179,8 @@ class PanelController extends Controller
                 ->count();
         } catch (\Exception $e) {}
 
+        $saglik = \App\SistemYonetim\SaglikSkoru::hesapla($id);
+
         return view('sistemyonetim.v2.salon-detay', [
             'title' => $salon->salon_adi,
             'aktifMenu' => 'salonlar',
@@ -190,6 +192,7 @@ class PanelController extends Controller
             'ticketlar' => $ticketlar,
             'musteriTemsilcileri' => $musteriTemsilcileri,
             'istatistik' => $istatistik,
+            'saglik' => $saglik,
         ]);
     }
 

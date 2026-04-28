@@ -58,12 +58,24 @@
                 <span class="icon mdi mdi-bullhorn"></span>
                 Duyurular
             </a>
+            <a href="/sistemyonetim/v2/risk" class="sy-nav-item {{ $aktifMenu === 'risk' ? 'active' : '' }}">
+                <span class="icon mdi mdi-alert-circle"></span>
+                Risk Altındakiler
+            </a>
+            <a href="/sistemyonetim/v2/hazir-cevap" class="sy-nav-item {{ $aktifMenu === 'hazircevap' ? 'active' : '' }}">
+                <span class="icon mdi mdi-message-text-fast"></span>
+                Hazır Cevaplar
+            </a>
 
             @if(in_array($rol, ['super_admin','yonetici']))
                 <div class="sy-nav-section">Ekip & İzleme</div>
                 <a href="/sistemyonetim/v2/ekip" class="sy-nav-item {{ $aktifMenu === 'ekip' ? 'active' : '' }}">
                     <span class="icon mdi mdi-account-group"></span>
                     Ekip & Roller
+                </a>
+                <a href="/sistemyonetim/v2/performans" class="sy-nav-item {{ $aktifMenu === 'performans' ? 'active' : '' }}">
+                    <span class="icon mdi mdi-chart-line"></span>
+                    Ekip Performansı
                 </a>
                 <a href="/sistemyonetim/v2/aktivite-log" class="sy-nav-item {{ $aktifMenu === 'aktivite' ? 'active' : '' }}">
                     <span class="icon mdi mdi-timeline-clock"></span>

@@ -49,7 +49,39 @@
     </div>
 @endif
 
-<div class="sy-metric-grid">
+@php
+    $skorRenk = ['kritik'=>'danger','riskli'=>'warning','orta'=>'info','iyi'=>'success'];
+    $sR = $skorRenk[$saglik['durum']] ?? 'muted';
+@endphp
+
+<div class="sy-card sy-mt-12" style="border-left:4px solid var(--sy-{{ $sR }})">
+    <div class="sy-card-body">
+        <div class="sy-flex-row" style="justify-content:space-between;align-items:center">
+            <div>
+                <div class="sy-text-muted sy-fs-12" style="text-transform:uppercase;letter-spacing:0.5px">Sağlık Skoru</div>
+                <div style="display:flex;align-items:baseline;gap:10px;margin-top:2px">
+                    <span style="font-size:36px;font-weight:700;color:var(--sy-{{ $sR }})">{{ $saglik['skor'] }}</span>
+                    <span class="sy-text-muted">/100</span>
+                    <span class="sy-badge sy-badge-{{ $sR }}">{{ $saglik['durum'] }}</span>
+                </div>
+            </div>
+            <div style="flex:1;max-width:380px;margin-left:24px">
+                <div class="sy-progress" style="height:10px"><div class="fill" style="width:{{ $saglik['skor'] }}%;background:var(--sy-{{ $sR }})"></div></div>
+                @if(!empty($saglik['sebepler']))
+                    <ul class="sy-text-muted sy-fs-12" style="margin:8px 0 0 18px;padding:0">
+                        @foreach($saglik['sebepler'] as $s)
+                            <li>{{ $s }}</li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="sy-text-muted sy-fs-12 sy-mt-12">Salon sağlıklı çalışıyor.</div>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="sy-metric-grid sy-mt-12">
     <div class="sy-metric"><div class="icon-bg mdi mdi-calendar-multiple"></div><div class="label">Toplam Randevu</div><div class="value">{{ $istatistik['toplam_randevu'] }}</div></div>
     <div class="sy-metric info"><div class="icon-bg mdi mdi-calendar-month"></div><div class="label">Bu Ay</div><div class="value">{{ $istatistik['bu_ay_randevu'] }}</div></div>
     <div class="sy-metric success"><div class="icon-bg mdi mdi-account-multiple-plus"></div><div class="label">Bu Ay Yeni Müşteri</div><div class="value">{{ $istatistik['bu_ay_yeni_musteri'] }}</div></div>
