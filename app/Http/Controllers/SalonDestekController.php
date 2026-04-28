@@ -8,6 +8,7 @@ use App\SistemYonetim\DestekMesaji;
 use App\Salonlar;
 use App\IsletmeYetkilileri;
 use App\Personeller;
+use App\Bildirimler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,12 +22,43 @@ class SalonDestekController extends Controller
 
     private function user() { return Auth::guard('isletmeyonetim')->user(); }
 
-    private function aktifSalonId()
+    private function aktifSalonId(Request $request = null)
     {
         $u = $this->user();
         if (!$u) return null;
+        // Eger ?sube=X URL parametresi varsa onu kullan
+        if ($request && $request->has('sube')) {
+            $sube = (int) $request->get('sube');
+            $sahip = Personeller::where('yetkili_id', $u->id)->where('salon_id', $sube)->exists();
+            if ($sahip) return $sube;
+        }
         $personel = Personeller::where('yetkili_id', $u->id)->first();
         return $personel ? $personel->salon_id : null;
+    }
+
+    /**
+     * isletmeyonetim layoutu (layout/layout_isletmeadmin.blade.php) tarafindan
+     * beklenen ortak degiskenler. Eksigi exception atiyor.
+     */
+    private function layoutVerisi($salon)
+    {
+        $u = $this->user();
+        // Yetkili olunan isletmeler — Personeller.yetkili_id uzerinden salon_id'leri
+        $yetkiliolunanisletmeler = $u
+            ? Personeller::where('yetkili_id', $u->id)->pluck('salon_id')->unique()->values()->all()
+            : [];
+
+        // Bildirimler — bos Eloquent collection, layout ->where()->count() ile cagiriyor
+        $bildirimler = Bildirimler::query()->whereRaw('1=0')->get();
+
+        return [
+            'isletme' => $salon,
+            'yetkiliolunanisletmeler' => $yetkiliolunanisletmeler,
+            'bildirimler' => $bildirimler,
+            'kalan_uyelik_suresi' => 999,
+            'paketler' => collect(),
+            'urun_drop' => [],
+        ];
     }
 
     public function duyuruOkundu($id, Request $request)
@@ -42,10 +74,9 @@ class SalonDestekController extends Controller
         return response()->json(['ok' => 1]);
     }
 
-    public function destekListesi()
+    public function destekListesi(Request $request)
     {
-        $salonId = $this->aktifSalonId();
-        $u = $this->user();
+        $salonId = $this->aktifSalonId($request);
         if (!$salonId) return redirect('/isletmeyonetim');
         $salon = Salonlar::find($salonId);
 
@@ -53,26 +84,22 @@ class SalonDestekController extends Controller
             ->orderBy('id', 'desc')
             ->paginate(20);
 
-        return view('isletmeadmin.destek-listesi', [
+        return view('isletmeadmin.destek-listesi', array_merge($this->layoutVerisi($salon), [
             'sayfa_baslik' => 'Destek Talepleri',
             'pageindex'    => 200,
-            'isletme'      => $salon,
             'ticketlar'    => $ticketlar,
-            'kalan_uyelik_suresi' => 999, // basit gosterim icin
-        ]);
+        ]));
     }
 
-    public function destekYeniForm()
+    public function destekYeniForm(Request $request)
     {
-        $salonId = $this->aktifSalonId();
+        $salonId = $this->aktifSalonId($request);
         if (!$salonId) return redirect('/isletmeyonetim');
         $salon = Salonlar::find($salonId);
-        return view('isletmeadmin.destek-yeni', [
+        return view('isletmeadmin.destek-yeni', array_merge($this->layoutVerisi($salon), [
             'sayfa_baslik' => 'Yeni Destek Talebi',
             'pageindex'    => 201,
-            'isletme'      => $salon,
-            'kalan_uyelik_suresi' => 999,
-        ]);
+        ]));
     }
 
     public function destekKaydet(Request $request)
@@ -118,23 +145,21 @@ class SalonDestekController extends Controller
         return redirect('/isletmeyonetim/destek/' . $ticket->id)->with('basari', 'Talebiniz alındı. En kısa sürede dönüş yapacağız.');
     }
 
-    public function destekDetay($id)
+    public function destekDetay(Request $request, $id)
     {
-        $salonId = $this->aktifSalonId();
+        $salonId = $this->aktifSalonId($request);
         if (!$salonId) return redirect('/isletmeyonetim');
         $salon = Salonlar::find($salonId);
 
         $ticket = DestekTalebi::where('id', $id)->where('salon_id', $salonId)->firstOrFail();
         $mesajlar = DestekMesaji::where('ticket_id', $id)->where('ic_not', 0)->orderBy('id', 'asc')->get();
 
-        return view('isletmeadmin.destek-detay', [
+        return view('isletmeadmin.destek-detay', array_merge($this->layoutVerisi($salon), [
             'sayfa_baslik' => '#' . $ticket->numara,
             'pageindex'    => 200,
-            'isletme'      => $salon,
             'ticket'       => $ticket,
             'mesajlar'     => $mesajlar,
-            'kalan_uyelik_suresi' => 999,
-        ]);
+        ]));
     }
 
     public function destekYanit(Request $request, $id)

@@ -426,11 +426,63 @@
 
       {{-- Yardim & Destek floating buton --}}
       @if(Auth::guard('isletmeyonetim')->check() && !session('sysadmin_impersonation_id'))
-      <a href="/isletmeyonetim/destek" id="rcYardimBtn" title="Yardım & Destek"
-         style="position:fixed;bottom:20px;right:20px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#5C008E,#8a5cc7);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(92,0,142,0.35);z-index:9000;text-decoration:none;font-size:24px;transition:transform 0.2s">
-         <i class="material-icons" style="font-size:24px;color:#fff">help_outline</i>
+      <style>
+      #rcYardimBtn {
+         position: fixed;
+         bottom: 24px;
+         right: 24px;
+         display: inline-flex;
+         align-items: center;
+         gap: 10px;
+         background: linear-gradient(135deg, #5C008E 0%, #8a5cc7 100%);
+         color: #fff !important;
+         padding: 12px 22px 12px 14px;
+         border-radius: 999px;
+         box-shadow: 0 10px 28px rgba(92, 0, 142, 0.45);
+         z-index: 9000;
+         text-decoration: none !important;
+         font-size: 15px;
+         font-weight: 600;
+         letter-spacing: 0.2px;
+         transition: transform 0.2s, box-shadow 0.2s;
+         animation: rcYardimPulse 2.6s ease-out infinite;
+         border: 2px solid rgba(255,255,255,0.18);
+      }
+      #rcYardimBtn:hover {
+         transform: translateY(-2px) scale(1.04);
+         box-shadow: 0 14px 36px rgba(92, 0, 142, 0.6);
+         color: #fff !important;
+         text-decoration: none !important;
+      }
+      #rcYardimBtn .rc-yardim-icon {
+         width: 34px;
+         height: 34px;
+         border-radius: 50%;
+         background: rgba(255,255,255,0.20);
+         display: inline-flex;
+         align-items: center;
+         justify-content: center;
+         flex-shrink: 0;
+      }
+      #rcYardimBtn .rc-yardim-icon i {
+         font-size: 22px !important;
+         color: #fff !important;
+      }
+      @keyframes rcYardimPulse {
+         0%   { box-shadow: 0 10px 28px rgba(92, 0, 142, 0.45), 0 0 0 0 rgba(217, 179, 245, 0.55); }
+         70%  { box-shadow: 0 10px 28px rgba(92, 0, 142, 0.45), 0 0 0 18px rgba(217, 179, 245, 0); }
+         100% { box-shadow: 0 10px 28px rgba(92, 0, 142, 0.45), 0 0 0 0 rgba(217, 179, 245, 0); }
+      }
+      @media (max-width: 720px) {
+         #rcYardimBtn { padding: 10px 16px 10px 10px; font-size: 13.5px; }
+         #rcYardimBtn .rc-yardim-icon { width: 28px; height: 28px; }
+         #rcYardimBtn .rc-yardim-icon i { font-size: 18px !important; }
+      }
+      </style>
+      <a href="/isletmeyonetim/destek" id="rcYardimBtn" title="Bir sorunun mu var? Destek ekibimize yaz">
+         <span class="rc-yardim-icon"><i class="material-icons">support_agent</i></span>
+         <span>Yardım &amp; Destek</span>
       </a>
-      <style>#rcYardimBtn:hover{transform:scale(1.08)}</style>
       @endif
         <?php 
          require_once app_path('VoiceTelekom/Sms/SmsApi.php');
