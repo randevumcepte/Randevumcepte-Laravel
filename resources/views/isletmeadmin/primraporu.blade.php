@@ -301,6 +301,24 @@
   }
   .dataTables_info{ color:var(--rmc-muted) !important; font-size:13px; padding:14px 18px !important; }
 
+  /* ============ MODAL GECIS — backdrop sabit, animasyon yok ============ */
+  body.prim-switching .modal-backdrop{
+    opacity: .5 !important;
+    transition: none !important;
+  }
+  body.prim-switching .modal,
+  body.prim-switching .modal.fade,
+  body.prim-switching .modal.show{
+    transition: none !important;
+  }
+  body.prim-switching .modal.fade .modal-dialog{
+    transition: none !important;
+    transform: none !important;
+  }
+  body.prim-switching .modal-content{
+    animation: none !important;
+  }
+
   /* ============ MODAL: Slate/Indigo Pattern (raporlar.blade.php referansi) ============ */
   #primHareketModal, #primHareketListeModal{
     position: fixed !important;
@@ -971,16 +989,23 @@ $(function(){
       openFn();
       return;
     }
-    // Mevcut modal kapansin, sonra hedefi ac (hidden event'inde)
+
+    // Gecis modunu aktif et: backdrop sabit, animasyonlar yok
+    $('body').addClass('prim-switching');
+
     $active.one('hidden.bs.modal', function(){
-      // Backdrop ve body durumunu garanti temizle
+      // Hedefi hemen ac (animasyonlar suppress edili)
+      openFn();
+      // Bir tick sonra gecis modunu kapat ki ileriki acma/kapama normal animasyon yapsin
       setTimeout(function(){
-        if($('.modal.show, .modal.in').length === 0){
-          $('.modal-backdrop').remove();
-          $('body').removeClass('modal-open').css('padding-right','');
+        $('body').removeClass('prim-switching');
+        // Safety net: orphan backdrop kalmasin
+        if($('.modal.show, .modal.in').length === 1){
+          // Tek bir modal acik — fazla backdrop varsa temizle
+          var $bds = $('.modal-backdrop');
+          if($bds.length > 1){ $bds.slice(1).remove(); }
         }
-        openFn();
-      }, 60);
+      }, 80);
     });
     $active.modal('hide');
   }
