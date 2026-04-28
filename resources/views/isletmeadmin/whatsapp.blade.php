@@ -294,6 +294,93 @@
 })();
 </script>
 
+<div class="wpkt-wrapper">
+    <div class="wpkt-header">
+        <h2>WhatsApp Paketleri</h2>
+        <p>Müşterilerinizi randevudan haberdar edin, no-show'u azaltın. Size uygun paketi seçin.</p>
+        <div id="wpktCurrentBadge" class="wpkt-current" style="display:none;">Mevcut paket: <b id="wpktCurrentName">—</b></div>
+    </div>
+
+    <div class="wpkt-toggle">
+        <button id="wpktAylik" class="active" onclick="wpktSetPeriyot('aylik')">Aylık</button>
+        <button id="wpktYillik" onclick="wpktSetPeriyot('yillik')">Yıllık <span class="wpkt-discount">2 AY BEDAVA</span></button>
+    </div>
+
+    <div class="wpkt-grid">
+        <div class="wpkt-card" id="wpktCardBaslangic">
+            <div class="wpkt-tier-name">Başlangıç</div>
+            <div class="wpkt-tier-desc">Sadece SMS hatırlatma kullanmak isteyen küçük işletmeler için</div>
+            <div class="wpkt-price-block">
+                <div class="wpkt-price">Ücretsiz</div>
+                <div class="wpkt-price-aylik">Ek ücret yok</div>
+            </div>
+            <ul class="wpkt-features">
+                <li>SMS ile randevu hatırlatma</li>
+                <li>Mevcut SMS bakiyenizden düşülür</li>
+                <li>Temel raporlama</li>
+                <li class="no">WhatsApp gönderimi</li>
+                <li class="no">Detaylı istatistik</li>
+            </ul>
+            <button class="wpkt-btn wpkt-btn-current" id="wpktBtnBaslangic">Mevcut Paket</button>
+        </div>
+
+        <div class="wpkt-card popular" id="wpktCardPro">
+            <div class="wpkt-popular-tag">⭐ EN POPÜLER</div>
+            <div class="wpkt-tier-name">Pro</div>
+            <div class="wpkt-tier-desc">WhatsApp ile profesyonel hatırlatma — çoğu salon için ideal</div>
+            <div class="wpkt-price-block">
+                <div class="wpkt-price" id="wpktProFiyat">149 <small>TL/ay</small></div>
+                <div class="wpkt-price-aylik" id="wpktProAylikInfo"></div>
+            </div>
+            <ul class="wpkt-features">
+                <li><b>Başlangıç paketinin tüm özellikleri</b></li>
+                <li>WhatsApp ile randevu hatırlatma</li>
+                <li>Otomatik SMS fallback</li>
+                <li>Mesaj geçmişi ve alıcı listesi</li>
+                <li>Detaylı istatistik paneli</li>
+                <li>İptal/güncelleme bildirimleri</li>
+                <li class="no">Toplu kampanya gönderimi</li>
+            </ul>
+            <button class="wpkt-btn wpkt-btn-primary" onclick="wpktTalepAc('pro')">Pro'ya Yükselt</button>
+        </div>
+
+        <div class="wpkt-card" id="wpktCardPremium">
+            <div class="wpkt-tier-name">Premium</div>
+            <div class="wpkt-tier-desc">Yoğun salonlar ve kurumsal kullanım için sınırsız özellikler</div>
+            <div class="wpkt-price-block">
+                <div class="wpkt-price" id="wpktPremiumFiyat">299 <small>TL/ay</small></div>
+                <div class="wpkt-price-aylik" id="wpktPremiumAylikInfo"></div>
+            </div>
+            <ul class="wpkt-features">
+                <li><b>Pro paketinin tüm özellikleri</b></li>
+                <li>Sınırsız mesaj gönderimi</li>
+                <li>Toplu kampanya/duyuru gönderimi</li>
+                <li>Resmi WhatsApp Business API</li>
+                <li>Öncelikli teknik destek</li>
+                <li>Excel detay raporları</li>
+                <li>Özel mesaj şablonları</li>
+            </ul>
+            <button class="wpkt-btn wpkt-btn-outline" onclick="wpktTalepAc('premium')">Premium'a Yükselt</button>
+        </div>
+    </div>
+</div>
+
+<div class="wsi-modal" id="wpktTalepModal">
+    <div class="wsi-modal-content" style="max-width:480px;">
+        <div class="wsi-modal-header">
+            <h4 style="margin:0;" id="wpktTalepBaslik">Paket Yükseltme Talebi</h4>
+            <span class="wsi-modal-close" onclick="document.getElementById('wpktTalepModal').classList.remove('show')">×</span>
+        </div>
+        <div id="wpktTalepBody">
+            <p style="color:#6c757d;font-size:14px;line-height:1.5;">Müşteri temsilcimiz sizinle iletişime geçerek ödeme ve aktivasyon süreci hakkında bilgi verecektir.</p>
+            <label style="font-size:13px;color:#444;font-weight:600;margin-top:14px;display:block;">İletişim Bilgisi (telefon veya email)</label>
+            <input type="text" id="wpktIletisim" style="width:100%;padding:10px;border:1px solid #ced4da;border-radius:6px;margin-top:6px;font-size:14px;" placeholder="örn. 0555 123 45 67">
+            <button id="wpktTalepGonder" class="wpkt-btn wpkt-btn-primary" style="margin-top:16px;">Talebi Gönder</button>
+            <div id="wpktTalepSonuc" style="margin-top:12px;font-size:13px;"></div>
+        </div>
+    </div>
+</div>
+
 <div class="wsi-tabs">
     <div class="wsi-tab active" data-wsi="ozet">📊 İstatistik</div>
     <div class="wsi-tab" data-wsi="loglar">📨 Mesajlarım</div>
@@ -515,6 +602,116 @@
     }
 
     yukleOzet();
+
+    // ───────── PAKET BÖLÜMÜ ─────────
+    var wpktSecilenPaket = null;
+    var wpktPeriyot = 'aylik';
+    var WPKT_FIYAT = {
+        pro: { aylik: 149, yillik: 1499 },
+        premium: { aylik: 299, yillik: 2999 }
+    };
+
+    window.wpktSetPeriyot = function(p){
+        wpktPeriyot = p;
+        document.getElementById('wpktAylik').classList.toggle('active', p === 'aylik');
+        document.getElementById('wpktYillik').classList.toggle('active', p === 'yillik');
+        guncelleFiyatlar();
+    };
+
+    function guncelleFiyatlar(){
+        var p = wpktPeriyot;
+        if (p === 'aylik') {
+            document.getElementById('wpktProFiyat').innerHTML = WPKT_FIYAT.pro.aylik + ' <small>TL/ay</small>';
+            document.getElementById('wpktPremiumFiyat').innerHTML = WPKT_FIYAT.premium.aylik + ' <small>TL/ay</small>';
+            document.getElementById('wpktProAylikInfo').textContent = '';
+            document.getElementById('wpktPremiumAylikInfo').textContent = '';
+        } else {
+            var proAylikEsdeger = (WPKT_FIYAT.pro.yillik / 12).toFixed(0);
+            var premAylikEsdeger = (WPKT_FIYAT.premium.yillik / 12).toFixed(0);
+            document.getElementById('wpktProFiyat').innerHTML = WPKT_FIYAT.pro.yillik + ' <small>TL/yıl</small>';
+            document.getElementById('wpktPremiumFiyat').innerHTML = WPKT_FIYAT.premium.yillik + ' <small>TL/yıl</small>';
+            document.getElementById('wpktProAylikInfo').innerHTML = '≈ ' + proAylikEsdeger + ' TL/ay <span style="color:#25D366;font-weight:600;">— 2 ay bedava</span>';
+            document.getElementById('wpktPremiumAylikInfo').innerHTML = '≈ ' + premAylikEsdeger + ' TL/ay <span style="color:#25D366;font-weight:600;">— 2 ay bedava</span>';
+        }
+    }
+
+    window.wpktTalepAc = function(paket){
+        wpktSecilenPaket = paket;
+        var paketAd = paket === 'pro' ? 'Pro' : 'Premium';
+        var fiyat = WPKT_FIYAT[paket][wpktPeriyot];
+        var birim = wpktPeriyot === 'aylik' ? 'TL/ay' : 'TL/yıl';
+        document.getElementById('wpktTalepBaslik').textContent = paketAd + ' Paket — ' + fiyat + ' ' + birim;
+        document.getElementById('wpktTalepSonuc').innerHTML = '';
+        document.getElementById('wpktIletisim').value = '';
+        document.getElementById('wpktTalepModal').classList.add('show');
+    };
+
+    document.getElementById('wpktTalepGonder').addEventListener('click', function(){
+        var btn = this;
+        var iletisim = document.getElementById('wpktIletisim').value.trim();
+        if (!iletisim) {
+            document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#dc3545;">Lütfen iletişim bilgisi girin.</span>';
+            return;
+        }
+        btn.disabled = true; btn.textContent = 'Gönderiliyor...';
+        var fd = new FormData();
+        fd.append('paket', wpktSecilenPaket);
+        fd.append('periyot', wpktPeriyot);
+        fd.append('iletisim', iletisim);
+        fd.append('_token', csrf);
+        fetch('/isletmeyonetim/whatsapp/paket-talep' + qs2, {
+            method:'POST', credentials:'same-origin',
+            headers:{'X-CSRF-TOKEN':csrf}, body:fd
+        }).then(function(r){ return r.json(); }).then(function(d){
+            btn.disabled = false; btn.textContent = 'Talebi Gönder';
+            if (d.ok) {
+                document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#1a7f3e;font-weight:600;">✓ ' + (d.mesaj || 'Talebiniz alındı.') + '</span>';
+                setTimeout(function(){ document.getElementById('wpktTalepModal').classList.remove('show'); }, 2500);
+            } else {
+                document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#dc3545;">' + (d.error || d.mesaj || 'Hata oluştu.') + '</span>';
+            }
+        }).catch(function(){
+            btn.disabled = false; btn.textContent = 'Talebi Gönder';
+            document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#dc3545;">Bağlantı hatası. Tekrar deneyin.</span>';
+        });
+    });
+
+    function yuklePaketDurum(){
+        fetch('/isletmeyonetim/whatsapp/paket-durum' + qs2, {credentials:'same-origin'})
+            .then(function(r){ return r.json(); }).then(function(d){
+                if (d.error) return;
+                var paket = d.paket || 'baslangic';
+                var labels = { baslangic: 'Başlangıç (Ücretsiz)', pro: 'Pro', premium: 'Premium' };
+                var ad = labels[paket] || paket;
+                if (d.bitis && d.kalan_gun !== null) ad += ' — ' + d.kalan_gun + ' gün kaldı';
+                document.getElementById('wpktCurrentName').textContent = ad;
+                document.getElementById('wpktCurrentBadge').style.display = 'inline-block';
+
+                // Kart vurgusu
+                ['baslangic','pro','premium'].forEach(function(p){
+                    var card = document.getElementById('wpktCard' + p.charAt(0).toUpperCase() + p.slice(1));
+                    if (!card) return;
+                    if (p === paket) {
+                        card.classList.add('current');
+                        if (!card.querySelector('.wpkt-current-tag')) {
+                            var tag = document.createElement('div');
+                            tag.className = 'wpkt-current-tag';
+                            tag.textContent = '✓ MEVCUT PAKETİNİZ';
+                            card.insertBefore(tag, card.firstChild);
+                        }
+                        var btn = card.querySelector('.wpkt-btn');
+                        if (btn) {
+                            btn.className = 'wpkt-btn wpkt-btn-current';
+                            btn.textContent = 'Mevcut Paket';
+                            btn.disabled = true;
+                        }
+                    }
+                });
+            });
+    }
+
+    guncelleFiyatlar();
+    yuklePaketDurum();
 })();
 </script>
 @endsection
