@@ -592,7 +592,7 @@
                     data-kalan="{{$r['kalan']}}"
                     title="Prim/Maaş Öde">
                     <i class="fa fa-credit-card"></i>
-                    <span>@if($r['durum']==='kismi')Kalan Öde @elseif($r['durum']==='tam' || $r['durum']==='fazla')Ek Öde @else Öde @endif</span>
+                    <span>Öde</span>
                   </button>
                   <button class="pr-split__caret pr-menu-toggle" type="button" title="Diğer işlemler"><i class="fa fa-caret-down"></i></button>
                 </div>
