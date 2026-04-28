@@ -131,6 +131,9 @@
   .pr-table-toolbar h3{ margin:0; font-size:16px; font-weight:700; color:var(--rmc-text); display:flex; align-items:center; gap:8px; }
   .pr-table-toolbar h3 i{ color:var(--rmc-purple-2); }
 
+  /* Tablo wrapper: yatay scroll mobilde */
+  .pr-table-card .dataTables_wrapper{ overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .pr-table-scroll{ overflow-x: auto; -webkit-overflow-scrolling: touch; }
   #primrapor_tablo{ width:100% !important; border-collapse: separate; border-spacing:0; }
   #primrapor_tablo thead th{
     background:#fafbfc !important; color:var(--rmc-muted); font-size:11px; font-weight:700;
@@ -138,38 +141,91 @@
     padding:14px 12px !important; vertical-align:middle; white-space:nowrap;
   }
   #primrapor_tablo tbody td{
-    border-bottom:1px solid #f4f0f8 !important; border-top:0 !important; padding:14px 12px !important;
-    vertical-align:middle; font-size:13.5px; color:var(--rmc-text);
+    border-bottom:1px solid #f4f0f8 !important; border-top:0 !important; padding:12px 10px !important;
+    vertical-align:middle; font-size:13.5px; color:var(--rmc-text); white-space:nowrap;
   }
   #primrapor_tablo tbody tr:hover td{ background:#fbfaff !important; }
   #primrapor_tablo tbody tr:last-child td{ border-bottom:0 !important; }
   .pr-cell-personel{ font-weight:700; font-size:14px; }
+  .pr-cell-personel-inner{
+    display:inline-flex; align-items:center; gap:10px; min-width:0;
+  }
   .pr-cell-personel .pr-avatar{
     display:inline-flex; align-items:center; justify-content:center;
     width:34px; height:34px; border-radius:50%; background:var(--rmc-purple-bg); color:var(--rmc-purple-1);
-    font-weight:700; font-size:13px; margin-right:10px; vertical-align:middle;
+    font-weight:700; font-size:13px; flex-shrink:0;
   }
   .pr-cell-bonus{ color:#059669; font-weight:600; }
   .pr-cell-kesinti{ color:#dc2626; font-weight:600; }
   .pr-cell-net{
     background: linear-gradient(90deg, rgba(123,47,184,.06), rgba(157,93,200,.04));
-    border-radius:8px;
   }
   .pr-cell-net strong{ color:var(--rmc-purple-1) !important; font-size:15px; }
-  .pr-action-btn{
-    width:34px; height:34px; border-radius:10px; border:0; cursor:pointer;
-    display:inline-flex; align-items:center; justify-content:center; transition:all .15s;
-    margin-right:4px;
+
+  /* Aksiyon: split button (Öde + caret dropdown) */
+  .pr-actions{ display:inline-flex; align-items:center; gap:6px; position:relative; }
+  .pr-split{
+    display:inline-flex; align-items:stretch; border-radius:10px; overflow:hidden;
+    box-shadow: 0 2px 6px rgba(123,47,184,.15);
   }
-  .pr-action-btn--ekle{ background:var(--rmc-success-bg); color:var(--rmc-success); }
-  .pr-action-btn--ekle:hover{ background:var(--rmc-success); color:#fff; transform:translateY(-1px); }
-  .pr-action-btn--liste{ background:var(--rmc-purple-bg); color:var(--rmc-purple-1); }
-  .pr-action-btn--liste:hover{ background:var(--rmc-purple-2); color:#fff; transform:translateY(-1px); }
-  .pr-action-btn--ode{
-    width:auto; padding:0 12px; gap:6px;
+  .pr-split__main{
+    border:0; cursor:pointer; padding:0 14px; display:inline-flex; align-items:center; gap:7px;
     background: linear-gradient(135deg,#7B2FB8,#9D5DC8); color:#fff; font-weight:600; font-size:12.5px;
+    height:36px; transition:all .15s;
   }
-  .pr-action-btn--ode:hover{ background: linear-gradient(135deg,#5C008E,#7B2FB8); transform:translateY(-1px); color:#fff; }
+  .pr-split__main:hover{ background: linear-gradient(135deg,#5C008E,#7B2FB8); color:#fff; }
+  .pr-split__caret{
+    border:0; cursor:pointer; padding:0 10px; display:inline-flex; align-items:center; justify-content:center;
+    background: linear-gradient(135deg,#5C008E,#7B2FB8); color:#fff;
+    height:36px; transition:all .15s;
+    border-left: 1px solid rgba(255,255,255,.18);
+  }
+  .pr-split__caret:hover{ background:#3d005f; color:#fff; }
+
+  /* Dropdown menu */
+  .pr-menu{
+    position:absolute; right:0; top:calc(100% + 4px); z-index:50;
+    background:#fff; border:1px solid #e2e8f0; border-radius:12px;
+    min-width:200px; padding:6px; box-shadow: 0 12px 28px rgba(15,23,42,.12);
+    display:none;
+  }
+  .pr-menu.show{ display:block; animation: prMenuIn .15s ease; }
+  @keyframes prMenuIn{ from{ opacity:0; transform: translateY(-4px); } to{ opacity:1; transform: translateY(0); } }
+  .pr-menu__item{
+    display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px;
+    font-size:13px; font-weight:500; color:#334155; cursor:pointer; transition:.12s;
+    border:0; background:transparent; width:100%; text-align:left;
+  }
+  .pr-menu__item:hover{ background:#f1f5f9; }
+  .pr-menu__item--bonus{ color:#15803d; }
+  .pr-menu__item--bonus:hover{ background:#dcfce7; }
+  .pr-menu__item--kesinti{ color:#b91c1c; }
+  .pr-menu__item--kesinti:hover{ background:#fee2e2; }
+  .pr-menu__item--liste{ color:var(--rmc-purple-1); }
+  .pr-menu__item--liste:hover{ background:var(--rmc-purple-bg); }
+  .pr-menu__item i{ width:16px; font-size:13px; }
+  .pr-menu__divider{ height:1px; background:#f1f5f9; margin:4px 0; }
+
+  /* Mobil/tablet duzenleme */
+  @media (max-width: 992px){
+    #primrapor_tablo tbody td{ padding:10px 8px !important; font-size:13px; }
+    #primrapor_tablo thead th{ padding:12px 8px !important; }
+    .pr-split__main{ font-size:12px; padding:0 10px; }
+    .pr-durum-badge{ font-size:11px; padding:5px 9px; }
+    .pr-durum-badge .alt{ font-size:10px; }
+  }
+  @media (max-width: 600px){
+    .pr-stats{ grid-template-columns: 1fr 1fr !important; }
+    .pr-hero{ padding:20px 22px; border-radius:18px; }
+    .pr-hero__title h1{ font-size:18px; }
+    .pr-hero__title p{ font-size:11.5px; }
+    .pr-hero__icon{ width:42px; height:42px; font-size:18px; }
+    .pr-hero__period{ font-size:11.5px; padding:7px 12px; }
+    .pr-table-card{ border-radius:14px; }
+    .pr-filter{ padding:14px 16px; gap:12px; }
+    .pr-filter select{ min-width:auto; width:100%; }
+    .pr-filter__group{ flex:1 1 calc(50% - 6px); }
+  }
   .pr-durum-badge{
     display:inline-flex; flex-direction:column; gap:2px;
     padding:6px 12px; border-radius:10px;
@@ -470,7 +526,7 @@
   <div class="pr-table-toolbar">
     <h3><i class="fa fa-users"></i> Personel Bazında Hak Ediş</h3>
   </div>
-  <div style="padding: 0 14px 6px">
+  <div class="pr-table-scroll" style="padding: 0 14px 6px">
     <table class="data-table table hover nowrap" id="primrapor_tablo" style="width:100%">
       <thead>
         <tr>
@@ -496,7 +552,7 @@
             elseif($r['durum']==='kismi') $rowCls = 'pr-row-kismi';
           @endphp
           <tr class="{{ $rowCls }}">
-            <td class="pr-cell-personel"><span class="pr-avatar">{{$bas}}</span>{{$r['personel_adi']}}</td>
+            <td class="pr-cell-personel"><span class="pr-cell-personel-inner"><span class="pr-avatar">{{$bas}}</span><span>{{$r['personel_adi']}}</span></span></td>
             <td>{{number_format($r['maas'],2,',','.')}} ₺</td>
             <td>{{number_format($r['hizmet_primi'],2,',','.')}} ₺</td>
             <td>{{number_format($r['urun_primi'],2,',','.')}} ₺</td>
@@ -525,26 +581,34 @@
                 </span>
               @endif
             </td>
-            <td style="white-space:nowrap">
-              <button class="pr-action-btn pr-action-btn--ode prim-ode"
-                data-value="{{$r['personel_id']}}"
-                data-adi="{{$r['personel_adi']}}"
-                data-net="{{$r['net_hakedis']}}"
-                data-odenen="{{$r['odenen_toplam']}}"
-                data-kalan="{{$r['kalan']}}"
-                title="Prim/Maaş Öde">
-                <i class="fa fa-credit-card"></i>
-                @if($r['durum']==='kismi') Kalan Öde
-                @elseif($r['durum']==='tam' || $r['durum']==='fazla') Ek Öde
-                @else Öde
-                @endif
-              </button>
-              <button class="pr-action-btn pr-action-btn--ekle prim-bonus-ekle" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Bonus/Kesinti Ekle">
-                <i class="fa fa-plus"></i>
-              </button>
-              <button class="pr-action-btn pr-action-btn--liste prim-hareket-goster" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Hareketleri Görüntüle">
-                <i class="fa fa-list"></i>
-              </button>
+            <td>
+              <div class="pr-actions">
+                <div class="pr-split">
+                  <button class="pr-split__main prim-ode"
+                    data-value="{{$r['personel_id']}}"
+                    data-adi="{{$r['personel_adi']}}"
+                    data-net="{{$r['net_hakedis']}}"
+                    data-odenen="{{$r['odenen_toplam']}}"
+                    data-kalan="{{$r['kalan']}}"
+                    title="Prim/Maaş Öde">
+                    <i class="fa fa-credit-card"></i>
+                    <span>@if($r['durum']==='kismi')Kalan Öde @elseif($r['durum']==='tam' || $r['durum']==='fazla')Ek Öde @else Öde @endif</span>
+                  </button>
+                  <button class="pr-split__caret pr-menu-toggle" type="button" title="Diğer işlemler"><i class="fa fa-caret-down"></i></button>
+                </div>
+                <div class="pr-menu">
+                  <button type="button" class="pr-menu__item pr-menu__item--bonus prim-bonus-ekle" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" data-tip="bonus">
+                    <i class="fa fa-plus-circle"></i> Bonus / Ek Ödeme Ekle
+                  </button>
+                  <button type="button" class="pr-menu__item pr-menu__item--kesinti prim-bonus-ekle" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" data-tip="kesinti">
+                    <i class="fa fa-minus-circle"></i> Kesinti Ekle
+                  </button>
+                  <div class="pr-menu__divider"></div>
+                  <button type="button" class="pr-menu__item pr-menu__item--liste prim-hareket-goster" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}">
+                    <i class="fa fa-history"></i> Hareketleri Görüntüle
+                  </button>
+                </div>
+              </div>
             </td>
           </tr>
         @endforeach
@@ -791,7 +855,18 @@ $(function(){
   var _raporIndex = {};
   _raporData.forEach(function(r){ _raporIndex[r.personel_id] = r; });
 
+  // ============ Split-button dropdown ============
+  $(document).on('click','.pr-menu-toggle', function(e){
+    e.stopPropagation();
+    var $menu = $(this).closest('.pr-actions').find('.pr-menu');
+    $('.pr-menu').not($menu).removeClass('show');
+    $menu.toggleClass('show');
+  });
+  $(document).on('click', function(){ $('.pr-menu').removeClass('show'); });
+  $(document).on('click','.pr-menu', function(e){ e.stopPropagation(); });
+
   $(document).on('click','.prim-bonus-ekle', function(){
+    $('.pr-menu').removeClass('show');
     var $m = $('#primHareketModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
     $('#primHareket_personelId').val($(this).data('value'));
@@ -799,7 +874,8 @@ $(function(){
     $('#primHareketForm')[0].reset();
     $('#primHareket_personelId').val($(this).data('value'));
     $('#primHareketForm input[name="tarih"]').val('{{date("Y-m-d")}}');
-    $('#prtip_bonus').prop('checked', true);
+    var tip = $(this).data('tip') === 'kesinti' ? 'kesinti' : 'bonus';
+    $('#prtip_'+tip).prop('checked', true);
     $m.modal('show');
   });
 
@@ -960,6 +1036,7 @@ $(function(){
   function _escHtml(s){ return $('<div>').text(s||'').html(); }
 
   $(document).on('click','.prim-hareket-goster', function(){
+    $('.pr-menu').removeClass('show');
     var $m = $('#primHareketListeModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
     var pid = $(this).data('value');
