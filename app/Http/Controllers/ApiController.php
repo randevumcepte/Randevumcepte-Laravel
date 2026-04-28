@@ -1831,13 +1831,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 DB::raw(
 
-                    "CONCAT( GROUP_CONCAT(paket_hizmetler.seans)) as seanslar"
+                    "COALESCE(NULLIF(SUM(paket_hizmetler.seans), 0), paketler.miktar, 0) as seanslar"
 
                 ),
 
                 DB::raw(
 
-                    "CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),0)) as fiyat"
+                    "COALESCE(NULLIF(SUM(paket_hizmetler.fiyat), 0), paketler.fiyat, 0) as fiyat"
 
                 )
 
@@ -10614,9 +10614,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $q->where('hizmet_id',$request->hizmetId);
         })->get();
         foreach($seansVar as $seans){
-            $seansVar->iptal = 1;
-            $seansVar->geldi = null;
-            $seansVar->save();
+            $seans->iptal = 1;
+            $seans->geldi = null;
+            $seans->save();
             if($randevuHizmet != '')
             {
                 $randevuHizmet->seansa_geldi = null;
@@ -10631,7 +10631,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     $rh->iptal = 1;
                     $rh->save();
                 }
-            } 
+            }
         }
         if($seansVar->count()==0)
             $randevu->durum = $request->durum;
@@ -14843,13 +14843,17 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             );
 
+            $ongorusmePaketFiyat = $ongorusme->paket->hizmetler->sum("fiyat");
+            if ($ongorusmePaketFiyat == 0) {
+                $ongorusmePaketFiyat = (float) ($ongorusme->paket->fiyat ?? 0);
+            }
             $adisyon_paket_id = self::adisyona_paket_ekle(
 
                 $adisyon_id,
 
                 $ongorusme->paket_id,
 
-                $ongorusme->paket->hizmetler->sum("fiyat"),
+                $ongorusmePaketFiyat,
 
                 $request->baslangic_tarihi,
 
@@ -14866,6 +14870,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $seanstarih = $request->baslangic_tarihi;
 
             $toplam_seans_sayilari = $ongorusme->paket->hizmetler->sum("seans");
+            if ($toplam_seans_sayilari == 0) {
+                $toplam_seans_sayilari = (int) ($ongorusme->paket->miktar ?? 0);
+            }
 
             for ($i = 1; $i <= $toplam_seans_sayilari; $i++) {
 
@@ -15755,9 +15762,9 @@ if (is_array($request->cihaz_id)) {
 
             "hizmetler.*.hizmet_id" => "required|integer",
 
-            "hizmetler.*.seans" => "required|integer",
+            "hizmetler.*.seans" => "nullable|integer",
 
-            "hizmetler.*.fiyat" => "required|numeric",
+            "hizmetler.*.fiyat" => "nullable|numeric",
 
         ]);
 
@@ -15775,6 +15782,23 @@ if (is_array($request->cihaz_id)) {
 
         $paket->salon_id = $isletme_id;
 
+        $paketLevelFiyat = $request->fiyatlar !== null && $request->fiyatlar !== ''
+            ? (float) $request->fiyatlar
+            : (float) collect($request->hizmetler)->sum('fiyat');
+        $paketLevelSeans = $request->seanslar !== null && $request->seanslar !== ''
+            ? (int) $request->seanslar
+            : (int) collect($request->hizmetler)->sum('seans');
+
+        $paket->fiyat = $paketLevelFiyat;
+
+        $paket->miktar = $paketLevelSeans;
+
+        if ($request->paketsure !== null && $request->paketsure !== '') {
+
+            $paket->sure = $request->paketsure;
+
+        }
+
         $paket->save();
 
         $toplamtutar = 0;
@@ -15783,19 +15807,7 @@ if (is_array($request->cihaz_id)) {
 
         foreach ($request->hizmetler as $key => $paket_hizmet) {
 
-            if (
-
-                !isset(
-
-                    $paket_hizmet["hizmet_id"],
-
-                    $paket_hizmet["seans"],
-
-                    $paket_hizmet["fiyat"]
-
-                )
-
-            ) {
+            if (!isset($paket_hizmet["hizmet_id"])) {
 
                 return response()->json(
 
@@ -15813,11 +15825,11 @@ if (is_array($request->cihaz_id)) {
 
             $pakethizmet->hizmet_id = $paket_hizmet["hizmet_id"];
 
-            $pakethizmet->seans = $paket_hizmet["seans"];
+            $pakethizmet->seans = $paket_hizmet["seans"] ?? 0;
 
-            $pakethizmet->fiyat = $paket_hizmet["fiyat"];
+            $pakethizmet->fiyat = $paket_hizmet["fiyat"] ?? 0;
 
-            $toplamtutar += $paket_hizmet["fiyat"]; // Corrected this part
+            $toplamtutar += (float) ($paket_hizmet["fiyat"] ?? 0);
 
             $pakethizmet->save();
 
@@ -16551,6 +16563,9 @@ if (is_array($request->cihaz_id)) {
                     $request->senet_paketleri[$key]["seans_baslangic_saati"];
 
                 $toplam_seans_sayilari = $paket->hizmetler->sum("seans");
+                if ($toplam_seans_sayilari == 0) {
+                    $toplam_seans_sayilari = (int) ($paket->miktar ?? 0);
+                }
 
                 self::pakettenrandevuveseansolustur(
 
