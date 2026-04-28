@@ -72,9 +72,9 @@ class CreateSistemyonetimV2Tables extends Migration
                 $table->string('ip', 45)->nullable();
                 $table->string('user_agent', 255)->nullable();
                 $table->timestamps();
-                $table->index(['user_id', 'created_at']);
-                $table->index(['target_type', 'target_id']);
-                $table->index(['action', 'created_at']);
+                $table->index(['user_id', 'created_at'], 'sy_audit_user_at_idx');
+                $table->index(['target_type', 'target_id'], 'sy_audit_target_idx');
+                $table->index(['action', 'created_at'], 'sy_audit_action_at_idx');
             });
         }
 
@@ -89,8 +89,8 @@ class CreateSistemyonetimV2Tables extends Migration
                 $table->string('ip', 45)->nullable();
                 $table->string('user_agent', 255)->nullable();
                 $table->timestamp('created_at')->useCurrent();
-                $table->index(['email_attempt', 'created_at']);
-                $table->index('user_id');
+                $table->index(['email_attempt', 'created_at'], 'sy_login_email_at_idx');
+                $table->index('user_id', 'sy_login_user_idx');
             });
         }
 
@@ -110,8 +110,8 @@ class CreateSistemyonetimV2Tables extends Migration
                 $table->timestamp('bitis_tarihi')->nullable();
                 $table->string('ip', 45)->nullable();
                 $table->string('user_agent', 255)->nullable();
-                $table->index(['salon_id', 'baslangic_tarihi']);
-                $table->index('user_id');
+                $table->index(['salon_id', 'baslangic_tarihi'], 'sy_imp_salon_at_idx');
+                $table->index('user_id', 'sy_imp_user_idx');
             });
         }
 
@@ -127,7 +127,7 @@ class CreateSistemyonetimV2Tables extends Migration
                 $table->string('tip', 30)->default('genel')->comment('genel|uyari|onemli|sikayet|talep|odeme');
                 $table->tinyInteger('pinned')->default(0);
                 $table->timestamps();
-                $table->index(['salon_id', 'created_at']);
+                $table->index(['salon_id', 'created_at'], 'sy_not_salon_at_idx');
             });
         }
 
@@ -135,7 +135,7 @@ class CreateSistemyonetimV2Tables extends Migration
         if (!Schema::hasTable('sistemyonetim_destek_talepleri')) {
             Schema::create('sistemyonetim_destek_talepleri', function (Blueprint $table) {
                 $table->bigIncrements('id');
-                $table->string('numara', 20)->unique();
+                $table->string('numara', 20)->unique('sy_ticket_numara_uniq');
                 $table->unsignedBigInteger('salon_id')->nullable();
                 $table->string('salon_adi', 200)->nullable();
                 $table->string('iletisim_ad', 120)->nullable();
@@ -154,9 +154,9 @@ class CreateSistemyonetimV2Tables extends Migration
                 $table->timestamp('cozumlenme_tarihi')->nullable();
                 $table->timestamp('kapanis_tarihi')->nullable();
                 $table->timestamps();
-                $table->index(['durum', 'oncelik']);
-                $table->index(['salon_id']);
-                $table->index(['atanan_user_id']);
+                $table->index(['durum', 'oncelik'], 'sy_ticket_durum_oncelik_idx');
+                $table->index('salon_id', 'sy_ticket_salon_idx');
+                $table->index('atanan_user_id', 'sy_ticket_atanan_idx');
             });
         }
 
@@ -171,7 +171,7 @@ class CreateSistemyonetimV2Tables extends Migration
                 $table->text('mesaj');
                 $table->tinyInteger('ic_not')->default(0)->comment('1: sadece ekip gorur');
                 $table->timestamps();
-                $table->index('ticket_id');
+                $table->index('ticket_id', 'sy_msg_ticket_idx');
             });
         }
     }

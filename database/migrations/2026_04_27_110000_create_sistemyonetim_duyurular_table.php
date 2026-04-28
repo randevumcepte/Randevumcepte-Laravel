@@ -25,7 +25,7 @@ class CreateSistemyonetimDuyurularTable extends Migration
                 $table->unsignedInteger('olusturan_user_id')->nullable();
                 $table->string('olusturan_user_name', 120)->nullable();
                 $table->timestamps();
-                $table->index(['aktif', 'baslangic_tarihi']);
+                $table->index(['aktif', 'baslangic_tarihi'], 'sy_duy_aktif_at_idx');
             });
         }
 
@@ -36,8 +36,8 @@ class CreateSistemyonetimDuyurularTable extends Migration
                 $table->unsignedBigInteger('salon_id');
                 $table->unsignedInteger('user_id')->nullable()->comment('isletme_yetkili_id');
                 $table->timestamp('okundu_tarihi')->useCurrent();
-                $table->index(['duyuru_id', 'salon_id']);
-                $table->unique(['duyuru_id', 'user_id'], 'duyuru_user_uniq');
+                $table->index(['duyuru_id', 'salon_id'], 'sy_duy_okundu_idx');
+                $table->unique(['duyuru_id', 'user_id'], 'sy_duy_user_uniq');
             });
         }
     }
