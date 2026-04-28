@@ -40,8 +40,13 @@
         }
     </style>
     @yield('head')
+    @php $_embed = isset($_GET['embed']) && $_GET['embed']; @endphp
+    @if($_embed)
+        <style>.ck-nav { display: none !important; }</style>
+    @endif
 </head>
 <body>
+    @if(!$_embed)
     <nav class="ck-nav">
         <a href="/" class="ck-nav-brand">🎡 randevumcepte</a>
         <div class="ck-nav-links">
@@ -53,6 +58,7 @@
             @endif
         </div>
     </nav>
+    @endif
 
     @yield('content')
 </body>

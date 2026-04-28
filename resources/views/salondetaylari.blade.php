@@ -221,7 +221,7 @@
 
    @if($_aktifCark && $_cark_dilim_sayisi >= 2)
       {{-- ============ CARKIFELEK SECTION (eski silik banner yerine) ============ --}}
-      <a href="{{ url('/cark/'.$salon->id) }}" class="cark-section" aria-label="Çarkıfelek'i çevir, ödül kazan">
+      <a href="javascript:void(0)" onclick="window.openCarkModal()" class="cark-section" aria-label="Çarkıfelek'i çevir, ödül kazan">
          <div class="cark-section__inner">
             <div class="cark-section__visual">
                <div class="cark-wheel cark-wheel--lg">
@@ -265,7 +265,7 @@
                <span class="cark-popup__eyebrow">🎰 Şimdi Tam Zamanı</span>
                <h2 class="cark-popup__title" id="carkPopupTitle">Çarkı Çevir,<br><em>Hediyeni Kazan!</em></h2>
                <p class="cark-popup__sub">{{ $salon->salon_adi }}'a özel sürpriz çarkıfelek seni bekliyor. Bedava deneme hakkı şimdi açık!</p>
-               <a href="{{ url('/cark/'.$salon->id) }}" class="cark-popup__cta" data-cark-spin>
+               <a href="javascript:void(0)" onclick="window.openCarkModal()" class="cark-popup__cta" data-cark-spin>
                   <i class="fa fa-bolt"></i>
                   <span>ŞİMDİ ÇEVİR</span>
                   <i class="fa fa-long-arrow-right"></i>
@@ -274,6 +274,44 @@
             </div>
          </div>
       </div>
+
+      {{-- ============ CARKIFELEK IFRAME MODAL (sayfa içinde çevirme) ============ --}}
+      <div id="carkIframeModal" style="display:none; position:fixed; inset:0; z-index:99998; background:rgba(0,0,0,.78); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+         <div style="position:relative; width:min(960px, 96vw); height:min(840px, 92vh); background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.5);">
+            <button type="button" onclick="window.closeCarkModal()" aria-label="Kapat" style="position:absolute; top:12px; right:12px; z-index:5; width:38px; height:38px; border-radius:50%; border:none; background:rgba(0,0,0,.55); color:#fff; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+               <i class="fa fa-times"></i>
+            </button>
+            <iframe id="carkIframe" src="" style="width:100%; height:100%; border:0; display:block;" allow="autoplay"></iframe>
+         </div>
+      </div>
+
+      <script>
+         (function(){
+            const URL_CARK = '{{ url("/cark/".$salon->id) }}';
+            const modal = document.getElementById('carkIframeModal');
+            const iframe = document.getElementById('carkIframe');
+            window.openCarkModal = function(){
+               // Pop-up varsa kapat — iki overlay üst üste binmesin
+               try { document.getElementById('carkPopup')?.classList.remove('is-open'); } catch(e){}
+               iframe.src = URL_CARK + '?embed=1';
+               modal.style.display = 'flex';
+               document.documentElement.style.overflow = 'hidden';
+               document.body.style.overflow = 'hidden';
+            };
+            window.closeCarkModal = function(){
+               modal.style.display = 'none';
+               iframe.src = '';
+               document.documentElement.style.overflow = '';
+               document.body.style.overflow = '';
+            };
+            modal.addEventListener('click', function(e){
+               if (e.target === modal) window.closeCarkModal();
+            });
+            document.addEventListener('keydown', function(e){
+               if (e.key === 'Escape' && modal.style.display === 'flex') window.closeCarkModal();
+            });
+         })();
+      </script>
    @endif
 
    {{-- ====================== RANDEVU DRAWER BASLANGIC ===================== --}}
