@@ -160,8 +160,16 @@ class PanelController extends Controller
             abort(403, 'Bu salonu görme yetkiniz yok.');
         }
 
-        $yetkililer = IsletmeYetkilileri::where('salon_id', $id)->get();
+        // Yetkililer: kanonik olarak personeller.yetkili_id uzerinden
         $personeller = Personeller::where('salon_id', $id)->get();
+        $yetkiliIds = $personeller->whereNotNull('yetkili_id')->pluck('yetkili_id')->unique()->filter()->values();
+
+        // Legacy: dogrudan salon_id ile bagli olabilen eski kayitlar
+        $legacyIds = IsletmeYetkilileri::where('salon_id', $id)->pluck('id');
+        $tumYetkiliIds = $yetkiliIds->merge($legacyIds)->unique();
+        $yetkililer = $tumYetkiliIds->isNotEmpty()
+            ? IsletmeYetkilileri::whereIn('id', $tumYetkiliIds)->get()
+            : collect();
         $notlar = SalonNotu::where('salon_id', $id)->orderByDesc('pinned')->orderByDesc('id')->get();
         $impersonationGecmisi = ImpersonationLog::where('salon_id', $id)->orderByDesc('id')->limit(20)->get();
         $ticketlar = DestekTalebi::where('salon_id', $id)->orderByDesc('id')->limit(20)->get();
@@ -266,23 +274,21 @@ class PanelController extends Controller
             return redirect()->back()->with('hata', 'Salon askıda — önce aktif edin.');
         }
 
-        // Yetkiliyi 3 yoldan ara:
-        // 1) isletmeyetkilileri.salon_id = X && is_admin=1 (klasik tekil yetkili)
-        // 2) isletmeyetkilileri.salon_id = X (admin degilse de ilk yetkili)
-        // 3) personeller.salon_id = X uzerinden yetkili_id (multi-salon yetkilisi)
-        $yetkili = IsletmeYetkilileri::where('salon_id', $salonId)->where('is_admin', 1)->first();
-        if (!$yetkili) $yetkili = IsletmeYetkilileri::where('salon_id', $salonId)->first();
+        // Kanonik: yetkili-salon iliskisi personeller.yetkili_id uzerinden kurulur
+        $yetkili = null;
+        $personel = Personeller::where('salon_id', $salonId)
+            ->whereNotNull('yetkili_id')
+            ->orderBy('id', 'asc')
+            ->first();
+        if ($personel) {
+            $yetkili = IsletmeYetkilileri::find($personel->yetkili_id);
+        }
+        // Legacy fallback: bazi eski salonlarda isletmeyetkilileri.salon_id dolu olabilir
         if (!$yetkili) {
-            $personel = Personeller::where('salon_id', $salonId)
-                ->whereNotNull('yetkili_id')
-                ->orderByRaw('IFNULL(yetkili_id,0) DESC')
-                ->first();
-            if ($personel) {
-                $yetkili = IsletmeYetkilileri::find($personel->yetkili_id);
-            }
+            $yetkili = IsletmeYetkilileri::where('salon_id', $salonId)->first();
         }
         if (!$yetkili) {
-            return redirect()->back()->with('hata', 'Bu salona bağlı yetkili veya yetkili-personel kaydı yok. Önce salon detayından yetkili ekleyin.');
+            return redirect()->back()->with('hata', 'Bu salona bağlı yetkili-personel kaydı yok. Önce salon detayından yetkili ekleyin.');
         }
 
         $sebep = $request->get('sebep') ?: 'Destek girişi';

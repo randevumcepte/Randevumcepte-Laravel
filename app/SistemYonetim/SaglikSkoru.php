@@ -47,19 +47,23 @@ class SaglikSkoru
             ];
         }
 
-        // Son giris (isletme yetkilisi)
+        // Son giris: kanonik olarak personeller.yetkili_id uzerinden bagli yetkililer
         $sonGiris = null;
         try {
             $sonGiris = DB::table('isletmeyetkilileri')
-                ->where('salon_id', $salonId)
-                ->whereNotNull('son_giris_tarihi')
-                ->max('son_giris_tarihi');
+                ->join('personeller', 'isletmeyetkilileri.id', '=', 'personeller.yetkili_id')
+                ->where('personeller.salon_id', $salonId)
+                ->whereNotNull('isletmeyetkilileri.son_giris_tarihi')
+                ->max('isletmeyetkilileri.son_giris_tarihi');
         } catch (\Exception $e) {}
 
-        // son_giris_tarihi yoksa updated_at'a bak
+        // Fallback: updated_at, yine personeller uzerinden
         if (!$sonGiris) {
             try {
-                $sonGiris = DB::table('isletmeyetkilileri')->where('salon_id', $salonId)->max('updated_at');
+                $sonGiris = DB::table('isletmeyetkilileri')
+                    ->join('personeller', 'isletmeyetkilileri.id', '=', 'personeller.yetkili_id')
+                    ->where('personeller.salon_id', $salonId)
+                    ->max('isletmeyetkilileri.updated_at');
             } catch (\Exception $e) {}
         }
 
