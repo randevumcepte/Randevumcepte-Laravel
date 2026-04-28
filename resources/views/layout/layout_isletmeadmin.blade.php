@@ -464,7 +464,8 @@
          justify-content: center;
          flex-shrink: 0;
       }
-      #rcYardimBtn .rc-yardim-icon i {
+      #rcYardimBtn .rc-yardim-icon i,
+      #rcYardimBtn .rc-yardim-icon svg {
          font-size: 22px !important;
          color: #fff !important;
       }
@@ -476,11 +477,16 @@
       @media (max-width: 720px) {
          #rcYardimBtn { padding: 10px 16px 10px 10px; font-size: 13.5px; }
          #rcYardimBtn .rc-yardim-icon { width: 28px; height: 28px; }
-         #rcYardimBtn .rc-yardim-icon i { font-size: 18px !important; }
+         #rcYardimBtn .rc-yardim-icon i,
+         #rcYardimBtn .rc-yardim-icon svg { font-size: 18px !important; width: 18px; height: 18px; }
       }
       </style>
       <a href="/isletmeyonetim/destek" id="rcYardimBtn" title="Bir sorunun mu var? Destek ekibimize yaz">
-         <span class="rc-yardim-icon"><i class="material-icons">support_agent</i></span>
+         <span class="rc-yardim-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+            </svg>
+         </span>
          <span>Yardım &amp; Destek</span>
       </a>
       @endif
