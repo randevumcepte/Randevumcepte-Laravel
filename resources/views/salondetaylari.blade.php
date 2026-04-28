@@ -1288,11 +1288,17 @@
                } catch(e){}
            }
 
+           // Test/debug: ?carkforce=1 ile her seferinde göster
+           var FORCE = /[?&]carkforce=1\b/.test(window.location.search);
+           if (FORCE) {
+               try { sessionStorage.removeItem(SEEN); } catch(e){}
+           }
+
            // Daha onceden gosterildiyse acma
            var alreadySeen = false;
            try { alreadySeen = sessionStorage.getItem(SEEN) === '1'; } catch(e){}
-           if (!alreadySeen) {
-               setTimeout(open, DELAY);
+           if (FORCE || !alreadySeen) {
+               setTimeout(open, FORCE ? 200 : DELAY);
            }
 
            // Kapatma triggers
