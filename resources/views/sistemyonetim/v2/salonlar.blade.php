@@ -39,6 +39,16 @@
             @endforeach
         </select>
     </div>
+    <div class="sy-form-group" style="max-width:130px">
+        <label>Sayfa başı</label>
+        @php $pp = (int) request('per_page', 100); @endphp
+        <select name="per_page" class="sy-select">
+            <option value="50"  {{ $pp==50 ?'selected':'' }}>50</option>
+            <option value="100" {{ $pp==100?'selected':'' }}>100</option>
+            <option value="200" {{ $pp==200?'selected':'' }}>200</option>
+            <option value="500" {{ $pp==500?'selected':'' }}>500</option>
+        </select>
+    </div>
     <button class="sy-btn sy-btn-primary"><span class="mdi mdi-magnify"></span> Filtrele</button>
     <a href="/sistemyonetim/v2/salonlar" class="sy-btn">Sıfırla</a>
 </form>

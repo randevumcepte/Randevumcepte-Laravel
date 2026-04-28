@@ -685,12 +685,28 @@ a:hover { color: var(--sy-primary-deep); }
 
 /* ============== PAGINATION ============== */
 .sy-pagination {
-    display: flex;
-    gap: 4px;
     margin-top: 18px;
-    flex-wrap: wrap;
 }
-.sy-pagination a, .sy-pagination span {
+/* Laravel'in default <ul class="pagination"> ciktisi icin reset */
+.sy-pagination ul,
+.sy-pagination .pagination {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+.sy-pagination li,
+.sy-pagination .page-item {
+    list-style: none;
+    display: inline-block;
+}
+.sy-pagination a,
+.sy-pagination span,
+.sy-pagination .page-link {
+    display: inline-block;
     padding: 6px 12px;
     border-radius: 8px;
     background: var(--sy-surface);
@@ -698,10 +714,29 @@ a:hover { color: var(--sy-primary-deep); }
     color: var(--sy-text);
     font-size: 13px;
     text-decoration: none;
+    line-height: 1.3;
 }
-.sy-pagination a:hover { border-color: var(--sy-primary); color: var(--sy-primary); }
-.sy-pagination .active span { background: var(--sy-primary); color: #fff; border-color: var(--sy-primary); }
-.sy-pagination .disabled span { color: var(--sy-text-soft); background: transparent; border-color: var(--sy-border); }
+.sy-pagination a:hover,
+.sy-pagination .page-link:hover {
+    border-color: var(--sy-primary);
+    color: var(--sy-primary);
+    background: var(--sy-primary-soft);
+}
+.sy-pagination .active span,
+.sy-pagination .active .page-link,
+.sy-pagination .page-item.active .page-link {
+    background: var(--sy-primary);
+    color: #fff;
+    border-color: var(--sy-primary);
+}
+.sy-pagination .disabled span,
+.sy-pagination .disabled .page-link,
+.sy-pagination .page-item.disabled .page-link {
+    color: var(--sy-text-soft);
+    background: transparent;
+    border-color: var(--sy-border);
+    cursor: not-allowed;
+}
 
 /* ============== IMPERSONATION BAR ============== */
 .sy-impersonation-bar {

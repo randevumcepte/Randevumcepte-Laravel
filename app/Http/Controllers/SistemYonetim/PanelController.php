@@ -137,7 +137,9 @@ class PanelController extends Controller
             $query->where('musteri_yetkili_id', $this->user()->id);
         }
 
-        $salonlar = $query->orderBy('id', 'desc')->paginate(30)->appends($request->all());
+        $perPage = (int) $request->get('per_page', 100);
+        if (!in_array($perPage, [50, 100, 200, 500], true)) $perPage = 100;
+        $salonlar = $query->orderBy('id', 'desc')->paginate($perPage)->appends($request->all());
         $musteriTemsilcileri = SistemYoneticileri::orderBy('name')->get();
 
         return view('sistemyonetim.v2.salonlar', [
