@@ -81,7 +81,7 @@ class WhatsAppPanelController extends Controller
         $salonlar = Salonlar::query()
             ->select('id', 'salon_adi', 'whatsapp_aktif', 'whatsapp_durum', 'whatsapp_numara',
                 'whatsapp_baglanti_tarihi', 'whatsapp_warmup_baslangic', 'whatsapp_son_hata',
-                'whatsapp_gunluk_limit')
+                'whatsapp_gunluk_limit', 'whatsapp_saglayici')
             ->where(function ($q) {
                 $q->where('whatsapp_aktif', 1)
                   ->orWhereNotNull('whatsapp_durum')
@@ -132,6 +132,7 @@ class WhatsAppPanelController extends Controller
                 'salon_adi' => $s->salon_adi,
                 'aktif' => (int) $s->whatsapp_aktif,
                 'durum' => $s->whatsapp_durum,
+                'saglayici' => $s->whatsapp_saglayici ?: 'baileys',
                 'numara' => $s->whatsapp_numara,
                 'baglanti_tarihi' => optional($s->whatsapp_baglanti_tarihi)->format('Y-m-d H:i'),
                 'warmup_baslangic' => optional($s->whatsapp_warmup_baslangic)->format('Y-m-d'),

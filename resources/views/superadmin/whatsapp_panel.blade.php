@@ -133,11 +133,11 @@
         <div style="overflow-x:auto;">
             <table class="wa-table" id="salonTable">
                 <thead><tr>
-                    <th>ID</th><th>Salon</th><th>Numara</th><th>Durum</th>
+                    <th>ID</th><th>Salon</th><th>Sağlayıcı</th><th>Numara</th><th>Durum</th>
                     <th>Limit (gün)</th><th>Bugün</th><th>Hafta</th>
                     <th>Bağlandı</th><th>Son Hata</th><th>İşlem</th>
                 </tr></thead>
-                <tbody><tr><td colspan="10">Yükleniyor...</td></tr></tbody>
+                <tbody><tr><td colspan="11">Yükleniyor...</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -312,7 +312,7 @@
             return true;
         });
         if (rows.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#999;padding:30px;">Filtre eşleşmesi yok</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#999;padding:30px;">Filtre eşleşmesi yok</td></tr>';
             return;
         }
         tbody.innerHTML = rows.map(function(r){
@@ -321,9 +321,13 @@
             var aliciBtn = '<button class="wa-btn-mini" data-salon-id="' + r.id + '" data-salon-adi="' + escHtml(r.salon_adi) + '" data-action="aliciler">👥 Alıcılar</button>';
             var loglarBtn = '<button class="wa-btn-mini" data-salon-id="' + r.id + '" data-action="loglar">📨 Loglar</button>';
             var yonetBtn = '<a class="wa-btn-mini wa-btn-mini-primary" href="' + yonetUrl + '" target="_blank">🔧 Yönet</a>';
+            var saglayiciBadge = r.saglayici === 'cloud_api'
+                ? '<span class="wa-badge" style="background:#1877F2;color:#fff;">☁️ Cloud API</span>'
+                : '<span class="wa-badge gri">📱 Baileys</span>';
             return '<tr>'
                 + '<td>' + r.id + '</td>'
                 + '<td><b>' + escHtml(r.salon_adi) + '</b></td>'
+                + '<td>' + saglayiciBadge + '</td>'
                 + '<td>' + escHtml(r.numara || '—') + '</td>'
                 + '<td><span class="wa-badge ' + escHtml(durumClass) + '">' + escHtml(r.durum || 'pasif') + '</span></td>'
                 + '<td>' + r.gunluk_limit + '</td>'
