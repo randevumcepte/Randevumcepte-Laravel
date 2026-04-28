@@ -267,6 +267,93 @@ Route::prefix('sistemyonetim')->group(function() {
 
 });
 
+/*
+|--------------------------------------------------------------------------
+| Sistem Yonetim V2 — Yeni gelismis admin paneli
+|--------------------------------------------------------------------------
+*/
+Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() {
+    Route::get('/', 'PanelController@dashboard');
+    Route::get('/dashboard', 'PanelController@dashboard')->name('sistemyonetim.v2.dashboard');
+
+    // Salonlar
+    Route::get('/salonlar', 'PanelController@salonlar')->name('sistemyonetim.v2.salonlar');
+    Route::get('/salon/{id}', 'PanelController@salonDetay')->name('sistemyonetim.v2.salon');
+    Route::post('/salon/{id}/askiya-al', 'PanelController@salonAskiyaAl');
+    Route::post('/salon/{id}/aktif-et', 'PanelController@salonAktifEt');
+    Route::post('/salon/{id}/mt-ata', 'PanelController@salonMusteriTemsilcisiAta');
+    Route::post('/salon/{id}/hesabina-gir', 'PanelController@salonHesabinaGir');
+    Route::get('/impersonation-bitir', 'PanelController@impersonationBitir')->name('sistemyonetim.v2.impersonation.bitir');
+
+    // Notlar
+    Route::post('/salon/{id}/not', 'PanelController@notEkle');
+    Route::delete('/not/{id}', 'PanelController@notSil');
+    Route::get('/not/{id}/pin', 'PanelController@notPin');
+
+    // Ekip
+    Route::get('/ekip', 'PanelController@ekip');
+    Route::get('/ekip/yeni', 'PanelController@ekipFormYeni');
+    Route::post('/ekip', 'PanelController@ekipKaydet');
+    Route::get('/ekip/{id}/duzenle', 'PanelController@ekipFormDuzenle');
+    Route::put('/ekip/{id}', 'PanelController@ekipGuncelle');
+    Route::post('/ekip/{id}/pasif', 'PanelController@ekipPasifEt');
+
+    // Aktivite
+    Route::get('/aktivite-log', 'PanelController@aktiviteLog');
+
+    // Ticket
+    Route::get('/ticket', 'PanelController@ticketlar');
+    Route::get('/ticket/yeni', 'PanelController@ticketYeni');
+    Route::post('/ticket', 'PanelController@ticketKaydet');
+    Route::get('/ticket/{id}', 'PanelController@ticketDetay');
+    Route::post('/ticket/{id}/yanit', 'PanelController@ticketYanit');
+    Route::post('/ticket/{id}/durum', 'PanelController@ticketDurum');
+    Route::post('/ticket/{id}/ata', 'PanelController@ticketAta');
+    Route::post('/ticket/{id}/oncelik', 'PanelController@ticketOncelik');
+
+    // Saglik & Guvenlik
+    Route::get('/sistem-saglik', 'PanelController@sistemSaglik');
+    Route::get('/guvenlik/girisler', 'PanelController@girisLoglari');
+    Route::get('/guvenlik/impersonation', 'PanelController@impersonationLoglari');
+
+    // Profil
+    Route::get('/profil', 'PanelController@profil');
+    Route::put('/profil', 'PanelController@profilGuncelle');
+    Route::post('/profil/sifre', 'PanelController@profilSifre');
+
+    // CSV Export
+    Route::get('/salonlar/csv', 'PanelController@salonlarCsv');
+    Route::get('/aktivite-log/csv', 'PanelController@aktiviteCsv');
+    Route::get('/ticket/csv', 'PanelController@ticketCsv');
+
+    // Toplu islem
+    Route::post('/salon/toplu-islem', 'PanelController@topluIslem');
+
+    // API: arama + bildirim
+    Route::get('/api/global-arama', 'PanelController@globalArama');
+    Route::get('/api/salon-ara', 'PanelController@salonAraJson');
+    Route::get('/api/bildirim-feed', 'PanelController@bildirimFeed');
+
+    // Duyurular
+    Route::get('/duyuru', 'DuyuruController@index');
+    Route::get('/duyuru/yeni', 'DuyuruController@yeni');
+    Route::post('/duyuru', 'DuyuruController@kaydet');
+    Route::get('/duyuru/{id}', 'DuyuruController@detay')->where('id', '[0-9]+');
+    Route::get('/duyuru/{id}/duzenle', 'DuyuruController@duzenle');
+    Route::put('/duyuru/{id}', 'DuyuruController@guncelle');
+    Route::delete('/duyuru/{id}', 'DuyuruController@sil');
+});
+
+// Salon paneli — destek + duyuru okundu
+Route::prefix('isletmeyonetim')->middleware('auth:isletmeyonetim')->group(function() {
+    Route::post('/duyuru/{id}/okundu', 'SalonDestekController@duyuruOkundu');
+    Route::get('/destek', 'SalonDestekController@destekListesi');
+    Route::get('/destek/yeni', 'SalonDestekController@destekYeniForm');
+    Route::post('/destek', 'SalonDestekController@destekKaydet');
+    Route::get('/destek/{id}', 'SalonDestekController@destekDetay')->where('id', '[0-9]+');
+    Route::post('/destek/{id}/yanit', 'SalonDestekController@destekYanit');
+});
+
 Route::prefix('isletmeyonetim')->group(function() {
 
 	

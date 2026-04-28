@@ -127,6 +127,12 @@
                 <ul class="sidebar-elements">
                   <li class="divider">Hoşgeldiniz : {{Auth::user()->name}} <br />Sistem Yönetim Paneli</li>
 
+                  <li>
+                    <a href="/sistemyonetim/v2/dashboard" style="background: linear-gradient(135deg, #6d3aaa, #8a5cc7); color: #fff; font-weight: 600;">
+                      <span class="icon mdi mdi-rocket-launch"></span> Yeni Panel (v2)
+                    </a>
+                  </li>
+
                   <li class="{{ $pageindex == 99 ? 'active' : '' }}">
                     <a href="/sistemyonetim/whatsapp-panel">
                       <span class="icon mdi mdi-whatsapp"></span> WhatsApp Yönetim

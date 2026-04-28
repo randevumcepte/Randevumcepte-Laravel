@@ -924,6 +924,21 @@ class AdminController extends Controller
 
     }
       public function cikisyap(){
+        $u = auth('sistemyonetim')->user();
+        if ($u) {
+            \App\SistemYonetim\Audit::log('logout', 'sistem_yoneticisi', $u->id, $u->name);
+        }
+
+        // Aktif impersonation varsa kapat
+        $impId = session('sysadmin_impersonation_id');
+        if ($impId) {
+            $imp = \App\SistemYonetim\ImpersonationLog::find($impId);
+            if ($imp && !$imp->bitis_tarihi) {
+                $imp->bitis_tarihi = date('Y-m-d H:i:s');
+                $imp->save();
+            }
+            session()->forget(['sysadmin_impersonation_id', 'sysadmin_impersonation_uid']);
+        }
         auth('sistemyonetim')->logout();
         return redirect('/sistemyonetim' );
     }

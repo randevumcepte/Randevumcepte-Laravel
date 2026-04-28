@@ -173,25 +173,29 @@
 
   /* Modal icindeki quick-action butonlari */
   .pm-quick-actions{
-    display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;
+    display:grid; grid-template-columns: repeat(4, 1fr); gap:8px;
     margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid #e2e8f0;
   }
   .pm-quick-btn{
     border:1px solid #e2e8f0; background:#fff; cursor:pointer;
-    padding:10px 12px; border-radius:10px; font-weight:600; font-size:12.5px;
-    display:inline-flex; align-items:center; justify-content:center; gap:7px;
-    transition:.15s; color:#334155;
+    padding:10px 8px; border-radius:10px; font-weight:600; font-size:12px;
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    transition:.15s; color:#334155; line-height:1.2;
   }
   .pm-quick-btn i{ font-size:13px; }
   .pm-quick-btn:hover{ border-color:#cbd5e1; background:#f8fafc; transform: translateY(-1px); }
+  .pm-quick-btn--ode{ color:#fff; border:0; background: linear-gradient(135deg,#7B2FB8,#9D5DC8); }
+  .pm-quick-btn--ode:hover{ background: linear-gradient(135deg,#5C008E,#7B2FB8); color:#fff; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(123,47,184,.25); }
   .pm-quick-btn--bonus{ color:#15803d; border-color:#bbf7d0; background:#f0fdf4; }
   .pm-quick-btn--bonus:hover{ background:#dcfce7; border-color:#86efac; color:#15803d; }
   .pm-quick-btn--kesinti{ color:#b91c1c; border-color:#fecaca; background:#fef2f2; }
   .pm-quick-btn--kesinti:hover{ background:#fee2e2; border-color:#fca5a5; color:#b91c1c; }
   .pm-quick-btn--liste{ color:var(--rmc-purple-1); border-color:#e0d4ec; background:var(--rmc-purple-bg); }
   .pm-quick-btn--liste:hover{ background:#ede0f5; border-color:#cdb1e0; color:var(--rmc-purple-1); }
+  .pm-quick-btn--aktif{ box-shadow: inset 0 0 0 2px currentColor; opacity:.55; cursor:default; }
+  .pm-quick-btn--aktif:hover{ transform:none; }
   @media (max-width: 600px){
-    .pm-quick-actions{ grid-template-columns: 1fr; }
+    .pm-quick-actions{ grid-template-columns: 1fr 1fr; }
   }
 
   /* Mobil/tablet duzenleme */
@@ -608,6 +612,20 @@
           <button type="button" class="pm-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
         </div>
         <div class="pm-body">
+          <div class="pm-quick-actions">
+            <button type="button" class="pm-quick-btn pm-quick-btn--ode pm-quick-ode">
+              <i class="fa fa-credit-card"></i> Öde
+            </button>
+            <button type="button" class="pm-quick-btn pm-quick-btn--bonus pm-quick-btn--aktif" disabled>
+              <i class="fa fa-plus-circle"></i> Hareket
+            </button>
+            <button type="button" class="pm-quick-btn pm-quick-btn--kesinti pm-quick-kesinti">
+              <i class="fa fa-minus-circle"></i> Kesinti
+            </button>
+            <button type="button" class="pm-quick-btn pm-quick-btn--liste pm-quick-hareketler">
+              <i class="fa fa-history"></i> Hareketler
+            </button>
+          </div>
           <div class="pm-form-group">
             <label>Hareket Tipi</label>
             <div class="pm-tip-radio">
@@ -672,14 +690,17 @@
         </div>
         <div class="pm-body">
           <div class="pm-quick-actions">
-            <button type="button" class="pm-quick-btn pm-quick-btn--bonus" id="primOde_quickBonus">
-              <i class="fa fa-plus-circle"></i> Bonus Ekle
+            <button type="button" class="pm-quick-btn pm-quick-btn--ode pm-quick-btn--aktif" disabled>
+              <i class="fa fa-credit-card"></i> Öde
             </button>
-            <button type="button" class="pm-quick-btn pm-quick-btn--kesinti" id="primOde_quickKesinti">
-              <i class="fa fa-minus-circle"></i> Kesinti Ekle
+            <button type="button" class="pm-quick-btn pm-quick-btn--bonus pm-quick-bonus">
+              <i class="fa fa-plus-circle"></i> Bonus
             </button>
-            <button type="button" class="pm-quick-btn pm-quick-btn--liste" id="primOde_quickHareketler">
-              <i class="fa fa-history"></i> Hareketleri Gör
+            <button type="button" class="pm-quick-btn pm-quick-btn--kesinti pm-quick-kesinti">
+              <i class="fa fa-minus-circle"></i> Kesinti
+            </button>
+            <button type="button" class="pm-quick-btn pm-quick-btn--liste pm-quick-hareketler">
+              <i class="fa fa-history"></i> Hareketler
             </button>
           </div>
 
@@ -839,6 +860,7 @@ $(function(){
   _raporData.forEach(function(r){ _raporIndex[r.personel_id] = r; });
 
   function openBonusKesintiModal(pid, adi, tip){
+    setAktifPersonel(pid);
     var $m = $('#primHareketModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
     $('#primHareket_personelId').val(pid);
@@ -871,17 +893,33 @@ $(function(){
     setTimeout(function(){ openHareketListeModal(pid, adi); }, 200);
   });
 
-  // ============ PRIM ODE ============
-  $(document).on('click','.prim-ode', function(){
+  // ============ Aktif personel state ============
+  var _aktifPersonel = null; // {id, adi, net, odenen, kalan}
+
+  function setAktifPersonel(pid){
+    var r = _raporIndex[pid];
+    if(!r) return;
+    _aktifPersonel = {
+      id: pid,
+      adi: r.personel_adi,
+      net: parseFloat(r.net_hakedis) || 0,
+      odenen: parseFloat(r.odenen_toplam) || 0,
+      kalan: parseFloat(r.kalan) || 0
+    };
+  }
+
+  function openOdeModal(pid, adi){
+    setAktifPersonel(pid);
+    var r = _raporIndex[pid];
+    var net = r ? (parseFloat(r.net_hakedis)||0) : 0;
+    var odenen = r ? (parseFloat(r.odenen_toplam)||0) : 0;
+    var kalan = r ? (parseFloat(r.kalan)||0) : 0;
+
     var $m = $('#primOdeModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
-    var pid = $(this).data('value');
-    var net = parseFloat($(this).data('net')) || 0;
-    var odenen = parseFloat($(this).data('odenen')) || 0;
-    var kalan = parseFloat($(this).data('kalan')) || 0;
 
     $('#primOde_personelId').val(pid);
-    $('#primOde_personelAdi').text($(this).data('adi'));
+    $('#primOde_personelAdi').text(adi || (r ? r.personel_adi : ''));
     $('#primOde_netLabel').text(_formatTL(net) + ' ₺');
     $('#primOde_odenenLabel').text(_formatTL(odenen) + ' ₺');
     $('#primOde_kalanLabel').text(_formatTL(kalan) + ' ₺');
@@ -889,11 +927,28 @@ $(function(){
     $('#primOdeForm')[0].reset();
     $('#primOde_personelId').val(pid);
     $('#primOdeForm input[name="donem"]').val(_donem);
-    // Default tutar: kalan varsa kalan, yoksa NET (ek odeme senaryosu icin)
     var defaultTutar = kalan > 0 ? kalan : (net > odenen ? net - odenen : 0);
     $('#primOde_tutar').val(defaultTutar > 0 ? defaultTutar.toFixed(2) : '');
     $('#primOdeForm input[name="odeme_tarihi"]').val('{{date("Y-m-d")}}');
     $m.modal('show');
+  }
+
+  function openOdemeDetayModal(pid, adi){
+    setAktifPersonel(pid);
+    var $m = $('#primOdemeDetayModal');
+    if($m.parent()[0] !== document.body) $m.appendTo('body');
+    $('#primOdemeDetay_personelAdi').text(adi);
+    $('#primOdemeDetay_ozet').hide();
+    $('#primOdemeDetay_liste').html('<div class="pm-loading"><div class="pm-spinner"></div><div style="margin-top:14px; font-weight:500">Yükleniyor...</div></div>');
+    $m.modal('show');
+    primOdemeDetayDoldur(pid);
+  }
+
+  // ============ PRIM ODE (tabloda click) ============
+  $(document).on('click','.prim-ode', function(){
+    var pid = $(this).data('value');
+    var adi = $(this).data('adi');
+    openOdeModal(pid, adi);
   });
 
   $('#primOdeForm').on('submit', function(e){
@@ -917,17 +972,8 @@ $(function(){
   });
 
   // Ödeme geçmişini göster (çoklu ödeme) + tek tek sil
-  $(document).on('click','.prim-odeme-detay', function(){
-    var $m = $('#primOdemeDetayModal');
-    if($m.parent()[0] !== document.body) $m.appendTo('body');
-    var pid = $(this).data('value');
-    var adi = $(this).data('adi');
+  function primOdemeDetayDoldur(pid){
     var r = _raporIndex[pid];
-    $('#primOdemeDetay_personelAdi').text(adi);
-    $('#primOdemeDetay_ozet').hide();
-    $('#primOdemeDetay_liste').html('<div class="pm-loading"><div class="pm-spinner"></div><div style="margin-top:14px; font-weight:500">Yükleniyor...</div></div>');
-    $m.modal('show');
-
     $.ajax({
       url: '/isletmeyonetim/primodemelistesi',
       method: 'GET',
@@ -942,8 +988,6 @@ $(function(){
           );
           return;
         }
-
-        // Ozet bilgileri (rapor satirindan)
         var net = r ? parseFloat(r.net_hakedis||0) : 0;
         var odenen = parseFloat(res.odenen_toplam||0);
         var kalan = Math.max(0, net - odenen);
@@ -974,6 +1018,12 @@ $(function(){
         $('#primOdemeDetay_liste').html(html);
       }
     });
+  }
+
+  $(document).on('click','.prim-odeme-detay', function(){
+    var pid = $(this).data('value');
+    var adi = $(this).data('adi');
+    openOdemeDetayModal(pid, adi);
   });
 
   // Tek bir odemeyi sil
@@ -1028,6 +1078,7 @@ $(function(){
   function _escHtml(s){ return $('<div>').text(s||'').html(); }
 
   function openHareketListeModal(pid, adi){
+    setAktifPersonel(pid);
     var $m = $('#primHareketListeModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
     $('#primListe_personelAdi').text(adi);

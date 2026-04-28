@@ -351,8 +351,87 @@
    </head>
    
    <body>
+      @if(session('sysadmin_impersonation_id'))
+      <div style="background: linear-gradient(90deg, #d99a1f, #d04d5e); color: #fff; padding: 10px 20px; text-align: center; font-size: 13px; font-weight: 600; position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999; box-shadow: 0 -4px 20px rgba(208, 77, 94, 0.35);">
+         <span>⚠ Bu hesaba <strong>sistem yöneticisi olarak</strong> giriş yaptınız. Yapacağınız tüm işlemler loglanmaktadır.</span>
+         <a href="/sistemyonetim/v2/impersonation-bitir" style="color: #fff; text-decoration: underline; margin-left: 14px; font-weight: 700;">↩ Yönetim Paneline Dön</a>
+      </div>
+      @endif
+
+      {{-- Sistem yonetimi duyurulari --}}
+      @php
+         $aktifDuyurular = collect();
+         try {
+            $userId = Auth::guard('isletmeyonetim')->check() ? Auth::guard('isletmeyonetim')->user()->id : null;
+            $salonId = isset($isletme) ? $isletme->id : null;
+            $ilId = isset($isletme) ? $isletme->il_id : null;
+            if ($userId && $salonId) {
+               $tumDuyurular = \App\SistemYonetim\Duyuru::where('aktif', 1)
+                  ->where(function($q){
+                     $q->whereNull('baslangic_tarihi')->orWhere('baslangic_tarihi', '<=', now());
+                  })
+                  ->where(function($q){
+                     $q->whereNull('bitis_tarihi')->orWhere('bitis_tarihi', '>=', now());
+                  })
+                  ->orderBy('id', 'desc')
+                  ->get();
+               $okunanlar = \App\SistemYonetim\DuyuruOkundu::where('user_id', $userId)->pluck('duyuru_id')->toArray();
+               foreach ($tumDuyurular as $d) {
+                  if (!$d->salonIcinGecerli($salonId, $ilId)) continue;
+                  if (!$d->sticky && in_array($d->id, $okunanlar)) continue;
+                  $aktifDuyurular->push($d);
+               }
+            }
+         } catch (\Exception $e) {}
+         $tipRenk = ['bilgi'=>['#e3eefb','#2a5793','#4a8bdc'],'uyari'=>['#fbf2dd','#876012','#d99a1f'],'onemli'=>['#fbe4e8','#8c2c39','#d04d5e'],'bakim'=>['#ededf3','#444','#777589'],'kampanya'=>['#e2f6ec','#1f7a4f','#2cae71']];
+      @endphp
+      @if($aktifDuyurular->count() > 0)
+         <div id="rcDuyuruWrapper" style="position:fixed;top:8px;right:8px;z-index:99998;max-width:380px;display:flex;flex-direction:column;gap:8px">
+            @foreach($aktifDuyurular->take(3) as $d)
+               @php $r = $tipRenk[$d->tip] ?? $tipRenk['bilgi']; @endphp
+               <div data-duyuru-id="{{ $d->id }}" style="background:{{ $r[0] }};border-left:4px solid {{ $r[2] }};color:{{ $r[1] }};padding:12px 14px;border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,0.12);font-size:13px">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+                     <div>
+                        <div style="font-weight:700;margin-bottom:4px">{{ $d->baslik }}</div>
+                        <div style="font-size:12.5px;line-height:1.5">{!! nl2br(e(\Illuminate\Support\Str::limit($d->icerik, 240))) !!}</div>
+                        @if($d->cta_metin && $d->cta_link)
+                           <a href="{{ $d->cta_link }}" style="display:inline-block;margin-top:8px;padding:5px 12px;background:{{ $r[2] }};color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:12px">{{ $d->cta_metin }} →</a>
+                        @endif
+                     </div>
+                     <button onclick="rcDuyuruKapat({{ $d->id }}, this)" style="background:none;border:none;color:{{ $r[1] }};cursor:pointer;font-size:18px;line-height:1;padding:2px 6px" title="Kapat">×</button>
+                  </div>
+               </div>
+            @endforeach
+         </div>
+         <script>
+         function rcDuyuruKapat(id, btn) {
+            const card = btn.closest('[data-duyuru-id]');
+            if (!card) return;
+            card.style.opacity = '0';
+            card.style.transform = 'translateX(20px)';
+            card.style.transition = 'all .25s';
+            setTimeout(() => card.remove(), 250);
+            const t = document.querySelector('meta[name=csrf-token]');
+            fetch('/isletmeyonetim/duyuru/' + id + '/okundu', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': (t ? t.content : '{{ csrf_token() }}') },
+               body: '{}'
+            }).catch(()=>{});
+         }
+         </script>
+      @endif
+
       <button style="display: none;" id="randevudetayigetir" data-toggle="modal" data-target="#randevu-duzenle-modal"></button>
       <button style="display: none;" id="ajandadetayigetir" data-toggle="modal" data-target="#ajanda_detay_modal"></button>
+
+      {{-- Yardim & Destek floating buton --}}
+      @if(Auth::guard('isletmeyonetim')->check() && !session('sysadmin_impersonation_id'))
+      <a href="/isletmeyonetim/destek" id="rcYardimBtn" title="Yardım & Destek"
+         style="position:fixed;bottom:20px;right:20px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#5C008E,#8a5cc7);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(92,0,142,0.35);z-index:9000;text-decoration:none;font-size:24px;transition:transform 0.2s">
+         <i class="material-icons" style="font-size:24px;color:#fff">help_outline</i>
+      </a>
+      <style>#rcYardimBtn:hover{transform:scale(1.08)}</style>
+      @endif
         <?php 
          require_once app_path('VoiceTelekom/Sms/SmsApi.php');
          require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
