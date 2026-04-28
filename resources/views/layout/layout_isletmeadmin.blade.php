@@ -429,56 +429,57 @@
       <style>
       #rcYardimBtn {
          position: fixed;
-         bottom: 24px;
-         right: 24px;
+         bottom: 28px;
+         right: 28px;
          display: inline-flex;
          align-items: center;
-         gap: 10px;
+         gap: 14px;
          background: linear-gradient(135deg, #5C008E 0%, #8a5cc7 100%);
          color: #fff !important;
-         padding: 12px 22px 12px 14px;
+         padding: 18px 30px 18px 20px;
          border-radius: 999px;
-         box-shadow: 0 10px 28px rgba(92, 0, 142, 0.45);
+         box-shadow: 0 14px 36px rgba(92, 0, 142, 0.55);
          z-index: 9000;
          text-decoration: none !important;
-         font-size: 15px;
-         font-weight: 600;
-         letter-spacing: 0.2px;
+         font-size: 18px;
+         font-weight: 700;
+         letter-spacing: 0.3px;
          transition: transform 0.2s, box-shadow 0.2s;
-         animation: rcYardimPulse 2.6s ease-out infinite;
-         border: 2px solid rgba(255,255,255,0.18);
+         animation: rcYardimPulse 2.4s ease-out infinite;
+         border: 3px solid rgba(255,255,255,0.22);
+         text-transform: none;
+         line-height: 1;
       }
       #rcYardimBtn:hover {
-         transform: translateY(-2px) scale(1.04);
-         box-shadow: 0 14px 36px rgba(92, 0, 142, 0.6);
+         transform: translateY(-3px) scale(1.05);
+         box-shadow: 0 18px 44px rgba(92, 0, 142, 0.7);
          color: #fff !important;
          text-decoration: none !important;
       }
       #rcYardimBtn .rc-yardim-icon {
-         width: 34px;
-         height: 34px;
+         width: 44px;
+         height: 44px;
          border-radius: 50%;
-         background: rgba(255,255,255,0.20);
+         background: rgba(255,255,255,0.22);
          display: inline-flex;
          align-items: center;
          justify-content: center;
          flex-shrink: 0;
       }
-      #rcYardimBtn .rc-yardim-icon i,
       #rcYardimBtn .rc-yardim-icon svg {
-         font-size: 22px !important;
-         color: #fff !important;
+         width: 28px;
+         height: 28px;
+         display: block;
       }
       @keyframes rcYardimPulse {
-         0%   { box-shadow: 0 10px 28px rgba(92, 0, 142, 0.45), 0 0 0 0 rgba(217, 179, 245, 0.55); }
-         70%  { box-shadow: 0 10px 28px rgba(92, 0, 142, 0.45), 0 0 0 18px rgba(217, 179, 245, 0); }
-         100% { box-shadow: 0 10px 28px rgba(92, 0, 142, 0.45), 0 0 0 0 rgba(217, 179, 245, 0); }
+         0%   { box-shadow: 0 14px 36px rgba(92, 0, 142, 0.55), 0 0 0 0 rgba(217, 179, 245, 0.65); }
+         70%  { box-shadow: 0 14px 36px rgba(92, 0, 142, 0.55), 0 0 0 26px rgba(217, 179, 245, 0); }
+         100% { box-shadow: 0 14px 36px rgba(92, 0, 142, 0.55), 0 0 0 0 rgba(217, 179, 245, 0); }
       }
       @media (max-width: 720px) {
-         #rcYardimBtn { padding: 10px 16px 10px 10px; font-size: 13.5px; }
-         #rcYardimBtn .rc-yardim-icon { width: 28px; height: 28px; }
-         #rcYardimBtn .rc-yardim-icon i,
-         #rcYardimBtn .rc-yardim-icon svg { font-size: 18px !important; width: 18px; height: 18px; }
+         #rcYardimBtn { padding: 14px 22px 14px 14px; font-size: 15px; gap: 10px; }
+         #rcYardimBtn .rc-yardim-icon { width: 36px; height: 36px; }
+         #rcYardimBtn .rc-yardim-icon svg { width: 22px; height: 22px; }
       }
       </style>
       <a href="/isletmeyonetim/destek" id="rcYardimBtn" title="Bir sorunun mu var? Destek ekibimize yaz">

@@ -62,7 +62,10 @@
                      <textarea name="mesaj" class="form-control" rows="3" placeholder="Yanıt yaz..." required></textarea>
                   </div>
                   <div class="text-right">
-                     <button type="submit" class="btn btn-primary"><i class="material-icons">send</i> Gönder</button>
+                     <button type="submit" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        Gönder
+                     </button>
                   </div>
                </form>
                @else
