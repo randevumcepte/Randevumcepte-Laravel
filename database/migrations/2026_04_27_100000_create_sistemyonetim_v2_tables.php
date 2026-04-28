@@ -9,6 +9,15 @@ class CreateSistemyonetimV2Tables extends Migration
 {
     public function up()
     {
+        // Onceki basarisiz migration denemelerinden kalan kismi tablolari temizle
+        // (bu tablolar bu migration'da ilk kez olusturuluyor, veri kaybi riski yok)
+        Schema::dropIfExists('sistemyonetim_destek_mesajlari');
+        Schema::dropIfExists('sistemyonetim_destek_talepleri');
+        Schema::dropIfExists('sistemyonetim_salon_notlari');
+        Schema::dropIfExists('sistemyonetim_impersonation_loglari');
+        Schema::dropIfExists('sistemyonetim_login_loglari');
+        Schema::dropIfExists('sistemyonetim_audit_log');
+
         // sistemyoneticileri: rol/aktif/son giris kolonlari
         if (Schema::hasTable('sistemyoneticileri')) {
             Schema::table('sistemyoneticileri', function (Blueprint $table) {

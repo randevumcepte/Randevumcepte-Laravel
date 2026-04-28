@@ -8,6 +8,10 @@ class CreateSistemyonetimDuyurularTable extends Migration
 {
     public function up()
     {
+        // Onceki basarisiz migration denemelerinden kalan kismi tablolari temizle
+        Schema::dropIfExists('sistemyonetim_duyuru_okundu');
+        Schema::dropIfExists('sistemyonetim_duyurular');
+
         if (!Schema::hasTable('sistemyonetim_duyurular')) {
             Schema::create('sistemyonetim_duyurular', function (Blueprint $table) {
                 $table->bigIncrements('id');
