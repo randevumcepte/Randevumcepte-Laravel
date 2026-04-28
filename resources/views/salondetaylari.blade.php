@@ -542,10 +542,144 @@
                } catch(e){ showToast('Bağlantı hatası'); btn.disabled = false; btn.innerHTML = '✓ Doğrula ve Kodu Al'; }
             };
 
+            /* ===== Web Audio: tık sesi + alkış + fanfar ===== */
+            let _ctx = null;
+            function ac(){ if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)(); return _ctx; }
+            function playTick(vol){
+               try {
+                  const c = ac(); if (c.state === 'suspended') c.resume();
+                  const now = c.currentTime;
+                  const len = Math.floor(c.sampleRate * 0.055);
+                  const buf = c.createBuffer(1, len, c.sampleRate);
+                  const d = buf.getChannelData(0);
+                  for (let i = 0; i < len; i++){
+                     const t = i/len;
+                     d[i] = (Math.random()*2-1) * Math.pow(1-t, 4) * (vol || 0.45);
+                  }
+                  const src = c.createBufferSource(); src.buffer = buf;
+                  const g = c.createGain(); g.gain.setValueAtTime(1, now);
+                  src.connect(g); g.connect(c.destination); src.start(now);
+               } catch(e){}
+            }
+            function startTickLoop(){
+               const n = DILIMLER.length, sliceAng = 360/n;
+               let last = -1;
+               function frame(){
+                  if (!spinning) return;
+                  let a = 0;
+                  try {
+                     const mat = new DOMMatrix(window.getComputedStyle(wheel).transform);
+                     a = (Math.atan2(mat.b, mat.a) * 180 / Math.PI + 360) % 360;
+                  } catch(e){ a = currentRot % 360; }
+                  const idx = Math.floor(((360-a)%360) / sliceAng) % n;
+                  if (idx !== last){
+                     last = idx; playTick(0.45);
+                  }
+                  requestAnimationFrame(frame);
+               }
+               requestAnimationFrame(frame);
+            }
+            function playCheer(){
+               try {
+                  const c = ac(); if (c.state === 'suspended') c.resume();
+                  const now = c.currentTime;
+                  const dur = 4, sr = c.sampleRate;
+                  const buf = c.createBuffer(2, sr*dur, sr);
+                  for (let ch = 0; ch < 2; ch++){
+                     const d = buf.getChannelData(ch);
+                     for (let i = 0; i < d.length; i++){
+                        const t = i/sr;
+                        const env = t<.5 ? t/.5 : t<3 ? 1 : Math.pow(1-(t-3)/1, 1.5);
+                        const mod = .5 + .5 * Math.abs(Math.sin(t*7.5 + ch*.4 + Math.random()*.05));
+                        d[i] = (Math.random()*2-1) * mod * env * .3;
+                     }
+                  }
+                  const src = c.createBufferSource(); src.buffer = buf;
+                  const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1600; bp.Q.value = .7;
+                  const gv = c.createGain(); gv.gain.value = 2.2;
+                  src.connect(bp); bp.connect(gv); gv.connect(c.destination);
+                  src.start(now);
+                  [[0,523],[280,659],[520,784],[720,880],[880,1047]].forEach(([ms,f]) => {
+                     const o = c.createOscillator(), g = c.createGain();
+                     o.type = 'sine'; o.frequency.value = f;
+                     const t0 = now + ms/1000;
+                     g.gain.setValueAtTime(0, t0);
+                     g.gain.linearRampToValueAtTime(.2, t0+.06);
+                     g.gain.exponentialRampToValueAtTime(.001, t0+.5);
+                     o.connect(g); g.connect(c.destination);
+                     o.start(t0); o.stop(t0+.6);
+                  });
+               } catch(e){}
+            }
+
+            /* ===== Kutlama: konfeti + balon + havai fişek ===== */
+            let cCan = null, cCtx = null, cRAF = null, cParts = [];
+            function startCeleb(){
+               if (!cCan){
+                  cCan = document.createElement('canvas');
+                  cCan.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:100002; pointer-events:none;';
+                  document.body.appendChild(cCan);
+                  cCtx = cCan.getContext('2d');
+               }
+               cCan.width = innerWidth; cCan.height = innerHeight; cCan.style.display = 'block';
+               cParts = [];
+               const cols = ['#FF6B6B','#FFE66D','#4ECDC4','#A29BFE','#FD79A8','#6C5CE7','#00B894','#FDCB6E','#E17055','#74B9FF'];
+               for (let i = 0; i < 120; i++) cParts.push({type:'c', x:Math.random()*cCan.width, y:-20-Math.random()*300, vx:(Math.random()-.5)*3, vy:3+Math.random()*5, rot:Math.random()*360, rs:(Math.random()-.5)*9, w:6+Math.random()*8, h:3+Math.random()*5, color:cols[Math.floor(Math.random()*cols.length)], a:1});
+               for (let i = 0; i < 14; i++) cParts.push({type:'b', x:40+Math.random()*(cCan.width-80), y:cCan.height+30+Math.random()*120, vx:(Math.random()-.5)*1.4, vy:-(2+Math.random()*2.8), sw:Math.random()*Math.PI*2, ss:.02+Math.random()*.02, r:18+Math.random()*14, color:cols[Math.floor(Math.random()*cols.length)], a:1});
+               for (let b = 0; b < 5; b++){
+                  const bx = 80+Math.random()*(cCan.width-160), by = 60+Math.random()*(cCan.height*.45), bc = cols[Math.floor(Math.random()*cols.length)];
+                  setTimeout(() => {
+                     for (let p = 0; p < 32; p++){
+                        const ang = (p/32)*Math.PI*2, sp = 3+Math.random()*6;
+                        cParts.push({type:'s', x:bx, y:by, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, r:3+Math.random()*3, color:bc, a:1, life:1});
+                     }
+                  }, b*500);
+               }
+               if (cRAF) cancelAnimationFrame(cRAF);
+               animCeleb();
+               playCheer();
+            }
+            function animCeleb(){
+               if (!cCtx) return;
+               const W = cCan.width, H = cCan.height;
+               cCtx.clearRect(0, 0, W, H);
+               cParts.forEach(p => {
+                  if (p.a <= .01) return;
+                  cCtx.save(); cCtx.globalAlpha = p.a;
+                  if (p.type === 'c'){
+                     p.x += p.vx; p.y += p.vy; p.vy += .09; p.rot += p.rs;
+                     if (p.y > H+20){ p.a = 0; cCtx.restore(); return; }
+                     cCtx.translate(p.x, p.y); cCtx.rotate(p.rot*Math.PI/180);
+                     cCtx.fillStyle = p.color; cCtx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+                  } else if (p.type === 'b'){
+                     p.sw += p.ss; p.x += p.vx + Math.sin(p.sw)*.6; p.y += p.vy;
+                     if (p.y < -70){ p.a = 0; cCtx.restore(); return; }
+                     cCtx.translate(p.x, p.y);
+                     cCtx.beginPath(); cCtx.arc(0, 0, p.r, 0, Math.PI*2); cCtx.fillStyle = p.color; cCtx.fill();
+                     cCtx.beginPath(); cCtx.arc(-p.r*.3, -p.r*.3, p.r*.27, 0, Math.PI*2); cCtx.fillStyle = 'rgba(255,255,255,.38)'; cCtx.fill();
+                     cCtx.beginPath(); cCtx.moveTo(0, p.r); cCtx.quadraticCurveTo(5, p.r+14, -3, p.r+28);
+                     cCtx.strokeStyle = 'rgba(255,255,255,.55)'; cCtx.lineWidth = 1.2; cCtx.stroke();
+                  } else if (p.type === 's'){
+                     p.x += p.vx; p.y += p.vy; p.vy += .18; p.life -= .022; p.a = Math.max(0, p.life);
+                     cCtx.beginPath(); cCtx.arc(p.x, p.y, Math.max(.5, p.r*p.life), 0, Math.PI*2);
+                     cCtx.fillStyle = p.color; cCtx.fill();
+                  }
+                  cCtx.restore();
+               });
+               cRAF = requestAnimationFrame(animCeleb);
+            }
+            function stopCeleb(){
+               if (cRAF){ cancelAnimationFrame(cRAF); cRAF = null; }
+               if (cCan) cCan.style.display = 'none';
+               cParts = [];
+            }
+            window.stopCarkCeleb = stopCeleb; // dışarıdan kapatabilelim
+
             // ŞİMDİ ÇEVİR
             window.carkSpin = async function(){
                if (spinning) return;
                spinning = true;
+               try { ac().resume(); } catch(e){}
                const btn = document.getElementById('carkPopupSpinBtn');
                if (btn){ btn.disabled = true; btn.innerHTML = '⏳ Çevriliyor...'; }
                let data;
@@ -581,8 +715,16 @@
                currentRot += nSpins + diff;
                wheel.style.transform = `rotate(${currentRot}deg)`;
 
+               // Tık sesi döngüsü — dilim geçişlerinde çalar
+               startTickLoop();
+
                setTimeout(() => {
+                  spinning = false; // tick loop'u durdur
                   showResult(data.dilim, data.odulKodu, data.kayitGerekli);
+                  // Ödül varsa kutlama (puan/hizmet/ürün) — boş/tekrar dene'de gösterme
+                  if (['puan','hizmet_indirimi','urun_indirimi'].includes(data.dilim.tip) && data.dilim.deger){
+                     startCeleb();
+                  }
                }, 9200);
             };
          })();
@@ -601,6 +743,7 @@
             pop.classList.remove('is-open');
             pop.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('cark-popup-open');
+            try { window.stopCarkCeleb && window.stopCarkCeleb(); } catch(e){}
          };
       </script>
    @endif
