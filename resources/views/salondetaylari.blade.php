@@ -244,72 +244,41 @@
          </div>
       </a>
 
-      {{-- ============ CARKIFELEK POPUP (sayfa acilinca otomatik) ============ --}}
+      {{-- ============ CARKIFELEK POPUP (sayfa açılınca otomatik — gerçek çark) ============ --}}
       <div class="cark-popup" id="carkPopup" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="carkPopupTitle">
          <div class="cark-popup__backdrop" data-cark-close></div>
-         <div class="cark-popup__panel">
-            <button type="button" class="cark-popup__close" data-cark-close aria-label="Kapat">
+         <div class="cark-popup__panel" style="max-width:min(960px, 96vw); width:96vw; height:min(840px, 92vh); padding:0; overflow:hidden; border-radius:18px; background:#fff;">
+            <button type="button" class="cark-popup__close" data-cark-close aria-label="Kapat" style="z-index:5;">
                <i class="fa fa-times"></i>
             </button>
-            <div class="cark-popup__decor cark-popup__decor--1">✨</div>
-            <div class="cark-popup__decor cark-popup__decor--2">🎁</div>
-            <div class="cark-popup__decor cark-popup__decor--3">⭐</div>
-            <div class="cark-popup__decor cark-popup__decor--4">💎</div>
-            <div class="cark-popup__wheel-wrap">
-               <div class="cark-wheel cark-wheel--xl">
-                  <span class="cark-wheel__pointer"></span>
-                  <span class="cark-wheel__hub"><i class="fa fa-gift"></i></span>
-               </div>
-            </div>
-            <div class="cark-popup__content">
-               <span class="cark-popup__eyebrow">🎰 Şimdi Tam Zamanı</span>
-               <h2 class="cark-popup__title" id="carkPopupTitle">Çarkı Çevir,<br><em>Hediyeni Kazan!</em></h2>
-               <p class="cark-popup__sub">{{ $salon->salon_adi }}'a özel sürpriz çarkıfelek seni bekliyor. Bedava deneme hakkı şimdi açık!</p>
-               <a href="javascript:void(0)" onclick="window.openCarkModal()" class="cark-popup__cta" data-cark-spin>
-                  <i class="fa fa-bolt"></i>
-                  <span>ŞİMDİ ÇEVİR</span>
-                  <i class="fa fa-long-arrow-right"></i>
-               </a>
-               <button type="button" class="cark-popup__skip" data-cark-close>Belki daha sonra</button>
-            </div>
-         </div>
-      </div>
-
-      {{-- ============ CARKIFELEK IFRAME MODAL (sayfa içinde çevirme) ============ --}}
-      <div id="carkIframeModal" style="display:none; position:fixed; inset:0; z-index:99998; background:rgba(0,0,0,.78); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
-         <div style="position:relative; width:min(960px, 96vw); height:min(840px, 92vh); background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.5);">
-            <button type="button" onclick="window.closeCarkModal()" aria-label="Kapat" style="position:absolute; top:12px; right:12px; z-index:5; width:38px; height:38px; border-radius:50%; border:none; background:rgba(0,0,0,.55); color:#fff; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-               <i class="fa fa-times"></i>
-            </button>
-            <iframe id="carkIframe" src="" style="width:100%; height:100%; border:0; display:block;" allow="autoplay"></iframe>
+            <iframe id="carkIframe"
+                    src=""
+                    data-src="{{ url('/cark/'.$salon->id) }}?embed=1"
+                    style="width:100%; height:100%; border:0; display:block;"
+                    allow="autoplay"
+                    title="Çarkıfelek"></iframe>
          </div>
       </div>
 
       <script>
          (function(){
-            const URL_CARK = '{{ url("/cark/".$salon->id) }}';
-            const modal = document.getElementById('carkIframeModal');
-            const iframe = document.getElementById('carkIframe');
+            // Banner CTA'sı tıklanırsa popup açılsın (lazy iframe yüklemesi)
             window.openCarkModal = function(){
-               // Pop-up varsa kapat — iki overlay üst üste binmesin
-               try { document.getElementById('carkPopup')?.classList.remove('is-open'); } catch(e){}
-               iframe.src = URL_CARK + '?embed=1';
-               modal.style.display = 'flex';
-               document.documentElement.style.overflow = 'hidden';
-               document.body.style.overflow = 'hidden';
+               var pop = document.getElementById('carkPopup');
+               if (!pop) return;
+               var iframe = document.getElementById('carkIframe');
+               if (iframe && !iframe.src) iframe.src = iframe.getAttribute('data-src');
+               pop.classList.add('is-open');
+               pop.setAttribute('aria-hidden', 'false');
+               document.body.classList.add('cark-popup-open');
             };
             window.closeCarkModal = function(){
-               modal.style.display = 'none';
-               iframe.src = '';
-               document.documentElement.style.overflow = '';
-               document.body.style.overflow = '';
+               var pop = document.getElementById('carkPopup');
+               if (!pop) return;
+               pop.classList.remove('is-open');
+               pop.setAttribute('aria-hidden', 'true');
+               document.body.classList.remove('cark-popup-open');
             };
-            modal.addEventListener('click', function(e){
-               if (e.target === modal) window.closeCarkModal();
-            });
-            document.addEventListener('keydown', function(e){
-               if (e.key === 'Escape' && modal.style.display === 'flex') window.closeCarkModal();
-            });
          })();
       </script>
    @endif
@@ -1262,6 +1231,9 @@
            var DELAY = 1600;
 
            function open(){
+               // iframe lazy yükleme
+               var iframe = document.getElementById('carkIframe');
+               if (iframe && !iframe.src) iframe.src = iframe.getAttribute('data-src');
                pop.classList.add('is-open');
                pop.setAttribute('aria-hidden', 'false');
                document.body.classList.add('cark-popup-open');
