@@ -264,11 +264,23 @@ class PanelController extends Controller
             return redirect()->back()->with('hata', 'Salon askıda — önce aktif edin.');
         }
 
-        // ana yetkili veya ilk yetkili
+        // Yetkiliyi 3 yoldan ara:
+        // 1) isletmeyetkilileri.salon_id = X && is_admin=1 (klasik tekil yetkili)
+        // 2) isletmeyetkilileri.salon_id = X (admin degilse de ilk yetkili)
+        // 3) personeller.salon_id = X uzerinden yetkili_id (multi-salon yetkilisi)
         $yetkili = IsletmeYetkilileri::where('salon_id', $salonId)->where('is_admin', 1)->first();
         if (!$yetkili) $yetkili = IsletmeYetkilileri::where('salon_id', $salonId)->first();
         if (!$yetkili) {
-            return redirect()->back()->with('hata', 'Salonun yetkilisi bulunamadı.');
+            $personel = Personeller::where('salon_id', $salonId)
+                ->whereNotNull('yetkili_id')
+                ->orderByRaw('IFNULL(yetkili_id,0) DESC')
+                ->first();
+            if ($personel) {
+                $yetkili = IsletmeYetkilileri::find($personel->yetkili_id);
+            }
+        }
+        if (!$yetkili) {
+            return redirect()->back()->with('hata', 'Bu salona bağlı yetkili veya yetkili-personel kaydı yok. Önce salon detayından yetkili ekleyin.');
         }
 
         $sebep = $request->get('sebep') ?: 'Destek girişi';
