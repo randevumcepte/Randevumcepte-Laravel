@@ -244,9 +244,8 @@
          </div>
       </a>
 
-      {{-- ============ CARKIFELEK POPUP (sayfa açılınca otomatik — gerçek çark inline) ============ --}}
+      {{-- ============ CARKIFELEK POPUP (orijinal tasarım + GERÇEK SVG çark + tek tıkla spin) ============ --}}
       @php
-         // Widget için gerekli verileri hesapla
          $_dilimler = \App\CarkifelekDilimleri::where('cark_id', $_aktifCark->id)->orderBy('sira')->get();
          $_dilimlerJson = $_dilimler->map(function($d){
             return [
@@ -259,7 +258,6 @@
          })->values()->toArray();
          $_isMisafir = !\Auth::check();
          $_sessionBugunMarker = session("cark_bugun_{$salon->id}") === \Carbon\Carbon::today()->toDateString();
-         $_kalanHak = $_isMisafir ? 1 : \App\Randevular::where('salon_id', $salon->id)->where('user_id', \Auth::id())->where('durum', 1)->count();
          $_bugunCevirdi = $_sessionBugunMarker;
          if (!$_isMisafir && !$_bugunCevirdi) {
             $_bugunCevirdi = \App\CarkifelekCevirmeLoglari::where('salon_id', $salon->id)
@@ -268,41 +266,342 @@
                ->whereDate('created_at', \Carbon\Carbon::today())
                ->exists();
          }
-         $_yarinSaat = \Carbon\Carbon::tomorrow()->format('d.m.Y H:i');
       @endphp
       <div class="cark-popup" id="carkPopup" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="carkPopupTitle">
          <div class="cark-popup__backdrop" data-cark-close></div>
-         <div class="cark-popup__panel" style="max-width:min(900px, 96vw); width:96vw; max-height:96vh; padding:0; overflow:auto; border-radius:18px; background:transparent; box-shadow:none;">
-            <button type="button" class="cark-popup__close" data-cark-close aria-label="Kapat" style="z-index:5; position:absolute; top:10px; right:10px;">
+         <div class="cark-popup__panel">
+            <button type="button" class="cark-popup__close" data-cark-close aria-label="Kapat">
                <i class="fa fa-times"></i>
             </button>
-            @include('carkifelek._cark_widget', [
-               'salon'        => $salon,
-               'dilimlerJson' => $_dilimlerJson,
-               'kalanHak'     => $_kalanHak,
-               'bugunCevirdi' => $_bugunCevirdi,
-               'yarinSaat'    => $_yarinSaat,
-               'isMisafir'    => $_isMisafir,
-            ])
+            <div class="cark-popup__decor cark-popup__decor--1">✨</div>
+            <div class="cark-popup__decor cark-popup__decor--2">🎁</div>
+            <div class="cark-popup__decor cark-popup__decor--3">⭐</div>
+            <div class="cark-popup__decor cark-popup__decor--4">💎</div>
+
+            {{-- GERÇEK çark — orijinal .cark-wheel--xl yerine SVG slice'lar --}}
+            <div class="cark-popup__wheel-wrap" style="position:relative; padding-top:14px;">
+               <div style="position:relative; width:240px; height:240px; margin:0 auto; border-radius:50%; box-shadow: 0 0 0 6px #fff, 0 0 0 8px rgba(92,0,142,.5), 0 26px 60px rgba(92,0,142,.45); overflow:visible;">
+                  {{-- Pointer (orijinal sarı üçgen) --}}
+                  <span style="position:absolute; top:-14px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:14px solid transparent; border-right:14px solid transparent; border-top:26px solid #FBBF24; filter:drop-shadow(0 4px 8px rgba(0,0,0,.3)); z-index:3;"></span>
+                  {{-- SVG çark — salonun gerçek dilimleri --}}
+                  <div style="border-radius:50%; overflow:hidden; width:100%; height:100%; background:#160630;">
+                     <svg id="carkPopupSvg" viewBox="0 0 300 300" style="width:100%; height:100%; display:block; transform-origin:50% 50%; transition: transform 9s cubic-bezier(0.17, 0.67, 0.12, 0.99);"></svg>
+                  </div>
+                  {{-- Hub (orijinal beyaz orta + altın çerçeve) --}}
+                  <span style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:56px; height:56px; border-radius:50%; background:#fff; border:3px solid #FBBF24; display:flex; align-items:center; justify-content:center; font-size:22px; color:#5C008E; z-index:2; pointer-events:none;">
+                     <i class="fa fa-gift"></i>
+                  </span>
+               </div>
+            </div>
+
+            <div class="cark-popup__content" id="carkPopupContent">
+               <span class="cark-popup__eyebrow">🎰 Şimdi Tam Zamanı</span>
+               <h2 class="cark-popup__title" id="carkPopupTitle">Çarkı Çevir,<br><em>Hediyeni Kazan!</em></h2>
+               <p class="cark-popup__sub">{{ $salon->salon_adi }}'a özel sürpriz çarkıfelek seni bekliyor. Bedava deneme hakkı şimdi açık!</p>
+               @if($_bugunCevirdi)
+                  <div style="padding:12px 18px; background:rgba(255,255,255,.18); border-radius:14px; color:#fff; font-weight:700; margin-bottom:12px;">
+                     ✓ Bugün çarkı çevirdiniz. Yarın tekrar deneyebilirsiniz.
+                  </div>
+               @else
+                  <button type="button" class="cark-popup__cta" id="carkPopupSpinBtn" onclick="window.carkSpin()">
+                     <i class="fa fa-bolt"></i>
+                     <span>ŞİMDİ ÇEVİR</span>
+                  </button>
+               @endif
+               <button type="button" class="cark-popup__skip" data-cark-close>Belki daha sonra</button>
+            </div>
          </div>
       </div>
+
+      <div id="carkPopupToast" style="position:fixed; top:20px; right:20px; z-index:100000; padding:14px 20px; background:#e17055; color:#fff; border-radius:12px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,.2); display:none;"></div>
+
       <script>
          (function(){
-            window.openCarkModal = function(){
-               var pop = document.getElementById('carkPopup');
-               if (!pop) return;
-               pop.classList.add('is-open');
-               pop.setAttribute('aria-hidden', 'false');
-               document.body.classList.add('cark-popup-open');
+            const DILIMLER = {!! json_encode($_dilimlerJson) !!};
+            const SALON_ID = {{ $salon->id }};
+            const CSRF     = '{{ csrf_token() }}';
+            const CEVIR_URL    = '{{ route("cark.cevir") }}';
+            const SMSKOD_URL   = '{{ route("cark.smskod") }}';
+            const SMSDOG_URL   = '{{ route("cark.smsdogrula") }}';
+
+            const svgEl  = (n) => document.createElementNS('http://www.w3.org/2000/svg', n);
+            const wheel  = document.getElementById('carkPopupSvg');
+            const toast  = document.getElementById('carkPopupToast');
+            const content = document.getElementById('carkPopupContent');
+            const CX = 150, CY = 150, R = 130;
+            let spinning = false, currentRot = 0;
+
+            function showToast(msg){
+               toast.textContent = msg;
+               toast.style.display = 'block';
+               setTimeout(() => toast.style.display = 'none', 3500);
+            }
+            function buildLabel(d){
+               switch(d.tip){
+                  case 'puan':            return d.deger != null ? 'Puan' : (d.ismi || 'Puan');
+                  case 'hizmet_indirimi': return d.deger != null ? 'Hizmet İnd.' : (d.ismi || 'Hizmet İnd.');
+                  case 'urun_indirimi':   return d.deger != null ? 'Ürün İnd.'   : (d.ismi || 'Ürün İnd.');
+                  case 'tekrar_dene':     return 'Tekrar Dene';
+                  case 'bos':             return 'Boş';
+                  default:                return d.ismi || 'Ödül';
+               }
+            }
+            function buildFullLabel(d){
+               if (['puan','hizmet_indirimi','urun_indirimi'].includes(d.tip) && d.deger != null) {
+                  const numStr = d.tip.includes('indirimi') ? '%' + d.deger : d.deger;
+                  return numStr + ' ' + buildLabel(d);
+               }
+               return buildLabel(d);
+            }
+            function wrapText(t, m){
+               const w = (t||'').split(/\s+/), L = []; let c = '';
+               w.forEach(x => { if((c+' '+x).trim().length<=m) c=(c+' '+x).trim(); else { if(c) L.push(c); c=x; } });
+               if (c) L.push(c); return L.length ? L : [''];
+            }
+            function renderWheel(){
+               wheel.innerHTML = '';
+               const n = DILIMLER.length, ang = 360/n;
+               DILIMLER.forEach((sl, i) => {
+                  const sa = i*ang, ea = (i+1)*ang;
+                  const sr=(sa-90)*Math.PI/180, er=(ea-90)*Math.PI/180;
+                  const x1=CX+R*Math.cos(sr), y1=CY+R*Math.sin(sr);
+                  const x2=CX+R*Math.cos(er), y2=CY+R*Math.sin(er);
+                  const lg = ang>180?1:0;
+                  const path = svgEl('path');
+                  path.setAttribute('d', `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 ${lg} 1 ${x2} ${y2} Z`);
+                  path.setAttribute('fill', sl.renk);
+                  path.setAttribute('stroke', 'rgba(255,255,255,.7)');
+                  path.setAttribute('stroke-width', '2');
+                  wheel.appendChild(path);
+
+                  const tAng = sa+ang/2, tRad=(tAng-90)*Math.PI/180;
+                  const textRot = tAng<=180 ? tAng-90 : tAng-270;
+                  const hasDeger = ['puan','hizmet_indirimi','urun_indirimi'].includes(sl.tip) && sl.deger != null;
+                  if (hasDeger){
+                     const numFs = n<=8?17:14, catFs = n<=8?11:9;
+                     const numStr = sl.tip.includes('indirimi') ? '%'+sl.deger : String(sl.deger);
+                     const numDist = R-(n<=8?16:13);
+                     const nx = CX+numDist*Math.cos(tRad), ny = CY+numDist*Math.sin(tRad);
+                     const ng = svgEl('g'); ng.setAttribute('transform', `rotate(${tAng}, ${nx}, ${ny})`);
+                     const nt = svgEl('text');
+                     nt.setAttribute('x', nx); nt.setAttribute('y', ny);
+                     nt.setAttribute('text-anchor','middle'); nt.setAttribute('dominant-baseline','middle');
+                     nt.setAttribute('font-size', numFs); nt.setAttribute('font-weight','900');
+                     nt.setAttribute('fill','white');
+                     nt.setAttribute('paint-order','stroke');
+                     nt.setAttribute('stroke','rgba(0,0,0,.75)'); nt.setAttribute('stroke-width','3.5');
+                     nt.setAttribute('stroke-linejoin','round');
+                     nt.textContent = numStr;
+                     ng.appendChild(nt); wheel.appendChild(ng);
+
+                     const innerLabel = buildLabel(sl);
+                     const catDist = n<=8?68:60;
+                     const cx2 = CX+catDist*Math.cos(tRad), cy2 = CY+catDist*Math.sin(tRad);
+                     const catMaxCh = Math.max(4, Math.floor(55/(catFs*0.62)));
+                     let lines = wrapText(innerLabel, catMaxCh);
+                     if (lines.length>2) lines = [innerLabel.slice(0, catMaxCh-1)+'…'];
+                     const catLH = catFs+2;
+                     const catSY = cy2-((lines.length-1)*catLH/2);
+                     const catG = svgEl('g'); catG.setAttribute('transform', `rotate(${textRot}, ${cx2}, ${cy2})`);
+                     lines.forEach((ln, li) => {
+                        const t = svgEl('text');
+                        t.setAttribute('x', cx2); t.setAttribute('y', catSY+li*catLH);
+                        t.setAttribute('text-anchor','middle'); t.setAttribute('dominant-baseline','middle');
+                        t.setAttribute('font-size', catFs); t.setAttribute('font-weight','700');
+                        t.setAttribute('fill','rgba(255,255,255,.92)');
+                        t.setAttribute('paint-order','stroke');
+                        t.setAttribute('stroke','rgba(0,0,0,.5)'); t.setAttribute('stroke-width','2');
+                        t.setAttribute('stroke-linejoin','round');
+                        t.textContent = ln; catG.appendChild(t);
+                     });
+                     wheel.appendChild(catG);
+                  } else {
+                     const dist = n<=8?76:68, fs = n<=8?12:10;
+                     const maxCh = Math.max(6, Math.floor(80/(fs*0.60))), lh = fs+3;
+                     const label = buildLabel(sl);
+                     let lines = wrapText(label, maxCh);
+                     if (lines.length>2) lines = [label.slice(0, maxCh-1)+'…'];
+                     const tx = CX+dist*Math.cos(tRad), ty = CY+dist*Math.sin(tRad);
+                     const sy = ty-((lines.length-1)*lh/2);
+                     const g = svgEl('g'); g.setAttribute('transform', `rotate(${textRot}, ${tx}, ${ty})`);
+                     lines.forEach((ln, li) => {
+                        const t = svgEl('text');
+                        t.setAttribute('x', tx); t.setAttribute('y', sy+li*lh);
+                        t.setAttribute('text-anchor','middle'); t.setAttribute('dominant-baseline','middle');
+                        t.setAttribute('font-size', fs); t.setAttribute('font-weight','700');
+                        t.setAttribute('fill','white');
+                        t.setAttribute('paint-order','stroke');
+                        t.setAttribute('stroke','rgba(0,0,0,.55)'); t.setAttribute('stroke-width','2.5');
+                        t.setAttribute('stroke-linejoin','round');
+                        t.textContent = ln; g.appendChild(t);
+                     });
+                     wheel.appendChild(g);
+                  }
+               });
+            }
+            renderWheel();
+
+            // Sonuç ekranı (kayıt formu / kupon kodu)
+            function showResult(d, kod, kayitGerekli){
+               let html = '';
+               if (kayitGerekli){
+                  // Misafir + ödül var → kayıt formu
+                  html = `
+                     <span class="cark-popup__eyebrow">🎉 Tebrikler!</span>
+                     <h2 class="cark-popup__title" style="font-size:24px;">Kazandın: <em>${buildFullLabel(d)}</em></h2>
+                     <p class="cark-popup__sub" style="margin-bottom:14px;">Kodunu almak için 10 saniyelik kayıt — telefonuna SMS gönderilecek.</p>
+                     <div style="display:flex; gap:8px; margin-bottom:10px;">
+                        <input type="text" id="ky-ad" placeholder="Ad" style="flex:1; padding:11px 12px; border:2px solid rgba(255,255,255,.4); border-radius:10px; background:rgba(255,255,255,.95); font-size:14px;">
+                        <input type="text" id="ky-soyad" placeholder="Soyad" style="flex:1; padding:11px 12px; border:2px solid rgba(255,255,255,.4); border-radius:10px; background:rgba(255,255,255,.95); font-size:14px;">
+                     </div>
+                     <input type="tel" id="ky-tel" placeholder="5XX XXX XX XX" maxlength="11" style="width:100%; padding:11px 12px; border:2px solid rgba(255,255,255,.4); border-radius:10px; margin-bottom:10px; background:rgba(255,255,255,.95); font-size:15px; letter-spacing:1px;">
+                     <button type="button" class="cark-popup__cta" id="btn-smskod" onclick="window.carkSmsKod()">📨 SMS Gönder</button>
+                  `;
+               } else if (kod){
+                  // Üye + kupon
+                  html = `
+                     <span class="cark-popup__eyebrow">🎉 Tebrikler!</span>
+                     <h2 class="cark-popup__title" style="font-size:24px;">Kazandın: <em>${buildFullLabel(d)}</em></h2>
+                     <div style="margin:14px 0; padding:14px 22px; background:#fef3c7; color:#92400e; border-radius:12px; font-family:monospace; font-size:24px; font-weight:800; letter-spacing:4px; border:2px dashed #f59e0b; display:inline-block;">${kod}</div>
+                     <p class="cark-popup__sub" style="font-size:13px; margin-bottom:12px;">Bu kodu 30 gün içinde salonda kullanabilirsiniz.</p>
+                     <button type="button" class="cark-popup__cta" data-cark-close>Tamam</button>
+                  `;
+               } else {
+                  // Tekrar Dene / Boş / üye + puan
+                  html = `
+                     <span class="cark-popup__eyebrow">🎉 Sonuç</span>
+                     <h2 class="cark-popup__title" style="font-size:24px;"><em>${buildFullLabel(d)}</em></h2>
+                     <p class="cark-popup__sub">${d.tip === 'tekrar_dene' ? 'Yarın tekrar deneyebilirsiniz.' : (d.tip === 'puan' ? 'Puan hesabınıza eklendi.' : 'Bir dahaki sefere şanslı olursunuz!')}</p>
+                     <button type="button" class="cark-popup__cta" data-cark-close>Tamam</button>
+                  `;
+               }
+               content.innerHTML = html;
+            }
+
+            // Kod gönderme adımı (misafir kayıt)
+            window.carkSmsKod = async function(){
+               const ad = document.getElementById('ky-ad').value.trim();
+               const soyad = document.getElementById('ky-soyad').value.trim();
+               let tel = document.getElementById('ky-tel').value.replace(/\D/g, '');
+               if (!ad || !soyad){ showToast('Ad ve soyad zorunlu'); return; }
+               if (tel.length === 11 && tel[0] === '0') tel = tel.substring(1);
+               if (tel.length !== 10 || tel[0] !== '5'){ showToast('Geçerli cep telefon (5XX...)'); return; }
+
+               const btn = document.getElementById('btn-smskod');
+               btn.disabled = true;
+               btn.querySelector ? btn.innerHTML = '⏳ Gönderiliyor...' : btn.textContent = '⏳ Gönderiliyor...';
+
+               try {
+                  const r = await fetch(SMSKOD_URL, {
+                     method:'POST',
+                     headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF,'Accept':'application/json'},
+                     body: JSON.stringify({ad, soyad, telefon: tel})
+                  });
+                  const data = await r.json();
+                  if (!data.success){ showToast(data.message || 'Hata'); btn.disabled = false; btn.innerHTML = '📨 SMS Gönder'; return; }
+                  if (data.dev_kod) showToast('Test kodu: ' + data.dev_kod);
+                  // SMS adımı
+                  content.innerHTML = `
+                     <span class="cark-popup__eyebrow">📱 Kod Bekleniyor</span>
+                     <h2 class="cark-popup__title" style="font-size:22px;">SMS Kodunu Gir</h2>
+                     <p class="cark-popup__sub">0${tel} numarasına gelen 4 haneli kodu girin.</p>
+                     <input type="text" id="kd-kod" maxlength="4" placeholder="• • • •" style="width:100%; padding:14px; border:2px solid rgba(255,255,255,.4); border-radius:10px; background:rgba(255,255,255,.95); font-size:28px; font-weight:800; letter-spacing:14px; text-align:center; font-family:monospace; margin-bottom:10px;">
+                     <button type="button" class="cark-popup__cta" id="btn-dogrula" onclick="window.carkSmsDogrula()">✓ Doğrula ve Kodu Al</button>
+                  `;
+                  setTimeout(() => document.getElementById('kd-kod').focus(), 100);
+               } catch(e){ showToast('Bağlantı hatası'); btn.disabled = false; btn.innerHTML = '📨 SMS Gönder'; }
             };
-            window.closeCarkModal = function(){
-               var pop = document.getElementById('carkPopup');
-               if (!pop) return;
-               pop.classList.remove('is-open');
-               pop.setAttribute('aria-hidden', 'true');
-               document.body.classList.remove('cark-popup-open');
+
+            window.carkSmsDogrula = async function(){
+               const kod = (document.getElementById('kd-kod').value || '').trim();
+               if (kod.length !== 4){ showToast('4 haneli kodu girin'); return; }
+               const btn = document.getElementById('btn-dogrula');
+               btn.disabled = true; btn.innerHTML = '⏳ Doğrulanıyor...';
+               try {
+                  const r = await fetch(SMSDOG_URL, {
+                     method:'POST',
+                     headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF,'Accept':'application/json'},
+                     body: JSON.stringify({kod})
+                  });
+                  const data = await r.json();
+                  if (!data.success){ showToast(data.message || 'Hatalı kod'); btn.disabled = false; btn.innerHTML = '✓ Doğrula ve Kodu Al'; return; }
+                  if (data.odulKodu){
+                     content.innerHTML = `
+                        <span class="cark-popup__eyebrow">🎉 Hesabın Hazır</span>
+                        <h2 class="cark-popup__title" style="font-size:22px;">Kupon Kodunuz</h2>
+                        <div style="margin:14px 0; padding:14px 22px; background:#fef3c7; color:#92400e; border-radius:12px; font-family:monospace; font-size:26px; font-weight:800; letter-spacing:5px; border:2px dashed #f59e0b; display:inline-block;">${data.odulKodu}</div>
+                        <p class="cark-popup__sub" style="font-size:13px;">Bu kodu 30 gün içinde salonda kullanabilirsiniz.</p>
+                        <button type="button" class="cark-popup__cta" data-cark-close>Tamam</button>`;
+                  } else {
+                     content.innerHTML = `
+                        <span class="cark-popup__eyebrow">🎉 Hesabın Hazır</span>
+                        <h2 class="cark-popup__title" style="font-size:22px;">Puanın eklendi!</h2>
+                        <p class="cark-popup__sub">Profilinizden puan ödüllerinize göz atabilirsiniz.</p>
+                        <button type="button" class="cark-popup__cta" data-cark-close>Tamam</button>`;
+                  }
+               } catch(e){ showToast('Bağlantı hatası'); btn.disabled = false; btn.innerHTML = '✓ Doğrula ve Kodu Al'; }
+            };
+
+            // ŞİMDİ ÇEVİR
+            window.carkSpin = async function(){
+               if (spinning) return;
+               spinning = true;
+               const btn = document.getElementById('carkPopupSpinBtn');
+               if (btn){ btn.disabled = true; btn.innerHTML = '⏳ Çevriliyor...'; }
+               let data;
+               try {
+                  const r = await fetch(CEVIR_URL, {
+                     method:'POST',
+                     headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF,'Accept':'application/json'},
+                     body: JSON.stringify({salon_id: SALON_ID})
+                  });
+                  data = await r.json();
+               } catch(e){
+                  showToast('Bağlantı hatası');
+                  spinning = false;
+                  if (btn){ btn.disabled = false; btn.innerHTML = '<i class="fa fa-bolt"></i> <span>ŞİMDİ ÇEVİR</span>'; }
+                  return;
+               }
+               if (!data.success){
+                  showToast(data.message || 'Hata');
+                  spinning = false;
+                  if (btn){ btn.disabled = false; btn.innerHTML = '<i class="fa fa-bolt"></i> <span>ŞİMDİ ÇEVİR</span>'; }
+                  return;
+               }
+
+               const n = DILIMLER.length, ang = 360/n;
+               const idx = data.dilimIndex;
+               const jitter = (Math.random()-.5) * ang * 0.6;
+               const stopAt = (idx+0.5) * ang + jitter;
+               const offset = ((360-stopAt)%360 + 360) % 360;
+               const nSpins = (12 + Math.floor(Math.random()*5)) * 360;
+               const curMod = ((currentRot%360)+360) % 360;
+               let diff = offset - curMod;
+               if (diff < 0) diff += 360;
+               currentRot += nSpins + diff;
+               wheel.style.transform = `rotate(${currentRot}deg)`;
+
+               setTimeout(() => {
+                  showResult(data.dilim, data.odulKodu, data.kayitGerekli);
+               }, 9200);
             };
          })();
+
+         // Popup açma/kapatma
+         window.openCarkModal = function(){
+            var pop = document.getElementById('carkPopup');
+            if (!pop) return;
+            pop.classList.add('is-open');
+            pop.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('cark-popup-open');
+         };
+         window.closeCarkModal = function(){
+            var pop = document.getElementById('carkPopup');
+            if (!pop) return;
+            pop.classList.remove('is-open');
+            pop.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('cark-popup-open');
+         };
       </script>
    @endif
 
