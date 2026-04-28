@@ -107,18 +107,12 @@ class CarkifelekMusteriController extends Controller
         $sessionKey = "cark_bugun_{$salonId}";
         $sessionBugunMarker = $request->session()->get($sessionKey) === Carbon::today()->toDateString();
 
-        // TEST MODU: ?carkforce=1 ile günlük sınırı yok say
-        $force = (int) $request->input('carkforce', 0) === 1;
-        if ($force) {
-            $request->session()->forget($sessionKey);
-        }
-
         if ($isMisafir) {
-            $bugunCevirdi = !$force && $sessionBugunMarker;
+            $bugunCevirdi = $sessionBugunMarker;
         } else {
             $kullanilabilir = $this->kalanHak($salonId, Auth::id());
-            $bugunCevirdi   = !$force && $this->bugunCevirdi($salonId, Auth::id());
-            if (!$bugunCevirdi && !$force && $sessionBugunMarker) {
+            $bugunCevirdi   = $this->bugunCevirdi($salonId, Auth::id());
+            if (!$bugunCevirdi && $sessionBugunMarker) {
                 $bugunCevirdi = true;
             }
         }
@@ -168,41 +162,26 @@ class CarkifelekMusteriController extends Controller
         $randevuId = null;
         $sessionKey = "cark_bugun_{$salonId}";
 
-        // TEST MODU: ?carkforce=1 (query veya body) günlük sınırı bypass eder
-        $force = (int) $request->input('carkforce', 0) === 1;
-        if ($force) {
-            $request->session()->forget($sessionKey);
-        }
-
         if ($isMisafir) {
-            if (!$force && $request->session()->get($sessionKey) === Carbon::today()->toDateString()) {
+            if ($request->session()->get($sessionKey) === Carbon::today()->toDateString()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Bugün çarkı çevirdiniz. Yarın tekrar deneyebilirsiniz.',
                 ]);
             }
         } else {
-            // Force modunda kalan hak/bugün kontrolünü atla — herhangi bir randevu_id seç (varsa)
-            if ($force) {
-                $kullanilabilir = Randevular::where('salon_id', $salonId)
-                    ->where('user_id', $userId)
-                    ->where('durum', Randevular::ONAYLANDI)
-                    ->pluck('id')->toArray();
-                $randevuId = !empty($kullanilabilir) ? $kullanilabilir[0] : null;
-            } else {
-                $kullanilabilir = $this->kalanHak($salonId, $userId);
-                if (empty($kullanilabilir)) {
-                    return response()->json(['success' => false, 'message' => 'Çevirme hakkınız bulunmuyor. Onaylanmış randevunuz olmalı.']);
-                }
-                if ($this->bugunCevirdi($salonId, $userId)) {
-                    $yarin = Carbon::tomorrow()->format('d.m.Y H:i');
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Bugün çarkı çevirdiniz. Bir sonraki çevirme: ' . $yarin . ' veya yeni onaylı randevunuzdan sonra.',
-                    ]);
-                }
-                $randevuId = $kullanilabilir[0];
+            $kullanilabilir = $this->kalanHak($salonId, $userId);
+            if (empty($kullanilabilir)) {
+                return response()->json(['success' => false, 'message' => 'Çevirme hakkınız bulunmuyor. Onaylanmış randevunuz olmalı.']);
             }
+            if ($this->bugunCevirdi($salonId, $userId)) {
+                $yarin = Carbon::tomorrow()->format('d.m.Y H:i');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bugün çarkı çevirdiniz. Bir sonraki çevirme: ' . $yarin . ' veya yeni onaylı randevunuzdan sonra.',
+                ]);
+            }
+            $randevuId = $kullanilabilir[0];
         }
 
         $dilimler = CarkifelekDilimleri::where('cark_id', $cark->id)->orderBy('sira')->get();
