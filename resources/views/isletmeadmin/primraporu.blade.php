@@ -7,6 +7,11 @@
   $toplamBonus = array_sum(array_column($rapor,'bonus'));
   $toplamKesinti = array_sum(array_column($rapor,'kesinti'));
   $toplamNet = array_sum(array_column($rapor,'net_hakedis'));
+  $toplamOdenen = array_sum(array_column($rapor,'odenen_toplam'));
+  $toplamBekleyen = array_sum(array_column($rapor,'kalan'));
+  $odemeYuzde = $toplamNet > 0 ? min(100, round(($toplamOdenen / $toplamNet) * 100, 1)) : 0;
+  $bekleyenSayi = count(array_filter($rapor, fn($r) => $r['durum']==='bekliyor' || $r['durum']==='kismi'));
+  $tamSayi = count(array_filter($rapor, fn($r) => $r['durum']==='tam' || $r['durum']==='fazla'));
 @endphp
 <style>
   /* ============ Marka Renk Degiskenleri ============ */
@@ -85,10 +90,21 @@
 
   /* ============ Ozet Widget'lari ============ */
   .pr-stats{
-    display:grid; grid-template-columns: repeat(5, 1fr); gap:14px; margin-bottom:22px;
+    display:grid; grid-template-columns: repeat(6, 1fr); gap:14px; margin-bottom:22px;
   }
-  @media(max-width:1100px){ .pr-stats{ grid-template-columns: repeat(2, 1fr); } }
-  @media(max-width:600px){ .pr-stats{ grid-template-columns: 1fr; } }
+  .pr-stat--net{ grid-column: span 2; }
+  @media(max-width:1200px){
+    .pr-stats{ grid-template-columns: repeat(3, 1fr); }
+    .pr-stat--net{ grid-column: span 3; }
+  }
+  @media(max-width:700px){
+    .pr-stats{ grid-template-columns: repeat(2, 1fr); }
+    .pr-stat--net{ grid-column: span 2; }
+  }
+  @media(max-width:480px){
+    .pr-stats{ grid-template-columns: 1fr; }
+    .pr-stat--net{ grid-column: span 1; }
+  }
   .pr-stat{
     background:#fff; border-radius:18px; padding:18px 20px;
     box-shadow: var(--rmc-shadow-sm); border:1px solid var(--rmc-border);
@@ -109,16 +125,39 @@
   .pr-stat--kesinti .pr-stat__icon{ background: linear-gradient(135deg,#ef4444,#f87171); }
   .pr-stat--kesinti .pr-stat__val{ color:#dc2626; }
   .pr-stat--net{
-    grid-column: span 1; background: var(--rmc-grad); color:#fff; border:0; position:relative;
+    background: var(--rmc-grad); color:#fff; border:0; position:relative; padding:18px 22px;
   }
   .pr-stat--net::after{
-    content:''; position:absolute; top:0; right:0; width:120px; height:120px;
+    content:''; position:absolute; top:0; right:0; width:160px; height:160px;
     background: radial-gradient(circle, rgba(255,255,255,.18) 0%, transparent 70%);
     border-radius:50%; transform:translate(40%,-40%);
   }
-  .pr-stat--net .pr-stat__icon{ background:rgba(255,255,255,.22); backdrop-filter: blur(6px); }
-  .pr-stat--net .pr-stat__lbl{ color:rgba(255,255,255,.85); }
-  .pr-stat--net .pr-stat__val{ color:#fff; font-size:24px; }
+  .pr-stat--net .pr-stat__icon{ background:rgba(255,255,255,.22); backdrop-filter: blur(6px); position:relative; z-index:2; }
+  .pr-stat--net .pr-stat__lbl{ color:rgba(255,255,255,.85); position:relative; z-index:2; }
+  .pr-stat--net .pr-stat__val{ color:#fff; font-size:24px; position:relative; z-index:2; }
+  .pr-net-progress{
+    margin-top:14px; position:relative; z-index:2;
+  }
+  .pr-net-progress__bar{
+    height:8px; background:rgba(255,255,255,.22); border-radius:4px; overflow:hidden;
+  }
+  .pr-net-progress__fill{
+    height:100%; background:linear-gradient(90deg,#34d399,#10b981);
+    border-radius:4px; transition: width .4s ease;
+  }
+  .pr-net-progress__meta{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:8px; font-size:12px; font-weight:600;
+  }
+  .pr-net-progress__meta .lbl{ color:rgba(255,255,255,.75); font-weight:500; }
+  .pr-net-progress__meta .val{ color:#fff; font-weight:700; }
+  .pr-net-progress__meta .val--bekleyen{ color:#fef3c7; }
+  .pr-net-progress__meta .val--odenen{ color:#bbf7d0; }
+  .pr-net-progress__yuzde{
+    display:inline-block; padding:3px 10px; border-radius:12px;
+    background:rgba(255,255,255,.22); font-size:11px; font-weight:700;
+    margin-left:8px; backdrop-filter: blur(6px);
+  }
 
   /* ============ Tablo Karti ============ */
   .pr-table-card{
@@ -509,8 +548,20 @@
   </div>
   <div class="pr-stat pr-stat--net">
     <div class="pr-stat__icon"><i class="fa fa-credit-card"></i></div>
-    <div class="pr-stat__lbl">Net Ödenecek</div>
+    <div class="pr-stat__lbl">
+      Net Ödenecek
+      <span class="pr-net-progress__yuzde">%{{$odemeYuzde}}</span>
+    </div>
     <div class="pr-stat__val">{{number_format($toplamNet,2,',','.')}} <small>₺</small></div>
+    <div class="pr-net-progress">
+      <div class="pr-net-progress__bar">
+        <div class="pr-net-progress__fill" style="width: {{$odemeYuzde}}%"></div>
+      </div>
+      <div class="pr-net-progress__meta">
+        <span><span class="lbl">Ödenen:</span> <span class="val val--odenen">{{number_format($toplamOdenen,2,',','.')}} ₺</span></span>
+        <span><span class="lbl">Bekleyen:</span> <span class="val val--bekleyen">{{number_format($toplamBekleyen,2,',','.')}} ₺</span></span>
+      </div>
+    </div>
   </div>
 </div>
 
