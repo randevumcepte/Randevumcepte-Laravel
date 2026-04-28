@@ -22738,10 +22738,12 @@ DB::raw('
             ->groupBy('personel_id');
 
         $donem = substr($tarih1, 0, 7);
-        $odemeler = PersonelMaasOdemesi::where('salon_id',$salonId)
+        $odemelerGruplu = PersonelMaasOdemesi::where('salon_id',$salonId)
             ->where('donem',$donem)
+            ->orderBy('odeme_tarihi','desc')
+            ->orderBy('id','desc')
             ->get()
-            ->keyBy('personel_id');
+            ->groupBy('personel_id');
 
         $sonuc = [];
         foreach($personeller as $p){
@@ -22758,8 +22760,16 @@ DB::raw('
             $maas = (float)($p->maas ?? 0);
             $toplam = $maas + $primToplam + $bonus - $kesinti;
 
-            $odeme = $odemeler->get($p->id);
-            $odendi = $odeme ? true : false;
+            $persOdemeler = $odemelerGruplu->get($p->id, collect());
+            $odenenToplam = (float)$persOdemeler->sum('tutar');
+            $odemeSayisi = $persOdemeler->count();
+            $kalan = max(0, $toplam - $odenenToplam);
+            $sonOdeme = $persOdemeler->first();
+
+            if($odenenToplam <= 0)             $durum = 'bekliyor';
+            elseif($odenenToplam < $toplam)    $durum = 'kismi';
+            elseif($odenenToplam == $toplam)   $durum = 'tam';
+            else                               $durum = 'fazla';
 
             $sonuc[] = [
                 'personel_id'   => $p->id,
@@ -22776,12 +22786,11 @@ DB::raw('
                 'urun_geliri'   => (float)$primRow['urun_geliri'],
                 'paket_geliri'  => (float)$primRow['paket_geliri'],
                 'hareket_sayisi'=> $persHareketler->count(),
-                'odendi'        => $odendi,
-                'odeme_id'      => $odeme ? $odeme->id : null,
-                'odeme_tutar'   => $odeme ? (float)$odeme->tutar : 0,
-                'odeme_tarihi'  => $odeme ? optional($odeme->odeme_tarihi)->format('Y-m-d') : null,
-                'odeme_yontemi' => $odeme ? $odeme->odeme_yontemi : null,
-                'odeme_aciklama'=> $odeme ? $odeme->aciklama : null,
+                'durum'         => $durum,
+                'odenen_toplam' => $odenenToplam,
+                'kalan'         => (float)$kalan,
+                'odeme_sayisi'  => $odemeSayisi,
+                'son_odeme_tarihi' => $sonOdeme ? optional($sonOdeme->odeme_tarihi)->format('Y-m-d') : null,
             ];
         }
 
@@ -22843,6 +22852,7 @@ DB::raw('
         $personelId = (int)$request->personel_id;
         $tarih1 = $request->tarih1 ?: date('Y-m-01');
         $tarih2 = $request->tarih2 ?: date('Y-m-t');
+        $donem = substr($tarih1, 0, 7);
 
         $hareketler = PersonelPrimHareketi::where('salon_id',$salonId)
             ->where('personel_id',$personelId)
@@ -22851,7 +22861,27 @@ DB::raw('
             ->orderBy('id','desc')
             ->get();
 
-        return response()->json(['basarili'=>true,'hareketler'=>$hareketler]);
+        $odemeler = PersonelMaasOdemesi::where('salon_id',$salonId)
+            ->where('personel_id',$personelId)
+            ->where('donem',$donem)
+            ->orderBy('odeme_tarihi','desc')
+            ->orderBy('id','desc')
+            ->get()
+            ->map(function($o){
+                return [
+                    'id'            => $o->id,
+                    'tarih'         => optional($o->odeme_tarihi)->format('Y-m-d'),
+                    'tutar'         => (float)$o->tutar,
+                    'odeme_yontemi' => $o->odeme_yontemi,
+                    'aciklama'      => $o->aciklama,
+                ];
+            });
+
+        return response()->json([
+            'basarili'  => true,
+            'hareketler'=> $hareketler,
+            'odemeler'  => $odemeler,
+        ]);
     }
 
     public function primOde(Request $request)
@@ -22876,12 +22906,8 @@ DB::raw('
             $odemeTarihi = $request->odeme_tarihi ?: date('Y-m-d');
             if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $odemeTarihi)) $odemeTarihi = date('Y-m-d');
 
-            $mevcut = PersonelMaasOdemesi::where('personel_id',$personel->id)
-                ->where('salon_id',$salonId)
-                ->where('donem',$donem)
-                ->first();
-
-            $data = [
+            // Coklu odeme destegi: her zaman yeni kayit ekle
+            PersonelMaasOdemesi::create([
                 'personel_id'        => $personel->id,
                 'salon_id'           => $salonId,
                 'donem'              => $donem,
@@ -22890,18 +22916,36 @@ DB::raw('
                 'odeme_yontemi'      => mb_substr((string)$request->odeme_yontemi, 0, 60),
                 'aciklama'           => mb_substr((string)$request->aciklama, 0, 300),
                 'ekleyen_yetkili_id' => Auth::guard('isletmeyonetim')->user()->id ?? null,
-            ];
-
-            if($mevcut){
-                $mevcut->update($data);
-            } else {
-                PersonelMaasOdemesi::create($data);
-            }
+            ]);
 
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
+    }
+
+    public function primOdemeListesi(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $personelId = (int)$request->personel_id;
+        $donem = $request->donem ?: date('Y-m');
+        if(!preg_match('/^\d{4}-\d{2}$/', $donem)) $donem = date('Y-m');
+
+        $odemeler = PersonelMaasOdemesi::where('salon_id',$salonId)
+            ->where('personel_id',$personelId)
+            ->where('donem',$donem)
+            ->orderBy('odeme_tarihi','desc')
+            ->orderBy('id','desc')
+            ->get();
+
+        $toplam = $odemeler->sum('tutar');
+
+        return response()->json([
+            'basarili'      => true,
+            'odemeler'      => $odemeler,
+            'odenen_toplam' => (float)$toplam,
+            'odeme_sayisi'  => $odemeler->count(),
+        ]);
     }
 
     public function primOdemeSil(Request $request)

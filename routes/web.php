@@ -692,6 +692,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/primhareketlistesi','StoreAdminController@primHareketListesi');
 	Route::post('/primode','StoreAdminController@primOde');
 	Route::post('/primodemesil','StoreAdminController@primOdemeSil');
+	Route::get('/primodemelistesi','StoreAdminController@primOdemeListesi');
 	Route::get('/hizmetRaporFiltre','StoreAdminController@hizmetRaporFiltre');
 	Route::get('/hizmetiAlanMusteriler','StoreAdminController@hizmetiAlanMusteriler');
 	Route::get('/urunRaporFiltre','StoreAdminController@urunRaporFiltre');

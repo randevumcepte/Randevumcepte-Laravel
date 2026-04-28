@@ -170,18 +170,28 @@
     background: linear-gradient(135deg,#7B2FB8,#9D5DC8); color:#fff; font-weight:600; font-size:12.5px;
   }
   .pr-action-btn--ode:hover{ background: linear-gradient(135deg,#5C008E,#7B2FB8); transform:translateY(-1px); color:#fff; }
-  .pr-odendi-badge{
-    display:inline-flex; align-items:center; gap:6px;
-    background:#dcfce7; color:#15803d; padding:5px 12px; border-radius:20px;
+  .pr-durum-badge{
+    display:inline-flex; flex-direction:column; gap:2px;
+    padding:6px 12px; border-radius:10px;
     font-size:12px; font-weight:700; cursor:pointer; transition:.15s;
-    border:1px solid #bbf7d0;
+    border:1px solid transparent; line-height:1.2;
   }
-  .pr-odendi-badge:hover{ background:#bbf7d0; }
-  .pr-odendi-badge i{ font-size:11px; }
-  tr.pr-row-odendi td.pr-cell-net{
+  .pr-durum-badge .lbl{ display:inline-flex; align-items:center; gap:5px; }
+  .pr-durum-badge .alt{ font-size:10.5px; font-weight:600; opacity:.85; letter-spacing:.2px; }
+  .pr-durum--bekliyor{ background:#f1f5f9; color:#64748b; border-color:#e2e8f0; cursor:default; }
+  .pr-durum--kismi{ background:#fef3c7; color:#92400e; border-color:#fde68a; }
+  .pr-durum--kismi:hover{ background:#fde68a; }
+  .pr-durum--tam{ background:#dcfce7; color:#15803d; border-color:#bbf7d0; }
+  .pr-durum--tam:hover{ background:#bbf7d0; }
+  .pr-durum--fazla{ background:#dbeafe; color:#1e40af; border-color:#bfdbfe; }
+  .pr-durum--fazla:hover{ background:#bfdbfe; }
+  tr.pr-row-tam td.pr-cell-net{
     background: linear-gradient(90deg, rgba(22,163,74,.08), rgba(22,163,74,.04)) !important;
   }
-  tr.pr-row-odendi td.pr-cell-net strong{ color:#15803d !important; }
+  tr.pr-row-tam td.pr-cell-net strong{ color:#15803d !important; }
+  tr.pr-row-kismi td.pr-cell-net{
+    background: linear-gradient(90deg, rgba(245,158,11,.08), rgba(245,158,11,.04)) !important;
+  }
 
   /* DataTable controls override */
   .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter{ padding: 6px 14px; }
@@ -479,8 +489,13 @@
       </thead>
       <tbody>
         @foreach($rapor as $r)
-          @php $bas = mb_strtoupper(mb_substr($r['personel_adi'],0,1,'UTF-8'),'UTF-8'); @endphp
-          <tr class="{{ $r['odendi'] ? 'pr-row-odendi' : '' }}">
+          @php
+            $bas = mb_strtoupper(mb_substr($r['personel_adi'],0,1,'UTF-8'),'UTF-8');
+            $rowCls = '';
+            if($r['durum']==='tam' || $r['durum']==='fazla') $rowCls = 'pr-row-tam';
+            elseif($r['durum']==='kismi') $rowCls = 'pr-row-kismi';
+          @endphp
+          <tr class="{{ $rowCls }}">
             <td class="pr-cell-personel"><span class="pr-avatar">{{$bas}}</span>{{$r['personel_adi']}}</td>
             <td>{{number_format($r['maas'],2,',','.')}} ₺</td>
             <td>{{number_format($r['hizmet_primi'],2,',','.')}} ₺</td>
@@ -491,20 +506,39 @@
             <td class="pr-cell-kesinti">−{{number_format($r['kesinti'],2,',','.')}}</td>
             <td class="pr-cell-net"><strong>{{number_format($r['net_hakedis'],2,',','.')}} ₺</strong></td>
             <td>
-              @if($r['odendi'])
-                <span class="pr-odendi-badge prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayını görüntüle">
-                  <i class="fa fa-check-circle"></i> Ödendi
+              @if($r['durum']==='bekliyor')
+                <span class="pr-durum-badge pr-durum--bekliyor"><span class="lbl"><i class="fa fa-clock-o"></i> Bekliyor</span></span>
+              @elseif($r['durum']==='kismi')
+                <span class="pr-durum-badge pr-durum--kismi prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
+                  <span class="lbl"><i class="fa fa-hourglass-half"></i> Kısmi Ödeme</span>
+                  <span class="alt">{{number_format($r['odenen_toplam'],2,',','.')}} / {{number_format($r['net_hakedis'],2,',','.')}} ₺</span>
+                </span>
+              @elseif($r['durum']==='tam')
+                <span class="pr-durum-badge pr-durum--tam prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
+                  <span class="lbl"><i class="fa fa-check-circle"></i> Tam Ödendi</span>
+                  <span class="alt">{{number_format($r['odenen_toplam'],2,',','.')}} ₺ ({{$r['odeme_sayisi']}} ödeme)</span>
                 </span>
               @else
-                <span style="color:var(--rmc-muted); font-size:12px"><i class="fa fa-clock-o"></i> Bekliyor</span>
+                <span class="pr-durum-badge pr-durum--fazla prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
+                  <span class="lbl"><i class="fa fa-arrow-up"></i> Fazla Ödeme</span>
+                  <span class="alt">{{number_format($r['odenen_toplam'],2,',','.')}} / {{number_format($r['net_hakedis'],2,',','.')}} ₺</span>
+                </span>
               @endif
             </td>
             <td style="white-space:nowrap">
-              @if(!$r['odendi'])
-                <button class="pr-action-btn pr-action-btn--ode prim-ode" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" data-net="{{$r['net_hakedis']}}" title="Prim/Maaş Öde">
-                  <i class="fa fa-credit-card"></i> Öde
-                </button>
-              @endif
+              <button class="pr-action-btn pr-action-btn--ode prim-ode"
+                data-value="{{$r['personel_id']}}"
+                data-adi="{{$r['personel_adi']}}"
+                data-net="{{$r['net_hakedis']}}"
+                data-odenen="{{$r['odenen_toplam']}}"
+                data-kalan="{{$r['kalan']}}"
+                title="Prim/Maaş Öde">
+                <i class="fa fa-credit-card"></i>
+                @if($r['durum']==='kismi') Kalan Öde
+                @elseif($r['durum']==='tam' || $r['durum']==='fazla') Ek Öde
+                @else Öde
+                @endif
+              </button>
               <button class="pr-action-btn pr-action-btn--ekle prim-bonus-ekle" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Bonus/Kesinti Ekle">
                 <i class="fa fa-plus"></i>
               </button>
@@ -602,10 +636,19 @@
           <button type="button" class="pm-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
         </div>
         <div class="pm-body">
-          <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px 18px; margin-bottom:16px">
-            <div style="font-size:11px; color:#64748b; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-bottom:6px">Hesaplanan Net Hak Ediş</div>
-            <div style="font-size:24px; font-weight:800; color:#6366f1" id="primOde_netLabel">0,00 ₺</div>
-            <div style="font-size:12px; color:#94a3b8; margin-top:4px">Maaş + Prim Toplam + Bonus − Kesinti</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px">
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px">
+              <div style="font-size:10.5px; color:#64748b; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-bottom:4px">Net Hak Ediş</div>
+              <div style="font-size:18px; font-weight:800; color:#6366f1" id="primOde_netLabel">0,00 ₺</div>
+            </div>
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px">
+              <div style="font-size:10.5px; color:#64748b; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-bottom:4px">Şu Ana Kadar Ödenen</div>
+              <div style="font-size:18px; font-weight:800; color:#16a34a" id="primOde_odenenLabel">0,00 ₺</div>
+            </div>
+            <div style="background:#fef3c7; border:1px solid #fde68a; border-radius:12px; padding:14px 16px">
+              <div style="font-size:10.5px; color:#92400e; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-bottom:4px">Kalan</div>
+              <div style="font-size:18px; font-weight:800; color:#92400e" id="primOde_kalanLabel">0,00 ₺</div>
+            </div>
           </div>
 
           <div class="row">
@@ -615,6 +658,7 @@
                 <div class="pm-tutar-input">
                   <input type="number" step="0.01" min="0.01" class="form-control" name="tutar" id="primOde_tutar" required>
                 </div>
+                <div style="font-size:11px; color:#94a3b8; margin-top:4px">Varsayılan kalan tutardır, düzenleyebilirsiniz.</div>
               </div>
             </div>
             <div class="col-md-6">
@@ -648,7 +692,7 @@
   </div>
 </div>
 
-{{-- ========== Ödeme Detay Modal ========== --}}
+{{-- ========== Ödeme Detay (Liste) Modal ========== --}}
 <div class="modal fade" id="primOdemeDetayModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
@@ -657,20 +701,27 @@
         <div class="pm-header__left">
           <div class="pm-icon" style="background:#dcfce7; color:#16a34a"><i class="fa fa-check-circle"></i></div>
           <div style="flex:1; min-width:0;">
-            <h4>Ödeme Detayı</h4>
-            <div class="pm-sub" id="primOdemeDetay_personelAdi" style="font-weight:600; color:#0f172a"></div>
+            <h4>Ödeme Geçmişi</h4>
+            <div class="pm-sub">
+              <span id="primOdemeDetay_personelAdi" style="font-weight:600; color:#0f172a"></span>
+              <span class="donem"> &nbsp;·&nbsp; {{$aylar[$ay]}} {{$yil}}</span>
+            </div>
           </div>
         </div>
         <button type="button" class="pm-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
       </div>
       <div class="pm-body">
-        <div id="primOdemeDetay_icerik"></div>
+        <div class="pm-summary" id="primOdemeDetay_ozet" style="display:none">
+          <div class="pm-chip pm-chip-success">Toplam Ödenen <strong id="primOdemeDetay_toplam">0,00 ₺</strong></div>
+          <div class="pm-chip">Net Hak Ediş <strong id="primOdemeDetay_net">0,00 ₺</strong></div>
+          <div class="pm-chip" id="primOdemeDetay_kalanWrap">Kalan <strong id="primOdemeDetay_kalan">0,00 ₺</strong></div>
+        </div>
+        <div id="primOdemeDetay_liste">
+          <div class="pm-loading"><div class="pm-spinner"></div><div style="margin-top:14px; font-weight:500">Yükleniyor...</div></div>
+        </div>
       </div>
       <div class="pm-footer">
         <button type="button" class="pm-btn-secondary" data-dismiss="modal">Kapat</button>
-        <button type="button" class="pm-btn-primary prim-odeme-geri-al" style="background:#dc2626" id="primOdemeDetay_geriAl">
-          <i class="fa fa-times"></i> Ödemeyi Geri Al
-        </button>
       </div>
     </div>
   </div>
@@ -758,13 +809,21 @@ $(function(){
     if($m.parent()[0] !== document.body) $m.appendTo('body');
     var pid = $(this).data('value');
     var net = parseFloat($(this).data('net')) || 0;
+    var odenen = parseFloat($(this).data('odenen')) || 0;
+    var kalan = parseFloat($(this).data('kalan')) || 0;
+
     $('#primOde_personelId').val(pid);
     $('#primOde_personelAdi').text($(this).data('adi'));
     $('#primOde_netLabel').text(_formatTL(net) + ' ₺');
+    $('#primOde_odenenLabel').text(_formatTL(odenen) + ' ₺');
+    $('#primOde_kalanLabel').text(_formatTL(kalan) + ' ₺');
+
     $('#primOdeForm')[0].reset();
     $('#primOde_personelId').val(pid);
     $('#primOdeForm input[name="donem"]').val(_donem);
-    $('#primOde_tutar').val(net.toFixed(2));
+    // Default tutar: kalan varsa kalan, yoksa NET (ek odeme senaryosu icin)
+    var defaultTutar = kalan > 0 ? kalan : (net > odenen ? net - odenen : 0);
+    $('#primOde_tutar').val(defaultTutar > 0 ? defaultTutar.toFixed(2) : '');
     $('#primOdeForm input[name="odeme_tarihi"]').val('{{date("Y-m-d")}}');
     $m.modal('show');
   });
@@ -789,44 +848,75 @@ $(function(){
     });
   });
 
-  // Ödeme detayını göster + geri al
+  // Ödeme geçmişini göster (çoklu ödeme) + tek tek sil
   $(document).on('click','.prim-odeme-detay', function(){
     var $m = $('#primOdemeDetayModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
     var pid = $(this).data('value');
     var adi = $(this).data('adi');
     var r = _raporIndex[pid];
-    if(!r || !r.odendi){ return; }
     $('#primOdemeDetay_personelAdi').text(adi);
-    $('#primOdemeDetay_geriAl').data('odeme-id', r.odeme_id);
-    var tarihStr = r.odeme_tarihi ? (new Date(r.odeme_tarihi)).toLocaleDateString('tr-TR') : '-';
-    var html = '';
-    html += '<div style="background:#dcfce7; border:1px solid #bbf7d0; border-radius:12px; padding:16px 18px; margin-bottom:14px">';
-    html += '  <div style="font-size:11px; color:#15803d; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-bottom:6px"><i class="fa fa-check-circle"></i> Ödendi</div>';
-    html += '  <div style="font-size:26px; font-weight:800; color:#15803d">'+_formatTL(r.odeme_tutar)+' ₺</div>';
-    html += '</div>';
-    html += '<div class="pm-summary" style="margin-bottom:0">';
-    html += '  <div class="pm-chip">Tarih <strong>'+tarihStr+'</strong></div>';
-    if(r.odeme_yontemi){ html += '  <div class="pm-chip">Yöntem <strong>'+_escHtml(r.odeme_yontemi)+'</strong></div>'; }
-    html += '</div>';
-    if(r.odeme_aciklama){
-      html += '<div style="margin-top:14px; padding:14px 16px; background:#fff; border:1px solid #e2e8f0; border-radius:12px">';
-      html += '  <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px">Açıklama</div>';
-      html += '  <div style="font-size:14px; color:#334155">'+_escHtml(r.odeme_aciklama)+'</div>';
-      html += '</div>';
-    }
-    $('#primOdemeDetay_icerik').html(html);
+    $('#primOdemeDetay_ozet').hide();
+    $('#primOdemeDetay_liste').html('<div class="pm-loading"><div class="pm-spinner"></div><div style="margin-top:14px; font-weight:500">Yükleniyor...</div></div>');
     $m.modal('show');
+
+    $.ajax({
+      url: '/isletmeyonetim/primodemelistesi',
+      method: 'GET',
+      data: { personel_id: pid, sube: _sube, donem: _donem },
+      success: function(res){
+        if(!res.basarili || !res.odemeler || res.odemeler.length===0){
+          $('#primOdemeDetay_liste').html(
+            '<div class="pm-empty">'+
+              '<div class="pm-empty__icon"><i class="fa fa-inbox"></i></div>'+
+              '<div class="pm-empty__baslik">Bu dönemde ödeme yok</div>'+
+            '</div>'
+          );
+          return;
+        }
+
+        // Ozet bilgileri (rapor satirindan)
+        var net = r ? parseFloat(r.net_hakedis||0) : 0;
+        var odenen = parseFloat(res.odenen_toplam||0);
+        var kalan = Math.max(0, net - odenen);
+        $('#primOdemeDetay_toplam').text(_formatTL(odenen)+' ₺');
+        $('#primOdemeDetay_net').text(_formatTL(net)+' ₺');
+        $('#primOdemeDetay_kalan').text(_formatTL(kalan)+' ₺');
+        $('#primOdemeDetay_ozet').css('display','flex');
+
+        var html = '<div class="pm-list">';
+        res.odemeler.forEach(function(o){
+          var tarihStr = o.odeme_tarihi ? (new Date(o.odeme_tarihi)).toLocaleDateString('tr-TR') : '';
+          var tutarStr = _formatTL(o.tutar);
+          html += '<div class="pm-item pm-item--bonus">';
+          html += '  <div class="pm-item__icon" style="background:#dbeafe; color:#1e40af"><i class="fa fa-credit-card"></i></div>';
+          html += '  <div class="pm-item__body">';
+          html += '    <div class="pm-item__row1">';
+          html += '      <span class="pm-item__badge" style="background:#dbeafe; color:#1e40af">ÖDEME</span>';
+          html += '      <span class="pm-item__tutar" style="color:#1e40af">'+tutarStr+' ₺</span>';
+          html += '      <span class="pm-item__tarih"><i class="fa fa-calendar"></i> '+tarihStr+'</span>';
+          if(o.odeme_yontemi){ html += '      <span class="pm-item__tarih" style="color:#64748b"><i class="fa fa-money"></i> '+_escHtml(o.odeme_yontemi)+'</span>'; }
+          html += '    </div>';
+          if(o.aciklama){ html += '    <div class="pm-item__aciklama">'+_escHtml(o.aciklama)+'</div>'; }
+          html += '  </div>';
+          html += '  <button class="pm-item__sil prim-odeme-sil-tek" data-id="'+o.id+'" title="Bu ödemeyi sil"><i class="fa fa-trash"></i></button>';
+          html += '</div>';
+        });
+        html += '</div>';
+        $('#primOdemeDetay_liste').html(html);
+      }
+    });
   });
 
-  $(document).on('click','.prim-odeme-geri-al', function(){
-    var odemeId = $(this).data('odeme-id');
+  // Tek bir odemeyi sil
+  $(document).on('click','.prim-odeme-sil-tek', function(){
+    var odemeId = $(this).data('id');
     if(!odemeId) return;
     swal({
-      title: 'Ödeme geri alınsın mı?',
-      text: 'Bu işlem ödeme kaydını siler. Personel tekrar "ödenmemiş" duruma geçecek.',
+      title: 'Ödeme silinsin mi?',
+      text: 'Bu ödeme kaydı silinecek. Diğer ödemeler etkilenmez.',
       type: 'warning', showCancelButton: true,
-      confirmButtonText: 'Geri Al', cancelButtonText: 'Vazgeç',
+      confirmButtonText: 'Sil', cancelButtonText: 'Vazgeç',
       confirmButtonClass: 'btn btn-danger'
     }).then(function(r){
       if(!r.value) return;
@@ -884,41 +974,70 @@ $(function(){
       method: 'GET',
       data: { personel_id: pid, sube: _sube, tarih1: _tarih1, tarih2: _tarih2 },
       success: function(res){
-        if(!res.basarili || !res.hareketler || res.hareketler.length===0){
+        var hareketler = (res && res.hareketler) ? res.hareketler : [];
+        var odemeler = (res && res.odemeler) ? res.odemeler : [];
+
+        if(hareketler.length===0 && odemeler.length===0){
           $('#primHareketListesi').html(
             '<div class="pm-empty">'+
               '<div class="pm-empty__icon"><i class="fa fa-inbox"></i></div>'+
               '<div class="pm-empty__baslik">Bu dönemde kayıt yok</div>'+
-              '<div class="pm-empty__alt">Tabloda + butonuyla bonus veya kesinti ekleyebilirsiniz.</div>'+
+              '<div class="pm-empty__alt">Tabloda + butonuyla bonus/kesinti, "Öde" butonuyla ödeme ekleyebilirsiniz.</div>'+
             '</div>'
           );
           return;
         }
 
-        var toplamBonus = 0, toplamKesinti = 0;
+        // Tum kayitlari tek listede birlestir, tarihe gore sirala (yeni en ustte)
+        var birlesik = [];
+        hareketler.forEach(function(h){
+          birlesik.push({ kind: h.tip, tarih: h.tarih, tutar: h.tutar, id: h.id, aciklama: h.aciklama });
+        });
+        odemeler.forEach(function(o){
+          birlesik.push({ kind: 'odeme', tarih: o.tarih, tutar: o.tutar, id: o.id, aciklama: o.aciklama, odeme_yontemi: o.odeme_yontemi });
+        });
+        birlesik.sort(function(a,b){
+          var ta = a.tarih || '0000-00-00';
+          var tb = b.tarih || '0000-00-00';
+          if(ta < tb) return 1; if(ta > tb) return -1; return 0;
+        });
+
+        var toplamBonus = 0, toplamKesinti = 0, toplamOdeme = 0;
         var html = '<div class="pm-list">';
-        res.hareketler.forEach(function(h){
-          var isBonus = h.tip === 'bonus';
+        birlesik.forEach(function(h){
           var tutarNum = parseFloat(h.tutar||0);
-          if(isBonus) toplamBonus += tutarNum; else toplamKesinti += tutarNum;
           var tutarStr = _formatTL(h.tutar);
           var tarihStr = h.tarih ? (new Date(h.tarih)).toLocaleDateString('tr-TR') : '';
-          var icon = isBonus ? '<i class="fa fa-arrow-up"></i>' : '<i class="fa fa-arrow-down"></i>';
-          var tipKisaltma = isBonus ? 'BONUS' : 'KESİNTİ';
-          var tutarSign = isBonus ? '+' : '−';
-          var modCls = isBonus ? 'pm-item--bonus' : 'pm-item--kesinti';
+          var modCls, icon, tipKisaltma, tutarSign, silClass, tutarColor, badgeStyle;
 
-          html += '<div class="pm-item '+modCls+'">';
-          html += '  <div class="pm-item__icon">'+icon+'</div>';
+          if(h.kind === 'bonus'){
+            toplamBonus += tutarNum;
+            modCls = 'pm-item--bonus'; icon = '<i class="fa fa-arrow-up"></i>';
+            tipKisaltma = 'BONUS'; tutarSign = '+'; silClass = 'prim-hareket-sil'; badgeStyle='';
+          } else if(h.kind === 'kesinti'){
+            toplamKesinti += tutarNum;
+            modCls = 'pm-item--kesinti'; icon = '<i class="fa fa-arrow-down"></i>';
+            tipKisaltma = 'KESİNTİ'; tutarSign = '−'; silClass = 'prim-hareket-sil'; badgeStyle='';
+          } else { // odeme
+            toplamOdeme += tutarNum;
+            modCls = ''; icon = '<i class="fa fa-credit-card"></i>';
+            tipKisaltma = 'ÖDEME'; tutarSign = ''; silClass = 'prim-odeme-sil-tek';
+            badgeStyle = 'background:#dbeafe; color:#1e40af';
+            tutarColor = '#1e40af';
+          }
+
+          html += '<div class="pm-item '+modCls+'"' + (h.kind==='odeme' ? ' style="border-left:4px solid #3b82f6"' : '') + '>';
+          html += '  <div class="pm-item__icon"' + (h.kind==='odeme' ? ' style="background:#dbeafe; color:#1e40af"' : '') + '>'+icon+'</div>';
           html += '  <div class="pm-item__body">';
           html += '    <div class="pm-item__row1">';
-          html += '      <span class="pm-item__badge">'+tipKisaltma+'</span>';
-          html += '      <span class="pm-item__tutar">'+tutarSign+tutarStr+' ₺</span>';
+          html += '      <span class="pm-item__badge"' + (badgeStyle ? ' style="'+badgeStyle+'"' : '') + '>'+tipKisaltma+'</span>';
+          html += '      <span class="pm-item__tutar"' + (h.kind==='odeme' ? ' style="color:#1e40af"' : '') + '>'+tutarSign+tutarStr+' ₺</span>';
           html += '      <span class="pm-item__tarih"><i class="fa fa-calendar"></i> '+tarihStr+'</span>';
+          if(h.odeme_yontemi){ html += '      <span class="pm-item__tarih" style="color:#64748b"><i class="fa fa-money"></i> '+_escHtml(h.odeme_yontemi)+'</span>'; }
           html += '    </div>';
           if(h.aciklama){ html += '    <div class="pm-item__aciklama">'+_escHtml(h.aciklama)+'</div>'; }
           html += '  </div>';
-          html += '  <button class="pm-item__sil prim-hareket-sil" data-id="'+h.id+'" title="Sil"><i class="fa fa-trash"></i></button>';
+          html += '  <button class="pm-item__sil '+silClass+'" data-id="'+h.id+'" title="Sil"><i class="fa fa-trash"></i></button>';
           html += '</div>';
         });
         html += '</div>';
