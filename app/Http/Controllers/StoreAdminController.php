@@ -3777,12 +3777,21 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function randevu_resize_drop(Request $request)
     {
-         
+
         $randevu_eski = Randevular::where('id',$request->randevu_id)->first();
         $baslangic = explode('T',$request->start);
         $bitis = explode('T',$request->end);
         $hizmet = '';
         $randevu = '';
+
+        $hizmetEski = RandevuHizmetler::where('id',$request->id)->first();
+        $seans = null;
+        if($hizmetEski){
+            $seans = AdisyonPaketSeanslar::where('randevu_id',$randevu_eski->id)
+                ->where('hizmet_id',$hizmetEski->hizmet_id)
+                ->first();
+        }
+
         $randevu = new Randevular();
         $randevu->user_id = $randevu_eski->user_id;
         $randevu->salon_id = $randevu_eski->salon_id;
@@ -3812,11 +3821,21 @@ private function ayAdiCevir($ingilizceAy)
             if(Odalar::where('id',$request->oda_id)->value('personel_id')!== null)
                 $hizmet->personel_id = Odalar::where('id',$request->oda_id)->value('personel_id');
         }
-        if($request->yeni_hizmet_id != '')
+        if($request->yeni_hizmet_id != '' && !$seans)
             $hizmet->hizmet_id = $request->yeni_hizmet_id;
         $hizmet->saat = $baslangic[1];
         $hizmet->saat_bitis = $bitis[1];
         $hizmet->save();
+
+        if($seans){
+            $seans->randevu_id = $randevu->id;
+            $seans->seans_tarih = $baslangic[0];
+            $seans->seans_saat = $baslangic[1];
+            $seans->personel_id = $hizmet->personel_id;
+            $seans->cihaz_id = $hizmet->cihaz_id;
+            $seans->oda_id = $hizmet->oda_id;
+            $seans->save();
+        }
         if(SalonSMSAyarlari::where('salon_id',$randevu->salon_id)->where('ayar_id',9)->value('musteri')==1){
              $mesajlar = array(
                 array("to"=>$randevu->users->cep_telefon,"message"=>$randevu->salonlar->salon_adi." için oluşturulan ".$hizmet->personeller->personel_adi .' ile '.$hizmet->hizmetler->hizmet_adi.' '.date('d.m.Y H:i', strtotime($eskitarih.' '.$eskisaat))." tarihli randevunuz ".date('d.m.Y',strtotime($randevu->tarih)) ." - ". date('H:i',strtotime($hizmet->saat)) ." olarak güncellenmiştir. Detaylı bilgi için bize ulaşın. 0".$randevu->salonlar->telefon_1),
