@@ -40,6 +40,50 @@
 .wsi-modal-close { cursor:pointer; font-size:22px; color:#999; }
 .wsi-spinner { display:inline-block; width:14px; height:14px; border:2px solid #ddd; border-top-color:#25D366; border-radius:50%; animation:wsispin 0.8s linear infinite; }
 @keyframes wsispin { to { transform:rotate(360deg); } }
+
+/* ───── Paket Bölümü ───── */
+.wpkt-wrapper { margin: 30px 0; }
+.wpkt-header { text-align: center; margin-bottom: 24px; }
+.wpkt-header h2 { font-size: 28px; font-weight: 700; color: #222; margin: 0 0 8px; }
+.wpkt-header p { color: #6c757d; font-size: 15px; max-width: 600px; margin: 0 auto; }
+.wpkt-current { display:inline-block; margin-top:12px; padding:6px 14px; background:#e8f7ee; color:#1a7f3e; border-radius:99px; font-size:13px; font-weight:600; }
+
+.wpkt-toggle { display: flex; justify-content: center; gap: 4px; margin-bottom: 28px; background: #f1f3f5; padding: 4px; border-radius: 99px; max-width: 360px; margin-left: auto; margin-right: auto; }
+.wpkt-toggle button { flex: 1; padding: 10px 18px; border: none; background: transparent; color: #6c757d; font-weight: 600; font-size: 14px; cursor: pointer; border-radius: 99px; transition: all 0.2s; position:relative; }
+.wpkt-toggle button.active { background: #fff; color: #25D366; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.wpkt-discount { display: inline-block; background: #25D366; color: #fff; padding: 2px 7px; border-radius: 99px; font-size: 10px; margin-left: 4px; font-weight: 700; }
+
+.wpkt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 980px) { .wpkt-grid { grid-template-columns: 1fr; } }
+
+.wpkt-card { background: #fff; border-radius: 16px; padding: 28px 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 2px solid transparent; position: relative; transition: all 0.3s; display: flex; flex-direction: column; }
+.wpkt-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+.wpkt-card.popular { border-color: #25D366; box-shadow: 0 4px 20px rgba(37,211,102,0.15); transform: scale(1.03); }
+.wpkt-card.popular:hover { transform: scale(1.03) translateY(-4px); }
+.wpkt-card.current { border-color: #1a7f3e; background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%); }
+.wpkt-popular-tag { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #25D366, #1ebe57); color: #fff; padding: 5px 14px; border-radius: 99px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(37,211,102,0.4); }
+.wpkt-current-tag { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #1a7f3e; color: #fff; padding: 5px 14px; border-radius: 99px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+
+.wpkt-tier-name { font-size: 22px; font-weight: 700; color: #222; margin-bottom: 6px; }
+.wpkt-tier-desc { color: #6c757d; font-size: 13px; line-height: 1.5; min-height: 40px; margin-bottom: 18px; }
+
+.wpkt-price-block { padding: 14px 0; border-top: 1px solid #f1f3f5; border-bottom: 1px solid #f1f3f5; margin-bottom: 18px; }
+.wpkt-price { font-size: 36px; font-weight: 800; color: #222; line-height: 1; }
+.wpkt-price small { font-size: 14px; font-weight: 500; color: #6c757d; }
+.wpkt-price-aylik { font-size: 13px; color: #6c757d; margin-top: 6px; min-height: 18px; }
+
+.wpkt-features { list-style: none; padding: 0; margin: 0 0 22px; flex: 1; }
+.wpkt-features li { padding: 8px 0; padding-left: 26px; position: relative; font-size: 14px; color: #495057; line-height: 1.4; }
+.wpkt-features li:before { content: "✓"; position: absolute; left: 0; color: #25D366; font-weight: 700; font-size: 16px; }
+.wpkt-features li.no { color: #adb5bd; }
+.wpkt-features li.no:before { content: "✕"; color: #dee2e6; }
+
+.wpkt-btn { width: 100%; padding: 13px 20px; border: none; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+.wpkt-btn-primary { background: linear-gradient(135deg, #25D366, #1ebe57); color: #fff; }
+.wpkt-btn-primary:hover { box-shadow: 0 4px 12px rgba(37,211,102,0.4); transform: translateY(-1px); }
+.wpkt-btn-outline { background: #fff; color: #25D366; border: 2px solid #25D366; }
+.wpkt-btn-outline:hover { background: #25D366; color: #fff; }
+.wpkt-btn-current { background: #f1f3f5; color: #6c757d; cursor: not-allowed; }
 </style>
 <style>
     .wa-card { background:#fff; border-radius:10px; padding:24px; box-shadow:0 2px 10px rgba(0,0,0,.06); }

@@ -18156,6 +18156,74 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return response()->json(['rows' => $rows]);
     }
 
+    public function whatsappPaketDurum(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $salon = Salonlar::find($salonId);
+        $bitis = $salon->whatsapp_paket_bitis;
+        $kalanGun = null;
+        if ($bitis) {
+            $kalanGun = max(0, \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($bitis), false));
+        }
+
+        return response()->json([
+            'paket' => $salon->whatsapp_paket ?: 'baslangic',
+            'periyot' => $salon->whatsapp_paket_periyot,
+            'baslangic' => optional($salon->whatsapp_paket_baslangic)->format('Y-m-d'),
+            'bitis' => optional($salon->whatsapp_paket_bitis)->format('Y-m-d'),
+            'deneme' => (bool) $salon->whatsapp_paket_deneme,
+            'kalan_gun' => $kalanGun,
+        ]);
+    }
+
+    public function whatsappPaketTalep(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $paket = $request->input('paket');
+        $periyot = $request->input('periyot');
+        $iletisim = trim((string) $request->input('iletisim', ''));
+
+        if (!in_array($paket, ['pro', 'premium'])) {
+            return response()->json(['error' => 'gecersiz-paket'], 400);
+        }
+        if (!in_array($periyot, ['aylik', 'yillik'])) {
+            return response()->json(['error' => 'gecersiz-periyot'], 400);
+        }
+
+        $salon = Salonlar::find($salonId);
+        $user = Auth::guard('isletmeyonetim')->user();
+
+        try {
+            $bildirim = new \App\Bildirimler();
+            $bildirim->aciklama = "📦 PAKET YÜKSELTME TALEBİ — {$salon->salon_adi} (#{$salon->id}) → "
+                . strtoupper($paket) . ' / ' . ucfirst($periyot)
+                . ' — İletişim: ' . ($iletisim ?: ($user->email ?? '-'));
+            $bildirim->salon_id = $salonId;
+            $bildirim->url = '/sistemyonetim/isletmedetay/' . $salonId;
+            $bildirim->tarih_saat = date('Y-m-d H:i:s');
+            $bildirim->okundu = false;
+            $bildirim->save();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Paket talep bildirimi yazılamadı', ['err' => $e->getMessage()]);
+        }
+
+        \Illuminate\Support\Facades\Log::info('[WA Paket] talep alındı', [
+            'salon_id' => $salonId,
+            'paket' => $paket,
+            'periyot' => $periyot,
+            'iletisim' => $iletisim,
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'mesaj' => 'Talebiniz alındı. Müşteri temsilcimiz en kısa sürede sizinle iletişime geçecek.',
+        ]);
+    }
+
     /**
      * Transactional mesaj (iptal, güncelleme, onay vs.) için WhatsApp-first + SMS fallback.
      * WhatsApp kanalı açıksa Node'a kuyruğa atar (webhook ile fail olursa SMS otomatik gider).
