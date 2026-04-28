@@ -244,30 +244,53 @@
          </div>
       </a>
 
-      {{-- ============ CARKIFELEK POPUP (sayfa açılınca otomatik — gerçek çark) ============ --}}
+      {{-- ============ CARKIFELEK POPUP (sayfa açılınca otomatik — gerçek çark inline) ============ --}}
+      @php
+         // Widget için gerekli verileri hesapla
+         $_dilimler = \App\CarkifelekDilimleri::where('cark_id', $_aktifCark->id)->orderBy('sira')->get();
+         $_dilimlerJson = $_dilimler->map(function($d){
+            return [
+               'id'    => $d->id,
+               'ismi'  => $d->dilim_ismi,
+               'renk'  => $d->renk_kodu,
+               'tip'   => isset($d->tip) ? $d->tip : 'bos',
+               'deger' => $d->deger !== null ? (float) $d->deger : null,
+            ];
+         })->values()->toArray();
+         $_isMisafir = !\Auth::check();
+         $_sessionBugunMarker = session("cark_bugun_{$salon->id}") === \Carbon\Carbon::today()->toDateString();
+         $_kalanHak = $_isMisafir ? 1 : \App\Randevular::where('salon_id', $salon->id)->where('user_id', \Auth::id())->where('durum', 1)->count();
+         $_bugunCevirdi = $_sessionBugunMarker;
+         if (!$_isMisafir && !$_bugunCevirdi) {
+            $_bugunCevirdi = \App\CarkifelekCevirmeLoglari::where('salon_id', $salon->id)
+               ->where('user_id', \Auth::id())
+               ->where('tip', '!=', 'tekrar_dene')
+               ->whereDate('created_at', \Carbon\Carbon::today())
+               ->exists();
+         }
+         $_yarinSaat = \Carbon\Carbon::tomorrow()->format('d.m.Y H:i');
+      @endphp
       <div class="cark-popup" id="carkPopup" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="carkPopupTitle">
          <div class="cark-popup__backdrop" data-cark-close></div>
-         <div class="cark-popup__panel" style="max-width:min(960px, 96vw); width:96vw; height:min(840px, 92vh); padding:0; overflow:hidden; border-radius:18px; background:#fff;">
-            <button type="button" class="cark-popup__close" data-cark-close aria-label="Kapat" style="z-index:5;">
+         <div class="cark-popup__panel" style="max-width:min(900px, 96vw); width:96vw; max-height:96vh; padding:0; overflow:auto; border-radius:18px; background:transparent; box-shadow:none;">
+            <button type="button" class="cark-popup__close" data-cark-close aria-label="Kapat" style="z-index:5; position:absolute; top:10px; right:10px;">
                <i class="fa fa-times"></i>
             </button>
-            <iframe id="carkIframe"
-                    src=""
-                    data-src="{{ url('/cark/'.$salon->id) }}?embed=1"
-                    style="width:100%; height:100%; border:0; display:block;"
-                    allow="autoplay"
-                    title="Çarkıfelek"></iframe>
+            @include('carkifelek._cark_widget', [
+               'salon'        => $salon,
+               'dilimlerJson' => $_dilimlerJson,
+               'kalanHak'     => $_kalanHak,
+               'bugunCevirdi' => $_bugunCevirdi,
+               'yarinSaat'    => $_yarinSaat,
+               'isMisafir'    => $_isMisafir,
+            ])
          </div>
       </div>
-
       <script>
          (function(){
-            // Banner CTA'sı tıklanırsa popup açılsın (lazy iframe yüklemesi)
             window.openCarkModal = function(){
                var pop = document.getElementById('carkPopup');
                if (!pop) return;
-               var iframe = document.getElementById('carkIframe');
-               if (iframe && !iframe.src) iframe.src = iframe.getAttribute('data-src');
                pop.classList.add('is-open');
                pop.setAttribute('aria-hidden', 'false');
                document.body.classList.add('cark-popup-open');
