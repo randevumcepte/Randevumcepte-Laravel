@@ -257,9 +257,13 @@
             ];
          })->values()->toArray();
          $_isMisafir = !\Auth::check();
+         $_force = isset($_GET['carkforce']) && (int) $_GET['carkforce'] === 1;
+         if ($_force) {
+            session()->forget("cark_bugun_{$salon->id}");
+         }
          $_sessionBugunMarker = session("cark_bugun_{$salon->id}") === \Carbon\Carbon::today()->toDateString();
-         $_bugunCevirdi = $_sessionBugunMarker;
-         if (!$_isMisafir && !$_bugunCevirdi) {
+         $_bugunCevirdi = !$_force && $_sessionBugunMarker;
+         if (!$_force && !$_isMisafir && !$_bugunCevirdi) {
             $_bugunCevirdi = \App\CarkifelekCevirmeLoglari::where('salon_id', $salon->id)
                ->where('user_id', \Auth::id())
                ->where('tip', '!=', 'tekrar_dene')
@@ -320,6 +324,7 @@
             const DILIMLER = {!! json_encode($_dilimlerJson) !!};
             const SALON_ID = {{ $salon->id }};
             const CSRF     = '{{ csrf_token() }}';
+            const FORCE    = /[?&]carkforce=1\b/.test(window.location.search) ? 1 : 0;
             const CEVIR_URL    = '{{ route("cark.cevir") }}';
             const SMSKOD_URL   = '{{ route("cark.smskod") }}';
             const SMSDOG_URL   = '{{ route("cark.smsdogrula") }}';
@@ -687,7 +692,7 @@
                   const r = await fetch(CEVIR_URL, {
                      method:'POST',
                      headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF,'Accept':'application/json'},
-                     body: JSON.stringify({salon_id: SALON_ID})
+                     body: JSON.stringify({salon_id: SALON_ID, carkforce: FORCE})
                   });
                   data = await r.json();
                } catch(e){
