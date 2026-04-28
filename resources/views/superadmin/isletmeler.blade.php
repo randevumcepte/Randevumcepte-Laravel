@@ -31,7 +31,7 @@
                       <tr>
                         <td>{{$isletmeliste->salon_adi}}</td>
                         <td>
-                            {{$isletmeliste->il->il_adi}} / {{$isletmeliste->ilce->ilce_adi}}
+                            {{ optional($isletmeliste->il)->il_adi ?: '—' }} / {{ optional($isletmeliste->ilce)->ilce_adi ?: '—' }}
                         </td>
                         <td>
                         	@foreach(\App\IsletmeYetkilileri::where('salon_id',$isletmeliste->id)->get() as $isletmeyetkilileri)
