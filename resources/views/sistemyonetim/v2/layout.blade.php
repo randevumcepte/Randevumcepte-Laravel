@@ -21,7 +21,10 @@
         'izleyici'    => 'İzleyici',
     ];
     try {
-        $bekleyen = \App\SistemYonetim\DestekTalebi::whereIn('durum', ['acik','islemde','bekliyor'])->count();
+        // Layout her sayfada render edildigi icin bekleyen ticket sayisi cacheli (60sn)
+        $bekleyen = \Cache::remember('sy.layout.bekleyen_ticket', 60, function () {
+            return \App\SistemYonetim\DestekTalebi::whereIn('durum', ['acik','islemde','bekliyor'])->count();
+        });
     } catch (\Exception $e) { $bekleyen = 0; }
 @endphp
 

@@ -63,22 +63,52 @@ class PanelController extends Controller
     public function dashboard()
     {
         $bugun = date('Y-m-d');
-        $haftaOnce = date('Y-m-d', strtotime('-7 days'));
+        $bugunBaslangic = date('Y-m-d 00:00:00');
+        $haftaOnce = date('Y-m-d 00:00:00', strtotime('-7 days'));
+        $haftaTrendBaslangic = date('Y-m-d 00:00:00', strtotime('-6 days'));
 
-        $metrikler = [
-            'toplam_salon'       => (int) Salonlar::count(),
-            'aktif_salon'        => (int) Salonlar::where('askiya_alindi', 0)->count(),
-            'askida_salon'       => (int) Salonlar::where('askiya_alindi', 1)->count(),
-            'bugun_yeni_salon'   => (int) Salonlar::whereDate('created_at', $bugun)->count(),
-            'hafta_yeni_salon'   => (int) Salonlar::where('created_at', '>=', $haftaOnce)->count(),
-            'toplam_yetkili'     => (int) IsletmeYetkilileri::count(),
-            'toplam_personel'    => (int) Personeller::count(),
-            'toplam_randevu'     => (int) DB::table('randevular')->count(),
-            'bugun_randevu'      => (int) DB::table('randevular')->whereDate('created_at', $bugun)->count(),
-            'acik_ticket'        => (int) DestekTalebi::whereIn('durum', ['acik', 'islemde', 'bekliyor'])->count(),
-            'acil_ticket'        => (int) DestekTalebi::whereIn('durum', ['acik', 'islemde'])->where('oncelik', 'acil')->count(),
-            'aktif_ekip'         => (int) SistemYoneticileri::where('aktif', 1)->count(),
-        ];
+        // ───────── METRIKLER (her biri kendi optimize edilmis sorgu, cacheli) ─────────
+        $metrikler = \Cache::remember('sy.dashboard.metrikler', 300, function () use ($bugunBaslangic, $haftaOnce) {
+            // Salon stats: tek sorgu ile tum kriterleri al
+            $salonStats = DB::table('salonlar')->selectRaw("
+                COUNT(*) as toplam,
+                SUM(CASE WHEN askiya_alindi = 0 THEN 1 ELSE 0 END) as aktif,
+                SUM(CASE WHEN askiya_alindi = 1 THEN 1 ELSE 0 END) as askida,
+                SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as bugun,
+                SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as hafta
+            ", [$bugunBaslangic, $haftaOnce])->first();
+
+            // Ticket stats: tek sorgu
+            $ticketStats = DB::table('sistemyonetim_destek_talepleri')->selectRaw("
+                SUM(CASE WHEN durum IN ('acik','islemde','bekliyor') THEN 1 ELSE 0 END) as acik,
+                SUM(CASE WHEN durum IN ('acik','islemde') AND oncelik='acil' THEN 1 ELSE 0 END) as acil
+            ")->first();
+
+            // Randevu stats: bu ag table'da pahali, sadece bugun ve toplam
+            // toplam'i information_schema yaklasik dan al (full scan kacin)
+            $bugunRandevu = (int) DB::table('randevular')->where('created_at', '>=', $bugunBaslangic)->count();
+            // toplam_randevu icin information_schema yaklasik (full scan kacin)
+            $toplamRandevu = 0;
+            try {
+                $row = DB::selectOne("SELECT TABLE_ROWS as c FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'randevular'");
+                if ($row && isset($row->c)) $toplamRandevu = (int) $row->c;
+            } catch (\Exception $e) {}
+
+            return [
+                'toplam_salon'     => (int) $salonStats->toplam,
+                'aktif_salon'      => (int) $salonStats->aktif,
+                'askida_salon'     => (int) $salonStats->askida,
+                'bugun_yeni_salon' => (int) $salonStats->bugun,
+                'hafta_yeni_salon' => (int) $salonStats->hafta,
+                'toplam_yetkili'   => (int) DB::table('isletmeyetkilileri')->count(),
+                'toplam_personel'  => (int) DB::table('personeller')->count(),
+                'toplam_randevu'   => $toplamRandevu,
+                'bugun_randevu'    => $bugunRandevu,
+                'acik_ticket'      => (int) ($ticketStats->acik ?? 0),
+                'acil_ticket'      => (int) ($ticketStats->acil ?? 0),
+                'aktif_ekip'       => (int) DB::table('sistemyoneticileri')->where('aktif', 1)->count(),
+            ];
+        });
 
         $sonAktiviteler = AuditLog::orderBy('id', 'desc')->limit(15)->get();
         $bekleyenTicketlar = DestekTalebi::whereIn('durum', ['acik', 'islemde', 'bekliyor'])
@@ -88,16 +118,31 @@ class PanelController extends Controller
             ->get();
         $sonGirisler = LoginLog::orderBy('id', 'desc')->limit(10)->get();
 
-        // 7 gunluk trend
-        $trend = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $g = date('Y-m-d', strtotime("-$i days"));
-            $trend[] = [
-                'tarih' => $g,
-                'salon' => (int) Salonlar::whereDate('created_at', $g)->count(),
-                'randevu' => (int) DB::table('randevular')->whereDate('created_at', $g)->count(),
-            ];
-        }
+        // ───────── 7 GUNLUK TREND: 14 ayri query yerine 2 GROUP BY ─────────
+        $trend = \Cache::remember('sy.dashboard.trend', 300, function () use ($haftaTrendBaslangic) {
+            $salonGunluk = DB::table('salonlar')
+                ->where('created_at', '>=', $haftaTrendBaslangic)
+                ->selectRaw('DATE(created_at) as tarih, COUNT(*) as adet')
+                ->groupBy(DB::raw('DATE(created_at)'))
+                ->pluck('adet', 'tarih')->toArray();
+
+            $randevuGunluk = DB::table('randevular')
+                ->where('created_at', '>=', $haftaTrendBaslangic)
+                ->selectRaw('DATE(created_at) as tarih, COUNT(*) as adet')
+                ->groupBy(DB::raw('DATE(created_at)'))
+                ->pluck('adet', 'tarih')->toArray();
+
+            $out = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $g = date('Y-m-d', strtotime("-$i days"));
+                $out[] = [
+                    'tarih' => $g,
+                    'salon' => (int) ($salonGunluk[$g] ?? 0),
+                    'randevu' => (int) ($randevuGunluk[$g] ?? 0),
+                ];
+            }
+            return $out;
+        });
 
         return view('sistemyonetim.v2.dashboard', [
             'title' => 'Sistem Yönetim Paneli',
@@ -119,7 +164,8 @@ class PanelController extends Controller
         $durum = $request->get('durum', 'hepsi'); // hepsi | aktif | askida
         $musteriYetkiliId = $request->get('mt');
 
-        $query = Salonlar::query();
+        // Il/Ilce eager-load — N+1 query patlamasini onler
+        $query = Salonlar::with(['il', 'ilce']);
         if ($q !== '') {
             $query->where(function ($w) use ($q) {
                 $w->where('salon_adi', 'like', "%$q%")
@@ -132,7 +178,6 @@ class PanelController extends Controller
         if ($durum === 'askida') $query->where('askiya_alindi', 1);
         if ($musteriYetkiliId) $query->where('musteri_yetkili_id', $musteriYetkiliId);
 
-        // Sadece super_admin tum salonlari gorur, destek temsilcisi atandiklarini gorur
         if ($this->rol() === 'destek') {
             $query->where('musteri_yetkili_id', $this->user()->id);
         }
@@ -142,11 +187,15 @@ class PanelController extends Controller
         $salonlar = $query->orderBy('id', 'desc')->paginate($perPage)->appends($request->all());
         $musteriTemsilcileri = SistemYoneticileri::orderBy('name')->get();
 
+        // MT id->name map (her satirda ayri sorgu yerine tek seferde)
+        $mtMap = $musteriTemsilcileri->pluck('name', 'id');
+
         return view('sistemyonetim.v2.salonlar', [
             'title' => 'Salonlar',
             'aktifMenu' => 'salonlar',
             'salonlar' => $salonlar,
             'musteriTemsilcileri' => $musteriTemsilcileri,
+            'mtMap' => $mtMap,
             'q' => $q,
             'durum' => $durum,
             'mt' => $musteriYetkiliId,
@@ -175,21 +224,30 @@ class PanelController extends Controller
         $ticketlar = DestekTalebi::where('salon_id', $id)->orderByDesc('id')->limit(20)->get();
         $musteriTemsilcileri = SistemYoneticileri::orderBy('name')->get();
 
+        $ayBaslangic = date('Y-m-01 00:00:00');
+        // Randevu istatistikleri: tek sorguda toplam + bu ay
+        $rStat = DB::table('randevular')
+            ->where('salon_id', $id)
+            ->selectRaw("COUNT(*) as toplam, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as bu_ay", [$ayBaslangic])
+            ->first();
+
         $istatistik = [
-            'toplam_randevu'   => (int) DB::table('randevular')->where('salon_id', $id)->count(),
-            'bu_ay_randevu'    => (int) DB::table('randevular')->where('salon_id', $id)->whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count(),
+            'toplam_randevu'     => (int) ($rStat->toplam ?? 0),
+            'bu_ay_randevu'      => (int) ($rStat->bu_ay ?? 0),
             'bu_ay_yeni_musteri' => 0,
-            'whatsapp_aktif'   => $salon->whatsapp_aktif ? 1 : 0,
+            'whatsapp_aktif'     => $salon->whatsapp_aktif ? 1 : 0,
         ];
         try {
             $istatistik['bu_ay_yeni_musteri'] = (int) DB::table('musteri_portfoy')
                 ->where('salon_id', $id)
-                ->whereMonth('created_at', date('m'))
-                ->whereYear('created_at', date('Y'))
+                ->where('created_at', '>=', $ayBaslangic)
                 ->count();
         } catch (\Exception $e) {}
 
-        $saglik = \App\SistemYonetim\SaglikSkoru::hesapla($id);
+        // Saglik skoru: 5 dakikalik cache
+        $saglik = \Cache::remember('sy.saglik.salon.'.$id, 300, function () use ($id) {
+            return \App\SistemYonetim\SaglikSkoru::hesapla($id);
+        });
 
         return view('sistemyonetim.v2.salon-detay', [
             'title' => $salon->salon_adi,
@@ -515,8 +573,11 @@ class PanelController extends Controller
 
         $loglar = $query->paginate(50)->appends($request->all());
 
-        $kullanicilar = SistemYoneticileri::orderBy('name')->get();
-        $aksiyonlar = AuditLog::distinct()->pluck('action')->filter()->values();
+        $kullanicilar = SistemYoneticileri::orderBy('name')->get(['id','name']);
+        // Distinct action listesi nadiren degisir — 5dk cache
+        $aksiyonlar = \Cache::remember('sy.aktivite.actions', 300, function () {
+            return AuditLog::distinct()->pluck('action')->filter()->values();
+        });
 
         return view('sistemyonetim.v2.aktivite-log', [
             'title' => 'Aktivite Logu',
@@ -856,17 +917,18 @@ class PanelController extends Controller
     public function bildirimFeed()
     {
         $u = $this->user();
+        // Cache 30sn (frontend zaten 60sn pollyor, ek koruma)
+        $tickets = \Cache::remember('sy.bildirim.user.'.$u->id, 30, function () use ($u) {
+            return DestekTalebi::whereIn('durum', ['acik', 'islemde', 'bekliyor'])
+                ->where(function ($w) use ($u) {
+                    $w->where('atanan_user_id', $u->id)->orWhere('oncelik', 'acil');
+                })
+                ->where('created_at', '>=', date('Y-m-d', strtotime('-7 days')))
+                ->orderBy('id', 'desc')
+                ->limit(10)
+                ->get();
+        });
         $bildirimler = [];
-
-        // Bana atanan + son 7 gun acilen ticketlar
-        $tickets = DestekTalebi::whereIn('durum', ['acik', 'islemde', 'bekliyor'])
-            ->where(function ($w) use ($u) {
-                $w->where('atanan_user_id', $u->id)->orWhere('oncelik', 'acil');
-            })
-            ->where('created_at', '>=', date('Y-m-d', strtotime('-7 days')))
-            ->orderBy('id', 'desc')
-            ->limit(10)
-            ->get();
 
         foreach ($tickets as $t) {
             $bildirimler[] = [

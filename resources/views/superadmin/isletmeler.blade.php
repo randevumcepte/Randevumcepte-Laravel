@@ -34,15 +34,13 @@
                             {{ optional($isletmeliste->il)->il_adi ?: '—' }} / {{ optional($isletmeliste->ilce)->ilce_adi ?: '—' }}
                         </td>
                         <td>
-                        	@foreach(\App\IsletmeYetkilileri::where('salon_id',$isletmeliste->id)->get() as $isletmeyetkilileri)
-
-                        	{{$isletmeyetkilileri->name}}
-                        	@endforeach
-
+                            @foreach(($yetkiliMap[$isletmeliste->id] ?? []) as $yname)
+                                {{ $yname }}@if(!$loop->last), @endif
+                            @endforeach
                         </td>
                         <td class="center">{{date('d.m.Y', strtotime($isletmeliste->created_at))}}</td>
                         @if(Auth::user()->admin==1)
-                          <td>{{\App\SistemYoneticileri::where('id',$isletmeliste->musteri_yetkili_id)->value('name')}}</td>
+                          <td>{{ $mtMap[$isletmeliste->musteri_yetkili_id] ?? '' }}</td>
                         @endif
                         <td class="center" style="font-size: 20px;">
                            

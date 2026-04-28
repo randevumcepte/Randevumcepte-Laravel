@@ -160,38 +160,151 @@ class SaglikSkoru
     }
 
     /**
-     * Risk altindaki salonlari listele (skor < 50).
+     * Risk altindaki salonlari listele (skor < 50). 5 dk cache.
+     * Onceki versiyon her salon icin 6 query yapiyordu (300 salon = 1800+ query).
+     * Yeni versiyon: 5 toplu query + PHP scoring.
      *
      * @param int $limit
      * @return array
      */
     public static function riskAltindakiler($limit = 50)
     {
-        // Performans icin: askida olmayan, son 30 gun randevusu az olanlari getir
+        return \Cache::remember('sy.risk.list.'.$limit, 300, function () use ($limit) {
+            return self::riskAltindakilerHesapla($limit);
+        });
+    }
+
+    private static function riskAltindakilerHesapla($limit)
+    {
         $aday = DB::table('salonlar')
             ->where('askiya_alindi', 0)
-            ->select('id', 'salon_adi', 'musteri_yetkili_id')
+            ->select('id', 'salon_adi', 'musteri_yetkili_id', 'whatsapp_aktif')
             ->get();
 
+        if ($aday->isEmpty()) return [];
+
+        $salonIds = $aday->pluck('id')->all();
+        $sinir30 = date('Y-m-d 00:00:00', strtotime('-30 days'));
+
+        // Bulk Q1: son giris (kanonik B yolu — personeller↔isletmeyetkilileri)
+        $sonGirisMap = [];
+        try {
+            $rows = DB::table('personeller')
+                ->join('isletmeyetkilileri', 'personeller.yetkili_id', '=', 'isletmeyetkilileri.id')
+                ->whereIn('personeller.salon_id', $salonIds)
+                ->whereNotNull('isletmeyetkilileri.son_giris_tarihi')
+                ->groupBy('personeller.salon_id')
+                ->selectRaw('personeller.salon_id, MAX(isletmeyetkilileri.son_giris_tarihi) as son_giris')
+                ->get();
+            foreach ($rows as $r) $sonGirisMap[$r->salon_id] = $r->son_giris;
+        } catch (\Exception $e) {}
+
+        // Bulk Q2: randevu istatistikleri (son tarih + 30 gun adet)
+        $randevuMap = [];
+        try {
+            $rows = DB::table('randevular')
+                ->whereIn('salon_id', $salonIds)
+                ->groupBy('salon_id')
+                ->selectRaw('salon_id, MAX(created_at) as son, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as adet30', [$sinir30])
+                ->get();
+            foreach ($rows as $r) $randevuMap[$r->salon_id] = $r;
+        } catch (\Exception $e) {}
+
+        // Bulk Q3: acik ticket sayisi
+        $ticketMap = [];
+        try {
+            $rows = DB::table('sistemyonetim_destek_talepleri')
+                ->whereIn('salon_id', $salonIds)
+                ->whereIn('durum', ['acik', 'islemde', 'bekliyor'])
+                ->groupBy('salon_id')
+                ->selectRaw('salon_id, COUNT(*) as adet')
+                ->get();
+            foreach ($rows as $r) $ticketMap[$r->salon_id] = (int) $r->adet;
+        } catch (\Exception $e) {}
+
+        // Bulk Q4: sikayet notlari (son 30 gun)
+        $sikayetMap = [];
+        try {
+            $rows = DB::table('sistemyonetim_salon_notlari')
+                ->whereIn('salon_id', $salonIds)
+                ->where('tip', 'sikayet')
+                ->where('created_at', '>=', $sinir30)
+                ->groupBy('salon_id')
+                ->selectRaw('salon_id, COUNT(*) as adet')
+                ->get();
+            foreach ($rows as $r) $sikayetMap[$r->salon_id] = (int) $r->adet;
+        } catch (\Exception $e) {}
+
+        $now = time();
         $sonuc = [];
+
         foreach ($aday as $s) {
-            $info = self::hesapla($s->id);
-            if ($info['skor'] >= 50) continue;
+            $skor = 0;
+            $sebepler = [];
+
+            // Son giris
+            $sonGiris = $sonGirisMap[$s->id] ?? null;
+            $gunGirisYok = $sonGiris ? floor(($now - strtotime($sonGiris)) / 86400) : 999;
+            if ($gunGirisYok <= 7)        { $skor += 25; }
+            elseif ($gunGirisYok <= 30)   { $skor += 18; $sebepler[] = "Son giriş {$gunGirisYok} gün önce"; }
+            elseif ($gunGirisYok <= 90)   { $skor += 8;  $sebepler[] = "Son giriş {$gunGirisYok} gün önce — riskli"; }
+            else                          { $sebepler[] = "Hesaba 90+ gündür giriş yok"; }
+
+            // Randevu
+            $r = $randevuMap[$s->id] ?? null;
+            $sonRandevu = $r ? $r->son : null;
+            $hacim30 = $r ? (int) $r->adet30 : 0;
+
+            $gunRandevuYok = $sonRandevu ? floor(($now - strtotime($sonRandevu)) / 86400) : 999;
+            if ($gunRandevuYok <= 3)       { $skor += 30; }
+            elseif ($gunRandevuYok <= 7)   { $skor += 24; }
+            elseif ($gunRandevuYok <= 30)  { $skor += 14; $sebepler[] = "Son randevu {$gunRandevuYok} gün önce"; }
+            elseif ($gunRandevuYok <= 90)  { $skor += 5;  $sebepler[] = "Son randevu {$gunRandevuYok} gün önce — riskli"; }
+            else                            { $sebepler[] = "90+ gündür randevu eklenmemiş"; }
+
+            if ($hacim30 >= 100)      { $skor += 20; }
+            elseif ($hacim30 >= 50)   { $skor += 16; }
+            elseif ($hacim30 >= 20)   { $skor += 12; }
+            elseif ($hacim30 >= 5)    { $skor += 6; }
+            elseif ($hacim30 > 0)     { $skor += 2; $sebepler[] = "30 günde sadece {$hacim30} randevu"; }
+            else                       { $sebepler[] = "30 günde hiç randevu yok"; }
+
+            $acikTicket = $ticketMap[$s->id] ?? 0;
+            if ($acikTicket > 0) {
+                $skor -= min(15, $acikTicket * 5);
+                $sebepler[] = "{$acikTicket} açık talep var";
+            }
+
+            $sikayet = $sikayetMap[$s->id] ?? 0;
+            if ($sikayet > 0) {
+                $skor -= min(10, $sikayet * 5);
+                $sebepler[] = "Son 30 günde {$sikayet} şikayet kaydı";
+            }
+
+            if (!empty($s->whatsapp_aktif)) $skor += 5;
+
+            $skor = max(0, min(100, $skor));
+            if ($skor >= 50) continue; // sadece risk altinda olanlar
+
+            $durum = $skor < 25 ? 'kritik' : 'riskli';
+
             $sonuc[] = [
                 'salon_id'   => $s->id,
                 'salon_adi'  => $s->salon_adi,
                 'mt_id'      => $s->musteri_yetkili_id,
-                'skor'       => $info['skor'],
-                'durum'      => $info['durum'],
-                'sebepler'   => $info['sebepler'],
-                'sinyaller'  => $info['sinyaller'],
+                'skor'       => (int) $skor,
+                'durum'      => $durum,
+                'sebepler'   => $sebepler,
+                'sinyaller'  => [
+                    'son_giris'   => $sonGiris,
+                    'son_randevu' => $sonRandevu,
+                    'hacim_30g'   => $hacim30,
+                    'acik_ticket' => $acikTicket,
+                ],
             ];
-            if (count($sonuc) >= $limit * 3) break; // erken cikis
         }
 
-        // Skora gore sirala (en kotuden iyiye)
         usort($sonuc, function ($a, $b) { return $a['skor'] - $b['skor']; });
-
         return array_slice($sonuc, 0, $limit);
     }
 }

@@ -109,7 +109,7 @@
                         </td>
                         <td>{{ $s->yetkili_adi ?: '—' }}</td>
                         <td class="sy-text-muted sy-fs-13">
-                            {{ \App\SistemYoneticileri::where('id',$s->musteri_yetkili_id)->value('name') ?: '—' }}
+                            {{ $mtMap[$s->musteri_yetkili_id] ?? '—' }}
                         </td>
                         <td class="sy-text-muted sy-fs-12 nowrap">{{ \Carbon\Carbon::parse($s->created_at)->format('d.m.Y') }}</td>
                         <td>

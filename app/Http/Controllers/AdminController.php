@@ -49,13 +49,42 @@ class AdminController extends Controller
        return view('superadmin.dashboard',['title' =>  'Sistem Yönetim Paneli | randevumcepte.com.tr','pageindex' => 0]); 
     }
     public function isletmeler(){
+        // il/ilce eager-load: N+1 patlamayi onler (300 salon × 2 = 600 query azaldi)
         if(Auth::user()->admin==1)
-    	   $isletmeler = Salonlar::all();
+    	   $isletmeler = Salonlar::with(['il', 'ilce'])->get();
         else
-            $isletmeler = Salonlar::where('musteri_yetkili_id',Auth::user()->id)->get();
-    	return view('superadmin.isletmeler',['title' =>  'İşletmeler | randevumcepte.com.tr','pageindex' => 1,'isletmeler' => $isletmeler]);
+            $isletmeler = Salonlar::with(['il', 'ilce'])->where('musteri_yetkili_id',Auth::user()->id)->get();
 
+        // Yetkililer view icinde IsletmeYetkilileri::where('salon_id', X) sorguluyor — ama
+        // kanonik B yolu (personeller.yetkili_id) oldugu icin bu sorgu cogu salon icin bos donuyor.
+        // Yine de view'da o sorgu hala calistigi icin pre-fetch ile N+1'i kapatalim.
+        $salonIds = $isletmeler->pluck('id')->all();
+        $yetkiliMap = [];
+        if (!empty($salonIds)) {
+            // B yolu uzerinden yetkililer
+            $rows = \DB::table('personeller')
+                ->join('isletmeyetkilileri', 'personeller.yetkili_id', '=', 'isletmeyetkilileri.id')
+                ->whereIn('personeller.salon_id', $salonIds)
+                ->whereNotNull('personeller.yetkili_id')
+                ->select('personeller.salon_id', 'isletmeyetkilileri.name')
+                ->distinct()
+                ->get();
+            foreach ($rows as $r) {
+                if (!isset($yetkiliMap[$r->salon_id])) $yetkiliMap[$r->salon_id] = [];
+                if (!in_array($r->name, $yetkiliMap[$r->salon_id], true)) $yetkiliMap[$r->salon_id][] = $r->name;
+            }
+        }
 
+        // MT id->name: 1 sorgu
+        $mtMap = SistemYoneticileri::pluck('name', 'id');
+
+    	return view('superadmin.isletmeler',[
+            'title' =>  'İşletmeler | randevumcepte.com.tr',
+            'pageindex' => 1,
+            'isletmeler' => $isletmeler,
+            'yetkiliMap' => $yetkiliMap,
+            'mtMap' => $mtMap,
+        ]);
     }
     public function avantajlar(){
          $avantajlar = SalonKampanyalar::all();
