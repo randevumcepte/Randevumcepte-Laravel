@@ -1117,7 +1117,7 @@ $(function(){
         $('#primHareketListesi').html(html);
       }
     });
-  });
+  }
 
   $(document).on('click','.prim-hareket-sil', function(){
     var id = $(this).data('id');
