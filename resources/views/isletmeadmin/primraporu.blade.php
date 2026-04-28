@@ -162,49 +162,37 @@
   }
   .pr-cell-net strong{ color:var(--rmc-purple-1) !important; font-size:15px; }
 
-  /* Aksiyon: split button (Öde + caret dropdown) */
-  .pr-actions{ display:inline-flex; align-items:center; gap:6px; position:relative; }
-  .pr-split{
-    display:inline-flex; align-items:stretch; border-radius:10px; overflow:hidden;
+  /* Aksiyon: tek 'Ode' butonu (modal icinde alt islemler) */
+  .pr-ode-btn{
+    border:0; cursor:pointer; padding:0 16px; display:inline-flex; align-items:center; gap:7px;
+    background: linear-gradient(135deg,#7B2FB8,#9D5DC8); color:#fff; font-weight:600; font-size:13px;
+    height:36px; border-radius:10px; transition:all .15s;
     box-shadow: 0 2px 6px rgba(123,47,184,.15);
   }
-  .pr-split__main{
-    border:0; cursor:pointer; padding:0 14px; display:inline-flex; align-items:center; gap:7px;
-    background: linear-gradient(135deg,#7B2FB8,#9D5DC8); color:#fff; font-weight:600; font-size:12.5px;
-    height:36px; transition:all .15s;
-  }
-  .pr-split__main:hover{ background: linear-gradient(135deg,#5C008E,#7B2FB8); color:#fff; }
-  .pr-split__caret{
-    border:0; cursor:pointer; padding:0 10px; display:inline-flex; align-items:center; justify-content:center;
-    background: linear-gradient(135deg,#5C008E,#7B2FB8); color:#fff;
-    height:36px; transition:all .15s;
-    border-left: 1px solid rgba(255,255,255,.18);
-  }
-  .pr-split__caret:hover{ background:#3d005f; color:#fff; }
+  .pr-ode-btn:hover{ background: linear-gradient(135deg,#5C008E,#7B2FB8); color:#fff; transform:translateY(-1px); box-shadow: 0 4px 10px rgba(123,47,184,.25); }
 
-  /* Dropdown menu */
-  .pr-menu{
-    position:absolute; right:0; top:calc(100% + 4px); z-index:50;
-    background:#fff; border:1px solid #e2e8f0; border-radius:12px;
-    min-width:200px; padding:6px; box-shadow: 0 12px 28px rgba(15,23,42,.12);
-    display:none;
+  /* Modal icindeki quick-action butonlari */
+  .pm-quick-actions{
+    display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;
+    margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid #e2e8f0;
   }
-  .pr-menu.show{ display:block; animation: prMenuIn .15s ease; }
-  @keyframes prMenuIn{ from{ opacity:0; transform: translateY(-4px); } to{ opacity:1; transform: translateY(0); } }
-  .pr-menu__item{
-    display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px;
-    font-size:13px; font-weight:500; color:#334155; cursor:pointer; transition:.12s;
-    border:0; background:transparent; width:100%; text-align:left;
+  .pm-quick-btn{
+    border:1px solid #e2e8f0; background:#fff; cursor:pointer;
+    padding:10px 12px; border-radius:10px; font-weight:600; font-size:12.5px;
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    transition:.15s; color:#334155;
   }
-  .pr-menu__item:hover{ background:#f1f5f9; }
-  .pr-menu__item--bonus{ color:#15803d; }
-  .pr-menu__item--bonus:hover{ background:#dcfce7; }
-  .pr-menu__item--kesinti{ color:#b91c1c; }
-  .pr-menu__item--kesinti:hover{ background:#fee2e2; }
-  .pr-menu__item--liste{ color:var(--rmc-purple-1); }
-  .pr-menu__item--liste:hover{ background:var(--rmc-purple-bg); }
-  .pr-menu__item i{ width:16px; font-size:13px; }
-  .pr-menu__divider{ height:1px; background:#f1f5f9; margin:4px 0; }
+  .pm-quick-btn i{ font-size:13px; }
+  .pm-quick-btn:hover{ border-color:#cbd5e1; background:#f8fafc; transform: translateY(-1px); }
+  .pm-quick-btn--bonus{ color:#15803d; border-color:#bbf7d0; background:#f0fdf4; }
+  .pm-quick-btn--bonus:hover{ background:#dcfce7; border-color:#86efac; color:#15803d; }
+  .pm-quick-btn--kesinti{ color:#b91c1c; border-color:#fecaca; background:#fef2f2; }
+  .pm-quick-btn--kesinti:hover{ background:#fee2e2; border-color:#fca5a5; color:#b91c1c; }
+  .pm-quick-btn--liste{ color:var(--rmc-purple-1); border-color:#e0d4ec; background:var(--rmc-purple-bg); }
+  .pm-quick-btn--liste:hover{ background:#ede0f5; border-color:#cdb1e0; color:var(--rmc-purple-1); }
+  @media (max-width: 600px){
+    .pm-quick-actions{ grid-template-columns: 1fr; }
+  }
 
   /* Mobil/tablet duzenleme */
   @media (max-width: 992px){
@@ -582,33 +570,16 @@
               @endif
             </td>
             <td>
-              <div class="pr-actions">
-                <div class="pr-split">
-                  <button class="pr-split__main prim-ode"
-                    data-value="{{$r['personel_id']}}"
-                    data-adi="{{$r['personel_adi']}}"
-                    data-net="{{$r['net_hakedis']}}"
-                    data-odenen="{{$r['odenen_toplam']}}"
-                    data-kalan="{{$r['kalan']}}"
-                    title="Prim/Maaş Öde">
-                    <i class="fa fa-credit-card"></i>
-                    <span>Öde</span>
-                  </button>
-                  <button class="pr-split__caret pr-menu-toggle" type="button" title="Diğer işlemler"><i class="fa fa-caret-down"></i></button>
-                </div>
-                <div class="pr-menu">
-                  <button type="button" class="pr-menu__item pr-menu__item--bonus prim-bonus-ekle" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" data-tip="bonus">
-                    <i class="fa fa-plus-circle"></i> Bonus / Ek Ödeme Ekle
-                  </button>
-                  <button type="button" class="pr-menu__item pr-menu__item--kesinti prim-bonus-ekle" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" data-tip="kesinti">
-                    <i class="fa fa-minus-circle"></i> Kesinti Ekle
-                  </button>
-                  <div class="pr-menu__divider"></div>
-                  <button type="button" class="pr-menu__item pr-menu__item--liste prim-hareket-goster" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}">
-                    <i class="fa fa-history"></i> Hareketleri Görüntüle
-                  </button>
-                </div>
-              </div>
+              <button class="pr-ode-btn prim-ode"
+                data-value="{{$r['personel_id']}}"
+                data-adi="{{$r['personel_adi']}}"
+                data-net="{{$r['net_hakedis']}}"
+                data-odenen="{{$r['odenen_toplam']}}"
+                data-kalan="{{$r['kalan']}}"
+                title="Prim & Hak Ediş İşlemleri">
+                <i class="fa fa-credit-card"></i>
+                <span>Öde</span>
+              </button>
             </td>
           </tr>
         @endforeach
@@ -700,6 +671,18 @@
           <button type="button" class="pm-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
         </div>
         <div class="pm-body">
+          <div class="pm-quick-actions">
+            <button type="button" class="pm-quick-btn pm-quick-btn--bonus" id="primOde_quickBonus">
+              <i class="fa fa-plus-circle"></i> Bonus Ekle
+            </button>
+            <button type="button" class="pm-quick-btn pm-quick-btn--kesinti" id="primOde_quickKesinti">
+              <i class="fa fa-minus-circle"></i> Kesinti Ekle
+            </button>
+            <button type="button" class="pm-quick-btn pm-quick-btn--liste" id="primOde_quickHareketler">
+              <i class="fa fa-history"></i> Hareketleri Gör
+            </button>
+          </div>
+
           <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px">
             <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px">
               <div style="font-size:10.5px; color:#64748b; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-bottom:4px">Net Hak Ediş</div>
@@ -855,28 +838,37 @@ $(function(){
   var _raporIndex = {};
   _raporData.forEach(function(r){ _raporIndex[r.personel_id] = r; });
 
-  // ============ Split-button dropdown ============
-  $(document).on('click','.pr-menu-toggle', function(e){
-    e.stopPropagation();
-    var $menu = $(this).closest('.pr-actions').find('.pr-menu');
-    $('.pr-menu').not($menu).removeClass('show');
-    $menu.toggleClass('show');
-  });
-  $(document).on('click', function(){ $('.pr-menu').removeClass('show'); });
-  $(document).on('click','.pr-menu', function(e){ e.stopPropagation(); });
-
-  $(document).on('click','.prim-bonus-ekle', function(){
-    $('.pr-menu').removeClass('show');
+  function openBonusKesintiModal(pid, adi, tip){
     var $m = $('#primHareketModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
-    $('#primHareket_personelId').val($(this).data('value'));
-    $('#primHareket_personelAdi').text($(this).data('adi'));
+    $('#primHareket_personelId').val(pid);
+    $('#primHareket_personelAdi').text(adi);
     $('#primHareketForm')[0].reset();
-    $('#primHareket_personelId').val($(this).data('value'));
+    $('#primHareket_personelId').val(pid);
     $('#primHareketForm input[name="tarih"]').val('{{date("Y-m-d")}}');
-    var tip = $(this).data('tip') === 'kesinti' ? 'kesinti' : 'bonus';
-    $('#prtip_'+tip).prop('checked', true);
+    var t = tip === 'kesinti' ? 'kesinti' : 'bonus';
+    $('#prtip_'+t).prop('checked', true);
     $m.modal('show');
+  }
+
+  // ============ Ode modal icindeki quick-action butonlari ============
+  $('#primOde_quickBonus').on('click', function(){
+    var pid = $('#primOde_personelId').val();
+    var adi = $('#primOde_personelAdi').text();
+    $('#primOdeModal').modal('hide');
+    setTimeout(function(){ openBonusKesintiModal(pid, adi, 'bonus'); }, 200);
+  });
+  $('#primOde_quickKesinti').on('click', function(){
+    var pid = $('#primOde_personelId').val();
+    var adi = $('#primOde_personelAdi').text();
+    $('#primOdeModal').modal('hide');
+    setTimeout(function(){ openBonusKesintiModal(pid, adi, 'kesinti'); }, 200);
+  });
+  $('#primOde_quickHareketler').on('click', function(){
+    var pid = $('#primOde_personelId').val();
+    var adi = $('#primOde_personelAdi').text();
+    $('#primOdeModal').modal('hide');
+    setTimeout(function(){ openHareketListeModal(pid, adi); }, 200);
   });
 
   // ============ PRIM ODE ============
@@ -1035,12 +1027,9 @@ $(function(){
   function _formatTL(v){ return parseFloat(v||0).toLocaleString('tr-TR',{minimumFractionDigits:2, maximumFractionDigits:2}); }
   function _escHtml(s){ return $('<div>').text(s||'').html(); }
 
-  $(document).on('click','.prim-hareket-goster', function(){
-    $('.pr-menu').removeClass('show');
+  function openHareketListeModal(pid, adi){
     var $m = $('#primHareketListeModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
-    var pid = $(this).data('value');
-    var adi = $(this).data('adi');
     $('#primListe_personelAdi').text(adi);
     $('#primListe_ozet').hide();
     $('#primHareketListesi').html('<div class="pm-loading"><div class="pm-spinner"></div><div style="margin-top:14px; font-weight:500">Yükleniyor...</div></div>');
