@@ -753,6 +753,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/islemsonrasinotekleme','StoreAdminController@islemsonrasinotekleme');
 	Route::get('/islemdetayigetir', 'StoreAdminController@islemdetayigetir');
 	Route::get('/uyelik','StoreAdminController@uyelik');
+	Route::get('/hesabim','StoreAdminController@hesabim');
+	Route::post('/hesabim/fatura-bilgi-guncelle','StoreAdminController@hesabimFaturaBilgiGuncelle');
 	Route::post('/odeme-bildirimi','StoreAdminController@odeme_bildirimi');
 	Route::post('/uyelikiletisimvefaturabilgiguncelle','StoreAdminController@uyelikiletisimvefaturabilgiguncelle');
 	Route::post('/e_asistan_ayar_kaydet','StoreAdminController@e_asistan_ayar_kaydet');

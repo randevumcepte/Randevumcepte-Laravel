@@ -45,6 +45,7 @@ use App\SatinAlinanKampanyalar;
 use App\KampanyaYapilanOdemeler;
 use App\Subeler;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Calculation\TextData\Search;
 use Spatie\Permission\Models\Role;
 use App\Urunler;
@@ -12003,6 +12004,151 @@ DB::raw('
         return view('isletmeadmin.profilbilgileri',['pageindex'=>19,'sayfa_baslik'=>'Profil Bilgileri','bildirimler'=>self::bildirimgetir($request),'paketler'=> self::paket_liste_getir('',true,$request),'isletme'=>$isletme, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
+
+    public function hesabim(Request $request)
+    {
+        if(Auth::guard('satisortakligi')->check())
+        {
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        }
+        else
+        {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+
+        if(!in_array(self::mevcutsube($request), $isletmeler))
+        {
+            return redirect('/isletmeyonetim');
+        }
+
+        if(count($isletmeler) > 1 && !isset($_GET['sube']))
+        {
+            return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
+            exit(0);
+        }
+
+        $kullanici = Auth::guard('isletmeyonetim')->user();
+
+        // Üyelik paket isimleri
+        $paketAdlari = [1=>'Başlangıç', 2=>'Standart', 3=>'Premium'];
+        $periyotAdlari = [1=>'Aylık', 2=>'Yıllık'];
+
+        // WhatsApp paket adlari
+        $whatsappPaketAdlari = [
+            'baslangic' => 'WhatsApp Başlangıç',
+            'standart'  => 'WhatsApp Standart',
+            'premium'   => 'WhatsApp Premium',
+        ];
+        $whatsappPaketLimitleri = [
+            'baslangic' => 500,
+            'standart'  => 2000,
+            'premium'   => 8000,
+        ];
+
+        // Mevcut hizmet listesi
+        $hizmetler = [];
+
+        // Ana üyelik
+        $hizmetler[] = [
+            'kod' => 'uyelik',
+            'ad' => 'Randevu Yönetimi',
+            'aciklama' => isset($paketAdlari[$isletme->uyelik_turu]) ? $paketAdlari[$isletme->uyelik_turu].' Paket' : 'Üyeliğiniz aktif değil',
+            'icon' => 'fa-calendar-check-o',
+            'renk' => 'mor',
+            'aktif' => $isletme->uyelik_turu > 0,
+            'periyot' => isset($periyotAdlari[$isletme->uyelik_periyodu]) ? $periyotAdlari[$isletme->uyelik_periyodu] : '-',
+            'bitis' => $isletme->uyelik_bitis_tarihi,
+        ];
+
+        // WhatsApp paket
+        if(!empty($isletme->whatsapp_paket))
+        {
+            $hizmetler[] = [
+                'kod' => 'whatsapp',
+                'ad' => $whatsappPaketAdlari[$isletme->whatsapp_paket] ?? 'WhatsApp Paketi',
+                'aciklama' => 'Aylık '.($whatsappPaketLimitleri[$isletme->whatsapp_paket] ?? 0).' mesaj limiti',
+                'icon' => 'fa-whatsapp',
+                'renk' => 'yesil',
+                'aktif' => (bool) $isletme->whatsapp_aktif,
+                'periyot' => $isletme->whatsapp_paket_periyot == 'yillik' ? 'Yıllık' : 'Aylık',
+                'bitis' => $isletme->whatsapp_paket_bitis ? \Carbon\Carbon::parse($isletme->whatsapp_paket_bitis)->format('Y-m-d') : null,
+                'deneme' => (bool) $isletme->whatsapp_paket_deneme,
+            ];
+        }
+
+        // Cark, Onam, vb. (ek hizmetler — paket bazli aktif)
+        if($isletme->uyelik_turu >= 2)
+        {
+            $hizmetler[] = [
+                'kod' => 'cark',
+                'ad' => 'Çarkıfelek',
+                'aciklama' => 'Müşteri sadakat oyunu',
+                'icon' => 'fa-trophy',
+                'renk' => 'turuncu',
+                'aktif' => true,
+                'periyot' => 'Pakete dahil',
+                'bitis' => null,
+            ];
+            $hizmetler[] = [
+                'kod' => 'onam',
+                'ad' => 'Dinamik Onam Formu',
+                'aciklama' => 'Online onam imzalama',
+                'icon' => 'fa-file-text-o',
+                'renk' => 'mavi',
+                'aktif' => true,
+                'periyot' => 'Pakete dahil',
+                'bitis' => null,
+            ];
+        }
+
+        // Faturalar — Salonun yapmış olduğu paket ödemeleri (eger boyle bir tablo varsa)
+        // Mevcut sistemde ayri bir salon-fatura tablosu yok; subscriptions/abone tablosu olusturulana kadar bos liste
+        $faturalar = collect();
+        try {
+            if(Schema::hasTable('salon_uyelik_odemeleri'))
+            {
+                $faturalar = DB::table('salon_uyelik_odemeleri')
+                    ->where('salon_id', $isletme->id)
+                    ->orderBy('odeme_tarihi', 'desc')
+                    ->limit(50)
+                    ->get();
+            }
+        } catch(\Exception $e) { /* sessiz gec */ }
+
+        return view('isletmeadmin.hesabim', [
+            'pageindex' => 19,
+            'sayfa_baslik' => 'Hesabım',
+            'bildirimler' => self::bildirimgetir($request),
+            'isletme' => $isletme,
+            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
+            'urun_drop' => self::urundropliste($request),
+            'yetkiliolunanisletmeler' => $isletmeler,
+            'kullanici' => $kullanici,
+            'paketAdlari' => $paketAdlari,
+            'periyotAdlari' => $periyotAdlari,
+            'hizmetler' => $hizmetler,
+            'faturalar' => $faturalar,
+        ]);
+    }
+
+    public function hesabimFaturaBilgiGuncelle(Request $request)
+    {
+        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        if(!$isletme){ return response()->json(['success'=>false, 'message'=>'İşletme bulunamadı']); }
+
+        $isletme->vergi_adi = $request->vergi_adi;
+        $isletme->vergi_no = $request->vergi_no;
+        $isletme->vergi_adresi = $request->vergi_adresi;
+        if($request->filled('kdv_orani')){
+            $isletme->kdv_orani = $request->kdv_orani;
+        }
+        $isletme->save();
+
+        return response()->json(['success'=>true, 'message'=>'Fatura bilgileri güncellendi']);
+    }
+
     public function QrCodeController(){
          return view('qrcode');
     }

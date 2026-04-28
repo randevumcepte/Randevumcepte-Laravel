@@ -828,6 +828,10 @@
                      <i class="dw dw-user1"></i>
                      Profil Bilgileri
                      </a>
+                     <a class="dropdown-item" href="/isletmeyonetim/hesabim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">
+                     <i class="fa fa-id-card-o"></i>
+                     Hesabım & Faturalar
+                     </a>
                      <a style="display: none" class="dropdown-item" href="/isletmeyonetim/uyelik{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">
                      <i class="icon-copy fi-shopping-cart"></i>
                      Üyelik
