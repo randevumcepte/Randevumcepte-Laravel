@@ -794,6 +794,17 @@ class PanelController extends Controller
     }
 
     /* ============================================================
+     * WHATSAPP YONETIM (eski panel v2 layout'ta)
+     * ============================================================ */
+    public function whatsappPanel()
+    {
+        return view('sistemyonetim.v2.whatsapp', [
+            'title' => 'WhatsApp Yönetim',
+            'aktifMenu' => 'whatsapp',
+        ]);
+    }
+
+    /* ============================================================
      * GLOBAL ARAMA (AJAX)
      * ============================================================ */
     public function globalArama(Request $request)

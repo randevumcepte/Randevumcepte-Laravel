@@ -54,6 +54,10 @@
                 @endif
             </a>
 
+            <a href="/sistemyonetim/v2/whatsapp" class="sy-nav-item {{ $aktifMenu === 'whatsapp' ? 'active' : '' }}">
+                <span class="icon mdi mdi-whatsapp"></span>
+                WhatsApp Yönetim
+            </a>
             <a href="/sistemyonetim/v2/duyuru" class="sy-nav-item {{ $aktifMenu === 'duyuru' ? 'active' : '' }}">
                 <span class="icon mdi mdi-bullhorn"></span>
                 Duyurular
@@ -95,10 +99,6 @@
             <a href="/sistemyonetim/isletmeler" class="sy-nav-item">
                 <span class="icon mdi mdi-arrow-left"></span>
                 Klasik Görünüm
-            </a>
-            <a href="/sistemyonetim/whatsapp-panel" class="sy-nav-item">
-                <span class="icon mdi mdi-whatsapp"></span>
-                WhatsApp Panel
             </a>
         </nav>
 
