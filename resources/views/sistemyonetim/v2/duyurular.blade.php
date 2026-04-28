@@ -40,9 +40,9 @@
                         <td><span class="sy-badge sy-badge-{{ $tipRenk[$d->tip] ?? 'muted' }}">{{ $d->tip }}</span></td>
                         <td class="sy-fs-13">{{ $hedefEt[$d->hedef_tipi] ?? $d->hedef_tipi }}</td>
                         <td class="sy-fs-12 nowrap">
-                            @if($d->baslangic_tarihi){{ \Carbon\Carbon::parse($d->baslangic_tarihi)->format('d.m.Y') }}@else—@endif
+                            {{ $d->baslangic_tarihi ? \Carbon\Carbon::parse($d->baslangic_tarihi)->format('d.m.Y') : '—' }}
                             <br>
-                            @if($d->bitis_tarihi){{ \Carbon\Carbon::parse($d->bitis_tarihi)->format('d.m.Y') }}@else süresiz@endif
+                            {{ $d->bitis_tarihi ? \Carbon\Carbon::parse($d->bitis_tarihi)->format('d.m.Y') : 'süresiz' }}
                         </td>
                         <td>
                             @if($d->aktif)
