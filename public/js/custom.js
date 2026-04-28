@@ -16741,6 +16741,9 @@ $('#personel_rapor_tablo').DataTable().destroy()
 });
  $('#adisyon_liste,#adisyon_liste_paket,#adisyon_liste_hizmet,#adisyon_liste_urun,#adisyon_liste_musteri').on('click','button[name="adisyon_sil"]',function(){
     var adisyonid = $(this).attr('data-value');
+    var $silTablo = $(this).closest('table');
+    var $silSatir = $(this).closest('tr');
+    var silTabloId = $silTablo.attr('id');
      swal({
                         title: "Emin misiniz?",
                         text: "Adisyon kaydını silmek istediğinize emin misiniz? Adisyona ait tüm içerik, tahsilat, ve alacak kayıtları silinecek olup bu işlem geri alınamayacaktır.",
@@ -16772,7 +16775,15 @@ $('#personel_rapor_tablo').DataTable().destroy()
                                             showCancelButton: false,
                                             showConfirmButton:false,
                                         });
-                                         applyFilters();
+                                        if (silTabloId === 'adisyon_liste_musteri') {
+                                            try {
+                                                $('#adisyon_liste_musteri').DataTable().row($silSatir).remove().draw(false);
+                                            } catch (e) {
+                                                console.error('adisyon_liste_musteri satır kaldırma hatası:', e);
+                                            }
+                                        } else if (typeof applyFilters === 'function') {
+                                            applyFilters();
+                                        }
                                         /* var namesType = $.fn.dataTable.absoluteOrder( [
                                              { value: null, position: 'bottom' }
                                              ] );
