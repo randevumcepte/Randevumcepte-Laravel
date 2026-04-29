@@ -26,7 +26,13 @@
                         <div class="col-2" style="padding-left: 0;">
                            <button type="button" data-toggle="modal" id="adisyon_paket_ekle_button" data-target="#paket_satisi_modal" data-value='' class="btn  btn-primary  btn-block adisyon_ekle_buttonlar" style="font-size:12px">Paket Ekle</button>
                         </div>
-                      
+
+                     </div>
+                     <div class="row" style="margin-bottom:15px;">
+                        <div class="col-md-4 col-12">
+                           <label style="font-weight:bold;font-size:13px;margin-bottom:5px;">Satış Tarihi</label>
+                           <input type="date" name="satis_tarihi_duzenle" id="satis_tarihi_duzenle" class="form-control" value="">
+                        </div>
                      </div>
                      
                      

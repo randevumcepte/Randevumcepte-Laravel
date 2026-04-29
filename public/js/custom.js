@@ -21774,11 +21774,12 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
         },
         success: function (result) {
            $('input[name="adisyon_id"]').val(result.adisyonId);
+           $('#satis_tarihi_duzenle').val(result.satisTarihi || '');
            $('#tum_tahsilatlar_duzenleme').empty();
            $('#tum_tahsilatlar_duzenleme').append(result.kalemler);
            $('#tahsilat_listesi_duzenleme').empty();
            $('#tahsilat_listesi_duzenleme').append(result.tahsilatlar);
-            var musteridata = result.musteribilgi; 
+            var musteridata = result.musteribilgi;
                 var data={
                         id:musteridata.id,
                         text:musteridata.name
@@ -21806,6 +21807,20 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
 });
 $('#satis_listesi').on('submit',function(e){
     e.preventDefault();
+    var _adisyonId = $('#satis_listesi input[name="adisyon_id"]').val();
+    var _satisTarihi = $('#satis_tarihi_duzenle').val();
+    if(_adisyonId && _satisTarihi){
+        $.ajax({
+            url:'/isletmeyonetim/satisTarihiGuncelle',
+            method:'POST',
+            data:{
+                adisyon_id:_adisyonId,
+                satis_tarihi:_satisTarihi,
+                sube:$('input[name="sube"]').val(),
+                _token:$('input[name="_token"]').val()
+            }
+        });
+    }
      $('#satisKalemleri').modal('hide');
     if($('#satis_takibi_ekrani').length)
         applyFilters();

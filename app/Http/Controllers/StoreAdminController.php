@@ -22376,8 +22376,28 @@ DB::raw('
     {
 
         $adisyonDetay =  self::musteri_tahsilatlari($request,$request->musteriId,$request->adisyonId,true);
+        $adisyon = Adisyonlar::where('id',$request->adisyonId)->first();
+        if($adisyon){
+            $tarih = $adisyon->tarih ?: $adisyon->created_at;
+            $adisyonDetay['satisTarihi'] = $tarih ? date('Y-m-d',strtotime($tarih)) : '';
+        } else {
+            $adisyonDetay['satisTarihi'] = '';
+        }
         return $adisyonDetay;
-    
+
+    }
+    public function satisTarihiGuncelle(Request $request)
+    {
+        $adisyon = Adisyonlar::where('id',$request->adisyon_id)
+            ->where('salon_id',$request->sube)
+            ->first();
+        if(!$adisyon)
+            return response()->json(['durum'=>'hata','mesaj'=>'Adisyon bulunamadı.'], 404);
+        if(!$request->satis_tarihi)
+            return response()->json(['durum'=>'hata','mesaj'=>'Tarih boş.'], 422);
+        $adisyon->tarih = date('Y-m-d',strtotime($request->satis_tarihi));
+        $adisyon->save();
+        return response()->json(['durum'=>'ok','tarih'=>$adisyon->tarih]);
     }
    public function paketVarmiKontrolu(Request $request)
 {
