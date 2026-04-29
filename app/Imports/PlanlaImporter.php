@@ -472,18 +472,18 @@ class PlanlaImporter
 
         $items = $this->fetchCategory('finances');
         $i = 0;
-        $skipped = 0;
+        $skip = ['outgoing' => 0, 'price_zero' => 0, 'no_user' => 0, 'duplicate' => 0];
         foreach ($items as $row) {
             $i++;
-            if (($row['section'] ?? '') !== 'income') { $skipped++; continue; }
+            if (($row['section'] ?? '') !== 'income') { $skip['outgoing']++; continue; }
 
             $price = (float) preg_replace('/[^0-9.\-]/', '', str_replace(',', '.', (string) ($row['price'] ?? '0')));
-            if ($price <= 0) { $skipped++; continue; }
+            if ($price <= 0) { $skip['price_zero']++; continue; }
 
             $custIds = isset($row['customer']) && is_array($row['customer']) ? $row['customer'] : [];
             $planlaCustId = reset($custIds) ?: null;
             $userId = $planlaCustId && isset($this->musteriMap[$planlaCustId]) ? $this->musteriMap[$planlaCustId] : null;
-            if (!$userId) { $skipped++; continue; }
+            if (!$userId) { $skip['no_user']++; continue; }
 
             $tarih = !empty($row['paymentDate']) ? $row['paymentDate'] : date('Y-m-d');
             $odemeYontemi = $this->odemeYontemiMap($row['paymentMethod'] ?? '');
@@ -497,7 +497,7 @@ class PlanlaImporter
                 ->where('odeme_yontemi_id', $odemeYontemi)
                 ->where('tutar', $price)
                 ->first();
-            if ($exists) { $skipped++; continue; }
+            if ($exists) { $skip['duplicate']++; continue; }
 
             $tahsilat = new Tahsilatlar();
             $tahsilat->user_id = $userId;
@@ -511,9 +511,10 @@ class PlanlaImporter
             $tahsilat->save();
 
             $this->counts['tahsilat']++;
-            if ($i % 500 === 0) $this->log("  ..{$i} finance kaydi islendi (tahsilat={$this->counts['tahsilat']}, skipped={$skipped})");
+            if ($i % 500 === 0) $this->log("  ..{$i} finance kaydi islendi (tahsilat={$this->counts['tahsilat']}, skip=" . json_encode($skip) . ")");
         }
-        $this->log("Harici tahsilat aktarim: {$this->counts['tahsilat']}, skipped: {$skipped}");
+        $this->log("Harici tahsilat aktarim: {$this->counts['tahsilat']}");
+        $this->log("  skip kirilimi: outgoing={$skip['outgoing']}, price=0={$skip['price_zero']}, musteri_yok={$skip['no_user']}, duplicate={$skip['duplicate']}");
     }
 
     private function odemeYontemiMap($method)
