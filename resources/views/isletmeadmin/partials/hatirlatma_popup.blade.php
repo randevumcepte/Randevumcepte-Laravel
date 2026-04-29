@@ -256,22 +256,9 @@
 
     var FEED_URL  = '/isletmeyonetim/api/hatirlatma-feed?sube={{ $isletme->id ?? 0 }}';
     var POLL_MS   = 120000;          // 2 dk'da bir feed yenile
-    var POPUP_HOURS = [11, 17];      // gunde 2 kez tam ekran popup
-    var SS_KEY    = 'sht.gosterildi.' + (new Date().toISOString().slice(0,10)) + '.{{ $isletme->id ?? 0 }}';
     var GOSTERILEN_TOAST = {};       // {id: timestamp}
     var SON_FEED  = [];
-
-    function bugun(){ return new Date().toISOString().slice(0,10); }
-
-    function getGosterimDurumu(){
-        try{
-            var raw = localStorage.getItem(SS_KEY);
-            return raw ? JSON.parse(raw) : { popupSayisi: 0, sonPopupSaat: -1 };
-        }catch(e){ return { popupSayisi: 0, sonPopupSaat: -1 }; }
-    }
-    function setGosterimDurumu(d){
-        try{ localStorage.setItem(SS_KEY, JSON.stringify(d)); }catch(e){}
-    }
+    var ILK_POPUP_GOSTERILDI = false; // sayfa basina 1 kez tam-ekran popup
 
     function fetchFeed(){
         $.ajax({
@@ -340,13 +327,8 @@
     /* ---------- TAM EKRAN POPUP ---------- */
     function otomatikBigPopup(liste){
         if (!liste || !liste.length) return;
-        var saat = new Date().getHours();
-        if (POPUP_HOURS.indexOf(saat) === -1) return;
-        var d = getGosterimDurumu();
-        if (d.sonPopupSaat === saat) return;       // ayni saatte tekrar gosterme
-        if (d.popupSayisi >= 2) return;            // gunluk limit
-        d.popupSayisi += 1; d.sonPopupSaat = saat;
-        setGosterimDurumu(d);
+        if (ILK_POPUP_GOSTERILDI) return;        // sayfa basina 1 kez
+        ILK_POPUP_GOSTERILDI = true;
         bigPopupGoster(liste);
     }
     function bigPopupGoster(liste){
