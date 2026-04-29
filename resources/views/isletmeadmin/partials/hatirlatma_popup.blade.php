@@ -328,7 +328,7 @@
     function otomatikBigPopup(liste){
         if (!liste || !liste.length) { SON_IMZA = ''; return; }
         var imza = liste.map(function(h){ return h.id + ':' + (h.sayac||0); }).sort().join('|');
-        // ilk yukleme veya yeni hatirlatma geldigi an popup'i tekrar ac
+        // ilk yuklemede veya hatirlatma listesi imzasi degisince popup ac
         if (!ILK_POPUP_GOSTERILDI) {
             ILK_POPUP_GOSTERILDI = true;
             SON_IMZA = imza;
@@ -336,9 +336,11 @@
             return;
         }
         if (imza !== SON_IMZA) {
-            // yeni hatirlatma geldi (toast da fisirdi); popup'i sessizce yenile
-            // ancak modal acik degilse tekrar acmiyoruz; toast yeterli.
+            // yeni hatirlatma var: popup kapali ise tekrar ac
             SON_IMZA = imza;
+            if (!$('#salon-hatirlatma-bigpopup').hasClass('show')) {
+                bigPopupGoster(liste);
+            }
         }
     }
     function bigPopupGoster(liste){
