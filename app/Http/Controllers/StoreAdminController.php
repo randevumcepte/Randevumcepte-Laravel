@@ -6229,6 +6229,114 @@ private function ayAdiCevir($ingilizceAy)
         return view('isletmeadmin.tahsilat',['isletme'=>$isletme,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request), 'sayfa_baslik'=>$user->name .' #'.$adisyonId.' nolu Satış Detayları ve Tahsilatları','pageindex' => 1111,'acik_adisyonlar'=>$acik_adisyonlar,'request'=>$request, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request), 'musteri'=>$user,'tahsilatlar'=>$tahsilatlar,'senet_gelen_vadeler'=>$senet_gelen_vadeler,'taksit_gelen_vadeler'=>$taksit_gelen_vadeler,'tum_senetler'=>$tum_senetler,'tum_taksitler'=>$tum_takstiler,'urun_drop'=>self::urundropliste($request)
             ,'yetkiliolunanisletmeler'=>$isletmeler,'adisyon_id'=>$adisyonId,'kalan_adisyonlar'=>$kalan_adisyonlar]);
     }
+    public function tahsilatekraniModern(Request $request,$musteriid,$adisyonId)
+    {
+        $isletmeler = '';
+        $isletme='';
+        if(Auth::guard('satisortakligi')->check())
+        {
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        }
+        else{
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+        if(!in_array(self::mevcutsube($request),$isletmeler ))
+        {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
+        if(str_contains(self::lisans_sure_kontrol($request),'-'))
+        {
+            return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        if(!Auth::guard('satisortakligi')->check()){
+            if(self::personelmi($request))
+            {
+                return redirect()->route('isletmeadmin.randevular');
+                exit(0);
+            }
+        }
+        if(count($isletmeler)>1 && !isset($_GET['sube']))
+        {
+            return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
+            exit(0);
+        }
+        $acik_adisyonlar = self::adisyon_yukle_tahsilat($request,'','','1970-01-01',date('Y-m-d'),$musteriid,'',$adisyonId);
+        $kalan_adisyonlar = self::adisyon_yukle_tahsilat($request,'','1','1970-01-01',date('Y-m-d'),$request->musteriid,'',$adisyonId);
+        $user = User::where('id',$musteriid)->first();
+        $paketler = self::paket_liste_getir('',true,$request);
+        $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        $adisyon= Adisyonlar::where('id',$adisyonId)->first();
+        $tahsilatlar = Tahsilatlar::where(function($q) use($adisyon){
+            $q->whereHas('hizmet_odemeleri',function($q) use($adisyon){
+                $q->whereIn('adisyon_hizmet_id',$adisyon->hizmetler->pluck('id')->toArray());
+            })
+            ->orWhereHas('urun_odemeleri',function($q) use($adisyon){
+                    $q->whereIn('adisyon_urun_id',$adisyon->urunler->pluck('id')->toArray());
+            })
+             ->orWhereHas('paket_odemeleri',function($q) use($adisyon){
+                    $q->whereIn('adisyon_paket_id',$adisyon->paketler->pluck('id')->toArray());
+            });
+        })->where('user_id',$musteriid)->where('salon_id',self::mevcutsube($request))->orderBy('odeme_tarihi','desc')->get();
+
+        $request->attributes->set('musteriid',$musteriid);
+        $tum_senetler = self::senetvadegetir_tahsilat($request);
+        $tum_takstiler = self::taksitvadegetir_tahsilat($request);
+        $senet_gelen_vadeler = SenetVadeleri::join('senetler','senet_vadeleri.senet_id','=','senetler.id')->select('senet_vadeleri.id as senet_vade_id','senet_vadeleri.vade_tarih as tarih','senet_vadeleri.tutar as tutar')->where('senetler.user_id',$musteriid)->where('senet_vadeleri.vade_tarih','<=',date('Y-m-d'))->where('odendi',false)->get();
+        $taksit_gelen_vadeler = TaksitVadeleri::join('taksitli_tahsilatlar','taksit_vadeleri.taksitli_tahsilat_id','=','taksitli_tahsilatlar.id')->select('taksit_vadeleri.id as taksit_vade_id','taksit_vadeleri.vade_tarih as tarih','taksit_vadeleri.tutar as tutar')->where('taksitli_tahsilatlar.user_id',$musteriid)->where('taksit_vadeleri.vade_tarih','<=',date('Y-m-d'))->where('odendi',false)->get();
+        return view('isletmeadmin.tahsilat-modern',['isletme'=>$isletme,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request), 'sayfa_baslik'=>$user->name .' #'.$adisyonId.' nolu Modern Tahsilat','pageindex' => 1111,'acik_adisyonlar'=>$acik_adisyonlar,'request'=>$request, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request), 'musteri'=>$user,'tahsilatlar'=>$tahsilatlar,'senet_gelen_vadeler'=>$senet_gelen_vadeler,'taksit_gelen_vadeler'=>$taksit_gelen_vadeler,'tum_senetler'=>$tum_senetler,'tum_taksitler'=>$tum_takstiler,'urun_drop'=>self::urundropliste($request)
+            ,'yetkiliolunanisletmeler'=>$isletmeler,'adisyon_id'=>$adisyonId,'kalan_adisyonlar'=>$kalan_adisyonlar,'adisyon'=>$adisyon]);
+    }
+    public function tahsilatModernSecim(Request $request)
+    {
+        $isletmeler = '';
+        $isletme='';
+        if(Auth::guard('satisortakligi')->check())
+        {
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        }
+        else{
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+        if(!in_array(self::mevcutsube($request),$isletmeler))
+        {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
+        if(str_contains(self::lisans_sure_kontrol($request),'-'))
+        {
+            return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        $sonAdisyon = Adisyonlar::where('salon_id',self::mevcutsube($request))->orderBy('id','desc')->first();
+        if($sonAdisyon){
+            $sube_param = isset($_GET['sube']) ? '?sube='.$isletme->id : '';
+            return redirect('/isletmeyonetim/tahsilat-modern/'.$sonAdisyon->user_id.'/'.$sonAdisyon->id.$sube_param);
+        }
+        return view('isletmeadmin.tahsilat-modern-bos',['isletme'=>$isletme,'pageindex'=>1112,'sayfa_baslik'=>'Modern Tahsilat (Beta)','bildirimler'=>self::bildirimgetir($request),'kalan_uyelik_suresi'=>self::lisans_sure_kontrol($request),'yetkiliolunanisletmeler'=>$isletmeler]);
+    }
+    public function adisyonTarihGuncelle(Request $request)
+    {
+        if(Auth::guard('isletmeyonetim')->check() && self::personelmi($request)){
+            return response()->json(['ok'=>false,'mesaj'=>'Yetkisiz işlem'],403);
+        }
+        $adisyon = Adisyonlar::where('id',$request->adisyon_id)->where('salon_id',self::mevcutsube($request))->first();
+        if(!$adisyon){
+            return response()->json(['ok'=>false,'mesaj'=>'Satış bulunamadı'],404);
+        }
+        $yeniTarih = $request->tarih;
+        if(empty($yeniTarih) || !strtotime($yeniTarih)){
+            return response()->json(['ok'=>false,'mesaj'=>'Geçerli bir tarih giriniz'],422);
+        }
+        $adisyon->tarih = date('Y-m-d', strtotime($yeniTarih));
+        $adisyon->save();
+        return response()->json(['ok'=>true,'tarih'=>$adisyon->tarih,'tarih_format'=>date('d.m.Y',strtotime($adisyon->tarih))]);
+    }
    public function urunler(Request $request){
          $isletmeler = '';
         $isletme='';

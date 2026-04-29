@@ -683,6 +683,9 @@ Route::prefix('isletmeyonetim')->group(function() {
  	
  	Route::post('/uruntahsilatagit','StoreAdminController@uruntahsilatagit')->name('uruntahsilatagit');
  	Route::get('/tahsilat/{musteriid}/{adisyonid}','StoreAdminController@tahsilatekrani');
+ 	Route::get('/tahsilat-modern/{musteriid}/{adisyonid}','StoreAdminController@tahsilatekraniModern');
+ 	Route::get('/tahsilat-modern','StoreAdminController@tahsilatModernSecim');
+ 	Route::post('/adisyon-tarih-guncelle','StoreAdminController@adisyonTarihGuncelle');
  	Route::post('/musteriindirimkaydet','StoreAdminController@musteriindirim_kaydet');
  	Route::post('/hizmettahsilattutaridegistir','StoreAdminController@hizmettahsilattutaridegistir');
  	Route::post('/uruntahsilattutaridegistir','StoreAdminController@uruntahsilattutaridegistir');
