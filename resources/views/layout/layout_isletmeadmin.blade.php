@@ -1553,8 +1553,8 @@
          id="urun_satisi_modal"
          class="modal modal-top fade calendar-modal"
          >
-         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="max-height: 90%;">
+         <div class="modal-dialog modal-dialog-centered" style="max-width:850px;width:92%;">
+            <div class="modal-content" style="max-height: 90%;width:100%;">
                <form id="adisyon_urun_satisi"  method="POST">
                   <div class="modal-header">
                      <h2 class="modal_baslik"></h2>
@@ -1669,8 +1669,8 @@
          id="paket_satisi_modal"
          class="modal modal-top fade calendar-modal"
          >
-         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" >
+         <div class="modal-dialog modal-dialog-centered" style="max-width:850px;width:92%;">
+            <div class="modal-content" style="width:100%;">
                <form id="paket_satisi"  method="POST">
                   <div class="modal-header">
                      <h2>Yeni Paket Satışı</h2>
