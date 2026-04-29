@@ -221,14 +221,15 @@ class PlanlaImport extends Command
             return 0;
         }
 
-        $types = $only ? array_map('trim', explode(',', $only)) : ['personel', 'hizmet', 'musteri', 'randevu'];
+        $types = $only ? array_map('trim', explode(',', $only)) : ['personel', 'hizmet', 'musteri', 'randevu', 'tahsilat'];
         $importer = new PlanlaImporter($client, $salonId, $this->output);
 
-        // Sirayla: personel -> hizmet -> musteri -> randevu (map bagimliliklari)
+        // Sirayla: personel -> hizmet -> musteri -> randevu -> tahsilat (map bagimliliklari)
         if (in_array('personel', $types)) $importer->importPersoneller();
         if (in_array('hizmet', $types))   $importer->importHizmetler();
         if (in_array('musteri', $types))  $importer->importMusteriler();
         if (in_array('randevu', $types))  $importer->importRandevular();
+        if (in_array('tahsilat', $types)) $importer->importTahsilatlar();
 
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
         return 0;

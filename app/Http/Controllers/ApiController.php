@@ -1155,13 +1155,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $tarih2 = !empty($request->tarih2) ? $request->tarih2 : date('Y-m-d');
         $personelRolu = Personeller::where('id',$request->personel_id)->value('role_id');
         $takvim_turu = isset($request->takvim_turu) && $request->takvim_turu != '' ? $request->takvim_turu : Salonlar::where('id',$isletmeId)->value('randevu_takvim_turu');
-        Log::info('takvim türü '.$takvim_turu);
         $randevuHizmetler = RandevuHizmetler::with([
             'hizmetler',
             'personeller.trenk',
             'cihaz',
             'oda',
-            'randevu.users' // aşağıda randevu ilişkisi tanımlanmalı
+            'randevu.users',
+            'randevu.ongorusme.paket',
+            'randevu.ongorusme.hizmet',
+            'randevu.ongorusme.urun',
+            'randevu.olusturan_personel',
         ])
         ->whereHas('randevu', function ($q)  use($isletmeId ,$tarih1,$tarih2){
             $q->where('durum', '<', 2);
@@ -1173,15 +1176,47 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 if($personelRolu == 5)
                     $q->where('personel_id',$request->personel_id);
         })->get();
-        
-        $randevu_hizmetler = $randevuHizmetler->map(function ($rh) use($takvim_turu,$isletmeId,$personelRolu) {
+
+        // Loop öncesi toplu prefetch — her satırda DB sorgusu atılmasını önler (N+1 fix)
+        $randevuIds = $randevuHizmetler->pluck('randevu_id')->unique()->values();
+
+        $adisyonHizmetlerByRandevu = AdisyonHizmetler::whereIn('randevu_id', $randevuIds)
+            ->get(['id','randevu_id','fiyat'])
+            ->groupBy('randevu_id');
+
+        $tumAdisyonHizmetIds = $adisyonHizmetlerByRandevu->flatten(1)->pluck('id');
+        $tahsilatToplamlari = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $tumAdisyonHizmetIds)
+            ->select('adisyon_hizmet_id', DB::raw('SUM(tutar) as toplam'))
+            ->groupBy('adisyon_hizmet_id')
+            ->pluck('toplam','adisyon_hizmet_id');
+
+        $seansSayilariByRandevu = AdisyonPaketSeanslar::whereIn('randevu_id', $randevuIds)
+            ->select('randevu_id', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('randevu_id')
+            ->pluck('cnt','randevu_id');
+
+        $kategoriRenkleri = SalonHizmetKategoriRenkleri::with('renkduzeni')
+            ->where('salon_id',$isletmeId)->get()->keyBy('hizmet_kategori_id');
+        $cihazRenkleri = SalonCihazRenkleri::with('renkduzeni')
+            ->where('salon_id',$isletmeId)->get()->keyBy('cihaz_id');
+        $odaRenkleri = OdaRenkleri::with('renkduzeni')
+            ->where('salon_id',$isletmeId)->get()->keyBy('oda_id');
+
+        $randevu_hizmetler = $randevuHizmetler->map(function ($rh) use(
+            $takvim_turu,$isletmeId,$personelRolu,
+            $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,
+            $kategoriRenkleri,$cihazRenkleri,$odaRenkleri
+        ) {
             $satisOlustu = 0;
             $odemeYapildi = 0;
-            if(AdisyonHizmetler::where('randevu_id',$rh->randevu_id)->count()>0){
-                $adisyonHizmetler = AdisyonHizmetler::where('randevu_id',$rh->randevu_id)->pluck('id')->toArray();
-                $adisyonTutar = AdisyonHizmetler::where('randevu_id',$rh->randevu_id)->sum('fiyat');
+            $adisyonHizmetlerKaydi = $adisyonHizmetlerByRandevu->get($rh->randevu_id);
+            if ($adisyonHizmetlerKaydi && $adisyonHizmetlerKaydi->isNotEmpty()) {
+                $adisyonTutar = $adisyonHizmetlerKaydi->sum('fiyat');
                 $satisOlustu = 1;
-                $tahsilatTutari = TahsilatHizmetler::whereIn('adisyon_hizmet_id',$adisyonHizmetler)->sum('tutar');
+                $tahsilatTutari = 0;
+                foreach ($adisyonHizmetlerKaydi as $ah) {
+                    $tahsilatTutari += $tahsilatToplamlari[$ah->id] ?? 0;
+                }
                 if(round($adisyonTutar,0) == round($tahsilatTutari,0))
                     $odemeYapildi = 1;
             }
@@ -1226,8 +1261,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 else{
 
                     if($takvim_turu == 0){
-                        $renkDuzeni = SalonHizmetKategoriRenkleri::where('salon_id',$isletmeId)->where('hizmet_kategori_id',$rh->hizmetler->hizmet_kategori_id)->first();
-                        if($renkDuzeni)
+                        $renkDuzeni = $kategoriRenkleri->get($rh->hizmetler->hizmet_kategori_id ?? null);
+                        if($renkDuzeni && $renkDuzeni->renkduzeni)
                             $color = str_replace('#','0xFF',$renkDuzeni->renkduzeni->renk);
                         else
                             $color = '0xFF000000';
@@ -1240,20 +1275,19 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                             }
                             else
                                 $color = '0xFF000000';
-                    } 
+                    }
                     if($takvim_turu == 2)
                     {
-
-                        $renkDuzeni = SalonCihazRenkleri::where('salon_id',$isletmeId)->where('cihaz_id',$rh->cihaz_id)->first();
-                        if($renkDuzeni)
+                        $renkDuzeni = $cihazRenkleri->get($rh->cihaz_id);
+                        if($renkDuzeni && $renkDuzeni->renkduzeni)
                             $color = str_replace('#','0xFF',$renkDuzeni->renkduzeni->renk);
                         else
                             $color = '0xFF000000';
-                       
+
                     }
                     if($takvim_turu == 3){
-                        $renkDuzeni = OdaRenkleri::where('salon_id',$isletmeId)->where('oda_id',$rh->oda_id)->first();
-                        if($renkDuzeni)
+                        $renkDuzeni = $odaRenkleri->get($rh->oda_id);
+                        if($renkDuzeni && $renkDuzeni->renkduzeni)
                             $color = str_replace('#','0xFF',$renkDuzeni->renkduzeni->renk);
                         else
                            $color = '0xFF000000';
@@ -1273,7 +1307,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 $title = $rh->randevu->users->name;
                 $modalTitle = $rh->randevu->users->name;
-                $seansVar = AdisyonPaketSeanslar::where('randevu_id',$rh->randevu_id)->count();
+                $seansVar = $seansSayilariByRandevu[$rh->randevu_id] ?? 0;
                 if($seansVar > 0 ){
                     $title .= " (PAKET)";
                     $modalTitle .= " Paket Randevusu ";
@@ -1305,12 +1339,6 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $modalTitle .= " Detayları";
                
                 $title .= "\nOluşturan:";
-                Log::info('oluşturan: '.json_encode([
-                    'web'       => $rh->randevu->web,
-                    'uygulama'  => $rh->randevu->uygulama,
-                    'easistan'  => $rh->randevu->easistan,
-                     'salon'  => $rh->randevu->salon,
-                ]));
                 if($rh->randevu->web == true){
                     $title .= "Müşteri (Web)";
                     $olusturanText = 'Müşteri (Web)';
@@ -1416,7 +1444,6 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         }); 
 
         $resources = "";
-        Log::info('takvim personel id '.$request->personel_id);
         if($takvim_turu == 1 || $personelRolu == 5 )
 
             $resources = Personeller::join('renk_duzenleri','salon_personelleri.renk','=','renk_duzenleri.id')

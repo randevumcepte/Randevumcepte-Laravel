@@ -14,6 +14,10 @@ use App\PersonelCalismaSaatleri;
 use App\IsletmeYetkilileri;
 use App\Randevular;
 use App\RandevuHizmetler;
+use App\Adisyonlar;
+use App\AdisyonHizmetler;
+use App\Tahsilatlar;
+use App\TahsilatHizmetler;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
@@ -40,12 +44,16 @@ class PlanlaImporter
     /** @var int */
     private $salonId;
     private $out;
-    private $counts = ['personel' => 0, 'hizmet' => 0, 'musteri' => 0, 'randevu' => 0, 'skipped' => 0];
+    private $counts = ['personel' => 0, 'hizmet' => 0, 'musteri' => 0, 'randevu' => 0, 'tahsilat' => 0, 'skipped' => 0];
     /** @var array planla _id => local id */
     private $hizmetMap = [];
     private $musteriMap = [];
     private $personelMap = [];
+    private $randevuMap = []; // planla appointment _id => local randevu id
+    private $adisyonMap = []; // planla appointment _id => local adisyon id
+    private $adisyonHizmetMap = []; // planla appointment _id => [local hizmet_id => adisyon_hizmet_id]
     private $defaultKategoriId = null;
+    private $defaultPersonelId = null; // salonun ilk personeli (olusturan_id default'u)
 
     public function __construct(PlanlaClient $client, $salonId, $out = null)
     {
@@ -346,6 +354,7 @@ class PlanlaImporter
                 $personelId = $this->personelMap[$planlaEmpId];
             }
 
+            $planlaAppId = isset($row['_id']) ? $row['_id'] : null;
             $r = Randevular::where('tarih', $tarih)->where('saat', $saat)
                 ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
             if (!$r) $r = new Randevular();
@@ -359,16 +368,34 @@ class PlanlaImporter
             $r->salon = 0;
             $r->olusturan_personel_id = null;
             $statusStr = strtolower(implode(',', $status));
+            $geldi = null;
             if (strpos($statusStr, 'complet') !== false || strpos($statusStr, 'done') !== false) {
-                $r->randevuya_geldi = 1;
+                $geldi = 1;
             } elseif (strpos($statusStr, 'cancel') !== false || strpos($statusStr, 'no') !== false || strpos($statusStr, 'absent') !== false) {
-                $r->randevuya_geldi = 0;
+                $geldi = 0;
             }
+            if ($geldi !== null) $r->randevuya_geldi = $geldi;
             if (!empty($row['notes'])) $r->personel_notu = $row['notes'];
             if (!empty($row['createdAt'])) $r->created_at = date('Y-m-d H:i:s', (int) $row['createdAt']);
             $r->save();
 
-            // Hizmetleri randevuya ekle
+            // Adisyon olustur (her randevu icin bir adisyon — sistemin dogal akisi)
+            $defaultPers = $this->defaultPersonelId();
+            $ad = Adisyonlar::where('user_id', $userId)
+                ->where('salon_id', $this->salonId)
+                ->where('tarih', $tarih)
+                ->whereHas('hizmetler', function ($q) use ($r) { $q->where('randevu_id', $r->id); })
+                ->first();
+            if (!$ad) {
+                $ad = new Adisyonlar();
+                $ad->user_id = $userId;
+                $ad->salon_id = $this->salonId;
+                $ad->tarih = $tarih;
+                $ad->olusturan_id = $defaultPers; // IsletmeYetkilileri.id de kabul edilebilir; refans Personeller verdigi icin id'sini koruyoruz
+                $ad->save();
+            }
+
+            // Hizmetleri randevuya ekle + adisyon hizmet satirlari
             $baslangic = $saat;
             foreach ($serviceIds as $sid) {
                 if (!isset($this->hizmetMap[$sid])) continue;
@@ -376,6 +403,7 @@ class PlanlaImporter
                 $sh = SalonHizmetler::where('salon_id', $this->salonId)->where('hizmet_id', $localHizmetId)->first();
                 $sure = $sh ? (int) $sh->sure_dk : 30;
                 if ($sure <= 0) $sure = 30;
+                $fiyatVarsayilan = $sh ? (float) $sh->baslangic_fiyat : 0;
                 $bitis = date('H:i:s', strtotime('+' . $sure . ' minutes', strtotime($baslangic)));
 
                 $rh = RandevuHizmetler::where('randevu_id', $r->id)->where('hizmet_id', $localHizmetId)->first();
@@ -387,12 +415,189 @@ class PlanlaImporter
                 $rh->sure_dk = $sure;
                 if ($personelId) $rh->personel_id = $personelId;
                 $rh->save();
+
+                // Adisyon hizmet satiri
+                $ah = AdisyonHizmetler::where('adisyon_id', $ad->id)
+                    ->where('randevu_id', $r->id)
+                    ->where('hizmet_id', $localHizmetId)
+                    ->first();
+                if (!$ah) $ah = new AdisyonHizmetler();
+                $ah->adisyon_id = $ad->id;
+                $ah->hizmet_id = $localHizmetId;
+                $ah->randevu_id = $r->id;
+                $ah->personel_id = $personelId;
+                $ah->geldi = $geldi !== null ? $geldi : 0;
+                $ah->islem_tarihi = $tarih;
+                $ah->islem_saati = $baslangic;
+                $ah->sure = $sure;
+                $ah->fiyat = $fiyatVarsayilan;
+                $ah->save();
+                if ($planlaAppId) {
+                    if (!isset($this->adisyonHizmetMap[$planlaAppId])) $this->adisyonHizmetMap[$planlaAppId] = [];
+                    $this->adisyonHizmetMap[$planlaAppId][$localHizmetId] = $ah->id;
+                }
                 $baslangic = $bitis;
+            }
+
+            if ($planlaAppId) {
+                $this->randevuMap[$planlaAppId] = $r->id;
+                $this->adisyonMap[$planlaAppId] = $ad->id;
             }
             $this->counts['randevu']++;
             if ($i % 500 === 0) $this->log("  ..{$i} randevu islendi");
         }
         $this->log('Randevu aktarim: ' . $this->counts['randevu']);
+    }
+
+    private function defaultPersonelId()
+    {
+        if ($this->defaultPersonelId) return $this->defaultPersonelId;
+        $id = Personeller::where('salon_id', $this->salonId)->where('aktif', 1)->orderBy('id')->value('id');
+        if (!$id) $id = Personeller::where('salon_id', $this->salonId)->orderBy('id')->value('id');
+        $this->defaultPersonelId = $id;
+        return $id;
+    }
+
+    // ---- Tahsilatlar ---------------------------------------------------
+
+    public function importTahsilatlar()
+    {
+        $this->log('Tahsilatlar cekiliyor (category=finances)...');
+        // Randevu/adisyon haritalarini hazirla
+        if (empty($this->randevuMap) || empty($this->adisyonMap)) {
+            $this->buildRandevuAdisyonMap();
+        }
+
+        $items = $this->fetchCategory('finances');
+        $i = 0;
+        $skipped = 0;
+        foreach ($items as $row) {
+            $i++;
+            if (($row['section'] ?? '') !== 'income') { $skipped++; continue; }
+            $appIds = isset($row['appointment']) && is_array($row['appointment']) ? $row['appointment'] : [];
+            $planlaAppId = reset($appIds) ?: null;
+            if (!$planlaAppId || !isset($this->adisyonMap[$planlaAppId])) { $skipped++; continue; }
+
+            $adisyonId = $this->adisyonMap[$planlaAppId];
+            $randevuId = $this->randevuMap[$planlaAppId] ?? null;
+
+            $price = (float) preg_replace('/[^0-9.]/', '', str_replace(',', '.', (string) ($row['price'] ?? '0')));
+            if ($price <= 0) { $skipped++; continue; }
+
+            $custIds = isset($row['customer']) && is_array($row['customer']) ? $row['customer'] : [];
+            $planlaCustId = reset($custIds) ?: null;
+            $userId = $planlaCustId && isset($this->musteriMap[$planlaCustId]) ? $this->musteriMap[$planlaCustId] : null;
+            if (!$userId) {
+                // Adisyon üzerinden kullanıcıyı al
+                $adisyon = Adisyonlar::find($adisyonId);
+                $userId = $adisyon ? $adisyon->user_id : null;
+            }
+            if (!$userId) { $skipped++; continue; }
+
+            $odemeYontemi = $this->odemeYontemiMap($row['paymentMethod'] ?? '');
+            $tarih = !empty($row['paymentDate']) ? $row['paymentDate'] : date('Y-m-d');
+
+            // Idempotent: ayni adisyon + tutar + tarih + odeme yontemi varsa eklenmesin
+            $tahsilatVar = Tahsilatlar::where('adisyon_id', $adisyonId)
+                ->where('tutar', $price)
+                ->where('odeme_tarihi', $tarih)
+                ->where('odeme_yontemi_id', $odemeYontemi)
+                ->where('user_id', $userId)
+                ->first();
+            $tahsilat = $tahsilatVar;
+            if (!$tahsilat) {
+                $tahsilat = new Tahsilatlar();
+                $tahsilat->adisyon_id = $adisyonId;
+                $tahsilat->user_id = $userId;
+                $tahsilat->salon_id = $this->salonId;
+                $tahsilat->tutar = $price;
+                $tahsilat->yapilan_odeme = $price;
+                $tahsilat->odeme_yontemi_id = $odemeYontemi;
+                $tahsilat->odeme_tarihi = $tarih;
+                $tahsilat->olusturan_id = $this->defaultPersonelId();
+                $tahsilat->save();
+            }
+
+            // TahsilatHizmetler: adisyon hizmetleri arasinda esit/oransal pay
+            $ahIds = isset($this->adisyonHizmetMap[$planlaAppId]) ? array_values($this->adisyonHizmetMap[$planlaAppId]) : [];
+            if (empty($ahIds)) {
+                // Map yoksa DB'den oku
+                $ahIds = AdisyonHizmetler::where('adisyon_id', $adisyonId)->pluck('id')->all();
+            }
+            $n = count($ahIds);
+            if ($n > 0 && !$tahsilatVar) {
+                $perPay = round($price / $n, 2);
+                foreach ($ahIds as $idx => $ahId) {
+                    $thVar = TahsilatHizmetler::where('tahsilat_id', $tahsilat->id)
+                        ->where('adisyon_hizmet_id', $ahId)->first();
+                    if ($thVar) continue;
+                    $th = new TahsilatHizmetler();
+                    $th->tahsilat_id = $tahsilat->id;
+                    $th->adisyon_hizmet_id = $ahId;
+                    // Son satira yuvarlama farkini ekle
+                    $th->tutar = ($idx === $n - 1) ? round($price - $perPay * ($n - 1), 2) : $perPay;
+                    $th->save();
+                }
+            }
+
+            $this->counts['tahsilat']++;
+            if ($i % 500 === 0) $this->log("  ..{$i} finance kaydi islendi (tahsilat={$this->counts['tahsilat']}, skipped={$skipped})");
+        }
+        $this->log("Tahsilat aktarim: {$this->counts['tahsilat']}, skipped: {$skipped}");
+    }
+
+    private function odemeYontemiMap($method)
+    {
+        switch ($method) {
+            case 'cash':       return 1;
+            case 'creditCard': return 2;
+            case 'transfer':   return 3;
+            default:           return 4;
+        }
+    }
+
+    /**
+     * Tahsilat aktariminda gerekli randevuMap + adisyonMap + adisyonHizmetMap'i kurar.
+     * Planla appointments'i tekrar cek, tarih+saat+user'a gore local randevuyu bul,
+     * o randevuya bagli adisyonu ve hizmetlerini topla.
+     */
+    private function buildRandevuAdisyonMap()
+    {
+        if (empty($this->musteriMap)) $this->buildMusteriMap();
+        if (empty($this->hizmetMap)) $this->buildHizmetMap();
+        $this->log('Randevu/Adisyon haritalari kuruluyor...');
+
+        foreach ($this->fetchCategory('appointments') as $row) {
+            $planlaAppId = isset($row['_id']) ? $row['_id'] : null;
+            if (!$planlaAppId) continue;
+            $tarih = $row['appointmentDate'] ?? null;
+            $saat  = $row['appointmentTime'] ?? null;
+            if (!$tarih || !$saat) continue;
+            if (strlen($saat) === 5) $saat .= ':00';
+            $custIds = isset($row['customer']) && is_array($row['customer']) ? $row['customer'] : [];
+            $pCust = reset($custIds) ?: null;
+            $userId = $pCust && isset($this->musteriMap[$pCust]) ? $this->musteriMap[$pCust] : null;
+            if (!$userId) continue;
+
+            $r = Randevular::where('tarih', $tarih)->where('saat', $saat)
+                ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
+            if (!$r) continue;
+            $this->randevuMap[$planlaAppId] = $r->id;
+
+            $ad = Adisyonlar::where('user_id', $userId)
+                ->where('salon_id', $this->salonId)
+                ->where('tarih', $tarih)
+                ->whereHas('hizmetler', function ($q) use ($r) { $q->where('randevu_id', $r->id); })
+                ->first();
+            if ($ad) {
+                $this->adisyonMap[$planlaAppId] = $ad->id;
+                $hizmetler = AdisyonHizmetler::where('adisyon_id', $ad->id)->where('randevu_id', $r->id)->get();
+                $map = [];
+                foreach ($hizmetler as $h) $map[$h->hizmet_id] = $h->id;
+                $this->adisyonHizmetMap[$planlaAppId] = $map;
+            }
+        }
+        $this->log('Map: randevu=' . count($this->randevuMap) . ' adisyon=' . count($this->adisyonMap));
     }
 
     // ---- Haritalari disardan yeniden kur (command ayri ayri tip secerse) ----
