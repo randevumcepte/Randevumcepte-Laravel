@@ -142,6 +142,17 @@ class SalonDestekController extends Controller
             'ic_not'    => 0,
         ]);
 
+        // Sistem yonetim panelinde badge'in yeni talebi hemen gormesi icin layout cache'ini temizle
+        // (bildirim feed cache'i 15sn zaten — kisa surede yenilenir)
+        try {
+            \Cache::forget('sy.layout.bekleyen_ticket');
+            // Aktif sistem yoneticilerinin bildirim cache'ini sil
+            $aktifIds = DB::table('sistemyoneticileri')->where('aktif', 1)->pluck('id');
+            foreach ($aktifIds as $sid) {
+                \Cache::forget('sy.bildirim.user.' . $sid);
+            }
+        } catch (\Exception $e) {}
+
         return redirect('/isletmeyonetim/destek/' . $ticket->id)->with('basari', 'Talebiniz alındı. En kısa sürede dönüş yapacağız.');
     }
 

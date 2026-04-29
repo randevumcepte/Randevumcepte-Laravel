@@ -21,8 +21,8 @@
         'izleyici'    => 'İzleyici',
     ];
     try {
-        // Layout her sayfada render edildigi icin bekleyen ticket sayisi cacheli (60sn)
-        $bekleyen = \Cache::remember('sy.layout.bekleyen_ticket', 60, function () {
+        // Layout her sayfada render edildigi icin cacheli; yeni ticket badge'da hizli gorunsun diye 15sn
+        $bekleyen = \Cache::remember('sy.layout.bekleyen_ticket', 15, function () {
             return \App\SistemYonetim\DestekTalebi::whereIn('durum', ['acik','islemde','bekliyor'])->count();
         });
     } catch (\Exception $e) { $bekleyen = 0; }

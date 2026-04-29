@@ -1068,6 +1068,19 @@
                      </span>
                      </a>
                   </li>
+                  <li>
+                     @if($pageindex==1111 || $pageindex==1112)
+                     <a href="/isletmeyonetim/tahsilat-modern{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/tahsilat-modern{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-stars"></span
+                        ><span class="mtext">
+                     Modern Tahsilat
+                     <span style="background:linear-gradient(135deg,#5C008E,#9D5DC8); color:#fff; font-size:9px; padding:1px 6px; border-radius:8px; margin-left:4px; font-weight:700;">BETA</span>
+                     </span>
+                     </a>
+                  </li>
 
                   @endif
                    @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")

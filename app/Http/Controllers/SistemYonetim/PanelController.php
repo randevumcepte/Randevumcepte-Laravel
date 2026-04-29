@@ -638,6 +638,20 @@ class PanelController extends Controller
         ]);
     }
 
+    /**
+     * Ticket olustur/guncelle/durum degisikligi sonrasi bildirim ve badge cache'ini temizle.
+     */
+    private function ticketCacheTemizle()
+    {
+        try {
+            \Cache::forget('sy.layout.bekleyen_ticket');
+            $aktifIds = DB::table('sistemyoneticileri')->where('aktif', 1)->pluck('id');
+            foreach ($aktifIds as $sid) {
+                \Cache::forget('sy.bildirim.user.' . $sid);
+            }
+        } catch (\Exception $e) {}
+    }
+
     public function ticketKaydet(Request $request)
     {
         $this->validate($request, [
@@ -680,6 +694,7 @@ class PanelController extends Controller
         }
 
         Audit::log('ticket_olustur', 'ticket', $ticket->id, "$numara | {$request->konu}");
+        $this->ticketCacheTemizle();
 
         return redirect('/sistemyonetim/v2/ticket/'.$ticket->id)->with('basari', 'Talep oluşturuldu.');
     }
@@ -742,6 +757,7 @@ class PanelController extends Controller
         $ticket->save();
 
         Audit::log('ticket_durum', 'ticket', $ticket->id, "{$ticket->numara}", "$eski → {$ticket->durum}");
+        $this->ticketCacheTemizle();
         return redirect()->back()->with('basari', 'Durum güncellendi.');
     }
 
@@ -759,6 +775,7 @@ class PanelController extends Controller
         }
         $ticket->save();
         Audit::log('ticket_ata', 'ticket', $ticket->id, $ticket->numara, $eski.' → '.($ticket->atanan_user_name ?: 'atanmamış'));
+        $this->ticketCacheTemizle();
         return redirect()->back()->with('basari', 'Atama güncellendi.');
     }
 
@@ -917,15 +934,20 @@ class PanelController extends Controller
     public function bildirimFeed()
     {
         $u = $this->user();
-        // Cache 30sn (frontend zaten 60sn pollyor, ek koruma)
-        $tickets = \Cache::remember('sy.bildirim.user.'.$u->id, 30, function () use ($u) {
+        // Cache 15sn (yeni gelen ticketlar gec gorunmesin)
+        $tickets = \Cache::remember('sy.bildirim.user.'.$u->id, 15, function () use ($u) {
             return DestekTalebi::whereIn('durum', ['acik', 'islemde', 'bekliyor'])
                 ->where(function ($w) use ($u) {
-                    $w->where('atanan_user_id', $u->id)->orWhere('oncelik', 'acil');
+                    // 1) bana atanmis
+                    $w->where('atanan_user_id', $u->id)
+                    // 2) atanmamis (yeni gelen) — herkesin gormesi lazim
+                      ->orWhereNull('atanan_user_id')
+                    // 3) acil (atansa dahi)
+                      ->orWhere('oncelik', 'acil');
                 })
-                ->where('created_at', '>=', date('Y-m-d', strtotime('-7 days')))
+                ->where('created_at', '>=', date('Y-m-d', strtotime('-14 days')))
                 ->orderBy('id', 'desc')
-                ->limit(10)
+                ->limit(15)
                 ->get();
         });
         $bildirimler = [];
