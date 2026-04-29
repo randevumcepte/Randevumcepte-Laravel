@@ -460,26 +460,23 @@ class PlanlaImporter
 
     // ---- Tahsilatlar ---------------------------------------------------
 
+    /**
+     * Sadece harici tahsilatlar: hizmet/adisyon iliskisi YOK, dogrudan
+     * musteriye bagli not'lu tahsilat kayitlari. Planla'da price>0 olan
+     * (cogunlukla category=job) ~4973 finance kaydi bu kapsamda.
+     */
     public function importTahsilatlar()
     {
-        $this->log('Tahsilatlar cekiliyor (category=finances)...');
-        // Randevu/adisyon haritalarini hazirla
-        if (empty($this->randevuMap) || empty($this->adisyonMap)) {
-            $this->buildRandevuAdisyonMap();
-        }
+        $this->log('Harici tahsilatlar cekiliyor (category=finances, sadece price>0)...');
+        if (empty($this->musteriMap)) $this->buildMusteriMap();
 
         $items = $this->fetchCategory('finances');
         $i = 0;
         $skipped = 0;
-        $randevuyaBaglandi = 0;
-        $serbestAdisyon = 0;
         foreach ($items as $row) {
             $i++;
             if (($row['section'] ?? '') !== 'income') { $skipped++; continue; }
 
-            // Gercek tutar yoksa atla (Planla'da appointment kategorisinde
-            // price=0 olan 8500+ "ödendi işareti" var; sadece price>0 olan
-            // 4973 finance gercek tahsilat).
             $price = (float) preg_replace('/[^0-9.\-]/', '', str_replace(',', '.', (string) ($row['price'] ?? '0')));
             if ($price <= 0) { $skipped++; continue; }
 
@@ -490,33 +487,19 @@ class PlanlaImporter
 
             $tarih = !empty($row['paymentDate']) ? $row['paymentDate'] : date('Y-m-d');
             $odemeYontemi = $this->odemeYontemiMap($row['paymentMethod'] ?? '');
+            $not = !empty($row['notes']) ? trim($row['notes']) : null;
 
-            // appointment dolu mu (bos string olmayan gercek ObjectId)?
-            $appIds = isset($row['appointment']) && is_array($row['appointment']) ? $row['appointment'] : [];
-            $planlaAppId = null;
-            foreach ($appIds as $aid) { if (!empty($aid) && strlen($aid) >= 20) { $planlaAppId = $aid; break; } }
-
-            $adisyonId = null;
-            $kullaniciAdisyonHizmetMap = [];
-            if ($planlaAppId && isset($this->adisyonMap[$planlaAppId])) {
-                $adisyonId = $this->adisyonMap[$planlaAppId];
-                $kullaniciAdisyonHizmetMap = $this->adisyonHizmetMap[$planlaAppId] ?? [];
-                $randevuyaBaglandi++;
-            }
-            // adisyonId null kalabilir -> tahsilat adisyonsuz acilir (sadece musteri tahsilati)
-
-            // Idempotent: ayni musteri + tutar + tarih + odeme yontemi varsa atla
+            // Dedup: ayni musteri + salon + tarih + odeme yontemi + tutar varsa
+            // ekleme (adisyon_id'sine bakilmadan, tum tahsilatlar arasinda).
             $exists = Tahsilatlar::where('user_id', $userId)
                 ->where('salon_id', $this->salonId)
-                ->where('tutar', $price)
                 ->where('odeme_tarihi', $tarih)
-                ->where('odeme_yontemi_id', $odemeYontemi);
-            if ($adisyonId) $exists->where('adisyon_id', $adisyonId);
-            else $exists->whereNull('adisyon_id');
-            if ($exists->first()) { $this->counts['tahsilat']++; continue; }
+                ->where('odeme_yontemi_id', $odemeYontemi)
+                ->where('tutar', $price)
+                ->first();
+            if ($exists) { $skipped++; continue; }
 
             $tahsilat = new Tahsilatlar();
-            if ($adisyonId) $tahsilat->adisyon_id = $adisyonId;
             $tahsilat->user_id = $userId;
             $tahsilat->salon_id = $this->salonId;
             $tahsilat->tutar = $price;
@@ -524,33 +507,13 @@ class PlanlaImporter
             $tahsilat->odeme_yontemi_id = $odemeYontemi;
             $tahsilat->odeme_tarihi = $tarih;
             $tahsilat->olusturan_id = $this->defaultPersonelId();
-            if (!empty($row['notes'])) $tahsilat->notlar = $row['notes'];
+            if ($not) $tahsilat->notlar = $not;
             $tahsilat->save();
 
-            // TahsilatHizmetler: sadece randevu-bagli adisyon varsa pay et
-            if ($adisyonId) {
-                $ahIds = !empty($kullaniciAdisyonHizmetMap)
-                    ? array_values($kullaniciAdisyonHizmetMap)
-                    : AdisyonHizmetler::where('adisyon_id', $adisyonId)->pluck('id')->all();
-                $n = count($ahIds);
-                if ($n > 0) {
-                    $perPay = round($price / $n, 2);
-                    foreach ($ahIds as $idx => $ahId) {
-                        $th = new TahsilatHizmetler();
-                        $th->tahsilat_id = $tahsilat->id;
-                        $th->adisyon_hizmet_id = $ahId;
-                        $th->tutar = ($idx === $n - 1) ? round($price - $perPay * ($n - 1), 2) : $perPay;
-                        $th->save();
-                    }
-                }
-            } else {
-                $serbestAdisyon++;
-            }
-
             $this->counts['tahsilat']++;
-            if ($i % 500 === 0) $this->log("  ..{$i} finance kaydi islendi (tahsilat={$this->counts['tahsilat']}, skipped={$skipped}, randevuya_bagli={$randevuyaBaglandi}, adisyonsuz={$serbestAdisyon})");
+            if ($i % 500 === 0) $this->log("  ..{$i} finance kaydi islendi (tahsilat={$this->counts['tahsilat']}, skipped={$skipped})");
         }
-        $this->log("Tahsilat aktarim: {$this->counts['tahsilat']}, skipped: {$skipped}, randevuya_bagli: {$randevuyaBaglandi}, adisyonsuz: {$serbestAdisyon}");
+        $this->log("Harici tahsilat aktarim: {$this->counts['tahsilat']}, skipped: {$skipped}");
     }
 
     private function odemeYontemiMap($method)
