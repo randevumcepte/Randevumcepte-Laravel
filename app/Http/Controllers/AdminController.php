@@ -62,11 +62,11 @@ class AdminController extends Controller
         $yetkiliMap = [];
         if (!empty($salonIds)) {
             // B yolu uzerinden yetkililer
-            $rows = \DB::table('personeller')
-                ->join('isletmeyetkilileri', 'personeller.yetkili_id', '=', 'isletmeyetkilileri.id')
-                ->whereIn('personeller.salon_id', $salonIds)
-                ->whereNotNull('personeller.yetkili_id')
-                ->select('personeller.salon_id', 'isletmeyetkilileri.name')
+            $rows = \DB::table('salon_personelleri')
+                ->join('isletmeyetkilileri', 'salon_personelleri.yetkili_id', '=', 'isletmeyetkilileri.id')
+                ->whereIn('salon_personelleri.salon_id', $salonIds)
+                ->whereNotNull('salon_personelleri.yetkili_id')
+                ->select('salon_personelleri.salon_id', 'isletmeyetkilileri.name')
                 ->distinct()
                 ->get();
             foreach ($rows as $r) {

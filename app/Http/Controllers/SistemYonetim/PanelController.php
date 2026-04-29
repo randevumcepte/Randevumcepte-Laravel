@@ -101,7 +101,7 @@ class PanelController extends Controller
                 'bugun_yeni_salon' => (int) $salonStats->bugun,
                 'hafta_yeni_salon' => (int) $salonStats->hafta,
                 'toplam_yetkili'   => (int) DB::table('isletmeyetkilileri')->count(),
-                'toplam_personel'  => (int) DB::table('personeller')->count(),
+                'toplam_personel'  => (int) DB::table('salon_personelleri')->count(),
                 'toplam_randevu'   => $toplamRandevu,
                 'bugun_randevu'    => $bugunRandevu,
                 'acik_ticket'      => (int) ($ticketStats->acik ?? 0),

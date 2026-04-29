@@ -189,12 +189,12 @@ class SaglikSkoru
         // Bulk Q1: son giris (kanonik B yolu — personeller↔isletmeyetkilileri)
         $sonGirisMap = [];
         try {
-            $rows = DB::table('personeller')
-                ->join('isletmeyetkilileri', 'personeller.yetkili_id', '=', 'isletmeyetkilileri.id')
-                ->whereIn('personeller.salon_id', $salonIds)
+            $rows = DB::table('salon_personelleri')
+                ->join('isletmeyetkilileri', 'salon_personelleri.yetkili_id', '=', 'isletmeyetkilileri.id')
+                ->whereIn('salon_personelleri.salon_id', $salonIds)
                 ->whereNotNull('isletmeyetkilileri.son_giris_tarihi')
-                ->groupBy('personeller.salon_id')
-                ->selectRaw('personeller.salon_id, MAX(isletmeyetkilileri.son_giris_tarihi) as son_giris')
+                ->groupBy('salon_personelleri.salon_id')
+                ->selectRaw('salon_personelleri.salon_id, MAX(isletmeyetkilileri.son_giris_tarihi) as son_giris')
                 ->get();
             foreach ($rows as $r) $sonGirisMap[$r->salon_id] = $r->son_giris;
         } catch (\Exception $e) {}
