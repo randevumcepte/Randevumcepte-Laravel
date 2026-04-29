@@ -53,7 +53,10 @@ class SalonHatirlatmaController extends Controller
         }
 
         $cacheKey = 'salon_hatirlatma.' . $salonId;
-        $hatirlatmalar = Cache::remember($cacheKey, 60, function () use ($salonId) {
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+        $hatirlatmalar = Cache::remember($cacheKey, 15, function () use ($salonId) {
             return $this->topla($salonId);
         });
 

@@ -255,10 +255,11 @@
     window.__SalonHatirlatma = true;
 
     var FEED_URL  = '/isletmeyonetim/api/hatirlatma-feed?sube={{ $isletme->id ?? 0 }}';
-    var POLL_MS   = 120000;          // 2 dk'da bir feed yenile
+    var POLL_MS   = 30000;           // 30 sn'de bir feed yenile
     var GOSTERILEN_TOAST = {};       // {id: timestamp}
     var SON_FEED  = [];
     var ILK_POPUP_GOSTERILDI = false; // sayfa basina 1 kez tam-ekran popup
+    var SON_IMZA  = '';               // hatirlatma listesinin imzasi
 
     function fetchFeed(){
         $.ajax({
@@ -278,17 +279,16 @@
 
     /* ---------- TOAST (sag alt) ---------- */
     function otomatikToastlar(liste){
-        // her toast en az 2 saat tekrarlamasin (yeni kayit gelirse goster)
-        var simdi = Date.now();
+        // ayni hatirlatma+sayac kombinasyonu daha onceki bu sayfa session'inda
+        // gosterildiyse tekrar etme. sayac artarsa yeni gibi davranir.
+        var sirada = 0;
         liste.forEach(function(h){
-            var key = h.id + ':' + (h.sayac || 0);
-            var sonGosterim = GOSTERILEN_TOAST[h.id];
-            if (sonGosterim && (simdi - sonGosterim) < 7200000) return;
-            // yuksek oncelik (3) hemen gosterilsin; orta/dusuk sadece big popup'a kalsin
-            if ((h.oncelik || 1) >= 3) {
-                toastGoster(h);
-                GOSTERILEN_TOAST[h.id] = simdi;
-            }
+            var anahtar = h.id + ':' + (h.sayac || 0);
+            if (GOSTERILEN_TOAST[anahtar]) return;
+            GOSTERILEN_TOAST[anahtar] = Date.now();
+            // ust uste yigilmasin diye 350ms araliklarla goster
+            setTimeout(function(){ toastGoster(h); }, sirada * 350);
+            sirada++;
         });
     }
     function toastGoster(h){
@@ -326,10 +326,20 @@
 
     /* ---------- TAM EKRAN POPUP ---------- */
     function otomatikBigPopup(liste){
-        if (!liste || !liste.length) return;
-        if (ILK_POPUP_GOSTERILDI) return;        // sayfa basina 1 kez
-        ILK_POPUP_GOSTERILDI = true;
-        bigPopupGoster(liste);
+        if (!liste || !liste.length) { SON_IMZA = ''; return; }
+        var imza = liste.map(function(h){ return h.id + ':' + (h.sayac||0); }).sort().join('|');
+        // ilk yukleme veya yeni hatirlatma geldigi an popup'i tekrar ac
+        if (!ILK_POPUP_GOSTERILDI) {
+            ILK_POPUP_GOSTERILDI = true;
+            SON_IMZA = imza;
+            bigPopupGoster(liste);
+            return;
+        }
+        if (imza !== SON_IMZA) {
+            // yeni hatirlatma geldi (toast da fisirdi); popup'i sessizce yenile
+            // ancak modal acik degilse tekrar acmiyoruz; toast yeterli.
+            SON_IMZA = imza;
+        }
     }
     function bigPopupGoster(liste){
         if (!liste || !liste.length) return;
