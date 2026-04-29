@@ -9609,7 +9609,8 @@ DB::raw('
                             $html .= '<input  type="tel" class="form-control try-currency tahsilat_kalemleri" style="height:26px;width: 70%;float:left;text-align:right" name="himzet_tahsilat_tutari_girilen[]" data-value="'.$hizmet->id.'" value="'.number_format($hizmet->fiyat -TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->sum('tutar')  - $hizmet->indirim_tutari,2,',','.').'" >';
                     }
                     else{
-
+                        if($satisDuzenle)
+                            $toplamTutar += $hizmet->fiyat - $hizmet->indirim_tutari;
                         $html .= '<input type="hidden" class="form-control try-currency tahsilat_kalemleri"  name="himzet_tahsilat_tutari_girilen[]" data-value="'.$hizmet->id.'" value="'.number_format($hizmet->fiyat - TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->sum('tutar') - $hizmet->indirim_tutari ,2,',','.').'" ><p style="position: relative; float: left; width: 70%;">'.number_format($hizmet->fiyat - TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->sum('tutar') - $hizmet->indirim_tutari,2,',','.').' ₺</p>';
                     }
 
@@ -9698,9 +9699,12 @@ DB::raw('
                         else
                             $html .= '<input type="tel"   class="form-control try-currency tahsilat_kalemleri" style="height:26px;width: 70%;float:left;text-align:right" name="urun_tahsilat_tutari_girilen[]" data-value="'.$urun->id.'" value="'.number_format($urun->fiyat - TahsilatUrunler::where('adisyon_urun_id',$urun->id)->sum('tutar') - $urun->indirim_tutari,2,',','.').'" >';
                     }
-                   else
+                   else{
+                        if($satisDuzenle)
+                            $toplamTutar += $urun->fiyat - $urun->indirim_tutari;
                         $html .= '<input type="hidden" class="form-control try-currency tahsilat_kalemleri"  name="urun_tahsilat_tutari_girilen[]" data-value="'.$urun->id.'" value="'.number_format($urun->fiyat - TahsilatUrunler::where('adisyon_urun_id',$urun->id)->sum('tutar') - $urun->indirim_tutari,2,',','.').'" >
                                           <p style="position: relative; float: left; width: 70%;">'.number_format($urun->fiyat - TahsilatUrunler::where('adisyon_urun_id',$urun->id)->sum('tutar') - $urun->indirim_tutari,2,',','.').' ₺</p>';
+                   }
                     $html .= '<p style="position: relative; float: left;width: 15%;margin: 0;">';
                     if($urun->hediye)
                         $html .= '<i class="fa fa-gift" style="font-size: 25px"></i>';
@@ -9782,9 +9786,12 @@ DB::raw('
                             $html .= '<input type="tel"  style="height: 26px;width: 70%;float:left;text-align:right" class="form-control try-currency tahsilat_kalemleri" name="paket_tahsilat_tutari_girilen[]" data-value="'.$paket->id.'" value="'.number_format($paket->fiyat - TahsilatPaketler::where('adisyon_paket_id',$paket->id)->sum('tutar') - $paket->indirim_tutari,2,',','.').'">';
 
                     }
-                    else
+                    else{
+                        if($satisDuzenle)
+                            $toplamTutar += $paket->fiyat - $paket->indirim_tutari;
                         $html .= '<input type="hidden"  class="form-control try-currency tahsilat_kalemleri" name="paket_tahsilat_tutari_girilen[]" data-value="'.$paket->id.'" value="'.number_format($paket->fiyat - TahsilatPaketler::where('adisyon_paket_id',$paket->id)->sum('tutar') - $paket->indirim_tutari,2,',','.').'">
                                       <p style="position: relative; float: left; width: 70%;">'.number_format($paket->fiyat - TahsilatPaketler::where('adisyon_paket_id',$paket->id)->sum('tutar') - $paket->indirim_tutari,2,',','.').' ₺ </p>';
+                    }
                     $html .= '<p style="position: relative; float: left;width: 15%; margin:0">';
                     if($paket->hediye)
                         $html .= '<i class="fa fa-gift" style="font-size: 25px"></i>';
