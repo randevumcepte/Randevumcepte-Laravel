@@ -1,6 +1,6 @@
  <div id="musteri-bilgi-modal" class="modal modal-top fade calendar-modal">
-         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style=" max-height: 90%;">
+         <div class="modal-dialog modal-dialog-centered" style="max-width:850px;width:92%;">
+            <div class="modal-content" style="max-height: 90%;width:100%;">
                <form class="musteri_bilgi_formu" method="POST" id="yeniMusteriEklemeFormu">
                   {{ csrf_field() }}
                  
