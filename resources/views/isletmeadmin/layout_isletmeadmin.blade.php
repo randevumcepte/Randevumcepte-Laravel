@@ -4262,6 +4262,9 @@
     listAudioOutputDevices();
     @endif
   </script>
+
+   @include('isletmeadmin.partials.hatirlatma_popup')
+
       <div style="display: none;">
      <?php dd($isletme); ?>
 </div>

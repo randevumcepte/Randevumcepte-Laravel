@@ -373,6 +373,11 @@ Route::prefix('isletmeyonetim')->middleware('auth:isletmeyonetim')->group(functi
     Route::post('/destek/{id}/yanit', 'SalonDestekController@destekYanit');
 });
 
+// Salon paneli — akilli hatirlatmalar (popup + bildirim feed)
+Route::prefix('isletmeyonetim')->group(function() {
+    Route::get('/api/hatirlatma-feed', 'SalonHatirlatmaController@feed')->name('isletmeadmin.hatirlatma.feed');
+});
+
 Route::prefix('isletmeyonetim')->group(function() {
 
 	
