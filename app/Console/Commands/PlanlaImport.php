@@ -24,6 +24,9 @@ class PlanlaImport extends Command
 
     public function handle()
     {
+        // CLI -d max_execution_time=0 yetersiz kalabiliyor (Laravel bootstrap override edebilir)
+        @set_time_limit(0);
+        @ini_set('memory_limit', '2048M');
         $email    = $this->option('email');
         $password = $this->option('password');
         $salonId  = $this->option('salon');

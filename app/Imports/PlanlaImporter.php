@@ -572,8 +572,32 @@ class PlanlaImporter
     {
         if (empty($this->musteriMap)) $this->buildMusteriMap();
         if (empty($this->hizmetMap)) $this->buildHizmetMap();
-        $this->log('Randevu/Adisyon haritalari kuruluyor...');
+        $this->log('Randevu/Adisyon haritalari kuruluyor (toplu SQL)...');
 
+        // 1) Tum salon randevularini cek -> (tarih,saat,user_id) -> randevu_id lookup
+        $randevuLookup = [];
+        $randevuList = Randevular::where('salon_id', $this->salonId)
+            ->select('id', 'tarih', 'saat', 'user_id')->get();
+        foreach ($randevuList as $r) {
+            $key = $r->tarih . '|' . $r->saat . '|' . $r->user_id;
+            $randevuLookup[$key] = $r->id;
+        }
+        $this->log('  yerel randevu sayisi: ' . count($randevuLookup));
+
+        // 2) Tum AdisyonHizmetler -> randevu_id -> [adisyon_id => [hizmet_id => ah_id]]
+        $ahByRandevu = [];
+        $ahList = AdisyonHizmetler::whereIn('randevu_id', $randevuList->pluck('id'))
+            ->select('id', 'adisyon_id', 'hizmet_id', 'randevu_id')->get();
+        foreach ($ahList as $h) {
+            if (!isset($ahByRandevu[$h->randevu_id])) {
+                $ahByRandevu[$h->randevu_id] = ['adisyon_id' => $h->adisyon_id, 'hizmetler' => []];
+            }
+            $ahByRandevu[$h->randevu_id]['hizmetler'][$h->hizmet_id] = $h->id;
+        }
+        $this->log('  yerel adisyon-hizmet sayisi: ' . count($ahList));
+
+        // 3) Planla appointments uzerinden map kur
+        $matched = 0;
         foreach ($this->fetchCategory('appointments') as $row) {
             $planlaAppId = isset($row['_id']) ? $row['_id'] : null;
             if (!$planlaAppId) continue;
@@ -586,25 +610,17 @@ class PlanlaImporter
             $userId = $pCust && isset($this->musteriMap[$pCust]) ? $this->musteriMap[$pCust] : null;
             if (!$userId) continue;
 
-            $r = Randevular::where('tarih', $tarih)->where('saat', $saat)
-                ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
-            if (!$r) continue;
-            $this->randevuMap[$planlaAppId] = $r->id;
-
-            $ad = Adisyonlar::where('user_id', $userId)
-                ->where('salon_id', $this->salonId)
-                ->where('tarih', $tarih)
-                ->whereHas('hizmetler', function ($q) use ($r) { $q->where('randevu_id', $r->id); })
-                ->first();
-            if ($ad) {
-                $this->adisyonMap[$planlaAppId] = $ad->id;
-                $hizmetler = AdisyonHizmetler::where('adisyon_id', $ad->id)->where('randevu_id', $r->id)->get();
-                $map = [];
-                foreach ($hizmetler as $h) $map[$h->hizmet_id] = $h->id;
-                $this->adisyonHizmetMap[$planlaAppId] = $map;
+            $key = $tarih . '|' . $saat . '|' . $userId;
+            if (!isset($randevuLookup[$key])) continue;
+            $randevuId = $randevuLookup[$key];
+            $this->randevuMap[$planlaAppId] = $randevuId;
+            if (isset($ahByRandevu[$randevuId])) {
+                $this->adisyonMap[$planlaAppId] = $ahByRandevu[$randevuId]['adisyon_id'];
+                $this->adisyonHizmetMap[$planlaAppId] = $ahByRandevu[$randevuId]['hizmetler'];
+                $matched++;
             }
         }
-        $this->log('Map: randevu=' . count($this->randevuMap) . ' adisyon=' . count($this->adisyonMap));
+        $this->log("Map: randevu=" . count($this->randevuMap) . " adisyon=" . count($this->adisyonMap));
     }
 
     // ---- Haritalari disardan yeniden kur (command ayri ayri tip secerse) ----
