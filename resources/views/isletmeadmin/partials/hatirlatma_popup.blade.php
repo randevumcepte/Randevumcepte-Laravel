@@ -261,9 +261,10 @@
     var ILK_POPUP_GOSTERILDI = false; // sayfa basina 1 kez tam-ekran popup
     var SON_IMZA  = '';               // hatirlatma listesinin imzasi
 
-    function fetchFeed(){
+    function fetchFeed(force){
+        var url = FEED_URL + (force ? '&refresh=1' : '');
         $.ajax({
-            url: FEED_URL,
+            url: url,
             dataType: 'json',
             cache: false,
             success: function(res){
@@ -276,6 +277,7 @@
             error: function(){ /* sessiz */ }
         });
     }
+    window.SalonHatirlatmaYenile = function(){ fetchFeed(true); };
 
     /* ---------- TOAST (sag alt) ---------- */
     function otomatikToastlar(liste){
@@ -452,6 +454,21 @@
         });
     }
 
+    /* ---------- AJAX COMPLETE: yazma islemi sonrasi anlik yenile ---------- */
+    var TETIKLEYICI_RE = /(musteri|portfoy|randevu|alacak|adisyon|tahsilat|odeme|maas|prim|kvkk|destek)/i;
+    $(document).ajaxComplete(function(evt, xhr, settings){
+        try{
+            var t = (settings.type || '').toUpperCase();
+            if (t !== 'POST' && t !== 'PUT' && t !== 'DELETE') return;
+            var url = (settings.url || '');
+            // kendi feed'imizden gelen response'da donme
+            if (url.indexOf('/api/hatirlatma-feed') !== -1) return;
+            if (!TETIKLEYICI_RE.test(url)) return;
+            // 600 ms bekle (server-side observer cache'i temizlesin)
+            setTimeout(function(){ fetchFeed(true); }, 600);
+        }catch(e){}
+    });
+
     /* ---------- BASLAT ---------- */
     $(function(){
         // tepe header'a bell ekle (zil ikonu)
@@ -460,7 +477,7 @@
             $('.header-right').prepend($bell);
         }
         fetchFeed();
-        setInterval(fetchFeed, POLL_MS);
+        setInterval(function(){ fetchFeed(false); }, POLL_MS);
     });
 })();
 </script>
