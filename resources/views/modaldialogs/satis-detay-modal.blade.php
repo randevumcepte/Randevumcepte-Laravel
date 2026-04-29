@@ -3,13 +3,13 @@
          class="modal modal-top fade calendar-modal"
          >
          <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width:1200px;width:95%;">
-            <div class="modal-content" style="max-width:1200px; min-height:85vh; max-height:95vh; width:100%">
+            <div class="modal-content" style="max-width:1200px; width:100%">
                <form id="satis_listesi">
                   <input type="hidden" name="adisyon_id">
                   <input type="hidden" id="harici_indirim_tutari" value="0">
                   <input type="hidden" id="musteri_indirim" value="0">
                   <input type="hidden" style="font-size: 20px; background-color: #d4edda; border-color: #c3e6cb;" class="form-control try-currency"  name="indirimli_toplam_tahsilat_tutari" id="indirimli_toplam_tahsilat_tutari" value="0">
-                  <div class="modal-body" style="max-height:80vh; overflow-y:auto;">
+                  <div class="modal-body">
 
                      <input type="hidden" name="sube" value="{{$isletme->id}}">
                      
