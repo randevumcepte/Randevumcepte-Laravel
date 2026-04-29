@@ -21809,6 +21809,7 @@ $('#satis_listesi').on('submit',function(e){
     e.preventDefault();
     var _adisyonId = $('#satis_listesi input[name="adisyon_id"]').val();
     var _satisTarihi = $('#satis_tarihi_duzenle').val();
+    var _tarihGuncellemeDfd = $.Deferred();
     if(_adisyonId && _satisTarihi){
         $.ajax({
             url:'/isletmeyonetim/satisTarihiGuncelle',
@@ -21819,8 +21820,11 @@ $('#satis_listesi').on('submit',function(e){
                 sube:$('input[name="sube"]').val(),
                 _token:$('input[name="_token"]').val()
             }
-        });
+        }).always(function(){ _tarihGuncellemeDfd.resolve(); });
+    } else {
+        _tarihGuncellemeDfd.resolve();
     }
+    _tarihGuncellemeDfd.done(function(){
      $('#satisKalemleri').modal('hide');
     if($('#satis_takibi_ekrani').length)
         applyFilters();
@@ -21887,7 +21891,7 @@ $('#satis_listesi').on('submit',function(e){
     }
 
 
-     
+    });
 });
 $(document).on('select2:select', '#randevuekle_musteri_id', function (e) {
     // Müşteri seçildiğinde paket kontrolü yap
