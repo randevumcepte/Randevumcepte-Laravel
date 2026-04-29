@@ -502,37 +502,21 @@ class PlanlaImporter
                 $adisyonId = $this->adisyonMap[$planlaAppId];
                 $kullaniciAdisyonHizmetMap = $this->adisyonHizmetMap[$planlaAppId] ?? [];
                 $randevuyaBaglandi++;
-            } else {
-                // Randevuya bagli degil: musteri+tarih ile serbest adisyon
-                // Mevcut o gun o musteri icin RANDEVUSUZ bir adisyon var mi?
-                $ad = Adisyonlar::where('user_id', $userId)
-                    ->where('salon_id', $this->salonId)
-                    ->where('tarih', $tarih)
-                    ->whereDoesntHave('hizmetler', function ($q) { $q->whereNotNull('randevu_id'); })
-                    ->first();
-                if (!$ad) {
-                    $ad = new Adisyonlar();
-                    $ad->user_id = $userId;
-                    $ad->salon_id = $this->salonId;
-                    $ad->tarih = $tarih;
-                    $ad->olusturan_id = $this->defaultPersonelId();
-                    $ad->save();
-                    $serbestAdisyon++;
-                }
-                $adisyonId = $ad->id;
             }
+            // adisyonId null kalabilir -> tahsilat adisyonsuz acilir (sadece musteri tahsilati)
 
-            // Idempotent: ayni adisyon + tutar + tarih + odeme yontemi + user varsa atla
-            $tahsilatVar = Tahsilatlar::where('adisyon_id', $adisyonId)
+            // Idempotent: ayni musteri + tutar + tarih + odeme yontemi varsa atla
+            $exists = Tahsilatlar::where('user_id', $userId)
+                ->where('salon_id', $this->salonId)
                 ->where('tutar', $price)
                 ->where('odeme_tarihi', $tarih)
-                ->where('odeme_yontemi_id', $odemeYontemi)
-                ->where('user_id', $userId)
-                ->first();
-            if ($tahsilatVar) { $this->counts['tahsilat']++; continue; }
+                ->where('odeme_yontemi_id', $odemeYontemi);
+            if ($adisyonId) $exists->where('adisyon_id', $adisyonId);
+            else $exists->whereNull('adisyon_id');
+            if ($exists->first()) { $this->counts['tahsilat']++; continue; }
 
             $tahsilat = new Tahsilatlar();
-            $tahsilat->adisyon_id = $adisyonId;
+            if ($adisyonId) $tahsilat->adisyon_id = $adisyonId;
             $tahsilat->user_id = $userId;
             $tahsilat->salon_id = $this->salonId;
             $tahsilat->tutar = $price;
@@ -543,26 +527,30 @@ class PlanlaImporter
             if (!empty($row['notes'])) $tahsilat->notlar = $row['notes'];
             $tahsilat->save();
 
-            // TahsilatHizmetler: sadece randevu-bagli adisyonlarda hizmet pay'i yap
-            $ahIds = !empty($kullaniciAdisyonHizmetMap)
-                ? array_values($kullaniciAdisyonHizmetMap)
-                : AdisyonHizmetler::where('adisyon_id', $adisyonId)->pluck('id')->all();
-            $n = count($ahIds);
-            if ($n > 0) {
-                $perPay = round($price / $n, 2);
-                foreach ($ahIds as $idx => $ahId) {
-                    $th = new TahsilatHizmetler();
-                    $th->tahsilat_id = $tahsilat->id;
-                    $th->adisyon_hizmet_id = $ahId;
-                    $th->tutar = ($idx === $n - 1) ? round($price - $perPay * ($n - 1), 2) : $perPay;
-                    $th->save();
+            // TahsilatHizmetler: sadece randevu-bagli adisyon varsa pay et
+            if ($adisyonId) {
+                $ahIds = !empty($kullaniciAdisyonHizmetMap)
+                    ? array_values($kullaniciAdisyonHizmetMap)
+                    : AdisyonHizmetler::where('adisyon_id', $adisyonId)->pluck('id')->all();
+                $n = count($ahIds);
+                if ($n > 0) {
+                    $perPay = round($price / $n, 2);
+                    foreach ($ahIds as $idx => $ahId) {
+                        $th = new TahsilatHizmetler();
+                        $th->tahsilat_id = $tahsilat->id;
+                        $th->adisyon_hizmet_id = $ahId;
+                        $th->tutar = ($idx === $n - 1) ? round($price - $perPay * ($n - 1), 2) : $perPay;
+                        $th->save();
+                    }
                 }
+            } else {
+                $serbestAdisyon++;
             }
 
             $this->counts['tahsilat']++;
-            if ($i % 500 === 0) $this->log("  ..{$i} finance kaydi islendi (tahsilat={$this->counts['tahsilat']}, skipped={$skipped}, randevuya_bagli={$randevuyaBaglandi}, serbest_adisyon_yeni={$serbestAdisyon})");
+            if ($i % 500 === 0) $this->log("  ..{$i} finance kaydi islendi (tahsilat={$this->counts['tahsilat']}, skipped={$skipped}, randevuya_bagli={$randevuyaBaglandi}, adisyonsuz={$serbestAdisyon})");
         }
-        $this->log("Tahsilat aktarim: {$this->counts['tahsilat']}, skipped: {$skipped}, randevuya_bagli: {$randevuyaBaglandi}, serbest_adisyon_yeni: {$serbestAdisyon}");
+        $this->log("Tahsilat aktarim: {$this->counts['tahsilat']}, skipped: {$skipped}, randevuya_bagli: {$randevuyaBaglandi}, adisyonsuz: {$serbestAdisyon}");
     }
 
     private function odemeYontemiMap($method)
