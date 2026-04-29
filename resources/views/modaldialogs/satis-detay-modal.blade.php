@@ -31,7 +31,7 @@
                      <div class="row" style="margin-bottom:15px;">
                         <div class="col-md-4 col-12">
                            <label style="font-weight:bold;font-size:13px;margin-bottom:5px;">Satış Tarihi</label>
-                           <input type="text" name="satis_tarihi_duzenle" id="satis_tarihi_duzenle" class="form-control date-picker" autocomplete="off" value="">
+                           <input type="text" name="satis_tarihi_duzenle" id="satis_tarihi_duzenle" class="form-control geriye-yonelik" autocomplete="off" value="">
                         </div>
                      </div>
                      

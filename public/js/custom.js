@@ -21774,14 +21774,6 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
         },
         success: function (result) {
            $('input[name="adisyon_id"]').val(result.adisyonId);
-           if(!$('#satis_tarihi_duzenle').data('datepicker')){
-               $('#satis_tarihi_duzenle').datepicker({
-                   format:'yyyy-mm-dd',
-                   autoclose:true,
-                   todayHighlight:true,
-                   language:'tr'
-               });
-           }
            $('#satis_tarihi_duzenle').val(result.satisTarihi || '');
            $('#tum_tahsilatlar_duzenleme').empty();
            $('#tum_tahsilatlar_duzenleme').append(result.kalemler);
