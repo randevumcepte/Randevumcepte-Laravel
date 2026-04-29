@@ -10,11 +10,17 @@
 
     var SALON_ID = (window.SHT_AYARLAR && window.SHT_AYARLAR.salon_id) || 0;
     var FEED_URL = '/isletmeyonetim/api/hatirlatma-feed?sube=' + SALON_ID;
-    var POLL_MS  = 30000;             // 30 sn'de bir feed yenile
+    var POLL_MS  = 20000;             // 20 sn'de bir feed yenile
     var GOSTERILEN_TOAST = {};        // {id+sayac: timestamp}
     var SON_FEED = [];
     var ILK_POPUP_GOSTERILDI = false; // sayfa basina 1 kez tam-ekran popup
     var SON_IMZA = '';                // hatirlatma listesinin imzasi
+    var SYNC_KEY = 'sht_yenile_sinyal_' + SALON_ID; // cross-tab senkron
+
+    function pencereleriTetikle(){
+        // localStorage 'storage' event'i SADECE diger pencerelerde tetikler
+        try { localStorage.setItem(SYNC_KEY, String(Date.now())); } catch(e){}
+    }
 
     function fetchFeed(force){
         var url = FEED_URL + (force ? '&refresh=1' : '');
@@ -212,8 +218,18 @@
             var url = (settings.url || '');
             if (url.indexOf('/api/hatirlatma-feed') !== -1) return;
             if (!TETIKLEYICI_RE.test(url)) return;
-            setTimeout(function(){ fetchFeed(true); }, 600);
+            setTimeout(function(){
+                fetchFeed(true);
+                pencereleriTetikle(); // diger sekmeler/pencereler de yenile
+            }, 600);
         }catch(e){}
+    });
+
+    /* ---------- CROSS-TAB SYNC: diger pencereden sinyal gelirse fetch ---------- */
+    window.addEventListener('storage', function(e){
+        if (e.key === SYNC_KEY && e.newValue) {
+            fetchFeed(true);
+        }
     });
 
     /* ---------- BASLAT ---------- */
@@ -224,5 +240,9 @@
         }
         fetchFeed();
         setInterval(function(){ fetchFeed(false); }, POLL_MS);
+        // sayfaya geri donulunce hemen yenile (sekme arasi gecis)
+        document.addEventListener('visibilitychange', function(){
+            if (!document.hidden) fetchFeed(true);
+        });
     });
 })();
