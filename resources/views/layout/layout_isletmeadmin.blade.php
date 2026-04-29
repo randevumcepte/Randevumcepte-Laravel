@@ -1238,6 +1238,16 @@
                      </a>
                   </li>
                   <li>
+                     @if($pageindex==999)
+                     <a href="/isletmeyonetim/log-hareketleri{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/log-hareketleri{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-clock-history"></span>
+                     <span class="mtext">Log Hareketleri</span>
+                     </a>
+                  </li>
+                  <li>
                      @if($pageindex==65)
                      <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else

@@ -117,13 +117,25 @@ class LoginController extends Controller
 
              if(BildirimKimlikleri::where('isletme_yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('bildirim_id',$request->bildirimid)->where('cihaz',$request->header('User-Agent'))->count()>0)
                 BildirimKimlikleri::where('isletme_yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('bildirim_id',$request->bildirimid)->where('cihaz',$request->header('User-Agent'))->delete();
-             
+
             $bildirimkimligi = new BildirimKimlikleri();
             $bildirimkimligi->isletme_yetkili_id = Auth::guard('isletmeyonetim')->user()->id;
             $bildirimkimligi->bildirim_id = $request->bildirimid;
             $bildirimkimligi->cihaz = $request->header('User-Agent');
             $bildirimkimligi->save();
-             
+
+            // Audit — login (yetkilinin baglandigi her aktif salon icin tek kayit)
+            try {
+                $userId = Auth::guard('isletmeyonetim')->user()->id;
+                $userName = Auth::guard('isletmeyonetim')->user()->name;
+                $salonIds = \App\Personeller::where('yetkili_id', $userId)
+                    ->whereNotNull('salon_id')
+                    ->pluck('salon_id')->unique();
+                foreach ($salonIds as $sid) {
+                    \App\SalonYonetim\Audit::log($sid, 'login', 'kullanici', $userId, $userName, 'Panele giriş yapıldı');
+                }
+            } catch (\Exception $e) {}
+
            // Auth::guard('isletmeyonetim')->logoutOtherDevices($request->password);
             return redirect()->route('isletmeadmin.randevular');
             /*if(Auth::guard('isletmeyonetim')->user()->hasRole('Personel'))

@@ -419,6 +419,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/randevubilgiguncelle','StoreAdminController@randevubilgiguncelle');
 	//Route::middleware('role:Hesap Sahibi,Süpervizör,Yönetici')->get('/ayarlar','StoreAdminController@ayarlar');
 	Route::get('/ayarlar','StoreAdminController@ayarlar');
+	Route::get('/log-hareketleri','StoreAdminController@logHareketleri')->name('isletmeadmin.log');
 	Route::get('/whatsapp','StoreAdminController@whatsapp')->name('whatsapp.sayfa');
 	Route::post('/whatsapp/baslat','StoreAdminController@whatsappBaslat')->name('whatsapp.baslat');
 	Route::get('/whatsapp/durum','StoreAdminController@whatsappDurum')->name('whatsapp.durum');

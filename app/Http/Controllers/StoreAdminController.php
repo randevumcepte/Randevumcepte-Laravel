@@ -133,6 +133,8 @@ use App\CarkifelekOdulleri;
 use App\SalonPuanOdulleri;
 use App\PersonelPrimHareketi;
 use App\PersonelMaasOdemesi;
+use App\SalonAktiviteLog;
+use App\SalonYonetim\Audit as SalonAudit;
 
 class StoreAdminController extends Controller
 {
@@ -5989,6 +5991,13 @@ private function ayAdiCevir($ingilizceAy)
         foreach($randevu_hizmetler as $randevu_hizmet)
             $randevu_hizmet->delete();
         $randevu = Randevular::find($request->randevuid);
+        // Audit
+        if($randevu){
+            $musteriAdi = optional($randevu->users)->name ?? 'Bilinmeyen müşteri';
+            $label = $musteriAdi.' — '.date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i',strtotime($randevu->saat));
+            SalonAudit::log($randevu->salon_id, 'randevu_sil', 'randevu', $randevu->id, $label,
+                'Randevu silindi', ['durum'=>$randevu->durum]);
+        }
         $randevu->delete();
         $randevular = "";
         if(Auth::guard('isletmeyonetim')->user()->is_admin)
@@ -6039,7 +6048,7 @@ private function ayAdiCevir($ingilizceAy)
     public function musteri_sil(Request $request)
     {
         $portfoy = MusteriPortfoy::where('id', $request->portfoy_id)->first();
-        
+
         if (!$portfoy) {
             return response()->json([
                 'title' => "Hata",
@@ -6047,10 +6056,15 @@ private function ayAdiCevir($ingilizceAy)
                 'status' => 'error'
             ], 404);
         }
-    
+
         $portfoy->aktif = false;
         $portfoy->save();
-    
+
+        // Audit
+        $musteriAdi = \App\User::where('id', $portfoy->user_id)->value('name');
+        SalonAudit::log($portfoy->salon_id, 'musteri_sil', 'musteri', $portfoy->user_id,
+            $musteriAdi ?: ('Müşteri #'.$portfoy->user_id), 'Müşteri portföyden silindi (pasif yapıldı)');
+
         return response()->json([
             'title' => "Başarılı",
             'mesaj' => "Kayıt başarıyla silindi.",
@@ -6207,7 +6221,10 @@ private function ayAdiCevir($ingilizceAy)
         $adisyonUrunleri = array();
         $adisyonPaketleri = array();
         $adisyon= Adisyonlar::where('id',$adisyonId)->first();
-        
+        if(!$adisyon){
+            $sube_param = isset($_GET['sube']) ? '?sube='.$isletme->id : '';
+            return redirect('/isletmeyonetim/adisyonlar'.$sube_param);
+        }
 
         $tahsilatlar = Tahsilatlar::where(function($q) use($adisyon){
             $q->whereHas('hizmet_odemeleri',function($q) use($adisyon){
@@ -7312,6 +7329,11 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function isletmebilgiguncelle(Request $request){
         $isletme = Salonlar::where('id',$request->sube)->first();
+        $eski = [
+            'salon_adi' => $isletme->salon_adi,
+            'telefon_1' => $isletme->telefon_1,
+            'whatsapp'  => $isletme->whatsapp,
+        ];
         $isletme->salon_adi = $request->isletme_adi;
         $isletme->adres =$request->isletme_adres;
         $isletme->salon_turu_id = $request->isletme_turu;
@@ -7337,6 +7359,10 @@ private function ayAdiCevir($ingilizceAy)
             }
         }
         $isletme->save();
+        // Audit
+        SalonAudit::log($isletme->id, 'ayarlar_guncelle', 'salon', $isletme->id,
+            $isletme->salon_adi, 'Temel ayarlar güncellendi',
+            ['eski' => $eski, 'yeni' => ['salon_adi'=>$isletme->salon_adi,'telefon_1'=>$isletme->telefon_1,'whatsapp'=>$isletme->whatsapp]]);
         return "İşletme bilgileri başarıyla kaydedildi";
     }
     public function adisyon_hizmet_sil(Request $request)
@@ -7395,6 +7421,13 @@ private function ayAdiCevir($ingilizceAy)
         }
         else
         {
+            // Audit (silmeden once)
+            $hizmetAdi = optional($hizmet->hizmet)->hizmet_adi ?? 'Hizmet #'.$hizmet->id;
+            $musteriAdi = \App\User::where('id',$musteriid)->value('name');
+            SalonAudit::log($request->sube, 'adisyon_hizmet_sil', 'adisyon_hizmet', $hizmet->id,
+                $hizmetAdi.' — '.($musteriAdi ?: ''),
+                'Adisyondan hizmet silindi',
+                ['adisyon_id'=>$adisyon_id, 'fiyat'=>$hizmet->fiyat, 'hizmet_id'=>$hizmet->hizmet_id]);
             $hizmet->delete();
             /*if(AdisyonHizmetler::where('adisyon_id',$adisyon_id)->count()+AdisyonUrunler::where('adisyon_id',$adisyon_id)->count()+AdisyonPaketler::where('adisyon_id',$adisyon_id)->count()==0)
                 Adisyonlar::where('id',$adisyon_id)->delete()*/
@@ -23310,6 +23343,84 @@ DB::raw('
         } catch(\Exception $e){
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
+    }
+
+    /* ============================================================
+     * LOG HAREKETLERİ (Aktivite Log)
+     * ============================================================ */
+    public function logHareketleri(Request $request)
+    {
+        $isletmeler = '';
+        $isletme = '';
+        if (Auth::guard('satisortakligi')->check()) {
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id', 15)->first();
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        }
+
+        if (!in_array(self::mevcutsube($request), $isletmeler) || $_SERVER['HTTP_HOST'] == 'randevu.randevumcepte.com.tr') {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if (str_contains(self::lisans_sure_kontrol($request), '-')) {
+            return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
+        }
+        // Sadece Hesap Sahibi (rol_id=1) ve rol atamasi olmayan yetkililer logu gorebilir.
+        // role_id=4 (Yonetici) ve role_id=5 (Personel) icin yetkisiz.
+        if (!Auth::guard('satisortakligi')->check()) {
+            $userId = Auth::guard('isletmeyonetim')->user()->id;
+            $kisitliRol = DB::table('model_has_roles')
+                ->whereIn('role_id', [4, 5])
+                ->where('model_id', $userId)
+                ->where('salon_id', $isletme->id)
+                ->count();
+            if ($kisitliRol > 0) {
+                return view('isletmeadmin.yetkisizerisim');
+            }
+        }
+
+        $salonId = $isletme->id;
+        $q = trim($request->get('q', ''));
+        $action = $request->get('action');
+        $userId = $request->get('user_id');
+        $tarih = $request->get('tarih');
+
+        $query = SalonAktiviteLog::where('salon_id', $salonId)->orderBy('id', 'desc');
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('target_label', 'like', "%$q%")
+                  ->orWhere('aciklama', 'like', "%$q%")
+                  ->orWhere('user_name', 'like', "%$q%");
+            });
+        }
+        if ($action) $query->where('action', $action);
+        if ($userId) $query->where('user_id', $userId);
+        if ($tarih) $query->whereDate('created_at', $tarih);
+
+        $loglar = $query->paginate(50)->appends($request->all());
+
+        $kullanicilar = SalonAktiviteLog::where('salon_id', $salonId)
+            ->whereNotNull('user_id')
+            ->select('user_id', 'user_name')
+            ->groupBy('user_id', 'user_name')
+            ->orderBy('user_name')
+            ->get();
+
+        $aksiyonlar = SalonAktiviteLog::where('salon_id', $salonId)
+            ->distinct()->pluck('action')->filter()->values();
+
+        return view('isletmeadmin.log-hareketleri', [
+            'isletme'      => $isletme,
+            'loglar'       => $loglar,
+            'kullanicilar' => $kullanicilar,
+            'aksiyonlar'   => $aksiyonlar,
+            'q'            => $q,
+            'action'       => $action,
+            'user_id'      => $userId,
+            'tarih'        => $tarih,
+            'pageindex'    => 999, // sidebar aktif state icin
+        ]);
     }
 
 }
