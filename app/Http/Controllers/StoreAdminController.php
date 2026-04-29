@@ -6287,6 +6287,10 @@ private function ayAdiCevir($ingilizceAy)
         $paketler = self::paket_liste_getir('',true,$request);
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
         $adisyon= Adisyonlar::where('id',$adisyonId)->first();
+        if(!$adisyon){
+            $sube_param = isset($_GET['sube']) ? '?sube='.$isletme->id : '';
+            return redirect('/isletmeyonetim/tahsilat-modern'.$sube_param);
+        }
         $tahsilatlar = Tahsilatlar::where(function($q) use($adisyon){
             $q->whereHas('hizmet_odemeleri',function($q) use($adisyon){
                 $q->whereIn('adisyon_hizmet_id',$adisyon->hizmetler->pluck('id')->toArray());
