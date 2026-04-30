@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Randevular;
 use App\Salonlar;
 use App\SalonSMSAyarlari;
+use App\SalonCalismaSaatleri;
 use App\Personeller;
 use App\BildirimKimlikleri;
 use App\Http\Controllers\Controller;
@@ -85,25 +86,46 @@ class RandevuSMSHatirlatma extends Command
                 }
             }
 
-            // Müşteriye 1 gün öncesi hatırlatma — günün 12:00-17:00 penceresinde,
+            // Müşteriye 1 gün öncesi hatırlatma — salonun bugünkü çalışma saatleri penceresinde,
             // id'ye göre dakikalara dağıtılmış (her randevu tek bir dakikada), tek seferlik
             $yarinTarih = date('Y-m-d', strtotime('+1 day'));
             $nowMinuteOfDay = (int) date('G') * 60 + (int) date('i');
-            $winStart = 12 * 60; // 12:00
-            $winEnd = 17 * 60;   // 17:00
+
+            // salon_calisma_saatleri.haftanin_gunu: 1=Pzt..7=Paz; PHP date('N') aynı format
+            $bugunGunu = (int) date('N');
+            $calisma = SalonCalismaSaatleri::where('salon_id', $value->salon_id)
+                ->where('haftanin_gunu', $bugunGunu)->first();
+
+            if ($calisma && $calisma->calisiyor && $calisma->baslangic_saati && $calisma->bitis_saati) {
+                $winStart = (int) date('G', strtotime($calisma->baslangic_saati)) * 60
+                          + (int) date('i', strtotime($calisma->baslangic_saati));
+                $winEnd   = (int) date('G', strtotime($calisma->bitis_saati)) * 60
+                          + (int) date('i', strtotime($calisma->bitis_saati));
+            } else {
+                // Salon bugün kapalı veya tanım yok — güvenli default: 09:00-21:00
+                $winStart = 9 * 60;
+                $winEnd = 21 * 60;
+            }
+
+            if ($winEnd <= $winStart) {
+                $winStart = 9 * 60;
+                $winEnd = 21 * 60;
+            }
 
             if ($value->tarih === $yarinTarih
                 && $nowMinuteOfDay >= $winStart && $nowMinuteOfDay < $winEnd
                 && empty($value->hatirlatma_gunonce_gonderildi)) {
 
-                $bucketSize = $winEnd - $winStart; // 300 dk
+                $bucketSize = $winEnd - $winStart;
                 $stagger = ((int) $value->id) % $bucketSize;
                 $targetMinute = $winStart + $stagger;
 
                 if ($nowMinuteOfDay >= $targetMinute) {
                     $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 6)->first();
-                    Log::info('[RND-SMS] 1 gün öncesi (12-17 penceresi) tetiklendi', [
+                    Log::info('[RND-SMS] 1 gün öncesi (çalışma saati penceresi) tetiklendi', [
                         'randevu_id' => $value->id,
+                        'win_start_dk' => $winStart,
+                        'win_end_dk' => $winEnd,
                         'stagger_dk' => $stagger,
                         'hedef_dk' => $targetMinute,
                         'simdi_dk' => $nowMinuteOfDay,
