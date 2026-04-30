@@ -18819,7 +18819,7 @@ $('#arsivformekleme').on('submit',function(e){
         warningtext = "- Müşteri/danışan seçiniz.<br>";
         musterisecili = false;
     }
-    if($('#formpersonelsec').val()=="")
+    if($('#formpersonelsec').is('select') && $('#formpersonelsec').val()=="")
     {
 
         warningtext = "- İşlemi yapacak personeli seçiniz.<br>";

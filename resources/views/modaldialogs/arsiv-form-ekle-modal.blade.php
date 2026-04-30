@@ -47,8 +47,6 @@
                         <input type="hidden" name="formmusterikimlikno" id="formmusterikimlikno" value="">
                         <input type="hidden" name="formmustericinsiyet" id="formmustericinsiyet" value="0">
                         <input type="hidden" name="formmusteriyas" id='formmusteriyas' value="">
-                        <input type="hidden" name="formpersonelsec" id="formpersonelsec" value="">
-                        <input type="hidden" name="formmpersonelceptelefon" id="formpersonelceptelefon" value="">
 
                         <div class="col-md-6 form-group hizmet-alani" style="display: none;">
                             <label>Hizmet</label>
