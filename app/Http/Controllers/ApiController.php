@@ -17703,7 +17703,7 @@ return date('Y')."-$ayNumara-$gun";
                         if($paketRandevusuVar)
                         {
                             $adisyonPaket = AdisyonPaketler::where('id',$paketRandevusuVar->adisyon_paket_id)->first();
-                            $paketAdi = $adisyonPaket->paket->paket_adi;
+                            $paketAdi = ($adisyonPaket && $adisyonPaket->paket) ? $adisyonPaket->paket->paket_adi : null;
                             $seansNo = $paketRandevusuVar->seans_no;
                         }
                         else
@@ -17748,35 +17748,36 @@ return date('Y')."-$ayNumara-$gun";
                 if($adisyon)
                 {
 
-                  
                     $paket = $adisyon->paketler->first();
-                    
-                    $personelHizmetleri = PersonelHizmetler::whereIn('personel_id',$personeller)->whereIn('hizmet_id',$paket->paket->hizmetler->pluck('hizmet_id')->toArray())->get();
-                    $paketPersonelListesi = [];
-                    foreach ($personelHizmetleri as $ph) {
-                        if ($ph->personeller) { // personeller ilişkisini kontrol et
-                            $paketPersonelListesi[] = [
-                                'id' => $ph->personeller->id,
-                                'personel_adi' => $ph->personeller->personel_adi, 
 
-                                 
-                            ];
+                    // Paketler iliskisinin sirf adisyon_paketler kaydi var diye dolu olacagina guven yok;
+                    // silinmis Paketler kaydi olabiliyor → null check ile catch'e dusmesini engelle.
+                    if ($paket && $paket->paket && $paket->paket->hizmetler) {
+                        $personelHizmetleri = PersonelHizmetler::whereIn('personel_id',$personeller)->whereIn('hizmet_id',$paket->paket->hizmetler->pluck('hizmet_id')->toArray())->get();
+                        $paketPersonelListesi = [];
+                        foreach ($personelHizmetleri as $ph) {
+                            if ($ph->personeller) { // personeller ilişkisini kontrol et
+                                $paketPersonelListesi[] = [
+                                    'id' => $ph->personeller->id,
+                                    'personel_adi' => $ph->personeller->personel_adi,
+                                ];
+                            }
                         }
-                    }
-                   
 
-                    // Map işlemi
-                    $randevuOlusturulmamisPaketAdisyonuVarmi =   [
-                                'id'=>$paket->id,
-                                'salonId'=> $paket->paket->salon_id,
-                                'paketId' => $paket->paket_id,
-                                'paketAdi' => $paket->paket->paket_adi,
-                                'bekleyenSeans' => $paket->bekleyen_seans,
-                                'personeller' => $paketPersonelListesi,
-                                'hizmetler'=>$paket->paket->hizmetler,
-                                'paketSuresi'=>$paket->paket->sure,
-                                 
-                    ];
+                        // Map işlemi
+                        $randevuOlusturulmamisPaketAdisyonuVarmi =   [
+                                    'id'=>$paket->id,
+                                    'salonId'=> $paket->paket->salon_id,
+                                    'paketId' => $paket->paket_id,
+                                    'paketAdi' => $paket->paket->paket_adi,
+                                    'bekleyenSeans' => $paket->bekleyen_seans,
+                                    'personeller' => $paketPersonelListesi,
+                                    'hizmetler'=>$paket->paket->hizmetler,
+                                    'paketSuresi'=>$paket->paket->sure,
+                        ];
+                    } else {
+                        Log::warning("santralkarsilamametni: salon $salonid icin adisyon_paketler.id={$paket->id} bulundu ama paket iliskisi NULL (paket silinmis olabilir).");
+                    }
                 }
                
                     
