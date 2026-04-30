@@ -17673,7 +17673,7 @@ return date('Y')."-$ayNumara-$gun";
             {
             $anaMenu = "Randevu almak için biri, ";
            
-            if ($musteri) {
+            if ($musteri && $musteri->users) {
 
                 $musterihitap = 'Sayın '.$musteri->users->name.' .';
 
@@ -17696,21 +17696,31 @@ return date('Y')."-$ayNumara-$gun";
                      $anaMenu .= "randevu güncelleme için ikiyi, randevu iptali için üçü, ";
                     foreach($enYakinRandevular as $enYakinRandevu)
                     {
+                        try {
                         $paketRandevusuVar = AdisyonPaketSeanslar::where('randevu_id',$enYakinRandevu->id)->first();
                         $paketAdi = null;
                         $seansNo = null;
                         $hizmetler = null;
-                        if($paketRandevusuVar)
+                        // Paket randevusu kaydi var ama AdisyonPaketler ya da Paketler iliskisi
+                        // silinmisse (orphan) paket randevusu YOK varsay → normal hizmet listesi.
+                        $adisyonPaket = $paketRandevusuVar
+                            ? AdisyonPaketler::where('id',$paketRandevusuVar->adisyon_paket_id)->first()
+                            : null;
+                        $paketDolu = $adisyonPaket && $adisyonPaket->paket;
+
+                        if($paketRandevusuVar && $paketDolu)
                         {
-                            $adisyonPaket = AdisyonPaketler::where('id',$paketRandevusuVar->adisyon_paket_id)->first();
-                            $paketAdi = ($adisyonPaket && $adisyonPaket->paket) ? $adisyonPaket->paket->paket_adi : null;
+                            $paketAdi = $adisyonPaket->paket->paket_adi;
                             $seansNo = $paketRandevusuVar->seans_no;
                         }
                         else
                         {
                             foreach($enYakinRandevu->hizmetler as $key=> $hizmet)
                             {
-                                $hizmetler .= $hizmet->hizmetler->hizmet_adi;
+                                // Hizmetler iliskisi silinmis olabilir (orphan randevu_hizmet kaydi)
+                                $hizmetAdi = ($hizmet->hizmetler ? $hizmet->hizmetler->hizmet_adi : null);
+                                if (!$hizmetAdi) continue;
+                                $hizmetler .= $hizmetAdi;
                                 if($key+1 != $enYakinRandevu->hizmetler->count())
                                     $hizmetler .= ', ';
                                 else
@@ -17730,8 +17740,12 @@ return date('Y')."-$ayNumara-$gun";
                             'userId'=>$enYakinRandevu->user_id,
 
                         ]);
+                        } catch (\Throwable $e) {
+                            // Tek randevu kayitsiz/orphan iliskiler icin patlamasin → atla, log'la
+                            Log::warning("santralkarsilamametni: enYakinRandevu id={$enYakinRandevu->id} atlandi - " . $e->getMessage());
+                        }
                     }
-                    
+
                 }
                 
 
@@ -17747,36 +17761,41 @@ return date('Y')."-$ayNumara-$gun";
                 
                 if($adisyon)
                 {
+                    try {
+                        $paket = $adisyon->paketler->first();
 
-                    $paket = $adisyon->paketler->first();
-
-                    // Paketler iliskisinin sirf adisyon_paketler kaydi var diye dolu olacagina guven yok;
-                    // silinmis Paketler kaydi olabiliyor → null check ile catch'e dusmesini engelle.
-                    if ($paket && $paket->paket && $paket->paket->hizmetler) {
-                        $personelHizmetleri = PersonelHizmetler::whereIn('personel_id',$personeller)->whereIn('hizmet_id',$paket->paket->hizmetler->pluck('hizmet_id')->toArray())->get();
-                        $paketPersonelListesi = [];
-                        foreach ($personelHizmetleri as $ph) {
-                            if ($ph->personeller) { // personeller ilişkisini kontrol et
-                                $paketPersonelListesi[] = [
-                                    'id' => $ph->personeller->id,
-                                    'personel_adi' => $ph->personeller->personel_adi,
-                                ];
+                        // Paketler iliskisi orphan olabilir (paket silinmis). Eksik veriyle paket bilgisi
+                        // olusturmaktansa "paket randevusu yok" gibi davran.
+                        if ($paket && $paket->paket && $paket->paket->hizmetler) {
+                            $personelHizmetleri = PersonelHizmetler::whereIn('personel_id',$personeller)->whereIn('hizmet_id',$paket->paket->hizmetler->pluck('hizmet_id')->toArray())->get();
+                            $paketPersonelListesi = [];
+                            foreach ($personelHizmetleri as $ph) {
+                                if ($ph->personeller) { // personeller ilişkisini kontrol et
+                                    $paketPersonelListesi[] = [
+                                        'id' => $ph->personeller->id,
+                                        'personel_adi' => $ph->personeller->personel_adi,
+                                    ];
+                                }
                             }
-                        }
 
-                        // Map işlemi
-                        $randevuOlusturulmamisPaketAdisyonuVarmi =   [
-                                    'id'=>$paket->id,
-                                    'salonId'=> $paket->paket->salon_id,
-                                    'paketId' => $paket->paket_id,
-                                    'paketAdi' => $paket->paket->paket_adi,
-                                    'bekleyenSeans' => $paket->bekleyen_seans,
-                                    'personeller' => $paketPersonelListesi,
-                                    'hizmetler'=>$paket->paket->hizmetler,
-                                    'paketSuresi'=>$paket->paket->sure,
-                        ];
-                    } else {
-                        Log::warning("santralkarsilamametni: salon $salonid icin adisyon_paketler.id={$paket->id} bulundu ama paket iliskisi NULL (paket silinmis olabilir).");
+                            // Map işlemi
+                            $randevuOlusturulmamisPaketAdisyonuVarmi =   [
+                                        'id'=>$paket->id,
+                                        'salonId'=> $paket->paket->salon_id,
+                                        'paketId' => $paket->paket_id,
+                                        'paketAdi' => $paket->paket->paket_adi,
+                                        'bekleyenSeans' => $paket->bekleyen_seans,
+                                        'personeller' => $paketPersonelListesi,
+                                        'hizmetler'=>$paket->paket->hizmetler,
+                                        'paketSuresi'=>$paket->paket->sure,
+                            ];
+                        } else {
+                            Log::warning("santralkarsilamametni: salon $salonid icin adisyon paket iliskisi NULL/eksik (paket silinmis olabilir) - paket randevusu yok varsayildi.");
+                        }
+                    } catch (\Throwable $e) {
+                        // Paket islemi cokerse karsilamayi blokla mayalim → paket yok varsay.
+                        Log::warning("santralkarsilamametni: paket islemi atlandi (salon $salonid) - " . $e->getMessage());
+                        $randevuOlusturulmamisPaketAdisyonuVarmi = '';
                     }
                 }
                
