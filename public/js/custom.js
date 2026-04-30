@@ -18850,6 +18850,17 @@ $('#arsivformekleme').on('submit',function(e){
         },
         success:function(result){
             $("#preloader").hide();
+            if(result && result.error){
+                swal({
+                    type: 'error',
+                    title: 'Hata',
+                    text: result.error,
+                    showCloseButton: false,
+                    showCancelButton: false,
+                    showConfirmButton: true,
+                });
+                return;
+            }
              $('#arsivformekleme').trigger('reset');
             $('#formtaslaklari').val('0').trigger('change');
             $('#formmusterisec').val('0').trigger('change');

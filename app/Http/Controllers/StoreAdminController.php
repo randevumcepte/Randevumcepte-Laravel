@@ -19770,14 +19770,15 @@ public function arsivformekleme(Request $request){
         $form->dogrulama_kodu = $kod;
         $form->user_id = $request->formmusterisec;
         $form->form_id = $request->formtaslaklari;
-        $form->personel_id = $request->formpersonelsec;
+        $formOlusturanPersonelId = Personeller::where('salon_id', $request->sube)->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)->value('id');
+        $form->personel_id = $request->filled('formpersonelsec') ? $request->formpersonelsec : ($formOlusturanPersonelId ?: 0);
         $form->toplam_ucret=$request->toplam_ucret;
         $form->kapora=$request->kapora;
         $form->hizmet_id = $request->hizmetSozlesmesiHizmet;
         $form->cevapladi = false;
         $form->cevapladi2 = false;
         $form->salon_id = $request->sube;
-        $form->form_olusturan = Personeller::where('salon_id', $request->sube)->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)->value('id');
+        $form->form_olusturan = $formOlusturanPersonelId;
         $form->save();
         
         $gsm = array();
