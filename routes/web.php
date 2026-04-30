@@ -454,6 +454,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/urunler','StoreAdminController@urunler');
 	Route::post('/urunekleguncelle','StoreAdminController@urun_ekle_guncelle');
 	Route::post('/paketekleguncelle','StoreAdminController@paket_ekle_guncelle');
+	Route::get('/paketkopyala/{kaynak}/{hedef}','StoreAdminController@paket_kopyala_salonlar_arasi');
 	Route::get('/paketdetayigetir','StoreAdminController@paketdetayigetir');
 	Route::post('/urunsil','StoreAdminController@urun_sil');
 	Route::post('/paketsil','StoreAdminController@paket_sil');

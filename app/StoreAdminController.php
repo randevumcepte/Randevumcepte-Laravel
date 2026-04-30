@@ -4971,6 +4971,72 @@ class StoreAdminController extends Controller
             'toplam_tutar' => $toplamtutar
         );
     }
+    public function paket_kopyala_salonlar_arasi($kaynak_salon_id, $hedef_salon_id)
+    {
+        $kaynak_salon_id = (int) $kaynak_salon_id;
+        $hedef_salon_id  = (int) $hedef_salon_id;
+        if ($kaynak_salon_id <= 0 || $hedef_salon_id <= 0 || $kaynak_salon_id === $hedef_salon_id) {
+            return response()->json(['hata' => 'Gecersiz salon id'], 400);
+        }
+
+        $kaynak_paketler = Paketler::where('salon_id', $kaynak_salon_id)->get();
+        if ($kaynak_paketler->isEmpty()) {
+            return response()->json(['hata' => "Kaynak salon ($kaynak_salon_id) icin paket bulunamadi"], 404);
+        }
+
+        $eklenen_paket = 0;
+        $eklenen_paket_hizmet = 0;
+        $detay = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($kaynak_paketler as $eski) {
+                $yeni = new Paketler();
+                $yeni->paket_adi = $eski->paket_adi;
+                $yeni->aktif     = $eski->aktif;
+                $yeni->salon_id  = $hedef_salon_id;
+                $yeni->tip       = $eski->tip;
+                $yeni->hizmet_id = $eski->hizmet_id;
+                $yeni->fiyat     = $eski->fiyat;
+                $yeni->miktar    = $eski->miktar;
+                $yeni->sure      = $eski->sure;
+                $yeni->save();
+                $eklenen_paket++;
+
+                $eski_hizmetler = PaketHizmetler::where('paket_id', $eski->id)->get();
+                foreach ($eski_hizmetler as $eh) {
+                    $yh = new PaketHizmetler();
+                    $yh->paket_id  = $yeni->id;
+                    $yh->hizmet_id = $eh->hizmet_id;
+                    $yh->fiyat     = $eh->fiyat;
+                    $yh->seans     = $eh->seans;
+                    $yh->save();
+                    $eklenen_paket_hizmet++;
+                }
+
+                $detay[] = [
+                    'eski_paket_id' => $eski->id,
+                    'yeni_paket_id' => $yeni->id,
+                    'paket_adi'     => $eski->paket_adi,
+                    'hizmet_sayisi' => count($eski_hizmetler),
+                ];
+            }
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['hata' => 'Kopyalama basarisiz: ' . $e->getMessage()], 500);
+        }
+
+        return response()->json([
+            'durum'                  => 'basarili',
+            'kaynak_salon_id'        => $kaynak_salon_id,
+            'hedef_salon_id'         => $hedef_salon_id,
+            'eklenen_paket'          => $eklenen_paket,
+            'eklenen_paket_hizmet'   => $eklenen_paket_hizmet,
+            'detay'                  => $detay,
+        ]);
+    }
+
     public function paketdetayigetir(Request $request)
     {
         $paket = Paketler::where('id',$request->paket_id)->first();
