@@ -19088,12 +19088,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                         $basarisiz_arama++;
                     }
                     else{
-                        if ($hedefDahili) {
-                            $durum = '<button class="btn btn-secondary">DAHİLİ</button>';
-                        } else {
-                            $durum = '<button class="btn btn-primary">GİDEN</button>';
-                            $giden_arama++;
-                        }
+                        // GIDEN rozeti dahili-dahili'yi de kapsar (DataTables 'GİDEN' filtresi
+                        // sekmesinde gozuksun diye). Dahili-dahili oldugu musteri sutununda
+                        // 'Personel Adi (Dahili)' formatiyla zaten ayirt ediliyor.
+                        $durum = '<button class="btn btn-primary">GİDEN</button>'
+                            . ($hedefDahili ? ' <small class="text-muted">(dahili)</small>' : '');
+                        $giden_arama++;
                         if (!empty($result['recording_path'])) {
                             $sesKaydi = '<button name="ses_kaydi_cal" data-value="'.$result['recording_path'].'" class="btn btn-danger"><i class="fa fa-play"></i></button>';
                         }
