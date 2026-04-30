@@ -6525,6 +6525,93 @@ private function ayAdiCevir($ingilizceAy)
         ]);
     }
 
+    public function paket_hizmetlerini_salona_kopyala($kaynak_salon_id, $hedef_salon_id)
+    {
+        $kaynak_salon_id = (int) $kaynak_salon_id;
+        $hedef_salon_id  = (int) $hedef_salon_id;
+        if ($kaynak_salon_id <= 0 || $hedef_salon_id <= 0 || $kaynak_salon_id === $hedef_salon_id) {
+            return response()->json(['hata' => 'Gecersiz salon id'], 400);
+        }
+
+        $hizmet_idleri = DB::table('paket_hizmetler')
+            ->join('paketler', 'paketler.id', '=', 'paket_hizmetler.paket_id')
+            ->where('paketler.salon_id', $kaynak_salon_id)
+            ->pluck('paket_hizmetler.hizmet_id')
+            ->unique()
+            ->values();
+
+        if ($hizmet_idleri->isEmpty()) {
+            return response()->json(['hata' => "Kaynak salon ($kaynak_salon_id) paketlerinde hizmet bulunamadi"], 404);
+        }
+
+        $hedefte_var_olanlar = SalonHizmetler::where('salon_id', $hedef_salon_id)
+            ->whereIn('hizmet_id', $hizmet_idleri)
+            ->pluck('hizmet_id')
+            ->all();
+        $hedefte_var_olanlar = array_flip($hedefte_var_olanlar);
+
+        $eklenen = 0;
+        $atlandi = 0;
+        $kaynak_yok = 0;
+        $detay = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($hizmet_idleri as $hid) {
+                if (isset($hedefte_var_olanlar[$hid])) {
+                    $atlandi++;
+                    $detay[] = ['hizmet_id' => $hid, 'durum' => 'zaten_var'];
+                    continue;
+                }
+
+                $kaynak_kayit = SalonHizmetler::where('salon_id', $kaynak_salon_id)
+                    ->where('hizmet_id', $hid)
+                    ->first();
+
+                $yeni = new SalonHizmetler();
+                $yeni->salon_id = $hedef_salon_id;
+                $yeni->hizmet_id = $hid;
+
+                if ($kaynak_kayit) {
+                    $yeni->hizmet_kategori_id = $kaynak_kayit->hizmet_kategori_id;
+                    $yeni->baslangic_fiyat    = $kaynak_kayit->baslangic_fiyat;
+                    $yeni->son_fiyat          = $kaynak_kayit->son_fiyat;
+                    $yeni->bolum              = $kaynak_kayit->bolum;
+                    $yeni->aktif              = $kaynak_kayit->aktif;
+                    $yeni->sure_dk            = $kaynak_kayit->sure_dk;
+                    $detay_durum = 'eklendi_kaynaktan';
+                } else {
+                    $hizmet = Hizmetler::where('id', $hid)->first();
+                    $yeni->hizmet_kategori_id = $hizmet ? $hizmet->hizmet_kategori_id : null;
+                    $yeni->baslangic_fiyat    = 0;
+                    $yeni->son_fiyat          = 0;
+                    $yeni->bolum              = $hizmet ? $hizmet->cinsiyet : 0;
+                    $yeni->aktif              = true;
+                    $kaynak_yok++;
+                    $detay_durum = 'eklendi_varsayilan';
+                }
+                $yeni->save();
+                $eklenen++;
+                $detay[] = ['hizmet_id' => $hid, 'durum' => $detay_durum];
+            }
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['hata' => 'Kopyalama basarisiz: ' . $e->getMessage()], 500);
+        }
+
+        return response()->json([
+            'durum'              => 'basarili',
+            'kaynak_salon_id'    => $kaynak_salon_id,
+            'hedef_salon_id'     => $hedef_salon_id,
+            'paket_hizmet_sayisi'=> $hizmet_idleri->count(),
+            'eklenen'            => $eklenen,
+            'atlandi_zaten_var'  => $atlandi,
+            'kaynak_kaydi_yoktu' => $kaynak_yok,
+            'detay'              => $detay,
+        ]);
+    }
+
     public function paketdetayigetir(Request $request)
     {
         $paket = Paketler::where('id',$request->paket_id)->first();
