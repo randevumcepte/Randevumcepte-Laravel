@@ -19080,33 +19080,50 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
                 if(($result['dcontext'] ?? '')=='from-internal')
                 {
+                    // Hedef bir personel mi (dahili-dahili) yoksa dis numara mi?
+                    $hedefDahili = Personeller::where('dahili_no', $result['dst'] ?? '')->first();
+
                     if(($result['disposition'] ?? '')=='NO ANSWER' || ($result['disposition'] ?? '')=='BUSY'){
-                        $durum = '<button class="btn btn-danger">ULAŞILAMADI</button>'; //giden arama ulaşılamadı,
+                        $durum = '<button class="btn btn-danger">ULAŞILAMADI</button>';
                         $basarisiz_arama++;
                     }
                     else{
-                        $durum = '<button class="btn btn-primary">GİDEN</button>';
-                        $sesKaydi  = '<button name="ses_kaydi_cal" data-value="'.$result['recording_path'].'" class="btn btn-danger"><i class="fa fa-play"></i></button>';
-                        $giden_arama++;
+                        if ($hedefDahili) {
+                            $durum = '<button class="btn btn-secondary">DAHİLİ</button>';
+                        } else {
+                            $durum = '<button class="btn btn-primary">GİDEN</button>';
+                            $giden_arama++;
+                        }
+                        if (!empty($result['recording_path'])) {
+                            $sesKaydi = '<button name="ses_kaydi_cal" data-value="'.$result['recording_path'].'" class="btn btn-danger"><i class="fa fa-play"></i></button>';
+                        }
                     }
-                    $musteri = User::where('cep_telefon',str_replace(["(",")"," "],["","",""],preg_replace('/^\+?90/', '', $result['dst'])))->first();
-                    if($musteri){
-                        $musteriAdi = $musteri->name.' ('.$musteri->cep_telefon.')';
-                        $aramaButonu = '<button title="Ara" class="btn btn-success" name="musteriyi_ara" style="margin-right:2px" data-value="0'.$musteri->cep_telefon.'"><i class="fa fa-phone"></i></button>';
-                        $ses_kaydi = '';
-                        $telefon = $musteri->cep_telefon;
-                        $avatar = $musteri->profil_resim ?  $musteri->profil_resim : '/public/isletmeyonetim_assets/img/avatar.png' ;
+
+                    if ($hedefDahili) {
+                        $musteriAdi = $hedefDahili->personel_adi.' ('.$hedefDahili->dahili_no.')';
+                        $telefon = $hedefDahili->dahili_no;
+                        $avatar = '/public/isletmeyonetim_assets/img/avatar.png';
+                    } else {
+                        $musteri = User::where('cep_telefon',str_replace(["(",")"," "],["","",""],preg_replace('/^\+?90/', '', $result['dst'] ?? '')))->first();
+                        if($musteri){
+                            $musteriAdi = $musteri->name.' ('.$musteri->cep_telefon.')';
+                            $aramaButonu = '<button title="Ara" class="btn btn-success" name="musteriyi_ara" style="margin-right:2px" data-value="0'.$musteri->cep_telefon.'"><i class="fa fa-phone"></i></button>';
+                            $telefon = $musteri->cep_telefon;
+                            $avatar = $musteri->profil_resim ?  $musteri->profil_resim : '/public/isletmeyonetim_assets/img/avatar.png' ;
+                        }
+                        else{
+                            $musteriAdi = ltrim($result['dst'] ?? '', "0");
+                            $telefon = ltrim($result['dst'] ?? '', "0");
+                            $aramaButonu = '<button title="Ara" class="btn btn-success" name="musteriyi_ara" style="margin-right:2px" data-value="0'.$telefon.'"><i class="fa fa-phone"></i></button>';
+                            $avatar = '/public/isletmeyonetim_assets/img/avatar.png' ;
+                        }
                     }
-                        
-                    else{
-                        $musteriAdi = ltrim($result['dst'], "0");
-                        $telefon = ltrim($result['dst'], "0");
-                        $aramaButonu = '<button title="Ara" class="btn btn-success" name="musteriyi_ara" style="margin-right:2px" data-value="0'.$telefon.'"><i class="fa fa-phone"></i></button>';
-                        $avatar = '/public/isletmeyonetim_assets/img/avatar.png' ;
-                    }
-                    $dahili = 
-                    $personel = Personeller::where('dahili_no',$dahili)->first();
-                    $dahili = $personel->personel_adi.' ('.$personel->dahili_no.')';
+
+                    // Aramayi yapan personel (channel'dan cikarilan dahili)
+                    $kaynakPersonel = $dahili !== '' ? Personeller::where('dahili_no', $dahili)->first() : null;
+                    $dahili = $kaynakPersonel ? $kaynakPersonel->personel_adi.' ('.$kaynakPersonel->dahili_no.')' : ($dahili !== '' ? 'Dahili '.$dahili : '');
+
+                    $raporaEkle = true;
                 }
                 else{
                      
