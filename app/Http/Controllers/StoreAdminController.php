@@ -22733,12 +22733,17 @@ DB::raw('
     }
     public function kampanyaSablonFiltre(Request $request)
     {
-        $sablonlar = KampanyaSablonlari::where(function($q) use ($request){
-            if($request->gorevTuru !='') {
+        // Eski tablolarda gorev_turu / tur kolonu olmayabilir — varsa filtrele.
+        $sablonTablo  = (new KampanyaSablonlari)->getTable();
+        $hasGorevTuru = Schema::hasColumn($sablonTablo, 'gorev_turu');
+        $hasTur       = Schema::hasColumn($sablonTablo, 'tur');
+
+        $sablonlar = KampanyaSablonlari::where(function($q) use ($request, $hasGorevTuru){
+            if($hasGorevTuru && $request->gorevTuru !='') {
                 $q->where('gorev_turu',$request->gorevTuru);
             }
-        })->where(function($q) use ($request){
-            if($request->kampanyaTuru != '')
+        })->where(function($q) use ($request, $hasTur){
+            if($hasTur && $request->kampanyaTuru != '')
             {
                 $q->where('tur',$request->kampanyaTuru);
             }
