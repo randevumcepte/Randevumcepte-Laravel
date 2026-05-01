@@ -61,8 +61,10 @@
 .wpkt-card.popular { border-color: #25D366; box-shadow: 0 4px 20px rgba(37,211,102,0.15); transform: scale(1.03); }
 .wpkt-card.popular:hover { transform: scale(1.03) translateY(-4px); }
 .wpkt-card.current { border-color: #1a7f3e; background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%); }
-.wpkt-popular-tag { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #25D366, #1ebe57); color: #fff; padding: 5px 14px; border-radius: 99px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(37,211,102,0.4); }
-.wpkt-current-tag { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #1a7f3e; color: #fff; padding: 5px 14px; border-radius: 99px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+.wpkt-popular-tag { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #25D366, #1ebe57); color: #fff; padding: 5px 14px; border-radius: 99px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(37,211,102,0.4); white-space: nowrap; z-index: 2; }
+.wpkt-current-tag { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #1a7f3e; color: #fff; padding: 5px 14px; border-radius: 99px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; z-index: 2; }
+/* Mevcut paket gosterilirken 'EN POPULER' rozeti gizlenir (kullanici zaten o pakette, ust uste ust uste gerek yok) */
+.wpkt-card.popular.current .wpkt-popular-tag { display: none; }
 
 .wpkt-tier-name { font-size: 22px; font-weight: 700; color: #222; margin-bottom: 6px; }
 .wpkt-tier-desc { color: #6c757d; font-size: 13px; line-height: 1.5; min-height: 40px; margin-bottom: 18px; }
