@@ -532,9 +532,45 @@
             $(this).addClass('is-active');
             $('#gorevTuru').val(String(v)).trigger('change');
          });
-         $('#yeni_kampanya_modal').on('hidden.bs.modal', function(){
-            $('#yeni_kampanya_modal .reklam-kanal-kart').removeClass('is-active');
-         });
+         // ---- MODAL KAPANINCA TAM SIFIRLA ----
+         function reklamModalSifirla(){
+            var $m = $('#yeni_kampanya_modal');
+            // Form alanlarını sıfırla
+            var formEl = document.getElementById('kampanya_formu');
+            if(formEl) formEl.reset();
+            // Hidden ve dinamik input'lar
+            $m.find('input[name="kampanya_id"]').val('');
+            $m.find('#kampanyaKodu').val('');
+            $m.find('#seciliSablonId').val('');
+            // Kanal kartları
+            $m.find('.reklam-kanal-kart').removeClass('is-active');
+            // Cinsiyet segmented → "Tümü" aktif
+            var $segs = $m.find('.rkp-segment .rkp-seg-btn');
+            $segs.removeClass('is-active');
+            $segs.filter('[data-val=""]').addClass('is-active');
+            // Tüm filtre select'lerini boşalt
+            ['gorevTuru','katilimciTuru','kampanyaTuru','kampanyaKategori','hizmetUrunPaket','musteriGruplari','gelenGelmeyenMusteri']
+               .forEach(function(id){
+                  var $s = $('#'+id);
+                  if(!$s.length) return;
+                  $s.val('').removeClass('is-active');
+                  if($s.hasClass('select2-hidden-accessible')) $s.trigger('change.select2');
+               });
+            // Kampanya metni / şablon / sayım
+            $m.find('#kampanyaPrompt').empty();
+            $m.find('#karaktersayisi').empty();
+            $m.find('.kampanyaSablonSecim').removeClass('selected');
+            $m.find('#kampanya_katilimci_sayisi').text('0');
+            $m.find('#rkpKitleSayi').text('0');
+            $m.find('#rkpAktifFiltreler').empty();
+            // İndirim alanları default
+            $m.find('#indirimTuru').prop('checked', false);
+            $m.find('#XalYodeBolumu').show();
+            $m.find('#yuzdeIndirimBolumu').hide();
+            // Modal başlığı default
+            $m.find('#kampanya_modal_baslik').text('Yeni Reklam Oluştur');
+         }
+         $('#yeni_kampanya_modal').on('hidden.bs.modal', reklamModalSifirla);
          $('#yeni_kampanya_modal').on('shown.bs.modal', function(){
             var v = $('#gorevTuru').val();
             $('#yeni_kampanya_modal .reklam-kanal-kart').removeClass('is-active');

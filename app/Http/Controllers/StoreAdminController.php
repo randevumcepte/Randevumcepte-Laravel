@@ -10635,6 +10635,7 @@ DB::raw('
         $ongorusmehizmeti->personel_id =  $request->gorusmeyi_yapan;
         $ongorusmehizmeti->saat = $request->ongorusme_saati;
         $ongorusmehizmeti->saat_bitis = date('H:i:s',strtotime('+1 hours',strtotime($request->ongorusme_saati)));
+        $ongorusmehizmeti->sure_dk = 60; // Calendar query "sure_dk > 0" filtresi icin
         $ongorusmehizmeti->randevu_id = $randevu->id;
         $ongorusmehizmeti->save();
         $gsm = $user->cep_telefon;

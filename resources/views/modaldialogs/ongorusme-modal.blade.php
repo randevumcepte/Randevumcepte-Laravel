@@ -98,8 +98,22 @@
 </style>
 
 @php
-   $_hesapSahibiPersonelId = \App\Personeller::where('salon_id',$isletme->id)->where('role_id',1)->value('id');
-   $_hesapSahibiAdi = \App\Personeller::where('salon_id',$isletme->id)->where('role_id',1)->value('personel_adi');
+   // Giris yapan kullanicinin (Auth) bu salondaki personel kaydi — yoksa hesap sahibine fallback
+   $_authUserId = \Illuminate\Support\Facades\Auth::guard('isletmeyonetim')->check()
+      ? \Illuminate\Support\Facades\Auth::guard('isletmeyonetim')->user()->id
+      : null;
+   $_currentPersonel = null;
+   if ($_authUserId) {
+      $_currentPersonel = \App\Personeller::where('salon_id',$isletme->id)
+         ->where('yetkili_id',$_authUserId)->first();
+   }
+   if (!$_currentPersonel) {
+      // fallback: hesap sahibi
+      $_currentPersonel = \App\Personeller::where('salon_id',$isletme->id)
+         ->where('role_id',1)->first();
+   }
+   $_currentPersonelId = $_currentPersonel ? $_currentPersonel->id : null;
+   $_currentPersonelAdi = $_currentPersonel ? $_currentPersonel->personel_adi : null;
 @endphp
 
 <div id="ongorusme-modal" class="modal fade" tabindex="-1">
@@ -196,14 +210,15 @@
                   <div class="row">
                      <div class="col-md-4">
                         <div class="form-group">
-                           <label>Tarih</label>
-                           <input type="text" required name="ongorusme_tarihi" id="ongorusme_tarihi" class="form-control date-picker" value="{{date('Y-m-d')}}" autocomplete="off">
+                           <label>Tarih <span style="color:#dc2626">*</span></label>
+                           <input type="text" required name="ongorusme_tarihi" id="ongorusme_tarihi" class="form-control date-picker" value="" placeholder="GG-AA-YYYY" autocomplete="off">
                         </div>
                      </div>
                      <div class="col-md-3">
                         <div class="form-group">
-                           <label>Saat</label>
+                           <label>Saat <span style="color:#dc2626">*</span></label>
                            <select required id='ongorusme_saati' name="ongorusme_saati" class="form-control">
+                              <option value="">Seçiniz</option>
                               @for($j = strtotime(date('07:00')); $j < strtotime(date('23:15')); $j += (15*60))
                                  <option value="{{date('H:i',$j)}}:00">{{date('H:i',$j)}}</option>
                               @endfor
@@ -212,10 +227,10 @@
                      </div>
                      <div class="col-md-5">
                         <div class="form-group">
-                           <label>Görüşmeyi Yapan</label>
-                           <select name="gorusmeyi_yapan" id="gorusmeyi_yapan" class="form-control custom-select2 opsiyonelSelect personel_secimi" style="width:100%">
-                              @if($_hesapSahibiPersonelId)
-                                 <option value="{{$_hesapSahibiPersonelId}}" selected>{{$_hesapSahibiAdi}}</option>
+                           <label>Görüşmeyi Yapan <span style="color:#dc2626">*</span></label>
+                           <select required name="gorusmeyi_yapan" id="gorusmeyi_yapan" class="form-control custom-select2 opsiyonelSelect personel_secimi" style="width:100%">
+                              @if($_currentPersonelId)
+                                 <option value="{{$_currentPersonelId}}" selected>{{$_currentPersonelAdi}}</option>
                               @else
                                  <option></option>
                               @endif
