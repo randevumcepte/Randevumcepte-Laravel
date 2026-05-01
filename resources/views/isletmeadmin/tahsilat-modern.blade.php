@@ -575,31 +575,53 @@
 <script>
    // ----- Modern view: kritik AJAX sonrasi page reload -----
    // (Server eski-tasarim HTML donduruyor; reload ile modern view temiz state ile render olur)
-   var _tmReloadPending = false;
-   function _tmScheduleReload(reason){
-      if(_tmReloadPending) return;
-      _tmReloadPending = true;
-      console.log('[modern-tahsilat] reload scheduled:', reason);
-      setTimeout(function(){
+   (function(){
+      var _tmReloadPending = false;
+      function _tmDoReload(){
          try { if(window.swal && swal.close) swal.close(); } catch(e){}
+         try { $('.modal').modal('hide'); $('.modal-backdrop').remove(); } catch(e){}
          window.location.href = window.location.pathname + window.location.search;
-      }, 700);
-   }
-   $(document).ajaxComplete(function(event, xhr, settings){
-      if(!settings || !settings.url) return;
-      var u = settings.url;
-      if(u.indexOf('/tahsilatekle') !== -1 ||
-         u.indexOf('/taksitekleguncelle') !== -1 ||
-         u.indexOf('/tahsilatkaldir') !== -1)
-      {
-         _tmScheduleReload('ajaxComplete:'+u);
       }
-   });
-   // Yedek: taksit modal kapaninca da reload (sadece save ile kapandiysa)
-   $(document).on('submit', '#taksitli_tahsilat_formu', function(){
-      // Save tetiklendi; ajaxComplete devreye girecek ama emniyet icin scheduler
-      setTimeout(function(){ _tmScheduleReload('taksit-form-submit'); }, 1500);
-   });
+      window._tmScheduleReload = function(reason, delay){
+         if(_tmReloadPending) return;
+         _tmReloadPending = true;
+         console.log('[modern-tahsilat] reload scheduled:', reason, 'delay='+(delay||1500));
+         setTimeout(_tmDoReload, delay || 1500);
+      };
+
+      function bind(){
+         if(typeof window.jQuery !== 'function'){ setTimeout(bind, 60); return; }
+         var $ = window.jQuery;
+
+         // 1) AJAX tamamlanma hook (success ve error)
+         $(document).ajaxComplete(function(event, xhr, settings){
+            if(!settings || !settings.url) return;
+            var u = settings.url;
+            if(u.indexOf('/tahsilatekle') !== -1 ||
+               u.indexOf('/taksitekleguncelle') !== -1 ||
+               u.indexOf('/tahsilatkaldir') !== -1)
+            {
+               window._tmScheduleReload('ajaxComplete:'+u, 1200);
+            }
+         });
+
+         // 2) Taksit modal'inin Kaydet butonu tiklamasi (en guvenilir, AJAX hooks'tan bagimsiz)
+         $(document).on('click', '#taksitli_tahsilat_formu button[type="submit"]', function(){
+            window._tmScheduleReload('taksit-modal-kaydet-click', 2500);
+         });
+
+         // 3) Ana formun TAHSIL ET butonu tiklamasi
+         $(document).on('click', '#yeni_tahsilat_ekle', function(){
+            window._tmScheduleReload('tahsilat-et-click', 2500);
+         });
+
+         // 4) Tahsilat silme butonu tiklamasi
+         $(document).on('click', 'button[name="tahsilat_adisyondan_sil"]', function(){
+            window._tmScheduleReload('tahsilat-sil-click', 2500);
+         });
+      }
+      bind();
+   })();
 
    document.addEventListener('DOMContentLoaded', function(){
       // ----- Kalan Alacak rengi (yeşil/kırmızı) -----
