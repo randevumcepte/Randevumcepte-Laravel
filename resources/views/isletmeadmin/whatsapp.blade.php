@@ -352,7 +352,7 @@
 <div class="wpkt-wrapper">
     <div class="wpkt-header">
         <h2>WhatsApp Randevu Hatırlatma Paketi</h2>
-        <p>WhatsApp üzerinden otomatik randevu hatırlatması gönderin, no-show'u azaltın, müşteri memnuniyetini artırın.</p>
+        <p>WhatsApp üzerinden otomatik randevu hatırlatması gönderin, randevuya gelmeyen müşteri sayısını azaltın, memnuniyeti artırın.</p>
         <div id="wpktCurrentBadge" class="wpkt-current" style="display:none;">Mevcut paket: <b id="wpktCurrentName">—</b></div>
     </div>
 
@@ -382,7 +382,7 @@
         <div class="wpkt-card popular" id="wpktCardPro">
             <div class="wpkt-popular-tag">⭐ ÖNERİLEN</div>
             <div class="wpkt-tier-name">WhatsApp Randevu Hatırlatma</div>
-            <div class="wpkt-tier-desc">WhatsApp ile profesyonel hatırlatma — no-show'u azaltın</div>
+            <div class="wpkt-tier-desc">WhatsApp ile profesyonel hatırlatma — randevuya gelmeyenleri azaltın</div>
             <div class="wpkt-price-block">
                 <div class="wpkt-price" id="wpktProFiyat">499 <small>TL/ay</small></div>
                 <div class="wpkt-price-aylik" id="wpktProAylikInfo"></div>
