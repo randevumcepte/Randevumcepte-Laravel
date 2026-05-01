@@ -429,36 +429,36 @@
       <style>
       #rcYardimBtn {
          position: fixed;
-         bottom: 28px;
-         right: 28px;
+         bottom: 14px;
+         right: 14px;
          display: inline-flex;
          align-items: center;
-         gap: 14px;
+         gap: 7px;
          background: linear-gradient(135deg, #5C008E 0%, #8a5cc7 100%);
          color: #fff !important;
-         padding: 18px 30px 18px 20px;
+         padding: 9px 15px 9px 10px;
          border-radius: 999px;
-         box-shadow: 0 14px 36px rgba(92, 0, 142, 0.55);
+         box-shadow: 0 7px 18px rgba(92, 0, 142, 0.55);
          z-index: 9000;
          text-decoration: none !important;
-         font-size: 18px;
+         font-size: 13px;
          font-weight: 700;
-         letter-spacing: 0.3px;
+         letter-spacing: 0.2px;
          transition: transform 0.2s, box-shadow 0.2s;
          animation: rcYardimPulse 2.4s ease-out infinite;
-         border: 3px solid rgba(255,255,255,0.22);
+         border: 2px solid rgba(255,255,255,0.22);
          text-transform: none;
          line-height: 1;
       }
       #rcYardimBtn:hover {
-         transform: translateY(-3px) scale(1.05);
-         box-shadow: 0 18px 44px rgba(92, 0, 142, 0.7);
+         transform: translateY(-2px) scale(1.05);
+         box-shadow: 0 9px 22px rgba(92, 0, 142, 0.7);
          color: #fff !important;
          text-decoration: none !important;
       }
       #rcYardimBtn .rc-yardim-icon {
-         width: 44px;
-         height: 44px;
+         width: 22px;
+         height: 22px;
          border-radius: 50%;
          background: rgba(255,255,255,0.22);
          display: inline-flex;
@@ -467,19 +467,19 @@
          flex-shrink: 0;
       }
       #rcYardimBtn .rc-yardim-icon svg {
-         width: 28px;
-         height: 28px;
+         width: 14px;
+         height: 14px;
          display: block;
       }
       @keyframes rcYardimPulse {
-         0%   { box-shadow: 0 14px 36px rgba(92, 0, 142, 0.55), 0 0 0 0 rgba(217, 179, 245, 0.65); }
-         70%  { box-shadow: 0 14px 36px rgba(92, 0, 142, 0.55), 0 0 0 26px rgba(217, 179, 245, 0); }
-         100% { box-shadow: 0 14px 36px rgba(92, 0, 142, 0.55), 0 0 0 0 rgba(217, 179, 245, 0); }
+         0%   { box-shadow: 0 7px 18px rgba(92, 0, 142, 0.55), 0 0 0 0 rgba(217, 179, 245, 0.65); }
+         70%  { box-shadow: 0 7px 18px rgba(92, 0, 142, 0.55), 0 0 0 13px rgba(217, 179, 245, 0); }
+         100% { box-shadow: 0 7px 18px rgba(92, 0, 142, 0.55), 0 0 0 0 rgba(217, 179, 245, 0); }
       }
       @media (max-width: 720px) {
-         #rcYardimBtn { padding: 14px 22px 14px 14px; font-size: 15px; gap: 10px; }
-         #rcYardimBtn .rc-yardim-icon { width: 36px; height: 36px; }
-         #rcYardimBtn .rc-yardim-icon svg { width: 22px; height: 22px; }
+         #rcYardimBtn { padding: 7px 11px 7px 7px; font-size: 11px; gap: 5px; }
+         #rcYardimBtn .rc-yardim-icon { width: 18px; height: 18px; }
+         #rcYardimBtn .rc-yardim-icon svg { width: 11px; height: 11px; }
       }
       </style>
       <a href="/isletmeyonetim/destek" id="rcYardimBtn" title="Bir sorunun mu var? Destek ekibimize yaz">
