@@ -284,16 +284,13 @@
                </div>
 
                <div class="tm-pay-actions">
-                  <button type="button" class="tm-pay-extra" id="tm-extra-toggle" title="Tarih, banka, indirim alanlarını aç">
-                     <i class="fa fa-cog"></i> Detay
-                  </button>
                   <button id='yeni_tahsilat_ekle' type="submit" class="tm-pay-btn">
                      <i class="fa fa-check-circle"></i> TAHSİL ET
                   </button>
                </div>
 
-               <!-- Detay (gizli, açılınca görünür) -->
-               <div class="tm-extra-row" id="tm-extra-row">
+               <!-- Detay (her zaman açık) -->
+               <div class="tm-extra-row open" id="tm-extra-row">
                   <div class="tm-input-group">
                      <label>Tarih</label>
                      <input type="text" required name="tahsilat_tarihi" id='tahsilat_tarihi' value="{{date('Y-m-d')}}" autocomplete="off">
@@ -309,7 +306,7 @@
                   </div>
                   <div class="tm-input-group">
                      <label>Harici İndirim (₺)</label>
-                     <input type="tel" name="indirim_tutari" id='harici_indirim_tutari' class="try-currency">
+                     <input type="tel" name="indirim_tutari" id='harici_indirim_tutari' class="try-currency" autocomplete="off">
                   </div>
                   <div class="tm-input-group">
                      <label>Birim Tutar</label>
@@ -568,16 +565,6 @@
 
 <script>
    document.addEventListener('DOMContentLoaded', function(){
-      // ----- Detay (extra row) toggle -----
-      var extraToggle = document.getElementById('tm-extra-toggle');
-      var extraRow = document.getElementById('tm-extra-row');
-      if(extraToggle && extraRow){
-         extraToggle.addEventListener('click', function(){
-            extraRow.classList.toggle('open');
-            extraToggle.classList.toggle('active');
-         });
-      }
-
       // ----- Kalan Alacak rengi (yeşil/kırmızı) -----
       var observer = new MutationObserver(function(){
          var el = document.getElementById('tahsil_edilecek_kalan_tutar');
