@@ -719,14 +719,31 @@ class CarkifelekMusteriController extends Controller
         $this->tablolariGaranti();
         $userId = Auth::id();
 
-        $puanKayitlari = SalonPuanlar::where('user_id', $userId)
-            ->where('puan', '>', 0)
-            ->get();
+        $puanKayitlari = SalonPuanlar::where('user_id', $userId)->get();
 
-        // Aktif salon: query veya ilk salon
+        // Aktif salon — şu sıraya göre belirle:
+        // 1) URL'de ?salon=X varsa onu kullan
+        // 2) Domain'den salon bul (müşteri salon subdomain'inden geldiyse)
+        // 3) Müşterinin puanı olan ilk salon
+        // 4) Son randevu aldığı salon
+        // 5) MusteriPortfoy'da kayıtlı olduğu ilk salon
         $aktifSalonId = (int) $request->input('salon');
-        if (!$aktifSalonId && $puanKayitlari->isNotEmpty()) {
-            $aktifSalonId = (int) $puanKayitlari->first()->salon_id;
+        if (!$aktifSalonId) {
+            $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : null;
+            $domainSalon = $host ? Salonlar::where('domain', $host)->first() : null;
+            if ($domainSalon) {
+                $aktifSalonId = (int) $domainSalon->id;
+            } elseif ($puanKayitlari->where('puan', '>', 0)->isNotEmpty()) {
+                $aktifSalonId = (int) $puanKayitlari->where('puan', '>', 0)->first()->salon_id;
+            } else {
+                $sonRandevu = Randevular::where('user_id', $userId)->orderByDesc('id')->first();
+                if ($sonRandevu) {
+                    $aktifSalonId = (int) $sonRandevu->salon_id;
+                } elseif (class_exists(MusteriPortfoy::class)) {
+                    $portfoy = MusteriPortfoy::where('user_id', $userId)->first();
+                    if ($portfoy) $aktifSalonId = (int) $portfoy->salon_id;
+                }
+            }
         }
 
         $salon = $aktifSalonId ? Salonlar::find($aktifSalonId) : null;
@@ -741,8 +758,9 @@ class CarkifelekMusteriController extends Controller
                 ->get();
         }
 
-        $tumSalonlar = Salonlar::whereIn('id', $puanKayitlari->pluck('salon_id'))
-            ->get()->keyBy('id');
+        // Tüm ilgili salonları (puanı olan + aktif salon) göster
+        $salonIds = $puanKayitlari->pluck('salon_id')->push($aktifSalonId)->filter()->unique();
+        $tumSalonlar = Salonlar::whereIn('id', $salonIds)->get()->keyBy('id');
 
         $kuponlar = CarkifelekOdulleri::where('user_id', $userId)
             ->orderByDesc('created_at')

@@ -464,12 +464,27 @@
 
     {{-- ============== Panel: Ödül Merdiveni ============== --}}
     <div class="sd-panel is-active" id="panel-ladder">
-        @if($odulSeviyeleri->isEmpty())
+        @if(!$aktifSalon)
+            <div class="sd-empty">
+                <div class="ic">⭐</div>
+                <p>Sadakat programını görüntülemek için bir salonu ziyaret edin.<br>Randevu aldığınızda otomatik olarak bağlanırsınız.</p>
+                <a href="/">Salonları Keşfet</a>
+            </div>
+        @elseif($odulSeviyeleri->isEmpty())
             <div class="sd-empty">
                 <div class="ic">🎖️</div>
-                <p>Bu salonda henüz tanımlı puan ödülü yok.<br>Salon yakında ödülleri tanıtacak.</p>
+                <p><b>{{ $aktifSalon->salon_adi }}</b> henüz puan ödülü tanımlamamış.<br>Salon yakında ödülleri tanıtacak — puan biriktirmeye başlayabilirsiniz!</p>
             </div>
         @else
+            @if($puanBakiyesi == 0)
+                <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius:14px; padding:14px 18px; margin-bottom:16px; color:#92400e; display:flex; gap:12px; align-items:center;">
+                    <div style="font-size:28px;">💡</div>
+                    <div>
+                        <b>Henüz puanınız yok</b><br>
+                        <span style="font-size:13px;">Çarkı çevirerek ya da randevu alarak puan biriktirebilirsiniz. Aşağıda biriktirme hedeflerinizi görebilirsiniz!</span>
+                    </div>
+                </div>
+            @endif
             <div class="sd-ladder">
                 @foreach($odulSeviyeleri as $o)
                     @php
