@@ -105,7 +105,9 @@
     @if($odulSeviyeleri->isEmpty())
         <div class="po-empty">
             <div class="ic">🎖️</div>
-            <p>Henüz puan ödülü tanımlanmamış. Yukarıdan "+ Yeni Ödül Ekle" ile başlayın.</p>
+            <p>Henüz puan ödülü tanımlanmamış. Yukarıdan "+ Yeni Ödül Ekle" ile başlayın.<br><br>
+               <button onclick="ornekleriEkle()" style="margin-top:14px; padding:11px 22px; background:#3b82f6; color:#fff; border:none; border-radius:10px; font-weight:700; cursor:pointer; font-size:14px;">📋 Örnekleri Yükle (6 adet)</button>
+            </p>
         </div>
     @else
         <div class="po-list" id="po-liste">
@@ -191,7 +193,22 @@
 <script>
 const KAYDET_URL = '{{ url("/isletmeyonetim/puanodulkaydet") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
 const SIL_URL    = '{{ url("/isletmeyonetim/puanodulsil") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
+const ORNEK_URL  = '{{ url("/isletmeyonetim/puanorneklerekle-admin") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
 const CSRF = '{{ csrf_token() }}';
+
+async function ornekleriEkle() {
+    try {
+        const resp = await fetch(ORNEK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+            body: JSON.stringify({}),
+        });
+        const data = await resp.json();
+        if (!data.success) { showToast(data.message || 'Hata', true); return; }
+        showToast('✓ ' + data.sayac + ' örnek eklendi');
+        setTimeout(() => location.reload(), 700);
+    } catch (e) { showToast('Bağlantı hatası', true); }
+}
 
 function showToast(msg, err) {
     const t = document.getElementById('toast');

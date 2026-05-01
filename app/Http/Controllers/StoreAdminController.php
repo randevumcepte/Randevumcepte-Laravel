@@ -629,6 +629,56 @@ public function carkverilerigetir(Request $request)
     }
 
     /**
+     * Admin: 6 örnek puan ödülü ekler (sadece liste boşsa).
+     */
+    public function puanOrneklerEkle(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+
+        if (!\Schema::hasTable('salon_puan_odulleri')) {
+            \Schema::create('salon_puan_odulleri', function ($table) {
+                $table->increments('id');
+                $table->unsignedInteger('salon_id');
+                $table->integer('puan_esigi');
+                $table->string('baslik', 150);
+                $table->string('aciklama', 300)->nullable();
+                $table->string('tip', 50);
+                $table->decimal('deger', 10, 2)->nullable();
+                $table->tinyInteger('aktif')->default(1);
+                $table->integer('sira')->default(0);
+                $table->timestamps();
+                $table->index(['salon_id', 'aktif']);
+            });
+        }
+
+        $varOlan = SalonPuanOdulleri::where('salon_id', $salon_id)->count();
+        if ($varOlan > 0) {
+            return response()->json(['success' => false, 'message' => 'Bu salonda zaten ödüller var.']);
+        }
+
+        $ornekler = [
+            ['puan_esigi' => 100,  'baslik' => '%10 Hizmet İndirimi', 'aciklama' => 'Bir sonraki hizmet alımınızda %10 indirim kazanın.', 'tip' => 'hizmet_indirimi', 'deger' => 10,   'sira' => 1, 'aktif' => 1, 'salon_id' => $salon_id],
+            ['puan_esigi' => 250,  'baslik' => '%20 Hizmet İndirimi', 'aciklama' => 'Sevdiğiniz hizmeti %20 indirimli alın.',                'tip' => 'hizmet_indirimi', 'deger' => 20,   'sira' => 2, 'aktif' => 1, 'salon_id' => $salon_id],
+            ['puan_esigi' => 400,  'baslik' => '%15 Ürün İndirimi',   'aciklama' => 'Tüm bakım ürünlerinde geçerli %15 indirim.',           'tip' => 'urun_indirimi',   'deger' => 15,   'sira' => 3, 'aktif' => 1, 'salon_id' => $salon_id],
+            ['puan_esigi' => 600,  'baslik' => '%30 Hizmet İndirimi', 'aciklama' => 'Premium hizmet indirimi — sınırlı zaman.',             'tip' => 'hizmet_indirimi', 'deger' => 30,   'sira' => 4, 'aktif' => 1, 'salon_id' => $salon_id],
+            ['puan_esigi' => 1000, 'baslik' => 'Ücretsiz Saç Bakımı', 'aciklama' => 'Tamamen ücretsiz profesyonel saç bakımı paketi.',      'tip' => 'hediye',          'deger' => null, 'sira' => 5, 'aktif' => 1, 'salon_id' => $salon_id],
+            ['puan_esigi' => 1500, 'baslik' => 'Ücretsiz Cilt Bakımı','aciklama' => 'Yüz analizi + cilt bakımı (50 dk) hediyemizdir.',      'tip' => 'hediye',          'deger' => null, 'sira' => 6, 'aktif' => 1, 'salon_id' => $salon_id],
+        ];
+
+        $sayac = 0;
+        foreach ($ornekler as $o) {
+            try {
+                SalonPuanOdulleri::create($o);
+                $sayac++;
+            } catch (\Exception $e) {
+                return response()->json(['success' => false, 'message' => 'Hata: ' . $e->getMessage()]);
+            }
+        }
+
+        return response()->json(['success' => true, 'sayac' => $sayac]);
+    }
+
+    /**
      * Admin: Puan ödülü sil
      */
     public function puanOdulSil(Request $request)
@@ -10545,17 +10595,11 @@ DB::raw('
         $ongorusme->il_id =$request->sehir;
         $ongorusme->musteri_tipi = $request->musteri_tipi;
         $ongorusme->meslek = $request->meslek;
-        if(str_contains($request->paket_urun,'urun')){
-            $str = explode('-',$request->paket_urun);
-            $ongorusme->urun_id = $str[1];
-        }
-        elseif(str_contains($request->paket_urun,'hizmet'))
-        {
-            $str = explode('-',$request->paket_urun);
-            $ongorusme->hizmet_id = $str[1];
-        }
-        else
-            $ongorusme->paket_id = $request->paket_urun;
+        // Gorusme sebebi artik free-text — paket/urun/hizmet ID'leri kullanilmiyor.
+        $ongorusme->gorusme_konusu = $request->paket_urun;
+        $ongorusme->paket_id = null;
+        $ongorusme->urun_id = null;
+        $ongorusme->hizmet_id = null;
         $ongorusme->hatirlatma_tarihi = $request->ongorusme_tarihi;
         $ongorusme->personel_id = $request->gorusmeyi_yapan;
         $ongorusme->save();
@@ -10879,11 +10923,12 @@ DB::raw('
             DB::raw('DATE_FORMAT(on_gorusmeler.hatirlatma_tarihi, "%d.%m.%Y") as hatirlatma'),
             DB::raw('CASE WHEN on_gorusmeler.musteri_tipi=1 THEN "İnternet" WHEN on_gorusmeler.musteri_tipi=2 THEN "Reklam" WHEN on_gorusmeler.musteri_tipi=3 THEN "Instagram" WHEN on_gorusmeler.musteri_tipi=4 THEN "Facebook" WHEN on_gorusmeler.musteri_tipi=5 THEN "Tanıdık" END as musteri_tipi'),
             DB::raw('
-            CASE 
-                WHEN on_gorusmeler.paket_id IS NOT NULL THEN CONCAT("Paket : ", paketler.paket_adi) 
-                WHEN on_gorusmeler.urun_id IS NOT NULL THEN CONCAT("Ürün : ", urunler.urun_adi) 
-                WHEN on_gorusmeler.hizmet_id IS NOT NULL THEN CONCAT("Hizmet : ", hizmetler.hizmet_adi) 
-                ELSE "Bilinmiyor"
+            CASE
+                WHEN on_gorusmeler.gorusme_konusu IS NOT NULL AND on_gorusmeler.gorusme_konusu != "" THEN on_gorusmeler.gorusme_konusu
+                WHEN on_gorusmeler.paket_id IS NOT NULL THEN CONCAT("Paket : ", paketler.paket_adi)
+                WHEN on_gorusmeler.urun_id IS NOT NULL THEN CONCAT("Ürün : ", urunler.urun_adi)
+                WHEN on_gorusmeler.hizmet_id IS NOT NULL THEN CONCAT("Hizmet : ", hizmetler.hizmet_adi)
+                ELSE "—"
             END as paket
         '),
 
