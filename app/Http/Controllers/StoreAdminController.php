@@ -547,6 +547,23 @@ public function carkverilerigetir(Request $request)
      */
     public function puanOdulleri(Request $request)
     {
+        // Tablo yoksa oluştur (migration çalıştırılmamış ortamlar için)
+        if (!\Schema::hasTable('salon_puan_odulleri')) {
+            \Schema::create('salon_puan_odulleri', function ($table) {
+                $table->increments('id');
+                $table->unsignedInteger('salon_id');
+                $table->integer('puan_esigi');
+                $table->string('baslik', 150);
+                $table->string('aciklama', 300)->nullable();
+                $table->string('tip', 50);
+                $table->decimal('deger', 10, 2)->nullable();
+                $table->tinyInteger('aktif')->default(1);
+                $table->integer('sira')->default(0);
+                $table->timestamps();
+                $table->index(['salon_id', 'aktif']);
+            });
+        }
+
         $salon_id = self::mevcutsube($request);
         $isletme  = Salonlar::where('id', $salon_id)->first();
 

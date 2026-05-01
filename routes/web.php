@@ -842,6 +842,23 @@ Route::get('/puanorneklerekle/{salonId}', function ($salonId) {
     $salon = \App\Salonlar::find($salonId);
     if (!$salon) return 'Salon bulunamadı.';
 
+    // Tablo yoksa oluştur
+    if (!\Schema::hasTable('salon_puan_odulleri')) {
+        \Schema::create('salon_puan_odulleri', function ($table) {
+            $table->increments('id');
+            $table->unsignedInteger('salon_id');
+            $table->integer('puan_esigi');
+            $table->string('baslik', 150);
+            $table->string('aciklama', 300)->nullable();
+            $table->string('tip', 50);
+            $table->decimal('deger', 10, 2)->nullable();
+            $table->tinyInteger('aktif')->default(1);
+            $table->integer('sira')->default(0);
+            $table->timestamps();
+            $table->index(['salon_id', 'aktif']);
+        });
+    }
+
     $ornekler = [
         ['puan_esigi' => 100,  'baslik' => '%10 Hizmet İndirimi', 'aciklama' => 'Bir sonraki hizmet alımınızda %10 indirim kazanın.', 'tip' => 'hizmet_indirimi', 'deger' => 10,  'sira' => 1],
         ['puan_esigi' => 250,  'baslik' => '%20 Hizmet İndirimi', 'aciklama' => 'Sevdiğiniz hizmeti %20 indirimli alın.',                'tip' => 'hizmet_indirimi', 'deger' => 20,  'sira' => 2],
