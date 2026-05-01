@@ -7558,10 +7558,10 @@ $(document).on('submit','#ongorusmeformu',function(e){
     var warningtext = "";
     var gorusmeyapansecili = true;
     var paketurunsecili = true;
-    if($('#ongorusmeformu select[name="paket_urun"]').val()=="")
+    if($('#ongorusmeformu [name="paket_urun"]').val()=="")
     {
         paketurunsecili = false;
-        warningtext += "- Ön görüşme sebebini seçiniz.<br>";
+        warningtext += "- Ön görüşme sebebini yazınız.<br>";
     }
     if($('#ongorusmeformu select[name="gorusmeyi_yapan"]').val()=="")
     {
@@ -7597,7 +7597,7 @@ $(document).on('submit','#ongorusmeformu',function(e){
         success: function(result)  {
             $("#preloader").hide();
                         $('#musteri_select_list').val('0').trigger('change');
-                        $('#paket').val('0').trigger('change');
+                        $('#paket').val('');
                         $('#gorusmeyi_yapan').val('0').trigger('change');
             $('button[data-dismiss="modal"]').trigger('click');
             swal({
@@ -7712,20 +7712,14 @@ $(document).on('click','a[name="ongorusme_duzenle"]',function(e){
                 $('#musteri_tipi').val(result.musteri_tipi);
                 $('#ongorusme_tarihi').val(result.tarih);
                 $('#ongorusme_saati').val(result.saat);
-                if(result.paket_id != null)
-                {
-                    $('select[name="paket_urun"]').val(result.paket_id)
-                    $('select[name="paket_urun"]').select2("trigger", "select", {
-                        data: { id: result.paket_id }
-                    });
+                // Gorusme sebebi artik free-text — eski paket/urun/hizmet kayitlari icin metne cevir
+                var _gk = result.gorusme_konusu || '';
+                if(!_gk){
+                    if(result.paket_adi) _gk = result.paket_adi;
+                    else if(result.urun_adi) _gk = result.urun_adi;
+                    else if(result.hizmet_adi) _gk = result.hizmet_adi;
                 }
-                if(result.urun_id != null)
-                {
-                    $('select[name="paket_urun"]').val(result.urun_id)
-                    $('select[name="paket_urun"]').select2("trigger", "select", {
-                        data: { id: result.urun_id }
-                    });
-                }
+                $('[name="paket_urun"]').val(_gk);
                 if(result.user_id != null){
                     $('#musteri_select_list').val(result.user_id);
                     $("#musteri_select_list").select2("trigger", "select", {
@@ -7733,10 +7727,6 @@ $(document).on('click','a[name="ongorusme_duzenle"]',function(e){
                     });
                 }
                 $('#sehir').val(result.il_id);
-                $('#paket').val(result.paket_id);
-                $("#gorusmeyi_yapan").select2("trigger", "select", {
-                    data: { id: result.paket_id }
-                });
                 $('#hatirlatma_yeni_ekleme').attr('style','display:none');
                 $('#hatirlatma_tarihi_guncelleme').attr('style','display:block');
                 $('#hatirlatma_tarihi').val(result.hatirlatma_tarihi);

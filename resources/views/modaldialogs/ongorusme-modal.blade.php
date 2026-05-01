@@ -97,6 +97,11 @@
 }
 </style>
 
+@php
+   $_hesapSahibiPersonelId = \App\Personeller::where('salon_id',$isletme->id)->where('role_id',1)->value('id');
+   $_hesapSahibiAdi = \App\Personeller::where('salon_id',$isletme->id)->where('role_id',1)->value('personel_adi');
+@endphp
+
 <div id="ongorusme-modal" class="modal fade" tabindex="-1">
    <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content og-modal">
@@ -166,18 +171,7 @@
                      <div class="col-md-7">
                         <div class="form-group">
                            <label>Ön Görüşme Sebebi</label>
-                           <select name="paket_urun" id="paket" class="form-control opsiyonelSelect" style="width:100%">
-                              <option></option>
-                              @foreach(\App\Paketler::where('salon_id',$isletme->id)->where('aktif',true)->get() as $paket)
-                                 <option value="{{$paket->id}}">{{$paket->paket_adi}}</option>
-                              @endforeach
-                              @foreach(\App\Urunler::where('salon_id',$isletme->id)->where('aktif',true)->get() as $urun)
-                                 <option value="urun-{{$urun->id}}">{{$urun->urun_adi}}</option>
-                              @endforeach
-                              @foreach(\App\SalonHizmetler::where('salon_id',$isletme->id)->where('aktif',true)->get() as $hizmet)
-                                 <option value="hizmet-{{$hizmet->hizmetler->id}}">{{$hizmet->hizmetler->hizmet_adi}}</option>
-                              @endforeach
-                           </select>
+                           <input type="text" name="paket_urun" id="paket" class="form-control" placeholder="Örn. Saç bakımı, lazer epilasyon, cilt analizi...">
                         </div>
                      </div>
                      <div class="col-md-5">
@@ -203,13 +197,13 @@
                      <div class="col-md-4">
                         <div class="form-group">
                            <label>Tarih</label>
-                           <input type="text" name="ongorusme_tarihi" id="ongorusme_tarihi" class="form-control date-picker" value="{{date('Y-m-d')}}" autocomplete="off">
+                           <input type="text" required name="ongorusme_tarihi" id="ongorusme_tarihi" class="form-control date-picker" value="{{date('Y-m-d')}}" autocomplete="off">
                         </div>
                      </div>
                      <div class="col-md-3">
                         <div class="form-group">
                            <label>Saat</label>
-                           <select id='ongorusme_saati' name="ongorusme_saati" class="form-control">
+                           <select required id='ongorusme_saati' name="ongorusme_saati" class="form-control">
                               @for($j = strtotime(date('07:00')); $j < strtotime(date('23:15')); $j += (15*60))
                                  <option value="{{date('H:i',$j)}}:00">{{date('H:i',$j)}}</option>
                               @endfor
@@ -220,7 +214,11 @@
                         <div class="form-group">
                            <label>Görüşmeyi Yapan</label>
                            <select name="gorusmeyi_yapan" id="gorusmeyi_yapan" class="form-control custom-select2 opsiyonelSelect personel_secimi" style="width:100%">
-                              <option></option>
+                              @if($_hesapSahibiPersonelId)
+                                 <option value="{{$_hesapSahibiPersonelId}}" selected>{{$_hesapSahibiAdi}}</option>
+                              @else
+                                 <option></option>
+                              @endif
                            </select>
                         </div>
                      </div>

@@ -10669,7 +10669,23 @@ DB::raw('
         }
     }
     public function ongorusmedetay(Request $request){
-        return json_encode(DB::table('randevular')->join('on_gorusmeler','randevular.on_gorusme_id','=','on_gorusmeler.id')->select('on_gorusmeler.*','randevular.tarih as tarih','randevular.saat as saat')->where('on_gorusmeler.id',$request->ongorusme_id)->first());
+        return json_encode(
+            DB::table('randevular')
+                ->join('on_gorusmeler','randevular.on_gorusme_id','=','on_gorusmeler.id')
+                ->leftJoin('paketler','on_gorusmeler.paket_id','=','paketler.id')
+                ->leftJoin('urunler','on_gorusmeler.urun_id','=','urunler.id')
+                ->leftJoin('hizmetler','on_gorusmeler.hizmet_id','=','hizmetler.id')
+                ->select(
+                    'on_gorusmeler.*',
+                    'randevular.tarih as tarih',
+                    'randevular.saat as saat',
+                    'paketler.paket_adi as paket_adi',
+                    'urunler.urun_adi as urun_adi',
+                    'hizmetler.hizmet_adi as hizmet_adi'
+                )
+                ->where('on_gorusmeler.id',$request->ongorusme_id)
+                ->first()
+        );
     }
     public function hatirlatmasmsgonder(Request $request){
         $ongorusmeler = OnGorusmeler::whereIn('id',$request->on_gorusme_bilgi)->get();
