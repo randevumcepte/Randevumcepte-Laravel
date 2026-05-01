@@ -755,8 +755,13 @@ class CarkifelekMusteriController extends Controller
         elseif ($toplamPuan >= 1000) $tier = ['ad' => 'Altın', 'renk' => '#FFD700', 'min' => 1000, 'sonraki' => 'Elmas', 'sonrakiPuan' => 2000];
         elseif ($toplamPuan >= 500)  $tier = ['ad' => 'Gümüş', 'renk' => '#C0C0C0', 'min' => 500,  'sonraki' => 'Altın', 'sonrakiPuan' => 1000];
 
-        return view('carkifelek.sadakat_hub', array_merge($this->layoutData(), [
-            'salon'           => $salon,
+        // Layout salon — aktif salon yoksa domain'den çek (layout_profil $salon zorunlu)
+        $layout = $this->layoutData();
+        $layoutSalon = $salon ?: $layout['salon'];
+        $layout['salon'] = $layoutSalon;
+
+        return view('carkifelek.sadakat_hub', array_merge($layout, [
+            'aktifSalon'      => $salon,
             'aktifSalonId'    => $aktifSalonId,
             'puanBakiyesi'    => $puanBakiyesi,
             'odulSeviyeleri'  => $odulSeviyeleri,

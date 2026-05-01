@@ -11,6 +11,10 @@
         <i class="fa fa-calendar"></i>
         <span>Randevularım</span>
     </a>
+    <a href="/sadakat" class="nav-pill-item">
+        <i class="fa fa-star"></i>
+        <span>Sadakat</span>
+    </a>
     <a href="/ayarlarim" class="nav-pill-item">
         <i class="fa fa-cog"></i>
         <span>Ayarlarım</span>

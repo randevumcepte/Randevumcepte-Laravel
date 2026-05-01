@@ -13,11 +13,15 @@
             <i class="fa fa-heart"></i>Randevularım
             </a>
          </li>
-       
+         <li class="nav-item">
+            <a class="nav-link icon" href="/sadakat">
+            <i class="fa fa-star"></i>Sadakat
+            </a>
+         </li>
          <li class="nav-item">
             <a class="nav-link icon" href="/ayarlarim">
             <i class="fa fa-recycle"></i>Ayarlarım
-            </a> 
+            </a>
          </li>
         
       </ul>
