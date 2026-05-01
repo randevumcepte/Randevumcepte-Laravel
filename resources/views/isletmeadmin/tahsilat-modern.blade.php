@@ -249,6 +249,10 @@
    <input type="hidden" name="tahsilat_tutari" id='toplam_tahsilat_tutari'>
    <input type="hidden" name="sube" value="{{$isletme->id}}">
    <input type="hidden" name="adisyon_id" value="{{$adisyon_id}}">
+   {{-- custom.js'in tahsilatyenidenhesapla() fonksiyonu, hicbir paket girisi yokken --}}
+   {{-- harici_indirim_tutari'ni 0'a resetliyor. Bu dummy input ekstragirdiler>=1 saglayip --}}
+   {{-- reset'i engelliyor; backend bu name'i kullanmiyor. --}}
+   <input type="hidden" name="adisyon_paket_taksit_id[]" value="">
 
    <div class="row">
       <div class="col-lg-9">
