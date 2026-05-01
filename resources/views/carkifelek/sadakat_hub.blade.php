@@ -443,15 +443,15 @@
     </div>
 
     {{-- ============== Salon seçici ============== --}}
-    @if($puanKayitlari->count() > 1)
+    @if($tumSalonlar->count() > 1)
         <div class="sd-salons">
-            @foreach($puanKayitlari as $pk)
-                @php $s = $tumSalonlar->get($pk->salon_id); @endphp
-                @if($s)
-                    <a href="{{ url('/sadakat?salon='.$pk->salon_id) }}" class="{{ $aktifSalonId == $pk->salon_id ? 'active' : '' }}">
-                        {{ $s->salon_adi }} <b>({{ (int) $pk->puan }})</b>
-                    </a>
-                @endif
+            @foreach($tumSalonlar as $sId => $s)
+                @php
+                    $puan = (int) ($puanKayitlari->where('salon_id', $sId)->first()->puan ?? 0);
+                @endphp
+                <a href="{{ url('/sadakat?salon='.$sId) }}" class="{{ $aktifSalonId == $sId ? 'active' : '' }}">
+                    {{ $s->salon_adi }} <b>({{ $puan }})</b>
+                </a>
             @endforeach
         </div>
     @endif

@@ -758,8 +758,15 @@ class CarkifelekMusteriController extends Controller
                 ->get();
         }
 
-        // Tüm ilgili salonları (puanı olan + aktif salon) göster
-        $salonIds = $puanKayitlari->pluck('salon_id')->push($aktifSalonId)->filter()->unique();
+        // İlgili tüm salonlar: puanı olanlar + randevu aldığı salonlar + portföy + domain + aktif salon
+        $salonIds = collect();
+        $salonIds = $salonIds->merge($puanKayitlari->pluck('salon_id'));
+        $salonIds = $salonIds->merge(Randevular::where('user_id', $userId)->pluck('salon_id'));
+        if (class_exists(MusteriPortfoy::class)) {
+            $salonIds = $salonIds->merge(MusteriPortfoy::where('user_id', $userId)->pluck('salon_id'));
+        }
+        if ($aktifSalonId) $salonIds->push($aktifSalonId);
+        $salonIds = $salonIds->filter()->unique()->values();
         $tumSalonlar = Salonlar::whereIn('id', $salonIds)->get()->keyBy('id');
 
         $kuponlar = CarkifelekOdulleri::where('user_id', $userId)
