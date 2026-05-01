@@ -1,8 +1,27 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
+@php
+   // Kanal bazlı istatistik
+   $reklamlar       = $kampanya_yonetimi ?? collect();
+   $toplamReklam    = is_countable($reklamlar) ? count($reklamlar) : 0;
+   $smsSayisi       = 0;
+   $aramaSayisi     = 0;
+   $bildirimSayisi  = 0;
+   $bilgiSayisi     = 0;
+   $toplamKatilimci = 0;
+   foreach($reklamlar as $r) {
+      $gt = is_object($r) ? ($r->gorev_turu ?? '') : ($r['gorev_turu'] ?? '');
+      $kt = is_object($r) ? (int)($r->katilimci_sayisi ?? 0) : (int)($r['katilimci_sayisi'] ?? 0);
+      $toplamKatilimci += $kt;
+      if($gt === 'SMS')         $smsSayisi++;
+      elseif($gt === 'Arama')   $aramaSayisi++;
+      elseif($gt === 'Bildirim') $bildirimSayisi++;
+      elseif($gt === 'Bilgilendirme') $bilgiSayisi++;
+   }
+@endphp
 <div class="page-header">
-   <div class="row">
-      <div class="col-md-6 col-sm-6">
+   <div class="row align-items-center">
+      <div class="col-md-7 col-sm-7">
          <div class="title">
             <h1>{{$sayfa_baslik}}</h1>
          </div>
@@ -11,63 +30,363 @@
                <li class="breadcrumb-item">
                   <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
                </li>
-               <li class="breadcrumb-item active" aria-current="page">
-                  {{$sayfa_baslik}}
-               </li>
+               <li class="breadcrumb-item active" aria-current="page">{{$sayfa_baslik}}</li>
             </ol>
          </nav>
       </div>
-      <div class="col-md-6 col-sm-6 text-right">
-         
-                            
-                             
-           
-
+      <div class="col-md-5 col-sm-5 text-right reklam-quickactions">
+         <button class="btn btn-light btn-rounded mr-1" data-toggle="modal" data-target="#grup_sms_liste_modal" title="Grupları Gör">
+            <i class="fa fa-eye"></i> <span class="d-none d-md-inline">Grupları Gör</span>
+         </button>
+         <button class="btn btn-light btn-rounded mr-1" onclick="modalbaslikata('Yeni Grup','grup_sms_formu')" data-toggle="modal" id='grup_olustur_buton' data-target="#grup_sms_olustur_modal" title="Grup Oluştur">
+            <i class="fa fa-users"></i> <span class="d-none d-md-inline">Grup Oluştur</span>
+         </button>
+         <a href="#" data-toggle="modal" data-target="#yeni_kampanya_modal" class="btn btn-reklam-primary yenieklebuton">
+            <i class="fa fa-plus"></i> Yeni Reklam
+         </a>
       </div>
    </div>
 </div>
 
-<div class="pd-20 card-box mb-30">
+<!-- KANAL HERO ÖZET KARTLARI -->
+<div class="reklam-hero">
+   <div class="reklam-hero-bg"></div>
+   <div class="reklam-hero-inner">
+      <div class="reklam-hero-title">
+         <div class="reklam-hero-title-icon">
+            <i class="fa fa-bullhorn"></i>
+         </div>
+         <div>
+            <h2>Reklam Yönetimi</h2>
+            <p>Müşterilerinize <b>SMS</b>, <b>arama</b> veya <b>uygulama bildirimi</b> ile özel kampanyalar gönderin. Her kanalın kendi rengi ve ikonu vardır — birbirine karıştırmadan yönetebilirsiniz.</p>
+         </div>
+      </div>
 
-       
-               <div class="row" style="margin-bottom: 32px;">
-                  <div class="col-md-6">
-                   <h2>Reklam Yönetimi</h2>
-                    
-                  </div>
-                  <div class="col-md-6" style="text-align: right;">
-                      <a href="#" data-toggle="modal" data-target="#yeni_kampanya_modal" class="btn btn-success  yenieklebuton"><i class="fa fa-plus"></i> Yeni Kampanya</a>
-                           <button class="btn btn-success" onclick="modalbaslikata('Yeni Grup','grup_sms_formu')" data-toggle="modal" id='grup_olustur_buton' data-target="#grup_sms_olustur_modal"> <i class="fa fa-plus"></i>   Grup Oluştur</button>
-                             <button  data-toggle="modal" data-target="#grup_sms_liste_modal" class="btn btn-primary "><i class="fa fa-eye"></i> Grupları Gör</button>
-      
-                  </div>
-
-               </div>
-		         <table class="data-table table stripe hover nowrap" id="kampanyayonetim_tablo">
-                  <thead>
-                    <th>Görev Türü</th>
-                    <th>Kampanya</th>
-                    <th>Başlangıç Tarihi</th>
-                    <th>Bitiş Tarihi</th>
-                    <th>Arama Saati</th>
-                    <th>Hizmet/Ürün</th>
-                    <th>İndirim Türü</th>
-                    <th>Müşteriler</th>
-                    <th>Katılımcı Sayısı</th>
-                    
-                    
-                    
-             
-                     <th>İşlemler</th>
-                  </thead>
-                  <tbody>
-                    
-                  </tbody>
-               </table>
-          
-    
- 
+      <div class="reklam-stats">
+         <div class="reklam-stat reklam-stat--total" data-kanal="">
+            <div class="reklam-stat-ic"><i class="fa fa-list"></i></div>
+            <div class="reklam-stat-body">
+               <div class="reklam-stat-num">{{$toplamReklam}}</div>
+               <div class="reklam-stat-label">Toplam Reklam</div>
+               <div class="reklam-stat-sub">{{$toplamKatilimci}} katılımcı</div>
+            </div>
+         </div>
+         <div class="reklam-stat reklam-stat--sms" data-kanal="SMS">
+            <div class="reklam-stat-ic"><i class="fa fa-comment-alt"></i></div>
+            <div class="reklam-stat-body">
+               <div class="reklam-stat-num">{{$smsSayisi}}</div>
+               <div class="reklam-stat-label">SMS Reklamı</div>
+               <div class="reklam-stat-sub">Toplu SMS gönderimi</div>
+            </div>
+         </div>
+         <div class="reklam-stat reklam-stat--call" data-kanal="Arama">
+            <div class="reklam-stat-ic"><i class="fa fa-phone-alt"></i></div>
+            <div class="reklam-stat-body">
+               <div class="reklam-stat-num">{{$aramaSayisi}}</div>
+               <div class="reklam-stat-label">Santral Arama</div>
+               <div class="reklam-stat-sub">Sesli kayıt ile arama</div>
+            </div>
+         </div>
+         <div class="reklam-stat reklam-stat--push" data-kanal="Bildirim">
+            <div class="reklam-stat-ic"><i class="fa fa-bell"></i></div>
+            <div class="reklam-stat-body">
+               <div class="reklam-stat-num">{{$bildirimSayisi}}</div>
+               <div class="reklam-stat-label">Uygulama Bildirimi</div>
+               <div class="reklam-stat-sub">Push notification</div>
+            </div>
+         </div>
+         <div class="reklam-stat reklam-stat--info" data-kanal="Bilgilendirme">
+            <div class="reklam-stat-ic"><i class="fa fa-info-circle"></i></div>
+            <div class="reklam-stat-body">
+               <div class="reklam-stat-num">{{$bilgiSayisi}}</div>
+               <div class="reklam-stat-label">Bilgilendirme</div>
+               <div class="reklam-stat-sub">Genel duyuru</div>
+            </div>
+         </div>
+      </div>
+   </div>
 </div>
+
+<!-- KANAL FİLTRE TABLARI + TABLO -->
+<div class="card-box reklam-card mb-30">
+   <div class="reklam-card-header">
+      <div class="reklam-tabs" role="tablist">
+         <button type="button" class="reklam-tab is-active" data-kanal="">
+            <i class="fa fa-list"></i> Tümü
+            <span class="reklam-tab-count">{{$toplamReklam}}</span>
+         </button>
+         <button type="button" class="reklam-tab reklam-tab--sms" data-kanal="SMS">
+            <i class="fa fa-comment-alt"></i> SMS
+            <span class="reklam-tab-count">{{$smsSayisi}}</span>
+         </button>
+         <button type="button" class="reklam-tab reklam-tab--call" data-kanal="Arama">
+            <i class="fa fa-phone-alt"></i> Arama
+            <span class="reklam-tab-count">{{$aramaSayisi}}</span>
+         </button>
+         <button type="button" class="reklam-tab reklam-tab--push" data-kanal="Bildirim">
+            <i class="fa fa-bell"></i> Bildirim
+            <span class="reklam-tab-count">{{$bildirimSayisi}}</span>
+         </button>
+         <button type="button" class="reklam-tab reklam-tab--info" data-kanal="Bilgilendirme">
+            <i class="fa fa-info-circle"></i> Bilgilendirme
+            <span class="reklam-tab-count">{{$bilgiSayisi}}</span>
+         </button>
+      </div>
+   </div>
+
+   <div class="reklam-card-body">
+      <div class="reklam-empty" id="reklamBosDurum" style="display:none;">
+         <div class="reklam-empty-ic"><i class="fa fa-bullhorn"></i></div>
+         <h4>Henüz reklam oluşturulmadı</h4>
+         <p>İlk reklamınızı oluşturmak için <b>Yeni Reklam</b> butonuna tıklayın.</p>
+         <a href="#" data-toggle="modal" data-target="#yeni_kampanya_modal" class="btn btn-reklam-primary">
+            <i class="fa fa-plus"></i> Yeni Reklam Oluştur
+         </a>
+      </div>
+
+      <table class="data-table table stripe hover nowrap reklam-table" id="kampanyayonetim_tablo">
+         <thead>
+            <tr>
+               <th>Kanal</th>
+               <th>Kampanya</th>
+               <th>Başlangıç</th>
+               <th>Bitiş</th>
+               <th>Saat</th>
+               <th>Hizmet/Ürün</th>
+               <th>İndirim</th>
+               <th>Müşteri</th>
+               <th>Katılımcı</th>
+               <th class="text-right">İşlemler</th>
+            </tr>
+         </thead>
+         <tbody></tbody>
+      </table>
+   </div>
+</div>
+
+@if($toplamReklam == 0)
+<script>document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('reklamBosDurum');if(b)b.style.display='block';});</script>
+@endif
+
+<style>
+/* ============================================================
+   REKLAM YÖNETİMİ — MODERN UI
+   3 kanal: SMS (mavi/cyan), Arama (yeşil), Bildirim (mor),
+   Bilgilendirme (turuncu). Renkler birbirine karışmaz.
+   ============================================================ */
+.reklam-quickactions .btn { border-radius: 999px; padding: 8px 16px; font-weight: 600; font-size: 13px; border: 1px solid #e5e7eb; background: #fff; color: #475569; }
+.reklam-quickactions .btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn-reklam-primary {
+   background: linear-gradient(135deg, #5C008E 0%, #7B2FB8 50%, #9D5DC8 100%);
+   color: #fff !important; border: none; border-radius: 999px;
+   padding: 10px 20px; font-weight: 600; font-size: 13px;
+   box-shadow: 0 6px 18px rgba(123,47,184,.28);
+   transition: transform .15s ease, box-shadow .15s ease;
+}
+.btn-reklam-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(123,47,184,.34); color: #fff; }
+
+/* HERO */
+.reklam-hero { position: relative; border-radius: 18px; overflow: hidden; margin-bottom: 22px; }
+.reklam-hero-bg {
+   position: absolute; inset: 0;
+   background: linear-gradient(135deg, #5C008E 0%, #7B2FB8 50%, #9D5DC8 100%);
+   z-index: 0;
+}
+.reklam-hero-bg::after {
+   content:""; position:absolute; inset:0;
+   background:
+      radial-gradient(circle at 12% 20%, rgba(255,255,255,.18), transparent 35%),
+      radial-gradient(circle at 88% 80%, rgba(255,255,255,.12), transparent 40%);
+}
+.reklam-hero-inner { position: relative; z-index: 1; padding: 28px 28px 22px; color: #fff; }
+.reklam-hero-title { display: flex; align-items: center; gap: 18px; margin-bottom: 22px; }
+.reklam-hero-title-icon {
+   width: 64px; height: 64px; border-radius: 18px;
+   background: rgba(255,255,255,.18); backdrop-filter: blur(10px);
+   display: flex; align-items: center; justify-content: center;
+   font-size: 28px; color: #fff; flex-shrink: 0;
+}
+.reklam-hero-title h2 { color: #fff; font-weight: 700; margin: 0 0 4px; font-size: 26px; }
+.reklam-hero-title p { color: rgba(255,255,255,.88); margin: 0; font-size: 13.5px; line-height: 1.55; max-width: 760px; }
+.reklam-hero-title p b { color: #fff; }
+
+.reklam-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.reklam-stat {
+   background: rgba(255,255,255,.95); border-radius: 14px; padding: 14px 16px;
+   display: flex; align-items: center; gap: 12px; cursor: pointer;
+   transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+   border: 2px solid transparent;
+}
+.reklam-stat:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(0,0,0,.18); }
+.reklam-stat.is-active { background: #fff; border-color: rgba(255,255,255,.95); box-shadow: 0 14px 32px rgba(0,0,0,.22); }
+.reklam-stat-ic {
+   width: 44px; height: 44px; border-radius: 12px;
+   display: flex; align-items: center; justify-content: center;
+   font-size: 18px; flex-shrink: 0; color: #fff;
+}
+.reklam-stat-body { min-width: 0; }
+.reklam-stat-num { font-size: 22px; font-weight: 800; line-height: 1; color: #1e293b; }
+.reklam-stat-label { font-size: 12.5px; font-weight: 700; color: #1e293b; margin-top: 4px; }
+.reklam-stat-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+/* Kanal renkleri */
+.reklam-stat--total .reklam-stat-ic { background: linear-gradient(135deg,#475569,#1e293b); }
+.reklam-stat--sms   .reklam-stat-ic { background: linear-gradient(135deg,#06b6d4,#0284c7); }
+.reklam-stat--call  .reklam-stat-ic { background: linear-gradient(135deg,#10b981,#059669); }
+.reklam-stat--push  .reklam-stat-ic { background: linear-gradient(135deg,#8b5cf6,#6d28d9); }
+.reklam-stat--info  .reklam-stat-ic { background: linear-gradient(135deg,#f59e0b,#d97706); }
+
+/* TABLO KART */
+.reklam-card { padding: 0 !important; border-radius: 16px; overflow: hidden; border: 1px solid #eef0f3; box-shadow: 0 4px 14px rgba(15,23,42,.04); }
+.reklam-card-header { padding: 14px 18px 0; border-bottom: 1px solid #f1f5f9; background: #fafbfc; }
+.reklam-card-body { padding: 18px; }
+
+/* TABLAR */
+.reklam-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.reklam-tab {
+   border: 1px solid transparent; background: transparent;
+   padding: 10px 16px; border-radius: 10px 10px 0 0;
+   font-size: 13px; font-weight: 600; color: #64748b;
+   display: inline-flex; align-items: center; gap: 8px;
+   transition: all .15s ease; cursor: pointer; margin-bottom: -1px;
+}
+.reklam-tab:hover { background: #f1f5f9; color: #1e293b; }
+.reklam-tab.is-active {
+   background: #fff; color: #1e293b;
+   border-color: #f1f5f9 #f1f5f9 #fff;
+   box-shadow: 0 -2px 0 #5C008E inset;
+}
+.reklam-tab--sms.is-active   { box-shadow: 0 -2px 0 #0284c7 inset; }
+.reklam-tab--call.is-active  { box-shadow: 0 -2px 0 #059669 inset; }
+.reklam-tab--push.is-active  { box-shadow: 0 -2px 0 #6d28d9 inset; }
+.reklam-tab--info.is-active  { box-shadow: 0 -2px 0 #d97706 inset; }
+.reklam-tab i { font-size: 12px; }
+.reklam-tab-count {
+   display: inline-block; min-width: 22px; padding: 2px 7px;
+   background: #e2e8f0; color: #475569;
+   border-radius: 999px; font-size: 11px; font-weight: 700; margin-left: 4px;
+}
+.reklam-tab.is-active .reklam-tab-count { background: #f1f5f9; color: #1e293b; }
+.reklam-tab--sms.is-active   .reklam-tab-count { background: #cffafe; color: #0e7490; }
+.reklam-tab--call.is-active  .reklam-tab-count { background: #d1fae5; color: #065f46; }
+.reklam-tab--push.is-active  .reklam-tab-count { background: #ede9fe; color: #5b21b6; }
+.reklam-tab--info.is-active  .reklam-tab-count { background: #fef3c7; color: #92400e; }
+
+/* TABLO */
+.reklam-table thead th {
+   background: #f8fafc; color: #475569; font-weight: 700;
+   font-size: 12px; text-transform: uppercase; letter-spacing: .3px;
+   border-bottom: 2px solid #e2e8f0; padding: 12px 14px;
+}
+.reklam-table tbody td { padding: 14px; vertical-align: middle; font-size: 13.5px; color: #1e293b; border-bottom: 1px solid #f1f5f9; }
+.reklam-table tbody tr:hover { background: #fafbfc; }
+
+/* Kanal pill (görev türü hücresi için) */
+.kanal-pill {
+   display: inline-flex; align-items: center; gap: 6px;
+   padding: 4px 10px; border-radius: 999px;
+   font-size: 11.5px; font-weight: 700;
+   border: 1px solid;
+}
+.kanal-pill i { font-size: 11px; }
+.kanal-pill--sms   { background:#ecfeff; color:#0e7490; border-color:#a5f3fc; }
+.kanal-pill--call  { background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+.kanal-pill--push  { background:#f5f3ff; color:#5b21b6; border-color:#ddd6fe; }
+.kanal-pill--info  { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+.kanal-pill--none  { background:#f1f5f9; color:#64748b; border-color:#e2e8f0; }
+
+.musteri-pill, .indirim-pill {
+   display: inline-block; padding: 3px 9px; border-radius: 999px;
+   font-size: 11.5px; font-weight: 600;
+   background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+}
+.musteri-pill--erkek  { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+.musteri-pill--kadin  { background:#fdf2f8; color:#be185d; border-color:#fbcfe8; }
+.musteri-pill--tum    { background:#f1f5f9; color:#334155; border-color:#cbd5e1; }
+.indirim-pill--yuzde  { background:#fff7ed; color:#c2410c; border-color:#fed7aa; }
+.indirim-pill--xaly   { background:#eef2ff; color:#3730a3; border-color:#c7d2fe; }
+
+/* Kanal vurgu çizgi (sol kenar) */
+.reklam-table tbody tr.row-kanal-sms   { box-shadow: inset 3px 0 0 #06b6d4; }
+.reklam-table tbody tr.row-kanal-call  { box-shadow: inset 3px 0 0 #10b981; }
+.reklam-table tbody tr.row-kanal-push  { box-shadow: inset 3px 0 0 #8b5cf6; }
+.reklam-table tbody tr.row-kanal-info  { box-shadow: inset 3px 0 0 #f59e0b; }
+
+/* Empty state */
+.reklam-empty { text-align: center; padding: 60px 20px; }
+.reklam-empty-ic {
+   width: 88px; height: 88px; border-radius: 50%;
+   background: linear-gradient(135deg,#f1f5f9,#e2e8f0);
+   color: #94a3b8; font-size: 36px;
+   display: inline-flex; align-items: center; justify-content: center;
+   margin-bottom: 18px;
+}
+.reklam-empty h4 { font-weight: 700; color: #1e293b; margin: 0 0 6px; }
+.reklam-empty p  { color: #64748b; margin: 0 0 18px; }
+
+/* DataTables wrapper rötuşu */
+#kampanyayonetim_tablo_wrapper .dataTables_filter input { border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 10px; }
+#kampanyayonetim_tablo_wrapper .dataTables_length select { border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 8px; }
+#kampanyayonetim_tablo_wrapper .dataTables_paginate .paginate_button.current,
+#kampanyayonetim_tablo_wrapper .dataTables_paginate .paginate_button.current:hover {
+   background: linear-gradient(135deg,#5C008E,#7B2FB8) !important; color: #fff !important; border: none !important; border-radius: 6px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1199px) { .reklam-stats { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 767px) {
+   .reklam-stats { grid-template-columns: repeat(2, 1fr); }
+   .reklam-hero-inner { padding: 22px 18px 18px; }
+   .reklam-hero-title h2 { font-size: 22px; }
+   .reklam-hero-title-icon { width: 52px; height: 52px; font-size: 22px; }
+   .reklam-quickactions { margin-top: 12px; text-align: left !important; }
+   .reklam-tab { padding: 8px 12px; font-size: 12px; }
+}
+@media (max-width: 480px) {
+   .reklam-stats { grid-template-columns: 1fr; }
+}
+</style>
+
+<script>
+(function(){
+   // Tab + stat kart filtreleri DataTable'a bağlanacak.
+   // Tablo init "frontendscripts/layout_isletmeadmin.blade.php"'de yapılıyor — biraz beklemek gerekiyor.
+   function bindFilters(){
+      if(!window.jQuery || !$.fn.dataTable || !$('#kampanyayonetim_tablo').length) return false;
+      var tbl = $.fn.dataTable.isDataTable('#kampanyayonetim_tablo')
+                   ? $('#kampanyayonetim_tablo').DataTable() : null;
+      if(!tbl) return false;
+
+      function uygula(kanal){
+         // 0. kolon = Kanal (gorev_turu). Boşsa filtre temizle.
+         if(!kanal) tbl.column(0).search('').draw();
+         else tbl.column(0).search(kanal, true, false).draw();
+      }
+
+      $(document).on('click','.reklam-tab',function(){
+         var k = $(this).data('kanal') || '';
+         $('.reklam-tab').removeClass('is-active');
+         $(this).addClass('is-active');
+         $('.reklam-stat').removeClass('is-active');
+         $('.reklam-stat[data-kanal="'+k+'"]').addClass('is-active');
+         uygula(k);
+      });
+      $(document).on('click','.reklam-stat',function(){
+         var k = $(this).data('kanal') || '';
+         $('.reklam-stat').removeClass('is-active');
+         $(this).addClass('is-active');
+         $('.reklam-tab').removeClass('is-active');
+         $('.reklam-tab[data-kanal="'+k+'"]').addClass('is-active');
+         uygula(k);
+      });
+      return true;
+   }
+   var tries = 0;
+   var iv = setInterval(function(){
+      if(bindFilters() || ++tries > 30) clearInterval(iv);
+   }, 200);
+})();
+</script>
     <!--grup sms ekle -->
 <div id="grup_sms_liste_modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">

@@ -20,7 +20,40 @@
 
                   <div class="row" >
                      <div class="col-md-12" style="padding: 0 20px 20px 20px">
-                        
+
+                        <!-- KANAL SEÇİCİ KARTLARI (görev türü) -->
+                        <div class="reklam-kanal-secici">
+                           <div class="reklam-kanal-secici-baslik">
+                              <span class="reklam-kanal-secici-step">1</span>
+                              <div>
+                                 <h6>Kanal Seçin</h6>
+                                 <small>Reklamı hangi kanaldan göndereceksiniz?</small>
+                              </div>
+                           </div>
+                           <div class="reklam-kanal-grid">
+                              <button type="button" class="reklam-kanal-kart reklam-kanal-kart--sms"  data-gorev="2">
+                                 <span class="reklam-kanal-ic"><i class="fa fa-comment-alt"></i></span>
+                                 <span class="reklam-kanal-baslik">SMS</span>
+                                 <span class="reklam-kanal-aciklama">Toplu SMS gönder</span>
+                              </button>
+                              <button type="button" class="reklam-kanal-kart reklam-kanal-kart--call" data-gorev="1">
+                                 <span class="reklam-kanal-ic"><i class="fa fa-phone-alt"></i></span>
+                                 <span class="reklam-kanal-baslik">Santral Arama</span>
+                                 <span class="reklam-kanal-aciklama">Sesli kayıt ile ara</span>
+                              </button>
+                              <button type="button" class="reklam-kanal-kart reklam-kanal-kart--push" data-gorev="3">
+                                 <span class="reklam-kanal-ic"><i class="fa fa-bell"></i></span>
+                                 <span class="reklam-kanal-baslik">Uygulama Bildirimi</span>
+                                 <span class="reklam-kanal-aciklama">Push notification</span>
+                              </button>
+                              <button type="button" class="reklam-kanal-kart reklam-kanal-kart--info" data-gorev="4">
+                                 <span class="reklam-kanal-ic"><i class="fa fa-info-circle"></i></span>
+                                 <span class="reklam-kanal-baslik">Bilgilendirme</span>
+                                 <span class="reklam-kanal-aciklama">Genel duyuru</span>
+                              </button>
+                           </div>
+                        </div>
+
                         <div class="row" style="display: none;">
                            <div class="col-6 col-xs-6 col-sm-6 col-md-2">
                               <label></label>
@@ -39,7 +72,7 @@
                            </div>
                         </div>
                         <div class="row">
-                             <div class="col-6 col-xs-6 col-sm-6 col-md-2">
+                             <div class="col-6 col-xs-6 col-sm-6 col-md-2" style="display:none;">
                                 <label>Görev Türü</label>
                                 <select id="gorevTuru" name="gorevTuru" class="form-control" style="width: 100%;">
                                   <option value="">Seçiniz..</option>
@@ -48,7 +81,7 @@
                                  <option value="3">Reklam Bildirimi</option>
                                  <option value="4">Bilgilendirme Bildirimi</option>
                               </select>
-                           
+
                            </div>
                            <div class="col-6 col-xs-6 col-sm-6 col-md-2" id='kampanyaSablonFiltre' style="display: none;">
                                 <label>Şablon Türü</label>
@@ -273,4 +306,82 @@
             </form>
          </div>
       </div>
+
+      <style>
+      /* KANAL SEÇİCİ KARTLARI — yeni reklam modalı içinde */
+      #yeni_kampanya_modal .reklam-kanal-secici { padding: 14px 4px 18px; border-bottom: 1px dashed #e2e8f0; margin-bottom: 14px; }
+      #yeni_kampanya_modal .reklam-kanal-secici-baslik { display:flex; align-items:center; gap:12px; margin-bottom: 12px; }
+      #yeni_kampanya_modal .reklam-kanal-secici-step {
+         width: 28px; height: 28px; border-radius: 50%;
+         background: linear-gradient(135deg,#5C008E,#7B2FB8);
+         color:#fff; font-weight:700; font-size:13px;
+         display:flex; align-items:center; justify-content:center;
+      }
+      #yeni_kampanya_modal .reklam-kanal-secici-baslik h6 { margin:0; font-weight:700; color:#1e293b; font-size:14px; }
+      #yeni_kampanya_modal .reklam-kanal-secici-baslik small { color:#64748b; font-size:12px; }
+
+      #yeni_kampanya_modal .reklam-kanal-grid {
+         display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+      }
+      #yeni_kampanya_modal .reklam-kanal-kart {
+         background:#fff; border:2px solid #e2e8f0; border-radius:14px;
+         padding:14px 12px; text-align:center; cursor:pointer;
+         transition: all .18s ease; position:relative; overflow:hidden;
+         display:flex; flex-direction:column; align-items:center; gap:6px;
+      }
+      #yeni_kampanya_modal .reklam-kanal-kart:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(15,23,42,.08); }
+      #yeni_kampanya_modal .reklam-kanal-ic {
+         width:48px; height:48px; border-radius:14px;
+         display:flex; align-items:center; justify-content:center;
+         font-size:20px; color:#fff; margin-bottom:2px;
+      }
+      #yeni_kampanya_modal .reklam-kanal-baslik { font-weight:700; font-size:13.5px; color:#1e293b; }
+      #yeni_kampanya_modal .reklam-kanal-aciklama { font-size:11.5px; color:#64748b; }
+
+      #yeni_kampanya_modal .reklam-kanal-kart--sms  .reklam-kanal-ic { background: linear-gradient(135deg,#06b6d4,#0284c7); }
+      #yeni_kampanya_modal .reklam-kanal-kart--call .reklam-kanal-ic { background: linear-gradient(135deg,#10b981,#059669); }
+      #yeni_kampanya_modal .reklam-kanal-kart--push .reklam-kanal-ic { background: linear-gradient(135deg,#8b5cf6,#6d28d9); }
+      #yeni_kampanya_modal .reklam-kanal-kart--info .reklam-kanal-ic { background: linear-gradient(135deg,#f59e0b,#d97706); }
+
+      #yeni_kampanya_modal .reklam-kanal-kart.is-active { border-color: #7B2FB8; background: linear-gradient(180deg,#faf5ff,#fff); box-shadow: 0 8px 22px rgba(123,47,184,.12); }
+      #yeni_kampanya_modal .reklam-kanal-kart.is-active::after {
+         content: "\f00c"; font-family: "Font Awesome 5 Free"; font-weight: 900;
+         position:absolute; top:8px; right:10px; color:#7B2FB8; font-size:13px;
+      }
+      #yeni_kampanya_modal .reklam-kanal-kart--sms.is-active  { border-color:#0284c7; background: linear-gradient(180deg,#ecfeff,#fff); box-shadow:0 8px 22px rgba(2,132,199,.14); }
+      #yeni_kampanya_modal .reklam-kanal-kart--sms.is-active::after { color:#0284c7; }
+      #yeni_kampanya_modal .reklam-kanal-kart--call.is-active { border-color:#059669; background: linear-gradient(180deg,#ecfdf5,#fff); box-shadow:0 8px 22px rgba(5,150,105,.14); }
+      #yeni_kampanya_modal .reklam-kanal-kart--call.is-active::after { color:#059669; }
+      #yeni_kampanya_modal .reklam-kanal-kart--push.is-active { border-color:#6d28d9; background: linear-gradient(180deg,#f5f3ff,#fff); box-shadow:0 8px 22px rgba(109,40,217,.14); }
+      #yeni_kampanya_modal .reklam-kanal-kart--push.is-active::after { color:#6d28d9; }
+      #yeni_kampanya_modal .reklam-kanal-kart--info.is-active { border-color:#d97706; background: linear-gradient(180deg,#fffbeb,#fff); box-shadow:0 8px 22px rgba(217,119,6,.14); }
+      #yeni_kampanya_modal .reklam-kanal-kart--info.is-active::after { color:#d97706; }
+
+      @media (max-width: 767px) {
+         #yeni_kampanya_modal .reklam-kanal-grid { grid-template-columns: repeat(2, 1fr); }
+      }
+      </style>
+
+      <script>
+      (function(){
+         // Kanal kartına tıklayınca gizli select'i tetikle (mevcut JS akışını kullanır)
+         $(document).on('click','#yeni_kampanya_modal .reklam-kanal-kart',function(e){
+            e.preventDefault();
+            var v = $(this).data('gorev');
+            $('#yeni_kampanya_modal .reklam-kanal-kart').removeClass('is-active');
+            $(this).addClass('is-active');
+            $('#gorevTuru').val(String(v)).trigger('change');
+         });
+         // Modal kapanınca kanal seçimini sıfırla
+         $('#yeni_kampanya_modal').on('hidden.bs.modal', function(){
+            $('#yeni_kampanya_modal .reklam-kanal-kart').removeClass('is-active');
+         });
+         // Düzenleme için modal açılırsa, mevcut #gorevTuru değerine göre kart aktifle
+         $('#yeni_kampanya_modal').on('shown.bs.modal', function(){
+            var v = $('#gorevTuru').val();
+            $('#yeni_kampanya_modal .reklam-kanal-kart').removeClass('is-active');
+            if(v) $('#yeni_kampanya_modal .reklam-kanal-kart[data-gorev="'+v+'"]').addClass('is-active');
+         });
+      })();
+      </script>
    </div>

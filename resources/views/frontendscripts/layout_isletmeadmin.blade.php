@@ -2410,50 +2410,95 @@
       <script type="text/javascript">
          $(document).ready(function(){
          
+              // Reklam yönetimi — kanal bazlı renkli render
+              window.renderKanalPill = function(t){
+                  if(!t) return '<span class="kanal-pill kanal-pill--none"><i class="fa fa-circle"></i> -</span>';
+                  if(t === 'SMS')           return '<span class="kanal-pill kanal-pill--sms"><i class="fa fa-comment-alt"></i> SMS</span>';
+                  if(t === 'Arama')         return '<span class="kanal-pill kanal-pill--call"><i class="fa fa-phone-alt"></i> Arama</span>';
+                  if(t === 'Bildirim')      return '<span class="kanal-pill kanal-pill--push"><i class="fa fa-bell"></i> Bildirim</span>';
+                  if(t === 'Bilgilendirme') return '<span class="kanal-pill kanal-pill--info"><i class="fa fa-info-circle"></i> Bilgi</span>';
+                  return '<span class="kanal-pill kanal-pill--none">'+t+'</span>';
+              };
+              window.renderMusteriPill = function(t){
+                  if(t === 'erkekler') return '<span class="musteri-pill musteri-pill--erkek"><i class="fa fa-mars"></i> Erkek</span>';
+                  if(t === 'kadinlar') return '<span class="musteri-pill musteri-pill--kadin"><i class="fa fa-venus"></i> Kadın</span>';
+                  if(!t || t === '')   return '<span class="musteri-pill musteri-pill--tum">Tümü</span>';
+                  return '<span class="musteri-pill">'+t+'</span>';
+              };
+              window.renderIndirimPill = function(t){
+                  if(t === 1 || t === '1' || t === 'yuzde') return '<span class="indirim-pill indirim-pill--yuzde">% İndirim</span>';
+                  if(t === 0 || t === '0' || t === 'xaly')  return '<span class="indirim-pill indirim-pill--xaly">X al Y öde</span>';
+                  return '<span class="indirim-pill">-</span>';
+              };
+
               $('#kampanyayonetim_tablo').DataTable({
-         
+
                  autoWidth: false,
-         
+
                   responsive: true,
-         
-                   columns:[         
-                     
-         
-                                      { data: 'gorev_turu'   },
-                 
-                                        { data: 'kampanya', className:"ortaya-yasli" },
-                                        { data: 'baslangic_tarihi', className:"ortaya-yasli" },
-                                         { data: 'bitis_tarihi', className:"ortaya-yasli" },
-                                         { data: 'arama_saati', className:"ortaya-yasli" }, 
-                                          { data: 'hizmet_adi'   },
-                                        { data: 'indirim_turu', className:"ortaya-yasli" }, 
-                                        { data: 'musteri_turu', className:"ortaya-yasli" }, 
-                                         { data: 'katilimci_sayisi'  ,   className:"ortaya-yasli" },
-                                    { data: 'islemler', className:"saga-yasli" }, 
-                      
-         
-                   ],
-         
+                  order: [[ 2, "desc" ]],
+
+                  columns:[
+                     {
+                        data: 'gorev_turu',
+                        render: function(d, type){
+                           if(type === 'display') return window.renderKanalPill(d);
+                           return d || '';
+                        }
+                     },
+                     { data: 'kampanya' },
+                     { data: 'baslangic_tarihi', className:"ortaya-yasli" },
+                     { data: 'bitis_tarihi',     className:"ortaya-yasli" },
+                     { data: 'arama_saati',      className:"ortaya-yasli" },
+                     { data: 'hizmet_adi' },
+                     {
+                        data: 'indirim_turu',
+                        className:"ortaya-yasli",
+                        render: function(d, type){
+                           if(type === 'display') return window.renderIndirimPill(d);
+                           return d;
+                        }
+                     },
+                     {
+                        data: 'musteri_turu',
+                        className:"ortaya-yasli",
+                        render: function(d, type){
+                           if(type === 'display') return window.renderMusteriPill(d);
+                           return d || '';
+                        }
+                     },
+                     { data: 'katilimci_sayisi', className:"ortaya-yasli" },
+                     { data: 'islemler',         className:"saga-yasli" },
+                  ],
+
+                  createdRow: function(row, data){
+                     var k = data.gorev_turu;
+                     if(k === 'SMS')           $(row).addClass('row-kanal-sms');
+                     else if(k === 'Arama')    $(row).addClass('row-kanal-call');
+                     else if(k === 'Bildirim') $(row).addClass('row-kanal-push');
+                     else if(k === 'Bilgilendirme') $(row).addClass('row-kanal-info');
+                  },
+
                    data: <?php echo $kampanya_yonetimi; ?>,
-         
-         
-         
+
+
+
                    "language" : {
-         
+
                        "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
-         
+
                        searchPlaceholder: "Ara",
-         
+
                        paginate: {
-         
+
                            next: '<i class="ion-chevron-right"></i>',
-         
-                           previous: '<i class="ion-chevron-left"></i>'  
-         
+
+                           previous: '<i class="ion-chevron-left"></i>'
+
                        }
-         
+
                     },
-         
+
               });
          
          });
