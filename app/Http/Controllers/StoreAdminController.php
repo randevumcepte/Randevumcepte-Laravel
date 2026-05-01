@@ -10595,11 +10595,19 @@ DB::raw('
         $ongorusme->il_id =$request->sehir;
         $ongorusme->musteri_tipi = $request->musteri_tipi;
         $ongorusme->meslek = $request->meslek;
-        // Gorusme sebebi artik free-text — paket/urun/hizmet ID'leri kullanilmiyor.
-        $ongorusme->gorusme_konusu = $request->paket_urun;
-        $ongorusme->paket_id = null;
-        $ongorusme->urun_id = null;
-        $ongorusme->hizmet_id = null;
+        // Gorusme sebebi artik free-text. Migration kosmadiysa kolon yok —
+        // o durumda eski paket_id alanini geri kullaniyoruz (numerik degilse null).
+        if (\Schema::hasColumn('on_gorusmeler', 'gorusme_konusu')) {
+            $ongorusme->gorusme_konusu = $request->paket_urun;
+            $ongorusme->paket_id = null;
+            $ongorusme->urun_id = null;
+            $ongorusme->hizmet_id = null;
+        } else {
+            // Eski sema: numerik ise paket_id, yoksa null (free-text kayboluyor — migration kosulduktan sonra duzelir)
+            $ongorusme->paket_id = is_numeric($request->paket_urun) ? $request->paket_urun : null;
+            $ongorusme->urun_id = null;
+            $ongorusme->hizmet_id = null;
+        }
         $ongorusme->hatirlatma_tarihi = $request->ongorusme_tarihi;
         $ongorusme->personel_id = $request->gorusmeyi_yapan;
         $ongorusme->save();
@@ -10923,6 +10931,25 @@ DB::raw('
         echo DB::connection('mysql1')->table('users')->get();
     }
     public function ongorusmegetir(Request $request,$gunluk){
+         // Migration calismadiysa kolon olmayabilir — defensive
+         $hasGorusmeKonusu = \Schema::hasColumn('on_gorusmeler', 'gorusme_konusu');
+         $paketCase = $hasGorusmeKonusu
+            ? '
+                CASE
+                    WHEN on_gorusmeler.gorusme_konusu IS NOT NULL AND on_gorusmeler.gorusme_konusu != "" THEN on_gorusmeler.gorusme_konusu
+                    WHEN on_gorusmeler.paket_id IS NOT NULL THEN CONCAT("Paket : ", paketler.paket_adi)
+                    WHEN on_gorusmeler.urun_id IS NOT NULL THEN CONCAT("Ürün : ", urunler.urun_adi)
+                    WHEN on_gorusmeler.hizmet_id IS NOT NULL THEN CONCAT("Hizmet : ", hizmetler.hizmet_adi)
+                    ELSE "—"
+                END as paket'
+            : '
+                CASE
+                    WHEN on_gorusmeler.paket_id IS NOT NULL THEN CONCAT("Paket : ", paketler.paket_adi)
+                    WHEN on_gorusmeler.urun_id IS NOT NULL THEN CONCAT("Ürün : ", urunler.urun_adi)
+                    WHEN on_gorusmeler.hizmet_id IS NOT NULL THEN CONCAT("Hizmet : ", hizmetler.hizmet_adi)
+                    ELSE "Bilinmiyor"
+                END as paket';
+
          return DB::table('on_gorusmeler')
         ->join('salonlar','on_gorusmeler.salon_id','=','salonlar.id')
         ->leftjoin('users','on_gorusmeler.user_id','=','users.id')
@@ -10938,15 +10965,7 @@ DB::raw('
             DB::raw('CONCAT("<span style=\"display:none\">",UNIX_TIMESTAMP(on_gorusmeler.created_at),"</span>",DATE_FORMAT(on_gorusmeler.created_at, "%d.%m.%Y")) as olusturulma'),
             DB::raw('DATE_FORMAT(on_gorusmeler.hatirlatma_tarihi, "%d.%m.%Y") as hatirlatma'),
             DB::raw('CASE WHEN on_gorusmeler.musteri_tipi=1 THEN "İnternet" WHEN on_gorusmeler.musteri_tipi=2 THEN "Reklam" WHEN on_gorusmeler.musteri_tipi=3 THEN "Instagram" WHEN on_gorusmeler.musteri_tipi=4 THEN "Facebook" WHEN on_gorusmeler.musteri_tipi=5 THEN "Tanıdık" END as musteri_tipi'),
-            DB::raw('
-            CASE
-                WHEN on_gorusmeler.gorusme_konusu IS NOT NULL AND on_gorusmeler.gorusme_konusu != "" THEN on_gorusmeler.gorusme_konusu
-                WHEN on_gorusmeler.paket_id IS NOT NULL THEN CONCAT("Paket : ", paketler.paket_adi)
-                WHEN on_gorusmeler.urun_id IS NOT NULL THEN CONCAT("Ürün : ", urunler.urun_adi)
-                WHEN on_gorusmeler.hizmet_id IS NOT NULL THEN CONCAT("Hizmet : ", hizmetler.hizmet_adi)
-                ELSE "—"
-            END as paket
-        '),
+            DB::raw($paketCase),
 
             'salon_personelleri.personel_adi as gorusmeyiyapan',
             DB::raw('CASE WHEN on_gorusmeler.durum=0 THEN CONCAT("<a style=\"color:#fff\" name=\"satisyapilmamasebep\" data-value=\"",on_gorusmeler.id,"\" class=\"btn btn-danger btn-block\">Satış Yapılmadı</a><input type=\"hidden\"  name=\"satisyapilmamanotu\" data-value=\"",on_gorusmeler.id,"\" value=\"",COALESCE(on_gorusmeler.satisyapilmadi_not,"Belirtilmemiş"),"\">") WHEN on_gorusmeler.durum=1 THEN "<a style=\"color:#fff\"  class=\"btn btn-success btn-block\">Satış Yapıldı</a>" WHEN on_gorusmeler.durum IS NULL THEN "<a style=\"color:#000\" class=\"btn btn-warning btn-block\">Beklemede</a>" END as durum'),
