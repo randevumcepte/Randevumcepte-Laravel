@@ -573,17 +573,32 @@
 </div>
 
 <script>
-   // ----- Modern view: tahsilatekle/taksitekleguncelle/tahsilatkaldir AJAX'i sonrasi page reload -----
-   // (Sebep: server eski-tasarim HTML donduruyor; reload ile modern view temiz render edilir)
-   $(document).ajaxSuccess(function(event, xhr, settings){
+   // ----- Modern view: kritik AJAX sonrasi page reload -----
+   // (Server eski-tasarim HTML donduruyor; reload ile modern view temiz state ile render olur)
+   var _tmReloadPending = false;
+   function _tmScheduleReload(reason){
+      if(_tmReloadPending) return;
+      _tmReloadPending = true;
+      console.log('[modern-tahsilat] reload scheduled:', reason);
+      setTimeout(function(){
+         try { if(window.swal && swal.close) swal.close(); } catch(e){}
+         window.location.href = window.location.pathname + window.location.search;
+      }, 700);
+   }
+   $(document).ajaxComplete(function(event, xhr, settings){
       if(!settings || !settings.url) return;
       var u = settings.url;
       if(u.indexOf('/tahsilatekle') !== -1 ||
          u.indexOf('/taksitekleguncelle') !== -1 ||
          u.indexOf('/tahsilatkaldir') !== -1)
       {
-         setTimeout(function(){ window.location.reload(); }, 1300);
+         _tmScheduleReload('ajaxComplete:'+u);
       }
+   });
+   // Yedek: taksit modal kapaninca da reload (sadece save ile kapandiysa)
+   $(document).on('submit', '#taksitli_tahsilat_formu', function(){
+      // Save tetiklendi; ajaxComplete devreye girecek ama emniyet icin scheduler
+      setTimeout(function(){ _tmScheduleReload('taksit-form-submit'); }, 1500);
    });
 
    document.addEventListener('DOMContentLoaded', function(){
