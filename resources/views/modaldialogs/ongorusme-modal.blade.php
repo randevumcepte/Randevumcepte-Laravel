@@ -242,3 +242,11 @@
       </div>
    </div>
 </div>
+
+<script>
+   // Bootstrap modal'in Select2 search input'undan focus calmasini engelle.
+   // Aksi halde "musteri", "personel" dropdown'unda yazi yazilamiyor.
+   $(document).on('shown.bs.modal', '#ongorusme-modal', function () {
+      $(document).off('focusin.bs.modal');
+   });
+</script>
