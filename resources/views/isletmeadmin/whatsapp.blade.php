@@ -54,9 +54,8 @@
 .wpkt-discount { display: inline-block; background: #25D366; color: #fff; padding: 2px 7px; border-radius: 99px; font-size: 10px; margin-left: 4px; font-weight: 700; }
 
 .wpkt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-@media (max-width: 980px) { .wpkt-grid { grid-template-columns: 1fr; } }
-.wpkt-single-wrap { display: flex; justify-content: center; }
-.wpkt-single-wrap .wpkt-card { max-width: 480px; width: 100%; }
+.wpkt-grid-2 { grid-template-columns: repeat(2, 1fr); max-width: 820px; margin: 0 auto; }
+@media (max-width: 980px) { .wpkt-grid, .wpkt-grid-2 { grid-template-columns: 1fr; } }
 
 .wpkt-card { background: #fff; border-radius: 16px; padding: 28px 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 2px solid transparent; position: relative; transition: all 0.3s; display: flex; flex-direction: column; }
 .wpkt-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
@@ -362,22 +361,39 @@
         <button id="wpktYillik" onclick="wpktSetPeriyot('yillik')">Yıllık <span class="wpkt-discount">2 AY BEDAVA</span></button>
     </div>
 
-    <div class="wpkt-single-wrap">
+    <div class="wpkt-grid wpkt-grid-2">
+        <div class="wpkt-card" id="wpktCardBaslangic">
+            <div class="wpkt-tier-name">Başlangıç</div>
+            <div class="wpkt-tier-desc">Sadece SMS hatırlatma kullanmak isteyen küçük işletmeler için</div>
+            <div class="wpkt-price-block">
+                <div class="wpkt-price">Ücretsiz</div>
+                <div class="wpkt-price-aylik">Ek ücret yok</div>
+            </div>
+            <ul class="wpkt-features">
+                <li>SMS ile randevu hatırlatma</li>
+                <li>Mevcut SMS bakiyenizden düşülür</li>
+                <li>Temel raporlama</li>
+                <li class="no">WhatsApp gönderimi</li>
+                <li class="no">Detaylı istatistik</li>
+            </ul>
+            <button class="wpkt-btn wpkt-btn-current" id="wpktBtnBaslangic">Mevcut Paket</button>
+        </div>
+
         <div class="wpkt-card popular" id="wpktCardPro">
+            <div class="wpkt-popular-tag">⭐ ÖNERİLEN</div>
             <div class="wpkt-tier-name">WhatsApp Randevu Hatırlatma</div>
-            <div class="wpkt-tier-desc">Müşterilerinizin randevularını otomatik WhatsApp mesajıyla hatırlatın</div>
+            <div class="wpkt-tier-desc">WhatsApp ile profesyonel hatırlatma — no-show'u azaltın</div>
             <div class="wpkt-price-block">
                 <div class="wpkt-price" id="wpktProFiyat">149 <small>TL/ay</small></div>
                 <div class="wpkt-price-aylik" id="wpktProAylikInfo"></div>
             </div>
             <ul class="wpkt-features">
-                <li><b>1 gün öncesi</b> randevu hatırlatma (12:00-17:00)</li>
-                <li><b>Yaklaşan randevu</b> hatırlatma (X saat öncesi)</li>
-                <li>Randevu iptali ve güncelleme bildirimi</li>
-                <li>Otomatik <b>SMS yedek</b> (WhatsApp ulaşmazsa)</li>
-                <li>Detaylı mesaj geçmişi ve alıcı listesi</li>
-                <li>Günlük / haftalık / aylık istatistik paneli</li>
-                <li>Müşteri başına gönderim raporu</li>
+                <li><b>Başlangıç paketinin tüm özellikleri</b></li>
+                <li>WhatsApp ile randevu hatırlatma (1 gün önce + yaklaşan)</li>
+                <li>Randevu iptali / güncelleme bildirimi</li>
+                <li>Otomatik SMS yedek</li>
+                <li>Mesaj geçmişi ve alıcı listesi</li>
+                <li>Detaylı istatistik paneli</li>
             </ul>
             <button class="wpkt-btn wpkt-btn-primary" onclick="wpktTalepAc('pro')">Hemen Başla</button>
         </div>
@@ -697,7 +713,7 @@
             .then(function(r){ return r.json(); }).then(function(d){
                 if (d.error) return;
                 var paket = d.paket || 'baslangic';
-                var labels = { baslangic: 'Henüz aktif değil', pro: 'WhatsApp Hatırlatma', premium: 'WhatsApp Hatırlatma' };
+                var labels = { baslangic: 'Başlangıç (Ücretsiz)', pro: 'WhatsApp Hatırlatma', premium: 'WhatsApp Hatırlatma' };
 
                 // Deneme bandı (varsa) — başlığın hemen üstüne
                 if (d.deneme && d.bitis) {
@@ -726,23 +742,22 @@
                 document.getElementById('wpktCurrentName').textContent = ad;
                 document.getElementById('wpktCurrentBadge').style.display = 'inline-block';
 
-                // Tek paket olduğu için sadece pro/premium aktifse Pro kartını işaretle
-                if (paket === 'pro' || paket === 'premium') {
-                    var card = document.getElementById('wpktCardPro');
-                    if (card) {
-                        card.classList.add('current');
-                        if (!card.querySelector('.wpkt-current-tag')) {
-                            var tag = document.createElement('div');
-                            tag.className = 'wpkt-current-tag';
-                            tag.textContent = d.deneme ? '🎁 DENEME — ' + (d.kalan_gun || 0) + ' GÜN KALDI' : '✓ AKTİF';
-                            card.insertBefore(tag, card.firstChild);
-                        }
-                        var btn = card.querySelector('.wpkt-btn');
-                        if (btn) {
-                            btn.className = 'wpkt-btn wpkt-btn-current';
-                            btn.textContent = d.deneme ? 'Deneme Aktif' : 'Aktif Paket';
-                            btn.disabled = true;
-                        }
+                // Kart vurgusu: hangi pakettese o kartı işaretle
+                var aktifKartId = (paket === 'pro' || paket === 'premium') ? 'wpktCardPro' : 'wpktCardBaslangic';
+                var card = document.getElementById(aktifKartId);
+                if (card) {
+                    card.classList.add('current');
+                    if (!card.querySelector('.wpkt-current-tag')) {
+                        var tag = document.createElement('div');
+                        tag.className = 'wpkt-current-tag';
+                        tag.textContent = d.deneme ? '🎁 DENEME — ' + (d.kalan_gun || 0) + ' GÜN KALDI' : '✓ MEVCUT PAKETİNİZ';
+                        card.insertBefore(tag, card.firstChild);
+                    }
+                    var btn = card.querySelector('.wpkt-btn');
+                    if (btn) {
+                        btn.className = 'wpkt-btn wpkt-btn-current';
+                        btn.textContent = d.deneme ? 'Deneme Aktif' : 'Mevcut Paket';
+                        btn.disabled = true;
                     }
                 }
             });
