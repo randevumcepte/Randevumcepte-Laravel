@@ -12,7 +12,8 @@ class Salonlar extends Model
         'whatsapp_aktif','whatsapp_durum','whatsapp_numara','whatsapp_baglanti_tarihi','whatsapp_gunluk_limit','whatsapp_warmup_baslangic','whatsapp_son_hata',
         'whatsapp_saglayici','cloud_api_phone_number_id','cloud_api_token',
         'cloud_api_template_1gun','cloud_api_template_yaklasan','cloud_api_template_iptal','cloud_api_template_guncelleme','cloud_api_template_dil',
-        'whatsapp_paket','whatsapp_paket_periyot','whatsapp_paket_baslangic','whatsapp_paket_bitis','whatsapp_paket_deneme' ];
+        'whatsapp_paket','whatsapp_paket_periyot','whatsapp_paket_baslangic','whatsapp_paket_bitis','whatsapp_paket_deneme',
+        'cloud_api_marketing_aktif','cloud_api_template_kampanya','whatsapp_kampanya_aylik_dahil','whatsapp_kampanya_birim_fiyat' ];
 
     protected $casts = [
         'whatsapp_aktif' => 'boolean',

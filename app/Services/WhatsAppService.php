@@ -41,11 +41,17 @@ class WhatsAppService
     }
 
     /**
-     * Hatırlatma gönderir. Salon `whatsapp_saglayici`'ya göre Baileys veya Cloud API.
+     * Hatırlatma gönderir. Mesaj türüne ve salon ayarlarına göre Baileys veya Cloud API'ye yönlendirir.
      *
-     * @param array|null $templateCtx Cloud API kullanırken: ['key' => '1gun|yaklasan|iptal|guncelleme', 'params' => [...]]
+     * Yönlendirme mantığı:
+     *   - tip='marketing'  → DAİMA Cloud API (cloud_api_marketing_aktif=1 olmalı, yoksa hata)
+     *                         Marketing'i Baileys ile atmak anında ban demektir.
+     *   - tip='utility'    → salon.whatsapp_saglayici belirler (baileys veya cloud_api)
+     *
+     * @param string $tip 'utility' (default) | 'marketing'
+     * @param array|null $templateCtx Cloud API kullanırken: ['key' => '1gun|yaklasan|iptal|guncelleme|kampanya', 'params' => [...]]
      */
-    public function sendReminder(Salonlar $salon, $to, $message, $randevuId = null, $userId = null, $templateCtx = null)
+    public function sendReminder(Salonlar $salon, $to, $message, $randevuId = null, $userId = null, $templateCtx = null, $tip = 'utility')
     {
         $normalized = $this->normalizePhone($to);
         if (!$normalized) {
@@ -61,6 +67,16 @@ class WhatsAppService
             return ['ok' => false, 'error' => 'outside-business-hours'];
         }
 
+        // Marketing/kampanya = ZORUNLU Cloud API (Baileys ile gönderirsek ban kesin)
+        if ($tip === 'marketing') {
+            if (empty($salon->cloud_api_marketing_aktif) || empty($salon->cloud_api_token) || empty($salon->cloud_api_phone_number_id)) {
+                Log::warning('[WA] marketing-cloud-api-required', ['salon_id' => $salon->id]);
+                return ['ok' => false, 'error' => 'cloud-api-required-for-marketing'];
+            }
+            return $this->sendViaCloudApi($salon, $normalized, $message, $randevuId, $userId, $templateCtx);
+        }
+
+        // Utility (default): salon ayarına göre yönlendir
         $saglayici = $salon->whatsapp_saglayici ?? 'baileys';
 
         if ($saglayici === 'cloud_api') {
@@ -68,6 +84,17 @@ class WhatsAppService
         }
 
         return $this->sendViaBaileys($salon, $normalized, $message, $randevuId, $userId);
+    }
+
+    /**
+     * Marketing/kampanya mesajı (Cloud API zorunlu).
+     * Tipik kullanım: 1 salonun müşteri listesi → her birine kampanya template'i.
+     * @param array $params Template parametreleri (sırasıyla)
+     */
+    public function sendMarketing(Salonlar $salon, $to, $template_params = [], $userId = null)
+    {
+        $templateCtx = ['key' => 'kampanya', 'params' => $template_params];
+        return $this->sendReminder($salon, $to, '', null, $userId, $templateCtx, 'marketing');
     }
 
     protected function sendViaBaileys(Salonlar $salon, $to, $message, $randevuId, $userId)
@@ -107,6 +134,7 @@ class WhatsAppService
             'yaklasan' => $salon->cloud_api_template_yaklasan,
             'iptal' => $salon->cloud_api_template_iptal,
             'guncelleme' => $salon->cloud_api_template_guncelleme,
+            'kampanya' => $salon->cloud_api_template_kampanya,
         ];
         $templateName = $templateKey && isset($templateMap[$templateKey]) ? $templateMap[$templateKey] : null;
 
