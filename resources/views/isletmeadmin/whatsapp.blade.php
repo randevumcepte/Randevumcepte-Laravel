@@ -384,7 +384,7 @@
             <div class="wpkt-tier-name">WhatsApp Randevu Hatırlatma</div>
             <div class="wpkt-tier-desc">WhatsApp ile profesyonel hatırlatma — no-show'u azaltın</div>
             <div class="wpkt-price-block">
-                <div class="wpkt-price" id="wpktProFiyat">149 <small>TL/ay</small></div>
+                <div class="wpkt-price" id="wpktProFiyat">499 <small>TL/ay</small></div>
                 <div class="wpkt-price-aylik" id="wpktProAylikInfo"></div>
             </div>
             <ul class="wpkt-features">
@@ -642,7 +642,7 @@
     var wpktSecilenPaket = null;
     var wpktPeriyot = 'aylik';
     var WPKT_FIYAT = {
-        pro: { aylik: 149, yillik: 1499 }
+        pro: { aylik: 499, yillik: 4990 }
     };
 
     window.wpktSetPeriyot = function(p){
