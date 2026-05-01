@@ -1,83 +1,88 @@
 <style>
-.og-modal { border-radius:14px; border:0; overflow:hidden; box-shadow:0 30px 60px rgba(15,23,42,.18); }
+#ongorusme-modal .modal-dialog { max-width:640px; }
+.og-modal { border-radius:12px; border:0; overflow:hidden; box-shadow:0 20px 50px rgba(92,0,142,.18); }
 .og-header {
-   display:flex; align-items:center; gap:14px;
-   padding:18px 24px;
-   background:linear-gradient(135deg,#f8fafc 0%,#eef2ff 100%);
-   border-bottom:1px solid #e2e8f0;
+   display:flex; align-items:center; gap:10px;
+   padding:12px 18px;
+   background:#faf5ff;
+   border-bottom:1px solid #ede1f7;
    position:relative;
 }
 .og-header .og-icon {
-   width:46px; height:46px; border-radius:12px;
-   background:#4f46e5; color:#fff;
+   width:34px; height:34px; border-radius:9px;
+   background:#5C008E; color:#fff;
    display:inline-flex; align-items:center; justify-content:center;
-   font-size:20px; flex-shrink:0;
+   font-size:15px; flex-shrink:0;
 }
-.og-header h2 { margin:0; font-size:17px; color:#0f172a; font-weight:700; }
-.og-header p { margin:2px 0 0; font-size:12.5px; color:#64748b; }
+.og-header h2 { margin:0; font-size:15px; color:#3a1a52; font-weight:700; }
+.og-header p { margin:1px 0 0; font-size:11.5px; color:#7c6c8a; }
 .og-close {
-   position:absolute; top:12px; right:14px;
-   background:transparent; border:0; font-size:24px; line-height:1;
-   color:#94a3b8; cursor:pointer; transition:color .2s;
-   width:32px; height:32px; border-radius:8px;
+   position:absolute; top:8px; right:10px;
+   background:transparent; border:0; font-size:20px; line-height:1;
+   color:#9d8ba8; cursor:pointer; transition:color .15s, background .15s;
+   width:26px; height:26px; border-radius:6px;
 }
-.og-close:hover { color:#ef4444; background:#fee2e2; }
+.og-close:hover { color:#ef4444; background:#fdecec; }
 
-.og-body { padding:16px 24px 8px; max-height:70vh; overflow-y:auto; background:#fff; }
+.og-body { padding:12px 18px 4px; max-height:62vh; overflow-y:auto; background:#fff; }
 
 .og-section {
-   margin-bottom:14px;
-   padding:14px 16px 8px;
-   background:#f8fafc;
-   border:1px solid #e2e8f0;
-   border-radius:10px;
+   margin-bottom:10px;
+   padding:10px 12px 4px;
+   background:#fbfafd;
+   border:1px solid #ece6f3;
+   border-radius:9px;
 }
 .og-section__title {
-   font-size:11.5px; font-weight:700;
-   color:#4f46e5;
-   text-transform:uppercase; letter-spacing:.5px;
-   margin-bottom:10px; display:flex; align-items:center; gap:6px;
+   font-size:10.5px; font-weight:700;
+   color:#5C008E;
+   text-transform:uppercase; letter-spacing:.4px;
+   margin-bottom:7px; display:flex; align-items:center; gap:5px;
 }
-.og-section .form-group { margin-bottom:10px; }
-.og-section label { font-size:12.5px; font-weight:600; color:#334155; margin-bottom:4px; display:block; }
+.og-section .form-group { margin-bottom:7px; }
+.og-section label { font-size:11.5px; font-weight:600; color:#3a2e57; margin-bottom:2px; display:block; }
 .og-section .form-control,
 .og-section .select2-selection {
-   border-radius:8px !important; border-color:#e2e8f0 !important; min-height:38px;
-   font-size:13.5px;
+   border-radius:7px !important; border-color:#dfd6ea !important; min-height:32px; height:32px;
+   font-size:12.5px; padding:4px 10px;
 }
-.og-section .form-control:focus { border-color:#4f46e5 !important; box-shadow:0 0 0 3px rgba(79,70,229,.12) !important; }
-.og-hint { display:block; color:#94a3b8; font-size:11.5px; margin-top:3px; }
+.og-section textarea.form-control { height:auto; min-height:50px; }
+.og-section .form-control:focus { border-color:#5C008E !important; box-shadow:0 0 0 3px rgba(92,0,142,.1) !important; }
+.og-section .select2-container--default .select2-selection--single .select2-selection__rendered { line-height:24px; padding-left:10px; font-size:12.5px; }
+.og-section .select2-container--default .select2-selection--single .select2-selection__arrow { height:30px; }
+.og-hint { display:block; color:#9d8ba8; font-size:10.5px; margin-top:2px; }
 
 .og-footer {
-   display:flex; justify-content:flex-end; gap:10px;
-   padding:14px 24px; border-top:1px solid #e2e8f0;
-   background:#f8fafc;
+   display:flex; justify-content:flex-end; gap:8px;
+   padding:10px 18px; border-top:1px solid #ece6f3;
+   background:#fbfafd;
 }
 .og-btn-save {
-   background:#4f46e5; color:#fff !important;
-   padding:10px 22px; border-radius:10px; font-weight:700;
-   border:0; box-shadow:0 4px 10px rgba(79,70,229,.25);
+   background:#5C008E; color:#fff !important;
+   padding:7px 18px; border-radius:8px; font-weight:700; font-size:13px;
+   border:0; box-shadow:0 4px 10px rgba(92,0,142,.25);
    transition:background .15s;
 }
-.og-btn-save:hover { background:#4338ca; }
+.og-btn-save:hover { background:#48006e; }
 .og-btn-cancel {
-   background:#fff; color:#64748b !important;
-   padding:10px 18px; border-radius:10px; font-weight:600;
-   border:1px solid #e2e8f0;
+   background:#fff; color:#7c6c8a !important;
+   padding:7px 16px; border-radius:8px; font-weight:600; font-size:13px;
+   border:1px solid #dfd6ea;
 }
-.og-btn-cancel:hover { background:#f1f5f9; color:#334155 !important; }
+.og-btn-cancel:hover { background:#f5f0fa; color:#3a2e57 !important; }
 
 @media (max-width:600px) {
-   .og-body { padding:14px 16px; max-height:65vh; }
-   .og-section { padding:12px 12px 6px; }
-   .og-header { padding:14px 18px; gap:10px; }
-   .og-header .og-icon { width:38px; height:38px; font-size:16px; }
-   .og-footer { padding:12px 16px; }
+   #ongorusme-modal .modal-dialog { max-width:96%; margin:10px auto; }
+   .og-body { padding:10px 12px; max-height:62vh; }
+   .og-section { padding:9px 10px 4px; }
+   .og-header { padding:10px 14px; gap:8px; }
+   .og-header .og-icon { width:30px; height:30px; font-size:13px; }
+   .og-footer { padding:8px 12px; }
 }
 </style>
 
 <div id="ongorusme-modal" class="modal fade" tabindex="-1">
-   <div class="modal-dialog modal-dialog-centered modal-lg">
+   <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content og-modal">
          <form id="ongorusmeformu" method="POST">
             {{ csrf_field() }}
