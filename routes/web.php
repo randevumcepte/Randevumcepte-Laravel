@@ -836,6 +836,33 @@ Route::get('/puanodulleri',      [StoreAdminController::class, 'puanOdulleri'])-
 Route::post('/puanodulkaydet',   [StoreAdminController::class, 'puanOdulKaydet'])->name('isletmeadmin.puanodul.kaydet');
 Route::post('/puanodulsil',      [StoreAdminController::class, 'puanOdulSil'])->name('isletmeadmin.puanodul.sil');
 
+/* GEÇİCİ — örnek puan ödülleri ekle (sonra silinecek) */
+Route::get('/puanorneklerekle/{salonId}', function ($salonId) {
+    $salonId = (int) $salonId;
+    $salon = \App\Salonlar::find($salonId);
+    if (!$salon) return 'Salon bulunamadı.';
+
+    $ornekler = [
+        ['puan_esigi' => 100,  'baslik' => '%10 Hizmet İndirimi', 'aciklama' => 'Bir sonraki hizmet alımınızda %10 indirim kazanın.', 'tip' => 'hizmet_indirimi', 'deger' => 10,  'sira' => 1],
+        ['puan_esigi' => 250,  'baslik' => '%20 Hizmet İndirimi', 'aciklama' => 'Sevdiğiniz hizmeti %20 indirimli alın.',                'tip' => 'hizmet_indirimi', 'deger' => 20,  'sira' => 2],
+        ['puan_esigi' => 400,  'baslik' => '%15 Ürün İndirimi',   'aciklama' => 'Tüm bakım ürünlerinde geçerli %15 indirim.',           'tip' => 'urun_indirimi',   'deger' => 15,  'sira' => 3],
+        ['puan_esigi' => 600,  'baslik' => '%30 Hizmet İndirimi', 'aciklama' => 'Premium hizmet indirimi — sınırlı zaman.',             'tip' => 'hizmet_indirimi', 'deger' => 30,  'sira' => 4],
+        ['puan_esigi' => 1000, 'baslik' => 'Ücretsiz Saç Bakımı', 'aciklama' => 'Tamamen ücretsiz profesyonel saç bakımı paketi.',      'tip' => 'hediye',          'deger' => null,'sira' => 5],
+        ['puan_esigi' => 1500, 'baslik' => 'Ücretsiz Cilt Bakımı','aciklama' => 'Yüz analizi + cilt bakımı (50 dk) hediyemizdir.',      'tip' => 'hediye',          'deger' => null,'sira' => 6],
+    ];
+
+    $sayac = 0;
+    foreach ($ornekler as $o) {
+        \App\SalonPuanOdulleri::create(array_merge($o, [
+            'salon_id' => $salonId,
+            'aktif'    => 1,
+        ]));
+        $sayac++;
+    }
+
+    return "Tamam! {$sayac} örnek puan ödülü oluşturuldu. <a href='/isletmeyonetim/puanodulleri?sube={$salonId}'>→ Puan Ödülleri sayfasına git</a>";
+});
+
 /* GEÇİCİ — örnek çarkıfelek kazanan verisi üret (sonra silinecek) */
 Route::get('/carkornekveriuret/{salonId}', function ($salonId) {
     $salonId = (int) $salonId;
