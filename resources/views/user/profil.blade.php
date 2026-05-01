@@ -16,8 +16,8 @@
         <span>Sadakat</span>
     </a>
     <a href="/ayarlarim" class="nav-pill-item">
-        <i class="fa fa-cog"></i>
-        <span>Ayarlarım</span>
+        <i class="fa fa-lock"></i>
+        <span>Şifrem</span>
     </a>
 </div>
 

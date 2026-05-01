@@ -388,7 +388,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link icon" href="/ayarlarim">
-                            <i class="fa fa-recycle"></i>Ayarlarım
+                            <i class="fa fa-lock"></i>Şifrem
                         </a>
                     </li>
                 </ul>
