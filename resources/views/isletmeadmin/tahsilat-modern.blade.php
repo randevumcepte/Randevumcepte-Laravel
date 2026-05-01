@@ -249,7 +249,10 @@
    </select>
    <input type="hidden" name="tahsilat_tutari" id='toplam_tahsilat_tutari'>
    <input type="hidden" name="sube" value="{{$isletme->id}}">
-   <input type="hidden" name="adisyon_id" value="{{$adisyon_id}}">
+   {{-- id=session_adisyon_id ZORUNLU: custom.js'in urun/paket ekle handler'i bu id'yi okuyup --}}
+   {{-- formData.set('adisyon_id', val) yapiyor; aksi halde adisyon_id boslar -> backend yeni --}}
+   {{-- adisyon yaratir, hizmet kaybolur. --}}
+   <input type="hidden" name="adisyon_id" id="session_adisyon_id" value="{{$adisyon_id}}">
    {{-- custom.js'in tahsilatyenidenhesapla() fonksiyonu, hicbir paket girisi yokken --}}
    {{-- harici_indirim_tutari'ni 0'a resetliyor. Bu dummy input ekstragirdiler>=1 saglayip --}}
    {{-- reset'i engelliyor; backend bu name'i kullanmiyor. --}}

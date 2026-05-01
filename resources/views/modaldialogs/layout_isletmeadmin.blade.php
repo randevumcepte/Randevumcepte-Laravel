@@ -926,6 +926,130 @@
          @include('modaldialogs.santral-web-telefon-ustune-al-modal')
         
          @if($pageindex==11111 || $pageindex==1111)
+         <style>
+            #adisyon_yeni_hizmet_modal .modal-content{
+               border:none; border-radius:14px; overflow:hidden;
+               box-shadow:0 24px 60px -12px rgba(15,23,42,.35);
+            }
+            #adisyon_yeni_hizmet_modal .ahm-header{
+               background:#fff; padding:18px 22px;
+               border-bottom:1px solid #e5e7eb;
+               display:flex; align-items:center; justify-content:space-between;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-header h2{
+               margin:0; font-size:19px; font-weight:700; color:#1e293b;
+               display:flex; align-items:center; gap:10px;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-header h2 i{
+               color:#4f46e5; font-size:20px;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-close{
+               background:#f1f5f9; border:none; color:#64748b;
+               width:32px; height:32px; border-radius:8px; cursor:pointer;
+               display:flex; align-items:center; justify-content:center;
+               transition:all .15s ease; font-size:16px;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-close:hover{ background:#e2e8f0; color:#1e293b; }
+            #adisyon_yeni_hizmet_modal .modal-body{
+               background:#f8fafc; padding:18px 22px; max-height:65vh; overflow-y:auto;
+            }
+            #adisyon_yeni_hizmet_modal .hizmetler_bolumu_adisyon > .row{
+               background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+               padding:14px; margin:0 0 10px 0;
+               display:grid; grid-template-columns: 1.4fr 1.4fr 0.8fr 1.2fr 0.9fr 0.7fr 0.7fr auto;
+               gap:10px; align-items:end;
+            }
+            #adisyon_yeni_hizmet_modal .hizmetler_bolumu_adisyon > .row > .ahm-field,
+            #adisyon_yeni_hizmet_modal .hizmetler_bolumu_adisyon > .row > .col-md-1,
+            #adisyon_yeni_hizmet_modal .hizmetler_bolumu_adisyon > .row > .col-md-2,
+            #adisyon_yeni_hizmet_modal .hizmetler_bolumu_adisyon > .row > .col-md-3,
+            #adisyon_yeni_hizmet_modal .hizmetler_bolumu_adisyon > .row > [class*="col-"]{
+               max-width:none; flex:none; width:auto; padding:0;
+            }
+            #adisyon_yeni_hizmet_modal .hizmetler_bolumu_adisyon > .row > div .form-group{
+               margin-bottom:0;
+            }
+            #adisyon_yeni_hizmet_modal .hizmetler_bolumu_adisyon > .row label{
+               font-size:11px; font-weight:600; color:#64748b;
+               text-transform:uppercase; letter-spacing:.4px;
+               margin-bottom:4px; display:block;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-field label{
+               font-size:11px; font-weight:600; color:#64748b;
+               text-transform:uppercase; letter-spacing:.4px;
+               margin-bottom:4px; display:block;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-field .form-control,
+            #adisyon_yeni_hizmet_modal .ahm-field .select2-container .select2-selection--single{
+               height:38px !important; border-radius:8px !important;
+               border:1px solid #cbd5e1 !important; font-size:14px;
+               background:#fff; padding:0 11px;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-field .select2-container--default .select2-selection--single .select2-selection__rendered{
+               line-height:36px; color:#1e293b; padding-left:0;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-field .select2-container--default .select2-selection--single .select2-selection__arrow{
+               height:36px;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-field input:focus,
+            #adisyon_yeni_hizmet_modal .ahm-field select:focus{
+               border-color:#4f46e5 !important; outline:none;
+               box-shadow:0 0 0 3px rgba(79,70,229,.12) !important;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-remove{
+               width:38px; height:38px; border-radius:8px;
+               border:1px solid #fecaca; background:#fef2f2; color:#dc2626;
+               cursor:pointer; transition:all .15s ease;
+               display:flex; align-items:center; justify-content:center; font-size:14px;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-remove:hover:not(:disabled){
+               background:#dc2626; color:#fff; border-color:#dc2626;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-remove:disabled{
+               opacity:.4; cursor:not-allowed;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-add{
+               width:100%; padding:11px; background:#eef2ff; color:#4338ca;
+               border:1px dashed #818cf8; border-radius:10px;
+               font-weight:600; font-size:14px; cursor:pointer;
+               transition:all .15s ease;
+               display:flex; align-items:center; justify-content:center; gap:8px;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-add:hover{
+               background:#4f46e5; color:#fff; border-color:#4f46e5; border-style:solid;
+            }
+            #adisyon_yeni_hizmet_modal .modal-footer{
+               background:#fff; border-top:1px solid #e5e7eb;
+               padding:14px 22px; display:flex !important; gap:10px; justify-content:flex-end;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-btn{
+               padding:10px 22px; border-radius:9px; font-weight:600; font-size:14px;
+               border:none; cursor:pointer; display:inline-flex; align-items:center; gap:7px;
+               transition:transform .12s ease, box-shadow .12s ease;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-btn-primary{
+               background:linear-gradient(135deg,#10b981,#059669); color:#fff;
+               box-shadow:0 4px 10px -2px rgba(16,185,129,.4);
+            }
+            #adisyon_yeni_hizmet_modal .ahm-btn-primary:hover{
+               transform:translateY(-1px); box-shadow:0 6px 14px -2px rgba(16,185,129,.55);
+            }
+            #adisyon_yeni_hizmet_modal .ahm-btn-secondary{
+               background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;
+            }
+            #adisyon_yeni_hizmet_modal .ahm-btn-secondary:hover{ background:#e2e8f0; }
+            @media (max-width: 992px){
+               #adisyon_yeni_hizmet_modal .hizmetler_bolumu_adisyon > .row{
+                  grid-template-columns: 1fr 1fr auto;
+               }
+            }
+            @media (max-width: 600px){
+               #adisyon_yeni_hizmet_modal .hizmetler_bolumu_adisyon > .row{
+                  grid-template-columns: 1fr 1fr; gap:8px;
+               }
+               #adisyon_yeni_hizmet_modal .ahm-remove{ grid-column: span 2; width:auto; }
+            }
+         </style>
          <div
             id="adisyon_yeni_hizmet_modal"
             class="modal modal-top fade calendar-modal"
@@ -935,105 +1059,103 @@
                   <form id="adisyon_hizmet_formu"  method="POST">
                      <input type="hidden" name="adisyon_id" value="{{($pageindex==1111) ? $adisyon->id : ''}}">
                      <input type="hidden" name="sube" value="{{$isletme->id}}">
+                     {!!csrf_field()!!}
+                     <div class="ahm-header">
+                        <h2 id="adisyon_hizmet_modal_baslik"><i class="fa fa-cut"></i> Yeni Hizmet Satışı</h2>
+                        <button type="button" class="ahm-close" data-dismiss="modal" aria-label="Kapat" title="Kapat">
+                           <i class="fa fa-times"></i>
+                        </button>
+                     </div>
                      <div class="modal-body">
-                        {!!csrf_field()!!}
-                        <h2 class="text-blue h2 mb-10" id="adisyon_hizmet_modal_baslik">Yeni Hizmet Satışı</h2>
                         <div class="hizmetler_bolumu_adisyon">
                            <div class="row" data-value="0">
-                              <div class="col-md-2 col-xs-6 col-sm-6 col-6">
-                                 <div class="form-group">
-                                    <label>Personel</label>
-                                    <select name="adisyonhizmetpersonelleriyeni[]" class="form-control custom-select2" style="width: 100%;">
-                                       @if(Auth::guard('isletmeyonetim')->user()->hasRole('Personel'))
-                                       <option selected value="{{Auth::guard('isletmeyonetim')->user()->personel_id}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
-                                       @else
-                                       {!!$personel_drop!!}
-                                       @endif
-                                    </select>
-                                 </div>
+                              <div class="ahm-field">
+                                 <label>Personel</label>
+                                 <select name="adisyonhizmetpersonelleriyeni[]" class="form-control custom-select2" style="width: 100%;">
+                                    @if(Auth::guard('isletmeyonetim')->user()->hasRole('Personel'))
+                                    <option selected value="{{Auth::guard('isletmeyonetim')->user()->personel_id}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
+                                    @else
+                                    {!!$personel_drop!!}
+                                    @endif
+                                 </select>
                               </div>
-                              <div class="col-md-2 col-xs-6 col-sm-6 col-6">
-                                 <div class="form-group">
-                                    <label>Hizmet</label>
-                                    <select name="adisyonhizmetleriyeni[]" class="form-control custom-select2" style="width: 100%;">
-                                    {!!$hizmet_drop!!}
-                                    </select>
-                                 </div>
+                              <div class="ahm-field">
+                                 <label>Hizmet</label>
+                                 <select name="adisyonhizmetleriyeni[]" class="form-control custom-select2" style="width: 100%;">
+                                 {!!$hizmet_drop!!}
+                                 </select>
                               </div>
-                              <div class="col-md-1 col-xs-6 col-sm-6 col-6">
-                                 <div class="form-group">
-                                    <label>Seans</label>
-                                    <select name="adisyonhizmetleriyeni[]" class="form-control custom-select2" style="width: 100%;">
-                                  
-                                    </select>
-                                 </div>
+                              <div class="ahm-field">
+                                 <label>Seans</label>
+                                 <select name="adisyonhizmetleriyeni[]" class="form-control custom-select2" style="width: 100%;">
+                                 </select>
                               </div>
-                             
-                             
-                              <div class="col-md-2 col-xs-6 col-sm-6 col-6">
-                                 <div class="form-group">
-                                    <label>İşlem Tarihi</label>
-                                    <input name="islemtarihiyeni[]" required class="form-control" type="text" value="{{date('Y-m-d')}}" autocomplete="off">
-                                 </div>
+                              <div class="ahm-field">
+                                 <label>İşlem Tarihi</label>
+                                 <input name="islemtarihiyeni[]" required class="form-control" type="text" value="{{date('Y-m-d')}}" autocomplete="off">
                               </div>
-                              <div class="col-md-1 col-xs-6 col-sm-6 col-6">
-                                 <div class="form-group">
-                                    <label>İşlem Saati</label>
-                                    <input name="islemsaatiyeni[]" required class="form-control" type="time" value="{{date('H:i')}}" autocomplete="off">
-                                 </div>
+                              <div class="ahm-field">
+                                 <label>İşlem Saati</label>
+                                 <input name="islemsaatiyeni[]" required class="form-control" type="time" value="{{date('H:i')}}" autocomplete="off">
                               </div>
-                              <div class="col-md-1 col-xs-5 col-sm-5 col-5">
-                                 <div class="form-group">
-                                    <label>Süre (dk)</label>
-                                    <input type="tel" class="form-control" required name="adisyonhizmetsuresi[]" value='{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("sure_dk")}}'>
-                                 </div>
+                              <div class="ahm-field">
+                                 <label>Süre (dk)</label>
+                                 <input type="tel" class="form-control" required name="adisyonhizmetsuresi[]" value='{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("sure_dk")}}'>
                               </div>
-                              <div class="col-md-1 col-xs-5 col-sm-5 col-5">
-                                 <div class="form-group">
-                                    <label>Fiyat ₺</label>
-                                    <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value='{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("baslangic_fiyat")}}'>
-                                 </div>
+                              <div class="ahm-field">
+                                 <label>Fiyat ₺</label>
+                                 <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value='{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("baslangic_fiyat")}}'>
                               </div>
-                              <div class="col-md-1 col-xs-1 col-sm-1 col-1">
-                                 <div class="form-group">
-                                    <label style="visibility: hidden;">Kaldır</label>
-                                    <button type="button" name="hizmet_formdan_sil_adisyon"  data-value="0" class="btn btn-danger" disabled><i class="icon-copy fa fa-remove"></i></button>
-                                 </div>
-                              </div>
+                              <button type="button" name="hizmet_formdan_sil_adisyon" data-value="0" class="ahm-remove" disabled title="Kaldır">
+                                 <i class="fa fa-times"></i>
+                              </button>
                            </div>
                         </div>
-                        <div class="row">
-                           <div class="col-md-12">
-                              <div class="form-group">
-                                 <button type="button" id="bir_hizmet_daha_ekle_adisyon" class="btn btn-secondary btn-lg btn-block">
-                                 Bir Hizmet Daha Ekle
-                                 </button>
-                              </div>
-                           </div>
-                        </div>
+                        <button type="button" id="bir_hizmet_daha_ekle_adisyon" class="ahm-add">
+                           <i class="fa fa-plus-circle"></i> Bir Hizmet Daha Ekle
+                        </button>
                      </div>
-                     <div class="modal-footer" style="display:block">
-                        <div class="row">
-                           <div class="col-6 col-xs-6 col-sm-6">
-                              <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i>
-                              Kaydet
-                              </button>
-                           </div>
-                           <div class="col-6 col-xs-6 col-sm-6">
-                              <button
-                                 type="button" id='adisyon_hizmet_modal_kapat'
-                                 class="btn btn-danger btn-lg btn-block"
-                                 data-dismiss="modal" 
-                                 ><i class="fa fa times"></i>
-                              Kapat
-                              </button>
-                           </div>
-                        </div>
+                     <div class="modal-footer">
+                        <button type="button" id='adisyon_hizmet_modal_kapat' class="ahm-btn ahm-btn-secondary" data-dismiss="modal">
+                           <i class="fa fa-times"></i> Kapat
+                        </button>
+                        <button type="submit" class="ahm-btn ahm-btn-primary">
+                           <i class="fa fa-save"></i> Kaydet
+                        </button>
                      </div>
                   </form>
                </div>
             </div>
          </div>
+         <script>
+            // Modal acilirken formu sifirla (ekstra satir varsa kaldir, alanlari default'a cek)
+            (function(){
+               var defaultSure = '{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("sure_dk")}}';
+               var defaultFiyat = '{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("baslangic_fiyat")}}';
+               var bugun = '{{date("Y-m-d")}}';
+               function resetHizmetModal(){
+                  var $form = $('#adisyon_hizmet_formu');
+                  if(!$form.length) return;
+                  var $cont = $form.find('.hizmetler_bolumu_adisyon');
+                  // Ilk satir disindakileri kaldir
+                  $cont.find('> .row').slice(1).remove();
+                  // Ilk satir varsayilanlara dön
+                  var $first = $cont.find('> .row').first();
+                  if(!$first.length) return;
+                  $first.find('select').val(null).trigger('change.select2');
+                  $first.find('input[name="islemtarihiyeni[]"]').val(bugun);
+                  // saat: simdi
+                  var d = new Date();
+                  var hh = String(d.getHours()).padStart(2,'0');
+                  var mm = String(d.getMinutes()).padStart(2,'0');
+                  $first.find('input[name="islemsaatiyeni[]"]').val(hh+':'+mm);
+                  $first.find('input[name="adisyonhizmetsuresi[]"]').val(defaultSure);
+                  $first.find('input[name="adisyonhizmetfiyati[]"]').val(defaultFiyat);
+                  $first.find('button[name="hizmet_formdan_sil_adisyon"]').prop('disabled',true).attr('data-value','0');
+               }
+               $(document).on('show.bs.modal','#adisyon_yeni_hizmet_modal', resetHizmetModal);
+            })();
+         </script>
          <div
             id="urun_satisi_modal"
             class="modal modal-top fade calendar-modal"
