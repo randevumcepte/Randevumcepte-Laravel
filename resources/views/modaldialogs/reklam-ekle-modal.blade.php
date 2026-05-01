@@ -71,93 +71,143 @@
                               Paket</button>
                            </div>
                         </div>
-                        <div class="row">
-                             <div class="col-6 col-xs-6 col-sm-6 col-md-2" style="display:none;">
-                                <label>Görev Türü</label>
-                                <select id="gorevTuru" name="gorevTuru" class="form-control" style="width: 100%;">
-                                  <option value="">Seçiniz..</option>
-                                 <option value="1">Arama</option>
-                                 <option value="2">SMS</option>
-                                 <option value="3">Reklam Bildirimi</option>
-                                 <option value="4">Bilgilendirme Bildirimi</option>
-                              </select>
+                        <!-- Gizli görev türü selecti (kanal kartları tetikler) -->
+                        <div style="display:none;">
+                           <select id="gorevTuru" name="gorevTuru" class="form-control">
+                              <option value="">Seçiniz..</option>
+                              <option value="1">Arama</option>
+                              <option value="2">SMS</option>
+                              <option value="3">Reklam Bildirimi</option>
+                              <option value="4">Bilgilendirme Bildirimi</option>
+                           </select>
+                        </div>
 
-                           </div>
-                           <div class="col-6 col-xs-6 col-sm-6 col-md-2" id='kampanyaSablonFiltre' style="display: none;">
-                                <label>Şablon Türü</label>
-                                <select id="kampanyaTuru" name="kampanyaTuru" class="form-control" style="width: 100%;">
-                                 <option value="">Tümü</option>
-                              </select>
-                           
-                           </div>
-                            <div class="col-6 col-xs-6 col-sm-6 col-md-2" id="kategoriFiltre">
-                              <label>Kategori</label>
-                              <select id="kampanyaKategori" name="kampanyaKategori" class="form-control" style="width: 100%;">
-                                 <option value="">Tümü</option>
-                                 @foreach(\App\Hizmet_Kategorisi::all() as $hizmetKategori)
-                                <option value="{{$hizmetKategori->id}}">{{$hizmetKategori->hizmet_kategorisi_adi}}</option>
-                                @endforeach
-                                 @foreach(\App\UrunKategorisi::all() as $urunKategori)
-                                <option value="urun-{{$urunKategori->id}}">{{$urunKategori->urun_kategori_adi}}</option>
-                                @endforeach
-                              </select>
-                           </div>
-                           <div class="col-6 col-xs-6 col-sm-6 col-md-2" id="hizmetUrunFiltre">
-                              <label>Hizmet/Ürün</label>
-                              <select id="hizmetUrunPaket" name="hizmetUrunPaket" class="form-control opsiyonelSelect " style="width: 100%;">
-                                 <option></option>
-                                @foreach(\App\SalonHizmetler::where('salon_id',$isletme->id)->where('aktif',1)->get() as $hizmet)
-                                <option value="{{$hizmet->hizmet_id}}">{{$hizmet->hizmetler->hizmet_adi}}</option>
-                                @endforeach
-                                  @foreach(\App\Urunler::where('salon_id',$isletme->id)->where('aktif',1)->get() as $urun)
-                                <option value="urun-{{$urun->id}}">{{$urun->urun_adi}}</option>
-                                @endforeach
-                              </select>
-                           </div>
-                           <div class="col-6 col-xs-6 col-sm-6  col-md-2" id="musteriDanisanFiltre">
-                              <label style="">Müşteri/Danışanlar</label>
-                              <select class="form-control" name="katilimciTuru" id='katilimciTuru'>
-                                 <option value="seciniz">Seçiniz...</option>
-                                 <option value="">Tümü</option>
-                                 <option value="erkekler">Erkekler</option>
-                                 <option value="kadinlar">Kadınlar</option> 
-                              </select>
+                        <!-- HEDEF KİTLE PANELİ -->
+                        <div class="rkp" id="reklamKitlePanel">
+                           <div class="reklam-kanal-secici-baslik" style="margin-bottom: 14px;">
+                              <span class="reklam-kanal-secici-step">2</span>
+                              <div>
+                                 <h6>Hedef Kitle</h6>
+                                 <small>Reklamı kim alacak? Boş bıraktığın filtreler <b>Tümü</b> demektir.</small>
+                              </div>
+                              <div class="rkp-summary ml-auto">
+                                 <i class="fa fa-users"></i>
+                                 <span><b id="rkpKitleSayi">0</b> kişi eşleşiyor</span>
+                              </div>
                            </div>
 
-                            <!-- YENİ EKLENEN GRUPLAR FİLTRESİ -->
-                           <div class="col-6 col-xs-6 col-sm-6  col-md-2" id="gruplarFiltre">
-                              <label>Gruplar</label>
-                              <select id="musteriGruplari" name="musteriGruplari" class="form-control">
+                           <!-- Üst satır: Cinsiyet (segmented) + Davranış + Grup -->
+                           <div class="rkp-grid">
+                              <div class="rkp-cell" id="musteriDanisanFiltre">
+                                 <div class="rkp-label"><i class="fa fa-user"></i> Cinsiyet</div>
+                                 <div class="rkp-segment" data-target="katilimciTuru">
+                                    <button type="button" class="rkp-seg-btn is-active" data-val=""><i class="fa fa-globe"></i> Tümü</button>
+                                    <button type="button" class="rkp-seg-btn rkp-seg-btn--kadin" data-val="kadinlar"><i class="fa fa-venus"></i> Kadın</button>
+                                    <button type="button" class="rkp-seg-btn rkp-seg-btn--erkek" data-val="erkekler"><i class="fa fa-mars"></i> Erkek</button>
+                                 </div>
+                                 <select class="form-control" name="katilimciTuru" id="katilimciTuru" style="display:none;">
+                                    <option value="seciniz">Seçiniz...</option>
+                                    <option value="" selected>Tümü</option>
+                                    <option value="erkekler">Erkekler</option>
+                                    <option value="kadinlar">Kadınlar</option>
+                                 </select>
+                              </div>
+
+                              <div class="rkp-cell" id="katilimFiltre">
+                                 <div class="rkp-label"><i class="fa fa-history"></i> Müşteri Davranışı</div>
+                                 <select id="gelenGelmeyenMusteri" name="gelenGelmeyenMusteri" class="form-control rkp-select">
+                                    <option value="">Hepsi (filtre yok)</option>
+                                    <optgroup label="— Aktivite Durumu —">
+                                       <option value="7">⭐ Aktif Müşteriler</option>
+                                       <option value="6">💎 Sadık Müşteriler</option>
+                                       <option value="8">😴 Pasif Müşteriler</option>
+                                    </optgroup>
+                                    <optgroup label="— Son Ziyaret Aralığı —">
+                                       <option value="1">Son 1 Yıl İçinde Gelenler</option>
+                                       <option value="2">Son 2 Yıl İçinde Gelenler</option>
+                                       <option value="3">Son 3 Yıl İçinde Gelenler</option>
+                                       <option value="4">Son 4 Yıl İçinde Gelenler</option>
+                                       <option value="5">Son 5 Yıl İçinde Gelenler</option>
+                                    </optgroup>
+                                 </select>
+                              </div>
+
+                              <div class="rkp-cell" id="gruplarFiltre">
+                                 <div class="rkp-label"><i class="fa fa-users"></i> Grup</div>
+                                 <select id="musteriGruplari" name="musteriGruplari" class="form-control rkp-select">
+                                    <option value="">Hepsi (grup filtresi yok)</option>
+                                    @php $hastaGruplari = \App\ReceteGrubu::all(); @endphp
+                                    @if(count($hastaGruplari))
+                                    <optgroup label="— Hasta Grupları —">
+                                       @foreach($hastaGruplari as $grup1)
+                                          <option value="hastagrup-{{ $grup1->id }}">{{ $grup1->grup_adi }}</option>
+                                       @endforeach
+                                    </optgroup>
+                                    @endif
+                                    @php
+                                       $hariciGrupVar = false;
+                                       foreach(($gruplar ?? []) as $g){ if(isset($g['id'])){ $hariciGrupVar = true; break; } }
+                                    @endphp
+                                    @if($hariciGrupVar)
+                                    <optgroup label="— SMS Grupları —">
+                                       @foreach($gruplar as $grup2)
+                                          @if(isset($grup2['id']))
+                                          <option value="haricigrup-{{ $grup2['id'] }}">{{ $grup2['grup_adi'] }}</option>
+                                          @endif
+                                       @endforeach
+                                    </optgroup>
+                                    @endif
+                                 </select>
+                              </div>
+                           </div>
+
+                           <!-- Alt satır: Hizmet/Ürün ilgisi (Kategori → Hizmet/Ürün) -->
+                           <div class="rkp-grid rkp-grid--2 rkp-mt">
+                              <div class="rkp-cell" id="kategoriFiltre">
+                                 <div class="rkp-label"><i class="fa fa-folder"></i> Hizmet/Ürün Kategorisi <span class="rkp-opt">opsiyonel</span></div>
+                                 <select id="kampanyaKategori" name="kampanyaKategori" class="form-control rkp-select">
+                                    <option value="">Tüm kategoriler</option>
+                                    @if(count(\App\Hizmet_Kategorisi::all()))
+                                    <optgroup label="— Hizmet Kategorileri —">
+                                       @foreach(\App\Hizmet_Kategorisi::all() as $hizmetKategori)
+                                          <option value="{{$hizmetKategori->id}}">{{$hizmetKategori->hizmet_kategorisi_adi}}</option>
+                                       @endforeach
+                                    </optgroup>
+                                    @endif
+                                    @if(count(\App\UrunKategorisi::all()))
+                                    <optgroup label="— Ürün Kategorileri —">
+                                       @foreach(\App\UrunKategorisi::all() as $urunKategori)
+                                          <option value="urun-{{$urunKategori->id}}">{{$urunKategori->urun_kategori_adi}}</option>
+                                       @endforeach
+                                    </optgroup>
+                                    @endif
+                                 </select>
+                              </div>
+                              <div class="rkp-cell" id="hizmetUrunFiltre">
+                                 <div class="rkp-label"><i class="fa fa-tag"></i> Belirli Hizmet / Ürün <span class="rkp-opt">opsiyonel</span></div>
+                                 <select id="hizmetUrunPaket" name="hizmetUrunPaket" class="form-control opsiyonelSelect rkp-select">
+                                    <option></option>
+                                    @foreach(\App\SalonHizmetler::where('salon_id',$isletme->id)->where('aktif',1)->get() as $hizmet)
+                                       <option value="{{$hizmet->hizmet_id}}">{{$hizmet->hizmetler->hizmet_adi}}</option>
+                                    @endforeach
+                                    @foreach(\App\Urunler::where('salon_id',$isletme->id)->where('aktif',1)->get() as $urun)
+                                       <option value="urun-{{$urun->id}}">{{$urun->urun_adi}}</option>
+                                    @endforeach
+                                 </select>
+                                 <small class="rkp-hint">Bu hizmet/ürünle ilgilenen müşterilere göndermek istiyorsan seç.</small>
+                              </div>
+                           </div>
+
+                           <!-- Aktif filtreler özeti -->
+                           <div class="rkp-active-chips" id="rkpAktifFiltreler"></div>
+
+                           <!-- Şablon Türü filtresi (kanala göre dinamik gösterim) -->
+                           <div class="rkp-extra rkp-mt" id='kampanyaSablonFiltre' style="display: none;">
+                              <div class="rkp-label"><i class="fa fa-file-alt"></i> Şablon Türü</div>
+                              <select id="kampanyaTuru" name="kampanyaTuru" class="form-control rkp-select">
                                  <option value="">Tümü</option>
-                                 
-                                    @foreach(\App\ReceteGrubu::all() as $grup1)
-                                       <option value="hastagrup-{{ $grup1->id }}">{{ $grup1->grup_adi }}</option>
-                                    @endforeach
-                                 
-                                    @foreach($gruplar as $grup2)
-                                       @if(isset($grup2['id']))
-                                       <option value="haricigrup-{{ $grup2['id'] }}">{{ $grup2['grup_adi'] }}</option>
-                                       @endif
-                                    @endforeach
-                                
                               </select>
                            </div>
-                           <div class="col-6 col-xs-6 col-sm-6  col-md-2" id="katilimFiltre">
-                              <label>Katılım Durumu</label>
-                              <select id="gelenGelmeyenMusteri" name="gelenGelmeyenMusteri" class="form-control">
-                                 <option value="">Tümü</option>
-                                 <option value="1">Son 1 yıllık müşteriler</option>
-                                 <option value="2">Son 2 yıllık müşteriler</option>
-                                 <option value="3">Son 3 yıllık müşteriler</option>
-                                 <option value="4">Son 4 yıllık müşteriler</option>
-                                 <option value="5">Son 5 yıllık müşteriler</option>
-                                 <option value="6">Sadık müşteriler</option>
-                                 <option value="7">Aktif müşteriler</option>
-                                 <option value="8">Pasif müşteriler</option>
-                              </select>
-                           </div>
-                           
-                          
                         </div>
                      </div>
                   
@@ -360,11 +410,121 @@
       @media (max-width: 767px) {
          #yeni_kampanya_modal .reklam-kanal-grid { grid-template-columns: repeat(2, 1fr); }
       }
+
+      /* ============ HEDEF KİTLE PANELİ (rkp) ============ */
+      #yeni_kampanya_modal .rkp {
+         background: linear-gradient(180deg, #fafbff 0%, #ffffff 100%);
+         border: 1px solid #eef0f3; border-radius: 14px;
+         padding: 18px 18px 16px; margin-bottom: 18px;
+      }
+      #yeni_kampanya_modal .rkp .reklam-kanal-secici-baslik { display: flex; align-items: center; gap: 12px; }
+      #yeni_kampanya_modal .rkp-summary {
+         display: inline-flex; align-items: center; gap: 6px;
+         padding: 6px 12px; border-radius: 999px;
+         background: linear-gradient(135deg,#5C008E,#7B2FB8); color: #fff;
+         font-size: 12px; font-weight: 600;
+         box-shadow: 0 4px 12px rgba(123,47,184,.18);
+      }
+      #yeni_kampanya_modal .rkp-summary i { font-size: 11px; }
+      #yeni_kampanya_modal .rkp-summary b { font-size: 14px; }
+
+      #yeni_kampanya_modal .rkp-grid {
+         display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      }
+      #yeni_kampanya_modal .rkp-grid--2 { grid-template-columns: 1fr 1.4fr; }
+      #yeni_kampanya_modal .rkp-mt { margin-top: 14px; }
+
+      #yeni_kampanya_modal .rkp-cell { min-width: 0; }
+      #yeni_kampanya_modal .rkp-label {
+         font-size: 12px; font-weight: 700; color: #475569;
+         text-transform: uppercase; letter-spacing: .3px;
+         margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+      }
+      #yeni_kampanya_modal .rkp-label i { color: #7B2FB8; font-size: 11px; }
+      #yeni_kampanya_modal .rkp-opt {
+         margin-left: auto; font-size: 10px; font-weight: 600;
+         color: #94a3b8; text-transform: lowercase; letter-spacing: 0;
+         background: #f1f5f9; padding: 2px 8px; border-radius: 999px;
+      }
+
+      /* Modern select görünümü */
+      #yeni_kampanya_modal .rkp-select {
+         height: 42px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+         padding: 8px 12px; font-size: 13.5px; background-color: #fff;
+         transition: all .15s ease; color: #1e293b;
+      }
+      #yeni_kampanya_modal .rkp-select:hover { border-color: #cbd5e1; }
+      #yeni_kampanya_modal .rkp-select:focus {
+         border-color: #7B2FB8; outline: none;
+         box-shadow: 0 0 0 3px rgba(123,47,184,.12);
+      }
+      /* Filtre aktifse (boş değilse) yeşil kenar */
+      #yeni_kampanya_modal .rkp-select.is-active {
+         border-color: #7B2FB8; background: #faf5ff;
+      }
+
+      /* Cinsiyet segmented butonlar */
+      #yeni_kampanya_modal .rkp-segment {
+         display: grid; grid-template-columns: repeat(3, 1fr);
+         border: 1.5px solid #e2e8f0; border-radius: 10px;
+         overflow: hidden; background: #fff;
+      }
+      #yeni_kampanya_modal .rkp-seg-btn {
+         border: none; background: transparent;
+         padding: 11px 8px; font-size: 13px; font-weight: 600;
+         color: #64748b; cursor: pointer;
+         display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+         transition: all .15s ease;
+         border-right: 1px solid #f1f5f9;
+      }
+      #yeni_kampanya_modal .rkp-seg-btn:last-child { border-right: none; }
+      #yeni_kampanya_modal .rkp-seg-btn:hover { background: #f8fafc; color: #1e293b; }
+      #yeni_kampanya_modal .rkp-seg-btn i { font-size: 11px; }
+      #yeni_kampanya_modal .rkp-seg-btn.is-active {
+         background: linear-gradient(135deg,#5C008E,#7B2FB8); color: #fff;
+         box-shadow: inset 0 -2px 0 rgba(0,0,0,.1);
+      }
+      #yeni_kampanya_modal .rkp-seg-btn--kadin.is-active { background: linear-gradient(135deg,#ec4899,#be185d); }
+      #yeni_kampanya_modal .rkp-seg-btn--erkek.is-active { background: linear-gradient(135deg,#3b82f6,#1d4ed8); }
+
+      #yeni_kampanya_modal .rkp-hint { display: block; margin-top: 6px; color: #94a3b8; font-size: 11.5px; }
+
+      /* Aktif filtre chipleri özeti */
+      #yeni_kampanya_modal .rkp-active-chips {
+         display: flex; flex-wrap: wrap; gap: 6px;
+         margin-top: 12px; min-height: 0;
+      }
+      #yeni_kampanya_modal .rkp-active-chips:empty { display: none; }
+      #yeni_kampanya_modal .rkp-chip {
+         display: inline-flex; align-items: center; gap: 6px;
+         padding: 4px 10px 4px 12px; border-radius: 999px;
+         background: #ede9fe; color: #5b21b6; font-size: 12px; font-weight: 600;
+         border: 1px solid #ddd6fe;
+      }
+      #yeni_kampanya_modal .rkp-chip i { font-size: 10px; }
+      #yeni_kampanya_modal .rkp-chip-x {
+         margin-left: 4px; cursor: pointer; padding: 0 4px;
+         border-radius: 50%; transition: background .15s ease;
+      }
+      #yeni_kampanya_modal .rkp-chip-x:hover { background: rgba(91,33,182,.18); }
+
+      #yeni_kampanya_modal .rkp-extra { padding: 10px 12px; background: #fff; border: 1px dashed #e2e8f0; border-radius: 10px; }
+
+      /* Responsive */
+      @media (max-width: 991px) {
+         #yeni_kampanya_modal .rkp-grid { grid-template-columns: repeat(2, 1fr); }
+         #yeni_kampanya_modal .rkp-grid--2 { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 575px) {
+         #yeni_kampanya_modal .rkp-grid { grid-template-columns: 1fr; }
+         #yeni_kampanya_modal .rkp-summary { display: none; }
+         #yeni_kampanya_modal .rkp { padding: 14px; }
+      }
       </style>
 
       <script>
       (function(){
-         // Kanal kartına tıklayınca gizli select'i tetikle (mevcut JS akışını kullanır)
+         // ---- KANAL KARTLARI ----
          $(document).on('click','#yeni_kampanya_modal .reklam-kanal-kart',function(e){
             e.preventDefault();
             var v = $(this).data('gorev');
@@ -372,16 +532,91 @@
             $(this).addClass('is-active');
             $('#gorevTuru').val(String(v)).trigger('change');
          });
-         // Modal kapanınca kanal seçimini sıfırla
          $('#yeni_kampanya_modal').on('hidden.bs.modal', function(){
             $('#yeni_kampanya_modal .reklam-kanal-kart').removeClass('is-active');
          });
-         // Düzenleme için modal açılırsa, mevcut #gorevTuru değerine göre kart aktifle
          $('#yeni_kampanya_modal').on('shown.bs.modal', function(){
             var v = $('#gorevTuru').val();
             $('#yeni_kampanya_modal .reklam-kanal-kart').removeClass('is-active');
             if(v) $('#yeni_kampanya_modal .reklam-kanal-kart[data-gorev="'+v+'"]').addClass('is-active');
+            rkpFiltreOzeti();
          });
+
+         // ---- CİNSİYET SEGMENTED ----
+         $(document).on('click','#yeni_kampanya_modal .rkp-seg-btn',function(e){
+            e.preventDefault();
+            var v = $(this).data('val') || '';
+            $(this).siblings().removeClass('is-active');
+            $(this).addClass('is-active');
+            // Gizli select'i tetikle (mevcut kampanyaSablonGetir akışı çalışsın)
+            $('#katilimciTuru').val(v === '' ? '' : v).trigger('change');
+            rkpFiltreOzeti();
+         });
+
+         // Eğer JS başka yerden #katilimciTuru değiştirirse butonları senkronize et
+         $(document).on('change','#katilimciTuru',function(){
+            var v = $(this).val();
+            var $btns = $('#yeni_kampanya_modal .rkp-segment[data-target="katilimciTuru"] .rkp-seg-btn');
+            $btns.removeClass('is-active');
+            if(v === '' || v === 'seciniz' || v == null) $btns.filter('[data-val=""]').addClass('is-active');
+            else $btns.filter('[data-val="'+v+'"]').addClass('is-active');
+            rkpFiltreOzeti();
+         });
+
+         // ---- AKTİF FİLTRELERİ ÖZETLE ----
+         function chip(label, value, clearTarget, icon){
+            return '<span class="rkp-chip"><i class="fa '+(icon||'fa-filter')+'"></i> <b>'+label+':</b> '+value+
+                   ' <span class="rkp-chip-x" data-clear="'+clearTarget+'" title="Kaldır">×</span></span>';
+         }
+         function rkpFiltreOzeti(){
+            var $box = $('#rkpAktifFiltreler'); if(!$box.length) return;
+            var html = '';
+            // Cinsiyet
+            var c = $('#katilimciTuru').val();
+            if(c === 'kadinlar')      html += chip('Cinsiyet','Kadın','katilimciTuru','fa-venus');
+            else if(c === 'erkekler') html += chip('Cinsiyet','Erkek','katilimciTuru','fa-mars');
+            // Davranış
+            var dV = $('#gelenGelmeyenMusteri').val();
+            if(dV)  html += chip('Davranış', $('#gelenGelmeyenMusteri option:selected').text(),'gelenGelmeyenMusteri','fa-history');
+            // Grup
+            var gV = $('#musteriGruplari').val();
+            if(gV)  html += chip('Grup', $('#musteriGruplari option:selected').text(),'musteriGruplari','fa-users');
+            // Kategori
+            var kV = $('#kampanyaKategori').val();
+            if(kV)  html += chip('Kategori', $('#kampanyaKategori option:selected').text(),'kampanyaKategori','fa-folder');
+            // Hizmet/Ürün
+            var hV = $('#hizmetUrunPaket').val();
+            if(hV)  html += chip('Hizmet/Ürün', $('#hizmetUrunPaket option:selected').text(),'hizmetUrunPaket','fa-tag');
+            $box.html(html);
+
+            // Select'leri "aktif" görseliyle işaretle
+            ['gelenGelmeyenMusteri','musteriGruplari','kampanyaKategori','hizmetUrunPaket','kampanyaTuru'].forEach(function(id){
+               var $s = $('#'+id);
+               if($s.val()) $s.addClass('is-active'); else $s.removeClass('is-active');
+            });
+
+            // Kitle sayısını mevcut #kampanya_katilimci_sayisi'ndan ayna olarak göster
+            var sayi = parseInt($('#kampanya_katilimci_sayisi').text(), 10) || 0;
+            $('#rkpKitleSayi').text(sayi);
+         }
+         // Selectler değiştiğinde özet güncellensin
+         $(document).on('change','#gelenGelmeyenMusteri, #musteriGruplari, #kampanyaKategori, #hizmetUrunPaket, #kampanyaTuru', rkpFiltreOzeti);
+
+         // Chip × ile filtre kaldır
+         $(document).on('click','.rkp-chip-x',function(){
+            var t = $(this).data('clear');
+            if(t === 'katilimciTuru'){
+               $('#katilimciTuru').val('').trigger('change');
+            } else if(t){
+               $('#'+t).val('').trigger('change');
+            }
+         });
+
+         // Katılımcı sayısı değiştiğinde özetteki kitle sayısı da güncellensin
+         var elKS = document.getElementById('kampanya_katilimci_sayisi');
+         if(elKS && window.MutationObserver){
+            new MutationObserver(rkpFiltreOzeti).observe(elKS, {childList:true, subtree:true, characterData:true});
+         }
       })();
       </script>
    </div>
