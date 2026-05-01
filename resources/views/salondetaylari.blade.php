@@ -308,6 +308,9 @@
                      <span>ŞİMDİ ÇEVİR</span>
                   </button>
                @endif
+               @if(\Auth::check())
+                  <a href="{{ url('/sadakat') }}" style="display:block; text-align:center; margin-top:8px; font-size:12px; color:rgba(255,255,255,.85); text-decoration:underline;">⭐ Sadakat Programım — Puan & Kuponlarım</a>
+               @endif
                <button type="button" class="cark-popup__skip" data-cark-close>Belki daha sonra</button>
             </div>
          </div>

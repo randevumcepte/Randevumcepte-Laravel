@@ -708,6 +708,67 @@ class CarkifelekMusteriController extends Controller
     }
 
     /**
+     * Müşteri sadakat hub'ı — puan, tier, ödüller ve kuponlar tek sayfada.
+     * Sephora/Migros tarzı modern tasarım.
+     */
+    public function sadakatHub(Request $request)
+    {
+        if (!Auth::check()) {
+            return redirect('/login')->with('error', 'Sadakat sayfasına erişmek için giriş yapın.');
+        }
+        $this->tablolariGaranti();
+        $userId = Auth::id();
+
+        $puanKayitlari = SalonPuanlar::where('user_id', $userId)
+            ->where('puan', '>', 0)
+            ->get();
+
+        // Aktif salon: query veya ilk salon
+        $aktifSalonId = (int) $request->input('salon');
+        if (!$aktifSalonId && $puanKayitlari->isNotEmpty()) {
+            $aktifSalonId = (int) $puanKayitlari->first()->salon_id;
+        }
+
+        $salon = $aktifSalonId ? Salonlar::find($aktifSalonId) : null;
+        $puanBakiyesi = 0;
+        $odulSeviyeleri = collect();
+        if ($salon) {
+            $puanBakiyesi = (float) (SalonPuanlar::where('user_id', $userId)
+                ->where('salon_id', $aktifSalonId)->value('puan') ?: 0);
+            $odulSeviyeleri = SalonPuanOdulleri::where('salon_id', $aktifSalonId)
+                ->where('aktif', 1)
+                ->orderBy('puan_esigi')
+                ->get();
+        }
+
+        $tumSalonlar = Salonlar::whereIn('id', $puanKayitlari->pluck('salon_id'))
+            ->get()->keyBy('id');
+
+        $kuponlar = CarkifelekOdulleri::where('user_id', $userId)
+            ->orderByDesc('created_at')
+            ->get();
+
+        // Tier hesapla (toplam puan üzerinden)
+        $toplamPuan = (int) $puanKayitlari->sum('puan');
+        $tier = ['ad' => 'Bronz',  'renk' => '#CD7F32', 'min' => 0,    'sonraki' => 'Gümüş', 'sonrakiPuan' => 500];
+        if ($toplamPuan >= 2000) $tier = ['ad' => 'Elmas', 'renk' => '#B9F2FF', 'min' => 2000, 'sonraki' => null,    'sonrakiPuan' => null];
+        elseif ($toplamPuan >= 1000) $tier = ['ad' => 'Altın', 'renk' => '#FFD700', 'min' => 1000, 'sonraki' => 'Elmas', 'sonrakiPuan' => 2000];
+        elseif ($toplamPuan >= 500)  $tier = ['ad' => 'Gümüş', 'renk' => '#C0C0C0', 'min' => 500,  'sonraki' => 'Altın', 'sonrakiPuan' => 1000];
+
+        return view('carkifelek.sadakat_hub', array_merge($this->layoutData(), [
+            'salon'           => $salon,
+            'aktifSalonId'    => $aktifSalonId,
+            'puanBakiyesi'    => $puanBakiyesi,
+            'odulSeviyeleri'  => $odulSeviyeleri,
+            'puanKayitlari'   => $puanKayitlari,
+            'tumSalonlar'     => $tumSalonlar,
+            'kuponlar'        => $kuponlar,
+            'toplamPuan'      => $toplamPuan,
+            'tier'            => $tier,
+        ]));
+    }
+
+    /**
      * Müşterinin kazandığı (kullanılmamış) ödüller.
      */
     public function odullerim()

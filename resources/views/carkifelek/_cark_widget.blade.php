@@ -187,9 +187,7 @@
                 Çevirme hakkınız bulunmuyor. Salonumuzda randevu alıp onaylatırsanız hak kazanırsınız.
             @endif
             <br>
-            <a href="{{ route('cark.odullerim') }}" class="odullerim-link">🎁 Kazandığım Kuponlar</a>
-            &nbsp;&nbsp;·&nbsp;&nbsp;
-            <a href="{{ route('cark.puanodullerim') }}" class="odullerim-link">⭐ Puan Ödüllerim</a>
+            <a href="{{ route('cark.sadakat') }}" class="odullerim-link">⭐ Sadakat Programım — Puanlarım & Kuponlarım</a>
         </div>
     </div>
 </div>

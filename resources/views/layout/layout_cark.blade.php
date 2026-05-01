@@ -51,8 +51,7 @@
         <a href="/" class="ck-nav-brand">🎡 randevumcepte</a>
         <div class="ck-nav-links">
             @if(Auth::check())
-                <a href="{{ route('cark.odullerim') }}">🎁 Kuponlarım</a>
-                <a href="{{ route('cark.puanodullerim') }}">⭐ Puanlarım</a>
+                <a href="{{ route('cark.sadakat') }}">⭐ Sadakat Programım</a>
             @else
                 <a href="/login">Giriş</a>
             @endif

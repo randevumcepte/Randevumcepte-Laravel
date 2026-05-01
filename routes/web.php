@@ -38,6 +38,9 @@ Route::group(['middleware' => ['auth']],function(){
 	/* Puan ödülleri — müşteri tarafı */
 	Route::get('/puanodullerim/{salonId?}', 'CarkifelekMusteriController@puanOdullerim')->name('cark.puanodullerim');
 	Route::post('/puanodultalep',           'CarkifelekMusteriController@puanOdulTalep')->name('cark.puanodul.talep');
+
+	/* Sadakat hub — birleşik puan + kupon sayfası */
+	Route::get('/sadakat',                  'CarkifelekMusteriController@sadakatHub')->name('cark.sadakat');
 });
 
 /* Çarkıfelek — misafir erişimi serbest; kayıt kısmı kendi içinde zorlar */
