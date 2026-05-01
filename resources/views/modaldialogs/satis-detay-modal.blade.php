@@ -2,8 +2,8 @@
          id="satisKalemleri"
          class="modal modal-top fade calendar-modal sd-modal"
          >
-         <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width:1200px;width:95%;">
-            <div class="modal-content sd-content" style="max-width:1200px; width:100%; border:none; border-radius:14px; overflow:hidden; box-shadow:0 18px 48px -16px rgba(15,23,42,.35);">
+         <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width:980px;width:94%;">
+            <div class="modal-content sd-content" style="max-width:980px; width:100%; border:none; border-radius:12px; overflow:hidden; box-shadow:0 18px 44px -14px rgba(76,29,149,.25);">
                <form id="satis_listesi">
                   <input type="hidden" name="adisyon_id">
                   <input type="hidden" id="harici_indirim_tutari" value="0">
@@ -66,17 +66,17 @@
 
                            {{-- Sol: Tutarlar --}}
                            <div class="sd-summary-amounts">
-                              <div class="sd-amount-block">
-                                 <div class="sd-amount-label">Toplam Tutar</div>
-                                 <div class="sd-amount-val total"><span id="adisyon_toplam_tutar"></span> <span class="sd-tl">₺</span></div>
+                              <div class="sd-amount-block total">
+                                 <div class="sd-amount-label"><i class="fa fa-receipt"></i> Toplam</div>
+                                 <div class="sd-amount-val total"><span id="adisyon_toplam_tutar"></span><span class="sd-tl"> ₺</span></div>
                               </div>
-                              <div class="sd-amount-block">
-                                 <div class="sd-amount-label">Ödenen Tutar</div>
-                                 <div class="sd-amount-val paid"><span id="adisyon_odenen_tutar"></span> <span class="sd-tl">₺</span></div>
+                              <div class="sd-amount-block paid">
+                                 <div class="sd-amount-label"><i class="fa fa-check-circle"></i> Ödenen</div>
+                                 <div class="sd-amount-val paid"><span id="adisyon_odenen_tutar"></span><span class="sd-tl"> ₺</span></div>
                               </div>
-                              <div class="sd-amount-block">
-                                 <div class="sd-amount-label">Kalan Tutar</div>
-                                 <div class="sd-amount-val remaining"><span id="tahsil_edilecek_kalan_tutar"></span> <span class="sd-tl">₺</span></div>
+                              <div class="sd-amount-block remaining">
+                                 <div class="sd-amount-label"><i class="fa fa-exclamation-circle"></i> Kalan</div>
+                                 <div class="sd-amount-val remaining"><span id="tahsil_edilecek_kalan_tutar"></span><span class="sd-tl"> ₺</span></div>
                               </div>
                            </div>
 
@@ -122,89 +122,94 @@
          {{-- ===== MODERN STYLES ===== --}}
          <style>
             #satisKalemleri.sd-modal *{ box-sizing:border-box; }
-            #satisKalemleri .sd-content{ font-family:'Inter','Segoe UI',sans-serif; background:#f8fafc; }
+            #satisKalemleri .sd-content{ font-family:'Inter','Segoe UI',sans-serif; background:#f8f7fc; }
 
-            /* Header */
+            /* Header — soft purple gradient */
             #satisKalemleri .sd-header{
-               display:flex; align-items:center; gap:18px; flex-wrap:wrap;
-               background:#fff; padding:16px 22px; border-bottom:1px solid #e5e7eb;
+               display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+               background:linear-gradient(135deg,#f5f0fb 0%,#fbf7ff 60%,#fff 100%);
+               padding:10px 16px; border-bottom:1px solid #ede5f7;
             }
             #satisKalemleri .sd-title{
-               display:flex; align-items:center; gap:10px;
-               font-size:20px; font-weight:700; color:#0f172a;
+               display:flex; align-items:center; gap:7px;
+               font-size:16px; font-weight:700; color:#5C008E;
             }
-            #satisKalemleri .sd-title i{ color:#7B2FB8; font-size:22px; }
+            #satisKalemleri .sd-title i{ color:#7B2FB8; font-size:17px; }
             #satisKalemleri .sd-tarih-edit{
-               display:inline-flex; align-items:center; gap:8px;
-               font-size:14px; color:#475569;
-               background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px;
-               padding:6px 12px;
+               display:inline-flex; align-items:center; gap:6px;
+               font-size:13px; color:#475569;
+               background:#fff; border:1px solid #e9d5ff; border-radius:7px;
+               padding:4px 10px; box-shadow:0 1px 3px rgba(123,47,184,.06);
             }
-            #satisKalemleri .sd-tarih-edit i.fa-calendar{ color:#7B2FB8; }
-            #satisKalemleri .sd-tarih-edit .sd-tarih-label{ color:#64748b; font-size:13px; }
-            #satisKalemleri .sd-tarih-edit strong{ color:#0f172a; font-size:14.5px; font-weight:700; }
+            #satisKalemleri .sd-tarih-edit i.fa-calendar{ color:#7B2FB8; font-size:12px; }
+            #satisKalemleri .sd-tarih-edit .sd-tarih-label{ color:#64748b; font-size:12px; }
+            #satisKalemleri .sd-tarih-edit strong{ color:#5C008E; font-size:13px; font-weight:700; }
             #satisKalemleri .sd-tarih-input{
-               height:30px !important; width:140px !important; padding:0 8px !important;
-               border:1px solid #cbd5e1 !important; border-radius:6px !important;
-               font-size:13px !important; margin:0 !important;
+               height:26px !important; width:120px !important; padding:0 7px !important;
+               border:1px solid #d8b4fe !important; border-radius:5px !important;
+               font-size:12px !important; margin:0 !important;
             }
             #satisKalemleri .sd-mini-btn{
-               background:#fff; border:1px solid #cbd5e1; color:#475569;
-               padding:5px 9px; border-radius:6px; font-size:12px; line-height:1;
-               cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+               background:#fff; border:1px solid #d8b4fe; color:#7B2FB8;
+               padding:3px 7px; border-radius:5px; font-size:11px; line-height:1;
+               cursor:pointer; display:inline-flex; align-items:center; gap:3px;
+               transition:all .12s ease;
             }
-            #satisKalemleri .sd-mini-btn:hover{ background:#f1f5f9; color:#0f172a; }
+            #satisKalemleri .sd-mini-btn:hover{ background:#f3e8ff; }
             #satisKalemleri .sd-mini-btn.sd-mini-ok{ background:#10b981; border-color:#10b981; color:#fff; }
             #satisKalemleri .sd-mini-btn.sd-mini-ok:hover{ background:#059669; }
             #satisKalemleri .sd-close{
                margin-left:auto; background:transparent; border:none;
-               font-size:28px; line-height:1; color:#94a3b8; cursor:pointer; padding:0 6px;
+               font-size:24px; line-height:1; color:#94a3b8; cursor:pointer; padding:0 4px;
             }
             #satisKalemleri .sd-close:hover{ color:#dc2626; }
 
             /* Body */
-            #satisKalemleri .sd-body{ padding:18px 22px; }
+            #satisKalemleri .sd-body{ padding:12px 16px; }
 
-            /* Add buttons */
+            /* Add buttons — filled & colorful */
             #satisKalemleri .sd-add-buttons{
-               display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;
+               display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;
             }
             #satisKalemleri .sd-add-btn{
-               padding:8px 14px; font-size:13px; font-weight:600; border-radius:8px;
-               border:1px solid; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
-               transition:all .12s ease; background:#fff;
+               padding:5px 11px; font-size:12px; font-weight:600; border-radius:6px;
+               border:1px solid; cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+               transition:all .12s ease;
             }
-            #satisKalemleri .sd-add-btn.hizmet{ border-color:#3b82f6; color:#1d4ed8; }
-            #satisKalemleri .sd-add-btn.hizmet:hover{ background:#3b82f6; color:#fff; }
-            #satisKalemleri .sd-add-btn.urun{ border-color:#ef4444; color:#b91c1c; }
-            #satisKalemleri .sd-add-btn.urun:hover{ background:#ef4444; color:#fff; }
-            #satisKalemleri .sd-add-btn.paket{ border-color:#8b5cf6; color:#6d28d9; }
-            #satisKalemleri .sd-add-btn.paket:hover{ background:#8b5cf6; color:#fff; }
+            #satisKalemleri .sd-add-btn.hizmet{ background:#eff6ff; border-color:#bfdbfe; color:#1d4ed8; }
+            #satisKalemleri .sd-add-btn.hizmet:hover{ background:#3b82f6; border-color:#3b82f6; color:#fff; transform:translateY(-1px); }
+            #satisKalemleri .sd-add-btn.urun{ background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
+            #satisKalemleri .sd-add-btn.urun:hover{ background:#ef4444; border-color:#ef4444; color:#fff; transform:translateY(-1px); }
+            #satisKalemleri .sd-add-btn.paket{ background:#faf5ff; border-color:#e9d5ff; color:#6d28d9; }
+            #satisKalemleri .sd-add-btn.paket:hover{ background:#8b5cf6; border-color:#8b5cf6; color:#fff; transform:translateY(-1px); }
 
             /* Section card */
             #satisKalemleri .sd-section{
-               background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-               padding:12px 14px; margin-bottom:14px;
-               box-shadow:0 2px 8px -4px rgba(15,23,42,.06);
+               background:#fff; border:1px solid #ede5f7; border-radius:10px;
+               padding:8px 10px; margin-bottom:10px;
+               box-shadow:0 2px 6px -3px rgba(76,29,149,.08);
             }
             #satisKalemleri .sd-row-head{
                display:grid; grid-template-columns: 1.6fr 1fr 1fr 1.1fr;
-               gap:10px; padding:6px 10px; font-size:11.5px; font-weight:700;
-               color:#64748b; text-transform:uppercase; letter-spacing:.4px;
-               border-bottom:1px solid #f1f5f9; margin-bottom:6px;
+               gap:8px; padding:4px 8px; font-size:10.5px; font-weight:700;
+               color:#7B2FB8; text-transform:uppercase; letter-spacing:.5px;
+               border-bottom:1px solid #f3e8ff; margin-bottom:5px;
             }
             #satisKalemleri .sd-row-head .sd-col-amount{ text-align:right; }
-            #satisKalemleri .sd-items{ display:flex; flex-direction:column; gap:5px; }
+            #satisKalemleri .sd-items{ display:flex; flex-direction:column; gap:4px; }
 
-            /* Server-rendered item rows: override the bootstrap layout to look modern */
+            /* Server-rendered item rows: override bootstrap to a compact, modern grid */
             #satisKalemleri .sd-items .tahsilat_kalemleri_listesi{
                display:grid !important; grid-template-columns: 1.6fr 1fr 1fr 1.1fr !important;
-               gap:10px !important; align-items:center !important;
-               background:#f8fafc !important; border-left:3px solid #7B2FB8 !important;
-               border-radius:8px !important; padding:9px 12px !important;
-               margin:0 !important; font-size:13px !important;
+               gap:8px !important; align-items:center !important;
+               background:linear-gradient(90deg,#faf5ff 0%,#fdfaff 100%) !important;
+               border-left:3px solid #7B2FB8 !important;
+               border-radius:6px !important; padding:6px 10px !important;
+               margin:0 !important; font-size:12.5px !important;
             }
-            #satisKalemleri .sd-items .tahsilat_kalemleri_listesi:hover{ background:#f1f5f9 !important; }
+            #satisKalemleri .sd-items .tahsilat_kalemleri_listesi:hover{
+               background:linear-gradient(90deg,#f3e8ff 0%,#faf5ff 100%) !important;
+            }
             #satisKalemleri .sd-items .tahsilat_kalemleri_listesi > div{
                padding:0 !important; max-width:none !important; flex:none !important;
             }
@@ -212,59 +217,73 @@
                font-weight:600; color:#0f172a;
             }
             #satisKalemleri .sd-items .tahsilat_kalemleri_listesi > div:nth-child(2){
-               color:#64748b; font-size:12.5px;
+               color:#64748b; font-size:12px;
             }
             #satisKalemleri .sd-items .tahsilat_kalemleri_listesi input[type="tel"]{
-               height:30px !important; padding:0 8px !important;
-               border:1px solid #cbd5e1 !important; border-radius:6px !important;
-               font-size:13px !important;
+               height:26px !important; padding:0 7px !important;
+               border:1px solid #d8b4fe !important; border-radius:5px !important;
+               font-size:12px !important; background:#fff !important;
             }
             #satisKalemleri .sd-items .tahsilat_kalemleri_listesi input.tahsilat_kalemleri{
-               text-align:right !important; font-weight:700 !important; color:#0f172a !important;
+               text-align:right !important; font-weight:700 !important; color:#5C008E !important;
             }
 
-            /* Summary card */
+            /* Summary card — colorized */
             #satisKalemleri .sd-summary{
-               display:grid; grid-template-columns: 1.1fr 1fr; gap:0;
-               background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-               overflow:hidden; box-shadow:0 4px 14px -6px rgba(15,23,42,.1);
+               display:grid; grid-template-columns: 1fr 1.1fr; gap:0;
+               background:#fff; border:1px solid #ede5f7; border-radius:10px;
+               overflow:hidden; box-shadow:0 4px 12px -5px rgba(76,29,149,.12);
                padding:0 !important; margin-bottom:0 !important;
             }
             #satisKalemleri .sd-summary-amounts{
-               padding:18px 22px; background:linear-gradient(135deg,#fafbff 0%,#fff 100%);
-               border-right:1px solid #f1f5f9;
-               display:flex; flex-direction:column; gap:10px; justify-content:center;
+               padding:10px 14px;
+               border-right:1px solid #f3e8ff;
+               display:flex; flex-direction:column; gap:4px; justify-content:center;
             }
-            #satisKalemleri .sd-amount-block{ display:flex; align-items:baseline; justify-content:space-between; gap:14px; }
+            #satisKalemleri .sd-amount-block{
+               display:flex; align-items:center; justify-content:space-between; gap:10px;
+               padding:6px 10px; border-radius:7px;
+            }
+            #satisKalemleri .sd-amount-block.total{ background:linear-gradient(90deg,#f5f0fb 0%,#fff 100%); }
+            #satisKalemleri .sd-amount-block.paid{ background:linear-gradient(90deg,#ecfdf5 0%,#fff 100%); }
+            #satisKalemleri .sd-amount-block.remaining{ background:linear-gradient(90deg,#fef2f2 0%,#fff 100%); }
             #satisKalemleri .sd-amount-label{
-               font-size:11.5px; font-weight:700; color:#64748b;
+               font-size:10.5px; font-weight:700; color:#64748b;
                text-transform:uppercase; letter-spacing:.5px;
+               display:flex; align-items:center; gap:5px;
             }
-            #satisKalemleri .sd-amount-val{ font-size:24px; font-weight:800; line-height:1.1; letter-spacing:-.3px; }
-            #satisKalemleri .sd-amount-val.total{ color:#0f172a; }
+            #satisKalemleri .sd-amount-label i{ font-size:11px; }
+            #satisKalemleri .sd-amount-block.total .sd-amount-label i{ color:#7B2FB8; }
+            #satisKalemleri .sd-amount-block.paid .sd-amount-label i{ color:#059669; }
+            #satisKalemleri .sd-amount-block.remaining .sd-amount-label i{ color:#dc2626; }
+            #satisKalemleri .sd-amount-val{ font-size:18px; font-weight:800; line-height:1; letter-spacing:-.3px; white-space:nowrap; }
+            #satisKalemleri .sd-amount-val.total{ color:#5C008E; }
             #satisKalemleri .sd-amount-val.paid{ color:#059669; }
             #satisKalemleri .sd-amount-val.remaining{ color:#dc2626; }
-            #satisKalemleri .sd-amount-val .sd-tl{ font-size:14px; font-weight:600; opacity:.6; margin-left:2px; }
+            #satisKalemleri .sd-amount-val .sd-tl{ font-size:12px; font-weight:600; opacity:.55; margin-left:1px; }
 
-            #satisKalemleri .sd-summary-history{ padding:14px 18px; background:#fafbff; }
-            #satisKalemleri .sd-summary-table{ margin:0; font-size:13px; }
-            #satisKalemleri .sd-summary-table td{ border:none; padding:6px 4px; vertical-align:middle; }
+            #satisKalemleri .sd-summary-history{ padding:10px 14px; background:linear-gradient(135deg,#fbf7ff 0%,#fff 100%); }
+            #satisKalemleri .sd-summary-table{ margin:0; font-size:12.5px; }
+            #satisKalemleri .sd-summary-table td{ border:none; padding:4px 4px; vertical-align:middle; }
             #satisKalemleri .sd-summary-table tbody tr td:first-child{ color:#0f172a; }
+            #satisKalemleri #tahsilat_listesi_duzenleme tr:first-child td{
+               padding-bottom:6px !important;
+            }
             #satisKalemleri #tahsilat_listesi_duzenleme tr td button[name="tahsilat_adisyondan_sil"]{
                background:transparent !important; border:none !important;
-               color:#dc2626 !important; padding:2px 6px !important;
-               font-size:14px !important; line-height:1 !important;
+               color:#dc2626 !important; padding:2px 5px !important;
+               font-size:13px !important; line-height:1 !important;
             }
             #satisKalemleri #tahsilat_listesi_duzenleme tr td button[name="tahsilat_adisyondan_sil"]:hover{ color:#b91c1c !important; }
 
             /* Footer */
             #satisKalemleri .sd-footer{
-               background:#fff; border-top:1px solid #e5e7eb;
-               padding:12px 22px; display:flex; gap:10px; justify-content:flex-end;
+               background:#fff; border-top:1px solid #ede5f7;
+               padding:8px 16px; display:flex; gap:8px; justify-content:flex-end;
             }
             #satisKalemleri .sd-btn{
-               padding:10px 22px; font-size:14px; font-weight:700; border-radius:9px;
-               border:none; cursor:pointer; display:inline-flex; align-items:center; gap:7px;
+               padding:7px 16px; font-size:13px; font-weight:700; border-radius:7px;
+               border:none; cursor:pointer; display:inline-flex; align-items:center; gap:5px;
                transition:transform .12s ease, box-shadow .12s ease;
             }
             #satisKalemleri .sd-btn-cancel{
@@ -273,24 +292,24 @@
             #satisKalemleri .sd-btn-cancel:hover{ background:#e2e8f0; color:#0f172a; }
             #satisKalemleri .sd-btn-save{
                background:linear-gradient(135deg,#10b981 0%,#059669 100%); color:#fff;
-               box-shadow:0 6px 14px -4px rgba(16,185,129,.45);
+               box-shadow:0 4px 11px -3px rgba(16,185,129,.45);
             }
-            #satisKalemleri .sd-btn-save:hover{ transform:translateY(-1px); box-shadow:0 10px 18px -4px rgba(16,185,129,.55); color:#fff; }
+            #satisKalemleri .sd-btn-save:hover{ transform:translateY(-1px); box-shadow:0 7px 14px -3px rgba(16,185,129,.55); color:#fff; }
 
             /* Responsive */
             @media (max-width: 900px){
                #satisKalemleri .sd-summary{ grid-template-columns:1fr; }
-               #satisKalemleri .sd-summary-amounts{ border-right:none; border-bottom:1px solid #f1f5f9; }
+               #satisKalemleri .sd-summary-amounts{ border-right:none; border-bottom:1px solid #f3e8ff; }
                #satisKalemleri .sd-row-head, #satisKalemleri .sd-items .tahsilat_kalemleri_listesi{
                   grid-template-columns:1.4fr 1fr 1fr 1fr !important;
                }
             }
             @media (max-width: 640px){
-               #satisKalemleri .sd-header{ padding:12px 14px; gap:10px; }
-               #satisKalemleri .sd-body{ padding:14px; }
+               #satisKalemleri .sd-header{ padding:8px 12px; gap:8px; }
+               #satisKalemleri .sd-body{ padding:10px 12px; }
                #satisKalemleri .sd-row-head{ display:none; }
                #satisKalemleri .sd-items .tahsilat_kalemleri_listesi{
-                  grid-template-columns:1fr !important; gap:6px !important;
+                  grid-template-columns:1fr !important; gap:5px !important;
                }
             }
          </style>
