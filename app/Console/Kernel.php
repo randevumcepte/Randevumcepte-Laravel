@@ -26,6 +26,7 @@ class Kernel extends ConsoleKernel
         Commands\AlacakHatirlatmaAramasiYap::class,
         Commands\TekrarAramaHatirlat::class,
         Commands\PlanlaImport::class,
+        Commands\DrklinikImport::class,
     ];
 
     /**
