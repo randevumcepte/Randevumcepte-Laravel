@@ -55,6 +55,8 @@
 
 .wpkt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 @media (max-width: 980px) { .wpkt-grid { grid-template-columns: 1fr; } }
+.wpkt-single-wrap { display: flex; justify-content: center; }
+.wpkt-single-wrap .wpkt-card { max-width: 480px; width: 100%; }
 
 .wpkt-card { background: #fff; border-radius: 16px; padding: 28px 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 2px solid transparent; position: relative; transition: all 0.3s; display: flex; flex-direction: column; }
 .wpkt-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
@@ -350,8 +352,8 @@
 
 <div class="wpkt-wrapper">
     <div class="wpkt-header">
-        <h2>WhatsApp Paketleri</h2>
-        <p>Müşterilerinizi randevudan haberdar edin, no-show'u azaltın. Size uygun paketi seçin.</p>
+        <h2>WhatsApp Randevu Hatırlatma Paketi</h2>
+        <p>WhatsApp üzerinden otomatik randevu hatırlatması gönderin, no-show'u azaltın, müşteri memnuniyetini artırın.</p>
         <div id="wpktCurrentBadge" class="wpkt-current" style="display:none;">Mevcut paket: <b id="wpktCurrentName">—</b></div>
     </div>
 
@@ -360,61 +362,24 @@
         <button id="wpktYillik" onclick="wpktSetPeriyot('yillik')">Yıllık <span class="wpkt-discount">2 AY BEDAVA</span></button>
     </div>
 
-    <div class="wpkt-grid">
-        <div class="wpkt-card" id="wpktCardBaslangic">
-            <div class="wpkt-tier-name">Başlangıç</div>
-            <div class="wpkt-tier-desc">Sadece SMS hatırlatma kullanmak isteyen küçük işletmeler için</div>
-            <div class="wpkt-price-block">
-                <div class="wpkt-price">Ücretsiz</div>
-                <div class="wpkt-price-aylik">Ek ücret yok</div>
-            </div>
-            <ul class="wpkt-features">
-                <li>SMS ile randevu hatırlatma</li>
-                <li>Mevcut SMS bakiyenizden düşülür</li>
-                <li>Temel raporlama</li>
-                <li class="no">WhatsApp gönderimi</li>
-                <li class="no">Detaylı istatistik</li>
-            </ul>
-            <button class="wpkt-btn wpkt-btn-current" id="wpktBtnBaslangic">Mevcut Paket</button>
-        </div>
-
+    <div class="wpkt-single-wrap">
         <div class="wpkt-card popular" id="wpktCardPro">
-            <div class="wpkt-popular-tag">⭐ EN POPÜLER</div>
-            <div class="wpkt-tier-name">Pro</div>
-            <div class="wpkt-tier-desc">WhatsApp ile profesyonel hatırlatma — çoğu salon için ideal</div>
+            <div class="wpkt-tier-name">WhatsApp Randevu Hatırlatma</div>
+            <div class="wpkt-tier-desc">Müşterilerinizin randevularını otomatik WhatsApp mesajıyla hatırlatın</div>
             <div class="wpkt-price-block">
                 <div class="wpkt-price" id="wpktProFiyat">149 <small>TL/ay</small></div>
                 <div class="wpkt-price-aylik" id="wpktProAylikInfo"></div>
             </div>
             <ul class="wpkt-features">
-                <li><b>Başlangıç paketinin tüm özellikleri</b></li>
-                <li>WhatsApp ile randevu hatırlatma</li>
-                <li>Otomatik SMS fallback</li>
-                <li>Mesaj geçmişi ve alıcı listesi</li>
-                <li>Detaylı istatistik paneli</li>
-                <li>İptal/güncelleme bildirimleri</li>
-                <li class="no">Toplu kampanya gönderimi</li>
+                <li><b>1 gün öncesi</b> randevu hatırlatma (12:00-17:00)</li>
+                <li><b>Yaklaşan randevu</b> hatırlatma (X saat öncesi)</li>
+                <li>Randevu iptali ve güncelleme bildirimi</li>
+                <li>Otomatik <b>SMS yedek</b> (WhatsApp ulaşmazsa)</li>
+                <li>Detaylı mesaj geçmişi ve alıcı listesi</li>
+                <li>Günlük / haftalık / aylık istatistik paneli</li>
+                <li>Müşteri başına gönderim raporu</li>
             </ul>
-            <button class="wpkt-btn wpkt-btn-primary" onclick="wpktTalepAc('pro')">Pro'ya Yükselt</button>
-        </div>
-
-        <div class="wpkt-card" id="wpktCardPremium">
-            <div class="wpkt-tier-name">Premium</div>
-            <div class="wpkt-tier-desc">Yoğun salonlar ve kurumsal kullanım için sınırsız özellikler</div>
-            <div class="wpkt-price-block">
-                <div class="wpkt-price" id="wpktPremiumFiyat">299 <small>TL/ay</small></div>
-                <div class="wpkt-price-aylik" id="wpktPremiumAylikInfo"></div>
-            </div>
-            <ul class="wpkt-features">
-                <li><b>Pro paketinin tüm özellikleri</b></li>
-                <li>Sınırsız mesaj gönderimi</li>
-                <li>Toplu kampanya/duyuru gönderimi</li>
-                <li>Resmi WhatsApp Business API</li>
-                <li>Öncelikli teknik destek</li>
-                <li>Excel detay raporları</li>
-                <li>Özel mesaj şablonları</li>
-            </ul>
-            <button class="wpkt-btn wpkt-btn-outline" onclick="wpktTalepAc('premium')">Premium'a Yükselt</button>
+            <button class="wpkt-btn wpkt-btn-primary" onclick="wpktTalepAc('pro')">Hemen Başla</button>
         </div>
     </div>
 </div>
@@ -661,8 +626,7 @@
     var wpktSecilenPaket = null;
     var wpktPeriyot = 'aylik';
     var WPKT_FIYAT = {
-        pro: { aylik: 149, yillik: 1499 },
-        premium: { aylik: 299, yillik: 2999 }
+        pro: { aylik: 149, yillik: 1499 }
     };
 
     window.wpktSetPeriyot = function(p){
@@ -674,24 +638,22 @@
 
     function guncelleFiyatlar(){
         var p = wpktPeriyot;
+        var proEl = document.getElementById('wpktProFiyat');
+        var proInfo = document.getElementById('wpktProAylikInfo');
+        if (!proEl) return;
         if (p === 'aylik') {
-            document.getElementById('wpktProFiyat').innerHTML = WPKT_FIYAT.pro.aylik + ' <small>TL/ay</small>';
-            document.getElementById('wpktPremiumFiyat').innerHTML = WPKT_FIYAT.premium.aylik + ' <small>TL/ay</small>';
-            document.getElementById('wpktProAylikInfo').textContent = '';
-            document.getElementById('wpktPremiumAylikInfo').textContent = '';
+            proEl.innerHTML = WPKT_FIYAT.pro.aylik + ' <small>TL/ay</small>';
+            proInfo.textContent = '';
         } else {
             var proAylikEsdeger = (WPKT_FIYAT.pro.yillik / 12).toFixed(0);
-            var premAylikEsdeger = (WPKT_FIYAT.premium.yillik / 12).toFixed(0);
-            document.getElementById('wpktProFiyat').innerHTML = WPKT_FIYAT.pro.yillik + ' <small>TL/yıl</small>';
-            document.getElementById('wpktPremiumFiyat').innerHTML = WPKT_FIYAT.premium.yillik + ' <small>TL/yıl</small>';
-            document.getElementById('wpktProAylikInfo').innerHTML = '≈ ' + proAylikEsdeger + ' TL/ay <span style="color:#25D366;font-weight:600;">— 2 ay bedava</span>';
-            document.getElementById('wpktPremiumAylikInfo').innerHTML = '≈ ' + premAylikEsdeger + ' TL/ay <span style="color:#25D366;font-weight:600;">— 2 ay bedava</span>';
+            proEl.innerHTML = WPKT_FIYAT.pro.yillik + ' <small>TL/yıl</small>';
+            proInfo.innerHTML = '≈ ' + proAylikEsdeger + ' TL/ay <span style="color:#25D366;font-weight:600;">— 2 ay bedava</span>';
         }
     }
 
     window.wpktTalepAc = function(paket){
         wpktSecilenPaket = paket;
-        var paketAd = paket === 'pro' ? 'Pro' : 'Premium';
+        var paketAd = 'WhatsApp Randevu Hatırlatma';
         var fiyat = WPKT_FIYAT[paket][wpktPeriyot];
         var birim = wpktPeriyot === 'aylik' ? 'TL/ay' : 'TL/yıl';
         document.getElementById('wpktTalepBaslik').textContent = paketAd + ' Paket — ' + fiyat + ' ' + birim;
@@ -735,7 +697,7 @@
             .then(function(r){ return r.json(); }).then(function(d){
                 if (d.error) return;
                 var paket = d.paket || 'baslangic';
-                var labels = { baslangic: 'Başlangıç (Ücretsiz)', pro: 'Pro', premium: 'Premium' };
+                var labels = { baslangic: 'Henüz aktif değil', pro: 'WhatsApp Hatırlatma', premium: 'WhatsApp Hatırlatma' };
 
                 // Deneme bandı (varsa) — başlığın hemen üstüne
                 if (d.deneme && d.bitis) {
@@ -764,26 +726,25 @@
                 document.getElementById('wpktCurrentName').textContent = ad;
                 document.getElementById('wpktCurrentBadge').style.display = 'inline-block';
 
-                // Kart vurgusu
-                ['baslangic','pro','premium'].forEach(function(p){
-                    var card = document.getElementById('wpktCard' + p.charAt(0).toUpperCase() + p.slice(1));
-                    if (!card) return;
-                    if (p === paket) {
+                // Tek paket olduğu için sadece pro/premium aktifse Pro kartını işaretle
+                if (paket === 'pro' || paket === 'premium') {
+                    var card = document.getElementById('wpktCardPro');
+                    if (card) {
                         card.classList.add('current');
                         if (!card.querySelector('.wpkt-current-tag')) {
                             var tag = document.createElement('div');
                             tag.className = 'wpkt-current-tag';
-                            tag.textContent = d.deneme ? '🎁 DENEME — ' + (d.kalan_gun || 0) + ' GÜN KALDI' : '✓ MEVCUT PAKETİNİZ';
+                            tag.textContent = d.deneme ? '🎁 DENEME — ' + (d.kalan_gun || 0) + ' GÜN KALDI' : '✓ AKTİF';
                             card.insertBefore(tag, card.firstChild);
                         }
                         var btn = card.querySelector('.wpkt-btn');
                         if (btn) {
                             btn.className = 'wpkt-btn wpkt-btn-current';
-                            btn.textContent = d.deneme ? 'Deneme Aktif' : 'Mevcut Paket';
+                            btn.textContent = d.deneme ? 'Deneme Aktif' : 'Aktif Paket';
                             btn.disabled = true;
                         }
                     }
-                });
+                }
             });
     }
 

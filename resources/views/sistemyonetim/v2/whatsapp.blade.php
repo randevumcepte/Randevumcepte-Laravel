@@ -611,7 +611,7 @@
     };
 
     function renderPaketModal(salonId, salonAdi, d, body){
-        var paketLabel = { baslangic:'Başlangıç (Ücretsiz)', pro:'Pro', premium:'Premium' };
+        var paketLabel = { baslangic:'Başlangıç (Aktif Değil)', pro:'WhatsApp Hatırlatma', premium:'WhatsApp Hatırlatma' };
         var html = '';
 
         // Mevcut paket kartı
@@ -638,8 +638,8 @@
                 + '<div style="font-weight:600;color:#b67a00;margin-bottom:4px">🎁 Ücretsiz Deneme Tanımla</div>'
                 + '<div class="sy-text-muted sy-fs-12">Salon, seçtiğin paketle X gün boyunca ücretsiz kullanır. Süre dolunca Başlangıç paketine düşer (manuel iptal gerekir).</div>'
                 + '</div>';
-            html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
-                + '<select id="paketDenemePaket" class="sy-select"><option value="pro">Pro</option><option value="premium">Premium</option></select>'
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+                + '<input type="hidden" id="paketDenemePaket" value="pro">'
                 + '<input type="number" id="paketDenemeGun" value="90" min="1" max="365" class="sy-input" placeholder="Gün">'
                 + '<button class="sy-btn sy-btn-primary" id="paketDenemeBaslatBtn"><span class="mdi mdi-gift"></span> Deneme Ver</button>'
                 + '</div>'
@@ -656,7 +656,7 @@
         html += '<details style="margin-top:14px;border-top:1px solid var(--sy-border);padding-top:14px">'
             + '<summary style="cursor:pointer;font-weight:600;color:var(--sy-text-muted);font-size:13px"><span class="mdi mdi-cog"></span> Manuel Paket Ayarla (ödeme onayı sonrası)</summary>'
             + '<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-            + '<select id="paketSetPaket" class="sy-select"><option value="baslangic">Başlangıç</option><option value="pro" ' + (d.paket==='pro'?'selected':'') + '>Pro</option><option value="premium" ' + (d.paket==='premium'?'selected':'') + '>Premium</option></select>'
+            + '<select id="paketSetPaket" class="sy-select"><option value="baslangic">Başlangıç (Pasif)</option><option value="pro" ' + (d.paket==='pro' || d.paket==='premium' ?'selected':'') + '>WhatsApp Hatırlatma</option></select>'
             + '<select id="paketSetPeriyot" class="sy-select"><option value="aylik" ' + (d.periyot==='aylik'?'selected':'') + '>Aylık</option><option value="yillik" ' + (d.periyot==='yillik'?'selected':'') + '>Yıllık</option></select>'
             + '<input type="date" id="paketSetBaslangic" value="' + (d.baslangic || '') + '" class="sy-input">'
             + '<input type="date" id="paketSetBitis" value="' + (d.bitis || '') + '" class="sy-input">'
