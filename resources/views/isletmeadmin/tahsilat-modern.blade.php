@@ -229,7 +229,7 @@
          <i class="fa fa-calendar"></i> Satış:
          <strong id="tm-satis-tarihi-goster">{{$adisyonTarihGoster}}</strong>
          <button type="button" id="tm-satis-tarihi-duzenle" class="tm-mini-btn" title="Tarihi düzenle"><i class="fa fa-pencil"></i></button>
-         <input type="date" id="tm-satis-tarihi-input" value="{{$adisyonTarih}}" style="display:none;">
+         <input type="text" id="tm-satis-tarihi-input" class="geriye-yonelik" value="{{$adisyonTarih}}" autocomplete="off" placeholder="yyyy-aa-gg" style="display:none;">
          <button type="button" id="tm-satis-tarihi-kaydet" class="tm-mini-btn" style="display:none; background:#10b981; color:#fff; border-color:#10b981;"><i class="fa fa-check"></i></button>
          <button type="button" id="tm-satis-tarihi-iptal" class="tm-mini-btn" style="display:none;">×</button>
       </div>
