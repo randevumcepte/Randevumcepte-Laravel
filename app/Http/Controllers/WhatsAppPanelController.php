@@ -392,6 +392,127 @@ class WhatsAppPanelController extends Controller
     }
 
     /**
+     * Salonun mevcut paket durumu — admin için detaylı görünüm
+     */
+    public function salonPaketDetay(Request $request, $salonId)
+    {
+        $salon = Salonlar::find($salonId);
+        if (!$salon) return response()->json(['error' => 'salon-bulunamadi'], 404);
+
+        $bitis = $salon->whatsapp_paket_bitis;
+        $kalanGun = null;
+        if ($bitis) {
+            $kalanGun = max(0, \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($bitis), false));
+        }
+
+        return response()->json([
+            'salon_id' => $salon->id,
+            'salon_adi' => $salon->salon_adi,
+            'paket' => $salon->whatsapp_paket ?: 'baslangic',
+            'periyot' => $salon->whatsapp_paket_periyot,
+            'baslangic' => optional($salon->whatsapp_paket_baslangic)->format('Y-m-d'),
+            'bitis' => optional($salon->whatsapp_paket_bitis)->format('Y-m-d'),
+            'deneme' => (bool) $salon->whatsapp_paket_deneme,
+            'kalan_gun' => $kalanGun,
+        ]);
+    }
+
+    /**
+     * Salona ücretsiz deneme tanımlar (default 3 ay).
+     */
+    public function denemeBaslat(Request $request, $salonId)
+    {
+        $salon = Salonlar::find($salonId);
+        if (!$salon) return response()->json(['error' => 'salon-bulunamadi'], 404);
+
+        $paket = $request->input('paket', 'pro'); // pro | premium
+        $gun = (int) $request->input('gun', 90); // default 3 ay = 90 gün
+        $gun = max(1, min($gun, 365));
+
+        if (!in_array($paket, ['pro', 'premium'])) {
+            return response()->json(['error' => 'gecersiz-paket'], 400);
+        }
+
+        $now = \Carbon\Carbon::now();
+        $bitis = $now->copy()->addDays($gun);
+
+        $salon->whatsapp_paket = $paket;
+        $salon->whatsapp_paket_periyot = null; // deneme için periyot yok
+        $salon->whatsapp_paket_baslangic = $now;
+        $salon->whatsapp_paket_bitis = $bitis;
+        $salon->whatsapp_paket_deneme = 1;
+        $salon->save();
+
+        \Illuminate\Support\Facades\Log::info('[WA Paket Admin] deneme baslatildi', [
+            'salon_id' => $salonId, 'paket' => $paket, 'gun' => $gun, 'bitis' => $bitis->format('Y-m-d'),
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'paket' => $paket,
+            'baslangic' => $now->format('Y-m-d'),
+            'bitis' => $bitis->format('Y-m-d'),
+            'gun' => $gun,
+        ]);
+    }
+
+    /**
+     * Aktif denemeyi iptal eder, salonu Başlangıç paketine düşürür.
+     */
+    public function denemeIptal(Request $request, $salonId)
+    {
+        $salon = Salonlar::find($salonId);
+        if (!$salon) return response()->json(['error' => 'salon-bulunamadi'], 404);
+
+        $salon->whatsapp_paket = 'baslangic';
+        $salon->whatsapp_paket_periyot = null;
+        $salon->whatsapp_paket_baslangic = null;
+        $salon->whatsapp_paket_bitis = null;
+        $salon->whatsapp_paket_deneme = 0;
+        $salon->save();
+
+        \Illuminate\Support\Facades\Log::info('[WA Paket Admin] deneme iptal', ['salon_id' => $salonId]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Ücretli paket ayarlar (admin elle set ederken — ödeme onayı sonrası).
+     */
+    public function paketSet(Request $request, $salonId)
+    {
+        $salon = Salonlar::find($salonId);
+        if (!$salon) return response()->json(['error' => 'salon-bulunamadi'], 404);
+
+        $paket = $request->input('paket'); // baslangic | pro | premium
+        $periyot = $request->input('periyot'); // aylik | yillik
+        $baslangic = $request->input('baslangic'); // Y-m-d
+        $bitis = $request->input('bitis'); // Y-m-d
+
+        if (!in_array($paket, ['baslangic', 'pro', 'premium'])) {
+            return response()->json(['error' => 'gecersiz-paket'], 400);
+        }
+
+        $salon->whatsapp_paket = $paket;
+        if ($paket === 'baslangic') {
+            $salon->whatsapp_paket_periyot = null;
+            $salon->whatsapp_paket_baslangic = null;
+            $salon->whatsapp_paket_bitis = null;
+            $salon->whatsapp_paket_deneme = 0;
+        } else {
+            if ($periyot && in_array($periyot, ['aylik', 'yillik'])) $salon->whatsapp_paket_periyot = $periyot;
+            if ($baslangic) $salon->whatsapp_paket_baslangic = $baslangic;
+            if ($bitis) $salon->whatsapp_paket_bitis = $bitis;
+            $salon->whatsapp_paket_deneme = 0;
+        }
+        $salon->save();
+
+        return response()->json(['ok' => true, 'paket' => $paket, 'periyot' => $salon->whatsapp_paket_periyot,
+            'baslangic' => optional($salon->whatsapp_paket_baslangic)->format('Y-m-d'),
+            'bitis' => optional($salon->whatsapp_paket_bitis)->format('Y-m-d')]);
+    }
+
+    /**
      * Tek mesaj detayı — tam metin + zaman çizelgesi
      */
     public function mesajDetay(Request $request, $id)

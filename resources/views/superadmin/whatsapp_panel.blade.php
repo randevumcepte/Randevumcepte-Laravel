@@ -215,6 +215,16 @@
     </div>
 </div>
 
+<div class="wa-modal" id="paketModal">
+    <div class="wa-modal-content" style="max-width:560px;">
+        <div class="wa-modal-header">
+            <h4 style="margin:0;" id="paketModalBaslik">🎁 Paket Yönetimi</h4>
+            <span class="wa-modal-close" onclick="document.getElementById('paketModal').classList.remove('show')">×</span>
+        </div>
+        <div id="paketModalBody">Yükleniyor...</div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 (function(){
@@ -324,6 +334,7 @@
             var saglayiciBadge = r.saglayici === 'cloud_api'
                 ? '<span class="wa-badge" style="background:#1877F2;color:#fff;">☁️ Cloud API</span>'
                 : '<span class="wa-badge gri">📱 Baileys</span>';
+            var paketBtn = '<button class="wa-btn-mini" data-salon-id="' + r.id + '" data-salon-adi="' + escHtml(r.salon_adi) + '" data-action="paket" style="background:#fff7e6;color:#b67a00;border-color:#ffe4a3;">🎁 Paket</button>';
             return '<tr>'
                 + '<td>' + r.id + '</td>'
                 + '<td><b>' + escHtml(r.salon_adi) + '</b></td>'
@@ -335,7 +346,7 @@
                 + '<td>' + r.hafta_toplam + '</td>'
                 + '<td>' + escHtml(r.baglanti_tarihi || '—') + '</td>'
                 + '<td style="color:#dc3545;font-size:12px;">' + escHtml(r.son_hata || '') + '</td>'
-                + '<td style="white-space:nowrap;">' + yonetBtn + ' ' + aliciBtn + ' ' + loglarBtn + '</td>'
+                + '<td style="white-space:nowrap;">' + yonetBtn + ' ' + paketBtn + ' ' + aliciBtn + ' ' + loglarBtn + '</td>'
                 + '</tr>';
         }).join('');
 
@@ -353,6 +364,13 @@
         document.querySelectorAll('#salonTable button[data-action="aliciler"]').forEach(function(b){
             b.addEventListener('click', function(){
                 aciAliciModal(b.dataset.salonId, b.dataset.salonAdi);
+            });
+        });
+
+        // Paket yönetimi modali
+        document.querySelectorAll('#salonTable button[data-action="paket"]').forEach(function(b){
+            b.addEventListener('click', function(){
+                aciPaketModal(b.dataset.salonId, b.dataset.salonAdi);
             });
         });
     }
@@ -450,6 +468,137 @@
             });
             html += '</table><h5 style="margin-top:18px;">Mesaj İçeriği</h5><div style="background:#f7f9fc;padding:12px;border-radius:6px;white-space:pre-wrap;font-family:monospace;font-size:13px;">' + escHtml(l.mesaj) + '</div>';
             body.innerHTML = html;
+        });
+    }
+
+    // ───────── PAKET YÖNETİMİ (admin) ─────────
+    function aciPaketModal(salonId, salonAdi){
+        var modal = document.getElementById('paketModal');
+        var body = document.getElementById('paketModalBody');
+        document.getElementById('paketModalBaslik').textContent = '🎁 ' + salonAdi + ' — Paket Yönetimi';
+        modal.classList.add('show');
+        body.innerHTML = '<span class="wa-spinner"></span> Yükleniyor...';
+        fetchJson('/sistemyonetim/whatsapp-panel/salon/' + salonId + '/paket').then(function(d){
+            renderPaketModal(salonId, d, body);
+        });
+    }
+
+    function renderPaketModal(salonId, d, body){
+        var paketLabel = { baslangic: 'Başlangıç (Ücretsiz)', pro: 'Pro', premium: 'Premium' };
+        var html = '<div style="background:#f7f9fc;padding:14px;border-radius:8px;margin-bottom:16px;">'
+            + '<div style="font-size:13px;color:#666;margin-bottom:6px;">Mevcut Paket</div>'
+            + '<div style="font-size:18px;font-weight:700;color:#222;">' + (paketLabel[d.paket] || d.paket);
+        if (d.deneme) html += ' <span style="background:#fff7e6;color:#b67a00;font-size:11px;padding:3px 9px;border-radius:99px;font-weight:700;margin-left:6px;">🎁 DENEME</span>';
+        html += '</div>';
+        if (d.baslangic) html += '<div style="margin-top:8px;font-size:13px;color:#444;">📅 Başlangıç: <b>' + d.baslangic + '</b></div>';
+        if (d.bitis) html += '<div style="font-size:13px;color:#444;">📅 Bitiş: <b>' + d.bitis + '</b>'
+            + (d.kalan_gun !== null ? ' — <span style="color:' + (d.kalan_gun > 7 ? '#1a7f3e' : '#dc3545') + ';font-weight:700;">' + d.kalan_gun + ' gün kaldı</span>' : '')
+            + '</div>';
+        if (d.periyot) html += '<div style="font-size:13px;color:#444;">⏱️ Periyot: <b>' + (d.periyot === 'aylik' ? 'Aylık' : 'Yıllık') + '</b></div>';
+        html += '</div>';
+
+        // Aksiyonlar
+        if (d.deneme) {
+            html += '<button class="wa-btn-mini wa-btn-mini-primary" id="paketDenemeIptalBtn" style="width:100%;padding:11px;margin-bottom:10px;background:#dc3545;border-color:#dc3545;">⛔ Denemeyi İptal Et (Başlangıç paketine düşür)</button>';
+        } else {
+            html += '<div style="background:#fff7e6;border-left:4px solid #f0ad4e;padding:12px 14px;border-radius:6px;margin-bottom:14px;">'
+                + '<div style="font-weight:700;color:#b67a00;margin-bottom:4px;">🎁 Ücretsiz Deneme Tanımla</div>'
+                + '<div style="font-size:12px;color:#666;">Salonu seçtiğin paketle X gün boyunca ücretsiz kullanır. Süre dolunca Başlangıç paketine düşer.</div>'
+                + '</div>';
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">'
+                + '<select id="paketDenemePaket" style="padding:9px;border:1px solid #ced4da;border-radius:6px;"><option value="pro">Pro</option><option value="premium">Premium</option></select>'
+                + '<input type="number" id="paketDenemeGun" value="90" min="1" max="365" style="padding:9px;border:1px solid #ced4da;border-radius:6px;" placeholder="Gün">'
+                + '<button class="wa-btn-mini wa-btn-mini-primary" id="paketDenemeBaslatBtn" style="padding:9px;">Deneme Ver</button>'
+                + '</div>'
+                + '<div style="display:flex;gap:6px;font-size:12px;margin-bottom:14px;">'
+                + '<button class="wa-btn-mini" data-gun="30">30 gün</button>'
+                + '<button class="wa-btn-mini" data-gun="60">2 ay</button>'
+                + '<button class="wa-btn-mini" data-gun="90">3 ay</button>'
+                + '<button class="wa-btn-mini" data-gun="180">6 ay</button>'
+                + '<button class="wa-btn-mini" data-gun="365">1 yıl</button>'
+                + '</div>';
+        }
+
+        // Manuel paket set
+        html += '<details style="margin-top:14px;border-top:1px solid #e9ecef;padding-top:14px;">'
+            + '<summary style="cursor:pointer;font-weight:600;color:#666;font-size:13px;">⚙️ Manuel Paket Ayarla (ödeme onayı sonrası)</summary>'
+            + '<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+            + '<select id="paketSetPaket" style="padding:9px;border:1px solid #ced4da;border-radius:6px;"><option value="baslangic">Başlangıç</option><option value="pro" ' + (d.paket==='pro'?'selected':'') + '>Pro</option><option value="premium" ' + (d.paket==='premium'?'selected':'') + '>Premium</option></select>'
+            + '<select id="paketSetPeriyot" style="padding:9px;border:1px solid #ced4da;border-radius:6px;"><option value="aylik" ' + (d.periyot==='aylik'?'selected':'') + '>Aylık</option><option value="yillik" ' + (d.periyot==='yillik'?'selected':'') + '>Yıllık</option></select>'
+            + '<input type="date" id="paketSetBaslangic" value="' + (d.baslangic || '') + '" style="padding:9px;border:1px solid #ced4da;border-radius:6px;">'
+            + '<input type="date" id="paketSetBitis" value="' + (d.bitis || '') + '" style="padding:9px;border:1px solid #ced4da;border-radius:6px;">'
+            + '</div>'
+            + '<button class="wa-btn-mini wa-btn-mini-primary" id="paketSetBtn" style="width:100%;padding:9px;margin-top:8px;">Kaydet</button>'
+            + '</details>';
+
+        html += '<div id="paketSonuc" style="margin-top:12px;font-size:13px;"></div>';
+        body.innerHTML = html;
+
+        // Hızlı süre butonları
+        body.querySelectorAll('button[data-gun]').forEach(function(btn){
+            btn.addEventListener('click', function(){ document.getElementById('paketDenemeGun').value = btn.dataset.gun; });
+        });
+
+        // Deneme başlat
+        var dbBtn = document.getElementById('paketDenemeBaslatBtn');
+        if (dbBtn) dbBtn.addEventListener('click', function(){
+            denemeIstek(salonId, document.getElementById('paketDenemePaket').value, document.getElementById('paketDenemeGun').value);
+        });
+
+        // Deneme iptal
+        var diBtn = document.getElementById('paketDenemeIptalBtn');
+        if (diBtn) diBtn.addEventListener('click', function(){
+            if (!confirm('Denemeyi iptal et — salon Başlangıç paketine düşürülecek. Emin misin?')) return;
+            denemeIptalIstek(salonId);
+        });
+
+        // Manuel set
+        document.getElementById('paketSetBtn').addEventListener('click', function(){
+            paketSetIstek(salonId);
+        });
+    }
+
+    function denemeIstek(salonId, paket, gun){
+        var fd = new FormData(); fd.append('paket', paket); fd.append('gun', gun);
+        fetch('/sistemyonetim/whatsapp-panel/salon/' + salonId + '/deneme-baslat', {
+            method:'POST', credentials:'same-origin',
+            headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: fd
+        }).then(function(r){return r.json();}).then(function(d){
+            var sonuc = document.getElementById('paketSonuc');
+            if (d.ok) {
+                sonuc.innerHTML = '<span style="color:#1a7f3e;font-weight:600;">✓ Deneme başlatıldı: ' + d.baslangic + ' → ' + d.bitis + ' (' + d.gun + ' gün)</span>';
+                setTimeout(function(){ aciPaketModal(salonId, document.getElementById('paketModalBaslik').textContent.replace('🎁 ','').replace(' — Paket Yönetimi','')); yukleSalonlar(); }, 1200);
+            } else { sonuc.innerHTML = '<span style="color:#dc3545;">' + (d.error || 'Hata') + '</span>'; }
+        });
+    }
+
+    function denemeIptalIstek(salonId){
+        fetch('/sistemyonetim/whatsapp-panel/salon/' + salonId + '/deneme-iptal', {
+            method:'POST', credentials:'same-origin',
+            headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}'}
+        }).then(function(r){return r.json();}).then(function(d){
+            if (d.ok) {
+                document.getElementById('paketSonuc').innerHTML = '<span style="color:#1a7f3e;">✓ İptal edildi</span>';
+                setTimeout(function(){ document.getElementById('paketModal').classList.remove('show'); yukleSalonlar(); }, 800);
+            }
+        });
+    }
+
+    function paketSetIstek(salonId){
+        var fd = new FormData();
+        fd.append('paket', document.getElementById('paketSetPaket').value);
+        fd.append('periyot', document.getElementById('paketSetPeriyot').value);
+        fd.append('baslangic', document.getElementById('paketSetBaslangic').value);
+        fd.append('bitis', document.getElementById('paketSetBitis').value);
+        fetch('/sistemyonetim/whatsapp-panel/salon/' + salonId + '/paket-set', {
+            method:'POST', credentials:'same-origin',
+            headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}'}, body: fd
+        }).then(function(r){return r.json();}).then(function(d){
+            var sonuc = document.getElementById('paketSonuc');
+            if (d.ok) {
+                sonuc.innerHTML = '<span style="color:#1a7f3e;font-weight:600;">✓ Kaydedildi: ' + d.paket + (d.bitis ? ' → ' + d.bitis : '') + '</span>';
+                setTimeout(function(){ document.getElementById('paketModal').classList.remove('show'); yukleSalonlar(); }, 1200);
+            } else { sonuc.innerHTML = '<span style="color:#dc3545;">' + (d.error || 'Hata') + '</span>'; }
         });
     }
 

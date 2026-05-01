@@ -84,6 +84,14 @@
 .wpkt-btn-outline { background: #fff; color: #25D366; border: 2px solid #25D366; }
 .wpkt-btn-outline:hover { background: #25D366; color: #fff; }
 .wpkt-btn-current { background: #f1f3f5; color: #6c757d; cursor: not-allowed; }
+
+/* Deneme bandı — paket bölümünün üstünde */
+.wpkt-deneme-band { background: linear-gradient(135deg, #25D366, #1ebe57); color: #fff; padding: 18px 24px; border-radius: 14px; margin: 0 0 24px; display: flex; align-items: center; gap: 18px; box-shadow: 0 4px 14px rgba(37,211,102,0.25); }
+.wpkt-deneme-band.uyari { background: linear-gradient(135deg, #f0ad4e, #e89028); box-shadow: 0 4px 14px rgba(240,173,78,0.3); }
+.wpkt-deneme-icon { font-size: 38px; }
+.wpkt-deneme-text { flex: 1; }
+.wpkt-deneme-baslik { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.wpkt-deneme-detay { font-size: 13px; opacity: 0.95; }
 </style>
 <style>
     .wa-card { background:#fff; border-radius:10px; padding:24px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
@@ -726,8 +734,31 @@
                 if (d.error) return;
                 var paket = d.paket || 'baslangic';
                 var labels = { baslangic: 'Başlangıç (Ücretsiz)', pro: 'Pro', premium: 'Premium' };
+
+                // Deneme bandı (varsa) — başlığın hemen üstüne
+                if (d.deneme && d.bitis) {
+                    var existing = document.getElementById('wpktDenemeBand');
+                    if (!existing) {
+                        var band = document.createElement('div');
+                        band.id = 'wpktDenemeBand';
+                        band.className = 'wpkt-deneme-band';
+                        var header = document.querySelector('.wpkt-header');
+                        if (header) header.parentNode.insertBefore(band, header);
+                        existing = band;
+                    }
+                    var kalan = d.kalan_gun !== null ? d.kalan_gun : '?';
+                    var renkSinif = (d.kalan_gun !== null && d.kalan_gun <= 7) ? 'uyari' : '';
+                    existing.className = 'wpkt-deneme-band ' + renkSinif;
+                    existing.innerHTML = '<div class="wpkt-deneme-icon">🎁</div>'
+                        + '<div class="wpkt-deneme-text">'
+                        + '<div class="wpkt-deneme-baslik">Ücretsiz Deneme Aktif — <b>' + (labels[paket] || paket) + '</b></div>'
+                        + '<div class="wpkt-deneme-detay">📅 Başlangıç: <b>' + (d.baslangic || '—') + '</b> &nbsp;·&nbsp; Bitiş: <b>' + d.bitis + '</b> &nbsp;·&nbsp; <b>' + kalan + ' gün kaldı</b></div>'
+                        + '</div>';
+                }
+
                 var ad = labels[paket] || paket;
                 if (d.bitis && d.kalan_gun !== null) ad += ' — ' + d.kalan_gun + ' gün kaldı';
+                if (d.deneme) ad += ' (Deneme)';
                 document.getElementById('wpktCurrentName').textContent = ad;
                 document.getElementById('wpktCurrentBadge').style.display = 'inline-block';
 
@@ -740,13 +771,13 @@
                         if (!card.querySelector('.wpkt-current-tag')) {
                             var tag = document.createElement('div');
                             tag.className = 'wpkt-current-tag';
-                            tag.textContent = '✓ MEVCUT PAKETİNİZ';
+                            tag.textContent = d.deneme ? '🎁 DENEME — ' + (d.kalan_gun || 0) + ' GÜN KALDI' : '✓ MEVCUT PAKETİNİZ';
                             card.insertBefore(tag, card.firstChild);
                         }
                         var btn = card.querySelector('.wpkt-btn');
                         if (btn) {
                             btn.className = 'wpkt-btn wpkt-btn-current';
-                            btn.textContent = 'Mevcut Paket';
+                            btn.textContent = d.deneme ? 'Deneme Aktif' : 'Mevcut Paket';
                             btn.disabled = true;
                         }
                     }
