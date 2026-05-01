@@ -16,31 +16,35 @@
    .tm{ font-family:'Inter','Segoe UI',sans-serif; }
    .tm *{ box-sizing:border-box; }
 
-   /* === Compact top bar === */
+   /* === Top bar (okunabilir) === */
    .tm-bar{
-      display:flex; align-items:center; gap:14px; flex-wrap:wrap;
-      background:#fff; border:1px solid #e5e7eb; border-radius:10px;
-      padding:8px 14px; margin-bottom:12px; font-size:13px;
+      display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+      background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+      padding:14px 20px; margin-bottom:14px; font-size:15px;
+      box-shadow:0 2px 6px -3px rgba(15,23,42,.08);
    }
-   .tm-bar .tm-customer{ font-weight:700; color:#0f172a; font-size:15px; display:flex; align-items:center; gap:8px; }
-   .tm-bar .tm-customer i{ color:#7B2FB8; }
-   .tm-bar .tm-sep{ width:1px; height:18px; background:#e5e7eb; }
-   .tm-bar .tm-meta{ color:#64748b; font-size:12.5px; }
-   .tm-bar .tm-meta strong{ color:#0f172a; }
-   .tm-pill{ display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:14px; font-size:11px; font-weight:700; letter-spacing:.2px; }
+   .tm-bar .tm-customer{ font-weight:700; color:#0f172a; font-size:20px; display:flex; align-items:center; gap:10px; }
+   .tm-bar .tm-customer i{ color:#7B2FB8; font-size:22px; }
+   .tm-bar .tm-sep{ width:1px; height:26px; background:#e5e7eb; }
+   .tm-bar .tm-meta{ color:#475569; font-size:15px; display:inline-flex; align-items:center; gap:6px; }
+   .tm-bar .tm-meta strong{ color:#0f172a; font-size:16px; }
+   .tm-bar .tm-meta i{ color:#7B2FB8; }
+   .tm-pill{ display:inline-flex; align-items:center; gap:6px; padding:5px 14px; border-radius:18px; font-size:14px; font-weight:700; letter-spacing:.2px; }
    .tm-pill.aktif{ background:#dbeafe; color:#1e40af; }
    .tm-pill.sadik{ background:#fef3c7; color:#92400e; }
    .tm-pill.pasif{ background:#f1f5f9; color:#475569; }
-   .tm-pill.beta{ background:linear-gradient(135deg,#5C008E,#9D5DC8); color:#fff; }
+   .tm-pill.beta{ background:linear-gradient(135deg,#5C008E,#9D5DC8); color:#fff; font-size:13px; padding:4px 11px; }
 
-   .tm-bar-actions{ margin-left:auto; display:flex; align-items:center; gap:8px; }
+   .tm-bar-actions{ margin-left:auto; display:flex; align-items:center; gap:10px; }
    .tm-mini-btn{
-      background:#f1f5f9; border:1px solid #e2e8f0; color:#475569;
-      padding:5px 10px; border-radius:7px; font-size:12px; font-weight:600;
-      cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:5px;
+      background:#f1f5f9; border:1px solid #cbd5e1; color:#1e293b;
+      padding:8px 14px; border-radius:8px; font-size:14px; font-weight:600;
+      cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px;
    }
-   .tm-mini-btn:hover{ background:#e2e8f0; color:#1e293b; text-decoration:none; }
-   .tm-tarih-edit input{ height:26px; border:1px solid #cbd5e1; border-radius:6px; padding:0 6px; font-size:12px; }
+   .tm-mini-btn:hover{ background:#e2e8f0; color:#0f172a; text-decoration:none; }
+   .tm-tarih-edit{ display:inline-flex; align-items:center; gap:8px; font-size:15px; color:#475569; }
+   .tm-tarih-edit input{ height:34px; border:1px solid #cbd5e1; border-radius:7px; padding:0 10px; font-size:14px; }
+   .tm-tarih-edit strong{ color:#0f172a; font-size:16px; }
 
    /* === HERO checkout card === */
    .tm-hero{
@@ -221,9 +225,9 @@
       <div class="tm-sep"></div>
       <span class="tm-pill {{ $musteriTipi }}">{{ $musteriEtiket }} · %{{ $musteriIndirimYuzde }}</span>
       <div class="tm-sep"></div>
-      <div class="tm-tarih-edit" style="display:flex; align-items:center; gap:6px; font-size:12px; color:#64748b;">
+      <div class="tm-tarih-edit">
          <i class="fa fa-calendar"></i> Satış:
-         <strong id="tm-satis-tarihi-goster" style="color:#0f172a;">{{$adisyonTarihGoster}}</strong>
+         <strong id="tm-satis-tarihi-goster">{{$adisyonTarihGoster}}</strong>
          <button type="button" id="tm-satis-tarihi-duzenle" class="tm-mini-btn" title="Tarihi düzenle"><i class="fa fa-pencil"></i></button>
          <input type="date" id="tm-satis-tarihi-input" value="{{$adisyonTarih}}" style="display:none;">
          <button type="button" id="tm-satis-tarihi-kaydet" class="tm-mini-btn" style="display:none; background:#10b981; color:#fff; border-color:#10b981;"><i class="fa fa-check"></i></button>
