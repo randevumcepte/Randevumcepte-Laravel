@@ -242,6 +242,7 @@
    </div>
 
 <form id="adisyon_tahsilat" method="POST">
+   {!!csrf_field()!!}
    <input type="hidden" name="tahsilat_ekrani" id="tahsilat_ekrani" value="1">
    <select style="display:none" name="tahsilat_musteri_id" id='tahsilat_musteri_id'>
       <option selected value="{{$musteri->id}}">777</option>
@@ -572,6 +573,19 @@
 </div>
 
 <script>
+   // ----- Modern view: tahsilatekle/taksitekleguncelle/tahsilatkaldir AJAX'i sonrasi page reload -----
+   // (Sebep: server eski-tasarim HTML donduruyor; reload ile modern view temiz render edilir)
+   $(document).ajaxSuccess(function(event, xhr, settings){
+      if(!settings || !settings.url) return;
+      var u = settings.url;
+      if(u.indexOf('/tahsilatekle') !== -1 ||
+         u.indexOf('/taksitekleguncelle') !== -1 ||
+         u.indexOf('/tahsilatkaldir') !== -1)
+      {
+         setTimeout(function(){ window.location.reload(); }, 1300);
+      }
+   });
+
    document.addEventListener('DOMContentLoaded', function(){
       // ----- Kalan Alacak rengi (yeşil/kırmızı) -----
       var observer = new MutationObserver(function(){
