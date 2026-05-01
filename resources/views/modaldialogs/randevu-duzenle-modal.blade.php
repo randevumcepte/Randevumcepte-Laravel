@@ -1,7 +1,8 @@
 {{-- Randevu Duzenle Modal - Ekleme modali ile birebir ayni yapi. Eski sade hali randevu-duzenle-modal-eski.blade.php'de. --}}
 @php
     $__dz_takvim_turu = $isletme->randevu_takvim_turu ?? 0;
-    $__dz_personel_style = in_array($__dz_takvim_turu, [2, 3]) ? 'display:none;' : '';
+    // Personel secimi her zaman gorunur (cihaz/oda turunde de personel atanabilsin)
+    $__dz_personel_style = '';
     $__dz_cihaz_style    = in_array($__dz_takvim_turu, [1, 3]) ? 'display:none;' : '';
     $__dz_oda_style      = in_array($__dz_takvim_turu, [1, 2]) ? 'display:none;' : '';
     $__dz_yardimci_style = 'display:none;';

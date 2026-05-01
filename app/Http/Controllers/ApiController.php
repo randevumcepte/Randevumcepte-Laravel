@@ -1084,7 +1084,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     {
 
-        $randevular = Randevular::with("hizmetler")
+        $randevular = Randevular::with(["hizmetler.hizmetler"])
 
             ->where("user_id", $id)
 
@@ -13387,19 +13387,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             )
 
-            ->join(
+            ->leftJoin(
 
                 "model_has_roles",
 
-                "isletmeyetkilileri.id",
-
-                "=",
-
-                "model_has_roles.model_id"
+                function ($join) use ($isletme_id) {
+                    $join->on("isletmeyetkilileri.id", "=", "model_has_roles.model_id")
+                         ->where("model_has_roles.salon_id", "=", $isletme_id);
+                }
 
             )
 
-            ->join("roles", "model_has_roles.role_id", "=", "roles.id")
+            ->leftJoin("roles", "model_has_roles.role_id", "=", "roles.id")
 
             ->select(
 
@@ -13438,6 +13437,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 "%" . $request->baslik . "%"
 
             )
+
+            ->groupBy("salon_personelleri.id")
 
             ->paginate(10);
 
@@ -13709,13 +13710,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $yetkili->aktif = true;
 
             }
-            if (
+            $mevcutPersonelSayisi = Personeller::where("cep_telefon", self::telefon_no_format_duzenle($request->cep_telefon))
+                ->where("salon_id", $request->salon_id)
+                ->count();
 
-               $personel= Personeller::where("cep_telefon", self::telefon_no_format_duzenle($request->cep_telefon))
-                    ->where("salon_id", $request->salon_id)
-                    ->count() == 0 &&  $request->personel_id == "" 
-
-            ) {
+            if ($mevcutPersonelSayisi == 0 && $request->personel_id == "") {
                 $personel = new Personeller();
                 $yeniekleme = true;
                 $personel->aktif = true;
@@ -13727,7 +13726,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     ->orderBy("id", "desc")
                     ->first();
                     Log::info('personel salon id '.$request->salon_id);
-                if ($son_eklenen_personel->renk == 10) {
+                if ($son_eklenen_personel === null) {
+                    $personel->renk = 1;
+                } elseif ($son_eklenen_personel->renk == 10) {
                     $personel->renk = 1;
                 } else {
                     $personel->renk = $son_eklenen_personel->renk + 1;
@@ -13737,11 +13738,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     ->first();
                     Log::info("personel var");
 
+                if ($personel === null) {
+                    return response()->json([
+                        'result' => 'Güncellenecek personel bulunamadı.',
+                        'title' => 'Hata',
+                        'status' => 'error',
+                    ], 404);
+                }
             }
             $yetkili->save();
             Log::info("işletme id".$request->salon_id);
-            Log::info("personel telefon".$personel->cep_telefon);
-            Log::info("personel adı".$personel->personel_adi);
+            Log::info("personel telefon".($personel->cep_telefon ?? ''));
+            Log::info("personel adı".($personel->personel_adi ?? ''));
             $personel->personel_adi = $request->personel_adi;
             $personel->unvan = $request->unvan;
             $personel->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon);
@@ -14039,23 +14047,17 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $yetkili->roles()->detach();
 
-            DB::insert(
-
-                "insert into model_has_roles (role_id, model_type,model_id,salon_id) values (" .
-
-                    $request->sistem_yetki .
-
-                    ', "App\\\IsletmeYetkilileri",' .
-
-                    $yetkili->id .
-
-                    "," .
-
-                    $request->salon_id .
-
-                    ")"
-
-            );
+            if (!empty($request->sistem_yetki) && is_numeric($request->sistem_yetki)) {
+                DB::insert(
+                    'insert into model_has_roles (role_id, model_type, model_id, salon_id) values (?, ?, ?, ?)',
+                    [
+                        (int) $request->sistem_yetki,
+                        'App\\IsletmeYetkilileri',
+                        $yetkili->id,
+                        $request->salon_id,
+                    ]
+                );
+            }
 
             $result = "Personel başarıyla kaydedildi";
 
@@ -14064,6 +14066,15 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $swalstat = "success";
 
         }
+
+        return response()->json([
+            'result' => $result,
+            'title' => $swaltitle,
+            'status' => $swalstat,
+            'yenihesapacma' => $yenihesapacma,
+            'yeniekleme' => $yeniekleme,
+            'personel_id' => $personel && is_object($personel) ? $personel->id : null,
+        ]);
 
     }
     public function sms_gonder_bildirimli(Request $request,$mesajlar,$geribildirimgonder,$tur,$dogrulama,$isletme_id)

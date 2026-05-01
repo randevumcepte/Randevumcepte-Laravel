@@ -5,7 +5,8 @@
     // 2: Cihaza Gore (sadece cihaz)
     // 3: Odaya Gore (sadece oda)
     $__takvim_turu = $isletme->randevu_takvim_turu ?? 0;
-    $__personel_style = in_array($__takvim_turu, [2, 3]) ? 'display:none;' : '';
+    // Personel secimi her zaman gorunur (cihaz/oda turunde de personel atanabilsin)
+    $__personel_style = '';
     $__cihaz_style    = in_array($__takvim_turu, [1, 3]) ? 'display:none;' : '';
     $__oda_style      = in_array($__takvim_turu, [1, 2]) ? 'display:none;' : '';
     $__yardimci_style = 'display:none;'; // her zaman gizli
@@ -1711,13 +1712,13 @@ $(document).ready(function() {
 
     // Randevu takvim turu degisince modal icindeki secim kolonlarini dinamik olarak guncelle
     // 0: Hizmete Gore (hepsi) | 1: Personele Gore | 2: Cihaza Gore | 3: Odaya Gore
+    // Not: Personel secimi her zaman gorunur (cihaz/oda turunde de personel atanabilsin)
     window.randevuSecimleriniGuncelle = function() {
         var turu = parseInt($('#randevu_ayarina_gore').val());
         if (isNaN(turu)) return;
-        var persGizli  = (turu === 2 || turu === 3);
         var cihazGizli = (turu === 1 || turu === 3);
         var odaGizli   = (turu === 1 || turu === 2);
-        $('#modal-view-event-add .secim-personel').css('display', persGizli ? 'none' : '');
+        $('#modal-view-event-add .secim-personel').css('display', '');
         $('#modal-view-event-add .secim-cihaz').css('display', cihazGizli ? 'none' : '');
         $('#modal-view-event-add .secim-oda').css('display', odaGizli ? 'none' : '');
         // Yardimci personel her zaman gizli
