@@ -41,15 +41,31 @@
 }
 .og-section .form-group { margin-bottom:7px; }
 .og-section label { font-size:11.5px; font-weight:600; color:#3a2e57; margin-bottom:2px; display:block; }
-.og-section .form-control,
-.og-section .select2-selection {
-   border-radius:7px !important; border-color:#dfd6ea !important; min-height:32px; height:32px;
+/* Sadece duz inputlar/native selectler — select2 dropdown elementlerine asla dokunma */
+.og-section input.form-control:not(.select2-search__field),
+.og-section select.form-control,
+.og-section textarea.form-control {
+   border-radius:7px; border:1px solid #dfd6ea; min-height:32px;
    font-size:12.5px; padding:4px 10px;
 }
 .og-section textarea.form-control { height:auto; min-height:50px; }
-.og-section .form-control:focus { border-color:#5C008E !important; box-shadow:0 0 0 3px rgba(92,0,142,.1) !important; }
-.og-section .select2-container--default .select2-selection--single .select2-selection__rendered { line-height:24px; padding-left:10px; font-size:12.5px; }
+.og-section input.form-control:not(.select2-search__field):focus,
+.og-section select.form-control:focus,
+.og-section textarea.form-control:focus {
+   border-color:#5C008E; box-shadow:0 0 0 3px rgba(92,0,142,.1);
+}
+/* Select2 — sadece gorunur kismi ayarla, icindeki search input'a dokunma */
+.og-section .select2-container--default .select2-selection--single {
+   border-radius:7px; border:1px solid #dfd6ea; height:32px;
+}
+.og-section .select2-container--default .select2-selection--single .select2-selection__rendered {
+   line-height:30px; padding-left:10px; font-size:12.5px; color:#3a2e57;
+}
 .og-section .select2-container--default .select2-selection--single .select2-selection__arrow { height:30px; }
+.og-section .select2-container--default.select2-container--focus .select2-selection--single,
+.og-section .select2-container--default.select2-container--open .select2-selection--single {
+   border-color:#5C008E; box-shadow:0 0 0 3px rgba(92,0,142,.1);
+}
 .og-hint { display:block; color:#9d8ba8; font-size:10.5px; margin-top:2px; }
 
 .og-footer {
