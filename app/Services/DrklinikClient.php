@@ -69,45 +69,71 @@ class DrklinikClient
      */
     public function login()
     {
-        // Anasayfayi cek (genelde login form burada)
-        $homeHtml = $this->getHtml('/', 'home');
-        $loginHtml = $this->getHtml('/login', 'login');
-        $signInHtml = $this->getHtml('/sign-in', 'sign-in');
+        // ASP.NET WebForms postback login.
+        // 1) Anasayfayi GET et, formdan __VIEWSTATE/__VIEWSTATEGENERATOR/__EVENTVALIDATION cek
+        $home = $this->getHtml('/', 'home');
+        if ($home === '') return ['ok' => false, 'method' => 'none', 'detail' => 'Anasayfa cekilemedi'];
 
-        $xsrfFromCookie = $this->cookieValue('XSRF-TOKEN');
-        if ($xsrfFromCookie) {
-            $this->xsrf = urldecode($xsrfFromCookie);
+        $vs   = $this->extractFormField($home, '__VIEWSTATE');
+        $vsg  = $this->extractFormField($home, '__VIEWSTATEGENERATOR');
+        $ev   = $this->extractFormField($home, '__EVENTVALIDATION');
+        if (!$vs) return ['ok' => false, 'method' => 'none', 'detail' => '__VIEWSTATE bulunamadi (form yapisi degismis olabilir)'];
+
+        // Form action: ./giris.aspx -> /giris.aspx
+        $action = '/giris.aspx';
+        if (preg_match('#<form[^>]*action=["\']([^"\']+)["\']#i', $home, $m)) {
+            $a = $m[1];
+            $action = (strpos($a, 'http') === 0) ? $a : ('/' . ltrim(str_replace('./', '', $a), '/'));
         }
 
-        $csrfMeta = null;
-        foreach ([$homeHtml, $loginHtml, $signInHtml] as $html) {
-            if ($html === '') continue;
-            if (preg_match('/name="csrf-token"\s+content="([^"]+)"/i', $html, $m)) { $csrfMeta = $m[1]; break; }
-            if (preg_match('/name="_token"\s+value="([^"]+)"/i', $html, $m)) { $csrfMeta = $m[1]; break; }
-        }
-
-        // JSON login adaylari
-        $jsonPaths = [
-            '/login', '/api/login', '/api/auth/login', '/api/v1/auth/login',
-            '/auth/login', '/api/user/login', '/sign-in', '/api/sign-in',
+        $body = [
+            '__EVENTTARGET'        => 'LB_Giris', // LinkButton id (form HTML'inden)
+            '__EVENTARGUMENT'      => '',
+            '__VIEWSTATE'          => $vs,
+            '__VIEWSTATEGENERATOR' => $vsg ?: '',
+            '__EVENTVALIDATION'    => $ev ?: '',
+            'TB_KullaniciAd'       => $this->username,
+            'TB_Sifre'             => $this->password,
         ];
-        foreach ($jsonPaths as $path) {
-            $res = $this->tryJsonLogin($path, $csrfMeta);
-            if ($res['ok']) {
-                return ['ok' => true, 'method' => 'json:' . $path, 'detail' => $res['detail']];
-            }
+
+        try {
+            $resp = $this->http->post($action, [
+                'headers'     => [
+                    'Referer' => self::BASE . '/',
+                    'Origin'  => self::BASE,
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ],
+                'form_params' => $body,
+            ]);
+        } catch (RequestException $e) {
+            return ['ok' => false, 'method' => 'webforms', 'detail' => 'Exception: ' . $e->getMessage()];
         }
 
-        // Form login adaylari
-        $formPaths = ['/login', '/sign-in', '/auth/login', '/giris', '/oturum-ac'];
-        foreach ($formPaths as $path) {
-            $res = $this->tryFormLogin($path, $csrfMeta);
-            if ($res['ok']) {
-                return ['ok' => true, 'method' => 'form:' . $path, 'detail' => $res['detail']];
-            }
-        }
+        $status = $resp->getStatusCode();
+        $resBody = (string) $resp->getBody();
+        $this->dump("login_webforms_{$status}", $resBody, $resp->getHeaders());
 
-        return ['ok' => false, 'method' => 'none', 'detail' => 'Login denemeleri basarisiz. ' . $this->dumpDir . ' icindeki response dumplarini inceleyin.'];
+        // Login basarili mi? Cookie'de ASP.NET_SessionId set olmali, ve cevap login formuna geri donmemis olmali
+        $hasSession = $this->cookieValue('ASP.NET_SessionId') !== null;
+        $stillLogin = stripos($resBody, 'TB_KullaniciAd') !== false || stripos($resBody, 'LB_Giris') !== false;
+        $endedAt = '';
+        foreach ($resp->getHeader('X-Guzzle-Redirect-History') as $r) $endedAt = $r;
+
+        if ($hasSession && !$stillLogin) {
+            return ['ok' => true, 'method' => 'webforms', 'detail' => "Login OK. Son URL: {$endedAt}"];
+        }
+        // Bazi WebForms: redirect var ama hala login formu donerse, "session var ama auth yok" demek
+        return ['ok' => false, 'method' => 'webforms', 'detail' => 'Login basarisiz; cookie=' . ($hasSession ? 'var' : 'yok') . ', form_donmus=' . ($stillLogin ? 'evet' : 'hayir') . '. Dump: login_webforms_' . $status . '.body'];
+    }
+
+    private function extractFormField($html, $name)
+    {
+        $pat = '#<input[^>]+name=["\']' . preg_quote($name, '#') . '["\'][^>]+value=["\']([^"\']*)["\']#i';
+        if (preg_match($pat, $html, $m)) return $m[1];
+        // value once gelirse
+        $pat = '#<input[^>]+value=["\']([^"\']*)["\'][^>]+name=["\']' . preg_quote($name, '#') . '["\']#i';
+        if (preg_match($pat, $html, $m)) return $m[1];
+        return '';
     }
 
     private function tryJsonLogin($path, $csrfMeta = null)
@@ -200,32 +226,14 @@ class DrklinikClient
 
     public function isLoggedIn()
     {
-        $checks = ['/', '/dashboard', '/anasayfa', '/panel', '/api/user', '/api/me', '/api/auth/me'];
+        // ASP.NET WebForms: anasayfa veya /default.aspx isteyince login formu DONMEMELI
+        $checks = ['/', '/default.aspx', '/anasayfa.aspx', '/dashboard.aspx', '/anaSayfa.aspx'];
         foreach ($checks as $path) {
-            try {
-                $resp = $this->http->get($path, ['headers' => $this->authHeaders()]);
-            } catch (RequestException $e) { continue; }
-            $status = $resp->getStatusCode();
+            try { $resp = $this->http->get($path); } catch (RequestException $e) { continue; }
             $body = (string) $resp->getBody();
-            $redirects = $resp->getHeader('X-Guzzle-Redirect-History');
-            $endedAtSignIn = false;
-            foreach ($redirects as $r) {
-                if (stripos($r, 'login') !== false || stripos($r, 'sign-in') !== false || stripos($r, 'giris') !== false) {
-                    $endedAtSignIn = true;
-                }
-            }
-            if (stripos($body, '"isAuthenticated":false') !== false) continue;
-            if ($status === 200 && stripos($body, '"isAuthenticated":true') !== false) return true;
-            if ($status === 200 && !$endedAtSignIn && stripos($body, 'login') === false && stripos($body, 'sign-in') === false && !$this->looksLikeJson($body)) {
+            // Login formu icermiyorsa ve TB_KullaniciAd yoksa giris yapilmis demek
+            if (stripos($body, 'TB_KullaniciAd') === false && stripos($body, 'TB_Sifre') === false) {
                 return true;
-            }
-            if ($status === 200 && $this->looksLikeJson($body)) {
-                $j = json_decode($body, true);
-                if (is_array($j)) {
-                    if (isset($j['success']) && $j['success'] === false) continue;
-                    if (!empty($j['error'])) continue;
-                    if (isset($j['id']) || isset($j['user']) || isset($j['data']) || isset($j['email'])) return true;
-                }
             }
         }
         return false;
@@ -238,30 +246,21 @@ class DrklinikClient
     public function probe()
     {
         $pages = [
-            // PHP/Laravel klasik
-            '/musteriler', '/randevular', '/hizmetler', '/personeller', '/tahsilatlar',
-            '/uygulama/musteriler', '/uygulama/randevular', '/uygulama/hizmetler',
-            // API katmani
-            '/api/musteriler', '/api/randevular', '/api/hizmetler', '/api/personeller',
-            '/api/v1/musteriler', '/api/v1/randevular',
-            '/api/customers', '/api/appointments', '/api/services', '/api/staff',
-            // Dashboard/anasayfa
-            '/dashboard', '/anasayfa', '/panel',
-            // Reports/raporlar
-            '/raporlar', '/api/raporlar', '/istatistik',
+            '/default.aspx', '/anasayfa.aspx', '/anaSayfa.aspx', '/dashboard.aspx',
+            '/musteriler.aspx', '/musteri.aspx', '/musteri_listesi.aspx', '/musterilistesi.aspx',
+            '/randevular.aspx', '/randevu.aspx', '/randevu_listesi.aspx', '/randevulistesi.aspx', '/takvim.aspx',
+            '/hizmetler.aspx', '/hizmet.aspx', '/hizmet_listesi.aspx',
+            '/personeller.aspx', '/personel.aspx', '/personel_listesi.aspx',
+            '/tahsilatlar.aspx', '/tahsilat.aspx', '/tahsilat_listesi.aspx',
+            '/raporlar.aspx', '/rapor.aspx',
+            // Olasi alt klasorler
+            '/admin/musteriler.aspx', '/uygulama/musteriler.aspx',
         ];
-
         $results = [];
-        $jsonHeaders = array_merge($this->authHeaders(), [
-            'Accept'           => 'application/json, text/plain, */*',
-            'X-Requested-With' => 'XMLHttpRequest',
-            'Referer'          => self::BASE . '/',
-            'Origin'           => self::BASE,
-        ]);
         $i = 0;
         foreach ($pages as $p) {
             try {
-                $resp = $this->http->get($p, ['headers' => $jsonHeaders]);
+                $resp = $this->http->get($p);
             } catch (RequestException $e) {
                 $results[$p] = 'EXC:' . $e->getMessage();
                 continue;
@@ -272,10 +271,14 @@ class DrklinikClient
             $len    = strlen($body);
             $slug   = "probe_{$this->slug($p)}_{$status}";
             $this->dump($slug, $body, $resp->getHeaders());
-            $isJson = stripos($ctype, 'json') !== false;
-            $marker = $isJson ? ' [JSON!]' : '';
+            // Login formu varsa "kapali" demek; tablo varsa anlamli sayfa
+            $hasLogin = stripos($body, 'TB_KullaniciAd') !== false;
+            $hasTable = preg_match('#<table[^>]*class="[^"]*(?:table|grid|gridview)#i', $body) || stripos($body, '<table') !== false;
+            $marker = '';
+            if ($hasLogin) $marker = ' [LOGIN_GERI]';
+            elseif ($hasTable) $marker = ' [TABLE]';
             $results[$p] = "status={$status} len={$len} type={$ctype}" . $marker;
-            if (++$i % 10 === 0) usleep(500000);
+            if (++$i % 5 === 0) usleep(300000);
         }
         return $results;
     }
