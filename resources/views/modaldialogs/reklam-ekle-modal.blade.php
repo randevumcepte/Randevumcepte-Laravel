@@ -18,6 +18,44 @@
                   <input type="hidden" name="kampanyaKodu" id="kampanyaKodu">
                    <input type="hidden" name="seciliSablonId" id="seciliSablonId">
 
+                  @php
+                     // Hizmet & ürünleri (kategori bilgisiyle) JS'e ver
+                     $hkList = \App\Hizmet_Kategorisi::all()->map(function($k){
+                        return ['id'=>(int)$k->id,'ad'=>$k->hizmet_kategorisi_adi];
+                     })->values();
+                     $hizmetList = \App\SalonHizmetler::with('hizmetler')
+                        ->where('salon_id',$isletme->id)->where('aktif',1)->get()
+                        ->map(function($sh){
+                           $h = $sh->hizmetler;
+                           if(!$h) return null;
+                           return ['id'=>(int)$sh->hizmet_id,'ad'=>$h->hizmet_adi,'kategori_id'=>$h->hizmet_kategori_id ? (int)$h->hizmet_kategori_id : null];
+                        })->filter()->values();
+
+                     $ukList = \App\UrunKategorisi::all()->map(function($k){
+                        return ['id'=>(int)$k->id,'ad'=>$k->urun_kategori_adi];
+                     })->values();
+
+                     // Ürün-kategori ilişkisi şemada varsa kullan
+                     $urunKategoriField = null;
+                     if(\Illuminate\Support\Facades\Schema::hasColumn('urunler','urun_kategori_id'))    $urunKategoriField = 'urun_kategori_id';
+                     elseif(\Illuminate\Support\Facades\Schema::hasColumn('urunler','kategori_id'))     $urunKategoriField = 'kategori_id';
+                     elseif(\Illuminate\Support\Facades\Schema::hasColumn('urunler','urun_kategorisi_id')) $urunKategoriField = 'urun_kategorisi_id';
+
+                     $urunList = \App\Urunler::where('salon_id',$isletme->id)->where('aktif',1)->get()
+                        ->map(function($u) use ($urunKategoriField){
+                           return ['id'=>(int)$u->id,'ad'=>$u->urun_adi,'kategori_id'=> $urunKategoriField ? ($u->{$urunKategoriField} ? (int)$u->{$urunKategoriField} : null) : null];
+                        })->values();
+                  @endphp
+                  <script>
+                     window.RKP_DATA = {
+                        hizmetKategoriler: @json($hkList),
+                        hizmetler:         @json($hizmetList),
+                        urunKategoriler:   @json($ukList),
+                        urunler:           @json($urunList),
+                        urunKategoriIliskisiVar: {{ $urunKategoriField ? 'true' : 'false' }}
+                     };
+                  </script>
+
                   <div class="row" >
                      <div class="col-md-12" style="padding: 0 20px 20px 20px">
 
@@ -145,9 +183,15 @@
                               </button>
 
                               <button type="button" class="rkp-preset rkp-preset--service" data-preset="hizmet">
-                                 <span class="rkp-preset-emoji">🎯</span>
-                                 <span class="rkp-preset-baslik">Belirli Hizmet/Ürün</span>
-                                 <span class="rkp-preset-aciklama">O hizmetle ilgilenen kitle</span>
+                                 <span class="rkp-preset-emoji">💇</span>
+                                 <span class="rkp-preset-baslik">Belirli Hizmet</span>
+                                 <span class="rkp-preset-aciklama">Önce kategori, sonra hizmet</span>
+                              </button>
+
+                              <button type="button" class="rkp-preset rkp-preset--product" data-preset="urun">
+                                 <span class="rkp-preset-emoji">🛍️</span>
+                                 <span class="rkp-preset-baslik">Belirli Ürün</span>
+                                 <span class="rkp-preset-aciklama">Önce kategori, sonra ürün</span>
                               </button>
 
                               <button type="button" class="rkp-preset rkp-preset--group" data-preset="grup">
@@ -164,19 +208,73 @@
                            </div>
 
                            <!-- 3. Preset'e göre dinamik açılan ek alanlar -->
-                           <div class="rkp-preset-extra" id="rkpPresetHizmet" style="display:none;">
-                              <div class="rkp-cell" id="hizmetUrunFiltre">
-                                 <div class="rkp-label"><i class="fa fa-tag"></i> Hangi hizmet/ürünle ilgilenenler?</div>
-                                 <select id="hizmetUrunPaket" name="hizmetUrunPaket" class="form-control opsiyonelSelect rkp-select">
-                                    <option></option>
-                                    @foreach(\App\SalonHizmetler::where('salon_id',$isletme->id)->where('aktif',1)->get() as $hizmet)
-                                       <option value="{{$hizmet->hizmet_id}}">{{$hizmet->hizmetler->hizmet_adi}}</option>
-                                    @endforeach
-                                    @foreach(\App\Urunler::where('salon_id',$isletme->id)->where('aktif',1)->get() as $urun)
-                                       <option value="urun-{{$urun->id}}">{{$urun->urun_adi}}</option>
-                                    @endforeach
-                                 </select>
+                           <!-- HİZMET preset → 2 kademe: kategori → hizmet -->
+                           <div class="rkp-preset-extra" id="rkpPresetHizmet" style="display:none;" id-block="hizmetUrunFiltre">
+                              <div class="rkp-step-grid">
+                                 <div class="rkp-step">
+                                    <div class="rkp-step-num">1</div>
+                                    <div class="rkp-step-body">
+                                       <div class="rkp-label"><i class="fa fa-folder"></i> Hizmet Kategorisi</div>
+                                       <select class="form-control rkp-select" id="rkpHizmetKategoriSec">
+                                          <option value="">Kategori seçin...</option>
+                                       </select>
+                                    </div>
+                                 </div>
+                                 <div class="rkp-step-arrow"><i class="fa fa-chevron-right"></i></div>
+                                 <div class="rkp-step">
+                                    <div class="rkp-step-num">2</div>
+                                    <div class="rkp-step-body">
+                                       <div class="rkp-label"><i class="fa fa-cut"></i> Hizmet</div>
+                                       <select class="form-control rkp-select" id="rkpHizmetSec" disabled>
+                                          <option value="">Önce kategori seçin</option>
+                                       </select>
+                                    </div>
+                                 </div>
                               </div>
+                              <small class="rkp-hint" style="margin-top:8px; display:block;">
+                                 Bu hizmetle ilgilenen müşterilere reklam gönderilir.
+                              </small>
+                           </div>
+
+                           <!-- ÜRÜN preset → 2 kademe: kategori → ürün -->
+                           <div class="rkp-preset-extra" id="rkpPresetUrun" style="display:none;">
+                              <div class="rkp-step-grid">
+                                 <div class="rkp-step">
+                                    <div class="rkp-step-num">1</div>
+                                    <div class="rkp-step-body">
+                                       <div class="rkp-label"><i class="fa fa-folder"></i> Ürün Kategorisi</div>
+                                       <select class="form-control rkp-select" id="rkpUrunKategoriSec">
+                                          <option value="">Kategori seçin...</option>
+                                       </select>
+                                    </div>
+                                 </div>
+                                 <div class="rkp-step-arrow"><i class="fa fa-chevron-right"></i></div>
+                                 <div class="rkp-step">
+                                    <div class="rkp-step-num">2</div>
+                                    <div class="rkp-step-body">
+                                       <div class="rkp-label"><i class="fa fa-box-open"></i> Ürün</div>
+                                       <select class="form-control rkp-select" id="rkpUrunSec" disabled>
+                                          <option value="">Önce kategori seçin</option>
+                                       </select>
+                                    </div>
+                                 </div>
+                              </div>
+                              <small class="rkp-hint" style="margin-top:8px; display:block;">
+                                 Bu ürünle ilgilenen müşterilere reklam gönderilir.
+                              </small>
+                           </div>
+
+                           <!-- Eski tek select - GİZLİ — backend'in beklediği gerçek değerleri taşır -->
+                           <div style="display:none;" id="hizmetUrunFiltre">
+                              <select id="hizmetUrunPaket" name="hizmetUrunPaket" class="opsiyonelSelect">
+                                 <option></option>
+                                 @foreach(\App\SalonHizmetler::where('salon_id',$isletme->id)->where('aktif',1)->get() as $hizmet)
+                                    <option value="{{$hizmet->hizmet_id}}">{{$hizmet->hizmetler->hizmet_adi}}</option>
+                                 @endforeach
+                                 @foreach(\App\Urunler::where('salon_id',$isletme->id)->where('aktif',1)->get() as $urun)
+                                    <option value="urun-{{$urun->id}}">{{$urun->urun_adi}}</option>
+                                 @endforeach
+                              </select>
                            </div>
 
                            <div class="rkp-preset-extra" id="rkpPresetGrup" style="display:none;">
@@ -635,6 +733,8 @@
       #yeni_kampanya_modal .rkp-preset--recent.is-active::after  { background: #0284c7; }
       #yeni_kampanya_modal .rkp-preset--service.is-active { background: linear-gradient(180deg, #fdf4ff, #fff); border-color: #c026d3; box-shadow: 0 8px 22px rgba(192,38,211,.16); }
       #yeni_kampanya_modal .rkp-preset--service.is-active::after { background: #c026d3; }
+      #yeni_kampanya_modal .rkp-preset--product.is-active { background: linear-gradient(180deg, #fff7ed, #fff); border-color: #ea580c; box-shadow: 0 8px 22px rgba(234,88,12,.16); }
+      #yeni_kampanya_modal .rkp-preset--product.is-active::after { background: #ea580c; }
       #yeni_kampanya_modal .rkp-preset--group.is-active   { background: linear-gradient(180deg, #eef2ff, #fff); border-color: #4f46e5; box-shadow: 0 8px 22px rgba(79,70,229,.16); }
       #yeni_kampanya_modal .rkp-preset--group.is-active::after   { background: #4f46e5; }
       #yeni_kampanya_modal .rkp-preset--custom.is-active  { background: linear-gradient(180deg, #f1f5f9, #fff); border-color: #475569; box-shadow: 0 8px 22px rgba(71,85,105,.16); }
@@ -647,6 +747,38 @@
          animation: rkpFadeIn .25s ease;
       }
       @keyframes rkpFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* Step 1 → Step 2 (kategori → seçim) */
+      #yeni_kampanya_modal .rkp-step-grid {
+         display: grid;
+         grid-template-columns: 1fr 28px 1fr;
+         gap: 10px;
+         align-items: end;
+      }
+      #yeni_kampanya_modal .rkp-step {
+         display: flex; gap: 10px;
+         padding: 10px; background: #fff;
+         border-radius: 10px; border: 1px solid #e2e8f0;
+      }
+      #yeni_kampanya_modal .rkp-step-num {
+         width: 28px; height: 28px; border-radius: 50%;
+         background: #5C008E; color: #fff;
+         display: flex; align-items: center; justify-content: center;
+         font-size: 12px; font-weight: 700; flex-shrink: 0;
+      }
+      #yeni_kampanya_modal .rkp-step-body { flex: 1; min-width: 0; }
+      #yeni_kampanya_modal .rkp-step-arrow {
+         display: flex; align-items: center; justify-content: center;
+         color: #94a3b8; font-size: 14px;
+      }
+      #yeni_kampanya_modal .rkp-step .rkp-label { margin-bottom: 6px; }
+      #yeni_kampanya_modal .rkp-step .rkp-select { height: 38px; font-size: 13px; }
+      #yeni_kampanya_modal .rkp-step .rkp-select:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+
+      @media (max-width: 575px) {
+         #yeni_kampanya_modal .rkp-step-grid { grid-template-columns: 1fr; }
+         #yeni_kampanya_modal .rkp-step-arrow { transform: rotate(90deg); }
+      }
 
       /* Responsive */
       @media (max-width: 991px) {
@@ -687,7 +819,11 @@
             // Preset kartları → "Tüm Müşterilerim" aktif, ek paneller kapalı
             $m.find('.rkp-preset').removeClass('is-active');
             $m.find('.rkp-preset[data-preset="all"]').addClass('is-active');
-            $m.find('#rkpPresetHizmet, #rkpPresetGrup, #rkpPresetCustom').hide();
+            $m.find('#rkpPresetHizmet, #rkpPresetUrun, #rkpPresetGrup, #rkpPresetCustom').hide();
+            // 2 kademeli step select'leri sıfırla
+            $m.find('#rkpHizmetKategoriSec, #rkpUrunKategoriSec').val('');
+            $m.find('#rkpHizmetSec').empty().append('<option value="">Önce kategori seçin</option>').prop('disabled', true);
+            $m.find('#rkpUrunSec').empty().append('<option value="">Önce kategori seçin</option>').prop('disabled', true);
             // Tüm filtre select'lerini boşalt
             ['gorevTuru','katilimciTuru','kampanyaTuru','kampanyaKategori','hizmetUrunPaket','musteriGruplari','gelenGelmeyenMusteri']
                .forEach(function(id){
@@ -733,14 +869,15 @@
          // Her preset gizli select'leri otomatik ayarlar.
          var rkpPresets = {
             // gelenGelmeyenMusteri | musteriGruplari | hizmetUrunPaket | kampanyaKategori
-            'all':     { gelen: '',  grup: '',     hizmet: '',  kat: '',  showHizmet:false, showGrup:false, showCustom:false },
-            'sadik':   { gelen: '6', grup: '',     hizmet: '',  kat: '',  showHizmet:false, showGrup:false, showCustom:false },
-            'aktif':   { gelen: '7', grup: '',     hizmet: '',  kat: '',  showHizmet:false, showGrup:false, showCustom:false },
-            'pasif':   { gelen: '8', grup: '',     hizmet: '',  kat: '',  showHizmet:false, showGrup:false, showCustom:false },
-            'son1yil': { gelen: '1', grup: '',     hizmet: '',  kat: '',  showHizmet:false, showGrup:false, showCustom:false },
-            'hizmet':  { gelen: '',  grup: '',     hizmet: null,kat: '',  showHizmet:true,  showGrup:false, showCustom:false },
-            'grup':    { gelen: '',  grup: null,   hizmet: '',  kat: '',  showHizmet:false, showGrup:true,  showCustom:false },
-            'custom':  { gelen: null,grup: null,   hizmet: null,kat: null,showHizmet:false, showGrup:false, showCustom:true  }
+            'all':     { gelen: '',  grup: '',   hizmet: '',  kat: '',  show:'' },
+            'sadik':   { gelen: '6', grup: '',   hizmet: '',  kat: '',  show:'' },
+            'aktif':   { gelen: '7', grup: '',   hizmet: '',  kat: '',  show:'' },
+            'pasif':   { gelen: '8', grup: '',   hizmet: '',  kat: '',  show:'' },
+            'son1yil': { gelen: '1', grup: '',   hizmet: '',  kat: '',  show:'' },
+            'hizmet':  { gelen: '',  grup: '',   hizmet: '',  kat: '',  show:'hizmet' },
+            'urun':    { gelen: '',  grup: '',   hizmet: '',  kat: '',  show:'urun'   },
+            'grup':    { gelen: '',  grup: null, hizmet: '',  kat: '',  show:'grup'   },
+            'custom':  { gelen: null,grup: null, hizmet: null,kat: null,show:'custom' }
          };
 
          function rkpSelectSet(id, value){
@@ -753,6 +890,93 @@
             $s.trigger('change');
          }
 
+         // ---- 2 KADEMELİ SELECTLER (kategori → hizmet/ürün) ----
+         function rkpHizmetKategorileriYukle(){
+            var $sel = $('#rkpHizmetKategoriSec');
+            $sel.find('option:not(:first)').remove();
+            (window.RKP_DATA && window.RKP_DATA.hizmetKategoriler || []).forEach(function(k){
+               $sel.append('<option value="'+k.id+'">'+ $('<div>').text(k.ad).html() +'</option>');
+            });
+         }
+         function rkpUrunKategorileriYukle(){
+            var $sel = $('#rkpUrunKategoriSec');
+            $sel.find('option:not(:first)').remove();
+            (window.RKP_DATA && window.RKP_DATA.urunKategoriler || []).forEach(function(k){
+               $sel.append('<option value="'+k.id+'">'+ $('<div>').text(k.ad).html() +'</option>');
+            });
+         }
+         function rkpHizmetleriYukleByKategori(katId){
+            var $sel = $('#rkpHizmetSec');
+            $sel.find('option').remove();
+            if(!katId){
+               $sel.append('<option value="">Önce kategori seçin</option>').prop('disabled', true);
+               return;
+            }
+            $sel.append('<option value="">Hizmet seçin...</option>');
+            var liste = (window.RKP_DATA && window.RKP_DATA.hizmetler || []).filter(function(h){
+               return String(h.kategori_id) === String(katId);
+            });
+            if(liste.length === 0){
+               $sel.append('<option value="" disabled>Bu kategoride hizmet yok</option>');
+            } else {
+               liste.forEach(function(h){
+                  $sel.append('<option value="'+h.id+'">'+ $('<div>').text(h.ad).html() +'</option>');
+               });
+            }
+            $sel.prop('disabled', false);
+         }
+         function rkpUrunleriYukleByKategori(katId){
+            var $sel = $('#rkpUrunSec');
+            $sel.find('option').remove();
+            var data = (window.RKP_DATA && window.RKP_DATA.urunler || []);
+            // Eğer ürün-kategori ilişkisi yoksa, tüm ürünleri göster (kategori seçimi sembolik)
+            var iliskiYok = !(window.RKP_DATA && window.RKP_DATA.urunKategoriIliskisiVar);
+            if(!katId && !iliskiYok){
+               $sel.append('<option value="">Önce kategori seçin</option>').prop('disabled', true);
+               return;
+            }
+            $sel.append('<option value="">Ürün seçin...</option>');
+            var liste = iliskiYok ? data : data.filter(function(u){
+               return String(u.kategori_id) === String(katId);
+            });
+            if(liste.length === 0){
+               $sel.append('<option value="" disabled>Bu kategoride ürün yok</option>');
+            } else {
+               liste.forEach(function(u){
+                  $sel.append('<option value="urun-'+u.id+'">'+ $('<div>').text(u.ad).html() +'</option>');
+               });
+            }
+            $sel.prop('disabled', false);
+         }
+
+         // Hizmet kategori değiştiğinde
+         $(document).on('change','#rkpHizmetKategoriSec',function(){
+            var katId = $(this).val();
+            rkpHizmetleriYukleByKategori(katId);
+            // Gizli #kampanyaKategori'yi senkronize et (sadece sayısal ID — hizmet kategorisi)
+            rkpSelectSet('kampanyaKategori', katId || '');
+            // Hizmet seçimini sıfırla
+            rkpSelectSet('hizmetUrunPaket', '');
+         });
+         // Hizmet seçildiğinde
+         $(document).on('change','#rkpHizmetSec',function(){
+            var hId = $(this).val();
+            rkpSelectSet('hizmetUrunPaket', hId || '');
+         });
+         // Ürün kategori değiştiğinde
+         $(document).on('change','#rkpUrunKategoriSec',function(){
+            var katId = $(this).val();
+            rkpUrunleriYukleByKategori(katId);
+            // Gizli #kampanyaKategori'yi "urun-X" formatında senkronize et
+            rkpSelectSet('kampanyaKategori', katId ? 'urun-'+katId : '');
+            rkpSelectSet('hizmetUrunPaket', '');
+         });
+         // Ürün seçildiğinde
+         $(document).on('change','#rkpUrunSec',function(){
+            var uVal = $(this).val(); // zaten "urun-X" formatında
+            rkpSelectSet('hizmetUrunPaket', uVal || '');
+         });
+
          $(document).on('click','#yeni_kampanya_modal .rkp-preset',function(e){
             e.preventDefault();
             var presetId = $(this).data('preset');
@@ -761,18 +985,26 @@
             // Aktif görseli
             $('#yeni_kampanya_modal .rkp-preset').removeClass('is-active');
             $(this).addClass('is-active');
-            // Ek paneller
-            $('#rkpPresetHizmet').toggle(!!p.showHizmet);
-            $('#rkpPresetGrup').toggle(!!p.showGrup);
-            $('#rkpPresetCustom').toggle(!!p.showCustom);
+            // Ek paneller — yalnızca ilgili olan açık
+            $('#rkpPresetHizmet').toggle(p.show === 'hizmet');
+            $('#rkpPresetUrun').toggle(p.show === 'urun');
+            $('#rkpPresetGrup').toggle(p.show === 'grup');
+            $('#rkpPresetCustom').toggle(p.show === 'custom');
             // Gizli select'leri ayarla (null = dokunma)
             rkpSelectSet('gelenGelmeyenMusteri', p.gelen);
             rkpSelectSet('musteriGruplari',      p.grup);
             rkpSelectSet('hizmetUrunPaket',      p.hizmet);
             rkpSelectSet('kampanyaKategori',     p.kat);
-            // Eğer "hizmet" preset seçildi ve henüz seçim yoksa Select2 dropdown'ını aç (UX)
-            if(presetId === 'hizmet' && !$('#hizmetUrunPaket').val()){
-               try { $('#hizmetUrunPaket').select2('open'); } catch(_) {}
+
+            // 2-kademeli select'leri hazırla
+            if(p.show === 'hizmet'){
+               rkpHizmetKategorileriYukle();
+               $('#rkpHizmetKategoriSec').val('');
+               rkpHizmetleriYukleByKategori('');
+            } else if(p.show === 'urun'){
+               rkpUrunKategorileriYukle();
+               $('#rkpUrunKategoriSec').val('');
+               rkpUrunleriYukleByKategori('');
             }
             rkpFiltreOzeti();
          });

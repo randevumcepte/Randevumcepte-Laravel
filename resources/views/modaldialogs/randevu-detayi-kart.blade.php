@@ -8,27 +8,29 @@
    }
    #modal-view-event .modal-header {
       background: linear-gradient(135deg, #5C008E 0%, #7B2FB8 50%, #9D5DC8 100%);
-      color: #fff; padding: 16px 22px; border-bottom: 0;
-      display:flex; align-items:center; gap:12px;
+      color: #fff; padding: 16px 56px 16px 22px; border-bottom: 0;
+      display:flex; align-items:center; gap:10px;
       flex-wrap: wrap; position: relative;
    }
    #modal-view-event .modal-header .h4 {
       margin: 0; font-size: 16px; font-weight: 700;
-      flex: 1; min-width: 0;
+      flex: 1 1 200px; min-width: 0;
       color: #fff !important; line-height: 1.3;
    }
    #modal-view-event .event-title { color:#fff; }
    #modal-view-event .modal-header .close {
-      position: absolute; top: 10px; right: 12px;
+      position: absolute; top: 10px; right: 10px;
       color: #fff; opacity: .9; font-size: 22px; line-height: 1;
-      background: transparent; border: 0; padding: 4px 8px; border-radius: 6px;
+      background: rgba(255,255,255,.12); border: 0;
+      width: 32px; height: 32px; border-radius: 8px;
+      display:flex; align-items:center; justify-content:center;
       transition: background .15s, opacity .15s;
-      text-shadow: none;
+      text-shadow: none; z-index: 5;
    }
-   #modal-view-event .modal-header .close:hover { background: rgba(255,255,255,.18); opacity: 1; }
-   #modal-view-event #duzenle_butonu_bolumu { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+   #modal-view-event .modal-header .close:hover { background: rgba(255,255,255,.28); opacity: 1; }
+   #modal-view-event #duzenle_butonu_bolumu { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
    #modal-view-event #duzenle_butonu_bolumu .btn {
-      border-radius: 8px; font-weight: 600; padding: 6px 14px; font-size: 12.5px;
+      border-radius: 8px; font-weight: 600; padding: 6px 12px; font-size: 12.5px; line-height: 1.2;
    }
    #modal-view-event .modal-body { padding: 18px 18px 14px; background:#fff; }
    #modal-view-event .modal-footer.event-buttons {
