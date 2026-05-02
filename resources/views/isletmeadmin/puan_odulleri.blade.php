@@ -92,6 +92,7 @@
 </style>
 
 <div class="po-wrap">
+    @include('partials.carkifelek_tabs')
     <div class="po-hero">
         <h1>🎖️ Puan Ödülleri Merdiveni</h1>
         <p>Müşterileriniz puan biriktirir, belirli eşiklere ulaştığında buradaki ödülleri talep eder. Talep edilen ödül kupon olarak oluşur — "Çark Kazananlar" sayfasındaki doğrulama kutusuyla onaylayabilirsiniz.</p>

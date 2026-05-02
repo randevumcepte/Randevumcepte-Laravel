@@ -448,6 +448,8 @@
 
 <div class="ck-page">
 
+    @include('partials.carkifelek_tabs')
+
     {{-- Header --}}
     <div class="ck-header">
         <div class="ck-header-left">

@@ -157,6 +157,7 @@ table.kz-tbl tr:hover td { background:#fafbff; }
 </style>
 
 <div class="kz-wrap">
+    @include('partials.carkifelek_tabs')
     <div class="kz-hero">
         <h1>🏆 Çarkıfelek Kazananlar</h1>
         <p>Çarkıfelek çevirme geçmişi ve kazanılan kuponlar. Müşteri kuponu getirdiğinde aşağıdaki kutuya kodu girin ve onaylayın.</p>

@@ -1150,35 +1150,16 @@
                      </a>
                   </li>
                       <li>
-                     @if($pageindex==500)
+                     @if(in_array($pageindex ?? 0, [500, 501, 502]))
                      <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
                      <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
                      @endif
-                     <span class="micon bi bi-calendar4-week"></span
+                     <span class="micon bi bi-circle-fill" style="color:#9D5DC8"></span
                         ><span class="mtext">Çarkıfelek</span>
                      </a>
                   </li>
-                      <li>
-                     @if($pageindex==501)
-                     <a href="/isletmeyonetim/carkkazananlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/carkkazananlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-trophy"></span
-                        ><span class="mtext">Çark Kazananlar</span>
-                     </a>
-                  </li>
-                      <li>
-                     @if($pageindex==502)
-                     <a href="/isletmeyonetim/puanodulleri{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/puanodulleri{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-star"></span
-                        ><span class="mtext">Puan Ödülleri</span>
-                     </a>
-                  </li>
+                  {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>2)
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
