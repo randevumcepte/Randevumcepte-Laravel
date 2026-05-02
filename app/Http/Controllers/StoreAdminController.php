@@ -12507,30 +12507,49 @@ DB::raw('
             ];
         }
 
-        // Cark, Onam, vb. (ek hizmetler — paket bazli aktif)
-        if($isletme->uyelik_turu >= 2)
-        {
-            $hizmetler[] = [
-                'kod' => 'cark',
-                'ad' => 'Çarkıfelek',
-                'aciklama' => 'Müşteri sadakat oyunu',
-                'icon' => 'fa-trophy',
-                'renk' => 'turuncu',
-                'aktif' => true,
-                'periyot' => 'Pakete dahil',
-                'bitis' => null,
-            ];
-            $hizmetler[] = [
-                'kod' => 'onam',
-                'ad' => 'Dinamik Onam Formu',
-                'aciklama' => 'Online onam imzalama',
-                'icon' => 'fa-file-text-o',
-                'renk' => 'mavi',
-                'aktif' => true,
-                'periyot' => 'Pakete dahil',
-                'bitis' => null,
-            ];
-        }
+        // Çarkıfelek - gercek aktiflik durumu (carkifelek_sistemi tablosundan)
+        try {
+            $cark = \App\CarkifelekSistemi::where('salon_id', $isletme->id)->first();
+            $carkAktif = $cark && (int) $cark->aktifmi === 1;
+            $carkDilimSayisi = $cark ? \App\CarkifelekDilimleri::where('cark_id', $cark->id)->count() : 0;
+
+            if($cark){
+                $hizmetler[] = [
+                    'kod' => 'cark',
+                    'ad' => 'Çarkıfelek',
+                    'aciklama' => $carkAktif
+                        ? ($carkDilimSayisi > 0 ? $carkDilimSayisi.' dilim tanımlı, çark dönüyor' : 'Aktif — henüz dilim eklenmemiş')
+                        : 'Çark kurulu fakat pasif',
+                    'icon' => 'fa-trophy',
+                    'renk' => 'turuncu',
+                    'aktif' => (bool) $carkAktif,
+                    'periyot' => 'Pakete dahil',
+                    'bitis' => null,
+                ];
+            }
+        } catch(\Exception $e) { /* sessiz gec */ }
+
+        // Dinamik Onam Formu - gercek formtaslaklari kayitlarindan
+        try {
+            if(Schema::hasColumn('formtaslaklari', 'is_dinamik')){
+                $dinamikFormSayisi = DB::table('formtaslaklari')
+                    ->where('salon_id', $isletme->id)
+                    ->where('is_dinamik', 1)
+                    ->count();
+                if($dinamikFormSayisi > 0){
+                    $hizmetler[] = [
+                        'kod' => 'onam',
+                        'ad' => 'Dinamik Onam Formu',
+                        'aciklama' => $dinamikFormSayisi.' form tanımlı',
+                        'icon' => 'fa-file-text-o',
+                        'renk' => 'mavi',
+                        'aktif' => true,
+                        'periyot' => 'Pakete dahil',
+                        'bitis' => null,
+                    ];
+                }
+            }
+        } catch(\Exception $e) { /* sessiz gec */ }
 
         // Faturalar — Salonun yapmış olduğu paket ödemeleri (eger boyle bir tablo varsa)
         // Mevcut sistemde ayri bir salon-fatura tablosu yok; subscriptions/abone tablosu olusturulana kadar bos liste
