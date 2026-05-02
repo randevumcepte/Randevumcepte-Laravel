@@ -176,17 +176,28 @@ class MusteriSecimi {
         const isChecked = this.state.seciliIdler.has(userId) || this.state.hepsiSecili;
         const ad = customer.name || customer.ad || customer.isim || '(İsimsiz)';
         const telefon = customer.phone || customer.telefon || '';
-        
+
+        // Avatar inisyali (ilk 2 harf) ve isimden hash ile renk
+        const parcalar = ad.trim().split(/\s+/);
+        const initial = (parcalar[0] ? parcalar[0].charAt(0) : '?')
+                      + (parcalar.length > 1 ? parcalar[parcalar.length - 1].charAt(0) : '');
+        const colorIndex = Math.abs(parseInt(userId, 10) || ad.charCodeAt(0)) % 8;
+        const cbId = 'gsoChk-' + userId;
+
         return $(`
             <div class="musteri-item">
                 <div class="form-check">
-                    <input class="form-check-input musteri-secimi-checkbox" 
-                           type="checkbox" 
+                    <input class="form-check-input musteri-secimi-checkbox"
+                           type="checkbox"
+                           id="${cbId}"
                            value="${userId}"
                            ${isChecked ? 'checked' : ''}>
-                    <label class="form-check-label">
-                        <strong>${this.escapeHtml(ad)}</strong>
-                        ${telefon ? `<br><small class="text-muted">${this.escapeHtml(telefon)}</small>` : ''}
+                    <label class="form-check-label" for="${cbId}">
+                        <span class="gso-avatar gso-avatar-c${colorIndex}">${this.escapeHtml(initial.toUpperCase())}</span>
+                        <span class="gso-musteri-info">
+                            <strong>${this.escapeHtml(ad)}</strong>
+                            ${telefon ? `<small>${this.escapeHtml(telefon)}</small>` : ''}
+                        </span>
                     </label>
                 </div>
             </div>

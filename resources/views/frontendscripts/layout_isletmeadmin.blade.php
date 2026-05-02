@@ -2509,7 +2509,7 @@
       @endif
     
       @if($pageindex==4 || $pageindex==22)
-         <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=3.7')}}"></script>
+         <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=3.8')}}"></script>
          <script type="text/javascript">
          $(document).ready(function(){
                          

@@ -492,146 +492,389 @@
 
 
 <div id="grup_sms_olustur_modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="grupSMSModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content" style="margin-left: 15%; width: 70%;">
+    <div class="modal-dialog modal-dialog-centered modal-lg gso-dialog">
+        <div class="modal-content gso-content">
             <form id="grup_sms_formu" method="POST">
                 {{ csrf_field() }}
                 <input type="hidden" name="sube" value="{{$isletme->id}}">
                 <input type="hidden" name="grup_id">
                 
-                <!-- Modal Header -->
-                <div class="modal-header bg-soft-primary">
-                    <div class="d-flex align-items-center w-100">
-                        <div class="modal-icon mr-3 bg-primary rounded-circle d-flex align-items-center justify-content-center">
-                            <i class="fa fa-users text-white" style="font-size: 1.2rem;"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h5 class="modal-title mb-0 font-weight-600" id="grupSMSModalLabel">Yeni Grup Oluştur</h5>
-                            <p class="text-muted mb-0 small">Müşteri grubu oluşturarak toplu SMS gönderebilirsiniz</p>
-                        </div>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Kapat">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+                <!-- Header -->
+                <div class="gso-header">
+                    <div class="gso-header-icon"><i class="fa fa-users"></i></div>
+                    <div class="gso-header-text">
+                        <h5 id="grupSMSModalLabel">Yeni Grup Oluştur</h5>
+                        <p>Sık kullanacağın müşteri grubunu oluştur, sonra reklamlarda tek tıkla seç</p>
                     </div>
+                    <button type="button" class="gso-close" data-dismiss="modal" aria-label="Kapat">
+                        <i class="fa fa-times"></i>
+                    </button>
                 </div>
-                
-                <!-- Modal Body -->
-                <div class="modal-body py-4">
-                    <!-- Grup Adı ve Müşteri Arama (Yan Yana) -->
-                    <div class="form-section">
-                        <div class="section-header mb-3">
-                            <h6 class="section-title text-primary mb-0">
-                                <i class="fa fa-info-circle mr-2"></i>Grup Bilgileri ve Müşteri Seçimi
-                            </h6>
-                           
+
+                <!-- Body -->
+                <div class="gso-body">
+                    <!-- ADIM 1: Grup Adı -->
+                    <div class="gso-step">
+                        <div class="gso-step-header">
+                            <span class="gso-step-num">1</span>
+                            <span class="gso-step-title">Grubu adlandır</span>
                         </div>
-                        
-                        <div class="row">
-                            <!-- Grup Adı Alanı -->
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="grup_adi" class="form-label font-weight-600">
-                                        Grup Adı <span class="text-danger">*</span>
-                                    </label>
-                                    <div class="input-group">
-                                        <div class="input-group-prepend">
-                                            <span class="input-group-text bg-soft-primary border-primary">
-                                                <i class="fa fa-tag"></i>
-                                            </span>
-                                        </div>
-                                        <input type="text" 
-                                               class="form-control border-primary" 
-                                               id="grup_adi" 
-                                               name="grup_adi"
-                                               placeholder="Örn: Sadık Müşteriler, Özel Kampanya Grubu"
-                                               required>
-                                    </div>
-                                    <small class="form-text text-muted">Grubu kolayca tanımlayabileceğiniz bir isim verin</small>
-                                </div>
-                            </div>
-                            
-                            <!-- Müşteri Arama Alanı -->
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="musteriarama_grupsms" class="form-label font-weight-600">
-                                        Müşteri Ara
-                                    </label>
-                                    <div class="input-group">
-                                        <div class="input-group-prepend">
-                                            <span class="input-group-text bg-soft-info border-info">
-                                                <i class="fa fa-search"></i>
-                                            </span>
-                                        </div>
-                                        <input type="text" 
-                                               id="musteriarama_grupsms" 
-                                               name="musteriarama_grupsms" 
-                                               class="form-control border-info" 
-                                               placeholder="İsim ile müşteri arayın...">
-                                    </div>
-                                    <small class="form-text text-muted">Müşteriler arasında hızlı arama yapın</small>
-                                </div>
-                            </div>
+                        <input type="text"
+                               class="gso-input"
+                               id="grup_adi"
+                               name="grup_adi"
+                               placeholder="örn: Sadık Müşteriler"
+                               autocomplete="off"
+                               required>
+                        <div class="gso-suggest-row">
+                            <span class="gso-suggest-label">Hızlı öneri:</span>
+                            <button type="button" class="gso-chip" data-fill="Sadık Müşteriler">💎 Sadık Müşteriler</button>
+                            <button type="button" class="gso-chip" data-fill="VIP Müşteriler">⭐ VIP Müşteriler</button>
+                            <button type="button" class="gso-chip" data-fill="Yeni Müşteriler">🆕 Yeni Müşteriler</button>
+                            <button type="button" class="gso-chip" data-fill="Doğum Günü Listesi">🎂 Doğum Günü</button>
                         </div>
                     </div>
-                    
-                    <!-- Müşteri Listesi -->
-                    <div class="form-section">
-                        <div class="card border-soft">
-                            <div class="card-header bg-soft-light py-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0 font-weight-600">Müşteri Listesi</h6>
-                                </div>
-                            </div>
-                            <div class="card-body p-0">
-                                <!-- Yükleme Göstergesi -->
-                                <div class="loading text-center py-5" id="musteriYukleniyor" style="display: none;">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="sr-only">Yükleniyor...</span>
-                                    </div>
-                                </div>
-                                
-                                <!-- Müşteri Listesi Container -->
-                                <div id="musteriListesiGrupSMS" style="max-height: 300px; overflow-y: auto; min-height: 200px;">
-                                    <!-- İlk yükleme mesajı -->
-                                    <div class="text-center py-5 text-muted" id="musteriListesiIlkMesaj">
-                                        <i class="fa fa-user-friends fa-3x mb-3 opacity-50"></i>
-                                        <p>Lütfen bekleyin, müşteriler yükleniyor...</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Seçili Müşteri Bilgisi -->
-                            <div class="card-footer bg-soft-success py-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <i class="fa fa-check-circle text-success mr-2"></i>
-                                        <span class="font-weight-600" id="grupSMSSeciliMusteriler">0 müşteri seçildi</span>
-                                    </div>
-                                    <div class="text-muted small">
-                                        <span id="gosterilenMusteriSayisi">0</span> / <span id="toplamMusteriSayisiFooter">0</span>
-                                    </div>
-                                </div>
-                            </div>
+
+                    <!-- ADIM 2: Müşteri Seç -->
+                    <div class="gso-step gso-mt">
+                        <div class="gso-step-header">
+                            <span class="gso-step-num">2</span>
+                            <span class="gso-step-title">Müşterileri seç</span>
+                            <span class="gso-secili-rozet" id="grupSMSSeciliMusteriler">0 müşteri seçildi</span>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- Modal Footer -->
-                <div class="modal-footer bg-soft-light border-top">
-                    <div class="row w-100 align-items-center">
-                        <div class="col-md-2"></div>
-                        <div class="col-md-8">
-                            <button type="submit" class="btn btn-primary btn-lg w-100">
-                                <i class="fa fa-save mr-2"></i>Grubu Kaydet
+
+                        <div class="gso-toolbar">
+                            <div class="gso-search">
+                                <i class="fa fa-search"></i>
+                                <input type="text"
+                                       id="musteriarama_grupsms"
+                                       name="musteriarama_grupsms"
+                                       placeholder="İsim veya telefon ara...">
+                            </div>
+                            <button type="button" class="gso-temizle" id="gsoSecimTemizle" title="Seçimi Temizle">
+                                <i class="fa fa-times-circle"></i> Seçimi Temizle
                             </button>
                         </div>
-                        <div class="col-md-2"></div>
+
+                        <div class="gso-list-wrap">
+                            <div class="gso-loading" id="musteriYukleniyor" style="display: none;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="sr-only">Yükleniyor...</span>
+                                </div>
+                                <p>Müşteriler yükleniyor...</p>
+                            </div>
+                            <div id="musteriListesiGrupSMS" class="gso-list">
+                                <div class="gso-empty" id="musteriListesiIlkMesaj">
+                                    <div class="gso-empty-ic"><i class="fa fa-user-friends"></i></div>
+                                    <p>Lütfen bekleyin, müşteriler yükleniyor...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="gso-counts">
+                            <span><i class="fa fa-eye"></i> <b id="gosterilenMusteriSayisi">0</b> görüntüleniyor</span>
+                            <span><i class="fa fa-database"></i> Toplam <b id="toplamMusteriSayisiFooter">0</b></span>
+                        </div>
                     </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="gso-footer">
+                    <button type="button" class="gso-btn gso-btn-iptal" data-dismiss="modal">İptal</button>
+                    <button type="submit" class="gso-btn gso-btn-kaydet">
+                        <i class="fa fa-check-circle"></i> Grubu Kaydet
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<style>
+/* ============ YENİ GRUP OLUŞTUR — MODERN UI ============ */
+#grup_sms_olustur_modal .gso-dialog { max-width: 760px; margin: 1.75rem auto; }
+#grup_sms_olustur_modal .gso-content {
+    border: none; border-radius: 18px; overflow: hidden;
+    box-shadow: 0 24px 48px rgba(15,23,42,.18);
+    margin: 0 auto !important; width: 100% !important;
+}
+/* Header — mor gradient */
+#grup_sms_olustur_modal .gso-header {
+    position: relative;
+    background: linear-gradient(135deg, #5C008E 0%, #7B2FB8 50%, #9D5DC8 100%);
+    color: #fff; padding: 22px 26px; display: flex; align-items: center; gap: 16px;
+}
+#grup_sms_olustur_modal .gso-header::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background:
+        radial-gradient(circle at 12% 30%, rgba(255,255,255,.18), transparent 35%),
+        radial-gradient(circle at 88% 80%, rgba(255,255,255,.10), transparent 40%);
+}
+#grup_sms_olustur_modal .gso-header-icon {
+    position: relative; z-index: 1;
+    width: 56px; height: 56px; border-radius: 16px;
+    background: rgba(255,255,255,.18); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+    border: 1.5px solid rgba(255,255,255,.22);
+}
+#grup_sms_olustur_modal .gso-header-text { position: relative; z-index: 1; flex: 1; min-width: 0; }
+#grup_sms_olustur_modal .gso-header-text h5 { margin: 0 0 4px; font-weight: 700; font-size: 20px; color: #fff; }
+#grup_sms_olustur_modal .gso-header-text p  { margin: 0; font-size: 13px; color: rgba(255,255,255,.92); line-height: 1.4; }
+#grup_sms_olustur_modal .gso-close {
+    position: relative; z-index: 1;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,.15); border: none; color: #fff;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: all .15s ease;
+}
+#grup_sms_olustur_modal .gso-close:hover { background: rgba(255,255,255,.28); transform: rotate(90deg); }
+
+/* Body */
+#grup_sms_olustur_modal .gso-body { padding: 22px 26px 8px; max-height: calc(100vh - 280px); overflow-y: auto; }
+#grup_sms_olustur_modal .gso-mt { margin-top: 22px; }
+#grup_sms_olustur_modal .gso-step-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+#grup_sms_olustur_modal .gso-step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg,#5C008E,#7B2FB8); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+}
+#grup_sms_olustur_modal .gso-step-title { font-size: 15px; font-weight: 700; color: #1e293b; }
+#grup_sms_olustur_modal .gso-secili-rozet {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 999px;
+    background: linear-gradient(135deg,#10b981,#059669);
+    color: #fff; font-size: 12.5px; font-weight: 700;
+    box-shadow: 0 4px 12px rgba(5,150,105,.25);
+    transition: all .2s ease;
+}
+#grup_sms_olustur_modal .gso-secili-rozet.gso-rozet-bos {
+    background: #f1f5f9; color: #94a3b8; box-shadow: none;
+}
+
+/* Modern input */
+#grup_sms_olustur_modal .gso-input {
+    width: 100%; height: 48px; padding: 10px 16px;
+    font-size: 15px; font-weight: 500;
+    border: 2px solid #e2e8f0; border-radius: 12px;
+    background: #fff; color: #1e293b;
+    transition: all .15s ease;
+}
+#grup_sms_olustur_modal .gso-input:focus {
+    outline: none; border-color: #7B2FB8;
+    box-shadow: 0 0 0 4px rgba(123,47,184,.12);
+}
+#grup_sms_olustur_modal .gso-input::placeholder { color: #94a3b8; }
+
+/* Hızlı öneri chip'leri */
+#grup_sms_olustur_modal .gso-suggest-row {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px;
+}
+#grup_sms_olustur_modal .gso-suggest-label { font-size: 11.5px; color: #64748b; font-weight: 600; }
+#grup_sms_olustur_modal .gso-chip {
+    padding: 5px 12px; border-radius: 999px;
+    background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s ease;
+}
+#grup_sms_olustur_modal .gso-chip:hover {
+    background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; transform: translateY(-1px);
+}
+
+/* Toolbar */
+#grup_sms_olustur_modal .gso-toolbar {
+    display: flex; gap: 8px; align-items: stretch; margin-bottom: 10px;
+}
+#grup_sms_olustur_modal .gso-search { position: relative; flex: 1; }
+#grup_sms_olustur_modal .gso-search i {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: #94a3b8; font-size: 14px;
+}
+#grup_sms_olustur_modal .gso-search input {
+    width: 100%; height: 42px; padding: 8px 14px 8px 38px;
+    font-size: 13.5px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+    background: #fff; transition: all .15s ease;
+}
+#grup_sms_olustur_modal .gso-search input:focus {
+    outline: none; border-color: #7B2FB8; box-shadow: 0 0 0 3px rgba(123,47,184,.12);
+}
+#grup_sms_olustur_modal .gso-temizle {
+    padding: 0 14px; height: 42px;
+    background: #fff; color: #dc2626; border: 1.5px solid #fecaca; border-radius: 10px;
+    font-size: 12.5px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; transition: all .15s ease;
+}
+#grup_sms_olustur_modal .gso-temizle:hover { background: #fef2f2; border-color: #fca5a5; }
+
+/* Liste */
+#grup_sms_olustur_modal .gso-list-wrap {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;
+}
+#grup_sms_olustur_modal .gso-list {
+    max-height: 360px; overflow-y: auto; padding: 6px;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+    scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent;
+}
+#grup_sms_olustur_modal .gso-list::-webkit-scrollbar { width: 8px; }
+#grup_sms_olustur_modal .gso-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+#grup_sms_olustur_modal .gso-list::-webkit-scrollbar-track { background: #f8fafc; }
+
+/* "Tümünü seç" başlığı tam satır */
+#grup_sms_olustur_modal .gso-list .musteri-item.hepsini-sec {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #faf5ff, #ede9fe) !important;
+    border: 1.5px dashed #c4b5fd !important;
+    border-radius: 10px; padding: 10px 14px !important; margin-bottom: 4px;
+}
+#grup_sms_olustur_modal .gso-list .musteri-item.hepsini-sec .form-check-label {
+    font-weight: 700 !important; color: #5b21b6 !important; font-size: 13.5px;
+}
+
+/* Müşteri item — kart görünümü */
+#grup_sms_olustur_modal .gso-list .musteri-item {
+    border-radius: 10px; border: 1.5px solid #e2e8f0;
+    background: #fff; padding: 10px 12px;
+    transition: all .12s ease; cursor: pointer;
+    position: relative;
+}
+#grup_sms_olustur_modal .gso-list .musteri-item:hover {
+    border-color: #c4b5fd; background: #faf5ff;
+    transform: translateY(-1px); box-shadow: 0 4px 10px rgba(123,47,184,.08);
+}
+#grup_sms_olustur_modal .gso-list .musteri-item .form-check {
+    margin: 0; padding-left: 0;
+    display: flex; align-items: center; gap: 10px; min-height: 36px;
+}
+#grup_sms_olustur_modal .gso-list .musteri-item .form-check-input {
+    margin: 0; width: 18px; height: 18px; flex-shrink: 0;
+    accent-color: #7B2FB8; cursor: pointer;
+}
+#grup_sms_olustur_modal .gso-list .musteri-item .form-check-label {
+    margin: 0; cursor: pointer; flex: 1; min-width: 0;
+    display: flex; align-items: center; gap: 10px; line-height: 1.3;
+}
+
+/* Avatar */
+#grup_sms_olustur_modal .gso-avatar {
+    width: 32px; height: 32px; border-radius: 50%; color: #fff;
+    font-size: 12.5px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+#grup_sms_olustur_modal .gso-avatar-c0 { background: linear-gradient(135deg,#7B2FB8,#5C008E); }
+#grup_sms_olustur_modal .gso-avatar-c1 { background: linear-gradient(135deg,#0284c7,#06b6d4); }
+#grup_sms_olustur_modal .gso-avatar-c2 { background: linear-gradient(135deg,#059669,#10b981); }
+#grup_sms_olustur_modal .gso-avatar-c3 { background: linear-gradient(135deg,#d97706,#f59e0b); }
+#grup_sms_olustur_modal .gso-avatar-c4 { background: linear-gradient(135deg,#dc2626,#ef4444); }
+#grup_sms_olustur_modal .gso-avatar-c5 { background: linear-gradient(135deg,#be185d,#ec4899); }
+#grup_sms_olustur_modal .gso-avatar-c6 { background: linear-gradient(135deg,#4f46e5,#6366f1); }
+#grup_sms_olustur_modal .gso-avatar-c7 { background: linear-gradient(135deg,#0891b2,#0ea5e9); }
+#grup_sms_olustur_modal .gso-musteri-info { flex: 1; min-width: 0; }
+#grup_sms_olustur_modal .gso-musteri-info strong {
+    display: block; font-size: 13px; font-weight: 600; color: #1e293b;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#grup_sms_olustur_modal .gso-musteri-info small {
+    color: #64748b; font-size: 11.5px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;
+}
+
+/* Seçili durum */
+#grup_sms_olustur_modal .gso-list .musteri-item:has(input:checked) {
+    border-color: #7B2FB8;
+    background: linear-gradient(135deg,#faf5ff,#fff);
+    box-shadow: 0 4px 14px rgba(123,47,184,.14);
+}
+
+/* Loading / Empty */
+#grup_sms_olustur_modal .gso-loading { padding: 40px 20px; text-align: center; }
+#grup_sms_olustur_modal .gso-loading p { margin-top: 10px; color: #64748b; font-size: 13px; }
+#grup_sms_olustur_modal .gso-empty {
+    grid-column: 1 / -1;
+    text-align: center; padding: 36px 20px; color: #94a3b8;
+}
+#grup_sms_olustur_modal .gso-empty-ic {
+    width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; background: #f1f5f9;
+    display: flex; align-items: center; justify-content: center; font-size: 26px;
+}
+#grup_sms_olustur_modal .gso-empty p { margin: 0; font-size: 13px; }
+
+/* Counts */
+#grup_sms_olustur_modal .gso-counts {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 8px; padding: 0 4px;
+    font-size: 11.5px; color: #94a3b8;
+}
+#grup_sms_olustur_modal .gso-counts i { margin-right: 4px; }
+#grup_sms_olustur_modal .gso-counts b { color: #475569; }
+
+/* Footer */
+#grup_sms_olustur_modal .gso-footer {
+    padding: 16px 26px; border-top: 1px solid #f1f5f9;
+    display: flex; gap: 10px; justify-content: flex-end; background: #fafbfc;
+}
+#grup_sms_olustur_modal .gso-btn {
+    padding: 12px 26px; border-radius: 12px;
+    font-weight: 700; font-size: 14px; cursor: pointer; border: none;
+    display: inline-flex; align-items: center; gap: 8px; transition: all .15s ease;
+}
+#grup_sms_olustur_modal .gso-btn-iptal {
+    background: #fff; color: #475569; border: 1.5px solid #e2e8f0;
+}
+#grup_sms_olustur_modal .gso-btn-iptal:hover { background: #f8fafc; border-color: #cbd5e1; }
+#grup_sms_olustur_modal .gso-btn-kaydet {
+    background: linear-gradient(135deg,#10b981 0%,#059669 100%);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(5,150,105,.30);
+    min-width: 200px; justify-content: center;
+}
+#grup_sms_olustur_modal .gso-btn-kaydet:hover {
+    transform: translateY(-1px); box-shadow: 0 12px 28px rgba(5,150,105,.40);
+}
+
+/* Responsive */
+@media (max-width: 575px) {
+    #grup_sms_olustur_modal .gso-list { grid-template-columns: 1fr; }
+    #grup_sms_olustur_modal .gso-header { padding: 16px 18px; gap: 12px; }
+    #grup_sms_olustur_modal .gso-header-icon { width: 44px; height: 44px; font-size: 18px; }
+    #grup_sms_olustur_modal .gso-header-text h5 { font-size: 17px; }
+    #grup_sms_olustur_modal .gso-body { padding: 16px 18px 4px; }
+    #grup_sms_olustur_modal .gso-footer { padding: 12px 18px; flex-direction: column-reverse; }
+    #grup_sms_olustur_modal .gso-btn { width: 100%; justify-content: center; }
+    #grup_sms_olustur_modal .gso-secili-rozet { font-size: 11px; padding: 4px 10px; }
+}
+</style>
+
+<script>
+(function(){
+   $(document).on('click', '#grup_sms_olustur_modal .gso-chip', function(e){
+      e.preventDefault();
+      $('#grup_adi').val($(this).data('fill')).trigger('input').focus();
+   });
+   $(document).on('click', '#gsoSecimTemizle', function(e){
+      e.preventDefault();
+      try {
+         if(window.musteriSecimi){
+            window.musteriSecimi.state.seciliIdler.clear();
+            window.musteriSecimi.state.hepsiSecili = false;
+            $('#tumunuSecGrupSMS').prop('checked', false);
+            $('#musteriListesiGrupSMS .musteri-secimi-checkbox').prop('checked', false);
+            window.musteriSecimi.seciliElemanSayisiniGuncelle();
+         }
+      } catch(_) {}
+   });
+   var $rozet = $('#grupSMSSeciliMusteriler');
+   if($rozet.length && window.MutationObserver){
+      new MutationObserver(function(){
+         var n = parseInt(($rozet.text() || '').replace(/[^\d]/g,''), 10) || 0;
+         $rozet.toggleClass('gso-rozet-bos', n === 0);
+      }).observe($rozet[0], {childList:true, subtree:true, characterData:true});
+      $rozet.addClass('gso-rozet-bos');
+   }
+})();
+</script>
 
 <!-- Grup SMS Düzenle Modalı -->
 <div id="grup_sms_duzenle_modal" class="modal modal-top fade calendar-modal">
