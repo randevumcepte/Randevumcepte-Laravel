@@ -113,17 +113,16 @@ class DrklinikClient
         $resBody = (string) $resp->getBody();
         $this->dump("login_webforms_{$status}", $resBody, $resp->getHeaders());
 
-        // Login basarili mi? Cookie'de ASP.NET_SessionId set olmali, ve cevap login formuna geri donmemis olmali
-        $hasSession = $this->cookieValue('ASP.NET_SessionId') !== null;
-        $stillLogin = stripos($resBody, 'TB_KullaniciAd') !== false || stripos($resBody, 'LB_Giris') !== false;
+        // Login basarili mi? Cevap body'de login formu (TB_KullaniciAd) DONMEMELI.
+        // 302 redirect olduysa Guzzle takip etmis, gelen body authenticated sayfa.
+        $stillLogin = stripos($resBody, 'TB_KullaniciAd') !== false;
         $endedAt = '';
         foreach ($resp->getHeader('X-Guzzle-Redirect-History') as $r) $endedAt = $r;
 
-        if ($hasSession && !$stillLogin) {
+        if (!$stillLogin) {
             return ['ok' => true, 'method' => 'webforms', 'detail' => "Login OK. Son URL: {$endedAt}"];
         }
-        // Bazi WebForms: redirect var ama hala login formu donerse, "session var ama auth yok" demek
-        return ['ok' => false, 'method' => 'webforms', 'detail' => 'Login basarisiz; cookie=' . ($hasSession ? 'var' : 'yok') . ', form_donmus=' . ($stillLogin ? 'evet' : 'hayir') . '. Dump: login_webforms_' . $status . '.body'];
+        return ['ok' => false, 'method' => 'webforms', 'detail' => 'Login basarisiz; cevap login formuna donmus. Dump: login_webforms_' . $status . '.body'];
     }
 
     private function extractFormField($html, $name)
