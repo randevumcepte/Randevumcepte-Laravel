@@ -27,14 +27,29 @@ export class EdgeTTS {
    */
   async toFile(text, outFile) {
     const tts = new MsEdgeTTS();
-    await tts.setMetadata(this.voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    try {
+      await tts.setMetadata(this.voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    } catch (e) {
+      throw new Error(`TTS setMetadata fail: ${this._fmtErr(e)}`);
+    }
     const dir = path.dirname(outFile);
     const base = path.basename(outFile, path.extname(outFile));
-    const result = await tts.toFile(path.join(dir, base), text, {
-      rate: this.rate,
-      pitch: this.pitch,
-    });
-    return result.audioFilePath;
+    try {
+      const result = await tts.toFile(path.join(dir, base), text, {
+        rate: this.rate,
+        pitch: this.pitch,
+      });
+      return result.audioFilePath || (path.join(dir, base) + '.mp3');
+    } catch (e) {
+      throw new Error(`TTS toFile fail (voice=${this.voice}): ${this._fmtErr(e)}`);
+    }
+  }
+
+  _fmtErr(e) {
+    if (!e) return 'unknown';
+    if (typeof e === 'string') return e;
+    if (e.message) return e.message;
+    try { return JSON.stringify(e); } catch { return String(e); }
   }
 
   /**
