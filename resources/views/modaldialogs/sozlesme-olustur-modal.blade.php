@@ -80,12 +80,50 @@
 </div>
 <script>
 $(document).ready(function(){
-   // Müşteri seçimi → telefonu otomatik doldur
-   $('#sozlesme_musteri').on('change', function(){
-      var userId = $(this).val();
-      if(!userId) return;
-      $.get('/isletmeyonetim/formmusteribilgigetir', { user_id: userId, sube: '{{$isletme->id}}' }, function(data){
-         if(data && data.cep_telefon) $('#sozlesme_telefon').val(data.cep_telefon);
+   // Modal açılınca select2'yi yeniden başlat (dialog içindeki select için gerekli)
+   $('#sozlesmeOlusturModal').on('shown.bs.modal', function(){
+      try {
+         if($('#sozlesme_musteri').data('select2')) $('#sozlesme_musteri').select2('destroy');
+      } catch(e){}
+      $('#sozlesme_musteri').select2({
+         placeholder: 'Müşteri seçin (en az 2 karakter)',
+         allowClear: true,
+         dropdownParent: $('#sozlesmeOlusturModal'),
+         minimumInputLength: 2,
+         language: {
+            inputTooShort: function(){ return 'En az 2 karakter girin.'; },
+            searching: function(){ return 'Aranıyor...'; },
+            noResults: function(){ return 'Sonuç bulunamadı.'; }
+         },
+         ajax: {
+            url: '/isletmeyonetim/musteri-arama-bolumu-verileri',
+            dataType: 'json',
+            delay: 250,
+            data: function(params){
+               return { query: params.term || '', normalized_query: params.term || '', sube: '{{$isletme->id}}', aramaMi: false };
+            },
+            processResults: function(data){
+               return { results: data.map(function(m){ return { id: m.id, text: m.ad_soyad }; }) };
+            }
+         }
+      });
+   });
+
+   // Müşteri seçimi → telefonu otomatik doldur (endpoint: musteri_id, dönen: telefon)
+   $(document).on('change','#sozlesme_musteri', function(){
+      var musteriId = $(this).val();
+      $('#sozlesme_telefon').val('');
+      if(!musteriId || musteriId === '0') return;
+      $.ajax({
+         url: '/isletmeyonetim/formmusteribilgigetir',
+         type: 'GET',
+         dataType: 'json',
+         data: { musteri_id: musteriId, sube: '{{$isletme->id}}' },
+         success: function(result){
+            if(result && result.telefon){
+               $('#sozlesme_telefon').val(result.telefon);
+            }
+         }
       });
    });
    // Paket seçilince fiyat/seans otomatik doldur
