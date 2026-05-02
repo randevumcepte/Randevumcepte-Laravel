@@ -555,111 +555,118 @@
 
                   <script>
                   (function(){
-                     if(!('speechSynthesis' in window)) return;
-
-                     // ---- Voice kalite skoru ----
-                     // Online (network) sesler genelde Microsoft Tolga, Google Türkçe — neural, çok daha doğal.
-                     // Offline (default) sesler genelde robotic.
-                     function voiceSkoru(v){
-                        var name = (v.name || '').toLowerCase();
-                        var lang = (v.lang || '').toLowerCase();
-                        var s = 0;
-                        // Türkçe?
-                        if(/tr[-_]?tr/.test(lang)) s += 100;
-                        else if(/^tr/.test(lang)) s += 80;
-                        else if(/^en/.test(lang)) s += 5; // İngilizce fallback
-                        // Online / neural?
-                        if(v.localService === false) s += 50;       // Network voice — genelde neural
-                        if(/online|natural|neural|wavenet/.test(name)) s += 40;
-                        if(/google/.test(name)) s += 25;             // Google Türkçe genelde online
-                        if(/microsoft.*online|tolga.*online|emel.*online/.test(name)) s += 30;
-                        if(/microsoft/.test(name) && v.localService === false) s += 25;
-                        // Bilinen kaliteli isimler
-                        if(/tolga|emel|filiz|bekir|seda/.test(name)) s += 20;
-                        // Offline (genelde tonsuz)
-                        if(v.localService === true) s -= 5;
-                        return s;
+                     // -------- VIRTUAL VOICES (StreamElements / Polly — ücretsiz) --------
+                     // Sadece Türkçe sesler. id 'sev_X' formatında, browser voice'lardan ayrı.
+                     // StreamElements: ücretsiz, anahtar gerek değil, Amazon Polly altyapısı.
+                     var VIRTUAL_VOICES = [
+                        { id:'sev_filiz',  api:'streamelements', voice:'Filiz',  ad:'Filiz (Doğal Kadın · Polly)',     gender:'kadın' },
+                        { id:'sev_seda',   api:'streamelements', voice:'Seda',   ad:'Seda (Doğal Kadın · Bing)',       gender:'kadın' },
+                        { id:'sev_ahmet',  api:'streamelements', voice:'Ahmet',  ad:'Ahmet (Doğal Erkek · Bing)',      gender:'erkek' },
+                        { id:'sev_emel',   api:'streamelements', voice:'Emel',   ad:'Emel (Doğal Kadın · Bing)',       gender:'kadın' },
+                        // Google Translate TTS — kaliteli, ücretsiz, sınır 200 char
+                        { id:'sev_gtr_f',  api:'googletts',      voice:'tr',     ad:'Google Türkçe (Kadın · 200char)', gender:'kadın' }
+                     ];
+                     function virtualUrl(v, metin){
+                        var t = metin.substring(0, 1500);
+                        if(v.api === 'streamelements'){
+                           return 'https://api.streamelements.com/kappa/v2/speech?voice='+ encodeURIComponent(v.voice) +
+                                  '&text=' + encodeURIComponent(t);
+                        }
+                        if(v.api === 'googletts'){
+                           t = metin.substring(0, 200);
+                           return 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=tr&q=' + encodeURIComponent(t);
+                        }
+                        return '';
                      }
-                     function tumSesleriAl(){ try { return speechSynthesis.getVoices() || []; } catch(_) { return []; } }
-                     function siralanmisSesler(){
-                        return tumSesleriAl().slice().sort(function(a,b){ return voiceSkoru(b) - voiceSkoru(a); });
+                     function virtualBul(id){ return VIRTUAL_VOICES.find(function(v){ return v.id === id; }); }
+
+                     // -------- BROWSER VOICES --------
+                     var hasSpeech = ('speechSynthesis' in window);
+                     function tumBrowserSesleri(){
+                        if(!hasSpeech) return [];
+                        try { return (speechSynthesis.getVoices() || []).filter(function(v){ return /^tr/i.test(v.lang); }); }
+                        catch(_) { return []; }
                      }
 
-                     var seciliVoiceURI = localStorage.getItem('kss_voice_uri') || '';
+                     var seciliVoiceURI = localStorage.getItem('kss_voice_uri') || 'sev_filiz';
 
                      function selectorDoldur(){
                         var $sel = $('#kampanyaSesSecici');
                         if(!$sel.length) return;
-                        var sesler = siralanmisSesler();
-                        if(!sesler.length){ $sel.html('<option>Ses bulunamadı</option>').prop('disabled', true); return; }
-
-                        var trGrup = sesler.filter(function(v){ return /^tr/i.test(v.lang); });
-                        var digerGrup = sesler.filter(function(v){ return !/^tr/i.test(v.lang); });
-
                         var html = '';
-                        if(trGrup.length){
-                           html += '<optgroup label="🇹🇷 Türkçe Sesler">';
-                           trGrup.forEach(function(v){
-                              var etiket = v.name + (v.localService === false ? ' ✨' : '');
-                              html += '<option value="'+ v.voiceURI +'">'+ etiket +'</option>';
+
+                        // Önce: yüksek kalite (network, Polly tabanlı)
+                        html += '<optgroup label="✨ Doğal Sesler (Önerilen)">';
+                        VIRTUAL_VOICES.forEach(function(v){
+                           html += '<option value="'+ v.id +'">'+ v.ad +'</option>';
+                        });
+                        html += '</optgroup>';
+
+                        // Sonra: tarayıcı yerel Türkçe sesleri (offline)
+                        var brSesler = tumBrowserSesleri();
+                        if(brSesler.length){
+                           html += '<optgroup label="📱 Cihaz Sesleri (Çevrimdışı)">';
+                           brSesler.forEach(function(v){
+                              html += '<option value="br_'+ v.voiceURI +'">'+ v.name +'</option>';
                            });
                            html += '</optgroup>';
                         }
-                        if(digerGrup.length){
-                           html += '<optgroup label="Diğer Diller">';
-                           digerGrup.slice(0, 8).forEach(function(v){
-                              html += '<option value="'+ v.voiceURI +'">'+ v.name +' ('+ v.lang +')</option>';
-                           });
-                           html += '</optgroup>';
-                        }
+
                         $sel.prop('disabled', false).html(html);
 
-                        // Seçili: localStorage'dan veya en yüksek skorlu
-                        var hedef = sesler.find(function(v){ return v.voiceURI === seciliVoiceURI; });
-                        if(!hedef) hedef = sesler[0];
-                        if(hedef){
-                           $sel.val(hedef.voiceURI);
-                           qualityBadge(hedef);
+                        // Seçili
+                        if(seciliVoiceURI && $sel.find('option[value="'+ seciliVoiceURI +'"]').length){
+                           $sel.val(seciliVoiceURI);
+                        } else {
+                           $sel.val('sev_filiz');
+                           seciliVoiceURI = 'sev_filiz';
                         }
+                        qualityBadge();
                      }
-                     function aktifVoice(){
-                        var uri = $('#kampanyaSesSecici').val();
-                        return tumSesleriAl().find(function(v){ return v.voiceURI === uri; }) || siralanmisSesler()[0];
-                     }
-                     function qualityBadge(v){
+
+                     function qualityBadge(){
+                        var v = $('#kampanyaSesSecici').val() || '';
                         var $b = $('#kssQualityBadge');
-                        if(!v){ $b.removeClass('kss-q-online kss-q-offline').text(''); return; }
-                        if(v.localService === false){
+                        if(v.indexOf('sev_') === 0){
                            $b.removeClass('kss-q-offline').addClass('kss-q-online').text('✨ Yüksek Kalite');
                         } else {
-                           $b.removeClass('kss-q-online').addClass('kss-q-offline').text('Standart');
+                           $b.removeClass('kss-q-online').addClass('kss-q-offline').text('Cihaz Sesi');
                         }
                      }
 
                      $(document).on('change','#kampanyaSesSecici',function(){
                         seciliVoiceURI = $(this).val();
                         try { localStorage.setItem('kss_voice_uri', seciliVoiceURI); } catch(_) {}
-                        qualityBadge(aktifVoice());
+                        qualityBadge();
                      });
 
-                     // Voice list asenkron yükleniyor — voiceschanged event'i ile yenile
-                     speechSynthesis.onvoiceschanged = selectorDoldur;
+                     if(hasSpeech){
+                        speechSynthesis.onvoiceschanged = selectorDoldur;
+                     }
                      selectorDoldur();
-                     // Bazı tarayıcılarda ilk getVoices() boş döner — zorla 200ms sonra tekrar
                      setTimeout(selectorDoldur, 250);
                      setTimeout(selectorDoldur, 800);
 
-                     // ---- Çalma kontrol ----
+                     // -------- Çalma kontrol --------
                      function getMetin(){
                         var t = $('#kampanyaPrompt').text() || '';
                         return t.replace(/\s+/g,' ').trim();
                      }
                      var aktifUtt = null;
+                     var $audio = $('#kampanyaSesKaydiCal');
                      function durdur(){
-                        try { speechSynthesis.cancel(); } catch(_) {}
+                        try { if(hasSpeech) speechSynthesis.cancel(); } catch(_) {}
+                        try {
+                           var a = $audio[0];
+                           if(a){ a.pause(); a.currentTime = 0; }
+                        } catch(_) {}
                         aktifUtt = null;
                         $('#kampanyaSesOku').removeClass('is-playing').html('<i class="fa fa-play"></i> Sesli Önizle');
                         $('#kampanyaSesDurdur').hide();
+                     }
+                     function calmaBaslat(){
+                        $('#kampanyaSesOku').addClass('is-playing').html('<i class="fa fa-pause"></i> Okunuyor...');
+                        $('#kampanyaSesDurdur').show();
                      }
 
                      $(document).on('click','#kampanyaSesOku',function(e){
@@ -670,27 +677,43 @@
                            return;
                         }
                         durdur();
-                        aktifUtt = new SpeechSynthesisUtterance(metin);
-                        var v = aktifVoice();
-                        if(v){
-                           aktifUtt.voice = v;
-                           aktifUtt.lang = v.lang || 'tr-TR';
-                        } else {
-                           aktifUtt.lang = 'tr-TR';
+                        var sec = $('#kampanyaSesSecici').val() || 'sev_filiz';
+
+                        if(sec.indexOf('sev_') === 0){
+                           // Harici API → audio src ile çal
+                           var v = virtualBul(sec);
+                           if(!v){ return; }
+                           var url = virtualUrl(v, metin);
+                           var a = $audio[0];
+                           if(!a){ return; }
+                           $('#calinacak_kayit').attr('src', url);
+                           a.load();
+                           a.onplaying = calmaBaslat;
+                           a.onended = a.onerror = durdur;
+                           var p = a.play();
+                           if(p && p.catch) p.catch(function(){
+                              durdur();
+                              if(typeof swal === 'function') swal({type:'warning',title:'Ses yüklenemedi',text:'İnternet bağlantısını veya seçili sesi kontrol edin.',timer:3000,showConfirmButton:false});
+                           });
+                           return;
                         }
-                        // Doğal ton için pitch hafif yukarı, rate normal-yumuşak
-                        aktifUtt.rate   = 0.98;
-                        aktifUtt.pitch  = 1.05;
-                        aktifUtt.volume = 1.0;
-                        aktifUtt.onstart = function(){
-                           $('#kampanyaSesOku').addClass('is-playing').html('<i class="fa fa-pause"></i> Okunuyor...');
-                           $('#kampanyaSesDurdur').show();
-                        };
+
+                        // Cihaz sesi (browser SpeechSynthesis)
+                        if(!hasSpeech){
+                           if(typeof swal === 'function') swal({type:'warning',title:'Desteklenmiyor',text:'Tarayıcınız cihaz sesini desteklemiyor.',timer:3000,showConfirmButton:false});
+                           return;
+                        }
+                        var brURI = sec.replace(/^br_/, '');
+                        var brVoice = (speechSynthesis.getVoices() || []).find(function(v){ return v.voiceURI === brURI; });
+                        aktifUtt = new SpeechSynthesisUtterance(metin);
+                        if(brVoice){ aktifUtt.voice = brVoice; aktifUtt.lang = brVoice.lang; }
+                        else aktifUtt.lang = 'tr-TR';
+                        aktifUtt.rate = 0.98; aktifUtt.pitch = 1.05; aktifUtt.volume = 1.0;
+                        aktifUtt.onstart = calmaBaslat;
                         aktifUtt.onend = aktifUtt.onerror = durdur;
                         speechSynthesis.speak(aktifUtt);
                      });
                      $(document).on('click','#kampanyaSesDurdur',function(e){ e.preventDefault(); durdur(); });
-                     // Modal kapanınca durdur
                      $('#yeni_kampanya_modal').on('hidden.bs.modal', durdur);
                   })();
                   </script>
