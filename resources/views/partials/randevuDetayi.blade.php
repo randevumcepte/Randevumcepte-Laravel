@@ -1,15 +1,13 @@
 <?php
    $cepTel = $randevu->randevu->users->cep_telefon ?? '';
    $yardimciPersonel = "";
-   // On gorusme nedeni: yeni gorusme_konusu kolonu varsa ve doluysa onu, yoksa eski paket/urun/hizmet adini
+   // On gorusme nedeni: paket/urun/hizmet adi
    $_ogn = '';
    if ($randevu->randevu->on_gorusme_id && $randevu->randevu->ongorusme) {
       $_og = $randevu->randevu->ongorusme;
-      if (\Schema::hasColumn('on_gorusmeler', 'gorusme_konusu') && !empty($_og->gorusme_konusu)) {
-         $_ogn = $_og->gorusme_konusu;
-      } elseif ($_og->paket) { $_ogn = $_og->paket->paket_adi; }
-      elseif ($_og->urun)  { $_ogn = $_og->urun->urun_adi; }
-      elseif ($_og->hizmet){ $_ogn = $_og->hizmet->hizmet_adi; }
+      if ($_og->paket)       { $_ogn = $_og->paket->paket_adi; }
+      elseif ($_og->urun)    { $_ogn = $_og->urun->urun_adi; }
+      elseif ($_og->hizmet)  { $_ogn = $_og->hizmet->hizmet_adi; }
    }
    $_olusturanText = '—';
    if ($randevu->randevu->olusturan_personel_id && $randevu->randevu->olusturan_personel) {

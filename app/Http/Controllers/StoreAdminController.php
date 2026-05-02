@@ -2043,9 +2043,7 @@ public function carkverilerigetir(Request $request)
                 $title .= " (ÖN GÖRÜŞME)\nÖn Görüşme Nedeni: ";
                 $_modalSubtitle = 'Ön Görüşme Randevusu';
                 $_og = $rh->randevu->ongorusme;
-                if(\Schema::hasColumn('on_gorusmeler','gorusme_konusu') && !empty($_og->gorusme_konusu))
-                    $title .= $_og->gorusme_konusu;
-                elseif($_og && $_og->paket)
+                if($_og && $_og->paket)
                     $title .= $_og->paket->paket_adi;
                 elseif($_og && $_og->hizmet)
                     $title .= $_og->hizmet->hizmet_adi;
@@ -8383,9 +8381,7 @@ private function ayAdiCevir($ingilizceAy)
                     $title .= " (ÖN GÖRÜŞME)\nÖn Görüşme Nedeni: ";
                     $_modalSubtitle2 = 'Ön Görüşme Randevusu';
                     $_og2 = $rh->randevu->ongorusme;
-                    if(\Schema::hasColumn('on_gorusmeler','gorusme_konusu') && !empty($_og2->gorusme_konusu))
-                        $title .= $_og2->gorusme_konusu;
-                    elseif($_og2 && $_og2->paket)
+                    if($_og2 && $_og2->paket)
                         $title .= $_og2->paket->paket_adi;
                     elseif($_og2 && $_og2->hizmet)
                         $title .= $_og2->hizmet->hizmet_adi;
@@ -10687,18 +10683,21 @@ DB::raw('
         $ongorusme->il_id =$request->sehir;
         $ongorusme->musteri_tipi = $request->musteri_tipi;
         $ongorusme->meslek = $request->meslek;
-        // Gorusme sebebi artik free-text. Migration kosmadiysa kolon yok —
-        // o durumda eski paket_id alanini geri kullaniyoruz (numerik degilse null).
-        if (\Schema::hasColumn('on_gorusmeler', 'gorusme_konusu')) {
-            $ongorusme->gorusme_konusu = $request->paket_urun;
-            $ongorusme->paket_id = null;
-            $ongorusme->urun_id = null;
-            $ongorusme->hizmet_id = null;
+        // Eski paket/urun/hizmet select sistemi — paket_urun degeri "urun-X", "hizmet-X" veya paket_id (numerik)
+        $ongorusme->paket_id = null;
+        $ongorusme->urun_id = null;
+        $ongorusme->hizmet_id = null;
+        if(str_contains($request->paket_urun, 'urun')){
+            $str = explode('-', $request->paket_urun);
+            $ongorusme->urun_id = $str[1] ?? null;
+        } elseif(str_contains($request->paket_urun, 'hizmet')) {
+            $str = explode('-', $request->paket_urun);
+            $ongorusme->hizmet_id = $str[1] ?? null;
         } else {
-            // Eski sema: numerik ise paket_id, yoksa null (free-text kayboluyor — migration kosulduktan sonra duzelir)
             $ongorusme->paket_id = is_numeric($request->paket_urun) ? $request->paket_urun : null;
-            $ongorusme->urun_id = null;
-            $ongorusme->hizmet_id = null;
+        }
+        if (\Schema::hasColumn('on_gorusmeler', 'gorusme_konusu')) {
+            $ongorusme->gorusme_konusu = null; // free-text artik kullanilmiyor
         }
         $ongorusme->hatirlatma_tarihi = $request->ongorusme_tarihi;
         $ongorusme->personel_id = $request->gorusmeyi_yapan;
@@ -11024,24 +11023,13 @@ DB::raw('
         echo DB::connection('mysql1')->table('users')->get();
     }
     public function ongorusmegetir(Request $request,$gunluk){
-         // Migration calismadiysa kolon olmayabilir — defensive
-         $hasGorusmeKonusu = \Schema::hasColumn('on_gorusmeler', 'gorusme_konusu');
-         $paketCase = $hasGorusmeKonusu
-            ? '
-                CASE
-                    WHEN on_gorusmeler.gorusme_konusu IS NOT NULL AND on_gorusmeler.gorusme_konusu != "" THEN on_gorusmeler.gorusme_konusu
-                    WHEN on_gorusmeler.paket_id IS NOT NULL THEN CONCAT("Paket : ", paketler.paket_adi)
-                    WHEN on_gorusmeler.urun_id IS NOT NULL THEN CONCAT("Ürün : ", urunler.urun_adi)
-                    WHEN on_gorusmeler.hizmet_id IS NOT NULL THEN CONCAT("Hizmet : ", hizmetler.hizmet_adi)
-                    ELSE "—"
-                END as paket'
-            : '
-                CASE
-                    WHEN on_gorusmeler.paket_id IS NOT NULL THEN CONCAT("Paket : ", paketler.paket_adi)
-                    WHEN on_gorusmeler.urun_id IS NOT NULL THEN CONCAT("Ürün : ", urunler.urun_adi)
-                    WHEN on_gorusmeler.hizmet_id IS NOT NULL THEN CONCAT("Hizmet : ", hizmetler.hizmet_adi)
-                    ELSE "Bilinmiyor"
-                END as paket';
+         $paketCase = '
+            CASE
+                WHEN on_gorusmeler.paket_id IS NOT NULL THEN CONCAT("Paket : ", paketler.paket_adi)
+                WHEN on_gorusmeler.urun_id IS NOT NULL THEN CONCAT("Ürün : ", urunler.urun_adi)
+                WHEN on_gorusmeler.hizmet_id IS NOT NULL THEN CONCAT("Hizmet : ", hizmetler.hizmet_adi)
+                ELSE "Bilinmiyor"
+            END as paket';
 
          return DB::table('on_gorusmeler')
         ->join('salonlar','on_gorusmeler.salon_id','=','salonlar.id')

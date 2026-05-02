@@ -185,7 +185,18 @@
                      <div class="col-md-7">
                         <div class="form-group">
                            <label>Ön Görüşme Sebebi</label>
-                           <input type="text" name="paket_urun" id="paket" class="form-control" placeholder="Örn. Saç bakımı, lazer epilasyon, cilt analizi...">
+                           <select name="paket_urun" id="paket" class="form-control opsiyonelSelect" style="width:100%">
+                              <option></option>
+                              @foreach(\App\Paketler::where('salon_id',$isletme->id)->where('aktif',true)->get() as $paket)
+                                 <option value="{{$paket->id}}">{{$paket->paket_adi}}</option>
+                              @endforeach
+                              @foreach(\App\Urunler::where('salon_id',$isletme->id)->where('aktif',true)->get() as $urun)
+                                 <option value="urun-{{$urun->id}}">{{$urun->urun_adi}}</option>
+                              @endforeach
+                              @foreach(\App\SalonHizmetler::where('salon_id',$isletme->id)->where('aktif',true)->get() as $hizmet)
+                                 <option value="hizmet-{{$hizmet->hizmetler->id}}">{{$hizmet->hizmetler->hizmet_adi}}</option>
+                              @endforeach
+                           </select>
                         </div>
                      </div>
                      <div class="col-md-5">

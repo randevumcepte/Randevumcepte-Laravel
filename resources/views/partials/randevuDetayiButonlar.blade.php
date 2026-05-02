@@ -10,14 +10,6 @@
    .rdb-row .rdb-pull-right { margin-left: auto; flex-grow: 0; }
 </style>
 
-@php
-   // Yeni serbest yazi gorusme_konusu mu, eski paket/urun/hizmet mi belli olsun
-   $_hasGK = false;
-   if ($randevu->randevu->ongorusme && \Schema::hasColumn('on_gorusmeler','gorusme_konusu')) {
-      $_hasGK = !empty($randevu->randevu->ongorusme->gorusme_konusu);
-   }
-@endphp
-
 @if($randevu->randevu->on_gorusme_id !== null)
    <div class="rdb-row">
       <a name="gelmedi_isaretle" href="#" class="btn btn-danger" data-value="{{$randevu->randevu_id}}"><i class="fa fa-times"></i> Gelmedi</a>
@@ -29,9 +21,6 @@
          <a name="hizmet_satis_yapildi" href="#" class="btn btn-success" data-value="{{$randevu->on_gorusme_id}}"><i class="fa fa-plus"></i> Satış Yapıldı</a>
       @elseif($randevu->randevu->ongorusme && $randevu->randevu->ongorusme->urun_id !== null)
          <a name="urun_satis_yapildi" href="#" class="btn btn-success" data-value="{{$randevu->on_gorusme_id}}"><i class="fa fa-plus"></i> Satış Yapıldı</a>
-      @elseif($_hasGK)
-         {{-- Free-text gorusme_konusu icin generic satis butonu --}}
-         <a name="satis_yapildi" href="#" class="btn btn-success" data-value="{{$randevu->on_gorusme_id}}"><i class="fa fa-plus"></i> Satış Yapıldı</a>
       @endif
 
       <a class="btn btn-danger rdb-pull-right" href="#" name="satis_yapilmadi" data-value="{{$randevu->on_gorusme_id}}"><i class="fa fa-times"></i> Satış Yapılmadı</a>

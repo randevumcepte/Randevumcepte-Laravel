@@ -7561,7 +7561,7 @@ $(document).on('submit','#ongorusmeformu',function(e){
     if($('#ongorusmeformu [name="paket_urun"]').val()=="")
     {
         paketurunsecili = false;
-        warningtext += "- Ön görüşme sebebini yazınız.<br>";
+        warningtext += "- Ön görüşme sebebini seçiniz.<br>";
     }
     if($('#ongorusmeformu select[name="gorusmeyi_yapan"]').val()=="")
     {
@@ -7717,14 +7717,17 @@ $(document).on('click','a[name="ongorusme_duzenle"]',function(e){
                 $('#musteri_tipi').val(result.musteri_tipi);
                 $('#ongorusme_tarihi').val(result.tarih);
                 $('#ongorusme_saati').val(result.saat);
-                // Gorusme sebebi artik free-text — eski paket/urun/hizmet kayitlari icin metne cevir
-                var _gk = result.gorusme_konusu || '';
-                if(!_gk){
-                    if(result.paket_adi) _gk = result.paket_adi;
-                    else if(result.urun_adi) _gk = result.urun_adi;
-                    else if(result.hizmet_adi) _gk = result.hizmet_adi;
+                // Paket / Urun / Hizmet select2'ye yukle
+                if(result.paket_id != null){
+                    $('select[name="paket_urun"]').val(result.paket_id);
+                    $('select[name="paket_urun"]').select2("trigger", "select", { data: { id: result.paket_id } });
+                } else if(result.urun_id != null){
+                    $('select[name="paket_urun"]').val('urun-' + result.urun_id);
+                    $('select[name="paket_urun"]').select2("trigger", "select", { data: { id: 'urun-' + result.urun_id } });
+                } else if(result.hizmet_id != null){
+                    $('select[name="paket_urun"]').val('hizmet-' + result.hizmet_id);
+                    $('select[name="paket_urun"]').select2("trigger", "select", { data: { id: 'hizmet-' + result.hizmet_id } });
                 }
-                $('[name="paket_urun"]').val(_gk);
                 if(result.user_id != null){
                     $('#musteri_select_list').val(result.user_id);
                     $("#musteri_select_list").select2("trigger", "select", {
