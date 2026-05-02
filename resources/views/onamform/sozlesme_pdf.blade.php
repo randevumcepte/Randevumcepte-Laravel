@@ -56,8 +56,13 @@
          </td></tr></table>
          <div style="text-align:center; font-size:10px; margin-top:3px;">Musteri Imzasi</div>
       </td>
-      <td style="width:45%; font-size:10px; color:#555; padding-left:15px; vertical-align:bottom;">
-         <p>Tarih: {{ $arsiv->created_at ? date('d.m.Y', strtotime($arsiv->created_at)) : '' }}</p>
+      <td style="width:45%; font-size:9px; color:#555; padding-left:15px; vertical-align:bottom;">
+         <p style="margin:2px 0;">Tarih: {{ $arsiv->created_at ? date('d.m.Y', strtotime($arsiv->created_at)) : '' }}</p>
+         @if($arsiv->imza_zaman)
+         <p style="margin:2px 0;">Imza Zamani: {{ date('d.m.Y H:i:s', strtotime($arsiv->imza_zaman)) }}</p>
+         @endif
+         @if($arsiv->imza_ip)<p style="margin:2px 0;">IP: {{ $arsiv->imza_ip }}</p>@endif
+         @if($arsiv->kvkk_onay)<p style="margin:2px 0; color:#28a745;"><b>&#10003; KVKK Onayi Verildi</b></p>@endif
          <p style="margin-top:6px; padding:4px 8px; background:#fff8dc; border:1px solid #d4a017; font-size:10px;">
             <b>SMS Onay Kodu:</b> <span style="letter-spacing:2px; font-weight:bold;">{{ $arsiv->dogrulama_kodu ?? '-' }}</span>
          </p>

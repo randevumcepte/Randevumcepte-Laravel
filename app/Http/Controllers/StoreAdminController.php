@@ -20153,9 +20153,18 @@ public function arsivformekleme(Request $request){
     private function onayKoduFooter($arsiv){
         $kod = $arsiv->dogrulama_kodu ?? '-';
         $tarih = $arsiv->created_at ? date('d.m.Y H:i', strtotime($arsiv->created_at)) : '';
+        $imzaZaman = $arsiv->imza_zaman ? date('d.m.Y H:i:s', strtotime($arsiv->imza_zaman)) : '';
+        $ip = $arsiv->imza_ip ?? '';
+        $kvkk = $arsiv->kvkk_onay ? '<span style="color:#28a745;"><b>&#10003; KVKK Onayi</b></span>' : '';
+        $extras = [];
+        if($imzaZaman) $extras[] = 'Imza: '.$imzaZaman;
+        if($ip) $extras[] = 'IP: '.$ip;
+        if($kvkk) $extras[] = $kvkk;
+        $extrasHtml = !empty($extras) ? '<div style="font-size:9px; color:#666; margin-top:3px;">'.implode(' &nbsp;|&nbsp; ', $extras).'</div>' : '';
         return '<div style="margin-top:8px; padding:6px 10px; background:#fff8dc; border:1px solid #d4a017; text-align:center; font-size:11px; font-family: DejaVu Sans, sans-serif;">
             <b>SMS ONAY KODU:</b> <span style="letter-spacing:4px; font-weight:bold; font-size:13px;">'.e($kod).'</span>
             '.($tarih ? ' &nbsp;|&nbsp; Tarih: '.$tarih : '').'
+            '.$extrasHtml.'
         </div>';
     }
 
@@ -23393,6 +23402,12 @@ DB::raw('
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN seans_sayisi INT NULL");
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN paket_id INT NULL");
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN sozlesme_notu TEXT NULL");
+            }
+            if(!in_array('imza_ip',$arsivCols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN imza_ip VARCHAR(45) NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN imza_cihaz VARCHAR(255) NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN kvkk_onay TINYINT(1) NOT NULL DEFAULT 0");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN imza_zaman DATETIME NULL");
             }
         } catch(\Exception $e){
             \Log::error('Dinamik form kolon oluşturma hatası: '.$e->getMessage());

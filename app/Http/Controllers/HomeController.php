@@ -2422,9 +2422,16 @@ $salon = Salonlar::where('domain', $domain)->first();
             return response()->json(['basarili' => false, 'mesaj' => 'Onay kodu hatalı. Lütfen SMS ile gelen kodu kontrol edin.']);
         }
 
+        if(!$request->kvkk_onay){
+            return response()->json(['basarili'=>false,'mesaj'=>'KVKK aydınlatma metni onayı zorunludur.']);
+        }
         $arsiv->cevaplar_json = $request->cevaplar_json;
         $arsiv->musteri_imza  = $request->musteri_imza;
         $arsiv->cevapladi     = true;
+        $arsiv->kvkk_onay     = 1;
+        $arsiv->imza_ip       = $request->ip();
+        $arsiv->imza_cihaz    = substr($request->header('User-Agent') ?? '', 0, 250);
+        $arsiv->imza_zaman    = now();
         $arsiv->save();
 
         return response()->json(['basarili' => true]);
@@ -2505,8 +2512,15 @@ $salon = Salonlar::where('domain', $domain)->first();
         if (trim($arsiv->dogrulama_kodu) !== trim($request->dogrulama_kodu)) {
             return response()->json(['basarili'=>false,'mesaj'=>'Onay kodu hatalı.']);
         }
+        if(!$request->kvkk_onay){
+            return response()->json(['basarili'=>false,'mesaj'=>'KVKK aydınlatma metni onayı zorunludur.']);
+        }
         $arsiv->musteri_imza = $request->musteri_imza;
         $arsiv->cevapladi    = true;
+        $arsiv->kvkk_onay    = 1;
+        $arsiv->imza_ip      = $request->ip();
+        $arsiv->imza_cihaz   = substr($request->header('User-Agent') ?? '', 0, 250);
+        $arsiv->imza_zaman   = now();
         $arsiv->save();
         return response()->json(['basarili'=>true]);
     }

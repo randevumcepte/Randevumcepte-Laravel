@@ -183,6 +183,14 @@
          <div class="hata-mesaji" id="hata_otp">Onay kodu zorunludur.</div>
       </div>
 
+      <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:14px; margin-bottom:18px;">
+         <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; margin:0; font-size:13px; color:#333;">
+            <input type="checkbox" id="kvkk_onay" style="margin-top:3px; transform:scale(1.2);">
+            <span><b>KVKK Aydınlatma Metni</b> uyarınca, kişisel verilerimin (ad-soyad, telefon, imza, IP adresi) bu form/sözleşme kapsamında işlenmesine ve <b>{{ $isletme->salon_adi }}</b> tarafından saklanmasına açık rıza veriyorum. <a href="https://www.mevzuat.gov.tr/MevzuatMetin/1.5.6698.pdf" target="_blank" style="color:#5C008E;">KVKK metnini oku</a></span>
+         </label>
+         <div class="hata-mesaji" id="hata_kvkk" style="margin-left:30px;">KVKK onayı zorunludur.</div>
+      </div>
+
       <button type="button" class="gonder-btn" id="gonder_btn" onclick="formuGonder()">
          <i class="fa fa-paper-plane"></i> Formu Gönder
       </button>
@@ -303,6 +311,10 @@ function formuGonder() {
       $('#hata_otp').hide();
    }
 
+   // KVKK doğrula
+   var kvkkOnay = $('#kvkk_onay').is(':checked');
+   if(!kvkkOnay){ $('#hata_kvkk').show(); hatalar = true; } else { $('#hata_kvkk').hide(); }
+
    if (hatalar) {
       $('html, body').animate({ scrollTop: 0 }, 400);
       return;
@@ -326,7 +338,8 @@ function formuGonder() {
       user_id: userId,
       cevaplar_json: JSON.stringify(cevaplar),
       musteri_imza: imzaData,
-      dogrulama_kodu: otp
+      dogrulama_kodu: otp,
+      kvkk_onay: kvkkOnay ? 1 : 0
    }, function(resp) {
       if (resp && resp.basarili) {
          $('#form_bolumu').hide();
