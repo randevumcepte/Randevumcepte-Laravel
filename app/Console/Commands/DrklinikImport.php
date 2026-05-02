@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Services\DrklinikClient;
+use App\Imports\DrklinikImporter;
 
 class DrklinikImport extends Command
 {
@@ -73,7 +74,10 @@ class DrklinikImport extends Command
             return 0;
         }
 
-        $this->error('Import implementasyonu henuz yok; once --probe ile gercek endpoint\'leri tespit edelim.');
+        $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet'];
+        $importer = new DrklinikImporter($client, $salonId, $this->output);
+        if (in_array('hizmet', $types)) $importer->importHizmetler();
+        $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
         return 0;
     }
 }

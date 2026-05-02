@@ -347,6 +347,61 @@ class DrklinikClient
         return $body;
     }
 
+    /**
+     * ASP.NET WebForms postback yapar:
+     * - Once GET ile sayfayi cek, viewstate vs. extract et
+     * - Sonra POST ile __EVENTTARGET/__EVENTARGUMENT + ek form alanlari + viewstate gonder
+     *
+     * @param string $path Sayfa yolu (orn: /hizmet_listesi.aspx)
+     * @param string $eventTarget __EVENTTARGET degeri (orn: DDL_Birim, LB_Listele)
+     * @param string $eventArgument __EVENTARGUMENT degeri (cogunlukla "")
+     * @param array $extraFields Ek form alanlari (orn: ['DDL_Birim' => '5554'])
+     * @return string|null donen HTML body, null = hata
+     */
+    public function postBack($path, $eventTarget, $eventArgument = '', array $extraFields = [])
+    {
+        // Once GET ile guncel viewstate
+        try {
+            $g = $this->http->get($path);
+        } catch (RequestException $e) { return null; }
+        if ($g->getStatusCode() !== 200) return null;
+        $html = (string) $g->getBody();
+
+        $vs   = $this->extractFormField($html, '__VIEWSTATE');
+        $vsg  = $this->extractFormField($html, '__VIEWSTATEGENERATOR');
+        $ev   = $this->extractFormField($html, '__EVENTVALIDATION');
+
+        $body = array_merge([
+            '__EVENTTARGET'        => $eventTarget,
+            '__EVENTARGUMENT'      => $eventArgument,
+            '__VIEWSTATE'          => $vs,
+            '__VIEWSTATEGENERATOR' => $vsg ?: '',
+            '__EVENTVALIDATION'    => $ev ?: '',
+        ], $extraFields);
+
+        // Form action: ./<path> veya path
+        $action = $path;
+        if (preg_match('#<form[^>]*action="([^"]+)"#i', $html, $m)) {
+            $a = $m[1];
+            $action = (strpos($a, 'http') === 0) ? $a : ('/' . ltrim(str_replace('./', '', $a), '/'));
+        }
+
+        try {
+            $resp = $this->http->post($action, [
+                'headers'     => [
+                    'Referer' => self::BASE . $path,
+                    'Origin'  => self::BASE,
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ],
+                'form_params' => $body,
+            ]);
+        } catch (RequestException $e) { return null; }
+        $b = (string) $resp->getBody();
+        $tag = 'postback_' . $this->slug($path) . '_' . $this->slug($eventTarget);
+        $this->dump($tag, $b, $resp->getHeaders());
+        return $b;
+    }
+
     public function getJson($path, array $query = [])
     {
         try {
