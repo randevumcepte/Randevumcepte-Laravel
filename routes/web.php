@@ -19,6 +19,32 @@ use Illuminate\Support\Facades\Storage;
 |
 */
 Auth::routes();
+
+// GECICI: Personel detay popup'ini test etmek icin ornek data doldurma rotasi.
+// Kullanildiktan sonra bu blok silinecek.
+Route::get('/dev-personel-demo-doldur', function() {
+    $salon = \App\Salonlar::where('domain', $_SERVER['HTTP_HOST'])->first();
+    if (!$salon) return 'Bu domain icin salon bulunamadi.';
+
+    $per = \App\Personeller::where('salon_id', $salon->id)->first();
+    if (!$per) return 'Bu salonda personel yok.';
+
+    $per->uzmanlik = $per->uzmanlik ?: 'Saç & Renk Uzmanı';
+    $per->aciklama = $per->aciklama ?: "8 yılı aşkın süredir saç tasarımı ve renklendirme alanında profesyonel hizmet vermektedir. L'Oréal Professional ve Wella Master Colorist sertifikalarına sahip; balayage, ombre ve highlight teknikleriyle özel tasarımlar hazırlar.\n\nİstanbul Güzellik Sanatları Akademisi mezunu. Müşteri memnuniyetini her zaman ön planda tutar; her saç tipi için uygun bakım ve stil önerileri sunar. Yenilikçi tekniklerle güncel trendleri takip eder.";
+    $per->yillik_tecrube = $per->yillik_tecrube ?: 8;
+    $per->instagram = $per->instagram ?: 'randevumcepte';
+    $per->save();
+
+    return "<div style='font-family:sans-serif;max-width:520px;margin:80px auto;padding:30px;background:#f0fff4;border:2px solid #34d399;border-radius:14px;'>"
+         . "<h2 style='color:#15803d;margin:0 0 12px;'>✓ Demo Veri Dolduruldu</h2>"
+         . "<p>Personel: <strong>{$per->personel_adi}</strong> (ID: {$per->id})</p>"
+         . "<p>Uzmanlik: {$per->uzmanlik}</p>"
+         . "<p>Tecrube: {$per->yillik_tecrube} yil</p>"
+         . "<p>Instagram: @{$per->instagram}</p>"
+         . "<p>Aciklama: " . substr($per->aciklama, 0, 100) . "...</p>"
+         . "<p style='margin-top:16px;'><a href='/' style='background:#5C008E;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;'>Anasayfaya Don</a></p>"
+         . "</div>";
+});
 Route::group(['middleware' => ['auth']],function(){
 	Route::post('/randevuekle','CustomerController@randevuekle');
 	Route::get('/randevularim','CustomerController@randevularim');
