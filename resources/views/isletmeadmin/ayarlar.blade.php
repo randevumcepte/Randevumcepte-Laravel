@@ -1742,8 +1742,8 @@
    </div>
 </div>
 <div id="personel-modal" class="modal modal-top fade calendar-modal">
-   <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
+   <div class="modal-dialog modal-dialog-centered" style="max-width:850px;width:92%;">
+      <div class="modal-content" style="width:100%;">
          <form id="yenipersonelbilgiekle" method="POST">
             {!!csrf_field()!!}
             <input type="hidden" name="personel_id" id='personel_id'>
