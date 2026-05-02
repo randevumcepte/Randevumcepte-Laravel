@@ -180,9 +180,20 @@ class DrklinikImporter
             $tamAd  = trim($ad . ' ' . $soyad);
             if ($tamAd === '') continue;
 
-            // Idempotent: ayni isimde personel varsa atla
+            // Mevcut personel varsa SADECE eksik alanlari (telefon, unvan) guncelle, yetkili/role/calisma saatleri ekleme
             $p = Personeller::where('personel_adi', $tamAd)->where('salon_id', $this->salonId)->first();
-            if ($p) continue;
+            if ($p) {
+                $upd = false;
+                if (!$p->cep_telefon && $tel) { $p->cep_telefon = $tel; $upd = true; }
+                if ($unvan && Schema::hasColumn('personeller', 'unvan') && !$p->unvan) { $p->unvan = $unvan; $upd = true; }
+                if ($upd) $p->save();
+                // Yetkili'ye de gsm1 ekle
+                if ($p->yetkili_id && $tel) {
+                    $y = IsletmeYetkilileri::find($p->yetkili_id);
+                    if ($y && !$y->gsm1) { $y->gsm1 = $tel; $y->save(); }
+                }
+                continue;
+            }
 
             // 1) IsletmeYetkilileri (login hesabi)
             $yetkili = new IsletmeYetkilileri();
