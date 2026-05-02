@@ -346,34 +346,7 @@
 #sdToast.err { background: #ef4444; }
 </style>
 
-<section class="block">
-    <div class="container">
-        <div class="row">
-            <div class="col-md-12">
-                <ul class="nav nav-pills" id="myTab-pills" role="tablist" style="text-align: center;">
-                    <li class="nav-item">
-                        <a class="nav-link icon" href="/profilim"><i class="fa fa-user" style="color:white"></i>Profilim</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link icon" href="/randevularim">
-                            <i class="fa fa-heart"></i>Randevularım
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active icon" href="/sadakat">
-                            <i class="fa fa-star"></i>Sadakat
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link icon" href="/ayarlarim">
-                            <i class="fa fa-lock"></i>Şifrem
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</section>
+@include('partials.customer-nav-pills', ['active' => 'sadakat'])
 
 <div class="sd-page">
 
