@@ -7,8 +7,14 @@ use App\Hizmetler;
 use App\Hizmet_Kategorisi;
 use App\SalonHizmetler;
 use App\SalonHizmetKategoriRenkleri;
+use App\Personeller;
+use App\PersonelCalismaSaatleri;
+use App\IsletmeYetkilileri;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * uygulama.drklinik.net'ten cekilen verileri randevumcepte modellerine aktarir.
@@ -139,6 +145,94 @@ class DrklinikImporter
             $k->save();
         }
         return $k->id;
+    }
+
+    /**
+     * calisanmodulu.aspx tablosu: Ad | Soyad | Telefon | Unvan | Duzenle | Sil
+     * Tam Planla akisini uygular: IsletmeYetkilileri + Personeller + model_has_roles + calisma saatleri.
+     */
+    public function importPersoneller()
+    {
+        $this->log('Personel cekiliyor (calisanmodulu.aspx)...');
+        $html = $this->client->getHtml('/calisanmodulu.aspx', 'personel_listesi');
+        if ($html === '') { $this->log('Sayfa cekilemedi.'); return; }
+
+        $rows = $this->parseTableRows($html);
+        $this->log('  HTML tablodan ' . count($rows) . ' satir cikartildi.');
+        if (empty($rows)) return;
+
+        $eklendi = 0;
+        foreach ($rows as $row) {
+            // [0]=Ad, [1]=Soyad, [2]=Telefon, [3]=Unvan, [4]=Duzenle, [5]=Sil
+            $ad     = isset($row[0]) ? trim($row[0]) : '';
+            $soyad  = isset($row[1]) ? trim($row[1]) : '';
+            $tel    = isset($row[2]) ? $this->telefonNormalize($row[2]) : null;
+            $unvan  = isset($row[3]) ? trim($row[3]) : '';
+            $tamAd  = trim($ad . ' ' . $soyad);
+            if ($tamAd === '') continue;
+
+            // Idempotent: ayni isimde personel varsa atla
+            $p = Personeller::where('personel_adi', $tamAd)->where('salon_id', $this->salonId)->first();
+            if ($p) continue;
+
+            // 1) IsletmeYetkilileri (login hesabi)
+            $yetkili = new IsletmeYetkilileri();
+            $yetkili->name = $tamAd;
+            $yetkili->gsm1 = $tel;
+            $yetkili->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+            $yetkili->password = Hash::make(Str::random(10));
+            $yetkili->aktif = 1;
+            $yetkili->save();
+
+            // 2) Renk + sira hesapla
+            $sonSira = Personeller::where('salon_id', $this->salonId)->max('takvim_sirasi');
+            $sira = ($sonSira ? $sonSira : 0) + 1;
+            $sonRenk = Personeller::where('salon_id', $this->salonId)->orderBy('id', 'desc')->value('renk');
+            $renk = (!$sonRenk || $sonRenk >= 10) ? 1 : $sonRenk + 1;
+
+            // 3) Personeller
+            $p = new Personeller();
+            $p->personel_adi = $tamAd;
+            $p->cep_telefon = $tel;
+            $p->salon_id = $this->salonId;
+            $p->yetkili_id = $yetkili->id;
+            $p->role_id = 5;
+            $p->aktif = 1;
+            $p->takvimde_gorunsun = 1;
+            $p->takvim_sirasi = $sira;
+            $p->renk = $renk;
+            if ($unvan && Schema::hasColumn('personeller', 'unvan')) $p->unvan = $unvan;
+            $p->save();
+
+            // 4) model_has_roles
+            DB::insert(
+                'INSERT INTO model_has_roles (role_id, model_type, model_id, salon_id) VALUES (?, ?, ?, ?)',
+                [5, 'App\\IsletmeYetkilileri', $yetkili->id, $this->salonId]
+            );
+
+            // 5) PersonelCalismaSaatleri (7 gun, default 09:00-21:00 acik, pazar kapali)
+            for ($g = 1; $g <= 7; $g++) {
+                $pcs = new PersonelCalismaSaatleri();
+                $pcs->personel_id = $p->id;
+                $pcs->haftanin_gunu = $g;
+                $pcs->calisiyor = ($g === 7) ? 0 : 1;
+                $pcs->baslangic_saati = '09:00';
+                $pcs->bitis_saati = '21:00';
+                $pcs->save();
+            }
+            $eklendi++;
+            $this->counts['personel']++;
+        }
+        $this->log("Personel aktarim: {$eklendi} yeni");
+    }
+
+    private function telefonNormalize($tel)
+    {
+        if (!$tel) return null;
+        $tel = preg_replace('/[^0-9]/', '', (string) $tel);
+        $tel = preg_replace('/^90/', '', $tel);
+        $tel = preg_replace('/^0/', '', $tel);
+        return $tel ?: null;
     }
 
     private function parseSelectOptions($html, $selectId)
