@@ -50,12 +50,23 @@ try {
   await ari.connect();
   console.log('\n✓ Baglanti OK. Cagri bekleniyor (Ctrl+C ile cik).');
 } catch (e) {
-  console.error('\n✗ Baglanti basarisiz:', e.message);
-  console.error('   Kontrol et:');
-  console.error('   - Asterisk calisiyor mu? (systemctl status asterisk)');
-  console.error('   - ari.conf "enabled = yes" mi? (asterisk -rx "ari show status")');
-  console.error('   - http.conf bind adresi/portu erisilebilir mi? (curl http://HOST:PORT/asterisk/ari/asterisk/info)');
-  console.error('   - .env\'de ASTERISK_HOST/PORT/USER/PASS dogru mu?');
+  console.error('\n✗ Baglanti basarisiz');
+  console.error('   message:', e?.message || '(bos)');
+  console.error('   code:   ', e?.code || '(yok)');
+  console.error('   name:   ', e?.name || '(yok)');
+  console.error('   errno:  ', e?.errno || '(yok)');
+  console.error('   syscall:', e?.syscall || '(yok)');
+  console.error('   address:', e?.address || '(yok)');
+  console.error('   port:   ', e?.port || '(yok)');
+  if (e?.response) {
+    console.error('   HTTP status:', e.response.statusCode || e.response.status);
+    console.error('   HTTP body:  ', String(e.response.body || '').slice(0, 300));
+  }
+  if (e?.stack) console.error('   stack:\n', e.stack.split('\n').slice(0, 6).join('\n'));
+  try {
+    const flat = JSON.stringify(e, Object.getOwnPropertyNames(e));
+    if (flat && flat !== '{}') console.error('   JSON:  ', flat.slice(0, 500));
+  } catch {}
   process.exit(1);
 }
 
