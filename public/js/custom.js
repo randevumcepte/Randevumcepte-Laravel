@@ -21623,9 +21623,13 @@ function kampanyaSablonIcerikGetir(sablonId, kampanyaMetin, preloaderGoster, yuz
                 $('#kampanyaPrompt').append(result.promptStr);
                 $('#kampanyaKodu').val(result.kampanyaKodu);
                 if(typeof SMScountChar === 'function') SMScountChar(result.promptStr);
-                $('#calinacak_kayit').attr('src',result.calinacakMetin.trim());
+
+                // Ses dosyası — boşsa src'yi temizle, HTTP ise protocol-relative yap (mixed content fix)
+                var sesUrl = (result.calinacakMetin || '').toString().trim();
+                if (sesUrl.indexOf('http://') === 0) sesUrl = '//' + sesUrl.substring(7);
+                $('#calinacak_kayit').attr('src', sesUrl);
                 var audio = $("#kampanyaSesKaydiCal")[0];
-                audio.load();
+                if (audio) audio.load();
             },
              error: function(request, status, error) {
                 if(preloaderGoster) $('#preloader').hide();

@@ -22812,9 +22812,7 @@ DB::raw('
     }
     function metniSeseDonustur($metin)
     {
-
         $metinDuzeltimis = str_replace('SMS','esemes',$metin);
-       
         $url = "https://santral.randevumcepte.com.tr/monitor/kampanyaMetniniSeseDonustur2.php";
         $payload = json_encode(['kampanyaMetin' => $metinDuzeltimis], JSON_UNESCAPED_UNICODE);
 
@@ -22828,23 +22826,23 @@ DB::raw('
             CURLOPT_POSTFIELDS => $payload
         ]);
 
-        $response = curl_exec($ch);
-        
-
-
-        // Hata kontrolü
-        if (curl_errno($ch)) {
-            echo "cURL hatası: " . curl_error($ch);
-        } else {
-            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            if ($http_code == 200) {
-                return trim($response) . PHP_EOL;
-                // Örn. http://34.45.69.65/monitor/kampanyaMetin-651d8e74b1234.wav
-            } else {
-                echo "HTTP hata kodu: $http_code" . PHP_EOL;
-            }
-        }
+        $response  = curl_exec($ch);
+        $errno     = curl_errno($ch);
+        $errMsg    = curl_error($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
+
+        if ($errno || $http_code !== 200) {
+            \Log::warning('metniSeseDonustur failed', ['errno'=>$errno,'msg'=>$errMsg,'http'=>$http_code,'resp'=>substr((string)$response,0,200)]);
+            return '';
+        }
+
+        $sesUrl = trim((string)$response);
+        // Mixed content: HTTPS site'ta HTTP audio engellenir → protocol-relative yap
+        if (strpos($sesUrl, 'http://') === 0) {
+            $sesUrl = '//' . substr($sesUrl, 7);
+        }
+        return $sesUrl;
     }
     public function sablonSil(Request $request)
     {

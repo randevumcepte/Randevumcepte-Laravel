@@ -466,8 +466,8 @@
                   <div class="modal-footer" style="display:block">
                      <div class="row">
                         <div class="col-6 col-xs-6 col-sm-6 col-md-5">
-                          <audio id='kampanyaSesKaydiCal' controls style="width: 100%;">
-                              <source src="http://34.45.69.65/monitor/polly-68dfbd4ca3451.wav"  id='calinacak_kayit' type="audio/wav">
+                          <audio id='kampanyaSesKaydiCal' controls preload="none" style="width: 100%;">
+                              <source src="" id='calinacak_kayit' type="audio/wav">
                               Tarayıcınız yürütmeyi desteklememektedir.
                            </audio>
                         </div>
