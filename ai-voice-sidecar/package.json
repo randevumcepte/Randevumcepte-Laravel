@@ -10,9 +10,12 @@
   "scripts": {
     "test:tts": "node test/test-tts.js",
     "test:stt": "node test/test-stt.js",
-    "test:pipeline": "node test/test-pipeline.js"
+    "test:pipeline": "node test/test-pipeline.js",
+    "test:ari": "node test/test-ari.js",
+    "start": "node src/server.js"
   },
   "dependencies": {
+    "ari-client": "^2.2.0",
     "axios": "^1.7.0",
     "dotenv": "^16.4.0",
     "groq-sdk": "^0.7.0",

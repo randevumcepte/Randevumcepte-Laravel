@@ -39,4 +39,24 @@ export const config = {
   outputDir,
   testSalonId: parseInt(optional('TEST_SALON_ID', '15'), 10),
   projectRoot,
+  asterisk: {
+    host: optional('ASTERISK_HOST', 'localhost'),
+    ariPort: parseInt(optional('ASTERISK_ARI_PORT', '8088'), 10),
+    ariUser: optional('ASTERISK_ARI_USER', 'randevu_ai'),
+    ariPass: optional('ASTERISK_ARI_PASS', ''),
+    stasisApp: optional('ASTERISK_STASIS_APP', 'randevu_ai'),
+    rtpPortBase: parseInt(optional('RTP_PORT_BASE', '10000'), 10),
+    rtpPortCount: parseInt(optional('RTP_PORT_COUNT', '1000'), 10),
+  },
+  didSalonMap: parseDidMap(optional('DID_SALON_MAP', '')),
 };
+
+function parseDidMap(s) {
+  const map = {};
+  if (!s) return map;
+  s.split(',').forEach((pair) => {
+    const [did, salonId] = pair.split(':').map((x) => x.trim());
+    if (did && salonId) map[did] = parseInt(salonId, 10);
+  });
+  return map;
+}
