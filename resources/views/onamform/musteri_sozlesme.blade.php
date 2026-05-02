@@ -63,12 +63,12 @@
 
       <div class="sozlesme-metni">
          <b>SÖZLEŞME ŞARTLARI:</b><br>
-         1. Bu sözleşme <b>{{ $isletme->salon_adi }}</b> ile <b>{{ $musteri->name ?? '-' }}</b> arasında akdedilmiştir.<br>
-         2. Hizmet bedeli toplam <b>{{ number_format($arsiv->toplam_ucret ?? 0, 2, ',', '.') }} ₺</b>'dir.
-         @if($arsiv->kapora > 0) Müşteri tarafından <b>{{ number_format($arsiv->kapora, 2, ',', '.') }} ₺</b> kapora alınmış olup, kalan tutar hizmet süresi içinde tahsil edilecektir.@endif<br>
-         3. Müşteri belirlenen randevu saatlerinde işletmede hazır bulunmakla yükümlüdür. Mazeretsiz iptaller ücret iadesi gerektirmez.<br>
-         4. İşletme, hizmeti taahhüt edilen kalitede sunmakla yükümlüdür.<br>
-         5. Taraflar bu sözleşmeyi okuyup, kabul etmiş sayılır.
+         @if($arsiv->sozlesme_metni)
+            {!! nl2br(e($arsiv->sozlesme_metni)) !!}
+         @else
+            1. Bu sözleşme <b>{{ $isletme->salon_adi }}</b> ile <b>{{ $musteri->name ?? '-' }}</b> arasında akdedilmiştir.<br>
+            2. Hizmet bedeli toplam <b>{{ number_format($arsiv->toplam_ucret ?? 0, 2, ',', '.') }} ₺</b>'dir.
+         @endif
          @if($arsiv->sozlesme_notu)<br><br><b>Ek Not:</b> {{ $arsiv->sozlesme_notu }}@endif
       </div>
 

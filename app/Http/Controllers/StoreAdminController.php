@@ -23409,6 +23409,9 @@ DB::raw('
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN kvkk_onay TINYINT(1) NOT NULL DEFAULT 0");
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN imza_zaman DATETIME NULL");
             }
+            if(!in_array('sozlesme_metni',$arsivCols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN sozlesme_metni TEXT NULL");
+            }
         } catch(\Exception $e){
             \Log::error('Dinamik form kolon oluşturma hatası: '.$e->getMessage());
         }
@@ -23561,6 +23564,7 @@ DB::raw('
             $arsiv->toplam_ucret   = $request->toplam_ucret ?: 0;
             $arsiv->kapora         = $request->kapora ?: 0;
             $arsiv->sozlesme_notu  = $request->sozlesme_notu ?: null;
+            $arsiv->sozlesme_metni = $request->sozlesme_metni ?: null;
             $arsiv->cevapladi      = false;
             $arsiv->cevapladi2     = false;
             $arsiv->harici_belge   = 'Hizmet Sözleşmesi';

@@ -35,12 +35,12 @@
 
 <div class="sozlesme-metni">
 <b>SOZLESME SARTLARI:</b><br>
-1. Bu sozlesme <b>{{ $isletme->salon_adi }}</b> ile <b>{{ $arsiv->musteri ? $arsiv->musteri->name : '-' }}</b> arasinda akdedilmistir.<br>
-2. Hizmet bedeli toplam <b>{{ number_format($arsiv->toplam_ucret ?? 0, 2, ',', '.') }} TL</b>'dir.
-@if($arsiv->kapora > 0) Musteri tarafindan <b>{{ number_format($arsiv->kapora, 2, ',', '.') }} TL</b> kapora alinmis olup, kalan tutar hizmet suresi icinde tahsil edilecektir.@endif<br>
-3. Musteri belirlenen randevu saatlerinde isletmede hazir bulunmakla yukumludur. Mazeretsiz iptaller ucret iadesi gerektirmez.<br>
-4. Isletme, hizmeti taahhut edilen kalitede sunmakla yukumludur.<br>
-5. Taraflar bu sozlesmeyi okuyup, kabul etmis sayilir.
+@if($arsiv->sozlesme_metni)
+   {!! nl2br(e($arsiv->sozlesme_metni)) !!}
+@else
+   1. Bu sozlesme <b>{{ $isletme->salon_adi }}</b> ile <b>{{ $arsiv->musteri ? $arsiv->musteri->name : '-' }}</b> arasinda akdedilmistir.<br>
+   2. Hizmet bedeli toplam <b>{{ number_format($arsiv->toplam_ucret ?? 0, 2, ',', '.') }} TL</b>'dir.
+@endif
 @if($arsiv->sozlesme_notu)<br><br><b>Ek Not:</b> {{ $arsiv->sozlesme_notu }}@endif
 </div>
 

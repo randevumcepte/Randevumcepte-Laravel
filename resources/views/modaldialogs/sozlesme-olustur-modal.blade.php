@@ -65,23 +65,40 @@
                      <input type="number" name="kapora" id="sozlesme_kapora" class="form-control" step="0.01" min="0" value="0">
                   </div>
                   <div class="col-md-12 form-group">
-                     <label><b>Ek Not</b> <small class="text-muted">(opsiyonel — sözleşmede görünür)</small></label>
+                     <label><b>Sözleşme Şartları *</b> <small class="text-muted">(müşteriye gösterilecek metin — düzenleyebilirsiniz)</small></label>
+                     <textarea name="sozlesme_metni" id="sozlesme_metni" class="form-control" rows="10" required style="font-size:13px;font-family:monospace;"></textarea>
+                     <small class="text-muted">İpucu: Müşteri adı, hizmet, fiyat ve kapora otomatik olarak metnin üstünde tabloda gösterilir — burada sadece sözleşme şartlarını yazın.</small>
+                  </div>
+                  <div class="col-md-12 form-group">
+                     <label><b>Ek Not</b> <small class="text-muted">(opsiyonel — sözleşmenin altında ayrıca görünür)</small></label>
                      <textarea name="sozlesme_notu" class="form-control" rows="2" placeholder="Örn: Seans aralığı 15 günü geçemez."></textarea>
                   </div>
                </div>
             </div>
             <div class="modal-footer">
                <button type="button" class="btn btn-secondary" data-dismiss="modal">İptal</button>
-               <button type="submit" class="btn btn-success"><i class="fa fa-paper-plane"></i> Sözleşmeyi Gönder</button>
+               <button type="submit" class="btn btn-success"><i class="fa fa-paper-plane"></i> Oluştur ve Müşteriye Gönder</button>
             </div>
          </div>
       </form>
    </div>
 </div>
 <script>
+function sozlesmeVarsayilanMetin(){
+   return '1. Bu sözleşme {{ addslashes($isletme->salon_adi) }} ile yukarıda bilgileri yazılı müşteri arasında akdedilmiştir.\n' +
+          '2. Müşteri, alacağı hizmet/paket karşılığında belirtilen toplam ücreti ödemeyi kabul ve taahhüt eder.\n' +
+          '3. Kapora/ön ödeme alındığı durumda kalan bakiye, hizmet süresi içerisinde tahsil edilecektir.\n' +
+          '4. Müşteri belirlenen randevu saatlerinde hazır bulunmakla yükümlüdür. Mazeretsiz iptaller veya gelmemeler için ücret iadesi yapılmaz.\n' +
+          '5. İşletme, hizmeti taahhüt edilen kalitede sunmakla yükümlüdür.\n' +
+          '6. Taraflar bu sözleşmeyi okuyup, anladığını ve kabul ettiğini beyan eder.';
+}
+
 $(document).ready(function(){
    // Modal açılınca select2'yi yeniden başlat (dialog içindeki select için gerekli)
    $('#sozlesmeOlusturModal').on('shown.bs.modal', function(){
+      if(!$('#sozlesme_metni').val().trim()){
+         $('#sozlesme_metni').val(sozlesmeVarsayilanMetin());
+      }
       try {
          if($('#sozlesme_musteri').data('select2')) $('#sozlesme_musteri').select2('destroy');
       } catch(e){}
