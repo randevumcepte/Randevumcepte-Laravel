@@ -279,31 +279,28 @@
 
                            <div class="rkp-preset-extra" id="rkpPresetGrup" style="display:none;">
                               <div class="rkp-cell" id="gruplarFiltre">
-                                 <div class="rkp-label"><i class="fa fa-users"></i> Hangi grup?</div>
+                                 <div class="rkp-grup-header">
+                                    <div class="rkp-label"><i class="fa fa-users"></i> Hangi grup?</div>
+                                    <button type="button" class="rkp-yeni-grup-btn" id="rkpYeniGrupBtn">
+                                       <i class="fa fa-plus"></i> Yeni Grup Oluştur
+                                    </button>
+                                 </div>
+                                 @php
+                                    $hariciGruplar = [];
+                                    foreach(($gruplar ?? []) as $g){ if(isset($g['id'])){ $hariciGruplar[] = $g; } }
+                                 @endphp
                                  <select id="musteriGruplari" name="musteriGruplari" class="form-control rkp-select">
                                     <option value="">Grup seçin...</option>
-                                    @php $hastaGruplari = \App\ReceteGrubu::all(); @endphp
-                                    @if(count($hastaGruplari))
-                                    <optgroup label="— Hasta Grupları —">
-                                       @foreach($hastaGruplari as $grup1)
-                                          <option value="hastagrup-{{ $grup1->id }}">{{ $grup1->grup_adi }}</option>
-                                       @endforeach
-                                    </optgroup>
-                                    @endif
-                                    @php
-                                       $hariciGrupVar = false;
-                                       foreach(($gruplar ?? []) as $g){ if(isset($g['id'])){ $hariciGrupVar = true; break; } }
-                                    @endphp
-                                    @if($hariciGrupVar)
-                                    <optgroup label="— SMS Grupları —">
-                                       @foreach($gruplar as $grup2)
-                                          @if(isset($grup2['id']))
-                                          <option value="haricigrup-{{ $grup2['id'] }}">{{ $grup2['grup_adi'] }}</option>
-                                          @endif
-                                       @endforeach
-                                    </optgroup>
-                                    @endif
+                                    @foreach($hariciGruplar as $grup2)
+                                       <option value="haricigrup-{{ $grup2['id'] }}">{{ $grup2['grup_adi'] }}</option>
+                                    @endforeach
                                  </select>
+                                 @if(count($hariciGruplar) === 0)
+                                    <div class="rkp-grup-empty">
+                                       <i class="fa fa-info-circle"></i>
+                                       Henüz grup oluşturmadınız. <b>+ Yeni Grup Oluştur</b> butonuyla oluşturabilirsiniz.
+                                    </div>
+                                 @endif
                               </div>
                            </div>
 
@@ -780,6 +777,30 @@
          #yeni_kampanya_modal .rkp-step-arrow { transform: rotate(90deg); }
       }
 
+      /* Yeni Grup Oluştur butonu */
+      #yeni_kampanya_modal .rkp-grup-header {
+         display: flex; align-items: center; justify-content: space-between;
+         margin-bottom: 8px; gap: 10px;
+      }
+      #yeni_kampanya_modal .rkp-grup-header .rkp-label { margin-bottom: 0; }
+      #yeni_kampanya_modal .rkp-yeni-grup-btn {
+         display: inline-flex; align-items: center; gap: 6px;
+         padding: 7px 14px; border-radius: 8px;
+         background: linear-gradient(135deg,#10b981,#059669);
+         color: #fff; border: none; font-size: 12.5px; font-weight: 600;
+         cursor: pointer; transition: transform .15s ease, box-shadow .15s ease;
+         box-shadow: 0 4px 12px rgba(5,150,105,.22);
+      }
+      #yeni_kampanya_modal .rkp-yeni-grup-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(5,150,105,.32); }
+      #yeni_kampanya_modal .rkp-yeni-grup-btn i { font-size: 11px; }
+      #yeni_kampanya_modal .rkp-grup-empty {
+         margin-top: 10px; padding: 14px;
+         background: #fef3c7; color: #92400e;
+         border: 1px dashed #fbbf24; border-radius: 8px;
+         font-size: 12.5px; line-height: 1.5;
+      }
+      #yeni_kampanya_modal .rkp-grup-empty i { margin-right: 4px; }
+
       /* Responsive */
       @media (max-width: 991px) {
          #yeni_kampanya_modal .rkp-presets { grid-template-columns: repeat(2, 1fr); }
@@ -1073,6 +1094,69 @@
          if(elKS && window.MutationObserver){
             new MutationObserver(rkpFiltreOzeti).observe(elKS, {childList:true, subtree:true, characterData:true});
          }
+
+         // ---- YENİ GRUP OLUŞTUR (preset Grup paneli içindeki buton) ----
+         $(document).on('click','#rkpYeniGrupBtn',function(e){
+            e.preventDefault();
+            // Reklam modalını geçici kapat, kapanınca grup ekle modal aç
+            sessionStorage.setItem('rkpReklamGeriDon','1');
+            $('#yeni_kampanya_modal').modal('hide');
+         });
+
+         // Reklam modal'ı kapanınca: grup ekle modalını açmamız gerekiyor mu?
+         $('#yeni_kampanya_modal').on('hidden.bs.modal.rkpgrup', function(){
+            if(sessionStorage.getItem('rkpReklamGeriDon') === '1'){
+               // Reset zaten çalıştı; önce flag'i tut, grup ekle modalını aç
+               setTimeout(function(){
+                  if(typeof modalbaslikata === 'function') {
+                     try { modalbaslikata('Yeni Grup','grup_sms_formu'); } catch(_) {}
+                  }
+                  $('#grup_sms_olustur_modal').modal('show');
+               }, 350);
+            }
+         });
+
+         // Grup ekle modalı kapandığında: reklam modalına geri dön
+         $(document).on('hidden.bs.modal','#grup_sms_olustur_modal',function(){
+            if(sessionStorage.getItem('rkpReklamGeriDon') === '1'){
+               sessionStorage.removeItem('rkpReklamGeriDon');
+               // Geri dönerken yeni eklenen grupları da yansıt
+               var yeniId  = sessionStorage.getItem('rkpYeniGrupId');
+               var yeniAdi = sessionStorage.getItem('rkpYeniGrupAdi');
+               sessionStorage.removeItem('rkpYeniGrupId');
+               sessionStorage.removeItem('rkpYeniGrupAdi');
+               setTimeout(function(){
+                  $('#yeni_kampanya_modal').modal('show');
+                  setTimeout(function(){
+                     // "Özel Grubum" preset'ine dön ve yeni grubu seç
+                     if(yeniId){
+                        var v = 'haricigrup-'+yeniId;
+                        if($('#musteriGruplari option[value="'+v+'"]').length === 0){
+                           $('#musteriGruplari').append('<option value="'+v+'">'+ $('<div>').text(yeniAdi || ('Grup #'+yeniId)).html() +'</option>');
+                           // empty state'i kaldır (varsa)
+                           $('#yeni_kampanya_modal .rkp-grup-empty').remove();
+                        }
+                        $('#yeni_kampanya_modal .rkp-preset[data-preset="grup"]').trigger('click');
+                        $('#musteriGruplari').val(v).trigger('change');
+                     }
+                  }, 300);
+               }, 250);
+            }
+         });
+
+         // Grup ekle başarılı response yakala — yeni grup ID'sini sakla
+         // (mevcut $.ajax'a hook olamadığımız için $(document).ajaxSuccess kullan)
+         $(document).on('ajaxSuccess', function(event, xhr, settings){
+            if(!settings || !settings.url) return;
+            if(settings.url.indexOf('/isletmeyonetim/grupsmsekle') === -1) return;
+            try {
+               var resp = (typeof xhr.responseJSON === 'object' && xhr.responseJSON) ? xhr.responseJSON : JSON.parse(xhr.responseText);
+               if(resp && resp.id){
+                  sessionStorage.setItem('rkpYeniGrupId', resp.id);
+                  sessionStorage.setItem('rkpYeniGrupAdi', resp.grupAdi || resp.grup_adi || '');
+               }
+            } catch(_) {}
+         });
       })();
       </script>
    </div>
