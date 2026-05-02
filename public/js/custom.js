@@ -7596,19 +7596,24 @@ $(document).on('submit','#ongorusmeformu',function(e){
         },
         success: function(result)  {
             $("#preloader").hide();
-                        $('#musteri_select_list').val('0').trigger('change');
-                        $('#paket').val('');
-                        $('#gorusmeyi_yapan').val('0').trigger('change');
-            $('button[data-dismiss="modal"]').trigger('click');
-            swal({
+            // Once modal'i kapat (data-dismiss=modal yerine API ile sadece bu modali hedefle)
+            $('#ongorusme-modal').modal('hide');
+            // Sonra swal — modal hide animasyonuyla cakismamasi icin minik bir gecikme
+            setTimeout(function(){
+                swal({
                     type: 'success',
                     title: 'Başarılı',
-                    html: 'Ön görüşme başarıyla kaydedildi',
+                    text: 'Ön görüşme başarıyla kaydedildi',
                     showCloseButton: false,
                     showCancelButton: false,
-                    showConfirmButton:false,
-                    timer: 3000,
-            });
+                    showConfirmButton: false,
+                    timer: 2500,
+                });
+            }, 200);
+            // Form alanlarini temizle (swal'dan sonra hizli reset)
+            $('#musteri_select_list').val('0').trigger('change.select2');
+            $('#paket').val('');
+            $('#gorusmeyi_yapan').val('0').trigger('change.select2');
             if($('#on_gorusme_liste').length){
                 $('#on_gorusme_liste').DataTable().destroy();
                 $('#on_gorusme_liste').DataTable({

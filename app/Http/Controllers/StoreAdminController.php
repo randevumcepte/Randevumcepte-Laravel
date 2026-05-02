@@ -2030,15 +2030,19 @@ public function carkverilerigetir(Request $request)
             elseif($rh->randevu->on_gorusme_id  !== null){
                 $duzenleButon .= '<a onclick="modalbaslikata(\"Ön Görüşme Düzenleme\",\"\" )" class="btn btn-primary btn-block btn-lg" href="#" data-toggle="modal" data-target="#ongorusme-modal" name="ongorusme_duzenle" data-value="'.$rh->randevu->on_gorusme_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn" style="float:right ;    margin-left: 5px;
     padding: 10px;">Müşteri Detay</a>';
-                $title .= " (ÖN GÖRÜŞME)\nÖn Görüşme Nedeni:";
+                $title .= " (ÖN GÖRÜŞME)\nÖn Görüşme Nedeni: ";
                 $modalTitle .= " Ön Görüşme Randevusu ";
-                if($rh->randevu->ongorusme->paket)
-                    $title .= $rh->randevu->ongorusme->paket->paket_adi;
-                if($rh->randevu->ongorusme->hizmet)
-                    $title .= $rh->randevu->ongorusme->hizmet->hizmet_adi;
-                if($rh->randevu->ongorusme->urun)
-                    $title .= $rh->randevu->ongorusme->urun->urun_adi;
-                
+                $_og = $rh->randevu->ongorusme;
+                if(\Schema::hasColumn('on_gorusmeler','gorusme_konusu') && !empty($_og->gorusme_konusu))
+                    $title .= $_og->gorusme_konusu;
+                elseif($_og && $_og->paket)
+                    $title .= $_og->paket->paket_adi;
+                elseif($_og && $_og->hizmet)
+                    $title .= $_og->hizmet->hizmet_adi;
+                elseif($_og && $_og->urun)
+                    $title .= $_og->urun->urun_adi;
+                else
+                    $title .= "—";
             }
             else{
                  $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn" style="float:right ;    margin-left: 5px;
@@ -8303,15 +8307,19 @@ private function ayAdiCevir($ingilizceAy)
                 }
                 elseif($rh->randevu->on_gorusme_id  !== null){
 
-                    $title .= " (ÖN GÖRÜŞME)\nÖn Görüşme Nedeni:";
+                    $title .= " (ÖN GÖRÜŞME)\nÖn Görüşme Nedeni: ";
                     $modalTitle .= " Ön Görüşme Randevusu ";
-                    if($rh->randevu->ongorusme->paket)
-                        $title .= $rh->randevu->ongorusme->paket->paket_adi;
-                    if($rh->randevu->ongorusme->hizmet)
-                        $title .= $rh->randevu->ongorusme->hizmet->hizmet_adi;
-                    if($rh->randevu->ongorusme->urun)
-                        $title .= $rh->randevu->ongorusme->urun->urun_adi;
-                    
+                    $_og2 = $rh->randevu->ongorusme;
+                    if(\Schema::hasColumn('on_gorusmeler','gorusme_konusu') && !empty($_og2->gorusme_konusu))
+                        $title .= $_og2->gorusme_konusu;
+                    elseif($_og2 && $_og2->paket)
+                        $title .= $_og2->paket->paket_adi;
+                    elseif($_og2 && $_og2->hizmet)
+                        $title .= $_og2->hizmet->hizmet_adi;
+                    elseif($_og2 && $_og2->urun)
+                        $title .= $_og2->urun->urun_adi;
+                    else
+                        $title .= "—";
                 }
                 else{
                     $title .= "\n".$rh->hizmetler->hizmet_adi;
