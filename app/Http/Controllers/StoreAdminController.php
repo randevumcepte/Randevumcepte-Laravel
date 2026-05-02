@@ -9299,32 +9299,32 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         $toplamTutar = 0;
         $odenenTutar = 0;
         
-        // Hizmetler
+        // Hizmetler — indirim_tutari modal hesabiyla tutarli olmasi icin dusulur
         $hizmetler = $adisyon->hizmetler;
         if ($personel_id) {
             $hizmetler = $hizmetler->where('personel_id', $personel_id);
         }
-        $toplamTutar += $hizmetler->sum('fiyat');
+        $toplamTutar += $hizmetler->sum(function($h){ return ($h->fiyat ?? 0) - ($h->indirim_tutari ?? 0); });
         $odenenTutar += $hizmetler->sum(function($h) {
             return $h->tahsilatlar->sum('tutar');
         });
-        
+
         // Ürünler
         $urunler = $adisyon->urunler;
         if ($personel_id) {
             $urunler = $urunler->where('personel_id', $personel_id);
         }
-        $toplamTutar += $urunler->sum('fiyat');
+        $toplamTutar += $urunler->sum(function($u){ return ($u->fiyat ?? 0) - ($u->indirim_tutari ?? 0); });
         $odenenTutar += $urunler->sum(function($u) {
             return $u->tahsilatlar->sum('tutar');
         });
-        
+
         // Paketler
         $paketler = $adisyon->paketler;
         if ($personel_id) {
             $paketler = $paketler->where('personel_id', $personel_id);
         }
-        $toplamTutar += $paketler->sum('fiyat');
+        $toplamTutar += $paketler->sum(function($p){ return ($p->fiyat ?? 0) - ($p->indirim_tutari ?? 0); });
         $odenenTutar += $paketler->sum(function($p) {
             return $p->tahsilatlar->sum('tutar');
         });
@@ -9443,12 +9443,13 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
                 }
             }
             
+            $hizmetNetTutar = ($hizmet->fiyat ?? 0) - ($hizmet->indirim_tutari ?? 0);
             $satilanlarStr .= $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi." (H) " : "";
             $satilanlar[] = [
                 'tip' => 'hizmet',
                 'ad' => $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi : "",
-                'tutar' => $hizmet->fiyat,
-                'hizmetTutar' => $hizmet->fiyat,
+                'tutar' => $hizmetNetTutar,
+                'hizmetTutar' => $hizmetNetTutar,
                 'urunTutar' => 0,
                 'paketTutar' => 0,
                 'hakedisTutar' => $hizmetHakedis,
@@ -9457,7 +9458,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
                 'paketHakedisTutar' => 0,
             ];
         }
-        
+
         // Ürünler
         $urunler = $adisyon->urunler;
         foreach ($urunler as $urun) {
@@ -9467,14 +9468,15 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
                     $urunHakedis = $urun->tahsilatlar->sum('tutar') * ($urun->personel->urun_prim_yuzde / 100);
                 }
             }
-            
+
+            $urunNetTutar = ($urun->fiyat ?? 0) - ($urun->indirim_tutari ?? 0);
             $satilanlarStr .= $urun->urun_id ? $urun->urun->urun_adi." (Ü) " : "";
             $satilanlar[] = [
                 'tip' => 'urun',
                 'ad' => $urun->urun_id ? $urun->urun->urun_adi : "",
-                'tutar' => $urun->fiyat,
+                'tutar' => $urunNetTutar,
                 'hizmetTutar' => 0,
-                'urunTutar' => $urun->fiyat,
+                'urunTutar' => $urunNetTutar,
                 'paketTutar' => 0,
                 'hakedisTutar' => $urunHakedis,
                 'hizmetHakedisTutar' => 0,
@@ -9482,7 +9484,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
                 'paketHakedisTutar' => 0,
             ];
         }
-        
+
         // Paketler
         $paketler = $adisyon->paketler;
         foreach ($paketler as $paket) {
@@ -9492,15 +9494,16 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
                     $paketHakedis = $paket->tahsilatlar->sum('tutar') * ($paket->personel->paket_prim_yuzde / 100);
                 }
             }
-            
+
+            $paketNetTutar = ($paket->fiyat ?? 0) - ($paket->indirim_tutari ?? 0);
             $satilanlarStr .= $paket->paket_id ? $paket->paket->paket_adi." (P) " : "";
             $satilanlar[] = [
                 'tip' => 'paket',
                 'ad' => $paket->paket_id ? $paket->paket->paket_adi : "",
-                'tutar' => $paket->fiyat,
+                'tutar' => $paketNetTutar,
                 'hizmetTutar' => 0,
                 'urunTutar' => 0,
-                'paketTutar' => $paket->fiyat,
+                'paketTutar' => $paketNetTutar,
                 'hakedisTutar' => $paketHakedis,
                 'hizmetHakedisTutar' => 0,
                 'urunHakedisTutar' => 0,
@@ -9530,6 +9533,8 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         $paketHakedisToplam += $paketHakedisTutar;
         
         $ilkAlacak = Alacaklar::where('user_id', $adisyon->user_id)
+            ->where('salon_id', $isletmeId)
+            ->where('adisyon_id', $adisyon->id)
             ->orderBy('planlanan_odeme_tarihi', 'asc')
             ->first();
         
@@ -9549,8 +9554,9 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         $islemler .= '&nbsp;<button style="line-height:5px;padding:5px" name="satisDuzenle" data-index-number="'.$adisyon->user_id.'" data-value="'.$adisyon->id.'" title="Düzenle" href="#" type="button"  class="btn btn-success"><i class="fa fa-edit"></i></button>';
         $islemler .= '&nbsp;<button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Adisyonu Sil"  name="adisyon_sil" data-value="'.$adisyon->id.'"><i class="fa fa-times"></i></button>';
         
+        $acilisTarihiKaynak = $adisyon->tarih ?: $adisyon->created_at;
         return [
-            'acilis_tarihi' => date('d.m.Y', strtotime($adisyon->tarih)),
+            'acilis_tarihi' => $acilisTarihiKaynak ? date('d.m.Y', strtotime($acilisTarihiKaynak)) : '',
             'musteri' => optional($adisyon->musteri)->name ?? '-',
             'planlanan_alacak_tarihi' => $ilkAlacak && $ilkAlacak->planlanan_odeme_tarihi !== null ? date('d.m.Y', strtotime($ilkAlacak->planlanan_odeme_tarihi)) : "",
             'satis_turu' => '',
