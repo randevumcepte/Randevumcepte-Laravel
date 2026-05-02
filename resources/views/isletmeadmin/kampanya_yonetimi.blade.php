@@ -591,18 +591,18 @@
 </div>
 
 <style>
-/* ============ YENİ GRUP OLUŞTUR — MODERN UI ============ */
-#grup_sms_olustur_modal .gso-dialog { max-width: 760px; margin: 1.75rem auto; }
+/* ============ YENİ GRUP OLUŞTUR — MODERN UI (kompakt) ============ */
+#grup_sms_olustur_modal .gso-dialog { max-width: 660px; margin: 1.5rem auto; }
 #grup_sms_olustur_modal .gso-content {
-    border: none; border-radius: 18px; overflow: hidden;
-    box-shadow: 0 24px 48px rgba(15,23,42,.18);
+    border: none; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 20px 40px rgba(15,23,42,.16);
     margin: 0 auto !important; width: 100% !important;
 }
-/* Header — mor gradient */
+/* Header — mor gradient (kompakt) */
 #grup_sms_olustur_modal .gso-header {
     position: relative;
     background: linear-gradient(135deg, #5C008E 0%, #7B2FB8 50%, #9D5DC8 100%);
-    color: #fff; padding: 22px 26px; display: flex; align-items: center; gap: 16px;
+    color: #fff; padding: 14px 18px; display: flex; align-items: center; gap: 12px;
 }
 #grup_sms_olustur_modal .gso-header::after {
     content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -612,44 +612,45 @@
 }
 #grup_sms_olustur_modal .gso-header-icon {
     position: relative; z-index: 1;
-    width: 56px; height: 56px; border-radius: 16px;
+    width: 40px; height: 40px; border-radius: 12px;
     background: rgba(255,255,255,.18); backdrop-filter: blur(8px);
     display: flex; align-items: center; justify-content: center;
-    font-size: 22px; flex-shrink: 0;
+    font-size: 17px; flex-shrink: 0;
     border: 1.5px solid rgba(255,255,255,.22);
 }
 #grup_sms_olustur_modal .gso-header-text { position: relative; z-index: 1; flex: 1; min-width: 0; }
-#grup_sms_olustur_modal .gso-header-text h5 { margin: 0 0 4px; font-weight: 700; font-size: 20px; color: #fff; }
-#grup_sms_olustur_modal .gso-header-text p  { margin: 0; font-size: 13px; color: rgba(255,255,255,.92); line-height: 1.4; }
+#grup_sms_olustur_modal .gso-header-text h5 { margin: 0 0 2px; font-weight: 700; font-size: 16px; color: #fff; }
+#grup_sms_olustur_modal .gso-header-text p  { margin: 0; font-size: 11.5px; color: rgba(255,255,255,.92); line-height: 1.35; }
 #grup_sms_olustur_modal .gso-close {
     position: relative; z-index: 1;
-    width: 36px; height: 36px; border-radius: 50%;
+    width: 30px; height: 30px; border-radius: 50%;
     background: rgba(255,255,255,.15); border: none; color: #fff;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
+    font-size: 13px;
     transition: all .15s ease;
 }
 #grup_sms_olustur_modal .gso-close:hover { background: rgba(255,255,255,.28); transform: rotate(90deg); }
 
 /* Body */
-#grup_sms_olustur_modal .gso-body { padding: 22px 26px 8px; max-height: calc(100vh - 280px); overflow-y: auto; }
-#grup_sms_olustur_modal .gso-mt { margin-top: 22px; }
+#grup_sms_olustur_modal .gso-body { padding: 14px 18px 6px; max-height: calc(100vh - 220px); overflow-y: auto; }
+#grup_sms_olustur_modal .gso-mt { margin-top: 14px; }
 #grup_sms_olustur_modal .gso-step-header {
-    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
 }
 #grup_sms_olustur_modal .gso-step-num {
-    width: 28px; height: 28px; border-radius: 50%;
+    width: 22px; height: 22px; border-radius: 50%;
     background: linear-gradient(135deg,#5C008E,#7B2FB8); color: #fff;
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700;
+    font-size: 11px; font-weight: 700;
 }
-#grup_sms_olustur_modal .gso-step-title { font-size: 15px; font-weight: 700; color: #1e293b; }
+#grup_sms_olustur_modal .gso-step-title { font-size: 13.5px; font-weight: 700; color: #1e293b; }
 #grup_sms_olustur_modal .gso-secili-rozet {
     margin-left: auto;
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 12px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 999px;
     background: linear-gradient(135deg,#10b981,#059669);
-    color: #fff; font-size: 12.5px; font-weight: 700;
-    box-shadow: 0 4px 12px rgba(5,150,105,.25);
+    color: #fff; font-size: 11.5px; font-weight: 700;
+    box-shadow: 0 3px 10px rgba(5,150,105,.25);
     transition: all .2s ease;
 }
 #grup_sms_olustur_modal .gso-secili-rozet.gso-rozet-bos {
@@ -658,9 +659,9 @@
 
 /* Modern input */
 #grup_sms_olustur_modal .gso-input {
-    width: 100%; height: 48px; padding: 10px 16px;
-    font-size: 15px; font-weight: 500;
-    border: 2px solid #e2e8f0; border-radius: 12px;
+    width: 100%; height: 40px; padding: 8px 14px;
+    font-size: 13.5px; font-weight: 500;
+    border: 2px solid #e2e8f0; border-radius: 10px;
     background: #fff; color: #1e293b;
     transition: all .15s ease;
 }
@@ -672,13 +673,13 @@
 
 /* Hızlı öneri chip'leri */
 #grup_sms_olustur_modal .gso-suggest-row {
-    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px;
+    display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 8px;
 }
-#grup_sms_olustur_modal .gso-suggest-label { font-size: 11.5px; color: #64748b; font-weight: 600; }
+#grup_sms_olustur_modal .gso-suggest-label { font-size: 11px; color: #64748b; font-weight: 600; }
 #grup_sms_olustur_modal .gso-chip {
-    padding: 5px 12px; border-radius: 999px;
+    padding: 4px 10px; border-radius: 999px;
     background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
-    font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s ease;
+    font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all .15s ease;
 }
 #grup_sms_olustur_modal .gso-chip:hover {
     background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; transform: translateY(-1px);
@@ -686,36 +687,36 @@
 
 /* Toolbar */
 #grup_sms_olustur_modal .gso-toolbar {
-    display: flex; gap: 8px; align-items: stretch; margin-bottom: 10px;
+    display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px;
 }
 #grup_sms_olustur_modal .gso-search { position: relative; flex: 1; }
 #grup_sms_olustur_modal .gso-search i {
-    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-    color: #94a3b8; font-size: 14px;
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: #94a3b8; font-size: 13px;
 }
 #grup_sms_olustur_modal .gso-search input {
-    width: 100%; height: 42px; padding: 8px 14px 8px 38px;
-    font-size: 13.5px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+    width: 100%; height: 36px; padding: 6px 12px 6px 34px;
+    font-size: 13px; border: 1.5px solid #e2e8f0; border-radius: 9px;
     background: #fff; transition: all .15s ease;
 }
 #grup_sms_olustur_modal .gso-search input:focus {
     outline: none; border-color: #7B2FB8; box-shadow: 0 0 0 3px rgba(123,47,184,.12);
 }
 #grup_sms_olustur_modal .gso-temizle {
-    padding: 0 14px; height: 42px;
-    background: #fff; color: #dc2626; border: 1.5px solid #fecaca; border-radius: 10px;
-    font-size: 12.5px; font-weight: 600; cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px; transition: all .15s ease;
+    padding: 0 12px; height: 36px;
+    background: #fff; color: #dc2626; border: 1.5px solid #fecaca; border-radius: 9px;
+    font-size: 11.5px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px; transition: all .15s ease;
 }
 #grup_sms_olustur_modal .gso-temizle:hover { background: #fef2f2; border-color: #fca5a5; }
 
 /* Liste */
 #grup_sms_olustur_modal .gso-list-wrap {
-    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;
 }
 #grup_sms_olustur_modal .gso-list {
-    max-height: 360px; overflow-y: auto; padding: 6px;
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+    max-height: 320px; overflow-y: auto; padding: 5px;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px;
     scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent;
 }
 #grup_sms_olustur_modal .gso-list::-webkit-scrollbar { width: 8px; }
@@ -727,16 +728,17 @@
     grid-column: 1 / -1;
     background: linear-gradient(135deg, #faf5ff, #ede9fe) !important;
     border: 1.5px dashed #c4b5fd !important;
-    border-radius: 10px; padding: 10px 14px !important; margin-bottom: 4px;
+    border-radius: 9px; padding: 8px 12px !important; margin-bottom: 3px;
 }
 #grup_sms_olustur_modal .gso-list .musteri-item.hepsini-sec .form-check-label {
-    font-weight: 700 !important; color: #5b21b6 !important; font-size: 13.5px;
+    font-weight: 700 !important; color: #5b21b6 !important; font-size: 12.5px;
 }
 
-/* Müşteri item — kart görünümü */
+/* Müşteri item — kart görünümü (kompakt + tüm alan tıklanabilir) */
 #grup_sms_olustur_modal .gso-list .musteri-item {
-    border-radius: 10px; border: 1.5px solid #e2e8f0;
-    background: #fff; padding: 10px 12px;
+    border-radius: 9px; border: 1.5px solid #e2e8f0;
+    background: #fff;
+    padding: 0;  /* iç padding label'a taşındı — tüm alan tıklanabilir */
     transition: all .12s ease; cursor: pointer;
     position: relative;
 }
@@ -745,8 +747,8 @@
     transform: translateY(-1px); box-shadow: 0 4px 10px rgba(123,47,184,.08);
 }
 #grup_sms_olustur_modal .gso-list .musteri-item .form-check {
-    margin: 0; padding-left: 0;
-    display: flex; align-items: center; gap: 10px; min-height: 36px;
+    margin: 0; padding: 8px 12px;
+    display: flex; align-items: center; gap: 14px; min-height: 32px;
 }
 #grup_sms_olustur_modal .gso-list .musteri-item .form-check-input {
     margin: 0; width: 18px; height: 18px; flex-shrink: 0;
@@ -754,13 +756,17 @@
 }
 #grup_sms_olustur_modal .gso-list .musteri-item .form-check-label {
     margin: 0; cursor: pointer; flex: 1; min-width: 0;
-    display: flex; align-items: center; gap: 10px; line-height: 1.3;
+    display: flex; align-items: center; gap: 12px; line-height: 1.25;
+    /* tüm kart alanını kapsasın */
+    padding: 0;
 }
+/* Tümünü seç için padding-left küçük (avatar yok) */
+#grup_sms_olustur_modal .gso-list .musteri-item.hepsini-sec .form-check-label { gap: 0; }
 
-/* Avatar */
+/* Avatar (kompakt) */
 #grup_sms_olustur_modal .gso-avatar {
-    width: 32px; height: 32px; border-radius: 50%; color: #fff;
-    font-size: 12.5px; font-weight: 700;
+    width: 28px; height: 28px; border-radius: 50%; color: #fff;
+    font-size: 11.5px; font-weight: 700;
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 #grup_sms_olustur_modal .gso-avatar-c0 { background: linear-gradient(135deg,#7B2FB8,#5C008E); }
@@ -773,52 +779,58 @@
 #grup_sms_olustur_modal .gso-avatar-c7 { background: linear-gradient(135deg,#0891b2,#0ea5e9); }
 #grup_sms_olustur_modal .gso-musteri-info { flex: 1; min-width: 0; }
 #grup_sms_olustur_modal .gso-musteri-info strong {
-    display: block; font-size: 13px; font-weight: 600; color: #1e293b;
+    display: block; font-size: 12.5px; font-weight: 600; color: #1e293b;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 #grup_sms_olustur_modal .gso-musteri-info small {
-    color: #64748b; font-size: 11.5px;
+    color: #64748b; font-size: 11px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;
 }
 
-/* Seçili durum */
+/* Seçili durum — yeşil */
 #grup_sms_olustur_modal .gso-list .musteri-item:has(input:checked) {
-    border-color: #7B2FB8;
-    background: linear-gradient(135deg,#faf5ff,#fff);
-    box-shadow: 0 4px 14px rgba(123,47,184,.14);
+    border-color: #10b981 !important;
+    background: linear-gradient(135deg,#ecfdf5,#fff) !important;
+    box-shadow: 0 3px 10px rgba(16,185,129,.18);
+}
+/* :has() desteklemeyen tarayıcılar için fallback class (JS toggle eder) */
+#grup_sms_olustur_modal .gso-list .musteri-item.is-secili {
+    border-color: #10b981 !important;
+    background: linear-gradient(135deg,#ecfdf5,#fff) !important;
+    box-shadow: 0 3px 10px rgba(16,185,129,.18);
 }
 
-/* Loading / Empty */
-#grup_sms_olustur_modal .gso-loading { padding: 40px 20px; text-align: center; }
-#grup_sms_olustur_modal .gso-loading p { margin-top: 10px; color: #64748b; font-size: 13px; }
+/* Loading / Empty (kompakt) */
+#grup_sms_olustur_modal .gso-loading { padding: 28px 16px; text-align: center; }
+#grup_sms_olustur_modal .gso-loading p { margin-top: 8px; color: #64748b; font-size: 12px; }
 #grup_sms_olustur_modal .gso-empty {
     grid-column: 1 / -1;
-    text-align: center; padding: 36px 20px; color: #94a3b8;
+    text-align: center; padding: 28px 16px; color: #94a3b8;
 }
 #grup_sms_olustur_modal .gso-empty-ic {
-    width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; background: #f1f5f9;
-    display: flex; align-items: center; justify-content: center; font-size: 26px;
+    width: 52px; height: 52px; margin: 0 auto 10px; border-radius: 50%; background: #f1f5f9;
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
 }
-#grup_sms_olustur_modal .gso-empty p { margin: 0; font-size: 13px; }
+#grup_sms_olustur_modal .gso-empty p { margin: 0; font-size: 12.5px; }
 
 /* Counts */
 #grup_sms_olustur_modal .gso-counts {
     display: flex; justify-content: space-between; align-items: center;
-    margin-top: 8px; padding: 0 4px;
-    font-size: 11.5px; color: #94a3b8;
+    margin-top: 6px; padding: 0 4px;
+    font-size: 11px; color: #94a3b8;
 }
 #grup_sms_olustur_modal .gso-counts i { margin-right: 4px; }
 #grup_sms_olustur_modal .gso-counts b { color: #475569; }
 
-/* Footer */
+/* Footer (kompakt) */
 #grup_sms_olustur_modal .gso-footer {
-    padding: 16px 26px; border-top: 1px solid #f1f5f9;
-    display: flex; gap: 10px; justify-content: flex-end; background: #fafbfc;
+    padding: 12px 18px; border-top: 1px solid #f1f5f9;
+    display: flex; gap: 8px; justify-content: flex-end; background: #fafbfc;
 }
 #grup_sms_olustur_modal .gso-btn {
-    padding: 12px 26px; border-radius: 12px;
-    font-weight: 700; font-size: 14px; cursor: pointer; border: none;
-    display: inline-flex; align-items: center; gap: 8px; transition: all .15s ease;
+    padding: 9px 20px; border-radius: 10px;
+    font-weight: 700; font-size: 13px; cursor: pointer; border: none;
+    display: inline-flex; align-items: center; gap: 6px; transition: all .15s ease;
 }
 #grup_sms_olustur_modal .gso-btn-iptal {
     background: #fff; color: #475569; border: 1.5px solid #e2e8f0;
@@ -827,23 +839,23 @@
 #grup_sms_olustur_modal .gso-btn-kaydet {
     background: linear-gradient(135deg,#10b981 0%,#059669 100%);
     color: #fff;
-    box-shadow: 0 8px 20px rgba(5,150,105,.30);
-    min-width: 200px; justify-content: center;
+    box-shadow: 0 6px 16px rgba(5,150,105,.28);
+    min-width: 170px; justify-content: center;
 }
 #grup_sms_olustur_modal .gso-btn-kaydet:hover {
-    transform: translateY(-1px); box-shadow: 0 12px 28px rgba(5,150,105,.40);
+    transform: translateY(-1px); box-shadow: 0 10px 22px rgba(5,150,105,.36);
 }
 
 /* Responsive */
 @media (max-width: 575px) {
     #grup_sms_olustur_modal .gso-list { grid-template-columns: 1fr; }
-    #grup_sms_olustur_modal .gso-header { padding: 16px 18px; gap: 12px; }
-    #grup_sms_olustur_modal .gso-header-icon { width: 44px; height: 44px; font-size: 18px; }
-    #grup_sms_olustur_modal .gso-header-text h5 { font-size: 17px; }
-    #grup_sms_olustur_modal .gso-body { padding: 16px 18px 4px; }
-    #grup_sms_olustur_modal .gso-footer { padding: 12px 18px; flex-direction: column-reverse; }
+    #grup_sms_olustur_modal .gso-header { padding: 12px 14px; gap: 10px; }
+    #grup_sms_olustur_modal .gso-header-icon { width: 38px; height: 38px; font-size: 15px; }
+    #grup_sms_olustur_modal .gso-header-text h5 { font-size: 15px; }
+    #grup_sms_olustur_modal .gso-body { padding: 12px 14px 4px; }
+    #grup_sms_olustur_modal .gso-footer { padding: 10px 14px; flex-direction: column-reverse; }
     #grup_sms_olustur_modal .gso-btn { width: 100%; justify-content: center; }
-    #grup_sms_olustur_modal .gso-secili-rozet { font-size: 11px; padding: 4px 10px; }
+    #grup_sms_olustur_modal .gso-secili-rozet { font-size: 10.5px; padding: 3px 8px; }
 }
 </style>
 
@@ -861,10 +873,28 @@
             window.musteriSecimi.state.hepsiSecili = false;
             $('#tumunuSecGrupSMS').prop('checked', false);
             $('#musteriListesiGrupSMS .musteri-secimi-checkbox').prop('checked', false);
+            $('#musteriListesiGrupSMS .musteri-item').removeClass('is-secili');
             window.musteriSecimi.seciliElemanSayisiniGuncelle();
          }
       } catch(_) {}
    });
+
+   // Müşteri kartının HER YERİNE tıklandığında checkbox toggle
+   // (label/checkbox dışı: avatar + boş alan da tıklanabilir olsun)
+   $(document).on('click', '#musteriListesiGrupSMS .musteri-item:not(.hepsini-sec)', function(e){
+      // Native label/checkbox click'i zaten checkbox'ı tetikler — duplicate'i önle
+      if($(e.target).is('input[type="checkbox"]')) return;
+      if($(e.target).closest('label').length) return;
+      var $cb = $(this).find('.musteri-secimi-checkbox');
+      if(!$cb.length) return;
+      $cb.prop('checked', !$cb.prop('checked')).trigger('change');
+   });
+
+   // Checkbox değişince kartın "is-secili" class'ını senkronla (görsel feedback)
+   $(document).on('change', '#musteriListesiGrupSMS .musteri-secimi-checkbox', function(){
+      $(this).closest('.musteri-item').toggleClass('is-secili', $(this).is(':checked'));
+   });
+
    var $rozet = $('#grupSMSSeciliMusteriler');
    if($rozet.length && window.MutationObserver){
       new MutationObserver(function(){

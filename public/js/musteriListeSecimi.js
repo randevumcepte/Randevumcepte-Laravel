@@ -185,7 +185,7 @@ class MusteriSecimi {
         const cbId = 'gsoChk-' + userId;
 
         return $(`
-            <div class="musteri-item">
+            <div class="musteri-item${isChecked ? ' is-secili' : ''}">
                 <div class="form-check">
                     <input class="form-check-input musteri-secimi-checkbox"
                            type="checkbox"
