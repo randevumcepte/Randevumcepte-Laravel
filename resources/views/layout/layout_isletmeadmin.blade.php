@@ -1155,7 +1155,7 @@
                      @else
                      <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
                      @endif
-                     <span class="micon bi bi-circle-fill" style="color:#9D5DC8"></span
+                     <span class="micon" style="font-size:17px;line-height:1;display:inline-block;width:22px;text-align:center;">🎡</span
                         ><span class="mtext">Çarkıfelek</span>
                      </a>
                   </li>
