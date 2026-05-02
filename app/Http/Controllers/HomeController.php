@@ -2468,4 +2468,46 @@ $salon = Salonlar::where('domain', $domain)->first();
             'aramaterimisayfa' => $adSoyad,
         ]);
     }
+
+    public function sozlesmeSayfasi(Request $request, $arsiv_id, $user_id)
+    {
+        $arsiv = Arsiv::where('id', $arsiv_id)->first();
+        if (!$arsiv || !$arsiv->is_sozlesme) abort(404);
+        $isletme = \App\Salonlar::where('id', $arsiv->salon_id)->first();
+        $musteri = User::where('id', $user_id)->first();
+        $hizmet_adi = null; $paket_adi = null;
+        if ($arsiv->hizmet_id) {
+            try {
+                $sh = \App\SalonSunulanHizmetler::where('id', $arsiv->hizmet_id)->with('hizmet')->first();
+                $hizmet_adi = $sh && $sh->hizmet ? $sh->hizmet->hizmet_adi : null;
+            } catch(\Exception $e) {}
+        }
+        if ($arsiv->paket_id) {
+            try {
+                $paket_adi = \App\Paket::where('id', $arsiv->paket_id)->value('paket_adi');
+            } catch(\Exception $e) {}
+        }
+        return view('onamform.musteri_sozlesme', [
+            'arsiv'           => $arsiv,
+            'isletme'         => $isletme,
+            'musteri'         => $musteri,
+            'hizmet_adi'      => $hizmet_adi,
+            'paket_adi'       => $paket_adi,
+            'zaten_imzalandi' => (bool) $arsiv->cevapladi,
+        ]);
+    }
+
+    public function sozlesmeKaydet(Request $request)
+    {
+        $arsiv = Arsiv::where('id', $request->arsiv_id)->first();
+        if (!$arsiv) return response()->json(['basarili'=>false,'mesaj'=>'Sözleşme bulunamadı.']);
+        if ($arsiv->cevapladi) return response()->json(['basarili'=>false,'mesaj'=>'Bu sözleşme zaten imzalanmış.']);
+        if (trim($arsiv->dogrulama_kodu) !== trim($request->dogrulama_kodu)) {
+            return response()->json(['basarili'=>false,'mesaj'=>'Onay kodu hatalı.']);
+        }
+        $arsiv->musteri_imza = $request->musteri_imza;
+        $arsiv->cevapladi    = true;
+        $arsiv->save();
+        return response()->json(['basarili'=>true]);
+    }
 }

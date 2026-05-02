@@ -142,6 +142,8 @@ Route::get('/save-excel', function () {
 	 	 Route::get('/musteriformdoldurma2/{id}/{userid}','HomeController@arsivmusteriform2');
 	 Route::get('/onam-form/{arsiv_id}/{user_id}','HomeController@onamFormSayfasi');
 	 Route::post('/onam-form-kaydet','HomeController@onamFormKaydet');
+	 Route::get('/sozlesme/{arsiv_id}/{user_id}','HomeController@sozlesmeSayfasi');
+	 Route::post('/sozlesme-kaydet','HomeController@sozlesmeKaydet');
 	 	 Route::get('/musteriformdoldurma3/{id}/{userid}','HomeController@arsivmusteriform3');
 
 	
@@ -785,6 +787,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/form-sablonlari-guncelle','StoreAdminController@formSablonlariGuncelle');
 	Route::post('/form-sablonlari-sil','StoreAdminController@formSablonlariSil');
 	Route::post('/form-sablonlari-sira-guncelle','StoreAdminController@formSablonlariSiraGuncelle');
+	Route::post('/sozlesme-olustur','StoreAdminController@sozlesmeOlustur');
 	Route::get('/formmusteribilgigetir','StoreAdminController@formmusteribilgigetir');
 	Route::get('/formpersonelbilgigetir','StoreAdminController@formpersonelbilgigetir');
 	Route::get('/onamformmikropdf', 'StoreAdminController@onamformindir')->name('download');

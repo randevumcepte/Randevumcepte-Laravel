@@ -1351,6 +1351,7 @@
       @endif
       @if($pageindex==50)
       @include('modaldialogs.arsiv-form-ekle-modal')
+      @include('modaldialogs.sozlesme-olustur-modal')
       @include('modaldialogs.arsiv-form-gonder-modal')
       @endif
       @if($pageindex==43)
