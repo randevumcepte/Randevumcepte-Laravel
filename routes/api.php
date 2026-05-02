@@ -289,5 +289,14 @@ Route::post('/bildirimkimligiekleguncelle','ApiController@bildirimkimligieklegun
     Route::post('/sms-yonetim/karaliste-ekle/{salonid}',      'ApiController@smsYonetimKaraListeEkle');
     Route::post('/sms-yonetim/karaliste-sil/{salonid}',       'ApiController@smsYonetimKaraListeSil');
     Route::get ('/sms-yonetim/bakiye/{salonid}',              'ApiController@smsYonetimBakiye');
+
+    /* ───────── AI Sesli Asistan (sidecar erisir) ───────── */
+    Route::middleware('ai.sidecar')->prefix('ai')->group(function () {
+        Route::post('/musait-saatler',    'Api\AiAsistanController@musaitSaatler');
+        Route::post('/randevu-olustur',   'Api\AiAsistanController@randevuOlustur');
+        Route::post('/mevcut-randevular', 'Api\AiAsistanController@mevcutRandevular');
+        Route::post('/randevu-iptal',     'Api\AiAsistanController@randevuIptal');
+        Route::post('/randevu-guncelle',  'Api\AiAsistanController@randevuGuncelle');
+    });
 });
   

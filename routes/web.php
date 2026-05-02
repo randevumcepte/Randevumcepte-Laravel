@@ -22,36 +22,48 @@ Auth::routes();
 
 // GECICI: Personel detay popup'ini test etmek icin ornek data doldurma rotasi.
 // Kullanildiktan sonra bu blok silinecek.
-// Kullanim: /dev-personel-demo-doldur?ad=Ferdi  (ad parametresi opsiyonel)
+// Bos olan TUM personellere farkli uzmanliklarda demo veri yazar.
 Route::get('/dev-personel-demo-doldur', function() {
     $salon = \App\Salonlar::where('domain', $_SERVER['HTTP_HOST'])->first();
     if (!$salon) return 'Bu domain icin salon bulunamadi.';
 
-    $aramaAd = request('ad', 'Ferdi');
-    $per = \App\Personeller::where('salon_id', $salon->id)
-        ->where('personel_adi', 'LIKE', '%'.$aramaAd.'%')
-        ->first();
+    $demolar = [
+        ['uzmanlik'=>'Saç & Renk Uzmanı','tecrube'=>8,'insta'=>'randevumcepte','aciklama'=>"8 yılı aşkın süredir saç tasarımı ve renklendirme alanında profesyonel hizmet vermektedir. L'Oréal Professional ve Wella Master Colorist sertifikalarına sahip; balayage, ombre ve highlight teknikleriyle özel tasarımlar hazırlar.\n\nİstanbul Güzellik Sanatları Akademisi mezunu. Müşteri memnuniyetini her zaman ön planda tutar; yenilikçi tekniklerle güncel trendleri takip eder."],
+        ['uzmanlik'=>'Cilt Bakım Uzmanı','tecrube'=>6,'insta'=>'randevumcepte','aciklama'=>"Profesyonel cilt analizi, yaşlanma karşıtı bakım, akne ve leke tedavisi konularında uzmanlaşmıştır. Hydrafacial, mikrodermabrazyon ve kimyasal peeling sertifikalarına sahiptir.\n\nHer cilt tipine özel kişiselleştirilmiş bakım planları hazırlar; cildin sağlığını ve canlılığını maksimuma çıkarır."],
+        ['uzmanlik'=>'Manikür & Pedikür Uzmanı','tecrube'=>5,'insta'=>'randevumcepte','aciklama'=>"Tırnak sağlığı, kalıcı oje, jel & akrilik tırnak uygulamaları, nail-art ve French manikür konularında uzman. Hijyen kurallarına titizlikle uyar; her uygulamada steril ekipman kullanır.\n\nSon trend tasarımları yakından takip eder; size özel tırnak stilini birlikte tasarlar."],
+        ['uzmanlik'=>'Kuaför','tecrube'=>10,'insta'=>'randevumcepte','aciklama'=>"10 yıllık deneyimi ile saç kesimi, fön, topuz ve özel gün şekillendirmeleri konusunda uzmanlaşmıştır. Klasik ve modern saç stilleri arasında köprü kurar.\n\nDüğün, davet ve özel günler için profesyonel topuz ve saç tasarımı yapar; doğal ve şık görünümler hazırlar."],
+        ['uzmanlik'=>'Makyaj Sanatçısı','tecrube'=>7,'insta'=>'randevumcepte','aciklama'=>"Düğün, gelin, davet ve günlük makyaj konusunda uzman. Profesyonel airbrush teknikleri ve uzun süre kalıcı makyaj uygulamalarıyla tanınır.\n\nHer cilt tonuna uygun renk paletleri kullanır; doğal güzelliğinizi ön plana çıkarır."],
+    ];
 
-    if (!$per) {
-        // fallback: ilk personel
-        $per = \App\Personeller::where('salon_id', $salon->id)->first();
+    $personeller = \App\Personeller::where('salon_id', $salon->id)
+        ->where(function($q){ $q->whereNull('uzmanlik')->orWhere('uzmanlik',''); })
+        ->where(function($q){ $q->whereNull('aciklama')->orWhere('aciklama',''); })
+        ->orderBy('id')
+        ->get();
+
+    if ($personeller->isEmpty()) {
+        return "<div style='font-family:sans-serif;max-width:520px;margin:80px auto;padding:30px;background:#fef3c7;border:2px solid #f59e0b;border-radius:14px;'>"
+             . "<h2 style='color:#92400e;margin:0 0 12px;'>ℹ Bos Personel Yok</h2>"
+             . "<p>Bu salonda bos bio alanli personel kalmadi. Tum personellerin uzmanlik veya aciklamasi zaten dolu.</p>"
+             . "<p style='margin-top:16px;'><a href='/' style='background:#5C008E;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;'>Anasayfaya Don</a></p>"
+             . "</div>";
     }
-    if (!$per) return 'Bu salonda personel yok.';
 
-    $per->uzmanlik = $per->uzmanlik ?: 'Saç & Renk Uzmanı';
-    $per->aciklama = $per->aciklama ?: "8 yılı aşkın süredir saç tasarımı ve renklendirme alanında profesyonel hizmet vermektedir. L'Oréal Professional ve Wella Master Colorist sertifikalarına sahip; balayage, ombre ve highlight teknikleriyle özel tasarımlar hazırlar.\n\nİstanbul Güzellik Sanatları Akademisi mezunu. Müşteri memnuniyetini her zaman ön planda tutar; her saç tipi için uygun bakım ve stil önerileri sunar. Yenilikçi tekniklerle güncel trendleri takip eder.";
-    $per->yillik_tecrube = $per->yillik_tecrube ?: 8;
-    $per->instagram = $per->instagram ?: 'randevumcepte';
-    $per->save();
+    $sonuclar = [];
+    foreach ($personeller as $i => $per) {
+        $d = $demolar[$i % count($demolar)];
+        $per->uzmanlik = $d['uzmanlik'];
+        $per->aciklama = $d['aciklama'];
+        $per->yillik_tecrube = $d['tecrube'];
+        $per->instagram = $d['insta'];
+        $per->save();
+        $sonuclar[] = "<li><strong>".e($per->personel_adi)."</strong> &rarr; ".e($d['uzmanlik'])." ({$d['tecrube']} yil)</li>";
+    }
 
-    return "<div style='font-family:sans-serif;max-width:520px;margin:80px auto;padding:30px;background:#f0fff4;border:2px solid #34d399;border-radius:14px;'>"
-         . "<h2 style='color:#15803d;margin:0 0 12px;'>✓ Demo Veri Dolduruldu</h2>"
-         . "<p>Personel: <strong>{$per->personel_adi}</strong> (ID: {$per->id})</p>"
-         . "<p>Uzmanlik: {$per->uzmanlik}</p>"
-         . "<p>Tecrube: {$per->yillik_tecrube} yil</p>"
-         . "<p>Instagram: @{$per->instagram}</p>"
-         . "<p>Aciklama: " . substr($per->aciklama, 0, 100) . "...</p>"
-         . "<p style='margin-top:16px;'><a href='/' style='background:#5C008E;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;'>Anasayfaya Don</a></p>"
+    return "<div style='font-family:sans-serif;max-width:600px;margin:60px auto;padding:30px;background:#f0fff4;border:2px solid #34d399;border-radius:14px;'>"
+         . "<h2 style='color:#15803d;margin:0 0 12px;'>✓ ".count($sonuclar)." Personele Demo Veri Yazildi</h2>"
+         . "<ul style='line-height:1.8;'>".implode('', $sonuclar)."</ul>"
+         . "<p style='margin-top:16px;'><a href='/' style='background:#5C008E;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;'>Anasayfaya Don &rarr; Personel kartina tikla</a></p>"
          . "</div>";
 });
 Route::group(['middleware' => ['auth']],function(){

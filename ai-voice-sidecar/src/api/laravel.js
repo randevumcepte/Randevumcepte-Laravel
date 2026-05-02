@@ -39,7 +39,7 @@ const mockRandevular = (telefon) => [
 
 export async function musaitSaatleriGetir({ salonId, tarih, hizmetId }) {
   if (USE_MOCK) return mockMusait(tarih);
-  const { data } = await http.post('/ai/musait-saatler', {
+  const { data } = await http.post('/v1/ai/musait-saatler', {
     salon_id: salonId,
     tarih,
     hizmet_id: hizmetId,
@@ -62,7 +62,7 @@ export async function randevuOlustur({
       mesaj: `Randevu oluşturuldu: ${tarihSaat} (mock)`,
     };
   }
-  const { data } = await http.post('/ai/randevu-olustur', {
+  const { data } = await http.post('/v1/ai/randevu-olustur', {
     salon_id: salonId,
     telefon,
     ad_soyad: adSoyad,
@@ -75,7 +75,7 @@ export async function randevuOlustur({
 
 export async function mevcutRandevular({ salonId, telefon }) {
   if (USE_MOCK) return mockRandevular(telefon);
-  const { data } = await http.post('/ai/mevcut-randevular', {
+  const { data } = await http.post('/v1/ai/mevcut-randevular', {
     salon_id: salonId,
     telefon,
   });
@@ -86,7 +86,7 @@ export async function randevuIptal({ salonId, randevuId }) {
   if (USE_MOCK) {
     return { ok: true, mesaj: `Randevu ${randevuId} iptal edildi (mock)` };
   }
-  const { data } = await http.post('/ai/randevu-iptal', {
+  const { data } = await http.post('/v1/ai/randevu-iptal', {
     salon_id: salonId,
     randevu_id: randevuId,
   });
@@ -104,7 +104,7 @@ export async function randevuGuncelle({
       mesaj: `Randevu ${randevuId} → ${yeniTarihSaat} (mock)`,
     };
   }
-  const { data } = await http.post('/ai/randevu-guncelle', {
+  const { data } = await http.post('/v1/ai/randevu-guncelle', {
     salon_id: salonId,
     randevu_id: randevuId,
     yeni_tarih_saat: yeniTarihSaat,

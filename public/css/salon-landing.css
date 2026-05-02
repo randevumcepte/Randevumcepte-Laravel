@@ -2575,7 +2575,7 @@ body.slp-drawer-open .slp-wa {
 .ps-modal-cover {
     position: relative;
     height: 180px;
-    overflow: hidden;
+    /* overflow: visible — avatarin alti kirpilmasin diye */
 }
 .ps-modal-cover-bg {
     position: absolute;
@@ -2584,6 +2584,7 @@ body.slp-drawer-open .slp-wa {
         radial-gradient(circle at 18% 30%, rgba(217,70,239,0.55) 0%, transparent 45%),
         radial-gradient(circle at 82% 70%, rgba(157,93,200,0.55) 0%, transparent 50%),
         linear-gradient(135deg, #1a0533 0%, #5C008E 60%, #7B2FB8 100%);
+    border-radius: 22px 22px 0 0;
 }
 .ps-modal-avatar-wrap {
     position: absolute;
@@ -2597,6 +2598,7 @@ body.slp-drawer-open .slp-wa {
     background: #fff;
     padding: 5px;
     box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    z-index: 10;
 }
 .ps-modal-avatar-wrap img {
     width: 100%;
