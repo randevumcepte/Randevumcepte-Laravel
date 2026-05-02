@@ -23914,6 +23914,12 @@ DB::raw('
             ->distinct()->pluck('action')->filter()->values();
 
         return view('isletmeadmin.log-hareketleri', [
+            'sayfa_baslik' => 'Log Hareketleri',
+            'title'        => 'Log Hareketleri | '.($isletme->salon_adi ?? '').' İşletme Yönetim Paneli',
+            'bildirimler'  => self::bildirimgetir($request),
+            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
+            'urun_drop'    => self::urundropliste($request),
+            'yetkiliolunanisletmeler' => $isletmeler,
             'isletme'      => $isletme,
             'loglar'       => $loglar,
             'kullanicilar' => $kullanicilar,
@@ -23922,7 +23928,7 @@ DB::raw('
             'action'       => $action,
             'user_id'      => $userId,
             'tarih'        => $tarih,
-            'pageindex'    => 999, // sidebar aktif state icin
+            'pageindex'    => 999,
         ]);
     }
 
