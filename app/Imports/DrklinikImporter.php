@@ -153,30 +153,29 @@ class DrklinikImporter
      */
     public function importPersoneller()
     {
-        $this->log('Personel cekiliyor (calisanmodulu.aspx)...');
-        $html = $this->client->getHtml('/calisanmodulu.aspx', 'personel_listesi');
-        if ($html === '') { $this->log('Sayfa cekilemedi.'); return; }
+        $this->log('Personel listesi cekiliyor (calisanmodulu.aspx)...');
+        $listHtml = $this->client->getHtml('/calisanmodulu.aspx', 'personel_listesi');
+        if ($listHtml === '') { $this->log('Liste sayfasi cekilemedi.'); return; }
 
-        // RAW td'lerle al (button hucreleri filtrelemek icin)
-        $rows = $this->parseTableRowsRaw($html);
-        $this->log('  HTML tablodan ' . count($rows) . ' satir cikartildi.');
-        if (empty($rows)) return;
+        // Liste sayfasindan tum personel id'leri cikar (Duzenle linklerinden)
+        preg_match_all('#calisan_ekle\.aspx\?id=(\d+)&t=d#', $listHtml, $idm);
+        $ids = array_values(array_unique($idm[1]));
+        $this->log('  ' . count($ids) . ' personel id bulundu.');
 
         $eklendi = 0;
-        foreach ($rows as $rawRow) {
-            // Buton hucrelerini at, sadece real text hucreleri al
-            $cells = [];
-            foreach ($rawRow as $tdRaw) {
-                if ($this->isButtonCell($tdRaw)) continue;
-                $clean = trim(preg_replace('/\s+/', ' ', strip_tags($tdRaw)));
-                $clean = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                $cells[] = $clean;
-            }
-            // Beklenen: [Ad, Soyad, Telefon, Unvan]
-            $ad     = isset($cells[0]) ? $cells[0] : '';
-            $soyad  = isset($cells[1]) ? $cells[1] : '';
-            $tel    = isset($cells[2]) ? $this->telefonNormalize($cells[2]) : null;
-            $unvan  = isset($cells[3]) ? $cells[3] : '';
+        foreach ($ids as $idx => $id) {
+            // Her personelin detay/duzenle formunu cek - ad, soyad, telefon, unvan dolu gelir
+            $detail = $this->client->getHtml('/calisan_ekle.aspx?id=' . $id . '&t=d');
+            if ($detail === '') continue;
+            $ad    = $this->extractInputValue($detail, 'TB_Ad');
+            $soyad = $this->extractInputValue($detail, 'TB_Soyad');
+            $tel   = $this->telefonNormalize($this->extractInputValue($detail, 'TB_Telefon'));
+            $unvan = $this->extractInputValue($detail, 'TB_Unvan');
+            $tamAd = trim($ad . ' ' . $soyad);
+            if ($tamAd === '') continue;
+
+            if ($idx > 0 && $idx % 10 === 0) $this->log("  ..{$idx}/" . count($ids) . " personel okundu");
+            usleep(200000);
             $tamAd  = trim($ad . ' ' . $soyad);
             if ($tamAd === '') continue;
 
@@ -292,6 +291,19 @@ class DrklinikImporter
         $tel = preg_replace('/^90/', '', $tel);
         $tel = preg_replace('/^0/', '', $tel);
         return $tel ?: null;
+    }
+
+    /**
+     * ASP.NET WebForms TextBox <input name="X" value="..."> degerini cikar.
+     */
+    private function extractInputValue($html, $name)
+    {
+        // value once gelirse veya sonra gelirse iki paterni dene
+        $pat = '#<input[^>]+name="' . preg_quote($name, '#') . '"[^>]*\bvalue="([^"]*)"#i';
+        if (preg_match($pat, $html, $m)) return html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $pat2 = '#<input[^>]+\bvalue="([^"]*)"[^>]+name="' . preg_quote($name, '#') . '"#i';
+        if (preg_match($pat2, $html, $m)) return html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return '';
     }
 
     private function parseSelectOptions($html, $selectId)
