@@ -1408,14 +1408,51 @@
                   var modal = document.getElementById('psPersonelDetayModal');
                   window.psSecilenPersonelId = modal.dataset.personelId || null;
                   window.psSecilenPersonelAd = document.getElementById('psModalName').textContent.trim() || '';
+                  var avatarSrc = document.getElementById('psModalAvatar').src || '';
                   psPersonelDetayKapat();
 
-                  // Toast: kullaniciya bilgi ver
-                  psShowToast('✓ ' + window.psSecilenPersonelAd + ' seçildi — önce hizmeti seçin, devam edince otomatik atanır');
+                  // 1) Hizmet secim alanina sabit banner kondur
+                  psBannerKur(window.psSecilenPersonelAd, avatarSrc);
 
-                  // Hizmet secim alanina kaydir
-                  var el = document.getElementById('hizmetsecbaslik') || document.getElementById('hizmetsecimbolumu') || document.querySelector('.lx-hero');
-                  if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  // 2) Hizmet secim bolumune kaydir + glow efekti
+                  var el = document.getElementById('hizmetsecimbolumu');
+                  if (el) {
+                     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                     el.classList.add('ps-glow');
+                     setTimeout(function(){ el.classList.remove('ps-glow'); }, 2400);
+                  }
+
+                  // 3) "DEVAM ET" butonunu vurgula (pulse animasyonu)
+                  var devamBtn = document.getElementById('personelsecimadiminagec');
+                  if (devamBtn){
+                     devamBtn.classList.add('ps-pulse');
+                     setTimeout(function(){ devamBtn.classList.remove('ps-pulse'); }, 6000);
+                  }
+               };
+
+               window.psBannerKur = function(ad, avatar){
+                  var existing = document.getElementById('psPersonelBanner');
+                  if (existing) existing.remove();
+
+                  var banner = document.createElement('div');
+                  banner.id = 'psPersonelBanner';
+                  banner.className = 'ps-personel-banner';
+                  banner.innerHTML =
+                     '<img class="ps-personel-banner__avatar" src="'+ avatar +'" alt="">' +
+                     '<div class="ps-personel-banner__text">' +
+                        '<div class="ps-personel-banner__title">' + ad + ' seçildi</div>' +
+                        '<div class="ps-personel-banner__sub">İstediğin hizmet(leri) seç ve <b>DEVAM ET</b>\'e bas — personel otomatik atanacak.</div>' +
+                     '</div>' +
+                     '<button type="button" class="ps-personel-banner__close" onclick="psBannerKaldir()" aria-label="İptal"><i class="fa fa-times"></i></button>';
+                  var ref = document.getElementById('hizmetsecimbolumu');
+                  if (ref && ref.parentNode) ref.parentNode.insertBefore(banner, ref);
+               };
+
+               window.psBannerKaldir = function(){
+                  var b = document.getElementById('psPersonelBanner');
+                  if (b) b.remove();
+                  window.psSecilenPersonelId = null;
+                  window.psSecilenPersonelAd = null;
                };
 
                // Personel secim formu AJAX ile yuklenince bizim secimi uygula
@@ -1445,7 +1482,14 @@
                         }
                      });
                      if (anyApplied) {
-                        psShowToast('✓ ' + (window.psSecilenPersonelAd || 'Personel') + ' otomatik seçildi');
+                        psShowToast('✓ ' + (window.psSecilenPersonelAd || 'Personel') + ' otomatik seçildi — şimdi tarih ve saat seç');
+                        // Banner'i guncelle
+                        var b = document.getElementById('psPersonelBanner');
+                        if (b){
+                           var sub = b.querySelector('.ps-personel-banner__sub');
+                           if (sub) sub.innerHTML = '<i class="fa fa-check-circle" style="color:#34d399"></i> Personel otomatik atandı — tarih ve saati seç.';
+                           b.classList.add('ps-personel-banner--ok');
+                        }
                         // Bir kez uygulayalim, tekrar tekrar tetiklemesin
                         window.psSecilenPersonelId = null;
                      }
