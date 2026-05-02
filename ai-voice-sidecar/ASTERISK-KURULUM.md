@@ -57,34 +57,91 @@ prefix = asterisk
 
 ## 3. Dialplan — `/etc/asterisk/extensions.conf`
 
-Mevcut IVR dialplan'ında, AI menüsüne yönlendirilecek bir extension ekle:
+**Yaklaşım:** Ayrı bir `[sesli-asistan]` context'i kuruyoruz. Mevcut IVR/SIP
+context'inden, belirli bir aranan numara veya tuş bu yeni context'e
+yönlendirilir. Bu sayede mevcut IVR akışı bozulmaz.
+
+### 3.1. AI context'i — yeni bir bölüm olarak ekle
+
+```ini
+; ============================================================
+;  AI SESLI ASISTAN CONTEXT
+;  Sidecar Stasis app: randevu_ai
+;  Parametreler: CALLERID + arandigi numara
+; ============================================================
+[sesli-asistan]
+exten => s,1,NoOp(=== AI Sesli Asistan baslatildi ===)
+ same => n,Answer()
+ same => n,Wait(0.3)                                                ; SIP setup tamamlansin
+ same => n,Set(CHANNEL(language)=tr)
+ same => n,Stasis(randevu_ai,${CALLERID(num)},${FROM_DID})           ; sidecar'a devret
+ same => n,Hangup()
+
+; Stasis baglanti kuramazsa (sidecar dustu / ARI hatasi) → fallback
+exten => failed,1,NoOp(AI baglanti hatasi, eski IVR'a donuluyor)
+ same => n,Playback(silence/1)
+ same => n,Goto(from-pstn,s,1)                                      ; mevcut IVR context'in adi neyse
+ same => n,Hangup()
+
+exten => h,1,NoOp(AI cagrisi sonlandi - DURATION=${CDR(duration)}s)
+```
+
+### 3.2. Mevcut context'ten bu context'e yönlendirme
+
+Aranan numaraya göre 3 seçeneğin var, sana uygun olanı seç:
+
+#### A) Belirli bir DID (gelen numara) AI'ya yönlensin
+
+```ini
+[from-pstn]                                  ; mevcut gelen kanal context'in
+; ... mevcut satirlarin ...
+
+; Bu numarayi arayan direkt AI'ya gider, IVR'i atlar
+exten => 02121234567,1,Set(FROM_DID=${EXTEN})
+ same => n,Goto(sesli-asistan,s,1)
+```
+
+#### B) Mevcut IVR menüsünde bir tuş (örn. 9) AI'ya geçirsin
+
+```ini
+[ana-ivr]                                    ; mevcut IVR menun ne adlaysa
+; ... 1, 2, 3 ... mevcut secenekler ...
+
+exten => 9,1,NoOp(Musteri AI asistani sectik)
+ same => n,Set(FROM_DID=${EXTEN})
+ same => n,Goto(sesli-asistan,s,1)
+```
+
+#### C) Tüm gelen çağrılar AI ile karşılanır (riskli, fallback yoksa kullanma)
 
 ```ini
 [from-pstn]
-; ... mevcut IVR satırların ...
-
-; ── AI Sesli Asistan ──
-; Mevcut IVR menüsünde bir tuşa (örn. 9) basıldığında veya doğrudan
-; bir extension olarak çağrıyı AI Stasis app'ine ver:
-exten => 9,1,NoOp(AI sesli asistan baslatiliyor)
- same => n,Answer()
- same => n,Stasis(randevu_ai,${CALLERID(num)},${EXTEN})
- same => n,Hangup()
-
-; Veya direkt yeni gelen tüm çağrıları AI'ya yönlendirmek istersen:
-; exten => _X.,1,Answer()
-;  same => n,Stasis(randevu_ai,${CALLERID(num)},${EXTEN})
-;  same => n,Hangup()
-
-; Test için — sadece test SIP extension'ı 9999'a:
-exten => 9999,1,Answer()
- same => n,Stasis(randevu_ai,${CALLERID(num)},${EXTEN})
- same => n,Hangup()
+exten => _X.,1,Set(FROM_DID=${EXTEN})
+ same => n,Goto(sesli-asistan,s,1)
 ```
 
-> `randevu_ai` — sidecar'ın `ari-client` ile başlatacağı Stasis app adı (kod tarafında
-> sabit). Parametreler: caller ID + arandığı extension. Sidecar bunlardan salonu
-> ve müşteriyi tespit eder.
+### 3.3. Test için (SIP extension'dan)
+
+```ini
+[from-internal]                              ; veya dahili context'in
+; Test: 9999'u ara, AI baglansin
+exten => 9999,1,Set(FROM_DID=test)
+ same => n,Goto(sesli-asistan,s,1)
+```
+
+### 3.4. Sidecar'a giden parametreler
+
+`Stasis(randevu_ai, ${CALLERID(num)}, ${FROM_DID})` üç parametre yollar:
+
+| Parametre | Değer | Sidecar nasıl kullanır |
+|---|---|---|
+| App adı | `randevu_ai` | Sidecar bu app'i dinler |
+| Arg 1 | `${CALLERID(num)}` (arayan kişinin telefon no.) | Müşteri kaydı bul/oluştur |
+| Arg 2 | `${FROM_DID}` (arandı numara) | Hangi salonu arıyor → salon_id tespit |
+
+> `FROM_DID` — sidecar tarafında bir DID→salon_id eşleme tablosu olacak. Hangi
+> salon hangi numarayı kullanıyor bilgisi sidecar `.env`'sinde veya Laravel'de
+> bir tabloda tutulacak. Şimdilik tek salon için sabit `TEST_SALON_ID` kullanır.
 
 ## 4. Codec — `slin16` öner
 
@@ -102,15 +159,18 @@ tarafında otomatik yapılır.
 asterisk -rvvv
 
 # Içerideyken:
+module reload res_http_websocket.so
 http reload
 ari reload
 dialplan reload
 
 # Doğrulamalar:
-http show status              ; HTTP sunucusu calisir gorunuyor mu?
-ari show status               ; ARI etkin mi?
-ari show users                ; randevu_ai kullanicisi listede mi?
-dialplan show 9@from-pstn     ; AI extension'i tanindi mi?
+http show status                          ; HTTP sunucusu calisir gorunuyor mu?
+ari show status                           ; ARI etkin mi?
+ari show users                            ; randevu_ai kullanicisi listede mi?
+dialplan show sesli-asistan               ; AI context'i yuklendi mi?
+dialplan show s@sesli-asistan             ; Stasis satiri var mi?
+dialplan show 9999@from-internal          ; test extension yonlendiriyor mu?
 ```
 
 Beklenen çıktılar:
@@ -145,9 +205,16 @@ curl -u randevu_ai:DEGISTIRILECEK_GUCLU_PAROLA_BURAYA \
 
 ```bash
 # Asterisk CLI'da, manuel test çağrısı originate et:
-asterisk -rx 'channel originate Local/9999@from-pstn application Stasis randevu_ai'
+asterisk -rx 'channel originate Local/9999@from-internal application Stasis randevu_ai'
 
-# Veya gerçek SIP telefondan 9999'u ara.
+# Veya gerçek SIP telefondan 9999'u ara → AI selamlamasi gelmeli.
+
+# Sesli-asistan context'inin trace'ini izle:
+asterisk -rvvv
+# Içerideyken:
+core set verbose 5
+dialplan show sesli-asistan
+# Sonra arama yap, ekranda Stasis'e dustugunu gor.
 ```
 
 Sidecar log'unda Stasis app'e gelen çağrı görünecek, AI selamlama sesi başlayacak.
