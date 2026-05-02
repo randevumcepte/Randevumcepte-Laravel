@@ -32,16 +32,30 @@ export class EdgeTTS {
     } catch (e) {
       throw new Error(`TTS setMetadata fail: ${this._fmtErr(e)}`);
     }
-    const dir = path.dirname(outFile);
-    const base = path.basename(outFile, path.extname(outFile));
+
+    const finalDir = path.dirname(outFile);
+    fs.mkdirSync(finalDir, { recursive: true });
+
+    // msedge-tts 2.x: toFile(path) parametresini KLASOR olarak yorumlar
+    // ve icine "audio.mp3" yazar. Concurrent cagri icin gecici klasor kullaniyoruz.
+    const tmpFolder = path.join(finalDir, `_tts-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    fs.mkdirSync(tmpFolder, { recursive: true });
+
     try {
-      const result = await tts.toFile(path.join(dir, base), text, {
+      const result = await tts.toFile(tmpFolder, text, {
         rate: this.rate,
         pitch: this.pitch,
       });
-      return result.audioFilePath || (path.join(dir, base) + '.mp3');
+      const written = result?.audioFilePath || path.join(tmpFolder, 'audio.mp3');
+      if (!fs.existsSync(written)) {
+        throw new Error(`TTS dosyasi yazilmadi: ${written}`);
+      }
+      fs.renameSync(written, outFile);
+      return outFile;
     } catch (e) {
       throw new Error(`TTS toFile fail (voice=${this.voice}): ${this._fmtErr(e)}`);
+    } finally {
+      try { fs.rmSync(tmpFolder, { recursive: true, force: true }); } catch {}
     }
   }
 
