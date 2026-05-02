@@ -671,30 +671,55 @@
                     <div class="hizmet-icon {{ $hizmet['renk'] }}">
                         <i class="fa {{ $hizmet['icon'] }}"></i>
                     </div>
-                    <div>
+                    <div style="flex:1;min-width:0;">
                         <h4 class="hizmet-card-title">{{ $hizmet['ad'] }}</h4>
                         <p class="hizmet-card-desc">{{ $hizmet['aciklama'] }}</p>
                     </div>
                 </div>
+
                 <div class="hizmet-status-row">
                     <div>
                         <span class="lbl">Periyot:</span>
                         <span class="val">{{ $hizmet['periyot'] ?? '-' }}</span>
                     </div>
                     @if(!empty($hizmet['deneme']))
-                        <span class="hizmet-pill deneme"><i class="fa fa-clock-o"></i> Deneme</span>
+                        <span class="hizmet-pill deneme"><i class="fa fa-gift"></i> Ücretsiz Deneme</span>
                     @elseif($hizmet['aktif'])
                         <span class="hizmet-pill aktif"><i class="fa fa-check"></i> Aktif</span>
                     @else
                         <span class="hizmet-pill pasif"><i class="fa fa-times"></i> Pasif</span>
                     @endif
                 </div>
+
+                @if(!empty($hizmet['baslangic']))
+                <div class="hizmet-status-row" style="margin-top:8px;padding-top:10px;">
+                    <div>
+                        <span class="lbl">Başlangıç:</span>
+                        <span class="val">{{ \Carbon\Carbon::parse($hizmet['baslangic'])->format('d.m.Y') }}</span>
+                    </div>
+                </div>
+                @endif
+
                 @if(!empty($hizmet['bitis']))
                 <div class="hizmet-status-row" style="margin-top:8px;padding-top:10px;">
                     <div>
                         <span class="lbl">Bitiş:</span>
                         <span class="val">{{ \Carbon\Carbon::parse($hizmet['bitis'])->format('d.m.Y') }}</span>
                     </div>
+                    @if(isset($hizmet['kalan_gun']))
+                        @php
+                            $kg = (int) $hizmet['kalan_gun'];
+                            $kgClass = $kg <= 0 ? 'pasif' : ($kg <= 7 ? 'deneme' : 'aktif');
+                        @endphp
+                        <span class="hizmet-pill {{ $kgClass }}">
+                            <i class="fa fa-clock-o"></i>
+                            @if($kg > 0)
+                                {{ $kg }} gün kaldı
+                            @else
+                                Süre doldu
+                            @endif
+                        </span>
+                    @endif
                 </div>
                 @endif
             </div>

@@ -12446,16 +12446,11 @@ DB::raw('
         $paketAdlari = [1=>'Başlangıç', 2=>'Standart', 3=>'Premium'];
         $periyotAdlari = [1=>'Aylık', 2=>'Yıllık'];
 
-        // WhatsApp paket adlari
+        // WhatsApp paket adlari (whatsapp.blade.php icindeki canonical labels)
         $whatsappPaketAdlari = [
-            'baslangic' => 'WhatsApp Başlangıç',
-            'standart'  => 'WhatsApp Standart',
-            'premium'   => 'WhatsApp Premium',
-        ];
-        $whatsappPaketLimitleri = [
-            'baslangic' => 500,
-            'standart'  => 2000,
-            'premium'   => 8000,
+            'baslangic' => 'Başlangıç (Ücretsiz)',
+            'pro'       => 'WhatsApp Hatırlatma',
+            'premium'   => 'WhatsApp Hatırlatma',
         ];
 
         // Mevcut hizmet listesi
@@ -12473,19 +12468,31 @@ DB::raw('
             'bitis' => $isletme->uyelik_bitis_tarihi,
         ];
 
-        // WhatsApp paket
-        if(!empty($isletme->whatsapp_paket))
+        // WhatsApp paket - sadece pro/premium "satin alinmis ekstra hizmet" sayilir
+        $waPaket = $isletme->whatsapp_paket ?: 'baslangic';
+        if(in_array($waPaket, ['pro', 'premium']))
         {
+            $waBitis = $isletme->whatsapp_paket_bitis;
+            $waKalanGun = null;
+            if($waBitis){
+                $waKalanGun = max(0, (int) \Carbon\Carbon::now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($waBitis)->startOfDay(), false));
+            }
+            $isDeneme = (bool) $isletme->whatsapp_paket_deneme;
+
             $hizmetler[] = [
                 'kod' => 'whatsapp',
-                'ad' => $whatsappPaketAdlari[$isletme->whatsapp_paket] ?? 'WhatsApp Paketi',
-                'aciklama' => 'Aylık '.($whatsappPaketLimitleri[$isletme->whatsapp_paket] ?? 0).' mesaj limiti',
+                'ad' => $whatsappPaketAdlari[$waPaket] ?? 'WhatsApp Hatırlatma',
+                'aciklama' => $isDeneme
+                    ? 'Ücretsiz deneme süresi aktif'
+                    : 'Otomatik WhatsApp ile randevu hatırlatma',
                 'icon' => 'fa-whatsapp',
                 'renk' => 'yesil',
                 'aktif' => (bool) $isletme->whatsapp_aktif,
-                'periyot' => $isletme->whatsapp_paket_periyot == 'yillik' ? 'Yıllık' : 'Aylık',
-                'bitis' => $isletme->whatsapp_paket_bitis ? \Carbon\Carbon::parse($isletme->whatsapp_paket_bitis)->format('Y-m-d') : null,
-                'deneme' => (bool) $isletme->whatsapp_paket_deneme,
+                'periyot' => $isletme->whatsapp_paket_periyot === 'yillik' ? 'Yıllık' : 'Aylık',
+                'baslangic' => $isletme->whatsapp_paket_baslangic,
+                'bitis' => $waBitis,
+                'kalan_gun' => $waKalanGun,
+                'deneme' => $isDeneme,
             ];
         }
 
