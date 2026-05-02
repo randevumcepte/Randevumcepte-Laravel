@@ -464,20 +464,120 @@
                   </div>
                   
                   <div class="modal-footer" style="display:block">
-                     <div class="row">
-                        <div class="col-6 col-xs-6 col-sm-6 col-md-5">
-                          <audio id='kampanyaSesKaydiCal' controls preload="none" style="width: 100%;">
-                              <source src="" id='calinacak_kayit' type="audio/wav">
-                              Tarayıcınız yürütmeyi desteklememektedir.
-                           </audio>
+                     <div class="row align-items-center">
+                        <div class="col-12 col-md-9">
+                           <!-- Sesli önizleme: Tarayıcı TTS (eski Polly fallback'i için audio gizli kalır) -->
+                           <div id="kampanyaSesPlayer" class="kss-player">
+                              <button type="button" id="kampanyaSesOku" class="kss-btn kss-btn-play">
+                                 <i class="fa fa-play"></i> Sesli Önizle
+                              </button>
+                              <button type="button" id="kampanyaSesDurdur" class="kss-btn kss-btn-stop" style="display:none;">
+                                 <i class="fa fa-stop"></i> Durdur
+                              </button>
+                              <span class="kss-info"><i class="fa fa-volume-up"></i> Yandaki kampanya metnini sesli okur (Türkçe)</span>
+                              <audio id='kampanyaSesKaydiCal' controls preload="none" style="display:none;">
+                                 <source src="" id='calinacak_kayit' type="audio/wav">
+                              </audio>
+                           </div>
                         </div>
-                        <div class="col-6 col-xs-6 col-sm-6 col-md-4"></div>
-                        <div class="col-6 col-xs-6 col-sm-6 col-md-3">
-                           <button id="gorevTanimla" type="button"  class="btn btn-success btn-block">
-                          Görev Tanımla</button>
+                        <div class="col-12 col-md-3">
+                           <button id="gorevTanimla" type="button" class="btn btn-success btn-block">
+                              Görev Tanımla
+                           </button>
                         </div>
                      </div>
                   </div>
+
+                  <style>
+                  #yeni_kampanya_modal .kss-player {
+                     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+                     padding: 10px 14px; background: linear-gradient(180deg,#f8fafc,#fff);
+                     border: 1px solid #e2e8f0; border-radius: 12px;
+                  }
+                  #yeni_kampanya_modal .kss-btn {
+                     display: inline-flex; align-items: center; gap: 6px;
+                     padding: 9px 16px; border-radius: 999px;
+                     font-size: 13px; font-weight: 700; cursor: pointer;
+                     border: none; transition: all .15s ease;
+                  }
+                  #yeni_kampanya_modal .kss-btn-play {
+                     background: linear-gradient(135deg,#10b981,#059669); color:#fff;
+                     box-shadow: 0 4px 12px rgba(5,150,105,.28);
+                  }
+                  #yeni_kampanya_modal .kss-btn-play:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(5,150,105,.36); }
+                  #yeni_kampanya_modal .kss-btn-play.is-playing {
+                     background: linear-gradient(135deg,#f59e0b,#d97706);
+                     animation: kssPulse 1.2s ease-in-out infinite;
+                  }
+                  #yeni_kampanya_modal .kss-btn-stop {
+                     background:#fff; color:#dc2626; border:1.5px solid #fecaca;
+                  }
+                  #yeni_kampanya_modal .kss-btn-stop:hover { background:#fef2f2; }
+                  #yeni_kampanya_modal .kss-info { color:#64748b; font-size:12px; flex:1; min-width:200px; }
+                  #yeni_kampanya_modal .kss-info i { color:#7B2FB8; margin-right:4px; }
+                  @keyframes kssPulse {
+                     0%, 100% { box-shadow: 0 4px 12px rgba(217,119,6,.36); }
+                     50%      { box-shadow: 0 6px 22px rgba(217,119,6,.55); }
+                  }
+                  </style>
+
+                  <script>
+                  (function(){
+                     // Tarayıcı SpeechSynthesis ile metni oku — external sunucuya bağımlı değil
+                     function getMetin(){
+                        var t = $('#kampanyaPrompt').text() || '';
+                        return t.replace(/\s+/g,' ').trim();
+                     }
+                     function trSes(){
+                        if(!('speechSynthesis' in window)) return null;
+                        var voices = speechSynthesis.getVoices() || [];
+                        // Türkçe sesi tercih et
+                        return voices.find(function(v){ return /tr[-_]?TR/i.test(v.lang); })
+                            || voices.find(function(v){ return /^tr/i.test(v.lang); })
+                            || voices[0] || null;
+                     }
+                     var aktifUtt = null;
+                     function durdur(){
+                        try { if('speechSynthesis' in window) speechSynthesis.cancel(); } catch(_) {}
+                        aktifUtt = null;
+                        $('#kampanyaSesOku').removeClass('is-playing').html('<i class="fa fa-play"></i> Sesli Önizle');
+                        $('#kampanyaSesDurdur').hide();
+                     }
+                     $(document).on('click','#kampanyaSesOku',function(e){
+                        e.preventDefault();
+                        if(!('speechSynthesis' in window)){
+                           if(typeof swal === 'function') swal({type:'warning',title:'Desteklenmiyor',text:'Tarayıcınız sesli önizlemeyi desteklemiyor.',timer:3000,showConfirmButton:false});
+                           return;
+                        }
+                        var metin = getMetin();
+                        if(!metin){
+                           if(typeof swal === 'function') swal({type:'info',title:'Metin yok',text:'Önce bir şablon seçin veya kampanya metnini yazın.',timer:2500,showConfirmButton:false});
+                           return;
+                        }
+                        durdur();
+                        aktifUtt = new SpeechSynthesisUtterance(metin);
+                        aktifUtt.lang = 'tr-TR';
+                        aktifUtt.rate = 1.0;
+                        aktifUtt.pitch = 1.0;
+                        var voice = trSes();
+                        if(voice) aktifUtt.voice = voice;
+                        aktifUtt.onstart = function(){
+                           $('#kampanyaSesOku').addClass('is-playing').html('<i class="fa fa-pause"></i> Okunuyor...');
+                           $('#kampanyaSesDurdur').show();
+                        };
+                        aktifUtt.onend = aktifUtt.onerror = durdur;
+                        speechSynthesis.speak(aktifUtt);
+                     });
+                     $(document).on('click','#kampanyaSesDurdur',function(e){ e.preventDefault(); durdur(); });
+                     // Modal kapanınca durdur
+                     $('#yeni_kampanya_modal').on('hidden.bs.modal', durdur);
+                     // Voice list bazı tarayıcılarda asenkron yüklenir — tetikle
+                     if('speechSynthesis' in window) {
+                        speechSynthesis.onvoiceschanged = function(){ /* cache yenilenmesi için */ };
+                        try { speechSynthesis.getVoices(); } catch(_) {}
+                     }
+                  })();
+                  </script>
                </div>
             </form>
          </div>
