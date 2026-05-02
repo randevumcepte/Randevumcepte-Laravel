@@ -474,11 +474,12 @@
                                  <i class="fa fa-stop"></i> Durdur
                               </button>
                               <div class="kss-voice-wrap">
-                                 <label class="kss-voice-label" title="Sesi değiştir">
-                                    <i class="fa fa-microphone"></i>
-                                    <select id="kampanyaSesSecici" class="kss-voice-select"></select>
-                                 </label>
-                                 <span class="kss-quality-badge" id="kssQualityBadge"></span>
+                                 <span class="kss-info">
+                                    <i class="fa fa-microphone"></i> Filiz · Türkçe Kadın
+                                 </span>
+                                 <span class="kss-quality-badge kss-q-online" id="kssQualityBadge">✨ Doğal Ses</span>
+                                 <!-- Selector gizli — JS bekliyor -->
+                                 <select id="kampanyaSesSecici" style="display:none;"></select>
                               </div>
                               <audio id='kampanyaSesKaydiCal' controls preload="none" style="display:none;">
                                  <source src="" id='calinacak_kayit' type="audio/wav">
@@ -555,17 +556,12 @@
 
                   <script>
                   (function(){
-                     // -------- VIRTUAL VOICES (TTS Proxy üzerinden — sunucu fallback yapar) --------
-                     // Polly'de Türkçe sadece "Filiz" var. Farklı tonlar SSML rate/pitch ile sağlanır.
-                     // Google Translate TTS ek seçenek olarak (200 char limit).
+                     // Tek Türkçe ses: Filiz (Polly). Hız frontend'de playbackRate ile artırılır.
                      var VIRTUAL_VOICES = [
-                        { id:'sev_filiz_normal', voice:'filiz_normal', ad:'Filiz · Doğal Konuşma',   gender:'kadın' },
-                        { id:'sev_filiz_fast',   voice:'filiz_fast',   ad:'Filiz · Hızlı / Canlı',   gender:'kadın' },
-                        { id:'sev_filiz_high',   voice:'filiz_high',   ad:'Filiz · Yüksek Ton',      gender:'kadın' },
-                        { id:'sev_filiz_low',    voice:'filiz_low',    ad:'Filiz · Kalın Ton',       gender:'erkeksi' },
-                        { id:'sev_filiz_slow',   voice:'filiz_slow',   ad:'Filiz · Sakin / Yavaş',   gender:'kadın' },
-                        { id:'sev_google',       voice:'google',       ad:'Google Türkçe (200char)', gender:'kadın' }
+                        { id:'sev_filiz', voice:'filiz_normal', ad:'Filiz · Türkçe Kadın' }
                      ];
+                     // Audio playback hızı (1.0 = normal yavaş, 1.25 = %25 daha canlı)
+                     var KSS_PLAYBACK_RATE = 1.25;
                      function virtualUrl(v, metin){
                         // Backend proxy: CORS/SSL/availability sorunlarını önler,
                         // sağlayıcılar arası fallback yapar.
@@ -584,7 +580,7 @@
                         catch(_) { return []; }
                      }
 
-                     var seciliVoiceURI = localStorage.getItem('kss_voice_uri') || 'sev_filiz_fast';
+                     var seciliVoiceURI = localStorage.getItem('kss_voice_uri') || 'sev_filiz';
 
                      function selectorDoldur(){
                         var $sel = $('#kampanyaSesSecici');
@@ -614,8 +610,8 @@
                         if(seciliVoiceURI && $sel.find('option[value="'+ seciliVoiceURI +'"]').length){
                            $sel.val(seciliVoiceURI);
                         } else {
-                           $sel.val('sev_filiz_fast');
-                           seciliVoiceURI = 'sev_filiz_fast';
+                           $sel.val('sev_filiz');
+                           seciliVoiceURI = 'sev_filiz';
                         }
                         qualityBadge();
                      }
@@ -673,7 +669,7 @@
                            return;
                         }
                         durdur();
-                        var sec = $('#kampanyaSesSecici').val() || 'sev_filiz_fast';
+                        var sec = $('#kampanyaSesSecici').val() || 'sev_filiz';
 
                         if(sec.indexOf('sev_') === 0){
                            // Harici API → audio src ile çal
@@ -684,7 +680,11 @@
                            if(!a){ return; }
                            $('#calinacak_kayit').attr('src', url);
                            a.load();
-                           a.onplaying = calmaBaslat;
+                           // Hızlandır — Polly default'u yavaş okuyor
+                           a.playbackRate = KSS_PLAYBACK_RATE;
+                           // playbackRate set'i load'dan sonra resetlenebilir; loadedmetadata'da tekrar uygula
+                           a.onloadedmetadata = function(){ try { a.playbackRate = KSS_PLAYBACK_RATE; } catch(_) {} };
+                           a.onplaying = function(){ try { a.playbackRate = KSS_PLAYBACK_RATE; } catch(_) {}; calmaBaslat(); };
                            a.onended = a.onerror = durdur;
                            var p = a.play();
                            if(p && p.catch) p.catch(function(){
