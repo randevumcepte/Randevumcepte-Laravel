@@ -22858,6 +22858,56 @@ DB::raw('
         SMSTaslaklari::where('id',$request->sablonId)->delete();
         return 'başarılı';
     }
+
+    /**
+     * Reklam önizleme için TTS proxy.
+     * Browser 3rd party TTS API'sine direkt istek atınca CORS/SSL/availability
+     * sorunları yaşıyor. Bu endpoint sunucudan istek yapıp audio'yu kullanıcıya
+     * stream eder. Birden fazla sağlayıcı dener, ilki başarılı olanı döner.
+     */
+    public function ttsProxy(Request $request)
+    {
+        $metin = trim((string) $request->q);
+        if ($metin === '') return response('', 400);
+        if (mb_strlen($metin) > 1500) $metin = mb_substr($metin, 0, 1500);
+
+        $voice = preg_replace('/[^A-Za-z]/', '', (string) $request->voice) ?: 'Filiz';
+
+        $providers = [
+            ['name'=>'streamelements','url'=>'https://api.streamelements.com/kappa/v2/speech?voice='.urlencode($voice).'&text='.urlencode($metin)],
+            ['name'=>'googletts',     'url'=>'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=tr&q='.urlencode(mb_substr($metin,0,200))],
+        ];
+
+        foreach ($providers as $p) {
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL            => $p['url'],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 15,
+                CURLOPT_CONNECTTIMEOUT => 6,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_HTTPHEADER     => ['Accept: audio/mpeg, audio/*, */*'],
+            ]);
+            $body = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $type = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+            $err  = curl_error($ch);
+            curl_close($ch);
+
+            if ($code === 200 && $body && strlen($body) > 1000 && stripos((string)$type, 'audio') !== false) {
+                return response($body, 200)
+                    ->header('Content-Type', $type ?: 'audio/mpeg')
+                    ->header('Cache-Control', 'private, max-age=600')
+                    ->header('Content-Length', (string) strlen($body));
+            }
+            \Log::info('ttsProxy provider fail', ['provider'=>$p['name'],'code'=>$code,'type'=>$type,'err'=>$err,'len'=>strlen((string)$body)]);
+        }
+
+        return response('TTS sağlayıcıları yanıt vermedi', 502);
+    }
+
     public function kampanyaSablonFiltre(Request $request)
     {
         // Eski tablolarda gorev_turu / tur kolonu olmayabilir — varsa filtrele.

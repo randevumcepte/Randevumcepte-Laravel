@@ -567,16 +567,12 @@
                         { id:'sev_gtr_f',  api:'googletts',      voice:'tr',     ad:'Google Türkçe (Kadın · 200char)', gender:'kadın' }
                      ];
                      function virtualUrl(v, metin){
+                        // Backend proxy: CORS/SSL/availability sorunlarını önler,
+                        // sağlayıcılar arası fallback yapar.
                         var t = metin.substring(0, 1500);
-                        if(v.api === 'streamelements'){
-                           return 'https://api.streamelements.com/kappa/v2/speech?voice='+ encodeURIComponent(v.voice) +
-                                  '&text=' + encodeURIComponent(t);
-                        }
-                        if(v.api === 'googletts'){
-                           t = metin.substring(0, 200);
-                           return 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=tr&q=' + encodeURIComponent(t);
-                        }
-                        return '';
+                        return '/isletmeyonetim/tts-proxy?voice=' + encodeURIComponent(v.voice || 'Filiz') +
+                               '&q=' + encodeURIComponent(t) +
+                               '&_=' + Date.now();
                      }
                      function virtualBul(id){ return VIRTUAL_VOICES.find(function(v){ return v.id === id; }); }
 

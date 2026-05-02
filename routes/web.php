@@ -645,6 +645,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/kampanyaekleduzenle','StoreAdminController@kampanyaekleduzenle');
 	Route::get('/kampanya-sablon-filtre','StoreAdminController@kampanyaSablonFiltre');
 	Route::get('/kampanyaIceriginiGoruntule','StoreAdminController@kampanyaIceriginiGoruntule');
+	Route::get('/tts-proxy','StoreAdminController@ttsProxy');
 	Route::post('/kampanyakatilimcisil','StoreAdminController@kampanyakatilimcisil');
 	Route::post('/kampanyakatilimciekle','StoreAdminController@kampanyakatilimciekle');
 	Route::post('/sablonSil','StoreAdminController@sablonSil');
