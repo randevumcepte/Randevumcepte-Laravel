@@ -13,9 +13,9 @@
    <style>
       body { background: #f5f6fa; font-family: 'Inter', sans-serif; }
       .form-kapsayici { max-width: 720px; margin: 30px auto; padding: 0 15px 40px; }
-      .isletme-baslik { text-align: center; padding: 20px; background: #5C008E; color: white; border-radius: 10px 10px 0 0; margin-bottom: 0; }
-      .isletme-baslik h4 { margin: 0; font-weight: 700; }
-      .isletme-baslik p { margin: 5px 0 0; opacity: 0.85; font-size: 14px; }
+      .isletme-baslik { text-align: center; padding: 20px; background: #5C008E; color: #ffffff !important; border-radius: 10px 10px 0 0; margin-bottom: 0; }
+      .isletme-baslik h4 { margin: 0; font-weight: 700; color: #ffffff !important; }
+      .isletme-baslik p { margin: 5px 0 0; opacity: 0.9; font-size: 14px; color: #ffffff !important; }
       .form-kart { background: white; border-radius: 0 0 10px 10px; box-shadow: 0 2px 15px rgba(0,0,0,0.08); padding: 30px; }
       .aciklama-kutusu { background: #f8f9fa; border-left: 4px solid #5C008E; padding: 12px 16px; border-radius: 4px; margin-bottom: 24px; font-size: 13px; color: #555; }
       .soru-satiri { margin-bottom: 12px; padding: 12px 16px; background: #fafafa; border: 1px solid #e9ecef; border-radius: 8px; }
