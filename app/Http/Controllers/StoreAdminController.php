@@ -9432,9 +9432,12 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     $formatted = $sayfalanmisAdisyonlar->map(function ($adisyon) use ($isletmeId, $personel_id, &$hizmetHakedisToplam, &$urunHakedisToplam, &$paketHakedisToplam, &$hizmetSatisToplam, &$urunSatisToplam, &$paketSatisToplam) {
         $satilanlar = [];
         $satilanlarStr = "";
-        
-        // Hizmetler
+
+        // Hizmetler — personel filtresi aktifse sadece o personelin kalemleri
         $hizmetler = $adisyon->hizmetler;
+        if ($personel_id) {
+            $hizmetler = $hizmetler->where('personel_id', $personel_id);
+        }
         foreach ($hizmetler as $hizmet) {
             $hizmetHakedis = 0;
             if ($hizmet->personel_id !== null) {
@@ -9459,8 +9462,11 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             ];
         }
 
-        // Ürünler
+        // Ürünler — personel filtresi aktifse sadece o personelin kalemleri
         $urunler = $adisyon->urunler;
+        if ($personel_id) {
+            $urunler = $urunler->where('personel_id', $personel_id);
+        }
         foreach ($urunler as $urun) {
             $urunHakedis = 0;
             if ($urun->personel_id !== null) {
@@ -9485,8 +9491,11 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             ];
         }
 
-        // Paketler
+        // Paketler — personel filtresi aktifse sadece o personelin kalemleri
         $paketler = $adisyon->paketler;
+        if ($personel_id) {
+            $paketler = $paketler->where('personel_id', $personel_id);
+        }
         foreach ($paketler as $paket) {
             $paketHakedis = 0;
             if ($paket->personel_id !== null) {
