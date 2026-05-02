@@ -1398,12 +1398,84 @@
                   document.body.style.overflow = '';
                };
 
+               // Kullanici "Bu Personelden Randevu Al" deyince personel ID'yi global'e
+               // yazariz; AJAX ile yuklenen <select name="personeller[]"> alaninda otomatik
+               // secili hale getiririz. MutationObserver yuklenmeyi izler.
+               window.psSecilenPersonelId = null;
+               window.psSecilenPersonelAd = null;
+
                window.psPersonelRandevuAl = function(){
-                  // Sayfadaki randevu adimlarina kaydir
+                  var modal = document.getElementById('psPersonelDetayModal');
+                  window.psSecilenPersonelId = modal.dataset.personelId || null;
+                  window.psSecilenPersonelAd = document.getElementById('psModalName').textContent.trim() || '';
                   psPersonelDetayKapat();
-                  var el = document.getElementById('hizmetsecbaslik') || document.querySelector('.lx-hero') || document.querySelector('header');
+
+                  // Toast: kullaniciya bilgi ver
+                  psShowToast('✓ ' + window.psSecilenPersonelAd + ' seçildi — önce hizmeti seçin, devam edince otomatik atanır');
+
+                  // Hizmet secim alanina kaydir
+                  var el = document.getElementById('hizmetsecbaslik') || document.getElementById('hizmetsecimbolumu') || document.querySelector('.lx-hero');
                   if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                };
+
+               // Personel secim formu AJAX ile yuklenince bizim secimi uygula
+               var personelObserver = null;
+               function psWatchPersonelSecim(){
+                  var bolum = document.getElementById('personelsecimbolumu');
+                  if (!bolum || personelObserver) return;
+                  personelObserver = new MutationObserver(function(){
+                     if (!window.psSecilenPersonelId) return;
+                     var selects = bolum.querySelectorAll('select[name="personeller[]"]');
+                     if (!selects.length) return;
+                     var anyApplied = false;
+                     selects.forEach(function(sel){
+                        var hasOpt = false;
+                        Array.from(sel.options).forEach(function(opt){
+                           if (String(opt.value) === String(window.psSecilenPersonelId)) {
+                              opt.selected = true;
+                              hasOpt = true;
+                           } else {
+                              opt.selected = false;
+                           }
+                        });
+                        if (hasOpt){
+                           // Trigger change event (for any listeners)
+                           sel.dispatchEvent(new Event('change', { bubbles: true }));
+                           anyApplied = true;
+                        }
+                     });
+                     if (anyApplied) {
+                        psShowToast('✓ ' + (window.psSecilenPersonelAd || 'Personel') + ' otomatik seçildi');
+                        // Bir kez uygulayalim, tekrar tekrar tetiklemesin
+                        window.psSecilenPersonelId = null;
+                     }
+                  });
+                  personelObserver.observe(bolum, { childList: true, subtree: true });
+               }
+               psWatchPersonelSecim();
+               // DOMContentLoaded sonrasi tekrar dene
+               if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', psWatchPersonelSecim);
+
+               // Toast helper
+               function psShowToast(msg){
+                  var t = document.getElementById('psToast');
+                  if (!t){
+                     t = document.createElement('div');
+                     t.id = 'psToast';
+                     t.style.cssText = 'position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(20px);background:linear-gradient(135deg,#5C008E 0%,#d946ef 100%);color:#fff;padding:14px 22px;border-radius:30px;font-weight:700;font-size:13px;letter-spacing:.3px;box-shadow:0 14px 30px rgba(92,0,142,.4);z-index:99999;opacity:0;transition:opacity .25s ease,transform .25s ease;max-width:90%;text-align:center;';
+                     document.body.appendChild(t);
+                  }
+                  t.textContent = msg;
+                  requestAnimationFrame(function(){
+                     t.style.opacity = '1';
+                     t.style.transform = 'translateX(-50%) translateY(0)';
+                  });
+                  clearTimeout(t._hideTimer);
+                  t._hideTimer = setTimeout(function(){
+                     t.style.opacity = '0';
+                     t.style.transform = 'translateX(-50%) translateY(20px)';
+                  }, 4000);
+               }
 
                document.addEventListener('keydown', function(e){
                   if (e.key === 'Escape'){
