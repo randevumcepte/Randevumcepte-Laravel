@@ -23822,6 +23822,37 @@ DB::raw('
      * ============================================================ */
     public function logHareketleri(Request $request)
     {
+        // Self-heal: salon_aktivite_log tablosu yoksa olustur (migration kosulmamis olabilir)
+        if (!\Schema::hasTable('salon_aktivite_log')) {
+            try {
+                \Schema::create('salon_aktivite_log', function ($table) {
+                    $table->bigIncrements('id');
+                    $table->unsignedInteger('salon_id');
+                    $table->unsignedInteger('user_id')->nullable();
+                    $table->string('user_type', 30)->nullable();
+                    $table->string('user_name', 150)->nullable();
+                    $table->string('user_rol', 80)->nullable();
+                    $table->string('action', 80);
+                    $table->string('target_type', 80)->nullable();
+                    $table->unsignedBigInteger('target_id')->nullable();
+                    $table->string('target_label', 220)->nullable();
+                    $table->text('aciklama')->nullable();
+                    $table->text('meta')->nullable();
+                    $table->string('ip', 45)->nullable();
+                    $table->string('user_agent', 255)->nullable();
+                    $table->timestamps();
+                    $table->index(['salon_id', 'created_at'], 'idx_salon_created');
+                    $table->index('action', 'idx_action');
+                    $table->index(['salon_id', 'user_id'], 'idx_salon_user');
+                });
+                $migName = '2026_04_26_000001_create_salon_aktivite_log_table';
+                if (!DB::table('migrations')->where('migration', $migName)->count()) {
+                    $batch = (int) DB::table('migrations')->max('batch');
+                    DB::table('migrations')->insert(['migration' => $migName, 'batch' => $batch ?: 1]);
+                }
+            } catch (\Exception $e) {}
+        }
+
         $isletmeler = '';
         $isletme = '';
         if (Auth::guard('satisortakligi')->check()) {
