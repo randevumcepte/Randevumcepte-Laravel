@@ -20179,12 +20179,12 @@ public function arsivformekleme(Request $request){
     private function sozlesmePdfYukle($arsiv, $isletme){
         $hizmet_adi = null; $paket_adi = null;
         if($arsiv->hizmet_id){
-            try { $sh = SalonSunulanHizmetler::where('id',$arsiv->hizmet_id)->with('hizmet')->first();
-                $hizmet_adi = $sh && $sh->hizmet ? $sh->hizmet->hizmet_adi : null;
+            try { $sh = \DB::table('salon_sunulan_hizmetler')->leftJoin('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')->where('salon_sunulan_hizmetler.id',$arsiv->hizmet_id)->select('hizmetler.hizmet_adi')->first();
+                $hizmet_adi = $sh ? $sh->hizmet_adi : null;
             } catch(\Exception $e){}
         }
         if($arsiv->paket_id){
-            try { $paket_adi = \App\Paket::where('id',$arsiv->paket_id)->value('paket_adi'); } catch(\Exception $e){}
+            try { $paket_adi = \DB::table('paketler')->where('id',$arsiv->paket_id)->value('paket_adi'); } catch(\Exception $e){}
         }
         return PDF::loadView('onamform.sozlesme_pdf', [
             'arsiv'=>$arsiv,'isletme'=>$isletme,'hizmet_adi'=>$hizmet_adi,'paket_adi'=>$paket_adi

@@ -26,14 +26,15 @@
                         <option value="">— Hizmet seçin —</option>
                         @php
                            try {
-                              $hizmetler = \App\SalonSunulanHizmetler::where('salon_id',$isletme->id)
-                                 ->where('aktif',1)
-                                 ->with('hizmet')
+                              $hizmetler = \DB::table('salon_sunulan_hizmetler')
+                                 ->leftJoin('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')
+                                 ->where('salon_sunulan_hizmetler.salon_id',$isletme->id)
+                                 ->select('salon_sunulan_hizmetler.id','hizmetler.hizmet_adi','salon_sunulan_hizmetler.son_fiyat')
                                  ->get();
                            } catch(\Exception $e){ $hizmetler = collect(); }
                         @endphp
                         @foreach($hizmetler as $h)
-                           <option value="{{$h->id}}" data-fiyat="{{$h->fiyat ?? 0}}">{{ $h->hizmet->hizmet_adi ?? '-' }}</option>
+                           <option value="{{$h->id}}" data-fiyat="{{$h->son_fiyat ?? 0}}">{{ $h->hizmet_adi ?? '-' }}</option>
                         @endforeach
                      </select>
                   </div>
@@ -43,11 +44,11 @@
                         <option value="">— Paket seçin —</option>
                         @php
                            try {
-                              $paketlerListesi = \App\Paket::where('salon_id',$isletme->id)->where('aktif',1)->get();
+                              $paketlerListesi = \DB::table('paketler')->where('salon_id',$isletme->id)->get();
                            } catch(\Exception $e){ $paketlerListesi = collect(); }
                         @endphp
                         @foreach($paketlerListesi as $p)
-                           <option value="{{$p->id}}" data-fiyat="{{$p->paket_fiyati ?? 0}}" data-seans="{{$p->seans_sayisi ?? 1}}">{{ $p->paket_adi }}</option>
+                           <option value="{{$p->id}}" data-fiyat="{{$p->paket_fiyati ?? $p->fiyat ?? 0}}" data-seans="{{$p->seans_sayisi ?? 1}}">{{ $p->paket_adi }}</option>
                         @endforeach
                      </select>
                   </div>
