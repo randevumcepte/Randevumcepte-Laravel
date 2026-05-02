@@ -555,16 +555,16 @@
 
                   <script>
                   (function(){
-                     // -------- VIRTUAL VOICES (StreamElements / Polly — ücretsiz) --------
-                     // Sadece Türkçe sesler. id 'sev_X' formatında, browser voice'lardan ayrı.
-                     // StreamElements: ücretsiz, anahtar gerek değil, Amazon Polly altyapısı.
+                     // -------- VIRTUAL VOICES (TTS Proxy üzerinden — sunucu fallback yapar) --------
+                     // Polly'de Türkçe sadece "Filiz" var. Farklı tonlar SSML rate/pitch ile sağlanır.
+                     // Google Translate TTS ek seçenek olarak (200 char limit).
                      var VIRTUAL_VOICES = [
-                        { id:'sev_filiz',  api:'streamelements', voice:'Filiz',  ad:'Filiz (Doğal Kadın · Polly)',     gender:'kadın' },
-                        { id:'sev_seda',   api:'streamelements', voice:'Seda',   ad:'Seda (Doğal Kadın · Bing)',       gender:'kadın' },
-                        { id:'sev_ahmet',  api:'streamelements', voice:'Ahmet',  ad:'Ahmet (Doğal Erkek · Bing)',      gender:'erkek' },
-                        { id:'sev_emel',   api:'streamelements', voice:'Emel',   ad:'Emel (Doğal Kadın · Bing)',       gender:'kadın' },
-                        // Google Translate TTS — kaliteli, ücretsiz, sınır 200 char
-                        { id:'sev_gtr_f',  api:'googletts',      voice:'tr',     ad:'Google Türkçe (Kadın · 200char)', gender:'kadın' }
+                        { id:'sev_filiz_normal', voice:'filiz_normal', ad:'Filiz · Doğal Konuşma',   gender:'kadın' },
+                        { id:'sev_filiz_fast',   voice:'filiz_fast',   ad:'Filiz · Hızlı / Canlı',   gender:'kadın' },
+                        { id:'sev_filiz_high',   voice:'filiz_high',   ad:'Filiz · Yüksek Ton',      gender:'kadın' },
+                        { id:'sev_filiz_low',    voice:'filiz_low',    ad:'Filiz · Kalın Ton',       gender:'erkeksi' },
+                        { id:'sev_filiz_slow',   voice:'filiz_slow',   ad:'Filiz · Sakin / Yavaş',   gender:'kadın' },
+                        { id:'sev_google',       voice:'google',       ad:'Google Türkçe (200char)', gender:'kadın' }
                      ];
                      function virtualUrl(v, metin){
                         // Backend proxy: CORS/SSL/availability sorunlarını önler,
@@ -584,7 +584,7 @@
                         catch(_) { return []; }
                      }
 
-                     var seciliVoiceURI = localStorage.getItem('kss_voice_uri') || 'sev_filiz';
+                     var seciliVoiceURI = localStorage.getItem('kss_voice_uri') || 'sev_filiz_fast';
 
                      function selectorDoldur(){
                         var $sel = $('#kampanyaSesSecici');
@@ -614,8 +614,8 @@
                         if(seciliVoiceURI && $sel.find('option[value="'+ seciliVoiceURI +'"]').length){
                            $sel.val(seciliVoiceURI);
                         } else {
-                           $sel.val('sev_filiz');
-                           seciliVoiceURI = 'sev_filiz';
+                           $sel.val('sev_filiz_fast');
+                           seciliVoiceURI = 'sev_filiz_fast';
                         }
                         qualityBadge();
                      }
@@ -673,7 +673,7 @@
                            return;
                         }
                         durdur();
-                        var sec = $('#kampanyaSesSecici').val() || 'sev_filiz';
+                        var sec = $('#kampanyaSesSecici').val() || 'sev_filiz_fast';
 
                         if(sec.indexOf('sev_') === 0){
                            // Harici API → audio src ile çal

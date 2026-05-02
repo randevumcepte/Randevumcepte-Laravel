@@ -22871,12 +22871,29 @@ DB::raw('
         if ($metin === '') return response('', 400);
         if (mb_strlen($metin) > 1500) $metin = mb_substr($metin, 0, 1500);
 
-        $voice = preg_replace('/[^A-Za-z]/', '', (string) $request->voice) ?: 'Filiz';
+        $voiceKey = strtolower(preg_replace('/[^A-Za-z_]/', '', (string) $request->voice));
+        if ($voiceKey === '') $voiceKey = 'filiz_normal';
 
-        $providers = [
-            ['name'=>'streamelements','url'=>'https://api.streamelements.com/kappa/v2/speech?voice='.urlencode($voice).'&text='.urlencode($metin)],
-            ['name'=>'googletts',     'url'=>'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=tr&q='.urlencode(mb_substr($metin,0,200))],
-        ];
+        // Voice ID -> sağlayıcı + parametre eşleştirmesi
+        $providers = [];
+
+        if ($voiceKey === 'google') {
+            $kisa = mb_substr($metin, 0, 200);
+            $providers[] = ['name'=>'googletts','url'=>'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=tr&q='.urlencode($kisa)];
+        } else {
+            // Polly Filiz — SSML ile rate/pitch ayarı (baygın okuma sorununu çözmek için)
+            $rate  = '105%'; $pitch = '+0%';
+            if ($voiceKey === 'filiz_fast')   { $rate = '120%'; $pitch = '+5%'; }
+            elseif ($voiceKey === 'filiz_slow'){ $rate = '95%';  $pitch = '+0%'; }
+            elseif ($voiceKey === 'filiz_high'){ $rate = '110%'; $pitch = '+15%'; }
+            elseif ($voiceKey === 'filiz_low') { $rate = '100%'; $pitch = '-15%'; }
+            $safeMetin = htmlspecialchars($metin, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+            $ssml      = '<speak><prosody rate="'.$rate.'" pitch="'.$pitch.'">'.$safeMetin.'</prosody></speak>';
+            $providers[] = ['name'=>'streamelements_ssml','url'=>'https://api.streamelements.com/kappa/v2/speech?voice=Filiz&text='.urlencode($ssml)];
+            $providers[] = ['name'=>'streamelements_plain','url'=>'https://api.streamelements.com/kappa/v2/speech?voice=Filiz&text='.urlencode($metin)];
+        }
+        // Son fallback: her durumda Google
+        $providers[] = ['name'=>'googletts_fallback','url'=>'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=tr&q='.urlencode(mb_substr($metin,0,200))];
 
         foreach ($providers as $p) {
             $ch = curl_init();
@@ -22900,9 +22917,10 @@ DB::raw('
                 return response($body, 200)
                     ->header('Content-Type', $type ?: 'audio/mpeg')
                     ->header('Cache-Control', 'private, max-age=600')
-                    ->header('Content-Length', (string) strlen($body));
+                    ->header('Content-Length', (string) strlen($body))
+                    ->header('X-TTS-Provider', $p['name']);
             }
-            \Log::info('ttsProxy provider fail', ['provider'=>$p['name'],'code'=>$code,'type'=>$type,'err'=>$err,'len'=>strlen((string)$body)]);
+            \Log::info('ttsProxy provider fail', ['voice'=>$voiceKey,'provider'=>$p['name'],'code'=>$code,'type'=>$type,'err'=>$err,'len'=>strlen((string)$body)]);
         }
 
         return response('TTS sağlayıcıları yanıt vermedi', 502);
