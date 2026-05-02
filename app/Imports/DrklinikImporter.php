@@ -157,17 +157,26 @@ class DrklinikImporter
         $html = $this->client->getHtml('/calisanmodulu.aspx', 'personel_listesi');
         if ($html === '') { $this->log('Sayfa cekilemedi.'); return; }
 
-        $rows = $this->parseTableRows($html);
+        // RAW td'lerle al (button hucreleri filtrelemek icin)
+        $rows = $this->parseTableRowsRaw($html);
         $this->log('  HTML tablodan ' . count($rows) . ' satir cikartildi.');
         if (empty($rows)) return;
 
         $eklendi = 0;
-        foreach ($rows as $row) {
-            // [0]=Ad, [1]=Soyad, [2]=Telefon, [3]=Unvan, [4]=Duzenle, [5]=Sil
-            $ad     = isset($row[0]) ? trim($row[0]) : '';
-            $soyad  = isset($row[1]) ? trim($row[1]) : '';
-            $tel    = isset($row[2]) ? $this->telefonNormalize($row[2]) : null;
-            $unvan  = isset($row[3]) ? trim($row[3]) : '';
+        foreach ($rows as $rawRow) {
+            // Buton hucrelerini at, sadece real text hucreleri al
+            $cells = [];
+            foreach ($rawRow as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) continue;
+                $clean = trim(preg_replace('/\s+/', ' ', strip_tags($tdRaw)));
+                $clean = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                $cells[] = $clean;
+            }
+            // Beklenen: [Ad, Soyad, Telefon, Unvan]
+            $ad     = isset($cells[0]) ? $cells[0] : '';
+            $soyad  = isset($cells[1]) ? $cells[1] : '';
+            $tel    = isset($cells[2]) ? $this->telefonNormalize($cells[2]) : null;
+            $unvan  = isset($cells[3]) ? $cells[3] : '';
             $tamAd  = trim($ad . ' ' . $soyad);
             if ($tamAd === '') continue;
 
@@ -224,6 +233,45 @@ class DrklinikImporter
             $this->counts['personel']++;
         }
         $this->log("Personel aktarim: {$eklendi} yeni");
+    }
+
+    /**
+     * En genis tabloyu bul, her satirin RAW td HTML'lerini doner (icerisinde input/a tag'leri korunur).
+     */
+    private function parseTableRowsRaw($html)
+    {
+        if (!preg_match_all('#<table[^>]*>(.*?)</table>#is', $html, $tables)) return [];
+        $bestRows = [];
+        foreach ($tables[1] as $t) {
+            if (preg_match_all('#<tr[^>]*>(.*?)</tr>#is', $t, $r)) {
+                if (count($r[1]) > count($bestRows)) $bestRows = $r[1];
+            }
+        }
+        if (empty($bestRows)) return [];
+        $out = [];
+        foreach ($bestRows as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('#<td[^>]*>(.*?)</td>#is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $out[] = $tds[1];
+        }
+        return $out;
+    }
+
+    /**
+     * td icerigi sadece buton/link/script ise true. Gercek text yoksa atilmali.
+     */
+    private function isButtonCell($tdRaw)
+    {
+        $hasButton = preg_match('#<(?:input[^>]+type="(?:button|submit)"|a\s|button\s)#i', $tdRaw);
+        $textOnly = trim(strip_tags($tdRaw));
+        // Sadece buton var ve disindaki text (anchor text dahil edilmis olabilir) "kisa anlamsiz" ise atla
+        if ($hasButton) {
+            // Buton text icerigi (anchor metni) bilinen aksiyon kelimelerine eslesirse buton say
+            if (preg_match('/^(D[uü]zenle|Sil|[ÖÖoO]demeler|Prim\s*Hesab[ıi]|Sec|Sec[iı]m|Detay|G[oo]ster|G[uü]ncelle|Kaydet|Iptal|İptal)$/iu', $textOnly)) return true;
+            if ($textOnly === '' || strlen($textOnly) < 2) return true;
+        }
+        return false;
     }
 
     private function telefonNormalize($tel)
