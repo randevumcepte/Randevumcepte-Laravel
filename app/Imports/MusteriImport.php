@@ -2,6 +2,7 @@
 namespace App\Imports;
 use App\User;
 use App\MusteriPortfoy;
+use App\Helpers\CinsiyetTahmin;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -28,6 +29,10 @@ class MusteriImport implements ToCollection, WithHeadingRow
                 if($row["cinsiyet"]=="Erkek")
                     $cinsiyet = 1;
 
+            }
+            // Excel'de cinsiyet boş ya da hiç yoksa ad-soyaddan otomatik tahmin et
+            if ($cinsiyet === null && !empty($row['ad_soyad'])) {
+                $cinsiyet = CinsiyetTahmin::tahmin($row['ad_soyad']);
             }
             $data = [
                 'name' => $row['ad_soyad'],

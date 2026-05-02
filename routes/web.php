@@ -515,6 +515,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/musteriexceleaktar','StoreAdminController@musteriexceleaktar')->name('musteriexceleaktar');
 	Route::get('/musteriportfoykaldir','StoreAdminController@musteriportfoykaldir');
 	Route::post('/yenimusterilistesiekle','StoreAdminController@yenimusterilistesiekle');
+	Route::post('/cinsiyet-otomatik-doldur','StoreAdminController@cinsiyetOtomatikDoldur');
 	Route::get('/musteridetay/{id}','StoreAdminController@musteridetay');
 	Route::get('/musteribilgiguncelle','StoreAdminController@musteribilgiguncelle');
 	Route::get('/avantajraporlar','StoreAdminController@avantajraporlar');

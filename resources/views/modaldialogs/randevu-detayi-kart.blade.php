@@ -8,31 +8,41 @@
    }
    #modal-view-event .modal-header {
       background: linear-gradient(135deg, #5C008E 0%, #7B2FB8 50%, #9D5DC8 100%);
-      color: #fff; padding: 14px 56px 12px 20px; border-bottom: 0;
-      display: block; position: relative;
+      color: #fff; padding: 12px 50px 12px 18px; border-bottom: 0;
+      display: flex; align-items: center; gap: 10px;
+      position: relative; min-height: 0;
    }
    #modal-view-event .modal-header .h4 {
-      margin: 0 0 8px; font-size: 15.5px; font-weight: 700;
-      color: #fff !important; line-height: 1.35;
-      word-break: break-word; display: block;
+      margin: 0; font-weight: 700;
+      color: #fff !important; flex: 1 1 0; min-width: 0;
+      display: flex; flex-direction: column; line-height: 1.2;
    }
-   #modal-view-event .event-title { color:#fff; }
+   #modal-view-event .event-title { color:#fff; display: flex; flex-direction: column; gap: 1px; }
+   #modal-view-event .rd-mt-name {
+      font-size: 15px; font-weight: 700; line-height: 1.25;
+      word-break: break-word;
+   }
+   #modal-view-event .rd-mt-sub {
+      font-size: 11.5px; font-weight: 500; opacity: .82;
+      line-height: 1.2; letter-spacing: .1px;
+   }
    #modal-view-event .modal-header .close {
       position: absolute; top: 10px; right: 10px;
-      color: #fff; opacity: .9; font-size: 22px; line-height: 1;
+      color: #fff; opacity: .9; font-size: 20px; line-height: 1;
       background: rgba(255,255,255,.12); border: 0;
-      width: 30px; height: 30px; border-radius: 8px;
+      width: 28px; height: 28px; border-radius: 7px;
       display: flex; align-items: center; justify-content: center;
       transition: background .15s, opacity .15s;
       text-shadow: none; z-index: 5;
    }
    #modal-view-event .modal-header .close:hover { background: rgba(255,255,255,.28); opacity: 1; }
    #modal-view-event #duzenle_butonu_bolumu {
-      display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 0;
+      display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+      flex: 0 0 auto; margin: 0;
    }
    #modal-view-event #duzenle_butonu_bolumu:empty { display: none; }
    #modal-view-event #duzenle_butonu_bolumu .btn {
-      border-radius: 8px; font-weight: 600; padding: 6px 12px; font-size: 12.5px; line-height: 1.2;
+      border-radius: 7px; font-weight: 600; padding: 5px 11px; font-size: 12px; line-height: 1.15;
    }
    #modal-view-event .modal-body { padding: 18px 18px 14px; background:#fff; }
    #modal-view-event .modal-footer.event-buttons {

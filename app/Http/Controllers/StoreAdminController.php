@@ -2017,21 +2017,20 @@ public function carkverilerigetir(Request $request)
                 $resourceId = $rh->oda_id ?? 0;
 
             $title = $rh->randevu->users->name;
-            $modalTitle = $rh->randevu->users->name;
+            $_musteriAdi = $rh->randevu->users->name;
+            $_modalSubtitle = '';
             $seansVar = AdisyonPaketSeanslar::where('randevu_id',$rh->randevu_id)->get();
             if($seansVar->count() > 0 ){
                 $title .= " (PAKET)";
-                $modalTitle .= " Paket Randevusu ";
-                 $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn" style="float:right ;    margin-left: 5px;
-    padding: 10px;">Müşteri Detay</a>';
+                $_modalSubtitle = 'Paket Randevusu';
+                 $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn">Müşteri Detay</a>';
 
             }
-           
+
             elseif($rh->randevu->on_gorusme_id  !== null){
-                $duzenleButon .= '<a onclick="modalbaslikata(\"Ön Görüşme Düzenleme\",\"\" )" class="btn btn-primary btn-block btn-lg" href="#" data-toggle="modal" data-target="#ongorusme-modal" name="ongorusme_duzenle" data-value="'.$rh->randevu->on_gorusme_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn" style="float:right ;    margin-left: 5px;
-    padding: 10px;">Müşteri Detay</a>';
+                $duzenleButon .= '<a onclick="modalbaslikata(\"Ön Görüşme Düzenleme\",\"\" )" class="btn btn-primary" href="#" data-toggle="modal" data-target="#ongorusme-modal" name="ongorusme_duzenle" data-value="'.$rh->randevu->on_gorusme_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn">Müşteri Detay</a>';
                 $title .= " (ÖN GÖRÜŞME)\nÖn Görüşme Nedeni: ";
-                $modalTitle .= " Ön Görüşme Randevusu ";
+                $_modalSubtitle = 'Ön Görüşme Randevusu';
                 $_og = $rh->randevu->ongorusme;
                 if(\Schema::hasColumn('on_gorusmeler','gorusme_konusu') && !empty($_og->gorusme_konusu))
                     $title .= $_og->gorusme_konusu;
@@ -2045,10 +2044,9 @@ public function carkverilerigetir(Request $request)
                     $title .= "—";
             }
             else{
-                 $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn" style="float:right ;    margin-left: 5px;
-    padding: 10px;">Müşteri Detay</a>';
-                
-                $modalTitle .= " Randevu ";
+                 $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn">Müşteri Detay</a>';
+
+                $_modalSubtitle = 'Randevu';
             }
             if($seansVar->count() > 0){
                 $paketVar = AdisyonPaketler::whereIn('id',$seansVar->pluck('adisyon_paket_id')->toArray())->first();
@@ -2065,8 +2063,8 @@ public function carkverilerigetir(Request $request)
                 $title .= "\n".$rh->hizmetler->hizmet_adi;
             
 
-            $modalTitle .= " Detayları";
-           
+            $modalTitle = '<span class="rd-mt-name">'.htmlspecialchars($_musteriAdi).'</span><span class="rd-mt-sub">'.$_modalSubtitle.' Detayları</span>';
+
             $title .= "\nOluşturan:";
             if($rh->randevu->web == true)
                 $title .= "Web";
@@ -5753,6 +5751,63 @@ private function ayAdiCevir($ingilizceAy)
     }
     return $resulthtml;
    }
+
+    /**
+     * Mevcut subedeki cinsiyeti bos musterilerin cinsiyetini ad-soyaddan otomatik tespit eder.
+     * Sadece bos olanlar guncellenir, dolu olanlara dokunulmaz.
+     */
+    public function cinsiyetOtomatikDoldur(Request $request)
+    {
+        $sube = self::mevcutsube($request);
+        if (!$sube) {
+            return response()->json(['status' => 'error', 'mesaj' => 'Sube bulunamadi'], 400);
+        }
+
+        $userIds = MusteriPortfoy::where('salon_id', $sube)
+            ->where('aktif', true)
+            ->pluck('user_id')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        if (empty($userIds)) {
+            return response()->json([
+                'status' => 'success',
+                'guncellenen' => 0,
+                'kalan_bos' => 0,
+                'mesaj' => 'Bu subede aktif musteri bulunamadi.'
+            ]);
+        }
+
+        $guncellenen = 0;
+        $kalanBos = 0;
+
+        User::whereIn('id', $userIds)
+            ->where(function ($q) {
+                $q->whereNull('cinsiyet')->orWhere('cinsiyet', '');
+            })
+            ->select('id', 'name', 'cinsiyet')
+            ->chunkById(500, function ($users) use (&$guncellenen, &$kalanBos) {
+                foreach ($users as $user) {
+                    $tahmin = \App\Helpers\CinsiyetTahmin::tahmin($user->name);
+                    if ($tahmin !== null) {
+                        $user->cinsiyet = $tahmin;
+                        $user->save();
+                        $guncellenen++;
+                    } else {
+                        $kalanBos++;
+                    }
+                }
+            });
+
+        return response()->json([
+            'status' => 'success',
+            'guncellenen' => $guncellenen,
+            'kalan_bos' => $kalanBos,
+            'mesaj' => "{$guncellenen} müşterinin cinsiyeti otomatik olarak belirlendi. {$kalanBos} müşterinin adı sözlükte bulunmadığı için belirsiz kaldı."
+        ]);
+    }
+
     public function musteridetay(Request $request,$id){
          $isletmeler = '';
         $isletme='';
@@ -7414,8 +7469,15 @@ private function ayAdiCevir($ingilizceAy)
             $musteri->tc_kimlik_no = $request->tc_kimlik_no;
             if($request->dogum_tarihi_gun != '' && $request->dogum_tarihi_ay != '' && $request->dogum_tarihi_yil != '' )
                 $musteri->dogum_tarihi = date('Y-m-d',strtotime($request->dogum_tarihi_yil.'-'.$request->dogum_tarihi_ay.'-'.$request->dogum_tarihi_gun));
-            if($request->cinsiyet == 0 || $request->cinsiyet == 1)
+            if($request->cinsiyet == 0 || $request->cinsiyet == 1) {
                 $musteri->cinsiyet = $request->cinsiyet;
+            } elseif ($request->musteri_id == "" && !empty($request->ad_soyad)) {
+                // Yeni musteri + cinsiyet secilmemis: ad-soyaddan otomatik tahmin
+                $tahmin = \App\Helpers\CinsiyetTahmin::tahmin($request->ad_soyad);
+                if ($tahmin !== null) {
+                    $musteri->cinsiyet = $tahmin;
+                }
+            }
             $musteri->save();
             if($request->musteri_id == "")
                  $portfoy = new MusteriPortfoy();
@@ -8298,17 +8360,17 @@ private function ayAdiCevir($ingilizceAy)
                     $resourceId = $rh->oda_id;
 
                 $title = $rh->randevu->users->name;
-                $modalTitle = $rh->randevu->users->name;
+                $_musteriAdi2 = $rh->randevu->users->name;
+                $_modalSubtitle2 = '';
                 $seansVar = AdisyonPaketSeanslar::where('randevu_id',$rh->randevu_id)->count();
                 if($seansVar > 0 ){
                     $title .= " (PAKET)";
-                    $modalTitle .= " Paket Randevusu ";
-
+                    $_modalSubtitle2 = 'Paket Randevusu';
                 }
                 elseif($rh->randevu->on_gorusme_id  !== null){
 
                     $title .= " (ÖN GÖRÜŞME)\nÖn Görüşme Nedeni: ";
-                    $modalTitle .= " Ön Görüşme Randevusu ";
+                    $_modalSubtitle2 = 'Ön Görüşme Randevusu';
                     $_og2 = $rh->randevu->ongorusme;
                     if(\Schema::hasColumn('on_gorusmeler','gorusme_konusu') && !empty($_og2->gorusme_konusu))
                         $title .= $_og2->gorusme_konusu;
@@ -8323,9 +8385,9 @@ private function ayAdiCevir($ingilizceAy)
                 }
                 else{
                     $title .= "\n".$rh->hizmetler->hizmet_adi;
-                    $modalTitle .= " Randevu ";
+                    $_modalSubtitle2 = 'Randevu';
                 }
-                $modalTitle .= " Detayları";
+                $modalTitle = '<span class="rd-mt-name">'.htmlspecialchars($_musteriAdi2).'</span><span class="rd-mt-sub">'.$_modalSubtitle2.' Detayları</span>';
                
                 $title .= "\nOluşturan:";
                 if($rh->randevu->web)
