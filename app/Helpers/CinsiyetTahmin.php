@@ -91,96 +91,184 @@ class CinsiyetTahmin
     private static function erkekAdlari()
     {
         return [
-            'abdulbaki','abdulhalim','abdulhamit','abdulkadir','abdulkerim','abdullah','abdulmecid','abdulvahap','abdurrahim','abdurrahman',
-            'adem','adil','adnan','agah','ahmet','akif','akin','aktan','alaaddin','alaattin','alemdar','alican','alim','alkin','alparslan',
-            'alper','altan','altay','anil','arda','arif','armagan','arslan','asaf','asil','asim','askin','aslan','atak','atakan','ataman',
-            'atalay','atif','atilla','attila','aybars','ayberk','aydin','aykut','ayhan','aytac','ayvaz','azat','aziz',
-            'baha','bahadir','bahattin','baki','balaban','bahri','baran','baris','basaran','basri','batuhan','batur','bayar','bayram',
-            'bedirhan','bedrettin','bedri','behcet','behzat','bekir','bener','berat','berk','berkant','berkay','berke','berkin','bertan',
-            'besir','beytullah','bilal','bilge','bilgehan','bilgin','birkan','birol','bora','boran','bozkurt','bugra','bulent','burak',
-            'burhan','burhanettin',
-            'caner','cebrail','celal','celalettin','celil','cem','cemal','cemil','cenab','cengiz','cenk','cevat','cevdet','ceyhun','cezmi',
-            'cihan','cihangir','cihat','comert','coskun','cumhur','cuneyt','cuneyit',
-            'daghan','davut','demir','demirhan','devran','devrim','dilaver','dincer','dogan','dogu','dorukhan','durmus','durul',
-            'edib','ediz','efe','efecan','efkan','ekin','ekrem','eldar','emin','emir','emirhan','emrah','emre','enes','engin','enis',
-            'enver','eralp','eraslan','ercan','ercument','erdal','erdem','erden','erdi','erdinc','erdogan','eren','erenay','ergin','ergun',
-            'erhan','erim','erkan','erkin','erkut','erman','ersin','ersoy','ertan','ertugrul','ertunc','erturk','esat','esref','eyup',
-            'fadil','fahrettin','fahri','faik','faruk','fatih','fazil','fazli','ferdi','ferhat','feridun','ferman','ferruh','fethi',
-            'fethullah','fevzi','fikret','fikri','firat','furkan','fuat',
-            'gani','gokay','gokberk','gokhan','gokmen','gokturk','gorkem','gultekin','guncel','gungor',
-            'hakan','hakki','halil','halim','halis','halit','haluk','hami','hamit','hamza','hanefi','hanifi','harun','hasan','hasip',
-            'haydar','hayri','hayrullah','hidir','hikmet','hilmi','hizir','hudaverdi','hulki','husam','husamettin','husnu',
-            'ibrahim','idris','ihsan','ilhan','ilhami','ilker','ilyas','imdat','irfan','isa','isam','ishak','iskender','islam','ismail',
-            'ismet','izzet',
-            'kaan','kadir','kahraman','kamer','kamil','kamuran','kanat','kasim','kayhan','kazim','kemal','kemalettin','kenan','keramet',
-            'kerem','keskin','kivanc','koray','korhan','korkmaz','kubilay','kudret','kursad','kursat','kutay','kuthan','kutlu','kutlukhan',
-            'kutsal',
-            'latif','levent','lokman','lutfi','lutfu',
-            'macit','mahir','mahmut','mahsun','makbul','malik','mansur','masum','mazlum','mecit','medet','mehmet','melih','melik',
-            'meliksah','memduh','memo','menderes','mert','merthan','mertcan','mesih','mesut','metehan','methi','metin','mevlut','mirac',
-            'mirsat','muammer','mubin','mucahit','muhammed','muhammet','muharrem','muhip','muhittin','muhsin','muhtar','mukremin','munir',
-            'murat','murathan','musa','mustafa','mujdat','mursel','muslum',
-            'naci','nadi','nadir','naim','namik','nasi','nasrettin','nazim','necati','necdet','necip','nedim','nejat','nesim','neyzen',
-            'nezir','nihat','niyazi','nizam','nizamettin','nuh','numan','nuretdin','nurettin','nuri','nurullah','nusret',
-            'oder','oguz','oguzhan','okan','okay','oktay','olcay','olgun','omer','onat','onder','ongun','onur','oral','orhan','orkun',
-            'oruc','orcun','osman','oytun','ozan','ozdemir','ozhan','ozcan','ozkan',
-            'polat',
-            'raci','raif','ragip','rahmi','ramazan','ramiz','rasih','rasim','rauf','recai','recep','refik','remzi','resul','ridvan','rifat',
-            'riza','ruhi','rustem','rusen',
-            'sabit','sabri','sacit','sadi','sadik','sadrettin','saffet','sait','salih','salim','salman','samet','sami','samil','samim',
-            'samir','sancar','sarp','savas','sebahattin','sedat','sefa','seferhan','sefer','sefik','sehmus','selami','selcuk','selim',
-            'selman','semih','senol','serafettin','serbay','sercan','serdal','serdar','serhan','serhat','serkan','serkant','sermet',
-            'servet','sever','sevket','seydi','seyfettin','seyfi','seyhun','seyit','sezai','sezgin','siddik','sinan','sinasi','sirac',
-            'soner','suat','sukru','suleyman','sungur','suphi',
-            'taci','tahir','tahsin','talat','taner','tanju','tanzer','tarcan','tarik','tasin','tayfun','taylan','tayyar','tayyip','tekin',
-            'temel','teoman','tevfik','tezcan','timur','timucin','tolga','tolgahan','toygar','tufan','tugay','tugrul','tuna','tuncay',
-            'tunc','tuncel','tuncer','turab','turan','turgay','turgut','turker','tugkan','tugcan',
-            'ufuk','ugur','ulas','ulvi','umit','unal','unsal','ural','uras','urcun','usame','utku','uygar','uygun',
-            'vahap','vahit','vakkas','vasif','vatan','vecdi','vecihi','vedat','veli','veysel','veysi','vural',
-            'yahya','yaman','yasar','yasin','yasir','yavuz','yener','yetkin','yigit','yildirim','yilmaz','yunus','yusuf','yuksel',
-            'zafer','zahit','zekai','zekeriya','zeki','ziya','ziyaettin','zubeyir',
+            // A
+            'abdulalim','abdulaziz','abdulbaki','abdulbasit','abdulcebbar','abdulcelil','abdulehat','abdulgaffar','abdulgafur','abdulgani',
+            'abdulhadi','abdulhakim','abdulhakkim','abdulhalik','abdulhalim','abdulhamit','abdulhamid','abdulhanif','abdulhay','abdulkadim',
+            'abdulkadir','abdulkahhar','abdulkerim','abdullah','abdullatif','abdulmecit','abdulmecid','abdulmelik','abdulmenan','abdulmuti',
+            'abdulnasir','abdulrauf','abdulsamed','abdulvahap','abdulvahit','abdulvedud','abdurrahim','abdurrahman','abdusselam','adak',
+            'adem','adeson','adil','adilcan','adler','adnan','adsiz','afnan','agah','agir','ahad','ahmet','akay','akbar','akbulut','akdemir',
+            'akgun','akif','akim','akin','akkan','akman','aksu','aktan','aktar','aktug','alaaddin','alaattin','alemdar','alemsah','algan',
+            'algun','ali','alican','alihan','alim','alkan','alkin','alpamis','alparslan','alpaslan','alpay','alper','alperen','alphan',
+            'alpman','altan','altay','altug','altun','altunkaya','anar','anil','ardal','ardalan','arda','arif','arman','armagan','arsen',
+            'arsin','arslan','asaf','asil','asim','askin','aslan','ata','atak','atakan','ataman','atalay','atan','atay','atif','atik',
+            'atil','atilla','atinc','atlas','attila','avni','ayaz','aybars','ayberk','aydeniz','aydil','aydin','aydogan','aydogdu',
+            'ayhan','aykan','aykut','aymaz','aytac','aytek','aytekin','ayverdi','ayvaz','ayyub','ayyup','azat','azer','aziz',
+            // B
+            'babacan','babur','baha','bahaddin','bahadir','bahattin','bahri','baki','balaban','balamir','balkan','baran','baris','barkin',
+            'barlas','barlik','basar','basat','baskan','basri','batikan','batir','batu','batuhan','batur','baturhan','baykal','baykan',
+            'bayar','bayazit','baybars','bayer','bayhan','baykara','baylan','bayram','bayrak','bayrakli','bedi','bedih','bedihi','bedirhan',
+            'bedrettin','bedreddin','bedri','bektas','behcet','behlul','behram','behzad','behzat','bekir','bener','beni','benyamin','berat',
+            'berca','berdan','berk','berkan','berkant','berkay','berke','berker','berkin','berkun','bertan','besir','beytullah','bilal',
+            'bilen','bilge','bilgehan','bilgi','bilgin','binali','binyamin','birant','birdal','birgen','birhan','birkan','birol',
+            'bogac','boran','bora','borer','bozkurt','bugra','bukran','bulent','burak','burhan','burhanettin','burhanedin',
+            // C
+            'cafer','caferi','cahit','can','canbey','canberk','candar','candas','caner','cangir','canip','capraz','caniel','casim','cebbar',
+            'cebrail','cefer','celal','celalettin','celasin','celebi','celil','cem','cemal','cemalattin','cemaleddin','cemil','cemiloglu',
+            'cemsit','cenab','cenan','cenger','cengiz','cenk','cenker','cetin','cevad','cevahir','cevat','cevdet','cevheri','cevri','cezayir',
+            'cezmi','cihan','cihanbey','cihangir','cihat','comert','coskun','cumhur','cuneyit','cuneyt',
+            // D
+            'daghan','danyal','dara','daran','darga','davut','demir','demirhan','demirsoy','devlet','devran','devrim','dilaver','dincer',
+            'dogan','dogu','dogukan','doruk','dorukhan','dost','durmus','durul',
+            // E
+            'ebubekir','edib','edip','ediz','efe','efecan','efkan','ekber','ekin','ekrem','eldar','elnur','elman','emin','emir','emirhan',
+            'emrah','emre','emrullah','ender','enes','engin','enis','enver','eralp','eraslan','ercan','ercivan','ercument','erdal','erdem',
+            'erden','erdi','erdinc','erdogan','eren','erenay','erender','erfan','ergin','ergun','erhan','erim','erinc','erkam','erkan',
+            'erkin','erkut','erman','erol','ersan','ersin','ersoy','ertac','ertan','erten','ertekin','ertugrul','ertunc','erturk','esad',
+            'esat','esref','evren','eyup','eyub',
+            // F
+            'fadil','fahretdin','fahrettin','fahri','faik','faruk','fatih','fatin','fazil','fazli','fehmi','ferdi','ferec','ferhad',
+            'ferhan','ferhat','feridun','ferit','ferman','ferruh','fethi','fethullah','fevzi','feyzi','fikret','fikri','firat','firuz','fuat',
+            'furkan',
+            // G
+            'gani','gener','goksen','gokay','gokberk','gokdemir','gokhan','gokmen','goktug','gokturk','goksel','gonensoy','gorkem','govan',
+            'gultekin','guncel','gungor','gunkut','gurbuz','guven','guvenc',
+            // H
+            'habil','hacibey','hadi','hafiz','hakan','hakki','halid','halil','halilcan','halim','halis','halit','haluk','hami','hamdullah',
+            'hamdi','hamit','hamza','hanefi','hanifi','harun','hasan','hasip','haskar','hatim','haydar','hayrettin','hayri','hayrullah',
+            'hicabi','hidayet','hidir','hikmet','hilmi','hilmican','hizir','hudaverdi','hulki','husam','husamettin','husameddin','huseyin',
+            'husnu','huzur',
+            // I/İ
+            'ibo','ibrahim','idris','ihsan','iken','ikram','ilbey','ilbeyi','ildem','ilhami','ilhan','ilkay','ilker','ilkim','ilkin','ilyas',
+            'imdat','irfan','isa','isam','ishak','iskender','islam','ismail','ismet','izet','izzet','izzettin',
+            // K
+            'kaan','kadem','kadir','kahraman','kamer','kamil','kamilcan','kamuran','kanat','kara','karaca','kasim','kavur','kayan','kayhan',
+            'kayhanlar','kazan','kazim','kelami','kemal','kemaleddin','kemalettin','kemali','kenan','kerami','kerem','kerimcan','kerim',
+            'keskin','kivanc','kor','koray','korhan','korkmaz','kozan','kubilay','kudret','kudus','kursad','kursat','kutay','kuthan',
+            'kutkan','kutlu','kutlukhan','kutsal','kutub','kuvvet',
+            // L
+            'laden','latif','leon','levent','lokman','lutfi','lutfu','lutfullah',
+            // M
+            'maaruf','macit','mahir','mahmut','mahsun','makbul','malik','mansur','masum','mazlum','meco','mecit','mecnun','medet','mehdi',
+            'mehmed','mehmet','melih','melihcan','melik','melikhan','meliksah','memduh','memo','menderes','menes','mert','mertcan','merthan',
+            'mesih','mesut','metehan','methi','metin','mevlut','mihrac','mirac','mirsat','muammer','muaz','mubarek','mubin','mucahit','mucip',
+            'muhammed','muhammet','muharrem','muhip','muhittin','muhsin','muhtar','mukremin','munir','murat','murathan','musa','mustafa',
+            'muvahhid','muzaffer','mufid','mujdat','muhtesem','mursel','muslum',
+            // N
+            'nabi','naci','nadi','nadir','nahit','nail','naim','naki','namik','nasi','nasir','nasrettin','nasrullah','nazil','nazim',
+            'neamettin','necati','necdet','necip','necmettin','necmi','nedim','nejat','nejdet','nesim','nesir','neset','nesat','nevzat',
+            'neyzen','nezih','nezir','nihat','niyazi','nizam','nizamettin','nizar','nuh','numan','nuretdin','nurettin','nuri','nurullah',
+            'nuruddin','nusret',
+            // O
+            'oben','oder','oguz','oguzhan','okan','okay','oktay','olcay','olgun','omer','omur','onat','onder','ongun','onuralp','onur','oral',
+            'orcan','orcun','orhan','orkun','orkut','oruc','osman','oytun','ozan','ozay','ozbay','ozdemir','ozeden','ozhan','ozcan','ozkan',
+            // P
+            'paklan','pala','partal','payidar','pehlivan','pekel','peker','peyami','polat','polater',
+            // R
+            'raci','raden','ragip','rahmi','rahim','ramazan','rami','ramiz','rasel','rasih','rasim','rauf','recai','recep','refet','refi',
+            'refik','remzi','resit','resul','ridvan','rifat','riza','rusen','ruhi','rustem','ruzgar',
+            // S
+            'sabahattin','sabit','sabri','sacit','sadeddin','sadettin','sadi','sadik','sadrettin','saffet','sait','salahattin','salih',
+            'salim','salman','sami','samil','samim','samir','samet','sancar','sani','sarp','sarphan','savas','sayit','sebahattin','sedat',
+            'sefa','sefer','seferhan','sefik','sehmus','sekip','selami','selcuk','selim','selimcan','selman','semih','senol','serafettin',
+            'serbay','sercan','serdar','serdal','serdivan','serhan','serhat','serkan','serkant','sermet','servet','sever','sevki','sevket',
+            'seydi','seyfettin','seyfi','seyhmus','seyhun','seyit','seyitcan','sezai','sezgin','siddik','sinan','sinasi','sirac','sitki',
+            'soner','suat','sukru','suleyman','sungur','suphi','surur',
+            // S (s harfi farkli yazimlar)
+            'sahin','sahindere','sener','seref','serif',
+            // T
+            'taci','tahir','tahsin','talas','talat','talha','taner','taneray','tanju','tanzer','tarcan','tarik','tarkan','tasin','tayfun',
+            'taylan','tayyar','tayyip','tekin','temel','teoman','tevfik','tezcan','timur','timucin','tolga','tolgahan','toygar','tufan',
+            'tugay','tugcan','tugkan','tugrul','tuna','tuncay','tunc','tuncel','tuncer','turab','turan','turgay','turgut','turhan','turker',
+            'turkmen',
+            // U/Ü
+            'ubeydullah','ufuk','ugur','ugurcan','ulas','ulasalp','ulvi','umit','unal','unsal','ural','uras','urcun','usame','ustun','utku',
+            'uygar','uygun','uzay','uzeyir',
+            // V
+            'vahap','vahit','vakkas','varol','vasif','vatan','vecdi','vecihi','vedat','veli','vehbi','veysel','veysi','vural',
+            // Y
+            'yagiz','yahya','yakup','yaman','yamac','yasar','yasin','yasir','yavuz','yener','yetkin','yilmaz','yildirim','yigit','yigithan',
+            'yunus','yusuf','yuksel','yusufcan',
+            // Z
+            'zafer','zafercan','zahir','zahit','zekai','zekeriya','zeki','zerdest','zihni','zikri','zikrullah','ziya','ziyaettin','zubeyir',
         ];
     }
 
     private static function kadinAdlari()
     {
         return [
-            'afet','afitap','ahsen','akgul','aleyna','aliye','almira','alya','asena','asiye','asli','asuman',
-            'ayben','ayca','aycan','ayda','aydan','aydanur','ayfer','aygul','aygun','aylin','aynur','aysu','aysun','ayse',
-            'aysegul','aysen','aysenur','ayten',
-            'banu','basak','bedia','behice','behiye','belkis','belgin','beliz','belma','benay','bengi','bengisu','bengu','beren',
-            'berfin','berfu','berice','berin','berivan','berna','berrak','berrin','betul','beyhan','beyza','bezar','biket','binnaz',
-            'binnur','birgul','birsen','birsel','buket','burcu','busra',
-            'cana','canan','candan','canset','ceren','ceyda','ceylan','cigdem','cilvenaz',
-            'defne','demet','derya','didem','dilan','dilara','dilay','dilek','dilfeza','dudu','duru','durusu','duygu',
-            'ebrar','ebru','ece','eda','edibe','ela','elcin','elif','elifsu','eliz','elmas','elvan','emel','emine','emire',
-            'emrenur','erva','ervanur','eser','esin','esma','esmer','esra','esmeray','esrasu','eylem','eylul','ezgi',
-            'fadime','fatima','fatma','fatmagul','fazile','fazilet','ferda','ferdane','feride','feriha','feryal','fevziye','feyha',
-            'feyza','fidan','figen','filiz','fitnat','fulden','fulin','fulya','funda','fusun',
-            'gaye','gamze','gizem','gokce','gonca','gonul','gorsen','gulay','gul','gulbahar','gulcan','guler','gulnar','gulnaz','gulnur',
-            'gulpembe','gulsah','gulsen','gulseren','gulsum','gunay','guzide',
-            'hale','halime','hanife','hanim','hatice','havva','hayriye','hilal','huda','hulya','humeyra','hurriye',
-            'icim','ilkay','ilknur','inci','ipek','irem','isil',
-            'jale',
-            'kader','kamile','kayra','kerime','kevser','kismet','kiymet','kubra',
-            'lale','latife','leman','lerzan','leyla','lutfiye',
-            'mahbube','makbule','mehtap','mehlika','melahat','melda','melek','melike','melisa','meltem','meneksenur','menekse','meral',
-            'merve','meryem','mihriban','mine','miray','muge','munevver','munire','mukerrem','mujgan','muzeyyen',
-            'naciye','naime','nazan','nazli','nazmiye','nebahat','necla','neslihan','nese','nesibe','nezahat','nezehat','nigar','nihal',
-            'nihan','nilay','nilgun','nimet','nisa','nisanur','nuray','nurcan','nurdan','nuriye','nurseli','nursen','nurten',
-            'oya','ozge','ozlem',
-            'pakize','pelin','pelinsu','perihan','peri','pinar',
-            'rabia','ravza','raziye','refika','remziye','reyhan','rojda','ruveyda','ruya',
-            'sabahat','sabriye','sadiye','safiye','sakine','salime','samiye','sanem','sare','sarya','sati','satiye','saziye',
-            'seba','sebahat','secil','seda','sedef','selcen','selda','selen','selin','selma','sema','semiha','semra','sena','sennur',
-            'senanur','senay','sengul','serap','serfiraz','serna','serpil','sevcan','sevda','sevde','sevgi','sevil','sevilay','sevim',
-            'sevinc','seyhan','sezen','sidika','sila','sibel','simay','simge','sinem','sirma','songul','sukran','sultan','suna','suzan',
-            'suheyla','sumeyye','sumeyra',
-            'taban','tahire','tansel','tansu','telli','tomris','tuana','tugba','tugce','tulay','tulin','turkan',
-            'ulker','ummuhan',
+            // A
+            'abide','acelya','adalet','adel','adile','adviye','afet','afife','afitap','afra','ahsen','ahter','ahu','akgul','alanur','aleyna',
+            'aliye','almila','almira','alya','ananur','andac','arzu','asena','asife','asiye','asli','asuman','asya','atike','atiye',
+            'aybike','ayca','aycan','ayda','aydanur','aydan','ayfer','aygul','aygun','aylin','aynur','aysel','aysenur','aysu','aysun','ayse',
+            'aysecan','aysegul','aysen','ayten','aytug','ayyildiz','azime','aziye',
+            // B
+            'bade','bahar','baharnur','bahriye','balnur','banuse','banucicek','banu','basak','bedia','beden','behice','behiye','behnaz',
+            'bekriye','belen','belgin','belgizar','beliz','belkis','belkize','belkiz','belma','belris','benay','bendegul','benginur',
+            'bengisu','bengul','bengu','benu','beren','berfin','berfu','berican','berice','berin','berivan','berksu','berna','bernanur',
+            'berra','berrak','berrin','betinur','betul','betulnur','beyhan','beyza','beyzanur','bezar','biken','biket','billur','binaz',
+            'binnaz','binnur','birgul','birsen','birsel','buket','bukre','burcin','burcu','burcunur','busra',
+            // C
+            'cana','canan','candan','canset','ceci','cefagul','cemnur','cemile','ceyda','cevriye','ceylan','cicek','cigdem','cilvenaz',
+            // D
+            'defne','demet','derya','didem','dilan','dilara','dilay','dildar','dilek','dilfeza','dilrize','dilsah','dudu','duru','durusu',
+            'duygu','duygun',
+            // E
+            'ebrar','ebru','ece','eda','edibe','ela','elcin','elif','elifnur','elifsu','eliz','elma','elmas','elsa','elvan','emel','emine',
+            'emire','emirenur','emrenur','enise','erhanim','erva','ervanur','eser','esma','esmer','esra','esmeray','esrasu',
+            'eylul','ezgi',
+            // F
+            'fadime','fahriye','fatima','fatma','fatmagul','fatmanur','fazilet','fazile','feray','ferda','ferdane','feride','feriha',
+            'feryal','fevziye','feyha','feyzanur','feyza','fidan','figen','filiz','firdes','firdevs','fitnat','fulden','fulin','fulya',
+            'funda','fusun',
+            // G
+            'gamze','gaye','gayenur','gisem','gizem','gokce','gokcen','gokcenur','gonca','gonul','gorsen','gozde','gulay','gul','gulafer',
+            'gulanur','gulbahar','gulben','gulberk','gulcan','gulcin','guldane','guler','gulferiye','gulgun','gulhan','gulizar','gulnaz',
+            'gulnar','gulnihal','gulnur','gulpembe','gulrana','gulsah','gulsen','gulseren','gulsum','gulten','gulyaz','gunay','guzide','guzin',
+            // H
+            'hacer','hafize','halime','hamide','hamiyet','hamiyye','hanife','hanim','hara','hasibe','hatice','hayal','havva','hayriye','hilal',
+            'hilmiye','hira','huda','hulya','humeyra','hurkus','hurriye','husniye',
+            // I/İ
+            'ibtihal','icim','ifakat','ilknur','inci','ipek','ipeknur','irem','isil','ismihan','isra','izlem',
+            // J
+            'jale','jalenur','julide',
+            // K
+            'kader','kamile','kerime','kevser','kismet','kiymet','kiymetli','koral','kubra','kumru',
+            // L
+            'lale','latife','lebibe','leman','lerzan','leyla','lutfiye',
+            // M
+            'mahbube','makbule','masal','mehnaz','mehribahar','mehriban','mehtap','mehlika','mehlikanur','melahat','melda','melek','melike',
+            'melisa','meltem','meneksenur','menekse','meral','merve','meryem','mesude','mihribahar','mihriban','mihrinaz','mine','miray',
+            'mubeccel','mubera','mucahide','mukerrem','muge','mujde','mujgan','munevver','munire','muyesser','muzeyyen',
+            // N
+            'nadide','nafia','naile','naime','naciye','nazan','nazenin','nazli','nazlican','nazmiye','nebahat','nebile','necla','nehrim',
+            'nejla','nejlanur','neriman','nese','nesibe','neslihan','nesrin','nesteren','neva','nevin','nevra','nezahat','nezehat','nezihe',
+            'nigar','nihal','nihan','nilay','nilgun','nilufer','nimet','nisa','nisanur','nizaket','nuran','nuray','nurbahar','nurban','nurben',
+            'nurbike','nurcan','nurcihan','nurdan','nurefsa','nurgun','nurhan','nurhayat','nuriye','nurseli','nursen','nursima','nurtan','nurten',
+            // O
+            'ofelia','ozge','ozgun','ozlem','oya','oyku',
+            // P
+            'pakize','parla','peri','pelin','pelinsu','perican','perihan','perim','pinar','piruze',
+            // R
+            'rabia','ramize','ravza','rayhan','raziye','refia','refika','remziye','resmiye','reyhan','rojda','rojin','rumeysa','rumeysanur',
+            'ruya','ruveyda',
+            // S
+            'sabahat','sabire','sabriye','sadika','sadiye','safak','safiye','sakine','salime','samiye','sanem','sare','saryanur','sarya',
+            'sati','satiye','saziye','seba','sebahat','sebnem','secil','secilcan','seda','sedef','sedefcan','seher','selcen','selcennur',
+            'selda','selen','selin','selma','selvi','selvinaz','sema','semin','semiha','semra','sena','senanur','senay','sengul','sennur',
+            'serap','serfiraz','serihan','serma','sermin','serna','serpil','servinaz','sevcan','sevda','sevde','sevdican','sevgi','sevigul',
+            'sevil','sevilay','sevim','sevime','sevinc','sevincan','seyhan','sezen','sidika','sila','sibel','simay','simge','simten','sinem',
+            'sirin','sirma','sumeyye','sumeyra','songul','sukran','sultan','suna','suzan','suheyla','suheyda',
+            // T
+            'taban','tahire','talia','tanay','tane','tansel','tansu','telli','tomris','tuanur','tuana','tuba','tubanur','tugba','tugce',
+            'tulay','tulin','turkan','tutku',
+            // U/Ü
+            'ulker','ulgun','umran','ummuhan','urunur','ummu',
+            // V
             'vahide','vasfiye','vesile','vildan','vuslat',
-            'yagmur','yasemin','yeliz','yildiz',
-            'zahide','zarife','zehra','zekiye','zeliha','zerrin','zeynep','zuhre','ziynet','zubeyde',
+            // Y
+            'yasemin','yeliz','yeter','yildiz','yusra',
+            // Z
+            'zahide','zarife','zehra','zekiye','zeliha','zerrin','zeynep','zubeyde','zuhre','ziynet','zumra',
         ];
     }
 }
