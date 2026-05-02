@@ -26,11 +26,10 @@ export class AriService {
    * Asterisk'e bağlan ve Stasis app'i başlat.
    */
   async connect() {
-    const { host, ariPort, ariUser, ariPass, stasisApp } = config.asterisk;
+    const { url, ariUser, ariPass, stasisApp } = config.asterisk;
     if (!ariPass) {
       throw new Error('ASTERISK_ARI_PASS .env\'de bos. Asterisk ari.conf parolasini ekle.');
     }
-    const url = `http://${host}:${ariPort}`;
     console.log(`[ARI] Baglaniyor: ${url} user=${ariUser} app=${stasisApp}`);
 
     this.client = await ariClient.connect(url, ariUser, ariPass);
