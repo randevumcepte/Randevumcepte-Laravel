@@ -117,10 +117,33 @@
 }
 
 /* Salon seçici çipler */
+.sd-salons-wrap {
+    margin-top: 18px;
+    padding: 16px 18px;
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid var(--sd-border);
+    box-shadow: 0 2px 10px rgba(0,0,0,.04);
+}
+.sd-salons-title {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--sd-purple);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.sd-salons-title .sd-salons-hint {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--sd-mute);
+}
 .sd-salons {
     display: flex; gap: 8px; overflow-x: auto;
-    padding: 16px 0 4px; scrollbar-width: none;
-    margin-top: 8px;
+    padding: 6px 0 2px; scrollbar-width: none;
+    margin-top: 6px;
 }
 .sd-salons::-webkit-scrollbar { display: none; }
 .sd-salons a {
@@ -444,15 +467,22 @@
 
     {{-- ============== Salon seçici ============== --}}
     @if($tumSalonlar->count() > 1)
-        <div class="sd-salons">
-            @foreach($tumSalonlar as $sId => $s)
-                @php
-                    $puan = (int) ($puanKayitlari->where('salon_id', $sId)->first()->puan ?? 0);
-                @endphp
-                <a href="{{ url('/sadakat?salon='.$sId) }}" class="{{ $aktifSalonId == $sId ? 'active' : '' }}">
-                    {{ $s->salon_adi }} <b>({{ $puan }})</b>
-                </a>
-            @endforeach
+        <div class="sd-salons-wrap">
+            <h3 class="sd-salons-title">
+                <i class="fa fa-store" style="margin-right:6px;"></i>
+                Üye Olduğunuz Diğer Salonlar
+                <span class="sd-salons-hint">— tıklayınca o salonun verilerine geçersiniz</span>
+            </h3>
+            <div class="sd-salons">
+                @foreach($tumSalonlar as $sId => $s)
+                    @php
+                        $puan = (int) ($puanKayitlari->where('salon_id', $sId)->first()->puan ?? 0);
+                    @endphp
+                    <a href="{{ url('/sadakat?salon='.$sId) }}" class="{{ $aktifSalonId == $sId ? 'active' : '' }}">
+                        {{ $s->salon_adi }} <b>({{ $puan }})</b>
+                    </a>
+                @endforeach
+            </div>
         </div>
     @endif
 
