@@ -22,11 +22,20 @@ Auth::routes();
 
 // GECICI: Personel detay popup'ini test etmek icin ornek data doldurma rotasi.
 // Kullanildiktan sonra bu blok silinecek.
+// Kullanim: /dev-personel-demo-doldur?ad=Ferdi  (ad parametresi opsiyonel)
 Route::get('/dev-personel-demo-doldur', function() {
     $salon = \App\Salonlar::where('domain', $_SERVER['HTTP_HOST'])->first();
     if (!$salon) return 'Bu domain icin salon bulunamadi.';
 
-    $per = \App\Personeller::where('salon_id', $salon->id)->first();
+    $aramaAd = request('ad', 'Ferdi');
+    $per = \App\Personeller::where('salon_id', $salon->id)
+        ->where('personel_adi', 'LIKE', '%'.$aramaAd.'%')
+        ->first();
+
+    if (!$per) {
+        // fallback: ilk personel
+        $per = \App\Personeller::where('salon_id', $salon->id)->first();
+    }
     if (!$per) return 'Bu salonda personel yok.';
 
     $per->uzmanlik = $per->uzmanlik ?: 'Saç & Renk Uzmanı';
