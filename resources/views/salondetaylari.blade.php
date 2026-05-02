@@ -109,8 +109,6 @@
                      </button>
                      <div class="slp-hero__menu" id="slpUserMenu" role="menu">
                         <a href="/profilim" role="menuitem"><i class="fa fa-user"></i> Profilim</a>
-                        <a href="/randevularim" role="menuitem"><i class="fa fa-calendar-check-o"></i> Randevularım</a>
-                        <a href="/ayarlarim" role="menuitem"><i class="fa fa-cog"></i> Ayarlarım</a>
                         <hr>
                         <a href="#" role="menuitem" onclick="event.preventDefault(); document.getElementById('logout-form-slp').submit();"><i class="fa fa-sign-out"></i> Çıkış Yap</a>
                         <form id="logout-form-slp" action="{{ route('logout') }}" method="POST" style="display:none;">{{ csrf_field() }}</form>
