@@ -281,21 +281,15 @@ class CustomerController extends Controller
        
   
     public function randevularim(){
-       
-        $hizmetkategorileri = Hizmet_Kategorisi::limit(8)->get();
-            $hizmetler = Hizmetler::all();
-            $salonturleri = SalonTuru::all();
-            $salon = Salonlar::where('domain',$_SERVER['HTTP_HOST'])->first();
-		 $randevular = Randevular::where('user_id',Auth::user()->id)->where('salon_id',$salon->id)->orderBy('id','desc')->get();
-        return view('user.randevular',['hizmetkategorileri' => $hizmetkategorileri,'hizmetler' => $hizmetler,'salonturleri' => $salonturleri,'randevular' => $randevular,'salon'=>$salon]);
-
+        // Optimize: Hizmetler::all() / SalonTuru::all() / Hizmet_Kategorisi gereksiz ağır sorgulardı (view'de kullanılmıyor)
+        $salon = Salonlar::where('domain',$_SERVER['HTTP_HOST'])->first();
+        $randevular = Randevular::where('user_id',Auth::user()->id)->where('salon_id',$salon->id)->orderBy('id','desc')->get();
+        return view('user.randevular',['randevular' => $randevular,'salon'=>$salon]);
     }
     public function ayarlar(){
-          $hizmetkategorileri = Hizmet_Kategorisi::limit(8)->get();
-            $hizmetler = Hizmetler::all();
-            $salonturleri = SalonTuru::all();
-            $salon = Salonlar::where('domain',$_SERVER['HTTP_HOST'])->first();
-        return view('user.ayarlar',['hizmetkategorileri' => $hizmetkategorileri,'hizmetler' => $hizmetler,'salonturleri' => $salonturleri,'salon'=>$salon]);
+        // Optimize: Hizmetler::all() / SalonTuru::all() / Hizmet_Kategorisi gereksiz ağır sorgulardı (view'de kullanılmıyor)
+        $salon = Salonlar::where('domain',$_SERVER['HTTP_HOST'])->first();
+        return view('user.ayarlar',['salon'=>$salon]);
     }
     public function favoriler(){
             $hizmetkategorileri = Hizmet_Kategorisi::limit(8)->get();
