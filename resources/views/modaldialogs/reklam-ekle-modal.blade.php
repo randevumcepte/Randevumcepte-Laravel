@@ -466,7 +466,6 @@
                   <div class="modal-footer" style="display:block">
                      <div class="row align-items-center">
                         <div class="col-12 col-md-9">
-                           <!-- Sesli önizleme: Tarayıcı TTS (eski Polly fallback'i için audio gizli kalır) -->
                            <div id="kampanyaSesPlayer" class="kss-player">
                               <button type="button" id="kampanyaSesOku" class="kss-btn kss-btn-play">
                                  <i class="fa fa-play"></i> Sesli Önizle
@@ -474,7 +473,13 @@
                               <button type="button" id="kampanyaSesDurdur" class="kss-btn kss-btn-stop" style="display:none;">
                                  <i class="fa fa-stop"></i> Durdur
                               </button>
-                              <span class="kss-info"><i class="fa fa-volume-up"></i> Yandaki kampanya metnini sesli okur (Türkçe)</span>
+                              <div class="kss-voice-wrap">
+                                 <label class="kss-voice-label" title="Sesi değiştir">
+                                    <i class="fa fa-microphone"></i>
+                                    <select id="kampanyaSesSecici" class="kss-voice-select"></select>
+                                 </label>
+                                 <span class="kss-quality-badge" id="kssQualityBadge"></span>
+                              </div>
                               <audio id='kampanyaSesKaydiCal' controls preload="none" style="display:none;">
                                  <source src="" id='calinacak_kayit' type="audio/wav">
                               </audio>
@@ -513,8 +518,35 @@
                      background:#fff; color:#dc2626; border:1.5px solid #fecaca;
                   }
                   #yeni_kampanya_modal .kss-btn-stop:hover { background:#fef2f2; }
-                  #yeni_kampanya_modal .kss-info { color:#64748b; font-size:12px; flex:1; min-width:200px; }
-                  #yeni_kampanya_modal .kss-info i { color:#7B2FB8; margin-right:4px; }
+                  /* Voice selector */
+                  #yeni_kampanya_modal .kss-voice-wrap {
+                     flex: 1; min-width: 220px; display: flex; align-items: center; gap: 8px;
+                  }
+                  #yeni_kampanya_modal .kss-voice-label {
+                     position: relative; display: flex; align-items: center; gap: 6px;
+                     background: #fff; border: 1.5px solid #e2e8f0; border-radius: 999px;
+                     padding: 4px 10px 4px 12px; cursor: pointer; flex: 1; min-width: 0;
+                     transition: all .15s ease;
+                  }
+                  #yeni_kampanya_modal .kss-voice-label:hover { border-color: #c4b5fd; }
+                  #yeni_kampanya_modal .kss-voice-label i { color: #7B2FB8; font-size: 12px; flex-shrink: 0; }
+                  #yeni_kampanya_modal .kss-voice-select {
+                     border: none; background: transparent; outline: none;
+                     font-size: 12.5px; color: #1e293b; font-weight: 600;
+                     cursor: pointer; padding: 4px 4px;
+                     flex: 1; min-width: 0;
+                     -webkit-appearance: none; -moz-appearance: none; appearance: auto;
+                  }
+                  #yeni_kampanya_modal .kss-quality-badge {
+                     display: none; padding: 3px 9px; border-radius: 999px;
+                     font-size: 10.5px; font-weight: 700; flex-shrink: 0;
+                  }
+                  #yeni_kampanya_modal .kss-quality-badge.kss-q-online {
+                     display: inline-block; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;
+                  }
+                  #yeni_kampanya_modal .kss-quality-badge.kss-q-offline {
+                     display: inline-block; background: #fef3c7; color: #92400e; border: 1px solid #fde68a;
+                  }
                   @keyframes kssPulse {
                      0%, 100% { box-shadow: 0 4px 12px rgba(217,119,6,.36); }
                      50%      { box-shadow: 0 6px 22px rgba(217,119,6,.55); }
@@ -523,32 +555,115 @@
 
                   <script>
                   (function(){
-                     // Tarayıcı SpeechSynthesis ile metni oku — external sunucuya bağımlı değil
+                     if(!('speechSynthesis' in window)) return;
+
+                     // ---- Voice kalite skoru ----
+                     // Online (network) sesler genelde Microsoft Tolga, Google Türkçe — neural, çok daha doğal.
+                     // Offline (default) sesler genelde robotic.
+                     function voiceSkoru(v){
+                        var name = (v.name || '').toLowerCase();
+                        var lang = (v.lang || '').toLowerCase();
+                        var s = 0;
+                        // Türkçe?
+                        if(/tr[-_]?tr/.test(lang)) s += 100;
+                        else if(/^tr/.test(lang)) s += 80;
+                        else if(/^en/.test(lang)) s += 5; // İngilizce fallback
+                        // Online / neural?
+                        if(v.localService === false) s += 50;       // Network voice — genelde neural
+                        if(/online|natural|neural|wavenet/.test(name)) s += 40;
+                        if(/google/.test(name)) s += 25;             // Google Türkçe genelde online
+                        if(/microsoft.*online|tolga.*online|emel.*online/.test(name)) s += 30;
+                        if(/microsoft/.test(name) && v.localService === false) s += 25;
+                        // Bilinen kaliteli isimler
+                        if(/tolga|emel|filiz|bekir|seda/.test(name)) s += 20;
+                        // Offline (genelde tonsuz)
+                        if(v.localService === true) s -= 5;
+                        return s;
+                     }
+                     function tumSesleriAl(){ try { return speechSynthesis.getVoices() || []; } catch(_) { return []; } }
+                     function siralanmisSesler(){
+                        return tumSesleriAl().slice().sort(function(a,b){ return voiceSkoru(b) - voiceSkoru(a); });
+                     }
+
+                     var seciliVoiceURI = localStorage.getItem('kss_voice_uri') || '';
+
+                     function selectorDoldur(){
+                        var $sel = $('#kampanyaSesSecici');
+                        if(!$sel.length) return;
+                        var sesler = siralanmisSesler();
+                        if(!sesler.length){ $sel.html('<option>Ses bulunamadı</option>').prop('disabled', true); return; }
+
+                        var trGrup = sesler.filter(function(v){ return /^tr/i.test(v.lang); });
+                        var digerGrup = sesler.filter(function(v){ return !/^tr/i.test(v.lang); });
+
+                        var html = '';
+                        if(trGrup.length){
+                           html += '<optgroup label="🇹🇷 Türkçe Sesler">';
+                           trGrup.forEach(function(v){
+                              var etiket = v.name + (v.localService === false ? ' ✨' : '');
+                              html += '<option value="'+ v.voiceURI +'">'+ etiket +'</option>';
+                           });
+                           html += '</optgroup>';
+                        }
+                        if(digerGrup.length){
+                           html += '<optgroup label="Diğer Diller">';
+                           digerGrup.slice(0, 8).forEach(function(v){
+                              html += '<option value="'+ v.voiceURI +'">'+ v.name +' ('+ v.lang +')</option>';
+                           });
+                           html += '</optgroup>';
+                        }
+                        $sel.prop('disabled', false).html(html);
+
+                        // Seçili: localStorage'dan veya en yüksek skorlu
+                        var hedef = sesler.find(function(v){ return v.voiceURI === seciliVoiceURI; });
+                        if(!hedef) hedef = sesler[0];
+                        if(hedef){
+                           $sel.val(hedef.voiceURI);
+                           qualityBadge(hedef);
+                        }
+                     }
+                     function aktifVoice(){
+                        var uri = $('#kampanyaSesSecici').val();
+                        return tumSesleriAl().find(function(v){ return v.voiceURI === uri; }) || siralanmisSesler()[0];
+                     }
+                     function qualityBadge(v){
+                        var $b = $('#kssQualityBadge');
+                        if(!v){ $b.removeClass('kss-q-online kss-q-offline').text(''); return; }
+                        if(v.localService === false){
+                           $b.removeClass('kss-q-offline').addClass('kss-q-online').text('✨ Yüksek Kalite');
+                        } else {
+                           $b.removeClass('kss-q-online').addClass('kss-q-offline').text('Standart');
+                        }
+                     }
+
+                     $(document).on('change','#kampanyaSesSecici',function(){
+                        seciliVoiceURI = $(this).val();
+                        try { localStorage.setItem('kss_voice_uri', seciliVoiceURI); } catch(_) {}
+                        qualityBadge(aktifVoice());
+                     });
+
+                     // Voice list asenkron yükleniyor — voiceschanged event'i ile yenile
+                     speechSynthesis.onvoiceschanged = selectorDoldur;
+                     selectorDoldur();
+                     // Bazı tarayıcılarda ilk getVoices() boş döner — zorla 200ms sonra tekrar
+                     setTimeout(selectorDoldur, 250);
+                     setTimeout(selectorDoldur, 800);
+
+                     // ---- Çalma kontrol ----
                      function getMetin(){
                         var t = $('#kampanyaPrompt').text() || '';
                         return t.replace(/\s+/g,' ').trim();
                      }
-                     function trSes(){
-                        if(!('speechSynthesis' in window)) return null;
-                        var voices = speechSynthesis.getVoices() || [];
-                        // Türkçe sesi tercih et
-                        return voices.find(function(v){ return /tr[-_]?TR/i.test(v.lang); })
-                            || voices.find(function(v){ return /^tr/i.test(v.lang); })
-                            || voices[0] || null;
-                     }
                      var aktifUtt = null;
                      function durdur(){
-                        try { if('speechSynthesis' in window) speechSynthesis.cancel(); } catch(_) {}
+                        try { speechSynthesis.cancel(); } catch(_) {}
                         aktifUtt = null;
                         $('#kampanyaSesOku').removeClass('is-playing').html('<i class="fa fa-play"></i> Sesli Önizle');
                         $('#kampanyaSesDurdur').hide();
                      }
+
                      $(document).on('click','#kampanyaSesOku',function(e){
                         e.preventDefault();
-                        if(!('speechSynthesis' in window)){
-                           if(typeof swal === 'function') swal({type:'warning',title:'Desteklenmiyor',text:'Tarayıcınız sesli önizlemeyi desteklemiyor.',timer:3000,showConfirmButton:false});
-                           return;
-                        }
                         var metin = getMetin();
                         if(!metin){
                            if(typeof swal === 'function') swal({type:'info',title:'Metin yok',text:'Önce bir şablon seçin veya kampanya metnini yazın.',timer:2500,showConfirmButton:false});
@@ -556,11 +671,17 @@
                         }
                         durdur();
                         aktifUtt = new SpeechSynthesisUtterance(metin);
-                        aktifUtt.lang = 'tr-TR';
-                        aktifUtt.rate = 1.0;
-                        aktifUtt.pitch = 1.0;
-                        var voice = trSes();
-                        if(voice) aktifUtt.voice = voice;
+                        var v = aktifVoice();
+                        if(v){
+                           aktifUtt.voice = v;
+                           aktifUtt.lang = v.lang || 'tr-TR';
+                        } else {
+                           aktifUtt.lang = 'tr-TR';
+                        }
+                        // Doğal ton için pitch hafif yukarı, rate normal-yumuşak
+                        aktifUtt.rate   = 0.98;
+                        aktifUtt.pitch  = 1.05;
+                        aktifUtt.volume = 1.0;
                         aktifUtt.onstart = function(){
                            $('#kampanyaSesOku').addClass('is-playing').html('<i class="fa fa-pause"></i> Okunuyor...');
                            $('#kampanyaSesDurdur').show();
@@ -571,11 +692,6 @@
                      $(document).on('click','#kampanyaSesDurdur',function(e){ e.preventDefault(); durdur(); });
                      // Modal kapanınca durdur
                      $('#yeni_kampanya_modal').on('hidden.bs.modal', durdur);
-                     // Voice list bazı tarayıcılarda asenkron yüklenir — tetikle
-                     if('speechSynthesis' in window) {
-                        speechSynthesis.onvoiceschanged = function(){ /* cache yenilenmesi için */ };
-                        try { speechSynthesis.getVoices(); } catch(_) {}
-                     }
                   })();
                   </script>
                </div>
