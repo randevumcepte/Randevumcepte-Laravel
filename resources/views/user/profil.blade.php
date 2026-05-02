@@ -1,25 +1,7 @@
 @extends('layout.layout_profil')
 @section('content')
 
-<!-- Modern Navigation Pills -->
-<div class="modern-nav-pills">
-    <a href="/profilim" class="nav-pill-item active">
-        <i class="fa fa-user"></i>
-        <span>Profilim</span>
-    </a>
-    <a href="/randevularim" class="nav-pill-item">
-        <i class="fa fa-calendar"></i>
-        <span>Randevularım</span>
-    </a>
-    <a href="/sadakat" class="nav-pill-item">
-        <i class="fa fa-star"></i>
-        <span>Sadakat</span>
-    </a>
-    <a href="/ayarlarim" class="nav-pill-item">
-        <i class="fa fa-lock"></i>
-        <span>Şifrem</span>
-    </a>
-</div>
+@include('partials.customer-nav-pills', ['active' => 'profilim'])
 
 <!-- Profile Main Container -->
 <section class="profile-main-container">

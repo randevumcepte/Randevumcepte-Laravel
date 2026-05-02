@@ -1922,6 +1922,17 @@ public function carkverilerigetir(Request $request)
     }
     public function randevuyukle(Request $request,$takvim_turu,$tarih1,$tarih2){
     Log::info('randevu yükleme başladı');
+    // Self-heal: gorusme_konusu kolonu yoksa ekle (boylece partial reads hep dolu donsun)
+    if (!\Schema::hasColumn('on_gorusmeler', 'gorusme_konusu')) {
+        try {
+            DB::statement('ALTER TABLE on_gorusmeler ADD COLUMN gorusme_konusu VARCHAR(255) NULL');
+            $migName = '2026_04_26_000002_add_gorusme_konusu_to_on_gorusmeler';
+            if (!DB::table('migrations')->where('migration', $migName)->count()) {
+                $batch = (int) DB::table('migrations')->max('batch');
+                DB::table('migrations')->insert(['migration' => $migName, 'batch' => $batch ?: 1]);
+            }
+        } catch (\Exception $e) {}
+    }
     $isletmeId = self::mevcutsube($request);
    
     $personel_idler = Auth::guard('isletmeyonetim')->check() ? Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('salon_id',$isletmeId)->pluck('id')->toArray() : array();

@@ -28,151 +28,62 @@
       <!--*********************************************************************************************************-->
       <!--************ HERO ***************************************************************************************-->
       <!--*********************************************************************************************************-->
-      <header class="hero has-dark-background">
-         <div class="hero-wrapper">
-            <div class="main-navigation" id="mobilmenu">
-               <div class="container">
-                  <nav class="nav" role="navigation" style="position: relative;height: 90px;padding-top: 20px; padding-bottom: 20px">
-                     
-                     @if(Auth::check())
-                     <span class="toggleNav2" style="z-index: 99999999999999">
-                        @if(Auth::user()->profil_resim!= null ||Auth::user()->profil_resim != '')
-                        <a class="profildropbtn" onclick="profilmenusugoster(); return false;"> <img id="profilresimnav" src="{{secure_asset(Auth::user()->profil_resim)}}" style="border-radius: 15px" width="30" height="30" alt="Profil Resim"></a>
-                        @else
-                        <a class="profildropbtn" onclick="profilmenusugoster(); return false;"> <img id="profilresimnav" src="{{secure_asset('public/img/auth.png')}}" style="border-radius: 15px" width="30" height="30" alt="Profil Resim"> </a>
-                        @endif
-                        <div id="profildropdown" class="profildropdown-content">
-                           <a href="/profilim" class="nav___item">Profilim</a>
-                           <a href="/" class="nav___item">RANDEVU AL</a>
-                           <a href="{{ route('logout') }}" class="nav___item" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Çıkış Yap</a>
-                           <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">{{ csrf_field() }}</form>
-                        </div>
-                        <script type="text/javascript">
-                           function profilmenusugoster () {
-                               
-                               document.getElementById("profildropdown").setAttribute('style','display:block');
-                           }
-                           window.onclick = function(event) {
-                           
-                               if (!event.target.matches('#profilresimnav')) {
-                                   
-                                    document.getElementById("profildropdown").setAttribute('style','display:none');
-                               }   
-                           
-                           }
-                           
-                           
-                        </script>
-                     </span>
+      <header class="customer-app-header">
+         <div class="customer-app-header-inner container">
+            <a href="/" class="customer-app-logo">
+               <img src="{{secure_asset($salon->logo)}}" alt="{{$salon->salon_adi}}">
+            </a>
+
+            @if(Auth::check())
+            <div class="customer-user-pill" id="customerUserPill">
+               <button type="button" class="customer-user-btn" onclick="customerUserToggle(event)">
+                  <span class="customer-user-avatar">
+                     @if(Auth::user()->profil_resim != null && Auth::user()->profil_resim != '')
+                        <img src="{{secure_asset(Auth::user()->profil_resim)}}" alt="">
+                     @else
+                        <img src="{{secure_asset('public/img/auth.png')}}" alt="">
                      @endif
-                    <a class="nav__logo" href="/" style="width: 100px;">
-                     <img style="width: 100%;height:auto" src="{{secure_asset($salon->logo)}}" alt="{{$salon->salon_adi}}">
-                     </a>
-                     <ul class="nav__list" id="sideNav">
-                        <div class="nav__list-left">
-                           <a class="closeBtn">
-                              <svg class="svg-close" viewBox="0 0 1188 1188" xmlns="http://www.w3.org/2000/svg">
-                                 <path class="svg-close-path" d="M1188 956q0 40-28 68l-136 136q-28 28-68 28t-68-28L594 866l-294 294q-28 28-68 28t-68-28L28 1024Q0 996 0 956t28-68l294-294L28 300Q0 272 0 232t28-68L164 28q28-28 68-28t68 28l294 294L888 28q28-28 68-28t68 28l136 136q28 28 28 68t-28 68L866 594l294 294q28 28 28 68z" fill="black" />
-                              </svg>
-                           </a>
-                           <li> 
-                              <a  style="display: none" class="btn btn-primary text-caps btn-rounded btn-framed" href="/kampanyalar" style="background-color: #5C008E; color:white">Kampanyalar</a> 
-                           </li>
-                           @if(!Auth::check())
-                           <li> 
-                              <a class="nav__item" href="/login">Giriş Yap</a> 
-                           </li>
-                           <li>
-                              <a class="nav__item" href="/register">Üye Ol</a>
-                           </li>
-                           <li>
-                              <a class="nav__item" href="/isletmeyonetim/girisyap">Mağaza Giriş</a>
-                           </li>
-                           @endif
-                        
-                        </div>
-                        <div class="nav__list-right">
-                           <div class="page__overlay"></div>
-                        </div>
-                     </ul>
-                  </nav>
+                  </span>
+                  <span class="customer-user-name">{{Auth::user()->name}}</span>
+                  <i class="fa fa-chevron-down customer-user-caret"></i>
+               </button>
+               <div class="customer-user-menu" id="customerUserMenu">
+                  <a href="/profilim" class="customer-user-item">
+                     <i class="fa fa-user"></i> Profilim
+                  </a>
+                  <a href="/" class="customer-user-item primary">
+                     <i class="fa fa-calendar-plus-o"></i> Randevu Al
+                  </a>
+                  <hr class="customer-user-divider">
+                  <a href="{{ route('logout') }}" class="customer-user-item logout"
+                     onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                     <i class="fa fa-sign-out"></i> Çıkış Yap
+                  </a>
+                  <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">{{ csrf_field() }}</form>
                </div>
             </div>
-            <div class="main-navigation" id="girisyapkayitolmenusu_masaustu" style="z-index: 10000000000">
-               <div class="container">
-                  <nav class="navbar navbar-expand-lg navbar-light justify-content-between">
-                      <a class="navbar-brand" style="float: left; width: 150px;" href="/" style="width: ;">
-                     <img src="{{secure_asset($salon->logo)}}" style="width: 150px;height:auto" alt="{{secure_asset($salon->salon_adi)}}">
-                     </a>
-                     <button class="navbar-toggler" style="opacity: 1;color:white" type="button" data-toggle="collapse" data-target="#navbar1" aria-controls="navbar1" aria-expanded="false" aria-label="Toggle navigation">
-                     <span class="navbar-toggler-icon" style="opacity: 1;color;white"></span>
-                     </button>
-                     <div class="collapse navbar-collapse" id="navbar1">
-                        <!--Main navigation list-->
-                        <ul class="navbar-nav">
-                           <li class="nav-item"> 
-                              <a  style="display: none" class="btn btn-primary text-caps btn-rounded btn-framed" href="/kampanyalar" style="background-color: #5C008E; color:white">Kampanyalar</a> 
-                           </li>
-                           @if(!Auth::check())
-                           <li class="nav-item"> 
-                              <a class="btn btn-primary text-caps btn-rounded btn-framed" href="/login">Giriş Yap</a> 
-                           </li>
-                           <li class="nav-item">
-                              <a class="btn btn-primary text-caps btn-rounded btn-framed" href="/register">Üye Ol</a>
-                           </li>
-                           <li class="nav-item">
-                              <a style="background-color: #5C008E" class="btn btn-primary text-caps btn-rounded btn-framed" href="/isletmeyonetim/girisyap">Mağaza Giriş</a>
-                           </li>
-                           @endif
-                           @if(Auth::check()) 
-                             
-                           <li class="nav-item active has-child">
-                              <a class="nav-link btn btn-primary text-caps btn-rounded btn-framed" href="#">
-                              @if(Auth::user()->profil_resim != null ||Auth::user()->profil_resim != '')
-                              <img style="border-radius: 20px" src="{{secure_asset(Auth::user()->profil_resim)}}" width=40 height="40" alt="Kullanıcı Profil Resmi">
-                              @else
-                              <img style="border-radius: 20px" src="{{secure_asset('public/img/auth.png')}}" width=40 height="40" alt="Kullanıcı Profil Resmi">
-                              @endif 
-                              {{Auth::user()->name}}
-                              </a>
-                              <ul class="child">
-                                 <li class="nav-item">
-                                    <a href="/profilim" class="nav-link"  style="color:#000">Profilim</a>
-                                 </li>
-                                 <li class="nav-item">
-                                 </li>
-                              
-                              
-                                 <li class="nav-item">
-                                 </li>
-                                 
-                                 <li class="nav-item">
-                                    <a  style="color:#000" href="{{ route('logout') }}" class="nav-link" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Çıkış Yap</a>
-                                    <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">{{ csrf_field() }}</form>
-                                 </li>
-                              </ul>
-                           </li>
-                           @endif
-                        </ul>
-                        <!--Main navigation list-->
-                     </div>
-                  </nav>
-                  <!--end navbar-->
-               </div>
-               <!--end container-->
-            </div>
-            <div class="main-navigation" id="kategorimenusu_masaüstü">
-               <div class="container">
-                  <nav class="navbar navbar-expand-lg navbar-light justify-content-between" style="border-bottom:none">
-                     <button class="navbar-toggler" style="opacity: 1;color:white" type="button" data-toggle="collapse" data-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
-                     <span class="navbar-toggler-icon" style="opacity: 1;color;white"></span>
-                     </button>
-                    
-                  </nav>
-                  <!--end navbar-->
-               </div>
-               <!--end container-->
-            </div>
+            @else
+            <nav class="customer-app-guestnav">
+               <a href="/login" class="customer-guest-link">Giriş Yap</a>
+               <a href="/register" class="customer-guest-link">Üye Ol</a>
+               <a href="/isletmeyonetim/girisyap" class="customer-guest-link primary">Mağaza Girişi</a>
+            </nav>
+            @endif
+         </div>
+         <script>
+            function customerUserToggle(e){
+               e.stopPropagation();
+               var m = document.getElementById('customerUserMenu');
+               m.classList.toggle('open');
+            }
+            document.addEventListener('click', function(e){
+               var pill = document.getElementById('customerUserPill');
+               if(pill && !pill.contains(e.target)){
+                  var m = document.getElementById('customerUserMenu');
+                  if(m) m.classList.remove('open');
+               }
+            });
+         </script>
       </header>
     
       <section class="content">
