@@ -1,0 +1,51 @@
+; ============================================================
+;  AI SESLI ASISTAN — extensions.conf ornek (C secenegi)
+;  Tum gelen cagrilar dogrudan AI'ya gider.
+;  Mevcut [from-pstn] context'inin BASINA bu satirlari ekle veya
+;  Goto ile bu context'e yonlendir.
+; ============================================================
+
+; ─── 1) Gelen kanal context'i — TUM cagrilari AI'ya yonlendir ───
+[from-pstn]
+; (Mevcut acil/ozel exten'lerin varsa onleri burada birak)
+; Ornek: tarafini operatore baglayan bir exten
+; exten => 100,1,Dial(SIP/operator,30)
+;  same => n,Hangup()
+
+; Geri kalan tum aramalar AI'ya:
+exten => _X.,1,NoOp(=== Tum cagrilar AI sesli asistana yonlendiriliyor ===)
+ same => n,Set(FROM_DID=${EXTEN})
+ same => n,Goto(sesli-asistan,s,1)
+
+
+; ─── 2) AI context — sidecar'a Stasis ile devret ───
+[sesli-asistan]
+exten => s,1,NoOp(=== AI Sesli Asistan baslatildi - caller=${CALLERID(num)} did=${FROM_DID} ===)
+ same => n,Answer()
+ same => n,Wait(0.3)                                              ; SIP setup tamamlansin
+ same => n,Set(CHANNEL(language)=tr)
+ same => n,Stasis(randevu_ai,${CALLERID(num)},${FROM_DID})         ; sidecar'a devret
+ same => n,Goto(sesli-asistan,fallback,1)                          ; sidecar dustuyse fallback
+ same => n,Hangup()
+
+; Sidecar'a baglanamazsa veya AI hata fırlatırsa fallback:
+exten => fallback,1,NoOp(*** AI sidecar erisilemiyor — fallback IVR ***)
+ same => n,Playback(silence/1)
+ same => n,Playback(vm-goodbye)                                   ; veya kendi anonsun
+ ; same => n,Goto(eski-ivr-context,s,1)                           ; mevcut IVR'in varsa
+ same => n,Hangup()
+
+; Stasis app baglanti hatasi (sidecar Asterisk'e baglanmamis bile):
+exten => failed,1,NoOp(*** Stasis baglanti hatasi ***)
+ same => n,Goto(sesli-asistan,fallback,1)
+
+; Cagri sonu loglama
+exten => h,1,NoOp(AI cagrisi sonlandi - DURATION=${CDR(duration)}s caller=${CALLERID(num)})
+
+
+; ─── 3) Test icin (dahili SIP'ten 9999 ara, AI baglansin) ───
+[from-internal]
+; Mevcut dahili context'in ne ise oraya bu exten'i ekle
+exten => 9999,1,NoOp(=== AI test cagrisi ===)
+ same => n,Set(FROM_DID=test)
+ same => n,Goto(sesli-asistan,s,1)
