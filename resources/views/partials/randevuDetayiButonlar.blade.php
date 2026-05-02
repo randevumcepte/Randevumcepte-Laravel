@@ -7,6 +7,7 @@
       white-space: normal;
    }
    .rdb-row .btn i { margin-right: 4px; }
+   .rdb-row .rdb-pull-right { margin-left: auto; flex-grow: 0; }
 </style>
 
 @php
@@ -33,7 +34,7 @@
          <a name="satis_yapildi" href="#" class="btn btn-success" data-value="{{$randevu->on_gorusme_id}}"><i class="fa fa-plus"></i> Satış Yapıldı</a>
       @endif
 
-      <a class="btn btn-danger" href="#" name="satis_yapilmadi" data-value="{{$randevu->on_gorusme_id}}"><i class="fa fa-times"></i> Satış Yapılmadı</a>
+      <a class="btn btn-danger rdb-pull-right" href="#" name="satis_yapilmadi" data-value="{{$randevu->on_gorusme_id}}"><i class="fa fa-times"></i> Satış Yapılmadı</a>
    </div>
 @elseif($randevu->randevu->durum == 0)
    <div class="rdb-row">

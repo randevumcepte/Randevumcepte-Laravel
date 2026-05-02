@@ -90,14 +90,11 @@ class HomeController extends Controller
        echo 'Merhaba';
     }
     public function profilim(){
-
-         if(!Auth::check()) return redirect('/login');
-        $user = Auth::user()->get();
-        $hizmetkategorileri = Hizmet_Kategorisi::limit(8)->get();
-        $hizmetler = Hizmetler::all();
-        $salonturleri = SalonTuru::all();
+        if(!Auth::check()) return redirect('/login');
+        // View sadece Auth::user() ve $salon kullaniyor; Hizmetler::all() / SalonTuru::all() / Hizmet_Kategorisi::limit(8)
+        // gereksiz agir sorgulardi (binlerce kayit) ve Auth::user()->get() yanlis kullanimdi (tum User tablosu).
         $salon = Salonlar::where('domain',$_SERVER['HTTP_HOST'])->first();
-        return view('user.profil',['userinfo' => $user,'hizmetkategorileri' => $hizmetkategorileri,'hizmetler'=>$hizmetler, 'salonturleri' => $salonturleri,'salon' => $salon]);
+        return view('user.profil',['salon' => $salon]);
     }
     public function musteri_profil_guncelleme(Request $request){
          $user = User::where('id',Auth::user()->id)->first();
