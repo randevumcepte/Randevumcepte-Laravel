@@ -62,7 +62,6 @@
                                                         <a href="/profilim" class="nav-link">Profilim</a>
                                                     </li>
                                                       <li class="nav-item">
-                                                        <a href="/randevularim" class="nav-link">Randevularım</a>
                                                     </li>
                                                       <li class="nav-item">
                                                         <a href="/avantajlarim" class="nav-link">Avantajlarım</a>
@@ -74,7 +73,6 @@
                                                         <a href="/favorilerim" class="nav-link">Favorilerim</a>
                                                     </li>
                                                       <li class="nav-item">
-                                                        <a href="/ayarlarim" class="nav-link">Ayarlarım</a>
                                                     </li>
                                                     <li class="nav-item">
                                                        <a href="{{ route('logout') }}" class="nav-link" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Çıkış Yap</a>

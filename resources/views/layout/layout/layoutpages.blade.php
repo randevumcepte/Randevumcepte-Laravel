@@ -51,14 +51,6 @@
                <div id="profildropdown" class="profildropdown-content">
                      
                         <a href="/profilim" class="nav___item">Profilim</a>
-                                                
-                        
-                        <a href="/randevularim" class="nav___item">Randevularım</a>
-                            
-                         
-                     
-                    
-                        <a href="/ayarlarim" class="nav___item">Ayarlarım</a>
                          
                           <a href="{{ route('logout') }}" class="nav___item" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Çıkış Yap</a>
 
@@ -172,11 +164,9 @@
                                                         <a href="/profilim" class="nav-link"  style="color:#000">Profilim</a>
                                                     </li>
                                                       <li class="nav-item">
-                                                        <a href="/randevularim" class="nav-link"  style="color:#000">Randevularım</a>
                                                     </li>
                                                   
                                                       <li class="nav-item">
-                                                        <a href="/ayarlarim" class="nav-link"  style="color:#000">Ayarlarım</a>
                                                     </li>
                                                     <li class="nav-item">
                                                        <a  style="color:#000" href="{{ route('logout') }}" class="nav-link" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Çıkış Yap</a>

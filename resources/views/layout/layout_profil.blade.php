@@ -43,9 +43,6 @@
                         @endif
                         <div id="profildropdown" class="profildropdown-content">
                            <a href="/profilim" class="nav___item">Profilim</a>
-                           <a href="/randevularim" class="nav___item">Randevularım</a>
-
-                           <a href="/ayarlarim" class="nav___item">Ayarlarım</a>
                            <a href="/" class="nav___item">RANDEVU AL</a>
                            <a href="{{ route('logout') }}" class="nav___item" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Çıkış Yap</a>
                            <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">{{ csrf_field() }}</form>
@@ -143,12 +140,10 @@
                                     <a href="/profilim" class="nav-link"  style="color:#000">Profilim</a>
                                  </li>
                                  <li class="nav-item">
-                                    <a href="/randevularim" class="nav-link"  style="color:#000">Randevularım</a>
                                  </li>
                               
                               
                                  <li class="nav-item">
-                                    <a href="/ayarlarim" class="nav-link"  style="color:#000">Ayarlarım</a>
                                  </li>
                                  
                                  <li class="nav-item">
@@ -191,7 +186,7 @@
                         <div class="col-md-6">
                             
                             <p>
-                                  Her Hakkı Saklıdır. 2018-{{date('Y')}} © {{\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('salon_adi')}}. Tasarlayan : <a href="https://webfirmam.com.tr/"><img src="{{secure_asset('public/img/web-firmam-imza.png')}}" style=""></a>
+                                  Her Hakkı Saklıdır. 2018-{{date('Y')}} © {{ $salon->salon_adi }}. Tasarlayan : <a href="https://webfirmam.com.tr/"><img src="{{secure_asset('public/img/web-firmam-imza.png')}}" style=""></a>
                             </p>
                         </div>
                         <!--end col-md-5-->

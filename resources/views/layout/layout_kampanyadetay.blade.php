@@ -60,9 +60,6 @@
                <div id="profildropdown" class="profildropdown-content">
                      
                         <a href="/profilim" class="nav___item">Profilim</a>
-                                                
-                        
-                        <a href="/randevularim" class="nav___item">Randevularım</a>
                             
                          
                        <a href="/firsatlarim" class="nav___item">Fırsatlarım</a>
@@ -70,8 +67,6 @@
                         <a href="/puanlarim" class="nav___item">Puanlarım</a>
                       
                         <a href="/favorilerim" class="nav___item">Favorilerim</a>
-                    
-                        <a href="/ayarlarim" class="nav___item">Ayarlarım</a>
                          
                           <a href="{{ route('logout') }}" class="nav__item" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Çıkış Yap</a>
 
@@ -202,7 +197,6 @@
                                                         <a href="/profilim" class="nav-link">Profilim</a>
                                                     </li>
                                                       <li class="nav-item">
-                                                        <a href="/randevularim" class="nav-link">Randevularım</a>
                                                     </li>
                                                       <li class="nav-item">
                                                         <a href="/firsatlarim" class="nav-link">Fırsatlarım</a>
@@ -214,7 +208,6 @@
                                                         <a href="/favorilerim" class="nav-link">Favorilerim</a>
                                                     </li>
                                                       <li class="nav-item">
-                                                        <a href="/ayarlarim" class="nav-link">Ayarlarım</a>
                                                     </li>
                                                     <li class="nav-item">
                                                        <a href="{{ route('logout') }}" class="nav-link" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Çıkış Yap</a>
