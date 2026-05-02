@@ -35,15 +35,12 @@
          </nav>
       </div>
       <div class="col-md-5 col-sm-5 text-right reklam-quickactions">
-         <button class="btn btn-light btn-rounded mr-1" data-toggle="modal" data-target="#grup_sms_liste_modal" title="Grupları Gör">
+         <button class="btn-reklam-grup-gor" data-toggle="modal" data-target="#grup_sms_liste_modal">
             <i class="fa fa-eye"></i> <span class="d-none d-md-inline">Grupları Gör</span>
          </button>
-         <button class="btn btn-light btn-rounded mr-1" onclick="modalbaslikata('Yeni Grup','grup_sms_formu')" data-toggle="modal" id='grup_olustur_buton' data-target="#grup_sms_olustur_modal" title="Grup Oluştur">
-            <i class="fa fa-users"></i> <span class="d-none d-md-inline">Grup Oluştur</span>
+         <button class="btn-reklam-grup-yeni" onclick="modalbaslikata('Yeni Grup','grup_sms_formu')" data-toggle="modal" id='grup_olustur_buton' data-target="#grup_sms_olustur_modal">
+            <i class="fa fa-user-plus"></i> <span class="d-none d-md-inline">Grup Oluştur</span>
          </button>
-         <a href="#" data-toggle="modal" data-target="#yeni_kampanya_modal" class="btn btn-reklam-primary yenieklebuton">
-            <i class="fa fa-plus"></i> Yeni Reklam
-         </a>
       </div>
    </div>
 </div>
@@ -56,10 +53,14 @@
          <div class="reklam-hero-title-icon">
             <i class="fa fa-bullhorn"></i>
          </div>
-         <div>
+         <div class="reklam-hero-title-text">
             <h2>Reklam Yönetimi</h2>
             <p>Müşterilerinize <b>SMS</b>, <b>arama</b> veya <b>uygulama bildirimi</b> ile özel kampanyalar gönderin. Her kanalın kendi rengi ve ikonu vardır — birbirine karıştırmadan yönetebilirsiniz.</p>
          </div>
+         <a href="#" data-toggle="modal" data-target="#yeni_kampanya_modal" class="btn-reklam-yeni-cta">
+            <i class="fa fa-plus-circle"></i>
+            <span>Yeni Reklam<br><b>Oluştur</b></span>
+         </a>
       </div>
 
       <div class="reklam-stats">
@@ -174,16 +175,77 @@
    3 kanal: SMS (mavi/cyan), Arama (yeşil), Bildirim (mor),
    Bilgilendirme (turuncu). Renkler birbirine karışmaz.
    ============================================================ */
-.reklam-quickactions .btn { border-radius: 999px; padding: 8px 16px; font-weight: 600; font-size: 13px; border: 1px solid #e5e7eb; background: #fff; color: #475569; }
-.reklam-quickactions .btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+/* Page header grup butonları (yeşil) */
+.reklam-quickactions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+.btn-reklam-grup-gor,
+.btn-reklam-grup-yeni {
+   display: inline-flex; align-items: center; gap: 7px;
+   padding: 9px 18px; border-radius: 999px;
+   font-weight: 600; font-size: 13px;
+   cursor: pointer; transition: all .15s ease;
+   border: none; line-height: 1;
+}
+.btn-reklam-grup-gor {
+   background: #fff; color: #059669;
+   border: 2px solid #10b981;
+}
+.btn-reklam-grup-gor:hover {
+   background: #ecfdf5; color: #047857;
+   border-color: #059669; transform: translateY(-1px);
+}
+.btn-reklam-grup-yeni {
+   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+   color: #fff;
+   box-shadow: 0 6px 16px rgba(5,150,105,.28);
+}
+.btn-reklam-grup-yeni:hover {
+   color: #fff;
+   box-shadow: 0 10px 22px rgba(5,150,105,.36);
+   transform: translateY(-1px);
+}
+.btn-reklam-grup-gor i, .btn-reklam-grup-yeni i { font-size: 12px; }
+
+/* Eski btn-reklam-primary (Empty state CTA için) — mor gradient */
 .btn-reklam-primary {
    background: linear-gradient(135deg, #5C008E 0%, #7B2FB8 50%, #9D5DC8 100%);
    color: #fff !important; border: none; border-radius: 999px;
    padding: 10px 20px; font-weight: 600; font-size: 13px;
    box-shadow: 0 6px 18px rgba(123,47,184,.28);
    transition: transform .15s ease, box-shadow .15s ease;
+   display: inline-flex; align-items: center; gap: 8px;
 }
 .btn-reklam-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(123,47,184,.34); color: #fff; }
+
+/* HERO içinde sağda büyük "Yeni Reklam Oluştur" CTA */
+.btn-reklam-yeni-cta {
+   margin-left: auto; flex-shrink: 0;
+   display: inline-flex; align-items: center; gap: 12px;
+   padding: 14px 22px; border-radius: 16px;
+   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+   color: #fff !important; text-decoration: none !important;
+   font-size: 14px; font-weight: 600;
+   box-shadow: 0 12px 26px rgba(5,150,105,.35),
+               inset 0 1px 0 rgba(255,255,255,.2);
+   transition: all .18s ease;
+   border: 2px solid rgba(255,255,255,.18);
+}
+.btn-reklam-yeni-cta:hover {
+   transform: translateY(-2px) scale(1.02);
+   box-shadow: 0 16px 32px rgba(5,150,105,.45),
+               inset 0 1px 0 rgba(255,255,255,.3);
+   color: #fff !important;
+}
+.btn-reklam-yeni-cta i {
+   font-size: 30px;
+   text-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.btn-reklam-yeni-cta span { line-height: 1.15; text-align: left; }
+.btn-reklam-yeni-cta b { font-size: 17px; font-weight: 800; }
+.reklam-hero-title { display: flex; align-items: center; gap: 18px; margin-bottom: 22px; flex-wrap: wrap; }
+.reklam-hero-title-text { flex: 1; min-width: 240px; }
+
+/* Eski yenieklebuton mobile sabit konumlanmasını sıfırla (kullanılmıyor artık ama emin olalım) */
+.reklam-hero .yenieklebuton, .page-header .yenieklebuton { position: static !important; width: auto !important; }
 
 /* HERO */
 .reklam-hero { position: relative; border-radius: 18px; overflow: hidden; margin-bottom: 22px; }
@@ -339,8 +401,11 @@
    .reklam-hero-inner { padding: 22px 18px 18px; }
    .reklam-hero-title h2 { font-size: 22px; }
    .reklam-hero-title-icon { width: 52px; height: 52px; font-size: 22px; }
-   .reklam-quickactions { margin-top: 12px; text-align: left !important; }
+   .reklam-quickactions { margin-top: 12px; justify-content: flex-start; }
    .reklam-tab { padding: 8px 12px; font-size: 12px; }
+   .btn-reklam-yeni-cta { margin-left: 0; width: 100%; justify-content: center; padding: 12px 18px; }
+   .btn-reklam-yeni-cta i { font-size: 24px; }
+   .btn-reklam-yeni-cta b { font-size: 15px; }
 }
 @media (max-width: 480px) {
    .reklam-stats { grid-template-columns: 1fr; }
