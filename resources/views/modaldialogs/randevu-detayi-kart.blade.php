@@ -1,10 +1,25 @@
 <button style="display:none;" id="randevudetayigetir" data-toggle="modal" data-target="#modal-view-event"></button>
 
 <style>
-   #modal-view-event .modal-dialog { max-width: 720px; }
+   /* Tam viewport ortasi (sidebar'dan etkilenmesin) */
+   #modal-view-event {
+      position: fixed !important;
+      inset: 0;
+      width: 100vw; height: 100vh;
+      z-index: 10550;
+   }
+   #modal-view-event .modal-dialog {
+      max-width: 800px;
+      width: calc(100% - 24px);
+      margin: auto !important;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; pointer-events: none;
+   }
    #modal-view-event .modal-content {
-      border:0; border-radius:14px; overflow:hidden;
-      box-shadow: 0 24px 60px rgba(92,0,142,.18);
+      border: 0; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 24px 60px rgba(92, 0, 142, .22);
+      width: 100%;
+      pointer-events: auto;
    }
    #modal-view-event .modal-header {
       background: linear-gradient(135deg, #5C008E 0%, #7B2FB8 50%, #9D5DC8 100%);
@@ -77,3 +92,12 @@
       </div>
    </div>
 </div>
+
+<script>
+   // Modal acilirken body'ye tasi — parent container'lar centering'i bozmasin
+   $(document).on('show.bs.modal', '#modal-view-event', function () {
+      if (this.parentNode !== document.body) {
+         document.body.appendChild(this);
+      }
+   });
+</script>
