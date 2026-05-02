@@ -1296,7 +1296,7 @@
                            @endif
                            @if(!empty($per->instagram))
                               <span class="slp-team-card__ig">
-                                 <i class="fa fa-instagram"></i> @{{ltrim($per->instagram,'@')}}
+                                 <i class="fa fa-instagram"></i> {{ '@' . ltrim($per->instagram, '@') }}
                               </span>
                            @endif
                         </div>
