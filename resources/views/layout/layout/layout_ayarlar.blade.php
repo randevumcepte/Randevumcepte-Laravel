@@ -210,7 +210,7 @@
                         <div class="col-md-6">
                             
                             <p>
-                                  Her Hakkı Saklıdır. 2018-{{date('Y')}} © {{\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('salon_adi')}}. Tasarlayan : <a href="https://webfirmam.com.tr/"><img src="{{asset('public/img/web-firmam-imza.png')}}" style=""></a>
+                                  Her Hakkı Saklıdır. 2018-{{date('Y')}} © {{\App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('salon_adi')}}. <a href="https://randevumcepte.com.tr/" target="_blank"><img src="{{asset('public/yeni_panel/vendors/images/randevumcepte.png')}}" style="height:28px;vertical-align:middle"></a>
                             </p>
                         </div>
                         <!--end col-md-5-->
