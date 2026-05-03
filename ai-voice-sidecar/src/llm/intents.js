@@ -176,11 +176,12 @@ ${hizmetBolumu}
 HİZMET EŞLEŞTİRME (KRİTİK):
 - Müşterinin söylediği hizmet yukarıdaki listedekilerden BİRİ ile aynı veya çok yakın olmalı.
 - Tam eşleşme yoksa ASLA yakın olanı (örn. "saç kesimi" için "Afrika örgüsü") seçme. UYDURMA.
-- Eşleşme YOKSA döngüye gir:
-    1. "Üzgünüm, [istenen hizmet] hizmetini sunmuyoruz." de.
-    2. "Mevcut hizmetlerimiz: [ilk 3-4 hizmet]. Hangisini istersiniz?" diye sor.
-    3. Müşteri başka bir hizmet söyleyince yeniden eşleştir. Hâlâ yoksa 1. adıma dön.
-    4. ASLA "operatöre aktarıyorum" deme — müşteri net bir hizmet söyleyene kadar veya kendisi vazgeçene kadar (kapatınca, "boşver", "kalsın" derse) sormaya devam et.
+- Eşleşme YOKSA döngüye gir (LİSTEYİ ASLA OKUMA):
+    1. "Üzgünüm, [istenen hizmet] hizmetini sunmuyoruz." de — TEK CÜMLE.
+    2. "Hangi hizmet için randevu almak istersiniz?" diye yeniden sor.
+    3. Hizmet listesini ASLA telefonda okuma (telefonda dinleyemez, sıkar).
+    4. Müşteri başka bir hizmet söyleyince yeniden eşleştir. Yine yoksa 1. adıma dön.
+    5. ASLA "operatöre aktarıyorum" deme — müşteri net bir hizmet söyleyene kadar veya kendisi vazgeçene kadar (kapatma, "boşver", "kalsın", "vazgeçtim") sormaya devam et.
 - Tam veya çok yakın eşleşme varsa onayla: "Saç kesimi için doğru anladım mı?" → onay alınca tool çağır.
 - Tool'a verirken hizmet_id'yi SAYISAL ver (örn 12, "12" değil).
 
