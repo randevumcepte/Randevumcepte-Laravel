@@ -23390,6 +23390,9 @@ DB::raw('
             if(!in_array('sira',$cols)){
                 \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN sira INT NOT NULL DEFAULT 0");
             }
+            if(!in_array('is_sozlesme_tipi',$cols)){
+                \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN is_sozlesme_tipi TINYINT(1) NOT NULL DEFAULT 0");
+            }
             $arsivCols = array_column(\DB::select("SHOW COLUMNS FROM arsiv"), 'Field');
             if(!in_array('cevaplar_json',$arsivCols)){
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN cevaplar_json TEXT NULL AFTER dogrulama_kodu");
@@ -23470,6 +23473,7 @@ DB::raw('
             $form->aciklama = $request->aciklama;
             $form->sorular_json = $request->sorular_json;
             $form->is_dinamik = 1;
+            $form->is_sozlesme_tipi = $request->is_sozlesme ? 1 : 0;
             $form->save();
             return response()->json(['basarili'=>true,'id'=>$form->id]);
         } catch(\Exception $e){
@@ -23489,6 +23493,7 @@ DB::raw('
             $form->form_adi = $request->form_adi;
             $form->aciklama = $request->aciklama;
             $form->sorular_json = $request->sorular_json;
+            $form->is_sozlesme_tipi = $request->is_sozlesme ? 1 : 0;
             $form->save();
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){

@@ -89,6 +89,15 @@
                   <label><b>Form Adı *</b></label>
                   <input type="text" id="form_adi_input" class="form-control" placeholder="Örn: Lazer Epilasyon Onam Formu" maxlength="200">
                </div>
+               <div class="col-md-4 form-group">
+                  <label><b>Tip</b></label>
+                  <div style="padding:7px 12px; background:#f8f9fa; border:1px solid #ced4da; border-radius:4px;">
+                     <label style="margin:0; cursor:pointer; font-size:13px;">
+                        <input type="checkbox" id="form_is_sozlesme" style="transform:scale(1.2); margin-right:8px;">
+                        <b>Hizmet Sözleşmesi</b>
+                     </label>
+                  </div>
+               </div>
                <div class="col-md-12 form-group">
                   <label><b>Form Başlık Açıklaması</b> <small class="text-muted">(formun hemen üstünde gri kutuda gösterilir)</small></label>
                   <textarea id="form_aciklama_input" class="form-control" rows="2" placeholder="Bu formdaki açıklamaların amacı..."></textarea>
@@ -120,6 +129,24 @@
                   </button>
                   <button type="button" class="btn btn-outline-info btn-sm mb-1" onclick="soruEkle('not_kutusu')">
                      <i class="fa fa-exclamation-circle"></i> Not Kutusu
+                  </button>
+               </div>
+               <div class="col-md-12 mt-2" id="sozlesme_buttons_alani" style="display:none;">
+                  <div class="mb-1"><small class="text-info font-weight-bold">OTOMATİK SÖZLEŞME BİLGİLERİ</small> <small class="text-muted">(gönderirken doldurulur)</small></div>
+                  <button type="button" class="btn btn-outline-info btn-sm mb-1" onclick="soruEkle('musteri_bilgi_tablosu')">
+                     <i class="fa fa-user"></i> Müşteri Bilgileri (otomatik)
+                  </button>
+                  <button type="button" class="btn btn-outline-info btn-sm mb-1" onclick="soruEkle('hizmet_paket_bilgisi')">
+                     <i class="fa fa-shopping-bag"></i> Hizmet/Paket (otomatik)
+                  </button>
+                  <button type="button" class="btn btn-outline-info btn-sm mb-1" onclick="soruEkle('ucret_bilgisi')">
+                     <i class="fa fa-money"></i> Ücret & Kapora (otomatik)
+                  </button>
+                  <button type="button" class="btn btn-outline-info btn-sm mb-1" onclick="soruEkle('seans_bilgisi')">
+                     <i class="fa fa-calendar-check-o"></i> Seans Sayısı (otomatik)
+                  </button>
+                  <button type="button" class="btn btn-outline-info btn-sm mb-1" onclick="soruEkle('tarih_yer')">
+                     <i class="fa fa-map-marker"></i> Tarih & İşletme Adresi
                   </button>
                </div>
                <div class="col-md-12 mt-2">
@@ -180,7 +207,14 @@ var TIP_RENK = {
    metin:         { renk: '#28a745', etiket: 'Kısa Metin',    badge: 'badge-success' },
    uzun_metin:    { renk: '#ffc107', etiket: 'Uzun Metin',    badge: 'badge-warning' },
    bilgi_metni:   { renk: '#17a2b8', etiket: 'Bilgi Metni',   badge: 'badge-info' },
+   musteri_bilgi_tablosu: { renk: '#0dcaf0', etiket: 'Müşteri Bilgileri (oto)', badge: 'badge-info' },
+   hizmet_paket_bilgisi:  { renk: '#0dcaf0', etiket: 'Hizmet/Paket (oto)',     badge: 'badge-info' },
+   ucret_bilgisi:         { renk: '#0dcaf0', etiket: 'Ücret/Kapora (oto)',     badge: 'badge-info' },
+   seans_bilgisi:         { renk: '#0dcaf0', etiket: 'Seans Sayısı (oto)',     badge: 'badge-info' },
+   tarih_yer:             { renk: '#0dcaf0', etiket: 'Tarih/Yer (oto)',        badge: 'badge-info' },
 };
+
+var OTOMATIK_TIPLER = ['musteri_bilgi_tablosu','hizmet_paket_bilgisi','ucret_bilgisi','seans_bilgisi','tarih_yer'];
 
 function soruEkle(tip, mevcutSoru) {
    soruSayaci++;
@@ -194,7 +228,17 @@ function soruEkle(tip, mevcutSoru) {
       : `<input type="hidden" class="soru-zorunlu" value="0">`;
 
    var girdi = '';
-   if (tip === 'bolum_basligi') {
+   if (OTOMATIK_TIPLER.indexOf(tip) !== -1) {
+      var aciklamalar = {
+         musteri_bilgi_tablosu: '📋 Müşteri ad, soyad, telefon ve tarih otomatik gösterilir',
+         hizmet_paket_bilgisi: '🛍️ Seçilen hizmet veya paket adı otomatik gösterilir',
+         ucret_bilgisi: '💰 Toplam ücret, kapora ve kalan bakiye otomatik gösterilir',
+         seans_bilgisi: '📅 Seans sayısı otomatik gösterilir',
+         tarih_yer: '📍 Sözleşme tarihi ve işletme adresi otomatik gösterilir'
+      };
+      girdi = `<div style="padding:8px 12px; background:#e7f5ff; border:1px dashed #0dcaf0; border-radius:4px; font-size:13px; color:#0c5460;">${aciklamalar[tip] || 'Otomatik bilgi'}</div>
+               <input type="hidden" class="soru-metni" value="${escapeHtml(soru.soru || tip)}">`;
+   } else if (tip === 'bolum_basligi') {
       girdi = `<input type="text" class="form-control soru-metni font-weight-bold" placeholder="BÖLÜM BAŞLIĞI (büyük harf önerilir)..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;font-weight:bold;">`;
    } else if (tip === 'alt_baslik') {
       girdi = `<input type="text" class="form-control soru-metni" placeholder="Alt başlık metni (kalın gösterilir)..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;">`;
@@ -263,11 +307,17 @@ function yeniFormAc() {
    $('#form_id_gizli').val('');
    $('#form_adi_input').val('');
    $('#form_aciklama_input').val('');
+   $('#form_is_sozlesme').prop('checked', false).trigger('change');
    $('#sorular_konteyneri').empty();
    soruSayaci = 0;
    $('#modalBaslik').text('Yeni Form Şablonu');
    $('#formSablonModal').modal('show');
 }
+
+$(document).on('change','#form_is_sozlesme', function(){
+   if($(this).is(':checked')) $('#sozlesme_buttons_alani').slideDown(150);
+   else $('#sozlesme_buttons_alani').slideUp(150);
+});
 
 function formDuzenle(formId) {
    $.get('/isletmeyonetim/form-sablonlari-getir?id=' + formId + '&sube={{$isletme->id}}', function(data) {
@@ -278,6 +328,7 @@ function formDuzenle(formId) {
       $('#form_id_gizli').val(data.id);
       $('#form_adi_input').val(data.form_adi);
       $('#form_aciklama_input').val(data.aciklama || '');
+      $('#form_is_sozlesme').prop('checked', data.is_sozlesme_tipi == 1).trigger('change');
       $('#sorular_konteyneri').empty();
       soruSayaci = 0;
 
@@ -325,6 +376,7 @@ function formKaydet() {
          form_id: formId,
          form_adi: formAdi,
          aciklama: $('#form_aciklama_input').val(),
+         is_sozlesme: $('#form_is_sozlesme').is(':checked') ? 1 : 0,
          sorular_json: JSON.stringify(sorular)
       },
       success: function(resp) {

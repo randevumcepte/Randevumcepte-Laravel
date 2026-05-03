@@ -120,6 +120,43 @@
                   <p style="margin:0; font-size:13px; color:#2c5282;">{!! nl2br(e($soru['soru'])) !!}</p>
                </div>
 
+            @elseif($tip === 'musteri_bilgi_tablosu')
+               <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:12px 16px; margin-bottom:12px;">
+                  <table style="width:100%; font-size:13px;">
+                     <tr><td style="padding:4px; font-weight:600; width:40%; color:#555;">Ad Soyad:</td><td style="padding:4px;">{{ $musteri->name ?? '-' }}</td></tr>
+                     <tr><td style="padding:4px; font-weight:600; color:#555;">Telefon:</td><td style="padding:4px;">{{ $musteri->cep_telefon ?? '-' }}</td></tr>
+                     <tr><td style="padding:4px; font-weight:600; color:#555;">Tarih:</td><td style="padding:4px;">{{ date('d.m.Y') }}</td></tr>
+                  </table>
+               </div>
+
+            @elseif($tip === 'hizmet_paket_bilgisi')
+               <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:13px;">
+                  @if(!empty($hizmet_adi))<b>Hizmet:</b> {{ $hizmet_adi }}<br>@endif
+                  @if(!empty($paket_adi))<b>Paket:</b> {{ $paket_adi }}@endif
+                  @if(empty($hizmet_adi) && empty($paket_adi))<i style="color:#856404;">Hizmet/paket henüz seçilmemiş.</i>@endif
+               </div>
+
+            @elseif($tip === 'ucret_bilgisi')
+               <div style="background:#d1ecf1; border:1px solid #0dcaf0; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:13px;">
+                  <b>Toplam Ücret:</b> {{ number_format($arsiv->toplam_ucret ?? 0, 2, ',', '.') }} ₺<br>
+                  @if(($arsiv->kapora ?? 0) > 0)
+                  <b>Kapora / Ön Ödeme:</b> {{ number_format($arsiv->kapora, 2, ',', '.') }} ₺<br>
+                  <b>Kalan Bakiye:</b> {{ number_format(($arsiv->toplam_ucret - $arsiv->kapora), 2, ',', '.') }} ₺
+                  @endif
+               </div>
+
+            @elseif($tip === 'seans_bilgisi')
+               <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:13px;">
+                  <b>Seans Sayısı:</b> {{ $arsiv->seans_sayisi ?? '-' }}
+               </div>
+
+            @elseif($tip === 'tarih_yer')
+               <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:13px;">
+                  <b>Tarih:</b> {{ date('d.m.Y H:i') }}<br>
+                  <b>İşletme:</b> {{ $isletme->salon_adi }}<br>
+                  @if(!empty($isletme->adres))<b>Adres:</b> {{ $isletme->adres }}@endif
+               </div>
+
             @elseif($tip === 'evet_hayir')
                <div class="soru-satiri">
                   <span class="soru-etiketi">

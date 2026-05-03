@@ -2396,6 +2396,17 @@ $salon = Salonlar::where('domain', $domain)->first();
         $musteri = User::where('id', $user_id)->first();
         $sorular = $form->sorular_json ? json_decode($form->sorular_json, true) : [];
 
+        $hizmet_adi = null; $paket_adi = null;
+        if ($arsiv->hizmet_id) {
+            try {
+                $sh = \DB::table('salon_sunulan_hizmetler')->leftJoin('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')->where('salon_sunulan_hizmetler.id',$arsiv->hizmet_id)->select('hizmetler.hizmet_adi')->first();
+                $hizmet_adi = $sh ? $sh->hizmet_adi : null;
+            } catch(\Exception $e) {}
+        }
+        if ($arsiv->paket_id) {
+            try { $paket_adi = \DB::table('paketler')->where('id',$arsiv->paket_id)->value('paket_adi'); } catch(\Exception $e) {}
+        }
+
         return view('onamform.musteri_form', [
             'arsiv'         => $arsiv,
             'isletme'       => $isletme,
@@ -2403,6 +2414,8 @@ $salon = Salonlar::where('domain', $domain)->first();
             'form_baslik'   => $form->form_adi,
             'aciklama'      => $form->aciklama ?? '',
             'sorular'       => $sorular,
+            'hizmet_adi'    => $hizmet_adi,
+            'paket_adi'     => $paket_adi,
             'zaten_dolduruldu' => (bool) $arsiv->cevapladi,
         ]);
     }

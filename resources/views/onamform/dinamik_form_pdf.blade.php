@@ -96,6 +96,54 @@
    <div class="bilgi-metni">{{ $soru['soru'] }}</div>
    @php $i++; @endphp
 
+@elseif($tip === 'musteri_bilgi_tablosu')
+   <table style="width:100%; border-collapse:collapse; margin:6px 0; font-size:10.5px;">
+      <tr><td style="padding:4px; background:#f5f5f5; width:35%; font-weight:bold;">Ad Soyad:</td><td style="padding:4px;">{{ $arsiv->musteri ? $arsiv->musteri->name : '-' }}</td></tr>
+      <tr><td style="padding:4px; background:#f5f5f5; font-weight:bold;">Telefon:</td><td style="padding:4px;">{{ $arsiv->musteri ? $arsiv->musteri->cep_telefon : '-' }}</td></tr>
+      <tr><td style="padding:4px; background:#f5f5f5; font-weight:bold;">Tarih:</td><td style="padding:4px;">{{ $arsiv->created_at ? date('d.m.Y H:i', strtotime($arsiv->created_at)) : '-' }}</td></tr>
+   </table>
+   @php $i++; @endphp
+
+@elseif($tip === 'hizmet_paket_bilgisi')
+   @php
+      $h_adi = null; $p_adi = null;
+      if($arsiv->hizmet_id){
+         try { $sh = \DB::table('salon_sunulan_hizmetler')->leftJoin('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')->where('salon_sunulan_hizmetler.id',$arsiv->hizmet_id)->select('hizmetler.hizmet_adi')->first(); $h_adi = $sh ? $sh->hizmet_adi : null; } catch(\Exception $e){}
+      }
+      if($arsiv->paket_id){
+         try { $p_adi = \DB::table('paketler')->where('id',$arsiv->paket_id)->value('paket_adi'); } catch(\Exception $e){}
+      }
+   @endphp
+   <div style="background:#fff8e1; border:1px solid #d4a017; padding:6px 8px; margin:6px 0; font-size:10.5px;">
+      @if($h_adi)<b>Hizmet:</b> {{ $h_adi }}<br>@endif
+      @if($p_adi)<b>Paket:</b> {{ $p_adi }}@endif
+   </div>
+   @php $i++; @endphp
+
+@elseif($tip === 'ucret_bilgisi')
+   <div style="background:#e7f5ff; border:1px solid #0dcaf0; padding:6px 8px; margin:6px 0; font-size:10.5px;">
+      <b>Toplam Ucret:</b> {{ number_format($arsiv->toplam_ucret ?? 0, 2, ',', '.') }} TL
+      @if(($arsiv->kapora ?? 0) > 0)<br>
+      <b>Kapora / On Odeme:</b> {{ number_format($arsiv->kapora, 2, ',', '.') }} TL<br>
+      <b>Kalan Bakiye:</b> {{ number_format(($arsiv->toplam_ucret - $arsiv->kapora), 2, ',', '.') }} TL
+      @endif
+   </div>
+   @php $i++; @endphp
+
+@elseif($tip === 'seans_bilgisi')
+   <div style="background:#f5f5f5; border:1px solid #ccc; padding:6px 8px; margin:6px 0; font-size:10.5px;">
+      <b>Seans Sayisi:</b> {{ $arsiv->seans_sayisi ?? '-' }}
+   </div>
+   @php $i++; @endphp
+
+@elseif($tip === 'tarih_yer')
+   <div style="background:#f5f5f5; border:1px solid #ccc; padding:6px 8px; margin:6px 0; font-size:10.5px;">
+      <b>Tarih:</b> {{ $arsiv->created_at ? date('d.m.Y H:i', strtotime($arsiv->created_at)) : date('d.m.Y H:i') }}<br>
+      <b>Isletme:</b> {{ $isletme->salon_adi }}
+      @if(!empty($isletme->adres))<br><b>Adres:</b> {{ $isletme->adres }}@endif
+   </div>
+   @php $i++; @endphp
+
 @elseif($tip === 'evet_hayir')
    <table class="eh-tablo">
    @while($i < $toplam && $elemanlar[$i]['soru']['tip'] === 'evet_hayir')
