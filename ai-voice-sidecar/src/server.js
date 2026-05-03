@@ -14,6 +14,9 @@
 import path from 'path';
 import fs from 'fs';
 import { spawn } from 'child_process';
+import { webcrypto } from 'crypto';
+// Node 18 uyumlulugu — msedge-tts globalThis.crypto bekliyor (Node 19+'da yerlesik)
+if (!globalThis.crypto) globalThis.crypto = webcrypto;
 import { AriService } from './asterisk/ari-client.js';
 import { Conversation } from './dialog/state.js';
 import { tts } from './tts/edge-tts.js';
