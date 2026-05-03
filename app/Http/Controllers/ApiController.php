@@ -10271,7 +10271,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         }
 
-        $user->cep_telefon = self::telefon_no_format_duzenle($request->gsm1);
+        $user->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon ?? $request->gsm1);
 
         $user->cinsiyet = $request->cinsiyet;
 
