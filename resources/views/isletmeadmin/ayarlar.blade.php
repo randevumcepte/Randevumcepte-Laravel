@@ -39,6 +39,15 @@
                            aria-selected="{{($_GET['p']=='calismasaatleri') ? 'true' : 'false'}}"
                            >Çalışma Saatleri</a>
                      </li>
+                     <li class="nav-item">
+                        <a
+                           class="nav-link {{($_GET['p']=='personeller') ? 'active' : ''}}"
+                           data-toggle="tab"
+                           href="#personeller"
+                           role="tab"
+                           aria-selected="{{($_GET['p']=='personeller') ? 'true':'false'}}"
+                           >Personeller</a>
+                     </li>
                       <li class="nav-item">
                         <a
                            class="nav-link {{($_GET['p']=='cihazlar') ? 'active' : ''}}"
@@ -46,7 +55,7 @@
                            href="#cihazlar"
                            role="tab"
                            aria-selected="{{($_GET['p']=='cihazlar') ? 'true':'false'}}"
-                        
+
                            >Cihazlar</a>
                      </li>
                      <li class="nav-item">
@@ -867,6 +876,35 @@
                      </div>
                   </div>
                </form>
+            </div>
+            <div
+               class="tab-pane fade {{($_GET['p']=='personeller') ? 'active show' : ''}}"
+               id="personeller"
+               role="tabpanel"
+               >
+               <div class="row" style="border-bottom: 1px solid #e2e2e2;margin-bottom: 10px;padding-bottom: 10px;">
+                  <div class="col-6 col-xs-6 col-sm-6">
+                     <h2 class="text-blue">Personeller</h2>
+                  </div>
+                  <div class="col-6 col-xs-6 col-sm-6 text-right">
+                     <button onclick="modalbaslikata('Yeni Personel','yenipersonelbilgiekle')" class="btn btn-success" data-toggle="modal" data-target="#personel-modal"><i class="fa fa-plus"></i> Yeni Personel</button>
+                  </div>
+               </div>
+               <div class="pd-20">
+                  <table class="data-table table stripe hover nowrap" id="personel_tablo">
+                     <thead>
+                        <tr>
+                           <th>Takvim Sırası</th>
+                           <th>Personel</th>
+                           <th>Hesap Tipi</th>
+                           <th>Telefon</th>
+                           <th>Durum</th>
+                           <th class="datatable-nosort">İşlemler</th>
+                        </tr>
+                     </thead>
+                     <tbody></tbody>
+                  </table>
+               </div>
             </div>
             <div
                class="tab-pane fade {{($_GET['p']=='hizmetler') ? 'active show' : ''}}"
@@ -1701,6 +1739,7 @@
       </div>
    </div>
 </div>
+@include('isletmeadmin.partials.personel_modal')
 <!-- hizmet kategorisi ekleme -->
 <div
    class="modal fade bs-example-modal-lg"
@@ -2261,6 +2300,7 @@ $(document).ready(function(){
       'isletme-bilgileri': 'temelbilgiler',
       'isletme-subeleri': 'subeler',
       'calisma-saatleri': 'calismasaatleri',
+      'personeller': 'personeller',
       'cihazlar': 'cihazlar',
       'hizmetler': 'hizmetler',
       'odalar': 'odalar',
