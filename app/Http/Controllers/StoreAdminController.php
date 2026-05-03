@@ -22818,7 +22818,7 @@ DB::raw('
        
         $personeller = self::personel_liste_getir($request);
         return view('isletmeadmin.personelyonetimi',['bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Personel Yönetimi','pageindex' => 401,'personeller' => $personeller, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
-            'yetkiliolunanisletmeler'=>$isletmeler,'isletme'=>$isletme]);
+            'yetkiliolunanisletmeler'=>$isletmeler,'isletme'=>$isletme,'roller'=>Role::all()]);
     }
     public function hizmetAlanMusteriler(Request $request)
     {
