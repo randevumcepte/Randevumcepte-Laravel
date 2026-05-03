@@ -35,17 +35,17 @@ class AiAsistanController extends Controller
             return response()->json(['ok' => false, 'mesaj' => 'Salon bulunamadı'], 404);
         }
 
-        // AI'nin LLM tool eslestirmesi icin hizmet listesi (id + ad)
-        $hizmetler = SalonHizmetler::where('salon_hizmetler.salon_id', $salonId)
-            ->join('hizmetler', 'hizmetler.id', '=', 'salon_hizmetler.hizmet_id')
-            ->where('salon_hizmetler.aktif', 1)
+        // Salonun sundugu hizmetler — tablo: salon_sunulan_hizmetler, hizmet adi
+        // ve fiyat bilgisi join ile hizmetler tablosundan.
+        $hizmetler = DB::table('salon_sunulan_hizmetler as sh')
+            ->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
+            ->where('sh.salon_id', $salonId)
             ->select(
-                'salon_hizmetler.hizmet_id as id',
-                'hizmetler.hizmet_adi as ad',
-                'salon_hizmetler.sure_dk',
-                'salon_hizmetler.fiyat'
+                'sh.hizmet_id as id',
+                'h.hizmet_adi as ad',
+                'sh.son_fiyat as fiyat'
             )
-            ->orderBy('hizmetler.hizmet_adi')
+            ->orderBy('h.hizmet_adi')
             ->get();
 
         return response()->json([
