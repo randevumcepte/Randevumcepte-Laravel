@@ -1154,90 +1154,33 @@ $salon = Salonlar::where('domain', $domain)->first();
         $olusturulansifre = substr($random, 0, 5);
         $kullanici->password = Hash::make($olusturulansifre);
         $kullanici->save();
-        $data = array('sifre'=>$olusturulansifre);
 
-        if($salon->yeni_sms)
-        {
+        $isTestDomain = isset($_SERVER['HTTP_HOST']) && (
+            str_contains($_SERVER['HTTP_HOST'], 'apptest.') ||
+            str_contains($_SERVER['HTTP_HOST'], 'localhost') ||
+            str_contains($_SERVER['HTTP_HOST'], '127.0.0.1')
+        );
 
-                    require_once app_path('VoiceTelekom/Sms/SmsApi.php');
-                    require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
-                    require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
-                    $smsApi = new \SmsApi("smsvt.voicetelekom.com", $salon->sms_user_name, $salon->sms_secret);
-                    $request2 = new \SendMultiSms();
-                    $request2->customID = "sms_" . date('Ymd_His') . "_" . substr(md5(microtime()), 0, 8);
-                    
-                    $request2->content = $salon->salon_adi."'a hoşgeldiniz. Randevunuzu oluşturmak için sistem giriş şifreniz : ".$olusturulansifre.". Lütfen giriş yaptıktan sonra şifrenizi hatırlayabileceğiniz güvenli bir şifre ile değitşirmeyi unutmayınız.";
-                    $request2->title = 'Online randevu web şifre gönder';
-                    $toList = [$request->cep_telefon]; 
-                    Log::info('To list '.json_encode($toList));
+        $smsMetin = $salon->salon_adi."'a hoşgeldiniz. Randevunuzu oluşturmak için sistem giriş şifreniz : ".$olusturulansifre.". Lütfen giriş yaptıktan sonra şifrenizi hatırlayabileceğiniz güvenli bir şifre ile değiştirmeyi unutmayınız.";
+        $mesajlar = [['to' => $request->ceptelefon, 'message' => $smsMetin]];
+        $sonuc = $this->sms_gonder_bildirimli_salon($salon, $mesajlar, 'sifregonder');
 
-                    $request2->numbers = $toList;
-                    $request2->encoding = 0;
-                    $request2->sender = $salon->sms_baslik;
-                    $request2->skipAhsQuery = true; 
-                    $response = $smsApi->sendMultiSms($request2);
-                    if($response->err == null){
-                            echo "<div id='hosgeldinizbildirim'>Randevunuzu onaylamak için lütfen ".$request->ceptelefon." telefon numaranıza gönderdiğimiz şifrenizi aşağıdaki alana giriniz. Şifreniz birkaç dakika içerisinde ulaşmazsa tekrar gönderilmesi için lütfen <button type='button' id='sifregonder3' class='btn btn-primary small btn-rounded'>buraya tıklayınız</button></div><div id='sifrealani'>
-                                        <div class='form-group'>
-                                            <input type='password' id='sifre' name='sifre' placeholder='Gönderilen şifreyi giriniz'><br />
-                                            <button type='button' style='width:100%' id='randevuonayla'  class='btn btn-primary btn-rounded'>GÖNDER <i class='fa fa-chevron-right'></i><i class='fa fa-chevron-right'></i></button> 
-                                        </div>
-                                    </div>";
-                    }
-                    else
-                    {
-                          echo '<div id="hosgeldinizbildirim">Bir hata oluştu : '.$response->err->code.'</div>';
-                    }
-             
-        }
-        else
-        {
-             $postUrl = "https://api.efetech.net.tr/v2/sms/basic";
-                $apiKey = $salon->sms_apikey; // should match with Server key
-                $headers = array(
-                     'Authorization: Key '.$apiKey,
-                     'Content-Type: application/json',
-                     'Accept: application/json'
-                );
-             $postData = json_encode( array( "originator"=> $salon->sms_baslik, "message"=>"".$salon->salon_adi."'a hoşgeldiniz. Randevularınızı oluşturmak için sistem giriş şifreniz : ".$olusturulansifre.". Lütfen giriş yaptıktan sonra şifrenizi hatırlayabileceğiniz güvenli bir şifre ile değitşirmeyi unutmayınız.", "to"=>[$request->cep_telefon],"encoding"=>"auto") );
-            
-             $ch=curl_init();
-              curl_setopt($ch,CURLOPT_URL,$postUrl);
-              curl_setopt($ch,CURLOPT_POSTFIELDS,$postData);
-              curl_setopt($ch,CURLOPT_POST,1);
-              curl_setopt($ch,CURLOPT_TIMEOUT,5);
-              curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
-              curl_setopt($ch,CURLOPT_HTTPHEADER,$headers);
-                
-              $response=curl_exec($ch);
-              curl_close($ch);
-           
-
-               if($response == '99')
-                    echo '<div id="hosgeldinizbildirim">Sistemsel hata 99 : Bilinmeyen bir hata oluştu. Lütfen sistem yöneticisi ile iletişime geçiniz</div>';
-                else if($response == '97')
-                    echo '<div id="hosgeldinizbildirim">Sistemsel hata 97 : USE_POST_METHOD. Lütfen sistem yöneticisi ile iletişime geçiniz</div>';
-                else if($response == '89')
-                    echo '<div id="hosgeldinizbildirim">Sistemsel hata 89: WRONG_XML_FORMAT. Lütfen sistem yöneticisi ile iletişime geçiniz</div>';
-                else if($response == '87') 
-                    echo '<div id="hosgeldinizbildirim">Sistemsel hata 87: WRONG_USER_OR_PASSWORD. Lütfen sistem yöneticisi ile iletişime geçiniz</div>';
-                else if($response == '85')
-                    echo '<div id="hosgeldinizbildirim">Sistemsel hata 85 : WRONG_SMS_HEADER. Lütfen sistem yöneticisi ile iletişime geçiniz</div>';
-                else if($response == '84')
-                    echo '<div id="hosgeldinizbildirim">İleri tarihli gönderim zamanı hatalı bir formata sahip veya 1 yıldan daha ileri bir zamanı gösteriyor</div>';
-                else if($response == '83')
-                    echo '<div id="hosgeldinizbildirim">Mesaj metni ve numaralar incelendikten sonra sistem yollanacak bir SMS oluşturmaya yetecek en az 1 numara ve en az 1 karakterden oluşan mesaj metnine sahip olamadı. Gönderim yapılacak verilerin yeterli olmadığına karar verdi.</div>';
-                else if($response == '81')
-                    echo '<div id="hosgeldinizbildirim">Yetersiz bakiye : Gönderilecek olan mesaj için yeterli krediye sahip değilsiniz. Lütfen sistem yöneticisi ile iletişime geçiniz</div>';
-                else if($response == '77')
-                    echo '<div id="hosgeldinizbildirim">Son 2 dakika içinde aynı SMSin gönderilmesi durumu gerçekleşti. Lütfen yeniden deneyiniz</div>';
-                else
-         echo "<div id='hosgeldinizbildirim'>Randevunuzu onaylamak için lütfen ".$request->ceptelefon." telefon numaranıza gönderdiğimiz şifrenizi aşağıdaki alana giriniz. Şifreniz birkaç dakika içerisinde ulaşmazsa tekrar gönderilmesi için lütfen <button type='button' id='sifregonder3' class='btn btn-primary small btn-rounded'>buraya tıklayınız</button></div><div id='sifrealani'>
-                                        <div class='form-group'>
-                                            <input type='password' id='sifre' name='sifre' placeholder='Gönderilen şifreyi giriniz'><br />
-                                            <button type='button' style='width:100%' id='randevuonayla'  class='btn btn-primary btn-rounded'>GÖNDER <i class='fa fa-chevron-right'></i><i class='fa fa-chevron-right'></i></button> 
-                                        </div>
-                                    </div>";
+        if($sonuc['success']){
+            $devSifre = $isTestDomain ? "<div style='background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:8px;margin:8px 0;font-size:13px;'>🔧 <b>Test domaini:</b> Şifreniz: <code style='background:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;'>".$olusturulansifre."</code></div>" : '';
+            echo "<div id='hosgeldinizbildirim'>Randevunuzu onaylamak için lütfen ".$request->ceptelefon." telefon numaranıza gönderdiğimiz şifrenizi aşağıdaki alana giriniz. Şifreniz birkaç dakika içerisinde ulaşmazsa tekrar gönderilmesi için lütfen <button type='button' id='sifregonder3' class='btn btn-primary small btn-rounded'>buraya tıklayınız</button></div>".$devSifre."<div id='sifrealani'>
+                                <div class='form-group'>
+                                    <input type='password' id='sifre' name='sifre' placeholder='Gönderilen şifreyi giriniz'><br />
+                                    <button type='button' style='width:100%' id='randevuonayla' class='btn btn-primary btn-rounded'>GÖNDER <i class='fa fa-chevron-right'></i><i class='fa fa-chevron-right'></i></button>
+                                </div>
+                            </div>";
+        } else {
+            $devSifre = $isTestDomain ? "<div style='background:#fef3c7;color:#92400e;padding:10px 14px;border-radius:8px;margin:8px 0;font-size:13px;'>🔧 <b>Test domaini:</b> SMS gönderilemedi ama şifreniz: <code style='background:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;'>".$olusturulansifre."</code></div>" : '';
+            echo "<div id='hosgeldinizbildirim' style='background:#fee2e2;color:#b91c1c;padding:10px 14px;border-radius:8px;'>SMS gönderilemedi: ".e($sonuc['error'])."</div>".$devSifre."<div id='sifrealani'>
+                                <div class='form-group'>
+                                    <input type='password' id='sifre' name='sifre' placeholder='Gönderilen şifreyi giriniz'><br />
+                                    <button type='button' style='width:100%' id='randevuonayla' class='btn btn-primary btn-rounded'>GÖNDER <i class='fa fa-chevron-right'></i></button>
+                                </div>
+                            </div>";
         }
 			
  
