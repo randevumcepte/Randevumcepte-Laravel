@@ -2453,7 +2453,7 @@ $salon = Salonlar::where('domain', $domain)->first();
             return response()->json(['basarili' => false, 'mesaj' => 'Bu form zaten doldurulmuş.']);
         }
 
-        if(!$request->musteri_imza || !str_starts_with($request->musteri_imza, 'data:') || strlen($request->musteri_imza) < 500){
+        if(!$request->musteri_imza || strpos($request->musteri_imza, 'data:') !== 0 || strlen($request->musteri_imza) < 500){
             return response()->json(['basarili'=>false,'mesaj'=>'İmza zorunludur. Lütfen imza alanına net bir imza atın.']);
         }
 
@@ -2551,7 +2551,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         $arsiv = Arsiv::where('id', $request->arsiv_id)->first();
         if (!$arsiv) return response()->json(['basarili'=>false,'mesaj'=>'Sözleşme bulunamadı.']);
         if ($arsiv->cevapladi) return response()->json(['basarili'=>false,'mesaj'=>'Bu sözleşme zaten imzalanmış.']);
-        if(!$request->musteri_imza || !str_starts_with($request->musteri_imza, 'data:') || strlen($request->musteri_imza) < 500){
+        if(!$request->musteri_imza || strpos($request->musteri_imza, 'data:') !== 0 || strlen($request->musteri_imza) < 500){
             return response()->json(['basarili'=>false,'mesaj'=>'İmza zorunludur. Lütfen imza alanına net bir imza atın.']);
         }
         if (!$request->dogrulama_kodu || trim($arsiv->dogrulama_kodu) !== trim($request->dogrulama_kodu)) {

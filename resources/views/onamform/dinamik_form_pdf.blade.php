@@ -186,7 +186,7 @@
       <tr>
          <td style="width:55%; vertical-align:bottom;">
             <table width="100%"><tr><td class="imza-kutu">
-               @if($arsiv->musteri_imza && str_starts_with($arsiv->musteri_imza, 'data:'))
+               @if($arsiv->musteri_imza && strpos($arsiv->musteri_imza, 'data:') === 0)
                   <img src="{{ $arsiv->musteri_imza }}" style="max-height:65px; max-width:180px;">
                @else
                   <span style="color:#aaa; font-size:10px;">Imza</span>

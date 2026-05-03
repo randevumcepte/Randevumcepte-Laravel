@@ -22828,7 +22828,7 @@ DB::raw('
         // Şablon ID'si "sablon-X" prefix'liyse kullanıcının kendi SMS taslağı,
         // değilse sistem KampanyaSablonlari kaydı.
         $sablonIdRaw = $request->sablonId;
-        if (is_string($sablonIdRaw) && str_starts_with($sablonIdRaw, 'sablon-')) {
+        if (is_string($sablonIdRaw) && strpos($sablonIdRaw, 'sablon-') === 0) {
             $smsTaslakId = (int) substr($sablonIdRaw, 7);
             $sablon = SMSTaslaklari::where('id', $smsTaslakId)->value('taslak_icerik') ?: '';
         } else {
