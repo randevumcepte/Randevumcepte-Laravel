@@ -52,6 +52,7 @@ class AiAsistanController extends Controller
             'ok' => true,
             'id' => $salon->id,
             'ad' => $salon->salon_adi,
+            'karsilama_telaffuz' => $salon->karsilama_telaffuz,
             'adres' => $salon->adres,
             'telefon' => $salon->telefon_1 ?: $salon->telefon_2 ?: $salon->telefon_3,
             'aciklama' => $salon->aciklama,

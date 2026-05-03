@@ -12,12 +12,18 @@ import { makeToolHandlers } from '../api/laravel.js';
  *   5. Akış "transfer" veya "hangup" olana kadar devam
  */
 export class Conversation {
-  constructor({ salonId, salonAdi, callerPhone, hizmetler }) {
+  constructor({ salonId, salonAdi, callerPhone, hizmetler, karsilamaTelaffuz }) {
     this.salonId = salonId;
     this.salonAdi = salonAdi;
     this.callerPhone = callerPhone;
     this.hizmetler = Array.isArray(hizmetler) ? hizmetler : [];
+    this.karsilamaTelaffuz = karsilamaTelaffuz || null;
     this.messages = []; // chat history (system prompt buildSystemPrompt'ta otomatik eklenir)
+    // karsilama_telaffuz tanimliysa LLM'e "ilk soyledigin sey buydu" diye seed et,
+    // boylece LLM ikinci turda akisi devam ettirir (selamlamayi tekrar etmez).
+    if (this.karsilamaTelaffuz) {
+      this.messages.push({ role: 'assistant', content: this.karsilamaTelaffuz });
+    }
     this.toolHandlers = makeToolHandlers({ salonId, callerPhone });
     this.turnCount = 0;
     this.transferred = false;

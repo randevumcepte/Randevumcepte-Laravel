@@ -207,12 +207,16 @@ async function handleCall(ctx, ari) {
 
   // Salon adini Laravel'den cek (Mock modunda fallback'e duser)
   let salonAdi = resolveSalonAdi(salonId);
+  let karsilamaTelaffuz = null;
   let hizmetler = [];
   try {
     const info = await salonBilgiGetir({ salonId });
     if (info?.ad) salonAdi = info.ad;
+    if (info?.karsilama_telaffuz && String(info.karsilama_telaffuz).trim()) {
+      karsilamaTelaffuz = String(info.karsilama_telaffuz).trim();
+    }
     if (Array.isArray(info?.hizmetler)) hizmetler = info.hizmetler;
-    log(`salon="${salonAdi}" hizmet=${hizmetler.length}`);
+    log(`salon="${salonAdi}" hizmet=${hizmetler.length} karsilama=${karsilamaTelaffuz ? 'var' : 'yok'}`);
   } catch (e) {
     log(`salon bilgi cekilemedi (fallback "${salonAdi}"): ${e.message}`);
   }
@@ -222,6 +226,7 @@ async function handleCall(ctx, ari) {
     salonAdi,
     callerPhone: callerNum,
     hizmetler,
+    karsilamaTelaffuz,
   });
 
   let turn = 0;
@@ -229,6 +234,21 @@ async function handleCall(ctx, ari) {
   let consecutiveSilent = 0;
 
   try {
+    // Karsilama telaffuzu DB'de tanimliysa LLM'i bypass et, direkt cal.
+    // Sonra normal akis (listen + LLM turn) devam eder.
+    if (karsilamaTelaffuz && !hungUp) {
+      try {
+        await speak(ari.client, channel, karsilamaTelaffuz, `${callId}_greet`);
+        firstTurn = false; // greeting yapildi, sonraki tur listen ile basliyor
+      } catch (e) {
+        if (hungUp) {
+          // call dropped during greeting playback — exit gracefully
+        } else {
+          log(`karsilama TTS hatasi: ${e.message}`);
+        }
+      }
+    }
+
     while (!hungUp && turn < MAX_TURNS) {
       turn++;
       let userText = null;
