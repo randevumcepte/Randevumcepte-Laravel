@@ -20,6 +20,131 @@ use Illuminate\Support\Facades\Storage;
 */
 Auth::routes();
 
+// GECICI: SMS gonderim diagnostigi - salonun konfigi + saglayici yaniti gosterir
+// Kullanim: /dev-sms-test?tel=05XXXXXXXXX
+Route::get('/dev-sms-test', function() {
+    $tel = request('tel', '');
+    $salon = \App\Salonlar::where('domain', $_SERVER['HTTP_HOST'])->first();
+    if (!$salon) return 'Bu domain icin salon bulunamadi.';
+
+    $maskla = function($s, $head=4){
+        if (!$s) return '<em>(bos)</em>';
+        $len = mb_strlen($s);
+        if ($len <= $head) return str_repeat('*', $len);
+        return mb_substr($s, 0, $head) . str_repeat('*', max(0, $len - $head));
+    };
+
+    $cfg = '<div style="background:#f3f4f6;padding:14px;border-radius:8px;margin:10px 0;font-family:monospace;font-size:13px;line-height:1.7;">'
+         . '<b>Salon ID:</b> '.$salon->id.'<br>'
+         . '<b>salon_adi:</b> '.htmlspecialchars($salon->salon_adi).'<br>'
+         . '<b>yeni_sms (flag):</b> '.var_export($salon->yeni_sms, true).' &rarr; <b>'.($salon->yeni_sms ? 'VoiceTelekom' : 'Efetech').'</b> kullaniliyor<br>'
+         . '<b>sms_baslik:</b> '.htmlspecialchars($salon->sms_baslik ?: '').'<br>'
+         . '<b>sms_user_name (VT):</b> '.$maskla($salon->sms_user_name).'<br>'
+         . '<b>sms_secret (VT):</b> '.$maskla($salon->sms_secret, 2).'<br>'
+         . '<b>sms_apikey (Efetech):</b> '.$maskla($salon->sms_apikey, 4).'<br>'
+         . '</div>';
+
+    if (!$tel) {
+        return "<div style='font-family:sans-serif;max-width:700px;margin:60px auto;padding:30px;background:#fff;border:2px solid #5C008E;border-radius:14px;'>"
+             . "<h2 style='color:#5C008E;margin-top:0;'>SMS Diagnostic</h2>"
+             . "<p>Salon yapilandirmasi:</p>".$cfg
+             . "<p>Test SMS gondermek icin URL'e <code>?tel=05XXXXXXXXX</code> ekleyin.</p>"
+             . "</div>";
+    }
+
+    if (!preg_match('/^05[0-9]{9}$/', $tel)) {
+        return "Gecersiz telefon: '$tel'. Format: 05XXXXXXXXX";
+    }
+
+    $mesaj = $salon->salon_adi . ' SMS test - ' . date('H:i:s') . ' - kod:' . rand(1000,9999);
+    $log = '';
+    $sonuc = '';
+
+    try {
+        if ($salon->yeni_sms) {
+            require_once app_path('VoiceTelekom/Sms/SmsApi.php');
+            require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
+            require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
+            $smsApi = new \SmsApi("smsvt.voicetelekom.com", $salon->sms_user_name, $salon->sms_secret);
+            $req = new \SendMultiSms();
+            $req->customID = "test_" . date('Ymd_His') . "_" . substr(md5(microtime()), 0, 8);
+            $req->content = $mesaj;
+            $req->title = 'SMS test';
+            $req->numbers = [$tel];
+            $req->encoding = 0;
+            $req->sender = $salon->sms_baslik;
+            $req->skipAhsQuery = true;
+            $resp = $smsApi->sendMultiSms($req);
+            $log = '<pre style="background:#1f2937;color:#10b981;padding:14px;border-radius:8px;overflow:auto;font-size:12px;">' . htmlspecialchars(print_r($resp, true)) . '</pre>';
+            if ($resp->err == null) {
+                $sonuc = '<div style="background:#dcfce7;color:#15803d;padding:14px;border-radius:8px;font-weight:bold;">VoiceTelekom: API kabul etti. Mesaj kuyrukta.</div>';
+            } else {
+                $sonuc = '<div style="background:#fee2e2;color:#b91c1c;padding:14px;border-radius:8px;font-weight:bold;">VoiceTelekom hatasi: ' . htmlspecialchars(($resp->err->code ?? '?') . ' - ' . ($resp->err->message ?? '')) . '</div>';
+            }
+        } else {
+            $postUrl = "https://api.efetech.net.tr/v2/sms/basic";
+            $headers = ['Authorization: Key '.$salon->sms_apikey, 'Content-Type: application/json', 'Accept: application/json'];
+            $postData = json_encode([
+                "originator" => $salon->sms_baslik,
+                "message" => $mesaj,
+                "to" => [$tel],
+                "encoding" => "auto",
+            ]);
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $postUrl);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_HEADER, 1);
+            $resp = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+            $curlErr = curl_error($ch);
+            curl_close($ch);
+
+            $respHeader = $resp !== false ? substr($resp, 0, $headerSize) : '';
+            $respBody = $resp !== false ? substr($resp, $headerSize) : '';
+
+            $log = '<div style="font-size:13px;margin:8px 0;"><b>HTTP Code:</b> '.$httpCode.($curlErr ? ' &nbsp; <b style="color:#b91c1c;">cURL Error:</b> '.htmlspecialchars($curlErr) : '').'</div>'
+                 . '<div style="font-size:13px;margin:4px 0;"><b>Request body:</b></div>'
+                 . '<pre style="background:#1f2937;color:#fde68a;padding:12px;border-radius:8px;overflow:auto;font-size:12px;">' . htmlspecialchars($postData) . '</pre>'
+                 . '<div style="font-size:13px;margin:4px 0;"><b>Response headers:</b></div>'
+                 . '<pre style="background:#1f2937;color:#93c5fd;padding:12px;border-radius:8px;overflow:auto;font-size:12px;">' . htmlspecialchars($respHeader) . '</pre>'
+                 . '<div style="font-size:13px;margin:4px 0;"><b>Response body:</b></div>'
+                 . '<pre style="background:#1f2937;color:#10b981;padding:12px;border-radius:8px;overflow:auto;font-size:12px;">' . htmlspecialchars($respBody !== '' ? $respBody : '(bos)') . '</pre>';
+
+            $hataKodlari = ['99'=>'UNKNOWN','97'=>'USE_POST_METHOD','89'=>'WRONG_XML_FORMAT','87'=>'WRONG_USER_OR_PASSWORD - API KEY HATALI','85'=>'WRONG_SMS_HEADER - Sms basligi onayli degil','84'=>'Tarih formati hatali','83'=>'Yetersiz veri','81'=>'YETERSIZ BAKIYE','77'=>'Ayni SMS son 2 dk icinde'];
+            $bodyTrim = trim($respBody);
+            if (isset($hataKodlari[$bodyTrim])) {
+                $sonuc = '<div style="background:#fee2e2;color:#b91c1c;padding:14px;border-radius:8px;font-weight:bold;">Efetech hata kodu '.$bodyTrim.': '.$hataKodlari[$bodyTrim].'</div>';
+            } elseif ($curlErr) {
+                $sonuc = '<div style="background:#fee2e2;color:#b91c1c;padding:14px;border-radius:8px;font-weight:bold;">cURL baglanti hatasi: '.htmlspecialchars($curlErr).'</div>';
+            } elseif ($httpCode >= 400) {
+                $sonuc = '<div style="background:#fee2e2;color:#b91c1c;padding:14px;border-radius:8px;font-weight:bold;">HTTP '.$httpCode.' (response body ustte)</div>';
+            } elseif (trim($respBody) === '') {
+                $sonuc = '<div style="background:#fee2e2;color:#b91c1c;padding:14px;border-radius:8px;font-weight:bold;">Saglayici bos yanit dondu</div>';
+            } else {
+                $sonuc = '<div style="background:#dcfce7;color:#15803d;padding:14px;border-radius:8px;font-weight:bold;">Efetech yanit aldik. Body: '.htmlspecialchars($bodyTrim).'</div>';
+            }
+        }
+    } catch (\Throwable $e) {
+        $sonuc = '<div style="background:#fee2e2;color:#b91c1c;padding:14px;border-radius:8px;font-weight:bold;">EXCEPTION: '.htmlspecialchars($e->getMessage()).'</div>';
+        $log = '<pre style="background:#1f2937;color:#f87171;padding:12px;border-radius:8px;overflow:auto;font-size:12px;">' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+    }
+
+    return "<div style='font-family:sans-serif;max-width:900px;margin:30px auto;padding:30px;background:#fff;border:2px solid #5C008E;border-radius:14px;'>"
+         . "<h2 style='color:#5C008E;margin-top:0;'>SMS Test Sonucu</h2>"
+         . "<p><b>Telefon:</b> $tel <br><b>Mesaj:</b> ".htmlspecialchars($mesaj)."</p>"
+         . $sonuc
+         . "<h3 style='margin-top:24px;color:#5C008E;'>Saglayici Cevabi</h3>"
+         . $log
+         . "<h3 style='margin-top:24px;color:#5C008E;'>Salon SMS Konfigi</h3>"
+         . $cfg
+         . "</div>";
+});
+
 // GECICI: Personel detay popup'ini test etmek icin ornek data doldurma rotasi.
 // Kullanildiktan sonra bu blok silinecek.
 // Bos olan TUM personellere farkli uzmanliklarda demo veri yazar.
