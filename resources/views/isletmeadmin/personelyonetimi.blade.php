@@ -39,15 +39,15 @@
             </a>
          </li>
          <li class="nav-item" style="margin-left: 20px;">
-            <a 
+            <a
                class="btn btn-outline-primary"
                data-toggle="tab"
-               href="#personelOdemeIslemleri"
+               href="#primHakedis"
                role="tab"
-               aria-selected="false" 
-               style="width: 160px;" 
+               aria-selected="false"
+               style="width: 160px;"
                >
-             Ödeme İşlemleri
+             Prim & Hak Ediş
             </a>
          </li>
         
@@ -83,16 +83,29 @@
                
              
          </div>
-         <div class="tab-pane fade" id="personelOdemeIslemleri" role="tab-panel" style="margin-top: 20px;">
-
-
+         <div class="tab-pane fade" id="primHakedis" role="tab-panel" style="margin-top: 20px;">
+            @include('isletmeadmin.partials.prim_hakedis_panel')
          </div>
-
-
-
       </div>
    </div>
 </div>
+
+<script>
+// URL'de _tab=prim varsa Prim & Hak Ediş sekmesini aktive et
+$(function(){
+   try{
+      var urlParams = new URLSearchParams(window.location.search);
+      if(urlParams.get('_tab') === 'prim'){
+         var $primTab = $('a[data-toggle="tab"][href="#primHakedis"]');
+         var $takvimTab = $('a[data-toggle="tab"][href="#personeller"]');
+         $takvimTab.removeClass('active');
+         $('#personeller').removeClass('active show');
+         $primTab.addClass('active').tab('show');
+         $('#primHakedis').addClass('active show');
+      }
+   }catch(e){}
+});
+</script>
 
 {{-- ================= Personel Modal (Ekle / Düzenle) ================= --}}
 <div id="personel-modal" class="modal modal-top fade calendar-modal">

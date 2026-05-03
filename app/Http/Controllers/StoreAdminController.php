@@ -22817,8 +22817,18 @@ DB::raw('
         }
        
         $personeller = self::personel_liste_getir($request);
+
+        // Prim & Hak Edis sekmesi icin veri (ay/yil query param'lariyla)
+        $yil = (int)($request->yil ?? date('Y'));
+        $ay  = (int)($request->ay ?? date('n'));
+        if($ay < 1 || $ay > 12) $ay = (int)date('n');
+        $tarih1 = sprintf('%04d-%02d-01', $yil, $ay);
+        $tarih2 = date('Y-m-t', strtotime($tarih1));
+        $rapor  = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2);
+
         return view('isletmeadmin.personelyonetimi',['bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Personel Yönetimi','pageindex' => 401,'personeller' => $personeller, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
-            'yetkiliolunanisletmeler'=>$isletmeler,'isletme'=>$isletme,'roller'=>Role::all()]);
+            'yetkiliolunanisletmeler'=>$isletmeler,'isletme'=>$isletme,'roller'=>Role::all(),
+            'rapor'=>$rapor,'yil'=>$yil,'ay'=>$ay,'tarih1'=>$tarih1,'tarih2'=>$tarih2]);
     }
     public function hizmetAlanMusteriler(Request $request)
     {

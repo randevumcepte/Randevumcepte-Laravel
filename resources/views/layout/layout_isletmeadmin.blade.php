@@ -1107,16 +1107,6 @@
                       <span class="mtext">Personel Yönetimi</span>
                      </a>
                   </li>
-                  <li>
-                     @if($pageindex==402)
-                     <a href="/isletmeyonetim/primraporu{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/primraporu{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                      <span class="micon bi bi-cash-coin"></span>
-                      <span class="mtext">Prim & Hak Ediş</span>
-                     </a>
-                  </li>
                   @endif
                   @endif
                   
