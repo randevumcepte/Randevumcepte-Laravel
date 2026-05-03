@@ -82,13 +82,12 @@ Route::get('/dev-sms-test', function() {
                 $sonuc = '<div style="background:#fee2e2;color:#b91c1c;padding:14px;border-radius:8px;font-weight:bold;">VoiceTelekom hatasi: ' . htmlspecialchars(($resp->err->code ?? '?') . ' - ' . ($resp->err->message ?? '')) . '</div>';
             }
         } else {
-            $postUrl = "https://api.efetech.net.tr/v2/sms/basic";
+            $postUrl = "https://api.efetech.net.tr/v2/sms/multi";
             $headers = ['Authorization: Key '.$salon->sms_apikey, 'Content-Type: application/json', 'Accept: application/json'];
             $postData = json_encode([
                 "originator" => $salon->sms_baslik,
-                "message" => $mesaj,
-                "to" => [$tel],
-                "encoding" => "auto",
+                "messages"   => [['to' => $tel, 'message' => $mesaj]],
+                "encoding"   => "auto",
             ]);
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $postUrl);
