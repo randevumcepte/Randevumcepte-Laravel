@@ -944,6 +944,124 @@ $salon = Salonlar::where('domain', $domain)->first();
     
     echo $html;
 }
+     // StoreAdminController::sms_gonder_bildirimli ile ayni desen, ama auth gerektirmez (salon parametre olarak alinir).
+     // Mini-website (musteri tarafi) sifre/dogrulama SMSlerini hem gonderir hem SMSIletimRaporlari'na yazar.
+     // $mesajlar: [['to'=>'05XXXXXXXXX','message'=>'...']]; $tur: 'sifregonder' vb.
+     // Donus: ['success'=>bool, 'error'=>string|null]
+     private function sms_gonder_bildirimli_salon($salon, array $mesajlar, $tur)
+     {
+        if(!$salon){
+            return ['success'=>false, 'error'=>'Salon bulunamadi'];
+        }
+        if(empty($salon->sms_baslik)){
+            return ['success'=>false, 'error'=>'sms_baslik bos (salon konfigi eksik)'];
+        }
+        $aciklama = '';
+        foreach($mesajlar as $m) $aciklama .= $m['message']."\n";
+
+        if($salon->yeni_sms == 1)
+        {
+            try {
+                require_once app_path('VoiceTelekom/Sms/SmsApi.php');
+                require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
+                require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
+                $smsApi = new \SmsApi("smsvt.voicetelekom.com", $salon->sms_user_name, $salon->sms_secret);
+                $sonHata = null;
+                $sonPkgId = null;
+                $basariliAdet = 0;
+                foreach($mesajlar as $mesaj){
+                    $req = new \SendMultiSms();
+                    $req->customID = "sms_" . date('Ymd_His') . "_" . substr(md5(microtime()), 0, 8);
+                    $req->content = $mesaj['message'];
+                    $req->title = 'Online randevu '.$tur;
+                    $req->numbers = [$mesaj['to']];
+                    $req->encoding = 0;
+                    $req->sender = $salon->sms_baslik;
+                    $req->skipAhsQuery = true;
+                    $resp = $smsApi->sendMultiSms($req);
+                    if($resp->err == null){
+                        $basariliAdet++;
+                        $sonPkgId = $resp->pkgID ?? null;
+                    } else {
+                        $sonHata = 'VoiceTelekom: '.($resp->err->code ?? '?').' - '.($resp->err->message ?? '');
+                    }
+                }
+                Log::info('[sms_gonder_bildirimli_salon VT] tamamlandi', [
+                    'salon_id' => $salon->id, 'tur' => $tur, 'gonderim' => count($mesajlar), 'basarili' => $basariliAdet, 'son_hata' => $sonHata,
+                ]);
+                if($basariliAdet > 0){
+                    try {
+                        $rapor = new \App\SMSIletimRaporlari();
+                        $rapor->salon_id = $salon->id;
+                        $rapor->tur = $tur;
+                        $rapor->aciklama = $aciklama;
+                        $rapor->rapor_id = $sonPkgId ?: ('vt_'.date('YmdHis').'_'.rand(1000,9999));
+                        $rapor->adet = $basariliAdet;
+                        $rapor->kredi = 0;
+                        $rapor->durum = 0;
+                        $rapor->save();
+                    } catch(\Throwable $e2){ Log::warning('SMS rapor kaydedilemedi (VT): '.$e2->getMessage()); }
+                    return ['success'=>true, 'error'=>null];
+                }
+                return ['success'=>false, 'error'=>$sonHata ?: 'VoiceTelekom: bilinmeyen hata'];
+            } catch(\Throwable $e){
+                Log::error('[sms_gonder_bildirimli_salon VT] exception: '.$e->getMessage());
+                return ['success'=>false, 'error'=>'VT exception: '.$e->getMessage()];
+            }
+        }
+
+        // Efetech (yeni_sms == 0) — StoreAdminController ile ayni endpoint
+        if(empty($salon->sms_apikey)){
+            return ['success'=>false, 'error'=>'sms_apikey bos (salon konfigi eksik)'];
+        }
+        $headers = [
+            'Authorization: Key '.$salon->sms_apikey,
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ];
+        $postData = json_encode([
+            'originator' => $salon->sms_baslik,
+            'messages'   => $mesajlar,
+            'encoding'   => 'auto',
+        ]);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, 'https://api.efetech.net.tr/v2/sms/multi');
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        $efeResponse = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($ch);
+        curl_close($ch);
+        $decoded = json_decode($efeResponse, true);
+        Log::info('[sms_gonder_bildirimli_salon Efetech] yanit', [
+            'salon_id' => $salon->id, 'tur' => $tur, 'http_code' => $httpCode, 'response' => $efeResponse, 'curl_err' => $curlErr,
+        ]);
+        if($curlErr){
+            return ['success'=>false, 'error'=>'Efetech baglanti hatasi: '.$curlErr];
+        }
+        if($httpCode >= 400){
+            return ['success'=>false, 'error'=>'Efetech HTTP '.$httpCode.' - '.substr((string)$efeResponse, 0, 200)];
+        }
+        if(is_array($decoded) && isset($decoded['response']['message']['id'])){
+            try {
+                $rapor = new \App\SMSIletimRaporlari();
+                $rapor->salon_id = $salon->id;
+                $rapor->tur = $tur;
+                $rapor->aciklama = $aciklama;
+                $rapor->rapor_id = $decoded['response']['message']['id'];
+                $rapor->adet = $decoded['response']['message']['count'] ?? count($mesajlar);
+                $rapor->kredi = $decoded['response']['message']['total_price'] ?? 0;
+                $rapor->durum = 0;
+                $rapor->save();
+            } catch(\Throwable $e2){ Log::warning('SMS rapor kaydedilemedi (Efetech): '.$e2->getMessage()); }
+            return ['success'=>true, 'error'=>null];
+        }
+        return ['success'=>false, 'error'=>'Efetech beklenmeyen yanit: '.substr((string)$efeResponse, 0, 200)];
+     }
+
      public function kullanicikontrolet(Request $request)
      {
          $kullanici = User::where('cep_telefon',$request->cep_telefon)->first();
@@ -986,109 +1104,12 @@ $salon = Salonlar::where('domain', $domain)->first();
              $olusturulansifre = substr($random, 0, 5);
              $kullanici->password = Hash::make($olusturulansifre);
              $kullanici->save();
-             $data = array('sifre'=>$olusturulansifre);
 
-             $smsBasarili = false;
-             $smsHataMesaji = '';
-
-             // SMS metni - her iki saglayici icin ayni
              $smsMetin = $salon->salon_adi."'a hoşgeldiniz. Randevunuzu oluşturmak için sistem giriş şifreniz : ".$olusturulansifre.". Lütfen giriş yaptıktan sonra şifrenizi hatırlayabileceğiniz güvenli bir şifre ile değiştirmeyi unutmayınız.";
-
-             try {
-                if($salon->yeni_sms == 1)
-                {
-                    // VoiceTelekom — StoreAdminController ile ayni desen
-                    require_once app_path('VoiceTelekom/Sms/SmsApi.php');
-                    require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
-                    require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
-                    $smsApi = new \SmsApi("smsvt.voicetelekom.com", $salon->sms_user_name, $salon->sms_secret);
-                    $req = new \SendMultiSms();
-                    $req->customID = "sms_" . date('Ymd_His') . "_" . substr(md5(microtime()), 0, 8);
-                    $req->content = $smsMetin;
-                    $req->title = 'Online randevu sifre gonder';
-                    $req->numbers = [$request->cep_telefon];
-                    $req->encoding = 0;
-                    $req->sender = $salon->sms_baslik;
-                    $req->skipAhsQuery = true;
-                    $response = $smsApi->sendMultiSms($req);
-                    \Log::info('[sifregonder VT] gonderildi', [
-                        'salon_id' => $salon->id,
-                        'tel' => $request->cep_telefon,
-                        'err' => $response->err ?? null,
-                        'pkgID' => $response->pkgID ?? null,
-                    ]);
-                    if($response->err == null){
-                        $smsBasarili = true;
-                    } else {
-                        $smsHataMesaji = 'VoiceTelekom: '.($response->err->code ?? 'bilinmeyen').' - '.($response->err->message ?? '');
-                    }
-                }
-                else
-                {
-                    // Efetech — StoreAdminController ile ayni endpoint (/v2/sms/multi) ve format
-                    if(empty($salon->sms_baslik) || empty($salon->sms_apikey)){
-                        $smsHataMesaji = 'Efetech: sms_baslik veya sms_apikey bos (salon konfigi eksik)';
-                    } else {
-                        $headers = [
-                             'Authorization: Key '.$salon->sms_apikey,
-                             'Content-Type: application/json',
-                             'Accept: application/json',
-                        ];
-                        $mesajlar = [['to' => $request->cep_telefon, 'message' => $smsMetin]];
-                        $postData = json_encode([
-                            'originator' => $salon->sms_baslik,
-                            'messages'   => $mesajlar,
-                            'encoding'   => 'auto',
-                        ]);
-                        $ch = curl_init();
-                        curl_setopt($ch, CURLOPT_URL, 'https://api.efetech.net.tr/v2/sms/multi');
-                        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-                        curl_setopt($ch, CURLOPT_POST, 1);
-                        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
-                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-                        $efeResponse = curl_exec($ch);
-                        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                        $curlErr = curl_error($ch);
-                        curl_close($ch);
-
-                        $decoded = json_decode($efeResponse, true);
-
-                        \Log::info('[sifregonder Efetech] gonderildi', [
-                            'salon_id'  => $salon->id,
-                            'tel'       => $request->cep_telefon,
-                            'http_code' => $httpCode,
-                            'response'  => $efeResponse,
-                            'curl_err'  => $curlErr,
-                        ]);
-
-                        if ($curlErr) {
-                            $smsHataMesaji = 'Efetech baglanti hatasi: '.$curlErr;
-                        } elseif ($httpCode >= 400) {
-                            $smsHataMesaji = 'Efetech HTTP '.$httpCode.' - body: '.substr((string)$efeResponse, 0, 200);
-                        } elseif (is_array($decoded) && isset($decoded['response']['message']['id'])) {
-                            // Basarili - rapor da kaydet (StoreAdminController'daki gibi)
-                            try {
-                                $rapor = new \App\SMSIletimRaporlari();
-                                $rapor->salon_id = $salon->id;
-                                $rapor->tur = 'sifregonder';
-                                $rapor->aciklama = $smsMetin;
-                                $rapor->rapor_id = $decoded['response']['message']['id'];
-                                $rapor->adet = $decoded['response']['message']['count'] ?? 1;
-                                $rapor->kredi = $decoded['response']['message']['total_price'] ?? 0;
-                                $rapor->durum = 0;
-                                $rapor->save();
-                            } catch(\Throwable $e2){ \Log::warning('SMS rapor kaydedilemedi: '.$e2->getMessage()); }
-                            $smsBasarili = true;
-                        } else {
-                            $smsHataMesaji = 'Efetech beklenmeyen yanit: '.substr((string)$efeResponse, 0, 200);
-                        }
-                    }
-                }
-             } catch(\Throwable $e) {
-                \Log::error('[sifregonder] exception', ['err' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-                $smsHataMesaji = 'Sunucu hatasi: '.$e->getMessage();
-             }
+             $mesajlar = [['to' => $request->cep_telefon, 'message' => $smsMetin]];
+             $sonuc = $this->sms_gonder_bildirimli_salon($salon, $mesajlar, 'sifregonder');
+             $smsBasarili = $sonuc['success'];
+             $smsHataMesaji = $sonuc['error'] ?? '';
 
              if($smsBasarili) {
                 $devSifre = $isTestDomain ? "<div style='background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:8px;margin:8px 0;font-size:13px;'>🔧 <b>Test domaini:</b> Şifreniz: <code style='background:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;'>".$olusturulansifre."</code></div>" : '';
