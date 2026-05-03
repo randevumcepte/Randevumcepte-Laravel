@@ -19694,7 +19694,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 DB::raw("CASE WHEN arsiv.durum=1 THEN '<button class=\'btn btn-success \' style=\'line-height:5px;\'>Onaylandı</button>' WHEN
             arsiv.durum=0 THEN '<button class=\'btn btn-danger \' style=\'line-height:5px\'>İptal Edildi</button>' WHEN arsiv.durum IS NULL THEN CASE
             WHEN arsiv.cevapladi=1 OR arsiv.cevapladi2=1 THEN '<button class=\'btn btn-warning \' >Onay Bekleniyor </button>' WHEN arsiv.cevapladi=0 OR arsiv.cevapladi2=0 THEN '<button class=\'btn btn-warning \' >Form Bekleniyor</button>' WHEN arsiv.cevapladi IS NULL OR arsiv.cevapladi2 IS NULL THEN '<button class=\'btn btn-primary \' >Harici Belge </button>' END END AS durum "),
-                 DB::raw(Auth::guard('isletmeyonetim')->check() ? 'CASE WHEN arsiv.form_id=0 THEN CONCAT("<div class=\"dropdown\">
+                 DB::raw(Auth::guard('isletmeyonetim')->check() ? 'CASE WHEN arsiv.form_id=0 AND (arsiv.is_sozlesme IS NULL OR arsiv.is_sozlesme=0) THEN CONCAT("<div class=\"dropdown\">
                 <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\" href=\"#\" role=\"button\" data-toggle=\"dropdown\"><i class=\"dw dw-more\"></i>
                 </a>
                 <div class=\"dropdown-menu dropdown-menu-right dropdown-menu-icon-list\">
@@ -19719,7 +19719,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     <a class=\"dropdown-item\"  href=\"/isletmeyonetim/formindir?arsivid=",arsiv.id,"\"> <i class=\"fa fa-download\"></i> İndir</a>
                       <a class=\"dropdown-item\"  data-value=\"",arsiv.id,"\"  href=\"#\"  name=\"form_yazdir\" > <i class=\"fa fa-print\"></i> Yazdır</a>
                         <a  class=\"dropdown-item \" data-value=\"",arsiv.id,"\" data-toggle=\"modal\" data-target=\"#formutekrargondermodal\" name=\"form_tekrar_gonder\"   href=\"#\"> <i class=\"fa fa-send\"></i>Formu Gönder</a>
-                   </div></div>") END AS islemler' :'CASE WHEN arsiv.form_id=0 THEN CONCAT("<div class=\"dropdown\">
+                   </div></div>") END AS islemler' :'CASE WHEN arsiv.form_id=0 AND (arsiv.is_sozlesme IS NULL OR arsiv.is_sozlesme=0) THEN CONCAT("<div class=\"dropdown\">
                 <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\" href=\"#\" role=\"button\" data-toggle=\"dropdown\"><i class=\"dw dw-more\"></i>
                 </a>
                 <div class=\"dropdown-menu dropdown-menu-right dropdown-menu-icon-list\">
@@ -19759,7 +19759,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             arsiv.durum=0 THEN "<button class=\"btn btn-danger \" style=\"line-height:5px\">İptal Edildi</button>" WHEN arsiv.durum IS NULL THEN CASE
             WHEN arsiv.cevapladi=1 OR arsiv.cevapladi2=1 THEN "<button class=\"btn btn-warning \" >Onay Bekleniyor </button>" WHEN arsiv.cevapladi=0 OR arsiv.cevapladi2=0 THEN "<button class=\"btn btn-warning \" >Form Bekleniyor</button>" WHEN arsiv.cevapladi IS NULL OR arsiv.cevapladi2 IS NULL THEN "<button class=\"btn btn-primary \" >Harici Belge </button>" END
             END AS durum '),
-            DB::raw('CASE WHEN arsiv.form_id=0 THEN CONCAT("<div class=\"dropdown\">
+            DB::raw('CASE WHEN arsiv.form_id=0 AND (arsiv.is_sozlesme IS NULL OR arsiv.is_sozlesme=0) THEN CONCAT("<div class=\"dropdown\">
                 <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\" href=\"#\" role=\"button\" data-toggle=\"dropdown\"><i class=\"dw dw-more\"></i>
                 </a>
                 <div class=\"dropdown-menu dropdown-menu-right dropdown-menu-icon-list\">
@@ -19800,7 +19800,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             arsiv.durum=0 THEN '<button class=\'btn btn-danger \' style=\'line-height:5px\'>İptal Edildi</button>' WHEN arsiv.durum IS NULL THEN CASE
             WHEN arsiv.cevapladi=1 OR arsiv.cevapladi2=1 THEN '<button class=\'btn btn-warning \' >Onay Bekleniyor </button>' WHEN arsiv.cevapladi=0 OR arsiv.cevapladi2=0 THEN '<button class=\'btn btn-warning \' >Form Bekleniyor</button>' WHEN arsiv.cevapladi IS NULL OR arsiv.cevapladi2 IS NULL THEN '<button class=\'btn btn-primary \' >Harici Belge </button>' END
             END AS durum "),
-            DB::raw('CASE WHEN arsiv.form_id=0 THEN CONCAT("<div class=\"dropdown\">
+            DB::raw('CASE WHEN arsiv.form_id=0 AND (arsiv.is_sozlesme IS NULL OR arsiv.is_sozlesme=0) THEN CONCAT("<div class=\"dropdown\">
                 <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\" href=\"#\" role=\"button\" data-toggle=\"dropdown\"><i class=\"dw dw-more\"></i>
                 </a>
                 <div class=\"dropdown-menu dropdown-menu-right dropdown-menu-icon-list\">
@@ -19841,7 +19841,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             arsiv.durum=0 THEN "<button class=\"btn btn-danger \" style=\"line-height:5px\">İptal Edildi</button>" WHEN arsiv.durum IS NULL THEN CASE
             WHEN arsiv.cevapladi=1 OR arsiv.cevapladi2=1 THEN "<button class=\"btn btn-warning \" >Onay Bekleniyor </button>" WHEN arsiv.cevapladi=0 OR arsiv.cevapladi2=0 THEN "<button class=\"btn btn-warning \" >Form Bekleniyor</button>" WHEN arsiv.cevapladi IS NULL OR arsiv.cevapladi2 IS NULL THEN "<button class=\"btn btn-primary \" >Harici Belge </button>" END
             END AS durum '),
-            DB::raw('CASE WHEN arsiv.form_id=0 THEN CONCAT("<div class=\"dropdown\">
+            DB::raw('CASE WHEN arsiv.form_id=0 AND (arsiv.is_sozlesme IS NULL OR arsiv.is_sozlesme=0) THEN CONCAT("<div class=\"dropdown\">
                 <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\" href=\"#\" role=\"button\" data-toggle=\"dropdown\"><i class=\"dw dw-more\"></i>
                 </a>
                 <div class=\"dropdown-menu dropdown-menu-right dropdown-menu-icon-list\">
@@ -19883,7 +19883,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             arsiv.durum=0 THEN '<button class=\'btn btn-danger \' style=\'line-height:5px\'>İptal Edildi</button>' WHEN arsiv.durum IS NULL THEN CASE
             WHEN arsiv.cevapladi=1 OR arsiv.cevapladi2=1 THEN '<button class=\'btn btn-warning \' >Onay Bekleniyor </button>' WHEN arsiv.cevapladi=0 OR arsiv.cevapladi2=0 THEN '<button class=\'btn btn-warning \' >Form Bekleniyor</button>' WHEN arsiv.cevapladi IS NULL OR arsiv.cevapladi2 IS NULL THEN '<button class=\'btn btn-primary \' >Harici Belge </button>' END
             END AS durum "),
-            DB::raw('CASE WHEN arsiv.form_id=0 THEN CONCAT("<div class=\"dropdown\">
+            DB::raw('CASE WHEN arsiv.form_id=0 AND (arsiv.is_sozlesme IS NULL OR arsiv.is_sozlesme=0) THEN CONCAT("<div class=\"dropdown\">
                 <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\" href=\"#\" role=\"button\" data-toggle=\"dropdown\"><i class=\"dw dw-more\"></i>
                 </a>
                 <div class=\"dropdown-menu dropdown-menu-right dropdown-menu-icon-list\">
@@ -20279,13 +20279,23 @@ public function arsivformekleme(Request $request){
     {
         $arsiv = Arsiv::where('id',$request->arsiv_id)->first();
         $formTaslak = FormTaslaklari::where('id',$arsiv->form_id)->first();
-        $baslik = $formTaslak ? $formTaslak->form_adi : 'form';
+        $baslik = $formTaslak ? $formTaslak->form_adi : ($arsiv->is_sozlesme ? 'Hizmet Sozlesmesi' : 'form');
         $isletme=Salonlar::where('id',self::mevcutsube($request))->first();
         if(isset($request->bildirimid))
         {
             $bildirim = Bildirimler::where('id',$request->bildirimid)->first();
             $bildirim->okundu = true;
             $bildirim->save();
+        }
+        if($arsiv->is_sozlesme){
+            $hizmet_adi = null; $paket_adi = null;
+            if($arsiv->hizmet_id){
+                try { $sh = \DB::table('salon_sunulan_hizmetler')->leftJoin('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')->where('salon_sunulan_hizmetler.id',$arsiv->hizmet_id)->select('hizmetler.hizmet_adi')->first(); $hizmet_adi = $sh ? $sh->hizmet_adi : null; } catch(\Exception $e){}
+            }
+            if($arsiv->paket_id){
+                try { $paket_adi = \DB::table('paketler')->where('id',$arsiv->paket_id)->value('paket_adi'); } catch(\Exception $e){}
+            }
+            return view('onamform.sozlesme_pdf', ['arsiv'=>$arsiv,'isletme'=>$isletme,'hizmet_adi'=>$hizmet_adi,'paket_adi'=>$paket_adi])->render();
         }
         if ($formTaslak && $formTaslak->is_dinamik) {
             $sorular = $formTaslak->sorular_json ? json_decode($formTaslak->sorular_json, true) : [];
