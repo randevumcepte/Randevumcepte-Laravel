@@ -37,6 +37,26 @@ const mockRandevular = (telefon) => [
 
 /* ───────── Public API ───────── */
 
+/**
+ * Salon bilgilerini cek — cagri basinda sidecar bunu cagirir, salon adini
+ * sistem promptuna gomer ve hizmet listesini LLM'e ad->id eslestirmesi
+ * icin verir.
+ */
+export async function salonBilgiGetir({ salonId }) {
+  if (USE_MOCK) {
+    return {
+      ok: true,
+      id: salonId,
+      ad: process.env.SALON_ADI || `Salon ${salonId}`,
+      adres: '',
+      telefon: '',
+      hizmetler: [],
+    };
+  }
+  const { data } = await http.post('/v1/ai/salon-bilgi', { salon_id: salonId });
+  return data;
+}
+
 export async function musaitSaatleriGetir({ salonId, tarih, hizmetId }) {
   if (USE_MOCK) return mockMusait(tarih);
   const { data } = await http.post('/v1/ai/musait-saatler', {

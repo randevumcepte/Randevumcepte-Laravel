@@ -292,6 +292,7 @@ Route::post('/bildirimkimligiekleguncelle','ApiController@bildirimkimligieklegun
 
     /* ───────── AI Sesli Asistan (sidecar erisir) ───────── */
     Route::middleware('ai.sidecar')->prefix('ai')->group(function () {
+        Route::post('/salon-bilgi',       'Api\AiAsistanController@salonBilgi');
         Route::post('/musait-saatler',    'Api\AiAsistanController@musaitSaatler');
         Route::post('/randevu-olustur',   'Api\AiAsistanController@randevuOlustur');
         Route::post('/mevcut-randevular', 'Api\AiAsistanController@mevcutRandevular');

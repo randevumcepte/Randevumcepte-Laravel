@@ -12,10 +12,11 @@ import { makeToolHandlers } from '../api/laravel.js';
  *   5. Akış "transfer" veya "hangup" olana kadar devam
  */
 export class Conversation {
-  constructor({ salonId, salonAdi, callerPhone }) {
+  constructor({ salonId, salonAdi, callerPhone, hizmetler }) {
     this.salonId = salonId;
     this.salonAdi = salonAdi;
     this.callerPhone = callerPhone;
+    this.hizmetler = Array.isArray(hizmetler) ? hizmetler : [];
     this.messages = []; // chat history (system prompt buildSystemPrompt'ta otomatik eklenir)
     this.toolHandlers = makeToolHandlers({ salonId, callerPhone });
     this.turnCount = 0;
@@ -28,6 +29,7 @@ export class Conversation {
       salonAdi: this.salonAdi,
       callerPhone: this.callerPhone,
       bugun: this.bugun,
+      hizmetler: this.hizmetler,
     };
   }
 

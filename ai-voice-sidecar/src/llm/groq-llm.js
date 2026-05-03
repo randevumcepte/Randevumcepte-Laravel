@@ -30,6 +30,7 @@ export class GroqLLM {
         bugun: context.bugun ?? new Date().toISOString().slice(0, 10),
         salonAdi: context.salonAdi ?? 'Salon',
         callerPhone: context.callerPhone ?? null,
+        hizmetler: context.hizmetler ?? [],
       }),
     };
 

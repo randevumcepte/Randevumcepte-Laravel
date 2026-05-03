@@ -22,6 +22,45 @@ use Illuminate\Support\Facades\DB;
 class AiAsistanController extends Controller
 {
     /* ─────────────────────────────────────────────────────────────
+     * 0. Salon bilgi — sidecar cagri basinda salon adini cekmek icin
+     * ───────────────────────────────────────────────────────────── */
+    public function salonBilgi(Request $request)
+    {
+        $salonId = (int) $request->input('salon_id');
+        if (!$salonId) {
+            return response()->json(['ok' => false, 'mesaj' => 'salon_id zorunlu'], 422);
+        }
+        $salon = Salonlar::find($salonId);
+        if (!$salon) {
+            return response()->json(['ok' => false, 'mesaj' => 'Salon bulunamadı'], 404);
+        }
+
+        // AI'nin LLM tool eslestirmesi icin hizmet listesi (id + ad)
+        $hizmetler = SalonHizmetler::where('salon_hizmetler.salon_id', $salonId)
+            ->join('hizmetler', 'hizmetler.id', '=', 'salon_hizmetler.hizmet_id')
+            ->where('salon_hizmetler.aktif', 1)
+            ->select(
+                'salon_hizmetler.hizmet_id as id',
+                'hizmetler.hizmet_adi as ad',
+                'salon_hizmetler.sure_dk',
+                'salon_hizmetler.fiyat'
+            )
+            ->orderBy('hizmetler.hizmet_adi')
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'id' => $salon->id,
+            'ad' => $salon->salon_adi,
+            'adres' => $salon->adres,
+            'telefon' => $salon->telefon_1 ?: $salon->telefon_2 ?: $salon->telefon_3,
+            'aciklama' => $salon->aciklama,
+            'randevu_araligi_dk' => $salon->randevu_saat_araligi ?? 30,
+            'hizmetler' => $hizmetler,
+        ]);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
      * 1. Müsait saatleri getir
      * ───────────────────────────────────────────────────────────── */
     public function musaitSaatler(Request $request)

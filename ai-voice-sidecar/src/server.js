@@ -21,6 +21,7 @@ import { AriService } from './asterisk/ari-client.js';
 import { Conversation } from './dialog/state.js';
 import { tts } from './tts/edge-tts.js';
 import { stt } from './stt/groq-stt.js';
+import { salonBilgiGetir } from './api/laravel.js';
 import { config } from './config.js';
 
 const SOUNDS_DIR = process.env.ASTERISK_SOUNDS_DIR || '/var/lib/asterisk/sounds';
@@ -204,10 +205,23 @@ async function handleCall(ctx, ari) {
   ari.client.on('ChannelDestroyed', onChannelGone);
   ari.client.on('ChannelHangupRequest', onChannelGone);
 
+  // Salon adini Laravel'den cek (Mock modunda fallback'e duser)
+  let salonAdi = resolveSalonAdi(salonId);
+  let hizmetler = [];
+  try {
+    const info = await salonBilgiGetir({ salonId });
+    if (info?.ad) salonAdi = info.ad;
+    if (Array.isArray(info?.hizmetler)) hizmetler = info.hizmetler;
+    log(`salon="${salonAdi}" hizmet=${hizmetler.length}`);
+  } catch (e) {
+    log(`salon bilgi cekilemedi (fallback "${salonAdi}"): ${e.message}`);
+  }
+
   const conversation = new Conversation({
     salonId,
-    salonAdi: resolveSalonAdi(salonId),
+    salonAdi,
     callerPhone: callerNum,
+    hizmetler,
   });
 
   let turn = 0;
