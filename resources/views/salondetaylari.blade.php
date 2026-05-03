@@ -1405,28 +1405,63 @@
                window.psSecilenPersonelAd = null;
 
                window.psPersonelRandevuAl = function(){
-                  var modal = document.getElementById('psPersonelDetayModal');
-                  window.psSecilenPersonelId = modal.dataset.personelId || null;
-                  window.psSecilenPersonelAd = document.getElementById('psModalName').textContent.trim() || '';
-                  var avatarSrc = document.getElementById('psModalAvatar').src || '';
-                  psPersonelDetayKapat();
+                  try {
+                     var modal = document.getElementById('psPersonelDetayModal');
+                     window.psSecilenPersonelId = modal ? (modal.dataset.personelId || null) : null;
+                     window.psSecilenPersonelAd = (document.getElementById('psModalName')||{}).textContent || '';
+                     window.psSecilenPersonelAd = window.psSecilenPersonelAd.trim();
+                     var avatarSrc = (document.getElementById('psModalAvatar')||{}).src || '';
 
-                  // 1) Hizmet secim alanina sabit banner kondur
-                  psBannerKur(window.psSecilenPersonelAd, avatarSrc);
+                     // Modal'i kapat
+                     psPersonelDetayKapat();
 
-                  // 2) Hizmet secim bolumune kaydir + glow efekti
-                  var el = document.getElementById('hizmetsecimbolumu');
-                  if (el) {
-                     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                     el.classList.add('ps-glow');
-                     setTimeout(function(){ el.classList.remove('ps-glow'); }, 2400);
-                  }
+                     // Banner ve glow efekti (CSS yuklenmis ise gorunur)
+                     try { psBannerKur(window.psSecilenPersonelAd, avatarSrc); } catch(e){}
 
-                  // 3) "DEVAM ET" butonunu vurgula (pulse animasyonu)
-                  var devamBtn = document.getElementById('personelsecimadiminagec');
-                  if (devamBtn){
-                     devamBtn.classList.add('ps-pulse');
-                     setTimeout(function(){ devamBtn.classList.remove('ps-pulse'); }, 6000);
+                     var el = document.getElementById('hizmetsecimbolumu');
+                     if (el) {
+                        try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e){ window.scrollTo(0, el.offsetTop); }
+                        el.classList.add('ps-glow');
+                        setTimeout(function(){ el.classList.remove('ps-glow'); }, 2400);
+                     }
+
+                     var devamBtn = document.getElementById('personelsecimadiminagec');
+                     if (devamBtn){
+                        devamBtn.classList.add('ps-pulse');
+                        setTimeout(function(){ devamBtn.classList.remove('ps-pulse'); }, 6000);
+                     }
+
+                     // Kullaniciya net bildirim — SweetAlert varsa onu, yoksa alert
+                     setTimeout(function(){
+                        var msg = '✓ ' + window.psSecilenPersonelAd + ' seçildi.\n\nŞimdi yapılacak hizmeti seç ve "DEVAM ET" butonuna bas. Personel otomatik atanacak.';
+                        if (typeof window.swal === 'function') {
+                           // SweetAlert 1.x veya 2.x
+                           try {
+                              window.swal({
+                                 title: '✓ ' + window.psSecilenPersonelAd + ' seçildi',
+                                 text: 'Şimdi yapılacak hizmeti seç ve "DEVAM ET" butonuna bas — personel otomatik atanacak.',
+                                 icon: 'success',
+                                 button: 'Hizmeti Seç'
+                              });
+                           } catch(e){
+                              // fallback eski API
+                              try { window.swal('Personel Seçildi', window.psSecilenPersonelAd + ' seçildi. Şimdi hizmeti seç ve devam et.', 'success'); } catch(e2){ alert(msg); }
+                           }
+                        } else if (window.Swal && typeof window.Swal.fire === 'function') {
+                           window.Swal.fire({
+                              icon: 'success',
+                              title: window.psSecilenPersonelAd + ' seçildi',
+                              text: 'Şimdi yapılacak hizmeti seç ve "DEVAM ET" butonuna bas — personel otomatik atanacak.',
+                              confirmButtonText: 'Hizmeti Seç',
+                              confirmButtonColor: '#5C008E'
+                           });
+                        } else {
+                           alert(msg);
+                        }
+                     }, 350);
+                  } catch(err){
+                     console.error('psPersonelRandevuAl hata:', err);
+                     alert('Bir hata olustu: ' + (err && err.message ? err.message : err));
                   }
                };
 
