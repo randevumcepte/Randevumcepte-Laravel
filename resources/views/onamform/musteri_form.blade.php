@@ -259,12 +259,21 @@ var arsivId = {{ $arsiv->id }};
 var userId = {{ $musteri->id ?? 0 }};
 var soruSayisi = {{ count($sorular) }};
 var imzaCizildi = false;
+var oncekiImza = @json($arsiv->musteri_imza);
+var oncekiKvkk = {{ $arsiv->kvkk_onay ? 'true' : 'false' }};
+var oncekiCevaplar = @json($arsiv->cevaplar_json);
 
 // İmza canvas kurulumu
 var canvas = document.getElementById('imza_canvas');
 if (canvas) {
    var ctx = canvas.getContext('2d');
    canvas.width = canvas.offsetWidth;
+   // Önceki imzayı yükle
+   if(oncekiImza && oncekiImza.indexOf('data:') === 0){
+      var imgPrev = new Image();
+      imgPrev.onload = function(){ try { ctx.drawImage(imgPrev, 0, 0, canvas.width, canvas.height); imzaCizildi = true; } catch(e){} };
+      imgPrev.src = oncekiImza;
+   }
 
    var ciziyorMu = false;
    var sonX, sonY;
@@ -396,6 +405,29 @@ function formuGonder() {
 // OTP: sadece rakam
 $('#otp_input').on('input', function() {
    this.value = this.value.replace(/[^0-9]/g, '').substring(0, 4);
+});
+
+// Sayfa yüklendiğinde önceki cevapları ve KVKK onayını doldur (yeniden gönderilmiş form)
+$(function(){
+   if(oncekiKvkk) $('#kvkk_onay').prop('checked', true);
+   if(oncekiCevaplar){
+      try {
+         var prev = (typeof oncekiCevaplar === 'string') ? JSON.parse(oncekiCevaplar) : oncekiCevaplar;
+         if(Array.isArray(prev)){
+            prev.forEach(function(c){
+               var $el = $('#cevap_' + c.indeks);
+               if($el.length){
+                  var tip = $el.data('tip');
+                  if(tip === 'evet_hayir'){
+                     if(c.cevap === 'evet' || c.cevap === 'hayir') evHayirSec(c.indeks, c.cevap);
+                  } else {
+                     $el.val(c.cevap);
+                  }
+               }
+            });
+         }
+      } catch(e){ console.warn('Önceki cevaplar yüklenemedi:', e); }
+   }
 });
 </script>
 </body>

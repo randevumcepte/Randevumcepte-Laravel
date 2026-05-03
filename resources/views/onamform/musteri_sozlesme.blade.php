@@ -122,11 +122,22 @@ var arsivId = {{ $arsiv->id }};
 var userId = {{ $musteri->id ?? 0 }};
 var canvas = document.getElementById('imza_canvas'); var ctx = canvas ? canvas.getContext('2d') : null;
 var imzaCizildi = false; var ciziyor = false;
+var oncekiImza = @json($arsiv->musteri_imza);
+var oncekiKvkk = {{ $arsiv->kvkk_onay ? 'true' : 'false' }};
 
 function canvasBoyutAyarla(){
    if(!canvas) return;
    canvas.width = canvas.offsetWidth; canvas.height = 200;
    ctx.lineWidth = 2; ctx.lineCap='round'; ctx.strokeStyle='#333';
+   // Eğer önceden imza atılmışsa canvas'a yükle
+   if(oncekiImza && oncekiImza.indexOf('data:') === 0){
+      var img = new Image();
+      img.onload = function(){
+         try { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); imzaCizildi = true; } catch(e){}
+      };
+      img.src = oncekiImza;
+   }
+   if(oncekiKvkk) $('#kvkk_onay').prop('checked', true);
 }
 window.addEventListener('load', canvasBoyutAyarla);
 window.addEventListener('resize', canvasBoyutAyarla);
