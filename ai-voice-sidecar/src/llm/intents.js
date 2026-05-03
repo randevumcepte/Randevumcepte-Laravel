@@ -21,8 +21,8 @@ export const tools = [
             description: 'YYYY-MM-DD formatında tarih (örn. 2026-05-15)',
           },
           hizmet_id: {
-            type: 'integer',
-            description: 'Opsiyonel: hangi hizmet için (saç kesimi, manikür vs.)',
+            type: ['integer', 'string'],
+            description: 'Opsiyonel: hangi hizmet için (saç kesimi, manikür vs.) — sayı olarak ver',
           },
         },
         required: ['tarih'],
@@ -90,8 +90,8 @@ export const tools = [
         type: 'object',
         properties: {
           randevu_id: {
-            type: 'integer',
-            description: 'mevcut_randevularim çağrısının döndürdüğü id',
+            type: ['integer', 'string'],
+            description: 'mevcut_randevularim çağrısının döndürdüğü id (sayı)',
           },
         },
         required: ['randevu_id'],
@@ -107,8 +107,8 @@ export const tools = [
         type: 'object',
         properties: {
           randevu_id: {
-            type: 'integer',
-            description: 'Güncellenecek randevu id',
+            type: ['integer', 'string'],
+            description: 'Güncellenecek randevu id (sayı)',
           },
           yeni_tarih_saat: {
             type: 'string',

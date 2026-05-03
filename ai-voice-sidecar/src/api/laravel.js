@@ -113,6 +113,16 @@ export async function randevuGuncelle({
 }
 
 /**
+ * LLM bazen integer ID'leri string olarak donderir ("1" yerine 1).
+ * Database int bekliyor — burada coerce et.
+ */
+function toInt(v) {
+  if (v === undefined || v === null || v === '') return undefined;
+  const n = typeof v === 'number' ? v : parseInt(String(v).trim(), 10);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/**
  * Tool name → handler mapping. Dialog state machine bunu kullanır.
  */
 export function makeToolHandlers({ salonId, callerPhone }) {
@@ -121,7 +131,7 @@ export function makeToolHandlers({ salonId, callerPhone }) {
       musaitSaatleriGetir({
         salonId,
         tarih: args.tarih,
-        hizmetId: args.hizmet_id,
+        hizmetId: toInt(args.hizmet_id),
       }),
     randevu_olustur: async (args) =>
       randevuOlustur({
@@ -129,7 +139,7 @@ export function makeToolHandlers({ salonId, callerPhone }) {
         telefon: args.telefon || callerPhone,
         adSoyad: args.ad_soyad,
         tarihSaat: args.tarih_saat,
-        hizmetId: args.hizmet_id,
+        hizmetId: toInt(args.hizmet_id),
         notlar: args.notlar,
       }),
     mevcut_randevularim: async (args) =>
@@ -138,11 +148,11 @@ export function makeToolHandlers({ salonId, callerPhone }) {
         telefon: args.telefon || callerPhone,
       }),
     randevu_iptal: async (args) =>
-      randevuIptal({ salonId, randevuId: args.randevu_id }),
+      randevuIptal({ salonId, randevuId: toInt(args.randevu_id) }),
     randevu_guncelle: async (args) =>
       randevuGuncelle({
         salonId,
-        randevuId: args.randevu_id,
+        randevuId: toInt(args.randevu_id),
         yeniTarihSaat: args.yeni_tarih_saat,
       }),
     canli_operatore_aktar: async (args) => ({

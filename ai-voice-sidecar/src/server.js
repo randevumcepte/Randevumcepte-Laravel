@@ -41,6 +41,26 @@ function resolveSalonAdi(salonId) {
   return process.env.SALON_ADI || `Salon ${salonId}`;
 }
 
+// Whisper kotu/sessiz seste cesitli Turkce altyazi/jenerik metinleri uydurur.
+// Bunlari sessizlik kabul etmek false-positive STT'yi engeller.
+const WHISPER_HALLUCINATIONS = [
+  'altyazı m.k.',
+  'altyazi m.k.',
+  'altyazı m. k.',
+  'türkçe altyazı',
+  'turkce altyazi',
+  'abone olmayı unutmayın',
+  'iyi seyirler',
+  'iyi izlemeler',
+  'teşekkürler',
+];
+function isWhisperHallucination(text) {
+  if (!text) return false;
+  const t = text.toLowerCase().trim().replace(/[.,!?]/g, '').trim();
+  if (t.length < 4) return true;
+  return WHISPER_HALLUCINATIONS.some((h) => t === h || t.includes(h));
+}
+
 /**
  * MP3 → WAV (8kHz mono s16le) — Asterisk'in sevdigi format.
  * ffmpeg sistemde olmali (apt install ffmpeg).
@@ -154,6 +174,11 @@ async function listen(client, channel, tag) {
     const t0 = Date.now();
     const result = await stt.transcribeFile(wavPath);
     console.log(`[STT ${tag}] ${Date.now() - t0}ms "${result.text}"`);
+    // Whisper sessiz/dusuk kaliteli sese verdigi bilinen halusinasyonlar — sessizlik say
+    if (isWhisperHallucination(result.text)) {
+      console.log(`[STT ${tag}] halusinasyon tespit edildi, sessizlik kabul ediliyor`);
+      return '';
+    }
     return result.text;
   } finally {
     try { fs.unlinkSync(wavPath); } catch {}
