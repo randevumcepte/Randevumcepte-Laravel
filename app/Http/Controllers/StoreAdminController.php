@@ -20108,11 +20108,15 @@ public function arsivformekleme(Request $request){
         $form->durum=null;
         $form->save();
         if ($form->user_id) {
-            $isDinamik = FormTaslaklari::where('id', $form->form_id)->value('is_dinamik');
-            if ($isDinamik) {
-                $katilim_link = ' Onam formunu doldurmak için: https://'.$_SERVER['HTTP_HOST'].'/onam-form/'.$form->id.'/'.$form->user_id.' | Onay Kodu: '.$kod;
+            if ($form->is_sozlesme) {
+                $katilim_link = ' Hizmet Sözleşmenizi imzalamak için: https://'.$_SERVER['HTTP_HOST'].'/sozlesme/'.$form->id.'/'.$form->user_id.' | Onay Kodu: '.$kod;
             } else {
-                $katilim_link = ' Formu doldurmak için : https://'.$_SERVER['HTTP_HOST'].'/musteriformdoldurma/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+                $isDinamik = FormTaslaklari::where('id', $form->form_id)->value('is_dinamik');
+                if ($isDinamik) {
+                    $katilim_link = ' Onam formunu doldurmak için: https://'.$_SERVER['HTTP_HOST'].'/onam-form/'.$form->id.'/'.$form->user_id.' | Onay Kodu: '.$kod;
+                } else {
+                    $katilim_link = ' Formu doldurmak için : https://'.$_SERVER['HTTP_HOST'].'/musteriformdoldurma/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+                }
             }
             if(MusteriPortfoy::where('user_id',$form->user_id)->where('salon_id',$form->salon_id)->value('kara_liste')!=1)
                     array_push($mesajlar, array("to"=>$form->musteri->cep_telefon,"message"=>$katilim_link));

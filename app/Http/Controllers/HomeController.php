@@ -2453,8 +2453,12 @@ $salon = Salonlar::where('domain', $domain)->first();
             return response()->json(['basarili' => false, 'mesaj' => 'Bu form zaten doldurulmuş.']);
         }
 
-        if (trim($arsiv->dogrulama_kodu) !== trim($request->dogrulama_kodu)) {
-            return response()->json(['basarili' => false, 'mesaj' => 'Onay kodu hatalı. Lütfen SMS ile gelen kodu kontrol edin.']);
+        if(!$request->musteri_imza || !str_starts_with($request->musteri_imza, 'data:') || strlen($request->musteri_imza) < 500){
+            return response()->json(['basarili'=>false,'mesaj'=>'İmza zorunludur. Lütfen imza alanına net bir imza atın.']);
+        }
+
+        if (!$request->dogrulama_kodu || trim($arsiv->dogrulama_kodu) !== trim($request->dogrulama_kodu)) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Onay kodu hatalı. Lütfen SMS ile gelen 4 haneli kodu girin.']);
         }
 
         if(!$request->kvkk_onay){
@@ -2547,8 +2551,11 @@ $salon = Salonlar::where('domain', $domain)->first();
         $arsiv = Arsiv::where('id', $request->arsiv_id)->first();
         if (!$arsiv) return response()->json(['basarili'=>false,'mesaj'=>'Sözleşme bulunamadı.']);
         if ($arsiv->cevapladi) return response()->json(['basarili'=>false,'mesaj'=>'Bu sözleşme zaten imzalanmış.']);
-        if (trim($arsiv->dogrulama_kodu) !== trim($request->dogrulama_kodu)) {
-            return response()->json(['basarili'=>false,'mesaj'=>'Onay kodu hatalı.']);
+        if(!$request->musteri_imza || !str_starts_with($request->musteri_imza, 'data:') || strlen($request->musteri_imza) < 500){
+            return response()->json(['basarili'=>false,'mesaj'=>'İmza zorunludur. Lütfen imza alanına net bir imza atın.']);
+        }
+        if (!$request->dogrulama_kodu || trim($arsiv->dogrulama_kodu) !== trim($request->dogrulama_kodu)) {
+            return response()->json(['basarili'=>false,'mesaj'=>'Onay kodu hatalı. Lütfen SMS ile gelen 4 haneli kodu girin.']);
         }
         if(!$request->kvkk_onay){
             return response()->json(['basarili'=>false,'mesaj'=>'KVKK aydınlatma metni onayı zorunludur.']);
