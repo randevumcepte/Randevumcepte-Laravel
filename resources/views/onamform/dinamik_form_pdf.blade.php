@@ -200,6 +200,7 @@
             <p style="margin:2px 0;">Imza Zamani: {{ date('d.m.Y H:i:s', strtotime($arsiv->imza_zaman)) }}</p>
             @endif
             @if($arsiv->imza_ip)<p style="margin:2px 0;">IP: {{ $arsiv->imza_ip }}</p>@endif
+            @if($arsiv->imza_cihaz)<p style="margin:2px 0; font-size:8px; color:#777;">Cihaz: {{ \Illuminate\Support\Str::limit($arsiv->imza_cihaz, 80) }}</p>@endif
             @if($arsiv->kvkk_onay)<p style="margin:2px 0; color:#28a745;"><b>&#10003; KVKK Onayi Verildi</b></p>@endif
             <p style="margin-top:6px; padding:4px 8px; background:#fff8dc; border:1px solid #d4a017; border-radius:3px; font-size:10px; color:#333;">
                <b>SMS Onay Kodu:</b> <span style="font-family:'DejaVu Sans Mono', monospace; letter-spacing:2px; font-weight:bold;">{{ $arsiv->dogrulama_kodu ?? '-' }}</span>

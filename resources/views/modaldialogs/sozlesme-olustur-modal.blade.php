@@ -58,11 +58,19 @@
                   </div>
                   <div class="col-md-4 form-group">
                      <label><b>Toplam Ücret (₺) *</b></label>
-                     <input type="number" name="toplam_ucret" id="sozlesme_toplam" class="form-control" step="0.01" min="0" required>
+                     <div style="position:relative;">
+                        <input type="text" id="sozlesme_toplam_display" class="form-control tl-input" inputmode="decimal" required placeholder="0,00" style="padding-right:30px;">
+                        <span style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#666; font-weight:600;">₺</span>
+                        <input type="hidden" name="toplam_ucret" id="sozlesme_toplam">
+                     </div>
                   </div>
                   <div class="col-md-4 form-group">
                      <label><b>Kapora (₺)</b></label>
-                     <input type="number" name="kapora" id="sozlesme_kapora" class="form-control" step="0.01" min="0" value="0">
+                     <div style="position:relative;">
+                        <input type="text" id="sozlesme_kapora_display" class="form-control tl-input" inputmode="decimal" placeholder="0,00" style="padding-right:30px;">
+                        <span style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#666; font-weight:600;">₺</span>
+                        <input type="hidden" name="kapora" id="sozlesme_kapora" value="0">
+                     </div>
                   </div>
                   <div class="col-md-12 form-group">
                      <label><b>Sözleşme Şartları *</b> <small class="text-muted">(müşteriye gösterilecek metin — düzenleyebilirsiniz)</small></label>
@@ -84,6 +92,33 @@
    </div>
 </div>
 <script>
+function sozlesmeTlFormat(num){
+   if(num === null || num === undefined || num === '') return '';
+   var n = parseFloat(num);
+   if(isNaN(n)) return '';
+   return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function sozlesmeTlParse(str){
+   if(!str) return 0;
+   var s = String(str).replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(',','.');
+   var n = parseFloat(s);
+   return isNaN(n) ? 0 : n;
+}
+function sozlesmeTlInputBind(displayId, hiddenId){
+   var $disp = $('#'+displayId), $hid = $('#'+hiddenId);
+   $disp.off('input.tl blur.tl');
+   $disp.on('input.tl', function(){
+      var raw = $(this).val();
+      var parsed = sozlesmeTlParse(raw);
+      $hid.val(parsed);
+   });
+   $disp.on('blur.tl', function(){
+      var parsed = sozlesmeTlParse($(this).val());
+      if(parsed > 0) $(this).val(sozlesmeTlFormat(parsed));
+      $hid.val(parsed);
+   });
+}
+
 function sozlesmeVarsayilanMetin(){
    return '1. Bu sözleşme {{ addslashes($isletme->salon_adi) }} ile yukarıda bilgileri yazılı müşteri arasında akdedilmiştir.\n' +
           '2. Müşteri, alacağı hizmet/paket karşılığında belirtilen toplam ücreti ödemeyi kabul ve taahhüt eder.\n' +
@@ -99,6 +134,8 @@ $(document).ready(function(){
       if(!$('#sozlesme_metni').val().trim()){
          $('#sozlesme_metni').val(sozlesmeVarsayilanMetin());
       }
+      sozlesmeTlInputBind('sozlesme_toplam_display', 'sozlesme_toplam');
+      sozlesmeTlInputBind('sozlesme_kapora_display', 'sozlesme_kapora');
       try {
          if($('#sozlesme_musteri').data('select2')) $('#sozlesme_musteri').select2('destroy');
       } catch(e){}
@@ -147,13 +184,19 @@ $(document).ready(function(){
    $('#sozlesme_paket').on('change', function(){
       var sel = $(this).find('option:selected');
       var fiyat = sel.data('fiyat'); var seans = sel.data('seans');
-      if(fiyat) $('#sozlesme_toplam').val(fiyat);
+      if(fiyat){
+         $('#sozlesme_toplam').val(fiyat);
+         $('#sozlesme_toplam_display').val(sozlesmeTlFormat(fiyat));
+      }
       if(seans) $('#sozlesme_seans').val(seans);
    });
    // Hizmet seçilince fiyat doldur
    $('#sozlesme_hizmet').on('change', function(){
       var fiyat = $(this).find('option:selected').data('fiyat');
-      if(fiyat && !$('#sozlesme_toplam').val()) $('#sozlesme_toplam').val(fiyat);
+      if(fiyat && !$('#sozlesme_toplam').val()){
+         $('#sozlesme_toplam').val(fiyat);
+         $('#sozlesme_toplam_display').val(sozlesmeTlFormat(fiyat));
+      }
    });
    // Form submit
    $('#sozlesmeOlusturForm').on('submit', function(e){
