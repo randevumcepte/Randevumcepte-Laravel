@@ -4008,6 +4008,12 @@ private function ayAdiCevir($ingilizceAy)
         $randevu = Randevular::where('id',$request->randevuid)->first();
         $randevu->durum = 1;
         $randevu->save();
+        // Audit
+        if($randevu){
+            $musteriAdi = optional($randevu->users)->name ?? 'Müşteri #'.$randevu->user_id;
+            $label = $musteriAdi.' — '.date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i',strtotime($randevu->saat));
+            SalonAudit::log($randevu->salon_id, 'randevu_onayla', 'randevu', $randevu->id, $label, 'Randevu onaylandı');
+        }
         $isletme = Salonlar::where('id',$randevu->salon_id)->first();
         $mesajlar = array();
       
@@ -4467,7 +4473,12 @@ private function ayAdiCevir($ingilizceAy)
                 ];
                 
                 $yenirandevu = Randevular::create($yenirandevu);
-                
+                // Audit
+                $musteriAdi = \App\User::where('id',$musteriid)->value('name') ?? 'Müşteri #'.$musteriid;
+                SalonAudit::log($request->sube, 'randevu_olustur', 'randevu', $yenirandevu->id,
+                    $musteriAdi.' — '.date('d.m.Y',strtotime($tarihler)).' '.substr($request->saat,0,5),
+                    'Yeni randevu oluşturuldu');
+
                 $hizmet_id = "";
                 $yenisaatbaslangic = $request->saat;
                 $hizmet_sureleri_okunan = array();
@@ -7488,6 +7499,10 @@ private function ayAdiCevir($ingilizceAy)
                 }
             }
             $musteri->save();
+            // Audit
+            $_audit_action = ($request->musteri_id == "") ? 'musteri_ekle' : 'musteri_guncelle';
+            $_audit_aciklama = ($request->musteri_id == "") ? 'Yeni müşteri eklendi' : 'Müşteri bilgileri güncellendi';
+            SalonAudit::log($request->sube, $_audit_action, 'musteri', $musteri->id, $musteri->name, $_audit_aciklama);
             if($request->musteri_id == "")
                  $portfoy = new MusteriPortfoy();
             else
@@ -7967,6 +7982,13 @@ private function ayAdiCevir($ingilizceAy)
         if($request->banka != '')
             $tahsilat->banka_id  = $request->banka;
         $tahsilat->save();
+        // Audit
+        $_audit_musteriAdi = \App\User::where('id',$request->tahsilat_musteri_id)->value('name') ?? 'Müşteri #'.$request->tahsilat_musteri_id;
+        $_audit_tutar = number_format((float)$tahsilat->tutar, 2, ',', '.');
+        SalonAudit::log($request->sube, 'tahsilat_ekle', 'tahsilat', $tahsilat->id,
+            $_audit_musteriAdi.' — '.$_audit_tutar.' ₺',
+            'Tahsilat alındı',
+            ['adisyon_id' => $request->adisyon_id, 'odeme_yontemi_id' => $request->odeme_yontemi]);
         if(isset($request->adisyon_hizmet_id) && isset($request->adisyon_hizmet_senet_id) && isset($request->adisyon_hizmet_taksitli_tahsilat_id))
         {
             foreach($request->adisyon_hizmet_id as $key=>$hizmet_id)

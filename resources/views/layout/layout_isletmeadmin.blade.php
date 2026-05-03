@@ -1098,6 +1098,16 @@
                      </a>
                   </li>
                   <li>
+                     @if($pageindex==401)
+                     <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                      <span class="micon bi bi-people-fill"></span>
+                      <span class="mtext">Personel Yönetimi</span>
+                     </a>
+                  </li>
+                  <li>
                      @if($pageindex==402)
                      <a href="/isletmeyonetim/primraporu{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
@@ -1218,6 +1228,7 @@
                      <span class="mtext">Ayarlar</span>
                      </a>
                   </li>
+                  @if(DB::table('model_has_roles')->whereIn('role_id',[4,5])->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <li>
                      @if($pageindex==999)
                      <a href="/isletmeyonetim/log-hareketleri{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1228,6 +1239,7 @@
                      <span class="mtext">Log Hareketleri</span>
                      </a>
                   </li>
+                  @endif
                   <li>
                      @if($pageindex==65)
                      <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
