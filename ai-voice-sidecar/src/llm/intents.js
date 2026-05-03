@@ -140,10 +140,39 @@ export const tools = [
 ];
 
 /**
+ * Bugun + sonraki 14 gun icin gun_adi -> ISO tarih haritasi.
+ * "Persembe", "onumuzdeki cuma" gibi ifadeleri LLM'in dogru
+ * cozebilmesi icin hazir tablo.
+ */
+function buildGunHaritasi(bugun) {
+  const t0 = new Date(`${bugun}T00:00:00`);
+  const isoOfDay = (offset) => {
+    const d = new Date(t0);
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().slice(0, 10);
+  };
+  const gunAdlari = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+  const gunlerWeek1 = []; // 0..6 — "bu/önümüzdeki" hafta
+  const gunlerWeek2 = []; // 7..13 — "haftaya" / 1 hafta sonra
+  for (let i = 0; i < 7; i++) {
+    const iso = isoOfDay(i);
+    const ad = gunAdlari[new Date(`${iso}T00:00:00`).getDay()];
+    gunlerWeek1.push(`${ad} = ${iso}${i === 0 ? ' (BUGÜN)' : i === 1 ? ' (YARIN)' : ''}`);
+  }
+  for (let i = 7; i < 14; i++) {
+    const iso = isoOfDay(i);
+    const ad = gunAdlari[new Date(`${iso}T00:00:00`).getDay()];
+    gunlerWeek2.push(`${ad} (haftaya) = ${iso}`);
+  }
+  return { week1: gunlerWeek1, week2: gunlerWeek2 };
+}
+
+/**
  * Sistem promptu.
  * Bugünün tarihi pipeline tarafından runtime'da inject edilir.
  */
 export function buildSystemPrompt({ bugun, salonAdi, callerPhone, hizmetler }) {
+  const harita = buildGunHaritasi(bugun);
   const hasList = Array.isArray(hizmetler) && hizmetler.length > 0;
   let hizmetBolumu = '';
   if (hasList) {
@@ -165,7 +194,7 @@ export function buildSystemPrompt({ bugun, salonAdi, callerPhone, hizmetler }) {
 2. NİYET: müşteri ne istiyor anla (yeni randevu / iptal / güncelle / başka).
 3. HİZMET (yeni randevu için): "Hangi hizmet için?" → eşleştir (aşağıdaki kural).
    ÖNEMLİ: hizmet bir kez kabul edildiyse bir daha "doğru anladım mı?" SORMA. Direkt 4. adıma geç.
-4. TARİH: "Hangi gün?" → "yarın", "salı", "10 mayıs" vs. Bugünden hesapla. ISO 8601 (YYYY-MM-DD).
+4. TARİH: "Hangi gün?" → müşteri gün/tarih söylesin. Aşağıdaki TARİH HARİTASI tablosundan KESİN ISO tarihi al, hesap yapma. Müşteri tarih söylediğinde TEK SEFER kısa onay: "Perşembe yani 7 Mayıs için, doğru mu?" → onay alınca direkt 5'e geç (saatleri sorgulama, tool'u çağır).
 5. MÜSAİT SAAT: musait_saatleri_getir tool'unu çağır, dönen 8-12 saatten **sadece 2 tanesini** öner.
    "Sabah 10:00 ya da öğleden sonra 14:30 uygun, hangisi sizin için iyi?"
    ASLA tüm saatleri sıralama.
@@ -188,10 +217,29 @@ ASLA listeden uydurma seç ("saç kesimi" için "Afrika örgüsü" gibi). hizmet
 - Müşteri telefonu: ${callerPhone || 'bilinmiyor'}
 - İşletme: ${salonAdi}
 ${hizmetBolumu}
-═══ TARİH KESTİRİMİ ═══
-- "Yarın" = bugün + 1 gün
-- "Haftaya" = bugün + 7 gün
-- "Salı/çarşamba..." = bugünden sonraki en yakın o gün
+═══ TARİH HARİTASI (HESAP YAPMA, DOĞRUDAN BU TABLOYU KULLAN) ═══
+Bu hafta:
+${harita.week1.map((s) => '  ' + s).join('\n')}
+Haftaya (1 hafta sonra):
+${harita.week2.map((s) => '  ' + s).join('\n')}
+
+KULLANIM:
+- Müşteri "Perşembe" derse → bu hafta Perşembe (yukarıdaki tablodan).
+- "Önümüzdeki Perşembe" / "Bu Perşembe" → bu hafta Perşembe.
+- "Gelecek Perşembe" / "Haftaya Perşembe" → haftaya tablosundan al.
+- "Yarın" / "Öbür gün" / "Bugün" → tablodan al.
+- "5 Mayıs", "10 Mayıs" gibi sayılı tarih → ay+gün ile birleştirip ISO yap.
+- Geçmiş bir gün söylediyse (örn. bugün Pazartesi, Cumartesi dedi → cumartesi geçti) → "Geçmiş Cumartesi mi yoksa bu cumartesi mi?" diye netleştir.
+
+═══ SAAT KESTİRİMİ ═══
+- "On dörtte" = 14:00
+- "On dört otuzda" / "On dört buçukta" = 14:30
+- "İkide" / "iki" / "saat ikide" = 14:00 (öğleden sonra varsayılan, sabah ise müşteri "sabah ikide" der)
+- "İki buçukta" = 14:30
+- "Sabah dokuz" = 09:00
+- "Akşam yedide" = 19:00
+- "Öğleden sonra üçte" = 15:00
+- Belirsizse "Sabah mı öğleden sonra mı?" diye sor.
 
 ═══ OPERATÖRE AKTARMA (sadece bu durumlarda) ═══
 - Müşteri "operatör/insan/yetkili istiyorum" derse → canli_operatore_aktar.
