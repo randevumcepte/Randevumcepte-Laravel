@@ -108,7 +108,22 @@ async function speak(client, channel, text, tag) {
  */
 async function listen(client, channel, tag) {
   const recName = `rec_${tag}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  const liveRecording = client.LiveRecording();
+  const format = 'wav';
+
+  // ari-client v2: channel.record() Promise olarak LiveRecording dondurur.
+  // Asterisk bizim name'imizi degil kendi UUID'sini kullanabilir; gercek
+  // ismi liveRecording.name'den oku.
+  const liveRecording = await channel.record({
+    name: recName,
+    format,
+    maxDurationSeconds: MAX_RECORD_SECONDS,
+    maxSilenceSeconds: MAX_SILENCE_SECONDS,
+    ifExists: 'overwrite',
+    beep: false,
+    terminateOn: '#',
+  });
+
+  const actualName = liveRecording?.name || recName;
 
   const finished = new Promise((resolve, reject) => {
     let done = false;
@@ -119,25 +134,20 @@ async function listen(client, channel, tag) {
     };
     liveRecording.once('RecordingFinished', () => finish());
     liveRecording.once('RecordingFailed', (ev) => finish(new Error(ev?.recording?.cause || 'recording failed')));
-    // Safety
     setTimeout(() => finish(), (MAX_RECORD_SECONDS + 5) * 1000);
   });
 
-  await channel.record({
-    name: recName,
-    format: 'wav',
-    maxDurationSeconds: MAX_RECORD_SECONDS,
-    maxSilenceSeconds: MAX_SILENCE_SECONDS,
-    ifExists: 'overwrite',
-    beep: false,
-    terminateOn: '#',
-  }, liveRecording);
-
   await finished;
 
-  const wavPath = path.join(RECORDINGS_DIR, `${recName}.wav`);
-  if (!fs.existsSync(wavPath)) {
-    throw new Error(`Kayit dosyasi bulunamadi: ${wavPath}`);
+  // Asterisk dosyayi {RECORDINGS_DIR}/{name}.{format} olarak yazar.
+  // Bazen extension yok (UUID isimde) — ikisini de dene.
+  const candidates = [
+    path.join(RECORDINGS_DIR, `${actualName}.${format}`),
+    path.join(RECORDINGS_DIR, actualName),
+  ];
+  const wavPath = candidates.find((p) => fs.existsSync(p));
+  if (!wavPath) {
+    throw new Error(`Kayit dosyasi bulunamadi (denenen: ${candidates.join(', ')})`);
   }
 
   try {
