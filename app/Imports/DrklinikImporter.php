@@ -10,6 +10,7 @@ use App\SalonHizmetKategoriRenkleri;
 use App\Personeller;
 use App\PersonelCalismaSaatleri;
 use App\IsletmeYetkilileri;
+use App\Urunler;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,7 @@ class DrklinikImporter
     /** @var int */
     private $salonId;
     private $out;
-    private $counts = ['hizmet' => 0, 'personel' => 0, 'musteri' => 0, 'randevu' => 0, 'tahsilat' => 0, 'skipped' => 0];
+    private $counts = ['hizmet' => 0, 'personel' => 0, 'urun' => 0, 'musteri' => 0, 'randevu' => 0, 'tahsilat' => 0, 'skipped' => 0];
     private $defaultKategoriId = null;
 
     public function __construct(DrklinikClient $client, $salonId, $out = null)
@@ -243,6 +244,56 @@ class DrklinikImporter
             $this->counts['personel']++;
         }
         $this->log("Personel aktarim: {$eklendi} yeni");
+    }
+
+    /**
+     * uruntanimlamalari.aspx tablosu: Urun Adi | Urun Kodu | Stok | ... | Satis Fiyati | Alis Fiyati | Marka
+     */
+    public function importUrunler()
+    {
+        $this->log('Urunler cekiliyor (uruntanimlamalari.aspx)...');
+        $html = $this->client->getHtml('/uruntanimlamalari.aspx', 'urun_listesi');
+        if ($html === '') { $this->log('Sayfa cekilemedi.'); return; }
+
+        $rows = $this->parseTableRowsRaw($html);
+        $this->log('  HTML tablodan ' . count($rows) . ' satir cikartildi.');
+
+        $eklendi = 0;
+        foreach ($rows as $rawRow) {
+            $cells = [];
+            foreach ($rawRow as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) continue;
+                $clean = trim(preg_replace('/\s+/', ' ', strip_tags($tdRaw)));
+                $clean = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                $cells[] = $clean;
+            }
+            $ad = isset($cells[0]) ? $cells[0] : '';
+            if (!$ad) continue;
+            $kod  = isset($cells[1]) ? $cells[1] : '';
+            $stok = isset($cells[2]) ? (int) preg_replace('/[^0-9-]/', '', $cells[2]) : 0;
+            // Ilk fiyat-benzeri (3. cell ve sonrasi) -> satis fiyati
+            $fiyat = 0;
+            foreach (array_slice($cells, 3) as $cell) {
+                if (preg_match('/(\d+[\.,]\d{2})/', $cell, $m)) {
+                    $fiyat = (float) str_replace(',', '.', $m[1]);
+                    break;
+                }
+            }
+
+            $u = Urunler::where('urun_adi', $ad)->where('salon_id', $this->salonId)->first();
+            if (!$u) {
+                $u = new Urunler();
+                $u->urun_adi = $ad;
+                $u->salon_id = $this->salonId;
+            }
+            if ($kod) $u->barkod = $kod;
+            $u->stok_adedi = $stok;
+            $u->fiyat = $fiyat;
+            $u->save();
+            $eklendi++;
+            $this->counts['urun']++;
+        }
+        $this->log("Urun aktarim: {$eklendi}");
     }
 
     /**

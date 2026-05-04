@@ -74,10 +74,11 @@ class DrklinikImport extends Command
             return 0;
         }
 
-        $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet', 'personel'];
+        $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet', 'personel', 'urun'];
         $importer = new DrklinikImporter($client, $salonId, $this->output);
         if (in_array('personel', $types)) $importer->importPersoneller();
         if (in_array('hizmet', $types))   $importer->importHizmetler();
+        if (in_array('urun', $types))     $importer->importUrunler();
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
         return 0;
     }
