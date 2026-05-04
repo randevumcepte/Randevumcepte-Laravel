@@ -35,7 +35,7 @@
                aria-selected="false" 
                style="width: 160px;" 
                >
-             Takvim Tablosu
+             Personeller
             </a>
          </li>
          <li class="nav-item" style="margin-left: 20px;">

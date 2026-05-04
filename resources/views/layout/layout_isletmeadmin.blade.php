@@ -997,13 +997,6 @@
                      <span class="mtext"> @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışanlar @else Müşteriler @endif</span>
                      </a>
                   </li>
-                  <li>
-                     @php $isPersonellerActive = ($pageindex==9 && (isset($_GET['p']) && $_GET['p']=='personeller')); @endphp
-                     <a href="/isletmeyonetim/ayarlar?p=personeller{{(isset($_GET['sube'])) ? '&sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow {{ $isPersonellerActive ? 'active' : '' }}">
-                        <span class="micon bi bi-person-lines-fill"></span>
-                        <span class="mtext">Personeller</span>
-                     </a>
-                  </li>
                   @endif
                    @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>2)
