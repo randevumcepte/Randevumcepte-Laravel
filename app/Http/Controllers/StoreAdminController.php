@@ -4058,44 +4058,85 @@ private function ayAdiCevir($ingilizceAy)
     }
      public function randevuonayla(Request $request){
         $randevu = Randevular::where('id',$request->randevuid)->first();
+        if (!$randevu) {
+            return response()->json(['error' => 'Randevu bulunamadı'], 404);
+        }
         $randevu->durum = 1;
         $randevu->save();
-        // Audit
-        if($randevu){
-            $musteriAdi = optional($randevu->users)->name ?? 'Müşteri #'.$randevu->user_id;
-            $label = $musteriAdi.' — '.date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i',strtotime($randevu->saat));
-            SalonAudit::log($randevu->salon_id, 'randevu_onayla', 'randevu', $randevu->id, $label, 'Randevu onaylandı');
+
+        // Audit (light)
+        $musteriAdi = optional($randevu->users)->name ?? 'Müşteri #'.$randevu->user_id;
+        $label = $musteriAdi.' — '.date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i',strtotime($randevu->saat));
+        SalonAudit::log($randevu->salon_id, 'randevu_onayla', 'randevu', $randevu->id, $label, 'Randevu onaylandı');
+
+        // Yanit verilerini hazirla — randevu_liste_getir gerekiyorsa cek (DataTable icin)
+        $listResponse = self::randevu_liste_getir(
+            $request,
+            date('Y-m-d'),
+            date('Y-m-d'),
+            '', '', '', '',
+            self::mevcutsube($request),
+            ''
+        );
+
+        // Yaniti hemen flush et — SMS ve bildirim arka planda calisacak
+        $kullaniciId = Auth::guard('isletmeyonetim')->id();
+        $kullaniciAdi = Auth::guard('isletmeyonetim')->user()->name ?? '';
+        $kullaniciResim = Auth::guard('isletmeyonetim')->user()->profil_resim ?? null;
+
+        $payload = json_encode($listResponse);
+        if (function_exists('fastcgi_finish_request')) {
+            // PHP-FPM: yaniti hemen flush et, geri kalan kod baglanti kapali calisir
+            ignore_user_abort(true);
+            header('Content-Type: application/json');
+            header('Content-Length: '.strlen($payload));
+            echo $payload;
+            session_write_close();
+            fastcgi_finish_request();
+        } else {
+            // Generic fallback - yine de baglantiyi kapat sinyali gonder
+            ignore_user_abort(true);
+            header('Content-Type: application/json');
+            header('Content-Length: '.strlen($payload));
+            header('Connection: close');
+            echo $payload;
+            if (function_exists('ob_end_flush')) { @ob_end_flush(); }
+            @flush();
         }
-        $isletme = Salonlar::where('id',$randevu->salon_id)->first();
-        $mesajlar = array();
-      
-        if(SalonSMSAyarlari::where('ayar_id',2)->where('salon_id',$randevu->salon_id)->value('musteri') == 1 )
-        {
-            array_push($mesajlar,array("to"=>$randevu->users->cep_telefon,"message"=>$isletme->salon_adi." için oluşturduğunuz ".date('d.m.Y',strtotime($randevu->tarih)) ." ". date('H:i',strtotime($randevu->saat)) ." tarihli randevu talebiniz onaylanmıştır. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0".$randevu->salonlar->telefon_1));
-        }
-        if(SalonSMSAyarlari::where('ayar_id',2)->where('salon_id',$randevu->salon_id)->value('personel') == 1)
-        {
-                foreach($randevu->hizmetler as $hizmet)
-                {
+
+        // === BACKGROUND: SMS + Bildirim ===
+        try {
+            $isletme = Salonlar::where('id',$randevu->salon_id)->first();
+            $mesajlar = array();
+
+            if (SalonSMSAyarlari::where('ayar_id',2)->where('salon_id',$randevu->salon_id)->value('musteri') == 1) {
+                $mesajlar[] = [
+                    'to' => $randevu->users->cep_telefon,
+                    'message' => $isletme->salon_adi." için oluşturduğunuz ".date('d.m.Y',strtotime($randevu->tarih))." ".date('H:i',strtotime($randevu->saat))." tarihli randevu talebiniz onaylanmıştır. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0".$randevu->salonlar->telefon_1
+                ];
+            }
+            if (SalonSMSAyarlari::where('ayar_id',2)->where('salon_id',$randevu->salon_id)->value('personel') == 1) {
+                foreach ($randevu->hizmetler as $hizmet) {
                     $yetkiliid = Personeller::where('id',$hizmet->personel_id)->value('yetkili_id');
-                    $mesaj = $randevu->users->name .' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmet->hizmetler->hizmet_adi.' randevusu '.Auth::guard('isletmeyonetim')->user()->name.' tarafından onaylanmıştır.';
-                    $randevutarihsaat = date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i:s',strtotime($hizmet->saat));
-                     array_push($mesajlar,array("to"=>IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1'),"message"=>$mesaj ));
-                    self::bildirimekle($request,$randevu->salon_id,$mesaj,"#",$hizmet->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
+                    $mesaj = $randevu->users->name.' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmet->hizmetler->hizmet_adi.' randevusu '.$kullaniciAdi.' tarafından onaylanmıştır.';
+                    $mesajlar[] = [
+                        'to' => IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1'),
+                        'message' => $mesaj,
+                    ];
+                    self::bildirimekle($request, $randevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, $kullaniciResim, $randevu->id);
                     $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id',$hizmet->personel_id)->pluck('bildirim_id')->toArray();
                     self::bildirimgonder($bildirimkimlikleri,"Randevu Onayı",$mesaj,$randevu->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
                 }
+            }
+            if (count($mesajlar) > 0) {
+                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+            }
+        } catch (\Throwable $e) {
+            \Log::error('[randevuonayla background] SMS/bildirim hata: '.$e->getMessage(), ['randevu_id' => $randevu->id]);
         }
-        if(count($mesajlar)>0)
-            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
-        return  self::randevu_liste_getir(
-    $request,
-    date('Y-m-d'), // tarih1: bugün
-    date('Y-m-d'), // tarih2: bugün
-    '', '', '', '', 
-    self::mevcutsube($request), 
-    ''
-);
+
+        // PHP daha fazla output yapmasin
+        exit;
      }
     public function randevubilgiguncelle(Request $request){
         $randevu = Randevular::where('id',$request->randevuid)->first();
