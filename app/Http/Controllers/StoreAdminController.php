@@ -1934,15 +1934,44 @@ public function carkverilerigetir(Request $request)
         } catch (\Exception $e) {}
     }
     $isletmeId = self::mevcutsube($request);
-   
+
     $personel_idler = Auth::guard('isletmeyonetim')->check() ? Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('salon_id',$isletmeId)->pluck('id')->toArray() : array();
-   
-    $randevu_hizmetler = RandevuHizmetler::with([
+
+    // ROL bir kez hesaplanir (eski kod her satir icin tekrar sorguluyordu)
+    $rol = Personeller::where('salon_id',$isletmeId)
+        ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id ?? 0)
+        ->value('role_id');
+
+    // Renk haritalarini bir kez yukle, id->renk dictionary olarak tut (per-row N+1 yerine)
+    $kategoriRenkMap = [];
+    $cihazRenkMap    = [];
+    $odaRenkMap      = [];
+    if($takvim_turu == 0){
+        foreach(SalonHizmetKategoriRenkleri::where('salon_id',$isletmeId)->get() as $rk){
+            if($rk->renkduzeni) $kategoriRenkMap[$rk->hizmet_kategori_id] = $rk->renkduzeni->renk;
+        }
+    }
+    if($takvim_turu == 2){
+        foreach(SalonCihazRenkleri::where('salon_id',$isletmeId)->get() as $rk){
+            if($rk->renkduzeni) $cihazRenkMap[$rk->cihaz_id] = $rk->renkduzeni->renk;
+        }
+    }
+    if($takvim_turu == 3){
+        foreach(OdaRenkleri::where('salon_id',$isletmeId)->get() as $rk){
+            if($rk->renkduzeni) $odaRenkMap[$rk->oda_id] = $rk->renkduzeni->renk;
+        }
+    }
+
+    $randevu_hizmetler_raw = RandevuHizmetler::with([
         'hizmetler',
         'personeller.trenk',
         'cihaz',
         'oda',
-        'randevu.users'
+        'randevu.users',
+        'randevu.olusturan_personel',
+        'randevu.ongorusme.paket',
+        'randevu.ongorusme.hizmet',
+        'randevu.ongorusme.urun',
     ])->where('sure_dk','>',0)
     ->whereHas('randevu', function ($q)  use($isletmeId,$tarih1,$tarih2){
         $q->where('durum', '<', 2);
@@ -1950,8 +1979,25 @@ public function carkverilerigetir(Request $request)
         $q->where('tarih','<=',$tarih2);
         $q->where('salon_id',$isletmeId);
     })
-    ->get()
-    ->map(function ($rh) use($takvim_turu,$isletmeId) {
+    ->get();
+
+    // Tum randevu_id'ler icin AdisyonPaketSeanslar'i tek seferde cek, randevu_id'ye gore grupla
+    $randevuIds = $randevu_hizmetler_raw->pluck('randevu_id')->unique()->values()->toArray();
+    $seanslarByRandevu = !empty($randevuIds)
+        ? AdisyonPaketSeanslar::whereIn('randevu_id', $randevuIds)->get()->groupBy('randevu_id')
+        : collect();
+    // Toplu seans kayitlarindan ihtiyac duyulan adisyon_paket_id ve adisyon_hizmet_id'leri batch yukle
+    $adisyonPaketIds  = $seanslarByRandevu->flatten(1)->pluck('adisyon_paket_id')->filter()->unique()->values()->toArray();
+    $adisyonHizmetIds = $seanslarByRandevu->flatten(1)->pluck('adisyon_hizmet_id')->filter()->unique()->values()->toArray();
+    $adisyonPaketMap  = !empty($adisyonPaketIds)
+        ? AdisyonPaketler::with('paket')->whereIn('id', $adisyonPaketIds)->get()->keyBy('id')
+        : collect();
+    $adisyonHizmetMap = !empty($adisyonHizmetIds)
+        ? AdisyonHizmetler::whereIn('id', $adisyonHizmetIds)->get()->keyBy('id')
+        : collect();
+
+    $randevu_hizmetler = $randevu_hizmetler_raw
+    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap) {
 
         $start = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat)->toIso8601String();
 
@@ -1991,29 +2037,27 @@ public function carkverilerigetir(Request $request)
             else{
 
                 if($takvim_turu == 0){
-                    $renkDuzeni = SalonHizmetKategoriRenkleri::where('salon_id',$isletmeId)->where('hizmet_kategori_id',$rh->hizmetler->hizmet_kategori_id)->first();
-                    if($renkDuzeni)
-                        $color = $renkDuzeni->renkduzeni->renk;
+                    if($rh->hizmetler && isset($kategoriRenkMap[$rh->hizmetler->hizmet_kategori_id])){
+                        $color = $kategoriRenkMap[$rh->hizmetler->hizmet_kategori_id];
+                    }
                 }
                 if($takvim_turu == 1)
                 {
                         if($rh->personel_id != 183){
 
-                            $color = $rh->personeller ? $rh->personeller->trenk->renk : '';
+                            $color = ($rh->personeller && $rh->personeller->trenk) ? $rh->personeller->trenk->renk : '';
                         }
-                } 
+                }
                 if($takvim_turu == 2)
                 {
-
-                    $renkDuzeni = SalonCihazRenkleri::where('salon_id',$isletmeId)->where('cihaz_id',$rh->cihaz_id)->first();
-                    if($renkDuzeni)
-                        $color = $renkDuzeni->renkduzeni->renk;
-                   
+                    if(isset($cihazRenkMap[$rh->cihaz_id])){
+                        $color = $cihazRenkMap[$rh->cihaz_id];
+                    }
                 }
                 if($takvim_turu == 3){
-                    $renkDuzeni = OdaRenkleri::where('salon_id',$isletmeId)->where('oda_id',$rh->oda_id)->first();
-                    if($renkDuzeni)
-                        $color = $renkDuzeni->renkduzeni->renk;
+                    if(isset($odaRenkMap[$rh->oda_id])){
+                        $color = $odaRenkMap[$rh->oda_id];
+                    }
                 }
             }
             $resourceId = "";
@@ -2030,7 +2074,7 @@ public function carkverilerigetir(Request $request)
             $title = $rh->randevu->users->name;
             $_musteriAdi = $rh->randevu->users->name;
             $_modalSubtitle = '';
-            $seansVar = AdisyonPaketSeanslar::where('randevu_id',$rh->randevu_id)->get();
+            $seansVar = $seanslarByRandevu->get($rh->randevu_id, collect());
             if($seansVar->count() > 0 ){
                 $title .= " (PAKET)";
                 $_modalSubtitle = 'Paket Randevusu';
@@ -2058,17 +2102,18 @@ public function carkverilerigetir(Request $request)
                 $_modalSubtitle = 'Randevu';
             }
             if($seansVar->count() > 0){
-                $paketVar = AdisyonPaketler::whereIn('id',$seansVar->pluck('adisyon_paket_id')->toArray())->first();
-                $hizmetVar = AdisyonHizmetler::whereIn('id',$seansVar->pluck('adisyon_hizmet_id')->toArray())->first();
-                if($paketVar){
-
+                $apIds = $seansVar->pluck('adisyon_paket_id')->filter()->values();
+                $ahIds = $seansVar->pluck('adisyon_hizmet_id')->filter()->values();
+                $paketVar  = $apIds->isNotEmpty() ? $adisyonPaketMap->get($apIds->first()) : null;
+                $hizmetVar = $ahIds->isNotEmpty() ? $adisyonHizmetMap->get($ahIds->first()) : null;
+                if($paketVar && $paketVar->paket){
                     $title .= "\n".$paketVar->paket->paket_adi;
                     $paketAdi = $paketVar->paket->paket_adi;
                 }
-                if($hizmetVar)
+                if($hizmetVar && $rh->hizmetler)
                     $title .= "\n".$rh->hizmetler->hizmet_adi;
             }
-            else
+            elseif($rh->hizmetler)
                 $title .= "\n".$rh->hizmetler->hizmet_adi;
             
 
@@ -2089,7 +2134,7 @@ public function carkverilerigetir(Request $request)
 
 
         }
-        $rol = Personeller::where('salon_id',$isletmeId)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('role_id');
+        // $rol disaridan dondurulen closure scope degiskeni; her satir icin tekrar sorguya gerek yok
         return [
             'id' => $rh->id,
             'title' => $title,
@@ -2129,14 +2174,16 @@ public function carkverilerigetir(Request $request)
             return $firstPersonel ?: null;
         });
 
-    // randevu_hizmetler'e start ve end alanlarını Carbon'a çevirerek önceden hazırla
-    $randevu_hizmetler2 = $randevu_hizmetler->map(function ($item) {
-        return (object)[
-            'resourceId' => $item['resourceId'] ?? $item->resourceId,
+    // randevu_hizmetler'i resourceId bazli grupla — empty slot kontrolunde O(n) yerine O(per_resource) tarama
+    $randevu_hizmetler2_by_resource = [];
+    foreach ($randevu_hizmetler as $item) {
+        $rid = $item['resourceId'] ?? $item->resourceId;
+        if($rid === '' || $rid === null) continue;
+        $randevu_hizmetler2_by_resource[$rid][] = (object)[
             'start' => Carbon::parse($item['start'] ?? $item->start),
-            'end' => Carbon::parse($item['end'] ?? $item->end),
+            'end'   => Carbon::parse($item['end']   ?? $item->end),
         ];
-    });
+    }
     
     $resources = "";
     if($takvim_turu == 1 || self::personelmi($request)) {
@@ -2227,12 +2274,17 @@ public function carkverilerigetir(Request $request)
     // Boş slotları oluştur
     foreach ($resources as $resource) {
         $currentTime = $startDate->copy();
+        // Sadece bu resource'a ait randevu pencereleri (cok daha kucuk liste)
+        $resourceEvents = $randevu_hizmetler2_by_resource[$resource->id] ?? [];
 
         while ($currentTime < $endDate) {
-            $overlapping = $randevu_hizmetler2->first(function ($event) use ($currentTime, $resource) {
-                return $event->resourceId == $resource->id &&
-                       $currentTime->between($event->start, $event->end->copy()->subSecond());
-            });
+            $overlapping = null;
+            foreach ($resourceEvents as $event) {
+                if ($currentTime >= $event->start && $currentTime < $event->end) {
+                    $overlapping = $event;
+                    break;
+                }
+            }
 
             if (!$overlapping) {
                 $personelId = '';
