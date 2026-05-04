@@ -10094,32 +10094,30 @@ DB::raw('
     }*/
     public function musteri_tahsilatlari(Request $request,$musteriid,$adisyon_id,$satisDuzenle)
     {
-        
-        $acik_adisyonlar = collect();
-        if($adisyon_id == ''){
-            $urunler = isset($request->adisyon_urun_id) ? AdisyonUrunler::whereIn('id',$request->adisyon_urun_id)->pluck('adisyon_id')->toArray() : array();
-            $paketler = isset($request->adisyon_paket_id) ? AdisyonPaketler::whereIn('id',$request->adisyon_paket_id)->pluck('adisyon_id')->toArray() : array();
-            $hizmetler = isset($request->adisyon_hizmet_id) ? AdisyonHizmetler::whereIn('id',$request->adisyon_hizmet_id)->pluck('adisyon_id')->toArray() : array();
-            $adisyonIdler = array_unique(array_merge($urunler,$paketler,$hizmetler));
 
-            if(count($adisyonIdler) > 0){
-                $acik_adisyonlar = Adisyonlar::whereIn('id',$adisyonIdler)
-                    ->where('user_id',$musteriid)
-                    ->where('salon_id',$request->sube)
-                    ->get();
-            }
-            else
-            {
-                $sonAdisyon = Adisyonlar::where('user_id',$musteriid)
-                    ->where('salon_id',$request->sube)
-                    ->orderBy('id','desc')
-                    ->first();
-                if($sonAdisyon)
-                    $acik_adisyonlar = Adisyonlar::where('id',$sonAdisyon->id)->get();
-            }
+        $acik_adisyonlar = collect();
+        $urunler = isset($request->adisyon_urun_id) ? AdisyonUrunler::whereIn('id',$request->adisyon_urun_id)->pluck('adisyon_id')->toArray() : array();
+        $paketler = isset($request->adisyon_paket_id) ? AdisyonPaketler::whereIn('id',$request->adisyon_paket_id)->pluck('adisyon_id')->toArray() : array();
+        $hizmetler = isset($request->adisyon_hizmet_id) ? AdisyonHizmetler::whereIn('id',$request->adisyon_hizmet_id)->pluck('adisyon_id')->toArray() : array();
+        $adisyonIdler = array_unique(array_merge($urunler,$paketler,$hizmetler));
+        if($adisyon_id != '')
+            $adisyonIdler = array_unique(array_merge($adisyonIdler, [$adisyon_id]));
+
+        if(count($adisyonIdler) > 0){
+            $acik_adisyonlar = Adisyonlar::whereIn('id',$adisyonIdler)
+                ->where('user_id',$musteriid)
+                ->where('salon_id',$request->sube)
+                ->get();
         }
-        else
-            $acik_adisyonlar = Adisyonlar::where('id',$adisyon_id)->get();
+        elseif($adisyon_id == '')
+        {
+            $sonAdisyon = Adisyonlar::where('user_id',$musteriid)
+                ->where('salon_id',$request->sube)
+                ->orderBy('id','desc')
+                ->first();
+            if($sonAdisyon)
+                $acik_adisyonlar = Adisyonlar::where('id',$sonAdisyon->id)->get();
+        }
 
 
         $html = '';
