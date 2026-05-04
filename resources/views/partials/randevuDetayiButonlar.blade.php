@@ -1,15 +1,3 @@
-<style>
-   .rdb-row { display:flex; gap:8px; flex-wrap:wrap; width:100%; }
-   .rdb-row .btn {
-      flex: 1 1 130px; min-width: 0;
-      border-radius: 8px; font-weight: 600; font-size: 13px;
-      padding: 9px 12px; line-height: 1.2;
-      white-space: normal;
-   }
-   .rdb-row .btn i { margin-right: 4px; }
-   .rdb-row .rdb-pull-right { margin-left: auto; flex-grow: 0; }
-</style>
-
 @if($randevu->randevu->on_gorusme_id !== null)
    <div class="rdb-row">
       <a name="gelmedi_isaretle" href="#" class="btn btn-danger" data-value="{{$randevu->randevu_id}}"><i class="fa fa-times"></i> Gelmedi</a>
@@ -36,7 +24,7 @@
       <a name="geldi_isaretle"   href="#" class="btn btn-success" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-check"></i> Geldi</a>
 
       @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')
-         @if(\App\AdisyonPaketSeanslar::where('randevu_id',$randevu->randevu_id)->count()>0 || \App\AdisyonHizmetler::where('randevu_id',$randevu->randevu_id)->count()>0)
+         @if(!empty($hasPaketTahsilat))
             <a name="paket_tahsilatlari" href="#" class="btn btn-primary" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-money"></i> Tahsilat</a>
          @else
             <a name="tahsil_et" href="#" class="btn btn-primary" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-money"></i> Tahsilat</a>

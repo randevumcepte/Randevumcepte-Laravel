@@ -1972,6 +1972,8 @@ public function carkverilerigetir(Request $request)
         'randevu.ongorusme.paket',
         'randevu.ongorusme.hizmet',
         'randevu.ongorusme.urun',
+        'randevu.ongorusme.personel',
+        'randevu.hizmetler', // partial icindeki yardimci personel taramasi N+1'ini engellemek icin
     ])->where('sure_dk','>',0)
     ->whereHas('randevu', function ($q)  use($isletmeId,$tarih1,$tarih2){
         $q->where('durum', '<', 2);
@@ -1996,8 +1998,16 @@ public function carkverilerigetir(Request $request)
         ? AdisyonHizmetler::whereIn('id', $adisyonHizmetIds)->get()->keyBy('id')
         : collect();
 
+    // Tahsilat butonu icin: hangi randevu_id'lerin AdisyonPaketSeanslar veya AdisyonHizmetler kayitlari var
+    $randevuIdsHasSeans = !empty($randevuIds)
+        ? AdisyonPaketSeanslar::whereIn('randevu_id', $randevuIds)->pluck('randevu_id')->unique()->flip()
+        : collect();
+    $randevuIdsHasAdisyonHizmet = !empty($randevuIds)
+        ? AdisyonHizmetler::whereIn('randevu_id', $randevuIds)->pluck('randevu_id')->unique()->flip()
+        : collect();
+
     $randevu_hizmetler = $randevu_hizmetler_raw
-    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap) {
+    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet) {
 
         $start = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat)->toIso8601String();
 
@@ -2135,12 +2145,13 @@ public function carkverilerigetir(Request $request)
 
         }
         // $rol disaridan dondurulen closure scope degiskeni; her satir icin tekrar sorguya gerek yok
+        $hasPaketTahsilat = isset($randevuIdsHasSeans[$rh->randevu_id]) || isset($randevuIdsHasAdisyonHizmet[$rh->randevu_id]);
         return [
             'id' => $rh->id,
             'title' => $title,
             'start' => $start,
             'end' => $end,
-            'eventbuttons'=> view('partials.randevuDetayiButonlar',['randevu' => $rh])->render(),
+            'eventbuttons'=> view('partials.randevuDetayiButonlar',['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat])->render(),
             'description' => view('partials.randevuDetayi', ['randevu' => $rh,'rol'=>$rol,'paketAdi'=>$paketAdi])->render(),
             'color' => $color,
             'randevuId'=>$rh->randevu_id,

@@ -1,5 +1,26 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
+<style>
+   /* Randevu detay popup gorunumu (eskiden her event icin partial'dan tekrar tekrar gomuluyordu, sayfaya bir kez tasindi) */
+   .rd-detail { font-size:13.5px; color:#3a2e57; margin:-10px -15px; }
+   .rd-detail .rd-row { display:flex; align-items:flex-start; padding:9px 14px; border-bottom:1px solid #f1ecf7; gap:10px; }
+   .rd-detail .rd-row:last-child { border-bottom:0; }
+   .rd-detail .rd-row:nth-child(odd) { background:#fbfafd; }
+   .rd-detail .rd-label { flex:0 0 160px; color:#7c6c8a; font-weight:600; font-size:12.5px; display:flex; align-items:center; gap:6px; }
+   .rd-detail .rd-label i { color:#5C008E; opacity:.75; width:14px; text-align:center; }
+   .rd-detail .rd-value { flex:1; color:#2d2143; font-weight:500; word-break:break-word; }
+   .rd-detail .rd-value.empty { color:#bcb3c9; font-style:italic; font-weight:400; }
+   .rd-status { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:700; }
+   .rd-status.beklemede { background:#fff4e0; color:#a86200; }
+   .rd-status.basarili  { background:#e6f9ed; color:#0c7a3a; }
+   .rd-status.iptal     { background:#fdecec; color:#c81e1e; }
+   .rd-status.geldi     { background:#e6f9ed; color:#0c7a3a; }
+   .rd-status.gelmedi   { background:#fdecec; color:#c81e1e; }
+   .rdb-row { display:flex; gap:8px; flex-wrap:wrap; width:100%; }
+   .rdb-row .btn { flex: 1 1 130px; min-width: 0; border-radius: 8px; font-weight: 600; font-size: 13px; padding: 9px 12px; line-height: 1.2; white-space: normal; }
+   .rdb-row .btn i { margin-right: 4px; }
+   .rdb-row .rdb-pull-right { margin-left: auto; flex-grow: 0; }
+</style>
 <div class="page-header">
    <div class="row">
    <div class="col-md-4 col-sm-6 col-xs-7 col-7">
