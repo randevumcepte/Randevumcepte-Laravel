@@ -997,6 +997,16 @@
                      <span class="mtext"> @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışanlar @else Müşteriler @endif</span>
                      </a>
                   </li>
+                  <li>
+                     @if($pageindex==401)
+                     <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-person-lines-fill"></span>
+                     <span class="mtext">Personeller</span>
+                     </a>
+                  </li>
                   @endif
                    @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>2)
@@ -1095,16 +1105,6 @@
                         ><span class="mtext">
                      Satış Raporları
                      </span>
-                     </a>
-                  </li>
-                  <li>
-                     @if($pageindex==401)
-                     <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                      <span class="micon bi bi-people-fill"></span>
-                      <span class="mtext">Personel Yönetimi</span>
                      </a>
                   </li>
                   @endif
