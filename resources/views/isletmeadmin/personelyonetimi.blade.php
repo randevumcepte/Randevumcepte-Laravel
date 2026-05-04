@@ -216,13 +216,17 @@
    }
    #personel_tablo td .dropdown-item{
       padding:8px 12px; border-radius:8px; font-size:13px; color:var(--pyo-text);
+      display:flex !important; align-items:center; gap:10px;
+      white-space:nowrap;
    }
    #personel_tablo td .dropdown-item:hover{
       background: var(--pyo-purple-bg); color: var(--pyo-purple-1);
    }
    #personel_tablo td .dropdown-item i{
-      width:16px; color: var(--pyo-purple-2); margin-right:6px;
+      width:16px; flex-shrink:0; text-align:center;
+      color: var(--pyo-purple-2); margin:0;
    }
+   #personel_tablo td .dropdown-item:hover i{ color: var(--pyo-purple-1); }
 
    @media(max-width:600px){
       .pyo-hero{ padding:20px 22px; border-radius:18px; }
