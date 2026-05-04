@@ -74,8 +74,9 @@ class DrklinikImport extends Command
             return 0;
         }
 
-        $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet', 'personel', 'urun'];
+        $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet', 'personel', 'urun', 'oda'];
         $importer = new DrklinikImporter($client, $salonId, $this->output);
+        if (in_array('oda', $types))      $importer->importOdalar();
         if (in_array('personel', $types)) $importer->importPersoneller();
         if (in_array('hizmet', $types))   $importer->importHizmetler();
         if (in_array('urun', $types))     $importer->importUrunler();

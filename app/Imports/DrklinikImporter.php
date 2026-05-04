@@ -11,6 +11,8 @@ use App\Personeller;
 use App\PersonelCalismaSaatleri;
 use App\IsletmeYetkilileri;
 use App\Urunler;
+use App\Odalar;
+use App\OdaRenkleri;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +30,8 @@ class DrklinikImporter
     /** @var int */
     private $salonId;
     private $out;
-    private $counts = ['hizmet' => 0, 'personel' => 0, 'urun' => 0, 'musteri' => 0, 'randevu' => 0, 'tahsilat' => 0, 'skipped' => 0];
+    private $counts = ['hizmet' => 0, 'personel' => 0, 'urun' => 0, 'oda' => 0, 'musteri' => 0, 'randevu' => 0, 'tahsilat' => 0, 'skipped' => 0];
+    private $odaMap = []; // drklinik oda id => local oda id
     private $defaultKategoriId = null;
 
     public function __construct(DrklinikClient $client, $salonId, $out = null)
@@ -244,6 +247,62 @@ class DrklinikImporter
             $this->counts['personel']++;
         }
         $this->log("Personel aktarim: {$eklendi} yeni");
+    }
+
+    /**
+     * Odalar: calisan_ekle.aspx detay formundaki DDL_Oda dropdown'undan cekilir.
+     * Ayrica oda.aspx sayfasi mevcut (alternatif kaynak).
+     */
+    public function importOdalar()
+    {
+        $this->log('Odalar cekiliyor (DDL_Oda dropdown)...');
+
+        // Bir personelin id'sini al, detay formundan DDL_Oda options
+        $list = $this->client->getHtml('/calisanmodulu.aspx');
+        if (!preg_match('~calisan_ekle\.aspx\?id=(\d+)&t=d~', $list, $m)) {
+            $this->log('Personel id bulunamadi, DDL_Oda alinamiyor.');
+            return;
+        }
+        $personelId = $m[1];
+        $detail = $this->client->getHtml('/calisan_ekle.aspx?id=' . $personelId . '&t=d');
+        $odalar = $this->parseSelectOptions($detail, 'DDL_Oda');
+        if (empty($odalar)) { $this->log('DDL_Oda secenekleri bos.'); return; }
+
+        $eklendi = 0;
+        foreach ($odalar as $val => $ad) {
+            if ($val === '0' || $val === '') continue;
+            $odaAd = trim(html_entity_decode($ad, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if ($odaAd === '') continue;
+
+            $oda = Odalar::where('oda_adi', $odaAd)->where('salon_id', $this->salonId)->first();
+            if (!$oda) {
+                $oda = new Odalar();
+                $oda->oda_adi = $odaAd;
+                $oda->salon_id = $this->salonId;
+                $oda->durum = 1;
+                if (Schema::hasColumn('odalar', 'aktifmi')) $oda->aktifmi = 1;
+                $oda->save();
+                $eklendi++;
+            }
+            $this->odaMap[$val] = $oda->id;
+            $this->ensureOdaRenk($oda->id);
+            $this->counts['oda']++;
+        }
+        $this->log("Oda aktarim: yeni={$eklendi}, toplam_map=" . count($this->odaMap));
+    }
+
+    private function ensureOdaRenk($odaId)
+    {
+        $var = OdaRenkleri::where('salon_id', $this->salonId)->where('oda_id', $odaId)->first();
+        if ($var) return;
+        $last = OdaRenkleri::where('salon_id', $this->salonId)->orderBy('id', 'desc')->first();
+        $renk = 1;
+        if ($last && isset($last->renk_id)) $renk = ($last->renk_id >= 10) ? 1 : $last->renk_id + 1;
+        $n = new OdaRenkleri();
+        $n->salon_id = $this->salonId;
+        $n->oda_id = $odaId;
+        $n->renk_id = $renk;
+        $n->save();
     }
 
     /**
