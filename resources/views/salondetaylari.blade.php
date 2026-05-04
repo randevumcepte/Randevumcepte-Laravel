@@ -869,34 +869,46 @@
                <button id="onayadiminagec" class="btn btn-primary width-100 btn-rounded" style="width:100%; margin-top: 10px; margin-bottom: 10px">DEVAM ET <i class="fa fa-chevron-right"></i></button>
             </div>
             <div id="onaybolumu">
-               <div id="kisiselbilgileralani">
-                  <button id='tarihsaatseckisminageridon' style='width:auto' class='btn btn-primary'><i class="fa fa-arrow-left"></i> Geri Dön</button>
-                  <p style="font-size:20px; font-weight: bold; margin-top:15px">Kişisel Bilgiler ve Onay</p>
-                  @if(!Auth::check())
-                  <div class="form-group" style="margin-bottom: 20px;height: 40px">
-                     <div style="width: 60%;float: left;">
-                     <input type="tel" maxlength="11" minlength="11" id="cep_telefon" name="cep_telefon" placeholder="05XXXXXXXXX" pattern="05[0-9]{9}" value="05">
+               <div id="kisiselbilgileralani" class="rdv-kisisel">
+                  <button id='tarihsaatseckisminageridon' type="button" class="rdv-back-btn"><i class="fa fa-arrow-left"></i> Geri Dön</button>
+                  <h3 class="rdv-kisisel-baslik">Son Adım — İletişim Bilgileri</h3>
+                  <p class="rdv-kisisel-aciklama">Adınız ve telefonunuzla randevunuzu hemen oluşturun. Şifre veya SMS gerekmez.</p>
+
+                  <form id="rdv-direkt-form" autocomplete="on">
+                     {!! csrf_field() !!}
+                     {{-- Honeypot - bot'lar dolduracak, biz reddedecegiz (gozle gorunmez) --}}
+                     <input type="text" name="_hp" id="_hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;top:-9999px;opacity:0;height:0;width:0;" aria-hidden="true">
+                     {{-- Form acilis zamani — bot'lar aninda gonderirse reddederiz --}}
+                     <input type="hidden" name="_t" id="_t" value="">
+
+                     <div class="rdv-input-grup">
+                        <label for="rdv_adsoyad"><i class="fa fa-user"></i> Adınız Soyadınız</label>
+                        <input type="text" name="adsoyad" id="rdv_adsoyad"
+                               value="{{ Auth::check() ? Auth::user()->name : '' }}"
+                               placeholder="Örn. Ayşe Yılmaz"
+                               minlength="2" maxlength="100" required autocomplete="name">
                      </div>
-                     <div style="width: 30%;float: left;margin-left:10px;margin-top:2%;">
-                        <button id="sifregonder" class="btn btn-primary small btn-rounded">Gönder</button> 
+
+                     <div class="rdv-input-grup">
+                        <label for="rdv_telefon"><i class="fa fa-mobile"></i> Cep Telefonu</label>
+                        <input type="tel" name="cep_telefon" id="rdv_telefon"
+                               value="{{ Auth::check() ? Auth::user()->cep_telefon : '' }}"
+                               placeholder="05XXXXXXXXX"
+                               maxlength="11" minlength="11" pattern="05[0-9]{9}" required autocomplete="tel">
+                        <small class="rdv-input-hint">Telefonunuz randevu bildirimleri için kullanılır. Sizinle paylaşılmaz.</small>
                      </div>
-                  </div>
-                  <div id="hosgeldinizbildirimalani">
-                  </div>
-                  <div id="sifrealaniregister">
-                  </div>
-                  <div id="epostahata"></div>
-                  @else
-                  <div class="form-group" style="margin-bottom: 20px">
-                     <label>E-posta adresiniz</label>
-                     <input type="email" disabled id="eposta" name="eposta" value="{{Auth::user()->email}}">
-                  </div>
-                  <div class="form-group" style="margin-bottom: 20px">
-                     <label>Cep Telefonu</label>
-                     <input type="number" disabled id="ceptelefon" name="ceptelefon" value="{{Auth::user()->cep_telefon}}">
-                  </div>
-                  <button id="randevuonayla_auth" class="btn btn-primary width-100 btn-rounded" style="width:100%; margin-top: 10px; margin-bottom: 10px">DEVAM ET <i class="fa fa-chevron-right"></i></button>
-                  @endif
+
+                     <label class="rdv-kvkk-check">
+                        <input type="checkbox" name="kvkk" id="rdv_kvkk" value="1" required>
+                        <span><a href="/kullanim-ve-gizlik-kosullari" target="_blank">Kullanım ve gizlilik koşulları</a>nı okudum, kabul ediyorum.</span>
+                     </label>
+
+                     <button type="submit" id="rdv-direkt-submit" class="rdv-direkt-btn">
+                        <i class="fa fa-check-circle"></i>
+                        <span>RANDEVUYU OLUŞTUR</span>
+                     </button>
+                     <div id="rdv-direkt-hata"></div>
+                  </form>
                </div>
                <div id="randevudokumu">
                   <div class="col-md-12" style="text-align: center;">
@@ -1565,6 +1577,99 @@
             })();
          </script>
          @endif
+
+         {{-- =========== Direkt randevu onay formu (sifresiz / smssiz) =========== --}}
+         <script>
+         (function(){
+             // Form acildigi an kaydet (bot tespiti icin)
+             var tField = document.getElementById('_t');
+             if (tField) tField.value = Date.now();
+
+             var form = document.getElementById('rdv-direkt-form');
+             if (!form) return;
+
+             var hataKutu = document.getElementById('rdv-direkt-hata');
+             var submitBtn = document.getElementById('rdv-direkt-submit');
+
+             function gosterHata(msg){
+                 if (!hataKutu) return;
+                 hataKutu.innerHTML = '<div class="rdv-direkt-hata-box"><i class="fa fa-exclamation-circle"></i> ' + msg + '</div>';
+                 hataKutu.style.display = 'block';
+                 setTimeout(function(){ hataKutu.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 50);
+             }
+             function temizHata(){ if (hataKutu) { hataKutu.innerHTML=''; hataKutu.style.display='none'; } }
+
+             form.addEventListener('submit', function(e){
+                 e.preventDefault();
+                 temizHata();
+
+                 // Telefon temizle
+                 var telEl = document.getElementById('rdv_telefon');
+                 var tel = telEl.value.replace(/[^0-9]/g, '');
+                 if (!/^05[0-9]{9}$/.test(tel)) {
+                     gosterHata('Telefon numarasını 05XXXXXXXXX formatında yazınız.');
+                     telEl.focus();
+                     return;
+                 }
+                 if (!document.getElementById('rdv_kvkk').checked) {
+                     gosterHata('Devam etmek için kullanım ve gizlilik koşullarını onaylayın.');
+                     return;
+                 }
+
+                 // Randevu ozeti formundan secilen hizmet/personel/tarih-saat verilerini al
+                 var formData = $('#randevuozeti').serialize();
+                 // Yeni form verilerini ekle
+                 formData += '&adsoyad=' + encodeURIComponent(document.getElementById('rdv_adsoyad').value)
+                          +  '&cep_telefon=' + encodeURIComponent(tel)
+                          +  '&kvkk=1'
+                          +  '&_hp=' + encodeURIComponent(document.getElementById('_hp').value)
+                          +  '&_t=' + encodeURIComponent(document.getElementById('_t').value);
+
+                 var origText = submitBtn.innerHTML;
+                 submitBtn.disabled = true;
+                 submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> İşleniyor...';
+
+                 $.ajax({
+                     type: 'POST',
+                     url: '/randevuonayla-direkt',
+                     data: formData,
+                     dataType: 'json',
+                     headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                     success: function(result){
+                         if (result.error){
+                             gosterHata(result.error);
+                             submitBtn.disabled = false;
+                             submitBtn.innerHTML = origText;
+                             return;
+                         }
+                         // Ozet alanini doldur ve randevudokumu'nu goster (mevcut akista oldugu gibi)
+                         $('#kisiselbilgileralani').attr('style','display:none');
+                         $('#randevudokumu').attr('style','display:block;border:3px solid #5C008E; border-radius:14px; padding:20px;margin-bottom:20px;background:#fff;');
+                         $('#randevudokumu').attr('tabindex','-1');
+                         document.getElementById('secilenhizmetdokumu').innerHTML = result.hizmetler;
+                         document.getElementById('secilenpersoneldokumu').innerHTML = result.personeller;
+                         document.getElementById('randevutarihidokumu').innerHTML = result.randevutarihi;
+                         document.getElementById('randevusaatidokumu').innerHTML = result.randevusaati;
+                         $('#randevusistemi').removeClass('col-lg-8').addClass('col-md-12');
+                         $('#randevuozetbolumu').attr('style','display:none');
+                         $('html, body').animate({ scrollTop: $('#randevudokumu').offset().top - 40 }, 'slow');
+                         submitBtn.disabled = false;
+                         submitBtn.innerHTML = origText;
+                     },
+                     error: function(xhr){
+                         var msg = 'Bir hata oluştu. Tekrar deneyiniz.';
+                         try {
+                             var r = JSON.parse(xhr.responseText);
+                             if (r && r.error) msg = r.error;
+                         } catch(e){}
+                         gosterHata(msg);
+                         submitBtn.disabled = false;
+                         submitBtn.innerHTML = origText;
+                     }
+                 });
+             });
+         })();
+         </script>
 
          {{-- ================= GALERI ================= --}}
          @php

@@ -289,6 +289,8 @@ Route::get('/save-excel', function () {
    Route::get('/saatgetir','HomeController@saatgetir');
    Route::post('/randevuonayla','HomeController@randevuonayla1');
    Route::post('/randevuonaylaauth','HomeController@randevuonaylaauth');
+   // Yeni: SMS/sifre gerektirmeyen direkt randevu onayi (honeypot + rate-limit korumali)
+   Route::post('/randevuonayla-direkt','HomeController@randevuonaylaDirekt');
    Route::get('/personelgetir/{id}','HomeController@personeladiminagec');
 	Route::get('/personelgetir-sube/{id}/{subeid}','HomeController@personelgetir');
 

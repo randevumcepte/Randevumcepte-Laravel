@@ -2461,6 +2461,172 @@ body.slp-drawer-open .slp-wa {
 }
 
 /* ==========================================================================
+   DIREKT RANDEVU FORMU (sifresiz / smssiz onay)
+   ========================================================================== */
+.rdv-kisisel {
+    background: #fff;
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 8px 30px rgba(15,23,42,0.06);
+    border: 1.5px solid #f0f1f4;
+    margin: 18px 0;
+}
+.rdv-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: rgba(92,0,142,0.06);
+    color: #5C008E;
+    border: 1.5px solid rgba(92,0,142,0.2);
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 18px;
+    transition: all .2s ease;
+}
+.rdv-back-btn:hover {
+    background: rgba(92,0,142,0.12);
+    transform: translateX(-2px);
+}
+.rdv-kisisel-baslik {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1f2937;
+    margin: 0 0 6px;
+    background: linear-gradient(135deg, #5C008E 0%, #d946ef 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.rdv-kisisel-aciklama {
+    color: #6b7280;
+    font-size: 13.5px;
+    margin: 0 0 22px;
+    line-height: 1.5;
+}
+.rdv-input-grup {
+    margin-bottom: 16px;
+}
+.rdv-input-grup label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #4b5563;
+    margin-bottom: 7px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.rdv-input-grup label i {
+    color: #5C008E;
+    font-size: 14px;
+}
+.rdv-input-grup input[type="text"],
+.rdv-input-grup input[type="tel"] {
+    width: 100%;
+    padding: 13px 16px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 15px;
+    color: #1f2937;
+    background: #fafbfc;
+    transition: all .25s ease;
+    font-family: inherit;
+}
+.rdv-input-grup input:focus {
+    outline: none;
+    border-color: #5C008E;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(92,0,142,0.10);
+}
+.rdv-input-hint {
+    display: block;
+    color: #9ca3af;
+    font-size: 12px;
+    margin-top: 5px;
+    line-height: 1.4;
+}
+.rdv-kvkk-check {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin: 18px 0 22px;
+    padding: 14px 16px;
+    background: rgba(92,0,142,0.04);
+    border-radius: 10px;
+    border-left: 3px solid #7B2FB8;
+    cursor: pointer;
+    user-select: none;
+}
+.rdv-kvkk-check input[type="checkbox"] {
+    margin-top: 2px;
+    width: 18px;
+    height: 18px;
+    accent-color: #5C008E;
+    flex-shrink: 0;
+}
+.rdv-kvkk-check span {
+    font-size: 13px;
+    color: #4b5563;
+    line-height: 1.5;
+}
+.rdv-kvkk-check a {
+    color: #5C008E;
+    font-weight: 700;
+    text-decoration: underline;
+}
+.rdv-direkt-btn {
+    width: 100%;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, #5C008E 0%, #d946ef 100%);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    box-shadow: 0 12px 28px rgba(92,0,142,0.32);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all .25s ease;
+    text-transform: uppercase;
+}
+.rdv-direkt-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 32px rgba(92,0,142,0.42);
+}
+.rdv-direkt-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+.rdv-direkt-btn i { font-size: 17px; }
+.rdv-direkt-hata-box {
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: #fef2f2;
+    border: 1.5px solid #fecaca;
+    border-radius: 10px;
+    color: #b91c1c;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.rdv-direkt-hata-box i { font-size: 16px; }
+@media (max-width: 600px) {
+    .rdv-kisisel { padding: 22px 18px; }
+    .rdv-kisisel-baslik { font-size: 19px; }
+    .rdv-direkt-btn { padding: 14px 20px; font-size: 14px; }
+}
+
+/* ==========================================================================
    PERSONEL DETAY: SECIM BANNER + GLOW + PULSE
    ========================================================================== */
 .ps-personel-banner {

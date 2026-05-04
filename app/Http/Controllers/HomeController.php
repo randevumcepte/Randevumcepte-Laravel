@@ -65,6 +65,8 @@ use PDF;
 use App\Uyelik;
 use App\PersonelCalismaSaatleri;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 class HomeController extends Controller
 {
     /**
@@ -1238,6 +1240,128 @@ $salon = Salonlar::where('domain', $domain)->first();
             return  $randevudokumu;
 
      }
+     /**
+      * Yeni randevu onay akisi - SMS/sifre gerektirmez.
+      * Bot/spam korumalari:
+      *  - Honeypot field (_hp): bot'lar gizli alani doldurur, biz reddederiz
+      *  - Form start time (_t): bot'lar aninda gonderir, min 3sn olmali
+      *  - IP rate limit: saatte max 5 randevu denemesi
+      *  - Telefon rate limit: gunde max 3 yeni musteri kaydi
+      *  - Strict format validation
+      */
+     public function randevuonaylaDirekt(\Illuminate\Http\Request $request)
+     {
+         // 1) Honeypot kontrolu
+         if (!empty($request->input('_hp'))) {
+             \Log::warning('[randevu-direkt] honeypot dolu', ['ip' => $request->ip(), 'tel' => $request->ceptelefon]);
+             return response()->json(['error' => 'Geçersiz istek.'], 422);
+         }
+
+         // 2) Form acilis suresinde bot kontrolu (min 3 saniye)
+         $formStartedAt = (int) $request->input('_t', 0);
+         if ($formStartedAt > 0) {
+             $elapsedMs = (int) (microtime(true) * 1000) - $formStartedAt;
+             if ($elapsedMs < 3000) {
+                 \Log::warning('[randevu-direkt] cok hizli gonderim', ['ip' => $request->ip(), 'elapsedMs' => $elapsedMs]);
+                 return response()->json(['error' => 'Lütfen biraz daha yavaş ilerleyin.'], 429);
+             }
+         }
+
+         // 3) IP bazli rate limit
+         $ipKey = 'rdv-rate:ip:'.md5($request->ip());
+         $ipCount = (int) \Cache::get($ipKey, 0);
+         if ($ipCount >= 5) {
+             return response()->json(['error' => 'Çok fazla deneme. Lütfen 1 saat sonra tekrar deneyin.'], 429);
+         }
+
+         // 4) KVKK onay
+         if (empty($request->input('kvkk'))) {
+             return response()->json(['error' => 'Kullanım ve gizlilik koşullarını onaylamanız gerekir.'], 422);
+         }
+
+         // 5) Telefon ve ad validation
+         $tel = preg_replace('/[^0-9]/', '', (string) $request->input('cep_telefon', ''));
+         $ad = trim((string) $request->input('adsoyad', ''));
+         if (!preg_match('/^05[0-9]{9}$/', $tel)) {
+             return response()->json(['error' => 'Geçerli bir cep telefonu girin (05XXXXXXXXX).'], 422);
+         }
+         if (mb_strlen($ad) < 2 || mb_strlen($ad) > 100) {
+             return response()->json(['error' => 'Adınız ve soyadınız 2-100 karakter olmalı.'], 422);
+         }
+
+         // 6) Telefon bazli rate limit (yeni kayit icin)
+         $telKey = 'rdv-rate:tel:'.$tel;
+         $telCount = (int) \Cache::get($telKey, 0);
+         if ($telCount >= 3) {
+             return response()->json(['error' => 'Bu numara için bugün çok fazla işlem yapıldı. Yarın tekrar deneyin.'], 429);
+         }
+
+         // Mevcut user'i bul ya da yeni olustur (sifre auto-generate, kullanici hic gormeyecek)
+         $kullanici = User::where('cep_telefon', $tel)->first();
+         if (!$kullanici) {
+             $kullanici = new User();
+             $kullanici->name = $ad;
+             $kullanici->cep_telefon = $tel;
+             // Random sifre uretip hash'le (kullanici hic kullanmayacak; sadece hesabin geçerliliği için)
+             $randomSifre = bin2hex(random_bytes(16));
+             $kullanici->password = \Hash::make($randomSifre);
+             $kullanici->save();
+         } else if (!empty($ad) && $kullanici->name !== $ad) {
+             // Ad guncel degilse guncelle
+             $kullanici->name = $ad;
+             $kullanici->save();
+         }
+
+         // Otomatik login
+         \Auth::login($kullanici);
+
+         // Rate limit sayaclarini artir (basarili kayit/login sonrasi)
+         \Cache::put($ipKey, $ipCount + 1, now()->addHour());
+         \Cache::put($telKey, $telCount + 1, now()->addDay());
+
+         // Randevu ozetini olustur (mevcut randevuonayla1 ile ayni formatta)
+         $hizmetler_html = "";
+         $personeller_html = "";
+
+         $secilenHizmetIds = $request->secilenhizmetler ?? [];
+         $secilenPersonelIds = $request->secilenpersoneller ?? [];
+         $hizmetliste = Hizmetler::whereIn('id', $secilenHizmetIds)->get();
+
+         foreach ($hizmetliste as $key => $value) {
+             $hizmetler_html .= "<input type='hidden' name='hizmetler[]' value='".$value->id."'>".$value->hizmet_adi."&nbsp;";
+             $personelId = $secilenPersonelIds[$key] ?? 0;
+             $personelliste = Personeller::where('id', $personelId)->first();
+             if (!$personelliste) {
+                 $personeller_html .= "<input type='hidden' name='personeller[]' value='0'><div class='col-md-3' style='float:left; margin:10px;font-size:14px'>Farketmez</div>&nbsp;";
+                 continue;
+             }
+             $personeller_html .= "<input type='hidden' name='personeller[]' value='".$personelliste->id."'>";
+             $personeller_html .= "<div class='col-md-3' style='float:left; margin:10px;font-size:14px'><div class='author small' style='position: relative;'><div class='author-image' style='float: none'>";
+             if ($personelliste->profil_resmi == null || $personelliste->profil_resmi == '') {
+                 $img = $personelliste->cinsiyet == 0 ? '/public/img/author0.jpg' : '/public/img/author1.jpg';
+                 $personeller_html .= '<div class="background-image" style="background-image: url('.$img.');"><img src="//'.$_SERVER['HTTP_HOST'].$img.'" alt="Profil resmi">';
+             } else {
+                 $personeller_html .= '<div class="background-image" style="background-image: url(/'.$personelliste->profil_resmi.');"><img src="//'.$_SERVER['HTTP_HOST'].'/'.$personelliste->profil_resmi.'" alt="Profil resmi">';
+             }
+             $personeller_html .= "</div></div></div>".$personelliste->personel_adi."</div>&nbsp;";
+         }
+
+         $tarihSaatRaw = $request->randevutarihivesaati;
+         if (empty($tarihSaatRaw) || !strtotime($tarihSaatRaw)) {
+             return response()->json(['error' => 'Lütfen geçerli bir tarih ve saat seçiniz.'], 422);
+         }
+         $tarihSaatTs = strtotime($tarihSaatRaw);
+         $randevusaati = '<input type="hidden" name="randevusaati" value="'.date('H:i:s', $tarihSaatTs).'">'.date('H:i', $tarihSaatTs);
+         $randevutarihi = '<input type="hidden" name="randevutarihi" value="'.date('Y-m-d', $tarihSaatTs).'">'.date('d.m.Y', $tarihSaatTs);
+
+         return response()->json([
+             'hizmetler' => $hizmetler_html,
+             'personeller' => $personeller_html,
+             'randevutarihi' => $randevutarihi,
+             'randevusaati' => $randevusaati,
+         ]);
+     }
+
      public function randevuonayla1(Request $request){
         $credential = ['cep_telefon' => $request->ceptelefon, 'password' =>$request->sifre];
 
