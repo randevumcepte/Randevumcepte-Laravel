@@ -1548,8 +1548,6 @@
                      </tbody>
                   </table>
 
-                  {{-- Modern secim listesi (JS ile doldurulur: #hizmet_sec_tablo'dan veri okunur) --}}
-                  <div id="hy_secim_render"></div>
                </div>
             </div>
             <div class="hy-secim-footer">
