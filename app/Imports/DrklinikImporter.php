@@ -289,6 +289,7 @@ class DrklinikImporter
             if ($kod) $u->barkod = $kod;
             $u->stok_adedi = $stok;
             $u->fiyat = $fiyat;
+            $u->aktif = 1;
             $u->save();
             $eklendi++;
             $this->counts['urun']++;
