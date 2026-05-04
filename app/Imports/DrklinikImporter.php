@@ -323,17 +323,46 @@ class DrklinikImporter
             $tamAd = trim($ad . ' ' . $soyad);
             if (!$tamAd) $tamAd = 'Drklinik ' . $drklinikId;
 
-            // Effective tel - telefon yoksa drklinik id ile placeholder
-            $effectiveTel = $tel ?: ('drklinik_' . $drklinikId);
-
-            $user = User::where('cep_telefon', $effectiveTel)->first();
-            if (!$user) {
-                $user = new User();
-                $user->name = $tamAd;
-                $user->cep_telefon = $effectiveTel;
-                $user->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
-                if ($dogum) $user->dogum_tarihi = $dogum;
-                $user->save();
+            $user = null;
+            if ($tel) {
+                // Gercek telefon varsa onunla lookup/create
+                $user = User::where('cep_telefon', $tel)->first();
+                if (!$user) {
+                    $user = new User();
+                    $user->name = $tamAd;
+                    $user->cep_telefon = $tel;
+                    $user->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                    if ($dogum) $user->dogum_tarihi = $dogum;
+                    $user->save();
+                }
+            } else {
+                // Telefonsuz: bu salonun portfoyunde ayni isimde telefonsuz user var mi?
+                $existing = User::where('name', $tamAd)
+                    ->whereNull('cep_telefon')
+                    ->whereHas('salonlar', function ($q) {
+                        $q->where('salon_id', $this->salonId);
+                    })->first();
+                if (!$existing) {
+                    // Yeni user, cep_telefon=NULL dene
+                    try {
+                        $user = new User();
+                        $user->name = $tamAd;
+                        $user->cep_telefon = null;
+                        $user->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                        if ($dogum) $user->dogum_tarihi = $dogum;
+                        $user->save();
+                    } catch (\Exception $e) {
+                        // NOT NULL ise placeholder fallback
+                        $user = new User();
+                        $user->name = $tamAd;
+                        $user->cep_telefon = 'drklinik_' . $drklinikId;
+                        $user->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                        if ($dogum) $user->dogum_tarihi = $dogum;
+                        $user->save();
+                    }
+                } else {
+                    $user = $existing;
+                }
             }
 
             $portfoy = MusteriPortfoy::where('user_id', $user->id)->where('salon_id', $this->salonId)->first();
