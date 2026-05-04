@@ -1761,7 +1761,7 @@
                   });       
          </script>
          @endif
-         @if($pageindex==9)
+         @if($pageindex==9 || $pageindex==401)
          <script type="text/javascript">
             $(document).ready(function(){
                if($('#personel_tablo').length){
