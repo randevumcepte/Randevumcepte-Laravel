@@ -13,6 +13,8 @@ use App\IsletmeYetkilileri;
 use App\Urunler;
 use App\Odalar;
 use App\OdaRenkleri;
+use App\User;
+use App\MusteriPortfoy;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +34,7 @@ class DrklinikImporter
     private $out;
     private $counts = ['hizmet' => 0, 'personel' => 0, 'urun' => 0, 'oda' => 0, 'musteri' => 0, 'randevu' => 0, 'tahsilat' => 0, 'skipped' => 0];
     private $odaMap = []; // drklinik oda id => local oda id
+    private $musteriMap = []; // drklinik musteri id => local user id
     private $defaultKategoriId = null;
 
     public function __construct(DrklinikClient $client, $salonId, $out = null)
@@ -247,6 +250,117 @@ class DrklinikImporter
             $this->counts['personel']++;
         }
         $this->log("Personel aktarim: {$eklendi} yeni");
+    }
+
+    /**
+     * Musteriler: musterilistesi.aspx (DataGridView, sayfa basina 6 kayit, postback pagination).
+     * Sutunlar: Sec(buton) | ID | Ad | Soyad | Cep | D.Tarihi
+     * Pagination __doPostBack('DGRV_MusteriListesi', 'Page$N')
+     */
+    public function importMusteriler()
+    {
+        $this->log('Musteriler cekiliyor (musterilistesi.aspx, pagination)...');
+        $page = 1;
+        $totalRows = 0;
+        $sayfaUyari = 0;
+
+        $h = $this->client->getHtml('/musterilistesi.aspx');
+        if ($h === '') { $this->log('Sayfa cekilemedi.'); return; }
+
+        while (true) {
+            $rowsAdded = $this->importMusteriPage($h);
+            $totalRows += $rowsAdded;
+            if ($page % 10 === 0) $this->log("  ..sayfa {$page}, toplam islenen: {$totalRows}");
+
+            // Bir sonraki sayfa Page${page+1} var mi?
+            $next = $page + 1;
+            $hasNext = preg_match('~__doPostBack\([\'"&#39;]+DGRV_MusteriListesi[\'"&#39;]+,\s*[\'"&#39;]+Page\$' . $next . '[\'"&#39;]+~i', $h);
+            if (!$hasNext) {
+                // Numeric pager goremiyor olabiliriz, "..." ile devam ediyor olabilir
+                // Page$X (X > current) genel pattern'i ara
+                if (preg_match_all('~Page\$(\d+)~', $h, $m2)) {
+                    $maxSeen = max(array_map('intval', $m2[1]));
+                    if ($maxSeen >= $next) $hasNext = true;
+                }
+            }
+            if (!$hasNext) {
+                $sayfaUyari++;
+                if ($sayfaUyari > 1) break; // Iki kez ust uste sayfa yoksa dur
+            } else { $sayfaUyari = 0; }
+
+            // Sonraki sayfa postback
+            $h = $this->client->postBack('/musterilistesi.aspx', 'DGRV_MusteriListesi', 'Page$' . $next);
+            if ($h === null) { $this->log('Postback null, durduruldu.'); break; }
+
+            // Donen HTML hala 1. sayfa gibi ise (page change calismadi) dur
+            if (!preg_match('~Page\$\d+~', $h)) break;
+            $page = $next;
+            usleep(200000); // 0.2sn
+        }
+        $this->log("Musteri aktarim toplam: {$this->counts['musteri']} (skipped: {$this->counts['skipped']})");
+    }
+
+    private function importMusteriPage($html)
+    {
+        $rows = $this->parseTableRowsRaw($html);
+        $count = 0;
+        foreach ($rows as $rawRow) {
+            // Sec butonunu atla, kalanlar: ID, Ad, Soyad, Cep, D.Tarihi
+            $cells = [];
+            foreach ($rawRow as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) continue;
+                $clean = trim(preg_replace('/\s+/', ' ', strip_tags($tdRaw)));
+                $clean = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                $cells[] = $clean;
+            }
+            if (count($cells) < 4) { $this->counts['skipped']++; continue; }
+            $drklinikId = $cells[0];
+            $ad         = $cells[1] ?: '';
+            $soyad      = $cells[2] ?: '';
+            $tel        = $this->telefonNormalize($cells[3]);
+            $dogum      = isset($cells[4]) ? $this->tarihNormalize($cells[4]) : null;
+
+            $tamAd = trim($ad . ' ' . $soyad);
+            if (!$tamAd) $tamAd = 'Drklinik ' . $drklinikId;
+
+            // Effective tel - telefon yoksa drklinik id ile placeholder
+            $effectiveTel = $tel ?: ('drklinik_' . $drklinikId);
+
+            $user = User::where('cep_telefon', $effectiveTel)->first();
+            if (!$user) {
+                $user = new User();
+                $user->name = $tamAd;
+                $user->cep_telefon = $effectiveTel;
+                $user->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                if ($dogum) $user->dogum_tarihi = $dogum;
+                $user->save();
+            }
+
+            $portfoy = MusteriPortfoy::where('user_id', $user->id)->where('salon_id', $this->salonId)->first();
+            if (!$portfoy) {
+                $portfoy = new MusteriPortfoy();
+                $portfoy->user_id = $user->id;
+                $portfoy->salon_id = $this->salonId;
+                $portfoy->aktif = 1;
+                $portfoy->save();
+            }
+
+            if ($drklinikId) $this->musteriMap[$drklinikId] = $user->id;
+            $this->counts['musteri']++;
+            $count++;
+        }
+        return $count;
+    }
+
+    private function tarihNormalize($t)
+    {
+        if (!$t || $t === ' ' || trim($t) === '') return null;
+        // dd.mm.yyyy veya dd/mm/yyyy
+        if (preg_match('~^(\d{1,2})[./](\d{1,2})[./](\d{4})$~', trim($t), $m)) {
+            return sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]);
+        }
+        $ts = strtotime($t);
+        return $ts ? date('Y-m-d', $ts) : null;
     }
 
     /**
