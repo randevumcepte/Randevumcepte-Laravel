@@ -28,8 +28,11 @@
       <ul class=" nav nav-tabs element" role="tablist">
          <li class="nav-item" style="margin-left: 20px;">
             <a
-               class="btn btn-outline-primary"
-               href="/isletmeyonetim/ayarlar?p=personeller{{(isset($_GET['sube'])) ? '&sube='.$isletme->id : '' }}"
+               class="btn btn-outline-primary active"
+               data-toggle="tab"
+               href="#personeller"
+               role="tab"
+               aria-selected="true"
                style="width: 160px;"
                >
              Personeller
@@ -37,11 +40,11 @@
          </li>
          <li class="nav-item" style="margin-left: 20px;">
             <a
-               class="btn btn-outline-primary active"
+               class="btn btn-outline-primary"
                data-toggle="tab"
                href="#primHakedis"
                role="tab"
-               aria-selected="true"
+               aria-selected="false"
                style="width: 160px;"
                >
              Prim & Hak Ediş
@@ -49,11 +52,74 @@
          </li>
       </ul>
       <div class="tab-content" style="padding: 0 30px 0 30px;">
-         <div class="tab-pane fade show active" id="primHakedis" role="tab-panel" style="margin-top: 20px;">
+         <div class="tab-pane fade show active" id="personeller" role="tab-panel" style="margin-top: 20px;">
+            <div class="row" style="border-bottom: 1px solid #e2e2e2;margin-bottom: 10px;padding-bottom: 10px;">
+               <div class="col-6 col-xs-6 col-sm-6">
+                  <h2 class="text-blue">Personeller</h2>
+               </div>
+               <div class="col-6 col-xs-6 col-sm-6 text-right">
+                  <button onclick="modalbaslikata('Yeni Personel','yenipersonelbilgiekle')" class="btn btn-success" data-toggle="modal" data-target="#personel-modal"><i class="fa fa-plus"></i> Yeni Personel</button>
+               </div>
+            </div>
+            <div class="pd-20">
+               <table class="data-table table stripe hover nowrap" id="personel_tablo">
+                  <thead>
+                     <tr>
+                        <th>Takvim Sırası</th>
+                        <th>Personel</th>
+                        <th>Hesap Tipi</th>
+                        <th>Telefon</th>
+                        <th>Durum</th>
+                        <th class="datatable-nosort">İşlemler</th>
+                     </tr>
+                  </thead>
+                  <tbody></tbody>
+               </table>
+            </div>
+         </div>
+         <div class="tab-pane fade" id="primHakedis" role="tab-panel" style="margin-top: 20px;">
             @include('isletmeadmin.partials.prim_hakedis_panel')
          </div>
       </div>
    </div>
 </div>
+
+@include('isletmeadmin.partials.personel_modal')
+
+<script type="text/javascript">
+$(document).ready(function(){
+   if($('#personel_tablo').length){
+      try { $('#personel_tablo').DataTable().destroy(); } catch(e){}
+      $('#personel_tablo').DataTable({
+         ordering: false,
+         autoWidth: false,
+         responsive: true,
+         paging: false,
+         "language" : {
+            "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
+            searchPlaceholder: "Ara",
+            paginate: {
+               next: '<i class="ion-chevron-right"></i>',
+               previous: '<i class="ion-chevron-left"></i>'
+            }
+         },
+         columns:[
+            { data : 'siralama', className: "text-center" },
+            { data : 'ad_soyad' },
+            { data : 'hesap_turu' },
+            { data : 'telefon' },
+            { data : 'durum' },
+            { data : 'islemler' },
+         ],
+         data: <?php echo $personeller; ?>,
+      });
+   }
+
+   // Tab degisince DataTable column genisliklerini tekrar hesapla
+   $('a[data-toggle="tab"]').on('shown.bs.tab', function(){
+      try { $('#personel_tablo').DataTable().columns.adjust().responsive.recalc(); } catch(e){}
+   });
+});
+</script>
 
 @endsection()
