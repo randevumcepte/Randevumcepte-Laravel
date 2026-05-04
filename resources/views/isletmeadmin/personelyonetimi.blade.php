@@ -214,19 +214,49 @@
       border-radius:12px; border:1px solid var(--pyo-border);
       box-shadow: 0 10px 30px rgba(92,0,142,.12); padding:6px;
    }
-   #personel_tablo td .dropdown-item{
-      padding:8px 12px; border-radius:8px; font-size:13px; color:var(--pyo-text);
-      display:flex !important; align-items:center; gap:10px;
-      white-space:nowrap;
+   #personel_tablo td .dropdown-menu,
+   #personel_tablo td .dropdown-menu-icon-list{
+      padding:6px !important;
    }
-   #personel_tablo td .dropdown-item:hover{
-      background: var(--pyo-purple-bg); color: var(--pyo-purple-1);
+   #personel_tablo td .dropdown-menu .dropdown-item,
+   #personel_tablo td .dropdown-menu-icon-list .dropdown-item{
+      padding:9px 12px !important;
+      padding-left:12px !important;
+      border-radius:8px !important;
+      font-size:13px !important;
+      color:var(--pyo-text) !important;
+      display:flex !important;
+      align-items:center !important;
+      gap:10px !important;
+      white-space:nowrap !important;
+      position:relative !important;
    }
-   #personel_tablo td .dropdown-item i{
-      width:16px; flex-shrink:0; text-align:center;
-      color: var(--pyo-purple-2); margin:0;
+   #personel_tablo td .dropdown-menu .dropdown-item:hover,
+   #personel_tablo td .dropdown-menu-icon-list .dropdown-item:hover{
+      background: var(--pyo-purple-bg) !important;
+      color: var(--pyo-purple-1) !important;
    }
-   #personel_tablo td .dropdown-item:hover i{ color: var(--pyo-purple-1); }
+   #personel_tablo td .dropdown-menu .dropdown-item i,
+   #personel_tablo td .dropdown-menu-icon-list .dropdown-item i{
+      position:static !important;
+      width:16px !important;
+      height:auto !important;
+      min-width:16px !important;
+      flex-shrink:0 !important;
+      text-align:center !important;
+      color: var(--pyo-purple-2) !important;
+      margin:0 !important;
+      padding:0 !important;
+      left:auto !important;
+      top:auto !important;
+      right:auto !important;
+      font-size:14px !important;
+      line-height:1 !important;
+   }
+   #personel_tablo td .dropdown-menu .dropdown-item:hover i,
+   #personel_tablo td .dropdown-menu-icon-list .dropdown-item:hover i{
+      color: var(--pyo-purple-1) !important;
+   }
 
    @media(max-width:600px){
       .pyo-hero{ padding:20px 22px; border-radius:18px; }
