@@ -66,7 +66,6 @@ use App\Uyelik;
 use App\PersonelCalismaSaatleri;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Hash;
 class HomeController extends Controller
 {
     /**
