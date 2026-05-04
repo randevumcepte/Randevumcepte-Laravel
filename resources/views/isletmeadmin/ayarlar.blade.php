@@ -1516,7 +1516,7 @@
 
                <div class="hy-secim-list">
                   <button type="button" style="display:none" id='hizmet_personel_ekle_modal_ac' data-toggle="modal" data-target="#personel_sec_modal"></button>
-                  <table class="table" id="hizmet_sec_tablo" style="display:none;">
+                  <table class="table" id="hizmet_sec_tablo">
                      <thead>
                         <tr>
                            <td><input type="checkbox" id='tum_hizmetleri_sec'></td>
