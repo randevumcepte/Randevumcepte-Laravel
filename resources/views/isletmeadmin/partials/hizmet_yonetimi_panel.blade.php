@@ -222,9 +222,6 @@
 
 /* DataTable wrapper'i tamamen gizle (eski custom.js init'i visible element yaratmasin) */
 #hizmet_liste_wrapper, #hizmet_liste_filter, #hizmet_liste_info, #hizmet_liste_paginate, #hizmet_liste_length, #hizmet_liste { display: none !important; position:absolute !important; left:-9999px !important; height:0 !important; }
-/* Hizmet Secimi modali: eski DataTable wrapper/info/filtre elemanlari modern UI'in onunde gorunmesin */
-#hizmet_sec_tablo_wrapper, #hizmet_sec_tablo_info, #hizmet_sec_tablo_filter, #hizmet_sec_tablo_paginate, #hizmet_sec_tablo_length, #hizmet_sec_tablo_processing { display: none !important; }
-#hizmet_secimi_modal #hizmet_sec_tablo { display: none !important; }
 
 /* Hizmet Secimi modernize */
 .hy-secim-header-actions { display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:14px; }
@@ -889,12 +886,6 @@ $(document).ready(function(){
       $('.hy-secim-item').show();
       $('.hy-secim-kategori').show();
    });
-   // Fallback: shown.bs.modal her zaman tetiklenmeyebilir; modal acan butona tiklaninca da render et
-   $(document).on('click', '[data-target="#hizmet_secimi_modal"]', function(){
-      setTimeout(renderHizmetSecimListesi, 250);
-   });
-   // Sayfa yuklenince de bir kez render et (modal gorunmese de hazir olsun)
-   renderHizmetSecimListesi();
    // Modern item'a tıklandığında arka plandaki checkbox'u toggle et
    $(document).on('click', '.hy-secim-item', function(){
       var hId = $(this).data('hizmet-id');
