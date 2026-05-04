@@ -8599,17 +8599,24 @@ $('#masraf_formu').on('submit',function(e){
                 },
                success: function(result)  {
                     $('#preloader').hide();
-                    $('button[data-dismiss="modal"]').trigger('click');
+                    $('#yeni_masraf_modal').modal('hide');
                     $('#masraf_formu').trigger('reset');
-                    swal(
-                        {
-                        type: "success",
-                        title: "Başarılı",
-                        html:  result.mesaj,
-                        showCloseButton: false,
-                        showCancelButton: false,
-                        showConfirmButton:false,
-                    });
+                    $('#masraf_id').val('');
+                    $('#masraf_tarihi').val(new Date().toISOString().slice(0,10));
+                    $('#masraf_kategorisi').val('').trigger('change');
+                    $('#masraf_odeme_yontemi').val('').trigger('change');
+                    $('#harcayan').val('').trigger('change');
+                    setTimeout(function(){
+                        swal({
+                            type: "success",
+                            title: "Başarılı",
+                            html:  result.mesaj,
+                            showCloseButton: false,
+                            showCancelButton: false,
+                            showConfirmButton: false,
+                            timer: 2500,
+                        });
+                    }, 350);
                     if($('#kasa_sayfasi').length){
                         $('#kasa_gelir_tutari').empty();
                         $('#kasa_gider_tutari').empty();
