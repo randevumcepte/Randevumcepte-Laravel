@@ -308,14 +308,14 @@
       <div class="pyo-stat__val">{{$hesapSahibiSayisi}}</div>
    </div>
 </div>
-<ul class="pyo-tabs" role="tablist">
+<ul class="pyo-tabs nav nav-tabs" role="tablist" id="personelYonetimiTabs">
    <li class="nav-item">
-      <a class="active" data-toggle="tab" href="#personeller" role="tab" aria-selected="true">
+      <a class="nav-link active" data-toggle="tab" href="#personeller" role="tab" aria-selected="true" id="tabBtn-personeller">
          <i class="fa fa-users"></i> Personeller
       </a>
    </li>
    <li class="nav-item">
-      <a data-toggle="tab" href="#primHakedis" role="tab" aria-selected="false">
+      <a class="nav-link" data-toggle="tab" href="#primHakedis" role="tab" aria-selected="false" id="tabBtn-primHakedis">
          <i class="fa fa-money"></i> Prim & Hak Ediş
       </a>
    </li>
