@@ -20,6 +20,45 @@ use Illuminate\Support\Facades\Storage;
 */
 Auth::routes();
 
+// GECICI: personel_id=0 olan randevu_hizmetler kayitlarini hizmete uygun ilk personele atayarak duzelt
+Route::get('/dev-randevu-personel-duzelt', function() {
+    $salon = \App\Salonlar::where('domain', $_SERVER['HTTP_HOST'])->first();
+    if (!$salon) return 'Salon bulunamadi.';
+
+    $kayitlar = \App\RandevuHizmetler::where('personel_id', 0)
+        ->whereHas('randevu', function($q) use ($salon){ $q->where('salon_id', $salon->id); })
+        ->get();
+
+    if ($kayitlar->isEmpty()) {
+        return "Bu salonda personel_id=0 olan randevu kaydi yok. Sorun cozuldu.";
+    }
+
+    $sonuclar = [];
+    foreach ($kayitlar as $rh) {
+        $personelHizmetIds = \App\PersonelHizmetler::where('hizmet_id', $rh->hizmet_id)->pluck('personel_id')->toArray();
+        $oto = \App\Personeller::where('salon_id', $salon->id)
+            ->where('aktif', 1)
+            ->whereIn('id', $personelHizmetIds)
+            ->first();
+        if (!$oto) {
+            $oto = \App\Personeller::where('salon_id', $salon->id)->where('aktif', 1)->first();
+        }
+        if ($oto) {
+            $rh->personel_id = $oto->id;
+            $rh->save();
+            $sonuclar[] = "RandevuHizmet #{$rh->id} (randevu #{$rh->randevu_id}) &rarr; Personel: ".e($oto->personel_adi);
+        } else {
+            $sonuclar[] = "RandevuHizmet #{$rh->id}: salonda hic aktif personel yok, atlanmadi";
+        }
+    }
+
+    return "<div style='font-family:sans-serif;max-width:700px;margin:60px auto;padding:30px;background:#f0fff4;border:2px solid #34d399;border-radius:14px;'>"
+         . "<h2 style='color:#15803d;margin:0 0 12px;'>".count($sonuclar)." Randevu Duzeltildi</h2>"
+         . "<ul style='line-height:1.8;font-size:14px;'><li>".implode('</li><li>', $sonuclar)."</li></ul>"
+         . "<p style='margin-top:14px;'><a href='/' style='background:#5C008E;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;'>Anasayfa</a></p>"
+         . "</div>";
+});
+
 // GECICI: SMS gonderim diagnostigi - salonun konfigi + saglayici yaniti gosterir
 // Kullanim: /dev-sms-test?tel=05XXXXXXXXX
 Route::get('/dev-sms-test', function() {

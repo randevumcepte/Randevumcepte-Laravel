@@ -147,10 +147,25 @@ class CustomerController extends Controller
                     $sure=60;
                 $randevuhizmetler->saat_bitis = date('H:i:s',strtotime('+'.$sure.' minutes',strtotime($baslangicSaati)));
                 $randevuhizmetler->sure_dk = $sure;
-                $randevuhizmetler->personel_id = $request->personeller[$key];
+
+                // Personel "Farketmez" (0 / bos) ise hizmeti yapan ilk uygun personeli otomatik ata
+                $secilenPersonelId = $request->personeller[$key] ?? null;
+                if (empty($secilenPersonelId) || $secilenPersonelId == 0) {
+                    $personelHizmetIds = \App\PersonelHizmetler::where('hizmet_id', $value)->pluck('personel_id')->toArray();
+                    $otoPersonel = \App\Personeller::where('salon_id', $randevu->salon_id)
+                        ->where('aktif', 1)
+                        ->whereIn('id', $personelHizmetIds)
+                        ->first();
+                    if (!$otoPersonel) {
+                        // Fallback: salonun ilk aktif personeli
+                        $otoPersonel = \App\Personeller::where('salon_id', $randevu->salon_id)->where('aktif', 1)->first();
+                    }
+                    $secilenPersonelId = $otoPersonel ? $otoPersonel->id : 0;
+                }
+                $randevuhizmetler->personel_id = $secilenPersonelId;
                 $randevuhizmetler->save();
                 $baslangicSaati = $randevuhizmetler->saat_bitis;
-                array_push($personeller,$request->personeller[$key]);
+                array_push($personeller, $secilenPersonelId);
 
 
             }  
