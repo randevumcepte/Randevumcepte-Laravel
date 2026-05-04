@@ -5980,8 +5980,24 @@ $(document).on('click','button[name="hizmet_formdan_sil_adisyon_mevcut"]',functi
 });
 $('#adisyon_hizmet_formu').on('submit',function(e){
     e.preventDefault();
-    
-    
+
+    var _personelEksik = false;
+    $('#adisyon_hizmet_formu select[name="adisyonhizmetpersonelleriyeni[]"]').each(function(){
+        if(!$(this).val()) _personelEksik = true;
+    });
+    if(_personelEksik){
+        swal({
+            type: "warning",
+            title: "Uyarı",
+            html: "Devam etmek için her hizmet için personel seçiniz.",
+            showCloseButton: false,
+            showCancelButton: false,
+            showConfirmButton: false,
+            timer: 2500,
+        });
+        return;
+    }
+
     if($('input[name="adisyon_id"]').val()!='' ||$('#tahsilat_ekrani').length > 0){
         formData = new FormData();
         var other_data = $(this).serializeArray();

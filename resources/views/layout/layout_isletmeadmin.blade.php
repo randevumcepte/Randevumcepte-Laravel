@@ -1417,7 +1417,7 @@
                      <h2 class="text-blue h2 mb-10" id="adisyon_hizmet_modal_baslik">Yeni Hizmet Satışı</h2>
                      <div class="hizmetler_bolumu_adisyon">
                         <div class="row" data-value="0" style="padding:2px; background-color:#e2e2e2;">
-                           <div class="col-md-7 col-6 col-sm-6 col-xs-6">
+                           <div class="col-md-5 col-6 col-sm-6 col-xs-6">
                               <div class="form-group">
                                  <label>Hizmet</label>
                                  <select name="adisyonhizmetleriyeni[]" class="form-control custom-select2 hizmet_secimi" style="width: 100%;">
@@ -1425,14 +1425,14 @@
                                  </select>
                               </div>
                            </div>
-                           
+
                            <div class="col-md-3 col-xs-6 col-sm-6 col-6" style="display:none">
                               <div class="form-group">
                                  <label>Süre (dk)</label>
                                  <input type="tel" class="form-control" name="adisyonhizmetsuresi[]" value='{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("sure_dk")}}'>
                               </div>
                            </div>
-                           <div class="col-md-4 col-6 col-sm-6 col-xs-6">
+                           <div class="col-md-3 col-6 col-sm-6 col-xs-6">
                               <div class="form-group">
                                  <label>Fiyat ₺</label>
                                  <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value='{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("baslangic_fiyat")}}'>
@@ -1445,13 +1445,16 @@
 
                               </div>
                            </div>
-                           
-                           <div class="col-md-2 col-xs-6 col-sm-6 col-6" style="display:none">
+
+                           <div class="col-md-3 col-6 col-sm-6 col-xs-6">
                               <div class="form-group">
                                  <label>Personel</label>
                                  <select name="adisyonhizmetpersonelleriyeni[]" class="form-control custom-select2 personel_secimi" style="width: 100%;">
                                     <option></option>
-                                     <option selected value="{{\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('id')}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
+                                     @php $defaultPersonelId = \App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('id'); @endphp
+                                     @if($defaultPersonelId)
+                                     <option selected value="{{$defaultPersonelId}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
+                                     @endif
                                  </select>
                               </div>
                            </div>
@@ -4393,7 +4396,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=223.3')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=223.4')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
