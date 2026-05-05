@@ -7454,7 +7454,7 @@ function tahsilatSil(dogrulamaKodu,id)
                 type: "POST",
                 url: '/isletmeyonetim/tahsilatkaldir',
                 dataType: "json",
-                data : {satisDuzenle:satis_duzenle,dogrulama_kodu:dogrulamaKodu, tahsilatid:id,adisyon_id:adisyonid,tahsilatekrani:$('#tahsilat_ekrani').length,sube:$('input[name="sube"]').val()},
+                data : {satisDuzenle:satis_duzenle,dogrulama_kodu:dogrulamaKodu, tahsilatid:id,adisyon_id:adisyonid,tahsilatekrani:$('#tahsilat_ekrani').length,tahsilat_ekrani_modern:($('#tahsilat_ekrani_modern').length ? '1' : ''),sube:$('input[name="sube"]').val()},
                 headers: {
                     'X-CSRF-TOKEN': $('input[name="_token"]').val()
                 },
