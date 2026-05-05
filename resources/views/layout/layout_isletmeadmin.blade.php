@@ -1046,6 +1046,16 @@
                         <span class="mtext">Form Yönetimi</span>
                      </a>
                   </li>
+                  <li>
+                     @if($pageindex==52 || $pageindex==53)
+                     <a href="/isletmeyonetim/anket-sonuclari?sube={{$isletme->id}}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/anket-sonuclari?sube={{$isletme->id}}" class="dropdown-toggle no-arrow">
+                     @endif
+                        <span class="micon bi bi-chat-dots"></span>
+                        <span class="mtext">Memnuniyet Anketi</span>
+                     </a>
+                  </li>
                   @endif
                   @if($isletme->uyelik_turu>1)
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)

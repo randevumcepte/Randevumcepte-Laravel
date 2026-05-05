@@ -307,6 +307,8 @@ Route::get('/save-excel', function () {
 	 Route::post('/onam-form-kaydet','HomeController@onamFormKaydet');
 	 Route::get('/sozlesme/{arsiv_id}/{user_id}','HomeController@sozlesmeSayfasi');
 	 Route::post('/sozlesme-kaydet','HomeController@sozlesmeKaydet');
+	 Route::get('/anket/{token}','HomeController@anketSayfasi');
+	 Route::post('/anket-kaydet','HomeController@anketKaydet');
 	 	 Route::get('/musteriformdoldurma3/{id}/{userid}','HomeController@arsivmusteriform3');
 
 	
@@ -952,6 +954,17 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/form-sablonlari-guncelle','StoreAdminController@formSablonlariGuncelle');
 	Route::post('/form-sablonlari-sil','StoreAdminController@formSablonlariSil');
 	Route::post('/form-sablonlari-sira-guncelle','StoreAdminController@formSablonlariSiraGuncelle');
+
+	// Memnuniyet Anketi
+	Route::get('/anket-sablonlari','StoreAdminController@anketSablonlari')->name('isletmeadmin.anketSablonlari');
+	Route::get('/anket-sablon-getir','StoreAdminController@anketSablonGetir');
+	Route::post('/anket-sablon-kaydet','StoreAdminController@anketSablonKaydet');
+	Route::post('/anket-sablon-guncelle','StoreAdminController@anketSablonGuncelle');
+	Route::post('/anket-sablon-sil','StoreAdminController@anketSablonSil');
+	Route::post('/anket-manuel-gonder','StoreAdminController@anketManuelGonder');
+	Route::get('/anket-sonuclari','StoreAdminController@anketSonuclari')->name('isletmeadmin.anketSonuclari');
+	Route::get('/anket-gonderim-detay','StoreAdminController@anketGonderimDetay');
+
 	Route::post('/sozlesme-olustur','StoreAdminController@sozlesmeOlustur');
 	Route::get('/formmusteribilgigetir','StoreAdminController@formmusteribilgigetir');
 	Route::get('/formpersonelbilgigetir','StoreAdminController@formpersonelbilgigetir');
@@ -1039,6 +1052,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/primode','StoreAdminController@primOde');
 	Route::post('/primodemesil','StoreAdminController@primOdemeSil');
 	Route::get('/primodemelistesi','StoreAdminController@primOdemeListesi');
+	Route::get('/personelprimdetayi','StoreAdminController@personelPrimDetayi');
 	Route::get('/hizmetRaporFiltre','StoreAdminController@hizmetRaporFiltre');
 	Route::get('/hizmetiAlanMusteriler','StoreAdminController@hizmetiAlanMusteriler');
 	Route::get('/urunRaporFiltre','StoreAdminController@urunRaporFiltre');

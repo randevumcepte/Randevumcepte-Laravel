@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\AnketSablon;
+use App\AnketGonderim;
 use App\Hizmetler;
 use App\Hizmet_Kategorisi;
 use App\SalonTuru;
@@ -2681,5 +2683,103 @@ $salon = Salonlar::where('domain', $domain)->first();
         $arsiv->imza_zaman   = now();
         $arsiv->save();
         return response()->json(['basarili'=>true]);
+    }
+
+    /* ============================================================
+     * MUSTERI MEMNUNIYET ANKETI - PUBLIC
+     * ============================================================ */
+
+    public function anketSayfasi(Request $request, $token)
+    {
+        $gonderim = AnketGonderim::where('token', $token)->first();
+        if (!$gonderim) abort(404);
+
+        $sablon = AnketSablon::where('id', $gonderim->sablon_id)->first();
+        if (!$sablon) abort(404);
+
+        $isletme = Salonlar::where('id', $gonderim->salon_id)->first();
+        $sorular = $sablon->sorular_json ? json_decode($sablon->sorular_json, true) : [];
+
+        $suresiBitti = false;
+        if ($gonderim->son_gecerlilik && now()->gt($gonderim->son_gecerlilik)) {
+            $suresiBitti = true;
+        }
+
+        return view('anket.musteri_anket', [
+            'gonderim'        => $gonderim,
+            'sablon'          => $sablon,
+            'isletme'         => $isletme,
+            'sorular'         => $sorular,
+            'zaten_dolduruldu'=> (bool) $gonderim->cevaplandi,
+            'suresi_bitti'    => $suresiBitti,
+        ]);
+    }
+
+    public function anketKaydet(Request $request)
+    {
+        $gonderim = AnketGonderim::where('token', $request->token)->first();
+        if (!$gonderim) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Anket bulunamadı.']);
+        }
+
+        if ($gonderim->cevaplandi) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Bu anket zaten dolduruldu.']);
+        }
+
+        if ($gonderim->son_gecerlilik && now()->gt($gonderim->son_gecerlilik)) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Anket linkinin süresi dolmuş.']);
+        }
+
+        $sablon = AnketSablon::where('id', $gonderim->sablon_id)->first();
+        $sorular = $sablon && $sablon->sorular_json ? json_decode($sablon->sorular_json, true) : [];
+        $cevaplar = json_decode($request->cevaplar_json ?? '[]', true) ?: [];
+
+        // Zorunlu soruları doğrula
+        $cevapMap = [];
+        foreach ($cevaplar as $c) {
+            if (isset($c['indeks'])) $cevapMap[$c['indeks']] = $c['cevap'] ?? '';
+        }
+        foreach ($sorular as $idx => $soru) {
+            $tip = $soru['tip'] ?? '';
+            // sadece cevap bekleyen tipler
+            if (in_array($tip, ['bolum_basligi','bilgi_metni','metin_blogu'])) continue;
+            if (!empty($soru['zorunlu'])) {
+                $deger = $cevapMap[$idx] ?? '';
+                if ($deger === '' || $deger === null || (is_array($deger) && count($deger) === 0)) {
+                    return response()->json(['basarili'=>false,'mesaj'=>'Lütfen tüm zorunlu soruları cevaplayın.']);
+                }
+            }
+        }
+
+        // NPS / CSAT skorlarını cache'le
+        $npsSkoru = null; $csatToplam = 0; $csatSayi = 0; $genelYorum = null;
+        foreach ($sorular as $idx => $soru) {
+            $tip = $soru['tip'] ?? '';
+            $deger = $cevapMap[$idx] ?? null;
+            if ($deger === null || $deger === '') continue;
+            if ($tip === 'nps') {
+                $n = (int) $deger;
+                if ($n >= 0 && $n <= 10 && $npsSkoru === null) $npsSkoru = $n;
+            } elseif ($tip === 'csat_yildiz') {
+                $n = (int) $deger;
+                if ($n >= 1 && $n <= 5) { $csatToplam += $n; $csatSayi++; }
+            } elseif ($tip === 'uzun_metin' && !$genelYorum) {
+                $genelYorum = mb_substr((string)$deger, 0, 2000);
+            }
+        }
+        $csatSkoru = $csatSayi > 0 ? round($csatToplam / $csatSayi, 2) : null;
+
+        $gonderim->cevaplar_json = $request->cevaplar_json;
+        $gonderim->cevaplandi    = true;
+        $gonderim->cevap_zamani  = now();
+        $gonderim->nps_skoru     = $npsSkoru;
+        $gonderim->csat_skoru    = $csatSkoru;
+        $gonderim->genel_yorum   = $genelYorum;
+        $gonderim->ip            = $request->ip();
+        $gonderim->user_agent    = substr($request->header('User-Agent') ?? '', 0, 250);
+        $gonderim->kvkk_onay     = $request->kvkk_onay ? 1 : 0;
+        $gonderim->save();
+
+        return response()->json(['basarili' => true]);
     }
 }

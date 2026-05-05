@@ -28,6 +28,7 @@ class Kernel extends ConsoleKernel
         Commands\PlanlaImport::class,
         Commands\DrklinikImport::class,
         Commands\CarkHatirlatmaGonder::class,
+        Commands\AnketOtomatikGonder::class,
     ];
 
     /**
@@ -53,6 +54,9 @@ class Kernel extends ConsoleKernel
 
         // Çarkıfelek hatırlatma — her 5 dakikada bir kontrol (saatlerin ±5dk penceresi)
         $schedule->command('cark:hatirlatma-gonder')->withoutOverlapping()->everyFiveMinutes();
+
+        // Memnuniyet anketi otomatik gönderim — randevu sonrası N saat
+        $schedule->command('anket:otomatik-gonder')->withoutOverlapping()->everyTenMinutes();
 
         // Yedek
         $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();

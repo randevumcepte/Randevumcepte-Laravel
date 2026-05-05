@@ -24322,15 +24322,19 @@ DB::raw('
 
     /**
      * Yardımcı: anket linkini SMS ile gönderir.
+     * Hem web (Request var) hem cron (Request null) konteksinden çağrılır.
      */
     public static function anketSmsGonder($request, $gonderim, $sablon, $musteri){
         $salon = Salonlar::where('id',$gonderim->salon_id)->first();
-        $link = 'https://'.($_SERVER['HTTP_HOST'] ?? ($salon->domain ?? 'apptest.randevumcepte.com.tr')).'/anket/'.$gonderim->token;
+        $host = ($_SERVER['HTTP_HOST'] ?? null) ?: ($salon->domain ?? 'apptest.randevumcepte.com.tr');
+        $link = 'https://'.$host.'/anket/'.$gonderim->token;
         $adSoyad = $musteri->name ?? '';
-        $mesaj = 'Sn. '.$adSoyad.' '.($salon->salon_adi ?? '').' deneyiminizi bizimle paylaşır mısınız? Anketi 1 dk içinde doldurabilirsiniz: '.$link;
+        $mesaj = 'Sn. '.$adSoyad.' '.($salon->salon_adi ?? '').' deneyiminizi bizimle paylaşır mısınız? Anketi 1 dk icinde doldurabilirsiniz: '.$link;
         $mesajlar = [['to'=>$gonderim->telefon, 'message'=>$mesaj]];
         try {
-            self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+            // Base Controller::sms_gonder($salon_id, $mesajlar) — request gerektirmez, cron'dan da çağrılabilir
+            $ctrl = app()->make(\App\Http\Controllers\Controller::class);
+            $ctrl->sms_gonder($gonderim->salon_id, $mesajlar);
         } catch(\Exception $e){
             \Log::error('anketSmsGonder hata: '.$e->getMessage());
         }
@@ -24502,7 +24506,21 @@ DB::raw('
             $persOdemeler = $odemelerGruplu->get($p->id, collect());
             $odenenToplam = (float)$persOdemeler->sum('tutar');
             $odemeSayisi = $persOdemeler->count();
+
+            // Tip bazli odenen miktarlar
+            $odenenMaas = (float)$persOdemeler->where('odeme_tipi','maas')->sum('tutar');
+            $odenenPrim = (float)$persOdemeler->where('odeme_tipi','prim')->sum('tutar');
+            $odenenDiger = (float)$persOdemeler->whereNotIn('odeme_tipi',['maas','prim'])->sum('tutar');
+
+            // Net etkili bonus/kesinti tutar (bonus ekler, kesinti dusurur)
+            $bonusKesintiNet = $bonus - $kesinti;
+
+            // Tip bazli kalan
+            $kalanMaas = max(0, $maas - $odenenMaas);
+            $kalanPrim = max(0, $primToplam - $odenenPrim);
+            $kalanDiger = $bonusKesintiNet - $odenenDiger; // negatif olabilir
             $kalan = max(0, $toplam - $odenenToplam);
+
             $sonOdeme = $persOdemeler->first();
 
             if($odenenToplam <= 0)             $durum = 'bekliyor';
@@ -24527,7 +24545,13 @@ DB::raw('
                 'hareket_sayisi'=> $persHareketler->count(),
                 'durum'         => $durum,
                 'odenen_toplam' => $odenenToplam,
+                'odenen_maas'   => $odenenMaas,
+                'odenen_prim'   => $odenenPrim,
+                'odenen_diger'  => $odenenDiger,
                 'kalan'         => (float)$kalan,
+                'kalan_maas'    => (float)$kalanMaas,
+                'kalan_prim'    => (float)$kalanPrim,
+                'kalan_diger'   => (float)$kalanDiger,
                 'odeme_sayisi'  => $odemeSayisi,
                 'son_odeme_tarihi' => $sonOdeme ? optional($sonOdeme->odeme_tarihi)->format('Y-m-d') : null,
             ];
@@ -24645,12 +24669,16 @@ DB::raw('
             $odemeTarihi = $request->odeme_tarihi ?: date('Y-m-d');
             if(!preg_match('/^\d{4}-\d{2}-\d{2}$/', $odemeTarihi)) $odemeTarihi = date('Y-m-d');
 
+            // Odeme tipi: maas | prim | diger (default: diger)
+            $odemeTipi = in_array($request->odeme_tipi, ['maas','prim','diger']) ? $request->odeme_tipi : 'diger';
+
             // Coklu odeme destegi: her zaman yeni kayit ekle
             PersonelMaasOdemesi::create([
                 'personel_id'        => $personel->id,
                 'salon_id'           => $salonId,
                 'donem'              => $donem,
                 'tutar'              => $tutar,
+                'odeme_tipi'         => $odemeTipi,
                 'odeme_tarihi'       => $odemeTarihi,
                 'odeme_yontemi'      => mb_substr((string)$request->odeme_yontemi, 0, 60),
                 'aciklama'           => mb_substr((string)$request->aciklama, 0, 300),
@@ -24659,6 +24687,146 @@ DB::raw('
 
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function personelPrimDetayi(Request $request)
+    {
+        try {
+            $salonId = self::mevcutsube($request);
+            $personelId = (int)$request->personel_id;
+            $donem = $request->donem ?: date('Y-m');
+            if(!preg_match('/^\d{4}-\d{2}$/', $donem)) $donem = date('Y-m');
+            $tarih1 = $donem.'-01';
+            $tarih2 = date('Y-m-t', strtotime($tarih1));
+
+            $personel = Personeller::where('id',$personelId)->where('salon_id',$salonId)->first();
+            if(!$personel){
+                return response()->json(['basarili'=>false,'mesaj'=>'Personel bulunamadı.']);
+            }
+
+            $hizmetYuzde = (float)($personel->hizmet_prim_yuzde ?? 0);
+            $urunYuzde   = (float)($personel->urun_prim_yuzde ?? 0);
+            $paketYuzde  = (float)($personel->paket_prim_yuzde ?? 0);
+
+            // Bu personelin yer aldigi adisyonlar (tarih araliginda)
+            $adisyonlar = Adisyonlar::with([
+                    'hizmetler.personel','hizmetler.hizmet',
+                    'urunler.personel','urunler.urun',
+                    'paketler.personel','paketler.paket',
+                    'musteri',
+                ])
+                ->where('salon_id', $salonId)
+                ->whereBetween('tarih',[$tarih1,$tarih2])
+                ->get();
+
+            $hizmetSatislari = [];
+            $urunSatislari = [];
+            $paketSatislari = [];
+            $musteriOzeti = [];
+
+            $musteriEkle = function($musteriId, $musteriAdi, $tutar, $primTutar) use(&$musteriOzeti){
+                if(!$musteriId) $musteriId = 'misafir-'.($musteriAdi ?: 'X');
+                if(!isset($musteriOzeti[$musteriId])){
+                    $musteriOzeti[$musteriId] = [
+                        'musteri_id' => $musteriId,
+                        'musteri_adi'=> $musteriAdi ?: 'Misafir',
+                        'islem_sayisi'=> 0,
+                        'toplam_tutar'=> 0,
+                        'toplam_prim' => 0,
+                    ];
+                }
+                $musteriOzeti[$musteriId]['islem_sayisi']++;
+                $musteriOzeti[$musteriId]['toplam_tutar'] += (float)$tutar;
+                $musteriOzeti[$musteriId]['toplam_prim']  += (float)$primTutar;
+            };
+
+            foreach($adisyonlar as $a){
+                $musteriId  = $a->musteri_id;
+                $musteriAdi = optional($a->musteri)->name ?? ($a->misafir_adi ?? 'Misafir');
+                $tarih      = $a->tarih;
+
+                foreach(($a->hizmetler ?? []) as $h){
+                    if(!$h->personel || $h->personel->id != $personelId) continue;
+                    $tahsilEdilen = (float)TahsilatHizmetler::where('adisyon_hizmet_id',$h->id)->sum('tutar');
+                    $primTutar    = $tahsilEdilen * $hizmetYuzde / 100;
+                    $hizmetSatislari[] = [
+                        'tarih'        => $tarih,
+                        'musteri_adi'  => $musteriAdi,
+                        'urun'         => optional($h->hizmet)->hizmet_adi ?? '—',
+                        'fiyat'        => (float)$h->fiyat,
+                        'tahsil_edilen'=> $tahsilEdilen,
+                        'prim_yuzdesi' => $hizmetYuzde,
+                        'prim_tutari'  => $primTutar,
+                    ];
+                    $musteriEkle($musteriId, $musteriAdi, $tahsilEdilen, $primTutar);
+                }
+                foreach(($a->urunler ?? []) as $u){
+                    if(!$u->personel || $u->personel->id != $personelId) continue;
+                    $tahsilEdilen = (float)TahsilatUrunler::where('adisyon_urun_id',$u->id)->sum('tutar');
+                    $primTutar    = $tahsilEdilen * $urunYuzde / 100;
+                    $urunSatislari[] = [
+                        'tarih'        => $tarih,
+                        'musteri_adi'  => $musteriAdi,
+                        'urun'         => optional($u->urun)->urun_adi ?? '—',
+                        'fiyat'        => (float)$u->fiyat,
+                        'tahsil_edilen'=> $tahsilEdilen,
+                        'prim_yuzdesi' => $urunYuzde,
+                        'prim_tutari'  => $primTutar,
+                    ];
+                    $musteriEkle($musteriId, $musteriAdi, $tahsilEdilen, $primTutar);
+                }
+                foreach(($a->paketler ?? []) as $pk){
+                    if(!$pk->personel || $pk->personel->id != $personelId) continue;
+                    $tahsilEdilen = (float)TahsilatPaketler::where('adisyon_paket_id',$pk->id)->sum('tutar');
+                    $primTutar    = $tahsilEdilen * $paketYuzde / 100;
+                    $paketSatislari[] = [
+                        'tarih'        => $tarih,
+                        'musteri_adi'  => $musteriAdi,
+                        'urun'         => optional($pk->paket)->paket_adi ?? '—',
+                        'fiyat'        => (float)$pk->fiyat,
+                        'tahsil_edilen'=> $tahsilEdilen,
+                        'prim_yuzdesi' => $paketYuzde,
+                        'prim_tutari'  => $primTutar,
+                    ];
+                    $musteriEkle($musteriId, $musteriAdi, $tahsilEdilen, $primTutar);
+                }
+            }
+
+            // Tarihe gore yeniden sirala (en yeni en ustte)
+            $sortByTarih = function($a,$b){ return strcmp($b['tarih'],$a['tarih']); };
+            usort($hizmetSatislari, $sortByTarih);
+            usort($urunSatislari,   $sortByTarih);
+            usort($paketSatislari,  $sortByTarih);
+            $musteriList = array_values($musteriOzeti);
+            usort($musteriList, function($a,$b){ return $b['toplam_prim'] <=> $a['toplam_prim']; });
+
+            return response()->json([
+                'basarili' => true,
+                'personel_adi' => $personel->personel_adi,
+                'donem' => $donem,
+                'oranlar' => [
+                    'hizmet' => $hizmetYuzde,
+                    'urun'   => $urunYuzde,
+                    'paket'  => $paketYuzde,
+                ],
+                'hizmet_satislari' => $hizmetSatislari,
+                'urun_satislari'   => $urunSatislari,
+                'paket_satislari'  => $paketSatislari,
+                'musteriler'       => $musteriList,
+                'ozet' => [
+                    'hizmet_count' => count($hizmetSatislari),
+                    'urun_count'   => count($urunSatislari),
+                    'paket_count'  => count($paketSatislari),
+                    'hizmet_prim'  => array_sum(array_column($hizmetSatislari,'prim_tutari')),
+                    'urun_prim'    => array_sum(array_column($urunSatislari,'prim_tutari')),
+                    'paket_prim'   => array_sum(array_column($paketSatislari,'prim_tutari')),
+                    'musteri_sayisi' => count($musteriList),
+                ],
+            ]);
+        } catch(\Exception $e){
+            \Log::warning('personelPrimDetayi: '.$e->getMessage());
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
     }
