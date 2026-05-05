@@ -614,9 +614,6 @@
    // Server eski-tasarim HTML donduruyor; fetch ile modern view'i yeniden cekip
    // sadece ilgili konteynerlari swap ediyoruz. Sayfa reload olmuyor.
    (function(){
-      var _tmReloadPending = false;
-      var _tmFallbackTimer = null;
-
       // Modern view'in fragment ID'leri (server'dan cekilen HTML'den replace edilecek)
       var FRAG_IDS = [
          'tahsilat_listesi',
@@ -670,7 +667,6 @@
             try { if(typeof window.adisyonyenidenhesapla === 'function') window.adisyonyenidenhesapla(); } catch(e){}
 
             _tmReloadFiring = false;
-            _tmReloadPending = false;
          })
          .catch(function(err){
             console.warn('[modern-tahsilat] soft reload basarisiz, fallback hard reload:', err);
@@ -678,25 +674,7 @@
          });
       }
 
-      var _tmReloadTimer = null;
       var _tmReloadFiring = false;
-      window._tmScheduleReload = function(reason, delay){
-         // Onceden zaten fetch baslamissa hicbir sey yapma
-         if(_tmReloadFiring) return;
-         delay = delay || 150;
-         // Bekleyen timer varsa yeni delay daha kisaysa ONU iptal edip yenisini kur
-         // (Click handler 2500ms koymussa, ajaxComplete 50ms ile uzerine yazsin)
-         if(_tmReloadTimer){
-            // Mevcut timer kalan suresini bilmiyoruz; her halukarda yeni daha guvenli
-            clearTimeout(_tmReloadTimer);
-         }
-         console.log('[modern-tahsilat] soft reload scheduled:', reason, 'delay='+delay);
-         _tmReloadTimer = setTimeout(function(){
-            _tmReloadTimer = null;
-            _tmReloadFiring = true;
-            _tmDoSoftReload();
-         }, delay);
-      };
 
       // Bozuk HTML flicker'ini engellemek icin: AJAX'tan once snapshot al,
       // success bozuk HTML yazdiktan SONRA ayni JS tick'inde snapshot'i geri yukle.
@@ -808,29 +786,15 @@
             _tmSnapshot = null;
          });
 
-         // AJAX tamamlandi -> taze veriyle soft reload (DOGRUDAN, delay yok)
-         // ajaxComplete fire ettiginde success/ajaxSuccess senkron olarak bitmis
-         // oluyor; beklemeye gerek yok. Watchdog timer'ini iptal edip hemen fetch baslat.
+         // AJAX tamamlandi -> taze veriyle soft reload (DOGRUDAN, delay YOK)
+         // Click watchdog'larina gerek yok: ajaxComplete jQuery'nin garanti event'i,
+         // success/error fark etmeksizin her zaman fire eder.
          $(document).ajaxComplete(function(event, xhr, settings){
             if(!_tmIsTargetUrl(settings && settings.url)) return;
             if(_tmReloadFiring) return;
-            if(_tmReloadTimer){ clearTimeout(_tmReloadTimer); _tmReloadTimer = null; }
-            console.log('[modern-tahsilat] soft reload immediate (ajaxComplete):', settings.url);
+            console.log('[modern-tahsilat] soft reload (ajaxComplete):', settings.url);
             _tmReloadFiring = true;
             _tmDoSoftReload();
-         });
-
-         // Click fallback'leri WATCHDOG: sadece ajaxComplete hic firel etmezse devreye girsin
-         // diye uzun delay (5sn). ajaxComplete normal akista 50ms ile bunu override edip
-         // ezecek (clearTimeout). Boylece yeni ödeme hizlica görünür.
-         $(document).on('click', '#taksitli_tahsilat_formu button[type="submit"]', function(){
-            window._tmScheduleReload('taksit-modal-kaydet-click[watchdog]', 5000);
-         });
-         $(document).on('click', '#yeni_tahsilat_ekle', function(){
-            window._tmScheduleReload('tahsilat-et-click[watchdog]', 5000);
-         });
-         $(document).on('click', 'button[name="tahsilat_adisyondan_sil"]', function(){
-            window._tmScheduleReload('tahsilat-sil-click[watchdog]', 5000);
          });
       }
       bind();
