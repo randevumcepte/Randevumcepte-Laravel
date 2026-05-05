@@ -308,10 +308,10 @@
 </div>
 
 <div class="pyo-stats">
-   <div class="pyo-stat pyo-stat--toplam">
-      <div class="pyo-stat__icon"><i class="fa fa-users"></i></div>
-      <div class="pyo-stat__lbl">Toplam Personel</div>
-      <div class="pyo-stat__val">{{$totalPers}}</div>
+   <div class="pyo-stat pyo-stat--takvim">
+      <div class="pyo-stat__icon"><i class="fa fa-calendar"></i></div>
+      <div class="pyo-stat__lbl">Takvimde</div>
+      <div class="pyo-stat__val">{{$takvimdePers}}</div>
    </div>
    <div class="pyo-stat pyo-stat--aktif">
       <div class="pyo-stat__icon"><i class="fa fa-check"></i></div>
@@ -323,15 +323,10 @@
       <div class="pyo-stat__lbl">Pasif</div>
       <div class="pyo-stat__val">{{$pasifPers}}</div>
    </div>
-   <div class="pyo-stat pyo-stat--sahibi">
-      <div class="pyo-stat__icon"><i class="fa fa-star"></i></div>
-      <div class="pyo-stat__lbl">Hesap Sahibi</div>
-      <div class="pyo-stat__val">{{$hesapSahibiSayisi}}</div>
-   </div>
-   <div class="pyo-stat pyo-stat--takvim">
-      <div class="pyo-stat__icon"><i class="fa fa-calendar"></i></div>
-      <div class="pyo-stat__lbl">Takvimde</div>
-      <div class="pyo-stat__val">{{$takvimdePers}}</div>
+   <div class="pyo-stat pyo-stat--toplam">
+      <div class="pyo-stat__icon"><i class="fa fa-users"></i></div>
+      <div class="pyo-stat__lbl">Toplam Personel</div>
+      <div class="pyo-stat__val">{{$totalPers}}</div>
    </div>
 </div>
 <ul class="pyo-tabs nav nav-tabs" role="tablist" id="personelYonetimiTabs">
