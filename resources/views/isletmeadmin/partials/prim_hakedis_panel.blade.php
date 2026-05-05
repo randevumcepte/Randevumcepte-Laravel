@@ -1308,10 +1308,15 @@ $(function(){
     $('#primOde_personelId').val(pid);
     $('#primOde_personelAdi').text(adi || (r ? r.personel_adi : ''));
 
-    // Tab altyazilari (kalan tutarlari)
+    // Tab altyazilari
     $('#primOde_maasKalan').text(_formatTL(kalanMaas) + ' ₺');
     $('#primOde_primKalan').text(_formatTL(kalanPrim) + ' ₺');
-    $('#primOde_digerKalan').text((kalanDiger>=0?'+':'')+_formatTL(kalanDiger) + ' ₺');
+    // Diger/Avans icin: bu ay ne kadar avans verildi gosterilir
+    if(odenenDiger > 0){
+       $('#primOde_digerKalan').text(_formatTL(odenenDiger)+' ₺ verildi');
+    } else {
+       $('#primOde_digerKalan').text('Avans Ekle');
+    }
 
     // Cache hak edis verileri (tab degisince ozet update edilir)
     $m.data('hakedis', {
@@ -1337,29 +1342,37 @@ $(function(){
     $('.pmtip-tab[data-tip="'+tip+'"]').addClass('is-active');
 
     var data = $('#primOdeModal').data('hakedis') || {};
-    var hak = 0, odenen = 0, kalan = 0, defaultTutar = 0;
+    var $tutar = $('#primOde_tutar');
 
     if(tip === 'maas'){
-      hak = data.maas || 0;
-      odenen = data.odenenMaas || 0;
-      kalan = data.kalanMaas || 0;
-      defaultTutar = kalan > 0 ? kalan : 0;
+      var maas = data.maas || 0;
+      var odenenMaas = data.odenenMaas || 0;
+      var kalanMaas = data.kalanMaas || 0;
+      $('#primOde_netLabel').text(_formatTL(maas) + ' ₺');
+      $('#primOde_odenenLabel').text(_formatTL(odenenMaas) + ' ₺');
+      $('#primOde_kalanLabel').text(_formatTL(kalanMaas) + ' ₺');
+      $tutar.val(kalanMaas > 0 ? kalanMaas.toFixed(2) : '');
+      $tutar.attr('placeholder', 'Maaş tutarı');
     } else if(tip === 'prim'){
-      hak = data.primToplam || 0;
-      odenen = data.odenenPrim || 0;
-      kalan = data.kalanPrim || 0;
-      defaultTutar = kalan > 0 ? kalan : 0;
-    } else { // diger
-      hak = data.bonusKesintiNet || 0;
-      odenen = data.odenenDiger || 0;
-      kalan = data.kalanDiger || 0;
-      defaultTutar = kalan > 0 ? kalan : 0;
+      var prim = data.primToplam || 0;
+      var odenenPrim = data.odenenPrim || 0;
+      var kalanPrim = data.kalanPrim || 0;
+      $('#primOde_netLabel').text(_formatTL(prim) + ' ₺');
+      $('#primOde_odenenLabel').text(_formatTL(odenenPrim) + ' ₺');
+      $('#primOde_kalanLabel').text(_formatTL(kalanPrim) + ' ₺');
+      $tutar.val(kalanPrim > 0 ? kalanPrim.toFixed(2) : '');
+      $tutar.attr('placeholder', 'Prim tutarı');
+    } else { // diger / avans
+      var odenenDiger = data.odenenDiger || 0;
+      // Avans icin 'kalan' kavrami yok — patron istedigi kadar nakit verir
+      $('#primOde_netLabel').text('—');
+      $('#primOde_odenenLabel').text(_formatTL(odenenDiger) + ' ₺');
+      $('#primOde_kalanLabel').text('Manuel');
+      $tutar.val('');
+      $tutar.attr('placeholder', 'Avans / ek ödeme tutarı');
+      // Tutar alanina otomatik focus
+      setTimeout(function(){ $tutar.focus(); }, 100);
     }
-
-    $('#primOde_netLabel').text(_formatTL(hak) + ' ₺');
-    $('#primOde_odenenLabel').text(_formatTL(odenen) + ' ₺');
-    $('#primOde_kalanLabel').text((kalan<0?'(-)':'')+_formatTL(Math.abs(kalan)) + ' ₺');
-    $('#primOde_tutar').val(defaultTutar > 0 ? defaultTutar.toFixed(2) : '');
   }
   $(document).off('click.pmtip').on('click.pmtip', '.pmtip-tab', function(){
     _selectOdeTip($(this).data('tip'));
