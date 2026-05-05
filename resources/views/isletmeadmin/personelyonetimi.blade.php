@@ -402,7 +402,11 @@ $(document).ready(function(){
       try { $('#personel_tablo').DataTable().columns.adjust().responsive.recalc(); } catch(e){}
    });
 
-   // ====== Siralama: bulletproof delegated handlers (custom.js'i overrider) ======
+   // ====== Siralama: bulletproof handlers ======
+   // ONCE custom.js'teki eski handler'lari kaldir (cift firing'i onler)
+   $('#personel_tablo').off('click', 'button[name="personel_siralamayi_bir_asagi_tasi"]');
+   $('#personel_tablo').off('click', 'button[name="personel_siralamayi_bir_yukari_tasi"]');
+
    function _pyoSiralamaUpdate(url, $btn){
       $.ajax({
          type: 'GET',
@@ -416,23 +420,30 @@ $(document).ready(function(){
          beforeSend: function(){ $('#preloader').show(); },
          success: function(result){
             $('#preloader').hide();
-            var dt = $('#personel_tablo').DataTable();
-            dt.clear();
-            dt.rows.add(result);
-            dt.draw(false);
+            try {
+               var dt = $('#personel_tablo').DataTable();
+               dt.clear();
+               dt.rows.add(result);
+               dt.draw(false);
+            } catch(e){
+               console.error('DataTable update failed', e);
+               location.reload();
+            }
          },
-         error: function(xhr){
+         error: function(xhr, status, err){
             $('#preloader').hide();
-            swal({title:'Hata', text:'Sıralama güncellenemedi', type:'error'});
+            console.error('Siralama hatasi:', xhr.status, xhr.statusText, xhr.responseText);
+            swal({title:'Hata', text:'Sıralama güncellenemedi (HTTP '+xhr.status+')', type:'error'});
          }
       });
    }
-   $(document).on('click', '#personel_tablo button[name="personel_siralamayi_bir_asagi_tasi"]', function(e){
+   // Document seviyesinde yeni handler'lari bagla
+   $(document).off('click.pyoSira').on('click.pyoSira', '#personel_tablo button[name="personel_siralamayi_bir_asagi_tasi"]', function(e){
       e.preventDefault();
       e.stopImmediatePropagation();
       _pyoSiralamaUpdate('/isletmeyonetim/personelSiralamaArtir', $(this));
    });
-   $(document).on('click', '#personel_tablo button[name="personel_siralamayi_bir_yukari_tasi"]', function(e){
+   $(document).on('click.pyoSira', '#personel_tablo button[name="personel_siralamayi_bir_yukari_tasi"]', function(e){
       e.preventDefault();
       e.stopImmediatePropagation();
       _pyoSiralamaUpdate('/isletmeyonetim/personelSiralamaAzalt', $(this));
