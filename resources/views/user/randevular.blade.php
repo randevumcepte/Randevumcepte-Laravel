@@ -11,7 +11,7 @@
                     <i class="fa fa-calendar-check-o"></i>
                     Randevularım
                 </h2>
-                <a href="/" class="profile-action-btn">
+                <a href="/#hizmetsecbaslik" class="profile-action-btn">
                     <i class="fa fa-plus"></i>
                     <span>Yeni Randevu Al</span>
                 </a>
