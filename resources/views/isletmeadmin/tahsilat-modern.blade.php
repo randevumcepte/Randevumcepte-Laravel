@@ -709,7 +709,31 @@
          if(typeof window.jQuery !== 'function'){ setTimeout(bind, 60); return; }
          var $ = window.jQuery;
 
-         // 0) AJAX gonderilmeden once: mevcut modern HTML'i snapshot'a kaydet
+         // [PRIMARY] Bozuk HTML'i daha DOM'a girmeden server response'unda iptal et.
+         // ajaxPrefilter custom.js'in success callback'inden ONCE calisir; result.kalemler
+         // ve result.tahsilatlar alanlarini mevcut modern HTML ile degistirip success'in
+         // empty().append() cagrilarini no-op'a cevirir. Boylece eski-tasarim HTML hicbir
+         // zaman ekrana gelmez -> flicker fiziksel olarak imkansiz.
+         $.ajaxPrefilter(function(options){
+            if(!_tmIsTargetUrl(options.url)) return;
+            var origDataFilter = options.dataFilter;
+            options.dataFilter = function(rawData, dataType){
+               try {
+                  var parsed = JSON.parse(rawData);
+                  var tumEl = document.getElementById('tum_tahsilatlar');
+                  var listEl = document.getElementById('tahsilat_listesi');
+                  if(tumEl) parsed.kalemler = tumEl.innerHTML;
+                  if(listEl) parsed.tahsilatlar = listEl.innerHTML;
+                  rawData = JSON.stringify(parsed);
+               } catch(e){
+                  console.warn('[modern-tahsilat] prefilter dataFilter hata:', e);
+               }
+               return origDataFilter ? origDataFilter(rawData, dataType) : rawData;
+            };
+         });
+
+         // [BACKUP] Eger prefilter herhangi bir sebeple devre disi kalirsa
+         // (orn. cache'li eski JS), snapshot+restore ikinci savunma hatti.
          $(document).ajaxSend(function(event, xhr, settings){
             if(!_tmIsTargetUrl(settings && settings.url)) return;
             var snap = {};
@@ -722,9 +746,6 @@
             _tmSnapshot = snap;
          });
 
-         // 1) Request'in success callback'i bozuk HTML yazdiktan HEMEN sonra:
-         //    Snapshot'i geri yukle. ajaxSuccess senkron olarak success'ten sonra fire eder,
-         //    browser bu ikisi arasinda paint yapmaz -> kullanici flicker gormez.
          $(document).ajaxSuccess(function(event, xhr, settings){
             if(!_tmIsTargetUrl(settings && settings.url)) return;
             if(!_tmSnapshot) return;
@@ -743,7 +764,7 @@
             _tmSnapshot = null;
          });
 
-         // 2) AJAX tamamlandi -> taze veriyle soft reload
+         // AJAX tamamlandi -> taze veriyle soft reload
          $(document).ajaxComplete(function(event, xhr, settings){
             if(!_tmIsTargetUrl(settings && settings.url)) return;
             window._tmScheduleReload('ajaxComplete:'+settings.url, 50);
