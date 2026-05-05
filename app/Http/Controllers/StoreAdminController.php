@@ -10624,6 +10624,14 @@ DB::raw('
                 
         }
         Log::info('geçmiş ödemeler '.$html_tahsilat);
+
+        // Modern tahsilat ekrani flag'i set ise eski-tasarim HTML uretimini iptal edip
+        // modern markup ile yeniden uret. Eski view dokunulmadan kaliyor (flag gondermez).
+        if($request->input('tahsilat_ekrani_modern') == '1'){
+            $html = self::buildModernKalemlerHtml($acik_adisyonlar, $satisDuzenle);
+            $html_tahsilat = self::buildModernTahsilatlarHtml($tahsilatlar);
+        }
+
         return array(
             'kalemler'=>$html,
             'odenenTutar'=> number_format($odenenTutar,2,',','.'),
@@ -10634,6 +10642,149 @@ DB::raw('
             'adisyonId'=>$adisyon_id,
             'dogrulamaGerekli'=>false,
         );
+    }
+
+    /**
+     * Modern tahsilat ekrani icin tahsil edilecek kalemler HTML'i.
+     * tahsilat-modern.blade.php'deki .tm-item markup'ini birebir mirror'lar.
+     */
+    private function buildModernKalemlerHtml($acik_adisyonlar, $satisDuzenle)
+    {
+        $html = '';
+        foreach($acik_adisyonlar as $adisyon){
+            // Hizmetler
+            foreach($adisyon->hizmetler as $hizmet){
+                $kalan = $hizmet->fiyat - TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->sum('tutar') - $hizmet->indirim_tutari;
+                if(!(($kalan >= 0 || $hizmet->hediye) && $hizmet->senet_id === null && $hizmet->taksitli_tahsilat_id === null))
+                    continue;
+                $tahsilatVar = TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->count();
+                $hizmetAdi = $hizmet->hizmet_id ? optional($hizmet->hizmet)->hizmet_adi : '';
+                $meta = '';
+                if($hizmet->personel_id !== null) $meta = optional($hizmet->personel)->personel_adi;
+                elseif($hizmet->cihaz_id !== null) $meta = optional($hizmet->cihaz)->cihaz_adi;
+
+                $html .= '<div class="tahsilat_kalemleri_listesi tm-item hizmet-row" data-value="0">';
+                $html .= '<div class="tm-item-icon"><i class="fa fa-cut"></i></div>';
+                $html .= '<div class="tm-item-name">'.e($hizmetAdi).'</div>';
+                $html .= '<div class="tm-item-meta">'.e($meta).'</div>';
+                $html .= '<div class="tm-item-qty"><input type="tel" value="'.e($hizmet->seans_sayisi).'" data-value="'.$hizmet->id.'" class="form-control" name="hizmet_seans_girilen[]" title="seans"></div>';
+                $html .= '<div class="tm-item-amount">';
+                $html .= '<input type="hidden" name="adisyon_hizmet_id[]" value="'.$hizmet->id.'">';
+                $html .= '<input type="hidden" name="indirim[]" data-value="'.$hizmet->id.'" value="'.e($hizmet->indirim_tutari).'">';
+                $html .= '<input type="hidden" name="adisyon_hizmet_senet_id[]" value="'.e($hizmet->senet_id).'">';
+                $html .= '<input type="hidden" name="adisyon_hizmet_taksitli_tahsilat_id[]" value="'.e($hizmet->taksitli_tahsilat_id).'">';
+                $html .= '<input type="tel" class="form-control try-currency tahsilat_kalemleri" name="himzet_tahsilat_tutari_girilen[]" data-value="'.$hizmet->id.'" value="'.number_format($kalan,2,',','.').'">';
+                $html .= '<span class="tl">₺</span>';
+                if($hizmet->hediye) $html .= '<i class="fa fa-gift" style="color:#f59e0b;" title="Hediye"></i>';
+                $html .= '</div>';
+                $html .= '<div class="dropdown">';
+                $html .= '<a class="btn btn-link no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="İşlemler"><i class="fa fa-ellipsis-v"></i></a>';
+                $html .= '<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">';
+                if(($hizmet->senet_id == null && $hizmet->taksitli_tahsilat_id == null && $tahsilatVar == 0) || $hizmet->fiyat == 0){
+                    if(!$hizmet->hediye)
+                        $html .= '<a class="dropdown-item tahsilat_hizmet_hediye_ver" data-value="'.$hizmet->id.'" href="#"><i class="fa fa-gift"></i> Hediye Ver</a>';
+                    else
+                        $html .= '<a class="dropdown-item tahsilat_hizmet_hediye_kaldir" data-value="'.$hizmet->id.'" href="#"><i class="fa fa-gift"></i> Hediyeyi Kaldır</a>';
+                    $html .= '<a class="dropdown-item tahsilat_hizmet_sil" data-value="'.$hizmet->id.'" href="#"><i class="dw dw-delete-3"></i> Sil</a>';
+                }
+                $html .= '</div></div></div>';
+            }
+            // Urunler
+            foreach($adisyon->urunler as $urun){
+                $kalan = $urun->fiyat - TahsilatUrunler::where('adisyon_urun_id',$urun->id)->sum('tutar') - $urun->indirim_tutari;
+                if(!(($kalan >= 0 || $urun->hediye) && $urun->senet_id === null && $urun->taksitli_tahsilat_id === null))
+                    continue;
+                $tahsilatVar = TahsilatUrunler::where('adisyon_urun_id',$urun->id)->count();
+                $urunAdi = optional($urun->urun)->urun_adi;
+                $meta = $urun->personel_id ? optional($urun->personel)->personel_adi : '';
+
+                $html .= '<div class="tahsilat_kalemleri_listesi tm-item urun-row" data-value="0">';
+                $html .= '<div class="tm-item-icon"><i class="fa fa-shopping-bag"></i></div>';
+                $html .= '<div class="tm-item-name">'.e($urunAdi).'</div>';
+                $html .= '<div class="tm-item-meta">'.e($meta).'</div>';
+                $html .= '<div class="tm-item-qty">';
+                if(($urun->senet_id == null && $urun->taksitli_tahsilat_id == null && $tahsilatVar == 0) || $urun->fiyat == 0){
+                    $html .= '<input type="tel" value="'.e($urun->adet).'" data-value="'.$urun->id.'" class="form-control" name="urun_adet_girilen[]" title="adet">';
+                } else {
+                    $html .= '<span style="color:#64748b; font-size:12px;">'.e($urun->adet).' adet</span>';
+                }
+                $html .= '</div>';
+                $html .= '<div class="tm-item-amount">';
+                $html .= '<input type="hidden" name="adisyon_urun_id[]" value="'.$urun->id.'">';
+                $html .= '<input type="hidden" name="indirim[]" data-value="'.$urun->id.'" value="'.e($urun->indirim_tutari).'">';
+                $html .= '<input type="hidden" name="adisyon_urun_senet_id[]" value="'.e($urun->senet_id).'">';
+                $html .= '<input type="hidden" name="adisyon_urun_taksitli_tahsilat_id[]" value="'.e($urun->taksitli_tahsilat_id).'">';
+                $html .= '<input type="tel" class="form-control try-currency tahsilat_kalemleri" name="urun_tahsilat_tutari_girilen[]" data-value="'.$urun->id.'" value="'.number_format($kalan,2,',','.').'">';
+                $html .= '<span class="tl">₺</span>';
+                if($urun->hediye) $html .= '<i class="fa fa-gift" style="color:#f59e0b;" title="Hediye"></i>';
+                $html .= '</div>';
+                $html .= '<div class="dropdown">';
+                $html .= '<a class="btn btn-link no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="İşlemler"><i class="fa fa-ellipsis-v"></i></a>';
+                $html .= '<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">';
+                if(($urun->senet_id == null && $urun->taksitli_tahsilat_id == null && $tahsilatVar == 0) || $urun->fiyat == 0){
+                    if(!$urun->hediye)
+                        $html .= '<a class="dropdown-item tahsilat_urun_hediye_ver" data-value="'.$urun->id.'" href="#"><i class="fa fa-gift"></i> Hediye Ver</a>';
+                    else
+                        $html .= '<a class="dropdown-item tahsilat_urun_hediye_kaldir" data-value="'.$urun->id.'" href="#"><i class="fa fa-gift"></i> Hediyeyi Kaldır</a>';
+                    $html .= '<a class="dropdown-item tahsilat_urun_sil" href="#" data-value="'.$urun->id.'"><i class="dw dw-delete-3"></i> Sil</a>';
+                }
+                $html .= '</div></div></div>';
+            }
+            // Paketler
+            foreach($adisyon->paketler as $paket){
+                $kalan = $paket->fiyat - TahsilatPaketler::where('adisyon_paket_id',$paket->id)->sum('tutar') - $paket->indirim_tutari;
+                if(!(($kalan >= 0 || $paket->hediye) && $paket->senet_id === null && $paket->taksitli_tahsilat_id === null))
+                    continue;
+                $tahsilatVar = TahsilatPaketler::where('adisyon_paket_id',$paket->id)->count();
+                $paketAdi = optional($paket->paket)->paket_adi;
+                $meta = $paket->personel_id ? optional($paket->personel)->personel_adi : '';
+
+                $html .= '<div class="tahsilat_kalemleri_listesi tm-item paket-row" data-value="0">';
+                $html .= '<div class="tm-item-icon"><i class="fa fa-cubes"></i></div>';
+                $html .= '<div class="tm-item-name">'.e($paketAdi).'</div>';
+                $html .= '<div class="tm-item-meta">'.e($meta).'</div>';
+                $html .= '<div class="tm-item-qty"><input type="tel" value="'.e($paket->seans_sayisi).'" data-value="'.$paket->id.'" class="form-control" name="paket_seans_girilen[]" title="seans"></div>';
+                $html .= '<div class="tm-item-amount">';
+                $html .= '<input type="hidden" name="adisyon_paket_id[]" value="'.$paket->id.'">';
+                $html .= '<input type="hidden" name="adisyon_paket_senet_id[]" value="'.e($paket->senet_id).'">';
+                $html .= '<input type="hidden" name="adisyon_paket_taksitli_tahsilat_id[]" value="'.e($paket->taksitli_tahsilat_id).'">';
+                $html .= '<input type="hidden" name="indirim[]" data-value="'.$paket->id.'" value="'.e($paket->indirim_tutari).'">';
+                $html .= '<input type="tel" class="form-control try-currency tahsilat_kalemleri" name="paket_tahsilat_tutari_girilen[]" data-value="'.$paket->id.'" value="'.number_format($kalan,2,',','.').'">';
+                $html .= '<span class="tl">₺</span>';
+                if($paket->hediye) $html .= '<i class="fa fa-gift" style="color:#f59e0b;" title="Hediye"></i>';
+                $html .= '</div>';
+                $html .= '<div class="dropdown">';
+                $html .= '<a class="btn btn-link no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="İşlemler"><i class="fa fa-ellipsis-v"></i></a>';
+                $html .= '<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">';
+                if(($paket->senet_id == null && $paket->taksitli_tahsilat_id == null && $tahsilatVar == 0) || $paket->fiyat == 0){
+                    if(!$paket->hediye)
+                        $html .= '<a class="dropdown-item tahsilat_paket_hediye_ver" data-value="'.$paket->id.'" href="#"><i class="fa fa-gift"></i> Hediye Ver</a>';
+                    else
+                        $html .= '<a class="dropdown-item tahsilat_paket_hediye_kaldir" data-value="'.$paket->id.'" href="#"><i class="fa fa-gift"></i> Hediyeyi Kaldır</a>';
+                    $html .= '<a class="dropdown-item tahsilat_paket_sil" data-value="'.$paket->id.'" href="#"><i class="dw dw-delete-3"></i> Sil</a>';
+                }
+                $html .= '</div></div></div>';
+            }
+        }
+        return $html;
+    }
+
+    /**
+     * Modern tahsilat ekrani icin gecmis odemeler HTML'i.
+     * tahsilat-modern.blade.php'deki .tm-history-row markup'ini birebir mirror'lar.
+     */
+    private function buildModernTahsilatlarHtml($tahsilatlar)
+    {
+        $html = '';
+        foreach($tahsilatlar as $tahsilat){
+            $html .= '<div class="tm-history-row">';
+            $html .= '<span class="h-date">'.date('d.m.Y',strtotime($tahsilat->odeme_tarihi)).'</span>';
+            $html .= '<span class="h-amount">'.number_format($tahsilat->tutar,2,',','.').' ₺</span>';
+            $html .= '<span class="h-method">'.e(optional($tahsilat->odeme_yontemi)->odeme_yontemi).'</span>';
+            $html .= '<button type="button" class="h-del btn btn-danger" name="tahsilat_adisyondan_sil" data-value="'.$tahsilat->id.'" title="Sil"><i class="icon-copy fa fa-remove"></i></button>';
+            $html .= '</div>';
+        }
+        return $html;
     }
     public function adisyon_tahsilatlari(Request $request,$statstr)
     {

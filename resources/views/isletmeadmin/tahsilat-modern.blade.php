@@ -278,6 +278,8 @@
 <form id="adisyon_tahsilat" method="POST">
    {!!csrf_field()!!}
    <input type="hidden" name="tahsilat_ekrani" id="tahsilat_ekrani" value="1">
+   {{-- Modern view flag: server bu flag'i goren AJAX endpoint'lerinde modern markup donduruyor --}}
+   <input type="hidden" name="tahsilat_ekrani_modern" id="tahsilat_ekrani_modern" value="1">
    <select style="display:none" name="tahsilat_musteri_id" id='tahsilat_musteri_id'>
       <option selected value="{{$musteri->id}}">777</option>
    </select>
