@@ -3369,7 +3369,6 @@ private function ayAdiCevir($ingilizceAy)
             $islemler = '<div class="dropdown"><a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
                 </a>
                 <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-                  <a class="dropdown-item" href="/isletmeyonetim/personeldetay/'.$personel->id.'?sube='.$isletmeId.'"><i class="fa fa-eye"></i> Detaylı Bilgi</a>
                 <a class="dropdown-item" href="#" onclick="modalbaslikata(\'Personel Bilgileri\',\'\' )" name="personel_detayi" data-toggle="modal" data-target="#personel-modal" data-value="'.$personel->id.'"><i class="fa fa-edit"></i> Düzenle</a>
                     <a class="dropdown-item" href="#" name="personel_sifre_degistir_gonder" data-value="'.$personel->id.'"><i class="icon-copy dw dw-password"></i> Şifre Değiştir & Gönder</a>
                     <a class="dropdown-item" href="#" name="personel_pasif_aktif_yap" data-index-number="'.($personel->aktif ? 0 : 1).'" data-value="'.$personel->id.'"><i class="'.($personel->aktif ? 'fa fa-minus' : 'fa fa-plus').'"></i> '.($personel->aktif ? 'Pasif Yap' : 'Aktif Yap').'</a></div></div>';
