@@ -1,6 +1,8 @@
 <?php
 namespace App\Http\Controllers;
 use App\AramaListesi;
+use App\AnketSablon;
+use App\AnketGonderim;
 use App\AranacakMusteriler;
 use Illuminate\Http\Request;
 use App\Hizmetler;
@@ -3528,6 +3530,7 @@ private function ayAdiCevir($ingilizceAy)
                 'durum'=>$durum,
                 'siralama'=>$siralama,
                 'takvim'=>$takvimToggle,
+                'takvimde_gorunsun'=>$takvimdeGor ? 1 : 0,
                 'islemler'=>$islemler
             ];
 
@@ -24065,6 +24068,271 @@ DB::raw('
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    /* ============================================================
+     * MUSTERI MEMNUNIYET ANKETI
+     * ============================================================ */
+
+    public function anketSablonlari(Request $request){
+        $isletmeler = '';
+        $isletme = '';
+        if(Auth::guard('satisortakligi')->check()){
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+        if(!in_array(self::mevcutsube($request),$isletmeler)){
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(!Auth::guard('satisortakligi')->check()){
+            if(self::personelmi($request)){
+                return redirect()->route('isletmeadmin.randevular');
+            }
+        }
+        $paketler = self::paket_liste_getir('',true,$request);
+        $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
+        $sablonlar = AnketSablon::where('salon_id',self::mevcutsube($request))->orderBy('sira','asc')->orderByDesc('id')->get();
+        return view('isletmeadmin.anket_sablonlari',[
+            'bildirimler' => self::bildirimgetir($request),
+            'paketler' => $paketler,
+            'sayfa_baslik' => 'Memnuniyet Anketi Şablonları',
+            'pageindex' => 52,
+            'isletme' => $isletme,
+            'kalan_uyelik_suresi' => $kalan_uyelik_suresi,
+            'yetkiliolunanisletmeler' => $isletmeler,
+            'sablonlar' => $sablonlar,
+        ]);
+    }
+
+    public function anketSablonGetir(Request $request){
+        $sube = self::mevcutsube($request);
+        $sablon = AnketSablon::where('id',$request->id)->where('salon_id',$sube)->first();
+        if(!$sablon) return response()->json(['hata'=>true]);
+        return response()->json($sablon);
+    }
+
+    public function anketSablonKaydet(Request $request){
+        try {
+            $sube = self::mevcutsube($request);
+            $sablon = new AnketSablon();
+            $sablon->salon_id          = $sube;
+            $sablon->ad                = trim($request->ad);
+            $sablon->aciklama          = $request->aciklama;
+            $sablon->sorular_json      = $request->sorular_json;
+            $sablon->otomatik_gonder   = $request->otomatik_gonder ? 1 : 0;
+            $sablon->gonder_saat_sonra = max(1, (int) ($request->gonder_saat_sonra ?: 24));
+            $sablon->aktif             = 1;
+            $sablon->varsayilan        = $request->varsayilan ? 1 : 0;
+            if($sablon->varsayilan){
+                AnketSablon::where('salon_id',$sube)->update(['varsayilan'=>0]);
+            }
+            $sablon->save();
+            return response()->json(['basarili'=>true,'id'=>$sablon->id]);
+        } catch(\Exception $e){
+            \Log::error('anketSablonKaydet hata: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function anketSablonGuncelle(Request $request){
+        try {
+            $sube = self::mevcutsube($request);
+            $sablon = AnketSablon::where('id',$request->sablon_id)->where('salon_id',$sube)->first();
+            if(!$sablon) return response()->json(['basarili'=>false,'mesaj'=>'Şablon bulunamadı.']);
+            $sablon->ad                = trim($request->ad);
+            $sablon->aciklama          = $request->aciklama;
+            $sablon->sorular_json      = $request->sorular_json;
+            $sablon->otomatik_gonder   = $request->otomatik_gonder ? 1 : 0;
+            $sablon->gonder_saat_sonra = max(1, (int) ($request->gonder_saat_sonra ?: 24));
+            if($request->has('aktif')) $sablon->aktif = $request->aktif ? 1 : 0;
+            if($request->has('varsayilan')){
+                $sablon->varsayilan = $request->varsayilan ? 1 : 0;
+                if($sablon->varsayilan){
+                    AnketSablon::where('salon_id',$sube)->where('id','!=',$sablon->id)->update(['varsayilan'=>0]);
+                }
+            }
+            $sablon->save();
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            \Log::error('anketSablonGuncelle hata: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function anketSablonSil(Request $request){
+        try {
+            $sube = self::mevcutsube($request);
+            $sablon = AnketSablon::where('id',$request->sablon_id)->where('salon_id',$sube)->first();
+            if(!$sablon) return response()->json(['basarili'=>false,'mesaj'=>'Şablon bulunamadı.']);
+            $kullanim = AnketGonderim::where('sablon_id',$sablon->id)->count();
+            if($kullanim > 0){
+                $sablon->aktif = 0;
+                $sablon->save();
+                return response()->json(['basarili'=>true,'mesaj'=>'Şablon '.$kullanim.' anket gönderiminde kullanılmış, pasifleştirildi.']);
+            }
+            $sablon->delete();
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function anketManuelGonder(Request $request){
+        try {
+            $sube = self::mevcutsube($request);
+            $userId = (int) $request->user_id;
+            $cepTel = trim($request->cep_telefon);
+            $sablonId = (int) $request->sablon_id;
+
+            if(!$userId || !$cepTel) return response()->json(['basarili'=>false,'mesaj'=>'Müşteri ve telefon zorunlu.']);
+
+            $sablon = AnketSablon::where('id',$sablonId)->where('salon_id',$sube)->where('aktif',1)->first();
+            if(!$sablon) return response()->json(['basarili'=>false,'mesaj'=>'Aktif anket şablonu bulunamadı.']);
+
+            $musteri = User::where('id',$userId)->first();
+            $gonderim = self::anketGonderimOlustur($sube, $sablon, $musteri, $cepTel, [
+                'randevu_id' => $request->randevu_id ?: null,
+                'personel_id' => $request->personel_id ?: null,
+                'kanal' => 'manuel',
+            ]);
+
+            self::anketSmsGonder($request, $gonderim, $sablon, $musteri);
+
+            return response()->json(['basarili'=>true,'gonderim_id'=>$gonderim->id]);
+        } catch(\Exception $e){
+            \Log::error('anketManuelGonder hata: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function anketSonuclari(Request $request){
+        $isletmeler = '';
+        $isletme = '';
+        if(Auth::guard('satisortakligi')->check()){
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+        if(!in_array(self::mevcutsube($request),$isletmeler)){
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(!Auth::guard('satisortakligi')->check()){
+            if(self::personelmi($request)){
+                return redirect()->route('isletmeadmin.randevular');
+            }
+        }
+        $paketler = self::paket_liste_getir('',true,$request);
+        $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
+        $sube = self::mevcutsube($request);
+
+        $bas = $request->bas ? date('Y-m-d 00:00:00', strtotime($request->bas)) : date('Y-m-d 00:00:00', strtotime('-30 days'));
+        $bit = $request->bit ? date('Y-m-d 23:59:59', strtotime($request->bit)) : date('Y-m-d 23:59:59');
+
+        $tum = AnketGonderim::where('salon_id',$sube)
+            ->whereBetween('gonderim_zamani',[$bas,$bit])
+            ->orderByDesc('id')->get();
+
+        $cevaplananlar = $tum->where('cevaplandi',1);
+        $toplamGonderim = $tum->count();
+        $toplamCevap    = $cevaplananlar->count();
+        $cevapOrani     = $toplamGonderim ? round($toplamCevap*100/$toplamGonderim, 1) : 0;
+
+        // NPS = (% promoters 9-10) - (% detractors 0-6)
+        $npsCevaplari = $cevaplananlar->whereNotNull('nps_skoru');
+        $promoter = $npsCevaplari->where('nps_skoru','>=',9)->count();
+        $passive  = $npsCevaplari->whereBetween('nps_skoru',[7,8])->count();
+        $detractor= $npsCevaplari->where('nps_skoru','<=',6)->count();
+        $npsToplam= $npsCevaplari->count();
+        $npsSkor  = $npsToplam ? round((($promoter - $detractor) / $npsToplam) * 100) : null;
+
+        $csatCevaplari = $cevaplananlar->whereNotNull('csat_skoru');
+        $csatOrt = $csatCevaplari->count() ? round($csatCevaplari->avg('csat_skoru'),2) : null;
+
+        $sablonlar = AnketSablon::where('salon_id',$sube)->orderByDesc('aktif')->orderBy('ad')->get();
+
+        return view('isletmeadmin.anket_sonuclari',[
+            'bildirimler' => self::bildirimgetir($request),
+            'paketler' => $paketler,
+            'sayfa_baslik' => 'Memnuniyet Anketi Sonuçları',
+            'pageindex' => 53,
+            'isletme' => $isletme,
+            'kalan_uyelik_suresi' => $kalan_uyelik_suresi,
+            'yetkiliolunanisletmeler' => $isletmeler,
+            'gonderimler' => $tum,
+            'sablonlar' => $sablonlar,
+            'bas' => date('Y-m-d', strtotime($bas)),
+            'bit' => date('Y-m-d', strtotime($bit)),
+            'istatistik' => [
+                'toplam_gonderim' => $toplamGonderim,
+                'toplam_cevap'    => $toplamCevap,
+                'cevap_orani'     => $cevapOrani,
+                'nps_skor'        => $npsSkor,
+                'nps_promoter'    => $promoter,
+                'nps_passive'     => $passive,
+                'nps_detractor'   => $detractor,
+                'csat_ortalama'   => $csatOrt,
+            ],
+        ]);
+    }
+
+    public function anketGonderimDetay(Request $request){
+        $sube = self::mevcutsube($request);
+        $g = AnketGonderim::where('id',$request->id)->where('salon_id',$sube)->first();
+        if(!$g) return response()->json(['hata'=>true]);
+        $sablon = AnketSablon::where('id',$g->sablon_id)->first();
+        $sorular = $sablon && $sablon->sorular_json ? json_decode($sablon->sorular_json, true) : [];
+        $cevaplar = $g->cevaplar_json ? json_decode($g->cevaplar_json, true) : [];
+        $musteri = $g->user_id ? User::where('id',$g->user_id)->first() : null;
+        return response()->json([
+            'gonderim'=>$g,
+            'sorular'=>$sorular,
+            'cevaplar'=>$cevaplar,
+            'sablon_ad'=>$sablon->ad ?? '',
+            'musteri_ad'=>$musteri->name ?? $g->ad_soyad,
+        ]);
+    }
+
+    /**
+     * Yardımcı: yeni anket gönderim kaydı oluşturur (token + son gecerlilik dahil).
+     */
+    public static function anketGonderimOlustur($salonId, $sablon, $musteri, $telefon, $opts = []){
+        $token = bin2hex(random_bytes(16));
+        $g = new AnketGonderim();
+        $g->salon_id        = $salonId;
+        $g->sablon_id       = $sablon->id;
+        $g->randevu_id      = $opts['randevu_id'] ?? null;
+        $g->arsiv_id        = $opts['arsiv_id'] ?? null;
+        $g->user_id         = $musteri->id ?? null;
+        $g->personel_id     = $opts['personel_id'] ?? null;
+        $g->token           = $token;
+        $g->ad_soyad        = $musteri->name ?? null;
+        $g->telefon         = $telefon;
+        $g->gonderim_kanali = $opts['kanal'] ?? 'sms';
+        $g->gonderim_zamani = now();
+        $g->son_gecerlilik  = now()->addDays(30);
+        $g->save();
+        return $g;
+    }
+
+    /**
+     * Yardımcı: anket linkini SMS ile gönderir.
+     */
+    public static function anketSmsGonder($request, $gonderim, $sablon, $musteri){
+        $salon = Salonlar::where('id',$gonderim->salon_id)->first();
+        $link = 'https://'.($_SERVER['HTTP_HOST'] ?? ($salon->domain ?? 'apptest.randevumcepte.com.tr')).'/anket/'.$gonderim->token;
+        $adSoyad = $musteri->name ?? '';
+        $mesaj = 'Sn. '.$adSoyad.' '.($salon->salon_adi ?? '').' deneyiminizi bizimle paylaşır mısınız? Anketi 1 dk içinde doldurabilirsiniz: '.$link;
+        $mesajlar = [['to'=>$gonderim->telefon, 'message'=>$mesaj]];
+        try {
+            self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+        } catch(\Exception $e){
+            \Log::error('anketSmsGonder hata: '.$e->getMessage());
         }
     }
 

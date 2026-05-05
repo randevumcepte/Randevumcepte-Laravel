@@ -2,13 +2,15 @@
 @section('content')
 @php
    // Personel istatistikleri (formatted Collection icindeki HTML'den parse et)
-   $totalPers = 0; $aktifPers = 0; $pasifPers = 0; $hesapSahibiSayisi = 0;
+   $totalPers = 0; $aktifPers = 0; $pasifPers = 0; $hesapSahibiSayisi = 0; $takvimdePers = 0;
    foreach(($personeller ?? []) as $p){
       $totalPers++;
       $durum = is_array($p) ? ($p['durum'] ?? '') : ($p->durum ?? '');
       $hesap = is_array($p) ? ($p['hesap_turu'] ?? '') : ($p->hesap_turu ?? '');
+      $takvim = is_array($p) ? ($p['takvimde_gorunsun'] ?? 0) : ($p->takvimde_gorunsun ?? 0);
       if(strpos((string)$durum, 'Aktif') !== false) $aktifPers++; else $pasifPers++;
       if(trim($hesap) === 'Hesap Sahibi') $hesapSahibiSayisi++;
+      if((int)$takvim === 1) $takvimdePers++;
    }
 @endphp
 <style>
@@ -75,6 +77,8 @@
    .pyo-stat--pasif .pyo-stat__val{ color:#64748b; }
    .pyo-stat--sahibi .pyo-stat__icon{ background: linear-gradient(135deg,#f59e0b,#fbbf24); }
    .pyo-stat--sahibi .pyo-stat__val{ color:#d97706; }
+   .pyo-stat--takvim .pyo-stat__icon{ background: linear-gradient(135deg,#3b82f6,#60a5fa); }
+   .pyo-stat--takvim .pyo-stat__val{ color:#2563eb; }
 
    /* Tab nav */
    .pyo-tabs{
@@ -323,6 +327,11 @@
       <div class="pyo-stat__icon"><i class="fa fa-star"></i></div>
       <div class="pyo-stat__lbl">Hesap Sahibi</div>
       <div class="pyo-stat__val">{{$hesapSahibiSayisi}}</div>
+   </div>
+   <div class="pyo-stat pyo-stat--takvim">
+      <div class="pyo-stat__icon"><i class="fa fa-calendar"></i></div>
+      <div class="pyo-stat__lbl">Takvimde</div>
+      <div class="pyo-stat__val">{{$takvimdePers}}</div>
    </div>
 </div>
 <ul class="pyo-tabs nav nav-tabs" role="tablist" id="personelYonetimiTabs">
