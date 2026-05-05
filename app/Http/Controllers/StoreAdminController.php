@@ -515,6 +515,42 @@ public function carkverilerigetir(Request $request)
     }
 
     /**
+     * Admin: Hatırlatma ayarları sayfası (full page)
+     */
+    public function carkHatirlatma(Request $request)
+    {
+        $this->carkHatirlatmaTabloGaranti();
+        $salon_id = self::mevcutsube($request);
+        $isletme  = Salonlar::where('id', $salon_id)->first();
+
+        $yetkiler = Auth::guard('isletmeyonetim')->check()
+            ? Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray()
+            : [];
+        if (!in_array($salon_id, $yetkiler) && !Auth::guard('satisortakligi')->check()) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+
+        $ayar = CarkHatirlatmaAyarlari::firstOrCreate(['salon_id' => $salon_id]);
+        $bugun = CarkHatirlatmaLoglari::where('salon_id', $salon_id)->whereDate('tarih', now()->toDateString())->count();
+
+        $paketler = self::paket_liste_getir('', true, $request);
+        $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
+
+        return view('isletmeadmin.cark_hatirlatma', [
+            'bildirimler'          => self::bildirimgetir($request),
+            'paketler'             => $paketler,
+            'sayfa_baslik'         => 'Çarkıfelek Hatırlatma',
+            'pageindex'            => 503,
+            'isletme'              => $isletme,
+            'kalan_uyelik_suresi'  => $kalan_uyelik_suresi,
+            'urun_drop'            => self::urundropliste($request),
+            'yetkiliolunanisletmeler' => $yetkiler,
+            'ayar'                 => $ayar,
+            'bugun'                => $bugun,
+        ]);
+    }
+
+    /**
      * Admin: Hatırlatma ayarlarını getir (AJAX)
      */
     public function carkHatirlatmaGetir(Request $request)

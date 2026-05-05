@@ -2,15 +2,17 @@
    // Hangi tab aktif — pageindex'e gore belirlenir
    $_aktifTab = isset($pageindex) ? $pageindex : 500;
    $_subeQs = isset($_GET['sube']) && isset($isletme) ? '?sube='.$isletme->id : '';
-   $_urlCark   = '/isletmeyonetim/carkifelek'.$_subeQs;
-   $_urlKaz    = '/isletmeyonetim/carkkazananlar'.$_subeQs;
-   $_urlPuan   = '/isletmeyonetim/puanodulleri'.$_subeQs;
+   $_urlCark      = '/isletmeyonetim/carkifelek'.$_subeQs;
+   $_urlKaz       = '/isletmeyonetim/carkkazananlar'.$_subeQs;
+   $_urlPuan      = '/isletmeyonetim/puanodulleri'.$_subeQs;
+   $_urlHatirla   = '/isletmeyonetim/carkhatirlatma'.$_subeQs;
 @endphp
 
 {{-- Prefetch — tarayici arka planda diger tab'leri yukler, click anli olur --}}
 @if($_aktifTab != 500) <link rel="prefetch" href="{{ $_urlCark }}" as="document"> @endif
 @if($_aktifTab != 501) <link rel="prefetch" href="{{ $_urlKaz }}" as="document"> @endif
 @if($_aktifTab != 502) <link rel="prefetch" href="{{ $_urlPuan }}" as="document"> @endif
+@if($_aktifTab != 503) <link rel="prefetch" href="{{ $_urlHatirla }}" as="document"> @endif
 
 <style>
    .ck-tabs {
@@ -71,6 +73,9 @@
    </a>
    <a href="{{ $_urlPuan }}" class="{{ $_aktifTab == 502 ? 'active' : '' }}">
       <i class="fa fa-star"></i> Puan Ödülleri
+   </a>
+   <a href="{{ $_urlHatirla }}" class="{{ $_aktifTab == 503 ? 'active' : '' }}">
+      <i class="fa fa-bell"></i> Hatırlatma
    </a>
 </div>
 
