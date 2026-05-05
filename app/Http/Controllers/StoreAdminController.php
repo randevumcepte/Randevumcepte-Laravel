@@ -4969,7 +4969,7 @@ private function ayAdiCevir($ingilizceAy)
             $yenirandevuhizmetpersonel = new RandevuHizmetler();
             $baslangicSaati = '';
             $bitisSaati = '';
-            if(isset($request->saat)&& isset($request->saat_bitis)){
+            if(!empty($request->saat) && !empty($request->saat_bitis)){
                 $yenirandevu->saat = $request->saat;
                 $yenirandevu->saat_bitis = $request->saat_bitis;
                 $yenirandevuhizmetpersonel->saat = $request->saat;

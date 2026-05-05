@@ -243,11 +243,11 @@
                                         </div>
                                         <div class="col-md-3 col-sm-6 col-6 col-xs-6" id='baslangic_saati_yazi'>
                                             <label style="font-size: 0.8rem;">Başlangıç Saati</label>
-                                            <input type="time" class="form-control" name="saat" id='kapama_saat_baslangic' required style="height: 32px; font-size: 0.85rem;">
+                                            <input type="time" class="form-control" name="saat" id='kapama_saat_baslangic' style="height: 32px; font-size: 0.85rem;">
                                         </div>
                                         <div class="col-md-3 col-sm-6 col-6 col-xs-6" id='bitis_saati_yazi'>
                                             <label style="font-size: 0.8rem;">Bitiş Saati</label>
-                                            <input type="time" class="form-control" name="saat_bitis" id='kapama_saat_bitis' required style="height: 32px; font-size: 0.85rem;">
+                                            <input type="time" class="form-control" name="saat_bitis" id='kapama_saat_bitis' style="height: 32px; font-size: 0.85rem;">
                                         </div>
                                         <div class="col-md-3 col-sm-6 col-6 col-xs-6">
                                             <label style="font-size: 0.8rem;">Tüm gün</label><br>
