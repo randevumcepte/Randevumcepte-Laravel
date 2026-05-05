@@ -99,7 +99,7 @@
    <div class="istat-kart nps">
       <div class="et">NPS Skoru</div>
       <div class="deg">{{ $istatistik['nps_skor'] !== null ? $istatistik['nps_skor'] : '—' }}</div>
-      <div class="alt-deg">Net Promoter Score</div>
+      <div class="alt-deg">Tavsiye Edilirlik Skoru</div>
    </div>
    <div class="istat-kart csat">
       <div class="et">Memnuniyet</div>
