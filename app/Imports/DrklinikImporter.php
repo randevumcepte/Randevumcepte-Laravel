@@ -271,10 +271,10 @@ class DrklinikImporter
         $end   = $bitis ? strtotime($bitis) : strtotime('2026-12-31');
         $this->log('Randevular cekiliyor: ' . date('Y-m-d', $start) . ' - ' . date('Y-m-d', $end) . ' (haftalik)...');
 
-        // Randevular icin gerekli mapleri kur
-        if (empty($this->odaMap)) $this->buildOdaMap();
-        $personelMap = $this->buildPersonelMapByName();
-        $hizmetMap   = $this->buildHizmetMapByBirim();
+        // Randevular icin gerekli ad-bazli maplari kur
+        $odaMapByName = $this->buildOdaMapByName();
+        $personelMap  = $this->buildPersonelMapByName();
+        $hizmetMap    = $this->buildHizmetMapByBirim();
 
         $weekStart = $start;
         $iter = 0;
@@ -286,7 +286,7 @@ class DrklinikImporter
                 'TB_Tarih2' => date('d.m.Y', $weekEnd),
             ]);
             if ($h !== null) {
-                $eklenen = $this->processRandevuPage($h, $personelMap, $hizmetMap);
+                $eklenen = $this->processRandevuPage($h, $personelMap, $hizmetMap, $odaMapByName);
                 if ($iter % 10 === 0) $this->log("  ..hafta {$iter} (" . date('Y-m-d', $weekStart) . "..) eklenen={$eklenen} toplam_randevu={$this->counts['randevu']}");
             }
             $weekStart = strtotime('+7 days', $weekStart);
@@ -304,8 +304,8 @@ class DrklinikImporter
         $start = $baslangic ? strtotime($baslangic) : strtotime('2018-01-01');
         $end   = $bitis ? strtotime($bitis) : strtotime('2026-12-31');
         $this->log('Randevu eksikleri (oda+personel) onariliyor: ' . date('Y-m-d', $start) . ' - ' . date('Y-m-d', $end));
-        if (empty($this->odaMap)) $this->buildOdaMap();
-        $personelMap = $this->buildPersonelMapByName();
+        $odaMapByName = $this->buildOdaMapByName();
+        $personelMap  = $this->buildPersonelMapByName();
 
         $weekStart = $start; $iter = 0;
         $updateOda = 0; $updatePers = 0; $unmatchedPers = []; $unmatchedOda = [];
@@ -334,7 +334,7 @@ class DrklinikImporter
                     $calisan = $cells[11] ?? '';
                     $oda = $cells[12] ?? '';
                     $personelId = $personelMap[$this->trKey($calisan)] ?? null;
-                    $odaId      = $this->odaMap[$this->trKey($oda)] ?? null;
+                    $odaId      = $odaMapByName[$this->trKey($oda)] ?? null;
 
                     if ($calisan && !$personelId) $unmatchedPers[$calisan] = true;
                     if ($oda && !$odaId) $unmatchedOda[$oda] = true;
@@ -376,10 +376,17 @@ class DrklinikImporter
         }
     }
 
-    private function buildOdaMap()
+    /**
+     * Lookup icin oda adina gore key'lenmis map. importOdalar'in $this->odaMap'i
+     * drklinik_id => local_id seklindedir; bu fonksiyon ad-bazli ayri bir map doner.
+     */
+    private function buildOdaMapByName()
     {
-        $odalar = Odalar::where('salon_id', $this->salonId)->get();
-        foreach ($odalar as $o) $this->odaMap[$this->trKey($o->oda_adi)] = $o->id;
+        $map = [];
+        foreach (Odalar::where('salon_id', $this->salonId)->get() as $o) {
+            $map[$this->trKey($o->oda_adi)] = $o->id;
+        }
+        return $map;
     }
 
     private function buildPersonelMapByName()
@@ -429,8 +436,9 @@ class DrklinikImporter
         return $map;
     }
 
-    private function processRandevuPage($html, $personelMap, $hizmetMap)
+    private function processRandevuPage($html, $personelMap, $hizmetMap, $odaMapByName = null)
     {
+        if ($odaMapByName === null) $odaMapByName = $this->buildOdaMapByName();
         $rows = $this->parseTableRowsRaw($html);
         $eklenen = 0;
         foreach ($rows as $rawRow) {
@@ -464,7 +472,7 @@ class DrklinikImporter
 
             // Personel + oda lookup (Turkce-normalize key ile)
             $personelId = $personelMap[$this->trKey($calisan)] ?? null;
-            $odaId      = $this->odaMap[$this->trKey($oda)] ?? null;
+            $odaId      = $odaMapByName[$this->trKey($oda)] ?? null;
 
             // Hizmet (birim adiyla)
             $hizmetInfo = $hizmetMap[$this->trKey($birim)] ?? null;
