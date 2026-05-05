@@ -401,6 +401,42 @@ $(document).ready(function(){
    $('a[data-toggle="tab"]').on('shown.bs.tab', function(){
       try { $('#personel_tablo').DataTable().columns.adjust().responsive.recalc(); } catch(e){}
    });
+
+   // ====== Siralama: bulletproof delegated handlers (custom.js'i overrider) ======
+   function _pyoSiralamaUpdate(url, $btn){
+      $.ajax({
+         type: 'GET',
+         url: url,
+         data: {
+            personelid: $btn.attr('data-value'),
+            sube: '{{$isletme->id}}',
+            siraNo: $btn.attr('data-index-number')
+         },
+         dataType: 'json',
+         beforeSend: function(){ $('#preloader').show(); },
+         success: function(result){
+            $('#preloader').hide();
+            var dt = $('#personel_tablo').DataTable();
+            dt.clear();
+            dt.rows.add(result);
+            dt.draw(false);
+         },
+         error: function(xhr){
+            $('#preloader').hide();
+            swal({title:'Hata', text:'Sıralama güncellenemedi', type:'error'});
+         }
+      });
+   }
+   $(document).on('click', '#personel_tablo button[name="personel_siralamayi_bir_asagi_tasi"]', function(e){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      _pyoSiralamaUpdate('/isletmeyonetim/personelSiralamaArtir', $(this));
+   });
+   $(document).on('click', '#personel_tablo button[name="personel_siralamayi_bir_yukari_tasi"]', function(e){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      _pyoSiralamaUpdate('/isletmeyonetim/personelSiralamaAzalt', $(this));
+   });
 });
 </script>
 
