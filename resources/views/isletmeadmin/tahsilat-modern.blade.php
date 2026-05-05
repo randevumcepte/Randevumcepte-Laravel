@@ -678,20 +678,6 @@
 
       var _tmReloadFiring = false;
 
-      // Bozuk HTML flicker'ini engellemek icin: AJAX'tan once snapshot al,
-      // success bozuk HTML yazdiktan SONRA ayni JS tick'inde snapshot'i geri yukle.
-      // Boylece browser hic bozuk hali paint etmez.
-      var _tmSnapshot = null;
-      var SNAPSHOT_IDS = [
-         'tahsilat_listesi',
-         'tum_tahsilatlar',
-         'taksitli_ve_senetli_tahsilatlar',
-         'tahsil_edilen_tutar',
-         'ara_toplam',
-         'uygulanan_indirim_tutari',
-         'uygulanan_harici_indirim_tutari'
-      ];
-
       function _tmIsTargetUrl(u){
          if(!u) return false;
          return u.indexOf('/tahsilatekle') !== -1 ||
@@ -703,89 +689,27 @@
          if(typeof window.jQuery !== 'function'){ setTimeout(bind, 60); return; }
          var $ = window.jQuery;
 
-         console.log('%c[modern-tahsilat] FLICKER FIX v5 yuklendi (timer-cancel + watchdog)', 'background:#7B2FB8;color:#fff;padding:2px 6px;border-radius:3px;');
+         console.log('%c[modern-tahsilat] v6 yuklendi (server-modern-html + flag injection)', 'background:#10b981;color:#fff;padding:2px 6px;border-radius:3px;');
 
-         // [PRIMARY-1] $.ajax monkey-patch: success callback CALISMADAN HEMEN ONCE
-         // result.kalemler ve result.tahsilatlar alanlarini mevcut modern HTML ile
-         // degistir. Boylece custom.js'in empty+append cagrisi gorsel olarak no-op olur.
-         // Bu yontem dataFilter'dan daha guvenilir: success'in son satiri once kosulsuz
-         // surette modern HTML alanlari uzerine yazilir.
-         var _origAjax = $.ajax;
-         $.ajax = function(){
-            var options = arguments[0];
-            if(options && typeof options === 'object' && _tmIsTargetUrl(options.url)){
-               var origSuccess = options.success;
-               options.success = function(result){
-                  try {
-                     var tumEl = document.getElementById('tum_tahsilatlar');
-                     var listEl = document.getElementById('tahsilat_listesi');
-                     if(result && typeof result === 'object'){
-                        if(tumEl) result.kalemler = tumEl.innerHTML;
-                        if(listEl){
-                           result.tahsilatlar = listEl.innerHTML;
-                           if(result.html !== undefined) result.html = listEl.innerHTML;
-                        }
-                     }
-                  } catch(e){ console.warn('[modern-tahsilat] success interceptor hata:', e); }
-                  if(typeof origSuccess === 'function')
-                     return origSuccess.apply(this, arguments);
-               };
-            }
-            return _origAjax.apply($, arguments);
-         };
-
-         // [PRIMARY-2] dataFilter ile JSON parse oncesinde de degistir (ekstra kalkan)
+         // Server artik modern HTML donduruyor (controller flag detection ile).
+         // Tek yapmamiz gereken: AJAX requestlere 'tahsilat_ekrani_modern=1' flag'ini
+         // enjekte etmek. custom.js bazi requestlerde (tahsilatkaldir vb) form
+         // disinda objeyle data gonderiyor; flag o objeye otomatik eklensin.
          $.ajaxPrefilter(function(options){
             if(!_tmIsTargetUrl(options.url)) return;
-            var origDataFilter = options.dataFilter;
-            options.dataFilter = function(rawData, dataType){
-               try {
-                  var parsed = JSON.parse(rawData);
-                  var tumEl = document.getElementById('tum_tahsilatlar');
-                  var listEl = document.getElementById('tahsilat_listesi');
-                  if(tumEl) parsed.kalemler = tumEl.innerHTML;
-                  if(listEl){
-                     parsed.tahsilatlar = listEl.innerHTML;
-                     if(parsed.html !== undefined) parsed.html = listEl.innerHTML;
+            try {
+               if(options.data instanceof FormData){
+                  if(!options.data.has('tahsilat_ekrani_modern'))
+                     options.data.append('tahsilat_ekrani_modern','1');
+               } else if(typeof options.data === 'object' && options.data !== null){
+                  if(options.data.tahsilat_ekrani_modern === undefined)
+                     options.data.tahsilat_ekrani_modern = '1';
+               } else if(typeof options.data === 'string'){
+                  if(options.data.indexOf('tahsilat_ekrani_modern=') === -1){
+                     options.data += (options.data ? '&' : '') + 'tahsilat_ekrani_modern=1';
                   }
-                  rawData = JSON.stringify(parsed);
-               } catch(e){
-                  console.warn('[modern-tahsilat] prefilter dataFilter hata:', e);
                }
-               return origDataFilter ? origDataFilter(rawData, dataType) : rawData;
-            };
-         });
-
-         // [BACKUP] Eger prefilter herhangi bir sebeple devre disi kalirsa
-         // (orn. cache'li eski JS), snapshot+restore ikinci savunma hatti.
-         $(document).ajaxSend(function(event, xhr, settings){
-            if(!_tmIsTargetUrl(settings && settings.url)) return;
-            var snap = {};
-            SNAPSHOT_IDS.forEach(function(id){
-               var el = document.getElementById(id);
-               if(el) snap[id] = el.innerHTML;
-            });
-            var kalanEl = document.getElementById('tahsil_edilecek_kalan_tutar');
-            snap.__kalanText = kalanEl ? kalanEl.textContent : null;
-            _tmSnapshot = snap;
-         });
-
-         $(document).ajaxSuccess(function(event, xhr, settings){
-            if(!_tmIsTargetUrl(settings && settings.url)) return;
-            if(!_tmSnapshot) return;
-            SNAPSHOT_IDS.forEach(function(id){
-               if(_tmSnapshot[id] === undefined) return;
-               var el = document.getElementById(id);
-               if(el) el.innerHTML = _tmSnapshot[id];
-            });
-            if(_tmSnapshot.__kalanText !== null){
-               var kalanEl = document.getElementById('tahsil_edilecek_kalan_tutar');
-               if(kalanEl) kalanEl.textContent = _tmSnapshot.__kalanText;
-               document.querySelectorAll('.tahsil_edilecek_kalan_tutar').forEach(function(el){
-                  el.textContent = _tmSnapshot.__kalanText;
-               });
-            }
-            _tmSnapshot = null;
+            } catch(e){ console.warn('[modern-tahsilat] flag enjeksiyon hata:', e); }
          });
 
          // AJAX tamamlandi -> taze veriyle soft reload (DOGRUDAN, delay YOK)
