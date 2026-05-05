@@ -529,11 +529,12 @@ class DrklinikImporter
     {
         $hasButton = preg_match('#<(?:input[^>]+type="(?:button|submit)"|a\s|button\s)#i', $tdRaw);
         $textOnly = trim(strip_tags($tdRaw));
-        // Sadece buton var ve disindaki text (anchor text dahil edilmis olabilir) "kisa anlamsiz" ise atla
+        // strip_tags HTML entity'leri korur, decode et ki "Se&#231;" -> "Seç"
+        $decoded = trim(html_entity_decode($textOnly, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         if ($hasButton) {
-            // Buton text icerigi (anchor metni) bilinen aksiyon kelimelerine eslesirse buton say
-            if (preg_match('/^(D[uü]zenle|Sil|[ÖÖoO]demeler|Prim\s*Hesab[ıi]|Sec|Sec[iı]m|Detay|G[oo]ster|G[uü]ncelle|Kaydet|Iptal|İptal)$/iu', $textOnly)) return true;
-            if ($textOnly === '' || strlen($textOnly) < 2) return true;
+            // Aksiyon kelimeleri (TR karakterler dahil)
+            if (preg_match('/^(Düzenle|Duzenle|Sil|Ödemeler|Odemeler|Prim\s*Hesab[ıi]|Seç|Sec|Seçim|Secim|Detay|Göster|Goster|Güncelle|Guncelle|Kaydet|İptal|Iptal|Randevu\s*Kapatma|Onayla|Reddet)$/iu', $decoded)) return true;
+            if ($decoded === '' || strlen($decoded) < 2) return true;
         }
         return false;
     }
