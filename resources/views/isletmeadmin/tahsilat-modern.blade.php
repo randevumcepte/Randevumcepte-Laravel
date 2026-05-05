@@ -808,10 +808,16 @@
             _tmSnapshot = null;
          });
 
-         // AJAX tamamlandi -> taze veriyle soft reload
+         // AJAX tamamlandi -> taze veriyle soft reload (DOGRUDAN, delay yok)
+         // ajaxComplete fire ettiginde success/ajaxSuccess senkron olarak bitmis
+         // oluyor; beklemeye gerek yok. Watchdog timer'ini iptal edip hemen fetch baslat.
          $(document).ajaxComplete(function(event, xhr, settings){
             if(!_tmIsTargetUrl(settings && settings.url)) return;
-            window._tmScheduleReload('ajaxComplete:'+settings.url, 50);
+            if(_tmReloadFiring) return;
+            if(_tmReloadTimer){ clearTimeout(_tmReloadTimer); _tmReloadTimer = null; }
+            console.log('[modern-tahsilat] soft reload immediate (ajaxComplete):', settings.url);
+            _tmReloadFiring = true;
+            _tmDoSoftReload();
          });
 
          // Click fallback'leri WATCHDOG: sadece ajaxComplete hic firel etmezse devreye girsin
