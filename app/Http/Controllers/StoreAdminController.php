@@ -4080,15 +4080,22 @@ private function ayAdiCevir($ingilizceAy)
         $label = $musteriAdi.' — '.date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i',strtotime($randevu->saat));
         SalonAudit::log($randevu->salon_id, 'randevu_onayla', 'randevu', $randevu->id, $label, 'Randevu onaylandı');
 
-        // Yanit verilerini hazirla — randevu_liste_getir gerekiyorsa cek (DataTable icin)
-        $listResponse = self::randevu_liste_getir(
-            $request,
-            date('Y-m-d'),
-            date('Y-m-d'),
-            '', '', '', '',
-            self::mevcutsube($request),
-            ''
-        );
+        // Yanit verilerini hazirla:
+        //  - JS ?withlist=1 gonderirse (liste sayfasinda) DataTable icin tum liste donulur
+        //  - Diger (takvim/popup) durumlarda minimum response (cok daha hizli)
+        $istekListeIstiyor = (bool) $request->input('withlist', false);
+        if ($istekListeIstiyor) {
+            $listResponse = self::randevu_liste_getir(
+                $request,
+                date('Y-m-d'),
+                date('Y-m-d'),
+                '', '', '', '',
+                self::mevcutsube($request),
+                ''
+            );
+        } else {
+            $listResponse = ['success' => true, 'randevu_id' => $randevu->id, 'durum' => 1];
+        }
 
         // Yaniti hemen flush et — SMS ve bildirim arka planda calisacak
         $kullaniciId = Auth::guard('isletmeyonetim')->id();

@@ -2868,12 +2868,13 @@ $(document).on('click','.randevuonayla',function(e){
     var id = $(this).attr('data-value');
     var $btn = $(this);
     var origHtml = $btn.html();
+    var listePage = $('#randevu_liste').length > 0;
     // Optimistik: butonu hemen disable + spinner
     $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Onaylanıyor...');
      $.ajax({
         type: "GET",
         url: '/isletmeyonetim/randevuonayla',
-         data: {randevuid:id,sube:$('input[name="sube"]').val()} ,
+         data: {randevuid:id, sube:$('input[name="sube"]').val(), withlist: listePage ? 1 : 0} ,
         dataType: "json",
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
