@@ -684,21 +684,69 @@
          setTimeout(_tmDoSoftReload, delay || 150);
       };
 
+      // Bozuk HTML flicker'ini engellemek icin: AJAX'tan once snapshot al,
+      // success bozuk HTML yazdiktan SONRA ayni JS tick'inde snapshot'i geri yukle.
+      // Boylece browser hic bozuk hali paint etmez.
+      var _tmSnapshot = null;
+      var SNAPSHOT_IDS = [
+         'tahsilat_listesi',
+         'tum_tahsilatlar',
+         'taksitli_ve_senetli_tahsilatlar',
+         'tahsil_edilen_tutar',
+         'ara_toplam',
+         'uygulanan_indirim_tutari',
+         'uygulanan_harici_indirim_tutari'
+      ];
+
+      function _tmIsTargetUrl(u){
+         if(!u) return false;
+         return u.indexOf('/tahsilatekle') !== -1 ||
+                u.indexOf('/taksitekleguncelle') !== -1 ||
+                u.indexOf('/tahsilatkaldir') !== -1;
+      }
+
       function bind(){
          if(typeof window.jQuery !== 'function'){ setTimeout(bind, 60); return; }
          var $ = window.jQuery;
 
-         // 1) AJAX tamamlanma hook (success ve error)
-         $(document).ajaxComplete(function(event, xhr, settings){
-            if(!settings || !settings.url) return;
-            var u = settings.url;
-            if(u.indexOf('/tahsilatekle') !== -1 ||
-               u.indexOf('/taksitekleguncelle') !== -1 ||
-               u.indexOf('/tahsilatkaldir') !== -1)
-            {
-               // Eski-tasarim HTML containerlara yazildi -> hemen modern HTML ile uzerine yaz
-               window._tmScheduleReload('ajaxComplete:'+u, 100);
+         // 0) AJAX gonderilmeden once: mevcut modern HTML'i snapshot'a kaydet
+         $(document).ajaxSend(function(event, xhr, settings){
+            if(!_tmIsTargetUrl(settings && settings.url)) return;
+            var snap = {};
+            SNAPSHOT_IDS.forEach(function(id){
+               var el = document.getElementById(id);
+               if(el) snap[id] = el.innerHTML;
+            });
+            var kalanEl = document.getElementById('tahsil_edilecek_kalan_tutar');
+            snap.__kalanText = kalanEl ? kalanEl.textContent : null;
+            _tmSnapshot = snap;
+         });
+
+         // 1) Request'in success callback'i bozuk HTML yazdiktan HEMEN sonra:
+         //    Snapshot'i geri yukle. ajaxSuccess senkron olarak success'ten sonra fire eder,
+         //    browser bu ikisi arasinda paint yapmaz -> kullanici flicker gormez.
+         $(document).ajaxSuccess(function(event, xhr, settings){
+            if(!_tmIsTargetUrl(settings && settings.url)) return;
+            if(!_tmSnapshot) return;
+            SNAPSHOT_IDS.forEach(function(id){
+               if(_tmSnapshot[id] === undefined) return;
+               var el = document.getElementById(id);
+               if(el) el.innerHTML = _tmSnapshot[id];
+            });
+            if(_tmSnapshot.__kalanText !== null){
+               var kalanEl = document.getElementById('tahsil_edilecek_kalan_tutar');
+               if(kalanEl) kalanEl.textContent = _tmSnapshot.__kalanText;
+               document.querySelectorAll('.tahsil_edilecek_kalan_tutar').forEach(function(el){
+                  el.textContent = _tmSnapshot.__kalanText;
+               });
             }
+            _tmSnapshot = null;
+         });
+
+         // 2) AJAX tamamlandi -> taze veriyle soft reload
+         $(document).ajaxComplete(function(event, xhr, settings){
+            if(!_tmIsTargetUrl(settings && settings.url)) return;
+            window._tmScheduleReload('ajaxComplete:'+settings.url, 50);
          });
 
          // 2) Click fallback'leri (AJAX hook'u kacirirsa garanti olsun)
