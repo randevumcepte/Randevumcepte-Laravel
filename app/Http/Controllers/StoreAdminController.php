@@ -3285,8 +3285,9 @@ private function ayAdiCevir($ingilizceAy)
         $personel = '';
         $yetkili = '';
         $rol_id='';
-        if($request->personel_id == '' && Personeller::where('cep_telefon',$request->cep_telefon)->where('salon_id',$request->sube)->count() == 1 ){
-            $personel = Personeller::where('id',$request->personel_id)->where('salon_id',$request->sube)->first();
+        $isDuzenleme = !empty($request->personel_id);
+        // YENI EKLEMEDE telefon zaten varsa uyari ver
+        if(!$isDuzenleme && Personeller::where('cep_telefon',$request->cep_telefon)->where('salon_id',$request->sube)->count() >= 1 ){
             $result = 'Girmiş olduğunuz cep telefonu ile sistemde '.IsletmeYetkilileri::where('gsm1',$request->cep_telefon)->value('name').' isimli kayıt zaten mevcut. Lütfen başka bir kayıt giriniz';
             $swaltitle = 'Uyarı';
             $swalstat  = 'warning';
@@ -3298,27 +3299,40 @@ private function ayAdiCevir($ingilizceAy)
             else
                 $sistemyetkisi = 'Hesap Sahibi';
             $rol_id = DB::table('roles')->where('name',$sistemyetkisi)->value('id');
-         
-            if(IsletmeYetkilileri::where('gsm1',$request->cep_telefon)->count()==0){
-                $yetkili = new IsletmeYetkilileri();
-                $yenihesapacma = true;
-            }
-            else
-                $yetkili = IsletmeYetkilileri::where('gsm1',$request->cep_telefon)->first();
-            if($request->personel_id == '' && Personeller::where('cep_telefon',$request->cep_telefon)->where('salon_id',$request->sube)->count()==0){
+
+            if($isDuzenleme){
+                // DUZENLEME: personel'i id ile bul, yetkili'sini yetkili_id ile bul
+                $personel = Personeller::where('id',$request->personel_id)->where('salon_id',$request->sube)->first();
+                if($personel && $personel->yetkili_id){
+                    $yetkili = IsletmeYetkilileri::where('id',$personel->yetkili_id)->first();
+                }
+                if(!$yetkili){
+                    // Personel'in yetkili'si yoksa, gsm ile dene
+                    $yetkili = IsletmeYetkilileri::where('gsm1',$request->cep_telefon)->first();
+                    if(!$yetkili){
+                        $yetkili = new IsletmeYetkilileri();
+                        $yenihesapacma = true;
+                    }
+                }
+            } else {
+                // YENI EKLEME: yetkili'yi gsm ile bul/olustur
+                $existing = IsletmeYetkilileri::where('gsm1',$request->cep_telefon)->first();
+                if(!$existing){
+                    $yetkili = new IsletmeYetkilileri();
+                    $yenihesapacma = true;
+                } else {
+                    $yetkili = $existing;
+                }
                 $personel = new Personeller();
                 $yeniekleme = true;
                 $personel->aktif=true;
                 $personel->takvimde_gorunsun = true;
                 $personel->takvim_sirasi = Personeller::where('salon_id',$request->sube)->orderBy('takvim_sirasi','desc')->value('takvim_sirasi') + 1;
                 $son_eklenen_personel = Personeller::where('salon_id',$request->sube)->orderBy('id','desc')->first();
-                if($son_eklenen_personel->renk == 10)
+                if($son_eklenen_personel && $son_eklenen_personel->renk == 10)
                         $personel->renk = 1;
                 else
-                        $personel->renk = $son_eklenen_personel->renk + 1;
-            }
-            else{
-                $personel = Personeller::where('id',$request->personel_id)->where('salon_id',$request->sube)->first();
+                        $personel->renk = ($son_eklenen_personel ? $son_eklenen_personel->renk : 0) + 1;
             }
            
          
