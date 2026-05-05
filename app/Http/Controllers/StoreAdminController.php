@@ -6700,8 +6700,11 @@ private function ayAdiCevir($ingilizceAy)
         $tum_takstiler = self::taksitvadegetir_tahsilat($request);
         $senet_gelen_vadeler = SenetVadeleri::join('senetler','senet_vadeleri.senet_id','=','senetler.id')->select('senet_vadeleri.id as senet_vade_id','senet_vadeleri.vade_tarih as tarih','senet_vadeleri.tutar as tutar')->where('senetler.user_id',$musteriid)->where('senet_vadeleri.vade_tarih','<=',date('Y-m-d'))->where('odendi',false)->get();
         $taksit_gelen_vadeler = TaksitVadeleri::join('taksitli_tahsilatlar','taksit_vadeleri.taksitli_tahsilat_id','=','taksitli_tahsilatlar.id')->select('taksit_vadeleri.id as taksit_vade_id','taksit_vadeleri.vade_tarih as tarih','taksit_vadeleri.tutar as tutar')->where('taksitli_tahsilatlar.user_id',$musteriid)->where('taksit_vadeleri.vade_tarih','<=',date('Y-m-d'))->where('odendi',false)->get();
-        return view('isletmeadmin.tahsilat-modern',['isletme'=>$isletme,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request), 'sayfa_baslik'=>$user->name .' #'.$adisyonId.' nolu Modern Tahsilat','pageindex' => 1111,'acik_adisyonlar'=>$acik_adisyonlar,'request'=>$request, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request), 'musteri'=>$user,'tahsilatlar'=>$tahsilatlar,'senet_gelen_vadeler'=>$senet_gelen_vadeler,'taksit_gelen_vadeler'=>$taksit_gelen_vadeler,'tum_senetler'=>$tum_senetler,'tum_taksitler'=>$tum_takstiler,'urun_drop'=>self::urundropliste($request)
-            ,'yetkiliolunanisletmeler'=>$isletmeler,'adisyon_id'=>$adisyonId,'kalan_adisyonlar'=>$kalan_adisyonlar,'adisyon'=>$adisyon]);
+        return response()->view('isletmeadmin.tahsilat-modern',['isletme'=>$isletme,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request), 'sayfa_baslik'=>$user->name .' #'.$adisyonId.' nolu Modern Tahsilat','pageindex' => 1111,'acik_adisyonlar'=>$acik_adisyonlar,'request'=>$request, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request), 'musteri'=>$user,'tahsilatlar'=>$tahsilatlar,'senet_gelen_vadeler'=>$senet_gelen_vadeler,'taksit_gelen_vadeler'=>$taksit_gelen_vadeler,'tum_senetler'=>$tum_senetler,'tum_taksitler'=>$tum_takstiler,'urun_drop'=>self::urundropliste($request)
+            ,'yetkiliolunanisletmeler'=>$isletmeler,'adisyon_id'=>$adisyonId,'kalan_adisyonlar'=>$kalan_adisyonlar,'adisyon'=>$adisyon])
+            ->header('Cache-Control','no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma','no-cache')
+            ->header('Expires','0');
     }
     public function tahsilatModernSecim(Request $request)
     {

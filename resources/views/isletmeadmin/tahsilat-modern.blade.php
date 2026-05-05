@@ -709,11 +709,38 @@
          if(typeof window.jQuery !== 'function'){ setTimeout(bind, 60); return; }
          var $ = window.jQuery;
 
-         // [PRIMARY] Bozuk HTML'i daha DOM'a girmeden server response'unda iptal et.
-         // ajaxPrefilter custom.js'in success callback'inden ONCE calisir; result.kalemler
-         // ve result.tahsilatlar alanlarini mevcut modern HTML ile degistirip success'in
-         // empty().append() cagrilarini no-op'a cevirir. Boylece eski-tasarim HTML hicbir
-         // zaman ekrana gelmez -> flicker fiziksel olarak imkansiz.
+         console.log('[modern-tahsilat] FLICKER FIX v4 yuklendi');
+
+         // [PRIMARY-1] $.ajax monkey-patch: success callback CALISMADAN HEMEN ONCE
+         // result.kalemler ve result.tahsilatlar alanlarini mevcut modern HTML ile
+         // degistir. Boylece custom.js'in empty+append cagrisi gorsel olarak no-op olur.
+         // Bu yontem dataFilter'dan daha guvenilir: success'in son satiri once kosulsuz
+         // surette modern HTML alanlari uzerine yazilir.
+         var _origAjax = $.ajax;
+         $.ajax = function(){
+            var options = arguments[0];
+            if(options && typeof options === 'object' && _tmIsTargetUrl(options.url)){
+               var origSuccess = options.success;
+               options.success = function(result){
+                  try {
+                     var tumEl = document.getElementById('tum_tahsilatlar');
+                     var listEl = document.getElementById('tahsilat_listesi');
+                     if(result && typeof result === 'object'){
+                        if(tumEl) result.kalemler = tumEl.innerHTML;
+                        if(listEl){
+                           result.tahsilatlar = listEl.innerHTML;
+                           if(result.html !== undefined) result.html = listEl.innerHTML;
+                        }
+                     }
+                  } catch(e){ console.warn('[modern-tahsilat] success interceptor hata:', e); }
+                  if(typeof origSuccess === 'function')
+                     return origSuccess.apply(this, arguments);
+               };
+            }
+            return _origAjax.apply($, arguments);
+         };
+
+         // [PRIMARY-2] dataFilter ile JSON parse oncesinde de degistir (ekstra kalkan)
          $.ajaxPrefilter(function(options){
             if(!_tmIsTargetUrl(options.url)) return;
             var origDataFilter = options.dataFilter;
@@ -723,7 +750,10 @@
                   var tumEl = document.getElementById('tum_tahsilatlar');
                   var listEl = document.getElementById('tahsilat_listesi');
                   if(tumEl) parsed.kalemler = tumEl.innerHTML;
-                  if(listEl) parsed.tahsilatlar = listEl.innerHTML;
+                  if(listEl){
+                     parsed.tahsilatlar = listEl.innerHTML;
+                     if(parsed.html !== undefined) parsed.html = listEl.innerHTML;
+                  }
                   rawData = JSON.stringify(parsed);
                } catch(e){
                   console.warn('[modern-tahsilat] prefilter dataFilter hata:', e);
