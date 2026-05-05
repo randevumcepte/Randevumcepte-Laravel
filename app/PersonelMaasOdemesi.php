@@ -9,7 +9,7 @@ class PersonelMaasOdemesi extends Model
     protected $table = 'personel_maas_odemeleri';
 
     protected $fillable = [
-        'personel_id', 'salon_id', 'donem', 'tutar',
+        'personel_id', 'salon_id', 'donem', 'tutar', 'odeme_tipi',
         'odeme_tarihi', 'odeme_yontemi', 'aciklama', 'ekleyen_yetkili_id',
     ];
 
