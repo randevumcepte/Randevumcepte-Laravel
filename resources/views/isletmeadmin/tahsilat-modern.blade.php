@@ -697,6 +697,8 @@
          // disinda objeyle data gonderiyor; flag o objeye otomatik eklensin.
          $.ajaxPrefilter(function(options){
             if(!_tmIsTargetUrl(options.url)) return;
+            var dataType = (options.data instanceof FormData) ? 'FormData'
+                          : (typeof options.data);
             try {
                if(options.data instanceof FormData){
                   if(!options.data.has('tahsilat_ekrani_modern'))
@@ -709,6 +711,7 @@
                      options.data += (options.data ? '&' : '') + 'tahsilat_ekrani_modern=1';
                   }
                }
+               console.log('[modern-tahsilat] flag enjekte edildi:', options.url, '(data:'+dataType+')');
             } catch(e){ console.warn('[modern-tahsilat] flag enjeksiyon hata:', e); }
          });
 
