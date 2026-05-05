@@ -3453,7 +3453,24 @@ private function ayAdiCevir($ingilizceAy)
     public function personel_liste_getir(Request $request)
     {
         $isletmeId = self::mevcutsube($request);
-        $personeller = Personeller::where('salon_id',$isletmeId)->orderBy('takvim_sirasi','asc')->get();
+        // Aktifler once, pasifler en altta. Tie-breaker olarak id ASC kullan ki
+        // takvim_sirasi'da olusabilecek tekrar/bosluklar deterministik cozulsun.
+        $personeller = Personeller::where('salon_id',$isletmeId)
+            ->orderByDesc('aktif')
+            ->orderBy('takvim_sirasi','asc')
+            ->orderBy('id','asc')
+            ->get();
+
+        // Self-heal: takvim_sirasi degerlerini 0..n-1 olarak yeniden numaralandir.
+        // Boylece kalip kalmis duplicate veya bosluklar bu cagri ile temizlenir.
+        foreach($personeller as $i => $p){
+            if((int)$p->takvim_sirasi !== $i){
+                Personeller::where('id',$p->id)->update(['takvim_sirasi'=>$i]);
+                $p->takvim_sirasi = $i;
+            }
+        }
+
+        $aktif_count = $personeller->where('aktif',1)->count();
 
         // Performans: yetkili ve rol bilgilerini tek sorguda cek (N+1 kaldirildi)
         $yetkili_idleri = $personeller->pluck('yetkili_id')->filter()->unique()->values()->all();
@@ -3470,10 +3487,12 @@ private function ayAdiCevir($ingilizceAy)
             foreach($roller_rows as $r){ $roller_map[$r->model_id] = $r->name; }
         }
 
-        $formatted = $personeller->map(function($personel, $index) use($request,$personeller,$isletmeId,$yetkililer_map,$roller_map){
-            $isFirst = ($index === 0); // İlk kayıt mı?
-            $isLast = ($index === $personeller->count() - 1); // Son kayıt mı?
-            $isMiddle = !$isFirst && !$isLast; // Ara kayıt mı?
+        $formatted = $personeller->map(function($personel, $index) use($request,$personeller,$isletmeId,$yetkililer_map,$roller_map,$aktif_count){
+            $isActive = (bool)$personel->aktif;
+            // Siralama butonlari yalniz aktif personeller arasinda anlam tasir
+            $isFirst  = $isActive && ($index === 0);
+            $isLast   = $isActive && ($index === $aktif_count - 1);
+            $isMiddle = $isActive && !$isFirst && !$isLast;
             $yetkili = isset($yetkililer_map[$personel->yetkili_id]) ? $yetkililer_map[$personel->yetkili_id] : null;
             $personel_adi = $yetkili ? $yetkili->name : $personel->personel_adi;
             $telefon = $yetkili ? $yetkili->gsm1 : '';
@@ -3489,12 +3508,12 @@ private function ayAdiCevir($ingilizceAy)
                     <a class="dropdown-item" href="#" name="personel_pasif_aktif_yap" data-index-number="'.($personel->aktif ? 0 : 1).'" data-value="'.$personel->id.'"><i class="'.($personel->aktif ? 'fa fa-minus' : 'fa fa-plus').'"></i> '.($personel->aktif ? 'Pasif Yap' : 'Aktif Yap').'</a></div></div>';
             $siralama = '';
             if($isFirst)
-                $siralama .='<button class="btn btn-info" name="personel_siralamayi_bir_asagi_tasi" data-index-number="'.($index+1).'" data-value="'.$personel->id.'"><i class="fa fa-chevron-down"></i></button>';
+                $siralama .='<button class="btn btn-info" name="personel_siralamayi_bir_asagi_tasi" data-value="'.$personel->id.'"><i class="fa fa-chevron-down"></i></button>';
             if($isMiddle)
-                $siralama .='<button title="" class="btn btn-info" name="personel_siralamayi_bir_yukari_tasi" data-index-number="'.($index+1).'" data-value="'.$personel->id.'"><i class="fa fa-chevron-up"></i></button>
-                             <button title="" class="btn btn-info" name="personel_siralamayi_bir_asagi_tasi" data-index-number="'.($index+1).'" data-value="'.$personel->id.'"><i class="fa fa-chevron-down"></i></button>';
+                $siralama .='<button title="" class="btn btn-info" name="personel_siralamayi_bir_yukari_tasi" data-value="'.$personel->id.'"><i class="fa fa-chevron-up"></i></button>
+                             <button title="" class="btn btn-info" name="personel_siralamayi_bir_asagi_tasi" data-value="'.$personel->id.'"><i class="fa fa-chevron-down"></i></button>';
             if($isLast)
-                $siralama .='<button title="" class="btn btn-info" name="personel_siralamayi_bir_yukari_tasi" data-index-number="'.($index+1).'" data-value="'.$personel->id.'"><i class="fa fa-chevron-up"></i></button>';
+                $siralama .='<button title="" class="btn btn-info" name="personel_siralamayi_bir_yukari_tasi" data-value="'.$personel->id.'"><i class="fa fa-chevron-up"></i></button>';
             return [
                 'ad_soyad'=>$personel_adi,
                 'telefon'=>$telefon,
@@ -17440,18 +17459,31 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     public function personelaktifpasifyap(Request $request)
     {
         $yetkili = Personeller::where('id',$request->personelid)->first();
-        $returntext = '';
-        if($request->aktif==1){
-            $yetkili->aktif = true;
-            $returntext = 'aktif';
+        if(!$yetkili){
+            return array('mesaj'=>'Personel bulunamadi','personeller'=>self::personel_liste_getir($request));
         }
-        else{
-             $yetkili->aktif = false;
-             $yetkili->save();
+        $newAktif = ((int)$request->aktif === 1);
+        $yetkili->aktif = $newAktif;
+        // Pasif yapilanlar listenin en altina, aktif yapilanlar aktiflerin sonuna gider.
+        // takvim_sirasi'na buyuk bir "guard" deger yaziyoruz; personel_liste_getir
+        // bir sonraki cagrida 0..n-1 olarak normalize eder.
+        $isletmeId = $yetkili->salon_id;
+        $toplam = Personeller::where('salon_id',$isletmeId)->count();
+        if($newAktif){
+            // Aktiflerin sonu icin: kendisi haric aktif sayisini kullan; pasiflerin
+            // takvim_sirasi'lari normalize edilmis olsa bile bu deger pasiflerin onunde kalir.
+            $aktifSayisi = Personeller::where('salon_id',$isletmeId)->where('aktif',1)
+                ->where('id','!=',$yetkili->id)->count();
+            $yetkili->takvim_sirasi = $aktifSayisi;
+        } else {
+            // En altta tutmak icin toplamdan buyuk bir deger; normalize sonrasi son siraya duser.
+            $yetkili->takvim_sirasi = $toplam + 999;
         }
         $yetkili->save();
+        $returntext = $newAktif ? 'aktif' : 'pasif';
+        $isim = $yetkili->personel_adi ?: 'Personel';
         return array(
-            'mesaj'=>$yetkili->name.' isimli personel başarıyla '.$returntext.' edildi',
+            'mesaj'=>$isim.' isimli personel başarıyla '.$returntext.' edildi',
             'personeller'=>self::personel_liste_getir($request)
         );
     }
@@ -22224,35 +22256,37 @@ DB::raw('
     }
     public function personelSiralamaAzalt(Request $request)
     {
-        // 1 yukari tasi
-        try {
-            $personel = Personeller::where('id',$request->personelid)
-                ->where('salon_id',$request->sube)->first();
-            if($personel){
-                $ust = Personeller::where('salon_id',$request->sube)
-                    ->where('takvim_sirasi','<', $personel->takvim_sirasi)
-                    ->orderBy('takvim_sirasi','desc')
-                    ->first();
-                if($ust){ $this->_personelSiraSwap($personel, $ust); }
-            }
-        } catch(\Exception $e){ \Log::warning('personelSiralamaAzalt: '.$e->getMessage()); }
+        // 1 yukari tasi (sadece aktif personeller arasinda)
+        $this->_personelSirayiKaydir($request, -1);
         return self::personel_liste_getir($request);
     }
     public function personelSiralamaArtir(Request $request)
     {
-        // 1 asagi tasi
-        try {
-            $personel = Personeller::where('id',$request->personelid)
-                ->where('salon_id',$request->sube)->first();
-            if($personel){
-                $alt = Personeller::where('salon_id',$request->sube)
-                    ->where('takvim_sirasi','>', $personel->takvim_sirasi)
-                    ->orderBy('takvim_sirasi','asc')
-                    ->first();
-                if($alt){ $this->_personelSiraSwap($personel, $alt); }
-            }
-        } catch(\Exception $e){ \Log::warning('personelSiralamaArtir: '.$e->getMessage()); }
+        // 1 asagi tasi (sadece aktif personeller arasinda)
+        $this->_personelSirayiKaydir($request, +1);
         return self::personel_liste_getir($request);
+    }
+    private function _personelSirayiKaydir(Request $request, int $delta)
+    {
+        try {
+            $isletmeId = $request->sube;
+            // Aktif personelleri konum sirasiyla cek; takvim_sirasi'da olasi tekrar/bosluga
+            // karsi id ASC tie-breaker kullan. Index tabanli swap, deger tabanli arama yerine
+            // dogrudan komsu kaydi alir; "atlama" hatasini tamamen kaldirir.
+            $aktifler = Personeller::where('salon_id',$isletmeId)
+                ->where('aktif',1)
+                ->orderBy('takvim_sirasi','asc')
+                ->orderBy('id','asc')
+                ->get()
+                ->values();
+            $idx = $aktifler->search(function($p) use($request){ return (int)$p->id === (int)$request->personelid; });
+            if($idx === false) return;
+            $hedefIdx = $idx + $delta;
+            if($hedefIdx < 0 || $hedefIdx >= $aktifler->count()) return;
+            $cur  = $aktifler[$idx];
+            $komsu = $aktifler[$hedefIdx];
+            $this->_personelSiraSwap($cur, $komsu);
+        } catch(\Exception $e){ \Log::warning('_personelSirayiKaydir: '.$e->getMessage()); }
     }
     private function _personelSiraSwap($a, $b)
     {
