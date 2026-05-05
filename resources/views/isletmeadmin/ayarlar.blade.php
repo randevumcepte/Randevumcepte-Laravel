@@ -1586,39 +1586,63 @@
    </div>
 </div>
 <!-- listede olmayan hizmetler -->
-<div
-   id="yeni_hizmet_modal"
-   class="modal modal-top fade calendar-modal"
-   >
+<div id="yeni_hizmet_modal" class="modal modal-top fade calendar-modal">
    <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content" style="max-height: 90%;">
-         <form id="yeni_hizmet_formu"  method="POST">
+      <div class="modal-content">
+         <form id="yeni_hizmet_formu" method="POST">
+            {!!csrf_field()!!}
+            <input type="hidden" name="sube" value="{{$isletme->id}}">
             <div class="modal-header">
-               <h2>Yeni Hizmet</h2>
+               <h2><i class="fa fa-plus"></i> Yeni Hizmet</h2>
+               <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
             </div>
-            <div class="modal-body">
-               {!!csrf_field()!!}
-               <input type="hidden" name="sube" value="{{$isletme->id}}">
-               <div class="row" data-value="0">
+            <div class="modal-body hy-modal-body">
+               <div class="row">
                   <div class="col-md-6">
                      <div class="form-group">
                         <label>Hizmet Adı</label>
-                        <input type="text" name="hizmet_adi" required class="form-control">
+                        <input type="text" name="hizmet_adi" required class="form-control" placeholder="Örn: Saç Kesimi">
                      </div>
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-md-3">
                      <div class="form-group">
-                        <label>Hizmet Süresi (dk)</label>
-                        <input type="tel" name="hizmet_sure" required class="form-control">
+                        <label>Süre (dk)</label>
+                        <input type="number" name="hizmet_sure" required class="form-control" placeholder="60">
                      </div>
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-md-3">
                      <div class="form-group">
-                        <label>Hizmet fiyatı (₺)</label>
+                        <label>Fiyat (₺)</label>
                         <input type="text" inputmode="decimal" name="hizmet_fiyati" class="form-control hy-fiyat-input" placeholder="0,00" autocomplete="off">
                      </div>
                   </div>
                   <div class="col-md-6">
+                     <div class="form-group">
+                        <label>Kategori</label>
+                        <div style="display:flex; gap:8px; align-items:stretch;">
+                           <select name="hizmet_kategorisi" class="form-control" style="flex:1; min-width:0;">
+                              @foreach(\App\Hizmet_Kategorisi::all() as $cat)
+                                 <option value="{{$cat->id}}">{{$cat->hizmet_kategorisi_adi}}</option>
+                              @endforeach
+                           </select>
+                           <button type="button" class="hy-btn hy-btn-ghost" data-toggle="modal" data-target="#hy_kategori_ekle_modal" title="Yeni Kategori Ekle" style="flex-shrink:0; padding:0 14px;">
+                              <i class="fa fa-folder-open"></i>
+                           </button>
+                        </div>
+                     </div>
+                  </div>
+                  <div class="col-md-6">
+                     <div class="form-group">
+                        <label>Cinsiyet</label>
+                        <select class="form-control" name="cinsiyet">
+                           <option selected value="">Belirtilmemiş</option>
+                           <option value="0">Kadın</option>
+                           <option value="1">Erkek</option>
+                           <option value="2">Unisex</option>
+                        </select>
+                     </div>
+                  </div>
+                  <div class="col-md-12">
                      <div class="form-group">
                         <label>Hizmeti Sunan Personeller & Cihazlar</label>
                         <select name="personeller[]" multiple class="form-control custom-select2" style="width:100%">
@@ -1626,54 +1650,20 @@
                               <option value="{{$personel->id}}">{{$personel->personel_adi}}</option>
                            @endforeach
                            @foreach(($cihazlar_raw ?? []) as $cihaz)
-                              <option value="cihaz-{{$cihaz->id}}">{{$cihaz->cihaz_adi}}</option>
+                              <option value="cihaz-{{$cihaz->id}}">{{$cihaz->cihaz_adi}} (Cihaz)</option>
                            @endforeach
                         </select>
                      </div>
                   </div>
                </div>
-               <div class="row" data-value="0">
-                  <div class="col-md-9">
-                     <div class="form-group">
-                        <label>Hizmet Kategorisi</label>
-                        <select name="hizmet_kategorisi" class="form-control custom-select2" style="width: 100%;">
-                           @foreach(\App\Hizmet_Kategorisi::all() as $cat)
-                           <option value="{{$cat->id}}">{{$cat->hizmet_kategorisi_adi}}</option>
-                           @endforeach
-                        </select>
-                     </div>
+            </div>
+            <div class="modal-footer" style="display:block;">
+               <div class="row">
+                  <div class="col-md-6">
+                     <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
                   </div>
-                  <div class="col-md-3">
-                     <div class="form-group">
-                        <label style="visibility: hidden;width: 100%;">Hizmetler</label>
-                        <button type="button" data-value="0" class="btn btn-success" data-toggle="modal" data-target="#hizmet_kategori_ekle_modal" ><i class="icon-copy dw dw-settings2"></i> Yeni Kategori Ekle</button>
-                     </div>
-                  </div>
-                  <div class="col-md-12">
-                     <label>Hizmetin Sunulduğu Müşteri Cinsiyeti</label>
-                     <select class="form-control" name="cinsiyet">
-                        <option selected value="">Belirtilmemiş</option>
-                        <option value="0">Kadın</option>
-                        <option value="1">Erkek</option>
-                        <option value="2">Unisex</option>
-                     </select>
-                  </div>
-               </div>
-               <div class="modal-footer" style="display:block">
-                  <div class="row" data-value="0">
-                     <div class="col-md-6">
-                        <button type="submit" class="btn btn-success btn-lg btn-block"> <i class="fa fa-save"></i>
-                        Kaydet </button>
-                     </div>
-                     <div class="col-md-6">
-                        <button  
-                           type="button"
-                           class="btn btn-danger btn-lg btn-block"
-                           data-dismiss="modal"
-                           > <i class="fa fa-times"></i>
-                        Kapat
-                        </button>
-                     </div>
+                  <div class="col-md-6">
+                     <button type="button" class="btn btn-danger btn-lg btn-block" data-dismiss="modal"><i class="fa fa-times"></i> Kapat</button>
                   </div>
                </div>
             </div>
