@@ -24244,14 +24244,14 @@ DB::raw('
         $cevapOrani     = $toplamGonderim ? round($toplamCevap*100/$toplamGonderim, 1) : 0;
 
         // NPS = (% promoters 9-10) - (% detractors 0-6)
-        $npsCevaplari = $cevaplananlar->whereNotNull('nps_skoru');
-        $promoter = $npsCevaplari->where('nps_skoru','>=',9)->count();
-        $passive  = $npsCevaplari->whereBetween('nps_skoru',[7,8])->count();
-        $detractor= $npsCevaplari->where('nps_skoru','<=',6)->count();
-        $npsToplam= $npsCevaplari->count();
-        $npsSkor  = $npsToplam ? round((($promoter - $detractor) / $npsToplam) * 100) : null;
+        $npsCevaplari = $cevaplananlar->filter(function($g){ return !is_null($g->nps_skoru); });
+        $promoter  = $npsCevaplari->filter(function($g){ return $g->nps_skoru >= 9; })->count();
+        $passive   = $npsCevaplari->filter(function($g){ return $g->nps_skoru >= 7 && $g->nps_skoru <= 8; })->count();
+        $detractor = $npsCevaplari->filter(function($g){ return $g->nps_skoru <= 6; })->count();
+        $npsToplam = $npsCevaplari->count();
+        $npsSkor   = $npsToplam ? round((($promoter - $detractor) / $npsToplam) * 100) : null;
 
-        $csatCevaplari = $cevaplananlar->whereNotNull('csat_skoru');
+        $csatCevaplari = $cevaplananlar->filter(function($g){ return !is_null($g->csat_skoru); });
         $csatOrt = $csatCevaplari->count() ? round($csatCevaplari->avg('csat_skoru'),2) : null;
 
         $sablonlar = AnketSablon::where('salon_id',$sube)->orderByDesc('aktif')->orderBy('ad')->get();
