@@ -797,7 +797,7 @@
    </div>
    {{-- ======================= /LUXE HERO =============================== --}}
 
-   <div class="row rdv-luxe-bookingrow" style="margin-top:20px">
+   <div id="randevu-al" class="row rdv-luxe-bookingrow" style="margin-top:20px">
       <div class="col-lg-8" id="randevusistemi">
          <div id="hizmetsecimbolumu">
             <aside class="sidebar">
