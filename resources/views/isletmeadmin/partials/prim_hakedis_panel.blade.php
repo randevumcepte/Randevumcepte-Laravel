@@ -207,6 +207,14 @@
     box-shadow: 0 2px 6px rgba(123,47,184,.15);
   }
   .pr-ode-btn:hover{ background: linear-gradient(135deg,#5C008E,#7B2FB8); color:#fff; transform:translateY(-1px); box-shadow: 0 4px 10px rgba(123,47,184,.25); }
+  .pr-musteri-btn{
+    border:1px solid #bfdbfe; cursor:pointer; padding:0;
+    display:inline-flex; align-items:center; justify-content:center;
+    background:#dbeafe; color:#1e40af;
+    width:36px; height:36px; border-radius:10px; transition:all .15s;
+  }
+  .pr-musteri-btn:hover{ background:#1e40af; color:#fff; transform:translateY(-1px); box-shadow: 0 4px 10px rgba(30,64,175,.25); }
+  .pr-musteri-btn i{ font-size:14px; }
 
   /* Modal icindeki quick-action butonlari */
   .pm-quick-actions{
@@ -740,16 +748,24 @@
               @endif
             </td>
             <td>
-              <button class="pr-ode-btn prim-ode"
-                data-value="{{$r['personel_id']}}"
-                data-adi="{{$r['personel_adi']}}"
-                data-net="{{$r['net_hakedis']}}"
-                data-odenen="{{$r['odenen_toplam']}}"
-                data-kalan="{{$r['kalan']}}"
-                title="Prim & Hak Ediş İşlemleri">
-                <i class="fa fa-credit-card"></i>
-                <span>Öde</span>
-              </button>
+              <div style="display:inline-flex; gap:6px; align-items:center">
+                <button class="pr-ode-btn prim-ode"
+                  data-value="{{$r['personel_id']}}"
+                  data-adi="{{$r['personel_adi']}}"
+                  data-net="{{$r['net_hakedis']}}"
+                  data-odenen="{{$r['odenen_toplam']}}"
+                  data-kalan="{{$r['kalan']}}"
+                  title="Prim & Hak Ediş İşlemleri">
+                  <i class="fa fa-credit-card"></i>
+                  <span>Öde</span>
+                </button>
+                <button class="pr-musteri-btn prim-musteri-detay"
+                  data-value="{{$r['personel_id']}}"
+                  data-adi="{{$r['personel_adi']}}"
+                  title="Bu ay satış yaptığı müşteriler">
+                  <i class="fa fa-users"></i>
+                </button>
+              </div>
             </td>
           </tr>
         @endforeach
@@ -1365,6 +1381,24 @@ $(function(){
     var pid = $(this).data('value');
     var adi = $(this).data('adi');
     openOdeModal(pid, adi);
+  });
+
+  // ============ Musteri Detay (tabloda kisayol) ============
+  $(document).on('click','.prim-musteri-detay', function(){
+    var pid = $(this).data('value');
+    var adi = $(this).data('adi');
+    openPrimDetayModal(pid, adi);
+    // Modal acilir acilmaz Musteriler sekmesini aktif et (loading bittikten sonra)
+    var tryActivate = function(tries){
+      if(tries <= 0) return;
+      var $btn = $('#primDetayModal .pdm-tabs button[data-pdm-tab="musteri"]');
+      if($('#primDetay_icerik').is(':visible') && $btn.length){
+        $btn.trigger('click');
+      } else {
+        setTimeout(function(){ tryActivate(tries-1); }, 200);
+      }
+    };
+    tryActivate(15); // 3 saniyeye kadar bekle
   });
 
   $('#primOdeForm').on('submit', function(e){
