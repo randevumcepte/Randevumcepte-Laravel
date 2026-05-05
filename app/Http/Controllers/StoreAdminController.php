@@ -24187,13 +24187,19 @@ DB::raw('
             $userId = (int) $request->user_id;
             $cepTel = trim($request->cep_telefon);
             $sablonId = (int) $request->sablon_id;
+            $adSoyad = trim($request->ad_soyad ?: '');
 
-            if(!$userId || !$cepTel) return response()->json(['basarili'=>false,'mesaj'=>'Müşteri ve telefon zorunlu.']);
+            if(!$cepTel) return response()->json(['basarili'=>false,'mesaj'=>'Telefon zorunlu.']);
 
             $sablon = AnketSablon::where('id',$sablonId)->where('salon_id',$sube)->where('aktif',1)->first();
             if(!$sablon) return response()->json(['basarili'=>false,'mesaj'=>'Aktif anket şablonu bulunamadı.']);
 
-            $musteri = User::where('id',$userId)->first();
+            // Test/manuel gönderim: user_id varsa kullan, yoksa ad_soyad input'u kullan (test için anonim)
+            $musteri = $userId ? User::where('id',$userId)->first() : null;
+            if(!$musteri){
+                // Sahte musteri objesi oluştur (DB'ye kaydetmez, anketGonderimOlustur'a name/id geçirmek için)
+                $musteri = (object) ['id' => null, 'name' => $adSoyad ?: 'Test'];
+            }
             $gonderim = self::anketGonderimOlustur($sube, $sablon, $musteri, $cepTel, [
                 'randevu_id' => $request->randevu_id ?: null,
                 'personel_id' => $request->personel_id ?: null,

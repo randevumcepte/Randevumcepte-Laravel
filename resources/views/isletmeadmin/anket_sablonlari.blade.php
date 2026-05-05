@@ -119,6 +119,7 @@
                      @if($s->aktif)<span class="badge-aktif">Aktif</span>@else<span class="badge-pasif">Pasif</span>@endif
                   </td>
                   <td style="text-align:right;">
+                     <button class="btn-mor-out" style="border-color:#10b981; color:#10b981;" onclick="testGonderAc({{$s->id}}, '{{addslashes($s->ad)}}')" title="Test gönder"><i class="fa fa-paper-plane"></i> Test</button>
                      <button class="btn-mor-out" onclick="sablonDuzenle({{$s->id}})"><i class="fa fa-edit"></i> Düzenle</button>
                      <button class="btn-mor-out" style="border-color:#ef4444; color:#ef4444;" onclick="sablonSil({{$s->id}}, '{{addslashes($s->ad)}}')"><i class="fa fa-trash"></i></button>
                   </td>
@@ -127,6 +128,38 @@
             </tbody>
          </table>
       @endif
+   </div>
+</div>
+
+{{-- Test Gönder Modal --}}
+<div id="testGonderModal" class="modal fade" tabindex="-1">
+   <div class="modal-dialog" style="max-width:480px; margin:auto;">
+      <div class="modal-content" style="border-radius:14px; border:none; box-shadow:0 18px 50px rgba(92,0,142,.18);">
+         <div class="modal-header" style="background:#faf5ff; border-bottom:1px solid #ece6f3; padding:14px 22px; border-radius:14px 14px 0 0;">
+            <h4 style="color:#3a1a52; font-size:17px; font-weight:700; margin:0; display:flex; align-items:center; gap:10px;">
+               <span style="width:34px; height:34px; background:#10b981; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff;"><i class="fa fa-paper-plane"></i></span>
+               Test Gönder
+            </h4>
+            <button type="button" class="close" data-dismiss="modal">×</button>
+         </div>
+         <div class="modal-body" style="padding:18px 22px;">
+            <div style="background:#f0fdf4; border-left:4px solid #10b981; padding:10px 14px; border-radius:6px; margin-bottom:14px; font-size:12.5px; color:#047857;">
+               <i class="fa fa-info-circle"></i> Anketi nasıl göründüğünü görmek için kendi telefonuna SMS olarak gönder.
+            </div>
+            <div style="margin-bottom:8px; font-size:12px; color:#5C008E; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">Şablon</div>
+            <div id="testSablonAd" style="font-size:14px; font-weight:600; color:#3a1a52; margin-bottom:14px; padding:8px 12px; background:#fbfafd; border-radius:7px;"></div>
+
+            <div style="margin-bottom:5px; font-size:12px; color:#5C008E; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">Ad Soyad</div>
+            <input type="text" id="testAdSoyad" class="form-control" placeholder="Adınız" value="" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13.5px; padding:8px 11px; min-height:36px; margin-bottom:12px;">
+
+            <div style="margin-bottom:5px; font-size:12px; color:#5C008E; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">Telefon (10 hane)</div>
+            <input type="text" id="testTelefon" class="form-control" placeholder="5XXXXXXXXX" maxlength="10" inputmode="numeric" pattern="[0-9]*" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13.5px; padding:8px 11px; min-height:36px;">
+         </div>
+         <div class="modal-footer" style="padding:12px 22px; border-top:1px solid #ece6f3;">
+            <button type="button" class="btn-mor-out" data-dismiss="modal">İptal</button>
+            <button type="button" class="btn-mor" id="testGonderBtn" style="background:#10b981;" onclick="testGonderEt()"><i class="fa fa-paper-plane"></i> SMS Gönder</button>
+         </div>
+      </div>
    </div>
 </div>
 
@@ -391,5 +424,51 @@ function sablonSil(id, ad){
 $(document).on('show.bs.modal', '#anketSablonModal', function(){
    $(this).appendTo('body');
 });
+$(document).on('show.bs.modal', '#testGonderModal', function(){
+   $(this).appendTo('body');
+});
+
+var testSablonId = null;
+
+function testGonderAc(sablonId, sablonAd){
+   testSablonId = sablonId;
+   document.getElementById('testSablonAd').textContent = sablonAd;
+   document.getElementById('testAdSoyad').value = '';
+   document.getElementById('testTelefon').value = '';
+   $('#testGonderModal').modal('show');
+   setTimeout(function(){ document.getElementById('testTelefon').focus(); }, 250);
+}
+
+function testGonderEt(){
+   var ad = document.getElementById('testAdSoyad').value.trim() || 'Test';
+   var tel = document.getElementById('testTelefon').value.replace(/\D/g,'');
+   if(tel.length !== 10){ alert('Telefon 10 haneli olmalı (5XXXXXXXXX).'); return; }
+
+   var btn = document.getElementById('testGonderBtn');
+   btn.disabled = true;
+   btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Gönderiliyor...';
+
+   $.post('/isletmeyonetim/anket-manuel-gonder', {
+      _token: '{{csrf_token()}}',
+      sube: {{$isletme->id}},
+      sablon_id: testSablonId,
+      ad_soyad: ad,
+      cep_telefon: tel,
+      user_id: 0
+   }, function(resp){
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa fa-paper-plane"></i> SMS Gönder';
+      if(resp.basarili){
+         $('#testGonderModal').modal('hide');
+         alert('SMS gönderildi. Telefonunuza gelen linke tıklayarak anketi doldurabilirsiniz.');
+      } else {
+         alert('Hata: ' + (resp.mesaj || 'Bilinmeyen hata'));
+      }
+   }).fail(function(){
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa fa-paper-plane"></i> SMS Gönder';
+      alert('Sunucu hatası.');
+   });
+}
 </script>
 @endsection
