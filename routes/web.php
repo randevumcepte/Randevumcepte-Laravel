@@ -1018,6 +1018,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/adisyonOdemeDetaylari','StoreAdminController@adisyonOdemeDetaylari');
 	Route::get('/personelSiralamaArtir','StoreAdminController@personelSiralamaArtir');
 	Route::get('/personelSiralamaAzalt','StoreAdminController@personelSiralamaAzalt');
+	Route::get('/personelTakvimdeGorunsunToggle','StoreAdminController@personelTakvimdeGorunsunToggle');
 	Route::get('/odaSiralamaArtir','StoreAdminController@odaSiralamaArtir');
 	Route::get('/odaSiralamaAzalt','StoreAdminController@odaSiralamaAzalt');
 	Route::get('/cihazSiralamaArtir','StoreAdminController@cihazSiralamaArtir');

@@ -163,6 +163,23 @@
    }
    .pyo-pers-name{ font-weight:600; color:var(--pyo-text); }
 
+   /* Takvim toggle pill */
+   .pyo-takvim-toggle{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:5px 12px; border-radius:20px;
+      font-size:11.5px; font-weight:600; letter-spacing:.2px;
+      border:1px solid transparent; cursor:pointer; transition:all .15s;
+   }
+   .pyo-takvim-toggle.is-on{
+      background:#dcfce7; color:#15803d; border-color:#bbf7d0;
+   }
+   .pyo-takvim-toggle.is-on:hover{ background:#bbf7d0; }
+   .pyo-takvim-toggle.is-off{
+      background:#f3f4f6; color:#6b7280; border-color:#e5e7eb;
+   }
+   .pyo-takvim-toggle.is-off:hover{ background:#e5e7eb; color:#475569; }
+   .pyo-takvim-toggle i{ font-size:10.5px; }
+
    /* Hesap turu pill */
    .pyo-hesap-badge{
       display:inline-block; padding:4px 11px; border-radius:20px;
@@ -342,6 +359,7 @@
                      <th>Hesap Tipi</th>
                      <th>Telefon</th>
                      <th>Durum</th>
+                     <th class="datatable-nosort">Takvim</th>
                      <th class="datatable-nosort" style="width:90px">İşlemler</th>
                   </tr>
                </thead>
@@ -391,6 +409,7 @@ $(document).ready(function(){
             }},
             { data : 'telefon' },
             { data : 'durum' },
+            { data : 'takvim', className: "text-center" },
             { data : 'islemler' },
          ],
          data: <?php echo $personeller; ?>,
@@ -439,6 +458,7 @@ $(document).ready(function(){
       document.addEventListener('click', function(e){
          var asagi = e.target.closest && e.target.closest('#personel_tablo button[name="personel_siralamayi_bir_asagi_tasi"]');
          var yukari = e.target.closest && e.target.closest('#personel_tablo button[name="personel_siralamayi_bir_yukari_tasi"]');
+         var takvim = e.target.closest && e.target.closest('#personel_tablo button[name="personel_takvim_toggle"]');
          if(asagi){
             e.preventDefault();
             e.stopImmediatePropagation();
@@ -451,6 +471,13 @@ $(document).ready(function(){
             e.stopImmediatePropagation();
             e.stopPropagation();
             _pyoSiralamaUpdate('/isletmeyonetim/personelSiralamaAzalt', yukari);
+            return;
+         }
+         if(takvim){
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+            _pyoSiralamaUpdate('/isletmeyonetim/personelTakvimdeGorunsunToggle', takvim);
             return;
          }
       }, true); // <-- capture phase: bubble'dan once firing

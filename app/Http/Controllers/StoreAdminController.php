@@ -3502,6 +3502,11 @@ private function ayAdiCevir($ingilizceAy)
             if($yetkili)
                 $hesapturu = $roller_map[$yetkili->id] ?? '';
             $durum = $personel->aktif ? '<button class="btn btn-success">Aktif</button>' : '<button class="btn btn-danger">Pasif</button>';
+            $takvimdeGor = (bool)$personel->takvimde_gorunsun;
+            $takvimToggle = '<button type="button" class="pyo-takvim-toggle '.($takvimdeGor?'is-on':'is-off').'" name="personel_takvim_toggle" data-value="'.$personel->id.'" data-state="'.($takvimdeGor?1:0).'" title="'.($takvimdeGor?'Takvimde gizle':'Takvimde göster').'">'
+                .'<i class="fa '.($takvimdeGor?'fa-eye':'fa-eye-slash').'"></i> '
+                .'<span>'.($takvimdeGor?'Görünür':'Gizli').'</span>'
+                .'</button>';
             $islemler = '<div class="dropdown"><a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
                 </a>
                 <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
@@ -3522,6 +3527,7 @@ private function ayAdiCevir($ingilizceAy)
                 'hesap_turu'=>$hesapturu,
                 'durum'=>$durum,
                 'siralama'=>$siralama,
+                'takvim'=>$takvimToggle,
                 'islemler'=>$islemler
             ];
 
@@ -22462,6 +22468,18 @@ DB::raw('
             $komsu = $aktifler[$hedefIdx];
             $this->_personelSiraSwap($cur, $komsu);
         } catch(\Exception $e){ \Log::warning('_personelSirayiKaydir: '.$e->getMessage()); }
+    }
+    public function personelTakvimdeGorunsunToggle(Request $request)
+    {
+        try {
+            $personel = Personeller::where('id',$request->personelid)
+                ->where('salon_id',$request->sube)->first();
+            if($personel){
+                $personel->takvimde_gorunsun = !((bool)$personel->takvimde_gorunsun);
+                $personel->save();
+            }
+        } catch(\Exception $e){ \Log::warning('personelTakvimdeGorunsunToggle: '.$e->getMessage()); }
+        return self::personel_liste_getir($request);
     }
     private function _personelSiraSwap($a, $b)
     {
