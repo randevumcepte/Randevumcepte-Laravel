@@ -295,20 +295,113 @@ class DrklinikImporter
         $this->log("Randevu aktarim toplam: {$this->counts['randevu']} (skipped: {$this->counts['skipped']})");
     }
 
+    /**
+     * Tek seferlik: drklinik'ten haftalik tarama yapip mevcut randevularin
+     * RandevuHizmetler.oda_id ve personel_id NULL alanlarini doldurur.
+     */
+    public function fixRandevuEksikler($baslangic = null, $bitis = null)
+    {
+        $start = $baslangic ? strtotime($baslangic) : strtotime('2018-01-01');
+        $end   = $bitis ? strtotime($bitis) : strtotime('2026-12-31');
+        $this->log('Randevu eksikleri (oda+personel) onariliyor: ' . date('Y-m-d', $start) . ' - ' . date('Y-m-d', $end));
+        if (empty($this->odaMap)) $this->buildOdaMap();
+        $personelMap = $this->buildPersonelMapByName();
+
+        $weekStart = $start; $iter = 0;
+        $updateOda = 0; $updatePers = 0; $unmatchedPers = []; $unmatchedOda = [];
+        while ($weekStart <= $end) {
+            $weekEnd = min($end, strtotime('+6 days', $weekStart));
+            $iter++;
+            $h = $this->client->postBack('/gunlukrandevulistesi.aspx', 'BTN_Ara', '', [
+                'TB_Tarih1' => date('d.m.Y', $weekStart),
+                'TB_Tarih2' => date('d.m.Y', $weekEnd),
+            ]);
+            if ($h !== null) {
+                $rows = $this->parseTableRowsRaw($h);
+                foreach ($rows as $rawRow) {
+                    $cells = [];
+                    foreach ($rawRow as $tdRaw) {
+                        $clean = trim(preg_replace('/\s+/', ' ', strip_tags($tdRaw)));
+                        $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    }
+                    if (count($cells) < 16) continue;
+                    $tarih = $this->tarihNormalize($cells[2] ?? '');
+                    $saat  = $cells[3] ?? '';
+                    if (!$tarih || !$saat) continue;
+                    if (strlen($saat) === 5) $saat .= ':00';
+
+                    $tel = $this->telefonNormalize($cells[8] ?? '');
+                    $calisan = $cells[11] ?? '';
+                    $oda = $cells[12] ?? '';
+                    $personelId = $personelMap[$this->trKey($calisan)] ?? null;
+                    $odaId      = $this->odaMap[$this->trKey($oda)] ?? null;
+
+                    if ($calisan && !$personelId) $unmatchedPers[$calisan] = true;
+                    if ($oda && !$odaId) $unmatchedOda[$oda] = true;
+
+                    if (!$personelId && !$odaId) continue;
+
+                    $userId = null;
+                    if ($tel) $userId = User::where('cep_telefon', $tel)->value('id');
+                    if (!$userId) continue;
+                    $randevu = Randevular::where('tarih', $tarih)->where('saat', $saat)
+                        ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
+                    if (!$randevu) continue;
+
+                    if ($personelId) {
+                        $u = RandevuHizmetler::where('randevu_id', $randevu->id)
+                            ->whereNull('personel_id')->update(['personel_id' => $personelId]);
+                        $updatePers += $u;
+                        // Adisyon hizmetleri de
+                        AdisyonHizmetler::where('randevu_id', $randevu->id)
+                            ->whereNull('personel_id')->update(['personel_id' => $personelId]);
+                    }
+                    if ($odaId) {
+                        $u = RandevuHizmetler::where('randevu_id', $randevu->id)
+                            ->whereNull('oda_id')->update(['oda_id' => $odaId]);
+                        $updateOda += $u;
+                    }
+                }
+            }
+            if ($iter % 20 === 0) $this->log("  ..hafta {$iter} oda_upd={$updateOda} personel_upd={$updatePers}");
+            $weekStart = strtotime('+7 days', $weekStart);
+            usleep(300000);
+        }
+        $this->log("Onarim toplam: oda_upd={$updateOda}, personel_upd={$updatePers}");
+        if ($unmatchedPers) {
+            $this->log("Eslesemeyen personel adlari (" . count($unmatchedPers) . "): " . implode(' | ', array_keys($unmatchedPers)));
+        }
+        if ($unmatchedOda) {
+            $this->log("Eslesemeyen oda adlari: " . implode(' | ', array_keys($unmatchedOda)));
+        }
+    }
+
     private function buildOdaMap()
     {
-        // Sadece bu salonun odalarini ad -> id olarak topla
         $odalar = Odalar::where('salon_id', $this->salonId)->get();
-        foreach ($odalar as $o) $this->odaMap[mb_strtolower($o->oda_adi, 'UTF-8')] = $o->id;
+        foreach ($odalar as $o) $this->odaMap[$this->trKey($o->oda_adi)] = $o->id;
     }
 
     private function buildPersonelMapByName()
     {
         $map = [];
         foreach (Personeller::where('salon_id', $this->salonId)->get() as $p) {
-            $map[mb_strtolower(trim($p->personel_adi), 'UTF-8')] = $p->id;
+            $map[$this->trKey($p->personel_adi)] = $p->id;
         }
         return $map;
+    }
+
+    /**
+     * Lookup key: Turkce karakterleri ASCII'e cevir + lowercase + bosluk sadelestir.
+     * Hem map hem aranacak isim ayni transformdan gecince eslesme dogru calisir.
+     */
+    private function trKey($s)
+    {
+        $s = trim((string) $s);
+        $tr = ['İ'=>'i','I'=>'i','ı'=>'i','Ç'=>'c','ç'=>'c','Ğ'=>'g','ğ'=>'g','Ö'=>'o','ö'=>'o','Ş'=>'s','ş'=>'s','Ü'=>'u','ü'=>'u'];
+        $s = strtr($s, $tr);
+        $s = mb_strtolower($s, 'UTF-8');
+        return preg_replace('/\s+/', ' ', $s);
     }
 
     /**
@@ -325,7 +418,7 @@ class DrklinikImporter
                 ->where('aktif', 1)
                 ->orderBy('id')->first();
             if ($sh) {
-                $map[mb_strtolower(trim($k->hizmet_kategorisi_adi), 'UTF-8')] = [
+                $map[$this->trKey($k->hizmet_kategorisi_adi)] = [
                     'hizmet_id'    => $sh->hizmet_id,
                     'sure_dk'      => (int) $sh->sure_dk ?: 30,
                     'fiyat'        => (float) $sh->baslangic_fiyat,
@@ -369,12 +462,12 @@ class DrklinikImporter
             $userId = $this->upsertMusteri($adSoyad, $tel);
             if (!$userId) { $this->counts['skipped']++; continue; }
 
-            // Personel + oda lookup
-            $personelId = $personelMap[mb_strtolower(trim($calisan), 'UTF-8')] ?? null;
-            $odaId      = $this->odaMap[mb_strtolower(trim($oda), 'UTF-8')] ?? null;
+            // Personel + oda lookup (Turkce-normalize key ile)
+            $personelId = $personelMap[$this->trKey($calisan)] ?? null;
+            $odaId      = $this->odaMap[$this->trKey($oda)] ?? null;
 
             // Hizmet (birim adiyla)
-            $hizmetInfo = $hizmetMap[mb_strtolower(trim($birim), 'UTF-8')] ?? null;
+            $hizmetInfo = $hizmetMap[$this->trKey($birim)] ?? null;
 
             // Randevu idempotent: tarih+saat+user+salon
             $r = Randevular::where('tarih', $tarih)->where('saat', $saat)
@@ -403,6 +496,7 @@ class DrklinikImporter
                 $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $hizmetInfo['sure_dk'] . ' minutes', strtotime($saat)));
                 $rh->sure_dk = $hizmetInfo['sure_dk'];
                 if ($personelId) $rh->personel_id = $personelId;
+                if ($odaId) $rh->oda_id = $odaId;
                 $rh->save();
             }
 

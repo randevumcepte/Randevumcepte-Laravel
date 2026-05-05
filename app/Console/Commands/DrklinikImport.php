@@ -16,7 +16,8 @@ class DrklinikImport extends Command
         {--probe : Login + yaygin endpoint kesfi}
         {--only= : virgulle: musteri,hizmet,personel,urun,oda,randevu,tahsilat}
         {--from= : Randevu icin baslangic tarihi YYYY-MM-DD (default 2018-01-01)}
-        {--to= : Randevu icin bitis tarihi YYYY-MM-DD (default 2026-12-31)}';
+        {--to= : Randevu icin bitis tarihi YYYY-MM-DD (default 2026-12-31)}
+        {--fix-randevu : Mevcut randevulara eksik oda/personel doldur (yeni eklemez)}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
 
@@ -84,6 +85,7 @@ class DrklinikImport extends Command
         if (in_array('urun', $types))     $importer->importUrunler();
         if (in_array('musteri', $types))  $importer->importMusteriler();
         if (in_array('randevu', $types))  $importer->importRandevular($this->option('from'), $this->option('to'));
+        if ((bool) $this->option('fix-randevu')) $importer->fixRandevuEksikler($this->option('from'), $this->option('to'));
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
         return 0;
     }
