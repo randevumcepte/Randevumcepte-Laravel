@@ -157,7 +157,7 @@ class HomeController extends Controller
         $salon = Salonlar::where('id',$isletme_id)->first();
         $salongorselleri = SalonGorselleri::all();
         $saloncalismasaatleri = SalonCalismaSaatleri::where('salon_id', $isletme_id)->orderBy('haftanin_gunu','asc')->get();
-        $personeller = Personeller::where('salon_id',$isletme_id)->get();
+        $personeller = Personeller::where('salon_id',$isletme_id)->where('takvimde_gorunsun',true)->get();
         $salonyorumlar = SalonYorumlar::where('salon_id',$isletme_id)->orderBy('updated_at','desc')->get();
         $salonpuanlar = SalonPuanlar::where('salon_id',$isletme_id)->get();
         $salonsunulanhizmetler_kategori = SalonHizmetler::where('salon_id' ,$isletme_id)->groupBy('hizmet_kategori_id','bolum')->limit(10)->offset(0)->get();
@@ -220,7 +220,7 @@ class HomeController extends Controller
         $salon = Salonlar::where('id',$isletme_id)->first();
         $salongorselleri = SalonGorselleri::all();
         $saloncalismasaatleri = SalonCalismaSaatleri::where('salon_id', $isletme_id)->orderBy('haftanin_gunu','asc')->get();
-        $personeller = Personeller::where('salon_id',$isletme_id)->get();
+        $personeller = Personeller::where('salon_id',$isletme_id)->where('takvimde_gorunsun',true)->get();
         $salonyorumlar = SalonYorumlar::where('salon_id',$isletme_id)->orderBy('updated_at','desc')->get();
         $salonpuanlar = SalonPuanlar::where('salon_id',$isletme_id)->get();
         $salonsunulanhizmetler_kategori = SalonHizmetler::where('salon_id' ,$isletme_id)->groupBy('hizmet_kategori_id','bolum')->limit(10)->offset(0)->get();
@@ -318,7 +318,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         $salongorselleri = SalonGorselleri::all();
         
         $saloncalismasaatleri = SalonCalismaSaatleri::where('salon_id',$isletme_id )->orderBy('haftanin_gunu','asc')->get();
-        $personeller = Personeller::where('salon_id',$isletme_id)->get();
+        $personeller = Personeller::where('salon_id',$isletme_id)->where('takvimde_gorunsun',true)->get();
         $salonyorumlar = SalonYorumlar::where('salon_id',$isletme_id)->orderBy('updated_at','desc')->get();
         $salonpuanlar = SalonPuanlar::where('salon_id',$isletme_id)->get();
         $salonsunulanhizmetler_kategori = SalonHizmetler::where('salon_id' ,$isletme_id)->where('aktif',1)->groupBy('hizmet_kategori_id')->limit(10)->offset(0)->get();
@@ -408,7 +408,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         $salongorselleri = SalonGorselleri::all();
 		
         $saloncalismasaatleri = SalonCalismaSaatleri::where('salon_id',$isletme_id )->orderBy('haftanin_gunu','asc')->get();
-        $personeller = Personeller::where('salon_id',$isletme_id)->get();
+        $personeller = Personeller::where('salon_id',$isletme_id)->where('takvimde_gorunsun',true)->get();
         $salonyorumlar = SalonYorumlar::where('salon_id',$isletme_id)->orderBy('updated_at','desc')->get();
         $salonpuanlar = SalonPuanlar::where('salon_id',$isletme_id)->get();
         $salonsunulanhizmetler_kategori = SalonHizmetler::where('salon_id' ,$isletme_id)->groupBy('hizmet_kategori_id','bolum')->limit(10)->offset(0)->get();
@@ -662,6 +662,7 @@ $salon = Salonlar::where('domain', $domain)->first();
             
         $personeller = Personeller::where('salon_id', $id)
             ->where('aktif', 1)
+            ->where('takvimde_gorunsun', true)
             ->whereIn('id', $hizmetPersonelleri)
             ->get();
         
@@ -754,7 +755,7 @@ $salon = Salonlar::where('domain', $domain)->first();
           $secilenhizmetler = Hizmetler::whereIn('id',$secilenhizmetler)->get();
 
           $salonhizmetleri = SalonHizmetler::where('salon_id',$id)->get();
-          $personeller = Personeller::where('salon_id',$id)->get();
+          $personeller = Personeller::where('salon_id',$id)->where('takvimde_gorunsun',true)->get();
           
          
          
@@ -2592,7 +2593,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         $salon = Salonlar::where('domain', $_SERVER['HTTP_HOST'])->where('id', $isletme_id)->first();
         if (!$salon) abort(404);
 
-        $personel = Personeller::where('id', $personel_id)->where('salon_id', $salon->id)->where('aktif', 1)->first();
+        $personel = Personeller::where('id', $personel_id)->where('salon_id', $salon->id)->where('aktif', 1)->where('takvimde_gorunsun', true)->first();
         if (!$personel) abort(404);
 
         $yetkili = \App\IsletmeYetkilileri::where('personel_id', $personel->id)->first();
@@ -2605,6 +2606,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         $digerPersoneller = Personeller::where('salon_id', $salon->id)
             ->where('id', '!=', $personel->id)
             ->where('aktif', 1)
+            ->where('takvimde_gorunsun', true)
             ->limit(8)
             ->get();
 

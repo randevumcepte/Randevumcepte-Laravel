@@ -1590,7 +1590,7 @@ $(document).ready(function(){
 // Randevu modali icin: aktif personel + aktif & musait cihaz + aktif & musait oda listeleri
 window.randevuModalData = {
     personeller: [
-        @foreach(\App\Personeller::where('salon_id',$isletme->id)->where('aktif',1)->orderBy('personel_adi','asc')->get() as $p)
+        @foreach(\App\Personeller::where('salon_id',$isletme->id)->where('aktif',1)->where('takvimde_gorunsun',true)->orderBy('personel_adi','asc')->get() as $p)
             { id: {{ (int)$p->id }}, ad: @json($p->personel_adi) },
         @endforeach
     ],

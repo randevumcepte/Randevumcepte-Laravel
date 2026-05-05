@@ -1533,7 +1533,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ), ")") AS name')
             ,DB::raw('REPLACE(renk_duzenleri.renk,"#","0xFF") as bgcolor')])->where('odalar.salon_id',$isletmeId)->where('odalar.aktifmi',true)->orderBy('odalar.takvim_sirasi','asc')->get();
         }
-        $personeller = Personeller::where("salon_id", $isletmeId)->get();
+        $personeller = Personeller::where("salon_id", $isletmeId)->where('takvimde_gorunsun',true)->get();
         $calismaSaati = SalonCalismaSaatleri::where('salon_id',$isletmeId)->where('haftanin_gunu',self::haftanin_gunu($tarih1))->where('calisiyor',1)->first();
         $baslangic = '08:00';
         $bitis = '20:00';
@@ -7523,6 +7523,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         return Personeller::where("salon_id", $salonid)
 
             ->where("aktif", true)
+
+            ->where("takvimde_gorunsun", true)
 
             ->get();
 
