@@ -561,6 +561,16 @@
         } catch(e){ showToast('Bağlantı hatası', true); btn.disabled = false; btn.textContent = '🎁 Şimdi Talep Et'; }
     };
 
+    // Push notification'dan ?carkac=1 ile gelinmişse, "Çarkı Çevir" CTA'sı vurgulu yanıp sönsün
+    if (/[?&]carkac=1\b/.test(window.location.search)) {
+        // Aktif salon varsa cark sayfasına yönlendir (popup otomatik açılır)
+        @if($aktifSalon)
+            setTimeout(() => {
+                window.location.href = '{{ url("/cark/".$aktifSalon->id) }}';
+            }, 800);
+        @endif
+    }
+
     window.sdKopyala = function(kod, el){
         try {
             navigator.clipboard.writeText(kod);

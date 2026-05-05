@@ -1050,6 +1050,8 @@ Route::get('/carkverilerigetir', [StoreAdminController::class, 'carkverilerigeti
 Route::get('/carkkazananlar', [StoreAdminController::class, 'carkKazananlar'])->name('isletmeadmin.cark.kazananlar');
 Route::post('/carkkuponkullan', [StoreAdminController::class, 'carkKuponKullan'])->name('isletmeadmin.cark.kuponkullan');
 Route::post('/carkkupondogrula', [StoreAdminController::class, 'carkKuponDogrula'])->name('isletmeadmin.cark.kupondogrula');
+Route::get('/carkhatirlatmagetir',  [StoreAdminController::class, 'carkHatirlatmaGetir'])->name('isletmeadmin.cark.hatirlatma.getir');
+Route::post('/carkhatirlatmakaydet', [StoreAdminController::class, 'carkHatirlatmaKaydet'])->name('isletmeadmin.cark.hatirlatma.kaydet');
 
 /* Puan ödülleri — admin yönetim */
 Route::get('/puanodulleri',      [StoreAdminController::class, 'puanOdulleri'])->name('isletmeadmin.puanodulleri');

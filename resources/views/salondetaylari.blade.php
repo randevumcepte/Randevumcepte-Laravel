@@ -2121,11 +2121,14 @@
                } catch(e){}
            }
 
-           // Daha onceden gosterildiyse acma
+           // ?carkac=1 (push notification deep link) ile her zaman aç
+           var deepLink = /[?&]carkac=1\b/.test(window.location.search);
+
+           // Daha onceden gosterildiyse acma (deepLink hariç)
            var alreadySeen = false;
            try { alreadySeen = sessionStorage.getItem(SEEN) === '1'; } catch(e){}
-           if (!alreadySeen) {
-               setTimeout(open, DELAY);
+           if (deepLink || !alreadySeen) {
+               setTimeout(open, deepLink ? 200 : DELAY);
            }
 
            // Kapatma triggers

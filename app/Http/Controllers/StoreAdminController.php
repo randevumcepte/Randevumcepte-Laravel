@@ -131,6 +131,8 @@ use App\CarkifelekSistemi;
 use App\CarkifelekCevirmeLoglari;
 use App\CarkifelekOdulleri;
 use App\SalonPuanOdulleri;
+use App\CarkHatirlatmaAyarlari;
+use App\CarkHatirlatmaLoglari;
 use App\PersonelPrimHareketi;
 use App\PersonelMaasOdemesi;
 use App\SalonAktiviteLog;
@@ -474,6 +476,83 @@ public function carkverilerigetir(Request $request)
         ]);
     }
 }
+
+    /**
+     * Çarkıfelek hatırlatma ayar tablolarını runtime'da garanti et.
+     */
+    private function carkHatirlatmaTabloGaranti()
+    {
+        if (!\Schema::hasTable('cark_hatirlatma_ayarlari')) {
+            \Schema::create('cark_hatirlatma_ayarlari', function ($t) {
+                $t->increments('id');
+                $t->unsignedInteger('salon_id')->unique();
+                $t->tinyInteger('aktif')->default(0);
+                $t->time('saat_1')->default('10:00:00');
+                $t->time('saat_2')->default('15:00:00');
+                $t->time('saat_3')->default('20:00:00');
+                $t->time('saat_son')->default('22:30:00');
+                $t->string('mesaj_1', 300)->default('🎡 Bugün çark hakkınız var, hediyeler sizi bekliyor!');
+                $t->string('mesaj_2', 300)->default('⏰ Çark hakkınız hâlâ duruyor — son birkaç saat!');
+                $t->string('mesaj_3', 300)->default('🚨 Son 4 saat! Çarkı çevirmeyi unutmayın');
+                $t->string('mesaj_son', 300)->default('🎯 Son 90 dakika! Çevirmek için tek tık');
+                $t->json('gonderim_gunleri')->nullable();
+                $t->timestamps();
+            });
+        }
+        if (!\Schema::hasTable('cark_hatirlatma_loglari')) {
+            \Schema::create('cark_hatirlatma_loglari', function ($t) {
+                $t->increments('id');
+                $t->unsignedInteger('salon_id');
+                $t->unsignedInteger('user_id');
+                $t->tinyInteger('asama');
+                $t->date('tarih');
+                $t->timestamp('gonderim_tarihi')->nullable();
+                $t->string('durum', 20)->default('gonderildi');
+                $t->timestamps();
+                $t->index(['salon_id', 'user_id', 'tarih', 'asama'], 'cark_hat_log_idx');
+            });
+        }
+    }
+
+    /**
+     * Admin: Hatırlatma ayarlarını getir (AJAX)
+     */
+    public function carkHatirlatmaGetir(Request $request)
+    {
+        $this->carkHatirlatmaTabloGaranti();
+        $salon_id = self::mevcutsube($request);
+        $a = CarkHatirlatmaAyarlari::firstOrCreate(['salon_id' => $salon_id]);
+        $bugunGonderim = CarkHatirlatmaLoglari::where('salon_id', $salon_id)
+            ->whereDate('tarih', now()->toDateString())->count();
+        return response()->json([
+            'success' => true,
+            'ayar'    => $a,
+            'bugun'   => $bugunGonderim,
+        ]);
+    }
+
+    /**
+     * Admin: Hatırlatma ayarlarını kaydet (AJAX)
+     */
+    public function carkHatirlatmaKaydet(Request $request)
+    {
+        $this->carkHatirlatmaTabloGaranti();
+        $salon_id = self::mevcutsube($request);
+        $a = CarkHatirlatmaAyarlari::firstOrNew(['salon_id' => $salon_id]);
+        $a->aktif    = (int) $request->input('aktif', 0);
+        $a->saat_1   = $request->input('saat_1', '10:00');
+        $a->saat_2   = $request->input('saat_2', '15:00');
+        $a->saat_3   = $request->input('saat_3', '20:00');
+        $a->saat_son = $request->input('saat_son', '22:30');
+        $a->mesaj_1   = trim($request->input('mesaj_1', ''));
+        $a->mesaj_2   = trim($request->input('mesaj_2', ''));
+        $a->mesaj_3   = trim($request->input('mesaj_3', ''));
+        $a->mesaj_son = trim($request->input('mesaj_son', ''));
+        $gun = $request->input('gonderim_gunleri');
+        $a->gonderim_gunleri = is_array($gun) ? $gun : null;
+        $a->save();
+        return response()->json(['success' => true]);
+    }
 
     /**
      * Admin: Çarkıfelek kazananlar ve kuponlar listesi.

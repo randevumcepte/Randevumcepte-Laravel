@@ -559,6 +559,134 @@
     </div>
 </div>
 
+{{-- ════════════════════════════════════════════════════
+     PUSH HATIRLATMA AYARLARI (akordeon)
+     ════════════════════════════════════════════════════ --}}
+<div style="max-width:1200px; margin:30px auto; padding:0 20px;">
+    <div style="background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(0,0,0,.06); overflow:hidden; border:1px solid #e5e7eb;">
+        <button id="hat-acc-btn" type="button" onclick="hatAccordionToggle()"
+                style="width:100%; padding:18px 22px; background:linear-gradient(135deg,#fef3c7,#fed7aa); border:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center; text-align:left;">
+            <div>
+                <h3 style="margin:0; font-size:17px; color:#92400e; font-weight:800;">⏰ Push Hatırlatma Ayarları</h3>
+                <p style="margin:4px 0 0; font-size:13px; color:#78350f;">Müşterilerinize gün içinde 4 push bildirim gönderir, çarkı çevirmelerini hatırlatır.</p>
+            </div>
+            <span id="hat-acc-icon" style="font-size:22px; color:#92400e; transition:.2s;">▼</span>
+        </button>
+        <div id="hat-acc-body" style="display:none; padding:22px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; padding:12px 16px; background:#f9fafb; border-radius:10px;">
+                <div>
+                    <b style="font-size:14px; color:#111827;">Hatırlatma Sistemi</b><br>
+                    <span style="font-size:12px; color:#6b7280;">Bugün gönderilen: <b id="hat-bugun">0</b></span>
+                </div>
+                <label style="position:relative; width:52px; height:28px; cursor:pointer;">
+                    <input type="checkbox" id="hat-aktif" style="opacity:0; width:0; height:0;">
+                    <span class="hat-slider" style="position:absolute; inset:0; background:#d1d5db; border-radius:28px; transition:.2s;"></span>
+                </label>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; margin-bottom:18px;">
+                <div>
+                    <label style="font-size:12px; font-weight:700; color:#374151; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:.3px;">1. Hatırlatma 🎡</label>
+                    <input type="time" id="hat-saat-1" value="10:00" style="width:100%; padding:10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px;">
+                    <textarea id="hat-mesaj-1" rows="2" maxlength="200" style="width:100%; margin-top:6px; padding:10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:13px; resize:vertical;"></textarea>
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:700; color:#374151; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:.3px;">2. Hatırlatma ⏰</label>
+                    <input type="time" id="hat-saat-2" value="15:00" style="width:100%; padding:10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px;">
+                    <textarea id="hat-mesaj-2" rows="2" maxlength="200" style="width:100%; margin-top:6px; padding:10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:13px; resize:vertical;"></textarea>
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:700; color:#374151; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:.3px;">3. Hatırlatma 🚨</label>
+                    <input type="time" id="hat-saat-3" value="20:00" style="width:100%; padding:10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px;">
+                    <textarea id="hat-mesaj-3" rows="2" maxlength="200" style="width:100%; margin-top:6px; padding:10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:13px; resize:vertical;"></textarea>
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:700; color:#374151; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:.3px;">Son Şans 🎯</label>
+                    <input type="time" id="hat-saat-son" value="22:30" style="width:100%; padding:10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px;">
+                    <textarea id="hat-mesaj-son" rows="2" maxlength="200" style="width:100%; margin-top:6px; padding:10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:13px; resize:vertical;"></textarea>
+                </div>
+            </div>
+
+            <div style="margin-bottom:18px;">
+                <label style="font-size:12px; font-weight:700; color:#374151; display:block; margin-bottom:8px; text-transform:uppercase; letter-spacing:.3px;">Hangi günler gönderilmeyecek</label>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    @php $haftaGunleri = [1=>'Pzt', 2=>'Sal', 3=>'Çar', 4=>'Per', 5=>'Cum', 6=>'Cmt', 7=>'Paz']; @endphp
+                    @foreach($haftaGunleri as $g => $isim)
+                        <label style="display:flex; align-items:center; gap:5px; padding:7px 14px; background:#f3f4f6; border-radius:8px; font-size:13px; cursor:pointer;">
+                            <input type="checkbox" class="hat-gun" value="{{ $g }}"> {{ $isim }}
+                        </label>
+                    @endforeach
+                </div>
+                <p style="margin:6px 0 0; font-size:11px; color:#9ca3af;">İşaretlediğiniz günler push gönderilmez (örn. salonun kapalı olduğu günler).</p>
+            </div>
+
+            <button onclick="hatKaydet()" style="padding:11px 24px; background:#10b981; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer;">💾 Hatırlatma Ayarlarını Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<style>
+input[type="checkbox"]:checked + .hat-slider { background:#10b981 !important; }
+.hat-slider::before { content:''; position:absolute; width:22px; height:22px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+input[type="checkbox"]:checked + .hat-slider::before { transform:translateX(24px); }
+</style>
+
+<script>
+function hatAccordionToggle() {
+    const body = document.getElementById('hat-acc-body');
+    const icon = document.getElementById('hat-acc-icon');
+    const open = body.style.display === 'none';
+    body.style.display = open ? 'block' : 'none';
+    icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0)';
+    if (open) hatYukle();
+}
+async function hatYukle() {
+    try {
+        const r = await fetch('{{ url("/isletmeyonetim/carkhatirlatmagetir") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}');
+        const d = await r.json();
+        if (!d.success) return;
+        const a = d.ayar;
+        document.getElementById('hat-aktif').checked = !!a.aktif;
+        document.getElementById('hat-saat-1').value = (a.saat_1 || '10:00:00').substring(0,5);
+        document.getElementById('hat-saat-2').value = (a.saat_2 || '15:00:00').substring(0,5);
+        document.getElementById('hat-saat-3').value = (a.saat_3 || '20:00:00').substring(0,5);
+        document.getElementById('hat-saat-son').value = (a.saat_son || '22:30:00').substring(0,5);
+        document.getElementById('hat-mesaj-1').value = a.mesaj_1 || '';
+        document.getElementById('hat-mesaj-2').value = a.mesaj_2 || '';
+        document.getElementById('hat-mesaj-3').value = a.mesaj_3 || '';
+        document.getElementById('hat-mesaj-son').value = a.mesaj_son || '';
+        const gun = a.gonderim_gunleri || [];
+        document.querySelectorAll('.hat-gun').forEach(cb => { cb.checked = gun.includes(parseInt(cb.value)); });
+        document.getElementById('hat-bugun').textContent = d.bugun;
+    } catch(e) { console.error(e); }
+}
+async function hatKaydet() {
+    const gunler = Array.from(document.querySelectorAll('.hat-gun:checked')).map(cb => parseInt(cb.value));
+    const data = {
+        aktif: document.getElementById('hat-aktif').checked ? 1 : 0,
+        saat_1: document.getElementById('hat-saat-1').value,
+        saat_2: document.getElementById('hat-saat-2').value,
+        saat_3: document.getElementById('hat-saat-3').value,
+        saat_son: document.getElementById('hat-saat-son').value,
+        mesaj_1: document.getElementById('hat-mesaj-1').value.trim(),
+        mesaj_2: document.getElementById('hat-mesaj-2').value.trim(),
+        mesaj_3: document.getElementById('hat-mesaj-3').value.trim(),
+        mesaj_son: document.getElementById('hat-mesaj-son').value.trim(),
+        gonderim_gunleri: gunler,
+    };
+    try {
+        const r = await fetch('{{ url("/isletmeyonetim/carkhatirlatmakaydet") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN':'{{ csrf_token() }}', 'Accept':'application/json' },
+            body: JSON.stringify(data)
+        });
+        const d = await r.json();
+        if (d.success) showToast('✓ Hatırlatma ayarları kaydedildi', 'success');
+        else showToast('Hata: ' + (d.message || 'Bilinmeyen'), 'error');
+    } catch(e) { showToast('Bağlantı hatası', 'error'); }
+}
+</script>
+
 {{-- Toast --}}
 <div class="toast" id="toast"></div>
 

@@ -27,6 +27,7 @@ class Kernel extends ConsoleKernel
         Commands\TekrarAramaHatirlat::class,
         Commands\PlanlaImport::class,
         Commands\DrklinikImport::class,
+        Commands\CarkHatirlatmaGonder::class,
     ];
 
     /**
@@ -49,6 +50,9 @@ class Kernel extends ConsoleKernel
         //$schedule->command('kampanyasms:gonder')->withoutOverlapping()->everyMinute();
         $schedule->command('alacakhatirlatma:aramayap')->withoutOverlapping()->everyMinute();
         $schedule->command('arama:hatirlat')->withoutOverlapping()->everyMinute();
+
+        // Çarkıfelek hatırlatma — her 5 dakikada bir kontrol (saatlerin ±5dk penceresi)
+        $schedule->command('cark:hatirlatma-gonder')->withoutOverlapping()->everyFiveMinutes();
 
         // Yedek
         $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();
