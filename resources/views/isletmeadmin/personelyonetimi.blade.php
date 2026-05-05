@@ -402,19 +402,15 @@ $(document).ready(function(){
       try { $('#personel_tablo').DataTable().columns.adjust().responsive.recalc(); } catch(e){}
    });
 
-   // ====== Siralama: bulletproof handlers ======
-   // ONCE custom.js'teki eski handler'lari kaldir (cift firing'i onler)
-   $('#personel_tablo').off('click', 'button[name="personel_siralamayi_bir_asagi_tasi"]');
-   $('#personel_tablo').off('click', 'button[name="personel_siralamayi_bir_yukari_tasi"]');
-
-   function _pyoSiralamaUpdate(url, $btn){
+   // ====== Siralama: capture-phase handler (custom.js'i tamamen baypas) ======
+   function _pyoSiralamaUpdate(url, btn){
       $.ajax({
          type: 'GET',
          url: url,
          data: {
-            personelid: $btn.attr('data-value'),
+            personelid: btn.getAttribute('data-value'),
             sube: '{{$isletme->id}}',
-            siraNo: $btn.attr('data-index-number')
+            siraNo: btn.getAttribute('data-index-number')
          },
          dataType: 'json',
          beforeSend: function(){ $('#preloader').show(); },
@@ -437,17 +433,28 @@ $(document).ready(function(){
          }
       });
    }
-   // Document seviyesinde yeni handler'lari bagla
-   $(document).off('click.pyoSira').on('click.pyoSira', '#personel_tablo button[name="personel_siralamayi_bir_asagi_tasi"]', function(e){
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      _pyoSiralamaUpdate('/isletmeyonetim/personelSiralamaArtir', $(this));
-   });
-   $(document).on('click.pyoSira', '#personel_tablo button[name="personel_siralamayi_bir_yukari_tasi"]', function(e){
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      _pyoSiralamaUpdate('/isletmeyonetim/personelSiralamaAzalt', $(this));
-   });
+   // Capture phase'de dinle: custom.js'in bubble handler'larindan ONCE firing yapar
+   if(!window._pyoSiraCaptureBound){
+      window._pyoSiraCaptureBound = true;
+      document.addEventListener('click', function(e){
+         var asagi = e.target.closest && e.target.closest('#personel_tablo button[name="personel_siralamayi_bir_asagi_tasi"]');
+         var yukari = e.target.closest && e.target.closest('#personel_tablo button[name="personel_siralamayi_bir_yukari_tasi"]');
+         if(asagi){
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+            _pyoSiralamaUpdate('/isletmeyonetim/personelSiralamaArtir', asagi);
+            return;
+         }
+         if(yukari){
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+            _pyoSiralamaUpdate('/isletmeyonetim/personelSiralamaAzalt', yukari);
+            return;
+         }
+      }, true); // <-- capture phase: bubble'dan once firing
+   }
 });
 </script>
 

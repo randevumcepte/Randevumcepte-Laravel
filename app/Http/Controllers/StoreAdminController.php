@@ -22188,43 +22188,51 @@ DB::raw('
     }
     public function personelSiralamaAzalt(Request $request)
     {
-        // 1 yukari tasi: kendi mevcut takvim_sirasi'sindan kucuk, en buyuk olan komsuyu bul
-        $personel = Personeller::where('id',$request->personelid)
-            ->where('salon_id',$request->sube)->first();
-        if($personel){
-            $ust = Personeller::where('salon_id',$request->sube)
-                ->where('takvim_sirasi','<', $personel->takvim_sirasi)
-                ->orderBy('takvim_sirasi','desc')
-                ->first();
-            if($ust){
-                $tmp = $personel->takvim_sirasi;
-                $personel->takvim_sirasi = $ust->takvim_sirasi;
-                $ust->takvim_sirasi      = $tmp;
-                $personel->save();
-                $ust->save();
+        // 1 yukari tasi
+        try {
+            $personel = Personeller::where('id',$request->personelid)
+                ->where('salon_id',$request->sube)->first();
+            if($personel){
+                $ust = Personeller::where('salon_id',$request->sube)
+                    ->where('takvim_sirasi','<', $personel->takvim_sirasi)
+                    ->orderBy('takvim_sirasi','desc')
+                    ->first();
+                if($ust){ $this->_personelSiraSwap($personel, $ust); }
             }
-        }
+        } catch(\Exception $e){ \Log::warning('personelSiralamaAzalt: '.$e->getMessage()); }
         return self::personel_liste_getir($request);
     }
     public function personelSiralamaArtir(Request $request)
     {
-        // 1 asagi tasi: kendi mevcut takvim_sirasi'sindan buyuk, en kucuk olan komsuyu bul
-        $personel = Personeller::where('id',$request->personelid)
-            ->where('salon_id',$request->sube)->first();
-        if($personel){
-            $alt = Personeller::where('salon_id',$request->sube)
-                ->where('takvim_sirasi','>', $personel->takvim_sirasi)
-                ->orderBy('takvim_sirasi','asc')
-                ->first();
-            if($alt){
-                $tmp = $personel->takvim_sirasi;
-                $personel->takvim_sirasi = $alt->takvim_sirasi;
-                $alt->takvim_sirasi      = $tmp;
-                $personel->save();
-                $alt->save();
+        // 1 asagi tasi
+        try {
+            $personel = Personeller::where('id',$request->personelid)
+                ->where('salon_id',$request->sube)->first();
+            if($personel){
+                $alt = Personeller::where('salon_id',$request->sube)
+                    ->where('takvim_sirasi','>', $personel->takvim_sirasi)
+                    ->orderBy('takvim_sirasi','asc')
+                    ->first();
+                if($alt){ $this->_personelSiraSwap($personel, $alt); }
             }
-        }
+        } catch(\Exception $e){ \Log::warning('personelSiralamaArtir: '.$e->getMessage()); }
         return self::personel_liste_getir($request);
+    }
+    private function _personelSiraSwap($a, $b)
+    {
+        // Olasi UNIQUE constraint icin 3 adimli swap (negatif temp deger araci)
+        $aSira = $a->takvim_sirasi;
+        $bSira = $b->takvim_sirasi;
+        if($aSira == $bSira) return;
+        // Step 1: a'yi temp negatif degere al
+        $a->takvim_sirasi = -1 * abs($a->id);
+        $a->save();
+        // Step 2: b'yi a'nin eski yerine
+        $b->takvim_sirasi = $aSira;
+        $b->save();
+        // Step 3: a'yi b'nin eski yerine
+        $a->takvim_sirasi = $bSira;
+        $a->save();
     }
     public function cihazSiralamaAzalt(Request $request)
     {
