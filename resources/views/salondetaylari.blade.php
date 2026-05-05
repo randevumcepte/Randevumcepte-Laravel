@@ -797,7 +797,7 @@
    </div>
    {{-- ======================= /LUXE HERO =============================== --}}
 
-   <div id="randevu-al" class="row rdv-luxe-bookingrow" style="margin-top:20px">
+   <div id="randevu-al" class="row rdv-luxe-bookingrow" style="margin-top:20px; scroll-margin-top:90px;">
       <div class="col-lg-8" id="randevusistemi">
          <div id="hizmetsecimbolumu">
             <aside class="sidebar">
@@ -2320,6 +2320,27 @@
            }
        }
    })();
+</script>
+
+{{-- /#randevu-al hash'i ile gelince yumusak kaydirma (header offset'i hesaba katar) --}}
+<script>
+(function(){
+    function gotoRandevuAl(){
+        if (window.location.hash !== '#randevu-al') return;
+        var el = document.getElementById('randevu-al');
+        if (!el) return;
+        setTimeout(function(){
+            try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+            catch(e){ window.scrollTo(0, el.offsetTop - 80); }
+        }, 220);
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', gotoRandevuAl);
+    } else {
+        gotoRandevuAl();
+    }
+    window.addEventListener('hashchange', gotoRandevuAl);
+})();
 </script>
 <!--end block-->
 @endsection

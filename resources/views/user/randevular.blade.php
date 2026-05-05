@@ -11,7 +11,8 @@
                     <i class="fa fa-calendar-check-o"></i>
                     Randevularım
                 </h2>
-                <a href="/#randevu-al" class="profile-action-btn">
+                <a href="/#randevu-al" class="profile-action-btn"
+                   onclick="event.preventDefault(); window.location.assign('/#randevu-al');">
                     <i class="fa fa-plus"></i>
                     <span>Yeni Randevu Al</span>
                 </a>
