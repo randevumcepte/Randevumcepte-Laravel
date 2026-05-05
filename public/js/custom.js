@@ -2866,6 +2866,10 @@ $('#randevubilgiguncelle').click(function(e){
 });
 $(document).on('click','.randevuonayla',function(e){
     var id = $(this).attr('data-value');
+    var $btn = $(this);
+    var origHtml = $btn.html();
+    // Optimistik: butonu hemen disable + spinner
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Onaylanıyor...');
      $.ajax({
         type: "GET",
         url: '/isletmeyonetim/randevuonayla',
@@ -2874,11 +2878,7 @@ $(document).on('click','.randevuonayla',function(e){
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         },
-        beforeSend : function(){
-            $('#preloader').show();
-        },
        success: function(result)  {
-             $('#preloader').hide();
                 swal(
                 {
                     type: "success",
@@ -2887,9 +2887,24 @@ $(document).on('click','.randevuonayla',function(e){
                     showCloseButton: false,
                     showCancelButton: false,
                     showConfirmButton:false,
-                    timer:3000,
+                    timer:1500,
                 }
             );
+            // Acik olan tum modallari kapat (randevu detay popup'i)
+            try { $('.modal.show, .modal.in').modal('hide'); } catch(e){}
+            try { $('#modal-view-event').modal('hide'); } catch(e){}
+            try { $('button[data-dismiss="modal"]').filter(':visible').first().trigger('click'); } catch(e){}
+            // Backdrop temizle
+            setTimeout(function(){
+                $('.modal-backdrop').remove();
+                $('body').removeClass('modal-open').css('padding-right','');
+            }, 200);
+            // Takvim varsa refetch et — randevu sariden personel rengine dönsün
+            try {
+                if (window.$ && $('#calendar').length && $('#calendar').fullCalendar) {
+                    $('#calendar').fullCalendar('refetchEvents');
+                }
+            } catch(e){}
             if($('#randevu_liste').length){
                         $('#randevu_liste').DataTable().destroy()
                          $('#randevu_liste').DataTable({
@@ -2920,8 +2935,9 @@ $(document).on('click','.randevuonayla',function(e){
                     }
         },
         error: function (request, status, error) {
-             document.getElementById('hata').innerHTML =request.responseText;
-             $('#preloader').hide();
+             $btn.prop('disabled', false).html(origHtml);
+             try { swal({ type:'error', title:'Hata', text:'Onaylanırken hata oluştu', timer:2500, showConfirmButton:false }); } catch(e){}
+             try { document.getElementById('hata').innerHTML = request.responseText; } catch(e){}
         }
     });
 });
