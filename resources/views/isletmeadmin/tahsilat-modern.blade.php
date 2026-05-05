@@ -184,6 +184,40 @@
       background:#f8fafc; border:1px dashed #e2e8f0; border-radius:8px;
    }
 
+   /* Kalem sag-tarafi dropdown (Hediye Ver/Kaldir/Sil) */
+   .tm-item > .dropdown{ position:relative; display:flex; align-items:center; justify-content:center; }
+   .tm-item > .dropdown > .dropdown-toggle{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:28px; height:28px; padding:0; border-radius:6px;
+      color:#64748b; font-size:18px; line-height:1;
+      background:#fff; border:1px solid #e2e8f0;
+   }
+   .tm-item > .dropdown > .dropdown-toggle:hover,
+   .tm-item > .dropdown.show > .dropdown-toggle{
+      background:#f1f5f9; color:#0f172a; border-color:#cbd5e1;
+   }
+   .tm-item > .dropdown > .dropdown-toggle.no-arrow::after{ display:none; }
+   .tm-item > .dropdown > .dropdown-toggle i{ line-height:1; }
+   /* Bootstrap dropdown-menu globaldeki overflow:hidden + padding:0 itemlari kirpiyor; modern view icin override */
+   .tm-item .dropdown-menu{
+      min-width:170px; padding:6px 0; overflow:visible !important;
+      border:1px solid #e5e7eb; border-radius:8px;
+      box-shadow:0 8px 24px -6px rgba(15,23,42,.18);
+      z-index:1060;
+   }
+   .tm-item .dropdown-menu .dropdown-item{
+      display:flex; align-items:center; gap:9px;
+      padding:8px 14px; font-size:13px; color:#0f172a;
+   }
+   .tm-item .dropdown-menu .dropdown-item i{ width:16px; text-align:center; color:#7B2FB8; font-size:13px; }
+   .tm-item .dropdown-menu .dropdown-item:hover{ background:#f1f5f9; }
+   .tm-item .dropdown-menu .dropdown-item:active{ background:#e2e8f0; color:#0f172a; }
+   .tm-item .dropdown-menu .dropdown-item.tahsilat_hizmet_sil i,
+   .tm-item .dropdown-menu .dropdown-item.tahsilat_urun_sil i,
+   .tm-item .dropdown-menu .dropdown-item.tahsilat_paket_sil i,
+   .tm-item .dropdown-menu .dropdown-item.tahsilat_taksit_sil i,
+   .tm-item .dropdown-menu .dropdown-item.tahsilat_senet_sil i{ color:#dc2626; }
+
    /* === Past payments rail (right column) === */
    .tm-history{
       background:#fff; border:1px solid #e5e7eb; border-radius:12px;
@@ -391,8 +425,8 @@
                            @if($hizmet->hediye)<i class="fa fa-gift" style="color:#f59e0b;" title="Hediye"></i>@endif
                         </div>
                         <div class="dropdown">
-                           <a class="btn btn-link p-0 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" style="font-size:16px; color:#94a3b8;"><i class="dw dw-more"></i></a>
-                           <div class="dropdown-menu dropdown-menu-right">
+                           <a class="btn btn-link no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="İşlemler"><i class="fa fa-ellipsis-v"></i></a>
+                           <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                               @if(($hizmet->senet_id == null && $hizmet->taksitli_tahsilat_id == null && \App\TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->count()==0) || $hizmet->fiyat == 0)
                                  @if(!$hizmet->hediye)
                                     <a class="dropdown-item tahsilat_hizmet_hediye_ver" data-value="{{$hizmet->id}}" href="#"><i class="fa fa-gift"></i> Hediye Ver</a>
@@ -431,8 +465,8 @@
                            @if($urun->hediye)<i class="fa fa-gift" style="color:#f59e0b;" title="Hediye"></i>@endif
                         </div>
                         <div class="dropdown">
-                           <a class="btn btn-link p-0 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" style="font-size:16px; color:#94a3b8;"><i class="dw dw-more"></i></a>
-                           <div class="dropdown-menu dropdown-menu-right">
+                           <a class="btn btn-link no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="İşlemler"><i class="fa fa-ellipsis-v"></i></a>
+                           <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                               @if(($urun->senet_id == null && $urun->taksitli_tahsilat_id == null && \App\TahsilatUrunler::where('adisyon_urun_id',$urun->id)->count()==0) || $urun->fiyat == 0)
                                  @if(!$urun->hediye)
                                     <a class="dropdown-item tahsilat_urun_hediye_ver" data-value="{{$urun->id}}" href="#"><i class="fa fa-gift"></i> Hediye Ver</a>
@@ -467,8 +501,8 @@
                            @if($paket->hediye)<i class="fa fa-gift" style="color:#f59e0b;" title="Hediye"></i>@endif
                         </div>
                         <div class="dropdown">
-                           <a class="btn btn-link p-0 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" style="font-size:16px; color:#94a3b8;"><i class="dw dw-more"></i></a>
-                           <div class="dropdown-menu dropdown-menu-right">
+                           <a class="btn btn-link no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="İşlemler"><i class="fa fa-ellipsis-v"></i></a>
+                           <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                               @if(($paket->senet_id == null && $paket->taksitli_tahsilat_id == null && \App\TahsilatPaketler::where('adisyon_paket_id',$paket->id)->count()==0) || $paket->fiyat == 0)
                                  @if(!$paket->hediye)
                                     <a class="dropdown-item tahsilat_paket_hediye_ver" data-value="{{$paket->id}}" href="#"><i class="fa fa-gift"></i> Hediye Ver</a>
@@ -500,8 +534,8 @@
                      <span class="tl">₺</span>
                   </div>
                   <div class="dropdown">
-                     <a class="btn btn-link p-0 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" style="font-size:16px; color:#94a3b8;"><i class="dw dw-more"></i></a>
-                     <div class="dropdown-menu dropdown-menu-right">
+                     <a class="btn btn-link no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="İşlemler"><i class="fa fa-ellipsis-v"></i></a>
+                     <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                         <a class="dropdown-item tahsilat_taksit_sil" data-value="{{$taksit_gelen_vade->taksit_vade_id}}" href="#"><i class="dw dw-delete-3"></i> Sil</a>
                      </div>
                   </div>
@@ -521,8 +555,8 @@
                      <span class="tl">₺</span>
                   </div>
                   <div class="dropdown">
-                     <a class="btn btn-link p-0 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" style="font-size:16px; color:#94a3b8;"><i class="dw dw-more"></i></a>
-                     <div class="dropdown-menu dropdown-menu-right">
+                     <a class="btn btn-link no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="İşlemler"><i class="fa fa-ellipsis-v"></i></a>
+                     <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                         <a class="dropdown-item tahsilat_senet_sil" data-value="{{$senet_gelen_vade->senet_vade_id}}" href="#"><i class="dw dw-delete-3"></i> Sil</a>
                      </div>
                   </div>
