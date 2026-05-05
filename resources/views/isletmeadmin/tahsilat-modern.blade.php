@@ -576,20 +576,78 @@
 </div>
 
 <script>
-   // ----- Modern view: kritik AJAX sonrasi page reload -----
-   // (Server eski-tasarim HTML donduruyor; reload ile modern view temiz state ile render olur)
+   // ----- Modern view: kritik AJAX sonrasi SOFT reload (CSS bozulmadan, hard refresh YOK) -----
+   // Server eski-tasarim HTML donduruyor; fetch ile modern view'i yeniden cekip
+   // sadece ilgili konteynerlari swap ediyoruz. Sayfa reload olmuyor.
    (function(){
       var _tmReloadPending = false;
-      function _tmDoReload(){
-         try { if(window.swal && swal.close) swal.close(); } catch(e){}
+      var _tmFallbackTimer = null;
+
+      // Modern view'in fragment ID'leri (server'dan cekilen HTML'den replace edilecek)
+      var FRAG_IDS = [
+         'tahsilat_listesi',
+         'tum_tahsilatlar',
+         'taksitli_ve_senetli_tahsilatlar',
+         'tahsil_edilen_tutar',
+         'ara_toplam',
+         'uygulanan_indirim_tutari',
+         'uygulanan_harici_indirim_tutari'
+      ];
+
+      function _tmDoSoftReload(){
          try { $('.modal').modal('hide'); $('.modal-backdrop').remove(); } catch(e){}
-         window.location.href = window.location.pathname + window.location.search;
+
+         var url = window.location.pathname + window.location.search;
+         fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'TahsilatModernSoftReload', 'Accept': 'text/html' },
+            cache: 'no-store'
+         })
+         .then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.text(); })
+         .then(function(html){
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            FRAG_IDS.forEach(function(id){
+               var src = doc.getElementById(id);
+               var dst = document.getElementById(id);
+               if(src && dst) dst.innerHTML = src.innerHTML;
+            });
+
+            // Kalan alacak (hem id hem class versiyonu var)
+            var srcKalan = doc.getElementById('tahsil_edilecek_kalan_tutar');
+            if(srcKalan){
+               var txt = srcKalan.textContent;
+               var dstId = document.getElementById('tahsil_edilecek_kalan_tutar');
+               if(dstId) dstId.textContent = txt;
+               document.querySelectorAll('.tahsil_edilecek_kalan_tutar').forEach(function(el){
+                  el.textContent = txt;
+               });
+            }
+
+            // Form input'larini reset et (ekleme sonrasi temiz state)
+            var odenecek = document.getElementById('odenecek_tutar');
+            if(odenecek) odenecek.value = '0,00';
+            var indirimliInput = document.getElementById('indirimli_toplam_tahsilat_tutari');
+            if(indirimliInput) indirimliInput.value = '0';
+            var hariciInd = document.getElementById('harici_indirim_tutari');
+            if(hariciInd) hariciInd.value = '';
+
+            // Hesaplama tetikleyicilerini cagir (varsa)
+            try { if(typeof window.tahsilatyenidenhesapla === 'function') window.tahsilatyenidenhesapla(); } catch(e){}
+            try { if(typeof window.adisyonyenidenhesapla === 'function') window.adisyonyenidenhesapla(); } catch(e){}
+
+            _tmReloadPending = false;
+         })
+         .catch(function(err){
+            console.warn('[modern-tahsilat] soft reload basarisiz, fallback hard reload:', err);
+            window.location.href = url;
+         });
       }
+
       window._tmScheduleReload = function(reason, delay){
          if(_tmReloadPending) return;
          _tmReloadPending = true;
-         console.log('[modern-tahsilat] reload scheduled:', reason, 'delay='+(delay||1500));
-         setTimeout(_tmDoReload, delay || 1500);
+         console.log('[modern-tahsilat] soft reload scheduled:', reason, 'delay='+(delay||150));
+         setTimeout(_tmDoSoftReload, delay || 150);
       };
 
       function bind(){
@@ -604,21 +662,18 @@
                u.indexOf('/taksitekleguncelle') !== -1 ||
                u.indexOf('/tahsilatkaldir') !== -1)
             {
-               window._tmScheduleReload('ajaxComplete:'+u, 1200);
+               // Eski-tasarim HTML containerlara yazildi -> hemen modern HTML ile uzerine yaz
+               window._tmScheduleReload('ajaxComplete:'+u, 100);
             }
          });
 
-         // 2) Taksit modal'inin Kaydet butonu tiklamasi (en guvenilir, AJAX hooks'tan bagimsiz)
+         // 2) Click fallback'leri (AJAX hook'u kacirirsa garanti olsun)
          $(document).on('click', '#taksitli_tahsilat_formu button[type="submit"]', function(){
             window._tmScheduleReload('taksit-modal-kaydet-click', 2500);
          });
-
-         // 3) Ana formun TAHSIL ET butonu tiklamasi
          $(document).on('click', '#yeni_tahsilat_ekle', function(){
             window._tmScheduleReload('tahsilat-et-click', 2500);
          });
-
-         // 4) Tahsilat silme butonu tiklamasi
          $(document).on('click', 'button[name="tahsilat_adisyondan_sil"]', function(){
             window._tmScheduleReload('tahsilat-sil-click', 2500);
          });
