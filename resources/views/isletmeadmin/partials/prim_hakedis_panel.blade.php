@@ -1351,7 +1351,9 @@ $(function(){
       $('#primOde_netLabel').text(_formatTL(maas) + ' ₺');
       $('#primOde_odenenLabel').text(_formatTL(odenenMaas) + ' ₺');
       $('#primOde_kalanLabel').text(_formatTL(kalanMaas) + ' ₺');
-      $tutar.val(kalanMaas > 0 ? kalanMaas.toFixed(2) : '');
+      // Once kalan, kalan yoksa toplam maas
+      var dt = kalanMaas > 0 ? kalanMaas : maas;
+      $tutar.val(dt > 0 ? dt.toFixed(2) : '');
       $tutar.attr('placeholder', 'Maaş tutarı');
     } else if(tip === 'prim'){
       var prim = data.primToplam || 0;
@@ -1360,7 +1362,9 @@ $(function(){
       $('#primOde_netLabel').text(_formatTL(prim) + ' ₺');
       $('#primOde_odenenLabel').text(_formatTL(odenenPrim) + ' ₺');
       $('#primOde_kalanLabel').text(_formatTL(kalanPrim) + ' ₺');
-      $tutar.val(kalanPrim > 0 ? kalanPrim.toFixed(2) : '');
+      // Once kalan, kalan yoksa toplam prim
+      var dt2 = kalanPrim > 0 ? kalanPrim : prim;
+      $tutar.val(dt2 > 0 ? dt2.toFixed(2) : '');
       $tutar.attr('placeholder', 'Prim tutarı');
     } else { // diger / avans
       var odenenDiger = data.odenenDiger || 0;
