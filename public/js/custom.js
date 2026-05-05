@@ -9711,6 +9711,9 @@ $('#personel_tablo').on('click','a[name="personel_detayi"]',function(){
                         $('#yillik_tecrube').val(result.personelbilgi.yillik_tecrube || '');
                         $('#instagram').val(result.personelbilgi.instagram || '');
                         $('#aciklama').val(result.personelbilgi.aciklama || '');
+                        // Takvimde gorunsun
+                        var _tg = !!Number(result.personelbilgi.takvimde_gorunsun);
+                        $('#takvimde_gorunsun').prop('checked', _tg).trigger('change');
                         if(result.hesapturu=='Hesap Sahibi'){
                             $('#sistem_yetki').prop('disabled',true);
                         }

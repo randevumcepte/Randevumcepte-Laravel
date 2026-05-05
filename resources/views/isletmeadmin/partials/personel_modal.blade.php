@@ -137,6 +137,24 @@
    .pm-switch input:checked + label{ background: linear-gradient(135deg,#7B2FB8,#9D5DC8); }
    .pm-switch input:checked + label::before{ left:18px; }
 
+   /* Inline toggle satiri (form icinde sirit-mayan modern anahtar) */
+   #personel-modal .pm-toggle-row{
+      display:flex; align-items:center; justify-content:space-between; gap:14px;
+      background:#f8fafc; border:1px solid #eef0f3; border-radius:12px;
+      padding:11px 16px; transition:.15s;
+   }
+   #personel-modal .pm-toggle-row:hover{ border-color:#e0d4ec; background:#fbf8fd; }
+   #personel-modal .pm-toggle-row.is-on{ border-color:#d8c8e8; background:#faf6fc; }
+   #personel-modal .pm-toggle-row__info{ display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
+   #personel-modal .pm-toggle-row__title{
+      font-size:13px; font-weight:700; color:#2d1b3f; letter-spacing:0;
+      text-transform:none; margin:0; display:flex; align-items:center; gap:8px;
+   }
+   #personel-modal .pm-toggle-row__title i{ color:#7B2FB8; font-size:14px; }
+   #personel-modal .pm-toggle-row__hint{
+      font-size:11.5px; color:#94a3b8; font-weight:500; margin:0; padding-left:22px;
+   }
+
    .pm-saat-day{ font-size:13px; font-weight:600; color:#475569; }
    .pm-saat-row input[type=time]{
       border:1px solid #e5e7eb !important; border-radius:8px !important;
@@ -240,6 +258,20 @@
                                  @endif
                               @endforeach
                            </select>
+                        </div>
+                     </div>
+                     <div class="col-md-12">
+                        <div class="pm-field" style="margin-bottom:0">
+                           <div class="pm-toggle-row" id="takvimde_gorunsun_row">
+                              <div class="pm-toggle-row__info">
+                                 <div class="pm-toggle-row__title"><i class="fa fa-calendar-check-o"></i> Takvimde Görünsün</div>
+                                 <div class="pm-toggle-row__hint">Kapatılırsa bu personel randevu takviminde gösterilmez</div>
+                              </div>
+                              <div class="pm-switch">
+                                 <input type="checkbox" id="takvimde_gorunsun" name="takvimde_gorunsun" value="1" checked>
+                                 <label for="takvimde_gorunsun"></label>
+                              </div>
+                           </div>
                         </div>
                      </div>
                   </div>
@@ -378,11 +410,16 @@ $(document).ready(function(){
    $('#personel-modal').on('change', '.pm-switch input[type=checkbox]', function(){
       $(this).closest('.pm-saat-row').toggleClass('is-checked', this.checked);
    });
-   // Modal acildiginda mevcut checkbox state'lerine gore is-checked uygula
+   // Takvimde gorunsun toggle: satira is-on sinifi
+   $('#personel-modal').on('change', '#takvimde_gorunsun', function(){
+      $('#takvimde_gorunsun_row').toggleClass('is-on', this.checked);
+   });
+   // Modal acildiginda mevcut checkbox state'lerine gore gorsel state uygula
    $('#personel-modal').on('shown.bs.modal', function(){
       $('.pm-switch input[type=checkbox]').each(function(){
          $(this).closest('.pm-saat-row').toggleClass('is-checked', this.checked);
       });
+      $('#takvimde_gorunsun_row').toggleClass('is-on', $('#takvimde_gorunsun').is(':checked'));
    });
 });
 </script>

@@ -3349,6 +3349,8 @@ private function ayAdiCevir($ingilizceAy)
             if ($request->has('aciklama'))       $personel->aciklama       = $request->aciklama;
             if ($request->has('yillik_tecrube')) $personel->yillik_tecrube = $request->yillik_tecrube ?: null;
             if ($request->has('instagram'))      $personel->instagram      = $request->instagram;
+            // Takvimde gorunsun (checkbox isaretli degilse $_POST'a gelmez)
+            $personel->takvimde_gorunsun = $request->has('takvimde_gorunsun') ? 1 : 0;
             $personel->save();
             PersonelCalismaSaatleri::where('personel_id',$personel->id)->delete();
             for($i=1;$i<=7;$i++){
