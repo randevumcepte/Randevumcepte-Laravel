@@ -22102,25 +22102,43 @@ DB::raw('
 
     }
     public function personelSiralamaAzalt(Request $request)
-    {     
-        $personel2 = Personeller::where('takvim_sirasi',$request->siraNo-1)->where('salon_id',$request->sube)->first();
-        $personel2->takvim_sirasi = $personel2->takvim_sirasi + 1;
-        $personel2->save();
-        $personel = Personeller::where('id',$request->personelid)->first();
-        $personel->takvim_sirasi = $request->siraNo-1;
-        $personel->save();
-       
+    {
+        // 1 yukari tasi: kendi mevcut takvim_sirasi'sindan kucuk, en buyuk olan komsuyu bul
+        $personel = Personeller::where('id',$request->personelid)
+            ->where('salon_id',$request->sube)->first();
+        if($personel){
+            $ust = Personeller::where('salon_id',$request->sube)
+                ->where('takvim_sirasi','<', $personel->takvim_sirasi)
+                ->orderBy('takvim_sirasi','desc')
+                ->first();
+            if($ust){
+                $tmp = $personel->takvim_sirasi;
+                $personel->takvim_sirasi = $ust->takvim_sirasi;
+                $ust->takvim_sirasi      = $tmp;
+                $personel->save();
+                $ust->save();
+            }
+        }
         return self::personel_liste_getir($request);
     }
     public function personelSiralamaArtir(Request $request)
     {
-        $personel2 = Personeller::where('takvim_sirasi',$request->siraNo+1)->where('salon_id',$request->sube)->first();
-        $personel2->takvim_sirasi = $personel2->takvim_sirasi - 1;
-        $personel2->save();
-        $personel = Personeller::where('id',$request->personelid)->first();
-        $personel->takvim_sirasi = $request->siraNo+1;
-        $personel->save();
-       
+        // 1 asagi tasi: kendi mevcut takvim_sirasi'sindan buyuk, en kucuk olan komsuyu bul
+        $personel = Personeller::where('id',$request->personelid)
+            ->where('salon_id',$request->sube)->first();
+        if($personel){
+            $alt = Personeller::where('salon_id',$request->sube)
+                ->where('takvim_sirasi','>', $personel->takvim_sirasi)
+                ->orderBy('takvim_sirasi','asc')
+                ->first();
+            if($alt){
+                $tmp = $personel->takvim_sirasi;
+                $personel->takvim_sirasi = $alt->takvim_sirasi;
+                $alt->takvim_sirasi      = $tmp;
+                $personel->save();
+                $alt->save();
+            }
+        }
         return self::personel_liste_getir($request);
     }
     public function cihazSiralamaAzalt(Request $request)
