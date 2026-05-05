@@ -463,6 +463,7 @@ $(document).ready(function(){
          var asagi = e.target.closest && e.target.closest('#personel_tablo button[name="personel_siralamayi_bir_asagi_tasi"]');
          var yukari = e.target.closest && e.target.closest('#personel_tablo button[name="personel_siralamayi_bir_yukari_tasi"]');
          var takvim = e.target.closest && e.target.closest('#personel_tablo button[name="personel_takvim_toggle"]');
+         var silBtn = e.target.closest && e.target.closest('#personel_tablo a[name="personel_sil"]');
          if(asagi){
             e.preventDefault();
             e.stopImmediatePropagation();
@@ -482,6 +483,49 @@ $(document).ready(function(){
             e.stopImmediatePropagation();
             e.stopPropagation();
             _pyoSiralamaUpdate('/isletmeyonetim/personelTakvimdeGorunsunToggle', takvim);
+            return;
+         }
+         if(silBtn){
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+            var pid = silBtn.getAttribute('data-value');
+            var adi = silBtn.getAttribute('data-adi') || 'Bu personel';
+            swal({
+               title: adi+' silinsin mi?',
+               html: '<div style="text-align:left; line-height:1.6"><b>Personel kalıcı olarak listeden gizlenecek.</b><br>'+
+                     '✓ Geçmiş randevu, satış, prim ve hak ediş kayıtları korunacak<br>'+
+                     '✓ Raporlar ve istatistikler etkilenmeyecek<br>'+
+                     '✓ Listeden, takvimden ve online randevudan kalkacak</div>',
+               type: 'warning',
+               showCancelButton: true,
+               confirmButtonText: 'Evet, sil',
+               cancelButtonText: 'Vazgeç',
+               confirmButtonColor: '#dc2626',
+               cancelButtonClass: 'btn btn-secondary'
+            }).then(function(r){
+               if(!r.value) return;
+               $.ajax({
+                  type:'POST',
+                  url:'/isletmeyonetim/personelArsivle',
+                  data:{ personelid: pid, sube: '{{$isletme->id}}', _token: $('input[name="_token"]').val() },
+                  headers:{ 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
+                  dataType:'json',
+                  beforeSend:function(){ $('#preloader').show(); },
+                  success:function(result){
+                     $('#preloader').hide();
+                     try{
+                        var dt = $('#personel_tablo').DataTable();
+                        dt.clear(); dt.rows.add(result); dt.draw(false);
+                     }catch(e){ location.reload(); }
+                     swal({title:'Silindi', type:'success', timer:1200, showConfirmButton:false});
+                  },
+                  error:function(xhr){
+                     $('#preloader').hide();
+                     swal({title:'Hata', text:'Silinemedi (HTTP '+xhr.status+')', type:'error'});
+                  }
+               });
+            });
             return;
          }
       }, true); // <-- capture phase: bubble'dan once firing

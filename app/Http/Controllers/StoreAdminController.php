@@ -3473,7 +3473,9 @@ private function ayAdiCevir($ingilizceAy)
         $isletmeId = self::mevcutsube($request);
         // Aktifler once, pasifler en altta. Tie-breaker olarak id ASC kullan ki
         // takvim_sirasi'da olusabilecek tekrar/bosluklar deterministik cozulsun.
+        // Arsivli (silinmis) personeller listede gozukmesin.
         $personeller = Personeller::where('salon_id',$isletmeId)
+            ->where(function($q){ $q->where('arsivli',false)->orWhereNull('arsivli'); })
             ->orderByDesc('aktif')
             ->orderBy('takvim_sirasi','asc')
             ->orderBy('id','asc')
@@ -3528,7 +3530,9 @@ private function ayAdiCevir($ingilizceAy)
                 <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                 <a class="dropdown-item" href="#" onclick="modalbaslikata(\'Personel Bilgileri\',\'\' )" name="personel_detayi" data-toggle="modal" data-target="#personel-modal" data-value="'.$personel->id.'"><i class="fa fa-edit"></i> Düzenle</a>
                     <a class="dropdown-item" href="#" name="personel_sifre_degistir_gonder" data-value="'.$personel->id.'"><i class="icon-copy dw dw-password"></i> Şifre Değiştir & Gönder</a>
-                    <a class="dropdown-item" href="#" name="personel_pasif_aktif_yap" data-index-number="'.($personel->aktif ? 0 : 1).'" data-value="'.$personel->id.'"><i class="'.($personel->aktif ? 'fa fa-minus' : 'fa fa-plus').'"></i> '.($personel->aktif ? 'Pasif Yap' : 'Aktif Yap').'</a></div></div>';
+                    <a class="dropdown-item" href="#" name="personel_pasif_aktif_yap" data-index-number="'.($personel->aktif ? 0 : 1).'" data-value="'.$personel->id.'"><i class="'.($personel->aktif ? 'fa fa-minus' : 'fa fa-plus').'"></i> '.($personel->aktif ? 'Pasif Yap' : 'Aktif Yap').'</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item text-danger" href="#" name="personel_sil" data-value="'.$personel->id.'" data-adi="'.htmlspecialchars($personel_adi, ENT_QUOTES).'"><i class="fa fa-trash" style="color:#dc2626"></i> Sil</a></div></div>';
             $siralama = '';
             if($isFirst)
                 $siralama .='<button class="btn btn-info" name="personel_siralamayi_bir_asagi_tasi" data-value="'.$personel->id.'"><i class="fa fa-chevron-down"></i></button>';
@@ -22486,6 +22490,23 @@ DB::raw('
             $this->_personelSiraSwap($cur, $komsu);
         } catch(\Exception $e){ \Log::warning('_personelSirayiKaydir: '.$e->getMessage()); }
     }
+    public function personelArsivle(Request $request)
+    {
+        // Soft archive: personeli "sil" — listeden gizle, ama DB'de kalsin.
+        // Iliskili randevu/tahsilat/prim kayitlari zarar gormesin.
+        try {
+            $personel = Personeller::where('id',$request->personelid)
+                ->where('salon_id',$request->sube)->first();
+            if($personel){
+                $personel->arsivli = true;
+                $personel->aktif = false; // randevuda gozukmesin
+                $personel->takvimde_gorunsun = false; // her yerden gizle
+                $personel->save();
+            }
+        } catch(\Exception $e){ \Log::warning('personelArsivle: '.$e->getMessage()); }
+        return self::personel_liste_getir($request);
+    }
+
     public function personelTakvimdeGorunsunToggle(Request $request)
     {
         try {
@@ -24450,7 +24471,10 @@ DB::raw('
 
     private function primHakedisVerisi($salonId, $tarih1, $tarih2)
     {
-        $personeller = Personeller::where('salon_id', $salonId)->where('aktif', 1)->orderBy('takvim_sirasi','asc')->get();
+        $personeller = Personeller::where('salon_id', $salonId)
+            ->where('aktif', 1)
+            ->where(function($q){ $q->where('arsivli',false)->orWhereNull('arsivli'); })
+            ->orderBy('takvim_sirasi','asc')->get();
 
         $adisyonlar = Adisyonlar::with([
                 'hizmetler.personel','urunler.personel','paketler.personel',
