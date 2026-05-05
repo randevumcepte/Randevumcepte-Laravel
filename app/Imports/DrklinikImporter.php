@@ -15,6 +15,10 @@ use App\Odalar;
 use App\OdaRenkleri;
 use App\User;
 use App\MusteriPortfoy;
+use App\Randevular;
+use App\RandevuHizmetler;
+use App\Adisyonlar;
+use App\AdisyonHizmetler;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
@@ -250,6 +254,245 @@ class DrklinikImporter
             $this->counts['personel']++;
         }
         $this->log("Personel aktarim: {$eklendi} yeni");
+    }
+
+    /**
+     * Randevular: gunlukrandevulistesi.aspx + BTN_Ara, hafta-hafta tarama.
+     * Server hard cap 50 satır/postback - 1 haftada genelde <50 randevu olur.
+     *
+     * Sutunlar (20 td): td[2]=Tarih td[3]=Bas td[4]=Bit td[5]=Ad Soyad
+     * td[8]=Telefon td[10]=Birim td[11]=Calisan td[12]=Oda td[15]=Durum
+     *
+     * Her satirdan: User+Portfoy + Randevu + RandevuHizmetler + Adisyon + AdisyonHizmetler
+     */
+    public function importRandevular($baslangic = null, $bitis = null)
+    {
+        $start = $baslangic ? strtotime($baslangic) : strtotime('2018-01-01');
+        $end   = $bitis ? strtotime($bitis) : strtotime('2026-12-31');
+        $this->log('Randevular cekiliyor: ' . date('Y-m-d', $start) . ' - ' . date('Y-m-d', $end) . ' (haftalik)...');
+
+        // Randevular icin gerekli mapleri kur
+        if (empty($this->odaMap)) $this->buildOdaMap();
+        $personelMap = $this->buildPersonelMapByName();
+        $hizmetMap   = $this->buildHizmetMapByBirim();
+
+        $weekStart = $start;
+        $iter = 0;
+        while ($weekStart <= $end) {
+            $weekEnd = min($end, strtotime('+6 days', $weekStart));
+            $iter++;
+            $h = $this->client->postBack('/gunlukrandevulistesi.aspx', 'BTN_Ara', '', [
+                'TB_Tarih1' => date('d.m.Y', $weekStart),
+                'TB_Tarih2' => date('d.m.Y', $weekEnd),
+            ]);
+            if ($h !== null) {
+                $eklenen = $this->processRandevuPage($h, $personelMap, $hizmetMap);
+                if ($iter % 10 === 0) $this->log("  ..hafta {$iter} (" . date('Y-m-d', $weekStart) . "..) eklenen={$eklenen} toplam_randevu={$this->counts['randevu']}");
+            }
+            $weekStart = strtotime('+7 days', $weekStart);
+            usleep(300000);
+        }
+        $this->log("Randevu aktarim toplam: {$this->counts['randevu']} (skipped: {$this->counts['skipped']})");
+    }
+
+    private function buildOdaMap()
+    {
+        // Sadece bu salonun odalarini ad -> id olarak topla
+        $odalar = Odalar::where('salon_id', $this->salonId)->get();
+        foreach ($odalar as $o) $this->odaMap[mb_strtolower($o->oda_adi, 'UTF-8')] = $o->id;
+    }
+
+    private function buildPersonelMapByName()
+    {
+        $map = [];
+        foreach (Personeller::where('salon_id', $this->salonId)->get() as $p) {
+            $map[mb_strtolower(trim($p->personel_adi), 'UTF-8')] = $p->id;
+        }
+        return $map;
+    }
+
+    /**
+     * Birim adiyla salon hizmeti eslemesi - drklinik birim'i bizdeki Hizmet_Kategorisi adi.
+     * O kategoride bir SalonHizmetler dondurur (default ilki).
+     */
+    private function buildHizmetMapByBirim()
+    {
+        $map = [];
+        $kategoriler = Hizmet_Kategorisi::all();
+        foreach ($kategoriler as $k) {
+            $sh = SalonHizmetler::where('salon_id', $this->salonId)
+                ->where('hizmet_kategori_id', $k->id)
+                ->where('aktif', 1)
+                ->orderBy('id')->first();
+            if ($sh) {
+                $map[mb_strtolower(trim($k->hizmet_kategorisi_adi), 'UTF-8')] = [
+                    'hizmet_id'    => $sh->hizmet_id,
+                    'sure_dk'      => (int) $sh->sure_dk ?: 30,
+                    'fiyat'        => (float) $sh->baslangic_fiyat,
+                    'kategori_id'  => $k->id,
+                ];
+            }
+        }
+        return $map;
+    }
+
+    private function processRandevuPage($html, $personelMap, $hizmetMap)
+    {
+        $rows = $this->parseTableRowsRaw($html);
+        $eklenen = 0;
+        foreach ($rows as $rawRow) {
+            $cells = [];
+            foreach ($rawRow as $tdRaw) {
+                $clean = trim(preg_replace('/\s+/', ' ', strip_tags($tdRaw)));
+                $clean = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                $cells[] = $clean;
+            }
+            // Beklenen >= 16 td. Yetersiz veya bos satir atlanir.
+            if (count($cells) < 16) { $this->counts['skipped']++; continue; }
+            $tarih = $this->tarihNormalize($cells[2] ?? '');
+            $saat  = $cells[3] ?? '';
+            $bitis = $cells[4] ?? '';
+            if (!$tarih || !$saat) { $this->counts['skipped']++; continue; }
+
+            $adSoyad = $cells[5] ?? '';
+            $tel     = $this->telefonNormalize($cells[8] ?? '');
+            $birim   = $cells[10] ?? '';
+            $calisan = $cells[11] ?? '';
+            $oda     = $cells[12] ?? '';
+            $durum   = $cells[15] ?? '';
+
+            // Saat formatlari: HH:MM -> HH:MM:00
+            if (strlen($saat) === 5) $saat .= ':00';
+            if (strlen($bitis) === 5) $bitis .= ':00';
+
+            // Musteri olustur/lookup
+            $userId = $this->upsertMusteri($adSoyad, $tel);
+            if (!$userId) { $this->counts['skipped']++; continue; }
+
+            // Personel + oda lookup
+            $personelId = $personelMap[mb_strtolower(trim($calisan), 'UTF-8')] ?? null;
+            $odaId      = $this->odaMap[mb_strtolower(trim($oda), 'UTF-8')] ?? null;
+
+            // Hizmet (birim adiyla)
+            $hizmetInfo = $hizmetMap[mb_strtolower(trim($birim), 'UTF-8')] ?? null;
+
+            // Randevu idempotent: tarih+saat+user+salon
+            $r = Randevular::where('tarih', $tarih)->where('saat', $saat)
+                ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
+            if (!$r) $r = new Randevular();
+            $r->tarih = $tarih;
+            $r->saat = $saat;
+            $r->user_id = $userId;
+            $r->salon_id = $this->salonId;
+            $r->durum = 1;
+            $r->salon = 0;
+            $r->olusturan_personel_id = null;
+            // Status mapping
+            $du = mb_strtolower($durum, 'UTF-8');
+            if (strpos($du, 'geldi') !== false && strpos($du, 'gelmedi') === false) $r->randevuya_geldi = 1;
+            elseif (strpos($du, 'gelmedi') !== false || strpos($du, 'iptal') !== false) $r->randevuya_geldi = 0;
+            $r->save();
+
+            // RandevuHizmetler (birim varsa)
+            if ($hizmetInfo) {
+                $rh = RandevuHizmetler::where('randevu_id', $r->id)->where('hizmet_id', $hizmetInfo['hizmet_id'])->first();
+                if (!$rh) $rh = new RandevuHizmetler();
+                $rh->randevu_id = $r->id;
+                $rh->hizmet_id = $hizmetInfo['hizmet_id'];
+                $rh->saat = $saat;
+                $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $hizmetInfo['sure_dk'] . ' minutes', strtotime($saat)));
+                $rh->sure_dk = $hizmetInfo['sure_dk'];
+                if ($personelId) $rh->personel_id = $personelId;
+                $rh->save();
+            }
+
+            // Adisyon + AdisyonHizmetler (tahsilat icin altyapi)
+            $ad = Adisyonlar::where('user_id', $userId)
+                ->where('salon_id', $this->salonId)
+                ->where('tarih', $tarih)
+                ->whereHas('hizmetler', function ($q) use ($r) { $q->where('randevu_id', $r->id); })
+                ->first();
+            if (!$ad) {
+                $ad = new Adisyonlar();
+                $ad->user_id = $userId;
+                $ad->salon_id = $this->salonId;
+                $ad->tarih = $tarih;
+                $ad->olusturan_id = $personelId;
+                $ad->save();
+            }
+            if ($hizmetInfo) {
+                $ah = AdisyonHizmetler::where('adisyon_id', $ad->id)->where('randevu_id', $r->id)
+                    ->where('hizmet_id', $hizmetInfo['hizmet_id'])->first();
+                if (!$ah) $ah = new AdisyonHizmetler();
+                $ah->adisyon_id = $ad->id;
+                $ah->hizmet_id = $hizmetInfo['hizmet_id'];
+                $ah->randevu_id = $r->id;
+                $ah->personel_id = $personelId;
+                $ah->geldi = isset($r->randevuya_geldi) ? $r->randevuya_geldi : 0;
+                $ah->islem_tarihi = $tarih;
+                $ah->islem_saati = $saat;
+                $ah->sure = $hizmetInfo['sure_dk'];
+                $ah->fiyat = $hizmetInfo['fiyat'];
+                $ah->save();
+            }
+
+            $this->counts['randevu']++;
+            $eklenen++;
+        }
+        return $eklenen;
+    }
+
+    private function upsertMusteri($adSoyad, $tel)
+    {
+        $adSoyad = trim($adSoyad);
+        if (!$adSoyad && !$tel) return null;
+        if (!$adSoyad) $adSoyad = $tel;
+
+        if ($tel) {
+            $u = User::where('cep_telefon', $tel)->first();
+            if (!$u) {
+                $u = new User();
+                $u->name = $adSoyad;
+                $u->cep_telefon = $tel;
+                $u->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                $u->save();
+            }
+        } else {
+            // Telefonsuz: ad+salon kombinasyonu ile ara
+            $u = User::where('name', $adSoyad)
+                ->whereNull('cep_telefon')
+                ->whereHas('salonlar', function ($q) {
+                    $q->where('salon_id', $this->salonId);
+                })->first();
+            if (!$u) {
+                try {
+                    $u = new User();
+                    $u->name = $adSoyad;
+                    $u->cep_telefon = null;
+                    $u->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                    $u->save();
+                } catch (\Exception $e) {
+                    // NULL kabul edilmedi -> placeholder
+                    $u = new User();
+                    $u->name = $adSoyad;
+                    $u->cep_telefon = 'drklinik_' . md5($adSoyad);
+                    $u->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                    $u->save();
+                }
+            }
+        }
+
+        // Portfoy ekle
+        $portfoy = MusteriPortfoy::where('user_id', $u->id)->where('salon_id', $this->salonId)->first();
+        if (!$portfoy) {
+            $portfoy = new MusteriPortfoy();
+            $portfoy->user_id = $u->id;
+            $portfoy->salon_id = $this->salonId;
+            $portfoy->aktif = 1;
+            $portfoy->save();
+            $this->counts['musteri']++;
+        }
+        return $u->id;
     }
 
     /**

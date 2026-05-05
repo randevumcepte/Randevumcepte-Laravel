@@ -14,7 +14,9 @@ class DrklinikImport extends Command
         {--salon= : Hedef salon_id (randevumcepte tarafinda)}
         {--analyze : Anasayfa + JS bundle analizi (login olmadan)}
         {--probe : Login + yaygin endpoint kesfi}
-        {--only= : virgulle: musteri,hizmet,personel,randevu,tahsilat}';
+        {--only= : virgulle: musteri,hizmet,personel,urun,oda,randevu,tahsilat}
+        {--from= : Randevu icin baslangic tarihi YYYY-MM-DD (default 2018-01-01)}
+        {--to= : Randevu icin bitis tarihi YYYY-MM-DD (default 2026-12-31)}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
 
@@ -74,13 +76,14 @@ class DrklinikImport extends Command
             return 0;
         }
 
-        $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet', 'personel', 'urun', 'oda', 'musteri'];
+        $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet', 'personel', 'urun', 'oda', 'randevu'];
         $importer = new DrklinikImporter($client, $salonId, $this->output);
         if (in_array('oda', $types))      $importer->importOdalar();
         if (in_array('personel', $types)) $importer->importPersoneller();
         if (in_array('hizmet', $types))   $importer->importHizmetler();
         if (in_array('urun', $types))     $importer->importUrunler();
         if (in_array('musteri', $types))  $importer->importMusteriler();
+        if (in_array('randevu', $types))  $importer->importRandevular($this->option('from'), $this->option('to'));
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
         return 0;
     }
