@@ -7242,29 +7242,39 @@ $(document).on('submit','#saat_kapama',function(e){
       $.ajax({
         type: "POST",
         url: '/isletmeyonetim/saatkapamaekle',
-        dataType: "text",
+        dataType: "json",
         data : $(this).serialize(),
         beforeSend: function() {
             $("#preloader").show();
         },
         success: function(result)  {
             $("#preloader").hide();
-            swal(
-                {
-                    type: 'success',
-                    title: 'Başarılı',
-                    text: result,
-                    showCloseButton: false,
-                    showCancelButton: false,
-                    showConfirmButton:false,
-                    timer:3000,
-                }
-            );
+            var msg = (result && result.message) ? result.message : 'Saat kapama eklendi';
+            swal({
+                type: 'success',
+                title: 'Başarılı',
+                text: msg,
+                showCloseButton: false,
+                showCancelButton: false,
+                showConfirmButton:false,
+                timer:2000,
+            });
+            try { jQuery("#modal-view-event-add").modal('hide'); } catch(e){}
             takvimyukle(false,false);
         },
         error: function (request, status, error) {
             $("#preloader").hide();
-            document.getElementById('hata').innerHTML = request.responseText;
+            var errMsg = '';
+            try {
+                var j = JSON.parse(request.responseText);
+                errMsg = j && j.error ? j.error : request.responseText;
+            } catch(e) { errMsg = request.responseText || error || 'Bilinmeyen hata'; }
+            swal({
+                type: 'error',
+                title: 'Saat kapama kaydedilemedi',
+                text: errMsg,
+            });
+            console.error('saatkapamaekle hatasi', request.status, errMsg);
         }
     });
 });

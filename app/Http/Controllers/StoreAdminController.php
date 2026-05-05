@@ -4948,66 +4948,85 @@ private function ayAdiCevir($ingilizceAy)
         return $durum;
     }
     public function saatkapamaekle(Request $request){
-        $tarihler = "";
-        $randevu_tarihleri = array();
-        array_push($randevu_tarihleri,$request->tarih);
-        $eklenecek_tarih = $request->tarih;
-        if(isset($request->tekrarlayan)){
-            for($t=1;$t<$request->tekrar_sayisi;$t++){
-                $eklenecek_tarih = date('Y-m-d', strtotime($request->tekrar_sikligi, strtotime($eklenecek_tarih)));
-                array_push($randevu_tarihleri,$eklenecek_tarih);
-                $tarihler .= $eklenecek_tarih." - ";
+        try {
+            $tarihler = "";
+            $randevu_tarihleri = array();
+            if (empty($request->tarih)) {
+                return response()->json(['error' => 'Tarih zorunlu'], 422);
             }
+            array_push($randevu_tarihleri,$request->tarih);
+            $eklenecek_tarih = $request->tarih;
+            if(isset($request->tekrarlayan) && (int)($request->tekrar_sayisi ?? 0) > 0){
+                for($t=1;$t<$request->tekrar_sayisi;$t++){
+                    $eklenecek_tarih = date('Y-m-d', strtotime($request->tekrar_sikligi, strtotime($eklenecek_tarih)));
+                    array_push($randevu_tarihleri,$eklenecek_tarih);
+                    $tarihler .= $eklenecek_tarih." - ";
+                }
+            }
+            $kayitSayisi = 0;
+            foreach($randevu_tarihleri as $tarihler){
+                $yenirandevu = new Randevular();
+                $yenirandevu->user_id = 2012;
+                $yenirandevu->salon_id = self::mevcutsube($request);
+                $yenirandevu->durum = 1;
+                $yenirandevu->tarih = $tarihler;
+
+                $yenirandevuhizmetpersonel = new RandevuHizmetler();
+                $baslangicStr = null;
+                $bitisStr     = null;
+                if(!empty($request->saat) && !empty($request->saat_bitis)){
+                    $baslangicStr = $request->saat;
+                    $bitisStr     = $request->saat_bitis;
+                } else {
+                    // Tarih -> haftanin gunu (Mon=1..Sun=7)
+                    $day = (int)date('N', strtotime($tarihler));
+                    $cs = SalonCalismaSaatleri::where('salon_id', $request->sube)
+                        ->where('haftanin_gunu', $day)
+                        ->first();
+                    if($cs){
+                        $baslangicStr = $cs->baslangic_saati;
+                        $bitisStr     = $cs->bitis_saati;
+                    }
+                }
+                // Hala bulunamadiysa makul bir default
+                if(empty($baslangicStr)) $baslangicStr = '09:00:00';
+                if(empty($bitisStr))     $bitisStr     = '18:00:00';
+                // H:i ise H:i:s'e tamamla
+                if(strlen($baslangicStr) == 5) $baslangicStr .= ':00';
+                if(strlen($bitisStr) == 5)     $bitisStr     .= ':00';
+
+                $yenirandevu->saat       = $baslangicStr;
+                $yenirandevu->saat_bitis = $bitisStr;
+                $yenirandevuhizmetpersonel->saat       = $baslangicStr;
+                $yenirandevuhizmetpersonel->saat_bitis = $bitisStr;
+
+                try {
+                    $baslangicSaati = Carbon::parse($baslangicStr);
+                    $bitisSaati     = Carbon::parse($bitisStr);
+                } catch (\Exception $e) {
+                    \Log::warning('Saat kapama Carbon parse hatasi', ['baslangic'=>$baslangicStr,'bitis'=>$bitisStr,'err'=>$e->getMessage()]);
+                    continue;
+                }
+
+                $yenirandevu->personel_notu = $request->personel_notu;
+                $yenirandevu->olusturan_personel_id = Auth::guard('isletmeyonetim')->user()->id ?? null;
+                $yenirandevu->save();
+
+                $yenirandevuhizmetpersonel->randevu_id = $yenirandevu->id;
+                $yenirandevuhizmetpersonel->hizmet_id  = 463;
+                $yenirandevuhizmetpersonel->personel_id = !empty($request->personel) ? $request->personel : null;
+                $sureDk = (int)$baslangicSaati->diffInMinutes($bitisSaati);
+                if($sureDk <= 0) $sureDk = 15; // takvimde gorunsun (where sure_dk > 0 filtresi var)
+                $yenirandevuhizmetpersonel->sure_dk = $sureDk;
+                $yenirandevuhizmetpersonel->fiyat = 0;
+                $yenirandevuhizmetpersonel->save();
+                $kayitSayisi++;
+            }
+            return response()->json(['message' => "Saat kapama başarıyla eklendi ({$kayitSayisi} kayit)"]);
+        } catch (\Throwable $e) {
+            \Log::error('saatkapamaekle hatasi', ['err'=>$e->getMessage(), 'line'=>$e->getLine(), 'file'=>$e->getFile()]);
+            return response()->json(['error' => 'Saat kapama eklenemedi: '.$e->getMessage()], 500);
         }
-        foreach($randevu_tarihleri as $tarihler){
-            $yenirandevu = new Randevular();
-            $yenirandevu->user_id = 2012;
-            $yenirandevu->salon_id = self::mevcutsube($request);
-            $yenirandevu->durum = 1;
-            $yenirandevu->tarih = $tarihler;
-
-            $yenirandevuhizmetpersonel = new RandevuHizmetler();
-            $baslangicSaati = '';
-            $bitisSaati = '';
-            if(!empty($request->saat) && !empty($request->saat_bitis)){
-                $yenirandevu->saat = $request->saat;
-                $yenirandevu->saat_bitis = $request->saat_bitis;
-                $yenirandevuhizmetpersonel->saat = $request->saat;
-                $yenirandevuhizmetpersonel->saat_bitis = $request->saat_bitis;
-                $baslangicSaati = Carbon::createFromFormat('H:i:s', $request->saat.':00');
-                $bitisSaati = Carbon::createFromFormat('H:i:s', $request->saat_bitis.':00');
-
-            }
-            else{
-                $day = '';
-                if(date('D', strtotime($tarihler))=='Mon') $day=1;
-                else if(date('D', strtotime($tarihler))=='Tue') $day=2;
-                else if(date('D', strtotime($tarihler))=='Wed') $day=3;
-                else if(date('D', strtotime($tarihler))=='Thu') $day=4;
-                else if(date('D', strtotime($tarihler))=='Fri') $day=5;
-                else if(date('D', strtotime($tarihler))=='Sat') $day=6;
-                else if(date('D', strtotime($tarihler))=='Sun') $day=7;
-                $yenirandevu->saat = SalonCalismaSaatleri::where('salon_id',$request->sube)->where('haftanin_gunu',$day)->value('baslangic_saati');
-                $yenirandevu->saat_bitis = SalonCalismaSaatleri::where('salon_id',$request->sube)->where('haftanin_gunu',$day)->value('bitis_saati');
-                $yenirandevuhizmetpersonel->saat = SalonCalismaSaatleri::where('salon_id',$request->sube)->where('haftanin_gunu',$day)->value('baslangic_saati');
-                $yenirandevuhizmetpersonel->saat_bitis = SalonCalismaSaatleri::where('salon_id',$request->sube)->where('haftanin_gunu',$day)->value('bitis_saati');
-                $baslangicSaati = Carbon::createFromFormat('H:i:s', SalonCalismaSaatleri::where('salon_id',$request->sube)->where('haftanin_gunu',$day)->value('baslangic_saati'));
-                $bitisSaati = Carbon::createFromFormat('H:i:s', SalonCalismaSaatleri::where('salon_id',$request->sube)->where('haftanin_gunu',$day)->value('bitis_saati'));
-            }
-            $yenirandevu->personel_notu = $request->personel_notu;
-            $yenirandevu->olusturan_personel_id = Auth::guard('isletmeyonetim')->user()->id;
-            $yenirandevu->save();
-            $yenirandevuhizmetpersonel->randevu_id = $yenirandevu->id;
-            $yenirandevuhizmetpersonel->hizmet_id = 463;
-            $yenirandevuhizmetpersonel->personel_id = $request->personel;
-
-
-
-            $yenirandevuhizmetpersonel->sure_dk = $baslangicSaati->diffInMinutes($bitisSaati);
-            $yenirandevuhizmetpersonel->fiyat = 0;
-            $yenirandevuhizmetpersonel->save();
-        }
-        return "Saat kapama başarıyla eklendi";
     }
     public function kapalisaatsil(Request $request)
     {
