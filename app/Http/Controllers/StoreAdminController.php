@@ -24483,8 +24483,12 @@ DB::raw('
             ->whereBetween('tarih',[$tarih1,$tarih2])
             ->get();
 
+        // Personelleri ID ile mapla — yuzdeyi DAIMA Personeller objesinden direk al,
+        // adisyon_hizmet'in eager-loaded personel ilişkisinden değil (lazy load veya eski cache riski yok).
         $primMap = [];
+        $persById = [];
         foreach($personeller as $p){
+            $persById[$p->id] = $p;
             $primMap[$p->id] = [
                 'hizmet_geliri'=>0,'hizmet_primi'=>0,
                 'urun_geliri'=>0,'urun_primi'=>0,
@@ -24492,31 +24496,35 @@ DB::raw('
             ];
         }
 
-        $hizmetItems = $adisyonlar->flatMap(fn($a)=>$a->hizmetler)->filter(fn($i)=>$i->personel);
+        $hizmetItems = $adisyonlar->flatMap(fn($a)=>$a->hizmetler)->filter(fn($i)=>$i->personel_id);
         foreach($hizmetItems->groupBy('personel_id') as $pid => $items){
-            if(!isset($primMap[$pid])) continue;
-            $kazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $items->pluck('id'))->sum('tutar');
-            $yuzde = $items->first()->personel->hizmet_prim_yuzde ?? 0;
+            if(!isset($primMap[$pid]) || !isset($persById[$pid])) continue;
+            // ID'leri tekrarsiz al (defensive)
+            $ids = $items->pluck('id')->unique()->values();
+            $kazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $ids)->sum('tutar');
+            $yuzde = (float)($persById[$pid]->hizmet_prim_yuzde ?? 0);
             $primMap[$pid]['hizmet_geliri'] = (float)$kazanc;
-            $primMap[$pid]['hizmet_primi']  = (float)$kazanc * ((float)$yuzde)/100;
+            $primMap[$pid]['hizmet_primi']  = round((float)$kazanc * $yuzde/100, 2);
         }
 
-        $urunItems = $adisyonlar->flatMap(fn($a)=>$a->urunler)->filter(fn($i)=>$i->personel);
+        $urunItems = $adisyonlar->flatMap(fn($a)=>$a->urunler)->filter(fn($i)=>$i->personel_id);
         foreach($urunItems->groupBy('personel_id') as $pid => $items){
-            if(!isset($primMap[$pid])) continue;
-            $kazanc = TahsilatUrunler::whereIn('adisyon_urun_id', $items->pluck('id'))->sum('tutar');
-            $yuzde = $items->first()->personel->urun_prim_yuzde ?? 0;
+            if(!isset($primMap[$pid]) || !isset($persById[$pid])) continue;
+            $ids = $items->pluck('id')->unique()->values();
+            $kazanc = TahsilatUrunler::whereIn('adisyon_urun_id', $ids)->sum('tutar');
+            $yuzde = (float)($persById[$pid]->urun_prim_yuzde ?? 0);
             $primMap[$pid]['urun_geliri'] = (float)$kazanc;
-            $primMap[$pid]['urun_primi']  = (float)$kazanc * ((float)$yuzde)/100;
+            $primMap[$pid]['urun_primi']  = round((float)$kazanc * $yuzde/100, 2);
         }
 
-        $paketItems = $adisyonlar->flatMap(fn($a)=>$a->paketler)->filter(fn($i)=>$i->personel);
+        $paketItems = $adisyonlar->flatMap(fn($a)=>$a->paketler)->filter(fn($i)=>$i->personel_id);
         foreach($paketItems->groupBy('personel_id') as $pid => $items){
-            if(!isset($primMap[$pid])) continue;
-            $kazanc = TahsilatPaketler::whereIn('adisyon_paket_id', $items->pluck('id'))->sum('tutar');
-            $yuzde = $items->first()->personel->paket_prim_yuzde ?? 0;
+            if(!isset($primMap[$pid]) || !isset($persById[$pid])) continue;
+            $ids = $items->pluck('id')->unique()->values();
+            $kazanc = TahsilatPaketler::whereIn('adisyon_paket_id', $ids)->sum('tutar');
+            $yuzde = (float)($persById[$pid]->paket_prim_yuzde ?? 0);
             $primMap[$pid]['paket_geliri'] = (float)$kazanc;
-            $primMap[$pid]['paket_primi']  = (float)$kazanc * ((float)$yuzde)/100;
+            $primMap[$pid]['paket_primi']  = round((float)$kazanc * $yuzde/100, 2);
         }
 
         $hareketler = PersonelPrimHareketi::where('salon_id',$salonId)
