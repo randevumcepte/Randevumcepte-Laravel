@@ -359,8 +359,8 @@
                            @endif
                         </div>
                         <div class="hy-hizmet-islemler">
-                           <button type="button" class="hy-btn-icon hy-hizmet-duzenle" title="Düzenle"><i class="fa fa-pencil"></i></button>
-                           <button type="button" class="hy-btn-icon danger hy-hizmet-sil" title="Sil" data-id="{{$hizmet['id']}}"><i class="fa fa-trash"></i></button>
+                           <button type="button" onclick="hyDuzenleClick(this);return false;" class="hy-btn-icon hy-hizmet-duzenle" title="Düzenle"><i class="fa fa-pencil"></i></button>
+                           <button type="button" onclick="hySilClick(this);return false;" class="hy-btn-icon danger hy-hizmet-sil" title="Sil" data-id="{{$hizmet['id']}}"><i class="fa fa-trash"></i></button>
                         </div>
                      </div>
 
@@ -382,8 +382,8 @@
                               </div>
                            </div>
                            <div class="hy-mobile-actions">
-                              <button type="button" class="hy-btn-icon hy-hizmet-duzenle" title="Düzenle"><i class="fa fa-pencil"></i></button>
-                              <button type="button" class="hy-btn-icon danger hy-hizmet-sil" title="Sil" data-id="{{$hizmet['id']}}"><i class="fa fa-trash"></i></button>
+                              <button type="button" onclick="hyDuzenleClick(this);return false;" class="hy-btn-icon hy-hizmet-duzenle" title="Düzenle"><i class="fa fa-pencil"></i></button>
+                              <button type="button" onclick="hySilClick(this);return false;" class="hy-btn-icon danger hy-hizmet-sil" title="Sil" data-id="{{$hizmet['id']}}"><i class="fa fa-trash"></i></button>
                            </div>
                         </div>
                         <div>
@@ -522,50 +522,150 @@
 </div>
 
 <script>
-// TL fiyat formatlayıcı: "1.234,56" ↔ 1234.56
-window.HyFiyat = {
-   parse: function(val){
-      if(val === null || val === undefined || val === '') return 0;
-      if(typeof val === 'number') return val;
-      var s = String(val);
-      if(s.indexOf(',') !== -1){
-         return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+// TL fiyat formatlayıcı (yerel fallback) — custom.js de aynı objeyi global olarak tanımlar.
+// Eğer custom.js yüklü değilse veya yüklenmeden önce ihtiyaç duyulursa diye burada da var.
+if(!window.HyFiyat || typeof window.HyFiyat.format !== 'function'){
+   window.HyFiyat = {
+      parse: function(val){
+         if(val === null || val === undefined || val === '') return 0;
+         if(typeof val === 'number') return val;
+         var s = String(val);
+         if(s.indexOf(',') !== -1){
+            return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+         }
+         return parseFloat(s) || 0;
+      },
+      format: function(val){
+         var n = this.parse(val);
+         return n.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
       }
-      return parseFloat(s) || 0;
-   },
-   format: function(val){
-      var n = this.parse(val);
-      return n.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
-   },
-   // Input alanına canlı formatlama bağla
-   bind: function($input){
-      $input.on('input.hyfiyat', function(){
-         var el = this;
-         var v = el.value;
-         // Rakam ve virgül dışındaki karakterleri kaldır
-         var cleaned = v.replace(/[^\d,]/g,'');
-         var parts = cleaned.split(',');
-         // İlk virgülü koru, sonrakiler birleşir
-         var intPart = parts[0].replace(/^0+(?=\d)/,'');
-         intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
-         if(intPart === '') intPart = '0';
-         var decPart = parts.length > 1 ? parts.slice(1).join('').substring(0,2) : null;
-         el.value = (decPart !== null) ? intPart + ',' + decPart : intPart;
-      });
-      $input.on('focusout.hyfiyat', function(){
-         var v = $(this).val();
-         if(v === '' || v === '0') return;
-         var parts = v.split(',');
-         if(parts.length === 1) $(this).val(parts[0] + ',00');
-         else if(parts[1].length === 0) $(this).val(parts[0] + ',00');
-         else if(parts[1].length === 1) $(this).val(parts[0] + ',' + parts[1] + '0');
+   };
+}
+
+// Select2 init helper (global)
+window.hyInitSelect2 = function(){
+   var $sel = $('#hy_edit_personeller');
+   if($sel.length && !$sel.hasClass('select2-hidden-accessible')){
+      $sel.select2({
+         placeholder: 'Personel veya cihaz seçin...',
+         dropdownParent: $('#hy_duzenle_modal'),
+         width: '100%',
+         closeOnSelect: false
       });
    }
 };
 
+// Global click handler'lar — butonlardaki onclick attribute'undan çağrılır.
+// Event delegation, document.ready, jQuery quirks vb. hepsini bypass eder.
+window.hyDuzenleClick = function(btn){
+   try {
+      var $btn = $(btn);
+      var row = $btn.closest('.hy-hizmet-row, .hy-mobile-card');
+      var isOzel = parseInt(row.data('ozel-hizmet')) === 1;
+
+      $('#hy_edit_salon_hizmet_id').val(row.data('salon-hizmet-id'));
+      $('#hy_edit_hizmet_adi').val(row.data('hizmet-adi'));
+      var fiyatVal = row.data('fiyat');
+      $('#hy_edit_fiyat').val(window.HyFiyat ? window.HyFiyat.format(fiyatVal) : fiyatVal);
+      $('#hy_edit_sure_dk').val(row.data('sure'));
+      $('#hy_edit_kategori_id').val(row.data('kategori-id')).trigger('change');
+      var c = row.data('cinsiyet');
+      $('#hy_edit_cinsiyet').val(c !== undefined && c !== null ? c : '').trigger('change');
+
+      if(isOzel){
+         $('#hy_edit_hizmet_adi').prop('readonly', false).removeClass('hy-locked');
+         $('#hy_edit_kategori_id').prop('disabled', false).removeClass('hy-locked');
+         $('#hy_edit_locked_info').hide();
+      } else {
+         $('#hy_edit_hizmet_adi').prop('readonly', true).addClass('hy-locked');
+         $('#hy_edit_kategori_id').prop('disabled', true).addClass('hy-locked');
+         $('#hy_edit_locked_info').show();
+      }
+
+      var $sel = $('#hy_edit_personeller');
+      if($sel.hasClass('select2-hidden-accessible')){
+         $sel.select2('destroy');
+      }
+      $sel.val(null);
+
+      var hizmetId = row.data('hizmet-id');
+      $('#hy_duzenle_modal').modal('show');
+
+      $.ajax({
+         type: 'GET',
+         url: '/isletmeyonetim/hizmetpersonelsecimigetir',
+         data: { 'salon_hizmetleri[]': [hizmetId], sube: {{$isletme->id}} },
+         dataType: 'text',
+         success: function(html){
+            var $tmp = $('<div>').html(html);
+            var checkedIds = [];
+            $tmp.find('input[type=checkbox]:checked').each(function(){ checkedIds.push($(this).val()); });
+            if(checkedIds.length > 0) $sel.val(checkedIds);
+            if(typeof window.hyInitSelect2 === 'function') window.hyInitSelect2();
+            $sel.trigger('change');
+         },
+         error: function(){
+            if(typeof window.hyInitSelect2 === 'function') window.hyInitSelect2();
+         }
+      });
+   } catch(err){
+      console.error('hyDuzenleClick hata:', err);
+      alert('Düzenleme açılırken hata: ' + err.message);
+   }
+};
+
+window.hySilClick = function(btn){
+   try {
+      var $btn = $(btn);
+      var id = $btn.data('id');
+      var $rows = $('.hy-hizmet-row[data-salon-hizmet-id="'+id+'"], .hy-mobile-card[data-salon-hizmet-id="'+id+'"]');
+      swal({
+         title: 'Emin misiniz?', text: "Bu hizmet salonunuzdan kaldırılacak.", type: 'warning',
+         showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#6366f1',
+         confirmButtonText: 'Evet, sil', cancelButtonText: 'İptal'
+      }).then(function(result){
+         if(result.value){
+            $.ajax({
+               type: 'POST', url: '/isletmeyonetim/salonhizmetsil',
+               data: { sunulan_hizmet_id: id, sube: {{$isletme->id}}, _token: $('meta[name="csrf-token"]').attr('content') },
+               dataType: 'json',
+               beforeSend: function(){ $('#preloader').show(); },
+               success: function(){
+                  $('#preloader').hide();
+                  $rows.fadeOut(300, function(){
+                     $(this).remove();
+                     $('.hy-kategori-card').each(function(){
+                        if($(this).find('.hy-hizmet-row, .hy-mobile-card').length === 0) $(this).remove();
+                     });
+                  });
+                  swal({ type:'success', title:'Silindi', text:'Hizmet kaldırıldı', showConfirmButton:false, timer:1600 });
+               },
+               error: function(){
+                  $('#preloader').hide();
+                  swal({ type:'error', title:'Hata', text:'İşlem sırasında hata oluştu', showConfirmButton:false, timer:2500 });
+               }
+            });
+         }
+      });
+   } catch(err){
+      console.error('hySilClick hata:', err);
+      alert('Silme açılırken hata: ' + err.message);
+   }
+};
+
+// Yedek olarak delegated event de bağla — hem onclick hem delegated, ikisi de çalışsa bile zarar yok.
+$(document).on('click', '.hy-hizmet-duzenle', function(e){
+   if(this.dataset.hyHandled) { delete this.dataset.hyHandled; return; }
+   window.hyDuzenleClick(this);
+});
+$(document).on('click', '.hy-hizmet-sil', function(e){
+   if(this.dataset.hyHandled) { delete this.dataset.hyHandled; return; }
+   window.hySilClick(this);
+});
+
 $(document).ready(function(){
-   // TL fiyat input'larına formatlayıcı bağla
-   window.HyFiyat.bind($('.hy-fiyat-input'));
+   // Not: Fiyat formatlaması artık global olarak public/js/custom.js tarafından
+   // delegated event'lerle yapılıyor — burada bind çağırmaya gerek yok.
 
    // --- Arama filtresi (desktop + mobile) ---
    $('#hy_hizmet_ara').on('keyup', function(){
@@ -588,73 +688,6 @@ $(document).ready(function(){
    // --- Kategori collapse ---
    $(document).on('click', '.hy-kategori-header', function(){
       $(this).closest('.hy-kategori-card').toggleClass('collapsed');
-   });
-
-   // --- Düzenle ---
-   // Select2'yi bir kere global init et (modal show'da destroy+re-init yapılır)
-   function hyInitSelect2(){
-      var $sel = $('#hy_edit_personeller');
-      if($sel.length && !$sel.hasClass('select2-hidden-accessible')){
-         $sel.select2({
-            placeholder: 'Personel veya cihaz seçin...',
-            dropdownParent: $('#hy_duzenle_modal'),
-            width: '100%',
-            closeOnSelect: false
-         });
-      }
-   }
-
-   $(document).on('click', '.hy-hizmet-duzenle', function(){
-      var row = $(this).closest('.hy-hizmet-row, .hy-mobile-card');
-      var isOzel = parseInt(row.data('ozel-hizmet')) === 1;
-
-      $('#hy_edit_salon_hizmet_id').val(row.data('salon-hizmet-id'));
-      $('#hy_edit_hizmet_adi').val(row.data('hizmet-adi'));
-      $('#hy_edit_fiyat').val(window.HyFiyat.format(row.data('fiyat')));
-      $('#hy_edit_sure_dk').val(row.data('sure'));
-      $('#hy_edit_kategori_id').val(row.data('kategori-id')).trigger('change');
-      var c = row.data('cinsiyet');
-      $('#hy_edit_cinsiyet').val(c !== undefined && c !== null ? c : '').trigger('change');
-
-      // Havuz hizmetleri: sadece ad & kategori kilitli; cinsiyet, sure, fiyat, personel acik
-      if(isOzel){
-         $('#hy_edit_hizmet_adi').prop('readonly', false).removeClass('hy-locked');
-         $('#hy_edit_kategori_id').prop('disabled', false).removeClass('hy-locked');
-         $('#hy_edit_locked_info').hide();
-      } else {
-         $('#hy_edit_hizmet_adi').prop('readonly', true).addClass('hy-locked');
-         $('#hy_edit_kategori_id').prop('disabled', true).addClass('hy-locked');
-         $('#hy_edit_locked_info').show();
-      }
-
-      // Personelleri önce temizle, modal açıldıktan sonra Select2 init et ve doldur
-      var $sel = $('#hy_edit_personeller');
-      // Eski Select2'yi yok et (modal baska yerden acildiysa stale state olabilir)
-      if($sel.hasClass('select2-hidden-accessible')){
-         $sel.select2('destroy');
-      }
-      $sel.val(null);
-
-      var hizmetId = row.data('hizmet-id');
-      $('#hy_duzenle_modal').modal('show');
-
-      $.ajax({
-         type: 'GET',
-         url: '/isletmeyonetim/hizmetpersonelsecimigetir',
-         data: { 'salon_hizmetleri[]': [hizmetId], sube: {{$isletme->id}} },
-         dataType: 'text',
-         success: function(html){
-            var $tmp = $('<div>').html(html);
-            var checkedIds = [];
-            $tmp.find('input[type=checkbox]:checked').each(function(){ checkedIds.push($(this).val()); });
-            if(checkedIds.length > 0) $sel.val(checkedIds);
-            hyInitSelect2();
-            $sel.trigger('change');
-         },
-         error: function(){
-            hyInitSelect2();
-         }
-      });
    });
 
    // --- Düzenleme submit ---
@@ -704,40 +737,6 @@ $(document).ready(function(){
             $('#preloader').hide();
             $btn.prop('disabled', false);
             swal({ type:'error', title:'Hata', text:'İşlem sırasında bir hata oluştu', showConfirmButton:false, timer:2500 });
-         }
-      });
-   });
-
-   // --- Sil ---
-   $(document).on('click', '.hy-hizmet-sil', function(){
-      var id = $(this).data('id');
-      var $rows = $('.hy-hizmet-row[data-salon-hizmet-id="'+id+'"], .hy-mobile-card[data-salon-hizmet-id="'+id+'"]');
-      swal({
-         title: 'Emin misiniz?', text: "Bu hizmet salonunuzdan kaldırılacak.", type: 'warning',
-         showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#6366f1',
-         confirmButtonText: 'Evet, sil', cancelButtonText: 'İptal'
-      }).then(function(result){
-         if(result.value){
-            $.ajax({
-               type: 'POST', url: '/isletmeyonetim/salonhizmetsil',
-               data: { sunulan_hizmet_id: id, sube: {{$isletme->id}}, _token: $('meta[name="csrf-token"]').attr('content') },
-               dataType: 'json',
-               beforeSend: function(){ $('#preloader').show(); },
-               success: function(){
-                  $('#preloader').hide();
-                  $rows.fadeOut(300, function(){
-                     $(this).remove();
-                     $('.hy-kategori-card').each(function(){
-                        if($(this).find('.hy-hizmet-row, .hy-mobile-card').length === 0) $(this).remove();
-                     });
-                  });
-                  swal({ type:'success', title:'Silindi', text:'Hizmet kaldırıldı', showConfirmButton:false, timer:1600 });
-               },
-               error: function(){
-                  $('#preloader').hide();
-                  swal({ type:'error', title:'Hata', text:'İşlem sırasında hata oluştu', showConfirmButton:false, timer:2500 });
-               }
-            });
          }
       });
    });
