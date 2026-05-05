@@ -669,6 +669,7 @@
             try { if(typeof window.tahsilatyenidenhesapla === 'function') window.tahsilatyenidenhesapla(); } catch(e){}
             try { if(typeof window.adisyonyenidenhesapla === 'function') window.adisyonyenidenhesapla(); } catch(e){}
 
+            _tmReloadFiring = false;
             _tmReloadPending = false;
          })
          .catch(function(err){
@@ -677,11 +678,24 @@
          });
       }
 
+      var _tmReloadTimer = null;
+      var _tmReloadFiring = false;
       window._tmScheduleReload = function(reason, delay){
-         if(_tmReloadPending) return;
-         _tmReloadPending = true;
-         console.log('[modern-tahsilat] soft reload scheduled:', reason, 'delay='+(delay||150));
-         setTimeout(_tmDoSoftReload, delay || 150);
+         // Onceden zaten fetch baslamissa hicbir sey yapma
+         if(_tmReloadFiring) return;
+         delay = delay || 150;
+         // Bekleyen timer varsa yeni delay daha kisaysa ONU iptal edip yenisini kur
+         // (Click handler 2500ms koymussa, ajaxComplete 50ms ile uzerine yazsin)
+         if(_tmReloadTimer){
+            // Mevcut timer kalan suresini bilmiyoruz; her halukarda yeni daha guvenli
+            clearTimeout(_tmReloadTimer);
+         }
+         console.log('[modern-tahsilat] soft reload scheduled:', reason, 'delay='+delay);
+         _tmReloadTimer = setTimeout(function(){
+            _tmReloadTimer = null;
+            _tmReloadFiring = true;
+            _tmDoSoftReload();
+         }, delay);
       };
 
       // Bozuk HTML flicker'ini engellemek icin: AJAX'tan once snapshot al,
@@ -709,7 +723,7 @@
          if(typeof window.jQuery !== 'function'){ setTimeout(bind, 60); return; }
          var $ = window.jQuery;
 
-         console.log('[modern-tahsilat] FLICKER FIX v4 yuklendi');
+         console.log('%c[modern-tahsilat] FLICKER FIX v5 yuklendi (timer-cancel + watchdog)', 'background:#7B2FB8;color:#fff;padding:2px 6px;border-radius:3px;');
 
          // [PRIMARY-1] $.ajax monkey-patch: success callback CALISMADAN HEMEN ONCE
          // result.kalemler ve result.tahsilatlar alanlarini mevcut modern HTML ile
@@ -800,15 +814,17 @@
             window._tmScheduleReload('ajaxComplete:'+settings.url, 50);
          });
 
-         // 2) Click fallback'leri (AJAX hook'u kacirirsa garanti olsun)
+         // Click fallback'leri WATCHDOG: sadece ajaxComplete hic firel etmezse devreye girsin
+         // diye uzun delay (5sn). ajaxComplete normal akista 50ms ile bunu override edip
+         // ezecek (clearTimeout). Boylece yeni ödeme hizlica görünür.
          $(document).on('click', '#taksitli_tahsilat_formu button[type="submit"]', function(){
-            window._tmScheduleReload('taksit-modal-kaydet-click', 2500);
+            window._tmScheduleReload('taksit-modal-kaydet-click[watchdog]', 5000);
          });
          $(document).on('click', '#yeni_tahsilat_ekle', function(){
-            window._tmScheduleReload('tahsilat-et-click', 2500);
+            window._tmScheduleReload('tahsilat-et-click[watchdog]', 5000);
          });
          $(document).on('click', 'button[name="tahsilat_adisyondan_sil"]', function(){
-            window._tmScheduleReload('tahsilat-sil-click', 2500);
+            window._tmScheduleReload('tahsilat-sil-click[watchdog]', 5000);
          });
       }
       bind();
