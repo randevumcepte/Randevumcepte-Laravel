@@ -86,6 +86,7 @@ class DrklinikImport extends Command
         if (in_array('musteri', $types))  $importer->importMusteriler();
         if (in_array('randevu', $types))  $importer->importRandevular($this->option('from'), $this->option('to'));
         if ((bool) $this->option('fix-randevu')) $importer->fixRandevuEksikler($this->option('from'), $this->option('to'));
+        if (in_array('tahsilat', $types)) $importer->importTahsilatlar($this->option('from'), $this->option('to'));
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
         return 0;
     }

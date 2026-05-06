@@ -19,6 +19,8 @@ use App\Randevular;
 use App\RandevuHizmetler;
 use App\Adisyonlar;
 use App\AdisyonHizmetler;
+use App\Tahsilatlar;
+use App\TahsilatHizmetler;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
@@ -449,6 +451,143 @@ class DrklinikImporter
             $map[$this->trKey($p->personel_adi)] = $p->id;
         }
         return $map;
+    }
+
+    /**
+     * Tahsilatlar: kasa_islemleri.aspx + BTN_Ara, hafta-hafta tarama (server cap'i muhtemel 50).
+     * Sutunlar (11 td): Tarih | Aciklama | Odeme Sekli | Tutar | Musteri | Banka | Taksit | Kasa | Dosya(buton) | Saat | GenelTip
+     *
+     * Drklinik'te tahsilat dogrudan musteriye bagli (randevu/adisyon iliskisi liste'de yok),
+     * Tahsilatlar.adisyon_id NULL olarak yazilir.
+     */
+    public function importTahsilatlar($baslangic = null, $bitis = null)
+    {
+        $start = $baslangic ? strtotime($baslangic) : strtotime('2018-01-01');
+        $end   = $bitis ? strtotime($bitis) : strtotime('2030-12-31');
+        $this->log('Tahsilatlar cekiliyor: ' . date('Y-m-d', $start) . ' - ' . date('Y-m-d', $end) . ' (haftalik)...');
+        $defaultPers = $this->defaultPersonelId();
+
+        $weekStart = $start; $iter = 0;
+        while ($weekStart <= $end) {
+            $weekEnd = min($end, strtotime('+6 days', $weekStart));
+            $this->scrapeTahsilatRange($weekStart, $weekEnd, $defaultPers, 0);
+            $iter++;
+            if ($iter % 10 === 0) $this->log("  ..hafta {$iter} (" . date('Y-m-d', $weekStart) . "..) toplam_tahsilat={$this->counts['tahsilat']}");
+            $weekStart = strtotime('+7 days', $weekStart);
+        }
+        $this->log("Tahsilat aktarim toplam: {$this->counts['tahsilat']} (skipped: {$this->counts['skipped']})");
+    }
+
+    private function defaultPersonelId()
+    {
+        $id = Personeller::where('salon_id', $this->salonId)->where('aktif', 1)->orderBy('id')->value('id');
+        if (!$id) $id = Personeller::where('salon_id', $this->salonId)->orderBy('id')->value('id');
+        return $id;
+    }
+
+    private function scrapeTahsilatRange($startTs, $endTs, $defaultPers, $depth)
+    {
+        $h = $this->client->postBack('/kasa_islemleri.aspx', 'BTN_Ara', '', [
+            'TB_TarihSec1' => date('d.m.Y', $startTs),
+            'TB_TarihSec2' => date('d.m.Y', $endTs),
+        ]);
+        usleep(300000);
+        if ($h === null) return;
+
+        preg_match_all('~<table[^>]*>(.*?)</table>~is', $h, $tm);
+        $maxTr = 0;
+        foreach ($tm[1] as $t) if (preg_match_all('~<tr[^>]*>~i', $t, $rm) && count($rm[0]) > $maxTr) $maxTr = count($rm[0]);
+        if ($maxTr >= 50 && ($endTs - $startTs) >= 86400 && $depth < 6) {
+            $mid = $startTs + intval(($endTs - $startTs) / 2);
+            $this->scrapeTahsilatRange($startTs, $mid, $defaultPers, $depth + 1);
+            $this->scrapeTahsilatRange($mid + 86400, $endTs, $defaultPers, $depth + 1);
+            return;
+        }
+
+        $rows = $this->parseTableRowsRaw($h);
+        foreach ($rows as $rawRow) {
+            $cells = [];
+            foreach ($rawRow as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) { $cells[] = ''; continue; } // sira korumak icin bos ekle
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            if (count($cells) < 10) continue;
+
+            $tarih = $this->tarihNormalize($cells[0] ?? '');
+            $aciklama = $cells[1] ?? '';
+            $odemeSekli = $cells[2] ?? '';
+            $tutarStr = $cells[3] ?? '';
+            $musteri = $cells[4] ?? '';
+            $saat = $cells[9] ?? '';
+
+            if (!$tarih) { $this->counts['skipped']++; continue; }
+            $tutar = (float) preg_replace('~[^0-9,\.]~', '', str_replace(',', '.', $tutarStr));
+            // Tek ondalık nokta - virgül ondalık olabilir
+            $tutar = (float) preg_replace('~,~', '', $tutarStr);
+            // En sondaki virgüllü ondalık formatı: 199,00
+            if (preg_match('~([\d.]+),(\d{1,2})\s*(?:TRY|TL)?~', $tutarStr, $m)) {
+                $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+            }
+            if ($tutar <= 0) { $this->counts['skipped']++; continue; }
+
+            // Musteri adi ile salonun User'larini ara
+            $musteri = trim($musteri);
+            if (!$musteri) { $this->counts['skipped']++; continue; }
+            $userId = $this->findUserByNameInSalon($musteri);
+            if (!$userId) { $this->counts['skipped']++; continue; }
+
+            $odemeYontemi = $this->odemeYontemiMap($odemeSekli);
+
+            // Idempotent: ayni tarih+saat+user+tutar+yontem varsa atla
+            $exists = Tahsilatlar::where('user_id', $userId)
+                ->where('salon_id', $this->salonId)
+                ->where('odeme_tarihi', $tarih)
+                ->where('tutar', $tutar)
+                ->where('odeme_yontemi_id', $odemeYontemi)
+                ->first();
+            if ($exists) continue;
+
+            $t = new Tahsilatlar();
+            $t->user_id = $userId;
+            $t->salon_id = $this->salonId;
+            $t->tutar = $tutar;
+            $t->yapilan_odeme = $tutar;
+            $t->odeme_yontemi_id = $odemeYontemi;
+            $t->odeme_tarihi = $tarih;
+            $t->olusturan_id = $defaultPers;
+            if ($aciklama) $t->notlar = $aciklama;
+            $t->save();
+            $this->counts['tahsilat']++;
+        }
+    }
+
+    private function odemeYontemiMap($metin)
+    {
+        $m = mb_strtolower(trim((string) $metin), 'UTF-8');
+        if (strpos($m, 'nakit') !== false) return 1;
+        if (strpos($m, 'kart') !== false || strpos($m, 'pos') !== false) return 2;
+        if (strpos($m, 'havale') !== false || strpos($m, 'eft') !== false || strpos($m, 'transfer') !== false) return 3;
+        return 4;
+    }
+
+    /**
+     * Drklinik tahsilatlari sadece musteri adi ile geliyor; salonun portfoyundeki ilk eslesen User'i bul.
+     */
+    private function findUserByNameInSalon($ad)
+    {
+        $ad = trim($ad);
+        $u = User::where('name', $ad)
+            ->whereHas('salonlar', function ($q) {
+                $q->where('salon_id', $this->salonId);
+            })->orderBy('id')->first();
+        if ($u) return $u->id;
+        // Case-insensitive deneme
+        $u = User::whereRaw('LOWER(name) = ?', [mb_strtolower($ad, 'UTF-8')])
+            ->whereHas('salonlar', function ($q) {
+                $q->where('salon_id', $this->salonId);
+            })->orderBy('id')->first();
+        return $u ? $u->id : null;
     }
 
     /**
