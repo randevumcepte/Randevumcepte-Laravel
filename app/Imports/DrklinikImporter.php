@@ -1191,23 +1191,32 @@ class DrklinikImporter
             if ($aciklama) $r->personel_notu = $aciklama;
             $r->save();
 
-            // td[13] DOLU ise sadece RandevuHizmetler (takvim view'inde gozukmesi icin)
-            // Adisyon, AdisyonPaketSeanslar, AdisyonUrunler EKLENMEZ - sonra ayri modulle.
+            // RandevuHizmetler her zaman eklenir (saat, bitis, personel, oda bilgisi icin).
+            // hizmet_id sadece td[13] '(NxHizmet)' doluysa atanir.
+            $hizmetIdAtanacak = null;
             $paketHint = $this->parsePaketSeansHint($hizmetlerStr);
             if ($paketHint) {
                 $sh2 = $this->findSalonHizmetByName($paketHint['hizmet_adi']);
-                if ($sh2) {
-                    $rh = RandevuHizmetler::where('randevu_id', $r->id)->where('hizmet_id', $sh2['hizmet_id'])->first();
-                    if (!$rh) $rh = new RandevuHizmetler();
-                    $rh->randevu_id = $r->id;
-                    $rh->hizmet_id = $sh2['hizmet_id'];
-                    $rh->saat = $saat;
-                    $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $sureDk . ' minutes', strtotime($saat)));
-                    $rh->sure_dk = $sureDk;
-                    if ($personelId) $rh->personel_id = $personelId;
-                    if ($odaId) $rh->oda_id = $odaId;
-                    $rh->save();
-                }
+                if ($sh2) $hizmetIdAtanacak = $sh2['hizmet_id'];
+            }
+
+            // Idempotent: ayni randevuda ayni hizmet_id (NULL dahil) varsa update
+            $rhQuery = RandevuHizmetler::where('randevu_id', $r->id);
+            if ($hizmetIdAtanacak) $rhQuery->where('hizmet_id', $hizmetIdAtanacak);
+            else $rhQuery->whereNull('hizmet_id');
+            $rh = $rhQuery->first();
+            if (!$rh) $rh = new RandevuHizmetler();
+            $rh->randevu_id = $r->id;
+            $rh->hizmet_id = $hizmetIdAtanacak;
+            $rh->saat = $saat;
+            $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $sureDk . ' minutes', strtotime($saat)));
+            $rh->sure_dk = $sureDk;
+            if ($personelId) $rh->personel_id = $personelId;
+            if ($odaId) $rh->oda_id = $odaId;
+            try {
+                $rh->save();
+            } catch (\Exception $e) {
+                Log::warning('Drklinik randevu_hizmetler save fail: ' . $e->getMessage());
             }
 
             $this->counts['randevu']++;
