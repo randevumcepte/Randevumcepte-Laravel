@@ -111,6 +111,12 @@ class DrklinikImport extends Command
     private function cleanupUrunHizmet($salonId, $dryRun)
     {
         $db = \DB::connection();
+        $tHizmet  = (new \App\Hizmetler)->getTable();
+        $tSh      = (new \App\SalonHizmetler)->getTable();
+        $tRh      = (new \App\RandevuHizmetler)->getTable();
+        $tAh      = (new \App\AdisyonHizmetler)->getTable();
+        $tTh      = (new \App\TahsilatHizmetler)->getTable();
+        $tUrun    = (new \App\Urunler)->getTable();
         $trKey = function ($s) {
             $s = (string) $s;
             $s = preg_replace('~\s*\((?:H|U|P)\)\s*$~iu', '', $s);
@@ -121,7 +127,7 @@ class DrklinikImport extends Command
             return trim($s);
         };
 
-        $urunler = $db->table('urunler')->where('salon_id', $salonId)->pluck('urun_adi')->all();
+        $urunler = $db->table($tUrun)->where('salon_id', $salonId)->pluck('urun_adi')->all();
         $urunSet = [];
         foreach ($urunler as $u) {
             $k = $trKey($u);
@@ -129,7 +135,7 @@ class DrklinikImport extends Command
         }
         $this->line("Salon {$salonId}: " . count($urunSet) . " unique urun.");
 
-        $hizmetler = $db->table('hizmetler')
+        $hizmetler = $db->table($tHizmet)
             ->where(function ($q) use ($salonId) {
                 $q->where('salon_id', $salonId)->orWhere('ozel_hizmet', 1);
             })
@@ -154,12 +160,12 @@ class DrklinikImport extends Command
 
         if (empty($dupIds)) { $this->info('Temizlenecek kayit yok.'); return 0; }
 
-        $cntRh = $db->table('randevu_hizmetler')->whereIn('hizmet_id', $dupIds)->count();
-        $cntAh = $db->table('adisyon_hizmetler')->whereIn('hizmet_id', $dupIds)->count();
-        $thHasHizmetId = \Schema::hasTable('tahsilat_hizmetler') && \Schema::hasColumn('tahsilat_hizmetler', 'hizmet_id');
+        $cntRh = $db->table($tRh)->whereIn('hizmet_id', $dupIds)->count();
+        $cntAh = $db->table($tAh)->whereIn('hizmet_id', $dupIds)->count();
+        $thHasHizmetId = \Schema::hasTable($tTh) && \Schema::hasColumn($tTh, 'hizmet_id');
         $cntTh = $thHasHizmetId
-            ? $db->table('tahsilat_hizmetler')->whereIn('hizmet_id', $dupIds)->count() : 0;
-        $cntSh = $db->table('salon_hizmetler')->whereIn('hizmet_id', $dupIds)->count();
+            ? $db->table($tTh)->whereIn('hizmet_id', $dupIds)->count() : 0;
+        $cntSh = $db->table($tSh)->whereIn('hizmet_id', $dupIds)->count();
         $this->line("Bagli randevu_hizmetler: {$cntRh}");
         $this->line("Bagli adisyon_hizmetler: {$cntAh}");
         $this->line("Bagli tahsilat_hizmetler: {$cntTh}");
@@ -169,13 +175,13 @@ class DrklinikImport extends Command
 
         $db->beginTransaction();
         try {
-            $db->table('randevu_hizmetler')->whereIn('hizmet_id', $dupIds)->update(['hizmet_id' => null]);
-            $db->table('adisyon_hizmetler')->whereIn('hizmet_id', $dupIds)->delete();
+            $db->table($tRh)->whereIn('hizmet_id', $dupIds)->update(['hizmet_id' => null]);
+            $db->table($tAh)->whereIn('hizmet_id', $dupIds)->delete();
             if ($thHasHizmetId) {
-                $db->table('tahsilat_hizmetler')->whereIn('hizmet_id', $dupIds)->delete();
+                $db->table($tTh)->whereIn('hizmet_id', $dupIds)->delete();
             }
-            $db->table('salon_hizmetler')->whereIn('hizmet_id', $dupIds)->delete();
-            $db->table('hizmetler')->whereIn('id', $dupIds)->delete();
+            $db->table($tSh)->whereIn('hizmet_id', $dupIds)->delete();
+            $db->table($tHizmet)->whereIn('id', $dupIds)->delete();
             $db->commit();
             $this->info('Temizlik tamam.');
             return 0;
