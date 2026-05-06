@@ -552,8 +552,12 @@ class DrklinikImporter
             // Hizmetler parse: "Ad (N Seans = X TRY)" virgulle ayri
             $hizmetler = $this->parseHizmetlerStr($hizmetlerStr);
             foreach ($hizmetler as $hv) {
+                $birimFiyat = $hv['tutar'] / max(1, $hv['seans']);
                 $sh = $this->findSalonHizmetByName($hv['ad']);
-                if (!$sh) continue;
+                if (!$sh) {
+                    $sh = $this->ensureSalonHizmet($hv['ad'], $birimFiyat);
+                    if (!$sh) continue;
+                }
                 $existAh = AdisyonHizmetler::where('adisyon_id', $ad->id)
                     ->where('hizmet_id', $sh['hizmet_id'])->first();
                 if ($existAh) continue;
@@ -565,7 +569,7 @@ class DrklinikImporter
                 $ah->islem_tarihi = $tarih;
                 $ah->islem_saati = '00:00:00';
                 $ah->sure = $sh['sure_dk'] ?: 30;
-                $ah->fiyat = $hv['tutar'] / max(1, $hv['seans']);
+                $ah->fiyat = $birimFiyat;
                 $ah->save();
             }
             $eklendi++;
@@ -624,6 +628,52 @@ class DrklinikImporter
             }
         }
         return null;
+    }
+
+    /**
+     * Eslesmeyen hizmet adi icin Hizmetler + SalonHizmetler kaydi olusturur (aktif=0).
+     * Drklinik aktariminda kayitli hizmet bulunamayan satirlarda 0 TL adisyon
+     * olusmasini engellemek icin pasif olarak hizmeti otomatik ekler.
+     */
+    private function ensureSalonHizmet($ad, $fiyat)
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '') return null;
+
+        static $kategoriId = null;
+        if ($kategoriId === null) {
+            $kategoriId = $this->kategoriEkleVeyaGetir('Drklinik');
+            $this->ensureKategoriRenk($kategoriId);
+        }
+
+        try {
+            $h = new Hizmetler();
+            $h->hizmet_adi = $ad;
+            $h->hizmet_kategori_id = $kategoriId;
+            $h->ozel_hizmet = true;
+            if (Schema::hasColumn('hizmetler', 'salon_id')) $h->salon_id = $this->salonId;
+            if (Schema::hasColumn('hizmetler', 'aktif'))    $h->aktif = 0;
+            $h->save();
+
+            $sh = new SalonHizmetler();
+            $sh->salon_id = $this->salonId;
+            $sh->hizmet_id = $h->id;
+            $sh->hizmet_kategori_id = $kategoriId;
+            $sh->aktif = 0;
+            $sh->bolum = 2;
+            $sh->sure_dk = 30;
+            $sh->baslangic_fiyat = $fiyat;
+            $sh->son_fiyat = $fiyat;
+            $sh->save();
+
+            $this->counts['hizmet']++;
+            return ['hizmet_id' => $h->id, 'sure_dk' => 30, 'baslangic_fiyat' => $fiyat];
+        } catch (\Throwable $e) {
+            \Log::warning('[Drklinik] hizmet otomatik olusturulamadi', [
+                'ad' => $ad, 'err' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 
     /**
