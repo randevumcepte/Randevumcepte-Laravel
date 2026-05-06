@@ -41,6 +41,7 @@ class DrklinikImporter
     private $counts = ['hizmet' => 0, 'personel' => 0, 'urun' => 0, 'oda' => 0, 'musteri' => 0, 'randevu' => 0, 'satis' => 0, 'tahsilat' => 0, 'skipped' => 0];
     private $odaMap = []; // drklinik oda id => local oda id
     private $musteriMap = []; // drklinik musteri id => local user id
+    private $drklinikUserCache = []; // drklinik musid => local user id (musid bazli)
     private $defaultKategoriId = null;
 
     public function __construct(DrklinikClient $client, $salonId, $out = null)
@@ -492,15 +493,22 @@ class DrklinikImporter
     private function processSatisPage($html, $defaultPers)
     {
         $eklendi = 0; $atlandi = 0;
-        $rows = $this->parseTableRowsRaw($html);
-        foreach ($rows as $rawRow) {
+        // Once raw HTML'den her satirin RAW tr ve musid linkini esle
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $html, $trMatches);
+        foreach ($trMatches[1] as $tr) {
+            // Bu satirin "Musteri Sayfasini Ac" linkindeki musid
+            $musid = null;
+            if (preg_match('~href="musteri\.aspx\?musid=(\d+)~', $tr, $m)) $musid = $m[1];
+            // Td'leri parse
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
             $cells = [];
-            foreach ($rawRow as $tdRaw) {
+            foreach ($tds[1] as $tdRaw) {
                 if ($this->isButtonCell($tdRaw)) { $cells[] = ''; continue; }
                 $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
                 $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
             }
-            if (count($cells) < 10) { $atlandi++; continue; }
+            if (count($cells) < 10) continue;
 
             $satisNo = $cells[2] ?? '';
             $tarih   = $this->tarihNormalize($cells[3] ?? '');
@@ -508,10 +516,13 @@ class DrklinikImporter
             $hizmetlerStr = $cells[5] ?? '';
             $aciklama = $cells[6] ?? '';
             $tutarStr = $cells[7] ?? '';
-            if (!$satisNo || !$tarih || !$musteri) { $atlandi++; continue; }
+            if (!$satisNo || !$tarih) { $atlandi++; continue; }
 
             $tutar = $this->paraParse($tutarStr);
-            $userId = $this->findUserByNameInSalon($musteri);
+            // OnceLikLi: musid ile kesin eslesme
+            $userId = $musid ? $this->ensureUserByMusid($musid) : null;
+            // Fallback: ad ile (musid yoksa)
+            if (!$userId && $musteri) $userId = $this->findUserByNameInSalon($musteri);
             if (!$userId) { $atlandi++; continue; }
 
             // Adisyon idempotent: drklinik satis_no'yu uygun bir text alanina yaz
@@ -809,6 +820,77 @@ class DrklinikImporter
     }
 
     /**
+     * Drklinik musteri ID (musid) -> bizim user_id eslemesi.
+     * Detay sayfasi GET (musteri.aspx?musid=XXX), TB_CepTel + TB_Ad + TB_Soyad parse,
+     * telefon ile DB'de User bul/yarat. Cache'lenir, ayni musid icin tek GET.
+     */
+    private function ensureUserByMusid($musid)
+    {
+        $musid = trim((string) $musid);
+        if (!$musid || $musid === '0') return null;
+        if (isset($this->drklinikUserCache[$musid])) return $this->drklinikUserCache[$musid];
+
+        $h = $this->client->getHtml('/musteri.aspx?musid=' . $musid);
+        if (strlen($h) < 5000) {
+            $this->drklinikUserCache[$musid] = null;
+            return null;
+        }
+
+        $ad    = $this->extractInputValue($h, 'TB_Ad');
+        $soyad = $this->extractInputValue($h, 'TB_Soyad');
+        $tel   = $this->telefonNormalize($this->extractInputValue($h, 'TB_CepTel'));
+        $tamAd = trim(trim($ad) . ' ' . trim($soyad));
+        if (!$tamAd) $tamAd = 'Drklinik ' . $musid;
+
+        $userId = null;
+        if ($tel) {
+            // Telefon ile lookup (sistem genelinde, cross-salon paylasimi kabul)
+            $u = User::where('cep_telefon', $tel)->first();
+            if ($u) $userId = $u->id;
+        }
+        if (!$userId) {
+            // Telefon yoksa bu salon'da ayni isim arama
+            $u = User::where('name', $tamAd)
+                ->whereHas('salonlar', function ($q) { $q->where('salon_id', $this->salonId); })
+                ->first();
+            if ($u) $userId = $u->id;
+        }
+        if (!$userId) {
+            // Yeni user
+            try {
+                $u = new User();
+                $u->name = $tamAd;
+                $u->cep_telefon = $tel ?: null;
+                $u->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                $u->save();
+                $userId = $u->id;
+            } catch (\Exception $e) {
+                $u = new User();
+                $u->name = $tamAd;
+                $u->cep_telefon = 'drklinik_' . $musid;
+                $u->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+                $u->save();
+                $userId = $u->id;
+            }
+            $this->counts['musteri']++;
+        }
+
+        // Bu salonun portfoyune ekle (yoksa)
+        $portfoy = MusteriPortfoy::where('user_id', $userId)
+            ->where('salon_id', $this->salonId)->first();
+        if (!$portfoy) {
+            $p = new MusteriPortfoy();
+            $p->user_id = $userId;
+            $p->salon_id = $this->salonId;
+            $p->aktif = 1;
+            $p->save();
+        }
+
+        $this->drklinikUserCache[$musid] = $userId;
+        return $userId;
+    }
+
+    /**
      * Drklinik liste'den gelen musteri adina gore User bul; bulunamazsa
      * sisteme telefonsuz yeni User + portfoy ekleyip donulur.
      */
@@ -972,17 +1054,23 @@ class DrklinikImporter
 
     private function processRandevuPage($html, &$personelMap, $hizmetMap, &$odaMapByName)
     {
-        $rows = $this->parseTableRowsRaw($html);
         $eklenen = 0;
-        foreach ($rows as $rawRow) {
+        // Raw tr ile dolas - musid linkini de yakala
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $html, $trMatches);
+        foreach ($trMatches[1] as $tr) {
+            // Musid linki bu satirda
+            $musid = null;
+            if (preg_match('~href="musteri\.aspx\?musid=(\d+)~', $tr, $m)) $musid = $m[1];
+
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
             $cells = [];
-            foreach ($rawRow as $tdRaw) {
+            foreach ($tds[1] as $tdRaw) {
                 $clean = trim(preg_replace('/\s+/', ' ', strip_tags($tdRaw)));
                 $clean = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
                 $cells[] = $clean;
             }
-            // Beklenen >= 16 td. Yetersiz veya bos satir atlanir.
-            if (count($cells) < 16) { $this->counts['skipped']++; continue; }
+            if (count($cells) < 16) continue;
             $tarih = $this->tarihNormalize($cells[2] ?? '');
             $saat  = $cells[3] ?? '';
             $bitis = $cells[4] ?? '';
@@ -995,12 +1083,13 @@ class DrklinikImporter
             $oda     = $cells[12] ?? '';
             $durum   = $cells[15] ?? '';
 
-            // Saat formatlari: HH:MM -> HH:MM:00
             if (strlen($saat) === 5) $saat .= ':00';
             if (strlen($bitis) === 5) $bitis .= ':00';
 
-            // Musteri olustur/lookup
-            $userId = $this->upsertMusteri($adSoyad, $tel);
+            // Musteri eslesme: oncelikli musid (kesin), yedek telefon, sonra ad
+            $userId = null;
+            if ($musid) $userId = $this->ensureUserByMusid($musid);
+            if (!$userId) $userId = $this->upsertMusteri($adSoyad, $tel);
             if (!$userId) { $this->counts['skipped']++; continue; }
 
             // Personel + oda lookup (Turkce-normalize key ile, eslesmiyorsa pasif olusur)
