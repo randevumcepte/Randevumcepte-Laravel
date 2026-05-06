@@ -745,22 +745,61 @@ class DrklinikImporter
     }
 
     /**
-     * Drklinik tahsilatlari sadece musteri adi ile geliyor; salonun portfoyundeki ilk eslesen User'i bul.
+     * Drklinik liste'den gelen musteri adina gore User bul; bulunamazsa
+     * sisteme telefonsuz yeni User + portfoy ekleyip donulur.
      */
     private function findUserByNameInSalon($ad)
     {
         $ad = trim($ad);
+        if (!$ad) return null;
+
+        // 1) Bu salonun portfoyunde ayni isim
         $u = User::where('name', $ad)
-            ->whereHas('salonlar', function ($q) {
-                $q->where('salon_id', $this->salonId);
-            })->orderBy('id')->first();
+            ->whereHas('salonlar', function ($q) { $q->where('salon_id', $this->salonId); })
+            ->orderBy('id')->first();
         if ($u) return $u->id;
-        // Case-insensitive deneme
+
+        // 2) Case-insensitive deneme
         $u = User::whereRaw('LOWER(name) = ?', [mb_strtolower($ad, 'UTF-8')])
-            ->whereHas('salonlar', function ($q) {
-                $q->where('salon_id', $this->salonId);
-            })->orderBy('id')->first();
-        return $u ? $u->id : null;
+            ->whereHas('salonlar', function ($q) { $q->where('salon_id', $this->salonId); })
+            ->orderBy('id')->first();
+        if ($u) return $u->id;
+
+        // 3) trKey ile (Turkce normalize)
+        $needle = $this->trKey($ad);
+        $candidates = User::whereHas('salonlar', function ($q) {
+            $q->where('salon_id', $this->salonId);
+        })->where(function ($q) use ($ad) {
+            // Onceki SQL filtre: ad'in ilk kelimesini whereLike ile dar tut
+            $first = explode(' ', $ad)[0];
+            if ($first) $q->where('name', 'LIKE', $first . '%');
+        })->limit(50)->get();
+        foreach ($candidates as $cu) {
+            if ($this->trKey($cu->name) === $needle) return $cu->id;
+        }
+
+        // 4) Bulunamadi - telefonsuz yeni user olustur
+        try {
+            $new = new User();
+            $new->name = $ad;
+            $new->cep_telefon = null;
+            $new->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+            $new->save();
+        } catch (\Exception $e) {
+            // NOT NULL ise placeholder
+            $new = new User();
+            $new->name = $ad;
+            $new->cep_telefon = 'drklinik_' . substr(md5($ad), 0, 10);
+            $new->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+            $new->save();
+        }
+        $portfoy = new MusteriPortfoy();
+        $portfoy->user_id = $new->id;
+        $portfoy->salon_id = $this->salonId;
+        $portfoy->aktif = 1;
+        $portfoy->save();
+        $this->counts['musteri']++;
+        return $new->id;
     }
 
     /**
