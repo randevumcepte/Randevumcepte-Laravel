@@ -2189,7 +2189,7 @@ public function carkverilerigetir(Request $request)
             }
             $resourceId = "";
             if($takvim_turu==0)
-                $resourceId = $rh->hizmetler->hizmet_kategori_id;
+                $resourceId = $rh->hizmetler ? $rh->hizmetler->hizmet_kategori_id : 0;
             if($takvim_turu==1)
                 $resourceId = $rh->personel_id ?? 0;
             if($takvim_turu==2){
@@ -8676,8 +8676,8 @@ private function ayAdiCevir($ingilizceAy)
                     }
                 }
                 $resourcId = "";
-                if($takvim_turu==0);
-                    $resourceId = $rh->hizmetler->hizmet_kategori_id;
+                if($takvim_turu==0)
+                    $resourceId = $rh->hizmetler ? $rh->hizmetler->hizmet_kategori_id : 0;
                 if($takvim_turu==1)
                     $resourceId = $rh->personel_id;
                 if($takvim_turu==2)
@@ -8708,7 +8708,7 @@ private function ayAdiCevir($ingilizceAy)
                         $title .= "—";
                 }
                 else{
-                    $title .= "\n".$rh->hizmetler->hizmet_adi;
+                    if ($rh->hizmetler) $title .= "\n".$rh->hizmetler->hizmet_adi;
                     $_modalSubtitle2 = 'Randevu';
                 }
                 $modalTitle = '<span class="rd-mt-name">'.htmlspecialchars($_musteriAdi2).'</span><span class="rd-mt-sub">'.$_modalSubtitle2.' Detayları</span>';
