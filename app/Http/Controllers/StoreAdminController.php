@@ -12431,10 +12431,10 @@ DB::raw('
         return collect();
     }
 
-    // Now build the detailed query with only the needed appointments
-    $query = DB::table('randevu_hizmetler')
-        ->join('randevular', 'randevu_hizmetler.randevu_id', '=', 'randevular.id')
-        ->join('hizmetler', 'randevu_hizmetler.hizmet_id', '=', 'hizmetler.id')
+    // Detay query: randevular'dan basla, randevu_hizmetler leftJoin (hizmetsiz randevular da gozuksun)
+    $query = DB::table('randevular')
+        ->leftJoin('randevu_hizmetler', 'randevu_hizmetler.randevu_id', '=', 'randevular.id')
+        ->leftJoin('hizmetler', 'randevu_hizmetler.hizmet_id', '=', 'hizmetler.id')
         ->join('users', 'randevular.user_id', '=', 'users.id')
         ->leftJoin('salon_personelleri', 'randevu_hizmetler.personel_id', '=', 'salon_personelleri.id')
         ->leftJoin('isletmeyetkilileri as y1', 'randevular.olusturan_personel_id', '=', 'y1.id')
