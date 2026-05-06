@@ -1151,6 +1151,7 @@ class DrklinikImporter
             $hizmetlerStr = $cells[13] ?? ''; // "(NxHizmet)" paket seansi
             $urunlerStr   = $cells[14] ?? ''; // "(NxUrun)" urun satisi
             $durum   = $cells[15] ?? '';
+            $aciklama = $cells[16] ?? ''; // personel_notu
 
             if (strlen($saat) === 5) $saat .= ':00';
             if (strlen($bitis) === 5) $bitis .= ':00';
@@ -1167,10 +1168,12 @@ class DrklinikImporter
             $odaId = $odaMapByName[$this->trKey($oda)] ?? null;
             if (!$odaId && $oda) $odaId = $this->ensureOdaId($oda, $odaMapByName);
 
-            // Hizmet (birim adiyla)
-            $hizmetInfo = $hizmetMap[$this->trKey($birim)] ?? null;
+            // Sure_dk = bitis - baslangic
+            if (strlen($bitis) === 5) $bitis .= ':00';
+            $sureDk = ($saat && $bitis) ? (int) round((strtotime($bitis) - strtotime($saat)) / 60) : 30;
+            if ($sureDk <= 0) $sureDk = 30;
 
-            // Randevu idempotent: tarih+saat+user+salon
+            // 1) Randevu kaydi (her durumda)
             $r = Randevular::where('tarih', $tarih)->where('saat', $saat)
                 ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
             if (!$r) $r = new Randevular();
@@ -1181,79 +1184,53 @@ class DrklinikImporter
             $r->durum = 1;
             $r->salon = 0;
             $r->olusturan_personel_id = null;
-            // Status mapping
             $du = mb_strtolower($durum, 'UTF-8');
             if (strpos($du, 'geldi') !== false && strpos($du, 'gelmedi') === false) $r->randevuya_geldi = 1;
             elseif (strpos($du, 'gelmedi') !== false || strpos($du, 'iptal') !== false) $r->randevuya_geldi = 0;
+            if ($aciklama) $r->personel_notu = $aciklama;
             $r->save();
 
-            // Sure_dk = bitis - baslangic (drklinik liste'sinde her ikisi de var)
-            $sureDk = 0;
-            if ($saat && $bitis) {
-                $sureDk = (int) round((strtotime($bitis) - strtotime($saat)) / 60);
-            }
-            if ($sureDk <= 0) $sureDk = $hizmetInfo ? (int) $hizmetInfo['sure_dk'] : 30;
-            if ($sureDk <= 0) $sureDk = 30;
-
-            // RandevuHizmetler (birim varsa)
-            if ($hizmetInfo) {
-                $rh = RandevuHizmetler::where('randevu_id', $r->id)->where('hizmet_id', $hizmetInfo['hizmet_id'])->first();
-                if (!$rh) $rh = new RandevuHizmetler();
-                $rh->randevu_id = $r->id;
-                $rh->hizmet_id = $hizmetInfo['hizmet_id'];
-                $rh->saat = $saat;
-                $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $sureDk . ' minutes', strtotime($saat)));
-                $rh->sure_dk = $sureDk;
-                if ($personelId) $rh->personel_id = $personelId;
-                if ($odaId) $rh->oda_id = $odaId;
-                $rh->save();
-            }
-
-            // Adisyon + AdisyonHizmetler (tahsilat icin altyapi)
-            $ad = Adisyonlar::where('user_id', $userId)
-                ->where('salon_id', $this->salonId)
-                ->where('tarih', $tarih)
-                ->whereHas('hizmetler', function ($q) use ($r) { $q->where('randevu_id', $r->id); })
-                ->first();
-            if (!$ad) {
-                $ad = new Adisyonlar();
-                $ad->user_id = $userId;
-                $ad->salon_id = $this->salonId;
-                $ad->tarih = $tarih;
-                $ad->olusturan_id = $personelId;
-                $ad->save();
-            }
-            if ($hizmetInfo) {
-                $ah = AdisyonHizmetler::where('adisyon_id', $ad->id)->where('randevu_id', $r->id)
-                    ->where('hizmet_id', $hizmetInfo['hizmet_id'])->first();
-                if (!$ah) $ah = new AdisyonHizmetler();
-                $ah->adisyon_id = $ad->id;
-                $ah->hizmet_id = $hizmetInfo['hizmet_id'];
-                $ah->randevu_id = $r->id;
-                $ah->personel_id = $personelId;
-                $ah->geldi = isset($r->randevuya_geldi) ? $r->randevuya_geldi : 0;
-                $ah->islem_tarihi = $tarih;
-                $ah->islem_saati = $saat;
-                $ah->sure = $sureDk;
-                $ah->fiyat = $hizmetInfo['fiyat'];
-                $ah->save();
-            }
-
-            // PAKET SEANS TUKETME: td[13]'te "(NxHizmet)" varsa ilk kullanilmamis seansi al
+            // 2) Hizmet (paket seansi) td[13] DOLU ise: RandevuHizmetler + paket seansi tuketimi
             $paketHint = $this->parsePaketSeansHint($hizmetlerStr);
+            $hizmetIdNeedle = null;
             if ($paketHint) {
                 $sh2 = $this->findSalonHizmetByName($paketHint['hizmet_adi']);
                 if ($sh2) {
-                    $this->paketSeansiTuket($userId, $sh2['hizmet_id'], $r->id, $tarih, $saat, $personelId, $odaId);
+                    $hizmetIdNeedle = $sh2['hizmet_id'];
+                    // RandevuHizmetler (takvimde gozukmesi icin)
+                    $rh = RandevuHizmetler::where('randevu_id', $r->id)->where('hizmet_id', $hizmetIdNeedle)->first();
+                    if (!$rh) $rh = new RandevuHizmetler();
+                    $rh->randevu_id = $r->id;
+                    $rh->hizmet_id = $hizmetIdNeedle;
+                    $rh->saat = $saat;
+                    $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $sureDk . ' minutes', strtotime($saat)));
+                    $rh->sure_dk = $sureDk;
+                    if ($personelId) $rh->personel_id = $personelId;
+                    if ($odaId) $rh->oda_id = $odaId;
+                    $rh->save();
+                    // Paket seansi tuket
+                    $this->paketSeansiTuket($userId, $hizmetIdNeedle, $r->id, $tarih, $saat, $personelId, $odaId);
                 }
             }
+            // td[13] BOS ise: RandevuHizmetler ve adisyon/hizmet eklenmiyor (sadece slot)
 
-            // URUN SATISI: td[14]'te "(NxUrun)" varsa AdisyonUrunler kaydi (bu adisyona)
+            // 3) URUN SATISI: td[14]'te "(NxUrun)" varsa AdisyonUrunler kaydi
             $urunHint = $this->parseUrunHint($urunlerStr);
-            if ($urunHint && isset($ad)) {
+            if ($urunHint) {
                 $urun = Urunler::where('salon_id', $this->salonId)
                     ->where('urun_adi', 'LIKE', '%' . trim($urunHint['urun_adi']) . '%')->first();
                 if ($urun) {
+                    // Bu randevu icin/musteri-tarih ile bir adisyon yarat (urun adisyona ait)
+                    $ad = Adisyonlar::where('user_id', $userId)->where('salon_id', $this->salonId)
+                        ->where('tarih', $tarih)->orderBy('id', 'desc')->first();
+                    if (!$ad) {
+                        $ad = new Adisyonlar();
+                        $ad->user_id = $userId;
+                        $ad->salon_id = $this->salonId;
+                        $ad->tarih = $tarih;
+                        $ad->olusturan_id = $personelId;
+                        $ad->save();
+                    }
                     $existAU = AdisyonUrunler::where('adisyon_id', $ad->id)
                         ->where('urun_id', $urun->id)->first();
                     if (!$existAU) {
