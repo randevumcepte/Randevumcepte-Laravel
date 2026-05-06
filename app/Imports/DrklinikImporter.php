@@ -1173,7 +1173,8 @@ class DrklinikImporter
             $sureDk = ($saat && $bitis) ? (int) round((strtotime($bitis) - strtotime($saat)) / 60) : 30;
             if ($sureDk <= 0) $sureDk = 30;
 
-            // 1) Randevu kaydi (her durumda)
+            // SADECE RANDEVU - hicbir adisyon/paket/urun mantigi yok.
+            // Randevular kaydi: saat, bitis, musteri, personel, oda, durum, not.
             $r = Randevular::where('tarih', $tarih)->where('saat', $saat)
                 ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
             if (!$r) $r = new Randevular();
@@ -1190,59 +1191,22 @@ class DrklinikImporter
             if ($aciklama) $r->personel_notu = $aciklama;
             $r->save();
 
-            // 2) Hizmet (paket seansi) td[13] DOLU ise: RandevuHizmetler + paket seansi tuketimi
+            // td[13] DOLU ise sadece RandevuHizmetler (takvim view'inde gozukmesi icin)
+            // Adisyon, AdisyonPaketSeanslar, AdisyonUrunler EKLENMEZ - sonra ayri modulle.
             $paketHint = $this->parsePaketSeansHint($hizmetlerStr);
-            $hizmetIdNeedle = null;
             if ($paketHint) {
                 $sh2 = $this->findSalonHizmetByName($paketHint['hizmet_adi']);
                 if ($sh2) {
-                    $hizmetIdNeedle = $sh2['hizmet_id'];
-                    // RandevuHizmetler (takvimde gozukmesi icin)
-                    $rh = RandevuHizmetler::where('randevu_id', $r->id)->where('hizmet_id', $hizmetIdNeedle)->first();
+                    $rh = RandevuHizmetler::where('randevu_id', $r->id)->where('hizmet_id', $sh2['hizmet_id'])->first();
                     if (!$rh) $rh = new RandevuHizmetler();
                     $rh->randevu_id = $r->id;
-                    $rh->hizmet_id = $hizmetIdNeedle;
+                    $rh->hizmet_id = $sh2['hizmet_id'];
                     $rh->saat = $saat;
                     $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $sureDk . ' minutes', strtotime($saat)));
                     $rh->sure_dk = $sureDk;
                     if ($personelId) $rh->personel_id = $personelId;
                     if ($odaId) $rh->oda_id = $odaId;
                     $rh->save();
-                    // Paket seansi tuket
-                    $this->paketSeansiTuket($userId, $hizmetIdNeedle, $r->id, $tarih, $saat, $personelId, $odaId);
-                }
-            }
-            // td[13] BOS ise: RandevuHizmetler ve adisyon/hizmet eklenmiyor (sadece slot)
-
-            // 3) URUN SATISI: td[14]'te "(NxUrun)" varsa AdisyonUrunler kaydi
-            $urunHint = $this->parseUrunHint($urunlerStr);
-            if ($urunHint) {
-                $urun = Urunler::where('salon_id', $this->salonId)
-                    ->where('urun_adi', 'LIKE', '%' . trim($urunHint['urun_adi']) . '%')->first();
-                if ($urun) {
-                    // Bu randevu icin/musteri-tarih ile bir adisyon yarat (urun adisyona ait)
-                    $ad = Adisyonlar::where('user_id', $userId)->where('salon_id', $this->salonId)
-                        ->where('tarih', $tarih)->orderBy('id', 'desc')->first();
-                    if (!$ad) {
-                        $ad = new Adisyonlar();
-                        $ad->user_id = $userId;
-                        $ad->salon_id = $this->salonId;
-                        $ad->tarih = $tarih;
-                        $ad->olusturan_id = $personelId;
-                        $ad->save();
-                    }
-                    $existAU = AdisyonUrunler::where('adisyon_id', $ad->id)
-                        ->where('urun_id', $urun->id)->first();
-                    if (!$existAU) {
-                        $au = new AdisyonUrunler();
-                        $au->adisyon_id = $ad->id;
-                        $au->urun_id = $urun->id;
-                        $au->adet = $urunHint['adet'];
-                        $au->fiyat = (float) $urun->fiyat;
-                        $au->islem_tarihi = $tarih;
-                        $au->personel_id = $personelId;
-                        $au->save();
-                    }
                 }
             }
 
