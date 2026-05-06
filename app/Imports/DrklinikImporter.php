@@ -38,7 +38,7 @@ class DrklinikImporter
     /** @var int */
     private $salonId;
     private $out;
-    private $counts = ['hizmet' => 0, 'personel' => 0, 'urun' => 0, 'oda' => 0, 'musteri' => 0, 'randevu' => 0, 'tahsilat' => 0, 'skipped' => 0];
+    private $counts = ['hizmet' => 0, 'personel' => 0, 'urun' => 0, 'oda' => 0, 'musteri' => 0, 'randevu' => 0, 'satis' => 0, 'tahsilat' => 0, 'skipped' => 0];
     private $odaMap = []; // drklinik oda id => local oda id
     private $musteriMap = []; // drklinik musteri id => local user id
     private $defaultKategoriId = null;
@@ -451,6 +451,163 @@ class DrklinikImporter
             $map[$this->trKey($p->personel_adi)] = $p->id;
         }
         return $map;
+    }
+
+    /**
+     * Satislar (=Adisyonlar): genel_kasa_raporu_satis.aspx + BTN_Ara, aylik tarama.
+     * Drklinik'te "Satis" bizim "Adisyon" karsiligi - musteriye yapilan toplam islem.
+     * Sutunlar (14 td): Btn1 | Btn2 | SatisNo | Tarih | Musteri | Hizmetler(parse) |
+     *                   Aciklama | Tutar | Odenen | Kalan | boslar
+     * Hizmetler formati: "Ad (N Seans = X TRY)" - virgulle birden fazla olabilir.
+     */
+    public function importSatislar($baslangic = null, $bitis = null)
+    {
+        $start = $baslangic ? strtotime($baslangic) : strtotime('2024-01-01');
+        $end   = $bitis ? strtotime($bitis) : strtotime('2030-12-31');
+        $this->log('Satislar (=Adisyonlar) cekiliyor: ' . date('Y-m-d', $start) . ' - ' . date('Y-m-d', $end) . ' (aylik)...');
+        $defaultPers = $this->defaultPersonelId();
+
+        $cur = $start; $iter = 0;
+        $eklendi = 0; $atlandi = 0;
+        while ($cur <= $end) {
+            $monthEnd = min($end, strtotime(date('Y-m-t', $cur)));
+            $iter++;
+            $h = $this->client->postBack('/genel_kasa_raporu_satis.aspx', 'BTN_Ara', '', [
+                'TB_TarihSec1' => date('d.m.Y', $cur),
+                'TB_TarihSec2' => date('d.m.Y', $monthEnd),
+            ]);
+            usleep(500000);
+            if ($h !== null) {
+                $stats = $this->processSatisPage($h, $defaultPers);
+                $eklendi += $stats['eklendi'];
+                $atlandi += $stats['atlandi'];
+            }
+            if ($iter % 6 === 0) $this->log("  ..ay {$iter} (" . date('Y-m', $cur) . ") eklendi={$eklendi} atlandi={$atlandi}");
+            $cur = strtotime('+1 month', $cur);
+        }
+        $this->counts['satis'] = $eklendi;
+        $this->log("Satis aktarim toplam: {$eklendi} (atlandi={$atlandi})");
+    }
+
+    private function processSatisPage($html, $defaultPers)
+    {
+        $eklendi = 0; $atlandi = 0;
+        $rows = $this->parseTableRowsRaw($html);
+        foreach ($rows as $rawRow) {
+            $cells = [];
+            foreach ($rawRow as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) { $cells[] = ''; continue; }
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            if (count($cells) < 10) { $atlandi++; continue; }
+
+            $satisNo = $cells[2] ?? '';
+            $tarih   = $this->tarihNormalize($cells[3] ?? '');
+            $musteri = trim($cells[4] ?? '');
+            $hizmetlerStr = $cells[5] ?? '';
+            $aciklama = $cells[6] ?? '';
+            $tutarStr = $cells[7] ?? '';
+            if (!$satisNo || !$tarih || !$musteri) { $atlandi++; continue; }
+
+            $tutar = $this->paraParse($tutarStr);
+            $userId = $this->findUserByNameInSalon($musteri);
+            if (!$userId) { $atlandi++; continue; }
+
+            // Adisyon idempotent: aciklama'da "drklinik:NN" notu ile dedup
+            $idMarker = "drklinik:{$satisNo}";
+            $ad = Adisyonlar::where('salon_id', $this->salonId)
+                ->where(function ($q) use ($idMarker) {
+                    $q->where('aciklama', 'LIKE', '%' . $idMarker . '%')
+                      ->orWhere('genel_aciklama', 'LIKE', '%' . $idMarker . '%');
+                })->first();
+            if (!$ad) {
+                $ad = new Adisyonlar();
+                $ad->user_id = $userId;
+                $ad->salon_id = $this->salonId;
+                $ad->tarih = $tarih;
+                $ad->olusturan_id = $defaultPers;
+                $not = trim($aciklama . ' [' . $idMarker . ']');
+                if (\Schema::hasColumn('adisyonlar', 'aciklama')) $ad->aciklama = $not;
+                elseif (\Schema::hasColumn('adisyonlar', 'genel_aciklama')) $ad->genel_aciklama = $not;
+                $ad->save();
+            }
+
+            // Hizmetler parse: "Ad (N Seans = X TRY)" virgulle ayri
+            $hizmetler = $this->parseHizmetlerStr($hizmetlerStr);
+            foreach ($hizmetler as $hv) {
+                $sh = $this->findSalonHizmetByName($hv['ad']);
+                if (!$sh) continue;
+                $existAh = AdisyonHizmetler::where('adisyon_id', $ad->id)
+                    ->where('hizmet_id', $sh['hizmet_id'])->first();
+                if ($existAh) continue;
+                $ah = new AdisyonHizmetler();
+                $ah->adisyon_id = $ad->id;
+                $ah->hizmet_id = $sh['hizmet_id'];
+                $ah->personel_id = $defaultPers;
+                $ah->geldi = 1;
+                $ah->islem_tarihi = $tarih;
+                $ah->islem_saati = '00:00:00';
+                $ah->sure = $sh['sure_dk'] ?: 30;
+                $ah->fiyat = $hv['tutar'] / max(1, $hv['seans']);
+                $ah->save();
+            }
+            $eklendi++;
+        }
+        return ['eklendi' => $eklendi, 'atlandi' => $atlandi];
+    }
+
+    private function parseHizmetlerStr($str)
+    {
+        $out = [];
+        // "Ad (N Seans = X TRY)" virgul -> array. Ad icinde virgul olabilir, paranteze gore parcala
+        if (!$str) return $out;
+        // Regex: ad bos olmayan + "(N Seans = X TRY)"
+        if (preg_match_all('~([^,(]+?)\s*\((\d+)\s*Seans\s*=\s*([\d.,]+)\s*(?:TRY|TL|₺)?\)~iu', $str, $m, PREG_SET_ORDER)) {
+            foreach ($m as $row) {
+                $ad = trim($row[1]);
+                if ($ad === '' || $ad === ',') continue;
+                $out[] = [
+                    'ad' => $ad,
+                    'seans' => (int) $row[2],
+                    'tutar' => $this->paraParse($row[3]),
+                ];
+            }
+        }
+        // Eger regex 0 hizmet bulduysa duz string'i tek hizmet olarak kabul et
+        if (empty($out) && trim($str)) {
+            $out[] = ['ad' => trim($str), 'seans' => 1, 'tutar' => 0];
+        }
+        return $out;
+    }
+
+    private function paraParse($s)
+    {
+        if (preg_match('~([\d.]+),(\d{1,2})~', $s, $m)) {
+            return (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+        }
+        return (float) preg_replace('~[^0-9.]~', '', $s);
+    }
+
+    private function findSalonHizmetByName($ad)
+    {
+        $key = $this->trKey($ad);
+        $hizmetler = Hizmetler::where(function ($q) {
+            $q->where('salon_id', $this->salonId)->orWhere('ozel_hizmet', true);
+        })->get();
+        foreach ($hizmetler as $h) {
+            if ($this->trKey($h->hizmet_adi) === $key) {
+                $sh = SalonHizmetler::where('salon_id', $this->salonId)
+                    ->where('hizmet_id', $h->id)->first();
+                if ($sh) return [
+                    'hizmet_id' => $h->id,
+                    'sure_dk' => $sh->sure_dk,
+                    'baslangic_fiyat' => $sh->baslangic_fiyat,
+                ];
+                return ['hizmet_id' => $h->id, 'sure_dk' => 30, 'baslangic_fiyat' => 0];
+            }
+        }
+        return null;
     }
 
     /**
