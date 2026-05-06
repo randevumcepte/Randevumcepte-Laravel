@@ -1645,13 +1645,16 @@
                            </div>
                         </div>
                      </div>
-                     <div class="row" style="display: none;">
+                     <div class="row">
                         <div class="col-md-12">
                            <div class="form-group">
                               <label>Satıcı</label>
                               <select name="urun_satici" class="form-control custom-select2 personel_secimi" style="width: 100%;">
                                   <option></option>
-                                  <option selected value="{{\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('id')}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
+                                  @php $defaultPersonelId = \App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('id'); @endphp
+                                  @if($defaultPersonelId)
+                                  <option selected value="{{$defaultPersonelId}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
+                                  @endif
                               </select>
                            </div>
                         </div>
@@ -1815,7 +1818,7 @@
                         </div>
                          
                      </div>
-                     <div class="row" style="display: none;">
+                     <div class="row">
                         <div class="col-md-6">
                            <div class="form-group">
                               <label>Notlar</label>
@@ -1827,7 +1830,10 @@
                               <label>Satıcı</label>
                               <select name="paket_satici" class="form-control custom-select2 personel_secimi" style="width: 100%;">
                                  <option></option>
-                                 <option selected value="{{\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('id')}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
+                                 @php $defaultPaketSaticiId = \App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('id'); @endphp
+                                 @if($defaultPaketSaticiId)
+                                 <option selected value="{{$defaultPaketSaticiId}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
+                                 @endif
                               </select>
                            </div>
                            <div class="form-group">
