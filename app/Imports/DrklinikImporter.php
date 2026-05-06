@@ -21,6 +21,8 @@ use App\Adisyonlar;
 use App\AdisyonHizmetler;
 use App\Tahsilatlar;
 use App\TahsilatHizmetler;
+use App\AdisyonPaketSeanslar;
+use App\AdisyonUrunler;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
@@ -563,7 +565,8 @@ class DrklinikImporter
             // Hizmetler parse: "Ad (N Seans = X TRY)" virgulle ayri
             $hizmetler = $this->parseHizmetlerStr($hizmetlerStr);
             foreach ($hizmetler as $hv) {
-                $birimFiyat = $hv['tutar'] / max(1, $hv['seans']);
+                $seansSayisi = max(1, (int) $hv['seans']);
+                $birimFiyat = $hv['tutar'] / $seansSayisi;
                 $sh = $this->findSalonHizmetByName($hv['ad']);
                 if (!$sh) {
                     $sh = $this->ensureSalonHizmet($hv['ad'], $birimFiyat);
@@ -576,16 +579,80 @@ class DrklinikImporter
                 $ah->adisyon_id = $ad->id;
                 $ah->hizmet_id = $sh['hizmet_id'];
                 $ah->personel_id = $defaultPers;
-                $ah->geldi = 1;
+                $ah->geldi = 0; // paketten henuz kullanilmamis (default)
                 $ah->islem_tarihi = $tarih;
                 $ah->islem_saati = '00:00:00';
                 $ah->sure = $sh['sure_dk'] ?: 30;
-                $ah->fiyat = $birimFiyat;
+                $ah->fiyat = $hv['tutar']; // TOPLAM tutar (paket yorumu)
                 $ah->save();
+
+                // Paket: N>1 ise N adet AdisyonPaketSeanslar (kullanilmamis)
+                if ($seansSayisi > 1) {
+                    for ($i = 1; $i <= $seansSayisi; $i++) {
+                        $aps = new AdisyonPaketSeanslar();
+                        $aps->adisyon_hizmet_id = $ah->id;
+                        $aps->hizmet_id = $sh['hizmet_id'];
+                        $aps->seans_no = $i;
+                        $aps->geldi = 0;
+                        $aps->save();
+                    }
+                }
             }
             $eklendi++;
         }
         return ['eklendi' => $eklendi, 'atlandi' => $atlandi];
+    }
+
+    /**
+     * Bir randevuda paketten seans tuketildi mi? Bu kullanicinin o hizmet icin
+     * kullanilmamis ilk AdisyonPaketSeanslar'ini bul, randevu_id ata, geldi=1 yap.
+     */
+    private function paketSeansiTuket($userId, $hizmetId, $randevuId, $tarih, $saat, $personelId, $odaId)
+    {
+        if (!$hizmetId) return false;
+        $aps = AdisyonPaketSeanslar::join('adisyon_hizmetler as ah', 'adisyon_paket_seanslar.adisyon_hizmet_id', '=', 'ah.id')
+            ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+            ->where('a.user_id', $userId)
+            ->where('a.salon_id', $this->salonId)
+            ->where('ah.hizmet_id', $hizmetId)
+            ->whereNull('adisyon_paket_seanslar.randevu_id')
+            ->orderBy('adisyon_paket_seanslar.seans_no')
+            ->select('adisyon_paket_seanslar.*')
+            ->first();
+        if (!$aps) return false;
+        $aps->randevu_id = $randevuId;
+        $aps->seans_tarih = $tarih;
+        $aps->seans_saat = $saat;
+        if ($personelId) $aps->personel_id = $personelId;
+        if ($odaId) $aps->oda_id = $odaId;
+        $aps->geldi = 1;
+        $aps->save();
+        return true;
+    }
+
+    /**
+     * Randevu listesinde td[13] formati: "(NxHizmet adi)"
+     * Donus: ['hizmet_adi' => '...', 'seans' => N] veya null
+     */
+    private function parsePaketSeansHint($s)
+    {
+        if (!$s) return null;
+        if (preg_match('~\((\d+)x([^)]+)\)~iu', trim($s), $m)) {
+            return ['seans' => (int) $m[1], 'hizmet_adi' => trim($m[2])];
+        }
+        return null;
+    }
+
+    /**
+     * Randevu listesinde td[14] formati: "(NxÜrün adi)"
+     */
+    private function parseUrunHint($s)
+    {
+        if (!$s) return null;
+        if (preg_match('~\((\d+)x([^)]+)\)~iu', trim($s), $m)) {
+            return ['adet' => (int) $m[1], 'urun_adi' => trim($m[2])];
+        }
+        return null;
     }
 
     private function parseHizmetlerStr($str)
@@ -1081,6 +1148,8 @@ class DrklinikImporter
             $birim   = $cells[10] ?? '';
             $calisan = $cells[11] ?? '';
             $oda     = $cells[12] ?? '';
+            $hizmetlerStr = $cells[13] ?? ''; // "(NxHizmet)" paket seansi
+            $urunlerStr   = $cells[14] ?? ''; // "(NxUrun)" urun satisi
             $durum   = $cells[15] ?? '';
 
             if (strlen($saat) === 5) $saat .= ':00';
@@ -1168,6 +1237,36 @@ class DrklinikImporter
                 $ah->sure = $sureDk;
                 $ah->fiyat = $hizmetInfo['fiyat'];
                 $ah->save();
+            }
+
+            // PAKET SEANS TUKETME: td[13]'te "(NxHizmet)" varsa ilk kullanilmamis seansi al
+            $paketHint = $this->parsePaketSeansHint($hizmetlerStr);
+            if ($paketHint) {
+                $sh2 = $this->findSalonHizmetByName($paketHint['hizmet_adi']);
+                if ($sh2) {
+                    $this->paketSeansiTuket($userId, $sh2['hizmet_id'], $r->id, $tarih, $saat, $personelId, $odaId);
+                }
+            }
+
+            // URUN SATISI: td[14]'te "(NxUrun)" varsa AdisyonUrunler kaydi (bu adisyona)
+            $urunHint = $this->parseUrunHint($urunlerStr);
+            if ($urunHint && isset($ad)) {
+                $urun = Urunler::where('salon_id', $this->salonId)
+                    ->where('urun_adi', 'LIKE', '%' . trim($urunHint['urun_adi']) . '%')->first();
+                if ($urun) {
+                    $existAU = AdisyonUrunler::where('adisyon_id', $ad->id)
+                        ->where('urun_id', $urun->id)->first();
+                    if (!$existAU) {
+                        $au = new AdisyonUrunler();
+                        $au->adisyon_id = $ad->id;
+                        $au->urun_id = $urun->id;
+                        $au->adet = $urunHint['adet'];
+                        $au->fiyat = (float) $urun->fiyat;
+                        $au->islem_tarihi = $tarih;
+                        $au->personel_id = $personelId;
+                        $au->save();
+                    }
+                }
             }
 
             $this->counts['randevu']++;
