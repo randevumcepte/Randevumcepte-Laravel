@@ -280,19 +280,42 @@ class DrklinikImporter
         $iter = 0;
         while ($weekStart <= $end) {
             $weekEnd = min($end, strtotime('+6 days', $weekStart));
+            $eklenen = $this->scrapeRange($weekStart, $weekEnd, $personelMap, $hizmetMap, $odaMapByName, 0);
             $iter++;
-            $h = $this->client->postBack('/gunlukrandevulistesi.aspx', 'BTN_Ara', '', [
-                'TB_Tarih1' => date('d.m.Y', $weekStart),
-                'TB_Tarih2' => date('d.m.Y', $weekEnd),
-            ]);
-            if ($h !== null) {
-                $eklenen = $this->processRandevuPage($h, $personelMap, $hizmetMap, $odaMapByName);
-                if ($iter % 10 === 0) $this->log("  ..hafta {$iter} (" . date('Y-m-d', $weekStart) . "..) eklenen={$eklenen} toplam_randevu={$this->counts['randevu']}");
-            }
+            if ($iter % 10 === 0) $this->log("  ..hafta {$iter} (" . date('Y-m-d', $weekStart) . "..) son_eklenen={$eklenen} toplam_randevu={$this->counts['randevu']}");
             $weekStart = strtotime('+7 days', $weekStart);
-            usleep(300000);
         }
         $this->log("Randevu aktarim toplam: {$this->counts['randevu']} (skipped: {$this->counts['skipped']})");
+    }
+
+    /**
+     * Recursive: bir tarih araliginda data cek; eger satir sayisi cap'e (50)
+     * dayanirsa aralik ikiye bolunur ve her yarisi icin yine cagrilir.
+     * Boylece yogun haftalarda eksik veri kalmaz.
+     */
+    private function scrapeRange($startTs, $endTs, $personelMap, $hizmetMap, $odaMapByName, $depth)
+    {
+        $h = $this->client->postBack('/gunlukrandevulistesi.aspx', 'BTN_Ara', '', [
+            'TB_Tarih1' => date('d.m.Y', $startTs),
+            'TB_Tarih2' => date('d.m.Y', $endTs),
+        ]);
+        usleep(300000);
+        if ($h === null) return 0;
+
+        // Cap kontrolu: en genis tablonun tr sayisi
+        preg_match_all('~<table[^>]*>(.*?)</table>~is', $h, $tm);
+        $maxTr = 0;
+        foreach ($tm[1] as $t) {
+            if (preg_match_all('~<tr[^>]*>~i', $t, $rm) && count($rm[0]) > $maxTr) $maxTr = count($rm[0]);
+        }
+        // Cap'e dayandi (>=50) VE aralik bolunebilir (>=2 gun) ise yariya bol
+        if ($maxTr >= 50 && ($endTs - $startTs) >= 86400 && $depth < 6) {
+            $mid = $startTs + intval(($endTs - $startTs) / 2);
+            $a = $this->scrapeRange($startTs, $mid, $personelMap, $hizmetMap, $odaMapByName, $depth + 1);
+            $b = $this->scrapeRange($mid + 86400, $endTs, $personelMap, $hizmetMap, $odaMapByName, $depth + 1);
+            return $a + $b;
+        }
+        return $this->processRandevuPage($h, $personelMap, $hizmetMap, $odaMapByName);
     }
 
     /**
@@ -308,71 +331,91 @@ class DrklinikImporter
         $personelMap  = $this->buildPersonelMapByName();
 
         $weekStart = $start; $iter = 0;
-        $updateOda = 0; $updatePers = 0; $unmatchedPers = []; $unmatchedOda = [];
+        $stats = ['updateOda' => 0, 'updatePers' => 0, 'unmatchedPers' => [], 'unmatchedOda' => []];
         while ($weekStart <= $end) {
             $weekEnd = min($end, strtotime('+6 days', $weekStart));
+            $this->fixScrapeRange($weekStart, $weekEnd, $personelMap, $odaMapByName, $stats, 0);
             $iter++;
-            $h = $this->client->postBack('/gunlukrandevulistesi.aspx', 'BTN_Ara', '', [
-                'TB_Tarih1' => date('d.m.Y', $weekStart),
-                'TB_Tarih2' => date('d.m.Y', $weekEnd),
-            ]);
-            if ($h !== null) {
-                $rows = $this->parseTableRowsRaw($h);
-                foreach ($rows as $rawRow) {
-                    $cells = [];
-                    foreach ($rawRow as $tdRaw) {
-                        $clean = trim(preg_replace('/\s+/', ' ', strip_tags($tdRaw)));
-                        $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                    }
-                    if (count($cells) < 16) continue;
-                    $tarih = $this->tarihNormalize($cells[2] ?? '');
-                    $saat  = $cells[3] ?? '';
-                    if (!$tarih || !$saat) continue;
-                    if (strlen($saat) === 5) $saat .= ':00';
-
-                    $tel = $this->telefonNormalize($cells[8] ?? '');
-                    $calisan = $cells[11] ?? '';
-                    $oda = $cells[12] ?? '';
-                    $personelId = $personelMap[$this->trKey($calisan)] ?? null;
-                    $odaId      = $odaMapByName[$this->trKey($oda)] ?? null;
-
-                    if ($calisan && !$personelId) $unmatchedPers[$calisan] = true;
-                    if ($oda && !$odaId) $unmatchedOda[$oda] = true;
-
-                    if (!$personelId && !$odaId) continue;
-
-                    $userId = null;
-                    if ($tel) $userId = User::where('cep_telefon', $tel)->value('id');
-                    if (!$userId) continue;
-                    $randevu = Randevular::where('tarih', $tarih)->where('saat', $saat)
-                        ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
-                    if (!$randevu) continue;
-
-                    if ($personelId) {
-                        $u = RandevuHizmetler::where('randevu_id', $randevu->id)
-                            ->whereNull('personel_id')->update(['personel_id' => $personelId]);
-                        $updatePers += $u;
-                        // Adisyon hizmetleri de
-                        AdisyonHizmetler::where('randevu_id', $randevu->id)
-                            ->whereNull('personel_id')->update(['personel_id' => $personelId]);
-                    }
-                    if ($odaId) {
-                        $u = RandevuHizmetler::where('randevu_id', $randevu->id)
-                            ->whereNull('oda_id')->update(['oda_id' => $odaId]);
-                        $updateOda += $u;
-                    }
-                }
-            }
-            if ($iter % 20 === 0) $this->log("  ..hafta {$iter} oda_upd={$updateOda} personel_upd={$updatePers}");
+            if ($iter % 20 === 0) $this->log("  ..hafta {$iter} oda_upd={$stats['updateOda']} personel_upd={$stats['updatePers']}");
             $weekStart = strtotime('+7 days', $weekStart);
-            usleep(300000);
         }
-        $this->log("Onarim toplam: oda_upd={$updateOda}, personel_upd={$updatePers}");
+        $this->log("Onarim toplam: oda_upd={$stats['updateOda']}, personel_upd={$stats['updatePers']}");
+        $unmatchedPers = $stats['unmatchedPers']; $unmatchedOda = $stats['unmatchedOda'];
         if ($unmatchedPers) {
             $this->log("Eslesemeyen personel adlari (" . count($unmatchedPers) . "): " . implode(' | ', array_keys($unmatchedPers)));
         }
         if ($unmatchedOda) {
             $this->log("Eslesemeyen oda adlari: " . implode(' | ', array_keys($unmatchedOda)));
+        }
+    }
+
+    /**
+     * fixRandevuEksikler icin recursive scraper - cap'e dayanirsa yariya boler.
+     */
+    private function fixScrapeRange($startTs, $endTs, $personelMap, $odaMapByName, &$stats, $depth)
+    {
+        $h = $this->client->postBack('/gunlukrandevulistesi.aspx', 'BTN_Ara', '', [
+            'TB_Tarih1' => date('d.m.Y', $startTs),
+            'TB_Tarih2' => date('d.m.Y', $endTs),
+        ]);
+        usleep(300000);
+        if ($h === null) return;
+
+        preg_match_all('~<table[^>]*>(.*?)</table>~is', $h, $tm);
+        $maxTr = 0;
+        foreach ($tm[1] as $t) {
+            if (preg_match_all('~<tr[^>]*>~i', $t, $rm) && count($rm[0]) > $maxTr) $maxTr = count($rm[0]);
+        }
+        if ($maxTr >= 50 && ($endTs - $startTs) >= 86400 && $depth < 6) {
+            $mid = $startTs + intval(($endTs - $startTs) / 2);
+            $this->fixScrapeRange($startTs, $mid, $personelMap, $odaMapByName, $stats, $depth + 1);
+            $this->fixScrapeRange($mid + 86400, $endTs, $personelMap, $odaMapByName, $stats, $depth + 1);
+            return;
+        }
+
+        $rows = $this->parseTableRowsRaw($h);
+        foreach ($rows as $rawRow) {
+            $cells = [];
+            foreach ($rawRow as $tdRaw) {
+                $clean = trim(preg_replace('/\s+/', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            if (count($cells) < 16) continue;
+            $tarih = $this->tarihNormalize($cells[2] ?? '');
+            $saat  = $cells[3] ?? '';
+            if (!$tarih || !$saat) continue;
+            if (strlen($saat) === 5) $saat .= ':00';
+
+            $tel = $this->telefonNormalize($cells[8] ?? '');
+            $calisan = $cells[11] ?? '';
+            $oda = $cells[12] ?? '';
+            $personelId = $personelMap[$this->trKey($calisan)] ?? null;
+            $odaId      = $odaMapByName[$this->trKey($oda)] ?? null;
+
+            if ($calisan && !$personelId) $stats['unmatchedPers'][$calisan] = true;
+            if ($oda && !$odaId) $stats['unmatchedOda'][$oda] = true;
+
+            if (!$personelId && !$odaId) continue;
+
+            $userId = null;
+            if ($tel) $userId = User::where('cep_telefon', $tel)->value('id');
+            if (!$userId) continue;
+            $randevu = Randevular::where('tarih', $tarih)->where('saat', $saat)
+                ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
+            if (!$randevu) continue;
+
+            if ($personelId) {
+                $u = RandevuHizmetler::where('randevu_id', $randevu->id)
+                    ->whereNull('personel_id')->update(['personel_id' => $personelId]);
+                $stats['updatePers'] += $u;
+                AdisyonHizmetler::where('randevu_id', $randevu->id)
+                    ->whereNull('personel_id')->update(['personel_id' => $personelId]);
+            }
+            if ($odaId) {
+                $u = RandevuHizmetler::where('randevu_id', $randevu->id)
+                    ->whereNull('oda_id')->update(['oda_id' => $odaId]);
+                $stats['updateOda'] += $u;
+            }
         }
     }
 
