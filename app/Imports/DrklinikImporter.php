@@ -280,7 +280,7 @@ class DrklinikImporter
         $iter = 0;
         while ($weekStart <= $end) {
             $weekEnd = min($end, strtotime('+6 days', $weekStart));
-            $eklenen = $this->scrapeRange($weekStart, $weekEnd, $personelMap, $hizmetMap, $odaMapByName, 0);
+            $eklenen = $this->scrapeRange($weekStart, $weekEnd, $personelMap, $hizmetMap, $odaMapByName, 0); // reference olarak gecirildi
             $iter++;
             if ($iter % 10 === 0) $this->log("  ..hafta {$iter} (" . date('Y-m-d', $weekStart) . "..) son_eklenen={$eklenen} toplam_randevu={$this->counts['randevu']}");
             $weekStart = strtotime('+7 days', $weekStart);
@@ -293,7 +293,7 @@ class DrklinikImporter
      * dayanirsa aralik ikiye bolunur ve her yarisi icin yine cagrilir.
      * Boylece yogun haftalarda eksik veri kalmaz.
      */
-    private function scrapeRange($startTs, $endTs, $personelMap, $hizmetMap, $odaMapByName, $depth)
+    private function scrapeRange($startTs, $endTs, &$personelMap, $hizmetMap, &$odaMapByName, $depth)
     {
         $h = $this->client->postBack('/gunlukrandevulistesi.aspx', 'BTN_Ara', '', [
             'TB_Tarih1' => date('d.m.Y', $startTs),
@@ -352,7 +352,7 @@ class DrklinikImporter
     /**
      * fixRandevuEksikler icin recursive scraper - cap'e dayanirsa yariya boler.
      */
-    private function fixScrapeRange($startTs, $endTs, $personelMap, $odaMapByName, &$stats, $depth)
+    private function fixScrapeRange($startTs, $endTs, &$personelMap, &$odaMapByName, &$stats, $depth)
     {
         $h = $this->client->postBack('/gunlukrandevulistesi.aspx', 'BTN_Ara', '', [
             'TB_Tarih1' => date('d.m.Y', $startTs),
@@ -390,10 +390,9 @@ class DrklinikImporter
             $calisan = $cells[11] ?? '';
             $oda = $cells[12] ?? '';
             $personelId = $personelMap[$this->trKey($calisan)] ?? null;
-            $odaId      = $odaMapByName[$this->trKey($oda)] ?? null;
-
-            if ($calisan && !$personelId) $stats['unmatchedPers'][$calisan] = true;
-            if ($oda && !$odaId) $stats['unmatchedOda'][$oda] = true;
+            if (!$personelId && $calisan) $personelId = $this->ensurePersonelId($calisan, $personelMap);
+            $odaId = $odaMapByName[$this->trKey($oda)] ?? null;
+            if (!$odaId && $oda) $odaId = $this->ensureOdaId($oda, $odaMapByName);
 
             if (!$personelId && !$odaId) continue;
 
@@ -442,6 +441,70 @@ class DrklinikImporter
     }
 
     /**
+     * Eslesmeyen personel adi icin pasif personel kaydi olusturur, map'e ekler.
+     */
+    private function ensurePersonelId($ad, &$map)
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '') return null;
+        $key = $this->trKey($ad);
+        if (isset($map[$key])) return $map[$key];
+
+        $yetkili = new IsletmeYetkilileri();
+        $yetkili->name = $ad;
+        $yetkili->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
+        $yetkili->password = Hash::make(Str::random(10));
+        $yetkili->aktif = 0;
+        $yetkili->save();
+
+        $sonSira = Personeller::where('salon_id', $this->salonId)->max('takvim_sirasi');
+        $sira = ($sonSira ? $sonSira : 0) + 1;
+        $sonRenk = Personeller::where('salon_id', $this->salonId)->orderBy('id', 'desc')->value('renk');
+        $renk = (!$sonRenk || $sonRenk >= 10) ? 1 : $sonRenk + 1;
+
+        $p = new Personeller();
+        $p->personel_adi = $ad;
+        $p->salon_id = $this->salonId;
+        $p->yetkili_id = $yetkili->id;
+        $p->role_id = 5;
+        $p->aktif = 0;
+        $p->takvimde_gorunsun = 0;
+        $p->takvim_sirasi = $sira;
+        $p->renk = $renk;
+        $p->save();
+
+        DB::insert(
+            'INSERT INTO model_has_roles (role_id, model_type, model_id, salon_id) VALUES (?, ?, ?, ?)',
+            [5, 'App\\IsletmeYetkilileri', $yetkili->id, $this->salonId]
+        );
+
+        $map[$key] = $p->id;
+        return $p->id;
+    }
+
+    /**
+     * Eslesmeyen oda adi icin pasif oda kaydi olusturur, map'e ekler.
+     */
+    private function ensureOdaId($ad, &$map)
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '') return null;
+        $key = $this->trKey($ad);
+        if (isset($map[$key])) return $map[$key];
+
+        $oda = new Odalar();
+        $oda->oda_adi = $ad;
+        $oda->salon_id = $this->salonId;
+        $oda->durum = 0;
+        if (Schema::hasColumn('odalar', 'aktifmi')) $oda->aktifmi = 0;
+        $oda->save();
+
+        $this->ensureOdaRenk($oda->id);
+        $map[$key] = $oda->id;
+        return $oda->id;
+    }
+
+    /**
      * Lookup key: Turkce karakterleri ASCII'e cevir + lowercase + bosluk sadelestir.
      * Hem map hem aranacak isim ayni transformdan gecince eslesme dogru calisir.
      */
@@ -479,9 +542,8 @@ class DrklinikImporter
         return $map;
     }
 
-    private function processRandevuPage($html, $personelMap, $hizmetMap, $odaMapByName = null)
+    private function processRandevuPage($html, &$personelMap, $hizmetMap, &$odaMapByName)
     {
-        if ($odaMapByName === null) $odaMapByName = $this->buildOdaMapByName();
         $rows = $this->parseTableRowsRaw($html);
         $eklenen = 0;
         foreach ($rows as $rawRow) {
@@ -513,9 +575,11 @@ class DrklinikImporter
             $userId = $this->upsertMusteri($adSoyad, $tel);
             if (!$userId) { $this->counts['skipped']++; continue; }
 
-            // Personel + oda lookup (Turkce-normalize key ile)
+            // Personel + oda lookup (Turkce-normalize key ile, eslesmiyorsa pasif olusur)
             $personelId = $personelMap[$this->trKey($calisan)] ?? null;
-            $odaId      = $odaMapByName[$this->trKey($oda)] ?? null;
+            if (!$personelId && $calisan) $personelId = $this->ensurePersonelId($calisan, $personelMap);
+            $odaId = $odaMapByName[$this->trKey($oda)] ?? null;
+            if (!$odaId && $oda) $odaId = $this->ensureOdaId($oda, $odaMapByName);
 
             // Hizmet (birim adiyla)
             $hizmetInfo = $hizmetMap[$this->trKey($birim)] ?? null;
