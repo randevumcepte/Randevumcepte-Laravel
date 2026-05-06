@@ -127,6 +127,12 @@ class DrklinikImporter
 
     private function saveHizmet($ad, $fiyat, $kategoriId)
     {
+        // Ayni isimde urun varsa hizmet olarak EKLEME (drklinik bazi urunleri
+        // hizmet listesinde "(H)" suffix ile gosterebiliyor).
+        if ($this->isUrunName($ad)) {
+            $this->log("  [skip-urun] '{$ad}' Urunler tablosunda kayitli, hizmet olarak eklenmeyecek.");
+            return false;
+        }
         $hizmet = Hizmetler::where('hizmet_adi', $ad)->where('hizmet_kategori_id', $kategoriId)->first();
         if (!$hizmet) {
             $hizmet = new Hizmetler();
@@ -688,6 +694,33 @@ class DrklinikImporter
     }
 
     private $hizmetMapCache = null;
+    private $urunNameSet = null;
+
+    /**
+     * Bir hizmet adi, bu salonda Urunler tablosunda kayitli mi?
+     * trKey-bazli karsilastirma; "(H)", "(U)" gibi suffix'leri normalize eder.
+     */
+    private function isUrunName($ad)
+    {
+        if ($this->urunNameSet === null) {
+            $this->urunNameSet = [];
+            $rows = \DB::table((new Urunler)->getTable())
+                ->where('salon_id', $this->salonId)
+                ->pluck('urun_adi');
+            foreach ($rows as $u) {
+                $k = $this->trKey($this->stripDrSuffix($u));
+                if ($k !== '') $this->urunNameSet[$k] = true;
+            }
+        }
+        $key = $this->trKey($this->stripDrSuffix((string) $ad));
+        return $key !== '' && isset($this->urunNameSet[$key]);
+    }
+
+    private function stripDrSuffix($s)
+    {
+        // Drklinik bazi adlarin sonuna "(H)" / "(U)" / "(P)" tag ekliyor
+        return trim(preg_replace('~\s*\((?:H|U|P)\)\s*$~iu', '', (string) $s));
+    }
 
     private function findSalonHizmetByName($ad)
     {
@@ -727,6 +760,10 @@ class DrklinikImporter
     {
         $ad = trim((string) $ad);
         if ($ad === '') return null;
+        // Urun ismi ise hizmet uretme; cagiran taraf null'a gore islem yapacak
+        if ($this->isUrunName($ad)) {
+            return null;
+        }
 
         static $kategoriId = null;
         if ($kategoriId === null) {
