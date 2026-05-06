@@ -1467,11 +1467,22 @@ class DrklinikImporter
             $r->save();
 
             // RandevuHizmetler her zaman eklenir (saat, bitis, personel, oda bilgisi icin).
-            // hizmet_id sadece td[13] '(NxHizmet)' doluysa atanir.
+            // hizmet_id td[13] doluysa atanir. td[13] iki format:
+            //   "(NxHizmet adi)" -> paket randevusu
+            //   "Hizmet adi"     -> tek seans (parantezsiz)
             $hizmetIdAtanacak = null;
-            $paketHint = $this->parsePaketSeansHint($hizmetlerStr);
-            if ($paketHint) {
-                $sh2 = $this->findSalonHizmetByName($paketHint['hizmet_adi']);
+            $hizmetAdiHint = null;
+            $hizmetlerStrTrim = trim($hizmetlerStr);
+            if ($hizmetlerStrTrim !== '') {
+                if (preg_match('~\((\d+)x([^)]+)\)~iu', $hizmetlerStrTrim, $m)) {
+                    $hizmetAdiHint = trim($m[2]);
+                } else {
+                    $hizmetAdiHint = $hizmetlerStrTrim;
+                }
+            }
+            if ($hizmetAdiHint) {
+                $sh2 = $this->findSalonHizmetByName($hizmetAdiHint);
+                if (!$sh2) $sh2 = $this->ensureSalonHizmet($hizmetAdiHint, 0);
                 if ($sh2) $hizmetIdAtanacak = $sh2['hizmet_id'];
             }
 
