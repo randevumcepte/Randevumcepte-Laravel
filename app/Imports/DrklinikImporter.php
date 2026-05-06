@@ -609,25 +609,33 @@ class DrklinikImporter
         return (float) preg_replace('~[^0-9.]~', '', $s);
     }
 
+    private $hizmetMapCache = null;
+
     private function findSalonHizmetByName($ad)
     {
         $key = $this->trKey($ad);
-        $hizmetler = Hizmetler::where(function ($q) {
-            $q->where('salon_id', $this->salonId)->orWhere('ozel_hizmet', true);
-        })->get();
-        foreach ($hizmetler as $h) {
-            if ($this->trKey($h->hizmet_adi) === $key) {
-                $sh = SalonHizmetler::where('salon_id', $this->salonId)
-                    ->where('hizmet_id', $h->id)->first();
-                if ($sh) return [
-                    'hizmet_id' => $h->id,
-                    'sure_dk' => $sh->sure_dk,
-                    'baslangic_fiyat' => $sh->baslangic_fiyat,
+        if ($this->hizmetMapCache === null) {
+            $this->hizmetMapCache = [];
+            $rows = \DB::table('hizmetler as h')
+                ->leftJoin('salon_hizmetler as sh', function ($j) {
+                    $j->on('sh.hizmet_id', '=', 'h.id')->where('sh.salon_id', $this->salonId);
+                })
+                ->where(function ($q) {
+                    $q->where('h.salon_id', $this->salonId)->orWhere('h.ozel_hizmet', true);
+                })
+                ->select('h.id', 'h.hizmet_adi', 'sh.sure_dk', 'sh.baslangic_fiyat')
+                ->get();
+            foreach ($rows as $r) {
+                $k = $this->trKey($r->hizmet_adi);
+                if ($k === '' || isset($this->hizmetMapCache[$k])) continue;
+                $this->hizmetMapCache[$k] = [
+                    'hizmet_id' => $r->id,
+                    'sure_dk' => $r->sure_dk ?: 30,
+                    'baslangic_fiyat' => $r->baslangic_fiyat ?: 0,
                 ];
-                return ['hizmet_id' => $h->id, 'sure_dk' => 30, 'baslangic_fiyat' => 0];
             }
         }
-        return null;
+        return $this->hizmetMapCache[$key] ?? null;
     }
 
     /**
@@ -667,7 +675,11 @@ class DrklinikImporter
             $sh->save();
 
             $this->counts['hizmet']++;
-            return ['hizmet_id' => $h->id, 'sure_dk' => 30, 'baslangic_fiyat' => $fiyat];
+            $entry = ['hizmet_id' => $h->id, 'sure_dk' => 30, 'baslangic_fiyat' => $fiyat];
+            if (is_array($this->hizmetMapCache)) {
+                $this->hizmetMapCache[$this->trKey($ad)] = $entry;
+            }
+            return $entry;
         } catch (\Throwable $e) {
             \Log::warning('[Drklinik] hizmet otomatik olusturulamadi', [
                 'ad' => $ad, 'err' => $e->getMessage(),
