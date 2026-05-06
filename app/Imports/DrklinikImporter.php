@@ -482,7 +482,7 @@ class DrklinikImporter
                 $eklendi += $stats['eklendi'];
                 $atlandi += $stats['atlandi'];
             }
-            if ($iter % 6 === 0) $this->log("  ..ay {$iter} (" . date('Y-m', $cur) . ") eklendi={$eklendi} atlandi={$atlandi}");
+            $this->log("  ..ay {$iter} (" . date('Y-m', $cur) . ") eklendi={$eklendi} atlandi={$atlandi}");
             $cur = strtotime('+1 month', $cur);
         }
         $this->counts['satis'] = $eklendi;
