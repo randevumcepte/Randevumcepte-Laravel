@@ -514,22 +514,38 @@ class DrklinikImporter
             $userId = $this->findUserByNameInSalon($musteri);
             if (!$userId) { $atlandi++; continue; }
 
-            // Adisyon idempotent: aciklama'da "drklinik:NN" notu ile dedup
+            // Adisyon idempotent: drklinik satis_no'yu uygun bir text alanina yaz
             $idMarker = "drklinik:{$satisNo}";
-            $ad = Adisyonlar::where('salon_id', $this->salonId)
-                ->where(function ($q) use ($idMarker) {
-                    $q->where('aciklama', 'LIKE', '%' . $idMarker . '%')
-                      ->orWhere('genel_aciklama', 'LIKE', '%' . $idMarker . '%');
-                })->first();
+            // Adisyonlar tablosunda hangi text kolonu var bul
+            static $notKolonu = null;
+            if ($notKolonu === null) {
+                foreach (['adisyon_notu','aciklama','genel_aciklama','notlar','not','dosya_no','referans'] as $col) {
+                    if (\Schema::hasColumn('adisyonlar', $col)) { $notKolonu = $col; break; }
+                }
+                if (!$notKolonu) $notKolonu = false; // hicbiri yok
+            }
+
+            $ad = null;
+            if ($notKolonu) {
+                $ad = Adisyonlar::where('salon_id', $this->salonId)
+                    ->where($notKolonu, 'LIKE', '%' . $idMarker . '%')->first();
+            }
+            // Fallback: salon+user+tarih ile dedup (tutar kolonu olmayabilir)
+            if (!$ad) {
+                $ad = Adisyonlar::where('salon_id', $this->salonId)
+                    ->where('user_id', $userId)
+                    ->where('tarih', $tarih)->first();
+            }
             if (!$ad) {
                 $ad = new Adisyonlar();
                 $ad->user_id = $userId;
                 $ad->salon_id = $this->salonId;
                 $ad->tarih = $tarih;
                 $ad->olusturan_id = $defaultPers;
-                $not = trim($aciklama . ' [' . $idMarker . ']');
-                if (\Schema::hasColumn('adisyonlar', 'aciklama')) $ad->aciklama = $not;
-                elseif (\Schema::hasColumn('adisyonlar', 'genel_aciklama')) $ad->genel_aciklama = $not;
+                if ($notKolonu) {
+                    $not = trim($aciklama . ' [' . $idMarker . ']');
+                    $ad->{$notKolonu} = $not;
+                }
                 $ad->save();
             }
 
