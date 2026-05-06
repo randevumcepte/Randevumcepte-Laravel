@@ -77,7 +77,8 @@ class DrklinikImporter
         foreach ($birimler as $val => $ad) {
             if ($val === '0' || $val === '') continue; // "Birim Seciniz" placeholder
             $kategoriAd = trim(html_entity_decode($ad, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-            $kategoriAd = mb_convert_case(mb_strtolower($kategoriAd, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
+            // mb_convert_case Turkce I icin "i̇" (combining dot above) uretiyor;
+            // kategori adini drklinik ham haliyle birakmak en saglam yol.
             $kategoriId = $this->kategoriEkleVeyaGetir($kategoriAd);
 
             // Birim secip postback yap
@@ -149,12 +150,22 @@ class DrklinikImporter
 
     private function kategoriEkleVeyaGetir($ad)
     {
-        $k = Hizmet_Kategorisi::where('hizmet_kategorisi_adi', $ad)->first();
-        if (!$k) {
-            $k = new Hizmet_Kategorisi();
-            $k->hizmet_kategorisi_adi = $ad;
-            $k->save();
+        // Mevcut kategoriler arasinda trKey-bazli lookup (combining mark
+        // sorunlu eski kayitlari da yakalar; varsa adini duzelterek dondurur)
+        $needle = $this->trKey($ad);
+        $existing = Hizmet_Kategorisi::all();
+        foreach ($existing as $k) {
+            if ($this->trKey($k->hizmet_kategorisi_adi) === $needle) {
+                if ($k->hizmet_kategorisi_adi !== $ad) {
+                    $k->hizmet_kategorisi_adi = $ad; // bozuk eski adi temiz hale guncelle
+                    $k->save();
+                }
+                return $k->id;
+            }
         }
+        $k = new Hizmet_Kategorisi();
+        $k->hizmet_kategorisi_adi = $ad;
+        $k->save();
         return $k->id;
     }
 
@@ -514,6 +525,8 @@ class DrklinikImporter
         $tr = ['İ'=>'i','I'=>'i','ı'=>'i','Ç'=>'c','ç'=>'c','Ğ'=>'g','ğ'=>'g','Ö'=>'o','ö'=>'o','Ş'=>'s','ş'=>'s','Ü'=>'u','ü'=>'u'];
         $s = strtr($s, $tr);
         $s = mb_strtolower($s, 'UTF-8');
+        // Unicode combining marks (combining dot above U+0307 vb.) kaldir
+        $s = preg_replace('/\p{M}+/u', '', $s);
         return preg_replace('/\s+/', ' ', $s);
     }
 
