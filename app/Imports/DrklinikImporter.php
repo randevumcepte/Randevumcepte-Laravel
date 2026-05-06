@@ -616,8 +616,10 @@ class DrklinikImporter
         $key = $this->trKey($ad);
         if ($this->hizmetMapCache === null) {
             $this->hizmetMapCache = [];
-            $rows = \DB::table('hizmetler as h')
-                ->leftJoin('salon_hizmetler as sh', function ($j) {
+            $hizmetlerTable = (new Hizmetler)->getTable();
+            $shTable = (new SalonHizmetler)->getTable();
+            $rows = \DB::table($hizmetlerTable . ' as h')
+                ->leftJoin($shTable . ' as sh', function ($j) {
                     $j->on('sh.hizmet_id', '=', 'h.id')->where('sh.salon_id', $this->salonId);
                 })
                 ->where(function ($q) {
