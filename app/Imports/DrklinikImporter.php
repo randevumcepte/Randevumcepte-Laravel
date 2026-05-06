@@ -1834,7 +1834,7 @@ class DrklinikImporter
         $decoded = trim(html_entity_decode($textOnly, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         if ($hasButton) {
             // Aksiyon kelimeleri (TR karakterler dahil)
-            if (preg_match('/^(Düzenle|Duzenle|Sil|Ödemeler|Odemeler|Prim\s*Hesab[ıi]|Seç|Sec|Seçim|Secim|Detay|Göster|Goster|Güncelle|Guncelle|Kaydet|İptal|Iptal|Randevu\s*Kapatma|Onayla|Reddet)$/iu', $decoded)) return true;
+            if (preg_match('/^(Düzenle|Duzenle|Sil|Ödemeler|Odemeler|Ödeme\s*Al|Odeme\s*Al|Prim\s*Hesab[ıi]|Seç|Sec|Seçim|Secim|Detay|Göster|Goster|Güncelle|Guncelle|Kaydet|İptal|Iptal|Randevu\s*Kapatma|Onayla|Reddet|Müşteri\s*Sayfas[ıi]n[ıi]?\s*A[çc]|Musteri\s*Sayfas[ıi]n[ıi]?\s*A[çc]|Dosyay[ıi]\s*[İI]ncele)$/iu', $decoded)) return true;
             if ($decoded === '' || strlen($decoded) < 2) return true;
         }
         return false;
