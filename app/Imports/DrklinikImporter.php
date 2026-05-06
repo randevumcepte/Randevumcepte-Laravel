@@ -1118,6 +1118,14 @@ class DrklinikImporter
             elseif (strpos($du, 'gelmedi') !== false || strpos($du, 'iptal') !== false) $r->randevuya_geldi = 0;
             $r->save();
 
+            // Sure_dk = bitis - baslangic (drklinik liste'sinde her ikisi de var)
+            $sureDk = 0;
+            if ($saat && $bitis) {
+                $sureDk = (int) round((strtotime($bitis) - strtotime($saat)) / 60);
+            }
+            if ($sureDk <= 0) $sureDk = $hizmetInfo ? (int) $hizmetInfo['sure_dk'] : 30;
+            if ($sureDk <= 0) $sureDk = 30;
+
             // RandevuHizmetler (birim varsa)
             if ($hizmetInfo) {
                 $rh = RandevuHizmetler::where('randevu_id', $r->id)->where('hizmet_id', $hizmetInfo['hizmet_id'])->first();
@@ -1125,8 +1133,8 @@ class DrklinikImporter
                 $rh->randevu_id = $r->id;
                 $rh->hizmet_id = $hizmetInfo['hizmet_id'];
                 $rh->saat = $saat;
-                $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $hizmetInfo['sure_dk'] . ' minutes', strtotime($saat)));
-                $rh->sure_dk = $hizmetInfo['sure_dk'];
+                $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $sureDk . ' minutes', strtotime($saat)));
+                $rh->sure_dk = $sureDk;
                 if ($personelId) $rh->personel_id = $personelId;
                 if ($odaId) $rh->oda_id = $odaId;
                 $rh->save();
@@ -1157,7 +1165,7 @@ class DrklinikImporter
                 $ah->geldi = isset($r->randevuya_geldi) ? $r->randevuya_geldi : 0;
                 $ah->islem_tarihi = $tarih;
                 $ah->islem_saati = $saat;
-                $ah->sure = $hizmetInfo['sure_dk'];
+                $ah->sure = $sureDk;
                 $ah->fiyat = $hizmetInfo['fiyat'];
                 $ah->save();
             }
