@@ -156,7 +156,8 @@ class DrklinikImport extends Command
 
         $cntRh = $db->table('randevu_hizmetler')->whereIn('hizmet_id', $dupIds)->count();
         $cntAh = $db->table('adisyon_hizmetler')->whereIn('hizmet_id', $dupIds)->count();
-        $cntTh = \Schema::hasTable('tahsilat_hizmetler')
+        $thHasHizmetId = \Schema::hasTable('tahsilat_hizmetler') && \Schema::hasColumn('tahsilat_hizmetler', 'hizmet_id');
+        $cntTh = $thHasHizmetId
             ? $db->table('tahsilat_hizmetler')->whereIn('hizmet_id', $dupIds)->count() : 0;
         $cntSh = $db->table('salon_hizmetler')->whereIn('hizmet_id', $dupIds)->count();
         $this->line("Bagli randevu_hizmetler: {$cntRh}");
@@ -170,7 +171,7 @@ class DrklinikImport extends Command
         try {
             $db->table('randevu_hizmetler')->whereIn('hizmet_id', $dupIds)->update(['hizmet_id' => null]);
             $db->table('adisyon_hizmetler')->whereIn('hizmet_id', $dupIds)->delete();
-            if (\Schema::hasTable('tahsilat_hizmetler')) {
+            if ($thHasHizmetId) {
                 $db->table('tahsilat_hizmetler')->whereIn('hizmet_id', $dupIds)->delete();
             }
             $db->table('salon_hizmetler')->whereIn('hizmet_id', $dupIds)->delete();
