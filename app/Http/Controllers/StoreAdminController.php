@@ -12495,7 +12495,7 @@ DB::raw('
             <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
             </a>
             <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-                <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_duzenle" data-index-number="',randevu_hizmetler.hizmet_id,'" href="#"> <i class="fa fa-edit"></i> Düzenle</a>
+                <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_duzenle" data-index-number="',COALESCE(randevu_hizmetler.hizmet_id, 0),'" href="#"> <i class="fa fa-edit"></i> Düzenle</a>
                 <a class="dropdown-item randevuonayla" data-value="',randevular.id,'" href="#"> <i class="fa fa-check"></i> Onayla</a>
                 <a class="dropdown-item randevuiptalet" data-value="',randevular.id,'" href="#"> <i class="fa fa-times"></i> İptal Et</a>
             </div></div>')
@@ -12504,7 +12504,7 @@ DB::raw('
             <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
             </a>
             <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-                <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_duzenle" data-index-number="',randevu_hizmetler.hizmet_id,'" href="#"> <i class="fa fa-edit"></i> Düzenle</a>
+                <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_duzenle" data-index-number="',COALESCE(randevu_hizmetler.hizmet_id, 0),'" href="#"> <i class="fa fa-edit"></i> Düzenle</a>
                 <a class="dropdown-item randevuiptalet" data-value="',randevular.id,'" href="#"> <i class="fa fa-times"></i> İptal Et</a>
             </div></div>') 
         WHEN randevular.durum = 1 AND randevular.randevuya_geldi IS TRUE THEN
@@ -12519,9 +12519,9 @@ DB::raw('
     SQL;
     $selectColumns[] = DB::raw($actionsHtml);
 
-    // Execute the optimized query
+    // Execute the optimized query (groupBy randevular.id - hizmetsiz randevular icin de calisir)
     return $query->select($selectColumns)
-        ->groupBy('randevu_hizmetler.randevu_id')
+        ->groupBy('randevular.id')
         ->orderBy('randevular.id', 'desc')
         ->get();
 }
