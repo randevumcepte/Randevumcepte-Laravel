@@ -769,6 +769,281 @@ class DrklinikImporter
     }
 
     /**
+     * Müşteri-bazlı satış + tahsilat + seans düşümü aktarımı.
+     * Drklinik'in musteri.aspx?musid=XXX detay sayfasından tek seferde:
+     *  - Tablo[1] Satışlar  -> Adisyon + AdisyonHizmetler + (paket varsa) AdisyonPaketSeanslar
+     *  - Tablo[5] Tahsilatlar -> Tahsilat (adisyon match: tarih+tutar)
+     *  - Tablo[3] Randevular "Seans Düşümü" sütunu -> AdisyonPaketSeanslar.randevu_id
+     *
+     * Tarih aralığındaki randevu listesinden tüm unique musid'leri toplar,
+     * her musid için detay sayfasını işler.
+     */
+    public function importSatisVeTahsilat($baslangic = null, $bitis = null)
+    {
+        $start = $baslangic ? strtotime($baslangic) : strtotime('2024-01-01');
+        $end   = $bitis ? strtotime($bitis) : strtotime('2026-12-31');
+        $this->log('Satis+Tahsilat: ' . date('Y-m-d', $start) . ' - ' . date('Y-m-d', $end));
+
+        // 1) Tarih aralığındaki tüm musid'leri topla
+        $this->log('Musid toplama (randevu listesi haftalik tarama)...');
+        $musidSet = [];
+        $weekStart = $start; $iter = 0;
+        while ($weekStart <= $end) {
+            $weekEnd = min($end, strtotime('+6 days', $weekStart));
+            $this->collectMusidsRange($weekStart, $weekEnd, $musidSet, 0);
+            $iter++;
+            if ($iter % 20 === 0) $this->log("  ..hafta {$iter} unique musid: " . count($musidSet));
+            $weekStart = strtotime('+7 days', $weekStart);
+        }
+        $this->log('Toplam unique musid: ' . count($musidSet));
+
+        // 2) Her musid için detay sayfasını işle
+        $i = 0;
+        foreach ($musidSet as $musid => $_) {
+            $userId = $this->ensureUserByMusid((string) $musid);
+            if (!$userId) { continue; }
+            $this->importMusteriDetay((string) $musid, $userId);
+            $i++;
+            if ($i % 50 === 0) $this->log("  ..musteri {$i}/" . count($musidSet) . " satis={$this->counts['satis']} tahsilat={$this->counts['tahsilat']}");
+            usleep(300000);
+        }
+        $this->log("Aktarim tamam: satis={$this->counts['satis']}, tahsilat={$this->counts['tahsilat']}");
+    }
+
+    private function collectMusidsRange($startTs, $endTs, &$musidSet, $depth)
+    {
+        $h = $this->client->postBack('/gunlukrandevulistesi.aspx', 'BTN_Ara', '', [
+            'TB_Tarih1' => date('d.m.Y', $startTs),
+            'TB_Tarih2' => date('d.m.Y', $endTs),
+        ]);
+        usleep(250000);
+        if ($h === null) return;
+
+        preg_match_all('~<table[^>]*>(.*?)</table>~is', $h, $tm);
+        $maxTr = 0;
+        foreach ($tm[1] as $t) if (preg_match_all('~<tr[^>]*>~i', $t, $rm) && count($rm[0]) > $maxTr) $maxTr = count($rm[0]);
+        if ($maxTr >= 50 && ($endTs - $startTs) >= 86400 && $depth < 6) {
+            $mid = $startTs + intval(($endTs - $startTs) / 2);
+            $this->collectMusidsRange($startTs, $mid, $musidSet, $depth + 1);
+            $this->collectMusidsRange($mid + 86400, $endTs, $musidSet, $depth + 1);
+            return;
+        }
+        if (preg_match_all('~href="musteri\.aspx\?musid=(\d+)~', $h, $m)) {
+            foreach ($m[1] as $id) $musidSet[$id] = true;
+        }
+    }
+
+    /**
+     * Bir müşterinin musteri.aspx?musid=X detay sayfasından
+     * satış, tahsilat ve seans düşümü tablolarını işler.
+     */
+    public function importMusteriDetay($musid, $userId)
+    {
+        $h = $this->client->getHtml('/musteri.aspx?musid=' . $musid);
+        if (strlen($h) < 5000) return;
+
+        preg_match_all('~<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)</table>~is', $h, $tm);
+        foreach ($tm[1] as $body) {
+            preg_match_all('~<th[^>]*>(.*?)</th>~is', $body, $th);
+            $headers = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
+            if (in_array('Satış No', $headers, true) && in_array('Hizmetler', $headers, true)) {
+                $this->processMusteriSatislar($body, $userId, $musid);
+            } elseif (in_array('Ödeme Şekli', $headers, true) && in_array('Banka Hesabı', $headers, true)) {
+                $this->processMusteriTahsilatlar($body, $userId);
+            } elseif (in_array('Seans Düşümü', $headers, true)) {
+                $this->processMusteriRandevuSeansDusumu($body, $userId);
+            }
+        }
+    }
+
+    private function processMusteriSatislar($tbody, $userId, $musid)
+    {
+        $defaultPers = $this->defaultPersonelId();
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) { $cells[] = ''; continue; }
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            // Beklenen sira (button hucreler atlandi): SatisNo, Tarih, Paket, Hizmetler, Aciklama, Tutar, Odenen, Kalan, SatisiYapan
+            $cells = array_values(array_filter($cells, function ($c, $k) {
+                return true; // sirayi koruyalim - filter etmiyoruz, butonlar zaten '' yazildi
+            }, ARRAY_FILTER_USE_BOTH));
+            // Bos basta varsa atla
+            $i = 0; while ($i < count($cells) && $cells[$i] === '') $i++;
+            $data = array_values(array_slice($cells, $i));
+            if (count($data) < 6) continue;
+
+            $satisNo = $data[0];
+            $tarih   = $this->tarihNormalize($data[1] ?? '');
+            $paketAd = $data[2] ?? '';
+            $hizmetlerStr = $data[3] ?? '';
+            $aciklama = $data[4] ?? '';
+            $tutar    = $this->paraParse($data[5] ?? '0');
+            if (!$satisNo || !$tarih) continue;
+
+            $idMarker = "drklinik:{$satisNo}";
+            // Adisyon dedup
+            static $notKolonu = null;
+            if ($notKolonu === null) {
+                foreach (['adisyon_notu','aciklama','genel_aciklama','notlar','not','dosya_no','referans'] as $col) {
+                    if (\Schema::hasColumn('adisyonlar', $col)) { $notKolonu = $col; break; }
+                }
+                if (!$notKolonu) $notKolonu = false;
+            }
+            $ad = null;
+            if ($notKolonu) {
+                $ad = Adisyonlar::where('salon_id', $this->salonId)
+                    ->where($notKolonu, 'LIKE', '%' . $idMarker . '%')->first();
+            }
+            if (!$ad) {
+                $ad = new Adisyonlar();
+                $ad->user_id = $userId;
+                $ad->salon_id = $this->salonId;
+                $ad->tarih = $tarih;
+                $ad->olusturan_id = $defaultPers;
+                if ($notKolonu) $ad->{$notKolonu} = trim($aciklama . ' [' . $idMarker . ']');
+                $ad->save();
+            }
+            $this->counts['satis']++;
+
+            // Hizmetler "Ad (N Seans = X TRY)" parse
+            $hizmetler = $this->parseHizmetlerStr($hizmetlerStr);
+            foreach ($hizmetler as $hv) {
+                $seansSayisi = max(1, (int) $hv['seans']);
+                $birimFiyat = $hv['tutar'] / $seansSayisi;
+                $sh = $this->findSalonHizmetByName($hv['ad']);
+                if (!$sh) {
+                    $sh = $this->ensureSalonHizmet($hv['ad'], $birimFiyat);
+                    if (!$sh) continue;
+                }
+                $existAh = AdisyonHizmetler::where('adisyon_id', $ad->id)
+                    ->where('hizmet_id', $sh['hizmet_id'])->first();
+                if ($existAh) continue;
+                $ah = new AdisyonHizmetler();
+                $ah->adisyon_id = $ad->id;
+                $ah->hizmet_id = $sh['hizmet_id'];
+                $ah->personel_id = $defaultPers;
+                $ah->geldi = 0;
+                $ah->islem_tarihi = $tarih;
+                $ah->islem_saati = '00:00:00';
+                $ah->sure = $sh['sure_dk'] ?: 30;
+                $ah->fiyat = $hv['tutar'];
+                $ah->save();
+                if ($seansSayisi > 1) {
+                    for ($i = 1; $i <= $seansSayisi; $i++) {
+                        $aps = new AdisyonPaketSeanslar();
+                        $aps->adisyon_hizmet_id = $ah->id;
+                        $aps->hizmet_id = $sh['hizmet_id'];
+                        $aps->seans_no = $i;
+                        $aps->geldi = 0;
+                        $aps->save();
+                    }
+                }
+            }
+        }
+    }
+
+    private function processMusteriTahsilatlar($tbody, $userId)
+    {
+        $defaultPers = $this->defaultPersonelId();
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) { $cells[] = ''; continue; }
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            $i = 0; while ($i < count($cells) && $cells[$i] === '') $i++;
+            $data = array_values(array_slice($cells, $i));
+            // Beklenen: Tarih, Aciklama, OdemeSekli, Kasa, Tutar, Banka, Taksit
+            if (count($data) < 5) continue;
+            $tarih = $this->tarihNormalize($data[0] ?? '');
+            $odemeSekli = $data[2] ?? '';
+            $tutar = $this->paraParse($data[4] ?? '0');
+            if (!$tarih || $tutar <= 0) continue;
+            $odemeYontemi = $this->odemeYontemiMap($odemeSekli);
+
+            $exists = Tahsilatlar::where('user_id', $userId)
+                ->where('salon_id', $this->salonId)
+                ->where('odeme_tarihi', $tarih)
+                ->where('tutar', $tutar)
+                ->where('odeme_yontemi_id', $odemeYontemi)
+                ->first();
+            if ($exists) continue;
+
+            $t = new Tahsilatlar();
+            $t->user_id = $userId;
+            $t->salon_id = $this->salonId;
+            $t->tutar = $tutar;
+            $t->yapilan_odeme = $tutar;
+            $t->odeme_yontemi_id = $odemeYontemi;
+            $t->odeme_tarihi = $tarih;
+            $t->olusturan_id = $defaultPers;
+            // Adisyon match: ayni tarihte ayni musteri adisyonu varsa o adisyona bagla
+            $ad = Adisyonlar::where('user_id', $userId)
+                ->where('salon_id', $this->salonId)
+                ->where('tarih', $tarih)->orderBy('id')->first();
+            if ($ad) $t->adisyon_id = $ad->id;
+            $t->save();
+            $this->counts['tahsilat']++;
+        }
+    }
+
+    private function processMusteriRandevuSeansDusumu($tbody, $userId)
+    {
+        // Td[3] hizmet, td[8] seans dusumu, td[1] tarih, td[2] saat
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) { $cells[] = ''; continue; }
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            $i = 0; while ($i < count($cells) && $cells[$i] === '') $i++;
+            $data = array_values(array_slice($cells, $i));
+            if (count($data) < 9) continue;
+            $tarihStr = preg_replace('~\s*\([^)]+\)~u', '', $data[0]); // "29.03.2025 (C.tesi)" -> "29.03.2025"
+            $tarih = $this->tarihNormalize($tarihStr);
+            $saat = $data[1] ?? '';
+            if (strlen($saat) === 5) $saat .= ':00';
+            $hizmetlerStr = $data[3] ?? '';
+            $seansDusumu = $data[8] ?? '';
+            if (!$tarih || !$saat) continue;
+            // "Seans Hakkından Düşülecek" varsa paket tüketimi
+            if (mb_stripos($seansDusumu, 'Düşülecek', 0, 'UTF-8') === false) continue;
+
+            $randevu = Randevular::where('tarih', $tarih)->where('saat', $saat)
+                ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
+            if (!$randevu) continue;
+
+            // Hizmet adından paketin AdisyonPaketSeanslar'ına seans tüket
+            $paketHint = $this->parsePaketSeansHint($hizmetlerStr);
+            $hizmetId = null;
+            if ($paketHint) {
+                $sh = $this->findSalonHizmetByName($paketHint['hizmet_adi']);
+                if ($sh) $hizmetId = $sh['hizmet_id'];
+            }
+            if ($hizmetId) {
+                $this->paketSeansiTuket($userId, $hizmetId, $randevu->id, $tarih, $saat, null, null);
+            }
+        }
+    }
+
+    /**
      * Tahsilatlar: kasa_islemleri.aspx + BTN_Ara, hafta-hafta tarama (server cap'i muhtemel 50).
      * Sutunlar (11 td): Tarih | Aciklama | Odeme Sekli | Tutar | Musteri | Banka | Taksit | Kasa | Dosya(buton) | Saat | GenelTip
      *
