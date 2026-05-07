@@ -614,6 +614,28 @@ class DrklinikImporter
      * Bir randevuda paketten seans tuketildi mi? Bu kullanicinin o hizmet icin
      * kullanilmamis ilk AdisyonPaketSeanslar'ini bul, randevu_id ata, geldi=1 yap.
      */
+    /**
+     * Bir AdisyonHizmetler kaydi icin AdisyonPaketSeanslar satirlarinin
+     * eksiksiz oldugunu garantile. Idempotent: eksik seans_no'lari ekler,
+     * mevcutlari biraktir.
+     */
+    private function ensureAdisyonPaketSeanslar($ah, $hizmetId, $seansSayisi)
+    {
+        $seansSayisi = max(1, (int) $seansSayisi);
+        $mevcut = AdisyonPaketSeanslar::where('adisyon_hizmet_id', $ah->id)
+            ->pluck('seans_no')->all();
+        $mevcutSet = array_flip($mevcut);
+        for ($i = 1; $i <= $seansSayisi; $i++) {
+            if (isset($mevcutSet[$i])) continue;
+            $aps = new AdisyonPaketSeanslar();
+            $aps->adisyon_hizmet_id = $ah->id;
+            $aps->hizmet_id = $hizmetId;
+            $aps->seans_no = $i;
+            $aps->geldi = 0;
+            $aps->save();
+        }
+    }
+
     private function paketSeansiTuket($userId, $hizmetId, $randevuId, $tarih, $saat, $personelId, $odaId)
     {
         if (!$hizmetId || !$randevuId) return false;
@@ -1009,7 +1031,18 @@ class DrklinikImporter
                 }
                 $existAh = AdisyonHizmetler::where('adisyon_id', $ad->id)
                     ->where('hizmet_id', $sh['hizmet_id'])->first();
-                if ($existAh) continue;
+                if ($existAh) {
+                    // Eski import'larda seans_sayisi bos olabilir; doldur
+                    $changed = false;
+                    if (\Schema::hasColumn((new AdisyonHizmetler)->getTable(), 'seans_sayisi')
+                        && empty($existAh->seans_sayisi)) {
+                        $existAh->seans_sayisi = $seansSayisi;
+                        $changed = true;
+                    }
+                    if ($changed) $existAh->save();
+                    $this->ensureAdisyonPaketSeanslar($existAh, $sh['hizmet_id'], $seansSayisi);
+                    continue;
+                }
                 $ah = new AdisyonHizmetler();
                 $ah->adisyon_id = $ad->id;
                 $ah->hizmet_id = $sh['hizmet_id'];
@@ -1019,17 +1052,11 @@ class DrklinikImporter
                 $ah->islem_saati = '00:00:00';
                 $ah->sure = $sh['sure_dk'] ?: 30;
                 $ah->fiyat = $hv['tutar'];
-                $ah->save();
-                if ($seansSayisi > 1) {
-                    for ($i = 1; $i <= $seansSayisi; $i++) {
-                        $aps = new AdisyonPaketSeanslar();
-                        $aps->adisyon_hizmet_id = $ah->id;
-                        $aps->hizmet_id = $sh['hizmet_id'];
-                        $aps->seans_no = $i;
-                        $aps->geldi = 0;
-                        $aps->save();
-                    }
+                if (\Schema::hasColumn((new AdisyonHizmetler)->getTable(), 'seans_sayisi')) {
+                    $ah->seans_sayisi = $seansSayisi;
                 }
+                $ah->save();
+                $this->ensureAdisyonPaketSeanslar($ah, $sh['hizmet_id'], $seansSayisi);
             }
         }
     }

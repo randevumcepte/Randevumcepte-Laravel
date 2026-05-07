@@ -21,6 +21,7 @@ class DrklinikImport extends Command
         {--cleanup-urun-hizmet : Urunler ile ayni isimdeki Hizmetler kayitlarini temizle}
         {--reset-drklinik-satis : Drklinik markerli adisyonlari ve alt kayitlari sil}
         {--repair-tahsilat-icerik : Mevcut tahsilatlari adisyona bagla ve icerigini uret}
+        {--repair-seans-sayisi : Mevcut adisyon_hizmetler.seans_sayisi NULL ise APS sayisindan doldur}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -48,6 +49,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('repair-tahsilat-icerik')) {
             if (!$salonId) { $this->error('--repair-tahsilat-icerik icin --salon zorunlu.'); return 1; }
             return $this->repairTahsilatIcerik((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('repair-seans-sayisi')) {
+            if (!$salonId) { $this->error('--repair-seans-sayisi icin --salon zorunlu.'); return 1; }
+            return $this->repairSeansSayisi((int) $salonId, (bool) $this->option('dry-run'));
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -109,6 +114,62 @@ class DrklinikImport extends Command
             $importer->importSatisVeTahsilat($this->option('from'), $this->option('to'));
         }
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
+        return 0;
+    }
+
+    /**
+     * Drklinik markerli adisyonlardaki AdisyonHizmetler kayitlarinda
+     * seans_sayisi NULL ise:
+     *  - bagli AdisyonPaketSeanslar varsa o sayidan doldur
+     *  - yoksa default 1
+     * Boylece /seanstakip sayfasi (whereNotNull seans_sayisi) gosterir.
+     */
+    private function repairSeansSayisi($salonId, $dryRun)
+    {
+        $tAh  = (new \App\AdisyonHizmetler)->getTable();
+        $tAd  = (new \App\Adisyonlar)->getTable();
+        $tAps = (new \App\AdisyonPaketSeanslar)->getTable();
+
+        if (!\Schema::hasColumn($tAh, 'seans_sayisi')) {
+            $this->error("'{$tAh}.seans_sayisi' kolonu yok.");
+            return 1;
+        }
+
+        $notKol = null;
+        foreach (['adisyon_notu','aciklama','genel_aciklama','notlar','not','dosya_no','referans'] as $col) {
+            if (\Schema::hasColumn($tAd, $col)) { $notKol = $col; break; }
+        }
+
+        $q = \DB::table("{$tAh} as ah")
+            ->join("{$tAd} as a", 'ah.adisyon_id', '=', 'a.id')
+            ->where('a.salon_id', $salonId)
+            ->whereNull('ah.seans_sayisi');
+        if ($notKol) $q->where("a.{$notKol}", 'LIKE', '%drklinik:%');
+        $rows = $q->select('ah.id', 'ah.hizmet_id')->get();
+
+        $this->line("Salon {$salonId} drklinik adisyon_hizmetler (seans_sayisi NULL): " . $rows->count());
+        if ($rows->isEmpty()) { $this->info('Yapilacak is yok.'); return 0; }
+
+        $updated = 0; $defaultBir = 0;
+        foreach ($rows as $r) {
+            $cnt = \DB::table($tAps)->where('adisyon_hizmet_id', $r->id)->count();
+            $seansSayisi = $cnt > 0 ? $cnt : 1;
+            if ($cnt === 0) $defaultBir++;
+            if (!$dryRun) {
+                \DB::table($tAh)->where('id', $r->id)->update(['seans_sayisi' => $seansSayisi]);
+                if ($cnt === 0) {
+                    \DB::table($tAps)->insert([
+                        'adisyon_hizmet_id' => $r->id,
+                        'hizmet_id' => $r->hizmet_id,
+                        'seans_no' => 1,
+                        'geldi' => 0,
+                    ]);
+                }
+            }
+            $updated++;
+        }
+        $tag = $dryRun ? '[DRY-RUN] ' : '';
+        $this->info("{$tag}Tamam. seans_sayisi yazildi: {$updated} (bunlardan {$defaultBir} kayit APS yoktu, seans_sayisi=1 + 1 satir APS olusturuldu).");
         return 0;
     }
 
