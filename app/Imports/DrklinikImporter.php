@@ -1097,15 +1097,16 @@ class DrklinikImporter
     }
 
     /**
-     * Tahsilat ile adisyon kalemleri eslesirse tahsilat_hizmetler ve
-     * tahsilat_urunler kayitlarini uretir. Sadece tam tutar eslesmesinde
-     * calisir (tahsilat tutari ile adisyon kalemleri toplami arasinda
-     * 0.01 TL'den az fark). Idempotent: zaten kayit varsa eklemez.
+     * Tahsilat tutarini, baglandigi adisyonun hizmet+urun kalemlerine
+     * fiyat-orantili olarak dagitir; tahsilat_hizmetler ve tahsilat_urunler
+     * kayitlarini uretir. Idempotent: zaten kayit varsa eklemez.
+     *
+     * Tam odeme   -> her kaleme kendi fiyati yazilir
+     * Kismi odeme -> oransal pay (yuvarlama hatasi son kaleme yazilir)
      */
     private function propagateAdisyonToTahsilat($tahsilat)
     {
         if (!$tahsilat || !$tahsilat->adisyon_id) return;
-        // Idempotent kontrol
         if (TahsilatHizmetler::where('tahsilat_id', $tahsilat->id)->exists()) return;
         if (TahsilatUrunler::where('tahsilat_id', $tahsilat->id)->exists()) return;
 
@@ -1113,28 +1114,66 @@ class DrklinikImporter
         $urunler   = AdisyonUrunler::where('adisyon_id', $tahsilat->adisyon_id)->get();
         if ($hizmetler->isEmpty() && $urunler->isEmpty()) return;
 
-        $toplam = 0.0;
-        foreach ($hizmetler as $h) $toplam += (float) ($h->fiyat ?? 0);
-        foreach ($urunler as $u)   $toplam += (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
+        if ($this->dagitVeYaz($tahsilat, $hizmetler, $urunler)) {
+            $this->counts['tahsilat_propagate'] = ($this->counts['tahsilat_propagate'] ?? 0) + 1;
+        }
+    }
 
-        // Sadece tutar tam eslesirse propagate et (kismi odeme atlanir)
-        if (abs($toplam - (float) $tahsilat->tutar) > 0.01) return;
-
+    /**
+     * Oransal dagitim + son kaleme yuvarlama farki. Tahsilat tutari =
+     * sum(tahsilat_hizmetler.tutar) + sum(tahsilat_urunler.tutar).
+     */
+    private function dagitVeYaz($tahsilat, $hizmetler, $urunler)
+    {
+        $items = []; // [type, model, base_fiyat]
         foreach ($hizmetler as $h) {
-            $th = new TahsilatHizmetler();
-            $th->tahsilat_id = $tahsilat->id;
-            $th->adisyon_hizmet_id = $h->id;
-            $th->tutar = (float) ($h->fiyat ?? 0);
-            $th->save();
+            $f = (float) ($h->fiyat ?? 0);
+            if ($f > 0) $items[] = ['hizmet', $h, $f];
         }
         foreach ($urunler as $u) {
-            $tu = new TahsilatUrunler();
-            $tu->tahsilat_id = $tahsilat->id;
-            $tu->adisyon_urun_id = $u->id;
-            $tu->tutar = (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
-            $tu->save();
+            $f = (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
+            if ($f > 0) $items[] = ['urun', $u, $f];
         }
-        $this->counts['tahsilat_propagate'] = ($this->counts['tahsilat_propagate'] ?? 0) + 1;
+        if (empty($items)) return false;
+
+        $toplamFiyat = array_sum(array_column($items, 2));
+        if ($toplamFiyat <= 0) return false;
+        $tutar = (float) $tahsilat->tutar;
+        if ($tutar <= 0) return false;
+
+        $oran = $tutar / $toplamFiyat;
+        $payToplam = 0.0;
+        $paylar = [];
+        foreach ($items as $i => $it) {
+            $pay = round($it[2] * $oran, 2);
+            $paylar[$i] = $pay;
+            $payToplam += $pay;
+        }
+        // Yuvarlama farki son kaleme
+        $fark = round($tutar - $payToplam, 2);
+        if (abs($fark) > 0.001 && !empty($paylar)) {
+            $sonIdx = array_key_last($paylar);
+            $paylar[$sonIdx] = round($paylar[$sonIdx] + $fark, 2);
+        }
+
+        foreach ($items as $i => $it) {
+            $pay = $paylar[$i];
+            if ($pay <= 0) continue;
+            if ($it[0] === 'hizmet') {
+                $th = new TahsilatHizmetler();
+                $th->tahsilat_id = $tahsilat->id;
+                $th->adisyon_hizmet_id = $it[1]->id;
+                $th->tutar = $pay;
+                $th->save();
+            } else {
+                $tu = new TahsilatUrunler();
+                $tu->tahsilat_id = $tahsilat->id;
+                $tu->adisyon_urun_id = $it[1]->id;
+                $tu->tutar = $pay;
+                $tu->save();
+            }
+        }
+        return true;
     }
 
     /**

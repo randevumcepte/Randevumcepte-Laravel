@@ -154,27 +154,10 @@ class DrklinikImport extends Command
             $hizmetler = \App\AdisyonHizmetler::where('adisyon_id', $t->adisyon_id)->get();
             $urunler   = \App\AdisyonUrunler::where('adisyon_id', $t->adisyon_id)->get();
             if ($hizmetler->isEmpty() && $urunler->isEmpty()) continue;
-
-            $toplam = 0.0;
-            foreach ($hizmetler as $h) $toplam += (float) ($h->fiyat ?? 0);
-            foreach ($urunler as $u)   $toplam += (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
-            if (abs($toplam - (float) $t->tutar) > 0.01) continue;
+            if ((float) $t->tutar <= 0) continue;
 
             if (!$dryRun) {
-                foreach ($hizmetler as $h) {
-                    $th = new \App\TahsilatHizmetler();
-                    $th->tahsilat_id = $t->id;
-                    $th->adisyon_hizmet_id = $h->id;
-                    $th->tutar = (float) ($h->fiyat ?? 0);
-                    $th->save();
-                }
-                foreach ($urunler as $u) {
-                    $tu = new \App\TahsilatUrunler();
-                    $tu->tahsilat_id = $t->id;
-                    $tu->adisyon_urun_id = $u->id;
-                    $tu->tutar = (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
-                    $tu->save();
-                }
+                $this->dagitVeYazContent($t, $hizmetler, $urunler);
             }
             $propagated++;
             if (($idx + 1) % 200 === 0) {
@@ -184,6 +167,57 @@ class DrklinikImport extends Command
         $tag = $dryRun ? '[DRY-RUN] ' : '';
         $this->info("{$tag}Tamam. yeni-link={$linkedNew}, icerik-uretildi={$propagated}, eslesmeyen={$skipped}");
         return 0;
+    }
+
+    /**
+     * Tahsilat tutarini, adisyon kalemlerine fiyat-orantili olarak dagit;
+     * tahsilat_hizmetler / tahsilat_urunler kayitlarini uretir. Yuvarlama
+     * farki son kaleme yazilir.
+     */
+    private function dagitVeYazContent($tahsilat, $hizmetler, $urunler)
+    {
+        $items = [];
+        foreach ($hizmetler as $h) {
+            $f = (float) ($h->fiyat ?? 0);
+            if ($f > 0) $items[] = ['hizmet', $h, $f];
+        }
+        foreach ($urunler as $u) {
+            $f = (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
+            if ($f > 0) $items[] = ['urun', $u, $f];
+        }
+        if (empty($items)) return false;
+        $toplamFiyat = array_sum(array_column($items, 2));
+        if ($toplamFiyat <= 0) return false;
+        $oran = (float) $tahsilat->tutar / $toplamFiyat;
+        $paylar = []; $payToplam = 0.0;
+        foreach ($items as $i => $it) {
+            $pay = round($it[2] * $oran, 2);
+            $paylar[$i] = $pay;
+            $payToplam += $pay;
+        }
+        $fark = round((float) $tahsilat->tutar - $payToplam, 2);
+        if (abs($fark) > 0.001 && !empty($paylar)) {
+            $sonIdx = array_key_last($paylar);
+            $paylar[$sonIdx] = round($paylar[$sonIdx] + $fark, 2);
+        }
+        foreach ($items as $i => $it) {
+            $pay = $paylar[$i];
+            if ($pay <= 0) continue;
+            if ($it[0] === 'hizmet') {
+                $th = new \App\TahsilatHizmetler();
+                $th->tahsilat_id = $tahsilat->id;
+                $th->adisyon_hizmet_id = $it[1]->id;
+                $th->tutar = $pay;
+                $th->save();
+            } else {
+                $tu = new \App\TahsilatUrunler();
+                $tu->tahsilat_id = $tahsilat->id;
+                $tu->adisyon_urun_id = $it[1]->id;
+                $tu->tutar = $pay;
+                $tu->save();
+            }
+        }
+        return true;
     }
 
     private function findAdisyonForTahsilat($t)
