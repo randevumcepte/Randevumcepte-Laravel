@@ -135,8 +135,8 @@ class DrklinikImport extends Command
             if (!$t->adisyon_id) {
                 $adId = $this->findAdisyonForTahsilat($t);
                 if ($adId) {
+                    $t->adisyon_id = $adId; // dry-run'da memory'de tut, save sadece gercek modda
                     if (!$dryRun) {
-                        $t->adisyon_id = $adId;
                         $t->save();
                     }
                     $linkedNew++;
