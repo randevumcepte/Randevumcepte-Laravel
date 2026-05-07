@@ -615,7 +615,10 @@ class DrklinikImporter
      */
     private function paketSeansiTuket($userId, $hizmetId, $randevuId, $tarih, $saat, $personelId, $odaId)
     {
-        if (!$hizmetId) return false;
+        if (!$hizmetId || !$randevuId) return false;
+        // Idempotency: bu randevu icin zaten dolu APS varsa atla
+        $already = AdisyonPaketSeanslar::where('randevu_id', $randevuId)->first();
+        if ($already) return false;
         $aps = AdisyonPaketSeanslar::join('adisyon_hizmetler as ah', 'adisyon_paket_seanslar.adisyon_hizmet_id', '=', 'ah.id')
             ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
             ->where('a.user_id', $userId)
@@ -856,10 +859,16 @@ class DrklinikImporter
             if (!$userId) { continue; }
             $this->importMusteriDetay((string) $musid, $userId);
             $i++;
-            if ($i % 50 === 0) $this->log("  ..musteri {$i}/" . count($musidSet) . " satis={$this->counts['satis']} tahsilat={$this->counts['tahsilat']}");
+            if ($i % 50 === 0) {
+                $sd = $this->counts['seans_dusumu'] ?? 0;
+                $rl = $this->counts['tahsilat_relink'] ?? 0;
+                $this->log("  ..musteri {$i}/" . count($musidSet) . " satis={$this->counts['satis']} tahsilat={$this->counts['tahsilat']} relink={$rl} seans={$sd}");
+            }
             usleep(300000);
         }
-        $this->log("Aktarim tamam: satis={$this->counts['satis']}, tahsilat={$this->counts['tahsilat']}");
+        $sd = $this->counts['seans_dusumu'] ?? 0;
+        $rl = $this->counts['tahsilat_relink'] ?? 0;
+        $this->log("Aktarim tamam: satis={$this->counts['satis']}, tahsilat={$this->counts['tahsilat']}, tahsilat_relink={$rl}, seans_dusumu={$sd}");
     }
 
     private function collectMusidsRange($startTs, $endTs, &$musidSet, $depth)
@@ -960,6 +969,13 @@ class DrklinikImporter
                 $ad->tarih = $tarih;
                 $ad->olusturan_id = $defaultPers;
                 if ($notKolonu) $ad->{$notKolonu} = trim($aciklama . ' [' . $idMarker . ']');
+                if (\Schema::hasColumn((new Adisyonlar)->getTable(), 'toplam_tutar')) {
+                    $ad->toplam_tutar = $tutar;
+                }
+                $ad->save();
+            } elseif (\Schema::hasColumn((new Adisyonlar)->getTable(), 'toplam_tutar') && (float) ($ad->toplam_tutar ?? 0) <= 0) {
+                // Onceki import'ta toplam_tutar set edilmemisse simdi yaz
+                $ad->toplam_tutar = $tutar;
                 $ad->save();
             }
             $this->counts['satis']++;
@@ -1039,13 +1055,23 @@ class DrklinikImporter
             if (!$tarih || $tutar <= 0) continue;
             $odemeYontemi = $this->odemeYontemiMap($odemeSekli);
 
+            $adisyonId = $this->findMatchingAdisyonId($userId, $tarih, $tutar);
+
             $exists = Tahsilatlar::where('user_id', $userId)
                 ->where('salon_id', $this->salonId)
                 ->where('odeme_tarihi', $tarih)
                 ->where('tutar', $tutar)
                 ->where('odeme_yontemi_id', $odemeYontemi)
                 ->first();
-            if ($exists) continue;
+            if ($exists) {
+                // Mevcut tahsilatin adisyon_id NULL ise yeni adisyona bagla
+                if (!$exists->adisyon_id && $adisyonId) {
+                    $exists->adisyon_id = $adisyonId;
+                    $exists->save();
+                    $this->counts['tahsilat_relink'] = ($this->counts['tahsilat_relink'] ?? 0) + 1;
+                }
+                continue;
+            }
 
             $t = new Tahsilatlar();
             $t->user_id = $userId;
@@ -1055,14 +1081,34 @@ class DrklinikImporter
             $t->odeme_yontemi_id = $odemeYontemi;
             $t->odeme_tarihi = $tarih;
             $t->olusturan_id = $defaultPers;
-            // Adisyon match: ayni tarihte ayni musteri adisyonu varsa o adisyona bagla
-            $ad = Adisyonlar::where('user_id', $userId)
-                ->where('salon_id', $this->salonId)
-                ->where('tarih', $tarih)->orderBy('id')->first();
-            if ($ad) $t->adisyon_id = $ad->id;
+            if ($adisyonId) $t->adisyon_id = $adisyonId;
             $t->save();
             $this->counts['tahsilat']++;
         }
+    }
+
+    /**
+     * Tahsilat icin en uygun adisyonu bul.
+     * Oncelik: ayni tarih + ayni tutar > ayni tarih + ilk > yakin tarih (1-3 gun) + tutar.
+     */
+    private function findMatchingAdisyonId($userId, $tarih, $tutar)
+    {
+        $base = Adisyonlar::where('user_id', $userId)->where('salon_id', $this->salonId);
+        // 1) ayni tarih + ayni tutar
+        $hit = (clone $base)->where('tarih', $tarih)
+            ->whereRaw('ABS(toplam_tutar - ?) < 0.01', [$tutar])
+            ->orderBy('id')->first();
+        if ($hit) return $hit->id;
+        // 2) ayni tarih, herhangi bir tutar (en eski adisyon)
+        $hit = (clone $base)->where('tarih', $tarih)->orderBy('id')->first();
+        if ($hit) return $hit->id;
+        // 3) tahsilat tarihinden onceki 30 gun icinde ayni tutarli adisyon
+        $hit = (clone $base)
+            ->whereDate('tarih', '<=', $tarih)
+            ->whereDate('tarih', '>=', date('Y-m-d', strtotime($tarih . ' -30 days')))
+            ->whereRaw('ABS(toplam_tutar - ?) < 0.01', [$tutar])
+            ->orderBy('tarih', 'desc')->first();
+        return $hit ? $hit->id : null;
     }
 
     private function processMusteriRandevuSeansDusumu($tbody, $userId)
@@ -1089,24 +1135,70 @@ class DrklinikImporter
             $hizmetlerStr = $data[3] ?? '';
             $seansDusumu = $data[8] ?? '';
             if (!$tarih || !$saat) continue;
-            // "Seans Hakkından Düşülecek" varsa paket tüketimi
-            if (mb_stripos($seansDusumu, 'Düşülecek', 0, 'UTF-8') === false) continue;
+            // "Seans Hakkından Düşülecek/Düşüldü" varsa paket tüketimi
+            if (mb_stripos($seansDusumu, 'Düş', 0, 'UTF-8') === false) continue;
 
             $randevu = Randevular::where('tarih', $tarih)->where('saat', $saat)
                 ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
             if (!$randevu) continue;
 
-            // Hizmet adından paketin AdisyonPaketSeanslar'ına seans tüket
-            $paketHint = $this->parsePaketSeansHint($hizmetlerStr);
+            // Hizmet adindan paketin AdisyonPaketSeanslar'ina seans tuket.
+            // 1) "(NxHizmet)" hint formatini dene
+            // 2) Hizmet kolonunu olduğu gibi service name olarak dene
+            // 3) Bulunamazsa: bu kullanicinin tek bir bos APS'si varsa onu tuket
             $hizmetId = null;
+            $paketHint = $this->parsePaketSeansHint($hizmetlerStr);
             if ($paketHint) {
                 $sh = $this->findSalonHizmetByName($paketHint['hizmet_adi']);
                 if ($sh) $hizmetId = $sh['hizmet_id'];
             }
+            if (!$hizmetId && $hizmetlerStr) {
+                $clean = trim(preg_replace('~\s*\(\d+x[^)]+\)$~iu', '', $hizmetlerStr));
+                if ($clean !== '') {
+                    $sh = $this->findSalonHizmetByName($clean);
+                    if ($sh) $hizmetId = $sh['hizmet_id'];
+                }
+            }
+            $ok = false;
             if ($hizmetId) {
-                $this->paketSeansiTuket($userId, $hizmetId, $randevu->id, $tarih, $saat, null, null);
+                $ok = $this->paketSeansiTuket($userId, $hizmetId, $randevu->id, $tarih, $saat, null, null);
+            }
+            if (!$ok) {
+                // Fallback: kullanicinin tek/herhangi bir kullanilmamis paket seansini tuket
+                $ok = $this->paketSeansiTuketHerhangiHizmet($userId, $randevu->id, $tarih, $saat);
+            }
+            if ($ok) {
+                $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + 1;
             }
         }
+    }
+
+    /**
+     * Hizmet ismi eslesmediginde fallback: kullanicinin herhangi bir bos
+     * paket seansini tuket. (Drklinik bazi randevularda hizmet adini paket
+     * formatiyla yazmiyor, ama "Seans Hakkindan Dusuldu" isaretli oluyor.)
+     */
+    private function paketSeansiTuketHerhangiHizmet($userId, $randevuId, $tarih, $saat)
+    {
+        if (!$randevuId) return false;
+        $already = AdisyonPaketSeanslar::where('randevu_id', $randevuId)->first();
+        if ($already) return false;
+        $aps = AdisyonPaketSeanslar::join('adisyon_hizmetler as ah', 'adisyon_paket_seanslar.adisyon_hizmet_id', '=', 'ah.id')
+            ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+            ->where('a.user_id', $userId)
+            ->where('a.salon_id', $this->salonId)
+            ->whereNull('adisyon_paket_seanslar.randevu_id')
+            ->orderBy('a.tarih')
+            ->orderBy('adisyon_paket_seanslar.seans_no')
+            ->select('adisyon_paket_seanslar.*')
+            ->first();
+        if (!$aps) return false;
+        $aps->randevu_id = $randevuId;
+        $aps->seans_tarih = $tarih;
+        $aps->seans_saat = $saat;
+        $aps->geldi = 1;
+        $aps->save();
+        return true;
     }
 
     /**
