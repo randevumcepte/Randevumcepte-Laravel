@@ -166,22 +166,24 @@ class DrklinikImport extends Command
         $cntTh = $thHasHizmetId
             ? $db->table($tTh)->whereIn('hizmet_id', $dupIds)->count() : 0;
         $cntSh = $db->table($tSh)->whereIn('hizmet_id', $dupIds)->count();
-        $this->line("Bagli randevu_hizmetler: {$cntRh}");
-        $this->line("Bagli adisyon_hizmetler: {$cntAh}");
-        $this->line("Bagli tahsilat_hizmetler: {$cntTh}");
-        $this->line("Bagli salon_hizmetler: {$cntSh}");
+        $this->line("Randevu_hizmetler (dokunulmayacak): {$cntRh}");
+        $this->line("Adisyon_hizmetler (silinecek): {$cntAh}");
+        $this->line("Tahsilat_hizmetler (silinecek): {$cntTh}");
+        $this->line("Salon_sunulan_hizmetler (silinecek): {$cntSh}");
+        $this->line('Hizmetler (dokunulmayacak): randevu_hizmetler FK referanslari korunsun diye birakiliyor.');
 
         if ($dryRun) { $this->warn('DRY-RUN: kayitlar silinmedi. Gercek calistirma icin --dry-run kaldirin.'); return 0; }
 
         $db->beginTransaction();
         try {
-            $db->table($tRh)->whereIn('hizmet_id', $dupIds)->update(['hizmet_id' => null]);
+            // randevu_hizmetler ve hizmetler tablolarina dokunmuyoruz:
+            // randevu kayitlarinin gorunumunu degistirmemek ve FK orphan
+            // olusmamasi icin.
             $db->table($tAh)->whereIn('hizmet_id', $dupIds)->delete();
             if ($thHasHizmetId) {
                 $db->table($tTh)->whereIn('hizmet_id', $dupIds)->delete();
             }
             $db->table($tSh)->whereIn('hizmet_id', $dupIds)->delete();
-            $db->table($tHizmet)->whereIn('id', $dupIds)->delete();
             $db->commit();
             $this->info('Temizlik tamam.');
             return 0;
