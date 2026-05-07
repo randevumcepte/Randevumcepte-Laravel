@@ -615,43 +615,50 @@ class DrklinikImporter
      * kullanilmamis ilk AdisyonPaketSeanslar'ini bul, randevu_id ata, geldi=1 yap.
      */
     /**
-     * Bir AdisyonHizmetler kaydi icin AdisyonPaketSeanslar satirlarinin
-     * eksiksiz oldugunu garantile. Idempotent: eksik seans_no'lari ekler,
-     * mevcutlari biraktir.
+     * Seans tuketildiginde yeni bir AdisyonPaketSeanslar kaydi olusturur.
+     * Eslesen AdisyonHizmetler (kullanicinin bu hizmet icin acik paketi)
+     * bulunursa adisyon_hizmet_id ile baglanir; yoksa bagimsiz.
+     *
+     * Idempotent: ayni randevu_id icin zaten kayit varsa eklenmez.
      */
-    private function ensureAdisyonPaketSeanslar($ah, $hizmetId, $seansSayisi)
-    {
-        $seansSayisi = max(1, (int) $seansSayisi);
-        $mevcut = AdisyonPaketSeanslar::where('adisyon_hizmet_id', $ah->id)
-            ->pluck('seans_no')->all();
-        $mevcutSet = array_flip($mevcut);
-        for ($i = 1; $i <= $seansSayisi; $i++) {
-            if (isset($mevcutSet[$i])) continue;
-            $aps = new AdisyonPaketSeanslar();
-            $aps->adisyon_hizmet_id = $ah->id;
-            $aps->hizmet_id = $hizmetId;
-            $aps->seans_no = $i;
-            $aps->geldi = 0;
-            $aps->save();
-        }
-    }
-
     private function paketSeansiTuket($userId, $hizmetId, $randevuId, $tarih, $saat, $personelId, $odaId)
     {
-        if (!$hizmetId || !$randevuId) return false;
-        // Idempotency: bu randevu icin zaten dolu APS varsa atla
+        if (!$randevuId) return false;
         $already = AdisyonPaketSeanslar::where('randevu_id', $randevuId)->first();
         if ($already) return false;
-        $aps = AdisyonPaketSeanslar::join('adisyon_hizmetler as ah', 'adisyon_paket_seanslar.adisyon_hizmet_id', '=', 'ah.id')
-            ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
-            ->where('a.user_id', $userId)
-            ->where('a.salon_id', $this->salonId)
-            ->where('ah.hizmet_id', $hizmetId)
-            ->whereNull('adisyon_paket_seanslar.randevu_id')
-            ->orderBy('adisyon_paket_seanslar.seans_no')
-            ->select('adisyon_paket_seanslar.*')
-            ->first();
-        if (!$aps) return false;
+
+        // Acik (henuz seans_sayisi'ndan az tuketim olan) AdisyonHizmetler bul
+        $adisyonHizmetId = null;
+        if ($hizmetId) {
+            $rows = \DB::table('adisyon_hizmetler as ah')
+                ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+                ->where('a.user_id', $userId)
+                ->where('a.salon_id', $this->salonId)
+                ->where('ah.hizmet_id', $hizmetId)
+                ->whereNotNull('ah.seans_sayisi')
+                ->select('ah.id', 'ah.seans_sayisi')
+                ->orderBy('a.tarih')->get();
+            foreach ($rows as $r) {
+                $kullanilan = \DB::table('adisyon_paket_seanslar')
+                    ->where('adisyon_hizmet_id', $r->id)->count();
+                if ($kullanilan < (int) $r->seans_sayisi) {
+                    $adisyonHizmetId = $r->id;
+                    break;
+                }
+            }
+        }
+        // Eslesen acik paket yoksa hicbir sey yapma (cunku bu seans bizim
+        // sistemde takip edilebilecek bir adisyon_hizmet'e bagli degil)
+        if (!$adisyonHizmetId) return false;
+
+        $sonNo = (int) (\DB::table('adisyon_paket_seanslar')
+            ->where('adisyon_hizmet_id', $adisyonHizmetId)
+            ->max('seans_no') ?? 0);
+
+        $aps = new AdisyonPaketSeanslar();
+        $aps->adisyon_hizmet_id = $adisyonHizmetId;
+        $aps->hizmet_id = $hizmetId;
+        $aps->seans_no = $sonNo + 1;
         $aps->randevu_id = $randevuId;
         $aps->seans_tarih = $tarih;
         $aps->seans_saat = $saat;
@@ -1033,14 +1040,11 @@ class DrklinikImporter
                     ->where('hizmet_id', $sh['hizmet_id'])->first();
                 if ($existAh) {
                     // Eski import'larda seans_sayisi bos olabilir; doldur
-                    $changed = false;
                     if (\Schema::hasColumn((new AdisyonHizmetler)->getTable(), 'seans_sayisi')
                         && empty($existAh->seans_sayisi)) {
                         $existAh->seans_sayisi = $seansSayisi;
-                        $changed = true;
+                        $existAh->save();
                     }
-                    if ($changed) $existAh->save();
-                    $this->ensureAdisyonPaketSeanslar($existAh, $sh['hizmet_id'], $seansSayisi);
                     continue;
                 }
                 $ah = new AdisyonHizmetler();
@@ -1056,7 +1060,8 @@ class DrklinikImporter
                     $ah->seans_sayisi = $seansSayisi;
                 }
                 $ah->save();
-                $this->ensureAdisyonPaketSeanslar($ah, $sh['hizmet_id'], $seansSayisi);
+                // AdisyonPaketSeanslar pre-create EDILMEZ. Sadece seans tuketilince
+                // (processMusteriRandevuSeansDusumu) tek tek olusturulur.
             }
         }
     }
@@ -1309,31 +1314,42 @@ class DrklinikImporter
     }
 
     /**
-     * Hizmet ismi eslesmediginde fallback: kullanicinin herhangi bir bos
-     * paket seansini tuket. (Drklinik bazi randevularda hizmet adini paket
-     * formatiyla yazmiyor, ama "Seans Hakkindan Dusuldu" isaretli oluyor.)
+     * Hizmet ismi eslesmediginde fallback: kullanicinin herhangi bir
+     * acik (seans_sayisi > kullanilan) AdisyonHizmetler kaydina yeni
+     * AdisyonPaketSeanslar (geldi=1) ekle.
      */
     private function paketSeansiTuketHerhangiHizmet($userId, $randevuId, $tarih, $saat)
     {
         if (!$randevuId) return false;
         $already = AdisyonPaketSeanslar::where('randevu_id', $randevuId)->first();
         if ($already) return false;
-        $aps = AdisyonPaketSeanslar::join('adisyon_hizmetler as ah', 'adisyon_paket_seanslar.adisyon_hizmet_id', '=', 'ah.id')
+
+        $rows = \DB::table('adisyon_hizmetler as ah')
             ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
             ->where('a.user_id', $userId)
             ->where('a.salon_id', $this->salonId)
-            ->whereNull('adisyon_paket_seanslar.randevu_id')
-            ->orderBy('a.tarih')
-            ->orderBy('adisyon_paket_seanslar.seans_no')
-            ->select('adisyon_paket_seanslar.*')
-            ->first();
-        if (!$aps) return false;
-        $aps->randevu_id = $randevuId;
-        $aps->seans_tarih = $tarih;
-        $aps->seans_saat = $saat;
-        $aps->geldi = 1;
-        $aps->save();
-        return true;
+            ->whereNotNull('ah.seans_sayisi')
+            ->select('ah.id', 'ah.hizmet_id', 'ah.seans_sayisi')
+            ->orderBy('a.tarih')->get();
+        foreach ($rows as $r) {
+            $kullanilan = \DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $r->id)->count();
+            if ($kullanilan >= (int) $r->seans_sayisi) continue;
+
+            $sonNo = (int) (\DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $r->id)->max('seans_no') ?? 0);
+            $aps = new AdisyonPaketSeanslar();
+            $aps->adisyon_hizmet_id = $r->id;
+            $aps->hizmet_id = $r->hizmet_id;
+            $aps->seans_no = $sonNo + 1;
+            $aps->randevu_id = $randevuId;
+            $aps->seans_tarih = $tarih;
+            $aps->seans_saat = $saat;
+            $aps->geldi = 1;
+            $aps->save();
+            return true;
+        }
+        return false;
     }
 
     /**

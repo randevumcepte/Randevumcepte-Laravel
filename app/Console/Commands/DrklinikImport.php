@@ -22,6 +22,7 @@ class DrklinikImport extends Command
         {--reset-drklinik-satis : Drklinik markerli adisyonlari ve alt kayitlari sil}
         {--repair-tahsilat-icerik : Mevcut tahsilatlari adisyona bagla ve icerigini uret}
         {--repair-seans-sayisi : Mevcut adisyon_hizmetler.seans_sayisi NULL ise APS sayisindan doldur}
+        {--cleanup-dummy-aps : Tuketilmemis (geldi=0, randevu_id NULL) APS kayitlarini sil}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -53,6 +54,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('repair-seans-sayisi')) {
             if (!$salonId) { $this->error('--repair-seans-sayisi icin --salon zorunlu.'); return 1; }
             return $this->repairSeansSayisi((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('cleanup-dummy-aps')) {
+            if (!$salonId) { $this->error('--cleanup-dummy-aps icin --salon zorunlu.'); return 1; }
+            return $this->cleanupDummyAps((int) $salonId, (bool) $this->option('dry-run'));
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -157,19 +162,53 @@ class DrklinikImport extends Command
             if ($cnt === 0) $defaultBir++;
             if (!$dryRun) {
                 \DB::table($tAh)->where('id', $r->id)->update(['seans_sayisi' => $seansSayisi]);
-                if ($cnt === 0) {
-                    \DB::table($tAps)->insert([
-                        'adisyon_hizmet_id' => $r->id,
-                        'hizmet_id' => $r->hizmet_id,
-                        'seans_no' => 1,
-                        'geldi' => 0,
-                    ]);
-                }
             }
             $updated++;
         }
         $tag = $dryRun ? '[DRY-RUN] ' : '';
-        $this->info("{$tag}Tamam. seans_sayisi yazildi: {$updated} (bunlardan {$defaultBir} kayit APS yoktu, seans_sayisi=1 + 1 satir APS olusturuldu).");
+        $this->info("{$tag}Tamam. seans_sayisi yazildi: {$updated} (APS yok olan: {$defaultBir} -> seans_sayisi=1).");
+        return 0;
+    }
+
+    /**
+     * Drklinik markerli adisyonlardaki "tuketilmemis" AdisyonPaketSeanslar
+     * kayitlarini sil. Tuketilmemis = geldi != 1 ve randevu_id NULL.
+     * Boylece sadece gercekten kullanilmis (geldi=1, randevu_id dolu) seanslar
+     * kalir; seanstakip sayfasinda kalan = seans_sayisi - kullanilan dogru hesaplanir.
+     */
+    private function cleanupDummyAps($salonId, $dryRun)
+    {
+        $tAh  = (new \App\AdisyonHizmetler)->getTable();
+        $tAd  = (new \App\Adisyonlar)->getTable();
+        $tAps = (new \App\AdisyonPaketSeanslar)->getTable();
+
+        $notKol = null;
+        foreach (['adisyon_notu','aciklama','genel_aciklama','notlar','not','dosya_no','referans'] as $col) {
+            if (\Schema::hasColumn($tAd, $col)) { $notKol = $col; break; }
+        }
+
+        $apsQ = \DB::table("{$tAps} as aps")
+            ->join("{$tAh} as ah", 'aps.adisyon_hizmet_id', '=', 'ah.id')
+            ->join("{$tAd} as a", 'ah.adisyon_id', '=', 'a.id')
+            ->where('a.salon_id', $salonId)
+            ->whereNull('aps.randevu_id')
+            ->where(function ($q) {
+                $q->whereNull('aps.geldi')->orWhere('aps.geldi', 0);
+            });
+        if ($notKol) $apsQ->where("a.{$notKol}", 'LIKE', '%drklinik:%');
+
+        $cnt = (clone $apsQ)->count();
+        $this->line("Salon {$salonId} drklinik dummy APS sayisi: {$cnt}");
+        if ($cnt === 0) { $this->info('Yapilacak is yok.'); return 0; }
+
+        if ($dryRun) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
+
+        // ID listesi cikarip chunk ile sil
+        $ids = (clone $apsQ)->select('aps.id')->pluck('id')->all();
+        foreach (array_chunk($ids, 1000) as $chunk) {
+            \DB::table($tAps)->whereIn('id', $chunk)->delete();
+        }
+        $this->info("Silindi: " . count($ids));
         return 0;
     }
 
