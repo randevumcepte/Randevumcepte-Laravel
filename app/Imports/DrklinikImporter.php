@@ -21,6 +21,7 @@ use App\Adisyonlar;
 use App\AdisyonHizmetler;
 use App\Tahsilatlar;
 use App\TahsilatHizmetler;
+use App\TahsilatUrunler;
 use App\AdisyonPaketSeanslar;
 use App\AdisyonUrunler;
 use Illuminate\Support\Facades\Log;
@@ -862,13 +863,15 @@ class DrklinikImporter
             if ($i % 50 === 0) {
                 $sd = $this->counts['seans_dusumu'] ?? 0;
                 $rl = $this->counts['tahsilat_relink'] ?? 0;
-                $this->log("  ..musteri {$i}/" . count($musidSet) . " satis={$this->counts['satis']} tahsilat={$this->counts['tahsilat']} relink={$rl} seans={$sd}");
+                $tp = $this->counts['tahsilat_propagate'] ?? 0;
+                $this->log("  ..musteri {$i}/" . count($musidSet) . " satis={$this->counts['satis']} tahsilat={$this->counts['tahsilat']} relink={$rl} prop={$tp} seans={$sd}");
             }
             usleep(300000);
         }
         $sd = $this->counts['seans_dusumu'] ?? 0;
         $rl = $this->counts['tahsilat_relink'] ?? 0;
-        $this->log("Aktarim tamam: satis={$this->counts['satis']}, tahsilat={$this->counts['tahsilat']}, tahsilat_relink={$rl}, seans_dusumu={$sd}");
+        $tp = $this->counts['tahsilat_propagate'] ?? 0;
+        $this->log("Aktarim tamam: satis={$this->counts['satis']}, tahsilat={$this->counts['tahsilat']}, tahsilat_relink={$rl}, tahsilat_propagate={$tp}, seans_dusumu={$sd}");
     }
 
     private function collectMusidsRange($startTs, $endTs, &$musidSet, $depth)
@@ -1070,6 +1073,9 @@ class DrklinikImporter
                     $exists->save();
                     $this->counts['tahsilat_relink'] = ($this->counts['tahsilat_relink'] ?? 0) + 1;
                 }
+                if ($exists->adisyon_id) {
+                    $this->propagateAdisyonToTahsilat($exists);
+                }
                 continue;
             }
 
@@ -1084,7 +1090,51 @@ class DrklinikImporter
             if ($adisyonId) $t->adisyon_id = $adisyonId;
             $t->save();
             $this->counts['tahsilat']++;
+            if ($t->adisyon_id) {
+                $this->propagateAdisyonToTahsilat($t);
+            }
         }
+    }
+
+    /**
+     * Tahsilat ile adisyon kalemleri eslesirse tahsilat_hizmetler ve
+     * tahsilat_urunler kayitlarini uretir. Sadece tam tutar eslesmesinde
+     * calisir (tahsilat tutari ile adisyon kalemleri toplami arasinda
+     * 0.01 TL'den az fark). Idempotent: zaten kayit varsa eklemez.
+     */
+    private function propagateAdisyonToTahsilat($tahsilat)
+    {
+        if (!$tahsilat || !$tahsilat->adisyon_id) return;
+        // Idempotent kontrol
+        if (TahsilatHizmetler::where('tahsilat_id', $tahsilat->id)->exists()) return;
+        if (TahsilatUrunler::where('tahsilat_id', $tahsilat->id)->exists()) return;
+
+        $hizmetler = AdisyonHizmetler::where('adisyon_id', $tahsilat->adisyon_id)->get();
+        $urunler   = AdisyonUrunler::where('adisyon_id', $tahsilat->adisyon_id)->get();
+        if ($hizmetler->isEmpty() && $urunler->isEmpty()) return;
+
+        $toplam = 0.0;
+        foreach ($hizmetler as $h) $toplam += (float) ($h->fiyat ?? 0);
+        foreach ($urunler as $u)   $toplam += (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
+
+        // Sadece tutar tam eslesirse propagate et (kismi odeme atlanir)
+        if (abs($toplam - (float) $tahsilat->tutar) > 0.01) return;
+
+        foreach ($hizmetler as $h) {
+            $th = new TahsilatHizmetler();
+            $th->tahsilat_id = $tahsilat->id;
+            $th->adisyon_hizmet_id = $h->id;
+            $th->tutar = (float) ($h->fiyat ?? 0);
+            $th->save();
+        }
+        foreach ($urunler as $u) {
+            $tu = new TahsilatUrunler();
+            $tu->tahsilat_id = $tahsilat->id;
+            $tu->adisyon_urun_id = $u->id;
+            $tu->tutar = (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
+            $tu->save();
+        }
+        $this->counts['tahsilat_propagate'] = ($this->counts['tahsilat_propagate'] ?? 0) + 1;
     }
 
     /**

@@ -20,6 +20,7 @@ class DrklinikImport extends Command
         {--fix-randevu : Mevcut randevulara eksik oda/personel doldur (yeni eklemez)}
         {--cleanup-urun-hizmet : Urunler ile ayni isimdeki Hizmetler kayitlarini temizle}
         {--reset-drklinik-satis : Drklinik markerli adisyonlari ve alt kayitlari sil}
+        {--repair-tahsilat-icerik : Mevcut tahsilatlari adisyona bagla ve icerigini uret}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -43,6 +44,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('reset-drklinik-satis')) {
             if (!$salonId) { $this->error('--reset-drklinik-satis icin --salon zorunlu.'); return 1; }
             return $this->resetDrklinikSatis((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('repair-tahsilat-icerik')) {
+            if (!$salonId) { $this->error('--repair-tahsilat-icerik icin --salon zorunlu.'); return 1; }
+            return $this->repairTahsilatIcerik((int) $salonId, (bool) $this->option('dry-run'));
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -105,6 +110,97 @@ class DrklinikImport extends Command
         }
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
         return 0;
+    }
+
+    /**
+     * Mevcut tahsilatlari adisyona baglayip tahsilat_hizmetler/tahsilat_urunler
+     * iceriklerini uret. Drklinik scrape gerektirmez; sadece DB tarafinda calisir.
+     */
+    private function repairTahsilatIcerik($salonId, $dryRun)
+    {
+        $tahsilatTbl = (new \App\Tahsilatlar)->getTable();
+        $adisyonTbl  = (new \App\Adisyonlar)->getTable();
+        $ahTbl       = (new \App\AdisyonHizmetler)->getTable();
+        $auTbl       = (new \App\AdisyonUrunler)->getTable();
+        $thTbl       = (new \App\TahsilatHizmetler)->getTable();
+        $tuTbl       = (new \App\TahsilatUrunler)->getTable();
+
+        $allTahsilat = \App\Tahsilatlar::where('salon_id', $salonId)->get();
+        $linkedNew = 0; $propagated = 0; $skipped = 0;
+
+        $this->line("Salon {$salonId} icin {$allTahsilat->count()} tahsilat taraniyor...");
+
+        foreach ($allTahsilat as $idx => $t) {
+            // 1) adisyon_id NULL ise eslesen adisyonu bul
+            if (!$t->adisyon_id) {
+                $adId = $this->findAdisyonForTahsilat($t);
+                if ($adId) {
+                    if (!$dryRun) {
+                        $t->adisyon_id = $adId;
+                        $t->save();
+                    }
+                    $linkedNew++;
+                } else {
+                    $skipped++;
+                    continue;
+                }
+            }
+            // 2) tahsilat_hizmetler/tahsilat_urunler bos mu, doldurabilir miyiz
+            if (!$t->adisyon_id) continue;
+            $hasContent = \App\TahsilatHizmetler::where('tahsilat_id', $t->id)->exists()
+                       || \App\TahsilatUrunler::where('tahsilat_id', $t->id)->exists();
+            if ($hasContent) continue;
+
+            $hizmetler = \App\AdisyonHizmetler::where('adisyon_id', $t->adisyon_id)->get();
+            $urunler   = \App\AdisyonUrunler::where('adisyon_id', $t->adisyon_id)->get();
+            if ($hizmetler->isEmpty() && $urunler->isEmpty()) continue;
+
+            $toplam = 0.0;
+            foreach ($hizmetler as $h) $toplam += (float) ($h->fiyat ?? 0);
+            foreach ($urunler as $u)   $toplam += (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
+            if (abs($toplam - (float) $t->tutar) > 0.01) continue;
+
+            if (!$dryRun) {
+                foreach ($hizmetler as $h) {
+                    $th = new \App\TahsilatHizmetler();
+                    $th->tahsilat_id = $t->id;
+                    $th->adisyon_hizmet_id = $h->id;
+                    $th->tutar = (float) ($h->fiyat ?? 0);
+                    $th->save();
+                }
+                foreach ($urunler as $u) {
+                    $tu = new \App\TahsilatUrunler();
+                    $tu->tahsilat_id = $t->id;
+                    $tu->adisyon_urun_id = $u->id;
+                    $tu->tutar = (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
+                    $tu->save();
+                }
+            }
+            $propagated++;
+            if (($idx + 1) % 200 === 0) {
+                $this->line("  ..{$idx} taranan, link={$linkedNew} prop={$propagated} skip={$skipped}");
+            }
+        }
+        $tag = $dryRun ? '[DRY-RUN] ' : '';
+        $this->info("{$tag}Tamam. yeni-link={$linkedNew}, icerik-uretildi={$propagated}, eslesmeyen={$skipped}");
+        return 0;
+    }
+
+    private function findAdisyonForTahsilat($t)
+    {
+        $base = \App\Adisyonlar::where('user_id', $t->user_id)->where('salon_id', $t->salon_id);
+        $hit = (clone $base)->where('tarih', $t->odeme_tarihi)
+            ->whereRaw('ABS(toplam_tutar - ?) < 0.01', [$t->tutar])
+            ->orderBy('id')->first();
+        if ($hit) return $hit->id;
+        $hit = (clone $base)->where('tarih', $t->odeme_tarihi)->orderBy('id')->first();
+        if ($hit) return $hit->id;
+        $hit = (clone $base)
+            ->whereDate('tarih', '<=', $t->odeme_tarihi)
+            ->whereDate('tarih', '>=', date('Y-m-d', strtotime($t->odeme_tarihi . ' -30 days')))
+            ->whereRaw('ABS(toplam_tutar - ?) < 0.01', [$t->tutar])
+            ->orderBy('tarih', 'desc')->first();
+        return $hit ? $hit->id : null;
     }
 
     /**
