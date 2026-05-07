@@ -19,6 +19,7 @@ class DrklinikImport extends Command
         {--to= : Randevu icin bitis tarihi YYYY-MM-DD (default 2026-12-31)}
         {--fix-randevu : Mevcut randevulara eksik oda/personel doldur (yeni eklemez)}
         {--cleanup-urun-hizmet : Urunler ile ayni isimdeki Hizmetler kayitlarini temizle}
+        {--reset-drklinik-satis : Drklinik markerli adisyonlari ve alt kayitlari sil}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -38,6 +39,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('cleanup-urun-hizmet')) {
             if (!$salonId) { $this->error('--cleanup-urun-hizmet icin --salon zorunlu.'); return 1; }
             return $this->cleanupUrunHizmet((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('reset-drklinik-satis')) {
+            if (!$salonId) { $this->error('--reset-drklinik-satis icin --salon zorunlu.'); return 1; }
+            return $this->resetDrklinikSatis((int) $salonId, (bool) $this->option('dry-run'));
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -100,6 +105,77 @@ class DrklinikImport extends Command
         }
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
         return 0;
+    }
+
+    /**
+     * Drklinik markerli adisyonlari ve bagli alt kayitlari (adisyon_hizmetler,
+     * adisyon_urunler, adisyon_paket_seanslar) sil. Tahsilatlar.adisyon_id ->
+     * NULL (tahsilat tablosuna dokunulmaz, satis-tahsilat yeniden import edilince
+     * dedup'tan gecip kalir).
+     */
+    private function resetDrklinikSatis($salonId, $dryRun)
+    {
+        $db = \DB::connection();
+        $tAd  = (new \App\Adisyonlar)->getTable();
+        $tAh  = (new \App\AdisyonHizmetler)->getTable();
+        $tAu  = (new \App\AdisyonUrunler)->getTable();
+        $tAps = (new \App\AdisyonPaketSeanslar)->getTable();
+        $tTh  = (new \App\Tahsilatlar)->getTable();
+
+        $notKol = null;
+        foreach (['adisyon_notu','aciklama','genel_aciklama','notlar','not','dosya_no','referans'] as $col) {
+            if (\Schema::hasColumn($tAd, $col)) { $notKol = $col; break; }
+        }
+        if (!$notKol) { $this->error('Adisyonlar not kolonu tespit edilemedi.'); return 1; }
+
+        $ids = $db->table($tAd)
+            ->where('salon_id', $salonId)
+            ->where($notKol, 'LIKE', '%drklinik:%')
+            ->pluck('id')->all();
+        $this->line("Salon {$salonId} drklinik adisyonlari: " . count($ids) . " ({$notKol} kolonundan)");
+        if (empty($ids)) { $this->info('Silinecek adisyon yok.'); return 0; }
+
+        $cntAh = $db->table($tAh)->whereIn('adisyon_id', $ids)->count();
+        $cntAu = $db->table($tAu)->whereIn('adisyon_id', $ids)->count();
+        $cntAps = \Schema::hasColumn($tAps, 'adisyon_hizmet_id')
+            ? $db->table($tAps)
+                ->whereIn('adisyon_hizmet_id', function ($q) use ($tAh, $ids) {
+                    $q->select('id')->from($tAh)->whereIn('adisyon_id', $ids);
+                })->count() : 0;
+        $cntT = $db->table($tTh)->whereIn('adisyon_id', $ids)->count();
+
+        $this->line("  adisyon_hizmetler: {$cntAh} (silinecek)");
+        $this->line("  adisyon_urunler: {$cntAu} (silinecek)");
+        $this->line("  adisyon_paket_seanslar: {$cntAps} (silinecek)");
+        $this->line("  tahsilatlar (adisyon_id NULL'a cekilecek): {$cntT}");
+
+        if ($dryRun) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
+
+        $db->beginTransaction();
+        try {
+            // paket seanslar -> adisyon_hizmet_id ile
+            if (\Schema::hasColumn($tAps, 'adisyon_hizmet_id')) {
+                $ahIds = $db->table($tAh)->whereIn('adisyon_id', $ids)->pluck('id')->all();
+                if (!empty($ahIds)) {
+                    foreach (array_chunk($ahIds, 1000) as $ck) {
+                        $db->table($tAps)->whereIn('adisyon_hizmet_id', $ck)->delete();
+                    }
+                }
+            }
+            foreach (array_chunk($ids, 1000) as $chunk) {
+                $db->table($tAh)->whereIn('adisyon_id', $chunk)->delete();
+                $db->table($tAu)->whereIn('adisyon_id', $chunk)->delete();
+                $db->table($tTh)->whereIn('adisyon_id', $chunk)->update(['adisyon_id' => null]);
+                $db->table($tAd)->whereIn('id', $chunk)->delete();
+            }
+            $db->commit();
+            $this->info('Reset tamam. Yeniden --only=satis-tahsilat ile import edebilirsiniz.');
+            return 0;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            $this->error('Hata: ' . $e->getMessage());
+            return 1;
+        }
     }
 
     /**
