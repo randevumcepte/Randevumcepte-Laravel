@@ -695,6 +695,7 @@ class DrklinikImporter
 
     private $hizmetMapCache = null;
     private $urunNameSet = null;
+    private $urunIdMap = null;
 
     /**
      * Bir hizmet adi, bu salonda Urunler tablosunda kayitli mi?
@@ -702,18 +703,32 @@ class DrklinikImporter
      */
     private function isUrunName($ad)
     {
-        if ($this->urunNameSet === null) {
-            $this->urunNameSet = [];
-            $rows = \DB::table((new Urunler)->getTable())
-                ->where('salon_id', $this->salonId)
-                ->pluck('urun_adi');
-            foreach ($rows as $u) {
-                $k = $this->trKey($this->stripDrSuffix($u));
-                if ($k !== '') $this->urunNameSet[$k] = true;
-            }
-        }
+        $this->buildUrunMaps();
         $key = $this->trKey($this->stripDrSuffix((string) $ad));
         return $key !== '' && isset($this->urunNameSet[$key]);
+    }
+
+    private function findUrunIdByName($ad)
+    {
+        $this->buildUrunMaps();
+        $key = $this->trKey($this->stripDrSuffix((string) $ad));
+        return $this->urunIdMap[$key] ?? null;
+    }
+
+    private function buildUrunMaps()
+    {
+        if ($this->urunNameSet !== null) return;
+        $this->urunNameSet = [];
+        $this->urunIdMap = [];
+        $rows = \DB::table((new Urunler)->getTable())
+            ->where('salon_id', $this->salonId)
+            ->select('id', 'urun_adi')->get();
+        foreach ($rows as $r) {
+            $k = $this->trKey($this->stripDrSuffix($r->urun_adi));
+            if ($k === '' || isset($this->urunNameSet[$k])) continue;
+            $this->urunNameSet[$k] = true;
+            $this->urunIdMap[$k] = $r->id;
+        }
     }
 
     private function stripDrSuffix($s)
@@ -954,6 +969,20 @@ class DrklinikImporter
             foreach ($hizmetler as $hv) {
                 $seansSayisi = max(1, (int) $hv['seans']);
                 $birimFiyat = $hv['tutar'] / $seansSayisi;
+                // Once Urunler tablosunda eslesen var mi diye bak
+                $urunId = $this->findUrunIdByName($hv['ad']);
+                if ($urunId) {
+                    $existAu = AdisyonUrunler::where('adisyon_id', $ad->id)
+                        ->where('urun_id', $urunId)->first();
+                    if ($existAu) continue;
+                    $au = new AdisyonUrunler();
+                    $au->adisyon_id = $ad->id;
+                    $au->urun_id = $urunId;
+                    $au->adet = $seansSayisi;
+                    $au->fiyat = $hv['tutar'] ?: 0;
+                    $au->save();
+                    continue;
+                }
                 $sh = $this->findSalonHizmetByName($hv['ad']);
                 if (!$sh) {
                     $sh = $this->ensureSalonHizmet($hv['ad'], $birimFiyat);
