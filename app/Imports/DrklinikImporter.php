@@ -1178,26 +1178,45 @@ class DrklinikImporter
 
     /**
      * Tahsilat icin en uygun adisyonu bul.
-     * Oncelik: ayni tarih + ayni tutar > ayni tarih + ilk > yakin tarih (1-3 gun) + tutar.
+     * Oncelik: ayni tarih + ayni tutar > ayni tarih + ilk > yakin tarih (30 gun) + tutar.
+     * Tutar adisyonun kalemleri (adisyon_hizmetler + adisyon_urunler) toplamiyla
+     * karsilastirilir; Adisyonlar.toplam_tutar kolonu varsa o da kabul edilir.
      */
     private function findMatchingAdisyonId($userId, $tarih, $tutar)
     {
-        $base = Adisyonlar::where('user_id', $userId)->where('salon_id', $this->salonId);
-        // 1) ayni tarih + ayni tutar
-        $hit = (clone $base)->where('tarih', $tarih)
-            ->whereRaw('ABS(toplam_tutar - ?) < 0.01', [$tutar])
-            ->orderBy('id')->first();
-        if ($hit) return $hit->id;
-        // 2) ayni tarih, herhangi bir tutar (en eski adisyon)
-        $hit = (clone $base)->where('tarih', $tarih)->orderBy('id')->first();
-        if ($hit) return $hit->id;
-        // 3) tahsilat tarihinden onceki 30 gun icinde ayni tutarli adisyon
-        $hit = (clone $base)
+        // 1) ayni tarih: tutar eslesmesi varsa onu, yoksa ilk adisyonu dondur
+        $sameDate = Adisyonlar::where('user_id', $userId)
+            ->where('salon_id', $this->salonId)
+            ->where('tarih', $tarih)->orderBy('id')->get();
+        foreach ($sameDate as $ad) {
+            if (abs($this->adisyonTutar($ad) - $tutar) < 0.01) return $ad->id;
+        }
+        if ($sameDate->count() > 0) return $sameDate->first()->id;
+        // 2) son 30 gun icinde ayni tutarli adisyon
+        $oncesi = Adisyonlar::where('user_id', $userId)
+            ->where('salon_id', $this->salonId)
             ->whereDate('tarih', '<=', $tarih)
             ->whereDate('tarih', '>=', date('Y-m-d', strtotime($tarih . ' -30 days')))
-            ->whereRaw('ABS(toplam_tutar - ?) < 0.01', [$tutar])
-            ->orderBy('tarih', 'desc')->first();
-        return $hit ? $hit->id : null;
+            ->orderBy('tarih', 'desc')->get();
+        foreach ($oncesi as $ad) {
+            if (abs($this->adisyonTutar($ad) - $tutar) < 0.01) return $ad->id;
+        }
+        return null;
+    }
+
+    /**
+     * Adisyonun toplam tutari. Tablo'da toplam_tutar kolonu varsa onu,
+     * yoksa adisyon_hizmetler+adisyon_urunler toplamini doner.
+     */
+    private function adisyonTutar($ad)
+    {
+        static $hasCol = null;
+        if ($hasCol === null) $hasCol = \Schema::hasColumn((new Adisyonlar)->getTable(), 'toplam_tutar');
+        if ($hasCol && (float) ($ad->toplam_tutar ?? 0) > 0) return (float) $ad->toplam_tutar;
+        $sumH = (float) AdisyonHizmetler::where('adisyon_id', $ad->id)->sum('fiyat');
+        $sumU = (float) AdisyonUrunler::where('adisyon_id', $ad->id)
+            ->selectRaw('COALESCE(SUM(fiyat * GREATEST(adet,1)), 0) as t')->value('t');
+        return $sumH + $sumU;
     }
 
     private function processMusteriRandevuSeansDusumu($tbody, $userId)

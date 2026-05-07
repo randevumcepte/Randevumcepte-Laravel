@@ -222,19 +222,33 @@ class DrklinikImport extends Command
 
     private function findAdisyonForTahsilat($t)
     {
-        $base = \App\Adisyonlar::where('user_id', $t->user_id)->where('salon_id', $t->salon_id);
-        $hit = (clone $base)->where('tarih', $t->odeme_tarihi)
-            ->whereRaw('ABS(toplam_tutar - ?) < 0.01', [$t->tutar])
-            ->orderBy('id')->first();
-        if ($hit) return $hit->id;
-        $hit = (clone $base)->where('tarih', $t->odeme_tarihi)->orderBy('id')->first();
-        if ($hit) return $hit->id;
-        $hit = (clone $base)
+        $sameDate = \App\Adisyonlar::where('user_id', $t->user_id)
+            ->where('salon_id', $t->salon_id)
+            ->where('tarih', $t->odeme_tarihi)->orderBy('id')->get();
+        foreach ($sameDate as $ad) {
+            if (abs($this->adisyonTutar($ad) - (float) $t->tutar) < 0.01) return $ad->id;
+        }
+        if ($sameDate->count() > 0) return $sameDate->first()->id;
+        $oncesi = \App\Adisyonlar::where('user_id', $t->user_id)
+            ->where('salon_id', $t->salon_id)
             ->whereDate('tarih', '<=', $t->odeme_tarihi)
             ->whereDate('tarih', '>=', date('Y-m-d', strtotime($t->odeme_tarihi . ' -30 days')))
-            ->whereRaw('ABS(toplam_tutar - ?) < 0.01', [$t->tutar])
-            ->orderBy('tarih', 'desc')->first();
-        return $hit ? $hit->id : null;
+            ->orderBy('tarih', 'desc')->get();
+        foreach ($oncesi as $ad) {
+            if (abs($this->adisyonTutar($ad) - (float) $t->tutar) < 0.01) return $ad->id;
+        }
+        return null;
+    }
+
+    private function adisyonTutar($ad)
+    {
+        static $hasCol = null;
+        if ($hasCol === null) $hasCol = \Schema::hasColumn((new \App\Adisyonlar)->getTable(), 'toplam_tutar');
+        if ($hasCol && (float) ($ad->toplam_tutar ?? 0) > 0) return (float) $ad->toplam_tutar;
+        $sumH = (float) \App\AdisyonHizmetler::where('adisyon_id', $ad->id)->sum('fiyat');
+        $sumU = (float) \App\AdisyonUrunler::where('adisyon_id', $ad->id)
+            ->selectRaw('COALESCE(SUM(fiyat * GREATEST(adet,1)), 0) as t')->value('t');
+        return $sumH + $sumU;
     }
 
     /**
