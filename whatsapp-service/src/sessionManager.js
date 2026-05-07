@@ -190,6 +190,7 @@ const createSession = async (salonId) => {
       session.qrDataUrl = null;
       session.connectedAt = new Date().toISOString();
       session.phone = sock.user?.id?.split(':')[0] || null;
+      session.reconnectAttempts = 0;
       logger.info({ salonId: key, phone: session.phone }, 'connected');
       notifyLaravel('connected', { salonId: key, phone: session.phone });
     }
@@ -200,7 +201,7 @@ const createSession = async (salonId) => {
       session.lastError = reason;
       logger.warn({ salonId: key, reason, statusCode }, 'connection closed');
 
-      // Ban / rate-limit / kalıcı askı sinyalleri
+      // 401/403/500 vb. = gercek logout/ban — auth state silinmeli, kullanici yeniden QR
       const BAN_CODES = new Set([
         DisconnectReason.loggedOut,     // 401
         DisconnectReason.forbidden,      // 403
@@ -208,14 +209,25 @@ const createSession = async (salonId) => {
         DisconnectReason.multideviceMismatch,
         401, 403, 406, 410, 411,
       ]);
+      // 429 = gercek rate-limit, 440 = baska cihazdan bagli (kullanici niyeti)
       const RATE_LIMIT_CODES = new Set([
         DisconnectReason.connectionReplaced, // 440
+        429,
+      ]);
+      // 408/428/515 = gecici kopma (network, restart-required) — session korunur, sessizce reconnect
+      // Not: 408/428 onceden RATE_LIMIT'e dusup ban.warning gonderiyordu, bu Laravel'de
+      // whatsapp_aktif=0 yapip kullanicidan tekrar QR isteme yaratiyordu.
+      const TEMPORARY_DISCONNECT_CODES = new Set([
         DisconnectReason.timedOut,           // 408
-        408, 428, 429,
+        DisconnectReason.connectionLost,     // 408 (alias)
+        DisconnectReason.connectionClosed,   // 428
+        DisconnectReason.restartRequired,    // 515
+        408, 428, 515,
       ]);
 
       const banLikely = BAN_CODES.has(statusCode);
-      const rateLimitLikely = RATE_LIMIT_CODES.has(statusCode);
+      const temporary = TEMPORARY_DISCONNECT_CODES.has(statusCode);
+      const rateLimitLikely = !temporary && RATE_LIMIT_CODES.has(statusCode);
 
       if (banLikely) {
         session.status = 'banned-or-loggedout';
@@ -231,7 +243,7 @@ const createSession = async (salonId) => {
         } catch (_) {}
         sessions.delete(key);
       } else if (rateLimitLikely) {
-        // Rate-limit → ban-warning gönder ama session'ı sil, re-login gerekli
+        // Gercek rate-limit veya baska cihaza gectik — session sil, ban.warning gonder
         session.status = 'rate-limited';
         notifyLaravel('ban.warning', {
           salonId: key,
@@ -241,16 +253,21 @@ const createSession = async (salonId) => {
         });
         sessions.delete(key);
       } else {
-        session.status = 'disconnected';
-        notifyLaravel('disconnected', { salonId: key, reason, statusCode, banLikely: false });
+        // Gecici kopma veya bilinmeyen statusCode — auth korunur, otomatik reconnect
+        // Backoff: 5s, 15s, 30s, 60s, 120s (max 300s) — Baileys yeniden bagli olunca status='connected' olur
+        session.status = 'reconnecting';
+        const attempts = (session.reconnectAttempts || 0) + 1;
+        session.reconnectAttempts = attempts;
+        const backoffMs = Math.min(300000, 5000 * Math.pow(2, Math.min(attempts - 1, 6)));
+        logger.info({ salonId: key, statusCode, reason, attempts, backoffMs, temporary }, 'reconnect schedule');
         setTimeout(() => {
           if (sessions.get(key) === session) {
             sessions.delete(key);
             createSession(salonId).catch((err) =>
-              logger.error({ err: err.message }, 'reconnect failed'),
+              logger.error({ err: err.message, salonId: key }, 'reconnect failed'),
             );
           }
-        }, 5000);
+        }, backoffMs);
       }
     }
   });
