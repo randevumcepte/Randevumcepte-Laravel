@@ -23,6 +23,7 @@ class DrklinikImport extends Command
         {--repair-tahsilat-icerik : Mevcut tahsilatlari adisyona bagla ve icerigini uret}
         {--repair-seans-sayisi : Mevcut adisyon_hizmetler.seans_sayisi NULL ise APS sayisindan doldur}
         {--cleanup-dummy-aps : Tuketilmemis (geldi=0, randevu_id NULL) APS kayitlarini sil}
+        {--inspect-musid= : Bir musid icin drklinik detayini indir, basliklar/sutunlar yazdir}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -58,6 +59,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('cleanup-dummy-aps')) {
             if (!$salonId) { $this->error('--cleanup-dummy-aps icin --salon zorunlu.'); return 1; }
             return $this->cleanupDummyAps((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ($musid = $this->option('inspect-musid')) {
+            if (!$username || !$password) { $this->error('--inspect-musid icin --username ve --password zorunlu.'); return 1; }
+            return $this->inspectMusid((string) $musid, $username, $password);
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -167,6 +172,44 @@ class DrklinikImport extends Command
         }
         $tag = $dryRun ? '[DRY-RUN] ' : '';
         $this->info("{$tag}Tamam. seans_sayisi yazildi: {$updated} (APS yok olan: {$defaultBir} -> seans_sayisi=1).");
+        return 0;
+    }
+
+    private function inspectMusid($musid, $username, $password)
+    {
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+        $h = $client->getHtml('/musteri.aspx?musid=' . $musid, 'inspect_' . $musid);
+        $this->line('Sayfa boyut: ' . strlen($h));
+        $this->line('Dump: ' . $client->dumpDir());
+
+        preg_match_all('~<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)</table>~is', $h, $tm);
+        $this->line('Tablo sayisi: ' . count($tm[1]));
+        foreach ($tm[1] as $idx => $body) {
+            preg_match_all('~<th[^>]*>(.*?)</th>~is', $body, $th);
+            $headers = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
+            $this->line("--- Tablo #{$idx} basliklari (" . count($headers) . ") ---");
+            foreach ($headers as $i => $hd) $this->line("  [{$i}] '{$hd}'");
+
+            // Ilk veri satirini ornek olarak goster
+            preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $body, $rows);
+            $shown = 0;
+            foreach ($rows[1] as $tr) {
+                if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+                preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+                if (empty($tds[1])) continue;
+                $cells = [];
+                foreach ($tds[1] as $tdRaw) {
+                    $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                    $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                }
+                $this->line("  Satir ornek (" . count($cells) . " td):");
+                foreach ($cells as $i => $c) $this->line("    [{$i}] '" . mb_substr($c, 0, 80) . "'");
+                $shown++;
+                if ($shown >= 2) break;
+            }
+        }
         return 0;
     }
 
