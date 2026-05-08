@@ -1439,13 +1439,13 @@
                            <div class="col-md-3 col-xs-6 col-sm-6 col-6" style="display:none">
                               <div class="form-group">
                                  <label>Süre (dk)</label>
-                                 <input type="tel" class="form-control" name="adisyonhizmetsuresi[]" value='{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("sure_dk")}}'>
+                                 <input type="tel" class="form-control" name="adisyonhizmetsuresi[]" value="">
                               </div>
                            </div>
                            <div class="col-md-3 col-6 col-sm-6 col-xs-6">
                               <div class="form-group">
                                  <label>Fiyat ₺</label>
-                                 <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value='{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("baslangic_fiyat")}}'>
+                                 <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value="" placeholder="0">
                               </div>
                            </div>
                            <div class="col-md-3 col-xs-6 col-sm-6 col-6" style="display:none">
@@ -1569,6 +1569,29 @@
             </div>
          </div>
       </div>
+      <script>
+         // Hizmet modal her acilista sifirla (kalan deger kalmasin, fiyat 9000'de takili kalmasin)
+         (function(){
+            var bugun = '{{date("Y-m-d")}}';
+            function resetHizmetEkleModal(){
+               var $form = $('#adisyon_hizmet_formu');
+               if(!$form.length) return;
+               var $cont = $form.find('.hizmetler_bolumu_adisyon');
+               $cont.find('> .row').slice(1).remove();
+               var $first = $cont.find('> .row').first();
+               if(!$first.length) return;
+               $first.find('select[name="adisyonhizmetleriyeni[]"]').val(null).trigger('change.select2');
+               $first.find('select.cihaz_secimi, select.oda_secimi').val(null).trigger('change.select2');
+               $first.find('input[name="islemtarihiyeni[]"]').val(bugun);
+               $first.find('input[name="adisyonhizmetsuresi[]"]').val('');
+               $first.find('input[name="adisyonhizmetfiyati[]"]').val('');
+               $first.find('input[name="hizmetseanssayisi[]"]').val(1);
+               $first.find('input[name="hizmetseansperiyodu[]"]').val(1);
+               $first.find('button[name="hizmet_formdan_sil_adisyon"]').prop('disabled',true).attr('data-value','0');
+            }
+            $(document).on('show.bs.modal','#adisyon_yeni_hizmet_modal', resetHizmetEkleModal);
+         })();
+      </script>
       <div
          id="urun_satisi_modal"
          class="modal modal-top fade calendar-modal"
