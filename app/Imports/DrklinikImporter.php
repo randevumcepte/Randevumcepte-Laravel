@@ -1288,10 +1288,12 @@ class DrklinikImporter
             if (!$tarih) continue;
             if (mb_stripos($seansDusumu, 'Düş', 0, 'UTF-8') === false) continue;
 
-            // Hizmet adi -> hizmet_id
+            // Hizmet adi + seans sayisi cikar
             $hizmetId = null;
+            $seansSayisi = 1;
             $paketHint = $this->parsePaketSeansHint($hizmetlerStr);
             if ($paketHint) {
+                $seansSayisi = max(1, (int) $paketHint['seans']);
                 $sh = $this->findSalonHizmetByName($paketHint['hizmet_adi']);
                 if ($sh) $hizmetId = $sh['hizmet_id'];
             }
@@ -1306,27 +1308,29 @@ class DrklinikImporter
                 }
             }
 
-            // Randevu ile baglamiyoruz; geldi=1 olarak adisyon_paket_seanslar'a yaz
-            $ok = $this->seansiTuket($userId, $hizmetId, $tarih, $saat);
-            if ($ok) {
-                $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + 1;
+            // Bir randevuda N seans dusulebiliyor (drklinik formati: "(hizmet x N)")
+            $yazilan = $this->seanslariTuket($userId, $hizmetId, $tarih, $saat, $seansSayisi);
+            if ($yazilan > 0) {
+                $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + $yazilan;
             }
         }
     }
 
     /**
-     * Bir paketten 1 seans tuket. Drklinik gecmis kayitlarini randevu_id'ye
-     * baglamiyoruz; sadece adisyon_hizmet_id + seans_tarih + seans_saat ile
-     * AdisyonPaketSeanslar satiri yazilir.
+     * Bir randevuda N seans tuket. Drklinik formati "(hizmet x N)" -> N seans.
+     * Acik paket(ler)e dagitilir, gerektiginde birden fazla pakete tasinir.
      *
-     * Idempotent: ayni adisyon_hizmet_id + tarih + saat icin zaten kayit
-     * varsa tekrar yazilmaz.
+     * Idempotent: (ah_id, tarih, saat) icin mevcut kayit sayisi >= talep edilen
+     * ise hicbir sey eklemez. Az ise farki tamamlar.
      *
-     * Hizmet eslesmezse: kullanicinin acik (kullanilan < seans_sayisi) ilk
-     * paket hizmetine yazilir (fallback).
+     * Donus: yazilan APS sayisi.
      */
-    private function seansiTuket($userId, $hizmetId, $tarih, $saat)
+    private function seanslariTuket($userId, $hizmetId, $tarih, $saat, $kac)
     {
+        $kac = max(1, (int) $kac);
+        $saat = $saat ?: '00:00:00';
+
+        // Acik (kullanilan < seans_sayisi) AdisyonHizmetler'i sirayla bul
         $rows = \DB::table('adisyon_hizmetler as ah')
             ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
             ->where('a.user_id', $userId)
@@ -1335,49 +1339,55 @@ class DrklinikImporter
             ->select('ah.id', 'ah.hizmet_id', 'ah.seans_sayisi')
             ->orderBy('a.tarih')->get();
 
-        $kandidat = null;
-        foreach ($rows as $r) {
-            if ($hizmetId && (int) $r->hizmet_id !== (int) $hizmetId) continue;
-            $kullanilan = \DB::table('adisyon_paket_seanslar')
+        // Once hizmet_id eslesenleri sirala
+        $sira = [];
+        if ($hizmetId) {
+            foreach ($rows as $r) if ((int) $r->hizmet_id === (int) $hizmetId) $sira[] = $r;
+            foreach ($rows as $r) if ((int) $r->hizmet_id !== (int) $hizmetId) $sira[] = $r;
+        } else {
+            $sira = $rows->all();
+        }
+
+        $yazilan = 0;
+        foreach ($sira as $r) {
+            if ($kac <= 0) break;
+            $toplam = (int) $r->seans_sayisi;
+            $kullanilan = (int) \DB::table('adisyon_paket_seanslar')
                 ->where('adisyon_hizmet_id', $r->id)->count();
-            if ($kullanilan < (int) $r->seans_sayisi) {
-                $kandidat = $r;
-                break;
+            $bosKalan = $toplam - $kullanilan;
+            if ($bosKalan <= 0) continue;
+
+            // Idempotent: (ah_id, tarih, saat) uclusu icin mevcut sayi
+            $mevcutBuSatir = (int) \DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $r->id)
+                ->where('seans_tarih', $tarih)
+                ->where('seans_saat', $saat)
+                ->count();
+            $hedef = min($kac, $bosKalan);
+            $eksik = max(0, $hedef - $mevcutBuSatir);
+            if ($eksik === 0) {
+                $kac -= $hedef; // bu satir icin gereken zaten yazilmis say
+                continue;
             }
-        }
-        // Hizmet bulunamadiysa fallback: hizmet_id filtresiz acik paket
-        if (!$kandidat && $hizmetId) {
-            foreach ($rows as $r) {
-                $kullanilan = \DB::table('adisyon_paket_seanslar')
-                    ->where('adisyon_hizmet_id', $r->id)->count();
-                if ($kullanilan < (int) $r->seans_sayisi) {
-                    $kandidat = $r;
-                    break;
-                }
+
+            $sonNo = (int) (\DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $r->id)->max('seans_no') ?? 0);
+
+            for ($i = 0; $i < $eksik; $i++) {
+                $sonNo++;
+                $aps = new AdisyonPaketSeanslar();
+                $aps->adisyon_hizmet_id = $r->id;
+                $aps->hizmet_id = $r->hizmet_id;
+                $aps->seans_no = $sonNo;
+                $aps->seans_tarih = $tarih;
+                $aps->seans_saat = $saat;
+                $aps->geldi = 1;
+                $aps->save();
+                $yazilan++;
             }
+            $kac -= $eksik;
         }
-        if (!$kandidat) return false;
-
-        // Idempotent kontrol
-        $exists = \DB::table('adisyon_paket_seanslar')
-            ->where('adisyon_hizmet_id', $kandidat->id)
-            ->where('seans_tarih', $tarih)
-            ->where('seans_saat', $saat ?: '00:00:00')
-            ->exists();
-        if ($exists) return false;
-
-        $sonNo = (int) (\DB::table('adisyon_paket_seanslar')
-            ->where('adisyon_hizmet_id', $kandidat->id)->max('seans_no') ?? 0);
-
-        $aps = new AdisyonPaketSeanslar();
-        $aps->adisyon_hizmet_id = $kandidat->id;
-        $aps->hizmet_id = $kandidat->hizmet_id;
-        $aps->seans_no = $sonNo + 1;
-        $aps->seans_tarih = $tarih;
-        $aps->seans_saat = $saat ?: '00:00:00';
-        $aps->geldi = 1;
-        $aps->save();
-        return true;
+        return $yazilan;
     }
 
     /**
