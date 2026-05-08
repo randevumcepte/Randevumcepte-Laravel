@@ -530,6 +530,27 @@ $(document).ready(function(){
          }
       }, true); // <-- capture phase: bubble'dan once firing
    }
+
+   // ====== Personel kayit/duzenleme sonrasi tablo + hak edis tutarlarini tazelemek icin
+   //         tab korunarak sayfa reload ======
+   $(document).ajaxComplete(function(e, xhr, settings){
+      if(!settings || !settings.url) return;
+      // Personel save endpoint'i mi?
+      if(settings.url.indexOf('/personelekleduzenle') === -1) return;
+      if(xhr.status !== 200) return;
+      try {
+         // Aktif tab'i koru
+         var $active = $('.pyo-tabs .nav-link.active');
+         var href = $active.attr('href') || '#personeller';
+         var tabParam = (href === '#primHakedis') ? 'prim' : 'personeller';
+         var url = new URL(window.location.href);
+         url.searchParams.set('_tab', tabParam);
+         // swal'in 3sn timer'i bitmesin diye 1.5sn yeterli (modal kapanmis olur)
+         setTimeout(function(){ window.location.href = url.toString(); }, 1500);
+      } catch(err){
+         setTimeout(function(){ window.location.reload(); }, 1500);
+      }
+   });
 });
 </script>
 
