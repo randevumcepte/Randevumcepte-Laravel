@@ -24111,36 +24111,10 @@ DB::raw('
      * ============================================================ */
 
     public function anketSablonlari(Request $request){
-        $isletmeler = '';
-        $isletme = '';
-        if(Auth::guard('satisortakligi')->check()){
-            $isletmeler = [15];
-            $isletme = Salonlar::where('id',15)->first();
-        } else {
-            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
-            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
-        }
-        if(!in_array(self::mevcutsube($request),$isletmeler)){
-            return view('isletmeadmin.yetkisizerisim');
-        }
-        if(!Auth::guard('satisortakligi')->check()){
-            if(self::personelmi($request)){
-                return redirect()->route('isletmeadmin.randevular');
-            }
-        }
-        $paketler = self::paket_liste_getir('',true,$request);
-        $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
-        $sablonlar = AnketSablon::where('salon_id',self::mevcutsube($request))->orderBy('sira','asc')->orderByDesc('id')->get();
-        return view('isletmeadmin.anket_sablonlari',[
-            'bildirimler' => self::bildirimgetir($request),
-            'paketler' => $paketler,
-            'sayfa_baslik' => 'Memnuniyet Anketi Şablonları',
-            'pageindex' => 52,
-            'isletme' => $isletme,
-            'kalan_uyelik_suresi' => $kalan_uyelik_suresi,
-            'yetkiliolunanisletmeler' => $isletmeler,
-            'sablonlar' => $sablonlar,
-        ]);
+        // Şablonlar artık anket-sonuclari sayfasında "Şablonlar" sekmesi altında.
+        // Eski URL geriye uyum için: sonuçlar sayfasına #sablonlar hash'i ile yönlendir.
+        $sube = self::mevcutsube($request);
+        return redirect('/isletmeyonetim/anket-sonuclari?sube=' . $sube . '#sablonlar');
     }
 
     public function anketSablonGetir(Request $request){
