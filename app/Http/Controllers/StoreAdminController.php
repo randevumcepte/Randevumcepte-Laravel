@@ -24409,53 +24409,110 @@ DB::raw('
     }
 
     /**
-     * Yardımcı: Google Maps/g.page URL'sinden Place ID'yi parse eder.
-     * Desteklediği formatlar:
-     *  - https://search.google.com/local/writereview?placeid=ChIJ...
-     *  - https://www.google.com/maps/place/.../@.../...!4m...!1s0x...!...   (Place ID base16'da)
-     *  - https://g.page/r/<short>/review  → kısa form, doğrudan kullanılabilir
-     *  - https://maps.app.goo.gl/<short>  → kısa link, expansion gerekir (yapılmaz; URL olduğu gibi kullanılır)
-     *  - Doğrudan Place ID (ChIJ... ile başlar)
+     * Yardımcı: Google Maps/g.page URL'sinden DOĞRUDAN yorum yazma URL'i üretir.
+     * Desteklediği formatlar (sıralı, ilk eşleşene göre):
+     *  1. Doğrudan Place ID (ChIJ... ile başlar)            → writereview?placeid=
+     *  2. writereview?placeid=...                            → değişmeden kullan
+     *  3. g.page/r/{short}[/review]                          → /review eksikse ekle
+     *  4. Maps URL'sinde !1s0x...:0x... (FID embedded)       → writereview?ftid=
+     *  5. maps.app.goo.gl/{short} veya goo.gl/maps/{short}   → curl ile genişlet, sonra 1-4 dene
+     *  6. Diğer Google Maps URL'leri                          → fallback olarak ham URL (uyarı ile)
      *
-     * Returns: ['place_id' => string|null, 'review_url' => string|null]
+     * Returns: ['place_id' => string|null, 'review_url' => string|null, 'uyari' => string|null]
      */
     public static function googlePlaceIdParse($input){
         $input = trim((string)$input);
-        if (!$input) return ['place_id' => null, 'review_url' => null];
+        if (!$input) return ['place_id' => null, 'review_url' => null, 'uyari' => null];
 
-        // Doğrudan Place ID girilmişse
+        // 1) Doğrudan Place ID
         if (preg_match('/^(ChIJ|GhIJ|EhIJ|EkIJ)[A-Za-z0-9_-]{20,}$/', $input)) {
             return [
                 'place_id'   => $input,
                 'review_url' => 'https://search.google.com/local/writereview?placeid=' . $input,
+                'uyari'      => null,
             ];
         }
 
-        // writereview URL'si: placeid query parametresi
+        // 2) writereview URL'si: placeid query parametresi (en doğru, doğrudan yorum yazma)
         if (preg_match('/placeid=([A-Za-z0-9_-]+)/', $input, $m)) {
             return [
                 'place_id'   => $m[1],
                 'review_url' => 'https://search.google.com/local/writereview?placeid=' . $m[1],
+                'uyari'      => null,
             ];
         }
 
-        // g.page kısa form (en kullanışlı)
+        // 3) g.page kısa form — /review suffix yoksa ekle
         if (preg_match('#g\.page/r/([A-Za-z0-9_-]+)#', $input, $m)) {
             return [
                 'place_id'   => null,
                 'review_url' => 'https://g.page/r/' . $m[1] . '/review',
+                'uyari'      => null,
             ];
         }
 
-        // maps.app.goo.gl ya da diğer kısaltıcılar — olduğu gibi kullan
+        // 5) Kısa URL ise önce genişlet (maps.app.goo.gl, goo.gl/maps)
+        $expanded = $input;
+        if (preg_match('#^https?://(maps\.app\.goo\.gl|goo\.gl/maps|maps\.google\.com/url)#i', $input)) {
+            $expanded = self::googleKisaUrlGenislet($input) ?: $input;
+        }
+
+        // 4) Genişletilmiş URL'de FID var mı? (!1s0x...:0x... format)
+        if (preg_match('#!1s(0x[a-f0-9]+):(0x[a-f0-9]+)#i', $expanded, $m)) {
+            $ftid = $m[1] . ':' . $m[2];
+            return [
+                'place_id'   => null,
+                'review_url' => 'https://search.google.com/local/writereview?ftid=' . $ftid,
+                'uyari'      => null,
+            ];
+        }
+
+        // CID parametresi (cid=12345...)
+        if (preg_match('#[?&]cid=(\d+)#', $expanded, $m)) {
+            // CID'yi FID'e dönüştür: 0x0:0x{hex}
+            $ftid = '0x0:0x' . dechex((int)$m[1]);
+            return [
+                'place_id'   => null,
+                'review_url' => 'https://search.google.com/local/writereview?ftid=' . $ftid,
+                'uyari'      => null,
+            ];
+        }
+
+        // 6) Hâlâ tanımlanamayan URL — fallback (uyarı ile döner)
         if (preg_match('#^https?://#', $input)) {
             return [
                 'place_id'   => null,
                 'review_url' => $input,
+                'uyari'      => 'Bu link harita sayfasını açar, doğrudan yorum yazma diyaloğunu açmayabilir. En güvenli yol: Google Business hesabınızdan "Yorum Bağlantısı"nı kopyalayıp yapıştırın (g.page/r/... formatında olmalı).',
             ];
         }
 
-        return ['place_id' => null, 'review_url' => null];
+        return ['place_id' => null, 'review_url' => null, 'uyari' => 'Geçerli bir URL veya Place ID bulunamadı.'];
+    }
+
+    /**
+     * Kısa Google URL'sini takip ederek gerçek hedef URL'i döner (maps.app.goo.gl genişletme).
+     * Hata durumunda null döner.
+     */
+    private static function googleKisaUrlGenislet($url){
+        try {
+            if (!function_exists('curl_init')) return null;
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_NOBODY, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Linux) GoogleMapsExpander');
+            curl_exec($ch);
+            $final = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+            curl_close($ch);
+            return $final ?: null;
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     public function reputationPremiumAc(Request $request){
@@ -24488,7 +24545,7 @@ DB::raw('
             $parsed = self::googlePlaceIdParse($input);
 
             if ($input && !$parsed['review_url']) {
-                return response()->json(['basarili'=>false,'mesaj'=>'Bağlantı çözümlenemedi. Google Maps URL\'si veya g.page linki yapıştırın.']);
+                return response()->json(['basarili'=>false,'mesaj'=>($parsed['uyari'] ?? 'Bağlantı çözümlenemedi. Google Maps URL\'si veya g.page linki yapıştırın.')]);
             }
 
             $salon->google_review_url        = $parsed['review_url'];
@@ -24500,7 +24557,11 @@ DB::raw('
             $salon->kotu_puan_uyari_esik_csat= max(1, min(5, (float) ($request->kotu_puan_uyari_esik_csat ?? 2.5)));
             $salon->save();
 
-            return response()->json(['basarili'=>true,'review_url'=>$parsed['review_url']]);
+            return response()->json([
+                'basarili'   => true,
+                'review_url' => $parsed['review_url'],
+                'uyari'      => $parsed['uyari'] ?? null,
+            ]);
         } catch(\Exception $e) {
             \Log::error('googleReviewKaydet hata: '.$e->getMessage());
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);

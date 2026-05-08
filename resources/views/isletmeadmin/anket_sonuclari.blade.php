@@ -147,15 +147,18 @@
             <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:.9;">×</button>
          </div>
          <div class="modal-body" style="padding:18px 22px;">
-            <div style="background:#eef4ff; border-left:4px solid #1A73E8; padding:11px 14px; border-radius:6px; margin-bottom:14px; font-size:12.5px; color:#1e3a8a; line-height:1.55;">
-               <b>📍 Google Maps URL'sini yapıştırın</b><br>
-               1. Telefonunda Google Maps'i aç<br>
-               2. Salonunu ara, "Paylaş" → "Bağlantı kopyala"<br>
-               3. Aşağıya yapıştır
+            <div style="background:#eef4ff; border-left:4px solid #1A73E8; padding:11px 14px; border-radius:6px; margin-bottom:14px; font-size:12.5px; color:#1e3a8a; line-height:1.6;">
+               <b>⭐ EN DOĞRU YOL — Google Business'tan yorum bağlantısı:</b><br>
+               1. <a href="https://business.google.com" target="_blank" style="color:#1A73E8; font-weight:700;">business.google.com</a> → İşletmenize girin<br>
+               2. Sol menü: <b>Müşteriler → Yorumlar</b><br>
+               3. <b>"Daha fazla yorum al"</b> butonu → "Bağlantıyı paylaş"<br>
+               4. Bağlantıyı kopyalayıp aşağıya yapıştırın (g.page/r/... formatında olmalı)
+               <hr style="margin:8px 0; border-top:1px solid #c7d2fe;">
+               <b>Alternatif:</b> Google Maps'ten "Paylaş" da çalışır ama bazı linkler haritayı açar, doğrudan yorum diyaloğunu açmaz.
             </div>
 
-            <div style="margin-bottom:5px; font-size:12px; color:#5C008E; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">Google Maps URL veya Place ID</div>
-            <input type="text" id="googleInput" class="form-control" placeholder="https://g.page/r/... veya https://maps.app.goo.gl/..." value="{{ $salon->google_review_url ?? '' }}" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13.5px; padding:8px 11px; min-height:36px; margin-bottom:14px;">
+            <div style="margin-bottom:5px; font-size:12px; color:#5C008E; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">Yorum Bağlantısı (g.page/r/.../review formatı önerilir)</div>
+            <input type="text" id="googleInput" class="form-control" placeholder="https://g.page/r/.../review" value="{{ $salon->google_review_url ?? '' }}" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13.5px; padding:8px 11px; min-height:36px; margin-bottom:14px;">
 
             <hr style="margin:14px 0; border-top:1px solid #ece6f3;">
 
@@ -465,7 +468,10 @@ function googleAyarKaydet(){
    }, function(resp){
       btn.disabled = false; btn.innerHTML = '<i class="fa fa-save"></i> Kaydet';
       if(resp.basarili){
-         alert('Google Review ayarları kaydedildi.' + (resp.review_url ? '\n\nÜretilen link:\n'+resp.review_url : ''));
+         var msg = 'Google Review ayarları kaydedildi.';
+         if (resp.review_url) msg += '\n\nÜretilen link:\n' + resp.review_url;
+         if (resp.uyari) msg += '\n\n⚠️ UYARI: ' + resp.uyari;
+         alert(msg);
          location.reload();
       } else alert('Hata: '+(resp.mesaj||''));
    }).fail(function(){

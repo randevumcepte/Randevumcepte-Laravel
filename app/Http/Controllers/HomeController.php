@@ -2820,4 +2820,20 @@ $salon = Salonlar::where('domain', $domain)->first();
             'google_review_url' => $googleUrl,  // null veya URL — frontend buton göstermeyi karar verir
         ]);
     }
+
+    public function anketGoogleTiklandi(Request $request)
+    {
+        // Public endpoint — anket teşekkür sayfasından "Google'da Yorum Yaz" tıklanınca tracking
+        try {
+            $token = $request->token;
+            $g = AnketGonderim::where('token', $token)->first();
+            if ($g && !$g->google_yonlendirildi) {
+                $g->google_yonlendirildi = true;
+                $g->save();
+            }
+            return response()->json(['basarili' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['basarili' => false]);
+        }
+    }
 }

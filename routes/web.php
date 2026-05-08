@@ -309,7 +309,7 @@ Route::get('/save-excel', function () {
 	 Route::post('/sozlesme-kaydet','HomeController@sozlesmeKaydet');
 	 Route::get('/anket/{token}','HomeController@anketSayfasi');
 	 Route::post('/anket-kaydet','HomeController@anketKaydet');
-	 Route::post('/anket-google-tiklandi','StoreAdminController@googleYonlendirmeKaydet');
+	 Route::post('/anket-google-tiklandi','HomeController@anketGoogleTiklandi');
 	 	 Route::get('/musteriformdoldurma3/{id}/{userid}','HomeController@arsivmusteriform3');
 
 	
