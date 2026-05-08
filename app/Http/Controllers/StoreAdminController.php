@@ -24889,21 +24889,61 @@ DB::raw('
         $personelId = (int)$request->personel_id;
         $donem = $request->donem ?: date('Y-m');
         if(!preg_match('/^\d{4}-\d{2}$/', $donem)) $donem = date('Y-m');
+        $tarih1 = $donem.'-01';
+        $tarih2 = date('Y-m-t', strtotime($tarih1));
 
         $odemeler = PersonelMaasOdemesi::where('salon_id',$salonId)
             ->where('personel_id',$personelId)
             ->where('donem',$donem)
             ->orderBy('odeme_tarihi','desc')
             ->orderBy('id','desc')
-            ->get();
+            ->get()
+            ->map(function($o){
+                $tip = $o->odeme_tipi ?: 'diger';
+                if(!in_array($tip, ['maas','prim','diger'])) $tip = 'diger';
+                return [
+                    'id'            => $o->id,
+                    'odeme_tarihi'  => $o->odeme_tarihi ? (is_string($o->odeme_tarihi) ? $o->odeme_tarihi : $o->odeme_tarihi->format('Y-m-d')) : null,
+                    'tutar'         => (float)$o->tutar,
+                    'odeme_tipi'    => $tip,
+                    'odeme_yontemi' => $o->odeme_yontemi,
+                    'aciklama'      => $o->aciklama,
+                ];
+            });
 
-        $toplam = $odemeler->sum('tutar');
+        // Ayni donemdeki bonus/kesinti hareketleri
+        $hareketler = PersonelPrimHareketi::where('salon_id',$salonId)
+            ->where('personel_id',$personelId)
+            ->whereBetween('tarih',[$tarih1,$tarih2])
+            ->orderBy('tarih','desc')
+            ->orderBy('id','desc')
+            ->get()
+            ->map(function($h){
+                return [
+                    'id'       => $h->id,
+                    'tarih'    => $h->tarih ? (is_string($h->tarih) ? substr($h->tarih,0,10) : $h->tarih->format('Y-m-d')) : null,
+                    'tip'      => $h->tip,
+                    'tutar'    => (float)$h->tutar,
+                    'aciklama' => $h->aciklama,
+                ];
+            });
+
+        $toplamlar = [
+            'maas'    => (float)$odemeler->where('odeme_tipi','maas')->sum('tutar'),
+            'prim'    => (float)$odemeler->where('odeme_tipi','prim')->sum('tutar'),
+            'diger'   => (float)$odemeler->where('odeme_tipi','diger')->sum('tutar'),
+            'bonus'   => (float)$hareketler->where('tip','bonus')->sum('tutar'),
+            'kesinti' => (float)$hareketler->where('tip','kesinti')->sum('tutar'),
+        ];
+        $toplam = (float)$odemeler->sum('tutar');
 
         return response()->json([
             'basarili'      => true,
             'odemeler'      => $odemeler,
-            'odenen_toplam' => (float)$toplam,
+            'hareketler'    => $hareketler,
+            'odenen_toplam' => $toplam,
             'odeme_sayisi'  => $odemeler->count(),
+            'toplamlar'     => $toplamlar,
         ]);
     }
 

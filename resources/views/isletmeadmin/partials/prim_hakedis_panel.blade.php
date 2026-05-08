@@ -1088,6 +1088,13 @@
           <div class="pm-chip">Net Hak Ediş <strong id="primOdemeDetay_net">0,00 ₺</strong></div>
           <div class="pm-chip" id="primOdemeDetay_kalanWrap">Kalan <strong id="primOdemeDetay_kalan">0,00 ₺</strong></div>
         </div>
+        <div class="pm-summary pm-summary--breakdown" id="primOdemeDetay_kirilim" style="display:none; margin-top:8px;">
+          <div class="pm-chip" style="background:#eef2ff;color:#4338ca;border-color:#c7d2fe">Maaş <strong id="primOdemeDetay_maas">0,00 ₺</strong></div>
+          <div class="pm-chip" style="background:#dbeafe;color:#1e40af;border-color:#bfdbfe">Prim <strong id="primOdemeDetay_prim">0,00 ₺</strong></div>
+          <div class="pm-chip" style="background:#fef3c7;color:#92400e;border-color:#fde68a">Avans <strong id="primOdemeDetay_diger">0,00 ₺</strong></div>
+          <div class="pm-chip pm-chip-success">Bonus <strong id="primOdemeDetay_bonus">0,00 ₺</strong></div>
+          <div class="pm-chip pm-chip-danger">Kesinti <strong id="primOdemeDetay_kesinti">0,00 ₺</strong></div>
+        </div>
         <div id="primOdemeDetay_liste">
           <div class="pm-loading"><div class="pm-spinner"></div><div style="margin-top:14px; font-weight:500">Yükleniyor...</div></div>
         </div>
@@ -1438,7 +1445,17 @@ $(function(){
     });
   });
 
-  // Ödeme geçmişini göster (çoklu ödeme) + tek tek sil
+  // Ödeme tipi -> badge + ikon + renk bilgisi
+  function _odemeTipMeta(tip){
+    switch((tip||'diger').toLowerCase()){
+      case 'maas':  return { etiket:'MAAŞ',  bg:'#eef2ff', fg:'#4338ca', icon:'fa-university'    };
+      case 'prim':  return { etiket:'PRİM',  bg:'#dbeafe', fg:'#1e40af', icon:'fa-percent'       };
+      case 'diger': return { etiket:'AVANS', bg:'#fef3c7', fg:'#92400e', icon:'fa-clock-o'       };
+      default:      return { etiket:'ÖDEME', bg:'#dbeafe', fg:'#1e40af', icon:'fa-credit-card'   };
+    }
+  }
+
+  // Ödeme geçmişini göster (çoklu ödeme + bonus/kesinti) + tek tek sil
   function primOdemeDetayDoldur(pid){
     var r = _raporIndex[pid];
     $.ajax({
@@ -1446,40 +1463,111 @@ $(function(){
       method: 'GET',
       data: { personel_id: pid, sube: _sube, donem: _donem },
       success: function(res){
-        if(!res.basarili || !res.odemeler || res.odemeler.length===0){
-          $('#primOdemeDetay_liste').html(
-            '<div class="pm-empty">'+
-              '<div class="pm-empty__icon"><i class="fa fa-inbox"></i></div>'+
-              '<div class="pm-empty__baslik">Bu dönemde ödeme yok</div>'+
-            '</div>'
-          );
-          return;
-        }
+        var odemeler = (res && res.odemeler) ? res.odemeler : [];
+        var hareketler = (res && res.hareketler) ? res.hareketler : [];
+        var t = (res && res.toplamlar) ? res.toplamlar : {maas:0,prim:0,diger:0,bonus:0,kesinti:0};
+
+        // Üst özet (toplam/net/kalan)
         var net = r ? parseFloat(r.net_hakedis||0) : 0;
-        var odenen = parseFloat(res.odenen_toplam||0);
+        var odenen = parseFloat((res && res.odenen_toplam) || 0);
         var kalan = Math.max(0, net - odenen);
         $('#primOdemeDetay_toplam').text(_formatTL(odenen)+' ₺');
         $('#primOdemeDetay_net').text(_formatTL(net)+' ₺');
         $('#primOdemeDetay_kalan').text(_formatTL(kalan)+' ₺');
         $('#primOdemeDetay_ozet').css('display','flex');
 
+        // Tip kırılımı
+        $('#primOdemeDetay_maas').text(_formatTL(t.maas||0)+' ₺');
+        $('#primOdemeDetay_prim').text(_formatTL(t.prim||0)+' ₺');
+        $('#primOdemeDetay_diger').text(_formatTL(t.diger||0)+' ₺');
+        $('#primOdemeDetay_bonus').text('+'+_formatTL(t.bonus||0)+' ₺');
+        $('#primOdemeDetay_kesinti').text('-'+_formatTL(t.kesinti||0)+' ₺');
+        $('#primOdemeDetay_kirilim').css('display','flex');
+
+        if(!res || !res.basarili || (odemeler.length===0 && hareketler.length===0)){
+          $('#primOdemeDetay_liste').html(
+            '<div class="pm-empty">'+
+              '<div class="pm-empty__icon"><i class="fa fa-inbox"></i></div>'+
+              '<div class="pm-empty__baslik">Bu dönemde kayıt yok</div>'+
+            '</div>'
+          );
+          return;
+        }
+
+        // Birleşik liste: ödemeler + bonus/kesinti hareketleri (tarihe göre desc)
+        var birlesik = [];
+        odemeler.forEach(function(o){
+          birlesik.push({
+            kind:'odeme',
+            id:o.id,
+            tarih:o.odeme_tarihi,
+            tutar:o.tutar,
+            tip:o.odeme_tipi,
+            odeme_yontemi:o.odeme_yontemi,
+            aciklama:o.aciklama
+          });
+        });
+        hareketler.forEach(function(h){
+          birlesik.push({
+            kind:h.tip,    // 'bonus' | 'kesinti'
+            id:h.id,
+            tarih:h.tarih,
+            tutar:h.tutar,
+            aciklama:h.aciklama
+          });
+        });
+        birlesik.sort(function(a,b){
+          var ta = a.tarih || ''; var tb = b.tarih || '';
+          if(ta < tb) return 1; if(ta > tb) return -1; return 0;
+        });
+
         var html = '<div class="pm-list">';
-        res.odemeler.forEach(function(o){
-          var tarihStr = o.odeme_tarihi ? (new Date(o.odeme_tarihi)).toLocaleDateString('tr-TR') : '';
-          var tutarStr = _formatTL(o.tutar);
-          html += '<div class="pm-item pm-item--bonus">';
-          html += '  <div class="pm-item__icon" style="background:#dbeafe; color:#1e40af"><i class="fa fa-credit-card"></i></div>';
-          html += '  <div class="pm-item__body">';
-          html += '    <div class="pm-item__row1">';
-          html += '      <span class="pm-item__badge" style="background:#dbeafe; color:#1e40af">ÖDEME</span>';
-          html += '      <span class="pm-item__tutar" style="color:#1e40af">'+tutarStr+' ₺</span>';
-          html += '      <span class="pm-item__tarih"><i class="fa fa-calendar"></i> '+tarihStr+'</span>';
-          if(o.odeme_yontemi){ html += '      <span class="pm-item__tarih" style="color:#64748b"><i class="fa fa-money"></i> '+_escHtml(o.odeme_yontemi)+'</span>'; }
-          html += '    </div>';
-          if(o.aciklama){ html += '    <div class="pm-item__aciklama">'+_escHtml(o.aciklama)+'</div>'; }
-          html += '  </div>';
-          html += '  <button class="pm-item__sil prim-odeme-sil-tek" data-id="'+o.id+'" title="Bu ödemeyi sil"><i class="fa fa-trash"></i></button>';
-          html += '</div>';
+        birlesik.forEach(function(it){
+          var tarihStr = it.tarih ? (new Date(it.tarih)).toLocaleDateString('tr-TR') : '';
+          var tutarStr = _formatTL(it.tutar);
+
+          if(it.kind === 'odeme'){
+            var meta = _odemeTipMeta(it.tip);
+            html += '<div class="pm-item pm-item--bonus">';
+            html += '  <div class="pm-item__icon" style="background:'+meta.bg+'; color:'+meta.fg+'"><i class="fa '+meta.icon+'"></i></div>';
+            html += '  <div class="pm-item__body">';
+            html += '    <div class="pm-item__row1">';
+            html += '      <span class="pm-item__badge" style="background:'+meta.bg+'; color:'+meta.fg+'">'+meta.etiket+'</span>';
+            html += '      <span class="pm-item__tutar" style="color:'+meta.fg+'">'+tutarStr+' ₺</span>';
+            html += '      <span class="pm-item__tarih"><i class="fa fa-calendar"></i> '+tarihStr+'</span>';
+            if(it.odeme_yontemi){ html += '      <span class="pm-item__tarih" style="color:#64748b"><i class="fa fa-money"></i> '+_escHtml(it.odeme_yontemi)+'</span>'; }
+            html += '    </div>';
+            if(it.aciklama){ html += '    <div class="pm-item__aciklama">'+_escHtml(it.aciklama)+'</div>'; }
+            html += '  </div>';
+            html += '  <button class="pm-item__sil prim-odeme-sil-tek" data-id="'+it.id+'" title="Bu ödemeyi sil"><i class="fa fa-trash"></i></button>';
+            html += '</div>';
+          } else if(it.kind === 'bonus'){
+            html += '<div class="pm-item pm-item--bonus">';
+            html += '  <div class="pm-item__icon" style="background:#dcfce7; color:#16a34a"><i class="fa fa-plus-circle"></i></div>';
+            html += '  <div class="pm-item__body">';
+            html += '    <div class="pm-item__row1">';
+            html += '      <span class="pm-item__badge" style="background:#dcfce7; color:#16a34a">BONUS</span>';
+            html += '      <span class="pm-item__tutar" style="color:#16a34a">+'+tutarStr+' ₺</span>';
+            html += '      <span class="pm-item__tarih"><i class="fa fa-calendar"></i> '+tarihStr+'</span>';
+            html += '    </div>';
+            if(it.aciklama){ html += '    <div class="pm-item__aciklama">'+_escHtml(it.aciklama)+'</div>'; }
+            html += '  </div>';
+            html += '  <button class="pm-item__sil prim-hareket-sil-tek" data-id="'+it.id+'" title="Bu bonusu sil"><i class="fa fa-trash"></i></button>';
+            html += '</div>';
+          } else if(it.kind === 'kesinti'){
+            html += '<div class="pm-item pm-item--kesinti">';
+            html += '  <div class="pm-item__icon" style="background:#fee2e2; color:#dc2626"><i class="fa fa-minus-circle"></i></div>';
+            html += '  <div class="pm-item__body">';
+            html += '    <div class="pm-item__row1">';
+            html += '      <span class="pm-item__badge" style="background:#fee2e2; color:#dc2626">KESİNTİ</span>';
+            html += '      <span class="pm-item__tutar" style="color:#dc2626">-'+tutarStr+' ₺</span>';
+            html += '      <span class="pm-item__tarih"><i class="fa fa-calendar"></i> '+tarihStr+'</span>';
+            html += '    </div>';
+            if(it.aciklama){ html += '    <div class="pm-item__aciklama">'+_escHtml(it.aciklama)+'</div>'; }
+            html += '  </div>';
+            html += '  <button class="pm-item__sil prim-hareket-sil-tek" data-id="'+it.id+'" title="Bu kesintiyi sil"><i class="fa fa-trash"></i></button>';
+            html += '</div>';
+          }
         });
         html += '</div>';
         $('#primOdemeDetay_liste').html(html);
@@ -1745,7 +1833,7 @@ $(function(){
     });
   }
 
-  $(document).on('click','.prim-hareket-sil', function(){
+  $(document).on('click','.prim-hareket-sil, .prim-hareket-sil-tek', function(){
     var id = $(this).data('id');
     swal({
       title: 'Silinsin mi?',
