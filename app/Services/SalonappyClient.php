@@ -251,15 +251,23 @@ class SalonappyClient
      */
     public function login()
     {
+        // Once webapp ana sayfasini ziyaret ederek WAF/CF cookie'leri al
+        $this->getHtml('/', 'pre_login_home');
+
         $payloads = [
             ['username' => $this->username, 'password' => $this->password],
             ['phone'    => $this->username, 'password' => $this->password],
             ['email'    => $this->username, 'password' => $this->password],
             ['login'    => $this->username, 'password' => $this->password],
         ];
+        $extraHeaders = [
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Content-Type'     => 'application/json',
+            'Accept'           => 'application/json, text/plain, */*',
+        ];
         $lastDetail = '';
         foreach ($payloads as $payload) {
-            $r = $this->postJson('/login', $payload);
+            $r = $this->postJson('/login', $payload, $extraHeaders);
             $lastDetail = 'code=' . ($r['code'] ?? '?') . ' raw=' . substr($r['raw'] ?? '', 0, 200);
             if (!$r['ok'] || !is_array($r['data'])) continue;
 
