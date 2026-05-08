@@ -405,8 +405,14 @@
       // Tracking — beklemeden tıklama analitiği gönder, link normal akıyor
       try {
          var fd = new FormData();
+         fd.append('_token', '{{ csrf_token() }}');
          fd.append('token', token);
-         fetch('/anket-google-tiklandi', { method:'POST', body: fd, credentials:'same-origin', keepalive: true });
+         fetch('/anket-google-tiklandi', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            keepalive: true
+         }).catch(function(){});
       } catch(e){}
    };
 })();
