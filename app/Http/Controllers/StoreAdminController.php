@@ -24347,10 +24347,26 @@ DB::raw('
     }
 
     /**
+     * Kısa token üret (base62, çakışma kontrolü ile). 8 char = 218 trilyon kombinasyon.
+     * SMS karakter tasarrufu için kritik (32 hex → 8 char, 24 char URL kazancı).
+     */
+    private static function anketKisaToken($len = 8){
+        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        do {
+            $token = '';
+            for ($i = 0; $i < $len; $i++) {
+                $token .= $chars[random_int(0, 61)];
+            }
+            $exists = AnketGonderim::where('token', $token)->exists();
+        } while ($exists);
+        return $token;
+    }
+
+    /**
      * Yardımcı: yeni anket gönderim kaydı oluşturur (token + son gecerlilik dahil).
      */
     public static function anketGonderimOlustur($salonId, $sablon, $musteri, $telefon, $opts = []){
-        $token = bin2hex(random_bytes(16));
+        $token = self::anketKisaToken(8);
         $g = new AnketGonderim();
         $g->salon_id        = $salonId;
         $g->sablon_id       = $sablon->id;
@@ -24376,8 +24392,12 @@ DB::raw('
         $salon = Salonlar::where('id',$gonderim->salon_id)->first();
         $host = ($_SERVER['HTTP_HOST'] ?? null) ?: ($salon->domain ?? 'apptest.randevumcepte.com.tr');
         $link = 'https://'.$host.'/anket/'.$gonderim->token;
+        // Sadece ilk ad — soyad SMS karakter tasarrufu için atlanir
         $adSoyad = $musteri->name ?? '';
-        $mesaj = 'Sn. '.$adSoyad.' '.($salon->salon_adi ?? '').' deneyiminizi bizimle paylaşır mısınız? Anketi 1 dk icinde doldurabilirsiniz: '.$link;
+        $ilkAd = $adSoyad ? trim(explode(' ', $adSoyad)[0]) : '';
+        $salonAd = $salon->salon_adi ?? '';
+        // Sade format — Turkce char yok (GSM-7 uyumlu), kisa token + B162 ile birlikte 1 SMS'e sigar
+        $mesaj = 'Sn. '.$ilkAd.', '.$salonAd.' memnuniyet anketi (1 dk): '.$link;
         $mesajlar = [['to'=>$gonderim->telefon, 'message'=>$mesaj]];
         try {
             // Base Controller::sms_gonder($salon_id, $mesajlar) — request gerektirmez, cron'dan da çağrılabilir
