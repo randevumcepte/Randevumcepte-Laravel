@@ -626,22 +626,6 @@
   }
 </style>
 
-<div class="pr-hero">
-  <div class="pr-hero__inner">
-    <div class="pr-hero__title">
-      <div class="pr-hero__icon"><i class="fa fa-money"></i></div>
-      <div>
-        <h1>Prim & Hak Ediş</h1>
-        <p>Personel başına aylık maaş, prim ve hak ediş takibi</p>
-      </div>
-    </div>
-    <div class="pr-hero__period">
-      <i class="fa fa-calendar"></i>
-      {{date('d.m.Y', strtotime($tarih1))}} — {{date('d.m.Y', strtotime($tarih2))}}
-    </div>
-  </div>
-</div>
-
 <form method="get" id="primRaporFiltre" class="pr-filter">
   <input type="hidden" name="sube" value="{{$isletme->id}}">
   <input type="hidden" name="_tab" value="prim">
@@ -662,8 +646,11 @@
     </select>
   </div>
   <div class="pr-filter__spacer"></div>
-  <div class="pr-filter__group" style="font-size:12px; color:var(--rmc-muted)">
-    <i class="fa fa-info-circle"></i> Ay/Yıl seçimini değiştirdiğinizde rapor otomatik yenilenir.
+  <div class="pr-filter__group" style="font-size:12px; color:var(--rmc-muted); display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+    <span style="display:inline-flex; align-items:center; gap:6px; background:var(--rmc-purple-bg); color:var(--rmc-purple-1); padding:7px 12px; border-radius:30px; font-weight:700;">
+      <i class="fa fa-calendar"></i> {{date('d.m.Y', strtotime($tarih1))}} — {{date('d.m.Y', strtotime($tarih2))}}
+    </span>
+    <span><i class="fa fa-info-circle"></i> Ay/Yıl değiştirince rapor otomatik yenilenir.</span>
   </div>
 </form>
 
