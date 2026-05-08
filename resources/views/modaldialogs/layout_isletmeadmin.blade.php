@@ -1100,11 +1100,11 @@
                               </div>
                               <div class="ahm-field">
                                  <label>Süre (dk)</label>
-                                 <input type="tel" class="form-control" required name="adisyonhizmetsuresi[]" value='{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("sure_dk")}}'>
+                                 <input type="tel" class="form-control" required name="adisyonhizmetsuresi[]" value="">
                               </div>
                               <div class="ahm-field">
                                  <label>Fiyat ₺</label>
-                                 <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value='{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("baslangic_fiyat")}}'>
+                                 <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value="" placeholder="0">
                               </div>
                               <button type="button" name="hizmet_formdan_sil_adisyon" data-value="0" class="ahm-remove" disabled title="Kaldır">
                                  <i class="fa fa-times"></i>
@@ -1128,10 +1128,9 @@
             </div>
          </div>
          <script>
-            // Modal acilirken formu sifirla (ekstra satir varsa kaldir, alanlari default'a cek)
+            // Modal acilirken formu sifirla (ekstra satir varsa kaldir, alanlari bos'a cek)
+            // Fiyat ve sure hizmet seciminde otomatik dolacak (custom.js handler)
             (function(){
-               var defaultSure = '{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("sure_dk")}}';
-               var defaultFiyat = '{{\App\SalonHizmetler::where("salon_id",$isletme->id)->value("baslangic_fiyat")}}';
                var bugun = '{{date("Y-m-d")}}';
                function resetHizmetModal(){
                   var $form = $('#adisyon_hizmet_formu');
@@ -1139,18 +1138,18 @@
                   var $cont = $form.find('.hizmetler_bolumu_adisyon');
                   // Ilk satir disindakileri kaldir
                   $cont.find('> .row').slice(1).remove();
-                  // Ilk satir varsayilanlara dön
+                  // Ilk satiri sifirla
                   var $first = $cont.find('> .row').first();
                   if(!$first.length) return;
                   $first.find('select').val(null).trigger('change.select2');
                   $first.find('input[name="islemtarihiyeni[]"]').val(bugun);
-                  // saat: simdi
                   var d = new Date();
                   var hh = String(d.getHours()).padStart(2,'0');
                   var mm = String(d.getMinutes()).padStart(2,'0');
                   $first.find('input[name="islemsaatiyeni[]"]').val(hh+':'+mm);
-                  $first.find('input[name="adisyonhizmetsuresi[]"]').val(defaultSure);
-                  $first.find('input[name="adisyonhizmetfiyati[]"]').val(defaultFiyat);
+                  // Sure ve fiyat bos -> hizmet secince otomatik dolacak
+                  $first.find('input[name="adisyonhizmetsuresi[]"]').val('');
+                  $first.find('input[name="adisyonhizmetfiyati[]"]').val('');
                   $first.find('button[name="hizmet_formdan_sil_adisyon"]').prop('disabled',true).attr('data-value','0');
                }
                $(document).on('show.bs.modal','#adisyon_yeni_hizmet_modal', resetHizmetModal);
