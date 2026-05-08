@@ -27,6 +27,7 @@ class Kernel extends ConsoleKernel
         Commands\TekrarAramaHatirlat::class,
         Commands\PlanlaImport::class,
         Commands\DrklinikImport::class,
+        Commands\SalonappyImport::class,
         Commands\CarkHatirlatmaGonder::class,
         Commands\AnketOtomatikGonder::class,
     ];
