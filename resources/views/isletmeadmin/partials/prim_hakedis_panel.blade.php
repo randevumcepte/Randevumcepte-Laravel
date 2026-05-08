@@ -7,6 +7,13 @@
   $toplamNet = array_sum(array_column($rapor,'net_hakedis'));
   $toplamOdenen = array_sum(array_column($rapor,'odenen_toplam'));
   $toplamBekleyen = array_sum(array_column($rapor,'kalan'));
+  // Tip bazli odenen toplamlari (Maas / Prim / Avans-Diger)
+  $toplamOdenenMaas  = array_sum(array_column($rapor,'odenen_maas'));
+  $toplamOdenenPrim  = array_sum(array_column($rapor,'odenen_prim'));
+  $toplamOdenenDiger = array_sum(array_column($rapor,'odenen_diger'));
+  // Kart bazinda kalan (toplam - odenen, asagida 0'dan kucukse 0)
+  $toplamKalanMaas = max(0, $toplamMaas - $toplamOdenenMaas);
+  $toplamKalanPrim = max(0, $toplamPrim - $toplamOdenenPrim);
   $odemeYuzde = $toplamNet > 0 ? min(100, round(($toplamOdenen / $toplamNet) * 100, 1)) : 0;
   $bekleyenSayi = count(array_filter($rapor, fn($r) => $r['durum']==='bekliyor' || $r['durum']==='kismi'));
   $tamSayi = count(array_filter($rapor, fn($r) => $r['durum']==='tam' || $r['durum']==='fazla'));
@@ -116,6 +123,18 @@
   .pr-stat__lbl{ font-size:11px; color:var(--rmc-muted); font-weight:700; letter-spacing:.5px; text-transform:uppercase; margin-bottom:4px; }
   .pr-stat__val{ font-size:22px; font-weight:700; color:var(--rmc-text); letter-spacing:-.3px; }
   .pr-stat__val small{ font-size:13px; color:var(--rmc-muted); margin-left:4px; font-weight:600; }
+  .pr-stat__sub{ display:flex; justify-content:space-between; gap:8px; margin-top:8px; padding-top:8px; border-top:1px dashed #efe7f3; font-size:11px; }
+  .pr-stat__sub span{ display:inline-flex; align-items:center; gap:4px; color:var(--rmc-muted); font-weight:600; }
+  .pr-stat__sub b{ font-weight:700; color:var(--rmc-text); }
+  .pr-stat__sub .odenen b{ color:#10b981; }
+  .pr-stat__sub .kalan  b{ color:#ef4444; }
+  .pr-stat--net .pr-stat__sub{ border-top-color:rgba(255,255,255,.28); }
+  .pr-stat--net .pr-stat__sub span{ color:rgba(255,255,255,.78); }
+  .pr-stat--net .pr-stat__sub b{ color:#fff; }
+  .pr-stat--net .pr-stat__sub .odenen b{ color:#86efac; }
+  .pr-stat--net .pr-stat__sub .kalan  b{ color:#fecaca; }
+  .pr-stat__brut{ font-size:11px; color:var(--rmc-muted); margin-top:4px; font-weight:600; }
+  .pr-stat--net .pr-stat__brut{ color:rgba(255,255,255,.78); }
   .pr-stat--maas .pr-stat__icon{ background: linear-gradient(135deg,#9D5DC8,#B88ED8); }
   .pr-stat--prim .pr-stat__icon{ background: linear-gradient(135deg,#7B2FB8,#9D5DC8); }
   .pr-stat--bonus .pr-stat__icon{ background: linear-gradient(135deg,#10b981,#34d399); }
@@ -651,31 +670,44 @@
 <div class="pr-stats">
   <div class="pr-stat pr-stat--maas">
     <div class="pr-stat__icon">₺</div>
-    <div class="pr-stat__lbl">Toplam Maaş</div>
-    <div class="pr-stat__val">{{number_format($toplamMaas,2,',','.')}} <small>₺</small></div>
+    <div class="pr-stat__lbl">Kalan Maaş</div>
+    <div class="pr-stat__val">{{number_format($toplamKalanMaas,2,',','.')}} <small>₺</small></div>
+    <div class="pr-stat__brut">Toplam: {{number_format($toplamMaas,2,',','.')}} ₺</div>
+    <div class="pr-stat__sub">
+      <span class="odenen"><i class="fa fa-check-circle"></i> Ödenen: <b>{{number_format($toplamOdenenMaas,2,',','.')}} ₺</b></span>
+      <span class="kalan"><i class="fa fa-clock-o"></i> Kalan: <b>{{number_format($toplamKalanMaas,2,',','.')}} ₺</b></span>
+    </div>
   </div>
   <div class="pr-stat pr-stat--prim">
     <div class="pr-stat__icon">%</div>
-    <div class="pr-stat__lbl">Toplam Prim</div>
-    <div class="pr-stat__val">{{number_format($toplamPrim,2,',','.')}} <small>₺</small></div>
+    <div class="pr-stat__lbl">Kalan Prim</div>
+    <div class="pr-stat__val">{{number_format($toplamKalanPrim,2,',','.')}} <small>₺</small></div>
+    <div class="pr-stat__brut">Toplam: {{number_format($toplamPrim,2,',','.')}} ₺</div>
+    <div class="pr-stat__sub">
+      <span class="odenen"><i class="fa fa-check-circle"></i> Ödenen: <b>{{number_format($toplamOdenenPrim,2,',','.')}} ₺</b></span>
+      <span class="kalan"><i class="fa fa-clock-o"></i> Kalan: <b>{{number_format($toplamKalanPrim,2,',','.')}} ₺</b></span>
+    </div>
   </div>
   <div class="pr-stat pr-stat--bonus">
     <div class="pr-stat__icon">＋</div>
     <div class="pr-stat__lbl">Toplam Bonus</div>
     <div class="pr-stat__val">{{number_format($toplamBonus,2,',','.')}} <small>₺</small></div>
+    <div class="pr-stat__brut" style="opacity:.6">Net hak edişe ekleniyor</div>
   </div>
   <div class="pr-stat pr-stat--kesinti">
     <div class="pr-stat__icon">−</div>
     <div class="pr-stat__lbl">Toplam Kesinti</div>
     <div class="pr-stat__val">{{number_format($toplamKesinti,2,',','.')}} <small>₺</small></div>
+    <div class="pr-stat__brut" style="opacity:.6">Net hak edişten düşülüyor</div>
   </div>
   <div class="pr-stat pr-stat--net">
     <div class="pr-stat__icon"><i class="fa fa-credit-card"></i></div>
     <div class="pr-stat__lbl">
-      Net Ödenecek
+      Bekleyen Ödeme
       <span class="pr-net-progress__yuzde">%{{$odemeYuzde}}</span>
     </div>
-    <div class="pr-stat__val">{{number_format($toplamNet,2,',','.')}} <small>₺</small></div>
+    <div class="pr-stat__val">{{number_format($toplamBekleyen,2,',','.')}} <small>₺</small></div>
+    <div class="pr-stat__brut">Net Hak Ediş: {{number_format($toplamNet,2,',','.')}} ₺</div>
     <div class="pr-net-progress">
       <div class="pr-net-progress__bar">
         <div class="pr-net-progress__fill" style="width: {{$odemeYuzde}}%"></div>
@@ -684,6 +716,11 @@
         <span><span class="lbl">Ödenen:</span> <span class="val val--odenen">{{number_format($toplamOdenen,2,',','.')}} ₺</span></span>
         <span><span class="lbl">Bekleyen:</span> <span class="val val--bekleyen">{{number_format($toplamBekleyen,2,',','.')}} ₺</span></span>
       </div>
+    </div>
+    <div class="pr-stat__sub">
+      <span class="odenen"><i class="fa fa-money"></i> Maaş Öd.: <b>{{number_format($toplamOdenenMaas,2,',','.')}} ₺</b></span>
+      <span class="odenen"><i class="fa fa-percent"></i> Prim Öd.: <b>{{number_format($toplamOdenenPrim,2,',','.')}} ₺</b></span>
+      <span class="odenen"><i class="fa fa-clock-o"></i> Avans: <b>{{number_format($toplamOdenenDiger,2,',','.')}} ₺</b></span>
     </div>
   </div>
 </div>
