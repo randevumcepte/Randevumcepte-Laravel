@@ -670,26 +670,38 @@ class DrklinikImporter
     }
 
     /**
-     * Randevu listesinde td[13] formati: "(NxHizmet adi)"
+     * Drklinik paket hint formati: "(N x Hizmet)" veya "(Hizmet x N)".
+     * Musteri detay -> Randevular tablosu: "(100 dakika solaryum x 12)"
+     * Randevu listesi td[13]: "(12x100 dakika solaryum)"
      * Donus: ['hizmet_adi' => '...', 'seans' => N] veya null
      */
     private function parsePaketSeansHint($s)
     {
         if (!$s) return null;
-        if (preg_match('~\((\d+)x([^)]+)\)~iu', trim($s), $m)) {
+        $s = trim($s);
+        // (Nxhizmet) - rakam basta
+        if (preg_match('~\((\d+)\s*x\s*([^)]+)\)~iu', $s, $m)) {
             return ['seans' => (int) $m[1], 'hizmet_adi' => trim($m[2])];
+        }
+        // (hizmet x N) - rakam sonda
+        if (preg_match('~\(([^)]+?)\s*x\s*(\d+)\)~iu', $s, $m)) {
+            return ['seans' => (int) $m[2], 'hizmet_adi' => trim($m[1])];
         }
         return null;
     }
 
     /**
-     * Randevu listesinde td[14] formati: "(NxÜrün adi)"
+     * Drklinik urun hint formati: "(N x Urun)" veya "(Urun x N)".
      */
     private function parseUrunHint($s)
     {
         if (!$s) return null;
-        if (preg_match('~\((\d+)x([^)]+)\)~iu', trim($s), $m)) {
+        $s = trim($s);
+        if (preg_match('~\((\d+)\s*x\s*([^)]+)\)~iu', $s, $m)) {
             return ['adet' => (int) $m[1], 'urun_adi' => trim($m[2])];
+        }
+        if (preg_match('~\(([^)]+?)\s*x\s*(\d+)\)~iu', $s, $m)) {
+            return ['adet' => (int) $m[2], 'urun_adi' => trim($m[1])];
         }
         return null;
     }
@@ -1293,7 +1305,11 @@ class DrklinikImporter
                 if ($sh) $hizmetId = $sh['hizmet_id'];
             }
             if (!$hizmetId && $hizmetlerStr) {
-                $clean = trim(preg_replace('~\s*\(\d+x[^)]+\)$~iu', '', $hizmetlerStr));
+                // Hint var ise ondan hizmet adini al, yoksa parantezleri strip et
+                $clean = $paketHint['hizmet_adi'] ?? '';
+                if ($clean === '') {
+                    $clean = trim(preg_replace('~\s*\([^)]+\)\s*$~u', '', $hizmetlerStr));
+                }
                 if ($clean !== '') {
                     $sh = $this->findSalonHizmetByName($clean);
                     if ($sh) $hizmetId = $sh['hizmet_id'];
