@@ -2783,6 +2783,17 @@ $salon = Salonlar::where('domain', $domain)->first();
         // Premium "Reputation Booster" mantığı
         $salon = Salonlar::where('id', $gonderim->salon_id)->first();
         $googleUrl = null;
+        \Log::info('[ANKET-PREMIUM] degerlendirme baslangic', [
+            'gonderim_id'   => $gonderim->id,
+            'salon_id'      => $gonderim->salon_id,
+            'nps_skoru'     => $npsSkoru,
+            'csat_skoru'    => $csatSkoru,
+            'premium_aktif' => $salon ? (int) $salon->reputation_premium_aktif : null,
+            'google_url_var'=> $salon ? (bool) $salon->google_review_url : null,
+            'uyari_tel'     => $salon ? $salon->kotu_puan_uyari_telefon : null,
+            'esik_uyari_nps'  => $salon ? $salon->kotu_puan_uyari_esik_nps : null,
+            'esik_uyari_csat' => $salon ? $salon->kotu_puan_uyari_esik_csat : null,
+        ]);
         if ($salon && $salon->reputation_premium_aktif) {
             // Yüksek puan → Google Review yönlendirmesi
             if ($salon->google_review_url) {
@@ -2796,16 +2807,32 @@ $salon = Salonlar::where('domain', $domain)->first();
             // Düşük puan → admin/yetkili SMS uyarısı
             $dusukNps  = $npsSkoru !== null && $npsSkoru <= ($salon->kotu_puan_uyari_esik_nps ?? 6);
             $dusukCsat = $csatSkoru !== null && $csatSkoru <= ($salon->kotu_puan_uyari_esik_csat ?? 2.5);
+            \Log::info('[ANKET-PREMIUM] dusuk puan check', [
+                'gonderim_id' => $gonderim->id,
+                'dusukNps'    => $dusukNps,
+                'dusukCsat'   => $dusukCsat,
+                'uyari_yapilmis_mi' => (bool) $gonderim->kotu_puan_uyari_gonderildi,
+            ]);
             if (($dusukNps || $dusukCsat) && !$gonderim->kotu_puan_uyari_gonderildi) {
-                $uyariTel = $salon->kotu_puan_uyari_telefon;
+                $uyariTel = trim($salon->kotu_puan_uyari_telefon ?? '');
+                if (!$uyariTel) {
+                    \Log::warning('[ANKET-PREMIUM] uyari telefonu bos — SMS atilmadi', ['salon_id' => $salon->id]);
+                }
                 if ($uyariTel) {
                     $musteriAd = $gonderim->ad_soyad ?: 'Müşteri';
                     $skor = $npsSkoru !== null ? ('NPS '.$npsSkoru.'/10') : ('Puan '.$csatSkoru.'/5');
                     $yorumOzet = $genelYorum ? (' Yorum: ' . mb_substr($genelYorum, 0, 80)) : '';
-                    $mesaj = '⚠️ DÜŞÜK PUAN UYARISI — '.$skor.' | '.$musteriAd.' ('.$gonderim->telefon.') anket doldurdu.'.$yorumOzet.' Hemen iletişime geçin.';
+                    // Emoji yerine duz metin (GSM-7 uyumlu, Unicode SMS'e dusurmemek icin)
+                    $mesaj = 'DUSUK PUAN UYARISI - '.$skor.' | '.$musteriAd.' ('.$gonderim->telefon.') anket doldurdu.'.$yorumOzet.' Hemen iletisime gecin.';
+                    \Log::info('[ANKET-PREMIUM] dusuk puan SMS atiliyor', [
+                        'gonderim_id' => $gonderim->id,
+                        'uyari_tel'   => $uyariTel,
+                        'mesaj_uzunluk' => strlen($mesaj),
+                    ]);
                     try {
                         $ctrl = app()->make(\App\Http\Controllers\Controller::class);
                         $ctrl->sms_gonder($salon->id, [['to' => $uyariTel, 'message' => $mesaj]]);
+                        \Log::info('[ANKET-PREMIUM] dusuk puan SMS gonderildi', ['gonderim_id' => $gonderim->id]);
                         $gonderim->kotu_puan_uyari_gonderildi = true;
                         $gonderim->save();
                     } catch(\Exception $e) {
