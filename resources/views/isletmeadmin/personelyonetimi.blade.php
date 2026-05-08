@@ -381,6 +381,18 @@
 
 <script type="text/javascript">
 $(document).ready(function(){
+   // URL ?_tab=prim ise Prim & Hak Ediş tab'ini aktif et (ödeme/bonus/kesinti sonrası reload bu paramla geliyor)
+   try {
+      var _tabParam = (new URL(window.location.href)).searchParams.get('_tab');
+      if(_tabParam === 'prim'){
+         var $btn = $('#tabBtn-primHakedis');
+         if($btn.length){
+            // Bootstrap tab tetikleme
+            try { $btn.tab('show'); } catch(e){ $btn.trigger('click'); }
+         }
+      }
+   } catch(e){}
+
    if($('#personel_tablo').length){
       try { $('#personel_tablo').DataTable().destroy(); } catch(e){}
       $('#personel_tablo').DataTable({

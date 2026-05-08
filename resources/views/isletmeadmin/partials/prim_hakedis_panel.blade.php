@@ -1425,6 +1425,21 @@ $(function(){
     tryActivate(15); // 3 saniyeye kadar bekle
   });
 
+  // Sayfayi yenilerken aktif tab'i (Prim & Hak Edis ya da Personeller) koru
+  function _reloadKeepTab(){
+    try {
+      var $active = $('.pyo-tabs .nav-link.active');
+      var href = $active.attr('href') || '#primHakedis';
+      // Bu partial sadece Prim & Hak Edis tabinda yuklendigi icin default 'prim'
+      var tabParam = (href === '#personeller') ? 'personeller' : 'prim';
+      var url = new URL(window.location.href);
+      url.searchParams.set('_tab', tabParam);
+      window.location.href = url.toString();
+    } catch(err){
+      window.location.reload();
+    }
+  }
+
   $('#primOdeForm').on('submit', function(e){
     e.preventDefault();
     $.ajax({
@@ -1436,7 +1451,7 @@ $(function(){
         if(res.basarili){
           $('#primOdeModal').modal('hide');
           swal({title:'Ödeme kaydedildi', type:'success', timer:1300, showConfirmButton:false})
-            .then(()=>location.reload()).catch(()=>location.reload());
+            .then(_reloadKeepTab).catch(_reloadKeepTab);
         } else {
           swal({title:'Hata', text: res.mesaj || 'Kaydedilemedi', type:'error'});
         }
@@ -1599,7 +1614,7 @@ $(function(){
         data: { id: odemeId, sube: _sube, _token: _csrf },
         headers: {'X-CSRF-TOKEN': _csrf},
         success: function(res){
-          if(res.basarili){ location.reload(); }
+          if(res.basarili){ _reloadKeepTab(); }
           else { swal({title:'Hata', text: res.mesaj || 'Silinemedi', type:'error'}); }
         }
       });
@@ -1617,8 +1632,8 @@ $(function(){
         if(res.basarili){
           $('#primHareketModal').modal('hide');
           swal({title:'Kaydedildi', type:'success', timer:1200, showConfirmButton:false})
-            .then(()=>location.reload())
-            .catch(()=>location.reload());
+            .then(_reloadKeepTab)
+            .catch(_reloadKeepTab);
         } else {
           swal({title:'Hata', text: res.mesaj || 'Kaydedilemedi', type:'error'});
         }
@@ -1852,7 +1867,7 @@ $(function(){
         headers: {'X-CSRF-TOKEN': _csrf},
         success: function(res){
           if(res.basarili){
-            location.reload();
+            _reloadKeepTab();
           } else {
             swal({title:'Hata', text: res.mesaj || 'Silinemedi', type:'error'});
           }
