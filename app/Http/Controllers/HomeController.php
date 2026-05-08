@@ -2780,6 +2780,44 @@ $salon = Salonlar::where('domain', $domain)->first();
         $gonderim->kvkk_onay     = $request->kvkk_onay ? 1 : 0;
         $gonderim->save();
 
-        return response()->json(['basarili' => true]);
+        // Premium "Reputation Booster" mantığı
+        $salon = Salonlar::where('id', $gonderim->salon_id)->first();
+        $googleUrl = null;
+        if ($salon && $salon->reputation_premium_aktif) {
+            // Yüksek puan → Google Review yönlendirmesi
+            if ($salon->google_review_url) {
+                $yuksekNps  = $npsSkoru !== null && $npsSkoru >= ($salon->google_review_esik_nps ?? 9);
+                $yuksekCsat = $csatSkoru !== null && $csatSkoru >= ($salon->google_review_esik_csat ?? 4.5);
+                if ($yuksekNps || $yuksekCsat) {
+                    $googleUrl = $salon->google_review_url;
+                }
+            }
+
+            // Düşük puan → admin/yetkili SMS uyarısı
+            $dusukNps  = $npsSkoru !== null && $npsSkoru <= ($salon->kotu_puan_uyari_esik_nps ?? 6);
+            $dusukCsat = $csatSkoru !== null && $csatSkoru <= ($salon->kotu_puan_uyari_esik_csat ?? 2.5);
+            if (($dusukNps || $dusukCsat) && !$gonderim->kotu_puan_uyari_gonderildi) {
+                $uyariTel = $salon->kotu_puan_uyari_telefon;
+                if ($uyariTel) {
+                    $musteriAd = $gonderim->ad_soyad ?: 'Müşteri';
+                    $skor = $npsSkoru !== null ? ('NPS '.$npsSkoru.'/10') : ('Puan '.$csatSkoru.'/5');
+                    $yorumOzet = $genelYorum ? (' Yorum: ' . mb_substr($genelYorum, 0, 80)) : '';
+                    $mesaj = '⚠️ DÜŞÜK PUAN UYARISI — '.$skor.' | '.$musteriAd.' ('.$gonderim->telefon.') anket doldurdu.'.$yorumOzet.' Hemen iletişime geçin.';
+                    try {
+                        $ctrl = app()->make(\App\Http\Controllers\Controller::class);
+                        $ctrl->sms_gonder($salon->id, [['to' => $uyariTel, 'message' => $mesaj]]);
+                        $gonderim->kotu_puan_uyari_gonderildi = true;
+                        $gonderim->save();
+                    } catch(\Exception $e) {
+                        \Log::error('Kötü puan SMS uyarısı hata: '.$e->getMessage());
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'basarili' => true,
+            'google_review_url' => $googleUrl,  // null veya URL — frontend buton göstermeyi karar verir
+        ]);
     }
 }

@@ -250,7 +250,26 @@
       <h2>{{ $isletme->salon_adi ?? '' }}</h2>
    </div>
    <div class="anket-kart">
-      <div class="basarili-mesaj">
+      {{-- Yüksek puan: Google Review CTA --}}
+      <div id="basarili_google" style="display:none; text-align:center; padding:40px 20px;">
+         <div style="font-size:54px; margin-bottom:8px;">🌟</div>
+         <h3 style="margin:8px 0 8px; color:#2d1b3f; font-weight:700; font-size:22px;">Teşekkürler!</h3>
+         <p style="color:#5b6770; font-size:14px; margin:0 0 4px;">Görüşlerin bizim için çok değerli.</p>
+         <p style="color:#3a1a52; font-size:13.5px; margin:18px 0 16px; line-height:1.55; max-width:420px; margin-left:auto; margin-right:auto;">
+            Mahallendeki diğer kişilere de bu deneyimini anlatır mısın?<br>
+            <b>Tek tıkla Google'da yorum bırakabilirsin.</b>
+         </p>
+         <a id="google_review_link" href="#" target="_blank" rel="noopener" onclick="googleTiklamaTrack()"
+            style="display:inline-flex; align-items:center; gap:10px; background:linear-gradient(135deg,#4285F4 0%,#1A73E8 100%); color:#fff; padding:14px 26px; border-radius:30px; text-decoration:none; font-weight:700; font-size:15px; box-shadow:0 8px 22px rgba(26,115,232,.32); transition:transform .15s;">
+            <span style="background:#fff; color:#4285F4; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:14px;">G</span>
+            Google'da Yorum Yaz
+            <i class="fa fa-external-link" style="font-size:13px; opacity:.85;"></i>
+         </a>
+         <p style="color:#94a3b8; font-size:11.5px; margin:18px 0 0;">⏱️ Yaklaşık 30 saniye sürer · Yardımcı olacak</p>
+      </div>
+
+      {{-- Standart başarı mesajı --}}
+      <div class="basarili-mesaj" id="basarili_standart">
          <div class="ikon"><i class="fa fa-heart"></i></div>
          <h3>Teşekkürler!</h3>
          <p>Geri bildiriminiz başarıyla iletildi.</p>
@@ -358,6 +377,16 @@
             if(resp && resp.basarili){
                document.getElementById('form_bolumu').style.display = 'none';
                document.getElementById('basarili_bolumu').style.display = 'block';
+               // Premium: yüksek puan ise Google Review CTA göster, değilse standart teşekkür
+               if (resp.google_review_url) {
+                  var link = document.getElementById('google_review_link');
+                  if (link) link.href = resp.google_review_url;
+                  document.getElementById('basarili_google').style.display = 'block';
+                  document.getElementById('basarili_standart').style.display = 'none';
+               } else {
+                  document.getElementById('basarili_google').style.display = 'none';
+                  document.getElementById('basarili_standart').style.display = 'block';
+               }
                window.scrollTo({top:0, behavior:'smooth'});
             } else {
                alert(resp.mesaj || 'Bir hata oluştu.');
@@ -370,6 +399,15 @@
             btn.disabled = false;
             btn.innerHTML = '<i class="fa fa-paper-plane"></i> Anketi Gönder';
          });
+   };
+
+   window.googleTiklamaTrack = function(){
+      // Tracking — beklemeden tıklama analitiği gönder, link normal akıyor
+      try {
+         var fd = new FormData();
+         fd.append('token', token);
+         fetch('/anket-google-tiklandi', { method:'POST', body: fd, credentials:'same-origin', keepalive: true });
+      } catch(e){}
    };
 })();
 </script>

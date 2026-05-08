@@ -24297,6 +24297,10 @@ DB::raw('
 
         $sablonlar = AnketSablon::where('salon_id',$sube)->orderByDesc('aktif')->orderBy('ad')->get();
 
+        // Premium istatistikler
+        $googleTiklamalar = $cevaplananlar->filter(function($g){ return $g->google_yonlendirildi; })->count();
+        $kotuPuanUyarilari = $cevaplananlar->filter(function($g){ return $g->kotu_puan_uyari_gonderildi; })->count();
+
         return view('isletmeadmin.anket_sonuclari',[
             'bildirimler' => self::bildirimgetir($request),
             'paketler' => $paketler,
@@ -24309,6 +24313,9 @@ DB::raw('
             'sablonlar' => $sablonlar,
             'bas' => date('Y-m-d', strtotime($bas)),
             'bit' => date('Y-m-d', strtotime($bit)),
+            'salon' => $isletme,
+            'google_tiklamalar' => $googleTiklamalar,
+            'kotu_puan_uyarilari' => $kotuPuanUyarilari,
             'istatistik' => [
                 'toplam_gonderim' => $toplamGonderim,
                 'toplam_cevap'    => $toplamCevap,
@@ -24378,6 +24385,100 @@ DB::raw('
             $ctrl->sms_gonder($gonderim->salon_id, $mesajlar);
         } catch(\Exception $e){
             \Log::error('anketSmsGonder hata: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Yardımcı: Google Maps/g.page URL'sinden Place ID'yi parse eder.
+     * Desteklediği formatlar:
+     *  - https://search.google.com/local/writereview?placeid=ChIJ...
+     *  - https://www.google.com/maps/place/.../@.../...!4m...!1s0x...!...   (Place ID base16'da)
+     *  - https://g.page/r/<short>/review  → kısa form, doğrudan kullanılabilir
+     *  - https://maps.app.goo.gl/<short>  → kısa link, expansion gerekir (yapılmaz; URL olduğu gibi kullanılır)
+     *  - Doğrudan Place ID (ChIJ... ile başlar)
+     *
+     * Returns: ['place_id' => string|null, 'review_url' => string|null]
+     */
+    public static function googlePlaceIdParse($input){
+        $input = trim((string)$input);
+        if (!$input) return ['place_id' => null, 'review_url' => null];
+
+        // Doğrudan Place ID girilmişse
+        if (preg_match('/^(ChIJ|GhIJ|EhIJ|EkIJ)[A-Za-z0-9_-]{20,}$/', $input)) {
+            return [
+                'place_id'   => $input,
+                'review_url' => 'https://search.google.com/local/writereview?placeid=' . $input,
+            ];
+        }
+
+        // writereview URL'si: placeid query parametresi
+        if (preg_match('/placeid=([A-Za-z0-9_-]+)/', $input, $m)) {
+            return [
+                'place_id'   => $m[1],
+                'review_url' => 'https://search.google.com/local/writereview?placeid=' . $m[1],
+            ];
+        }
+
+        // g.page kısa form (en kullanışlı)
+        if (preg_match('#g\.page/r/([A-Za-z0-9_-]+)#', $input, $m)) {
+            return [
+                'place_id'   => null,
+                'review_url' => 'https://g.page/r/' . $m[1] . '/review',
+            ];
+        }
+
+        // maps.app.goo.gl ya da diğer kısaltıcılar — olduğu gibi kullan
+        if (preg_match('#^https?://#', $input)) {
+            return [
+                'place_id'   => null,
+                'review_url' => $input,
+            ];
+        }
+
+        return ['place_id' => null, 'review_url' => null];
+    }
+
+    public function googleReviewKaydet(Request $request){
+        try {
+            $sube = self::mevcutsube($request);
+            $salon = Salonlar::where('id', $sube)->first();
+            if (!$salon) return response()->json(['basarili'=>false,'mesaj'=>'Salon bulunamadı.']);
+
+            $input = trim($request->google_input ?: '');
+            $parsed = self::googlePlaceIdParse($input);
+
+            if ($input && !$parsed['review_url']) {
+                return response()->json(['basarili'=>false,'mesaj'=>'Bağlantı çözümlenemedi. Google Maps URL\'si veya g.page linki yapıştırın.']);
+            }
+
+            $salon->google_review_url        = $parsed['review_url'];
+            $salon->google_place_id          = $parsed['place_id'];
+            $salon->google_review_esik_nps   = max(0, min(10, (int) ($request->google_review_esik_nps ?? 9)));
+            $salon->google_review_esik_csat  = max(1, min(5, (float) ($request->google_review_esik_csat ?? 4.5)));
+            $salon->kotu_puan_uyari_telefon  = trim($request->kotu_puan_uyari_telefon ?: '') ?: null;
+            $salon->kotu_puan_uyari_esik_nps = max(0, min(10, (int) ($request->kotu_puan_uyari_esik_nps ?? 6)));
+            $salon->kotu_puan_uyari_esik_csat= max(1, min(5, (float) ($request->kotu_puan_uyari_esik_csat ?? 2.5)));
+            $salon->save();
+
+            return response()->json(['basarili'=>true,'review_url'=>$parsed['review_url']]);
+        } catch(\Exception $e) {
+            \Log::error('googleReviewKaydet hata: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function googleYonlendirmeKaydet(Request $request){
+        // Public endpoint — anket teşekkür sayfasından "Google'da Yorum Yaz" tıklanınca tracking
+        try {
+            $token = $request->token;
+            $g = AnketGonderim::where('token', $token)->first();
+            if ($g && !$g->google_yonlendirildi) {
+                $g->google_yonlendirildi = true;
+                $g->save();
+            }
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e) {
+            return response()->json(['basarili'=>false]);
         }
     }
 

@@ -70,6 +70,129 @@
    </div>
 </div>
 
+{{-- PREMIUM: Reputation Booster Kartı --}}
+@php
+   $premiumAktif = isset($salon->reputation_premium_aktif) && $salon->reputation_premium_aktif;
+   $googleKurulu = isset($salon->google_review_url) && $salon->google_review_url;
+@endphp
+
+<div class="akt-card mb-3" style="background:linear-gradient(135deg, #fff 0%, #faf5ff 100%); border:1px solid #ece6f3; padding:18px 22px;">
+   <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+      <div style="width:46px; height:46px; background:linear-gradient(135deg,#4285F4,#1A73E8); border-radius:11px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:20px; flex-shrink:0;">
+         <i class="fa fa-star"></i>
+      </div>
+      <div style="flex:1; min-width:240px;">
+         <h5 style="margin:0; color:#3a1a52; font-size:15px; font-weight:700;">
+            Reputation Booster
+            @if($premiumAktif)
+               <span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; margin-left:6px;">PREMIUM AKTİF</span>
+            @else
+               <span style="background:#94a3b8; color:#fff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; margin-left:6px;">PASİF</span>
+            @endif
+         </h5>
+         <p style="margin:4px 0 0; color:#5b6770; font-size:12.5px; line-height:1.55;">
+            Yüksek puan veren müşterileri otomatik <b>Google Review'a yönlendir</b>, düşük puanları içeride yakala (anlık SMS uyarısı).
+         </p>
+      </div>
+      <div style="display:flex; gap:8px; flex-shrink:0;">
+         @if($premiumAktif)
+            <button type="button" class="btn-mor-out" onclick="googleAyarAc()"><i class="fa fa-cog"></i> Ayarla</button>
+         @else
+            <button type="button" class="btn-mor" style="background:linear-gradient(135deg,#4285F4,#1A73E8);" onclick="alert('Premium paketi aktifleştirmek için satış ekibimizle iletişime geçin.')">
+               <i class="fa fa-rocket"></i> Premium Aç
+            </button>
+         @endif
+      </div>
+   </div>
+
+   @if($premiumAktif)
+   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-top:14px; padding-top:14px; border-top:1px dashed #ece6f3;">
+      <div style="background:#fff; border:1px solid #ece6f3; border-radius:8px; padding:10px 14px;">
+         <div style="font-size:10.5px; color:#8a8295; font-weight:600; text-transform:uppercase; letter-spacing:.4px;">Google Bağlantı</div>
+         <div style="font-size:13px; font-weight:700; margin-top:3px;">
+            @if($googleKurulu)
+               <span style="color:#10b981;"><i class="fa fa-check-circle"></i> Kurulu</span>
+            @else
+               <span style="color:#ef4444;"><i class="fa fa-times-circle"></i> Eksik</span>
+            @endif
+         </div>
+      </div>
+      <div style="background:#fff; border:1px solid #ece6f3; border-radius:8px; padding:10px 14px;">
+         <div style="font-size:10.5px; color:#8a8295; font-weight:600; text-transform:uppercase; letter-spacing:.4px;">Google'a Yönlendirilen</div>
+         <div style="font-size:18px; font-weight:800; color:#1A73E8; margin-top:1px;">{{ $google_tiklamalar }}</div>
+      </div>
+      <div style="background:#fff; border:1px solid #ece6f3; border-radius:8px; padding:10px 14px;">
+         <div style="font-size:10.5px; color:#8a8295; font-weight:600; text-transform:uppercase; letter-spacing:.4px;">Düşük Puan Uyarısı</div>
+         <div style="font-size:18px; font-weight:800; color:#ef4444; margin-top:1px;">{{ $kotu_puan_uyarilari }}</div>
+      </div>
+      <div style="background:#fff; border:1px solid #ece6f3; border-radius:8px; padding:10px 14px;">
+         <div style="font-size:10.5px; color:#8a8295; font-weight:600; text-transform:uppercase; letter-spacing:.4px;">Uyarı Telefonu</div>
+         <div style="font-size:13px; font-weight:700; margin-top:3px; color:{{ $salon->kotu_puan_uyari_telefon ? '#10b981' : '#ef4444' }};">
+            {{ $salon->kotu_puan_uyari_telefon ?: 'Tanımsız' }}
+         </div>
+      </div>
+   </div>
+   @endif
+</div>
+
+{{-- Google Review Ayar Modal --}}
+<div id="googleAyarModal" class="modal fade" tabindex="-1">
+   <div class="modal-dialog" style="max-width:560px; margin:auto;">
+      <div class="modal-content" style="border-radius:14px; border:none; box-shadow:0 18px 50px rgba(92,0,142,.18);">
+         <div class="modal-header" style="background:linear-gradient(135deg,#4285F4,#1A73E8); color:#fff; padding:14px 22px; border-radius:14px 14px 0 0;">
+            <h4 style="color:#fff; font-size:17px; font-weight:700; margin:0; display:flex; align-items:center; gap:10px;">
+               <span style="width:34px; height:34px; background:#fff; color:#1A73E8; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:900;">G</span>
+               Google Review Ayarları
+            </h4>
+            <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:.9;">×</button>
+         </div>
+         <div class="modal-body" style="padding:18px 22px;">
+            <div style="background:#eef4ff; border-left:4px solid #1A73E8; padding:11px 14px; border-radius:6px; margin-bottom:14px; font-size:12.5px; color:#1e3a8a; line-height:1.55;">
+               <b>📍 Google Maps URL'sini yapıştırın</b><br>
+               1. Telefonunda Google Maps'i aç<br>
+               2. Salonunu ara, "Paylaş" → "Bağlantı kopyala"<br>
+               3. Aşağıya yapıştır
+            </div>
+
+            <div style="margin-bottom:5px; font-size:12px; color:#5C008E; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">Google Maps URL veya Place ID</div>
+            <input type="text" id="googleInput" class="form-control" placeholder="https://g.page/r/... veya https://maps.app.goo.gl/..." value="{{ $salon->google_review_url ?? '' }}" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13.5px; padding:8px 11px; min-height:36px; margin-bottom:14px;">
+
+            <hr style="margin:14px 0; border-top:1px solid #ece6f3;">
+
+            <div style="margin-bottom:8px; font-size:13px; font-weight:700; color:#10b981;">⭐ Yüksek Puan → Google'a Yönlendir</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+               <div>
+                  <div style="font-size:11px; color:#5b6770; font-weight:600; margin-bottom:3px;">NPS eşiği (üstü Google'a)</div>
+                  <input type="number" id="esikNps" class="form-control" min="0" max="10" value="{{ $salon->google_review_esik_nps ?? 9 }}" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px;">
+               </div>
+               <div>
+                  <div style="font-size:11px; color:#5b6770; font-weight:600; margin-bottom:3px;">Yıldız eşiği (üstü Google'a)</div>
+                  <input type="number" id="esikCsat" class="form-control" min="1" max="5" step="0.1" value="{{ $salon->google_review_esik_csat ?? 4.5 }}" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px;">
+               </div>
+            </div>
+
+            <div style="margin:14px 0 8px; font-size:13px; font-weight:700; color:#ef4444;">🚨 Düşük Puan → Anlık SMS Uyarısı</div>
+            <div style="margin-bottom:5px; font-size:11px; color:#5b6770; font-weight:600;">Uyarı SMS'i gidecek telefon (10 hane, salon yetkilisi)</div>
+            <input type="text" id="uyariTel" class="form-control" placeholder="5XXXXXXXXX" maxlength="10" value="{{ $salon->kotu_puan_uyari_telefon ?? '' }}" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px; margin-bottom:10px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+               <div>
+                  <div style="font-size:11px; color:#5b6770; font-weight:600; margin-bottom:3px;">NPS eşiği (altı uyarı)</div>
+                  <input type="number" id="uyariEsikNps" class="form-control" min="0" max="10" value="{{ $salon->kotu_puan_uyari_esik_nps ?? 6 }}" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px;">
+               </div>
+               <div>
+                  <div style="font-size:11px; color:#5b6770; font-weight:600; margin-bottom:3px;">Yıldız eşiği (altı uyarı)</div>
+                  <input type="number" id="uyariEsikCsat" class="form-control" min="1" max="5" step="0.1" value="{{ $salon->kotu_puan_uyari_esik_csat ?? 2.5 }}" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px;">
+               </div>
+            </div>
+         </div>
+         <div class="modal-footer" style="padding:12px 22px; border-top:1px solid #ece6f3;">
+            <button type="button" class="btn-mor-out" data-dismiss="modal">İptal</button>
+            <button type="button" class="btn-mor" id="googleKaydetBtn" style="background:linear-gradient(135deg,#4285F4,#1A73E8);" onclick="googleAyarKaydet()"><i class="fa fa-save"></i> Kaydet</button>
+         </div>
+      </div>
+   </div>
+</div>
+
 <form method="GET" action="" class="filtre-bar">
    <input type="hidden" name="sube" value="{{$isletme->id}}">
    <div>
@@ -276,5 +399,34 @@ function detayGoster(id){
 }
 
 $(document).on('show.bs.modal', '#detayModal', function(){ $(this).appendTo('body'); });
+$(document).on('show.bs.modal', '#googleAyarModal', function(){ $(this).appendTo('body'); });
+
+function googleAyarAc(){
+   $('#googleAyarModal').modal('show');
+}
+
+function googleAyarKaydet(){
+   var btn = document.getElementById('googleKaydetBtn');
+   btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Kaydediliyor...';
+   $.post('/isletmeyonetim/google-review-kaydet', {
+      _token: '{{csrf_token()}}',
+      sube: {{$isletme->id}},
+      google_input: document.getElementById('googleInput').value,
+      google_review_esik_nps: document.getElementById('esikNps').value,
+      google_review_esik_csat: document.getElementById('esikCsat').value,
+      kotu_puan_uyari_telefon: document.getElementById('uyariTel').value,
+      kotu_puan_uyari_esik_nps: document.getElementById('uyariEsikNps').value,
+      kotu_puan_uyari_esik_csat: document.getElementById('uyariEsikCsat').value
+   }, function(resp){
+      btn.disabled = false; btn.innerHTML = '<i class="fa fa-save"></i> Kaydet';
+      if(resp.basarili){
+         alert('Google Review ayarları kaydedildi.' + (resp.review_url ? '\n\nÜretilen link:\n'+resp.review_url : ''));
+         location.reload();
+      } else alert('Hata: '+(resp.mesaj||''));
+   }).fail(function(){
+      btn.disabled = false; btn.innerHTML = '<i class="fa fa-save"></i> Kaydet';
+      alert('Sunucu hatası.');
+   });
+}
 </script>
 @endsection

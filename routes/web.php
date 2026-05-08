@@ -309,6 +309,7 @@ Route::get('/save-excel', function () {
 	 Route::post('/sozlesme-kaydet','HomeController@sozlesmeKaydet');
 	 Route::get('/anket/{token}','HomeController@anketSayfasi');
 	 Route::post('/anket-kaydet','HomeController@anketKaydet');
+	 Route::post('/anket-google-tiklandi','StoreAdminController@googleYonlendirmeKaydet');
 	 	 Route::get('/musteriformdoldurma3/{id}/{userid}','HomeController@arsivmusteriform3');
 
 	
@@ -964,6 +965,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/anket-manuel-gonder','StoreAdminController@anketManuelGonder');
 	Route::get('/anket-sonuclari','StoreAdminController@anketSonuclari')->name('isletmeadmin.anketSonuclari');
 	Route::get('/anket-gonderim-detay','StoreAdminController@anketGonderimDetay');
+	Route::post('/google-review-kaydet','StoreAdminController@googleReviewKaydet');
 
 	Route::post('/sozlesme-olustur','StoreAdminController@sozlesmeOlustur');
 	Route::get('/formmusteribilgigetir','StoreAdminController@formmusteribilgigetir');
