@@ -24,6 +24,7 @@ class DrklinikImport extends Command
         {--repair-seans-sayisi : Mevcut adisyon_hizmetler.seans_sayisi NULL ise APS sayisindan doldur}
         {--cleanup-dummy-aps : Tuketilmemis (geldi=0, randevu_id NULL) APS kayitlarini sil}
         {--inspect-musid= : Bir musid icin drklinik detayini indir, basliklar/sutunlar yazdir}
+        {--debug-seans-musid= : Bir musid icin seans dusumu satirlarini adim adim logla}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -63,6 +64,10 @@ class DrklinikImport extends Command
         if ($musid = $this->option('inspect-musid')) {
             if (!$username || !$password) { $this->error('--inspect-musid icin --username ve --password zorunlu.'); return 1; }
             return $this->inspectMusid((string) $musid, $username, $password);
+        }
+        if ($musid = $this->option('debug-seans-musid')) {
+            if (!$username || !$password || !$salonId) { $this->error('--debug-seans-musid icin --username, --password, --salon zorunlu.'); return 1; }
+            return $this->debugSeansMusid((string) $musid, $username, $password, (int) $salonId);
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -172,6 +177,84 @@ class DrklinikImport extends Command
         }
         $tag = $dryRun ? '[DRY-RUN] ' : '';
         $this->info("{$tag}Tamam. seans_sayisi yazildi: {$updated} (APS yok olan: {$defaultBir} -> seans_sayisi=1).");
+        return 0;
+    }
+
+    private function debugSeansMusid($musid, $username, $password, $salonId)
+    {
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail'); return 1; }
+
+        $importer = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+        $userId = null;
+
+        // ensureUserByMusid yerine direct yontem
+        $h = $client->getHtml('/musteri.aspx?musid=' . $musid);
+        if (strlen($h) < 5000) { $this->error('Sayfa cekilemedi'); return 1; }
+
+        // Telefonu al, user'i bul
+        if (preg_match('~name="TB_CepTel"[^>]*value="([^"]*)"~i', $h, $m)) {
+            $tel = preg_replace('~\D~', '', $m[1]);
+            $tel = ltrim($tel, '0');
+            if (substr($tel, 0, 2) === '90') $tel = substr($tel, 2);
+            $u = \App\User::where('cep_telefon', $tel)->first();
+            if ($u) {
+                $userId = $u->id;
+                $this->line("User: id={$u->id}, ad='{$u->name}', tel='{$tel}'");
+            } else {
+                $this->warn("Telefon '{$tel}' icin user bulunamadi");
+                return 1;
+            }
+        } else {
+            $this->error('TB_CepTel bulunamadi'); return 1;
+        }
+
+        // AdisyonHizmetler kayitlarini listele
+        $rows = \DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+            ->where('a.user_id', $userId)
+            ->where('a.salon_id', $salonId)
+            ->select('ah.id', 'ah.hizmet_id', 'ah.seans_sayisi', 'a.tarih')
+            ->orderBy('a.tarih')->get();
+        $this->line('Bu user icin AdisyonHizmetler:');
+        foreach ($rows as $r) {
+            $kullanilan = \DB::table('adisyon_paket_seanslar')->where('adisyon_hizmet_id', $r->id)->count();
+            $this->line("  ah_id={$r->id} hizmet_id={$r->hizmet_id} seans_sayisi=" . ($r->seans_sayisi ?? 'NULL') . " kullanilan={$kullanilan} tarih={$r->tarih}");
+        }
+
+        // Tablo #3 (Randevular) -> Seans Dusumu satirlarini parse et
+        preg_match_all('~<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)</table>~is', $h, $tm);
+        foreach ($tm[1] as $idx => $body) {
+            preg_match_all('~<th[^>]*>(.*?)</th>~is', $body, $th);
+            $headers = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
+            if (!in_array('Seans Düşümü', $headers, true)) continue;
+            $this->line("--- Tablo #{$idx} (Seans Dusumu var) ---");
+
+            preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $body, $rs);
+            $sayac = 0;
+            foreach ($rs[1] as $tr) {
+                if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+                preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+                if (empty($tds[1])) continue;
+                $cells = [];
+                foreach ($tds[1] as $tdRaw) {
+                    if (preg_match('~<(?:button|input|a)\b[^>]*>~i', $tdRaw)) { $cells[] = ''; continue; }
+                    $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                    $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                }
+                $i = 0; while ($i < count($cells) && $cells[$i] === '') $i++;
+                $data = array_values(array_slice($cells, $i));
+                if (count($data) < 9) { $this->line("  satir td<9 atlandi"); continue; }
+                $tarihStr = preg_replace('~\s*\([^)]+\)~u', '', $data[0]);
+                $hizmetlerStr = $data[3] ?? '';
+                $seansDusumu = $data[8] ?? '';
+                $hasDus = mb_stripos($seansDusumu, 'Düş', 0, 'UTF-8') !== false;
+                $this->line("  satir: tarih='{$data[0]}' saat='{$data[1]}' hizmet='{$hizmetlerStr}' dusumu='{$seansDusumu}' hasDus=" . ($hasDus ? '1' : '0'));
+                if ($hasDus) $sayac++;
+            }
+            $this->line("Toplam Dus satiri: {$sayac}");
+        }
         return 0;
     }
 
