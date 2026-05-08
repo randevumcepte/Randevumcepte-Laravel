@@ -1265,7 +1265,6 @@ class DrklinikImporter
 
     private function processMusteriRandevuSeansDusumu($tbody, $userId)
     {
-        // Td[3] hizmet, td[8] seans dusumu, td[1] tarih, td[2] saat
         preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
         foreach ($rows[1] as $tr) {
             if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
@@ -1280,24 +1279,16 @@ class DrklinikImporter
             $i = 0; while ($i < count($cells) && $cells[$i] === '') $i++;
             $data = array_values(array_slice($cells, $i));
             if (count($data) < 9) continue;
-            $tarihStr = preg_replace('~\s*\([^)]+\)~u', '', $data[0]); // "29.03.2025 (C.tesi)" -> "29.03.2025"
+            $tarihStr = preg_replace('~\s*\([^)]+\)~u', '', $data[0]);
             $tarih = $this->tarihNormalize($tarihStr);
             $saat = $data[1] ?? '';
             if (strlen($saat) === 5) $saat .= ':00';
             $hizmetlerStr = $data[3] ?? '';
             $seansDusumu = $data[8] ?? '';
-            if (!$tarih || !$saat) continue;
-            // "Seans Hakkından Düşülecek/Düşüldü" varsa paket tüketimi
+            if (!$tarih) continue;
             if (mb_stripos($seansDusumu, 'Düş', 0, 'UTF-8') === false) continue;
 
-            $randevu = Randevular::where('tarih', $tarih)->where('saat', $saat)
-                ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
-            if (!$randevu) continue;
-
-            // Hizmet adindan paketin AdisyonPaketSeanslar'ina seans tuket.
-            // 1) "(NxHizmet)" hint formatini dene
-            // 2) Hizmet kolonunu olduğu gibi service name olarak dene
-            // 3) Bulunamazsa: bu kullanicinin tek bir bos APS'si varsa onu tuket
+            // Hizmet adi -> hizmet_id
             $hizmetId = null;
             $paketHint = $this->parsePaketSeansHint($hizmetlerStr);
             if ($paketHint) {
@@ -1305,7 +1296,6 @@ class DrklinikImporter
                 if ($sh) $hizmetId = $sh['hizmet_id'];
             }
             if (!$hizmetId && $hizmetlerStr) {
-                // Hint var ise ondan hizmet adini al, yoksa parantezleri strip et
                 $clean = $paketHint['hizmet_adi'] ?? '';
                 if ($clean === '') {
                     $clean = trim(preg_replace('~\s*\([^)]+\)\s*$~u', '', $hizmetlerStr));
@@ -1315,18 +1305,79 @@ class DrklinikImporter
                     if ($sh) $hizmetId = $sh['hizmet_id'];
                 }
             }
-            $ok = false;
-            if ($hizmetId) {
-                $ok = $this->paketSeansiTuket($userId, $hizmetId, $randevu->id, $tarih, $saat, null, null);
-            }
-            if (!$ok) {
-                // Fallback: kullanicinin tek/herhangi bir kullanilmamis paket seansini tuket
-                $ok = $this->paketSeansiTuketHerhangiHizmet($userId, $randevu->id, $tarih, $saat);
-            }
+
+            // Randevu ile baglamiyoruz; geldi=1 olarak adisyon_paket_seanslar'a yaz
+            $ok = $this->seansiTuket($userId, $hizmetId, $tarih, $saat);
             if ($ok) {
                 $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + 1;
             }
         }
+    }
+
+    /**
+     * Bir paketten 1 seans tuket. Drklinik gecmis kayitlarini randevu_id'ye
+     * baglamiyoruz; sadece adisyon_hizmet_id + seans_tarih + seans_saat ile
+     * AdisyonPaketSeanslar satiri yazilir.
+     *
+     * Idempotent: ayni adisyon_hizmet_id + tarih + saat icin zaten kayit
+     * varsa tekrar yazilmaz.
+     *
+     * Hizmet eslesmezse: kullanicinin acik (kullanilan < seans_sayisi) ilk
+     * paket hizmetine yazilir (fallback).
+     */
+    private function seansiTuket($userId, $hizmetId, $tarih, $saat)
+    {
+        $rows = \DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+            ->where('a.user_id', $userId)
+            ->where('a.salon_id', $this->salonId)
+            ->whereNotNull('ah.seans_sayisi')
+            ->select('ah.id', 'ah.hizmet_id', 'ah.seans_sayisi')
+            ->orderBy('a.tarih')->get();
+
+        $kandidat = null;
+        foreach ($rows as $r) {
+            if ($hizmetId && (int) $r->hizmet_id !== (int) $hizmetId) continue;
+            $kullanilan = \DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $r->id)->count();
+            if ($kullanilan < (int) $r->seans_sayisi) {
+                $kandidat = $r;
+                break;
+            }
+        }
+        // Hizmet bulunamadiysa fallback: hizmet_id filtresiz acik paket
+        if (!$kandidat && $hizmetId) {
+            foreach ($rows as $r) {
+                $kullanilan = \DB::table('adisyon_paket_seanslar')
+                    ->where('adisyon_hizmet_id', $r->id)->count();
+                if ($kullanilan < (int) $r->seans_sayisi) {
+                    $kandidat = $r;
+                    break;
+                }
+            }
+        }
+        if (!$kandidat) return false;
+
+        // Idempotent kontrol
+        $exists = \DB::table('adisyon_paket_seanslar')
+            ->where('adisyon_hizmet_id', $kandidat->id)
+            ->where('seans_tarih', $tarih)
+            ->where('seans_saat', $saat ?: '00:00:00')
+            ->exists();
+        if ($exists) return false;
+
+        $sonNo = (int) (\DB::table('adisyon_paket_seanslar')
+            ->where('adisyon_hizmet_id', $kandidat->id)->max('seans_no') ?? 0);
+
+        $aps = new AdisyonPaketSeanslar();
+        $aps->adisyon_hizmet_id = $kandidat->id;
+        $aps->hizmet_id = $kandidat->hizmet_id;
+        $aps->seans_no = $sonNo + 1;
+        $aps->seans_tarih = $tarih;
+        $aps->seans_saat = $saat ?: '00:00:00';
+        $aps->geldi = 1;
+        $aps->save();
+        return true;
     }
 
     /**
