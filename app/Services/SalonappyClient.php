@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 class SalonappyClient
 {
     const BASE_APP = 'https://webapp.salonappy.com';
+    const BASE_API = 'https://web-api.salonappy.com/api';
 
     /** @var Client */
     private $http;
@@ -36,7 +37,7 @@ class SalonappyClient
         if (!is_dir($this->dumpDir)) @mkdir($this->dumpDir, 0775, true);
 
         $this->http = new Client([
-            'base_uri'        => self::BASE_APP,
+            'base_uri'        => self::BASE_API,
             'cookies'         => $this->jar,
             'allow_redirects' => ['max' => 5, 'track_redirects' => true],
             'timeout'         => 120,
@@ -46,9 +47,26 @@ class SalonappyClient
             'headers'         => [
                 'User-Agent'      => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
                 'Accept-Language' => 'tr-TR,tr;q=0.9,en;q=0.8',
+                'Origin'          => self::BASE_APP,
+                'Referer'         => self::BASE_APP . '/',
+            ],
+        ]);
+        // Anasayfa indirmek icin ayri client (analyze sirasinda)
+        $this->htmlHttp = new Client([
+            'base_uri'        => self::BASE_APP,
+            'cookies'         => $this->jar,
+            'allow_redirects' => ['max' => 5, 'track_redirects' => true],
+            'timeout'         => 120,
+            'http_errors'     => false,
+            'verify'          => false,
+            'headers'         => [
+                'User-Agent'      => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                'Accept-Language' => 'tr-TR,tr;q=0.9,en;q=0.8',
             ],
         ]);
     }
+
+    private $htmlHttp;
 
     public function dumpDir() { return $this->dumpDir; }
 
@@ -74,7 +92,7 @@ class SalonappyClient
         foreach ($assets as $url) {
             if (substr($url, -3) !== '.js') continue;
             try {
-                $r = $this->http->get($url);
+                $r = $this->htmlHttp->get($url);
             } catch (RequestException $e) {
                 continue;
             }
@@ -156,7 +174,7 @@ class SalonappyClient
     public function getHtml($path, $tag = null)
     {
         try {
-            $r = $this->http->get($path);
+            $r = $this->htmlHttp->get($path);
         } catch (RequestException $e) {
             return '';
         }
@@ -233,46 +251,58 @@ class SalonappyClient
      */
     public function login()
     {
-        $candidates = [
-            ['/api/auth/login', ['username' => $this->username, 'password' => $this->password]],
-            ['/api/auth/login', ['email'    => $this->username, 'password' => $this->password]],
-            ['/api/login',      ['username' => $this->username, 'password' => $this->password]],
-            ['/api/login',      ['email'    => $this->username, 'password' => $this->password]],
-            ['/auth/login',     ['username' => $this->username, 'password' => $this->password]],
-            ['/login',          ['username' => $this->username, 'password' => $this->password]],
+        $payloads = [
+            ['username' => $this->username, 'password' => $this->password],
+            ['phone'    => $this->username, 'password' => $this->password],
+            ['email'    => $this->username, 'password' => $this->password],
+            ['login'    => $this->username, 'password' => $this->password],
         ];
-        foreach ($candidates as [$path, $payload]) {
-            $r = $this->postJson($path, $payload);
-            if ($r['ok'] && is_array($r['data'])) {
-                // token aday alanlari
-                foreach (['token', 'access_token', 'accessToken', 'jwt', 'authToken'] as $k) {
-                    if (!empty($r['data'][$k])) { $this->bearer = $r['data'][$k]; break; }
-                }
-                if (!$this->bearer && isset($r['data']['data']) && is_array($r['data']['data'])) {
-                    foreach (['token', 'access_token', 'accessToken', 'jwt'] as $k) {
-                        if (!empty($r['data']['data'][$k])) { $this->bearer = $r['data']['data'][$k]; break; }
-                    }
-                }
-                return ['ok' => true, 'method' => 'json:' . $path, 'detail' => $this->bearer ? 'Bearer alindi' : 'Bearer yok, cookie aktif olabilir'];
+        $lastDetail = '';
+        foreach ($payloads as $payload) {
+            $r = $this->postJson('/login', $payload);
+            $lastDetail = 'code=' . ($r['code'] ?? '?') . ' raw=' . substr($r['raw'] ?? '', 0, 200);
+            if (!$r['ok'] || !is_array($r['data'])) continue;
+
+            // Token alanlari (yaygin)
+            $token = null;
+            foreach (['token', 'access_token', 'accessToken', 'jwt', 'authToken', 'bearer'] as $k) {
+                if (!empty($r['data'][$k])) { $token = $r['data'][$k]; break; }
             }
+            // data.data altinda ola bilir
+            if (!$token && isset($r['data']['data']) && is_array($r['data']['data'])) {
+                foreach (['token', 'access_token', 'accessToken', 'jwt'] as $k) {
+                    if (!empty($r['data']['data'][$k])) { $token = $r['data']['data'][$k]; break; }
+                }
+            }
+            if ($token) {
+                $this->bearer = $token;
+                return ['ok' => true, 'method' => 'json:/login', 'detail' => 'Bearer alindi (' . array_keys($payload)[0] . ')'];
+            }
+            // Token alani yok ama 200 dondu - cookie tabanli olabilir, yine de OK kabul
+            return ['ok' => true, 'method' => 'json:/login', 'detail' => 'Cookie session (token alani yok)'];
         }
-        return ['ok' => false, 'method' => 'json', 'detail' => 'Hicbir login adayi 2xx donmedi (dump dizinine bakin).'];
+        return ['ok' => false, 'method' => '/login', 'detail' => $lastDetail];
     }
 
     public function probe()
     {
         $paths = [
-            '/api/me','/api/user','/api/profile','/api/account',
-            '/api/staff','/api/employees','/api/personel',
-            '/api/services','/api/hizmetler','/api/service-categories',
-            '/api/categories','/api/branches','/api/companies','/api/salons',
-            '/api/customers','/api/clients','/api/musteriler',
-            '/api/appointments','/api/bookings','/api/randevular',
+            '/auth/user',
+            '/setup/staff', '/setup/services', '/setup/service_durations',
+            '/setup/service_prices', '/setup/service_packages',
+            '/setup/categories', '/setup/branches', '/setup/salon',
+            '/setup/staff_services',
         ];
         $out = [];
         foreach ($paths as $p) {
             $r = $this->getJson($p);
-            $out[$p] = $r['code'] . ' ' . (is_array($r['data']) ? '(json ' . count($r['data']) . ')' : 'text');
+            $cnt = '';
+            if (is_array($r['data'])) {
+                if (isset($r['data'][0])) $cnt = '[' . count($r['data']) . ']';
+                elseif (isset($r['data']['data']) && is_array($r['data']['data'])) $cnt = 'data[' . count($r['data']['data']) . ']';
+                else $cnt = 'obj(' . count($r['data']) . ')';
+            }
+            $out[$p] = $r['code'] . ' ' . $cnt;
         }
         return $out;
     }
