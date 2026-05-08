@@ -121,20 +121,39 @@
     font-size:16px; font-weight:700; margin-bottom:12px; color:#fff;
   }
   .pr-stat__lbl{ font-size:11px; color:var(--rmc-muted); font-weight:700; letter-spacing:.5px; text-transform:uppercase; margin-bottom:4px; }
-  .pr-stat__val{ font-size:22px; font-weight:700; color:var(--rmc-text); letter-spacing:-.3px; }
-  .pr-stat__val small{ font-size:13px; color:var(--rmc-muted); margin-left:4px; font-weight:600; }
-  .pr-stat__sub{ display:flex; justify-content:space-between; gap:8px; margin-top:8px; padding-top:8px; border-top:1px dashed #efe7f3; font-size:11px; }
-  .pr-stat__sub span{ display:inline-flex; align-items:center; gap:4px; color:var(--rmc-muted); font-weight:600; }
-  .pr-stat__sub b{ font-weight:700; color:var(--rmc-text); }
-  .pr-stat__sub .odenen b{ color:#10b981; }
-  .pr-stat__sub .kalan  b{ color:#ef4444; }
-  .pr-stat--net .pr-stat__sub{ border-top-color:rgba(255,255,255,.28); }
-  .pr-stat--net .pr-stat__sub span{ color:rgba(255,255,255,.78); }
-  .pr-stat--net .pr-stat__sub b{ color:#fff; }
-  .pr-stat--net .pr-stat__sub .odenen b{ color:#86efac; }
-  .pr-stat--net .pr-stat__sub .kalan  b{ color:#fecaca; }
-  .pr-stat__brut{ font-size:11px; color:var(--rmc-muted); margin-top:4px; font-weight:600; }
-  .pr-stat--net .pr-stat__brut{ color:rgba(255,255,255,.78); }
+  .pr-stat__val{ font-size:20px; font-weight:700; color:var(--rmc-text); letter-spacing:-.3px; white-space:nowrap; }
+  .pr-stat__val small{ font-size:12px; color:var(--rmc-muted); margin-left:3px; font-weight:600; }
+  .pr-stat__brut{ font-size:11px; color:var(--rmc-muted); margin-top:3px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pr-stat--net .pr-stat__brut{ color:rgba(255,255,255,.85); }
+
+  /* Mini ozet bandi (Odenen / Kalan / Tip kirilimi) */
+  .pr-stat__sub{
+    display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; padding-top:10px;
+    border-top:1px dashed #efe7f3;
+  }
+  .pr-stat__sub .pill{
+    display:inline-flex; align-items:center; gap:5px; flex:1 1 auto;
+    background:#f8f6fb; border:1px solid #efe7f3; border-radius:8px;
+    padding:5px 8px; font-size:10.5px; color:var(--rmc-muted);
+    font-weight:700; letter-spacing:.2px; white-space:nowrap;
+    min-width:0;
+  }
+  .pr-stat__sub .pill b{
+    font-size:11.5px; font-weight:800; color:var(--rmc-text);
+    margin-left:auto; white-space:nowrap;
+  }
+  .pr-stat__sub .pill i{ font-size:10px; flex-shrink:0; }
+  .pr-stat__sub .pill.odenen{ background:#ecfdf5; border-color:#bbf7d0; color:#047857; }
+  .pr-stat__sub .pill.odenen b{ color:#059669; }
+  .pr-stat__sub .pill.kalan { background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
+  .pr-stat__sub .pill.kalan b{ color:#dc2626; }
+
+  .pr-stat--net .pr-stat__sub{ border-top-color:rgba(255,255,255,.3); }
+  .pr-stat--net .pr-stat__sub .pill{
+    background:rgba(255,255,255,.16); border-color:rgba(255,255,255,.22);
+    color:rgba(255,255,255,.92);
+  }
+  .pr-stat--net .pr-stat__sub .pill b{ color:#fff; }
   .pr-stat--maas .pr-stat__icon{ background: linear-gradient(135deg,#9D5DC8,#B88ED8); }
   .pr-stat--prim .pr-stat__icon{ background: linear-gradient(135deg,#7B2FB8,#9D5DC8); }
   .pr-stat--bonus .pr-stat__icon{ background: linear-gradient(135deg,#10b981,#34d399); }
@@ -151,7 +170,7 @@
   }
   .pr-stat--net .pr-stat__icon{ background:rgba(255,255,255,.22); backdrop-filter: blur(6px); position:relative; z-index:2; }
   .pr-stat--net .pr-stat__lbl{ color:rgba(255,255,255,.85); position:relative; z-index:2; }
-  .pr-stat--net .pr-stat__val{ color:#fff; font-size:24px; position:relative; z-index:2; }
+  .pr-stat--net .pr-stat__val{ color:#fff; font-size:22px; position:relative; z-index:2; }
   .pr-net-progress{
     margin-top:14px; position:relative; z-index:2;
   }
@@ -661,8 +680,8 @@
     <div class="pr-stat__val">{{number_format($toplamKalanMaas,2,',','.')}} <small>₺</small></div>
     <div class="pr-stat__brut">Toplam: {{number_format($toplamMaas,2,',','.')}} ₺</div>
     <div class="pr-stat__sub">
-      <span class="odenen"><i class="fa fa-check-circle"></i> Ödenen: <b>{{number_format($toplamOdenenMaas,2,',','.')}} ₺</b></span>
-      <span class="kalan"><i class="fa fa-clock-o"></i> Kalan: <b>{{number_format($toplamKalanMaas,2,',','.')}} ₺</b></span>
+      <span class="pill odenen"><i class="fa fa-check-circle"></i> Ödenen <b>{{number_format($toplamOdenenMaas,2,',','.')}} ₺</b></span>
+      <span class="pill kalan"><i class="fa fa-clock-o"></i> Kalan <b>{{number_format($toplamKalanMaas,2,',','.')}} ₺</b></span>
     </div>
   </div>
   <div class="pr-stat pr-stat--prim">
@@ -671,21 +690,21 @@
     <div class="pr-stat__val">{{number_format($toplamKalanPrim,2,',','.')}} <small>₺</small></div>
     <div class="pr-stat__brut">Toplam: {{number_format($toplamPrim,2,',','.')}} ₺</div>
     <div class="pr-stat__sub">
-      <span class="odenen"><i class="fa fa-check-circle"></i> Ödenen: <b>{{number_format($toplamOdenenPrim,2,',','.')}} ₺</b></span>
-      <span class="kalan"><i class="fa fa-clock-o"></i> Kalan: <b>{{number_format($toplamKalanPrim,2,',','.')}} ₺</b></span>
+      <span class="pill odenen"><i class="fa fa-check-circle"></i> Ödenen <b>{{number_format($toplamOdenenPrim,2,',','.')}} ₺</b></span>
+      <span class="pill kalan"><i class="fa fa-clock-o"></i> Kalan <b>{{number_format($toplamKalanPrim,2,',','.')}} ₺</b></span>
     </div>
   </div>
   <div class="pr-stat pr-stat--bonus">
     <div class="pr-stat__icon">＋</div>
     <div class="pr-stat__lbl">Toplam Bonus</div>
     <div class="pr-stat__val">{{number_format($toplamBonus,2,',','.')}} <small>₺</small></div>
-    <div class="pr-stat__brut" style="opacity:.6">Net hak edişe ekleniyor</div>
+    <div class="pr-stat__brut" style="opacity:.65">Net hak edişe ekleniyor</div>
   </div>
   <div class="pr-stat pr-stat--kesinti">
     <div class="pr-stat__icon">−</div>
     <div class="pr-stat__lbl">Toplam Kesinti</div>
     <div class="pr-stat__val">{{number_format($toplamKesinti,2,',','.')}} <small>₺</small></div>
-    <div class="pr-stat__brut" style="opacity:.6">Net hak edişten düşülüyor</div>
+    <div class="pr-stat__brut" style="opacity:.65">Net hak edişten düşülüyor</div>
   </div>
   <div class="pr-stat pr-stat--net">
     <div class="pr-stat__icon"><i class="fa fa-credit-card"></i></div>
@@ -694,20 +713,16 @@
       <span class="pr-net-progress__yuzde">%{{$odemeYuzde}}</span>
     </div>
     <div class="pr-stat__val">{{number_format($toplamBekleyen,2,',','.')}} <small>₺</small></div>
-    <div class="pr-stat__brut">Net Hak Ediş: {{number_format($toplamNet,2,',','.')}} ₺</div>
+    <div class="pr-stat__brut">Net Hak Ediş: {{number_format($toplamNet,2,',','.')}} ₺ &nbsp;·&nbsp; Ödenen: {{number_format($toplamOdenen,2,',','.')}} ₺</div>
     <div class="pr-net-progress">
       <div class="pr-net-progress__bar">
         <div class="pr-net-progress__fill" style="width: {{$odemeYuzde}}%"></div>
       </div>
-      <div class="pr-net-progress__meta">
-        <span><span class="lbl">Ödenen:</span> <span class="val val--odenen">{{number_format($toplamOdenen,2,',','.')}} ₺</span></span>
-        <span><span class="lbl">Bekleyen:</span> <span class="val val--bekleyen">{{number_format($toplamBekleyen,2,',','.')}} ₺</span></span>
-      </div>
     </div>
     <div class="pr-stat__sub">
-      <span class="odenen"><i class="fa fa-money"></i> Maaş Öd.: <b>{{number_format($toplamOdenenMaas,2,',','.')}} ₺</b></span>
-      <span class="odenen"><i class="fa fa-percent"></i> Prim Öd.: <b>{{number_format($toplamOdenenPrim,2,',','.')}} ₺</b></span>
-      <span class="odenen"><i class="fa fa-clock-o"></i> Avans: <b>{{number_format($toplamOdenenDiger,2,',','.')}} ₺</b></span>
+      <span class="pill"><i class="fa fa-money"></i> Maaş <b>{{number_format($toplamOdenenMaas,2,',','.')}} ₺</b></span>
+      <span class="pill"><i class="fa fa-percent"></i> Prim <b>{{number_format($toplamOdenenPrim,2,',','.')}} ₺</b></span>
+      <span class="pill"><i class="fa fa-clock-o"></i> Avans <b>{{number_format($toplamOdenenDiger,2,',','.')}} ₺</b></span>
     </div>
   </div>
 </div>
