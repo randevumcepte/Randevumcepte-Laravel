@@ -24438,6 +24438,26 @@ DB::raw('
         return ['place_id' => null, 'review_url' => null];
     }
 
+    public function reputationPremiumAc(Request $request){
+        try {
+            $sube = self::mevcutsube($request);
+            $salon = Salonlar::where('id', $sube)->first();
+            if (!$salon) return response()->json(['basarili'=>false,'mesaj'=>'Salon bulunamadı.']);
+
+            if (!\Schema::hasColumn('salonlar', 'reputation_premium_aktif')) {
+                return response()->json(['basarili'=>false,'mesaj'=>'reputation_premium_aktif sütunu yok. Migration çalıştırın.']);
+            }
+
+            $salon->reputation_premium_aktif = true;
+            $salon->save();
+
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e) {
+            \Log::error('reputationPremiumAc hata: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
     public function googleReviewKaydet(Request $request){
         try {
             $sube = self::mevcutsube($request);

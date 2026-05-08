@@ -966,6 +966,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/anket-sonuclari','StoreAdminController@anketSonuclari')->name('isletmeadmin.anketSonuclari');
 	Route::get('/anket-gonderim-detay','StoreAdminController@anketGonderimDetay');
 	Route::post('/google-review-kaydet','StoreAdminController@googleReviewKaydet');
+	Route::post('/reputation-premium-ac','StoreAdminController@reputationPremiumAc');
 
 	Route::post('/sozlesme-olustur','StoreAdminController@sozlesmeOlustur');
 	Route::get('/formmusteribilgigetir','StoreAdminController@formmusteribilgigetir');

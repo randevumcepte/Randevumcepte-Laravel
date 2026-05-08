@@ -98,7 +98,7 @@
          @if($premiumAktif)
             <button type="button" class="btn-mor-out" onclick="googleAyarAc()"><i class="fa fa-cog"></i> Ayarla</button>
          @else
-            <button type="button" class="btn-mor" style="background:linear-gradient(135deg,#4285F4,#1A73E8);" onclick="alert('Premium paketi aktifleştirmek için satış ekibimizle iletişime geçin.')">
+            <button type="button" id="reputationPremiumAcBtn" class="btn-mor" style="background:linear-gradient(135deg,#4285F4,#1A73E8);" onclick="reputationPremiumAc()">
                <i class="fa fa-rocket"></i> Premium Aç
             </button>
          @endif
@@ -403,6 +403,51 @@ $(document).on('show.bs.modal', '#googleAyarModal', function(){ $(this).appendTo
 
 function googleAyarAc(){
    $('#googleAyarModal').modal('show');
+}
+
+function reputationPremiumAc(){
+   var swalAvailable = (typeof swal === 'function');
+   var dogrula = function(){
+      var btn = document.getElementById('reputationPremiumAcBtn');
+      if(btn){ btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Açılıyor...'; }
+      $.post('/isletmeyonetim/reputation-premium-ac', {
+         _token: '{{csrf_token()}}',
+         sube: {{$isletme->id}}
+      }, function(resp){
+         if(resp && resp.basarili){
+            if(swalAvailable){
+               swal({title:'Premium aktif edildi', type:'success', timer:1500, showConfirmButton:false})
+                  .then(function(){ location.reload(); }).catch(function(){ location.reload(); });
+            } else {
+               alert('Reputation Booster Premium aktif edildi.');
+               location.reload();
+            }
+         } else {
+            if(btn){ btn.disabled = false; btn.innerHTML = '<i class="fa fa-rocket"></i> Premium Aç'; }
+            var msg = (resp && resp.mesaj) ? resp.mesaj : 'Açılamadı';
+            if(swalAvailable){ swal({title:'Hata', text: msg, type:'error'}); }
+            else { alert('Hata: '+msg); }
+         }
+      }).fail(function(){
+         if(btn){ btn.disabled = false; btn.innerHTML = '<i class="fa fa-rocket"></i> Premium Aç'; }
+         if(swalAvailable){ swal({title:'Hata', text:'Sunucu hatası', type:'error'}); }
+         else { alert('Sunucu hatası.'); }
+      });
+   };
+
+   if(swalAvailable){
+      swal({
+         title: 'Reputation Booster Premium',
+         text:  'Premium özellikleri bu salon için aktif edilsin mi? (Google Review yönlendirme + düşük puan SMS uyarısı)',
+         type:  'question',
+         showCancelButton: true,
+         confirmButtonText: 'Evet, aç',
+         cancelButtonText:  'Vazgeç',
+         confirmButtonClass:'btn btn-primary'
+      }).then(function(r){ if(r && r.value) dogrula(); });
+   } else {
+      if(confirm('Reputation Booster Premium özellikleri aktif edilsin mi?')) dogrula();
+   }
 }
 
 function googleAyarKaydet(){
