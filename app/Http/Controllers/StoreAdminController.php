@@ -24901,7 +24901,7 @@ DB::raw('
             $odemeTipi = in_array($request->odeme_tipi, ['maas','prim','diger']) ? $request->odeme_tipi : 'diger';
 
             // Coklu odeme destegi: her zaman yeni kayit ekle
-            PersonelMaasOdemesi::create([
+            $pmo = PersonelMaasOdemesi::create([
                 'personel_id'        => $personel->id,
                 'salon_id'           => $salonId,
                 'donem'              => $donem,
@@ -24912,6 +24912,31 @@ DB::raw('
                 'aciklama'           => mb_substr((string)$request->aciklama, 0, 300),
                 'ekleyen_yetkili_id' => Auth::guard('isletmeyonetim')->user()->id ?? null,
             ]);
+
+            // === OTOMATIK KASA/MASRAF KAYDI ===
+            // Personel ödemesi yapılınca kasa raporuna gider olarak da yazılır.
+            // Salon sahibi tek yerden girer, sistem her iki tabloya da kaydeder.
+            try {
+                $kategori = MasrafKategorisi::firstOrCreate(
+                    ['kategori' => 'Personel Ödemeleri']
+                );
+                $masraf = new Masraflar();
+                $masraf->personel_maas_odemesi_id = $pmo->id;
+                $masraf->salon_id            = $salonId;
+                $masraf->harcayan_id         = $personel->id;
+                $masraf->masraf_kategori_id  = $kategori->id;
+                $masraf->tarih               = $odemeTarihi;
+                $masraf->tutar               = $tutar;
+                $masraf->odeme_yontemi_id    = (int)($request->odeme_yontemi_id ?? 1);
+                $masraf->notlar              = "Personel: " . ($personel->personel_adi ?? '') .
+                    " — " . ucfirst($odemeTipi) . " ($donem)" .
+                    ($request->aciklama ? " • " . mb_substr((string)$request->aciklama, 0, 100) : '');
+                $masraf->save();
+            } catch (\Exception $e) {
+                // Kasa kaydı hata verse bile personel ödemesi başarılı sayılır.
+                // (loglara yazılır ama kullanıcıya bildirilmez)
+                \Log::warning('Personel ödemesi otomatik masraf kaydı başarısız: ' . $e->getMessage());
+            }
 
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
@@ -25131,6 +25156,16 @@ DB::raw('
             if(!$kayit){
                 return response()->json(['basarili'=>false,'mesaj'=>'Ödeme kaydı bulunamadı.']);
             }
+
+            // Bağlı kasa/masraf kaydını da sil (otomatik oluşturulduysa)
+            try {
+                Masraflar::where('personel_maas_odemesi_id', $kayit->id)
+                    ->where('salon_id', $salonId)
+                    ->delete();
+            } catch (\Exception $e) {
+                \Log::warning('Personel ödemesi silinirken bağlı masraf kaydı silinemedi: ' . $e->getMessage());
+            }
+
             $kayit->delete();
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
