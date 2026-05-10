@@ -12246,6 +12246,17 @@ DB::raw('
     }
     public function masraf_sil(Request $request)
     {
+        // Eger bu masraf bir personel odemesi (maas/prim/avans) olarak yaratildiysa,
+        // baglı PersonelMaasOdemesi kaydını da otomatik sil — boylelikle prim
+        // hakedis sayfasındaki "ödendi" durumu da geri alinir.
+        $masraf = Masraflar::where('id',$request->masraf_id)->first();
+        if ($masraf && $masraf->personel_maas_odemesi_id) {
+            try {
+                PersonelMaasOdemesi::where('id', $masraf->personel_maas_odemesi_id)->delete();
+            } catch (\Exception $e) {
+                \Log::warning('Masraf silinirken bagli personel odemesi silinemedi: ' . $e->getMessage());
+            }
+        }
         Masraflar::where('id',$request->masraf_id)->delete();
         return array(
             'mesaj' => 'Masraf kaydı başarıyla kaldırıldı',
@@ -12255,6 +12266,15 @@ DB::raw('
     }
     public function masrafSil(Request $request)
     {
+        // Bagli PersonelMaasOdemesi varsa onu da sil (yukaridaki ile ayni mantik)
+        $masraf = Masraflar::where('id',$request->masraf_id)->first();
+        if ($masraf && $masraf->personel_maas_odemesi_id) {
+            try {
+                PersonelMaasOdemesi::where('id', $masraf->personel_maas_odemesi_id)->delete();
+            } catch (\Exception $e) {
+                \Log::warning('Masraf silinirken bagli personel odemesi silinemedi: ' . $e->getMessage());
+            }
+        }
         Masraflar::where('id',$request->masraf_id)->delete();
         return array(
             'mesaj' => 'Masraf kaydı başarıyla kaldırıldı',
