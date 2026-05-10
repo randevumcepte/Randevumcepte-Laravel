@@ -3,11 +3,10 @@ Salonappy scraper - 403 / network drop dayanikli, TEK DOSYA.
 
 Telefon hotspot kullaniliyorsa: 403 alindiginda script pause olur,
 kullaniciyi uyarir, ucak modu aç/kapat sonrasi Enter'a basildiginda
-kaldigi yerden devam eder.
+ayni sayfayi reload edip kaldigi yerden devam eder.
 
-Progress (musteriIndex, ziyaret edilen url'ler) salonappy_progress.json
-dosyasinda tutulur; script crash olsa bile yeniden baslattiğinizda
-kaldigi yerden devam eder.
+Crash olursa son basarili musteriIndex console'da gorunur; dosyanin
+basindaki MANUAL_START_FROM degerini guncelleyip yeniden calistirin.
 """
 
 from selenium import webdriver
@@ -26,7 +25,6 @@ import locale
 # ============================================================
 # AYARLAR
 # ============================================================
-PROGRESS_FILE = "salonappy_progress.json"
 ISLETME_ID = 368
 USERNAME = "5070373742"
 PASSWORD = "220787"
@@ -51,27 +49,6 @@ aylar = {
     "Mayıs": "05", "Haziran": "06", "Temmuz": "07", "Ağustos": "08",
     "Eylül": "09", "Ekim": "10", "Kasım": "11", "Aralık": "12",
 }
-
-
-# ============================================================
-# PROGRESS
-# ============================================================
-def load_progress():
-    if os.path.exists(PROGRESS_FILE):
-        try:
-            with open(PROGRESS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"musteriIndex": 0, "ziyaretEdilen": []}
-
-
-def save_progress(progress):
-    try:
-        with open(PROGRESS_FILE, "w", encoding="utf-8") as f:
-            json.dump(progress, f, ensure_ascii=False)
-    except Exception as e:
-        print(f"[WARN] Progress kaydedilemedi: {e}")
 
 
 # ============================================================
@@ -188,14 +165,13 @@ try:
 except locale.Error:
     pass
 
-progress = load_progress()
 if MANUAL_START_FROM is not None:
-    progress["musteriIndex"] = MANUAL_START_FROM
+    skip_until = MANUAL_START_FROM
     print(f"📂 Manuel baslangic: musteriIndex={MANUAL_START_FROM} (1..{MANUAL_START_FROM} atlanir, {MANUAL_START_FROM + 1}'den devam)")
 else:
-    print(f"📂 Progress: musteriIndex={progress.get('musteriIndex', 0)}")
-skip_until = progress.get("musteriIndex", 0)
-ziyaretEdilenDetaylar = list(progress.get("ziyaretEdilen", []))
+    skip_until = 0
+    print("📂 Bastan basliyor (MANUAL_START_FROM=None)")
+print("⚠️  Crash olursa dosyanin basindaki MANUAL_START_FROM degerini son tamamlanan indeks olarak guncelleyip tekrar baslatin.")
 
 driver = webdriver.Chrome()
 if not safe_driver_get(driver, "https://webapp.salonappy.com/#/login"):
@@ -245,14 +221,8 @@ while True:
                 print("Link:", href_value)
                 musteriKartLinkleri.append(href_value)
 
-                # Skip mantigi: progress'teki son indeksi pas gec
                 if musteriIndex <= skip_until:
                     continue
-
-                ziyaretEdilenDetaylar.append(href_value)
-                progress["musteriIndex"] = musteriIndex
-                progress["ziyaretEdilen"] = ziyaretEdilenDetaylar
-                save_progress(progress)
 
                 driver.execute_script("window.open(arguments[0], '_blank');", href_value)
                 driver.switch_to.window(driver.window_handles[1])
@@ -450,6 +420,11 @@ while True:
                     except Exception:
                         break
                 driver.switch_to.window(driver.window_handles[0])
+
+                print("\n" + "─" * 60)
+                print(f"✅ TAMAMLANDI: musteriIndex={musteriIndex}")
+                print(f"   (crash olursa MANUAL_START_FROM = {musteriIndex} yap, sonraki musteriden devam eder)")
+                print("─" * 60 + "\n")
 
             except Exception as e:
                 print(f"10. sütunda <a> bulunamadı veya hata: {e}")
