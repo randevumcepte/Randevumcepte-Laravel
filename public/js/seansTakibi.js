@@ -161,8 +161,8 @@ function formatHizmetDetaylari(hizmetler) {
         }
 
         var ikonlar = '';
-        var gosterilecekIkon = Math.min(seansDetaylari.length, 10);
-        var kalanSeans = hizmet.toplam_seans - gosterilecekIkon;
+        var gosterilecekIkon = seansDetaylari.length;
+        var kalanSeans = Math.max(0, (parseInt(hizmet.toplam_seans) || 0) - gosterilecekIkon);
 
         for (var i = 0; i < gosterilecekIkon; i++) {
             var seans = seansDetaylari[i];
