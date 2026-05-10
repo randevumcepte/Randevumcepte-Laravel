@@ -28,6 +28,10 @@ import locale
 # ============================================================
 PROGRESS_FILE = "salonappy_progress.json"
 ISLETME_ID = 368
+
+# Manuel başlangıç noktası — None ise progress dosyasından okur.
+# 6 yazarsanız: 1..6 atlanır, 7'den başlanır.
+MANUAL_START_FROM = None
 API_BASE = "https://app.randevumcepte.com.tr"
 BLOCK_MARKERS = [
     "Access Denied",
@@ -173,7 +177,11 @@ def main():
         pass
 
     progress = load_progress()
-    print(f"📂 Progress yuklendi: musteriIndex={progress.get('musteriIndex', 0)}")
+    if MANUAL_START_FROM is not None:
+        progress["musteriIndex"] = MANUAL_START_FROM
+        print(f"📂 Manuel baslangic: musteriIndex={MANUAL_START_FROM} (1..{MANUAL_START_FROM} atlanir)")
+    else:
+        print(f"📂 Progress yuklendi: musteriIndex={progress.get('musteriIndex', 0)}")
 
     driver = webdriver.Chrome()
     if not safe_driver_get(driver, "https://webapp.salonappy.com/#/login"):
