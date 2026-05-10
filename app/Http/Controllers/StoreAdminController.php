@@ -24920,6 +24920,15 @@ DB::raw('
                 $kategori = MasrafKategorisi::firstOrCreate(
                     ['kategori' => 'Personel Ödemeleri']
                 );
+                // Ödeme tipi -> Türkçe açıklama (kasa raporundaki "Açıklama"
+                // kolonunda görünür, salon sahibi ne ödemesi olduğunu görsün).
+                $tipMap = [
+                    'maas'  => 'Maaş Ödemesi',
+                    'prim'  => 'Prim Ödemesi',
+                    'diger' => 'Avans/Bonus',
+                ];
+                $tipText = isset($tipMap[$odemeTipi]) ? $tipMap[$odemeTipi] : 'Personel Ödemesi';
+
                 $masraf = new Masraflar();
                 $masraf->personel_maas_odemesi_id = $pmo->id;
                 $masraf->salon_id            = $salonId;
@@ -24928,9 +24937,10 @@ DB::raw('
                 $masraf->tarih               = $odemeTarihi;
                 $masraf->tutar               = $tutar;
                 $masraf->odeme_yontemi_id    = (int)($request->odeme_yontemi_id ?? 1);
+                $masraf->aciklama            = $tipText . ' (' . $donem . ')' .
+                    ($request->aciklama ? ' — ' . mb_substr((string)$request->aciklama, 0, 80) : '');
                 $masraf->notlar              = "Personel: " . ($personel->personel_adi ?? '') .
-                    " — " . ucfirst($odemeTipi) . " ($donem)" .
-                    ($request->aciklama ? " • " . mb_substr((string)$request->aciklama, 0, 100) : '');
+                    " — " . ucfirst($odemeTipi) . " ($donem)";
                 $masraf->save();
             } catch (\Exception $e) {
                 // Kasa kaydı hata verse bile personel ödemesi başarılı sayılır.
