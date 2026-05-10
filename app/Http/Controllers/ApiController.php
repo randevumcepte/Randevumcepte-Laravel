@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 use App\SalonSantralAyarlari;
+use App\AnketSablon;
+use App\AnketGonderim;
 use Carbon\Carbon;
 use App\MailGonder;
 use App\User;
@@ -4565,6 +4567,115 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             'yillik'   => $current ? 'Bu Yıl'   : 'Geçen Yıl',
         ];
         return isset($map[$period]) ? $map[$period] : '';
+    }
+
+    /**
+     * Anket ozeti — toplam gonderim, cevap sayisi, response rate,
+     * ortalama NPS/CSAT, son 30 gunun trend grafigi, promoter/passive/detractor
+     * dagilimi.
+     *
+     * GET/POST /api/v1/anketOzet/{salonId}?gun=30
+     */
+    public function anketOzet(Request $request, $salonId)
+    {
+        $gun = (int) $request->query('gun', $request->input('gun', 30));
+        if ($gun <= 0 || $gun > 365) $gun = 30;
+
+        $start = Carbon::now()->subDays($gun)->startOfDay();
+        $end = Carbon::now()->endOfDay();
+
+        $base = AnketGonderim::where('salon_id', $salonId)
+            ->where('created_at', '>=', $start)
+            ->where('created_at', '<=', $end);
+
+        $toplamGonderim = (clone $base)->count();
+        $toplamCevap = (clone $base)->where('cevaplandi', 1)->count();
+        $cevapOrani = $toplamGonderim > 0 ? round(($toplamCevap / $toplamGonderim) * 100, 1) : 0.0;
+
+        $ortNps = (clone $base)->where('cevaplandi', 1)
+            ->whereNotNull('nps_skoru')
+            ->avg('nps_skoru');
+        $ortNps = $ortNps !== null ? round($ortNps, 1) : null;
+
+        $ortCsat = (clone $base)->where('cevaplandi', 1)
+            ->whereNotNull('csat_skoru')
+            ->avg('csat_skoru');
+        $ortCsat = $ortCsat !== null ? round($ortCsat, 2) : null;
+
+        // Promoter (9-10) / Passive (7-8) / Detractor (0-6)
+        $promoter = (clone $base)->where('cevaplandi', 1)->where('nps_skoru', '>=', 9)->count();
+        $passive = (clone $base)->where('cevaplandi', 1)->whereBetween('nps_skoru', [7, 8])->count();
+        $detractor = (clone $base)->where('cevaplandi', 1)->where('nps_skoru', '<=', 6)
+            ->whereNotNull('nps_skoru')->count();
+
+        // Son 7 gun trend (her gunun cevap sayisi)
+        $trend = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $d = Carbon::now()->subDays($i);
+            $dayStart = $d->copy()->startOfDay();
+            $dayEnd = $d->copy()->endOfDay();
+            $count = AnketGonderim::where('salon_id', $salonId)
+                ->where('cevaplandi', 1)
+                ->whereBetween('cevap_zamani', [$dayStart, $dayEnd])
+                ->count();
+            $trend[] = (int) $count;
+        }
+
+        return response()->json([
+            'gun' => $gun,
+            'toplamGonderim' => (int) $toplamGonderim,
+            'toplamCevap' => (int) $toplamCevap,
+            'cevapOrani' => (float) $cevapOrani,
+            'ortNps' => $ortNps,
+            'ortCsat' => $ortCsat,
+            'promoter' => (int) $promoter,
+            'passive' => (int) $passive,
+            'detractor' => (int) $detractor,
+            'trend' => $trend,
+        ]);
+    }
+
+    /**
+     * Anket gonderimleri listesi — son cevaplar onde.
+     *
+     * GET/POST /api/v1/anketGonderimleri/{salonId}?limit=20&offset=0&sadeceCevaplilar=1
+     */
+    public function anketGonderimleri(Request $request, $salonId)
+    {
+        $limit = (int) $request->query('limit', $request->input('limit', 20));
+        $offset = (int) $request->query('offset', $request->input('offset', 0));
+        $sadeceCevap = (int) $request->query('sadeceCevaplilar', $request->input('sadeceCevaplilar', 1));
+        if ($limit <= 0 || $limit > 200) $limit = 20;
+        if ($offset < 0) $offset = 0;
+
+        $q = AnketGonderim::where('salon_id', $salonId);
+        if ($sadeceCevap) $q->where('cevaplandi', 1);
+
+        $kayitlar = $q->orderByDesc('cevap_zamani')
+            ->orderByDesc('id')
+            ->skip($offset)->take($limit)
+            ->get();
+
+        $sonuc = $kayitlar->map(function ($g) {
+            return [
+                'id' => (int) $g->id,
+                'ad_soyad' => $g->ad_soyad,
+                'telefon' => $g->telefon,
+                'gonderim_kanali' => $g->gonderim_kanali,
+                'gonderim_zamani' => optional($g->gonderim_zamani)->toDateTimeString(),
+                'cevaplandi' => (bool) $g->cevaplandi,
+                'cevap_zamani' => optional($g->cevap_zamani)->toDateTimeString(),
+                'nps_skoru' => $g->nps_skoru !== null ? (int) $g->nps_skoru : null,
+                'csat_skoru' => $g->csat_skoru !== null ? (float) $g->csat_skoru : null,
+                'genel_yorum' => $g->genel_yorum,
+            ];
+        });
+
+        return response()->json([
+            'kayitlar' => $sonuc,
+            'limit' => $limit,
+            'offset' => $offset,
+        ]);
     }
 
     public function randevulistedeneme(Request $request, $isletme_id)

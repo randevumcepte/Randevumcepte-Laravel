@@ -40,6 +40,12 @@ Route::get('/dashboard','ApiController@ozetsayfasi');
 // trigger3
 Route::post('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilastirma');
 Route::get('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilastirma');
+
+// Anket / Reputation Booster — ozet ve gonderim listesi (mobile uygulama icin)
+Route::post('/anketOzet/{salonId}','ApiController@anketOzet');
+Route::get('/anketOzet/{salonId}','ApiController@anketOzet');
+Route::post('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');
+Route::get('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');
 Route::get('/isletmepuani/{salonid}','ApiController@isletmepuani');
 Route::middleware('throttle:60,1')->group(function () {
     Route::post('/ajandaget/{salonid}/{olusturan}','ApiController@ajandagetir');
