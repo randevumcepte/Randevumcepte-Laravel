@@ -4369,6 +4369,204 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     }
 
+    /**
+     * Dashboard karsilastirma — periyot bazli (gunluk|haftalik|aylik|yillik)
+     * toplam ciro, onceki periyot karsilastirmasi, son 7 periyot serisi,
+     * top personel/hizmet/urun, saat yogunlugu, kar-maliyet ozeti, alacak.
+     *
+     * GET/POST /api/v1/dashboardKarsilastirma/{salonId}?period=aylik
+     */
+    public function dashboardKarsilastirma(Request $request, $salonId)
+    {
+        $period = $request->query('period', $request->input('period', 'aylik'));
+        if (!in_array($period, ['gunluk', 'haftalik', 'aylik', 'yillik'])) {
+            $period = 'aylik';
+        }
+
+        list($curStart, $curEnd, $prevStart, $prevEnd) = $this->_periodRanges($period);
+
+        $currentCiro  = $this->_ciroFor($salonId, $curStart, $curEnd);
+        $previousCiro = $this->_ciroFor($salonId, $prevStart, $prevEnd);
+
+        $maliyet = (float) Masraflar::where('salon_id', $salonId)
+            ->whereBetween('tarih', [$curStart->toDateString(), $curEnd->toDateString()])
+            ->sum('tutar');
+
+        $kar = $currentCiro - $maliyet;
+
+        $alacak = (float) Alacaklar::where('salon_id', $salonId)
+            ->whereBetween('planlanan_odeme_tarihi', [$curStart->toDateString(), $curEnd->toDateString()])
+            ->sum('tutar');
+
+        // Son 7 periyot serisi
+        $series = [];
+        for ($i = 6; $i >= 0; $i--) {
+            list($s, $e) = $this->_offsetRange($period, $i);
+            $series[] = $this->_ciroFor($salonId, $s, $e);
+        }
+
+        // Top personel (hizmet tutar toplami)
+        $topPersonel = DB::table('tahsilat_hizmetler')
+            ->join('adisyon_hizmetler', 'adisyon_hizmetler.id', '=', 'tahsilat_hizmetler.adisyon_hizmet_id')
+            ->join('tahsilatlar', 'tahsilatlar.id', '=', 'tahsilat_hizmetler.tahsilat_id')
+            ->join('salon_personelleri as sp', 'sp.id', '=', 'adisyon_hizmetler.personel_id')
+            ->where('tahsilatlar.salon_id', $salonId)
+            ->whereBetween('tahsilatlar.odeme_tarihi', [$curStart, $curEnd])
+            ->groupBy('sp.id', 'sp.personel_adi')
+            ->select('sp.personel_adi as name', DB::raw('SUM(tahsilat_hizmetler.tutar) as value'))
+            ->orderByDesc('value')
+            ->first();
+
+        // Top hizmet
+        $topHizmet = DB::table('adisyon_hizmetler')
+            ->join('hizmetler', 'hizmetler.id', '=', 'adisyon_hizmetler.hizmet_id')
+            ->join('adisyonlar', 'adisyonlar.id', '=', 'adisyon_hizmetler.adisyon_id')
+            ->where('adisyonlar.salon_id', $salonId)
+            ->whereBetween('adisyonlar.created_at', [$curStart, $curEnd])
+            ->groupBy('hizmetler.id', 'hizmetler.hizmet_adi')
+            ->select('hizmetler.hizmet_adi as name', DB::raw('COUNT(*) as count'))
+            ->orderByDesc('count')
+            ->first();
+
+        // Top urun
+        $topUrun = DB::table('adisyon_urunler')
+            ->join('urunler', 'urunler.id', '=', 'adisyon_urunler.urun_id')
+            ->join('adisyonlar', 'adisyonlar.id', '=', 'adisyon_urunler.adisyon_id')
+            ->where('adisyonlar.salon_id', $salonId)
+            ->whereBetween('adisyonlar.created_at', [$curStart, $curEnd])
+            ->groupBy('urunler.id', 'urunler.urun_adi')
+            ->select('urunler.urun_adi as name', DB::raw('SUM(adisyon_urunler.adet) as count'))
+            ->orderByDesc('count')
+            ->first();
+
+        // Saat yogunlugu (24 saat, 0-1 normalize)
+        $hourlyRaw = DB::table('randevular')
+            ->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$curStart->toDateString(), $curEnd->toDateString()])
+            ->select(DB::raw('HOUR(saat) as h'), DB::raw('COUNT(*) as cnt'))
+            ->groupBy('h')
+            ->pluck('cnt', 'h')
+            ->toArray();
+        $maxHourly = max(array_merge(array_values($hourlyRaw), [1]));
+        $hourly = [];
+        for ($h = 0; $h < 24; $h++) {
+            $hourly[] = isset($hourlyRaw[$h]) ? round($hourlyRaw[$h] / $maxHourly, 2) : 0.0;
+        }
+
+        return response()->json([
+            'period' => $period,
+            'current' => [
+                'label' => $this->_periodLabel($period, true),
+                'value' => $currentCiro,
+            ],
+            'previous' => [
+                'label' => $this->_periodLabel($period, false),
+                'value' => $previousCiro,
+            ],
+            'series' => $series,
+            'kasa'    => $currentCiro - $maliyet,
+            'maliyet' => $maliyet,
+            'kar'     => $kar,
+            'alacak'  => $alacak,
+            'topPersonel' => $topPersonel ? [
+                'name'  => $topPersonel->name,
+                'value' => (float) $topPersonel->value,
+            ] : null,
+            'topHizmet' => $topHizmet ? [
+                'name'  => $topHizmet->name,
+                'count' => (int) $topHizmet->count,
+            ] : null,
+            'topUrun' => $topUrun ? [
+                'name'  => $topUrun->name,
+                'count' => (int) $topUrun->count,
+            ] : null,
+            'hourlyDensity' => $hourly,
+            'subeler' => [],
+        ]);
+    }
+
+    private function _ciroFor($salonId, $start, $end)
+    {
+        $sumHizmet = (float) DB::table('tahsilat_hizmetler')
+            ->join('tahsilatlar', 'tahsilatlar.id', '=', 'tahsilat_hizmetler.tahsilat_id')
+            ->where('tahsilatlar.salon_id', $salonId)
+            ->whereBetween('tahsilatlar.odeme_tarihi', [$start, $end])
+            ->sum('tahsilat_hizmetler.tutar');
+        $sumUrun = (float) DB::table('tahsilat_urunler')
+            ->join('tahsilatlar', 'tahsilatlar.id', '=', 'tahsilat_urunler.tahsilat_id')
+            ->where('tahsilatlar.salon_id', $salonId)
+            ->whereBetween('tahsilatlar.odeme_tarihi', [$start, $end])
+            ->sum('tahsilat_urunler.tutar');
+        $sumPaket = (float) DB::table('tahsilat_paketler')
+            ->join('tahsilatlar', 'tahsilatlar.id', '=', 'tahsilat_paketler.tahsilat_id')
+            ->where('tahsilatlar.salon_id', $salonId)
+            ->whereBetween('tahsilatlar.odeme_tarihi', [$start, $end])
+            ->sum('tahsilat_paketler.tutar');
+        return $sumHizmet + $sumUrun + $sumPaket;
+    }
+
+    private function _periodRanges($period)
+    {
+        $now = Carbon::now();
+        switch ($period) {
+            case 'gunluk':
+                return [
+                    $now->copy()->startOfDay(), $now->copy()->endOfDay(),
+                    $now->copy()->subDay()->startOfDay(), $now->copy()->subDay()->endOfDay(),
+                ];
+            case 'haftalik':
+                return [
+                    $now->copy()->startOfWeek(), $now->copy()->endOfWeek(),
+                    $now->copy()->subWeek()->startOfWeek(), $now->copy()->subWeek()->endOfWeek(),
+                ];
+            case 'aylik':
+                return [
+                    $now->copy()->startOfMonth(), $now->copy()->endOfMonth(),
+                    $now->copy()->subMonth()->startOfMonth(), $now->copy()->subMonth()->endOfMonth(),
+                ];
+            case 'yillik':
+                return [
+                    $now->copy()->startOfYear(), $now->copy()->endOfYear(),
+                    $now->copy()->subYear()->startOfYear(), $now->copy()->subYear()->endOfYear(),
+                ];
+        }
+        return [
+            $now->copy()->startOfDay(), $now->copy()->endOfDay(),
+            $now->copy()->subDay()->startOfDay(), $now->copy()->subDay()->endOfDay(),
+        ];
+    }
+
+    private function _offsetRange($period, $stepsAgo)
+    {
+        $now = Carbon::now();
+        switch ($period) {
+            case 'gunluk':
+                $d = $now->copy()->subDays($stepsAgo);
+                return [$d->copy()->startOfDay(), $d->copy()->endOfDay()];
+            case 'haftalik':
+                $d = $now->copy()->subWeeks($stepsAgo);
+                return [$d->copy()->startOfWeek(), $d->copy()->endOfWeek()];
+            case 'aylik':
+                $d = $now->copy()->subMonths($stepsAgo);
+                return [$d->copy()->startOfMonth(), $d->copy()->endOfMonth()];
+            case 'yillik':
+                $d = $now->copy()->subYears($stepsAgo);
+                return [$d->copy()->startOfYear(), $d->copy()->endOfYear()];
+        }
+        return [$now->copy()->startOfDay(), $now->copy()->endOfDay()];
+    }
+
+    private function _periodLabel($period, $current)
+    {
+        $map = [
+            'gunluk'   => $current ? 'Bugün'    : 'Geçen Aynı Gün',
+            'haftalik' => $current ? 'Bu Hafta' : 'Geçen Hafta',
+            'aylik'    => $current ? 'Bu Ay'    : 'Geçen Ay',
+            'yillik'   => $current ? 'Bu Yıl'   : 'Geçen Yıl',
+        ];
+        return isset($map[$period]) ? $map[$period] : '';
+    }
+
     public function randevulistedeneme(Request $request, $isletme_id)
 
     {

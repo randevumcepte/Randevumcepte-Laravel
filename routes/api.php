@@ -35,6 +35,8 @@ Route::post('/siteden-yeni-kullanici-kaydi','ApiController@siteden_yeni_kayit_ku
 Route::post('/siteden-yeni-kayit','ApiController@siteden_yeni_kayit');
 Route::post('/dashboard','ApiController@ozetsayfasi');
 Route::get('/dashboard','ApiController@ozetsayfasi');
+Route::post('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilastirma');
+Route::get('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilastirma');
 Route::get('/isletmepuani/{salonid}','ApiController@isletmepuani');
 Route::middleware('throttle:60,1')->group(function () {
     Route::post('/ajandaget/{salonid}/{olusturan}','ApiController@ajandagetir');
