@@ -1,13 +1,13 @@
 """
-Salonappy scraper - 403 / network drop dayanikli versiyon.
+Salonappy scraper - 403 / network drop dayanikli, TEK DOSYA.
 
-Telefon tethering kullaniliyorsa: 403 alindiginda script pause olur,
-kullaniciyi uyarir, uçak modu aç/kapat sonrasi Enter'a basildiginda
+Telefon hotspot kullaniliyorsa: 403 alindiginda script pause olur,
+kullaniciyi uyarir, ucak modu aç/kapat sonrasi Enter'a basildiginda
 kaldigi yerden devam eder.
 
-Ayrica progress (musteriIndex, randevuIndex, sayfa numarasi)
-"salonappy_progress.json" dosyasinda tutulur; script crash olsa bile
-yeniden baslattigizda kaldigi yerden devam eder.
+Progress (musteriIndex, ziyaret edilen url'ler) salonappy_progress.json
+dosyasinda tutulur; script crash olsa bile yeniden baslattiğinizda
+kaldigi yerden devam eder.
 """
 
 from selenium import webdriver
@@ -28,11 +28,14 @@ import locale
 # ============================================================
 PROGRESS_FILE = "salonappy_progress.json"
 ISLETME_ID = 368
-
-# Manuel başlangıç noktası — None ise progress dosyasından okur.
-# 6 yazarsanız: 1..6 atlanır, 7'den başlanır.
-MANUAL_START_FROM = None
+USERNAME = "5070373742"
+PASSWORD = "220787"
 API_BASE = "https://app.randevumcepte.com.tr"
+
+# Manuel baslangic — None ise progress dosyasindan okur.
+# 6 yazarsaniz: 1..6 atlanir, 7'den baslanir.
+MANUAL_START_FROM = None
+
 BLOCK_MARKERS = [
     "Access Denied",
     "Erişim Engellendi",
@@ -41,7 +44,7 @@ BLOCK_MARKERS = [
     "salonAppy sistemine erişiminiz engellenmiştir",
 ]
 MAX_RETRY = 3
-RETRY_BACKOFF = 5  # saniye
+RETRY_BACKOFF = 5
 
 aylar = {
     "Ocak": "01", "Şubat": "02", "Mart": "03", "Nisan": "04",
@@ -51,7 +54,7 @@ aylar = {
 
 
 # ============================================================
-# PROGRESS YONETIMI
+# PROGRESS
 # ============================================================
 def load_progress():
     if os.path.exists(PROGRESS_FILE):
@@ -60,7 +63,7 @@ def load_progress():
                 return json.load(f)
         except Exception:
             pass
-    return {"musteriIndex": 0, "ziyaretEdilen": [], "sayfa": 1}
+    return {"musteriIndex": 0, "ziyaretEdilen": []}
 
 
 def save_progress(progress):
@@ -72,10 +75,9 @@ def save_progress(progress):
 
 
 # ============================================================
-# BLOCK / NETWORK DETECTION
+# BLOCK / NETWORK
 # ============================================================
 def is_blocked(driver) -> bool:
-    """Sayfa Access Denied veriyor mu kontrol et."""
     try:
         src = driver.page_source or ""
     except Exception:
@@ -87,7 +89,6 @@ def is_blocked(driver) -> bool:
 
 
 def is_network_down() -> bool:
-    """Hizli network kontrol (Google'a HEAD)."""
     try:
         requests.head("https://www.google.com", timeout=5)
         return False
@@ -96,10 +97,6 @@ def is_network_down() -> bool:
 
 
 def wait_for_user(reason: str):
-    """
-    Kullaniciya bildiri, ucak modu acmasini/kapatmasini bekle.
-    Enter'a basinca devam.
-    """
     print("\n" + "=" * 60)
     print(f"⚠️  DURAKLATILDI: {reason}")
     print("=" * 60)
@@ -109,9 +106,8 @@ def wait_for_user(reason: str):
     print("  3) UÇAK MODU'nu kapat (yeni IP alir)")
     print("  4) Network bağlantısı geri geldiğinde Enter'a bas")
     print("=" * 60)
-
     while True:
-        input("Hazır olduğunda Enter'a bas...")
+        input("Hazır olduğunda Enter'a bas... ")
         if is_network_down():
             print("❌ Network hala kapali. Bağlantıyı kontrol et.")
             continue
@@ -119,9 +115,8 @@ def wait_for_user(reason: str):
         return
 
 
-def safe_driver_get(driver, url: str, max_retry: int = MAX_RETRY):
-    """driver.get() ama block / network drop'ta pause edip retry."""
-    for attempt in range(1, max_retry + 1):
+def safe_driver_get(driver, url: str):
+    for attempt in range(1, MAX_RETRY + 1):
         try:
             driver.get(url)
             time.sleep(2)
@@ -135,28 +130,22 @@ def safe_driver_get(driver, url: str, max_retry: int = MAX_RETRY):
                 wait_for_user("Network koptu (selenium hata aldi).")
             else:
                 time.sleep(RETRY_BACKOFF)
-    print(f"❌ {max_retry} denemede yuklenemedi: {url}")
     return False
 
 
-def safe_post(url: str, json_data: dict, max_retry: int = MAX_RETRY):
-    """requests.post ama network drop'ta retry / pause."""
-    for attempt in range(1, max_retry + 1):
+def safe_post(url: str, json_data: dict):
+    for attempt in range(1, MAX_RETRY + 1):
         try:
-            r = requests.post(url, json=json_data, timeout=30)
-            return r
+            return requests.post(url, json=json_data, timeout=30)
         except requests.exceptions.RequestException as e:
             print(f"[WARN] POST hata (deneme {attempt}): {e}")
             if is_network_down():
                 wait_for_user("Network koptu (API POST sirasinda).")
             else:
                 time.sleep(RETRY_BACKOFF)
-    raise RuntimeError(f"POST {url} {max_retry} denemede basarisiz.")
+    raise RuntimeError(f"POST {url} {MAX_RETRY} denemede basarisiz.")
 
 
-# ============================================================
-# YARDIMCI - TARIH FILTRESI
-# ============================================================
 def son_bir_yil_icinde_mi(tarih_str: str) -> bool:
     try:
         gun, ay_str, yil = tarih_str.split()
@@ -170,262 +159,279 @@ def son_bir_yil_icinde_mi(tarih_str: str) -> bool:
 # ============================================================
 # MAIN
 # ============================================================
-def main():
-    try:
-        locale.setlocale(locale.LC_TIME, "tr_TR.UTF-8")
-    except locale.Error:
-        pass
+try:
+    locale.setlocale(locale.LC_TIME, "tr_TR.UTF-8")
+except locale.Error:
+    pass
 
-    progress = load_progress()
-    if MANUAL_START_FROM is not None:
-        progress["musteriIndex"] = MANUAL_START_FROM
-        print(f"📂 Manuel baslangic: musteriIndex={MANUAL_START_FROM} (1..{MANUAL_START_FROM} atlanir)")
-    else:
-        print(f"📂 Progress yuklendi: musteriIndex={progress.get('musteriIndex', 0)}")
+progress = load_progress()
+if MANUAL_START_FROM is not None:
+    progress["musteriIndex"] = MANUAL_START_FROM
+    print(f"📂 Manuel baslangic: musteriIndex={MANUAL_START_FROM} (1..{MANUAL_START_FROM} atlanir, {MANUAL_START_FROM + 1}'den devam)")
+else:
+    print(f"📂 Progress: musteriIndex={progress.get('musteriIndex', 0)}")
+skip_until = progress.get("musteriIndex", 0)
+ziyaretEdilenDetaylar = list(progress.get("ziyaretEdilen", []))
 
-    driver = webdriver.Chrome()
-    if not safe_driver_get(driver, "https://webapp.salonappy.com/#/login"):
-        print("Login sayfasi yuklenemedi, cikiyor.")
-        return
+driver = webdriver.Chrome()
+if not safe_driver_get(driver, "https://webapp.salonappy.com/#/login"):
+    print("Login sayfasi yuklenemedi.")
+    sys.exit(1)
 
-    wait = WebDriverWait(driver, 20)
+wait = WebDriverWait(driver, 20)
 
-    # LOGIN
-    try:
-        telefon = wait.until(EC.element_to_be_clickable(
-            (By.CSS_SELECTOR, "div.phone-input-col input")))
-        telefon.click()
-        telefon.send_keys("5070373742")
+# LOGIN
+telefon = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div.phone-input-col input")))
+telefon.click()
+telefon.send_keys(USERNAME)
 
-        sifre = wait.until(EC.element_to_be_clickable(
-            (By.CSS_SELECTOR, "input[name='password']")))
-        sifre.click()
-        sifre.send_keys("220787")
-        time.sleep(1)
+sifre = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[name='password']")))
+sifre.click()
+sifre.send_keys(PASSWORD)
+time.sleep(1)
 
-        login_button = wait.until(EC.element_to_be_clickable(
-            (By.CSS_SELECTOR, "div.buttons button")))
-        login_button.click()
-        time.sleep(3)
-    except TimeoutException:
-        if is_blocked(driver):
-            wait_for_user("Login sayfası bloklu (403).")
-            return main()  # tekrar dene
-        raise
+login_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div.buttons button")))
+login_button.click()
+time.sleep(3)
 
-    # MUSTERILER
-    if not safe_driver_get(driver, "https://webapp.salonappy.com/#/client/list"):
-        return
-    time.sleep(10)
+# MUSTERI LISTESI
+if not safe_driver_get(driver, "https://webapp.salonappy.com/#/client/list"):
+    sys.exit(1)
+time.sleep(10)
 
-    musteriIndex = progress.get("musteriIndex", 0)
-    ziyaretEdilen = set(progress.get("ziyaretEdilen", []))
-    skip_until = musteriIndex  # progress'teki son indeks'e kadar atla
+musteriKartLinkleri = []
+musteriIndex = 0
 
-    while True:
-        # Block kontrolu
-        if is_blocked(driver):
-            wait_for_user("Müşteri listesi bloklu (403).")
-            # Sayfayi tazeleyip devam
-            driver.refresh()
-            time.sleep(5)
-            continue
+while True:
+    if is_blocked(driver):
+        wait_for_user("Müşteri listesi bloklu (403).")
+        driver.refresh()
+        time.sleep(5)
+        continue
 
-        try:
-            musteriRows = driver.find_elements(
-                By.XPATH, '//table[contains(@class, "p-datatable-table")]/tbody/tr')
-        except WebDriverException:
-            if is_network_down():
-                wait_for_user("Network koptu.")
-                continue
-            raise
+    musteriRows = driver.find_elements(By.XPATH, '//table[contains(@class, "p-datatable-table")]/tbody/tr')
 
-        if not musteriRows:
-            print("Tabloda satır yok, network/blok kontrolu...")
-            if is_blocked(driver):
-                wait_for_user("Sayfa bloklu.")
-                continue
-            print("Belki son sayfa, çıkış.")
-            break
-
-        for row in musteriRows:
-            musteriIndex += 1
-            cells = row.find_elements(By.TAG_NAME, "td")
-            if len(cells) <= 10:
-                continue
-
+    for row in musteriRows:
+        musteriIndex = musteriIndex + 1
+        cells = row.find_elements(By.TAG_NAME, "td")
+        print(str(len(cells)))
+        if len(cells) > 10:
             try:
                 link_element = cells[10].find_element(By.TAG_NAME, "a")
                 href_value = link_element.get_attribute("href")
-            except Exception:
-                continue
+                print("Link:", href_value)
+                musteriKartLinkleri.append(href_value)
 
-            if href_value in ziyaretEdilen or musteriIndex < skip_until:
-                continue
+                # Skip mantigi: progress'teki son indeksi pas gec
+                if musteriIndex <= skip_until:
+                    continue
 
-            ziyaretEdilen.add(href_value)
-            progress["musteriIndex"] = musteriIndex
-            progress["ziyaretEdilen"] = list(ziyaretEdilen)
-            save_progress(progress)
+                ziyaretEdilenDetaylar.append(href_value)
+                progress["musteriIndex"] = musteriIndex
+                progress["ziyaretEdilen"] = ziyaretEdilenDetaylar
+                save_progress(progress)
 
-            try:
-                process_musteri(driver, href_value, musteriIndex)
-            except Exception as e:
-                print(f"❌ musteriIndex={musteriIndex} hata: {e}")
-                if is_blocked(driver):
-                    wait_for_user("Müşteri sayfası bloklu.")
-                elif is_network_down():
-                    wait_for_user("Network koptu.")
-                # Ana sekmeye don
+                driver.execute_script("window.open(arguments[0], '_blank');", href_value)
+                driver.switch_to.window(driver.window_handles[1])
+
+                try:
+                    time.sleep(5)
+                    if is_blocked(driver):
+                        wait_for_user("Müşteri detay sayfası bloklu.")
+
+                    detayBilgileri = driver.find_elements(By.XPATH, "//div[contains(@class,'p-col-8')]")
+                    print(f"✅ Ad Soyad :"+detayBilgileri[1].text)
+                    print(f"✅ Cep Telefon  :"+detayBilgileri[2].text)
+                    print(f"✅ E-posta  :"+detayBilgileri[3].text)
+                    print(f"✅ Doğum tarihi :"+detayBilgileri[4].text)
+                    print(f"✅ Cinsiyet :"+detayBilgileri[5].text)
+                    print(f"✅ Notlar :"+detayBilgileri[6].text)
+
+                    musteriData = {
+                        "musteriAdi": detayBilgileri[1].text,
+                        "telefon": detayBilgileri[2].text,
+                        "ePosta": detayBilgileri[3].text,
+                        "dogumTarihi": detayBilgileri[4].text,
+                        "cinsiyet": detayBilgileri[5].text,
+                        "notlar": detayBilgileri[6].text,
+                        "medeniDurum": "",
+                        "kayitTarihi": "",
+                        "meslek": "",
+                        "adres": "",
+                        "salonId": ISLETME_ID,
+                    }
+                    musteriId = safe_post(f"{API_BASE}/api/v1/aktarimMusteriKontrol", musteriData)
+                    print("Müşteri Kaydedildi veya Güncellendi : "+musteriId.text.strip())
+
+                    panelLinkleri = driver.find_elements(By.XPATH, "//a[contains(@class,'p-panelmenu-header-link')]")
+                    panelLinkleri[2].click()
+                    time.sleep(5)
+                    randevuIndex = 0
+
+                    while True:
+                        if is_blocked(driver):
+                            wait_for_user("Randevu listesi bloklu.")
+
+                        randevuRows = driver.find_elements(By.XPATH, '//table[contains(@class, "p-datatable-table")]/tbody/tr')
+                        for row in randevuRows:
+                            randevuIndex = randevuIndex + 1
+                            cells = row.find_elements(By.TAG_NAME, "td")
+
+                            randevuDetayi = cells[7].find_element(By.TAG_NAME, "a")
+
+                            geldiBilgi = cells[3].text.strip()
+                            tarih = cells[0].text.strip()
+                            if not son_bir_yil_icinde_mi(tarih):
+                                continue
+                            saat = cells[1].text.strip()
+                            olusturan = cells[5].text.strip()
+                            olusturulma = cells[6].text.strip()
+                            durum = cells[2].text.strip()
+                            randevuDetayHref = randevuDetayi.get_attribute("href")
+                            driver.execute_script("window.open(arguments[0], '_blank');", randevuDetayHref)
+                            driver.switch_to.window(driver.window_handles[2])
+                            time.sleep(5)
+
+                            if is_blocked(driver):
+                                wait_for_user("Randevu detay sayfası bloklu.")
+
+                            randevuNotu = driver.find_element(By.XPATH, './/input[@placeholder="Notlar"]')
+                            randevuDetayKart = driver.find_elements(By.XPATH, '//div[contains(@class,"card-w-title")]')
+                            p_grid_divs = randevuDetayKart[0].find_elements(By.XPATH, './/div[contains(@class,"p-grid ng-star-inserted")]')
+                            p_grid_divs2 = randevuDetayKart[1].find_elements(By.XPATH, './/div[contains(@class,"p-grid ng-star-inserted")]')
+                            randevuHizmetler = []
+                            urunler = []
+
+                            for div in p_grid_divs:
+                                paketMevcut = div.find_elements(By.XPATH, './/input[@placeholder="Paket mevcut"]')
+                                hizmetFiyati = 0
+                                if len(paketMevcut) == 0:
+                                    hizmetFiyati = div.find_element(By.XPATH, './/input[@placeholder="Tutar"]').get_attribute('value')
+                                hizmetSuresi = div.find_element(By.XPATH, './/input[@placeholder="Hizmet süresi"]').get_attribute('value')
+                                personel = div.find_element(By.XPATH, './/span[contains(@class,"p-dropdown-label")]').text
+                                hizmet = div.find_element(By.XPATH, ".//div").text
+                                print("Hizmet Süresi : "+str(hizmetSuresi))
+                                print("Hizmet Fiyatı : "+str(hizmetFiyati))
+                                print("Hizmet : "+str(hizmet))
+                                print("personel : "+str(personel))
+                                randevuHizmetler.append({
+                                    "hizmet": hizmet,
+                                    "fiyat": hizmetFiyati,
+                                    "sureDk": hizmetSuresi,
+                                    "personel": personel,
+                                })
+
+                            for div2 in p_grid_divs2:
+                                urunFiyati = div2.find_element(By.XPATH, './/input[@placeholder="Tutar"]').get_attribute('value')
+                                adet = div2.find_element(By.XPATH, './/input[@placeholder="Adet"]').get_attribute('value')
+                                personel = div2.find_element(By.XPATH, './/span[contains(@class,"p-dropdown-label")]').text
+                                urun = div2.find_element(By.XPATH, ".//div").text
+                                print("Ürün adedi : "+str(adet))
+                                print("Ürün Fiyatı : "+str(urunFiyati))
+                                print("Ürün : "+str(urun))
+                                print("personel : "+str(personel))
+                                urunler.append({
+                                    "urun": urun,
+                                    "fiyat": urunFiyati,
+                                    "adet": adet,
+                                    "personel": personel,
+                                })
+
+                            print("Randevu tarihi : "+str(tarih))
+                            print("Randevu saati : "+str(saat))
+                            print("Randevuya geldi : "+str(geldiBilgi))
+                            print("Randevuyu oluşturan : "+str(olusturan))
+
+                            randevuAdisyonData = {
+                                "notlar": randevuNotu.get_attribute('value'),
+                                "salonId": ISLETME_ID,
+                                "userId": musteriId.text,
+                                "tarih": tarih,
+                                "saat": saat,
+                                "geldi": geldiBilgi,
+                                "durum": durum,
+                                "olusturan": olusturan,
+                                "hizmetler": randevuHizmetler,
+                                "urunler": urunler,
+                                "olusturulma": olusturulma,
+                            }
+
+                            adisyonId = safe_post(f"{API_BASE}/api/v1/salonAppyAdisyonRandevuEkle", randevuAdisyonData)
+                            print(f"✅ randevu ve adisyon eklenme durumu " + adisyonId.text)
+
+                            # Tahsilat bolumleri (3 farkli div index)
+                            odemeBolumu = driver.find_elements(By.XPATH, '/html/body/app-root/app-main/div/div/div[1]/app-booking-details/div[2]/div[2]')
+                            time.sleep(1)
+                            if len(odemeBolumu) > 0:
+                                for div_idx in (4, 5, 6):
+                                    yokTextXp = f'/html/body/app-root/app-main/div/div/div[1]/app-booking-details/div[2]/div[2]/div[{div_idx}]/div/div/div[2]/div/span'
+                                    listXp    = f'/html/body/app-root/app-main/div/div/div[1]/app-booking-details/div[2]/div[2]/div[{div_idx}]/div/div/div[2]/div/div'
+                                    yokText = driver.find_elements(By.XPATH, yokTextXp)
+                                    tahsilatlar = driver.find_elements(By.XPATH, listXp)
+                                    if len(yokText) == 0:
+                                        for tahsilat in tahsilatlar:
+                                            tahsilatTarihi = tahsilat.find_element(By.XPATH, './div[1]')
+                                            odemeYontemi = tahsilat.find_element(By.XPATH, './div[2]')
+                                            tutar = tahsilat.find_element(By.XPATH, './div[3]')
+                                            print("Tahsilat tarihi : "+str(tahsilatTarihi.text))
+                                            print("Ödeme Yöntemi : "+str(odemeYontemi.text))
+                                            print("Tutar : "+str(tutar.text))
+                                            tahsilatData = {
+                                                "userId": musteriId.text,
+                                                "adisyonId": adisyonId.text,
+                                                "odemeTarihi": tahsilatTarihi.text,
+                                                "tahsilatTutari": tutar.text.replace(' TL', ''),
+                                                "odemeYontemi": odemeYontemi.text,
+                                                "salonId": ISLETME_ID,
+                                            }
+                                            tahsilatId = safe_post(f"{API_BASE}/api/v1/salonAppyTahsilatEkle", tahsilatData)
+                                            print(f"✅ Tahsilat ekleme durumu : "+tahsilatId.text)
+
+                            driver.close()
+                            driver.switch_to.window(driver.window_handles[1])
+
+                        try:
+                            next_button = driver.find_element(By.XPATH, '//button[contains(@class, "p-paginator-next")]')
+                            if "p-disabled" not in next_button.get_attribute("class"):
+                                next_button.click()
+                                time.sleep(5)
+                            else:
+                                print("Tüm randevular tarandı!")
+                                break
+                        except Exception:
+                            print("Randevu tablosunda ileri butonu bulunamadı!")
+                            break
+
+                except Exception as e:
+                    print("Detay bilgisi alınamadı!", e)
+                    print(f"Müşteri index {musteriIndex}")
+                    if is_blocked(driver):
+                        wait_for_user("Sayfa bloklu hata sirasinda.")
+                    elif is_network_down():
+                        wait_for_user("Network koptu hata sirasinda.")
+
+                # Detay sekmelerini kapat, ana sayfaya don
                 while len(driver.window_handles) > 1:
                     try:
                         driver.switch_to.window(driver.window_handles[-1])
                         driver.close()
                     except Exception:
                         break
-                try:
-                    driver.switch_to.window(driver.window_handles[0])
-                except Exception:
-                    pass
+                driver.switch_to.window(driver.window_handles[0])
 
-        # SONRAKI SAYFA
-        try:
-            next_button = driver.find_element(
-                By.XPATH, '//button[contains(@class, "p-paginator-next")]')
-            if "p-disabled" in next_button.get_attribute("class"):
-                print("✓ Tüm müşteriler tarandı.")
-                break
-            next_button.click()
-            time.sleep(3)
-        except Exception:
-            print("İleri buton bulunamadı, çıkış.")
-            break
-
-    print("✅ Tamamlandı.")
-    input("Tarayıcıyı kapatmak için Enter'a bas...")
-    driver.quit()
-
-
-def process_musteri(driver, href_value, musteriIndex):
-    """Bir müşteri detay sayfasını işle (yeni sekme açıp ana akışı)."""
-    driver.execute_script("window.open(arguments[0], '_blank');", href_value)
-    driver.switch_to.window(driver.window_handles[1])
-    try:
-        time.sleep(5)
-        if is_blocked(driver):
-            raise RuntimeError("Müşteri detay sayfası bloklu")
-
-        detayBilgileri = driver.find_elements(
-            By.XPATH, "//div[contains(@class,'p-col-8')]")
-        if len(detayBilgileri) < 7:
-            print(f"⚠️  detay yapısı eksik (musteriIndex={musteriIndex})")
-            return
-
-        musteriData = {
-            "musteriAdi": detayBilgileri[1].text,
-            "telefon": detayBilgileri[2].text,
-            "ePosta": detayBilgileri[3].text,
-            "dogumTarihi": detayBilgileri[4].text,
-            "cinsiyet": detayBilgileri[5].text,
-            "notlar": detayBilgileri[6].text,
-            "medeniDurum": "", "kayitTarihi": "",
-            "meslek": "", "adres": "", "salonId": ISLETME_ID,
-        }
-        print(f"✓ [{musteriIndex}] {musteriData['musteriAdi']} ({musteriData['telefon']})")
-
-        r = safe_post(f"{API_BASE}/api/v1/aktarimMusteriKontrol", musteriData)
-        musteri_id = r.text.strip()
-        print(f"  → user_id: {musteri_id}")
-
-        # Randevular paneli
-        try:
-            panelLinkleri = driver.find_elements(
-                By.XPATH, "//a[contains(@class,'p-panelmenu-header-link')]")
-            if len(panelLinkleri) >= 3:
-                panelLinkleri[2].click()
-                time.sleep(5)
-                process_randevular(driver, musteri_id)
-        except Exception as e:
-            print(f"  ⚠️  randevu paneli hata: {e}")
-
-    finally:
-        try:
-            driver.close()
-        except Exception:
-            pass
-        try:
-            driver.switch_to.window(driver.window_handles[0])
-        except Exception:
-            pass
-
-
-def process_randevular(driver, musteri_id):
-    """Müşterinin randevular tab'ını dolaş (paginated)."""
-    while True:
-        if is_blocked(driver):
-            wait_for_user("Randevu listesi bloklu.")
-            continue
-
-        randevuRows = driver.find_elements(
-            By.XPATH, '//table[contains(@class, "p-datatable-table")]/tbody/tr')
-
-        for row in randevuRows:
-            try:
-                cells = row.find_elements(By.TAG_NAME, "td")
-                if len(cells) < 8:
-                    continue
-
-                tarih = cells[0].text.strip()
-                if not son_bir_yil_icinde_mi(tarih):
-                    continue
-
-                # Randevu detay tıklat ve işle
-                randevuDetayi = cells[7].find_element(By.TAG_NAME, "a")
-                randevuDetayHref = randevuDetayi.get_attribute("href")
-
-                driver.execute_script(
-                    "window.open(arguments[0], '_blank');", randevuDetayHref)
-                driver.switch_to.window(driver.window_handles[2])
-                try:
-                    time.sleep(5)
-                    if is_blocked(driver):
-                        raise RuntimeError("Randevu detay bloklu")
-                    # ... burada mevcut kodun randevu/adisyon/tahsilat
-                    # parse mantığı yer alacak. Kısalık için atlandı —
-                    # ana mantık kullanıcının orijinal kodundan kopyalanır.
-                    saat = cells[1].text.strip()
-                    durum = cells[2].text.strip()
-                    geldi = cells[3].text.strip()
-                    olusturan = cells[5].text.strip()
-                    olusturulma = cells[6].text.strip()
-                    print(f"    randevu {tarih} {saat} {durum}")
-                    # TODO: hizmetler/urunler/tahsilatlar parse + safe_post
-                finally:
-                    try:
-                        driver.close()
-                    except Exception:
-                        pass
-                    driver.switch_to.window(driver.window_handles[1])
             except Exception as e:
-                print(f"    ⚠️  randevu satır hata: {e}")
-                if is_blocked(driver):
-                    wait_for_user("Randevu sayfası bloklu.")
+                print(f"10. sütunda <a> bulunamadı veya hata: {e}")
 
-        # Sonraki sayfa
-        try:
-            next_button = driver.find_element(
-                By.XPATH, '//button[contains(@class, "p-paginator-next")]')
-            if "p-disabled" in next_button.get_attribute("class"):
-                break
-            next_button.click()
-            time.sleep(3)
-        except Exception:
-            break
-
-
-if __name__ == "__main__":
     try:
-        main()
-    except KeyboardInterrupt:
-        print("\n⚠️  Kullanıcı durdurdu. Progress kaydedildi, tekrar başlatınca devam edecek.")
-        sys.exit(0)
+        next_button = driver.find_element(By.XPATH, '//button[contains(@class, "p-paginator-next")]')
+        if "p-disabled" not in next_button.get_attribute("class"):
+            next_button.click()
+            time.sleep(2)
+        else:
+            print("Tüm müşteriler tarandı!")
+            break
+    except Exception:
+        print("Müşteri tablosunda ileri butonu bulunamadı!")
+        break
+
+input("Tarayıcıyı kapatmak için Enter'a bas...")
