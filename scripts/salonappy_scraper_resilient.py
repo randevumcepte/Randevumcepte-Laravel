@@ -115,6 +115,30 @@ def wait_for_user(reason: str):
         return
 
 
+def reload_until_unblocked(driver, url: str = None, max_attempts: int = 10):
+    """
+    Sayfayi reload (veya url'e tekrar git), bloklu degilse True dondur.
+    Bloklu kalirsa kullaniciya tekrar uçak modu yap dedirt.
+    """
+    for attempt in range(1, max_attempts + 1):
+        try:
+            if url:
+                driver.get(url)
+            else:
+                driver.refresh()
+            time.sleep(3)
+        except WebDriverException as e:
+            print(f"[WARN] reload hata: {e}")
+            wait_for_user("Reload sirasinda hata.")
+            continue
+
+        if not is_blocked(driver):
+            return True
+        print(f"❌ Hala bloklu (deneme {attempt}/{max_attempts})")
+        wait_for_user("Sayfa hala bloklu, tekrar uçak modu aç/kapat dene.")
+    return False
+
+
 def safe_driver_get(driver, url: str):
     for attempt in range(1, MAX_RETRY + 1):
         try:
@@ -205,8 +229,7 @@ musteriIndex = 0
 while True:
     if is_blocked(driver):
         wait_for_user("Müşteri listesi bloklu (403).")
-        driver.refresh()
-        time.sleep(5)
+        reload_until_unblocked(driver)
         continue
 
     musteriRows = driver.find_elements(By.XPATH, '//table[contains(@class, "p-datatable-table")]/tbody/tr')
@@ -238,6 +261,9 @@ while True:
                     time.sleep(5)
                     if is_blocked(driver):
                         wait_for_user("Müşteri detay sayfası bloklu.")
+                        if not reload_until_unblocked(driver, href_value):
+                            print("Müşteri detay hala bloklu, sonraki müşteriye geçiliyor.")
+                            raise RuntimeError("Müşteri detay sürekli bloklu")
 
                     detayBilgileri = driver.find_elements(By.XPATH, "//div[contains(@class,'p-col-8')]")
                     print(f"✅ Ad Soyad :"+detayBilgileri[1].text)
@@ -271,6 +297,7 @@ while True:
                     while True:
                         if is_blocked(driver):
                             wait_for_user("Randevu listesi bloklu.")
+                            reload_until_unblocked(driver)
 
                         randevuRows = driver.find_elements(By.XPATH, '//table[contains(@class, "p-datatable-table")]/tbody/tr')
                         for row in randevuRows:
@@ -294,6 +321,11 @@ while True:
 
                             if is_blocked(driver):
                                 wait_for_user("Randevu detay sayfası bloklu.")
+                                if not reload_until_unblocked(driver, randevuDetayHref):
+                                    print("Randevu detay sürekli bloklu, atlaniyor.")
+                                    driver.close()
+                                    driver.switch_to.window(driver.window_handles[1])
+                                    continue
 
                             randevuNotu = driver.find_element(By.XPATH, './/input[@placeholder="Notlar"]')
                             randevuDetayKart = driver.find_elements(By.XPATH, '//div[contains(@class,"card-w-title")]')
