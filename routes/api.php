@@ -35,6 +35,7 @@ Route::post('/siteden-yeni-kullanici-kaydi','ApiController@siteden_yeni_kayit_ku
 Route::post('/siteden-yeni-kayit','ApiController@siteden_yeni_kayit');
 Route::post('/dashboard','ApiController@ozetsayfasi');
 Route::get('/dashboard','ApiController@ozetsayfasi');
+// Dashboard analytics — periyot bazli karsilastirma (mobile dashboard cards icin)
 Route::post('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilastirma');
 Route::get('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilastirma');
 Route::get('/isletmepuani/{salonid}','ApiController@isletmepuani');

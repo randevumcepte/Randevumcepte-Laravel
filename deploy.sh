@@ -43,12 +43,16 @@ log "=== Deploy basladi (LOCAL=$LOCAL REMOTE=$REMOTE LAST=$LAST) ==="
 RESET_OUT=$(git reset --hard origin/main 2>&1)
 log "git reset --hard origin/main: $RESET_OUT"
 
-# 4) Laravel view + uygulama cache'ini temizle + pending migration'lari calistir
+# 4) Laravel view + uygulama + route + config cache'ini temizle + pending migration'lari calistir
 if [ -x "$PHP" ]; then
     VIEW_OUT=$($PHP artisan view:clear 2>&1)
     log "view:clear: $VIEW_OUT"
     CACHE_OUT=$($PHP artisan cache:clear 2>&1)
     log "cache:clear: $CACHE_OUT"
+    ROUTE_OUT=$($PHP artisan route:clear 2>&1)
+    log "route:clear: $ROUTE_OUT"
+    CONFIG_OUT=$($PHP artisan config:clear 2>&1)
+    log "config:clear: $CONFIG_OUT"
     MIGRATE_OUT=$($PHP artisan migrate --force 2>&1)
     log "migrate --force: $MIGRATE_OUT"
 fi
