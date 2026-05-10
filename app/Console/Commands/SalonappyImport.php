@@ -15,7 +15,8 @@ class SalonappyImport extends Command
         {--analyze : Anasayfa + JS bundle analizi (login olmadan)}
         {--probe : Login + yaygin endpoint kesfi}
         {--only= : virgulle: personel,hizmet}
-        {--from-file= : Tarayicidan kopyalanan JSON\'ları icerek dizin (staff.json, services.json, service_durations.json, service_prices.json, staff_services.json)}';
+        {--from-file= : Tarayicidan kopyalanan JSON\'ları icerek dizin (staff.json, services.json, service_durations.json, service_prices.json, staff_services.json)}
+        {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
     protected $description = 'webapp.salonappy.com hesabindan veri cekip randevumcepte\'ye aktarir.';
 
@@ -42,8 +43,11 @@ class SalonappyImport extends Command
         }
 
         $this->info('Salonappy client baslatiliyor...');
-        $client = new SalonappyClient($username ?: 'x', $password ?: 'x');
+        $client = new SalonappyClient($username ?: 'x', $password ?: 'x', null, $this->option('proxy'));
         $this->line('Dump dizini: ' . $client->dumpDir());
+        if ($this->option('proxy') || env('SALONAPPY_PROXY')) {
+            $this->line('Proxy aktif: ' . preg_replace('~://[^@]+@~', '://***@', $this->option('proxy') ?: env('SALONAPPY_PROXY')));
+        }
 
         if ($analyze) {
             $this->info('Anasayfa + JS bundle analizi...');

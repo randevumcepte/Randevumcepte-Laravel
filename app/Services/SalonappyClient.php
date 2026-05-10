@@ -28,7 +28,7 @@ class SalonappyClient
     private $bearer;
     private $dumpDir;
 
-    public function __construct($username, $password, $dumpDir = null)
+    public function __construct($username, $password, $dumpDir = null, $proxy = null)
     {
         $this->username = $username;
         $this->password = $password;
@@ -36,30 +36,31 @@ class SalonappyClient
         $this->dumpDir = $dumpDir ?: storage_path('app/salonappy/' . date('Ymd_His'));
         if (!is_dir($this->dumpDir)) @mkdir($this->dumpDir, 0775, true);
 
-        $this->http = new Client([
-            'base_uri'        => self::BASE_API,
+        // Proxy oncelikle parametre, yoksa env'den (SALONAPPY_PROXY)
+        $proxy = $proxy ?: env('SALONAPPY_PROXY');
+
+        $base = [
             'cookies'         => $this->jar,
             'allow_redirects' => ['max' => 5, 'track_redirects' => true],
             'timeout'         => 120,
             'connect_timeout' => 30,
             'http_errors'     => false,
             'verify'          => false,
-            'headers'         => [
+        ];
+        if ($proxy) $base['proxy'] = $proxy; // ornek: http://user:pass@host:port
+
+        $this->http = new Client($base + [
+            'base_uri' => self::BASE_API,
+            'headers'  => [
                 'User-Agent'      => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
                 'Accept-Language' => 'tr-TR,tr;q=0.9,en;q=0.8',
                 'Origin'          => self::BASE_APP,
                 'Referer'         => self::BASE_APP . '/',
             ],
         ]);
-        // Anasayfa indirmek icin ayri client (analyze sirasinda)
-        $this->htmlHttp = new Client([
-            'base_uri'        => self::BASE_APP,
-            'cookies'         => $this->jar,
-            'allow_redirects' => ['max' => 5, 'track_redirects' => true],
-            'timeout'         => 120,
-            'http_errors'     => false,
-            'verify'          => false,
-            'headers'         => [
+        $this->htmlHttp = new Client($base + [
+            'base_uri' => self::BASE_APP,
+            'headers'  => [
                 'User-Agent'      => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
                 'Accept-Language' => 'tr-TR,tr;q=0.9,en;q=0.8',
             ],
