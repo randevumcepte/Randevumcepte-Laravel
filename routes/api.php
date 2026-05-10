@@ -37,6 +37,7 @@ Route::post('/dashboard','ApiController@ozetsayfasi');
 Route::get('/dashboard','ApiController@ozetsayfasi');
 // Dashboard analytics — periyot bazli karsilastirma (mobile dashboard cards icin)
 // Yeni endpoint: route cache temizlemesi gerekiyor (deploy.sh artik yapar)
+// trigger3
 Route::post('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilastirma');
 Route::get('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilastirma');
 Route::get('/isletmepuani/{salonid}','ApiController@isletmepuani');
