@@ -15,6 +15,8 @@ use App\CarkifelekCevirmeLoglari;
 use App\CarkifelekOdulleri;
 use App\CarkHatirlatmaAyarlari;
 use App\CarkHatirlatmaLoglari;
+use App\SalonSMSAyarlari;
+use App\Bildirimler;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use App\MailGonder;
@@ -22075,6 +22077,284 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             'google_review_esik_csat' => $salon->google_review_esik_csat ?? 4.5,
             'kotu_puan_uyari_esik_nps' => $salon->kotu_puan_uyari_esik_nps ?? 6,
             'kotu_puan_uyari_esik_csat' => $salon->kotu_puan_uyari_esik_csat ?? 3.0,
+        ]);
+    }
+
+    // ============================================================
+    // WHATSAPP API (mobil)
+    // ============================================================
+
+    public function whatsappBaslatApi(Request $request, $salonId)
+    {
+        try {
+            $svc = app(\App\Services\WhatsAppService::class);
+            $res = $svc->startSession($salonId);
+            if ($res['ok'] ?? false) {
+                Salonlar::where('id', $salonId)->update([
+                    'whatsapp_aktif' => 1,
+                    'whatsapp_durum' => $res['body']['status'] ?? 'connecting',
+                ]);
+            }
+            return response()->json($res['body'] ?? ['error' => 'servis-erisilemiyor'], $res['status'] ?: 502);
+        } catch (\Exception $e) {
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
+        }
+    }
+
+    public function whatsappDurumApi(Request $request, $salonId)
+    {
+        try {
+            $svc = app(\App\Services\WhatsAppService::class);
+            $res = $svc->status($salonId);
+            $body = $res['body'] ?? ['status' => 'servis-kapali'];
+            if (($res['ok'] ?? false) && isset($body['status'])) {
+                $update = ['whatsapp_durum' => $body['status']];
+                if ($body['status'] === 'connected') {
+                    $salon = Salonlar::find($salonId);
+                    if ($salon && !$salon->whatsapp_baglanti_tarihi) {
+                        $update['whatsapp_baglanti_tarihi'] = now();
+                        $update['whatsapp_warmup_baslangic'] = now();
+                    }
+                    if (!empty($body['phone'])) $update['whatsapp_numara'] = $body['phone'];
+                }
+                Salonlar::where('id', $salonId)->update($update);
+            }
+            return response()->json($body);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'servis-kapali', 'hata' => $e->getMessage()]);
+        }
+    }
+
+    public function whatsappQRApi(Request $request, $salonId)
+    {
+        try {
+            $svc = app(\App\Services\WhatsAppService::class);
+            $res = $svc->qr($salonId);
+            return response()->json($res['body'] ?? ['error' => 'qr-yok'], $res['status'] ?: 404);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function whatsappCikisApi(Request $request, $salonId)
+    {
+        try {
+            $svc = app(\App\Services\WhatsAppService::class);
+            $svc->logout($salonId);
+        } catch (\Exception $e) {
+            // ignore
+        }
+        Salonlar::where('id', $salonId)->update([
+            'whatsapp_aktif' => 0,
+            'whatsapp_durum' => 'cikis-yapildi',
+            'whatsapp_numara' => null,
+            'whatsapp_baglanti_tarihi' => null,
+            'whatsapp_warmup_baslangic' => null,
+        ]);
+        return response()->json(['ok' => true]);
+    }
+
+    public function whatsappOzetDataApi(Request $request, $salonId)
+    {
+        $today = Carbon::today();
+        $weekStart = Carbon::today()->subDays(6);
+        $monthStart = Carbon::today()->subDays(29);
+
+        $base = \DB::table('whatsapp_gonderim_loglari')->where('salon_id', $salonId);
+        $bugunToplam   = (clone $base)->whereDate('created_at', $today)->count();
+        $bugunBasari   = (clone $base)->whereDate('created_at', $today)->where('durum', 1)->count();
+        $bugunFail     = (clone $base)->whereDate('created_at', $today)->where('durum', 2)->count();
+        $bugunFallback = (clone $base)->whereDate('created_at', $today)->where('durum', 3)->count();
+
+        $haftaToplam = (clone $base)->whereDate('created_at', '>=', $weekStart)->count();
+        $haftaBasari = (clone $base)->whereDate('created_at', '>=', $weekStart)->where('durum', 1)->count();
+        $ayToplam = (clone $base)->whereDate('created_at', '>=', $monthStart)->count();
+        $ayBasari = (clone $base)->whereDate('created_at', '>=', $monthStart)->where('durum', 1)->count();
+
+        $basariOrani = $haftaToplam > 0 ? round(($haftaBasari / $haftaToplam) * 100, 1) : 0;
+        $salon = Salonlar::find($salonId);
+
+        $start = Carbon::today()->subDays(29);
+        $trend = \DB::table('whatsapp_gonderim_loglari')
+            ->select(\DB::raw('DATE(created_at) as tarih'), 'durum', \DB::raw('COUNT(*) as adet'))
+            ->where('salon_id', $salonId)
+            ->whereDate('created_at', '>=', $start)
+            ->groupBy('tarih', 'durum')->get();
+
+        $gunler = [];
+        for ($i = 0; $i < 30; $i++) {
+            $g = Carbon::today()->subDays(29 - $i)->format('Y-m-d');
+            $gunler[$g] = ['gun' => $g, 'basari' => 0, 'fail' => 0, 'fallback' => 0];
+        }
+        foreach ($trend as $r) {
+            $key = $r->tarih;
+            if (!isset($gunler[$key])) continue;
+            if ((int) $r->durum === 1) $gunler[$key]['basari'] = (int) $r->adet;
+            if ((int) $r->durum === 2) $gunler[$key]['fail'] = (int) $r->adet;
+            if ((int) $r->durum === 3) $gunler[$key]['fallback'] = (int) $r->adet;
+        }
+
+        return response()->json([
+            'durum' => $salon ? $salon->whatsapp_durum : null,
+            'numara' => $salon ? $salon->whatsapp_numara : null,
+            'gunluk_limit' => (int) ($salon && $salon->whatsapp_gunluk_limit ? $salon->whatsapp_gunluk_limit : 150),
+            'bugun' => ['toplam' => $bugunToplam, 'basari' => $bugunBasari, 'fail' => $bugunFail, 'fallback' => $bugunFallback],
+            'hafta' => ['toplam' => $haftaToplam, 'basari' => $haftaBasari],
+            'ay' => ['toplam' => $ayToplam, 'basari' => $ayBasari],
+            'basariOrani' => $basariOrani,
+            'gunler' => array_values($gunler),
+        ]);
+    }
+
+    public function whatsappLoglarDataApi(Request $request, $salonId)
+    {
+        $q = \DB::table('whatsapp_gonderim_loglari as wl')
+            ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
+            ->select('wl.id', 'wl.user_id', 'wl.randevu_id', 'wl.telefon', 'wl.mesaj',
+                'wl.durum', 'wl.hata', 'wl.mesaj_id', 'wl.gonderim_tarihi', 'wl.created_at',
+                'u.name as musteri_adi')
+            ->where('wl.salon_id', $salonId);
+
+        if ($durum = $request->input('durum')) $q->where('wl.durum', $durum);
+        if ($telefon = $request->input('telefon')) $q->where('wl.telefon', 'like', '%' . $telefon . '%');
+        if ($baslangic = $request->input('baslangic')) $q->whereDate('wl.created_at', '>=', $baslangic);
+        if ($bitis = $request->input('bitis')) $q->whereDate('wl.created_at', '<=', $bitis);
+        if ($arama = $request->input('arama')) $q->where('wl.mesaj', 'like', '%' . $arama . '%');
+
+        $perPage = min((int) $request->input('per_page', 50), 200);
+        $page = max((int) $request->input('page', 1), 1);
+        $toplam = (clone $q)->count();
+        $rows = $q->orderByDesc('wl.id')->offset(($page - 1) * $perPage)->limit($perPage)->get();
+
+        return response()->json([
+            'rows' => $rows,
+            'toplam' => $toplam,
+            'page' => $page,
+            'per_page' => $perPage,
+            'son_sayfa' => $perPage > 0 ? (int) ceil($toplam / $perPage) : 1,
+        ]);
+    }
+
+    public function whatsappAlicilarDataApi(Request $request, $salonId)
+    {
+        $rows = \DB::table('whatsapp_gonderim_loglari as wl')
+            ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
+            ->select(
+                'wl.telefon',
+                \DB::raw('MAX(u.name) as musteri_adi'),
+                \DB::raw('COUNT(*) as toplam'),
+                \DB::raw('SUM(CASE WHEN wl.durum = 1 THEN 1 ELSE 0 END) as basari'),
+                \DB::raw('SUM(CASE WHEN wl.durum = 2 THEN 1 ELSE 0 END) as fail'),
+                \DB::raw('SUM(CASE WHEN wl.durum = 3 THEN 1 ELSE 0 END) as fallback'),
+                \DB::raw('MAX(wl.created_at) as son_mesaj'),
+                \DB::raw('MIN(wl.created_at) as ilk_mesaj')
+            )
+            ->where('wl.salon_id', $salonId)
+            ->groupBy('wl.telefon')
+            ->orderByDesc('son_mesaj')
+            ->limit(500)
+            ->get();
+
+        return response()->json(['rows' => $rows, 'toplam' => $rows->count()]);
+    }
+
+    public function whatsappAliciGecmisApi(Request $request, $salonId, $telefon)
+    {
+        $rows = \DB::table('whatsapp_gonderim_loglari')
+            ->where('salon_id', $salonId)
+            ->where('telefon', $telefon)
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get(['id', 'mesaj', 'durum', 'hata', 'mesaj_id', 'gonderim_tarihi', 'created_at', 'randevu_id']);
+        return response()->json(['rows' => $rows]);
+    }
+
+    public function whatsappKanalDurumApi(Request $request, $salonId)
+    {
+        $ayar1 = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 1)->first();
+        $ayar6 = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 6)->first();
+
+        $aktif = ($ayar1 && (int) $ayar1->whatsapp_musteri === 1)
+              || ($ayar6 && (int) $ayar6->whatsapp_musteri === 1);
+
+        return response()->json([
+            'aktif' => $aktif,
+            'sms_aktif_aynigun' => $ayar1 ? (int) $ayar1->musteri === 1 : false,
+            'sms_aktif_24sa' => $ayar6 ? (int) $ayar6->musteri === 1 : false,
+        ]);
+    }
+
+    public function whatsappKanalToggleApi(Request $request, $salonId)
+    {
+        $yeniDeger = (int) $request->input('aktif', 0) === 1 ? 1 : 0;
+        foreach ([1, 6] as $ayarId) {
+            $ayar = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', $ayarId)->first();
+            if (!$ayar) {
+                $ayar = new SalonSMSAyarlari();
+                $ayar->salon_id = $salonId;
+                $ayar->ayar_id = $ayarId;
+                $ayar->musteri = 0;
+                $ayar->personel = 0;
+            }
+            $ayar->whatsapp_musteri = $yeniDeger;
+            $ayar->save();
+        }
+        return response()->json(['ok' => true, 'aktif' => $yeniDeger === 1]);
+    }
+
+    public function whatsappPaketDurumApi(Request $request, $salonId)
+    {
+        $salon = Salonlar::find($salonId);
+        if (!$salon) return response()->json(['error' => 'salon-bulunamadi'], 404);
+
+        $bitis = $salon->whatsapp_paket_bitis;
+        $kalanGun = null;
+        if ($bitis) {
+            $kalanGun = max(0, Carbon::now()->diffInDays(Carbon::parse($bitis), false));
+        }
+        return response()->json([
+            'paket' => $salon->whatsapp_paket ?: 'baslangic',
+            'periyot' => $salon->whatsapp_paket_periyot,
+            'baslangic' => optional($salon->whatsapp_paket_baslangic)->format('Y-m-d'),
+            'bitis' => optional($salon->whatsapp_paket_bitis)->format('Y-m-d'),
+            'deneme' => (bool) $salon->whatsapp_paket_deneme,
+            'kalan_gun' => $kalanGun,
+        ]);
+    }
+
+    public function whatsappPaketTalepApi(Request $request, $salonId)
+    {
+        $paket = $request->input('paket');
+        $periyot = $request->input('periyot');
+        $iletisim = trim((string) $request->input('iletisim', ''));
+
+        if (!in_array($paket, ['pro', 'premium'])) {
+            return response()->json(['error' => 'gecersiz-paket'], 400);
+        }
+        if (!in_array($periyot, ['aylik', 'yillik'])) {
+            return response()->json(['error' => 'gecersiz-periyot'], 400);
+        }
+
+        $salon = Salonlar::find($salonId);
+        if (!$salon) return response()->json(['error' => 'salon-bulunamadi'], 404);
+
+        try {
+            $bildirim = new Bildirimler();
+            $bildirim->aciklama = "PAKET YUKSELTME TALEBI - {$salon->salon_adi} (#{$salon->id}) -> "
+                . strtoupper($paket) . ' / ' . ucfirst($periyot)
+                . ' - Iletisim: ' . ($iletisim ?: '-');
+            $bildirim->salon_id = $salonId;
+            $bildirim->url = '/sistemyonetim/isletmedetay/' . $salonId;
+            $bildirim->tarih_saat = date('Y-m-d H:i:s');
+            $bildirim->okundu = false;
+            $bildirim->save();
+        } catch (\Throwable $e) {
+            Log::warning('Paket talep bildirimi yazilamadi: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'ok' => true,
+            'mesaj' => 'Talebiniz alindi. Musteri temsilcimiz en kisa surede iletisime gececek.',
         ]);
     }
 }
