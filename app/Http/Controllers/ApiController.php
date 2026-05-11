@@ -15,8 +15,6 @@ use App\CarkifelekCevirmeLoglari;
 use App\CarkifelekOdulleri;
 use App\CarkHatirlatmaAyarlari;
 use App\CarkHatirlatmaLoglari;
-use App\SalonSMSAyarlari;
-use App\Bildirimler;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use App\MailGonder;
@@ -22077,120 +22075,6 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             'google_review_esik_csat' => $salon->google_review_esik_csat ?? 4.5,
             'kotu_puan_uyari_esik_nps' => $salon->kotu_puan_uyari_esik_nps ?? 6,
             'kotu_puan_uyari_esik_csat' => $salon->kotu_puan_uyari_esik_csat ?? 3.0,
-        ]);
-    }
-
-    // ============================================================
-    // WHATSAPP API (mobil) — paket + kanal toggle (servis bagimsiz)
-    // ============================================================
-
-    public function whatsappKanalDurumApi(Request $request, $salonId)
-    {
-        try {
-            $ayar1 = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 1)->first();
-            $ayar6 = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 6)->first();
-
-            $aktif = false;
-            if ($ayar1 && Schema::hasColumn('salon_sms_ayarlari', 'whatsapp_musteri')) {
-                $aktif = $aktif || ((int) ($ayar1->whatsapp_musteri ?? 0) === 1);
-            }
-            if ($ayar6 && Schema::hasColumn('salon_sms_ayarlari', 'whatsapp_musteri')) {
-                $aktif = $aktif || ((int) ($ayar6->whatsapp_musteri ?? 0) === 1);
-            }
-
-            return response()->json([
-                'aktif' => $aktif,
-                'sms_aktif_aynigun' => $ayar1 ? ((int) ($ayar1->musteri ?? 0) === 1) : false,
-                'sms_aktif_24sa' => $ayar6 ? ((int) ($ayar6->musteri ?? 0) === 1) : false,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['aktif' => false, 'hata' => $e->getMessage()], 200);
-        }
-    }
-
-    public function whatsappKanalToggleApi(Request $request, $salonId)
-    {
-        try {
-            if (!Schema::hasColumn('salon_sms_ayarlari', 'whatsapp_musteri')) {
-                return response()->json(['ok' => false, 'mesaj' => 'whatsapp_musteri kolonu yok'], 200);
-            }
-            $yeniDeger = (int) $request->input('aktif', 0) === 1 ? 1 : 0;
-            foreach ([1, 6] as $ayarId) {
-                $ayar = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', $ayarId)->first();
-                if (!$ayar) {
-                    $ayar = new SalonSMSAyarlari();
-                    $ayar->salon_id = $salonId;
-                    $ayar->ayar_id = $ayarId;
-                    $ayar->musteri = 0;
-                    $ayar->personel = 0;
-                }
-                $ayar->whatsapp_musteri = $yeniDeger;
-                $ayar->save();
-            }
-            return response()->json(['ok' => true, 'aktif' => $yeniDeger === 1]);
-        } catch (\Exception $e) {
-            return response()->json(['ok' => false, 'hata' => $e->getMessage()], 500);
-        }
-    }
-
-    public function whatsappPaketDurumApi(Request $request, $salonId)
-    {
-        try {
-            $salon = Salonlar::find($salonId);
-            if (!$salon) return response()->json(['error' => 'salon-bulunamadi'], 404);
-
-            $bitis = $salon->whatsapp_paket_bitis ?? null;
-            $kalanGun = null;
-            if ($bitis) {
-                $kalanGun = max(0, Carbon::now()->diffInDays(Carbon::parse($bitis), false));
-            }
-            return response()->json([
-                'paket' => $salon->whatsapp_paket ?? 'baslangic',
-                'periyot' => $salon->whatsapp_paket_periyot ?? null,
-                'baslangic' => isset($salon->whatsapp_paket_baslangic) && $salon->whatsapp_paket_baslangic
-                    ? Carbon::parse($salon->whatsapp_paket_baslangic)->format('Y-m-d') : null,
-                'bitis' => $bitis ? Carbon::parse($bitis)->format('Y-m-d') : null,
-                'deneme' => isset($salon->whatsapp_paket_deneme) ? (bool) $salon->whatsapp_paket_deneme : false,
-                'kalan_gun' => $kalanGun,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['paket' => 'baslangic', 'hata' => $e->getMessage()], 200);
-        }
-    }
-
-    public function whatsappPaketTalepApi(Request $request, $salonId)
-    {
-        $paket = $request->input('paket');
-        $periyot = $request->input('periyot');
-        $iletisim = trim((string) $request->input('iletisim', ''));
-
-        if (!in_array($paket, ['pro', 'premium'])) {
-            return response()->json(['error' => 'gecersiz-paket'], 400);
-        }
-        if (!in_array($periyot, ['aylik', 'yillik'])) {
-            return response()->json(['error' => 'gecersiz-periyot'], 400);
-        }
-
-        $salon = Salonlar::find($salonId);
-        if (!$salon) return response()->json(['error' => 'salon-bulunamadi'], 404);
-
-        try {
-            $bildirim = new Bildirimler();
-            $bildirim->aciklama = "PAKET YUKSELTME TALEBI - " . ($salon->salon_adi ?? '') . " (#" . $salon->id . ") -> "
-                . strtoupper($paket) . ' / ' . ucfirst($periyot)
-                . ' - Iletisim: ' . ($iletisim ?: '-');
-            $bildirim->salon_id = $salonId;
-            $bildirim->url = '/sistemyonetim/isletmedetay/' . $salonId;
-            $bildirim->tarih_saat = date('Y-m-d H:i:s');
-            $bildirim->okundu = false;
-            $bildirim->save();
-        } catch (\Throwable $e) {
-            Log::warning('whatsappPaketTalep bildirim hatasi: ' . $e->getMessage());
-        }
-
-        return response()->json([
-            'ok' => true,
-            'mesaj' => 'Talebiniz alindi. Musteri temsilcimiz en kisa surede iletisime gececek.',
         ]);
     }
 }

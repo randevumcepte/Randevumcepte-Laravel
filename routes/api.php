@@ -69,12 +69,6 @@ Route::post('/carkAdmin/kupon-kullan/{salonId}','ApiController@carkKuponKullanAp
 Route::get('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaGetirApi');
 Route::post('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaKaydetApi');
 
-// WhatsApp (mobil) - parca 1: paket + kanal toggle (servis bagimsiz)
-Route::get('/whatsapp/kanal-durum/{salonId}','ApiController@whatsappKanalDurumApi');
-Route::post('/whatsapp/kanal-toggle/{salonId}','ApiController@whatsappKanalToggleApi');
-Route::get('/whatsapp/paket-durum/{salonId}','ApiController@whatsappPaketDurumApi');
-Route::post('/whatsapp/paket-talep/{salonId}','ApiController@whatsappPaketTalepApi');
-
 Route::get('/isletmepuani/{salonid}','ApiController@isletmepuani');
 Route::middleware('throttle:60,1')->group(function () {
     Route::post('/ajandaget/{salonid}/{olusturan}','ApiController@ajandagetir');
