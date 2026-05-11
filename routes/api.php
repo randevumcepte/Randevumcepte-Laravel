@@ -47,6 +47,17 @@ Route::post('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::get('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::post('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');
 Route::get('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');
+
+// Cark-i Felek Admin (mobil)
+Route::get('/carkAdmin/sistem/{salonId}','ApiController@carkSistemGetir');
+Route::post('/carkAdmin/dilim-kaydet/{salonId}','ApiController@carkDilimKaydet');
+Route::post('/carkAdmin/aktif-toggle/{salonId}','ApiController@carkAktifToggle');
+Route::get('/carkAdmin/kazananlar/{salonId}','ApiController@carkKazananlarApi');
+Route::post('/carkAdmin/kupon-dogrula/{salonId}','ApiController@carkKuponDogrulaApi');
+Route::post('/carkAdmin/kupon-kullan/{salonId}','ApiController@carkKuponKullanApi');
+Route::get('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaGetirApi');
+Route::post('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaKaydetApi');
+
 Route::get('/isletmepuani/{salonid}','ApiController@isletmepuani');
 Route::middleware('throttle:60,1')->group(function () {
     Route::post('/ajandaget/{salonid}/{olusturan}','ApiController@ajandagetir');

@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\Auth;
 use App\SalonSantralAyarlari;
 use App\AnketSablon;
 use App\AnketGonderim;
+use App\CarkifelekSistemi;
+use App\CarkifelekDilimleri;
+use App\CarkifelekCevirmeLoglari;
+use App\CarkifelekOdulleri;
+use App\CarkHatirlatmaAyarlari;
+use App\CarkHatirlatmaLoglari;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use App\MailGonder;
 use App\User;
@@ -21647,5 +21654,262 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             Log::warning('smsYonetimBakiye hata salon='.$salonid.' '.$e->getMessage());
         }
         return response()->json(['basarili'=>true,'kalan_sms'=>$kalanSms]);
+    }
+
+    // ============================================================
+    // CARK-I FELEK ADMIN API (mobil)
+    // ============================================================
+
+    public function carkSistemGetir(Request $request, $salonId)
+    {
+        try {
+            $cark = CarkifelekSistemi::where('salon_id', $salonId)->first();
+            if (!$cark) {
+                return response()->json([
+                    'basarili' => true,
+                    'sistem' => null,
+                    'dilimler' => [],
+                ]);
+            }
+
+            $hasTip   = Schema::hasColumn('carkifelek_dilimleri', 'tip');
+            $hasDeger = Schema::hasColumn('carkifelek_dilimleri', 'deger');
+
+            $dilimler = CarkifelekDilimleri::where('cark_id', $cark->id)
+                ->orderBy('sira', 'asc')
+                ->get()
+                ->map(function ($d) use ($hasTip, $hasDeger) {
+                    return [
+                        'id'          => $d->id,
+                        'name'        => $d->dilim_ismi,
+                        'probability' => (int) $d->dilim_olasilik,
+                        'color'       => $d->renk_kodu,
+                        'tip'         => $hasTip ? ($d->tip ?? 'bos') : 'bos',
+                        'deger'       => $hasDeger && $d->deger !== null ? (float) $d->deger : null,
+                        'kupon_mu'    => (int) $d->kupon_mu,
+                        'sira'        => (int) $d->sira,
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'basarili' => true,
+                'sistem' => ['id' => $cark->id, 'aktifmi' => (int) $cark->aktifmi],
+                'dilimler' => $dilimler,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('API carkSistemGetir: ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
+        }
+    }
+
+    public function carkDilimKaydet(Request $request, $salonId)
+    {
+        try {
+            $dilimler = $request->input('dilimler', []);
+            if (is_string($dilimler)) $dilimler = json_decode($dilimler, true);
+            if (!is_array($dilimler) || count($dilimler) < 6) {
+                return response()->json(['basarili' => false, 'mesaj' => 'En az 6 dilim olmalidir'], 422);
+            }
+
+            $cleaned = [];
+            $total = 0;
+            foreach ($dilimler as $i => $d) {
+                $prob = (int) round((float) ($d['probability'] ?? 0));
+                if ($prob < 0 || $prob > 100) {
+                    return response()->json(['basarili' => false, 'mesaj' => 'Gecersiz olasilik degeri'], 422);
+                }
+                $total += $prob;
+                $validTips = ['puan', 'hizmet_indirimi', 'urun_indirimi', 'tekrar_dene', 'bos'];
+                $tip = isset($d['tip']) && in_array($d['tip'], $validTips) ? $d['tip'] : 'bos';
+                $deger = in_array($tip, ['puan', 'hizmet_indirimi', 'urun_indirimi'])
+                    ? (isset($d['deger']) && $d['deger'] !== null ? (float) $d['deger'] : null)
+                    : null;
+                $kupon = in_array($tip, ['hizmet_indirimi', 'urun_indirimi']) ? 1 : 0;
+                $cleaned[] = [
+                    'name' => $d['name'] ?? ('Odul ' . ($i + 1)),
+                    'color' => $d['color'] ?? '#6c5ce7',
+                    'probability' => $prob,
+                    'tip' => $tip,
+                    'deger' => $deger,
+                    'kupon_mu' => $kupon,
+                ];
+            }
+
+            $kazanan = collect($cleaned)->where('probability', 100)->count();
+            if ($kazanan !== 1 || $total !== 100) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Tam olarak bir dilimi kazanan secin (100), digerleri 0'], 422);
+            }
+
+            $cark = CarkifelekSistemi::where('salon_id', $salonId)->first();
+            if (!$cark) {
+                $cark = CarkifelekSistemi::create([
+                    'salon_id' => $salonId,
+                    'aktifmi' => (int) $request->input('aktifmi', 1),
+                ]);
+            } else {
+                $cark->aktifmi = (int) $request->input('aktifmi', $cark->aktifmi);
+                $cark->save();
+            }
+
+            $hasTip   = Schema::hasColumn('carkifelek_dilimleri', 'tip');
+            $hasDeger = Schema::hasColumn('carkifelek_dilimleri', 'deger');
+
+            CarkifelekDilimleri::where('cark_id', $cark->id)->delete();
+            foreach ($cleaned as $i => $d) {
+                $row = [
+                    'cark_id'        => $cark->id,
+                    'dilim_ismi'     => $d['name'],
+                    'dilim_olasilik' => $d['probability'],
+                    'renk_kodu'      => $d['color'],
+                    'kupon_mu'       => $d['kupon_mu'],
+                    'sira'           => $i + 1,
+                ];
+                if ($hasTip)   $row['tip']   = $d['tip'];
+                if ($hasDeger) $row['deger'] = $d['deger'];
+                CarkifelekDilimleri::create($row);
+            }
+
+            return response()->json(['basarili' => true]);
+        } catch (\Exception $e) {
+            Log::error('API carkDilimKaydet: ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
+        }
+    }
+
+    public function carkAktifToggle(Request $request, $salonId)
+    {
+        $cark = CarkifelekSistemi::where('salon_id', $salonId)->first();
+        if (!$cark) return response()->json(['basarili' => false, 'mesaj' => 'Cark sistemi bulunamadi'], 404);
+        $cark->aktifmi = $request->input('aktifmi') ? 1 : 0;
+        $cark->save();
+        return response()->json(['basarili' => true, 'aktifmi' => (int) $cark->aktifmi]);
+    }
+
+    public function carkKazananlarApi(Request $request, $salonId)
+    {
+        $filtre = $request->query('filtre', $request->input('filtre', 'tumu'));
+
+        $loglar = CarkifelekCevirmeLoglari::where('salon_id', $salonId)
+            ->orderByDesc('created_at')
+            ->limit(500)
+            ->get();
+
+        $q = CarkifelekOdulleri::where('salon_id', $salonId);
+        if ($filtre === 'gecerli') {
+            $q->where('kullanildi', 0)
+              ->where(function ($w) {
+                  $w->whereNull('gecerlilik_tarihi')->orWhere('gecerlilik_tarihi', '>=', now()->toDateString());
+              });
+        } elseif ($filtre === 'kullanildi') {
+            $q->where('kullanildi', 1);
+        } elseif ($filtre === 'sure_doldu') {
+            $q->where('kullanildi', 0)->whereNotNull('gecerlilik_tarihi')->where('gecerlilik_tarihi', '<', now()->toDateString());
+        }
+        $odulluler = $q->orderByDesc('created_at')->limit(500)->get();
+
+        $userIds = $loglar->pluck('user_id')->merge($odulluler->pluck('user_id'))->unique()->filter();
+        $users = User::whereIn('id', $userIds)->get()->keyBy('id')->map(function ($u) {
+            return ['id' => $u->id, 'name' => $u->name, 'telefon' => $u->cep_telefon ?? $u->telefon ?? null];
+        });
+
+        $ozet = [
+            'toplam_cevirme' => CarkifelekCevirmeLoglari::where('salon_id', $salonId)->count(),
+            'bugun_cevirme'  => CarkifelekCevirmeLoglari::where('salon_id', $salonId)->whereDate('created_at', now()->toDateString())->count(),
+            'kullanilmamis'  => CarkifelekOdulleri::where('salon_id', $salonId)->where('kullanildi', 0)->count(),
+            'kullanilmis'    => CarkifelekOdulleri::where('salon_id', $salonId)->where('kullanildi', 1)->count(),
+        ];
+
+        return response()->json([
+            'basarili' => true,
+            'loglar' => $loglar,
+            'odulluler' => $odulluler,
+            'users' => $users,
+            'ozet' => $ozet,
+            'filtre' => $filtre,
+        ]);
+    }
+
+    public function carkKuponDogrulaApi(Request $request, $salonId)
+    {
+        $kod = strtoupper(trim((string) $request->input('kod', '')));
+        if ($kod === '') return response()->json(['basarili' => false, 'mesaj' => 'Kod bos olamaz'], 422);
+
+        $odul = CarkifelekOdulleri::where('kod', $kod)->first();
+        if (!$odul) return response()->json(['basarili' => false, 'mesaj' => 'Bu kod sisteme kayitli degil'], 404);
+        if ((int) $odul->salon_id !== (int) $salonId) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Bu kupon baska bir salona ait'], 403);
+        }
+
+        $user = User::find($odul->user_id);
+        $gecmis = $odul->gecerlilik_tarihi && Carbon::parse($odul->gecerlilik_tarihi)->isPast();
+        $durum = $odul->kullanildi ? 'kullanildi' : ($gecmis ? 'sure_doldu' : 'gecerli');
+
+        return response()->json([
+            'basarili' => true,
+            'odul' => [
+                'id'              => $odul->id,
+                'kod'             => $odul->kod,
+                'baslik'          => $odul->baslik,
+                'tip'             => $odul->tip,
+                'deger'           => $odul->deger,
+                'musteri_adi'     => $user->name ?? ('#' . $odul->user_id),
+                'musteri_tel'     => $user->cep_telefon ?? ($user->telefon ?? null),
+                'kazanma_tarihi'  => $odul->created_at ? $odul->created_at->format('d.m.Y H:i') : null,
+                'gecerlilik'      => $odul->gecerlilik_tarihi ? Carbon::parse($odul->gecerlilik_tarihi)->format('d.m.Y') : 'Suresiz',
+                'kullanildi'      => (int) $odul->kullanildi,
+                'kullanim_tarihi' => $odul->kullanim_tarihi ? Carbon::parse($odul->kullanim_tarihi)->format('d.m.Y H:i') : null,
+                'durum'           => $durum,
+            ],
+        ]);
+    }
+
+    public function carkKuponKullanApi(Request $request, $salonId)
+    {
+        $odulId = (int) $request->input('odul_id');
+        $aksiyon = $request->input('aksiyon', 'kullan');
+        $odul = CarkifelekOdulleri::where('id', $odulId)->where('salon_id', $salonId)->first();
+        if (!$odul) return response()->json(['basarili' => false, 'mesaj' => 'Odul bulunamadi'], 404);
+
+        if ($aksiyon === 'geri_al') {
+            $odul->kullanildi = 0;
+            $odul->kullanim_tarihi = null;
+        } else {
+            $odul->kullanildi = 1;
+            $odul->kullanim_tarihi = now();
+        }
+        $odul->save();
+
+        return response()->json([
+            'basarili' => true,
+            'kullanildi' => (int) $odul->kullanildi,
+            'kullanim_tarihi' => $odul->kullanim_tarihi ? $odul->kullanim_tarihi->format('d.m.Y H:i') : null,
+        ]);
+    }
+
+    public function carkHatirlatmaGetirApi(Request $request, $salonId)
+    {
+        $a = CarkHatirlatmaAyarlari::firstOrCreate(['salon_id' => $salonId]);
+        $bugun = CarkHatirlatmaLoglari::where('salon_id', $salonId)
+            ->whereDate('tarih', now()->toDateString())->count();
+        return response()->json(['basarili' => true, 'ayar' => $a, 'bugun' => $bugun]);
+    }
+
+    public function carkHatirlatmaKaydetApi(Request $request, $salonId)
+    {
+        $a = CarkHatirlatmaAyarlari::firstOrNew(['salon_id' => $salonId]);
+        $a->aktif     = (int) $request->input('aktif', 0);
+        $a->saat_1    = $request->input('saat_1', '10:00');
+        $a->saat_2    = $request->input('saat_2', '15:00');
+        $a->saat_3    = $request->input('saat_3', '20:00');
+        $a->saat_son  = $request->input('saat_son', '22:30');
+        $a->mesaj_1   = trim((string) $request->input('mesaj_1', ''));
+        $a->mesaj_2   = trim((string) $request->input('mesaj_2', ''));
+        $a->mesaj_3   = trim((string) $request->input('mesaj_3', ''));
+        $a->mesaj_son = trim((string) $request->input('mesaj_son', ''));
+        $gun = $request->input('gonderim_gunleri');
+        $a->gonderim_gunleri = is_array($gun) ? $gun : (is_string($gun) && $gun ? json_decode($gun, true) : null);
+        $a->save();
+        return response()->json(['basarili' => true]);
     }
 }
