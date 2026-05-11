@@ -82,6 +82,7 @@ class Kernel extends HttpKernel
         'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
         'ai.sidecar' => \App\Http\Middleware\AiSidecarAuth::class,
+        'salonappy.cors' => \App\Http\Middleware\SalonappyImportCors::class,
 
     ];
 }

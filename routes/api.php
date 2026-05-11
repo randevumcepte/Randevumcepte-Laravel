@@ -268,13 +268,15 @@ Route::post('/bildirimkimligiekleguncelle','ApiController@bildirimkimligieklegun
     Route::post('/drKlinikSatisHizmetEkle','ApiController@drKlinikSatisHizmetEkle');
     Route::post('/drKlinikTahsilatEkle','ApiController@drKlinikTahsilatEkle');
     Route::post('/topluHizmetAktar','ApiController@topluHizmetAktar');
-    Route::post('/aktarimMusteriKontrol','ApiController@aktarimMusteriKontrol');
-    Route::post('/salonAppyRandevuAktar','ApiController@salonAppyRandevuAktar');
-    Route::get('/ayristirmaDeneme','ApiController@ayristirmaDeneme');
-    Route::post('/salonAppyPaketSatisEkle','ApiController@salonAppyPaketSatisEkle');
-    Route::post('/satissisTahsilat','ApiController@satissisTahsilat');
-    Route::post('/salonAppyAdisyonRandevuEkle','ApiController@salonAppyAdisyonRandevuEkle');
-    Route::post('/salonAppyTahsilatEkle','ApiController@salonAppyTahsilatEkle');
+    Route::middleware('salonappy.cors')->group(function () {
+        Route::match(['post','options'], '/aktarimMusteriKontrol','ApiController@aktarimMusteriKontrol');
+        Route::match(['post','options'], '/salonAppyRandevuAktar','ApiController@salonAppyRandevuAktar');
+        Route::get('/ayristirmaDeneme','ApiController@ayristirmaDeneme');
+        Route::match(['post','options'], '/salonAppyPaketSatisEkle','ApiController@salonAppyPaketSatisEkle');
+        Route::match(['post','options'], '/satissisTahsilat','ApiController@satissisTahsilat');
+        Route::match(['post','options'], '/salonAppyAdisyonRandevuEkle','ApiController@salonAppyAdisyonRandevuEkle');
+        Route::match(['post','options'], '/salonAppyTahsilatEkle','ApiController@salonAppyTahsilatEkle');
+    });
     Route::get('/randevuIcinGerekliVeriler','ApiController@randevuIcinGerekliVeriler');
     Route::post('/randevuIcinGerekliVeriler','ApiController@randevuIcinGerekliVeriler');
     Route::post('/voipTokenKaydet','ApiController@voipTokenKaydet');
