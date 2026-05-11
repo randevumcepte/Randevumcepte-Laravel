@@ -4628,26 +4628,36 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $trend[] = (int) $count;
         }
 
-        // Reputation Booster premium istatistikleri (kolon yoksa 0)
-        $googleTiklamalar = 0;
-        $kotuPuanUyarilari = 0;
-        if (Schema::hasColumn('anket_gonderimleri', 'google_yonlendirildi')) {
-            $googleTiklamalar = (int) (clone $base)->where('cevaplandi', 1)->where('google_yonlendirildi', 1)->count();
-        }
-        if (Schema::hasColumn('anket_gonderimleri', 'kotu_puan_uyari_gonderildi')) {
-            $kotuPuanUyarilari = (int) (clone $base)->where('cevaplandi', 1)->where('kotu_puan_uyari_gonderildi', 1)->count();
-        }
-
-        // Salon premium aktif mi (kolon yoksa false)
+        // Reputation Booster: esik degerleri salon ayarlarindan al
+        $esikNps = 6;
+        $esikCsat = 2.5;
         $premiumAktif = false;
         $googleUrlVar = false;
         if (Schema::hasColumn('salonlar', 'reputation_premium_aktif')) {
-            $s = Salonlar::where('id', $salonId)->first(['reputation_premium_aktif', 'google_review_url']);
+            $s = Salonlar::where('id', $salonId)->first(['reputation_premium_aktif', 'google_review_url', 'kotu_puan_uyari_esik_nps', 'kotu_puan_uyari_esik_csat']);
             if ($s) {
                 $premiumAktif = (bool) ($s->reputation_premium_aktif ?? false);
                 $googleUrlVar = !empty($s->google_review_url);
+                if (isset($s->kotu_puan_uyari_esik_nps)) $esikNps = (int) $s->kotu_puan_uyari_esik_nps;
+                if (isset($s->kotu_puan_uyari_esik_csat)) $esikCsat = (float) $s->kotu_puan_uyari_esik_csat;
             }
         }
+
+        // Google tiklayan: flag set edilenler (yonlendirme gercek olarak yapildi)
+        $googleTiklamalar = 0;
+        if (Schema::hasColumn('anket_gonderimleri', 'google_yonlendirildi')) {
+            $googleTiklamalar = (int) (clone $base)->where('cevaplandi', 1)->where('google_yonlendirildi', 1)->count();
+        }
+
+        // Dusuk puan veren: esik altinda NPS veya CSAT — flag bagimsiz (gercek dusuk puan sayisi)
+        $kotuPuanUyarilari = (int) (clone $base)->where('cevaplandi', 1)
+            ->where(function ($q) use ($esikNps, $esikCsat) {
+                $q->where(function ($q2) use ($esikNps) {
+                    $q2->whereNotNull('nps_skoru')->where('nps_skoru', '<=', $esikNps);
+                })->orWhere(function ($q2) use ($esikCsat) {
+                    $q2->whereNotNull('csat_skoru')->where('csat_skoru', '<=', $esikCsat);
+                });
+            })->count();
 
         return response()->json([
             'gun' => $gun,
@@ -4686,8 +4696,24 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         if ($filtre === 'google_tiklayan' && Schema::hasColumn('anket_gonderimleri', 'google_yonlendirildi')) {
             $q->where('cevaplandi', 1)->where('google_yonlendirildi', 1);
-        } elseif ($filtre === 'kotu_puan' && Schema::hasColumn('anket_gonderimleri', 'kotu_puan_uyari_gonderildi')) {
-            $q->where('cevaplandi', 1)->where('kotu_puan_uyari_gonderildi', 1);
+        } elseif ($filtre === 'kotu_puan') {
+            // Esik altinda puan verenler (flag bagimsiz)
+            $esikNps = 6;
+            $esikCsat = 2.5;
+            if (Schema::hasColumn('salonlar', 'kotu_puan_uyari_esik_nps')) {
+                $s = Salonlar::where('id', $salonId)->first(['kotu_puan_uyari_esik_nps', 'kotu_puan_uyari_esik_csat']);
+                if ($s) {
+                    if (isset($s->kotu_puan_uyari_esik_nps)) $esikNps = (int) $s->kotu_puan_uyari_esik_nps;
+                    if (isset($s->kotu_puan_uyari_esik_csat)) $esikCsat = (float) $s->kotu_puan_uyari_esik_csat;
+                }
+            }
+            $q->where('cevaplandi', 1)->where(function ($q2) use ($esikNps, $esikCsat) {
+                $q2->where(function ($q3) use ($esikNps) {
+                    $q3->whereNotNull('nps_skoru')->where('nps_skoru', '<=', $esikNps);
+                })->orWhere(function ($q3) use ($esikCsat) {
+                    $q3->whereNotNull('csat_skoru')->where('csat_skoru', '<=', $esikCsat);
+                });
+            });
         } elseif ($filtre === 'cevapli' || $sadeceCevap) {
             $q->where('cevaplandi', 1);
         }

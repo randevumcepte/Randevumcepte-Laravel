@@ -965,37 +965,43 @@ function googleAyarKaydet(){
 }
 
 // ============= Reputation Booster - Google/Kotu Puan kisi listesi modal'i =============
+@php
+   $esikNpsK = $salon->kotu_puan_uyari_esik_nps ?? 6;
+   $esikCsatK = $salon->kotu_puan_uyari_esik_csat ?? 2.5;
+   $cevaplilar = $gonderimler->where('cevaplandi', 1);
+
+   $repGoogle = $cevaplilar->filter(function($g){
+      return !empty($g->google_yonlendirildi);
+   })->map(function($g){
+      return [
+         'ad' => $g->ad_soyad ?: 'Müşteri',
+         'tel' => $g->telefon ?: '',
+         'tarih' => $g->cevap_zamani ? \Carbon\Carbon::parse($g->cevap_zamani)->format('d.m.Y H:i') : '',
+         'nps' => $g->nps_skoru,
+         'csat' => $g->csat_skoru,
+         'yorum' => $g->genel_yorum,
+      ];
+   })->values();
+
+   // Dusuk puan veren (esik altinda) — flag bagimsiz, gercek dusuk puan sayisi
+   $repKotu = $cevaplilar->filter(function($g) use ($esikNpsK, $esikCsatK) {
+      $npsDusuk = $g->nps_skoru !== null && $g->nps_skoru <= $esikNpsK;
+      $csatDusuk = $g->csat_skoru !== null && $g->csat_skoru <= $esikCsatK;
+      return $npsDusuk || $csatDusuk;
+   })->map(function($g){
+      return [
+         'ad' => $g->ad_soyad ?: 'Müşteri',
+         'tel' => $g->telefon ?: '',
+         'tarih' => $g->cevap_zamani ? \Carbon\Carbon::parse($g->cevap_zamani)->format('d.m.Y H:i') : '',
+         'nps' => $g->nps_skoru,
+         'csat' => $g->csat_skoru,
+         'yorum' => $g->genel_yorum,
+      ];
+   })->values();
+@endphp
 const reputasyonVeri = {
-   google: @json(
-      $gonderimler
-         ->where('cevaplandi', 1)
-         ->filter(function($g){ return !empty($g->google_yonlendirildi); })
-         ->map(function($g){
-            return [
-               'ad' => $g->ad_soyad ?: 'Müşteri',
-               'tel' => $g->telefon ?: '',
-               'tarih' => $g->cevap_zamani ? \Carbon\Carbon::parse($g->cevap_zamani)->format('d.m.Y H:i') : '',
-               'nps' => $g->nps_skoru,
-               'csat' => $g->csat_skoru,
-               'yorum' => $g->genel_yorum,
-            ];
-         })->values()
-   ),
-   kotu: @json(
-      $gonderimler
-         ->where('cevaplandi', 1)
-         ->filter(function($g){ return !empty($g->kotu_puan_uyari_gonderildi); })
-         ->map(function($g){
-            return [
-               'ad' => $g->ad_soyad ?: 'Müşteri',
-               'tel' => $g->telefon ?: '',
-               'tarih' => $g->cevap_zamani ? \Carbon\Carbon::parse($g->cevap_zamani)->format('d.m.Y H:i') : '',
-               'nps' => $g->nps_skoru,
-               'csat' => $g->csat_skoru,
-               'yorum' => $g->genel_yorum,
-            ];
-         })->values()
-   )
+   google: {!! json_encode($repGoogle) !!},
+   kotu: {!! json_encode($repKotu) !!}
 };
 
 function reputasyonListeAc(tip) {

@@ -24293,7 +24293,14 @@ DB::raw('
 
         // Premium istatistikler
         $googleTiklamalar = $cevaplananlar->filter(function($g){ return $g->google_yonlendirildi; })->count();
-        $kotuPuanUyarilari = $cevaplananlar->filter(function($g){ return $g->kotu_puan_uyari_gonderildi; })->count();
+        // Dusuk puan veren: esik altinda NPS veya CSAT (flag bagimsiz, gercek sayi)
+        $esikNpsK = $isletme->kotu_puan_uyari_esik_nps ?? 6;
+        $esikCsatK = $isletme->kotu_puan_uyari_esik_csat ?? 2.5;
+        $kotuPuanUyarilari = $cevaplananlar->filter(function($g) use ($esikNpsK, $esikCsatK){
+            $npsDusuk = $g->nps_skoru !== null && $g->nps_skoru <= $esikNpsK;
+            $csatDusuk = $g->csat_skoru !== null && $g->csat_skoru <= $esikCsatK;
+            return $npsDusuk || $csatDusuk;
+        })->count();
 
         return view('isletmeadmin.anket_sonuclari',[
             'bildirimler' => self::bildirimgetir($request),
