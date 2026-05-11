@@ -449,9 +449,9 @@
                      <td style="text-align:center; font-size:12.5px;">
                         @if($s->otomatik_gonder)
                            @if($s->gonder_saat_sonra == 0)
-                              <i class="fa fa-bolt" style="color:#10b981;"></i> Randevu biter bitmez
+                              <i class="fa fa-bolt" style="color:#10b981;"></i> Hizmet süresi sonunda SMS gider
                            @else
-                              <i class="fa fa-clock-o" style="color:#10b981;"></i> Bitisten {{$s->gonder_saat_sonra}} sa sonra
+                              <i class="fa fa-clock-o" style="color:#10b981;"></i> Hizmet bitiminden {{$s->gonder_saat_sonra}} sa sonra
                            @endif
                         @else
                            <span style="color:#8a8295;">Manuel</span>
@@ -538,9 +538,9 @@
                   <div style="background:#fbfafd; border:1px solid #dfd6ea; border-radius:7px; padding:8px 11px;">
                      <label style="margin:0; cursor:pointer; font-size:12.5px; color:#3a1a52; text-transform:none; letter-spacing:0;">
                         <input type="checkbox" id="anket_otomatik" style="transform:scale(1.1); margin-right:7px; accent-color:#5C008E;">
-                        Randevu bitiminde otomatik gönder
+                        Hizmet süresi sonunda SMS gönder
                      </label>
-                     <div style="font-size:10.5px; color:#8a8295; margin-top:3px;">Hizmet süresi tamamlanır tamamlanmaz SMS gider</div>
+                     <div style="font-size:10.5px; color:#8a8295; margin-top:3px;">Randevu bittiği anda müşteriye anket linki gider</div>
                   </div>
                </div>
                <div class="col-md-3 form-group">
