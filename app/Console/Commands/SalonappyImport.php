@@ -113,20 +113,28 @@ class SalonappyImport extends Command
         if (!is_array($j) || !isset($j['clients'])) { $this->error('Gecersiz JSON.'); return 1; }
         $clients = $j['clients'];
         $bookings = $j['bookings'] ?? [];
-        $this->line('Clients: ' . count($clients) . ', Bookings users: ' . count($bookings));
+        $clientDetails = $j['clientDetails'] ?? [];  // notlari icerir
+        $bookingDetails = $j['bookingDetails'] ?? []; // randevu notlari + tam hizmet bilgisi
+        $this->line('Clients: ' . count($clients) . ', Bookings users: ' . count($bookings) . ', ClientDetails: ' . count($clientDetails) . ', BookingDetails: ' . count($bookingDetails));
 
         $apiController = app(\App\Http\Controllers\ApiController::class);
 
         // 1) Musteri aktarimi
         $idMap = []; $musteriEklenen = 0; $musteriHata = 0;
         foreach ($clients as $idx => $c) {
+            // clientDetails varsa oradan notları al (daha zengin); yoksa list'teki
+            $cd = $clientDetails[$c['id']] ?? null;
+            $notes = $this->pickFirst($cd, ['notes','note','client_note','description']) ?? ($c['notes'] ?? '');
+            $birthdate = $this->pickFirst($cd, ['birthdate','birth_date','dogum_tarihi']) ?? ($c['birthdate'] ?? '');
+            $email = $this->pickFirst($cd, ['email']) ?? ($c['email'] ?? '');
+
             $payload = [
                 'musteriAdi'   => $c['name'] ?? '',
                 'telefon'      => $c['phone_number_local'] ?? $c['phone_number'] ?? '',
-                'ePosta'       => $c['email'] ?? '',
-                'dogumTarihi'  => $c['birthdate'] ?? '',
+                'ePosta'       => $email,
+                'dogumTarihi'  => $birthdate,
                 'cinsiyet'     => $c['gender_text'] ?? '',
-                'notlar'       => $c['notes'] ?? '',
+                'notlar'       => $notes,
                 'medeniDurum'  => '', 'meslek' => '', 'adres' => '',
                 'kayitTarihi'  => $c['created_at'] ?? '',
                 'salonId'      => $salonId,
@@ -186,8 +194,28 @@ class SalonappyImport extends Command
                         ->exists();
                     if ($sameTime) { $randevuDedup++; continue; }
 
-                    $hizmetler = $this->parseSalonappyServicesStaff($b['services_staff_text'] ?? '', $b['total_amount'] ?? 0);
-                    $urunler   = $this->parseSalonappyProducts($b['products_text'] ?? '');
+                    // Detay varsa zengin hizmet/urun/notes
+                    $bd = $bookingDetails[$session] ?? null;
+                    $detail = $bd['detail'] ?? null;
+                    $sess   = $bd['session'] ?? null;
+
+                    // Randevu notu (varsa detail veya session'dan)
+                    $randevuNotu = $this->pickFirst($detail, ['note','notes','client_note','customer_note'])
+                                ?: $this->pickFirst($sess, ['note','notes','client_note','customer_note'])
+                                ?: '';
+
+                    // Hizmetler: detail/session'dan zengin liste, yoksa text'ten parse
+                    $hizmetler = $this->extractServicesFromDetail($detail, $sess);
+                    if (empty($hizmetler)) {
+                        $hizmetler = $this->parseSalonappyServicesStaff($b['services_staff_text'] ?? '', $b['total_amount'] ?? 0);
+                    }
+                    $urunler = $this->extractProductsFromDetail($detail, $sess);
+                    if (empty($urunler)) {
+                        $urunler = $this->parseSalonappyProducts($b['products_text'] ?? '');
+                    }
+
+                    $finalNotlar = trim(($randevuNotu ? $randevuNotu . ' ' : '') . '[salonappy:' . $session . ']');
+
                     $payload = [
                         'userId'       => $userId,
                         'salonId'      => $salonId,
@@ -197,7 +225,7 @@ class SalonappyImport extends Command
                         'durum'        => $b['status_text'] ?? '',
                         'olusturan'    => $b['created_by'] ?? '',
                         'olusturulma'  => $b['created_at'] ?? '',
-                        'notlar'       => '[salonappy:' . $session . ']',
+                        'notlar'       => $finalNotlar,
                         'hizmetler'    => $hizmetler,
                         'urunler'      => $urunler,
                     ];
@@ -241,6 +269,83 @@ class SalonappyImport extends Command
         }
         $this->info("Randevu aktarimi: eklenen={$randevuEklenen}, dedup={$randevuDedup}, atlanan={$randevuAtlanan}, tahsilat={$tahsilatEklenen}");
         return 0;
+    }
+
+    private function pickFirst($obj, $keys)
+    {
+        if (!is_array($obj)) return null;
+        foreach ($keys as $k) {
+            if (isset($obj[$k]) && $obj[$k] !== '' && $obj[$k] !== null) return $obj[$k];
+        }
+        return null;
+    }
+
+    /**
+     * booking/detail veya booking/session response'unda hizmet listesi.
+     * Salonappy yapisi tam bilinmiyor, yaygin alan adlari deneniyor.
+     */
+    private function extractServicesFromDetail($detail, $session)
+    {
+        $candidates = [];
+        foreach ([$detail, $session] as $src) {
+            if (!is_array($src)) continue;
+            foreach (['services', 'service_list', 'items', 'service_items', 'lines', 'service_staff'] as $k) {
+                if (isset($src[$k]) && is_array($src[$k]) && !empty($src[$k])) {
+                    $candidates = $src[$k];
+                    break 2;
+                }
+            }
+        }
+        $out = [];
+        foreach ($candidates as $s) {
+            if (!is_array($s)) continue;
+            $hizmetAd = $this->pickFirst($s, ['service_name','name','service_title','title','hizmet_adi']) ?: '';
+            $personelAd = $this->pickFirst($s, ['staff_name','employee_name','staff','personel','employee','personel_adi']) ?: '';
+            $fiyat = $this->pickFirst($s, ['price','amount','total','fiyat','total_price']) ?: 0;
+            $sure = $this->pickFirst($s, ['duration','duration_min','sure','sure_dk','duration_minutes']) ?: 30;
+            $hizmetNotu = $this->pickFirst($s, ['note','notes','staff_note']) ?: '';
+            if ($hizmetAd) {
+                $out[] = [
+                    'hizmet'   => $hizmetAd,
+                    'personel' => $personelAd,
+                    'fiyat'    => (float) $fiyat,
+                    'sureDk'   => (int) $sure,
+                    'notlar'   => $hizmetNotu,
+                ];
+            }
+        }
+        return $out;
+    }
+
+    private function extractProductsFromDetail($detail, $session)
+    {
+        $candidates = [];
+        foreach ([$detail, $session] as $src) {
+            if (!is_array($src)) continue;
+            foreach (['products', 'product_list', 'product_items'] as $k) {
+                if (isset($src[$k]) && is_array($src[$k]) && !empty($src[$k])) {
+                    $candidates = $src[$k];
+                    break 2;
+                }
+            }
+        }
+        $out = [];
+        foreach ($candidates as $p) {
+            if (!is_array($p)) continue;
+            $urunAd = $this->pickFirst($p, ['product_name','name','title','urun_adi']) ?: '';
+            $personelAd = $this->pickFirst($p, ['staff_name','employee_name','staff','personel']) ?: '';
+            $fiyat = $this->pickFirst($p, ['price','amount','total','fiyat']) ?: 0;
+            $adet = $this->pickFirst($p, ['quantity','qty','adet','count']) ?: 1;
+            if ($urunAd) {
+                $out[] = [
+                    'urun'     => $urunAd,
+                    'personel' => $personelAd,
+                    'fiyat'    => (float) $fiyat,
+                    'adet'     => (int) $adet,
+                ];
+            }
+        }
+        return $out;
     }
 
     /**
