@@ -167,13 +167,21 @@
             @endif
          </div>
       </div>
-      <div style="background:#fff; border:1px solid #ece6f3; border-radius:8px; padding:10px 14px;">
-         <div style="font-size:10.5px; color:#8a8295; font-weight:600; text-transform:uppercase; letter-spacing:.4px;">Google'a Yönlendirilen</div>
+      <div onclick="reputasyonListeAc('google')" title="Google'a tıklayan müşteriler — teşekkür edebilirsiniz" style="background:#fff; border:1px solid #ece6f3; border-radius:8px; padding:10px 14px; cursor:pointer; transition:transform .15s, box-shadow .15s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(26,115,232,.15)';" onmouseout="this.style.transform='';this.style.boxShadow='';">
+         <div style="font-size:10.5px; color:#8a8295; font-weight:600; text-transform:uppercase; letter-spacing:.4px;">
+            <i class="fa fa-thumbs-up" style="color:#10b981; margin-right:4px;"></i> Google'a Yönlendirilen
+            <i class="fa fa-chevron-right" style="font-size:9px; opacity:.5; float:right; margin-top:3px;"></i>
+         </div>
          <div style="font-size:18px; font-weight:800; color:#1A73E8; margin-top:1px;">{{ $google_tiklamalar }}</div>
+         <div style="font-size:10px; color:#8a8295;">Listeyi görmek için tıklayın</div>
       </div>
-      <div style="background:#fff; border:1px solid #ece6f3; border-radius:8px; padding:10px 14px;">
-         <div style="font-size:10.5px; color:#8a8295; font-weight:600; text-transform:uppercase; letter-spacing:.4px;">Düşük Puan Uyarısı</div>
+      <div onclick="reputasyonListeAc('kotu')" title="Kötü puan veren müşteriler — özür dileyebilirsiniz" style="background:#fff; border:1px solid #ece6f3; border-radius:8px; padding:10px 14px; cursor:pointer; transition:transform .15s, box-shadow .15s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(239,68,68,.15)';" onmouseout="this.style.transform='';this.style.boxShadow='';">
+         <div style="font-size:10.5px; color:#8a8295; font-weight:600; text-transform:uppercase; letter-spacing:.4px;">
+            <i class="fa fa-exclamation-triangle" style="color:#ef4444; margin-right:4px;"></i> Düşük Puan Uyarısı
+            <i class="fa fa-chevron-right" style="font-size:9px; opacity:.5; float:right; margin-top:3px;"></i>
+         </div>
          <div style="font-size:18px; font-weight:800; color:#ef4444; margin-top:1px;">{{ $kotu_puan_uyarilari }}</div>
+         <div style="font-size:10px; color:#8a8295;">Listeyi görmek için tıklayın</div>
       </div>
       <div style="background:#fff; border:1px solid #ece6f3; border-radius:8px; padding:10px 14px;">
          <div style="font-size:10.5px; color:#8a8295; font-weight:600; text-transform:uppercase; letter-spacing:.4px;">Uyarı Telefonu</div>
@@ -955,5 +963,112 @@ function googleAyarKaydet(){
       alert('Sunucu hatası.');
    });
 }
+
+// ============= Reputation Booster - Google/Kotu Puan kisi listesi modal'i =============
+const reputasyonVeri = {
+   google: @json(
+      $gonderimler
+         ->where('cevaplandi', 1)
+         ->filter(function($g){ return !empty($g->google_yonlendirildi); })
+         ->map(function($g){
+            return [
+               'ad' => $g->ad_soyad ?: 'Müşteri',
+               'tel' => $g->telefon ?: '',
+               'tarih' => $g->cevap_zamani ? \Carbon\Carbon::parse($g->cevap_zamani)->format('d.m.Y H:i') : '',
+               'nps' => $g->nps_skoru,
+               'csat' => $g->csat_skoru,
+               'yorum' => $g->genel_yorum,
+            ];
+         })->values()
+   ),
+   kotu: @json(
+      $gonderimler
+         ->where('cevaplandi', 1)
+         ->filter(function($g){ return !empty($g->kotu_puan_uyari_gonderildi); })
+         ->map(function($g){
+            return [
+               'ad' => $g->ad_soyad ?: 'Müşteri',
+               'tel' => $g->telefon ?: '',
+               'tarih' => $g->cevap_zamani ? \Carbon\Carbon::parse($g->cevap_zamani)->format('d.m.Y H:i') : '',
+               'nps' => $g->nps_skoru,
+               'csat' => $g->csat_skoru,
+               'yorum' => $g->genel_yorum,
+            ];
+         })->values()
+   )
+};
+
+function reputasyonListeAc(tip) {
+   const liste = reputasyonVeri[tip] || [];
+   const baslik = tip === 'google'
+      ? '<i class="fa fa-thumbs-up" style="color:#10b981;"></i> Google\'a Yönlendirilen Müşteriler'
+      : '<i class="fa fa-exclamation-triangle" style="color:#ef4444;"></i> Düşük Puan Veren Müşteriler';
+   const renk = tip === 'google' ? '#10b981' : '#ef4444';
+   const aciklama = tip === 'google'
+      ? 'Bu müşteriler Google\'a yorum bırakmak için tıkladı. Teşekkür mesajı atabilirsiniz.'
+      : 'Bu müşteriler düşük puan verdi. Özür dileyip durumu telafi edebilirsiniz.';
+
+   let html = '';
+   if (liste.length === 0) {
+      html = '<div style="text-align:center; padding:50px 20px; color:#94a3b8;"><i class="fa fa-inbox" style="font-size:48px; color:#cbd5e1;"></i><p style="margin-top:14px; font-size:13px;">Bu kategoride kayıt yok.</p></div>';
+   } else {
+      html = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse;">';
+      html += '<thead><tr style="background:#faf5ff;">';
+      html += '<th style="padding:10px 14px; text-align:left; font-size:11px; color:#3a1a52; font-weight:700; text-transform:uppercase;">Müşteri</th>';
+      html += '<th style="padding:10px 14px; text-align:center; font-size:11px; color:#3a1a52; font-weight:700; text-transform:uppercase; width:80px;">NPS</th>';
+      html += '<th style="padding:10px 14px; text-align:center; font-size:11px; color:#3a1a52; font-weight:700; text-transform:uppercase; width:90px;">CSAT</th>';
+      html += '<th style="padding:10px 14px; text-align:left; font-size:11px; color:#3a1a52; font-weight:700; text-transform:uppercase;">Yorum</th>';
+      html += '<th style="padding:10px 14px; text-align:right; font-size:11px; color:#3a1a52; font-weight:700; text-transform:uppercase; width:130px;">Tarih</th>';
+      html += '</tr></thead><tbody>';
+      liste.forEach(function(g) {
+         const telLink = g.tel ? '<div style="font-size:11.5px; color:#8a8295;"><a href="tel:'+g.tel+'" style="color:#8a8295;"><i class="fa fa-phone" style="font-size:10px;"></i> '+g.tel+'</a></div>' : '';
+         const npsClass = (g.nps !== null && g.nps !== undefined)
+            ? (g.nps >= 9 ? '#10b981' : (g.nps >= 7 ? '#f59e0b' : '#ef4444'))
+            : '#cbd5e1';
+         const npsCell = (g.nps !== null && g.nps !== undefined)
+            ? '<span style="background:'+npsClass+'; color:#fff; padding:3px 10px; border-radius:11px; font-size:12px; font-weight:700;">'+g.nps+'</span>'
+            : '<span style="color:#cbd5e1;">—</span>';
+         const csatCell = (g.csat !== null && g.csat !== undefined)
+            ? '<span style="color:#f59e0b; font-weight:700;">★ '+parseFloat(g.csat).toFixed(1)+'</span>'
+            : '<span style="color:#cbd5e1;">—</span>';
+         html += '<tr style="border-top:1px solid #ece6f3;">';
+         html += '<td style="padding:11px 14px; font-size:13px;"><b>'+(g.ad||'Müşteri')+'</b>'+telLink+'</td>';
+         html += '<td style="padding:11px 14px; text-align:center;">'+npsCell+'</td>';
+         html += '<td style="padding:11px 14px; text-align:center;">'+csatCell+'</td>';
+         html += '<td style="padding:11px 14px; font-size:12.5px; color:#3a1a52;">'+(g.yorum ? (g.yorum.length > 80 ? g.yorum.substring(0,80)+'…' : g.yorum) : '<span style="color:#cbd5e1;">—</span>')+'</td>';
+         html += '<td style="padding:11px 14px; font-size:11.5px; color:#8a8295; text-align:right;">'+(g.tarih||'')+'</td>';
+         html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+   }
+
+   document.getElementById('reputasyonModalBaslik').innerHTML = baslik;
+   document.getElementById('reputasyonModalAciklama').innerHTML = aciklama;
+   document.getElementById('reputasyonModalAciklama').style.background = (tip === 'google' ? 'rgba(16,185,129,.08)' : 'rgba(239,68,68,.08)');
+   document.getElementById('reputasyonModalAciklama').style.borderLeft = '3px solid ' + renk;
+   document.getElementById('reputasyonModalIcerik').innerHTML = html;
+   document.getElementById('reputasyonModalSayac').innerHTML = liste.length + ' kişi';
+   $('#reputasyonModal').modal('show');
+}
 </script>
+
+{{-- Reputation Booster — Kişi Listesi Modal --}}
+<div id="reputasyonModal" class="modal fade" tabindex="-1">
+   <div class="modal-dialog" style="max-width:860px; margin:30px auto;">
+      <div class="modal-content" style="border-radius:14px; border:none; box-shadow:0 18px 50px rgba(92,0,142,.18);">
+         <div class="modal-header" style="padding:16px 22px; border-bottom:1px solid #ece6f3;">
+            <h4 id="reputasyonModalBaslik" style="font-size:16.5px; font-weight:700; margin:0; color:#3a1a52; display:flex; align-items:center; gap:8px; flex:1;"></h4>
+            <span id="reputasyonModalSayac" style="background:#faf5ff; color:#3a1a52; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700; margin-right:10px;"></span>
+            <button type="button" class="close" data-dismiss="modal" style="opacity:.6;">×</button>
+         </div>
+         <div class="modal-body" style="padding:0;">
+            <div id="reputasyonModalAciklama" style="padding:12px 22px; font-size:12.5px; color:#3a1a52;"></div>
+            <div id="reputasyonModalIcerik"></div>
+         </div>
+         <div class="modal-footer" style="border-top:1px solid #ece6f3; padding:12px 22px;">
+            <button type="button" class="btn btn-default" data-dismiss="modal" style="font-size:12.5px;">Kapat</button>
+         </div>
+      </div>
+   </div>
+</div>
 @endsection
