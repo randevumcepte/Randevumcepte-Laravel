@@ -508,6 +508,26 @@ class DrklinikImport extends Command
         }
         $this->line('--- Tip dagilimi ---');
         foreach ($tipler as $tip => $sayi) $this->line("  '{$tip}' : {$sayi} satir");
+
+        // Tutar sum analizi
+        $sum = 0.0; $sayi = 0;
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cs = [];
+            foreach ($tds[1] as $tdRaw) {
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cs[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            if (count($cs) < 4) continue;
+            $tutarStr = $cs[3] ?? '';
+            if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) {
+                $t = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+                if ($t > 0) { $sum += $t; $sayi++; }
+            }
+        }
+        $this->line(sprintf('--- TOPLAM (HTML\'den hesap): %d satir, %s TL ---', $sayi, number_format($sum, 2, ',', '.')));
         return 0;
     }
 
