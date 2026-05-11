@@ -48,6 +48,17 @@ Route::get('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::post('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');
 Route::get('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');
 
+// Anket Yonetimi (sablon CRUD + manuel gonderim + detay + ayarlar) mobil
+Route::get('/anketSablonlari/{salonId}','ApiController@anketSablonListesi');
+Route::get('/anketSablon/{salonId}/{sablonId}','ApiController@anketSablonDetay');
+Route::post('/anketSablon/{salonId}','ApiController@anketSablonOlustur');
+Route::post('/anketSablon/{salonId}/{sablonId}','ApiController@anketSablonGuncelle');
+Route::delete('/anketSablon/{salonId}/{sablonId}','ApiController@anketSablonSil');
+Route::post('/anketManuelGonder/{salonId}','ApiController@anketManuelGonderApi');
+Route::get('/anketGonderimDetay/{salonId}/{gonderimId}','ApiController@anketGonderimDetayApi');
+Route::get('/anketAyarlar/{salonId}','ApiController@anketAyarlar');
+Route::post('/anketAyarlar/{salonId}','ApiController@anketAyarlar');
+
 // Cark-i Felek Admin (mobil)
 Route::get('/carkAdmin/sistem/{salonId}','ApiController@carkSistemGetir');
 Route::post('/carkAdmin/dilim-kaydet/{salonId}','ApiController@carkDilimKaydet');
