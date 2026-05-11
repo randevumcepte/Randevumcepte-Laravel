@@ -1561,23 +1561,29 @@ class DrklinikImporter
     {
         $ad = trim((string) $ad);
         if ($ad === '') $ad = 'Diğer';
+        $table = (new MasrafKategorisi)->getTable();
+        // Olası kolon adlari (kullanici DB'sinde 'kategoriler' kullanılıyor)
+        $nameCol = null;
+        foreach (['kategoriler', 'kategori_adi', 'kategori_ad', 'ad', 'name', 'adi'] as $c) {
+            if (\Schema::hasColumn($table, $c)) { $nameCol = $c; break; }
+        }
+
         static $cache = null;
         if ($cache === null) {
             $cache = [];
-            foreach (MasrafKategorisi::all() as $k) {
-                $key = $this->trKey($k->kategori_adi ?? $k->ad ?? '');
-                if ($key !== '') $cache[$key] = $k->id;
+            if ($nameCol) {
+                foreach (\DB::table($table)->select('id', $nameCol)->get() as $k) {
+                    $key = $this->trKey($k->{$nameCol} ?? '');
+                    if ($key !== '') $cache[$key] = $k->id;
+                }
             }
         }
         $needle = $this->trKey($ad);
         if (isset($cache[$needle])) return $cache[$needle];
         try {
             $k = new MasrafKategorisi();
-            $col = \Schema::hasColumn((new MasrafKategorisi)->getTable(), 'kategori_adi') ? 'kategori_adi' :
-                  (\Schema::hasColumn((new MasrafKategorisi)->getTable(), 'ad') ? 'ad' :
-                  (\Schema::hasColumn((new MasrafKategorisi)->getTable(), 'name') ? 'name' : null));
-            if ($col) $k->{$col} = $ad;
-            if (\Schema::hasColumn((new MasrafKategorisi)->getTable(), 'salon_id')) $k->salon_id = $this->salonId;
+            if ($nameCol) $k->{$nameCol} = $ad;
+            if (\Schema::hasColumn($table, 'salon_id')) $k->salon_id = $this->salonId;
             $k->save();
             $cache[$needle] = $k->id;
             return $k->id;

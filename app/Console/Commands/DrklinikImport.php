@@ -26,6 +26,7 @@ class DrklinikImport extends Command
         {--inspect-musid= : Bir musid icin drklinik detayini indir, basliklar/sutunlar yazdir}
         {--debug-seans-musid= : Bir musid icin seans dusumu satirlarini adim adim logla}
         {--inspect-kasa : kasa_islemleri.aspx icin tarih araliginda gelen tum tip/sutun yapilarini yazdir}
+        {--repair-masraf-kategori : Bos isimli MasrafKategorisi kayitlarini drklinik gider tipi ile yeniden adlandir}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -73,6 +74,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('inspect-kasa')) {
             if (!$username || !$password) { $this->error('--inspect-kasa icin --username/--password zorunlu.'); return 1; }
             return $this->inspectKasaIslemleri($username, $password, $this->option('from'), $this->option('to'));
+        }
+        if ((bool) $this->option('repair-masraf-kategori')) {
+            if (!$username || !$password || !$salonId) { $this->error('--repair-masraf-kategori icin --username/--password/--salon zorunlu.'); return 1; }
+            return $this->repairMasrafKategori($username, $password, (int) $salonId, $this->option('from'), $this->option('to'));
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -184,6 +189,108 @@ class DrklinikImport extends Command
         $tag = $dryRun ? '[DRY-RUN] ' : '';
         $this->info("{$tag}Tamam. seans_sayisi yazildi: {$updated} (APS yok olan: {$defaultBir} -> seans_sayisi=1).");
         return 0;
+    }
+
+    /**
+     * Bos isimli (kategoriler kolonu NULL/bos) MasrafKategorisi kayitlarini
+     * drklinik'ten yeniden ceken gider listesi ile eslestirip isimlendir.
+     */
+    private function repairMasrafKategori($username, $password, $salonId, $from = null, $to = null)
+    {
+        $from = $from ?: '2018-01-01';
+        $to   = $to   ?: date('Y-m-d');
+
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+        $this->line("Drklinik'ten gider listesi cekiliyor ({$from} - {$to})...");
+
+        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_GiderHepsi', '', [
+            'TB_GiderTarihBas' => date('d.m.Y', strtotime($from)),
+            'TB_GiderTarihBit' => date('d.m.Y', strtotime($to)),
+            'DDL_GiderTipi'    => '0',
+            'DDL_KasaGider'    => '0',
+            'DDL_Giderler'     => 'Ödeme Şekli',
+            'DDL_GenelTip'     => '',
+        ]);
+        if (!$h) { $this->error('Sayfa cekilemedi.'); return 1; }
+
+        $bodies = $this->extractAllTables($h);
+        $best = ''; $bestTrs = 0;
+        foreach ($bodies as $body) {
+            $trc = preg_match_all('~<tr[^>]*>~i', $body, $r) ? count($r[0]) : 0;
+            if ($trc > $bestTrs) { $bestTrs = $trc; $best = $body; }
+        }
+        if ($best === '') { $this->error('Gider tablosu bulunamadi.'); return 1; }
+
+        $table = (new \App\MasrafKategorisi)->getTable();
+        $nameCol = null;
+        foreach (['kategoriler', 'kategori_adi', 'kategori_ad', 'ad', 'name', 'adi'] as $c) {
+            if (\Schema::hasColumn($table, $c)) { $nameCol = $c; break; }
+        }
+        if (!$nameCol) { $this->error('MasrafKategorisi tablosunda isim kolonu yok.'); return 1; }
+        $this->line("Isim kolonu: {$nameCol}");
+
+        // kategori_id -> {oncelik adi}
+        $voteByKategori = [];
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $best, $rows);
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            if (count($cells) < 9) continue;
+            $tarih = $this->__d($cells[0]);
+            $aciklama = $cells[1] ?? '';
+            $tutarStr = $cells[3] ?? '';
+            $genelTip = $cells[4] ?? '';
+            $giderTipi = $cells[5] ?? '';
+            $saat = $cells[8] ?? '';
+            if (strlen($saat) === 5) $saat .= ':00';
+
+            $tutar = 0.0;
+            if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) {
+                $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+            }
+            $kategoriAdi = trim($giderTipi) ?: (trim($genelTip) ?: 'Diğer');
+            if (!$tarih || $tutar <= 0) continue;
+
+            // Masraf'i bul
+            $masraf = \DB::table('masraflar')
+                ->where('salon_id', $salonId)
+                ->where('tarih', $tarih)
+                ->where('tutar', $tutar)
+                ->where('aciklama', $aciklama)
+                ->select('masraf_kategori_id')->first();
+            if (!$masraf || !$masraf->masraf_kategori_id) continue;
+            $kid = $masraf->masraf_kategori_id;
+            $voteByKategori[$kid][$kategoriAdi] = ($voteByKategori[$kid][$kategoriAdi] ?? 0) + 1;
+        }
+
+        $updated = 0;
+        foreach ($voteByKategori as $kid => $names) {
+            arsort($names);
+            $topName = array_key_first($names);
+            $current = \DB::table($table)->where('id', $kid)->value($nameCol);
+            if (trim((string) $current) !== '') continue; // dolu olanlara dokunma
+            \DB::table($table)->where('id', $kid)->update([$nameCol => $topName]);
+            $this->line("  kategori id={$kid} -> '{$topName}'");
+            $updated++;
+        }
+        $this->info("Tamam. {$updated} kategori isimlendirildi.");
+        return 0;
+    }
+
+    private function __d($s)
+    {
+        if (preg_match('~^(\d{2})\.(\d{2})\.(\d{4})~', trim((string) $s), $m)) {
+            return $m[3] . '-' . $m[2] . '-' . $m[1];
+        }
+        return null;
     }
 
     private function inspectKasaIslemleri($username, $password, $from = null, $to = null)
