@@ -21912,4 +21912,169 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $a->save();
         return response()->json(['basarili' => true]);
     }
+
+    // ============================================================
+    // ANKET YONETIMI API (mobil)
+    // ============================================================
+
+    public function anketSablonListesi(Request $request, $salonId)
+    {
+        $sablonlar = AnketSablon::where('salon_id', $salonId)
+            ->orderByDesc('aktif')
+            ->orderByDesc('varsayilan')
+            ->orderBy('ad')
+            ->get();
+        return response()->json(['sablonlar' => $sablonlar]);
+    }
+
+    public function anketSablonDetay(Request $request, $salonId, $sablonId)
+    {
+        $sablon = AnketSablon::where('id', $sablonId)->where('salon_id', $salonId)->first();
+        if (!$sablon) return response()->json(['hata' => true, 'mesaj' => 'Sablon bulunamadi'], 404);
+        return response()->json(['sablon' => $sablon]);
+    }
+
+    public function anketSablonOlustur(Request $request, $salonId)
+    {
+        try {
+            $sablon = new AnketSablon();
+            $sablon->salon_id          = $salonId;
+            $sablon->ad                = trim((string) $request->input('ad'));
+            $sablon->aciklama          = $request->input('aciklama');
+            $sablon->sorular_json      = $request->input('sorular_json');
+            $sablon->otomatik_gonder   = $request->input('otomatik_gonder') ? 1 : 0;
+            $sablon->gonder_saat_sonra = max(1, (int) ($request->input('gonder_saat_sonra') ?: 24));
+            $sablon->aktif             = 1;
+            $sablon->varsayilan        = $request->input('varsayilan') ? 1 : 0;
+            if ($sablon->varsayilan) {
+                AnketSablon::where('salon_id', $salonId)->update(['varsayilan' => 0]);
+            }
+            $sablon->save();
+            return response()->json(['basarili' => true, 'id' => $sablon->id]);
+        } catch (\Exception $e) {
+            Log::error('API anketSablonOlustur: ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
+        }
+    }
+
+    public function anketSablonGuncelle(Request $request, $salonId, $sablonId)
+    {
+        try {
+            $sablon = AnketSablon::where('id', $sablonId)->where('salon_id', $salonId)->first();
+            if (!$sablon) return response()->json(['basarili' => false, 'mesaj' => 'Sablon bulunamadi'], 404);
+            if ($request->has('ad')) $sablon->ad = trim((string) $request->input('ad'));
+            if ($request->has('aciklama')) $sablon->aciklama = $request->input('aciklama');
+            if ($request->has('sorular_json')) $sablon->sorular_json = $request->input('sorular_json');
+            if ($request->has('otomatik_gonder')) $sablon->otomatik_gonder = $request->input('otomatik_gonder') ? 1 : 0;
+            if ($request->has('gonder_saat_sonra')) $sablon->gonder_saat_sonra = max(1, (int) $request->input('gonder_saat_sonra'));
+            if ($request->has('aktif')) $sablon->aktif = $request->input('aktif') ? 1 : 0;
+            if ($request->has('varsayilan')) {
+                $sablon->varsayilan = $request->input('varsayilan') ? 1 : 0;
+                if ($sablon->varsayilan) {
+                    AnketSablon::where('salon_id', $salonId)->where('id', '!=', $sablon->id)->update(['varsayilan' => 0]);
+                }
+            }
+            $sablon->save();
+            return response()->json(['basarili' => true]);
+        } catch (\Exception $e) {
+            Log::error('API anketSablonGuncelle: ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
+        }
+    }
+
+    public function anketSablonSil(Request $request, $salonId, $sablonId)
+    {
+        try {
+            $sablon = AnketSablon::where('id', $sablonId)->where('salon_id', $salonId)->first();
+            if (!$sablon) return response()->json(['basarili' => false, 'mesaj' => 'Sablon bulunamadi'], 404);
+            $kullanim = AnketGonderim::where('sablon_id', $sablon->id)->count();
+            if ($kullanim > 0) {
+                $sablon->aktif = 0;
+                $sablon->save();
+                return response()->json(['basarili' => true, 'pasiflestirildi' => true, 'kullanim' => $kullanim]);
+            }
+            $sablon->delete();
+            return response()->json(['basarili' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
+        }
+    }
+
+    public function anketManuelGonderApi(Request $request, $salonId)
+    {
+        try {
+            $userId = (int) $request->input('user_id');
+            $cepTel = trim((string) $request->input('telefon'));
+            $sablonId = (int) $request->input('sablon_id');
+            $adSoyad = trim((string) $request->input('ad_soyad'));
+
+            if (!$cepTel) return response()->json(['basarili' => false, 'mesaj' => 'Telefon zorunlu'], 422);
+
+            $sablon = AnketSablon::where('id', $sablonId)->where('salon_id', $salonId)->where('aktif', 1)->first();
+            if (!$sablon) return response()->json(['basarili' => false, 'mesaj' => 'Aktif sablon bulunamadi'], 404);
+
+            $musteri = $userId ? User::where('id', $userId)->first() : null;
+            if (!$musteri) {
+                $musteri = (object) ['id' => null, 'name' => $adSoyad ?: 'Test'];
+            }
+
+            $gonderim = StoreAdminController::anketGonderimOlustur($salonId, $sablon, $musteri, $cepTel, [
+                'randevu_id' => $request->input('randevu_id') ?: null,
+                'personel_id' => $request->input('personel_id') ?: null,
+                'kanal' => 'manuel',
+            ]);
+
+            StoreAdminController::anketSmsGonder($request, $gonderim, $sablon, $musteri);
+
+            return response()->json(['basarili' => true, 'gonderim_id' => $gonderim->id]);
+        } catch (\Exception $e) {
+            Log::error('API anketManuelGonder: ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
+        }
+    }
+
+    public function anketGonderimDetayApi(Request $request, $salonId, $gonderimId)
+    {
+        $g = AnketGonderim::where('id', $gonderimId)->where('salon_id', $salonId)->first();
+        if (!$g) return response()->json(['hata' => true], 404);
+        $sablon = AnketSablon::where('id', $g->sablon_id)->first();
+        $sorular = $sablon && $sablon->sorular_json ? json_decode($sablon->sorular_json, true) : [];
+        $cevaplar = $g->cevaplar_json ? json_decode($g->cevaplar_json, true) : [];
+        $musteri = $g->user_id ? User::where('id', $g->user_id)->first() : null;
+        return response()->json([
+            'gonderim' => $g,
+            'sorular' => $sorular,
+            'cevaplar' => $cevaplar,
+            'sablon_ad' => $sablon->ad ?? '',
+            'musteri_ad' => $musteri->name ?? $g->ad_soyad,
+        ]);
+    }
+
+    public function anketAyarlar(Request $request, $salonId)
+    {
+        $salon = Salonlar::where('id', $salonId)->first();
+        if (!$salon) return response()->json(['hata' => true], 404);
+
+        if ($request->isMethod('post')) {
+            try {
+                if ($request->has('google_url'))           $salon->google_url = $request->input('google_url');
+                if ($request->has('google_review_esik_nps'))  $salon->google_review_esik_nps = (int) $request->input('google_review_esik_nps');
+                if ($request->has('google_review_esik_csat')) $salon->google_review_esik_csat = (float) $request->input('google_review_esik_csat');
+                if ($request->has('kotu_puan_uyari_esik_nps'))  $salon->kotu_puan_uyari_esik_nps = (int) $request->input('kotu_puan_uyari_esik_nps');
+                if ($request->has('kotu_puan_uyari_esik_csat')) $salon->kotu_puan_uyari_esik_csat = (float) $request->input('kotu_puan_uyari_esik_csat');
+                $salon->save();
+                return response()->json(['basarili' => true]);
+            } catch (\Exception $e) {
+                return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
+            }
+        }
+
+        return response()->json([
+            'google_url' => $salon->google_url ?? '',
+            'google_review_esik_nps' => $salon->google_review_esik_nps ?? 9,
+            'google_review_esik_csat' => $salon->google_review_esik_csat ?? 4.5,
+            'kotu_puan_uyari_esik_nps' => $salon->kotu_puan_uyari_esik_nps ?? 6,
+            'kotu_puan_uyari_esik_csat' => $salon->kotu_puan_uyari_esik_csat ?? 3.0,
+        ]);
+    }
 }
