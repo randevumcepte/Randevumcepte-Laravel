@@ -206,15 +206,18 @@ class DrklinikImport extends Command
         if (!$h) { $this->error('Sayfa cekilemedi.'); return 1; }
         $this->line('Dump: ' . $client->dumpDir());
 
-        // En buyuk tabloyu bul - GIDER tablosunu hedeflemek icin sonuncuyu da dene
-        preg_match_all('~<table[^>]*>(.*?)</table>~is', $h, $tm);
+        // Tum tablolari sirayla bul (iç içe tablo durumunda regex eksik bulabilir,
+        // o yuzden <table ile </table> pozisyonlarini elle eslestir)
+        $tableBodies = $this->extractAllTables($h);
+        $this->line("Toplam " . count($tableBodies) . " tablo bulundu.");
+        // En cok tr olan tabloyu sec
         $bestBody = ''; $bestTrs = 0; $bestIdx = -1;
-        foreach ($tm[1] as $idx => $body) {
-            if (preg_match_all('~<tr[^>]*>~i', $body, $r) && count($r[0]) > $bestTrs) {
-                $bestTrs = count($r[0]); $bestBody = $body; $bestIdx = $idx;
-            }
+        foreach ($tableBodies as $idx => $body) {
+            $trc = preg_match_all('~<tr[^>]*>~i', $body, $r) ? count($r[0]) : 0;
+            $this->line("  Tablo #{$idx}: {$trc} satir, " . strlen($body) . " byte");
+            if ($trc > $bestTrs) { $bestTrs = $trc; $bestBody = $body; $bestIdx = $idx; }
         }
-        $this->line("En buyuk tablo: #{$bestIdx}, {$bestTrs} satir (toplam " . count($tm[1]) . " tablo)");
+        $this->line("En buyuk tablo: #{$bestIdx}, {$bestTrs} satir");
 
         // Basliklari yazdir
         preg_match_all('~<th[^>]*>(.*?)</th>~is', $bestBody, $th);
@@ -247,6 +250,47 @@ class DrklinikImport extends Command
         $this->line('--- Tip dagilimi ---');
         foreach ($tipler as $tip => $sayi) $this->line("  '{$tip}' : {$sayi} satir");
         return 0;
+    }
+
+    /**
+     * Nested table destekli table extractor. Her ust seviye table'nin
+     * icini (body) liste olarak dondur.
+     */
+    private function extractAllTables($html)
+    {
+        $bodies = [];
+        $offset = 0;
+        $len = strlen($html);
+        while ($offset < $len) {
+            $start = stripos($html, '<table', $offset);
+            if ($start === false) break;
+            // Acilis tag'ini bul (>)
+            $tagEnd = strpos($html, '>', $start);
+            if ($tagEnd === false) break;
+            $bodyStart = $tagEnd + 1;
+            // Iç içe table'lari dengeli say
+            $depth = 1;
+            $pos = $bodyStart;
+            while ($depth > 0 && $pos < $len) {
+                $nextOpen = stripos($html, '<table', $pos);
+                $nextClose = stripos($html, '</table>', $pos);
+                if ($nextClose === false) break;
+                if ($nextOpen !== false && $nextOpen < $nextClose) {
+                    $depth++;
+                    $pos = $nextOpen + 6;
+                } else {
+                    $depth--;
+                    if ($depth === 0) {
+                        $bodies[] = substr($html, $bodyStart, $nextClose - $bodyStart);
+                        $offset = $nextClose + 8;
+                        break;
+                    }
+                    $pos = $nextClose + 8;
+                }
+            }
+            if ($depth > 0) break; // Eslesmeyen acilis - dur
+        }
+        return $bodies;
     }
 
     private function debugSeansMusid($musid, $username, $password, $salonId)
