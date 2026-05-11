@@ -1564,7 +1564,7 @@ class DrklinikImporter
         $table = (new MasrafKategorisi)->getTable();
         // Olası kolon adlari (kullanici DB'sinde 'kategoriler' kullanılıyor)
         $nameCol = null;
-        foreach (['kategoriler', 'kategori_adi', 'kategori_ad', 'ad', 'name', 'adi'] as $c) {
+        foreach (['kategori', 'kategoriler', 'kategori_adi', 'kategori_ad', 'ad', 'name', 'adi'] as $c) {
             if (\Schema::hasColumn($table, $c)) { $nameCol = $c; break; }
         }
 
