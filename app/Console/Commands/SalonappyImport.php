@@ -16,6 +16,7 @@ class SalonappyImport extends Command
         {--probe : Login + yaygin endpoint kesfi}
         {--only= : virgulle: personel,hizmet}
         {--from-file= : Tarayicidan kopyalanan JSON\'ları icerek dizin (staff.json, services.json, service_durations.json, service_prices.json, staff_services.json)}
+        {--dump-file= : Tarayici scripti ile indirilen tek JSON dump dosyasi (clients + bookings)}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
     protected $description = 'webapp.salonappy.com hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -72,6 +73,10 @@ class SalonappyImport extends Command
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
             return $this->importFromFiles($fromFile, (int) $salonId, $only);
         }
+        if ($dumpFile = $this->option('dump-file')) {
+            if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            return $this->importFromDump($dumpFile, (int) $salonId);
+        }
 
         if ($token) {
             $client->setBearer($token);
@@ -93,6 +98,157 @@ class SalonappyImport extends Command
 
         $this->error('Import metodlari henuz tanimli degil. Once --analyze veya --probe ile endpoint kesfedin.');
         return 0;
+    }
+
+    /**
+     * Tarayici scriptinin indirdigi tek JSON dump dosyasini import et.
+     * Yapi: { clients: [{id, name, phone_number_local, ...}], bookings: { CLIENT_ID: [{session, date, time_text, services_staff_text, products_text, total_amount, total_payment, payment_methods_text, ...}] } }
+     */
+    private function importFromDump($file, $salonId)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: {$file}"); return 1; }
+        $j = json_decode(file_get_contents($file), true);
+        if (!is_array($j) || !isset($j['clients'])) { $this->error('Gecersiz JSON.'); return 1; }
+        $clients = $j['clients'];
+        $bookings = $j['bookings'] ?? [];
+        $this->line('Clients: ' . count($clients) . ', Bookings users: ' . count($bookings));
+
+        $apiController = app(\App\Http\Controllers\ApiController::class);
+
+        // 1) Musteri aktarimi
+        $idMap = []; $musteriEklenen = 0; $musteriHata = 0;
+        foreach ($clients as $idx => $c) {
+            $payload = [
+                'musteriAdi'   => $c['name'] ?? '',
+                'telefon'      => $c['phone_number_local'] ?? $c['phone_number'] ?? '',
+                'ePosta'       => $c['email'] ?? '',
+                'dogumTarihi'  => $c['birthdate'] ?? '',
+                'cinsiyet'     => $c['gender_text'] ?? '',
+                'notlar'       => $c['notes'] ?? '',
+                'medeniDurum'  => '', 'meslek' => '', 'adres' => '',
+                'kayitTarihi'  => $c['created_at'] ?? '',
+                'salonId'      => $salonId,
+                'salonAppyId'  => $c['id'],
+            ];
+            try {
+                $req = new \Illuminate\Http\Request($payload);
+                $resp = $apiController->aktarimMusteriKontrol($req);
+                $userId = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
+                if ($userId && ctype_digit($userId)) {
+                    $idMap[$c['id']] = $userId;
+                    $musteriEklenen++;
+                } else {
+                    $musteriHata++;
+                    \Log::warning('[Salonappy] musteri eklenemedi', ['client' => $c['id'], 'resp' => substr($userId, 0, 200)]);
+                }
+            } catch (\Throwable $e) {
+                $musteriHata++;
+                \Log::warning('[Salonappy] musteri exception', ['client' => $c['id'], 'err' => $e->getMessage()]);
+            }
+            if (($idx + 1) % 100 === 0) $this->line("  musteri {$idx}/" . count($clients) . " eklenen={$musteriEklenen} hata={$musteriHata}");
+        }
+        $this->info("Musteri aktarimi: eklenen={$musteriEklenen}, hata={$musteriHata}");
+
+        // 2) Randevu + Adisyon + Tahsilat
+        $randevuEklenen = 0; $randevuAtlanan = 0; $tahsilatEklenen = 0;
+        $i = 0;
+        foreach ($bookings as $clientId => $bookList) {
+            $userId = $idMap[$clientId] ?? null;
+            if (!$userId) { $randevuAtlanan += count($bookList); continue; }
+            foreach ($bookList as $b) {
+                $i++;
+                try {
+                    $hizmetler = $this->parseSalonappyServicesStaff($b['services_staff_text'] ?? '', $b['total_amount'] ?? 0);
+                    $urunler   = $this->parseSalonappyProducts($b['products_text'] ?? '');
+                    $payload = [
+                        'userId'       => $userId,
+                        'salonId'      => $salonId,
+                        'tarih'        => $b['date'] ?? '',
+                        'saat'         => $b['time_text'] ?? '00:00',
+                        'geldi'        => $b['showup_text'] ?? '',
+                        'durum'        => $b['status_text'] ?? '',
+                        'olusturan'    => $b['created_by'] ?? '',
+                        'olusturulma'  => $b['created_at'] ?? '',
+                        'notlar'       => '[salonappy:' . ($b['session'] ?? '') . ']',
+                        'hizmetler'    => $hizmetler,
+                        'urunler'      => $urunler,
+                    ];
+                    $req = new \Illuminate\Http\Request($payload);
+                    $resp = $apiController->salonAppyAdisyonRandevuEkle($req);
+                    $adisyonId = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
+                    $randevuEklenen++;
+
+                    // Tahsilat - total_payment > 0 ise
+                    if (!empty($b['total_payment']) && $b['total_payment'] > 0 && $adisyonId && ctype_digit($adisyonId)) {
+                        $methodsRaw = $b['payment_methods_text'] ?? '';
+                        $methods = $methodsRaw ? array_map('trim', explode(',', $methodsRaw)) : ['Nakit'];
+                        $perAmount = round(((float) $b['total_payment']) / max(1, count($methods)), 2);
+                        foreach ($methods as $m) {
+                            $tReq = new \Illuminate\Http\Request([
+                                'userId'         => $userId,
+                                'adisyonId'      => $adisyonId,
+                                'odemeTarihi'    => $b['date'] ?? '',
+                                'tahsilatTutari' => $perAmount,
+                                'odemeYontemi'   => $m,
+                                'salonId'        => $salonId,
+                            ]);
+                            try {
+                                $apiController->salonAppyTahsilatEkle($tReq);
+                                $tahsilatEklenen++;
+                            } catch (\Throwable $e) {}
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $randevuAtlanan++;
+                    \Log::warning('[Salonappy] randevu hata', ['session' => $b['session'] ?? '?', 'err' => $e->getMessage()]);
+                }
+                if ($i % 200 === 0) $this->line("  randevu {$i} eklenen={$randevuEklenen} atlanan={$randevuAtlanan} tahsilat={$tahsilatEklenen}");
+            }
+        }
+        $this->info("Randevu aktarimi: eklenen={$randevuEklenen}, atlanan={$randevuAtlanan}, tahsilat={$tahsilatEklenen}");
+        return 0;
+    }
+
+    /**
+     * "Hizmet1 (Personel1), Hizmet2 (Personel2)" -> [{hizmet,personel,fiyat,sureDk}, ...]
+     * total_amount esit olarak hizmetlere dagitilir.
+     */
+    private function parseSalonappyServicesStaff($text, $totalAmount)
+    {
+        $out = [];
+        if (!$text) return $out;
+        // split by ", " ama parantezin disinda olanlar
+        // Basit yaklasim: regex "Hizmet (Personel)"
+        if (preg_match_all('~([^,()]+?)\s*\(([^)]+)\)~u', $text, $m, PREG_SET_ORDER)) {
+            $count = count($m);
+            $each = $count > 0 ? round(((float) $totalAmount) / $count, 2) : 0;
+            foreach ($m as $row) {
+                $out[] = [
+                    'hizmet'   => trim($row[1]),
+                    'personel' => trim($row[2]),
+                    'fiyat'    => $each,
+                    'sureDk'   => 30,
+                ];
+            }
+        }
+        return $out;
+    }
+
+    private function parseSalonappyProducts($text)
+    {
+        $out = [];
+        if (!$text) return $out;
+        if (preg_match_all('~([^,()]+?)\s*\(([^)]+)\)~u', $text, $m, PREG_SET_ORDER)) {
+            foreach ($m as $row) {
+                $out[] = [
+                    'urun'     => trim($row[1]),
+                    'personel' => trim($row[2]),
+                    'fiyat'    => 0,
+                    'adet'     => 1,
+                ];
+            }
+        }
+        return $out;
     }
 
     /**
