@@ -22057,24 +22057,51 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
 
         if ($request->isMethod('post')) {
             try {
-                if ($request->has('google_url'))           $salon->google_url = $request->input('google_url');
-                if ($request->has('google_review_esik_nps'))  $salon->google_review_esik_nps = (int) $request->input('google_review_esik_nps');
-                if ($request->has('google_review_esik_csat')) $salon->google_review_esik_csat = (float) $request->input('google_review_esik_csat');
-                if ($request->has('kotu_puan_uyari_esik_nps'))  $salon->kotu_puan_uyari_esik_nps = (int) $request->input('kotu_puan_uyari_esik_nps');
-                if ($request->has('kotu_puan_uyari_esik_csat')) $salon->kotu_puan_uyari_esik_csat = (float) $request->input('kotu_puan_uyari_esik_csat');
+                // Google review URL: web tarafindaki helper ile parse et
+                // (place ID + review URL bilesenlerini ayri saklar)
+                if ($request->has('google_url')) {
+                    $input = trim((string) $request->input('google_url'));
+                    if ($input === '') {
+                        if (Schema::hasColumn('salonlar', 'google_review_url')) $salon->google_review_url = null;
+                        if (Schema::hasColumn('salonlar', 'google_place_id'))   $salon->google_place_id = null;
+                    } else {
+                        $parsed = StoreAdminController::googlePlaceIdParse($input);
+                        if (!$parsed['review_url']) {
+                            return response()->json([
+                                'basarili' => false,
+                                'mesaj' => $parsed['uyari'] ?? 'Baglanti cozumlenemedi. Google Maps URL\'si veya g.page linki yapistirin.',
+                            ], 422);
+                        }
+                        if (Schema::hasColumn('salonlar', 'google_review_url')) $salon->google_review_url = $parsed['review_url'];
+                        if (Schema::hasColumn('salonlar', 'google_place_id'))   $salon->google_place_id = $parsed['place_id'];
+                    }
+                }
+                if ($request->has('google_review_esik_nps') && Schema::hasColumn('salonlar', 'google_review_esik_nps')) {
+                    $salon->google_review_esik_nps = max(0, min(10, (int) $request->input('google_review_esik_nps')));
+                }
+                if ($request->has('google_review_esik_csat') && Schema::hasColumn('salonlar', 'google_review_esik_csat')) {
+                    $salon->google_review_esik_csat = max(1, min(5, (float) $request->input('google_review_esik_csat')));
+                }
+                if ($request->has('kotu_puan_uyari_esik_nps') && Schema::hasColumn('salonlar', 'kotu_puan_uyari_esik_nps')) {
+                    $salon->kotu_puan_uyari_esik_nps = max(0, min(10, (int) $request->input('kotu_puan_uyari_esik_nps')));
+                }
+                if ($request->has('kotu_puan_uyari_esik_csat') && Schema::hasColumn('salonlar', 'kotu_puan_uyari_esik_csat')) {
+                    $salon->kotu_puan_uyari_esik_csat = max(1, min(5, (float) $request->input('kotu_puan_uyari_esik_csat')));
+                }
                 $salon->save();
                 return response()->json(['basarili' => true]);
             } catch (\Exception $e) {
+                Log::error('API anketAyarlar save: ' . $e->getMessage());
                 return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
             }
         }
 
         return response()->json([
-            'google_url' => $salon->google_url ?? '',
+            'google_url' => $salon->google_review_url ?? '',
             'google_review_esik_nps' => $salon->google_review_esik_nps ?? 9,
             'google_review_esik_csat' => $salon->google_review_esik_csat ?? 4.5,
             'kotu_puan_uyari_esik_nps' => $salon->kotu_puan_uyari_esik_nps ?? 6,
-            'kotu_puan_uyari_esik_csat' => $salon->kotu_puan_uyari_esik_csat ?? 3.0,
+            'kotu_puan_uyari_esik_csat' => $salon->kotu_puan_uyari_esik_csat ?? 2.5,
         ]);
     }
 }
