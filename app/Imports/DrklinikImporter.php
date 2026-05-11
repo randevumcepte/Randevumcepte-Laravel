@@ -1487,7 +1487,7 @@ class DrklinikImporter
                 $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
                 $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
             }
-            if (count($cells) < 9) continue;
+            if (count($cells) < 9) { $this->log("[skip-cells<9] " . implode(' | ', $cells)); continue; }
 
             $tarih      = $this->tarihNormalize($cells[0] ?? '');
             $aciklama   = $cells[1] ?? '';
@@ -1498,7 +1498,7 @@ class DrklinikImporter
             $odenen     = $cells[7] ?? '';
             $saat       = $cells[8] ?? '';
 
-            if (!$tarih) { $this->counts['gider_skip']++; continue; }
+            if (!$tarih) { $this->log("[skip-tarih] '{$cells[0]}' | tutar='{$tutarStr}' aciklama='{$aciklama}'"); $this->counts['gider_skip']++; continue; }
             // "32.000,00 TRY" parse
             $tutar = 0.0;
             if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) {
@@ -1506,7 +1506,7 @@ class DrklinikImporter
             } else {
                 $tutar = (float) preg_replace('~[^0-9.]~', '', $tutarStr);
             }
-            if ($tutar <= 0) { $this->counts['gider_skip']++; continue; }
+            if ($tutar <= 0) { $this->log("[skip-tutar=0] tarih='{$tarih}' tutarStr='{$tutarStr}' aciklama='{$aciklama}'"); $this->counts['gider_skip']++; continue; }
             if (strlen($saat) === 5) $saat .= ':00';
 
             $kategoriAdi = trim($giderTipi) ?: (trim($genelTip) ?: 'Diğer');
