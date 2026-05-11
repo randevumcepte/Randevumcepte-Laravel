@@ -47,6 +47,41 @@ Route::post('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::get('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::post('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');
 Route::get('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');
+
+// Anket Yonetimi (sablon CRUD + manuel gonderim + detay + ayarlar)
+Route::get('/anketSablonlari/{salonId}','ApiController@anketSablonListesi');
+Route::get('/anketSablon/{salonId}/{sablonId}','ApiController@anketSablonDetay');
+Route::post('/anketSablon/{salonId}','ApiController@anketSablonOlustur');
+Route::post('/anketSablon/{salonId}/{sablonId}','ApiController@anketSablonGuncelle');
+Route::delete('/anketSablon/{salonId}/{sablonId}','ApiController@anketSablonSil');
+Route::post('/anketManuelGonder/{salonId}','ApiController@anketManuelGonderApi');
+Route::get('/anketGonderimDetay/{salonId}/{gonderimId}','ApiController@anketGonderimDetayApi');
+Route::get('/anketAyarlar/{salonId}','ApiController@anketAyarlar');
+Route::post('/anketAyarlar/{salonId}','ApiController@anketAyarlar');
+
+// Cark-i Felek Admin (sistem + dilim + kazananlar + kupon + hatirlatma)
+Route::get('/carkAdmin/sistem/{salonId}','ApiController@carkSistemGetir');
+Route::post('/carkAdmin/dilim-kaydet/{salonId}','ApiController@carkDilimKaydet');
+Route::post('/carkAdmin/aktif-toggle/{salonId}','ApiController@carkAktifToggle');
+Route::get('/carkAdmin/kazananlar/{salonId}','ApiController@carkKazananlarApi');
+Route::post('/carkAdmin/kupon-dogrula/{salonId}','ApiController@carkKuponDogrulaApi');
+Route::post('/carkAdmin/kupon-kullan/{salonId}','ApiController@carkKuponKullanApi');
+Route::get('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaGetirApi');
+Route::post('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaKaydetApi');
+
+// WhatsApp (baglanti + loglar + alicilar + paket)
+Route::post('/whatsapp/baslat/{salonId}','ApiController@whatsappBaslatApi');
+Route::get('/whatsapp/durum/{salonId}','ApiController@whatsappDurumApi');
+Route::get('/whatsapp/qr/{salonId}','ApiController@whatsappQRApi');
+Route::post('/whatsapp/cikis/{salonId}','ApiController@whatsappCikisApi');
+Route::get('/whatsapp/ozet/{salonId}','ApiController@whatsappOzetDataApi');
+Route::get('/whatsapp/loglar/{salonId}','ApiController@whatsappLoglarDataApi');
+Route::get('/whatsapp/aliciler/{salonId}','ApiController@whatsappAlicilarDataApi');
+Route::get('/whatsapp/alici/{salonId}/{telefon}','ApiController@whatsappAliciGecmisApi');
+Route::get('/whatsapp/kanal-durum/{salonId}','ApiController@whatsappKanalDurumApi');
+Route::post('/whatsapp/kanal-toggle/{salonId}','ApiController@whatsappKanalToggleApi');
+Route::get('/whatsapp/paket-durum/{salonId}','ApiController@whatsappPaketDurumApi');
+Route::post('/whatsapp/paket-talep/{salonId}','ApiController@whatsappPaketTalepApi');
 Route::get('/isletmepuani/{salonid}','ApiController@isletmepuani');
 Route::middleware('throttle:60,1')->group(function () {
     Route::post('/ajandaget/{salonid}/{olusturan}','ApiController@ajandagetir');
