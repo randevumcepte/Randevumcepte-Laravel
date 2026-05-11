@@ -77,6 +77,11 @@ class SalonappyImport extends Command
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            // v5 yapısını otomatik dedect et: visits + bookingDetails
+            $peek = json_decode(file_get_contents($dumpFile), true);
+            if (isset($peek['visits']) && isset($peek['bookingDetails'])) {
+                return $this->importFromDumpV5($dumpFile, (int) $salonId);
+            }
             return $this->importFromDump($dumpFile, (int) $salonId);
         }
 
@@ -99,6 +104,165 @@ class SalonappyImport extends Command
         }
 
         $this->error('Import metodlari henuz tanimli degil. Once --analyze veya --probe ile endpoint kesfedin.');
+        return 0;
+    }
+
+    /**
+     * v5 dump (visits + bookingDetails): itemized hizmet/urun/tahsilat/paket
+     * Yapi:
+     * {
+     *   clients: [...],
+     *   clientDetails: { CLIENT_ID: {... notes ...} },
+     *   visits: [{session, client_name, phone_number, date, time_text, ...}],
+     *   bookingDetails: { SESSION: { details: {client_id, notes, ...},
+     *                                 services: [{service_text, staff_name, price, duration}],
+     *                                 product_sales: [...], package_sales: [...],
+     *                                 package_usages: [...], payments: [{amount, payment_method_text, date}] } }
+     * }
+     */
+    private function importFromDumpV5($file, $salonId)
+    {
+        $j = json_decode(file_get_contents($file), true);
+        $clients = $j['clients'] ?? [];
+        $clientDetails = $j['clientDetails'] ?? [];
+        $visits = $j['visits'] ?? [];
+        $bookingDetails = $j['bookingDetails'] ?? [];
+        $this->line("v5 dump: clients={" . count($clients) . "}, visits={" . count($visits) . "}, bookingDetails={" . count($bookingDetails) . "}, clientDetails={" . count($clientDetails) . "}");
+
+        $apiController = app(\App\Http\Controllers\ApiController::class);
+
+        // 1) Müşteri aktarımı - clientDetails varsa zengin notlar
+        $idMap = [];
+        $mEklenen = 0; $mHata = 0;
+        foreach ($clients as $idx => $c) {
+            $cd = $clientDetails[$c['id']] ?? null;
+            $notes = $this->pickFirst($cd, ['notes','note','client_note','description']) ?? ($c['notes'] ?? '');
+            $birthdate = $this->pickFirst($cd, ['birthdate','birth_date','dogum_tarihi']) ?? ($c['birthdate'] ?? '');
+            $email = $this->pickFirst($cd, ['email']) ?? ($c['email'] ?? '');
+            $payload = [
+                'musteriAdi'  => $c['name'] ?? '',
+                'telefon'     => $c['phone_number_local'] ?? $c['phone_number'] ?? '',
+                'ePosta'      => $email,
+                'dogumTarihi' => $birthdate,
+                'cinsiyet'    => $c['gender_text'] ?? '',
+                'notlar'      => $notes,
+                'medeniDurum' => '', 'meslek' => '', 'adres' => '',
+                'kayitTarihi' => $c['created_at'] ?? '',
+                'salonId'     => $salonId,
+                'salonAppyId' => $c['id'],
+            ];
+            try {
+                $req = new \Illuminate\Http\Request($payload);
+                $resp = $apiController->aktarimMusteriKontrol($req);
+                $userId = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
+                if ($userId && ctype_digit($userId)) { $idMap[$c['id']] = $userId; $mEklenen++; }
+                else { $mHata++; }
+            } catch (\Throwable $e) { $mHata++; \Log::warning('[Salonappy v5] müşteri', ['err' => $e->getMessage(), 'client' => $c['id']]); }
+            if (($idx + 1) % 200 === 0) $this->line("  müşteri {$idx}/" . count($clients) . " eklenen={$mEklenen} hata={$mHata}");
+        }
+        $this->info("Musteri: eklenen={$mEklenen}, hata={$mHata}");
+
+        // 2) Visits (her biri için Randevu + Adisyon + itemized hizmet/urun/tahsilat)
+        $rEklenen = 0; $rDedup = 0; $rHata = 0; $tEklenen = 0;
+        $i = 0;
+        foreach ($visits as $v) {
+            $i++;
+            $session = $v['session'] ?? '';
+            if (!$session) continue;
+            $bd = $bookingDetails[$session] ?? null;
+            $detail = $bd['details'] ?? $bd['detail'] ?? null;
+            $clientId = $detail['client_id'] ?? null;
+            $userId = $clientId ? ($idMap[$clientId] ?? null) : null;
+            // Fallback: visit'in client_name + phone_number ile match
+            if (!$userId && isset($v['phone_number'])) {
+                $phone = preg_replace('~\D~', '', $v['phone_number']);
+                $userId = \DB::table('users')->where('cep_telefon', $phone)->value('id');
+            }
+            if (!$userId) { $rHata++; continue; }
+
+            $tarih = $v['date'] ?? '';
+            $saatStr = $v['time_text'] ?? '00:00';
+            $saat = strlen($saatStr) === 5 ? $saatStr . ':00' : $saatStr;
+            $marker = '[salonappy:' . $session . ']';
+
+            // Dedup: marker
+            if (\DB::table('randevular')->where('salon_id', $salonId)->where('user_id', $userId)
+                ->where('personel_notu', 'LIKE', '%' . $marker . '%')->exists()) { $rDedup++; continue; }
+
+            // Hizmetler itemized
+            $hizmetler = [];
+            foreach (($bd['services'] ?? []) as $s) {
+                $hizmetler[] = [
+                    'hizmet'   => $s['service_text'] ?? '',
+                    'personel' => $s['staff_name'] ?? '',
+                    'fiyat'    => (float) ($s['price'] ?? 0),
+                    'sureDk'   => (int) ($s['duration'] ?? 30),
+                ];
+            }
+            if (empty($hizmetler)) $hizmetler = $this->parseSalonappyServicesStaff($v['services_staff_text'] ?? '', $v['total_amount'] ?? 0);
+
+            // Ürünler itemized
+            $urunler = [];
+            foreach (($bd['product_sales'] ?? []) as $p) {
+                $urunler[] = [
+                    'urun'     => $p['product_text'] ?? $p['product_name'] ?? $p['name'] ?? '',
+                    'personel' => $p['staff_name'] ?? '',
+                    'fiyat'    => (float) ($p['price'] ?? 0),
+                    'adet'     => (int) ($p['quantity'] ?? $p['qty'] ?? 1),
+                ];
+            }
+
+            $randevuNotu = $detail['notes'] ?? '';
+            $finalNotlar = trim(($randevuNotu ? $randevuNotu . ' ' : '') . $marker);
+
+            $payload = [
+                'userId'      => $userId,
+                'salonId'     => $salonId,
+                'tarih'       => $tarih,
+                'saat'        => $saatStr,
+                'geldi'       => $v['showup_text'] ?? '',
+                'durum'       => $v['status_text'] ?? '',
+                'olusturan'   => $v['created_by'] ?? '',
+                'olusturulma' => $v['created_at'] ?? '',
+                'notlar'      => $finalNotlar,
+                'hizmetler'   => $hizmetler,
+                'urunler'     => $urunler,
+            ];
+            try {
+                $req = new \Illuminate\Http\Request($payload);
+                $resp = $apiController->salonAppyAdisyonRandevuEkle($req);
+                $adisyonId = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
+                $rEklenen++;
+
+                // Tahsilatlar itemized (payments[] dolu ise her birini ayrı ekle)
+                if ($adisyonId && ctype_digit($adisyonId) && !empty($bd['payments'])) {
+                    foreach ($bd['payments'] as $p) {
+                        $tutar = (float) ($p['amount'] ?? 0);
+                        if ($tutar <= 0) continue;
+                        $odemeYontem = $p['payment_method_text'] ?? $p['payment_method'] ?? 'Nakit';
+                        $odemeTarih = $p['date'] ?? $tarih;
+                        $existsT = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                            ->where('user_id', $userId)->where('odeme_tarihi', $odemeTarih)
+                            ->where('tutar', $tutar)->exists();
+                        if ($existsT) continue;
+                        try {
+                            $tReq = new \Illuminate\Http\Request([
+                                'userId' => $userId, 'adisyonId' => $adisyonId,
+                                'odemeTarihi' => $odemeTarih, 'tahsilatTutari' => $tutar,
+                                'odemeYontemi' => $odemeYontem, 'salonId' => $salonId,
+                            ]);
+                            $apiController->salonAppyTahsilatEkle($tReq);
+                            $tEklenen++;
+                        } catch (\Throwable $e) {}
+                    }
+                }
+            } catch (\Throwable $e) {
+                $rHata++;
+                \Log::warning('[Salonappy v5] randevu', ['session' => $session, 'err' => $e->getMessage()]);
+            }
+            if ($i % 200 === 0) $this->line("  visit {$i}/" . count($visits) . " eklenen={$rEklenen} dedup={$rDedup} hata={$rHata} tahsilat={$tEklenen}");
+        }
+        $this->info("Visit: eklenen={$rEklenen}, dedup={$rDedup}, hata={$rHata}, tahsilat={$tEklenen}");
         return 0;
     }
 
