@@ -25,6 +25,7 @@ class DrklinikImport extends Command
         {--cleanup-dummy-aps : Tuketilmemis (geldi=0, randevu_id NULL) APS kayitlarini sil}
         {--inspect-musid= : Bir musid icin drklinik detayini indir, basliklar/sutunlar yazdir}
         {--debug-seans-musid= : Bir musid icin seans dusumu satirlarini adim adim logla}
+        {--inspect-kasa : kasa_islemleri.aspx icin tarih araliginda gelen tum tip/sutun yapilarini yazdir}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -68,6 +69,10 @@ class DrklinikImport extends Command
         if ($musid = $this->option('debug-seans-musid')) {
             if (!$username || !$password || !$salonId) { $this->error('--debug-seans-musid icin --username, --password, --salon zorunlu.'); return 1; }
             return $this->debugSeansMusid((string) $musid, $username, $password, (int) $salonId);
+        }
+        if ((bool) $this->option('inspect-kasa')) {
+            if (!$username || !$password) { $this->error('--inspect-kasa icin --username/--password zorunlu.'); return 1; }
+            return $this->inspectKasaIslemleri($username, $password, $this->option('from'), $this->option('to'));
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -177,6 +182,65 @@ class DrklinikImport extends Command
         }
         $tag = $dryRun ? '[DRY-RUN] ' : '';
         $this->info("{$tag}Tamam. seans_sayisi yazildi: {$updated} (APS yok olan: {$defaultBir} -> seans_sayisi=1).");
+        return 0;
+    }
+
+    private function inspectKasaIslemleri($username, $password, $from = null, $to = null)
+    {
+        $from = $from ?: date('Y-m-d', strtotime('-7 days'));
+        $to   = $to   ?: date('Y-m-d');
+
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+
+        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Ara', '', [
+            'TB_TarihSec1' => date('d.m.Y', strtotime($from)),
+            'TB_TarihSec2' => date('d.m.Y', strtotime($to)),
+        ]);
+        if (!$h) { $this->error('Sayfa cekilemedi.'); return 1; }
+        $this->line('Dump: ' . $client->dumpDir());
+
+        // En buyuk tabloyu bul
+        preg_match_all('~<table[^>]*>(.*?)</table>~is', $h, $tm);
+        $bestBody = ''; $bestTrs = 0;
+        foreach ($tm[1] as $body) {
+            if (preg_match_all('~<tr[^>]*>~i', $body, $r) && count($r[0]) > $bestTrs) {
+                $bestTrs = count($r[0]); $bestBody = $body;
+            }
+        }
+        $this->line("En buyuk tablo: {$bestTrs} satir");
+
+        // Basliklari yazdir
+        preg_match_all('~<th[^>]*>(.*?)</th>~is', $bestBody, $th);
+        $headers = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
+        $this->line('--- Basliklar ---');
+        foreach ($headers as $i => $hd) $this->line("  [{$i}] '{$hd}'");
+
+        // Satirlari topla, GenelTip benzeri kolonu bulup unique degerleri ve ornek satirlari yaz
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $bestBody, $rows);
+        $tipler = [];
+        $shown = 0;
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            // Sondan onceki kolon GenelTip olabilir
+            $tip = $cells[count($cells) - 1] ?: ($cells[count($cells) - 2] ?? '');
+            $tipler[$tip] = ($tipler[$tip] ?? 0) + 1;
+            if ($shown < 6) {
+                $this->line("--- Satir ornek (" . count($cells) . " td, tip='{$tip}') ---");
+                foreach ($cells as $i => $c) $this->line("    [{$i}] '" . mb_substr($c, 0, 80) . "'");
+                $shown++;
+            }
+        }
+        $this->line('--- Tip dagilimi ---');
+        foreach ($tipler as $tip => $sayi) $this->line("  '{$tip}' : {$sayi} satir");
         return 0;
     }
 
