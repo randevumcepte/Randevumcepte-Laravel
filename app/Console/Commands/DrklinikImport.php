@@ -194,10 +194,10 @@ class DrklinikImport extends Command
         $login = $client->login();
         if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
 
-        // BTN_GiderHepsi -> tum giderler
+        // BTN_GiderHepsi -> tum giderler (gider arama icin TB_GiderTarihBas/Bit)
         $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_GiderHepsi', '', [
-            'TB_TarihSec1' => date('d.m.Y', strtotime($from)),
-            'TB_TarihSec2' => date('d.m.Y', strtotime($to)),
+            'TB_GiderTarihBas' => date('d.m.Y', strtotime($from)),
+            'TB_GiderTarihBit' => date('d.m.Y', strtotime($to)),
             'DDL_GiderTipi' => '0',
             'DDL_KasaGider' => '0',
             'DDL_Giderler' => 'Ödeme Şekli',
