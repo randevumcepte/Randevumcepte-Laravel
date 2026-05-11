@@ -11,13 +11,14 @@ use App\SalonSMSAyarlari;
 use App\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class AnketOtomatikGonder extends Command
 {
     protected $signature = 'anket:otomatik-gonder';
-    protected $description = 'Randevu sonrası otomatik memnuniyet anketi SMS gönderimi (otomatik_gonder=1 olan şablonlar için)';
+    protected $description = 'Randevu bitiminde otomatik memnuniyet anketi SMS gönderimi (otomatik_gonder=1 olan şablonlar için)';
 
     public function handle()
     {
@@ -38,43 +39,58 @@ class AnketOtomatikGonder extends Command
         $toplam = 0;
 
         foreach ($aktifSablonlar as $sablon) {
-            $saatSonra = max(1, (int) $sablon->gonder_saat_sonra);
-            $eskiSinir = $now->copy()->subHours($saatSonra);
-            // 24 saatten eski randevuları işleme — geç kalmış cron koşusunda eski cevaplı/iptal randevulara anket göndermeyi engeller
-            $altSinir  = $now->copy()->subHours($saatSonra + 24);
+            // gonder_saat_sonra: 0 = randevu biter bitmez, N = bitisten N saat sonra
+            $saatSonra = max(0, (int) $sablon->gonder_saat_sonra);
 
-            // Bu salon için anket gönderim limit kontrolü: salon SMS toggle'ı yoksa atla
-            $smsAyarVar = SalonSMSAyarlari::where('salon_id', $sablon->salon_id)->where('ayar_id', 1)->where('musteri', 1)->exists();
-            // Anket için ayrı bir SMS ayar_id'si yok; randevu hatırlatma SMS toggle'ını proxy olarak kullan (salon SMS aktifliği)
-            // İleride özel ayar_id eklenebilir. Şimdilik her salon için açık varsayalım.
-
-            // Bu sablon için bu zaman penceresinde "biten" randevuları bul
-            // randevuların tarih+saat = randevu başlangıcı, hizmet süresi yok varsayımıyla başlangıç anı kullanılır
+            // Son 26 saat içindeki olası randevuları al (geç kalmış cron koşusu için)
             $randevular = Randevular::where('salon_id', $sablon->salon_id)
                 ->where('durum', 1)
                 ->where(function ($q) {
-                    // Müşteri geldi (null veya geldi flag'i)
                     $q->whereNull('randevuya_geldi')->orWhere('randevuya_geldi', '!=', 0);
                 })
-                ->whereBetween('tarih', [$altSinir->toDateString(), $eskiSinir->toDateString()])
+                ->whereBetween('tarih', [
+                    $now->copy()->subHours(26 + $saatSonra)->toDateString(),
+                    $now->copy()->toDateString(),
+                ])
                 ->whereNotNull('user_id')
                 ->where('user_id', '!=', 0)
-                ->get()
-                ->filter(function ($r) use ($altSinir, $eskiSinir) {
-                    try {
-                        $rDt = Carbon::parse($r->tarih . ' ' . $r->saat);
-                        return $rDt->between($altSinir, $eskiSinir);
-                    } catch (\Exception $e) {
-                        return false;
-                    }
-                });
+                ->get();
 
             foreach ($randevular as $rnd) {
-                // Bu randevuya aynı salon için zaten anket gönderildi mi?
+                // Aynı randevu için anket zaten gönderildi mi?
                 $varMi = AnketGonderim::where('salon_id', $sablon->salon_id)
                     ->where('randevu_id', $rnd->id)
                     ->exists();
                 if ($varMi) continue;
+
+                // Randevu başlangıç zamanı
+                try {
+                    $baslangic = Carbon::parse($rnd->tarih . ' ' . $rnd->saat);
+                } catch (\Exception $e) {
+                    continue;
+                }
+
+                // Hizmet süresi toplamı (dakika) — randevu_hizmetler tablosundan
+                $sureDk = 0;
+                try {
+                    if (Schema::hasTable('randevu_hizmetler')) {
+                        $sureDk = (int) DB::table('randevu_hizmetler')
+                            ->where('randevu_id', $rnd->id)
+                            ->sum('sure_dk');
+                    }
+                } catch (\Exception $e) {
+                    $sureDk = 0;
+                }
+                if ($sureDk <= 0) $sureDk = 30; // default 30 dk
+
+                // Randevu bitiş zamanı + saatSonra bekleme
+                $bitis = $baslangic->copy()->addMinutes($sureDk);
+                $tetikleme = $bitis->copy()->addHours($saatSonra);
+
+                // Tetikleme zamanı geçmediyse atla (henüz erken)
+                if ($now->lt($tetikleme)) continue;
+                // Çok eski randevu ise atla (26 saatten önce tetiklenmiş olmalıydı)
+                if ($tetikleme->diffInHours($now, false) > 26) continue;
 
                 $musteri = User::where('id', $rnd->user_id)->first();
                 if (!$musteri) continue;
@@ -102,6 +118,8 @@ class AnketOtomatikGonder extends Command
                         'salon_id' => $sablon->salon_id,
                         'sablon_id' => $sablon->id,
                         'gonderim_id' => $gonderim->id,
+                        'sure_dk' => $sureDk,
+                        'saat_sonra' => $saatSonra,
                         'tel' => $tel,
                     ]);
                 } catch (\Exception $e) {

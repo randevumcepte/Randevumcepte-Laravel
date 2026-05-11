@@ -448,7 +448,11 @@
                      </td>
                      <td style="text-align:center; font-size:12.5px;">
                         @if($s->otomatik_gonder)
-                           <i class="fa fa-clock-o" style="color:#10b981;"></i> Randevudan {{$s->gonder_saat_sonra}} sa sonra
+                           @if($s->gonder_saat_sonra == 0)
+                              <i class="fa fa-bolt" style="color:#10b981;"></i> Randevu biter bitmez
+                           @else
+                              <i class="fa fa-clock-o" style="color:#10b981;"></i> Bitisten {{$s->gonder_saat_sonra}} sa sonra
+                           @endif
                         @else
                            <span style="color:#8a8295;">Manuel</span>
                         @endif
@@ -534,13 +538,15 @@
                   <div style="background:#fbfafd; border:1px solid #dfd6ea; border-radius:7px; padding:8px 11px;">
                      <label style="margin:0; cursor:pointer; font-size:12.5px; color:#3a1a52; text-transform:none; letter-spacing:0;">
                         <input type="checkbox" id="anket_otomatik" style="transform:scale(1.1); margin-right:7px; accent-color:#5C008E;">
-                        Randevu sonrası otomatik gönder
+                        Randevu bitiminde otomatik gönder
                      </label>
+                     <div style="font-size:10.5px; color:#8a8295; margin-top:3px;">Hizmet süresi tamamlanır tamamlanmaz SMS gider</div>
                   </div>
                </div>
                <div class="col-md-3 form-group">
-                  <label>Saat Sonra</label>
-                  <input type="number" id="anket_saat" class="form-control" value="24" min="1" max="720">
+                  <label>Gecikme (saat)</label>
+                  <input type="number" id="anket_saat" class="form-control" value="0" min="0" max="720" title="0 = randevu biter bitmez (önerilen)">
+                  <div style="font-size:10.5px; color:#8a8295; margin-top:3px;">0 = hemen (önerilen)</div>
                </div>
                <div class="col-md-3 form-group">
                   <label>Varsayılan</label>
@@ -790,7 +796,7 @@ function sablonDuzenle(id){
       document.getElementById('anket_ad_input').value = resp.ad || '';
       document.getElementById('anket_aciklama_input').value = resp.aciklama || '';
       document.getElementById('anket_otomatik').checked = !!parseInt(resp.otomatik_gonder);
-      document.getElementById('anket_saat').value = resp.gonder_saat_sonra || 24;
+      document.getElementById('anket_saat').value = resp.gonder_saat_sonra ?? 0;
       document.getElementById('anket_varsayilan').checked = !!parseInt(resp.varsayilan);
       document.getElementById('sorular_konteyneri').innerHTML = '';
       soruSayaci = 0;

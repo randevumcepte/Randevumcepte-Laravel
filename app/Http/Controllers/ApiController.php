@@ -22010,7 +22010,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $sablon->aciklama          = $request->input('aciklama');
             $sablon->sorular_json      = $request->input('sorular_json');
             $sablon->otomatik_gonder   = $request->input('otomatik_gonder') ? 1 : 0;
-            $sablon->gonder_saat_sonra = max(1, (int) ($request->input('gonder_saat_sonra') ?: 24));
+            $sablon->gonder_saat_sonra = max(0, (int) $request->input('gonder_saat_sonra', 0));
             $sablon->aktif             = 1;
             $sablon->varsayilan        = $request->input('varsayilan') ? 1 : 0;
             if ($sablon->varsayilan) {
@@ -22033,7 +22033,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             if ($request->has('aciklama')) $sablon->aciklama = $request->input('aciklama');
             if ($request->has('sorular_json')) $sablon->sorular_json = $request->input('sorular_json');
             if ($request->has('otomatik_gonder')) $sablon->otomatik_gonder = $request->input('otomatik_gonder') ? 1 : 0;
-            if ($request->has('gonder_saat_sonra')) $sablon->gonder_saat_sonra = max(1, (int) $request->input('gonder_saat_sonra'));
+            if ($request->has('gonder_saat_sonra')) $sablon->gonder_saat_sonra = max(0, (int) $request->input('gonder_saat_sonra'));
             if ($request->has('aktif')) $sablon->aktif = $request->input('aktif') ? 1 : 0;
             if ($request->has('varsayilan')) {
                 $sablon->varsayilan = $request->input('varsayilan') ? 1 : 0;

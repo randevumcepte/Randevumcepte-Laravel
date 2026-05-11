@@ -24153,7 +24153,7 @@ DB::raw('
             $sablon->aciklama          = $request->aciklama;
             $sablon->sorular_json      = $request->sorular_json;
             $sablon->otomatik_gonder   = $request->otomatik_gonder ? 1 : 0;
-            $sablon->gonder_saat_sonra = max(1, (int) ($request->gonder_saat_sonra ?: 24));
+            $sablon->gonder_saat_sonra = max(0, (int) ($request->gonder_saat_sonra ?? 0));
             $sablon->aktif             = 1;
             $sablon->varsayilan        = $request->varsayilan ? 1 : 0;
             if($sablon->varsayilan){
@@ -24176,7 +24176,7 @@ DB::raw('
             $sablon->aciklama          = $request->aciklama;
             $sablon->sorular_json      = $request->sorular_json;
             $sablon->otomatik_gonder   = $request->otomatik_gonder ? 1 : 0;
-            $sablon->gonder_saat_sonra = max(1, (int) ($request->gonder_saat_sonra ?: 24));
+            $sablon->gonder_saat_sonra = max(0, (int) ($request->gonder_saat_sonra ?? 0));
             if($request->has('aktif')) $sablon->aktif = $request->aktif ? 1 : 0;
             if($request->has('varsayilan')){
                 $sablon->varsayilan = $request->varsayilan ? 1 : 0;
