@@ -194,22 +194,27 @@ class DrklinikImport extends Command
         $login = $client->login();
         if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
 
-        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Ara', '', [
+        // BTN_GiderHepsi -> tum giderler
+        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_GiderHepsi', '', [
             'TB_TarihSec1' => date('d.m.Y', strtotime($from)),
             'TB_TarihSec2' => date('d.m.Y', strtotime($to)),
+            'DDL_GiderTipi' => '0',
+            'DDL_KasaGider' => '0',
+            'DDL_Giderler' => 'Ödeme Şekli',
+            'DDL_GenelTip' => '',
         ]);
         if (!$h) { $this->error('Sayfa cekilemedi.'); return 1; }
         $this->line('Dump: ' . $client->dumpDir());
 
-        // En buyuk tabloyu bul
+        // En buyuk tabloyu bul - GIDER tablosunu hedeflemek icin sonuncuyu da dene
         preg_match_all('~<table[^>]*>(.*?)</table>~is', $h, $tm);
-        $bestBody = ''; $bestTrs = 0;
-        foreach ($tm[1] as $body) {
+        $bestBody = ''; $bestTrs = 0; $bestIdx = -1;
+        foreach ($tm[1] as $idx => $body) {
             if (preg_match_all('~<tr[^>]*>~i', $body, $r) && count($r[0]) > $bestTrs) {
-                $bestTrs = count($r[0]); $bestBody = $body;
+                $bestTrs = count($r[0]); $bestBody = $body; $bestIdx = $idx;
             }
         }
-        $this->line("En buyuk tablo: {$bestTrs} satir");
+        $this->line("En buyuk tablo: #{$bestIdx}, {$bestTrs} satir (toplam " . count($tm[1]) . " tablo)");
 
         // Basliklari yazdir
         preg_match_all('~<th[^>]*>(.*?)</th>~is', $bestBody, $th);
