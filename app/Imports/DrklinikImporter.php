@@ -22,6 +22,8 @@ use App\AdisyonHizmetler;
 use App\Tahsilatlar;
 use App\TahsilatHizmetler;
 use App\TahsilatUrunler;
+use App\Masraflar;
+use App\MasrafKategorisi;
 use App\AdisyonPaketSeanslar;
 use App\AdisyonUrunler;
 use Illuminate\Support\Facades\Log;
@@ -1436,6 +1438,193 @@ class DrklinikImporter
      * Drklinik'te tahsilat dogrudan musteriye bagli (randevu/adisyon iliskisi liste'de yok),
      * Tahsilatlar.adisyon_id NULL olarak yazilir.
      */
+    /**
+     * Giderler: kasa_islemleri.aspx + BTN_GiderHepsi (TB_GiderTarihBas/Bit).
+     * Sutunlar (10 td): Tarih | Aciklama | Odeme Sekli | Tutar | Genel Tip |
+     *                   Gider Tipi | Kasa | Odenen | Saat | (button)
+     * Masraflar tablosuna yazilir. Idempotent: salon_id+tarih+tutar+saat+aciklama
+     * hash'i ile dedup.
+     */
+    public function importGiderler($baslangic = null, $bitis = null)
+    {
+        $start = $baslangic ? $baslangic : '2018-01-01';
+        $end   = $bitis ? $bitis : date('Y-m-d');
+        $this->log("Giderler cekiliyor: {$start} - {$end} ...");
+
+        $h = $this->client->postBack('/kasa_islemleri.aspx', 'BTN_GiderHepsi', '', [
+            'TB_GiderTarihBas' => date('d.m.Y', strtotime($start)),
+            'TB_GiderTarihBit' => date('d.m.Y', strtotime($end)),
+            'DDL_GiderTipi'    => '0',
+            'DDL_KasaGider'    => '0',
+            'DDL_Giderler'     => 'Ödeme Şekli',
+            'DDL_GenelTip'     => '',
+        ]);
+        if (!$h) { $this->log('Sayfa cekilemedi.'); return; }
+        usleep(300000);
+
+        $tableBodies = $this->extractAllTables($h);
+        if (empty($tableBodies)) { $this->log('Tablo bulunamadi.'); return; }
+
+        // En cok satira sahip tabloyu sec (gider tablosu)
+        $best = ''; $bestTrs = 0;
+        foreach ($tableBodies as $body) {
+            $trc = preg_match_all('~<tr[^>]*>~i', $body, $r) ? count($r[0]) : 0;
+            if ($trc > $bestTrs) { $bestTrs = $trc; $best = $body; }
+        }
+
+        if (!isset($this->counts['gider'])) $this->counts['gider'] = 0;
+        if (!isset($this->counts['gider_skip'])) $this->counts['gider_skip'] = 0;
+
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $best, $rows);
+        $defaultPers = $this->defaultPersonelId();
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) { $cells[] = ''; continue; }
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            if (count($cells) < 9) continue;
+
+            $tarih      = $this->tarihNormalize($cells[0] ?? '');
+            $aciklama   = $cells[1] ?? '';
+            $odemeSekli = $cells[2] ?? '';
+            $tutarStr   = $cells[3] ?? '';
+            $genelTip   = $cells[4] ?? '';
+            $giderTipi  = $cells[5] ?? '';
+            $odenen     = $cells[7] ?? '';
+            $saat       = $cells[8] ?? '';
+
+            if (!$tarih) { $this->counts['gider_skip']++; continue; }
+            // "32.000,00 TRY" parse
+            $tutar = 0.0;
+            if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) {
+                $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+            } else {
+                $tutar = (float) preg_replace('~[^0-9.]~', '', $tutarStr);
+            }
+            if ($tutar <= 0) { $this->counts['gider_skip']++; continue; }
+            if (strlen($saat) === 5) $saat .= ':00';
+
+            $kategoriAdi = trim($giderTipi) ?: (trim($genelTip) ?: 'Diğer');
+            $kategoriId  = $this->ensureMasrafKategori($kategoriAdi);
+            $odemeYontemi = $this->odemeYontemiMap($odemeSekli);
+
+            // Harcayan: Maaş satirinda "Odenen" personel adi olabilir, ya da aciklama
+            $harcayanAd = '';
+            if (mb_stripos($kategoriAdi, 'Maaş', 0, 'UTF-8') !== false) {
+                $harcayanAd = trim($odenen) ?: trim($aciklama);
+            }
+            $harcayanId = null;
+            if ($harcayanAd) {
+                $harcayanId = Personeller::where('salon_id', $this->salonId)
+                    ->where('personel_adi', 'LIKE', '%' . $harcayanAd . '%')
+                    ->value('id');
+            }
+            if (!$harcayanId) $harcayanId = $defaultPers;
+
+            // Idempotent dedup
+            $existsQ = Masraflar::where('salon_id', $this->salonId)
+                ->where('tarih', $tarih)
+                ->where('tutar', $tutar);
+            // saat kolonu var mi?
+            if (\Schema::hasColumn((new Masraflar)->getTable(), 'saat')) {
+                $existsQ->where('saat', $saat);
+            }
+            if (\Schema::hasColumn((new Masraflar)->getTable(), 'aciklama')) {
+                $existsQ->where('aciklama', $aciklama);
+            }
+            if ($existsQ->exists()) { $this->counts['gider_skip']++; continue; }
+
+            $m = new Masraflar();
+            $m->salon_id = $this->salonId;
+            $m->tarih = $tarih;
+            $m->tutar = $tutar;
+            if (\Schema::hasColumn((new Masraflar)->getTable(), 'saat')) $m->saat = $saat;
+            if (\Schema::hasColumn((new Masraflar)->getTable(), 'aciklama')) $m->aciklama = $aciklama;
+            if (\Schema::hasColumn((new Masraflar)->getTable(), 'masraf_kategori_id')) $m->masraf_kategori_id = $kategoriId;
+            if (\Schema::hasColumn((new Masraflar)->getTable(), 'odeme_yontemi_id')) $m->odeme_yontemi_id = $odemeYontemi;
+            if (\Schema::hasColumn((new Masraflar)->getTable(), 'harcayan_id')) $m->harcayan_id = $harcayanId;
+            $m->save();
+            $this->counts['gider']++;
+        }
+        $this->log("Gider import bitti: eklenen={$this->counts['gider']}, atlanan={$this->counts['gider_skip']}");
+    }
+
+    /**
+     * Masraf kategorisi getir/olustur. trKey bazli match.
+     */
+    private function ensureMasrafKategori($ad)
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '') $ad = 'Diğer';
+        static $cache = null;
+        if ($cache === null) {
+            $cache = [];
+            foreach (MasrafKategorisi::all() as $k) {
+                $key = $this->trKey($k->kategori_adi ?? $k->ad ?? '');
+                if ($key !== '') $cache[$key] = $k->id;
+            }
+        }
+        $needle = $this->trKey($ad);
+        if (isset($cache[$needle])) return $cache[$needle];
+        try {
+            $k = new MasrafKategorisi();
+            $col = \Schema::hasColumn((new MasrafKategorisi)->getTable(), 'kategori_adi') ? 'kategori_adi' :
+                  (\Schema::hasColumn((new MasrafKategorisi)->getTable(), 'ad') ? 'ad' :
+                  (\Schema::hasColumn((new MasrafKategorisi)->getTable(), 'name') ? 'name' : null));
+            if ($col) $k->{$col} = $ad;
+            if (\Schema::hasColumn((new MasrafKategorisi)->getTable(), 'salon_id')) $k->salon_id = $this->salonId;
+            $k->save();
+            $cache[$needle] = $k->id;
+            return $k->id;
+        } catch (\Throwable $e) {
+            \Log::warning('[Drklinik] masraf_kategorisi olusturulamadi', ['ad' => $ad, 'err' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Nested table'lar icin saglam parser.
+     */
+    private function extractAllTables($html)
+    {
+        $bodies = [];
+        $offset = 0;
+        $len = strlen($html);
+        while ($offset < $len) {
+            $start = stripos($html, '<table', $offset);
+            if ($start === false) break;
+            $tagEnd = strpos($html, '>', $start);
+            if ($tagEnd === false) break;
+            $bodyStart = $tagEnd + 1;
+            $depth = 1;
+            $pos = $bodyStart;
+            while ($depth > 0 && $pos < $len) {
+                $nextOpen = stripos($html, '<table', $pos);
+                $nextClose = stripos($html, '</table>', $pos);
+                if ($nextClose === false) break;
+                if ($nextOpen !== false && $nextOpen < $nextClose) {
+                    $depth++;
+                    $pos = $nextOpen + 6;
+                } else {
+                    $depth--;
+                    if ($depth === 0) {
+                        $bodies[] = substr($html, $bodyStart, $nextClose - $bodyStart);
+                        $offset = $nextClose + 8;
+                        break;
+                    }
+                    $pos = $nextClose + 8;
+                }
+            }
+            if ($depth > 0) break;
+        }
+        return $bodies;
+    }
+
     public function importTahsilatlar($baslangic = null, $bitis = null)
     {
         $start = $baslangic ? strtotime($baslangic) : strtotime('2018-01-01');

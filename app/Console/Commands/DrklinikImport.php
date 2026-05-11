@@ -130,6 +130,7 @@ class DrklinikImport extends Command
         if ((bool) $this->option('fix-randevu')) $importer->fixRandevuEksikler($this->option('from'), $this->option('to'));
         if (in_array('satis', $types))    $importer->importSatislar($this->option('from'), $this->option('to'));
         if (in_array('tahsilat', $types)) $importer->importTahsilatlar($this->option('from'), $this->option('to'));
+        if (in_array('gider', $types) || in_array('masraf', $types)) $importer->importGiderler($this->option('from'), $this->option('to'));
         if (in_array('satis-tahsilat', $types) || in_array('musteri-detay', $types)) {
             $importer->importSatisVeTahsilat($this->option('from'), $this->option('to'));
         }
