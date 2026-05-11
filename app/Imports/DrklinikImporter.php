@@ -1526,28 +1526,35 @@ class DrklinikImporter
             }
             if (!$harcayanId) $harcayanId = $defaultPers;
 
-            // Idempotent dedup
-            $existsQ = Masraflar::where('salon_id', $this->salonId)
-                ->where('tarih', $tarih)
-                ->where('tutar', $tutar);
-            // saat kolonu var mi?
-            if (\Schema::hasColumn((new Masraflar)->getTable(), 'saat')) {
-                $existsQ->where('saat', $saat);
+            // Idempotent dedup - notlar kolonuna drklinik hash'i yazip ona gore eslestir
+            $masTable = (new Masraflar)->getTable();
+            $hasNotlar = \Schema::hasColumn($masTable, 'notlar');
+            $hashKey = md5($tarih . '|' . $tutar . '|' . $saat . '|' . $aciklama . '|' . $kategoriAdi . '|' . $odemeSekli);
+            $marker = 'drk:' . $hashKey;
+
+            if ($hasNotlar) {
+                $exists = Masraflar::where('salon_id', $this->salonId)
+                    ->where('notlar', 'LIKE', '%' . $marker . '%')->exists();
+            } else {
+                // notlar yoksa eski (zayif) dedup
+                $existsQ = Masraflar::where('salon_id', $this->salonId)
+                    ->where('tarih', $tarih)
+                    ->where('tutar', $tutar);
+                if (\Schema::hasColumn($masTable, 'aciklama')) $existsQ->where('aciklama', $aciklama);
+                $exists = $existsQ->exists();
             }
-            if (\Schema::hasColumn((new Masraflar)->getTable(), 'aciklama')) {
-                $existsQ->where('aciklama', $aciklama);
-            }
-            if ($existsQ->exists()) { $this->counts['gider_skip']++; continue; }
+            if ($exists) { $this->counts['gider_skip']++; continue; }
 
             $m = new Masraflar();
             $m->salon_id = $this->salonId;
             $m->tarih = $tarih;
             $m->tutar = $tutar;
-            if (\Schema::hasColumn((new Masraflar)->getTable(), 'saat')) $m->saat = $saat;
-            if (\Schema::hasColumn((new Masraflar)->getTable(), 'aciklama')) $m->aciklama = $aciklama;
-            if (\Schema::hasColumn((new Masraflar)->getTable(), 'masraf_kategori_id')) $m->masraf_kategori_id = $kategoriId;
-            if (\Schema::hasColumn((new Masraflar)->getTable(), 'odeme_yontemi_id')) $m->odeme_yontemi_id = $odemeYontemi;
-            if (\Schema::hasColumn((new Masraflar)->getTable(), 'harcayan_id')) $m->harcayan_id = $harcayanId;
+            if (\Schema::hasColumn($masTable, 'saat')) $m->saat = $saat;
+            if (\Schema::hasColumn($masTable, 'aciklama')) $m->aciklama = $aciklama;
+            if (\Schema::hasColumn($masTable, 'masraf_kategori_id')) $m->masraf_kategori_id = $kategoriId;
+            if (\Schema::hasColumn($masTable, 'odeme_yontemi_id')) $m->odeme_yontemi_id = $odemeYontemi;
+            if (\Schema::hasColumn($masTable, 'harcayan_id')) $m->harcayan_id = $harcayanId;
+            if ($hasNotlar) $m->notlar = $marker;
             $m->save();
             $this->counts['gider']++;
         }

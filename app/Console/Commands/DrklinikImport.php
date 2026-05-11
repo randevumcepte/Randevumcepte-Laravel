@@ -27,6 +27,7 @@ class DrklinikImport extends Command
         {--debug-seans-musid= : Bir musid icin seans dusumu satirlarini adim adim logla}
         {--inspect-kasa : kasa_islemleri.aspx icin tarih araliginda gelen tum tip/sutun yapilarini yazdir}
         {--repair-masraf-kategori : Bos isimli MasrafKategorisi kayitlarini drklinik gider tipi ile yeniden adlandir}
+        {--repair-gider-dedup : Mevcut Masraflar kayitlarina drklinik hash marker yaz ve eksik gider satirlarini ekle}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -78,6 +79,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('repair-masraf-kategori')) {
             if (!$username || !$password || !$salonId) { $this->error('--repair-masraf-kategori icin --username/--password/--salon zorunlu.'); return 1; }
             return $this->repairMasrafKategori($username, $password, (int) $salonId, $this->option('from'), $this->option('to'));
+        }
+        if ((bool) $this->option('repair-gider-dedup')) {
+            if (!$username || !$password || !$salonId) { $this->error('--repair-gider-dedup icin --username/--password/--salon zorunlu.'); return 1; }
+            return $this->repairGiderDedup($username, $password, (int) $salonId, $this->option('from'), $this->option('to'));
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -195,6 +200,152 @@ class DrklinikImport extends Command
      * Bos isimli (kategoriler kolonu NULL/bos) MasrafKategorisi kayitlarini
      * drklinik'ten yeniden ceken gider listesi ile eslestirip isimlendir.
      */
+    /**
+     * Drklinik gider listesini cekip her satir icin hash uretir.
+     * Mevcut Masraflar kayitlari ile (tarih+tutar+aciklama) ilk eslesen
+     * notlar'i NULL/bos olan kayda hash yazar (n-to-n eslestirme).
+     * Eslesemeyen satirlar -> yeni Masraflar olarak eklenir.
+     */
+    private function repairGiderDedup($username, $password, $salonId, $from = null, $to = null)
+    {
+        $from = $from ?: '2018-01-01';
+        $to   = $to   ?: date('Y-m-d');
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+        $this->line("Drklinik gider listesi cekiliyor ({$from} - {$to})...");
+
+        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_GiderHepsi', '', [
+            'TB_GiderTarihBas' => date('d.m.Y', strtotime($from)),
+            'TB_GiderTarihBit' => date('d.m.Y', strtotime($to)),
+            'DDL_GiderTipi'    => '0',
+            'DDL_KasaGider'    => '0',
+            'DDL_Giderler'     => 'Ödeme Şekli',
+            'DDL_GenelTip'     => '',
+        ]);
+        if (!$h) { $this->error('Sayfa cekilemedi.'); return 1; }
+
+        $bodies = $this->extractAllTables($h);
+        $best = ''; $bestTrs = 0;
+        foreach ($bodies as $body) {
+            $trc = preg_match_all('~<tr[^>]*>~i', $body, $r) ? count($r[0]) : 0;
+            if ($trc > $bestTrs) { $bestTrs = $trc; $best = $body; }
+        }
+        if ($best === '') { $this->error('Gider tablosu bulunamadi.'); return 1; }
+
+        $defaultPers = \App\Personeller::where('salon_id', $salonId)->where('aktif', 1)->orderBy('id')->value('id')
+            ?: \App\Personeller::where('salon_id', $salonId)->orderBy('id')->value('id');
+
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $best, $rows);
+        $rescaned = 0; $linked = 0; $added = 0; $alreadyMarked = 0;
+
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            if (count($cells) < 9) continue;
+
+            $tarih = $this->__d($cells[0]);
+            $aciklama = $cells[1] ?? '';
+            $odemeSekli = $cells[2] ?? '';
+            $tutarStr = $cells[3] ?? '';
+            $genelTip = $cells[4] ?? '';
+            $giderTipi = $cells[5] ?? '';
+            $odenen = $cells[7] ?? '';
+            $saat = $cells[8] ?? '';
+            if (strlen($saat) === 5) $saat .= ':00';
+
+            $tutar = 0.0;
+            if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) {
+                $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+            }
+            if (!$tarih || $tutar <= 0) continue;
+            $rescaned++;
+
+            $kategoriAdi = trim($giderTipi) ?: (trim($genelTip) ?: 'Diğer');
+            $hashKey = md5($tarih . '|' . $tutar . '|' . $saat . '|' . $aciklama . '|' . $kategoriAdi . '|' . $odemeSekli);
+            $marker = 'drk:' . $hashKey;
+
+            // Bu marker zaten var mi?
+            $hasMark = \DB::table('masraflar')
+                ->where('salon_id', $salonId)
+                ->where('notlar', 'LIKE', '%' . $marker . '%')
+                ->exists();
+            if ($hasMark) { $alreadyMarked++; continue; }
+
+            // Marker yok - bu satira karsi gelen ilk markersiz Masraflar'i bul ve marker'i yaz
+            $candidate = \DB::table('masraflar')
+                ->where('salon_id', $salonId)
+                ->where('tarih', $tarih)
+                ->where('tutar', $tutar)
+                ->where('aciklama', $aciklama)
+                ->where(function ($q) { $q->whereNull('notlar')->orWhere('notlar', ''); })
+                ->orderBy('id')
+                ->first();
+            if ($candidate) {
+                \DB::table('masraflar')->where('id', $candidate->id)->update(['notlar' => $marker]);
+                $linked++;
+                continue;
+            }
+
+            // Eslesmedi - yeni Masraflar olustur
+            $kategoriId = $this->ensureMasrafKategoriRepair($kategoriAdi);
+            $odemeYontemi = $this->odemeYontemiMapRepair($odemeSekli);
+            $harcayanId = null;
+            if (mb_stripos($kategoriAdi, 'Maaş', 0, 'UTF-8') !== false) {
+                $harcayanAd = trim($odenen) ?: trim($aciklama);
+                if ($harcayanAd) {
+                    $harcayanId = \App\Personeller::where('salon_id', $salonId)
+                        ->where('personel_adi', 'LIKE', '%' . $harcayanAd . '%')->value('id');
+                }
+            }
+            if (!$harcayanId) $harcayanId = $defaultPers;
+
+            \DB::table('masraflar')->insert([
+                'salon_id' => $salonId,
+                'tarih' => $tarih,
+                'tutar' => $tutar,
+                'aciklama' => $aciklama,
+                'notlar' => $marker,
+                'masraf_kategori_id' => $kategoriId,
+                'odeme_yontemi_id' => $odemeYontemi,
+                'harcayan_id' => $harcayanId,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+            $added++;
+        }
+
+        $this->info("Tamam. tarama={$rescaned}, markeryazildi={$linked}, yenieklenen={$added}, zatenmarkerli={$alreadyMarked}");
+        return 0;
+    }
+
+    private function ensureMasrafKategoriRepair($ad)
+    {
+        $ad = trim((string) $ad) ?: 'Diğer';
+        $row = \DB::table('masraf_kategorileri')->where('kategori', $ad)->first();
+        if ($row) return $row->id;
+        return \DB::table('masraf_kategorileri')->insertGetId([
+            'kategori' => $ad,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    private function odemeYontemiMapRepair($s)
+    {
+        $s = mb_strtolower($s, 'UTF-8');
+        if (strpos($s, 'nakit') !== false) return 1;
+        if (strpos($s, 'kredi') !== false) return 2;
+        if (strpos($s, 'havale') !== false || strpos($s, 'eft') !== false) return 3;
+        return 1;
+    }
+
     private function repairMasrafKategori($username, $password, $salonId, $from = null, $to = null)
     {
         $from = $from ?: '2018-01-01';
