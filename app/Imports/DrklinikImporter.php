@@ -1477,6 +1477,7 @@ class DrklinikImporter
 
         preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $best, $rows);
         $defaultPers = $this->defaultPersonelId();
+        $seenHashes = []; // ayni hash 2.kez gelirse marker'a suffix ekle
         foreach ($rows[1] as $tr) {
             if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
             preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
@@ -1529,7 +1530,10 @@ class DrklinikImporter
             // Idempotent dedup - notlar kolonuna drklinik hash'i yazip ona gore eslestir
             $masTable = (new Masraflar)->getTable();
             $hasNotlar = \Schema::hasColumn($masTable, 'notlar');
-            $hashKey = md5($tarih . '|' . $tutar . '|' . $saat . '|' . $aciklama . '|' . $kategoriAdi . '|' . $odemeSekli);
+            $baseHash = md5($tarih . '|' . $tutar . '|' . $saat . '|' . $aciklama . '|' . $kategoriAdi . '|' . $odemeSekli);
+            $occ = ($seenHashes[$baseHash] ?? 0) + 1;
+            $seenHashes[$baseHash] = $occ;
+            $hashKey = $occ > 1 ? $baseHash . ':' . $occ : $baseHash;
             $marker = 'drk:' . $hashKey;
 
             if ($hasNotlar) {

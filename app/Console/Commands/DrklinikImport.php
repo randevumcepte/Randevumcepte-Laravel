@@ -238,6 +238,7 @@ class DrklinikImport extends Command
 
         preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $best, $rows);
         $rescaned = 0; $linked = 0; $added = 0; $alreadyMarked = 0;
+        $seenHashes = [];
 
         foreach ($rows[1] as $tr) {
             if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
@@ -268,7 +269,10 @@ class DrklinikImport extends Command
             $rescaned++;
 
             $kategoriAdi = trim($giderTipi) ?: (trim($genelTip) ?: 'Diğer');
-            $hashKey = md5($tarih . '|' . $tutar . '|' . $saat . '|' . $aciklama . '|' . $kategoriAdi . '|' . $odemeSekli);
+            $baseHash = md5($tarih . '|' . $tutar . '|' . $saat . '|' . $aciklama . '|' . $kategoriAdi . '|' . $odemeSekli);
+            $occ = ($seenHashes[$baseHash] ?? 0) + 1;
+            $seenHashes[$baseHash] = $occ;
+            $hashKey = $occ > 1 ? $baseHash . ':' . $occ : $baseHash;
             $marker = 'drk:' . $hashKey;
 
             // Bu marker zaten var mi?
