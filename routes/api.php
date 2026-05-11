@@ -69,6 +69,20 @@ Route::post('/carkAdmin/kupon-kullan/{salonId}','ApiController@carkKuponKullanAp
 Route::get('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaGetirApi');
 Route::post('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaKaydetApi');
 
+// WhatsApp Mobil (ayri controller, defensive, izole)
+Route::post('/whatsapp/baslat/{salonId}','WhatsappMobileController@baslat');
+Route::get('/whatsapp/durum/{salonId}','WhatsappMobileController@durum');
+Route::get('/whatsapp/qr/{salonId}','WhatsappMobileController@qr');
+Route::post('/whatsapp/cikis/{salonId}','WhatsappMobileController@cikis');
+Route::get('/whatsapp/ozet/{salonId}','WhatsappMobileController@ozet');
+Route::get('/whatsapp/loglar/{salonId}','WhatsappMobileController@loglar');
+Route::get('/whatsapp/aliciler/{salonId}','WhatsappMobileController@aliciler');
+Route::get('/whatsapp/alici/{salonId}/{telefon}','WhatsappMobileController@aliciGecmis');
+Route::get('/whatsapp/kanal-durum/{salonId}','WhatsappMobileController@kanalDurum');
+Route::post('/whatsapp/kanal-toggle/{salonId}','WhatsappMobileController@kanalToggle');
+Route::get('/whatsapp/paket-durum/{salonId}','WhatsappMobileController@paketDurum');
+Route::post('/whatsapp/paket-talep/{salonId}','WhatsappMobileController@paketTalep');
+
 Route::get('/isletmepuani/{salonid}','ApiController@isletmepuani');
 Route::middleware('throttle:60,1')->group(function () {
     Route::post('/ajandaget/{salonid}/{olusturan}','ApiController@ajandagetir');
