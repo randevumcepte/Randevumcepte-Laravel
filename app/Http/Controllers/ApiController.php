@@ -4628,6 +4628,27 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $trend[] = (int) $count;
         }
 
+        // Reputation Booster premium istatistikleri (kolon yoksa 0)
+        $googleTiklamalar = 0;
+        $kotuPuanUyarilari = 0;
+        if (Schema::hasColumn('anket_gonderimleri', 'google_yonlendirildi')) {
+            $googleTiklamalar = (int) (clone $base)->where('cevaplandi', 1)->where('google_yonlendirildi', 1)->count();
+        }
+        if (Schema::hasColumn('anket_gonderimleri', 'kotu_puan_uyari_gonderildi')) {
+            $kotuPuanUyarilari = (int) (clone $base)->where('cevaplandi', 1)->where('kotu_puan_uyari_gonderildi', 1)->count();
+        }
+
+        // Salon premium aktif mi (kolon yoksa false)
+        $premiumAktif = false;
+        $googleUrlVar = false;
+        if (Schema::hasColumn('salonlar', 'reputation_premium_aktif')) {
+            $s = Salonlar::where('id', $salonId)->first(['reputation_premium_aktif', 'google_review_url']);
+            if ($s) {
+                $premiumAktif = (bool) ($s->reputation_premium_aktif ?? false);
+                $googleUrlVar = !empty($s->google_review_url);
+            }
+        }
+
         return response()->json([
             'gun' => $gun,
             'toplamGonderim' => (int) $toplamGonderim,
@@ -4639,6 +4660,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             'passive' => (int) $passive,
             'detractor' => (int) $detractor,
             'trend' => $trend,
+            'googleTiklamalar' => $googleTiklamalar,
+            'kotuPuanUyarilari' => $kotuPuanUyarilari,
+            'reputationPremiumAktif' => $premiumAktif,
+            'googleUrlVar' => $googleUrlVar,
         ]);
     }
 
@@ -4652,18 +4677,31 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $limit = (int) $request->query('limit', $request->input('limit', 20));
         $offset = (int) $request->query('offset', $request->input('offset', 0));
         $sadeceCevap = (int) $request->query('sadeceCevaplilar', $request->input('sadeceCevaplilar', 1));
+        // filtre: tum | cevapli | google_tiklayan | kotu_puan
+        $filtre = $request->query('filtre', $request->input('filtre', null));
         if ($limit <= 0 || $limit > 200) $limit = 20;
         if ($offset < 0) $offset = 0;
 
         $q = AnketGonderim::where('salon_id', $salonId);
-        if ($sadeceCevap) $q->where('cevaplandi', 1);
+
+        if ($filtre === 'google_tiklayan' && Schema::hasColumn('anket_gonderimleri', 'google_yonlendirildi')) {
+            $q->where('cevaplandi', 1)->where('google_yonlendirildi', 1);
+        } elseif ($filtre === 'kotu_puan' && Schema::hasColumn('anket_gonderimleri', 'kotu_puan_uyari_gonderildi')) {
+            $q->where('cevaplandi', 1)->where('kotu_puan_uyari_gonderildi', 1);
+        } elseif ($filtre === 'cevapli' || $sadeceCevap) {
+            $q->where('cevaplandi', 1);
+        }
+        // filtre === 'tum' veya null + sadeceCevap=0 -> hepsi
 
         $kayitlar = $q->orderByDesc('cevap_zamani')
             ->orderByDesc('id')
             ->skip($offset)->take($limit)
             ->get();
 
-        $sonuc = $kayitlar->map(function ($g) {
+        $hasGoogleCol = Schema::hasColumn('anket_gonderimleri', 'google_yonlendirildi');
+        $hasKotuCol = Schema::hasColumn('anket_gonderimleri', 'kotu_puan_uyari_gonderildi');
+
+        $sonuc = $kayitlar->map(function ($g) use ($hasGoogleCol, $hasKotuCol) {
             return [
                 'id' => (int) $g->id,
                 'ad_soyad' => $g->ad_soyad,
@@ -4675,6 +4713,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'nps_skoru' => $g->nps_skoru !== null ? (int) $g->nps_skoru : null,
                 'csat_skoru' => $g->csat_skoru !== null ? (float) $g->csat_skoru : null,
                 'genel_yorum' => $g->genel_yorum,
+                'google_yonlendirildi' => $hasGoogleCol ? (bool) ($g->google_yonlendirildi ?? false) : false,
+                'kotu_puan_uyari_gonderildi' => $hasKotuCol ? (bool) ($g->kotu_puan_uyari_gonderildi ?? false) : false,
             ];
         });
 
@@ -4682,6 +4722,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             'kayitlar' => $sonuc,
             'limit' => $limit,
             'offset' => $offset,
+            'filtre' => $filtre,
         ]);
     }
 
