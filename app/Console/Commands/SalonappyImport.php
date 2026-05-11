@@ -152,7 +152,7 @@ class SalonappyImport extends Command
         $this->info("Musteri aktarimi: eklenen={$musteriEklenen}, hata={$musteriHata}");
 
         // 2) Randevu + Adisyon + Tahsilat
-        $randevuEklenen = 0; $randevuAtlanan = 0; $tahsilatEklenen = 0;
+        $randevuEklenen = 0; $randevuAtlanan = 0; $tahsilatEklenen = 0; $randevuDedup = 0;
         $i = 0;
         foreach ($bookings as $clientId => $bookList) {
             $userId = $idMap[$clientId] ?? null;
@@ -160,18 +160,44 @@ class SalonappyImport extends Command
             foreach ($bookList as $b) {
                 $i++;
                 try {
+                    $tarih = $b['date'] ?? '';
+                    $saatStr = $b['time_text'] ?? '00:00';
+                    $saat = strlen($saatStr) === 5 ? $saatStr . ':00' : $saatStr;
+
+                    // Idempotent dedup - 3 yontem:
+                    // a) [salonappy:session] markeri zaten varsa (Adisyon notlar / Randevu personel_notu)
+                    // b) Ayni user + salon + tarih + saat Randevu varsa
+                    $session = $b['session'] ?? '';
+                    $markerExists = false;
+                    if ($session) {
+                        $marker = '[salonappy:' . $session . ']';
+                        $markerExists = \DB::table('randevular')->where('salon_id', $salonId)
+                            ->where('user_id', $userId)
+                            ->where('personel_notu', 'LIKE', '%' . $marker . '%')
+                            ->exists();
+                    }
+                    if ($markerExists) { $randevuDedup++; continue; }
+
+                    // Saat dedup
+                    $sameTime = \DB::table('randevular')->where('salon_id', $salonId)
+                        ->where('user_id', $userId)
+                        ->where('tarih', $tarih)
+                        ->where('saat', $saat)
+                        ->exists();
+                    if ($sameTime) { $randevuDedup++; continue; }
+
                     $hizmetler = $this->parseSalonappyServicesStaff($b['services_staff_text'] ?? '', $b['total_amount'] ?? 0);
                     $urunler   = $this->parseSalonappyProducts($b['products_text'] ?? '');
                     $payload = [
                         'userId'       => $userId,
                         'salonId'      => $salonId,
-                        'tarih'        => $b['date'] ?? '',
-                        'saat'         => $b['time_text'] ?? '00:00',
+                        'tarih'        => $tarih,
+                        'saat'         => $saatStr,
                         'geldi'        => $b['showup_text'] ?? '',
                         'durum'        => $b['status_text'] ?? '',
                         'olusturan'    => $b['created_by'] ?? '',
                         'olusturulma'  => $b['created_at'] ?? '',
-                        'notlar'       => '[salonappy:' . ($b['session'] ?? '') . ']',
+                        'notlar'       => '[salonappy:' . $session . ']',
                         'hizmetler'    => $hizmetler,
                         'urunler'      => $urunler,
                     ];
@@ -180,16 +206,22 @@ class SalonappyImport extends Command
                     $adisyonId = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
                     $randevuEklenen++;
 
-                    // Tahsilat - total_payment > 0 ise
+                    // Tahsilat - total_payment > 0 ise (idempotent: user+salon+tarih+tutar+yontem dedup)
                     if (!empty($b['total_payment']) && $b['total_payment'] > 0 && $adisyonId && ctype_digit($adisyonId)) {
                         $methodsRaw = $b['payment_methods_text'] ?? '';
                         $methods = $methodsRaw ? array_map('trim', explode(',', $methodsRaw)) : ['Nakit'];
                         $perAmount = round(((float) $b['total_payment']) / max(1, count($methods)), 2);
                         foreach ($methods as $m) {
+                            $existsT = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                                ->where('user_id', $userId)
+                                ->where('odeme_tarihi', $tarih)
+                                ->where('tutar', $perAmount)
+                                ->exists();
+                            if ($existsT) continue;
                             $tReq = new \Illuminate\Http\Request([
                                 'userId'         => $userId,
                                 'adisyonId'      => $adisyonId,
-                                'odemeTarihi'    => $b['date'] ?? '',
+                                'odemeTarihi'    => $tarih,
                                 'tahsilatTutari' => $perAmount,
                                 'odemeYontemi'   => $m,
                                 'salonId'        => $salonId,
@@ -204,10 +236,10 @@ class SalonappyImport extends Command
                     $randevuAtlanan++;
                     \Log::warning('[Salonappy] randevu hata', ['session' => $b['session'] ?? '?', 'err' => $e->getMessage()]);
                 }
-                if ($i % 200 === 0) $this->line("  randevu {$i} eklenen={$randevuEklenen} atlanan={$randevuAtlanan} tahsilat={$tahsilatEklenen}");
+                if ($i % 200 === 0) $this->line("  randevu {$i} eklenen={$randevuEklenen} dedup={$randevuDedup} atlanan={$randevuAtlanan} tahsilat={$tahsilatEklenen}");
             }
         }
-        $this->info("Randevu aktarimi: eklenen={$randevuEklenen}, atlanan={$randevuAtlanan}, tahsilat={$tahsilatEklenen}");
+        $this->info("Randevu aktarimi: eklenen={$randevuEklenen}, dedup={$randevuDedup}, atlanan={$randevuAtlanan}, tahsilat={$tahsilatEklenen}");
         return 0;
     }
 
