@@ -192,6 +192,14 @@ Route::get('/salonsaatleri/{salonid}','ApiController@salonsaatleri');
 Route::get('/mola_saati_guncelle_ekle/{salonid}','ApiController@mola_saati_guncelle_ekle');
 Route::get('/salonmolasaatleri/{salonid}','ApiController@salonmolasaatleri');
 Route::post('/bildirimkimligiekleguncelle','ApiController@bildirimkimligiekleguncelle');
+
+/* ───────── Yeni nesil bildirim API'si (NotificationApiController) ───────── */
+Route::post('/bildirim/cihaz-kaydet',     'NotificationApiController@cihazKaydet');
+Route::post('/bildirim/cihaz-sil',        'NotificationApiController@cihazSil');
+Route::post('/bildirim/test',             'NotificationApiController@test');
+Route::get ('/bildirim/liste',            'NotificationApiController@liste');
+Route::post('/bildirim/okundu',           'NotificationApiController@okundu');
+Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSayi');
  Route::post('/randevuonayla','ApiController@randevuonayla');
  Route::get('/randevulistedeneme/{salonid}','ApiController@randevulistedeneme');
   Route::post('/ajanda_okunduisaretle','ApiController@ajanda_okunduisaretle');

@@ -10,6 +10,8 @@ use App\CarkifelekSistemi;
 use App\Http\Controllers\BildirimController;
 use App\Randevular;
 use App\Salonlar;
+use App\Services\NotificationService;
+use App\Services\NotificationTypes;
 use App\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -37,9 +39,6 @@ class CarkHatirlatmaGonder extends Command
             $this->info('Aktif hatırlatma ayarı yok, çıkılıyor.');
             return 0;
         }
-
-        $bildirimCtrl = new BildirimController();
-        $firebaseJson = 'firebase/firebase-credentials.json'; // mevcut config
 
         $toplamGonderim = 0;
 
@@ -98,13 +97,21 @@ class CarkHatirlatmaGonder extends Command
             $salon = Salonlar::find($ayar->salon_id);
             if (!$salon) continue;
 
+            // Çarkıfelek görseli (mevcut alanlardan dene)
+            $carkGorsel = null;
+            foreach (['gorsel', 'kapak_gorsel', 'banner_url', 'image_url'] as $kol) {
+                if (Schema::hasColumn('carkifelek_sistemi', $kol) && !empty($cark->{$kol})) {
+                    $carkGorsel = $cark->{$kol};
+                    break;
+                }
+            }
+            if ($carkGorsel && !preg_match('#^https?://#i', $carkGorsel)) {
+                $carkGorsel = rtrim(config('app.url', ''), '/') . '/' . ltrim($carkGorsel, '/');
+            }
+
             foreach ($hedefUserlar as $userId) {
                 $user = User::find($userId);
                 if (!$user) continue;
-
-                // FCM device token bul
-                $kimlik = BildirimKimlikleri::where('user_id', $userId)->orderByDesc('id')->first();
-                if (!$kimlik || empty($kimlik->device_token)) continue;
 
                 // Mesaj kişiselleştirme
                 $body = strtr($mesaj, [
@@ -114,27 +121,26 @@ class CarkHatirlatmaGonder extends Command
                 $title = '🎡 ' . $salon->salon_adi;
 
                 try {
-                    $bildirimCtrl->bildirimGonder(
-                        $firebaseJson,
-                        $kimlik->device_token,
-                        $title,
-                        $body,
-                        ['category' => 'cark_hatirlatma', 'buttons' => '', 'userInfo' => 'salon_id=' . $salon->id . ';asama=' . $asama],
-                        $salon->id,
-                        $userId,
-                        null,
-                        '/sadakat?carkac=1',
-                        null, null, null, null
-                    );
+                    $sonuc = NotificationService::toCustomer((int)$userId, (int)$salon->id)
+                        ->type(NotificationTypes::WHEEL_CHANCE)
+                        ->title($title)
+                        ->body($body)
+                        ->image($carkGorsel)
+                        ->popup(true)
+                        ->deepLink('wheel', ['salon_id' => $salon->id])
+                        ->extra(['asama' => $asama])
+                        ->send();
+
+                    $basarili = ($sonuc['sent'] ?? 0) > 0;
                     CarkHatirlatmaLoglari::create([
                         'salon_id'        => $salon->id,
                         'user_id'         => $userId,
                         'asama'           => $asama,
                         'tarih'           => $bugun,
                         'gonderim_tarihi' => $now,
-                        'durum'           => 'gonderildi',
+                        'durum'           => $basarili ? 'gonderildi' : 'hata',
                     ]);
-                    $toplamGonderim++;
+                    if ($basarili) $toplamGonderim++;
                 } catch (\Exception $e) {
                     Log::warning("Cark push gönderim hatası user={$userId}: " . $e->getMessage());
                     CarkHatirlatmaLoglari::create([

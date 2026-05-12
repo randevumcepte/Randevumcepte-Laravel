@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 
 use Illuminate\Support\Facades\Auth;
+use App\Services\NotificationService;
+use App\Services\NotificationTypes;
 
 use App\SalonSantralAyarlari;
 use App\AnketSablon;
@@ -8497,6 +8499,65 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 self::sms_gonder_2($request, $mesajlar, false, 1, false, $salonId,false);
             }
 
+            // Yeni nesil push: randevu oluşturuldu / güncellendi
+            try {
+                $finalRandevu = isset($yenirandevu) && $yenirandevu ? $yenirandevu : null;
+                if ($finalRandevu) {
+                    $salonAdi = Salonlar::where('id', $salonId)->value('salon_adi') ?? 'Salon';
+                    $tarihSaatTxt = date('d.m.Y H:i', strtotime($finalRandevu->tarih . ' ' . $finalRandevu->saat));
+                    $kaynak = $request->randevuKaynak ?? 'salon'; // salon | uygulama | web
+                    $musteriEkledi = in_array($kaynak, ['uygulama', 'web']);
+
+                    if ($guncelleme && $zamanDegisti) {
+                        // Zaman değişti → her iki tarafa bildir
+                        NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
+                            ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                            ->title('Randevunuzun zamanı değişti')
+                            ->body($salonAdi . ' • Yeni: ' . $tarihSaatTxt)
+                            ->randevu((int)$finalRandevu->id)
+                            ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                            ->send();
+
+                        foreach ($finalRandevu->hizmetler as $h) {
+                            if (!$h->personel_id) continue;
+                            NotificationService::toStaff((int)$h->personel_id, (int)$salonId)
+                                ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                                ->title('Randevu zamanı değişti')
+                                ->body(($finalRandevu->users->name ?? 'Müşteri') . ' • Yeni: ' . $tarihSaatTxt)
+                                ->randevu((int)$finalRandevu->id)
+                                ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                ->send();
+                        }
+                    } elseif (!$guncelleme) {
+                        // Yeni randevu — kim oluşturdu?
+                        if ($musteriEkledi) {
+                            // Müşteri kendi oluşturdu → personel/yetkili bilgilendir
+                            foreach ($finalRandevu->hizmetler as $h) {
+                                if (!$h->personel_id) continue;
+                                NotificationService::toStaff((int)$h->personel_id, (int)$salonId)
+                                    ->type(NotificationTypes::APPOINTMENT_CREATED)
+                                    ->title('Yeni randevu talebi')
+                                    ->body(($finalRandevu->users->name ?? 'Müşteri') . ' • ' . $tarihSaatTxt)
+                                    ->randevu((int)$finalRandevu->id)
+                                    ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                    ->send();
+                            }
+                        } else {
+                            // Salon ekledi → müşteriyi bilgilendir
+                            NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
+                                ->type(NotificationTypes::APPOINTMENT_CREATED)
+                                ->title('Sizin için randevu oluşturuldu')
+                                ->body($salonAdi . ' • ' . $tarihSaatTxt)
+                                ->randevu((int)$finalRandevu->id)
+                                ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                ->send();
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('randevuekleguncelle push hata: ' . $e->getMessage());
+            }
+
             return ["cakismavar" => "0", "cakisanunsurlar" => "Başarılı"];
         }
     }
@@ -11143,6 +11204,41 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             self::sms_gonder_2($request,$mesajlar,false,1,false,$randevu->salon_id,false);
 
         }
+
+        // Yeni nesil push: iptal / red bildirimi
+        try {
+            $tarihSaatTxt = date('d.m.Y H:i', strtotime($randevu->tarih . ' ' . $randevu->saat));
+            $title = $red ? 'Randevu talebiniz reddedildi' : 'Randevunuz iptal edildi';
+            $body  = $isletme->salon_adi . ' • ' . $tarihSaatTxt;
+
+            // Müşteriye (salonun iptal/red ettiği durumlarda)
+            if ($request->durum != 3) {
+                NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
+                    ->type(NotificationTypes::APPOINTMENT_CANCELLED)
+                    ->title($title)
+                    ->body($body)
+                    ->randevu((int)$randevu->id)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                    ->extra(['iptal_eden' => 'salon', 'red' => $red ? '1' : '0'])
+                    ->send();
+            }
+
+            // Atanmış personellere (müşteri iptal ettiğinde özellikle)
+            foreach ($randevu->hizmetler as $hizmet) {
+                if (!$hizmet->personel_id) continue;
+                NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
+                    ->type(NotificationTypes::APPOINTMENT_CANCELLED)
+                    ->title($request->durum == 3 ? 'Müşteri randevuyu iptal etti' : 'Randevu iptal edildi')
+                    ->body(($randevu->users->name ?? 'Müşteri') . ' • ' . $tarihSaatTxt)
+                    ->randevu((int)$randevu->id)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                    ->extra(['iptal_eden' => $request->durum == 3 ? 'musteri' : 'salon'])
+                    ->send();
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('randevuiptalet push hata: ' . $e->getMessage());
+        }
+
         return "Başarılı";
 
     }
@@ -15104,6 +15200,21 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             );
 
+        }
+
+        // Yeni nesil push: müşteriye randevu onayı bildirimi
+        try {
+            NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
+                ->type(NotificationTypes::APPOINTMENT_APPROVED)
+                ->title('Randevunuz onaylandı')
+                ->body($isletme->salon_adi . ' • ' .
+                    date('d.m.Y H:i', strtotime($randevu->tarih . ' ' . $randevu->saat)) .
+                    ' tarihli randevunuz onaylandı.')
+                ->randevu((int)$randevu->id)
+                ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                ->send();
+        } catch (\Throwable $e) {
+            \Log::warning('randevuonayla push hata: ' . $e->getMessage());
         }
 
         return "başarılı";
