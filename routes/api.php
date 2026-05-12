@@ -233,6 +233,10 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
        Route::post('/personelaktifyap','ApiController@personelaktifyap');
     Route::post('/personelpasifyap','ApiController@personelpasifyap');
     Route::post('/personelsifregonder','ApiController@personelsifregonder');
+    Route::post('/personelArsivle','ApiController@personelArsivle');
+    Route::post('/personelSiralamaKaydir','ApiController@personelSiralamaKaydir');
+    Route::post('/personelTakvimdeGorunsunToggle','ApiController@personelTakvimdeGorunsunToggle');
+    Route::post('/personelPrimHesaplaAyYil','ApiController@personelPrimHesaplaAyYil');
         Route::post('/cihaz_sil','ApiController@cihaz_sil');
          Route::post('/oda_sil','ApiController@oda_sil');
     Route::post('/arayanmusteribilgi','ApiController@arayanmusteribilgi');

@@ -72,6 +72,8 @@ use App\Subeler;
 
 use App\Urunler;
 
+use App\Http\Controllers\StokController;
+
 use App\Paketler;
 
 use App\Tahsilatlar;
@@ -3352,15 +3354,24 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             $urun->fiyat = 100;
 
-            $urun->stok_adedi = 5;
-
             $urun->dusuk_stok_siniri = 1;
 
             $urun->salon_id = $salon->id;
 
+            $urun->varsayilan_depo_id = StokController::varsayilanDepoyuGetirVeyaOlustur($salon->id)->id;
+
             $urun->aktif = true;
 
             $urun->save();
+
+            StokController::hareketKaydet([
+                'salon_id'     => $salon->id,
+                'urun_id'      => $urun->id,
+                'depo_id'      => $urun->varsayilan_depo_id,
+                'miktar'       => 5,
+                'hareket_tipi' => 'acilis',
+                'aciklama'     => 'Demo urun acilis stogu',
+            ]);
 
             $paket = new Paketler();
 
@@ -3390,15 +3401,24 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             $urun2->fiyat = 200;
 
-            $urun2->stok_adedi = 5;
-
             $urun2->dusuk_stok_siniri = 1;
 
             $urun2->salon_id = $salon->id;
 
+            $urun2->varsayilan_depo_id = StokController::varsayilanDepoyuGetirVeyaOlustur($salon->id)->id;
+
             $urun2->aktif = true;
 
             $urun2->save();
+
+            StokController::hareketKaydet([
+                'salon_id'     => $salon->id,
+                'urun_id'      => $urun2->id,
+                'depo_id'      => $urun2->varsayilan_depo_id,
+                'miktar'       => 5,
+                'hareket_tipi' => 'acilis',
+                'aciklama'     => 'Demo urun acilis stogu',
+            ]);
 
             $paket2 = new Paketler();
 
@@ -6318,37 +6338,53 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     public function urunekleduzenle(Request $request, $salonid)
-
     {
-
-        $urun = "";
-
+        $yeni = false;
         if ($request->urun_id == 0) {
-
             $urun = new Urunler();
-
+            $yeni = true;
         } else {
-
             $urun = Urunler::where("id", $request->urun_id)->first();
-
         }
 
-        $urun->urun_adi = $request->urun_adi;
+        $oncekiStok = (float) ($urun->stok_adedi ?? 0);
 
-        $urun->fiyat = $request->fiyat;
-
-        $urun->barkod = $request->barkod;
-
-        $urun->stok_adedi = $request->stok_adedi;
-
+        $urun->urun_adi          = $request->urun_adi;
+        $urun->fiyat             = $request->fiyat;
+        $urun->barkod            = $request->barkod;
         $urun->dusuk_stok_siniri = $request->dusuk_stok_siniri;
+        $urun->salon_id          = $salonid;
+        $urun->aktif             = true;
 
-        $urun->salon_id = $salonid;
-
-        $urun->aktif = true;
-
+        // Varsayilan depo zorunlu
+        $depo = StokController::varsayilanDepoyuGetirVeyaOlustur((int) $salonid);
+        if (empty($urun->varsayilan_depo_id)) {
+            $urun->varsayilan_depo_id = $depo->id;
+        }
         $urun->save();
 
+        // Stok degisikligini hareket olarak kaydet (cache senkronu icin)
+        $istenenStok = (float) ($request->stok_adedi ?? $oncekiStok);
+        $fark = $istenenStok - $oncekiStok;
+        if ($yeni && $istenenStok != 0) {
+            StokController::hareketKaydet([
+                'salon_id'     => $salonid,
+                'urun_id'      => $urun->id,
+                'depo_id'      => $urun->varsayilan_depo_id,
+                'miktar'       => $istenenStok,
+                'hareket_tipi' => 'acilis',
+                'aciklama'     => 'Urun olusturuldu (eski endpoint)',
+            ]);
+        } elseif (!$yeni && abs($fark) > 0.0001) {
+            StokController::hareketKaydet([
+                'salon_id'     => $salonid,
+                'urun_id'      => $urun->id,
+                'depo_id'      => $urun->varsayilan_depo_id,
+                'miktar'       => $fark,
+                'hareket_tipi' => 'manuel',
+                'aciklama'     => 'Eski endpoint uzerinden stok duzeltme',
+            ]);
+        }
     }
 
     public function smstaslaklari(Request $request, $salonid)
@@ -12325,9 +12361,22 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $urun = Urunler::where("id", $request->urunyeni)->first();
 
-        $urun->stok_adedi -= $request->urun_adedi;
-
-        $urun->save();
+        if ($urun) {
+            StokController::hareketKaydet([
+                'salon_id'           => $urun->salon_id,
+                'urun_id'            => $urun->id,
+                'depo_id'            => $urun->varsayilan_depo_id,
+                'miktar'             => -1 * abs((float) $request->urun_adedi),
+                'hareket_tipi'       => 'satis',
+                'referans_tip'       => 'adisyon_urun',
+                'referans_id'        => $adisyon_urun->id,
+                'birim_satis_fiyati' => $request->urun_fiyati,
+                'birim_alis_fiyati'  => $urun->alis_fiyati,
+                'aciklama'           => 'Adisyon urun satisi',
+                'kullanici_id'       => $request->olusturan ?? null,
+                'kullanici_tipi'     => 'isletme_yonetim',
+            ]);
+        }
 
         return AdisyonUrunler::where("id", $adisyon_urun->id)->first();
 
@@ -12700,9 +12749,19 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $urun = Urunler::where("id", $urunid)->first();
 
-            $urun->stok_adedi += $adet;
-
-            $urun->save();
+            if ($urun) {
+                StokController::hareketKaydet([
+                    'salon_id'       => $urun->salon_id,
+                    'urun_id'        => $urun->id,
+                    'depo_id'        => $urun->varsayilan_depo_id,
+                    'miktar'         => abs((float) $adet),
+                    'hareket_tipi'   => 'iade',
+                    'referans_tip'   => 'adisyon_urun_sil',
+                    'aciklama'       => 'Adisyondan urun silindi (iade)',
+                    'kullanici_id'   => $request->olusturan ?? null,
+                    'kullanici_tipi' => 'isletme_yonetim',
+                ]);
+            }
 
             return [
 
@@ -15474,9 +15533,20 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $adisyon_urun->save();
 
-            $urun->stok_adedi -= $request->urun_adedi;
-
-            $urun->save();
+            StokController::hareketKaydet([
+                'salon_id'           => $urun->salon_id,
+                'urun_id'            => $urun->id,
+                'depo_id'            => $urun->varsayilan_depo_id,
+                'miktar'             => -1 * abs((float) $request->urun_adedi),
+                'hareket_tipi'       => 'satis',
+                'referans_tip'       => 'ongorusme_donusumu',
+                'referans_id'        => $adisyon_urun->id,
+                'birim_satis_fiyati' => $urun->fiyat,
+                'birim_alis_fiyati'  => $urun->alis_fiyati,
+                'aciklama'           => 'On gorusmeden urun satisina donusum',
+                'kullanici_id'       => $request->olusturan ?? null,
+                'kullanici_tipi'     => 'isletme_yonetim',
+            ]);
 
         }
 
