@@ -676,6 +676,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 
 	Route::get('/randevudetay/{id}','StoreAdminController@randevudetay');
 	Route::get('/urunler','StoreAdminController@urunler');
+	Route::get('/stok-yonetimi','StoreAdminController@urunler');
+	Route::match(['get','post'],'/stok/{action}','StoreAdminController@stokApi');
 	Route::post('/urunekleguncelle','StoreAdminController@urun_ekle_guncelle');
 	Route::post('/paketekleguncelle','StoreAdminController@paket_ekle_guncelle');
 	Route::get('/paketkopyala/{kaynak}/{hedef}','StoreAdminController@paket_kopyala_salonlar_arasi');

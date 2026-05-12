@@ -51,6 +51,7 @@ use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Calculation\TextData\Search;
 use Spatie\Permission\Models\Role;
 use App\Urunler;
+use App\Http\Controllers\StokController;
 use App\UrunSatislari;
 use App\Tahsilatlar;
 use App\Paketler;
@@ -6811,8 +6812,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler )|| $_SERVER['HTTP_HOST']=='randevu.randevumcepte.com.tr')
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -6830,37 +6831,104 @@ private function ayAdiCevir($ingilizceAy)
                     exit(0);
             }
         }
-       
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
             exit(0);
         }
-        $urunler = self::urun_liste_getir($request,"");
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
         $paketler = self::paket_liste_getir('',true,$request);
-        return view('isletmeadmin.urunler',['bildirimler'=>self::bildirimgetir($request),'paketler'=>$paketler,'pageindex'=>30, 'sayfa_baslik'=>'Ürünler','urunler'=>$urunler,'isletme'=>$isletme, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
+        return view('isletmeadmin.stok_yonetimi',['bildirimler'=>self::bildirimgetir($request),'paketler'=>$paketler,'pageindex'=>30, 'sayfa_baslik'=>'Stok Yönetimi','isletme'=>$isletme, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
+
+    /**
+     * Stok Yonetimi v2 — web blade'i icin JSON proxy.
+     * Salon_id otomatik enjekte edilir, StokController metodlari cagrilir.
+     */
+    public function stokApi(Request $request, $action)
+    {
+        $salonid = self::mevcutsube($request);
+        $stok = new StokController();
+
+        switch ($action) {
+            case 'ozet':                return $stok->ozet($request, $salonid);
+            case 'dusuk-stok':          return $stok->dusukStokListesi($request, $salonid);
+            case 'urunler':             return $stok->urunListesi($request, $salonid);
+            case 'urun':                return $stok->urunDetay($request, $request->id);
+            case 'urun-barkod':         return $stok->urunBarkodAra($request, $salonid);
+            case 'urun-kaydet':         return $stok->urunKaydet($request, $salonid);
+            case 'urun-sil':            return $stok->urunSil($request);
+            case 'kategoriler':         return $stok->kategoriListesi($request, $salonid);
+            case 'kategori-kaydet':     return $stok->kategoriKaydet($request, $salonid);
+            case 'kategori-sil':        return $stok->kategoriSil($request);
+            case 'depolar':             return $stok->depoListesi($request, $salonid);
+            case 'depo-kaydet':         return $stok->depoKaydet($request, $salonid);
+            case 'depo-sil':            return $stok->depoSil($request);
+            case 'tedarikciler':        return $stok->tedarikciListesi($request, $salonid);
+            case 'tedarikci-kaydet':    return $stok->tedarikciKaydet($request, $salonid);
+            case 'tedarikci-sil':       return $stok->tedarikciSil($request);
+            case 'hareketler':          return $stok->hareketListesi($request, $salonid);
+            case 'manuel-hareket':      return $stok->manuelHareket($request, $salonid);
+            case 'alis-girisi':         return $stok->alisGirisi($request, $salonid);
+            case 'transfer':            return $stok->transfer($request, $salonid);
+            case 'sayim':               return $stok->sayimUygula($request, $salonid);
+            case 'hizli-satis':         return $stok->hizliSatis($request, $salonid);
+            case 'urun-satis-raporu':   return $stok->urunSatisRaporu($request, $request->urun_id);
+            default:
+                return response()->json(['status' => 'error', 'mesaj' => 'Bilinmeyen aksiyon: '.$action], 404);
+        }
+    }
     public function urun_ekle_guncelle(Request $request){
-        $urun="";
-        $returntext="";
+        $yeni = false;
         if($request->urun_id == 0){
             $urun = new Urunler();
+            $yeni = true;
             $returntext = "Ürün başarıyla eklendi";
         }
         else{
             $urun = Urunler::where('id',$request->urun_id)->first();
             $returntext = "Ürün başarıyla güncellendi";
         }
-        $urun->urun_adi = $request->urun_adi;
-        $urun->fiyat = $request->fiyat;
-        $urun->barkod = $request->barkod;
-        $urun->stok_adedi = $request->stok_adedi;
+        $oncekiStok = (float) ($urun->stok_adedi ?? 0);
+        $salonId = self::mevcutsube($request);
+
+        $urun->urun_adi          = $request->urun_adi;
+        $urun->fiyat             = $request->fiyat;
+        $urun->barkod            = $request->barkod;
         $urun->dusuk_stok_siniri = $request->dusuk_stok_siniri;
-        $urun->salon_id = self::mevcutsube($request);
-        $urun->aktif=true;
+        $urun->salon_id          = $salonId;
+        $urun->aktif             = true;
+
+        $depo = StokController::varsayilanDepoyuGetirVeyaOlustur((int) $salonId);
+        if (empty($urun->varsayilan_depo_id)) {
+            $urun->varsayilan_depo_id = $depo->id;
+        }
         $urun->save();
+
+        $istenenStok = (float) ($request->stok_adedi ?? $oncekiStok);
+        $fark = $istenenStok - $oncekiStok;
+        if ($yeni && $istenenStok != 0) {
+            StokController::hareketKaydet([
+                'salon_id'     => $salonId,
+                'urun_id'      => $urun->id,
+                'depo_id'      => $urun->varsayilan_depo_id,
+                'miktar'       => $istenenStok,
+                'hareket_tipi' => 'acilis',
+                'aciklama'     => 'Web panel - urun olusturuldu',
+            ]);
+        } elseif (!$yeni && abs($fark) > 0.0001) {
+            StokController::hareketKaydet([
+                'salon_id'     => $salonId,
+                'urun_id'      => $urun->id,
+                'depo_id'      => $urun->varsayilan_depo_id,
+                'miktar'       => $fark,
+                'hareket_tipi' => 'manuel',
+                'aciklama'     => 'Web panel - stok duzeltme',
+            ]);
+        }
+
         return self::urun_liste_getir($request,$returntext);
     }
     public function paket_ekle_guncelle(Request $request){
@@ -7252,8 +7320,21 @@ private function ayAdiCevir($ingilizceAy)
             $adisyon_urun->fiyat = $request->urun_fiyati[$key];
             $adisyon_urun->save();
             $urun = Urunler::where('id',$yeni_urun)->first();
-            $urun->stok_adedi -= $request->urun_adedi[$key];
-            $urun->save();
+            if ($urun) {
+                StokController::hareketKaydet([
+                    'salon_id'           => $urun->salon_id,
+                    'urun_id'            => $urun->id,
+                    'depo_id'            => $urun->varsayilan_depo_id,
+                    'miktar'             => -1 * abs((float) $request->urun_adedi[$key]),
+                    'hareket_tipi'       => 'satis',
+                    'referans_tip'       => 'adisyon_urun',
+                    'referans_id'        => $adisyon_urun->id,
+                    'birim_satis_fiyati' => $request->urun_fiyati[$key],
+                    'birim_alis_fiyati'  => $urun->alis_fiyati,
+                    'aciklama'           => 'Web panel - adisyon urun satisi',
+                    'kullanici_tipi'     => 'isletme_yonetim',
+                ]);
+            }
         }
         //$indirim = (Adisyonlar::where('id',$adisyon_id)->value('indirim_tutari')) ? Adisyonlar::where('id',$adisyon_id)->value('indirim_tutari') : 0;
         //$adisyon_toplam_tutar = AdisyonHizmetler::where('adisyon_id',$adisyon_id)->sum('fiyat')+AdisyonUrunler::where('adisyon_id',$adisyon_id)->sum('fiyat')+AdisyonPaketler::where('adisyon_id',$adisyon_id)->sum('fiyat') - $indirim;
@@ -7371,8 +7452,18 @@ private function ayAdiCevir($ingilizceAy)
             $adisyon_id = $adisyonurun->adisyon_id;
             $adisyonurun->delete();
             $urun = Urunler::where('id',$urunid)->first();
-            $urun->stok_adedi += $adet;
-            $urun->save();
+            if ($urun) {
+                StokController::hareketKaydet([
+                    'salon_id'       => $urun->salon_id,
+                    'urun_id'        => $urun->id,
+                    'depo_id'        => $urun->varsayilan_depo_id,
+                    'miktar'         => abs((float) $adet),
+                    'hareket_tipi'   => 'iade',
+                    'referans_tip'   => 'adisyon_urun_sil',
+                    'aciklama'       => 'Web panel - adisyon urun silindi',
+                    'kullanici_tipi' => 'isletme_yonetim',
+                ]);
+            }
             $indirim = (Adisyonlar::where('id',$adisyon_id)->value('indirim_tutari')) ? Adisyonlar::where('id',$adisyon->id)->value('indirim_tutari') : 0;
             $adisyon_toplam_tutar = AdisyonHizmetler::where('adisyon_id',$adisyon_id)->sum('fiyat')+AdisyonUrunler::where('adisyon_id',$adisyon_id)->sum('fiyat')+AdisyonPaketler::where('adisyon_id',$adisyon_id)->sum('fiyat')-$indirim;
                 $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id',$adisyon_id)->sum('tutar');
@@ -15840,8 +15931,19 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $adisyon_urun->adet = $request->urun_adedi;
             $adisyon_urun->fiyat = $urun->fiyat * $request->urun_adedi;
             $adisyon_urun->save();
-            $urun->stok_adedi -= $request->urun_adedi;
-            $urun->save();
+            StokController::hareketKaydet([
+                'salon_id'           => $urun->salon_id,
+                'urun_id'            => $urun->id,
+                'depo_id'            => $urun->varsayilan_depo_id,
+                'miktar'             => -1 * abs((float) $request->urun_adedi),
+                'hareket_tipi'       => 'satis',
+                'referans_tip'       => 'ongorusme_donusumu',
+                'referans_id'        => $adisyon_urun->id,
+                'birim_satis_fiyati' => $urun->fiyat,
+                'birim_alis_fiyati'  => $urun->alis_fiyati,
+                'aciklama'           => 'Web panel - on gorusmeden urun satisina donusum',
+                'kullanici_tipi'     => 'isletme_yonetim',
+            ]);
         }
         return array( 'adisyon_id' => $adisyon_id,'on_gorusmeler' => self::ongorusmegetir($request,false),'user_id'=>$user->id);
     }
@@ -17736,23 +17838,53 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         );
     }
     public function urun_guncelle(Request $request){
-        $urun="";
-        $returntext="";
+        $yeni = false;
         if($request->urun_id_duzenle == 0){
             $urun = new Urunler();
+            $yeni = true;
             $returntext = "Ürün başarıyla eklendi";
         }
         else{
             $urun = Urunler::where('id',$request->urun_id_duzenle)->first();
             $returntext = "Ürün başarıyla güncellendi";
         }
-        $urun->urun_adi = $request->urun_ad;
-        $urun->fiyat = $request->fiyat_duzenle;
-        $urun->barkod = $request->barkod_duzenle;
-        $urun->stok_adedi = $request->stok_aded;
+        $oncekiStok = (float) ($urun->stok_adedi ?? 0);
+        $salonId = self::mevcutsube($request);
+
+        $urun->urun_adi          = $request->urun_ad;
+        $urun->fiyat             = $request->fiyat_duzenle;
+        $urun->barkod            = $request->barkod_duzenle;
         $urun->dusuk_stok_siniri = $request->dusuk_stok_siniri;
-        $urun->salon_id = self::mevcutsube($request);
+        $urun->salon_id          = $salonId;
+
+        $depo = StokController::varsayilanDepoyuGetirVeyaOlustur((int) $salonId);
+        if (empty($urun->varsayilan_depo_id)) {
+            $urun->varsayilan_depo_id = $depo->id;
+        }
         $urun->save();
+
+        $istenenStok = (float) ($request->stok_aded ?? $oncekiStok);
+        $fark = $istenenStok - $oncekiStok;
+        if ($yeni && $istenenStok != 0) {
+            StokController::hareketKaydet([
+                'salon_id'     => $salonId,
+                'urun_id'      => $urun->id,
+                'depo_id'      => $urun->varsayilan_depo_id,
+                'miktar'       => $istenenStok,
+                'hareket_tipi' => 'acilis',
+                'aciklama'     => 'Web panel - urun olusturuldu (duzenle)',
+            ]);
+        } elseif (!$yeni && abs($fark) > 0.0001) {
+            StokController::hareketKaydet([
+                'salon_id'     => $salonId,
+                'urun_id'      => $urun->id,
+                'depo_id'      => $urun->varsayilan_depo_id,
+                'miktar'       => $fark,
+                'hareket_tipi' => 'manuel',
+                'aciklama'     => 'Web panel - stok duzeltme',
+            ]);
+        }
+
         return self::urun_liste_getir($request,$returntext);
     }
     public function bildirimekle(Request $request,$salonid,$mesaj,$url,$personelid,$musteriid,$imgurl,$randevuid)
@@ -18907,8 +19039,6 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $adisyon_id = self::yeni_adisyon_olustur($request->urun_satis_musteri_id,$request->sube,'Ürün Satışı',date('Y-m-d'));
         foreach($bilgi as $key => $urun)
         {
-                $urun->stok_adedi -= $request->urun_adedi_tahsilat[$key];
-                $urun->save();
                 $adisyon_urun = new AdisyonUrunler();
                 $adisyon_urun->islem_tarihi = date('Y-m-d');
                 $adisyon_urun->adisyon_id= $adisyon_id;
@@ -18917,6 +19047,20 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 $adisyon_urun->fiyat = $urun->fiyat*$request->urun_adedi_tahsilat[$key];
                 $adisyon_urun->personel_id = Personeller::where('salon_id',$request->sube)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id');
                 $adisyon_urun->save();
+
+                StokController::hareketKaydet([
+                    'salon_id'           => $urun->salon_id,
+                    'urun_id'            => $urun->id,
+                    'depo_id'            => $urun->varsayilan_depo_id,
+                    'miktar'             => -1 * abs((float) $request->urun_adedi_tahsilat[$key]),
+                    'hareket_tipi'       => 'satis',
+                    'referans_tip'       => 'urun_tahsilat',
+                    'referans_id'        => $adisyon_urun->id,
+                    'birim_satis_fiyati' => $urun->fiyat,
+                    'birim_alis_fiyati'  => $urun->alis_fiyati,
+                    'aciklama'           => 'Web panel - uruntahsilatagit',
+                    'kullanici_tipi'     => 'isletme_yonetim',
+                ]);
         }
         return $request->urun_satis_musteri_id.'/'.$adisyon_id.'/?sube='.self::mevcutsube($request);;
     }

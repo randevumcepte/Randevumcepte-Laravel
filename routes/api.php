@@ -366,5 +366,50 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/randevu-iptal',     'Api\AiAsistanController@randevuIptal');
         Route::post('/randevu-guncelle',  'Api\AiAsistanController@randevuGuncelle');
     });
+
+    /* ───────── Stok Yonetimi v2 ───────── */
+    Route::prefix('stok')->group(function () {
+        // Ozet & raporlar
+        Route::get ('/ozet/{salonid}',              'StokController@ozet');
+        Route::get ('/dusuk-stok/{salonid}',        'StokController@dusukStokListesi');
+        Route::get ('/urun-satis-raporu/{urunid}',  'StokController@urunSatisRaporu');
+
+        // Urun CRUD
+        Route::get ('/urunler/{salonid}',           'StokController@urunListesi');
+        Route::post('/urunler/{salonid}',           'StokController@urunListesi');
+        Route::get ('/urun/{urunid}',               'StokController@urunDetay');
+        Route::post('/urun-barkod/{salonid}',       'StokController@urunBarkodAra');
+        Route::post('/urun-kaydet/{salonid}',       'StokController@urunKaydet');
+        Route::post('/urun-sil',                    'StokController@urunSil');
+
+        // Kategori
+        Route::get ('/kategoriler/{salonid}',       'StokController@kategoriListesi');
+        Route::post('/kategori-kaydet/{salonid}',   'StokController@kategoriKaydet');
+        Route::post('/kategori-sil',                'StokController@kategoriSil');
+
+        // Depo
+        Route::get ('/depolar/{salonid}',           'StokController@depoListesi');
+        Route::post('/depo-kaydet/{salonid}',       'StokController@depoKaydet');
+        Route::post('/depo-sil',                    'StokController@depoSil');
+
+        // Tedarikci
+        Route::get ('/tedarikciler/{salonid}',      'StokController@tedarikciListesi');
+        Route::post('/tedarikci-kaydet/{salonid}',  'StokController@tedarikciKaydet');
+        Route::post('/tedarikci-sil',               'StokController@tedarikciSil');
+
+        // Hareketler & islemler
+        Route::get ('/hareketler/{salonid}',        'StokController@hareketListesi');
+        Route::post('/hareketler/{salonid}',        'StokController@hareketListesi');
+        Route::post('/manuel-hareket/{salonid}',    'StokController@manuelHareket');
+        Route::post('/alis-girisi/{salonid}',       'StokController@alisGirisi');
+        Route::post('/transfer/{salonid}',          'StokController@transfer');
+        Route::post('/sayim-uygula/{salonid}',      'StokController@sayimUygula');
+        Route::post('/hizli-satis/{salonid}',       'StokController@hizliSatis');
+
+        // Sarf receteleri (Faz 6)
+        Route::get ('/receteler/{salonid}',         'StokController@receteListesi');
+        Route::post('/recete-kaydet/{salonid}',     'StokController@receteKaydet');
+        Route::post('/recete-sil',                  'StokController@receteSil');
+    });
 });
   
