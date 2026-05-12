@@ -30,6 +30,7 @@ class DrklinikImport extends Command
         {--repair-masraf-kategori : Bos isimli MasrafKategorisi kayitlarini drklinik gider tipi ile yeniden adlandir}
         {--repair-gider-dedup : Mevcut Masraflar kayitlarina drklinik hash marker yaz ve eksik gider satirlarini ekle}
         {--repair-tahsilat-yanlis-adisyon : Yanlis adisyona bagli tahsilatlari ayir, tutar match ile yeniden bagla}
+        {--report-tahsilat-fark : Drklinik kasayi gunluk tarayip DB tahsilatlari ile karsilastir, fazlalari CSV\'ye yaz}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -93,6 +94,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('repair-tahsilat-yanlis-adisyon')) {
             if (!$salonId) { $this->error('--repair-tahsilat-yanlis-adisyon icin --salon zorunlu.'); return 1; }
             return $this->repairTahsilatYanlisAdisyon((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('report-tahsilat-fark')) {
+            if (!$username || !$password || !$salonId) { $this->error('--report-tahsilat-fark icin --username/--password/--salon zorunlu.'); return 1; }
+            return $this->reportTahsilatFark($username, $password, (int) $salonId, $this->option('from'), $this->option('to'));
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -216,6 +221,119 @@ class DrklinikImport extends Command
      * notlar'i NULL/bos olan kayda hash yazar (n-to-n eslestirme).
      * Eslesemeyen satirlar -> yeni Masraflar olarak eklenir.
      */
+    /**
+     * Drklinik tahsilatlarini gunluk bazda tarayip (pagination cap'i yok)
+     * DB'deki tahsilatlarla multiset karsilastirmasi yap.
+     *
+     * Signature: trKey(musteri_adi) | tarih | round(tutar,2) | odeme_yontemi_id
+     * Drklinik'te N kayit varsa, DB'de M kayit varsa, M > N ise (M-N) fazlalik.
+     *
+     * Cikti: /tmp/drk_tahsilat_fazla_362.csv
+     */
+    private function reportTahsilatFark($username, $password, $salonId, $from = null, $to = null)
+    {
+        $from = $from ?: '2024-01-01';
+        $to   = $to   ?: date('Y-m-d');
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+        $this->line("Drklinik tahsilatlari gunluk taraniyor: {$from} - {$to}");
+
+        // 1) Drklinik scrape - gunluk
+        $drkCount = []; // signature -> count
+        $drkRows = [];  // signature -> sample row (display)
+        $start = strtotime($from); $end = strtotime($to);
+        $days = 0; $rowsFound = 0;
+        for ($t = $start; $t <= $end; $t += 86400) {
+            $days++;
+            $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Ara', '', [
+                'TB_TarihSec1' => date('d.m.Y', $t),
+                'TB_TarihSec2' => date('d.m.Y', $t),
+            ]);
+            usleep(200000);
+            if ($h === null) continue;
+            preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
+            foreach ($rows[1] as $tr) {
+                if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+                preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+                if (empty($tds[1])) continue;
+                $cells = [];
+                foreach ($tds[1] as $tdRaw) {
+                    $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                    $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                }
+                if (count($cells) < 5) continue;
+                if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $cells[0] ?? '')) continue;
+
+                $tarihIso = $this->__d($cells[0]);
+                $odemeSekli = $cells[2] ?? '';
+                $tutarStr = $cells[3] ?? '';
+                $musteri = trim($cells[4] ?? '');
+                if (!$musteri) continue;
+                $tutar = 0.0;
+                if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+                if ($tutar <= 0) continue;
+
+                $odemeYontemi = $this->__y($odemeSekli);
+                $sig = $this->__trk($musteri) . '|' . $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
+                $drkCount[$sig] = ($drkCount[$sig] ?? 0) + 1;
+                if (!isset($drkRows[$sig])) $drkRows[$sig] = ['musteri' => $musteri, 'tarih' => $tarihIso, 'tutar' => $tutar, 'yontem' => $odemeSekli];
+                $rowsFound++;
+            }
+            if ($days % 30 === 0) $this->line("  ..gun {$days} (" . date('Y-m-d', $t) . ") drklinik_satir={$rowsFound}");
+        }
+        $this->info("Drklinik toplam: {$rowsFound} satir, " . count($drkCount) . " unique signature");
+
+        // 2) DB tahsilatlari
+        $dbRows = \DB::table('tahsilatlar as t')
+            ->join('users as u', 'u.id', '=', 't.user_id')
+            ->where('t.salon_id', $salonId)
+            ->whereBetween('t.odeme_tarihi', [$from, $to])
+            ->select('t.id', 'u.name as musteri', 't.odeme_tarihi', 't.tutar', 't.odeme_yontemi_id', 't.adisyon_id')
+            ->orderBy('t.id')->get();
+        $this->info("DB toplam: " . count($dbRows) . " tahsilat");
+
+        // 3) Multiset karsilastirma
+        $fazla = [];
+        $drkRemaining = $drkCount;
+        foreach ($dbRows as $r) {
+            $sig = $this->__trk($r->musteri) . '|' . $r->odeme_tarihi . '|' . number_format((float) $r->tutar, 2, '.', '') . '|' . $r->odeme_yontemi_id;
+            if (!empty($drkRemaining[$sig])) {
+                $drkRemaining[$sig]--;
+            } else {
+                $fazla[] = $r;
+            }
+        }
+        $this->info("Fazla (drklinik'te yok ama bizde var): " . count($fazla));
+
+        // 4) CSV'ye yaz
+        $csvPath = '/tmp/drk_tahsilat_fazla_' . $salonId . '.csv';
+        $fp = fopen($csvPath, 'w');
+        fputcsv($fp, ['id','musteri','odeme_tarihi','tutar','odeme_yontemi_id','adisyon_id']);
+        foreach ($fazla as $r) {
+            fputcsv($fp, [$r->id, $r->musteri, $r->odeme_tarihi, $r->tutar, $r->odeme_yontemi_id, $r->adisyon_id]);
+        }
+        fclose($fp);
+        $this->info("CSV: {$csvPath}");
+        $this->line("Toplam fazla tutar: " . number_format(array_sum(array_map(function ($r) { return (float) $r->tutar; }, $fazla)), 2, ',', '.') . " TRY");
+        return 0;
+    }
+
+    private function __trk($s) {
+        $s = mb_strtolower((string) $s, 'UTF-8');
+        $s = preg_replace('/\p{M}+/u', '', $s);
+        $s = strtr($s, ['ı'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ç'=>'c','Ç'=>'c']);
+        $s = preg_replace('~[^a-z0-9]+~', ' ', $s);
+        return trim($s);
+    }
+    private function __y($s) {
+        $s = mb_strtolower($s, 'UTF-8');
+        if (strpos($s, 'nakit') !== false) return 1;
+        if (strpos($s, 'kredi') !== false) return 2;
+        if (strpos($s, 'havale') !== false || strpos($s, 'eft') !== false) return 3;
+        return 1;
+    }
+
     /**
      * Yanlis adisyona bagli tahsilatlari tespit et + ayir + yeniden bagla.
      *
