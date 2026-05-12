@@ -336,6 +336,38 @@ class DrklinikImport extends Command
         fclose($fp);
         $this->info("CSV (isim farki) : {$isimCsv}");
         $this->info("CSV (gercek fazla): {$fazlaCsv}");
+
+        // 5) Drklinik'te olup DB'de olmayanlar (eksik)
+        // drkRem'de kalan strict signature count'lari = drklinik'te olup bizdeki strict match'lerden artakalan.
+        // Ama isim_farki ile loose match yapmistik; drklinik'te 1 isim_X varsa ve DB'de bunu isim_Y olarak yakaladiysak
+        // drkRem'de hala isim_X icin count >0 olabilir. Bu yanlis sayim olur.
+        // Daha dogru: drkLooseRem'i kullan - loose signature'de tum eslesmeler dusuldu.
+        $eksik = [];
+        foreach ($drkLooseRem as $sigLoose => $cnt) {
+            if ($cnt <= 0) continue;
+            $parts = explode('|', $sigLoose);
+            $tarih = $parts[0] ?? '';
+            $tutar = $parts[1] ?? '0';
+            $yontem = $parts[2] ?? '';
+            $names = $drkLooseNames[$sigLoose] ?? [];
+            for ($i = 0; $i < $cnt; $i++) {
+                $eksik[] = [
+                    'tarih' => $tarih,
+                    'tutar' => $tutar,
+                    'odeme_yontemi_id' => $yontem,
+                    'drklinik_musteri' => $names[$i] ?? ($names[0] ?? ''),
+                ];
+            }
+        }
+        $eksikSum = array_sum(array_map(fn($r) => (float) $r['tutar'], $eksik));
+        $this->info("Drklinik'te var DB'de yok: " . count($eksik) . " - " . number_format($eksikSum, 2, ',', '.') . " TRY");
+
+        $eksikCsv = '/tmp/drk_tahsilat_eksik_' . $salonId . '.csv';
+        $fp = fopen($eksikCsv, 'w');
+        fputcsv($fp, ['tarih','tutar','odeme_yontemi_id','drklinik_musteri']);
+        foreach ($eksik as $r) fputcsv($fp, [$r['tarih'], $r['tutar'], $r['odeme_yontemi_id'], $r['drklinik_musteri']]);
+        fclose($fp);
+        $this->info("CSV (eksik)       : {$eksikCsv}");
         return 0;
     }
 
