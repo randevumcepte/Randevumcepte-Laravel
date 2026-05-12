@@ -15600,6 +15600,72 @@ $('#personel_tablo').on('click','a[name="personel_sifre_degistir_gonder"]',funct
                 }
     });
 });
+$('#personel_tablo').on('click','a[name="personel_sil"]',function (e) {
+    e.preventDefault();
+    var personelid = $(this).attr('data-value');
+    var personeladi = $(this).attr('data-adi') || 'Personel';
+    swal({
+        title: "Emin misiniz?",
+        text: personeladi + " adli personel silinecek. (Iliskili randevular korunur, personel listeden kaldirilir.)",
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Personeli sil',
+        cancelButtonText: "Vazgec",
+        confirmButtonClass: 'btn btn-danger',
+        cancelButtonClass: 'btn btn-secondary',
+    }).then(function (result) {
+        if(result.value){
+            $.ajax({
+                type: "POST",
+                url: '/isletmeyonetim/personelArsivle',
+                dataType: "json",
+                data: {personelid:personelid,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val()},
+                beforeSend: function(){ $('#preloader').show(); },
+                success: function(result){
+                    $('#preloader').hide();
+                    swal({
+                        type:'success',
+                        title:'Basarili',
+                        text: personeladi + ' adli personel silindi',
+                        timer:3000,
+                        showCloseButton:false,
+                        showCancelButton:false,
+                        showConfirmButton:false
+                    });
+                    $('#personel_tablo').DataTable().destroy();
+                    $('#personel_tablo').DataTable({
+                        ordering: false,
+                        paging: false,
+                        autoWidth: false,
+                        responsive: true,
+                        "language" : {
+                            "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
+                            searchPlaceholder: "Ara",
+                            paginate: {
+                                next: '<i class="ion-chevron-right"></i>',
+                                previous: '<i class="ion-chevron-left"></i>'
+                            }
+                        },
+                        columns:[
+                            {data : 'siralama', className: "text-center"},
+                            {data:'ad_soyad'},
+                            { data: 'hesap_turu' },
+                            { data: 'telefon' },
+                            { data: 'durum'},
+                            { data: 'islemler' },
+                        ],
+                        data: result,
+                    });
+                },
+                error: function(req){
+                    $('#preloader').hide();
+                    document.getElementById('hata').innerHTML = req.responseText;
+                }
+            });
+        }
+    });
+});
 $('#personel_tablo').on('click','a[name="personel_pasif_aktif_yap"]',function () {
     $.ajax({
                 type: "POST",
