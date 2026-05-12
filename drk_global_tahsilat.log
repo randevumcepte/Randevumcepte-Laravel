@@ -1,0 +1,21 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260512_102127
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=2026512102128411
+Tahsilatlar cekiliyor: 2024-01-01 - 2026-05-12 (haftalik)...
+  ..hafta 10 (2024-03-04..) toplam_tahsilat=0
+  ..hafta 20 (2024-05-13..) toplam_tahsilat=0
+  ..hafta 30 (2024-07-22..) toplam_tahsilat=6
+  ..hafta 40 (2024-09-30..) toplam_tahsilat=15
+  ..hafta 50 (2024-12-09..) toplam_tahsilat=18
+  ..hafta 60 (2025-02-17..) toplam_tahsilat=39
+  ..hafta 70 (2025-04-28..) toplam_tahsilat=52
+  ..hafta 80 (2025-07-07..) toplam_tahsilat=71
+  ..hafta 90 (2025-09-15..) toplam_tahsilat=89
+  ..hafta 100 (2025-11-24..) toplam_tahsilat=111
+  ..hafta 110 (2026-02-02..) toplam_tahsilat=123
+  ..hafta 120 (2026-04-13..) toplam_tahsilat=138
+Tahsilat aktarim toplam: 143 (skipped: 2)
+Tamam. Ozet: {"hizmet":0,"personel":0,"urun":0,"oda":0,"musteri":1,"randevu":0,"satis":0,"tahsilat":143,"skipped":2}

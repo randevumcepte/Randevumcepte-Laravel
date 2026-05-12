@@ -297,25 +297,27 @@ class DrklinikImport extends Command
             ->orderBy('t.id')->get();
         $this->info("DB toplam: " . count($dbRows) . " tahsilat");
 
-        // 3) İki seviyeli karsilastirma
+        // 3) Loose'u master constraint yap: drklinik'in toplam (tarih+tutar+yontem)
+        //    budget'i kadar matchle, strict (isim) sadece OK/isim_farki ayrimi yapar.
         $ok = []; $isim = []; $fazla = [];
         $drkRem = $drkCount;
         $drkLooseRem = $drkLooseCount;
         foreach ($dbRows as $r) {
             $sigStrict = $this->__trk($r->musteri) . '|' . $r->odeme_tarihi . '|' . number_format((float) $r->tutar, 2, '.', '') . '|' . $r->odeme_yontemi_id;
             $sigLoose  = $r->odeme_tarihi . '|' . number_format((float) $r->tutar, 2, '.', '') . '|' . $r->odeme_yontemi_id;
+            // Loose budget yoksa fazla
+            if (empty($drkLooseRem[$sigLoose])) {
+                $fazla[] = $r;
+                continue;
+            }
+            $drkLooseRem[$sigLoose]--;
             if (!empty($drkRem[$sigStrict])) {
                 $drkRem[$sigStrict]--;
-                if (!empty($drkLooseRem[$sigLoose])) $drkLooseRem[$sigLoose]--;
                 $ok[] = $r;
-            } elseif (!empty($drkLooseRem[$sigLoose])) {
-                // Tarih+tutar+yontem drklinik'te var ama isim eslesmiyor
+            } else {
                 $drkNames = $drkLooseNames[$sigLoose] ?? [];
                 $r->drk_isim = implode(' | ', array_unique($drkNames));
-                $drkLooseRem[$sigLoose]--;
                 $isim[] = $r;
-            } else {
-                $fazla[] = $r;
             }
         }
         $sumTutar = fn($a) => array_sum(array_map(fn($r) => (float) $r->tutar, $a));
