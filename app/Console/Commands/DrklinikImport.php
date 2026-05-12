@@ -240,8 +240,10 @@ class DrklinikImport extends Command
         $this->line("Drklinik tahsilatlari gunluk taraniyor: {$from} - {$to}");
 
         // 1) Drklinik scrape - gunluk
-        $drkCount = []; // signature -> count
-        $drkRows = [];  // signature -> sample row (display)
+        $drkCount = []; // strict signature (name+date+amount+method) -> count
+        $drkRows = [];
+        $drkLooseCount = []; // loose signature (date+amount+method) -> count
+        $drkLooseNames = []; // loose -> [isim, ...]
         $start = strtotime($from); $end = strtotime($to);
         $days = 0; $rowsFound = 0;
         for ($t = $start; $t <= $end; $t += 86400) {
@@ -275,10 +277,11 @@ class DrklinikImport extends Command
                 if ($tutar <= 0) continue;
 
                 $odemeYontemi = $this->__y($odemeSekli);
-                // Isim-siz signature (ad normalize'i guvenilmez)
-                $sig = $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
-                $drkCount[$sig] = ($drkCount[$sig] ?? 0) + 1;
-                if (!isset($drkRows[$sig])) $drkRows[$sig] = ['musteri' => $musteri, 'tarih' => $tarihIso, 'tutar' => $tutar, 'yontem' => $odemeSekli];
+                $sigStrict = $this->__trk($musteri) . '|' . $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
+                $sigLoose  = $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
+                $drkCount[$sigStrict] = ($drkCount[$sigStrict] ?? 0) + 1;
+                $drkLooseCount[$sigLoose] = ($drkLooseCount[$sigLoose] ?? 0) + 1;
+                $drkLooseNames[$sigLoose][] = $musteri;
                 $rowsFound++;
             }
             if ($days % 30 === 0) $this->line("  ..gun {$days} (" . date('Y-m-d', $t) . ") drklinik_satir={$rowsFound}");
@@ -294,29 +297,45 @@ class DrklinikImport extends Command
             ->orderBy('t.id')->get();
         $this->info("DB toplam: " . count($dbRows) . " tahsilat");
 
-        // 3) Multiset karsilastirma (isim-siz signature)
-        $fazla = [];
-        $drkRemaining = $drkCount;
+        // 3) İki seviyeli karsilastirma
+        $ok = []; $isim = []; $fazla = [];
+        $drkRem = $drkCount;
+        $drkLooseRem = $drkLooseCount;
         foreach ($dbRows as $r) {
-            $sig = $r->odeme_tarihi . '|' . number_format((float) $r->tutar, 2, '.', '') . '|' . $r->odeme_yontemi_id;
-            if (!empty($drkRemaining[$sig])) {
-                $drkRemaining[$sig]--;
+            $sigStrict = $this->__trk($r->musteri) . '|' . $r->odeme_tarihi . '|' . number_format((float) $r->tutar, 2, '.', '') . '|' . $r->odeme_yontemi_id;
+            $sigLoose  = $r->odeme_tarihi . '|' . number_format((float) $r->tutar, 2, '.', '') . '|' . $r->odeme_yontemi_id;
+            if (!empty($drkRem[$sigStrict])) {
+                $drkRem[$sigStrict]--;
+                if (!empty($drkLooseRem[$sigLoose])) $drkLooseRem[$sigLoose]--;
+                $ok[] = $r;
+            } elseif (!empty($drkLooseRem[$sigLoose])) {
+                // Tarih+tutar+yontem drklinik'te var ama isim eslesmiyor
+                $drkNames = $drkLooseNames[$sigLoose] ?? [];
+                $r->drk_isim = implode(' | ', array_unique($drkNames));
+                $drkLooseRem[$sigLoose]--;
+                $isim[] = $r;
             } else {
                 $fazla[] = $r;
             }
         }
-        $this->info("Fazla (drklinik'te yok ama bizde var): " . count($fazla));
+        $sumTutar = fn($a) => array_sum(array_map(fn($r) => (float) $r->tutar, $a));
+        $this->info("Esleyen (OK): " . count($ok) . " - " . number_format($sumTutar($ok), 2, ',', '.') . " TRY");
+        $this->info("Isim farki   : " . count($isim) . " - " . number_format($sumTutar($isim), 2, ',', '.') . " TRY (yanlis musteriye yazilmis olabilir)");
+        $this->info("Gercek fazla : " . count($fazla) . " - " . number_format($sumTutar($fazla), 2, ',', '.') . " TRY (drklinik'te hic yok)");
 
-        // 4) CSV'ye yaz
-        $csvPath = '/tmp/drk_tahsilat_fazla_' . $salonId . '.csv';
-        $fp = fopen($csvPath, 'w');
-        fputcsv($fp, ['id','musteri','odeme_tarihi','tutar','odeme_yontemi_id','adisyon_id']);
-        foreach ($fazla as $r) {
-            fputcsv($fp, [$r->id, $r->musteri, $r->odeme_tarihi, $r->tutar, $r->odeme_yontemi_id, $r->adisyon_id]);
-        }
+        // 4) CSV'ye yaz - 2 dosya
+        $isimCsv = '/tmp/drk_tahsilat_isim_farki_' . $salonId . '.csv';
+        $fazlaCsv = '/tmp/drk_tahsilat_gercek_fazla_' . $salonId . '.csv';
+        $fp = fopen($isimCsv, 'w');
+        fputcsv($fp, ['id','bizdeki_musteri','drklinikteki_musteri','odeme_tarihi','tutar','odeme_yontemi_id','adisyon_id']);
+        foreach ($isim as $r) fputcsv($fp, [$r->id, $r->musteri, $r->drk_isim, $r->odeme_tarihi, $r->tutar, $r->odeme_yontemi_id, $r->adisyon_id]);
         fclose($fp);
-        $this->info("CSV: {$csvPath}");
-        $this->line("Toplam fazla tutar: " . number_format(array_sum(array_map(function ($r) { return (float) $r->tutar; }, $fazla)), 2, ',', '.') . " TRY");
+        $fp = fopen($fazlaCsv, 'w');
+        fputcsv($fp, ['id','musteri','odeme_tarihi','tutar','odeme_yontemi_id','adisyon_id']);
+        foreach ($fazla as $r) fputcsv($fp, [$r->id, $r->musteri, $r->odeme_tarihi, $r->tutar, $r->odeme_yontemi_id, $r->adisyon_id]);
+        fclose($fp);
+        $this->info("CSV (isim farki) : {$isimCsv}");
+        $this->info("CSV (gercek fazla): {$fazlaCsv}");
         return 0;
     }
 
