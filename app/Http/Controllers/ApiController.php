@@ -13978,7 +13978,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             )
 
+            // Arsivli personelleri listeden gizle (NULL veya false kabul edilir).
+            // personelArsivle endpointi bu flagi true yapiyor.
+            ->where(function ($q) {
+                $q->whereNull("salon_personelleri.arsivli")
+                  ->orWhere("salon_personelleri.arsivli", false);
+            })
+
             ->groupBy("salon_personelleri.id")
+
+            // Takvim sirasi ile sirala (yukari/asagi taşı butonlarının goruntu uretmesi icin)
+            ->orderBy("salon_personelleri.takvim_sirasi", "asc")
+            ->orderBy("salon_personelleri.id", "asc")
 
             ->paginate(10);
 
@@ -15804,6 +15815,223 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             "adisyonlar" => $adisyonlar->values(),
             "donem" => $ay . '.' . $yil,
         ];
+    }
+
+    // ====================================================================
+    // Mobil prim & maas odemeleri: web prim_hakedis_panel modallarinin API'si
+    // ====================================================================
+
+    // Maas / Prim / Avans odemesi ekle. Web StoreAdminController@primOde mantigi
+    // (kasa/masraf otomatik kaydi dahil).
+    public function primOdeApi(Request $request)
+    {
+        try {
+            $salonId = $request->sube;
+            $personel = Personeller::where('id', $request->personel_id)
+                ->where('salon_id', $salonId)->first();
+            if (!$personel) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Personel bulunamadı.']);
+            }
+            $donem = $request->donem;
+            if (!preg_match('/^\d{4}-\d{2}$/', $donem)) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Geçersiz dönem.']);
+            }
+            $tutar = (float)str_replace([','], ['.'], (string)$request->tutar);
+            if ($tutar <= 0) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Tutar 0\'dan büyük olmalı.']);
+            }
+            $odemeTarihi = $request->odeme_tarihi ?: date('Y-m-d');
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $odemeTarihi)) $odemeTarihi = date('Y-m-d');
+            $odemeTipi = in_array($request->odeme_tipi, ['maas', 'prim', 'diger']) ? $request->odeme_tipi : 'diger';
+
+            $yetkiliId = null;
+            try { $yetkiliId = \Auth::guard('isletmeyonetim-api')->user()->id ?? null; } catch (\Exception $e) {}
+
+            $pmo = \App\PersonelMaasOdemesi::create([
+                'personel_id'        => $personel->id,
+                'salon_id'           => $salonId,
+                'donem'              => $donem,
+                'tutar'              => $tutar,
+                'odeme_tipi'         => $odemeTipi,
+                'odeme_tarihi'       => $odemeTarihi,
+                'odeme_yontemi'      => mb_substr((string)$request->odeme_yontemi, 0, 60),
+                'aciklama'           => mb_substr((string)$request->aciklama, 0, 300),
+                'ekleyen_yetkili_id' => $yetkiliId,
+            ]);
+
+            // Otomatik kasa/masraf kaydi (web ile ayni)
+            try {
+                $kategori = \App\MasrafKategorisi::firstOrCreate(['kategori' => 'Personel Ödemeleri']);
+                $tipMap = ['maas' => 'Maaş Ödemesi', 'prim' => 'Prim Ödemesi', 'diger' => 'Avans/Bonus'];
+                $tipText = $tipMap[$odemeTipi] ?? 'Personel Ödemesi';
+
+                $masraf = new \App\Masraflar();
+                $masraf->personel_maas_odemesi_id = $pmo->id;
+                $masraf->salon_id            = $salonId;
+                $masraf->harcayan_id         = $personel->id;
+                $masraf->masraf_kategori_id  = $kategori->id;
+                $masraf->tarih               = $odemeTarihi;
+                $masraf->tutar               = $tutar;
+                $masraf->odeme_yontemi_id    = (int)($request->odeme_yontemi_id ?? 1);
+                $masraf->aciklama            = $tipText . ' (' . $donem . ')' .
+                    ($request->aciklama ? ' — ' . mb_substr((string)$request->aciklama, 0, 80) : '');
+                $masraf->notlar              = "Personel: " . ($personel->personel_adi ?? '') .
+                    " — " . ucfirst($odemeTipi) . " ($donem)";
+                $masraf->save();
+            } catch (\Exception $e) {
+                \Log::warning('Api primOde otomatik masraf basarisiz: ' . $e->getMessage());
+            }
+
+            return response()->json(['basarili' => true, 'odeme_id' => $pmo->id]);
+        } catch (\Exception $e) {
+            \Log::warning('Api primOdeApi: ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
+        }
+    }
+
+    // Donem icindeki tum odemeler + bonus/kesinti hareketleri + toplamlar.
+    public function primOdemeListesiApi(Request $request)
+    {
+        $salonId = $request->sube;
+        $personelId = (int)$request->personel_id;
+        $donem = $request->donem ?: date('Y-m');
+        if (!preg_match('/^\d{4}-\d{2}$/', $donem)) $donem = date('Y-m');
+        $tarih1 = $donem . '-01';
+        $tarih2 = date('Y-m-t', strtotime($tarih1));
+
+        $odemeler = \App\PersonelMaasOdemesi::where('salon_id', $salonId)
+            ->where('personel_id', $personelId)
+            ->where('donem', $donem)
+            ->orderBy('odeme_tarihi', 'desc')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function ($o) {
+                $tip = $o->odeme_tipi ?: 'diger';
+                if (!in_array($tip, ['maas', 'prim', 'diger'])) $tip = 'diger';
+                return [
+                    'id'            => $o->id,
+                    'odeme_tarihi'  => $o->odeme_tarihi
+                        ? (is_string($o->odeme_tarihi) ? $o->odeme_tarihi : $o->odeme_tarihi->format('Y-m-d'))
+                        : null,
+                    'tutar'         => (float)$o->tutar,
+                    'odeme_tipi'    => $tip,
+                    'odeme_yontemi' => $o->odeme_yontemi,
+                    'aciklama'      => $o->aciklama,
+                ];
+            });
+
+        $hareketler = \App\PersonelPrimHareketi::where('salon_id', $salonId)
+            ->where('personel_id', $personelId)
+            ->whereBetween('tarih', [$tarih1, $tarih2])
+            ->orderBy('tarih', 'desc')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function ($h) {
+                return [
+                    'id'       => $h->id,
+                    'tarih'    => $h->tarih
+                        ? (is_string($h->tarih) ? substr($h->tarih, 0, 10) : $h->tarih->format('Y-m-d'))
+                        : null,
+                    'tip'      => $h->tip,
+                    'tutar'    => (float)$h->tutar,
+                    'aciklama' => $h->aciklama,
+                ];
+            });
+
+        $toplamlar = [
+            'maas'    => (float)$odemeler->where('odeme_tipi', 'maas')->sum('tutar'),
+            'prim'    => (float)$odemeler->where('odeme_tipi', 'prim')->sum('tutar'),
+            'diger'   => (float)$odemeler->where('odeme_tipi', 'diger')->sum('tutar'),
+            'bonus'   => (float)$hareketler->where('tip', 'bonus')->sum('tutar'),
+            'kesinti' => (float)$hareketler->where('tip', 'kesinti')->sum('tutar'),
+        ];
+        $toplam = (float)$odemeler->sum('tutar');
+
+        return response()->json([
+            'basarili'      => true,
+            'odemeler'      => $odemeler,
+            'hareketler'    => $hareketler,
+            'odenen_toplam' => $toplam,
+            'odeme_sayisi'  => $odemeler->count(),
+            'toplamlar'     => $toplamlar,
+        ]);
+    }
+
+    public function primOdemeSilApi(Request $request)
+    {
+        try {
+            $salonId = $request->sube;
+            $kayit = \App\PersonelMaasOdemesi::where('id', $request->id)
+                ->where('salon_id', $salonId)->first();
+            if (!$kayit) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Ödeme kaydı bulunamadı.']);
+            }
+            // Bagli kasa/masraf kaydini da sil
+            try {
+                \App\Masraflar::where('personel_maas_odemesi_id', $kayit->id)
+                    ->where('salon_id', $salonId)
+                    ->delete();
+            } catch (\Exception $e) {
+                \Log::warning('Api primOdemeSil bagli masraf silinemedi: ' . $e->getMessage());
+            }
+            $kayit->delete();
+            return response()->json(['basarili' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
+        }
+    }
+
+    // Bonus / Kesinti ekle
+    public function primHareketEkleApi(Request $request)
+    {
+        try {
+            $salonId = $request->sube;
+            $personel = Personeller::where('id', $request->personel_id)
+                ->where('salon_id', $salonId)->first();
+            if (!$personel) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Personel bulunamadı.']);
+            }
+            $tip = $request->tip === 'kesinti' ? 'kesinti' : 'bonus';
+            $tutar = (float)str_replace([','], ['.'], (string)$request->tutar);
+            if ($tutar <= 0) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Tutar 0\'dan büyük olmalı.']);
+            }
+            $tarih = $request->tarih ?: date('Y-m-d');
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tarih)) $tarih = date('Y-m-d');
+
+            $yetkiliId = null;
+            try { $yetkiliId = \Auth::guard('isletmeyonetim-api')->user()->id ?? null; } catch (\Exception $e) {}
+
+            \App\PersonelPrimHareketi::create([
+                'personel_id'        => $personel->id,
+                'salon_id'           => $salonId,
+                'tarih'              => $tarih,
+                'tip'                => $tip,
+                'tutar'              => $tutar,
+                'aciklama'           => mb_substr((string)$request->aciklama, 0, 300),
+                'ekleyen_yetkili_id' => $yetkiliId,
+            ]);
+
+            return response()->json(['basarili' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
+        }
+    }
+
+    public function primHareketSilApi(Request $request)
+    {
+        try {
+            $salonId = $request->sube;
+            $hareket = \App\PersonelPrimHareketi::where('id', $request->id)
+                ->where('salon_id', $salonId)->first();
+            if (!$hareket) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Kayıt bulunamadı.']);
+            }
+            $hareket->delete();
+            return response()->json(['basarili' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
+        }
     }
 
     public function hizmet_liste_getir(Request $request, $salon_id)
