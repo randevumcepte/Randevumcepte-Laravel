@@ -275,7 +275,8 @@ class DrklinikImport extends Command
                 if ($tutar <= 0) continue;
 
                 $odemeYontemi = $this->__y($odemeSekli);
-                $sig = $this->__trk($musteri) . '|' . $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
+                // Isim-siz signature (ad normalize'i guvenilmez)
+                $sig = $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
                 $drkCount[$sig] = ($drkCount[$sig] ?? 0) + 1;
                 if (!isset($drkRows[$sig])) $drkRows[$sig] = ['musteri' => $musteri, 'tarih' => $tarihIso, 'tutar' => $tutar, 'yontem' => $odemeSekli];
                 $rowsFound++;
@@ -293,11 +294,11 @@ class DrklinikImport extends Command
             ->orderBy('t.id')->get();
         $this->info("DB toplam: " . count($dbRows) . " tahsilat");
 
-        // 3) Multiset karsilastirma
+        // 3) Multiset karsilastirma (isim-siz signature)
         $fazla = [];
         $drkRemaining = $drkCount;
         foreach ($dbRows as $r) {
-            $sig = $this->__trk($r->musteri) . '|' . $r->odeme_tarihi . '|' . number_format((float) $r->tutar, 2, '.', '') . '|' . $r->odeme_yontemi_id;
+            $sig = $r->odeme_tarihi . '|' . number_format((float) $r->tutar, 2, '.', '') . '|' . $r->odeme_yontemi_id;
             if (!empty($drkRemaining[$sig])) {
                 $drkRemaining[$sig]--;
             } else {
