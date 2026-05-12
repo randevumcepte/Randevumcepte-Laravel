@@ -10655,11 +10655,12 @@ $('#odabilgiduzenle').on('submit',function(e){
                     $('#preloader').show();
                 },
                 success: function(result)  {
-                    console.log(result);
-                    console.log(result.personel_id);
                     $('#preloader').hide();
                     $('#oda_adi').val(result.oda_adi);
-                    $('#oda_personeli').val(result.personel_id).trigger('change');
+                    var personelIds = Array.isArray(result.personeller)
+                        ? result.personeller.map(function(p){ return String(p.id); })
+                        : [];
+                    $('#oda_personeli').val(personelIds).trigger('change');
                     $('#duzenlenecek_oda_id').val(result.id);
                     $('#oda_duzenle_modal2').modal();
                 },

@@ -13848,11 +13848,13 @@ DB::raw('
         $returntext="";
         $odalar->salon_id = $request->sube;
         $odalar->oda_adi = $request->oda_adi;
-        $odalar->takvim_sirasi = $enSonOda ? $enSonOda->takvim_sirasi+1 : 1;            
+        $odalar->takvim_sirasi = $enSonOda ? $enSonOda->takvim_sirasi+1 : 1;
         $odalar->aktifmi = true;
         $odalar->durum = true;
+        $secilenPersoneller = $request->oda_personeli ?? [];
+        $odalar->personel_id = !empty($secilenPersoneller) ? $secilenPersoneller[0] : null;
         $odalar->save();
-        foreach(($request->oda_personeli ?? []) as $personel){
+        foreach($secilenPersoneller as $personel){
             $odaPersoneli = new OdaPersonelleri();
             $odaPersoneli->oda_id = $odalar->id;
             $odaPersoneli->salon_id =$request->sube;
