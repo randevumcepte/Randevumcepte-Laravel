@@ -26,6 +26,7 @@ class DrklinikImport extends Command
         {--inspect-musid= : Bir musid icin drklinik detayini indir, basliklar/sutunlar yazdir}
         {--debug-seans-musid= : Bir musid icin seans dusumu satirlarini adim adim logla}
         {--inspect-kasa : kasa_islemleri.aspx icin tarih araliginda gelen tum tip/sutun yapilarini yazdir}
+        {--inspect-tahsilat : kasa_islemleri.aspx BTN_Ara ile tahsilat tablosunu cekip toplam hesapla}
         {--repair-masraf-kategori : Bos isimli MasrafKategorisi kayitlarini drklinik gider tipi ile yeniden adlandir}
         {--repair-gider-dedup : Mevcut Masraflar kayitlarina drklinik hash marker yaz ve eksik gider satirlarini ekle}
         {--dry-run : Sadece raporla, silme}';
@@ -75,6 +76,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('inspect-kasa')) {
             if (!$username || !$password) { $this->error('--inspect-kasa icin --username/--password zorunlu.'); return 1; }
             return $this->inspectKasaIslemleri($username, $password, $this->option('from'), $this->option('to'));
+        }
+        if ((bool) $this->option('inspect-tahsilat')) {
+            if (!$username || !$password) { $this->error('--inspect-tahsilat icin --username/--password zorunlu.'); return 1; }
+            return $this->inspectTahsilat($username, $password, $this->option('from'), $this->option('to'));
         }
         if ((bool) $this->option('repair-masraf-kategori')) {
             if (!$username || !$password || !$salonId) { $this->error('--repair-masraf-kategori icin --username/--password/--salon zorunlu.'); return 1; }
@@ -446,6 +451,92 @@ class DrklinikImport extends Command
             return $m[3] . '-' . $m[2] . '-' . $m[1];
         }
         return null;
+    }
+
+    /**
+     * Tahsilat tarafi: BTN_Ara ile kasa_islemleri.aspx tahsilat tablosu cekilir,
+     * tarih araliginda haftalik split ile tum satirlar toplanip
+     * gerceyek HTML toplami hesaplanir. Drklinik UI'sinin gosterdigi
+     * toplamla karsilastirmak icin.
+     */
+    private function inspectTahsilat($username, $password, $from = null, $to = null)
+    {
+        $from = $from ?: '2024-01-01';
+        $to   = $to   ?: date('Y-m-d');
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+        $this->line("Tahsilat HTML toplam: {$from} - {$to}, haftalik tarama (50 cap recursive split)...");
+
+        $start = strtotime($from);
+        $end   = strtotime($to);
+        $weekStart = $start;
+        $totalSum = 0.0; $totalCount = 0;
+        $monthly = []; // 'YYYY-MM' => ['adet','toplam']
+
+        $process = function($startTs, $endTs, $depth) use (&$process, $client, &$totalSum, &$totalCount, &$monthly) {
+            $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Ara', '', [
+                'TB_TarihSec1' => date('d.m.Y', $startTs),
+                'TB_TarihSec2' => date('d.m.Y', $endTs),
+            ]);
+            usleep(250000);
+            if ($h === null) return;
+            preg_match_all('~<table[^>]*>(.*?)</table>~is', $h, $tm);
+            $maxTr = 0;
+            foreach ($tm[1] as $t) if (preg_match_all('~<tr[^>]*>~i', $t, $rm) && count($rm[0]) > $maxTr) $maxTr = count($rm[0]);
+            if ($maxTr >= 50 && ($endTs - $startTs) >= 86400 && $depth < 8) {
+                $mid = $startTs + intval(($endTs - $startTs) / 2);
+                $process($startTs, $mid, $depth + 1);
+                $process($mid + 86400, $endTs, $depth + 1);
+                return;
+            }
+            // Tablodan satirlari parse et
+            preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
+            foreach ($rows[1] as $tr) {
+                if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+                preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+                if (empty($tds[1])) continue;
+                $cells = [];
+                foreach ($tds[1] as $tdRaw) {
+                    $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                    $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                }
+                if (count($cells) < 4) continue;
+                $tarihStr = $cells[0] ?? '';
+                $tutarStr = $cells[3] ?? '';
+                if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $tarihStr)) continue;
+                $tutar = 0;
+                if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) {
+                    $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+                }
+                if ($tutar <= 0) continue;
+                $totalSum += $tutar;
+                $totalCount++;
+                // Aylik
+                [$g, $a, $y] = explode('.', substr($tarihStr, 0, 10));
+                $ay = $y . '-' . $a;
+                if (!isset($monthly[$ay])) $monthly[$ay] = ['adet' => 0, 'toplam' => 0];
+                $monthly[$ay]['adet']++;
+                $monthly[$ay]['toplam'] += $tutar;
+            }
+        };
+
+        while ($weekStart <= $end) {
+            $weekEnd = min($end, strtotime('+6 days', $weekStart));
+            $process($weekStart, $weekEnd, 0);
+            $weekStart = strtotime('+7 days', $weekStart);
+            if ((int) date('d', $weekStart) === 1) {
+                $this->line("  ..haftaba: " . date('Y-m', $weekStart) . " toplam={$totalCount} sum=" . number_format($totalSum, 2));
+            }
+        }
+
+        $this->info('HTML toplam: ' . number_format($totalSum, 2, ',', '.') . " TRY ({$totalCount} satir)");
+        $this->line('--- Aylik dagilim ---');
+        ksort($monthly);
+        foreach ($monthly as $ay => $d) {
+            $this->line(sprintf('  %s : %d satir, %s TRY', $ay, $d['adet'], number_format($d['toplam'], 2, ',', '.')));
+        }
+        return 0;
     }
 
     private function inspectKasaIslemleri($username, $password, $from = null, $to = null)
