@@ -22579,23 +22579,40 @@ DB::raw('
     }
     public function odaSiralamaAzalt(Request $request)
     {
-        $oda2 = Odalar::where('takvim_sirasi',$request->siraNo-1)->where('salon_id',$request->sube)->first();
-        $oda2->takvim_sirasi = $oda2->takvim_sirasi + 1;
-        $oda2->save();
-        $oda = Odalar::where('id',$request->odaid)->first();
-        $oda->takvim_sirasi = $request->siraNo-1;
-        $oda->save();
-       
+        $oda = Odalar::where('id',$request->odaid)->where('salon_id',$request->sube)->first();
+        if($oda){
+            $oda2 = Odalar::where('salon_id',$request->sube)
+                ->where('aktifmi',true)
+                ->where('takvim_sirasi','<',$oda->takvim_sirasi)
+                ->orderBy('takvim_sirasi','desc')
+                ->first();
+            if($oda2){
+                $tmp = $oda->takvim_sirasi;
+                $oda->takvim_sirasi = $oda2->takvim_sirasi;
+                $oda2->takvim_sirasi = $tmp;
+                $oda->save();
+                $oda2->save();
+            }
+        }
         return self::oda_liste_getir($request,"");
     }
     public function odaSiralamaArtir(Request $request)
     {
-        $oda2 = Odalar::where('takvim_sirasi',$request->siraNo+1)->where('salon_id',$request->sube)->first();
-        $oda2->takvim_sirasi = $oda2->takvim_sirasi - 1;
-        $oda2->save();
-        $oda = Odalar::where('id',$request->odaid)->first();
-        $oda->takvim_sirasi = $request->siraNo+1;
-        $oda->save();       
+        $oda = Odalar::where('id',$request->odaid)->where('salon_id',$request->sube)->first();
+        if($oda){
+            $oda2 = Odalar::where('salon_id',$request->sube)
+                ->where('aktifmi',true)
+                ->where('takvim_sirasi','>',$oda->takvim_sirasi)
+                ->orderBy('takvim_sirasi','asc')
+                ->first();
+            if($oda2){
+                $tmp = $oda->takvim_sirasi;
+                $oda->takvim_sirasi = $oda2->takvim_sirasi;
+                $oda2->takvim_sirasi = $tmp;
+                $oda->save();
+                $oda2->save();
+            }
+        }
         return self::oda_liste_getir($request,"");
     }
 
