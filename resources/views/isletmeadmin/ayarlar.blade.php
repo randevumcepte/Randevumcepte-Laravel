@@ -2095,8 +2095,8 @@
    id="yeni_oda_modal"
    class="modal modal-top fade calendar-modal"
    >
-   <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-      <div class="modal-content" style="width: 950px; max-height: 90%;">
+   <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+      <div class="modal-content" style="max-height: 90%;">
          <form id="yeniodabilgiekle"  method="POST">
             <div class="modal-body">
                {!!csrf_field()!!}
@@ -2108,8 +2108,8 @@
 
                </div>
                <div class="form-group">
-                  <label>Personel</label>
-                  <select name="oda_personeli[]" multiple style="width:100%" class="form-control oda_personel_secimi" required >
+                  <label>Personel (opsiyonel)</label>
+                  <select name="oda_personeli[]" multiple style="width:100%" class="form-control oda_personel_secimi custom-select2" data-placeholder="Personel seçiniz (boş bırakılabilir)">
                      @foreach($personeller_raw as $per)
                         <option value="{{ $per->id }}">{{ $per->personel_adi }}</option>
                      @endforeach
@@ -2146,8 +2146,8 @@
    id="oda_duzenle_modal2"
    class="modal modal-top fade calendar-modal"
    >
-   <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-      <div class="modal-content" style="width: 950px; max-height: 90%;">
+   <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+      <div class="modal-content" style="max-height: 90%;">
          <form id="odabilgiduzenle"  method="POST">
             <div class="modal-body">
                {!!csrf_field()!!}
@@ -2160,8 +2160,8 @@
 
                </div>
                <div class="form-group">
-                  <label>Personel</label>
-                  <select name="oda_personeli[]" multiple id="oda_personeli" style="width:100%" class="form-control oda_personel_secimi" required >
+                  <label>Personel (opsiyonel)</label>
+                  <select name="oda_personeli[]" multiple id="oda_personeli" style="width:100%" class="form-control oda_personel_secimi custom-select2" data-placeholder="Personel seçiniz (boş bırakılabilir)">
                      @foreach($personeller_raw as $per)
                         <option value="{{ $per->id }}">{{ $per->personel_adi }}</option>
                      @endforeach

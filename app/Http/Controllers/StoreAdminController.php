@@ -13852,7 +13852,7 @@ DB::raw('
         $odalar->aktifmi = true;
         $odalar->durum = true;
         $odalar->save();
-        foreach($request->oda_personeli as $personel){
+        foreach(($request->oda_personeli ?? []) as $personel){
             $odaPersoneli = new OdaPersonelleri();
             $odaPersoneli->oda_id = $odalar->id;
             $odaPersoneli->salon_id =$request->sube;

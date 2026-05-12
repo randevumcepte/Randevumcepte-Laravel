@@ -10554,6 +10554,7 @@ $('#yenicihazbilgiekle').on('submit',function(e){
                        columns:[
                        { data: 'siralama', className: "text-center"},
                        {data:'oda_adi'},
+                         {data:'personeller'},
                          {data:'durum'},
                            {data:'oda_aciklama'},
                          { data: 'islemler'   },
@@ -10617,6 +10618,7 @@ $('#odabilgiduzenle').on('submit',function(e){
                     columns:[
                     { data: 'siralama', className: "text-center"},
                         {data:'oda_adi'},
+                        {data:'personeller'},
                         {data:'durum'},
                         {data:'oda_aciklama'},
                         { data: 'islemler'   },
@@ -10702,6 +10704,7 @@ $('#odabilgiduzenle').on('submit',function(e){
                                 columns:[
                                 { data: 'siralama', className: "text-center"},
                                         {data:'oda_adi'},
+                                        {data:'personeller'},
                                         { data: 'durum' },
                                           {data:'oda_aciklama'},
                                         {data : 'islemler'},
@@ -10761,6 +10764,7 @@ $('#oda_duzenle').on('submit',function(e){
                                 columns:[
                                 { data: 'siralama', className: "text-center"},
                                         {data:'oda_adi'},
+                                        {data:'personeller'},
                                         { data: 'durum' },
                                         {data:'oda_aciklama'},
                                         {data : 'islemler'},
@@ -10833,6 +10837,7 @@ $('#oda_tablo').on('click','a[name="oda_sil"]',function(e){
                                 columns:[
                                 { data: 'siralama', className: "text-center"},
                                         { data: 'oda_adi' },
+                                        { data: 'personeller' },
                                         { data: 'durum' },
                                         { data: 'oda_aciklama'},
                                         {data : 'islemler'},
@@ -10878,6 +10883,7 @@ $('#oda_tablo').on('click','button[name="oda_siralamayi_bir_asagi_tasi"]',functi
                                 columns:[
                                 { data: 'siralama', className: "text-center"},
                                         { data: 'oda_adi' },
+                                        { data: 'personeller' },
                                         { data: 'durum' },
                                         { data: 'oda_aciklama'},
                                         {data : 'islemler'},
@@ -10920,6 +10926,7 @@ $('#oda_tablo').on('click','button[name="oda_siralamayi_bir_asagi_tasi"]',functi
                                 columns:[
                                 { data: 'siralama', className: "text-center"},
                                         { data: 'oda_adi' },
+                                        { data: 'personeller' },
                                         { data: 'durum' },
                                         { data: 'oda_aciklama'},
                                         {data : 'islemler'},
