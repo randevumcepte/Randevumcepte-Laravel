@@ -29,6 +29,7 @@ class DrklinikImport extends Command
         {--inspect-tahsilat : kasa_islemleri.aspx BTN_Ara ile tahsilat tablosunu cekip toplam hesapla}
         {--repair-masraf-kategori : Bos isimli MasrafKategorisi kayitlarini drklinik gider tipi ile yeniden adlandir}
         {--repair-gider-dedup : Mevcut Masraflar kayitlarina drklinik hash marker yaz ve eksik gider satirlarini ekle}
+        {--repair-tahsilat-yanlis-adisyon : Yanlis adisyona bagli tahsilatlari ayir, tutar match ile yeniden bagla}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -88,6 +89,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('repair-gider-dedup')) {
             if (!$username || !$password || !$salonId) { $this->error('--repair-gider-dedup icin --username/--password/--salon zorunlu.'); return 1; }
             return $this->repairGiderDedup($username, $password, (int) $salonId, $this->option('from'), $this->option('to'));
+        }
+        if ((bool) $this->option('repair-tahsilat-yanlis-adisyon')) {
+            if (!$salonId) { $this->error('--repair-tahsilat-yanlis-adisyon icin --salon zorunlu.'); return 1; }
+            return $this->repairTahsilatYanlisAdisyon((int) $salonId, (bool) $this->option('dry-run'));
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -211,6 +216,121 @@ class DrklinikImport extends Command
      * notlar'i NULL/bos olan kayda hash yazar (n-to-n eslestirme).
      * Eslesemeyen satirlar -> yeni Masraflar olarak eklenir.
      */
+    /**
+     * Yanlis adisyona bagli tahsilatlari tespit et + ayir + yeniden bagla.
+     *
+     * Tespit: bir tahsilatin adisyon_id'si varsa ama o adisyonun kalem toplami
+     * tahsilatin tutarina UZAK ise (tolerans disinda) -> mismatch.
+     *
+     * Adim 1: Mismatch olanlarin adisyon_id'sini NULL'a cek, tahsilat_hizmetler
+     *         ve tahsilat_urunler kayitlarini sil (yanlis itemized propagate).
+     * Adim 2: Strict eslesme: ayni tarih + ayni tutar olan adisyona bagla.
+     *         Birden cok aday varsa, kalem toplami tutarla en yakin olani sec.
+     * Adim 3: Yeni bagli olanlar icin tahsilat_hizmetler/tahsilat_urunler uret.
+     */
+    private function repairTahsilatYanlisAdisyon($salonId, $dryRun)
+    {
+        $tolerance = 0.50; // TRY tolerans (kurus farki icin)
+        $tahsilatlar = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+            ->whereNotNull('adisyon_id')->select('id','user_id','adisyon_id','odeme_tarihi','tutar')->get();
+        $this->line("Salon {$salonId}: " . count($tahsilatlar) . " bagli tahsilat taraniyor...");
+
+        $mismatch = []; $okCount = 0;
+        foreach ($tahsilatlar as $t) {
+            $adTutar = $this->adisyonTutar((object) ['id' => $t->adisyon_id]);
+            if (abs($adTutar - (float) $t->tutar) <= $tolerance) { $okCount++; continue; }
+            $mismatch[] = ['t' => $t, 'adTutar' => $adTutar];
+        }
+        $this->line("  uyumlu: {$okCount}, uyumsuz: " . count($mismatch));
+
+        if (empty($mismatch)) { $this->info('Yanlis baglanmis tahsilat yok.'); return 0; }
+
+        // İlk 5 mismatch ornek
+        $this->line('--- Mismatch ornekleri (ilk 5) ---');
+        foreach (array_slice($mismatch, 0, 5) as $m) {
+            $this->line("  t={$m['t']->id} user={$m['t']->user_id} adisyon={$m['t']->adisyon_id} tahsilat_tutar={$m['t']->tutar} adisyon_tutar={$m['adTutar']} tarih={$m['t']->odeme_tarihi}");
+        }
+
+        if ($dryRun) { $this->warn('DRY-RUN: islem yapilmadi.'); return 0; }
+
+        $unlinkedCount = 0; $relinkCount = 0;
+        foreach ($mismatch as $m) {
+            $t = $m['t'];
+            // 1) Yanlis adisyon_id'yi NULL yap + tahsilat_hizmetler/urunler sil
+            \DB::table('tahsilatlar')->where('id', $t->id)->update(['adisyon_id' => null]);
+            \DB::table('tahsilat_hizmetler')->where('tahsilat_id', $t->id)->delete();
+            \DB::table('tahsilat_urunler')->where('tahsilat_id', $t->id)->delete();
+            $unlinkedCount++;
+
+            // 2) Strict relink dene
+            $candidates = \App\Adisyonlar::where('user_id', $t->user_id)
+                ->where('salon_id', $salonId)
+                ->where('tarih', $t->odeme_tarihi)->get();
+            $best = null; $bestDiff = PHP_FLOAT_MAX;
+            foreach ($candidates as $ad) {
+                $diff = abs($this->adisyonTutar($ad) - (float) $t->tutar);
+                if ($diff < $bestDiff) { $bestDiff = $diff; $best = $ad; }
+            }
+            if ($best && $bestDiff <= $tolerance) {
+                \DB::table('tahsilatlar')->where('id', $t->id)->update(['adisyon_id' => $best->id]);
+                // tahsilat_hizmetler/urunler propagate (mevcut helper'imizla benzer)
+                $this->propagateAdisyonToTahsilat($t->id, $best->id, (float) $t->tutar);
+                $relinkCount++;
+            }
+        }
+        $this->info("Tamam. yanlis_baglanan_ayrildi={$unlinkedCount}, dogru_eslestirildi={$relinkCount}, eslesemeyen=" . ($unlinkedCount - $relinkCount));
+        return 0;
+    }
+
+    /**
+     * Bir tahsilata bagli adisyonun kalemlerini tahsilat_hizmetler/urunler'e oransal yaz.
+     * Tahsilat tutari = sum(items) ise 1:1, kismi ise oransal pay.
+     */
+    private function propagateAdisyonToTahsilat($tahsilatId, $adisyonId, $tahsilatTutari)
+    {
+        $hizmetler = \DB::table('adisyon_hizmetler')->where('adisyon_id', $adisyonId)->get();
+        $urunler   = \DB::table('adisyon_urunler')->where('adisyon_id', $adisyonId)->get();
+
+        $items = [];
+        foreach ($hizmetler as $h) {
+            $f = (float) ($h->fiyat ?? 0);
+            if ($f > 0) $items[] = ['hizmet', $h->id, $f];
+        }
+        foreach ($urunler as $u) {
+            $f = (float) ($u->fiyat ?? 0) * max(1, (int) ($u->adet ?? 1));
+            if ($f > 0) $items[] = ['urun', $u->id, $f];
+        }
+        if (empty($items)) return;
+        $toplamFiyat = array_sum(array_column($items, 2));
+        if ($toplamFiyat <= 0) return;
+        $oran = $tahsilatTutari / $toplamFiyat;
+        $payToplam = 0;
+        $paylar = [];
+        foreach ($items as $i => $it) {
+            $pay = round($it[2] * $oran, 2);
+            $paylar[$i] = $pay;
+            $payToplam += $pay;
+        }
+        $fark = round($tahsilatTutari - $payToplam, 2);
+        if (abs($fark) > 0.001 && !empty($paylar)) {
+            $sonIdx = array_key_last($paylar);
+            $paylar[$sonIdx] = round($paylar[$sonIdx] + $fark, 2);
+        }
+        foreach ($items as $i => $it) {
+            $pay = $paylar[$i];
+            if ($pay <= 0) continue;
+            if ($it[0] === 'hizmet') {
+                \DB::table('tahsilat_hizmetler')->insert([
+                    'tahsilat_id' => $tahsilatId, 'adisyon_hizmet_id' => $it[1], 'tutar' => $pay,
+                ]);
+            } else {
+                \DB::table('tahsilat_urunler')->insert([
+                    'tahsilat_id' => $tahsilatId, 'adisyon_urun_id' => $it[1], 'tutar' => $pay,
+                ]);
+            }
+        }
+    }
+
     private function repairGiderDedup($username, $password, $salonId, $from = null, $to = null)
     {
         $from = $from ?: '2018-01-01';
