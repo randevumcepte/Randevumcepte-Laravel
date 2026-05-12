@@ -15580,6 +15580,162 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     }
 
+    // ====================================================================
+    // Mobil personel yonetimi: web'deki yeni ozellikleri /api/v1 altina tasir.
+    // ====================================================================
+
+    // Soft delete (arsivle): listeden gizle, gecmis veri korunur.
+    public function personelArsivle(Request $request)
+    {
+        try {
+            $personel = Personeller::where('id', $request->personelid)
+                ->where('salon_id', $request->sube)
+                ->first();
+            if ($personel) {
+                $personel->arsivli = true;
+                $personel->aktif = false;
+                $personel->takvimde_gorunsun = false;
+                $personel->save();
+                return ['sonuc' => 'ok', 'personel' => $personel];
+            }
+            return ['sonuc' => 'notfound'];
+        } catch (\Exception $e) {
+            \Log::warning('Api personelArsivle: ' . $e->getMessage());
+            return ['sonuc' => 'error', 'mesaj' => $e->getMessage()];
+        }
+    }
+
+    // Aktif personeller arasinda sirayi delta (-1 yukari / +1 asagi) kaydir.
+    public function personelSiralamaKaydir(Request $request)
+    {
+        $delta = (int)$request->delta;
+        if ($delta !== 1 && $delta !== -1) {
+            return ['sonuc' => 'error', 'mesaj' => 'delta 1 veya -1 olmali'];
+        }
+        try {
+            $aktifler = Personeller::where('salon_id', $request->sube)
+                ->where('aktif', 1)
+                ->orderBy('takvim_sirasi', 'asc')
+                ->orderBy('id', 'asc')
+                ->get()
+                ->values();
+            $idx = $aktifler->search(function ($p) use ($request) {
+                return (int)$p->id === (int)$request->personelid;
+            });
+            if ($idx === false) return ['sonuc' => 'notfound'];
+            $hedefIdx = $idx + $delta;
+            if ($hedefIdx < 0 || $hedefIdx >= $aktifler->count()) {
+                return ['sonuc' => 'sinir'];
+            }
+            $a = $aktifler[$idx];
+            $b = $aktifler[$hedefIdx];
+            $aSira = $a->takvim_sirasi;
+            $bSira = $b->takvim_sirasi;
+            if ($aSira != $bSira) {
+                // 3 adimli swap (olasi UNIQUE constraint icin negatif temp deger)
+                $a->takvim_sirasi = -1 * abs($a->id);
+                $a->save();
+                $b->takvim_sirasi = $aSira;
+                $b->save();
+                $a->takvim_sirasi = $bSira;
+                $a->save();
+            }
+            return ['sonuc' => 'ok'];
+        } catch (\Exception $e) {
+            \Log::warning('Api personelSiralamaKaydir: ' . $e->getMessage());
+            return ['sonuc' => 'error', 'mesaj' => $e->getMessage()];
+        }
+    }
+
+    public function personelTakvimdeGorunsunToggle(Request $request)
+    {
+        try {
+            $personel = Personeller::where('id', $request->personelid)
+                ->where('salon_id', $request->sube)
+                ->first();
+            if ($personel) {
+                $personel->takvimde_gorunsun = !((bool)$personel->takvimde_gorunsun);
+                $personel->save();
+                return ['sonuc' => 'ok', 'takvimde_gorunsun' => (int)$personel->takvimde_gorunsun];
+            }
+            return ['sonuc' => 'notfound'];
+        } catch (\Exception $e) {
+            \Log::warning('Api personelTakvimdeGorunsunToggle: ' . $e->getMessage());
+            return ['sonuc' => 'error', 'mesaj' => $e->getMessage()];
+        }
+    }
+
+    // Ay/yil bazli prim hesaplama + adisyon listesi.
+    // personelprimhesapla()'nin geniletilmis hali; web detay sayfasinin Flutter karsiligi.
+    public function personelPrimHesaplaAyYil(Request $request)
+    {
+        $ay = $request->ay ? str_pad((string)$request->ay, 2, '0', STR_PAD_LEFT) : date('m');
+        $yil = $request->yil ? (string)$request->yil : date('Y');
+        $baslangic = $yil . '-' . $ay . '-01 00:00:00';
+        $sonGun = date('t', strtotime($baslangic));
+        $bitis = $yil . '-' . $ay . '-' . $sonGun . ' 23:59:59';
+        // Bu ay/bu yil ise simdiki ana kadar say
+        if ($ay === date('m') && $yil === date('Y')) {
+            $bitis = date('Y-m-d H:i:s');
+        }
+        // adisyon_yukle() bir Collection|JsonResponse donebilir; data alanini cek
+        $adisyonlarRaw = self::adisyon_yukle(
+            $request,
+            "",
+            "",
+            $baslangic,
+            $bitis,
+            "",
+            $request->personel_id,
+            $request->sube,
+            false
+        );
+        // Eger JsonResponse ise data alaninda Collection var; Collection ise dogrudan kullan.
+        if ($adisyonlarRaw instanceof \Illuminate\Http\JsonResponse) {
+            $payload = $adisyonlarRaw->getData(true);
+            $adisyonlar = collect($payload['data'] ?? []);
+        } else if ($adisyonlarRaw instanceof \Illuminate\Support\Collection) {
+            $adisyonlar = $adisyonlarRaw;
+        } else if (is_array($adisyonlarRaw)) {
+            $adisyonlar = collect($adisyonlarRaw['data'] ?? $adisyonlarRaw);
+        } else {
+            $adisyonlar = collect([]);
+        }
+
+        // adisyon_yukle() return field'leri: hizmetToplam / urunToplam / paketToplam /
+        // hizmetHakedisTutar / urunHakedisTutar / paketHakedisTutar
+        $sumKey = function ($coll, $key) {
+            return $coll->sum(function ($a) use ($key) {
+                if (is_array($a)) return (float)($a[$key] ?? 0);
+                if (is_object($a)) return (float)($a->{$key} ?? 0);
+                return 0;
+            });
+        };
+        $hizmetToplam = $sumKey($adisyonlar, 'hizmetToplam');
+        $urunToplam = $sumKey($adisyonlar, 'urunToplam');
+        $paketToplam = $sumKey($adisyonlar, 'paketToplam');
+        $hizmetHakedis = $sumKey($adisyonlar, 'hizmetHakedisTutar');
+        $urunHakedis = $sumKey($adisyonlar, 'urunHakedisTutar');
+        $paketHakedis = $sumKey($adisyonlar, 'paketHakedisTutar');
+
+        return [
+            "hizmet_toplam" => number_format($hizmetToplam, 2, ",", "."),
+            "hizmet_hakedis" => number_format($hizmetHakedis, 2, ",", "."),
+            "urun_toplam" => number_format($urunToplam, 2, ",", "."),
+            "urun_hakedis" => number_format($urunHakedis, 2, ",", "."),
+            "paket_toplam" => number_format($paketToplam, 2, ",", "."),
+            "paket_hakedis" => number_format($paketHakedis, 2, ",", "."),
+            "hizmet_toplam_numeric" => $hizmetToplam,
+            "hizmet_hakedis_numeric" => $hizmetHakedis,
+            "urun_toplam_numeric" => $urunToplam,
+            "urun_hakedis_numeric" => $urunHakedis,
+            "paket_toplam_numeric" => $paketToplam,
+            "paket_hakedis_numeric" => $paketHakedis,
+            "adisyonlar" => $adisyonlar->values(),
+            "donem" => $ay . '.' . $yil,
+        ];
+    }
+
     public function hizmet_liste_getir(Request $request, $salon_id)
 {
     $hizmet_liste = DB::table("salon_sunulan_hizmetler")
@@ -20815,8 +20971,12 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                     });
             })->whereBetween('tarih',[$request->tarih1,$request->tarih2])->get();
 
-        // 2. Tüm hizmetleri tek koleksiyonda birleştir
-        $tumHizmetler = $adisyonlar->flatMap(function ($adisyon) {
+        $personel = $request->personel;
+        // 2. Tüm hizmetleri tek koleksiyonda birleştir (personel filtresi varsa kalem seviyesinde de uygula)
+        $tumHizmetler = $adisyonlar->flatMap(function ($adisyon) use ($personel) {
+            if ($personel != '') {
+                return $adisyon->hizmetler->where('personel_id', $personel);
+            }
             return $adisyon->hizmetler;
         });
 
@@ -20858,8 +21018,12 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             })->whereBetween('tarih',[$request->tarih1,$request->tarih2])
             ->get();
 
-        
-        $tumUrunler = $adisyonlar->flatMap(function ($adisyon) {
+        $personel = $request->personel;
+        // Personel filtresi varsa kalem seviyesinde de süzgeç uygula
+        $tumUrunler = $adisyonlar->flatMap(function ($adisyon) use ($personel) {
+            if ($personel != '') {
+                return $adisyon->urunler->where('personel_id', $personel);
+            }
             return $adisyon->urunler;
         });
 
@@ -20902,8 +21066,12 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             })->whereBetween('tarih',[$request->tarih1,$request->tarih2])
             ->get();
 
-        // 2. Tüm hizmetleri tek koleksiyonda birleştir
-        $tumPaketler = $adisyonlar->flatMap(function ($adisyon) {
+        $personel = $request->personel;
+        // 2. Tüm paketleri tek koleksiyonda birleştir (personel filtresi varsa kalem seviyesinde de uygula)
+        $tumPaketler = $adisyonlar->flatMap(function ($adisyon) use ($personel) {
+            if ($personel != '') {
+                return $adisyon->paketler->where('personel_id', $personel);
+            }
             return $adisyon->paketler;
         });
 
