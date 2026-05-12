@@ -201,7 +201,9 @@ class WhatsappMobileController extends Controller
                     'u.name as musteri_adi')
                 ->where('wl.salon_id', $salonId);
 
-            if ($durum = $request->input('durum')) $q->where('wl.durum', $durum);
+            if ($request->filled('durum') || $request->input('durum') === '0' || $request->input('durum') === 0) {
+                $q->where('wl.durum', (int) $request->input('durum'));
+            }
             if ($telefon = $request->input('telefon')) $q->where('wl.telefon', 'like', '%' . $telefon . '%');
             if ($baslangic = $request->input('baslangic')) $q->whereDate('wl.created_at', '>=', $baslangic);
             if ($bitis = $request->input('bitis')) $q->whereDate('wl.created_at', '<=', $bitis);
