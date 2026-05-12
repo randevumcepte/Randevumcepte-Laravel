@@ -31,6 +31,8 @@ class DrklinikImport extends Command
         {--repair-gider-dedup : Mevcut Masraflar kayitlarina drklinik hash marker yaz ve eksik gider satirlarini ekle}
         {--repair-tahsilat-yanlis-adisyon : Yanlis adisyona bagli tahsilatlari ayir, tutar match ile yeniden bagla}
         {--report-tahsilat-fark : Drklinik kasayi gunluk tarayip DB tahsilatlari ile karsilastir, fazlalari CSV\'ye yaz}
+        {--apply-fazla-sil : /tmp/drk_tahsilat_gercek_fazla_<salon>.csv ID\'lerini DB\'den sil}
+        {--apply-eksik-ekle : /tmp/drk_tahsilat_eksik_<salon>.csv satirlarini DB\'ye ekle (isim eslesmesi ile)}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -98,6 +100,14 @@ class DrklinikImport extends Command
         if ((bool) $this->option('report-tahsilat-fark')) {
             if (!$username || !$password || !$salonId) { $this->error('--report-tahsilat-fark icin --username/--password/--salon zorunlu.'); return 1; }
             return $this->reportTahsilatFark($username, $password, (int) $salonId, $this->option('from'), $this->option('to'));
+        }
+        if ((bool) $this->option('apply-fazla-sil')) {
+            if (!$salonId) { $this->error('--apply-fazla-sil icin --salon zorunlu.'); return 1; }
+            return $this->applyFazlaSil((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('apply-eksik-ekle')) {
+            if (!$salonId) { $this->error('--apply-eksik-ekle icin --salon zorunlu.'); return 1; }
+            return $this->applyEksikEkle((int) $salonId, (bool) $this->option('dry-run'));
         }
 
         if (!$analyze && (!$username || !$password)) {
@@ -221,6 +231,78 @@ class DrklinikImport extends Command
      * notlar'i NULL/bos olan kayda hash yazar (n-to-n eslestirme).
      * Eslesemeyen satirlar -> yeni Masraflar olarak eklenir.
      */
+    private function applyFazlaSil($salonId, $dryRun)
+    {
+        $csv = '/tmp/drk_tahsilat_gercek_fazla_' . $salonId . '.csv';
+        if (!file_exists($csv)) { $this->error("CSV yok: {$csv} - once --report-tahsilat-fark calistirin"); return 1; }
+        $fp = fopen($csv, 'r');
+        $header = fgetcsv($fp);
+        $ids = []; $sum = 0;
+        while (($row = fgetcsv($fp)) !== false) {
+            $ids[] = (int) $row[0];
+            $sum += (float) ($row[3] ?? 0);
+        }
+        fclose($fp);
+        $this->line("Silinecek: " . count($ids) . " tahsilat, " . number_format($sum, 2, ',', '.') . " TRY");
+        if ($dryRun) { $this->warn('DRY-RUN'); return 0; }
+        // tahsilat_hizmetler/tahsilat_urunler de cascade etmiyorsa once onlari sil
+        foreach (array_chunk($ids, 500) as $ck) {
+            \DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $ck)->delete();
+            \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $ck)->delete();
+            \DB::table('tahsilatlar')->whereIn('id', $ck)->delete();
+        }
+        $this->info("Silindi: " . count($ids));
+        return 0;
+    }
+
+    private function applyEksikEkle($salonId, $dryRun)
+    {
+        $csv = '/tmp/drk_tahsilat_eksik_' . $salonId . '.csv';
+        if (!file_exists($csv)) { $this->error("CSV yok: {$csv}"); return 1; }
+        $fp = fopen($csv, 'r');
+        $header = fgetcsv($fp);
+        $rows = [];
+        while (($r = fgetcsv($fp)) !== false) {
+            $rows[] = ['tarih' => $r[0], 'tutar' => (float) $r[1], 'odeme_yontemi_id' => (int) $r[2], 'drklinik_musteri' => $r[3]];
+        }
+        fclose($fp);
+        $this->line("Eklenecek: " . count($rows) . " kayit");
+
+        $defaultPers = \App\Personeller::where('salon_id', $salonId)->where('aktif', 1)->orderBy('id')->value('id')
+            ?: \App\Personeller::where('salon_id', $salonId)->orderBy('id')->value('id');
+
+        $eklenen = 0; $kullaniciYok = 0;
+        foreach ($rows as $r) {
+            $ad = trim($r['drklinik_musteri']);
+            if (!$ad) { $kullaniciYok++; continue; }
+            // Bu salonda eslesen user bul (isim LIKE + portfoy)
+            $userId = \DB::table('users as u')->join('musteri_portfoy as p', 'p.user_id', '=', 'u.id')
+                ->where('p.salon_id', $salonId)
+                ->where(function ($q) use ($ad) {
+                    $q->where('u.name', 'LIKE', '%' . $ad . '%');
+                })
+                ->value('u.id');
+            if (!$userId) { $kullaniciYok++; continue; }
+
+            if ($dryRun) { $eklenen++; continue; }
+            \DB::table('tahsilatlar')->insert([
+                'user_id' => $userId,
+                'salon_id' => $salonId,
+                'tutar' => $r['tutar'],
+                'yapilan_odeme' => $r['tutar'],
+                'odeme_yontemi_id' => $r['odeme_yontemi_id'],
+                'odeme_tarihi' => $r['tarih'],
+                'olusturan_id' => $defaultPers,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+            $eklenen++;
+        }
+        $tag = $dryRun ? '[DRY-RUN] ' : '';
+        $this->info("{$tag}Eklenen: {$eklenen}, kullanici_bulunamadi: {$kullaniciYok}");
+        return 0;
+    }
+
     /**
      * Drklinik tahsilatlarini gunluk bazda tarayip (pagination cap'i yok)
      * DB'deki tahsilatlarla multiset karsilastirmasi yap.
