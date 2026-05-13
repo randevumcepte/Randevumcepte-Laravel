@@ -207,13 +207,31 @@ class SalonappyImport extends Command
             }
             if (empty($hizmetler)) $hizmetler = $this->parseSalonappyServicesStaff($v['services_staff_text'] ?? '', $v['total_amount'] ?? 0);
 
+            // Paket satislari: hizmetler dizisine eklenir, controller call'undan sonra
+            // ilgili AdisyonHizmetler.seans_sayisi = quantity set edilir.
+            $paketSales = $bd['package_sales'] ?? [];
+            $paketHizmetAdlari = [];
+            foreach ($paketSales as $pkg) {
+                $ad = $pkg['service_text'] ?? '';
+                if (!$ad) continue;
+                $quantity = (int) ($pkg['quantity'] ?? 1);
+                $amount = (float) ($pkg['amount'] ?? 0);
+                $hizmetler[] = [
+                    'hizmet'   => $ad,
+                    'personel' => $pkg['staff_name'] ?? '',
+                    'fiyat'    => $amount,
+                    'sureDk'   => 30,
+                ];
+                $paketHizmetAdlari[] = ['ad' => $ad, 'quantity' => $quantity, 'amount' => $amount];
+            }
+
             // Ürünler itemized
             $urunler = [];
             foreach (($bd['product_sales'] ?? []) as $p) {
                 $urunler[] = [
                     'urun'     => $p['product_text'] ?? $p['product_name'] ?? $p['name'] ?? '',
                     'personel' => $p['staff_name'] ?? '',
-                    'fiyat'    => (float) ($p['price'] ?? 0),
+                    'fiyat'    => (float) ($p['amount'] ?? $p['price'] ?? 0),
                     'adet'     => (int) ($p['quantity'] ?? $p['qty'] ?? 1),
                 ];
             }
@@ -249,6 +267,32 @@ class SalonappyImport extends Command
                 $resp = $apiController->salonAppyAdisyonRandevuEkle($req);
                 $adisyonId = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
                 $rEklenen++;
+
+                // Paket satislari: ilgili AdisyonHizmetler.seans_sayisi'ni set et
+                if ($adisyonId && ctype_digit($adisyonId) && !empty($paketHizmetAdlari)) {
+                    foreach ($paketHizmetAdlari as $pkg) {
+                        $hizmet = \App\Hizmetler::where('hizmet_adi', $pkg['ad'])->first();
+                        if (!$hizmet) continue;
+                        // Bu adisyondaki ilgili AdisyonHizmet'i bul, seans_sayisi yaz
+                        \DB::table('adisyon_hizmetler')
+                            ->where('adisyon_id', $adisyonId)
+                            ->where('hizmet_id', $hizmet->id)
+                            ->whereNull('seans_sayisi')
+                            ->limit(1)
+                            ->update(['seans_sayisi' => $pkg['quantity']]);
+                    }
+                }
+
+                // Paket kullanimlari: package_usages'den seans dusumu
+                if (!empty($bd['package_usages'])) {
+                    foreach ($bd['package_usages'] as $use) {
+                        $hizmetAd = $use['service_text'] ?? '';
+                        if (!$hizmetAd) continue;
+                        $kullanimSayisi = (int) ($use['quantity'] ?? 1);
+                        $kullanimTarih = $use['date'] ?? $tarih;
+                        $this->salonappySeansiTuket($userId, $salonId, $hizmetAd, $kullanimTarih, $saat, $kullanimSayisi);
+                    }
+                }
 
                 // Tahsilatlar itemized (payments[] dolu ise her birini ayrı ekle)
                 if ($adisyonId && ctype_digit($adisyonId) && !empty($bd['payments'])) {
@@ -594,6 +638,72 @@ class SalonappyImport extends Command
         }
         $cache[$cacheKey] = $hizmet->id;
         return $hizmet->id;
+    }
+
+    /**
+     * Salonappy package_usage: müşterinin AÇIK paketinden (kullanılan < seans_sayisi)
+     * AdisyonPaketSeanslar (geldi=1) yaz. Drklinik'teki seansiTuket'in benzeri.
+     */
+    private function salonappySeansiTuket($userId, $salonId, $hizmetAd, $tarih, $saat, $kac)
+    {
+        $kac = max(1, (int) $kac);
+        $saat = $saat ?: '00:00:00';
+        if (strlen($saat) === 5) $saat .= ':00';
+
+        // Hizmet id (varsa)
+        $hizmetId = \App\Hizmetler::where('hizmet_adi', $hizmetAd)->value('id');
+
+        // Açık AdisyonHizmetler bul: same user/salon, seans_sayisi NOT NULL, kullanılan < seans_sayisi
+        $rows = \DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+            ->where('a.user_id', $userId)
+            ->where('a.salon_id', $salonId)
+            ->whereNotNull('ah.seans_sayisi')
+            ->select('ah.id', 'ah.hizmet_id', 'ah.seans_sayisi')
+            ->orderBy('a.tarih')->get();
+
+        // Önce hizmet_id eşleşenleri sırala
+        $sira = [];
+        if ($hizmetId) {
+            foreach ($rows as $r) if ((int) $r->hizmet_id === (int) $hizmetId) $sira[] = $r;
+            foreach ($rows as $r) if ((int) $r->hizmet_id !== (int) $hizmetId) $sira[] = $r;
+        } else {
+            $sira = $rows->all();
+        }
+
+        foreach ($sira as $r) {
+            if ($kac <= 0) break;
+            $kullanilan = (int) \DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $r->id)->count();
+            $bos = (int) $r->seans_sayisi - $kullanilan;
+            if ($bos <= 0) continue;
+
+            // Idempotent: bu paketten aynı (tarih, saat) için zaten var mı?
+            $exists = \DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $r->id)
+                ->where('seans_tarih', $tarih)
+                ->where('seans_saat', $saat)->exists();
+            if ($exists) {
+                $kac--;
+                continue;
+            }
+
+            $sonNo = (int) (\DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $r->id)->max('seans_no') ?? 0);
+            $eksik = min($kac, $bos);
+            for ($i = 0; $i < $eksik; $i++) {
+                $sonNo++;
+                \DB::table('adisyon_paket_seanslar')->insert([
+                    'adisyon_hizmet_id' => $r->id,
+                    'hizmet_id' => $r->hizmet_id,
+                    'seans_no' => $sonNo,
+                    'seans_tarih' => $tarih,
+                    'seans_saat' => $saat,
+                    'geldi' => 1,
+                ]);
+            }
+            $kac -= $eksik;
+        }
     }
 
     private function ensurePersonel($salonId, $ad)
