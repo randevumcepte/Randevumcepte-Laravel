@@ -144,6 +144,10 @@ class SalonappyImport extends Command
 
         $apiController = app(\App\Http\Controllers\ApiController::class);
 
+        // Paket satislarini dedup etmek icin global set (aynı paket farkli visit'lerde
+        // tekrarlaniyor cunku salonappy musteriinin aktif paketlerini her visit detayinda gosteriyor).
+        $seenPkgIds = [];
+
         // 1) Müşteri aktarımı - clientDetails varsa zengin notlar
         $idMap = [];
         $mEklenen = 0; $mHata = 0;
@@ -222,9 +226,14 @@ class SalonappyImport extends Command
 
             // Paket satislari: hizmetler dizisine eklenir, controller call'undan sonra
             // ilgili AdisyonHizmetler.seans_sayisi = quantity set edilir.
+            // Paket satislari: dedup et (aynı paket id farkli visit'lerde tekrar gorunur).
+            // Sadece ilk gordugumuz visit'e ekle. package_sales'ta personel bilgisi YOK.
             $paketSales = $bd['package_sales'] ?? [];
             $paketHizmetAdlari = [];
             foreach ($paketSales as $pkg) {
+                $pid = $pkg['id'] ?? null;
+                if (!$pid || isset($seenPkgIds[$pid])) continue;
+                $seenPkgIds[$pid] = true;
                 $ad = trim((string) ($pkg['service_text'] ?? ''));
                 if ($ad === '' && !empty($pkg['service_id'])) {
                     $ad = 'Salonappy Hizmet #' . $pkg['service_id'];
@@ -234,19 +243,30 @@ class SalonappyImport extends Command
                 $amount = (float) ($pkg['amount'] ?? 0);
                 $hizmetler[] = [
                     'hizmet'   => $ad,
-                    'personel' => $pkg['staff_name'] ?? '',
+                    'personel' => '', // paket satisinda personel yok
                     'fiyat'    => $amount,
                     'sureDk'   => 30,
                 ];
                 $paketHizmetAdlari[] = ['ad' => $ad, 'quantity' => $quantity, 'amount' => $amount];
             }
 
-            // Ürünler itemized
+            // Ürünler itemized. product_sales'ta staff_name yok; staff_id + staff[] lookup ile resolve.
             $urunler = [];
             foreach (($bd['product_sales'] ?? []) as $p) {
+                $personelAdi = '';
+                $sid = (string) ($p['staff_id'] ?? '');
+                if ($sid !== '' && !empty($p['staff']) && is_array($p['staff'])) {
+                    foreach ($p['staff'] as $st) {
+                        if ((string) ($st['value'] ?? '') === $sid) {
+                            $personelAdi = $st['label'] ?? '';
+                            break;
+                        }
+                    }
+                }
+                if ($personelAdi === '') $personelAdi = $p['staff_name'] ?? '';
                 $urunler[] = [
                     'urun'     => $p['product_text'] ?? $p['product_name'] ?? $p['name'] ?? '',
-                    'personel' => $p['staff_name'] ?? '',
+                    'personel' => $personelAdi,
                     'fiyat'    => (float) ($p['amount'] ?? $p['price'] ?? 0),
                     'adet'     => (int) ($p['quantity'] ?? $p['qty'] ?? 1),
                 ];
