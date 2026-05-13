@@ -253,6 +253,11 @@ class SalonappyImport extends Command
                 if (!empty($h['hizmet'])) $this->ensureSalonHizmet($salonId, $h['hizmet'], $h['sureDk'] ?? 30, $h['fiyat'] ?? 0);
                 if (!empty($h['personel'])) $this->ensurePersonel($salonId, $h['personel']);
             }
+            // Eksik urunleri ve personelleri otomatik olustur
+            foreach ($urunler as $u) {
+                if (!empty($u['urun'])) $this->ensureUrun($salonId, $u['urun'], $u['fiyat'] ?? 0);
+                if (!empty($u['personel'])) $this->ensurePersonel($salonId, $u['personel']);
+            }
 
             $payload = [
                 'userId'      => $userId,
@@ -667,6 +672,44 @@ class SalonappyImport extends Command
         }
         $cache[$cacheKey] = $hizmet->id;
         return $hizmet->id;
+    }
+
+    private function ensureUrun($salonId, $ad, $fiyat = 0)
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '') return null;
+        static $cache = [];
+        $needle = $this->saTrKey($ad);
+        $cacheKey = $salonId . '|' . $needle;
+        if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+
+        // Exact match (salon-bazli)
+        $urun = \App\Urunler::where('salon_id', $salonId)->where('urun_adi', $ad)->first();
+        // trKey match (case/diacritic-insensitive)
+        if (!$urun) {
+            foreach (\App\Urunler::where('salon_id', $salonId)->select('id','urun_adi')->get() as $row) {
+                if ($this->saTrKey($row->urun_adi) === $needle) {
+                    $urun = \App\Urunler::find($row->id);
+                    break;
+                }
+            }
+        }
+        if (!$urun) {
+            try {
+                $urun = new \App\Urunler();
+                $urun->urun_adi = $ad;
+                $urun->salon_id = $salonId;
+                if (\Schema::hasColumn('urunler', 'aktif')) $urun->aktif = 0;
+                if (\Schema::hasColumn('urunler', 'fiyat') && $fiyat > 0) $urun->fiyat = $fiyat;
+                if (\Schema::hasColumn('urunler', 'satis_fiyati') && $fiyat > 0) $urun->satis_fiyati = $fiyat;
+                $urun->save();
+            } catch (\Throwable $e) {
+                \Log::warning('[Salonappy] urun eklenemedi', ['ad' => $ad, 'err' => $e->getMessage()]);
+                return null;
+            }
+        }
+        $cache[$cacheKey] = $urun->id;
+        return $urun->id;
     }
 
     /**
