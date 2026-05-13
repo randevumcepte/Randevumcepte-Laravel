@@ -12289,14 +12289,23 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $adisyon_hizmet->save();
 
-        // Sarf recetesi varsa otomatik dus
-        StokController::receteyiUygula(
-            (int) $request->sube,
-            (int) $adisyon_hizmet->hizmet_id,
-            'islem',
-            null,
-            $adisyon_hizmet->personel_id ? (int) $adisyon_hizmet->personel_id : null
-        );
+        // Sarf recetesi varsa otomatik dus — recete tabani hatasi hizmet satisini engellemesin
+        try {
+            StokController::receteyiUygula(
+                (int) $request->sube,
+                (int) $adisyon_hizmet->hizmet_id,
+                'islem',
+                null,
+                $adisyon_hizmet->personel_id ? (int) $adisyon_hizmet->personel_id : null
+            );
+        } catch (\Throwable $e) {
+            \Log::error('receteyiUygula failed in adisyonhizmetekle', [
+                'adisyon_hizmet_id' => $adisyon_hizmet->id,
+                'hizmet_id'         => $adisyon_hizmet->hizmet_id,
+                'sube'              => $request->sube,
+                'error'             => $e->getMessage(),
+            ]);
+        }
 
         return AdisyonHizmetler::where("id", $adisyon_hizmet->id)->first();
 
@@ -12371,20 +12380,28 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $urun = Urunler::where("id", $request->urunyeni)->first();
 
         if ($urun) {
-            StokController::hareketKaydet([
-                'salon_id'           => $urun->salon_id,
-                'urun_id'            => $urun->id,
-                'depo_id'            => $urun->varsayilan_depo_id,
-                'miktar'             => -1 * abs((float) $request->urun_adedi),
-                'hareket_tipi'       => 'satis',
-                'referans_tip'       => 'adisyon_urun',
-                'referans_id'        => $adisyon_urun->id,
-                'birim_satis_fiyati' => $request->urun_fiyati,
-                'birim_alis_fiyati'  => $urun->alis_fiyati,
-                'aciklama'           => 'Adisyon urun satisi',
-                'kullanici_id'       => $request->olusturan ?? null,
-                'kullanici_tipi'     => 'isletme_yonetim',
-            ]);
+            try {
+                StokController::hareketKaydet([
+                    'salon_id'           => $urun->salon_id,
+                    'urun_id'            => $urun->id,
+                    'depo_id'            => $urun->varsayilan_depo_id,
+                    'miktar'             => -1 * abs((float) $request->urun_adedi),
+                    'hareket_tipi'       => 'satis',
+                    'referans_tip'       => 'adisyon_urun',
+                    'referans_id'        => $adisyon_urun->id,
+                    'birim_satis_fiyati' => $request->urun_fiyati,
+                    'birim_alis_fiyati'  => $urun->alis_fiyati,
+                    'aciklama'           => 'Adisyon urun satisi',
+                    'kullanici_id'       => $request->olusturan ?? null,
+                    'kullanici_tipi'     => 'isletme_yonetim',
+                ]);
+            } catch (\Throwable $e) {
+                \Log::error('hareketKaydet failed in adisyonurunekle', [
+                    'adisyon_urun_id' => $adisyon_urun->id,
+                    'urun_id'         => $urun->id,
+                    'error'           => $e->getMessage(),
+                ]);
+            }
         }
 
         return AdisyonUrunler::where("id", $adisyon_urun->id)->first();
