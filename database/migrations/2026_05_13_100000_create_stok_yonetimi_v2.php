@@ -11,7 +11,7 @@ class CreateStokYonetimiV2 extends Migration
     {
         if (!Schema::hasTable('depolar')) {
             Schema::create('depolar', function (Blueprint $table) {
-                $table->id();
+                $table->bigIncrements('id');
                 $table->unsignedBigInteger('salon_id')->index();
                 $table->string('depo_adi', 120);
                 $table->text('aciklama')->nullable();
@@ -24,7 +24,7 @@ class CreateStokYonetimiV2 extends Migration
 
         if (!Schema::hasTable('tedarikciler')) {
             Schema::create('tedarikciler', function (Blueprint $table) {
-                $table->id();
+                $table->bigIncrements('id');
                 $table->unsignedBigInteger('salon_id')->index();
                 $table->string('ad', 200);
                 $table->string('telefon', 30)->nullable();
@@ -39,7 +39,7 @@ class CreateStokYonetimiV2 extends Migration
 
         if (!Schema::hasTable('urun_kategoriler')) {
             Schema::create('urun_kategoriler', function (Blueprint $table) {
-                $table->id();
+                $table->bigIncrements('id');
                 $table->unsignedBigInteger('salon_id')->index();
                 $table->string('ad', 120);
                 $table->string('ikon', 50)->nullable();
@@ -112,7 +112,7 @@ class CreateStokYonetimiV2 extends Migration
 
         if (!Schema::hasTable('stok_hareketleri')) {
             Schema::create('stok_hareketleri', function (Blueprint $table) {
-                $table->id();
+                $table->bigIncrements('id');
                 $table->unsignedBigInteger('salon_id')->index();
                 $table->unsignedBigInteger('urun_id')->index();
                 $table->unsignedBigInteger('depo_id')->nullable()->index();
@@ -135,7 +135,7 @@ class CreateStokYonetimiV2 extends Migration
 
         if (!Schema::hasTable('urun_depo_stoklari')) {
             Schema::create('urun_depo_stoklari', function (Blueprint $table) {
-                $table->id();
+                $table->bigIncrements('id');
                 $table->unsignedBigInteger('salon_id')->index();
                 $table->unsignedBigInteger('urun_id');
                 $table->unsignedBigInteger('depo_id');
@@ -148,7 +148,7 @@ class CreateStokYonetimiV2 extends Migration
 
         if (!Schema::hasTable('hizmet_sarf_receteleri')) {
             Schema::create('hizmet_sarf_receteleri', function (Blueprint $table) {
-                $table->id();
+                $table->bigIncrements('id');
                 $table->unsignedBigInteger('salon_id')->index();
                 $table->unsignedBigInteger('hizmet_id');
                 $table->string('hizmet_tipi', 30)->default('islem');
