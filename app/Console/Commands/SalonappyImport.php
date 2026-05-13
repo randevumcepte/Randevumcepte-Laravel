@@ -762,6 +762,8 @@ class SalonappyImport extends Command
                 $sh->salon_id = $salonId;
                 $sh->hizmet_id = $hizmet->id;
                 $sh->hizmet_kategori_id = $hizmet->hizmet_kategori_id;
+                // Eslesme bulamayinca auto-create edilen tum hizmetler salon'da pasif (aktif=0).
+                // Kullanici incelemeden onayladiktan sonra panelden aktif edebilir.
                 $sh->aktif = 0;
                 $sh->bolum = 2;
                 $sh->sure_dk = $sureDk ?: 30;
