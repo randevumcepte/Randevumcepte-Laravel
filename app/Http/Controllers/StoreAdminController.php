@@ -6837,9 +6837,10 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
             exit(0);
         }
+        $urunler = self::urun_liste_getir($request,"");
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
         $paketler = self::paket_liste_getir('',true,$request);
-        return view('isletmeadmin.stok_yonetimi',['bildirimler'=>self::bildirimgetir($request),'paketler'=>$paketler,'pageindex'=>30, 'sayfa_baslik'=>'Stok Yönetimi','isletme'=>$isletme, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
+        return view('isletmeadmin.stok_yonetimi',['bildirimler'=>self::bildirimgetir($request),'paketler'=>$paketler,'pageindex'=>30, 'sayfa_baslik'=>'Stok Yönetimi','urunler'=>$urunler,'isletme'=>$isletme, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
 
