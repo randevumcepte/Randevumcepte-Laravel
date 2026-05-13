@@ -279,6 +279,17 @@ class SalonappyImport extends Command
                 $adisyonId = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
                 $rEklenen++;
 
+                // Adisyona da marker yaz (reset icin)
+                if ($adisyonId && ctype_digit($adisyonId)) {
+                    $adisyonTable = (new \App\Adisyonlar)->getTable();
+                    foreach (['adisyon_notu','aciklama','genel_aciklama','notlar','not','dosya_no','referans'] as $col) {
+                        if (\Schema::hasColumn($adisyonTable, $col)) {
+                            \DB::table($adisyonTable)->where('id', $adisyonId)->update([$col => $marker]);
+                            break;
+                        }
+                    }
+                }
+
                 // Paket satislari: ilgili AdisyonHizmetler.seans_sayisi'ni set et
                 if ($adisyonId && ctype_digit($adisyonId) && !empty($paketHizmetAdlari)) {
                     foreach ($paketHizmetAdlari as $pkg) {
@@ -533,6 +544,17 @@ class SalonappyImport extends Command
         if ($notKol) {
             $adisyonIds = \DB::table($tA)->where('salon_id', $salonId)
                 ->where($notKol, 'LIKE', '%[salonappy:%')->pluck('id')->all();
+        }
+        // Fallback: markersiz adisyonlar icin marker'li randevu user+tarih ile eslestir
+        if (!empty($randevuIds)) {
+            $rPairs = \DB::table($tR)->whereIn('id', $randevuIds)
+                ->select('user_id', 'tarih')->distinct()->get();
+            foreach ($rPairs as $p) {
+                $more = \DB::table($tA)->where('salon_id', $salonId)
+                    ->where('user_id', $p->user_id)->where('tarih', $p->tarih)
+                    ->pluck('id')->all();
+                foreach ($more as $aid) if (!in_array($aid, $adisyonIds)) $adisyonIds[] = $aid;
+            }
         }
 
         $this->line("Salon {$salonId}: " . count($randevuIds) . " randevu, " . count($adisyonIds) . " adisyon silinecek (markerli)");
