@@ -558,6 +558,16 @@ class SalonappyImport extends Command
         return 0;
     }
 
+    private function saTrKey($s)
+    {
+        $s = (string) $s;
+        $s = mb_strtolower($s, 'UTF-8');
+        $s = preg_replace('/\p{M}+/u', '', $s);
+        $s = strtr($s, ['ı'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ç'=>'c','Ç'=>'c']);
+        $s = preg_replace('~[^a-z0-9]+~', ' ', $s);
+        return trim($s);
+    }
+
     /**
      * Salonappy status_text -> controller'in bekledigi TR string.
      * Salon hesabinda EN/TR locale farkli olabilir.
@@ -598,10 +608,26 @@ class SalonappyImport extends Command
         $ad = trim((string) $ad);
         if ($ad === '') return null;
         static $cache = [];
-        $cacheKey = $salonId . '|' . mb_strtolower($ad, 'UTF-8');
+        static $trKeyMap = null; // hizmet trKey -> id (lazy yuklenir)
+        $needle = $this->saTrKey($ad);
+        $cacheKey = $salonId . '|' . $needle;
         if (isset($cache[$cacheKey])) return $cache[$cacheKey];
 
+        // Exact match
         $hizmet = \App\Hizmetler::where('hizmet_adi', $ad)->first();
+        // trKey match (case/diacritic-insensitive) - tum hizmetleri tek seferde yukle
+        if (!$hizmet) {
+            if ($trKeyMap === null) {
+                $trKeyMap = [];
+                foreach (\DB::table('hizmetler')->select('id','hizmet_adi')->get() as $h) {
+                    $k = $this->saTrKey($h->hizmet_adi);
+                    if ($k && !isset($trKeyMap[$k])) $trKeyMap[$k] = $h->id;
+                }
+            }
+            if (isset($trKeyMap[$needle])) {
+                $hizmet = \App\Hizmetler::find($trKeyMap[$needle]);
+            }
+        }
         if (!$hizmet) {
             try {
                 $hizmet = new \App\Hizmetler();
@@ -717,7 +743,18 @@ class SalonappyImport extends Command
         $cacheKey = $salonId . '|' . mb_strtolower($ad, 'UTF-8');
         if (isset($cache[$cacheKey])) return $cache[$cacheKey];
 
+        // Exact match
         $p = \App\Personeller::where('salon_id', $salonId)->where('personel_adi', $ad)->first();
+        // trKey match (case/diacritic-insensitive)
+        if (!$p) {
+            $needle = $this->saTrKey($ad);
+            foreach (\App\Personeller::where('salon_id', $salonId)->select('id','personel_adi')->get() as $row) {
+                if ($this->saTrKey($row->personel_adi) === $needle) {
+                    $p = \App\Personeller::find($row->id);
+                    break;
+                }
+            }
+        }
         if (!$p) {
             try {
                 // Canonical pattern: yeniPersonelKaydi (ApiController)
