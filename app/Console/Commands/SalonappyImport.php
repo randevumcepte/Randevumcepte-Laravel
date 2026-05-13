@@ -17,6 +17,8 @@ class SalonappyImport extends Command
         {--only= : virgulle: personel,hizmet}
         {--from-file= : Tarayicidan kopyalanan JSON\'ları icerek dizin (staff.json, services.json, service_durations.json, service_prices.json, staff_services.json)}
         {--dump-file= : Tarayici scripti ile indirilen tek JSON dump dosyasi (clients + bookings)}
+        {--reset-salonappy : [salonappy:session] markerli randevu+adisyon+kalemleri sil (musteriler kalir)}
+        {--dry-run : Reset/import oncesi sadece sayim}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
     protected $description = 'webapp.salonappy.com hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -74,6 +76,10 @@ class SalonappyImport extends Command
         if ($fromFile = $this->option('from-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
             return $this->importFromFiles($fromFile, (int) $salonId, $only);
+        }
+        if ((bool) $this->option('reset-salonappy')) {
+            if (!$salonId) { $this->error('--reset-salonappy icin --salon zorunlu.'); return 1; }
+            return $this->resetSalonappy((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -215,13 +221,23 @@ class SalonappyImport extends Command
             $randevuNotu = $detail['notes'] ?? '';
             $finalNotlar = trim(($randevuNotu ? $randevuNotu . ' ' : '') . $marker);
 
+            // Status/showup normalize (Salonappy locale EN veya TR olabilir)
+            $statusNorm = $this->normalizeStatus($v['status_text'] ?? '', $detail['status'] ?? null);
+            $geldiNorm = $this->normalizeShowup($v['showup_text'] ?? '', $detail['showup'] ?? null);
+
+            // Eksik hizmet ve personelleri otomatik olustur (controller eslesme bulamayinca bos kaliyor)
+            foreach ($hizmetler as $h) {
+                if (!empty($h['hizmet'])) $this->ensureSalonHizmet($salonId, $h['hizmet'], $h['sureDk'] ?? 30, $h['fiyat'] ?? 0);
+                if (!empty($h['personel'])) $this->ensurePersonel($salonId, $h['personel']);
+            }
+
             $payload = [
                 'userId'      => $userId,
                 'salonId'     => $salonId,
                 'tarih'       => $tarih,
                 'saat'        => $saatStr,
-                'geldi'       => $v['showup_text'] ?? '',
-                'durum'       => $v['status_text'] ?? '',
+                'geldi'       => $geldiNorm,
+                'durum'       => $statusNorm,
                 'olusturan'   => $v['created_by'] ?? '',
                 'olusturulma' => $v['created_at'] ?? '',
                 'notlar'      => $finalNotlar,
@@ -433,6 +449,183 @@ class SalonappyImport extends Command
         }
         $this->info("Randevu aktarimi: eklenen={$randevuEklenen}, dedup={$randevuDedup}, atlanan={$randevuAtlanan}, tahsilat={$tahsilatEklenen}");
         return 0;
+    }
+
+    /**
+     * Salonappy markerli (personel_notu LIKE '%[salonappy:%') randevu ve
+     * adisyon kayitlarini ve bagli alt kayitlari sil. Tahsilatlar'da bagli olanlarin
+     * adisyon_id'sini NULL'a cek (tahsilat'i tutup, sonra reimport'ta dedup gecer).
+     */
+    private function resetSalonappy($salonId, $dryRun)
+    {
+        $tR = (new \App\Randevular)->getTable();
+        $tA = (new \App\Adisyonlar)->getTable();
+        $tRh = (new \App\RandevuHizmetler)->getTable();
+        $tAh = (new \App\AdisyonHizmetler)->getTable();
+        $tAu = (new \App\AdisyonUrunler)->getTable();
+        $tT = (new \App\Tahsilatlar)->getTable();
+        $tAps = (new \App\AdisyonPaketSeanslar)->getTable();
+
+        $randevuIds = \DB::table($tR)->where('salon_id', $salonId)
+            ->where('personel_notu', 'LIKE', '%[salonappy:%')->pluck('id')->all();
+
+        // Adisyon not kolonu
+        $notKol = null;
+        foreach (['adisyon_notu','aciklama','genel_aciklama','notlar','not','dosya_no','referans'] as $col) {
+            if (\Schema::hasColumn($tA, $col)) { $notKol = $col; break; }
+        }
+        $adisyonIds = [];
+        if ($notKol) {
+            $adisyonIds = \DB::table($tA)->where('salon_id', $salonId)
+                ->where($notKol, 'LIKE', '%[salonappy:%')->pluck('id')->all();
+        }
+
+        $this->line("Salon {$salonId}: " . count($randevuIds) . " randevu, " . count($adisyonIds) . " adisyon silinecek (markerli)");
+        if ($dryRun) { $this->warn('DRY-RUN'); return 0; }
+
+        // AdisyonHizmetler -> AdisyonPaketSeanslar -> AdisyonUrunler -> Adisyonlar
+        if (!empty($adisyonIds)) {
+            $ahIds = \DB::table($tAh)->whereIn('adisyon_id', $adisyonIds)->pluck('id')->all();
+            if (!empty($ahIds)) {
+                foreach (array_chunk($ahIds, 1000) as $ck) {
+                    \DB::table($tAps)->whereIn('adisyon_hizmet_id', $ck)->delete();
+                }
+            }
+            foreach (array_chunk($adisyonIds, 1000) as $ck) {
+                \DB::table($tAh)->whereIn('adisyon_id', $ck)->delete();
+                \DB::table($tAu)->whereIn('adisyon_id', $ck)->delete();
+                \DB::table($tT)->whereIn('adisyon_id', $ck)->update(['adisyon_id' => null]);
+                \DB::table($tA)->whereIn('id', $ck)->delete();
+            }
+        }
+        // RandevuHizmetler -> Randevular
+        if (!empty($randevuIds)) {
+            foreach (array_chunk($randevuIds, 1000) as $ck) {
+                \DB::table($tRh)->whereIn('randevu_id', $ck)->delete();
+                \DB::table($tR)->whereIn('id', $ck)->delete();
+            }
+        }
+        $this->info('Reset tamam. Simdi --dump-file ile re-import yapabilirsiniz.');
+        return 0;
+    }
+
+    /**
+     * Salonappy status_text -> controller'in bekledigi TR string.
+     * Salon hesabinda EN/TR locale farkli olabilir.
+     */
+    private function normalizeStatus($text, $statusCode = null)
+    {
+        $t = mb_strtolower(trim((string) $text), 'UTF-8');
+        if ($t === 'onaylandı' || $t === 'onaylandi' || $t === 'approved') return 'Onaylandı';
+        if ($t === 'reddedildi' || $t === 'rejected') return 'Reddedildi';
+        if ($t === 'iptal edildi' || $t === 'iptal' || $t === 'cancelled' || $t === 'canceled') return 'İptal edildi';
+        if ($t === 'müşteri iptal etti' || $t === 'musteri iptal etti' || $t === 'cancelled by client' || $t === 'client cancelled') return 'Müşteri iptal etti';
+        // Status code fallback
+        if ($statusCode !== null) {
+            $sc = (string) $statusCode;
+            if ($sc === '1') return 'Beklemede';
+            if ($sc === '2') return 'Onaylandı';
+            if ($sc === '3') return 'Reddedildi';
+            if ($sc === '4' || $sc === '5') return 'İptal edildi';
+        }
+        return $text ?: '';
+    }
+
+    private function normalizeShowup($text, $showupCode = null)
+    {
+        $t = mb_strtolower(trim((string) $text), 'UTF-8');
+        if ($t === 'geldi' || $t === 'showed up' || $t === 'attended') return 'Geldi';
+        if ($t === 'gelmedi' || $t === 'did not show' || $t === 'no show' || $t === 'no-show') return 'Gelmedi';
+        if ($showupCode !== null) {
+            $sc = (string) $showupCode;
+            if ($sc === '1') return 'Geldi';
+            if ($sc === '2') return 'Gelmedi';
+        }
+        return $text ?: '';
+    }
+
+    private function ensureSalonHizmet($salonId, $ad, $sureDk = 30, $fiyat = 0)
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '') return null;
+        static $cache = [];
+        $cacheKey = $salonId . '|' . mb_strtolower($ad, 'UTF-8');
+        if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+
+        $hizmet = \App\Hizmetler::where('hizmet_adi', $ad)->first();
+        if (!$hizmet) {
+            try {
+                $hizmet = new \App\Hizmetler();
+                $hizmet->hizmet_adi = $ad;
+                // Default kategori (salon icin Drklinik benzeri "Salonappy" kategorisi)
+                $kategoriId = \DB::table('hizmet_kategorileri')->where('hizmet_kategorisi_adi', 'Salonappy')->value('id');
+                if (!$kategoriId) {
+                    $kategoriId = \DB::table('hizmet_kategorileri')->insertGetId([
+                        'hizmet_kategorisi_adi' => 'Salonappy',
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                }
+                $hizmet->hizmet_kategori_id = $kategoriId;
+                $hizmet->ozel_hizmet = true;
+                if (\Schema::hasColumn('hizmetler', 'salon_id')) $hizmet->salon_id = $salonId;
+                if (\Schema::hasColumn('hizmetler', 'aktif'))    $hizmet->aktif = 0;
+                $hizmet->save();
+            } catch (\Throwable $e) {
+                \Log::warning('[Salonappy] hizmet eklenemedi', ['ad' => $ad, 'err' => $e->getMessage()]);
+                return null;
+            }
+        }
+        // SalonHizmet kayit
+        $sh = \App\SalonHizmetler::where('salon_id', $salonId)->where('hizmet_id', $hizmet->id)->first();
+        if (!$sh) {
+            try {
+                $sh = new \App\SalonHizmetler();
+                $sh->salon_id = $salonId;
+                $sh->hizmet_id = $hizmet->id;
+                $sh->hizmet_kategori_id = $hizmet->hizmet_kategori_id;
+                $sh->aktif = 0;
+                $sh->bolum = 2;
+                $sh->sure_dk = $sureDk ?: 30;
+                $sh->baslangic_fiyat = $fiyat;
+                $sh->son_fiyat = $fiyat;
+                $sh->save();
+            } catch (\Throwable $e) {}
+        }
+        $cache[$cacheKey] = $hizmet->id;
+        return $hizmet->id;
+    }
+
+    private function ensurePersonel($salonId, $ad)
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '') return null;
+        static $cache = [];
+        $cacheKey = $salonId . '|' . mb_strtolower($ad, 'UTF-8');
+        if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+
+        $p = \App\Personeller::where('salon_id', $salonId)->where('personel_adi', $ad)->first();
+        if (!$p) {
+            try {
+                // IsletmeYetkilileri + Personeller benzeri minimum kayit
+                $yetkili = new \App\IsletmeYetkilileri();
+                $yetkili->ad_soyad = $ad;
+                $yetkili->cep_telefon = null;
+                $yetkili->aktif = 0;
+                $yetkili->save();
+                $p = new \App\Personeller();
+                $p->salon_id = $salonId;
+                $p->personel_adi = $ad;
+                $p->yetkili_id = $yetkili->id;
+                $p->aktif = 0;
+                $p->save();
+            } catch (\Throwable $e) {
+                \Log::warning('[Salonappy] personel eklenemedi', ['ad' => $ad, 'err' => $e->getMessage()]);
+                return null;
+            }
+        }
+        $cache[$cacheKey] = $p->id;
+        return $p->id;
     }
 
     private function pickFirst($obj, $keys)
