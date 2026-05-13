@@ -139,11 +139,19 @@ class SalonappyImport extends Command
 
         // Services master (salonappy /setup/services): id -> TR title.
         // Dump'taki bos service_text'leri bu master ile dolduralim.
+        // v6 dump icin master dump'in icinde 'servicesMaster' anahtari altinda gelir.
         $svcMaster = [];
-        if ($servicesMasterFile && file_exists($servicesMasterFile)) {
+        $masterSource = null;
+        if (!empty($j['servicesMaster'])) {
+            $this->collectServicesMaster($j['servicesMaster'], $svcMaster);
+            $masterSource = 'dump.servicesMaster';
+        } elseif ($servicesMasterFile && file_exists($servicesMasterFile)) {
             $mj = json_decode(file_get_contents($servicesMasterFile), true);
             $this->collectServicesMaster($mj, $svcMaster);
-            $this->line("Services master yuklendi: " . count($svcMaster) . " hizmet (id -> TR title)");
+            $masterSource = $servicesMasterFile;
+        }
+        if (!empty($svcMaster)) {
+            $this->line("Services master yuklendi ({$masterSource}): " . count($svcMaster) . " hizmet (id -> TR title)");
             // BookingDetails icindeki bos service_text'leri doldur
             $filled = 0;
             foreach ($bookingDetails as $sess => &$bd) {
