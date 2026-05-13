@@ -826,6 +826,11 @@ class StokController extends Controller
      */
     public static function receteyiUygula(int $salonId, int $hizmetId, string $hizmetTipi, int $randevuId = null, int $personelId = null, float $carpan = 1.0): array
     {
+        // Stok yonetimi v2 migration calistirilmamis ortamlarda tablo olmayabilir.
+        // Bu durumda sessizce cik; receteyi atla.
+        if (!\Schema::hasTable('hizmet_sarf_receteleri')) {
+            return ['uygulandi' => 0];
+        }
         $receteler = HizmetSarfRecetesi::where('salon_id', $salonId)
             ->where('hizmet_id', $hizmetId)
             ->where('hizmet_tipi', $hizmetTipi)
