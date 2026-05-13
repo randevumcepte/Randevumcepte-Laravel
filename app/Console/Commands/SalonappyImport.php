@@ -724,42 +724,69 @@ class SalonappyImport extends Command
         if ($ad === '') return null;
         static $cache = [];
         static $canonCache = [];
-        static $trKeyMap = null; // hizmet trKey -> id (lazy yuklenir)
+        static $salonTrKeyMap = null;  // salon-specific trKey -> hizmet_id (yuksek oncelik)
+        static $globalTrKeyMap = null; // global trKey -> hizmet_id (fallback)
+        static $defaultKategoriId = null;
         $needle = $this->saTrKey($ad);
         $cacheKey = $salonId . '|' . $needle;
         if (isset($cache[$cacheKey])) { $canonicalAd = $canonCache[$cacheKey] ?? $ad; return $cache[$cacheKey]; }
 
-        // Exact match
-        $hizmet = \App\Hizmetler::where('hizmet_adi', $ad)->first();
-        // trKey match (case/diacritic-insensitive) - tum hizmetleri tek seferde yukle
+        // 1) Salon-specific match: salon_sunulan_hizmetler JOIN hizmetler (oncelikli)
+        if ($salonTrKeyMap === null) {
+            $salonTrKeyMap = [];
+            $rows = \DB::table('salon_sunulan_hizmetler as sh')
+                ->join('hizmetler as h', 'sh.hizmet_id', '=', 'h.id')
+                ->where('sh.salon_id', $salonId)
+                ->select('h.id', 'h.hizmet_adi')->get();
+            foreach ($rows as $h) {
+                $k = $this->saTrKey($h->hizmet_adi);
+                if ($k && !isset($salonTrKeyMap[$k])) $salonTrKeyMap[$k] = $h->id;
+            }
+        }
+        $hizmet = null;
+        if (isset($salonTrKeyMap[$needle])) {
+            $hizmet = \App\Hizmetler::find($salonTrKeyMap[$needle]);
+        }
+
+        // 2) Exact match (case-sensitive) global hizmetler
         if (!$hizmet) {
-            if ($trKeyMap === null) {
-                $trKeyMap = [];
+            $hizmet = \App\Hizmetler::where('hizmet_adi', $ad)->first();
+        }
+        // 3) Global trKey match (case/diacritic-insensitive)
+        if (!$hizmet) {
+            if ($globalTrKeyMap === null) {
+                $globalTrKeyMap = [];
                 foreach (\DB::table('hizmetler')->select('id','hizmet_adi')->get() as $h) {
                     $k = $this->saTrKey($h->hizmet_adi);
-                    if ($k && !isset($trKeyMap[$k])) $trKeyMap[$k] = $h->id;
+                    if ($k && !isset($globalTrKeyMap[$k])) $globalTrKeyMap[$k] = $h->id;
                 }
             }
-            if (isset($trKeyMap[$needle])) {
-                $hizmet = \App\Hizmetler::find($trKeyMap[$needle]);
+            if (isset($globalTrKeyMap[$needle])) {
+                $hizmet = \App\Hizmetler::find($globalTrKeyMap[$needle]);
             }
         }
         if (!$hizmet) {
             try {
                 $hizmet = new \App\Hizmetler();
                 $hizmet->hizmet_adi = $ad;
-                // Hizmet_Kategorisi modelini kullan (tablo: hizmet_kategorisi, kolon: hizmet_kategorisi_adi)
-                $kategori = \App\Hizmet_Kategorisi::where('hizmet_kategorisi_adi', 'Salonappy')->first();
-                if (!$kategori) {
-                    $kategori = new \App\Hizmet_Kategorisi();
-                    $kategori->hizmet_kategorisi_adi = 'Salonappy';
-                    $kategori->save();
+                // Salon'un kendi mevcut bir kategorisini kullan (yoksa global ilk kategori).
+                // 'Salonappy' isimli ozel kategori yaratilmaz; arayuzde gozukmesin.
+                if ($defaultKategoriId === null) {
+                    $defaultKategoriId = \DB::table('salon_sunulan_hizmetler')
+                        ->where('salon_id', $salonId)
+                        ->whereNotNull('hizmet_kategori_id')
+                        ->value('hizmet_kategori_id');
+                    if (!$defaultKategoriId) {
+                        $defaultKategoriId = \DB::table('hizmet_kategorisi')->orderBy('id')->value('id');
+                    }
                 }
-                $hizmet->hizmet_kategori_id = $kategori->id;
+                if ($defaultKategoriId) $hizmet->hizmet_kategori_id = $defaultKategoriId;
                 $hizmet->ozel_hizmet = true;
                 if (\Schema::hasColumn('hizmetler', 'salon_id')) $hizmet->salon_id = $salonId;
                 if (\Schema::hasColumn('hizmetler', 'aktif'))    $hizmet->aktif = 0;
                 $hizmet->save();
+                // Yeni eklenen hizmeti salon-specific map'e de ekle ki sonraki lookup'lar bulsun
+                $salonTrKeyMap[$needle] = $hizmet->id;
             } catch (\Throwable $e) {
                 \Log::warning('[Salonappy] hizmet eklenemedi', ['ad' => $ad, 'err' => $e->getMessage()]);
                 return null;
