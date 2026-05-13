@@ -335,6 +335,13 @@ class SalonappyImport extends Command
                             ]);
                             $apiController->salonAppyTahsilatEkle($tReq);
                             $tEklenen++;
+                            // Tahsilata marker yaz (reset icin)
+                            $newT = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                                ->where('user_id', $userId)->where('odeme_tarihi', $odemeTarih)
+                                ->where('tutar', $tutar)->orderByDesc('id')->first();
+                            if ($newT && \Schema::hasColumn('tahsilatlar', 'notlar')) {
+                                \DB::table('tahsilatlar')->where('id', $newT->id)->update(['notlar' => $marker]);
+                            }
                         } catch (\Throwable $e) {}
                     }
                 }
@@ -560,7 +567,15 @@ class SalonappyImport extends Command
         $this->line("Salon {$salonId}: " . count($randevuIds) . " randevu, " . count($adisyonIds) . " adisyon silinecek (markerli)");
         if ($dryRun) { $this->warn('DRY-RUN'); return 0; }
 
-        // AdisyonHizmetler -> AdisyonPaketSeanslar -> AdisyonUrunler -> Adisyonlar
+        // Tahsilatlar: marker'li veya adisyon_id eslesen
+        $tahsilatIds = \DB::table($tT)->where('salon_id', $salonId)
+            ->where(function ($q) use ($adisyonIds) {
+                $q->where('notlar', 'LIKE', '%[salonappy:%');
+                if (!empty($adisyonIds)) $q->orWhereIn('adisyon_id', $adisyonIds);
+            })->pluck('id')->all();
+        $this->line("Tahsilat (markerli veya adisyon_id eslesen): " . count($tahsilatIds));
+
+        // AdisyonHizmetler -> AdisyonPaketSeanslar -> AdisyonUrunler -> Tahsilatlar -> Adisyonlar
         if (!empty($adisyonIds)) {
             $ahIds = \DB::table($tAh)->whereIn('adisyon_id', $adisyonIds)->pluck('id')->all();
             if (!empty($ahIds)) {
@@ -571,8 +586,15 @@ class SalonappyImport extends Command
             foreach (array_chunk($adisyonIds, 1000) as $ck) {
                 \DB::table($tAh)->whereIn('adisyon_id', $ck)->delete();
                 \DB::table($tAu)->whereIn('adisyon_id', $ck)->delete();
-                \DB::table($tT)->whereIn('adisyon_id', $ck)->update(['adisyon_id' => null]);
                 \DB::table($tA)->whereIn('id', $ck)->delete();
+            }
+        }
+        // Tahsilatlar ve bagli kalemleri sil
+        if (!empty($tahsilatIds)) {
+            foreach (array_chunk($tahsilatIds, 1000) as $ck) {
+                \DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $ck)->delete();
+                \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $ck)->delete();
+                \DB::table($tT)->whereIn('id', $ck)->delete();
             }
         }
         // RandevuHizmetler -> Randevular
