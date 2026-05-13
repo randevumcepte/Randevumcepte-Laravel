@@ -17,6 +17,7 @@ class SalonappyImport extends Command
         {--only= : virgulle: personel,hizmet}
         {--from-file= : Tarayicidan kopyalanan JSON\'ları icerek dizin (staff.json, services.json, service_durations.json, service_prices.json, staff_services.json)}
         {--dump-file= : Tarayici scripti ile indirilen tek JSON dump dosyasi (clients + bookings)}
+        {--services-master= : Salonappy /setup/services endpointinden cekilen master JSON (id->title TR)}
         {--reset-salonappy : [salonappy:session] markerli randevu+adisyon+kalemleri sil (musteriler kalir)}
         {--dry-run : Reset/import oncesi sadece sayim}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
@@ -86,8 +87,9 @@ class SalonappyImport extends Command
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
             // v5 yapısını otomatik dedect et: visits + bookingDetails
             $peek = json_decode(file_get_contents($dumpFile), true);
+            $servicesMasterFile = $this->option('services-master');
             if (isset($peek['visits']) && isset($peek['bookingDetails'])) {
-                return $this->importFromDumpV5($dumpFile, (int) $salonId);
+                return $this->importFromDumpV5($dumpFile, (int) $salonId, $servicesMasterFile);
             }
             return $this->importFromDump($dumpFile, (int) $salonId);
         }
@@ -127,13 +129,40 @@ class SalonappyImport extends Command
      *                                 package_usages: [...], payments: [{amount, payment_method_text, date}] } }
      * }
      */
-    private function importFromDumpV5($file, $salonId)
+    private function importFromDumpV5($file, $salonId, $servicesMasterFile = null)
     {
         $j = json_decode(file_get_contents($file), true);
         $clients = $j['clients'] ?? [];
         $clientDetails = $j['clientDetails'] ?? [];
         $visits = $j['visits'] ?? [];
         $bookingDetails = $j['bookingDetails'] ?? [];
+
+        // Services master (salonappy /setup/services): id -> TR title.
+        // Dump'taki bos service_text'leri bu master ile dolduralim.
+        $svcMaster = [];
+        if ($servicesMasterFile && file_exists($servicesMasterFile)) {
+            $mj = json_decode(file_get_contents($servicesMasterFile), true);
+            $this->collectServicesMaster($mj, $svcMaster);
+            $this->line("Services master yuklendi: " . count($svcMaster) . " hizmet (id -> TR title)");
+            // BookingDetails icindeki bos service_text'leri doldur
+            $filled = 0;
+            foreach ($bookingDetails as $sess => &$bd) {
+                foreach (['services','package_sales','package_usages'] as $arrKey) {
+                    if (!isset($bd[$arrKey]) || !is_array($bd[$arrKey])) continue;
+                    foreach ($bd[$arrKey] as &$item) {
+                        $txt = trim((string) ($item['service_text'] ?? ''));
+                        $sid = (string) ($item['service_id'] ?? '');
+                        if ($txt === '' && $sid !== '' && isset($svcMaster[$sid])) {
+                            $item['service_text'] = $svcMaster[$sid];
+                            $filled++;
+                        }
+                    }
+                    unset($item);
+                }
+            }
+            unset($bd);
+            $this->line("Master ile doldurulan service_text: $filled kalem");
+        }
         // Visits descending date order'da geliyor; paket satislari kullanimlarindan ONCE islensin diye ASC sirala
         usort($visits, function ($a, $b) {
             $ka = ($a['date'] ?? '') . ' ' . ($a['time_text'] ?? '');
@@ -670,6 +699,29 @@ class SalonappyImport extends Command
         }
         $this->info('Reset tamam. Simdi --dump-file ile re-import yapabilirsiniz.');
         return 0;
+    }
+
+    /**
+     * Salonappy /setup/services response'unu rekursif gez,
+     * service_id -> TR title mapping'i biriktir.
+     * Endpoint yanitinda hizmetler service_group altinda nested olabilir;
+     * her nesnede 'id' + 'title' varsa map'e eklenir.
+     */
+    private function collectServicesMaster($node, array &$out)
+    {
+        if (is_array($node)) {
+            // Bir hizmet objesi mi?
+            if (isset($node['id']) && isset($node['title']) && is_scalar($node['title'])) {
+                $id = (string) $node['id'];
+                $title = trim((string) $node['title']);
+                if ($id !== '' && $title !== '' && !isset($out[$id])) {
+                    $out[$id] = $title;
+                }
+            }
+            foreach ($node as $child) {
+                if (is_array($child)) $this->collectServicesMaster($child, $out);
+            }
+        }
     }
 
     private function saTrKey($s)
