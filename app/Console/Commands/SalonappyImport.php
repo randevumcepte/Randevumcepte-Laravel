@@ -206,15 +206,12 @@ class SalonappyImport extends Command
             if (\DB::table('randevular')->where('salon_id', $salonId)->where('user_id', $userId)
                 ->where('personel_notu', 'LIKE', '%' . $marker . '%')->exists()) { $rDedup++; continue; }
 
-            // Hizmetler itemized
+            // Hizmetler itemized. service_text bos olanlar (salonappy'de silinmis hizmet
+            // referanslari) atlanir; placeholder uretilmez.
             $hizmetler = [];
             foreach (($bd['services'] ?? []) as $s) {
                 $ad = trim((string) ($s['service_text'] ?? ''));
-                // Salonappy'de silinmis hizmet -> service_text bos ama service_id var.
-                // Randevu kaybolmasin diye placeholder isim ata.
-                if ($ad === '' && !empty($s['service_id'])) {
-                    $ad = 'Salonappy Hizmet #' . $s['service_id'];
-                }
+                if ($ad === '') continue;
                 $hizmetler[] = [
                     'hizmet'   => $ad,
                     'personel' => $s['staff_name'] ?? '',
@@ -235,9 +232,6 @@ class SalonappyImport extends Command
                 if (!$pid || isset($seenPkgIds[$pid])) continue;
                 $seenPkgIds[$pid] = true;
                 $ad = trim((string) ($pkg['service_text'] ?? ''));
-                if ($ad === '' && !empty($pkg['service_id'])) {
-                    $ad = 'Salonappy Hizmet #' . $pkg['service_id'];
-                }
                 if ($ad === '') continue;
                 $quantity = (int) ($pkg['quantity'] ?? 1);
                 $amount = (float) ($pkg['amount'] ?? 0);
@@ -376,9 +370,6 @@ class SalonappyImport extends Command
                 if (!empty($bd['package_usages'])) {
                     foreach ($bd['package_usages'] as $use) {
                         $hizmetAd = trim((string) ($use['service_text'] ?? ''));
-                        if ($hizmetAd === '' && !empty($use['service_id'])) {
-                            $hizmetAd = 'Salonappy Hizmet #' . $use['service_id'];
-                        }
                         if ($hizmetAd === '') continue;
                         // Canonical'a normalize et (yoksa create) - seans hizmet_id eslestirmesi icin
                         $canonAd = $hizmetAd;
