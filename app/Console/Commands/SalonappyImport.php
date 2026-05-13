@@ -134,6 +134,12 @@ class SalonappyImport extends Command
         $clientDetails = $j['clientDetails'] ?? [];
         $visits = $j['visits'] ?? [];
         $bookingDetails = $j['bookingDetails'] ?? [];
+        // Visits descending date order'da geliyor; paket satislari kullanimlarindan ONCE islensin diye ASC sirala
+        usort($visits, function ($a, $b) {
+            $ka = ($a['date'] ?? '') . ' ' . ($a['time_text'] ?? '');
+            $kb = ($b['date'] ?? '') . ' ' . ($b['time_text'] ?? '');
+            return strcmp($ka, $kb);
+        });
         $this->line("v5 dump: clients={" . count($clients) . "}, visits={" . count($visits) . "}, bookingDetails={" . count($bookingDetails) . "}, clientDetails={" . count($clientDetails) . "}");
 
         $apiController = app(\App\Http\Controllers\ApiController::class);
@@ -249,15 +255,47 @@ class SalonappyImport extends Command
             if (preg_match('~Salon\s*\(([^)]+)\)~iu', $olusturan, $m)) $olusturan = trim($m[1]);
             if (!empty($olusturan)) $this->ensurePersonel($salonId, $olusturan);
 
-            // Eksik hizmet ve personelleri otomatik olustur (controller eslesme bulamayinca bos kaliyor)
+            // Eksik hizmet ve personelleri otomatik olustur ve isimleri canonical'a normalize et.
+            // Controller exact-match yapiyor (Hizmetler::where('hizmet_adi', ...)), trKey/case farkinda
+            // null donerse $salonHizmet->id null reference firlatir ve randevu_hizmetler bos kalir.
+            $hizmetlerFiltered = [];
             foreach ($hizmetler as $h) {
-                if (!empty($h['hizmet'])) $this->ensureSalonHizmet($salonId, $h['hizmet'], $h['sureDk'] ?? 30, $h['fiyat'] ?? 0);
-                if (!empty($h['personel'])) $this->ensurePersonel($salonId, $h['personel']);
+                if (empty($h['hizmet'])) continue;
+                $canon = $h['hizmet'];
+                $hid = $this->ensureSalonHizmet($salonId, $h['hizmet'], $h['sureDk'] ?? 30, $h['fiyat'] ?? 0, $canon);
+                if (!$hid) continue; // hizmet olusturulamadiysa skip et (controller crash etmesin)
+                $h['hizmet'] = $canon;
+                if (!empty($h['personel'])) {
+                    $canonP = $h['personel'];
+                    $this->ensurePersonel($salonId, $h['personel'], $canonP);
+                    $h['personel'] = $canonP;
+                }
+                $hizmetlerFiltered[] = $h;
             }
-            // Eksik urunleri ve personelleri otomatik olustur
+            $hizmetler = $hizmetlerFiltered;
+            // Eksik urunleri ve personelleri otomatik olustur ve canonical'a normalize et
+            $urunlerFiltered = [];
             foreach ($urunler as $u) {
-                if (!empty($u['urun'])) $this->ensureUrun($salonId, $u['urun'], $u['fiyat'] ?? 0);
-                if (!empty($u['personel'])) $this->ensurePersonel($salonId, $u['personel']);
+                if (empty($u['urun'])) continue;
+                $canon = $u['urun'];
+                $uid = $this->ensureUrun($salonId, $u['urun'], $u['fiyat'] ?? 0, $canon);
+                if (!$uid) continue;
+                $u['urun'] = $canon;
+                if (!empty($u['personel'])) {
+                    $canonP = $u['personel'];
+                    $this->ensurePersonel($salonId, $u['personel'], $canonP);
+                    $u['personel'] = $canonP;
+                }
+                $urunlerFiltered[] = $u;
+            }
+            $urunler = $urunlerFiltered;
+            // paketHizmetAdlari da canonical kullanmali (post-call lookup'ta hizmet bulunsun)
+            foreach ($paketHizmetAdlari as $k => $pkg) {
+                if (!empty($pkg['ad'])) {
+                    $canon = $pkg['ad'];
+                    $this->ensureSalonHizmet($salonId, $pkg['ad'], 30, $pkg['amount'] ?? 0, $canon);
+                    $paketHizmetAdlari[$k]['ad'] = $canon;
+                }
             }
 
             $payload = [
@@ -310,9 +348,12 @@ class SalonappyImport extends Command
                     foreach ($bd['package_usages'] as $use) {
                         $hizmetAd = $use['service_text'] ?? '';
                         if (!$hizmetAd) continue;
+                        // Canonical'a normalize et (yoksa create) - seans hizmet_id eslestirmesi icin
+                        $canonAd = $hizmetAd;
+                        $this->ensureSalonHizmet($salonId, $hizmetAd, 30, 0, $canonAd);
                         $kullanimSayisi = (int) ($use['quantity'] ?? 1);
                         $kullanimTarih = $use['date'] ?? $tarih;
-                        $this->salonappySeansiTuket($userId, $salonId, $hizmetAd, $kullanimTarih, $saat, $kullanimSayisi);
+                        $this->salonappySeansiTuket($userId, $salonId, $canonAd, $kullanimTarih, $saat, $kullanimSayisi);
                     }
                 }
 
@@ -653,15 +694,17 @@ class SalonappyImport extends Command
         return $text ?: '';
     }
 
-    private function ensureSalonHizmet($salonId, $ad, $sureDk = 30, $fiyat = 0)
+    private function ensureSalonHizmet($salonId, $ad, $sureDk = 30, $fiyat = 0, &$canonicalAd = null)
     {
+        $canonicalAd = $ad;
         $ad = trim((string) $ad);
         if ($ad === '') return null;
         static $cache = [];
+        static $canonCache = [];
         static $trKeyMap = null; // hizmet trKey -> id (lazy yuklenir)
         $needle = $this->saTrKey($ad);
         $cacheKey = $salonId . '|' . $needle;
-        if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+        if (isset($cache[$cacheKey])) { $canonicalAd = $canonCache[$cacheKey] ?? $ad; return $cache[$cacheKey]; }
 
         // Exact match
         $hizmet = \App\Hizmetler::where('hizmet_adi', $ad)->first();
@@ -716,17 +759,21 @@ class SalonappyImport extends Command
             } catch (\Throwable $e) {}
         }
         $cache[$cacheKey] = $hizmet->id;
+        $canonCache[$cacheKey] = $hizmet->hizmet_adi;
+        $canonicalAd = $hizmet->hizmet_adi;
         return $hizmet->id;
     }
 
-    private function ensureUrun($salonId, $ad, $fiyat = 0)
+    private function ensureUrun($salonId, $ad, $fiyat = 0, &$canonicalAd = null)
     {
+        $canonicalAd = $ad;
         $ad = trim((string) $ad);
         if ($ad === '') return null;
         static $cache = [];
+        static $canonCache = [];
         $needle = $this->saTrKey($ad);
         $cacheKey = $salonId . '|' . $needle;
-        if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+        if (isset($cache[$cacheKey])) { $canonicalAd = $canonCache[$cacheKey] ?? $ad; return $cache[$cacheKey]; }
 
         // Exact match (salon-bazli)
         $urun = \App\Urunler::where('salon_id', $salonId)->where('urun_adi', $ad)->first();
@@ -754,6 +801,8 @@ class SalonappyImport extends Command
             }
         }
         $cache[$cacheKey] = $urun->id;
+        $canonCache[$cacheKey] = $urun->urun_adi;
+        $canonicalAd = $urun->urun_adi;
         return $urun->id;
     }
 
@@ -823,13 +872,15 @@ class SalonappyImport extends Command
         }
     }
 
-    private function ensurePersonel($salonId, $ad)
+    private function ensurePersonel($salonId, $ad, &$canonicalAd = null)
     {
+        $canonicalAd = $ad;
         $ad = trim((string) $ad);
         if ($ad === '') return null;
         static $cache = [];
+        static $canonCache = [];
         $cacheKey = $salonId . '|' . mb_strtolower($ad, 'UTF-8');
-        if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+        if (isset($cache[$cacheKey])) { $canonicalAd = $canonCache[$cacheKey] ?? $ad; return $cache[$cacheKey]; }
 
         // Exact match
         $p = \App\Personeller::where('salon_id', $salonId)->where('personel_adi', $ad)->first();
@@ -861,6 +912,8 @@ class SalonappyImport extends Command
             }
         }
         $cache[$cacheKey] = $p->id;
+        $canonCache[$cacheKey] = $p->personel_adi;
+        $canonicalAd = $p->personel_adi;
         return $p->id;
     }
 
