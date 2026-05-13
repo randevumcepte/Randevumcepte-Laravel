@@ -8162,8 +8162,18 @@ private function ayAdiCevir($ingilizceAy)
                         $adisyon_hizmet->otomatik_randevu_olusturuldu=false;
                 $adisyon_hizmet->kullanilan_seans = 0;
                 $adisyon_hizmet->kullanilmayan_seans = 0;
-                
+
                 $adisyon_hizmet->save();
+
+                // Sarf recetesi varsa otomatik dus (web panel adisyon hizmet ekleme)
+                StokController::receteyiUygula(
+                    (int) $request->sube,
+                    (int) $adisyon_hizmet->hizmet_id,
+                    'islem',
+                    null,
+                    $adisyon_hizmet->personel_id ? (int) $adisyon_hizmet->personel_id : null
+                );
+
                 $seanstarih = "";
                
                 if(isset($request->hizmetRandevuOlustur))
@@ -14711,6 +14721,19 @@ DB::raw('
         $adisyon_hizmet->randevu_id = $randevuId;
         $adisyon_hizmet->taksitli_tahsilat_id = $taksitli_tahsilat_id;
         $adisyon_hizmet->save();
+
+        // Sarf recetesi varsa otomatik dus (internal helper)
+        $salonId = \App\Adisyonlar::where('id', $adisyon_id)->value('salon_id');
+        if ($salonId) {
+            StokController::receteyiUygula(
+                (int) $salonId,
+                (int) $hizmet_id,
+                'islem',
+                $randevuId ? (int) $randevuId : null,
+                $personel_id ? (int) $personel_id : null
+            );
+        }
+
         return $adisyon_hizmet->id;
     }
     public function adisyona_paket_ekle($request,$adisyon_id,$paket_id,$fiyat,$baslangic_tarihi,$seans_araligi,$personel_id,$senet_id,$taksitli_tahsilat_id,$seansSayisi){

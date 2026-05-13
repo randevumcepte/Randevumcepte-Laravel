@@ -12289,6 +12289,15 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $adisyon_hizmet->save();
 
+        // Sarf recetesi varsa otomatik dus
+        StokController::receteyiUygula(
+            (int) $request->sube,
+            (int) $adisyon_hizmet->hizmet_id,
+            'islem',
+            null,
+            $adisyon_hizmet->personel_id ? (int) $adisyon_hizmet->personel_id : null
+        );
+
         return AdisyonHizmetler::where("id", $adisyon_hizmet->id)->first();
 
     }
@@ -16600,6 +16609,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $adisyon_hizmet->taksitli_tahsilat_id = $taksitli_tahsilat_id;
 
         $adisyon_hizmet->save();
+
+        // Sarf recetesi varsa otomatik dus
+        $salonId = \App\Adisyonlar::where('id', $adisyon_id)->value('salon_id');
+        if ($salonId) {
+            StokController::receteyiUygula(
+                (int) $salonId,
+                (int) $hizmet_id,
+                'islem',
+                $randevu_id ? (int) $randevu_id : null,
+                $personel_id ? (int) $personel_id : null
+            );
+        }
 
         return $adisyon_hizmet->id;
 
