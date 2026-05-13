@@ -38,8 +38,9 @@ class SalonappyImport extends Command
 
         $dumpFile = $this->option('dump-file');
         $fromFile = $this->option('from-file');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && (!$username || !$password)) {
-            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file verin).');
+        $resetMode = (bool) $this->option('reset-salonappy');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && (!$username || !$password)) {
+            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy verin).');
             return 1;
         }
         if (!$probe && !$analyze && !$salonId) {
