@@ -243,6 +243,11 @@ class SalonappyImport extends Command
             $statusNorm = $this->normalizeStatus($v['status_text'] ?? '', $detail['status'] ?? null);
             $geldiNorm = $this->normalizeShowup($v['showup_text'] ?? '', $detail['showup'] ?? null);
 
+            // created_by "Salon (Eşem Avcı)" -> "Eşem Avcı" normalize
+            $olusturan = (string) ($v['created_by'] ?? '');
+            if (preg_match('~Salon\s*\(([^)]+)\)~iu', $olusturan, $m)) $olusturan = trim($m[1]);
+            if (!empty($olusturan)) $this->ensurePersonel($salonId, $olusturan);
+
             // Eksik hizmet ve personelleri otomatik olustur (controller eslesme bulamayinca bos kaliyor)
             foreach ($hizmetler as $h) {
                 if (!empty($h['hizmet'])) $this->ensureSalonHizmet($salonId, $h['hizmet'], $h['sureDk'] ?? 30, $h['fiyat'] ?? 0);
@@ -256,7 +261,7 @@ class SalonappyImport extends Command
                 'saat'        => $saatStr,
                 'geldi'       => $geldiNorm,
                 'durum'       => $statusNorm,
-                'olusturan'   => $v['created_by'] ?? '',
+                'olusturan'   => $olusturan,
                 'olusturulma' => $v['created_at'] ?? '',
                 'notlar'      => $finalNotlar,
                 'hizmetler'   => $hizmetler,
