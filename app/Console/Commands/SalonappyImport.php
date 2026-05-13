@@ -606,16 +606,14 @@ class SalonappyImport extends Command
             try {
                 $hizmet = new \App\Hizmetler();
                 $hizmet->hizmet_adi = $ad;
-                // Default kategori (salon icin Drklinik benzeri "Salonappy" kategorisi)
-                $kategoriId = \DB::table('hizmet_kategorileri')->where('hizmet_kategorisi_adi', 'Salonappy')->value('id');
-                if (!$kategoriId) {
-                    $kategoriId = \DB::table('hizmet_kategorileri')->insertGetId([
-                        'hizmet_kategorisi_adi' => 'Salonappy',
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'updated_at' => date('Y-m-d H:i:s'),
-                    ]);
+                // Hizmet_Kategorisi modelini kullan (tablo: hizmet_kategorisi, kolon: hizmet_kategorisi_adi)
+                $kategori = \App\Hizmet_Kategorisi::where('hizmet_kategorisi_adi', 'Salonappy')->first();
+                if (!$kategori) {
+                    $kategori = new \App\Hizmet_Kategorisi();
+                    $kategori->hizmet_kategorisi_adi = 'Salonappy';
+                    $kategori->save();
                 }
-                $hizmet->hizmet_kategori_id = $kategoriId;
+                $hizmet->hizmet_kategori_id = $kategori->id;
                 $hizmet->ozel_hizmet = true;
                 if (\Schema::hasColumn('hizmetler', 'salon_id')) $hizmet->salon_id = $salonId;
                 if (\Schema::hasColumn('hizmetler', 'aktif'))    $hizmet->aktif = 0;
@@ -722,17 +720,15 @@ class SalonappyImport extends Command
         $p = \App\Personeller::where('salon_id', $salonId)->where('personel_adi', $ad)->first();
         if (!$p) {
             try {
-                // IsletmeYetkilileri + Personeller benzeri minimum kayit
+                // Canonical pattern: yeniPersonelKaydi (ApiController)
                 $yetkili = new \App\IsletmeYetkilileri();
-                $yetkili->ad_soyad = $ad;
-                $yetkili->cep_telefon = null;
-                $yetkili->aktif = 0;
+                $yetkili->name = $ad;
                 $yetkili->save();
                 $p = new \App\Personeller();
-                $p->salon_id = $salonId;
                 $p->personel_adi = $ad;
+                $p->salon_id = $salonId;
+                $p->aktif = false;
                 $p->yetkili_id = $yetkili->id;
-                $p->aktif = 0;
                 $p->save();
             } catch (\Throwable $e) {
                 \Log::warning('[Salonappy] personel eklenemedi', ['ad' => $ad, 'err' => $e->getMessage()]);
