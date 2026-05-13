@@ -205,8 +205,14 @@ class SalonappyImport extends Command
             // Hizmetler itemized
             $hizmetler = [];
             foreach (($bd['services'] ?? []) as $s) {
+                $ad = trim((string) ($s['service_text'] ?? ''));
+                // Salonappy'de silinmis hizmet -> service_text bos ama service_id var.
+                // Randevu kaybolmasin diye placeholder isim ata.
+                if ($ad === '' && !empty($s['service_id'])) {
+                    $ad = 'Salonappy Hizmet #' . $s['service_id'];
+                }
                 $hizmetler[] = [
-                    'hizmet'   => $s['service_text'] ?? '',
+                    'hizmet'   => $ad,
                     'personel' => $s['staff_name'] ?? '',
                     'fiyat'    => (float) ($s['price'] ?? 0),
                     'sureDk'   => (int) ($s['duration'] ?? 30),
@@ -219,8 +225,11 @@ class SalonappyImport extends Command
             $paketSales = $bd['package_sales'] ?? [];
             $paketHizmetAdlari = [];
             foreach ($paketSales as $pkg) {
-                $ad = $pkg['service_text'] ?? '';
-                if (!$ad) continue;
+                $ad = trim((string) ($pkg['service_text'] ?? ''));
+                if ($ad === '' && !empty($pkg['service_id'])) {
+                    $ad = 'Salonappy Hizmet #' . $pkg['service_id'];
+                }
+                if ($ad === '') continue;
                 $quantity = (int) ($pkg['quantity'] ?? 1);
                 $amount = (float) ($pkg['amount'] ?? 0);
                 $hizmetler[] = [
@@ -346,8 +355,11 @@ class SalonappyImport extends Command
                 // Paket kullanimlari: package_usages'den seans dusumu
                 if (!empty($bd['package_usages'])) {
                     foreach ($bd['package_usages'] as $use) {
-                        $hizmetAd = $use['service_text'] ?? '';
-                        if (!$hizmetAd) continue;
+                        $hizmetAd = trim((string) ($use['service_text'] ?? ''));
+                        if ($hizmetAd === '' && !empty($use['service_id'])) {
+                            $hizmetAd = 'Salonappy Hizmet #' . $use['service_id'];
+                        }
+                        if ($hizmetAd === '') continue;
                         // Canonical'a normalize et (yoksa create) - seans hizmet_id eslestirmesi icin
                         $canonAd = $hizmetAd;
                         $this->ensureSalonHizmet($salonId, $hizmetAd, 30, 0, $canonAd);
