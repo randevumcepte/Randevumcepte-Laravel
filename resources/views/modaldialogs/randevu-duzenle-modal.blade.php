@@ -8,7 +8,7 @@
     $__dz_yardimci_style = 'display:none;';
 @endphp
 <div id="randevu-duzenle-modal" class="modal modal-top fade calendar-modal" data-backdrop="static" data-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 1200px !important; width: 96% !important; margin: 1.75rem auto !important;">
+    <div class="modal-dialog" style="max-width: 1200px !important; width: 96% !important; margin: 0 auto !important;">
         <div class="modal-content">
             <div class="modal-header">
                 <h4 class="h4" style="color:white">
@@ -115,11 +115,17 @@
 .modal-backdrop.show + #randevu-duzenle-modal,
 body.modal-open #randevu-duzenle-modal { z-index: 10560 !important; }
 
-/* Modal genisligi (1200px max - Bootstrap 4 modal-xl boyutu) */
-#randevu-duzenle-modal.modal .modal-dialog,
-.modal#randevu-duzenle-modal .modal-dialog {
+/* Ekle modal ile ayni: dikey ortalama (modal-dialog-centered ::before hack i olmadan) */
+#randevu-duzenle-modal.show {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+#randevu-duzenle-modal .modal-dialog {
+    margin: 0 auto !important;
+    align-self: center !important;
     max-width: 1200px !important;
-    margin: 1.75rem auto !important;
+    width: 96% !important;
 }
 #randevu-duzenle-modal .modal-content {
     border-radius: 8px;
