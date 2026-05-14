@@ -4852,6 +4852,50 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         ]);
     }
 
+    /**
+     * Dashboard saat bosluk kampanyasini iptal eder.
+     * Onayli=0 ve bitis_tarihi=now yaparak soft-deactivate; kayit
+     * kampanyalar tablosunda kalir (gecmis icin), ama analizde gozukmez.
+     */
+    public function saatBosluguKampanyaIptal(Request $request, $salonId)
+    {
+        $kampanyaId = $request->input('kampanyaId');
+        if (!$kampanyaId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Kampanya ID eksik.',
+            ], 422);
+        }
+
+        $k = SalonKampanyalar::where('id', $kampanyaId)
+            ->where('salon_id', $salonId)
+            ->first();
+
+        if (!$k) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Kampanya bulunamadı.',
+            ], 404);
+        }
+
+        // Sadece dashboard onerisi olarak olusturulanlar iptal edilebilir
+        if (strpos($k->kampanya_detay ?? '', '[gap:') === false) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bu kampanya panel üzerinden iptal edilemez.',
+            ], 403);
+        }
+
+        $k->onayli = 0;
+        $k->kampanya_bitis_tarihi = Carbon::now()->subSecond()->toDateTimeString();
+        $k->save();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Kampanya iptal edildi.',
+        ]);
+    }
+
     private function _ciroFor($salonId, $start, $end)
     {
         $sumHizmet = (float) DB::table('tahsilat_hizmetler')

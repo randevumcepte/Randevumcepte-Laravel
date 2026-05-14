@@ -43,6 +43,7 @@ Route::get('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilast
 
 // Saat bosluk firsatlari — dashboard onerisinden tek-tikla kampanya olustur
 Route::post('/saatBosluguKampanyaOlustur/{salonId}','ApiController@saatBosluguKampanyaOlustur');
+Route::post('/saatBosluguKampanyaIptal/{salonId}','ApiController@saatBosluguKampanyaIptal');
 
 // Anket / Reputation Booster — ozet ve gonderim listesi (mobile uygulama icin)
 // trigger4 (route cache temizleme tetikleyici)
