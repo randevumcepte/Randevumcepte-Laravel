@@ -1094,7 +1094,10 @@ $salon = Salonlar::where('domain', $domain)->first();
          
      }
      public function sifregonder(Request $request){
-         $kullanici = User::where('cep_telefon',$request->cep_telefon)->first();
+         // Telefon normalize: bastaki 0 / +90 / 90 ve ozel karakterler kaldirilir (10 hane)
+         $telNorm = preg_replace('/^(\+?90|0)/', '', (string)$request->cep_telefon);
+         $telNorm = str_replace(["(",")"," ","-"], "", $telNorm);
+         $kullanici = User::where('cep_telefon',$telNorm)->first();
          $salon = Salonlar::where('domain',$_SERVER['HTTP_HOST'])->first();
 
          // Test/dev domainlerinde sifreyi de ekrana goster (SMS gelmediginde devam edilebilsin)
@@ -1165,14 +1168,37 @@ $salon = Salonlar::where('domain', $domain)->first();
          
      }
      public function sifregonder2(Request $request){
-        $kullanici = new User();
-        $kullanici->name = $request->adsoyad;
         $salon = Salonlar::where('domain',$_SERVER['HTTP_HOST'])->first();
-        $kullanici->cep_telefon = $request->ceptelefon;
+
+        // Telefon normalize: bastaki 0 / +90 / 90 ve ozel karakterler kaldirilir (10 hane)
+        $telNorm = preg_replace('/^(\+?90|0)/', '', (string)$request->ceptelefon);
+        $telNorm = str_replace(["(",")"," ","-"], "", $telNorm);
+
+        // Ayni telefonla user varsa tekrar olusturma; yoksa yeni kayit
+        $kullanici = User::where('cep_telefon',$telNorm)->first();
         $random = str_shuffle('abcdefghjklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ1234567890');
         $olusturulansifre = substr($random, 0, 5);
+        if(!$kullanici){
+            $kullanici = new User();
+            $kullanici->name = $request->adsoyad;
+            $kullanici->cep_telefon = $telNorm;
+        }
         $kullanici->password = Hash::make($olusturulansifre);
         $kullanici->save();
+
+        // Salonun portfoyune yoksa ekle
+        if($salon){
+            $portfoyVar = MusteriPortfoy::where('user_id', $kullanici->id)
+                ->where('salon_id', $salon->id)
+                ->first();
+            if(!$portfoyVar){
+                $portfoyYeni = new MusteriPortfoy();
+                $portfoyYeni->user_id = $kullanici->id;
+                $portfoyYeni->salon_id = $salon->id;
+                $portfoyYeni->tur = 1;
+                $portfoyYeni->save();
+            }
+        }
 
         $isTestDomain = isset($_SERVER['HTTP_HOST']) && (
             str_contains($_SERVER['HTTP_HOST'], 'apptest.') ||
