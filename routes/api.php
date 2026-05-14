@@ -41,6 +41,9 @@ Route::get('/dashboard','ApiController@ozetsayfasi');
 Route::post('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilastirma');
 Route::get('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilastirma');
 
+// Saat bosluk firsatlari — dashboard onerisinden tek-tikla kampanya olustur
+Route::post('/saatBosluguKampanyaOlustur/{salonId}','ApiController@saatBosluguKampanyaOlustur');
+
 // Anket / Reputation Booster — ozet ve gonderim listesi (mobile uygulama icin)
 // trigger4 (route cache temizleme tetikleyici)
 Route::post('/anketOzet/{salonId}','ApiController@anketOzet');
@@ -63,6 +66,7 @@ Route::post('/anketAyarlar/{salonId}','ApiController@anketAyarlar');
 Route::get('/carkAdmin/sistem/{salonId}','ApiController@carkSistemGetir');
 Route::post('/carkAdmin/dilim-kaydet/{salonId}','ApiController@carkDilimKaydet');
 Route::post('/carkAdmin/aktif-toggle/{salonId}','ApiController@carkAktifToggle');
+Route::post('/carkAdmin/bildirim-gonder/{salonId}','ApiController@carkBildirimGonder');
 Route::get('/carkAdmin/kazananlar/{salonId}','ApiController@carkKazananlarApi');
 Route::post('/carkAdmin/kupon-dogrula/{salonId}','ApiController@carkKuponDogrulaApi');
 Route::post('/carkAdmin/kupon-kullan/{salonId}','ApiController@carkKuponKullanApi');

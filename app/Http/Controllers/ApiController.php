@@ -47,6 +47,7 @@ use App\Personeller;
 use App\OdaRenkleri;
 
 use App\SalonCalismaSaatleri;
+use App\SalonKampanyalar;
 
 use App\SalonMolaSaatleri;
 
@@ -4717,6 +4718,89 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             'hasData'      => $maxInRange > 1 || $peakCount > 0,
             'periodLabel'  => $this->_periodLabel($period, true),
         ];
+    }
+
+    /**
+     * Dashboard saat bosluk onerisinden gercek bir kampanya olusturur.
+     * kampanyalar tablosuna 7 gun gecerli, onayli kayit ekler.
+     */
+    public function saatBosluguKampanyaOlustur(Request $request, $salonId)
+    {
+        $gapKey   = $request->input('gapKey', 'morning');
+        $gapLabel = $request->input('gapLabel', 'Saatler');
+        $start    = (int) $request->input('startHour', 9);
+        $end      = (int) $request->input('endHour', 12);
+        $discount = (int) $request->input('discount', 25);
+
+        $allowedKeys = ['morning', 'afternoon', 'evening'];
+        if (!in_array($gapKey, $allowedKeys, true)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Geçersiz boşluk türü.',
+            ], 422);
+        }
+        if ($discount < 5 || $discount > 70) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'İndirim oranı 5-70 aralığında olmalıdır.',
+            ], 422);
+        }
+        if ($end <= $start) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Geçersiz saat aralığı.',
+            ], 422);
+        }
+
+        $baslangic = Carbon::now();
+        $bitis     = Carbon::now()->addDays(7)->endOfDay();
+
+        // Ayni salon + gap_key icin aktif kampanya var mi?
+        $tag = "[gap:{$gapKey}]";
+        $varsa = SalonKampanyalar::where('salon_id', $salonId)
+            ->where('kampanya_detay', 'like', '%' . $tag . '%')
+            ->where('kampanya_bitis_tarihi', '>=', $baslangic->toDateTimeString())
+            ->first();
+
+        if ($varsa) {
+            return response()->json([
+                'status'  => 'duplicate',
+                'message' => $gapLabel . ' için aktif bir kampanya zaten var.',
+                'kampanya_id' => $varsa->id,
+            ]);
+        }
+
+        $baslik = sprintf('%s Fırsatı - %%%d İndirim', $gapLabel, $discount);
+        $aciklama = sprintf(
+            'Hafta içi %s saatleri (%02d:00-%02d:00) arasında tüm hizmetlerde %%%d indirim.',
+            mb_strtolower($gapLabel, 'UTF-8'),
+            $start, $end, $discount
+        );
+        $detay = sprintf(
+            'Bu kampanya dashboard saat yoğunluğu analizine göre otomatik öneri olarak oluşturuldu. %s Geçerlilik: %s - %s. %s',
+            $aciklama,
+            $baslangic->format('d.m.Y'),
+            $bitis->format('d.m.Y'),
+            $tag
+        );
+
+        $kampanya = new SalonKampanyalar();
+        $kampanya->salon_id = $salonId;
+        $kampanya->kampanya_baslik = $baslik;
+        $kampanya->kampanya_aciklama = $aciklama;
+        $kampanya->kampanya_baslangic_tarihi = $baslangic->toDateTimeString();
+        $kampanya->kampanya_bitis_tarihi = $bitis->toDateTimeString();
+        $kampanya->kampanya_detay = $detay;
+        $kampanya->onayli = 1;
+        $kampanya->save();
+
+        return response()->json([
+            'status'      => 'success',
+            'message'     => $gapLabel . ' için %' . $discount . ' indirimli kampanya oluşturuldu.',
+            'kampanya_id' => $kampanya->id,
+            'baslik'      => $baslik,
+            'bitis'       => $bitis->toDateTimeString(),
+        ]);
     }
 
     private function _ciroFor($salonId, $start, $end)
@@ -22672,6 +22756,114 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $cark->aktifmi = $request->input('aktifmi') ? 1 : 0;
         $cark->save();
         return response()->json(['basarili' => true, 'aktifmi' => (int) $cark->aktifmi]);
+    }
+
+    /**
+     * Salonun uygulaması yüklü olan müşterilerine çark duyuru push'u gönderir.
+     *
+     * Hedef kitle: bu salonda en az 1 randevusu olmuş + aktif FCM token'ı olan müşteriler.
+     * (Token kaydı = uygulamayı yüklemiş + bildirim izni vermiş demektir.)
+     *
+     * İsteğe bağlı body alanları:
+     *   - baslik (string, default "🎡 Çark-ı Felek")
+     *   - mesaj  (string, default hazır metin)
+     */
+    public function carkBildirimGonder(Request $request, $salonId)
+    {
+        try {
+            $salon = Salonlar::find($salonId);
+            if (!$salon) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Salon bulunamadi'], 404);
+            }
+
+            $cark = CarkifelekSistemi::where('salon_id', $salonId)->first();
+            if (!$cark || !$cark->aktifmi) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Cark sistemi aktif degil'], 422);
+            }
+
+            $baslik = trim((string) $request->input('baslik', ''));
+            $mesaj  = trim((string) $request->input('mesaj', ''));
+            if ($baslik === '') $baslik = '🎡 ' . $salon->salon_adi;
+            if ($mesaj === '')  $mesaj  = 'Çark-ı Felek\'i çevir, sürpriz ödülü kap! Bugün şansını dene 🎁';
+
+            // Bu salonun müşterileri (randevu sahibi olanlar)
+            $musteriIdleri = Randevular::where('salon_id', $salonId)
+                ->whereNotNull('user_id')
+                ->pluck('user_id')
+                ->unique()
+                ->filter()
+                ->values();
+
+            if ($musteriIdleri->isEmpty()) {
+                return response()->json([
+                    'basarili' => true,
+                    'gonderildi' => 0,
+                    'hedef' => 0,
+                    'mesaj' => 'Bu salonda randevulu musteri bulunmuyor',
+                ]);
+            }
+
+            // Bu müşteriler içinde uygulaması yüklü (aktif token sahibi) olanlar
+            $uygulamasiOlanIdleri = BildirimKimlikleri::whereIn('user_id', $musteriIdleri)
+                ->where('aktif', true)
+                ->whereNotNull('bildirim_id')
+                ->where('bildirim_id', '!=', '')
+                ->pluck('user_id')
+                ->unique()
+                ->values();
+
+            if ($uygulamasiOlanIdleri->isEmpty()) {
+                return response()->json([
+                    'basarili' => true,
+                    'gonderildi' => 0,
+                    'hedef' => 0,
+                    'mesaj' => 'Uygulamasi yuklu musteri yok',
+                ]);
+            }
+
+            $toplamSent = 0;
+            $toplamFailed = 0;
+            foreach ($uygulamasiOlanIdleri as $userId) {
+                $user = User::find($userId);
+                if (!$user) continue;
+
+                // Mesajdaki {ad} ve {salon_adi} placeholder'ları
+                $kisiselMesaj = strtr($mesaj, [
+                    '{ad}'        => explode(' ', (string) $user->name)[0] ?? '',
+                    '{salon_adi}' => (string) $salon->salon_adi,
+                ]);
+                $kisiselBaslik = strtr($baslik, [
+                    '{ad}'        => explode(' ', (string) $user->name)[0] ?? '',
+                    '{salon_adi}' => (string) $salon->salon_adi,
+                ]);
+
+                try {
+                    $sonuc = NotificationService::toCustomer((int) $userId, (int) $salon->id)
+                        ->type(NotificationTypes::WHEEL_CHANCE)
+                        ->title($kisiselBaslik)
+                        ->body($kisiselMesaj)
+                        ->popup(true)
+                        ->deepLink('wheel', ['salon_id' => $salon->id])
+                        ->extra(['kaynak' => 'admin_duyuru'])
+                        ->send();
+                    $toplamSent   += (int) ($sonuc['sent']   ?? 0);
+                    $toplamFailed += (int) ($sonuc['failed'] ?? 0);
+                } catch (\Throwable $e) {
+                    Log::warning("Cark duyuru push hatasi user={$userId}: " . $e->getMessage());
+                    $toplamFailed++;
+                }
+            }
+
+            return response()->json([
+                'basarili'   => true,
+                'gonderildi' => $toplamSent,
+                'hata'       => $toplamFailed,
+                'hedef'      => $uygulamasiOlanIdleri->count(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('API carkBildirimGonder: ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
+        }
     }
 
     public function carkKazananlarApi(Request $request, $salonId)
