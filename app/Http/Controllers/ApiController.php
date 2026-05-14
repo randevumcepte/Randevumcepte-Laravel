@@ -965,7 +965,7 @@ class ApiController extends Controller
             ->pluck('son_tarih', 'adisyon_id')
         : collect();
 
-    // AÇIK + KAPALI SAYIM (tarih aralığındaki tüm adisyonlar; Flutter tab badge'leri için)
+    // AÇIK + KAPALI SAYIM (tarih aralığındaki tüm adisyonlar; badge'ler için)
     $acikKapaliSayim = \DB::selectOne(
         "SELECT
             SUM(CASE WHEN kalan > 0 THEN 1 ELSE 0 END) as acik,
@@ -4536,7 +4536,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ->orderByDesc('count')
             ->first();
 
-        // Saat yogunlugu (24 saat, 0-1 normalize)
+        // Saat yogunlugu (24 saat, 0-1 normalize) — geri uyumluluk icin korunuyor
         $hourlyRaw = DB::table('randevular')
             ->where('salon_id', $salonId)
             ->whereBetween('tarih', [$curStart->toDateString(), $curEnd->toDateString()])
@@ -4549,6 +4549,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         for ($h = 0; $h < 24; $h++) {
             $hourly[] = isset($hourlyRaw[$h]) ? round($hourlyRaw[$h] / $maxHourly, 2) : 0.0;
         }
+
+        // Yeni: salon calisma saatlerine gore zenginlestirilmis analiz
+        $hourlyAnalysis = $this->_buildHourlyAnalysis($salonId, $curStart, $curEnd, $period, $hourlyRaw);
 
         return response()->json([
             'period' => $period,
@@ -4578,8 +4581,142 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'count' => (int) $topUrun->count,
             ] : null,
             'hourlyDensity' => $hourly,
+            'hourlyAnalysis' => $hourlyAnalysis,
             'subeler' => [],
         ]);
+    }
+
+    /**
+     * Salon calisma saatlerine gore saat bazli yogunluk analizi uretir.
+     * Periyot icinde aktif gunlerin baslangic/bitis araligini bulur,
+     * sadece o aralikta randevu sayilarini normalize eder ve bos blok
+     * gruplari icin indirim kampanyasi onerisi olusturur.
+     */
+    private function _buildHourlyAnalysis($salonId, $curStart, $curEnd, $period, array $hourlyRaw)
+    {
+        // 1) Periyot icindeki gunlerin haftanin_gunu setini cikar
+        $daysInRange = [];
+        $cursor = $curStart->copy()->startOfDay();
+        $endDay = $curEnd->copy()->startOfDay();
+        $guard = 0;
+        while ($cursor->lte($endDay) && $guard < 400) {
+            $daysInRange[(int) $cursor->isoWeekday()] = true; // 1=Pzt..7=Pzr
+            $cursor->addDay();
+            $guard++;
+        }
+
+        // 2) Bu gunler icin salonun calistigi saat araliklarini cek
+        $calismaSatirlari = SalonCalismaSaatleri::where('salon_id', $salonId)
+            ->where('calisiyor', 1)
+            ->whereIn('haftanin_gunu', array_keys($daysInRange))
+            ->get(['baslangic_saati', 'bitis_saati']);
+
+        $workStart = 9;
+        $workEnd = 20;
+        if ($calismaSatirlari->count() > 0) {
+            $starts = [];
+            $ends = [];
+            foreach ($calismaSatirlari as $row) {
+                $bs = (int) substr($row->baslangic_saati, 0, 2);
+                $be = (int) substr($row->bitis_saati, 0, 2);
+                $beMin = (int) substr($row->bitis_saati, 3, 2);
+                if ($beMin > 0) { $be += 1; } // 20:30 -> 21
+                $starts[] = $bs;
+                $ends[] = $be;
+            }
+            $workStart = min($starts);
+            $workEnd = max($ends);
+        }
+        if ($workEnd <= $workStart) { $workEnd = $workStart + 1; }
+        if ($workStart < 0) { $workStart = 0; }
+        if ($workEnd > 24) { $workEnd = 24; }
+
+        // 3) Calisma saati araliginda max'i bulup normalize et
+        $countsInRange = [];
+        for ($h = $workStart; $h < $workEnd; $h++) {
+            $countsInRange[$h] = isset($hourlyRaw[$h]) ? (int) $hourlyRaw[$h] : 0;
+        }
+        $maxInRange = max(array_merge(array_values($countsInRange), [1]));
+
+        // 4) Her saat icin density + seviye sinifi
+        $hoursOut = [];
+        foreach ($countsInRange as $h => $cnt) {
+            $density = round($cnt / $maxInRange, 2);
+            if ($density >= 0.70)       { $level = 'prime'; }
+            elseif ($density >= 0.40)   { $level = 'busy'; }
+            elseif ($density >= 0.15)   { $level = 'low'; }
+            else                        { $level = 'empty'; }
+            $hoursOut[] = [
+                'hour'    => $h,
+                'count'   => $cnt,
+                'density' => $density,
+                'level'   => $level,
+            ];
+        }
+
+        // 5) Bosluk fırsatları — sabah/ogleden sonra/aksam bloklari
+        // Periyot 'gunluk' ise tek gun verisi anlamsiz, gaps bos doner
+        $gaps = [];
+        if ($period !== 'gunluk') {
+            $blocks = [
+                ['key' => 'morning',   'label' => 'Sabah',         'from' => $workStart, 'to' => 12],
+                ['key' => 'afternoon', 'label' => 'Öğleden sonra', 'from' => 12,         'to' => 17],
+                ['key' => 'evening',   'label' => 'Akşam',          'from' => 17,         'to' => $workEnd],
+            ];
+            foreach ($blocks as $blk) {
+                $from = max($blk['from'], $workStart);
+                $to   = min($blk['to'],   $workEnd);
+                if ($to - $from < 2) { continue; } // en az 2 saatlik blok
+
+                $sum = 0; $n = 0;
+                for ($h = $from; $h < $to; $h++) {
+                    if (isset($countsInRange[$h])) {
+                        $sum += $countsInRange[$h] / $maxInRange;
+                        $n++;
+                    }
+                }
+                if ($n === 0) { continue; }
+                $avg = $sum / $n;
+
+                if ($avg >= 0.50) { continue; } // dolu — oneri yok
+
+                if ($avg < 0.15)      { $disc = 40; $sev = 'Çok boş'; }
+                elseif ($avg < 0.30)  { $disc = 25; $sev = 'Boş'; }
+                else                  { $disc = 15; $sev = 'Hafif boş'; }
+
+                $gaps[] = [
+                    'key'               => $blk['key'],
+                    'label'             => $blk['label'],
+                    'start'             => $from,
+                    'end'               => $to,
+                    'avgDensity'        => round($avg, 2),
+                    'severity'          => $sev,
+                    'suggestedDiscount' => $disc,
+                    'message'           => sprintf(
+                        '%s saatleri (%02d:00-%02d:00) ortalama %%%d dolulukta. %%%d indirim kampanyasıyla doldurabilirsiniz.',
+                        $blk['label'], $from, $to, (int) round($avg * 100), $disc
+                    ),
+                ];
+            }
+        }
+
+        // 6) Pik saat
+        $peakHour = null;
+        $peakCount = 0;
+        foreach ($countsInRange as $h => $cnt) {
+            if ($cnt > $peakCount) { $peakCount = $cnt; $peakHour = $h; }
+        }
+
+        return [
+            'workStart'    => $workStart,
+            'workEnd'      => $workEnd,
+            'peakHour'     => $peakHour,
+            'peakCount'    => $peakCount,
+            'hours'        => $hoursOut,
+            'gaps'         => $gaps,
+            'hasData'      => $maxInRange > 1 || $peakCount > 0,
+            'periodLabel'  => $this->_periodLabel($period, true),
+        ];
     }
 
     private function _ciroFor($salonId, $start, $end)
@@ -7869,7 +8006,6 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     {
         // whereDate: DATETIME kolonlarda ayni gunku kayitlari kacirmamak icin.
-        // Onceden odeme_yontemi=='' kosulu da matchleyip kasaya hicbirsey yazmayabiliyordu.
         $toplamGelir = Tahsilatlar::where("salon_id", $salonid)
 
                 ->where(function ($q) use ($request) {
