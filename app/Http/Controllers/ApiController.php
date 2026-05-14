@@ -936,26 +936,24 @@ class ApiController extends Controller
         ");
     }
 
-    // TOPLAM SATIŞ SAYISI (SADECE COUNT - TÜM VERİLERİ ÇEKMEZ)
-    $toplamSatisSayisi = $query->count();
-    
-    // ALACAKLARI TEK SORGULA (N+1 problemini çöz)
-    // Önce user_id'leri al
-    $userIdler = $query->pluck('user_id')->unique()->toArray();
-    $alacaklar = Alacaklar::whereIn('user_id', $userIdler)
-        ->orderBy('planlanan_odeme_tarihi', 'asc')
-        ->get()
-        ->groupBy('user_id')
-        ->map(function ($items) {
-            return $items->first(); // Her kullanıcı için ilk alacak kaydı
-        });
-    
-    // SAYFALAMA
+    // SAYFALAMA (paginate zaten total count'u dahili yapar; ayrıca count() çağırmıyoruz)
     if($sayfala) {
-        $adisyonlarListe = $query->paginate(50);
+        $adisyonlarListe = $query->paginate(20);
+        $toplamSatisSayisi = $adisyonlarListe->total();
     } else {
         $adisyonlarListe = $query->get();
+        $toplamSatisSayisi = $adisyonlarListe->count();
     }
+
+    // ALACAKLARI SADECE BU SAYFADAKİ user_id'ler için çek (önceden tüm filtreyi yeniden çalıştırıyordu)
+    $userIdler = $adisyonlarListe->pluck('user_id')->unique()->toArray();
+    $alacaklar = !empty($userIdler)
+        ? Alacaklar::whereIn('user_id', $userIdler)
+            ->orderBy('planlanan_odeme_tarihi', 'asc')
+            ->get()
+            ->groupBy('user_id')
+            ->map(fn($items) => $items->first())
+        : collect();
     
     $odenenToplamTutar = 0;
     $kalanToplamTutar = 0;
