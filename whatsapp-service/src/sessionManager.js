@@ -193,6 +193,22 @@ const createSession = async (salonId) => {
       session.reconnectAttempts = 0;
       logger.info({ salonId: key, phone: session.phone }, 'connected');
       notifyLaravel('connected', { salonId: key, phone: session.phone });
+
+      // Keep-alive: WhatsApp tarafı idle session'ları 24-48 saatte timeout'a düşürür.
+      // Her N dakikada presence/availability güncellemesi göndererek session'ı canlı tutuyoruz.
+      if (session.keepAliveTimer) clearInterval(session.keepAliveTimer);
+      const keepMs = config.antiban.keepAliveIntervalMs || 240000;
+      session.keepAliveTimer = setInterval(async () => {
+        try {
+          if (session.status === 'connected' && session.sock) {
+            // sendPresenceUpdate query'si idle timer'ı resetler — antiban açısından
+            // 'unavailable' güvenli: "online" göstermez ama bağlantıyı canlı tutar
+            await session.sock.sendPresenceUpdate('unavailable');
+          }
+        } catch (err) {
+          logger.debug({ salonId: key, err: err.message }, 'keep-alive presence failed');
+        }
+      }, keepMs);
     }
 
     if (connection === 'close') {
@@ -200,6 +216,12 @@ const createSession = async (salonId) => {
       const reason = statusCode ? DisconnectReason[statusCode] || statusCode : 'unknown';
       session.lastError = reason;
       logger.warn({ salonId: key, reason, statusCode }, 'connection closed');
+
+      // Keep-alive timer'ı temizle — yeni session ile birlikte yeniden kurulacak
+      if (session.keepAliveTimer) {
+        clearInterval(session.keepAliveTimer);
+        session.keepAliveTimer = null;
+      }
 
       // 401/403/500 vb. = gercek logout/ban — auth state silinmeli, kullanici yeniden QR
       const BAN_CODES = new Set([
@@ -263,9 +285,26 @@ const createSession = async (salonId) => {
         setTimeout(() => {
           if (sessions.get(key) === session) {
             sessions.delete(key);
-            createSession(salonId).catch((err) =>
-              logger.error({ err: err.message, salonId: key }, 'reconnect failed'),
-            );
+            createSession(salonId).catch((err) => {
+              logger.error({ err: err.message, salonId: key, attempts }, 'reconnect failed');
+              // Reconnect attempt başarısız oldu — yeniden dene (max 8 deneme)
+              if (attempts < 8) {
+                const retryBackoff = Math.min(600000, 10000 * Math.pow(2, attempts - 1));
+                setTimeout(() => {
+                  createSession(salonId).catch((err2) =>
+                    logger.error({ err: err2.message, salonId: key }, 'reconnect retry failed'),
+                  );
+                }, retryBackoff);
+              } else {
+                // 8 başarısız deneme — Laravel'e bildir, kullanıcı manuel müdahale etsin
+                notifyLaravel('disconnected', {
+                  salonId: key,
+                  reason: 'reconnect-exhausted',
+                  statusCode: 0,
+                  banLikely: false,
+                });
+              }
+            });
           }
         }, backoffMs);
       }
@@ -278,10 +317,16 @@ const createSession = async (salonId) => {
 const logoutSession = async (salonId) => {
   const key = String(salonId);
   const session = sessions.get(key);
-  if (session && session.sock) {
-    try {
-      await session.sock.logout();
-    } catch (_) {}
+  if (session) {
+    if (session.keepAliveTimer) {
+      clearInterval(session.keepAliveTimer);
+      session.keepAliveTimer = null;
+    }
+    if (session.sock) {
+      try {
+        await session.sock.logout();
+      } catch (_) {}
+    }
   }
   sessions.delete(key);
   try {
@@ -331,6 +376,51 @@ const qrOf = (salonId) => {
   return session.qrDataUrl;
 };
 
+/**
+ * Service başlangıcında sessions/ klasörünü tarayıp daha önce QR taranmış
+ * salonların oturumlarını otomatik yeniden başlatır. PM2 restart veya server
+ * reboot sonrası kullanıcının yeniden QR taraması gerekmez.
+ */
+const restoreAllSessions = async () => {
+  try {
+    if (!fs.existsSync(config.sessionsDir)) {
+      logger.info('sessions/ klasörü yok, restore atlanıyor');
+      return { restored: 0 };
+    }
+    const entries = fs.readdirSync(config.sessionsDir, { withFileTypes: true });
+    const salonIds = entries
+      .filter((e) => e.isDirectory() && e.name.startsWith('salon_'))
+      .map((e) => e.name.slice('salon_'.length))
+      .filter((id) => /^\d+$/.test(id));
+
+    if (salonIds.length === 0) {
+      logger.info('Restore edilecek session yok');
+      return { restored: 0 };
+    }
+
+    logger.info({ count: salonIds.length, salonIds }, 'Mevcut session\'lar otomatik açılıyor');
+    let ok = 0;
+    let failed = 0;
+    // Paralel değil, sıralı — Baileys auth dosyalarına çakışma olmasın
+    for (const salonId of salonIds) {
+      try {
+        await createSession(salonId);
+        ok++;
+      } catch (err) {
+        failed++;
+        logger.warn({ salonId, err: err.message }, 'auto-restore failed');
+      }
+      // Her session arası 2 saniye bekle — burst connect WhatsApp'ı tetikler
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    logger.info({ ok, failed }, 'auto-restore tamamlandı');
+    return { restored: ok, failed };
+  } catch (err) {
+    logger.error({ err: err.message }, 'restoreAllSessions hatası');
+    return { restored: 0, error: err.message };
+  }
+};
+
 module.exports = {
   createSession,
   logoutSession,
@@ -338,4 +428,5 @@ module.exports = {
   statusOf,
   qrOf,
   getSession,
+  restoreAllSessions,
 };

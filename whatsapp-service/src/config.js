@@ -37,12 +37,16 @@ module.exports = {
   },
   logLevel: process.env.LOG_LEVEL || 'info',
   antiban: {
-    msgMinDelayMs: parseInt(process.env.MSG_MIN_DELAY_MS || '60000', 10),
-    msgMaxDelayMs: parseInt(process.env.MSG_MAX_DELAY_MS || '120000', 10),
+    // Mesaj öncesi gecikme: 12-30 saniye (eskiden 60-120 sn — çok uzundu)
+    // Typing simulation 2-4sn ile birlikte toplam: 14-34 saniye/mesaj
+    // Hala antiban için güvenli (insan benzeri davranış), saatte ~100-180 mesaj
+    msgMinDelayMs: parseInt(process.env.MSG_MIN_DELAY_MS || '12000', 10),
+    msgMaxDelayMs: parseInt(process.env.MSG_MAX_DELAY_MS || '30000', 10),
     typingMinMs: parseInt(process.env.TYPING_MIN_MS || '2000', 10),
     typingMaxMs: parseInt(process.env.TYPING_MAX_MS || '4000', 10),
     batchSize: parseInt(process.env.BATCH_SIZE || '50', 10),
-    batchPauseMs: parseInt(process.env.BATCH_PAUSE_MS || '600000', 10),
+    // Batch sonrası 2 dakika ara (eskiden 10 dk — çok uzundu)
+    batchPauseMs: parseInt(process.env.BATCH_PAUSE_MS || '120000', 10),
     warmupDays: parseInt(process.env.WARMUP_DAYS || '7', 10),
     warmupDayLimits: parseIntList(process.env.WARMUP_DAY_LIMITS, '15,30,50,80,110,140,180'),
     businessHourStart: parseInt(process.env.BUSINESS_HOUR_START || '9', 10),
@@ -50,6 +54,9 @@ module.exports = {
     consecutiveFailureThreshold: parseInt(process.env.CONSECUTIVE_FAILURE_THRESHOLD || '3', 10),
     failureWindowMinutes: parseInt(process.env.FAILURE_WINDOW_MINUTES || '30', 10),
     failureWindowMax: parseInt(process.env.FAILURE_WINDOW_MAX || '5', 10),
+    // Keep-alive: bağlı session'lara her N saniyede bir presence ping
+    // (WhatsApp idle session'ları 24-48 saat sonra timeout'a düşürür)
+    keepAliveIntervalMs: parseInt(process.env.KEEP_ALIVE_INTERVAL_MS || '240000', 10), // 4 dakika
   },
   sessionsDir: require('path').resolve(__dirname, '..', 'sessions'),
 };

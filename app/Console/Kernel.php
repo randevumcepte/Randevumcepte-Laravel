@@ -30,6 +30,7 @@ class Kernel extends ConsoleKernel
         Commands\SalonappyImport::class,
         Commands\CarkHatirlatmaGonder::class,
         Commands\AnketOtomatikGonder::class,
+        Commands\WhatsappStuckKurtar::class,
     ];
 
     /**
@@ -58,6 +59,10 @@ class Kernel extends ConsoleKernel
 
         // Memnuniyet anketi otomatik gönderim — randevu sonrası N saat
         $schedule->command('anket:otomatik-gonder')->withoutOverlapping()->everyTenMinutes();
+
+        // WhatsApp kuyrukta takılı kalan mesajları SMS'e düşür — her 3 dakikada bir
+        // Sebep: Node service RAM-only queue, restart/crash olunca mesajlar takılı kalıyordu
+        $schedule->command('whatsapp:stuck-kurtar')->withoutOverlapping()->cron('*/3 * * * *');
 
         // Yedek
         $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();

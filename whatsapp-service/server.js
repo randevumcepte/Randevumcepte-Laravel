@@ -75,8 +75,16 @@ app.post('/session/:salonId/send', (req, res) => {
   }
 });
 
-app.listen(config.port, config.host, () => {
+app.listen(config.port, config.host, async () => {
   logger.info({ port: config.port, host: config.host }, 'whatsapp-service listening');
+  // Service başlangıcında daha önce QR taranmış salonları otomatik aç
+  // (PM2 restart / server reboot sonrası kullanıcının yeniden QR taraması gerekmesin)
+  try {
+    const result = await sessionMgr.restoreAllSessions();
+    logger.info({ result }, 'startup restore complete');
+  } catch (err) {
+    logger.error({ err: err.message }, 'startup restore error');
+  }
 });
 
 process.on('unhandledRejection', (err) => logger.error({ err }, 'unhandledRejection'));
