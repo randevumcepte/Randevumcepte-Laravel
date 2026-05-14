@@ -2,11 +2,12 @@
 
 <style>
    /* Tam viewport ortasi (sidebar'dan etkilenmesin) */
+   /* z-index: swal v1 99999 kullaniyor, modal'in onun ustunde kalmasi icin 100001 */
    #modal-view-event {
       position: fixed !important;
       inset: 0;
       width: 100vw; height: 100vh;
-      z-index: 10550;
+      z-index: 100001;
    }
    #modal-view-event .modal-dialog {
       max-width: 800px;

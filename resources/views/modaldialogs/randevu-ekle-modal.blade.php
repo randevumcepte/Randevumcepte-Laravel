@@ -320,6 +320,8 @@
 /* Genel Modal Stilleri */
 
 /* Yeni Randevu modali dikey ortalama (modal-dialog-centered ::before hack i olmadan) */
+/* z-index: swal v1 99999 kullaniyor, modal'in onun ustunde kalmasi icin 100002 (Tom Select dropdown=100000, Select2=100001 ile uyumlu) */
+#modal-view-event-add { z-index: 100002 !important; }
 #modal-view-event-add.show {
     display: flex !important;
     align-items: center !important;

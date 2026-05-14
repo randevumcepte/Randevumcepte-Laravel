@@ -110,10 +110,10 @@
 
 
 <style>
-/* Detay modal acikken duzenleme modal arkada kalmasin — yuksek z-index */
-#randevu-duzenle-modal { z-index: 10560 !important; }
+/* Detay modal + swal v1 (99999) acikken duzenleme modal arkada kalmasin — yuksek z-index */
+#randevu-duzenle-modal { z-index: 100003 !important; }
 .modal-backdrop.show + #randevu-duzenle-modal,
-body.modal-open #randevu-duzenle-modal { z-index: 10560 !important; }
+body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
 
 /* Ekle modal ile ayni: dikey ortalama (modal-dialog-centered ::before hack i olmadan) */
 #randevu-duzenle-modal.show {
