@@ -32,6 +32,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Auth\SessionGuard; 
 use App\Arsiv;
+use App\MusteriPortfoy;
 use App\FormTaslaklari;
 
 use Exception;
@@ -1104,6 +1105,20 @@ $salon = Salonlar::where('domain', $domain)->first();
          );
 
          if($kullanici){
+             // Mevcut musteri salonun portfoyunde degilse otomatik ekle
+             if($salon){
+                 $portfoyVar = MusteriPortfoy::where('user_id', $kullanici->id)
+                     ->where('salon_id', $salon->id)
+                     ->first();
+                 if(!$portfoyVar){
+                     $portfoyYeni = new MusteriPortfoy();
+                     $portfoyYeni->user_id = $kullanici->id;
+                     $portfoyYeni->salon_id = $salon->id;
+                     $portfoyYeni->tur = 1;
+                     $portfoyYeni->save();
+                 }
+             }
+
              $random = str_shuffle('abcdefghjklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ1234567890');
              $olusturulansifre = substr($random, 0, 5);
              $kullanici->password = Hash::make($olusturulansifre);
