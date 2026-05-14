@@ -117,6 +117,10 @@ const createSession = async (salonId) => {
     markOnlineOnConnect: false,
     logger: logger.child({ salonId }),
     generateHighQualityLinkPreview: false,
+    keepAliveIntervalMs: 25000,        // WhatsApp idle'da socket dustugu icin 25s keep-alive ping
+    connectTimeoutMs: 60000,           // ilk bagli olma timeout'unu uzat (default 20s yetersiz)
+    defaultQueryTimeoutMs: 60000,      // sendMessage / onWhatsApp sorgu timeout'u
+    retryRequestDelayMs: 2000,         // istek tekrarinda 2s bekle
   });
 
   const session = {
