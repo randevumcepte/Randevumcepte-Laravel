@@ -49,6 +49,9 @@ module.exports = {
     batchPauseMs: parseInt(process.env.BATCH_PAUSE_MS || '120000', 10),
     warmupDays: parseInt(process.env.WARMUP_DAYS || '7', 10),
     warmupDayLimits: parseIntList(process.env.WARMUP_DAY_LIMITS, '15,30,50,80,110,140,180'),
+    // Business hours: enforce=false ise saat kontrolu tamamen atlanir (24/7 gonderim).
+    // Test ve surekli akis icin default kapali. Acmak icin: BUSINESS_HOURS_ENFORCE=true
+    businessHoursEnforce: (process.env.BUSINESS_HOURS_ENFORCE || 'false').toLowerCase() === 'true',
     businessHourStart: parseInt(process.env.BUSINESS_HOUR_START || '9', 10),
     businessHourEnd: parseInt(process.env.BUSINESS_HOUR_END || '21', 10),
     consecutiveFailureThreshold: parseInt(process.env.CONSECUTIVE_FAILURE_THRESHOLD || '3', 10),

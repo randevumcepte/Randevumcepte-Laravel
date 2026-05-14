@@ -33,6 +33,8 @@ const dailyCap = (warmupStart, configuredLimit) => {
 };
 
 const withinBusinessHours = () => {
+  // Enforce kapaliysa her saatte gonderim serbest (24/7)
+  if (!config.antiban.businessHoursEnforce) return true;
   const hour = new Date().getHours();
   return hour >= config.antiban.businessHourStart && hour < config.antiban.businessHourEnd;
 };

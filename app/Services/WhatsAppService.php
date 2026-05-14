@@ -172,6 +172,10 @@ class WhatsAppService
 
     public function withinBusinessHours()
     {
+        // Eger enforce kapaliysa her saatte gonderime izin ver (24/7).
+        if (!config('whatsapp.business_hours.enforce', false)) {
+            return true;
+        }
         $hour = (int) now()->format('H');
         $start = (int) config('whatsapp.business_hours.start', 9);
         $end = (int) config('whatsapp.business_hours.end', 21);
