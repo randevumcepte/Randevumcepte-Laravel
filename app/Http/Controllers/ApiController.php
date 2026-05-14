@@ -954,17 +954,58 @@ class ApiController extends Controller
             ->groupBy('user_id')
             ->map(fn($items) => $items->first())
         : collect();
-    
+
+    // SON TAHSİLAT TARİHİ: her adisyon için max(odeme_tarihi) tek sorguda
+    $adisyonIdler = $adisyonlarListe->pluck('id')->toArray();
+    $sonTahsilatTarihleri = !empty($adisyonIdler)
+        ? \DB::table('tahsilatlar')
+            ->whereIn('adisyon_id', $adisyonIdler)
+            ->select('adisyon_id', \DB::raw('MAX(odeme_tarihi) as son_tarih'))
+            ->groupBy('adisyon_id')
+            ->pluck('son_tarih', 'adisyon_id')
+        : collect();
+
+    // AÇIK + KAPALI SAYIM (tarih aralığındaki tüm adisyonlar; Flutter tab badge'leri için)
+    $acikKapaliSayim = \DB::selectOne(
+        "SELECT
+            SUM(CASE WHEN kalan > 0 THEN 1 ELSE 0 END) as acik,
+            SUM(CASE WHEN kalan <= 0 THEN 1 ELSE 0 END) as kapali
+         FROM (
+            SELECT a.id,
+                (
+                    COALESCE((SELECT SUM(fiyat) FROM adisyon_hizmetler WHERE adisyon_id = a.id), 0) +
+                    COALESCE((SELECT SUM(fiyat) FROM adisyon_urunler WHERE adisyon_id = a.id), 0) +
+                    COALESCE((SELECT SUM(fiyat) FROM adisyon_paketler WHERE adisyon_id = a.id), 0)
+                ) -
+                (
+                    COALESCE((SELECT SUM(t.tutar) FROM tahsilat_hizmetler t
+                        WHERE t.adisyon_hizmet_id IN (SELECT id FROM adisyon_hizmetler WHERE adisyon_id = a.id)), 0) +
+                    COALESCE((SELECT SUM(t.tutar) FROM tahsilat_urunler t
+                        WHERE t.adisyon_urun_id IN (SELECT id FROM adisyon_urunler WHERE adisyon_id = a.id)), 0) +
+                    COALESCE((SELECT SUM(t.tutar) FROM tahsilat_paketler t
+                        WHERE t.adisyon_paket_id IN (SELECT id FROM adisyon_paketler WHERE adisyon_id = a.id)), 0)
+                ) as kalan
+            FROM adisyonlar a
+            WHERE a.salon_id = ? AND a.tarih BETWEEN ? AND ?
+        ) sub",
+        [$isletmeId, $tarih1, $tarih2]
+    );
+    $acikSayisi = (int)($acikKapaliSayim->acik ?? 0);
+    $kapaliSayisi = (int)($acikKapaliSayim->kapali ?? 0);
+
     $odenenToplamTutar = 0;
     $kalanToplamTutar = 0;
-    
-    $formatted = $adisyonlarListe->map(function ($adisyon) use ($isletmeId, &$odenenToplamTutar, &$kalanToplamTutar, $toplamSatisSayisi, $alacaklar) {
-        return $this->formatAdisyonFast($adisyon, $isletmeId, $odenenToplamTutar, $kalanToplamTutar, $toplamSatisSayisi, $alacaklar[$adisyon->user_id] ?? null);
+
+    $formatted = $adisyonlarListe->map(function ($adisyon) use ($isletmeId, &$odenenToplamTutar, &$kalanToplamTutar, $toplamSatisSayisi, $alacaklar, $sonTahsilatTarihleri) {
+        $sonTarih = $sonTahsilatTarihleri[$adisyon->id] ?? null;
+        return $this->formatAdisyonFast($adisyon, $isletmeId, $odenenToplamTutar, $kalanToplamTutar, $toplamSatisSayisi, $alacaklar[$adisyon->user_id] ?? null, $sonTarih);
     });
-    
+
     $response = [
         'data' => $formatted->values(),
         'satisSayisi' => $toplamSatisSayisi,
+        'acik_sayisi' => $acikSayisi,
+        'kapali_sayisi' => $kapaliSayisi,
         'odenen' => number_format($odenenToplamTutar, 2, ',', '.'),
         'kalan' => number_format($kalanToplamTutar, 2, ',', '.'),
     ];
@@ -979,7 +1020,7 @@ class ApiController extends Controller
 }
 
 // HIZLANDIRILMIŞ FORMAT FONKSİYONU
-private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$kalanToplamTutar, $toplamSatisSayisi, $alacak = null) {
+private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$kalanToplamTutar, $toplamSatisSayisi, $alacak = null, $sonTahsilatTarihi = null) {
     $satilanlarStr = "";
     $satilanlarStrKisaIcerik = '';
     $personellerStr = "";
@@ -1066,6 +1107,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     return [
         'id' => $adisyon->id,
         'acilis_tarihi' => date('d.m.Y', strtotime($adisyon->tarih)),
+        'son_tahsilat_tarihi' => $sonTahsilatTarihi ? date('d.m.Y', strtotime($sonTahsilatTarihi)) : '',
         'musteri' => $adisyon->musteri->name ?? '-',
         'planlanan_alacak_tarihi' => $planlananTarih,
         'satis_turu' => '',
@@ -7749,9 +7791,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 if ($request->tarih1 !== null && $request->tarih2 !== null) {
 
-                    $q->where("odeme_tarihi", ">=", $request->tarih1);
+                    // whereDate: kolon DATETIME ise bile sadece tarih kismini karsilastirir.
+                    // Onceden where(...,<=,$tarih2) '2026-05-14' icin '00:00:00'a denk gelip ayni gunku tahsilatlari kacirayordu.
+                    $q->whereDate("odeme_tarihi", ">=", $request->tarih1);
 
-                    $q->where("odeme_tarihi", "<=", $request->tarih2);
+                    $q->whereDate("odeme_tarihi", "<=", $request->tarih2);
 
                 }
 
@@ -7759,7 +7803,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             ->where(function ($q) use ($request) {
 
-                if ($request->odemeyontemi !== null) {
+                if ($request->odemeyontemi !== null && $request->odemeyontemi !== '') {
 
                     $q->where("odeme_yontemi_id", "=", $request->odemeyontemi);
 
@@ -7824,6 +7868,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     public function kasaraporu(Request $request, $salonid)
 
     {
+        // whereDate: DATETIME kolonlarda ayni gunku kayitlari kacirmamak icin.
+        // Onceden odeme_yontemi=='' kosulu da matchleyip kasaya hicbirsey yazmayabiliyordu.
         $toplamGelir = Tahsilatlar::where("salon_id", $salonid)
 
                 ->where(function ($q) use ($request) {
@@ -7836,9 +7882,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                     ) {
 
-                        $q->where("odeme_tarihi", ">=", $request->tarih1);
+                        $q->whereDate("odeme_tarihi", ">=", $request->tarih1);
 
-                        $q->where("odeme_tarihi", "<=", $request->tarih2);
+                        $q->whereDate("odeme_tarihi", "<=", $request->tarih2);
 
                     }
 
@@ -7846,7 +7892,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 ->where(function ($q) use ($request) {
 
-                    if ($request->odemeyontemi !== null) {
+                    if ($request->odemeyontemi !== null && $request->odemeyontemi !== '') {
 
                         $q->where(
 
@@ -7875,9 +7921,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                     ) {
 
-                        $q->where("tarih", ">=", $request->tarih1);
+                        $q->whereDate("tarih", ">=", $request->tarih1);
 
-                        $q->where("tarih", "<=", $request->tarih2);
+                        $q->whereDate("tarih", "<=", $request->tarih2);
 
                     }
 
@@ -7885,7 +7931,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 ->where(function ($q) use ($request) {
 
-                    if ($request->odemeyontemi !== null) {
+                    if ($request->odemeyontemi !== null && $request->odemeyontemi !== '') {
 
                         $q->where(
 
