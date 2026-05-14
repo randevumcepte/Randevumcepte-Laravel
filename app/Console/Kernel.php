@@ -31,6 +31,7 @@ class Kernel extends ConsoleKernel
         Commands\CarkHatirlatmaGonder::class,
         Commands\AnketOtomatikGonder::class,
         Commands\WhatsappStuckKurtar::class,
+        Commands\WhatsappTestGonder::class,
     ];
 
     /**
