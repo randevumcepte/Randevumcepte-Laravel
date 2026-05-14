@@ -11388,6 +11388,44 @@ DB::raw('
     {
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
 
+        // WhatsApp pre-filter: salon WA aktif+connected ise her mesaj once WhatsApp'a
+        // kuyruga girer. Hemen basarisiz olanlar (4xx/5xx/timeout) SMS yoluyla devam eder;
+        // 202 (queued) donen mesajlar listeden cikarilir, webhook fail bildirirse Laravel
+        // o noktada SMS fallback'i tetikler (WhatsAppWebhookController::onMessageFailed).
+        if ($isletme && !empty($isletme->whatsapp_aktif) && ($isletme->whatsapp_durum ?? null) === 'connected' && is_array($mesajlar) && count($mesajlar) > 0) {
+            try {
+                $wa = app(\App\Services\WhatsAppService::class);
+                $kalan = [];
+                foreach ($mesajlar as $mesaj) {
+                    $to = $mesaj['to'] ?? null;
+                    $msg = $mesaj['message'] ?? null;
+                    if (!$to || !$msg) { $kalan[] = $mesaj; continue; }
+                    $sonuc = $wa->sendReminder($isletme, $to, $msg, $mesaj['randevu_id'] ?? null, $mesaj['user_id'] ?? null);
+                    if ($sonuc['ok'] ?? false) {
+                        Log::info('[Transactional WA] kuyruğa eklendi', [
+                            'salon_id' => $isletme->id, 'to' => $to, 'logId' => $sonuc['logId'] ?? null, 'tur' => $tur,
+                        ]);
+                        continue; // WA kuyruğuna girdi → bu mesajı SMS'e atma
+                    }
+                    Log::warning('[Transactional WA] başarısız → SMS\'e düşüyor', [
+                        'salon_id' => $isletme->id, 'to' => $to, 'err' => $sonuc['error'] ?? 'unknown',
+                    ]);
+                    $kalan[] = $mesaj;
+                }
+                $mesajlar = $kalan;
+                if (count($mesajlar) === 0) {
+                    return $geribildirimgonder ? [
+                        'title' => 'Başarılı',
+                        'status' => 'success',
+                        'text' => 'Mesajınız alıcılarınıza başarıyla iletildi.',
+                    ] : null;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('[Transactional WA] istisna, SMS\'e düşülüyor', [
+                    'err' => $e->getMessage(), 'salon_id' => $isletme->id ?? null,
+                ]);
+            }
+        }
 
         if($isletme->yeni_sms == 1)
         {
@@ -19564,44 +19602,19 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
 
     /**
-     * Transactional mesaj (iptal, güncelleme, onay vs.) için WhatsApp-first + SMS fallback.
-     * WhatsApp kanalı açıksa Node'a kuyruğa atar (webhook ile fail olursa SMS otomatik gider).
-     * WhatsApp kapalıysa $mesajlar array'ine ekler (toplu sms_gonder_bildirimli ile gönderilecek).
+     * Randevu hareketlerinde (iptal, güncelleme, onay vs.) mesaj kuyruğuna ekleme helper'i.
+     * Toggle (musteri/personel) açıksa $mesajlar'a yazar. WhatsApp yonlendirmesi
+     * sms_gonder_bildirimli icinde otomatik yapilir (salon WA aktif+connected ise).
      */
     protected function smsVeyaWhatsappGonder($salon, $to, $message, $ayarId, $alanAdi, $randevuId, $userId, array &$mesajlar)
     {
-        if (!$to) return;
-        if (!$salon) return;
+        if (!$to || !$salon) return;
 
         $ayar = SalonSMSAyarlari::where('salon_id', $salon->id)->where('ayar_id', $ayarId)->first();
         if (!$ayar) return;
 
-        $smsAktif = (int) ($ayar->{$alanAdi} ?? 0) === 1;
-        $waAktif = (int) ($ayar->{'whatsapp_' . $alanAdi} ?? 0) === 1;
-        $whatsappKanaliAcik = $waAktif
-            && !empty($salon->whatsapp_aktif)
-            && ($salon->whatsapp_durum ?? null) === 'connected';
-
-        if ($whatsappKanaliAcik) {
-            try {
-                $wa = app(\App\Services\WhatsAppService::class);
-                $sonuc = $wa->sendReminder($salon, $to, $message, $randevuId, $userId);
-                if ($sonuc['ok'] ?? false) {
-                    \Illuminate\Support\Facades\Log::info('[Transactional WA] kuyruğa eklendi', [
-                        'ayar_id' => $ayarId, 'alan' => $alanAdi, 'randevu_id' => $randevuId,
-                    ]);
-                    return; // WhatsApp queued; webhook'ta fail olursa SMS otomatik gider
-                }
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('[Transactional WA] hata, SMS\'e düşülecek', [
-                    'err' => $e->getMessage(), 'ayar_id' => $ayarId,
-                ]);
-            }
-        }
-
-        // WhatsApp kapalı veya hemen başarısız olduysa SMS yoluyla gider
-        if ($smsAktif) {
-            $mesajlar[] = ['to' => $to, 'message' => $message];
+        if ((int) ($ayar->{$alanAdi} ?? 0) === 1) {
+            $mesajlar[] = ['to' => $to, 'message' => $message, 'randevu_id' => $randevuId, 'user_id' => $userId];
         }
     }
 

@@ -205,15 +205,13 @@ class RandevuSMSHatirlatma extends Command
             return;
         }
 
-        $whatsappKanaliAcik = !empty($ayar->whatsapp_personel)
-            && $salon->whatsapp_aktif
+        $whatsappKanaliAcik = !empty($salon->whatsapp_aktif)
             && $salon->whatsapp_durum === 'connected';
 
         Log::info('[RND-SMS] personel kanal karar', [
             'salon_id' => $salon->id,
             'randevu_id' => $randevuId,
             'telefon' => $telefon,
-            'wa_personel_toggle' => (int) ($ayar->whatsapp_personel ?? 0),
             'wa_aktif' => (int) ($salon->whatsapp_aktif ?? 0),
             'wa_durum' => $salon->whatsapp_durum,
             'wa_kanali_acik' => $whatsappKanaliAcik,
@@ -265,14 +263,12 @@ class RandevuSMSHatirlatma extends Command
         if ($saglayici === 'cloud_api') {
             // Cloud API: token + phone_number_id + ilgili template adı varsa kanal açık
             $templateField = isset($templateCtx['key']) ? 'cloud_api_template_' . $templateCtx['key'] : null;
-            $whatsappKanaliAcik = !empty($ayar->whatsapp_musteri)
-                && !empty($salon->cloud_api_token)
+            $whatsappKanaliAcik = !empty($salon->cloud_api_token)
                 && !empty($salon->cloud_api_phone_number_id)
                 && ($templateField ? !empty($salon->{$templateField}) : false);
         } else {
-            // Baileys: aktif + connected
-            $whatsappKanaliAcik = !empty($ayar->whatsapp_musteri)
-                && $salon->whatsapp_aktif
+            // Baileys: aktif + connected (ayar kolonu kontrolu kaldirildi - salon WA acikken her zaman WA dene)
+            $whatsappKanaliAcik = !empty($salon->whatsapp_aktif)
                 && $salon->whatsapp_durum === 'connected';
         }
 
@@ -283,7 +279,7 @@ class RandevuSMSHatirlatma extends Command
             'randevu_id' => $randevu->id,
             'musteri_id' => $musteri->id,
             'telefon' => $musteri->cep_telefon,
-            'wa_musteri_toggle' => (int) ($ayar->whatsapp_musteri ?? 0),
+            'saglayici' => $saglayici,
             'wa_aktif' => (int) ($salon->whatsapp_aktif ?? 0),
             'wa_durum' => $salon->whatsapp_durum,
             'wa_kanali_acik' => $whatsappKanaliAcik,
