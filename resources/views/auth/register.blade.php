@@ -1,89 +1,139 @@
-@extends('layout.layout_register')
+@extends('layout.layout_login')
 
 @section('content')
- <section class="block">
-                <div class="container">
-                    <div class="row justify-content-center">
-                        <div class="col-md-6">
-                           <form class="form-clearfix" method="POST" action="{{ route('register') }}">
-                            {{ csrf_field() }}
+<?php
+    $salonAdi = \App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('salon_adi');
+    $logo = \App\Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('logo');
+?>
+<div class="login-wrapper">
+    <div class="login-container">
+        <!-- Left Side - Hero -->
+        <div class="login-header">
+            <video class="login-hero-bg login-hero-video"
+                   autoplay muted loop playsinline
+                   preload="metadata"
+                   poster="{{secure_asset('public/img/loginbg.jpg')}}">
+                <source src="{{secure_asset('public/videos/login-bg.m4v')}}" type="video/mp4">
+            </video>
 
-                                <div class="form-group{{ $errors->has('name') ? ' has-error' : '' }}">
-                                     
-                                    <input name="name" style="border-radius: 60px" type="text" class="form-control" id="name" placeholder="Ad Soyad..." required>
-                                     @if ($errors->has('name'))
-                                    <span class="help-block">
-                                        <strong>{{ $errors->first('name') }}</strong>
-                                    </span>
-                                @endif
-                                </div>
-                                <!--end form-group-->
-                                <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
-                                     
-                                    <input name="email" style="border-radius: 60px" type="email" class="form-control" id="email" placeholder="E-posta...">
-                                     @if ($errors->has('email'))
-                                    <span class="help-block" style="margin-left: 10px;color:#FF4E00">
-                                        @if($errors->first('email') == 'validation.unique')
-                                            Girdiğiniz e-posta adresi sistemimizde kayıtlıdır. Giriş yapmak için <a href="/login" style="color: #FF4E00">tıklayınız</a>
-                                        @else
-                                        <strong>{{ $errors->first('email') }}</strong>
-                                        @endif
-                                    </span>
-                                @endif
-                                </div>
-                                  <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
-                                     
-                                    <input maxlength="10" required pattern="[0-9]*"  type="text" class="form-control" name="cep_telefon" id="cep_telefon" placeholder="Cep Telefonu (Başında 0 olmadan 5XXXXXXXXX şeklinde...)" >
-                                     @if ($errors->has('cep_telefon')== 'validation.unique')
-                                    <span class="help-block">
-                                         @if($errors->first('cep_telefon') == 'validation.unique')
-                                            Girdiğiniz telefon sistemimizde kayıtlıdır. Giriş yapmak için <a href="/login" style="color: #FF4E00">tıklayınız</a>
-                                        @elseif($errors->first('cep_telefon') == 'validation.regex')
-                                            Lütfen geçerli bir cep telefon numarası giriniz
-                                        @else
-                                        <strong>{{ $errors->first('cep_telefon') }}</strong>
-                                        @endif
-                                    </span>
-                                @endif
-                                </div>
-                                <!--end form-group-->
-                                <div class="form-group{{ $errors->has('password') ? ' has-error' : '' }}">
-                                    
-                                    <input name="password" style="border-radius: 60px" type="password" class="form-control" id="password" placeholder="Şifre..." required>
+            <div class="login-hero-text">
+                <h1 class="login-title">{{ $salonAdi }}</h1>
+            </div>
 
-                                     @if ($errors->has('password') == 'validation.confirmed')
-                                    <span class="help-block">
-                                        @if($errors->first('password')=='validation.confirmed')
-                                        Girdiğiniz şifreler eşleşmemektedir. Lütfen yeniden deneyiniz.
-                                        @else
-                                        <strong>{{ $errors->first('password') }}</strong>
-                                        @endif
-                                    </span>
-                                     @endif
-                                </div>
-                                <!--end form-group-->
-                                <div class="form-group">
-                                    
-                                    <input name="password_confirmation" style="border-radius: 60px" type="password" class="form-control" id="password-confirm" placeholder="Şifre tekrar..." required>
-                                </div>
-                                <!--end form-group-->
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" name="kosulkabul" checked>
-                                        <a href="/kullanici-sozlesmesi">Kullanım</a> ve <a href="/gizlilik-politikasi" target="_blank">gizlilik koşullarını</a> kabul ediyorum.
-                                    </label>
-                                  
-                                </div>
-                                <div class="form-group">
-                                      <button id="kayitol" type="submit" class="btn btn-primary btn-rounded" style="width: 100%" >Kayıt Ol</button>
-                                </div>
-                            </form>
-                           
-                        </div>
-                        <!--end col-md-6-->
-                    </div>
-                    <!--end row-->
+        </div>
+
+        <!-- Right Side - Form -->
+        <div class="login-body">
+            <span class="login-deco-plus p1">+</span>
+            <span class="login-deco-plus p2">+</span>
+            <span class="login-deco-plus p3">+</span>
+
+            <img src="{{secure_asset($logo)}}" alt="{{$salonAdi}}" class="login-mini-logo">
+
+            <h2 class="login-body-title">Üye Ol</h2>
+            <p class="login-body-subtitle">Zaten üye misiniz? <a href="/login">Giriş yapın</a></p>
+
+            <form role="form" method="POST" action="{{ route('register') }}">
+                {{ csrf_field() }}
+                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+
+                @if ($errors->any())
+                <div class="login-error">
+                    <svg class="login-error-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <p class="login-error-text">
+                        @if($errors->first('email') == 'validation.unique')
+                            Girdiğiniz e-posta adresi sistemimizde kayıtlıdır. Giriş yapmak için <a href="/login">tıklayınız</a>.
+                        @elseif($errors->first('cep_telefon') == 'validation.unique')
+                            Girdiğiniz telefon sistemimizde kayıtlıdır. Giriş yapmak için <a href="/login">tıklayınız</a>.
+                        @elseif($errors->first('cep_telefon') == 'validation.regex')
+                            Lütfen geçerli bir cep telefon numarası giriniz.
+                        @elseif($errors->first('password') == 'validation.confirmed')
+                            Girdiğiniz şifreler eşleşmemektedir. Lütfen yeniden deneyiniz.
+                        @else
+                            {{ $errors->first() }}
+                        @endif
+                    </p>
                 </div>
-                <!--end container-->
-            </section>
+                @endif
+
+                <div class="login-form-group icon-user">
+                    <input
+                        name="name"
+                        type="text"
+                        class="login-form-input"
+                        id="name"
+                        placeholder="Ad Soyad"
+                        required
+                        value="{{ old('name') }}"
+                        autofocus>
+                </div>
+
+                <div class="login-form-group icon-mail">
+                    <input
+                        name="email"
+                        type="email"
+                        class="login-form-input"
+                        id="email"
+                        placeholder="E-posta"
+                        value="{{ old('email') }}">
+                </div>
+
+                <div class="login-form-group icon-phone">
+                    <input
+                        name="cep_telefon"
+                        type="text"
+                        class="login-form-input"
+                        id="cep_telefon"
+                        placeholder="Cep Telefonu (5XXXXXXXXX)"
+                        maxlength="10"
+                        pattern="[0-9]*"
+                        required
+                        value="{{ old('cep_telefon') }}">
+                </div>
+
+                <div class="login-form-group icon-lock">
+                    <input
+                        name="password"
+                        type="password"
+                        class="login-form-input"
+                        id="password"
+                        placeholder="Şifre"
+                        required>
+                </div>
+
+                <div class="login-form-group icon-lock">
+                    <input
+                        name="password_confirmation"
+                        type="password"
+                        class="login-form-input"
+                        id="password-confirm"
+                        placeholder="Şifre Tekrar"
+                        required>
+                </div>
+
+                <div class="login-options">
+                    <label class="login-remember">
+                        <input type="checkbox" name="kosulkabul" value="1" checked>
+                        <span>
+                            <a href="/kullanici-sozlesmesi" target="_blank">Kullanım</a> ve
+                            <a href="/gizlilik-politikasi" target="_blank">gizlilik koşullarını</a> kabul ediyorum.
+                        </span>
+                    </label>
+                </div>
+
+                <div class="login-btn-row">
+                    <button type="submit" id="kayitol" class="login-btn">Kayıt Ol</button>
+                </div>
+
+                <div class="login-divider">veya</div>
+
+                <a href="/login" class="login-btn-secondary">
+                    <i class="fa fa-sign-in"></i> Giriş Yap
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
