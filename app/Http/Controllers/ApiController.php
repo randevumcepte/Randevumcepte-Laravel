@@ -1562,11 +1562,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         foreach ($randevuHizmetler as $rh) {
             $randevuBaslangic = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat);
             $randevuBitis = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat_bitis);
-            
+
+            // Gece geçişli randevu: saat_bitis < saat ise bitişi ertesi güne taşımak yerine
+            // aynı güne 23:45 ile sınırla (takvim tek günlük gösterim)
+            if ($randevuBitis <= $randevuBaslangic) {
+                $randevuBitis = $randevuBaslangic->copy()->setTime(23, 45);
+            }
+
             if ($enErkenBaslangic === null || $randevuBaslangic < $enErkenBaslangic) {
                 $enErkenBaslangic = $randevuBaslangic;
             }
-            
+
             if ($enGecBitis === null || $randevuBitis > $enGecBitis) {
                 $enGecBitis = $randevuBitis;
             }
@@ -1589,7 +1595,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // 15 dakikalık dilimlere yuvarla
         $baslangic = $this->yuvarlaSaati($baslangic, 'down', 15);
         $bitis = $this->yuvarlaSaati($bitis, 'up', 15);
-        
+
+        // Invariant: bitis > baslangic olmalı (çalışma saati ters girilmiş veya
+        // bozuk veri durumunda Flutter tarafında negatif itemCount oluşmasın)
+        $baslangicDk = ((int)substr($baslangic,0,2)) * 60 + (int)substr($baslangic,3,2);
+        $bitisDk = ((int)substr($bitis,0,2)) * 60 + (int)substr($bitis,3,2);
+        if ($bitisDk <= $baslangicDk) {
+            $baslangic = '08:00';
+            $bitis = '20:00';
+        }
+
         return [
             "randevular_liste" => Randevular::with(['users','hizmetler.hizmetler','hizmetler.personeller','hizmetler.cihaz','hizmetler.oda'])->where("salon_id",$isletmeId)->where('tarih','>=',$tarih1)->where('tarih','<=',$tarih2)->get(),
             "randevular" => $randevu_hizmetler->toArray(),
@@ -1608,19 +1623,30 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
      */
     private function yuvarlaSaati($saat, $direction = 'up', $dakikaAraligi = 15)
     {
-        $carbon = Carbon::parse($saat);
-        $dakika = $carbon->minute;
-        
+        $parts = explode(':', $saat);
+        $saatKismi = isset($parts[0]) ? (int)$parts[0] : 0;
+        $dakikaKismi = isset($parts[1]) ? (int)$parts[1] : 0;
+        $toplamDakika = $saatKismi * 60 + $dakikaKismi;
+
         if ($direction === 'up') {
-            $kalan = $dakika % $dakikaAraligi;
+            $kalan = $toplamDakika % $dakikaAraligi;
             if ($kalan > 0) {
-                $carbon->addMinutes($dakikaAraligi - $kalan);
+                $toplamDakika += ($dakikaAraligi - $kalan);
+            }
+            // Gün taşmasını engelle: en fazla 23:45
+            if ($toplamDakika > 23 * 60 + 45) {
+                $toplamDakika = 23 * 60 + 45;
             }
         } else {
-            $carbon->subMinutes($dakika % $dakikaAraligi);
+            $toplamDakika -= ($toplamDakika % $dakikaAraligi);
+            if ($toplamDakika < 0) {
+                $toplamDakika = 0;
+            }
         }
-        
-        return $carbon->format('H:i');
+
+        $yeniSaat = intdiv($toplamDakika, 60);
+        $yeniDakika = $toplamDakika % 60;
+        return str_pad($yeniSaat, 2, '0', STR_PAD_LEFT) . ':' . str_pad($yeniDakika, 2, '0', STR_PAD_LEFT);
     }
     public function musteriler(Request $request, $salonid)
     {

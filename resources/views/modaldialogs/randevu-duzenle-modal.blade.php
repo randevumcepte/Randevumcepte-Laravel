@@ -110,6 +110,11 @@
 
 
 <style>
+/* Detay modal acikken duzenleme modal arkada kalmasin — yuksek z-index */
+#randevu-duzenle-modal { z-index: 10560 !important; }
+.modal-backdrop.show + #randevu-duzenle-modal,
+body.modal-open #randevu-duzenle-modal { z-index: 10560 !important; }
+
 /* Modal genisligi (1200px max - Bootstrap 4 modal-xl boyutu) */
 #randevu-duzenle-modal.modal .modal-dialog,
 .modal#randevu-duzenle-modal .modal-dialog {
@@ -312,7 +317,13 @@
         window.duzenlenecekRandevuId = randevuId;
         $('#duzenlenecek_randevu_id').val(randevuId);
         $('.hizmetler_bolumu_randevu_duzenleme').empty();
-        $('#randevu-duzenle-modal').modal('show');
+        // Randevu detay modal'i acik kalirsa duzenleme modal'i onun arkasinda gozukuyor
+        // -> Detay modali kapat ve sonra duzenleme modalini ac (backdrop kalintilari da temizle)
+        try { $('#modal-view-event').modal('hide'); } catch(err){}
+        setTimeout(function(){
+            $('.modal-backdrop').not(':last').remove();
+            $('#randevu-duzenle-modal').modal('show');
+        }, 50);
     }, true); // capture = true, bubble handler'lardan once calisir
 
     // Ham veri pencereye atandi - hizmetler/personel/cihaz/oda cache'leri ekleme modalinda
