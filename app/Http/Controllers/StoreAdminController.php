@@ -11392,7 +11392,21 @@ DB::raw('
         // kuyruga girer. Hemen basarisiz olanlar (4xx/5xx/timeout) SMS yoluyla devam eder;
         // 202 (queued) donen mesajlar listeden cikarilir, webhook fail bildirirse Laravel
         // o noktada SMS fallback'i tetikler (WhatsAppWebhookController::onMessageFailed).
-        if ($isletme && !empty($isletme->whatsapp_aktif) && ($isletme->whatsapp_durum ?? null) === 'connected' && is_array($mesajlar) && count($mesajlar) > 0) {
+        $waKanaliAcik = $isletme && !empty($isletme->whatsapp_aktif) && ($isletme->whatsapp_durum ?? null) === 'connected';
+        $mesajVarMi = is_array($mesajlar) && count($mesajlar) > 0;
+        Log::info('[Transactional WA] pre-filter durumu', [
+            'salon_id' => $isletme->id ?? null,
+            'salon_var_mi' => (bool) $isletme,
+            'wa_aktif' => $isletme ? (int) ($isletme->whatsapp_aktif ?? 0) : null,
+            'wa_durum' => $isletme->whatsapp_durum ?? null,
+            'wa_kanali_acik' => $waKanaliAcik,
+            'mesaj_sayisi' => is_array($mesajlar) ? count($mesajlar) : -1,
+            'mesaj_var_mi' => $mesajVarMi,
+            'tur' => $tur,
+            'caller' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3)[1]['function'] ?? null,
+            'caller2' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3)[2]['function'] ?? null,
+        ]);
+        if ($waKanaliAcik && $mesajVarMi) {
             try {
                 $wa = app(\App\Services\WhatsAppService::class);
                 $kalan = [];
