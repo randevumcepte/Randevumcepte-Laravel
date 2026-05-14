@@ -182,7 +182,7 @@ class KampanyaAramaYap extends Command
             ];
             
             app(\App\Http\Controllers\BildirimController::class)->bildirimGonder(
-                'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+                'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
                 $token->bildirim_id,
                 'Reklam Kampanyası Araması Başlatıldı',
                 $kampanya->paket_isim . ' için hastaların aranması başlatılmıştır.',

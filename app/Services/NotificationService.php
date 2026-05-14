@@ -44,7 +44,7 @@ class NotificationService
     /** @var array */ private $deepLinkParams = [];
     /** @var array */ private $extra = [];
     /** @var bool */ private $popup = false;
-    /** @var string|null */ private $firebaseJsonFile = 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json';
+    /** @var string|null */ private $firebaseJsonFile = 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json';
 
     /** @return static */
     public static function toCustomer(int $userId, ?int $salonId = null): self

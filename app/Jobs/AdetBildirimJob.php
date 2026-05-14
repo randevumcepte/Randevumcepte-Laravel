@@ -71,7 +71,7 @@ class AdetBildirimJob implements ShouldQueue
 
 
                     ];
-                    $controller->bildirimGonder('app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json', $bildirimKimligi, $baslik, $mesaj,$data,$adetDuzeni->salon_id,$adetDuzeni->user_id,'/public/yeni_panel/vendors/images/eczane24-icon.jpg','adet',null,null,$adetDuzeni->id,null);
+                    $controller->bildirimGonder('app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json', $bildirimKimligi, $baslik, $mesaj,$data,$adetDuzeni->salon_id,$adetDuzeni->user_id,'/public/yeni_panel/vendors/images/eczane24-icon.jpg','adet',null,null,$adetDuzeni->id,null);
                 }
             } else {
                 Log::info('⏱ Kullanıcı için fcm token bulunamadı. user_id: ' . $adetDuzeni->user_id);

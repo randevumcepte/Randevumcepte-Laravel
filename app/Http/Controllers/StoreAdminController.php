@@ -15553,7 +15553,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     'type'=>'',
             ];
             $controller->bildirimGonder(
-                    'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+                    'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
                     $token->bildirim_id,
                     "Yeni Reklam Kampanyası Oluşturma",
                     "Sisteme ".$kampanya_yonetimi->paket_isim." ile ilgili reklam kaydını başarıyla olşturdunuz.",

@@ -57,7 +57,7 @@ class IlacHatirlatmaJob implements ShouldQueue
                 ];
 
                 $controller->bildirimGonder(
-                    'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+                    'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
                     $token,
                     "💊 {$ilac->adi} İlacı",
                     "{$ilac->adi} ilacını alma zamanı! Kalan: {$ilac->kalan_adet} adet",
@@ -88,7 +88,7 @@ class IlacHatirlatmaJob implements ShouldQueue
                         'bildirimlereGit'=>"1",                    ];
  
                     app(\App\Http\Controllers\BildirimController::class)->bildirimGonder(
-                        'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+                        'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
                         $token,
                         "⚠️ İlacınız Bitmek Üzere",
                         "{$ilac->adi} ilacınızın sadece {$ilac->kalan_adet} adet kaldı! Lütfen yeni ilaç temin edin.",

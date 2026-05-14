@@ -21298,7 +21298,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
     {
         try {
             $res = self::sendFcmMessage(
-                'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+                'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
                 'e2rwRgGKQ82GJIxPQSYHJX:APA91bF0epdqLdInh4Xv1BA2mJ7naDhFmSj3ohRxvI-dsH3tZo0FkOjyVP3Ht2MKBH-bm1PuHJk2pAeetLlQX94od08FC52PZm_wG9W-fl5QhodiT2Nq3qU',
                 'Yeni Arama',
                 'Çağrı geliyor!',
