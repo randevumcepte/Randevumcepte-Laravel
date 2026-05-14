@@ -34,6 +34,17 @@ class Kernel extends ConsoleKernel
         Commands\WhatsappTestGonder::class,
     ];
 
+    public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
+    {
+        // Defansif: bir komut dosyasi canli sunucuda eksikse (pull olmamissa)
+        // tum Kernel cokuyordu ve cron komple duruyor (randevusms:hatirlat dahil).
+        // Eksik class'lari filtrele, en azindan mevcut komutlar calismaya devam etsin.
+        $this->commands = array_values(array_filter($this->commands, function ($cls) {
+            return class_exists($cls);
+        }));
+        parent::__construct($app, $events);
+    }
+
     /**
      * Define the application's command schedule.
      *
