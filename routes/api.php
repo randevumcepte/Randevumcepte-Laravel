@@ -244,6 +244,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
   Route::post('/paketgetir/{salonid}','ApiController@paketgetir');
  Route::post('/mobildegelenaramagoster','ApiController@mobildegelenaramagoster');
   Route::post('/bildirimguncelle','ApiController@bildirimguncelle');
+  Route::post('/tumBildirimleriOku/{isletme_id}/{personel_id}','ApiController@tumBildirimleriOku');
   Route::get('/denemesantral','ApiController@denemesantral');
        Route::post('/personelaktifyap','ApiController@personelaktifyap');
     Route::post('/personelpasifyap','ApiController@personelpasifyap');

@@ -6612,6 +6612,22 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     }
 
+    /**
+     * Personelin salondaki TUM okunmamis bildirimlerini tek seferde okundu isaretler.
+     */
+    public function tumBildirimleriOku(Request $request, $isletme_id, $personel_id)
+    {
+        $count = Bildirimler::where('personel_id', $personel_id)
+            ->where('salon_id', $isletme_id)
+            ->where('okundu', 0)
+            ->update(['okundu' => 1]);
+
+        return response()->json([
+            'status'   => 'success',
+            'guncellenen' => $count,
+        ]);
+    }
+
     public function notekleduzenle(Request $request, $salonid, $olusturan)
 
     {
