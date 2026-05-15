@@ -2560,10 +2560,10 @@ public function carkverilerigetir(Request $request)
     $randevu_sayisi = $randevu_hizmetler->count();
     Log::info('randevu yükleme bitti');
 
-    // Gap kampanyalari — FullCalendar background event olarak ekle
-    // (renkli arka plan saglar, layout'a etkisi YOK, MutationObserver gerekmez)
+    // Gap arka plan eventi KALDIRILDI — kart goruntusunu bozuyordu.
+    // Renk yerine sadece kart'ta rozet (className) ile isaretliyoruz.
     $salonId = self::mevcutsube($request);
-    $gapBgEvents = $this->_buildGapBackgroundEvents($salonId, $tarih1, $tarih2);
+    $gapBgEvents = [];
 
     // Randevu event'lerine indirim rozeti class'i ekle (saat gap'e uyuyorsa)
     $gapHourDisc = $this->_gapHourDiscountMap($salonId);

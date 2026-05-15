@@ -88,29 +88,12 @@
 </div>
 <div id="hata"></div>
 
-{{-- Gap kampanya indirim rozeti — sadece CSS, hiç JS yok --}}
+{{-- Gap kampanya indirim rozeti — sadece CSS --}}
 <style type="text/css">
-  /* Gap background event — kart'ın ALTINDA katmanda kalır, opacity kontrolü kendi class'ından */
-  #calendar .fc-bgevent.gap-bg-morning,
-  #calendar .fc-bgevent.gap-bg-afternoon,
-  #calendar .fc-bgevent.gap-bg-evening {
-    opacity: 1 !important;
-    z-index: 1 !important;
-  }
-  /* Normal randevu kartı — kesinlikle gap bg üstünde, tam opak */
-  #calendar .fc-time-grid-event:not(.fc-bgevent) {
-    opacity: 1 !important;
-    z-index: 5 !important;
-  }
-  /* Kart'ın iç içeriği (renk arkası) — solid kalsın, gap altta görünmesin */
-  #calendar .fc-time-grid-event:not(.fc-bgevent) .fc-bg {
-    opacity: 1 !important;
-  }
-  /* Gap randevu rozetli kart — yeşil ince border + sağ-üst rozet */
+  /* Sadece rozet ekle — bg event yok, opacity override yok, hiçbir şey kart icini ezmez */
   #calendar .fc-event.fc-event-gap-discount {
     position: relative;
     overflow: visible !important;
-    box-shadow: inset 0 0 0 1px rgba(22, 163, 74, 0.55);
   }
   #calendar .fc-event.fc-event-gap-discount::after {
     position: absolute;
