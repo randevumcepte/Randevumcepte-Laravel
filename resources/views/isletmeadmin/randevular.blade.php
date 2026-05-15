@@ -90,6 +90,13 @@
 
 {{-- Gap kampanya indirim rozeti — sadece CSS, hiç JS yok --}}
 <style type="text/css">
+  /* Background event'ler gerçek randevuların opaklığını azaltıyor — opacity'yi
+     normal event'ler için tam yap ki kartlar canli kalsin */
+  #calendar .fc-time-grid-event:not(.fc-bgevent),
+  #calendar .fc-time-grid-event.fc-not-allowed:not(.fc-bgevent) {
+    opacity: 1 !important;
+  }
+  /* Gap randevu rozetli kart — yeşil ince border + sağ-üst rozet */
   #calendar .fc-event.fc-event-gap-discount {
     position: relative;
     overflow: visible !important;
