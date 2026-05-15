@@ -143,10 +143,43 @@ class PlanlaImporter
                 // 5) PersonelCalismaSaatleri (7 gun)
                 $this->personelCalismaSaatleriYaz($p->id, isset($row['workingHours']) ? $row['workingHours'] : []);
             }
+            // 6) Personel adi ile ayni isimde oda yoksa yarat (planla yapisi: her personel ayni zamanda oda)
+            $this->ensureOdaForPersonel($p);
             if ($planlaId) $this->personelMap[$planlaId] = $p->id;
             $this->counts['personel']++;
         }
         $this->log('Personel aktarim: ' . $this->counts['personel']);
+    }
+
+    /**
+     * Salon personeli icin ayni isimde Odalar kaydi yoksa yarat. id'yi cacheli sekilde dondurur.
+     */
+    private $personelOdaMap = [];
+    private function ensureOdaForPersonel($p)
+    {
+        if (!$p || !$p->id) return null;
+        if (isset($this->personelOdaMap[$p->id])) return $this->personelOdaMap[$p->id];
+        $ad = trim((string) $p->personel_adi);
+        if ($ad === '') return null;
+        $oda = \App\Odalar::where('salon_id', $this->salonId)->where('oda_adi', $ad)->first();
+        if (!$oda) {
+            $oda = new \App\Odalar();
+            $oda->salon_id = $this->salonId;
+            $oda->oda_adi = $ad;
+            if (\Schema::hasColumn('odalar', 'personel_id'))    $oda->personel_id = $p->id;
+            if (\Schema::hasColumn('odalar', 'aktifmi'))        $oda->aktifmi = 1;
+            if (\Schema::hasColumn('odalar', 'aktif'))          $oda->aktif = 1;
+            if (\Schema::hasColumn('odalar', 'takvim_sirasi')) {
+                $sira = (int) (\DB::table('odalar')->where('salon_id', $this->salonId)->max('takvim_sirasi') ?? 0);
+                $oda->takvim_sirasi = $sira + 1;
+            }
+            $oda->save();
+        } elseif (\Schema::hasColumn('odalar', 'personel_id') && empty($oda->personel_id)) {
+            $oda->personel_id = $p->id;
+            $oda->save();
+        }
+        $this->personelOdaMap[$p->id] = $oda->id;
+        return $oda->id;
     }
 
     private function personelCalismaSaatleriYaz($personelId, $workingHours)
@@ -413,7 +446,15 @@ class PlanlaImporter
                 $rh->saat = $baslangic;
                 $rh->saat_bitis = $bitis;
                 $rh->sure_dk = $sure;
-                if ($personelId) $rh->personel_id = $personelId;
+                if ($personelId) {
+                    $rh->personel_id = $personelId;
+                    // Planla yapisi: personel = oda. Ayni isimli oda yoksa yarat ve oda_id set et.
+                    $p = Personeller::find($personelId);
+                    if ($p) {
+                        $odaId = $this->ensureOdaForPersonel($p);
+                        if ($odaId) $rh->oda_id = $odaId;
+                    }
+                }
                 $rh->save();
 
                 // Adisyon hizmet satiri

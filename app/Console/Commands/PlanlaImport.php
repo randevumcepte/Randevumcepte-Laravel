@@ -18,6 +18,7 @@ class PlanlaImport extends Command
         {--dupes : Planla musterilerinde telefon mukerrer/adsiz/telefonsuz sayilarini raporla}
         {--diagnose : Salon randevularinda portfoye bagli olmayan kullanici atamalarini listele}
         {--fix-olusturan : Gecerli personele bagli olmayan olusturan_personel_id degerlerini salonun default personeline ayarla}
+        {--backfill-personel-oda : Salon personellerine birebir oda olustur, mevcut randevu_hizmetler.oda_id NULL olanlari personel adi ile esleyen oda\'ya bagla}
         {--only= : Sadece bu tip(ler)i al (virgulle: musteri,hizmet,randevu)}';
 
     protected $description = 'Planla.co hesabindan musteri/hizmet/randevu verisini cekip randevumcepte DB sine aktarir.';
@@ -35,19 +36,20 @@ class PlanlaImport extends Command
         $dupes    = (bool) $this->option('dupes');
         $diagnose = (bool) $this->option('diagnose');
         $fixOlusturan = (bool) $this->option('fix-olusturan');
+        $backfillOda  = (bool) $this->option('backfill-personel-oda');
         $analyze  = (bool) $this->option('analyze');
         $only     = $this->option('only');
 
-        if (!$analyze && !$diagnose && !$fixOlusturan && (!$email || !$password)) {
+        if (!$analyze && !$diagnose && !$fixOlusturan && !$backfillOda && (!$email || !$password)) {
             $this->error('--email ve --password zorunlu.');
             return 1;
         }
-        if (!$probe && !$probeApi && !$dupes && !$diagnose && !$fixOlusturan && !$analyze && !$salonId) {
+        if (!$probe && !$probeApi && !$dupes && !$diagnose && !$fixOlusturan && !$backfillOda && !$analyze && !$salonId) {
             $this->error('Import icin --salon zorunlu.');
             return 1;
         }
-        if (($diagnose || $fixOlusturan) && !$salonId) {
-            $this->error('--diagnose / --fix-olusturan icin --salon zorunlu.');
+        if (($diagnose || $fixOlusturan || $backfillOda) && !$salonId) {
+            $this->error('--diagnose / --fix-olusturan / --backfill-personel-oda icin --salon zorunlu.');
             return 1;
         }
 
@@ -123,6 +125,62 @@ class PlanlaImport extends Command
                     ->update(['olusturan_personel_id' => null, 'salon' => 0]);
                 $this->info('Guncellendi: olusturan_personel_id=NULL, salon=0');
             }
+            return 0;
+        }
+
+        if ($backfillOda) {
+            $this->info("Salon {$salonId}: Personeller -> Odalar eşleme + backfill...");
+            $hasAktifmi = \Schema::hasColumn('odalar', 'aktifmi');
+            $hasAktif = \Schema::hasColumn('odalar', 'aktif');
+            $hasPersonelId = \Schema::hasColumn('odalar', 'personel_id');
+            $hasTakvimSirasi = \Schema::hasColumn('odalar', 'takvim_sirasi');
+
+            // 1) Her personel icin ayni isimde oda yoksa yarat
+            $personeller = \App\Personeller::where('salon_id', $salonId)->orderBy('id')->get();
+            $created = 0; $existed = 0;
+            $personelToOdaId = [];
+            $sira = (int) (\DB::table('odalar')->where('salon_id', $salonId)
+                ->max($hasTakvimSirasi ? 'takvim_sirasi' : 'id') ?? 0);
+            foreach ($personeller as $p) {
+                $ad = trim((string) $p->personel_adi);
+                if ($ad === '') continue;
+                $oda = \App\Odalar::where('salon_id', $salonId)->where('oda_adi', $ad)->first();
+                if (!$oda) {
+                    $oda = new \App\Odalar();
+                    $oda->salon_id = $salonId;
+                    $oda->oda_adi = $ad;
+                    if ($hasPersonelId)  $oda->personel_id = $p->id;
+                    if ($hasAktifmi)     $oda->aktifmi = 1;
+                    if ($hasAktif)       $oda->aktif = 1;
+                    if ($hasTakvimSirasi) $oda->takvim_sirasi = ++$sira;
+                    $oda->save();
+                    $created++;
+                } else {
+                    // mevcut oda var ama personel_id farkliysa eslestir (varsa)
+                    if ($hasPersonelId && empty($oda->personel_id)) {
+                        $oda->personel_id = $p->id;
+                        $oda->save();
+                    }
+                    $existed++;
+                }
+                $personelToOdaId[$p->id] = $oda->id;
+            }
+            $this->line("Personel: " . count($personeller) . " | Oda yaratildi: {$created} | Mevcut: {$existed}");
+
+            // 2) Mevcut randevu_hizmetler.oda_id NULL olanlara personel'den eslesen oda_id'yi yaz
+            // Sadece bu salonun randevulari
+            $rIds = \DB::table('randevular')->where('salon_id', $salonId)->pluck('id');
+            $this->line("Salon randevu sayisi: " . $rIds->count());
+            $updated = 0;
+            foreach ($personelToOdaId as $persId => $odaId) {
+                $n = \DB::table('randevu_hizmetler')
+                    ->whereIn('randevu_id', $rIds)
+                    ->where('personel_id', $persId)
+                    ->whereNull('oda_id')
+                    ->update(['oda_id' => $odaId]);
+                $updated += $n;
+            }
+            $this->info("randevu_hizmetler.oda_id backfill: {$updated} satir guncellendi");
             return 0;
         }
 
