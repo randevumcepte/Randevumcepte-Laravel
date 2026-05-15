@@ -81,10 +81,179 @@
          </div>
       </div>
    </div>
-   
-  
-                      
-   
+
+
+
+
 </div>
 <div id="hata"></div>
+
+{{-- Gap kampanyasi takvim renklendirmesi (Sabah/Ogleden sonra/Aksam indirim saatleri) --}}
+<style type="text/css">
+  /* FullCalendar v3 — agenda view'da saat slotlari */
+  .fc-slats tr.gap-slot td {
+    background-color: rgba(254, 243, 199, 0.35) !important;
+    position: relative;
+  }
+  .fc-slats tr.gap-slot.gap-morning td {
+    background-color: rgba(252, 211, 77, 0.18) !important;
+  }
+  .fc-slats tr.gap-slot.gap-afternoon td {
+    background-color: rgba(251, 146, 60, 0.18) !important;
+  }
+  .fc-slats tr.gap-slot.gap-evening td {
+    background-color: rgba(139, 92, 246, 0.16) !important;
+  }
+  .fc-slats tr.gap-slot td.fc-axis {
+    border-left: 4px solid #FCD34D !important;
+    font-weight: 600;
+  }
+  .fc-slats tr.gap-slot.gap-afternoon td.fc-axis {
+    border-left-color: #FB923C !important;
+  }
+  .fc-slats tr.gap-slot.gap-evening td.fc-axis {
+    border-left-color: #8B5CF6 !important;
+  }
+  /* Bilgi seridi */
+  .gap-info-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    margin: 0 0 12px 0;
+    background: #FFFBEB;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    border-radius: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .gap-info-strip .gap-strip-label {
+    font-weight: 700;
+    color: #B45309;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .gap-info-strip .gap-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: #fff;
+    border: 1px solid #FCD34D;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1a1a1a;
+    cursor: default;
+  }
+  .gap-info-strip .gap-chip.gap-morning { border-color: #FCD34D; }
+  .gap-info-strip .gap-chip.gap-afternoon { border-color: #FB923C; }
+  .gap-info-strip .gap-chip.gap-evening { border-color: #8B5CF6; }
+  .gap-info-strip .gap-chip .gap-disc {
+    background: linear-gradient(135deg, #22C55E, #16A34A);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+  }
+</style>
+
+<script>
+(function() {
+  // Aktif gap kampanyalarini getir ve takvim saat slot'larina renkli arka plan ekle
+  var salonId = '{{ $isletme->id }}';
+  var apiBase = 'https://apptest.randevumcepte.com.tr/api/v1';
+  var gapCampaigns = [];
+
+  function buildInfoStrip() {
+    if (gapCampaigns.length === 0) return;
+    if (document.querySelector('.gap-info-strip')) return; // zaten var
+
+    var strip = document.createElement('div');
+    strip.className = 'gap-info-strip';
+    var label = document.createElement('span');
+    label.className = 'gap-strip-label';
+    label.innerHTML = '<i class="fa fa-tag"></i> Aktif Kampanya:';
+    strip.appendChild(label);
+
+    gapCampaigns.forEach(function(c) {
+      var chip = document.createElement('span');
+      chip.className = 'gap-chip gap-' + c.gapKey;
+      var sh = String(c.startHour).padStart(2, '0');
+      var eh = String(c.endHour).padStart(2, '0');
+      chip.innerHTML = (c.gapLabel || '') + ' ' + sh + '-' + eh +
+        ' <span class="gap-disc">%' + c.discount + '</span>';
+      strip.appendChild(chip);
+    });
+
+    var wrap = document.querySelector('.calendar-wrap');
+    if (wrap && wrap.parentNode) {
+      wrap.parentNode.insertBefore(strip, wrap);
+    }
+  }
+
+  function applyHighlights() {
+    if (gapCampaigns.length === 0) return;
+    var rows = document.querySelectorAll('#calendar .fc-slats tr[data-time]');
+    rows.forEach(function(tr) {
+      var time = tr.getAttribute('data-time');
+      if (!time) return;
+      var hour = parseInt(time.split(':')[0], 10);
+      // Önce eski class'ları temizle (rerender'larda)
+      tr.classList.remove('gap-slot', 'gap-morning', 'gap-afternoon', 'gap-evening');
+      for (var i = 0; i < gapCampaigns.length; i++) {
+        var c = gapCampaigns[i];
+        if (hour >= c.startHour && hour < c.endHour) {
+          tr.classList.add('gap-slot');
+          tr.classList.add('gap-' + c.gapKey);
+          tr.title = (c.gapLabel || '') + ' Kampanyası — %' + c.discount + ' indirim';
+          break;
+        }
+      }
+    });
+  }
+
+  function fetchAndApply() {
+    if (!salonId) return;
+    fetch(apiBase + '/aktifGapKampanyalari/' + salonId, { credentials: 'omit' })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data || !data.kampanyalar) return;
+        gapCampaigns = data.kampanyalar;
+        buildInfoStrip();
+        applyHighlights();
+      })
+      .catch(function() { /* sessiz geç */ });
+  }
+
+  function init() {
+    fetchAndApply();
+
+    // FullCalendar view degisikliklerinde DOM yeniden render olur — class'lari koru
+    var target = document.getElementById('calendar');
+    if (target && window.MutationObserver) {
+      var observer = new MutationObserver(function() {
+        if (gapCampaigns.length > 0) {
+          // Throttle: 50ms gecikme
+          clearTimeout(window.__gapApplyTimer);
+          window.__gapApplyTimer = setTimeout(applyHighlights, 50);
+        }
+      });
+      observer.observe(target, { childList: true, subtree: true });
+    }
+
+    // Her 60 saniyede bir yeniden kampanya çek (kampanya iptal/eklenince yansisin)
+    setInterval(fetchAndApply, 60000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
 @endsection
