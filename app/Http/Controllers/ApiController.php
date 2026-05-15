@@ -1691,9 +1691,55 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $yeniDakika = $toplamDakika % 60;
         return str_pad($yeniSaat, 2, '0', STR_PAD_LEFT) . ':' . str_pad($yeniDakika, 2, '0', STR_PAD_LEFT);
     }
+    // === Personel yetki helper'lari (musteri telefon maskeleme + yetki check) ===
+
+    /**
+     * Giris yapan personel musteri telefonunu gorebilir mi?
+     * Hesap Sahibi / Yonetici / Sekreter vs hep gorebilir.
+     * "Personel" rolundeyse musteri.telefon_gor yetkisine bakilir.
+     */
+    private function _telGorebilir(Request $request, $salonId): bool
+    {
+        $u = \Auth::guard('isletmeyonetim-api')->user();
+        if (!$u || !$salonId) return true;
+        return \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+            $u->id, $salonId, 'musteri.telefon_gor'
+        );
+    }
+
+    /** Telefonu (gerekirse) maskele. */
+    private function _telGorunum($tel, bool $gorebilir): string
+    {
+        $tel = (string)$tel;
+        if ($gorebilir) return $tel;
+        return \App\PersonelYetkiSabitleri::telefonMaskele($tel);
+    }
+
+    /**
+     * Genel yetki check (kaydetme/silme/odeme gibi aksiyonlar icin).
+     * Yetkili yoksa true doner (auth katmani engellesin).
+     */
+    private function _yetkiVar(Request $request, $salonId, string $key): bool
+    {
+        $u = \Auth::guard('isletmeyonetim-api')->user();
+        if (!$u || !$salonId) return true;
+        return \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+            $u->id, $salonId, $key
+        );
+    }
+
+    /** Yetki yoksa 403 ile cevap don. Controller'in basina koyulur. */
+    private function _yetkiYoksaRed(Request $request, $salonId, string $key)
+    {
+        if (!$this->_yetkiVar($request, $salonId, $key)) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
+        return null;
+    }
+
     public function musteriler(Request $request, $salonid)
     {
-
+        $gorebilir = $this->_telGorebilir($request, $salonid);
         $search = $request->input('search', '');
         $limit = (int) $request->input('limit', 50);
         $offset = (int) $request->input('offset', 0);
@@ -1767,21 +1813,35 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
+        // Telefon maskeleme (musteri.telefon_gor yetkisi yoksa)
+        if (!$gorebilir) {
+            $users = $users->map(function ($u) {
+                $u->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($u->cep_telefon ?? '');
+                return $u;
+            });
+        }
+
         return response()->json([
             'data' => $users,
             'total' => $total,
         ]);
-      
+
     }
     public function musteriler2(Request $request)
     {
-
-        $musteri_idler = MusteriPortfoy::where("salon_id", $request->salonid)->where('aktif',1) 
-            ->pluck("user_id") 
-            ->toArray(); 
-        return User::with(['salonlar'])->whereIn('id',$musteri_idler)->where('name','like','%'.$request->search.'%')->get();
-      
-
+        $gorebilir = $this->_telGorebilir($request, $request->salonid);
+        $musteri_idler = MusteriPortfoy::where("salon_id", $request->salonid)->where('aktif',1)
+            ->pluck("user_id")
+            ->toArray();
+        $musteriler = User::with(['salonlar'])->whereIn('id',$musteri_idler)->where('name','like','%'.$request->search.'%')->get();
+        if (!$gorebilir) {
+            $musteriler->each(function ($u) {
+                $u->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($u->cep_telefon ?? '');
+                if (isset($u->gsm1)) $u->gsm1 = \App\PersonelYetkiSabitleri::telefonMaskele($u->gsm1 ?? '');
+                if (isset($u->gsm2)) $u->gsm2 = \App\PersonelYetkiSabitleri::telefonMaskele($u->gsm2 ?? '');
+            });
+        }
+        return $musteriler;
     }
     public function musteritahsilat(Request $request)
     {
@@ -1801,13 +1861,19 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     public function musteri_detayi(Request $request, $id)
-
     {
-
         $musteri = User::where("id", $id)->get();
-
+        // Personel ise musteri telefon maskelensin (yetki yoksa)
+        $salonId = $request->sube ?? $request->salon_id ?? null;
+        $gorebilir = $salonId ? $this->_telGorebilir($request, $salonId) : true;
+        if (!$gorebilir) {
+            $musteri->each(function ($u) {
+                $u->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($u->cep_telefon ?? '');
+                if (isset($u->gsm1)) $u->gsm1 = \App\PersonelYetkiSabitleri::telefonMaskele($u->gsm1 ?? '');
+                if (isset($u->gsm2)) $u->gsm2 = \App\PersonelYetkiSabitleri::telefonMaskele($u->gsm2 ?? '');
+            });
+        }
         return $musteri;
-
     }
 
     public function ajandagetir(Request $request, $isletme_id, $olusturan)
@@ -14854,6 +14920,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     {
 
+        $this->_yetkiYoksaRed($request, $request->salon_id, 'personel.ekle_duzenle');
+
         $result = "";
 
         $swaltitle = "";
@@ -16228,6 +16296,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
 
         $yetkili = Personeller::where("id", $request->personelid)->first();
+        $this->_yetkiYoksaRed($request, $yetkili->salon_id ?? null, 'personel.ekle_duzenle');
 
         $yetkili->aktif = true;
 
@@ -16242,6 +16311,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
 
         $yetkili = Personeller::where("id", $request->personelid)->first();
+        $this->_yetkiYoksaRed($request, $yetkili->salon_id ?? null, 'personel.ekle_duzenle');
 
         $yetkili->aktif = false;
 
@@ -16256,6 +16326,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
 
         $personel = Personeller::where("id", $request->personelid)->first();
+        $this->_yetkiYoksaRed($request, $personel->salon_id ?? null, 'personel.ekle_duzenle');
 
         $yetkili = IsletmeYetkilileri::where(
 
@@ -16327,6 +16398,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function personelArsivle(Request $request)
     {
         try {
+            $this->_yetkiYoksaRed($request, $request->sube, 'personel.sil');
             $personel = Personeller::where('id', $request->personelid)
                 ->where('salon_id', $request->sube)
                 ->first();
@@ -16347,6 +16419,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     // Aktif personeller arasinda sirayi delta (-1 yukari / +1 asagi) kaydir.
     public function personelSiralamaKaydir(Request $request)
     {
+        $this->_yetkiYoksaRed($request, $request->sube, 'personel.ekle_duzenle');
         $delta = (int)$request->delta;
         if ($delta !== 1 && $delta !== -1) {
             return ['sonuc' => 'error', 'mesaj' => 'delta 1 veya -1 olmali'];
@@ -16389,6 +16462,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function personelTakvimdeGorunsunToggle(Request $request)
     {
         try {
+            $this->_yetkiYoksaRed($request, $request->sube, 'personel.ekle_duzenle');
             $personel = Personeller::where('id', $request->personelid)
                 ->where('salon_id', $request->sube)
                 ->first();
@@ -16485,6 +16559,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
         try {
             $salonId = $request->sube;
+            $this->_yetkiYoksaRed($request, $salonId, 'personel.odeme_yap');
             $personel = Personeller::where('id', $request->personel_id)
                 ->where('salon_id', $salonId)->first();
             if (!$personel) {
@@ -16619,6 +16694,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
         try {
             $salonId = $request->sube;
+            $this->_yetkiYoksaRed($request, $salonId, 'personel.odeme_yap');
             $kayit = \App\PersonelMaasOdemesi::where('id', $request->id)
                 ->where('salon_id', $salonId)->first();
             if (!$kayit) {
@@ -16644,6 +16720,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
         try {
             $salonId = $request->sube;
+            $this->_yetkiYoksaRed($request, $salonId, 'personel.odeme_yap');
             $personel = Personeller::where('id', $request->personel_id)
                 ->where('salon_id', $salonId)->first();
             if (!$personel) {
@@ -16680,6 +16757,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
         try {
             $salonId = $request->sube;
+            $this->_yetkiYoksaRed($request, $salonId, 'personel.odeme_yap');
             $hareket = \App\PersonelPrimHareketi::where('id', $request->id)
                 ->where('salon_id', $salonId)->first();
             if (!$hareket) {
@@ -16733,12 +16811,78 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         ]);
     }
 
+    // Giris yapan kisinin yetkilerini doner. Mobile login sonrasi cache'ler.
+    // Cevap:
+    //   {basarili, personel_rolunde, salon_sahibi, sablon, ayarlar:{...}}
+    // - Personel rolu degilse: ayarlar tum yetki=true ile dolar (tam yetkili)
+    // - Personel rolundeyse: kayitli ayarlar (yoksa personel_sade default)
+    public function benimYetkilerimApi(Request $request)
+    {
+        $userIsletme = \Auth::guard('isletmeyonetim-api')->user();
+        $salonId = $request->sube;
+        if (!$userIsletme || !$salonId) {
+            return response()->json([
+                'basarili' => false,
+                'mesaj' => 'Oturum veya sube bilgisi eksik.',
+            ]);
+        }
+
+        // Bu yetkili'nin baglandigi personel_id
+        $personelId = Personeller::where('yetkili_id', $userIsletme->id)
+            ->where('salon_id', $salonId)
+            ->value('id');
+
+        // Personel kaydi yoksa → salon sahibi (tum yetki acik)
+        if (!$personelId) {
+            $tum = [];
+            foreach (\App\PersonelYetkiSabitleri::tumAnahtarlar() as $k) {
+                $tum[$k] = true;
+            }
+            return response()->json([
+                'basarili'         => true,
+                'personel_rolunde' => false,
+                'salon_sahibi'     => true,
+                'sablon'           => 'tam_yetki',
+                'ayarlar'          => $tum,
+            ]);
+        }
+
+        $personelRolunde = \App\Services\PersonelYetkiServisi::personelRolundeMi($personelId, $salonId);
+
+        // Personel rolunde DEGILSE → tam yetki (defansif: mevcut roller bozulmaz)
+        if (!$personelRolunde) {
+            $tum = [];
+            foreach (\App\PersonelYetkiSabitleri::tumAnahtarlar() as $k) {
+                $tum[$k] = true;
+            }
+            return response()->json([
+                'basarili'         => true,
+                'personel_rolunde' => false,
+                'salon_sahibi'     => false,
+                'sablon'           => 'tam_yetki',
+                'ayarlar'          => $tum,
+            ]);
+        }
+
+        // Personel rolunde → kayitli ayarlar (yoksa personel_sade)
+        $ayarlar = \App\Services\PersonelYetkiServisi::ayarlariGetir($personelId, $salonId);
+        return response()->json([
+            'basarili'         => true,
+            'personel_rolunde' => true,
+            'salon_sahibi'     => false,
+            'sablon'           => $ayarlar['sablon'],
+            'ayarlar'          => $ayarlar['ayarlar'],
+            'personel_id'      => $personelId,
+        ]);
+    }
+
     // Yetki ayarlarini kaydet. Body: personel_id, sube, sablon, ayarlar (json)
     public function personelYetkiKaydetApi(Request $request)
     {
         try {
             $personelId = $request->personel_id;
             $salonId = $request->sube;
+            $this->_yetkiYoksaRed($request, $salonId, 'personel.yetki_yonet');
             $sablon = (string)($request->sablon ?? 'ozel');
             $ayarlar = $request->ayarlar;
             if (is_string($ayarlar)) {
