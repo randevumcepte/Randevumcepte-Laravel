@@ -4857,6 +4857,121 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     /**
+     * Gap kampanyasi icin salonun tum aktif musterilerine SMS gonderir.
+     * VoiceTelekom multi-recipient API ile tek cagrida bulk gonderim.
+     * Body: {kampanyaId, maxAdet?}
+     * WhatsApp KULLANILMIYOR (ban riski).
+     */
+    public function saatBosluguKampanyaBildirimGonder(Request $request, $salonId)
+    {
+        $kampanyaId = $request->input('kampanyaId');
+        $maxAdet    = (int) $request->input('maxAdet', 500);
+
+        if (!$kampanyaId) {
+            return response()->json(['status' => 'error', 'message' => 'Kampanya ID eksik.'], 422);
+        }
+
+        $kampanya = SalonKampanyalar::where('id', $kampanyaId)
+            ->where('salon_id', $salonId)
+            ->where('onayli', 1)
+            ->first();
+
+        if (!$kampanya) {
+            return response()->json(['status' => 'error', 'message' => 'Aktif kampanya bulunamadı.'], 404);
+        }
+
+        if (strpos($kampanya->kampanya_detay ?? '', '[gap:') === false) {
+            return response()->json(['status' => 'error', 'message' => 'Bu kampanya için bildirim gönderilemez.'], 403);
+        }
+
+        // Aktif portfoy musterileri — kara listede olmayanlar
+        $musteriIdler = MusteriPortfoy::where('salon_id', $salonId)
+            ->where('aktif', true)
+            ->where(function ($q) {
+                $q->whereNull('kara_liste')->orWhere('kara_liste', '!=', 1);
+            })
+            ->pluck('user_id')
+            ->toArray();
+
+        if (empty($musteriIdler)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Bildirilecek müşteri bulunamadı.',
+            ]);
+        }
+
+        $musteriler = User::whereIn('id', $musteriIdler)
+            ->whereNotNull('cep_telefon')
+            ->where('cep_telefon', '!=', '')
+            ->limit($maxAdet)
+            ->get(['id', 'cep_telefon']);
+
+        $numaralar = $musteriler->pluck('cep_telefon')->filter()->unique()->values()->toArray();
+        if (empty($numaralar)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Geçerli telefon bulunamadı.',
+            ]);
+        }
+
+        // Mesaj — kampanya basliği + acıklama
+        $salon = Salonlar::where('id', $salonId)->first();
+        $salonAdi = $salon ? ($salon->isletme_adi ?? 'Salon') : 'Salon';
+        $mesajMetni = mb_substr(
+            sprintf(
+                '%s - %s %s',
+                $salonAdi,
+                $kampanya->kampanya_baslik,
+                $kampanya->kampanya_aciklama
+            ),
+            0, 459, 'UTF-8'
+        );
+
+        // VoiceTelekom multi-recipient — tek call ile bulk
+        try {
+            require_once app_path('VoiceTelekom/Sms/SmsApi.php');
+            require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
+            require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
+
+            $smsUser   = $salon && $salon->sms_user_name ? $salon->sms_user_name : 'webfirmam';
+            $smsSecret = $salon && $salon->sms_secret ? $salon->sms_secret : 'nBJeB5xb*4';
+            $smsApi    = new \SmsApi('smsvt.voicetelekom.com', $smsUser, $smsSecret);
+
+            $smsReq = new \SendMultiSms();
+            $smsReq->content       = $mesajMetni;
+            $smsReq->title         = 'Kampanya';
+            $smsReq->numbers       = $numaralar;
+            $smsReq->encoding      = 0;
+            $smsReq->sender        = $salon && $salon->sms_baslik ? $salon->sms_baslik : 'BILGI';
+            $smsReq->skipAhsQuery  = true;
+
+            $response = $smsApi->sendMultiSms($smsReq);
+
+            if (isset($response->err) && $response->err !== null) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'SMS gönderimi başarısız: ' . ($response->err->message ?? 'bilinmeyen hata'),
+                    'kod'     => $response->err->code ?? null,
+                ], 502);
+            }
+
+            return response()->json([
+                'status'           => 'success',
+                'gonderildi'       => count($numaralar),
+                'toplam_musteri'   => count($musteriIdler),
+                'kampanya_baslik'  => $kampanya->kampanya_baslik,
+                'message'          => count($numaralar) . ' müşteriye SMS gönderildi.',
+                'paket_id'         => $response->pkgID ?? null,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gönderim hatası: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Salonun tum aktif [gap:KEY] kampanyalarini liste halinde dondurur.
      * Takvim / ajanda ekranlarinda hangi saatlerde indirim var gostermek icin.
      */
