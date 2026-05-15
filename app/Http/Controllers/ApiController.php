@@ -4601,7 +4601,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $endDay = $curEnd->copy()->startOfDay();
         $guard = 0;
         while ($cursor->lte($endDay) && $guard < 400) {
-            $daysInRange[(int) $cursor->isoWeekday()] = true; // 1=Pzt..7=Pzr
+            $daysInRange[(int) $cursor->format('N')] = true; // 1=Pzt..7=Pzr (ISO-8601)
             $cursor->addDay();
             $guard++;
         }
