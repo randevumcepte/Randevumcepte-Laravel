@@ -88,43 +88,5 @@
 </div>
 <div id="hata"></div>
 
-{{-- Gap kampanya indirim rozeti — sadece CSS --}}
-<style type="text/css">
-  /* Sadece rozet ekle — bg event yok, opacity override yok, hiçbir şey kart icini ezmez */
-  #calendar .fc-event.fc-event-gap-discount {
-    position: relative;
-    overflow: visible !important;
-  }
-  #calendar .fc-event.fc-event-gap-discount::after {
-    position: absolute;
-    top: 2px;
-    right: 3px;
-    background: linear-gradient(135deg, #22C55E, #16A34A);
-    color: #fff;
-    font-size: 9px;
-    font-weight: 800;
-    line-height: 1.1;
-    padding: 1.5px 6px;
-    border-radius: 999px;
-    border: 1.2px solid #fff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.20);
-    letter-spacing: -0.2px;
-    pointer-events: none;
-    z-index: 10;
-  }
-  /* Olası indirim oranları */
-  #calendar .fc-event.fc-event-gap-disc-15::after { content: '%15'; }
-  #calendar .fc-event.fc-event-gap-disc-20::after { content: '%20'; }
-  #calendar .fc-event.fc-event-gap-disc-25::after { content: '%25'; }
-  #calendar .fc-event.fc-event-gap-disc-30::after { content: '%30'; }
-  #calendar .fc-event.fc-event-gap-disc-35::after { content: '%35'; }
-  #calendar .fc-event.fc-event-gap-disc-40::after { content: '%40'; }
-  #calendar .fc-event.fc-event-gap-disc-45::after { content: '%45'; }
-  #calendar .fc-event.fc-event-gap-disc-50::after { content: '%50'; }
-  #calendar .fc-event.fc-event-gap-disc-55::after { content: '%55'; }
-  #calendar .fc-event.fc-event-gap-disc-60::after { content: '%60'; }
-  #calendar .fc-event.fc-event-gap-disc-65::after { content: '%65'; }
-  #calendar .fc-event.fc-event-gap-disc-70::after { content: '%70'; }
-</style>
 
 @endsection
