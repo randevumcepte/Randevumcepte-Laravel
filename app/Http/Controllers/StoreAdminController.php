@@ -2618,37 +2618,8 @@ public function carkverilerigetir(Request $request)
     $randevu_sayisi = $randevu_hizmetler->count();
     Log::info('randevu yükleme bitti');
 
-    // Gap kampanyasi olan saatlere denk gelen randevulara className ekle (rozet icin)
-    $salonId = self::mevcutsube($request);
-    $gapHourDisc = [];
-    foreach ($this->_gapKampanyalariListesi($salonId) as $gk) {
-        for ($h = $gk['startHour']; $h < $gk['endHour']; $h++) {
-            $gapHourDisc[$h] = $gk['discount'];
-        }
-    }
-
-    $randevuArr = $randevu_hizmetler->toArray();
-    if (!empty($gapHourDisc)) {
-        foreach ($randevuArr as &$ev) {
-            if (!isset($ev['start'])) continue;
-            $startStr = $ev['start'];
-            if (strlen($startStr) >= 13) {
-                $hourSubstr = substr($startStr, 11, 2);
-                if (is_numeric($hourSubstr)) {
-                    $h = (int) $hourSubstr;
-                    if (isset($gapHourDisc[$h])) {
-                        $d = $gapHourDisc[$h];
-                        $existing = $ev['className'] ?? '';
-                        $ev['className'] = trim($existing . ' fc-event-gap-discount fc-event-gap-disc-' . $d);
-                    }
-                }
-            }
-        }
-        unset($ev);
-    }
-
     return array(
-        'randevu' => array_merge($randevuArr, $emptySlots),
+        'randevu' => array_merge($randevu_hizmetler->toArray(), $emptySlots),
         'resource' => $resources,
         'baslangic' => $takvim_baslangic_saat,
         'bitis' => $takvim_bitis_saat,
