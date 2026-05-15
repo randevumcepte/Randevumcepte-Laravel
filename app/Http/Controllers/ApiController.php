@@ -11504,45 +11504,25 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     }
 
-    public function bildirimgonder($bildirimkimlikleri,$baslik,$mesaj,$channelid,$appid,$bildirimApiKey,$smallIcon,$largeIcon)
+    /**
+     * Eski OneSignal cagrilarinin koprusu. Tum mevcut kullanim noktalari ayni
+     * imzayla calismaya devam eder; ic kisim FCM v1'e (NotificationService) yonlenir.
+     * Eski $channelid/$appid/$bildirimApiKey/$smallIcon/$largeIcon parametreleri
+     * geri uyum icin tutulur ama kullanilmaz.
+     */
+    public function bildirimgonder($bildirimkimlikleri, $baslik, $mesaj, $channelid = null, $appid = null, $bildirimApiKey = null, $smallIcon = null, $largeIcon = null)
     {
-       
-        $post_url_push_notification = "https://api.onesignal.com/notifications?c=push";
-
-        $headers_push_notification = array(
-                                        'Accept: application/json',
-                                        'Authorization: Key '.$bildirimApiKey,
-                                        'Content-Type: application/json',
-        );
-
-         
-        $post_data_push_notification = 
-            json_encode( 
-            
-                array( 
-                    "app_id"=> $appid,
-                 
-                    "include_player_ids" =>  $bildirimkimlikleri,
-                    "android_channel_id" => $channelid,
-                    "contents" => array("en"=>  $mesaj),
-                    "headings" =>  array("en"=> $baslik),
-                    "small_icon" => $smallIcon, // status bar ikonu
-                    "large_icon" => $largeIcon // renkli büyük logo
-                     
-                ) 
-            );
-
-        $ch_push_notification=curl_init();
-        curl_setopt($ch_push_notification,CURLOPT_URL,$post_url_push_notification);
-        curl_setopt($ch_push_notification,CURLOPT_POSTFIELDS,$post_data_push_notification);
-        curl_setopt($ch_push_notification,CURLOPT_POST,1);
-        curl_setopt($ch_push_notification,CURLOPT_TIMEOUT,5);
-        curl_setopt($ch_push_notification,CURLOPT_RETURNTRANSFER,1);
-        curl_setopt($ch_push_notification,CURLOPT_HTTPHEADER,$headers_push_notification);
-        $response_push_notifications=curl_exec($ch_push_notification);
-       
-        curl_close($ch_push_notification);
-
+        if (empty($bildirimkimlikleri)) return null;
+        try {
+            return \App\Services\NotificationService::forTokens((array)$bildirimkimlikleri)
+                ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                ->title((string)$baslik)
+                ->body((string)$mesaj)
+                ->send();
+        } catch (\Throwable $e) {
+            \Log::warning('bildirimgonder bridge fail: ' . $e->getMessage());
+            return null;
+        }
     }
 
     public function profilresimyukle(Request $request)

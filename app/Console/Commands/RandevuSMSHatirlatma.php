@@ -171,29 +171,19 @@ class RandevuSMSHatirlatma extends Command
                 $bildirimkimlikleri = array_merge($bildirimkimlikleri, self::yonetici_kimlikleri($value->salon_id));
                 Log::info('Bildirim gidecek toplam personel sayısı ' . count($bildirimkimlikleri));
 
-                self::bildirimgonder(
-                    $bildirimkimlikleri,
-                    $mesaj,
-                    'Randevu Hatırlatma',
-                    $value->salon_id,
-                    '12d6537e-7a7d-4d1d-a838-e3fc947eaf44',
-                    '5e50f84e-2cd8-4532-a765-f2cb82a22ff9',
-                    'os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi'
-                );
+                try {
+                    \App\Services\NotificationService::forTokens($bildirimkimlikleri, (int) $value->salon_id)
+                        ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
+                        ->title('Randevu Hatırlatma')
+                        ->body($mesaj)
+                        ->randevu((int) $value->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $value->id])
+                        ->send();
+                } catch (\Throwable $e) {
+                    Log::warning('[RND-SMS] push fail', ['randevu_id' => $value->id, 'err' => $e->getMessage()]);
+                }
 
                 self::bildirimekle($value->salon_id, $mesaj, '#', $hizmet->personel_id, $value->user_id, $value->users->profil_resim, $value->id, null);
-
-                if ($value->salonlar->bildirim_app_id && $value->salonlar->bildirim_channel_id && $value->salonlar->bildirim_api_key) {
-                    self::bildirimgonder(
-                        $bildirimkimlikleri,
-                        $mesaj,
-                        'Randevu Hatırlatma',
-                        $value->salon_id,
-                        $value->salonlar->bildirim_channel_id,
-                        $value->salonlar->bildirim_app_id,
-                        $value->salonlar->bildirim_api_key
-                    );
-                }
             }
         }
     }
@@ -348,31 +338,4 @@ class RandevuSMSHatirlatma extends Command
         $bildirim->save();
     }
 
-    protected function bildirimgonder($bildirimkimlikleri, $mesaj, $baslik, $salonid, $channelid, $appid, $key)
-    {
-        $post_url = 'https://api.onesignal.com/notifications?c=push';
-        $headers = [
-            'Accept: application/json',
-            'Authorization: Key ' . $key,
-            'Content-Type: application/json',
-        ];
-        $post_data = json_encode([
-            'app_id' => $appid,
-            'include_player_ids' => $bildirimkimlikleri,
-            'android_channel_id' => $channelid,
-            'contents' => ['en' => $mesaj],
-            'headings' => ['en' => $baslik],
-            'sound' => 'default',
-        ]);
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $post_url);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_exec($ch);
-        curl_close($ch);
-    }
 }

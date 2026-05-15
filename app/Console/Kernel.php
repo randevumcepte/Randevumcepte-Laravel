@@ -32,6 +32,8 @@ class Kernel extends ConsoleKernel
         Commands\AnketOtomatikGonder::class,
         Commands\WhatsappStuckKurtar::class,
         Commands\WhatsappTestGonder::class,
+        Commands\IlacHatirlatmalari::class,
+        Commands\OlcumHatirlatmalari::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
@@ -68,6 +70,10 @@ class Kernel extends ConsoleKernel
 
         // Çarkıfelek hatırlatma — her 5 dakikada bir kontrol (saatlerin ±5dk penceresi)
         $schedule->command('cark:hatirlatma-gonder')->withoutOverlapping()->everyFiveMinutes();
+
+        // İlaç ve ölçüm hatırlatmaları — kullanıcının belirlediği saatte (HH:i) tetiklenir
+        $schedule->command('ilac:hatirlatma-calistir')->withoutOverlapping()->everyMinute();
+        $schedule->command('olcum:hatirlatma-calistir')->withoutOverlapping()->everyMinute();
 
         // Memnuniyet anketi otomatik gönderim — randevu sonrası N saat
         $schedule->command('anket:otomatik-gonder')->withoutOverlapping()->everyTenMinutes();

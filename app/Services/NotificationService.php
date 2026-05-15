@@ -29,12 +29,13 @@ use Illuminate\Support\Facades\Log;
  */
 class NotificationService
 {
-    /** @var string */ private $kullaniciTipi;   // musteri | personel | yetkili
+    /** @var string */ private $kullaniciTipi;   // musteri | personel | yetkili | raw
     /** @var int|null */ private $userId = null;
     /** @var int|null */ private $personelId = null;
     /** @var int|null */ private $yetkiliId = null;
     /** @var int|null */ private $salonId = null;
     /** @var int|null */ private $randevuId = null;
+    /** @var array|null */ private $rawTokens = null;
 
     /** @var string */ private $type = NotificationTypes::SYSTEM_ANNOUNCEMENT;
     /** @var string */ private $title = '';
@@ -72,6 +73,25 @@ class NotificationService
         $i = new self();
         $i->kullaniciTipi = 'yetkili';
         $i->yetkiliId = $yetkiliId;
+        $i->salonId = $salonId;
+        return $i;
+    }
+
+    /**
+     * Eski bildirimgonder() kopruleri icin: dogrudan token listesine gonderir.
+     * Kullanici lookup yapmaz, sadece verilen bildirim_id'lere FCM atar.
+     * Pasif/bos tokenlar ve FCM'in reddettigi (OneSignal kalintilari) otomatik elenir.
+     *
+     * @return static
+     */
+    public static function forTokens(array $tokens, ?int $salonId = null): self
+    {
+        $i = new self();
+        $i->kullaniciTipi = 'raw';
+        $i->rawTokens = array_values(array_unique(array_filter(
+            $tokens,
+            function ($t) { return is_string($t) && trim($t) !== ''; }
+        )));
         $i->salonId = $salonId;
         return $i;
     }
@@ -149,6 +169,17 @@ class NotificationService
 
     private function findTokens()
     {
+        // Raw token modu: forTokens() ile gelen bildirim_id'leri DB'den bul, kullanici lookup yapma.
+        if ($this->kullaniciTipi === 'raw') {
+            if (empty($this->rawTokens)) return collect();
+            return BildirimKimlikleri::query()
+                ->whereIn('bildirim_id', $this->rawTokens)
+                ->where('aktif', true)
+                ->whereNotNull('bildirim_id')
+                ->where('bildirim_id', '!=', '')
+                ->get();
+        }
+
         $q = BildirimKimlikleri::query()->where('aktif', true);
 
         if ($this->kullaniciTipi === 'musteri') {

@@ -101,6 +101,20 @@ class RandevuHatirlatmaAramasiYap extends Command
                         'exten' => 1,
                     ];
                     $salonIdList[$value->salon_id] = true;
+
+                    // Paralel push: arama cevapsiz kalirsa musteri hatirlatmayi bildirim olarak gorsun
+                    try {
+                        $salonAdiPush = Salonlar::where('id', $value->salon_id)->value('salon_adi') ?? '';
+                        \App\Services\NotificationService::toCustomer((int) $value->user_id, (int) $value->salon_id)
+                            ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
+                            ->title('Randevu Hatırlatma')
+                            ->body($salonAdiPush . ' • ' . date('d.m.Y', strtotime($value->tarih)) . ' ' . date('H:i', strtotime($value->saat)))
+                            ->randevu((int) $value->id)
+                            ->deepLink('appointment_detail', ['randevu_id' => $value->id])
+                            ->send();
+                    } catch (\Throwable $e) {
+                        Log::warning('[RND-ARAMA] push fail', ['randevu_id' => $value->id, 'err' => $e->getMessage()]);
+                    }
                 }
 
                 if (count($aramaListesi) === 0) {

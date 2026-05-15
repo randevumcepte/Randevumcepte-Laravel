@@ -83,27 +83,14 @@ class AlacakSMSHatirlatma extends Command
                     }
                     self::bildirimekle($salon_id, $ymesaj, '#', $yetkili->id, $tahsilat->user_id, $musteri->profil_resim, null, null);
 
-                    $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id', $yetkili->id)->pluck('bildirim_id')->toArray();
-                    self::bildirimgonder(
-                        $bildirimkimlikleri,
-                        $ymesaj,
-                        'Alacak Hatırlatma',
-                        $salon_id,
-                        '12d6537e-7a7d-4d1d-a838-e3fc947eaf44',
-                        '5e50f84e-2cd8-4532-a765-f2cb82a22ff9',
-                        'os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi'
-                    );
-
-                    if ($salon->bildirim_app_id && $salon->bildirim_channel_id && $salon->bildirim_api_key) {
-                        self::bildirimgonder(
-                            $bildirimkimlikleri,
-                            $ymesaj,
-                            'Alacak Hatırlatma',
-                            $salon_id,
-                            $salon->bildirim_channel_id,
-                            $salon->bildirim_app_id,
-                            $salon->bildirim_api_key
-                        );
+                    try {
+                        \App\Services\NotificationService::toStaff((int) $yetkili->id, (int) $salon_id)
+                            ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                            ->title('Alacak Hatırlatma')
+                            ->body($ymesaj)
+                            ->send();
+                    } catch (\Throwable $e) {
+                        Log::warning('[ALACAK-SMS] push fail', ['yetkili_id' => $yetkili->id, 'err' => $e->getMessage()]);
                     }
                 }
             } elseif ($vade->vade_tarih == $bugun) {
@@ -125,16 +112,15 @@ class AlacakSMSHatirlatma extends Command
                     }
                     self::bildirimekle($salon_id, $ymesaj, '#', $yetkili->id, $tahsilat->user_id, $musteri->profil_resim, null, null);
 
-                    $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id', $yetkili->id)->pluck('bildirim_id')->toArray();
-                    self::bildirimgonder(
-                        $bildirimkimlikleri,
-                        $ymesaj,
-                        'Alacak Hatırlatma',
-                        $salon_id,
-                        '12d6537e-7a7d-4d1d-a838-e3fc947eaf44',
-                        '5e50f84e-2cd8-4532-a765-f2cb82a22ff9',
-                        'os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi'
-                    );
+                    try {
+                        \App\Services\NotificationService::toStaff((int) $yetkili->id, (int) $salon_id)
+                            ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                            ->title('Alacak Hatırlatma')
+                            ->body($ymesaj)
+                            ->send();
+                    } catch (\Throwable $e) {
+                        Log::warning('[ALACAK-SMS] push fail', ['yetkili_id' => $yetkili->id, 'err' => $e->getMessage()]);
+                    }
                 }
             }
         }
@@ -156,34 +142,4 @@ class AlacakSMSHatirlatma extends Command
         $bildirim->save();
     }
 
-    protected function bildirimgonder($bildirimkimlikleri, $mesaj, $baslik, $salonid, $channelid, $appid, $key)
-    {
-        if (empty($bildirimkimlikleri)) {
-            return;
-        }
-        $post_url = 'https://api.onesignal.com/notifications?c=push';
-        $headers = [
-            'Accept: application/json',
-            'Authorization: Key ' . $key,
-            'Content-Type: application/json',
-        ];
-        $post_data = json_encode([
-            'app_id' => $appid,
-            'include_player_ids' => $bildirimkimlikleri,
-            'android_channel_id' => $channelid,
-            'contents' => ['en' => $mesaj],
-            'headings' => ['en' => $baslik],
-            'sound' => 'default',
-        ]);
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $post_url);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_exec($ch);
-        curl_close($ch);
-    }
 }

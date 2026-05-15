@@ -38,12 +38,29 @@ class DogumGunuSMSHatirlatma extends Command
                 continue;
             }
 
+            $kutlamaMesaji = 'Sayın ' . $dogumGunu->users->name . ' ' . $dogumGunu->salonlar->salon_adi . ' olarak doğum gününüzü kutlar, sağlıklı, mutlu ve başarılı dolu seneler dileriz.';
+
             $mesaj = [[
                 'to' => $dogumGunu->users->cep_telefon,
-                'message' => 'Sayın ' . $dogumGunu->users->name . ' ' . $dogumGunu->salonlar->salon_adi . ' olarak doğum gününüzü kutlar, sağlıklı, mutlu ve başarılı dolu seneler dileriz.',
+                'message' => $kutlamaMesaji,
             ]];
             Log::info('doğum günü SMS salon_id ' . $dogumGunu->salon_id);
             $controller->sms_gonder($dogumGunu->salon_id, $mesaj);
+
+            try {
+                \App\Services\NotificationService::toCustomer((int) $dogumGunu->user_id, (int) $dogumGunu->salon_id)
+                    ->type(\App\Services\NotificationTypes::BIRTHDAY)
+                    ->title('🎂 Doğum gününüz kutlu olsun!')
+                    ->body($kutlamaMesaji)
+                    ->popup(true)
+                    ->send();
+            } catch (\Throwable $e) {
+                Log::warning('[DOGUM-GUNU] push fail', [
+                    'user_id' => $dogumGunu->user_id,
+                    'salon_id' => $dogumGunu->salon_id,
+                    'err' => $e->getMessage(),
+                ]);
+            }
         }
     }
 }
