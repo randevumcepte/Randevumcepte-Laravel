@@ -90,14 +90,20 @@
 
 {{-- Gap kampanya indirim rozeti — sadece CSS, hiç JS yok --}}
 <style type="text/css">
-  /* FullCalendar default: .fc-bgevent { opacity: 0.3 } — bizim rgba degerimizle
-     carpilip cok soluk goruyor. Override: bgevent kendi rgba'sini olduğu gibi göstersin */
-  #calendar .fc-bgevent {
+  /* Gap background event — kart'ın ALTINDA katmanda kalır, opacity kontrolü kendi class'ından */
+  #calendar .fc-bgevent.gap-bg-morning,
+  #calendar .fc-bgevent.gap-bg-afternoon,
+  #calendar .fc-bgevent.gap-bg-evening {
     opacity: 1 !important;
+    z-index: 1 !important;
   }
-  /* Normal randevu kartları her zaman tam opak — bg event yutmasın */
-  #calendar .fc-event:not(.fc-bgevent),
+  /* Normal randevu kartı — kesinlikle gap bg üstünde, tam opak */
   #calendar .fc-time-grid-event:not(.fc-bgevent) {
+    opacity: 1 !important;
+    z-index: 5 !important;
+  }
+  /* Kart'ın iç içeriği (renk arkası) — solid kalsın, gap altta görünmesin */
+  #calendar .fc-time-grid-event:not(.fc-bgevent) .fc-bg {
     opacity: 1 !important;
   }
   /* Gap randevu rozetli kart — yeşil ince border + sağ-üst rozet */

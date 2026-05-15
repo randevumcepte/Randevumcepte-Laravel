@@ -2714,6 +2714,7 @@ private function _buildGapBackgroundEvents($salonId, $tarih1, $tarih2)
                 'end'             => $eventEnd->format('Y-m-d H:i:s'),
                 'rendering'       => 'background',
                 'backgroundColor' => $gapMeta[$gk]['bg'],
+                'className'       => 'gap-bg-' . $gk, // CSS hedeflemek icin
                 'allDay'          => false,
                 'editable'        => false,
                 'overlap'         => true,
