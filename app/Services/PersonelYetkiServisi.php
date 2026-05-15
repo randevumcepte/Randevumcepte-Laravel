@@ -35,23 +35,38 @@ class PersonelYetkiServisi
     public static function tabloyuHazirla(): void
     {
         if (self::$_tabloHazir) return;
+        // Raw SQL kullaniyoruz cunku JSON column tipi eski MySQL'de problem yapabilir;
+        // TEXT + Eloquent cast 'array' ile ayni isi gorur.
         try {
-            if (!Schema::hasTable('personel_yetki_ayarlari')) {
-                Schema::create('personel_yetki_ayarlari', function (Blueprint $t) {
-                    $t->id();
-                    $t->unsignedBigInteger('personel_id');
-                    $t->unsignedBigInteger('salon_id');
-                    $t->string('sablon', 32)->default('personel_sade');
-                    $t->json('ayarlar')->nullable();
-                    $t->timestamps();
-                    $t->unique(['personel_id', 'salon_id'], 'pya_unique_per_sub');
-                    $t->index('salon_id');
-                });
-                \Log::info('PersonelYetkiServisi: personel_yetki_ayarlari tablosu runtime\'da olusturuldu.');
+            $exists = false;
+            try {
+                $exists = Schema::hasTable('personel_yetki_ayarlari');
+            } catch (\Exception $e) {
+                // Schema::hasTable bazi sunuculurda hata atabilir; raw kontrol yapalim
+                $rows = DB::select("SHOW TABLES LIKE 'personel_yetki_ayarlari'");
+                $exists = !empty($rows);
+            }
+            if (!$exists) {
+                DB::statement("
+                    CREATE TABLE IF NOT EXISTS personel_yetki_ayarlari (
+                        id BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+                        personel_id BIGINT UNSIGNED NOT NULL,
+                        salon_id BIGINT UNSIGNED NOT NULL,
+                        sablon VARCHAR(32) NOT NULL DEFAULT 'personel_sade',
+                        ayarlar LONGTEXT NULL,
+                        created_at TIMESTAMP NULL DEFAULT NULL,
+                        updated_at TIMESTAMP NULL DEFAULT NULL,
+                        UNIQUE KEY pya_unique_per_sub (personel_id, salon_id),
+                        KEY pya_salon_idx (salon_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                \Log::info('PersonelYetkiServisi: personel_yetki_ayarlari tablosu runtime olusturuldu.');
             }
             self::$_tabloHazir = true;
         } catch (\Exception $e) {
-            \Log::warning('PersonelYetkiServisi tabloyuHazirla: ' . $e->getMessage());
+            \Log::warning('PersonelYetkiServisi tabloyuHazirla HATA: ' . $e->getMessage());
+            // Exception'i bastirma — yukari fırlat ki controller catch'inde mesaj gozuksun
+            throw $e;
         }
     }
 
