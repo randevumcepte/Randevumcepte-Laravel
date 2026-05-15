@@ -4656,98 +4656,102 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         }
 
         // 5) Bosluk fırsatları — sabah/ogleden sonra/aksam bloklari
-        // Periyot 'gunluk' ise tek gun verisi anlamsiz, gaps bos doner
+        // Aktif (bitis_tarihi >= now, onayli=1) [gap:KEY] etiketli kampanyalari tek seferde cek
         $gaps = [];
-        if ($period !== 'gunluk') {
-            // Aktif (bitis_tarihi >= now, onayli=1) [gap:KEY] etiketli kampanyalari tek seferde cek
-            $now = Carbon::now()->toDateTimeString();
-            $aktifKampanyalar = SalonKampanyalar::where('salon_id', $salonId)
-                ->where('onayli', 1)
-                ->where('kampanya_bitis_tarihi', '>=', $now)
-                ->where('kampanya_detay', 'like', '%[gap:%')
-                ->orderByDesc('id')
-                ->get(['id', 'kampanya_baslik', 'kampanya_aciklama', 'kampanya_detay', 'kampanya_bitis_tarihi']);
+        $now = Carbon::now()->toDateTimeString();
+        $aktifKampanyalar = SalonKampanyalar::where('salon_id', $salonId)
+            ->where('onayli', 1)
+            ->where('kampanya_bitis_tarihi', '>=', $now)
+            ->where('kampanya_detay', 'like', '%[gap:%')
+            ->orderByDesc('id')
+            ->get(['id', 'kampanya_baslik', 'kampanya_aciklama', 'kampanya_detay', 'kampanya_bitis_tarihi']);
 
-            $kampanyaPerGap = []; // gap_key => kampanya
-            foreach ($aktifKampanyalar as $k) {
-                if (preg_match('/\[gap:([a-z]+)\]/', $k->kampanya_detay ?? '', $m)) {
-                    $gk = $m[1];
-                    if (!isset($kampanyaPerGap[$gk])) {
-                        $kampanyaPerGap[$gk] = $k;
-                    }
+        $kampanyaPerGap = []; // gap_key => kampanya
+        foreach ($aktifKampanyalar as $k) {
+            if (preg_match('/\[gap:([a-z]+)\]/', $k->kampanya_detay ?? '', $m)) {
+                $gk = $m[1];
+                if (!isset($kampanyaPerGap[$gk])) {
+                    $kampanyaPerGap[$gk] = $k;
                 }
             }
+        }
 
-            $blocks = [
-                ['key' => 'morning',   'label' => 'Sabah',         'from' => $workStart, 'to' => 12],
-                ['key' => 'afternoon', 'label' => 'Öğleden sonra', 'from' => 12,         'to' => 17],
-                ['key' => 'evening',   'label' => 'Akşam',          'from' => 17,         'to' => $workEnd],
-            ];
-            foreach ($blocks as $blk) {
-                $from = max($blk['from'], $workStart);
-                $to   = min($blk['to'],   $workEnd);
-                if ($to - $from < 2) { continue; } // en az 2 saatlik blok
+        $blocks = [
+            ['key' => 'morning',   'label' => 'Sabah',         'from' => $workStart, 'to' => 12],
+            ['key' => 'afternoon', 'label' => 'Öğleden sonra', 'from' => 12,         'to' => 17],
+            ['key' => 'evening',   'label' => 'Akşam',          'from' => 17,         'to' => $workEnd],
+        ];
 
-                $sum = 0; $n = 0;
-                for ($h = $from; $h < $to; $h++) {
-                    if (isset($countsInRange[$h])) {
-                        $sum += $countsInRange[$h] / $maxInRange;
-                        $n++;
-                    }
+        // Tum bloklari hesaplayip dolu/bos ayrimi yapmadan donelim;
+        // kullanici da hangi blogun ne durumda oldugunu gorsun (her zaman 3 kart).
+        foreach ($blocks as $blk) {
+            $from = max($blk['from'], $workStart);
+            $to   = min($blk['to'],   $workEnd);
+            if ($to - $from < 1) { continue; } // calisma saati disi blok
+
+            $sum = 0; $n = 0;
+            for ($h = $from; $h < $to; $h++) {
+                if (isset($countsInRange[$h])) {
+                    $sum += $countsInRange[$h] / $maxInRange;
+                    $n++;
                 }
-                if ($n === 0) { continue; }
-                $avg = $sum / $n;
+            }
+            $avg = $n > 0 ? $sum / $n : 0;
 
-                $aktif = isset($kampanyaPerGap[$blk['key']]) ? $kampanyaPerGap[$blk['key']] : null;
+            $aktif = isset($kampanyaPerGap[$blk['key']]) ? $kampanyaPerGap[$blk['key']] : null;
 
-                // Aktif kampanyasi olmayan VE doluluk %50+ ise oneri yok
-                if (!$aktif && $avg >= 0.50) { continue; }
+            if ($avg < 0.15)      { $disc = 40; $sev = 'Çok boş'; }
+            elseif ($avg < 0.30)  { $disc = 25; $sev = 'Boş'; }
+            elseif ($avg < 0.50)  { $disc = 15; $sev = 'Hafif boş'; }
+            elseif ($avg < 0.75)  { $disc = 0;  $sev = 'Normal'; }
+            else                  { $disc = 0;  $sev = 'Yoğun'; }
 
-                if ($avg < 0.15)      { $disc = 40; $sev = 'Çok boş'; }
-                elseif ($avg < 0.30)  { $disc = 25; $sev = 'Boş'; }
-                elseif ($avg < 0.50)  { $disc = 15; $sev = 'Hafif boş'; }
-                else                  { $disc = 0;  $sev = 'Normal'; }
-
-                $activeCampaign = null;
-                if ($aktif) {
-                    $bitis = Carbon::parse($aktif->kampanya_bitis_tarihi);
-                    $kalan = max(0, (int) Carbon::now()->diffInDays($bitis, false));
-                    // Aciklamadaki "%%XX indirim" oranini cikar
-                    $aktifDisc = 0;
-                    if (preg_match('/%%?(\d{1,2})\s*indirim/iu', $aktif->kampanya_aciklama ?? '', $dm)) {
-                        $aktifDisc = (int) $dm[1];
-                    } elseif (preg_match('/%%?(\d{1,2})/u', $aktif->kampanya_baslik ?? '', $dm)) {
-                        $aktifDisc = (int) $dm[1];
-                    }
-                    $activeCampaign = [
-                        'id'           => $aktif->id,
-                        'baslik'       => $aktif->kampanya_baslik,
-                        'bitisTarihi'  => $aktif->kampanya_bitis_tarihi,
-                        'kalanGun'     => $kalan,
-                        'discount'     => $aktifDisc,
-                    ];
+            $activeCampaign = null;
+            if ($aktif) {
+                $bitis = Carbon::parse($aktif->kampanya_bitis_tarihi);
+                $kalan = max(0, (int) Carbon::now()->diffInDays($bitis, false));
+                $aktifDisc = 0;
+                if (preg_match('/%%?(\d{1,2})\s*indirim/iu', $aktif->kampanya_aciklama ?? '', $dm)) {
+                    $aktifDisc = (int) $dm[1];
+                } elseif (preg_match('/%%?(\d{1,2})/u', $aktif->kampanya_baslik ?? '', $dm)) {
+                    $aktifDisc = (int) $dm[1];
                 }
-
-                $gaps[] = [
-                    'key'               => $blk['key'],
-                    'label'             => $blk['label'],
-                    'start'             => $from,
-                    'end'               => $to,
-                    'avgDensity'        => round($avg, 2),
-                    'severity'          => $sev,
-                    'suggestedDiscount' => $disc,
-                    'activeCampaign'    => $activeCampaign,
-                    'message'           => $activeCampaign
-                        ? sprintf(
-                            '%s saatleri için %%%d indirimli kampanyanız aktif, %d gün kaldı.',
-                            $blk['label'], $activeCampaign['discount'], $activeCampaign['kalanGun']
-                        )
-                        : sprintf(
-                            '%s saatleri (%02d:00-%02d:00) ortalama %%%d dolulukta. %%%d indirim kampanyasıyla doldurabilirsiniz.',
-                            $blk['label'], $from, $to, (int) round($avg * 100), $disc
-                        ),
+                $activeCampaign = [
+                    'id'           => $aktif->id,
+                    'baslik'       => $aktif->kampanya_baslik,
+                    'bitisTarihi'  => $aktif->kampanya_bitis_tarihi,
+                    'kalanGun'     => $kalan,
+                    'discount'     => $aktifDisc,
                 ];
             }
+
+            $msg = $activeCampaign
+                ? sprintf(
+                    '%s saatleri için %%%d indirimli kampanyanız aktif, %d gün kaldı.',
+                    $blk['label'], $activeCampaign['discount'], $activeCampaign['kalanGun']
+                )
+                : ($disc > 0
+                    ? sprintf(
+                        '%s saatleri (%02d:00-%02d:00) ortalama %%%d dolulukta. %%%d indirim kampanyasıyla doldurabilirsiniz.',
+                        $blk['label'], $from, $to, (int) round($avg * 100), $disc
+                    )
+                    : sprintf(
+                        '%s saatleri (%02d:00-%02d:00) ortalama %%%d dolulukta. Kampanya önerisine ihtiyaç yok.',
+                        $blk['label'], $from, $to, (int) round($avg * 100)
+                    )
+                );
+
+            $gaps[] = [
+                'key'               => $blk['key'],
+                'label'             => $blk['label'],
+                'start'             => $from,
+                'end'               => $to,
+                'avgDensity'        => round($avg, 2),
+                'severity'          => $sev,
+                'suggestedDiscount' => $disc,
+                'activeCampaign'    => $activeCampaign,
+                'message'           => $msg,
+            ];
         }
 
         // 6) Pik saat
