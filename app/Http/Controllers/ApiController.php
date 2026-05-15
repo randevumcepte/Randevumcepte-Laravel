@@ -4857,6 +4857,67 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     /**
+     * Bir saat icin aktif gap kampanyasi var mi kontrol eder.
+     * Tahsilat ekraninda "bu randevu indirim aralginda mi?" sorusu icin.
+     * Query: ?saat=HH:MM (opsiyonel, yoksa "now" kullanir)
+     */
+    public function randevuKampanyaKontrol(Request $request, $salonId)
+    {
+        $saatParam = $request->query('saat', $request->input('saat'));
+        if ($saatParam) {
+            $hour = (int) substr($saatParam, 0, 2);
+        } else {
+            $hour = (int) Carbon::now()->format('H');
+        }
+
+        // Saat -> gap key
+        if ($hour < 12)      { $gapKey = 'morning';   $gapLabel = 'Sabah'; }
+        elseif ($hour < 17)  { $gapKey = 'afternoon'; $gapLabel = 'Öğleden sonra'; }
+        else                 { $gapKey = 'evening';   $gapLabel = 'Akşam'; }
+
+        $now = Carbon::now()->toDateTimeString();
+        $kampanya = SalonKampanyalar::where('salon_id', $salonId)
+            ->where('onayli', 1)
+            ->where('kampanya_bitis_tarihi', '>=', $now)
+            ->where('kampanya_detay', 'like', '%[gap:' . $gapKey . ']%')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$kampanya) {
+            return response()->json([
+                'hasCampaign' => false,
+                'gapKey'      => $gapKey,
+                'gapLabel'    => $gapLabel,
+                'hour'        => $hour,
+            ]);
+        }
+
+        // Indirim oranini cikar
+        $disc = 0;
+        if (preg_match('/%%?(\d{1,2})\s*indirim/iu', $kampanya->kampanya_aciklama ?? '', $m)) {
+            $disc = (int) $m[1];
+        } elseif (preg_match('/%%?(\d{1,2})/u', $kampanya->kampanya_baslik ?? '', $m)) {
+            $disc = (int) $m[1];
+        }
+
+        $bitis = Carbon::parse($kampanya->kampanya_bitis_tarihi);
+        $kalanGun = max(0, (int) Carbon::now()->diffInDays($bitis, false));
+
+        return response()->json([
+            'hasCampaign' => true,
+            'kampanyaId'  => $kampanya->id,
+            'gapKey'      => $gapKey,
+            'gapLabel'    => $gapLabel,
+            'hour'        => $hour,
+            'discount'    => $disc,
+            'baslik'      => $kampanya->kampanya_baslik,
+            'aciklama'    => $kampanya->kampanya_aciklama,
+            'bitisTarihi' => $kampanya->kampanya_bitis_tarihi,
+            'kalanGun'    => $kalanGun,
+        ]);
+    }
+
+    /**
      * Dashboard saat bosluk kampanyasini iptal eder.
      * Onayli=0 ve bitis_tarihi=now yaparak soft-deactivate; kayit
      * kampanyalar tablosunda kalir (gecmis icin), ama analizde gozukmez.
