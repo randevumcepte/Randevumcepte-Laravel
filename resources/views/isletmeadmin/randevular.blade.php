@@ -159,6 +159,25 @@
     font-weight: 800;
     letter-spacing: -0.2px;
   }
+  /* Randevu kartlarinin sag-ust kosesinde indirim rozeti */
+  #calendar .fc-event { position: relative; overflow: visible !important; }
+  #calendar .gap-event-badge {
+    position: absolute;
+    top: -5px;
+    right: -4px;
+    background: linear-gradient(135deg, #22C55E, #16A34A);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1.5px 6px;
+    border-radius: 999px;
+    border: 1.5px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.22);
+    z-index: 10;
+    letter-spacing: -0.2px;
+    line-height: 1.1;
+    pointer-events: none;
+  }
 </style>
 
 <script>
@@ -216,6 +235,39 @@
     });
   }
 
+  function applyEventBadges() {
+    if (gapCampaigns.length === 0) return;
+    var events = document.querySelectorAll('#calendar .fc-event');
+    events.forEach(function(el) {
+      // Boş slot ve disabled event'lere rozet ekleme
+      if (el.classList.contains('disabled-event')) return;
+
+      // Eski rozet varsa kaldır
+      var oldBadge = el.querySelector('.gap-event-badge');
+      if (oldBadge) oldBadge.parentNode.removeChild(oldBadge);
+
+      // Saat — .fc-time text içeriğinden parse et ("09:00 - 10:00" veya "09:00")
+      var timeEl = el.querySelector('.fc-time');
+      if (!timeEl) return;
+      var timeText = timeEl.textContent || timeEl.getAttribute('data-start') || '';
+      var match = timeText.match(/(\d{1,2}):/);
+      if (!match) return;
+      var hour = parseInt(match[1], 10);
+
+      for (var i = 0; i < gapCampaigns.length; i++) {
+        var c = gapCampaigns[i];
+        if (hour >= c.startHour && hour < c.endHour && c.discount > 0) {
+          var badge = document.createElement('span');
+          badge.className = 'gap-event-badge';
+          badge.textContent = '%' + c.discount;
+          badge.title = (c.gapLabel || '') + ' Kampanyası — %' + c.discount + ' indirim';
+          el.appendChild(badge);
+          break;
+        }
+      }
+    });
+  }
+
   function fetchAndApply() {
     if (!salonId) return;
     fetch(apiBase + '/aktifGapKampanyalari/' + salonId, { credentials: 'omit' })
@@ -225,6 +277,7 @@
         gapCampaigns = data.kampanyalar;
         buildInfoStrip();
         applyHighlights();
+        applyEventBadges();
       })
       .catch(function() { /* sessiz geç */ });
   }
@@ -239,7 +292,10 @@
         if (gapCampaigns.length > 0) {
           // Throttle: 50ms gecikme
           clearTimeout(window.__gapApplyTimer);
-          window.__gapApplyTimer = setTimeout(applyHighlights, 50);
+          window.__gapApplyTimer = setTimeout(function() {
+            applyHighlights();
+            applyEventBadges();
+          }, 50);
         }
       });
       observer.observe(target, { childList: true, subtree: true });
