@@ -7,6 +7,8 @@ use App\PersonelYetkiSabitleri;
 use App\Personeller;
 use App\IsletmeYetkilileri;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 
 /**
  * Personel yetki kontrol merkezi.
@@ -25,6 +27,35 @@ use Illuminate\Support\Facades\DB;
 class PersonelYetkiServisi
 {
     /**
+     * Tablo varligi kontrolu. Migration sunucuda calismadiysa runtime'da yarat.
+     * Bu defansif onlem; normal akista migration yeterli olur. Ilk yetki
+     * kayit/oku denemesinde tetiklenir.
+     */
+    private static $_tabloHazir = false;
+    public static function tabloyuHazirla(): void
+    {
+        if (self::$_tabloHazir) return;
+        try {
+            if (!Schema::hasTable('personel_yetki_ayarlari')) {
+                Schema::create('personel_yetki_ayarlari', function (Blueprint $t) {
+                    $t->id();
+                    $t->unsignedBigInteger('personel_id');
+                    $t->unsignedBigInteger('salon_id');
+                    $t->string('sablon', 32)->default('personel_sade');
+                    $t->json('ayarlar')->nullable();
+                    $t->timestamps();
+                    $t->unique(['personel_id', 'salon_id'], 'pya_unique_per_sub');
+                    $t->index('salon_id');
+                });
+                \Log::info('PersonelYetkiServisi: personel_yetki_ayarlari tablosu runtime\'da olusturuldu.');
+            }
+            self::$_tabloHazir = true;
+        } catch (\Exception $e) {
+            \Log::warning('PersonelYetkiServisi tabloyuHazirla: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Yetki kontrolu.
      *
      * @param int|string $personelId  salon_personelleri.id
@@ -33,6 +64,7 @@ class PersonelYetkiServisi
      */
     public static function yetkiVar($personelId, $salonId, string $key): bool
     {
+        self::tabloyuHazirla();
         if (!$personelId || !$salonId) return true; // bilinmiyorsa engelleme
 
         // 1. Personel rolu degilse → tam yetki
@@ -102,6 +134,7 @@ class PersonelYetkiServisi
      */
     public static function ayarlariGetir($personelId, $salonId): array
     {
+        self::tabloyuHazirla();
         $ayar = PersonelYetkiAyari::where('personel_id', $personelId)
             ->where('salon_id', $salonId)
             ->first();
@@ -128,6 +161,7 @@ class PersonelYetkiServisi
      */
     public static function ayarlariKaydet($personelId, $salonId, string $sablon, array $ayarlar): PersonelYetkiAyari
     {
+        self::tabloyuHazirla();
         // Bilinmeyen sablon → ozel olarak isaretle
         $bilinen = array_keys(PersonelYetkiSabitleri::sablonlar());
         if (!in_array($sablon, $bilinen) && $sablon !== 'ozel') {
