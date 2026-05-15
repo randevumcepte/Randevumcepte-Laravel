@@ -45,6 +45,7 @@ Route::get('/dashboardKarsilastirma/{salonId}','ApiController@dashboardKarsilast
 Route::post('/saatBosluguKampanyaOlustur/{salonId}','ApiController@saatBosluguKampanyaOlustur');
 Route::post('/saatBosluguKampanyaIptal/{salonId}','ApiController@saatBosluguKampanyaIptal');
 Route::get('/randevuKampanyaKontrol/{salonId}','ApiController@randevuKampanyaKontrol');
+Route::get('/aktifGapKampanyalari/{salonId}','ApiController@aktifGapKampanyalari');
 
 // Anket / Reputation Booster — ozet ve gonderim listesi (mobile uygulama icin)
 // trigger4 (route cache temizleme tetikleyici)

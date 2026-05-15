@@ -4857,6 +4857,75 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     /**
+     * Salonun tum aktif [gap:KEY] kampanyalarini liste halinde dondurur.
+     * Takvim / ajanda ekranlarinda hangi saatlerde indirim var gostermek icin.
+     */
+    public function aktifGapKampanyalari(Request $request, $salonId)
+    {
+        $now = Carbon::now()->toDateTimeString();
+        $kampanyalar = SalonKampanyalar::where('salon_id', $salonId)
+            ->where('onayli', 1)
+            ->where('kampanya_bitis_tarihi', '>=', $now)
+            ->where('kampanya_detay', 'like', '%[gap:%')
+            ->orderBy('id')
+            ->get(['id', 'kampanya_baslik', 'kampanya_aciklama', 'kampanya_detay', 'kampanya_bitis_tarihi']);
+
+        $gapMeta = [
+            'morning'   => ['label' => 'Sabah',         'start' => 9,  'end' => 12, 'order' => 1],
+            'afternoon' => ['label' => 'Öğleden sonra', 'start' => 12, 'end' => 17, 'order' => 2],
+            'evening'   => ['label' => 'Akşam',          'start' => 17, 'end' => 20, 'order' => 3],
+        ];
+
+        $out = [];
+        foreach ($kampanyalar as $k) {
+            if (!preg_match('/\[gap:([a-z]+)\]/', $k->kampanya_detay ?? '', $m)) {
+                continue;
+            }
+            $gk = $m[1];
+            if (!isset($gapMeta[$gk])) { continue; }
+
+            $disc = 0;
+            if (preg_match('/%%?(\d{1,2})\s*indirim/iu', $k->kampanya_aciklama ?? '', $dm)) {
+                $disc = (int) $dm[1];
+            } elseif (preg_match('/%%?(\d{1,2})/u', $k->kampanya_baslik ?? '', $dm)) {
+                $disc = (int) $dm[1];
+            }
+
+            // Aciklamadan saat araligini cek: "(09:00-12:00)" formati
+            $startHour = $gapMeta[$gk]['start'];
+            $endHour   = $gapMeta[$gk]['end'];
+            if (preg_match('/\((\d{2}):\d{2}-(\d{2}):\d{2}\)/', $k->kampanya_aciklama ?? '', $hm)) {
+                $startHour = (int) $hm[1];
+                $endHour   = (int) $hm[2];
+            }
+
+            $bitis = Carbon::parse($k->kampanya_bitis_tarihi);
+            $kalanGun = max(0, (int) Carbon::now()->diffInDays($bitis, false));
+
+            $out[] = [
+                'id'           => $k->id,
+                'gapKey'       => $gk,
+                'gapLabel'     => $gapMeta[$gk]['label'],
+                'startHour'    => $startHour,
+                'endHour'      => $endHour,
+                'discount'     => $disc,
+                'baslik'       => $k->kampanya_baslik,
+                'bitisTarihi'  => $k->kampanya_bitis_tarihi,
+                'kalanGun'     => $kalanGun,
+                'order'        => $gapMeta[$gk]['order'],
+            ];
+        }
+
+        // Sabah / Ogleden sonra / Aksam sirasi
+        usort($out, function ($a, $b) { return $a['order'] <=> $b['order']; });
+
+        return response()->json([
+            'count'      => count($out),
+            'kampanyalar' => $out,
+        ]);
+    }
+
+    /**
      * Bir saat icin aktif gap kampanyasi var mi kontrol eder.
      * Tahsilat ekraninda "bu randevu indirim aralginda mi?" sorusu icin.
      * Query: ?saat=HH:MM (opsiyonel, yoksa "now" kullanir)
