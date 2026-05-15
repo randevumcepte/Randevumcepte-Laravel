@@ -1244,8 +1244,66 @@ public function carkverilerigetir(Request $request)
             $randevular = self::randevuyukle($request,Salonlar::where('id',self::mevcutsube($request))->value('randevu_takvim_turu'),date('Y-m-d'),date('Y-m-d'));
         $kalan_uyelik_suresi =
              self::lisans_sure_kontrol($request);
-        
-        return view('isletmeadmin.randevular',['bildirimler'=>self::bildirimgetir($request),  'sayfa_baslik'=>'Randevu Takvimi','pageindex' => 2,'randevular'=>$randevular,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'yetkiliolunanisletmeler'=>$isletmeler]);
+
+        // Aktif gap kampanyalari — takvim ustunde bilgi seridi icin
+        $gapKampanyalari = $this->_gapKampanyalariListesi(self::mevcutsube($request));
+
+        return view('isletmeadmin.randevular',['bildirimler'=>self::bildirimgetir($request),  'sayfa_baslik'=>'Randevu Takvimi','pageindex' => 2,'randevular'=>$randevular,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'yetkiliolunanisletmeler'=>$isletmeler,'gapKampanyalari'=>$gapKampanyalari]);
+    }
+
+    /**
+     * Aktif [gap:KEY] etiketli kampanyalari blade icin liste halinde dondurur.
+     */
+    private function _gapKampanyalariListesi($salonId)
+    {
+        $now = Carbon::now()->toDateTimeString();
+        $kampanyalar = SalonKampanyalar::where('salon_id', $salonId)
+            ->where('onayli', 1)
+            ->where('kampanya_bitis_tarihi', '>=', $now)
+            ->where('kampanya_detay', 'like', '%[gap:%')
+            ->get(['id', 'kampanya_baslik', 'kampanya_aciklama', 'kampanya_detay']);
+
+        $defaults = [
+            'morning'   => [9, 12, 'Sabah',         '#F59E0B'],
+            'afternoon' => [12, 17, 'Öğleden sonra', '#EA580C'],
+            'evening'   => [17, 20, 'Akşam',         '#7C3AED'],
+        ];
+
+        $out = [];
+        $seenKey = [];
+        foreach ($kampanyalar as $k) {
+            if (!preg_match('/\[gap:([a-z]+)\]/', $k->kampanya_detay ?? '', $m)) continue;
+            $gk = $m[1];
+            if (!isset($defaults[$gk]) || isset($seenKey[$gk])) continue;
+
+            $startHour = $defaults[$gk][0];
+            $endHour   = $defaults[$gk][1];
+            if (preg_match('/\((\d{2}):\d{2}-(\d{2}):\d{2}\)/', $k->kampanya_aciklama ?? '', $hm)) {
+                $startHour = (int) $hm[1];
+                $endHour   = (int) $hm[2];
+            }
+
+            $disc = 0;
+            if (preg_match('/%%?(\d{1,2})\s*indirim/iu', $k->kampanya_aciklama ?? '', $dm)) {
+                $disc = (int) $dm[1];
+            } elseif (preg_match('/%%?(\d{1,2})/u', $k->kampanya_baslik ?? '', $dm)) {
+                $disc = (int) $dm[1];
+            }
+            if ($disc <= 0) continue;
+
+            $seenKey[$gk] = true;
+            $out[] = [
+                'gapKey'    => $gk,
+                'gapLabel'  => $defaults[$gk][2],
+                'color'     => $defaults[$gk][3],
+                'startHour' => $startHour,
+                'endHour'   => $endHour,
+                'discount'  => $disc,
+            ];
+        }
+
+        usort($out, function ($a, $b) { return $a['startHour'] <=> $b['startHour']; });
+        return $out;
     }
     public function randevular_test(Request $request){
         $personeller = "";
@@ -2560,8 +2618,37 @@ public function carkverilerigetir(Request $request)
     $randevu_sayisi = $randevu_hizmetler->count();
     Log::info('randevu yükleme bitti');
 
+    // Gap kampanyasi olan saatlere denk gelen randevulara className ekle (rozet icin)
+    $salonId = self::mevcutsube($request);
+    $gapHourDisc = [];
+    foreach ($this->_gapKampanyalariListesi($salonId) as $gk) {
+        for ($h = $gk['startHour']; $h < $gk['endHour']; $h++) {
+            $gapHourDisc[$h] = $gk['discount'];
+        }
+    }
+
+    $randevuArr = $randevu_hizmetler->toArray();
+    if (!empty($gapHourDisc)) {
+        foreach ($randevuArr as &$ev) {
+            if (!isset($ev['start'])) continue;
+            $startStr = $ev['start'];
+            if (strlen($startStr) >= 13) {
+                $hourSubstr = substr($startStr, 11, 2);
+                if (is_numeric($hourSubstr)) {
+                    $h = (int) $hourSubstr;
+                    if (isset($gapHourDisc[$h])) {
+                        $d = $gapHourDisc[$h];
+                        $existing = $ev['className'] ?? '';
+                        $ev['className'] = trim($existing . ' fc-event-gap-discount fc-event-gap-disc-' . $d);
+                    }
+                }
+            }
+        }
+        unset($ev);
+    }
+
     return array(
-        'randevu' => array_merge($randevu_hizmetler->toArray(), $emptySlots),
+        'randevu' => array_merge($randevuArr, $emptySlots),
         'resource' => $resources,
         'baslangic' => $takvim_baslangic_saat,
         'bitis' => $takvim_bitis_saat,

@@ -75,7 +75,20 @@
    </div>
    <div style="position:relative; width:100%; overflow-y:auto">
 
-       
+      {{-- Aktif gap kampanyalari bilgi seridi --}}
+      @if(!empty($gapKampanyalari))
+      <div class="gap-info-strip">
+        <span class="gap-strip-label"><i class="fa fa-tag"></i> Aktif Kampanya:</span>
+        @foreach($gapKampanyalari as $k)
+          <span class="gap-chip gap-{{ $k['gapKey'] }}" title="{{ $k['gapLabel'] }} Kampanyası — %{{ $k['discount'] }} indirim">
+            <span class="gap-chip-dot" style="background:{{ $k['color'] }}"></span>
+            <span class="gap-chip-time">{{ $k['gapLabel'] }} {{ sprintf('%02d:00-%02d:00', $k['startHour'], $k['endHour']) }}</span>
+            <span class="gap-chip-disc">%{{ $k['discount'] }}</span>
+          </span>
+        @endforeach
+      </div>
+      @endif
+
       <div class="calendar-wrap">
          <div id="calendar">
          </div>
@@ -88,5 +101,98 @@
 </div>
 <div id="hata"></div>
 
+{{-- Gap kampanya gorsel: bilgi seridi + kart rozeti. TAKVIM GRID'INE DOKUNMAZ --}}
+<style type="text/css">
+  /* Üst bilgi şeridi — takvim wrapper'ın üstünde, FullCalendar'ı etkilemez */
+  .gap-info-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    margin: 0 0 12px 0;
+    background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+    border: 1px solid rgba(251, 191, 36, 0.40);
+    border-radius: 12px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    box-shadow: 0 2px 6px rgba(251, 191, 36, 0.08);
+  }
+  .gap-info-strip .gap-strip-label {
+    font-weight: 700;
+    color: #92400E;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+  }
+  .gap-info-strip .gap-strip-label i { color: #D97706; }
+  .gap-info-strip .gap-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 10px;
+    background: #ffffff;
+    border: 1px solid #FCD34D;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1f2937;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .gap-info-strip .gap-chip.gap-morning   { border-color: #F59E0B; }
+  .gap-info-strip .gap-chip.gap-afternoon { border-color: #EA580C; }
+  .gap-info-strip .gap-chip.gap-evening   { border-color: #7C3AED; }
+  .gap-info-strip .gap-chip-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .gap-info-strip .gap-chip-time { font-weight: 600; }
+  .gap-info-strip .gap-chip-disc {
+    background: linear-gradient(135deg, #22C55E, #16A34A);
+    color: #fff;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    box-shadow: 0 1px 2px rgba(22, 163, 74, 0.25);
+  }
+
+  /* Randevu kartı rozeti — sadece className eklenen event'lere, layout'a etki yok */
+  #calendar .fc-event.fc-event-gap-discount {
+    position: relative;
+    overflow: visible !important;
+  }
+  #calendar .fc-event.fc-event-gap-discount::after {
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    background: linear-gradient(135deg, #22C55E, #16A34A);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1.1;
+    padding: 1.5px 6px;
+    border-radius: 999px;
+    border: 1.2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+    letter-spacing: -0.2px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #calendar .fc-event.fc-event-gap-disc-15::after { content: '%15'; }
+  #calendar .fc-event.fc-event-gap-disc-20::after { content: '%20'; }
+  #calendar .fc-event.fc-event-gap-disc-25::after { content: '%25'; }
+  #calendar .fc-event.fc-event-gap-disc-30::after { content: '%30'; }
+  #calendar .fc-event.fc-event-gap-disc-35::after { content: '%35'; }
+  #calendar .fc-event.fc-event-gap-disc-40::after { content: '%40'; }
+  #calendar .fc-event.fc-event-gap-disc-45::after { content: '%45'; }
+  #calendar .fc-event.fc-event-gap-disc-50::after { content: '%50'; }
+  #calendar .fc-event.fc-event-gap-disc-55::after { content: '%55'; }
+  #calendar .fc-event.fc-event-gap-disc-60::after { content: '%60'; }
+  #calendar .fc-event.fc-event-gap-disc-65::after { content: '%65'; }
+  #calendar .fc-event.fc-event-gap-disc-70::after { content: '%70'; }
+</style>
 
 @endsection
