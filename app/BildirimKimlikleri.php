@@ -10,7 +10,9 @@ class BildirimKimlikleri extends Model
     
 
     protected $table = 'bildirim_kimlikleri';
-    
+
+    protected $guarded = [];
+
     protected $with =  ['musteri','personel'];
 
     public function musteri()
