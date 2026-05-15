@@ -2595,9 +2595,9 @@ private function _buildGapBackgroundEvents($salonId, $tarih1, $tarih2)
     }
 
     $gapMeta = [
-        'morning'   => ['label' => 'Sabah',         'start' => 9,  'end' => 12, 'bg' => 'rgba(252, 211, 77, 0.38)'],
-        'afternoon' => ['label' => 'Öğleden sonra', 'start' => 12, 'end' => 17, 'bg' => 'rgba(251, 146, 60, 0.36)'],
-        'evening'   => ['label' => 'Akşam',         'start' => 17, 'end' => 20, 'bg' => 'rgba(139, 92, 246, 0.34)'],
+        'morning'   => ['label' => 'Sabah',         'start' => 9,  'end' => 12, 'bg' => 'rgba(252, 211, 77, 0.62)'],
+        'afternoon' => ['label' => 'Öğleden sonra', 'start' => 12, 'end' => 17, 'bg' => 'rgba(251, 146, 60, 0.58)'],
+        'evening'   => ['label' => 'Akşam',         'start' => 17, 'end' => 20, 'bg' => 'rgba(139, 92, 246, 0.55)'],
     ];
 
     $events = [];
