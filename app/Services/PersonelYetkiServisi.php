@@ -96,13 +96,13 @@ class PersonelYetkiServisi
         if ($ayar && is_array($ayar->ayarlar)) {
             $ayarlar = $ayar->ayarlar;
         } else {
-            // Default: personel_sade
-            $ayarlar = PersonelYetkiSabitleri::sablonAyarlari('personel_sade');
+            // Default: personel (sade)
+            $ayarlar = PersonelYetkiSabitleri::sablonAyarlari('personel');
         }
 
         // Anahtar tabloda yoksa default sade'den al
         if (!array_key_exists($key, $ayarlar)) {
-            $sadeAyarlar = PersonelYetkiSabitleri::sablonAyarlari('personel_sade');
+            $sadeAyarlar = PersonelYetkiSabitleri::sablonAyarlari('personel');
             return (bool)($sadeAyarlar[$key] ?? false);
         }
 
@@ -157,16 +157,26 @@ class PersonelYetkiServisi
         if ($ayar) {
             $kayitliAyarlar = is_array($ayar->ayarlar) ? $ayar->ayarlar : [];
             // Eksik anahtarlari sade sablondan tamamla
-            $sade = PersonelYetkiSabitleri::sablonAyarlari('personel_sade');
+            $sade = PersonelYetkiSabitleri::sablonAyarlari('personel');
+            // Backward compat: eski sablon key'lerini yeniye map et
+            $sablon = $ayar->sablon ?: 'ozel';
+            $eskidenYeniye = [
+                'personel_sade' => 'personel',
+                'personel_tam'  => 'yonetici',
+                'demo'          => 'personel',
+            ];
+            if (isset($eskidenYeniye[$sablon])) {
+                $sablon = $eskidenYeniye[$sablon];
+            }
             return [
-                'sablon' => $ayar->sablon ?: 'ozel',
+                'sablon' => $sablon,
                 'ayarlar' => array_merge($sade, $kayitliAyarlar),
             ];
         }
-        // Hic kayit yoksa → personel_sade default
+        // Hic kayit yoksa → personel default
         return [
-            'sablon' => 'personel_sade',
-            'ayarlar' => PersonelYetkiSabitleri::sablonAyarlari('personel_sade'),
+            'sablon' => 'personel',
+            'ayarlar' => PersonelYetkiSabitleri::sablonAyarlari('personel'),
         ];
     }
 

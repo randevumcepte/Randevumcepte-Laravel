@@ -131,6 +131,54 @@ class PersonelYetkiSabitleri
     public static function sablonlar(): array
     {
         return [
+            'yonetici' => [
+                'ad' => 'Yönetici',
+                'aciklama' => 'Geniş yetki: tüm operasyon, raporlar ve finans açık. Telefon ve yetki yönetimi kapalı (salon sahibi açabilir).',
+                'ikon' => 'verified_user',
+                'ayarlar' => [
+                    // Randevu — hepsi açık
+                    'randevu.takvim_gor' => true, 'randevu.tum_personel_gor' => true,
+                    'randevu.olustur' => true, 'randevu.duzenle_iptal' => true,
+                    'randevu.kapanis_blok_ekle' => true, 'randevu.online_ayar' => true,
+                    // Müşteri — sil ve telefon hariç hepsi açık
+                    'musteri.liste_gor' => true, 'musteri.tum_portfoy_gor' => true,
+                    'musteri.detay_gor' => true, 'musteri.ekle_duzenle' => true,
+                    'musteri.sil' => true, 'musteri.telefon_gor' => false,
+                    'musteri.not_yaz' => true, 'musteri.gecmis_satis_gor' => true,
+                    // Satış — hepsi açık
+                    'satis.adisyon_olustur' => true, 'satis.tahsilat_al' => true,
+                    'satis.tahsilat_sil' => true, 'satis.adisyon_sil' => true,
+                    'satis.indirim_uygula' => true, 'satis.hediye_isle' => true,
+                    'satis.senet_olustur' => true, 'satis.tum_satis_gor' => true,
+                    // Ürün/Paket/Hizmet — hepsi açık
+                    'paket.sat' => true, 'paket.tanim_olustur' => true, 'paket.seans_takip' => true,
+                    'urun.sat' => true, 'urun.tanim_olustur' => true,
+                    'urun.stok_giris' => true, 'urun.stok_sayim' => true, 'urun.tedarikci_yonet' => true,
+                    'hizmet.tanim_olustur' => true, 'hizmet.kategori_yonet' => true,
+                    // Personel — yetki yönetimi hariç açık
+                    'personel.liste_gor' => true, 'personel.ekle_duzenle' => true,
+                    'personel.sil' => true, 'personel.prim_hakedis_gor' => true,
+                    'personel.maas_tutar_gor' => true, 'personel.odeme_yap' => true,
+                    'personel.yetki_yonet' => false,
+                    // Raporlar — hepsi açık
+                    'rapor.satis' => true, 'rapor.kasa' => true, 'rapor.tahsilat' => true,
+                    'rapor.personel_performans' => true, 'rapor.musteri' => true,
+                    'rapor.ciro_kar_gor' => true,
+                    // Finans — hepsi açık
+                    'finans.kasa_giris_cikis' => true, 'finans.masraf_ekle' => true,
+                    'finans.masraf_gor' => true, 'finans.alacak_yonet' => true,
+                    // Pazarlama — hepsi açık
+                    'pazarlama.sms_gonder' => true, 'pazarlama.whatsapp_gonder' => true,
+                    'pazarlama.toplu_sms' => true, 'pazarlama.kampanya_yonet' => true,
+                    'pazarlama.cark_yonet' => true, 'pazarlama.anket_yonet' => true,
+                    // Görüşme & Form — hepsi açık
+                    'gorusme.liste_gor' => true, 'gorusme.ekle_duzenle' => true,
+                    'form.olustur' => true, 'form.gonder' => true,
+                    // Ayarlar — hepsi açık
+                    'ayar.salon_bilgi' => true, 'ayar.sube_yonet' => true, 'ayar.cihaz_oda_yonet' => true,
+                ],
+            ],
+
             'sekreter' => [
                 'ad' => 'Sekreter / Resepsiyon',
                 'aciklama' => 'Randevu + müşteri + tahsilat + ön görüşme + SMS hepsi açık. Personel/maaş/finans/ayarlar kapalı.',
@@ -179,47 +227,9 @@ class PersonelYetkiSabitleri
                 ],
             ],
 
-            'personel_tam' => [
-                'ad' => 'Personel — Tam',
-                'aciklama' => 'Deneyimli personel: tüm müşterileri görür, randevu yapar, satış kaydeder. Raporlar ve hassas bilgiler kapalı.',
-                'ikon' => 'verified_user',
-                'ayarlar' => [
-                    'randevu.takvim_gor' => true, 'randevu.tum_personel_gor' => true,
-                    'randevu.olustur' => true, 'randevu.duzenle_iptal' => true,
-                    'randevu.kapanis_blok_ekle' => true, 'randevu.online_ayar' => false,
-                    'musteri.liste_gor' => true, 'musteri.tum_portfoy_gor' => true,
-                    'musteri.detay_gor' => true, 'musteri.ekle_duzenle' => true,
-                    'musteri.sil' => false, 'musteri.telefon_gor' => false,
-                    'musteri.not_yaz' => true, 'musteri.gecmis_satis_gor' => true,
-                    'satis.adisyon_olustur' => true, 'satis.tahsilat_al' => true,
-                    'satis.tahsilat_sil' => false, 'satis.adisyon_sil' => false,
-                    'satis.indirim_uygula' => true, 'satis.hediye_isle' => true,
-                    'satis.senet_olustur' => true, 'satis.tum_satis_gor' => false,
-                    'paket.sat' => true, 'paket.tanim_olustur' => false, 'paket.seans_takip' => true,
-                    'urun.sat' => true, 'urun.tanim_olustur' => false,
-                    'urun.stok_giris' => false, 'urun.stok_sayim' => false, 'urun.tedarikci_yonet' => false,
-                    'hizmet.tanim_olustur' => false, 'hizmet.kategori_yonet' => false,
-                    'personel.liste_gor' => false, 'personel.ekle_duzenle' => false,
-                    'personel.sil' => false, 'personel.prim_hakedis_gor' => false,
-                    'personel.maas_tutar_gor' => false, 'personel.odeme_yap' => false,
-                    'personel.yetki_yonet' => false,
-                    'rapor.satis' => false, 'rapor.kasa' => false, 'rapor.tahsilat' => false,
-                    'rapor.personel_performans' => false, 'rapor.musteri' => false,
-                    'rapor.ciro_kar_gor' => false,
-                    'finans.kasa_giris_cikis' => false, 'finans.masraf_ekle' => false,
-                    'finans.masraf_gor' => false, 'finans.alacak_yonet' => false,
-                    'pazarlama.sms_gonder' => true, 'pazarlama.whatsapp_gonder' => true,
-                    'pazarlama.toplu_sms' => false, 'pazarlama.kampanya_yonet' => false,
-                    'pazarlama.cark_yonet' => false, 'pazarlama.anket_yonet' => false,
-                    'gorusme.liste_gor' => true, 'gorusme.ekle_duzenle' => true,
-                    'form.olustur' => false, 'form.gonder' => true,
-                    'ayar.salon_bilgi' => false, 'ayar.sube_yonet' => false, 'ayar.cihaz_oda_yonet' => false,
-                ],
-            ],
-
-            'personel_sade' => [
-                'ad' => 'Personel — Sade',
-                'aciklama' => 'Yeni personel için. Sadece kendi randevu/müşteri/satışlarını görür. Hassas alanlar kapalı.',
+            'personel' => [
+                'ad' => 'Personel',
+                'aciklama' => 'Sade çalışma yetkisi. Sadece kendi randevu/müşteri/satışlarını görür. Hassas alanlar kapalı.',
                 'ikon' => 'person',
                 'ayarlar' => [
                     'randevu.takvim_gor' => true, 'randevu.tum_personel_gor' => false,
@@ -254,52 +264,23 @@ class PersonelYetkiSabitleri
                     'ayar.salon_bilgi' => false, 'ayar.sube_yonet' => false, 'ayar.cihaz_oda_yonet' => false,
                 ],
             ],
-
-            'demo' => [
-                'ad' => 'Demo / Kısıtlı',
-                'aciklama' => 'Eğitim/gözlem için. Sadece görüntüleme, hiç bir değişiklik yapamaz.',
-                'ikon' => 'visibility',
-                'ayarlar' => [
-                    'randevu.takvim_gor' => true, 'randevu.tum_personel_gor' => false,
-                    'randevu.olustur' => false, 'randevu.duzenle_iptal' => false,
-                    'randevu.kapanis_blok_ekle' => false, 'randevu.online_ayar' => false,
-                    'musteri.liste_gor' => true, 'musteri.tum_portfoy_gor' => false,
-                    'musteri.detay_gor' => true, 'musteri.ekle_duzenle' => false,
-                    'musteri.sil' => false, 'musteri.telefon_gor' => false,
-                    'musteri.not_yaz' => false, 'musteri.gecmis_satis_gor' => false,
-                    'satis.adisyon_olustur' => false, 'satis.tahsilat_al' => false,
-                    'satis.tahsilat_sil' => false, 'satis.adisyon_sil' => false,
-                    'satis.indirim_uygula' => false, 'satis.hediye_isle' => false,
-                    'satis.senet_olustur' => false, 'satis.tum_satis_gor' => false,
-                    'paket.sat' => false, 'paket.tanim_olustur' => false, 'paket.seans_takip' => false,
-                    'urun.sat' => false, 'urun.tanim_olustur' => false,
-                    'urun.stok_giris' => false, 'urun.stok_sayim' => false, 'urun.tedarikci_yonet' => false,
-                    'hizmet.tanim_olustur' => false, 'hizmet.kategori_yonet' => false,
-                    'personel.liste_gor' => false, 'personel.ekle_duzenle' => false,
-                    'personel.sil' => false, 'personel.prim_hakedis_gor' => false,
-                    'personel.maas_tutar_gor' => false, 'personel.odeme_yap' => false,
-                    'personel.yetki_yonet' => false,
-                    'rapor.satis' => false, 'rapor.kasa' => false, 'rapor.tahsilat' => false,
-                    'rapor.personel_performans' => false, 'rapor.musteri' => false,
-                    'rapor.ciro_kar_gor' => false,
-                    'finans.kasa_giris_cikis' => false, 'finans.masraf_ekle' => false,
-                    'finans.masraf_gor' => false, 'finans.alacak_yonet' => false,
-                    'pazarlama.sms_gonder' => false, 'pazarlama.whatsapp_gonder' => false,
-                    'pazarlama.toplu_sms' => false, 'pazarlama.kampanya_yonet' => false,
-                    'pazarlama.cark_yonet' => false, 'pazarlama.anket_yonet' => false,
-                    'gorusme.liste_gor' => false, 'gorusme.ekle_duzenle' => false,
-                    'form.olustur' => false, 'form.gonder' => false,
-                    'ayar.salon_bilgi' => false, 'ayar.sube_yonet' => false, 'ayar.cihaz_oda_yonet' => false,
-                ],
-            ],
         ];
     }
 
-    /** Belli bir sablonun ayar dizisini dondur (yoksa personel_sade) */
+    /** Belli bir sablonun ayar dizisini dondur (yoksa personel default). */
     public static function sablonAyarlari(string $sablon): array
     {
+        // Backward compat: eski key isimleri yeniye map et
+        $eskidenYeniye = [
+            'personel_sade' => 'personel',
+            'personel_tam'  => 'yonetici',
+            'demo'          => 'personel',
+        ];
+        if (isset($eskidenYeniye[$sablon])) {
+            $sablon = $eskidenYeniye[$sablon];
+        }
         $sablonlar = self::sablonlar();
-        return $sablonlar[$sablon]['ayarlar'] ?? $sablonlar['personel_sade']['ayarlar'];
+        return $sablonlar[$sablon]['ayarlar'] ?? $sablonlar['personel']['ayarlar'];
     }
 
     /** Tum yetki anahtarlarinin listesi */
