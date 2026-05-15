@@ -16780,7 +16780,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     // Mobil personel yetki yonetimi (granular permission)
     // ====================================================================
 
-    // Tanimlar + sablonlar + kategori etiketleri (UI'i bilgilendir).
+    // Tanimlar + sablonlar (ayarlar dahil) + kategori etiketleri.
+    // Mobile sablon kartina basinca direkt buradan gelen 'ayarlar' map'ini uygular.
     public function personelYetkiSemaApi()
     {
         return response()->json([
@@ -16793,6 +16794,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     'ad' => $s['ad'],
                     'aciklama' => $s['aciklama'],
                     'ikon' => $s['ikon'],
+                    'ayarlar' => $s['ayarlar'],
                 ];
             })->values(),
         ]);
