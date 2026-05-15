@@ -23737,4 +23737,181 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             'kotu_puan_uyari_esik_csat' => $salon->kotu_puan_uyari_esik_csat ?? 2.5,
         ]);
     }
+
+    // ============================================================
+    // FORM SABLONLARI - Mobil API (web ile bire bir, is_dinamik=1)
+    // ============================================================
+
+    private function _dinamikFormKolonlariOlusturAPI(){
+        try {
+            $cols = array_column(\DB::select("SHOW COLUMNS FROM formtaslaklari"), 'Field');
+            if(!in_array('aciklama',$cols)){
+                \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN aciklama TEXT NULL AFTER form_adi");
+            }
+            if(!in_array('sorular_json',$cols)){
+                \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN sorular_json TEXT NULL AFTER aciklama");
+            }
+            if(!in_array('is_dinamik',$cols)){
+                \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN is_dinamik TINYINT(1) NOT NULL DEFAULT 0");
+            }
+            if(!in_array('sira',$cols)){
+                \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN sira INT NOT NULL DEFAULT 0");
+            }
+            if(!in_array('is_sozlesme_tipi',$cols)){
+                \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN is_sozlesme_tipi TINYINT(1) NOT NULL DEFAULT 0");
+            }
+        } catch(\Exception $e){
+            \Log::warning('formtaslaklari kolon kontrol: '.$e->getMessage());
+        }
+    }
+
+    public function formSablonlariListe(Request $request){
+        $sube = $request->sube;
+        $this->_dinamikFormKolonlariOlusturAPI();
+        $formlar = FormTaslaklari::where('is_dinamik',1)
+            ->where('salon_id',$sube)
+            ->orderBy('sira','asc')
+            ->orderByDesc('id')
+            ->get();
+        return response()->json(['formlar'=>$formlar]);
+    }
+
+    public function formSablonlariGetir(Request $request){
+        $sube = $request->sube;
+        $form = FormTaslaklari::where('id',$request->id)->where('salon_id',$sube)->first();
+        if(!$form){
+            return response()->json(['hata'=>true]);
+        }
+        return response()->json($form);
+    }
+
+    public function formSablonlariKaydet(Request $request){
+        try {
+            $this->_dinamikFormKolonlariOlusturAPI();
+            $sube = $request->sube;
+            $form = new FormTaslaklari();
+            $form->salon_id = $sube;
+            $form->form_adi = $request->form_adi;
+            $form->aciklama = $request->aciklama;
+            $form->sorular_json = $request->sorular_json;
+            $form->is_dinamik = 1;
+            $form->is_sozlesme_tipi = $request->is_sozlesme ? 1 : 0;
+            $form->save();
+            return response()->json(['basarili'=>true,'id'=>$form->id]);
+        } catch(\Exception $e){
+            \Log::error('API formSablonlariKaydet: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function formSablonlariGuncelle(Request $request){
+        try {
+            $this->_dinamikFormKolonlariOlusturAPI();
+            $sube = $request->sube;
+            $form = FormTaslaklari::where('id',$request->form_id)->where('salon_id',$sube)->first();
+            if(!$form){
+                return response()->json(['basarili'=>false,'mesaj'=>'Form bulunamadı.']);
+            }
+            $form->form_adi = $request->form_adi;
+            $form->aciklama = $request->aciklama;
+            $form->sorular_json = $request->sorular_json;
+            $form->is_sozlesme_tipi = $request->is_sozlesme ? 1 : 0;
+            $form->save();
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            \Log::error('API formSablonlariGuncelle: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function formSablonlariSil(Request $request){
+        try {
+            $sube = $request->sube;
+            $form = FormTaslaklari::where('id',$request->form_id)->where('salon_id',$sube)->first();
+            if(!$form){
+                return response()->json(['basarili'=>false,'mesaj'=>'Form bulunamadı.']);
+            }
+            $kullanimSayisi = Arsiv::where('form_id',$form->id)->count();
+            if($kullanimSayisi > 0){
+                return response()->json(['basarili'=>false,'mesaj'=>'Bu form '.$kullanimSayisi.' kayıtta kullanılmaktadır. Silinemez.']);
+            }
+            $form->delete();
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function formSablonlariSiraGuncelle(Request $request){
+        try {
+            $this->_dinamikFormKolonlariOlusturAPI();
+            $sube = $request->sube;
+            $formId = (int) $request->form_id;
+            $yon = $request->yon; // 'yukari' veya 'asagi'
+            $mevcut = \DB::table('formtaslaklari')->where('id',$formId)->where('salon_id',$sube)->first();
+            if(!$mevcut) return response()->json(['basarili'=>false,'mesaj'=>'Form bulunamadı.']);
+            $formlar = \DB::table('formtaslaklari')->where('salon_id',$sube)->orderBy('sira','asc')->orderBy('id','desc')->get();
+            $ids = $formlar->pluck('id')->toArray();
+            $pos = array_search($formId, $ids);
+            if($pos === false) return response()->json(['basarili'=>false,'mesaj'=>'Form listede yok.']);
+            if($yon === 'yukari' && $pos > 0){
+                $tmp = $ids[$pos-1]; $ids[$pos-1] = $ids[$pos]; $ids[$pos] = $tmp;
+            } elseif($yon === 'asagi' && $pos < count($ids)-1){
+                $tmp = $ids[$pos+1]; $ids[$pos+1] = $ids[$pos]; $ids[$pos] = $tmp;
+            }
+            foreach($ids as $i => $id){
+                \DB::table('formtaslaklari')->where('id',$id)->update(['sira'=>$i]);
+            }
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    public function sozlesmeOlusturAPI(Request $request){
+        try {
+            $this->_dinamikFormKolonlariOlusturAPI();
+            $sube     = $request->sube;
+            $userId   = (int) $request->user_id;
+            $cepTel   = trim($request->cep_telefon);
+            if(!$userId || !$cepTel){
+                return response()->json(['basarili'=>false,'mesaj'=>'Müşteri ve cep telefon zorunlu.']);
+            }
+            $kod = substr(str_shuffle('1234567890'),0,4);
+            $personelId = (int)($request->personel_id ?? 0);
+
+            $arsiv = new Arsiv();
+            $arsiv->user_id        = $userId;
+            $arsiv->salon_id       = $sube;
+            $arsiv->form_id        = 0;
+            $arsiv->personel_id    = $personelId;
+            $arsiv->dogrulama_kodu = $kod;
+            $arsiv->is_sozlesme    = 1;
+            $arsiv->hizmet_id      = $request->hizmet_id ?: null;
+            $arsiv->paket_id       = $request->paket_id ?: null;
+            $arsiv->seans_sayisi   = $request->seans_sayisi ?: null;
+            $arsiv->toplam_ucret   = $request->toplam_ucret ?: 0;
+            $arsiv->kapora         = $request->kapora ?: 0;
+            $arsiv->sozlesme_notu  = $request->sozlesme_notu ?: null;
+            $arsiv->sozlesme_metni = $request->sozlesme_metni ?: null;
+            $arsiv->cevapladi      = false;
+            $arsiv->cevapladi2     = false;
+            $arsiv->harici_belge   = 'Hizmet Sözleşmesi';
+            $arsiv->form_olusturan = $personelId ?: null;
+            $arsiv->save();
+
+            $host = $_SERVER['HTTP_HOST'] ?? 'app.randevumcepte.com.tr';
+            $link = 'https://'.$host.'/sozlesme/'.$arsiv->id.'/'.$arsiv->user_id;
+            $mesaj = ' Hizmet Sözleşmenizi imzalamak için: '.$link.' | Onay Kodu: '.$kod;
+            try {
+                self::sms_gonder_2($request, [['to'=>$cepTel, 'message'=>$mesaj]], false, 6, true, $sube, false);
+            } catch(\Exception $e){
+                \Log::error('API Sözleşme SMS hatası: '.$e->getMessage());
+            }
+            return response()->json(['basarili'=>true,'arsiv_id'=>$arsiv->id]);
+        } catch(\Exception $e){
+            \Log::error('API sozlesmeOlustur: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
 }
