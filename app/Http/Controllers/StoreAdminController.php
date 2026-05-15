@@ -2562,10 +2562,35 @@ public function carkverilerigetir(Request $request)
 
     // Gap kampanyalari — FullCalendar background event olarak ekle
     // (renkli arka plan saglar, layout'a etkisi YOK, MutationObserver gerekmez)
-    $gapBgEvents = $this->_buildGapBackgroundEvents(self::mevcutsube($request), $tarih1, $tarih2);
+    $salonId = self::mevcutsube($request);
+    $gapBgEvents = $this->_buildGapBackgroundEvents($salonId, $tarih1, $tarih2);
+
+    // Randevu event'lerine indirim rozeti class'i ekle (saat gap'e uyuyorsa)
+    $gapHourDisc = $this->_gapHourDiscountMap($salonId);
+    $randevuArr = $randevu_hizmetler->toArray();
+    if (!empty($gapHourDisc)) {
+        foreach ($randevuArr as &$ev) {
+            // Background event'leri ve emptySlot'lari atla — sadece gercek randevular
+            if (!isset($ev['start'])) continue;
+            // start ornek: "2026-05-15T09:15:00" veya "2026-05-15 09:15:00"
+            $startStr = $ev['start'];
+            if (strlen($startStr) >= 13) {
+                $hourSubstr = substr($startStr, 11, 2);
+                if (is_numeric($hourSubstr)) {
+                    $h = (int) $hourSubstr;
+                    if (isset($gapHourDisc[$h])) {
+                        $d = $gapHourDisc[$h];
+                        $existing = $ev['className'] ?? '';
+                        $ev['className'] = trim($existing . ' fc-event-gap-discount fc-event-gap-disc-' . $d);
+                    }
+                }
+            }
+        }
+        unset($ev);
+    }
 
     return array(
-        'randevu' => array_merge($randevu_hizmetler->toArray(), $emptySlots, $gapBgEvents),
+        'randevu' => array_merge($randevuArr, $emptySlots, $gapBgEvents),
         'resource' => $resources,
         'baslangic' => $takvim_baslangic_saat,
         'bitis' => $takvim_bitis_saat,
@@ -2574,6 +2599,56 @@ public function carkverilerigetir(Request $request)
         'bitis_saatleri' => $takvim_bitis_saat,
         'randevu_sayisi' => $randevu_sayisi,
     );
+}
+
+/**
+ * Aktif gap kampanyalarinin saat -> indirim yuzdesi map'ini doner.
+ * Ornek: [9 => 40, 10 => 40, 11 => 40, 17 => 40, 18 => 40, 19 => 40]
+ */
+private function _gapHourDiscountMap($salonId)
+{
+    $now = Carbon::now()->toDateTimeString();
+    $kampanyalar = SalonKampanyalar::where('salon_id', $salonId)
+        ->where('onayli', 1)
+        ->where('kampanya_bitis_tarihi', '>=', $now)
+        ->where('kampanya_detay', 'like', '%[gap:%')
+        ->get(['kampanya_baslik', 'kampanya_aciklama', 'kampanya_detay']);
+
+    $defaults = [
+        'morning'   => [9, 12],
+        'afternoon' => [12, 17],
+        'evening'   => [17, 20],
+    ];
+
+    $map = [];
+    foreach ($kampanyalar as $k) {
+        if (!preg_match('/\[gap:([a-z]+)\]/', $k->kampanya_detay ?? '', $m)) continue;
+        $gk = $m[1];
+        if (!isset($defaults[$gk])) continue;
+
+        $startHour = $defaults[$gk][0];
+        $endHour   = $defaults[$gk][1];
+        if (preg_match('/\((\d{2}):\d{2}-(\d{2}):\d{2}\)/', $k->kampanya_aciklama ?? '', $hm)) {
+            $startHour = (int) $hm[1];
+            $endHour   = (int) $hm[2];
+        }
+
+        $disc = 0;
+        if (preg_match('/%%?(\d{1,2})\s*indirim/iu', $k->kampanya_aciklama ?? '', $dm)) {
+            $disc = (int) $dm[1];
+        } elseif (preg_match('/%%?(\d{1,2})/u', $k->kampanya_baslik ?? '', $dm)) {
+            $disc = (int) $dm[1];
+        }
+        if ($disc <= 0) continue;
+
+        for ($h = $startHour; $h < $endHour; $h++) {
+            if (!isset($map[$h]) || $map[$h] < $disc) {
+                $map[$h] = $disc;
+            }
+        }
+    }
+
+    return $map;
 }
 
 /**
