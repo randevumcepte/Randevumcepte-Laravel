@@ -1208,6 +1208,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $tarih1 = !empty($request->tarih1) ? $request->tarih1 : date('Y-m-d');
         $tarih2 = !empty($request->tarih2) ? $request->tarih2 : date('Y-m-d');
         $personelRolu = Personeller::where('id',$request->personel_id)->value('role_id');
+        // === YETKI BYPASS ===
+        // Personel rolundeyse VE 'randevu.tum_personel_gor' yetkisi VARSA,
+        // personelRolu'yu 0'a indir → asagidaki tum (personelRolu == 5) kontrolleri
+        // bypass edilir → tum randevulari gorur.
+        if ($personelRolu == 5) {
+            $authUser = \Auth::guard('isletmeyonetim-api')->user();
+            if ($authUser && \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                $authUser->id, $isletmeId, 'randevu.tum_personel_gor'
+            )) {
+                $personelRolu = 0; // yetki var → kisitlama uygulanmasin
+            }
+        }
         $takvim_turu = isset($request->takvim_turu) && $request->takvim_turu != '' ? $request->takvim_turu : Salonlar::where('id',$isletmeId)->value('randevu_takvim_turu');
         $randevuHizmetler = RandevuHizmetler::with([
             'hizmetler',
@@ -1740,6 +1752,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     public function musteriler(Request $request, $salonid)
     {
         $gorebilir = $this->_telGorebilir($request, $salonid);
+        // Yetki: musteri.tum_portfoy_gor yoksa sadece kendi portfoyu
+        $kendiPortfoyId = \App\Services\PersonelYetkiServisi::apiKisitlamaPersonelId(
+            $request, $salonid, 'musteri.tum_portfoy_gor'
+        );
         $search = $request->input('search', '');
         $limit = (int) $request->input('limit', 50);
         $offset = (int) $request->input('offset', 0);
@@ -1749,6 +1765,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ->join('users as u', 'mp.user_id', '=', 'u.id')
             ->where('mp.salon_id', $salonid)
             ->where('mp.aktif', 1)
+            ->when($kendiPortfoyId, function ($q) use ($kendiPortfoyId) {
+                $q->where('mp.personel_id', $kendiPortfoyId);
+            })
             ->select(
                 'u.id',
                 'u.email',
@@ -1830,7 +1849,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     public function musteriler2(Request $request)
     {
         $gorebilir = $this->_telGorebilir($request, $request->salonid);
+        // Yetki: musteri.tum_portfoy_gor yoksa sadece kendi portfoyu
+        $kendiPortfoyId = \App\Services\PersonelYetkiServisi::apiKisitlamaPersonelId(
+            $request, $request->salonid, 'musteri.tum_portfoy_gor'
+        );
         $musteri_idler = MusteriPortfoy::where("salon_id", $request->salonid)->where('aktif',1)
+            ->when($kendiPortfoyId, function ($q) use ($kendiPortfoyId) {
+                $q->where('personel_id', $kendiPortfoyId);
+            })
             ->pluck("user_id")
             ->toArray();
         $musteriler = User::with(['salonlar'])->whereIn('id',$musteri_idler)->where('name','like','%'.$request->search.'%')->get();

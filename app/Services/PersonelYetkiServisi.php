@@ -127,6 +127,101 @@ class PersonelYetkiServisi
     }
 
     /**
+     * Giris yapan kullanici "Personel rolunde" mi VE bu yetki KAPALI mi?
+     * Yani: bu kontrol "personeli kisitla" anlamina gelir.
+     *
+     * Kullanim (asagidaki gibi mevcut personelmi() cagrilari yerine):
+     *   eski: if (StoreAdminController::personelmi($request)) { kendi randevulari }
+     *   yeni: if (PersonelYetkiServisi::kisitla($request, 'randevu.tum_personel_gor')) { kendi randevulari }
+     *
+     * Cevap:
+     *   - Salon sahibi / Personel rolu degil → false (kisitlama yok)
+     *   - Personel rolu + yetki acik → false (yetki gore izinli, kisitlama yok)
+     *   - Personel rolu + yetki kapali → true (kisitla, eski personelmi() davranisi)
+     */
+    public static function kisitla($request, string $bypassYetki): bool
+    {
+        $userSatis = \Auth::guard('satisortakligi')->user();
+        $userIsletme = \Auth::guard('isletmeyonetim')->user();
+        $user = $userIsletme ?: $userSatis;
+        if (!$user) return false;
+
+        // Salon ID'yi request'ten al
+        $salonId = $request->sube ?? $request->salon_id ?? null;
+        if (!$salonId) {
+            // mevcutsube() helper'ini kullanmak istemiyoruz cunku circular dependency
+            // olabilir. Mevcut akista request->sube veya salon_id zaten geliyor.
+            return false;
+        }
+
+        // 1. Personel rolunde mi (role_id 5)?
+        $personelRolunde = DB::table('model_has_roles')
+            ->where('role_id', 5)
+            ->where('model_id', $user->id)
+            ->where('salon_id', $salonId)
+            ->exists();
+
+        if (!$personelRolunde) {
+            return false; // Personel rolu degil → kisitlama yok
+        }
+
+        // 2. Yetki kontrolu — yetki varsa kisitlama yok, yoksa kisitla
+        return !self::yetkiliYetkiVar($user->id, $salonId, $bypassYetki);
+    }
+
+    /**
+     * API tarafi (mobile) icin: isletmeyonetim-api guard'inda yetki kontrolu.
+     * Mobile request'lerinde Auth bu guard'a duser.
+     */
+    public static function kisitlaApi($request, string $bypassYetki): bool
+    {
+        $user = \Auth::guard('isletmeyonetim-api')->user();
+        if (!$user) return false;
+        $salonId = $request->sube ?? $request->salon_id ?? null;
+        if (!$salonId) return false;
+        $personelRolunde = DB::table('model_has_roles')
+            ->where('role_id', 5)
+            ->where('model_id', $user->id)
+            ->where('salon_id', $salonId)
+            ->exists();
+        if (!$personelRolunde) return false;
+        return !self::yetkiliYetkiVar($user->id, $salonId, $bypassYetki);
+    }
+
+    /**
+     * Mobile/API icin "bu kullaniciyi filtrele" personel_id'sini dondur.
+     *
+     * - null donerse: kullanici Personel rolu degil VEYA bypass yetkisi var
+     *   → kisitlama yok, tum kayitlari gosterebilir
+     * - int donerse: yetkisi yok → sadece bu personel_id'ye ait kayitlar
+     *
+     * Ornek kullanim:
+     *   $kisitla = PersonelYetkiServisi::apiKisitlamaPersonelId(
+     *       $request, $salonid, 'musteri.tum_portfoy_gor'
+     *   );
+     *   $query->when($kisitla, fn($q) => $q->where('personel_id', $kisitla));
+     */
+    public static function apiKisitlamaPersonelId(
+        $request,
+        $salonId,
+        string $bypassYetki,
+        string $guard = 'isletmeyonetim-api'
+    ) {
+        $user = \Auth::guard($guard)->user();
+        if (!$user || !$salonId) return null;
+        $personelRolunde = DB::table('model_has_roles')
+            ->where('role_id', 5)
+            ->where('model_id', $user->id)
+            ->where('salon_id', $salonId)
+            ->exists();
+        if (!$personelRolunde) return null;
+        if (self::yetkiliYetkiVar($user->id, $salonId, $bypassYetki)) return null;
+        return Personeller::where('yetkili_id', $user->id)
+            ->where('salon_id', $salonId)
+            ->value('id');
+    }
+
+    /**
      * Personel rolunde mi? (model_has_roles.role_id == 5)
      */
     public static function personelRolundeMi($personelId, $salonId): bool
