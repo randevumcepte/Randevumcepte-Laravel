@@ -13851,11 +13851,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         if ($form->user_id) {
 
-            // apptest sadece API host'u — web sayfasi orada yok.
-            $linkHost = $_SERVER["SERVER_NAME"] ?? 'app.randevumcepte.com.tr';
-            if(strpos($linkHost, 'apptest.') === 0){
-                $linkHost = 'app.' . substr($linkHost, strlen('apptest.'));
-            }
+            // Test ortaminda apptest, canli yayina gecince apptest -> app donusumu eklenecek.
+            $linkHost = $_SERVER["SERVER_NAME"] ?? 'apptest.randevumcepte.com.tr';
 
             $katilim_link =
 
@@ -23904,12 +23901,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $arsiv->form_olusturan = $personelId ?: null;
             $arsiv->save();
 
-            // apptest sadece API host'u — web sayfasi orada yok.
-            // Brand build'lerde host olduğu gibi kalir; apptest -> app.
-            $host = $_SERVER['HTTP_HOST'] ?? 'app.randevumcepte.com.tr';
-            if(strpos($host, 'apptest.') === 0){
-                $host = 'app.' . substr($host, strlen('apptest.'));
-            }
+            // Test ortaminda apptest, canli yayina gecince apptest -> app donusumu eklenecek.
+            $host = $_SERVER['HTTP_HOST'] ?? 'apptest.randevumcepte.com.tr';
             $link = 'https://'.$host.'/sozlesme/'.$arsiv->id.'/'.$arsiv->user_id;
             $mesaj = ' Hizmet Sözleşmenizi imzalamak için: '.$link.' | Onay Kodu: '.$kod;
             try {
