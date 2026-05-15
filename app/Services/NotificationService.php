@@ -218,6 +218,22 @@ class NotificationService
 
         $highPriority = NotificationTypes::isHighPriority($this->type);
 
+        $apns = [
+            'headers' => [
+                'apns-priority' => $highPriority ? '10' : '5',
+            ],
+            'payload' => [
+                'aps' => array_filter([
+                    'sound'             => 'default',
+                    'mutable-content'   => $this->imageUrl ? 1 : null,
+                    'content-available' => 1,
+                ], function ($v) { return $v !== null; }),
+            ],
+        ];
+        if ($this->imageUrl) {
+            $apns['fcm_options'] = ['image' => $this->imageUrl];
+        }
+
         $message = [
             'message' => [
                 'token' => $deviceToken,
@@ -235,21 +251,7 @@ class NotificationService
                         'sound'      => 'default',
                     ]),
                 ],
-                'apns' => [
-                    'headers' => [
-                        'apns-priority' => $highPriority ? '10' : '5',
-                    ],
-                    'payload' => [
-                        'aps' => [
-                            'sound'             => 'default',
-                            'mutable-content'   => $this->imageUrl ? 1 : 0,
-                            'content-available' => 1,
-                        ],
-                    ],
-                    'fcm_options' => array_filter([
-                        'image' => $this->imageUrl,
-                    ]),
-                ],
+                'apns' => $apns,
             ],
         ];
 
