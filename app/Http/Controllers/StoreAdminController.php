@@ -2559,9 +2559,13 @@ public function carkverilerigetir(Request $request)
     
     $randevu_sayisi = $randevu_hizmetler->count();
     Log::info('randevu yükleme bitti');
-    
+
+    // Gap kampanyalari — FullCalendar background event olarak ekle
+    // (renkli arka plan saglar, layout'a etkisi YOK, MutationObserver gerekmez)
+    $gapBgEvents = $this->_buildGapBackgroundEvents(self::mevcutsube($request), $tarih1, $tarih2);
+
     return array(
-        'randevu' => array_merge($randevu_hizmetler->toArray(), $emptySlots),
+        'randevu' => array_merge($randevu_hizmetler->toArray(), $emptySlots, $gapBgEvents),
         'resource' => $resources,
         'baslangic' => $takvim_baslangic_saat,
         'bitis' => $takvim_bitis_saat,
@@ -2570,6 +2574,82 @@ public function carkverilerigetir(Request $request)
         'bitis_saatleri' => $takvim_bitis_saat,
         'randevu_sayisi' => $randevu_sayisi,
     );
+}
+
+/**
+ * Aktif [gap:KEY] etiketli kampanyalari FullCalendar background event'lerine cevirir.
+ * Verilen tarih araliginda her gun icin kampanya saat dilimi kadar event uretir.
+ * MutationObserver / runtime CSS injection YOK — FullCalendar bunu native render eder.
+ */
+private function _buildGapBackgroundEvents($salonId, $tarih1, $tarih2)
+{
+    $now = Carbon::now()->toDateTimeString();
+    $kampanyalar = SalonKampanyalar::where('salon_id', $salonId)
+        ->where('onayli', 1)
+        ->where('kampanya_bitis_tarihi', '>=', $now)
+        ->where('kampanya_detay', 'like', '%[gap:%')
+        ->get(['kampanya_baslik', 'kampanya_aciklama', 'kampanya_detay', 'kampanya_bitis_tarihi']);
+
+    if ($kampanyalar->isEmpty()) {
+        return [];
+    }
+
+    $gapMeta = [
+        'morning'   => ['label' => 'Sabah',         'start' => 9,  'end' => 12, 'bg' => 'rgba(252, 211, 77, 0.18)'],
+        'afternoon' => ['label' => 'Öğleden sonra', 'start' => 12, 'end' => 17, 'bg' => 'rgba(251, 146, 60, 0.18)'],
+        'evening'   => ['label' => 'Akşam',         'start' => 17, 'end' => 20, 'bg' => 'rgba(139, 92, 246, 0.16)'],
+    ];
+
+    $events = [];
+    $start = Carbon::parse($tarih1)->startOfDay();
+    $end   = Carbon::parse($tarih2)->endOfDay();
+
+    foreach ($kampanyalar as $k) {
+        if (!preg_match('/\[gap:([a-z]+)\]/', $k->kampanya_detay ?? '', $m)) continue;
+        $gk = $m[1];
+        if (!isset($gapMeta[$gk])) continue;
+
+        $startHour = $gapMeta[$gk]['start'];
+        $endHour   = $gapMeta[$gk]['end'];
+        if (preg_match('/\((\d{2}):\d{2}-(\d{2}):\d{2}\)/', $k->kampanya_aciklama ?? '', $hm)) {
+            $startHour = (int) $hm[1];
+            $endHour   = (int) $hm[2];
+        }
+
+        $disc = 0;
+        if (preg_match('/%%?(\d{1,2})\s*indirim/iu', $k->kampanya_aciklama ?? '', $dm)) {
+            $disc = (int) $dm[1];
+        } elseif (preg_match('/%%?(\d{1,2})/u', $k->kampanya_baslik ?? '', $dm)) {
+            $disc = (int) $dm[1];
+        }
+
+        $bitisTarihi = Carbon::parse($k->kampanya_bitis_tarihi);
+        $rangeEnd = $bitisTarihi->lt($end) ? $bitisTarihi : $end;
+
+        // Her gun icin bir background event
+        $cursor = $start->copy();
+        $guard = 0;
+        while ($cursor->lte($rangeEnd) && $guard < 60) {
+            $eventStart = $cursor->copy()->setTime($startHour, 0, 0);
+            $eventEnd   = $cursor->copy()->setTime($endHour, 0, 0);
+
+            $events[] = [
+                'title'           => sprintf('%s %%%d', $gapMeta[$gk]['label'], $disc),
+                'start'           => $eventStart->format('Y-m-d H:i:s'),
+                'end'             => $eventEnd->format('Y-m-d H:i:s'),
+                'rendering'       => 'background',
+                'backgroundColor' => $gapMeta[$gk]['bg'],
+                'allDay'          => false,
+                'editable'        => false,
+                'overlap'         => true,
+            ];
+
+            $cursor->addDay();
+            $guard++;
+        }
+    }
+
+    return $events;
 }
     public function kasadefteri(Request $request){
        $isletmeler = '';
