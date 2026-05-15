@@ -159,10 +159,9 @@
     box-shadow: 0 1px 2px rgba(22, 163, 74, 0.25);
   }
 
-  /* Randevu kartı rozeti — sadece className eklenen event'lere, layout'a etki yok */
+  /* Randevu kartı rozeti — kart İÇİNDE konumlu, layout / rendering'i etkilemez */
   #calendar .fc-event.fc-event-gap-discount {
     position: relative;
-    overflow: visible !important;
   }
   #calendar .fc-event.fc-event-gap-discount::after {
     position: absolute;
