@@ -90,30 +90,6 @@
 
 {{-- Gap kampanyasi takvim renklendirmesi (Sabah/Ogleden sonra/Aksam indirim saatleri) --}}
 <style type="text/css">
-  /* FullCalendar v3 — agenda view'da saat slotlari */
-  .fc-slats tr.gap-slot td {
-    background-color: rgba(254, 243, 199, 0.35) !important;
-    position: relative;
-  }
-  .fc-slats tr.gap-slot.gap-morning td {
-    background-color: rgba(252, 211, 77, 0.18) !important;
-  }
-  .fc-slats tr.gap-slot.gap-afternoon td {
-    background-color: rgba(251, 146, 60, 0.18) !important;
-  }
-  .fc-slats tr.gap-slot.gap-evening td {
-    background-color: rgba(139, 92, 246, 0.16) !important;
-  }
-  /* Sol sutun cubuk — border yerine box-shadow inset (layout'u bozmaz) */
-  .fc-slats tr.gap-slot td.fc-axis {
-    box-shadow: inset 3px 0 0 #FCD34D !important;
-  }
-  .fc-slats tr.gap-slot.gap-afternoon td.fc-axis {
-    box-shadow: inset 3px 0 0 #FB923C !important;
-  }
-  .fc-slats tr.gap-slot.gap-evening td.fc-axis {
-    box-shadow: inset 3px 0 0 #8B5CF6 !important;
-  }
   /* Bilgi seridi */
   .gap-info-strip {
     display: flex;
@@ -214,27 +190,6 @@
     }
   }
 
-  function applyHighlights() {
-    if (gapCampaigns.length === 0) return;
-    var rows = document.querySelectorAll('#calendar .fc-slats tr[data-time]');
-    rows.forEach(function(tr) {
-      var time = tr.getAttribute('data-time');
-      if (!time) return;
-      var hour = parseInt(time.split(':')[0], 10);
-      // Önce eski class'ları temizle (rerender'larda)
-      tr.classList.remove('gap-slot', 'gap-morning', 'gap-afternoon', 'gap-evening');
-      for (var i = 0; i < gapCampaigns.length; i++) {
-        var c = gapCampaigns[i];
-        if (hour >= c.startHour && hour < c.endHour) {
-          tr.classList.add('gap-slot');
-          tr.classList.add('gap-' + c.gapKey);
-          tr.title = (c.gapLabel || '') + ' Kampanyası — %' + c.discount + ' indirim';
-          break;
-        }
-      }
-    });
-  }
-
   function applyEventBadges() {
     if (gapCampaigns.length === 0) return;
     var events = document.querySelectorAll('#calendar .fc-event');
@@ -284,9 +239,8 @@
         if (!data || !data.kampanyalar) return;
         gapCampaigns = data.kampanyalar;
         buildInfoStrip();
-        applyHighlights();
-        // Event badges: FullCalendar render'ının bitmesi için kısa gecikme
-        setTimeout(applyEventBadges, 400);
+        // Event badges: FullCalendar render'ın bitmesi için kısa gecikme
+        setTimeout(applyEventBadges, 300);
       })
       .catch(function() { /* sessiz geç */ });
   }
@@ -294,25 +248,39 @@
   function init() {
     fetchAndApply();
 
-    // FullCalendar view degisikliklerinde DOM yeniden render olur — class'lari koru
+    // FullCalendar view değişikliklerinde sadece .fc-event eklenmesini izle
+    // (slot yapısına dokunmuyoruz — sadece event kartlarına rozet)
     var target = document.getElementById('calendar');
     if (target && window.MutationObserver) {
-      var observer = new MutationObserver(function() {
-        if (gapCampaigns.length > 0) {
-          // Throttle: 400ms — FullCalendar disabled-event class'ını async ekliyor,
-          // ona zaman tanı; aksi takdirde boş slot'lara da rozet basılır
-          clearTimeout(window.__gapApplyTimer);
-          window.__gapApplyTimer = setTimeout(function() {
-            applyHighlights();
-            applyEventBadges();
-          }, 400);
+      var observer = new MutationObserver(function(mutations) {
+        if (gapCampaigns.length === 0) return;
+        // Sadece event eklendiyse tetikle (optimize: her DOM mutation'ı için değil)
+        var eventChanged = false;
+        for (var m = 0; m < mutations.length; m++) {
+          var added = mutations[m].addedNodes;
+          for (var i = 0; i < added.length; i++) {
+            var node = added[i];
+            if (node.nodeType === 1 && (
+              (node.classList && node.classList.contains('fc-event')) ||
+              (node.querySelector && node.querySelector('.fc-event'))
+            )) {
+              eventChanged = true;
+              break;
+            }
+          }
+          if (eventChanged) break;
         }
+        if (!eventChanged) return;
+
+        // Throttle: 300ms — FullCalendar disabled-event class'ı async geliyor
+        clearTimeout(window.__gapApplyTimer);
+        window.__gapApplyTimer = setTimeout(applyEventBadges, 300);
       });
       observer.observe(target, { childList: true, subtree: true });
     }
 
-    // Her 60 saniyede bir yeniden kampanya çek (kampanya iptal/eklenince yansisin)
-    setInterval(fetchAndApply, 60000);
+    // Her 5 dakikada bir kampanya listesi yenile (60sn yerine — gereksiz yük)
+    setInterval(fetchAndApply, 300000);
   }
 
   if (document.readyState === 'loading') {
