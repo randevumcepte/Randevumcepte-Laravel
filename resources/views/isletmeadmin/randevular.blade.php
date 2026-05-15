@@ -104,15 +104,15 @@
   .fc-slats tr.gap-slot.gap-evening td {
     background-color: rgba(139, 92, 246, 0.16) !important;
   }
+  /* Sol sutun cubuk — border yerine box-shadow inset (layout'u bozmaz) */
   .fc-slats tr.gap-slot td.fc-axis {
-    border-left: 4px solid #FCD34D !important;
-    font-weight: 600;
+    box-shadow: inset 3px 0 0 #FCD34D !important;
   }
   .fc-slats tr.gap-slot.gap-afternoon td.fc-axis {
-    border-left-color: #FB923C !important;
+    box-shadow: inset 3px 0 0 #FB923C !important;
   }
   .fc-slats tr.gap-slot.gap-evening td.fc-axis {
-    border-left-color: #8B5CF6 !important;
+    box-shadow: inset 3px 0 0 #8B5CF6 !important;
   }
   /* Bilgi seridi */
   .gap-info-strip {
