@@ -16692,6 +16692,73 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         }
     }
 
+    // ====================================================================
+    // Mobil personel yetki yonetimi (granular permission)
+    // ====================================================================
+
+    // Tanimlar + sablonlar + kategori etiketleri (UI'i bilgilendir).
+    public function personelYetkiSemaApi()
+    {
+        return response()->json([
+            'basarili'  => true,
+            'tanimlar'  => \App\PersonelYetkiSabitleri::tanimlar(),
+            'kategoriler' => \App\PersonelYetkiSabitleri::kategoriEtiketleri(),
+            'sablonlar' => collect(\App\PersonelYetkiSabitleri::sablonlar())->map(function ($s, $k) {
+                return [
+                    'key' => $k,
+                    'ad' => $s['ad'],
+                    'aciklama' => $s['aciklama'],
+                    'ikon' => $s['ikon'],
+                ];
+            })->values(),
+        ]);
+    }
+
+    // Belli bir personelin mevcut yetki ayarlarini getir.
+    public function personelYetkiGetirApi(Request $request)
+    {
+        $personelId = $request->personel_id;
+        $salonId = $request->sube;
+        if (!$personelId || !$salonId) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Eksik parametre.']);
+        }
+        // Bu personel "Personel" rolunde mi?
+        $personelRolunde = \App\Services\PersonelYetkiServisi::personelRolundeMi($personelId, $salonId);
+        $ayarlar = \App\Services\PersonelYetkiServisi::ayarlariGetir($personelId, $salonId);
+        return response()->json([
+            'basarili' => true,
+            'personel_rolunde' => $personelRolunde,
+            'sablon' => $ayarlar['sablon'],
+            'ayarlar' => $ayarlar['ayarlar'],
+        ]);
+    }
+
+    // Yetki ayarlarini kaydet. Body: personel_id, sube, sablon, ayarlar (json)
+    public function personelYetkiKaydetApi(Request $request)
+    {
+        try {
+            $personelId = $request->personel_id;
+            $salonId = $request->sube;
+            $sablon = (string)($request->sablon ?? 'ozel');
+            $ayarlar = $request->ayarlar;
+            if (is_string($ayarlar)) {
+                $decoded = json_decode($ayarlar, true);
+                $ayarlar = is_array($decoded) ? $decoded : [];
+            }
+            if (!is_array($ayarlar)) $ayarlar = [];
+
+            if (!$personelId || !$salonId) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Eksik parametre.']);
+            }
+
+            \App\Services\PersonelYetkiServisi::ayarlariKaydet($personelId, $salonId, $sablon, $ayarlar);
+            return response()->json(['basarili' => true]);
+        } catch (\Exception $e) {
+            \Log::warning('Api personelYetkiKaydet: ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
+        }
+    }
+
     public function hizmet_liste_getir(Request $request, $salon_id)
 {
     $hizmet_liste = DB::table("salon_sunulan_hizmetler")

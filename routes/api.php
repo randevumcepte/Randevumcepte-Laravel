@@ -257,6 +257,9 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/primOdemeSil','ApiController@primOdemeSilApi');
     Route::post('/primHareketEkle','ApiController@primHareketEkleApi');
     Route::post('/primHareketSil','ApiController@primHareketSilApi');
+    Route::get ('/personelYetkiSema','ApiController@personelYetkiSemaApi');
+    Route::post('/personelYetkiGetir','ApiController@personelYetkiGetirApi');
+    Route::post('/personelYetkiKaydet','ApiController@personelYetkiKaydetApi');
         Route::post('/cihaz_sil','ApiController@cihaz_sil');
          Route::post('/oda_sil','ApiController@oda_sil');
     Route::post('/arayanmusteribilgi','ApiController@arayanmusteribilgi');
