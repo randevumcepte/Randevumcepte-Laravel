@@ -239,12 +239,20 @@
     if (gapCampaigns.length === 0) return;
     var events = document.querySelectorAll('#calendar .fc-event');
     events.forEach(function(el) {
-      // Boş slot ve disabled event'lere rozet ekleme
-      if (el.classList.contains('disabled-event')) return;
-
-      // Eski rozet varsa kaldır
+      // Eski rozet varsa kaldır (idempotent — rerender'larda dublike olmasın)
       var oldBadge = el.querySelector('.gap-event-badge');
       if (oldBadge) oldBadge.parentNode.removeChild(oldBadge);
+
+      // Boş slot / disabled / background event'lere rozet basma
+      if (el.classList.contains('disabled-event')) return;
+      if (el.classList.contains('fc-bgevent')) return;
+      if (el.classList.contains('fc-helper')) return;
+
+      // Title boşsa ya da "Boş slot" yazıyorsa atla
+      // (FullCalendar disabled-event class'ını async eklediği için yedek kontrol)
+      var titleEl = el.querySelector('.fc-title');
+      var titleText = titleEl ? (titleEl.textContent || '').trim() : '';
+      if (!titleText || titleText === 'Boş slot' || titleText === ' ') return;
 
       // Saat — .fc-time text içeriğinden parse et ("09:00 - 10:00" veya "09:00")
       var timeEl = el.querySelector('.fc-time');
@@ -277,7 +285,8 @@
         gapCampaigns = data.kampanyalar;
         buildInfoStrip();
         applyHighlights();
-        applyEventBadges();
+        // Event badges: FullCalendar render'ının bitmesi için kısa gecikme
+        setTimeout(applyEventBadges, 400);
       })
       .catch(function() { /* sessiz geç */ });
   }
@@ -290,12 +299,13 @@
     if (target && window.MutationObserver) {
       var observer = new MutationObserver(function() {
         if (gapCampaigns.length > 0) {
-          // Throttle: 50ms gecikme
+          // Throttle: 400ms — FullCalendar disabled-event class'ını async ekliyor,
+          // ona zaman tanı; aksi takdirde boş slot'lara da rozet basılır
           clearTimeout(window.__gapApplyTimer);
           window.__gapApplyTimer = setTimeout(function() {
             applyHighlights();
             applyEventBadges();
-          }, 50);
+          }, 400);
         }
       });
       observer.observe(target, { childList: true, subtree: true });
