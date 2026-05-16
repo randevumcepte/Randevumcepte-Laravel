@@ -145,7 +145,7 @@ class RandevuSMSHatirlatma extends Command
                 }
             }
 
-            // Personele hizmet bazlı SMS + push + bildirim
+            // Personele hizmet bazlı SMS/WA + push + bildirim
             foreach ($value->hizmetler as $hizmet) {
                 $randevutarihsaatHizmet = date('d.m.Y', strtotime($value->tarih)) . ' ' . date('H:i:s', strtotime($hizmet->saat));
                 Log::info($value->salon_id . ' için randevutarihsaat ' . $randevutarihsaatHizmet);
@@ -162,25 +162,39 @@ class RandevuSMSHatirlatma extends Command
                     $this->personeleGonder($wa, $controller, $value->salonlar, $personelTelefon, $mesaj, $personelAyari, $value->id);
                 }
 
-                $bildirimkimlikleri = BildirimKimlikleri::whereIn(
-                    'isletme_yetkili_id',
-                    Personeller::where('salon_id', $value->salon_id)->pluck('id')->toArray()
-                )->whereNotNull('bildirim_id')->pluck('bildirim_id')->toArray();
+                // Atanmış personele yeni pattern push (toStaff + tipli + deep link)
+                if ($hizmet->personel_id) {
+                    try {
+                        \App\Services\NotificationService::toStaff((int) $hizmet->personel_id, (int) $value->salon_id)
+                            ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
+                            ->title('Randevu Hatırlatma')
+                            ->body($mesaj)
+                            ->randevu((int) $value->id)
+                            ->deepLink('appointment_detail', ['randevu_id' => $value->id])
+                            ->send();
+                    } catch (\Throwable $e) {
+                        Log::warning('[RND-SMS] personel push fail', ['randevu_id' => $value->id, 'err' => $e->getMessage()]);
+                    }
+                }
 
-                Log::info('Bildirim gidecek personel sayısı ' . count($bildirimkimlikleri));
-                $bildirimkimlikleri = array_merge($bildirimkimlikleri, self::yonetici_kimlikleri($value->salon_id));
-                Log::info('Bildirim gidecek toplam personel sayısı ' . count($bildirimkimlikleri));
-
-                try {
-                    \App\Services\NotificationService::forTokens($bildirimkimlikleri, (int) $value->salon_id)
-                        ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
-                        ->title('Randevu Hatırlatma')
-                        ->body($mesaj)
-                        ->randevu((int) $value->id)
-                        ->deepLink('appointment_detail', ['randevu_id' => $value->id])
-                        ->send();
-                } catch (\Throwable $e) {
-                    Log::warning('[RND-SMS] push fail', ['randevu_id' => $value->id, 'err' => $e->getMessage()]);
+                // Salon yöneticilerine de bildirim
+                $yoneticiIdleri = Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
+                    ->where('salon_personelleri.salon_id', $value->salon_id)
+                    ->where('model_has_roles.role_id', '<', 5)
+                    ->where('salon_personelleri.id', '!=', $hizmet->personel_id)
+                    ->pluck('salon_personelleri.id')->toArray();
+                foreach ($yoneticiIdleri as $yId) {
+                    try {
+                        \App\Services\NotificationService::toStaff((int) $yId, (int) $value->salon_id)
+                            ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
+                            ->title('Randevu Hatırlatma')
+                            ->body($mesaj)
+                            ->randevu((int) $value->id)
+                            ->deepLink('appointment_detail', ['randevu_id' => $value->id])
+                            ->send();
+                    } catch (\Throwable $e) {
+                        Log::warning('[RND-SMS] yonetici push fail', ['randevu_id' => $value->id, 'err' => $e->getMessage()]);
+                    }
                 }
 
                 self::bildirimekle($value->salon_id, $mesaj, '#', $hizmet->personel_id, $value->user_id, $value->users->profil_resim, $value->id, null);
@@ -309,6 +323,21 @@ class RandevuSMSHatirlatma extends Command
                 'to' => $musteri->cep_telefon,
                 'message' => $smsMesaj,
             ]]);
+        }
+
+        // Musteri push: WA/SMS'ten bagimsiz, her zaman gonderilir (SMS metniyle birebir)
+        if ($musteri->id) {
+            try {
+                \App\Services\NotificationService::toCustomer((int) $musteri->id, (int) $salon->id)
+                    ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
+                    ->title('Randevu Hatırlatma')
+                    ->body($mesajBase)
+                    ->randevu((int) $randevu->id)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                    ->send();
+            } catch (\Throwable $e) {
+                Log::warning('[RND-SMS] musteri push fail', ['randevu_id' => $randevu->id, 'err' => $e->getMessage()]);
+            }
         }
     }
 
