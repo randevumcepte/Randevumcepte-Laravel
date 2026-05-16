@@ -17446,12 +17446,28 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             }
         }
 
-        // MEVCUT KAYDI BUL (salon_id + hizmet_id ile)
-        Log::info('Mevcut kayit araniyor - hizmet_id: ' . $hizmet_id . ', salon_id: ' . $request->sube);
-        $mevcutKayit = SalonHizmetler::where("hizmet_id", $hizmet_id)
-            ->where("salon_id", $request->sube)
-            ->first();
-        
+        // MEVCUT KAYDI BUL
+        // Onemli: ayni hizmet_id + salon_id kombinasyonunda birden fazla salon_sunulan_hizmetler
+        // satiri olabiliyor (mukerrer). Duzenleme akisinda ($hizmet["hizmet_id"] != "null") frontend
+        // bize salon_sunulan_hizmetler.id'yi ($hizmet["id"]) gonderiyor; oncelikle bu satiri hedefle
+        // ki kullanicinin gordugu satir guncellensin. Yoksa hizmet_id + salon_id ile fallback.
+        $mevcutKayit = null;
+        if (
+            isset($hizmet["hizmet_id"]) && $hizmet["hizmet_id"] != "null" &&
+            isset($hizmet["id"]) && $hizmet["id"] != "null" && $hizmet["id"] !== ""
+        ) {
+            Log::info('Duzenleme akisi - salon_sunulan_hizmetler.id ile araniyor: ' . $hizmet["id"]);
+            $mevcutKayit = SalonHizmetler::where("id", $hizmet["id"])
+                ->where("salon_id", $request->sube)
+                ->first();
+        }
+        if (!$mevcutKayit) {
+            Log::info('Fallback - hizmet_id + salon_id ile araniyor - hizmet_id: ' . $hizmet_id . ', salon_id: ' . $request->sube);
+            $mevcutKayit = SalonHizmetler::where("hizmet_id", $hizmet_id)
+                ->where("salon_id", $request->sube)
+                ->first();
+        }
+
         Log::info('Mevcut kayit sorgusu calisti. Sonuc: ' . ($mevcutKayit ? 'VAR' : 'YOK'));
 
         if ($mevcutKayit) {
