@@ -9228,8 +9228,27 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 // Bildirim ekle (müşteriye)
                 self::bildirimekle($request, $yenirandevu->salon_id, $musteriMesaj, "#", null, $yenirandevu->user_id, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
 
-                $bildirimkimlikleri = BildirimKimlikleri::where("user_id", $yenirandevu->user_id)->pluck("bildirim_id")->toArray();
-                self::bildirimgonder($bildirimkimlikleri, "Yeni Randevu", $musteriMesaj, $yenirandevu->salonlar->bildirim_channel_id, $yenirandevu->salonlar->bildirim_app_id, $yenirandevu->salonlar->bildirim_api_key, $yenirandevu->salonlar->bildirim_kucuk_ikon, $yenirandevu->salonlar->bildirim_buyuk_ikon, $yenirandevu->salon_id);
+                // Push (musteri): response sonrasi gonderilir, hot path'i yavaslatmaz
+                $_musteriUserId = $yenirandevu->user_id;
+                $_musteriSalonId = (int)$yenirandevu->salon_id;
+                $_musteriMesajCaptured = $musteriMesaj;
+                register_shutdown_function(function () use ($_musteriUserId, $_musteriSalonId, $_musteriMesajCaptured) {
+                    @ignore_user_abort(true);
+                    @set_time_limit(60);
+                    if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
+                    try {
+                        $tokenlar = \App\BildirimKimlikleri::where("user_id", $_musteriUserId)->pluck("bildirim_id")->toArray();
+                        if (!empty($tokenlar)) {
+                            \App\Services\NotificationService::forTokens($tokenlar, $_musteriSalonId)
+                                ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                                ->title("Yeni Randevu")
+                                ->body($_musteriMesajCaptured)
+                                ->send();
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning('afterResponse musteri push hata: ' . $e->getMessage());
+                    }
+                });
 
                 if (SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("musteri") == 1) {
                     if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null)
@@ -9262,89 +9281,121 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                         self::bildirimekle($request, $yenirandevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
 
-                        $bildirimkimlikleri = BildirimKimlikleri::where("isletme_yetkili_id", $hizmet->personel_id)
-                            ->orWhereIn('isletme_yetkili_id', Personeller::where('salon_id', $yenirandevu->salon_id)->where('role_id', '<', 5)->pluck('id')->toArray())->pluck("bildirim_id")->toArray();
-
-                        self::bildirimgonder($bildirimkimlikleri, "Yeni Randevu", $mesaj, $yenirandevu->salonlar->bildirim_channel_id, $yenirandevu->salonlar->bildirim_app_id, $yenirandevu->salonlar->bildirim_api_key, $yenirandevu->salonlar->bildirim_kucuk_ikon, $yenirandevu->salonlar->bildirim_buyuk_ikon, $yenirandevu->salon_id);
+                        // Push (personel): response sonrasi gonderilir
+                        $_personelId = $hizmet->personel_id;
+                        $_salonIdLocal = (int)$yenirandevu->salon_id;
+                        $_mesajPersonelCaptured = $mesaj;
+                        register_shutdown_function(function () use ($_personelId, $_salonIdLocal, $_mesajPersonelCaptured) {
+                            @ignore_user_abort(true);
+                            @set_time_limit(60);
+                            if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
+                            try {
+                                $tokenlar = \App\BildirimKimlikleri::where("isletme_yetkili_id", $_personelId)
+                                    ->orWhereIn('isletme_yetkili_id', \App\Personeller::where('salon_id', $_salonIdLocal)->where('role_id', '<', 5)->pluck('id')->toArray())->pluck("bildirim_id")->toArray();
+                                if (!empty($tokenlar)) {
+                                    \App\Services\NotificationService::forTokens($tokenlar, $_salonIdLocal)
+                                        ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                                        ->title("Yeni Randevu")
+                                        ->body($_mesajPersonelCaptured)
+                                        ->send();
+                                }
+                            } catch (\Throwable $e) {
+                                \Log::warning('afterResponse personel push hata: ' . $e->getMessage());
+                            }
+                        });
                     }
                 }
             }
 
-            // SMS gönder (tek seferde)
-            if (count($mesajlar) > 0) {
-                self::sms_gonder_2($request, $mesajlar, false, 1, false, $salonId,false);
-            }
+            // SMS + yeni nesil push (FCM) — response gonderildikten sonra calistir.
+            // Hot path icinde HTTP cagrilari (SMS API + FCM) ~3-4sn sururuyordu;
+            // register_shutdown_function + fastcgi_finish_request ile client anlik "Basarili" cevabi alir,
+            // gonderim arka planda yapilir.
+            $_finalRandevuId = isset($yenirandevu) && $yenirandevu ? $yenirandevu->id : null;
+            $_randevuKaynak = $request->randevuKaynak ?? 'salon';
+            $_requestForSms = $request;
+            register_shutdown_function(function () use ($mesajlar, $_requestForSms, $salonId, $_finalRandevuId, $_randevuKaynak, $guncelleme, $zamanDegisti) {
+                @ignore_user_abort(true);
+                @set_time_limit(60);
+                if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
 
-            // Yeni nesil push: randevu oluşturuldu / güncellendi
-            try {
-                $finalRandevu = isset($yenirandevu) && $yenirandevu ? $yenirandevu : null;
-                if ($finalRandevu) {
-                    $salonAdi = Salonlar::where('id', $salonId)->value('salon_adi') ?? 'Salon';
-                    $tarihSaatTxt = date('d.m.Y H:i', strtotime($finalRandevu->tarih . ' ' . $finalRandevu->saat));
-                    $kaynak = $request->randevuKaynak ?? 'salon'; // salon | uygulama | web
-                    $musteriEkledi = in_array($kaynak, ['uygulama', 'web']);
+                if (!empty($mesajlar)) {
+                    try {
+                        $this->sms_gonder_2($_requestForSms, $mesajlar, false, 1, false, $salonId, false);
+                    } catch (\Throwable $e) {
+                        \Log::warning('randevuekleguncelle SMS afterResponse hata: ' . $e->getMessage());
+                    }
+                }
 
-                    if ($guncelleme && $zamanDegisti) {
-                        // Zaman değişti → her iki tarafa bildir
-                        NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
-                            ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
-                            ->title('Randevunuzun zamanı değişti')
-                            ->body($salonAdi . ' • Yeni: ' . $tarihSaatTxt)
-                            ->randevu((int)$finalRandevu->id)
-                            ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
-                            ->send();
+                try {
+                    $finalRandevu = $_finalRandevuId
+                        ? \App\Randevular::with('hizmetler.hizmetler', 'users', 'salonlar')->find($_finalRandevuId)
+                        : null;
+                    if ($finalRandevu) {
+                        $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi') ?? 'Salon';
+                        $tarihSaatTxt = date('d.m.Y H:i', strtotime($finalRandevu->tarih . ' ' . $finalRandevu->saat));
+                        $musteriEkledi = in_array($_randevuKaynak, ['uygulama', 'web']);
 
-                        foreach ($finalRandevu->hizmetler as $h) {
-                            if (!$h->personel_id) continue;
-                            NotificationService::toStaff((int)$h->personel_id, (int)$salonId)
+                        if ($guncelleme && $zamanDegisti) {
+                            // Zaman değişti → her iki tarafa bildir
+                            NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
                                 ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
-                                ->title('Randevu zamanı değişti')
-                                ->body(($finalRandevu->users->name ?? 'Müşteri') . ' • Yeni: ' . $tarihSaatTxt)
+                                ->title('Randevunuzun zamanı değişti')
+                                ->body($salonAdi . ' • Yeni: ' . $tarihSaatTxt)
                                 ->randevu((int)$finalRandevu->id)
                                 ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
                                 ->send();
-                        }
-                    } elseif (!$guncelleme) {
-                        // Yeni randevu — kim oluşturdu?
-                        if ($musteriEkledi) {
-                            // Müşteri kendi oluşturdu → atanan personel + salon yöneticileri (sahip, yönetici, sekreter)
-                            $bildirilecekPersonelIdler = [];
-                            foreach ($finalRandevu->hizmetler as $h) {
-                                if ($h->personel_id) $bildirilecekPersonelIdler[] = (int)$h->personel_id;
-                            }
-                            $yoneticiIdler = Personeller::where('salon_id', $salonId)
-                                ->where('role_id', '<', 5)
-                                ->pluck('id')->toArray();
-                            foreach ($yoneticiIdler as $yid) {
-                                $bildirilecekPersonelIdler[] = (int)$yid;
-                            }
-                            $bildirilecekPersonelIdler = array_values(array_unique($bildirilecekPersonelIdler));
 
-                            $musteriAdi = $finalRandevu->users->name ?? 'Müşteri';
-                            foreach ($bildirilecekPersonelIdler as $pid) {
-                                NotificationService::toStaff($pid, (int)$salonId)
-                                    ->type(NotificationTypes::APPOINTMENT_CREATED)
-                                    ->title('Yeni randevu talebi')
-                                    ->body($musteriAdi . ' • ' . $tarihSaatTxt)
+                            foreach ($finalRandevu->hizmetler as $h) {
+                                if (!$h->personel_id) continue;
+                                NotificationService::toStaff((int)$h->personel_id, (int)$salonId)
+                                    ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                                    ->title('Randevu zamanı değişti')
+                                    ->body(($finalRandevu->users->name ?? 'Müşteri') . ' • Yeni: ' . $tarihSaatTxt)
                                     ->randevu((int)$finalRandevu->id)
                                     ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
                                     ->send();
                             }
-                        } else {
-                            // Salon ekledi → müşteriyi bilgilendir
-                            NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
-                                ->type(NotificationTypes::APPOINTMENT_CREATED)
-                                ->title('Sizin için randevu oluşturuldu')
-                                ->body($salonAdi . ' • ' . $tarihSaatTxt)
-                                ->randevu((int)$finalRandevu->id)
-                                ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
-                                ->send();
+                        } elseif (!$guncelleme) {
+                            if ($musteriEkledi) {
+                                // Müşteri kendi oluşturdu → atanan personel + salon yöneticileri
+                                $bildirilecekPersonelIdler = [];
+                                foreach ($finalRandevu->hizmetler as $h) {
+                                    if ($h->personel_id) $bildirilecekPersonelIdler[] = (int)$h->personel_id;
+                                }
+                                $yoneticiIdler = \App\Personeller::where('salon_id', $salonId)
+                                    ->where('role_id', '<', 5)
+                                    ->pluck('id')->toArray();
+                                foreach ($yoneticiIdler as $yid) {
+                                    $bildirilecekPersonelIdler[] = (int)$yid;
+                                }
+                                $bildirilecekPersonelIdler = array_values(array_unique($bildirilecekPersonelIdler));
+
+                                $musteriAdi = $finalRandevu->users->name ?? 'Müşteri';
+                                foreach ($bildirilecekPersonelIdler as $pid) {
+                                    NotificationService::toStaff($pid, (int)$salonId)
+                                        ->type(NotificationTypes::APPOINTMENT_CREATED)
+                                        ->title('Yeni randevu talebi')
+                                        ->body($musteriAdi . ' • ' . $tarihSaatTxt)
+                                        ->randevu((int)$finalRandevu->id)
+                                        ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                        ->send();
+                                }
+                            } else {
+                                NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
+                                    ->type(NotificationTypes::APPOINTMENT_CREATED)
+                                    ->title('Sizin için randevu oluşturuldu')
+                                    ->body($salonAdi . ' • ' . $tarihSaatTxt)
+                                    ->randevu((int)$finalRandevu->id)
+                                    ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                    ->send();
+                            }
                         }
                     }
+                } catch (\Throwable $e) {
+                    \Log::warning('randevuekleguncelle push afterResponse hata: ' . $e->getMessage());
                 }
-            } catch (\Throwable $e) {
-                \Log::warning('randevuekleguncelle push hata: ' . $e->getMessage());
-            }
+            });
 
             return ["cakismavar" => "0", "cakisanunsurlar" => "Başarılı"];
         }
