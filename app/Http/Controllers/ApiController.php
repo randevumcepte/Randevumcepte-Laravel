@@ -8491,6 +8491,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             ->orderBy("odeme_tarihi", "desc")
 
+            ->orderBy("id", "desc")
+
             ->paginate(5);
 
     }
@@ -8538,6 +8540,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             })
 
             ->orderBy("tarih", "desc")
+
+            ->orderBy("id", "desc")
 
             ->paginate(5);
 
