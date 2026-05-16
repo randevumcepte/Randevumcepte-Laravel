@@ -7045,6 +7045,9 @@ private function ayAdiCevir($ingilizceAy)
             case 'sayim':               return $stok->sayimUygula($request, $salonid);
             case 'hizli-satis':         return $stok->hizliSatis($request, $salonid);
             case 'urun-satis-raporu':   return $stok->urunSatisRaporu($request, $request->urun_id);
+            case 'receteler':           return $stok->receteListesi($request, $salonid);
+            case 'recete-kaydet':       return $stok->receteKaydet($request, $salonid);
+            case 'recete-sil':          return $stok->receteSil($request);
             default:
                 return response()->json(['status' => 'error', 'mesaj' => 'Bilinmeyen aksiyon: '.$action], 404);
         }
