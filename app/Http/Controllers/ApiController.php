@@ -11115,6 +11115,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $saat_baslangic = "";
             $saat_bitis = "";
 
+            // Tutarlilik: randevuekleguncelle (kayit) ile ayni semantik —
+            // birlestir='1' => paralel (yenisaatbaslangic degismez)
+            // birlestir bos/yok => chain (yenisaatbaslangic = saat_bitis)
+            // (Eski kodda `!$birlestir != "1"` PHP loose comparison hatasiyla
+            //  ters calisiyordu; cakisma kontrolu ile kayit arasinda tutarsizlik
+            //  vardi → 3 paket hizmeti kayitta ayni saatte ust uste yaziliyordu.)
             if ($key2 == 0) {
                 $saat_baslangic = $request->randevu_saati ?? '00:00';
                 $saat_bitis = date(
@@ -11125,7 +11131,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     )
                 );
 
-                if (!$birlestir != "1") {
+                if (empty($birlestir) || $birlestir != "1") {
                     $yenisaatbaslangic = date(
                         "H:i",
                         strtotime(
@@ -11144,7 +11150,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     )
                 );
 
-                if (!$birlestir != "1") {
+                if (empty($birlestir) || $birlestir != "1") {
                     $yenisaatbaslangic = date(
                         "H:i",
                         strtotime(
