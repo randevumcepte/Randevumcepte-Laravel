@@ -20,6 +20,9 @@
    .rdb-row .btn { flex: 1 1 130px; min-width: 0; border-radius: 8px; font-weight: 600; font-size: 13px; padding: 9px 12px; line-height: 1.2; white-space: normal; }
    .rdb-row .btn i { margin-right: 4px; }
    .rdb-row .rdb-pull-right { margin-left: auto; flex-grow: 0; }
+   /* Modal z-index'leri swal v1 (99999) uzerine alindi (100001-100003); dropdownlar'in da bu modallarin uzerinde gorunmesi gerekir */
+   body > .select2-container--open { z-index: 100015 !important; }
+   body > .ts-dropdown { z-index: 100015 !important; }
 </style>
 <div class="page-header">
    <div class="row">

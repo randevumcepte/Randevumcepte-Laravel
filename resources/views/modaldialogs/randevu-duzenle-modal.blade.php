@@ -169,7 +169,7 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
     border-radius:8px !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
     margin-top:4px;
-    z-index: 100000;
+    z-index: 100015;
     opacity:1 !important;
 }
 #randevu-duzenle-modal .ts-dropdown .active { background:#6366f1 !important; color:#fff !important; }

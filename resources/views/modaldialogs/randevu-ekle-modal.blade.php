@@ -418,7 +418,7 @@
     border-radius: 8px !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
     margin-top: 4px;
-    z-index: 100000;
+    z-index: 100010;
     opacity: 1 !important;
 }
 #modal-view-event-add .ts-dropdown .option {
@@ -581,8 +581,8 @@ body > .select2-container .select2-dropdown {
     border: 2px solid #e5e7eb !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
 }
-/* Hizmet dropdown'i modal uzerinde gorunmeli (body'ye eklenir) */
-body > .select2-container--open { z-index: 99999 !important; }
+/* Hizmet dropdown'i modal uzerinde gorunmeli (modal z-index 100002, dropdown > modal) */
+body > .select2-container--open { z-index: 100010 !important; }
 /* Clear button'u (x) dikey ortalama, selection alanini buyutmesin */
 #modal-view-event-add .hizmet-select + .select2-container .select2-selection__clear {
     position: absolute !important;
@@ -738,9 +738,9 @@ h1, h2 {
 #modal-view-event-add .hizmet-satiri .row {
     overflow: visible !important;
 }
-/* Tom Select dropdown z-index modal uzerinde */
-.ts-dropdown { z-index: 100000 !important; }
-body > .select2-container--open { z-index: 100001 !important; }
+/* Tom Select ve Select2 dropdown'lari modal'in (z=100002/100003) uzerinde gorunmeli */
+.ts-dropdown { z-index: 100010 !important; }
+body > .select2-container--open { z-index: 100010 !important; }
 
 /* Form Element Stilleri */
 .form-label {
