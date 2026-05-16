@@ -258,6 +258,8 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/primOdemeSil','ApiController@primOdemeSilApi');
     Route::post('/primHareketEkle','ApiController@primHareketEkleApi');
     Route::post('/primHareketSil','ApiController@primHareketSilApi');
+    Route::post('/primHakedisToplu/{salonid}','ApiController@primHakedisTopluApi');
+    Route::get ('/primHakedisToplu/{salonid}','ApiController@primHakedisTopluApi');
     Route::get ('/personelYetkiSema','ApiController@personelYetkiSemaApi');
     Route::post('/personelYetkiGetir','ApiController@personelYetkiGetirApi');
     Route::post('/personelYetkiKaydet','ApiController@personelYetkiKaydetApi');
