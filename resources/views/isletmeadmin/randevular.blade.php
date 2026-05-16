@@ -20,9 +20,24 @@
    .rdb-row .btn { flex: 1 1 130px; min-width: 0; border-radius: 8px; font-weight: 600; font-size: 13px; padding: 9px 12px; line-height: 1.2; white-space: normal; }
    .rdb-row .btn i { margin-right: 4px; }
    .rdb-row .rdb-pull-right { margin-left: auto; flex-grow: 0; }
-   /* Modal z-index'leri swal v1 (99999) uzerine alindi (100001-100003); dropdownlar'in da bu modallarin uzerinde gorunmesi gerekir */
+   /* === Modal/Popup z-index HIERARSI (akis sirasiyla katmanlar) === */
+   /* swal default toast (99999) | detay 100001 | ekle 100002 | duzenle 100003
+      | dropdowns 100015 | paket secim child modal 100020
+      | confirmation swals 100030 (HER zaman en ust, modal akisindan tetiklenen) */
+
+   /* Dropdownlar modal'in uzerinde acilsin */
    body > .select2-container--open { z-index: 100015 !important; }
    body > .ts-dropdown { z-index: 100015 !important; }
+
+   /* Musteri Paket/Hizmetleri (ekle modaldan acilan child modal) ekle/duzenle uzerinde */
+   #softPaketSecimModal { z-index: 100020 !important; }
+   /* Bootstrap backdrop'lari, child modal'in hemen altinda */
+   body.modal-open .modal-backdrop.show:last-of-type { z-index: 100019; }
+
+   /* Confirmation/diyalog swal'lari HER zaman en ustte (iptal/sil/onay popup'lari modal arkasinda kalmasin) */
+   .sweet-overlay { z-index: 100029 !important; }
+   .sweet-alert   { z-index: 100030 !important; }
+   .swal2-container { z-index: 100030 !important; }
 </style>
 <div class="page-header">
    <div class="row">
