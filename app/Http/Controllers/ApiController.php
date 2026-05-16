@@ -10146,7 +10146,7 @@ public function cdrRaporLatest(Request $request)
                 'gorusmeyiyapan'  => $personelText,
                 'telefon'         => $telefon,
                 'durum'           => $durum,
-                'seskaydi'        => $result['recording_path'] ? $result['recording_path'].$result['recordingfile']: '',
+                'seskaydi'        => $result['recording_path'] ?? '',
                 'avatar'          => $avatar,
             ];
         }
