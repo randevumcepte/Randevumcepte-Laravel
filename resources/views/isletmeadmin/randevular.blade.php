@@ -31,8 +31,9 @@
 
    /* Musteri Paket/Hizmetleri (ekle modaldan acilan child modal) ekle/duzenle uzerinde */
    #softPaketSecimModal { z-index: 100020 !important; }
-   /* Bootstrap backdrop'lari, child modal'in hemen altinda */
-   body.modal-open .modal-backdrop.show:last-of-type { z-index: 100019; }
+   /* NOT: modal-backdrop'lar default Bootstrap z-index'inde (1040) kalmali — modal'in altinda
+      olusunlar. Onceki "last-of-type 100019" kurali ekle modali backdrop'un arkasinda
+      birakiyordu (modal 100002 < backdrop 100019). Kaldirildi. */
 
    /* Confirmation/diyalog swal'lari HER zaman en ustte (iptal/sil/onay popup'lari modal arkasinda kalmasin) */
    .sweet-overlay { z-index: 100029 !important; }
