@@ -17758,107 +17758,25 @@ if (is_array($request->cihaz_id)) {
     }
 
     public function mobildegelenaramagoster(Request $request)
-
     {
-
-        $post_url_push_notification =
-
-            "https://onesignal.com/api/v1/notifications";
-
-        $headers_push_notification = [
-
-            "Accept: application/json",
-
-            "Authorization: Basic MjFiNDE3ZGQtZjY3ZC00OTE3LWI1NWQtMjBlMjcxODgxNjFj",
-
-            "Content-Type: application/json",
-
-        ];
-
-        $post_data_push_notification = json_encode([
-
-            "app_id" => $request->appid,
-
-            "include_player_ids" => [$request->bildirimkimligi],
-
-            "android_channel_id" => "ae34cc4e-d2c3-41bd-8def-7e147ecaa8af",
-
-            "contents" => ["en" => $request->icerik],
-
-            "headings" => ["en" => $request->baslik],
-
-            "buttons" => [
-
-                [
-
-                    "id" => "yanitla",
-
-                    "text" => "YANITLA",
-
-                ],
-
-                [
-
-                    "id" => "reddet",
-
-                    "text" => "REDDET",
-
-                ],
-
-            ],
-
-            "priority" => "high", // Ensure high priority
-
-            "content_available" => true, // Make it a background notification
-
-            "mutable_content" => true, // Required for some actions on iOS
-
-            "sticky" => true, // Set sticky to true
-
-        ]);
-
-        $ch_push_notification = curl_init();
-
-        curl_setopt(
-
-            $ch_push_notification,
-
-            CURLOPT_URL,
-
-            $post_url_push_notification
-
-        );
-
-        curl_setopt(
-
-            $ch_push_notification,
-
-            CURLOPT_POSTFIELDS,
-
-            $post_data_push_notification
-
-        );
-
-        curl_setopt($ch_push_notification, CURLOPT_POST, 1);
-
-        curl_setopt($ch_push_notification, CURLOPT_TIMEOUT, 5);
-
-        curl_setopt($ch_push_notification, CURLOPT_RETURNTRANSFER, 1);
-
-        curl_setopt(
-
-            $ch_push_notification,
-
-            CURLOPT_HTTPHEADER,
-
-            $headers_push_notification
-
-        );
-
-        $response_push_notifications = curl_exec($ch_push_notification);
-
-        curl_close($ch_push_notification);
-
+        if (empty($request->bildirimkimligi)) return null;
+        try {
+            return \App\Services\NotificationService::forTokens([$request->bildirimkimligi])
+                ->type(\App\Services\NotificationTypes::NEW_MESSAGE)
+                ->title((string) $request->baslik)
+                ->body((string) $request->icerik)
+                ->extra([
+                    'kaynak' => 'gelen_arama',
+                    'buttons' => json_encode([
+                        ['id' => 'yanitla', 'text' => 'YANITLA'],
+                        ['id' => 'reddet',  'text' => 'REDDET'],
+                    ]),
+                ])
+                ->send();
+        } catch (\Throwable $e) {
+            \Log::warning('mobildegelenaramagoster push fail: ' . $e->getMessage());
+            return null;
+        }
     }
 
     public function denemesantral(Request $request)
@@ -21805,73 +21723,31 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
     }
     public function oneSignalTest(Request $request)
     {
-         $post_url_push_notification = "https://api.onesignal.com/notifications?c=push";
-         $headers_push_notification = array(
-                                        'Accept: application/json',
-                                        'Authorization: Key os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi',
-                                        'Content-Type: application/json',
-        );
-        $post_data_push_notification = 
-            json_encode( 
-            
-                array( 
-                    "app_id"=> "5e50f84e-2cd8-4532-a765-f2cb82a22ff9",
-                 
-                    "include_player_ids" =>  ['2e1f11a0-369f-4763-9e6e-0b9d8a9d2677'],
-                    "android_channel_id" => '12d6537e-7a7d-4d1d-a838-e3fc947eaf44',
-                    "contents" => array("en"=>  'Deneme bildirimidir'),
-                    "headings" =>  array("en"=> 'Deneme'),
-                    "sound" => "default",
-                     
-                ) 
-            );
-        $ch_push_notification=curl_init();
-        curl_setopt($ch_push_notification,CURLOPT_URL,$post_url_push_notification);
-        curl_setopt($ch_push_notification,CURLOPT_POSTFIELDS,$post_data_push_notification);
-        curl_setopt($ch_push_notification,CURLOPT_POST,1);
-        curl_setopt($ch_push_notification,CURLOPT_TIMEOUT,5);
-        curl_setopt($ch_push_notification,CURLOPT_RETURNTRANSFER,1);
-        curl_setopt($ch_push_notification,CURLOPT_HTTPHEADER,$headers_push_notification);
-        $response_push_notifications=curl_exec($ch_push_notification);
-        curl_close($ch_push_notification);
-        return $response_push_notifications;
-
+        $token = $request->input('token', '2e1f11a0-369f-4763-9e6e-0b9d8a9d2677');
+        return \App\Services\NotificationService::forTokens([$token])
+            ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+            ->title('Deneme')
+            ->body('Deneme bildirimidir')
+            ->send();
     }
     public function pushTokenSend(Request $request)
     {
-        //$isletme = Salonlar::where('id',$request->salonId)->first();
-        $tokens = Personeller::where('salon_id',$request->salonId)->where('fcm_token','!=',$null)->pluck('fcm_token')->toArray();
-        $serverKey = "SENIN_FCM_SERVER_KEY";
-        
-        
-        
-        $data = [
-            "registration_ids" => $tokens,
-            "notification" => [
-                "title" => "Gelen Çağrı",
-                "body" => "Yeni bir çağrı var",
-                "sound" => "default"
-            ],
-            "data" => [
-                "type" => "incoming_call",
-                "caller" => "0532xxxxxxx",
-                "business" => "İşletme Adı"
-            ]
-        ];
-        
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, "https://fcm.googleapis.com/fcm/send");
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "Authorization: key=$serverKey",
-            "Content-Type: application/json"
-        ]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        $response = curl_exec($ch);
-        curl_close($ch);
-        
-        dd($response);
+        $tokens = Personeller::where('salon_id', $request->salonId)
+            ->whereNotNull('fcm_token')
+            ->where('fcm_token', '!=', '')
+            ->pluck('fcm_token')->toArray();
+
+        $r = \App\Services\NotificationService::forTokens($tokens, (int) $request->salonId)
+            ->type(\App\Services\NotificationTypes::NEW_MESSAGE)
+            ->title('Gelen Çağrı')
+            ->body('Yeni bir çağrı var')
+            ->extra([
+                'kaynak' => 'incoming_call',
+                'caller' => (string) $request->input('caller', ''),
+            ])
+            ->send();
+
+        dd($r);
 
     }
     public function firebaseBaslat(Request $request)

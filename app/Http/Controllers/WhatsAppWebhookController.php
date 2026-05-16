@@ -175,36 +175,13 @@ class WhatsAppWebhookController extends Controller
                 ->where('model_has_roles.role_id', '<', 5)
                 ->pluck('salon_personelleri.id')->toArray();
 
-            $ids = BildirimKimlikleri::whereIn('isletme_yetkili_id', $yonetici)
-                ->whereNotNull('bildirim_id')->pluck('bildirim_id')->toArray();
-
-            if (empty($ids)) return;
-
-            $appId = $salon->bildirim_app_id ?: '5e50f84e-2cd8-4532-a765-f2cb82a22ff9';
-            $channelId = $salon->bildirim_channel_id ?: '12d6537e-7a7d-4d1d-a838-e3fc947eaf44';
-            $key = $salon->bildirim_api_key ?: 'os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi';
-
-            $headers = [
-                'Accept: application/json',
-                'Authorization: Key ' . $key,
-                'Content-Type: application/json',
-            ];
-            $post_data = json_encode([
-                'app_id' => $appId,
-                'include_player_ids' => $ids,
-                'android_channel_id' => $channelId,
-                'contents' => ['en' => $mesaj],
-                'headings' => ['en' => 'WhatsApp Uyarısı'],
-                'sound' => 'default',
-            ]);
-            $ch = curl_init('https://api.onesignal.com/notifications?c=push');
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_exec($ch);
-            curl_close($ch);
+            foreach ($yonetici as $pid) {
+                \App\Services\NotificationService::toStaff((int) $pid, (int) $salon->id)
+                    ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                    ->title('WhatsApp Uyarısı')
+                    ->body($mesaj)
+                    ->send();
+            }
         } catch (\Throwable $e) {
             Log::error('Ban uyarı push gönderilemedi', ['salon_id' => $salon->id, 'err' => $e->getMessage()]);
         }

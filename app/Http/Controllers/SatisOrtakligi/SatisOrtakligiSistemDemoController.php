@@ -10397,34 +10397,19 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $bildirim->randevu_id = $randevuid;
         $bildirim->save();
     }
-    public function bildirimgonder($bildirimkimlikleri,$mesaj,$baslik,$salonid){
-        $salon = Salonlar::where('id',$salonid)->first();
-        $post_url_push_notification = "https://onesignal.com/api/v1/notifications";
-        $headers_push_notification = array(
-                                        'Accept: application/json',
-                                        'Authorization: Basic MjFiNDE3ZGQtZjY3ZC00OTE3LWI1NWQtMjBlMjcxODgxNjFj',
-                                        'Content-Type: application/json',
-        );
-        $post_data_push_notification =
-            json_encode(
-                array(
-                    "app_id"=> $salon->bildirim_app_id,
-                    "include_player_ids" =>  $bildirimkimlikleri,
-                    "android_channel_id" => '12d6537e-7a7d-4d1d-a838-e3fc947eaf44',
-                    "contents" => array("en"=>  $mesaj),
-                    "headings" =>  array("en"=> $baslik),
-                    "sound" => "default",
-                )
-            );
-        $ch_push_notification=curl_init();
-        curl_setopt($ch_push_notification,CURLOPT_URL,$post_url_push_notification);
-        curl_setopt($ch_push_notification,CURLOPT_POSTFIELDS,$post_data_push_notification);
-        curl_setopt($ch_push_notification,CURLOPT_POST,1);
-        curl_setopt($ch_push_notification,CURLOPT_TIMEOUT,5);
-        curl_setopt($ch_push_notification,CURLOPT_RETURNTRANSFER,1);
-        curl_setopt($ch_push_notification,CURLOPT_HTTPHEADER,$headers_push_notification);
-        $response_push_notifications=curl_exec($ch_push_notification);
-        curl_close($ch_push_notification);
+    public function bildirimgonder($bildirimkimlikleri, $mesaj, $baslik, $salonid = null)
+    {
+        if (empty($bildirimkimlikleri)) return null;
+        try {
+            return \App\Services\NotificationService::forTokens((array) $bildirimkimlikleri, $salonid ? (int) $salonid : null)
+                ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                ->title((string) $baslik)
+                ->body((string) $mesaj)
+                ->send();
+        } catch (\Throwable $e) {
+            \Log::warning('SatisOrtakligiSistemDemo bildirimgonder fail: ' . $e->getMessage());
+            return null;
+        }
     }
     public function isletmegorselekle(Request $request)
     {

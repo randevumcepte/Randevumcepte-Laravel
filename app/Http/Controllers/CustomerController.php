@@ -259,39 +259,19 @@ class CustomerController extends Controller
         $bildirim->randevu_id = $randevuid;
         $bildirim->save();
     }
-    public function bildirimgonder($bildirimkimlikleri,$mesaj,$baslik){
-        $post_url_push_notification = "https://api.onesignal.com/notifications?c=push";
-
-         $headers_push_notification = array(
-                                        'Accept: application/json',
-                                        'Authorization: Key os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi',
-                                        'Content-Type: application/json',
-        );
-
-         
-        $post_data_push_notification = 
-            json_encode( 
-            
-                array( 
-                    "app_id"=> "5e50f84e-2cd8-4532-a765-f2cb82a22ff9",
-                 
-                    "include_player_ids" =>  $bildirimkimlikleri,
-                    "android_channel_id" => '12d6537e-7a7d-4d1d-a838-e3fc947eaf44',
-                    "contents" => array("en"=>  $mesaj),
-                    "headings" =>  array("en"=> $baslik),
-                    "sound" => "default",
-                     
-                ) 
-            );
-        $ch_push_notification=curl_init();
-        curl_setopt($ch_push_notification,CURLOPT_URL,$post_url_push_notification);
-        curl_setopt($ch_push_notification,CURLOPT_POSTFIELDS,$post_data_push_notification);
-        curl_setopt($ch_push_notification,CURLOPT_POST,1);
-        curl_setopt($ch_push_notification,CURLOPT_TIMEOUT,5);
-        curl_setopt($ch_push_notification,CURLOPT_RETURNTRANSFER,1);
-        curl_setopt($ch_push_notification,CURLOPT_HTTPHEADER,$headers_push_notification);
-        $response_push_notifications=curl_exec($ch_push_notification);
-        curl_close($ch_push_notification);
+    public function bildirimgonder($bildirimkimlikleri, $mesaj, $baslik)
+    {
+        if (empty($bildirimkimlikleri)) return null;
+        try {
+            return \App\Services\NotificationService::forTokens((array) $bildirimkimlikleri)
+                ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                ->title((string) $baslik)
+                ->body((string) $mesaj)
+                ->send();
+        } catch (\Throwable $e) {
+            \Log::warning('CustomerController bildirimgonder fail: ' . $e->getMessage());
+            return null;
+        }
     }
        
   
