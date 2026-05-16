@@ -9772,9 +9772,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             $user->save();
 
-            $katilim_link = 
+            $katilim_link =
 
-                " Formu doldurmak için : https://app.randevumcepte.com.tr/".$form->form->form_blade."/" .
+                " Formu doldurmak için : https://apptest.randevumcepte.com.tr/musteriformdoldurma/" .
 
                 $form->id .
 
@@ -9828,7 +9828,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             $katilim_link2 =
 
-                " İmza atmak için : https://app.randevumcepte.com.tr/personelformdoldurma/" .
+                " İmza atmak için : https://apptest.randevumcepte.com.tr/personelformdoldurma/" .
 
                 $form->id .
 
