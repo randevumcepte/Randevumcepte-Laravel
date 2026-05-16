@@ -66,7 +66,18 @@ class NotificationApiController extends Controller
         if ($tip === 'personel') {
             $row->isletme_yetkili_id = $request->input('personel_id');
         } elseif ($tip === 'yetkili') {
-            $row->isletme_yetkili_id = $request->input('yetkili_id');
+            // Yetkili kayıtlarında da isletme_yetkili_id alanı aslında
+            // salon_personelleri.id'yi tutmalı (randevu push lookup'ları bu id'yi arıyor).
+            // Gelen yetkili_id (= isletme_yetkilileri.id) + salon_id ile personel kaydını bul.
+            $yetkiliId = $request->input('yetkili_id');
+            $salonId   = $request->input('salon_id');
+            $personelId = null;
+            if ($yetkiliId && $salonId) {
+                $personelId = \App\Personeller::where('yetkili_id', $yetkiliId)
+                    ->where('salon_id', $salonId)
+                    ->value('id');
+            }
+            $row->isletme_yetkili_id = $personelId ?: $yetkiliId;
         }
 
         $row->save();
