@@ -15348,7 +15348,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 {
                     if($request->adisyon_hizmet_senet_id[$key] == '' && $request->adisyon_hizmet_taksitli_tahsilat_id[$key] == '')
                     {
-                        $kalemNetTutar = str_replace(['.',','],['','.'], $request->himzet_tahsilat_tutari_girilen[$key]) - $kalem_basina_indirim_tutari;
+                        $kalemNetTutar = str_replace(['.',','],['','.'], $request->himzet_tahsilat_tutari_girilen[$key] ?? '0') - $kalem_basina_indirim_tutari;
                         $odeme = new TahsilatHizmetler();
                         $odeme->adisyon_hizmet_id = $hizmet_id;
                         $odeme->tahsilat_id = $tahsilat->id;
@@ -15366,7 +15366,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 {
                     if($request->adisyon_urun_senet_id[$key2] == '' && $request->adisyon_urun_taksitli_tahsilat_id[$key2] == '')
                     {
-                        $kalemNetTutar = str_replace(['.',','],['','.'], $request->urun_tahsilat_tutari_girilen[$key2]) - $kalem_basina_indirim_tutari;
+                        $kalemNetTutar = str_replace(['.',','],['','.'], $request->urun_tahsilat_tutari_girilen[$key2] ?? '0') - $kalem_basina_indirim_tutari;
                         $odeme = new TahsilatUrunler();
                         $odeme->adisyon_urun_id = $urun_id;
                         $odeme->tahsilat_id = $tahsilat->id;
@@ -15382,7 +15382,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 {
                     if($request->adisyon_paket_senet_id[$key2] == '' && $request->adisyon_paket_taksitli_tahsilat_id[$key2] == '')
                     {
-                        $kalemNetTutar = str_replace(['.',','],['','.'], $request->paket_tahsilat_tutari_girilen[$key2]) - $kalem_basina_indirim_tutari;
+                        $kalemNetTutar = str_replace(['.',','],['','.'], $request->paket_tahsilat_tutari_girilen[$key2] ?? '0') - $kalem_basina_indirim_tutari;
                         $odeme = new TahsilatPaketler();
                         $odeme->adisyon_paket_id = $paket_id;
                         $odeme->tahsilat_id = $tahsilat->id;
