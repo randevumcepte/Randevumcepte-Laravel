@@ -24777,8 +24777,9 @@ DB::raw('
     }
 
     /**
-     * Yardımcı: anket linkini SMS ile gönderir.
-     * Hem web (Request var) hem cron (Request null) konteksinden çağrılır.
+     * Yardımcı: anket linkini WhatsApp veya SMS ile gönderir.
+     * Salon WA aktif+connected ise önce WhatsApp denenir; başarısızlık durumunda
+     * SMS'e fallback yapılır. Hem web (Request var) hem cron (Request null) konteksinden çağrılır.
      */
     public static function anketSmsGonder($request, $gonderim, $sablon, $musteri){
         $salon = Salonlar::where('id',$gonderim->salon_id)->first();
@@ -24790,6 +24791,42 @@ DB::raw('
         $salonAd = $salon->salon_adi ?? '';
         // Sade format — Turkce char yok (GSM-7 uyumlu), kisa token + B162 ile birlikte 1 SMS'e sigar
         $mesaj = 'Sn. '.$ilkAd.', '.$salonAd.' memnuniyet anketi (1 dk): '.$link;
+
+        // WhatsApp önceliği: salon WA aktif+connected ise WA'ya dene
+        $waKanaliAcik = $salon && !empty($salon->whatsapp_aktif) && ($salon->whatsapp_durum ?? null) === 'connected';
+        if ($waKanaliAcik) {
+            try {
+                $wa = app(\App\Services\WhatsAppService::class);
+                $sonuc = $wa->sendReminder($salon, $gonderim->telefon, $mesaj, $gonderim->randevu_id ?? null, $musteri->id ?? null);
+                if (!empty($sonuc['ok'])) {
+                    // WA kuyruğa girdi/iletildi — kanal alanını güncelle
+                    try {
+                        $gonderim->gonderim_kanali = 'whatsapp';
+                        $gonderim->save();
+                    } catch (\Throwable $e) { /* yoksay */ }
+                    \Log::info('[ANKET-WA] gonderildi', [
+                        'salon_id' => $salon->id,
+                        'gonderim_id' => $gonderim->id,
+                        'to' => $gonderim->telefon,
+                        'provider' => $sonuc['provider'] ?? null,
+                        'logId' => $sonuc['logId'] ?? null,
+                    ]);
+                    return;
+                }
+                \Log::warning('[ANKET-WA] basarisiz → SMS fallback', [
+                    'salon_id' => $salon->id,
+                    'gonderim_id' => $gonderim->id,
+                    'err' => $sonuc['error'] ?? 'unknown',
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('[ANKET-WA] istisna → SMS fallback: '.$e->getMessage(), [
+                    'salon_id' => $salon->id ?? null,
+                    'gonderim_id' => $gonderim->id ?? null,
+                ]);
+            }
+        }
+
+        // SMS yolu (WA kapalı veya başarısız)
         $mesajlar = [['to'=>$gonderim->telefon, 'message'=>$mesaj]];
         try {
             // Base Controller::sms_gonder($salon_id, $mesajlar) — request gerektirmez, cron'dan da çağrılabilir
