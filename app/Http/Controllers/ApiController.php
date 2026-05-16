@@ -16641,6 +16641,125 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     // Mobil prim & maas odemeleri: web prim_hakedis_panel modallarinin API'si
     // ====================================================================
 
+    /**
+     * TOPLU prim hakedis: salondaki tum aktif personelin secilen ay/yil
+     * prim+odeme+bonus/kesinti ozetini tek HTTP istegi ile doner.
+     * Mobile PrimHakedis sayfasi icin — N personel icin 2N+1 yerine 1 istek.
+     */
+    public function primHakedisTopluApi(Request $request, $salonid)
+    {
+        $ay = $request->ay ? str_pad((string)$request->ay, 2, '0', STR_PAD_LEFT) : date('m');
+        $yil = $request->yil ? (string)$request->yil : date('Y');
+        $donem = $yil . '-' . $ay;
+        $baslangic = $donem . '-01 00:00:00';
+        $sonGun = date('t', strtotime($baslangic));
+        $bitis = $donem . '-' . $sonGun . ' 23:59:59';
+        if ($ay === date('m') && $yil === date('Y')) {
+            $bitis = date('Y-m-d H:i:s');
+        }
+
+        // Aktif personeller. where('aktif',true) zaten arsivli olanlari eliyor
+        // (personelArsivle aktif=false yapiyor), ayri arsivli kontrolu gereksiz.
+        $personeller = Personeller::where('salon_id', $salonid)
+            ->where('aktif', true)
+            ->orderBy('takvim_sirasi', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        // Donem maas odemeleri — tek sorgu
+        $maasOdemeleri = \App\PersonelMaasOdemesi::where('salon_id', $salonid)
+            ->where('donem', $donem)
+            ->get()
+            ->groupBy('personel_id');
+
+        // Donem prim hareketleri (bonus/kesinti) — tek sorgu
+        $primHareketleri = \App\PersonelPrimHareketi::where('salon_id', $salonid)
+            ->whereBetween('tarih', [substr($baslangic, 0, 10), substr($bitis, 0, 10)])
+            ->get()
+            ->groupBy('personel_id');
+
+        $sumKey = function ($coll, $key) {
+            return $coll->sum(function ($a) use ($key) {
+                if (is_array($a)) return (float)($a[$key] ?? 0);
+                if (is_object($a)) return (float)($a->{$key} ?? 0);
+                return 0;
+            });
+        };
+
+        $sonuc = [];
+        foreach ($personeller as $p) {
+            $adisyonlarRaw = self::adisyon_yukle(
+                $request, '', '', $baslangic, $bitis, '',
+                $p->id, $salonid, false
+            );
+            if ($adisyonlarRaw instanceof \Illuminate\Http\JsonResponse) {
+                $payload = $adisyonlarRaw->getData(true);
+                $coll = collect($payload['data'] ?? []);
+            } elseif ($adisyonlarRaw instanceof \Illuminate\Support\Collection) {
+                $coll = $adisyonlarRaw;
+            } elseif (is_array($adisyonlarRaw)) {
+                $coll = collect($adisyonlarRaw['data'] ?? $adisyonlarRaw);
+            } else {
+                $coll = collect([]);
+            }
+
+            $hizmetToplam = $sumKey($coll, 'hizmetToplam');
+            $urunToplam = $sumKey($coll, 'urunToplam');
+            $paketToplam = $sumKey($coll, 'paketToplam');
+            $hizmetHakedis = $sumKey($coll, 'hizmetHakedisTutar');
+            $urunHakedis = $sumKey($coll, 'urunHakedisTutar');
+            $paketHakedis = $sumKey($coll, 'paketHakedisTutar');
+
+            $odemeler = $maasOdemeleri->get($p->id, collect([]));
+            $odenenMaas = (float)$odemeler->where('odeme_tipi', 'maas')->sum('tutar');
+            $odenenPrim = (float)$odemeler->where('odeme_tipi', 'prim')->sum('tutar');
+            $odenenDiger = (float)$odemeler->where('odeme_tipi', 'diger')->sum('tutar');
+
+            $hareketler = $primHareketleri->get($p->id, collect([]));
+            $bonus = (float)$hareketler->where('tip', 'bonus')->sum('tutar');
+            $kesinti = (float)$hareketler->where('tip', 'kesinti')->sum('tutar');
+
+            $sonuc[] = [
+                'personel_id'        => (string)$p->id,
+                'personel_adi'       => (string)$p->personel_adi,
+                'unvan'              => (string)($p->unvan ?? ''),
+                'cep_telefon'        => (string)($p->cep_telefon ?? ''),
+                'profil_resmi'       => (string)($p->profil_resmi ?? ''),
+                'cinsiyet'           => (string)($p->cinsiyet ?? ''),
+                'maas'               => (float)$p->maas,
+                'hizmet_prim_yuzde'  => (float)$p->hizmet_prim_yuzde,
+                'urun_prim_yuzde'    => (float)$p->urun_prim_yuzde,
+                'paket_prim_yuzde'   => (float)$p->paket_prim_yuzde,
+                // Mobile Personel.fromJson 'aktif' field'ini okuyor (durum'a setliyor)
+                'aktif'              => (string)$p->aktif,
+                'durum'              => (string)$p->aktif,
+                'takvimde_gorunsun'  => (string)$p->takvimde_gorunsun,
+                'takvim_sirasi'      => (string)($p->takvim_sirasi ?? ''),
+                'renk'               => (string)($p->renk ?? ''),
+                'hesap_turu'         => (string)($p->hesap_turu ?? ''),
+                'salon_id'           => (string)$p->salon_id,
+                'dahili_no'          => (string)($p->dahili_no ?? ''),
+                'hizmet_toplam'      => $hizmetToplam,
+                'urun_toplam'        => $urunToplam,
+                'paket_toplam'       => $paketToplam,
+                'hizmet_hakedis'     => $hizmetHakedis,
+                'urun_hakedis'       => $urunHakedis,
+                'paket_hakedis'      => $paketHakedis,
+                'odenen_maas'        => $odenenMaas,
+                'odenen_prim'        => $odenenPrim,
+                'odenen_diger'       => $odenenDiger,
+                'bonus'              => $bonus,
+                'kesinti'            => $kesinti,
+            ];
+        }
+
+        return response()->json([
+            'basarili' => true,
+            'donem' => $donem,
+            'personeller' => $sonuc,
+        ]);
+    }
+
     // Maas / Prim / Avans odemesi ekle. Web StoreAdminController@primOde mantigi
     // (kasa/masraf otomatik kaydi dahil).
     public function primOdeApi(Request $request)
