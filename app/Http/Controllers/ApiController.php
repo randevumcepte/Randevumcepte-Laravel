@@ -23302,7 +23302,12 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
 
             $baslik = trim((string) $request->input('baslik', ''));
             $mesaj  = trim((string) $request->input('mesaj', ''));
-            if ($baslik === '') $baslik = '🎡 ' . $salon->salon_adi;
+            if ($baslik === '') {
+                $baslik = '🎡 ' . $salon->salon_adi;
+            } elseif (mb_substr($baslik, 0, 1) !== '🎡') {
+                // Kullanıcı kendi başlığını yazdı ama ikon yok — başına ekleyelim
+                $baslik = '🎡 ' . $baslik;
+            }
             if ($mesaj === '')  $mesaj  = 'Çark-ı Felek\'i çevir, sürpriz ödülü kap! Bugün şansını dene 🎁';
 
             // Bu salonun müşterileri (randevu sahibi olanlar)
