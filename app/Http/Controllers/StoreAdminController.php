@@ -4090,6 +4090,18 @@ private function ayAdiCevir($ingilizceAy)
                         // Müşteriye gönder (WhatsApp-first + SMS fallback)
                         $musteriMesaji = $randevu->salonlar->salon_adi . " tarafından " . $eskitarihsaat . " " . ($seansVar ? $hizmetAdi : "") . " randevunuz " . date('d.m.Y', strtotime($randevu->tarih)) . '-' . $randevu->saat . ' olarak güncellenmiştir. Detaylı bilgi için bize ulaşın. 0' . $randevu->salonlar->telefon_1;
                         $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 14, 'musteri', $randevu->id, $randevu->user_id, $mesajlar);
+                        // Musteri push (SMS metniyle birebir)
+                        if($randevu->user_id){
+                            try {
+                                NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
+                                    ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                                    ->title('Randevunuz Güncellendi')
+                                    ->body($musteriMesaji)
+                                    ->randevu((int)$randevu->id)
+                                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                                    ->send();
+                            } catch (\Throwable $e) { \Log::warning('musteri randevu guncelleme push: '.$e->getMessage()); }
+                        }
 
                         // Personellere gönder (WhatsApp-first + SMS fallback)
                         foreach ($randevu->hizmetler as $hizmet) {
@@ -4250,6 +4262,18 @@ private function ayAdiCevir($ingilizceAy)
         {
             $musteriMesaji = $isletme->salon_adi." için oluşturduğunuz ".date('d.m.Y',strtotime($randevu->tarih)) ." ". date('H:i',strtotime($randevu->saat)) ." tarihli randevu talebiniz reddedilmiştir. Detaylı bilgi için bize ulaşın. 0".$isletme->telefon_1;
             $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 3, 'musteri', $randevu->id, $randevu->user_id, $mesajlar);
+            if($randevu->user_id){
+                try {
+                    NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
+                        ->type(NotificationTypes::APPOINTMENT_CANCELLED)
+                        ->title('Randevu Talebiniz Reddedildi')
+                        ->body($musteriMesaji)
+                        ->randevu((int)$randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->extra(['islem' => 'red'])
+                        ->send();
+                } catch (\Throwable $e) { \Log::warning('musteri randevu red push: '.$e->getMessage()); }
+            }
 
             foreach($randevu->hizmetler as $hizmet)
             {
@@ -4277,6 +4301,18 @@ private function ayAdiCevir($ingilizceAy)
         {
             $musteriMesaji = $isletme->salon_adi." için oluşturulan ".date('d.m.Y',strtotime($randevu->tarih)) ." ". date('H:i',strtotime($randevu->saat)) ." tarihli randevunuz iptal edilmiştir. Detaylı bilgi için bize ulaşın. 0".$isletme->telefon_1;
             $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 3, 'musteri', $randevu->id, $randevu->user_id, $mesajlar);
+            if($randevu->user_id){
+                try {
+                    NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
+                        ->type(NotificationTypes::APPOINTMENT_CANCELLED)
+                        ->title('Randevunuz İptal Edildi')
+                        ->body($musteriMesaji)
+                        ->randevu((int)$randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->extra(['islem' => 'iptal'])
+                        ->send();
+                } catch (\Throwable $e) { \Log::warning('musteri randevu iptal push: '.$e->getMessage()); }
+            }
 
             foreach($randevu->hizmetler as $hizmet)
             {
@@ -4380,11 +4416,24 @@ private function ayAdiCevir($ingilizceAy)
             $isletme = Salonlar::where('id',$randevu->salon_id)->first();
             $mesajlar = array();
 
+            $musteriOnayMesaji = $isletme->salon_adi." için oluşturduğunuz ".date('d.m.Y',strtotime($randevu->tarih))." ".date('H:i',strtotime($randevu->saat))." tarihli randevu talebiniz onaylanmıştır. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0".$randevu->salonlar->telefon_1;
             if (SalonSMSAyarlari::where('ayar_id',2)->where('salon_id',$randevu->salon_id)->value('musteri') == 1) {
                 $mesajlar[] = [
                     'to' => $randevu->users->cep_telefon,
-                    'message' => $isletme->salon_adi." için oluşturduğunuz ".date('d.m.Y',strtotime($randevu->tarih))." ".date('H:i',strtotime($randevu->saat))." tarihli randevu talebiniz onaylanmıştır. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0".$randevu->salonlar->telefon_1
+                    'message' => $musteriOnayMesaji
                 ];
+            }
+            // Musteri push (SMS metniyle birebir, SMS ayarindan bagimsiz)
+            if($randevu->user_id){
+                try {
+                    NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
+                        ->type(NotificationTypes::APPOINTMENT_APPROVED)
+                        ->title('Randevunuz Onaylandı')
+                        ->body($musteriOnayMesaji)
+                        ->randevu((int)$randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->send();
+                } catch (\Throwable $e) { \Log::warning('musteri randevu onay push: '.$e->getMessage()); }
             }
             if (SalonSMSAyarlari::where('ayar_id',2)->where('salon_id',$randevu->salon_id)->value('personel') == 1) {
                 foreach ($randevu->hizmetler as $hizmet) {
@@ -5022,8 +5071,21 @@ private function ayAdiCevir($ingilizceAy)
             $gsm = $musteribilgi->cep_telefon;
             $mesajlar = array();
             
+            $musteriYeniRandevuMesaji = $isletme->salon_adi . " tarafından ".date('d.m.Y',strtotime($request->tarih)) .'-'.$request->saat .' olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$isletme->telefon_1;
             if(SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$yenirandevu->salon_id)->value('musteri')==1) {
-                array_push($mesajlar, array("to"=>$gsm,"message"=>$isletme->salon_adi . " tarafından ".date('d.m.Y',strtotime($request->tarih)) .'-'.$request->saat .' olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$isletme->telefon_1));
+                array_push($mesajlar, array("to"=>$gsm,"message"=>$musteriYeniRandevuMesaji));
+            }
+            // Musteri push (SMS metniyle birebir)
+            if($musteriid){
+                try {
+                    NotificationService::toCustomer((int)$musteriid, (int)$yenirandevu->salon_id)
+                        ->type(NotificationTypes::APPOINTMENT_CREATED)
+                        ->title('Yeni Randevunuz Oluşturuldu')
+                        ->body($musteriYeniRandevuMesaji)
+                        ->randevu((int)$yenirandevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $yenirandevu->id])
+                        ->send();
+                } catch (\Throwable $e) { \Log::warning('musteri yeni randevu push: '.$e->getMessage()); }
             }
             
             foreach($yenirandevu->hizmetler as $hizmet) {
