@@ -7625,6 +7625,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 })
 
+                // Sozlesmeler form_id=0 ile kaydediliyor ama harici belge degil — disla
+                ->where(function ($q) {
+
+                    $q->where("is_sozlesme", "!=", 1)->orWhereNull("is_sozlesme");
+
+                })
+
                 ->orderBy("created_at", "desc")
 
                 ->paginate(9);
