@@ -140,6 +140,8 @@ use App\PersonelPrimHareketi;
 use App\PersonelMaasOdemesi;
 use App\SalonAktiviteLog;
 use App\SalonYonetim\Audit as SalonAudit;
+use App\Services\NotificationService;
+use App\Services\NotificationTypes;
 
 class StoreAdminController extends Controller
 {
@@ -4103,8 +4105,17 @@ private function ayAdiCevir($ingilizceAy)
                         $mesaj = $randevu->users->name . " isimli müşterinin " . $hizmet->hizmetler->hizmet_adi . " randevusu " . date('d.m.Y', strtotime($randevu->tarih)) . " - " . date('H:i', strtotime($hizmet->saat)) . " olarak " . Auth::guard('isletmeyonetim')->user()->name . " tarafından güncellenmiştir.";
                         
                         self::bildirimekle($request, $randevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, Auth::guard('isletmeyonetim')->user()->profil_resim, $randevu->id);
-                        $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id', $hizmet->personel_id)->pluck('bildirim_id')->toArray();
-                        self::bildirimgonder($bildirimkimlikleri, "Randevu Güncelleme", $mesaj, $randevu->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+                        if($hizmet->personel_id){
+                            try {
+                                NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
+                                    ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                                    ->title('Randevu Güncellendi')
+                                    ->body($mesaj)
+                                    ->randevu((int)$randevu->id)
+                                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                                    ->send();
+                            } catch (\Throwable $e) { \Log::warning('randevu guncelleme push: '.$e->getMessage()); }
+                        }
                     }
                     
                     // Eğer tarih/saat değiştiyse ve gönderilecek mesaj varsa SMS gönder
@@ -4248,8 +4259,18 @@ private function ayAdiCevir($ingilizceAy)
                 $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 3, 'personel', $randevu->id, null, $mesajlar);
 
                 self::bildirimekle($request,$randevu->salon_id,$mesaj,"#",$hizmet->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
-                $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id',$hizmet->personel_id)->pluck('bildirim_id')->toArray();
-                self::bildirimgonder($bildirimkimlikleri,"Randevu Reddi",$mesaj,$randevu->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+                if($hizmet->personel_id){
+                    try {
+                        NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
+                            ->type(NotificationTypes::APPOINTMENT_CANCELLED)
+                            ->title('Randevu Reddedildi')
+                            ->body($mesaj)
+                            ->randevu((int)$randevu->id)
+                            ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                            ->extra(['islem' => 'red'])
+                            ->send();
+                    } catch (\Throwable $e) { \Log::warning('randevu red push: '.$e->getMessage()); }
+                }
             }
         }
         else
@@ -4265,8 +4286,18 @@ private function ayAdiCevir($ingilizceAy)
                 $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 3, 'personel', $randevu->id, null, $mesajlar);
 
                 self::bildirimekle($request,$randevu->salon_id,$mesaj,"#",$hizmet->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
-                $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id',$hizmet->personel_id)->pluck('bildirim_id')->toArray();
-                self::bildirimgonder($bildirimkimlikleri,"Randevu İptali",$mesaj,$randevu->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+                if($hizmet->personel_id){
+                    try {
+                        NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
+                            ->type(NotificationTypes::APPOINTMENT_CANCELLED)
+                            ->title('Randevu İptal Edildi')
+                            ->body($mesaj)
+                            ->randevu((int)$randevu->id)
+                            ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                            ->extra(['islem' => 'iptal'])
+                            ->send();
+                    } catch (\Throwable $e) { \Log::warning('randevu iptal push: '.$e->getMessage()); }
+                }
             }
         }
         if(count($mesajlar)>0)
@@ -4364,8 +4395,17 @@ private function ayAdiCevir($ingilizceAy)
                         'message' => $mesaj,
                     ];
                     self::bildirimekle($request, $randevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, $kullaniciResim, $randevu->id);
-                    $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id',$hizmet->personel_id)->pluck('bildirim_id')->toArray();
-                    self::bildirimgonder($bildirimkimlikleri,"Randevu Onayı",$mesaj,$randevu->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+                    if($hizmet->personel_id){
+                        try {
+                            NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
+                                ->type(NotificationTypes::APPOINTMENT_APPROVED)
+                                ->title('Randevu Onaylandı')
+                                ->body($mesaj)
+                                ->randevu((int)$randevu->id)
+                                ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                                ->send();
+                        } catch (\Throwable $e) { \Log::warning('randevu onay push: '.$e->getMessage()); }
+                    }
                 }
             }
             if (count($mesajlar) > 0) {
@@ -4997,8 +5037,15 @@ private function ayAdiCevir($ingilizceAy)
                 // Personel ID null olabileceği için kontrol ekledim
                 if($hizmet->personel_id) {
                     self::bildirimekle($request,$yenirandevu->salon_id,$mesaj,"#",$hizmet->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$yenirandevu->id);
-                    $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id',$hizmet->personel_id)->pluck('bildirim_id')->toArray();
-                    self::bildirimgonder($bildirimkimlikleri,"Yeni Randevu",$mesaj,$yenirandevu->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+                    try {
+                        NotificationService::toStaff((int)$hizmet->personel_id, (int)$yenirandevu->salon_id)
+                            ->type(NotificationTypes::APPOINTMENT_CREATED)
+                            ->title('Yeni Randevu')
+                            ->body($mesaj)
+                            ->randevu((int)$yenirandevu->id)
+                            ->deepLink('appointment_detail', ['randevu_id' => $yenirandevu->id])
+                            ->send();
+                    } catch (\Throwable $e) { \Log::warning('yeni randevu push: '.$e->getMessage()); }
                 }
             }
             
@@ -11396,8 +11443,18 @@ DB::raw('
                         );
                         self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
                         self::bildirimekle($request,$ongorusme->salon_id,$mesaj,"#",$request->gorusmeyi_yapan,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
-                            $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id',$request->gorusmeyi_yapan)->pluck('bildirim_id')->toArray();
-                        self::bildirimgonder($bildirimkimlikleri,"Yeni Ön Görüşme Randevusu",$mesaj,$ongorusme->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+                        if($request->gorusmeyi_yapan){
+                            try {
+                                NotificationService::toStaff((int)$request->gorusmeyi_yapan, (int)$ongorusme->salon_id)
+                                    ->type(NotificationTypes::APPOINTMENT_CREATED)
+                                    ->title('Yeni Ön Görüşme Randevusu')
+                                    ->body($mesaj)
+                                    ->randevu((int)$randevu->id)
+                                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id, 'on_gorusme' => 1])
+                                    ->extra(['ongorusme' => '1'])
+                                    ->send();
+                            } catch (\Throwable $e) { \Log::warning('on gorusme push: '.$e->getMessage()); }
+                        }
                     }
         }
         return self::ongorusmegetir($request,false);
@@ -14559,12 +14616,18 @@ DB::raw('
         }
 
         self::bildirimekle($request, $randevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, Auth::guard('isletmeyonetim')->user()->profil_resim, $randevu->id);
-        
-        $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id', $hizmet->personel_id)
-            ->pluck('bildirim_id')
-            ->toArray();
-        
-        self::bildirimgonder($bildirimkimlikleri, "Yeni Randevu", $mesaj, $randevu->salon_id, '12d6537e-7a7d-4d1d-a838-e3fc947eaf44', '5e50f84e-2cd8-4532-a765-f2cb82a22ff9', 'os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+
+        if($hizmet->personel_id){
+            try {
+                NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
+                    ->type(NotificationTypes::APPOINTMENT_CREATED)
+                    ->title('Yeni Randevu')
+                    ->body($mesaj)
+                    ->randevu((int)$randevu->id)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                    ->send();
+            } catch (\Throwable $e) { \Log::warning('yeni randevu push: '.$e->getMessage()); }
+        }
     }
     
     if (count($mesajlar) > 0) {
@@ -15760,8 +15823,17 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $mesaj = $randevu->users->name .' isimli müşterinin '. $hizmet . " için ".date('d.m.Y',strtotime($randevu->tarih)) .'-'.date('H:i',
                         strtotime($randevu->saat)) .' tarihli randevusu oluşturulmuştur.';
             self::bildirimekle($request,$randevu->salon_id,$mesaj,"#",$request->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
-                $bildirimkimlikleri = BildirimKimlikleri::where('isletme_yetkili_id',$request->personel_id)->pluck('bildirim_id')->toArray();
-            self::bildirimgonder($bildirimkimlikleri,"Randevu Güncelleme",$mesaj,$randevu->salon_id,'12d6537e-7a7d-4d1d-a838-e3fc947eaf44','5e50f84e-2cd8-4532-a765-f2cb82a22ff9','os_v2_app_lzipqtrm3bctfj3f6lfyfirp7ghx6w4i7t6e6iufqzlj6ginpkucdwamtgxy5bclne737yh7y62zxlfmep2c4ijioiimrps4jcq5ysi');
+            if($request->personel_id){
+                try {
+                    NotificationService::toStaff((int)$request->personel_id, (int)$randevu->salon_id)
+                        ->type(NotificationTypes::APPOINTMENT_CREATED)
+                        ->title('Randevu Oluşturuldu')
+                        ->body($mesaj)
+                        ->randevu((int)$randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->send();
+                } catch (\Throwable $e) { \Log::warning('randevu olustu push: '.$e->getMessage()); }
+            }
         }
         return self::adisyon_paket_satis_getir($adisyon->id,true,$seans->adisyon_paket_id);
     }
