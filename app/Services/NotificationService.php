@@ -125,6 +125,8 @@ class NotificationService
      */
     public function send(): array
     {
+        $this->resolveFirebaseProfile();
+
         $tokens = $this->findTokens();
         $sent = 0; $failed = 0;
 
@@ -165,6 +167,38 @@ class NotificationService
         $this->logToDb($deepLink);
 
         return ['sent' => $sent, 'failed' => $failed, 'total' => count($tokens)];
+    }
+
+    /**
+     * Salon'a ozel firebase_profile varsa ilgili JSON dosyasini sec.
+     * Profile bos, tanimsiz veya config'de yoksa default'a duser.
+     * firebaseFile() ile manuel set edilmisse ona dokunulmaz.
+     */
+    private function resolveFirebaseProfile(): void
+    {
+        if (!$this->salonId) return;
+        try {
+            $profile = BildirimKimlikleri::query() // hafif: salonlar yerine direkt sorgu
+                ->getConnection()
+                ->table('salonlar')
+                ->where('id', $this->salonId)
+                ->value('firebase_profile');
+            if (empty($profile)) return;
+            $path = config("firebase_projects.{$profile}");
+            if (empty($path)) {
+                Log::warning('NotificationService: bilinmeyen firebase_profile', [
+                    'salon_id' => $this->salonId,
+                    'profile'  => $profile,
+                ]);
+                return;
+            }
+            $this->firebaseJsonFile = $path;
+        } catch (\Throwable $e) {
+            Log::warning('NotificationService: firebase_profile resolve hata', [
+                'salon_id' => $this->salonId,
+                'err'      => $e->getMessage(),
+            ]);
+        }
     }
 
     private function findTokens()
