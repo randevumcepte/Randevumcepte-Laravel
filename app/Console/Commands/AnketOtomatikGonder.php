@@ -42,12 +42,10 @@ class AnketOtomatikGonder extends Command
             // gonder_saat_sonra: 0 = randevu biter bitmez, N = bitisten N saat sonra
             $saatSonra = max(0, (int) $sablon->gonder_saat_sonra);
 
-            // Son 26 saat içindeki olası randevuları al (geç kalmış cron koşusu için)
+            // Son 26 saat içindeki randevular — geldi/gelmedi farketmez,
+            // randevu durumu aktif ve müşteri kayıtlı (user_id) olsun yeter.
             $randevular = Randevular::where('salon_id', $sablon->salon_id)
                 ->where('durum', 1)
-                ->where(function ($q) {
-                    $q->whereNull('randevuya_geldi')->orWhere('randevuya_geldi', '!=', 0);
-                })
                 ->whereBetween('tarih', [
                     $now->copy()->subHours(26 + $saatSonra)->toDateString(),
                     $now->copy()->toDateString(),
@@ -57,7 +55,7 @@ class AnketOtomatikGonder extends Command
                 ->get();
 
             foreach ($randevular as $rnd) {
-                // Aynı randevu için anket zaten gönderildi mi?
+                // Ayni randevu icin anket zaten gonderildi mi? (tek gönderim garantisi)
                 $varMi = AnketGonderim::where('salon_id', $sablon->salon_id)
                     ->where('randevu_id', $rnd->id)
                     ->exists();
