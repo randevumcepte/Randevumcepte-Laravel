@@ -9772,19 +9772,22 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             $user->save();
 
-            $katilim_link =
+            // Web tarafiyla ayni mantik: dinamik form (web Form Sablonlari'ndan
+            // olusturulmus) ise /onam-form/, degilse eski form_blade route'u.
+            $isDinamik = false;
+            try {
+                $isDinamik = (bool) \App\FormTaslaklari::where('id', $form->form_id)->value('is_dinamik');
+            } catch(\Exception $e) {}
 
-                " Formu doldurmak için : https://apptest.randevumcepte.com.tr/musteriformdoldurma/" .
-
-                $form->id .
-
-                "/" .
-
-                $form->user_id .
-
-                " Onay Kodu:" .
-
-                $kod;
+            if ($isDinamik) {
+                $katilim_link =
+                    " Onam formunu doldurmak için: https://apptest.randevumcepte.com.tr/onam-form/" .
+                    $form->id . "/" . $form->user_id . " | Onay Kodu: " . $kod;
+            } else {
+                $katilim_link =
+                    " Formu doldurmak için : https://apptest.randevumcepte.com.tr/" . $form->form->form_blade . "/" .
+                    $form->id . "/" . $form->user_id . " Onay Kodu:" . $kod;
+            }
 
             if (
 
