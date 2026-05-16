@@ -9229,7 +9229,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 self::bildirimekle($request, $yenirandevu->salon_id, $musteriMesaj, "#", null, $yenirandevu->user_id, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
 
                 $bildirimkimlikleri = BildirimKimlikleri::where("user_id", $yenirandevu->user_id)->pluck("bildirim_id")->toArray();
-                self::bildirimgonder($bildirimkimlikleri, "Yeni Randevu", $musteriMesaj, $yenirandevu->salonlar->bildirim_channel_id, $yenirandevu->salonlar->bildirim_app_id, $yenirandevu->salonlar->bildirim_api_key, $yenirandevu->salonlar->bildirim_kucuk_ikon, $yenirandevu->salonlar->bildirim_buyuk_ikon);
+                self::bildirimgonder($bildirimkimlikleri, "Yeni Randevu", $musteriMesaj, $yenirandevu->salonlar->bildirim_channel_id, $yenirandevu->salonlar->bildirim_app_id, $yenirandevu->salonlar->bildirim_api_key, $yenirandevu->salonlar->bildirim_kucuk_ikon, $yenirandevu->salonlar->bildirim_buyuk_ikon, $yenirandevu->salon_id);
 
                 if (SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("musteri") == 1) {
                     if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null)
@@ -9265,7 +9265,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         $bildirimkimlikleri = BildirimKimlikleri::where("isletme_yetkili_id", $hizmet->personel_id)
                             ->orWhereIn('isletme_yetkili_id', Personeller::where('salon_id', $yenirandevu->salon_id)->where('role_id', '<', 5)->pluck('id')->toArray())->pluck("bildirim_id")->toArray();
 
-                        self::bildirimgonder($bildirimkimlikleri, "Yeni Randevu", $mesaj, $yenirandevu->salonlar->bildirim_channel_id, $yenirandevu->salonlar->bildirim_app_id, $yenirandevu->salonlar->bildirim_api_key, $yenirandevu->salonlar->bildirim_kucuk_ikon, $yenirandevu->salonlar->bildirim_buyuk_ikon);
+                        self::bildirimgonder($bildirimkimlikleri, "Yeni Randevu", $mesaj, $yenirandevu->salonlar->bildirim_channel_id, $yenirandevu->salonlar->bildirim_app_id, $yenirandevu->salonlar->bildirim_api_key, $yenirandevu->salonlar->bildirim_kucuk_ikon, $yenirandevu->salonlar->bildirim_buyuk_ikon, $yenirandevu->salon_id);
                     }
                 }
             }
@@ -9307,13 +9307,25 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     } elseif (!$guncelleme) {
                         // Yeni randevu — kim oluşturdu?
                         if ($musteriEkledi) {
-                            // Müşteri kendi oluşturdu → personel/yetkili bilgilendir
+                            // Müşteri kendi oluşturdu → atanan personel + salon yöneticileri (sahip, yönetici, sekreter)
+                            $bildirilecekPersonelIdler = [];
                             foreach ($finalRandevu->hizmetler as $h) {
-                                if (!$h->personel_id) continue;
-                                NotificationService::toStaff((int)$h->personel_id, (int)$salonId)
+                                if ($h->personel_id) $bildirilecekPersonelIdler[] = (int)$h->personel_id;
+                            }
+                            $yoneticiIdler = Personeller::where('salon_id', $salonId)
+                                ->where('role_id', '<', 5)
+                                ->pluck('id')->toArray();
+                            foreach ($yoneticiIdler as $yid) {
+                                $bildirilecekPersonelIdler[] = (int)$yid;
+                            }
+                            $bildirilecekPersonelIdler = array_values(array_unique($bildirilecekPersonelIdler));
+
+                            $musteriAdi = $finalRandevu->users->name ?? 'Müşteri';
+                            foreach ($bildirilecekPersonelIdler as $pid) {
+                                NotificationService::toStaff($pid, (int)$salonId)
                                     ->type(NotificationTypes::APPOINTMENT_CREATED)
                                     ->title('Yeni randevu talebi')
-                                    ->body(($finalRandevu->users->name ?? 'Müşteri') . ' • ' . $tarihSaatTxt)
+                                    ->body($musteriAdi . ' • ' . $tarihSaatTxt)
                                     ->randevu((int)$finalRandevu->id)
                                     ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
                                     ->send();
@@ -11552,11 +11564,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
      * Eski $channelid/$appid/$bildirimApiKey/$smallIcon/$largeIcon parametreleri
      * geri uyum icin tutulur ama kullanilmaz.
      */
-    public function bildirimgonder($bildirimkimlikleri, $baslik, $mesaj, $channelid = null, $appid = null, $bildirimApiKey = null, $smallIcon = null, $largeIcon = null)
+    public function bildirimgonder($bildirimkimlikleri, $baslik, $mesaj, $channelid = null, $appid = null, $bildirimApiKey = null, $smallIcon = null, $largeIcon = null, $salonId = null)
     {
         if (empty($bildirimkimlikleri)) return null;
         try {
-            return \App\Services\NotificationService::forTokens((array)$bildirimkimlikleri)
+            return \App\Services\NotificationService::forTokens((array)$bildirimkimlikleri, $salonId !== null ? (int)$salonId : null)
                 ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
                 ->title((string)$baslik)
                 ->body((string)$mesaj)
