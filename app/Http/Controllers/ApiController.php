@@ -9772,43 +9772,57 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             $user->save();
 
-            // Web tarafiyla ayni mantik: dinamik form (web Form Sablonlari'ndan
-            // olusturulmus) ise /onam-form/, degilse eski form_blade route'u.
-            $isDinamik = false;
-            try {
-                $isDinamik = (bool) \App\FormTaslaklari::where('id', $form->form_id)->value('is_dinamik');
-            } catch(\Exception $e) {}
+        }
 
-            if ($isDinamik) {
-                $katilim_link =
-                    " Onam formunu doldurmak için: https://apptest.randevumcepte.com.tr/onam-form/" .
-                    $form->id . "/" . $form->user_id . " | Onay Kodu: " . $kod;
-            } else {
-                $katilim_link =
-                    " Formu doldurmak için : https://apptest.randevumcepte.com.tr/" . $form->form->form_blade . "/" .
-                    $form->id . "/" . $form->user_id . " Onay Kodu:" . $kod;
+        $linkHost = $_SERVER['HTTP_HOST'] ?? 'apptest.randevumcepte.com.tr';
+        $musteriTel = self::telefon_no_format_duzenle($request->cep_telefon);
+        $isDinamik = FormTaslaklari::where('id', $request->form_id)->value('is_dinamik');
+
+        $karaListe = $request->user_id
+            ? MusteriPortfoy::where('user_id', $request->user_id)->where('salon_id', $form->salon_id)->value('kara_liste')
+            : 0;
+
+        if ($isDinamik && $request->user_id) {
+            $katilim_link = ' Onam formunu doldurmak için: https://'.$linkHost.'/onam-form/'.$form->id.'/'.$form->user_id.' | Onay Kodu: '.$kod;
+            if ($karaListe != 1) {
+                array_push($mesajlar, ["to" => $musteriTel, "message" => $katilim_link]);
             }
-
-            if (
-
-                MusteriPortfoy::where("user_id", $request->user_id)
-
-                    ->where("salon_id", $form->salon_id)
-
-                    ->value("kara_liste") != 1
-
-            ) {
-
-                array_push($mesajlar, [
-
-                    "to" => self::telefon_no_format_duzenle($request->cep_telefon),
-
-                    "message" => $katilim_link,
-
-                ]);
-
+        } elseif ($request->form_id == 9 && $request->user_id) {
+            $katilim_link = ' Formu doldurmak için : https://'.$linkHost.'/musteriformdoldurma2/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+            if ($karaListe != 1) {
+                array_push($mesajlar, ["to" => $musteriTel, "message" => $katilim_link]);
             }
-
+        } elseif ($request->form_id == 10 && $request->user_id) {
+            $katilim_link = ' Formu doldurmak için : https://'.$linkHost.'/musteriformdoldurma3/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+            if ($karaListe != 1) {
+                array_push($mesajlar, ["to" => $musteriTel, "message" => $katilim_link]);
+            }
+        } elseif ($request->form_id == 11 && $request->user_id) {
+            $katilim_link = ' Formu doldurmak için : https://'.$linkHost.'/musteriformdoldurma4/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+            if ($karaListe != 1) {
+                array_push($mesajlar, ["to" => $musteriTel, "message" => $katilim_link]);
+            }
+        } elseif ($request->form_id == 12 && $request->user_id) {
+            $katilim_link = ' Formu doldurmak için : https://'.$linkHost.'/musteriformdoldurma5/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+            if ($karaListe != 1) {
+                array_push($mesajlar, ["to" => $musteriTel, "message" => $katilim_link]);
+            }
+        } elseif ($request->form_id == 13 && $request->user_id) {
+            $katilim_link = ' Formu doldurmak için : https://'.$linkHost.'/musteriformdoldurma6/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+            if ($karaListe != 1) {
+                array_push($mesajlar, ["to" => $musteriTel, "message" => $katilim_link]);
+            }
+        } else {
+            if ($request->user_id) {
+                $katilim_link = ' Formu doldurmak için : https://'.$linkHost.'/musteriformdoldurma/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+                if ($karaListe != 1) {
+                    array_push($mesajlar, ["to" => $musteriTel, "message" => $katilim_link]);
+                }
+            }
+            if ($request->personel_id) {
+                $katilim_link2 = ' İmza atmak için : https://'.$linkHost.'/personelformdoldurma/'.$form->id.'/'.$request->personel_id;
+                array_push($mesajlar2, ["to" => $request->personel_cep, "message" => $katilim_link2]);
+            }
         }
 
         $gonder = self::sms_gonder_2(
@@ -9826,28 +9840,6 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $request->salon_id
             ,false
         );
-
-        if ($request->personel_id) {
-
-            $katilim_link2 =
-
-                " İmza atmak için : https://apptest.randevumcepte.com.tr/personelformdoldurma/" .
-
-                $form->id .
-
-                "/" .
-
-                $request->personel_id;
-
-            array_push($mesajlar2, [
-
-                "to" => $request->personel_cep,
-
-                "message" => $katilim_link2,
-
-            ]);
-
-        }
 
         $gonder2 = self::sms_gonder_2(
 
@@ -13943,45 +13935,28 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         if ($form->user_id) {
 
-            // Test ortaminda apptest, canli yayina gecince apptest -> app donusumu eklenecek.
-            $linkHost = $_SERVER["SERVER_NAME"] ?? 'apptest.randevumcepte.com.tr';
+            $linkHost = $_SERVER['HTTP_HOST'] ?? 'apptest.randevumcepte.com.tr';
 
-            $katilim_link =
-
-                " Formu doldurmak için : https://" .
-
-                $linkHost .
-
-                "/musteriformdoldurma/" .
-
-                $form->id .
-
-                "/" .
-
-                $form->user_id .
-
-                " Onay Kodu:" .
-
-                $kod;
+            if ($form->is_sozlesme) {
+                $katilim_link = ' Hizmet Sözleşmenizi imzalamak için: https://'.$linkHost.'/sozlesme/'.$form->id.'/'.$form->user_id.' | Onay Kodu: '.$kod;
+            } else {
+                $isDinamik = FormTaslaklari::where('id', $form->form_id)->value('is_dinamik');
+                if ($isDinamik) {
+                    $katilim_link = ' Onam formunu doldurmak için: https://'.$linkHost.'/onam-form/'.$form->id.'/'.$form->user_id.' | Onay Kodu: '.$kod;
+                } else {
+                    $katilim_link = ' Formu doldurmak için : https://'.$linkHost.'/musteriformdoldurma/'.$form->id.'/'.$form->user_id.' Onay Kodu:'.$kod;
+                }
+            }
 
             if (
-
                 MusteriPortfoy::where("user_id", $form->user_id)
-
                     ->where("salon_id", $form->salon_id)
-
                     ->value("kara_liste") != 1
-
             ) {
-
                 array_push($mesajlar, [
-
                     "to" => $form->musteri->cep_telefon,
-
                     "message" => $katilim_link,
-
                 ]);
-
             }
 
         }
