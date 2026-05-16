@@ -11560,6 +11560,190 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         return $user;
 
     }
+
+    /**
+     * Mobile API: musterinin aktif paket/hizmetlerini kontrol et.
+     * Web tarafindaki StoreAdminController::paketVarmiKontrolu'nun aynisi,
+     * api.php uzerinden auth gerektirmeden cagrilabilir (mevcut endpoint'lerle uyumlu).
+     *
+     * Request:
+     *   userId  → musteri id
+     *   sube    → salon id
+     *   paketRandevuOnayiVar → bool (genellikle false, popup gosterilsin diye)
+     *
+     * Response:
+     *   paketVarMi: bool
+     *   userName: string
+     *   paketDetaylari: [{ index, adi, seans, tur, sure, type (paket|hizmet),
+     *                      paket_id, hizmet_id, adisyon_paket_id, adisyon_hizmet_id,
+     *                      toplamSeans, icerik:[{id,text,seans,sure}] }]
+     */
+    public function paketVarmiKontroluApi(Request $request)
+    {
+        $user = User::where('id', $request->userId)->first();
+
+        if (!$user) {
+            return response()->json([
+                'paketRandevuOnayiGerekli' => false,
+                'onayMetni' => 'Kullanıcı bulunamadı.',
+                'paketHizmetleri' => [],
+                'paketDetaylari' => [],
+                'toplamSeans' => 0,
+                'paketVarMi' => false,
+            ]);
+        }
+
+        $randevuOlusturulmamisHizmetAdisyonuVarmi = Adisyonlar::whereHas('hizmetler', function ($q) {
+            $q->where('otomatik_randevu_olusturuldu', '!=', 1)
+              ->where('bekleyen_seans', '>', 0);
+        })->where('user_id', $user->id)
+          ->where('salon_id', $request->sube)
+          ->with(['hizmetler.hizmet'])
+          ->get();
+
+        $randevuOlusturulmamisPaketAdisyonuVarmi = Adisyonlar::whereHas('paketler', function ($q) {
+            $q->where('otomatik_randevu_olusturuldu', '!=', 1)
+              ->where('bekleyen_seans', '>', 0);
+        })->where('user_id', $user->id)
+          ->where('salon_id', $request->sube)
+          ->with(['paketler.paket.hizmetler.hizmet'])
+          ->get();
+
+        $paketVarMi = ($randevuOlusturulmamisHizmetAdisyonuVarmi->count() > 0 ||
+                       $randevuOlusturulmamisPaketAdisyonuVarmi->count() > 0);
+
+        if (!$paketVarMi) {
+            return response()->json([
+                'paketRandevuOnayiGerekli' => false,
+                'onayMetni' => '',
+                'paketHizmetleri' => [],
+                'paketDetaylari' => [],
+                'toplamSeans' => 0,
+                'paketVarMi' => false,
+            ]);
+        }
+
+        $paketHizmetleri = [];
+        $paketDetaylari = [];
+        $onayVar = filter_var($request->paketRandevuOnayiVar, FILTER_VALIDATE_BOOLEAN);
+        $onayGerekli = $onayVar ? false : true;
+        $onayMetni = '';
+        $paketIndex = 0;
+
+        // TEK HIZMETLER
+        foreach ($randevuOlusturulmamisHizmetAdisyonuVarmi as $hizmetSeanslari) {
+            foreach ($hizmetSeanslari->hizmetler as $hizmetA) {
+                if (!$hizmetA->hizmet) continue;
+                $toplamSeansHizmet = (int)($hizmetA->seans_sayisi ?? $hizmetA->bekleyen_seans ?? 0);
+                $kullanilanHizmet = DB::table('adisyon_paket_seanslar')
+                    ->where('adisyon_hizmet_id', $hizmetA->id)->where('geldi', 1)->count();
+                $kullanilmayanHizmet = DB::table('adisyon_paket_seanslar')
+                    ->where('adisyon_hizmet_id', $hizmetA->id)->where('geldi', 0)->count();
+                $kalanSeansHizmet = max(0, $toplamSeansHizmet - $kullanilanHizmet - $kullanilmayanHizmet);
+                if ($kalanSeansHizmet <= 0) continue;
+
+                $hizmetAdi = $hizmetA->hizmet->hizmet_adi;
+                $paketHizmetleri[] = [
+                    'id' => $hizmetA->hizmet_id,
+                    'text' => $hizmetAdi,
+                    'seans' => $kalanSeansHizmet,
+                    'tur' => 'hizmet',
+                    'sure' => $hizmetA->sure ?? 0,
+                    'paket_adi' => null,
+                    'adisyon_hizmet_id' => $hizmetA->id,
+                ];
+                $paketDetaylari[] = [
+                    'index' => $paketIndex++,
+                    'adi' => $hizmetAdi,
+                    'seans' => $kalanSeansHizmet,
+                    'tur' => 'Tek Hizmet',
+                    'sure' => $hizmetA->sure ?? 0,
+                    'hizmet_id' => $hizmetA->hizmet_id,
+                    'type' => 'hizmet',
+                    'adisyon_hizmet_id' => $hizmetA->id,
+                    'paket_id' => null,
+                    'adisyon_paket_id' => null,
+                    'toplamSeans' => $kalanSeansHizmet,
+                    'icerik' => [[
+                        'id' => $hizmetA->hizmet_id,
+                        'text' => $hizmetAdi,
+                        'seans' => $kalanSeansHizmet,
+                        'sure' => $hizmetA->sure ?? 0,
+                    ]],
+                ];
+            }
+        }
+
+        // PAKETLER
+        foreach ($randevuOlusturulmamisPaketAdisyonuVarmi as $paketSeanslari) {
+            foreach ($paketSeanslari->paketler as $paketA) {
+                if (!$paketA->paket) continue;
+                $hizmetSayisi = $paketA->paket->hizmetler ? count($paketA->paket->hizmetler) : 0;
+                if ($hizmetSayisi <= 0) continue;
+                $seansPerHizmet = (int)($paketA->seans_sayisi ?? $paketA->bekleyen_seans ?? 0);
+                $toplamSeansPaket = $seansPerHizmet * $hizmetSayisi;
+                $kullanilanPaket = DB::table('adisyon_paket_seanslar')
+                    ->where('adisyon_paket_id', $paketA->id)->where('geldi', 1)->count();
+                $kullanilmayanPaket = DB::table('adisyon_paket_seanslar')
+                    ->where('adisyon_paket_id', $paketA->id)->where('geldi', 0)->count();
+                $bekleyenToplamPaket = $toplamSeansPaket - $kullanilanPaket - $kullanilmayanPaket;
+                $kalanSeansPaket = max(0, (int)floor($bekleyenToplamPaket / $hizmetSayisi));
+                if ($kalanSeansPaket <= 0) continue;
+
+                $paketAdi = $paketA->paket->paket_adi;
+                $paketHizmetleriArray = [];
+                $hizmetIdleri = [];
+
+                foreach ($paketA->paket->hizmetler as $hizmetP) {
+                    if (!$hizmetP->hizmet) continue;
+                    $paketHizmetleri[] = [
+                        'id' => $hizmetP->hizmet_id,
+                        'text' => $hizmetP->hizmet->hizmet_adi,
+                        'seans' => $kalanSeansPaket,
+                        'paket_adi' => $paketAdi,
+                        'tur' => 'paket',
+                        'sure' => $hizmetP->sure ?? 0,
+                        'adisyon_paket_id' => $paketA->id,
+                    ];
+                    $paketHizmetleriArray[] = [
+                        'id' => $hizmetP->hizmet_id,
+                        'text' => $hizmetP->hizmet->hizmet_adi,
+                        'seans' => $kalanSeansPaket,
+                        'sure' => $hizmetP->sure ?? 0,
+                    ];
+                    $hizmetIdleri[] = $hizmetP->hizmet_id;
+                }
+
+                $paketDetaylari[] = [
+                    'index' => $paketIndex++,
+                    'adi' => $paketAdi,
+                    'seans' => $kalanSeansPaket,
+                    'tur' => 'Paket: ' . $paketAdi,
+                    'sure' => $paketA->paket->sure ?? 0,
+                    'hizmet_id' => $hizmetIdleri,
+                    'paket_id' => $paketA->paket_id,
+                    'type' => 'paket',
+                    'adisyon_paket_id' => $paketA->id,
+                    'adisyon_hizmet_id' => null,
+                    'toplamSeans' => $kalanSeansPaket,
+                    'icerik' => $paketHizmetleriArray,
+                ];
+            }
+        }
+
+        $paketVarMi = !empty($paketDetaylari);
+
+        return response()->json([
+            'paketRandevuOnayiGerekli' => $paketVarMi ? $onayGerekli : false,
+            'onayMetni' => $onayMetni,
+            'paketHizmetleri' => $paketHizmetleri,
+            'paketDetaylari' => $paketDetaylari,
+            'toplamSeans' => count($paketHizmetleri),
+            'userName' => $user->name,
+            'paketVarMi' => $paketVarMi,
+        ]);
+    }
+
     public function bildirimekle(
 
         Request $request,

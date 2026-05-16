@@ -150,6 +150,8 @@ Route::post('/musterilistegetir/{salonid}','ApiController@musteri_liste_getir');
 Route::get('/odalar/{salonid}','ApiController@odalar');
 Route::get('/cihazlar/{salonid}','ApiController@cihazlar');
 Route::post('/randevuekleguncelle','ApiController@randevuekleguncelle');
+Route::post('/paketVarmiKontrolu','ApiController@paketVarmiKontroluApi');
+Route::get ('/paketVarmiKontrolu','ApiController@paketVarmiKontroluApi');
 Route::post('/isletmecalismasaatleri','ApiController@calismasaatleri');
 Route::get('/formlar','ApiController@formlar');
 Route::post('/arsivformekleguncelle','ApiController@arsivformekleguncelle');
