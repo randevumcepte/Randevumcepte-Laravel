@@ -117,7 +117,7 @@ const createSession = async (salonId) => {
     markOnlineOnConnect: false,
     logger: logger.child({ salonId }),
     generateHighQualityLinkPreview: false,
-    keepAliveIntervalMs: 25000,        // WhatsApp idle'da socket dustugu icin 25s keep-alive ping
+    keepAliveIntervalMs: 15000,        // 15s - NAT/conntrack idle timeout'un (genelde 180s) cok altinda
     connectTimeoutMs: 60000,           // ilk bagli olma timeout'unu uzat (default 20s yetersiz)
     defaultQueryTimeoutMs: 60000,      // sendMessage / onWhatsApp sorgu timeout'u
     retryRequestDelayMs: 2000,         // istek tekrarinda 2s bekle
@@ -198,10 +198,11 @@ const createSession = async (salonId) => {
       logger.info({ salonId: key, phone: session.phone }, 'connected');
       notifyLaravel('connected', { salonId: key, phone: session.phone });
 
-      // Keep-alive: WhatsApp tarafı idle session'ları 24-48 saatte timeout'a düşürür.
-      // Her N dakikada presence/availability güncellemesi göndererek session'ı canlı tutuyoruz.
+      // Keep-alive: NAT/conntrack idle timeout (genelde 180s) altinda interval lazim,
+      // yoksa TCP bagi koparilir ve 408 timedOut alinir. 30s tampon. Onceki deger
+      // 240000ms (4dk) idi — NAT zaten 3dk'da dusurdugu icin etkisizdi.
       if (session.keepAliveTimer) clearInterval(session.keepAliveTimer);
-      const keepMs = config.antiban.keepAliveIntervalMs || 240000;
+      const keepMs = config.antiban.keepAliveIntervalMs || 30000;
       session.keepAliveTimer = setInterval(async () => {
         try {
           if (session.status === 'connected' && session.sock) {

@@ -57,9 +57,9 @@ module.exports = {
     consecutiveFailureThreshold: parseInt(process.env.CONSECUTIVE_FAILURE_THRESHOLD || '3', 10),
     failureWindowMinutes: parseInt(process.env.FAILURE_WINDOW_MINUTES || '30', 10),
     failureWindowMax: parseInt(process.env.FAILURE_WINDOW_MAX || '5', 10),
-    // Keep-alive: bağlı session'lara her N saniyede bir presence ping
-    // (WhatsApp idle session'ları 24-48 saat sonra timeout'a düşürür)
-    keepAliveIntervalMs: parseInt(process.env.KEEP_ALIVE_INTERVAL_MS || '240000', 10), // 4 dakika
+    // Keep-alive: NAT/conntrack idle timeout (genelde 180s) altinda kalmak zorunda,
+    // yoksa TCP baglantisi koparilir ve 408 timedOut alinir. 30s tampon.
+    keepAliveIntervalMs: parseInt(process.env.KEEP_ALIVE_INTERVAL_MS || '30000', 10), // 30 saniye
   },
   sessionsDir: require('path').resolve(__dirname, '..', 'sessions'),
 };
