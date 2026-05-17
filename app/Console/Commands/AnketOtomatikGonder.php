@@ -6,6 +6,7 @@ use App\AnketGonderim;
 use App\AnketSablon;
 use App\Http\Controllers\StoreAdminController;
 use App\Randevular;
+use App\SalonSMSAyarlari;
 use App\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -35,8 +36,18 @@ class AnketOtomatikGonder extends Command
 
         $now = Carbon::now();
         $toplam = 0;
+        $salonAyarCache = []; // salon_id => bool (ayar_id=13 musteri aktif mi?)
 
         foreach ($aktifSablonlar as $sablon) {
+            // SMS Ayarları → "Randevu Sonrası Değerlendirme" (ayar_id=13, musteri=1) açık değilse atla.
+            $salonId = $sablon->salon_id;
+            if (!array_key_exists($salonId, $salonAyarCache)) {
+                $salonAyarCache[$salonId] = (bool) SalonSMSAyarlari::where('salon_id', $salonId)
+                    ->where('ayar_id', 13)
+                    ->value('musteri');
+            }
+            if (!$salonAyarCache[$salonId]) continue;
+
             // Bugün veya dün tarihli, aktif (durum=1) randevular.
             // user_id zorunlu; randevuya_geldi durumuna bakılmaz.
             $randevular = Randevular::where('salon_id', $sablon->salon_id)
