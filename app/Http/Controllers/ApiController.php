@@ -19116,6 +19116,19 @@ if (is_array($request->cihaz_id)) {
 
     }
 
+    public function tumBildirimleriOkuMusteri(Request $request, $isletme_id, $user_id)
+    {
+        $count = Bildirimler::where('user_id', $user_id)
+            ->where('salon_id', $isletme_id)
+            ->where('okundu', 0)
+            ->update(['okundu' => 1]);
+
+        return response()->json([
+            'status'      => 'success',
+            'guncellenen' => $count,
+        ]);
+    }
+
     public function illerigetir(Request $request)
 
     {
