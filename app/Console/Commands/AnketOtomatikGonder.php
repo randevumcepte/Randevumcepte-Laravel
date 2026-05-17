@@ -6,8 +6,6 @@ use App\AnketGonderim;
 use App\AnketSablon;
 use App\Http\Controllers\StoreAdminController;
 use App\Randevular;
-use App\Salonlar;
-use App\SalonSMSAyarlari;
 use App\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -18,12 +16,12 @@ use Illuminate\Support\Facades\Schema;
 class AnketOtomatikGonder extends Command
 {
     protected $signature = 'anket:otomatik-gonder';
-    protected $description = 'Randevu bitiminde otomatik memnuniyet anketi SMS gönderimi (otomatik_gonder=1 olan şablonlar için)';
+    protected $description = 'Randevu bitiminde (MAX(randevu_hizmetler.saat_bitis)) bir kez memnuniyet anketi gönderir.';
 
     public function handle()
     {
-        if (!Schema::hasTable('anket_sablonlari') || !Schema::hasTable('anket_gonderimleri')) {
-            $this->info('Anket tabloları yok, çıkılıyor.');
+        if (!Schema::hasTable('anket_sablonlari') || !Schema::hasTable('anket_gonderimleri') || !Schema::hasTable('randevu_hizmetler')) {
+            $this->info('Anket/randevu_hizmetler tabloları yok, çıkılıyor.');
             return 0;
         }
 
@@ -39,15 +37,12 @@ class AnketOtomatikGonder extends Command
         $toplam = 0;
 
         foreach ($aktifSablonlar as $sablon) {
-            // gonder_saat_sonra: 0 = randevu biter bitmez, N = bitisten N saat sonra
-            $saatSonra = max(0, (int) $sablon->gonder_saat_sonra);
-
-            // Son 26 saat içindeki randevular — geldi/gelmedi farketmez,
-            // randevu durumu aktif ve müşteri kayıtlı (user_id) olsun yeter.
+            // Bugün veya dün tarihli, aktif (durum=1) randevular.
+            // user_id zorunlu; randevuya_geldi durumuna bakılmaz.
             $randevular = Randevular::where('salon_id', $sablon->salon_id)
                 ->where('durum', 1)
                 ->whereBetween('tarih', [
-                    $now->copy()->subHours(26 + $saatSonra)->toDateString(),
+                    $now->copy()->subDay()->toDateString(),
                     $now->copy()->toDateString(),
                 ])
                 ->whereNotNull('user_id')
@@ -55,40 +50,28 @@ class AnketOtomatikGonder extends Command
                 ->get();
 
             foreach ($randevular as $rnd) {
-                // Ayni randevu icin anket zaten gonderildi mi? (tek gönderim garantisi)
+                // 1) Aynı randevu için anket zaten gönderildi mi? Tek gönderim garantisi.
                 $varMi = AnketGonderim::where('salon_id', $sablon->salon_id)
                     ->where('randevu_id', $rnd->id)
                     ->exists();
                 if ($varMi) continue;
 
-                // Randevu başlangıç zamanı
+                // 2) Bitiş saati = MAX(saat_bitis) FROM randevu_hizmetler WHERE randevu_id = ...
+                $maxBitis = DB::table('randevu_hizmetler')
+                    ->where('randevu_id', $rnd->id)
+                    ->max('saat_bitis');
+                if (!$maxBitis) continue; // hizmet yoksa veya saat_bitis boşsa atla
+
                 try {
-                    $baslangic = Carbon::parse($rnd->tarih . ' ' . $rnd->saat);
+                    $bitis = Carbon::parse($rnd->tarih . ' ' . $maxBitis);
                 } catch (\Exception $e) {
                     continue;
                 }
 
-                // Hizmet süresi toplamı (dakika) — randevu_hizmetler tablosundan
-                $sureDk = 0;
-                try {
-                    if (Schema::hasTable('randevu_hizmetler')) {
-                        $sureDk = (int) DB::table('randevu_hizmetler')
-                            ->where('randevu_id', $rnd->id)
-                            ->sum('sure_dk');
-                    }
-                } catch (\Exception $e) {
-                    $sureDk = 0;
-                }
-                if ($sureDk <= 0) $sureDk = 30; // default 30 dk
-
-                // Randevu bitiş zamanı + saatSonra bekleme
-                $bitis = $baslangic->copy()->addMinutes($sureDk);
-                $tetikleme = $bitis->copy()->addHours($saatSonra);
-
-                // Tetikleme zamanı geçmediyse atla (henüz erken)
-                if ($now->lt($tetikleme)) continue;
-                // Çok eski randevu ise atla (26 saatten önce tetiklenmiş olmalıydı)
-                if ($tetikleme->diffInHours($now, false) > 26) continue;
+                // 3) Henüz bitiş saati gelmediyse atla (gelecek randevulara gitmesin)
+                if ($now->lt($bitis)) continue;
+                // 4) 26 saatten eski randevuya da gönderme (geç kalmış cron için makul üst sınır)
+                if ($bitis->diffInHours($now, false) > 26) continue;
 
                 $musteri = User::where('id', $rnd->user_id)->first();
                 if (!$musteri) continue;
@@ -102,9 +85,9 @@ class AnketOtomatikGonder extends Command
                         $musteri,
                         $tel,
                         [
-                            'randevu_id' => $rnd->id,
+                            'randevu_id'  => $rnd->id,
                             'personel_id' => $rnd->personel_id ?? null,
-                            'kanal' => 'sms',
+                            'kanal'       => 'sms',
                         ]
                     );
 
@@ -112,18 +95,17 @@ class AnketOtomatikGonder extends Command
                     $toplam++;
 
                     Log::info('[ANKET-OTO] gönderim', [
-                        'randevu_id' => $rnd->id,
-                        'salon_id' => $sablon->salon_id,
-                        'sablon_id' => $sablon->id,
+                        'randevu_id'  => $rnd->id,
+                        'salon_id'    => $sablon->salon_id,
+                        'sablon_id'   => $sablon->id,
                         'gonderim_id' => $gonderim->id,
-                        'sure_dk' => $sureDk,
-                        'saat_sonra' => $saatSonra,
-                        'tel' => $tel,
+                        'bitis'       => $bitis->toDateTimeString(),
+                        'tel'         => $tel,
                     ]);
                 } catch (\Exception $e) {
                     Log::error('[ANKET-OTO] hata: ' . $e->getMessage(), [
                         'randevu_id' => $rnd->id,
-                        'salon_id' => $sablon->salon_id,
+                        'salon_id'   => $sablon->salon_id,
                     ]);
                 }
             }

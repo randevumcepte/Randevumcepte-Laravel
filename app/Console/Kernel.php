@@ -75,10 +75,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('ilac:hatirlatma-calistir')->withoutOverlapping()->everyMinute();
         $schedule->command('olcum:hatirlatma-calistir')->withoutOverlapping()->everyMinute();
 
-        // Memnuniyet anketi otomatik gönderim — DEVRE DISI (manuel gönderim yapılıyor).
-        // Otomatik gönderimde yanlis muhataba/gelecek randevulara giden hatalar oldugu icin
-        // gecici olarak kapatildi. Manuel gönderim (anketManuelGonder) etkindir.
-        // $schedule->command('anket:otomatik-gonder')->withoutOverlapping()->hourly();
+        // Memnuniyet anketi otomatik gönderim — randevu bitiş saatinde (MAX randevu_hizmetler.saat_bitis) tek sefer.
+        $schedule->command('anket:otomatik-gonder')->withoutOverlapping()->everyFiveMinutes();
 
         // WhatsApp kuyrukta takılı kalan mesajları SMS'e düşür — her 3 dakikada bir
         // Sebep: Node service RAM-only queue, restart/crash olunca mesajlar takılı kalıyordu
