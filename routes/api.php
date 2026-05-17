@@ -276,6 +276,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/personelprimhesapla','ApiController@personelprimhesapla');
       Route::post('/musteriresimleri','ApiController@musteriresimleri');
       Route::post('/musteriresimekle','ApiController@musteriResimEkle');
+      Route::post('/musteriresimsil','ApiController@musteriResimSil');
         Route::post('/randevudegerlendir','ApiController@randevudegerlendir');
      Route::post('/yorumyap','ApiController@yorumyap');
     Route::post('/musteriozet','ApiController@musteriozet');

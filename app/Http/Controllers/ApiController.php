@@ -19120,6 +19120,45 @@ if (is_array($request->cihaz_id)) {
         ]);
     }
 
+    public function musteriResimSil(Request $request)
+    {
+        $userId = $request->user_id;
+        $path = $request->path;
+
+        if (empty($userId) || empty($path)) {
+            return response()->json(['error' => 'user_id ve path gerekli'], 400);
+        }
+
+        $rows = Islemler::where('user_id', $userId)->get();
+        foreach ($rows as $row) {
+            $images = json_decode($row->islem_fotolari, true);
+            if (!is_array($images)) continue;
+            $idx = array_search($path, $images, true);
+            if ($idx === false) continue;
+
+            array_splice($images, $idx, 1);
+
+            $fullPath = base_path($path);
+            if (file_exists($fullPath)) {
+                @unlink($fullPath);
+            }
+
+            if (empty($images)) {
+                $row->delete();
+            } else {
+                $row->islem_fotolari = json_encode(array_values($images));
+                $row->save();
+            }
+
+            return response()->json([
+                'success' => true,
+                'deleted' => $path,
+            ]);
+        }
+
+        return response()->json(['error' => 'Resim bulunamadı'], 404);
+    }
+
     public function yorumyap(Request $request)
 
     {
