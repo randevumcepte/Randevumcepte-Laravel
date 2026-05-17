@@ -1009,6 +1009,15 @@
                            </div>
                         </div>
                         <div class="col-md-12">
+                           <div class="form-group">
+                              <div class="custom-control custom-checkbox mb-5">
+                                 <input type="checkbox" class="custom-control-input" name="musteri_online_randevu_aktif" id="musteri_online_randevu_aktif" value="1" {{(!empty($isletme->musteri_online_randevu_aktif)) ? 'checked' : ''}}>
+                                 <label class="custom-control-label" for="musteri_online_randevu_aktif">Müşteri online randevu alabilsin</label>
+                              </div>
+                              <small class="text-muted">Bu seçenek açıkken müşteriler mobil/web üzerinden kendileri randevu oluşturabilir.</small>
+                           </div>
+                        </div>
+                        <div class="col-md-12">
                            <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
                         </div>
                      </div>

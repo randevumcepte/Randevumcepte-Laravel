@@ -4279,7 +4279,8 @@ public function etkinliktekrarsmsgonder(Request $request)
         $isletme = Salonlar::where('id',$request->salon_id)->first();
         $isletme->randevu_saat_araligi=$request->randevu_saat_araligi;
         $isletme->randevu_takvim_turu = $request->randevu_takvim_turu;
-        
+        $isletme->musteri_online_randevu_aktif = $request->has('musteri_online_randevu_aktif') ? 1 : 0;
+
         $isletme->save();
         return 'Randevu ayarları başarıyla kaydedildi';
     }
