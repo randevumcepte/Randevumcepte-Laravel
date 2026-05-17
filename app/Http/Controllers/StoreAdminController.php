@@ -4227,7 +4227,12 @@ private function ayAdiCevir($ingilizceAy)
         }
         if(SalonSMSAyarlari::where('salon_id',$randevu->salon_id)->where('ayar_id',9)->value('musteri')==1){
              $mesajlar = array(
-                array("to"=>$randevu->users->cep_telefon,"message"=>$randevu->salonlar->salon_adi." için oluşturulan ".$hizmet->personeller->personel_adi .' ile '.$hizmet->hizmetler->hizmet_adi.' '.date('d.m.Y H:i', strtotime($eskitarih.' '.$eskisaat))." tarihli randevunuz ".date('d.m.Y',strtotime($randevu->tarih)) ." - ". date('H:i',strtotime($hizmet->saat)) ." olarak güncellenmiştir. Detaylı bilgi için bize ulaşın. 0".$randevu->salonlar->telefon_1),
+                array(
+                    "to"=>$randevu->users->cep_telefon,
+                    "message"=>$randevu->salonlar->salon_adi." için oluşturulan ".$hizmet->personeller->personel_adi .' ile '.$hizmet->hizmetler->hizmet_adi.' '.date('d.m.Y H:i', strtotime($eskitarih.' '.$eskisaat))." tarihli randevunuz ".date('d.m.Y',strtotime($randevu->tarih)) ." - ". date('H:i',strtotime($hizmet->saat)) ." olarak güncellenmiştir. Detaylı bilgi için bize ulaşın. 0".$randevu->salonlar->telefon_1,
+                    "randevu_id"=>$randevu->id,
+                    "user_id"=>$randevu->user_id,
+                ),
             );
             self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
         }
