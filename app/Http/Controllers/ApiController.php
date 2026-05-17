@@ -1162,6 +1162,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $randevular = Randevular::with(["hizmetler.hizmetler"])
 
             ->where("user_id", $id)
+            ->where("user_id", '!=', 2012) // saat kapama haric
 
             ->orderBy("id", "desc")
 
@@ -1558,7 +1559,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         ->where('salon_personelleri.takvimde_gorunsun',true)->orderBy('salon_personelleri.takvim_sirasi','asc')
                         ->get(['salon_personelleri.id as id',
                             DB::raw("isletmeyetkilileri.profil_resim as avatar"),
-                            DB::raw('CONCAT(salon_personelleri.personel_adi, " (", (SELECT COUNT(*) FROM randevu_hizmetler inner join randevular on randevu_hizmetler.randevu_id = randevular.id where randevu_hizmetler.personel_id = salon_personelleri.id and randevular.tarih <= "'.$tarih2.'" and randevular.tarih>= "'.$tarih1.'"AND randevular.durum <= 1 ) ,")") as name'),  
+                            DB::raw('CONCAT(salon_personelleri.personel_adi, " (", (SELECT COUNT(*) FROM randevu_hizmetler inner join randevular on randevu_hizmetler.randevu_id = randevular.id where randevu_hizmetler.personel_id = salon_personelleri.id and randevular.tarih <= "'.$tarih2.'" and randevular.tarih>= "'.$tarih1.'" AND randevular.durum <= 1 AND randevular.user_id != 2012) ,")") as name'),  
                             DB::raw('REPLACE(renk_duzenleri.renk,"#","0xFF") as bgcolor')
                         ]);
         if($takvim_turu == 0 && $personelRolu != 5)
@@ -1588,6 +1589,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                               AND r.salon_id = ssh.salon_id
                               AND r.tarih BETWEEN "'.$tarih1.'" AND "'.$tarih2.'"
                               AND r.durum <= 1
+                              AND r.user_id != 2012
                         ), ")") as name')
                     ])
                     ->groupBy('hk.id', 'hk.hizmet_kategorisi_adi', 'rd.renk')
@@ -1602,13 +1604,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             select(['cihazlar.id as id',
             DB::raw('CONCAT("/public/isletmeyonetim_assets/img/avatar.png") as avatar'),
             DB::raw('CONCAT(cihazlar.cihaz_adi, " (", (
-                SELECT COUNT(*) 
-                FROM randevu_hizmetler 
-                INNER JOIN randevular ON randevu_hizmetler.randevu_id = randevular.id 
-                WHERE randevu_hizmetler.cihaz_id = cihazlar.id 
-                AND randevular.tarih <= "'.$tarih2.'" 
-                AND randevular.tarih >= "'.$tarih1.'" 
+                SELECT COUNT(*)
+                FROM randevu_hizmetler
+                INNER JOIN randevular ON randevu_hizmetler.randevu_id = randevular.id
+                WHERE randevu_hizmetler.cihaz_id = cihazlar.id
+                AND randevular.tarih <= "'.$tarih2.'"
+                AND randevular.tarih >= "'.$tarih1.'"
                 AND randevular.durum <= 1
+                AND randevular.user_id != 2012
             ), ")") AS name')
             ,DB::raw('REPLACE(renk_duzenleri.renk,"#","0xFF") as bgcolor')])->where('cihazlar.salon_id',$isletmeId)->where('cihazlar.aktifmi',true)->orderBy('cihazlar.takvim_sirasi','asc')->get();
         }
@@ -1621,13 +1624,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         DB::raw('CONCAT("/public/isletmeyonetim_assets/img/avatar.png") as avatar'),
              
             DB::raw('CONCAT(odalar.oda_adi, " (", (
-                SELECT COUNT(*) 
-                FROM randevu_hizmetler 
-                INNER JOIN randevular ON randevu_hizmetler.randevu_id = randevular.id 
-                WHERE randevu_hizmetler.oda_id = odalar.id 
-                AND randevular.tarih <= "'.$tarih2.'" 
-                AND randevular.tarih >= "'.$tarih1.'" 
+                SELECT COUNT(*)
+                FROM randevu_hizmetler
+                INNER JOIN randevular ON randevu_hizmetler.randevu_id = randevular.id
+                WHERE randevu_hizmetler.oda_id = odalar.id
+                AND randevular.tarih <= "'.$tarih2.'"
+                AND randevular.tarih >= "'.$tarih1.'"
                 AND randevular.durum <= 1
+                AND randevular.user_id != 2012
             ), ")") AS name')
             ,DB::raw('REPLACE(renk_duzenleri.renk,"#","0xFF") as bgcolor')])->where('odalar.salon_id',$isletmeId)->where('odalar.aktifmi',true)->orderBy('odalar.takvim_sirasi','asc')->get();
         }
@@ -1693,7 +1697,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         }
 
         return [
-            "randevular_liste" => Randevular::with(['users','hizmetler.hizmetler','hizmetler.personeller','hizmetler.cihaz','hizmetler.oda'])->where("salon_id",$isletmeId)->where('tarih','>=',$tarih1)->where('tarih','<=',$tarih2)->get(),
+            "randevular_liste" => Randevular::with(['users','hizmetler.hizmetler','hizmetler.personeller','hizmetler.cihaz','hizmetler.oda'])->where("salon_id",$isletmeId)->where('user_id','!=',2012)->where('tarih','>=',$tarih1)->where('tarih','<=',$tarih2)->get(),
             "randevular" => $randevu_hizmetler->toArray(),
             "resources" => $resources,
             "personeller" => $personeller,
@@ -2624,6 +2628,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 ->where("randevular.salon_id", $isletme_id)
 
+                ->where("randevular.user_id", '!=', 2012) // saat kapama haric
+
                 ->get();
 
         } else {
@@ -2685,6 +2691,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 )
 
                 ->where("randevular.salon_id", $isletme_id)
+
+                ->where("randevular.user_id", '!=', 2012) // saat kapama haric
 
                 ->get();
 
@@ -4361,6 +4369,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ->join('randevu_hizmetler', 'randevu_hizmetler.randevu_id', '=', 'randevular.id')
             ->where('randevular.salon_id', $request->sube)
             ->where('randevular.tarih', date("Y-m-d"))->where('randevular.durum','<=',1)
+            ->where('randevular.user_id','!=',2012) // saat kapama randevu sayisina dahil edilmez
             ->when($personel->role_id == 5, function ($q) use ($personel) {
                 $q->where('randevu_hizmetler.personel_id', $personel->id);
             })->groupBy('randevu_hizmetler.randevu_id');
@@ -4664,6 +4673,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // Saat yogunlugu (24 saat, 0-1 normalize) — geri uyumluluk icin korunuyor
         $hourlyRaw = DB::table('randevular')
             ->where('salon_id', $salonId)
+            ->where('user_id', '!=', 2012) // saat kapama haric
             ->whereBetween('tarih', [$curStart->toDateString(), $curEnd->toDateString()])
             ->select(DB::raw('HOUR(saat) as h'), DB::raw('COUNT(*) as cnt'))
             ->groupBy('h')
@@ -5611,6 +5621,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         'olusturan_musteri',
         'hizmetler.hizmetler'
     ])
+    // Saat kapama kayitlari (user_id=2012) randevu listelerinden haric tutulur
+    ->where('user_id', '!=', 2012)
     ->when($musteridanisanadi, function($q) use($musteridanisanadi) {
         $q->whereHas('users', function($q) use($musteridanisanadi) {
             $q->where('name', 'like', '%'.$musteridanisanadi.'%');
@@ -5813,6 +5825,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             )
 
             ->where("randevular.salon_id", $salon_id)
+
+            ->where("randevular.user_id", '!=', 2012) // saat kapama haric
 
             ->where("users.name", "like", "%" . $musteridanisanadi . "%")
 
@@ -21176,9 +21190,11 @@ return date('Y')."-$ayNumara-$gun";
 
         ->where('randevular.salon_id', $salon_id)
 
+        ->where('randevular.user_id', '!=', 2012) // saat kapama haric
+
         ->whereDate('randevular.tarih', $targetDate)
 
-       
+
 
         ->unionAll(DB::table('musteri_portfoy')
             ->join('salonlar', 'salonlar.id', '=', 'musteri_portfoy.salon_id')
@@ -21401,6 +21417,8 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         ])
 
         ->where('randevular.salon_id', $salon_id)
+
+        ->where('randevular.user_id', '!=', 2012) // saat kapama haric
 
         ->whereDate('randevular.tarih', $targetDate)  // Burada tarih filtrelemesi yapılır
 
