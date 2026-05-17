@@ -24790,7 +24790,7 @@ DB::raw('
         $ilkAd = $adSoyad ? trim(explode(' ', $adSoyad)[0]) : '';
         $salonAd = $salon->salon_adi ?? '';
         // Uber/Amazon tarzi kisa istek — GSM-7 uyumlu (Turkce char yok), tek SMS'e sigar.
-        $mesaj = 'Sn. '.$ilkAd.', '.$salonAd.' deneyiminiz nasildi? Geri bildiriminiz bizim icin onemli (1 dk): '.$link;
+        $mesaj = 'Sn. '.$ilkAd.', '.$salonAd.' deneyiminiz nasildi? Geri bildiriminiz bizim icin onemli: '.$link;
 
         // WhatsApp önceliği: salon WA aktif+connected ise WA'ya dene
         $waKanaliAcik = $salon && !empty($salon->whatsapp_aktif) && ($salon->whatsapp_durum ?? null) === 'connected';
