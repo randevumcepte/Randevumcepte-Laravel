@@ -963,8 +963,8 @@
                   @endif
                    @endif
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
-                
-                  <li> 
+
+                  <li>
                      @if($pageindex==106)
                      <a href="/isletmeyonetim/toplusms{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
@@ -972,6 +972,16 @@
                      @endif
                      <span class="micon dw dw-message"></span>
                      <span class="mtext">SMS Yönetimi</span>
+                     </a>
+                  </li>
+                  <li>
+                     @if($pageindex==700)
+                     <a href="/isletmeyonetim/musteri-yorumlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/musteri-yorumlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-star"></span>
+                     <span class="mtext">Müşteri Yorumları</span>
                      </a>
                   </li>
                   @endif

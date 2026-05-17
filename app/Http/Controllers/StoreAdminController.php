@@ -1250,7 +1250,10 @@ public function carkverilerigetir(Request $request)
         // Aktif gap kampanyalari — takvim ustunde bilgi seridi icin
         $gapKampanyalari = $this->_gapKampanyalariListesi(self::mevcutsube($request));
 
-        return view('isletmeadmin.randevular',['bildirimler'=>self::bildirimgetir($request),  'sayfa_baslik'=>'Randevu Takvimi','pageindex' => 2,'randevular'=>$randevular,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'yetkiliolunanisletmeler'=>$isletmeler,'gapKampanyalari'=>$gapKampanyalari]);
+        // Musteri yorum/puan ozeti (anasayfa kartinda gosterilir)
+        $yorumOzeti = self::musteriYorumOzeti(self::mevcutsube($request));
+
+        return view('isletmeadmin.randevular',['bildirimler'=>self::bildirimgetir($request),  'sayfa_baslik'=>'Randevu Takvimi','pageindex' => 2,'randevular'=>$randevular,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'yetkiliolunanisletmeler'=>$isletmeler,'gapKampanyalari'=>$gapKampanyalari,'yorumOzeti'=>$yorumOzeti]);
     }
 
     /**
@@ -25751,6 +25754,100 @@ DB::raw('
             'tarih'        => $tarih,
             'pageindex'    => 999,
         ]);
+    }
+
+    public function musteriYorumlari(Request $request){
+        $isletmeler = '';
+        $isletme = '';
+        if(Auth::guard('satisortakligi')->check()){
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+        if(!in_array(self::mevcutsube($request),$isletmeler)){
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(!Auth::guard('satisortakligi')->check()){
+            if(self::personelmi($request)){
+                return redirect()->route('isletmeadmin.randevular');
+            }
+        }
+        $sube = self::mevcutsube($request);
+        $puanFiltre = (int) $request->input('puan', 0);
+        $arama = trim((string) $request->input('q', ''));
+
+        $tumPuanlar = SalonPuanlar::where('salon_id', $sube)->get();
+        $tumYorumlar = SalonYorumlar::where('salon_id', $sube)->get();
+
+        $ortalama = $tumPuanlar->count() ? round($tumPuanlar->avg('puan'), 1) : 0;
+        $toplamPuan = $tumPuanlar->count();
+        $toplamYorum = $tumYorumlar->count();
+
+        $dagilim = [5=>0,4=>0,3=>0,2=>0,1=>0];
+        foreach($tumPuanlar as $p){
+            $v = (int) round($p->puan);
+            if(isset($dagilim[$v])) $dagilim[$v]++;
+        }
+
+        $yorumQuery = SalonYorumlar::where('salon_id', $sube)
+            ->orderBy('updated_at','desc');
+        if($arama !== ''){
+            $yorumQuery->where('yorum','like','%'.$arama.'%');
+        }
+        $yorumlar = $yorumQuery->get();
+
+        $puanMap = $tumPuanlar->keyBy('user_id');
+
+        $birlesik = $yorumlar->map(function($y) use ($puanMap){
+            $p = $puanMap->get($y->user_id);
+            return (object)[
+                'id'         => $y->id,
+                'user_id'    => $y->user_id,
+                'kullanici'  => $y->users,
+                'yorum'      => $y->yorum,
+                'puan'       => $p ? (int) round($p->puan) : 0,
+                'tarih'      => $y->updated_at,
+            ];
+        });
+
+        if($puanFiltre >= 1 && $puanFiltre <= 5){
+            $birlesik = $birlesik->filter(function($r) use ($puanFiltre){
+                return $r->puan == $puanFiltre;
+            })->values();
+        }
+
+        $paketler = self::paket_liste_getir('',true,$request);
+        $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
+
+        return view('isletmeadmin.musteri_yorumlari',[
+            'bildirimler'  => self::bildirimgetir($request),
+            'paketler'     => $paketler,
+            'sayfa_baslik' => 'Müşteri Yorumları',
+            'pageindex'    => 700,
+            'isletme'      => $isletme,
+            'kalan_uyelik_suresi' => $kalan_uyelik_suresi,
+            'urun_drop'    => self::urundropliste($request),
+            'yetkiliolunanisletmeler' => $isletmeler,
+            'yorumlar'     => $birlesik,
+            'ortalama'     => $ortalama,
+            'toplam_puan'  => $toplamPuan,
+            'toplam_yorum' => $toplamYorum,
+            'dagilim'      => $dagilim,
+            'puan_filtre'  => $puanFiltre,
+            'arama'        => $arama,
+        ]);
+    }
+
+    public function musteriYorumOzeti($sube){
+        $tumPuanlar = SalonPuanlar::where('salon_id', $sube)->get();
+        $tumYorumlar = SalonYorumlar::where('salon_id', $sube)->get();
+        return [
+            'ortalama'     => $tumPuanlar->count() ? round($tumPuanlar->avg('puan'), 1) : 0,
+            'toplam_puan'  => $tumPuanlar->count(),
+            'toplam_yorum' => $tumYorumlar->count(),
+        ];
     }
 
 }

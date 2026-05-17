@@ -39,6 +39,29 @@
    .sweet-overlay { z-index: 100029 !important; }
    .sweet-alert   { z-index: 100030 !important; }
    .swal2-container { z-index: 100030 !important; }
+
+   /* Müşteri yorum özet butonu (sayfa başlığı yanında) */
+   .yorum-ozet-kart {
+      display:inline-flex; align-items:stretch; background:#fff;
+      border:1.5px solid #ece6f3; border-radius:10px;
+      padding:0; text-decoration:none; color:inherit;
+      transition:.15s; box-shadow:0 2px 6px rgba(92,0,142,.04);
+      min-height:42px; overflow:hidden;
+   }
+   .yorum-ozet-kart:hover { border-color:#5C008E; box-shadow:0 4px 12px rgba(92,0,142,.12); text-decoration:none; color:inherit; }
+   .yorum-ozet-kart .yo-ic { display:flex; align-items:center; gap:10px; padding:6px 12px; }
+   .yorum-ozet-kart .yo-sol { display:flex; align-items:center; gap:7px; border-right:1px solid #f0eaf6; padding-right:10px; }
+   .yorum-ozet-kart .yo-puan { font-size:18px; font-weight:800; color:#5C008E; line-height:1; }
+   .yorum-ozet-kart .yo-stars { color:#FFB400; font-size:12px; letter-spacing:1px; }
+   .yorum-ozet-kart .yo-stars .o { color:#e2dce8; }
+   .yorum-ozet-kart .yo-sag { display:flex; flex-direction:column; justify-content:center; }
+   .yorum-ozet-kart .yo-sayilar { font-size:11px; color:#8a8295; line-height:1.35; }
+   .yorum-ozet-kart .yo-sayilar b { color:#3a1a52; font-size:12px; font-weight:700; }
+   @media (max-width: 700px){
+      .yorum-ozet-kart { margin-bottom:6px; }
+      .yorum-ozet-kart .yo-sag { display:none; }
+      .yorum-ozet-kart .yo-sol { border-right:0; padding-right:0; }
+   }
 </style>
 <div class="page-header">
    <div class="row">
@@ -59,11 +82,45 @@
 </div>
 
 <div class="col-md-8 col-sm-6 col-xs-5 col-5">
-   <div class="d-flex justify-content-end">
+   <div class="d-flex justify-content-end align-items-center flex-wrap">
+   @if(!empty($yorumOzeti))
+   @php
+      $_ort = $yorumOzeti['ortalama'] ?? 0;
+      $_tamY = floor($_ort);
+      $_yarimY = ($_ort - $_tamY) >= 0.5;
+   @endphp
+   <a href="/isletmeyonetim/musteri-yorumlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}"
+      class="yorum-ozet-kart mr-2" title="Müşteri yorumlarını görüntüle">
+      <div class="yo-ic">
+         <div class="yo-sol">
+            <div class="yo-puan">{{ number_format($_ort, 1, ',', '.') }}</div>
+            <div class="yo-stars">
+               @for($i=1; $i<=5; $i++)
+                  @if($i <= $_tamY)
+                     <i class="fa fa-star"></i>
+                  @elseif($i == $_tamY+1 && $_yarimY)
+                     <i class="fa fa-star-half-o"></i>
+                  @else
+                     <i class="fa fa-star-o o"></i>
+                  @endif
+               @endfor
+            </div>
+         </div>
+         <div class="yo-sag">
+            <div class="yo-sayilar">
+               <b>{{ $yorumOzeti['toplam_yorum'] ?? 0 }}</b> yorum
+            </div>
+            <div class="yo-sayilar">
+               <b>{{ $yorumOzeti['toplam_puan'] ?? 0 }}</b> puan
+            </div>
+         </div>
+      </div>
+   </a>
+   @endif
    <button class="btn btn-primary mr-2 randevu-count-button">
     Toplam Randevu: {{$randevular['randevu_sayisi']}}
 </button>
-      
+
       <a href="#" data-toggle="modal" data-target="#modal-view-event-add" class="btn btn-success btn-lg yenieklebuton">
          <i class="fa fa-plus"></i> Yeni Randevu
       </a>
