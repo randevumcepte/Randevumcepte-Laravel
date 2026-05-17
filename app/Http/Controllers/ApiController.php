@@ -199,13 +199,24 @@ class ApiController extends Controller
  public function versiyonAppKontrol(Request $request)
     {
         $isletme = Salonlar::where('app_bundle',$request->appBundle)->first();
+        if (!$isletme) {
+            // app_bundle ile eslesen salon yok — bos defaults dön (Flutter tarafı update tetiklemez)
+            return array(
+                'ios_latest'    => '',
+                'android_latest'=> '',
+                'huawei_latest' => '',
+                'play_store'    => '',
+                'app_store'     => '',
+                'app_gallery'   => '',
+            );
+        }
         return array(
-            'ios_latest'=>$isletme->ios_son_versiyon,
-            'android_latest'=>$isletme->android_son_versiyon,
-            'huawei_latest'=>$isletme->huawei_son_versiyon,
-            'play_store'=>$isletme->android_uygulama ??'',
-            'app_store'=>$isletme->ios_uygulama ?? '',
-            'app_gallery'=>$isletme->huawei_uygulama??''
+            'ios_latest'    => $isletme->ios_son_versiyon ?? '',
+            'android_latest'=> $isletme->android_son_versiyon ?? '',
+            'huawei_latest' => $isletme->huawei_son_versiyon ?? '',
+            'play_store'    => $isletme->android_uygulama ?? '',
+            'app_store'     => $isletme->ios_uygulama ?? '',
+            'app_gallery'   => $isletme->huawei_uygulama ?? '',
         );
     }
     public function yenimusteridanisankaydi(Request $request)
@@ -500,24 +511,32 @@ class ApiController extends Controller
     }
 
     public function kullaniciBilgiGetir(Request $request, $id)
-
     {
-
-        if (IsletmeYetkilileri::where("id", $id)->first()) {
+        try {
             $yetkili = IsletmeYetkilileri::where("id", $id)->first();
-            return $yetkili->load('yetkili_olunan_isletmeler.salonlar.personeller');
+            if ($yetkili) {
+                try {
+                    return $yetkili->load('yetkili_olunan_isletmeler.salonlar.personeller');
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('kullaniciBilgiGetir yetkili relation hatasi: '.$e->getMessage());
+                    return $yetkili;
+                }
+            }
 
-            exit();
+            try {
+                $user = User::with(['salonlar.salonlar'])->where("id", $id)->first();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('kullaniciBilgiGetir user relation hatasi: '.$e->getMessage());
+                $user = User::where("id", $id)->first();
+            }
 
-        } else {
+            if ($user) return $user;
 
-            
-            return User::with(['salonlar.salonlar'])->where("id", $id)->first();
-
-            exit();
-
+            return response()->json(['error' => 'Kullanici bulunamadi', 'id' => $id], 404);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('kullaniciBilgiGetir fatal: '.$e->getMessage());
+            return response()->json(['error' => 'Sunucu hatasi', 'mesaj' => $e->getMessage()], 500);
         }
-
     }
 
     public function salonhizmetler(Request $request)
