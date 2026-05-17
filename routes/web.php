@@ -970,9 +970,6 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/google-review-kaydet','StoreAdminController@googleReviewKaydet');
 	Route::post('/reputation-premium-ac','StoreAdminController@reputationPremiumAc');
 
-	// Musteri yorumlari + puanlari (salon yorum panosu)
-	Route::get('/musteri-yorumlari','StoreAdminController@musteriYorumlari')->name('isletmeadmin.musteriYorumlari');
-
 	Route::post('/sozlesme-olustur','StoreAdminController@sozlesmeOlustur');
 	Route::get('/formmusteribilgigetir','StoreAdminController@formmusteribilgigetir');
 	Route::get('/formpersonelbilgigetir','StoreAdminController@formpersonelbilgigetir');
