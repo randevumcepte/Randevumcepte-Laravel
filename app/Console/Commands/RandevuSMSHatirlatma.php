@@ -292,10 +292,10 @@ class RandevuSMSHatirlatma extends Command
 
         if ($whatsappKanaliAcik && $musteriOnayli) {
             $whatsappDenendi = true;
-            // Cloud API için varyasyon kapalı (template'ler sabit), Baileys için varyasyon açık
+            // WA metni SMS ile birebir aynı olsun (Cloud API kendi template'ini kullanır).
             $personalized = ($saglayici === 'cloud_api')
                 ? $mesajBase
-                : $wa->varyMessage($mesajBase, $musteri->name);
+                : 'İyi günler. ' . $mesajBase;
             $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $personalized, $randevu->id, $musteri->id, $templateCtx);
             Log::info('[RND-SMS] müşteri WA sonuc', [
                 'salon_id' => $salon->id, 'randevu_id' => $randevu->id, 'sonuc' => $sonuc,
