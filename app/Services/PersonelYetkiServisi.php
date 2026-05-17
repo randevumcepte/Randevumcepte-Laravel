@@ -251,8 +251,6 @@ class PersonelYetkiServisi
 
         if ($ayar) {
             $kayitliAyarlar = is_array($ayar->ayarlar) ? $ayar->ayarlar : [];
-            // Eksik anahtarlari sade sablondan tamamla
-            $sade = PersonelYetkiSabitleri::sablonAyarlari('personel');
             // Backward compat: eski sablon key'lerini yeniye map et
             $sablon = $ayar->sablon ?: 'ozel';
             $eskidenYeniye = [
@@ -263,9 +261,14 @@ class PersonelYetkiServisi
             if (isset($eskidenYeniye[$sablon])) {
                 $sablon = $eskidenYeniye[$sablon];
             }
+            // Eksik anahtarlari SECILI sablondan tamamla (sade'den DEGIL).
+            // Sema'ya yeni yetki eklendiginde, personel hangi sablonda
+            // kaydedildiyse o sablonun default'unu alir. Bilinmeyen sablon
+            // (ornegin 'ozel') varsa 'personel' default'una duser.
+            $sablonDefault = PersonelYetkiSabitleri::sablonAyarlari($sablon);
             return [
                 'sablon' => $sablon,
-                'ayarlar' => array_merge($sade, $kayitliAyarlar),
+                'ayarlar' => array_merge($sablonDefault, $kayitliAyarlar),
             ];
         }
         // Hic kayit yoksa → personel default

@@ -6727,6 +6727,103 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     }
 
+    // Mobil uygulama: takvimde saat kapama ekle (Laravel sistemdeki saatkapamaekle'nin API surumu)
+    public function saatkapamaekle(Request $request)
+    {
+        try {
+            if (empty($request->salonid)) {
+                return response()->json(['error' => 'salonid zorunlu'], 422);
+            }
+            if (empty($request->tarih)) {
+                return response()->json(['error' => 'Tarih zorunlu'], 422);
+            }
+
+            $salonId = $request->salonid;
+
+            $randevu_tarihleri = [];
+            array_push($randevu_tarihleri, $request->tarih);
+            $eklenecek_tarih = $request->tarih;
+            if (!empty($request->tekrarlayan) && (int)($request->tekrar_sayisi ?? 0) > 0) {
+                for ($t = 1; $t < (int)$request->tekrar_sayisi; $t++) {
+                    $eklenecek_tarih = date('Y-m-d', strtotime($request->tekrar_sikligi, strtotime($eklenecek_tarih)));
+                    array_push($randevu_tarihleri, $eklenecek_tarih);
+                }
+            }
+
+            $kayitSayisi = 0;
+            foreach ($randevu_tarihleri as $tarihler) {
+                $yenirandevu = new Randevular();
+                $yenirandevu->user_id = 2012;
+                $yenirandevu->salon_id = $salonId;
+                $yenirandevu->durum = 1;
+                $yenirandevu->tarih = $tarihler;
+
+                $yenirandevuhizmetpersonel = new RandevuHizmetler();
+                $baslangicStr = null;
+                $bitisStr     = null;
+                if (!empty($request->saat) && !empty($request->saat_bitis)) {
+                    $baslangicStr = $request->saat;
+                    $bitisStr     = $request->saat_bitis;
+                } else {
+                    $day = (int)date('N', strtotime($tarihler));
+                    $cs = SalonCalismaSaatleri::where('salon_id', $salonId)
+                        ->where('haftanin_gunu', $day)
+                        ->first();
+                    if ($cs) {
+                        $baslangicStr = $cs->baslangic_saati;
+                        $bitisStr     = $cs->bitis_saati;
+                    }
+                }
+                if (empty($baslangicStr)) $baslangicStr = '09:00:00';
+                if (empty($bitisStr))     $bitisStr     = '18:00:00';
+                if (strlen($baslangicStr) == 5) $baslangicStr .= ':00';
+                if (strlen($bitisStr) == 5)     $bitisStr     .= ':00';
+
+                $yenirandevu->saat       = $baslangicStr;
+                $yenirandevu->saat_bitis = $bitisStr;
+                $yenirandevuhizmetpersonel->saat       = $baslangicStr;
+                $yenirandevuhizmetpersonel->saat_bitis = $bitisStr;
+
+                try {
+                    $baslangicSaati = Carbon::parse($baslangicStr);
+                    $bitisSaati     = Carbon::parse($bitisStr);
+                } catch (\Exception $e) {
+                    \Log::warning('API saatkapamaekle Carbon parse hatasi', ['baslangic' => $baslangicStr, 'bitis' => $bitisStr, 'err' => $e->getMessage()]);
+                    continue;
+                }
+
+                $yenirandevu->personel_notu = $request->personel_notu;
+                $yenirandevu->olusturan_personel_id = $request->olusturan_personel_id ?? null;
+                $yenirandevu->save();
+
+                $yenirandevuhizmetpersonel->randevu_id  = $yenirandevu->id;
+                $yenirandevuhizmetpersonel->hizmet_id   = 463;
+                // Takvim turune gore kaynak: personel / cihaz / oda
+                $yenirandevuhizmetpersonel->personel_id = !empty($request->personel) ? $request->personel : null;
+                $yenirandevuhizmetpersonel->cihaz_id    = !empty($request->cihaz) ? $request->cihaz : null;
+                $yenirandevuhizmetpersonel->oda_id      = !empty($request->oda) ? $request->oda : null;
+                $sureDk = (int)$baslangicSaati->diffInMinutes($bitisSaati);
+                if ($sureDk <= 0) $sureDk = 15;
+                $yenirandevuhizmetpersonel->sure_dk = $sureDk;
+                $yenirandevuhizmetpersonel->fiyat = 0;
+                $yenirandevuhizmetpersonel->save();
+                $kayitSayisi++;
+            }
+
+            return response()->json(['message' => "Saat kapama başarıyla eklendi ({$kayitSayisi} kayit)"]);
+        } catch (\Throwable $e) {
+            \Log::error('API saatkapamaekle hatasi', ['err' => $e->getMessage(), 'line' => $e->getLine(), 'file' => $e->getFile()]);
+            return response()->json(['error' => 'Saat kapama eklenemedi: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function kapalisaatsil(Request $request)
+    {
+        Randevular::where('id', $request->randevu_id)->delete();
+        RandevuHizmetler::where('randevu_id', $request->randevu_id)->delete();
+        return response()->json(['message' => 'Saat kapama başarıyla kaldırıldı']);
+    }
+
     public function etkinlikyukle(Request $request, $salonid)
 
     {
@@ -9881,37 +9978,31 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
-        $gonder = self::sms_gonder_2(
+        // 'sadece_kaydet' flag'i true ise SMS gonderme atlanir (yetki sistemi:
+        // 'form.gonder' kapali olan kullanicilar formu arsive kaydedebilir
+        // ama musteriye SMS atilmaz).
+        $sadeceKaydet = filter_var($request->sadece_kaydet, FILTER_VALIDATE_BOOLEAN);
+        if (!$sadeceKaydet) {
+            $gonder = self::sms_gonder_2(
+                $request,
+                $mesajlar,
+                true,
+                6,
+                true,
+                $request->salon_id
+                ,false
+            );
 
-            $request,
-
-            $mesajlar,
-
-            true,
-
-            6,
-
-            true,
-
-            $request->salon_id
-            ,false
-        );
-
-        $gonder2 = self::sms_gonder_2(
-
-            $request,
-
-            $mesajlar2,
-
-            true,
-
-            6,
-
-            true,
-
-            $request->salon_id
-            ,false
-        );
+            $gonder2 = self::sms_gonder_2(
+                $request,
+                $mesajlar2,
+                true,
+                6,
+                true,
+                $request->salon_id
+                ,false
+            );
+        }
 
         return "Başarılı";
 
@@ -14664,6 +14755,59 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         return "Randevu ayarları başarıyla kaydedildi";
 
+    }
+
+    public function salonturleri()
+    {
+        return SalonTuru::orderBy('salon_turu_adi')->get();
+    }
+
+    public function isletmebilgiguncelle(Request $request)
+    {
+        $isletme = Salonlar::where('id', $request->sube)->first();
+        if (!$isletme) {
+            return response()->json(['hata' => 'İşletme bulunamadı'], 404);
+        }
+
+        if ($request->filled('isletme_adi'))    $isletme->salon_adi      = $request->isletme_adi;
+        if ($request->has('isletme_adres'))     $isletme->adres          = $request->isletme_adres;
+        if ($request->filled('isletme_turu'))   $isletme->salon_turu_id  = $request->isletme_turu;
+        if ($request->has('isletme_telefon'))   $isletme->telefon_1      = $request->isletme_telefon;
+        if ($request->has('whatsapp'))          $isletme->whatsapp       = $request->whatsapp;
+        if ($request->has('isletme_aciklama'))  $isletme->aciklama       = $request->isletme_aciklama;
+        if ($request->has('instagram_url'))     $isletme->instagram_sayfa = $request->instagram_url;
+        if ($request->has('facebook_url'))      $isletme->facebook_sayfa = $request->facebook_url;
+        if ($request->has('vergi_adi'))         $isletme->vergi_adi      = $request->vergi_adi;
+        if ($request->has('vergi_tc_no'))       $isletme->vergi_no       = $request->vergi_tc_no;
+        if ($request->has('vergi_dairesi'))     $isletme->vergi_dairesi  = $request->vergi_dairesi;
+        if ($request->has('vergi_adresi'))      $isletme->vergi_adresi   = $request->vergi_adresi;
+        if ($request->has('kdv_orani'))         $isletme->kdv_orani      = $request->kdv_orani;
+
+        $isletme->save();
+
+        return "İşletme bilgileri başarıyla kaydedildi";
+    }
+
+    public function isletmelogoyukle(Request $request)
+    {
+        $isletme = Salonlar::where('id', $request->sube)->first();
+        if (!$isletme) {
+            return response()->json(['hata' => 'İşletme bulunamadı'], 404);
+        }
+
+        if (!$request->hasFile('isletmelogo')) {
+            return response()->json(['hata' => 'Dosya bulunamadı'], 400);
+        }
+
+        $file = $request->file('isletmelogo');
+        $dosya = str_replace([' '], '-', $file->getClientOriginalName());
+        $hedef = 'public/salon_gorselleri/' . time() . '_' . $dosya;
+        $file->move(public_path('salon_gorselleri'), basename($hedef));
+
+        $isletme->logo = $hedef;
+        $isletme->save();
+
+        return response()->json(['logo' => $isletme->logo]);
     }
 
     public function musteriindirim_kaydet(Request $request)
@@ -24438,14 +24582,20 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $arsiv->form_olusturan = $personelId ?: null;
             $arsiv->save();
 
-            // Test ortaminda apptest, canli yayina gecince apptest -> app donusumu eklenecek.
-            $host = $_SERVER['HTTP_HOST'] ?? 'apptest.randevumcepte.com.tr';
-            $link = 'https://'.$host.'/sozlesme/'.$arsiv->id.'/'.$arsiv->user_id;
-            $mesaj = ' Hizmet Sözleşmenizi imzalamak için: '.$link.' | Onay Kodu: '.$kod;
-            try {
-                self::sms_gonder_2($request, [['to'=>$cepTel, 'message'=>$mesaj]], false, 6, true, $sube, false);
-            } catch(\Exception $e){
-                \Log::error('API Sözleşme SMS hatası: '.$e->getMessage());
+            // 'sadece_kaydet' flag'i true ise SMS gonderme atlanir (yetki sistemi:
+            // 'form.gonder' kapali olan kullanicilar sozlesmeyi olusturup
+            // arsive kaydedebilir ama musteriye SMS atilmaz).
+            $sadeceKaydet = filter_var($request->sadece_kaydet, FILTER_VALIDATE_BOOLEAN);
+            if (!$sadeceKaydet) {
+                // Test ortaminda apptest, canli yayina gecince apptest -> app donusumu eklenecek.
+                $host = $_SERVER['HTTP_HOST'] ?? 'apptest.randevumcepte.com.tr';
+                $link = 'https://'.$host.'/sozlesme/'.$arsiv->id.'/'.$arsiv->user_id;
+                $mesaj = ' Hizmet Sözleşmenizi imzalamak için: '.$link.' | Onay Kodu: '.$kod;
+                try {
+                    self::sms_gonder_2($request, [['to'=>$cepTel, 'message'=>$mesaj]], false, 6, true, $sube, false);
+                } catch(\Exception $e){
+                    \Log::error('API Sözleşme SMS hatası: '.$e->getMessage());
+                }
             }
             return response()->json(['basarili'=>true,'arsiv_id'=>$arsiv->id]);
         } catch(\Exception $e){
