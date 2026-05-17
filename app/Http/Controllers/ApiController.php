@@ -15301,6 +15301,52 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             ->paginate(10);
 
+        $odaIds = collect($odalar->items())->pluck('id')->all();
+
+        $personelMap = [];
+
+        if (!empty($odaIds)) {
+
+            $rows = DB::table('oda_personelleri')
+
+                ->join('salon_personelleri', 'oda_personelleri.personel_id', '=', 'salon_personelleri.id')
+
+                ->whereIn('oda_personelleri.oda_id', $odaIds)
+
+                ->select(
+
+                    'oda_personelleri.oda_id as oda_id',
+
+                    'salon_personelleri.id as id',
+
+                    'salon_personelleri.personel_adi as personel_adi'
+
+                )
+
+                ->get();
+
+            foreach ($rows as $r) {
+
+                $personelMap[$r->oda_id][] = [
+
+                    'id' => (string) $r->id,
+
+                    'personel_adi' => $r->personel_adi,
+
+                ];
+
+            }
+
+        }
+
+        $odalar->getCollection()->transform(function ($oda) use ($personelMap) {
+
+            $oda->personeller = $personelMap[$oda->id] ?? [];
+
+            return $oda;
+
+        });
+
         return $odalar;
 
     }
