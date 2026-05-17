@@ -19658,11 +19658,22 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
+        // Musteri adi cozumlemesi (oncelik sirasi):
+        //   1) wl.user_id -> users.name  (direkt log'a yazilmissa)
+        //   2) wl.randevu_id -> randevular.user_id -> users.name (cogu randevu akisi user_id'yi log'a koymaz)
+        //   3) wl.telefon -> users.cep_telefon -> users.name (son care, son kaydedilen user)
+        // Telefon -> isim eslestirmesi icin alt sorgu (ayni telefonla birden fazla user'da
+        // satir cogalmasini onler). MAX(name) -> deterministik tek isim.
+        $telefonSubq = '(SELECT cep_telefon, MAX(name) as name FROM users WHERE cep_telefon IS NOT NULL AND cep_telefon != \'\' GROUP BY cep_telefon)';
+
         $q = DB::table('whatsapp_gonderim_loglari as wl')
             ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
+            ->leftJoin('randevular as r', 'r.id', '=', 'wl.randevu_id')
+            ->leftJoin('users as ru', 'ru.id', '=', 'r.user_id')
+            ->leftJoin(DB::raw($telefonSubq . ' as pu'), 'pu.cep_telefon', '=', 'wl.telefon')
             ->select('wl.id', 'wl.user_id', 'wl.randevu_id', 'wl.telefon', 'wl.mesaj',
                 'wl.durum', 'wl.hata', 'wl.mesaj_id', 'wl.gonderim_tarihi', 'wl.created_at',
-                'u.name as musteri_adi')
+                DB::raw('COALESCE(NULLIF(u.name, \'\'), NULLIF(ru.name, \'\'), NULLIF(pu.name, \'\')) as musteri_adi'))
             ->where('wl.salon_id', $salonId);
 
         if ($durum = $request->input('durum')) $q->where('wl.durum', $durum);
@@ -19688,11 +19699,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
+        // Telefon -> isim eslestirmesi: user_id bos olan kayitlar icin telefon uzerinden COALESCE.
+        $telefonSubq = '(SELECT cep_telefon, MAX(name) as name FROM users WHERE cep_telefon IS NOT NULL AND cep_telefon != \'\' GROUP BY cep_telefon)';
+
         $rows = DB::table('whatsapp_gonderim_loglari as wl')
             ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
+            ->leftJoin(DB::raw($telefonSubq . ' as pu'), 'pu.cep_telefon', '=', 'wl.telefon')
             ->select(
                 'wl.telefon',
-                DB::raw('MAX(u.name) as musteri_adi'),
+                DB::raw('COALESCE(NULLIF(MAX(u.name), \'\'), NULLIF(MAX(pu.name), \'\')) as musteri_adi'),
                 DB::raw('COUNT(*) as toplam'),
                 DB::raw('SUM(CASE WHEN wl.durum = 1 THEN 1 ELSE 0 END) as basari'),
                 DB::raw('SUM(CASE WHEN wl.durum = 2 THEN 1 ELSE 0 END) as fail'),
