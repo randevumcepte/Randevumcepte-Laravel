@@ -19038,6 +19038,41 @@ if (is_array($request->cihaz_id)) {
 
     }
 
+    public function musteriResimEkle(Request $request)
+    {
+        if (!$request->hasFile('musteriresim')) {
+            return response()->json(['error' => 'Resim bulunamadı'], 400);
+        }
+
+        $folderPath = '/var/www/www-root/data/www/randevumcepte/public/musteri_gorselleri/';
+        if (!is_dir($folderPath)) {
+            @mkdir($folderPath, 0775, true);
+        }
+
+        $file = $request->file('musteriresim');
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+        $filename = uniqid() . '_' . time() . '.' . $ext;
+        $file->move($folderPath, $filename);
+
+        $relativePath = 'public/musteri_gorselleri/' . $filename;
+
+        $islem = new Islemler();
+        $islem->user_id = $request->user_id;
+        if ($request->filled('salon_id')) {
+            $islem->salon_id = $request->salon_id;
+        }
+        $islem->tarih = Carbon::now()->format('Y-m-d');
+        $islem->islem_fotolari = json_encode([$relativePath]);
+        $islem->save();
+
+        return response()->json([
+            'success' => true,
+            'id' => $islem->id,
+            'tarih' => $islem->tarih,
+            'path' => $relativePath,
+        ]);
+    }
+
     public function yorumyap(Request $request)
 
     {
