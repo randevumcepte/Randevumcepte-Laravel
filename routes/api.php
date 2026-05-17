@@ -280,6 +280,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/randevudegerlendir','ApiController@randevudegerlendir');
      Route::post('/yorumyap','ApiController@yorumyap');
     Route::post('/musteriozet','ApiController@musteriozet');
+    Route::post('/salonyorumlari','ApiController@salonyorumlari');
      Route::post('/bildirimgetirmusteri','ApiController@bildirimgetirmusteri');
      Route::post('/tumBildirimleriOkuMusteri/{isletme_id}/{user_id}','ApiController@tumBildirimleriOkuMusteri');
      Route::get('/illerigetir','ApiController@illerigetir');

@@ -19255,6 +19255,70 @@ if (is_array($request->cihaz_id)) {
 
     }
 
+    public function salonyorumlari(Request $request)
+    {
+        $salonIds = Salonlar::where('app_bundle', $request->appBundle)->pluck('id')->toArray();
+        if (empty($salonIds)) {
+            return [
+                'ortalama' => 0,
+                'toplam_puan' => 0,
+                'toplam_yorum' => 0,
+                'dagilim' => ['1'=>0,'2'=>0,'3'=>0,'4'=>0,'5'=>0],
+                'yorumlar' => [],
+            ];
+        }
+
+        $puanlar = DB::table('salon_puanlar')->whereIn('salon_id', $salonIds)->get();
+        $yorumlar = DB::table('salon_yorumlar')
+            ->leftJoin('users', 'salon_yorumlar.user_id', '=', 'users.id')
+            ->whereIn('salon_yorumlar.salon_id', $salonIds)
+            ->select('salon_yorumlar.id', 'salon_yorumlar.user_id', 'salon_yorumlar.yorum',
+                     'salon_yorumlar.updated_at as tarih', 'users.name as kullanici_adi',
+                     'users.surname as kullanici_soyadi')
+            ->orderByDesc('salon_yorumlar.updated_at')
+            ->get();
+
+        $ortalama = $puanlar->count() ? round($puanlar->avg('puan'), 1) : 0;
+
+        $dagilim = ['1'=>0,'2'=>0,'3'=>0,'4'=>0,'5'=>0];
+        foreach ($puanlar as $p) {
+            $v = (string) (int) round($p->puan);
+            if (isset($dagilim[$v])) $dagilim[$v]++;
+        }
+
+        // user_id -> puan haritasi
+        $puanMap = [];
+        foreach ($puanlar as $p) {
+            $puanMap[$p->user_id] = (int) round($p->puan);
+        }
+
+        $yorumListesi = [];
+        foreach ($yorumlar as $y) {
+            $ad = trim(($y->kullanici_adi ?? '').' '.($y->kullanici_soyadi ?? ''));
+            // Gizlilik: tam adi soyadi yerine ad + soyad ilk harf
+            if ($y->kullanici_adi && $y->kullanici_soyadi) {
+                $gosterilenAd = $y->kullanici_adi.' '.mb_substr($y->kullanici_soyadi, 0, 1, 'UTF-8').'.';
+            } else {
+                $gosterilenAd = $ad !== '' ? $ad : 'Müşteri';
+            }
+            $yorumListesi[] = [
+                'id' => $y->id,
+                'kullanici_adi' => $gosterilenAd,
+                'puan' => $puanMap[$y->user_id] ?? 0,
+                'yorum' => $y->yorum,
+                'tarih' => $y->tarih,
+            ];
+        }
+
+        return [
+            'ortalama' => (float) $ortalama,
+            'toplam_puan' => $puanlar->count(),
+            'toplam_yorum' => count($yorumListesi),
+            'dagilim' => $dagilim,
+            'yorumlar' => $yorumListesi,
+        ];
+    }
+
     public function bildirimgetirmusteri(Request $request)
 
     {
