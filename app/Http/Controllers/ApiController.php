@@ -1322,6 +1322,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $title = "Kapalı Saat";
                 $modalTitle = "Kapalı Saat";
                 $color = "0xFF000000";
+                // Saat kapama kaydinin takvimde dogru satira oturmasi icin
+                // takvim turune gore resourceId atamak gerekiyor.
+                if ($takvim_turu == 0) {
+                    $resourceId = $rh->hizmetler->hizmet_kategori_id ?? null;
+                } elseif ($takvim_turu == 1) {
+                    $resourceId = $rh->personel_id ?? 0;
+                } elseif ($takvim_turu == 2) {
+                    $resourceId = $rh->cihaz_id ?? 0;
+                } elseif ($takvim_turu == 3) {
+                    $resourceId = $rh->oda_id ?? 0;
+                }
             }
             else
             {
@@ -17429,6 +17440,20 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             }
 
             \App\Services\PersonelYetkiServisi::ayarlariKaydet($personelId, $salonId, $sablon, $ayarlar);
+
+            // Personele push gonder — mobile app icindeyse popup + logout
+            // zorlanir; degilse normal bildirim olarak gozukur.
+            try {
+                \App\Services\NotificationService::toStaff((int)$personelId, (int)$salonId)
+                    ->type(\App\Services\NotificationTypes::YETKI_DEGISTI)
+                    ->title('Yetkileriniz Güncellendi')
+                    ->body('Yöneticiniz yetkilerinizi güncelledi. Devam etmek için tekrar giriş yapmanız gerekiyor.')
+                    ->extra(['force_logout' => '1'])
+                    ->send();
+            } catch (\Throwable $e) {
+                \Log::warning('Yetki push hatasi: ' . $e->getMessage());
+            }
+
             return response()->json(['basarili' => true]);
         } catch (\Exception $e) {
             \Log::warning('Api personelYetkiKaydet: ' . $e->getMessage());

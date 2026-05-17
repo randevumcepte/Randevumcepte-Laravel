@@ -33,6 +33,9 @@ class NotificationTypes
     // Sistem
     public const MEMBERSHIP_EXPIRING       = 'membership_expiring';
     public const SYSTEM_ANNOUNCEMENT       = 'system_announcement';
+    // Personelin yetkileri yonetici tarafindan guncellendi.
+    // Flutter tarafi alinca: Yetki.tazele + popup + logout zorlamasi.
+    public const YETKI_DEGISTI             = 'yetki_degisti';
 
     /**
      * Bu tipler resimli + popup gösterilmeli (foreground'da büyük dialog).
