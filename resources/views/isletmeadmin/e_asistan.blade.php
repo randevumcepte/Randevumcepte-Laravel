@@ -18,69 +18,17 @@
                   <li class="breadcrumb-item">
                      <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
                   </li>
-
+                  
                   <li class="breadcrumb-item active" aria-current="page">
                    Asistanım
                   </li>
                </ol>
             </nav>
          </div>
-
-
+  
+ 
       </div>
    </div>
-
-   @if(!empty($yorumOzeti))
-   @php
-      $_yoOrt = $yorumOzeti['ortalama'] ?? 0;
-      $_yoTam = floor($_yoOrt);
-      $_yoYar = ($_yoOrt - $_yoTam) >= 0.5;
-   @endphp
-   <style>
-      .yorum-buyuk-kart { display:flex; align-items:center; gap:18px; background:linear-gradient(135deg,#fff 60%,#faf5ff 100%); border:1.5px solid #ece6f3; border-radius:14px; padding:18px 22px; margin-bottom:22px; text-decoration:none; color:inherit; transition:.18s; box-shadow:0 2px 10px rgba(92,0,142,.05); }
-      .yorum-buyuk-kart:hover { border-color:#5C008E; box-shadow:0 6px 20px rgba(92,0,142,.12); transform:translateY(-1px); text-decoration:none; color:inherit; }
-      .yorum-buyuk-kart .ybk-ikon { width:56px; height:56px; border-radius:14px; background:linear-gradient(135deg,#5C008E,#9b3fc5); color:#fff; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; box-shadow:0 4px 14px rgba(92,0,142,.25); }
-      .yorum-buyuk-kart .ybk-orta { flex:1; }
-      .yorum-buyuk-kart .ybk-baslik { font-size:13px; color:#8a8295; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
-      .yorum-buyuk-kart .ybk-puanlar { display:flex; align-items:baseline; gap:10px; margin-top:4px; flex-wrap:wrap; }
-      .yorum-buyuk-kart .ybk-puan { font-size:30px; font-weight:800; color:#5C008E; line-height:1; letter-spacing:-1px; }
-      .yorum-buyuk-kart .ybk-stars { color:#FFB400; letter-spacing:2px; font-size:18px; }
-      .yorum-buyuk-kart .ybk-stars .o { color:#e2dce8; }
-      .yorum-buyuk-kart .ybk-detay { font-size:12.5px; color:#8a8295; margin-top:3px; }
-      .yorum-buyuk-kart .ybk-detay b { color:#3a1a52; font-weight:700; }
-      .yorum-buyuk-kart .ybk-cta { background:#5C008E; color:#fff; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:600; white-space:nowrap; flex-shrink:0; }
-      .yorum-buyuk-kart:hover .ybk-cta { background:#48006e; }
-      @media (max-width: 700px){
-         .yorum-buyuk-kart { flex-direction:column; align-items:flex-start; }
-         .yorum-buyuk-kart .ybk-cta { width:100%; text-align:center; }
-      }
-   </style>
-   <a href="/isletmeyonetim/musteri-yorumlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="yorum-buyuk-kart">
-      <div class="ybk-ikon"><i class="fa fa-star"></i></div>
-      <div class="ybk-orta">
-         <div class="ybk-baslik">Müşteri Memnuniyeti</div>
-         <div class="ybk-puanlar">
-            <span class="ybk-puan">{{ number_format($_yoOrt, 1, ',', '.') }}</span>
-            <span class="ybk-stars">
-               @for($i=1; $i<=5; $i++)
-                  @if($i <= $_yoTam)
-                     <i class="fa fa-star"></i>
-                  @elseif($i == $_yoTam+1 && $_yoYar)
-                     <i class="fa fa-star-half-o"></i>
-                  @else
-                     <i class="fa fa-star-o o"></i>
-                  @endif
-               @endfor
-            </span>
-         </div>
-         <div class="ybk-detay">
-            <b>{{ $yorumOzeti['toplam_yorum'] ?? 0 }}</b> yorum &middot;
-            <b>{{ $yorumOzeti['toplam_puan'] ?? 0 }}</b> puan toplandı
-         </div>
-      </div>
-      <div class="ybk-cta">Tüm Yorumları Gör <i class="fa fa-arrow-right" style="margin-left:6px;"></i></div>
-   </a>
-   @endif
    <div class="row clearfix">
      <div class="col-lg-12 col-md-12 col-sm-12 mb-30">
        <div class="pd-20 card-box">
