@@ -139,12 +139,11 @@ class WhatsAppService
             return true;
         }
 
-        // Baileys: aktif + connected + warmup cap
+        // Baileys: aktif + connected + gunluk limit
         if (!$salon->whatsapp_aktif || $salon->whatsapp_durum !== 'connected') {
             return false;
         }
         $limit = (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 150));
-        $limit = min($limit, $this->warmupCap($salon));
         if ($limit <= 0) return false;
 
         $sentToday = DB::table('whatsapp_gonderim_loglari')
@@ -156,18 +155,13 @@ class WhatsAppService
         return $sentToday < $limit;
     }
 
+    /**
+     * Warmup ramp kaldirildi — sadece salon.whatsapp_gunluk_limit kullaniliyor.
+     * Geriye uyumluluk icin metod korundu; tum cagrilar gunluk_limit donduruyor.
+     */
     public function warmupCap(Salonlar $salon)
     {
-        $start = $salon->whatsapp_warmup_baslangic ?? $salon->whatsapp_baglanti_tarihi;
-        if (!$start) {
-            return (int) ($salon->whatsapp_gunluk_limit ?: 150);
-        }
-        $days = Carbon::parse($start)->diffInDays(Carbon::now());
-        $ramp = [15, 30, 50, 80, 110, 140, 180];
-        if ($days >= count($ramp)) {
-            return (int) ($salon->whatsapp_gunluk_limit ?: 180);
-        }
-        return $ramp[$days] ?? 15;
+        return (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 150));
     }
 
     public function withinBusinessHours()
