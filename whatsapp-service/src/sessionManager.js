@@ -228,12 +228,14 @@ const createSession = async (salonId) => {
         session.keepAliveTimer = null;
       }
 
-      // 401/403/500 vb. = gercek logout/ban — auth state silinmeli, kullanici yeniden QR
+      // 401/403 = gercek logout/ban — auth state silinmeli, kullanici yeniden QR
+      // Not: 500 (badSession) ve multideviceMismatch onceden BAN_CODES'taydi ama
+      // bunlar genelde GECICI sorunlar — Baileys'in normal davranisi auth'u silmeden
+      // session re-init etmek. Auth silersek 5 saatte bir 'kendi kendine logout'
+      // gibi gorunuyor. TEMPORARY'ye tasidik, kullanici yeniden QR yapmadan reconnect olur.
       const BAN_CODES = new Set([
-        DisconnectReason.loggedOut,     // 401
-        DisconnectReason.forbidden,      // 403
-        DisconnectReason.badSession,     // 500
-        DisconnectReason.multideviceMismatch,
+        DisconnectReason.loggedOut,     // 401 — gercek logout
+        DisconnectReason.forbidden,      // 403 — gercek ban
         401, 403, 406, 410, 411,
       ]);
       // 429 = gercek rate-limit, 440 = baska cihazdan bagli (kullanici niyeti)
@@ -241,15 +243,17 @@ const createSession = async (salonId) => {
         DisconnectReason.connectionReplaced, // 440
         429,
       ]);
-      // 408/428/515 = gecici kopma (network, restart-required) — session korunur, sessizce reconnect
-      // Not: 408/428 onceden RATE_LIMIT'e dusup ban.warning gonderiyordu, bu Laravel'de
-      // whatsapp_aktif=0 yapip kullanicidan tekrar QR isteme yaratiyordu.
+      // 408/428/500/515 + multideviceMismatch = gecici kopma — session korunur, reconnect.
+      // 500 (badSession) ve multideviceMismatch Baileys'te genelde "protocol refresh"
+      // sinyalidir; auth'u silmeden reconnect ile cozulebilir.
       const TEMPORARY_DISCONNECT_CODES = new Set([
         DisconnectReason.timedOut,           // 408
         DisconnectReason.connectionLost,     // 408 (alias)
         DisconnectReason.connectionClosed,   // 428
+        DisconnectReason.badSession,         // 500 — auth bozulmadi, sadece session refresh
+        DisconnectReason.multideviceMismatch,// genelde protocol mismatch, reconnect cozer
         DisconnectReason.restartRequired,    // 515
-        408, 428, 515,
+        408, 428, 500, 515,
       ]);
 
       const banLikely = BAN_CODES.has(statusCode);
