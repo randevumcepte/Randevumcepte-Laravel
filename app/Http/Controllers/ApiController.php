@@ -19127,11 +19127,43 @@ if (is_array($request->cihaz_id)) {
 
             ->get();
 
+        // Müşteri kategorisi (web ile aynı mantık: tahsilat sayısı bazlı)
+        // 0 → pasif, 1-2 → aktif, 3+ → sadık
+        $tahsilatSayisi = DB::table('tahsilatlar')
+            ->where('user_id', $request->user_id)
+            ->whereIn('salon_id', $salonlar)
+            ->count();
+
+        if ($tahsilatSayisi >= 3) {
+            $kategori = 'sadik';
+            $kategoriLabel = 'Sadık Müşteri';
+        } elseif ($tahsilatSayisi >= 1) {
+            $kategori = 'aktif';
+            $kategoriLabel = 'Aktif Müşteri';
+        } else {
+            $kategori = 'pasif';
+            $kategoriLabel = 'Pasif Müşteri';
+        }
+
+        // Sadakat puanı (salon_puanlar tablosundan toplam)
+        $sadakatPuani = (int) DB::table('salon_puanlar')
+            ->where('user_id', $request->user_id)
+            ->whereIn('salon_id', $salonlar)
+            ->sum('puan');
+
         return [
 
             "musteriokunmamis" => $musteriokunmamis,
 
             "bildirimler" => $bildirimler,
+
+            "kategori" => $kategori,
+
+            "kategori_label" => $kategoriLabel,
+
+            "tahsilat_sayisi" => $tahsilatSayisi,
+
+            "sadakat_puani" => $sadakatPuani,
 
         ];
 
