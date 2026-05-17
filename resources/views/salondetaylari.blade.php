@@ -145,9 +145,11 @@
                @endif
             </div>
             <div class="slp-hero__cta">
+               @if(!empty($salon->musteri_online_randevu_aktif))
                <a href="#randevu-al" class="slp-btn slp-btn--primary" data-slp-open>
                   <i class="fa fa-calendar-check-o"></i> Randevu Al
                </a>
+               @endif
                @if(!empty($salon->telefon_1))
                   <a href="tel:{{$salon->telefon_1}}" class="slp-btn slp-btn--ghost">
                      <i class="fa fa-phone"></i> Hemen Ara
@@ -1041,6 +1043,7 @@
             </span>
          </a>
       @endif
+      @if(!empty($salon->musteri_online_randevu_aktif))
       <a href="#randevu-al" data-slp-open class="slp-dock__btn slp-dock__btn--book" aria-label="Randevu Al">
          <span class="slp-dock__icon"><i class="fa fa-calendar-check-o"></i></span>
          <span class="slp-dock__label">
@@ -1048,6 +1051,7 @@
             <span class="slp-dock__sub">Saniyeler içinde</span>
          </span>
       </a>
+      @endif
    </div>
 
    {{-- ============ SAGDA SABIT SOSYAL MEDYA SERIDI ============ --}}
@@ -1204,7 +1208,9 @@
                      <div class="slp-service-card__icon"><i class="fa {{$_katIcon}}"></i></div>
                      <h3>{{$_katAdi}}</h3>
                      <p>{{$_katSayi}} hizmet seçeneği</p>
+                     @if(!empty($salon->musteri_online_randevu_aktif))
                      <a href="#randevu-al" data-slp-open data-slp-category="{{$kat->hizmet_kategori_id}}">Randevu Al <i class="fa fa-arrow-right"></i></a>
+                     @endif
                   </div>
                @endforeach
             </div>
@@ -1357,9 +1363,11 @@
                   </div>
 
                   <div class="ps-modal-actions">
+                     @if(!empty($salon->musteri_online_randevu_aktif))
                      <button type="button" class="ps-modal-btn ps-modal-btn--primary" onclick="psPersonelRandevuAl()">
                         <i class="fa fa-calendar-plus-o"></i> Bu Personelden Randevu Al
                      </button>
+                     @endif
                   </div>
                </div>
             </div>
@@ -1867,9 +1875,11 @@
                   <p>Saniyeler içinde randevunuzu oluşturun, uzman ekibimizle tanışmaya gelin.</p>
                </div>
                <div class="slp-cta__actions">
+                  @if(!empty($salon->musteri_online_randevu_aktif))
                   <a href="#randevu-al" class="slp-btn slp-btn--primary" data-slp-open>
                      <i class="fa fa-calendar-check-o"></i> Hemen Randevu Al
                   </a>
+                  @endif
                   @if(!empty($salon->telefon_1))
                      <a href="tel:{{$salon->telefon_1}}" class="slp-btn slp-btn--ghost">
                         <i class="fa fa-phone"></i> Bizi Arayın
@@ -1908,7 +1918,9 @@
                      @if(!empty($salon->facebook_sayfa))
                         <a href="{{$salon->facebook_sayfa}}" target="_blank" rel="noopener" aria-label="Facebook"><i class="fa fa-facebook"></i></a>
                      @endif
+                     @if(!empty($salon->musteri_online_randevu_aktif))
                      <a href="#randevu-al" data-slp-open aria-label="Randevu Al"><i class="fa fa-calendar"></i></a>
+                     @endif
                   </div>
                </div>
             </div>

@@ -77,9 +77,11 @@
           </div>
         @endif
 
+        @if(!empty($salon->musteri_online_randevu_aktif))
         <div class="perdet-cta">
           <a href="{{$geriLink}}#randevubolumu" class="btn btn-primary"><i class="fa fa-calendar-plus-o"></i> {{$adSoyad}} ile Randevu Al</a>
         </div>
+        @endif
       </div>
     </div>
 
