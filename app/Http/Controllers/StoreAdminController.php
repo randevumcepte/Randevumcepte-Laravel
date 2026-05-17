@@ -24789,8 +24789,8 @@ DB::raw('
         $adSoyad = $musteri->name ?? '';
         $ilkAd = $adSoyad ? trim(explode(' ', $adSoyad)[0]) : '';
         $salonAd = $salon->salon_adi ?? '';
-        // Sade format — Turkce char yok (GSM-7 uyumlu), kisa token + B162 ile birlikte 1 SMS'e sigar
-        $mesaj = 'Sn. '.$ilkAd.', '.$salonAd.' memnuniyet anketi (1 dk): '.$link;
+        // Uber/Amazon tarzi kisa istek — GSM-7 uyumlu (Turkce char yok), tek SMS'e sigar.
+        $mesaj = 'Sn. '.$ilkAd.', '.$salonAd.' deneyiminiz nasildi? Geri bildiriminiz bizim icin onemli (1 dk): '.$link;
 
         // WhatsApp önceliği: salon WA aktif+connected ise WA'ya dene
         $waKanaliAcik = $salon && !empty($salon->whatsapp_aktif) && ($salon->whatsapp_durum ?? null) === 'connected';
