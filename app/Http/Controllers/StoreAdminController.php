@@ -1879,8 +1879,10 @@ public function carkverilerigetir(Request $request)
             
         }
        
+        $yorumOzeti = self::musteriYorumOzeti(self::mevcutsube($request));
+
         return view('isletmeadmin.e_asistan',['paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'E-Asistan','pageindex' => 60,'isletme'=>$isletme,'e_asistan_ayarlari'=>$e_asistan_ayarlari,'sayfa_baslik'=>'E-Asistan' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request), 'easistandata'=>self::easistandata($request,0),'easistanYarinYapilacak'=>self::easistandata($request,1),
-           'yetkiliolunanisletmeler'=>$isletmeler]);
+           'yetkiliolunanisletmeler'=>$isletmeler,'yorumOzeti'=>$yorumOzeti]);
     }
     public function smslistesi(){
         $isletmeler = '';
