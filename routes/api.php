@@ -237,6 +237,9 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
   Route::post('/ongorusmesatisyapildi','ApiController@ongorusmesatisyapildi');
   Route::get('/cihazekle/{salonid}','ApiController@cihazekle');
   Route::get('/odaekleduzenle/{salonid}','ApiController@odaekleduzenle');
+  Route::post('/odaekleduzenle/{salonid}','ApiController@odaekleduzenle');
+  Route::get('/oda_personel_listesi/{salonid}','ApiController@oda_personel_listesi');
+  Route::get('/oda_detay/{oda_id}','ApiController@oda_detay');
   Route::post('/personelekleduzenle','ApiController@personelekleduzenle');
   Route::get('/personelcalismasaatleri/{personelid}','ApiController@personelcalismasaatleri');
   Route::get('/personelmolasaatleri/{personelid}','ApiController@personelmolasaatleri');

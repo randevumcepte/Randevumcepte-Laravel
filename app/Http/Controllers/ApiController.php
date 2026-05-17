@@ -148,6 +148,8 @@ use App\Cihazlar;
 
 use App\Odalar;
 
+use App\OdaPersonelleri;
+
 use App\PersonelCalismaSaatleri;
 
 use App\PersonelMolaSaatleri;
@@ -15331,55 +15333,183 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     {
 
-        $odalar = new Odalar();
+        $duzenleme = !empty($request->oda_id);
 
-        $returntext = "";
+        if ($duzenleme) {
+
+            $odalar = Odalar::where("id", $request->oda_id)->first();
+
+            OdaPersonelleri::where("oda_id", $request->oda_id)->delete();
+
+        } else {
+
+            $odalar = new Odalar();
+
+            $enSonOda = Odalar::where("salon_id", $isletme_id)
+
+                ->where("aktifmi", 1)
+
+                ->orderBy("takvim_sirasi", "desc")
+
+                ->first();
+
+            $odalar->takvim_sirasi = $enSonOda ? $enSonOda->takvim_sirasi + 1 : 1;
+
+            $odalar->aktifmi = true;
+
+            $odalar->durum = true;
+
+        }
 
         $odalar->salon_id = $isletme_id;
 
         $odalar->oda_adi = $request->oda_adi;
 
-        $odalar->aktifmi = true;
+        $secilenPersoneller = $request->oda_personeli ?? [];
 
-        $odalar->durum = true;
+        if (is_string($secilenPersoneller)) {
 
-        $odalar->save();
+            $decoded = json_decode($secilenPersoneller, true);
 
-        $kategori_son_renk = OdaRenkleri::where("salon_id", $isletme_id)
+            if (is_array($decoded)) {
 
-            ->orderBy("id", "desc")
-
-            ->first();
-
-        $yeni_kategori_renk = "";
-
-        if ($kategori_son_renk === null) {
-
-            $yeni_kategori_renk = 1;
-
-        } else {
-
-            if ($kategori_son_renk->renk_id == 10) {
-
-                $yeni_kategori_renk = 1;
+                $secilenPersoneller = $decoded;
 
             } else {
 
-                $yeni_kategori_renk = $kategori_son_renk->renk_id + 1;
+                $secilenPersoneller = array_values(array_filter(array_map('trim', explode(',', $secilenPersoneller)), function ($v) { return $v !== ''; }));
 
             }
 
         }
 
-        $yeni_renk = new OdaRenkleri();
+        if (!is_array($secilenPersoneller)) {
 
-        $yeni_renk->salon_id = $request->sube;
+            $secilenPersoneller = [];
 
-        $yeni_renk->renk_id = $yeni_kategori_renk;
+        }
 
-        $yeni_renk->oda_id = $odalar->id;
+        $odalar->personel_id = !empty($secilenPersoneller) ? $secilenPersoneller[0] : null;
 
-        $yeni_renk->save();
+        $odalar->save();
+
+        foreach ($secilenPersoneller as $personel) {
+
+            $odaPersoneli = new OdaPersonelleri();
+
+            $odaPersoneli->oda_id = $odalar->id;
+
+            $odaPersoneli->salon_id = $isletme_id;
+
+            $odaPersoneli->personel_id = $personel;
+
+            $odaPersoneli->save();
+
+        }
+
+        if (!$duzenleme) {
+
+            $kategori_son_renk = OdaRenkleri::where("salon_id", $isletme_id)
+
+                ->orderBy("id", "desc")
+
+                ->first();
+
+            $yeni_kategori_renk = "";
+
+            if ($kategori_son_renk === null) {
+
+                $yeni_kategori_renk = 1;
+
+            } else {
+
+                if ($kategori_son_renk->renk_id == 10) {
+
+                    $yeni_kategori_renk = 1;
+
+                } else {
+
+                    $yeni_kategori_renk = $kategori_son_renk->renk_id + 1;
+
+                }
+
+            }
+
+            $yeni_renk = new OdaRenkleri();
+
+            $yeni_renk->salon_id = $isletme_id;
+
+            $yeni_renk->renk_id = $yeni_kategori_renk;
+
+            $yeni_renk->oda_id = $odalar->id;
+
+            $yeni_renk->save();
+
+        }
+
+        return ['sonuc' => 'ok', 'oda_id' => $odalar->id];
+
+    }
+
+    public function oda_personel_listesi(Request $request, $isletme_id)
+
+    {
+
+        $personeller = DB::table("salon_personelleri")
+
+            ->select(
+
+                "salon_personelleri.id as id",
+
+                "salon_personelleri.personel_adi as personel_adi"
+
+            )
+
+            ->where("salon_personelleri.salon_id", $isletme_id)
+
+            ->where("salon_personelleri.aktif", 1)
+
+            ->orderBy("salon_personelleri.personel_adi", "asc")
+
+            ->get();
+
+        return ['data' => $personeller];
+
+    }
+
+    public function oda_detay(Request $request, $oda_id)
+
+    {
+
+        $oda = Odalar::where("id", $oda_id)->first();
+
+        if (!$oda) {
+
+            return ['sonuc' => 'bulunamadi'];
+
+        }
+
+        $personelIds = OdaPersonelleri::where("oda_id", $oda_id)
+
+            ->pluck("personel_id")
+
+            ->map(function ($v) { return (string) $v; })
+
+            ->values()
+
+            ->all();
+
+        return [
+
+            'id' => (string) $oda->id,
+
+            'oda_adi' => $oda->oda_adi,
+
+            'salon_id' => (string) $oda->salon_id,
+
+            'personel_ids' => $personelIds,
+
+        ];
 
     }
   public function personelekleduzenle(Request $request)
