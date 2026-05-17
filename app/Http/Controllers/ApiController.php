@@ -19044,15 +19044,60 @@ if (is_array($request->cihaz_id)) {
             return response()->json(['error' => 'Resim bulunamadı'], 400);
         }
 
-        $folderPath = '/var/www/www-root/data/www/randevumcepte/public/musteri_gorselleri/';
-        if (!is_dir($folderPath)) {
-            @mkdir($folderPath, 0775, true);
+        $file = $request->file('musteriresim');
+        if (!$file->isValid()) {
+            return response()->json([
+                'error' => 'Yüklenen dosya geçersiz',
+                'upload_error' => $file->getError(),
+            ], 400);
         }
 
-        $file = $request->file('musteriresim');
-        $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+        $folderPath = public_path('musteri_gorselleri');
+        if (!is_dir($folderPath)) {
+            if (!@mkdir($folderPath, 0775, true) && !is_dir($folderPath)) {
+                \Log::error('musteriResimEkle: klasör oluşturulamadı', ['path' => $folderPath]);
+                return response()->json([
+                    'error' => 'Klasör oluşturulamadı',
+                    'folder' => $folderPath,
+                ], 500);
+            }
+        }
+
+        if (!is_writable($folderPath)) {
+            \Log::error('musteriResimEkle: klasör yazılamaz', ['path' => $folderPath]);
+            return response()->json([
+                'error' => 'Klasöre yazılamıyor',
+                'folder' => $folderPath,
+            ], 500);
+        }
+
+        $ext = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'jpg');
+        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'])) {
+            $ext = 'jpg';
+        }
         $filename = uniqid() . '_' . time() . '.' . $ext;
-        $file->move($folderPath, $filename);
+
+        try {
+            $file->move($folderPath, $filename);
+        } catch (\Throwable $e) {
+            \Log::error('musteriResimEkle: move başarısız', [
+                'error' => $e->getMessage(),
+                'folder' => $folderPath,
+            ]);
+            return response()->json([
+                'error' => 'Dosya kaydedilemedi',
+                'detail' => $e->getMessage(),
+            ], 500);
+        }
+
+        $fullPath = $folderPath . DIRECTORY_SEPARATOR . $filename;
+        if (!file_exists($fullPath)) {
+            \Log::error('musteriResimEkle: kayıt sonrası dosya yok', ['path' => $fullPath]);
+            return response()->json([
+                'error' => 'Dosya kayıt sonrası bulunamadı',
+                'path' => $fullPath,
+            ], 500);
+        }
 
         $relativePath = 'public/musteri_gorselleri/' . $filename;
 
@@ -19070,6 +19115,8 @@ if (is_array($request->cihaz_id)) {
             'id' => $islem->id,
             'tarih' => $islem->tarih,
             'path' => $relativePath,
+            'url' => url($relativePath),
+            'size' => filesize($fullPath),
         ]);
     }
 
