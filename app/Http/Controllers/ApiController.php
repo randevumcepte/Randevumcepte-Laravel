@@ -405,7 +405,7 @@ class ApiController extends Controller
      * NOT: WA tarafindan spam algilanma riski var (rastgele kullanicilara sifre).
      * Salon WA hesabinin saglikli kalmasi icin SMS fallback her zaman devrede.
      */
-    protected function sifreWhatsappGonder(Request $request, $mesajlar, $userId = null)
+    public function sifreWhatsappGonder(Request $request, $mesajlar, $userId = null)
     {
         try {
             $salonId = null;
@@ -449,17 +449,20 @@ class ApiController extends Controller
     public function sifregonder(Request $request)
     {
         $kullanicivar = false;
-        if (User::where("cep_telefon", self::telefon_no_format_duzenle($request->cep_telefon))->count() >= 1) {
+        $phone = self::telefon_no_format_duzenle($request->cep_telefon);
 
-            $kullanicivar = true;
+        // White-label: appBundle master degilse, sifre sifirlama yalniz o bundle'a
+        // ait isletme(ler)in portfoy.password'unu gunceller. users.password (web/master)
+        // ve diger isletmelerdeki portfoy sifreleri korunur.
+        $isWhiteLabel = $request->appBundle && $request->appBundle != 'com.randevumcepte.randevumcepte';
+        $salonlar = [];
+        if ($isWhiteLabel) {
+            $salonlar = Salonlar::where('app_bundle', $request->appBundle)->pluck('id')->toArray();
+        }
 
-            $kullanici = User::where(
+        if (User::where("cep_telefon", $phone)->count() >= 1) {
 
-                "cep_telefon",
-
-                self::telefon_no_format_duzenle($request->cep_telefon)
-
-            )->first();
+            $kullanici = User::where("cep_telefon", $phone)->first();
 
             $random = str_shuffle(
 
@@ -469,38 +472,65 @@ class ApiController extends Controller
 
             $olusturulansifre = substr($random, 0, 5);
 
-            $kullanici->password = Hash::make($olusturulansifre);
+            $hashedSifre = Hash::make($olusturulansifre);
 
-            $kullanici->save();
+            $smsAtilsin = false;
 
-            $headers = [
+            if ($isWhiteLabel) {
 
-                "Authorization: Key " . $request->sms_apikey,
+                // Yalniz bu bundle'a ait aktif portfoy(lar)in sifresini gunceller.
+                $portfoyGuncellendi = MusteriPortfoy::where('user_id', $kullanici->id)
+                    ->whereIn('salon_id', $salonlar)
+                    ->where('aktif', 1)
+                    ->update(['password' => $hashedSifre]);
 
-                "Content-Type: application/json",
+                if ($portfoyGuncellendi > 0) {
+                    $kullanicivar = true;
+                    $smsAtilsin = true;
+                }
 
-                "Accept: application/json",
+            } else {
 
-            ];
+                // Master app / generic: eski davranis, users.password gunceller.
+                $kullanici->password = $hashedSifre;
+                $kullanici->save();
+                $kullanicivar = true;
+                $smsAtilsin = true;
 
-           
-            $smsMesaj =  [
+            }
 
-                    [
+            if ($smsAtilsin) {
 
-                        "to" => self::telefon_no_format_duzenle($request->cep_telefon),
+                $headers = [
 
-                        "message" =>
+                    "Authorization: Key " . $request->sms_apikey,
 
-                            $request->isletmeadi .
+                    "Content-Type: application/json",
 
-                            " uygulama şifreniz  : " .
+                    "Accept: application/json",
 
-                            $olusturulansifre
-                    ],
-            ];
-            if (!self::sifreWhatsappGonder($request, $smsMesaj, $kullanici->id ?? null)) {
-                self::sms_gonder_2($request,$smsMesaj , false,'1',false,$request->salonidler,true);
+                ];
+
+
+                $smsMesaj =  [
+
+                        [
+
+                            "to" => $phone,
+
+                            "message" =>
+
+                                $request->isletmeadi .
+
+                                " uygulama şifreniz  : " .
+
+                                $olusturulansifre
+                        ],
+                ];
+                if (!self::sifreWhatsappGonder($request, $smsMesaj, $kullanici->id ?? null)) {
+                    self::sms_gonder_2($request,$smsMesaj , false,'1',false,$request->salonidler,true);
+                }
+
             }
 
         }

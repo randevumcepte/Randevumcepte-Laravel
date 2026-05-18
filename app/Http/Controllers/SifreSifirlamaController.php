@@ -93,30 +93,35 @@ class SifreSifirlamaController extends Controller
                 'user_agent' => $request->header('User-Agent')
             ]);
             
-            // 8. SMS gönder - SİZİN MEVCUT sms_gonder_2 FONKSİYONUNUZU KULLANIN
+            // 8. Sifre gonderim: salon WA aktif+connected ise once WhatsApp uzerinden
+            // anlik gonder (urgent: anti-ban delay yok), basarisizsa SMS yoluyla devam.
             $smsMesaj = [[
                 "to" => $telefon,
-                "message" => ($request->isletmeadi) . 
+                "message" => ($request->isletmeadi) .
                             " uygulama şifreniz: " . $olusturulansifre
             ]];
-           
-            // SİZİN MEVCUT SMS FONKSİYONUNUZ - AYNI PARAMETRELERLE
-            $smsSonuc = $controller->sms_gonder_2(
-                $request,           // Request object
-                $smsMesaj,          // Mesaj array
-                false,              // isOtp (mevcut kodunuzdaki gibi)
-                '1',                // tr (mevcut kodunuzdaki gibi)
-                false,              // coklu (mevcut kodunuzdaki gibi)
-                $request->salonidler ,true
-            );
+
+            $waBasarili = $controller->sifreWhatsappGonder($request, $smsMesaj, $kullanici->id ?? null);
+            $smsSonuc = null;
+            if (!$waBasarili) {
+                $smsSonuc = $controller->sms_gonder_2(
+                    $request,
+                    $smsMesaj,
+                    false,
+                    '1',
+                    false,
+                    $request->salonidler, true
+                );
+            }
             
             // 9. Rate limit sayacını artır
             $this->incrementRateLimit($telefon, $request->ip());
             
-            // 10. SMS log kaydı
-            Log::info('SMS gönderildi', [
+            // 10. Gonderim log kaydi
+            Log::info('Sifre gönderildi', [
                 'phone' => $telefon,
-                'result' => $smsSonuc
+                'kanal' => $waBasarili ? 'whatsapp' : 'sms',
+                'sms_result' => $smsSonuc,
             ]);
             
             return 'success';
