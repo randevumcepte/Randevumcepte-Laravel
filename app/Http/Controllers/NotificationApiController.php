@@ -87,9 +87,14 @@ class NotificationApiController extends Controller
         if (Schema::hasColumn('bildirim_kimlikleri', 'aktif'))          $row->aktif = true;
         if (Schema::hasColumn('bildirim_kimlikleri', 'gonderim_hatalari')) $row->gonderim_hatalari = 0;
 
-        // Eski şema alanları (geri uyum)
-        $row->user_id = $tip === 'musteri' ? $request->input('user_id') : null;
-        if ($tip === 'personel') {
+        // Eski şema alanları (geri uyum). Her iki alani da önce null'la, sonra
+        // tip'e göre set et. Aksi halde ayni cihaz farklı rolle login olunca
+        // eski rol değeri (user_id veya isletme_yetkili_id) satırda kalıyordu.
+        $row->user_id = null;
+        $row->isletme_yetkili_id = null;
+        if ($tip === 'musteri') {
+            $row->user_id = $request->input('user_id');
+        } elseif ($tip === 'personel') {
             $row->isletme_yetkili_id = $request->input('personel_id');
         } elseif ($tip === 'yetkili') {
             // Yetkili kayıtlarında da isletme_yetkili_id alanı aslında
