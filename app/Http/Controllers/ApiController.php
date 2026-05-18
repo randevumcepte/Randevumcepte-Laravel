@@ -237,11 +237,15 @@ class ApiController extends Controller
 
         }
 
+        // Telefon DB'de normalize formatta (5316237563), request'ten formatli gelebilir
+        // (0531 623 75 63) — eslesme icin once duzenle, sonra ara
+        $telefonNorm = self::telefon_no_format_duzenle($request->cep_telefon);
+
         if (
 
-            MusteriPortfoy::where('aktif',true)->whereHas("users", function ($q) use ($request) {
+            MusteriPortfoy::where('aktif',true)->whereHas("users", function ($q) use ($telefonNorm) {
 
-                $q->where("cep_telefon", $request->cep_telefon);
+                $q->where("cep_telefon", $telefonNorm);
 
             })
 
