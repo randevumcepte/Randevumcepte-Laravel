@@ -269,16 +269,13 @@ class ApiController extends Controller
             $olusturulansifre = substr($random, 0, 5);
             $hashedSifre = Hash::make($olusturulansifre);
 
-            if(User::where('cep_telefon',self::telefon_no_format_duzenle($request->cep_telefon))->count() > 0)
-
+            // Portfoyde kayitli olmayan user — varsa onun sifresini de yenile, yoksa yeni user
+            if(User::where('cep_telefon',self::telefon_no_format_duzenle($request->cep_telefon))->count() > 0) {
                 $kullanici = User::where('cep_telefon',self::telefon_no_format_duzenle($request->cep_telefon))->first();
-
-            else  {
-
-                $kullanici = new User();
-
                 $kullanici->password = $hashedSifre;
-
+            } else {
+                $kullanici = new User();
+                $kullanici->password = $hashedSifre;
             }
 
 
