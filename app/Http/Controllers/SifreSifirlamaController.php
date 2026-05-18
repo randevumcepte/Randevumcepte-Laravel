@@ -93,8 +93,9 @@ class SifreSifirlamaController extends Controller
                 'user_agent' => $request->header('User-Agent')
             ]);
             
-            // 8. Sifre gonderim: salon WA aktif+connected ise once WhatsApp uzerinden
-            // anlik gonder (urgent: anti-ban delay yok), basarisizsa SMS yoluyla devam.
+            // 8. Sifre gonderim: salon WA aktif+connected ise SADECE WhatsApp uzerinden
+            // anlik gonder (urgent: anti-ban delay yok). WA aktif degil veya gonderim
+            // basarisizsa SMS yoluyla gonderilir — sifrenin teslim edilmesi garanti olur.
             $smsMesaj = [[
                 "to" => $telefon,
                 "message" => ($request->isletmeadi) .
