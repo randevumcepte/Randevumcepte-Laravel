@@ -44,3 +44,7 @@ yarn-error.log
 /docker-compose.override.yml
 # Claude Code local settings
 .claude/
+
+# Root-level debug artefacts
+/api_request.json
+/laravel.log
