@@ -1066,7 +1066,21 @@ class ApiController extends Controller
             ->pluck('son_tarih', 'adisyon_id')
         : collect();
 
-    // AÇIK + KAPALI SAYIM (tarih aralığındaki tüm adisyonlar; badge'ler için)
+    // AÇIK + KAPALI SAYIM (tarih aralığındaki adisyonlar; badge'ler için).
+    // 'tum_satis_gor' yetkisi yoksa kullanici sadece kendi adisyonlarini
+    // sayan filtre ile sayilanmali → $personelid varsa adisyon_hizmetler/
+    // adisyon_urunler/adisyon_paketler tablolarinda personel_id eslesmeli.
+    $personelFiltre = '';
+    $personelBind = [];
+    if ($personelid) {
+        $personelFiltre = "
+            AND (
+                EXISTS (SELECT 1 FROM adisyon_hizmetler ah WHERE ah.adisyon_id = a.id AND ah.personel_id = ?)
+                OR EXISTS (SELECT 1 FROM adisyon_urunler au WHERE au.adisyon_id = a.id AND au.personel_id = ?)
+                OR EXISTS (SELECT 1 FROM adisyon_paketler ap WHERE ap.adisyon_id = a.id AND ap.personel_id = ?)
+            )";
+        $personelBind = [$personelid, $personelid, $personelid];
+    }
     $acikKapaliSayim = \DB::selectOne(
         "SELECT
             SUM(CASE WHEN kalan > 0 THEN 1 ELSE 0 END) as acik,
@@ -1074,22 +1088,27 @@ class ApiController extends Controller
          FROM (
             SELECT a.id,
                 (
-                    COALESCE((SELECT SUM(fiyat) FROM adisyon_hizmetler WHERE adisyon_id = a.id), 0) +
-                    COALESCE((SELECT SUM(fiyat) FROM adisyon_urunler WHERE adisyon_id = a.id), 0) +
-                    COALESCE((SELECT SUM(fiyat) FROM adisyon_paketler WHERE adisyon_id = a.id), 0)
+                    COALESCE((SELECT SUM(fiyat) FROM adisyon_hizmetler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0) +
+                    COALESCE((SELECT SUM(fiyat) FROM adisyon_urunler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0) +
+                    COALESCE((SELECT SUM(fiyat) FROM adisyon_paketler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0)
                 ) -
                 (
                     COALESCE((SELECT SUM(t.tutar) FROM tahsilat_hizmetler t
-                        WHERE t.adisyon_hizmet_id IN (SELECT id FROM adisyon_hizmetler WHERE adisyon_id = a.id)), 0) +
+                        WHERE t.adisyon_hizmet_id IN (SELECT id FROM adisyon_hizmetler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . ")), 0) +
                     COALESCE((SELECT SUM(t.tutar) FROM tahsilat_urunler t
-                        WHERE t.adisyon_urun_id IN (SELECT id FROM adisyon_urunler WHERE adisyon_id = a.id)), 0) +
+                        WHERE t.adisyon_urun_id IN (SELECT id FROM adisyon_urunler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . ")), 0) +
                     COALESCE((SELECT SUM(t.tutar) FROM tahsilat_paketler t
-                        WHERE t.adisyon_paket_id IN (SELECT id FROM adisyon_paketler WHERE adisyon_id = a.id)), 0)
+                        WHERE t.adisyon_paket_id IN (SELECT id FROM adisyon_paketler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . ")), 0)
                 ) as kalan
             FROM adisyonlar a
             WHERE a.salon_id = ? AND a.tarih BETWEEN ? AND ?
+            $personelFiltre
         ) sub",
-        [$isletmeId, $tarih1, $tarih2]
+        array_merge(
+            $personelid ? [$personelid, $personelid, $personelid, $personelid, $personelid, $personelid] : [],
+            [$isletmeId, $tarih1, $tarih2],
+            $personelBind
+        )
     );
     $acikSayisi = (int)($acikKapaliSayim->acik ?? 0);
     $kapaliSayisi = (int)($acikKapaliSayim->kapali ?? 0);
@@ -23691,20 +23710,27 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         Log::info('başlangıç  '.$request->baslangic);
         Log::info('bitiş '.$request->bitis);
         $randevu = Randevular::where('id',$request->randevu_id)->first();
-        
 
-        /*if($randevu->hizmetler->count() == 1 )
-        {
-            $randevu->saat =  date('H:i:s',str_replace('T','',$request->baslangic));
-            $randevu->saat_bitis = date('H:i:s',str_replace('T','',$request->bitis));
-            $randevu->save();
-        }*/
+
+        // Push icin: degisiklik oncesi durumu tut.
+        $eskiSaatler = [];
+        $eskiPersonelId = null;
+        foreach ($randevu->hizmetler as $hizmet) {
+            $eskiSaatler[$hizmet->id] = $hizmet->saat;
+            if ($hizmet->id == $request->randevuHizmetId) {
+                $eskiPersonelId = $hizmet->personel_id;
+            }
+        }
+
+        $yeniSaat = date('H:i:s', strtotime(str_replace('T', '', $request->baslangic)));
+        $yeniBitis = date('H:i:s', strtotime(str_replace('T', '', $request->bitis)));
+
         foreach($randevu->hizmetler as $hizmet)
         {
             if($hizmet->id == $request->randevuHizmetId)
             {
-                $hizmet->saat = date('H:i:s',strtotime(str_replace('T','',$request->baslangic)));
-                $hizmet->saat_bitis = date('H:i:s',strtotime(str_replace('T','',$request->bitis)));
+                $hizmet->saat = $yeniSaat;
+                $hizmet->saat_bitis = $yeniBitis;
                 if($request->takvimTuru == 1)
                     $hizmet->personel_id = $request->resourceId;
                 if($request->takvimTuru == 2)
@@ -23716,10 +23742,147 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         }
         $randevu->saat = $randevu->hizmetler->min('saat');
         $randevu->save();
+
+        // ============================================================
+        // PUSH BILDIRIMLERI
+        // - Saat degistiyse: musteriye + atanmis personele time-changed push
+        // - Personel degistiyse (takvimTuru=1): eski + yeni personele bilgi
+        // ============================================================
+        try {
+            $randevu = $randevu->fresh(['hizmetler', 'users', 'salonlar']);
+            $degisenHizmet = $randevu->hizmetler->firstWhere('id', $request->randevuHizmetId);
+            if (!$degisenHizmet) return 'başarılı';
+
+            $salonAdi = $randevu->salonlar->salon_adi ?? 'Salon';
+            $musteriAdi = $randevu->users->name ?? 'Müşteri';
+            $tarihSaatTxt = date('d.m.Y', strtotime($randevu->tarih)) . ' ' . date('H:i', strtotime($yeniSaat));
+            $hizmetAdi = $degisenHizmet->hizmetler->hizmet_adi ?? 'Hizmet';
+
+            $saatDegisti = !isset($eskiSaatler[$degisenHizmet->id]) || $eskiSaatler[$degisenHizmet->id] !== $yeniSaat;
+            $personelDegisti = ($request->takvimTuru == 1) && $eskiPersonelId && $eskiPersonelId != $request->resourceId;
+
+            // Musteriye saat degisikligi push'u
+            if ($saatDegisti) {
+                try {
+                    \App\Services\NotificationService::toCustomer((int) $randevu->user_id, (int) $randevu->salon_id)
+                        ->type(\App\Services\NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                        ->title('Randevunuzun zamanı değişti')
+                        ->body($salonAdi . ' • ' . $hizmetAdi . ' • Yeni: ' . $tarihSaatTxt)
+                        ->randevu((int) $randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->send();
+                } catch (\Throwable $e) { Log::warning('suruklebirak musteri push fail: ' . $e->getMessage()); }
+
+                // Yeni atanmis (veya degismemis) personele saat degisikligi push
+                if ($degisenHizmet->personel_id) {
+                    try {
+                        \App\Services\NotificationService::toStaff((int) $degisenHizmet->personel_id, (int) $randevu->salon_id)
+                            ->type(\App\Services\NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                            ->title('Randevu zamanı değişti')
+                            ->body($musteriAdi . ' • ' . $hizmetAdi . ' • Yeni: ' . $tarihSaatTxt)
+                            ->randevu((int) $randevu->id)
+                            ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                            ->send();
+                    } catch (\Throwable $e) { Log::warning('suruklebirak personel push fail: ' . $e->getMessage()); }
+                }
+            }
+
+            // Personel degistiyse: eski personele "alindi", yeni personele "atandi"
+            if ($personelDegisti) {
+                try {
+                    \App\Services\NotificationService::toStaff((int) $eskiPersonelId, (int) $randevu->salon_id)
+                        ->type(\App\Services\NotificationTypes::STAFF_ASSIGNED)
+                        ->title('Randevu sizden alındı')
+                        ->body($musteriAdi . ' • ' . $hizmetAdi . ' • ' . $tarihSaatTxt)
+                        ->randevu((int) $randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->send();
+                } catch (\Throwable $e) { Log::warning('suruklebirak eski personel push fail: ' . $e->getMessage()); }
+
+                try {
+                    \App\Services\NotificationService::toStaff((int) $request->resourceId, (int) $randevu->salon_id)
+                        ->type(\App\Services\NotificationTypes::STAFF_ASSIGNED)
+                        ->title('Size yeni randevu atandı')
+                        ->body($musteriAdi . ' • ' . $hizmetAdi . ' • ' . $tarihSaatTxt)
+                        ->randevu((int) $randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->send();
+                } catch (\Throwable $e) { Log::warning('suruklebirak yeni personel push fail: ' . $e->getMessage()); }
+            }
+
+            // ============================================================
+            // SMS / WhatsApp (ayar_id=12 = "Randevu Güncellendi")
+            // Salon WhatsApp connected ise once WA, fail/devre disi ise SMS.
+            // ============================================================
+            if ($saatDegisti || $personelDegisti) {
+                $ayar = SalonSMSAyarlari::where('salon_id', $randevu->salon_id)->where('ayar_id', 12)->first();
+                $musteriSmsAcik = $ayar && $ayar->musteri == 1;
+                $personelSmsAcik = $ayar && $ayar->personel == 1;
+
+                $waService = app(\App\Services\WhatsAppService::class);
+                $waAcik = !empty($randevu->salonlar->whatsapp_aktif)
+                    && ($randevu->salonlar->whatsapp_durum ?? null) === 'connected';
+
+                $smsListesi = [];
+
+                // Musteriye
+                if ($musteriSmsAcik && $randevu->users && !empty($randevu->users->cep_telefon)) {
+                    $musteriMesaj = ($randevu->salonlar->salon_adi ?? 'Salon') . ' tarafından randevunuz ' . $tarihSaatTxt . ' olarak güncellendi.';
+                    $gonderildi = false;
+                    if ($waAcik) {
+                        try {
+                            $r = $waService->sendReminder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaj, $randevu->id, $randevu->user_id);
+                            $gonderildi = ($r['ok'] ?? false) === true;
+                        } catch (\Throwable $e) { Log::warning('suruklebirak musteri WA fail: ' . $e->getMessage()); }
+                    }
+                    if (!$gonderildi) {
+                        $smsListesi[] = ['to' => $randevu->users->cep_telefon, 'message' => $musteriMesaj];
+                    }
+                }
+
+                // Etkilenen personellere (saat -> yeni atanmis; personel degisikligi -> eski + yeni)
+                $bilgilendirilecekPersonelIdleri = [];
+                if ($saatDegisti && $degisenHizmet->personel_id) {
+                    $bilgilendirilecekPersonelIdleri[] = (int) $degisenHizmet->personel_id;
+                }
+                if ($personelDegisti) {
+                    if ($eskiPersonelId) $bilgilendirilecekPersonelIdleri[] = (int) $eskiPersonelId;
+                    if ($request->resourceId) $bilgilendirilecekPersonelIdleri[] = (int) $request->resourceId;
+                }
+                $bilgilendirilecekPersonelIdleri = array_values(array_unique($bilgilendirilecekPersonelIdleri));
+
+                if ($personelSmsAcik) {
+                    foreach ($bilgilendirilecekPersonelIdleri as $pid) {
+                        $personel = Personeller::find($pid);
+                        if (!$personel || !$personel->yetkili_id) continue;
+                        $gsm = IsletmeYetkilileri::where('id', $personel->yetkili_id)->value('gsm1');
+                        if (empty($gsm)) continue;
+
+                        $personelMesaj = $musteriAdi . ' isimli müşterinin ' . $hizmetAdi . ' randevusu ' . $tarihSaatTxt . ' olarak güncellendi.';
+                        $gonderildi = false;
+                        if ($waAcik) {
+                            try {
+                                $r = $waService->sendReminder($randevu->salonlar, $gsm, $personelMesaj, $randevu->id, null);
+                                $gonderildi = ($r['ok'] ?? false) === true;
+                            } catch (\Throwable $e) { Log::warning('suruklebirak personel WA fail: ' . $e->getMessage()); }
+                        }
+                        if (!$gonderildi) {
+                            $smsListesi[] = ['to' => $gsm, 'message' => $personelMesaj];
+                        }
+                    }
+                }
+
+                if (count($smsListesi) > 0) {
+                    try {
+                        self::sms_gonder_2($request, $smsListesi, false, 1, false, $randevu->salon_id, false);
+                    } catch (\Throwable $e) { Log::warning('suruklebirak sms_gonder_2 fail: ' . $e->getMessage()); }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('suruklebirak push/sms genel hata: ' . $e->getMessage());
+        }
+
         return 'başarılı';
-
-
- 
     }
     public function hizmetSil(Request $request)
     {
