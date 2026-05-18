@@ -313,11 +313,51 @@ class NotificationService
 
     private function logToDb(?string $deepLink): void
     {
+        // Raw token modu: token listesinden unique alici cikar, her birine ayri satir at.
+        // Boylece Bildirimler tablosu hedef bazinda dolu kalir (orphan kayit olmaz).
+        if ($this->kullaniciTipi === 'raw') {
+            if (empty($this->rawTokens)) return;
+            try {
+                $rows = BildirimKimlikleri::query()
+                    ->whereIn('bildirim_id', $this->rawTokens)
+                    ->where('aktif', true)
+                    ->get(['user_id', 'isletme_yetkili_id']);
+                $users = [];
+                $personeller = [];
+                foreach ($rows as $r) {
+                    if (!empty($r->user_id)) {
+                        $users[(int) $r->user_id] = true;
+                    } elseif (!empty($r->isletme_yetkili_id)) {
+                        $personeller[(int) $r->isletme_yetkili_id] = true;
+                    }
+                }
+                if (empty($users) && empty($personeller)) {
+                    // Hicbir aktif token bulunamadi -> hedefsiz tek satir at (eski davranis)
+                    $this->writeBildirimlerRow($deepLink, null, null);
+                    return;
+                }
+                foreach (array_keys($users) as $uid) {
+                    $this->writeBildirimlerRow($deepLink, $uid, null);
+                }
+                foreach (array_keys($personeller) as $pid) {
+                    $this->writeBildirimlerRow($deepLink, null, $pid);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Bildirim log (raw) yazilamadi: ' . $e->getMessage());
+            }
+            return;
+        }
+
+        $this->writeBildirimlerRow($deepLink, $this->userId, $this->personelId);
+    }
+
+    private function writeBildirimlerRow(?string $deepLink, ?int $userId, ?int $personelId): void
+    {
         try {
             $b = new Bildirimler();
             $b->salon_id      = $this->salonId;
-            $b->user_id       = $this->userId;
-            $b->personel_id   = $this->personelId;
+            $b->user_id       = $userId;
+            $b->personel_id   = $personelId;
             $b->baslik        = $this->title;
             $b->aciklama      = $this->body;
             $b->url           = $this->imageUrl;

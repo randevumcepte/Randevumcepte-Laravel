@@ -9887,41 +9887,65 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                     }
 
+                    // Hizmetleri personel basina grupla, her personele TEK push,
+                    // hizmetler virgullu birlestirilir.
+                    $personelHizmetMap = []; // personel_id => [hizmet_satiri,...]
+                    $tumHizmetSatirlari = [];
                     foreach ($yenirandevu->hizmetler as $hizmet) {
-                        $mesaj =$yenirandevu->users->name ." isimli müşterinin " .date("d.m.Y", strtotime($yenirandevu->tarih)) ." - " .date("H:i", strtotime($hizmet->saat)) ." " .$hizmet->hizmetler->hizmet_adi ." randevusu " .IsletmeYetkilileri::where( "id",$request->olusturan)->value("name") ." tarafından " .$cumleyeek .".";
-                            
-                        if ( SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("personel") == 1) {
+                        $satir = date('H:i', strtotime($hizmet->saat)) . ' ' . $hizmet->hizmetler->hizmet_adi;
+                        $tumHizmetSatirlari[] = $satir;
+                        if ($hizmet->personel_id) {
+                            if (!isset($personelHizmetMap[$hizmet->personel_id])) $personelHizmetMap[$hizmet->personel_id] = [];
+                            $personelHizmetMap[$hizmet->personel_id][] = $satir;
+                        }
+                    }
+                    $olusturanAdi = IsletmeYetkilileri::where("id", $request->olusturan)->value("name");
+                    $olusturanResim = IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim");
+                    $personelSmsAcik = SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("personel") == 1;
+                    $tipPush = $guncelleme ? NotificationTypes::APPOINTMENT_TIME_CHANGED : NotificationTypes::APPOINTMENT_CREATED;
+                    $titlePush = $guncelleme ? 'Randevu Güncellendi' : 'Yeni Randevu';
+                    $tarihText = date("d.m.Y", strtotime($yenirandevu->tarih));
 
-                            $yetkiliid = Personeller::where("id", $hizmet->personel_id )->value("yetkili_id");
-                            array_push($mesajlar, ["to" => IsletmeYetkilileri::where( "id",$yetkiliid)->value("gsm1"),"message" => $mesaj,]);
+                    // Atanmış personellere (her biri kendi hizmet listesiyle)
+                    foreach ($personelHizmetMap as $pid => $satirlar) {
+                        $mesaj = $yenirandevu->users->name . " isimli müşterinin " . $tarihText . " - " . implode(', ', $satirlar) . " randevu" . (count($satirlar) > 1 ? 'ları ' : 'su ') . $olusturanAdi . " tarafından " . $cumleyeek . ".";
 
+                        if ($personelSmsAcik) {
+                            $yetkiliid = Personeller::where("id", $pid)->value("yetkili_id");
+                            array_push($mesajlar, ["to" => IsletmeYetkilileri::where("id", $yetkiliid)->value("gsm1"), "message" => $mesaj]);
                         }
 
-                        self::bildirimekle($request, $yenirandevu->salon_id,$mesaj,"#",$hizmet->personel_id,null,IsletmeYetkilileri::where("id",$request->olusturan)->value("profil_resim"),$yenirandevu->id);
+                        self::bildirimekle($request, $yenirandevu->salon_id, $mesaj, "#", $pid, null, $olusturanResim, $yenirandevu->id);
 
-                        if($hizmet->personel_id){
+                        try {
+                            NotificationService::toStaff((int) $pid, (int) $yenirandevu->salon_id)
+                                ->type($tipPush)
+                                ->title($titlePush)
+                                ->body($mesaj)
+                                ->randevu((int) $yenirandevu->id)
+                                ->deepLink('appointment_detail', ['randevu_id' => $yenirandevu->id])
+                                ->send();
+                        } catch (\Throwable $e) { \Log::warning('api personel yeni randevu push: ' . $e->getMessage()); }
+                    }
+
+                    // Yöneticilere (role_id < 5) TEK push: tüm hizmetler birlikte
+                    if (!empty($tumHizmetSatirlari)) {
+                        $yoneticiMesaji = $yenirandevu->users->name . " isimli müşterinin " . $tarihText . " - " . implode(', ', $tumHizmetSatirlari) . " randevu" . (count($tumHizmetSatirlari) > 1 ? 'ları ' : 'su ') . $olusturanAdi . " tarafından " . $cumleyeek . ".";
+                        $yoneticiIdleri = Personeller::where('salon_id', $yenirandevu->salon_id)
+                            ->where('role_id', '<', 5)
+                            ->whereNotIn('id', array_keys($personelHizmetMap))
+                            ->pluck('id')->toArray();
+                        foreach ($yoneticiIdleri as $yId) {
                             try {
-                                NotificationService::toStaff((int)$hizmet->personel_id, (int)$yenirandevu->salon_id)
-                                    ->type($guncelleme ? NotificationTypes::APPOINTMENT_TIME_CHANGED : NotificationTypes::APPOINTMENT_CREATED)
-                                    ->title($guncelleme ? 'Randevu Güncellendi' : 'Yeni Randevu')
-                                    ->body($mesaj)
-                                    ->randevu((int)$yenirandevu->id)
+                                NotificationService::toStaff((int) $yId, (int) $yenirandevu->salon_id)
+                                    ->type($tipPush)
+                                    ->title($titlePush)
+                                    ->body($yoneticiMesaji)
+                                    ->randevu((int) $yenirandevu->id)
                                     ->deepLink('appointment_detail', ['randevu_id' => $yenirandevu->id])
                                     ->send();
-                            } catch (\Throwable $e) { \Log::warning('api personel yeni randevu push: '.$e->getMessage()); }
-                        }
-                        // Salon yoneticisi/yetkilileri (role_id < 5) icin de bildirim - eski davranisi koru
-                        $yoneticiIdleri = Personeller::where('salon_id',$yenirandevu->salon_id)->where('role_id','<',5)->where('id','!=',$hizmet->personel_id)->pluck('id')->toArray();
-                        foreach($yoneticiIdleri as $yId){
-                            try {
-                                NotificationService::toStaff((int)$yId, (int)$yenirandevu->salon_id)
-                                    ->type($guncelleme ? NotificationTypes::APPOINTMENT_TIME_CHANGED : NotificationTypes::APPOINTMENT_CREATED)
-                                    ->title($guncelleme ? 'Randevu Güncellendi' : 'Yeni Randevu')
-                                    ->body($mesaj)
-                                    ->randevu((int)$yenirandevu->id)
-                                    ->deepLink('appointment_detail', ['randevu_id' => $yenirandevu->id])
-                                    ->send();
-                            } catch (\Throwable $e) { \Log::warning('api yonetici yeni randevu push: '.$e->getMessage()); }
+                            } catch (\Throwable $e) { \Log::warning('api yonetici yeni randevu push: ' . $e->getMessage()); }
+                            self::bildirimekle($request, $yenirandevu->salon_id, $yoneticiMesaji, "#", $yId, null, $olusturanResim, $yenirandevu->id);
                         }
                     }
 
