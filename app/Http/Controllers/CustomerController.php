@@ -20,7 +20,7 @@ use App\PersonelYorumlar;
 use App\SalonHizmetler;
 use App\Randevular;
 use App\RandevuHizmetler;
-
+use App\Odalar;
 use App\AramaTerimleri;
 use App\IsletmeYetkilileri;
 use App\MusteriPortfoy;
@@ -163,6 +163,38 @@ class CustomerController extends Controller
                     $secilenPersonelId = $otoPersonel ? $otoPersonel->id : 0;
                 }
                 $randevuhizmetler->personel_id = $secilenPersonelId;
+
+                // Oda bazli takvim ise: atanan personelin musait odasini bul ve isle
+                if (($salon->randevu_takvim_turu ?? 1) == 3 && $secilenPersonelId) {
+                    $odaAdaylari = Odalar::where('salon_id', $randevu->salon_id)
+                        ->where('durum', 1)
+                        ->where('personel_id', $secilenPersonelId)
+                        ->pluck('id')->toArray();
+                    // Personele bagli oda yoksa: salonun aktif diger odalarini da dene
+                    if (empty($odaAdaylari)) {
+                        $odaAdaylari = Odalar::where('salon_id', $randevu->salon_id)
+                            ->where('durum', 1)->pluck('id')->toArray();
+                    }
+                    $secilenOdaId = null;
+                    foreach ($odaAdaylari as $candidateOdaId) {
+                        $cakisma = RandevuHizmetler::where('oda_id', $candidateOdaId)
+                            ->whereHas('randevu', function($q) use ($randevu){
+                                $q->where('tarih', $randevu->tarih);
+                            })
+                            ->where(function($q) use ($randevuhizmetler){
+                                $q->where('saat', '<', $randevuhizmetler->saat_bitis)
+                                  ->where('saat_bitis', '>', $randevuhizmetler->saat);
+                            })->exists();
+                        if (!$cakisma) {
+                            $secilenOdaId = $candidateOdaId;
+                            break;
+                        }
+                    }
+                    if ($secilenOdaId) {
+                        $randevuhizmetler->oda_id = $secilenOdaId;
+                    }
+                }
+
                 $randevuhizmetler->save();
                 $baslangicSaati = $randevuhizmetler->saat_bitis;
                 array_push($personeller, $secilenPersonelId);

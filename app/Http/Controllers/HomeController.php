@@ -23,6 +23,7 @@ use App\PersonelHizmetler;
 use App\SalonHizmetler;
 use App\Randevular;
 use App\RandevuHizmetler;
+use App\Odalar;
 use App\User;
 use App\Subeler;
 use App\Etkinlikler;
@@ -549,16 +550,40 @@ $salon = Salonlar::where('domain', $domain)->first();
             'tarihsaatbolumu' => "<p>Salon seçtiğiniz tarihte kapalı.</p>"
         ]);
     }
-    $personelBilgi = "";
-    $personeller = Personeller::whereIn('id',$request->personeller)->get();
-    foreach($personeller as $key => $personel){
-        $personelBilgi .= "<input type='hidden' value='".$personel->id."' name='secilenpersoneller[]'>".$personel->personel_adi;
-        if($key+1 != $personeller->count())
-            $personelBilgi .= ", ";
-        
+
+    $salonModel = Salonlar::find($id);
+    $takvimTuru = $salonModel->randevu_takvim_turu ?? 1;
+    $randevusaataraligi = $salonModel->randevu_saat_araligi;
+
+    // "Farketmez" (0/null) durumunda: secilen hizmetleri yapan tum aktif personelleri kullan
+    $requestedPersonelIds = array_filter((array)($request->personeller ?? []), function($v){ return $v !== '' && $v !== null && (int)$v !== 0; });
+    $farketmezVar = count((array)$request->personeller) !== count($requestedPersonelIds);
+
+    if (empty($requestedPersonelIds)) {
+        $personelIds = PersonelHizmetler::whereIn('hizmet_id', (array)($request->secilenhizmetler ?? []))
+            ->pluck('personel_id')->unique()->toArray();
+        $personelIds = Personeller::whereIn('id', $personelIds)
+            ->where('salon_id', $id)->where('aktif', 1)
+            ->where('takvimde_gorunsun', true)
+            ->pluck('id')->toArray();
+    } else {
+        $personelIds = array_values(array_unique(array_map('intval', $requestedPersonelIds)));
     }
-    // Personel çalışma saatlerini belirle
-    $personelCalismalari = PersonelCalismaSaatleri::whereIn('personel_id', $request->personeller)
+
+    $personelBilgi = "";
+    if ($farketmezVar || empty($requestedPersonelIds)) {
+        $personelBilgi = "<input type='hidden' value='0' name='secilenpersoneller[]'>Farketmez";
+    } else {
+        $personeller = Personeller::whereIn('id', $personelIds)->get();
+        foreach($personeller as $key => $personel){
+            $personelBilgi .= "<input type='hidden' value='".$personel->id."' name='secilenpersoneller[]'>".$personel->personel_adi;
+            if($key+1 != $personeller->count())
+                $personelBilgi .= ", ";
+        }
+    }
+
+    // Personel çalışma saatlerini belirle (sadece gercek personeller; Farketmez fallback'inde aday personellerin UNION'u)
+    $personelCalismalari = PersonelCalismaSaatleri::whereIn('personel_id', $personelIds)
         ->where('calisiyor', 1)
         ->where('haftanin_gunu', $day)
         ->get();
@@ -566,23 +591,32 @@ $salon = Salonlar::where('domain', $domain)->first();
     $ortakBaslangic = $salonCalisma->baslangic_saati;
     $ortakBitis = $salonCalisma->bitis_saati;
 
-    foreach ($personelCalismalari as $calisma) {
-        if (strtotime($calisma->baslangic_saati) > strtotime($ortakBaslangic)) {
-            $ortakBaslangic = $calisma->baslangic_saati;
+    if ($farketmezVar || empty($requestedPersonelIds)) {
+        // Farketmez: en genis personel araligini (union) kullan
+        if ($personelCalismalari->count() > 0) {
+            $minBas = $personelCalismalari->min('baslangic_saati');
+            $maxBit = $personelCalismalari->max('bitis_saati');
+            if (strtotime($minBas) > strtotime($ortakBaslangic)) $ortakBaslangic = $minBas;
+            if (strtotime($maxBit) < strtotime($ortakBitis))     $ortakBitis    = $maxBit;
         }
-        if (strtotime($calisma->bitis_saati) < strtotime($ortakBitis)) {
-            $ortakBitis = $calisma->bitis_saati;
+    } else {
+        foreach ($personelCalismalari as $calisma) {
+            if (strtotime($calisma->baslangic_saati) > strtotime($ortakBaslangic)) {
+                $ortakBaslangic = $calisma->baslangic_saati;
+            }
+            if (strtotime($calisma->bitis_saati) < strtotime($ortakBitis)) {
+                $ortakBitis = $calisma->bitis_saati;
+            }
         }
     }
 
     $simdikiZaman = (date('Y-m-d') == $tarih) ? date('H:i') : '00:00';
-    $randevusaataraligi = Salonlar::find($id)->randevu_saat_araligi;
     Log::info("Tarih ".$tarih);
     // Randevu ve hizmet bilgilerini al
     $randevular = Randevular::where('tarih', $tarih)
-        ->whereHas('hizmetler', function($query) use ($request) {
-            $query->whereIn('personel_id', $request->personeller)
-                  ->orWhereIn('hizmet_id', $request->secilenhizmetler);
+        ->whereHas('hizmetler', function($query) use ($personelIds, $request) {
+            $query->whereIn('personel_id', $personelIds)
+                  ->orWhereIn('hizmet_id', (array)($request->secilenhizmetler ?? []));
         })
         ->with(['hizmetler' => function($query) {
             $query->select('randevu_id', 'sure_dk', 'saat','saat_bitis','personel_id');
@@ -592,23 +626,34 @@ $salon = Salonlar::where('domain', $domain)->first();
     $dolusaatler = [];
 
     foreach ($randevular as $randevu) {
-        Log::info("randevu : ".$randevu->id);
         foreach($randevu->hizmetler as $rH)
         {
-            Log::info("randevu hizmet : ".$rH);
-            Log::info("hizmet başlangıç : ".$rH->saat);
-             Log::info("hizmet bitiş : ".$rH->saat_bitis);
             $baslangic = strtotime($rH->saat);
             $bitis = strtotime($rH->saat_bitis);
-            
-            // Tüm zaman aralığını blokla
             for ($t = $baslangic; $t < $bitis; $t += ($randevusaataraligi * 60)) {
                 $dolusaatler[] = date('H:i', $t);
-
             }
         }
-       
-       
+    }
+
+    // Oda bazli takvim ise: aday personellerin odalarinin dolu dilimlerini de elensin
+    if ($takvimTuru == 3) {
+        $personelOdaIdleri = Odalar::whereIn('personel_id', $personelIds)
+            ->where('durum', 1)
+            ->pluck('id')->toArray();
+        if (!empty($personelOdaIdleri)) {
+            $odaRandevular = RandevuHizmetler::whereIn('oda_id', $personelOdaIdleri)
+                ->whereHas('randevu', function($q) use ($tarih) {
+                    $q->where('tarih', $tarih);
+                })->get();
+            foreach($odaRandevular as $rH) {
+                $baslangic = strtotime($rH->saat);
+                $bitis = strtotime($rH->saat_bitis);
+                for ($t = $baslangic; $t < $bitis; $t += ($randevusaataraligi * 60)) {
+                    $dolusaatler[] = date('H:i', $t);
+                }
+            }
+        }
     }
     Log::info("dolu saatler : ",$dolusaatler);
     $dolusaatler = array_unique($dolusaatler);
@@ -672,16 +717,15 @@ $salon = Salonlar::where('domain', $domain)->first();
         $html_personel_bolumu .= "<p>".$secilenhizmet->hizmet_adi." için personel seçiniz</p>".
                             "<form id='personellisteparametreler' method='get'><div class='form-group'>
                                     <select name='personeller[]' style='border-radius:60px'>";
-        
-        if($personeller->count() > 0) {
-            foreach($personeller as $personel) {
-                $html_personel_bolumu .= "<option value='".$personel->id."'>".$personel->personel_adi."</option>";
-            }
-        } else {
-            $html_personel_bolumu .= "<option value=''>Bu hizmet için uygun personel bulunamadı</option>";
+
+        // "Farketmez" her zaman en ustte; uygun personel yoksa da bu kalir
+        $farketmezSelected = $personeller->count() > 0 ? '' : 'selected';
+        $html_personel_bolumu .= "<option value='0' ".$farketmezSelected.">Farketmez</option>";
+        foreach($personeller as $personel) {
+            $html_personel_bolumu .= "<option value='".$personel->id."'>".$personel->personel_adi."</option>";
         }
-        
-        $html_personel_bolumu .= "</select></div>";          
+
+        $html_personel_bolumu .= "</select></div>";
     }
     
     $html_personel_bolumu .= "<button id='tarihsaatsecimadiminagec' type='submit' class='btn btn-primary width-100 btn-rounded' style='width:100%; margin-top: 10px; margin-bottom: 10px'>DEVAM ET <i class='fa fa-chevron-right'></i><i class='fa fa-chevron-right'></i></button></form>";
