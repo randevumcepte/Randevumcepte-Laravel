@@ -23985,15 +23985,30 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         if($isletme->yeni_sms == 1){
             $smsController = app()->make(SMSController::class);
             $raporlar = $smsController->voiceTelekomRaporlariGetir($isletme->id);
+            // voiceTelekomRaporlariGetir 'date' alanini web DataTable icin
+            // gizli <span style="display:none">YmdHis</span>dd.mm.YYYY HH:ii:ss
+            // formatinda donduruyor. Mobil tarafta sadece okunabilir kismi gosteriyoruz.
+            $temizle = function($liste) {
+                $cikti = [];
+                foreach($liste as $satir){
+                    $arr = is_array($satir) ? $satir : (array)$satir;
+                    if(isset($arr['date'])){
+                        $arr['date'] = trim(preg_replace('/<[^>]+>[^<]*<\/[^>]+>/s','', (string)$arr['date']));
+                        $arr['date'] = trim(preg_replace('/<[^>]+>/','', $arr['date']));
+                    }
+                    $cikti[] = $arr;
+                }
+                return $cikti;
+            };
             return response()->json([
                 'basarili'=>true,
                 'yeni_sms'=>1,
-                'bildirim'=>collect($raporlar['bildirim'] ?? [])->values(),
-                'toplu'=>collect($raporlar['toplu'] ?? [])->values(),
-                'grup'=>collect($raporlar['grup'] ?? [])->values(),
-                'filtre'=>collect($raporlar['filtre'] ?? [])->values(),
-                'kampanya'=>collect($raporlar['kampanya'] ?? [])->values(),
-                'etkinlik'=>collect($raporlar['etkinlik'] ?? [])->values(),
+                'bildirim'=>$temizle(collect($raporlar['bildirim'] ?? [])->values()->all()),
+                'toplu'=>$temizle(collect($raporlar['toplu'] ?? [])->values()->all()),
+                'grup'=>$temizle(collect($raporlar['grup'] ?? [])->values()->all()),
+                'filtre'=>$temizle(collect($raporlar['filtre'] ?? [])->values()->all()),
+                'kampanya'=>$temizle(collect($raporlar['kampanya'] ?? [])->values()->all()),
+                'etkinlik'=>$temizle(collect($raporlar['etkinlik'] ?? [])->values()->all()),
             ]);
         }
         $kolonlar = [
