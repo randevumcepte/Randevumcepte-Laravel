@@ -23714,9 +23714,11 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
 
         // Push icin: degisiklik oncesi durumu tut.
         $eskiSaatler = [];
+        $eskiBitisler = [];
         $eskiPersonelId = null;
         foreach ($randevu->hizmetler as $hizmet) {
             $eskiSaatler[$hizmet->id] = $hizmet->saat;
+            $eskiBitisler[$hizmet->id] = $hizmet->saat_bitis;
             if ($hizmet->id == $request->randevuHizmetId) {
                 $eskiPersonelId = $hizmet->personel_id;
             }
@@ -23755,30 +23757,37 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
 
             $salonAdi = $randevu->salonlar->salon_adi ?? 'Salon';
             $musteriAdi = $randevu->users->name ?? 'Müşteri';
-            $tarihSaatTxt = date('d.m.Y', strtotime($randevu->tarih)) . ' ' . date('H:i', strtotime($yeniSaat));
+            // Mesajda hem baslangic hem bitis goster: 19.05.2026 10:00-11:30
+            $tarihSaatTxt = date('d.m.Y', strtotime($randevu->tarih))
+                . ' ' . date('H:i', strtotime($yeniSaat))
+                . '-' . date('H:i', strtotime($yeniBitis));
             $hizmetAdi = $degisenHizmet->hizmetler->hizmet_adi ?? 'Hizmet';
 
             $saatDegisti = !isset($eskiSaatler[$degisenHizmet->id]) || $eskiSaatler[$degisenHizmet->id] !== $yeniSaat;
+            $bitisDegisti = !isset($eskiBitisler[$degisenHizmet->id]) || $eskiBitisler[$degisenHizmet->id] !== $yeniBitis;
+            $zamanlamaDegisti = $saatDegisti || $bitisDegisti; // saat veya sure degisti (resize dahil)
             $personelDegisti = ($request->takvimTuru == 1) && $eskiPersonelId && $eskiPersonelId != $request->resourceId;
 
-            // Musteriye saat degisikligi push'u
-            if ($saatDegisti) {
+            // Musteriye zamanlama degisikligi push'u (saat veya sure -resize-)
+            if ($zamanlamaDegisti) {
+                $musteriBaslik = $saatDegisti ? 'Randevunuzun zamanı değişti' : 'Randevunuzun süresi güncellendi';
                 try {
                     \App\Services\NotificationService::toCustomer((int) $randevu->user_id, (int) $randevu->salon_id)
                         ->type(\App\Services\NotificationTypes::APPOINTMENT_TIME_CHANGED)
-                        ->title('Randevunuzun zamanı değişti')
+                        ->title($musteriBaslik)
                         ->body($salonAdi . ' • ' . $hizmetAdi . ' • Yeni: ' . $tarihSaatTxt)
                         ->randevu((int) $randevu->id)
                         ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
                         ->send();
                 } catch (\Throwable $e) { Log::warning('suruklebirak musteri push fail: ' . $e->getMessage()); }
 
-                // Yeni atanmis (veya degismemis) personele saat degisikligi push
+                // Atanmis personele zamanlama degisikligi push
                 if ($degisenHizmet->personel_id) {
+                    $personelBaslik = $saatDegisti ? 'Randevu zamanı değişti' : 'Randevu süresi güncellendi';
                     try {
                         \App\Services\NotificationService::toStaff((int) $degisenHizmet->personel_id, (int) $randevu->salon_id)
                             ->type(\App\Services\NotificationTypes::APPOINTMENT_TIME_CHANGED)
-                            ->title('Randevu zamanı değişti')
+                            ->title($personelBaslik)
                             ->body($musteriAdi . ' • ' . $hizmetAdi . ' • Yeni: ' . $tarihSaatTxt)
                             ->randevu((int) $randevu->id)
                             ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
@@ -23814,7 +23823,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             // SMS / WhatsApp (ayar_id=12 = "Randevu Güncellendi")
             // Salon WhatsApp connected ise once WA, fail/devre disi ise SMS.
             // ============================================================
-            if ($saatDegisti || $personelDegisti) {
+            if ($zamanlamaDegisti || $personelDegisti) {
                 $ayar = SalonSMSAyarlari::where('salon_id', $randevu->salon_id)->where('ayar_id', 12)->first();
                 $musteriSmsAcik = $ayar && $ayar->musteri == 1;
                 $personelSmsAcik = $ayar && $ayar->personel == 1;
@@ -23840,9 +23849,9 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                     }
                 }
 
-                // Etkilenen personellere (saat -> yeni atanmis; personel degisikligi -> eski + yeni)
+                // Etkilenen personellere (zamanlama -> atanmis; personel degisikligi -> eski + yeni)
                 $bilgilendirilecekPersonelIdleri = [];
-                if ($saatDegisti && $degisenHizmet->personel_id) {
+                if ($zamanlamaDegisti && $degisenHizmet->personel_id) {
                     $bilgilendirilecekPersonelIdleri[] = (int) $degisenHizmet->personel_id;
                 }
                 if ($personelDegisti) {
