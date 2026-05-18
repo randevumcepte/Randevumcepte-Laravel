@@ -1109,6 +1109,8 @@ public function carkverilerigetir(Request $request)
         $search
     );
 
+    // Personel "musteri.telefon_gor" yetkisi yoksa cep_telefon + ad_soyad icindeki
+    // numara asagidaki get() sonrasi maskelenir.
     $query = DB::table('musteri_portfoy')
         ->join('users', 'users.id', '=', 'musteri_portfoy.user_id')
         ->select(
@@ -1116,10 +1118,7 @@ public function carkverilerigetir(Request $request)
             DB::raw('CONCAT(users.name, " (", users.cep_telefon, ")") as ad_soyad'),
             'users.cep_telefon as cep_telefon',
             DB::raw('CONCAT("/isletmeyonetim/musteridetay/", users.id, "?sube=", musteri_portfoy.salon_id) as detayli_bilgi')
-        );
-
-    // Personel "musteri.telefon_gor" yetkisi yoksa cep_telefon + ad_soyad icindeki
-    // numarayi maskele. Asagidaki post-process get() sonrasi calisir.
+        )
         ->where(function($q) use ($search, $normalizedSearch) {
             $q->where('users.name', 'LIKE', "%{$search}%")
               ->orWhere('users.cep_telefon', 'LIKE', "%{$search}%")
