@@ -19,9 +19,13 @@
             </nav>
          </div>
          <div class="col-md-6 col-sm-6 text-right">
+             @yetki('gorusme.ekle_duzenle')
              <a id="yeni_on_gorusme_ekle" href="#" data-toggle="modal" data-target="#ongorusme-modal" onclick="modalbaslikata('Yeni Ön Görüşme','ongorusmeformu')" class="btn btn-success btn-lg yenieklebuton501"><i class="fa fa-plus"></i> Yeni Ön Görüşme</a>
-             <a id="secilenlere_sms_gonder" href="#" 
+             @endyetki
+             @yetki('pazarlama.sms_gonder')
+             <a id="secilenlere_sms_gonder" href="#"
              class="btn btn-primary btn-lg yenieklebuton502"><i class="fa fa-envelope"></i> SMS Gönder</a>
+             @endyetki
          </div>
       </div>
    </div>

@@ -1,4 +1,13 @@
 @php
+  // Maas tutar gor yetki kontrolu — kapaliysa rakamlar **** ile maskele
+  $_maasGor = true;
+  try {
+    $_uid = \Auth::guard('isletmeyonetim')->user()->id ?? null;
+    if ($_uid) {
+      $_maasGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_uid, $isletme->id, 'personel.maas_tutar_gor');
+    }
+  } catch (\Throwable $e) { $_maasGor = true; }
+  $_fmt = function($v) use ($_maasGor){ return $_maasGor ? number_format($v,2,',','.') : '****'; };
   $aylar = [1=>'Ocak',2=>'Şubat',3=>'Mart',4=>'Nisan',5=>'Mayıs',6=>'Haziran',7=>'Temmuz',8=>'Ağustos',9=>'Eylül',10=>'Ekim',11=>'Kasım',12=>'Aralık'];
   $toplamMaas = array_sum(array_column($rapor,'maas'));
   $toplamPrim = array_sum(array_column($rapor,'prim_toplam'));
@@ -677,33 +686,33 @@
   <div class="pr-stat pr-stat--maas">
     <div class="pr-stat__icon">₺</div>
     <div class="pr-stat__lbl">Kalan Maaş</div>
-    <div class="pr-stat__val">{{number_format($toplamKalanMaas,2,',','.')}} <small>₺</small></div>
-    <div class="pr-stat__brut">Toplam: {{number_format($toplamMaas,2,',','.')}} ₺</div>
+    <div class="pr-stat__val">{{$_fmt($toplamKalanMaas)}} <small>₺</small></div>
+    <div class="pr-stat__brut">Toplam: {{$_fmt($toplamMaas)}} ₺</div>
     <div class="pr-stat__sub">
-      <span class="pill odenen"><i class="fa fa-check-circle"></i> Ödenen <b>{{number_format($toplamOdenenMaas,2,',','.')}} ₺</b></span>
-      <span class="pill kalan"><i class="fa fa-clock-o"></i> Kalan <b>{{number_format($toplamKalanMaas,2,',','.')}} ₺</b></span>
+      <span class="pill odenen"><i class="fa fa-check-circle"></i> Ödenen <b>{{$_fmt($toplamOdenenMaas)}} ₺</b></span>
+      <span class="pill kalan"><i class="fa fa-clock-o"></i> Kalan <b>{{$_fmt($toplamKalanMaas)}} ₺</b></span>
     </div>
   </div>
   <div class="pr-stat pr-stat--prim">
     <div class="pr-stat__icon">%</div>
     <div class="pr-stat__lbl">Kalan Prim</div>
-    <div class="pr-stat__val">{{number_format($toplamKalanPrim,2,',','.')}} <small>₺</small></div>
-    <div class="pr-stat__brut">Toplam: {{number_format($toplamPrim,2,',','.')}} ₺</div>
+    <div class="pr-stat__val">{{$_fmt($toplamKalanPrim)}} <small>₺</small></div>
+    <div class="pr-stat__brut">Toplam: {{$_fmt($toplamPrim)}} ₺</div>
     <div class="pr-stat__sub">
-      <span class="pill odenen"><i class="fa fa-check-circle"></i> Ödenen <b>{{number_format($toplamOdenenPrim,2,',','.')}} ₺</b></span>
-      <span class="pill kalan"><i class="fa fa-clock-o"></i> Kalan <b>{{number_format($toplamKalanPrim,2,',','.')}} ₺</b></span>
+      <span class="pill odenen"><i class="fa fa-check-circle"></i> Ödenen <b>{{$_fmt($toplamOdenenPrim)}} ₺</b></span>
+      <span class="pill kalan"><i class="fa fa-clock-o"></i> Kalan <b>{{$_fmt($toplamKalanPrim)}} ₺</b></span>
     </div>
   </div>
   <div class="pr-stat pr-stat--bonus">
     <div class="pr-stat__icon">＋</div>
     <div class="pr-stat__lbl">Toplam Bonus</div>
-    <div class="pr-stat__val">{{number_format($toplamBonus,2,',','.')}} <small>₺</small></div>
+    <div class="pr-stat__val">{{$_fmt($toplamBonus)}} <small>₺</small></div>
     <div class="pr-stat__brut" style="opacity:.65">Net hak edişe ekleniyor</div>
   </div>
   <div class="pr-stat pr-stat--kesinti">
     <div class="pr-stat__icon">−</div>
     <div class="pr-stat__lbl">Toplam Kesinti</div>
-    <div class="pr-stat__val">{{number_format($toplamKesinti,2,',','.')}} <small>₺</small></div>
+    <div class="pr-stat__val">{{$_fmt($toplamKesinti)}} <small>₺</small></div>
     <div class="pr-stat__brut" style="opacity:.65">Net hak edişten düşülüyor</div>
   </div>
   <div class="pr-stat pr-stat--net">
@@ -712,17 +721,17 @@
       Bekleyen Ödeme
       <span class="pr-net-progress__yuzde">%{{$odemeYuzde}}</span>
     </div>
-    <div class="pr-stat__val">{{number_format($toplamBekleyen,2,',','.')}} <small>₺</small></div>
-    <div class="pr-stat__brut">Net Hak Ediş: {{number_format($toplamNet,2,',','.')}} ₺ &nbsp;·&nbsp; Ödenen: {{number_format($toplamOdenen,2,',','.')}} ₺</div>
+    <div class="pr-stat__val">{{$_fmt($toplamBekleyen)}} <small>₺</small></div>
+    <div class="pr-stat__brut">Net Hak Ediş: {{$_fmt($toplamNet)}} ₺ &nbsp;·&nbsp; Ödenen: {{$_fmt($toplamOdenen)}} ₺</div>
     <div class="pr-net-progress">
       <div class="pr-net-progress__bar">
         <div class="pr-net-progress__fill" style="width: {{$odemeYuzde}}%"></div>
       </div>
     </div>
     <div class="pr-stat__sub">
-      <span class="pill"><i class="fa fa-money"></i> Maaş <b>{{number_format($toplamOdenenMaas,2,',','.')}} ₺</b></span>
-      <span class="pill"><i class="fa fa-percent"></i> Prim <b>{{number_format($toplamOdenenPrim,2,',','.')}} ₺</b></span>
-      <span class="pill"><i class="fa fa-clock-o"></i> Avans <b>{{number_format($toplamOdenenDiger,2,',','.')}} ₺</b></span>
+      <span class="pill"><i class="fa fa-money"></i> Maaş <b>{{$_fmt($toplamOdenenMaas)}} ₺</b></span>
+      <span class="pill"><i class="fa fa-percent"></i> Prim <b>{{$_fmt($toplamOdenenPrim)}} ₺</b></span>
+      <span class="pill"><i class="fa fa-clock-o"></i> Avans <b>{{$_fmt($toplamOdenenDiger)}} ₺</b></span>
     </div>
   </div>
 </div>
@@ -758,36 +767,37 @@
           @endphp
           <tr class="{{ $rowCls }}">
             <td class="pr-cell-personel"><span class="pr-cell-personel-inner"><span class="pr-avatar">{{$bas}}</span><span>{{$r['personel_adi']}}</span></span></td>
-            <td>{{number_format($r['maas'],2,',','.')}} ₺</td>
-            <td>{{number_format($r['hizmet_primi'],2,',','.')}} ₺</td>
-            <td>{{number_format($r['urun_primi'],2,',','.')}} ₺</td>
-            <td>{{number_format($r['paket_primi'],2,',','.')}} ₺</td>
-            <td><strong>{{number_format($r['prim_toplam'],2,',','.')}} ₺</strong></td>
-            <td class="pr-cell-bonus">+{{number_format($r['bonus'],2,',','.')}}@if($r['hareket_sayisi']>0) <small style="color:var(--rmc-muted); font-weight:500">({{$r['hareket_sayisi']}})</small>@endif</td>
-            <td class="pr-cell-kesinti">−{{number_format($r['kesinti'],2,',','.')}}</td>
-            <td class="pr-cell-net"><strong>{{number_format($r['net_hakedis'],2,',','.')}} ₺</strong></td>
+            <td>{{$_fmt($r['maas'])}} ₺</td>
+            <td>{{$_fmt($r['hizmet_primi'])}} ₺</td>
+            <td>{{$_fmt($r['urun_primi'])}} ₺</td>
+            <td>{{$_fmt($r['paket_primi'])}} ₺</td>
+            <td><strong>{{$_fmt($r['prim_toplam'])}} ₺</strong></td>
+            <td class="pr-cell-bonus">+{{$_fmt($r['bonus'])}}@if($r['hareket_sayisi']>0) <small style="color:var(--rmc-muted); font-weight:500">({{$r['hareket_sayisi']}})</small>@endif</td>
+            <td class="pr-cell-kesinti">−{{$_fmt($r['kesinti'])}}</td>
+            <td class="pr-cell-net"><strong>{{$_fmt($r['net_hakedis'])}} ₺</strong></td>
             <td>
               @if($r['durum']==='bekliyor')
                 <span class="pr-durum-badge pr-durum--bekliyor"><span class="lbl"><i class="fa fa-clock-o"></i> Bekliyor</span></span>
               @elseif($r['durum']==='kismi')
                 <span class="pr-durum-badge pr-durum--kismi prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
                   <span class="lbl"><i class="fa fa-hourglass-half"></i> Kısmi Ödeme</span>
-                  <span class="alt">{{number_format($r['odenen_toplam'],2,',','.')}} / {{number_format($r['net_hakedis'],2,',','.')}} ₺</span>
+                  <span class="alt">{{$_fmt($r['odenen_toplam'])}} / {{$_fmt($r['net_hakedis'])}} ₺</span>
                 </span>
               @elseif($r['durum']==='tam')
                 <span class="pr-durum-badge pr-durum--tam prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
                   <span class="lbl"><i class="fa fa-check-circle"></i> Tam Ödendi</span>
-                  <span class="alt">{{number_format($r['odenen_toplam'],2,',','.')}} ₺ ({{$r['odeme_sayisi']}} ödeme)</span>
+                  <span class="alt">{{$_fmt($r['odenen_toplam'])}} ₺ ({{$r['odeme_sayisi']}} ödeme)</span>
                 </span>
               @else
                 <span class="pr-durum-badge pr-durum--fazla prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
                   <span class="lbl"><i class="fa fa-arrow-up"></i> Fazla Ödeme</span>
-                  <span class="alt">{{number_format($r['odenen_toplam'],2,',','.')}} / {{number_format($r['net_hakedis'],2,',','.')}} ₺</span>
+                  <span class="alt">{{$_fmt($r['odenen_toplam'])}} / {{$_fmt($r['net_hakedis'])}} ₺</span>
                 </span>
               @endif
             </td>
             <td>
               <div style="display:inline-flex; gap:6px; align-items:center">
+                @yetki('personel.odeme_yap')
                 <button class="pr-ode-btn prim-ode"
                   data-value="{{$r['personel_id']}}"
                   data-adi="{{$r['personel_adi']}}"
@@ -798,6 +808,7 @@
                   <i class="fa fa-credit-card"></i>
                   <span>Öde</span>
                 </button>
+                @endyetki
                 <button class="pr-musteri-btn prim-musteri-detay"
                   data-value="{{$r['personel_id']}}"
                   data-adi="{{$r['personel_adi']}}"

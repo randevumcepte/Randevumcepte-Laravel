@@ -21,16 +21,19 @@
         
           <div class="row">
             <div class="col-md-4">
+                @yetki('finans.masraf_ekle')
                 <a onclick="modalbaslikata('Yeni Masraf','musteri_bilgi_formu');" href="#" data-toggle="modal" data-target="#yeni_masraf_modal" class="btn btn-danger btn-lg btn-block yenieklebuton331"><i class="fa fa-plus"></i> Yeni Masraf </a>
-           
+                @endyetki
             </div>
             <div class="col-md-4">
+                @yetki('finans.kasa_giris_cikis')
                 <a href="#" data-toggle="modal" data-target="#kasaya_para_koy" class="btn btn-primary btn-lg btn-block yenieklebuton332">  Para Ekle </a>
-           
+                @endyetki
             </div>
             <div class="col-md-4">
+                @yetki('finans.kasa_giris_cikis')
                 <a  href="#" data-toggle="modal" data-target="#kasadan_para_al" class="btn btn-success btn-lg btn-block yenieklebuton333"> Para Çek </a>
-           
+                @endyetki
             </div>
           </div>
          

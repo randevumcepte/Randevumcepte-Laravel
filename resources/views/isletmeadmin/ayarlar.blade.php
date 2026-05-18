@@ -10,6 +10,7 @@
                      class="nav nav-tabs elementayarlar"
                      role="tablist"
                      >
+                     @yetki('ayar.salon_bilgi')
                      <li class="nav-item">
                         <a
                            class="nav-link {{($_GET['p']=='temelbilgiler') ? 'active':''}}"
@@ -19,6 +20,8 @@
                            aria-selected="{{($_GET['p']=='temelbilgiler') ? 'true':'false'}}"
                            >İşletme Bilgileri</a>
                      </li>
+                     @endyetki
+                     @yetki('ayar.sube_yonet')
                      <li class="nav-item">
                         <a
                            class="nav-link {{($_GET['p']=='subeler') ? 'active' : ''}}"
@@ -26,9 +29,11 @@
                            href="#isletme-subeleri"
                            role="tab"
                            aria-selected="{{($_GET['p']=='subeler') ? 'true' : 'false'}}"
-                            
+
                            >Şubeler</a>
                      </li>
+                     @endyetki
+                     @yetki('ayar.salon_bilgi')
                      <li class="nav-item">
                         <a
                            class="nav-link {{($_GET['p']=='calismasaatleri') ? 'active' : ''}}"
@@ -39,6 +44,8 @@
                            aria-selected="{{($_GET['p']=='calismasaatleri') ? 'true' : 'false'}}"
                            >Çalışma Saatleri</a>
                      </li>
+                     @endyetki
+                     @yetki('personel.liste_gor')
                      <li class="nav-item">
                         <a
                            class="nav-link {{($_GET['p']=='personeller') ? 'active' : ''}}"
@@ -48,6 +55,8 @@
                            aria-selected="{{($_GET['p']=='personeller') ? 'true':'false'}}"
                            >Personeller</a>
                      </li>
+                     @endyetki
+                     @yetki('ayar.cihaz_oda_yonet')
                       <li class="nav-item">
                         <a
                            class="nav-link {{($_GET['p']=='cihazlar') ? 'active' : ''}}"
@@ -58,6 +67,8 @@
 
                            >Cihazlar</a>
                      </li>
+                     @endyetki
+                     @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'hizmet.tanim_olustur') || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'hizmet.kategori_yonet'))
                      <li class="nav-item">
                         <a
                            class="nav-link {{($_GET['p']=='hizmetler') ? 'active' : ''}}"
@@ -65,10 +76,11 @@
                            href="#hizmetler"
                            role="tab"
                            aria-selected="{{($_GET['p']=='hizmetler') ? 'true':'false'}}"
-                           
+
                            >Hizmetler</a>
                      </li>
-                    
+                     @endif
+                     @yetki('ayar.cihaz_oda_yonet')
                      <li class="nav-item">
                         <a
                            class="nav-link {{($_GET['p']=='odalar') ? 'active' : ''}}"
@@ -76,10 +88,11 @@
                            href="#odalar"
                            role="tab"
                            aria-selected="{{($_GET['p']=='odalar') ? 'true':'false'}}"
-                          
+
                            >Odalar</a>
                      </li>
-                   
+                     @endyetki
+                     @yetki('randevu.online_ayar')
                      <li class="nav-item">
                         <a
                            class="nav-link {{($_GET['p']=='randevuayarlari') ? 'active' : ''}}"
@@ -89,6 +102,8 @@
                            aria-selected="{{($_GET['p']=='randevuayarlari') ? 'true':'false'}}"
                            >Randevu Ayarları</a>
                      </li>
+                     @endyetki
+                     @yetki('satis.indirim_uygula')
                        <li class="nav-item">
                         <a
                            class="nav-link {{($_GET['p']=='musteri_indirimleri') ? 'active' : ''}}"
@@ -96,9 +111,10 @@
                            href="#musteri_indirimleri"
                            role="tab"
                            aria-selected="{{($_GET['p']=='musteri_indirimleri') ? 'true':'false'}}"
-                           
+
                            >Müşteri İndirimleri</a>
                      </li>
+                     @endyetki
                   </ul>
                </div>
                <div class="col-md-12 col-sm-12" style="margin-top:32px">

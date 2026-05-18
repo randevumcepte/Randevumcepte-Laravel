@@ -1,5 +1,16 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
+@php
+  // Ciro/Kar gosterim yetkisi — kapaliysa kazanc tutarlari **** maskelenir
+  $_ciroKarGor = true;
+  try {
+    $_uid = \Auth::guard('isletmeyonetim')->user()->id ?? null;
+    if ($_uid && isset($isletme)) {
+      $_ciroKarGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_uid, $isletme->id, 'rapor.ciro_kar_gor');
+    }
+  } catch (\Throwable $e) { $_ciroKarGor = true; }
+  $_fmtCK = function($v) use ($_ciroKarGor){ return $_ciroKarGor ? number_format($v,2,',','.') : '****'; };
+@endphp
 <div class="page-header">
    <div class="row">
       <div class="col-md-12 col-sm-12">
@@ -150,7 +161,7 @@
                               <div class="row">
                                  
                                  <div class="col-12 col-xs-12 col-sm-12">
-                                    <div class="weight-700 font-20 text-dark" id="hizmetKazanci">{{number_format($hizmetRaporlari->sum('toplamKazancNumeric'),2,',','.')}}</div>
+                                    <div class="weight-700 font-20 text-dark" id="hizmetKazanci">{{$_fmtCK($hizmetRaporlari->sum('toplamKazancNumeric'))}}</div>
                                     <div class="font-14 text-secondary weight-500">
                                      Toplam Kazanç
                                     </div>
@@ -368,7 +379,7 @@
                               <div class="row">
                                  
                                  <div class="col-12 col-xs-12 col-sm-12">
-                                    <div class="weight-700 font-20 text-dark" id="urunKazanci">{{number_format($urunRaporlari->sum('toplamKazancNumeric'),2,',','.')}}</div>
+                                    <div class="weight-700 font-20 text-dark" id="urunKazanci">{{$_fmtCK($urunRaporlari->sum('toplamKazancNumeric'))}}</div>
                                     <div class="font-14 text-secondary weight-500">
                                      Toplam Kazanç
                                     </div>
@@ -520,7 +531,7 @@
                               <div class="row">
                                  
                                  <div class="col-12 col-xs-12 col-sm-12">
-                                    <div class="weight-700 font-20 text-dark" id="paketKazanci">{{number_format($paketRaporlari->sum('toplamKazancNumeric'),2,',','.')}}</div>
+                                    <div class="weight-700 font-20 text-dark" id="paketKazanci">{{$_fmtCK($paketRaporlari->sum('toplamKazancNumeric'))}}</div>
                                     <div class="font-14 text-secondary weight-500">
                                      Toplam Kazanç
                                     </div>

@@ -97,7 +97,9 @@
              <div class="row " style="justify-content: flex-end; padding-top: 20px;" >
              
                 <div class="col-md-2 col-xs-6 col-sm-6 col-6">
+                 @yetki('form.gonder')
                  <button type="submit" class="btn btn-primary btn-lg btn-block"> Gönder</button>
+                 @endyetki
                </div>
              </div>
         </div>    

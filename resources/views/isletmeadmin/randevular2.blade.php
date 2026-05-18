@@ -5,7 +5,9 @@
  @section('content')
         <div class="page-head" style="position: relative; width: 100%;">
           <h2 class="page-head-title" style="float: left;">Randevular</h2>
+          @yetki('randevu.olustur')
           <span style="float: left;"><button id="yenirandevuekle" type="button" data-modal="md-scale2" class="btn btn-space btn-success md-trigger" style="margin-top: 10px;margin-left: 20px" >Yeni Randevu Ekle</button></span>
+          @endyetki
           <button type="button" id="randevudetayigetir" style="display: none" data-modal="md-scale" class="btn btn-space btn-primary md-trigger">Modal</button>
             <button type="button" id="randevuraporformunuac" style="display: none" data-modal="md-scale3" class="btn btn-space btn-primary md-trigger">Modal</button>
         </div>

@@ -26,7 +26,9 @@
          </nav>
       </div>
       <div class="col-md-6 col-sm-6 text-right">
+         @yetki('satis.tahsilat_al')
          <a href="/isletmeyonetim/yenitahsilat{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}"  class="btn btn-success btn-lg yenieklebuton"><i class="fa fa-plus"></i> Yeni Satış & Tahsilat</a>
+         @endyetki
       </div>
    </div>
 </div>

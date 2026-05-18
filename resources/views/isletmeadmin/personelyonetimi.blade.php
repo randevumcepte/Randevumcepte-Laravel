@@ -335,11 +335,13 @@
          <i class="fa fa-users"></i> Personeller
       </a>
    </li>
+   @yetki('personel.prim_hakedis_gor')
    <li class="nav-item">
       <a class="nav-link" data-toggle="tab" href="#primHakedis" role="tab" aria-selected="false" id="tabBtn-primHakedis">
          <i class="fa fa-money"></i> Prim & Hak Ediş
       </a>
    </li>
+   @endyetki
 </ul>
 
 <div class="tab-content">
@@ -350,9 +352,11 @@
                <i class="fa fa-list-ul"></i> Personel Listesi
                <span class="pyo-count">{{$totalPers}}</span>
             </h3>
+            @yetki('personel.ekle_duzenle')
             <button type="button" onclick="modalbaslikata('Yeni Personel','yenipersonelbilgiekle')" class="pyo-btn-yeni" data-toggle="modal" data-target="#personel-modal">
                <i class="fa fa-plus"></i> Yeni Personel
             </button>
+            @endyetki
          </div>
          <div class="pyo-table-wrap">
             <table class="data-table table hover nowrap" id="personel_tablo" style="width:100%">
@@ -373,7 +377,9 @@
       </div>
    </div>
    <div class="tab-pane fade" id="primHakedis" role="tabpanel">
+      @yetki('personel.prim_hakedis_gor')
       @include('isletmeadmin.partials.prim_hakedis_panel')
+      @endyetki
    </div>
 </div>
 

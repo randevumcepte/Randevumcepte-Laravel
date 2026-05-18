@@ -49,7 +49,11 @@
             <ul>
                <li>
                   <span style="float:left;"><i class="fa fa-mobile"></i> &nbsp;</span>
-                  0{{$personel->gsm1}}
+                  @yetki('musteri.telefon_gor')
+                    0{{$personel->gsm1}}
+                  @else
+                    {{\App\PersonelYetkiSabitleri::telefonMaskele('0'.$personel->gsm1)}}
+                  @endyetki
                </li>
                <li>
                   <span style="float:left;"><i class="fa fa-user"></i> &nbsp;</span>
@@ -58,7 +62,11 @@
                
                <li>
                   <span style="float:left;">Maaş : </span>
-                   {{number_format( $salonpersonel->maas,2,",",".")}} ₺
+                   @yetki('personel.maas_tutar_gor')
+                     {{number_format( $salonpersonel->maas,2,",",".")}} ₺
+                   @else
+                     **** ₺
+                   @endyetki
                </li>
                 <li>
                   <span style="float:left;">Hizmet Primi Hak Edişi : </span>

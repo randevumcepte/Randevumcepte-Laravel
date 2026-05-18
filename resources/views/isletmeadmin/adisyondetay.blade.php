@@ -57,32 +57,26 @@
                      <div class="row" style="margin-bottom: 20px;">
                        
                         <div class="col-2">
-                           
+                           @yetki('satis.adisyon_olustur')
                            <button type="button" data-toggle="modal" data-target="#adisyon_yeni_hizmet_modal" id="adisyon_hizmet_ekle_button" class="btn btn-info btn-block adisyon_ekle_buttonlar"  style="font-size:12px">Hizmet Ekle</button>
-                           
+                           @endyetki
                         </div>
                         <div class="col-2" style="padding-left: 0;">
-                            
+                           @yetki('urun.sat')
                            <button type="button" data-toggle="modal" id="adisyon_urun_ekle_button" data-target="#urun_satisi_modal" data-value=''onclick="modalbaslikata('Yeni Ürün Satışı Ekle','')" class="btn  btn-danger  btn-block adisyon_ekle_buttonlar"  style="font-size:12px">Ürün Ekle</button>
-                           
+                           @endyetki
                         </div>
                         <div class="col-2" style="padding-left: 0;">
-                            
+                           @yetki('paket.sat')
                            <button type="button" data-toggle="modal" id="adisyon_paket_ekle_button" data-target="#paket_satisi_modal" data-value='' class="btn  btn-primary  btn-block adisyon_ekle_buttonlar" style="font-size:12px">Paket Ekle</button>
-                           
+                           @endyetki
                         </div>
-                       
-                        <div class="col-md-6 text-right" id="tahsilats_type">
-                           
-                                 
-                                 <button type="button" class="btn btn-success" id='senetle_veya_taksitle_tahsil_et'> Alacaklar</button>
-                                  
-                                 
-                                 
 
-                                 <button type="button" id='yeni_taksitli_tahsilat_olusur' href="#"  data-value='' class="btn  btn-primary" style="font-weight: bold;">Taksit Yap</button> 
-                                  
-                          
+                        <div class="col-md-6 text-right" id="tahsilats_type">
+                                 @yetki('satis.senet_olustur')
+                                 <button type="button" class="btn btn-success" id='senetle_veya_taksitle_tahsil_et'> Alacaklar</button>
+                                 <button type="button" id='yeni_taksitli_tahsilat_olusur' href="#"  data-value='' class="btn  btn-primary" style="font-weight: bold;">Taksit Yap</button>
+                                 @endyetki
                         </div>
                        </div>
                        <div id='tum_tahsilatlar'>

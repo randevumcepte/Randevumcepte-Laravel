@@ -18,9 +18,11 @@
          </nav>
       </div>
       <div class="col-md-6 col-sm-6 text-right">
+         @yetki('musteri.ekle_duzenle')
          <a href="#" data-toggle="modal" data-target="#musteri-bilgi-modal" class="btn btn-success btn-lg yanitli_musteri_ekleme yenieklebuton501"><i class="fa fa-plus"></i> Yeni Müşteriler</a>
+         @endyetki
          @if(!Auth::guard('satisortakligi')->check())
-         @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+         @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.ekle_duzenle'))
          <a href="#" data-toggle="modal" data-target="#toplu-musteri-modal" class="btn btn-primary btn-lg yenieklebuton502"><i class="fa fa-user-plus"></i> Toplu Müşteriler Ekle</a>
          <a href="#" id="cinsiyet-otomatik-doldur-btn" class="btn btn-info btn-lg" title="İsme göre otomatik cinsiyet tespiti"><i class="fa fa-magic"></i> Cinsiyetleri Otomatik Doldur</a>
          @endif

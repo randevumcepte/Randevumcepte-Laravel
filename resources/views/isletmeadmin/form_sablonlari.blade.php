@@ -20,9 +20,11 @@
          </nav>
       </div>
       <div class="col-md-6 col-sm-12 text-right">
+         @yetki('form.olustur')
          <button type="button" onclick="yeniFormAc()" class="btn btn-success btn-lg">
             <i class="fa fa-plus"></i> Yeni Form Şablonu
          </button>
+         @endyetki
       </div>
    </div>
 </div>
@@ -54,15 +56,19 @@
                </td>
                <td>{{ $form->created_at ? date('d.m.Y', strtotime($form->created_at)) : '-' }}</td>
                <td>
+                  @yetki('form.olustur')
                   <button class="btn btn-sm btn-primary" onclick="formDuzenle({{$form->id}})">
                      <i class="fa fa-edit"></i> Düzenle
                   </button>
+                  @endyetki
                   <a href="/isletmeyonetim/bosFormIndirDinamik?formId={{$form->id}}&sube={{$isletme->id}}" class="btn btn-sm btn-info" target="_blank">
                      <i class="fa fa-download"></i> PDF
                   </a>
+                  @yetki('form.olustur')
                   <button class="btn btn-sm btn-danger" onclick="formSil({{$form->id}}, '{{addslashes($form->form_adi)}}')">
                      <i class="fa fa-trash"></i> Sil
                   </button>
+                  @endyetki
                </td>
             </tr>
             @endforeach

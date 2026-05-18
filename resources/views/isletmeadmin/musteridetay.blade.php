@@ -506,9 +506,11 @@
                            </div>
                         </div>
                         <div class="card-footer">
+                           @yetki('musteri.ekle_duzenle')
                            <button onclick='modalbaslikata("<?php echo $musteri_bilgi->name;?> Bilgilerini Düzenle","");' class="btn btn-primary btn-lg btn-block" data-toggle="modal" data-target="#musteri-bilgi-duzenle-modal">
                            <i class="fa fa-edit"></i> Düzenle
                            </button>
+                           @endyetki
                         </div>
                      </div>
                   </div>

@@ -198,16 +198,26 @@
       </nav>
     </div>
     <div class="col-md-6 text-right">
+      @yetki('urun.tanim_olustur')
       <button class="stk-aksiyon-btn primary" data-toggle="modal" data-target="#urun_modal" onclick="urunModalAc(null)"><i class="fa fa-plus"></i> Yeni Ürün</button>
+      @endyetki
+      @yetki('urun.sat')
       <button class="stk-aksiyon-btn success" data-toggle="modal" data-target="#hizli_satis_modal" onclick="sepetSifirla()"><i class="fa fa-shopping-cart"></i> Hızlı Satış</button>
+      @endyetki
+      @yetki('urun.stok_giris')
       <button class="stk-aksiyon-btn warning" data-toggle="modal" data-target="#alis_modal" onclick="alisSifirla()"><i class="fa fa-truck"></i> Alış Girişi</button>
+      @endyetki
+      @yetki('urun.stok_sayim')
       <button class="stk-aksiyon-btn info" data-toggle="modal" data-target="#sayim_modal" onclick="sayimAc()"><i class="fa fa-clipboard-list"></i> Sayım</button>
+      @endyetki
       <div class="dropdown" style="display:inline-block">
         <button class="stk-aksiyon-btn dark dropdown-toggle" data-toggle="dropdown"><i class="fa fa-cog"></i> Ayarlar</button>
         <div class="dropdown-menu dropdown-menu-right" style="border-radius:12px; border:none; box-shadow:0 8px 24px rgba(0,0,0,0.12); padding:6px;">
           <a class="dropdown-item" style="border-radius:8px; padding:9px 12px;" href="#" data-toggle="modal" data-target="#kategori_modal" onclick="kategoriListele()"><i class="fa fa-tags" style="color:var(--stk-mor); width:18px;"></i> Kategoriler</a>
           <a class="dropdown-item" style="border-radius:8px; padding:9px 12px;" href="#" data-toggle="modal" data-target="#depo_modal" onclick="depoListele()"><i class="fa fa-warehouse" style="color:var(--stk-mor); width:18px;"></i> Depolar</a>
+          @yetki('urun.tedarikci_yonet')
           <a class="dropdown-item" style="border-radius:8px; padding:9px 12px;" href="#" data-toggle="modal" data-target="#tedarikci_modal" onclick="tedarikciListele()"><i class="fa fa-truck-loading" style="color:var(--stk-mor); width:18px;"></i> Tedarikçiler</a>
+          @endyetki
           <a class="dropdown-item" style="border-radius:8px; padding:9px 12px;" href="#" data-toggle="modal" data-target="#transfer_modal" onclick="transferAc()"><i class="fa fa-exchange-alt" style="color:var(--stk-mor); width:18px;"></i> Transfer Yap</a>
         </div>
       </div>

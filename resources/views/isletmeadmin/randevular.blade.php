@@ -64,9 +64,11 @@
     Toplam Randevu: {{$randevular['randevu_sayisi']}}
 </button>
       
+      @yetki('randevu.olustur')
       <a href="#" data-toggle="modal" data-target="#modal-view-event-add" class="btn btn-success btn-lg yenieklebuton">
          <i class="fa fa-plus"></i> Yeni Randevu
       </a>
+      @endyetki
    </div>
 </div>
    </div>

@@ -24,7 +24,11 @@
                               
                           </td>
                           <td>
-                            {{\App\IsletmeYetkilileri::where('personel_id',$value->id)->value('gsm1')}}
+                            @yetki('musteri.telefon_gor')
+                              {{\App\IsletmeYetkilileri::where('personel_id',$value->id)->value('gsm1')}}
+                            @else
+                              {{\App\PersonelYetkiSabitleri::telefonMaskele(\App\IsletmeYetkilileri::where('personel_id',$value->id)->value('gsm1'))}}
+                            @endyetki
                           </td>
                           <td>
                               <div class="dropdown">
@@ -38,21 +42,29 @@
                                 <div
                                   class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list"
                                 >
+                                  @yetki('personel.prim_hakedis_gor')
                                   <a class="dropdown-item" href="/isletmeyonetim/personeldetay/{{$value->id}}"
                                     ><i class="dw dw-eye"></i> Detaylar</a
                                   >
+                                  @endyetki
+                                  @yetki('personel.yetki_yonet')
                                   <a class="dropdown-item" href="#"
                                     ><i class="icon-copy fa fa-key"></i>Yetkiler</a
                                   >
+                                  @endyetki
+                                  @yetki('personel.ekle_duzenle')
                                    <a class="dropdown-item" href="#"
                                     ><i class="icon-copy bi bi-gear"></i>Hizmetler</a
                                   >
                                    <a class="dropdown-item" href="#"
                                     ><i class="icon-copy dw dw-password"></i>Şifre Değiştir & Gönder</a
                                   >
+                                  @endyetki
+                                  @yetki('personel.sil')
                                   <a class="dropdown-item" href="#"
                                     ><i class="dw dw-delete-3"></i> Pasif Yap</a
                                   >
+                                  @endyetki
                                 </div>
                               </div>
                           </td>
