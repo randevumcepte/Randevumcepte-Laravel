@@ -152,15 +152,33 @@ class NotificationService
                 ]);
             } catch (\Throwable $e) {
                 $failed++;
+                $msg = $e->getMessage();
                 Log::warning('NotificationService send fail', [
                     'token_id' => $row->id,
-                    'err'      => $e->getMessage(),
+                    'err'      => $msg,
                 ]);
-                $errCount = ($row->gonderim_hatalari ?? 0) + 1;
-                BildirimKimlikleri::where('id', $row->id)->update([
-                    'gonderim_hatalari' => $errCount,
-                    'aktif'             => $errCount < 5,
-                ]);
+                // FCM "token gecersiz" hatalari: kademeli yerine HEMEN sil
+                $invalidPatterns = [
+                    'UNREGISTERED',
+                    'NOT_FOUND',
+                    'INVALID_ARGUMENT',
+                    'registration-token-not-registered',
+                    'invalid-registration-token',
+                    'SENDER_ID_MISMATCH',
+                ];
+                $invalid = false;
+                foreach ($invalidPatterns as $p) {
+                    if (stripos($msg, $p) !== false) { $invalid = true; break; }
+                }
+                if ($invalid) {
+                    BildirimKimlikleri::where('id', $row->id)->delete();
+                } else {
+                    $errCount = ($row->gonderim_hatalari ?? 0) + 1;
+                    BildirimKimlikleri::where('id', $row->id)->update([
+                        'gonderim_hatalari' => $errCount,
+                        'aktif'             => $errCount < 5,
+                    ]);
+                }
             }
         }
 

@@ -25774,4 +25774,89 @@ DB::raw('
         ]);
     }
 
+    /**
+     * Firebase Messaging service worker — config env'den render edilir.
+     * Browser /firebase-messaging-sw.js'yi root scope'tan register eder.
+     */
+    public function firebaseMessagingSw()
+    {
+        $cfg = config('firebase_web');
+        $initJson = json_encode([
+            'apiKey'            => $cfg['apiKey'],
+            'authDomain'        => $cfg['authDomain'],
+            'projectId'         => $cfg['projectId'],
+            'storageBucket'     => $cfg['storageBucket'],
+            'messagingSenderId' => $cfg['messagingSenderId'],
+            'appId'             => $cfg['appId'],
+        ]);
+        $js = "importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js');\n"
+            . "importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js');\n"
+            . "firebase.initializeApp({$initJson});\n"
+            . "const messaging = firebase.messaging();\n"
+            . "messaging.onBackgroundMessage(function(payload){\n"
+            . "  const title = (payload.notification && payload.notification.title) || 'Randevumcepte';\n"
+            . "  const body  = (payload.notification && payload.notification.body)  || '';\n"
+            . "  const icon  = (payload.notification && payload.notification.icon)  || '/public/img/logo.png';\n"
+            . "  self.registration.showNotification(title, { body: body, icon: icon, data: payload.data || {} });\n"
+            . "});\n";
+        return response($js, 200, [
+            'Content-Type'           => 'application/javascript; charset=utf-8',
+            'Service-Worker-Allowed' => '/',
+            'Cache-Control'          => 'no-cache',
+        ]);
+    }
+
+    /**
+     * Tarayicidan gelen FCM token'i BildirimKimlikleri'ne yazar.
+     * auth:isletmeyonetim guard'i ile yetkili oturumlu olmali.
+     */
+    public function bildirimCihazKaydet(Request $request)
+    {
+        $token = $request->input('token');
+        if (empty($token) || strlen($token) < 20) {
+            return response()->json(['ok' => false, 'error' => 'token gecersiz'], 422);
+        }
+        $yetkiliId = Auth::guard('isletmeyonetim')->id();
+        if (!$yetkiliId) {
+            return response()->json(['ok' => false, 'error' => 'oturum yok'], 401);
+        }
+        $salonId = (int) $request->input('salon_id');
+        // Personeller.yetkili_id -> Personeller.id donusumu (BildirimKimlikleri.isletme_yetkili_id = Personeller.id)
+        $personelId = Personeller::where('yetkili_id', $yetkiliId)
+            ->when($salonId, function($q) use($salonId){ $q->where('salon_id', $salonId); })
+            ->value('id');
+        if (!$personelId) {
+            $personelId = Personeller::where('yetkili_id', $yetkiliId)->value('id');
+        }
+        if (!$personelId) {
+            return response()->json(['ok' => false, 'error' => 'personel kaydi bulunamadi'], 404);
+        }
+
+        // Bu token bu yetkili icin zaten kayitli mi? Varsa updated_at yenilenir, yeni satir acilmaz.
+        $row = BildirimKimlikleri::where('isletme_yetkili_id', $personelId)
+            ->where('bildirim_id', $token)->first();
+
+        // Ayni token'i tutan diger TUM kayitlari sil (cihaz devri / dublikasyon onleme)
+        if ($row) {
+            BildirimKimlikleri::where('bildirim_id', $token)
+                ->where('id', '!=', $row->id)->delete();
+        } else {
+            BildirimKimlikleri::where('bildirim_id', $token)->delete();
+        }
+
+        if (!$row) {
+            $row = new BildirimKimlikleri();
+            $row->isletme_yetkili_id = $personelId;
+            $row->bildirim_id = $token;
+        }
+        if (Schema::hasColumn('bildirim_kimlikleri', 'platform'))         $row->platform = 'web';
+        if (Schema::hasColumn('bildirim_kimlikleri', 'token_tipi'))       $row->token_tipi = 'fcm';
+        if (Schema::hasColumn('bildirim_kimlikleri', 'kullanici_tipi'))   $row->kullanici_tipi = 'yetkili';
+        if (Schema::hasColumn('bildirim_kimlikleri', 'aktif'))            $row->aktif = 1;
+        if (Schema::hasColumn('bildirim_kimlikleri', 'gonderim_hatalari')) $row->gonderim_hatalari = 0;
+        $row->save();
+
+        return response()->json(['ok' => true, 'id' => $row->id]);
+    }
+
 }

@@ -42,13 +42,16 @@ class NotificationApiController extends Controller
         $token = $request->input('token');
         $tip   = $request->input('kullanici_tipi');
 
-        // Aynı token başka kullanıcıya bağlı kalmasın (cihaz devri / logout-login)
-        BildirimKimlikleri::where('bildirim_id', $token)->update(['aktif' => false]);
-
-        $row = BildirimKimlikleri::firstOrNew([
-            'bildirim_id' => $token,
-            'cihaz'       => $request->input('cihaz'),
-        ]);
+        // Bu token icin halihazirda bir kayit var mi?
+        $row = BildirimKimlikleri::where('bildirim_id', $token)->first();
+        // Ayni token tutan diger TUM kayitlari sil (cihaz devri + dublikasyon onleme)
+        if ($row) {
+            BildirimKimlikleri::where('bildirim_id', $token)
+                ->where('id', '!=', $row->id)->delete();
+        } else {
+            BildirimKimlikleri::where('bildirim_id', $token)->delete();
+            $row = new BildirimKimlikleri();
+        }
 
         $row->bildirim_id = $token;
         $row->cihaz       = $request->input('cihaz');

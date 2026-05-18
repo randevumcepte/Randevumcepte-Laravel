@@ -595,7 +595,12 @@ Route::prefix('isletmeyonetim')->middleware('auth:isletmeyonetim')->group(functi
     Route::post('/destek', 'SalonDestekController@destekKaydet');
     Route::get('/destek/{id}', 'SalonDestekController@destekDetay')->where('id', '[0-9]+');
     Route::post('/destek/{id}/yanit', 'SalonDestekController@destekYanit');
+    // Firebase Web Push — tarayicidan gelen FCM tokeni kaydet
+    Route::post('/bildirim/cihaz-kaydet', 'StoreAdminController@bildirimCihazKaydet');
 });
+
+// Firebase Messaging service worker (config env'den)
+Route::get('/firebase-messaging-sw.js', 'StoreAdminController@firebaseMessagingSw');
 
 // Salon paneli — akilli hatirlatmalar (popup + bildirim feed)
 Route::prefix('isletmeyonetim')->group(function() {
