@@ -221,6 +221,20 @@ class ApiController extends Controller
             'app_gallery'   => $isletme->huawei_uygulama ?? '',
         );
     }
+
+    public function salonAyarlariByBundle(Request $request)
+    {
+        $isletme = Salonlar::where('app_bundle', $request->appBundle)->first();
+        if (!$isletme) {
+            return array(
+                'musteri_online_randevu_aktif' => 0,
+            );
+        }
+        return array(
+            'musteri_online_randevu_aktif' => (int) ($isletme->musteri_online_randevu_aktif ?? 0),
+        );
+    }
+
     public function yenimusteridanisankaydi(Request $request)
 
     {

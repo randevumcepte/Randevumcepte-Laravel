@@ -363,6 +363,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
      Route::post('/devredenAylar', 'ApiController@devredenAylar');
      Route::post('/hizmetsil','ApiController@hizmetSil');
         Route::post('/versiyonAppKontrol','ApiController@versiyonAppKontrol');
+        Route::post('/salonAyarlariByBundle','ApiController@salonAyarlariByBundle');
     Route::post('/salonAppyUrunSatisEkle','ApiController@salonAppyUrunSatisEkle');
     Route::post('/randevuGeldiGelmediIsaretiKaldir','ApiController@randevuGeldiGelmediIsaretiKaldir');
     Route::post('/seansEkle','ApiController@seansEkle');

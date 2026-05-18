@@ -1266,7 +1266,7 @@ public function carkverilerigetir(Request $request)
             exit(0);
         }
         $randevular = '';
-        if(self::personelmi($request))
+        if(self::personelmi($request, 'randevu.tum_personel_gor'))
             $randevular = self::randevuyukle($request,1,date('Y-m-d'),date('Y-m-d'));
         else
             $randevular = self::randevuyukle($request,Salonlar::where('id',self::mevcutsube($request))->value('randevu_takvim_turu'),date('Y-m-d'),date('Y-m-d'));
@@ -1336,7 +1336,7 @@ public function carkverilerigetir(Request $request)
     public function randevular_test(Request $request){
         $personeller = "";
         $randevular = '';
-        if(self::personelmi($request))
+        if(self::personelmi($request, 'randevu.tum_personel_gor'))
             $randevular = self::randevuyukle($request,1,date('Y-m-d'),date('Y-m-d'));
         else
             $randevular = self::randevuyukle($request,Salonlar::where('id',self::mevcutsube($request))->value('randevu_takvim_turu'),date('Y-m-d'),date('Y-m-d'));
@@ -1803,8 +1803,8 @@ public function carkverilerigetir(Request $request)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -1816,7 +1816,7 @@ public function carkverilerigetir(Request $request)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.toplu_sms'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -1925,8 +1925,8 @@ public function carkverilerigetir(Request $request)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -1938,7 +1938,7 @@ public function carkverilerigetir(Request $request)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.sms_gonder'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -1968,7 +1968,7 @@ public function carkverilerigetir(Request $request)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
-        if(self::personelmi($request))
+        if(self::personelmi($request, 'pazarlama.sms_gonder'))
         {
             return redirect()->route('isletmeadmin.randevular');
            exit(0);
@@ -2409,10 +2409,10 @@ public function carkverilerigetir(Request $request)
     }
     
     $resources = "";
-    if($takvim_turu == 1 || self::personelmi($request)) {
+    if($takvim_turu == 1 || self::personelmi($request, 'randevu.tum_personel_gor')) {
         $resources = Personeller::join('renk_duzenleri','salon_personelleri.renk','=','renk_duzenleri.id')
                     ->where(function($q) use($request,$personel_idler, $isletmeId){
-                        if(self::personelmi($request)) {
+                        if(self::personelmi($request, 'randevu.tum_personel_gor')) {
                             $q->whereIn('salon_personelleri.id',$personel_idler);
                         }
                         else{
@@ -2678,8 +2678,8 @@ public function carkverilerigetir(Request $request)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ) || $_SERVER['HTTP_HOST'] == "randevu.randevumcepte.com.tr")
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -2691,7 +2691,7 @@ public function carkverilerigetir(Request $request)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'rapor.kasa'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -4915,8 +4915,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -4928,7 +4928,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'randevu.tum_personel_gor'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -5462,8 +5462,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -5475,7 +5475,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.kampanya_yonet'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -5584,8 +5584,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -5597,7 +5597,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.kampanya_yonet'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -5627,8 +5627,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -5640,7 +5640,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.kampanya_yonet'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -5668,8 +5668,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -5681,7 +5681,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.kampanya_yonet'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -5796,8 +5796,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -5809,7 +5809,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.sms_gonder'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -5858,8 +5858,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -5871,7 +5871,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.sms_gonder'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -6049,12 +6049,12 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request)) {
+             if(self::personelmi($request, 'musteri.tum_portfoy_gor')) {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
             }
         }
-       
+
         if(count($isletmeler)>1 && !isset($_GET['sube'])) {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
             exit(0);
@@ -6436,8 +6436,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -6449,7 +6449,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'musteri.tum_portfoy_gor'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -6582,8 +6582,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -6595,7 +6595,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.sms_gonder'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -6826,8 +6826,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -6839,7 +6839,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'randevu.tum_personel_gor'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -6883,8 +6883,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -6896,7 +6896,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'satis.tum_satis_gor'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -6928,8 +6928,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -6941,7 +6941,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'satis.tum_satis_gor'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -7012,7 +7012,7 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-            if(self::personelmi($request))
+            if(self::personelmi($request, 'satis.tum_satis_gor'))
             {
                 return redirect()->route('isletmeadmin.randevular');
                 exit(0);
@@ -7088,7 +7088,7 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function adisyonTarihGuncelle(Request $request)
     {
-        if(Auth::guard('isletmeyonetim')->check() && self::personelmi($request)){
+        if(Auth::guard('isletmeyonetim')->check() && self::personelmi($request, 'satis.tum_satis_gor')){
             return response()->json(['ok'=>false,'mesaj'=>'Yetkisiz işlem'],403);
         }
         $adisyon = Adisyonlar::where('id',$request->adisyon_id)->where('salon_id',self::mevcutsube($request))->first();
@@ -8990,7 +8990,7 @@ private function ayAdiCevir($ingilizceAy)
             $tur = '3';
         if(!isset($request->urun) && !isset($request->paket))
             $tur = '';
-        if(self::personelmi($request))
+        if(self::personelmi($request, 'satis.tum_satis_gor'))
             $personel_id = Personeller::where('salon_id',$isletme->id)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id');
         /*$adisyonlar =  self::adisyon_yukle($request,$tur,'','1970-01-01',date('Y-m-d'),'',$personel_id);
         $adisyonlar_hizmet = self::adisyon_yukle($request,1,'','1970-01-01',date('Y-m-d'),'',$personel_id);
@@ -9174,11 +9174,11 @@ private function ayAdiCevir($ingilizceAy)
             ];
         });
         $resources = "";
-        if($takvim_turu == 1 || self::personelmi($request) )
+        if($takvim_turu == 1 || self::personelmi($request, 'randevu.tum_personel_gor') )
 
             $resources = Personeller::join('renk_duzenleri','salon_personelleri.renk','=','renk_duzenleri.id')
                         ->where(function($q) use($request,$personel_idler, $isletmeId){
-                            if(self::personelmi($request)) {
+                            if(self::personelmi($request, 'randevu.tum_personel_gor')) {
                                 $q->whereIn('salon_personelleri.id',$personel_idler);
                             }
                             else{
@@ -9616,8 +9616,8 @@ public function personel_listesi_getir(Request $request)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -9629,7 +9629,7 @@ public function personel_listesi_getir(Request $request)
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'paket.seans_takip'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -11967,7 +11967,7 @@ DB::raw('
             exit(0);
         }
         $randevular = '';
-        if(self::personelmi($request)|| Auth::guard('isletmeyonetim')->user()->hasRole('Sosyal Medya Uzmanı'))
+        if(self::personelmi($request, 'pazarlama.sms_gonder')|| Auth::guard('isletmeyonetim')->user()->hasRole('Sosyal Medya Uzmanı'))
             $randevular = self::randevuyukle($request,1);
         else
             $randevular = self::randevuyukle($request,Salonlar::where('id',self::mevcutsube($request))->value('randevu_takvim_turu'));
@@ -12022,7 +12022,7 @@ DB::raw('
                         </div></div>") END as islemler'))
         ->where('salonlar.id',self::mevcutsube($request))
         ->where(function ($q) use ($request){
-            if(self::personelmi($request))
+            if(self::personelmi($request, 'gorusme.liste_gor'))
                 $q->where('salon_personelleri.id',Personeller::where('salon_id',self::mevcutsube($request))->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id'));
         })
         ->where(function ($q) use ($gunluk){if($gunluk) $q->where('on_gorusmeler.created_at','like','%'.date('Y-m-d').'%');})
@@ -12041,8 +12041,8 @@ DB::raw('
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler )||$_SERVER['HTTP_HOST']=='randevu.randevumcepte.com.tr')
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -12054,7 +12054,7 @@ DB::raw('
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'satis.tum_satis_gor'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -12489,8 +12489,8 @@ DB::raw('
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -12502,7 +12502,7 @@ DB::raw('
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'finans.alacak_yonet'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -12549,8 +12549,8 @@ DB::raw('
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -12562,7 +12562,7 @@ DB::raw('
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'finans.masraf_gor'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -12940,7 +12940,7 @@ DB::raw('
         ->whereIn('randevular.id', $randevuIds);
 
     // Staff-specific filter
-    if (self::personelmi($request)) {
+    if (self::personelmi($request, 'randevu.tum_personel_gor')) {
         $personelId = Personeller::where('salon_id', $salon_id)
             ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
             ->value('id');
@@ -12966,7 +12966,7 @@ DB::raw('
     ];
 
     // Add conditional selects based on user type
-    if (self::personelmi($request)) {
+    if (self::personelmi($request, 'randevu.tum_personel_gor')) {
         $selectColumns[] = DB::raw('COALESCE(CONCAT(LEFT(REGEXP_REPLACE(users.cep_telefon,"[0-9]","X"),6), RIGHT(users.cep_telefon,4)),"") as telefon');
     } else {
         $selectColumns[] = 'users.cep_telefon as telefon';
@@ -13034,8 +13034,8 @@ DB::raw('
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ) || $_SERVER["HTTP_HOST"]=="randevu.randevumcepte.com.tr")
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -13047,7 +13047,7 @@ DB::raw('
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'finans.alacak_yonet'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -14125,8 +14125,8 @@ DB::raw('
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -14138,7 +14138,7 @@ DB::raw('
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.kampanya_yonet'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -15072,7 +15072,7 @@ DB::raw('
             }
         }
         $personelid = '';
-        if(self::personelmi($request))
+        if(self::personelmi($request, 'satis.tum_satis_gor'))
             $pesonelid=Auth::guard('isletmeyonetim')->user()->id;
         return array(
             'tum_adisyonlar'=>self::adisyon_yukle_tahsilat($request,'','','1970-01-01 00:00:00',date('Y-m-d 23:59:59'),'',$personelid,''),
@@ -15574,8 +15574,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -15587,7 +15587,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'pazarlama.kampanya_yonet'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -18990,7 +18990,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 $tarih2 = date('Y-m-d 23:59:59');
             }
            $personelid='';
-            if(self::personelmi($request))
+            if(self::personelmi($request, 'satis.tum_satis_gor'))
                 $personelid = Auth::guard('isletmeyonetim')->user()->personel_id;
             return array(
                 'mesaj' => 'Adisyon kaydı başarıyla kaldırıldı',
@@ -20701,8 +20701,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -20714,7 +20714,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'form.olustur'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -20979,8 +20979,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -20992,7 +20992,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'form.gonder'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -21539,8 +21539,8 @@ public function arsivformekleme(Request $request){
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -21552,7 +21552,7 @@ public function arsivformekleme(Request $request){
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
+             if(self::personelmi($request, 'satis.tum_satis_gor'))
             {
                     return redirect()->route('isletmeadmin.randevular');
                     exit(0);
@@ -22444,13 +22444,27 @@ public function musteriportfoydropliste(Request $request)
         }
     }
 
-    public function personelmi(Request $request)
+    /**
+     * Giris yapan kullanici personel rolunde mi?
+     *
+     * $bypassYetki parametresi geriye uyumlu sekilde opsiyoneldir:
+     *   - Verilmezse eski davranis: sadece role_id=5 kontrolu.
+     *   - Verilirse: personel rolundeyse VE bu yetki acikSA false doner
+     *     (kisitlama uygulanmaz). Yani 'tum_personel_gor' / 'tum_portfoy_gor'
+     *     gibi bypass anahtarlariyla yetkili personel tum kayitlari gorur.
+     *
+     * Cagri ornekleri:
+     *   if(self::personelmi($request))                         // eski (rol)
+     *   if(self::personelmi($request, 'randevu.tum_personel_gor')) // yeni (yetki bypass)
+     */
+    public function personelmi(Request $request, string $bypassYetki = null)
     {
-       
+
         $userSatis = Auth::guard('satisortakligi')->user();
         $userIsletme = Auth::guard('isletmeyonetim')->user();
+        $salonId = self::mevcutsube($request);
 
-        return DB::table('model_has_roles')
+        $isPersonel = DB::table('model_has_roles')
         ->where('role_id', 5)
         ->where(function($q) use ($userSatis, $userIsletme, $request) {
             // SatisOrtakligi guard'ından gelen kullanıcı varsa
@@ -22463,8 +22477,19 @@ public function musteriportfoydropliste(Request $request)
                 $q->orWhere('model_id', $userIsletme->id);
             }
         })
-        ->where('salon_id', self::mevcutsube($request))
+        ->where('salon_id', $salonId)
         ->count() > 0;
+
+        if (!$isPersonel) return false;
+
+        // Personel rolu + bypass yetki kontrolu
+        if ($bypassYetki) {
+            $userId = $userIsletme ? $userIsletme->id : ($userSatis ? $userSatis->id : null);
+            if ($userId && \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($userId, $salonId, $bypassYetki)) {
+                return false; // yetki var → kisitlama uygulama
+            }
+        }
+        return true;
     }
     public function musteridanisantext($salon_id)
     {
@@ -24675,7 +24700,7 @@ DB::raw('
             return view('isletmeadmin.yetkisizerisim');
         }
         if(!Auth::guard('satisortakligi')->check()){
-            if(self::personelmi($request)){
+            if(self::personelmi($request, 'form.olustur')){
                 return redirect()->route('isletmeadmin.randevular');
             }
         }
@@ -24918,7 +24943,7 @@ DB::raw('
             return view('isletmeadmin.yetkisizerisim');
         }
         if(!Auth::guard('satisortakligi')->check()){
-            if(self::personelmi($request)){
+            if(self::personelmi($request, 'pazarlama.anket_yonet')){
                 return redirect()->route('isletmeadmin.randevular');
             }
         }
