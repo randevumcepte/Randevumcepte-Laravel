@@ -4270,6 +4270,52 @@ private function ayAdiCevir($ingilizceAy)
             );
             self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
         }
+
+        // Push bildirim (SMS Ayarlari'ndan bagimsiz, BildirimKimlikleri varsa her zaman gider)
+        $personelMesaji = ($randevu->users ? $randevu->users->name : 'Musteri') . " isimli müşterinin "
+            . ($hizmet->hizmetler ? $hizmet->hizmetler->hizmet_adi : 'hizmet') . " randevusu "
+            . date('d.m.Y', strtotime($randevu->tarih)) . " - " . date('H:i', strtotime($hizmet->saat))
+            . " olarak " . Auth::guard('isletmeyonetim')->user()->name . " tarafından güncellenmiştir.";
+
+        // Panel bildirimi (DB - zil ikonunda görünür)
+        if ($hizmet->personel_id) {
+            self::bildirimekle($request, $randevu->salon_id, $personelMesaji, "#", $hizmet->personel_id, null, Auth::guard('isletmeyonetim')->user()->profil_resim, $randevu->id);
+        }
+
+        // Personel push
+        if ($hizmet->personel_id) {
+            try {
+                NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
+                    ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                    ->title('Randevu Güncellendi')
+                    ->body($personelMesaji)
+                    ->randevu((int)$randevu->id)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                    ->send();
+            } catch (\Throwable $e) {
+                \Log::warning('randevu_resize_drop personel push: '.$e->getMessage());
+            }
+        }
+
+        // Musteri push
+        if ($randevu->user_id) {
+            $musteriMesaji = $randevu->salonlar->salon_adi . " için oluşturulan "
+                . date('d.m.Y H:i', strtotime($eskitarih.' '.$eskisaat)) . " tarihli randevunuz "
+                . date('d.m.Y', strtotime($randevu->tarih)) . ' - ' . date('H:i', strtotime($hizmet->saat))
+                . ' olarak güncellenmiştir.';
+            try {
+                NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
+                    ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                    ->title('Randevunuz Güncellendi')
+                    ->body($musteriMesaji)
+                    ->randevu((int)$randevu->id)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                    ->send();
+            } catch (\Throwable $e) {
+                \Log::warning('randevu_resize_drop musteri push: '.$e->getMessage());
+            }
+        }
+
         if(RandevuHizmetler::where('randevu_id',$randevu_eski->id)->count()==0)
             $randevu_eski->delete();
         //self::hareket_ekle($request,'Düzenlendi');
