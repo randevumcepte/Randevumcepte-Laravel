@@ -253,7 +253,8 @@ class CustomerController extends Controller
                 self::bildirimekle($request,$request->salonno,$mesaj_isletme,"#",$yetkili->id,null, Auth::user()->profil_resim,$randevu->id);
 
             }
-            $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$isletmeyetkilileri->pluck('yetkili_id')->toArray())->where('bildirim_id','!=',null)->pluck('bildirim_id')->toArray(); 
+            // BildirimKimlikleri.isletme_yetkili_id = Personeller.id (yetkili_id degil)
+            $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$isletmeyetkilileri->pluck('id')->toArray())->where('bildirim_id','!=',null)->pluck('bildirim_id')->toArray();
             
             self::bildirimgonder($bildirimkimlikleri,$mesaj_isletme,"Yeni Randevu");
             
