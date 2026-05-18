@@ -179,6 +179,31 @@
             const app = initializeApp(firebaseConfig);
             const messaging = getMessaging(app);
 
+            function ensureDeviceId() {
+               let id = localStorage.getItem('rdv_device_id');
+               if (!id) {
+                  id = (crypto && crypto.randomUUID) ? crypto.randomUUID()
+                       : 'd-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+                  localStorage.setItem('rdv_device_id', id);
+               }
+               return id;
+            }
+            function detectBrowser() {
+               const ua = navigator.userAgent || '';
+               let browser = 'Unknown';
+               if (/Edg\//.test(ua))           browser = 'Edge';
+               else if (/OPR\//.test(ua))      browser = 'Opera';
+               else if (/Chrome\//.test(ua))   browser = 'Chrome';
+               else if (/Firefox\//.test(ua))  browser = 'Firefox';
+               else if (/Safari\//.test(ua))   browser = 'Safari';
+               let os = 'Unknown';
+               if (/Windows NT/.test(ua))      os = 'Windows';
+               else if (/Mac OS X/.test(ua))   os = 'macOS';
+               else if (/Android/.test(ua))    os = 'Android';
+               else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS';
+               else if (/Linux/.test(ua))      os = 'Linux';
+               return browser + ' / ' + os;
+            }
             async function registerFcm() {
                if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
                const permission = await Notification.requestPermission();
@@ -191,7 +216,7 @@
                   method: 'POST',
                   credentials: 'same-origin',
                   headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-                  body: JSON.stringify({ token })
+                  body: JSON.stringify({ token: token, cihaz: ensureDeviceId(), tarayici: detectBrowser() })
                });
             }
             registerFcm().catch(e => console.warn('FCM register hata:', e));

@@ -25832,28 +25832,36 @@ DB::raw('
             return response()->json(['ok' => false, 'error' => 'personel kaydi bulunamadi'], 404);
         }
 
-        // Bu token bu yetkili icin zaten kayitli mi? Varsa updated_at yenilenir, yeni satir acilmaz.
-        $row = BildirimKimlikleri::where('isletme_yetkili_id', $personelId)
-            ->where('bildirim_id', $token)->first();
+        $cihaz    = substr((string)$request->input('cihaz', ''), 0, 64);
+        $tarayici = substr((string)$request->input('tarayici', ''), 0, 64);
+        if ($cihaz === '') $cihaz = null;
 
-        // Ayni token'i tutan diger TUM kayitlari sil (cihaz devri / dublikasyon onleme)
+        // 1) Ayni (yetkili, cihaz) icin eski tokenlar gecersizdir; sil
+        if ($cihaz) {
+            BildirimKimlikleri::where('isletme_yetkili_id', $personelId)
+                ->where('cihaz', $cihaz)
+                ->where('bildirim_id', '!=', $token)
+                ->delete();
+        }
+
+        // 2) Bu token icin mevcut satir varsa onu kullan, yoksa diger sahipleri sil
+        $row = BildirimKimlikleri::where('bildirim_id', $token)->first();
         if ($row) {
             BildirimKimlikleri::where('bildirim_id', $token)
                 ->where('id', '!=', $row->id)->delete();
         } else {
-            BildirimKimlikleri::where('bildirim_id', $token)->delete();
+            $row = new BildirimKimlikleri();
         }
 
-        if (!$row) {
-            $row = new BildirimKimlikleri();
-            $row->isletme_yetkili_id = $personelId;
-            $row->bildirim_id = $token;
-        }
-        if (Schema::hasColumn('bildirim_kimlikleri', 'platform'))         $row->platform = 'web';
-        if (Schema::hasColumn('bildirim_kimlikleri', 'token_tipi'))       $row->token_tipi = 'fcm';
-        if (Schema::hasColumn('bildirim_kimlikleri', 'kullanici_tipi'))   $row->kullanici_tipi = 'yetkili';
-        if (Schema::hasColumn('bildirim_kimlikleri', 'aktif'))            $row->aktif = 1;
-        if (Schema::hasColumn('bildirim_kimlikleri', 'gonderim_hatalari')) $row->gonderim_hatalari = 0;
+        $row->isletme_yetkili_id = $personelId;
+        $row->bildirim_id        = $token;
+        if (Schema::hasColumn('bildirim_kimlikleri', 'cihaz') && $cihaz)         $row->cihaz = $cihaz;
+        if (Schema::hasColumn('bildirim_kimlikleri', 'app_bundle') && $tarayici) $row->app_bundle = $tarayici;
+        if (Schema::hasColumn('bildirim_kimlikleri', 'platform'))                $row->platform = 'web';
+        if (Schema::hasColumn('bildirim_kimlikleri', 'token_tipi'))              $row->token_tipi = 'fcm';
+        if (Schema::hasColumn('bildirim_kimlikleri', 'kullanici_tipi'))          $row->kullanici_tipi = 'yetkili';
+        if (Schema::hasColumn('bildirim_kimlikleri', 'aktif'))                   $row->aktif = 1;
+        if (Schema::hasColumn('bildirim_kimlikleri', 'gonderim_hatalari'))       $row->gonderim_hatalari = 0;
         $row->save();
 
         return response()->json(['ok' => true, 'id' => $row->id]);

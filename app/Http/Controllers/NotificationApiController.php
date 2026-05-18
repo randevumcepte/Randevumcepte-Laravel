@@ -41,20 +41,43 @@ class NotificationApiController extends Controller
 
         $token = $request->input('token');
         $tip   = $request->input('kullanici_tipi');
+        $cihaz = $request->input('cihaz');
 
-        // Bu token icin halihazirda bir kayit var mi?
+        // Kullanici + cihaz kombinasyonu icin onceki tokenlar gecersizdir; sil
+        if ($cihaz) {
+            $owner = BildirimKimlikleri::query();
+            if ($tip === 'musteri') {
+                $owner->where('user_id', $request->input('user_id'));
+            } elseif ($tip === 'personel') {
+                $owner->where('isletme_yetkili_id', $request->input('personel_id'));
+            } elseif ($tip === 'yetkili') {
+                // yetkili_id'yi sonradan Personeller.id'ye cevirdigimiz icin burada her ikisini de tara
+                $yId = $request->input('yetkili_id');
+                $sId = $request->input('salon_id');
+                $pId = ($yId && $sId)
+                    ? \App\Personeller::where('yetkili_id', $yId)->where('salon_id', $sId)->value('id')
+                    : null;
+                $owner->where(function($q) use($pId, $yId){
+                    $q->where('isletme_yetkili_id', $pId ?: -1)
+                      ->orWhere('isletme_yetkili_id', $yId ?: -1);
+                });
+            }
+            $owner->where('cihaz', $cihaz)
+                  ->where('bildirim_id', '!=', $token)
+                  ->delete();
+        }
+
+        // Bu token icin halihazirda bir kayit var mi? Varsa onu kullan, digerlerini sil
         $row = BildirimKimlikleri::where('bildirim_id', $token)->first();
-        // Ayni token tutan diger TUM kayitlari sil (cihaz devri + dublikasyon onleme)
         if ($row) {
             BildirimKimlikleri::where('bildirim_id', $token)
                 ->where('id', '!=', $row->id)->delete();
         } else {
-            BildirimKimlikleri::where('bildirim_id', $token)->delete();
             $row = new BildirimKimlikleri();
         }
 
         $row->bildirim_id = $token;
-        $row->cihaz       = $request->input('cihaz');
+        $row->cihaz       = $cihaz;
         $row->app_bundle  = $request->input('app_bundle');
 
         if (Schema::hasColumn('bildirim_kimlikleri', 'platform'))       $row->platform = $request->input('platform');
