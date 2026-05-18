@@ -258,6 +258,33 @@ class NotificationService
     }
 
     /**
+     * Mobile deep_link route adini web URL'sine cevirir (FCM webpush click).
+     * Bilinmeyen route'lar /isletmeyonetim'e dusur.
+     */
+    private function buildClickActionUrl(string $deepLink): string
+    {
+        $base = rtrim(config('app.url', 'https://app.randevumcepte.com.tr'), '/');
+        $route = $this->deepLinkRoute;
+        $p = $this->deepLinkParams;
+        $sube = isset($p['salon_id']) ? '?sube=' . $p['salon_id'] : '';
+
+        switch ($route) {
+            case 'appointment_detail':
+                return $base . '/isletmeyonetim/randevular' . $sube;
+            case 'wheel':
+                return $base . '/isletmeyonetim/cark' . $sube;
+            case 'campaign_detail':
+                return $base . '/isletmeyonetim/kampanyalar' . $sube;
+            case 'payment_received':
+                return $base . '/isletmeyonetim/tahsilatlar' . $sube;
+            case 'survey':
+                return $base . '/isletmeyonetim/anketler' . $sube;
+            default:
+                return $base . '/isletmeyonetim' . $sube;
+        }
+    }
+
+    /**
      * Tek bir cihaza FCM v1 üzerinden gönderim.
      * Notification + data kombine: title/body bildirim olarak gözükür,
      * data alanında deep_link/type/image taşınır.
@@ -286,6 +313,30 @@ class NotificationService
             $apns['fcm_options'] = ['image' => $this->imageUrl];
         }
 
+        // Web Push (FCM Web SDK) bloku.
+        // Tarayici tokenlari icin webpush.notification kullanilir; aksi halde
+        // sadece data mesaji olarak gelir, banner gostermez.
+        $webpush = [
+            'headers' => [
+                'Urgency' => $highPriority ? 'high' : 'normal',
+            ],
+            'notification' => array_filter([
+                'title' => $this->title,
+                'body'  => $this->body,
+                'icon'  => $this->imageUrl ?: '/public/img/logo.png',
+                'image' => $this->imageUrl,
+                // Aynı tag ile yenisi geldiginde eskisini yerine yazar (spam onleme)
+                'tag'   => $this->type,
+            ]),
+        ];
+        // Tiklayinca derin link
+        $deepLinkUrl = $this->buildDeepLink();
+        if ($deepLinkUrl) {
+            $webpush['fcm_options'] = [
+                'link' => $this->buildClickActionUrl($deepLinkUrl),
+            ];
+        }
+
         $message = [
             'message' => [
                 'token' => $deviceToken,
@@ -304,6 +355,7 @@ class NotificationService
                     ]),
                 ],
                 'apns' => $apns,
+                'webpush' => $webpush,
             ],
         ];
 

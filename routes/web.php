@@ -20,6 +20,59 @@ use Illuminate\Support\Facades\Storage;
 */
 Auth::routes();
 
+// Firebase Cloud Messaging Web Service Worker.
+// Root scope'tan servis edilmeli ki SW tum site'a hakim olabilsin.
+// JS icerigi dinamik render edilir, config/firebase_web.php degerleri yedirilir.
+Route::get('/firebase-messaging-sw.js', function () {
+    $cfg = config('firebase_web');
+    $js = "/* FCM Web Service Worker — otomatik render */\n"
+        . "importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js');\n"
+        . "importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js');\n\n"
+        . "firebase.initializeApp(" . json_encode([
+            'apiKey'            => $cfg['apiKey'] ?? '',
+            'authDomain'        => $cfg['authDomain'] ?? '',
+            'projectId'         => $cfg['projectId'] ?? '',
+            'storageBucket'     => $cfg['storageBucket'] ?? '',
+            'messagingSenderId' => $cfg['messagingSenderId'] ?? '',
+            'appId'             => $cfg['appId'] ?? '',
+        ], JSON_UNESCAPED_SLASHES) . ");\n\n"
+        . "const messaging = firebase.messaging();\n\n"
+        . "// Sayfa kapali / arka plan -> SW notification\n"
+        . "messaging.onBackgroundMessage((payload) => {\n"
+        . "  const n = payload.notification || {};\n"
+        . "  const d = payload.data || {};\n"
+        . "  self.registration.showNotification(n.title || 'Bildirim', {\n"
+        . "    body: n.body || '',\n"
+        . "    icon: n.icon || '/public/img/logo.png',\n"
+        . "    badge: '/public/img/logo.png',\n"
+        . "    data: d,\n"
+        . "    tag: d.tag || undefined,\n"
+        . "  });\n"
+        . "});\n\n"
+        . "// Bildirim tiklayinca deep_link varsa o sayfaya git\n"
+        . "self.addEventListener('notificationclick', (event) => {\n"
+        . "  event.notification.close();\n"
+        . "  const data = event.notification.data || {};\n"
+        . "  const url = data.click_action || data.deep_link_url || '/isletmeyonetim';\n"
+        . "  event.waitUntil(\n"
+        . "    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {\n"
+        . "      for (const c of wins) {\n"
+        . "        if (c.url.includes(location.origin) && 'focus' in c) { c.focus(); c.navigate && c.navigate(url); return; }\n"
+        . "      }\n"
+        . "      if (clients.openWindow) return clients.openWindow(url);\n"
+        . "    })\n"
+        . "  );\n"
+        . "});\n";
+
+    return response($js, 200, [
+        'Content-Type'  => 'application/javascript; charset=utf-8',
+        // SW dosyasi browser tarafindan otomatik versiyonlanir; ama biz de kaynaktan yenilemeyi zorlamak icin:
+        'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        'Pragma'        => 'no-cache',
+        'Service-Worker-Allowed' => '/',
+    ]);
+})->name('firebase.sw');
+
 // GECICI: personel_id=0 olan randevu_hizmetler kayitlarini hizmete uygun ilk personele atayarak duzelt
 Route::get('/dev-randevu-personel-duzelt', function() {
     $salon = \App\Salonlar::where('domain', $_SERVER['HTTP_HOST'])->first();
