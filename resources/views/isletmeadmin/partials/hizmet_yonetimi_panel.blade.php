@@ -713,22 +713,41 @@ $(document).ready(function(){
                var newSure   = parseInt($('#hy_edit_sure_dk').val()) || 0;
                var newAd     = $('#hy_edit_hizmet_adi').val();
                var newCinsiyet = $('#hy_edit_cinsiyet').val();
+               var newKategoriId = $('#hy_edit_kategori_id').val();
                var fiyatStr  = newFiyat.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₺';
                var cinsiyetMap = {'0':'<span class="hy-cinsiyet-badge hy-cinsiyet-0">Kadın</span>','1':'<span class="hy-cinsiyet-badge hy-cinsiyet-1">Erkek</span>','2':'<span class="hy-cinsiyet-badge hy-cinsiyet-2">Unisex</span>'};
                var cinsiyetHtml = cinsiyetMap[newCinsiyet] || '';
+
                var $row = $('.hy-hizmet-row[data-salon-hizmet-id="'+shId+'"]');
-               $row.attr({'data-fiyat':newFiyat,'data-sure':newSure,'data-hizmet-adi':newAd,'data-cinsiyet':newCinsiyet});
+               var oldKategoriId = $row.data('kategori-id');
+               // Kategori degistiyse satir yeni karta tasinmali — sayfa yenilemek en guvenli
+               if(String(oldKategoriId) !== String(result.kategori_id || newKategoriId)){
+                  setTimeout(function(){ location.reload(); }, 700);
+                  return;
+               }
+               $row.attr({'data-fiyat':newFiyat,'data-sure':newSure,'data-hizmet-adi':newAd,'data-cinsiyet':newCinsiyet,'data-kategori-id':result.kategori_id || newKategoriId});
                $row.find('.hy-chip-price').text(fiyatStr);
                $row.find('.hy-chip-time').html('<i class="fa fa-clock-o"></i> '+newSure+' dk');
                var $adiDiv = $row.find('.hy-hizmet-adi');
                $adiDiv.find('span').first().text(newAd);
                $adiDiv.find('.hy-cinsiyet-badge').remove();
                if(cinsiyetHtml) $adiDiv.append(cinsiyetHtml);
+               // Personel chip'i guncel kayittan al
+               var $personelCol = $row.find('.hy-hizmet-personel');
+               var personellerStr = (result.personeller || '').trim();
+               $personelCol.attr('title', personellerStr);
+               $personelCol.empty();
+               if(personellerStr === ''){
+                  $personelCol.append('<span class="hy-chip hy-chip-empty"><i class="fa fa-exclamation-circle"></i> Atanmamış</span>');
+               } else {
+                  $personelCol.append('<span class="hy-chip hy-chip-people"><i class="fa fa-user"></i> '+$('<div>').text(personellerStr).html()+'</span>');
+               }
+
                var $card = $('.hy-mobile-card[data-salon-hizmet-id="'+shId+'"]');
-               $card.attr({'data-fiyat':newFiyat,'data-sure':newSure,'data-hizmet-adi':newAd,'data-cinsiyet':newCinsiyet});
+               $card.attr({'data-fiyat':newFiyat,'data-sure':newSure,'data-hizmet-adi':newAd,'data-cinsiyet':newCinsiyet,'data-kategori-id':result.kategori_id || newKategoriId});
                $card.find('.hy-chip-price').text(fiyatStr);
                $card.find('.hy-chip-time').html('<i class="fa fa-clock-o"></i> '+newSure+' dk');
-               $card.find('.hy-mobile-title h4').html(newAd + (cinsiyetHtml ? ' '+cinsiyetHtml : ''));
+               $card.find('.hy-mobile-title h4').html($('<div>').text(newAd).html() + (cinsiyetHtml ? ' '+cinsiyetHtml : ''));
             } else {
                $btn.prop('disabled', false);
             }

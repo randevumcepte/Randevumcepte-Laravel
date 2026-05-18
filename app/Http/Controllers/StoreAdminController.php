@@ -24623,7 +24623,23 @@ DB::raw('
             }
         }
 
-        return response()->json(['status'=>'success','message'=>'Hizmet başarıyla güncellendi']);
+        // Guncel personel/cihaz adlari (DOM refresh icin)
+        $personelAdlari = PersonelHizmetler::where('hizmet_id', $sh->hizmet_id)
+            ->whereHas('personeller', function($q) use($isletmeid){ $q->where('salon_id', $isletmeid); })
+            ->with('personeller')
+            ->get()->pluck('personeller.personel_adi')->filter()->values()->all();
+        $cihazAdlari = CihazHizmetler::where('hizmet_id', $sh->hizmet_id)
+            ->whereHas('cihaz', function($q) use($isletmeid){ $q->where('salon_id', $isletmeid); })
+            ->with('cihaz')
+            ->get()->pluck('cihaz.cihaz_adi')->filter()->values()->all();
+        $personellerStr = implode(', ', array_merge($personelAdlari, $cihazAdlari));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Hizmet başarıyla güncellendi',
+            'personeller' => $personellerStr,
+            'kategori_id' => $sh->hizmet_kategori_id,
+        ]);
     }
 
     public function hizmetKategoriEkle(Request $request){
