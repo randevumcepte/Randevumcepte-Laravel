@@ -328,39 +328,22 @@ class ApiController extends Controller
 
             {
 
-                    $headers = [
-
-                        "Authorization: Key " . $request->sms_apikey,
-
-                        "Content-Type: application/json",
-
-                        "Accept: application/json",
-
-                    ];
-
-                    
                     $smsMesaj = [
-
                             [
-
                                 "to" => self::telefon_no_format_duzenle($request->cep_telefon),
-
                                 "message" =>
-
                                     $request->isletmeadi .
-
                                     " uygulama şifreniz  : " .
-
                                     $olusturulansifre,
-
                             ],
-
                         ];
-                     
-                    
+
+                    // Salon WA aktif+connected ise once WhatsApp uzerinden anlik gonder.
+                    // Basarisizsa SMS yoluyla devam (sifregonder ile ayni davranis).
+                    $waBasarili = self::sifreWhatsappGonder($request, $smsMesaj, $kullanici->id ?? null);
+                    if (!$waBasarili) {
                         self::sms_gonder_2($request,$smsMesaj , false,'1',false,$request->salonidler,false);
-                     
- 
+                    }
 
             }
 
