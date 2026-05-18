@@ -376,7 +376,6 @@ class NotificationService
             $b->salon_id      = $this->salonId;
             $b->user_id       = $userId;
             $b->personel_id   = $personelId;
-            $b->baslik        = $this->title;
             $b->aciklama      = $this->body;
             $b->url           = $this->imageUrl;
             $b->img_src       = $this->imageUrl;
@@ -384,6 +383,8 @@ class NotificationService
             $b->okundu        = false;
             $b->butonlar      = json_encode([], JSON_UNESCAPED_UNICODE);
             $b->randevu_id    = $this->randevuId;
+            // baslik kolonu eski tabloda yoktu, sonradan eklendi.
+            if (\Schema::hasColumn('bildirimler', 'baslik'))     $b->baslik = $this->title;
 
             // Yeni kolonlar — migration sonrası dolacak. Mevcut değilse PDO hata vermesin diye try/catch.
             if (\Schema::hasColumn('bildirimler', 'tip'))        $b->tip = $this->type;
