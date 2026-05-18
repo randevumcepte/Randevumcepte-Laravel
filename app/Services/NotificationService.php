@@ -373,18 +373,21 @@ class NotificationService
     {
         try {
             $b = new Bildirimler();
-            $b->salon_id      = $this->salonId;
-            $b->user_id       = $userId;
-            $b->personel_id   = $personelId;
-            $b->aciklama      = $this->body;
-            $b->url           = $this->imageUrl;
-            $b->img_src       = $this->imageUrl;
-            $b->tarih_saat    = date('Y-m-d H:i:s');
-            $b->okundu        = false;
-            $b->butonlar      = json_encode([], JSON_UNESCAPED_UNICODE);
-            $b->randevu_id    = $this->randevuId;
-            // baslik kolonu eski tabloda yoktu, sonradan eklendi.
-            if (\Schema::hasColumn('bildirimler', 'baslik'))     $b->baslik = $this->title;
+            // Tum field assignment'lari Schema::hasColumn ile sar; farkli
+            // ortamlarda eski/yeni sema oldugunda her hangi bir eksik kolon
+            // butun save'i fail ettirmesin (butonlar, baslik gibi alanlar
+            // bazi installation'larda yok).
+            if (\Schema::hasColumn('bildirimler', 'salon_id'))    $b->salon_id    = $this->salonId;
+            if (\Schema::hasColumn('bildirimler', 'user_id'))     $b->user_id     = $userId;
+            if (\Schema::hasColumn('bildirimler', 'personel_id')) $b->personel_id = $personelId;
+            if (\Schema::hasColumn('bildirimler', 'aciklama'))    $b->aciklama    = $this->body;
+            if (\Schema::hasColumn('bildirimler', 'url'))         $b->url         = $this->imageUrl;
+            if (\Schema::hasColumn('bildirimler', 'img_src'))     $b->img_src     = $this->imageUrl;
+            if (\Schema::hasColumn('bildirimler', 'tarih_saat'))  $b->tarih_saat  = date('Y-m-d H:i:s');
+            if (\Schema::hasColumn('bildirimler', 'okundu'))      $b->okundu      = false;
+            if (\Schema::hasColumn('bildirimler', 'butonlar'))    $b->butonlar    = json_encode([], JSON_UNESCAPED_UNICODE);
+            if (\Schema::hasColumn('bildirimler', 'randevu_id'))  $b->randevu_id  = $this->randevuId;
+            if (\Schema::hasColumn('bildirimler', 'baslik'))      $b->baslik      = $this->title;
 
             // Yeni kolonlar — migration sonrası dolacak. Mevcut değilse PDO hata vermesin diye try/catch.
             if (\Schema::hasColumn('bildirimler', 'tip'))        $b->tip = $this->type;
