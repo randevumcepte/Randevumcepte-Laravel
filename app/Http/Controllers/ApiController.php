@@ -414,9 +414,18 @@ class ApiController extends Controller
             } else {
                 $salonId = $request->salonidler ?? null;
             }
-            if (!$salonId) return false;
 
-            $salon = Salonlar::where('id', $salonId)->first();
+            $salon = $salonId ? Salonlar::where('id', $salonId)->first() : null;
+            Log::info('[Sifre WA] kanal karari', [
+                'appBundle' => $request->appBundle ?? null,
+                'salonidler_input' => $request->salonidler ?? null,
+                'belirlenen_salon_id' => $salonId,
+                'salon_var_mi' => (bool) $salon,
+                'wa_aktif' => $salon ? (int) ($salon->whatsapp_aktif ?? 0) : null,
+                'wa_durum' => $salon->whatsapp_durum ?? null,
+            ]);
+
+            if (!$salonId) return false;
             if (!$salon) return false;
             if (empty($salon->whatsapp_aktif)) return false;
             if (($salon->whatsapp_durum ?? null) !== 'connected') return false;
