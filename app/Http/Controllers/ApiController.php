@@ -259,7 +259,15 @@ class ApiController extends Controller
 
             $kullanici = "";
 
-            $olusturulansifre ="";
+            // White-label: yeni kayit icin her zaman taze sifre uretiyoruz, SMS ile gidiyor.
+            // Sifre musteri_portfoy.password'a yazilir (isletmeye ozel). users.password
+            // yalnizca yeni bir kullanici olusturuluyorsa doldurulur (web/master app girisi
+            // icin); mevcut kullanicilarin users.password'unu degistirmeyiz.
+            $random = str_shuffle(
+                "abcdefghjklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ1234567890"
+            );
+            $olusturulansifre = substr($random, 0, 5);
+            $hashedSifre = Hash::make($olusturulansifre);
 
             if(User::where('cep_telefon',self::telefon_no_format_duzenle($request->cep_telefon))->count() > 0)
 
@@ -269,27 +277,19 @@ class ApiController extends Controller
 
                 $kullanici = new User();
 
-                $random = str_shuffle(
+                $kullanici->password = $hashedSifre;
 
-                "abcdefghjklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ1234567890"
+            }
 
-                );
 
-                $olusturulansifre = substr($random, 0, 5);
-
-                $kullanici->password = Hash::make($olusturulansifre);
-
-            }              
-
-               
 
             $kullanici->name = $request->name;
 
             $kullanici->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon);
 
-            
 
-            
+
+
 
             $kullanici->save();
 
@@ -297,7 +297,7 @@ class ApiController extends Controller
 
             foreach ($salonidler as $salonid) {
 
-                
+
 
                 $portfoy = "";
 
@@ -316,6 +316,9 @@ class ApiController extends Controller
 
                 $portfoy->onay_kodu = rand(1000, 9999);
                 $portfoy->aktif = true;
+
+                // White-label: her isletmenin kendi sifresi portfoy'da tutulur
+                $portfoy->password = $hashedSifre;
 
                 $portfoy->save();
 
@@ -393,6 +396,56 @@ class ApiController extends Controller
 
     }
 
+    /**
+     * Sifre/OTP mesajini once WhatsApp uzerinden anlik gondermeye calisir.
+     * sifregonder akisinda kullanilir: salon WA aktif+connected ise urgent=true ile
+     * gonder (anti-ban delay'siz, business hours bypass). Basarili ise true doner,
+     * caller SMS'i atlar. Basarisiz ise false doner, caller SMS yoluyla devam eder.
+     *
+     * NOT: WA tarafindan spam algilanma riski var (rastgele kullanicilara sifre).
+     * Salon WA hesabinin saglikli kalmasi icin SMS fallback her zaman devrede.
+     */
+    protected function sifreWhatsappGonder(Request $request, $mesajlar, $userId = null)
+    {
+        try {
+            $salonId = null;
+            if (($request->appBundle ?? '') === 'com.randevumcepte.randevumcepte') {
+                $salonId = 20;
+            } else {
+                $salonId = $request->salonidler ?? null;
+            }
+            if (!$salonId) return false;
+
+            $salon = Salonlar::where('id', $salonId)->first();
+            if (!$salon) return false;
+            if (empty($salon->whatsapp_aktif)) return false;
+            if (($salon->whatsapp_durum ?? null) !== 'connected') return false;
+
+            $wa = app(\App\Services\WhatsAppService::class);
+            $hepsiBasarili = true;
+            foreach ((array) $mesajlar as $m) {
+                $to = $m['to'] ?? null;
+                $msg = $m['message'] ?? null;
+                if (!$to || !$msg) { $hepsiBasarili = false; continue; }
+                $sonuc = $wa->sendUrgent($salon, $to, $msg, $userId);
+                if (!($sonuc['ok'] ?? false)) {
+                    $hepsiBasarili = false;
+                    Log::warning('[Sifre WA] gonderim basarisiz -> SMS fallback', [
+                        'salon_id' => $salon->id, 'to' => $to, 'err' => $sonuc['error'] ?? 'unknown',
+                    ]);
+                } else {
+                    Log::info('[Sifre WA] anlik kuyruga eklendi', [
+                        'salon_id' => $salon->id, 'to' => $to, 'logId' => $sonuc['logId'] ?? null,
+                    ]);
+                }
+            }
+            return $hepsiBasarili;
+        } catch (\Throwable $e) {
+            Log::warning('[Sifre WA] istisna, SMS fallback', ['err' => $e->getMessage()]);
+            return false;
+        }
+    }
+
     public function sifregonder(Request $request)
     {
         $kullanicivar = false;
@@ -444,10 +497,12 @@ class ApiController extends Controller
                             " uygulama şifreniz  : " .
 
                             $olusturulansifre
-                    ], 
-            ]; 
-             self::sms_gonder_2($request,$smsMesaj , false,'1',false,$request->salonidler,true);
-            
+                    ],
+            ];
+            if (!self::sifreWhatsappGonder($request, $smsMesaj, $kullanici->id ?? null)) {
+                self::sms_gonder_2($request,$smsMesaj , false,'1',false,$request->salonidler,true);
+            }
+
         }
 
         if (IsletmeYetkilileri::where("gsm1", self::telefon_no_format_duzenle($request->cep_telefon))->count() >=1) {
@@ -490,10 +545,11 @@ class ApiController extends Controller
                         "message" => $request->isletmeadi ." uygulama şifreniz  : ".$olusturulansifre
                     ]
                 ];
-             
-                    self::sms_gonder_2($request,$smsMesaj , false,'1',false,$request->salonidler,true);
-            
-                
+
+            if (!self::sifreWhatsappGonder($request, $smsMesaj, $kullanici->id ?? null)) {
+                self::sms_gonder_2($request,$smsMesaj , false,'1',false,$request->salonidler,true);
+            }
+
         }
 
         if (!$kullanicivar) {

@@ -122,18 +122,23 @@ class SendQueue {
           continue;
         }
 
-        if (!withinBusinessHours()) {
+        // Urgent mesajlar (sifre/OTP) business hours ve batch pause kisitlamalarini da
+        // bypass eder — kullanici sifresini gece yarisi bile isteyebilir.
+        if (!job.urgent && !withinBusinessHours()) {
           reject(new Error('outside-business-hours'));
           continue;
         }
 
-        if (this.sentInBatch >= config.antiban.batchSize) {
+        if (!job.urgent && this.sentInBatch >= config.antiban.batchSize) {
           await sleep(config.antiban.batchPauseMs);
           this.sentInBatch = 0;
         }
 
-        const preDelay = gaussianJitter(config.antiban.msgMinDelayMs, config.antiban.msgMaxDelayMs);
-        await sleep(preDelay);
+        // Urgent mesajlar pre-delay'i atlar — anlik gonderim
+        if (!job.urgent) {
+          const preDelay = gaussianJitter(config.antiban.msgMinDelayMs, config.antiban.msgMaxDelayMs);
+          await sleep(preDelay);
+        }
 
         try {
           const result = await this.sender(job);

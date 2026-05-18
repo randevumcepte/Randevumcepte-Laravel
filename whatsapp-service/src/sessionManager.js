@@ -77,9 +77,12 @@ const buildSender = (salonId) => async (job) => {
     logger.warn({ err: err.message }, 'onWhatsApp check failed, continuing');
   }
 
-  await session.sock.sendPresenceUpdate('composing', jid);
-  await sleep(gaussianJitter(config.antiban.typingMinMs, config.antiban.typingMaxMs));
-  await session.sock.sendPresenceUpdate('paused', jid);
+  // Urgent mesajlar typing simulation'i atlar — sifre/OTP icin anlik gonderim
+  if (!job.urgent) {
+    await session.sock.sendPresenceUpdate('composing', jid);
+    await sleep(gaussianJitter(config.antiban.typingMinMs, config.antiban.typingMaxMs));
+    await session.sock.sendPresenceUpdate('paused', jid);
+  }
 
   const result = await session.sock.sendMessage(jid, { text: job.message });
   return { messageId: result?.key?.id || null, phone };
@@ -359,6 +362,7 @@ const queueMessage = (salonId, payload) => {
     warmupStart: payload.warmupStart || session.connectedAt,
     dailyLimit: payload.dailyLimit || 150,
     logId: payload.logId || null,
+    urgent: !!payload.urgent, // anlik gonderim: pre-delay + typing + business hours bypass
   }).catch(() => {});
 
   return {

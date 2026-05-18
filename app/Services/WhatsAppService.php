@@ -45,7 +45,7 @@ class WhatsAppService
      *
      * @param array|null $templateCtx Cloud API kullanırken: ['key' => '1gun|yaklasan|iptal|guncelleme', 'params' => [...]]
      */
-    public function sendReminder(Salonlar $salon, $to, $message, $randevuId = null, $userId = null, $templateCtx = null)
+    public function sendReminder(Salonlar $salon, $to, $message, $randevuId = null, $userId = null, $templateCtx = null, $urgent = false)
     {
         $normalized = $this->normalizePhone($to);
         if (!$normalized) {
@@ -57,7 +57,8 @@ class WhatsAppService
             return ['ok' => false, 'error' => 'daily-cap-reached'];
         }
 
-        if (!$this->withinBusinessHours()) {
+        // urgent (sifre/OTP) mesajlar business hours kisitlamasini bypass eder
+        if (!$urgent && !$this->withinBusinessHours()) {
             return ['ok' => false, 'error' => 'outside-business-hours'];
         }
 
@@ -67,10 +68,20 @@ class WhatsAppService
             return $this->sendViaCloudApi($salon, $normalized, $message, $randevuId, $userId, $templateCtx);
         }
 
-        return $this->sendViaBaileys($salon, $normalized, $message, $randevuId, $userId);
+        return $this->sendViaBaileys($salon, $normalized, $message, $randevuId, $userId, $urgent);
     }
 
-    protected function sendViaBaileys(Salonlar $salon, $to, $message, $randevuId, $userId)
+    /**
+     * Anlik WhatsApp gonderimi — sifre/OTP gibi acil mesajlar icin.
+     * Anti-ban delay (60-120s), typing simulation ve business hours kontrolu atlanir.
+     * Ban riski yuksek oldugundan sadece zorunlu durumlarda kullanilmali.
+     */
+    public function sendUrgent(Salonlar $salon, $to, $message, $userId = null)
+    {
+        return $this->sendReminder($salon, $to, $message, null, $userId, null, true);
+    }
+
+    protected function sendViaBaileys(Salonlar $salon, $to, $message, $randevuId, $userId, $urgent = false)
     {
         $logId = $this->logPending($salon->id, $userId, $randevuId, $to, $message);
 
@@ -81,6 +92,7 @@ class WhatsAppService
                 ?: optional($salon->whatsapp_baglanti_tarihi)->toIso8601String(),
             'dailyLimit' => (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 150)),
             'logId' => $logId,
+            'urgent' => $urgent,
         ]);
 
         // 202 Accepted = kuyruğa alındı, webhook ile sent/failed bildirecek
