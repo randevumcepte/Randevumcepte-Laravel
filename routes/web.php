@@ -1070,6 +1070,10 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/paketRaporFiltre','StoreAdminController@paketRaporFiltre');
 	Route::get('/personelRaporFiltre','StoreAdminController@personelRaporFiltre');
 	Route::get('/personel-yonetimi','StoreAdminController@personelYonetimi');
+	// Personel yetki yonetimi popup endpoints (web guard, isletmeyonetim middleware)
+	Route::get('/personel-yetki-sema','StoreAdminController@personelYetkiSemaWeb');
+	Route::post('/personel-yetki-getir','StoreAdminController@personelYetkiGetirWeb');
+	Route::post('/personel-yetki-kaydet','StoreAdminController@personelYetkiKaydetWeb');
 	 	 	Route::get('/carkifelek','StoreAdminController@carkifelek')->name('isletmeadmin.carkifelek');
 	 	 	Route::post('/carkdilimekle', [StoreAdminController::class, 'carkdilimekle'])->name('isletmeadmin.carkdilimekle');
 Route::get('/carkverilerigetir', [StoreAdminController::class, 'carkverilerigetir'])->name('isletmeadmin.carkverilerigetir');

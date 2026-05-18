@@ -3621,10 +3621,20 @@ private function ayAdiCevir($ingilizceAy)
                 .'<i class="fa '.($takvimdeGor?'fa-eye':'fa-eye-slash').'"></i> '
                 .'<span>'.($takvimdeGor?'Görünür':'Gizli').'</span>'
                 .'</button>';
+            // 'personel.yetki_yonet' yetkisi olanlara "Yetkileri Düzenle" item gosterilir.
+            $yetkiYonetVar = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                \Auth::guard('isletmeyonetim')->user()->id ?? 0,
+                self::mevcutsube($request),
+                'personel.yetki_yonet'
+            );
+            $yetkiItem = $yetkiYonetVar
+                ? '<a class="dropdown-item" href="#" name="personel_yetki_duzenle" data-value="'.$personel->id.'" data-adi="'.htmlspecialchars($personel_adi, ENT_QUOTES).'"><i class="fa fa-shield-alt"></i> Yetkileri Düzenle</a>'
+                : '';
             $islemler = '<div class="dropdown"><a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
                 </a>
                 <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                 <a class="dropdown-item" href="#" onclick="modalbaslikata(\'Personel Bilgileri\',\'\' )" name="personel_detayi" data-toggle="modal" data-target="#personel-modal" data-value="'.$personel->id.'"><i class="fa fa-edit"></i> Düzenle</a>
+                    '.$yetkiItem.'
                     <a class="dropdown-item" href="#" name="personel_sifre_degistir_gonder" data-value="'.$personel->id.'"><i class="icon-copy dw dw-password"></i> Şifre Değiştir & Gönder</a>
                     <a class="dropdown-item" href="#" name="personel_pasif_aktif_yap" data-index-number="'.($personel->aktif ? 0 : 1).'" data-value="'.$personel->id.'"><i class="'.($personel->aktif ? 'fa fa-minus' : 'fa fa-plus').'"></i> '.($personel->aktif ? 'Pasif Yap' : 'Aktif Yap').'</a>
                     <div class="dropdown-divider"></div>
@@ -22343,8 +22353,97 @@ public function musteriportfoydropliste(Request $request)
     }
 
     public function sanal_asistan(Request $request){
-        
+
     }
+
+    // ====================================================================
+    // Personel yetki yonetimi popup endpoint'leri (web tarafi)
+    // ====================================================================
+    //
+    // Mobile ApiController'daki personelYetkiSemaApi/Getir/Kaydet
+    // muadilleri — web guard ile, modal AJAX'i bunlara baglanir.
+
+    public function personelYetkiSemaWeb()
+    {
+        return response()->json([
+            'basarili'    => true,
+            'tanimlar'    => \App\PersonelYetkiSabitleri::tanimlar(),
+            'kategoriler' => \App\PersonelYetkiSabitleri::kategoriEtiketleri(),
+            'sablonlar'   => collect(\App\PersonelYetkiSabitleri::sablonlar())->map(function ($s, $k) {
+                return [
+                    'key'      => $k,
+                    'ad'       => $s['ad'],
+                    'aciklama' => $s['aciklama'],
+                    'ikon'     => $s['ikon'],
+                    'ayarlar'  => $s['ayarlar'],
+                ];
+            })->values(),
+        ]);
+    }
+
+    public function personelYetkiGetirWeb(Request $request)
+    {
+        $personelId = $request->personel_id;
+        $salonId    = $request->sube ?? $this->mevcutsube($request);
+        if (!$personelId || !$salonId) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Eksik parametre.']);
+        }
+        $personelRolunde = \App\Services\PersonelYetkiServisi::personelRolundeMi($personelId, $salonId);
+        $ayarlar = \App\Services\PersonelYetkiServisi::ayarlariGetir($personelId, $salonId);
+        return response()->json([
+            'basarili'         => true,
+            'personel_rolunde' => $personelRolunde,
+            'sablon'           => $ayarlar['sablon'],
+            'ayarlar'          => $ayarlar['ayarlar'],
+        ]);
+    }
+
+    public function personelYetkiKaydetWeb(Request $request)
+    {
+        try {
+            $personelId = $request->personel_id;
+            $salonId    = $request->sube ?? $this->mevcutsube($request);
+
+            // Auth user'in 'personel.yetki_yonet' yetkisi olmali
+            $authUser = Auth::guard('isletmeyonetim')->user();
+            if (!$authUser || !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                $authUser->id, $salonId, 'personel.yetki_yonet'
+            )) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Bu işlem için yetkiniz yok.'], 403);
+            }
+
+            $sablon  = (string)($request->sablon ?? 'ozel');
+            $ayarlar = $request->ayarlar;
+            if (is_string($ayarlar)) {
+                $decoded = json_decode($ayarlar, true);
+                $ayarlar = is_array($decoded) ? $decoded : [];
+            }
+            if (!is_array($ayarlar)) $ayarlar = [];
+            if (!$personelId || !$salonId) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Eksik parametre.']);
+            }
+
+            \App\Services\PersonelYetkiServisi::ayarlariKaydet($personelId, $salonId, $sablon, $ayarlar);
+
+            // Personele push gonder (mobile cihazindan yansisin)
+            try {
+                \App\Services\NotificationService::toStaff((int)$personelId, (int)$salonId)
+                    ->type(\App\Services\NotificationTypes::YETKI_DEGISTI)
+                    ->title('Yetkileriniz Güncellendi')
+                    ->body('Yöneticiniz yetkilerinizi güncelledi. Devam etmek için tekrar giriş yapmanız gerekiyor.')
+                    ->extra(['force_logout' => '1'])
+                    ->send();
+            } catch (\Throwable $e) {
+                \Log::warning('Yetki push (web) hatasi: ' . $e->getMessage());
+            }
+
+            return response()->json(['basarili' => true]);
+        } catch (\Exception $e) {
+            \Log::warning('Web personelYetkiKaydet: ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
+        }
+    }
+
     public function personelmi(Request $request)
     {
        

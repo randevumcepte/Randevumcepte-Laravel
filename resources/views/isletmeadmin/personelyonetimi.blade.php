@@ -385,6 +385,49 @@
 
 @include('isletmeadmin.partials.personel_modal')
 
+{{-- Personel Yetki Düzenleme Modal --}}
+<div class="modal fade" id="personel-yetki-modal" tabindex="-1" role="dialog" aria-hidden="true">
+   <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+      <div class="modal-content">
+         <div class="modal-header" style="background: linear-gradient(135deg,#5C008E,#9D5DC8); color:#fff;">
+            <h5 class="modal-title">
+               <i class="fa fa-shield-alt"></i> Yetki Yönetimi —
+               <span id="pyetki-personel-adi"></span>
+            </h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color:#fff;opacity:1;">
+               <span aria-hidden="true">&times;</span>
+            </button>
+         </div>
+         <div class="modal-body">
+            <div id="pyetki-yukleniyor" class="text-center" style="padding:40px;">
+               <div class="spinner-border text-primary" role="status"></div>
+               <div class="mt-2">Yükleniyor...</div>
+            </div>
+            <div id="pyetki-icerik" style="display:none;">
+               <div class="alert alert-warning" id="pyetki-rol-uyari" style="display:none;">
+                  Bu personel <b>"Personel"</b> rolünde değil. Buradaki ayarlar sadece rol "Personel" yapıldığında uygulanır.
+               </div>
+               <div class="form-group">
+                  <label><b>Hazır Şablon</b></label>
+                  <div id="pyetki-sablon-kartlar" class="row"></div>
+                  <small class="text-muted" id="pyetki-ozel-uyari" style="display:none;">
+                     <i class="fa fa-info-circle"></i> Üzerinde değişiklik yaptın. Aşağıdaki ayarlar sadece bu personele özel uygulanacak.
+                  </small>
+               </div>
+               <hr>
+               <div id="pyetki-kategoriler"></div>
+            </div>
+         </div>
+         <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Kapat</button>
+            <button type="button" class="btn btn-primary" id="pyetki-kaydet-btn" style="background:linear-gradient(135deg,#5C008E,#9D5DC8);border:none;">
+               <i class="fa fa-check"></i> Yetkileri Kaydet
+            </button>
+         </div>
+      </div>
+   </div>
+</div>
+
 <script type="text/javascript">
 $(document).ready(function(){
    // URL ?_tab=prim ise Prim & Hak Ediş tab'ini aktif et (ödeme/bonus/kesinti sonrası reload bu paramla geliyor)
@@ -570,6 +613,186 @@ $(document).ready(function(){
       }
    });
 });
+
+// ====================================================================
+// Personel Yetki Düzenleme Popup mantığı
+// ====================================================================
+(function(){
+   var pyetkiState = {
+      personelId: null,
+      personelAdi: '',
+      sema: null,        // {tanimlar, kategoriler, sablonlar}
+      seciliSablon: 'personel_sade',
+      ayarlar: {},       // {key: bool}
+   };
+
+   // İşlemler dropdown'dan "Yetkileri Düzenle" tıklaması
+   $(document).on('click', '[name="personel_yetki_duzenle"]', function(e){
+      e.preventDefault();
+      pyetkiState.personelId = $(this).data('value');
+      pyetkiState.personelAdi = $(this).data('adi') || '';
+      $('#pyetki-personel-adi').text(pyetkiState.personelAdi);
+      $('#pyetki-icerik').hide();
+      $('#pyetki-yukleniyor').show();
+      $('#personel-yetki-modal').modal('show');
+      pyetkiYukle();
+   });
+
+   function pyetkiYukle(){
+      var sube = new URL(window.location.href).searchParams.get('sube') || '';
+      // Sema (tek sefer cache'le)
+      var semaPromise = pyetkiState.sema
+         ? Promise.resolve(pyetkiState.sema)
+         : fetch('/isletmeyonetim/personel-yetki-sema').then(r=>r.json());
+      // Personel ayarlari
+      var getirPromise = fetch('/isletmeyonetim/personel-yetki-getir', {
+         method: 'POST',
+         headers: {'Content-Type':'application/json','X-CSRF-TOKEN':$('meta[name="csrf-token"]').attr('content')||''},
+         body: JSON.stringify({personel_id: pyetkiState.personelId, sube: sube}),
+      }).then(r=>r.json());
+
+      Promise.all([semaPromise, getirPromise]).then(function(arr){
+         var sema = arr[0], ayar = arr[1];
+         if(!sema || !sema.basarili){
+            alert('Yetki şeması yüklenemedi.');
+            $('#personel-yetki-modal').modal('hide');
+            return;
+         }
+         pyetkiState.sema = sema;
+         if(ayar && ayar.basarili){
+            pyetkiState.seciliSablon = ayar.sablon || 'personel_sade';
+            pyetkiState.ayarlar = ayar.ayarlar || {};
+            $('#pyetki-rol-uyari').toggle(!ayar.personel_rolunde);
+         } else {
+            pyetkiState.seciliSablon = 'personel_sade';
+            pyetkiState.ayarlar = {};
+         }
+         // Eksik anahtarlari false ile tamamla
+         (sema.tanimlar||[]).forEach(function(t){
+            if(pyetkiState.ayarlar[t.key] === undefined) pyetkiState.ayarlar[t.key] = false;
+         });
+         pyetkiRender();
+         $('#pyetki-yukleniyor').hide();
+         $('#pyetki-icerik').show();
+      }).catch(function(e){
+         alert('Yetki bilgileri çekilemedi: '+e);
+         $('#personel-yetki-modal').modal('hide');
+      });
+   }
+
+   function pyetkiRender(){
+      var sema = pyetkiState.sema;
+      // Sablon kartlari
+      var sablonHtml = '';
+      (sema.sablonlar||[]).forEach(function(s){
+         var sel = pyetkiState.seciliSablon === s.key;
+         sablonHtml += '<div class="col-md-3 col-6 mb-2">'+
+            '<button type="button" class="btn btn-block pyetki-sablon-btn" data-sablon="'+s.key+'" '+
+            'style="text-align:left;padding:10px;border:2px solid '+(sel?'#5C008E':'#e5e7eb')+
+            ';background:'+(sel?'linear-gradient(135deg,#5C008E,#9D5DC8)':'#fff')+';color:'+(sel?'#fff':'#1f2937')+';">'+
+            '<div style="font-weight:700;font-size:13px;">'+escapeHtml(s.ad)+'</div>'+
+            '<div style="font-size:11px;opacity:0.85;">'+escapeHtml(s.aciklama)+'</div>'+
+            '</button></div>';
+      });
+      $('#pyetki-sablon-kartlar').html(sablonHtml);
+      $('#pyetki-ozel-uyari').toggle(pyetkiState.seciliSablon === 'ozel');
+
+      // Kategorili switch listesi
+      var katMap = {};
+      (sema.tanimlar||[]).forEach(function(t){
+         if(!katMap[t.kategori]) katMap[t.kategori] = [];
+         katMap[t.kategori].push(t);
+      });
+      var katHtml = '';
+      Object.keys(sema.kategoriler||{}).forEach(function(katKey){
+         if(!katMap[katKey]) return;
+         var katEtiket = sema.kategoriler[katKey];
+         var yetkiler = katMap[katKey];
+         var aktif = yetkiler.filter(function(y){return pyetkiState.ayarlar[y.key];}).length;
+         katHtml += '<div class="card mb-2"><div class="card-header" style="background:#f3f4f6;font-weight:700;font-size:13px;">'+
+            escapeHtml(katEtiket.ad)+' <span class="badge badge-pill badge-primary float-right">'+aktif+' / '+yetkiler.length+'</span>'+
+            '</div><div class="card-body" style="padding:8px 12px;">';
+         yetkiler.forEach(function(y){
+            var checked = pyetkiState.ayarlar[y.key] ? 'checked' : '';
+            katHtml += '<div class="custom-control custom-switch py-1 d-flex align-items-center justify-content-between" '+
+               'style="padding-left:0;">'+
+               '<div style="flex:1;">'+
+               '<div style="font-weight:600;font-size:13px;">'+escapeHtml(y.label)+'</div>'+
+               (y.aciklama ? '<div style="font-size:11px;color:#6b7280;">'+escapeHtml(y.aciklama)+'</div>' : '')+
+               '</div>'+
+               '<label class="switch" style="position:relative;display:inline-block;width:42px;height:22px;margin:0;">'+
+               '<input type="checkbox" class="pyetki-switch" data-key="'+y.key+'" '+checked+' style="opacity:0;width:0;height:0;">'+
+               '<span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:'+(pyetkiState.ayarlar[y.key]?'#5C008E':'#d1d5db')+';border-radius:22px;transition:0.2s;">'+
+               '<span style="position:absolute;height:18px;width:18px;left:'+(pyetkiState.ayarlar[y.key]?'22px':'2px')+';top:2px;background:#fff;border-radius:50%;transition:0.2s;display:block;"></span>'+
+               '</span></label></div>';
+         });
+         katHtml += '</div></div>';
+      });
+      $('#pyetki-kategoriler').html(katHtml);
+   }
+
+   function escapeHtml(s){
+      return String(s||'').replace(/[&<>"']/g, function(c){
+         return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+      });
+   }
+
+   // Şablon kart tıklaması → tüm ayarları o şablonun değerleriyle doldur
+   $(document).on('click', '.pyetki-sablon-btn', function(){
+      var key = $(this).data('sablon');
+      var sablon = (pyetkiState.sema.sablonlar||[]).find(function(s){return s.key===key;});
+      if(!sablon) return;
+      pyetkiState.seciliSablon = key;
+      // Once tum key'leri false yap, sonra sablon degerleriyle override
+      var yeniAyar = {};
+      (pyetkiState.sema.tanimlar||[]).forEach(function(t){ yeniAyar[t.key] = false; });
+      Object.keys(sablon.ayarlar||{}).forEach(function(k){
+         var v = sablon.ayarlar[k];
+         yeniAyar[k] = (v === true || v === 1 || v === '1');
+      });
+      pyetkiState.ayarlar = yeniAyar;
+      pyetkiRender();
+   });
+
+   // Switch toggle → ayar güncelle, sablon "ozel" olsun
+   $(document).on('change', '.pyetki-switch', function(){
+      var key = $(this).data('key');
+      pyetkiState.ayarlar[key] = $(this).is(':checked');
+      pyetkiState.seciliSablon = 'ozel';
+      pyetkiRender();
+   });
+
+   // Kaydet
+   $('#pyetki-kaydet-btn').on('click', function(){
+      var $btn = $(this);
+      var sube = new URL(window.location.href).searchParams.get('sube') || '';
+      $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Kaydediliyor...');
+      fetch('/isletmeyonetim/personel-yetki-kaydet', {
+         method: 'POST',
+         headers: {'Content-Type':'application/json','X-CSRF-TOKEN':$('meta[name="csrf-token"]').attr('content')||''},
+         body: JSON.stringify({
+            personel_id: pyetkiState.personelId,
+            sube: sube,
+            sablon: pyetkiState.seciliSablon,
+            ayarlar: pyetkiState.ayarlar,
+         }),
+      }).then(r=>r.json()).then(function(j){
+         $btn.prop('disabled', false).html('<i class="fa fa-check"></i> Yetkileri Kaydet');
+         if(j && j.basarili){
+            // Swal varsa kullan, yoksa basit alert
+            if(typeof Swal !== 'undefined'){
+               Swal.fire({icon:'success', title:'Yetkiler kaydedildi', timer:1500, showConfirmButton:false});
+            }
+            setTimeout(function(){ $('#personel-yetki-modal').modal('hide'); }, 800);
+         } else {
+            alert(j && j.mesaj ? j.mesaj : 'Kaydedilemedi');
+         }
+      }).catch(function(e){
+         $btn.prop('disabled', false).html('<i class="fa fa-check"></i> Yetkileri Kaydet');
+         alert('Bağlantı hatası: '+e);
+      });
+   });
+})();
 </script>
 
 @endsection()

@@ -262,6 +262,8 @@ class WhatsAppPanelController extends Controller
 
         $durumLabel = [0 => 'Kuyrukta', 1 => 'Gönderildi', 2 => 'Başarısız', 3 => "SMS'e Düştü"];
 
+        // 'musteri.telefon_gor' yetkisi yoksa CSV'deki telefon kolonu maskeli iner.
+        // telefonGoster helper Auth + aktif sube'den otomatik karar verir.
         $filename = 'whatsapp_loglari_' . date('Ymd_His') . '.csv';
         $callback = function () use ($rows, $durumLabel) {
             $out = fopen('php://output', 'w');
@@ -270,7 +272,8 @@ class WhatsAppPanelController extends Controller
             foreach ($rows as $r) {
                 fputcsv($out, [
                     $r->id, $r->salon_id, $r->salon_adi, $r->musteri_adi,
-                    $r->telefon, $durumLabel[$r->durum] ?? $r->durum, $r->hata,
+                    \App\PersonelYetkiSabitleri::telefonGoster($r->telefon ?? '', $r->salon_id),
+                    $durumLabel[$r->durum] ?? $r->durum, $r->hata,
                     $r->mesaj_id, $r->gonderim_tarihi, $r->created_at,
                     str_replace(["\n","\r"], ' ', (string) $r->mesaj),
                 ], ';');
