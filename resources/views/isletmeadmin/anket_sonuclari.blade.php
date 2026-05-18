@@ -356,7 +356,7 @@
                   <tr>
                      <td>
                         <b>{{ $g->ad_soyad ?? '—' }}</b>
-                        <div style="font-size:11.5px; color:#8a8295;">{{ $g->telefon }}</div>
+                        <div style="font-size:11.5px; color:#8a8295;">{{ \App\PersonelYetkiSabitleri::telefonGoster($g->telefon) }}</div>
                      </td>
                      <td>
                         <div style="font-size:12.5px;">{{ $g->gonderim_zamani ? \Carbon\Carbon::parse($g->gonderim_zamani)->format('d.m.Y H:i') : '—' }}</div>

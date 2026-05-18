@@ -29,7 +29,7 @@
                       <tr>
                         <td>{{$liste->ad_soyad}}</td>
                         <td>
-                         {{$liste->cep_telefon}}
+                         {{ \App\PersonelYetkiSabitleri::telefonGoster($liste->cep_telefon) }}
                         </td>
                         <td>@if($liste->sms_kampanya_karaliste==1)
                           <span style="color:green">Evet</span>

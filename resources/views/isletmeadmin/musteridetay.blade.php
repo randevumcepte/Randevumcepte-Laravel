@@ -478,7 +478,7 @@
                               <div class="card-body musteri_genel_bilgi_kart">
                                  <p style="margin-top: 10px;"><b>ID : </b>{{$musteri_bilgi->id}}</p>
                                  <p style="margin-top: 10px;"><b>Ad Soyad : </b>{{$musteri_bilgi->name}}</p>
-                                 <p><b>Telefon : </b>{{$musteri_bilgi->cep_telefon}}</p>
+                                 <p><b>Telefon : </b>{{ \App\PersonelYetkiSabitleri::telefonGoster($musteri_bilgi->cep_telefon) }}</p>
                                  <p><b>E-posta : </b>{{$musteri_bilgi->email}}</p>
                                  <p><b>Referans : </b>
                                     @if($portfoy->musteri_tipi == 1)

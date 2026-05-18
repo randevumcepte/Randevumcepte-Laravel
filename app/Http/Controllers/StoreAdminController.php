@@ -1116,7 +1116,10 @@ public function carkverilerigetir(Request $request)
             DB::raw('CONCAT(users.name, " (", users.cep_telefon, ")") as ad_soyad'),
             'users.cep_telefon as cep_telefon',
             DB::raw('CONCAT("/isletmeyonetim/musteridetay/", users.id, "?sube=", musteri_portfoy.salon_id) as detayli_bilgi')
-        )
+        );
+
+    // Personel "musteri.telefon_gor" yetkisi yoksa cep_telefon + ad_soyad icindeki
+    // numarayi maskele. Asagidaki post-process get() sonrasi calisir.
         ->where(function($q) use ($search, $normalizedSearch) {
             $q->where('users.name', 'LIKE', "%{$search}%")
               ->orWhere('users.cep_telefon', 'LIKE', "%{$search}%")
@@ -1129,8 +1132,25 @@ public function carkverilerigetir(Request $request)
                   'LIKE', '%' . strtolower($normalizedSearch) . '%');
         })
         ->where('musteri_portfoy.salon_id', $salonid)->where('aktif',1)
-  
+
         ->get();
+
+    // Personel yetki yoksa telefonlari maskele (ad_soyad icindekiler dahil)
+    $u = \Auth::guard('isletmeyonetim')->user();
+    $gor = $u && $salonid
+        ? \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonid, 'musteri.telefon_gor')
+        : true;
+    if (!$gor) {
+        $query = $query->map(function ($r) {
+            $maskeli = \App\PersonelYetkiSabitleri::telefonMaskele($r->cep_telefon ?? '');
+            // ad_soyad: "Adi Soyadi (telefon)" -> telefonu maskelenmis ile degistir
+            if (!empty($r->cep_telefon)) {
+                $r->ad_soyad = str_replace($r->cep_telefon, $maskeli, $r->ad_soyad);
+            }
+            $r->cep_telefon = $maskeli;
+            return $r;
+        });
+    }
 
     return response()->json($query);
 }
@@ -1185,13 +1205,20 @@ public function carkverilerigetir(Request $request)
         else
             $html .= 'Müşteri ';
         $html .= 'Arayın...</option>';
+        // Personel "musteri.telefon_gor" yetkisi yoksa numarayi maskele
+        $u = \Auth::guard('isletmeyonetim')->user();
+        $gor = $u && $isletme && $isletme->id
+            ? \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $isletme->id, 'musteri.telefon_gor')
+            : true;
         foreach(MusteriPortfoy::where('salon_id',$isletme->id)->where('aktif',true)->get() as $mevcutmusteri){
             $html .= '<option value="/isletmeyonetim/musteridetay/'.$mevcutmusteri->user_id;
             if(isset($_GET['sube']))
                 $html .= '?sube='.$isletme->id;
             $html .= '">'.$mevcutmusteri->users->name;
-            if($mevcutmusteri->users->cep_telefon != '' && $mevcutmusteri->users->cep_telefon !== null)
-                $html .= '('.$mevcutmusteri->users->cep_telefon.')';
+            if($mevcutmusteri->users->cep_telefon != '' && $mevcutmusteri->users->cep_telefon !== null) {
+                $telGoster = $gor ? $mevcutmusteri->users->cep_telefon : \App\PersonelYetkiSabitleri::telefonMaskele($mevcutmusteri->users->cep_telefon);
+                $html .= '('.$telGoster.')';
+            }
             $html .='</option>';
         }
         return $html;
@@ -1370,7 +1397,8 @@ public function carkverilerigetir(Request $request)
     }
     public function randevugetir(Request $request){
         $randevu = Randevular::where('id',$request->randevuid)->first();
-        $html = '<table style="width:100%;margin:0 0 10px 0"><tr><td>Telefon</td><td>:</td><td>'.$randevu->users->cep_telefon.'</td></tr>
+        $telGoster = \App\PersonelYetkiSabitleri::telefonGoster($randevu->users->cep_telefon ?? '', $randevu->salon_id ?? null);
+        $html = '<table style="width:100%;margin:0 0 10px 0"><tr><td>Telefon</td><td>:</td><td>'.$telGoster.'</td></tr>
                     <tr><td>Hizmet</td><td>:</td><td>';
         foreach($randevu->hizmetler as $hizmet)
         {
@@ -1816,6 +1844,13 @@ public function carkverilerigetir(Request $request)
             DB::raw('DATE_FORMAT(musteri_portfoy.updated_at,"%d.%m.%Y") as eklenme_tarihi'),
             DB::raw('CONCAT("<button class=\"btn btn-primary\" name=\"numara_karalisteden_kaldir\" data-value=\"",users.id,"\">Numarayı Listeden Kaldır</button>") AS islemler')
         )->where('musteri_portfoy.salon_id',self::mevcutsube($request))->where('musteri_portfoy.kara_liste',1)->get();
+        // Personel "musteri.telefon_gor" yetkisi yoksa telefon maskeli
+        $karaliste = $karaliste->map(function ($r) {
+            if (isset($r->telefon)) {
+                $r->telefon = \App\PersonelYetkiSabitleri::telefonGoster($r->telefon);
+            }
+            return $r;
+        });
 
         return view('isletmeadmin.toplusmsgonder',['portfoy' => $portfoy,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'Toplu SMS Gönder','pageindex' => 106,'isletme'=>$isletme,'taslaklar'=>$taslaklar,'grup'=>$grup,'sms_ayarlari'=>$sms_ayarlari,'raporlar'=>$raporlar,'karaliste'=>$karaliste, 'sayfa_baslik'=>'SMS Yönetimi' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'musteridanisansecimi'=>self::musteriportfoydropliste($request)]);
     }
@@ -6107,17 +6142,27 @@ private function ayAdiCevir($ingilizceAy)
                 ->get()
                 ->keyBy('user_id');
     
+            // Personel "musteri.telefon_gor" yetkisi yoksa telefon kolonu maskelenir
+            $u = \Auth::guard('isletmeyonetim')->user();
+            $telGor = $u && $salonId
+                ? \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonId, 'musteri.telefon_gor')
+                : true;
+
             // Verileri birleştir
-            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId) {
+            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId,$telGor) {
                 $randevu = $randevuBilgileri[$item->id] ?? null;
                 $odeme = $odemeBilgileri[$item->id] ?? null;
-                
+
+                if (!$telGor && isset($item->telefon)) {
+                    $item->telefon = \App\PersonelYetkiSabitleri::telefonMaskele($item->telefon);
+                }
+
                 $item->randevu_sayisi = $randevu ? $randevu->randevu_sayisi : 0;
-                $item->son_randevu_tarihi = $randevu && $randevu->son_randevu_tarihi ? 
+                $item->son_randevu_tarihi = $randevu && $randevu->son_randevu_tarihi ?
                     date('d.m.Y', strtotime($randevu->son_randevu_tarihi)) : '-';
-                $item->odenen = $odeme ? 
-                    '<button class="btn btn-success btn-block" style="line-height:5px">' . 
-                    number_format($odeme->toplam_odeme, 2, ',', '.') . '</button>' : 
+                $item->odenen = $odeme ?
+                    '<button class="btn btn-success btn-block" style="line-height:5px">' .
+                    number_format($odeme->toplam_odeme, 2, ',', '.') . '</button>' :
                     '<button class="btn btn-success btn-block" style="line-height:5px">0,00</button>';
                     
                 $item->islemler = '<div class="dropdown">
@@ -8539,6 +8584,13 @@ private function ayAdiCevir($ingilizceAy)
     public function yaklasan_dogumgunleri()
     {
          $yaklasan_dogumgunleri = DB::table('musteri_portfoy')->join('users','musteri_portfoy.user_id','=','users.id')->select('users.name as ad_soyad','users.cep_telefon as telefon', 'users.dogum_tarihi as dogum_tarihi')->whereDay('dogum_tarihi', '>=',date('d'))->whereMonth('dogum_tarihi',date('m'))->whereDay('dogum_tarihi','<=',date('d',strtotime('+5 days',strtotime(date('Y-m-d')))))->where('musteri_portfoy.salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->get();
+         // Personel "musteri.telefon_gor" yetkisi yoksa telefon maskeli
+         $yaklasan_dogumgunleri = $yaklasan_dogumgunleri->map(function ($r) {
+             if (isset($r->telefon)) {
+                 $r->telefon = \App\PersonelYetkiSabitleri::telefonGoster($r->telefon);
+             }
+             return $r;
+         });
          echo $yaklasan_dogumgunleri;
     }
     public function tahsilatekle(Request $request){
@@ -14050,6 +14102,20 @@ DB::raw('
       ->select('users.name as ad_soyad','users.cep_telefon as telefon')->where('etkinlik_katilimcilari.etkinlik_id',$request->etkinlikid)->where('etkinlik_katilimcilari.durum',false)->where('etkinlik_katilimcilari.durum','!=',null)->get();
       $katilimcilar_beklenen=DB::table('etkinlik_katilimcilari')->join('users','etkinlik_katilimcilari.user_id','=','users.id')
       ->select('users.name as ad_soyad','users.cep_telefon as telefon')->where('etkinlik_katilimcilari.etkinlik_id',$request->etkinlikid)->where('etkinlik_katilimcilari.durum',null)->get();
+
+      // Personel "musteri.telefon_gor" yetkisi yoksa telefon kolonlarini maskele
+      $maskeUygula = function ($rows) {
+          return $rows->map(function ($r) {
+              if (isset($r->telefon)) {
+                  $r->telefon = \App\PersonelYetkiSabitleri::telefonGoster($r->telefon);
+              }
+              return $r;
+          });
+      };
+      $katilimcilar = $maskeUygula($katilimcilar);
+      $katilimcilar_katilanlar = $maskeUygula($katilimcilar_katilanlar);
+      $katilimcilar_katilmayanlar = $maskeUygula($katilimcilar_katilmayanlar);
+      $katilimcilar_beklenen = $maskeUygula($katilimcilar_beklenen);
       $etkinlik=DB::table('etkinlik_katilimcilari')->join('etkinlikler','etkinlik_katilimcilari.etkinlik_id','=','etkinlikler.id')
        ->select(
           DB::raw('COUNT(etkinlik_katilimcilari.etkinlik_id) as katilimci_sayisi'),
@@ -17976,6 +18042,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             ->skip($start)
             ->take($length)
             ->get();
+
+        // Personel "musteri.telefon_gor" yetkisi yoksa telefon maskeli
+        $satirlar = $satirlar->map(function ($r) {
+            if (isset($r->telefon)) {
+                $r->telefon = \App\PersonelYetkiSabitleri::telefonGoster($r->telefon);
+            }
+            return $r;
+        });
 
         return response()->json([
             'draw' => $draw,

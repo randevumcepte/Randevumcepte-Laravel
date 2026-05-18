@@ -1247,6 +1247,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             ->get();
 
+        // Personel musteri.telefon_gor yetkisi yoksa users telefonunu maskele
+        $salonId = $request->sube ?? $request->salon_id ?? ($randevular->first()->salon_id ?? null);
+        if ($salonId && !$this->_telGorebilir($request, $salonId)) {
+            $randevular->each(function ($r) {
+                if ($r->users) {
+                    $r->users->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($r->users->cep_telefon ?? '');
+                }
+            });
+        }
+
         return $randevular;
 
     }
@@ -5999,6 +6009,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             ->paginate(10);*/
 
+        // Personel musteri.telefon_gor yetkisi yoksa telefon kolonunu maskele
+        if ($salon_id && !$this->_telGorebilir($request, $salon_id)) {
+            foreach ($randevular as $r) {
+                if (isset($r->telefon)) {
+                    $r->telefon = \App\PersonelYetkiSabitleri::telefonMaskele($r->telefon ?? '');
+                }
+                if (isset($r->users) && $r->users) {
+                    $r->users->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($r->users->cep_telefon ?? '');
+                }
+            }
+        }
+
         return $randevular;
 
     }
@@ -9156,7 +9178,22 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     {
 
-        return Randevular::where("id", $request->randevuid)->first();
+        $randevu = Randevular::where("id", $request->randevuid)->first();
+
+        // Personel musteri.telefon_gor yetkisi yoksa musteri telefonunu maskele
+        if ($randevu) {
+            $salonId = $request->sube ?? $request->salon_id ?? $randevu->salon_id;
+            if ($salonId && !$this->_telGorebilir($request, $salonId)) {
+                if ($randevu->users) {
+                    $randevu->users->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($randevu->users->cep_telefon ?? '');
+                }
+                if ($randevu->musteri && is_array($randevu->musteri) && isset($randevu->musteri['cep_telefon'])) {
+                    $randevu->musteri['cep_telefon'] = \App\PersonelYetkiSabitleri::telefonMaskele($randevu->musteri['cep_telefon']);
+                }
+            }
+        }
+
+        return $randevu;
 
     }
 
@@ -10344,30 +10381,34 @@ public function cdrRaporLatest(Request $request)
     // -------------------------------------------------------
     $rapor        = [];
     $defaultAvatar = '/public/isletmeyonetim_assets/img/avatar.png';
- 
+
+    // Personel "musteri.telefon_gor" yetkisi yoksa telefonlar maskelenir
+    $telGorebilir = $this->_telGorebilir($request, $request->salonId);
+
     foreach ($results as $result) {
         $dcontext    = $result['dcontext']    ?? '';
         $disposition = $result['disposition'] ?? '';
         $calldate    = $result['calldate']    ?? '';
- 
+
         $durum       = '';
         $musteriAdi  = '';
         $telefon     = '';
         $avatar      = $defaultAvatar;
         $personelText = '';
         $raporaEkle  = true;
- 
+
         if ($dcontext == 'from-internal') {
             // ---------- GİDEN ARAMA ----------
             $telefon = ltrim($result['dst'] ?? '', '0');
             $normalTel = preg_replace('/^(\+?90)/', '', preg_replace('/[^0-9]/', '', $result['dst'] ?? ''));
- 
+
             $musteri = $kullanicilar[$normalTel] ?? null;
             if ($musteri) {
-                $musteriAdi = $musteri->name . ' (' . $musteri->cep_telefon . ')';
+                $telGoster = $telGorebilir ? $musteri->cep_telefon : \App\PersonelYetkiSabitleri::telefonMaskele($musteri->cep_telefon ?? '');
+                $musteriAdi = $musteri->name . ' (' . $telGoster . ')';
                 $avatar     = $musteri->profil_resim ?: $defaultAvatar;
             } else {
-                $musteriAdi = $telefon;
+                $musteriAdi = $telGorebilir ? $telefon : \App\PersonelYetkiSabitleri::telefonMaskele($telefon);
             }
  
             $personel = $personelMap[$result['src'] ?? ''] ?? null;
@@ -10389,12 +10430,13 @@ public function cdrRaporLatest(Request $request)
  
             $musteri = $kullanicilar[$normalTel] ?? null;
             if ($musteri) {
-                $musteriAdi = $musteri->name . ' (' . $musteri->cep_telefon . ')';
+                $telGoster = $telGorebilir ? $musteri->cep_telefon : \App\PersonelYetkiSabitleri::telefonMaskele($musteri->cep_telefon ?? '');
+                $musteriAdi = $musteri->name . ' (' . $telGoster . ')';
                 $avatar     = $musteri->profil_resim ?: $defaultAvatar;
             } else {
-                $musteriAdi = $telefon;
+                $musteriAdi = $telGorebilir ? $telefon : \App\PersonelYetkiSabitleri::telefonMaskele($telefon);
             }
- 
+
             $personel = $personelMap[$result['dst'] ?? ''] ?? null;
             $personelText = $personel
                 ? ($personel->personel_adi . ' (' . $personel->dahili_no . ')')
@@ -10421,18 +10463,18 @@ public function cdrRaporLatest(Request $request)
                 'saat'            => date('H:i',   strtotime($calldate)),
                 'musteri'         => $musteriAdi,
                 'gorusmeyiyapan'  => $personelText,
-                'telefon'         => $telefon,
+                'telefon'         => $telGorebilir ? $telefon : \App\PersonelYetkiSabitleri::telefonMaskele($telefon),
                 'durum'           => $durum,
                 'seskaydi'        => $result['recording_path'] ?? '',
                 'avatar'          => $avatar,
             ];
         }
     }
- 
+
     // -------------------------------------------------------
     // Flutter'a sayfalama meta bilgisiyle birlikte dön
     // -------------------------------------------------------
-    return response()->json($rapor);  
+    return response()->json($rapor);
     // Not: Flutter'daki Cdr.fromJson düz liste bekliyor,
     // has_more kontrolü freepbxapi.php'den geliyor ve
     // santralraporlari() fonksiyonu boş liste döndüğünde _hasMore=false yapıyor.
@@ -10887,6 +10929,11 @@ public function cdrRaporLatest(Request $request)
 
                         }
 
+                        // Personel "musteri.telefon_gor" yetkisi yoksa numarayi maskele
+                        $telGoster = $this->_telGorebilir($request, $request->salon_id)
+                            ? $musteri_tel
+                            : \App\PersonelYetkiSabitleri::telefonMaskele($musteri_tel ?? '');
+
                         array_push($rapor, [
 
                             "tarih" => date(
@@ -10915,7 +10962,7 @@ public function cdrRaporLatest(Request $request)
 
                             "gorusmeyiyapan" => $gorusmeyi_yapan,
 
-                            "telefon" => $musteri_tel,
+                            "telefon" => $telGoster,
 
                             "durum" => $durum,
 
@@ -23823,6 +23870,14 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             ->take($perPage)
             ->get();
 
+        // Personel musteri.telefon_gor yetkisi yoksa telefonu maskele
+        if (!$this->_telGorebilir($request, $salonid)) {
+            $rows = $rows->map(function ($r) {
+                $r->telefon = \App\PersonelYetkiSabitleri::telefonMaskele($r->telefon ?? '');
+                return $r;
+            });
+        }
+
         return response()->json([
             'total'=>$total,
             'page'=>$page,
@@ -24132,6 +24187,15 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             )
             ->orderBy('musteri_portfoy.updated_at','desc')
             ->get();
+
+        // Personel musteri.telefon_gor yetkisi yoksa telefonu maskele
+        if (!$this->_telGorebilir($request, $salonid)) {
+            $rows = $rows->map(function ($r) {
+                $r->telefon = \App\PersonelYetkiSabitleri::telefonMaskele($r->telefon ?? '');
+                return $r;
+            });
+        }
+
         return response()->json(['basarili'=>true,'kayitlar'=>$rows]);
     }
 

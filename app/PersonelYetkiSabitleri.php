@@ -309,4 +309,49 @@ class PersonelYetkiSabitleri
         $bas = substr($digits, 0, strlen($digits) - 2);
         return $bas . str_repeat('*', max(0, strlen($digits) - 4)) . $son2;
     }
+
+    /**
+     * Blade / kontroller icin tek-cagrili telefon gosterim helper'i.
+     * Mevcut Auth + aktif salonId bilgisinden personel telefon_gor yetkisini
+     * otomatik kontrol eder, yetki yoksa maskeli doner.
+     *
+     * Kullanim (blade):
+     *   {{ \App\PersonelYetkiSabitleri::telefonGoster($musteri->cep_telefon) }}
+     */
+    public static function telefonGoster(?string $tel, $salonId = null): string
+    {
+        $tel = (string)($tel ?? '');
+        if ($tel === '') return '';
+
+        // Aktif kullaniciyi ve salonu bul
+        $user = null;
+        try {
+            if (\Auth::guard('isletmeyonetim')->check()) {
+                $user = \Auth::guard('isletmeyonetim')->user();
+            } elseif (\Auth::guard('isletmeyonetim-api')->check()) {
+                $user = \Auth::guard('isletmeyonetim-api')->user();
+            }
+        } catch (\Throwable $e) {
+            return $tel; // auth resolver hatasinda yetkiye saygi gosterip acik birak
+        }
+        if (!$user) return $tel;
+
+        if (!$salonId) {
+            $req = request();
+            $salonId = $req->sube ?? $req->salon_id ?? null;
+            if (!$salonId) {
+                try {
+                    $salonId = optional($user->yetkili_olunan_isletmeler->first())->salon_id;
+                } catch (\Throwable $e) {
+                    $salonId = null;
+                }
+            }
+        }
+        if (!$salonId) return $tel;
+
+        $gorebilir = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+            $user->id, $salonId, 'musteri.telefon_gor'
+        );
+        return $gorebilir ? $tel : self::telefonMaskele($tel);
+    }
 }
