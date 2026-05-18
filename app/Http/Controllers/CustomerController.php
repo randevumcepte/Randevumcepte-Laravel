@@ -245,17 +245,45 @@ class CustomerController extends Controller
                 $q->whereIn('id',$personeller);
                 $q->orWhere('role_id','<',5);
             })->get();
-            
-            
+
+
             foreach($isletmeyetkilileri as $yetkili)
             {
-
+                // 1) Bildirim feed kaydi (panel ici liste icin — hem atanan personel hem yoneticiler)
                 self::bildirimekle($request,$request->salonno,$mesaj_isletme,"#",$yetkili->id,null, Auth::user()->profil_resim,$randevu->id);
 
+                // 2) WhatsApp/SMS — SADECE randevuya ATANAN personel(ler)e gonderilir.
+                //    Yoneticiler bu kanaldan haberi push uzerinden alir.
+                $isAtanan = in_array((int)$yetkili->id, array_map('intval', $personeller), true);
+                if ($isAtanan && !empty($yetkili->cep_telefon) && !empty($isletme->yeni_sms)) {
+                    $telefon = $yetkili->cep_telefon;
+                    $waOk = false;
+                    if (!empty($isletme->whatsapp_aktif) && ($isletme->whatsapp_durum ?? null) === 'connected') {
+                        try {
+                            $wa = app(\App\Services\WhatsAppService::class)
+                                ->sendUrgent($isletme, $telefon, $mesaj_isletme_bildirim, null);
+                            $waOk = !empty($wa['ok']);
+                        } catch (\Throwable $e) {
+                            \Log::warning('WA personel bildirim hata: '.$e->getMessage());
+                        }
+                    }
+                    if (!$waOk) {
+                        try {
+                            $smsController = app()->make(SMSController::class);
+                            $smsController->tekilSMSGonderVoiceTelekom($telefon, $mesaj_isletme_bildirim, $isletme->id, 'Yeni randevu talebi');
+                        } catch (\Throwable $e) {
+                            \Log::warning('SMS personel bildirim hata: '.$e->getMessage());
+                        }
+                    }
+                }
             }
-            // BildirimKimlikleri.isletme_yetkili_id = Personeller.id (yetkili_id degil)
-            $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$isletmeyetkilileri->pluck('id')->toArray())->where('bildirim_id','!=',null)->pluck('bildirim_id')->toArray();
-            
+
+            // 3) Push — BildirimKimlikleri.isletme_yetkili_id = Personeller.id, sadece aktif satirlar
+            $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$isletmeyetkilileri->pluck('id')->toArray())
+                ->whereNotNull('bildirim_id')
+                ->when(\Schema::hasColumn('bildirim_kimlikleri', 'aktif'), function($q){ $q->where('aktif', 1); })
+                ->pluck('bildirim_id')->toArray();
+
             self::bildirimgonder($bildirimkimlikleri,$mesaj_isletme,"Yeni Randevu");
             
 
