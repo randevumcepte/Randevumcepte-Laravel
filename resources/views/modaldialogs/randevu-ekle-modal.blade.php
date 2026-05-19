@@ -322,6 +322,9 @@
 /* Yeni Randevu modali dikey ortalama (modal-dialog-centered ::before hack i olmadan) */
 /* z-index: swal v1 99999 kullaniyor, modal'in onun ustunde kalmasi icin 100002 (Tom Select dropdown=100000, Select2=100001 ile uyumlu) */
 #modal-view-event-add { z-index: 100002 !important; }
+/* Oda secim modali parent'in uzerinde olmali (parent 100002 !important) */
+#hizmetOdaAtamaModal { z-index: 100020 !important; }
+.modal-backdrop.hizmet-oda-backdrop { z-index: 100015 !important; }
 #modal-view-event-add.show {
     display: flex !important;
     align-items: center !important;
@@ -1645,15 +1648,20 @@ function showHizmetOdaAtamaModal(hizmetData){
     $('#hizmetOdaAtama_kartlar').html(hizmetKartlari);
 
     var $m = $('#hizmetOdaAtamaModal');
-    // KRITIK: modali fiziksel olarak body'nin EN SONUNA tasi. Blade include
-    // hiyerarsisi nedeniyle statik konumu body sonunda olmayabilir.
-    // detach+appendTo ile dogal DOM stack en uste cikariyoruz.
+    // KRITIK: modali fiziksel olarak body'nin EN SONUNA tasi (DOM stack icin).
     $m.detach().appendTo('body');
 
     // Acik olan diger modallari (soft paket vs.) kapat — sadece parent randevu modali kalsin
     $('.modal.show, .modal.in').not('#modal-view-event-add').not('#hizmetOdaAtamaModal').modal('hide');
 
     $m.modal('show');
+
+    // shown.bs.modal'dan sonra: kendi backdrop'umuza yuksek z-index sinifi ekle
+    $m.off('shown.bs.modal.zfix').on('shown.bs.modal.zfix', function(){
+        // En son eklenen backdrop bizim
+        var $bd = $('.modal-backdrop').last();
+        $bd.addClass('hizmet-oda-backdrop');
+    });
 
     function _kapatHizmetOdaModal(){
         try { $('#hizmetOdaAtamaModal').modal('hide'); } catch(e){}
