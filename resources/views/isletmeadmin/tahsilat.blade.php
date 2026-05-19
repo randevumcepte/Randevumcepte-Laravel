@@ -67,7 +67,10 @@
                         </div>
                      </div>
                      <div id='tum_tahsilatlar'>
-                        @foreach(\App\Adisyonlar::whereIn('id',$acik_adisyonlar->pluck('id'))->get() as $adisyon)
+                        @php
+                            $_adi_ids = collect($acik_adisyonlar)->pluck('id')->push($adisyon_id)->filter()->unique()->values()->all();
+                        @endphp
+                        @foreach(\App\Adisyonlar::whereIn('id',$_adi_ids)->get() as $adisyon)
                          
                         @foreach($adisyon->hizmetler as $key=>$hizmet)
 
