@@ -1888,6 +1888,15 @@ public function carkverilerigetir(Request $request)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !(
+            \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'pazarlama.sms_gonder')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'pazarlama.toplu_sms')
+        )) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
         if(!Auth::guard('satisortakligi')->check()){
              if(self::personelmi($request, 'pazarlama.toplu_sms'))
             {
@@ -2008,6 +2017,12 @@ public function carkverilerigetir(Request $request)
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'pazarlama.sms_gonder')) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -2824,6 +2839,18 @@ public function carkverilerigetir(Request $request)
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !(
+            \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'rapor.kasa')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'finans.kasa_giris_cikis')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'finans.masraf_gor')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'finans.masraf_ekle')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'finans.alacak_yonet')
+        )) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -3868,8 +3895,8 @@ private function ayAdiCevir($ingilizceAy)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -3880,8 +3907,14 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
-         
-       
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'personel.prim_hakedis_gor')) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
+
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
@@ -5663,6 +5696,12 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'pazarlama.kampanya_yonet')) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
         if(!Auth::guard('satisortakligi')->check()){
              if(self::personelmi($request, 'pazarlama.kampanya_yonet'))
             {
@@ -5670,7 +5709,7 @@ private function ayAdiCevir($ingilizceAy)
                     exit(0);
             }
         }
-       
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
@@ -5785,6 +5824,12 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'pazarlama.kampanya_yonet')) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
         if(!Auth::guard('satisortakligi')->check()){
              if(self::personelmi($request, 'pazarlama.kampanya_yonet'))
             {
@@ -5792,7 +5837,7 @@ private function ayAdiCevir($ingilizceAy)
                     exit(0);
             }
         }
-       
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
@@ -5826,6 +5871,12 @@ private function ayAdiCevir($ingilizceAy)
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'pazarlama.kampanya_yonet')) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -5996,6 +6047,12 @@ private function ayAdiCevir($ingilizceAy)
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'pazarlama.sms_gonder')) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -6236,6 +6293,12 @@ private function ayAdiCevir($ingilizceAy)
         }
         if(str_contains(self::lisans_sure_kontrol($request),'-')) {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'musteri.liste_gor')) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         // Eski yonlendirme kaldirildi: personel rolu + 'musteri.tum_portfoy_gor'
@@ -6676,6 +6739,12 @@ private function ayAdiCevir($ingilizceAy)
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'musteri.detay_gor')) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         // Eski yonlendirme kaldirildi — musteridetay yetki kontrolu blade'de
@@ -7350,6 +7419,17 @@ private function ayAdiCevir($ingilizceAy)
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !(
+            \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'urun.tanim_olustur')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'urun.stok_giris')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'urun.stok_sayim')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'urun.tedarikci_yonet')
+        )) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -9199,8 +9279,18 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
-       
-       
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !(
+            \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'satis.adisyon_olustur')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'satis.tahsilat_al')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'satis.tum_satis_gor')
+        )) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
+
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
@@ -9852,6 +9942,12 @@ public function personel_listesi_getir(Request $request)
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'paket.seans_takip')) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -11720,8 +11816,8 @@ DB::raw('
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -11732,7 +11828,13 @@ DB::raw('
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
-     
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'gorusme.liste_gor')) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
@@ -12280,6 +12382,12 @@ DB::raw('
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'paket.tanim_olustur')) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
         if(!Auth::guard('satisortakligi')->check()){
              if(self::personelmi($request, 'satis.tum_satis_gor'))
             {
@@ -12728,6 +12836,12 @@ DB::raw('
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'finans.alacak_yonet')) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
         if(!Auth::guard('satisortakligi')->check()){
              if(self::personelmi($request, 'finans.alacak_yonet'))
             {
@@ -12786,6 +12900,15 @@ DB::raw('
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !(
+            \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'finans.masraf_gor')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'finans.masraf_ekle')
+        )) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -13271,6 +13394,15 @@ DB::raw('
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !(
+            \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'satis.senet_olustur')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'finans.alacak_yonet')
+        )) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -14362,6 +14494,12 @@ DB::raw('
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'pazarlama.kampanya_yonet')) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -15840,6 +15978,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'pazarlama.kampanya_yonet')) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -20969,6 +21113,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !(
+            \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'form.olustur')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'form.gonder')
+        )) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
         if(!Auth::guard('satisortakligi')->check()){
              if(self::personelmi($request, 'form.olustur'))
             {
@@ -23758,8 +23911,8 @@ DB::raw('
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -23768,6 +23921,12 @@ DB::raw('
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+            exit(0);
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'rapor.satis')) {
+            return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
@@ -24271,8 +24430,8 @@ DB::raw('
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-        
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
             return view('isletmeadmin.yetkisizerisim');
@@ -24283,6 +24442,12 @@ DB::raw('
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'personel.liste_gor')) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
         if(!Auth::guard('satisortakligi')->check()){
             if(self::personelmi($request))
             {
@@ -24290,7 +24455,7 @@ DB::raw('
                     exit(0);
             }
         }
-       
+
         $personeller = self::personel_liste_getir($request);
 
         // Prim & Hak Edis sekmesi icin veri (ay/yil query param'lariyla)
@@ -25213,6 +25378,12 @@ DB::raw('
         }
         if(!in_array(self::mevcutsube($request),$isletmeler)){
             return view('isletmeadmin.yetkisizerisim');
+        }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'pazarlama.anket_yonet')) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
         }
         if(!Auth::guard('satisortakligi')->check()){
             if(self::personelmi($request, 'pazarlama.anket_yonet')){
