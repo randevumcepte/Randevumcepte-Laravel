@@ -477,4 +477,26 @@
 </div>
 </form>
 </div>
+<script>
+(function(){
+    var ADISYON_ID = @json($adisyon_id);
+    if(!ADISYON_ID) return;
+    function lockAdisyonId(){
+        document.querySelectorAll('input[name="adisyon_id"]').forEach(function(el){
+            el.value = ADISYON_ID;
+            el.setAttribute('value', ADISYON_ID);
+        });
+    }
+    if(document.readyState === 'loading'){
+        document.addEventListener('DOMContentLoaded', lockAdisyonId);
+    } else {
+        lockAdisyonId();
+    }
+    // Modal aciliminda ve form submit oncesi sigorta olarak tekrar set et
+    if(window.jQuery){
+        jQuery(document).on('show.bs.modal', lockAdisyonId);
+        jQuery(document).on('submit', '#adisyon_hizmet_formu, #urun_satisi, #paket_satisi, #adisyon_tahsilat', lockAdisyonId);
+    }
+})();
+</script>
 @endsection
