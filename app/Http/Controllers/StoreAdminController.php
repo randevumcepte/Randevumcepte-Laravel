@@ -14850,17 +14850,31 @@ DB::raw('
  
         
         $randevu->randevuya_geldi = true;
-     
+
         $randevu->save();
         $seanslar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id);
-        
+
         foreach($seanslar->get() as $seans)
         {
 
             $seans->geldi = true;
             $seans->save();
         }
-             
+
+        // Musteriye seans kullanim bilgilendirme push'u — ApiController'daki
+        // aynı akıs (SeansBildirimService merkezi). Hata fail olsa bile
+        // "Geldi" akışı bozulmasın diye try/catch.
+        if ($seanslar->count() > 0) {
+            try {
+                app(\App\Services\SeansBildirimService::class)->bilgilendir($randevu);
+            } catch (\Throwable $e) {
+                \Log::warning('[SEANS-KULLANIM] push fail (web)', [
+                    'randevu_id' => $randevu->id,
+                    'err' => $e->getMessage(),
+                ]);
+            }
+        }
+
  
     
     $mesajlar = array();
