@@ -1659,6 +1659,16 @@ function _hizliPaketRandevuModalAc(hizmetData){
             + (goster.oda    ? '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Oda</label><select class="form-control form-control-sm hizli-oda" style="font-size:0.85rem;">'+_opt(odaSec, baseOda)+'</select></div>' : '')
             + (goster.cihaz  ? '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Cihaz</label><select class="form-control form-control-sm hizli-cihaz" style="font-size:0.85rem;">'+_opt(cihazlar, baseCihaz)+'</select></div>' : '');
 
+        // Ilk satir DISINDA "Ustteki ile birlestir" checkbox'i goster (paralel hizmet icin)
+        var birlestirHtml = (i > 0)
+            ? '<div class="mt-2 pt-2" style="border-top:1px dashed #e5e7eb;">'
+            +   '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.8rem;color:#374151;margin:0;">'
+            +     '<input type="checkbox" class="hizli-birlestir" style="width:16px;height:16px;cursor:pointer;">'
+            +     '<i class="fa fa-link" style="color:#6366f1;"></i> Üstteki hizmetle aynı saatte (paralel) çalıştır'
+            +   '</label>'
+            + '</div>'
+            : '';
+
         return ''
         + '<div class="paket-hizli-satir card mb-2" data-hizmet-id="'+item.id+'" data-hizmet-orig-id="'+hizmetId+'" data-sure="'+sure+'" data-fiyat="'+fiyat+'" style="border:1px solid #e5e7eb;border-radius:10px;">'
         +   '<div class="card-body" style="padding:12px 14px;">'
@@ -1667,6 +1677,7 @@ function _hizliPaketRandevuModalAc(hizmetData){
         +       '<small style="color:#6b7280;"><i class="fa fa-clock-o"></i> '+sure+' dk &nbsp; <i class="fa fa-money"></i> '+fiyat+' ₺</small>'
         +     '</div>'
         +     '<div class="row g-2">'+dropdowns+'</div>'
+        +     birlestirHtml
         +   '</div>'
         + '</div>';
     }).join('');
@@ -1692,15 +1703,6 @@ function _hizliPaketRandevuModalAc(hizmetData){
     $m.detach().appendTo('body');
     $m.modal('show');
 
-    // Detayli duzenle: kapat ve eski forma yerlestirme akisina dus
-    $('#paketHizli_detayliDuzenle').off('click.hizli').on('click.hizli', function(){
-        $m.modal('hide');
-        setTimeout(function(){
-            window._paketEklemeKilidi = false; // _paketHizmetleriniAyriSatirlaraEkle yeniden calisabilsin
-            _paketHizmetleriniAyriSatirlaraEkle(hizmetData);
-        }, 250);
-    });
-
     // Modal kapanmasi: kilidi serbest birak
     $m.off('hidden.bs.modal.hizli').on('hidden.bs.modal.hizli', function(){
         window._paketEklemeKilidi = false;
@@ -1712,9 +1714,9 @@ function _hizliPaketRandevuModalAc(hizmetData){
         if($btn.prop('disabled')) return;
         $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Oluşturuluyor...');
 
-        // Her satirin secimini topla
+        // Her satirin secimini + birlestir bayragini topla
         var atamalar = [];
-        $('#paketHizli_satirlar .paket-hizli-satir').each(function(){
+        $('#paketHizli_satirlar .paket-hizli-satir').each(function(idx){
             var $r = $(this);
             atamalar.push({
                 hizmetItemId: $r.data('hizmet-id'),
@@ -1724,6 +1726,8 @@ function _hizliPaketRandevuModalAc(hizmetData){
                 personel: $r.find('.hizli-personel').val() || '',
                 cihaz:    $r.find('.hizli-cihaz').val() || '',
                 oda:      $r.find('.hizli-oda').val() || '',
+                // Ilk satirda checkbox yok; sonraki satirlarda "ustteki ile paralel" bayragi
+                birlestir: idx > 0 ? !!$r.find('.hizli-birlestir').prop('checked') : false,
             });
         });
 
@@ -1734,6 +1738,7 @@ function _hizliPaketRandevuModalAc(hizmetData){
                 _personel: a.personel,
                 _cihaz:    a.cihaz,
                 _oda:      a.oda,
+                _birlestir: a.birlestir,
                 sure: a.sure || h.sure || 0,
                 fiyat: a.fiyat || h.fiyat || 0,
             });
@@ -1784,6 +1789,12 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
             var fiyat = parseFloat(h.fiyat || 0) || 0;
             fd.append('hizmet_sureleri-'+h.id, sure);
             fd.append('hizmet_fiyatlari-'+h.id, fiyat);
+            // Üstteki ile birleştir (paralel): backend "birlestir{key2}" anahtarini key2-1 ile birlikte degerlendirir
+            // Backend kodu: if(!isset($request->{"birlestir{$birsonraki}"})) -> $birsonraki = $key2+1
+            // Yani $key2=0 isleminin sonunda birlestir1 kontrolune bakar; birlestir1 SET ise saat ilerlemez (row1 row0 ile birlesir)
+            if(h._birlestir && key2 > 0){
+                fd.append('birlestir'+key2, 1);
+            }
             hizmetDetaylari.push({ad: h.text || '', sure: sure, fiyat: fiyat});
             toplamSure += sure; toplamFiyat += fiyat;
         });
@@ -3692,12 +3703,9 @@ function formatHizmetSecim(hizmet) {
                     <strong>Toplam:</strong> <span id="paketHizli_ozetSayi">0</span> hizmet • <span id="paketHizli_ozetSure">0</span> dk
                 </div>
             </div>
-            <div class="modal-footer" style="border-top:1px solid #f3f4f6;padding:12px 22px;justify-content:space-between;">
-                <button type="button" class="btn btn-link btn-sm" id="paketHizli_detayliDuzenle" style="color:#6b7280;text-decoration:underline;font-size:0.8rem;"><i class="fa fa-pencil"></i> Detaylı düzenle (forma aç)</button>
-                <div>
-                    <button type="button" class="btn btn-light btn-sm" data-dismiss="modal"><i class="fa fa-times"></i> Vazgeç</button>
-                    <button type="button" class="btn btn-success btn-sm" id="paketHizli_olustur" style="font-weight:600;padding:7px 18px;"><i class="fa fa-calendar-check-o"></i> Hızlı Oluştur</button>
-                </div>
+            <div class="modal-footer" style="border-top:1px solid #f3f4f6;padding:12px 22px;justify-content:flex-end;">
+                <button type="button" class="btn btn-light btn-sm" data-dismiss="modal"><i class="fa fa-times"></i> Vazgeç</button>
+                <button type="button" class="btn btn-success btn-sm" id="paketHizli_olustur" style="font-weight:600;padding:7px 18px;"><i class="fa fa-calendar-check-o"></i> Randevu Oluştur</button>
             </div>
         </div>
     </div>
