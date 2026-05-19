@@ -855,9 +855,11 @@
                         ><i class="icon-copy fa fa-shopping-cart" aria-hidden="true"></i> Yeni Satış & Tahsilat</a
                         >@endif
                      @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                     @yetki('finans.masraf_ekle')
                      <a onclick="modalbaslikata('Yeni Masraf','masraf_formu')" class="dropdown-item" href="#"  data-toggle="modal" data-target="#yeni_masraf_modal"
                         ><i class="fa fa-upload"></i> Yeni Masraf</a
                         >
+                     @endyetki
                      @endif
                      @endif
                      @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
@@ -1185,6 +1187,8 @@
                   {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>2)
+                  {{-- Senet Takibi menusu simdilik gizli --}}
+                  @if(false)
                   @if(
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.senet_olustur') ||
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.alacak_yonet')
@@ -1199,6 +1203,7 @@
                            <span class="mtext">Senet Takibi</span>
                            </a>
                         </li>
+                  @endif
                   @endif
                   @endif
                  

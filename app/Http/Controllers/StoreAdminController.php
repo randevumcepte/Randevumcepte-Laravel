@@ -2859,14 +2859,7 @@ public function carkverilerigetir(Request $request)
             return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
-        if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request, 'rapor.kasa'))
-            {
-                    return redirect()->route('isletmeadmin.randevular');
-                    exit(0);
-            }
-        }
-       
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);

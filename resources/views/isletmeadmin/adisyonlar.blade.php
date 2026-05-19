@@ -125,11 +125,13 @@
                Paketler 
             </button>
          </li>
+         @yetki('finans.alacak_yonet')
          <li class="nav-item" style="margin-left: 20px;display: inline-block;">
             <button class="btn btn-outline-primary" data-toggle="tab" href="#taksitli_alacaklar" role="tab" style="width: 120px;">
-               Taksitler 
+               Taksitler
             </button>
          </li>
+         @endyetki
       </ul>
 
       <div class="tab-content" style="padding: 0 30px 0 30px;">
@@ -213,6 +215,7 @@
             </table>
          </div>
 
+         @yetki('finans.alacak_yonet')
          <!-- Taksitli Alacaklar Tabı -->
          <div class="tab-pane fade show" id="taksitli_alacaklar" role="tab-panel" style="margin-top: 20px;">
             <div class="tab">
@@ -298,6 +301,7 @@
                </div>
             </div>
          </div>
+         @endyetki
       </div>
    </div>
 </div>

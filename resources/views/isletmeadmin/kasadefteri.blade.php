@@ -177,11 +177,12 @@
         </div>
     </div>
 </div>
+               @yetki('rapor.kasa')
                <div class="col-lg-6 col-md-12 mb-20">
                   <div class="card-box widget-style3">
                     <div class="card-header">
                       <h2>Gelirler</h2>
-                      
+
                     </div>
                     <div class="card-body">
                       <table class="table">
@@ -200,6 +201,11 @@
                     </div>
                   </div>
                 </div>
+                @endyetki
+                @if(
+                   \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.kasa') &&
+                   \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.masraf_gor')
+                )
                 <div class="col-lg-6 col-md-12 mb-20">
                   <div class="card-box widget-style3">
                     <div class="card-header">
@@ -222,6 +228,7 @@
                     </div>
                   </div>
                 </div>
+                @endif
       </div>
    </div>
 </div>
