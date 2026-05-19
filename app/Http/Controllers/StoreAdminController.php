@@ -2208,6 +2208,16 @@ public function carkverilerigetir(Request $request)
         }
     }
 
+    // Yetki kontrolu: personel rolu + 'randevu.tum_personel_gor' kapali ise
+    // sadece kendi randevulari filtrelenir (mobile akisinin aynisi).
+    $kendiPersonelIdFiltre = null;
+    if (self::personelmi($request, 'randevu.tum_personel_gor')) {
+        $authUserId = Auth::guard('isletmeyonetim')->user()->id ?? 0;
+        $kendiPersonelIdFiltre = Personeller::where('yetkili_id', $authUserId)
+            ->where('salon_id', $isletmeId)
+            ->value('id');
+    }
+
     $randevu_hizmetler_raw = RandevuHizmetler::with([
         'hizmetler',
         'personeller.trenk',
@@ -2226,6 +2236,9 @@ public function carkverilerigetir(Request $request)
         $q->where('tarih','>=',$tarih1);
         $q->where('tarih','<=',$tarih2);
         $q->where('salon_id',$isletmeId);
+    })
+    ->when($kendiPersonelIdFiltre, function ($q) use ($kendiPersonelIdFiltre) {
+        $q->where('personel_id', $kendiPersonelIdFiltre);
     })
     ->get();
 

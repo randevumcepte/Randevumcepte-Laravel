@@ -117,8 +117,12 @@ class PersonelYetkiServisi
     {
         if (!$yetkiliId || !$salonId) return true;
 
-        // Yetkili'nin baglandigi personel_id (varsa)
-        $personelId = IsletmeYetkilileri::where('id', $yetkiliId)->value('personel_id');
+        // Yetkili'nin baglandigi personel_id (Personeller.yetkili_id uzerinden,
+        // belirli salon icin). Tersine arama: IsletmeYetkilileri tablosunda
+        // personel_id alani yok — bag Personeller tarafindadir.
+        $personelId = \App\Personeller::where('yetkili_id', $yetkiliId)
+            ->where('salon_id', $salonId)
+            ->value('id');
         if (!$personelId) {
             // Personel kaydi yoksa salon sahibidir veya direk yetkilidir → tam yetki
             return true;
