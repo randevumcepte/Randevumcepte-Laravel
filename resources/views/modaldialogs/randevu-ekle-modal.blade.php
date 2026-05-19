@@ -1645,6 +1645,14 @@ function showHizmetOdaAtamaModal(hizmetData){
     $('#hizmetOdaAtama_kartlar').html(hizmetKartlari);
 
     var $m = $('#hizmetOdaAtamaModal');
+    // KRITIK: modali fiziksel olarak body'nin EN SONUNA tasi. Blade include
+    // hiyerarsisi nedeniyle statik konumu body sonunda olmayabilir.
+    // detach+appendTo ile dogal DOM stack en uste cikariyoruz.
+    $m.detach().appendTo('body');
+
+    // Acik olan diger modallari (soft paket vs.) kapat — sadece parent randevu modali kalsin
+    $('.modal.show, .modal.in').not('#modal-view-event-add').not('#hizmetOdaAtamaModal').modal('hide');
+
     $m.modal('show');
 
     function _kapatHizmetOdaModal(){
