@@ -5079,6 +5079,18 @@ private function ayAdiCevir($ingilizceAy)
       echo $personelsechtml;
     }
        public function yenirandevuekle(Request $request){
+    try {
+    // Debug log: gelen istegi izle (hizli paket randevu hatalarini cozmek icin)
+    \Log::info('[yenirandevuekle] istek', [
+        'adsoyad' => $request->adsoyad,
+        'tarih' => $request->tarih,
+        'saat' => $request->saat,
+        'sube' => $request->sube,
+        'pers_yeni' => $request->randevupersonelleriyeni,
+        'cihaz_yeni' => $request->randevucihazlariyeni,
+        'oda_yeni' => $request->randevuodalariyeni,
+        'hizmet_keys' => array_filter(array_keys($request->all()), function($k){ return strpos($k, 'randevuhizmetleriyeni_') === 0; }),
+    ]);
     $musteriid = $request->adsoyad;
     $tarihler = "";
     $randevu_tarihleri = array();
@@ -5381,6 +5393,19 @@ private function ayAdiCevir($ingilizceAy)
             return $randevu;
             exit();
         }
+    }
+    } catch (\Throwable $e) {
+        \Log::error('[yenirandevuekle] istisna', [
+            'msg' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString(),
+            'request_keys' => array_keys($request->all()),
+        ]);
+        return response()->json([
+            'error' => true,
+            'eklenemez' => 'Randevu oluşturulurken hata: ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')',
+        ], 500);
     }
 }
     public function personel_cihaz_oda($id,$salonid)
