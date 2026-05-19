@@ -76,6 +76,9 @@ Route::post('/carkAdmin/kupon-dogrula/{salonId}','ApiController@carkKuponDogrula
 Route::post('/carkAdmin/kupon-kullan/{salonId}','ApiController@carkKuponKullanApi');
 Route::get('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaGetirApi');
 Route::post('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaKaydetApi');
+Route::get ('/carkAdmin/puan-odul/{salonId}',    'ApiController@carkAdminPuanOdulleriApi');
+Route::post('/carkAdmin/puan-odul/{salonId}',    'ApiController@carkAdminPuanOdulKaydetApi');
+Route::post('/carkAdmin/puan-odul-sil/{salonId}','ApiController@carkAdminPuanOdulSilApi');
 
 // WhatsApp Mobil (ayri controller, defensive, izole)
 Route::post('/whatsapp/baslat/{salonId}','WhatsappMobileController@baslat');

@@ -15,6 +15,7 @@ use App\CarkifelekSistemi;
 use App\CarkifelekDilimleri;
 use App\CarkifelekCevirmeLoglari;
 use App\CarkifelekOdulleri;
+use App\SalonPuanOdulleri;
 use App\CarkHatirlatmaAyarlari;
 use App\CarkHatirlatmaLoglari;
 use Illuminate\Support\Facades\Schema;
@@ -24812,6 +24813,99 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $gun = $request->input('gonderim_gunleri');
         $a->gonderim_gunleri = is_array($gun) ? $gun : (is_string($gun) && $gun ? json_decode($gun, true) : null);
         $a->save();
+        return response()->json(['basarili' => true]);
+    }
+
+    // ============================================================
+    // PUAN ODULLERI ADMIN API (mobil) — salon yoneticisi tanimlar
+    // ============================================================
+
+    public function carkAdminPuanOdulleriApi(Request $request, $salonId)
+    {
+        // Tablo yoksa olustur (eski ortamlar icin)
+        if (!\Schema::hasTable('salon_puan_odulleri')) {
+            \Schema::create('salon_puan_odulleri', function ($table) {
+                $table->increments('id');
+                $table->unsignedInteger('salon_id');
+                $table->integer('puan_esigi');
+                $table->string('baslik', 150);
+                $table->string('aciklama', 300)->nullable();
+                $table->string('tip', 50);
+                $table->decimal('deger', 10, 2)->nullable();
+                $table->tinyInteger('aktif')->default(1);
+                $table->integer('sira')->default(0);
+                $table->timestamps();
+                $table->index(['salon_id', 'aktif']);
+            });
+        }
+
+        $odulSeviyeleri = SalonPuanOdulleri::where('salon_id', $salonId)
+            ->orderBy('puan_esigi')
+            ->orderBy('sira')
+            ->get()
+            ->map(function ($o) {
+                return [
+                    'id'         => (int) $o->id,
+                    'salon_id'   => (int) $o->salon_id,
+                    'puan_esigi' => (int) $o->puan_esigi,
+                    'baslik'     => $o->baslik,
+                    'aciklama'   => $o->aciklama,
+                    'tip'        => $o->tip,
+                    'deger'      => $o->deger !== null ? (float) $o->deger : null,
+                    'aktif'      => (int) $o->aktif,
+                    'sira'       => (int) $o->sira,
+                ];
+            });
+
+        return response()->json([
+            'basarili' => true,
+            'odulSeviyeleri' => $odulSeviyeleri,
+        ]);
+    }
+
+    public function carkAdminPuanOdulKaydetApi(Request $request, $salonId)
+    {
+        $id     = (int) $request->input('id', 0);
+        $baslik = trim((string) $request->input('baslik', ''));
+        $esik   = (int) $request->input('puan_esigi', 0);
+        $tip    = $request->input('tip', 'hizmet_indirimi');
+        $degerR = $request->input('deger');
+
+        if ($baslik === '' || $esik < 1) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Baslik ve puan esigi zorunlu'], 422);
+        }
+        if (!in_array($tip, ['hizmet_indirimi', 'urun_indirimi', 'hediye'])) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Gecersiz odul tipi'], 422);
+        }
+
+        $data = [
+            'salon_id'   => (int) $salonId,
+            'puan_esigi' => $esik,
+            'baslik'     => $baslik,
+            'aciklama'   => trim((string) $request->input('aciklama', '')) ?: null,
+            'tip'        => $tip,
+            'deger'      => ($degerR !== null && $degerR !== '') ? (float) $degerR : null,
+            'aktif'      => (int) $request->input('aktif', 1),
+            'sira'       => (int) $request->input('sira', 0),
+        ];
+
+        if ($id > 0) {
+            $m = SalonPuanOdulleri::where('id', $id)->where('salon_id', $salonId)->first();
+            if (!$m) return response()->json(['basarili' => false, 'mesaj' => 'Kayit bulunamadi'], 404);
+            $m->update($data);
+            return response()->json(['basarili' => true, 'id' => $m->id]);
+        }
+
+        $yeni = SalonPuanOdulleri::create($data);
+        return response()->json(['basarili' => true, 'id' => $yeni->id]);
+    }
+
+    public function carkAdminPuanOdulSilApi(Request $request, $salonId)
+    {
+        $id = (int) $request->input('id', 0);
+        $m = SalonPuanOdulleri::where('id', $id)->where('salon_id', $salonId)->first();
+        if (!$m) return response()->json(['basarili' => false, 'mesaj' => 'Kayit bulunamadi'], 404);
+        $m->delete();
         return response()->json(['basarili' => true]);
     }
 
