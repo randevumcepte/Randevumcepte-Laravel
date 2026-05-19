@@ -14,8 +14,9 @@ use Illuminate\Support\Facades\Schema;
  * olur ama "satislarinda kendisi" kriteri zaten gecmis kayitlardan
  * EXISTS sorgusu ile cikarilir.
  */
-return new class extends Migration {
-    public function up(): void
+class AddOlusturanPersonelIdToMusteriPortfoy extends Migration
+{
+    public function up()
     {
         if (!Schema::hasColumn('musteri_portfoy', 'olusturan_personel_id')) {
             Schema::table('musteri_portfoy', function (Blueprint $table) {
@@ -25,7 +26,7 @@ return new class extends Migration {
         }
     }
 
-    public function down(): void
+    public function down()
     {
         if (Schema::hasColumn('musteri_portfoy', 'olusturan_personel_id')) {
             Schema::table('musteri_portfoy', function (Blueprint $table) {
@@ -34,4 +35,4 @@ return new class extends Migration {
             });
         }
     }
-};
+}
