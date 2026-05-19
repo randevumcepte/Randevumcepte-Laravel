@@ -1606,11 +1606,8 @@ function _odalarHizmetIcin(hizmetId){
     });
 }
 
-// Hizmetler icin oda secim modalini goster
+// Hizmetler icin oda secim modalini goster — statik modal (en altta tanimli)
 function showHizmetOdaAtamaModal(hizmetData){
-    // Eski varyantlari temizle
-    $('#hizmetOdaAtamaModal').remove();
-
     // Hizmet kartlari HTML
     var hizmetKartlari = hizmetData.map(function(item, i){
         var hizmetId = item.hizmet_id || item.id; // paket hizmetlerinde hizmet_id ayri olabilir
@@ -1643,43 +1640,18 @@ function showHizmetOdaAtamaModal(hizmetData){
             + '</div>';
     }).join('');
 
-    // Modal DOM'un en sonuna eklenir; boylece dogal stack ile en ust katmanda olur.
-    // Standart Bootstrap modal (data-backdrop=true), z-index zorlamasi yok.
-    var modalHtml = ''
-        + '<div class="modal fade" id="hizmetOdaAtamaModal" tabindex="-1" role="dialog">'
-        +   '<div class="modal-dialog modal-dialog-centered" style="max-width:640px;">'
-        +     '<div class="modal-content" style="border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.35);">'
-        +       '<div class="modal-header" style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);border-radius:12px 12px 0 0;">'
-        +         '<h5 class="modal-title" style="color:#fff;display:flex;align-items:center;gap:8px;">'
-        +           '<i class="fa fa-door-open"></i> Hizmetler İçin Oda Seçimi'
-        +         '</h5>'
-        +         '<button type="button" class="close hizmet-oda-modal-kapat" style="color:#fff;opacity:0.9;">×</button>'
-        +       '</div>'
-        +       '<div class="modal-body" style="padding:16px 20px;">'
-        +         '<p class="text-muted mb-3" style="font-size:0.8rem;">Pakette '+hizmetData.length+' hizmet var. Her hizmet için oda seçin. Boş bırakırsanız sistem otomatik atayacak. Aynı odaya atadığınız hizmetler tek satırda birleştirilir.</p>'
-        +         hizmetKartlari
-        +       '</div>'
-        +       '<div class="modal-footer" style="border-top:1px solid #f3f4f6;">'
-        +         '<button type="button" class="btn btn-light btn-sm hizmet-oda-modal-kapat"><i class="fa fa-times"></i> Vazgeç</button>'
-        +         '<button type="button" class="btn btn-primary btn-sm" id="hizmet-oda-atama-onayla"><i class="fa fa-check"></i> Forma Ekle</button>'
-        +       '</div>'
-        +     '</div>'
-        +   '</div>'
-        + '</div>';
+    // Statik modaldaki yer tutuculara icerigi koy ve goster
+    $('#hizmetOdaAtama_info').text('Pakette '+hizmetData.length+' hizmet var. Her hizmet için oda seçin. Boş bırakırsanız sistem otomatik atayacak. Aynı odaya atadığınız hizmetler tek satırda birleştirilir.');
+    $('#hizmetOdaAtama_kartlar').html(hizmetKartlari);
 
-    // DOM'un en sonuna ekle (yazim sirasi: parent modal -> bizim modal)
-    $('body').append(modalHtml);
-    $('#hizmetOdaAtamaModal').modal('show');
+    var $m = $('#hizmetOdaAtamaModal');
+    $m.modal('show');
 
     function _kapatHizmetOdaModal(){
-        var $m = $('#hizmetOdaAtamaModal');
-        try { $m.modal('hide'); } catch(e){}
-        $m.one('hidden.bs.modal', function(){ $(this).remove(); });
-        // Fallback
-        setTimeout(function(){ $('#hizmetOdaAtamaModal').remove(); }, 400);
+        try { $('#hizmetOdaAtamaModal').modal('hide'); } catch(e){}
     }
 
-    // Kapanma: X ve Vazgec
+    // Kapanma: X ve Vazgec — her cagrida tekrar baglanmasin diye .off ile reset
     $(document).off('click.hizmetOdaModal').on('click.hizmetOdaModal', '.hizmet-oda-modal-kapat', function(e){
         e.preventDefault();
         _kapatHizmetOdaModal();
@@ -3066,3 +3038,28 @@ function formatHizmetSecim(hizmet) {
     updateRandevuOzeti();
 }
 </script>
+
+{{-- ============================================================ --}}
+{{-- HIZMETLER ICIN ODA SECIM MODALI (statik — en altta, dogal stack)  --}}
+{{-- showHizmetOdaAtamaModal() icerigini doldurur ve gosterir.       --}}
+{{-- ============================================================ --}}
+<div class="modal fade" id="hizmetOdaAtamaModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:640px;">
+        <div class="modal-content" style="border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
+            <div class="modal-header" style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);border-radius:12px 12px 0 0;">
+                <h5 class="modal-title" style="color:#fff;display:flex;align-items:center;gap:8px;">
+                    <i class="fa fa-door-open"></i> Hizmetler İçin Oda Seçimi
+                </h5>
+                <button type="button" class="close hizmet-oda-modal-kapat" style="color:#fff;opacity:0.9;">×</button>
+            </div>
+            <div class="modal-body" style="padding:16px 20px;">
+                <p class="text-muted mb-3" id="hizmetOdaAtama_info" style="font-size:0.8rem;"></p>
+                <div id="hizmetOdaAtama_kartlar"></div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid #f3f4f6;">
+                <button type="button" class="btn btn-light btn-sm hizmet-oda-modal-kapat"><i class="fa fa-times"></i> Vazgeç</button>
+                <button type="button" class="btn btn-primary btn-sm" id="hizmet-oda-atama-onayla"><i class="fa fa-check"></i> Forma Ekle</button>
+            </div>
+        </div>
+    </div>
+</div>
