@@ -144,6 +144,8 @@
                   aria-selected="false"
                   >Müşteri Resimleri</a>
             </li>
+            @endif
+            @yetki('satis.adisyon_olustur')
              <li class="nav-item" style="margin:5px">
                <a
                   class="btn btn-warning "
@@ -154,7 +156,7 @@
                   aria-selected="false"
                   >Randevusuz Satış Yap</a>
             </li>
-            @endif
+            @endyetki
          </ul>
          <div class="tab-content">
             <div
@@ -835,6 +837,7 @@
                   </div>
                </div>
             </div>
+            @yetki('satis.adisyon_olustur')
             <div
                class="tab-pane fade"
                id="tahsilatEkrani"
@@ -885,7 +888,9 @@
 
                         <div class="col-md-6 text-right" id="tahsilats_type" >
                            <button type="button" class="btn btn-success adisyon_ekle_buttonlar" id='senetle_veya_taksitle_tahsil_et' disabled> Alacaklar</button>
-                           <button type="button" id='yeni_taksitli_tahsilat_olusur' href="#"  data-value='' class="btn  btn-primary adisyon_ekle_buttonlar" style="font-weight: bold;" disabled>Taksit Yap</button> 
+                           @yetki('satis.senet_olustur')
+                           <button type="button" id='yeni_taksitli_tahsilat_olusur' href="#"  data-value='' class="btn  btn-primary adisyon_ekle_buttonlar" style="font-weight: bold;" disabled>Taksit Yap</button>
+                           @endyetki
                         </div>
                      </div>
                      <div id='tum_tahsilatlar'>
@@ -954,10 +959,12 @@
                      </div>
                   </div>
                   <div class="col-md-6"></div>
+                  @yetki('satis.tahsilat_al')
                   <div class="col-md-6">
                      <button disabled id='yeni_tahsilat_ekle' type="submit" class="btn btn-success btn-lg btn-block adisyon_ekle_buttonlar"> <i class="fa fa-money"></i>
                      Tahsil Et </button>
                   </div>
+                  @endyetki
                </div>
             </div>
         
@@ -1030,6 +1037,7 @@
       </div>
    </div>
 </div>
+@endyetki
 <div id="musterifotoekle" class="modal modal-top fade calendar-modal">
    <div class="modal-dialog modal-dailog-centered" style="max-width: 560px">
       <form id="musterifotoekleform">

@@ -9907,7 +9907,7 @@ public function adisyon_filtreli_getir(Request $request)
     $durum = '';
     $personelid = $request->personel_id ?? '';
     $musteriid = $request->musteri_id ?? '';
-    
+
     // Varsayılan tarih aralığı (bu ay)
     $tarih1 = date('Y-m-01') . ' 00:00:00';
     $tarih2 = date('Y-m-t') . ' 23:59:59';
@@ -9925,8 +9925,19 @@ public function adisyon_filtreli_getir(Request $request)
             $tarih2 = trim($tarih[1]) . ' 23:59:59';
         }
     }
-    
-    
+
+    // Yetki: satis.tum_satis_gor kapali ise personel kendi satislari ile sinirli
+    if (Auth::guard('isletmeyonetim')->check()) {
+        $_authUid = Auth::guard('isletmeyonetim')->user()->id;
+        $_salonId = self::mevcutsube($request);
+        $tumGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUid, $_salonId, 'satis.tum_satis_gor');
+        if (!$tumGor) {
+            $personelid = Personeller::where('salon_id', $_salonId)
+                ->where('yetkili_id', $_authUid)->value('id') ?: -1;
+            $request->merge(['personel_id' => $personelid]);
+        }
+    }
+
     Log::info($tarih1.' - '.$tarih2.' satışları geliyor Müşteri : '. $musteriid.' Personel : '. $personelid.' Tür : '.$tur);
     return self::adisyon_yukle($request, $tur, null, $tarih1, $tarih2, $musteriid, $personelid);
 }   
@@ -10518,8 +10529,18 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     $hizmetSatisToplam = 0;
     $paketSatisToplam = 0;
     $urunSatisToplam = 0;
-    
-    $formatted = $sayfalanmisAdisyonlar->map(function ($adisyon) use ($isletmeId, $personel_id, &$hizmetHakedisToplam, &$urunHakedisToplam, &$paketHakedisToplam, &$hizmetSatisToplam, &$urunSatisToplam, &$paketSatisToplam) {
+
+    // Yetki: satis.adisyon_sil acik mi?
+    $_silYetki = true;
+    if (Auth::guard('isletmeyonetim')->check()) {
+        $_silYetki = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+            Auth::guard('isletmeyonetim')->user()->id,
+            $isletmeId,
+            'satis.adisyon_sil'
+        );
+    }
+
+    $formatted = $sayfalanmisAdisyonlar->map(function ($adisyon) use ($isletmeId, $personel_id, $_silYetki, &$hizmetHakedisToplam, &$urunHakedisToplam, &$paketHakedisToplam, &$hizmetSatisToplam, &$urunSatisToplam, &$paketSatisToplam) {
         $satilanlar = [];
         $satilanlarStr = "";
 
@@ -10651,7 +10672,9 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         }
         
         $islemler .= '&nbsp;<button style="line-height:5px;padding:5px" name="satisDuzenle" data-index-number="'.$adisyon->user_id.'" data-value="'.$adisyon->id.'" title="Düzenle" href="#" type="button"  class="btn btn-success"><i class="fa fa-edit"></i></button>';
-        $islemler .= '&nbsp;<button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Adisyonu Sil"  name="adisyon_sil" data-value="'.$adisyon->id.'"><i class="fa fa-times"></i></button>';
+        if ($_silYetki) {
+            $islemler .= '&nbsp;<button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Adisyonu Sil"  name="adisyon_sil" data-value="'.$adisyon->id.'"><i class="fa fa-times"></i></button>';
+        }
         
         $acilisTarihiKaynak = $adisyon->tarih ?: $adisyon->created_at;
         return [
