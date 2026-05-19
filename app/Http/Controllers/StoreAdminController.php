@@ -1276,7 +1276,7 @@ public function carkverilerigetir(Request $request)
         return $acik_adisyonlar;
     }
     public function randevular(Request $request){
-       
+
          $isletmeler = '';
         $isletme='';
         if(Auth::guard('satisortakligi')->check())
@@ -1288,10 +1288,19 @@ public function carkverilerigetir(Request $request)
             $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
             $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
         }
-         
-        
+
+
         if(!in_array(self::mevcutsube($request),$isletmeler ))
         {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
+        }
+
+        // Yetki: 'randevu.takvim_gor' kapaliysa sayfa acilmaz.
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if ($authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+            $authUser->id, self::mevcutsube($request), 'randevu.takvim_gor'
+        )) {
             return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }

@@ -955,6 +955,7 @@
                   </li>
                  
                   @endif
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
                   <li>
                      @if($pageindex==2)
                      <a href="/isletmeyonetim/randevular{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -965,6 +966,7 @@
                         ><span class="mtext">Randevu Takvimi</span>
                      </a>
                   </li>
+                  @endif
                   <li>
                      @if($pageindex==12)
                      <a href="/isletmeyonetim/ongorusmeler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active"> 
