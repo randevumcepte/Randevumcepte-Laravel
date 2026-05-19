@@ -40,6 +40,7 @@
       </div>
    </div>
 </div>
+@if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.kasa'))
 <div class="pd-20 card-box mb-30">
    <div class="pb-20" style="padding-top:20px">
         <div class="form-group row">
@@ -177,7 +178,6 @@
         </div>
     </div>
 </div>
-               @yetki('rapor.kasa')
                <div class="col-lg-6 col-md-12 mb-20">
                   <div class="card-box widget-style3">
                     <div class="card-header">
@@ -201,11 +201,7 @@
                     </div>
                   </div>
                 </div>
-                @endyetki
-                @if(
-                   \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.kasa') &&
-                   \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.masraf_gor')
-                )
+                @yetki('finans.masraf_gor')
                 <div class="col-lg-6 col-md-12 mb-20">
                   <div class="card-box widget-style3">
                     <div class="card-header">
@@ -228,10 +224,18 @@
                     </div>
                   </div>
                 </div>
-                @endif
+                @endyetki
       </div>
    </div>
 </div>
+@else
+<div class="pd-20 card-box mb-30">
+   <div class="text-center" style="padding:40px 20px;">
+      <i class="fa fa-lock" style="font-size:42px;color:#9D5DC8;margin-bottom:12px;"></i>
+      <h3 style="color:#333;">Kasa özetine erişim yetkiniz bulunmamaktadır</h3>
+   </div>
+</div>
+@endif
   <!-- yeni masraf -->
       <div
          id="kasaya_para_koy"
