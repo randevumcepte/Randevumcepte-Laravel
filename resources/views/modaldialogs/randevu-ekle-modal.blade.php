@@ -1527,86 +1527,220 @@ let hizmetDataCache = {};
 let seciliMusteriId = null;
 let musteriPaketleri = [];
 
-// Tom Select uyumlu addServicesToForm — paket popup'tan gelen hizmetleri her birini AYRI satira ekler
-// (boylece her hizmet icin ayri oda secimi yapilabilir, oda dropdown'i hizmete gore filtrelenir)
-// custom.js icindeki orijinal fonksiyon hoisting ile bizim atamayi ezmesin diye DOMContentLoaded sonrasi yaziyoruz
+// Tom Select uyumlu addServicesToForm — paket popup'tan gelen hizmetlerden once
+// kullaniciya HER HIZMET icin oda secim ekrani gosterir. Sonra:
+//   - Ayni odaya atanan hizmetler tek satirda toplanir (multi-select)
+//   - Farkli odadakiler ayri satirlara dagilir
+//   - Oda secilmeyenler her biri ayri satirda kalir (backend otomatik atayacak)
 function _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage){
-    console.log('[PAKET] addServicesToForm cagrildi (her hizmet ayri satir):', hizmetData);
+    console.log('[PAKET] addServicesToForm cagrildi:', hizmetData);
     if(!hizmetData || !hizmetData.length){ console.warn('[PAKET] hizmetData bos'); return; }
+    // Onceki soft paket modali varsa kapat
+    if($('#softPaketSecimModal').length){
+        $('#softPaketSecimModal').modal('hide');
+        setTimeout(function(){ $('#softPaketSecimModal').remove(); }, 300);
+    }
+    // Once oda atama modalini ac, secim sonrasi forma yerlestir
+    showHizmetOdaAtamaModal(hizmetData);
+}
 
-    function _hizmetiSatiraKoy($sel, item){
-        if(!$sel || !$sel.length || !item || !item.id) return false;
-        var el = $sel[0];
-        var ts = el.tomselect;
-        if(!ts) return false;
-        ts.addOption({
-            value: String(item.id),
-            text: item.text,
-            kategori: item.tur === 'paket' ? ('Paket: ' + (item.paket_adi || '')) : 'Hizmet',
-            sure: item.sure || 0,
-            fiyat: item.fiyat || 0,
-            seans: item.seans,
-            paket_adi: item.paket_adi || null,
-            tur: item.tur,
-            paket_id: item.paket_id || null,
-            adisyon_hizmet_id: item.adisyon_hizmet_id || null,
-            adisyon_paket_id: item.adisyon_paket_id || null
+// Tek bir hizmet item'ini bir satira yerlestirir (Tom Select uyumlu).
+// returnEcho: true ise sec degeri secili olur, false ise sadece option eklenir.
+function _hizmetiSatiraKoy($sel, item, secVe){
+    if(!$sel || !$sel.length || !item || !item.id) return false;
+    var el = $sel[0];
+    var ts = el.tomselect;
+    if(!ts) return false;
+    ts.addOption({
+        value: String(item.id),
+        text: item.text,
+        kategori: item.tur === 'paket' ? ('Paket: ' + (item.paket_adi || '')) : 'Hizmet',
+        sure: item.sure || 0,
+        fiyat: item.fiyat || 0,
+        seans: item.seans,
+        paket_adi: item.paket_adi || null,
+        tur: item.tur,
+        paket_id: item.paket_id || null,
+        adisyon_hizmet_id: item.adisyon_hizmet_id || null,
+        adisyon_paket_id: item.adisyon_paket_id || null
+    });
+    hizmetDataCache[item.id] = {
+        id: item.id, text: item.text,
+        sure: item.sure || 0, fiyat: item.fiyat || 0,
+        kategori: item.tur === 'paket' ? ('Paket: ' + (item.paket_adi || '')) : 'Hizmet',
+        renk: item.tur === 'paket' ? '#f59e0b' : '#3b82f6'
+    };
+    ts.refreshOptions(false);
+    if(secVe !== false){
+        var mevcut = ts.getValue();
+        if(!Array.isArray(mevcut)) mevcut = mevcut ? [mevcut] : [];
+        if(mevcut.indexOf(String(item.id)) === -1) mevcut.push(String(item.id));
+        ts.setValue(mevcut, false);
+    }
+    return true;
+}
+
+// Hizmet icin ozel oda listesi (sadece o hizmeti veren odalar).
+// Tanimli yoksa: bos array. UI tarafinda fallback gosterilir.
+function _odalarHizmetIcin(hizmetId){
+    var tum = (window.randevuModalData && window.randevuModalData.odalar) || [];
+    var hid = parseInt(hizmetId, 10);
+    if(!hid) return [];
+    return tum.filter(function(o){
+        return Array.isArray(o.hizmet_idleri) && o.hizmet_idleri.indexOf(hid) !== -1;
+    });
+}
+
+// Hizmetler icin oda secim modalini goster
+function showHizmetOdaAtamaModal(hizmetData){
+    // Eski varyantlari temizle
+    $('#hizmetOdaAtamaModal').remove();
+
+    // Hizmet kartlari HTML
+    var hizmetKartlari = hizmetData.map(function(item, i){
+        var hizmetId = item.hizmet_id || item.id; // paket hizmetlerinde hizmet_id ayri olabilir
+        var odalar = _odalarHizmetIcin(hizmetId);
+        var hasFiltered = odalar.length > 0;
+        if(!hasFiltered){
+            // Fallback: tum odalari goster (admin oda-hizmet eslemesi yapmamissa)
+            odalar = (window.randevuModalData && window.randevuModalData.odalar) || [];
+        }
+        var optionsHtml = '<option value="">— Otomatik / Boş —</option>' +
+            odalar.map(function(o){
+                return '<option value="'+o.id+'">'+$('<div>').text(o.ad).html()+'</option>';
+            }).join('');
+        var paketRozet = item.tur === 'paket' && item.paket_adi
+            ? '<span class="badge" style="background:#f59e0b;color:#fff;font-size:0.65rem;margin-left:6px;">Paket: '+$('<div>').text(item.paket_adi).html()+'</span>'
+            : '';
+        var fallbackNotu = hasFiltered ? '' :
+            '<small class="text-warning d-block" style="font-size:0.7rem;margin-top:2px;"><i class="fa fa-info-circle"></i> Bu hizmete tanımlı oda bulunamadı, tüm odalar listelendi.</small>';
+        return ''
+            + '<div class="d-flex align-items-center mb-2 p-2" style="border:1px solid #e5e7eb;border-radius:8px;background:#fafafa;">'
+            +   '<div style="flex:1;min-width:0;">'
+            +     '<div style="font-weight:600;font-size:0.85rem;color:#111827;">'+$('<div>').text(item.text).html()+paketRozet+'</div>'
+            +     fallbackNotu
+            +   '</div>'
+            +   '<div style="width:240px;margin-left:10px;">'
+            +     '<select class="form-control form-control-sm hizmet-oda-secimi" data-hizmet-id="'+item.id+'" data-hizmet-text="'+$('<div>').text(item.text).html()+'" style="font-size:0.8rem;">'
+            +       optionsHtml
+            +     '</select>'
+            +   '</div>'
+            + '</div>';
+    }).join('');
+
+    var modalHtml = ''
+        + '<div class="modal fade" id="hizmetOdaAtamaModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">'
+        +   '<div class="modal-dialog modal-dialog-centered" style="max-width:640px;">'
+        +     '<div class="modal-content" style="border-radius:12px;">'
+        +       '<div class="modal-header" style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);border-radius:12px 12px 0 0;">'
+        +         '<h5 class="modal-title" style="color:#fff;display:flex;align-items:center;gap:8px;">'
+        +           '<i class="fa fa-door-open"></i> Hizmetler İçin Oda Seçimi'
+        +         '</h5>'
+        +         '<button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:0.9;">×</button>'
+        +       '</div>'
+        +       '<div class="modal-body" style="padding:16px 20px;">'
+        +         '<p class="text-muted mb-3" style="font-size:0.8rem;">Pakette '+hizmetData.length+' hizmet var. Her hizmet için oda seçin. Boş bırakırsanız sistem otomatik atayacak. Aynı odaya atadığınız hizmetler tek satırda birleştirilir.</p>'
+        +         hizmetKartlari
+        +       '</div>'
+        +       '<div class="modal-footer" style="border-top:1px solid #f3f4f6;">'
+        +         '<button type="button" class="btn btn-light btn-sm" data-dismiss="modal"><i class="fa fa-times"></i> Vazgeç</button>'
+        +         '<button type="button" class="btn btn-primary btn-sm" id="hizmet-oda-atama-onayla"><i class="fa fa-check"></i> Forma Ekle</button>'
+        +       '</div>'
+        +     '</div>'
+        +   '</div>'
+        + '</div>';
+
+    $('body').append(modalHtml);
+    $('#hizmetOdaAtamaModal').modal('show');
+
+    // Onay butonu
+    $('#hizmet-oda-atama-onayla').off('click').on('click', function(){
+        var atama = {}; // hizmet_item_id -> oda_id (veya '')
+        $('#hizmetOdaAtamaModal .hizmet-oda-secimi').each(function(){
+            atama[$(this).data('hizmet-id')] = $(this).val() || '';
         });
-        hizmetDataCache[item.id] = {
-            id: item.id, text: item.text,
-            sure: item.sure || 0, fiyat: item.fiyat || 0,
-            kategori: item.tur === 'paket' ? ('Paket: ' + (item.paket_adi || '')) : 'Hizmet',
-            renk: item.tur === 'paket' ? '#f59e0b' : '#3b82f6'
-        };
-        ts.refreshOptions(false);
-        ts.setValue([String(item.id)], false);
-        return true;
-    }
+        $('#hizmetOdaAtamaModal').modal('hide');
+        setTimeout(function(){ $('#hizmetOdaAtamaModal').remove(); }, 300);
+        _formaYerlestir(hizmetData, atama);
+    });
+}
 
-    // 1) Ilk hizmeti ilk satira yerlestir (mevcut TS hazirsa, hazir degilse bekle)
-    var $firstSel = $('#yenirandevuekleform .hizmet-select').first();
-    if(!$firstSel.length) return;
-    var firstTs = $firstSel[0] && $firstSel[0].tomselect;
-    if(!firstTs){
-        setTimeout(function(){ _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage); }, 200);
-        return;
-    }
-    // Mevcut secimleri temizle (yalnizca ilk satirda, diger satirlar tertibe gore eklenecek)
-    firstTs.clear(true);
-    _hizmetiSatiraKoy($firstSel, hizmetData[0]);
+// Oda atamasina gore hizmetleri forma yerlestir.
+// Ayni odaya secilenler tek satirda, farkli odadakiler ayri satirlarda.
+// Bos kalanlar (atama yapilmayanlar) her biri ayri satirda toplanir (backend otomatik atayacak).
+function _formaYerlestir(hizmetData, odaAtama){
+    // Gruplari olustur
+    // - Anahtar: oda_id (string), bos icin 'BOS' + counter (her bos hizmet kendi grubunda)
+    var gruplar = []; // [{oda_id, hizmetler:[]}]
+    var bosCounter = 0;
+    var indexByOda = {};
+    hizmetData.forEach(function(item){
+        var oid = (odaAtama[item.id] || '').toString();
+        if(!oid){
+            // Bos: her bos hizmet kendi grubu (backend ayri oda atayabilsin diye)
+            gruplar.push({ oda_id: '', hizmetler: [item] });
+            bosCounter++;
+            return;
+        }
+        if(indexByOda[oid] !== undefined){
+            gruplar[indexByOda[oid]].hizmetler.push(item);
+        } else {
+            indexByOda[oid] = gruplar.length;
+            gruplar.push({ oda_id: oid, hizmetler: [item] });
+        }
+    });
 
-    // 2) Kalan hizmetler icin: "Yeni Hizmet Ekle" akisini sirayla tetikle
-    function _kalanlari(idx){
-        if(idx >= hizmetData.length){
-            if($('#softPaketSecimModal').length){
-                $('#softPaketSecimModal').modal('hide');
-                setTimeout(function(){ $('#softPaketSecimModal').remove(); }, 300);
-            }
+    console.log('[PAKET] Gruplar:', gruplar);
+
+    // Ilk satir mevcut, kalan gruplar icin yeni satir
+    function _grupYerlestir(grupIdx){
+        if(grupIdx >= gruplar.length){
             try { updateRandevuOzeti(); } catch(e){}
             return;
         }
-        // Yeni satir ekle
-        $('#bir_hizmet_daha_ekle').trigger('click');
-        // Tom Select init + DOM yerlesimi tamamlansin
-        setTimeout(function(){
-            var $lastRow = $('#yenirandevuekleform .hizmet-satiri').last();
-            var $sel = $lastRow.find('.hizmet-select');
-            // TS hazir mi?
-            var tries = 0;
-            (function tryPut(){
-                if($sel[0] && $sel[0].tomselect){
-                    _hizmetiSatiraKoy($sel, hizmetData[idx]);
-                    _kalanlari(idx+1);
-                } else if(tries++ < 10){
-                    setTimeout(tryPut, 80);
-                } else {
-                    console.warn('[PAKET] yeni satir TS hazir olmadi, atlandi:', hizmetData[idx]);
-                    _kalanlari(idx+1);
+        var grup = gruplar[grupIdx];
+        function _setRow($row){
+            // Hizmetleri ekle (multi-select destekler)
+            var $sel = $row.find('.hizmet-select');
+            if($sel[0] && $sel[0].tomselect){
+                $sel[0].tomselect.clear(true);
+            }
+            grup.hizmetler.forEach(function(h){ _hizmetiSatiraKoy($sel, h, true); });
+            // Oda dropdown filtresi onChange tarafindan yenilenir; degeri ata
+            setTimeout(function(){
+                var $oda = $row.find('.oda-select');
+                if(grup.oda_id){
+                    $oda.val(grup.oda_id).trigger('change');
                 }
+            }, 60);
+            _grupYerlestir(grupIdx+1);
+        }
+        if(grupIdx === 0){
+            var $first = $('#yenirandevuekleform .hizmet-satiri').first();
+            // Bekle TS hazir olsun
+            var tries = 0;
+            (function w(){
+                if($first.find('.hizmet-select')[0] && $first.find('.hizmet-select')[0].tomselect){
+                    _setRow($first);
+                } else if(tries++ < 12){ setTimeout(w, 80); }
+                else _setRow($first); // best effort
             })();
-        }, 250);
+        } else {
+            // Yeni satir ekle
+            $('#bir_hizmet_daha_ekle').trigger('click');
+            setTimeout(function(){
+                var $row = $('#yenirandevuekleform .hizmet-satiri').last();
+                var tries = 0;
+                (function w(){
+                    if($row.find('.hizmet-select')[0] && $row.find('.hizmet-select')[0].tomselect){
+                        _setRow($row);
+                    } else if(tries++ < 12){ setTimeout(w, 80); }
+                    else _setRow($row);
+                })();
+            }, 250);
+        }
     }
-    _kalanlari(1);
+    _grupYerlestir(0);
 }
 
 // custom.js'in `function addServicesToForm` hoisting'i bizim atamayi ezdigi icin
