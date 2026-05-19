@@ -48,6 +48,20 @@
                   aria-selected="true"
                   > SMS Raporları </button>
                 </li>
+                @if(
+                   \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.sms_gonder') ||
+                   \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.toplu_sms')
+                )
+                 <li class="nav-item">
+                  <button href="#sablon_ayarlari"
+                  class="btn btn-outline-primary "
+                  data-toggle='tab'
+                  role="tab"
+                   style="width: 200px;height: 60px;margin-left: 10px;"
+                  aria-selected="false"
+                  >Şablon Ayarları ve Toplu SMS</button>
+                </li>
+                @endif
                  @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() > 0  )
                  <li class="nav-item">
                   <button href="#sms_ayarlari"
@@ -252,6 +266,152 @@
                    
                  </div>
                </div>
+              @if(
+                 \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.sms_gonder') ||
+                 \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.toplu_sms')
+              )
+               <div class="tab-pane fade show" id="sablon_ayarlari" role="tabpanel">
+                 <div class="pd-20" id="smsgonderimkismi">
+                  <div class="row" style="border-bottom: 1px solid #e2e2e2;margin-bottom: 10px;padding-bottom: 10px;">
+                    <div class="col-6 col-xs-6 col-sm-6">
+                     <h2 class="text-blue">Şablon Ayarları ve Toplu SMS</h2>
+                   </div>
+              <div class="col-6 col-xs-6 col-sm-6 text-right">
+                     <button class="btn btn-success" data-toggle="modal" id='sablon_olustur' data-target="#sablon_olustur_modal"> <i class="fa fa-plus"></i> Şablon Oluştur</button>
+                   </div>
+                  </div>
+                  <form id="sablonsmsform"  method="GET">
+                     {{csrf_field()}}
+                <input type="hidden" name="toplu_id" id="smstopluid">
+                <input type="hidden" name="sube" value="{{$isletme->id}}">
+                      <div class="row" data-value="0">
+                     <div class="col-md-6">
+                         <div class="form-group">
+                           <input type="text" name="sablon_baslik" id="sablon_baslik" placeholder="Şablon Adı" class="form-control">
+                           <br>
+                          <textarea style="height: 230px;"  onchange="countChar(this,event)" onkeyup="countChar(this,event)" onkeydown="countChar(this,event)" class="form-control" name="smsmesaj" id="smsmesaj" placeholder="Mesaj İçeriği"></textarea>
+                          <div id="karaktersayisi"></div>
+                           <script>
+                                function countChar(val,event) {
+
+                                  var len = val.value.length;
+
+                                  if(len<=155){
+                                    $('#karaktersayisi').text(len+' (Gönderim başına 1 sms üzerinden ücretlendirilecektir)');
+                                 $('#karaktersayisi').attr('style','color:black;background-color:white');
+                                  }
+
+                                      else if(len>155 && len <=292) {
+                                          $('#karaktersayisi').text(len+' (Gönderim başına 2 sms üzerinden ücretlendirilecektir)');
+                                           $('#karaktersayisi').attr('style','color:white;background-color:orange');
+
+                                      }
+
+                                     else if(len>292 && len <=439) {
+                                        $('#karaktersayisi').text(len+' (Gönderim başına 3 sms üzerinden ücretlendirilecektir)');
+                                           $('#karaktersayisi').attr('style','color:white;background-color:red');
+
+                                     }
+
+                                    else if(len>439 && len <=587) {
+                                         $('#karaktersayisi').text(len+' (Gönderim başına 4 sms üzerinden ücretlendirilecektir)');
+                                           $('#karaktersayisi').attr('style','color:white;background-color:red');
+
+                                    }
+                                   else if(len>587 && len <=735) {
+                                         $('#karaktersayisi').text(len+' (Gönderim başına 5 sms üzerinden ücretlendirilecektir)');
+                                           $('#karaktersayisi').attr('style','color:white;background-color:red');
+
+                                    }
+                                    else if(len>735 && len <=882) {
+                                     $('#karaktersayisi').text(len+' (Gönderim başına 6 sms üzerinden ücretlendirilecektir)');
+                                           $('#karaktersayisi').attr('style','color:white;background-color:red');
+
+                                    }
+                                };
+                              </script>
+
+                        </div>
+                        <div class="form-group">
+                          <button type="button" id="topluSmsGonderButon" class="btn btn-success">Toplu SMS'i Gönder</button>
+
+                        </div>
+                     </div>
+                      <div class="col-md-6">
+                          <div class="col-sm-12">
+                              <div class="container">
+                                  <label>Müşterileri Seçiniz</label>
+                                  <div class="row" id="arama_musteri_liste_TopluSMS" style="margin-bottom: 40px;">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                          <input type="text" id="musteriarama_toplusms" class="form-control" placeholder="Müşteri arayın..." autocomplete="off">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3"><button id="topluSMSTumMusterileriSec" type="button" class="btn btn-info btn-block">Tümünü Seç</button></div>
+                                    <div class="col-md-3"><button id="topluSMSTumMusterileriKaldir" type="button" class="btn btn-info btn-block">Tümünü Kaldır</button></div>
+                                    <div class="col-md-12">
+                                      <div id="musteriListesiTopluSMS" style="width:100%;border:1px solid #e2e2e2;border-radius: 5px;height: 260px;overflow-y: auto;">
+                                        <div class="text-center py-4 text-muted" id="topluSMSIlkMesaj">
+                                          <i class="fa fa-users fa-2x mb-2"></i>
+                                          <p class="mb-0">Müşteriler yükleniyor...</p>
+                                        </div>
+                                      </div>
+                                      <div id="topluSMSYukleniyor" class="text-center py-2" style="display:none;">
+                                        <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                                        <span class="text-muted">Yükleniyor...</span>
+                                      </div>
+                                      <div id="topluSMSSeciliMusteriler" style="margin-top: 10px; font-weight: bold;">
+                                           0 müşteri seçildi
+                                      </div>
+                                    </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                    </div>
+
+        </form>
+         <div class="col-md-12">
+
+           <div class="panel-heading panel-heading-divider text-center border-container" style="font-weight: bold;margin-top: 5px; width: 100% ">
+              <span style=" color: #5f00bf; font-size: 16px;">Şablonlar (Aşağıdaki metin şablonlarını yollamak için üstüne tıklayın)</span>
+
+           </div>
+         </div>
+        <div class="row" data-value="0"  id="taslaklarbolumu2">
+
+            @foreach($taslaklar as $taslak)
+
+               <div class="col-md-3">
+                <div class="form-group">
+
+<div style="   width:100%; max-height:100%; margin-left: 5px; margin-top: 15px; ">
+                <input type="hidden" id="smstaslak{{$taslak->id}}" value="{{$taslak->taslak_icerik}}">
+                 <input type="hidden" id="smstaslakbaslik{{$taslak->id}}" value="{{$taslak->baslik}}">
+                <a class="smstaslaklari" title="Metni Kopyala"  data-value="{{$taslak->id}}" style="position:relative; cursor: pointer;"  name="smstaslaklari" >
+
+                   <p style="border:1px solid grey;font-size:18px;font-weight: bold;color:black ;border-radius: 30px; text-align: center; ">{{$taslak->baslik}}</p>
+                  <p style="border:1px solid grey;padding:5px;background-color: #e4e4e2; border-radius: 20px;border-bottom-left-radius: 0;color:black;font-size:15px; overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+ " >{{$taslak->taslak_icerik}}</p>
+
+
+                </a>
+           </div>
+
+                </div>
+
+           </div>
+
+             @endforeach
+        </div>
+
+
+                 </div>
+               </div>
+              @endif
               @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() > 0  )
                 <div class="tab-pane fade show" id="sms_ayarlari" role="tabpanel">
                  <div class="pd-20">
