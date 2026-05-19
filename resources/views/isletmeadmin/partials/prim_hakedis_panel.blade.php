@@ -1035,6 +1035,7 @@
       </div>
       <div class="pm-body">
         <div class="pm-quick-actions">
+          @yetki('personel.odeme_yap')
           <button type="button" class="pm-quick-btn pm-quick-btn--ode pm-quick-ode">
             <i class="fa fa-credit-card"></i> Öde
           </button>
@@ -1044,6 +1045,7 @@
           <button type="button" class="pm-quick-btn pm-quick-btn--kesinti pm-quick-kesinti">
             <i class="fa fa-minus-circle"></i> Kesinti
           </button>
+          @endyetki
           <button type="button" class="pm-quick-btn pm-quick-btn--liste pm-quick-hareketler">
             <i class="fa fa-history"></i> Hareketler
           </button>
@@ -1120,6 +1122,7 @@
       </div>
       <div class="pm-body">
         <div class="pm-quick-actions">
+          @yetki('personel.odeme_yap')
           <button type="button" class="pm-quick-btn pm-quick-btn--ode pm-quick-ode">
             <i class="fa fa-credit-card"></i> Öde
           </button>
@@ -1129,6 +1132,7 @@
           <button type="button" class="pm-quick-btn pm-quick-btn--kesinti pm-quick-kesinti">
             <i class="fa fa-minus-circle"></i> Kesinti
           </button>
+          @endyetki
           <button type="button" class="pm-quick-btn pm-quick-btn--liste pm-quick-hareketler">
             <i class="fa fa-history"></i> Hareketler
           </button>
@@ -1176,6 +1180,7 @@
       </div>
       <div class="pm-body">
         <div class="pm-quick-actions">
+          @yetki('personel.odeme_yap')
           <button type="button" class="pm-quick-btn pm-quick-btn--ode pm-quick-ode">
             <i class="fa fa-credit-card"></i> Öde
           </button>
@@ -1185,6 +1190,7 @@
           <button type="button" class="pm-quick-btn pm-quick-btn--kesinti pm-quick-kesinti">
             <i class="fa fa-minus-circle"></i> Kesinti
           </button>
+          @endyetki
           <button type="button" class="pm-quick-btn pm-quick-btn--liste pm-quick-btn--aktif" disabled>
             <i class="fa fa-history"></i> Hareketler
           </button>
@@ -1694,7 +1700,11 @@ $(function(){
     });
   });
 
-  function _formatTL(v){ return parseFloat(v||0).toLocaleString('tr-TR',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+  var _MAAS_GOR = {!! $_maasGor ? 'true' : 'false' !!};
+  function _formatTL(v){
+    if(!_MAAS_GOR) return '****';
+    return parseFloat(v||0).toLocaleString('tr-TR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  }
   function _escHtml(s){ return $('<div>').text(s||'').html(); }
 
   function openPrimDetayModal(pid, adi){
