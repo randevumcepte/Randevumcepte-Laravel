@@ -7442,13 +7442,6 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
-        if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
-            {
-                    return redirect()->route('isletmeadmin.randevular');
-                    exit(0);
-            }
-        }
 
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
@@ -9345,7 +9338,18 @@ private function ayAdiCevir($ingilizceAy)
 
     public function adisyonlistegetir(Request $request)
     {
-        return self::adisyon_yukle_tahsilat($request,$request->tur,'','1970-01-01',date('Y-m-d'),'',$request->personel_id,'');
+        $personelFiltre = $request->personel_id;
+        // Tum satislari gor yetkisi yoksa sadece kendi satislari
+        if (Auth::guard('isletmeyonetim')->check()) {
+            $_authUid = Auth::guard('isletmeyonetim')->user()->id;
+            $_salonId = self::mevcutsube($request);
+            $tumGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUid, $_salonId, 'satis.tum_satis_gor');
+            if (!$tumGor) {
+                $personelFiltre = Personeller::where('salon_id', $_salonId)
+                    ->where('yetkili_id', $_authUid)->value('id') ?: -1;
+            }
+        }
+        return self::adisyon_yukle_tahsilat($request,$request->tur,'','1970-01-01',date('Y-m-d'),'',$personelFiltre,'');
     }
     public function randevuTestCase(Request $request,$takvim_turu,$tarih1,$tarih2)
     {
@@ -12398,14 +12402,7 @@ DB::raw('
             return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
-        if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request, 'satis.tum_satis_gor'))
-            {
-                    return redirect()->route('isletmeadmin.randevular');
-                    exit(0);
-            }
-        }
-       
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);

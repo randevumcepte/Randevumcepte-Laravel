@@ -33,7 +33,7 @@
                         <li class="nav-item">
                             <a class="nav-link active text-blue" data-toggle="tab" href="#yeni-randevu" role="tab" aria-selected="true">Randevu</a>
                         </li>
-                        @if(!Auth::guard('isletmeyonetim')->user()->hasRole('Personel') && !Auth::guard('isletmeyonetim')->user()->hasRole('Sosyal Medya Uzmanı'))
+                        @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.kapanis_blok_ekle'))
                         <li class="nav-item">
                             <a class="nav-link text-blue" data-toggle="tab" href="#saat-kapama" role="tab" aria-selected="false">Saat Kapama</a>
                         </li>
@@ -224,7 +224,7 @@
                         </div>
                         
                         <!-- Saat Kapama Bölümü -->
-                        @if(!Auth::guard('isletmeyonetim')->user()->hasRole('Personel') && !Auth::guard('isletmeyonetim')->user()->hasRole('Sosyal Medya Uzmanı'))
+                        @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.kapanis_blok_ekle'))
                         <div class="tab-pane fade" id="saat-kapama" role="tabpanel">
                             <div class="pd-15">
                                 <form id="saat_kapama" method="POST">
@@ -303,7 +303,7 @@
             </div>
             <!-- Modal Footer -->
             <div class="modal-footer" style="padding: 8px 16px;">
-                @if(!Auth::guard('isletmeyonetim')->user()->hasRole('Personel') && !Auth::guard('isletmeyonetim')->user()->hasRole('Sosyal Medya Uzmanı'))
+                @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.kapanis_blok_ekle'))
                 <button type="submit" form="saat_kapama" class="btn btn-warning btn-sm" id="saat-kapama-kaydet" style="padding: 5px 12px; font-size: 0.85rem; display:none;">
                     <i class="icon-copy fa fa-save"></i> Saat Kapama Kaydet
                 </button>
@@ -2550,7 +2550,7 @@ $(document).ready(function() {
         var $olusturBtn = $('#modal-view-event-add #randevu-olustur');
 
         if (activeTabId === 'saat-kapama') {
-            @if(!Auth::guard('isletmeyonetim')->user()->hasRole('Personel') && !Auth::guard('isletmeyonetim')->user()->hasRole('Sosyal Medya Uzmanı'))
+            @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.kapanis_blok_ekle'))
             $kaydetBtn.show();
             @endif
             $olusturBtn.hide();

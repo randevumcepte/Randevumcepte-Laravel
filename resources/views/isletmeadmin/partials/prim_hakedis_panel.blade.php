@@ -1,12 +1,14 @@
 @php
   // Maas tutar gor yetki kontrolu — kapaliysa rakamlar **** ile maskele
   $_maasGor = true;
+  $_odemeYap = true;
   try {
     $_uid = \Auth::guard('isletmeyonetim')->user()->id ?? null;
     if ($_uid) {
       $_maasGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_uid, $isletme->id, 'personel.maas_tutar_gor');
+      $_odemeYap = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_uid, $isletme->id, 'personel.odeme_yap');
     }
-  } catch (\Throwable $e) { $_maasGor = true; }
+  } catch (\Throwable $e) { $_maasGor = true; $_odemeYap = true; }
   $_fmt = function($v) use ($_maasGor){ return $_maasGor ? number_format($v,2,',','.') : '****'; };
   $aylar = [1=>'Ocak',2=>'Şubat',3=>'Mart',4=>'Nisan',5=>'Mayıs',6=>'Haziran',7=>'Temmuz',8=>'Ağustos',9=>'Eylül',10=>'Ekim',11=>'Kasım',12=>'Aralık'];
   $toplamMaas = array_sum(array_column($rapor,'maas'));
@@ -1623,7 +1625,7 @@ $(function(){
             html += '    </div>';
             if(it.aciklama){ html += '    <div class="pm-item__aciklama">'+_escHtml(it.aciklama)+'</div>'; }
             html += '  </div>';
-            html += '  <button class="pm-item__sil prim-hareket-sil-tek" data-id="'+it.id+'" title="Bu bonusu sil"><i class="fa fa-trash"></i></button>';
+            if(_ODEME_YAP){ html += '  <button class="pm-item__sil prim-hareket-sil-tek" data-id="'+it.id+'" title="Bu bonusu sil"><i class="fa fa-trash"></i></button>'; }
             html += '</div>';
           } else if(it.kind === 'kesinti'){
             html += '<div class="pm-item pm-item--kesinti">';
@@ -1636,7 +1638,7 @@ $(function(){
             html += '    </div>';
             if(it.aciklama){ html += '    <div class="pm-item__aciklama">'+_escHtml(it.aciklama)+'</div>'; }
             html += '  </div>';
-            html += '  <button class="pm-item__sil prim-hareket-sil-tek" data-id="'+it.id+'" title="Bu kesintiyi sil"><i class="fa fa-trash"></i></button>';
+            if(_ODEME_YAP){ html += '  <button class="pm-item__sil prim-hareket-sil-tek" data-id="'+it.id+'" title="Bu kesintiyi sil"><i class="fa fa-trash"></i></button>'; }
             html += '</div>';
           }
         });
@@ -1701,6 +1703,7 @@ $(function(){
   });
 
   var _MAAS_GOR = {!! $_maasGor ? 'true' : 'false' !!};
+  var _ODEME_YAP = {!! $_odemeYap ? 'true' : 'false' !!};
   function _formatTL(v){
     if(!_MAAS_GOR) return '****';
     return parseFloat(v||0).toLocaleString('tr-TR',{minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1892,7 +1895,7 @@ $(function(){
           html += '    </div>';
           if(h.aciklama){ html += '    <div class="pm-item__aciklama">'+_escHtml(h.aciklama)+'</div>'; }
           html += '  </div>';
-          html += '  <button class="pm-item__sil '+silClass+'" data-id="'+h.id+'" title="Sil"><i class="fa fa-trash"></i></button>';
+          if(_ODEME_YAP){ html += '  <button class="pm-item__sil '+silClass+'" data-id="'+h.id+'" title="Sil"><i class="fa fa-trash"></i></button>'; }
           html += '</div>';
         });
         html += '</div>';
