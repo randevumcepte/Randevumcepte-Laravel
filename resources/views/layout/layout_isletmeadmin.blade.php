@@ -1170,6 +1170,7 @@
                         ><span class="mtext">Ajanda</span>
                      </a>
                   </li>
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.cark_yonet'))
                       <li>
                      @if(in_array($pageindex ?? 0, [500, 501, 502]))
                      <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1180,6 +1181,7 @@
                         ><span class="mtext">Çarkıfelek</span>
                      </a>
                   </li>
+                  @endif
                   {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>2)
