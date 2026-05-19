@@ -1546,21 +1546,31 @@ function _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage){
     window._paketEklemeKilidi = true;
     setTimeout(function(){ window._paketEklemeKilidi = false; }, 3500);
 
-    // YENI: Onceki soft paket modali kapat, ardindan HIZLI RANDEVU modal'i ac
+    // Tek hizmet -> dogrudan forma ekle (popup ACMA, kullanici Randevu Olustur'a kendi basar)
+    // Birden fazla hizmet -> Hizli Randevu popup'i ac (her hizmete inline personel/oda/cihaz secimi)
     var $soft = $('#softPaketSecimModal');
-    var _acHizli = function(){
-        try { _hizliPaketRandevuModalAc(hizmetData); } catch(e){ console.error('[PAKET-HIZLI] modal ac hatasi:', e); _paketHizmetleriniAyriSatirlaraEkle(hizmetData); }
+    var tekHizmet = hizmetData.length === 1;
+    var _acSiradaki = function(){
+        if(tekHizmet){
+            console.log('[PAKET] tek hizmet -> dogrudan forma yerlestir');
+            try { _paketHizmetleriniAyriSatirlaraEkle(hizmetData); }
+            catch(e){ console.error('[PAKET] forma yerlestirme hatasi:', e); window._paketEklemeKilidi = false; }
+        } else {
+            console.log('[PAKET] '+hizmetData.length+' hizmet -> Hizli Randevu popup');
+            try { _hizliPaketRandevuModalAc(hizmetData); }
+            catch(e){ console.error('[PAKET-HIZLI] modal ac hatasi:', e); _paketHizmetleriniAyriSatirlaraEkle(hizmetData); }
+        }
     };
     if($soft.length){
         $soft.one('hidden.bs.modal', function(){
             $('#softPaketSecimModal').remove();
             $('.modal-backdrop').filter(function(){ return !$('.modal.show, .modal.in').length || $(this).next('.modal.show, .modal.in').length === 0; }).remove();
-            _acHizli();
+            _acSiradaki();
         });
         $soft.modal('hide');
-        setTimeout(function(){ if($('#softPaketSecimModal').length){ $('#softPaketSecimModal').remove(); _acHizli(); } }, 350);
+        setTimeout(function(){ if($('#softPaketSecimModal').length){ $('#softPaketSecimModal').remove(); _acSiradaki(); } }, 350);
     } else {
-        _acHizli();
+        _acSiradaki();
     }
     return;
     // ESKI AKIS (asagisi calismaz; bypass icin yukarida return var):
