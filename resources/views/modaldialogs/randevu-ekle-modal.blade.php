@@ -1539,15 +1539,31 @@ function _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage){
     console.log('[PAKET] addServicesToForm cagrildi:', hizmetData);
     if(!hizmetData || !hizmetData.length){ console.warn('[PAKET] hizmetData bos'); return; }
     // Custom.js'in delegated click handler'i ayni anda 2-3 kez tetiklenebiliyor
-    // (setupSoftPackageSelectionEvents her acilisinda yeni handler ekledigi icin).
-    // Tekrarli cagrilari kilitleyerek yarisma kosulunu onle.
     if(window._paketEklemeKilidi){
         console.warn('[PAKET] zaten ekleniyor, yinelenen cagri atlandi');
         return;
     }
     window._paketEklemeKilidi = true;
-    // 3.5sn sonra kilidi otomatik kaldir (akis tikanmasini onle)
     setTimeout(function(){ window._paketEklemeKilidi = false; }, 3500);
+
+    // YENI: Onceki soft paket modali kapat, ardindan HIZLI RANDEVU modal'i ac
+    var $soft = $('#softPaketSecimModal');
+    var _acHizli = function(){
+        try { _hizliPaketRandevuModalAc(hizmetData); } catch(e){ console.error('[PAKET-HIZLI] modal ac hatasi:', e); _paketHizmetleriniAyriSatirlaraEkle(hizmetData); }
+    };
+    if($soft.length){
+        $soft.one('hidden.bs.modal', function(){
+            $('#softPaketSecimModal').remove();
+            $('.modal-backdrop').filter(function(){ return !$('.modal.show, .modal.in').length || $(this).next('.modal.show, .modal.in').length === 0; }).remove();
+            _acHizli();
+        });
+        $soft.modal('hide');
+        setTimeout(function(){ if($('#softPaketSecimModal').length){ $('#softPaketSecimModal').remove(); _acHizli(); } }, 350);
+    } else {
+        _acHizli();
+    }
+    return;
+    // ESKI AKIS (asagisi calismaz; bypass icin yukarida return var):
     // Onceki soft paket modalini kapat
     var $soft = $('#softPaketSecimModal');
     if($soft.length){
@@ -1566,6 +1582,229 @@ function _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage){
     } else {
         _paketHizmetleriniAyriSatirlaraEkle(hizmetData);
     }
+}
+
+// ============================================================
+// HIZLI PAKET RANDEVU MODAL — UX: tek pencerede tum hizmetler icin
+// inline personel/oda/cihaz secimi yapilir; direkt randevu olusturulur.
+// "Detayli duzenle" basilirsa eski form akisina dusulur.
+// ============================================================
+function _hizliPaketRandevuModalAc(hizmetData){
+    if(!hizmetData || !hizmetData.length) return;
+
+    // Row 0'daki mevcut secimleri base olarak kullan (takvimden inheritance)
+    var $row0 = $('#yenirandevuekleform .hizmet-satiri').first();
+    var basePersonel = $row0.find('.personel-select').val() || '';
+    var baseCihaz    = $row0.find('.cihaz-select').val() || '';
+    var baseOda      = $row0.find('.oda-select').val() || '';
+
+    var personeller = (window.randevuModalData && window.randevuModalData.personeller) || [];
+    var cihazlar    = (window.randevuModalData && window.randevuModalData.cihazlar) || [];
+    var tumOdalar   = (window.randevuModalData && window.randevuModalData.odalar) || [];
+
+    // Hizmet bazli oda filtrele
+    function _odaSecenekleri(hizmetId){
+        var hid = parseInt(hizmetId, 10);
+        var liste = tumOdalar;
+        if(hid){
+            var filt = tumOdalar.filter(function(o){ return Array.isArray(o.hizmet_idleri) && o.hizmet_idleri.indexOf(hid) !== -1; });
+            if(filt.length) liste = filt;
+        }
+        return liste;
+    }
+
+    function _opt(arr, selected, labelKey){
+        labelKey = labelKey || 'ad';
+        return '<option value="">— Seçiniz —</option>' + arr.map(function(o){
+            var sel = String(o.id) === String(selected) ? ' selected' : '';
+            return '<option value="'+o.id+'"'+sel+'>'+$('<div>').text(o[labelKey]).html()+'</option>';
+        }).join('');
+    }
+
+    // Satir kartlari uret
+    var hizmetSatirlariHtml = hizmetData.map(function(item, i){
+        var hizmetId = item.hizmet_id || item.id;
+        var sure = item.sure || 0;
+        var fiyat = item.fiyat || 0;
+        var odaSec = _odaSecenekleri(hizmetId);
+        var paketRozet = item.tur === 'paket' && item.paket_adi
+            ? '<span class="badge" style="background:#f59e0b;color:#fff;font-size:0.7rem;margin-left:6px;font-weight:600;padding:3px 8px;border-radius:6px;">📦 '+$('<div>').text(item.paket_adi).html()+'</span>'
+            : '<span class="badge" style="background:#3b82f6;color:#fff;font-size:0.7rem;margin-left:6px;padding:3px 8px;border-radius:6px;">Hizmet</span>';
+
+        return ''
+        + '<div class="paket-hizli-satir card mb-2" data-hizmet-id="'+item.id+'" data-hizmet-orig-id="'+hizmetId+'" data-sure="'+sure+'" data-fiyat="'+fiyat+'" style="border:1px solid #e5e7eb;border-radius:10px;">'
+        +   '<div class="card-body" style="padding:12px 14px;">'
+        +     '<div class="d-flex justify-content-between align-items-center mb-2" style="border-bottom:1px solid #f3f4f6;padding-bottom:8px;">'
+        +       '<div style="font-weight:700;color:#111827;font-size:0.92rem;">'+(i+1)+'. '+$('<div>').text(item.text).html()+paketRozet+'</div>'
+        +       '<small style="color:#6b7280;"><i class="fa fa-clock-o"></i> '+sure+' dk &nbsp; <i class="fa fa-money"></i> '+fiyat+' ₺</small>'
+        +     '</div>'
+        +     '<div class="row g-2">'
+        +       '<div class="col-md-4"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Personel</label><select class="form-control form-control-sm hizli-personel" style="font-size:0.85rem;">'+_opt(personeller, basePersonel)+'</select></div>'
+        +       '<div class="col-md-4"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Oda</label><select class="form-control form-control-sm hizli-oda" style="font-size:0.85rem;">'+_opt(odaSec, baseOda)+'</select></div>'
+        +       '<div class="col-md-4"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Cihaz</label><select class="form-control form-control-sm hizli-cihaz" style="font-size:0.85rem;">'+_opt(cihazlar, baseCihaz)+'</select></div>'
+        +     '</div>'
+        +   '</div>'
+        + '</div>';
+    }).join('');
+
+    // Baslik metni
+    var musteriAd = '';
+    try { musteriAd = $('#randevuekle_musteri_id option:selected').text() || ''; } catch(e){}
+    var tarih = $('#yenirandevuekleform input[name="tarih"]').val();
+    var saat = $('#yenirandevuekleform select[name="saat"]').val();
+    var baslik = (musteriAd ? musteriAd + ' — ' : '') + tarih + ' ' + saat + ' • Paket\'ten '+hizmetData.length+' hizmet';
+
+    $('#paketHizli_baslikYazi').text(baslik);
+    $('#paketHizli_satirlar').html(hizmetSatirlariHtml);
+
+    // Ozet
+    var toplamSure = hizmetData.reduce(function(s,h){ return s + (parseInt(h.sure||0,10)||0); }, 0);
+    $('#paketHizli_ozetSayi').text(hizmetData.length);
+    $('#paketHizli_ozetSure').text(toplamSure);
+    $('#paketHizli_ozet').show();
+
+    // Modali en sona tasi (z-index dogal stack), ac
+    var $m = $('#paketHizliRandevuModal');
+    $m.detach().appendTo('body');
+    $m.modal('show');
+
+    // Detayli duzenle: kapat ve eski forma yerlestirme akisina dus
+    $('#paketHizli_detayliDuzenle').off('click.hizli').on('click.hizli', function(){
+        $m.modal('hide');
+        setTimeout(function(){
+            window._paketEklemeKilidi = false; // _paketHizmetleriniAyriSatirlaraEkle yeniden calisabilsin
+            _paketHizmetleriniAyriSatirlaraEkle(hizmetData);
+        }, 250);
+    });
+
+    // Modal kapanmasi: kilidi serbest birak
+    $m.off('hidden.bs.modal.hizli').on('hidden.bs.modal.hizli', function(){
+        window._paketEklemeKilidi = false;
+    });
+
+    // Hizli olustur: dogrudan POST
+    $('#paketHizli_olustur').off('click.hizli').on('click.hizli', function(){
+        var $btn = $(this);
+        if($btn.prop('disabled')) return;
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Oluşturuluyor...');
+
+        // Her satirin secimini topla
+        var atamalar = [];
+        $('#paketHizli_satirlar .paket-hizli-satir').each(function(){
+            var $r = $(this);
+            atamalar.push({
+                hizmetItemId: $r.data('hizmet-id'),
+                hizmetOrigId: $r.data('hizmet-orig-id'),
+                sure: parseInt($r.data('sure'),10) || 0,
+                fiyat: parseFloat($r.data('fiyat')) || 0,
+                personel: $r.find('.hizli-personel').val() || '',
+                cihaz:    $r.find('.hizli-cihaz').val() || '',
+                oda:      $r.find('.hizli-oda').val() || '',
+            });
+        });
+
+        // hizmetData ile esle (sirayla ayni)
+        var hizmetDataWithChoice = hizmetData.map(function(h, i){
+            var a = atamalar[i] || {};
+            return Object.assign({}, h, {
+                _personel: a.personel,
+                _cihaz:    a.cihaz,
+                _oda:      a.oda,
+                sure: a.sure || h.sure || 0,
+                fiyat: a.fiyat || h.fiyat || 0,
+            });
+        });
+
+        _hizliRandevuOlustur(hizmetDataWithChoice, function(ok){
+            $btn.prop('disabled', false).html('<i class="fa fa-calendar-check-o"></i> Hızlı Oluştur');
+            if(ok){ $m.modal('hide'); }
+        });
+    });
+}
+
+// Hizli olustur: FormData ile dogrudan /yenirandevuekle endpoint'ine POST
+// Her hizmet kendi grubunda (oda baska olsa bile ayri satir): backend personel/cihaz/oda key2 sirali iter eder.
+function _hizliRandevuOlustur(hizmetData, onBitti){
+    var sube = $('#yenirandevuekleform input[name="sube"]').val();
+    var musteriId = (typeof seciliMusteriId !== 'undefined' && seciliMusteriId) ? seciliMusteriId : $('#randevuekle_musteri_id').val();
+    var tarih = $('#yenirandevuekleform input[name="tarih"]').val();
+    var saat = $('#yenirandevuekleform select[name="saat"]').val();
+    var personelNotu = $('#yenirandevuekleform textarea[name="personel_notu"]').val() || '';
+    var token = $('#yenirandevuekleform input[name="_token"]').val();
+
+    if(!musteriId){ swal({type:'warning',title:'Uyarı',text:'Lütfen önce müşteri seçin.'}); if(onBitti) onBitti(false); return; }
+    if(!tarih || !saat){ swal({type:'warning',title:'Uyarı',text:'Tarih ve saat zorunludur.'}); if(onBitti) onBitti(false); return; }
+
+    function _build(cakismaOnayli){
+        var fd = new FormData();
+        fd.append('_token', token);
+        fd.append('sube', sube);
+        fd.append('adsoyad', musteriId);
+        fd.append('musteri_id', musteriId);
+        fd.append('tarih', tarih);
+        fd.append('saat', saat);
+        fd.append('personel_notu', personelNotu);
+        if(cakismaOnayli) fd.append('cakisanrandevuekle', 1);
+        @if(($pageindex ?? 0) == 2)
+        fd.append('takvim_sayfasi', 1);
+        @endif
+
+        var hizmetDetaylari = [];
+        var toplamSure = 0, toplamFiyat = 0;
+        hizmetData.forEach(function(h, key2){
+            fd.append('randevupersonelleriyeni[]', h._personel || '');
+            fd.append('randevucihazlariyeni[]', h._cihaz || '');
+            fd.append('randevuodalariyeni[]', h._oda || '');
+            fd.append('randevuhizmetleriyeni_'+key2+'[]', h.id);
+            var sure = parseInt(h.sure || 0, 10) || 0;
+            var fiyat = parseFloat(h.fiyat || 0) || 0;
+            fd.append('hizmet_sureleri-'+h.id, sure);
+            fd.append('hizmet_fiyatlari-'+h.id, fiyat);
+            hizmetDetaylari.push({ad: h.text || '', sure: sure, fiyat: fiyat});
+            toplamSure += sure; toplamFiyat += fiyat;
+        });
+        fd.append('toplam_sure', toplamSure);
+        fd.append('toplam_fiyat', toplamFiyat.toFixed(2));
+        fd.append('hizmet_detaylari', JSON.stringify(hizmetDetaylari));
+        return fd;
+    }
+
+    function _post(cakismaOnayli){
+        $.ajax({
+            type:'POST', url:'/isletmeyonetim/yenirandevuekle', dataType:'json',
+            data: _build(cakismaOnayli), processData:false, contentType:false,
+            beforeSend: function(){ $('#preloader').show(); },
+            success: function(result){
+                $('#preloader').hide();
+                if(result.cakismavar){
+                    swal({
+                        type:'warning', title:"<h2 style='font-size:24px;color:#fff'>Çakışma Var</h2>",
+                        background:'#ef4444',
+                        html:"<p style='color:#fff;font-size:14px'>"+result.cakismavar+"</p><p style='color:#fff'>Yine de oluşturmak ister misiniz?</p>",
+                        showCancelButton:true, confirmButtonText:'Evet, Oluştur', cancelButtonText:'Vazgeç',
+                    }).then(function(r2){
+                        if(r2.value) _post(true);
+                        else if(onBitti) onBitti(false);
+                    });
+                } else if(result.eklenemez){
+                    swal({type:'warning', title:'Uyarı', html: result.eklenemez});
+                    if(onBitti) onBitti(false);
+                } else {
+                    $('#modal-view-event-add').modal('hide');
+                    swal({type:'success', title:'Başarılı', html: result.success || 'Randevu oluşturuldu.', showConfirmButton:false, timer: result.timer || 2500});
+                    if($('#calendar').length && typeof takvimyukle === 'function') takvimyukle(false, false);
+                    try { resetForm && resetForm(); } catch(e){}
+                    if(onBitti) onBitti(true);
+                }
+            },
+            error: function(req){
+                $('#preloader').hide();
+                swal({type:'error', title:'Hata', text:'Randevu oluşturulamadı. Lütfen tekrar deneyin.'});
+                if(onBitti) onBitti(false);
+            }
+        });
+    }
+    _post(false);
 }
 
 // Paketten gelen her hizmeti AYRI bir satira yerlestirir (oda atama popup'i acmadan).
@@ -3375,6 +3614,40 @@ function formatHizmetSecim(hizmet) {
             <div class="modal-footer" style="border-top:1px solid #f3f4f6;">
                 <button type="button" class="btn btn-light btn-sm hizmet-oda-modal-kapat"><i class="fa fa-times"></i> Vazgeç</button>
                 <button type="button" class="btn btn-success btn-sm" id="hizmet-oda-atama-onayla"><i class="fa fa-calendar-check-o"></i> Randevu Oluştur</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ============================================================ --}}
+{{-- HIZLI PAKET RANDEVU MODAL — inline personel/oda/cihaz secimi --}}
+{{-- Paket secimi sonrasi forma yerlestirme yerine tek pencerede --}}
+{{-- tum hizmetler icin atama yapilir ve direkt randevu olusturulur --}}
+{{-- ============================================================ --}}
+<div class="modal fade" id="paketHizliRandevuModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" style="z-index:100025;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:900px;">
+        <div class="modal-content" style="border-radius:14px;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,0.35);">
+            <div class="modal-header" style="background:linear-gradient(135deg,#10b981 0%,#0ea5e9 100%);border:none;padding:16px 22px;">
+                <h5 class="modal-title" style="color:#fff;display:flex;align-items:center;gap:10px;font-weight:700;">
+                    <i class="fa fa-bolt"></i> Hızlı Paket Randevu
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:0.9;font-size:24px;text-shadow:none;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:18px 22px;max-height:60vh;overflow-y:auto;">
+                <div id="paketHizli_baslik" class="alert" style="background:#f0f9ff;border:1px solid #bae6fd;color:#075985;padding:10px 14px;font-size:0.85rem;margin-bottom:14px;border-radius:8px;">
+                    <i class="fa fa-info-circle"></i> <span id="paketHizli_baslikYazi"></span>
+                </div>
+                <div id="paketHizli_satirlar"></div>
+                <div id="paketHizli_ozet" class="mt-3 p-2" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;font-size:0.82rem;display:none;">
+                    <strong>Toplam:</strong> <span id="paketHizli_ozetSayi">0</span> hizmet • <span id="paketHizli_ozetSure">0</span> dk
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid #f3f4f6;padding:12px 22px;justify-content:space-between;">
+                <button type="button" class="btn btn-link btn-sm" id="paketHizli_detayliDuzenle" style="color:#6b7280;text-decoration:underline;font-size:0.8rem;"><i class="fa fa-pencil"></i> Detaylı düzenle (forma aç)</button>
+                <div>
+                    <button type="button" class="btn btn-light btn-sm" data-dismiss="modal"><i class="fa fa-times"></i> Vazgeç</button>
+                    <button type="button" class="btn btn-success btn-sm" id="paketHizli_olustur" style="font-weight:600;padding:7px 18px;"><i class="fa fa-calendar-check-o"></i> Hızlı Oluştur</button>
+                </div>
             </div>
         </div>
     </div>
