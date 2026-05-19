@@ -61,7 +61,9 @@
                         </div>
                         <div class="col-md-6 text-right" id="tahsilats_type">
                            <button  type="button" class="btn btn-success" id='senetle_veya_taksitle_tahsil_et'> Alacaklar</button>
-                           <button type="button" id='yeni_taksitli_tahsilat_olusur' href="#"  data-value='' class="btn  btn-primary" style="font-weight: bold;">Taksit Yap</button> 
+                           @yetki('satis.senet_olustur')
+                           <button type="button" id='yeni_taksitli_tahsilat_olusur' href="#"  data-value='' class="btn  btn-primary" style="font-weight: bold;">Taksit Yap</button>
+                           @endyetki
                         </div>
                      </div>
                      <div id='tum_tahsilatlar'>
@@ -119,6 +121,7 @@
                                     >
                                   
                                     @if(($hizmet->senet_id == null && $hizmet->taksitli_tahsilat_id == null && \App\TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->count()==0) || $hizmet->fiyat == 0)
+                                    @yetki('satis.hediye_isle')
                                     @if(!$hizmet->hediye)
                                     <a class="dropdown-item tahsilat_hizmet_hediye_ver" data-value="{{$hizmet->id}}" href="#"
                                        ><i class="fa fa-gift"></i> Hediye Ver</a
@@ -128,6 +131,7 @@
                                        ><i class="fa fa-gift"></i> Hediyeyi Kaldır</a
                                        >
                                     @endif
+                                    @endyetki
                                     <a class="dropdown-item tahsilat_hizmet_sil" data-value="{{$hizmet->id}}" href="#"
                                        ><i class="dw dw-delete-3"></i> Sil</a
                                        >
@@ -190,6 +194,7 @@
                                     class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list"
                                     >
                                     @if(($urun->senet_id == null && $urun->taksitli_tahsilat_id == null && \App\TahsilatUrunler::where('adisyon_urun_id',$urun->id)->count()==0) || $urun->fiyat == 0)
+                                    @yetki('satis.hediye_isle')
                                     @if(!$urun->hediye)
                                     <a class="dropdown-item tahsilat_urun_hediye_ver" data-value="{{$urun->id}}" href="#"
                                        ><i class="fa fa-gift"></i> Hediye Ver</a
@@ -199,6 +204,7 @@
                                        ><i class="fa fa-gift"></i> Hediyeyi Kaldır</a
                                        >
                                     @endif
+                                    @endyetki
                                     <a class="dropdown-item tahsilat_urun_sil" href="#" data-value="{{$urun->id}}"
                                        ><i class="dw dw-delete-3"></i> Sil</a
                                        >
@@ -255,6 +261,7 @@
                                     >
                                    
                                     @if(($paket->senet_id == null && $paket->taksitli_tahsilat_id == null && \App\TahsilatPaketler::where('adisyon_paket_id',$paket->id)->count()==0) || $paket->fiyat == 0)
+                                    @yetki('satis.hediye_isle')
                                     @if(!$paket->hediye)
                                     <a class="dropdown-item tahsilat_paket_hediye_ver" data-value="{{$paket->id}}" href="#"
                                        ><i class="fa fa-gift"></i> Hediye Ver</a
@@ -264,6 +271,7 @@
                                        ><i class="fa fa-gift"></i> Hediyeyi Kaldır</a
                                        >
                                     @endif
+                                    @endyetki
                                     <a class="dropdown-item tahsilat_paket_sil" data-value="{{$paket->id}}" href="#"
                                        ><i class="dw dw-delete-3"></i> Sil</a
                                        >

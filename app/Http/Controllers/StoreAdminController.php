@@ -7244,14 +7244,13 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
-        if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request, 'satis.tum_satis_gor'))
-            {
-                    return redirect()->route('isletmeadmin.randevular');
-                    exit(0);
-            }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'satis.adisyon_olustur')) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
         }
-       
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
@@ -9349,7 +9348,30 @@ private function ayAdiCevir($ingilizceAy)
                     ->where('yetkili_id', $_authUid)->value('id') ?: -1;
             }
         }
-        return self::adisyon_yukle_tahsilat($request,$request->tur,'','1970-01-01',date('Y-m-d'),'',$personelFiltre,'');
+        $result = self::adisyon_yukle_tahsilat($request,$request->tur,'','1970-01-01',date('Y-m-d'),'',$personelFiltre,'');
+
+        // Yetki: satis.adisyon_sil kapali ise islemler kolonundan
+        // "Adisyonu Sil" butonunu kaldir.
+        try {
+            if (Auth::guard('isletmeyonetim')->check()) {
+                $_uid = Auth::guard('isletmeyonetim')->user()->id;
+                $_salonId = self::mevcutsube($request);
+                $silYetki = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_uid, $_salonId, 'satis.adisyon_sil');
+                if (!$silYetki && is_iterable($result)) {
+                    foreach ($result as $row) {
+                        if (isset($row->islemler) && is_string($row->islemler)) {
+                            $row->islemler = preg_replace(
+                                '/<button[^>]*name="adisyon_sil"[^>]*>.*?<\\/button>\\s*/s',
+                                '',
+                                $row->islemler
+                            );
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        return $result;
     }
     public function randevuTestCase(Request $request,$takvim_turu,$tarih1,$tarih2)
     {
@@ -21988,29 +22010,20 @@ public function arsivformekleme(Request $request){
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
-        if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request, 'satis.tum_satis_gor'))
-            {
-                    return redirect()->route('isletmeadmin.randevular');
-                    exit(0);
-            }
+        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'satis.adisyon_olustur')) {
+            return view('isletmeadmin.yetkisizerisim');
+            exit(0);
         }
-       
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
             exit(0);
         }
-        //$acik_adisyonlar = self::adisyon_yukle($request,'','','1970-01-01',date('Y-m-d'),$musteriid,'');
-        //$user = User::where('id',$musteriid)->first();
         $paketler = self::paket_liste_getir('',true,$request);
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
-        //$tahsilatlar = Tahsilatlar::where('user_id',$musteriid)->get();
-        //$request->attributes->set('musteriid',$musteriid);
-        /*$tum_senetler = self::senetvadegetir_tahsilat($request);
-        $tum_takstiler = self::taksitvadegetir_tahsilat($request);
-        $senet_gelen_vadeler = SenetVadeleri::join('senetler','senet_vadeleri.senet_id','=','senetler.id')->select('senet_vadeleri.id as senet_vade_id','senet_vadeleri.vade_tarih as tarih','senet_vadeleri.tutar as tutar')->where('senetler.user_id',$musteriid)->where('senet_vadeleri.vade_tarih','<=',date('Y-m-d'))->where('odendi',false)->get();
-        $taksit_gelen_vadeler = TaksitVadeleri::join('taksitli_tahsilatlar','taksit_vadeleri.taksitli_tahsilat_id','=','taksitli_tahsilatlar.id')->select('taksit_vadeleri.id as taksit_vade_id','taksit_vadeleri.vade_tarih as tarih','taksit_vadeleri.tutar as tutar')->where('taksitli_tahsilatlar.user_id',$musteriid)->where('taksit_vadeleri.vade_tarih','<=',date('Y-m-d'))->where('odendi',false)->get();*/
         return view('isletmeadmin.yenitahsilat',['isletme'=>$isletme,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request), 'sayfa_baslik'=>'
             Yeni Tahsilat','pageindex' => 11111 ,'request'=>$request, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);

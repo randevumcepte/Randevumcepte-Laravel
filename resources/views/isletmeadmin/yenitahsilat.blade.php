@@ -73,7 +73,9 @@
                         </div>
                         <div class="col-md-6 text-right" id="tahsilats_type" >
                            <button type="button" class="btn btn-success adisyon_ekle_buttonlar" id='senetle_veya_taksitle_tahsil_et' disabled> Alacaklar</button>
-                           <button type="button" id='yeni_taksitli_tahsilat_olusur' href="#"  data-value='' class="btn  btn-primary adisyon_ekle_buttonlar" style="font-weight: bold;" disabled>Taksit Yap</button> 
+                           @yetki('satis.senet_olustur')
+                           <button type="button" id='yeni_taksitli_tahsilat_olusur' href="#"  data-value='' class="btn  btn-primary adisyon_ekle_buttonlar" style="font-weight: bold;" disabled>Taksit Yap</button>
+                           @endyetki
                         </div>
                      </div>
                      <div id='tum_tahsilatlar'>

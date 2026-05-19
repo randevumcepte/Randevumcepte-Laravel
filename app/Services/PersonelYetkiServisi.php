@@ -272,13 +272,7 @@ class PersonelYetkiServisi
     {
         if (!$salonId || !$personelId) return [];
 
-        // a) Personelin olusturdugu portfoyler
-        $olusturdugu = \App\MusteriPortfoy::where('salon_id', $salonId)
-            ->where('olusturan_personel_id', $personelId)
-            ->pluck('user_id')
-            ->all();
-
-        // b) Hizmet/urun/paket satislarinda yer aldiklari adisyonlarin musterileri
+        // a) Hizmet/urun/paket satislarinda yer aldiklari adisyonlarin musterileri
         $satistakiAdisyonIds = DB::table('adisyon_hizmetler')
             ->where('personel_id', $personelId)
             ->pluck('adisyon_id');
@@ -299,7 +293,23 @@ class PersonelYetkiServisi
                 ->all();
         }
 
-        $birlesik = array_unique(array_merge($olusturdugu, $satistaki));
+        // b) Bu personelin yer aldigi randevu_hizmetler -> randevu.user_id
+        $randevuIds = DB::table('randevu_hizmetler')
+            ->where('personel_id', $personelId)
+            ->pluck('randevu_id')
+            ->unique()
+            ->values()
+            ->all();
+        $randevulu = [];
+        if (!empty($randevuIds)) {
+            $randevulu = DB::table('randevular')
+                ->where('salon_id', $salonId)
+                ->whereIn('id', $randevuIds)
+                ->pluck('user_id')
+                ->all();
+        }
+
+        $birlesik = array_unique(array_merge($satistaki, $randevulu));
         return array_values(array_filter($birlesik, fn($v) => $v !== null && $v !== ''));
     }
 
@@ -316,12 +326,6 @@ class PersonelYetkiServisi
         $user = \Auth::guard($guard)->user();
         if (!$user) $user = \Auth::guard('isletmeyonetim')->user();
         if (!$user || !$salonId) return null;
-        $personelRolunde = DB::table('model_has_roles')
-            ->where('role_id', 5)
-            ->where('model_id', $user->id)
-            ->where('salon_id', $salonId)
-            ->exists();
-        if (!$personelRolunde) return null;
         if (self::yetkiliYetkiVar($user->id, $salonId, 'musteri.tum_portfoy_gor')) return null;
         $personelId = Personeller::where('yetkili_id', $user->id)
             ->where('salon_id', $salonId)
