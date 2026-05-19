@@ -245,9 +245,9 @@
     <div class="hat-grid">
         @php
             $defaultBasliklar = [
-                1 => ['baslik' => '1. Hatırlatma — Yumuşak',  'altyazi' => 'Sabah, ilk hatırlatma',  'icon' => '🎡', 'saat' => '10:00', 'mesaj' => '🎡 Bugün çark hakkınız var, hediyeler sizi bekliyor!'],
-                2 => ['baslik' => '2. Hatırlatma — Orta',     'altyazi' => 'Öğleden sonra',          'icon' => '⏰', 'saat' => '15:00', 'mesaj' => '⏰ Çark hakkınız hâlâ duruyor — son birkaç saat!'],
-                3 => ['baslik' => '3. Hatırlatma — Aciliyet', 'altyazi' => 'Akşam, son saatler',     'icon' => '🚨', 'saat' => '20:00', 'mesaj' => '🚨 Çarkı çevirmeyi unutmayın'],
+                1 => ['baslik' => 'Sabah Hatırlatması', 'altyazi' => 'Güne hediyeyle başla', 'icon' => '🎡', 'saat' => '10:00', 'mesaj' => '🎡 Bugün çark hakkınız var, hediyeler sizi bekliyor!'],
+                2 => ['baslik' => 'Öğleden Sonra',      'altyazi' => 'Çark hâlâ açık',       'icon' => '⏰', 'saat' => '15:00', 'mesaj' => '⏰ Çark hakkınız hâlâ duruyor — son birkaç saat!'],
+                3 => ['baslik' => 'Akşam Hatırlatması', 'altyazi' => 'Bugünün son şansı',    'icon' => '🚨', 'saat' => '20:00', 'mesaj' => '🚨 Son saatler! Çarkı çevirmeyi unutmayın'],
             ];
 
             $slotlar = [];
