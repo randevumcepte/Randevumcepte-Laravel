@@ -6095,12 +6095,10 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
-        if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request, 'musteri.tum_portfoy_gor')) {
-                    return redirect()->route('isletmeadmin.randevular');
-                    exit(0);
-            }
-        }
+        // Eski yonlendirme kaldirildi: personel rolu + 'musteri.tum_portfoy_gor'
+        // yoksa kullanici musteri sayfasini ACABILMELI (kendi portfoyunu gorur).
+        // Sayfa icindeki listeleme/butonlar zaten 'musteri.liste_gor' /
+        // 'tum_portfoy_gor' yetkilerine gore davranir.
 
         if(count($isletmeler)>1 && !isset($_GET['sube'])) {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
