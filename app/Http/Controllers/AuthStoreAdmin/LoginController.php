@@ -65,7 +65,7 @@ class LoginController extends Controller
         if (Auth::guard('isletmeyonetim')->check()) {
             // Oturum başarılı bir şekilde açıldıysa, session'ı manuel olarak kontrol et ve güncelle
             Session::put('isletmeyonetim_user', $user); // Kullanıcıyı manuel olarak session'a ekle
-            return redirect('/isletmeyonetim/randevular');
+            return redirect($this->_yetkiliIlkSayfa());
         } else {
             // Oturum açma işlemi başarısız olursa hata mesajı göster
             echo 'Oturum açılırken bir hata oluştu!';
@@ -87,7 +87,7 @@ class LoginController extends Controller
         }
         else
         {
-            return redirect('/isletmeyonetim/randevular');
+            return redirect($this->_yetkiliIlkSayfa());
             exit;
         }
     }
@@ -137,7 +137,7 @@ class LoginController extends Controller
             } catch (\Exception $e) {}
 
            // Auth::guard('isletmeyonetim')->logoutOtherDevices($request->password);
-            return redirect()->route('isletmeadmin.randevular');
+            return redirect($this->_yetkiliIlkSayfa());
             /*if(Auth::guard('isletmeyonetim')->user()->hasRole('Personel'))
             {
 
@@ -152,6 +152,49 @@ class LoginController extends Controller
         } 
         return back()->with('error', 'Yanlış kullanıcı adı veya şifre girdiniz!');
     }
+    /**
+     * Auth user'in yetkilerine gore login sonrasi yonlendirilecek ilk sayfa.
+     * Onclik: randevu takvimi (varsayilan) → musteriler → satis → raporlar
+     * → kasa → personel → SMS → fallback profil.
+     */
+    private function _yetkiliIlkSayfa(): string
+    {
+        $user = \Auth::guard('isletmeyonetim')->user();
+        if (!$user) return '/isletmeyonetim/randevular';
+        $isletmeler = $user->yetkili_olunan_isletmeler
+            ->where('aktif', 1)->pluck('salon_id')->toArray();
+        if (empty($isletmeler)) return '/isletmeyonetim/randevular';
+        $salonId = $isletmeler[0];
+        $has = function ($key) use ($user, $salonId) {
+            return \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                $user->id, $salonId, $key
+            );
+        };
+        // Oncelikli kontroller (sidebar siralamasi ile ayni)
+        if ($has('randevu.takvim_gor'))      return '/isletmeyonetim/randevular';
+        if ($has('musteri.liste_gor'))       return '/isletmeyonetim/musteriler';
+        if ($has('satis.adisyon_olustur') || $has('satis.tahsilat_al') || $has('satis.tum_satis_gor'))
+                                              return '/isletmeyonetim/adisyonlar';
+        if ($has('rapor.satis'))             return '/isletmeyonetim/raporlar';
+        if ($has('paket.seans_takip'))       return '/isletmeyonetim/seanstakip';
+        if ($has('personel.liste_gor'))      return '/isletmeyonetim/personel-yonetimi';
+        if ($has('rapor.kasa') || $has('finans.kasa_giris_cikis') || $has('finans.masraf_gor'))
+                                              return '/isletmeyonetim/kasadefteri';
+        if ($has('pazarlama.kampanya_yonet'))return '/isletmeyonetim/kampanya_yonetimi';
+        if ($has('pazarlama.sms_gonder') || $has('pazarlama.toplu_sms'))
+                                              return '/isletmeyonetim/toplusms';
+        if ($has('ayar.salon_bilgi') || $has('ayar.cihaz_oda_yonet') || $has('randevu.online_ayar'))
+                                              return '/isletmeyonetim/ayarlar?p=temelbilgiler';
+        // Personel rolu + hicbir buyuk yetki yoksa: kendi rapor sayfasina yonlendir
+        $personelId = \App\Personeller::where('yetkili_id', $user->id)
+            ->where('salon_id', $salonId)
+            ->value('id');
+        if ($personelId) {
+            return '/isletmeyonetim/personeldetay/' . $personelId;
+        }
+        return '/isletmeyonetim/profilbilgileri';
+    }
+
     public function sifremiunuttum(Request $request)
     {
         return view('isletmeadmin.sifremiunuttum');
