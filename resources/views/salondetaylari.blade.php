@@ -900,6 +900,21 @@
                         <small class="rdv-input-hint">Telefonunuz randevu bildirimleri için kullanılır. Sizinle paylaşılmaz.</small>
                      </div>
 
+                     {{-- Kayitli numara icin sifre alani — backend 401+needs_password donunce JS gosterir --}}
+                     <div class="rdv-input-grup" id="rdv-sifre-grup" style="display:none;">
+                        <label for="rdv_sifre"><i class="fa fa-lock"></i> Randevumcepte Şifreniz</label>
+                        <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;">
+                           <input type="password" name="sifre" id="rdv_sifre"
+                                  placeholder="Mevcut şifreniz"
+                                  autocomplete="current-password"
+                                  style="flex:1;min-width:180px;">
+                           <button type="button" id="rdv-sifremi-unuttum" class="btn btn-light" style="white-space:nowrap;background:#f3f0fa;border:1px solid #d9d1ee;color:#5C008E;font-weight:600;">
+                              <i class="fa fa-paper-plane"></i> Şifremi unuttum
+                           </button>
+                        </div>
+                        <small class="rdv-input-hint" id="rdv-sifre-bilgi">Bu numara sistemde kayıtlı. Mevcut şifrenizi girin ya da "Şifremi unuttum" ile SMS yoluyla yeni şifre isteyin.</small>
+                     </div>
+
                      <label class="rdv-kvkk-check">
                         <input type="checkbox" name="kvkk" id="rdv_kvkk" value="1" required>
                         <span><a href="/kullanim-ve-gizlik-kosullari" target="_blank">Kullanım ve gizlilik koşulları</a>nı okudum, kabul ediyorum.</span>
@@ -1607,6 +1622,58 @@
              }
              function temizHata(){ if (hataKutu) { hataKutu.innerHTML=''; hataKutu.style.display='none'; } }
 
+             // Sifre grubunu goster + opsiyonel bilgi mesaji yaz
+             function sifreGrubunuAc(bilgi, vurgu){
+                 var grup = document.getElementById('rdv-sifre-grup');
+                 var info = document.getElementById('rdv-sifre-bilgi');
+                 if (!grup) return;
+                 grup.style.display = 'block';
+                 if (bilgi && info) {
+                     info.textContent = bilgi;
+                     info.style.color = vurgu === 'ok' ? '#0a7c3a' : (vurgu === 'err' ? '#b91c1c' : '');
+                 }
+                 var inp = document.getElementById('rdv_sifre');
+                 if (inp) { try { inp.focus(); } catch(e){} }
+             }
+
+             // "Sifremi unuttum" — /sifregonder GET, sonucu sifre bilgi alanina yaz
+             var unutBtn = document.getElementById('rdv-sifremi-unuttum');
+             if (unutBtn) {
+                 unutBtn.addEventListener('click', function(){
+                     var telEl2 = document.getElementById('rdv_telefon');
+                     var tel2 = (telEl2 && telEl2.value || '').replace(/[^0-9]/g,'');
+                     if (!/^05[0-9]{9}$/.test(tel2)) {
+                         sifreGrubunuAc('Telefon numaranız 05XXXXXXXXX formatında olmalı.', 'err');
+                         return;
+                     }
+                     var origText = unutBtn.innerHTML;
+                     unutBtn.disabled = true;
+                     unutBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Gönderiliyor...';
+                     sifreGrubunuAc('Şifreniz SMS olarak gönderiliyor, lütfen bekleyin...', 'ok');
+                     $.ajax({
+                         type: 'GET',
+                         url: '/sifregonder',
+                         data: { cep_telefon: tel2 },
+                         dataType: 'text',
+                         success: function(){
+                             sifreGrubunuAc('Telefonunuza SMS olarak yeni şifre gönderildi. Lütfen gelen şifreyi yukarıya girin.', 'ok');
+                         },
+                         error: function(xhr){
+                             var msg = 'Şifre gönderilemedi. Lütfen biraz sonra tekrar deneyin.';
+                             try {
+                                 var r = JSON.parse(xhr.responseText);
+                                 if (r && r.error) msg = r.error;
+                             } catch(e){}
+                             sifreGrubunuAc(msg, 'err');
+                         },
+                         complete: function(){
+                             unutBtn.disabled = false;
+                             unutBtn.innerHTML = origText;
+                         }
+                     });
+                 });
+             }
+
              form.addEventListener('submit', function(e){
                  e.preventDefault();
                  temizHata();
@@ -1627,11 +1694,14 @@
                  // Randevu ozeti formundan secilen hizmet/personel/tarih-saat verilerini al
                  var formData = $('#randevuozeti').serialize();
                  // Yeni form verilerini ekle
+                 var sifreEl = document.getElementById('rdv_sifre');
+                 var sifreVal = sifreEl ? sifreEl.value : '';
                  formData += '&adsoyad=' + encodeURIComponent(document.getElementById('rdv_adsoyad').value)
                           +  '&cep_telefon=' + encodeURIComponent(tel)
                           +  '&kvkk=1'
                           +  '&_hp=' + encodeURIComponent(document.getElementById('_hp').value)
-                          +  '&_t=' + encodeURIComponent(document.getElementById('_t').value);
+                          +  '&_t=' + encodeURIComponent(document.getElementById('_t').value)
+                          +  '&sifre=' + encodeURIComponent(sifreVal);
 
                  var origText = submitBtn.innerHTML;
                  submitBtn.disabled = true;
@@ -1666,11 +1736,19 @@
                      },
                      error: function(xhr){
                          var msg = 'Bir hata oluştu. Tekrar deneyiniz.';
+                         var needsPassword = false;
                          try {
                              var r = JSON.parse(xhr.responseText);
                              if (r && r.error) msg = r.error;
+                             if (r && r.needs_password) needsPassword = true;
                          } catch(e){}
-                         gosterHata(msg);
+                         if (xhr.status === 401 || needsPassword) {
+                             // Hesap var: inline sifre alanini ac, hata kutusunda mesaj gosterme
+                             temizHata();
+                             sifreGrubunuAc(msg, sifreVal ? 'err' : '');
+                         } else {
+                             gosterHata(msg);
+                         }
                          submitBtn.disabled = false;
                          submitBtn.innerHTML = origText;
                      }
