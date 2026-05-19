@@ -410,7 +410,13 @@ public function carkdilimekle(Request $request)
 
             Log::info('Dilim kaydedildi: ' . $slice->dilim_ismi . ' - Olasılık: ' . $slice->dilim_olasilik);
         }
-        
+
+        // Audit
+        SalonAudit::log($salon_id, 'cark_dilim_kaydet', 'cark', $carkifelek->id,
+            count($savedSlices).' dilim',
+            'Çark dilimleri (ödüller) güncellendi',
+            ['aktifmi'=>$carkifelek->aktifmi, 'dilim_sayisi'=>count($savedSlices), 'kazanan'=>collect($savedSlices)->firstWhere('dilim_olasilik',100)]);
+
         return response()->json([
             'success' => true,
             'message' => 'Dilimler başarıyla kaydedildi!',
@@ -640,6 +646,11 @@ public function carkverilerigetir(Request $request)
         $gun = $request->input('gonderim_gunleri');
         $a->gonderim_gunleri = is_array($gun) ? $gun : null;
         $a->save();
+        // Audit
+        SalonAudit::log($salon_id, 'cark_hatirlatma_kaydet', 'cark_hatirlatma', $a->id,
+            $a->aktif ? 'Aktif' : 'Pasif',
+            'Çark hatırlatma ayarları kaydedildi',
+            ['aktif'=>$a->aktif, 'saatler'=>[$a->saat_1,$a->saat_2,$a->saat_3], 'gunler'=>$a->gonderim_gunleri]);
         return response()->json(['success' => true]);
     }
 
@@ -789,8 +800,18 @@ public function carkverilerigetir(Request $request)
             $m = SalonPuanOdulleri::where('id', $id)->where('salon_id', $salon_id)->first();
             if (!$m) return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı.']);
             $m->update($data);
+            // Audit
+            SalonAudit::log($salon_id, 'cark_puan_odulu_guncelle', 'cark_puan_odulu', $m->id,
+                $data['baslik'].' — '.$data['puan_esigi'].' puan',
+                'Puan merdiveni ödülü güncellendi',
+                $data);
         } else {
-            SalonPuanOdulleri::create($data);
+            $_new = SalonPuanOdulleri::create($data);
+            // Audit
+            SalonAudit::log($salon_id, 'cark_puan_odulu_ekle', 'cark_puan_odulu', $_new->id,
+                $data['baslik'].' — '.$data['puan_esigi'].' puan',
+                'Yeni puan merdiveni ödülü eklendi',
+                $data);
         }
 
         return response()->json(['success' => true]);
@@ -855,6 +876,10 @@ public function carkverilerigetir(Request $request)
         $id       = (int) $request->input('id', 0);
         $m = SalonPuanOdulleri::where('id', $id)->where('salon_id', $salon_id)->first();
         if (!$m) return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı.']);
+        // Audit
+        SalonAudit::log($salon_id, 'cark_puan_odulu_sil', 'cark_puan_odulu', $m->id,
+            ($m->baslik ?? '').' — '.$m->puan_esigi.' puan',
+            'Puan merdiveni ödülü silindi');
         $m->delete();
         return response()->json(['success' => true]);
     }
@@ -929,6 +954,13 @@ public function carkverilerigetir(Request $request)
             $odul->kullanim_tarihi = now();
         }
         $odul->save();
+
+        // Audit
+        $_audit_user = User::where('id',$odul->user_id)->value('name') ?? 'Müşteri #'.$odul->user_id;
+        SalonAudit::log($salon_id, $aksiyon === 'geri_al' ? 'cark_kupon_geri_al' : 'cark_kupon_kullan', 'cark_kupon', $odul->id,
+            $odul->kod.' — '.$_audit_user,
+            $aksiyon === 'geri_al' ? 'Çark kuponu kullanım geri alındı' : 'Çark kuponu kullanıldı olarak işaretlendi',
+            ['baslik'=>$odul->baslik, 'tip'=>$odul->tip, 'deger'=>$odul->deger, 'user_id'=>$odul->user_id]);
 
         return response()->json([
             'success'          => true,
@@ -3160,6 +3192,11 @@ private function ayAdiCevir($ingilizceAy)
          $giderkayit->miktar = $request->gider_miktar;
          $giderkayit->salon_id = Auth::guard('isletmeyonetim')->user()->salon_id;
          $giderkayit->save();
+         // Audit
+         SalonAudit::log($giderkayit->salon_id, 'kasa_gider_ekle', 'kasa_defteri', $giderkayit->id,
+             ($giderkayit->aciklama ?: 'Gider').' — '.number_format((float)$giderkayit->miktar,2,',','.').' ₺',
+             'Kasa defterine gider eklendi',
+             ['tarih'=>$giderkayit->tarih, 'miktar'=>$giderkayit->miktar]);
          $kasadefterigider = KasaDefteri::where('salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->where('gelir_gider',0)->where('tarih',$request->gider_tarih)->get();
                 $kasadefterigelir = KasaDefteri::where('salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->where('gelir_gider',1)->where('tarih',$request->gider_tarih)->get();
             $toplamgelir = KasaDefteri::where('salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->where('tarih',$request->gider_tarih)->where('gelir_gider',1)->sum('miktar');
@@ -3202,6 +3239,11 @@ private function ayAdiCevir($ingilizceAy)
          $giderkayit->miktar = $request->gelir_miktar;
          $giderkayit->salon_id = Auth::guard('isletmeyonetim')->user()->salon_id;
          $giderkayit->save();
+         // Audit
+         SalonAudit::log($giderkayit->salon_id, 'kasa_gelir_ekle', 'kasa_defteri', $giderkayit->id,
+             ($giderkayit->aciklama ?: 'Gelir').' — '.number_format((float)$giderkayit->miktar,2,',','.').' ₺',
+             'Kasa defterine gelir eklendi',
+             ['tarih'=>$giderkayit->tarih, 'miktar'=>$giderkayit->miktar]);
           $kasadefterigider = KasaDefteri::where('salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->where('gelir_gider',0)->where('tarih',$request->gelir_tarih)->get();
                 $kasadefterigelir = KasaDefteri::where('salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->where('gelir_gider',1)->where('tarih',$request->gelir_tarih)->get();
             $toplamgelir = KasaDefteri::where('salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->where('tarih',$request->gelir_tarih)->where('gelir_gider',1)->sum('miktar');
@@ -3239,6 +3281,11 @@ private function ayAdiCevir($ingilizceAy)
     public function kasadefterigirdisil(Request $request){
         $kasadefteri = KasaDefteri::where('id',$request->girdi_id)->first();
         $girditarihi = $kasadefteri->tarih;
+        // Audit
+        SalonAudit::log($kasadefteri->salon_id, 'kasa_girdi_sil', 'kasa_defteri', $kasadefteri->id,
+            ($kasadefteri->gelir_gider == 1 ? 'Gelir' : 'Gider').' — '.number_format((float)$kasadefteri->miktar,2,',','.').' ₺',
+            'Kasa defteri girdisi silindi',
+            ['tarih'=>$kasadefteri->tarih, 'aciklama'=>$kasadefteri->aciklama, 'tip'=>$kasadefteri->gelir_gider==1?'gelir':'gider']);
         $kasadefteri->delete();
           $kasadefterigider = KasaDefteri::where('salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->where('gelir_gider',0)->where('tarih',$girditarihi)->get();
                 $kasadefterigelir = KasaDefteri::where('salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->where('gelir_gider',1)->where('tarih',$girditarihi)->get();
@@ -3343,6 +3390,12 @@ private function ayAdiCevir($ingilizceAy)
                           $calismasaatiherbiri->save();
                     }
                 }
+                // Audit
+                $_audit_salonId = Auth::guard('isletmeyonetim')->user()->salon_id;
+                SalonAudit::log($_audit_salonId, 'calisma_saati_guncelle', 'salon', $_audit_salonId,
+                    'Çalışma saatleri',
+                    'Salon haftalık çalışma saatleri güncellendi',
+                    ['calisiyor'=>[$request->calisiyor1,$request->calisiyor2,$request->calisiyor3,$request->calisiyor4,$request->calisiyor5,$request->calisiyor6,$request->calisiyor7]]);
                 echo 'Çalışma saatleri başarı ile güncellendi';
         }
         catch(Exception $e){
@@ -3460,6 +3513,11 @@ private function ayAdiCevir($ingilizceAy)
               $yetkili->personel_id = $request->yetkili_personelid;
               $yetkili->salon_id = Auth::guard('isletmeyonetim')->user()->salon_id;
               $yetkili->save();
+              // Audit
+              SalonAudit::log($yetkili->salon_id, 'personel_yetki_olustur', 'personel', $yetkilendirilecekpersonel->id,
+                  $yetkilendirilecekpersonel->personel_adi,
+                  'Personel için sisteme giriş yetkisi oluşturuldu',
+                  ['is_admin'=>$request->sistemyetki_yeni2, 'tel'=>$request->ceptelefon_yeni]);
               $sonuc = $yetkilendirilecekpersonel->personel_adi. ' adlı personel için yetkilendirme başarı ile oluşturuldu';
          }
          $personeller = Personeller::where('salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->get();
@@ -3718,6 +3776,12 @@ private function ayAdiCevir($ingilizceAy)
             $result = 'Personel başarıyla kaydedildi';
             $swaltitle = 'Başarılı';
             $swalstat = 'success';
+
+            // Audit
+            SalonAudit::log($request->sube, $yeniekleme ? 'personel_ekle' : 'personel_guncelle', 'personel', $personel->id,
+                $personel->personel_adi,
+                $yeniekleme ? 'Yeni personel eklendi' : 'Personel bilgileri güncellendi',
+                ['rol'=>$sistemyetkisi, 'unvan'=>$request->unvan]);
         }
         return array(
             'swaltitle' => $swaltitle,
@@ -3859,6 +3923,10 @@ private function ayAdiCevir($ingilizceAy)
          $yetkili = IsletmeYetkilileri::where('personel_id',$request->personelid)->first();
          $yetkili->delete();
          $personel = Personeller::where('id',$request->personelid)->value('personel_adi');
+         // Audit
+         SalonAudit::log(self::mevcutsube($request), 'personel_yetki_kaldir', 'personel', $request->personelid,
+             $personel ?: ('Personel #'.$request->personelid),
+             'Personelin sistem giriş yetkisi kaldırıldı');
          $sonuc = $personel. ' isimli personelin sistem yetkileri başarı ile kaldırıldı!';
          $result['sonuc'] = array();
          $result['liste'] = array();
@@ -3958,6 +4026,15 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function personelhizmetsil(Request $request,$id){
         $hizmet = PersonelHizmetler::where('id',$request->hizmet)->first();
+        // Audit
+        if ($hizmet) {
+            $_audit_hizmetAdi = optional($hizmet->hizmetler)->hizmet_adi ?? 'Hizmet #'.$hizmet->hizmet_id;
+            $_audit_personelAdi = Personeller::where('id',$id)->value('personel_adi') ?? 'Personel #'.$id;
+            SalonAudit::log(self::mevcutsube($request), 'personel_hizmet_kaldir', 'personel_hizmet', $hizmet->id,
+                $_audit_personelAdi.' — '.$_audit_hizmetAdi,
+                'Personelden hizmet kaldırıldı',
+                ['personel_id'=>$id, 'hizmet_id'=>$hizmet->hizmet_id]);
+        }
         $hizmet->delete();
         $personelhizmetler = PersonelHizmetler::where('personel_id',$id)->orderBy('id','desc')->get();
          $personelhizmetleri_html = "";
@@ -4036,10 +4113,19 @@ private function ayAdiCevir($ingilizceAy)
         $personel->salon_id = Auth::guard('isletmeyonetim')->user()->salon_id;
         $personel->personel_adi = $request->personeladi;
         $personel->save();
+        // Audit
+        SalonAudit::log($personel->salon_id, 'personel_ekle', 'personel', $personel->id,
+            $personel->personel_adi, 'Yeni personel eklendi');
         return redirect('/isletmeyonetim/isletmem');
     }
     public function personelsil(Request $request){
         $personel = Personeller::where('id',$request->personelno)->first();
+        // Audit (silmeden once)
+        if ($personel) {
+            SalonAudit::log($personel->salon_id, 'personel_sil', 'personel', $personel->id,
+                $personel->personel_adi ?: ('Personel #'.$personel->id),
+                'Personel silindi');
+        }
         $personel->delete();
          return redirect('/isletmeyonetim/isletmem');
     }
@@ -4383,10 +4469,17 @@ private function ayAdiCevir($ingilizceAy)
                     }
                     
                     $randevuguncellendi['success'] = '<p>Randevu bilgileri başarıyla güncellendi.</p>' . $butonlar;
-                    
+
                     // Commit transaction if everything is successful
                     DB::commit();
-                    
+
+                    // Audit
+                    $_audit_musteriAdi = optional($mevcutRandevu->users)->name ?? 'Müşteri #'.$mevcutRandevu->user_id;
+                    $_audit_label = $_audit_musteriAdi.' — '.date('d.m.Y',strtotime($request->tarih)).' '.substr($request->saat,0,5);
+                    SalonAudit::log($mevcutRandevu->salon_id, 'randevu_guncelle', 'randevu', $mevcutRandevu->id, $_audit_label,
+                        'Randevu güncellendi',
+                        ['eski' => $eskiRandevuBilgileri, 'yeni' => $yeniRandevuBilgileri]);
+
                     return $randevuguncellendi;
                 } catch (\Exception $e) {
                     // Rollback transaction on error
@@ -4550,7 +4643,14 @@ private function ayAdiCevir($ingilizceAy)
 
         if(RandevuHizmetler::where('randevu_id',$randevu_eski->id)->count()==0)
             $randevu_eski->delete();
-        //self::hareket_ekle($request,'Düzenlendi');
+
+        // Audit (takvimde sürükle-bırak)
+        $_audit_musteriAdi = optional($randevu->users)->name ?? 'Müşteri #'.$randevu->user_id;
+        $_audit_label = $_audit_musteriAdi.' — '.date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i',strtotime($hizmet->saat));
+        SalonAudit::log($randevu->salon_id, 'randevu_takvim_tasi', 'randevu', $randevu->id, $_audit_label,
+            'Randevu takvimde sürüklenip taşındı',
+            ['eski_tarih'=>$eskitarih.' '.$eskisaat, 'yeni_tarih'=>$randevu->tarih.' '.$hizmet->saat]);
+
         return 'Randevu başarıyla güncellendi';
     }
     public function randevuiptalet(Request $request){
@@ -4572,6 +4672,13 @@ private function ayAdiCevir($ingilizceAy)
         
         $randevu->durum = 2;
         $randevu->save();
+
+        // Audit
+        $_audit_musteriAdi = optional($randevu->users)->name ?? 'Müşteri #'.$randevu->user_id;
+        $_audit_label = $_audit_musteriAdi.' — '.date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i',strtotime($randevu->saat));
+        SalonAudit::log($randevu->salon_id, $red ? 'randevu_reddet' : 'randevu_iptal', 'randevu', $randevu->id, $_audit_label,
+            $red ? 'Bekleyen randevu talebi reddedildi' : 'Randevu iptal edildi',
+            ['eski_durum' => $red ? 0 : 1]);
 
         $isletme = Salonlar::where('id',$randevu->salon_id)->first();
         $mesajlar = array();
@@ -4822,10 +4929,15 @@ private function ayAdiCevir($ingilizceAy)
             $user->password = Hash::make($request->yenisifre);
             $user->save();
             $cevap = "Şifreniz başarı ile değiştirildi";
+         // Audit
+         SalonAudit::log(self::mevcutsube($request), 'sifre_degistir', 'yetkili', $user->id,
+             $user->name ?: 'Kullanıcı',
+             'Kullanıcı kendi parolasını değiştirdi');
          echo $cevap;
     }
     public function yetkilibilgiguncelle(Request $request){
         $user = IsletmeYetkilileri::where('id',Auth::guard('isletmeyonetim')->user()->id)->first();
+        $_eski = ['name'=>$user->name, 'email'=>$user->email, 'gsm1'=>$user->gsm1];
         $user->name = $request->name;
         $user->email = $request->email;
         if($request->password != "")
@@ -4835,6 +4947,11 @@ private function ayAdiCevir($ingilizceAy)
         $user->sms_gonderimi = $request->sms_gonderimi;
         $user->cinsiyet = $request->cinsiyet;
         $user->save();
+        // Audit
+        SalonAudit::log(self::mevcutsube($request), 'profil_guncelle', 'yetkili', $user->id,
+            $user->name ?: 'Kullanıcı',
+            'Kullanıcı kendi profil bilgilerini güncelledi',
+            ['eski'=>$_eski, 'yeni'=>['name'=>$user->name,'email'=>$user->email,'gsm1'=>$user->gsm1], 'sifre_degisti'=>($request->password != "")]);
     }
     public function yenisubeekle(Request $request){
         $sube = new Subeler();
@@ -4844,6 +4961,11 @@ private function ayAdiCevir($ingilizceAy)
         $sube->salon_id = Auth::guard('isletmeyonetim')->user()->salon_id;
         $sube->aktif = false;
         $sube->save();
+        // Audit
+        SalonAudit::log($sube->salon_id, 'sube_ekle', 'sube', $sube->id,
+            $sube->sube,
+            'Yeni şube eklendi',
+            ['adres'=>$sube->adres, 'tel'=>$sube->sube_tel]);
         $sube_html = "<tr name='subesatir' data-value='".$sube->id."'>";
         $sube_html .= "<td>".$sube->sube."</td>";
         $sube_html .= "<td>".$sube->adres."</td>";
@@ -4858,12 +4980,20 @@ private function ayAdiCevir($ingilizceAy)
         $sube = Subeler::where('id',$request->subeid)->first();
         $sube->aktif = false;
         $sube->save();
+        // Audit
+        SalonAudit::log($sube->salon_id, 'sube_pasif_et', 'sube', $sube->id,
+            $sube->sube ?: ('Şube #'.$sube->id),
+            'Şube pasif yapıldı');
         echo  $sube->id;
     }
     public function subeaktifet(Request $request){
         $sube = Subeler::where('id',$request->subeid)->first();
         $sube->aktif = true;
         $sube->save();
+        // Audit
+        SalonAudit::log($sube->salon_id, 'sube_aktif_et', 'sube', $sube->id,
+            $sube->sube ?: ('Şube #'.$sube->id),
+            'Şube aktif yapıldı');
         echo  $sube->id;
     }
       public function yenipersonelgir(Request $request){
@@ -5026,6 +5156,13 @@ private function ayAdiCevir($ingilizceAy)
                 $salongorselleri->save();
             }
         }
+        // Audit
+        SalonAudit::log($isletme->id, 'isletme_temel_bilgi_guncelle', 'salon', $isletme->id,
+            $isletme->salon_adi,
+            'İşletme temel bilgileri güncellendi (ad, adres, telefon, sosyal medya, logo, görseller)',
+            ['logo_yuklendi'=>isset($_FILES["isletmelogo"]["name"]),
+             'kapak_yuklendi'=>isset($_FILES["isletmekapakfoto"]["name"]),
+             'galeri_yuklendi'=>isset($_FILES["isletmegorselleri"]["name"])]);
         echo 'Salon bilgileri başarı ile güncellendi';
     }
        public function personelbilgiguncelle(Request $request,$id){
@@ -6241,6 +6378,12 @@ private function ayAdiCevir($ingilizceAy)
             );
         }
 
+        // Audit
+        SalonAudit::log($isletme->id, 'toplu_sms_gonder', 'toplu_sms', null,
+            count($musteriIdler).' alıcı',
+            'Toplu SMS / WhatsApp gönderimi başlatıldı',
+            ['alici_sayisi'=>count($musteriIdler), 'mesaj_ozet'=>mb_substr((string)$request->smsmesaj,0,140)]);
+
         if($isletme->yeni_sms==1)
         {
             $telefonlar = MusteriPortfoy::whereIn('user_id',$musteriIdler)->whereHas('users',function($q){
@@ -6583,6 +6726,7 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function musteribilgiguncelle(Request $request){
          $musteri = User::where('id',$request->musteriid)->first();
+         $_eski = ['ad'=>$musteri->name,'tel'=>$musteri->cep_telefon,'email'=>$musteri->email];
          $musteri->name = $request->adsoyad;
          $musteri->cep_telefon = $request->telefon;
          $musteri->dogum_tarihi = $request->dogum_tarihi;
@@ -6590,6 +6734,11 @@ private function ayAdiCevir($ingilizceAy)
          $musteri->email = $request->email;
          $musteri->adres = $request->adres;
          $musteri->save();
+         // Audit
+         SalonAudit::log(self::mevcutsube($request), 'musteri_bilgi_guncelle', 'musteri', $musteri->id,
+             $musteri->name,
+             'Müşteri kişisel bilgileri güncellendi',
+             ['eski'=>$_eski, 'yeni'=>['ad'=>$musteri->name,'tel'=>$musteri->cep_telefon,'email'=>$musteri->email]]);
     }
     public function musteriportfoykaldir(Request $request){
         $portfoymusteri = MusteriPortfoy::where('user_id',$request->musteriid)->where('salon_id',self::mevcutsube($request))->first();
@@ -6598,6 +6747,10 @@ private function ayAdiCevir($ingilizceAy)
         $result['toplammusteri'] = array();
         if($portfoymusteri){
             $adsoyad = $portfoymusteri->users->name;
+            // Audit
+            SalonAudit::log(self::mevcutsube($request), 'musteri_portfoy_kaldir', 'musteri', $request->musteriid,
+                $adsoyad ?: ('Müşteri #'.$request->musteriid),
+                'Müşteri portföyden kaldırıldı (hard delete)');
             $portfoymusteri->delete();
             array_push($result['sonuc'], $adsoyad .' isimli müşteri portföyünüzden başarıyla kaldırıldı');
         }
@@ -7496,6 +7649,7 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function urun_ekle_guncelle(Request $request){
         $yeni = false;
+        $_eski_urun_snap = null;
         if($request->urun_id == 0){
             $urun = new Urunler();
             $yeni = true;
@@ -7503,6 +7657,7 @@ private function ayAdiCevir($ingilizceAy)
         }
         else{
             $urun = Urunler::where('id',$request->urun_id)->first();
+            $_eski_urun_snap = ['adi'=>$urun->urun_adi, 'fiyat'=>$urun->fiyat, 'stok'=>$urun->stok_adedi, 'barkod'=>$urun->barkod];
             $returntext = "Ürün başarıyla güncellendi";
         }
         $oncekiStok = (float) ($urun->stok_adedi ?? 0);
@@ -7543,14 +7698,22 @@ private function ayAdiCevir($ingilizceAy)
             ]);
         }
 
+        // Audit
+        SalonAudit::log($salonId, $yeni ? 'urun_ekle' : 'urun_guncelle', 'urun', $urun->id,
+            $urun->urun_adi,
+            $yeni ? 'Yeni ürün eklendi' : 'Ürün güncellendi',
+            $yeni ? ['fiyat'=>$urun->fiyat, 'stok'=>$istenenStok] : ['eski'=>$_eski_urun_snap, 'yeni'=>['adi'=>$urun->urun_adi, 'fiyat'=>$urun->fiyat, 'stok'=>$istenenStok, 'barkod'=>$urun->barkod]]);
+
         return self::urun_liste_getir($request,$returntext);
     }
     public function paket_ekle_guncelle(Request $request){
         $paket="";
         $returntext="";
+        $_yeni_paket = false;
         if($request->paket_id == 0){
             $paket = new Paketler();
             $returntext = "Paket başarıyla eklendi";
+            $_yeni_paket = true;
         }
         else{
             $paket = Paketler::where('id',$request->paket_id)->first();
@@ -7563,6 +7726,11 @@ private function ayAdiCevir($ingilizceAy)
         $paket->sure = $request->paketsure;
         $paket->miktar = $request->seanslar;
         $paket->save();
+        // Audit
+        SalonAudit::log($request->sube, $_yeni_paket ? 'paket_ekle' : 'paket_guncelle', 'paket', $paket->id,
+            $paket->paket_adi,
+            $_yeni_paket ? 'Yeni paket eklendi' : 'Paket güncellendi',
+            ['fiyat'=>$paket->fiyat, 'seans'=>$paket->miktar, 'sure'=>$paket->sure]);
         $toplamtutar = 0;
         PaketHizmetler::where('paket_id',$paket->id)->delete();
         foreach($request->hizmetler as $key => $paket_hizmet)
@@ -7748,12 +7916,21 @@ private function ayAdiCevir($ingilizceAy)
         $paket = Paketler::where('id',$request->paket_id)->first();
         $paket->aktif = false;
         $paket->save();
+        // Audit
+        SalonAudit::log($paket->salon_id, 'paket_sil', 'paket', $paket->id,
+            $paket->paket_adi ?: ('Paket #'.$paket->id),
+            'Paket katalogdan kaldırıldı (pasif)');
         return self::paket_liste_getir("Paket başarıyla kaldırıldı",false,$request);
     }
     public function salonhizmetsil(Request $request){
         $sunulan_hizmet = SalonHizmetler::where('id',$request->sunulan_hizmet_id)->first();
         $sunulan_hizmet->aktif = false;
         $sunulan_hizmet->save();
+        // Audit
+        $_audit_hizmetAdi = optional($sunulan_hizmet->hizmet)->hizmet_adi ?? 'Hizmet #'.$sunulan_hizmet->hizmet_id;
+        SalonAudit::log($sunulan_hizmet->salon_id, 'hizmet_kaldir', 'salon_hizmet', $sunulan_hizmet->id,
+            $_audit_hizmetAdi,
+            'Hizmet katalogdan kaldırıldı (pasif)');
         $secilmeyenhizmetler = self::secilmeyen_hizmet_liste_getir($request);
         return self::hizmet_liste_getir($request,"Hizmet başarıyla kaldırıldı",$secilmeyenhizmetler);
     }
@@ -7761,6 +7938,10 @@ private function ayAdiCevir($ingilizceAy)
         $urun = Urunler::where('id',$request->urun_id)->first();
         $urun->aktif = false;
         $urun->save();
+        // Audit
+        SalonAudit::log($urun->salon_id, 'urun_sil', 'urun', $urun->id,
+            $urun->urun_adi ?: ('Ürün #'.$urun->id),
+            'Ürün katalogdan kaldırıldı (pasif)');
         return self::urun_liste_getir($request,"Ürün başarıyla kaldırıldı");
     }
  public function urun_liste_getir(Request $request,$returntext){
@@ -8064,6 +8245,12 @@ private function ayAdiCevir($ingilizceAy)
             $urunid = $adisyonurun->urun_id;
             $adet = $adisyonurun->adet;
             $adisyon_id = $adisyonurun->adisyon_id;
+            // Audit
+            $_audit_urunAdi = optional($adisyonurun->urun)->urun_adi ?? 'Ürün #'.$urunid;
+            SalonAudit::log($request->sube, 'adisyon_urun_sil', 'adisyon_urun', $adisyonurun->id,
+                $_audit_urunAdi.' x'.$adet,
+                'Adisyondan ürün silindi',
+                ['adisyon_id'=>$adisyon_id, 'fiyat'=>$adisyonurun->fiyat]);
             $adisyonurun->delete();
             $urun = Urunler::where('id',$urunid)->first();
             if ($urun) {
@@ -8154,6 +8341,12 @@ private function ayAdiCevir($ingilizceAy)
         }
         else
         {
+            // Audit
+            $_audit_paketAdi = optional($adisyonpaket->paket)->paket_adi ?? 'Paket #'.$adisyonpaket->paket_id;
+            SalonAudit::log($request->sube, 'adisyon_paket_sil', 'adisyon_paket', $adisyonpaket->id,
+                $_audit_paketAdi,
+                'Adisyondan paket silindi',
+                ['adisyon_id'=>$adisyon_id, 'fiyat'=>$adisyonpaket->fiyat]);
             AdisyonPaketSeanslar::where('adisyon_paket_id',$request->adisyonpaketid)->delete();
             $adisyonpaket->delete();
             if(AdisyonHizmetler::where('adisyon_id',$adisyon_id)->count()+AdisyonUrunler::where('adisyon_id',$adisyon_id)->count()+AdisyonPaketler::where('adisyon_id',$adisyon_id)->count()==0)
@@ -8847,6 +9040,18 @@ private function ayAdiCevir($ingilizceAy)
                 }
                 
             }
+            // Audit (toplam adet ve ozet ile)
+            $_audit_musteriAdi = \App\User::where('id',$request->musteri_id)->value('name') ?? 'Müşteri #'.$request->musteri_id;
+            $_audit_adet = is_array($request->adisyonhizmetleriyeni) ? count($request->adisyonhizmetleriyeni) : 0;
+            $_audit_toplam = 0;
+            if (is_array($request->adisyonhizmetfiyati)) {
+                foreach ($request->adisyonhizmetfiyati as $_f) { $_audit_toplam += (float)$_f; }
+            }
+            SalonAudit::log($request->sube, 'adisyona_hizmet_ekle', 'adisyon', $adisyon_id,
+                $_audit_musteriAdi.' — '.$_audit_adet.' hizmet',
+                'Adisyona hizmet eklendi',
+                ['hizmet_adedi'=>$_audit_adet, 'toplam_tutar'=>$_audit_toplam, 'hizmet_idler'=>$request->adisyonhizmetleriyeni]);
+
             //if(isset($request->tahsilatekrani))
             //{
 
@@ -11792,6 +11997,14 @@ DB::raw('
             }  
         }
         $adisyon_id = $request->adisyon_id;
+        // Audit (silmeden once)
+        $_audit_adisyon_user_id = Adisyonlar::where('id',$adisyon_id)->value('user_id');
+        $_audit_musteriAdi = $_audit_adisyon_user_id ? (\App\User::where('id',$_audit_adisyon_user_id)->value('name') ?? 'Müşteri #'.$_audit_adisyon_user_id) : '-';
+        $_audit_tutar = number_format((float)$tahsilat->tutar, 2, ',', '.');
+        SalonAudit::log($request->sube, 'tahsilat_sil', 'tahsilat', $tahsilat->id,
+            $_audit_musteriAdi.' — '.$_audit_tutar.' ₺',
+            'Tahsilat kaydı silindi',
+            ['adisyon_id'=>$adisyon_id, 'odeme_yontemi_id'=>$tahsilat->odeme_yontemi_id, 'tutar'=>$tahsilat->tutar]);
         $tahsilat_paketler = TahsilatPaketler::where('tahsilat_id',$request->tahsilatid)->get();
         $tahsilat_urunler = TahsilatUrunler::where('tahsilat_id',$request->tahsilatid)->get();
         $tahsilat_hizmetler = TahsilatHizmetler::where('tahsilat_id',$request->tahsilatid)->get();
@@ -13132,6 +13345,11 @@ DB::raw('
             $returntext = 'Masraf başarıyla güncellendi';
         else
             $returntext = 'Masraf başarıyla kaydedildi';
+        // Audit
+        SalonAudit::log($masraf->salon_id, $guncelleme ? 'masraf_guncelle' : 'masraf_ekle', 'masraf', $masraf->id,
+            ($masraf->aciklama ?: 'Masraf').' — '.number_format((float)$masraf->tutar,2,',','.').' ₺',
+            $guncelleme ? 'Masraf güncellendi' : 'Yeni masraf kaydedildi',
+            ['tarih'=>$masraf->tarih, 'kategori'=>$masraf->masraf_kategori_id, 'odeme'=>$masraf->odeme_yontemi_id]);
         return array(
             'mesaj' => $returntext,
             'masraflar' => self::masrafgetir($request),
@@ -13144,6 +13362,13 @@ DB::raw('
         // baglı PersonelMaasOdemesi kaydını da otomatik sil — boylelikle prim
         // hakedis sayfasındaki "ödendi" durumu da geri alinir.
         $masraf = Masraflar::where('id',$request->masraf_id)->first();
+        // Audit
+        if ($masraf) {
+            SalonAudit::log($masraf->salon_id, 'masraf_sil', 'masraf', $masraf->id,
+                ($masraf->aciklama ?: 'Masraf').' — '.number_format((float)$masraf->tutar,2,',','.').' ₺',
+                'Masraf silindi',
+                ['tarih'=>$masraf->tarih, 'tutar'=>$masraf->tutar, 'personel_odeme_id'=>$masraf->personel_maas_odemesi_id]);
+        }
         if ($masraf && $masraf->personel_maas_odemesi_id) {
             try {
                 PersonelMaasOdemesi::where('id', $masraf->personel_maas_odemesi_id)->delete();
@@ -13162,6 +13387,13 @@ DB::raw('
     {
         // Bagli PersonelMaasOdemesi varsa onu da sil (yukaridaki ile ayni mantik)
         $masraf = Masraflar::where('id',$request->masraf_id)->first();
+        // Audit
+        if ($masraf) {
+            SalonAudit::log($masraf->salon_id, 'masraf_sil', 'masraf', $masraf->id,
+                ($masraf->aciklama ?: 'Masraf').' — '.number_format((float)$masraf->tutar,2,',','.').' ₺',
+                'Masraf silindi',
+                ['tarih'=>$masraf->tarih, 'tutar'=>$masraf->tutar, 'personel_odeme_id'=>$masraf->personel_maas_odemesi_id]);
+        }
         if ($masraf && $masraf->personel_maas_odemesi_id) {
             try {
                 PersonelMaasOdemesi::where('id', $masraf->personel_maas_odemesi_id)->delete();
@@ -14201,10 +14433,13 @@ DB::raw('
    public function etkinlikekleduzenle(Request $request)
     {
         $etkinlik = "";
+        $_yeniEtkinlik = false;
         if(isset($request->etkinlik_id))
             $etkinlik = Etkinlikler::where('id',$request->etkinlik_id)->first();
-        else
+        else {
             $etkinlik = new Etkinlikler();
+            $_yeniEtkinlik = true;
+        }
         $etkinlik->etkinlik_adi = $request->etkinlik_adi;
         $etkinlik->tarih_saat = $request->etkinlik_tarihi ." ".$request->etkinlik_saati;
         $etkinlik->fiyat = $request->etkinlik_fiyati;
@@ -14212,6 +14447,11 @@ DB::raw('
         $etkinlik->aktifmi=1;
         $etkinlik->mesaj=$request->etkinlik_sms;
         $etkinlik->save();
+        // Audit
+        SalonAudit::log($etkinlik->salon_id, $_yeniEtkinlik ? 'etkinlik_ekle' : 'etkinlik_guncelle', 'etkinlik', $etkinlik->id,
+            $etkinlik->etkinlik_adi.' — '.$etkinlik->tarih_saat,
+            $_yeniEtkinlik ? 'Yeni etkinlik oluşturuldu' : 'Etkinlik güncellendi',
+            ['fiyat'=>$etkinlik->fiyat]);
         $katilimcilar = EtkinlikKatilimcilari::where('id',$etkinlik->id)->delete();
          $gsm = array();
         $mesajlar=array();
@@ -14398,6 +14638,17 @@ DB::raw('
             }
         }
         $secilmeyenhizmetler = self::secilmeyen_hizmet_liste_getir($request);
+
+        // Audit
+        $_audit_hizmet_adlari = [];
+        foreach ($request->hizmet_idler as $_hid) {
+            $_h = Hizmetler::where('id',$_hid)->value('hizmet_adi');
+            if ($_h) $_audit_hizmet_adlari[] = $_h;
+        }
+        SalonAudit::log($request->sube, 'hizmet_ekle_guncelle', 'salon_hizmet', null,
+            count($_audit_hizmet_adlari).' hizmet',
+            'Hizmet katalogu güncellendi (fiyat / süre / personel)',
+            ['hizmet_adlari'=>$_audit_hizmet_adlari, 'hizmet_idler'=>$request->hizmet_idler]);
 
         return self::hizmet_liste_getir($request,"Hizmet(-ler) başarıyla eklendi",$secilmeyenhizmetler);
     }
@@ -15256,6 +15507,13 @@ DB::raw('
         $randevu->randevuya_geldi = true;
 
         $randevu->save();
+
+        // Audit
+        $_audit_musteriAdi = optional($randevu->users)->name ?? 'Müşteri #'.$randevu->user_id;
+        $_audit_label = $_audit_musteriAdi.' — '.date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i',strtotime($randevu->saat));
+        SalonAudit::log($randevu->salon_id, 'randevu_geldi', 'randevu', $randevu->id, $_audit_label,
+            'Müşteri randevuya geldi olarak işaretlendi');
+
         $seanslar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id);
 
         foreach($seanslar->get() as $seans)
@@ -16245,10 +16503,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     {
         $gonder = "";
         $kampanya_yonetimi = "";
+        $_yeniKampanya = false;
         if(isset($request->kampanya_id))
             $kampanya_yonetimi = KampanyaYonetimi::where('id',$request->kampanya_id)->first();
-        else
+        else {
             $kampanya_yonetimi = new KampanyaYonetimi();
+            $_yeniKampanya = true;
+        }
         $hizmetUrunPaket ='';
         if($request->hizmetUrunPaket != '')
         {
@@ -16397,6 +16658,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
 
 
+        // Audit
+        SalonAudit::log($kampanya_yonetimi->salon_id, $_yeniKampanya ? 'kampanya_olustur' : 'kampanya_guncelle', 'kampanya', $kampanya_yonetimi->id,
+            ($kampanya_yonetimi->paket_isim ?: 'Kampanya').' — '.count($musteriData['musteriIdler']).' kişi',
+            $_yeniKampanya ? 'Yeni kampanya/reklam oluşturuldu' : 'Kampanya/reklam güncellendi',
+            ['gorev_turu'=>$request->gorevTuru, 'katilimci_sayisi'=>count($musteriData['musteriIdler']), 'kod'=>$request->kampanyaKodu]);
+
         return array(
           "mesaj" => "Kampanya başarıyla kaydedildi",
           "gonder"=>$gonder,
@@ -16404,7 +16671,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         );
     }
     public function kampanya_sil(Request $request){
+        $_audit_kampanyaAdi = KampanyaYonetimi::where('id',$request->kampanya_id)->value('paket_isim');
+        $_audit_salonId = KampanyaYonetimi::where('id',$request->kampanya_id)->value('salon_id') ?: self::mevcutsube($request);
         KampanyaYonetimi::where('id',$request->kampanya_id)->update(['aktifmi'=>false]);
+        // Audit
+        SalonAudit::log($_audit_salonId, 'kampanya_sil', 'kampanya', $request->kampanya_id,
+            $_audit_kampanyaAdi ?: ('Kampanya #'.$request->kampanya_id),
+            'Kampanya pasif yapıldı');
         return self::paket_kampanyalar($request);
     }
     public function kampanyakatilimcisil(Request $request){
@@ -16413,7 +16686,16 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             if (!$katilimci) {
                 return response()->json(['success' => false, 'message' => 'Katılımcı bulunamadı.']);
             }
+            $_audit_salonId = KampanyaYonetimi::where('id',$katilimci->kampanya_id)->value('salon_id');
+            $_audit_musteriAdi = \App\User::where('id',$katilimci->user_id)->value('name');
             $katilimci->delete();
+            // Audit
+            if ($_audit_salonId) {
+                SalonAudit::log($_audit_salonId, 'kampanya_katilimci_sil', 'kampanya_katilimci', $request->id,
+                    ($_audit_musteriAdi ?: 'Müşteri #'.$katilimci->user_id),
+                    'Kampanyadan katılımcı çıkarıldı',
+                    ['kampanya_id'=>$katilimci->kampanya_id]);
+            }
             return response()->json(['success' => true, 'message' => 'Katılımcı başarıyla silindi.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Silme işlemi sırasında bir hata oluştu: ' . $e->getMessage()]);
@@ -16440,6 +16722,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 $katilimci->durum = $request->durum;
             }
             $katilimci->save();
+            // Audit
+            $_audit_salonId = KampanyaYonetimi::where('id',$request->kampanyaid)->value('salon_id') ?: self::mevcutsube($request);
+            $_audit_musteriAdi = \App\User::where('id',$request->musteriid)->value('name');
+            SalonAudit::log($_audit_salonId, 'kampanya_katilimci_ekle', 'kampanya_katilimci', $katilimci->id,
+                ($_audit_musteriAdi ?: 'Müşteri #'.$request->musteriid),
+                'Kampanyaya katılımcı eklendi',
+                ['kampanya_id'=>$request->kampanyaid]);
             return response()->json([
                 'success' => true, 'message' => 'Katılımcı başarıyla eklendi.', 'type' => 'success',
                 'data' => ['id' => $katilimci->id, 'ad_soyad' => $katilimci->musteri->name ?? 'Müşteri', 'telefon' => $katilimci->musteri->cep_telefon ?? '']
@@ -16449,7 +16738,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
     }
     public function etkinlik_sil(Request $request){
+        $_audit_etkinlikAdi = Etkinlikler::where('id',$request->etkinlik_id)->value('etkinlik_adi') ?? '';
+        $_audit_salonId = Etkinlikler::where('id',$request->etkinlik_id)->value('salon_id') ?: self::mevcutsube($request);
         Etkinlikler::where('id',$request->etkinlik_id)->update(['aktifmi'=>false]);
+        // Audit
+        SalonAudit::log($_audit_salonId, 'etkinlik_sil', 'etkinlik', $request->etkinlik_id,
+            $_audit_etkinlikAdi ?: ('Etkinlik #'.$request->etkinlik_id),
+            'Etkinlik pasif yapıldı');
         return self::etkinlikyukle($request);
     }
     public function seanstanrandevuolustur(Request $request)
@@ -16895,7 +17190,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $randevu->randevuya_geldi = false;
 
         $randevu->save();
-       
+
+        // Audit
+        $_audit_musteriAdi = optional($randevu->users)->name ?? 'Müşteri #'.$randevu->user_id;
+        $_audit_label = $_audit_musteriAdi.' — '.date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i',strtotime($randevu->saat));
+        SalonAudit::log($randevu->salon_id, 'randevu_gelmedi', 'randevu', $randevu->id, $_audit_label,
+            'Müşteri randevuya gelmedi olarak işaretlendi',
+            ['seans_dusumu'=>$request->seansDusumuYap]);
+
         return array('mesaj'=>'Başarılı');
     }
      public function grupsmsekle(Request $request)
@@ -16959,6 +17261,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salon = Salonlar::where('id',$request->sube)->first();
         $salon->randevu_cagri_hatirlatma = $request->randevu_hatirlatama_saat_once;
         $salon->save();
+        // Audit
+        SalonAudit::log($request->sube, 'santral_ayar_kaydet', 'santral_ayar', null,
+            'Santral ayarları',
+            'Sesli arama / santral ayarları güncellendi',
+            ['hatirlatma_saat'=>$request->randevu_hatirlatama_saat_once,
+             'musteri'=>isset($request->santralayar_1_musteri)?1:0,
+             'personel'=>isset($request->santralayar_1_personel)?1:0]);
         return 'Santral ayarları başarıyla kaydedildi';
     }
     public function sms_ayar_kaydet(Request $request)
@@ -17117,6 +17426,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salon = Salonlar::where('id',$request->sube)->first();
         $salon->randevu_sms_hatirlatma = $request->randevu_hatirlatama_saat_once;
         $salon->save();
+        // Audit
+        SalonAudit::log($request->sube, 'sms_ayar_kaydet', 'sms_ayar', null,
+            'SMS / WhatsApp ayarları',
+            'SMS ve WhatsApp bildirim ayarları güncellendi',
+            ['hatirlatma_saat'=>$request->randevu_hatirlatama_saat_once]);
         return 'SMS ayarları başarıyla kaydedildi';
         return $request->randevuayar_1_musteri;
     }
@@ -17156,8 +17470,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salon = Salonlar::where('id',$request->sube)->first();
         $salon->e_asistan_hatirlatma = $request->arama_saat_sonra;
         $salon->save();
+        // Audit
+        SalonAudit::log($request->sube, 'e_asistan_ayar_kaydet', 'e_asistan_ayar', null,
+            'E-Asistan ayarları',
+            'E-Asistan (otomatik arama / takip) ayarları güncellendi',
+            ['arama_saat_sonra'=>$request->arama_saat_sonra]);
         return 'SMS ayarları başarıyla kaydedildi';
-       
+
     }
     public function musait_randevu_saatlerini_getir(Request $request)
     {
@@ -17459,7 +17778,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
       )->where('salon_id',self::mevcutsube($request))->groupBy('grup_sms.id')->where('grup_sms.aktif_mi',true)->get();*/
     }
     public function grup_sil(Request $request){
+        $_audit_grupAdi = GrupSms::where('id',$request->grup_id)->value('grup_adi');
         GrupSms::where('id',$request->grup_id)->update(['aktif_mi'=>false]);
+        // Audit
+        SalonAudit::log(self::mevcutsube($request), 'sms_grup_sil', 'sms_grup', $request->grup_id,
+            $_audit_grupAdi ?: ('Grup #'.$request->grup_id),
+            'SMS grubu pasif yapıldı');
         return self::grup_sms_liste_getir($request);
     }
     
@@ -17793,6 +18117,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $portfoy->salon_id = $request->sube;
         $portfoy->aktif = true;
         $portfoy->save();
+        // Audit
+        $_audit_musteriAdi = \App\User::where('id',$request->user_id)->value('name') ?? 'Müşteri #'.$request->user_id;
+        SalonAudit::log($request->sube, 'musteri_portfoye_ekle', 'musteri', $request->user_id,
+            $_audit_musteriAdi,
+            'Mevcut müşteri portföye eklendi');
         //return DB::table('users')->select('name as ad_soyad','id as id','m');
     }
      public function guncellemesonrasiseansdetaygetir(Request $request,$adisyonpaketid,$musteriid){
@@ -18712,6 +19041,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $yetkili->save();
         $returntext = $newAktif ? 'aktif' : 'pasif';
         $isim = $yetkili->personel_adi ?: 'Personel';
+        // Audit
+        SalonAudit::log($isletmeId, $newAktif ? 'personel_aktif_et' : 'personel_pasif_et', 'personel', $yetkili->id,
+            $isim,
+            'Personel '.$returntext.' edildi');
         return array(
             'mesaj'=>$isim.' isimli personel başarıyla '.$returntext.' edildi',
             'personeller'=>self::personel_liste_getir($request)
@@ -18720,10 +19053,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     public function grupsmsekleduzenle(Request $request)
     {
         $grupsms = "";
+        $_yeniGrup = false;
         if(isset($request->grup_id))
             $grupsms = GrupSms::where('id',$request->grup_id)->first();
-        else
+        else {
             $grupsms = new GrupSms();
+            $_yeniGrup = true;
+        }
         $grupsms->grup_adi = $request->grup_ad;
         $grupsms->salon_id = self::mevcutsube($request);
         $grupsms->aktif_mi = true;
@@ -18736,6 +19072,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $grup_yenikatilimci->user_id = $grup_katilimci;
             $grup_yenikatilimci->save();
         }
+        // Audit
+        SalonAudit::log($grupsms->salon_id, $_yeniGrup ? 'sms_grup_ekle' : 'sms_grup_guncelle', 'sms_grup', $grupsms->id,
+            $grupsms->grup_adi.' — '.count((array)$request->duallistbox_demo1).' kişi',
+            $_yeniGrup ? 'Yeni SMS grubu oluşturuldu' : 'SMS grubu güncellendi',
+            ['katilimci_sayisi'=>count((array)$request->duallistbox_demo1)]);
         return array(
           "mesaj" => "Grup Başarıyla Oluşturuldu",
           'grup' => self::grup_sms_liste_getir($request)
@@ -19387,6 +19728,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
   }
   public function adisyon_sil(Request $request)
    {
+            // Audit (silmeden once kayit al)
+            $_audit_adisyon = Adisyonlar::where('id',$request->adisyon_id)->first();
+            if ($_audit_adisyon) {
+                $_audit_musteriAdi = \App\User::where('id',$_audit_adisyon->user_id)->value('name') ?? 'Müşteri #'.$_audit_adisyon->user_id;
+                SalonAudit::log($_audit_adisyon->salon_id, 'adisyon_sil', 'adisyon', $_audit_adisyon->id,
+                    $_audit_musteriAdi.' — Adisyon #'.$_audit_adisyon->id,
+                    'Adisyon ve tüm kalemleri silindi',
+                    ['user_id'=>$_audit_adisyon->user_id]);
+            }
             $adisyonhizmetler = AdisyonHizmetler::where('adisyon_id',$request->adisyon_id)->get();
             $adisyonurunler = AdisyonUrunler::where('adisyon_id',$request->adisyon_id)->get();
             $adisyonpaketler = AdisyonPaketler::where('adisyon_id',$request->adisyon_id)->get();
@@ -19951,6 +20301,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function musteriindirim_kaydet(Request $request){
         $isletme=Salonlar::where('id',$request->sube)->first();
+        $_eski = ['sadik'=>$isletme->sadik_musteri_indirim_yuzde, 'aktif'=>$isletme->aktif_musteri_indirim_yuzde];
         if(isset($request->sadik_acikkapali)){
             $isletme->sadik_musteri_indirim_yuzde=$request->sadik_musteri_indirimi;
         }
@@ -19962,22 +20313,41 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         else
             $isletme->aktif_musteri_indirim_yuzde=0;
         $isletme->save();
+        // Audit
+        SalonAudit::log($isletme->id, 'musteri_indirim_kurali_kaydet', 'salon', $isletme->id,
+            'Sadık %'.$isletme->sadik_musteri_indirim_yuzde.' / Aktif %'.$isletme->aktif_musteri_indirim_yuzde,
+            'Müşteri kategorisi indirim kuralları güncellendi',
+            ['eski'=>$_eski, 'yeni'=>['sadik'=>$isletme->sadik_musteri_indirim_yuzde, 'aktif'=>$isletme->aktif_musteri_indirim_yuzde]]);
         return('İşlem başarıyla kaydedildi');
     }
     public function hizmettahsilattutaridegistir(Request $request)
     {
          $adisyon_hizmet = AdisyonHizmetler::where('id',$request->adisyonhizmetid)->first();
+         $_eskifiyat = $adisyon_hizmet->fiyat;
          $tahsilEdilen = TahsilatHizmetler::where('adisyon_hizmet_id',$adisyon_hizmet->id)->sum('tutar');
          $adisyon_hizmet->fiyat = str_replace(['.',','],['','.'],$request->tutar)+ $tahsilEdilen;
 
          $adisyon_hizmet->save();
+         // Audit
+         $_audit_hizmetAdi = optional($adisyon_hizmet->hizmet)->hizmet_adi ?? 'Hizmet #'.$adisyon_hizmet->hizmet_id;
+         SalonAudit::log($request->sube, 'adisyon_hizmet_fiyat_degistir', 'adisyon_hizmet', $adisyon_hizmet->id,
+             $_audit_hizmetAdi.' — '.number_format((float)$adisyon_hizmet->fiyat,2,',','.').' ₺',
+             'Adisyondaki hizmet fiyatı değiştirildi',
+             ['adisyon_id'=>$adisyon_hizmet->adisyon_id, 'eski_fiyat'=>$_eskifiyat, 'yeni_fiyat'=>$adisyon_hizmet->fiyat]);
     }
     public function uruntahsilattutaridegistir(Request $request)
     {
          $adisyon_urun = AdisyonUrunler::where('id',$request->adisyonurunid)->first();
+         $_eskifiyat = $adisyon_urun->fiyat;
          $tahsilEdilen = TahsilatUrunler::where('adisyon_urun_id',$adisyon_urun->id)->sum('tutar');
          $adisyon_urun->fiyat = str_replace(['.',','],['','.'],$request->tutar)+ $tahsilEdilen;
          $adisyon_urun->save();
+         // Audit
+         $_audit_urunAdi = optional($adisyon_urun->urun)->urun_adi ?? 'Ürün #'.$adisyon_urun->urun_id;
+         SalonAudit::log($request->sube, 'adisyon_urun_fiyat_degistir', 'adisyon_urun', $adisyon_urun->id,
+             $_audit_urunAdi.' — '.number_format((float)$adisyon_urun->fiyat,2,',','.').' ₺',
+             'Adisyondaki ürün fiyatı değiştirildi',
+             ['adisyon_id'=>$adisyon_urun->adisyon_id, 'eski_fiyat'=>$_eskifiyat, 'yeni_fiyat'=>$adisyon_urun->fiyat]);
     }
     public function urunadetdegistir(Request $request)
     {
@@ -20009,9 +20379,16 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     public function pakettahsilattutaridegistir(Request $request)
     {
         $adisyon_paket = AdisyonPaketler::where('id',$request->adisyonpaketid)->first();
+        $_eskifiyat = $adisyon_paket->fiyat;
         $tahsilEdilen = TahsilatPaketler::where('adisyon_paket_id',$adisyon_paket->id)->sum('tutar');
         $adisyon_paket->fiyat = str_replace(['.',','],['','.'],$request->tutar) + $tahsilEdilen;
         $adisyon_paket->save();
+        // Audit
+        $_audit_paketAdi = optional($adisyon_paket->paket)->paket_adi ?? 'Paket #'.$adisyon_paket->paket_id;
+        SalonAudit::log($request->sube, 'adisyon_paket_fiyat_degistir', 'adisyon_paket', $adisyon_paket->id,
+            $_audit_paketAdi.' — '.number_format((float)$adisyon_paket->fiyat,2,',','.').' ₺',
+            'Adisyondaki paket fiyatı değiştirildi',
+            ['adisyon_id'=>$adisyon_paket->adisyon_id, 'eski_fiyat'=>$_eskifiyat, 'yeni_fiyat'=>$adisyon_paket->fiyat]);
     }
     public function hizmet_hediye_isle(Request $request)
     {
@@ -20160,6 +20537,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 'whatsapp_aktif' => 1,
                 'whatsapp_durum' => $res['body']['status'] ?? 'connecting',
             ]);
+            // Audit
+            SalonAudit::log($salonId, 'whatsapp_baglanti_baslat', 'whatsapp', $salonId,
+                'WhatsApp oturumu',
+                'WhatsApp bağlantı oturumu başlatıldı (QR aşaması)',
+                ['durum'=>$res['body']['status'] ?? 'connecting']);
         }
         return response()->json($res['body'] ?? ['error' => 'servis-erisilemiyor'], $res['status'] ?: 502);
     }
@@ -20203,6 +20585,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
+        $_audit_numara = Salonlar::where('id',$salonId)->value('whatsapp_numara');
         $svc = app(\App\Services\WhatsAppService::class);
         $svc->logout($salonId);
         Salonlar::where('id', $salonId)->update([
@@ -20212,6 +20595,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'whatsapp_baglanti_tarihi' => null,
             'whatsapp_warmup_baslangic' => null,
         ]);
+        // Audit
+        SalonAudit::log($salonId, 'whatsapp_baglanti_kapat', 'whatsapp', $salonId,
+            $_audit_numara ?: 'WhatsApp oturumu',
+            'WhatsApp oturumu sonlandırıldı',
+            ['eski_numara'=>$_audit_numara]);
         return response()->json(['ok' => true]);
     }
 
@@ -20582,6 +20970,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $yeninot->ajanda_olusturan=Personeller::where('salon_id',$request->sube)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id');
         $yeninot->aktif=true;
         $yeninot->save();
+        // Audit
+        SalonAudit::log($yeninot->salon_id, 'ajanda_ekle', 'ajanda', $yeninot->id,
+            ($yeninot->ajanda_baslik ?: 'Ajanda').' — '.$yeninot->ajanda_tarih.' '.$yeninot->ajanda_saat,
+            'Ajandaya yeni not eklendi');
         return self::ajanda_liste_getir($request,$returntext);
     }
     public function ajanda_guncelle(Request $request){
@@ -20611,12 +21003,20 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $ajandanot->salon_id = $request->sube;
         $ajandanot->aktif=true;
         $ajandanot->save();
+        // Audit
+        SalonAudit::log($ajandanot->salon_id, 'ajanda_guncelle', 'ajanda', $ajandanot->id,
+            ($ajandanot->ajanda_baslik ?: 'Ajanda').' — '.$ajandanot->ajanda_tarih.' '.$ajandanot->ajanda_saat,
+            'Ajanda notu güncellendi');
         return self::ajanda_liste_getir($request,$returntext);
     }
     public function ajanda_sil(Request $request){
         $ajandanot = Ajanda::where('id',$request->ajanda_id)->first();
         $ajandanot->aktif = false;
         $ajandanot->save();
+        // Audit
+        SalonAudit::log($ajandanot->salon_id, 'ajanda_sil', 'ajanda', $ajandanot->id,
+            ($ajandanot->ajanda_baslik ?: 'Ajanda #'.$ajandanot->id),
+            'Ajanda notu silindi');
         return self::ajanda_liste_getir($request,"Notunuz başarıyla kaldırıldı");
     }
     public function ajanda_okunduisaretle(Request $request){
@@ -21549,6 +21949,13 @@ public function arsivformekleme(Request $request){
         $form->salon_id = $request->sube;
         $form->form_olusturan = $formOlusturanPersonelId;
         $form->save();
+        // Audit
+        $_audit_musteriAdi = \App\User::where('id',$request->formmusterisec)->value('name') ?? '-';
+        $_audit_formAdi = FormTaslaklari::where('id',$request->formtaslaklari)->value('form_adi');
+        SalonAudit::log($request->sube, 'form_gonder', 'arsiv', $form->id,
+            ($_audit_formAdi ?: 'Form').' — '.$_audit_musteriAdi,
+            'Müşteriye form / sözleşme gönderildi',
+            ['form_id'=>$request->formtaslaklari, 'user_id'=>$request->formmusterisec, 'tutar'=>$request->toplam_ucret, 'kapora'=>$request->kapora]);
         
         $gsm = array();
         $mesajlar = array();
@@ -25126,6 +25533,13 @@ DB::raw('
             ->get()->pluck('cihaz.cihaz_adi')->filter()->values()->all();
         $personellerStr = implode(', ', array_merge($personelAdlari, $cihazAdlari));
 
+        // Audit
+        $_audit_hizmetAdi = optional($hizmet)->hizmet_adi ?? 'Hizmet #'.$sh->hizmet_id;
+        SalonAudit::log($isletmeid, 'hizmet_yonetim_guncelle', 'salon_hizmet', $sh->id,
+            $_audit_hizmetAdi.' — '.number_format((float)$sh->baslangic_fiyat,2,',','.').' ₺',
+            'Hizmet yönetimi güncellendi (fiyat / süre / personel / kategori)',
+            ['hizmet_id'=>$sh->hizmet_id, 'fiyat'=>$sh->baslangic_fiyat, 'sure_dk'=>$sh->sure_dk, 'kategori_id'=>$sh->hizmet_kategori_id]);
+
         return response()->json([
             'status' => 'success',
             'message' => 'Hizmet başarıyla güncellendi',
@@ -25138,6 +25552,10 @@ DB::raw('
         $kategori = new Hizmet_Kategorisi();
         $kategori->hizmet_kategorisi_adi = $request->kategori_adi;
         $kategori->save();
+        // Audit
+        SalonAudit::log(self::mevcutsube($request), 'hizmet_kategori_ekle', 'hizmet_kategori', $kategori->id,
+            $kategori->hizmet_kategorisi_adi,
+            'Yeni hizmet kategorisi eklendi');
         return response()->json(['status'=>'success','message'=>'Kategori başarıyla eklendi','kategori_id'=>$kategori->id,'kategori_adi'=>$kategori->hizmet_kategorisi_adi]);
     }
 
@@ -25147,6 +25565,11 @@ DB::raw('
         if($kategori_hizmetler > 0){
             return response()->json(['status'=>'error','message'=>'Bu kategoride hizmetler bulunmaktadır. Önce hizmetleri siliniz.']);
         }
+        // Audit
+        $_audit_katAdi = \App\Hizmet_Kategorisi::where('id',$request->kategori_id)->value('hizmet_kategorisi_adi') ?? ('Kategori #'.$request->kategori_id);
+        SalonAudit::log($isletmeid, 'hizmet_kategori_sil', 'hizmet_kategori', $request->kategori_id,
+            $_audit_katAdi,
+            'Hizmet kategorisi silindi');
         return response()->json(['status'=>'success','message'=>'Kategori başarıyla silindi']);
     }
 
@@ -25248,6 +25671,10 @@ DB::raw('
             $form->is_dinamik = 1;
             $form->is_sozlesme_tipi = $request->is_sozlesme ? 1 : 0;
             $form->save();
+            // Audit
+            SalonAudit::log($sube, 'form_sablon_ekle', 'form_sablon', $form->id,
+                $form->form_adi,
+                $form->is_sozlesme_tipi ? 'Yeni sözleşme şablonu oluşturuldu' : 'Yeni form şablonu oluşturuldu');
             return response()->json(['basarili'=>true,'id'=>$form->id]);
         } catch(\Exception $e){
             \Log::error('formSablonlariKaydet hata: '.$e->getMessage());
@@ -25268,6 +25695,10 @@ DB::raw('
             $form->sorular_json = $request->sorular_json;
             $form->is_sozlesme_tipi = $request->is_sozlesme ? 1 : 0;
             $form->save();
+            // Audit
+            SalonAudit::log($sube, 'form_sablon_guncelle', 'form_sablon', $form->id,
+                $form->form_adi,
+                'Form/sözleşme şablonu güncellendi');
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
             \Log::error('formSablonlariGuncelle hata: '.$e->getMessage());
@@ -25286,6 +25717,10 @@ DB::raw('
             if($kullanimSayisi > 0){
                 return response()->json(['basarili'=>false,'mesaj'=>'Bu form '.$kullanimSayisi.' kayıtta kullanılmaktadır. Silinemez.']);
             }
+            // Audit
+            SalonAudit::log($sube, 'form_sablon_sil', 'form_sablon', $form->id,
+                $form->form_adi ?: ('Form #'.$form->id),
+                'Form/sözleşme şablonu silindi');
             $form->delete();
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
@@ -25353,6 +25788,11 @@ DB::raw('
                 AnketSablon::where('salon_id',$sube)->update(['varsayilan'=>0]);
             }
             $sablon->save();
+            // Audit
+            SalonAudit::log($sube, 'anket_sablon_ekle', 'anket_sablon', $sablon->id,
+                $sablon->ad,
+                'Yeni memnuniyet anketi şablonu oluşturuldu',
+                ['otomatik'=>$sablon->otomatik_gonder, 'saat_sonra'=>$sablon->gonder_saat_sonra]);
             return response()->json(['basarili'=>true,'id'=>$sablon->id]);
         } catch(\Exception $e){
             \Log::error('anketSablonKaydet hata: '.$e->getMessage());
@@ -25378,6 +25818,11 @@ DB::raw('
                 }
             }
             $sablon->save();
+            // Audit
+            SalonAudit::log($sube, 'anket_sablon_guncelle', 'anket_sablon', $sablon->id,
+                $sablon->ad,
+                'Anket şablonu güncellendi',
+                ['otomatik'=>$sablon->otomatik_gonder, 'aktif'=>$sablon->aktif, 'varsayilan'=>$sablon->varsayilan]);
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
             \Log::error('anketSablonGuncelle hata: '.$e->getMessage());
@@ -25394,8 +25839,17 @@ DB::raw('
             if($kullanim > 0){
                 $sablon->aktif = 0;
                 $sablon->save();
+                // Audit
+                SalonAudit::log($sube, 'anket_sablon_pasifle', 'anket_sablon', $sablon->id,
+                    $sablon->ad,
+                    'Anket şablonu kullanımda olduğu için pasifleştirildi',
+                    ['kullanim_sayisi'=>$kullanim]);
                 return response()->json(['basarili'=>true,'mesaj'=>'Şablon '.$kullanim.' anket gönderiminde kullanılmış, pasifleştirildi.']);
             }
+            // Audit
+            SalonAudit::log($sube, 'anket_sablon_sil', 'anket_sablon', $sablon->id,
+                $sablon->ad,
+                'Anket şablonu silindi');
             $sablon->delete();
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
@@ -25430,6 +25884,11 @@ DB::raw('
 
             self::anketSmsGonder($request, $gonderim, $sablon, $musteri);
 
+            // Audit
+            SalonAudit::log($sube, 'anket_manuel_gonder', 'anket_gonderim', $gonderim->id,
+                ($musteri->name ?: 'Müşteri').' — '.$cepTel,
+                'Manuel memnuniyet anketi gönderildi',
+                ['sablon_id'=>$sablon->id, 'sablon_adi'=>$sablon->ad]);
             return response()->json(['basarili'=>true,'gonderim_id'=>$gonderim->id]);
         } catch(\Exception $e){
             \Log::error('anketManuelGonder hata: '.$e->getMessage());

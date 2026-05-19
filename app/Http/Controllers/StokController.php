@@ -11,6 +11,7 @@ use App\UrunDepoStoku;
 use App\UrunKategorisi;
 use App\Urunler;
 use App\UrunSatislari;
+use App\SalonYonetim\Audit as SalonAudit;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -320,7 +321,8 @@ class StokController extends Controller
 
     public function depoKaydet(Request $request, $salonid)
     {
-        $d = !empty($request->id) ? Depo::find($request->id) : new Depo();
+        $_yeniDepo = empty($request->id);
+        $d = !$_yeniDepo ? Depo::find($request->id) : new Depo();
         if (!$d) {
             return response()->json(['status' => 'error'], 404);
         }
@@ -334,6 +336,12 @@ class StokController extends Controller
             $d->varsayilan = true;
         }
         $d->save();
+
+        // Audit
+        SalonAudit::log($salonid, $_yeniDepo ? 'depo_ekle' : 'depo_guncelle', 'depo', $d->id,
+            $d->depo_adi,
+            $_yeniDepo ? 'Yeni depo eklendi' : 'Depo güncellendi',
+            ['varsayilan'=>$d->varsayilan, 'aktif'=>$d->aktif]);
 
         return $d;
     }
@@ -359,6 +367,11 @@ class StokController extends Controller
         }
         $d->aktif = false;
         $d->save();
+
+        // Audit
+        SalonAudit::log($d->salon_id, 'depo_sil', 'depo', $d->id,
+            $d->depo_adi ?: ('Depo #'.$d->id),
+            'Depo pasif yapıldı');
 
         return ['status' => 'ok'];
     }
@@ -475,6 +488,12 @@ class StokController extends Controller
             'kullanici_tipi'     => $request->kullanici_tipi,
         ]);
 
+        // Audit
+        SalonAudit::log($salonid, 'stok_manuel_hareket', 'stok_hareket', $h->id,
+            $urun->urun_adi.' — '.($miktar > 0 ? '+' : '').$miktar,
+            'Manuel stok hareketi ('.$tip.')',
+            ['urun_id'=>$urun->id, 'depo_id'=>$depoId, 'miktar'=>$miktar, 'tip'=>$tip, 'aciklama'=>$request->aciklama]);
+
         return ['status' => 'ok', 'hareket_id' => (string) $h->id];
     }
 
@@ -523,6 +542,12 @@ class StokController extends Controller
             $sonuc[] = (string) $k['urun_id'];
         }
 
+        // Audit
+        SalonAudit::log($salonid, 'stok_alis_girisi', 'stok_alis_fisi', null,
+            count($sonuc).' kalem alış',
+            'Tedarikçiden mal kabul / alış girişi yapıldı',
+            ['kalem_sayisi'=>count($sonuc), 'tedarikci_id'=>$tedarikciId, 'batch'=>$batch, 'depo_id'=>$depoId]);
+
         return ['status' => 'ok', 'batch_uuid' => $batch, 'kalem_sayisi' => count($sonuc)];
     }
 
@@ -570,6 +595,13 @@ class StokController extends Controller
             ]);
         });
 
+        // Audit
+        $_audit_urunAdi = Urunler::where('id',$urunId)->value('urun_adi') ?? 'Ürün #'.$urunId;
+        SalonAudit::log($salonid, 'stok_depo_transfer', 'stok_transfer', null,
+            $_audit_urunAdi.' — '.$miktar,
+            'Depolar arası stok transferi',
+            ['urun_id'=>$urunId, 'kaynak_depo_id'=>$kaynakDepo, 'hedef_depo_id'=>$hedefDepo, 'miktar'=>$miktar, 'batch'=>$batch]);
+
         return ['status' => 'ok', 'batch_uuid' => $batch];
     }
 
@@ -616,6 +648,14 @@ class StokController extends Controller
             ]);
             $fark += $diff;
             $sayilan++;
+        }
+
+        // Audit
+        if ($sayilan > 0) {
+            SalonAudit::log($salonid, 'stok_sayim_uygula', 'stok_sayim', null,
+                $sayilan.' kalem sayım — fark '.number_format((float)$fark,2,',','.'),
+                'Stok sayım sonucu uygulandı',
+                ['sayilan_kalem'=>$sayilan, 'toplam_fark'=>$fark, 'batch'=>$batch]);
         }
 
         return [
