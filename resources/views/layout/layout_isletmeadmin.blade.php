@@ -637,6 +637,8 @@
                   {{$kalan_sms_miktar}} <i class="icon-copy fa fa-envelope-o headerbuttonicons"></i> </a>
                </div>
             </div>
+            {{-- WhatsApp durum ikonu sadece uyelik_turu == 3 --}}
+            @if($isletme->uyelik_turu == 3)
             @php
                $waAktif  = (int)($isletme->whatsapp_aktif ?? 0) === 1;
                $waBagli  = $waAktif && (($isletme->whatsapp_durum ?? '') === 'connected');
@@ -655,6 +657,7 @@
                   <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px {{ $waBagli ? '#25D366' : '#DC2626' }};"></span>
                </a>
             </div>
+            @endif
             @endif
             @if(\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->where('salon_id',$isletme->id)->value('dahili_no') !== null)
             <div class="user-notification " style="padding:20px 0 0 0">
