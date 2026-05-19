@@ -10193,25 +10193,59 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // ama musteriye SMS atilmaz).
         $sadeceKaydet = filter_var($request->sadece_kaydet, FILTER_VALIDATE_BOOLEAN);
         if (!$sadeceKaydet) {
-            $gonder = self::sms_gonder_2(
-                $request,
-                $mesajlar,
-                true,
-                6,
-                true,
-                $request->salon_id
-                ,false
-            );
+            // WhatsApp-oncelikli akis: salon WhatsApp bagliysa link WhatsApp'tan
+            // gider; basarisiz olanlar SMS'e dusurulur. Bagli degilse direkt SMS.
+            $smsMusteri = $mesajlar;
+            $smsPersonel = $mesajlar2;
 
-            $gonder2 = self::sms_gonder_2(
-                $request,
-                $mesajlar2,
-                true,
-                6,
-                true,
-                $request->salon_id
-                ,false
-            );
+            $waSalon = \App\Salonlar::find($request->salon_id);
+            $waBagli = $waSalon
+                && (int)$waSalon->whatsapp_aktif === 1
+                && ($waSalon->whatsapp_durum ?? '') === 'connected';
+
+            if ($waBagli && (count($mesajlar) > 0 || count($mesajlar2) > 0)) {
+                $waService = app(\App\Services\WhatsAppService::class);
+
+                $smsMusteri = [];
+                foreach ($mesajlar as $m) {
+                    $res = $waService->sendUrgent($waSalon, $m['to'], $m['message'], $request->user_id);
+                    if (empty($res['ok'])) {
+                        $smsMusteri[] = $m;
+                    }
+                }
+
+                $smsPersonel = [];
+                foreach ($mesajlar2 as $m) {
+                    $res = $waService->sendUrgent($waSalon, $m['to'], $m['message'], null);
+                    if (empty($res['ok'])) {
+                        $smsPersonel[] = $m;
+                    }
+                }
+            }
+
+            if (count($smsMusteri) > 0) {
+                $gonder = self::sms_gonder_2(
+                    $request,
+                    $smsMusteri,
+                    true,
+                    6,
+                    true,
+                    $request->salon_id
+                    ,false
+                );
+            }
+
+            if (count($smsPersonel) > 0) {
+                $gonder2 = self::sms_gonder_2(
+                    $request,
+                    $smsPersonel,
+                    true,
+                    6,
+                    true,
+                    $request->salon_id
+                    ,false
+                );
+            }
         }
 
         return "Başarılı";
