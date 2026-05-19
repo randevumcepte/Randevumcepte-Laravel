@@ -226,6 +226,21 @@ class PersonelYetkiServisi
     }
 
     /**
+     * Kullanici belirli salonda "Hesap Sahibi" rolune mi sahip?
+     * Roles tablosunda name='Hesap Sahibi' ile model_has_roles join.
+     */
+    public static function isHesapSahibi($yetkiliId, $salonId): bool
+    {
+        if (!$yetkiliId || !$salonId) return false;
+        return DB::table('model_has_roles')
+            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+            ->where('roles.name', 'Hesap Sahibi')
+            ->where('model_has_roles.model_id', $yetkiliId)
+            ->where('model_has_roles.salon_id', $salonId)
+            ->exists();
+    }
+
+    /**
      * Auth user'in belirli salondaki personel_id'si (varsa).
      * Musteri portfoy olusturulurken "olusturan_personel_id" alanini
      * doldurmak icin kullanilir. Salon sahibi/yonetici icin null doner.

@@ -942,7 +942,7 @@
                   </li>
                   @endif
                   @endif
-                   @if(($isletme->santral_aktif))
+                   @if(($isletme->santral_aktif) && \App\Services\PersonelYetkiServisi::isHesapSahibi(Auth::guard('isletmeyonetim')->user()->id, $isletme->id))
                   <li>
                      @if($pageindex==43)
                      <a href="/isletmeyonetim/santral{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -953,7 +953,7 @@
                      <span class="mtext"> Santral </span>
                      </a>
                   </li>
-                 
+
                   @endif
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
                   <li>
@@ -1272,7 +1272,7 @@
                      </a>
                   </li>
                   @endif
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.whatsapp_gonder'))
+                  @if(\App\Services\PersonelYetkiServisi::isHesapSahibi(Auth::guard('isletmeyonetim')->user()->id, $isletme->id))
                   <li>
                      @if($pageindex==65)
                      <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
