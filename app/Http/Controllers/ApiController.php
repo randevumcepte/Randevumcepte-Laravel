@@ -4700,6 +4700,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 ->get();
 
 
+        $waSalon = \App\Salonlar::where('id', $request->sube)
+            ->first(['whatsapp_aktif','whatsapp_durum','whatsapp_numara']);
+        $waAktif = $waSalon && (int)$waSalon->whatsapp_aktif === 1;
+        $waBagli = $waAktif && ($waSalon->whatsapp_durum === 'connected');
+
         return [
 
             "randevu_sayisi" => $randevu->get()->count(),
@@ -4710,7 +4715,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             "kalan_tutar" => $kalan_tutar,
             "ajanda" => $ajandanot,
             "kalan_sms" => self::kalan_sms($request->sube),
-         
+
+            "whatsapp_aktif" => $waAktif ? 1 : 0,
+            "whatsapp_bagli" => $waBagli ? 1 : 0,
+            "whatsapp_numara" => $waSalon->whatsapp_numara ?? null,
+
             "gelen_arama" => $gelen_arama,
             "cevapsiz_arama" => $giden_arama,
             "giden_arama" => $cevapsiz_arama,

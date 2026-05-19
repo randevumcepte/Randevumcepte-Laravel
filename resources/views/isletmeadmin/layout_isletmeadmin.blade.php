@@ -491,9 +491,9 @@
             @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0  )
             <div class="user-notification " style="padding:20px 0 0 0" id="kalansmskaybet">
                <div class="dropdown">
-                  <a 
+                  <a
                      class="dropdown-toggle no-arrow btn btn-warning kalansms"
-                     href="#" 
+                     href="#"
                      role="button"
                      data-toggle="dropdown"
                      title='Kalan SMS'
@@ -501,6 +501,24 @@
                      >
                   {{$kalan_sms_miktar}} <i class="icon-copy fa fa-envelope-o headerbuttonicons"></i> </a>
                </div>
+            </div>
+            @php
+               $waAktif  = (int)($isletme->whatsapp_aktif ?? 0) === 1;
+               $waBagli  = $waAktif && (($isletme->whatsapp_durum ?? '') === 'connected');
+               $waNumara = $isletme->whatsapp_numara ?? '';
+               $waTitle  = $waBagli
+                  ? ('WhatsApp Bağlı'.($waNumara ? ' ('.$waNumara.')' : ''))
+                  : 'WhatsApp Bağlı Değil — tıklayın, QR ile bağlayın';
+            @endphp
+            <div class="user-notification" style="padding:20px 0 0 0" id="whatsappDurumKutu">
+               <a href="{{ url('/whatsapp') }}"
+                  class="btn"
+                  title="{{ $waTitle }}"
+                  style="background:{{ $waBagli ? '#25D366' : '#DC2626' }};color:#fff;padding:5px 9px;border:none;display:inline-flex;align-items:center;gap:6px;">
+                  <i class="bi bi-whatsapp" style="font-size:16px;"></i>
+                  <span style="font-size:12px;font-weight:600;">{{ $waBagli ? 'Bağlı' : 'Bağlı Değil' }}</span>
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px {{ $waBagli ? '#25D366' : '#DC2626' }};"></span>
+               </a>
             </div>
             @endif
            
