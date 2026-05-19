@@ -21,13 +21,15 @@
 
 
       <div class="col-md-6 col-sm-12 text-right">
-     
-        
+
+            @yetki('form.gonder')
             <a href="#" data-toggle="modal" type="button" data-target="#formugondermodal"  class="btn btn-success btn-lg yenieklebuton501"><i class="fa fa-paper-plane"></i> Form Gönder</a>
+            @endyetki
+            @yetki('form.olustur')
               <a href="#" data-toggle="modal" type="button" data-target="#sozlesmeOlusturModal" class="btn btn-info btn-lg"><i class="fa fa-file-text"></i> Sözleşme Oluştur</a>
               <a href="#" data-toggle="modal" type="button" data-target="#haricibelgeeklemodal" class="btn btn-primary btn-lg yenieklebuton502"><i class="fa fa-plus"></i> Belge Ekle</a>
+            @endyetki
 
-          
       </div>
    </div>
 </div>

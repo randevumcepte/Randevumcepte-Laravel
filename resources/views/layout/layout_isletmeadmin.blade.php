@@ -1038,7 +1038,10 @@
 
                   @endif
                   @endif
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.olustur'))
+                  @if(
+                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.olustur') ||
+                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.gonder')
+                  )
                   <li>
                      @if($pageindex==50 || $pageindex==51)
                      <a href="/isletmeyonetim/arsivyonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
