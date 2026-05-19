@@ -1535,13 +1535,28 @@ let musteriPaketleri = [];
 function _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage){
     console.log('[PAKET] addServicesToForm cagrildi:', hizmetData);
     if(!hizmetData || !hizmetData.length){ console.warn('[PAKET] hizmetData bos'); return; }
-    // Onceki soft paket modali varsa kapat
-    if($('#softPaketSecimModal').length){
-        $('#softPaketSecimModal').modal('hide');
-        setTimeout(function(){ $('#softPaketSecimModal').remove(); }, 300);
+    // Onceki soft paket modalini TAMAMEN kapat ve DOM'dan kaldir, SONRA bizim
+    // modali en sona ekle (DOM yazim sirasi: parent < bizim modal → dogal stack).
+    var $soft = $('#softPaketSecimModal');
+    if($soft.length){
+        // hidden.bs.modal eventi geldikten sonra remove + show
+        $soft.one('hidden.bs.modal', function(){
+            $('#softPaketSecimModal').remove();
+            // Backdrop hala duruyorsa onu da temizle
+            $('.modal-backdrop').filter(function(){ return !$('.modal.show, .modal.in').length || $(this).next('.modal.show, .modal.in').length === 0; }).remove();
+            showHizmetOdaAtamaModal(hizmetData);
+        });
+        $soft.modal('hide');
+        // Fallback: hidden eventi gelmezse 350ms sonra zorla devam et
+        setTimeout(function(){
+            if($('#softPaketSecimModal').length){
+                $('#softPaketSecimModal').remove();
+                showHizmetOdaAtamaModal(hizmetData);
+            }
+        }, 350);
+    } else {
+        showHizmetOdaAtamaModal(hizmetData);
     }
-    // Once oda atama modalini ac, secim sonrasi forma yerlestir
-    showHizmetOdaAtamaModal(hizmetData);
 }
 
 // Tek bir hizmet item'ini bir satira yerlestirir (Tom Select uyumlu).
@@ -1628,13 +1643,10 @@ function showHizmetOdaAtamaModal(hizmetData){
             + '</div>';
     }).join('');
 
-    // NOT: data-backdrop=false + manuel backdrop yonetimi.
-    // Parent modal acikken Bootstrap'in default backdrop stack mekanigi
-    // bizim modali arkada birakabiliyor. Bu yuzden:
-    //   * modal z-index'i 2050 (parent 1050'nin uzeri)
-    //   * kendi backdrop'umuzu (#hizmetOdaAtamaBackdrop) elle ekliyoruz
+    // Modal DOM'un en sonuna eklenir; boylece dogal stack ile en ust katmanda olur.
+    // Standart Bootstrap modal (data-backdrop=true), z-index zorlamasi yok.
     var modalHtml = ''
-        + '<div class="modal fade" id="hizmetOdaAtamaModal" tabindex="-1" role="dialog" data-backdrop="false" data-keyboard="true" style="z-index:2050;">'
+        + '<div class="modal fade" id="hizmetOdaAtamaModal" tabindex="-1" role="dialog">'
         +   '<div class="modal-dialog modal-dialog-centered" style="max-width:640px;">'
         +     '<div class="modal-content" style="border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.35);">'
         +       '<div class="modal-header" style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);border-radius:12px 12px 0 0;">'
@@ -1655,40 +1667,22 @@ function showHizmetOdaAtamaModal(hizmetData){
         +   '</div>'
         + '</div>';
 
-    // Manuel backdrop
-    var backdropHtml = '<div id="hizmetOdaAtamaBackdrop" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:2040;"></div>';
-
-    $('body').append(backdropHtml).append(modalHtml);
-    var $mdl = $('#hizmetOdaAtamaModal');
-    $mdl.modal({ backdrop:false, keyboard:true, show:true });
-    // Bootstrap modal-open class'i scroll'u kilitlemis olabilir, sorun yok
-    // Ekstra guvenlik: gosterildiginde z-index'i tekrar ayarla
-    $mdl.on('shown.bs.modal', function(){
-        $(this).css('z-index', 2050);
-        $('#hizmetOdaAtamaBackdrop').css('z-index', 2040);
-    });
+    // DOM'un en sonuna ekle (yazim sirasi: parent modal -> bizim modal)
+    $('body').append(modalHtml);
+    $('#hizmetOdaAtamaModal').modal('show');
 
     function _kapatHizmetOdaModal(){
-        try { $('#hizmetOdaAtamaModal').modal('hide'); } catch(e){}
-        setTimeout(function(){
-            $('#hizmetOdaAtamaModal').remove();
-            $('#hizmetOdaAtamaBackdrop').remove();
-            // Parent modal aciksa modal-open class'i koru, degilse temizle
-            if ($('.modal.show, .modal.in').length === 0) {
-                $('body').removeClass('modal-open');
-            }
-        }, 200);
+        var $m = $('#hizmetOdaAtamaModal');
+        try { $m.modal('hide'); } catch(e){}
+        $m.one('hidden.bs.modal', function(){ $(this).remove(); });
+        // Fallback
+        setTimeout(function(){ $('#hizmetOdaAtamaModal').remove(); }, 400);
     }
 
-    // Kapanma: X, Vazgec, ESC, backdrop tiklama
-    $(document).off('click.hizmetOdaModal').on('click.hizmetOdaModal', '.hizmet-oda-modal-kapat, #hizmetOdaAtamaBackdrop', function(e){
+    // Kapanma: X ve Vazgec
+    $(document).off('click.hizmetOdaModal').on('click.hizmetOdaModal', '.hizmet-oda-modal-kapat', function(e){
         e.preventDefault();
         _kapatHizmetOdaModal();
-    });
-    $(document).off('keydown.hizmetOdaModal').on('keydown.hizmetOdaModal', function(e){
-        if(e.key === 'Escape' && $('#hizmetOdaAtamaModal').length){
-            _kapatHizmetOdaModal();
-        }
     });
 
     // Onay butonu
