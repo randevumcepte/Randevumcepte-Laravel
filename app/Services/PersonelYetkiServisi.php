@@ -226,6 +226,96 @@ class PersonelYetkiServisi
     }
 
     /**
+     * Auth user'in belirli salondaki personel_id'si (varsa).
+     * Musteri portfoy olusturulurken "olusturan_personel_id" alanini
+     * doldurmak icin kullanilir. Salon sahibi/yonetici icin null doner.
+     */
+    public static function authPersonelId($salonId, $guard = 'isletmeyonetim'): ?int
+    {
+        $user = \Auth::guard($guard)->user();
+        if (!$user) $user = \Auth::guard('isletmeyonetim-api')->user();
+        if (!$user || !$salonId) return null;
+        $pid = Personeller::where('yetkili_id', $user->id)
+            ->where('salon_id', $salonId)
+            ->value('id');
+        return $pid ? (int)$pid : null;
+    }
+
+    /**
+     * Personelin "kendi portfoyu"ndaki user_id listesi.
+     *
+     * Tanim: a) musteri_portfoy.olusturan_personel_id = $personelId
+     *        b) Bu salondaki adisyon_hizmetler/urunler/paketler tablolarinda
+     *           personel_id = $personelId olan tum musteri user_id'leri
+     *
+     * Yetki sistemi: 'musteri.tum_portfoy_gor' yetkisi yoksa kullanici sadece
+     * bu listeyi gormeli. Cagriyi sadece personel rolu + yetki yoksa yap.
+     *
+     * Donus: distinct user_id array (int[])
+     */
+    public static function kendiPortfoyUserIds($salonId, $personelId): array
+    {
+        if (!$salonId || !$personelId) return [];
+
+        // a) Personelin olusturdugu portfoyler
+        $olusturdugu = \App\MusteriPortfoy::where('salon_id', $salonId)
+            ->where('olusturan_personel_id', $personelId)
+            ->pluck('user_id')
+            ->all();
+
+        // b) Hizmet/urun/paket satislarinda yer aldiklari adisyonlarin musterileri
+        $satistakiAdisyonIds = DB::table('adisyon_hizmetler')
+            ->where('personel_id', $personelId)
+            ->pluck('adisyon_id');
+        $satistakiAdisyonIds = $satistakiAdisyonIds->merge(
+            DB::table('adisyon_urunler')->where('personel_id', $personelId)->pluck('adisyon_id')
+        );
+        $satistakiAdisyonIds = $satistakiAdisyonIds->merge(
+            DB::table('adisyon_paketler')->where('personel_id', $personelId)->pluck('adisyon_id')
+        );
+        $satistakiAdisyonIds = $satistakiAdisyonIds->unique()->values()->all();
+
+        $satistaki = [];
+        if (!empty($satistakiAdisyonIds)) {
+            $satistaki = DB::table('adisyonlar')
+                ->where('salon_id', $salonId)
+                ->whereIn('id', $satistakiAdisyonIds)
+                ->pluck('user_id')
+                ->all();
+        }
+
+        $birlesik = array_unique(array_merge($olusturdugu, $satistaki));
+        return array_values(array_filter($birlesik, fn($v) => $v !== null && $v !== ''));
+    }
+
+    /**
+     * Yetkili kullanici icin: 'musteri.tum_portfoy_gor' yetkisi yoksa
+     * kendi portfoyundeki user_id listesi, varsa NULL (kisitlama yok).
+     *
+     * Kullanim:
+     *   $kisitla = PersonelYetkiServisi::musteriPortfoyKisitlamasi($request, $salonid);
+     *   $q->when($kisitla, fn($q) => $q->whereIn('user_id', $kisitla));
+     */
+    public static function musteriPortfoyKisitlamasi($request, $salonId, $guard = 'isletmeyonetim-api'): ?array
+    {
+        $user = \Auth::guard($guard)->user();
+        if (!$user) $user = \Auth::guard('isletmeyonetim')->user();
+        if (!$user || !$salonId) return null;
+        $personelRolunde = DB::table('model_has_roles')
+            ->where('role_id', 5)
+            ->where('model_id', $user->id)
+            ->where('salon_id', $salonId)
+            ->exists();
+        if (!$personelRolunde) return null;
+        if (self::yetkiliYetkiVar($user->id, $salonId, 'musteri.tum_portfoy_gor')) return null;
+        $personelId = Personeller::where('yetkili_id', $user->id)
+            ->where('salon_id', $salonId)
+            ->value('id');
+        if (!$personelId) return null;
+        return self::kendiPortfoyUserIds($salonId, $personelId);
+    }
+
+    /**
      * Personel rolunde mi? (model_has_roles.role_id == 5)
      */
     public static function personelRolundeMi($personelId, $salonId): bool

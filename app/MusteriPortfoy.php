@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Cache;
 class MusteriPortfoy extends Model
 {
 
-    protected $fillable = ['user_id','salon_id','kara_liste','musteri_tipi','aktif','musteri_tipi'];
+    protected $fillable = ['user_id','salon_id','kara_liste','musteri_tipi','aktif','olusturan_personel_id'];
 
     protected $table = 'musteri_portfoy';
 

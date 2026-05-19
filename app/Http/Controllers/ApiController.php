@@ -336,6 +336,7 @@ class ApiController extends Controller
                 // White-label: her isletmenin kendi sifresi portfoy'da tutulur
                 $portfoy->password = $hashedSifre;
 
+                $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
                 $portfoy->save();
 
             }
@@ -1911,10 +1912,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     public function musteriler(Request $request, $salonid)
     {
         $gorebilir = $this->_telGorebilir($request, $salonid);
-        // Yetki: musteri.tum_portfoy_gor yoksa sadece kendi portfoyu
-        $kendiPortfoyId = \App\Services\PersonelYetkiServisi::apiKisitlamaPersonelId(
-            $request, $salonid, 'musteri.tum_portfoy_gor'
-        );
+        // Yetki: musteri.tum_portfoy_gor yoksa sadece kendi portfoyu.
+        // "Kendi portfoy" tanimi: olusturan_personel_id=kendisi VEYA
+        // hizmet/urun/paket satislarinda personel_id=kendisi.
+        $kendiPortfoyUserIds = \App\Services\PersonelYetkiServisi::musteriPortfoyKisitlamasi($request, $salonid);
         $search = $request->input('search', '');
         $limit = (int) $request->input('limit', 50);
         $offset = (int) $request->input('offset', 0);
@@ -1924,8 +1925,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ->join('users as u', 'mp.user_id', '=', 'u.id')
             ->where('mp.salon_id', $salonid)
             ->where('mp.aktif', 1)
-            ->when($kendiPortfoyId, function ($q) use ($kendiPortfoyId) {
-                $q->where('mp.personel_id', $kendiPortfoyId);
+            ->when($kendiPortfoyUserIds !== null, function ($q) use ($kendiPortfoyUserIds) {
+                // Bos liste ise hicbir musteri eslesmez (whereIn empty -> no rows).
+                $q->whereIn('mp.user_id', $kendiPortfoyUserIds ?: [0]);
             })
             ->select(
                 'u.id',
@@ -2008,13 +2010,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     public function musteriler2(Request $request)
     {
         $gorebilir = $this->_telGorebilir($request, $request->salonid);
-        // Yetki: musteri.tum_portfoy_gor yoksa sadece kendi portfoyu
-        $kendiPortfoyId = \App\Services\PersonelYetkiServisi::apiKisitlamaPersonelId(
-            $request, $request->salonid, 'musteri.tum_portfoy_gor'
-        );
+        // Yetki: musteri.tum_portfoy_gor yoksa sadece kendi portfoyu.
+        $kendiPortfoyUserIds = \App\Services\PersonelYetkiServisi::musteriPortfoyKisitlamasi($request, $request->salonid);
         $musteri_idler = MusteriPortfoy::where("salon_id", $request->salonid)->where('aktif',1)
-            ->when($kendiPortfoyId, function ($q) use ($kendiPortfoyId) {
-                $q->where('personel_id', $kendiPortfoyId);
+            ->when($kendiPortfoyUserIds !== null, function ($q) use ($kendiPortfoyUserIds) {
+                $q->whereIn('user_id', $kendiPortfoyUserIds ?: [0]);
             })
             ->pluck("user_id")
             ->toArray();
@@ -11170,6 +11170,7 @@ public function cdrRaporLatest(Request $request)
             }
             $portfoy->user_id = $user->id;
             $portfoy->salon_id = $request->salonid;
+            $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
             $portfoy->save();
             $ongorusme->user_id = $user->id;
         }
@@ -14728,6 +14729,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                     $portfoy->aktif = true;
 
+                    $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
                     $portfoy->save();
 
                     $returnvar = $mevcut;
@@ -14802,6 +14804,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $portfoy->aktif = true;
 
+        $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
         $portfoy->save();
 
         if (
@@ -16940,6 +16943,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                 $portfoy->aktif = true;
 
+                $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
                 $portfoy->save();
 
             }
@@ -21882,6 +21886,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         $portfoy->salon_id = $salon_id;
         $portfoy->user_id = $user->id;
         $portfoy->aktif = true;
+        $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
         $portfoy->save();
         return $user->id;
     }
@@ -22223,8 +22228,9 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         $portfoy->kara_liste = 0;
         $portfoy->user_id = $user->id;
         if($request->kayitTarihi != "")
-            $portfoy->created_at = date('Y-m-d',strtotime($request->kayitTarihi)); 
+            $portfoy->created_at = date('Y-m-d',strtotime($request->kayitTarihi));
         $portfoy->salon_id = $request->salonId;
+        $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
         $portfoy->save();
         return $user->id;
     }
@@ -24398,6 +24404,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $portfoy->user_id = $userId;
             $portfoy->salon_id = $salonid;
             $portfoy->aktif = true;
+            $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
         }
         $portfoy->kara_liste = 1;
         $portfoy->save();

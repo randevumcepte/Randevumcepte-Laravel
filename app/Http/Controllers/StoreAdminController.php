@@ -5801,6 +5801,7 @@ private function ayAdiCevir($ingilizceAy)
                         $portfoy->user_id = $import->id;
                         $portfoy->salon_id = Auth::guard('isletmeyonetim')->user()->salon_id;
                         $portfoy->aktif = true;
+                        $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
                         $portfoy->save();
                         $listehtmlappend .='<tr>
                         <td>
@@ -6493,14 +6494,9 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
-        if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request, 'musteri.tum_portfoy_gor'))
-            {
-                    return redirect()->route('isletmeadmin.randevular');
-                    exit(0);
-            }
-        }
-       
+        // Eski yonlendirme kaldirildi — musteridetay yetki kontrolu blade'de
+        // ve listede filtreleniyor. Personel detaya gelebildiyse erisim olur.
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
@@ -8186,7 +8182,7 @@ private function ayAdiCevir($ingilizceAy)
                         $portfoy->aktif = true;
                         $portfoy->kvkk_onay_alindi =false;
                         $portfoy->onay_kodu = $kvkkKodu;
-                        
+                        $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
                         $portfoy->save();
                         return array(
                                     'title' => "Başarılı",
@@ -8253,6 +8249,7 @@ private function ayAdiCevir($ingilizceAy)
             $portfoy->kvkk_onay_alindi = false;
 
             $portfoy->onay_kodu = $kvkkKodu;
+            $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
             $portfoy->save();
             $returntext =  "<p><b>ID : </b>".$musteri->id."</p>";
             $returntext .= "<p><b>Ad Soyad : </b>".$musteri->name."</p>";
@@ -11611,6 +11608,7 @@ DB::raw('
             $portfoy->aktif = 1;
             $portfoy->kara_liste = 0;
             $portfoy->user_id = $user->id;
+            $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
             $portfoy->save();
             $ongorusme->user_id = $user->id;
         }
