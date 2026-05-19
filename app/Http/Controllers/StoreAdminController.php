@@ -1234,8 +1234,30 @@ public function carkverilerigetir(Request $request)
     {
         $search = $request->input('query');
         $salonid = $request->input('sube');
-        $query = DB::table('odalar')->select('id as id','oda_adi as oda_adi')->where('oda_adi', 'LIKE', "%{$search}%")->where('salon_id', $salonid)->where('aktifmi',1)->limit(50)->get();
-        return response()->json($query);
+        // hizmet_id veya hizmet_ids[] geldiyse: yalnizca o hizmet(ler)i veren odalar
+        $hizmetIdleri = [];
+        if ($request->filled('hizmet_id')) {
+            $hizmetIdleri = is_array($request->hizmet_id) ? $request->hizmet_id : [$request->hizmet_id];
+        } elseif ($request->filled('hizmet_ids')) {
+            $hizmetIdleri = is_array($request->hizmet_ids) ? $request->hizmet_ids : [$request->hizmet_ids];
+        }
+        $hizmetIdleri = array_values(array_filter(array_map('intval', $hizmetIdleri)));
+
+        $q = DB::table('odalar')
+            ->select('odalar.id as id','odalar.oda_adi as oda_adi')
+            ->where('odalar.oda_adi', 'LIKE', "%{$search}%")
+            ->where('odalar.salon_id', $salonid)
+            ->where('odalar.aktifmi',1);
+
+        if (!empty($hizmetIdleri) && Schema::hasTable('oda_sunulan_hizmetler')) {
+            $q->whereIn('odalar.id', function($sub) use($hizmetIdleri){
+                $sub->from('oda_sunulan_hizmetler')
+                    ->select('oda_id')
+                    ->whereIn('hizmet_id', $hizmetIdleri);
+            });
+        }
+
+        return response()->json($q->orderBy('odalar.takvim_sirasi','asc')->limit(50)->get());
     }
     public function musteridanisanarama(Request $request)
     {

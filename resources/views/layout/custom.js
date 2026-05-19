@@ -20654,7 +20654,7 @@ $(document).on('click', '#sablonkapatmodal', function () {
 });
 $('.oda_secimi').each(function(){
       $('.oda_secimi').select2({
-             placeholder: "Oda seçin",  
+             placeholder: "Oda seçin",
              allowClear:true,
              language: {
         inputTooShort: function () {
@@ -20671,26 +20671,46 @@ $('.oda_secimi').each(function(){
         }
     },
         ajax: {
-            url: '/isletmeyonetim/oda-secimi', 
+            url: '/isletmeyonetim/oda-secimi',
             dataType: 'json',
-            delay: 250, // 250ms bekleyerek gereksiz istekleri önle
+            delay: 250,
             data: function (params) {
-                return { 
-                    query: params.term || '', // Eğer giriş yoksa boş string gönder
+                // Ayni satirdaki hizmet secimini bul, varsa odalari hizmete gore filtrele
+                var $select = $(this);
+                var idx = $select.data('index');
+                var hizmetIds = [];
+                if (idx !== undefined && idx !== null) {
+                    var sel = $('#randevuhizmetleriyeni_'+idx).val();
+                    if (Array.isArray(sel)) hizmetIds = sel.filter(Boolean);
+                    else if (sel) hizmetIds = [sel];
+                }
+                return {
+                    query: params.term || '',
                     sube:$('input[name="sube"]').val(),
                     aramaMi:false,
-                }; // Arama terimi
+                    hizmet_ids: hizmetIds
+                };
             },
 
             processResults: function (data) {
-                
+
                 return { results: data.map(oda => ({ id: oda.id, text: oda.oda_adi })) };
             }
 
         },
-        minimumInputLength: 0 // En az 2 harf girilince aramaya başla
-        }); 
-       }); 
+        minimumInputLength: 0
+        });
+       });
+// Bir hizmet satirinda hizmet degisince odalar listesini hizmete gore yenile
+$(document).off('change.odaFiltresi','.hizmet-select').on('change.odaFiltresi','.hizmet-select', function(){
+    var idx = $(this).data('index');
+    if (idx === undefined || idx === null) return;
+    var $oda = $('.hizmet-satiri[data-value="'+idx+'"] .oda_secimi');
+    if (!$oda.length) return;
+    // Mevcut secim hala uygun mu kontrolu icin: secimi koru, ama dropdown'u temizle
+    // Select2'nin AJAX'i yeni hizmet listesiyle yeniden cagiracak — kullanici acinca filtreli liste gorur
+    // Eger secili oda artik bu hizmete uygun degilse, kullaniciya birakiyoruz (gorsel uyari yok henuz)
+});
  $('.hizmet_secimi').each(function(e){
         $('.hizmet_secimi').select2({
              placeholder: "Hizmet seçin",  
@@ -20860,7 +20880,7 @@ $('.oda_secimi').each(function(){
        });
        $('.oda_secimi').each(function(){
              $('.oda_secimi').select2({
-                    placeholder: "Oda seçin",  
+                    placeholder: "Oda seçin",
                     allowClear:true,
                     language: {
                inputTooShort: function () {
@@ -20877,26 +20897,35 @@ $('.oda_secimi').each(function(){
                }
            },
                ajax: {
-                   url: '/isletmeyonetim/oda-secimi', 
+                   url: '/isletmeyonetim/oda-secimi',
                    dataType: 'json',
-                   delay: 250, // 250ms bekleyerek gereksiz istekleri önle
+                   delay: 250,
                    data: function (params) {
-                       return { 
-                           query: params.term || '', // Eğer giriş yoksa boş string gönder
+                       var $select = $(this);
+                       var idx = $select.data('index');
+                       var hizmetIds = [];
+                       if (idx !== undefined && idx !== null) {
+                           var sel = $('#randevuhizmetleriyeni_'+idx).val();
+                           if (Array.isArray(sel)) hizmetIds = sel.filter(Boolean);
+                           else if (sel) hizmetIds = [sel];
+                       }
+                       return {
+                           query: params.term || '',
                            sube:$('input[name="sube"]').val(),
                            aramaMi:false,
-                       }; // Arama terimi
+                           hizmet_ids: hizmetIds
+                       };
                    },
-       
+
                    processResults: function (data) {
-                       
+
                        return { results: data.map(oda => ({ id: oda.id, text: oda.oda_adi })) };
                    }
-       
+
                },
-               minimumInputLength: 0 // En az 2 harf girilince aramaya başla
-               }); 
-              }); 
+               minimumInputLength: 0
+               });
+              });
         $('.hizmet_secimi').each(function(e){
                $('.hizmet_secimi').select2({
                     placeholder: "Hizmet seçin",  
@@ -22060,99 +22089,89 @@ function addServicesToForm(hizmetData, result, showSuccessMessage = false) {
         console.log("Eklenebilecek hizmet yok");
         return;
     }
-    
-    console.log(`${hizmetData.length} adet hizmet eklenecek:`, hizmetData);
-    
-    const $hizmetSelect = $('#yenirandevuekleform .hizmet_secimi').first();
-    const index = $hizmetSelect.data('index') || 0;
-    
-    const addedServices = [];
-    const hizmetIdsToAdd = hizmetData.map(item => item.id);
-    
-    // ÖNCE: Mevcut seçimleri temizle
-    $hizmetSelect.val(null).trigger('change');
-    
-    // SONRA: Hizmetleri ekle
-    hizmetData.forEach(function(item) {
-        if (item && item.id) {
-            const optionText = item.text;
-            
-            // Option zaten var mı kontrol et
-            let $existingOption = $hizmetSelect.find('option[value="' + item.id + '"]');
-            
-            if ($existingOption.length === 0) {
-                // Yeni option oluştur
-                const option = new Option(optionText, item.id, true, true);
-                
-                $(option).data('extra', {
-                    seans: item.seans,
-                    tur: item.tur,
-                    paket_adi: item.paket_adi,
-                    sure: item.sure,
-                    original_seans: item.original_seans,
-                    hizmet_id: item.hizmet_id,
-                    paket_id: item.paket_id,
-                    adisyon_hizmet_id: item.adisyon_hizmet_id,
-                    adisyon_paket_id: item.adisyon_paket_id
-                });
-                
-                $hizmetSelect.append(option);
-            } else {
-                // Var olan option'ı güncelle
-                $existingOption.text(optionText);
-                $existingOption.data('extra', {
-                    seans: item.seans,
-                    tur: item.tur,
-                    paket_adi: item.paket_adi,
-                    sure: item.sure,
-                    original_seans: item.original_seans,
-                    hizmet_id: item.hizmet_id,
-                    paket_id: item.paket_id,
-                    adisyon_hizmet_id: item.adisyon_hizmet_id,
-                    adisyon_paket_id: item.adisyon_paket_id
-                });
-                $existingOption.prop('selected', true);
-            }
-            
-            // Cache'i güncelle
-            hizmetDataCache[item.id] = {
-                id: item.id,
-                text: item.text,
-                sure: item.sure || 0,
-                kategori: item.tur === 'paket' ? 'Paket Hizmeti' : 'Tek Hizmet',
-                renk: item.tur === 'paket' ? '#f59e0b' : '#3b82f6',
-                seans: item.seans,
-                paket_adi: item.paket_adi
-            };
-            
-            addedServices.push({
-                id: item.id,
-                text: item.text,
-                seans: item.seans,
-                sure: item.sure,
-                tur: item.tur,
-                paket_adi: item.paket_adi
+
+    console.log(`${hizmetData.length} adet hizmet eklenecek (her biri ayri satira):`, hizmetData);
+
+    // Tek hizmette: ilk satira ekle. Coklu hizmette: her birini AYRI satira koy.
+    // Boylece kullanici her hizmet icin ayri oda secimi yapabilir ve oda
+    // dropdown'i o hizmete uygun odalari listeler.
+
+    // Yardimci: bir hizmet-select'e tek hizmet ekle/secili yap
+    function putHizmetIntoSelect($select, item){
+        if(!$select || !$select.length || !item || !item.id) return;
+        var optionText = item.text;
+        var $existing = $select.find('option[value="'+item.id+'"]');
+        if ($existing.length === 0){
+            var option = new Option(optionText, item.id, true, true);
+            $(option).data('extra', {
+                seans: item.seans, tur: item.tur, paket_adi: item.paket_adi,
+                sure: item.sure, original_seans: item.original_seans,
+                hizmet_id: item.hizmet_id, paket_id: item.paket_id,
+                adisyon_hizmet_id: item.adisyon_hizmet_id,
+                adisyon_paket_id: item.adisyon_paket_id
             });
+            $select.append(option);
+        } else {
+            $existing.text(optionText);
+            $existing.data('extra', {
+                seans: item.seans, tur: item.tur, paket_adi: item.paket_adi,
+                sure: item.sure, original_seans: item.original_seans,
+                hizmet_id: item.hizmet_id, paket_id: item.paket_id,
+                adisyon_hizmet_id: item.adisyon_hizmet_id,
+                adisyon_paket_id: item.adisyon_paket_id
+            });
+            $existing.prop('selected', true);
         }
-    });
-    
-    // Select2'yi güncelle
-    if ($hizmetSelect.hasClass('select2-hidden-accessible')) {
-        setTimeout(() => {
-            const selectedIds = addedServices.map(s => s.id);
-            console.log("Eklenecek hizmet ID'leri:", selectedIds);
-            
-            $hizmetSelect.val(selectedIds).trigger('change.select2');
-            
-            // Hizmet detaylarını güncelle
-            updateHizmetDetaylari(index);
-            updateRandevuOzeti();
-            
-            if (showSuccessMessage) {
-                showSuccessAlert(`${addedServices.length} adet hizmet forma eklendi.`);
-            }
-        }, 100);
+        hizmetDataCache[item.id] = {
+            id: item.id, text: item.text, sure: item.sure || 0,
+            kategori: item.tur === 'paket' ? 'Paket Hizmeti' : 'Tek Hizmet',
+            renk: item.tur === 'paket' ? '#f59e0b' : '#3b82f6',
+            seans: item.seans, paket_adi: item.paket_adi
+        };
+        // Select2 / Tom Select uyum: secili degeri tetikle, oda filtresi de yenilensin
+        try { $select.val([item.id]).trigger('change'); } catch(e){}
+        try { $select.trigger('change.select2'); } catch(e){}
     }
+
+    // 1) Ilk hizmeti ilk satira (mevcut satir veya temizlenmis ilk satir) koy
+    var first = hizmetData[0];
+    var $firstSelect = $('#yenirandevuekleform .hizmet-select').first();
+    if(!$firstSelect.length){
+        $firstSelect = $('#yenirandevuekleform .hizmet_secimi').first();
+    }
+    // Onceki secimi temizle
+    try { $firstSelect.val(null).trigger('change'); } catch(e){}
+    putHizmetIntoSelect($firstSelect, first);
+    var firstIdx = $firstSelect.data('index');
+    if (firstIdx !== undefined && typeof updateHizmetDetaylari === 'function') {
+        try { updateHizmetDetaylari(firstIdx); } catch(e){}
+    }
+
+    // 2) Kalan hizmetler icin: "Yeni Hizmet Ekle" akisini tetikle, son satira yerlestir
+    function addRemaining(idx){
+        if(idx >= hizmetData.length){
+            try { updateRandevuOzeti(); } catch(e){}
+            if (showSuccessMessage) {
+                var n = hizmetData.length;
+                showSuccessAlert(n + ' adet hizmet ' + (n > 1 ? 'ayri satirlara' : 'forma') + ' eklendi.');
+            }
+            return;
+        }
+        // Yeni satir ekle
+        $('#bir_hizmet_daha_ekle').trigger('click');
+        // DOM ve Tom Select init'in tamamlanmasini bekle, sonra son satira hizmeti koy
+        setTimeout(function(){
+            var $lastRow = $('#yenirandevuekleform .hizmet-satiri').last();
+            var $sel = $lastRow.find('.hizmet-select');
+            putHizmetIntoSelect($sel, hizmetData[idx]);
+            var lastIdx = $sel.data('index');
+            if (lastIdx !== undefined && typeof updateHizmetDetaylari === 'function') {
+                try { updateHizmetDetaylari(lastIdx); } catch(e){}
+            }
+            addRemaining(idx+1);
+        }, 250);
+    }
+    addRemaining(1);
 }
 
 // Soft başarı bildirimi göster
