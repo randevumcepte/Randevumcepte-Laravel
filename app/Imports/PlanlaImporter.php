@@ -178,6 +178,21 @@ class PlanlaImporter
             $oda->personel_id = $p->id;
             $oda->save();
         }
+        // salon_oda_renkleri kaydi yoksa ekle (takvim INNER JOIN yapiyor, eksikse oda gozukmez).
+        // Renk: salonun son OdaRenkleri.renk_id + 1, 10 ise rotate -> 1.
+        $hasRenk = \DB::table('salon_oda_renkleri')->where('oda_id', $oda->id)->exists();
+        if (!$hasRenk) {
+            $sonRenk = (int) (\DB::table('salon_oda_renkleri')->where('salon_id', $this->salonId)
+                ->orderBy('id', 'desc')->value('renk_id') ?? 0);
+            $yeniRenk = ($sonRenk <= 0 || $sonRenk >= 10) ? 1 : $sonRenk + 1;
+            \DB::table('salon_oda_renkleri')->insert([
+                'salon_id' => $this->salonId,
+                'renk_id'  => $yeniRenk,
+                'oda_id'   => $oda->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
         $this->personelOdaMap[$p->id] = $oda->id;
         return $oda->id;
     }

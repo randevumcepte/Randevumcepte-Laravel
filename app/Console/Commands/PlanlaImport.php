@@ -135,12 +135,19 @@ class PlanlaImport extends Command
             $hasPersonelId = \Schema::hasColumn('odalar', 'personel_id');
             $hasTakvimSirasi = \Schema::hasColumn('odalar', 'takvim_sirasi');
 
-            // 1) Her personel icin ayni isimde oda yoksa yarat
+            // 1) Her personel icin ayni isimde oda yoksa yarat + salon_oda_renkleri kaydi
             $personeller = \App\Personeller::where('salon_id', $salonId)->orderBy('id')->get();
-            $created = 0; $existed = 0;
+            $created = 0; $existed = 0; $rengiAtanan = 0;
             $personelToOdaId = [];
             $sira = (int) (\DB::table('odalar')->where('salon_id', $salonId)
                 ->max($hasTakvimSirasi ? 'takvim_sirasi' : 'id') ?? 0);
+            // Salonun son oda rengi (rotate 1..10)
+            $sonRenk = (int) (\DB::table('salon_oda_renkleri')->where('salon_id', $salonId)
+                ->orderBy('id', 'desc')->value('renk_id') ?? 0);
+            $sonrakiRenk = function () use (&$sonRenk) {
+                $sonRenk = ($sonRenk <= 0 || $sonRenk >= 10) ? 1 : $sonRenk + 1;
+                return $sonRenk;
+            };
             foreach ($personeller as $p) {
                 $ad = trim((string) $p->personel_adi);
                 if ($ad === '') continue;
@@ -163,9 +170,21 @@ class PlanlaImport extends Command
                     }
                     $existed++;
                 }
+                // Renk kaydi yoksa ekle (takvim INNER JOIN yapiyor, eksikse oda gozukmez)
+                $odaRenk = \DB::table('salon_oda_renkleri')->where('oda_id', $oda->id)->first();
+                if (!$odaRenk) {
+                    \DB::table('salon_oda_renkleri')->insert([
+                        'salon_id' => $salonId,
+                        'renk_id'  => $sonrakiRenk(),
+                        'oda_id'   => $oda->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    $rengiAtanan++;
+                }
                 $personelToOdaId[$p->id] = $oda->id;
             }
-            $this->line("Personel: " . count($personeller) . " | Oda yaratildi: {$created} | Mevcut: {$existed}");
+            $this->line("Personel: " . count($personeller) . " | Oda yaratildi: {$created} | Mevcut: {$existed} | Renk atanan: {$rengiAtanan}");
 
             // 2) Mevcut randevu_hizmetler.oda_id NULL olanlara personel'den eslesen oda_id'yi yaz
             // Sadece bu salonun randevulari
