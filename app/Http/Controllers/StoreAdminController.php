@@ -23949,14 +23949,7 @@ DB::raw('
             return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
-        if(!Auth::guard('satisortakligi')->check()){
-            if(self::personelmi($request))
-            {
-                    return redirect()->route('isletmeadmin.randevular');
-                    exit(0);
-            }
-        }
-       
+
         $tarih1 = '';
         $tarih2 = '';
         if(count($isletmeler)>1 && !isset($_GET['sube']))
@@ -23965,7 +23958,7 @@ DB::raw('
             exit(0);
         }
         //return self::hizmetRaporlari2(self::mevcutsube($request));
-        
+
 
         return view('isletmeadmin.raporlar',['isletme'=>$isletme,'bildirimler'=>self::bildirimgetir($request),'pageindex'=>400  ,'sayfa_baslik'=>'Raporlar', 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'hizmetRaporlari'=>self::hizmetRaporlari2($isletme->id,date('Y-m-01'),date('Y-m-d'),''),'urunRaporlari'=>self::urunRaporlari($isletme->id,date('Y-m-01'),date('Y-m-d'),''),'paketRaporlari'=>self::paketRaporlari($isletme->id,date('Y-m-01'),date('Y-m-d'),''),'personelRaporlari'=>self::personelRaporlari($isletme->id,date('Y-m-01'),date('Y-m-d'))]);
     }
