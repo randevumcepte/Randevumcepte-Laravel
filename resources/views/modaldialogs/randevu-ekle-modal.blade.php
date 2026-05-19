@@ -2165,21 +2165,30 @@ function tomDestroyPersonel($sel){
 
 function initPersonelTom($sel){
     if(!$sel || !$sel.length || typeof TomSelect === 'undefined') return null;
-    tomDestroyPersonel($sel);
     var el = $sel[0];
-    return new TomSelect(el, {
-        plugins: ['clear_button'],
-        placeholder: 'Personel seçin...',
-        allowEmptyOption: true,
-        persist: false,
-        maxOptions: null,
-        searchField: ['text'],
-        render: {
-            no_results: function(){
-                return '<div class="no-results">Personel bulunamadı</div>';
+    if(!el) return null;
+    // Zaten Tom Select init'liyse ve saglikli ise mevcudu dondur (double-init'i engelle)
+    if(el.tomselect){
+        try { return el.tomselect; } catch(e){}
+    }
+    try {
+        return new TomSelect(el, {
+            plugins: ['clear_button'],
+            placeholder: 'Personel seçin...',
+            allowEmptyOption: true,
+            persist: false,
+            maxOptions: null,
+            searchField: ['text'],
+            render: {
+                no_results: function(){
+                    return '<div class="no-results">Personel bulunamadı</div>';
+                }
             }
-        }
-    });
+        });
+    } catch(err){
+        console.warn('[initPersonelTom] hata:', err);
+        return null;
+    }
 }
 
 function initPersonelTomAll(){
@@ -2715,10 +2724,9 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         $yeniSatir.find('.custom-select2').not('.hizmet-select').each(function(){
             try { $(this).select2({ width: '100%' }); } catch(e){}
         });
-        // Yeni satirdaki personel-select'i Tom Select ile baslat
-        $yeniSatir.find('.personel-select').each(function(){
-            initPersonelTom($(this));
-        });
+        // NOT: personel-select Tom Select doldurRandevuSecenekleri() icindeki
+        // initPersonelTomAll() tarafindan zaten init edildi; tekrari kaldirdik
+        // (double init Tom Select'te getSettings.trim() hatasini tetikliyordu).
         $('.hizmet-sil[data-value="0"]').removeAttr('disabled');
         
         hizmetSatirSayisi++;
