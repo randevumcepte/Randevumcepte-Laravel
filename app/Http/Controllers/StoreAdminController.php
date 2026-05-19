@@ -9011,17 +9011,22 @@ private function ayAdiCevir($ingilizceAy)
         {
             foreach($request->adisyon_hizmet_id as $key=>$hizmet_id)
             {
-                if($request->adisyon_hizmet_senet_id[$key] == '' && $request->adisyon_hizmet_taksitli_tahsilat_id[$key] == '')
+                $_senet_v = $request->adisyon_hizmet_senet_id[$key] ?? '';
+                $_taksit_v = $request->adisyon_hizmet_taksitli_tahsilat_id[$key] ?? '';
+                if($_senet_v == '' && $_taksit_v == '')
                 {
+                    $hizmet_tahsilat_tutar = $request->himzet_tahsilat_tutari_girilen[$key]
+                        ?? $request->adisyon_hizmet_tahsilat_tutari[$key]
+                        ?? null;
+                    if($hizmet_tahsilat_tutar === null || $hizmet_tahsilat_tutar === '')
+                        continue;
+                    $_tahsilat_tutari = (float) str_replace(['.',','],['','.'],$request->tahsilat_tutari ?? '0');
+                    if($_tahsilat_tutari == 0)
+                        continue;
                     $odeme = new TahsilatHizmetler();
                     $odeme->adisyon_hizmet_id = $hizmet_id;
                     $odeme->tahsilat_id = $tahsilat->id;
-                    $hizmet_tahsilat_tutar = 0;
-                    if(isset($request->himzet_tahsilat_tutari_girilen))
-                        $hizmet_tahsilat_tutar = $request->himzet_tahsilat_tutari_girilen[$key];
-                    else
-                        $hizmet_tahsilat_tutar = $request->adisyon_hizmet_tahsilat_tutari[$key];
-                    $odeme->tutar = (str_replace(['.',','],['','.'],$hizmet_tahsilat_tutar)/str_replace(['.',','],['','.'],$request->tahsilat_tutari))*str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
+                    $odeme->tutar = (str_replace(['.',','],['','.'],$hizmet_tahsilat_tutar)/$_tahsilat_tutari)*str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
                     $odeme->save();
                 }
             }
@@ -9030,17 +9035,22 @@ private function ayAdiCevir($ingilizceAy)
         {
             foreach($request->adisyon_urun_id as $key2=>$urun_id)
             {
-                if($request->adisyon_urun_senet_id[$key2] == '' && $request->adisyon_urun_taksitli_tahsilat_id[$key2] == '')
+                $_senet_v2 = $request->adisyon_urun_senet_id[$key2] ?? '';
+                $_taksit_v2 = $request->adisyon_urun_taksitli_tahsilat_id[$key2] ?? '';
+                if($_senet_v2 == '' && $_taksit_v2 == '')
                 {
+                    $urun_tahsilat_tutar = $request->urun_tahsilat_tutari_girilen[$key2]
+                        ?? $request->adisyon_urun_tahsilat_tutari[$key2]
+                        ?? null;
+                    if($urun_tahsilat_tutar === null || $urun_tahsilat_tutar === '')
+                        continue;
+                    $_tahsilat_tutari2 = (float) str_replace(['.',','],['','.'],$request->tahsilat_tutari ?? '0');
+                    if($_tahsilat_tutari2 == 0)
+                        continue;
                     $odeme = new TahsilatUrunler();
                     $odeme->adisyon_urun_id = $urun_id;
                     $odeme->tahsilat_id = $tahsilat->id;
-                    $urun_tahsilat_tutar = 0;
-                    if(isset($request->urun_tahsilat_tutari_girilen))
-                        $urun_tahsilat_tutar = $request->urun_tahsilat_tutari_girilen[$key2];
-                     else
-                        $urun_tahsilat_tutar = $request->adisyon_urun_tahsilat_tutari[$key2];
-                    $odeme->tutar = (str_replace(['.',','],['','.'],$urun_tahsilat_tutar)/str_replace(['.',','],['','.'],$request->tahsilat_tutari))*str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
+                    $odeme->tutar = (str_replace(['.',','],['','.'],$urun_tahsilat_tutar)/$_tahsilat_tutari2)*str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
                     $odeme->save();
                 }
             }
@@ -9049,16 +9059,21 @@ private function ayAdiCevir($ingilizceAy)
         {
             foreach($request->adisyon_paket_id as $key3=>$paket_id)
             {
-                if($request->adisyon_paket_senet_id[$key3] == '' && $request->adisyon_paket_taksitli_tahsilat_id[$key3] == ''){
+                $_senet_v3 = $request->adisyon_paket_senet_id[$key3] ?? '';
+                $_taksit_v3 = $request->adisyon_paket_taksitli_tahsilat_id[$key3] ?? '';
+                if($_senet_v3 == '' && $_taksit_v3 == ''){
+                    $paket_tahsilat_tutar = $request->paket_tahsilat_tutari_girilen[$key3]
+                        ?? $request->adisyon_paket_tahsilat_tutari[$key3]
+                        ?? null;
+                    if($paket_tahsilat_tutar === null || $paket_tahsilat_tutar === '')
+                        continue;
+                    $_tahsilat_tutari3 = (float) str_replace(['.',','],['','.'],$request->tahsilat_tutari ?? '0');
+                    if($_tahsilat_tutari3 == 0)
+                        continue;
                     $odeme = new TahsilatPaketler();
                     $odeme->adisyon_paket_id = $paket_id;
                     $odeme->tahsilat_id = $tahsilat->id;
-                    $paket_tahsilat_tutar = 0;
-                    if(isset($request->paket_tahsilat_tutari_girilen))
-                         $paket_tahsilat_tutar= $request->paket_tahsilat_tutari_girilen[$key3];
-                     else
-                        $paket_tahsilat_tutar =$request->adisyon_paket_tahsilat_tutari[$key3];
-                    $odeme->tutar = (str_replace(['.',','],['','.'],$paket_tahsilat_tutar)/str_replace(['.',','],['','.'],$request->tahsilat_tutari))*str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
+                    $odeme->tutar = (str_replace(['.',','],['','.'],$paket_tahsilat_tutar)/$_tahsilat_tutari3)*str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
                     $odeme->save();
                 }
             }
