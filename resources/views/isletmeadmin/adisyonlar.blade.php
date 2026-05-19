@@ -810,6 +810,16 @@ $(document).ready(function() {
         }
     });
     
+    // URL hash'i ile gelen tab'i aktif et (orn: #taksitli_alacaklar)
+    (function openTabFromHash(){
+        var h = (window.location.hash || '').replace('#','');
+        if(!h) return;
+        var $trigger = $('[data-toggle="tab"][href="#'+h+'"]');
+        if($trigger.length){
+            $trigger.tab('show');
+        }
+    })();
+
     // Sayfa yüklendiğinde
     setTimeout(function() {
         var activeTab = $('.tab-pane.active');

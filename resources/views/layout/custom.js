@@ -20999,8 +20999,9 @@ $(document).on('click','a[name="adisyon_odeme_detaylari"]',function(e){
 $(document).on('click','#alacaklar_listeme_git',function(e){
     e.preventDefault();
     swal.close();
-    $('#senetle_veya_taksitle_tahsil_et').trigger('click');
-    $('#taksitli_tahsilatlar_bolumu').trigger('click');
+    var sube = $('input[name="sube"]').first().val() || new URLSearchParams(window.location.search).get('sube') || '';
+    var url = '/isletmeyonetim/adisyonlar' + (sube ? ('?sube=' + sube) : '') + '#taksitli_alacaklar';
+    window.location.href = url;
 })
 $(document).on('click','a[name="paket_tahsilatlari"]',function(e){
     e.preventDefault();
