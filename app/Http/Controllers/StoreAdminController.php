@@ -2074,14 +2074,35 @@ public function carkverilerigetir(Request $request)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
+        // Yetki: Ayarlar kategorisindeki herhangi bir yetki acikken sayfa
+        // acilabilir. Hicbiri yoksa yetkisiz erisim.
         if(!Auth::guard('satisortakligi')->check()){
-             if(self::personelmi($request))
-            {
-                    return redirect()->route('isletmeadmin.randevular');
-                    exit(0);
+            $authUser = Auth::guard('isletmeyonetim')->user();
+            $salonId = self::mevcutsube($request);
+            $herhangiYetki = false;
+            if ($authUser) {
+                foreach ([
+                    'ayar.salon_bilgi',
+                    'ayar.cihaz_oda_yonet',
+                    'ayar.sube_yonet',
+                    'randevu.online_ayar',
+                    'hizmet.tanim_olustur',
+                    'hizmet.kategori_yonet',
+                    'satis.indirim_uygula',
+                    'personel.liste_gor', // ayarlar > personeller tab
+                ] as $key) {
+                    if (\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, $key)) {
+                        $herhangiYetki = true;
+                        break;
+                    }
+                }
+            }
+            if (!$herhangiYetki) {
+                return view('isletmeadmin.yetkisizerisim');
+                exit(0);
             }
         }
-       
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
