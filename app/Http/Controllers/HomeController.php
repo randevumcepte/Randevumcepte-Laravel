@@ -1141,15 +1141,27 @@ $salon = Salonlar::where('domain', $domain)->first();
          // Telefon normalize: bastaki 0 / +90 / 90 ve ozel karakterler kaldirilir (10 hane)
          $telNorm = preg_replace('/^(\+?90|0)/', '', (string)$request->cep_telefon);
          $telNorm = str_replace(["(",")"," ","-"], "", $telNorm);
+
+         // GUVENLIK: telefon basina rate limit (kotü niyetli kullanici sürekli
+         // sıfırlatıp hesabi kilitlemesin / SMS bombardimani olmasin).
+         $rlKey = 'sifregonder:tel:'.$telNorm;
+         if (\Cache::has($rlKey)) {
+             return response()->json([
+                 'error' => 'Bu numaraya yakın zamanda şifre gönderildi. Lütfen birkaç dakika sonra tekrar deneyin.'
+             ], 429);
+         }
+         // IP başına gunluk üst sınır
+         $ipKey = 'sifregonder:ip:'.md5($request->ip());
+         $ipCount = (int) \Cache::get($ipKey, 0);
+         if ($ipCount >= 20) {
+             return response()->json(['error' => 'Çok fazla istek. Yarın tekrar deneyin.'], 429);
+         }
+
          $kullanici = User::where('cep_telefon',$telNorm)->first();
          $salon = Salonlar::where('domain',$_SERVER['HTTP_HOST'])->first();
 
-         // Test/dev domainlerinde sifreyi de ekrana goster (SMS gelmediginde devam edilebilsin)
-         $isTestDomain = isset($_SERVER['HTTP_HOST']) && (
-            str_contains($_SERVER['HTTP_HOST'], 'apptest.') ||
-            str_contains($_SERVER['HTTP_HOST'], 'localhost') ||
-            str_contains($_SERVER['HTTP_HOST'], '127.0.0.1')
-         );
+         // Geliştirici şifre gösterimi: sadece APP_DEBUG=true ortamda (production'da asla)
+         $isTestDomain = config('app.debug') === true;
 
          if($kullanici){
              // Mevcut musteri salonun portfoyunde degilse otomatik ekle
@@ -1177,8 +1189,12 @@ $salon = Salonlar::where('domain', $domain)->first();
              $smsBasarili = $sonuc['success'];
              $smsHataMesaji = $sonuc['error'] ?? '';
 
+             // Rate limit counter'lari yaz (basarili sifre uretimi sonrasi)
+             \Cache::put($rlKey, 1, now()->addMinutes(5));
+             \Cache::put($ipKey, $ipCount + 1, now()->addDay());
+
              if($smsBasarili) {
-                $devSifre = $isTestDomain ? "<div style='background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:8px;margin:8px 0;font-size:13px;'>🔧 <b>Test domaini:</b> Şifreniz: <code style='background:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;'>".$olusturulansifre."</code></div>" : '';
+                $devSifre = $isTestDomain ? "<div style='background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:8px;margin:8px 0;font-size:13px;'>🔧 <b>APP_DEBUG aktif:</b> Şifreniz: <code style='background:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;'>".$olusturulansifre."</code></div>" : '';
                 echo " <div id='hosgeldinizbildirim'>".$salon->salon_adi."'a tekrar hoşgeldiniz! Randevunuzu onaylamak için lütfen ".$request->cep_telefon." telefon numaranıza gönderdiğimiz şifrenizi aşağıdaki alana giriniz. Şifreniz birkaç dakika içerisinde ulaşmazsa tekrar gönderilmesi için lütfen <button type='button' id='sifregonder4' class='btn btn-primary small btn-rounded'>buraya tıklayınız</button></div>".$devSifre." <div id='sifrealani'>
                                         <div class='form-group'>
                                             <input type='password' id='sifre' name='sifre' placeholder='Mevcut şifreniz'><br />
@@ -1187,8 +1203,8 @@ $salon = Salonlar::where('domain', $domain)->first();
                                     </div>
                                     ";
              } else {
-                 // SMS basarisiz - test domainde sifreyi goster, yine de devam edilebilsin
-                $devSifre = $isTestDomain ? "<div style='background:#fef3c7;color:#92400e;padding:10px 14px;border-radius:8px;margin:8px 0;font-size:13px;'>🔧 <b>Test domaini:</b> SMS gönderilemedi ama şifreniz: <code style='background:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;'>".$olusturulansifre."</code></div>" : '';
+                 // SMS basarisiz — APP_DEBUG aktifse sifreyi goster, yine de devam edilebilsin
+                $devSifre = $isTestDomain ? "<div style='background:#fef3c7;color:#92400e;padding:10px 14px;border-radius:8px;margin:8px 0;font-size:13px;'>🔧 <b>APP_DEBUG aktif:</b> SMS gönderilemedi ama şifreniz: <code style='background:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;'>".$olusturulansifre."</code></div>" : '';
                 echo "<div id='hosgeldinizbildirim' style='background:#fee2e2;color:#b91c1c;padding:10px 14px;border-radius:8px;'>SMS gönderilemedi: ".e($smsHataMesaji)."</div>".$devSifre." <div id='sifrealani'>
                         <div class='form-group'>
                             <input type='password' id='sifre' name='sifre' placeholder='Mevcut şifreniz'><br />
@@ -1388,24 +1404,41 @@ $salon = Salonlar::where('domain', $domain)->first();
              return response()->json(['error' => 'Bu numara için bugün çok fazla işlem yapıldı. Yarın tekrar deneyin.'], 429);
          }
 
-         // Mevcut user'i bul ya da yeni olustur (sifre auto-generate, kullanici hic gormeyecek)
+         // Mevcut user'i bul ya da yeni olustur. KRITIK: mevcut bir kullaniciya
+         // sifre dogrulamasi yapmadan otomatik login YAPILMAZ — aksi halde sadece
+         // telefon numarasi bilen biri başkasinin hesabina girebilir.
          $kullanici = User::where('cep_telefon', $tel)->first();
-         if (!$kullanici) {
+         if ($kullanici) {
+             // Hatirladiysa: request'te sifre geldiyse Auth::attempt et
+             $girilenSifre = (string) $request->input('sifre', '');
+             if ($girilenSifre !== '' && \Auth::attempt(['cep_telefon' => $tel, 'password' => $girilenSifre])) {
+                 // Login basarili: mevcut akis devam
+                 $kullanici = \Auth::user();
+                 if (!empty($ad) && $kullanici->name !== $ad) {
+                     $kullanici->name = $ad;
+                     $kullanici->save();
+                 }
+             } else {
+                 // Hatirlamiyorsa veya sifre yanlissa: client'a "sifre gir / yeni sifre gonder" akisina yonlendir.
+                 return response()->json([
+                     'needs_password' => true,
+                     'masked_phone'   => substr($tel, 0, 3) . '****' . substr($tel, -2),
+                     'error'          => $girilenSifre !== ''
+                         ? 'Sifre hatali. Tekrar deneyin veya "Sifremi unuttum" ile yeni sifre isteyin.'
+                         : 'Bu numara sistemde kayitli. Lutfen mevcut sifrenizi girin veya yeni bir sifre isteyin.'
+                 ], 401);
+             }
+         } else {
+             // Yeni kayit: random sifre uret (kullanici sifregonder ile yenileyene kadar bu sifre ile sisteme giremez)
              $kullanici = new User();
              $kullanici->name = $ad;
              $kullanici->cep_telefon = $tel;
-             // Random sifre uretip hash'le (kullanici hic kullanmayacak; sadece hesabin geçerliliği için)
              $randomSifre = bin2hex(random_bytes(16));
              $kullanici->password = \Hash::make($randomSifre);
              $kullanici->save();
-         } else if (!empty($ad) && $kullanici->name !== $ad) {
-             // Ad guncel degilse guncelle
-             $kullanici->name = $ad;
-             $kullanici->save();
+             // Sadece YENI kayit icin otomatik login (hesap zaten yoktu, impersonation riski yok)
+             \Auth::login($kullanici);
          }
-
-         // Otomatik login
-         \Auth::login($kullanici);
 
          // MusteriPortfoy: salon icin portfoy yoksa ekle. Boylece kullanici "Evet"i
          // tiklamadan akistan ciksa bile salonun portfoyunde gozukur.
