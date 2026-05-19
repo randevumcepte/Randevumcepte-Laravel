@@ -517,11 +517,25 @@ public function carkverilerigetir(Request $request)
                 $t->index(['salon_id', 'user_id', 'tarih', 'asama'], 'cark_hat_log_idx');
             });
         }
-        // Eski tablolari yeni aktif_X kolonlariyla guncelle (geriye uyumlu)
+        // Eski tablolari yeni kolonlarla guncelle (geriye uyumlu)
         foreach (['aktif_1', 'aktif_2', 'aktif_3', 'aktif_son'] as $col) {
             if (!\Schema::hasColumn('cark_hatirlatma_ayarlari', $col)) {
                 \Schema::table('cark_hatirlatma_ayarlari', function ($t) use ($col) {
                     $t->tinyInteger($col)->default(1);
+                });
+            }
+        }
+        foreach (['baslik_1', 'baslik_2', 'baslik_3'] as $col) {
+            if (!\Schema::hasColumn('cark_hatirlatma_ayarlari', $col)) {
+                \Schema::table('cark_hatirlatma_ayarlari', function ($t) use ($col) {
+                    $t->string($col, 80)->nullable();
+                });
+            }
+        }
+        foreach (['altyazi_1', 'altyazi_2', 'altyazi_3'] as $col) {
+            if (!\Schema::hasColumn('cark_hatirlatma_ayarlari', $col)) {
+                \Schema::table('cark_hatirlatma_ayarlari', function ($t) use ($col) {
+                    $t->string($col, 120)->nullable();
                 });
             }
         }
@@ -592,17 +606,22 @@ public function carkverilerigetir(Request $request)
         $a->saat_1   = $request->input('saat_1', '10:00');
         $a->saat_2   = $request->input('saat_2', '15:00');
         $a->saat_3   = $request->input('saat_3', '20:00');
-        $a->saat_son = $request->input('saat_son', '22:30');
         $a->mesaj_1   = trim($request->input('mesaj_1', ''));
         $a->mesaj_2   = trim($request->input('mesaj_2', ''));
         $a->mesaj_3   = trim($request->input('mesaj_3', ''));
-        $a->mesaj_son = trim($request->input('mesaj_son', ''));
-        // Her asama bagimsiz aktif (yeni kolonlar)
         if (\Schema::hasColumn('cark_hatirlatma_ayarlari', 'aktif_1')) {
             $a->aktif_1   = (int) $request->input('aktif_1', 1);
             $a->aktif_2   = (int) $request->input('aktif_2', 1);
             $a->aktif_3   = (int) $request->input('aktif_3', 1);
-            $a->aktif_son = (int) $request->input('aktif_son', 1);
+            $a->aktif_son = 0; // Eski 4. slot kapali
+        }
+        if (\Schema::hasColumn('cark_hatirlatma_ayarlari', 'baslik_1')) {
+            $a->baslik_1  = trim($request->input('baslik_1', '')) ?: null;
+            $a->baslik_2  = trim($request->input('baslik_2', '')) ?: null;
+            $a->baslik_3  = trim($request->input('baslik_3', '')) ?: null;
+            $a->altyazi_1 = trim($request->input('altyazi_1', '')) ?: null;
+            $a->altyazi_2 = trim($request->input('altyazi_2', '')) ?: null;
+            $a->altyazi_3 = trim($request->input('altyazi_3', '')) ?: null;
         }
         $gun = $request->input('gonderim_gunleri');
         $a->gonderim_gunleri = is_array($gun) ? $gun : null;

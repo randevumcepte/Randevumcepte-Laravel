@@ -13,6 +13,8 @@ class CarkHatirlatmaAyarlari extends Model
         'saat_1', 'saat_2', 'saat_3', 'saat_son',
         'mesaj_1', 'mesaj_2', 'mesaj_3', 'mesaj_son',
         'aktif_1', 'aktif_2', 'aktif_3', 'aktif_son',
+        'baslik_1', 'baslik_2', 'baslik_3',
+        'altyazi_1', 'altyazi_2', 'altyazi_3',
         'gonderim_gunleri',
     ];
 
