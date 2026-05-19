@@ -1089,6 +1089,7 @@
                      </span>
                      </a>
                   </li>
+                  {{-- Modern Tahsilat (BETA) — simdilik gizli, ileride acilacak.
                   <li>
                      @if($pageindex==1111 || $pageindex==1112)
                      <a href="/isletmeyonetim/tahsilat-modern{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1102,6 +1103,7 @@
                      </span>
                      </a>
                   </li>
+                  --}}
 
                   @endif
                    @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
