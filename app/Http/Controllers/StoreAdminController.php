@@ -3783,24 +3783,35 @@ private function ayAdiCevir($ingilizceAy)
                 .'<i class="fa '.($takvimdeGor?'fa-eye':'fa-eye-slash').'"></i> '
                 .'<span>'.($takvimdeGor?'Görünür':'Gizli').'</span>'
                 .'</button>';
-            // 'personel.yetki_yonet' yetkisi olanlara "Yetkileri Düzenle" item gosterilir.
-            $yetkiYonetVar = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
-                \Auth::guard('isletmeyonetim')->user()->id ?? 0,
-                self::mevcutsube($request),
-                'personel.yetki_yonet'
-            );
+            // Yetki flag'leri: islemler dropdown'unu yetki bazli olusturuyoruz.
+            $_authUid = \Auth::guard('isletmeyonetim')->user()->id ?? 0;
+            $yetkiYonetVar = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUid, $isletmeId, 'personel.yetki_yonet');
+            $ekleDuzenleVar = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUid, $isletmeId, 'personel.ekle_duzenle');
+            $silVar = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUid, $isletmeId, 'personel.sil');
+
+            $duzenleItem = $ekleDuzenleVar
+                ? '<a class="dropdown-item" href="#" onclick="modalbaslikata(\'Personel Bilgileri\',\'\' )" name="personel_detayi" data-toggle="modal" data-target="#personel-modal" data-value="'.$personel->id.'"><i class="fa fa-edit"></i> Düzenle</a>'
+                : '';
             $yetkiItem = $yetkiYonetVar
                 ? '<a class="dropdown-item" href="#" name="personel_yetki_duzenle" data-value="'.$personel->id.'" data-adi="'.htmlspecialchars($personel_adi, ENT_QUOTES).'"><i class="fa fa-shield-alt"></i> Yetkileri Düzenle</a>'
+                : '';
+            $sifreItem = $ekleDuzenleVar
+                ? '<a class="dropdown-item" href="#" name="personel_sifre_degistir_gonder" data-value="'.$personel->id.'"><i class="icon-copy dw dw-password"></i> Şifre Değiştir & Gönder</a>'
+                : '';
+            $pasifAktifItem = $silVar
+                ? '<a class="dropdown-item" href="#" name="personel_pasif_aktif_yap" data-index-number="'.($personel->aktif ? 0 : 1).'" data-value="'.$personel->id.'"><i class="'.($personel->aktif ? 'fa fa-minus' : 'fa fa-plus').'"></i> '.($personel->aktif ? 'Pasif Yap' : 'Aktif Yap').'</a>'
+                : '';
+            $silItem = $silVar
+                ? '<div class="dropdown-divider"></div><a class="dropdown-item text-danger" href="#" name="personel_sil" data-value="'.$personel->id.'" data-adi="'.htmlspecialchars($personel_adi, ENT_QUOTES).'"><i class="fa fa-trash" style="color:#dc2626"></i> Sil</a>'
                 : '';
             $islemler = '<div class="dropdown"><a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
                 </a>
                 <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-                <a class="dropdown-item" href="#" onclick="modalbaslikata(\'Personel Bilgileri\',\'\' )" name="personel_detayi" data-toggle="modal" data-target="#personel-modal" data-value="'.$personel->id.'"><i class="fa fa-edit"></i> Düzenle</a>
-                    '.$yetkiItem.'
-                    <a class="dropdown-item" href="#" name="personel_sifre_degistir_gonder" data-value="'.$personel->id.'"><i class="icon-copy dw dw-password"></i> Şifre Değiştir & Gönder</a>
-                    <a class="dropdown-item" href="#" name="personel_pasif_aktif_yap" data-index-number="'.($personel->aktif ? 0 : 1).'" data-value="'.$personel->id.'"><i class="'.($personel->aktif ? 'fa fa-minus' : 'fa fa-plus').'"></i> '.($personel->aktif ? 'Pasif Yap' : 'Aktif Yap').'</a>
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item text-danger" href="#" name="personel_sil" data-value="'.$personel->id.'" data-adi="'.htmlspecialchars($personel_adi, ENT_QUOTES).'"><i class="fa fa-trash" style="color:#dc2626"></i> Sil</a></div></div>';
+                '.$duzenleItem.'
+                '.$yetkiItem.'
+                '.$sifreItem.'
+                '.$pasifAktifItem.'
+                '.$silItem.'</div></div>';
             $siralama = '';
             if($isFirst)
                 $siralama .='<button class="btn btn-info" name="personel_siralamayi_bir_asagi_tasi" data-value="'.$personel->id.'"><i class="fa fa-chevron-down"></i></button>';
