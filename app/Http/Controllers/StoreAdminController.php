@@ -156,7 +156,15 @@ class StoreAdminController extends Controller
     {
         $this->middleware(function ($request, $next) {
             if (!Auth::guard('isletmeyonetim')->check() && !Auth::guard('satisortakligi')->check()) {
-                return redirect('/isletmeyonetim/girisyap');
+                if ($request->ajax() || $request->wantsJson() || $request->expectsJson()) {
+                    return response()->json([
+                        'error'    => 'session_expired',
+                        'message'  => 'Oturumunuz sonlanmıştır. Tekrar giriş yapmanız gerekmektedir.',
+                        'redirect' => url('/isletmeyonetim/girisyap'),
+                    ], 401);
+                }
+                return redirect('/isletmeyonetim/girisyap')
+                    ->with('session_expired', 'Oturumunuz sonlanmıştır. Tekrar giriş yapmanız gerekmektedir.');
             }
 
             return $next($request);

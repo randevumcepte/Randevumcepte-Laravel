@@ -18,13 +18,20 @@
                         </div>
                            
                             <div class="input-control">
+                                @if(session()->has('session_expired'))
+                                 <p style='color: #856404;
+                                    background-color: #fff3cd;
+                                        border:1px solid #ffeeba;font-size:15px;padding:8px;border-radius:4px;margin-bottom:10px'>
+                                        {!! session()->get('session_expired') !!}
+                                </p>
+                                @endif
                                 @if(session()->get('error') != '')
                                  <p style='color: #721c24;
                                     background-color: #f8d7da;
                                         border-color: #f5c6cb;font-size:16px;padding:5px'>
                                         {!! session()->get('error') !!}
                                         @endif
-                            </p> 
+                            </p>
                                 <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
                                     <input type="text" placeholder="Cep Telefonu" name="email" value="{{ old('email') }}" required autofocus>
                                     

@@ -1345,6 +1345,43 @@
       <script src="{{secure_asset('public/yeni_panel/vendors/scripts/datatable-setting.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/sweetalert2/sweetalert2.all.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/sweetalert2/sweet-alert.init.js')}}"></script>
+      <script>
+        (function(){
+            var __sessionExpiredShown = false;
+            function __handleSessionExpired(xhr){
+                if (__sessionExpiredShown) return;
+                var loginUrl = '/isletmeyonetim/girisyap';
+                try {
+                    if (xhr && xhr.responseJSON && xhr.responseJSON.redirect) {
+                        loginUrl = xhr.responseJSON.redirect;
+                    }
+                } catch(e){}
+                __sessionExpiredShown = true;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Oturum Sonlandı',
+                        text: 'Oturumunuz sonlanmıştır. Tekrar giriş yapmanız gerekmektedir.',
+                        confirmButtonText: 'Giriş Yap',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    }).then(function(){
+                        window.location.href = loginUrl;
+                    });
+                } else {
+                    alert('Oturumunuz sonlanmıştır. Tekrar giriş yapmanız gerekmektedir.');
+                    window.location.href = loginUrl;
+                }
+            }
+            if (typeof jQuery !== 'undefined') {
+                jQuery(document).ajaxError(function(event, xhr){
+                    if (xhr && xhr.status === 401) {
+                        __handleSessionExpired(xhr);
+                    }
+                });
+            }
+        })();
+      </script>
       <script src="//cdn.datatables.net/plug-ins/1.13.7/sorting/absolute.js"></script>
       <script src="//cdn.datatables.net/plug-ins/1.13.7/sorting/datetime-moment.js"></script>
       @if($pageindex == 2)
