@@ -915,6 +915,7 @@
          <div class="menu-block customscroll">
             <div class="sidebar-menu">
                <ul>
+                  {{-- Ozet menusu (gizli/legacy) --}}
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <!--<li>
                      @if($pageindex==1)
@@ -927,10 +928,11 @@
                      </a>
                   </li>-->
                   @endif
+
+                  {{-- 1) Asistanım --}}
                   @if($isletme->uyelik_turu > 2)
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <li>
-                  
                      @if($pageindex==60)
                      <a href="/isletmeyonetim/e_asistan{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
@@ -942,7 +944,9 @@
                   </li>
                   @endif
                   @endif
-                   @if(($isletme->santral_aktif) && DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+
+                  {{-- 2) Santral --}}
+                  @if(($isletme->santral_aktif) && DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <li>
                      @if($pageindex==43)
                      <a href="/isletmeyonetim/santral{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -953,8 +957,9 @@
                      <span class="mtext"> Santral </span>
                      </a>
                   </li>
-
                   @endif
+
+                  {{-- 3) Randevu Takvimi --}}
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
                   <li>
                      @if($pageindex==2)
@@ -967,9 +972,11 @@
                      </a>
                   </li>
                   @endif
+
+                  {{-- 4) Ön Görüşmeler --}}
                   <li>
                      @if($pageindex==12)
-                     <a href="/isletmeyonetim/ongorusmeler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active"> 
+                     <a href="/isletmeyonetim/ongorusmeler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
                      <a href="/isletmeyonetim/ongorusmeler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
                      @endif
@@ -977,6 +984,8 @@
                         ><span class="mtext"> Ön Görüşmeler</span>
                      </a>
                   </li>
+
+                  {{-- 5) Randevular --}}
                   <li>
                      @if($pageindex==3)
                      <a href="/isletmeyonetim/randevular-liste{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -988,56 +997,7 @@
                      </a>
                   </li>
 
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.liste_gor'))
-                  <li>
-                     @if($pageindex==4 ||$pageindex==41)
-                     <a href="/isletmeyonetim/musteriler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/musteriler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-people"></span>
-                     <span class="mtext"> @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışanlar @else Müşteriler @endif</span>
-                     </a>
-                  </li>
-                  @endif
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'personel.liste_gor'))
-                  <li>
-                     @if($pageindex==401)
-                     <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-person-lines-fill"></span>
-                     <span class="mtext">Personeller</span>
-                     </a>
-                  </li>
-                  @endif
-                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if($isletme->uyelik_turu>2)
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet'))
-                  <li>
-                     @if($pageindex==22)
-                     <a href="/isletmeyonetim/kampanya_yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/kampanya_yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow ">
-                     @endif
-                     <span class="micon icon-copy bi bi-cash-coin"></span
-                     ><span class="mtext">Reklam Yönetimi</span>
-                     </a>
-                  </li>
-                  @endif
-                  <li style="display:none;">
-                           @if($pageindex==20)
-                           <a href="/isletmeyonetim/etkinlik{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                           @else
-                           <a href="/isletmeyonetim/etkinlik{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow ">
-                           @endif
-                           <span class="micon bi bi-text-left"></span><span class="mtext">Etkinlikler</span>
-                           </a>
-                  </li>
-
-                  @endif
-                  @endif
+                  {{-- 6) Form Yönetimi --}}
                   @if(
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.olustur') ||
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.gonder')
@@ -1053,6 +1013,8 @@
                      </a>
                   </li>
                   @endif
+
+                  {{-- 7) Memnuniyet Anketi --}}
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.anket_yonet'))
                   <li>
                      @if($pageindex==52 || $pageindex==53)
@@ -1065,6 +1027,36 @@
                      </a>
                   </li>
                   @endif
+
+                  {{-- 8) Reklam Yönetimi (simdilik gizli - uzerinde calisiliyor) --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
+                  @if($isletme->uyelik_turu>2)
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet'))
+                  <li style="display:none;">
+                     @if($pageindex==22)
+                     <a href="/isletmeyonetim/kampanya_yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/kampanya_yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow ">
+                     @endif
+                     <span class="micon icon-copy bi bi-cash-coin"></span
+                     ><span class="mtext">Reklam Yönetimi</span>
+                     </a>
+                  </li>
+                  @endif
+                  {{-- Etkinlikler (gizli) --}}
+                  <li style="display:none;">
+                     @if($pageindex==20)
+                     <a href="/isletmeyonetim/etkinlik{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/etkinlik{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow ">
+                     @endif
+                     <span class="micon bi bi-text-left"></span><span class="mtext">Etkinlikler</span>
+                     </a>
+                  </li>
+                  @endif
+                  @endif
+
+                  {{-- 9) Seans Takibi --}}
                   @if($isletme->uyelik_turu>1)
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'paket.seans_takip'))
                   <li>
@@ -1079,6 +1071,87 @@
                   </li>
                   @endif
                   @endif
+
+                  {{-- 10) Çarkıfelek --}}
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.cark_yonet'))
+                  <li>
+                     @if(in_array($pageindex ?? 0, [500, 501, 502]))
+                     <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon fa fa-life-ring" style="color:#9D5DC8"></span
+                        ><span class="mtext">Çarkıfelek</span>
+                     </a>
+                  </li>
+                  @endif
+                  {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
+
+                  {{-- 11) Müşteriler/Danışanlar --}}
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.liste_gor'))
+                  <li>
+                     @if($pageindex==4 ||$pageindex==41)
+                     <a href="/isletmeyonetim/musteriler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/musteriler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-people"></span>
+                     <span class="mtext"> @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışanlar @else Müşteriler @endif</span>
+                     </a>
+                  </li>
+                  @endif
+
+                  {{-- 12) Personeller --}}
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'personel.liste_gor'))
+                  <li>
+                     @if($pageindex==401)
+                     <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-person-lines-fill"></span>
+                     <span class="mtext">Personeller</span>
+                     </a>
+                  </li>
+                  @endif
+
+                  {{-- 13) Paket Yönetimi --}}
+                  @if($_SERVER['HTTP_HOST']!='randevu.randevumcepte.com.tr')
+                  @if($isletme->uyelik_turu>1)
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'paket.tanim_olustur'))
+                  <li>
+                     @if($pageindex==13)
+                     <a href="/isletmeyonetim/paketsatislari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/paketsatislari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-grid-3x3"></span>
+                     <span class="mtext">Paket Yönetimi</span>
+                     </a>
+                  </li>
+                  @endif
+                  @endif
+                  @endif
+
+                  {{-- 14) Satış Raporları --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && DB::table('model_has_roles')->where('role_id',4)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  <li>
+                     @if($pageindex==400)
+                     <a href="/isletmeyonetim/raporlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/raporlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                      <span class="micon bi bi-bar-chart-fill"></span
+                        ><span class="mtext">
+                     Satış Raporları
+                     </span>
+                     </a>
+                  </li>
+                  @endif
+                  @endif
+
+                  {{-- 15) Satış Takibi --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   <li>
                      @if($pageindex==11 || $pageindex==111)
@@ -1107,60 +1180,33 @@
                      </a>
                   </li>
                   --}}
+                  @endif
 
-                  @endif
-                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && DB::table('model_has_roles')->where('role_id',4)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
-                  <li>
-                     @if($pageindex==400)
-                     <a href="/isletmeyonetim/raporlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/raporlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                      <span class="micon bi bi-bar-chart-fill"></span
-                        ><span class="mtext">
-                     Satış Raporları
-                     </span>
-                     </a>
-                  </li>
-                  @endif
-                  @endif
-                  
-
+                  {{-- 16) Stok Yönetimi --}}
                   @if($_SERVER['HTTP_HOST']!='randevu.randevumcepte.com.tr')
                   @if($isletme->uyelik_turu>1)
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'paket.tanim_olustur'))
-                      <li>
-                        @if($pageindex==13)
-                        <a href="/isletmeyonetim/paketsatislari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                        @else
-                        <a href="/isletmeyonetim/paketsatislari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                        @endif
-                        <span class="micon bi bi-grid-3x3"></span>
-                        <span class="mtext">Paket Yönetimi</span>
-                        </a>
-                     </li>
-                  @endif
                   @if(
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.tanim_olustur') ||
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.stok_giris') ||
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.stok_sayim') ||
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.tedarikci_yonet')
                   )
-                     <li>
-                        @if($pageindex==30)
-                        <a href="/isletmeyonetim/urunler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                        @else
-                        <a href="/isletmeyonetim/urunler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                        @endif
-                        <span class="micon bi bi-tags"></span>
-                        <span class="mtext">Stok Yönetimi</span>
-                        </a>
-                     </li>
-                  @endif
-                  @endif
-                  @endif
                   <li>
+                     @if($pageindex==30)
+                     <a href="/isletmeyonetim/urunler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/urunler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-tags"></span>
+                     <span class="mtext">Stok Yönetimi</span>
+                     </a>
+                  </li>
+                  @endif
+                  @endif
+                  @endif
+
+                  {{-- 17) Ajanda (gizli) --}}
+                  <li style="display:none;">
                      @if($pageindex==40)
                      <a href="/isletmeyonetim/ajanda{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
@@ -1170,43 +1216,34 @@
                         ><span class="mtext">Ajanda</span>
                      </a>
                   </li>
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.cark_yonet'))
-                      <li>
-                     @if(in_array($pageindex ?? 0, [500, 501, 502]))
-                     <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon fa fa-life-ring" style="color:#9D5DC8"></span
-                        ><span class="mtext">Çarkıfelek</span>
-                     </a>
-                  </li>
-                  @endif
-                  {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
+
+                  {{-- Senet Takibi (gizli) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>2)
-                  {{-- Senet Takibi menusu simdilik gizli --}}
                   @if(false)
                   @if(
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.senet_olustur') ||
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.alacak_yonet')
                   )
-                    <li>
-                           @if($pageindex==17)
-                           <a href="/isletmeyonetim/senetler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                           @else
-                           <a href="/isletmeyonetim/senetler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                           @endif
-                           <span class="micon bi bi-clipboard2"></span>
-                           <span class="mtext">Senet Takibi</span>
-                           </a>
-                        </li>
+                  <li>
+                     @if($pageindex==17)
+                     <a href="/isletmeyonetim/senetler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/senetler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-clipboard2"></span>
+                     <span class="mtext">Senet Takibi</span>
+                     </a>
+                  </li>
                   @endif
                   @endif
                   @endif
-                 
+                  @endif
+
+                  {{-- 18) Kasa Raporu --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>1)
-                   @if(
+                  @if(
                      (
                         \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.kasa') ||
                         \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.kasa_giris_cikis') ||
@@ -1215,7 +1252,7 @@
                         \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.alacak_yonet')
                      )
                      && DB::table('model_has_roles')->where('role_id',4)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0
-                   )
+                  )
                   <li>
                      @if($pageindex==103)
                      <a href="/isletmeyonetim/kasadefteri{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1228,7 +1265,25 @@
                   </li>
                   @endif
                   @endif
-                   @endif
+                  @endif
+
+                  {{-- 19) WhatsApp --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
+                  @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  <li>
+                     @if($pageindex==65)
+                     <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-whatsapp" style="color:#25D366;"></span>
+                     <span class="mtext">WhatsApp</span>
+                     </a>
+                  </li>
+                  @endif
+                  @endif
+
+                  {{-- 20) SMS Yönetimi --}}
                   @if(
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.sms_gonder') ||
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.toplu_sms')
@@ -1244,6 +1299,8 @@
                      </a>
                   </li>
                   @endif
+
+                  {{-- 21) Ayarlar --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(
                      (
@@ -1268,7 +1325,9 @@
                      </a>
                   </li>
                   @endif
-                  {{-- Log Hareketleri: sadece Hesap Sahibi (1), Yonetici (2),
+                  @endif
+
+                  {{-- 22) Log Hareketleri: sadece Hesap Sahibi (1), Yonetici (2),
                        Supervisor (4) gorsun. Sekreter (3) ve Personel (5) gizli. --}}
                   @if(DB::table('model_has_roles')->whereIn('role_id',[3,5])->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <li>
@@ -1282,21 +1341,10 @@
                      </a>
                   </li>
                   @endif
-                  @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
-                  <li>
-                     @if($pageindex==65)
-                     <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-whatsapp" style="color:#25D366;"></span>
-                     <span class="mtext">WhatsApp</span>
-                     </a>
-                  </li>
-                  @endif
 
+                  {{-- Personel rolu (5) icin Raporlar linki --}}
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() > 0 )
-                  <li>  
+                  <li>
                      @if($pageindex==105)
                      <a href="/isletmeyonetim/personeldetay/{{\App\Personeller::where('salon_id',$isletme->id)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id')}}{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
@@ -1307,14 +1355,6 @@
                      </a>
                   </li>
                   @endif
-                  @endif
-                       
-                      
-                    
-                
-                   
-                 
-                  
                </ul>
             </div>
          </div>
