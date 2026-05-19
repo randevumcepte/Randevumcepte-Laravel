@@ -1784,12 +1784,24 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
     }
 
     function _post(cakismaOnayli){
+        var fd = _build(cakismaOnayli);
+        // Debug: gonderilen tum FormData icerigini console'a yaz
+        try {
+            var dbg = {};
+            for(var pair of fd.entries()){
+                if(dbg[pair[0]] === undefined) dbg[pair[0]] = pair[1];
+                else if(Array.isArray(dbg[pair[0]])) dbg[pair[0]].push(pair[1]);
+                else dbg[pair[0]] = [dbg[pair[0]], pair[1]];
+            }
+            console.log('[PAKET-HIZLI] POST -> /yenirandevuekle', dbg);
+        } catch(e){}
         $.ajax({
             type:'POST', url:'/isletmeyonetim/yenirandevuekle', dataType:'json',
-            data: _build(cakismaOnayli), processData:false, contentType:false,
+            data: fd, processData:false, contentType:false,
             beforeSend: function(){ $('#preloader').show(); },
             success: function(result){
                 $('#preloader').hide();
+                console.log('[PAKET-HIZLI] response:', result);
                 if(result.cakismavar){
                     swal({
                         type:'warning', title:"<h2 style='font-size:24px;color:#fff'>Çakışma Var</h2>",
@@ -1803,17 +1815,31 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
                 } else if(result.eklenemez){
                     swal({type:'warning', title:'Uyarı', html: result.eklenemez});
                     if(onBitti) onBitti(false);
-                } else {
+                } else if(result.success) {
                     $('#modal-view-event-add').modal('hide');
-                    swal({type:'success', title:'Başarılı', html: result.success || 'Randevu oluşturuldu.', showConfirmButton:false, timer: result.timer || 2500});
+                    swal({type:'success', title:'Başarılı', html: result.success, showConfirmButton:false, timer: result.timer || 2500});
                     if($('#calendar').length && typeof takvimyukle === 'function') takvimyukle(false, false);
                     try { resetForm && resetForm(); } catch(e){}
                     if(onBitti) onBitti(true);
+                } else {
+                    // Beklenmeyen response — kullaniciya net mesaj goster
+                    console.warn('[PAKET-HIZLI] beklenmeyen response:', result);
+                    swal({type:'warning', title:'Beklenmeyen Yanit', html: '<pre style="font-size:11px;text-align:left;">'+JSON.stringify(result).slice(0,500)+'</pre>'});
+                    if(onBitti) onBitti(false);
                 }
             },
             error: function(req){
                 $('#preloader').hide();
-                swal({type:'error', title:'Hata', text:'Randevu oluşturulamadı. Lütfen tekrar deneyin.'});
+                console.error('[PAKET-HIZLI] AJAX hata:', req.status, req.responseText);
+                var msg = 'Randevu oluşturulamadı.';
+                try {
+                    var j = JSON.parse(req.responseText);
+                    if(j.message) msg = j.message;
+                    else if(j.error) msg = j.error;
+                } catch(e){
+                    if(req.responseText) msg = req.responseText.slice(0,200);
+                }
+                swal({type:'error', title:'Hata ('+req.status+')', html: msg});
                 if(onBitti) onBitti(false);
             }
         });
