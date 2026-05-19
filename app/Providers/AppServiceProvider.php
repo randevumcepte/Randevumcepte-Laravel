@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\View;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -62,6 +63,45 @@ class AppServiceProvider extends ServiceProvider
       //   {!! tutar(personel.maas_tutar_gor, $tutar) !!}
       // helper'i daha temiz oldugundan directive yerine global function tercih
       // edilebilir; ileride ihtiyac olursa eklenir.
+
+      // ==== Yetkisiz erisim view composer ====
+      //
+      // 'isletmeadmin.yetkisizerisim' blade'i layout_isletmeadmin extend ediyor.
+      // Layout, sidebar/header icin $isletme, $pageindex, $bildirimler vb.
+      // degiskenler bekler. Controller'in 100+ yerinden parametresiz
+      // 'view('isletmeadmin.yetkisizerisim')' cagrisi yapildigi icin, gereken
+      // minimal degiskenleri otomatik enjekte ediyoruz — yeniden yazmamak icin.
+      View::composer('isletmeadmin.yetkisizerisim', function ($view) {
+          try {
+              $user = \Auth::guard('isletmeyonetim')->user();
+              $isletmeler = [];
+              $isletme = null;
+              if ($user) {
+                  $isletmeler = $user->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+                  $secili = request()->get('sube');
+                  if ($secili && in_array((int)$secili, array_map('intval', $isletmeler))) {
+                      $isletme = \App\Salonlar::where('id', $secili)->first();
+                  } else if (!empty($isletmeler)) {
+                      $isletme = \App\Salonlar::where('id', $isletmeler[0])->first();
+                  }
+              }
+              $view->with([
+                  'isletme'                => $isletme,
+                  'bildirimler'            => collect(),
+                  'pageindex'              => 0,
+                  'kalan_uyelik_suresi'    => 999,
+                  'yetkiliolunanisletmeler' => $isletmeler,
+                  'sayfa_baslik'           => 'Yetkisiz İşlem',
+              ]);
+          } catch (\Throwable $e) {
+              // Defansif: composer hata vermesin
+              $view->with([
+                  'isletme' => null, 'bildirimler' => collect(),
+                  'pageindex' => 0, 'kalan_uyelik_suresi' => 999,
+                  'yetkiliolunanisletmeler' => [], 'sayfa_baslik' => 'Yetkisiz İşlem',
+              ]);
+          }
+      });
     }
 
     /**

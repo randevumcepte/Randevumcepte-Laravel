@@ -1,58 +1,51 @@
-<!DOCTYPE html> 
-<html lang="en">
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Erratum – Multi purpose error page template for Service, corporate, agency, Consulting, startup.">
-    <meta name="keywords" content="Error page 404, page not found design, wrong url">
-    <meta name="author" content="Ashishmaraviya">
-    <link rel="icon" href="assets/images/favicon.png" type="image/x-icon"/>
-    <link rel="shortcut icon" href="assets/images/favicon.png" type="image/x-icon"/>
-    <title>403 - Erişim yetkiniz bulunmamaktadır</title>
-    <!--Google font-->
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300&display=swap" rel="stylesheet">
-    <!-- Bootstrap css -->
-    <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_login/assets/css/bootstrap.css')}}">
-    <!-- Theme css -->
-    <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_login/assets/css/error-page.css')}}">
-    <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_login/assets/css/error-page-responsive.css')}}">
-</head>
-<body>
-    <!-- 01 Preloader -->
-    
-    <!-- Preloader end -->
-    <!-- 02 Main page -->
-    <section class="page-section">
-        <div class="full-width-screen">
-            <div class="container-fluid p-0">
-            <div class="particles-bg" id="particles-js" style="background-image: none;">
-                <div class="content-detail">
-                    <h1 class="global-title"><span>4</span><span>0</span><span>3</span></h1>
+@if(Auth::guard('satisortakligi')->check())
+   @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp
+@else
+   @php $_layout = 'layout.layout_isletmeadmin'; @endphp
+@endif
+@extends($_layout)
 
-                    <h4 class="sub-title">YETKİSİZ İŞLEM!</h4>
-
-                    <p class="detail-text">Bu içeriği görüntüleme yetkiniz bulunmamaktadır</p> 
-
-                    <div class="back-btn">
-                        <a href="/isletmeyonetim" class="btn"><i class="fa fa-chevron-left"></i> GERİ DÖN</a>
-                    </div>
-                    <a class="back-btn" href="/isletmeyonetim/cikisyap"
-                        ><i class="dw dw-logout"></i> ÇIKIŞ YAP</a
-                        >
-                </div></div>
+@section('content')
+{{-- 403 — yetki yok. Layout (sidebar + header) korunur, sadece icerik
+     bolumunde uyari gosterilir. Boylece kullanici menuden baska bir
+     sayfaya gecebilir, oturum acik kalir. --}}
+<div class="pd-ltr-20 xs-pd-20-10">
+   <div class="min-height-200px">
+      <div class="page-header">
+         <div class="row">
+            <div class="col-md-12">
+               <div class="title">
+                  <h4>Yetkisiz İşlem</h4>
+               </div>
             </div>
-        </div>
-    </section>
-    <!-- latest jquery-->
-    <script src="{{secure_asset('public/yeni_login/assets/js/jquery-3.5.1.min.js')}}"></script>
-    <!-- theme particles script -->
-    <script src="{{secure_asset('public/yeni_login/assets/js/particles.min.js')}}"></script>
-    <script src="{{secure_asset('public/yeni_login/assets/js/app.js')}}"></script>
-    <!-- Theme js-->
-    <script src="{{secure_asset('public/yeni_login/assets/js/script.js')}}"></script>  
-</body>
-</html>
+         </div>
+      </div>
 
-
-
+      <div class="card-box pd-30 height-100-p text-center">
+         <div style="padding: 50px 20px;">
+            <div style="font-size: 96px; font-weight: 900; line-height: 1; background: linear-gradient(135deg,#5C008E,#9D5DC8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 16px;">
+               403
+            </div>
+            <h3 style="font-weight: 700; color: #2D1B3F; margin-bottom: 12px;">
+               <i class="bi bi-shield-lock-fill" style="color:#9D5DC8;"></i>
+               Bu içeriği görüntüleme yetkiniz bulunmamaktadır
+            </h3>
+            <p style="color: #6b7280; font-size: 14px; max-width: 480px; margin: 0 auto 24px;">
+               Bu sayfaya erişim için gerekli yetkiye sahip değilsiniz.
+               Eğer bu sayfayı görmeniz gerektiğini düşünüyorsanız,
+               yöneticinize başvurarak yetki güncellemesi talep edebilirsiniz.
+            </p>
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+               <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                  <i class="fa fa-chevron-left"></i> Geri Dön
+               </a>
+               <a href="/isletmeyonetim" class="btn"
+                  style="background: linear-gradient(135deg,#5C008E,#9D5DC8); color:#fff; border:none;">
+                  <i class="fa fa-home"></i> Ana Sayfaya Dön
+               </a>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>
+@endsection
