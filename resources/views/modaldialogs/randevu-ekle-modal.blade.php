@@ -1538,6 +1538,16 @@ let musteriPaketleri = [];
 function _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage){
     console.log('[PAKET] addServicesToForm cagrildi:', hizmetData);
     if(!hizmetData || !hizmetData.length){ console.warn('[PAKET] hizmetData bos'); return; }
+    // Custom.js'in delegated click handler'i ayni anda 2-3 kez tetiklenebiliyor
+    // (setupSoftPackageSelectionEvents her acilisinda yeni handler ekledigi icin).
+    // Tekrarli cagrilari kilitleyerek yarisma kosulunu onle.
+    if(window._paketEklemeKilidi){
+        console.warn('[PAKET] zaten ekleniyor, yinelenen cagri atlandi');
+        return;
+    }
+    window._paketEklemeKilidi = true;
+    // 3.5sn sonra kilidi otomatik kaldir (akis tikanmasini onle)
+    setTimeout(function(){ window._paketEklemeKilidi = false; }, 3500);
     // Onceki soft paket modalini kapat
     var $soft = $('#softPaketSecimModal');
     if($soft.length){
@@ -1602,6 +1612,8 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
     function _yerlestirSira(idx){
         if(idx >= hizmetData.length){
             try { updateRandevuOzeti(); } catch(e){}
+            window._paketEklemeKilidi = false;
+            console.log('[PAKET] yerlestirme tamamlandi, kilit serbest');
             return;
         }
         var hizmet = hizmetData[idx];

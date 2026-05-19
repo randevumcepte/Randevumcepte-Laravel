@@ -22315,8 +22315,15 @@ function adjustPackageTableScroll(packageCount) {
 
 // Soft paket seçim event'lerini kur
 function setupSoftPackageSelectionEvents(result) {
+    // ONEMLI: Bu fonksiyon her paket modal acilisinda cagrildigi icin
+    // delegated handler'lar birikip ayni butona 2-3 kez tetikleniyordu.
+    // Once unbind, sonra bind — boylece tek handler kalir.
+    $(document).off('change.softPkg', '.soft-package-checkbox');
+    $(document).off('click.softPkg', '.package-row');
+    $(document).off('click.softPkg', '#softAddSelectedPackages');
+
     // Bireysel checkbox değişiklikleri
-    $(document).on('change', '.soft-package-checkbox', function() {
+    $(document).on('change.softPkg', '.soft-package-checkbox', function() {
         const row = $(this).closest('tr');
         if ($(this).prop('checked')) {
             row.css('background-color', '#f0f9ff');
@@ -22327,17 +22334,17 @@ function setupSoftPackageSelectionEvents(result) {
         }
         updateSoftSelectedPackagesSummary(result);
     });
-    
+
     // Satıra tıklayınca da checkbox'ı değiştir
-    $(document).on('click', '.package-row', function(e) {
+    $(document).on('click.softPkg', '.package-row', function(e) {
         if (!$(e.target).is('input, label, a, button, .btn, .badge')) {
             const checkbox = $(this).find('.soft-package-checkbox');
             checkbox.prop('checked', !checkbox.prop('checked')).trigger('change');
         }
     });
-    
+
     // Seçilenleri ekle butonu
-    $(document).on('click', '#softAddSelectedPackages', function() {
+    $(document).on('click.softPkg', '#softAddSelectedPackages', function() {
         const selectedPackages = getSoftSelectedPackages(result);
         console.log(selectedPackages);
         if (selectedPackages.length === 0) {
