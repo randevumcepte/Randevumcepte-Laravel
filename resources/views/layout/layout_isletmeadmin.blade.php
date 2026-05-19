@@ -1032,7 +1032,8 @@
                   </li>
                   @endif
 
-                  {{-- 7) Memnuniyet Anketi --}}
+                  {{-- 7) Memnuniyet Anketi (sadece uyelik_turu == 3) --}}
+                  @if($isletme->uyelik_turu == 3)
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.anket_yonet'))
                   <li>
                      @if($pageindex==52 || $pageindex==53)
@@ -1044,6 +1045,7 @@
                         <span class="mtext">Memnuniyet Anketi</span>
                      </a>
                   </li>
+                  @endif
                   @endif
 
                   {{-- 8) Reklam Yönetimi (simdilik gizli - uzerinde calisiliyor) --}}
@@ -1090,7 +1092,8 @@
                   @endif
                   @endif
 
-                  {{-- 10) Çarkıfelek --}}
+                  {{-- 10) Çarkıfelek (sadece uyelik_turu == 3) --}}
+                  @if($isletme->uyelik_turu == 3)
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.cark_yonet'))
                   <li>
                      @if(in_array($pageindex ?? 0, [500, 501, 502]))
@@ -1102,6 +1105,7 @@
                         ><span class="mtext">Çarkıfelek</span>
                      </a>
                   </li>
+                  @endif
                   @endif
                   {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
 
@@ -1285,7 +1289,8 @@
                   @endif
                   @endif
 
-                  {{-- 19) WhatsApp --}}
+                  {{-- 19) WhatsApp (sadece uyelik_turu == 3) --}}
+                  @if($isletme->uyelik_turu == 3)
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <li>
@@ -1298,6 +1303,7 @@
                      <span class="mtext">WhatsApp</span>
                      </a>
                   </li>
+                  @endif
                   @endif
                   @endif
 
