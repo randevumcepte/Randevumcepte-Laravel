@@ -24810,6 +24810,13 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $a->mesaj_2   = trim((string) $request->input('mesaj_2', ''));
         $a->mesaj_3   = trim((string) $request->input('mesaj_3', ''));
         $a->mesaj_son = trim((string) $request->input('mesaj_son', ''));
+        // Her asama bagimsiz aktif/pasif — kolon yoksa runtime ekle
+        if (\Schema::hasColumn('cark_hatirlatma_ayarlari', 'aktif_1')) {
+            $a->aktif_1   = (int) $request->input('aktif_1', 1);
+            $a->aktif_2   = (int) $request->input('aktif_2', 1);
+            $a->aktif_3   = (int) $request->input('aktif_3', 1);
+            $a->aktif_son = (int) $request->input('aktif_son', 1);
+        }
         $gun = $request->input('gonderim_gunleri');
         $a->gonderim_gunleri = is_array($gun) ? $gun : (is_string($gun) && $gun ? json_decode($gun, true) : null);
         $a->save();

@@ -88,6 +88,12 @@
     margin-bottom: 12px; padding-bottom: 10px;
     border-bottom: 1px solid #f3f0fa;
 }
+.hat-card__head > .hat-card__txt { flex: 1; min-width: 0; }
+.hat-card.is-pasif { opacity: .55; }
+.hat-card.is-pasif input, .hat-card.is-pasif textarea { background: #f6f6f6; }
+.hat-toggle--mini { width: 44px !important; height: 24px !important; }
+.hat-toggle--mini .slider::before { width: 18px !important; height: 18px !important; top: 3px !important; left: 3px !important; }
+.hat-toggle--mini input:checked + .slider::before { transform: translateX(20px) !important; }
 .hat-card__icon {
     width: 36px; height: 36px; border-radius: 10px;
     background: linear-gradient(135deg, var(--hat-purple), var(--hat-purple-light));
@@ -181,13 +187,13 @@
     @include('partials.carkifelek_tabs')
     <div class="hat-hero">
         <h1>⏰ Çarkıfelek Hatırlatma Sistemi</h1>
-        <p>Müşterilerinize gün içinde 4 push bildirimi gönderir, çarkı çevirmelerini hatırlatır. Tıklayan müşteri otomatik olarak çark popup'ına yönlenir.</p>
+        <p>Müşterilerinize gün içinde 1 ile 4 arası push bildirimi gönderir, çarkı çevirmelerini hatırlatır. Tıklayan müşteri otomatik olarak çark popup'ına yönlenir. Aşağıdan her hatırlatmayı ayrı ayrı açıp kapatabilirsiniz.</p>
     </div>
 
     <div class="hat-master">
         <div class="hat-master-info">
             <b>Hatırlatma Sistemi</b>
-            <p>Aktif olduğunda, hak sahibi her müşteriye günde 4 push bildirimi gönderilir.</p>
+            <p>Aktif olduğunda, açtığınız hatırlatmalar belirlenen saatlerde push olarak gönderilir.</p>
             <span class="stat">Bugün gönderilen: <b id="hat-bugun">{{ $bugun }}</b></span>
         </div>
         <label class="hat-toggle">
@@ -197,13 +203,24 @@
     </div>
 
     <div class="hat-grid">
-        <div class="hat-card">
+        @php
+            $aktif1   = isset($ayar->aktif_1)   ? (int)$ayar->aktif_1   : 1;
+            $aktif2   = isset($ayar->aktif_2)   ? (int)$ayar->aktif_2   : 1;
+            $aktif3   = isset($ayar->aktif_3)   ? (int)$ayar->aktif_3   : 1;
+            $aktifSon = isset($ayar->aktif_son) ? (int)$ayar->aktif_son : 1;
+        @endphp
+
+        <div class="hat-card {{ $aktif1 ? '' : 'is-pasif' }}" id="hat-card-1">
             <div class="hat-card__head">
                 <div class="hat-card__icon">🎡</div>
-                <div>
+                <div class="hat-card__txt">
                     <div class="hat-card__title">1. Hatırlatma — Yumuşak</div>
                     <div class="hat-card__sub">Sabah, ilk hatırlatma</div>
                 </div>
+                <label class="hat-toggle hat-toggle--mini" title="Bu hatırlatmayı aç/kapat">
+                    <input type="checkbox" class="hat-asama-aktif" data-asama="1" id="hat-aktif-1" {{ $aktif1 ? 'checked' : '' }}>
+                    <span class="slider"></span>
+                </label>
             </div>
             <div class="hat-field">
                 <label>Saat</label>
@@ -214,13 +231,17 @@
                 <textarea id="hat-mesaj-1" rows="2" maxlength="200">{{ $ayar->mesaj_1 }}</textarea>
             </div>
         </div>
-        <div class="hat-card">
+        <div class="hat-card {{ $aktif2 ? '' : 'is-pasif' }}" id="hat-card-2">
             <div class="hat-card__head">
                 <div class="hat-card__icon">⏰</div>
-                <div>
+                <div class="hat-card__txt">
                     <div class="hat-card__title">2. Hatırlatma — Orta</div>
                     <div class="hat-card__sub">Öğleden sonra</div>
                 </div>
+                <label class="hat-toggle hat-toggle--mini" title="Bu hatırlatmayı aç/kapat">
+                    <input type="checkbox" class="hat-asama-aktif" data-asama="2" id="hat-aktif-2" {{ $aktif2 ? 'checked' : '' }}>
+                    <span class="slider"></span>
+                </label>
             </div>
             <div class="hat-field">
                 <label>Saat</label>
@@ -231,13 +252,17 @@
                 <textarea id="hat-mesaj-2" rows="2" maxlength="200">{{ $ayar->mesaj_2 }}</textarea>
             </div>
         </div>
-        <div class="hat-card">
+        <div class="hat-card {{ $aktif3 ? '' : 'is-pasif' }}" id="hat-card-3">
             <div class="hat-card__head">
                 <div class="hat-card__icon">🚨</div>
-                <div>
+                <div class="hat-card__txt">
                     <div class="hat-card__title">3. Hatırlatma — Aciliyet</div>
                     <div class="hat-card__sub">Akşam, son saatler</div>
                 </div>
+                <label class="hat-toggle hat-toggle--mini" title="Bu hatırlatmayı aç/kapat">
+                    <input type="checkbox" class="hat-asama-aktif" data-asama="3" id="hat-aktif-3" {{ $aktif3 ? 'checked' : '' }}>
+                    <span class="slider"></span>
+                </label>
             </div>
             <div class="hat-field">
                 <label>Saat</label>
@@ -248,13 +273,17 @@
                 <textarea id="hat-mesaj-3" rows="2" maxlength="200">{{ $ayar->mesaj_3 }}</textarea>
             </div>
         </div>
-        <div class="hat-card">
+        <div class="hat-card {{ $aktifSon ? '' : 'is-pasif' }}" id="hat-card-son">
             <div class="hat-card__head">
                 <div class="hat-card__icon">🎯</div>
-                <div>
+                <div class="hat-card__txt">
                     <div class="hat-card__title">Son Şans</div>
                     <div class="hat-card__sub">Gece, son uyarı</div>
                 </div>
+                <label class="hat-toggle hat-toggle--mini" title="Bu hatırlatmayı aç/kapat">
+                    <input type="checkbox" class="hat-asama-aktif" data-asama="son" id="hat-aktif-son" {{ $aktifSon ? 'checked' : '' }}>
+                    <span class="slider"></span>
+                </label>
             </div>
             <div class="hat-field">
                 <label>Saat</label>
@@ -309,6 +338,17 @@ document.querySelectorAll('.hat-days__chip input').forEach(cb => {
     });
 });
 
+// Asama aktif/pasif gorsel feedback (kart opaklasir)
+document.querySelectorAll('.hat-asama-aktif').forEach(cb => {
+    cb.addEventListener('change', e => {
+        const asama = e.target.dataset.asama;
+        const card = document.getElementById('hat-card-' + asama);
+        if (!card) return;
+        if (e.target.checked) card.classList.remove('is-pasif');
+        else card.classList.add('is-pasif');
+    });
+});
+
 async function hatKaydet() {
     const gunler = Array.from(document.querySelectorAll('.hat-gun:checked')).map(cb => parseInt(cb.value));
     const data = {
@@ -321,6 +361,10 @@ async function hatKaydet() {
         mesaj_2: document.getElementById('hat-mesaj-2').value.trim(),
         mesaj_3: document.getElementById('hat-mesaj-3').value.trim(),
         mesaj_son: document.getElementById('hat-mesaj-son').value.trim(),
+        aktif_1:   document.getElementById('hat-aktif-1').checked ? 1 : 0,
+        aktif_2:   document.getElementById('hat-aktif-2').checked ? 1 : 0,
+        aktif_3:   document.getElementById('hat-aktif-3').checked ? 1 : 0,
+        aktif_son: document.getElementById('hat-aktif-son').checked ? 1 : 0,
         gonderim_gunleri: gunler,
     };
     const btn = document.querySelector('.hat-save');

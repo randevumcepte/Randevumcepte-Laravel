@@ -517,6 +517,14 @@ public function carkverilerigetir(Request $request)
                 $t->index(['salon_id', 'user_id', 'tarih', 'asama'], 'cark_hat_log_idx');
             });
         }
+        // Eski tablolari yeni aktif_X kolonlariyla guncelle (geriye uyumlu)
+        foreach (['aktif_1', 'aktif_2', 'aktif_3', 'aktif_son'] as $col) {
+            if (!\Schema::hasColumn('cark_hatirlatma_ayarlari', $col)) {
+                \Schema::table('cark_hatirlatma_ayarlari', function ($t) use ($col) {
+                    $t->tinyInteger($col)->default(1);
+                });
+            }
+        }
     }
 
     /**
@@ -589,6 +597,13 @@ public function carkverilerigetir(Request $request)
         $a->mesaj_2   = trim($request->input('mesaj_2', ''));
         $a->mesaj_3   = trim($request->input('mesaj_3', ''));
         $a->mesaj_son = trim($request->input('mesaj_son', ''));
+        // Her asama bagimsiz aktif (yeni kolonlar)
+        if (\Schema::hasColumn('cark_hatirlatma_ayarlari', 'aktif_1')) {
+            $a->aktif_1   = (int) $request->input('aktif_1', 1);
+            $a->aktif_2   = (int) $request->input('aktif_2', 1);
+            $a->aktif_3   = (int) $request->input('aktif_3', 1);
+            $a->aktif_son = (int) $request->input('aktif_son', 1);
+        }
         $gun = $request->input('gonderim_gunleri');
         $a->gonderim_gunleri = is_array($gun) ? $gun : null;
         $a->save();

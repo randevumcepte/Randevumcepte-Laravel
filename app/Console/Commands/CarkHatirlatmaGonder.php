@@ -52,14 +52,17 @@ class CarkHatirlatmaGonder extends Command
             if (!$cark || !$cark->aktifmi) continue;
 
             // Hangi aşama? Şu an saatlerin ±5dk içinde miyiz?
+            // Her aşamanın kendi aktif flag'i var (default 1, geriye uyumlu).
             $asama = null; $mesaj = null;
             $saatler = [
-                1   => ['saat' => $ayar->saat_1,   'mesaj' => $ayar->mesaj_1],
-                2   => ['saat' => $ayar->saat_2,   'mesaj' => $ayar->mesaj_2],
-                3   => ['saat' => $ayar->saat_3,   'mesaj' => $ayar->mesaj_3],
-                4   => ['saat' => $ayar->saat_son, 'mesaj' => $ayar->mesaj_son],
+                1 => ['saat' => $ayar->saat_1,   'mesaj' => $ayar->mesaj_1,   'aktif' => $ayar->aktif_1   ?? 1],
+                2 => ['saat' => $ayar->saat_2,   'mesaj' => $ayar->mesaj_2,   'aktif' => $ayar->aktif_2   ?? 1],
+                3 => ['saat' => $ayar->saat_3,   'mesaj' => $ayar->mesaj_3,   'aktif' => $ayar->aktif_3   ?? 1],
+                4 => ['saat' => $ayar->saat_son, 'mesaj' => $ayar->mesaj_son, 'aktif' => $ayar->aktif_son ?? 1],
             ];
             foreach ($saatler as $no => $s) {
+                if ((int) $s['aktif'] !== 1) continue; // bu aşama salon tarafından kapatılmış
+                if (empty($s['saat'])) continue;
                 $hedef = Carbon::parse($bugun . ' ' . $s['saat']);
                 if ($now->between($hedef->copy()->subMinutes(5), $hedef->copy()->addMinutes(5))) {
                     $asama = $no;
