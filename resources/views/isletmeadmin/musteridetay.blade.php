@@ -92,7 +92,9 @@
                   aria-selected="false"
                   >Seanslar</a>
             </li>
+            @endif
             @if($_SERVER['HTTP_HOST']!='randevu.randevumcepte.com.tr')
+            @yetki('musteri.gecmis_satis_gor')
             <li class="nav-item" style="margin:5px">
                <a
                   class="btn btn-outline-primary "
@@ -103,7 +105,9 @@
                   aria-selected="false"
                   >Satışlar</a>
             </li>
+            @endyetki
             @endif
+            @if(!$is_personel_rolu)
             <li class="nav-item" style="margin:5px;display: none;">
                <a
                   class="btn btn-outline-primary "
