@@ -1645,12 +1645,24 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
         })();
     }
 
+    // Tum satirlar yerlestiktan SONRA cagrilan final pass: base secimleri yeniden uygula
+    // (yeni satir eklenirken doldurRandevuSecenekleri eski satirlarin oda secimini siliyor)
+    function _finalRebaseAllRows(){
+        $('#yenirandevuekleform .hizmet-satiri').each(function(){
+            _applyBaseSelections($(this));
+        });
+    }
+
     // Sirayla her hizmeti yerlestir (Promise zinciri); biri bittikten sonra digerine gec
     function _yerlestirSira(idx){
         if(idx >= hizmetData.length){
-            try { updateRandevuOzeti(); } catch(e){}
-            window._paketEklemeKilidi = false;
-            console.log('[PAKET] yerlestirme tamamlandi, kilit serbest');
+            // SON pass: tum satirlara base secimleri tekrar uygula (eski satirlar reset olmuş olabilir)
+            setTimeout(function(){
+                _finalRebaseAllRows();
+                try { updateRandevuOzeti(); } catch(e){}
+                window._paketEklemeKilidi = false;
+                console.log('[PAKET] yerlestirme tamamlandi, kilit serbest');
+            }, 150);
             return;
         }
         var hizmet = hizmetData[idx];
