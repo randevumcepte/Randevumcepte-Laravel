@@ -1604,8 +1604,45 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
         }
         if(baseOda){
             var $o = $row.find('.oda-select');
-            if($o.length && !$o.val()) $o.val(baseOda).trigger('change');
+            if($o.length){
+                // Once oda options'i bu satirdaki hizmete gore yenile (bos listeden kacin)
+                try {
+                    var $hizmet = $row.find('.hizmet-select');
+                    var v = $hizmet.val();
+                    var hizmetIds = Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : []);
+                    if(typeof doldurOdaSelectByHizmet === 'function'){
+                        doldurOdaSelectByHizmet($o, hizmetIds);
+                    }
+                } catch(e){}
+                // baseOda listede yoksa option olarak ekle (kullanici secimini koruyalim)
+                if($o.find('option[value="'+baseOda+'"]').length === 0){
+                    var bO = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){ return String(o.id) === String(baseOda); });
+                    if(bO) $o.append(new Option(bO.ad, bO.id, false, false));
+                }
+                if(!$o.val()) $o.val(baseOda).trigger('change');
+            }
         }
+    }
+
+    // Bir satirin hizmet-select Tom Select'i hazir + hizmet listesi yuklenmis olana kadar bekle
+    // (yukleHizmetler async AJAX, biz bekleemeden yerlestirsek doldurHizmetTom secimi siliyor)
+    function _waitRowReady($row, cb){
+        var tries = 0;
+        (function w(){
+            var sel = $row.find('.hizmet-select')[0];
+            var ts = sel && sel.tomselect;
+            // TS hazir VE en az 1 option yuklenmis (yukleHizmetler tamamlandi)
+            if(ts && Object.keys(ts.options).length >= 1){
+                cb($row);
+                return;
+            }
+            if(tries++ < 80){ // 80 * 80ms = 6.4sn
+                setTimeout(w, 80);
+            } else {
+                console.warn('[PAKET] _waitRowReady timeout, best-effort yerlestir');
+                cb($row);
+            }
+        })();
     }
 
     // Sirayla her hizmeti yerlestir (Promise zinciri); biri bittikten sonra digerine gec
@@ -1619,43 +1656,36 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
         var hizmet = hizmetData[idx];
 
         if(idx === 0){
-            // Ilk hizmet -> mevcut row 0'a
-            var tries = 0;
-            (function w(){
-                var $row = $('#yenirandevuekleform .hizmet-satiri').first();
-                var sel = $row.find('.hizmet-select')[0];
-                if(sel && sel.tomselect){
-                    _setHizmetInRow($row, hizmet);
-                    _applyBaseSelections($row);
-                    setTimeout(function(){ _yerlestirSira(idx+1); }, 80);
-                } else if(tries++ < 20){
-                    setTimeout(w, 60);
-                } else {
-                    _yerlestirSira(idx+1);
-                }
-            })();
+            // Ilk hizmet -> mevcut row 0
+            var $row = $('#yenirandevuekleform .hizmet-satiri').first();
+            _waitRowReady($row, function($r){
+                _setHizmetInRow($r, hizmet);
+                _applyBaseSelections($r);
+                console.log('[PAKET] row 0 yerlesti:', hizmet.text);
+                setTimeout(function(){ _yerlestirSira(idx+1); }, 120);
+            });
         } else {
             // Yeni satir ekle
             var rowCountBefore = $('#yenirandevuekleform .hizmet-satiri').length;
             $('#bir_hizmet_daha_ekle').trigger('click');
-            // Yeni satir DOM'a eklenip TS init olana kadar bekle
+            // Yeni satir DOM'a eklenmesini bekle
             var tries = 0;
-            (function w(){
+            (function waitNewRow(){
                 var $rows = $('#yenirandevuekleform .hizmet-satiri');
                 if($rows.length > rowCountBefore){
                     var $row = $rows.last();
-                    var sel = $row.find('.hizmet-select')[0];
-                    if(sel && sel.tomselect){
-                        _setHizmetInRow($row, hizmet);
-                        _applyBaseSelections($row);
-                        setTimeout(function(){ _yerlestirSira(idx+1); }, 80);
-                        return;
-                    }
+                    _waitRowReady($row, function($r){
+                        _setHizmetInRow($r, hizmet);
+                        _applyBaseSelections($r);
+                        console.log('[PAKET] yeni satir '+idx+' yerlesti:', hizmet.text);
+                        setTimeout(function(){ _yerlestirSira(idx+1); }, 120);
+                    });
+                    return;
                 }
                 if(tries++ < 30){
-                    setTimeout(w, 80);
+                    setTimeout(waitNewRow, 80);
                 } else {
-                    console.warn('[PAKET] yeni satir TS init timeout, atlandi', idx);
+                    console.warn('[PAKET] yeni satir DOM eklenmedi, atlandi', idx);
                     _yerlestirSira(idx+1);
                 }
             })();
