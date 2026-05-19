@@ -6307,14 +6307,23 @@ private function ayAdiCevir($ingilizceAy)
                 ->get()
                 ->keyBy('user_id');
     
-            // Personel "musteri.telefon_gor" yetkisi yoksa telefon kolonu maskelenir
+            // Yetki kontrolleri: telefon mask + islemler dropdown linkleri
             $u = \Auth::guard('isletmeyonetim')->user();
             $telGor = $u && $salonId
                 ? \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonId, 'musteri.telefon_gor')
                 : true;
+            $detayGor   = $u && $salonId
+                ? \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonId, 'musteri.detay_gor')
+                : true;
+            $duzenleVar = $u && $salonId
+                ? \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonId, 'musteri.ekle_duzenle')
+                : true;
+            $silVar     = $u && $salonId
+                ? \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonId, 'musteri.sil')
+                : true;
 
             // Verileri birleştir
-            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId,$telGor) {
+            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId,$telGor,$detayGor,$duzenleVar,$silVar) {
                 $randevu = $randevuBilgileri[$item->id] ?? null;
                 $odeme = $odemeBilgileri[$item->id] ?? null;
 
@@ -6329,24 +6338,31 @@ private function ayAdiCevir($ingilizceAy)
                     '<button class="btn btn-success btn-block" style="line-height:5px">' .
                     number_format($odeme->toplam_odeme, 2, ',', '.') . '</button>' :
                     '<button class="btn btn-success btn-block" style="line-height:5px">0,00</button>';
-                    
-                $item->islemler = '<div class="dropdown">
-                    <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
-                        <i class="dw dw-more"></i>
-                    </a>
-                    <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-                        <a class="dropdown-item" href="/isletmeyonetim/musteridetay/'.$item->id.'?sube='.$salonId.'">
-                            <i class="fa fa-eye"></i> Detaylı Bilgi
+
+                // Yetki bazli linkleri kos
+                $detayItem = $detayGor
+                    ? '<a class="dropdown-item" href="/isletmeyonetim/musteridetay/'.$item->id.'?sube='.$salonId.'"><i class="fa fa-eye"></i> Detaylı Bilgi</a>'
+                    : '';
+                $duzenleItem = $duzenleVar
+                    ? '<a class="dropdown-item" href="#" data-toggle="modal" data-target="#musteri-bilgi-modal" name="musteri_duzenle" data-value="'.$item->id.'"><i class="fa fa-edit"></i> Düzenle</a>'
+                    : '';
+                $silItem = $silVar
+                    ? '<a class="dropdown-item" href="#" name="musteri_sil" data-value="'.$item->portfoy_id.'"><i class="fa fa-minus"></i> Sil</a>'
+                    : '';
+
+                // Hicbir aksiyon yoksa dropdown gosterme
+                if ($detayItem === '' && $duzenleItem === '' && $silItem === '') {
+                    $item->islemler = '';
+                } else {
+                    $item->islemler = '<div class="dropdown">
+                        <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
+                            <i class="dw dw-more"></i>
                         </a>
-                        <a class="dropdown-item" href="#" data-toggle="modal" data-target="#musteri-bilgi-modal" name="musteri_duzenle" data-value="'.$item->id.'">
-                            <i class="fa fa-edit"></i> Düzenle
-                        </a>
-                        <a class="dropdown-item" href="#" name="musteri_sil" data-value="'.$item->portfoy_id.'">
-                            <i class="fa fa-minus"></i> Sil
-                        </a>
-                    </div>
-                </div>';
-                
+                        <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">'
+                        .$detayItem.$duzenleItem.$silItem.
+                        '</div></div>';
+                }
+
                 return $item;
             });
         }

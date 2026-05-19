@@ -583,10 +583,10 @@
                style="padding-left: 10px;"
                >
             </div>
-            @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0  &&  $kalan_uyelik_suresi >= 0)   
+            @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.detay_gor')  &&  $kalan_uyelik_suresi >= 0)
             <div class="header-search" >
                <select id="musteri_arama" class="form-control custom-select2" style="width: 100%;">
-                  
+
                </select>
             </div>
             @endif
@@ -844,7 +844,7 @@
                         ><i class="fa fa-calendar"></i> Yeni Randevu</a>
                      <a class="dropdown-item" href="#" data-toggle="modal" data-target="#ongorusme-modal" onclick="modalbaslikata('Yeni Ön Görüşme','ongorusmeformu')"
                         ><i class="fa fa-calendar"></i> Yeni Ön Görüşme</a>
-                     @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0 )
+                     @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.ekle_duzenle'))
                      <a  class="dropdown-item yanitli_musteri_ekleme" href="#" data-toggle="modal" data-target="#musteri-bilgi-modal"
                         ><i class="icon-copy fa fa-user-plus" aria-hidden="true"></i> Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</a
                         >
