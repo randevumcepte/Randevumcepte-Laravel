@@ -299,15 +299,12 @@ class PersonelYetkiSabitleri
         $digits = preg_replace('/\D/', '', $tel);
         if (strlen($digits) < 2) return $tel;
         $son2 = substr($digits, -2);
-        // Original formatlı bir string varsa onu maskeleyerek dön
-        if (strpos($tel, ' ') !== false) {
-            // "0532 123 45 67" formatı: ilk 4 + maske + son 2
-            $bas = substr($digits, 0, strlen($digits) - 2);
-            $bas4 = substr($bas, 0, 4);
-            return $bas4 . ' *** ** ' . $son2;
-        }
-        $bas = substr($digits, 0, strlen($digits) - 2);
-        return $bas . str_repeat('*', max(0, strlen($digits) - 4)) . $son2;
+        // Sabit format: "0xxx *** ** XX" (mobil ile ayni)
+        // Ilk 4 hane gosterilir (operator kodu), orta 5 hane maskelenir, son 2 hane gosterilir.
+        $bas4 = strlen($digits) >= 4
+            ? substr($digits, 0, 4)
+            : substr($digits, 0, strlen($digits) - 2);
+        return $bas4 . ' *** ** ' . $son2;
     }
 
     /**
