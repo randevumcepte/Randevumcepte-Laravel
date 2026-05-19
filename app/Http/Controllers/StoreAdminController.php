@@ -21145,9 +21145,30 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return view('isletmeadmin.arsivyonetimi',['bildirimler'=>self::bildirimgetir($request),'arsiv'=>$arsiv,'arsiv_onayli'=>$arsiv_onayli, 'arsiv_iptal'=>$arsiv_iptal, 'arsiv_beklenen'=>$arsiv_beklenen, 'arsiv_harici'=>$arsiv_harici,   'paketler'=>$paketler,'sayfa_baslik'=>'Form Yönetimi','pageindex' => 50,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
+    public static function arsivIslemlerFormGonderUygula($collection, Request $request){
+        try {
+            if (Auth::guard('isletmeyonetim')->check()) {
+                $userId = Auth::guard('isletmeyonetim')->user()->id;
+                $salonId = self::mevcutsube($request);
+                $yetki = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($userId, $salonId, 'form.gonder');
+                if (!$yetki) {
+                    foreach ($collection as $row) {
+                        if (isset($row->islemler) && is_string($row->islemler)) {
+                            $row->islemler = preg_replace(
+                                '/<a[^>]*formutekrargondermodal[^>]*>.*?<\\/a>\\s*/s',
+                                '',
+                                $row->islemler
+                            );
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+        return $collection;
+    }
     public function arsiv_liste_getir(Request $request,$sorgu,$user_id){
         if($sorgu===''){
-             return DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->select(
+             return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->select(
                 'arsiv.id as id',
                 'users.name as musteriadi',
                 DB::raw(' CONCAT("<a class=\"dropdown-item\" style=\"cursor:pointer;\" data-value=\"", CASE WHEN arsiv.form_id != 0 OR arsiv.is_sozlesme = 1 THEN CONCAT("isletmeyonetim/formgoster?arsivid=",arsiv.id) ELSE arsiv.uzanti END ,"\" name=\"form_goster\" href=\"#\">",CASE WHEN arsiv.form_id !=0 THEN formtaslaklari.form_adi WHEN arsiv.form_id=0 THEN arsiv.harici_belge END , ".pdf <i class=\"fa fa-file-pdf-o\"></i> </a>") AS belge_durum'),
@@ -21206,10 +21227,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     <a class=\"dropdown-item\"  href=\"/isletmeyonetim/formindir?arsivid=",arsiv.id,"\"> <i class=\"fa fa-download\"></i> İndir</a>
                       <a class=\"dropdown-item\"  data-value=\"",arsiv.id,"\"  href=\"#\"  name=\"form_yazdir\" > <i class=\"fa fa-print\"></i> Yazdır</a>
                         <a  class=\"dropdown-item \" data-value=\"",arsiv.id,"\" data-toggle=\"modal\" data-target=\"#formutekrargondermodal\" name=\"form_tekrar_gonder\"   href=\"#\"> <i class=\"fa fa-send\"></i>Formu Gönder</a>
-                   </div></div>") END AS islemler' ))->where('arsiv.salon_id',self::mevcutsube($request))->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get();exit;
+                   </div></div>") END AS islemler' ))->where('arsiv.salon_id',self::mevcutsube($request))->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get(), $request);exit;
         }
         if($sorgu===0){
-            return DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
+            return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
         join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->
         select(
             'arsiv.id as id',
@@ -21248,11 +21269,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                         <a class=\"dropdown-item \" data-value=\"",arsiv.id,"\" data-toggle=\"modal\" data-target=\"#formutekrargondermodal\" name=\"form_tekrar_gonder\"   href=\"#\"> <i class=\"fa fa-send\"></i>Formu Gönder</a>
                    </div></div>") END AS islemler
                    ' )
-        )->where('arsiv.durum', 1)->where('arsiv.salon_id',self::mevcutsube($request))->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get();
+        )->where('arsiv.durum', 1)->where('arsiv.salon_id',self::mevcutsube($request))->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get(), $request);
  exit;
         }
          if($sorgu===1){
-                return DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
+                return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
         join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->select(  'arsiv.id as id',
            DB::raw(' CONCAT("<a class=\"dropdown-item\" style=\"cursor:pointer;\" data-value=\"", CASE WHEN arsiv.form_id != 0 OR arsiv.is_sozlesme = 1 THEN CONCAT("isletmeyonetim/formgoster?arsivid=",arsiv.id) ELSE arsiv.uzanti END ,"\" name=\"form_goster\" href=\"#\">",CASE WHEN arsiv.form_id !=0 THEN formtaslaklari.form_adi WHEN arsiv.form_id=0 THEN arsiv.harici_belge END , ".pdf <i class=\"fa fa-file-pdf-o\"></i> </a>") AS belge_durum'),
             'users.name as musteriadi',
@@ -21288,10 +21309,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                       <a class=\"dropdown-item\"  data-value=\"",arsiv.id,"\"  href=\"#\"  name=\"form_yazdir\" > <i class=\"fa fa-print\"></i> Yazdır</a>
                         <a class=\"dropdown-item \" data-value=\"",arsiv.id,"\" data-toggle=\"modal\" data-target=\"#formutekrargondermodal\" name=\"form_tekrar_gonder\"   href=\"#\"> <i class=\"fa fa-send\"></i>Formu Gönder</a>
                    </div></div>") END AS islemler
-                   '))->where('arsiv.durum', 0)->where('arsiv.salon_id',self::mevcutsube($request))->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get();exit;
+                   '))->where('arsiv.durum', 0)->where('arsiv.salon_id',self::mevcutsube($request))->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get(), $request);exit;
         }
         if($sorgu===2){
-                return DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
+                return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
         join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->
         select(
             'arsiv.id as id',
@@ -21330,10 +21351,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                         <a class=\"dropdown-item \" data-value=\"",arsiv.id,"\" data-toggle=\"modal\" data-target=\"#formutekrargondermodal\" name=\"form_tekrar_gonder\"   href=\"#\"> <i class=\"fa fa-send\"></i>Formu Gönder</a>
                    </div></div>") END AS islemler
                    ' )
-        )->whereNull('arsiv.durum')->where('arsiv.salon_id',self::mevcutsube($request))->where('arsiv.form_id','!=',0)->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get();exit;
+        )->whereNull('arsiv.durum')->where('arsiv.salon_id',self::mevcutsube($request))->where('arsiv.form_id','!=',0)->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get(), $request);exit;
         }
         if($sorgu===3){
-                return DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
+                return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
         join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->
         select(
             'arsiv.id as id',
@@ -21372,7 +21393,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                         <a class=\"dropdown-item \" data-value=\"",arsiv.id,"\" data-toggle=\"modal\" data-target=\"#formutekrargondermodal\" name=\"form_tekrar_gonder\"   href=\"#\"> <i class=\"fa fa-send\"></i>Formu Gönder</a>
                    </div></div>") END AS islemler
                    ' )
-        )->whereNull('arsiv.durum')->where('arsiv.form_id',0)->where('arsiv.salon_id',self::mevcutsube($request))->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get();
+        )->whereNull('arsiv.durum')->where('arsiv.form_id',0)->where('arsiv.salon_id',self::mevcutsube($request))->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get(), $request);
      exit;
         }
     }
