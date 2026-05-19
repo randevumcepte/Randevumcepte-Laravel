@@ -1673,21 +1673,35 @@ function showHizmetOdaAtamaModal(hizmetData){
         _kapatHizmetOdaModal();
     });
 
-    // Onay butonu
+    // Onay butonu: forma yerlestir + otomatik randevu olustur (submit)
     $('#hizmet-oda-atama-onayla').off('click').on('click', function(){
         var atama = {}; // hizmet_item_id -> oda_id (veya '')
         $('#hizmetOdaAtamaModal .hizmet-oda-secimi').each(function(){
             atama[$(this).data('hizmet-id')] = $(this).val() || '';
         });
+        var $btn = $(this);
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Oluşturuluyor...');
         _kapatHizmetOdaModal();
-        _formaYerlestir(hizmetData, atama);
+        _formaYerlestir(hizmetData, atama, function(){
+            // Yerlestirme tamam — formu submit et (mevcut submit handler tum dogrulamayi yapar)
+            try {
+                $('#yenirandevuekleform').trigger('submit');
+            } catch(e) {
+                console.error('[PAKET] form submit hatasi:', e);
+            }
+            // Buton state'ini geri al (modal zaten kapali ama yeniden acilirsa hazir olsun)
+            setTimeout(function(){
+                $btn.prop('disabled', false).html('<i class="fa fa-calendar-check-o"></i> Randevu Oluştur');
+            }, 800);
+        });
     });
 }
 
 // Oda atamasina gore hizmetleri forma yerlestir.
 // Ayni odaya secilenler tek satirda, farkli odadakiler ayri satirlarda.
 // Bos kalanlar (atama yapilmayanlar) her biri ayri satirda toplanir (backend otomatik atayacak).
-function _formaYerlestir(hizmetData, odaAtama){
+// onTamamlandi: tum yerlestirme + TS sync bittikten sonra cagrilir (otomatik submit icin)
+function _formaYerlestir(hizmetData, odaAtama, onTamamlandi){
     // Gruplari olustur
     // - Anahtar: oda_id (string), bos icin 'BOS' + counter (her bos hizmet kendi grubunda)
     var gruplar = []; // [{oda_id, hizmetler:[]}]
@@ -1715,6 +1729,10 @@ function _formaYerlestir(hizmetData, odaAtama){
     function _grupYerlestir(grupIdx){
         if(grupIdx >= gruplar.length){
             try { updateRandevuOzeti(); } catch(e){}
+            // Tum yerlestirme bitti, callback'i cagir (otomatik submit vs.)
+            if(typeof onTamamlandi === 'function'){
+                setTimeout(onTamamlandi, 150);
+            }
             return;
         }
         var grup = gruplar[grupIdx];
@@ -3074,7 +3092,7 @@ function formatHizmetSecim(hizmet) {
             </div>
             <div class="modal-footer" style="border-top:1px solid #f3f4f6;">
                 <button type="button" class="btn btn-light btn-sm hizmet-oda-modal-kapat"><i class="fa fa-times"></i> Vazgeç</button>
-                <button type="button" class="btn btn-primary btn-sm" id="hizmet-oda-atama-onayla"><i class="fa fa-check"></i> Forma Ekle</button>
+                <button type="button" class="btn btn-success btn-sm" id="hizmet-oda-atama-onayla"><i class="fa fa-calendar-check-o"></i> Randevu Oluştur</button>
             </div>
         </div>
     </div>
