@@ -1260,7 +1260,9 @@
                      </a>
                   </li>
                   @endif
-                  @if(DB::table('model_has_roles')->whereIn('role_id',[4,5])->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  {{-- Log Hareketleri: sadece Hesap Sahibi (1), Yonetici (2),
+                       Supervisor (4) gorsun. Sekreter (3) ve Personel (5) gizli. --}}
+                  @if(DB::table('model_has_roles')->whereIn('role_id',[3,5])->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <li>
                      @if($pageindex==999)
                      <a href="/isletmeyonetim/log-hareketleri{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
