@@ -34,6 +34,7 @@ class Kernel extends ConsoleKernel
         Commands\WhatsappTestGonder::class,
         Commands\IlacHatirlatmalari::class,
         Commands\OlcumHatirlatmalari::class,
+        Commands\SeansHatirlatma::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
@@ -77,6 +78,10 @@ class Kernel extends ConsoleKernel
 
         // Memnuniyet anketi otomatik gönderim — randevu bitiş saatinde (MAX randevu_hizmetler.saat_bitis) tek sefer.
         $schedule->command('anket:otomatik-gonder')->withoutOverlapping()->everyMinute();
+
+        // Seans hatırlatma — yarın yapılacak seansı 12:00'de tek seferlik push olarak müşteriye hatırlat.
+        // Bildirim tıklanınca "Seanslarım" ekranı açılır (session_reminder -> sessions intent).
+        $schedule->command('seans:hatirlat')->withoutOverlapping()->dailyAt('12:00');
 
         // WhatsApp kuyrukta takılı kalan mesajları SMS'e düşür — her 3 dakikada bir
         // Sebep: Node service RAM-only queue, restart/crash olunca mesajlar takılı kalıyordu

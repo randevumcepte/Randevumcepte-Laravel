@@ -17,6 +17,10 @@ class NotificationTypes
     public const APPOINTMENT_REMINDER_HOUR = 'appointment_reminder_hour';
     public const STAFF_ASSIGNED            = 'staff_assigned';
 
+    // Seans / paket
+    public const SESSION_REMINDER          = 'session_reminder';
+    public const SESSION_USED              = 'session_used';
+
     // Ödeme & mesaj
     public const PAYMENT_RECEIVED          = 'payment_received';
     public const NEW_MESSAGE               = 'new_message';
@@ -60,6 +64,8 @@ class NotificationTypes
             self::APPOINTMENT_REMINDER_HOUR,
             self::APPOINTMENT_TIME_CHANGED,
             self::APPOINTMENT_CANCELLED,
+            self::SESSION_REMINDER,
+            self::SESSION_USED,
             self::NEW_MESSAGE,
             self::PAYMENT_RECEIVED,
         ], true);

@@ -12379,14 +12379,156 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                 )->update(["geldi" => true]);
 
+                // Musteriye seans kullanim bilgilendirme push'u — paket/hizmet
+                // bazinda kullanilan ve kalan seans sayisini ozetler. Hata fail
+                // olsa bile asil "geldi" akisi etkilenmesin diye try/catch.
+                try {
+                    $this->seansKullanimBilgilendir($randevu);
+                } catch (\Throwable $e) {
+                    \Log::warning('[SEANS-KULLANIM] push fail', [
+                        'randevu_id' => $randevu->id,
+                        'err' => $e->getMessage(),
+                    ]);
+                }
+
             }
 
             return ["hatali" => "0", "mesaj" => "Başarılı"];
 
             exit();
 
-        
 
+
+    }
+
+    /**
+     * Randevu "geldi" olarak isaretlenip seanslar gelid=true yapildiktan sonra
+     * musteriye paket/hizmet bazinda seans kullanim bilgilendirme push'u atar.
+     * Mesaj formati: "Sayin X, almis oldugunuz N seanslik Y paketinizin su an
+     * K.'sini kullandiniz, geri kalan M seansiniz bulunmaktadir."
+     *
+     * Randevu birden fazla paket/hizmet iceriyorsa her biri icin ozet satir
+     * eklenir; gonderim tek push olarak yapilir.
+     */
+    private function seansKullanimBilgilendir($randevu)
+    {
+        $musteri = $randevu->users ?? \App\User::find($randevu->user_id);
+        if (!$musteri || !$musteri->id) {
+            return;
+        }
+        $musteriIsmi = $musteri->name ?? 'Müşterimiz';
+
+        // Bu randevu kapsamindaki seans satirlarini cek — adisyon_paket_id veya
+        // adisyon_hizmet_id uzerinden gruplayacagiz.
+        $seanslar = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->get();
+        if ($seanslar->isEmpty()) return;
+
+        // Gruplama: paket grubu (adisyon_paket_id) ve hizmet grubu (adisyon_hizmet_id)
+        $paketIdleri = $seanslar->pluck('adisyon_paket_id')->filter()->unique();
+        $hizmetIdleri = $seanslar->pluck('adisyon_hizmet_id')->filter()->unique();
+
+        $bilgilendirmeler = [];
+
+        // Paket bazinda
+        foreach ($paketIdleri as $apId) {
+            $bilgi = $this->paketSeansOzeti((int) $apId);
+            if ($bilgi) $bilgilendirmeler[] = $bilgi;
+        }
+        // Standalone hizmet bazinda
+        foreach ($hizmetIdleri as $ahId) {
+            $bilgi = $this->hizmetSeansOzeti((int) $ahId);
+            if ($bilgi) $bilgilendirmeler[] = $bilgi;
+        }
+
+        if (empty($bilgilendirmeler)) return;
+
+        // Tek paket/hizmet => sade, akıcı bir cümle
+        // Birden fazla => her biri ayrı satırda madde
+        if (count($bilgilendirmeler) === 1) {
+            $b = $bilgilendirmeler[0];
+            $body = "Sayın {$musteriIsmi}, almış olduğunuz {$b['toplam']} seanslık {$b['ad']} {$b['tipEk']} bugün {$b['kullanilan']}. seansını kullandınız, geri kalan {$b['kalan']} seansınız bulunmaktadır.";
+        } else {
+            $body = "Sayın {$musteriIsmi}, bugünkü randevunuzda kullanılan seanslar:\n";
+            foreach ($bilgilendirmeler as $b) {
+                $body .= "• {$b['ad']} {$b['tipEk']} {$b['toplam']} seanslık, {$b['kullanilan']}. seansı kullanıldı, kalan {$b['kalan']}.\n";
+            }
+            $body = rtrim($body);
+        }
+
+        try {
+            $sonuc = \App\Services\NotificationService::toCustomer(
+                (int) $musteri->id,
+                (int) $randevu->salon_id
+            )
+                ->type(\App\Services\NotificationTypes::SESSION_USED)
+                ->title('Seans Kullanımı')
+                ->body($body)
+                ->randevu((int) $randevu->id)
+                ->deepLink('sessions')
+                ->send();
+
+            \Log::info('[SEANS-KULLANIM] push gonderildi', [
+                'randevu_id' => $randevu->id,
+                'user_id'    => $musteri->id,
+                'salon_id'   => $randevu->salon_id,
+                'paket_adet' => count($bilgilendirmeler),
+                'sonuc'      => $sonuc,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('[SEANS-KULLANIM] push fail', [
+                'randevu_id' => $randevu->id,
+                'err' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Bir adisyon_paket_id icin seans ozeti: paket adi, toplam seans,
+     * kullanilan (geldi=1), kalan (geldi NULL ve iptal degil).
+     */
+    private function paketSeansOzeti(int $adisyonPaketId)
+    {
+        $paket = \App\AdisyonPaketler::with('paket')->find($adisyonPaketId);
+        if (!$paket || !$paket->paket) return null;
+
+        $seanslar = AdisyonPaketSeanslar::where('adisyon_paket_id', $adisyonPaketId)->get();
+        $toplam = (int) ($paket->seans_sayisi ?? $seanslar->count());
+        $kullanilan = $seanslar->where('geldi', 1)->count();
+        $kalan = $seanslar->filter(function ($s) {
+            return $s->geldi === null && !$s->iptal;
+        })->count();
+
+        return [
+            'ad'         => $paket->paket->paket_adi,
+            'tipEk'      => 'paketinizin',
+            'toplam'     => $toplam,
+            'kullanilan' => $kullanilan,
+            'kalan'      => $kalan,
+        ];
+    }
+
+    /**
+     * Standalone adisyon_hizmet seans ozeti (paket disi, seans_sayisi atanmis hizmet).
+     */
+    private function hizmetSeansOzeti(int $adisyonHizmetId)
+    {
+        $hizmet = \App\AdisyonHizmetler::with('hizmet')->find($adisyonHizmetId);
+        if (!$hizmet || !$hizmet->hizmet) return null;
+
+        $seanslar = AdisyonPaketSeanslar::where('adisyon_hizmet_id', $adisyonHizmetId)->get();
+        $toplam = (int) ($hizmet->seans_sayisi ?? $seanslar->count());
+        $kullanilan = $seanslar->where('geldi', 1)->count();
+        $kalan = $seanslar->filter(function ($s) {
+            return $s->geldi === null && !$s->iptal;
+        })->count();
+
+        return [
+            'ad'         => $hizmet->hizmet->hizmet_adi,
+            'tipEk'      => 'hizmetinizin',
+            'toplam'     => $toplam,
+            'kullanilan' => $kullanilan,
+            'kalan'      => $kalan,
+        ];
     }
 
     public function randevuyagelmedi(Request $request)
