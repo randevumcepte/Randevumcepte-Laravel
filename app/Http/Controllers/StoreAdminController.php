@@ -2179,8 +2179,20 @@ public function carkverilerigetir(Request $request)
         // Personel & cihaz ham veri (view icindeki foreach icin)
         $personeller_raw = Personeller::where('salon_id',$isletmeid_hy)->where('aktif',1)->get(['id','personel_adi']);
         $cihazlar_raw = \App\Cihazlar::where('salon_id',$isletmeid_hy)->where('aktifmi',1)->get(['id','cihaz_adi']);
+        // Oda modali icin: salona aktif hizmetler (oda-hizmet pivotunda secilebilir)
+        $hizmetler_raw = SalonHizmetler::with('hizmetler:id,hizmet_adi')
+            ->where('salon_id',$isletmeid_hy)->where('aktif',1)
+            ->get()
+            ->map(function($sh){
+                return [
+                    'id' => $sh->hizmet_id,
+                    'hizmet_adi' => $sh->hizmetler ? $sh->hizmetler->hizmet_adi : 'Bilinmeyen',
+                ];
+            })
+            ->sortBy('hizmet_adi')
+            ->values();
 
-        return view('isletmeadmin.ayarlar',['hizmetler'=>$hizmetler,'hizmet_gruplari'=>$hizmet_gruplari,'kategoriler'=>$kategoriler_hy,'aktif_personel_sayisi'=>$aktif_personel_sayisi,'eklenebilir_hizmetler'=>$eklenebilir_hizmetler,'personeller_raw'=>$personeller_raw,'cihazlar_raw'=>$cihazlar_raw,'bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Hesap Ayarları','pageindex' => 9,'salongorselleri'=> $salongorselleri,'saloncalismasaatleri'=>$saloncalismasaatleri,'personeller' => $personeller, 'salonhizmetler' => $salonhizmetler,'isletme'=> $isletme,'sayfa_baslik' => $isletme->salon_adi.' | Detayları & Düzenle', 'etiketler' => $etiketler,'isletmeturulistesi' => $isletmeturu_html,'gorseller_html' => $gorseller_html,'hizmetlistesi'=>$hizmetlistesi_html,'salongorselkapak'=>$salongorselkapak,'subeler'=>$subeler,'salonmolasaatleri'=>$salonmolasaatleri,'urunler'=> $urunler,'paketler'=>$paketler,'paketler_liste'=>$paketler_liste,'roller'=>Role::all(),'cihazlar'=>$cihazlar,'odalar'=>$odalar,'aramaterimleri'=>$aramaterimleri, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
+        return view('isletmeadmin.ayarlar',['hizmetler'=>$hizmetler,'hizmet_gruplari'=>$hizmet_gruplari,'kategoriler'=>$kategoriler_hy,'aktif_personel_sayisi'=>$aktif_personel_sayisi,'eklenebilir_hizmetler'=>$eklenebilir_hizmetler,'personeller_raw'=>$personeller_raw,'cihazlar_raw'=>$cihazlar_raw,'hizmetler_raw'=>$hizmetler_raw,'bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Hesap Ayarları','pageindex' => 9,'salongorselleri'=> $salongorselleri,'saloncalismasaatleri'=>$saloncalismasaatleri,'personeller' => $personeller, 'salonhizmetler' => $salonhizmetler,'isletme'=> $isletme,'sayfa_baslik' => $isletme->salon_adi.' | Detayları & Düzenle', 'etiketler' => $etiketler,'isletmeturulistesi' => $isletmeturu_html,'gorseller_html' => $gorseller_html,'hizmetlistesi'=>$hizmetlistesi_html,'salongorselkapak'=>$salongorselkapak,'subeler'=>$subeler,'salonmolasaatleri'=>$salonmolasaatleri,'urunler'=> $urunler,'paketler'=>$paketler,'paketler_liste'=>$paketler_liste,'roller'=>Role::all(),'cihazlar'=>$cihazlar,'odalar'=>$odalar,'aramaterimleri'=>$aramaterimleri, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
     public function randevuyukle(Request $request,$takvim_turu,$tarih1,$tarih2){
@@ -4128,30 +4140,43 @@ private function ayAdiCevir($ingilizceAy)
                         $yenirandevuhizmetpersonel->hizmet_id = $value;
                         $yenirandevuhizmetpersonel->cihaz_id = $yeniRandevuBilgileri['cihazlar'][$key];
                         $yenirandevuhizmetpersonel->personel_id = $yeniRandevuBilgileri['personeller'][$key];
-                        $yenirandevuhizmetpersonel->oda_id = $yeniRandevuBilgileri['odalari'][$key];
+                        // Oda: manuel seçim varsa onu kullan, yoksa hizmete uygun ilk müsait
+                        $duzenleOdaId = $yeniRandevuBilgileri['odalari'][$key] ?? null;
+                        if (!$duzenleOdaId) {
+                            $_baslangic = ($key == 0) ? $yeniRandevuBilgileri['saat'] : $yenisaatbaslangic;
+                            $_bitis = date("H:i", strtotime('+' . (int)$request->hizmet_suresi[$key] . ' minutes', strtotime($_baslangic)));
+                            $duzenleOdaId = \App\Services\OdaAtamaServisi::uygunOdaSec(
+                                (int) $randevu->salon_id,
+                                (int) $value,
+                                $yeniRandevuBilgileri['tarih'],
+                                $_baslangic,
+                                $_bitis
+                            );
+                        }
+                        $yenirandevuhizmetpersonel->oda_id = $duzenleOdaId;
                         $yenirandevuhizmetpersonel->sure_dk = $request->hizmet_suresi[$key];
                         $yenirandevuhizmetpersonel->fiyat = self::parseFiyat($request->hizmet_fiyat[$key]);
-                        
+
                         $birsonraki = $key + 1;
-                        
+
                         if ($key == 0) {
                             $yenirandevuhizmetpersonel->saat = $yeniRandevuBilgileri['saat'];
                             $yenirandevuhizmetpersonel->saat_bitis = date("H:i", strtotime('+' . $request->hizmet_suresi[$key] . ' minutes', strtotime($yeniRandevuBilgileri['saat'])));
-                            
+
                             if (!isset($request->{"birlestir{$birsonraki}"})) {
                                 $yenisaatbaslangic = date("H:i", strtotime('+' . $request->hizmet_suresi[$key] . ' minutes', strtotime($yeniRandevuBilgileri['saat'])));
                             }
                         } else {
                             $yenirandevuhizmetpersonel->saat = $yenisaatbaslangic;
                             $yenirandevuhizmetpersonel->saat_bitis = date("H:i", strtotime('+' . $request->hizmet_suresi[$key] . ' minutes', strtotime($yenisaatbaslangic)));
-                            
+
                             if (!isset($request->{"birlestir{$birsonraki}"})) {
                                 $yenisaatbaslangic = date("H:i", strtotime('+' . $request->hizmet_suresi[$key] . ' minutes', strtotime($yenisaatbaslangic)));
                             }
                         }
-                        
+
                         $yenirandevuhizmetpersonel->save();
-                        
+
                         if (isset($request->{"randevuyardimcipersonelleriyeni_{$key}"})) {
                             foreach ($request->{"randevuyardimcipersonelleriyeni_{$key}"} as $yardimci_personel_id) {
                                 if ($yardimci_personel_id != '') {
@@ -4160,7 +4185,7 @@ private function ayAdiCevir($ingilizceAy)
                                     $yardimci_personel->hizmet_id = $value;
                                     $yardimci_personel->cihaz_id = $yeniRandevuBilgileri['cihazlar'][$key];
                                     $yardimci_personel->personel_id = $yardimci_personel_id;
-                                    $yardimci_personel->oda_id = $yeniRandevuBilgileri['odalari'][$key];
+                                    $yardimci_personel->oda_id = $duzenleOdaId;
                                     $yardimci_personel->sure_dk = $request->hizmet_suresi[$key];
                                     $yardimci_personel->fiyat = self::parseFiyat($request->hizmet_fiyat[$key]);
                                     $yardimci_personel->saat = $yenirandevuhizmetpersonel->saat;
@@ -5109,7 +5134,7 @@ private function ayAdiCevir($ingilizceAy)
                         $cihaz_id = $request->randevucihazlariyeni[$key2];
                     }
                     
-                    // Oda ID kontrolü
+                    // Oda ID kontrolü (manuel seçim varsa override; yoksa hizmet bazında otomatik atanır)
                     $oda_id = null;
                     if(isset($request->randevuodalariyeni[$key2]) && $request->randevuodalariyeni[$key2] != '') {
                         $oda_id = $request->randevuodalariyeni[$key2];
@@ -5120,12 +5145,27 @@ private function ayAdiCevir($ingilizceAy)
                     foreach($rHizmetler as $_key=>  $rHizmet)
                     {
                         array_push($hizmet_sureleri_okunan,$request->{"hizmet_sureleri-$rHizmet"});
+                        // Otomatik oda atama: manuel oda seçili değilse hizmete uygun ilk müsait oda
+                        $hizmetOdaId = $oda_id;
+                        if(!$hizmetOdaId) {
+                            $hSure = (int) ($request->{"hizmet_sureleri-$rHizmet"} ?? 0);
+                            $hBitis = $hSure > 0
+                                ? date("H:i", strtotime('+'.$hSure.' minutes', strtotime($yenisaatbaslangic)))
+                                : $yenisaatbaslangic;
+                            $hizmetOdaId = \App\Services\OdaAtamaServisi::uygunOdaSec(
+                                (int) $request->sube,
+                                (int) $rHizmet,
+                                $tarihler,
+                                $yenisaatbaslangic,
+                                $hBitis
+                            );
+                        }
                         $yenirandevuhizmetpersonel = new RandevuHizmetler();
                         $yenirandevuhizmetpersonel->randevu_id = $yenirandevu->id;
                         $yenirandevuhizmetpersonel->hizmet_id = $rHizmet;
                         $yenirandevuhizmetpersonel->cihaz_id = $cihaz_id;
                         $yenirandevuhizmetpersonel->personel_id = $personel_id;
-                        $yenirandevuhizmetpersonel->oda_id = $oda_id;
+                        $yenirandevuhizmetpersonel->oda_id = $hizmetOdaId;
                         $yenirandevuhizmetpersonel->sure_dk = $request->{"hizmet_sureleri-$rHizmet"};
                         $yenirandevuhizmetpersonel->fiyat = self::parseFiyat($request->{"hizmet_fiyatlari-$rHizmet"});
                         
@@ -5168,7 +5208,7 @@ private function ayAdiCevir($ingilizceAy)
                                     $yardimci_personel->hizmet_id = $rHizmet;
                                     $yardimci_personel->cihaz_id = $cihaz_id;
                                     $yardimci_personel->personel_id = $yardimci_personel_id;
-                                    $yardimci_personel->oda_id = $oda_id;
+                                    $yardimci_personel->oda_id = $hizmetOdaId;
                                     $yardimci_personel->sure_dk = $request->{"hizmet_sureleri-$rHizmet"};
                                     $yardimci_personel->fiyat = $request->{"hizmet_fiyatlari-$rHizmet"};
                                     $yardimci_personel->saat = $yenirandevuhizmetpersonel->saat;
@@ -5217,7 +5257,7 @@ private function ayAdiCevir($ingilizceAy)
                                     $seansKaydi->seans_saat = $yenisaatbaslangic;
                                     $seansKaydi->personel_id = $personel_id; // Personel ID null olabilir
                                     $seansKaydi->cihaz_id = $cihaz_id; // Cihaz ID null olabilir
-                                    $seansKaydi->oda_id = $oda_id; // Oda ID null olabilir
+                                    $seansKaydi->oda_id = $hizmetOdaId; // Otomatik atanmis olabilir
                                     $seansKaydi->randevu_id = $yenirandevu->id;
                                     $seansKaydi->seans_no = $hizmetA->kullanilan_seans + $hizmetA->kullanilmayan_seans + 1;
                                     $seansKaydi->adisyon_hizmet_id = $hizmetA->id;
@@ -5236,7 +5276,7 @@ private function ayAdiCevir($ingilizceAy)
                                         $seansKaydi->seans_saat = $yenisaatbaslangic;
                                         $seansKaydi->personel_id = $personel_id; // Personel ID null olabilir
                                         $seansKaydi->cihaz_id = $cihaz_id; // Cihaz ID null olabilir
-                                        $seansKaydi->oda_id = $oda_id; // Oda ID null olabilir
+                                        $seansKaydi->oda_id = $hizmetOdaId; // Otomatik atanmis olabilir
                                         $seansKaydi->randevu_id = $yenirandevu->id;
                                         $seansKaydi->seans_no = $paketA->kullanilan_seans + $paketA->kullanilmayan_seans + 1;
                                         $seansKaydi->adisyon_paket_id = $paketA->id;
@@ -14436,6 +14476,7 @@ DB::raw('
         if(isset($request->oda_id)){
             $odalar= Odalar::where('id',$request->oda_id)->first();
             OdaPersonelleri::where('oda_id',$request->oda_id)->delete();
+            \App\OdaHizmetler::where('oda_id',$request->oda_id)->delete();
         }
         else
             $odalar = new Odalar();
@@ -14454,6 +14495,15 @@ DB::raw('
             $odaPersoneli->salon_id =$request->sube;
             $odaPersoneli->personel_id = $personel;
             $odaPersoneli->save();
+        }
+        $secilenHizmetler = $request->oda_hizmetleri ?? [];
+        foreach($secilenHizmetler as $hizmetId){
+            if(!$hizmetId) continue;
+            \App\OdaHizmetler::create([
+                'salon_id' => $request->sube,
+                'oda_id' => $odalar->id,
+                'hizmet_id' => $hizmetId,
+            ]);
         }
         if(!isset($request->oda_id))
         {
@@ -14512,17 +14562,22 @@ DB::raw('
         $oda = Odalar::where('id',$request->oda_id)->first();
         $odaPersonelleri = OdaPersonelleri::where('oda_id',$request->oda_id)->get();
         $personeller = [];
+        $personel_idler = [];
         foreach($odaPersonelleri as $op){
             if($op->personel){
                 $personeller[] = [
                     'id' => $op->personel_id,
                     'ad_soyad' => $op->personel->personel_adi
                 ];
+                $personel_idler[] = $op->personel_id;
             }
         }
+        $hizmet_idler = \App\OdaHizmetler::where('oda_id',$request->oda_id)->pluck('hizmet_id')->toArray();
         return array(
             'oda_adi' => $oda->oda_adi,
             'personeller' => $personeller,
+            'personel_idler' => $personel_idler,
+            'hizmet_idler' => $hizmet_idler,
             'id' => $oda->id
         );
     }

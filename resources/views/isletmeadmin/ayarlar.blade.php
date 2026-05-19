@@ -2140,6 +2140,15 @@
                      @endforeach
                   </select>
                </div>
+               <div class="form-group">
+                  <label>Bu odada verilen hizmetler</label>
+                  <small class="form-text text-muted" style="margin-bottom:6px;">Paket satışlarında uygun oda otomatik atanır.</small>
+                  <select name="oda_hizmetleri[]" multiple style="width:100%" class="form-control oda_hizmet_secimi custom-select2" data-placeholder="Hizmet seçiniz">
+                     @foreach(($hizmetler_raw ?? []) as $hz)
+                        <option value="{{ $hz['id'] }}">{{ $hz['hizmet_adi'] }}</option>
+                     @endforeach
+                  </select>
+               </div>
 
             </div>
 
@@ -2192,7 +2201,16 @@
                      @endforeach
                   </select>
                </div>
-               
+               <div class="form-group">
+                  <label>Bu odada verilen hizmetler</label>
+                  <small class="form-text text-muted" style="margin-bottom:6px;">Paket satışlarında uygun oda otomatik atanır.</small>
+                  <select name="oda_hizmetleri[]" multiple id="oda_hizmetleri" style="width:100%" class="form-control oda_hizmet_secimi custom-select2" data-placeholder="Hizmet seçiniz">
+                     @foreach(($hizmetler_raw ?? []) as $hz)
+                        <option value="{{ $hz['id'] }}">{{ $hz['hizmet_adi'] }}</option>
+                     @endforeach
+                  </select>
+               </div>
+
             </div>
 
             <div class="modal-footer" style="display:block">

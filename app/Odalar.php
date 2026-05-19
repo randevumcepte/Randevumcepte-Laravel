@@ -23,9 +23,9 @@ class Odalar extends Model
     {
         return $this->belongsTo(Personeller::class,'personel_id');
     }
-    
 
-   
-   
-    
+    public function sunulanHizmetler()
+    {
+        return $this->hasMany(OdaHizmetler::class, 'oda_id');
+    }
 }

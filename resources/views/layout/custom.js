@@ -10448,11 +10448,10 @@ $('#odabilgiduzenle').on('submit',function(e){
                     $('#preloader').show();
                 },
                 success: function(result)  {
-                    console.log(result);
-                    console.log(result.personel_id);
                     $('#preloader').hide();
                     $('#oda_adi').val(result.oda_adi);
-                    $('#oda_personeli').val(result.personel_id).trigger('change');
+                    $('#oda_personeli').val(result.personel_idler || []).trigger('change');
+                    $('#oda_hizmetleri').val(result.hizmet_idler || []).trigger('change');
                     $('#duzenlenecek_oda_id').val(result.id);
                     $('#oda_duzenle_modal2').modal();
                 },
