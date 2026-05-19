@@ -24461,13 +24461,6 @@ DB::raw('
             return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
-        if(!Auth::guard('satisortakligi')->check()){
-            if(self::personelmi($request))
-            {
-                    return redirect()->route('isletmeadmin.randevular');
-                    exit(0);
-            }
-        }
 
         $personeller = self::personel_liste_getir($request);
 
