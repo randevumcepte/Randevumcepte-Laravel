@@ -942,7 +942,7 @@
                   </li>
                   @endif
                   @endif
-                   @if(($isletme->santral_aktif) && \App\Services\PersonelYetkiServisi::isHesapSahibi(Auth::guard('isletmeyonetim')->user()->id, $isletme->id))
+                   @if(($isletme->santral_aktif) && DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <li>
                      @if($pageindex==43)
                      <a href="/isletmeyonetim/santral{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1272,7 +1272,7 @@
                      </a>
                   </li>
                   @endif
-                  @if(\App\Services\PersonelYetkiServisi::isHesapSahibi(Auth::guard('isletmeyonetim')->user()->id, $isletme->id))
+                  @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <li>
                      @if($pageindex==65)
                      <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
