@@ -6116,28 +6116,42 @@ private function ayAdiCevir($ingilizceAy)
         
         $salonId = self::mevcutsube($request);
         $isletme = Salonlar::where('id', $salonId)->first();
-        
+
+        // Yetki: 'musteri.tum_portfoy_gor' kapaliysa personel sadece
+        // kendi olusturdugu + satislarinda yer aldigi musterileri gorur.
+        // Sayilar da bu filtreye uymali.
+        $kendiPortfoyUserIds = \App\Services\PersonelYetkiServisi::musteriPortfoyKisitlamasi($request, $salonId, 'isletmeyonetim');
+
         // Durumlara göre müşteri sayılarını hesapla
         $tumMusteriSayisi = DB::table('musteri_portfoy')
             ->where('salon_id', $salonId)
             ->where('aktif', true)
+            ->when($kendiPortfoyUserIds !== null, function ($q) use ($kendiPortfoyUserIds) {
+                $q->whereIn('user_id', $kendiPortfoyUserIds ?: [0]);
+            })
             ->count();
-            
+
         $odemeYapmayanlarSayisi = DB::table('musteri_portfoy')
             ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
             ->where('musteri_portfoy.salon_id', $salonId)
             ->where('musteri_portfoy.aktif', true)
+            ->when($kendiPortfoyUserIds !== null, function ($q) use ($kendiPortfoyUserIds) {
+                $q->whereIn('musteri_portfoy.user_id', $kendiPortfoyUserIds ?: [0]);
+            })
             ->whereNotExists(function ($q) use ($salonId) {
                 $q->select(DB::raw(1))
                     ->from('tahsilatlar')
                     ->whereRaw('tahsilatlar.user_id = users.id')
                     ->where('tahsilatlar.salon_id', $salonId);
             })->count();
-            
+
         $azIslemYapanlarSayisi = DB::table('musteri_portfoy')
             ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
             ->where('musteri_portfoy.salon_id', $salonId)
             ->where('musteri_portfoy.aktif', true)
+            ->when($kendiPortfoyUserIds !== null, function ($q) use ($kendiPortfoyUserIds) {
+                $q->whereIn('musteri_portfoy.user_id', $kendiPortfoyUserIds ?: [0]);
+            })
             ->whereExists(function ($q) use ($salonId) {
                 $q->select(DB::raw(1))
                     ->from('tahsilatlar')
@@ -6146,11 +6160,14 @@ private function ayAdiCevir($ingilizceAy)
                     ->groupBy('tahsilatlar.user_id')
                     ->havingRaw('COUNT(*) <= 2');
             })->count();
-            
+
         $sadikMusterilerSayisi = DB::table('musteri_portfoy')
             ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
             ->where('musteri_portfoy.salon_id', $salonId)
             ->where('musteri_portfoy.aktif', true)
+            ->when($kendiPortfoyUserIds !== null, function ($q) use ($kendiPortfoyUserIds) {
+                $q->whereIn('musteri_portfoy.user_id', $kendiPortfoyUserIds ?: [0]);
+            })
             ->whereExists(function ($q) use ($salonId) {
                 $q->select(DB::raw(1))
                     ->from('tahsilatlar')
@@ -6186,7 +6203,12 @@ private function ayAdiCevir($ingilizceAy)
         $searchValue = $request->input('search.value');
         $currentPage = ($start / $length) + 1;
         $salonId = self::mevcutsube($request);
-    
+
+        // Yetki: 'musteri.tum_portfoy_gor' kapaliysa personel sadece
+        // (a) kendi olusturdugu + (b) adisyon hizmet/urun/paket'lerinde
+        // yer aldigi musterileri gorur.
+        $kendiPortfoyUserIds = \App\Services\PersonelYetkiServisi::musteriPortfoyKisitlamasi($request, $salonId, 'isletmeyonetim');
+
         // Temel müşteri bilgilerini al
         $query = DB::table('musteri_portfoy')
             ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
@@ -6200,7 +6222,11 @@ private function ayAdiCevir($ingilizceAy)
             )
             ->where('musteri_portfoy.salon_id', $salonId)
             ->where('musteri_portfoy.aktif', true)
-            ->where('salonlar.id', $salonId);
+            ->where('salonlar.id', $salonId)
+            ->when($kendiPortfoyUserIds !== null, function ($q) use ($kendiPortfoyUserIds) {
+                // Bos liste -> hicbir musteri eslesmez (whereIn empty -> no rows)
+                $q->whereIn('musteri_portfoy.user_id', $kendiPortfoyUserIds ?: [0]);
+            });
     
         // Duruma göre filtreleme
         switch ($durum) {
