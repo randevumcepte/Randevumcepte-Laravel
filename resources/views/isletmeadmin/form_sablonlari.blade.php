@@ -225,12 +225,15 @@ var OTOMATIK_TIPLER = ['musteri_bilgi_tablosu','hizmet_paket_bilgisi','ucret_bil
 function soruEkle(tip, mevcutSoru) {
    soruSayaci++;
    var idx = soruSayaci;
-   var soru = mevcutSoru || { soru: '', tip: tip, zorunlu: false };
+   // Cevap tipli alanlar her zaman zorunlu — tasarimda secenek yok.
+   var cevapTipi = tip === 'evet_hayir' || tip === 'metin' || tip === 'uzun_metin';
+   var soru = mevcutSoru || { soru: '', tip: tip, zorunlu: cevapTipi };
+   if (cevapTipi) soru.zorunlu = true;
    var meta = TIP_RENK[tip] || { renk: '#999', etiket: tip, badge: 'badge-secondary' };
 
    var aksiyon = '';
-   var zorunluKutucuk = tip === 'evet_hayir' || tip === 'metin' || tip === 'uzun_metin'
-      ? `<label style="font-size:12px;"><input type="checkbox" class="soru-zorunlu" ${soru.zorunlu ? 'checked' : ''}> Zorunlu</label>`
+   var zorunluKutucuk = cevapTipi
+      ? `<span style="font-size:11px;color:#dc3545;font-weight:700;" title="Tüm cevaplı alanlar zorunludur">● Zorunlu</span><input type="hidden" class="soru-zorunlu" value="1">`
       : `<input type="hidden" class="soru-zorunlu" value="0">`;
 
    var girdi = '';
@@ -359,9 +362,9 @@ function formKaydet() {
    $('#sorular_konteyneri .soru-satiri').each(function() {
       var tip = $(this).find('.soru-tip').val();
       var metin = $(this).find('.soru-metni').val().trim();
-      var zorunluEl = $(this).find('.soru-zorunlu');
-      var zorunlu = zorunluEl.is('[type=checkbox]') ? zorunluEl.is(':checked') : false;
-      sorular.push({ tip: tip, soru: metin, zorunlu: zorunlu });
+      // Cevap tipli alanlar her zaman zorunlu kaydedilir.
+      var cevapTipi = tip === 'evet_hayir' || tip === 'metin' || tip === 'uzun_metin';
+      sorular.push({ tip: tip, soru: metin, zorunlu: cevapTipi });
    });
 
    if (sorular.length === 0) {

@@ -153,9 +153,9 @@
          <td>
             @if(isset($cevaplar[$ehIdx]))
                @if($cevaplar[$ehIdx] === 'evet')
-                  <b style="color:#c0392b;">&#9745; Evet</b>&nbsp;&#9744; Hayir
+                  <b style="color:#27ae60;">&#9745; Evet</b>&nbsp;&#9744; Hayir
                @elseif($cevaplar[$ehIdx] === 'hayir')
-                  &#9744; Evet&nbsp;<b style="color:#27ae60;">&#9745; Hayir</b>
+                  &#9744; Evet&nbsp;<b style="color:#c0392b;">&#9745; Hayir</b>
                @else
                   &#9744; Evet&nbsp;&#9744; Hayir
                @endif

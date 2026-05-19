@@ -24,8 +24,8 @@
       .soru-etiketi .zorunlu { color: red; margin-left: 3px; }
       .evet-hayir-grup { display: flex; gap: 20px; }
       .evet-hayir-btn { flex: 1; text-align: center; padding: 10px; border: 2px solid #dee2e6; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s; }
-      .evet-hayir-btn.evet-secili { border-color: #dc3545; background: #fff0f0; color: #dc3545; }
-      .evet-hayir-btn.hayir-secili { border-color: #28a745; background: #f0fff4; color: #28a745; }
+      .evet-hayir-btn.evet-secili { border-color: #28a745; background: #f0fff4; color: #28a745; }
+      .evet-hayir-btn.hayir-secili { border-color: #dc3545; background: #fff0f0; color: #dc3545; }
       .evet-hayir-btn:hover { border-color: #5C008E; }
       .imza-alani { border: 2px dashed #dee2e6; border-radius: 8px; background: white; cursor: crosshair; }
       .imza-baslik { font-weight: 600; margin-bottom: 10px; }
@@ -161,13 +161,13 @@
                <div class="soru-satiri">
                   <span class="soru-etiketi">
                      {{ $soruNo++ }}. {{ $soru['soru'] }}
-                     @if(!empty($soru['zorunlu'])) <span class="zorunlu">*</span> @endif
+                     <span class="zorunlu">*</span>
                   </span>
                   <div class="evet-hayir-grup" id="grup_{{ $idx }}">
                      <div class="evet-hayir-btn" id="evet_{{ $idx }}" onclick="evHayirSec({{ $idx }}, 'evet')">Evet</div>
                      <div class="evet-hayir-btn" id="hayir_{{ $idx }}" onclick="evHayirSec({{ $idx }}, 'hayir')">Hayır</div>
                   </div>
-                  <input type="hidden" id="cevap_{{ $idx }}" value="" data-tip="evet_hayir" data-zorunlu="{{ !empty($soru['zorunlu']) ? '1' : '0' }}">
+                  <input type="hidden" id="cevap_{{ $idx }}" value="" data-tip="evet_hayir" data-zorunlu="1">
                   <div class="hata-mesaji" id="hata_{{ $idx }}">Bu soruyu cevaplamak zorunludur.</div>
                </div>
 
@@ -175,9 +175,9 @@
                <div class="soru-satiri">
                   <label class="soru-etiketi">
                      {{ $soruNo++ }}. {{ $soru['soru'] }}
-                     @if(!empty($soru['zorunlu'])) <span class="zorunlu">*</span> @endif
+                     <span class="zorunlu">*</span>
                   </label>
-                  <input type="text" class="form-control" id="cevap_{{ $idx }}" placeholder="Cevabınızı yazın..." data-tip="metin" data-zorunlu="{{ !empty($soru['zorunlu']) ? '1' : '0' }}">
+                  <input type="text" class="form-control" id="cevap_{{ $idx }}" placeholder="Cevabınızı yazın..." data-tip="metin" data-zorunlu="1">
                   <div class="hata-mesaji" id="hata_{{ $idx }}">Bu alan zorunludur.</div>
                </div>
 
@@ -185,9 +185,9 @@
                <div class="soru-satiri">
                   <label class="soru-etiketi">
                      {{ $soruNo++ }}. {{ $soru['soru'] }}
-                     @if(!empty($soru['zorunlu'])) <span class="zorunlu">*</span> @endif
+                     <span class="zorunlu">*</span>
                   </label>
-                  <textarea class="form-control" id="cevap_{{ $idx }}" rows="3" placeholder="Cevabınızı yazın..." data-tip="uzun_metin" data-zorunlu="{{ !empty($soru['zorunlu']) ? '1' : '0' }}"></textarea>
+                  <textarea class="form-control" id="cevap_{{ $idx }}" rows="3" placeholder="Cevabınızı yazın..." data-tip="uzun_metin" data-zorunlu="1"></textarea>
                   <div class="hata-mesaji" id="hata_{{ $idx }}">Bu alan zorunludur.</div>
                </div>
 
@@ -310,6 +310,33 @@ if (canvas) {
 function imzaTemizle() {
    if (canvas) { ctx.clearRect(0, 0, canvas.width, canvas.height); imzaCizildi = false; }
 }
+
+// Onceki gonderimdeki cevaplari ve KVKK onayini geri yukle —
+// musteri tekrar form acinca eskileri dolu gormeli, sadece eksikleri tamamlasin.
+$(function() {
+   try {
+      var ce = (typeof oncekiCevaplar === 'string')
+         ? JSON.parse(oncekiCevaplar || '[]')
+         : (oncekiCevaplar || []);
+      if (Array.isArray(ce)) {
+         ce.forEach(function(c) {
+            if (!c || c.cevap == null || c.cevap === '') return;
+            var el = $('#cevap_' + c.indeks);
+            if (!el.length) return;
+            var tip = el.data('tip');
+            if (tip === 'evet_hayir') {
+               evHayirSec(c.indeks, c.cevap);
+            } else {
+               el.val(c.cevap);
+            }
+         });
+      }
+   } catch(e) {}
+
+   if (oncekiKvkk) {
+      $('#kvkk_onay').prop('checked', true);
+   }
+});
 
 function evHayirSec(idx, deger) {
    $('#evet_' + idx).removeClass('evet-secili hayir-secili');
