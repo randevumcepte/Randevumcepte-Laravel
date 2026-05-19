@@ -2075,30 +2075,48 @@ public function carkverilerigetir(Request $request)
             exit(0);
         }
         // Yetki: Ayarlar kategorisindeki herhangi bir yetki acikken sayfa
-        // acilabilir. Hicbiri yoksa yetkisiz erisim.
+        // acilabilir. Hicbiri yoksa yetkisiz erisim. Ayrica secilen tab
+        // (?p=...) yetki disindaysa ilk yetkili tab'a redirect.
         if(!Auth::guard('satisortakligi')->check()){
             $authUser = Auth::guard('isletmeyonetim')->user();
             $salonId = self::mevcutsube($request);
-            $herhangiYetki = false;
             if ($authUser) {
-                foreach ([
-                    'ayar.salon_bilgi',
-                    'ayar.cihaz_oda_yonet',
-                    'ayar.sube_yonet',
-                    'randevu.online_ayar',
-                    'hizmet.tanim_olustur',
-                    'hizmet.kategori_yonet',
-                    'satis.indirim_uygula',
-                ] as $key) {
-                    if (\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, $key)) {
-                        $herhangiYetki = true;
-                        break;
+                // Tab -> yetki mapping (sirasi sidebar/blade ile ayni)
+                $tabYetki = [
+                    'temelbilgiler'        => ['ayar.salon_bilgi'],
+                    'subeler'              => ['ayar.sube_yonet'],
+                    'calismasaatleri'      => ['ayar.salon_bilgi'],
+                    'cihazlar'             => ['ayar.cihaz_oda_yonet'],
+                    'hizmetler'            => ['hizmet.tanim_olustur', 'hizmet.kategori_yonet'],
+                    'odalar'               => ['ayar.cihaz_oda_yonet'],
+                    'randevuayarlari'      => ['randevu.online_ayar'],
+                    'musteri_indirimleri'  => ['satis.indirim_uygula'],
+                ];
+                $has = function($keys) use ($authUser, $salonId) {
+                    foreach ((array)$keys as $k) {
+                        if (\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, $k)) return true;
                     }
+                    return false;
+                };
+
+                $secilenTab = $request->p ?? 'temelbilgiler';
+                $secilenYetkili = isset($tabYetki[$secilenTab]) && $has($tabYetki[$secilenTab]);
+
+                // Hicbir tab yetkisi yoksa → yetkisiz erisim
+                $ilkYetkili = null;
+                foreach ($tabYetki as $tab => $keys) {
+                    if ($has($keys)) { $ilkYetkili = $tab; break; }
                 }
-            }
-            if (!$herhangiYetki) {
-                return view('isletmeadmin.yetkisizerisim');
-                exit(0);
+                if ($ilkYetkili === null) {
+                    return view('isletmeadmin.yetkisizerisim');
+                    exit(0);
+                }
+
+                // Secilen tab yetkisi yoksa ilk yetkili tab'a yonlendir
+                if (!$secilenYetkili) {
+                    $subeParam = isset($_GET['sube']) ? '&sube='.((int)$_GET['sube']) : '';
+                    return redirect('/isletmeyonetim/ayarlar?p='.$ilkYetkili.$subeParam);
+                }
             }
         }
 
