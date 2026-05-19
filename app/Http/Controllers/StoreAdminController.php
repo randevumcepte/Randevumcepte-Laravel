@@ -22518,6 +22518,12 @@ public function musteriportfoydropliste(Request $request)
         else
             $musteriTuru .= ' grubu';
 
+        // Yetki: musteri.tum_portfoy_gor kapaliysa sadece kendi portfoy
+        $kisitla = \App\Services\PersonelYetkiServisi::musteriPortfoyKisitlamasi($request, $salonId);
+        if ($kisitla !== null) {
+            $query->whereIn('users.id', empty($kisitla) ? [-1] : $kisitla);
+        }
+
         // Get total count first
         $total = $query->count();
         $musteriIdler = $query->pluck('users.id')->toArray();
