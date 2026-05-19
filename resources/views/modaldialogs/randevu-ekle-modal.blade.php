@@ -1559,15 +1559,98 @@ function _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage){
 }
 
 // Paketten gelen her hizmeti AYRI bir satira yerlestirir (oda atama popup'i acmadan).
-// _formaYerlestir bos odaAtama ile cagrilirsa zaten her hizmeti ayri satira koyar.
+// Row 0'daki personel/cihaz/oda secimleri (takvimden gelen otomatik atama) yeni satirlara da kopyalanir.
 function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
-    try {
-        _formaYerlestir(hizmetData, {}, function(){
-            try { updateRandevuOzeti(); } catch(e){}
-        });
-    } catch(err){
-        console.error('[PAKET] satira ekleme hatasi:', err);
+    if(!hizmetData || !hizmetData.length) return;
+
+    // Row 0'daki mevcut personel/cihaz/oda degerlerini sakla (takvimden inheritance icin)
+    var $row0 = $('#yenirandevuekleform .hizmet-satiri').first();
+    var basePersonel = $row0.find('.personel-select').val() || '';
+    var baseCihaz    = $row0.find('.cihaz-select').val() || '';
+    var baseOda      = $row0.find('.oda-select').val() || '';
+    console.log('[PAKET] base secimler row0:', { personel: basePersonel, cihaz: baseCihaz, oda: baseOda });
+
+    function _setHizmetInRow($row, hizmet){
+        var $sel = $row.find('.hizmet-select');
+        if($sel[0] && $sel[0].tomselect){
+            try { $sel[0].tomselect.clear(true); } catch(e){}
+        }
+        _hizmetiSatiraKoy($sel, hizmet, true);
     }
+
+    function _applyBaseSelections($row){
+        // Sadece bos olan dropdown'lara base degeri uygula (kullanici daha onceden ozellestirmis olabilir)
+        if(basePersonel){
+            var $p = $row.find('.personel-select');
+            if($p.length && !$p.val()){
+                if($p[0] && $p[0].tomselect){
+                    try { $p[0].tomselect.setValue(basePersonel, true); $p.val(basePersonel).trigger('change'); } catch(e){ $p.val(basePersonel).trigger('change'); }
+                } else { $p.val(basePersonel).trigger('change'); }
+            }
+        }
+        if(baseCihaz){
+            var $c = $row.find('.cihaz-select');
+            if($c.length && !$c.val()) $c.val(baseCihaz).trigger('change');
+        }
+        if(baseOda){
+            var $o = $row.find('.oda-select');
+            if($o.length && !$o.val()) $o.val(baseOda).trigger('change');
+        }
+    }
+
+    // Sirayla her hizmeti yerlestir (Promise zinciri); biri bittikten sonra digerine gec
+    function _yerlestirSira(idx){
+        if(idx >= hizmetData.length){
+            try { updateRandevuOzeti(); } catch(e){}
+            return;
+        }
+        var hizmet = hizmetData[idx];
+
+        if(idx === 0){
+            // Ilk hizmet -> mevcut row 0'a
+            var tries = 0;
+            (function w(){
+                var $row = $('#yenirandevuekleform .hizmet-satiri').first();
+                var sel = $row.find('.hizmet-select')[0];
+                if(sel && sel.tomselect){
+                    _setHizmetInRow($row, hizmet);
+                    _applyBaseSelections($row);
+                    setTimeout(function(){ _yerlestirSira(idx+1); }, 80);
+                } else if(tries++ < 20){
+                    setTimeout(w, 60);
+                } else {
+                    _yerlestirSira(idx+1);
+                }
+            })();
+        } else {
+            // Yeni satir ekle
+            var rowCountBefore = $('#yenirandevuekleform .hizmet-satiri').length;
+            $('#bir_hizmet_daha_ekle').trigger('click');
+            // Yeni satir DOM'a eklenip TS init olana kadar bekle
+            var tries = 0;
+            (function w(){
+                var $rows = $('#yenirandevuekleform .hizmet-satiri');
+                if($rows.length > rowCountBefore){
+                    var $row = $rows.last();
+                    var sel = $row.find('.hizmet-select')[0];
+                    if(sel && sel.tomselect){
+                        _setHizmetInRow($row, hizmet);
+                        _applyBaseSelections($row);
+                        setTimeout(function(){ _yerlestirSira(idx+1); }, 80);
+                        return;
+                    }
+                }
+                if(tries++ < 30){
+                    setTimeout(w, 80);
+                } else {
+                    console.warn('[PAKET] yeni satir TS init timeout, atlandi', idx);
+                    _yerlestirSira(idx+1);
+                }
+            })();
+        }
+    }
+
+    _yerlestirSira(0);
 }
 
 // Tek bir hizmet item'ini bir satira yerlestirir (Tom Select uyumlu).
