@@ -1673,7 +1673,7 @@ function showHizmetOdaAtamaModal(hizmetData){
         _kapatHizmetOdaModal();
     });
 
-    // Onay butonu: forma yerlestir + otomatik randevu olustur (submit)
+    // Onay butonu: forma yerlestirmeden DOGRUDAN backend'e POST et
     $('#hizmet-oda-atama-onayla').off('click').on('click', function(){
         var atama = {}; // hizmet_item_id -> oda_id (veya '')
         $('#hizmetOdaAtamaModal .hizmet-oda-secimi').each(function(){
@@ -1681,20 +1681,149 @@ function showHizmetOdaAtamaModal(hizmetData){
         });
         var $btn = $(this);
         $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Oluşturuluyor...');
-        _kapatHizmetOdaModal();
-        _formaYerlestir(hizmetData, atama, function(){
-            // Yerlestirme tamam — formu submit et (mevcut submit handler tum dogrulamayi yapar)
-            try {
-                $('#yenirandevuekleform').trigger('submit');
-            } catch(e) {
-                console.error('[PAKET] form submit hatasi:', e);
-            }
-            // Buton state'ini geri al (modal zaten kapali ama yeniden acilirsa hazir olsun)
-            setTimeout(function(){
-                $btn.prop('disabled', false).html('<i class="fa fa-calendar-check-o"></i> Randevu Oluştur');
-            }, 800);
+        _odaModaliOlustur(hizmetData, atama, function(){
+            $btn.prop('disabled', false).html('<i class="fa fa-calendar-check-o"></i> Randevu Oluştur');
         });
     });
+}
+
+// Oda atama modalindan DOGRUDAN backend'e randevu olustur.
+// Forma yerlestirme atlanir; FormData elle insa edilir.
+function _odaModaliOlustur(hizmetData, odaAtama, onBitti){
+    // 1) Temel validasyonlar
+    var sube = $('#yenirandevuekleform input[name="sube"]').val();
+    var musteriId = (typeof seciliMusteriId !== 'undefined' && seciliMusteriId) ? seciliMusteriId : $('#randevuekle_musteri_id').val();
+    var tarih = $('#yenirandevuekleform input[name="tarih"]').val();
+    var saat = $('#yenirandevuekleform select[name="saat"]').val();
+    var personelNotu = $('#yenirandevuekleform textarea[name="personel_notu"]').val() || '';
+    var token = $('#yenirandevuekleform input[name="_token"]').val();
+
+    if(!musteriId){
+        swal({ type:'warning', title:'Uyarı', text:'Lütfen önce müşteri seçin.' });
+        if(onBitti) onBitti();
+        return;
+    }
+    if(!tarih || !saat){
+        swal({ type:'warning', title:'Uyarı', text:'Tarih ve saat zorunludur.' });
+        if(onBitti) onBitti();
+        return;
+    }
+
+    // 2) Oda bazinda gruplari kur (forma yerlestirmedeki ile ayni mantik)
+    var gruplar = [];
+    var indexByOda = {};
+    hizmetData.forEach(function(item){
+        var oid = (odaAtama[item.id] || '').toString();
+        if(!oid){
+            gruplar.push({ oda_id:'', hizmetler:[item] });
+            return;
+        }
+        if(indexByOda[oid] !== undefined){
+            gruplar[indexByOda[oid]].hizmetler.push(item);
+        } else {
+            indexByOda[oid] = gruplar.length;
+            gruplar.push({ oda_id: oid, hizmetler:[item] });
+        }
+    });
+    if(!gruplar.length){
+        swal({ type:'warning', title:'Uyarı', text:'Eklenecek hizmet yok.' });
+        if(onBitti) onBitti();
+        return;
+    }
+
+    // 3) FormData insa et (backend yenirandevuekle action'inin bekledigi sema)
+    function _buildFormData(cakismaOnayli){
+        var fd = new FormData();
+        fd.append('_token', token);
+        fd.append('sube', sube);
+        fd.append('adsoyad', musteriId);
+        fd.append('musteri_id', musteriId);
+        fd.append('tarih', tarih);
+        fd.append('saat', saat);
+        fd.append('personel_notu', personelNotu);
+        if(cakismaOnayli) fd.append('cakisanrandevuekle', 1);
+        @if(($pageindex ?? 0) == 2)
+        fd.append('takvim_sayfasi', 1);
+        @endif
+
+        var hizmetDetaylari = [];
+        var toplamSure = 0, toplamFiyat = 0;
+        gruplar.forEach(function(grup, key2){
+            // Grup basina TEK personel/cihaz/oda alani
+            fd.append('randevupersonelleriyeni[]', '');
+            fd.append('randevucihazlariyeni[]', '');
+            fd.append('randevuodalariyeni[]', grup.oda_id || '');
+            // Hizmet ID'leri
+            grup.hizmetler.forEach(function(h){
+                fd.append('randevuhizmetleriyeni_'+key2+'[]', h.id);
+                // Hizmet bazli sure ve fiyat
+                var sure = parseInt(h.sure || 0, 10) || 0;
+                var fiyat = parseFloat(h.fiyat || 0) || 0;
+                fd.append('hizmet_sureleri-'+h.id, sure);
+                fd.append('hizmet_fiyatlari-'+h.id, fiyat);
+                hizmetDetaylari.push({ ad: h.text || '', sure: sure, fiyat: fiyat });
+                toplamSure += sure;
+                toplamFiyat += fiyat;
+            });
+        });
+        fd.append('toplam_sure', toplamSure);
+        fd.append('toplam_fiyat', toplamFiyat.toFixed(2));
+        fd.append('hizmet_detaylari', JSON.stringify(hizmetDetaylari));
+        return fd;
+    }
+
+    function _post(cakismaOnayli, basariCb){
+        $.ajax({
+            type:'POST',
+            url:'/isletmeyonetim/yenirandevuekle',
+            dataType:'json',
+            data: _buildFormData(cakismaOnayli),
+            processData:false,
+            contentType:false,
+            beforeSend: function(){ $('#preloader').show(); },
+            success: function(result){
+                $('#preloader').hide();
+                if(result.cakismavar){
+                    swal({
+                        type:'warning',
+                        title:"<h2 style='font-size:28px;color:#fff'>Çakışma Var</h2>",
+                        background:'#ff0000',
+                        html:"<p style='color:#fff;font-size:16px'>"+result.cakismavar+"</p><p style='color:#fff;padding:8px;border:1px solid #fff;border-radius:8px'>Yine de oluşturmak ister misiniz?</p>",
+                        showCancelButton:true,
+                        confirmButtonText:'Evet, Oluştur',
+                        cancelButtonText:'Vazgeç',
+                    }).then(function(r2){
+                        if(r2.value) _post(true, basariCb);
+                        else if(onBitti) onBitti();
+                    });
+                } else if(result.eklenemez){
+                    swal({ type:'warning', title:'Uyarı', html: result.eklenemez });
+                    if(onBitti) onBitti();
+                } else {
+                    // Basarili
+                    $('#modal-view-event-add').modal('hide');
+                    swal({
+                        type:'success', title:'Başarılı', html: result.success || 'Randevu oluşturuldu.',
+                        showCloseButton:false, showConfirmButton:false, timer: result.timer || 2500
+                    });
+                    if($('#calendar').length && typeof takvimyukle === 'function') takvimyukle(false, false);
+                    try { resetForm && resetForm(); } catch(e){}
+                    if(basariCb) basariCb();
+                    if(onBitti) onBitti();
+                }
+            },
+            error: function(req){
+                $('#preloader').hide();
+                try { document.getElementById('hata').innerHTML = req.responseText; } catch(e){}
+                swal({ type:'error', title:'Hata', text:'Randevu oluşturulamadı. Lütfen tekrar deneyin.' });
+                if(onBitti) onBitti();
+            }
+        });
+    }
+
+    // Modali kapat, ardindan POST
+    try { $('#hizmetOdaAtamaModal').modal('hide'); } catch(e){}
+    _post(false);
 }
 
 // Oda atamasina gore hizmetleri forma yerlestir.
