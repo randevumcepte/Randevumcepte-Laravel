@@ -1801,8 +1801,11 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
             fd.append('randevucihazlariyeni[]', h._cihaz || '');
             fd.append('randevuodalariyeni[]', h._oda || '');
             fd.append('randevuhizmetleriyeni_'+key2+'[]', h.id);
+            // BACKWARD COMPAT: cakisan_randevu_kontrol $request->randevuhizmetleriyeni (flat) + $request->hizmet_suresi (flat) bekliyor
+            fd.append('randevuhizmetleriyeni[]', h.id);
             var sure = parseInt(h.sure || 0, 10) || 0;
             var fiyat = parseFloat(h.fiyat || 0) || 0;
+            fd.append('hizmet_suresi[]', sure);
             fd.append('hizmet_sureleri-'+h.id, sure);
             fd.append('hizmet_fiyatlari-'+h.id, fiyat);
             // Üstteki ile birleştir (paralel): backend "birlestir{key2}" anahtarini key2-1 ile birlikte degerlendirir
