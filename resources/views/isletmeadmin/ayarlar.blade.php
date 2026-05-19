@@ -45,6 +45,9 @@
                            >Çalışma Saatleri</a>
                      </li>
                      @endyetki
+                     {{-- Personeller tabi gecici olarak gizli. Personeller
+                          icin /isletmeyonetim/personel-yonetimi sayfasi var.
+                          Silmiyoruz; ileride yeniden acmak istenirse comment'i kaldir.
                      @yetki('personel.liste_gor')
                      <li class="nav-item">
                         <a
@@ -56,6 +59,7 @@
                            >Personeller</a>
                      </li>
                      @endyetki
+                     --}}
                      @yetki('ayar.cihaz_oda_yonet')
                       <li class="nav-item">
                         <a

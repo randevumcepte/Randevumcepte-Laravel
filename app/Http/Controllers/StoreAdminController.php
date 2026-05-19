@@ -2089,7 +2089,6 @@ public function carkverilerigetir(Request $request)
                     'hizmet.tanim_olustur',
                     'hizmet.kategori_yonet',
                     'satis.indirim_uygula',
-                    'personel.liste_gor', // ayarlar > personeller tab
                 ] as $key) {
                     if (\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, $key)) {
                         $herhangiYetki = true;
