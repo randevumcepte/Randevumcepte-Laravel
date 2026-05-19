@@ -1538,27 +1538,35 @@ let musteriPaketleri = [];
 function _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage){
     console.log('[PAKET] addServicesToForm cagrildi:', hizmetData);
     if(!hizmetData || !hizmetData.length){ console.warn('[PAKET] hizmetData bos'); return; }
-    // Onceki soft paket modalini TAMAMEN kapat ve DOM'dan kaldir, SONRA bizim
-    // modali en sona ekle (DOM yazim sirasi: parent < bizim modal → dogal stack).
+    // Onceki soft paket modalini kapat
     var $soft = $('#softPaketSecimModal');
     if($soft.length){
-        // hidden.bs.modal eventi geldikten sonra remove + show
         $soft.one('hidden.bs.modal', function(){
             $('#softPaketSecimModal').remove();
-            // Backdrop hala duruyorsa onu da temizle
             $('.modal-backdrop').filter(function(){ return !$('.modal.show, .modal.in').length || $(this).next('.modal.show, .modal.in').length === 0; }).remove();
-            showHizmetOdaAtamaModal(hizmetData);
+            _paketHizmetleriniAyriSatirlaraEkle(hizmetData);
         });
         $soft.modal('hide');
-        // Fallback: hidden eventi gelmezse 350ms sonra zorla devam et
         setTimeout(function(){
             if($('#softPaketSecimModal').length){
                 $('#softPaketSecimModal').remove();
-                showHizmetOdaAtamaModal(hizmetData);
+                _paketHizmetleriniAyriSatirlaraEkle(hizmetData);
             }
         }, 350);
     } else {
-        showHizmetOdaAtamaModal(hizmetData);
+        _paketHizmetleriniAyriSatirlaraEkle(hizmetData);
+    }
+}
+
+// Paketten gelen her hizmeti AYRI bir satira yerlestirir (oda atama popup'i acmadan).
+// _formaYerlestir bos odaAtama ile cagrilirsa zaten her hizmeti ayri satira koyar.
+function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
+    try {
+        _formaYerlestir(hizmetData, {}, function(){
+            try { updateRandevuOzeti(); } catch(e){}
+        });
+    } catch(err){
+        console.error('[PAKET] satira ekleme hatasi:', err);
     }
 }
 
