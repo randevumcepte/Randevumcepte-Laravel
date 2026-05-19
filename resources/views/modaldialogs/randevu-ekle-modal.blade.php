@@ -1639,10 +1639,12 @@ function _hizliPaketRandevuModalAc(hizmetData){
         cihaz:    (turu === 0 || turu === 2),
         oda:      (turu === 0 || turu === 3),
     };
-    var dropdownColClass = 'col-md-4';
-    var aktifSayi = 1 + (goster.cihaz ? 1 : 0) + (goster.oda ? 1 : 0);
-    if(aktifSayi === 1) dropdownColClass = 'col-md-12';
-    else if(aktifSayi === 2) dropdownColClass = 'col-md-6';
+    // Personel + (Oda?) + (Cihaz?) + Süre = aktif sutun sayisi
+    var aktifSayi = 1 + (goster.cihaz ? 1 : 0) + (goster.oda ? 1 : 0) + 1; // +1 for süre
+    var dropdownColClass = 'col-md-3';
+    if(aktifSayi === 2) dropdownColClass = 'col-md-6';
+    else if(aktifSayi === 3) dropdownColClass = 'col-md-4';
+    else if(aktifSayi === 4) dropdownColClass = 'col-md-3';
 
     // Satir kartlari uret
     var hizmetSatirlariHtml = hizmetData.map(function(item, i){
@@ -1657,7 +1659,8 @@ function _hizliPaketRandevuModalAc(hizmetData){
         var dropdowns = ''
             + '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Personel</label><select class="form-control form-control-sm hizli-personel" style="font-size:0.85rem;">'+_opt(personeller, basePersonel)+'</select></div>'
             + (goster.oda    ? '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Oda</label><select class="form-control form-control-sm hizli-oda" style="font-size:0.85rem;">'+_opt(odaSec, baseOda)+'</select></div>' : '')
-            + (goster.cihaz  ? '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Cihaz</label><select class="form-control form-control-sm hizli-cihaz" style="font-size:0.85rem;">'+_opt(cihazlar, baseCihaz)+'</select></div>' : '');
+            + (goster.cihaz  ? '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Cihaz</label><select class="form-control form-control-sm hizli-cihaz" style="font-size:0.85rem;">'+_opt(cihazlar, baseCihaz)+'</select></div>' : '')
+            + '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Süre (dk)</label><input type="number" min="0" step="5" value="'+sure+'" class="form-control form-control-sm hizli-sure" style="font-size:0.85rem;"></div>';
 
         // Ilk satir DISINDA "Ustteki ile birlestir" checkbox'i goster (paralel hizmet icin)
         var birlestirHtml = (i > 0)
@@ -1674,7 +1677,7 @@ function _hizliPaketRandevuModalAc(hizmetData){
         +   '<div class="card-body" style="padding:12px 14px;">'
         +     '<div class="d-flex justify-content-between align-items-center mb-2" style="border-bottom:1px solid #f3f4f6;padding-bottom:8px;">'
         +       '<div style="font-weight:700;color:#111827;font-size:0.92rem;">'+(i+1)+'. '+$('<div>').text(item.text).html()+paketRozet+'</div>'
-        +       '<small style="color:#6b7280;"><i class="fa fa-clock-o"></i> '+sure+' dk &nbsp; <i class="fa fa-money"></i> '+fiyat+' ₺</small>'
+        +       (fiyat > 0 ? '<small style="color:#6b7280;"><i class="fa fa-money"></i> '+fiyat+' ₺</small>' : '')
         +     '</div>'
         +     '<div class="row g-2">'+dropdowns+'</div>'
         +     birlestirHtml
@@ -1692,11 +1695,22 @@ function _hizliPaketRandevuModalAc(hizmetData){
     $('#paketHizli_baslikYazi').text(baslik);
     $('#paketHizli_satirlar').html(hizmetSatirlariHtml);
 
-    // Ozet
-    var toplamSure = hizmetData.reduce(function(s,h){ return s + (parseInt(h.sure||0,10)||0); }, 0);
-    $('#paketHizli_ozetSayi').text(hizmetData.length);
-    $('#paketHizli_ozetSure').text(toplamSure);
+    // Ozet (canli guncellenir)
+    function _ozetGuncelle(){
+        var t = 0;
+        $('#paketHizli_satirlar .paket-hizli-satir').each(function(){
+            var s = parseInt($(this).find('.hizli-sure').val(), 10);
+            if(!isNaN(s) && s >= 0) t += s;
+        });
+        $('#paketHizli_ozetSayi').text(hizmetData.length);
+        $('#paketHizli_ozetSure').text(t);
+    }
+    _ozetGuncelle();
     $('#paketHizli_ozet').show();
+    // Sure inputu degisince ozetı tazele
+    $(document).off('input.hizliSure').on('input.hizliSure', '#paketHizli_satirlar .hizli-sure', function(){
+        _ozetGuncelle();
+    });
 
     // Modali en sona tasi (z-index dogal stack), ac
     var $m = $('#paketHizliRandevuModal');
@@ -1714,14 +1728,16 @@ function _hizliPaketRandevuModalAc(hizmetData){
         if($btn.prop('disabled')) return;
         $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Oluşturuluyor...');
 
-        // Her satirin secimini + birlestir bayragini topla
+        // Her satirin secimini + birlestir bayragini + DUZENLENMIS sureyi topla
         var atamalar = [];
         $('#paketHizli_satirlar .paket-hizli-satir').each(function(idx){
             var $r = $(this);
+            var editedSure = parseInt($r.find('.hizli-sure').val(), 10);
+            if(isNaN(editedSure) || editedSure < 0) editedSure = parseInt($r.data('sure'),10) || 0;
             atamalar.push({
                 hizmetItemId: $r.data('hizmet-id'),
                 hizmetOrigId: $r.data('hizmet-orig-id'),
-                sure: parseInt($r.data('sure'),10) || 0,
+                sure: editedSure,
                 fiyat: parseFloat($r.data('fiyat')) || 0,
                 personel: $r.find('.hizli-personel').val() || '',
                 cihaz:    $r.find('.hizli-cihaz').val() || '',
