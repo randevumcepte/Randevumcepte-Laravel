@@ -10661,6 +10661,10 @@ $('#odabilgiduzenle').on('submit',function(e){
                         ? result.personeller.map(function(p){ return String(p.id); })
                         : [];
                     $('#oda_personeli').val(personelIds).trigger('change');
+                    var hizmetIds = Array.isArray(result.hizmet_idler)
+                        ? result.hizmet_idler.map(function(h){ return String(h); })
+                        : [];
+                    $('#oda_hizmetleri').val(hizmetIds).trigger('change');
                     $('#duzenlenecek_oda_id').val(result.id);
                     $('#oda_duzenle_modal2').modal();
                 },
