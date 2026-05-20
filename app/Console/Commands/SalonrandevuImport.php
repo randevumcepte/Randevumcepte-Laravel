@@ -19,6 +19,7 @@ class SalonrandevuImport extends Command
         {--to= : Tarih araligi bitis YYYY-MM-DD (default 2030-12-31)}
         {--proxy= : http://user:pass@host:port}
         {--reset-salonrandevu : [salonrandevu:RefId] markerli randevu+adisyon+kalemleri sil}
+        {--reset-all : Salonun TUM islem verisini sil (randevu+adisyon+tahsilat+masraf) - marker aramaz, salon salonrandevu\'ya ait ise}
         {--dry-run : Reset oncesi sayim}';
 
     protected $description = 'app.salonrandevu.com hesabindan veri cekip randevumcepte\'ye aktarir (Asama 1: kesif).';
@@ -36,9 +37,10 @@ class SalonrandevuImport extends Command
         $inspect  = (bool) $this->option('inspect');
         $only     = $this->option('only');
         $reset    = (bool) $this->option('reset-salonrandevu');
+        $resetAll = (bool) $this->option('reset-all');
 
-        if (!$analyze && !$reset && (!$email || !$password)) {
-            $this->error('--email ve --password zorunlu (veya --analyze / --reset-salonrandevu verin).');
+        if (!$analyze && !$reset && !$resetAll && (!$email || !$password)) {
+            $this->error('--email ve --password zorunlu (veya --analyze / --reset-salonrandevu / --reset-all verin).');
             return 1;
         }
         if (!$analyze && !$probe && !$inspect && !$salonId) {
@@ -71,8 +73,11 @@ class SalonrandevuImport extends Command
             return 0;
         }
 
-        if ($reset) {
+        if ($reset || (bool) $this->option('reset-all')) {
             if (!$salonId) { $this->error('--reset-salonrandevu icin --salon zorunlu.'); return 1; }
+            if ((bool) $this->option('reset-all')) {
+                return $this->resetAll((int) $salonId, (bool) $this->option('dry-run'));
+            }
             return $this->resetSalonrandevu((int) $salonId, (bool) $this->option('dry-run'));
         }
 
@@ -122,6 +127,47 @@ class SalonrandevuImport extends Command
         }
 
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+        return 0;
+    }
+
+    /**
+     * Salonun TUM islem verisini siler (marker aramaz).
+     * Sadece salon tamamen bu kaynaktan besleniyorsa kullanilmali.
+     * Katalog (personel/hizmet/urun/musteri) DOKUNULMAZ - importer trKey/telefon
+     * ile zaten dedup eder.
+     */
+    private function resetAll($salonId, $dryRun)
+    {
+        $this->warn("Salon {$salonId}: TUM islem verisi silinecek (randevu+adisyon+tahsilat+masraf).");
+        $rIds = \DB::table('randevular')->where('salon_id', $salonId)->pluck('id');
+        $aIds = \DB::table('adisyonlar')->where('salon_id', $salonId)->pluck('id');
+        $tCnt = \DB::table('tahsilatlar')->where('salon_id', $salonId)->count();
+        $mCnt = \DB::table('masraflar')->where('salon_id', $salonId)->count();
+        $this->line("randevu={$rIds->count()} adisyon={$aIds->count()} tahsilat={$tCnt} masraf={$mCnt}");
+        if ($dryRun) { $this->warn('DRY-RUN - silme yapilmadi.'); return 0; }
+
+        // Adisyon alt kayitlari
+        foreach (array_chunk($aIds->all(), 1000) as $ck) {
+            $ahIds = \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $ck)->pluck('id');
+            foreach (array_chunk($ahIds->all(), 1000) as $ahCk) {
+                \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ahCk)->delete();
+            }
+            \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $ck)->delete();
+            \DB::table('adisyon_urunler')->whereIn('adisyon_id', $ck)->delete();
+        }
+        // Tahsilat
+        \DB::table('tahsilatlar')->where('salon_id', $salonId)->delete();
+        // Adisyon
+        \DB::table('adisyonlar')->where('salon_id', $salonId)->delete();
+        // Randevu alt + randevu
+        foreach (array_chunk($rIds->all(), 1000) as $ck) {
+            \DB::table('randevu_hizmetler')->whereIn('randevu_id', $ck)->delete();
+        }
+        \DB::table('randevular')->where('salon_id', $salonId)->delete();
+        // Masraf
+        \DB::table('masraflar')->where('salon_id', $salonId)->delete();
+
+        $this->info('reset-all tamam. Katalog (personel/hizmet/urun/musteri) korundu.');
         return 0;
     }
 
