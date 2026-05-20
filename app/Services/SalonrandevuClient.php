@@ -193,45 +193,86 @@ class SalonrandevuClient
     }
 
     /**
-     * Login + kesfedilen endpoint'leri dene.
+     * Login + kesfedilen /company/* endpoint'leri dene.
+     * Her endpoint once GET, 404/405 ise POST denenir.
      */
     public function probe()
     {
         $endpoints = [
-            'GET /customers'           => ['GET', '/customers'],
-            'GET /services'            => ['GET', '/services'],
-            'GET /staff'               => ['GET', '/staff'],
-            'GET /products'            => ['GET', '/products'],
-            'GET /expense'             => ['GET', '/expense'],
-            'GET /expense/types'       => ['GET', '/expense/types'],
-            'GET /packages/list'       => ['GET', '/packages/list'],
-            'GET /packages/sales'      => ['GET', '/packages/sales'],
-            'GET /appointments/list'   => ['GET', '/appointments/list'],
+            '/company/itself',
+            '/company/customers',
+            '/company/customers?page=1',
+            '/company/services',
+            '/company/services/filter?key=&paginate=1',
+            '/company/services/with/category/all',
+            '/company/category/all',
+            '/company/staffs/unsafe',
+            '/company/appointment/list',
+            '/company/appointments',
+            '/company/appointments/index2',
+            '/company/packets?name=&page=-1',
+            '/company/stock/items/notpag',
+            '/company/accounting/expenses',
+            '/company/expense/categories',
+            '/company/accounting/incomes',
+            '/company/receipts/opened',
+            '/company/room',
+            '/company/hours',
         ];
         $out = [];
-        foreach ($endpoints as $label => $def) {
-            list($method, $path) = $def;
-            $r = $this->http->request($method, self::BASE_API . $path, ['headers' => $this->headers()]);
-            $status = $r->getStatusCode();
-            $body = (string) $r->getBody();
-            $safe = str_replace(['/', ' '], '_', trim($label));
-            $this->dump("probe_{$safe}.body", "STATUS={$status}\n" . substr($body, 0, 4000));
-            // Yapi ozeti
-            $struct = '';
-            if ($status === 200 || $status === 201) {
-                $j = json_decode($body, true);
-                if (is_array($j)) {
-                    $keys = array_slice(array_keys($j), 0, 6);
-                    $struct = ' keys=[' . implode(',', $keys) . ']';
-                    foreach (['data', 'list', 'records', 'items'] as $dk) {
-                        if (isset($j[$dk]) && is_array($j[$dk])) {
-                            $struct .= " {$dk}=array(" . count($j[$dk]) . ')';
+        foreach ($endpoints as $path) {
+            $resInfo = $this->probeOne('GET', $path);
+            // GET 404/405 ise POST dene
+            if (in_array($resInfo['status'], [404, 405])) {
+                $postInfo = $this->probeOne('POST', $path);
+                if ($postInfo['status'] === 200 || $postInfo['status'] === 201) {
+                    $out['POST ' . $path] = $postInfo['line'];
+                    continue;
+                }
+            }
+            $out['GET ' . $path] = $resInfo['line'];
+        }
+        return $out;
+    }
+
+    private function probeOne($method, $path)
+    {
+        $opts = ['headers' => $this->headers()];
+        if ($method === 'POST') {
+            $opts['headers']['Content-Type'] = 'application/json';
+            $opts['json'] = [];
+        }
+        $r = $this->http->request($method, self::BASE_API . $path, $opts);
+        $status = $r->getStatusCode();
+        $body = (string) $r->getBody();
+        $safe = $method . '_' . str_replace(['/', '?', '=', '&', ' '], '_', trim($path, '/'));
+        $this->dump("probe_{$safe}.body", "STATUS={$status}\n" . substr($body, 0, 6000));
+
+        $struct = '';
+        if ($status === 200 || $status === 201) {
+            $j = json_decode($body, true);
+            if (is_array($j)) {
+                $struct = ' keys=[' . implode(',', array_slice(array_keys($j), 0, 6)) . ']';
+                // data icindeki yapiyi ozetle
+                $d = $j['data'] ?? $j;
+                if (is_array($d)) {
+                    foreach (['records', 'list', 'items', 'data', 'rows'] as $dk) {
+                        if (isset($d[$dk]) && is_array($d[$dk])) {
+                            $struct .= " data.{$dk}=array(" . count($d[$dk]) . ')';
+                            if (!empty($d[$dk][0]) && is_array($d[$dk][0])) {
+                                $struct .= ' fields=[' . implode(',', array_slice(array_keys($d[$dk][0]), 0, 12)) . ']';
+                            }
                         }
+                    }
+                    if (isset($d[0]) && is_array($d[0])) {
+                        $struct .= ' data=array(' . count($d) . ') fields=[' . implode(',', array_slice(array_keys($d[0]), 0, 12)) . ']';
                     }
                 }
             }
-            $out[$label] = "status={$status} size=" . strlen($body) . $struct;
         }
-        return $out;
+        return [
+            'status' => $status,
+            'line'   => "status={$status} size=" . strlen($body) . $struct,
+        ];
     }
 }
