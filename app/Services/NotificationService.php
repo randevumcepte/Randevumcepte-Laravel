@@ -303,7 +303,8 @@ class NotificationService
             ],
             'payload' => [
                 'aps' => array_filter([
-                    'sound'             => 'default',
+                    // iOS: ios/Runner/ring.caf bundle'da. Uzantili yazilir.
+                    'sound'             => 'ring.caf',
                     'mutable-content'   => $this->imageUrl ? 1 : null,
                     'content-available' => 1,
                 ], function ($v) { return $v !== null; }),
@@ -351,7 +352,9 @@ class NotificationService
                     'notification' => array_filter([
                         'channel_id' => $this->androidChannel(),
                         'image'      => $this->imageUrl,
-                        'sound'      => 'default',
+                        // Android: res/raw/ring.mp3 -> uzantisiz 'ring'.
+                        // Android 8+ kanal sesini kullanir; bu alan eski surumler icin.
+                        'sound'      => 'ring',
                     ]),
                 ],
                 'apns' => $apns,
@@ -376,9 +379,12 @@ class NotificationService
 
     private function androidChannel(): string
     {
-        if (NotificationTypes::isPopup($this->type))         return 'rmc_promo';
-        if (NotificationTypes::isHighPriority($this->type))  return 'rmc_important';
-        return 'rmc_default';
+        // _v2: ring.mp3 custom sesi eklendiginde kanal ID'leri bump'landi.
+        // Android'de bir kanalin sesi sonradan degistirilemedigi icin
+        // uygulama tarafinda da yeni ID'lerle (rmc_*_v2) kanal olusturuluyor.
+        if (NotificationTypes::isPopup($this->type))         return 'rmc_promo_v2';
+        if (NotificationTypes::isHighPriority($this->type))  return 'rmc_important_v2';
+        return 'rmc_default_v2';
     }
 
     private function logToDb(?string $deepLink): void

@@ -131,7 +131,7 @@ class BildirimController extends Controller
                 ],
                 'payload' => [
                     'aps' => [
-                        'sound' => 'ring.mp3',
+                        'sound' => 'ring.caf', // iOS bundle: ios/Runner/ring.caf
                         'badge' => 1,
                         'category' => $data['category'] ?? ''
                     ]
