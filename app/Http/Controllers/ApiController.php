@@ -11322,6 +11322,9 @@ public function cdrRaporLatest(Request $request)
                 $randevu->olusturan_personel_id = $olusturan_personel_id ?? $request->olusturan;
                 $randevu->save();
 
+                // Takvim odaya gore ise (randevu_takvim_turu == 3) oda secimi randevuya islensin
+                $_takvimTuru = Salonlar::where("id", $request->salonid)->value("randevu_takvim_turu");
+
                 // Hizmetleri kaydet
                 if (!empty($hizmetler) && is_array($hizmetler)) {
                     foreach ($hizmetler as $hizmetData) {
@@ -11330,12 +11333,15 @@ public function cdrRaporLatest(Request $request)
                         $ongorusmehizmeti->personel_id = $hizmetData['personel_id'] ?? $request->gorusmeyi_yapan;
                         $ongorusmehizmeti->saat = $hizmetData['saat'] ?? $request->randevu_saati;
                         $ongorusmehizmeti->sure_dk = $hizmetData['sure_dk'] ?? 60;
-                        
+
                         $baslangicSaati = $hizmetData['saat'] ?? $request->randevu_saati;
                         $sureDakika = $hizmetData['sure_dk'] ?? 60;
                         $ongorusmehizmeti->saat_bitis = date("H:i:s", strtotime("+{$sureDakika} minutes", strtotime($baslangicSaati)));
-                        
+
                         $ongorusmehizmeti->randevu_id = $randevu->id;
+                        if ($_takvimTuru == 3 && !empty($hizmetData['oda_id'])) {
+                            $ongorusmehizmeti->oda_id = $hizmetData['oda_id'];
+                        }
                         $ongorusmehizmeti->save();
                     }
                 } else {
