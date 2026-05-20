@@ -235,6 +235,47 @@ class SalonrandevuClient
         return $out;
     }
 
+    /**
+     * Belirli endpoint'leri cek, ilk kaydin TAM yapisini dondur (importer tasarimi icin).
+     */
+    public function inspect()
+    {
+        $targets = [
+            'itself'        => '/company/itself',
+            'customer'      => '/company/customers',
+            'service'       => '/company/services/filter?key=&paginate=1',
+            'staff'         => '/company/staffs/unsafe',
+            'appointment'   => '/company/appointment/list',
+            'packet'        => '/company/packets?name=&page=-1',
+            'stock'         => '/company/stock/items/notpag',
+            'receipt_open'  => '/company/receipts/opened',
+            'expense_cat'   => '/company/expense/categories',
+        ];
+        $out = [];
+        foreach ($targets as $key => $path) {
+            $r = $this->http->get(self::BASE_API . $path, ['headers' => $this->headers()]);
+            $body = (string) $r->getBody();
+            $j = json_decode($body, true);
+            $this->dump("inspect_{$key}.json", $body);
+            $d = $j['data'] ?? $j;
+            $first = null; $count = 0; $meta = [];
+            if (is_array($d)) {
+                if (isset($d['records']) && is_array($d['records'])) {
+                    $count = count($d['records']);
+                    $first = $d['records'][0] ?? null;
+                    $meta = array_diff_key($d, ['records' => 1]);
+                } elseif (isset($d[0])) {
+                    $count = count($d);
+                    $first = $d[0];
+                } else {
+                    $first = $d; // tek obje (itself gibi)
+                }
+            }
+            $out[$key] = ['path' => $path, 'count' => $count, 'meta' => $meta, 'first' => $first];
+        }
+        return $out;
+    }
+
     private function probeOne($method, $path)
     {
         $opts = ['headers' => $this->headers()];

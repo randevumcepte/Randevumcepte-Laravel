@@ -13,6 +13,7 @@ class SalonrandevuImport extends Command
         {--salon= : Hedef salon_id (randevumcepte)}
         {--analyze : Anasayfa + JS bundle analizi (login gerekmez)}
         {--probe : Login + yaygin endpoint kesfi}
+        {--inspect : Login + her endpoint ilk kaydin tam yapisini bas}
         {--only= : virgulle: musteri,hizmet,personel,randevu,tahsilat,paket,urun,gider}
         {--from= : Tarih araligi baslangic YYYY-MM-DD (default 2020-01-01)}
         {--to= : Tarih araligi bitis YYYY-MM-DD (default 2030-12-31)}
@@ -32,6 +33,7 @@ class SalonrandevuImport extends Command
         $salonId  = $this->option('salon');
         $analyze  = (bool) $this->option('analyze');
         $probe    = (bool) $this->option('probe');
+        $inspect  = (bool) $this->option('inspect');
         $only     = $this->option('only');
         $reset    = (bool) $this->option('reset-salonrandevu');
 
@@ -39,8 +41,8 @@ class SalonrandevuImport extends Command
             $this->error('--email ve --password zorunlu (veya --analyze / --reset-salonrandevu verin).');
             return 1;
         }
-        if (!$analyze && !$probe && !$salonId) {
-            $this->error('Import icin --salon zorunlu. Kesif icin --analyze veya --probe kullanin.');
+        if (!$analyze && !$probe && !$inspect && !$salonId) {
+            $this->error('Import icin --salon zorunlu. Kesif icin --analyze / --probe / --inspect kullanin.');
             return 1;
         }
 
@@ -79,6 +81,19 @@ class SalonrandevuImport extends Command
         $this->line('Login sonuc: ' . ($login['ok'] ? 'OK' : 'FAIL') . ' - ' . $login['method']);
         $this->line('Detay: ' . $login['detail']);
         if (!$login['ok']) { $this->error('Login basarisiz. Dump dizinini inceleyin: ' . $client->dumpDir()); return 2; }
+
+        if ($inspect) {
+            $this->info('Inspect modu: her endpoint ilk kaydin tam yapisi...');
+            $res = $client->inspect();
+            foreach ($res as $key => $info) {
+                $this->line('');
+                $this->line('======== ' . strtoupper($key) . '  (' . $info['path'] . ')  count=' . $info['count'] . ' ========');
+                if (!empty($info['meta'])) $this->line('META: ' . json_encode($info['meta'], JSON_UNESCAPED_UNICODE));
+                $this->line(json_encode($info['first'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            }
+            $this->info('Tam JSON dump: ' . $client->dumpDir() . '/inspect_*.json');
+            return 0;
+        }
 
         if ($probe) {
             $this->info('Probe modu: yaygin endpoint\'ler taraniyor...');
