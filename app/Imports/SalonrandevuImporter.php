@@ -309,17 +309,27 @@ class SalonrandevuImporter
         $this->log('Musteriler cekiliyor (/company/customers)...');
         $apiController = app(\App\Http\Controllers\ApiController::class);
 
-        // paginate=1 ile hepsi tek seferde gelebilir; degilse sayfa sayfa
+        // /company/customers?extra=1&page=N : her sayfa data.records, meta'da
+        // total_record var (next_page YOK). total_record'a ulasinca dur.
         $rows = [];
-        $j = $this->client->get('/company/customers?paginate=1');
-        if ($j && isset($j['data'])) {
-            $d = $j['data'];
-            if (isset($d['records']) && is_array($d['records'])) $rows = $d['records'];
-            elseif (isset($d[0])) $rows = $d;
-        }
-        if (count($rows) <= 250) {
-            // paginate=1 ise yine kucukse sayfalama dene
-            $rows = $this->fetchAllPaged('/company/customers', 'records', 'page', 1);
+        $total = null;
+        $page = 1;
+        while ($page <= 50000) {
+            $j = $this->client->get('/company/customers?extra=1&page=' . $page);
+            if (!$j) break;
+            $d = $j['data'] ?? [];
+            $recs = isset($d['records']) && is_array($d['records']) ? $d['records']
+                  : (isset($d[0]) ? $d : []);
+            if (empty($recs)) break;
+            $rows = array_merge($rows, $recs);
+            if ($total === null) {
+                $total = $d['total_record'] ?? $d['total_records'] ?? null;
+                $this->log('  total_record=' . ($total ?? '?') . ' sayfa_boyutu=' . count($recs));
+            }
+            if ($total !== null && count($rows) >= (int) $total) break;
+            if (count($recs) < 2) break; // guard
+            $page++;
+            if ($page % 100 === 0) $this->log('  ..musteri sayfa ' . $page . ' (' . count($rows) . ')');
         }
         $this->log('  Toplam musteri kaydi: ' . count($rows));
 
