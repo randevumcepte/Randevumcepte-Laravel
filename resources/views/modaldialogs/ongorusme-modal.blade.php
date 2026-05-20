@@ -114,6 +114,12 @@
    }
    $_currentPersonelId = $_currentPersonel ? $_currentPersonel->id : null;
    $_currentPersonelAdi = $_currentPersonel ? $_currentPersonel->personel_adi : null;
+
+   // Takvim odaya gore ise (randevu_takvim_turu == 3) on gorusmede de oda secilebilsin
+   $_odaTakvim = ($isletme->randevu_takvim_turu ?? 0) == 3;
+   $_odalar = $_odaTakvim
+      ? \App\Odalar::where('salon_id',$isletme->id)->where('aktifmi',1)->where('durum',1)->orderBy('oda_adi','asc')->get()
+      : collect();
 @endphp
 
 <div id="ongorusme-modal" class="modal fade" tabindex="-1">
@@ -219,7 +225,7 @@
                <div class="og-section">
                   <div class="og-section__title"><i class="fa fa-calendar-alt"></i> Tarih & Personel</div>
                   <div class="row">
-                     <div class="col-md-4">
+                     <div class="{{ $_odaTakvim ? 'col-md-3' : 'col-md-4' }}">
                         <div class="form-group">
                            <label>Tarih <span style="color:#dc2626">*</span></label>
                            <input type="text" required name="ongorusme_tarihi" id="ongorusme_tarihi" class="form-control date-picker" value="" placeholder="GG-AA-YYYY" autocomplete="off">
@@ -236,7 +242,20 @@
                            </select>
                         </div>
                      </div>
-                     <div class="col-md-5">
+                     @if($_odaTakvim)
+                     <div class="col-md-3">
+                        <div class="form-group">
+                           <label>Oda <span style="color:#dc2626">*</span></label>
+                           <select required name="oda_id" id="ongorusme_oda_id" class="form-control">
+                              <option value="">Seçiniz</option>
+                              @foreach($_odalar as $_oda)
+                                 <option value="{{$_oda->id}}">{{$_oda->oda_adi}}</option>
+                              @endforeach
+                           </select>
+                        </div>
+                     </div>
+                     @endif
+                     <div class="{{ $_odaTakvim ? 'col-md-3' : 'col-md-5' }}">
                         <div class="form-group">
                            <label>Görüşmeyi Yapan <span style="color:#dc2626">*</span></label>
                            <select required name="gorusmeyi_yapan" id="gorusmeyi_yapan" class="form-control custom-select2 opsiyonelSelect personel_secimi" style="width:100%">

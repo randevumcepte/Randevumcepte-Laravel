@@ -12240,6 +12240,11 @@ DB::raw('
         $ongorusmehizmeti->saat_bitis = date('H:i:s',strtotime('+1 hours',strtotime($request->ongorusme_saati)));
         $ongorusmehizmeti->sure_dk = 60; // Calendar query "sure_dk > 0" filtresi icin
         $ongorusmehizmeti->randevu_id = $randevu->id;
+        // Takvim odaya gore ise (randevu_takvim_turu == 3) secilen oda randevuya islensin
+        $_takvimTuru = Salonlar::where('id',$request->sube)->value('randevu_takvim_turu');
+        if($_takvimTuru == 3 && !empty($request->oda_id)){
+            $ongorusmehizmeti->oda_id = $request->oda_id;
+        }
         $ongorusmehizmeti->save();
         $gsm = $user->cep_telefon;
                 if(SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$ongorusme->salon_id)->value('musteri')==1)
@@ -12297,10 +12302,12 @@ DB::raw('
                 ->leftJoin('paketler','on_gorusmeler.paket_id','=','paketler.id')
                 ->leftJoin('urunler','on_gorusmeler.urun_id','=','urunler.id')
                 ->leftJoin('hizmetler','on_gorusmeler.hizmet_id','=','hizmetler.id')
+                ->leftJoin('randevu_hizmetler','randevu_hizmetler.randevu_id','=','randevular.id')
                 ->select(
                     'on_gorusmeler.*',
                     'randevular.tarih as tarih',
                     'randevular.saat as saat',
+                    'randevu_hizmetler.oda_id as oda_id',
                     'paketler.paket_adi as paket_adi',
                     'urunler.urun_adi as urun_adi',
                     'hizmetler.hizmet_adi as hizmet_adi'

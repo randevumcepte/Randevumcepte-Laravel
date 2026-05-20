@@ -7611,7 +7611,13 @@ $(document).on('submit','#ongorusmeformu',function(e){
         gorusmeyapansecili = false;
         warningtext += "- Ön görüşmeyi gerçekleştirecek personeli seçiniz.<br>";
     }
-    if(gorusmeyapansecili == false || paketurunsecili == false)
+    var odasecili = true;
+    if($('#ongorusmeformu select[name="oda_id"]').length && $('#ongorusmeformu select[name="oda_id"]').val()=="")
+    {
+        odasecili = false;
+        warningtext += "- Oda seçiniz.<br>";
+    }
+    if(gorusmeyapansecili == false || paketurunsecili == false || odasecili == false)
     {
             swal(
                             {
@@ -7657,6 +7663,7 @@ $(document).on('submit','#ongorusmeformu',function(e){
             $('#musteri_select_list').val('0').trigger('change.select2');
             $('#paket').val('');
             $('#gorusmeyi_yapan').val('0').trigger('change.select2');
+            $('#ongorusme_oda_id').val('');
             if($('#on_gorusme_liste').length){
                 $('#on_gorusme_liste').DataTable().destroy();
                 $('#on_gorusme_liste').DataTable({
@@ -7760,6 +7767,7 @@ $(document).on('click','a[name="ongorusme_duzenle"]',function(e){
                 $('#musteri_tipi').val(result.musteri_tipi);
                 $('#ongorusme_tarihi').val(result.tarih);
                 $('#ongorusme_saati').val(result.saat);
+                $('#ongorusme_oda_id').val(result.oda_id);
                 // Paket / Urun / Hizmet select2'ye yukle
                 if(result.paket_id != null){
                     $('select[name="paket_urun"]').val(result.paket_id);
@@ -8169,6 +8177,7 @@ $(document).on('click','a[name="hizmet_satis_yapildi"]',function(e){
 $('#yeni_on_gorusme_ekle').click(function(){
     $('#hatirlatma_yeni_ekleme').attr('style','display:block');
     $('#hatirlatma_tarihi_guncelleme').attr('style','display:none');
+    $('#ongorusme_oda_id').val('');
 });
 $('#secilenlere_sms_gonder').click(function(e){
     e.preventDefault();
