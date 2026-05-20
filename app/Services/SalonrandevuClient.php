@@ -127,11 +127,15 @@ class SalonrandevuClient
 
     /**
      * GET istek. Sayfalama destekli.
+     * NOT: Guzzle'a bos 'query' option gecilirse URL'deki mevcut query string
+     * silinir. Bu yuzden query sadece dolu ise eklenir.
      */
     public function get($path, $query = [])
     {
         $url = self::BASE_API . $path;
-        $r = $this->http->get($url, ['headers' => $this->headers(), 'query' => $query]);
+        $opts = ['headers' => $this->headers()];
+        if (!empty($query)) $opts['query'] = $query;
+        $r = $this->http->get($url, $opts);
         $status = $r->getStatusCode();
         $body = (string) $r->getBody();
         $safe = str_replace('/', '_', trim($path, '/'));
