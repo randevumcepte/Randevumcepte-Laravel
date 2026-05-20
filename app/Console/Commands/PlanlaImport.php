@@ -172,6 +172,19 @@ class PlanlaImport extends Command
                 }
             }
             $this->line("adisyon_hizmetler: 15dk alti sure = {$ahEtkilenen}" . ($dryRun ? '' : ' -> 15 yapildi'));
+
+            // salon_sunulan_hizmetler: KOK kaynak. Bunu duzeltmezsek re-import
+            // randevu_hizmetler.sure_dk'yi tekrar 1'e ceker.
+            $shQuery = \DB::table('salon_sunulan_hizmetler')
+                ->where('salon_id', $salonId)
+                ->where('sure_dk', '>', 0)->where('sure_dk', '<', 15);
+            if ($dryRun) {
+                $shEtkilenen = $shQuery->count();
+            } else {
+                $shEtkilenen = $shQuery->update(['sure_dk' => 15]);
+            }
+            $this->line("salon_sunulan_hizmetler: 15dk alti sure_dk = {$shEtkilenen}" . ($dryRun ? '' : ' -> 15 yapildi (re-import guvenli)'));
+
             $this->info($dryRun ? 'DRY-RUN bitti, yazma yapilmadi.' : 'Sure duzeltme tamam.');
             return 0;
         }
