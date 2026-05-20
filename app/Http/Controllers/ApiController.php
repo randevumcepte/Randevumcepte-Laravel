@@ -225,14 +225,27 @@ class ApiController extends Controller
 
     public function salonAyarlariByBundle(Request $request)
     {
-        $isletme = Salonlar::where('app_bundle', $request->appBundle)->first();
+        $gelenBundle = trim((string) $request->appBundle);
+        $isletme = Salonlar::where('app_bundle', $gelenBundle)->first();
         if (!$isletme) {
             return array(
                 'musteri_online_randevu_aktif' => 0,
+                'debug' => array(
+                    'gelen_bundle'  => $gelenBundle,
+                    'eslesen_salon' => null,
+                    'not'           => 'app_bundle ile eslesen salon bulunamadi',
+                ),
             );
         }
         return array(
             'musteri_online_randevu_aktif' => (int) ($isletme->musteri_online_randevu_aktif ?? 0),
+            'debug' => array(
+                'gelen_bundle'   => $gelenBundle,
+                'eslesen_salon'  => $isletme->id,
+                'salon_adi'      => $isletme->salon_adi,
+                'salon_app_bundle' => $isletme->app_bundle,
+                'ham_deger'      => $isletme->musteri_online_randevu_aktif,
+            ),
         );
     }
 
@@ -1384,7 +1397,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $q->where('tarih','<=',$tarih2);
             $q->where('salon_id',$isletmeId);
 
-        })->where(function($q) use($personelRolu,$request){
+        })
+        // Iptal edilen hizmetler takvimde gosterilmesin (web ile ayni davranis).
+        // Paket randevulari iptal edilince randevu.durum=1 kalabiliyor ama
+        // randevu_hizmetler.iptal=1 oluyor; bu filtre onlari da gizler.
+        ->where(function($q){
+            $q->whereNull('iptal')->orWhere('iptal','!=',1);
+        })
+        ->where(function($q) use($personelRolu,$request){
                 if($personelRolu == 5)
                     $q->where('personel_id',$request->personel_id);
         })->get();
