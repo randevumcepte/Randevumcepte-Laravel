@@ -19,6 +19,8 @@ class PlanlaImport extends Command
         {--diagnose : Salon randevularinda portfoye bagli olmayan kullanici atamalarini listele}
         {--fix-olusturan : Gecerli personele bagli olmayan olusturan_personel_id degerlerini salonun default personeline ayarla}
         {--backfill-personel-oda : Salon personellerine birebir oda olustur, mevcut randevu_hizmetler.oda_id NULL olanlari personel adi ile esleyen oda\'ya bagla}
+        {--fix-sure-dk : Salon randevu_hizmetler/adisyon_hizmetler icinde 15dk altindaki sureleri 15\'e cek, saat_bitis yeniden hesapla}
+        {--dry-run : fix-sure-dk vb. islemlerde sadece sayim, yazma}
         {--only= : Sadece bu tip(ler)i al (virgulle: musteri,hizmet,randevu)}';
 
     protected $description = 'Planla.co hesabindan musteri/hizmet/randevu verisini cekip randevumcepte DB sine aktarir.';
@@ -37,19 +39,20 @@ class PlanlaImport extends Command
         $diagnose = (bool) $this->option('diagnose');
         $fixOlusturan = (bool) $this->option('fix-olusturan');
         $backfillOda  = (bool) $this->option('backfill-personel-oda');
+        $fixSure      = (bool) $this->option('fix-sure-dk');
         $analyze  = (bool) $this->option('analyze');
         $only     = $this->option('only');
 
-        if (!$analyze && !$diagnose && !$fixOlusturan && !$backfillOda && (!$email || !$password)) {
+        if (!$analyze && !$diagnose && !$fixOlusturan && !$backfillOda && !$fixSure && (!$email || !$password)) {
             $this->error('--email ve --password zorunlu.');
             return 1;
         }
-        if (!$probe && !$probeApi && !$dupes && !$diagnose && !$fixOlusturan && !$backfillOda && !$analyze && !$salonId) {
+        if (!$probe && !$probeApi && !$dupes && !$diagnose && !$fixOlusturan && !$backfillOda && !$fixSure && !$analyze && !$salonId) {
             $this->error('Import icin --salon zorunlu.');
             return 1;
         }
-        if (($diagnose || $fixOlusturan || $backfillOda) && !$salonId) {
-            $this->error('--diagnose / --fix-olusturan / --backfill-personel-oda icin --salon zorunlu.');
+        if (($diagnose || $fixOlusturan || $backfillOda || $fixSure) && !$salonId) {
+            $this->error('--diagnose / --fix-olusturan / --backfill-personel-oda / --fix-sure-dk icin --salon zorunlu.');
             return 1;
         }
 
@@ -125,6 +128,51 @@ class PlanlaImport extends Command
                     ->update(['olusturan_personel_id' => null, 'salon' => 0]);
                 $this->info('Guncellendi: olusturan_personel_id=NULL, salon=0');
             }
+            return 0;
+        }
+
+        if ($fixSure) {
+            $dryRun = (bool) $this->option('dry-run');
+            $this->info("Salon {$salonId}: 15dk altindaki randevu sureleri 15'e cekiliyor" . ($dryRun ? ' (DRY-RUN)' : '') . '...');
+            $rIds = \DB::table('randevular')->where('salon_id', $salonId)->pluck('id');
+            $this->line('Salon randevu sayisi: ' . $rIds->count());
+
+            // randevu_hizmetler: 1..14 dk olanlar
+            $rhEtkilenen = 0; $rhBitisGuncel = 0;
+            foreach (array_chunk($rIds->all(), 1000) as $chunk) {
+                $rows = \DB::table('randevu_hizmetler')
+                    ->whereIn('randevu_id', $chunk)
+                    ->where('sure_dk', '>', 0)->where('sure_dk', '<', 15)
+                    ->select('id', 'saat', 'saat_bitis')->get();
+                foreach ($rows as $rh) {
+                    $rhEtkilenen++;
+                    if ($dryRun) continue;
+                    $upd = ['sure_dk' => 15];
+                    if (!empty($rh->saat)) {
+                        $upd['saat_bitis'] = date('H:i:s', strtotime('+15 minutes', strtotime($rh->saat)));
+                        $rhBitisGuncel++;
+                    }
+                    \DB::table('randevu_hizmetler')->where('id', $rh->id)->update($upd);
+                }
+            }
+            $this->line("randevu_hizmetler: 15dk alti = {$rhEtkilenen}" . ($dryRun ? '' : " -> guncellendi (saat_bitis: {$rhBitisGuncel})"));
+
+            // adisyon_hizmetler: ayni randevulara bagli, sure 1..14
+            $ahEtkilenen = 0;
+            foreach (array_chunk($rIds->all(), 1000) as $chunk) {
+                if ($dryRun) {
+                    $ahEtkilenen += \DB::table('adisyon_hizmetler')
+                        ->whereIn('randevu_id', $chunk)
+                        ->where('sure', '>', 0)->where('sure', '<', 15)->count();
+                } else {
+                    $ahEtkilenen += \DB::table('adisyon_hizmetler')
+                        ->whereIn('randevu_id', $chunk)
+                        ->where('sure', '>', 0)->where('sure', '<', 15)
+                        ->update(['sure' => 15]);
+                }
+            }
+            $this->line("adisyon_hizmetler: 15dk alti sure = {$ahEtkilenen}" . ($dryRun ? '' : ' -> 15 yapildi'));
+            $this->info($dryRun ? 'DRY-RUN bitti, yazma yapilmadi.' : 'Sure duzeltme tamam.');
             return 0;
         }
 
