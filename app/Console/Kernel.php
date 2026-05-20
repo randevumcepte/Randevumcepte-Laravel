@@ -28,6 +28,7 @@ class Kernel extends ConsoleKernel
         Commands\PlanlaImport::class,
         Commands\DrklinikImport::class,
         Commands\SalonappyImport::class,
+        Commands\SalonrandevuImport::class,
         Commands\CarkHatirlatmaGonder::class,
         Commands\AnketOtomatikGonder::class,
         Commands\WhatsappStuckKurtar::class,
