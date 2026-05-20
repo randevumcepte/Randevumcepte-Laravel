@@ -429,21 +429,29 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
         return $el;
     }
 
-    // Hizmet select options'i doldur (tum hizmetler veya personel/cihaz filtreli)
-    function duzenleHizmetSelectOptionsYukle($hz, tsParam, personelId, cihazId){
+    // Hizmet select options'i doldur (tum hizmetler veya personel/cihaz/oda filtreli)
+    // Eslesme yoksa filtreleme YAPMA (tum hizmetler gosterilir)
+    function duzenleHizmetSelectOptionsYukle($hz, tsParam, personelId, cihazId, odaId){
         var ts = tsParam || ($hz[0] && $hz[0].tomselect);
         if(!ts || !window.randevuHizmetVerisi) return;
         var v = window.randevuHizmetVerisi;
         var liste;
-        if(personelId || cihazId){
+        if(personelId || cihazId || odaId){
             var izinli = [];
             if(personelId && v.personel[personelId]) izinli = izinli.concat(v.personel[personelId]);
             if(cihazId && v.cihaz[cihazId]) izinli = izinli.concat(v.cihaz[cihazId]);
+            // Oda -> hizmet eslesmesi window.randevuModalData.odalar[].hizmet_idleri icinde
+            if(odaId){
+                var odaObj = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){ return String(o.id) === String(odaId); });
+                if(odaObj && Array.isArray(odaObj.hizmet_idleri) && odaObj.hizmet_idleri.length){
+                    izinli = izinli.concat(odaObj.hizmet_idleri);
+                }
+            }
             izinli = Array.from(new Set(izinli.map(String)));
             if(izinli.length){
                 liste = v.tum.filter(function(h){ return izinli.indexOf(String(h.id)) > -1; });
             } else {
-                liste = v.tum.slice(); // atama yoksa hepsi
+                liste = v.tum.slice(); // eslesme yoksa hepsi (filtreleme yapma)
             }
         } else {
             liste = v.tum.slice();
@@ -513,15 +521,25 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
         duzenleUpdateOzeti();
     });
 
-    // Duzenleme satirindaki personel/cihaz degisince hizmet select'i yenile
+    // Duzenleme satirindaki personel/cihaz degisince hizmet select'i yenile (turu 1/2)
     $(document).on('change', '#randevu-duzenle-modal .duzenle-personel-select, #randevu-duzenle-modal .duzenle-cihaz-select', function(){
         var t = window.randevuTakvimTuru;
-        if(t === 0 || t === 3) return; // filtre yok
+        if(t === 0 || t === 3) return; // turu 0: filtre yok, turu 3: oda handler'i var
         var $row = $(this).closest('.hizmet-satiri-duzenle');
         var personelId = $row.find('.duzenle-personel-select').val() || '';
         var cihazId = $row.find('.duzenle-cihaz-select').val() || '';
         var $hz = $row.find('.duzenle-hizmet-select');
         if($hz.length) duzenleHizmetSelectOptionsYukle($hz, null, personelId, cihazId);
+    });
+
+    // Odaya Gore (turu 3): oda degisince hizmet select'i o odaya gore filtrele
+    $(document).on('change', '#randevu-duzenle-modal .duzenle-oda-select', function(){
+        var t = window.randevuTakvimTuru;
+        if(t !== 3) return;
+        var $row = $(this).closest('.hizmet-satiri-duzenle');
+        var odaId = $(this).val() || '';
+        var $hz = $row.find('.duzenle-hizmet-select');
+        if($hz.length) duzenleHizmetSelectOptionsYukle($hz, null, '', '', odaId);
     });
 
     // Yeni satir ekle butonu (custom.js'in eski handler'ini bypass et - capture phase)

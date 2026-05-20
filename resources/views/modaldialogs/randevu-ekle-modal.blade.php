@@ -2738,19 +2738,28 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     }
 
     // Client-side filtreleme (personel/cihaz bazli)
-    function filtrelenmisHizmetler(personelId, cihazId){
+    function filtrelenmisHizmetler(personelId, cihazId, odaId){
         var v = window.randevuHizmetVerisi;
         if(!v) return { liste: [], fallback: false };
         var izinli = null;
         var hp = personelId ? (v.personel[personelId] || null) : null;
         var hc = cihazId ? (v.cihaz[cihazId] || null) : null;
+        // Oda -> hizmet eslesmesi window.randevuModalData.odalar[].hizmet_idleri icinde
+        var ho = null;
+        if(odaId){
+            var odaObj = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){ return String(o.id) === String(odaId); });
+            if(odaObj && Array.isArray(odaObj.hizmet_idleri) && odaObj.hizmet_idleri.length){
+                ho = odaObj.hizmet_idleri.map(String);
+            }
+        }
         if(hp && hp.length) izinli = hp.slice();
         if(hc && hc.length) izinli = (izinli ? izinli : []).concat(hc);
+        if(ho && ho.length) izinli = (izinli ? izinli : []).concat(ho);
         if(izinli && izinli.length){
             izinli = Array.from(new Set(izinli.map(String)));
             return { liste: v.tum.filter(function(h){ return izinli.indexOf(String(h.id)) > -1; }), fallback: false };
         }
-        return { liste: v.tum.slice(), fallback: !!(personelId || cihazId) };
+        return { liste: v.tum.slice(), fallback: !!(personelId || cihazId || odaId) };
     }
 
     // Her hizmet-select icin TomSelect instance'i sakla (data-index -> instance)
@@ -2850,7 +2859,9 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             }
             var personelId = params.personel_id || '';
             var cihazId = params.cihaz_id || '';
-            var f = filtrelenmisHizmetler(personelId, cihazId);
+            var odaId = params.oda_id || '';
+            var f = filtrelenmisHizmetler(personelId, cihazId, odaId);
+            // fallback=true: secim yapildi ama o secime tanimli hizmet yok -> filtreleme YAPMA, tum hizmetleri goster
             var ph = f.liste.length
                 ? (f.fallback ? 'Tüm hizmetler' : 'Hizmet seçin...')
                 : 'Hizmet bulunamadı';
@@ -2876,10 +2887,35 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             initHizmetTom($s, ph);
         });
 
-        // Hizmete gore (0) / Odaya gore (3): tum hizmetler yuklensin
-        if(t === 0 || t === 3){
+        // Hizmete gore (0): tum hizmetler yuklensin
+        if(t === 0){
             $('.hizmet-select').each(function(){
                 yukleHizmetler($(this), { hepsi: 1 });
+            });
+            return;
+        }
+
+        // Odaya gore (3): oda secimine gore hizmetleri filtrele
+        if(t === 3){
+            $(document).off('change.hizmetLoadOda', 'select[name="randevuodalariyeni[]"]')
+                .on('change.hizmetLoadOda', 'select[name="randevuodalariyeni[]"]', function(){
+                    var $row = $(this).closest('.hizmet-satiri');
+                    var odaId = $(this).val() || '';
+                    var $hizmet = $row.find('.hizmet-select');
+                    if(!$hizmet.length) return;
+                    if(odaId === ''){
+                        // Oda secilmemis -> tum hizmetler
+                        yukleHizmetler($hizmet, { hepsi: 1 });
+                        return;
+                    }
+                    yukleHizmetler($hizmet, { oda_id: odaId });
+                });
+            // Ilk yukleme: mevcut oda secimi varsa filtrele, yoksa tum hizmetler
+            $('.hizmet-select').each(function(){
+                var $row = $(this).closest('.hizmet-satiri');
+                var odaId = $row.find('select[name="randevuodalariyeni[]"]').val() || '';
+                if(odaId) yukleHizmetler($(this), { oda_id: odaId });
+                else yukleHizmetler($(this), { hepsi: 1 });
             });
             return;
         }
