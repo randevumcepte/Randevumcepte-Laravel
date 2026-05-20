@@ -15024,7 +15024,11 @@ DB::raw('
         $returntext="";
         $odalar->salon_id = $request->sube;
         $odalar->oda_adi = $request->oda_adi;
-        $odalar->takvim_sirasi = $enSonOda ? $enSonOda->takvim_sirasi+1 : 1;
+        // takvim_sirasi yalnizca YENI oda eklenirken atanir; duzenlemede
+        // mevcut sira korunur (aksi halde her duzenlemede oda en alta duser).
+        if(!isset($request->oda_id)){
+            $odalar->takvim_sirasi = $enSonOda ? $enSonOda->takvim_sirasi+1 : 1;
+        }
         $odalar->aktifmi = true;
         $odalar->durum = true;
         $secilenPersoneller = $request->oda_personeli ?? [];
