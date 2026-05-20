@@ -15124,8 +15124,19 @@ DB::raw('
     }
     public function oda_liste_getir(Request $request,$returntext){
 
-        $odalar = Odalar::where('salon_id',self::mevcutsube($request))->where('aktifmi',true)->orderBy('takvim_sirasi','asc')->get();
-       
+        $odalar = Odalar::where('salon_id',self::mevcutsube($request))->where('aktifmi',true)
+            ->orderBy('takvim_sirasi','asc')->orderBy('id','asc')->get();
+
+        // Self-heal: takvim_sirasi degerlerini 0..n-1 olarak yeniden numaralandir.
+        // Kalip kalmis duplicate/NULL/bosluklar boylece temizlenir; siralama
+        // butonlarinin "degismeme/atlama" hatasini onler.
+        foreach($odalar as $i => $o){
+            if((int)$o->takvim_sirasi !== $i){
+                Odalar::where('id',$o->id)->update(['takvim_sirasi'=>$i]);
+                $o->takvim_sirasi = $i;
+            }
+        }
+
         $formatted = $odalar->map(function($oda,$index) use($odalar){
             $isFirst = ($index === 0); // İlk kayıt mı?
             $isLast = ($index === $odalar->count() - 1); // Son kayıt mı?
@@ -24148,41 +24159,51 @@ DB::raw('
     }
     public function odaSiralamaAzalt(Request $request)
     {
-        $oda = Odalar::where('id',$request->odaid)->where('salon_id',$request->sube)->first();
-        if($oda){
-            $oda2 = Odalar::where('salon_id',$request->sube)
-                ->where('aktifmi',true)
-                ->where('takvim_sirasi','<',$oda->takvim_sirasi)
-                ->orderBy('takvim_sirasi','desc')
-                ->first();
-            if($oda2){
-                $tmp = $oda->takvim_sirasi;
-                $oda->takvim_sirasi = $oda2->takvim_sirasi;
-                $oda2->takvim_sirasi = $tmp;
-                $oda->save();
-                $oda2->save();
-            }
-        }
+        // 1 yukari tasi
+        $this->_odaSirayiKaydir($request, -1);
         return self::oda_liste_getir($request,"");
     }
     public function odaSiralamaArtir(Request $request)
     {
-        $oda = Odalar::where('id',$request->odaid)->where('salon_id',$request->sube)->first();
-        if($oda){
-            $oda2 = Odalar::where('salon_id',$request->sube)
-                ->where('aktifmi',true)
-                ->where('takvim_sirasi','>',$oda->takvim_sirasi)
-                ->orderBy('takvim_sirasi','asc')
-                ->first();
-            if($oda2){
-                $tmp = $oda->takvim_sirasi;
-                $oda->takvim_sirasi = $oda2->takvim_sirasi;
-                $oda2->takvim_sirasi = $tmp;
-                $oda->save();
-                $oda2->save();
-            }
-        }
+        // 1 asagi tasi
+        $this->_odaSirayiKaydir($request, +1);
         return self::oda_liste_getir($request,"");
+    }
+    private function _odaSirayiKaydir(Request $request, int $delta)
+    {
+        try {
+            $isletmeId = $request->sube;
+            // Odalari konum sirasiyla cek; takvim_sirasi'da olasi tekrar/bosluga
+            // karsi id ASC tie-breaker kullan. Index tabanli swap, deger tabanli
+            // arama yerine dogrudan komsu kaydi alir; "atlama"/"degismeme" hatasini kaldirir.
+            $odalar = Odalar::where('salon_id',$isletmeId)
+                ->where('aktifmi',true)
+                ->orderBy('takvim_sirasi','asc')
+                ->orderBy('id','asc')
+                ->get()
+                ->values();
+            $idx = $odalar->search(function($o) use($request){ return (int)$o->id === (int)$request->odaid; });
+            if($idx === false) return;
+            $hedefIdx = $idx + $delta;
+            if($hedefIdx < 0 || $hedefIdx >= $odalar->count()) return;
+            $this->_odaSiraSwap($odalar[$idx], $odalar[$hedefIdx]);
+        } catch(\Exception $e){ \Log::warning('_odaSirayiKaydir: '.$e->getMessage()); }
+    }
+    private function _odaSiraSwap($a, $b)
+    {
+        // Olasi UNIQUE constraint icin 3 adimli swap (negatif temp deger araci)
+        $aSira = $a->takvim_sirasi;
+        $bSira = $b->takvim_sirasi;
+        if($aSira == $bSira) return;
+        // Step 1: a'yi temp negatif degere al
+        $a->takvim_sirasi = -1 * abs($a->id);
+        $a->save();
+        // Step 2: b'yi a'nin eski yerine
+        $b->takvim_sirasi = $aSira;
+        $b->save();
+        // Step 3: a'yi b'nin eski yerine
+        $a->takvim_sirasi = $bSira;
+        $a->save();
     }
 
     public function hizmetKategoriSiralamaAzalt(Request $request)
