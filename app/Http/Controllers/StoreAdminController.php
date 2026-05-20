@@ -12566,8 +12566,25 @@ DB::raw('
                     exit;
                 }
             }
-
-      
+            else
+            {
+                // SMS ayarlari yapilandirilmamis (sms_baslik / sms_apikey yok) ve
+                // WhatsApp da bagli degil → mesaj hicbir kanaldan gonderilemiyor.
+                // Bu durumda implicit null donmesin; cagiran metodlar $sms['status']
+                // erisiminde "array offset on null" server error'u almasin.
+                Log::warning('[sms_gonder_bildirimli] SMS ayarlari yapilandirilmamis, mesaj gonderilemedi', [
+                    'salon_id' => $isletme->id ?? null,
+                    'tur' => $tur,
+                ]);
+                if($geribildirimgonder){
+                    return array(
+                        'title' =>'Hata',
+                        'status' =>'error',
+                        'text'=>'Mesaj gönderilemedi. İşletmenize ait SMS veya WhatsApp bağlantısı bulunmuyor.',
+                    );
+                }
+                return '';
+            }
         }
     }
     public function smscoklutest(Request $request)
@@ -15317,11 +15334,21 @@ DB::raw('
             array("to"=>$randevu->users->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod),
         );
         $sms = self::sms_gonder_bildirimli($request,$mesaj,true,1,true);
-        if($sms['status']=='success')
+        if(is_array($sms) && ($sms['status'] ?? null) == 'success')
         {
             $randevu->dogrulama_sms_gonderildi = 1;
             $randevu->save();
 
+        }
+        elseif(!is_array($sms))
+        {
+            // sms_gonder_bildirimli beklenmedik bir deger dondu (null/string).
+            // Cagiran metodun status kontrolu patlamasin diye normalize ediyoruz.
+            $sms = array(
+                'title'  => 'Hata',
+                'status' => 'error',
+                'text'   => 'Doğrulama kodu gönderilemedi. SMS veya WhatsApp bağlantınızı kontrol edin.',
+            );
         }
         return $sms;
     }
@@ -15431,7 +15458,15 @@ DB::raw('
         Log::info('IF bloğuna girdi');    
             
             if(!$randevu->dogrulama_sms_gonderildi){
-                self::randevu_dogrulama_kodu_gonder($request);
+                $gonderim = self::randevu_dogrulama_kodu_gonder($request);
+                // Kod gonderilemediyse (SMS/WhatsApp bagli degil) personele net mesaj don;
+                // aksi halde personel asla dogru kodu giremez ve islem sonsuza dek tikanir.
+                if(is_array($gonderim) && ($gonderim['status'] ?? null) === 'error'){
+                    return array(
+                        'dogrulamaGerekli' => 1,
+                        'hatamesaj' => $gonderim['text'] ?? 'Doğrulama kodu gönderilemedi. İşletmenize ait SMS veya WhatsApp bağlantısı bulunmuyor.'
+                    );
+                }
 
             }
                 
