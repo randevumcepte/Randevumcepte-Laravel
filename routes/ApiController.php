@@ -8531,7 +8531,9 @@ class ApiController extends Controller
 
                         $yenirandevuhizmetpersonel->cihaz_id =
 
-                            $value["cihaz_id"] == "null"
+                            ($value["cihaz_id"] == "null" ||
+                                $value["cihaz_id"] === "" ||
+                                $value["cihaz_id"] === null)
 
                                 ? null
 
@@ -8539,7 +8541,9 @@ class ApiController extends Controller
 
                         $yenirandevuhizmetpersonel->personel_id =
 
-                            $value["personel_id"] == "null"
+                            ($value["personel_id"] == "null" ||
+                                $value["personel_id"] === "" ||
+                                $value["personel_id"] === null)
 
                                 ? null
 
@@ -8547,7 +8551,9 @@ class ApiController extends Controller
 
                         $yenirandevuhizmetpersonel->oda_id =
 
-                            $value["oda_id"] == "null"
+                            ($value["oda_id"] == "null" ||
+                                $value["oda_id"] === "" ||
+                                $value["oda_id"] === null)
 
                                 ? null
 
