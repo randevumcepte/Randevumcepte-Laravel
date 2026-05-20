@@ -15210,8 +15210,19 @@ DB::raw('
     }
     public function cihaz_liste_getir(Request $request,$returntext){
 
-        $cihazlar = Cihazlar::where('salon_id',self::mevcutsube($request))->where('aktifmi',true)->orderBy('takvim_sirasi','asc')->get();
-        
+        $cihazlar = Cihazlar::where('salon_id',self::mevcutsube($request))->where('aktifmi',true)
+            ->orderBy('takvim_sirasi','asc')->orderBy('id','asc')->get();
+
+        // Self-heal: takvim_sirasi degerlerini 0..n-1 olarak yeniden numaralandir.
+        // Kalip kalmis duplicate/NULL/bosluklar boylece temizlenir; siralama
+        // butonlarinin "degismeme/atlama" hatasini onler.
+        foreach($cihazlar as $i => $c){
+            if((int)$c->takvim_sirasi !== $i){
+                Cihazlar::where('id',$c->id)->update(['takvim_sirasi'=>$i]);
+                $c->takvim_sirasi = $i;
+            }
+        }
+
         $formatted = $cihazlar->map(function($cihaz,$index) use($cihazlar){
             $isFirst = ($index === 0); // İlk kayıt mı?
             $isLast = ($index === $cihazlar->count() - 1); // Son kayıt mı?
@@ -24137,25 +24148,51 @@ DB::raw('
     }
     public function cihazSiralamaAzalt(Request $request)
     {
-        $cihaz2 = Cihazlar::where('takvim_sirasi',$request->siraNo-1)->where('salon_id',$request->sube)->first();
-        $cihaz2->takvim_sirasi = $cihaz2->takvim_sirasi + 1;
-        $cihaz2->save();
-        $cihaz = Cihazlar::where('id',$request->cihazid)->first();
-        $cihaz->takvim_sirasi = $request->siraNo-1;
-        $cihaz  ->save();
-       
+        // 1 yukari tasi
+        $this->_cihazSirayiKaydir($request, -1);
         return self::cihaz_liste_getir($request,"");
     }
     public function cihazSiralamaArtir(Request $request)
     {
-
-        $cihaz2 = Cihazlar::where('takvim_sirasi',$request->siraNo+1)->where('salon_id',$request->sube)->first();
-        $cihaz2->takvim_sirasi = $cihaz2->takvim_sirasi - 1;
-        $cihaz2->save();
-        $cihaz = Cihazlar::where('id',$request->cihazid)->first();
-        $cihaz->takvim_sirasi = $request->siraNo+1;
-        $cihaz  ->save();
+        // 1 asagi tasi
+        $this->_cihazSirayiKaydir($request, +1);
         return self::cihaz_liste_getir($request,"");
+    }
+    private function _cihazSirayiKaydir(Request $request, int $delta)
+    {
+        try {
+            $isletmeId = $request->sube;
+            // Cihazlari konum sirasiyla cek; takvim_sirasi'da olasi tekrar/bosluga
+            // karsi id ASC tie-breaker kullan. Index tabanli swap, deger tabanli
+            // arama yerine dogrudan komsu kaydi alir; "atlama"/"degismeme" hatasini kaldirir.
+            $cihazlar = Cihazlar::where('salon_id',$isletmeId)
+                ->where('aktifmi',true)
+                ->orderBy('takvim_sirasi','asc')
+                ->orderBy('id','asc')
+                ->get()
+                ->values();
+            $idx = $cihazlar->search(function($c) use($request){ return (int)$c->id === (int)$request->cihazid; });
+            if($idx === false) return;
+            $hedefIdx = $idx + $delta;
+            if($hedefIdx < 0 || $hedefIdx >= $cihazlar->count()) return;
+            $this->_cihazSiraSwap($cihazlar[$idx], $cihazlar[$hedefIdx]);
+        } catch(\Exception $e){ \Log::warning('_cihazSirayiKaydir: '.$e->getMessage()); }
+    }
+    private function _cihazSiraSwap($a, $b)
+    {
+        // Olasi UNIQUE constraint icin 3 adimli swap (negatif temp deger araci)
+        $aSira = $a->takvim_sirasi;
+        $bSira = $b->takvim_sirasi;
+        if($aSira == $bSira) return;
+        // Step 1: a'yi temp negatif degere al
+        $a->takvim_sirasi = -1 * abs($a->id);
+        $a->save();
+        // Step 2: b'yi a'nin eski yerine
+        $b->takvim_sirasi = $aSira;
+        $b->save();
+        // Step 3: a'yi b'nin eski yerine
+        $a->takvim_sirasi = $bSira;
+        $a->save();
     }
     public function odaSiralamaAzalt(Request $request)
     {
