@@ -648,7 +648,7 @@
                   : 'WhatsApp Bağlı Değil — tıklayın, QR ile bağlayın';
             @endphp
             <div class="user-notification" style="padding:20px 0 0 0" id="whatsappDurumKutu">
-               <a href="{{ url('/whatsapp') }}"
+               <a href="{{ url('/isletmeyonetim/whatsapp') }}"
                   class="btn"
                   title="{{ $waTitle }}"
                   style="background:{{ $waBagli ? '#25D366' : '#DC2626' }};color:#fff;padding:5px 9px;border:none;display:inline-flex;align-items:center;gap:6px;">
