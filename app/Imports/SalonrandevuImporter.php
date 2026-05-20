@@ -388,31 +388,50 @@ class SalonrandevuImporter
 
     public function importRandevular()
     {
-        $this->log('Randevular cekiliyor (/company/appointment/list)...');
-        if (empty($this->hizmetMap))  $this->buildHizmetMapFromDb();
-        if (empty($this->personelMap)) $this->buildPersonelMapFromDb();
-
-        $rows = $this->fetchAllPaged('/company/appointment/list', 'records', 'page', 1);
-        $this->log('  Toplam randevu kaydi: ' . count($rows));
-
+        $this->log('Randevular cekiliyor (/company/appointment/list) - sayfa sayfa...');
         $i = 0;
-        foreach ($rows as $appt) {
-            $i++;
+        $page = 1;
+        $guard = 0;
+        while ($guard++ < 100000) {
+            $j = $this->client->get('/company/appointment/list?page=' . $page);
+            if (!$j) { $this->log("  sayfa {$page} alinamadi, durdu."); break; }
+            $d = $j['data'] ?? [];
+            $rows = isset($d['records']) && is_array($d['records']) ? $d['records']
+                  : (isset($d[0]) ? $d : []);
+            if (empty($rows)) break;
+
+            foreach ($rows as $appt) {
+                $i++;
+                $this->importOneAppointment($appt);
+            }
+            $this->log("  sayfa {$page} islendi (toplam islenen={$i} eklenen=" . $this->counts['randevu'] . " dedup=" . $this->counts['randevu_dedup'] . " skip=" . $this->counts['skip'] . ')');
+
+            $cur  = $d['page'] ?? $page;
+            $next = $d['next_page'] ?? null;
+            if ($next === null || (int) $next <= (int) $cur) break;
+            $page = (int) $next;
+        }
+        $this->log('Randevu: eklenen=' . $this->counts['randevu'] . ' dedup=' . $this->counts['randevu_dedup'] . ' skip=' . $this->counts['skip']);
+    }
+
+    private function importOneAppointment($appt)
+    {
+        {
             $apptId = $appt['id'] ?? null;
-            if (!$apptId) { $this->counts['skip']++; continue; }
+            if (!$apptId) { $this->counts['skip']++; return; }
 
             $userId = $this->resolveUser($appt['customer'] ?? []);
-            if (!$userId) { $this->counts['skip']++; continue; }
+            if (!$userId) { $this->counts['skip']++; return; }
 
             list($tarih, $saat) = $this->isoBol($appt['appointment_start_date'] ?? null);
-            if (!$tarih) { $this->counts['skip']++; continue; }
+            if (!$tarih) { $this->counts['skip']++; return; }
             list(, $saatBitis) = $this->isoBol($appt['appointment_end_date'] ?? null);
 
             $marker = '[salonrandevu-rdv:' . $apptId . ']';
             if (Randevular::where('salon_id', $this->salonId)
                 ->where('personel_notu', 'LIKE', '%' . $marker . '%')->exists()) {
                 $this->counts['randevu_dedup']++;
-                continue;
+                return;
             }
 
             // Personel
@@ -482,37 +501,58 @@ class SalonrandevuImporter
                 $this->counts['hata']++;
                 \Log::warning('[Salonrandevu] randevu', ['appt' => $apptId, 'err' => $e->getMessage()]);
             }
-            if ($i % 500 === 0) $this->log("  randevu {$i}/" . count($rows) . " eklenen=" . $this->counts['randevu'] . " dedup=" . $this->counts['randevu_dedup']);
         }
-        $this->log('Randevu: eklenen=' . $this->counts['randevu'] . ' dedup=' . $this->counts['randevu_dedup'] . ' skip=' . $this->counts['skip']);
     }
 
     // ======================= RECEIPT (ADISYON + TAHSILAT) =======================
 
     public function importReceipts()
     {
-        $this->log('Fisler cekiliyor (/company/receipt/index)...');
-        $rows = $this->fetchAllPaged('/company/receipt/index', 'records', 'page', 1);
-        if (empty($rows)) {
-            // fallback: sadece acik fisler
+        $this->log('Fisler cekiliyor (/company/receipt/index) - sayfa sayfa...');
+        $i = 0;
+        $page = 1;
+        $guard = 0;
+        $bosSayfa = false;
+        while ($guard++ < 100000) {
+            $j = $this->client->get('/company/receipt/index?page=' . $page);
+            if (!$j) { $this->log("  sayfa {$page} alinamadi, durdu."); break; }
+            $d = $j['data'] ?? [];
+            $rows = isset($d['records']) && is_array($d['records']) ? $d['records']
+                  : (isset($d['receipts']['records']) ? $d['receipts']['records']
+                  : (isset($d[0]) ? $d : []));
+            if (empty($rows)) { if ($page === 1) $bosSayfa = true; break; }
+
+            foreach ($rows as $rcRow) {
+                $i++;
+                $rid = $rcRow['id'] ?? null;
+                if (!$rid) continue;
+                try {
+                    $this->importOneReceipt($rid);
+                } catch (\Throwable $e) {
+                    $this->counts['hata']++;
+                    \Log::warning('[Salonrandevu] receipt', ['rid' => $rid, 'err' => $e->getMessage()]);
+                }
+            }
+            $this->log("  fis sayfa {$page} islendi (toplam={$i} adisyon=" . $this->counts['adisyon'] . " tahsilat=" . $this->counts['tahsilat'] . ')');
+
+            $meta = isset($d['records']) ? $d : ($d['receipts'] ?? $d);
+            $cur  = $meta['page'] ?? $page;
+            $next = $meta['next_page'] ?? null;
+            if ($next === null || (int) $next <= (int) $cur) break;
+            $page = (int) $next;
+        }
+
+        // receipt/index hic veri vermediyse acik fislere dus
+        if ($bosSayfa) {
+            $this->log('  receipt/index bos -> /company/receipts/opened deneniyor...');
             $j = $this->client->get('/company/receipts/opened');
             $rows = $j['data']['receipts']['records'] ?? [];
-            $this->log('  receipt/index bos, receipts/opened kullanildi');
-        }
-        $this->log('  Toplam fis: ' . count($rows));
-
-        $i = 0;
-        foreach ($rows as $rcRow) {
-            $i++;
-            $rid = $rcRow['id'] ?? null;
-            if (!$rid) continue;
-            try {
-                $this->importOneReceipt($rid);
-            } catch (\Throwable $e) {
-                $this->counts['hata']++;
-                \Log::warning('[Salonrandevu] receipt', ['rid' => $rid, 'err' => $e->getMessage()]);
+            foreach ($rows as $rcRow) {
+                $rid = $rcRow['id'] ?? null;
+                if (!$rid) continue;
+                try { $this->importOneReceipt($rid); }
+                catch (\Throwable $e) { $this->counts['hata']++; }
             }
-            if ($i % 200 === 0) $this->log("  fis {$i}/" . count($rows) . " adisyon=" . $this->counts['adisyon'] . " tahsilat=" . $this->counts['tahsilat']);
         }
         $this->log('Fis: adisyon=' . $this->counts['adisyon'] . ' tahsilat=' . $this->counts['tahsilat']);
     }
