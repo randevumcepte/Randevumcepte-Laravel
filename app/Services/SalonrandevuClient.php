@@ -74,29 +74,55 @@ class SalonrandevuClient
     }
 
     /**
-     * Login: POST /auth/staff {mail, password}. Basari = HTTP 201.
-     * Token: response.data.data.token
+     * Login: POST /auth/staff. Basari = HTTP 200/201.
+     * Salonrandevu girisi telefon numarasi ile yapilir; API alan adi
+     * mail/phone/gsm olabilir -> hepsini sirayla dener.
+     * Token: response.data.token
      */
     public function login()
     {
-        $r = $this->http->post(self::BASE_API . '/auth/staff', [
-            'json'    => ['mail' => $this->email, 'password' => $this->password],
-            'headers' => ['Content-Type' => 'application/json'],
-        ]);
-        $status = $r->getStatusCode();
-        $body = (string) $r->getBody();
-        $this->dump('login.body', "STATUS={$status}\n" . $body);
+        // Telefon: rakam-disi temizle (5xx... formatina indir)
+        $kimlik = trim((string) $this->email);
+        $digits = preg_replace('~\D~', '', $kimlik);
+        if (strlen($digits) >= 10) {
+            $digits = preg_replace('~^90~', '', $digits);
+            $digits = preg_replace('~^0~', '', $digits);
+        }
 
-        if ($status !== 200 && $status !== 201) {
-            return ['ok' => false, 'method' => 'POST /auth/staff', 'detail' => "HTTP {$status}: " . substr($body, 0, 300)];
+        $payloadVariants = [
+            ['mail'  => $kimlik,  'password' => $this->password],
+            ['phone' => $digits,  'password' => $this->password],
+            ['gsm'   => $digits,  'password' => $this->password],
+            ['mail'  => $digits,  'password' => $this->password],
+            ['phone' => $kimlik,  'password' => $this->password],
+            ['username' => $kimlik, 'password' => $this->password],
+        ];
+
+        $lastDetail = '';
+        foreach ($payloadVariants as $i => $payload) {
+            $r = $this->http->post(self::BASE_API . '/auth/staff', [
+                'json'    => $payload,
+                'headers' => ['Content-Type' => 'application/json'],
+            ]);
+            $status = $r->getStatusCode();
+            $body = (string) $r->getBody();
+            $field = implode('+', array_keys($payload));
+            $this->dump("login_v{$i}_{$field}.body", "STATUS={$status}\n" . $body);
+
+            if ($status === 200 || $status === 201) {
+                $j = json_decode($body, true);
+                $token = $j['data']['token'] ?? $j['token'] ?? ($j['data']['data']['token'] ?? null);
+                if ($token) {
+                    $this->token = $token;
+                    return ['ok' => true, 'method' => "POST /auth/staff [{$field}]",
+                            'detail' => 'token alindi (uzunluk ' . strlen($token) . ')'];
+                }
+                $lastDetail = "HTTP {$status} ama token yok: " . substr($body, 0, 200);
+            } else {
+                $lastDetail = "[{$field}] HTTP {$status}: " . substr($body, 0, 200);
+            }
         }
-        $j = json_decode($body, true);
-        $token = $j['data']['token'] ?? $j['token'] ?? ($j['data']['data']['token'] ?? null);
-        if (!$token) {
-            return ['ok' => false, 'method' => 'POST /auth/staff', 'detail' => 'token bulunamadi: ' . substr($body, 0, 300)];
-        }
-        $this->token = $token;
-        return ['ok' => true, 'method' => 'POST /auth/staff', 'detail' => 'token alindi (uzunluk ' . strlen($token) . ')'];
+        return ['ok' => false, 'method' => 'POST /auth/staff', 'detail' => $lastDetail];
     }
 
     /**
