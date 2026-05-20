@@ -103,8 +103,25 @@ class SalonrandevuImport extends Command
             return 0;
         }
 
-        // Asama 2: concrete import (endpoint'ler ogrenildikten sonra eklenecek)
-        $this->error('Import metodlari henuz tanimli degil. Once --analyze veya --probe ile endpoint kesfedin, ben buradan concrete fetcher/importer yazacagim.');
+        // Concrete import
+        $types = $only ? array_map('trim', explode(',', $only))
+                       : ['personel', 'hizmet', 'urun', 'musteri', 'randevu', 'receipt', 'gider'];
+        $importer = new \App\Imports\SalonrandevuImporter($client, (int) $salonId, $this->output);
+
+        // Sira: personel -> hizmet -> urun -> musteri -> randevu -> receipt -> gider
+        if (in_array('personel', $types)) $importer->importPersoneller();
+        if (in_array('hizmet', $types))   $importer->importHizmetler();
+        if (in_array('urun', $types))     $importer->importUrunler();
+        if (in_array('musteri', $types))  $importer->importMusteriler();
+        if (in_array('randevu', $types))  $importer->importRandevular();
+        if (in_array('receipt', $types) || in_array('tahsilat', $types) || in_array('paket', $types)) {
+            $importer->importReceipts();
+        }
+        if (in_array('gider', $types)) {
+            $importer->importGiderler($this->option('from'), $this->option('to'));
+        }
+
+        $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
         return 0;
     }
 
