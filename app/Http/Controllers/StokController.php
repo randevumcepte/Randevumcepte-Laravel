@@ -207,6 +207,8 @@ class StokController extends Controller
         }
 
         $yeni = !$urun->exists;
+        // Stok degisikligini save oncesi yakala (urunKaydet stok_adedi'ne dokunmaz)
+        $oncekiStok = (float) ($urun->stok_adedi ?? 0);
 
         $urun->salon_id            = $salonid;
         $urun->urun_adi            = $data['urun_adi'] ?? $urun->urun_adi;
@@ -231,21 +233,36 @@ class StokController extends Controller
         }
         $urun->save();
 
-        // Yeni urun ise ve baslangic stok_adedi gonderildiyse acilis hareketi olustur
-        if ($yeni) {
-            $baslangic = (float) ($data['stok_adedi'] ?? 0);
-            if ($baslangic != 0) {
+        // Stok hareketi: yeni urunde acilis, mevcut urunde fark kadar duzeltme.
+        // stok_adedi gonderilmediyse (mobil bazi ekranlar) stoga hic dokunma.
+        if (array_key_exists('stok_adedi', $data)) {
+            $istenenStok = (float) $data['stok_adedi'];
+            if ($yeni && $istenenStok != 0) {
                 self::hareketKaydet([
                     'salon_id'           => $salonid,
                     'urun_id'            => $urun->id,
                     'depo_id'            => $urun->varsayilan_depo_id,
-                    'miktar'             => $baslangic,
+                    'miktar'             => $istenenStok,
                     'hareket_tipi'       => 'acilis',
                     'birim_alis_fiyati'  => $urun->alis_fiyati,
                     'aciklama'           => 'Urun olusturulurken baslangic stogu',
                     'kullanici_id'       => $request->kullanici_id,
                     'kullanici_tipi'     => $request->kullanici_tipi,
                 ]);
+            } elseif (!$yeni) {
+                $fark = $istenenStok - $oncekiStok;
+                if (abs($fark) > 0.0001) {
+                    self::hareketKaydet([
+                        'salon_id'           => $salonid,
+                        'urun_id'            => $urun->id,
+                        'depo_id'            => $urun->varsayilan_depo_id,
+                        'miktar'             => $fark,
+                        'hareket_tipi'       => 'manuel',
+                        'aciklama'           => 'Urun duzenleme - stok duzeltme',
+                        'kullanici_id'       => $request->kullanici_id,
+                        'kullanici_tipi'     => $request->kullanici_tipi,
+                    ]);
+                }
             }
         }
 
