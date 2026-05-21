@@ -16919,8 +16919,13 @@ $('#adisyon_liste,#adisyon_liste_paket,#adisyon_liste_hizmet,#adisyon_liste_urun
             if (result && result.ok) {
                 var yeni = parseInt(result.fatura_kesildi || 0);
                 $btn.attr('data-kesildi', yeni);
-                $btn.removeClass('btn-info btn-default').addClass(yeni ? 'btn-info' : 'btn-default');
-                if (typeof applyFilters === 'function') { applyFilters(); }
+                if (yeni) {
+                    $btn.attr('style','line-height:5px;padding:5px;background-color:#28a745;color:#fff;border-color:#28a745;');
+                    $btn.attr('title','Faturali (kaldirmak icin tikla)');
+                } else {
+                    $btn.attr('style','line-height:5px;padding:5px;background-color:#f5f5f5;color:#999;border-color:#ddd;');
+                    $btn.attr('title','Faturasiz (isaretlemek icin tikla)');
+                }
             }
         },
         error: function(){ $('#preloader').hide(); }

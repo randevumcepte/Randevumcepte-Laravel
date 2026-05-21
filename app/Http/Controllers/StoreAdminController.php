@@ -2939,13 +2939,11 @@ public function kasa_raporu_getir(Request $request,$returntext)
     // Salon ID'si
     $salon_id = self::mevcutsube($request);
 
-    // Sistem-wide faturasiz gizle: aktifse tum tahsilat sorgularina faturali-adisyon filtresi
+    // Sistem-wide faturasiz gizle: aktifse SADECE faturali adisyonlarin tahsilatlari
     $_faturasizGizle = (bool) Salonlar::where('id', $salon_id)->value('faturasiz_gizle');
-    $_faturaliFilter = function($q) use($_faturasizGizle) {
-        if ($_faturasizGizle) {
-            $q->whereHas('adisyon', function($w){ $w->where('fatura_kesildi', 1); });
-        }
-    };
+    $_faturaliAdisyonIds = $_faturasizGizle
+        ? Adisyonlar::where('salon_id', $salon_id)->where('fatura_kesildi', 1)->pluck('id')->toArray()
+        : null;
 
     // Filtrelenmiş tahsilatlar (seçilen tarih aralığı için)
     $tahsilatlar = Tahsilatlar::where('salon_id', $salon_id)
@@ -2954,13 +2952,17 @@ public function kasa_raporu_getir(Request $request,$returntext)
         ->where(function($q) use($odeme_yontemi){
             if($odeme_yontemi != '') $q->where('odeme_yontemi_id',$odeme_yontemi);
         })
-        ->where($_faturaliFilter)
+        ->when($_faturasizGizle, function($q) use($_faturaliAdisyonIds) {
+            $q->whereNotNull('adisyon_id')->whereIn('adisyon_id', $_faturaliAdisyonIds ?: [0]);
+        })
         ->orderBy('odeme_tarihi','desc')
         ->get();
 
     // TÜM ZAMANLARIN TAHŞİLAT TOPLAMI (filtrelerden bağımsız ama faturasiz_gizle uygulanir)
     $tum_tahsilatlar_toplam = Tahsilatlar::where('salon_id', $salon_id)
-        ->where($_faturaliFilter)
+        ->when($_faturasizGizle, function($q) use($_faturaliAdisyonIds) {
+            $q->whereNotNull('adisyon_id')->whereIn('adisyon_id', $_faturaliAdisyonIds ?: [0]);
+        })
         ->sum('tutar');
     
     $tahsilat_liste = '';
@@ -10928,8 +10930,12 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         }
         if ($_hesapSahibi) {
             $_fk = (int) $adisyon->fatura_kesildi;
-            $_btnClass = $_fk ? 'btn-info' : 'btn-default';
-            $islemler .= '&nbsp;<button style="line-height:5px;padding:5px" class="btn '.$_btnClass.'" href="#" name="adisyon_fatura_isaretle" data-value="'.$adisyon->id.'" data-kesildi="'.$_fk.'"><i class="fa fa-file-text-o"></i></button>';
+            // Net renk farki: faturali = yesil, faturasiz = saydam gri (bakar bakmaz ayrilabilsin)
+            $_btnStyle = $_fk
+                ? 'background-color:#28a745;color:#fff;border-color:#28a745;'
+                : 'background-color:#f5f5f5;color:#999;border-color:#ddd;';
+            $_btnTitle = $_fk ? 'Faturali (kaldirmak icin tikla)' : 'Faturasiz (isaretlemek icin tikla)';
+            $islemler .= '&nbsp;<button style="line-height:5px;padding:5px;'.$_btnStyle.'" class="btn" href="#" name="adisyon_fatura_isaretle" data-value="'.$adisyon->id.'" data-kesildi="'.$_fk.'" title="'.$_btnTitle.'"><i class="fa fa-file-text-o"></i></button>';
         }
 
         $acilisTarihiKaynak = $adisyon->tarih ?: $adisyon->created_at;
