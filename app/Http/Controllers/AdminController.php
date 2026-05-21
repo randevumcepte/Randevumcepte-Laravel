@@ -309,13 +309,17 @@ class AdminController extends Controller
             ->where('silindi', 0)
             ->count();
 
-        // Duplicate adaylari: ayni normalized_ad'a sahip 2+ kayit
+        // Duplicate adaylari: ayni normalized_ad'a sahip 2+ kayit.
+        // SADECE havuz hizmetleri (salon_id NULL) bakilir — salon_id dolu
+        // kayitlar bir salonun kendi ozel hizmetidir, havuzda degildir; bunlari
+        // dahil etmek ayni isimli salon kopyalarini sahte duplicate gosterir.
         $duplicateGruplari = collect();
         $duplicateToplam = 0;
         if ($normalizeEdilmemis === 0) {
             $duplicateGruplari = \DB::table('hizmetler')
                 ->select('normalized_ad', \DB::raw('COUNT(*) as adet'), \DB::raw('GROUP_CONCAT(id) as id_listesi'))
                 ->where('silindi', 0)
+                ->where(function($q){ $q->whereNull('salon_id')->orWhere('salon_id', 0); })
                 ->whereNotNull('normalized_ad')
                 ->where('normalized_ad', '!=', '')
                 ->groupBy('normalized_ad')

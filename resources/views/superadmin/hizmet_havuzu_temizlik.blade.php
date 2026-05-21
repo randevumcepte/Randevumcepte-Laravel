@@ -152,7 +152,7 @@
    {{-- Duplicate gruplari --}}
    <div class="hht-bolum">
       <h3 class="hht-bolum-baslik">🔁 Duplicate Aday Grupları</h3>
-      <p class="hht-bolum-alt">İsim normalize edildiğinde aynı kanonik forma denk gelen hizmetler. İlk 200 grup gösterilir.</p>
+      <p class="hht-bolum-alt">İsim normalize edildiğinde aynı kanonik forma denk gelen hizmetler. Yalnızca havuz hizmetleri (salon_id boş) taranır — salonların kendi özel hizmetleri sahte duble saymaması için hariç tutulur. İlk 200 grup gösterilir.</p>
 
       @if($normalizeEdilmemis > 0)
          <div class="hht-bos">Önce yukarıdaki "Normalize Et" butonuna bas — sonra duplicate grupları burada görünecek.</div>
