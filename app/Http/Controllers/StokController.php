@@ -81,6 +81,21 @@ class StokController extends Controller
         return $depo;
     }
 
+    /**
+     * kalemler/sepet gibi alanlar web panelden JSON string (FormData),
+     * mobil uygulamadan ise dizi olarak gelir. Her iki durumu da diziye cevir.
+     */
+    protected static function dizi($v): array
+    {
+        if (is_array($v)) return $v;
+        if (is_string($v) && $v !== '') {
+            $d = json_decode($v, true);
+            if (is_array($d)) return $d;
+        }
+
+        return [];
+    }
+
     protected function urunFormat(Urunler $u): array
     {
         return [
@@ -503,8 +518,8 @@ class StokController extends Controller
 
     public function alisGirisi(Request $request, $salonid)
     {
-        $kalemler = $request->kalemler;
-        if (!is_array($kalemler) || count($kalemler) === 0) {
+        $kalemler = self::dizi($request->kalemler);
+        if (count($kalemler) === 0) {
             return response()->json(['status' => 'error', 'mesaj' => 'Kalem yok'], 422);
         }
         $tedarikciId = $request->tedarikci_id ?: null;
@@ -615,8 +630,8 @@ class StokController extends Controller
      */
     public function sayimUygula(Request $request, $salonid)
     {
-        $kalemler = $request->kalemler;
-        if (!is_array($kalemler)) {
+        $kalemler = self::dizi($request->kalemler);
+        if (count($kalemler) === 0) {
             return response()->json(['status' => 'error', 'mesaj' => 'Kalem yok'], 422);
         }
         $batch = (string) Str::uuid();
@@ -676,8 +691,8 @@ class StokController extends Controller
      */
     public function hizliSatis(Request $request, $salonid)
     {
-        $sepet = $request->sepet;
-        if (!is_array($sepet) || count($sepet) === 0) {
+        $sepet = self::dizi($request->sepet);
+        if (count($sepet) === 0) {
             return response()->json(['status' => 'error', 'mesaj' => 'Sepet bos'], 422);
         }
         $batch       = (string) Str::uuid();

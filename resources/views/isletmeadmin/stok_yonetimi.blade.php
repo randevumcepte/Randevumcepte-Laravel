@@ -665,7 +665,7 @@ async function urunleriYukle(){
             + '<td><strong style="color:var(--stk-mor);">₺'+tlFormat(u.fiyat)+'</strong></td>'
             + '<td>'+(u.barkod ? '<code style="background:#f5f5f7;padding:2px 6px;border-radius:4px;font-size:11px;">'+escapeHtml(u.barkod)+'</code>' : '<span class="text-muted">—</span>')+'</td>'
             + '<td style="text-align:right;white-space:nowrap;">'
-                + '<button class="urun-aksiyon-btn duz" onclick="urunModalAc(\''+u.id+'\')" title="Düzenle"><i class="fa fa-edit"></i></button>'
+                + '<button class="urun-aksiyon-btn duz" data-toggle="modal" data-target="#urun_modal" onclick="urunModalAc(\''+u.id+'\')" title="Düzenle"><i class="fa fa-edit"></i></button>'
                 + '<button class="urun-aksiyon-btn gec" onclick="hareketleriGoster(\''+u.id+'\',\''+adJs+'\')" title="Hareketler"><i class="fa fa-history"></i></button>'
                 + '<button class="urun-aksiyon-btn sil" onclick="urunSil(\''+u.id+'\',\''+adJs+'\')" title="Sil"><i class="fa fa-trash"></i></button>'
             + '</td>'
