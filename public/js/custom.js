@@ -16877,6 +16877,34 @@ $('#personel_rapor_tablo').DataTable().destroy()
         });
     }
 });
+// Faturasiz gizle salon-wide toggle (topbar + satis takibi + sidebar)
+$(document).on('click', '#faturasizGizleTopbarBtn, #faturasizGizleSatisBtn, #faturasizGizleSidebarBtn', function(e){
+    e.preventDefault();
+    $.ajax({
+        type: "POST",
+        url: '/isletmeyonetim/faturasizgizletoggle',
+        dataType: "json",
+        data: { sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+        beforeSend: function(){ $('#preloader').show(); },
+        success: function(result){
+            $('#preloader').hide();
+            if (!result || !result.ok) return;
+            var aktif = parseInt(result.faturasiz_gizle || 0);
+            $('#faturasizGizleTopbarBtn').attr('data-aktif', aktif).css('color', aktif ? '#f0ad4e' : '#888');
+            var $satis = $('#faturasizGizleSatisBtn');
+            if ($satis.length) {
+                $satis.attr('data-aktif', aktif).removeClass('btn-default btn-warning').addClass(aktif ? 'btn-warning' : 'btn-default');
+            }
+            var $side = $('#faturasizGizleSidebarBtn');
+            if ($side.length) {
+                $side.attr('data-aktif', aktif).css('color', aktif ? '#f0ad4e' : '');
+            }
+            location.reload();
+        },
+        error: function(){ $('#preloader').hide(); }
+    });
+});
+
 $('#adisyon_liste,#adisyon_liste_paket,#adisyon_liste_hizmet,#adisyon_liste_urun,#adisyon_liste_musteri').on('click','button[name="adisyon_fatura_isaretle"]',function(){
     var $btn = $(this);
     var adisyonid = $btn.attr('data-value');

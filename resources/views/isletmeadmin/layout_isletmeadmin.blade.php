@@ -806,6 +806,17 @@
                      </a>
                   </li>-->
                   @endif
+                  @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
+                  <li>
+                     <a href="#" id="faturasizGizleSidebarBtn"
+                        data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
+                        class="dropdown-toggle no-arrow"
+                        style="color:{{ (int)($isletme->faturasiz_gizle ?? 0) === 1 ? '#f0ad4e' : '' }}">
+                        <span class="micon bi bi-file-earmark-text"></span>
+                        <span class="mtext">Fatura</span>
+                     </a>
+                  </li>
+                  @endif
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <li>
                   
