@@ -2939,11 +2939,31 @@ public function kasa_raporu_getir(Request $request,$returntext)
     // Salon ID'si
     $salon_id = self::mevcutsube($request);
 
-    // Sistem-wide faturasiz gizle: aktifse SADECE faturali adisyonlarin tahsilatlari
+    // Sistem-wide faturasiz gizle: aktifse SADECE faturali adisyon kalemlerine
+    // ait tahsilatlar dahil edilir. Mantik: bir POS tahsilati birden fazla
+    // adisyon kalemini odeyebildigi icin tahsilatlar.adisyon_id yeterli
+    // degil; tahsilat_hizmetler/urunler/paketler DETAY tablolari uzerinden
+    // tahsilat ID'leri toplanip whereIn ile filtrelenir.
     $_faturasizGizle = (bool) Salonlar::where('id', $salon_id)->value('faturasiz_gizle');
-    $_faturaliAdisyonIds = $_faturasizGizle
-        ? Adisyonlar::where('salon_id', $salon_id)->where('fatura_kesildi', 1)->pluck('id')->toArray()
-        : null;
+    $_faturaliTahsilatIds = null;
+    if ($_faturasizGizle) {
+        $_faturaliAdisyonIds = Adisyonlar::where('salon_id', $salon_id)
+            ->where('fatura_kesildi', 1)->pluck('id');
+        $_idsHizmet = DB::table('tahsilat_hizmetler')
+            ->whereIn('adisyon_hizmet_id', function($q) use($_faturaliAdisyonIds){
+                $q->select('id')->from('adisyon_hizmetler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+            })->pluck('tahsilat_id');
+        $_idsUrun = DB::table('tahsilat_urunler')
+            ->whereIn('adisyon_urun_id', function($q) use($_faturaliAdisyonIds){
+                $q->select('id')->from('adisyon_urunler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+            })->pluck('tahsilat_id');
+        $_idsPaket = DB::table('tahsilat_paketler')
+            ->whereIn('adisyon_paket_id', function($q) use($_faturaliAdisyonIds){
+                $q->select('id')->from('adisyon_paketler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+            })->pluck('tahsilat_id');
+        $_faturaliTahsilatIds = $_idsHizmet->merge($_idsUrun)->merge($_idsPaket)->unique()->values()->toArray();
+        if (empty($_faturaliTahsilatIds)) $_faturaliTahsilatIds = [0];
+    }
 
     // Filtrelenmiş tahsilatlar (seçilen tarih aralığı için)
     $tahsilatlar = Tahsilatlar::where('salon_id', $salon_id)
@@ -2952,17 +2972,13 @@ public function kasa_raporu_getir(Request $request,$returntext)
         ->where(function($q) use($odeme_yontemi){
             if($odeme_yontemi != '') $q->where('odeme_yontemi_id',$odeme_yontemi);
         })
-        ->when($_faturasizGizle, function($q) use($_faturaliAdisyonIds) {
-            $q->whereNotNull('adisyon_id')->whereIn('adisyon_id', $_faturaliAdisyonIds ?: [0]);
-        })
+        ->when($_faturasizGizle, fn($q) => $q->whereIn('id', $_faturaliTahsilatIds))
         ->orderBy('odeme_tarihi','desc')
         ->get();
 
     // TÜM ZAMANLARIN TAHŞİLAT TOPLAMI (filtrelerden bağımsız ama faturasiz_gizle uygulanir)
     $tum_tahsilatlar_toplam = Tahsilatlar::where('salon_id', $salon_id)
-        ->when($_faturasizGizle, function($q) use($_faturaliAdisyonIds) {
-            $q->whereNotNull('adisyon_id')->whereIn('adisyon_id', $_faturaliAdisyonIds ?: [0]);
-        })
+        ->when($_faturasizGizle, fn($q) => $q->whereIn('id', $_faturaliTahsilatIds))
         ->sum('tutar');
     
     $tahsilat_liste = '';
