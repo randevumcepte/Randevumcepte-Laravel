@@ -2938,7 +2938,15 @@ public function kasa_raporu_getir(Request $request,$returntext)
     
     // Salon ID'si
     $salon_id = self::mevcutsube($request);
-    
+
+    // Sistem-wide faturasiz gizle: aktifse tum tahsilat sorgularina faturali-adisyon filtresi
+    $_faturasizGizle = (bool) Salonlar::where('id', $salon_id)->value('faturasiz_gizle');
+    $_faturaliFilter = function($q) use($_faturasizGizle) {
+        if ($_faturasizGizle) {
+            $q->whereHas('adisyon', function($w){ $w->where('fatura_kesildi', 1); });
+        }
+    };
+
     // Filtrelenmiş tahsilatlar (seçilen tarih aralığı için)
     $tahsilatlar = Tahsilatlar::where('salon_id', $salon_id)
         ->where('odeme_tarihi','>=',$tarih_baslangic)
@@ -2946,11 +2954,13 @@ public function kasa_raporu_getir(Request $request,$returntext)
         ->where(function($q) use($odeme_yontemi){
             if($odeme_yontemi != '') $q->where('odeme_yontemi_id',$odeme_yontemi);
         })
+        ->where($_faturaliFilter)
         ->orderBy('odeme_tarihi','desc')
         ->get();
-    
-    // TÜM ZAMANLARIN TAHŞİLAT TOPLAMI (filtrelerden bağımsız)
+
+    // TÜM ZAMANLARIN TAHŞİLAT TOPLAMI (filtrelerden bağımsız ama faturasiz_gizle uygulanir)
     $tum_tahsilatlar_toplam = Tahsilatlar::where('salon_id', $salon_id)
+        ->where($_faturaliFilter)
         ->sum('tutar');
     
     $tahsilat_liste = '';
@@ -10531,10 +10541,12 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     
     // Request'ten filtre parametrelerini al
     $adisyonturu = $request->input('tur', 0); // 0:tümü, 1:hizmet, 2:paket, 3:urun
-    $adisyondurumu = $request->input('adisyondurumu', ''); // 'acik', 'kapali', ''
+    $adisyondurumu = $request->input('adisyondurumu', ''); // 'acik', 'kapali', 'faturali', 'faturasiz', ''
     $tariharaligi = $request->input('tariharaligi', '');
     $personel_id = $request->input('personel_id', '');
     $musteri_id = $request->input('musteri_id', '');
+    // Sistem-wide faturasiz gizle flag
+    $_faturasizGizle = (bool) Salonlar::where('id', $isletmeId)->value('faturasiz_gizle');
 
 
      Log::info("DEBUG: Müşteri ID değeri: '$musteri_id'");
@@ -10692,31 +10704,32 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             $tumAdisyonKapaliSayisi++;
         }
         
-        // Adisyon durumu filtresine göre ekle
+        // Sistem-wide faturasiz gizle: salon.faturasiz_gizle == 1 ise faturasiz adisyonlari TUM listelerden ve toplamlardan dis
+        if ($_faturasizGizle && !((int) $adisyon->fatura_kesildi)) {
+            continue;
+        }
+
+        // Adisyon durumu / fatura filtresine göre ekle
+        $faturaliMi = (int) $adisyon->fatura_kesildi === 1;
+        $eklensin = false;
         if ($adisyondurumu == '') {
-            // Tüm adisyonlar - durum sayılarını burada hesapla
+            $eklensin = true;
+        } elseif ($adisyondurumu == 'acik' && $durum == 'acik') {
+            $eklensin = true;
+        } elseif ($adisyondurumu == 'kapali' && $durum == 'kapali') {
+            $eklensin = true;
+        } elseif ($adisyondurumu == 'faturali' && $faturaliMi) {
+            $eklensin = true;
+        } elseif ($adisyondurumu == 'faturasiz' && !$faturaliMi) {
+            $eklensin = true;
+        }
+
+        if ($eklensin) {
             if ($durum == 'acik') {
                 $acikAdisyonSayisi++;
             } else {
                 $kapaliAdisyonSayisi++;
             }
-            
-            $adisyon->toplam_tutar = $toplamTutar;
-            $adisyon->odenen_tutar = $odenenTutar;
-            $adisyon->kalan_tutar = $kalanTutar;
-            $adisyon->durum = $durum;
-            $filtrelenmisAdisyonlar->push($adisyon);
-        } elseif ($adisyondurumu == 'acik' && $durum == 'acik') {
-            // Sadece açık adisyonlar
-            $acikAdisyonSayisi++;
-            $adisyon->toplam_tutar = $toplamTutar;
-            $adisyon->odenen_tutar = $odenenTutar;
-            $adisyon->kalan_tutar = $kalanTutar;
-            $adisyon->durum = $durum;
-            $filtrelenmisAdisyonlar->push($adisyon);
-        } elseif ($adisyondurumu == 'kapali' && $durum == 'kapali') {
-            // Sadece kapalı adisyonlar
-            $kapaliAdisyonSayisi++;
             $adisyon->toplam_tutar = $toplamTutar;
             $adisyon->odenen_tutar = $odenenTutar;
             $adisyon->kalan_tutar = $kalanTutar;
@@ -10769,8 +10782,16 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             'satis.adisyon_sil'
         );
     }
+    // Hesap sahibi mi? (role_id=1) — fatura isaretleme butonu sadece hesap sahibinde gozukur
+    $_hesapSahibi = false;
+    if (Auth::guard('isletmeyonetim')->check()) {
+        $_hesapSahibiRol = Personeller::where('salon_id', $isletmeId)
+            ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+            ->value('role_id');
+        $_hesapSahibi = ((int) $_hesapSahibiRol === 1);
+    }
 
-    $formatted = $sayfalanmisAdisyonlar->map(function ($adisyon) use ($isletmeId, $personel_id, $_silYetki, &$hizmetHakedisToplam, &$urunHakedisToplam, &$paketHakedisToplam, &$hizmetSatisToplam, &$urunSatisToplam, &$paketSatisToplam) {
+    $formatted = $sayfalanmisAdisyonlar->map(function ($adisyon) use ($isletmeId, $personel_id, $_silYetki, $_hesapSahibi, &$hizmetHakedisToplam, &$urunHakedisToplam, &$paketHakedisToplam, &$hizmetSatisToplam, &$urunSatisToplam, &$paketSatisToplam) {
         $satilanlar = [];
         $satilanlarStr = "";
 
@@ -10905,7 +10926,12 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         if ($_silYetki) {
             $islemler .= '&nbsp;<button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Adisyonu Sil"  name="adisyon_sil" data-value="'.$adisyon->id.'"><i class="fa fa-times"></i></button>';
         }
-        
+        if ($_hesapSahibi) {
+            $_fk = (int) $adisyon->fatura_kesildi;
+            $_btnClass = $_fk ? 'btn-info' : 'btn-default';
+            $islemler .= '&nbsp;<button style="line-height:5px;padding:5px" class="btn '.$_btnClass.'" href="#" name="adisyon_fatura_isaretle" data-value="'.$adisyon->id.'" data-kesildi="'.$_fk.'"><i class="fa fa-file-text-o"></i></button>';
+        }
+
         $acilisTarihiKaynak = $adisyon->tarih ?: $adisyon->created_at;
         return [
             'acilis_tarihi' => $acilisTarihiKaynak ? date('d.m.Y', strtotime($acilisTarihiKaynak)) : '',
@@ -27253,6 +27279,72 @@ DB::raw('
         $row->save();
 
         return response()->json(['ok' => true, 'id' => $row->id]);
+    }
+
+    // ============================================================
+    // FATURA ISARETLEME / FATURASIZ GIZLE (gizli muhasebe modu)
+    // ============================================================
+
+    /**
+     * Sadece hesap sahibi (role_id=1) icin: belirli bir adisyonun
+     * fatura/fis durumunu toggle eder.
+     */
+    public function adisyonFaturaIsaretle(Request $request)
+    {
+        $sube = self::mevcutsube($request);
+        $rol = Personeller::where('salon_id', $sube)
+            ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+            ->value('role_id');
+        if ((int) $rol !== 1) {
+            return response()->json(['ok' => false], 403);
+        }
+        $adisyon = Adisyonlar::where('id', $request->adisyon_id)
+            ->where('salon_id', $sube)
+            ->first();
+        if (!$adisyon) {
+            return response()->json(['ok' => false], 404);
+        }
+        $personelId = Personeller::where('salon_id', $sube)
+            ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+            ->value('id');
+        $yeniDurum = !((bool) $adisyon->fatura_kesildi);
+        $adisyon->fatura_kesildi = $yeniDurum;
+        $adisyon->fatura_kesildi_tarihi = $yeniDurum ? now() : null;
+        $adisyon->fatura_kesen_personel_id = $yeniDurum ? $personelId : null;
+        $adisyon->save();
+        return response()->json(['ok' => true, 'fatura_kesildi' => $yeniDurum ? 1 : 0]);
+    }
+
+    /**
+     * Sadece hesap sahibi (role_id=1) icin: salon-wide faturasiz gizle
+     * toggle'ini flip eder. Aktifken sistem genelinde faturasiz adisyonlar
+     * tum listelerde + tum toplamlarda gizlenir.
+     */
+    public function faturasizGizleToggle(Request $request)
+    {
+        $sube = self::mevcutsube($request);
+        $rol = Personeller::where('salon_id', $sube)
+            ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+            ->value('role_id');
+        if ((int) $rol !== 1) {
+            return response()->json(['ok' => false], 403);
+        }
+        $salon = Salonlar::where('id', $sube)->first();
+        if (!$salon) return response()->json(['ok' => false], 404);
+        $salon->faturasiz_gizle = !((bool) $salon->faturasiz_gizle);
+        $salon->save();
+        return response()->json(['ok' => true, 'faturasiz_gizle' => $salon->faturasiz_gizle ? 1 : 0]);
+    }
+
+    /**
+     * Salon-wide faturasiz gizle toggle durumunu getirir
+     * (Flutter app dashboard ikonu state'i icin).
+     */
+    public function faturasizGizleDurum(Request $request)
+    {
+        $sube = self::mevcutsube($request);
+        $deger = (int) Salonlar::where('id', $sube)->value('faturasiz_gizle');
+        return response()->json(['faturasiz_gizle' => $deger]);
     }
 
 }

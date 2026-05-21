@@ -971,6 +971,7 @@ class ApiController extends Controller
                 'paketToplam'=>$paketToplam,
                 'islemler' => $islemler,
                 'user_id'=> $adisyon->user_id,
+                'fatura_kesildi' => (int) ($adisyon->fatura_kesildi ?? 0),
             ];
         });
 
@@ -1045,6 +1046,10 @@ class ApiController extends Controller
     ->when($adisyonturu == 1, fn($q) => $q->whereHas('hizmetler'))
     ->when($adisyonturu == 3, fn($q) => $q->whereHas('urunler'))
     ->when($adisyonturu == 2, fn($q) => $q->whereHas('paketler'))
+    ->when(
+        (bool) Salonlar::where('id', $isletmeId)->value('faturasiz_gizle'),
+        fn($q) => $q->where('fatura_kesildi', 1)
+    )
     ->orderBy('tarih', 'desc');
 
     // AÇIK/KAPALI FİLTRELEME (SQL ile)
@@ -1280,8 +1285,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         'islemler' => $islemler,
         'user_id' => $adisyon->user_id,
         'durum' => $kalan > 0 ? 'acik' : 'kapali',
+        'fatura_kesildi' => (int) ($adisyon->fatura_kesildi ?? 0),
     ];
-} 
+}
     public function musteri_randevulari(Request $request, $id)
 
     {
@@ -25387,5 +25393,57 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             \Log::error('API sozlesmeOlustur: '.$e->getMessage());
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
+    }
+
+    // ============================================================
+    // FATURA ISARETLEME / FATURASIZ GIZLE (gizli muhasebe modu)
+    // ============================================================
+
+    public function adisyonFaturaIsaretle(Request $request)
+    {
+        $sube = (int) $request->salonid;
+        $rol = Personeller::where('salon_id', $sube)
+            ->where('yetkili_id', $request->user_id)
+            ->value('role_id');
+        if ((int) $rol !== 1) {
+            return response()->json(['ok' => false], 403);
+        }
+        $adisyon = Adisyonlar::where('id', $request->adisyon_id)
+            ->where('salon_id', $sube)
+            ->first();
+        if (!$adisyon) {
+            return response()->json(['ok' => false], 404);
+        }
+        $personelId = Personeller::where('salon_id', $sube)
+            ->where('yetkili_id', $request->user_id)
+            ->value('id');
+        $yeniDurum = !((bool) $adisyon->fatura_kesildi);
+        $adisyon->fatura_kesildi = $yeniDurum;
+        $adisyon->fatura_kesildi_tarihi = $yeniDurum ? now() : null;
+        $adisyon->fatura_kesen_personel_id = $yeniDurum ? $personelId : null;
+        $adisyon->save();
+        return response()->json(['ok' => true, 'fatura_kesildi' => $yeniDurum ? 1 : 0]);
+    }
+
+    public function faturasizGizleToggle(Request $request)
+    {
+        $sube = (int) $request->salonid;
+        $rol = Personeller::where('salon_id', $sube)
+            ->where('yetkili_id', $request->user_id)
+            ->value('role_id');
+        if ((int) $rol !== 1) {
+            return response()->json(['ok' => false], 403);
+        }
+        $salon = Salonlar::where('id', $sube)->first();
+        if (!$salon) return response()->json(['ok' => false], 404);
+        $salon->faturasiz_gizle = !((bool) $salon->faturasiz_gizle);
+        $salon->save();
+        return response()->json(['ok' => true, 'faturasiz_gizle' => $salon->faturasiz_gizle ? 1 : 0]);
+    }
+
+    public function faturasizGizleDurum($salonid)
+    {
+        $deger = (int) Salonlar::where('id', (int) $salonid)->value('faturasiz_gizle');
+        return response()->json(['faturasiz_gizle' => $deger]);
     }
 }

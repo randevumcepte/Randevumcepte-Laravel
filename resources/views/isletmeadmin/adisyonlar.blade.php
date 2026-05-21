@@ -97,6 +97,8 @@
                <option value="" selected>Tüm Satışlar</option>
                <option value="acik">Açık Satışlar</option>
                <option value="kapali">Kapalı Satışlar</option>
+               <option value="faturali">Faturalı İşlemler</option>
+               <option value="faturasiz">Faturasız İşlemler</option>
             </select>
             
          </div>

@@ -585,6 +585,9 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/adisyonhizmetekle','StoreAdminController@adisyonhizmetekle');
 	Route::post('/tahsilatekle','StoreAdminController@tahsilatekle');
 	Route::get('/adisyonlar','StoreAdminController@adisyonlar');
+	Route::post('/adisyonfaturaisaretle','StoreAdminController@adisyonFaturaIsaretle');
+	Route::post('/faturasizgizletoggle','StoreAdminController@faturasizGizleToggle');
+	Route::get('/faturasizgizledurum','StoreAdminController@faturasizGizleDurum');
 	Route::post('/tahsilatkaldir','StoreAdminController@tahsilatkaldir');
 	Route::post('/alacakekleduzenle','StoreAdminController@alacakekleduzenle');
 	Route::get('/ongorusmeler','StoreAdminController@ongorusmeler');
