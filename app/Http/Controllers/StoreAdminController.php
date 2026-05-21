@@ -15042,6 +15042,8 @@ DB::raw('
                         }
                         $cihazmolasaatleri->save();
         }
+        SalonAudit::log($request->sube, 'cihaz_ekle', 'cihaz', $cihazlar->id,
+            $cihazlar->cihaz_adi, 'Yeni cihaz eklendi');
         return self::cihaz_liste_getir($request,$returntext);
     }
     public function odaekleduzenle(Request $request){
@@ -15105,7 +15107,8 @@ DB::raw('
             $yeni_renk->oda_id = $odalar->id;
             $yeni_renk->save();   
         }
-           
+        SalonAudit::log($request->sube, isset($request->oda_id) ? 'oda_guncelle' : 'oda_ekle', 'oda', $odalar->id,
+            $odalar->oda_adi, isset($request->oda_id) ? 'Oda bilgileri güncellendi' : 'Yeni oda eklendi');
         return self::oda_liste_getir($request,$returntext);
     }
     public function odamusaitisaretle(Request $request){
@@ -15113,6 +15116,8 @@ DB::raw('
         $oda->durum = $request->durum;
           $oda->aciklama=null;
         $oda->save();
+        SalonAudit::log($oda->salon_id, 'oda_durum_degistir', 'oda', $oda->id,
+            $oda->oda_adi, 'Oda "Müsait" olarak işaretlendi');
         return self::oda_liste_getir($request,'Durum güncellendi');
     }
     public function odamusaitdegilisaretle(Request $request){
@@ -15120,6 +15125,9 @@ DB::raw('
         $oda->durum = $request->durum;
        $oda->aciklama=$request->aciklama;
         $oda->save();
+        SalonAudit::log($oda->salon_id, 'oda_durum_degistir', 'oda', $oda->id,
+            $oda->oda_adi, 'Oda "Müsait Değil" olarak işaretlendi',
+            $request->aciklama ? ['aciklama'=>$request->aciklama] : []);
         return self::oda_liste_getir($request,'Durum güncellendi');
     }
     public function cihazmusaitisaretle(Request $request){
@@ -15127,6 +15135,8 @@ DB::raw('
         $cihaz->durum = $request->durum;
         $cihaz->aciklama=null;
         $cihaz->save();
+        SalonAudit::log($cihaz->salon_id, 'cihaz_durum_degistir', 'cihaz', $cihaz->id,
+            $cihaz->cihaz_adi, 'Cihaz "Müsait" olarak işaretlendi');
         return self::cihaz_liste_getir($request,'Durum güncellendi');
     }
     public function cihazmusaitdegilisaretle(Request $request){
@@ -15134,6 +15144,9 @@ DB::raw('
         $cihaz->durum = $request->durum;
        $cihaz->aciklama=$request->aciklama;
         $cihaz->save();
+        SalonAudit::log($cihaz->salon_id, 'cihaz_durum_degistir', 'cihaz', $cihaz->id,
+            $cihaz->cihaz_adi, 'Cihaz "Müsait Değil" olarak işaretlendi',
+            $request->aciklama ? ['aciklama'=>$request->aciklama] : []);
         return self::cihaz_liste_getir($request,'Durum güncellendi');
     }
     public function odadetayigetir(Request $request)
@@ -15323,13 +15336,20 @@ DB::raw('
         ->each(function ($oda) {
             $oda->takvim_sirasi -= 1;
             $oda->save();
-        }); 
+        });
         OdaRenkleri::where('oda_id',$request->oda_id)->delete();
+        SalonAudit::log($oda->salon_id, 'oda_sil', 'oda', $oda->id,
+            $oda->oda_adi, 'Oda kaldırıldı');
         return self::oda_liste_getir($request,"Oda başarıyla kaldırıldı");
     }
     public function cihaz_sil(Request $request){
+        $cihaz = Cihazlar::where('id',$request->cihaz_id)->first();
         Cihazlar::where('id',$request->cihaz_id)->update(['aktifmi'=>false]);
         SalonCihazRenkleri::where('cihaz_id',$request->cihaz_id)->delete();
+        if($cihaz){
+            SalonAudit::log($cihaz->salon_id, 'cihaz_sil', 'cihaz', $cihaz->id,
+                $cihaz->cihaz_adi, 'Cihaz kaldırıldı');
+        }
         return self::cihaz_liste_getir($request,"Cihaz başarıyla kaldırıldı");
     }
     public function randevu_dogrulama_kodu_gonder(Request $request)
@@ -24155,6 +24175,8 @@ DB::raw('
             $cur  = $aktifler[$idx];
             $komsu = $aktifler[$hedefIdx];
             $this->_personelSiraSwap($cur, $komsu);
+            SalonAudit::log($isletmeId, 'personel_siralama_degistir', 'personel', $cur->id,
+                $cur->personel_adi, 'Personel takvim sırası bir '.($delta < 0 ? 'yukarı' : 'aşağı').' taşındı');
         } catch(\Exception $e){ \Log::warning('_personelSirayiKaydir: '.$e->getMessage()); }
     }
     public function personelArsivle(Request $request)
@@ -24231,7 +24253,10 @@ DB::raw('
             if($idx === false) return;
             $hedefIdx = $idx + $delta;
             if($hedefIdx < 0 || $hedefIdx >= $cihazlar->count()) return;
-            $this->_cihazSiraSwap($cihazlar[$idx], $cihazlar[$hedefIdx]);
+            $cur = $cihazlar[$idx];
+            $this->_cihazSiraSwap($cur, $cihazlar[$hedefIdx]);
+            SalonAudit::log($isletmeId, 'cihaz_siralama_degistir', 'cihaz', $cur->id,
+                $cur->cihaz_adi, 'Cihaz takvim sırası bir '.($delta < 0 ? 'yukarı' : 'aşağı').' taşındı');
         } catch(\Exception $e){ \Log::warning('_cihazSirayiKaydir: '.$e->getMessage()); }
     }
     private function _cihazSiraSwap($a, $b)
@@ -24279,7 +24304,10 @@ DB::raw('
             if($idx === false) return;
             $hedefIdx = $idx + $delta;
             if($hedefIdx < 0 || $hedefIdx >= $odalar->count()) return;
-            $this->_odaSiraSwap($odalar[$idx], $odalar[$hedefIdx]);
+            $cur = $odalar[$idx];
+            $this->_odaSiraSwap($cur, $odalar[$hedefIdx]);
+            SalonAudit::log($isletmeId, 'oda_siralama_degistir', 'oda', $cur->id,
+                $cur->oda_adi, 'Oda takvim sırası bir '.($delta < 0 ? 'yukarı' : 'aşağı').' taşındı');
         } catch(\Exception $e){ \Log::warning('_odaSirayiKaydir: '.$e->getMessage()); }
     }
     private function _odaSiraSwap($a, $b)
