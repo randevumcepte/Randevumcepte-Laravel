@@ -8863,46 +8863,70 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     public function kasaraporu(Request $request, $salonid)
 
     {
+        // Faturasiz gizle modu (hesap sahibinin salon-wide toggle'i).
+        // Aktifken sadece faturali adisyon kalemlerine dusen tahsilat tutarlari sayilir.
+        $_faturasizGizle = (bool) Salonlar::where('id', $salonid)->value('faturasiz_gizle');
+        $_faturaliTahsilatIds = null;
+        $_faturaliKisimMap = [];
+        if ($_faturasizGizle) {
+            $_faturaliAdisyonIds = Adisyonlar::where('salon_id', $salonid)
+                ->where('fatura_kesildi', 1)->pluck('id');
+            $_dHizmet = \DB::table('tahsilat_hizmetler')
+                ->whereIn('adisyon_hizmet_id', function($q) use($_faturaliAdisyonIds){
+                    $q->select('id')->from('adisyon_hizmetler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+                })->select('tahsilat_id','tutar')->get();
+            $_dUrun = \DB::table('tahsilat_urunler')
+                ->whereIn('adisyon_urun_id', function($q) use($_faturaliAdisyonIds){
+                    $q->select('id')->from('adisyon_urunler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+                })->select('tahsilat_id','tutar')->get();
+            $_dPaket = \DB::table('tahsilat_paketler')
+                ->whereIn('adisyon_paket_id', function($q) use($_faturaliAdisyonIds){
+                    $q->select('id')->from('adisyon_paketler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+                })->select('tahsilat_id','tutar')->get();
+            foreach ([$_dHizmet, $_dUrun, $_dPaket] as $_set) {
+                foreach ($_set as $_r) {
+                    $_faturaliKisimMap[$_r->tahsilat_id] = ($_faturaliKisimMap[$_r->tahsilat_id] ?? 0) + (float) $_r->tutar;
+                }
+            }
+            $_faturaliTahsilatIds = array_keys($_faturaliKisimMap);
+        }
+
         // whereDate: DATETIME kolonlarda ayni gunku kayitlari kacirmamak icin.
-        $toplamGelir = Tahsilatlar::where("salon_id", $salonid)
-
+        if ($_faturasizGizle) {
+            // Donem geliri: faturali tahsilatlarin faturali kismi (tarih + odeme yontemi filtreli)
+            $_donemTahsilatlar = Tahsilatlar::where('salon_id', $salonid)
+                ->whereIn('id', $_faturaliTahsilatIds ?: [0])
                 ->where(function ($q) use ($request) {
-
-                    if (
-
-                        $request->tarih1 !== null &&
-
-                        $request->tarih2 !== null
-
-                    ) {
-
-                        $q->whereDate("odeme_tarihi", ">=", $request->tarih1);
-
-                        $q->whereDate("odeme_tarihi", "<=", $request->tarih2);
-
+                    if ($request->tarih1 !== null && $request->tarih2 !== null) {
+                        $q->whereDate('odeme_tarihi', '>=', $request->tarih1);
+                        $q->whereDate('odeme_tarihi', '<=', $request->tarih2);
                     }
-
                 })
-
                 ->where(function ($q) use ($request) {
-
                     if ($request->odemeyontemi !== null && $request->odemeyontemi !== '') {
-
-                        $q->where(
-
-                            "odeme_yontemi_id",
-
-                            "=",
-
-                            $request->odemeyontemi
-
-                        );
-
+                        $q->where('odeme_yontemi_id', '=', $request->odemeyontemi);
                     }
-
                 })
-
+                ->get();
+            $toplamGelir = 0;
+            foreach ($_donemTahsilatlar as $_t) {
+                $toplamGelir += (float) ($_faturaliKisimMap[$_t->id] ?? 0);
+            }
+        } else {
+            $toplamGelir = Tahsilatlar::where("salon_id", $salonid)
+                ->where(function ($q) use ($request) {
+                    if ($request->tarih1 !== null && $request->tarih2 !== null) {
+                        $q->whereDate("odeme_tarihi", ">=", $request->tarih1);
+                        $q->whereDate("odeme_tarihi", "<=", $request->tarih2);
+                    }
+                })
+                ->where(function ($q) use ($request) {
+                    if ($request->odemeyontemi !== null && $request->odemeyontemi !== '') {
+                        $q->where("odeme_yontemi_id", "=", $request->odemeyontemi);
+                    }
+                })
                 ->sum("tutar");
+        }
         $toplamGider = Masraflar::where("salon_id", $salonid)
 
                 ->where(function ($q) use ($request) {
@@ -8942,8 +8966,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 })
 
                 ->sum("tutar");
-         $tum_tahsilatlar_toplam = Tahsilatlar::where('salon_id', $salonid)
-        ->sum('tutar');
+         if ($_faturasizGizle) {
+             $tum_tahsilatlar_toplam = array_sum($_faturaliKisimMap);
+         } else {
+             $tum_tahsilatlar_toplam = Tahsilatlar::where('salon_id', $salonid)->sum('tutar');
+         }
           $tum_masraflar_toplam = Masraflar::where('salon_id', $salonid)
         ->sum('tutar');
         return [
