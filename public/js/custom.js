@@ -16908,7 +16908,7 @@ $(document).on('click', '#faturasizGizleTopbarBtn, #faturasizGizleSatisBtn, #fat
     e.preventDefault();
     var subeId = $('input[name="sube"]').val() || '0';
     var flagKey = 'faturasiz_gizle_uyari_okundu_' + subeId;
-    // Disclaimer: ilk kez aciliyorsa 1 kerelik uyari (salon bazli, localStorage)
+    // Web tarafi: ilk kez 1 kerelik uyari (salon bazli localStorage)
     if (localStorage.getItem(flagKey) !== '1') {
         swal({
             title: 'Bilgilendirme',
