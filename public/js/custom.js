@@ -16878,8 +16878,7 @@ $('#personel_rapor_tablo').DataTable().destroy()
     }
 });
 // Faturasiz gizle salon-wide toggle (topbar + satis takibi + sidebar)
-$(document).on('click', '#faturasizGizleTopbarBtn, #faturasizGizleSatisBtn, #faturasizGizleSidebarBtn', function(e){
-    e.preventDefault();
+function _faturasizGizleToggleCalistir() {
     $.ajax({
         type: "POST",
         url: '/isletmeyonetim/faturasizgizletoggle',
@@ -16903,6 +16902,36 @@ $(document).on('click', '#faturasizGizleTopbarBtn, #faturasizGizleSatisBtn, #fat
         },
         error: function(){ $('#preloader').hide(); }
     });
+}
+
+$(document).on('click', '#faturasizGizleTopbarBtn, #faturasizGizleSatisBtn, #faturasizGizleSidebarBtn', function(e){
+    e.preventDefault();
+    var subeId = $('input[name="sube"]').val() || '0';
+    var flagKey = 'faturasiz_gizle_uyari_okundu_' + subeId;
+    // Disclaimer: ilk kez aciliyorsa 1 kerelik uyari (salon bazli, localStorage)
+    if (localStorage.getItem(flagKey) !== '1') {
+        swal({
+            title: 'Bilgilendirme',
+            html: '<div style="text-align:left;font-size:14px;line-height:1.6">'
+                + 'Bu mod yalnizca <b>yonetim raporu gorunumunuzu</b> etkiler.'
+                + '<br><br>Tum satis kayitlariniz sistemde <b>tutulmaya devam eder</b>, hicbiri silinmez.'
+                + '<br><br><b>Vergi yukumluluklerinizi</b> (fatura/fis kesme, beyan) karsiladiginizdan emin olunuz. '
+                + 'Bu ozellik bir muhasebe takip aracidir, vergi yukumluluk muafiyeti saglamaz.'
+                + '</div>',
+            type: 'info',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            confirmButtonText: 'Anladim, devam et',
+            cancelButtonText: 'Vazgec',
+        }).then(function(result){
+            if (result.value) {
+                localStorage.setItem(flagKey, '1');
+                _faturasizGizleToggleCalistir();
+            }
+        });
+        return;
+    }
+    _faturasizGizleToggleCalistir();
 });
 
 $('#adisyon_liste,#adisyon_liste_paket,#adisyon_liste_hizmet,#adisyon_liste_urun,#adisyon_liste_musteri').on('click','button[name="adisyon_fatura_isaretle"]',function(){
