@@ -2940,28 +2940,36 @@ public function kasa_raporu_getir(Request $request,$returntext)
     $salon_id = self::mevcutsube($request);
 
     // Sistem-wide faturasiz gizle: aktifse SADECE faturali adisyon kalemlerine
-    // ait tahsilatlar dahil edilir. Mantik: bir POS tahsilati birden fazla
-    // adisyon kalemini odeyebildigi icin tahsilatlar.adisyon_id yeterli
-    // degil; tahsilat_hizmetler/urunler/paketler DETAY tablolari uzerinden
-    // tahsilat ID'leri toplanip whereIn ile filtrelenir.
+    // ait tahsilat tutarlari dahil edilir. Bir POS tahsilati birden fazla
+    // adisyon kalemini odeyebildigi icin: tahsilat HEADER tutari kullanilmaz,
+    // tahsilat_hizmetler/urunler/paketler DETAY tablolarindan **faturali
+    // kalemlere dusen** kismi hesaplanir.
     $_faturasizGizle = (bool) Salonlar::where('id', $salon_id)->value('faturasiz_gizle');
     $_faturaliTahsilatIds = null;
+    $_faturaliKisimMap = [];
     if ($_faturasizGizle) {
         $_faturaliAdisyonIds = Adisyonlar::where('salon_id', $salon_id)
             ->where('fatura_kesildi', 1)->pluck('id');
-        $_idsHizmet = DB::table('tahsilat_hizmetler')
+        // her DETAY satiri: tahsilat_id => tutar
+        $_dHizmet = DB::table('tahsilat_hizmetler')
             ->whereIn('adisyon_hizmet_id', function($q) use($_faturaliAdisyonIds){
                 $q->select('id')->from('adisyon_hizmetler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
-            })->pluck('tahsilat_id');
-        $_idsUrun = DB::table('tahsilat_urunler')
+            })->select('tahsilat_id','tutar')->get();
+        $_dUrun = DB::table('tahsilat_urunler')
             ->whereIn('adisyon_urun_id', function($q) use($_faturaliAdisyonIds){
                 $q->select('id')->from('adisyon_urunler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
-            })->pluck('tahsilat_id');
-        $_idsPaket = DB::table('tahsilat_paketler')
+            })->select('tahsilat_id','tutar')->get();
+        $_dPaket = DB::table('tahsilat_paketler')
             ->whereIn('adisyon_paket_id', function($q) use($_faturaliAdisyonIds){
                 $q->select('id')->from('adisyon_paketler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
-            })->pluck('tahsilat_id');
-        $_faturaliTahsilatIds = $_idsHizmet->merge($_idsUrun)->merge($_idsPaket)->unique()->values()->toArray();
+            })->select('tahsilat_id','tutar')->get();
+        // tahsilat_id => faturali kisim toplami
+        foreach ([$_dHizmet, $_dUrun, $_dPaket] as $_set) {
+            foreach ($_set as $_r) {
+                $_faturaliKisimMap[$_r->tahsilat_id] = ($_faturaliKisimMap[$_r->tahsilat_id] ?? 0) + (float) $_r->tutar;
+            }
+        }
+        $_faturaliTahsilatIds = array_keys($_faturaliKisimMap);
         if (empty($_faturaliTahsilatIds)) $_faturaliTahsilatIds = [0];
     }
 
@@ -2976,13 +2984,24 @@ public function kasa_raporu_getir(Request $request,$returntext)
         ->orderBy('odeme_tarihi','desc')
         ->get();
 
+    // Goruntulenecek tutar: toggle acikken faturali kisim, kapaliyken tahsilat header
+    $_gosterTutar = function($t) use($_faturasizGizle, $_faturaliKisimMap) {
+        if ($_faturasizGizle) return (float) ($_faturaliKisimMap[$t->id] ?? 0);
+        return (float) $t->tutar;
+    };
+    $_donem_gelir = 0;
+    foreach ($tahsilatlar as $_t) { $_donem_gelir += $_gosterTutar($_t); }
+
     // TÜM ZAMANLARIN TAHŞİLAT TOPLAMI (filtrelerden bağımsız ama faturasiz_gizle uygulanir)
-    $tum_tahsilatlar_toplam = Tahsilatlar::where('salon_id', $salon_id)
-        ->when($_faturasizGizle, fn($q) => $q->whereIn('id', $_faturaliTahsilatIds))
-        ->sum('tutar');
-    
+    if ($_faturasizGizle) {
+        $tum_tahsilatlar_toplam = array_sum($_faturaliKisimMap);
+    } else {
+        $tum_tahsilatlar_toplam = Tahsilatlar::where('salon_id', $salon_id)->sum('tutar');
+    }
+
     $tahsilat_liste = '';
     foreach($tahsilatlar as $tahsilat){
+        $_gostTutar = $_gosterTutar($tahsilat);
         $tahsilat_liste .= '<tr>
                         <td>'.date('d.m.Y',strtotime($tahsilat->odeme_tarihi)).'</td>
                         <td>';
@@ -2995,7 +3014,7 @@ public function kasa_raporu_getir(Request $request,$returntext)
         $tahsilat_liste .='</td>
                         <td>'.$tahsilat->notlar.'</td>
                         <td>'.$tahsilat->odeme_yontemi->odeme_yontemi.($tahsilat->banka_id !== null ? '<br>'.$tahsilat->banka->banka : '').'</td>
-                        <td>'.number_format($tahsilat->tutar,2,',','.').'</td>';
+                        <td>'.number_format($_gostTutar,2,',','.').'</td>';
         if($tahsilat->para_girisi == true)
             $tahsilat_liste .= '<td>
                       <button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Para Ekleme Sil"  name="para_ekleme_sil" data-value="'.$tahsilat->id.'"><i class="fa fa-times"></i></button></td>';
@@ -3033,14 +3052,14 @@ public function kasa_raporu_getir(Request $request,$returntext)
     
     // TOPLAM CİRO HESAPLAMA (Filtrelerden bağımsız - tüm zamanların net karı)
     $toplam_ciro = $tum_tahsilatlar_toplam - $tum_masraflar_toplam;
-    
-    // Filtrelenmiş dönem için net kar
-    $donem_net_kar = $tahsilatlar->sum('tutar') - $masraflar->sum('tutar');
-    
+
+    // Filtrelenmiş dönem için net kar (faturasiz_gizle aktifken sadece faturali kisim)
+    $donem_net_kar = $_donem_gelir - $masraflar->sum('tutar');
+
     return array(
         'tahsilatlar'=>$tahsilat_liste,
         'masraflar'=>$masraf_liste,
-        'gelir'=>number_format($tahsilatlar->sum('tutar'),2,',','.'),
+        'gelir'=>number_format($_donem_gelir,2,',','.'),
         'gider'=>number_format($masraflar->sum('tutar'),2,',','.'),
         'toplam'=>number_format($donem_net_kar,2,',','.'), // Filtrelenmiş dönem için net kar
         'toplam_ciro'=>number_format($toplam_ciro,2,',','.'), // Tüm zamanlar için toplam ciro
@@ -10944,7 +10963,9 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         if ($_silYetki) {
             $islemler .= '&nbsp;<button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Adisyonu Sil"  name="adisyon_sil" data-value="'.$adisyon->id.'"><i class="fa fa-times"></i></button>';
         }
-        if ($_hesapSahibi) {
+        // Fatura ikonu SADECE odemesi olan adisyonlarda gozukur (kismi
+        // veya tam odenmis). Hic odeme yapilmamis adisyonda fatura kesilemez.
+        if ($_hesapSahibi && $kalanVar < $toplamTutar) {
             $_fk = (int) $adisyon->fatura_kesildi;
             // Net renk farki: faturali = yesil, faturasiz = saydam gri (bakar bakmaz ayrilabilsin)
             $_btnStyle = $_fk
