@@ -491,6 +491,8 @@ Route::prefix('sistemyonetim')->group(function() {
     Route::post('/mevcutavantajduzenleme','AdminController@mevcutavantajduzenleme');
 	Route::get('/isletmedetay/{id}','AdminController@isletmedetay');
 	Route::get('/hizmetler','AdminController@hizmetlistesi');
+	Route::get('/hizmet-havuzu-temizlik','AdminController@hizmetHavuzuTemizlikRapor')->name('superadmin.hizmet.temizlik');
+	Route::post('/hizmet-havuzu-normalize','AdminController@hizmetHavuzuNormalize');
 	Route::get('/yenihizmetekleme','AdminController@yenihizmetekleme');
 	Route::get('/yenihizmetkategoriekleme','AdminController@yenihizmetkategoriekleme');
 	Route::get('/hizmetkategorisisil','AdminController@hizmetkategorisisil');

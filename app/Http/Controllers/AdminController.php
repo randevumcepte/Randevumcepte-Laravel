@@ -293,6 +293,177 @@ class AdminController extends Controller
     	$hizmetkategorileri = Hizmet_Kategorisi::orderBy('id','desc')->get();
     	return view('superadmin.hizmetler',['title' =>  ' Hizmetler & Hizmet Kategorileri | randevumcepte.com.tr', 'pageindex' => 4,'hizmetler' => $hizmetler ,'hizmetkategorileri' => $hizmetkategorileri]);
     }
+
+    /**
+     * Hizmet havuzu temizlik rapor sayfasi — duplicate adaylari, sahipsiz hizmetler,
+     * kategori dagilimi. Hicbir veri degistirmez, sadece okuma.
+     */
+    public function hizmetHavuzuTemizlikRapor() {
+        $toplam = \DB::table('hizmetler')->count();
+        $silinmis = \DB::table('hizmetler')->where('silindi', 1)->count();
+        $aktif = $toplam - $silinmis;
+
+        // Normalize edilmemis hizmet var mi?
+        $normalizeEdilmemis = \DB::table('hizmetler')
+            ->where(function($q){ $q->whereNull('normalized_ad')->orWhere('normalized_ad',''); })
+            ->where('silindi', 0)
+            ->count();
+
+        // Duplicate adaylari: ayni normalized_ad'a sahip 2+ kayit
+        $duplicateGruplari = collect();
+        $duplicateToplam = 0;
+        if ($normalizeEdilmemis === 0) {
+            $duplicateGruplari = \DB::table('hizmetler')
+                ->select('normalized_ad', \DB::raw('COUNT(*) as adet'), \DB::raw('GROUP_CONCAT(id) as id_listesi'))
+                ->where('silindi', 0)
+                ->whereNotNull('normalized_ad')
+                ->where('normalized_ad', '!=', '')
+                ->groupBy('normalized_ad')
+                ->having('adet', '>', 1)
+                ->orderByDesc('adet')
+                ->limit(200)
+                ->get();
+            $duplicateToplam = $duplicateGruplari->sum(function($g){ return $g->adet; });
+        }
+
+        // Sahipsiz hizmetler — hicbir tabloda FK'si yok
+        $kullanilanIdler = collect();
+        foreach (['salon_sunulan_hizmetler','personel_sunulan_hizmetler','adisyon_hizmetler','randevu_hizmetler','paket_hizmetler','oda_sunulan_hizmetler','cihaz_sunulan_hizmetler'] as $tbl) {
+            if (\Schema::hasTable($tbl)) {
+                $kullanilanIdler = $kullanilanIdler->merge(
+                    \DB::table($tbl)->whereNotNull('hizmet_id')->distinct()->pluck('hizmet_id')
+                );
+            }
+        }
+        $kullanilanIdler = $kullanilanIdler->unique()->values();
+        $sahipsizSayisi = \DB::table('hizmetler')
+            ->where('silindi', 0)
+            ->whereNotIn('id', $kullanilanIdler->isEmpty() ? [0] : $kullanilanIdler->toArray())
+            ->count();
+
+        // Kategori dagilimi
+        $kategoriDagilim = \DB::table('hizmetler')
+            ->leftJoin('hizmet_kategorisi','hizmetler.hizmet_kategori_id','=','hizmet_kategorisi.id')
+            ->select('hizmet_kategorisi.id as kategori_id',
+                     'hizmet_kategorisi.hizmet_kategorisi_adi as kategori_adi',
+                     \DB::raw('COUNT(hizmetler.id) as adet'))
+            ->where('hizmetler.silindi', 0)
+            ->groupBy('hizmet_kategorisi.id','hizmet_kategorisi.hizmet_kategorisi_adi')
+            ->orderByDesc('adet')
+            ->get();
+
+        // Duplicate gruplar icin detay (hizmet adi, kategori, kullanim sayisi)
+        $duplicateDetay = [];
+        if ($duplicateGruplari->isNotEmpty()) {
+            $tumIdler = [];
+            foreach ($duplicateGruplari as $g) {
+                $idler = array_filter(array_map('intval', explode(',', $g->id_listesi)));
+                $tumIdler = array_merge($tumIdler, $idler);
+            }
+            $tumIdler = array_unique($tumIdler);
+
+            $hizmetler = \DB::table('hizmetler')
+                ->leftJoin('hizmet_kategorisi','hizmetler.hizmet_kategori_id','=','hizmet_kategorisi.id')
+                ->whereIn('hizmetler.id', $tumIdler)
+                ->select('hizmetler.id','hizmetler.hizmet_adi','hizmetler.salon_id',
+                         'hizmetler.normalized_ad','hizmetler.ozel_hizmet',
+                         'hizmet_kategorisi.hizmet_kategorisi_adi as kategori_adi')
+                ->get()->keyBy('id');
+
+            // Her grup icin kullanim sayisini cek
+            $kullanimSayilari = [];
+            if (!empty($tumIdler)) {
+                $sayim = collect();
+                foreach (['salon_sunulan_hizmetler','personel_sunulan_hizmetler','adisyon_hizmetler','randevu_hizmetler','paket_hizmetler','oda_sunulan_hizmetler','cihaz_sunulan_hizmetler'] as $tbl) {
+                    if (\Schema::hasTable($tbl)) {
+                        $r = \DB::table($tbl)->whereIn('hizmet_id', $tumIdler)
+                            ->select('hizmet_id', \DB::raw('COUNT(*) as c'))
+                            ->groupBy('hizmet_id')->get();
+                        foreach ($r as $row) {
+                            $kullanimSayilari[$row->hizmet_id] = ($kullanimSayilari[$row->hizmet_id] ?? 0) + $row->c;
+                        }
+                    }
+                }
+            }
+
+            foreach ($duplicateGruplari as $g) {
+                $idler = array_filter(array_map('intval', explode(',', $g->id_listesi)));
+                $satirlar = [];
+                foreach ($idler as $hid) {
+                    if (!isset($hizmetler[$hid])) continue;
+                    $h = $hizmetler[$hid];
+                    $satirlar[] = [
+                        'id' => $h->id,
+                        'hizmet_adi' => $h->hizmet_adi,
+                        'kategori_adi' => $h->kategori_adi,
+                        'salon_id' => $h->salon_id,
+                        'ozel_hizmet' => $h->ozel_hizmet,
+                        'kullanim' => $kullanimSayilari[$hid] ?? 0,
+                    ];
+                }
+                // Kullanima gore sirala — en cok kullanilan ust (ana hizmet adayi)
+                usort($satirlar, function($a,$b){ return $b['kullanim'] <=> $a['kullanim']; });
+                $duplicateDetay[] = [
+                    'normalized_ad' => $g->normalized_ad,
+                    'adet' => $g->adet,
+                    'satirlar' => $satirlar,
+                ];
+            }
+        }
+
+        $isletme = \App\Salonlar::first();
+
+        return view('superadmin.hizmet_havuzu_temizlik', [
+            'title' => 'Hizmet Havuzu Temizlik | randevumcepte.com.tr',
+            'pageindex' => 41,
+            'isletme' => $isletme,
+            'toplam' => $toplam,
+            'aktif' => $aktif,
+            'silinmis' => $silinmis,
+            'normalizeEdilmemis' => $normalizeEdilmemis,
+            'duplicateToplam' => $duplicateToplam,
+            'duplicateGrupSayisi' => $duplicateGruplari->count(),
+            'duplicateDetay' => $duplicateDetay,
+            'sahipsizSayisi' => $sahipsizSayisi,
+            'kategoriDagilim' => $kategoriDagilim,
+        ]);
+    }
+
+    /**
+     * Tum hizmetlerin normalized_ad alanini doldur — duplicate tespiti icin.
+     * Turkce karakter + bosluk + noktalama temizlenir, lowercase yapilir.
+     */
+    public function hizmetHavuzuNormalize(Request $request) {
+        $batchSize = 500;
+        $islenen = 0;
+
+        \DB::table('hizmetler')
+            ->where(function($q){ $q->whereNull('normalized_ad')->orWhere('normalized_ad',''); })
+            ->orderBy('id')
+            ->chunkById($batchSize, function($rows) use (&$islenen) {
+                foreach ($rows as $h) {
+                    $norm = self::hizmetAdiNormalize($h->hizmet_adi ?? '');
+                    \DB::table('hizmetler')->where('id', $h->id)->update(['normalized_ad' => $norm]);
+                    $islenen++;
+                }
+            });
+
+        return response()->json(['basarili' => true, 'islenen' => $islenen]);
+    }
+
+    /**
+     * Hizmet adini normalize et — Turkce karakter, bosluk, noktalama, buyuk/kucuk
+     * harf temizlenir. Duplicate tespiti icin kanonik form uretir.
+     */
+    public static function hizmetAdiNormalize($s) {
+        if ($s === null) return '';
+        $s = mb_strtolower($s, 'UTF-8');
+        $tr = ['ç','ğ','ı','i','ö','ş','ü','â','î','û','İ'];
+        $en = ['c','g','i','i','o','s','u','a','i','u','i'];
+        $s = str_replace($tr, $en, $s);
+        $s = preg_replace('/[^a-z0-9]+/', '', $s);
+        return trim($s);
+    }
     public function isletmeyetkilileri(){
     	$yetkililer = IsletmeYetkilileri::orderBy('id','desc')->get();
     	return view('superadmin.yetkililer',['yetkililer'=> $yetkililer,'title'=> 'İşletme Yetkilileri | randevumcepte.com.tr','pageindex'=>6]);

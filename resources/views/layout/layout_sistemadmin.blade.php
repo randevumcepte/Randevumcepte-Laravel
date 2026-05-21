@@ -221,6 +221,24 @@
                     
                     @endif
 
+                    @if($pageindex == 4 || $pageindex == 41)
+                    <li class="parent">
+                      <a href="#">Hizmetler</a>
+                      <ul>
+                          <li class="{{ $pageindex == 4 ? 'active' : '' }}"><a href="/sistemyonetim/hizmetler">Hizmet Listesi</a></li>
+                          <li class="{{ $pageindex == 41 ? 'active' : '' }}"><a href="/sistemyonetim/hizmet-havuzu-temizlik">Havuz Temizlik</a></li>
+                      </ul>
+                    </li>
+                    @else
+                    <li class="parent">
+                      <a href="#">Hizmetler</a>
+                      <ul>
+                          <li><a href="/sistemyonetim/hizmetler">Hizmet Listesi</a></li>
+                          <li><a href="/sistemyonetim/hizmet-havuzu-temizlik">Havuz Temizlik</a></li>
+                      </ul>
+                    </li>
+                    @endif
+
                     @if(Auth::user()->admin)
                     <li class="parent">
                       <a href="#">Müşteri Temsilcileri</a>
