@@ -550,6 +550,9 @@ function toast(mesaj, tip) {
 async function stokApi(action, data, method) {
     method = method || 'POST';
     data = data || {};
+    // Aktif sube id'si — yoksa server varsayilan ilk subeyi kullanir, bu da
+    // tum isletmelerde ayni urunlerin cikmasina yol acar.
+    const subeId = (document.getElementById('stok_sube_id') || {}).value || '';
     const opts = {
         method: method,
         headers: { 'X-CSRF-TOKEN': STOK_CSRF, 'Accept': 'application/json' },
@@ -557,6 +560,7 @@ async function stokApi(action, data, method) {
     };
     if (method === 'POST') {
         const fd = new FormData();
+        if (subeId) fd.append('sube', subeId);
         for (const k in data) {
             const v = data[k];
             if (v === null || v === undefined) continue;
@@ -565,8 +569,12 @@ async function stokApi(action, data, method) {
         }
         opts.body = fd;
     }
+    let url = STOK_BASE + action;
+    if (method !== 'POST' && subeId) {
+        url += (url.indexOf('?') >= 0 ? '&' : '?') + 'sube=' + encodeURIComponent(subeId);
+    }
     try {
-        const r = await fetch(STOK_BASE + action, opts);
+        const r = await fetch(url, opts);
         const txt = await r.text();
         if (!r.ok) {
             // 422 ise body içinde mesaj olabilir, JSON parse dene

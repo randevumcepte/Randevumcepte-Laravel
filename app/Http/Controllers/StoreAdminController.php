@@ -7614,6 +7614,16 @@ private function ayAdiCevir($ingilizceAy)
     public function stokApi(Request $request, $action)
     {
         $salonid = self::mevcutsube($request);
+
+        // Yetki: sube client'tan geliyor; sadece kullanicinin yetkili oldugu
+        // isletmeye izin ver (baska isletmenin stogunu okuma/yazmayi engelle).
+        $isletmeler = Auth::guard('satisortakligi')->check()
+            ? [15]
+            : Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->pluck('salon_id')->toArray();
+        if (!in_array($salonid, $isletmeler)) {
+            return response()->json(['status' => 'error', 'mesaj' => 'Bu isletme icin yetkiniz yok'], 403);
+        }
+
         $stok = new StokController();
 
         switch ($action) {
