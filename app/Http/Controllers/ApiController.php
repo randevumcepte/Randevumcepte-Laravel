@@ -8773,41 +8773,60 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     public function tahsilatraporu(Request $request, $salonid)
-
     {
+        // Faturasiz gizle modu: faturali adisyon kalemlerine ait
+        // tahsilatlari ve her tahsilatin faturali kismini hesapla.
+        $_faturasizGizle = (bool) Salonlar::where('id', $salonid)->value('faturasiz_gizle');
+        $_faturaliKisimMap = [];
+        $_faturaliTahsilatIds = null;
+        if ($_faturasizGizle) {
+            $_faturaliAdisyonIds = Adisyonlar::where('salon_id', $salonid)
+                ->where('fatura_kesildi', 1)->pluck('id');
+            $_dHizmet = \DB::table('tahsilat_hizmetler')
+                ->whereIn('adisyon_hizmet_id', function($q) use($_faturaliAdisyonIds){
+                    $q->select('id')->from('adisyon_hizmetler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+                })->select('tahsilat_id','tutar')->get();
+            $_dUrun = \DB::table('tahsilat_urunler')
+                ->whereIn('adisyon_urun_id', function($q) use($_faturaliAdisyonIds){
+                    $q->select('id')->from('adisyon_urunler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+                })->select('tahsilat_id','tutar')->get();
+            $_dPaket = \DB::table('tahsilat_paketler')
+                ->whereIn('adisyon_paket_id', function($q) use($_faturaliAdisyonIds){
+                    $q->select('id')->from('adisyon_paketler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+                })->select('tahsilat_id','tutar')->get();
+            foreach ([$_dHizmet, $_dUrun, $_dPaket] as $_set) {
+                foreach ($_set as $_r) {
+                    $_faturaliKisimMap[$_r->tahsilat_id] = ($_faturaliKisimMap[$_r->tahsilat_id] ?? 0) + (float) $_r->tutar;
+                }
+            }
+            $_faturaliTahsilatIds = array_keys($_faturaliKisimMap);
+        }
 
-        return Tahsilatlar::where("salon_id", $salonid)
-
+        $sayfa = Tahsilatlar::where("salon_id", $salonid)
             ->where(function ($q) use ($request) {
-
                 if ($request->tarih1 !== null && $request->tarih2 !== null) {
-
-                    // whereDate: kolon DATETIME ise bile sadece tarih kismini karsilastirir.
-                    // Onceden where(...,<=,$tarih2) '2026-05-14' icin '00:00:00'a denk gelip ayni gunku tahsilatlari kacirayordu.
                     $q->whereDate("odeme_tarihi", ">=", $request->tarih1);
-
                     $q->whereDate("odeme_tarihi", "<=", $request->tarih2);
-
                 }
-
             })
-
             ->where(function ($q) use ($request) {
-
                 if ($request->odemeyontemi !== null && $request->odemeyontemi !== '') {
-
                     $q->where("odeme_yontemi_id", "=", $request->odemeyontemi);
-
                 }
-
             })
-
+            ->when($_faturasizGizle, fn($q) => $q->whereIn('id', $_faturaliTahsilatIds ?: [0]))
             ->orderBy("odeme_tarihi", "desc")
-
             ->orderBy("id", "desc")
-
             ->paginate(5);
 
+        // Toggle aktifken her satirin tutarini faturali kisma override et
+        if ($_faturasizGizle) {
+            $sayfa->getCollection()->transform(function($t) use($_faturaliKisimMap) {
+                $t->tutar = $_faturaliKisimMap[$t->id] ?? 0;
+                return $t;
+            });
+        }
+        return $sayfa;
     }
 
     public function masrafraporu(Request $request, $salonid)
