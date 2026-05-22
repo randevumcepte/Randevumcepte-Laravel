@@ -431,7 +431,7 @@
          position: fixed;
          bottom: 14px;
          right: 14px;
-         display: inline-flex;
+         display: none !important;
          align-items: center;
          gap: 7px;
          background: linear-gradient(135deg, #5C008E 0%, #8a5cc7 100%);
