@@ -15834,6 +15834,8 @@ DB::raw('
                             $yeni->dusulen_miktar = 1;
                             $yeni->seans_no = $maxSeansNo;
                             $yeni->save();
+                            // Yeni satiri korumali id listesine ekle — delete asamasinda silinmesin
+                            $secilenIds[] = (int) $yeni->id;
                             \Log::info('[SEANS-REPLICATE] yeni satir eklendi', [
                                 'yeni_id' => $yeni->id, 'seans_no' => $maxSeansNo,
                             ]);
@@ -15847,6 +15849,7 @@ DB::raw('
                     ]);
                 }
             }
+            // Isaretlenmeyenleri sil — yeni replikalar zaten $secilenIds'e eklendigi icin korunur
             AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
                 ->whereNotIn('id', $secilenIds)
                 ->delete();
