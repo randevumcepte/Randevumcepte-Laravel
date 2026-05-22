@@ -13704,7 +13704,7 @@ DB::raw('
     // Optimized select columns
     $selectColumns = [
         'users.name as musteri',
-        DB::raw('CONCAT_WS(", ",
+        DB::raw('COALESCE(NULLIF(CONCAT_WS(", ",
             NULLIF((SELECT GROUP_CONCAT(DISTINCT sp2.personel_adi SEPARATOR ", ")
                     FROM randevu_hizmetler rh2
                     LEFT JOIN salon_personelleri sp2 ON sp2.id = rh2.personel_id
@@ -13717,7 +13717,13 @@ DB::raw('
                     FROM randevu_hizmetler rh4
                     LEFT JOIN odalar o2 ON o2.id = rh4.oda_id
                     WHERE rh4.randevu_id = randevular.id AND o2.oda_adi IS NOT NULL),"")
-        ) as personelcihazoda'),
+        ),""), CONCAT(
+            "<span style=\"color:#999;font-size:11px\">[",
+            "p:", IFNULL((SELECT GROUP_CONCAT(DISTINCT IFNULL(rh5.personel_id,"-")) FROM randevu_hizmetler rh5 WHERE rh5.randevu_id = randevular.id),"-"),
+            " c:", IFNULL((SELECT GROUP_CONCAT(DISTINCT IFNULL(rh6.cihaz_id,"-")) FROM randevu_hizmetler rh6 WHERE rh6.randevu_id = randevular.id),"-"),
+            " o:", IFNULL((SELECT GROUP_CONCAT(DISTINCT IFNULL(rh7.oda_id,"-")) FROM randevu_hizmetler rh7 WHERE rh7.randevu_id = randevular.id),"-"),
+            "]</span>"
+        )) as personelcihazoda'),
         'odalar.oda_adi as odalar',
         'salon_personelleri.personel_adi as personel_adi',
         'cihazlar.cihaz_adi as cihaz_adi',
@@ -15680,10 +15686,55 @@ DB::raw('
         }
     }
 
-   
- 
- 
-        
+
+        // Seans secim modu (web): randevuda paket seansi varsa kullaniciya
+        // hangi seanslarin dusulecegini sorar. Mobil ApiController'daki
+        // 'seans_secim_destek' bayragiyla ayni mantik — Flutter app icin daha
+        // once eklenmisti, web'e de tasidik. Eski cagrilar (bayrak gondermeyen)
+        // backward compat (hepsi geldi=true) korur.
+        $seansSecimDestek = $request->boolean('seans_secim_destek', false);
+        $secilenSeansIdler = $request->input('secilen_seans_idler');
+        $secilenVerildi = is_array($secilenSeansIdler);
+
+        $seansSayisi = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->count();
+        if ($seansSayisi > 0 && $seansSecimDestek && !$secilenVerildi) {
+            $seanslarListe = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->get();
+            $list = [];
+            foreach ($seanslarListe as $s) {
+                $ap = AdisyonPaketler::where('id', $s->adisyon_paket_id)->first();
+                $paketAdi = '';
+                $toplamSeans = 0;
+                $kullanilan = 0;
+                if ($ap) {
+                    $paketObj = Paketler::where('id', $ap->paket_id)->first();
+                    $paketAdi = $paketObj ? $paketObj->paket_adi : '';
+                    $toplamSeans = (int) $ap->seans_sayisi;
+                    $kullanilan = AdisyonPaketSeanslar::where('adisyon_paket_id', $ap->id)
+                        ->where('geldi', true)
+                        ->count();
+                }
+                $kalan = max(0, $toplamSeans - $kullanilan);
+                $list[] = [
+                    'id'               => (int) $s->id,
+                    'hizmet_adi'       => $s->hizmet ? $s->hizmet->hizmet_adi : '',
+                    'paket_adi'        => $paketAdi,
+                    'adisyon_paket_id' => (int) $s->adisyon_paket_id,
+                    'kalan_seans'      => $kalan,
+                    'toplam_seans'     => $toplamSeans,
+                    'seans_no'         => (int) ($s->seans_no ?? 0),
+                    'simdi_geldi'      => $s->geldi == true,
+                ];
+            }
+            return array(
+                'seansSecimGerekli' => 1,
+                'seanslar'          => $list,
+                'musteri_adi'       => $randevu->users->name ?? '',
+                'tarih'             => $randevu->tarih ?? '',
+                'saat'              => $randevu->saat ?? '',
+            );
+        }
+
+
         $randevu->randevuya_geldi = true;
 
         $randevu->save();
@@ -15696,11 +15747,22 @@ DB::raw('
 
         $seanslar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id);
 
-        foreach($seanslar->get() as $seans)
-        {
+        if ($secilenVerildi) {
+            // Sadece secilen seanslar gelmis olarak isaretlenir, digerleri false.
+            $secilenIds = array_map('intval', $secilenSeansIdler);
+            AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
+                ->whereIn('id', $secilenIds)
+                ->update(['geldi' => true]);
+            AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
+                ->whereNotIn('id', $secilenIds)
+                ->update(['geldi' => false]);
+        } else {
+            foreach($seanslar->get() as $seans)
+            {
 
-            $seans->geldi = true;
-            $seans->save();
+                $seans->geldi = true;
+                $seans->save();
+            }
         }
 
         // Musteriye seans kullanim bilgilendirme push'u — ApiController'daki
