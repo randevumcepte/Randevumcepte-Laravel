@@ -890,7 +890,7 @@
             </div>
             @endif
             @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
-            <div class="header-right" style="display:none;margin-right:12px;vertical-align:middle;">
+            <div class="header-right" style="display:inline-block;margin-right:12px;vertical-align:middle;">
                 <a href="#" id="faturasizGizleTopbarBtn"
                    data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
                    title="Faturasiz Gizle"
@@ -947,7 +947,7 @@
             <div class="sidebar-menu">
                <ul>
                   @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
-                  <li style="display:none">
+                  <li>
                      <a href="#" id="faturasizGizleSidebarBtn"
                         data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
                         class="dropdown-toggle no-arrow"
