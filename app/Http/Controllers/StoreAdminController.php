@@ -15797,9 +15797,16 @@ DB::raw('
         if ($secilenVerildi) {
             // Sadece secilen seanslar gelmis olarak isaretlenir + her birine
             // popup'tan girilen 'dusulen_miktar' yazilir.
-            // Isaretlenmeyenler 'geldi=null' (beklemede) — "gelmedi" sayilmazlar.
+            // Isaretlenmeyenler bu randevudan TAMAMEN SILINIR — paketteki
+            // seans hakki kalir, sonraki randevuya bagli ayri satir olarak
+            // yeniden olusturulabilir.
             $secilenIds = array_map('intval', (array) $secilenSeansIdler);
             $miktarlar = (array) $request->input('seans_miktarlari', []);
+            \Log::info('[SEANS-MIKTAR-DEBUG] web in', [
+                'randevu_id'  => $randevu->id,
+                'secilen_ids' => $secilenIds,
+                'miktarlar'   => $miktarlar,
+            ]);
             foreach ($secilenIds as $sid) {
                 $m = 1;
                 if (isset($miktarlar[$sid]))            $m = max(1, (int) $miktarlar[$sid]);
@@ -15807,12 +15814,27 @@ DB::raw('
                 AdisyonPaketSeanslar::where('id', $sid)
                     ->where('randevu_id', $randevu->id)
                     ->update(['geldi' => true, 'dusulen_miktar' => $m]);
+                \Log::info('[SEANS-MIKTAR-DEBUG] update', ['sid' => $sid, 'm' => $m]);
             }
-            // Isaretlenmeyenleri 'beklemede' (null) durumuna al — paketten dusmesinler,
-            // "gelmedi" olarak da sayilmasinlar. Sonraki randevuda kullanilabilirler.
+            // DB'den geri oku — gercekten yazildi mi?
+            try {
+                $rows = \DB::table('adisyon_paket_seanslar')
+                    ->whereIn('id', $secilenIds)
+                    ->get(['id', 'geldi', 'dusulen_miktar', 'adisyon_paket_id']);
+                \Log::info('[SEANS-MIKTAR-DEBUG] db_after', ['rows' => $rows->toArray()]);
+                $apIds = $rows->pluck('adisyon_paket_id')->filter()->unique()->values()->all();
+                foreach ($apIds as $apId) {
+                    $cnt = \DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id', $apId)->where('geldi', true)->count();
+                    $sum = (int) \DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id', $apId)->where('geldi', true)->sum('dusulen_miktar');
+                    \Log::info('[SEANS-MIKTAR-DEBUG] paket_hesap', ['ap_id' => $apId, 'count' => $cnt, 'sum' => $sum]);
+                }
+            } catch (\Throwable $e) {
+                \Log::error('[SEANS-MIKTAR-DEBUG] read_err', ['err' => $e->getMessage()]);
+            }
+            // Isaretlenmeyenleri sil — bu randevuya bagli rezervasyon kalmasin
             AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
                 ->whereNotIn('id', $secilenIds)
-                ->update(['geldi' => null]);
+                ->delete();
         } else {
             foreach($seanslar->get() as $seans)
             {

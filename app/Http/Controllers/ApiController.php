@@ -12623,11 +12623,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                             ->where('randevu_id', $request->randevuid)
                             ->update(['geldi' => true, 'dusulen_miktar' => $m]);
                     }
-                    // Isaretlenmeyenler 'beklemede' (null) — paketten dusmesinler,
-                    // "gelmedi" sayilmasinlar. Sonraki randevuda kullanilabilirler.
+                    // Isaretlenmeyenleri sil — bu randevuya bagli rezervasyon kalmasin
                     AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)
                         ->whereNotIn('id', $secilenIds)
-                        ->update(['geldi' => null]);
+                        ->delete();
                 } else {
                     AdisyonPaketSeanslar::where(
 
