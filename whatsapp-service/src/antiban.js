@@ -70,7 +70,14 @@ class SendQueue {
   }
 
   _recordFailure(err) {
-    const permanentErrors = ['invalid-phone', 'not-on-whatsapp', 'outside-business-hours', 'daily-cap-reached'];
+    // Bu hatalar mesaj-spesifik (numara, ayar) — ban riski yaratmaz, sayilmamali
+    const permanentErrors = [
+      'invalid-phone',
+      'not-on-whatsapp',
+      'outside-business-hours',
+      'daily-cap-reached',
+      'cannot-send-to-self',
+    ];
     if (permanentErrors.includes(err.message)) return;
 
     this.consecutiveFailures++;

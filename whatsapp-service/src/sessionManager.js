@@ -65,16 +65,24 @@ const buildSender = (salonId) => async (job) => {
   const phone = normalizePhone(job.to);
   if (!phone) throw new Error('invalid-phone');
 
+  // Kendi numarana mesaj gondermeyi engelle (WhatsApp self-send'i reddeder)
+  if (session.phone && phone === session.phone) {
+    throw new Error('cannot-send-to-self');
+  }
+
   const jid = toJid(phone);
 
+  // onWhatsApp kontrolu BEST-EFFORT: WhatsApp Business hesaplarinda
+  // 'exists: false' yanlis donebiliyor — mesajimiz teknik olarak gidebilir olsa da
+  // hatali iptal ediliyordu. Artik exists=false olsa bile sendMessage'i deniyoruz;
+  // gercekten WhatsApp'ta yoksa sendMessage zaten fail eder -> webhook -> SMS fallback.
   try {
     const [onWhatsApp] = await session.sock.onWhatsApp(jid);
-    if (!onWhatsApp || !onWhatsApp.exists) {
-      throw new Error('not-on-whatsapp');
+    if (onWhatsApp && onWhatsApp.exists === false) {
+      logger.warn({ phone, jid }, 'onWhatsApp exists=false (Business hesap olabilir, yine de deneniyor)');
     }
   } catch (err) {
-    if (err.message === 'not-on-whatsapp') throw err;
-    logger.warn({ err: err.message }, 'onWhatsApp check failed, continuing');
+    logger.warn({ err: err.message, phone }, 'onWhatsApp check failed, continuing');
   }
 
   if (!job.urgent) {
@@ -89,7 +97,14 @@ const buildSender = (salonId) => async (job) => {
     try { await session.sock.sendPresenceUpdate('available', jid); } catch (_) {}
   }
 
-  const result = await session.sock.sendMessage(jid, { text: job.message });
+  let result;
+  try {
+    result = await session.sock.sendMessage(jid, { text: job.message });
+  } catch (err) {
+    // sendMessage hatasi — numara WhatsApp'ta yok / engellenmis / network vs.
+    logger.warn({ phone, jid, err: err.message }, 'sendMessage basarisiz, SMS fallback tetiklenecek');
+    throw err;
+  }
 
   // Mesaji getMessage cache'ine yaz — retry receipt gelirse yeniden gonderilebilsin.
   // Son ~1000 mesaj tutulur (FIFO), bellek sismez.
