@@ -493,13 +493,17 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                     '</div>' +
                   '</div>' +
                   '<div class="row g-1">' +
-                    '<div class="col-md-6">' +
+                    '<div class="col-md-5">' +
                       '<label style="font-size:0.7rem;">Süre (dakika)</label>' +
                       '<input type="number" class="form-control form-control-sm hizmet-suresi" name="hizmet_suresi[]" value="'+sure+'" min="0" step="5" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
                     '</div>' +
-                    '<div class="col-md-6">' +
+                    '<div class="col-md-5">' +
                       '<label style="font-size:0.7rem;">Fiyat (₺)</label>' +
                       '<input type="text" inputmode="decimal" class="form-control form-control-sm hizmet-fiyati hy-fiyat-input" name="hizmet_fiyat[]" value="'+fiyat+'" placeholder="0,00" autocomplete="off" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
+                    '</div>' +
+                    '<div class="col-md-2">' +
+                      '<label style="font-size:0.7rem;" title="Paketten kac seans veya dakika dusulecek">Miktar</label>' +
+                      '<input type="number" class="form-control form-control-sm hizmet-miktari" name="hizmet_miktari[]" value="'+ (opt.dusum_miktari || 1) +'" min="1" step="1" style="height:26px;padding:2px 6px;font-size:0.75rem;text-align:center;">' +
                     '</div>' +
                   '</div>' +
                 '</div>';

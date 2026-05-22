@@ -11,7 +11,8 @@ class RandevuHizmetler extends Model
     //protected $with =  ['hizmetler' ,'personeller','cihaz'];
     
     protected $fillable = [
-        'randevu_id', 'hizmet_id' ,'personel_id' ,'saat','saat_bitis','oda_id','cihaz_id','sure_dk','fiyat'
+        'randevu_id', 'hizmet_id' ,'personel_id' ,'saat','saat_bitis','oda_id','cihaz_id','sure_dk','fiyat',
+        'dusum_miktari'
     ];
     public function randevu()
     {

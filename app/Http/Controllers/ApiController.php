@@ -12563,10 +12563,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                             ->sum('dusulen_miktar');
                     }
                     $kalan = max(0, $toplamSeans - $kullanilan);
-                    // Default miktar onerisi: bu hizmetin randevudaki sure_dk degeri
-                    $sureDk = (int) (RandevuHizmetler::where('randevu_id', $request->randevuid)
+                    // Default miktar: randevu modalinda salon girmisse o, yoksa 1
+                    $rhRow = RandevuHizmetler::where('randevu_id', $request->randevuid)
                         ->where('hizmet_id', $s->hizmet_id)
-                        ->value('sure_dk') ?? 0);
+                        ->first();
+                    $sureDk = (int) ($rhRow->sure_dk ?? 0);
+                    $defaultMiktar = ($rhRow && $rhRow->dusum_miktari) ? (int) $rhRow->dusum_miktari : 1;
                     $list[] = [
                         'id' => (int)$s->id,
                         'hizmet_adi' => $s->hizmet ? $s->hizmet->hizmet_adi : '',
@@ -12576,6 +12578,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         'toplam_seans' => $toplamSeans,
                         'seans_no' => (int)($s->seans_no ?? 0),
                         'sure_dk' => $sureDk,
+                        'default_miktar' => $defaultMiktar,
                         'dusulen_miktar' => (int) ($s->dusulen_miktar ?? 1),
                         'simdi_geldi' => $s->geldi == true,
                     ];

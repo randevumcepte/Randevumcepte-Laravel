@@ -11469,8 +11469,8 @@ function paketSeansSecim(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, 
         var kalan = (typeof s.kalan_seans !== 'undefined') ? s.kalan_seans : 0;
         var toplam = (typeof s.toplam_seans !== 'undefined') ? s.toplam_seans : 0;
         var kalanRenk = (kalan <= 0) ? '#e74c3c' : '#16a085';
-        // Default miktar her zaman 1 — salon ihtiyaca gore degistirir
-        var defaultMiktar = 1;
+        // Default miktar: randevu modalinde girilmis 'default_miktar' geldiyse onu, yoksa 1
+        var defaultMiktar = (s.default_miktar && s.default_miktar > 0) ? s.default_miktar : 1;
 
         html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 9px;border-bottom:1px solid #eee;margin:0;">';
         html += '  <input type="checkbox" class="paket-seans-secim" data-value="'+s.id+'" style="width:18px;height:18px;flex:0 0 auto;cursor:pointer;">';

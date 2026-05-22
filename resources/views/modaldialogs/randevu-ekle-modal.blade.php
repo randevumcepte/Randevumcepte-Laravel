@@ -3489,17 +3489,17 @@ function updateHizmetDetaylari(index) {
                     </div>
                 </div>
                 <div class="row g-1 hizmet-detay-inputs">
-                    <div class="col-md-6">
+                    <div class="col-md-5">
                         <label class="form-label small" style="font-size: 0.7rem;">Süre (dakika)</label>
-                        <input type="number" 
-                               class="form-control form-control-sm hizmet-suresi" 
-                               name="hizmet_sureleri-${service.id}" 
-                               value="${sure}" 
-                               min="0" 
+                        <input type="number"
+                               class="form-control form-control-sm hizmet-suresi"
+                               name="hizmet_sureleri-${service.id}"
+                               value="${sure}"
+                               min="0"
                                step="5"
                                style="height: 26px; padding: 2px 6px; font-size: 0.75rem;">
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-5">
                         <label class="form-label small" style="font-size: 0.7rem;">Fiyat (₺)</label>
                         <input type="text"
                                inputmode="decimal"
@@ -3509,6 +3509,16 @@ function updateHizmetDetaylari(index) {
                                placeholder="0,00"
                                autocomplete="off"
                                style="height: 26px; padding: 2px 6px; font-size: 0.75rem;">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small" style="font-size: 0.7rem;" title="Paketten kac seans veya dakika dusulecek">Miktar</label>
+                        <input type="number"
+                               class="form-control form-control-sm hizmet-miktari"
+                               name="hizmet_miktarlari-${service.id}"
+                               value="1"
+                               min="1"
+                               step="1"
+                               style="height: 26px; padding: 2px 6px; font-size: 0.75rem; text-align:center;">
                     </div>
                 </div>
             </div>

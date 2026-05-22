@@ -4392,6 +4392,10 @@ private function ayAdiCevir($ingilizceAy)
                         $yenirandevuhizmetpersonel->oda_id = $duzenleOdaId;
                         $yenirandevuhizmetpersonel->sure_dk = $request->hizmet_suresi[$key];
                         $yenirandevuhizmetpersonel->fiyat = self::parseFiyat($request->hizmet_fiyat[$key]);
+                        // Salonun girdigi dusum miktari ("Geldi" popup'unda default olur)
+                        if (isset($request->hizmet_miktari[$key]) && $request->hizmet_miktari[$key] !== '') {
+                            $yenirandevuhizmetpersonel->dusum_miktari = max(1, (int) $request->hizmet_miktari[$key]);
+                        }
 
                         $birsonraki = $key + 1;
 
@@ -5467,6 +5471,12 @@ private function ayAdiCevir($ingilizceAy)
                         $yenirandevuhizmetpersonel->oda_id = $hizmetOdaId;
                         $yenirandevuhizmetpersonel->sure_dk = $request->{"hizmet_sureleri-$rHizmet"};
                         $yenirandevuhizmetpersonel->fiyat = self::parseFiyat($request->{"hizmet_fiyatlari-$rHizmet"});
+                        // Salonun girdigi dusum miktari (paketten kac seans/dakika).
+                        // NULL ise "Geldi" popup'unda default 1 gelir; doluysa o deger default olur.
+                        $_miktar = $request->{"hizmet_miktarlari-$rHizmet"} ?? null;
+                        if ($_miktar !== null && $_miktar !== '') {
+                            $yenirandevuhizmetpersonel->dusum_miktari = max(1, (int) $_miktar);
+                        }
                         
                          
                         $yenirandevuhizmetpersonel->saat = $yenisaatbaslangic;
@@ -15740,10 +15750,12 @@ DB::raw('
                         ->sum('dusulen_miktar');
                 }
                 $kalan = max(0, $toplamSeans - $kullanilan);
-                // Default miktar onerisi: bu hizmetin randevudaki sure_dk degeri
-                $sureDk = (int) (RandevuHizmetler::where('randevu_id', $randevu->id)
+                // Default miktar: randevu modalinda salon girmisse o, yoksa 1
+                $rhRow = RandevuHizmetler::where('randevu_id', $randevu->id)
                     ->where('hizmet_id', $s->hizmet_id)
-                    ->value('sure_dk') ?? 0);
+                    ->first();
+                $sureDk = (int) ($rhRow->sure_dk ?? 0);
+                $defaultMiktar = ($rhRow && $rhRow->dusum_miktari) ? (int) $rhRow->dusum_miktari : 1;
                 $list[] = [
                     'id'               => (int) $s->id,
                     'hizmet_adi'       => $s->hizmet ? $s->hizmet->hizmet_adi : '',
@@ -15754,6 +15766,7 @@ DB::raw('
                     'toplam_seans'     => $toplamSeans,
                     'seans_no'         => (int) ($s->seans_no ?? 0),
                     'sure_dk'          => $sureDk,
+                    'default_miktar'   => $defaultMiktar,
                     'dusulen_miktar'   => (int) ($s->dusulen_miktar ?? 1),
                     'simdi_geldi'      => $s->geldi == true,
                 ];
@@ -20252,6 +20265,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     'saat' => $rh->saat ?? null,
                     'sure_dk' => (int) ($rh->sure_dk ?? 0),
                     'fiyat' => (float) ($rh->fiyat ?? 0),
+                    'dusum_miktari' => (int) ($rh->dusum_miktari ?? 1),
                 ];
             })->values();
 
