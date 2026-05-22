@@ -12616,14 +12616,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     // salonun girdigi dusulen_miktar
                     $miktarlar = (array) $request->input('seans_miktarlari', []);
                     foreach ($secilenIds as $sid) {
-                        $m = isset($miktarlar[$sid]) ? max(1, (int) $miktarlar[$sid]) : 1;
+                        $m = 1;
+                        if (isset($miktarlar[$sid]))            $m = max(1, (int) $miktarlar[$sid]);
+                        elseif (isset($miktarlar[(string)$sid])) $m = max(1, (int) $miktarlar[(string)$sid]);
                         AdisyonPaketSeanslar::where('id', $sid)
                             ->where('randevu_id', $request->randevuid)
                             ->update(['geldi' => true, 'dusulen_miktar' => $m]);
                     }
+                    // Isaretlenmeyenler 'beklemede' (null) — paketten dusmesinler,
+                    // "gelmedi" sayilmasinlar. Sonraki randevuda kullanilabilirler.
                     AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)
                         ->whereNotIn('id', $secilenIds)
-                        ->update(['geldi' => false]);
+                        ->update(['geldi' => null]);
                 } else {
                     AdisyonPaketSeanslar::where(
 
