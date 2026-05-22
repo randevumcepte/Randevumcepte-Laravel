@@ -12612,35 +12612,17 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                 if ($secilenVerildi) {
                     $secilenIds = array_map('intval', $secilenSeansIdler);
+                    // seans_miktarlari: { id: miktar } map'i
                     $miktarlar = (array) $request->input('seans_miktarlari', []);
                     foreach ($secilenIds as $sid) {
                         $m = 1;
                         if (isset($miktarlar[$sid]))            $m = max(1, (int) $miktarlar[$sid]);
                         elseif (isset($miktarlar[(string)$sid])) $m = max(1, (int) $miktarlar[(string)$sid]);
-
-                        $orijinal = AdisyonPaketSeanslar::where('id', $sid)
+                        AdisyonPaketSeanslar::where('id', $sid)
                             ->where('randevu_id', $request->randevuid)
-                            ->first();
-                        if (!$orijinal) continue;
-
-                        $orijinal->geldi = true;
-                        $orijinal->dusulen_miktar = 1;
-                        $orijinal->save();
-
-                        // Ekstra satirlar: m-1 adet replicate
-                        if ($m > 1 && $orijinal->adisyon_paket_id) {
-                            $maxSeansNo = (int) AdisyonPaketSeanslar::where('adisyon_paket_id', $orijinal->adisyon_paket_id)->max('seans_no');
-                            for ($i = 1; $i < $m; $i++) {
-                                $maxSeansNo++;
-                                $yeni = $orijinal->replicate();
-                                $yeni->geldi = true;
-                                $yeni->dusulen_miktar = 1;
-                                $yeni->seans_no = $maxSeansNo;
-                                $yeni->save();
-                            }
-                        }
+                            ->update(['geldi' => true, 'dusulen_miktar' => $m]);
                     }
-                    // Isaretlenmeyenler: bu randevudan silinir
+                    // Isaretlenmeyenleri sil
                     AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)
                         ->whereNotIn('id', $secilenIds)
                         ->delete();
