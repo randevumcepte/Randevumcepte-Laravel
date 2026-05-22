@@ -15815,6 +15815,31 @@ DB::raw('
                     ->update(['geldi' => true, 'dusulen_miktar' => $m]);
                 \Log::info('[SEANS-MIKTAR-DEBUG] update', ['sid' => $sid, 'm' => $m]);
             }
+            // DB'den geri oku: gercekten dusulen_miktar 20 yazildi mi?
+            try {
+                $sonrasi = \DB::table('adisyon_paket_seanslar')
+                    ->whereIn('id', $secilenIds)
+                    ->get(['id', 'geldi', 'dusulen_miktar']);
+                \Log::info('[SEANS-MIKTAR-DEBUG] db_after', ['rows' => $sonrasi->toArray()]);
+                $apIds = $sonrasi->pluck('adisyon_paket_id')->filter()->unique()->values()->all();
+                if (empty($apIds)) {
+                    $apIds = \DB::table('adisyon_paket_seanslar')
+                        ->whereIn('id', $secilenIds)->pluck('adisyon_paket_id')->unique()->values()->all();
+                }
+                foreach ($apIds as $apId) {
+                    $count = \DB::table('adisyon_paket_seanslar')
+                        ->where('adisyon_paket_id', $apId)->where('geldi', true)->count();
+                    $sum = (int) \DB::table('adisyon_paket_seanslar')
+                        ->where('adisyon_paket_id', $apId)->where('geldi', true)->sum('dusulen_miktar');
+                    \Log::info('[SEANS-MIKTAR-DEBUG] paket_hesap', [
+                        'adisyon_paket_id' => $apId,
+                        'count_geldi'      => $count,
+                        'sum_dusulen'      => $sum,
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                \Log::error('[SEANS-MIKTAR-DEBUG] db_after_error', ['err' => $e->getMessage()]);
+            }
             AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
                 ->whereNotIn('id', $secilenIds)
                 ->update(['geldi' => false]);
