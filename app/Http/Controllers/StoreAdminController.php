@@ -13704,7 +13704,7 @@ DB::raw('
     // Optimized select columns
     $selectColumns = [
         'users.name as musteri',
-        DB::raw('CONCAT(COALESCE(salon_personelleri.personel_adi,"")," ",COALESCE(cihazlar.cihaz_adi,"")," ",COALESCE(odalar.oda_adi,"")) as personelcihazoda'),
+        DB::raw('CONCAT_WS(", ", GROUP_CONCAT(DISTINCT salon_personelleri.personel_adi SEPARATOR ", "), GROUP_CONCAT(DISTINCT cihazlar.cihaz_adi SEPARATOR ", "), GROUP_CONCAT(DISTINCT odalar.oda_adi SEPARATOR ", ")) as personelcihazoda'),
         'odalar.oda_adi as odalar',
         'salon_personelleri.personel_adi as personel_adi',
         'cihazlar.cihaz_adi as cihaz_adi',
