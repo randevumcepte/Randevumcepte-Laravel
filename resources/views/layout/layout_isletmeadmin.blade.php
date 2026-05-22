@@ -947,7 +947,7 @@
             <div class="sidebar-menu">
                <ul>
                   @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
-                  <li>
+                  <li style="display:none">
                      <a href="#" id="faturasizGizleSidebarBtn"
                         data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
                         class="dropdown-toggle no-arrow"
