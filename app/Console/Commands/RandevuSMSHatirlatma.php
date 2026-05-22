@@ -78,7 +78,9 @@ class RandevuSMSHatirlatma extends Command
                 ]);
                 if ($ayar && $ayar->musteri) {
                     $saat = date('H:i', strtotime($value->saat));
-                    $mesaj = 'Bugün ' . $saat . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
+                    $tarihStr = date('d.m.Y', strtotime($value->tarih));
+                    $hizmetMetni = $this->hizmetMetniOlustur($value);
+                    $mesaj = 'Sayın ' . optional($value->users)->name . '; ' . $tarihStr . ' tarihinde saat ' . $saat . ' ' . $hizmetMetni . 'randevunuzu hatırlatmak isteriz görüşmek üzere ✨';
                     $templateCtx = ['key' => 'yaklasan', 'params' => [$saat, $value->salonlar->salon_adi]];
                     $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj, $templateCtx);
                 } elseif ($ayar) {
@@ -135,7 +137,9 @@ class RandevuSMSHatirlatma extends Command
                     ]);
                     if ($ayar && $ayar->musteri) {
                         $saat = date('H:i', strtotime($value->saat));
-                        $mesaj = 'Yarın ' . $saat . ' saatinde ' . $value->salonlar->salon_adi . ' tarafından oluşturulan randevunuzu hatırlatmak isteriz.';
+                        $tarihStr = date('d.m.Y', strtotime($value->tarih));
+                        $hizmetMetni = $this->hizmetMetniOlustur($value);
+                        $mesaj = 'Sayın ' . optional($value->users)->name . '; ' . $tarihStr . ' tarihinde saat ' . $saat . ' ' . $hizmetMetni . 'randevunuzu hatırlatmak isteriz görüşmek üzere ✨';
                         $templateCtx = ['key' => '1gun', 'params' => [$saat, $value->salonlar->salon_adi]];
                         $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj, $templateCtx);
                     }
@@ -315,9 +319,7 @@ class RandevuSMSHatirlatma extends Command
         if ($whatsappKanaliAcik && $musteriOnayli) {
             $whatsappDenendi = true;
             // WA metni SMS ile birebir aynı olsun (Cloud API kendi template'ini kullanır).
-            $personalized = ($saglayici === 'cloud_api')
-                ? $mesajBase
-                : 'İyi günler. ' . $mesajBase;
+            $personalized = $mesajBase;
             $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $personalized, $randevu->id, $musteri->id, $templateCtx);
             Log::info('[RND-SMS] müşteri WA sonuc', [
                 'salon_id' => $salon->id, 'randevu_id' => $randevu->id, 'sonuc' => $sonuc,
@@ -334,7 +336,7 @@ class RandevuSMSHatirlatma extends Command
         }
 
         if (!$whatsappBasarili) {
-            $smsMesaj = 'İyi günler. ' . $mesajBase;
+            $smsMesaj = $mesajBase;
             Log::info('[RND-SMS] müşteri SMS gönderiliyor', [
                 'salon_id' => $salon->id,
                 'randevu_id' => $randevu->id,
@@ -361,6 +363,20 @@ class RandevuSMSHatirlatma extends Command
                 Log::warning('[RND-SMS] musteri push fail', ['randevu_id' => $randevu->id, 'err' => $e->getMessage()]);
             }
         }
+    }
+
+    // Randevudaki hizmet adlarini "solaryum, saç kesimi " seklinde birlestirir.
+    // Birden fazla hizmet varsa toplu yazilir; hizmet yoksa bos string doner.
+    protected function hizmetMetniOlustur($randevu)
+    {
+        $adlar = $randevu->hizmetler
+            ->map(function ($h) { return optional($h->hizmetler)->hizmet_adi; })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return empty($adlar) ? '' : implode(', ', $adlar) . ' ';
     }
 
     protected function yonetici_kimlikleri($salon_id)
