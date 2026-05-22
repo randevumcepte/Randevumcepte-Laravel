@@ -549,11 +549,13 @@ class DrklinikImporter
 
             $ad = null;
             if ($notKolonu) {
+                // SADECE marker ile dedup. Her drklinik satisi (SatisNo) kendi
+                // adisyonudur. Tarih fallback'i FARKLI satislari birlestirip
+                // seanslarin eksik kalmasina yol aciyordu - kaldirildi.
                 $ad = Adisyonlar::where('salon_id', $this->salonId)
                     ->where($notKolonu, 'LIKE', '%' . $idMarker . '%')->first();
-            }
-            // Fallback: salon+user+tarih ile dedup (tutar kolonu olmayabilir)
-            if (!$ad) {
+            } else {
+                // Hic text kolonu yoksa son care: salon+user+tarih (eski davranis)
                 $ad = Adisyonlar::where('salon_id', $this->salonId)
                     ->where('user_id', $userId)
                     ->where('tarih', $tarih)->first();
@@ -2049,10 +2051,12 @@ class DrklinikImporter
             $r->saat = $saat;
             $r->user_id = $userId;
             $r->salon_id = $this->salonId;
-            $r->durum = 1;
             $r->salon = 0;
             $r->olusturan_personel_id = null;
             $du = mb_strtolower($durum, 'UTF-8');
+            // durum: iptal -> 2, diger -> 1. Re-import'ta iptal olan randevu guncellensin.
+            if (strpos($du, 'iptal') !== false) $r->durum = 2;
+            else $r->durum = 1;
             if (strpos($du, 'geldi') !== false && strpos($du, 'gelmedi') === false) $r->randevuya_geldi = 1;
             elseif (strpos($du, 'gelmedi') !== false || strpos($du, 'iptal') !== false) $r->randevuya_geldi = 0;
             if ($aciklama) $r->personel_notu = $aciklama;
