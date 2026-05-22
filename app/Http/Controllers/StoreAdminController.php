@@ -15795,21 +15795,42 @@ DB::raw('
         $seanslar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id);
 
         if ($secilenVerildi) {
-            // Sadece secilen seanslar gelmis olarak isaretlenir + her birine
-            // popup'tan girilen 'dusulen_miktar' yazilir.
-            // Isaretlenmeyenler bu randevudan TAMAMEN SILINIR — paketteki
-            // seans hakki kalir (seans_sayisi adisyon_paketler'de tutulur),
-            // sonraki randevuya yeniden bagli satir eklenebilir.
+            // Mantik: popup'tan girilen miktar N ise, o hizmet icin N satir
+            // geldi=true olacak. Mevcut satir 1 dusulur; eksik (N-1) tane yeni
+            // satir AYNI randevu/hizmet/paket icin replicate ile eklenir.
+            // Isaretlenmeyen seanslar bu randevudan SILINIR — paket toplam
+            // hakki adisyon_paketler.seans_sayisi'nda durur.
             $secilenIds = array_map('intval', (array) $secilenSeansIdler);
             $miktarlar = (array) $request->input('seans_miktarlari', []);
             foreach ($secilenIds as $sid) {
                 $m = 1;
                 if (isset($miktarlar[$sid]))            $m = max(1, (int) $miktarlar[$sid]);
                 elseif (isset($miktarlar[(string)$sid])) $m = max(1, (int) $miktarlar[(string)$sid]);
-                AdisyonPaketSeanslar::where('id', $sid)
+
+                $orijinal = AdisyonPaketSeanslar::where('id', $sid)
                     ->where('randevu_id', $randevu->id)
-                    ->update(['geldi' => true, 'dusulen_miktar' => $m]);
+                    ->first();
+                if (!$orijinal) continue;
+
+                // Mevcut satir: 1 seans dusurur (geldi=true)
+                $orijinal->geldi = true;
+                $orijinal->dusulen_miktar = 1;
+                $orijinal->save();
+
+                // Ekstra satirlar: m-1 adet. Aynisinin kopyasi, hepsi 1 seans dusurur.
+                if ($m > 1 && $orijinal->adisyon_paket_id) {
+                    $maxSeansNo = (int) AdisyonPaketSeanslar::where('adisyon_paket_id', $orijinal->adisyon_paket_id)->max('seans_no');
+                    for ($i = 1; $i < $m; $i++) {
+                        $maxSeansNo++;
+                        $yeni = $orijinal->replicate();
+                        $yeni->geldi = true;
+                        $yeni->dusulen_miktar = 1;
+                        $yeni->seans_no = $maxSeansNo;
+                        $yeni->save();
+                    }
+                }
             }
+            // Isaretlenmeyenler: bu randevudan silinir
             AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
                 ->whereNotIn('id', $secilenIds)
                 ->delete();
