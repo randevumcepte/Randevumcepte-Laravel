@@ -11270,7 +11270,7 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
                                     }
         });
 });
- function randevuyaGeldiIsaretle(randevu_id, hizmetid, dogrulamaKodu, kvkkKodu,dogrulamaSoruldu=false ,dogrulamaSorulduGonderilecek=false, isKvkkProcess = false, seansDusuldu = false, seansFormData = null) {
+ function randevuyaGeldiIsaretle(randevu_id, hizmetid, dogrulamaKodu, kvkkKodu,dogrulamaSoruldu=false ,dogrulamaSorulduGonderilecek=false, isKvkkProcess = false, seansDusuldu = false, seansFormData = null, secilenSeansIdler = null) {
     
     // Eğer seansFormData varsa, onu kullan
     if (seansFormData !== null) {
@@ -11310,6 +11310,8 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
            seansFormData.append('dogrulamaSorulduGonderilecek', dogrulamaSorulduGonderilecek ? 1 : 0);
         }
         
+        seansFormData.append('seans_secim_destek', 1);
+        if (Array.isArray(secilenSeansIdler)) { secilenSeansIdler.forEach(function(id){ seansFormData.append('secilen_seans_idler[]', id); }); }
         var ajaxData = seansFormData;
         var processData = false;
         var contentType = false;
@@ -11355,6 +11357,7 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
         // Paket randevusu ise backend seans secim popup'i dondurur (seansSecimGerekli).
         // Normal randevuda backend'de seans sayisi 0 oldugu icin etkisizdir.
         ajaxData.seans_secim_destek = 1;
+        if (Array.isArray(secilenSeansIdler)) { secilenSeansIdler.forEach(function(id, i){ ajaxData['secilen_seans_idler['+i+']'] = id; }); }
 
         var processData = true;
         var contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
@@ -11402,6 +11405,9 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
                     // Paket randevusu: paketteki hizmetler popup'ta listelenir,
                     // salonun isaretledigi seanslar paketten dusulur.
                     paketSeansSecim(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, dogrulamaSoruldu, dogrulamaSorulduGonderilecek);
+                }
+                else if(result.seansSecimGerekli){
+                    seansSecimPopupAc(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, dogrulamaSoruldu, dogrulamaSorulduGonderilecek);
                 }
                 else if(result.dogrulamaSorulsun)
                 {
@@ -23036,3 +23042,121 @@ $(document).ready(function(){
         if(this.value) window.HyFiyat.formatInput(this);
     });
 });
+
+// Seans Secim Popup
+// Randevu "Geldi" tiklandiginda backend seansSecimGerekli=1 dondururse,
+// bu fonksiyon paket seanslarini listeleyen modal'i acar. Kullanici hangi
+// seanslarin kullanildigini secip kaydet'e basinca randevuyaGeldiIsaretle
+// tekrar cagrilir, bu sefer secilen ID'ler ile.
+// Seans Secim Popup — randevu "Geldi" tiklandiginda backend seansSecimGerekli=1
+// dondururse cagrilir. Kullanici hangi seans/bolgenin kullanildigini secip
+// kaydet'e basinca randevuyaGeldiIsaretle tekrar cagrilir, bu sefer secilen
+// ID'ler ile. Goruntusu "Yeni Randevu Ekle"deki "Randevuda Uygulanacak Hizmetler"
+// tablosuna benzer.
+function seansSecimPopupAc(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, dogrulamaSoruldu, dogrulamaSorulduGonderilecek) {
+    var seanslar = result.seanslar || [];
+    var musteriAdi = result.musteri_adi || '';
+    var tarih = result.tarih || '';
+    var saat = result.saat || '';
+
+    if ($('#seansSecimModal').length === 0) {
+        $('body').append(
+            '<div id="seansSecimModal" class="modal fade" tabindex="-1" role="dialog">' +
+              '<div class="modal-dialog modal-dialog-centered" style="max-width:720px;">' +
+                '<div class="modal-content">' +
+                  '<div class="modal-header" style="background:#f5f7fb;border-bottom:1px solid #e6e9f0;">' +
+                    '<h4 class="modal-title" style="margin:0;font-weight:600;">Randevuda Uygulanan Hizmetler</h4>' +
+                    '<button type="button" class="close" data-dismiss="modal" aria-label="Kapat" style="font-size:24px;">&times;</button>' +
+                  '</div>' +
+                  '<div class="modal-body" style="padding:20px;">' +
+                    '<div id="seansSecimBilgi" style="background:#eef4ff;border-left:3px solid #0d6efd;padding:8px 12px;margin-bottom:12px;font-size:13px;border-radius:4px;"></div>' +
+                    '<div style="font-size:13px;color:#555;margin-bottom:14px;">Musteriye bu randevuda hangi seans/bolgelerin kullandirildigini isaretleyin. <b>Sadece isaretledikleriniz kullanildi sayilir</b>; isaretlemedikleriniz paketinde durmaya devam eder.</div>' +
+                    '<div id="seansSecimListesi"></div>' +
+                  '</div>' +
+                  '<div class="modal-footer" style="border-top:1px solid #e6e9f0;display:flex;justify-content:space-between;">' +
+                    '<div>' +
+                      '<button type="button" class="btn btn-sm btn-outline-secondary" id="seansSecimHepsi">Hepsini Sec</button> ' +
+                      '<button type="button" class="btn btn-sm btn-outline-secondary" id="seansSecimHicbiri">Hicbirini Sec</button>' +
+                    '</div>' +
+                    '<div>' +
+                      '<button type="button" class="btn btn-secondary" data-dismiss="modal">Vazgec</button> ' +
+                      '<button type="button" class="btn btn-success" id="seansSecimKaydet">Kaydet ve Geldi Isaretle</button>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+        );
+    }
+
+    var bilgi = (musteriAdi ? '<b>' + musteriAdi + '</b>' : '') +
+                (tarih ? ' &middot; ' + tarih : '') +
+                (saat ? ' ' + saat.substring(0,5) : '');
+    $('#seansSecimBilgi').html(bilgi || 'Randevu seansi secimi');
+
+    var html = '';
+    if (!seanslar.length) {
+        html = '<div style="color:#888;text-align:center;padding:20px;">Bu randevuda paket seansi bulunamadi.</div>';
+    } else {
+        html += '<table class="table table-bordered" style="margin:0;font-size:14px;">' +
+                  '<thead style="background:#f5f7fb;">' +
+                    '<tr>' +
+                      '<th style="width:60px;text-align:center;">Sec</th>' +
+                      '<th>Uygulanan Hizmet</th>' +
+                      '<th>Paket</th>' +
+                      '<th style="width:120px;text-align:center;">Kalan Seans</th>' +
+                    '</tr>' +
+                  '</thead>' +
+                  '<tbody>';
+        seanslar.forEach(function (s) {
+            var checked = s.simdi_geldi ? 'checked' : '';
+            var paketAd = s.paket_adi || ('Paket #' + s.adisyon_paket_id);
+            var kalanRenk = s.kalan_seans > 0 ? '#28a745' : '#dc3545';
+            html += '<tr style="cursor:pointer;" class="seansSecimRow" data-id="' + s.id + '">' +
+                      '<td style="text-align:center;vertical-align:middle;">' +
+                        '<input type="checkbox" class="seansSecimCheck" value="' + s.id + '" ' + checked + ' style="width:20px;height:20px;cursor:pointer;">' +
+                      '</td>' +
+                      '<td style="vertical-align:middle;">' + (s.hizmet_adi || 'Hizmet #' + s.id) +
+                        (s.seans_no ? ' <span style="color:#888;font-size:12px;">(Seans ' + s.seans_no + ')</span>' : '') +
+                      '</td>' +
+                      '<td style="vertical-align:middle;color:#666;">' + paketAd + '</td>' +
+                      '<td style="text-align:center;vertical-align:middle;color:' + kalanRenk + ';font-weight:600;">' +
+                        s.kalan_seans + ' / ' + s.toplam_seans +
+                      '</td>' +
+                    '</tr>';
+        });
+        html += '</tbody></table>';
+    }
+    $('#seansSecimListesi').html(html);
+
+    // Satira tiklayinca da checkbox toggle olsun (UX kolayligi)
+    $('#seansSecimListesi .seansSecimRow').off('click').on('click', function (e) {
+        if (e.target.tagName === 'INPUT') return;
+        var cb = $(this).find('.seansSecimCheck');
+        cb.prop('checked', !cb.prop('checked'));
+    });
+
+    $('#seansSecimHepsi').off('click').on('click', function () {
+        $('#seansSecimListesi .seansSecimCheck').prop('checked', true);
+    });
+    $('#seansSecimHicbiri').off('click').on('click', function () {
+        $('#seansSecimListesi .seansSecimCheck').prop('checked', false);
+    });
+    $('#seansSecimKaydet').off('click').on('click', function () {
+        var secilenler = [];
+        $('#seansSecimListesi .seansSecimCheck:checked').each(function () {
+            secilenler.push(parseInt($(this).val(), 10));
+        });
+        $('#seansSecimModal').modal('hide');
+        // Backend'e secilen ID'leri gondererek ikinci tur cagri
+        randevuyaGeldiIsaretle(
+            randevu_id, hizmetid,
+            dogrulamaKodu || '', kvkkKodu || '',
+            !!dogrulamaSoruldu, !!dogrulamaSorulduGonderilecek,
+            false, false, null,
+            secilenler
+        );
+    });
+
+    $('#seansSecimModal').modal('show');
+}
