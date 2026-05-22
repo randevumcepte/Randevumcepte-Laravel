@@ -11509,14 +11509,18 @@ function paketSeansSecim(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, 
             var formData = new FormData();
             formData.append('secim_yapildi', 1);
             formData.append('seans_secim_destek', 1);
+            var debugLog = [];
             $('.paket-seans-secim:checked').each(function(){
                 var sid = $(this).attr('data-value');
                 formData.append('secilen_seans_idler[]', sid);
                 var mInput = $('.paket-seans-miktar[data-id="'+sid+'"]');
-                var miktar = parseInt(mInput.val(), 10);
+                var rawVal = mInput.length ? mInput.val() : '<INPUT_NOT_FOUND>';
+                var miktar = parseInt(rawVal, 10);
                 if (isNaN(miktar) || miktar < 1) miktar = 1;
                 formData.append('seans_miktarlari['+sid+']', miktar);
+                debugLog.push({sid: sid, inputFound: mInput.length, rawVal: rawVal, miktar: miktar});
             });
+            console.log('[SEANS-MIKTAR-DEBUG] popup gonderiyor:', debugLog);
             randevuyaGeldiIsaretle(randevu_id, hizmetid, dogrulamaKodu, kvkkKodu, dogrulamaSoruldu, dogrulamaSorulduGonderilecek, false, false, formData);
         }
     });

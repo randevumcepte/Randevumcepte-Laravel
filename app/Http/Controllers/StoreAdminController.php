@@ -15798,11 +15798,21 @@ DB::raw('
             // popup'tan girilen 'dusulen_miktar' yazilir. Digerleri false.
             $secilenIds = array_map('intval', (array) $secilenSeansIdler);
             $miktarlar = (array) $request->input('seans_miktarlari', []);
+            \Log::info('[SEANS-MIKTAR-DEBUG] web', [
+                'randevu_id'   => $randevu->id,
+                'secilen_ids'  => $secilenIds,
+                'miktarlar'    => $miktarlar,
+                'all_request'  => $request->all(),
+            ]);
             foreach ($secilenIds as $sid) {
-                $m = isset($miktarlar[$sid]) ? max(1, (int) $miktarlar[$sid]) : 1;
+                // PHP array string-key auto-cast: hem int hem string key denenir
+                $m = 1;
+                if (isset($miktarlar[$sid]))            $m = max(1, (int) $miktarlar[$sid]);
+                elseif (isset($miktarlar[(string)$sid])) $m = max(1, (int) $miktarlar[(string)$sid]);
                 AdisyonPaketSeanslar::where('id', $sid)
                     ->where('randevu_id', $randevu->id)
                     ->update(['geldi' => true, 'dusulen_miktar' => $m]);
+                \Log::info('[SEANS-MIKTAR-DEBUG] update', ['sid' => $sid, 'm' => $m]);
             }
             AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
                 ->whereNotIn('id', $secilenIds)
