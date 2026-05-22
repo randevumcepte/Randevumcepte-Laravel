@@ -10407,8 +10407,9 @@ public function personel_listesi_getir(Request $request)
         })
         ->whereNotNull('adisyon_hizmetler.seans_sayisi');
 
-    // Sayfalama ile sonuç
+    // Sayfalama ile sonuç - en son satıştan ilk satışa
     $sonuc = $paketlerQuery->union($hizmetlerQuery)
+        ->orderBy('olusturma_tarih', 'desc')
         ->orderBy('id', 'desc')
         ->skip($offset)
         ->take($limit)
