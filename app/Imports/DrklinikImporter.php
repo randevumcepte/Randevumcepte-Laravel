@@ -1296,6 +1296,8 @@ class DrklinikImporter
         $apsTable = (new AdisyonPaketSeanslar)->getTable();
         $hasRandevuId = \Schema::hasColumn($apsTable, 'randevu_id');
 
+        // 1) Tum satirlari hizmet bazinda TOPLA (ayni hizmet birden fazla satirda olabilir)
+        $agg = []; // hizmetId => ['alinan'=>, 'harcanan'=>]
         preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
         foreach ($rows[1] as $tr) {
             if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
@@ -1309,14 +1311,23 @@ class DrklinikImporter
             $hizmetAd = trim($cells[$iHizmet] ?? '');
             if ($hizmetAd === '') continue;
             $satinAlinan = (int) preg_replace('~\D~', '', $cells[$iAlinan] ?? '0');
-            $harcanan    = (int) preg_replace('~\D~', '', $cells[$iHarcanan] ?? '0');
+            // Harcanan negatif olabilir (drklinik 'Suresi Biten' -2 gibi) - isaret korunsun
+            $harcananRaw = trim($cells[$iHarcanan] ?? '0');
+            $harcanan = (int) preg_replace('~[^\d-]~', '', $harcananRaw);
             if ($satinAlinan <= 0) continue;
 
             $sh = $this->findSalonHizmetByName($hizmetAd);
             if (!$sh) continue;
-            $hizmetId = $sh['hizmet_id'];
+            $hid = $sh['hizmet_id'];
+            if (!isset($agg[$hid])) $agg[$hid] = ['alinan' => 0, 'harcanan' => 0];
+            $agg[$hid]['alinan']   += $satinAlinan;
+            $agg[$hid]['harcanan'] += max(0, $harcanan);
+        }
 
-            // Bu musterinin bu hizmete ait paket adisyon_hizmetleri
+        // 2) Hizmet bazinda reconcile
+        foreach ($agg as $hizmetId => $sum) {
+            $harcanan = (int) $sum['harcanan'];
+
             $ahRows = \DB::table('adisyon_hizmetler as ah')
                 ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
                 ->where('a.user_id', $userId)->where('a.salon_id', $this->salonId)
@@ -1324,17 +1335,15 @@ class DrklinikImporter
                 ->whereNotNull('ah.seans_sayisi')
                 ->select('ah.id', 'ah.seans_sayisi')->orderBy('a.tarih')->get();
             if ($ahRows->isEmpty()) continue;
-
             $ahIds = $ahRows->pluck('id')->all();
 
-            // seans_sayisi toplami != Satin Alinan ve tek paket ise duzelt
-            $toplam = (int) $ahRows->sum('seans_sayisi');
-            if ($ahRows->count() === 1 && $toplam !== $satinAlinan) {
+            // tek paket ise seans_sayisi'ni Satin Alinan'a esitle
+            if ($ahRows->count() === 1 && (int) $ahRows[0]->seans_sayisi !== (int) $sum['alinan'] && $sum['alinan'] > 0) {
                 \DB::table('adisyon_hizmetler')->where('id', $ahRows[0]->id)
-                    ->update(['seans_sayisi' => $satinAlinan]);
+                    ->update(['seans_sayisi' => (int) $sum['alinan']]);
             }
 
-            // Tuketilen APS sayisini Harcanan'a esitle
+            // tuketilen APS sayisini Harcanan'a esitle
             $mevcut = (int) \DB::table($apsTable)->whereIn('adisyon_hizmet_id', $ahIds)->count();
             if ($mevcut < $harcanan) {
                 $eklenecek = $harcanan - $mevcut;
@@ -1357,7 +1366,10 @@ class DrklinikImporter
                 $q = \DB::table($apsTable)->whereIn('adisyon_hizmet_id', $ahIds);
                 if ($hasRandevuId) $q->orderByRaw('randevu_id IS NULL DESC'); // once randevusuzlar
                 $silId = $q->orderByDesc('id')->limit($fazla)->pluck('id')->all();
-                if ($silId) \DB::table($apsTable)->whereIn('id', $silId)->delete();
+                if ($silId) {
+                    \DB::table($apsTable)->whereIn('id', $silId)->delete();
+                    $this->counts['seans_silinen'] = ($this->counts['seans_silinen'] ?? 0) + count($silId);
+                }
             }
         }
     }
