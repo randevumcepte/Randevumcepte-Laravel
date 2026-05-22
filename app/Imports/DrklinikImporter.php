@@ -952,6 +952,7 @@ class DrklinikImporter
         if (strlen($h) < 5000) return;
 
         preg_match_all('~<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)</table>~is', $h, $tm);
+        $kalanSeansTablo = null; $kalanSeansHeaders = null;
         foreach ($tm[1] as $body) {
             preg_match_all('~<th[^>]*>(.*?)</th>~is', $body, $th);
             $headers = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
@@ -961,7 +962,17 @@ class DrklinikImporter
                 $this->processMusteriTahsilatlar($body, $userId);
             } elseif (in_array('Seans Düşümü', $headers, true)) {
                 $this->processMusteriRandevuSeansDusumu($body, $userId);
+            } elseif (in_array('Harcanan', $headers, true) &&
+                      (in_array('Satın Alınan', $headers, true) || in_array('Kalan', $headers, true))) {
+                // Drklinik "Kalan Seanslar" tablosu - OTORITER seans kaynagi.
+                // Diger tablolar islendikten SONRA reconcile etsin diye sakla.
+                $kalanSeansTablo = $body; $kalanSeansHeaders = $headers;
             }
+        }
+        // Kalan Seanslar en son: satis + seans dusumu islendikten sonra
+        // tuketilen seans sayisini drklinik'in kesin degerine esitler.
+        if ($kalanSeansTablo !== null) {
+            $this->processKalanSeanslar($kalanSeansTablo, $userId, $kalanSeansHeaders);
         }
     }
 
@@ -1265,6 +1276,90 @@ class DrklinikImporter
         $sumU = (float) AdisyonUrunler::where('adisyon_id', $ad->id)
             ->selectRaw('COALESCE(SUM(fiyat * GREATEST(adet,1)), 0) as t')->value('t');
         return $sumH + $sumU;
+    }
+
+    /**
+     * Drklinik "Kalan Seanslar" tablosu — her hizmet icin Satin Alinan / Harcanan / Kalan.
+     * Bu OTORITER kaynaktir. Bizdeki paket adisyon_hizmetler icin:
+     *  - seans_sayisi toplami != Satin Alinan ise (tek paket varsa) duzeltilir
+     *  - tuketilen AdisyonPaketSeanslar sayisi Harcanan'a esitlenir (eksikse eklenir,
+     *    fazlaysa once randevusuz olanlardan silinir)
+     */
+    private function processKalanSeanslar($tbody, $userId, $headers)
+    {
+        $idx = [];
+        foreach ($headers as $k => $hd) $idx[$this->trKey($hd)] = $k;
+        $iHizmet   = $idx['hizmet'] ?? 0;
+        $iAlinan   = $idx[$this->trKey('Satın Alınan')] ?? 1;
+        $iHarcanan = $idx['harcanan'] ?? 3;
+
+        $apsTable = (new AdisyonPaketSeanslar)->getTable();
+        $hasRandevuId = \Schema::hasColumn($apsTable, 'randevu_id');
+
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            $hizmetAd = trim($cells[$iHizmet] ?? '');
+            if ($hizmetAd === '') continue;
+            $satinAlinan = (int) preg_replace('~\D~', '', $cells[$iAlinan] ?? '0');
+            $harcanan    = (int) preg_replace('~\D~', '', $cells[$iHarcanan] ?? '0');
+            if ($satinAlinan <= 0) continue;
+
+            $sh = $this->findSalonHizmetByName($hizmetAd);
+            if (!$sh) continue;
+            $hizmetId = $sh['hizmet_id'];
+
+            // Bu musterinin bu hizmete ait paket adisyon_hizmetleri
+            $ahRows = \DB::table('adisyon_hizmetler as ah')
+                ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+                ->where('a.user_id', $userId)->where('a.salon_id', $this->salonId)
+                ->where('ah.hizmet_id', $hizmetId)
+                ->whereNotNull('ah.seans_sayisi')
+                ->select('ah.id', 'ah.seans_sayisi')->orderBy('a.tarih')->get();
+            if ($ahRows->isEmpty()) continue;
+
+            $ahIds = $ahRows->pluck('id')->all();
+
+            // seans_sayisi toplami != Satin Alinan ve tek paket ise duzelt
+            $toplam = (int) $ahRows->sum('seans_sayisi');
+            if ($ahRows->count() === 1 && $toplam !== $satinAlinan) {
+                \DB::table('adisyon_hizmetler')->where('id', $ahRows[0]->id)
+                    ->update(['seans_sayisi' => $satinAlinan]);
+            }
+
+            // Tuketilen APS sayisini Harcanan'a esitle
+            $mevcut = (int) \DB::table($apsTable)->whereIn('adisyon_hizmet_id', $ahIds)->count();
+            if ($mevcut < $harcanan) {
+                $eklenecek = $harcanan - $mevcut;
+                $hedefAh = $ahRows[0]->id;
+                $sonNo = (int) (\DB::table($apsTable)->where('adisyon_hizmet_id', $hedefAh)->max('seans_no') ?? 0);
+                for ($k = 0; $k < $eklenecek; $k++) {
+                    $sonNo++;
+                    \DB::table($apsTable)->insert([
+                        'adisyon_hizmet_id' => $hedefAh,
+                        'hizmet_id' => $hizmetId,
+                        'seans_no'  => $sonNo,
+                        'geldi'     => 1,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                }
+                $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + $eklenecek;
+            } elseif ($mevcut > $harcanan) {
+                $fazla = $mevcut - $harcanan;
+                $q = \DB::table($apsTable)->whereIn('adisyon_hizmet_id', $ahIds);
+                if ($hasRandevuId) $q->orderByRaw('randevu_id IS NULL DESC'); // once randevusuzlar
+                $silId = $q->orderByDesc('id')->limit($fazla)->pluck('id')->all();
+                if ($silId) \DB::table($apsTable)->whereIn('id', $silId)->delete();
+            }
+        }
     }
 
     private function processMusteriRandevuSeansDusumu($tbody, $userId)
