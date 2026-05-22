@@ -144,8 +144,11 @@ const createSession = async (salonId) => {
     generateHighQualityLinkPreview: false,
     keepAliveIntervalMs: 15000,        // 15s - NAT/conntrack idle timeout'un (genelde 180s) cok altinda
     connectTimeoutMs: 60000,           // ilk bagli olma timeout'unu uzat (default 20s yetersiz)
-    defaultQueryTimeoutMs: 60000,      // sendMessage / onWhatsApp sorgu timeout'u
+    defaultQueryTimeoutMs: 120000,     // 120s — buyuk hesaplarda 'init queries' 60s'e sigmiyordu (408 timeout)
     retryRequestDelayMs: 2000,         // istek tekrarinda 2s bekle
+    // Buyuk hesaplarda history sync bagilanti sonrasi yuku agirlastirip 'init queries'
+    // timeout'una yol aciyor. Gelen mesaj gecmisini zaten kullanmiyoruz — tamamen kapatiyoruz.
+    shouldSyncHistoryMessage: () => false,
     getMessage: async (msgKey) => {
       const m = sentMessages.get(msgKey?.id);
       return m || undefined;
