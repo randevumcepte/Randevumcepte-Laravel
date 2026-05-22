@@ -15850,6 +15850,28 @@ DB::raw('
             AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
                 ->whereNotIn('id', $secilenIds)
                 ->delete();
+            // Paket bazli DB durumu — gosterim sorunu teshisi icin
+            try {
+                $apIds = \DB::table('adisyon_paket_seanslar')
+                    ->whereIn('id', $secilenIds)
+                    ->pluck('adisyon_paket_id')->filter()->unique()->values()->all();
+                foreach ($apIds as $apId) {
+                    $rows = \DB::table('adisyon_paket_seanslar')
+                        ->where('adisyon_paket_id', $apId)
+                        ->select('id','hizmet_id','adisyon_hizmet_id','randevu_id','geldi','dusulen_miktar','seans_no')
+                        ->orderBy('id')->get();
+                    \Log::info('[SEANS-REPLICATE] paket_satirlari', ['ap_id' => $apId, 'rows' => $rows->toArray()]);
+                    $cnt = $rows->where('geldi', 1)->count();
+                    $sum = (int) $rows->where('geldi', 1)->sum('dusulen_miktar');
+                    $hizmetGruplari = $rows->where('geldi', 1)->groupBy('hizmet_id')->map->count();
+                    \Log::info('[SEANS-REPLICATE] paket_ozet', [
+                        'ap_id' => $apId, 'count_geldi' => $cnt, 'sum_dusulen' => $sum,
+                        'hizmet_bazli_count' => $hizmetGruplari,
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                \Log::error('[SEANS-REPLICATE] db_after_err', ['err' => $e->getMessage()]);
+            }
         } else {
             foreach($seanslar->get() as $seans)
             {
