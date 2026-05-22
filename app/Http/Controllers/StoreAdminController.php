@@ -15711,12 +15711,14 @@ DB::raw('
         // 'seans_secim_destek' bayragiyla ayni mantik — Flutter app icin daha
         // once eklenmisti, web'e de tasidik. Eski cagrilar (bayrak gondermeyen)
         // backward compat (hepsi geldi=true) korur.
-        $seansSecimDestek = $request->boolean('seans_secim_destek', false);
+        // NOT: bu Laravel surumunde Request::boolean() yok; filter_var kullaniyoruz.
+        $seansSecimDestek = filter_var($request->input('seans_secim_destek', false), FILTER_VALIDATE_BOOLEAN);
         $secilenSeansIdler = $request->input('secilen_seans_idler');
         // 'secim_yapildi' bayragi: kullanici popup'ta hicbir seans secmese bile
         // (bos liste) secim yapilmis sayilir. Aksi halde is_array(null)=false olur
         // ve backend tekrar seansSecimGerekli doner -> sonsuz dongu.
-        $secilenVerildi = $request->boolean('secim_yapildi', false) || is_array($secilenSeansIdler);
+        $secimYapildi = filter_var($request->input('secim_yapildi', false), FILTER_VALIDATE_BOOLEAN);
+        $secilenVerildi = $secimYapildi || is_array($secilenSeansIdler);
 
         $seansSayisi = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->count();
         if ($seansSayisi > 0 && $seansSecimDestek && !$secilenVerildi) {
