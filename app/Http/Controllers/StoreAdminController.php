@@ -14840,40 +14840,40 @@ DB::raw('
     public function takvim_degistir(Request $request)
     {
         Log::info("takvim değiştir metodu çalıştı");
-        $tarih1 = date('Y-m-d');
-        $tarih2 = date('Y-m-d');
-        $bugun = new \DateTime();
+        // Onceki kod 'monday this week' / 'Y-m-01' icin bugunun tarihini baz
+        // aliyordu; takvim ileri/geri sayfalandiginda bile bugunun haftasini
+        // donuyordu — sonraki haftalardaki randevular bos gorunuyordu. Artik
+        // frontend'in gonderdigi takvimtarih'i baz aliyoruz.
+        $tarih = trim(str_replace('T',' ',(string)$request->takvimtarih));
+        try {
+            $tarihObj = new \DateTime($tarih !== '' ? $tarih : 'now');
+        } catch (\Exception $e) {
+            $tarihObj = new \DateTime();
+        }
 
-        // Haftanın ilk günü (Pazartesi)
-        $ilkGun = clone $bugun;
-        $ilkGun->modify('monday this week'); // "this week" ile mevcut haftayı baz alır
+        $tarih1 = $tarihObj->format('Y-m-d');
+        $tarih2 = $tarihObj->format('Y-m-d');
 
-        // Haftanın son günü (Pazar)
-        $sonGun = clone $bugun;
-        $sonGun->modify('sunday this week'); 
-
-        // Formatlama (Y-m-d)
-        $haftaIlkGun = $ilkGun->format('Y-m-d');
-        $haftaSonGun = $sonGun->format('Y-m-d');
-        
-        
-        $tarih=str_replace('T',' ',$request->takvimtarih);
         if($request->takvimgorunum=='agendaDay')
         {
-            $tarih1 = date('Y-m-d',strtotime($tarih));
-            $tarih2 = date('Y-m-d',strtotime($tarih));
+            $tarih1 = $tarihObj->format('Y-m-d');
+            $tarih2 = $tarihObj->format('Y-m-d');
         }
         if($request->takvimgorunum=='agendaWeek')
         {
-            $tarih1 = $haftaIlkGun;
-            $tarih2 = $haftaSonGun;
+            $ilk = clone $tarihObj;
+            $ilk->modify('monday this week');
+            $son = clone $tarihObj;
+            $son->modify('sunday this week');
+            $tarih1 = $ilk->format('Y-m-d');
+            $tarih2 = $son->format('Y-m-d');
         }
         if($request->takvimgorunum=='month')
         {
-            $tarih1 = date('Y-m-01');
-            $tarih2 = date('Y-m-t');
+            $tarih1 = $tarihObj->format('Y-m-01');
+            $tarih2 = $tarihObj->format('Y-m-t');
         }
-        
+
         return self::randevuyukle($request,$request->ayar,$tarih1,$tarih2);
     }
     public function sistemeyenihizmetkategorisiekle(Request $request)
@@ -15702,6 +15702,19 @@ DB::raw('
                     'err' => $e->getMessage(),
                 ]);
             }
+        }
+
+        // Dakika paketi otomatik dusumu (solaryum vb. sure satislari).
+        // randevu_hizmetler.musteri_dakika_paketi_id dolu olan satirlardan
+        // paket_dakika kadar musterinin paket bakiyesinden dusulur.
+        try {
+            app(\App\Services\MusteriDakikaPaketService::class)
+                ->randevuGeldiUygula($randevu, \Auth::id());
+        } catch (\Throwable $e) {
+            \Log::warning('[DAKIKA-PAKETI] web hook hata', [
+                'randevu_id' => $randevu->id,
+                'err' => $e->getMessage(),
+            ]);
         }
 
  
@@ -17357,6 +17370,17 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $randevu->randevuya_geldi = false;
 
         $randevu->save();
+
+        // Daha onceden dakika paketinden dusulen miktarlari iade et.
+        try {
+            app(\App\Services\MusteriDakikaPaketService::class)
+                ->randevuGelmediIade($randevu, \Auth::id());
+        } catch (\Throwable $e) {
+            \Log::warning('[DAKIKA-PAKETI] web iade hook hata', [
+                'randevu_id' => $randevu->id,
+                'err' => $e->getMessage(),
+            ]);
+        }
 
         // Audit
         $_audit_musteriAdi = optional($randevu->users)->name ?? 'Müşteri #'.$randevu->user_id;
