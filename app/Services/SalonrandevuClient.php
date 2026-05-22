@@ -126,7 +126,7 @@ class SalonrandevuClient
     }
 
     /**
-     * GET istek. Sayfalama destekli.
+     * GET istek. Sayfalama destekli + baglanti koparsa retry.
      * NOT: Guzzle'a bos 'query' option gecilirse URL'deki mevcut query string
      * silinir. Bu yuzden query sadece dolu ise eklenir.
      */
@@ -135,10 +135,29 @@ class SalonrandevuClient
         $url = self::BASE_API . $path;
         $opts = ['headers' => $this->headers()];
         if (!empty($query)) $opts['query'] = $query;
-        $r = $this->http->get($url, $opts);
-        $status = $r->getStatusCode();
-        $body = (string) $r->getBody();
-        $safe = str_replace('/', '_', trim($path, '/'));
+
+        $status = 0; $body = '';
+        for ($attempt = 1; $attempt <= 6; $attempt++) {
+            try {
+                $r = $this->http->get($url, $opts);
+                $status = $r->getStatusCode();
+                $body = (string) $r->getBody();
+                if ($status === 429) {
+                    $wait = 20 * $attempt;
+                    \Log::warning("[Salonrandevu] 429, {$wait}s bekle", ['path' => $path]);
+                    sleep($wait);
+                    continue;
+                }
+                break;
+            } catch (\Throwable $e) {
+                // ConnectException / timeout / koparma -> retry
+                $wait = 3 * $attempt;
+                \Log::warning("[Salonrandevu] baglanti hatasi, {$wait}s sonra retry {$attempt}/6",
+                    ['path' => $path, 'err' => $e->getMessage()]);
+                sleep($wait);
+            }
+        }
+        $safe = str_replace(['/', '?', '=', '&'], '_', trim($path, '/'));
         $this->dump("get_{$safe}.body", "STATUS={$status} QUERY=" . json_encode($query) . "\n" . substr($body, 0, 8000));
         if ($status !== 200 && $status !== 201) return null;
         return json_decode($body, true);
