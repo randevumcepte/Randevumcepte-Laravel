@@ -90,6 +90,17 @@ const buildSender = (salonId) => async (job) => {
   }
 
   const result = await session.sock.sendMessage(jid, { text: job.message });
+
+  // Mesaji getMessage cache'ine yaz — retry receipt gelirse yeniden gonderilebilsin.
+  // Son ~1000 mesaj tutulur (FIFO), bellek sismez.
+  if (result?.key?.id && result?.message && session.sentMessages) {
+    session.sentMessages.set(result.key.id, result.message);
+    if (session.sentMessages.size > 1000) {
+      const eskiKey = session.sentMessages.keys().next().value;
+      session.sentMessages.delete(eskiKey);
+    }
+  }
+
   return { messageId: result?.key?.id || null, phone };
 };
 
@@ -116,6 +127,12 @@ const createSession = async (salonId) => {
   const { state, saveCreds } = await useMultiFileAuthState(dir);
   const { version } = await fetchLatestBaileysVersion();
 
+  // Gonderilen mesajlarin icerigi — alici 'cozulemedi, tekrar gonder' (retry receipt)
+  // istedignde Baileys getMessage ile buradan okuyup mesaji yeniden sifreleyip yollar.
+  // Bu callback olmazsa retry'lara cevap verilemez ve mesaj alicida 'mesaj bekleniyor'
+  // (Waiting for this message) olarak kalici takilir.
+  const sentMessages = new Map();
+
   const sock = makeWASocket({
     version,
     auth: state,
@@ -129,6 +146,10 @@ const createSession = async (salonId) => {
     connectTimeoutMs: 60000,           // ilk bagli olma timeout'unu uzat (default 20s yetersiz)
     defaultQueryTimeoutMs: 60000,      // sendMessage / onWhatsApp sorgu timeout'u
     retryRequestDelayMs: 2000,         // istek tekrarinda 2s bekle
+    getMessage: async (msgKey) => {
+      const m = sentMessages.get(msgKey?.id);
+      return m || undefined;
+    },
   });
 
   const session = {
@@ -140,6 +161,7 @@ const createSession = async (salonId) => {
     connectedAt: null,
     phone: null,
     queue: null,
+    sentMessages,
   };
 
   session.queue = new SendQueue(key, buildSender(key), {
