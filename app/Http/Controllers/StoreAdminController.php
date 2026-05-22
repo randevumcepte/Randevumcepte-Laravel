@@ -15713,7 +15713,10 @@ DB::raw('
         // backward compat (hepsi geldi=true) korur.
         $seansSecimDestek = $request->boolean('seans_secim_destek', false);
         $secilenSeansIdler = $request->input('secilen_seans_idler');
-        $secilenVerildi = is_array($secilenSeansIdler);
+        // 'secim_yapildi' bayragi: kullanici popup'ta hicbir seans secmese bile
+        // (bos liste) secim yapilmis sayilir. Aksi halde is_array(null)=false olur
+        // ve backend tekrar seansSecimGerekli doner -> sonsuz dongu.
+        $secilenVerildi = $request->boolean('secim_yapildi', false) || is_array($secilenSeansIdler);
 
         $seansSayisi = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->count();
         if ($seansSayisi > 0 && $seansSecimDestek && !$secilenVerildi) {
@@ -15737,6 +15740,7 @@ DB::raw('
                     'id'               => (int) $s->id,
                     'hizmet_adi'       => $s->hizmet ? $s->hizmet->hizmet_adi : '',
                     'paket_adi'        => $paketAdi,
+                    'personel_adi'     => $s->personel ? $s->personel->personel_adi : '',
                     'adisyon_paket_id' => (int) $s->adisyon_paket_id,
                     'kalan_seans'      => $kalan,
                     'toplam_seans'     => $toplamSeans,
@@ -15768,7 +15772,7 @@ DB::raw('
 
         if ($secilenVerildi) {
             // Sadece secilen seanslar gelmis olarak isaretlenir, digerleri false.
-            $secilenIds = array_map('intval', $secilenSeansIdler);
+            $secilenIds = array_map('intval', (array) $secilenSeansIdler);
             AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
                 ->whereIn('id', $secilenIds)
                 ->update(['geldi' => true]);

@@ -11351,7 +11351,11 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
          if (dogrulamaSorulduGonderilecek !== undefined && dogrulamaSorulduGonderilecek !== null) {
            ajaxData.dogrulamaSorulduGonderilecek = dogrulamaSorulduGonderilecek ? 1 : 0;
         }
-        
+
+        // Paket randevusu ise backend seans secim popup'i dondurur (seansSecimGerekli).
+        // Normal randevuda backend'de seans sayisi 0 oldugu icin etkisizdir.
+        ajaxData.seans_secim_destek = 1;
+
         var processData = true;
         var contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
     }
@@ -11392,7 +11396,12 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
                 } else if (result.dogrulamaGerekli) {
                     dogrulama_islemleri(randevu_id, hizmetid, dogrulamaKodu,dogrulamaSoruldu,dogrulamaSorulduGonderilecek);
                 } else if(result.seansDusumuBildir) {
-                    seansDusumu(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu,dogrulamaSoruldu,dogrulamaSorulduGonderilecek);   
+                    seansDusumu(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu,dogrulamaSoruldu,dogrulamaSorulduGonderilecek);
+                }
+                else if(result.seansSecimGerekli) {
+                    // Paket randevusu: paketteki hizmetler popup'ta listelenir,
+                    // salonun isaretledigi seanslar paketten dusulur.
+                    paketSeansSecim(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, dogrulamaSoruldu, dogrulamaSorulduGonderilecek);
                 }
                 else if(result.dogrulamaSorulsun)
                 {
@@ -11423,6 +11432,75 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
         }
     });
 }
+
+// Paket randevusu "Geldi" akisi: backend seansSecimGerekli dondugunde paketteki
+// hizmetler bir popup'ta listelenir. Kutucuklar varsayilan ISARETSIZ gelir;
+// salon o gun gercekten yapilan hizmetleri isaretler, sadece onlar paketten duser.
+function paketSeansSecim(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, dogrulamaSoruldu, dogrulamaSorulduGonderilecek) {
+    var seanslar = result.seanslar || [];
+
+    var html = '';
+    html += '<div style="text-align:left;font-size:13px;color:#555;margin-bottom:10px;line-height:1.4;">';
+    html += 'Bu pakette müşterinin <b>bugün kullandığı</b> hizmetleri işaretleyin. ';
+    html += 'Yalnızca işaretlenen seanslar paketten düşülür.';
+    html += '</div>';
+    html += '<div style="max-height:320px;overflow-y:auto;text-align:left;border:1px solid #eee;border-radius:6px;">';
+
+    if (seanslar.length === 0) {
+        html += '<div style="padding:14px;color:#999;">Bu randevuya bağlı paket seansı bulunamadı.</div>';
+    }
+
+    seanslar.forEach(function(s){
+        var detay = [];
+        if (s.paket_adi) detay.push(s.paket_adi);
+        if (s.personel_adi) detay.push(s.personel_adi);
+        var altSatir = detay.join(' · ');
+        var kalan = (typeof s.kalan_seans !== 'undefined') ? s.kalan_seans : 0;
+        var toplam = (typeof s.toplam_seans !== 'undefined') ? s.toplam_seans : 0;
+        var kalanRenk = (kalan <= 0) ? '#e74c3c' : '#16a085';
+
+        html += '<label style="display:flex;align-items:center;gap:10px;padding:10px 9px;border-bottom:1px solid #eee;cursor:pointer;margin:0;">';
+        html += '  <input type="checkbox" class="paket-seans-secim" data-value="'+s.id+'" style="width:18px;height:18px;flex:0 0 auto;">';
+        html += '  <span style="flex:1;min-width:0;">';
+        html += '    <span style="font-weight:600;color:#333;">'+ (s.hizmet_adi || 'Hizmet') +'</span>';
+        if (altSatir) {
+            html += '<br><span style="font-size:12px;color:#888;">'+ altSatir +'</span>';
+        }
+        html += '  </span>';
+        html += '  <span style="font-size:12px;color:'+kalanRenk+';white-space:nowrap;">kalan '+ kalan +'/'+ toplam +'</span>';
+        html += '</label>';
+    });
+
+    html += '</div>';
+
+    swal({
+        title: 'Paket Seans Seçimi',
+        html: html,
+        icon: null,
+        width: 500,
+        showCloseButton: false,
+        showCancelButton: true,
+        showConfirmButton: true,
+        confirmButtonColor: '#00bc8c',
+        confirmButtonText: 'Seçilenleri Düş',
+        cancelButtonText: 'İptal',
+        confirmButtonClass: 'btn btn-success',
+        cancelButtonClass: 'btn btn-danger',
+    }).then(function(res){
+        if (res.value) {
+            var formData = new FormData();
+            // secim_yapildi: hicbiri secilmese bile backend'in tekrar popup
+            // dondurmesini engeller (sonsuz dongu korumasi).
+            formData.append('secim_yapildi', 1);
+            formData.append('seans_secim_destek', 1);
+            $('.paket-seans-secim:checked').each(function(){
+                formData.append('secilen_seans_idler[]', $(this).attr('data-value'));
+            });
+            randevuyaGeldiIsaretle(randevu_id, hizmetid, dogrulamaKodu, kvkkKodu, dogrulamaSoruldu, dogrulamaSorulduGonderilecek, false, false, formData);
+        }
+    });
+}
+
 $(document).on('click','a[name="geldi_isaretle"]',function(e){
     randevu_id = $(this).attr('data-value');
     hizmetid = $(this).attr('data-index-number');
