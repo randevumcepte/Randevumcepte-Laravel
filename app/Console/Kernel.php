@@ -36,6 +36,7 @@ class Kernel extends ConsoleKernel
         Commands\IlacHatirlatmalari::class,
         Commands\OlcumHatirlatmalari::class,
         Commands\SeansHatirlatma::class,
+        Commands\FormVarsayilanYay::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)

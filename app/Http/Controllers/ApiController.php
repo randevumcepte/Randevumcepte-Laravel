@@ -2935,6 +2935,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             $salon->save();
 
+            // Varsayilan form sablonlarini (Semall Beauty - id 370) ayni sektordeki yeni salona kopyala
+            self::varsayilanFormlariKopyala($salon->id);
+
             $santral_ayari = new SalonSantralAyarlari();
 
             $santral_ayari->ayar_id = 1;
@@ -4381,8 +4384,66 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     }
 
+    /**
+     * Semall Beauty (default id=370) form sablonlarini ayni salon turundeki hedef salona kopyalar.
+     * Hedef salonda ayni form_adi varsa atlar. Sektor uyusmazsa hicbir sey yapmaz.
+     * Yeni salon kayit akisinda ve formlar:varsayilan-yay artisan komutunda kullanilir.
+     */
+    public static function varsayilanFormlariKopyala($hedefSalonId, $kaynakSalonId = 370)
+    {
+        try {
+            if ((int)$hedefSalonId === (int)$kaynakSalonId) {
+                return 0;
+            }
+            $hedefSalon = Salonlar::find($hedefSalonId);
+            if (!$hedefSalon) {
+                return 0;
+            }
+            $kaynakSalon = Salonlar::find($kaynakSalonId);
+            if (!$kaynakSalon) {
+                return 0;
+            }
+            if ((int)$kaynakSalon->salon_turu_id !== (int)$hedefSalon->salon_turu_id) {
+                return 0;
+            }
+            $kaynakFormlar = FormTaslaklari::where('salon_id', $kaynakSalonId)
+                ->where('is_dinamik', 1)
+                ->orderBy('sira', 'asc')
+                ->orderBy('id', 'asc')
+                ->get();
+            if ($kaynakFormlar->isEmpty()) {
+                return 0;
+            }
+            $mevcutAdlar = FormTaslaklari::where('salon_id', $hedefSalonId)
+                ->where('is_dinamik', 1)
+                ->pluck('form_adi')
+                ->map(function ($a) { return mb_strtolower(trim((string)$a)); })
+                ->all();
+            $sira = (int) FormTaslaklari::where('salon_id', $hedefSalonId)
+                ->where('is_dinamik', 1)
+                ->max('sira');
+            $eklenen = 0;
+            foreach ($kaynakFormlar as $kf) {
+                $ad = mb_strtolower(trim((string)$kf->form_adi));
+                if ($ad === '' || in_array($ad, $mevcutAdlar, true)) {
+                    continue;
+                }
+                $yeni = $kf->replicate();
+                $yeni->salon_id = $hedefSalonId;
+                $yeni->sira = ++$sira;
+                $yeni->save();
+                $mevcutAdlar[] = $ad;
+                $eklenen++;
+            }
+            return $eklenen;
+        } catch (\Exception $e) {
+            \Log::error('varsayilanFormlariKopyala hata salon='.$hedefSalonId.': '.$e->getMessage());
+            return 0;
+        }
+    }
+
     public function siteden_yeni_kayit(Request $request)
-    { 
+    {
         /*$yetkili = IsletmeYetkilileri::where(
             "id",
             $request->yetkiliid

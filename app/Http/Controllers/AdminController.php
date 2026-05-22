@@ -756,6 +756,10 @@ class AdminController extends Controller
                
         }
         $isletme->save();
+
+        // Varsayilan form sablonlarini (Semall Beauty - id 370) ayni sektordeki yeni salona kopyala
+        ApiController::varsayilanFormlariKopyala($isletme->id);
+
         if(Auth::user()->admin==1){
              if($request->etiket1 != null || $request->etiket1!=''){
              $aramaterimleri = new AramaTerimleri();
