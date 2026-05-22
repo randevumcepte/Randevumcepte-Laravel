@@ -31,6 +31,7 @@ class DrklinikImport extends Command
         {--repair-gider-dedup : Mevcut Masraflar kayitlarina drklinik hash marker yaz ve eksik gider satirlarini ekle}
         {--repair-tahsilat-yanlis-adisyon : Yanlis adisyona bagli tahsilatlari ayir, tutar match ile yeniden bagla}
         {--report-tahsilat-fark : Drklinik kasayi gunluk tarayip DB tahsilatlari ile karsilastir, fazlalari CSV\'ye yaz}
+        {--report-seans-fark : Her musteri icin drklinik Kalan Seanslar vs DB seans karsilastir, /tmp/drk_seans_fark_<salon>.csv}
         {--apply-fazla-sil : /tmp/drk_tahsilat_gercek_fazla_<salon>.csv ID\'lerini DB\'den sil}
         {--apply-eksik-ekle : /tmp/drk_tahsilat_eksik_<salon>.csv satirlarini DB\'ye ekle (isim eslesmesi ile)}
         {--dry-run : Sadece raporla, silme}';
@@ -151,6 +152,13 @@ class DrklinikImport extends Command
             $this->info('Probe modu: yaygin endpoint\'ler taraniyor...');
             $results = $client->probe();
             foreach ($results as $p => $r) $this->line(str_pad($p, 40) . ' -> ' . $r);
+            return 0;
+        }
+
+        if ((bool) $this->option('report-seans-fark')) {
+            if (!$salonId) { $this->error('--report-seans-fark icin --salon zorunlu.'); return 1; }
+            $importer = new DrklinikImporter($client, $salonId, $this->output);
+            $importer->raporSeansFark($this->option('from'), $this->option('to'));
             return 0;
         }
 

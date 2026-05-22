@@ -879,6 +879,110 @@ class DrklinikImporter
      * Tarih aralığındaki randevu listesinden tüm unique musid'leri toplar,
      * her musid için detay sayfasını işler.
      */
+    /**
+     * Saglama raporu: her musteri icin drklinik "Kalan Seanslar" vs bizim DB.
+     * Cikti: /tmp/drk_seans_fark_<salon>.csv
+     * Yazma yapmaz, sadece karsilastirir.
+     */
+    public function raporSeansFark($baslangic = null, $bitis = null)
+    {
+        $start = $baslangic ? strtotime($baslangic) : strtotime('2018-01-01');
+        $end   = $bitis ? strtotime($bitis) : strtotime('2030-12-31');
+        $this->log('Seans saglama: ' . date('Y-m-d', $start) . ' - ' . date('Y-m-d', $end));
+
+        // Musid topla
+        $musidSet = [];
+        $weekStart = $start; $iter = 0;
+        while ($weekStart <= $end) {
+            $weekEnd = min($end, strtotime('+6 days', $weekStart));
+            $this->collectMusidsRange($weekStart, $weekEnd, $musidSet, 0);
+            $iter++;
+            if ($iter % 20 === 0) $this->log("  ..hafta {$iter} unique musid: " . count($musidSet));
+            $weekStart = strtotime('+7 days', $weekStart);
+        }
+        $this->log('Toplam unique musid: ' . count($musidSet));
+
+        $csvPath = '/tmp/drk_seans_fark_' . $this->salonId . '.csv';
+        $fp = fopen($csvPath, 'w');
+        fputcsv($fp, ['musid', 'musteri', 'hizmet', 'drk_alinan', 'biz_alinan',
+                      'drk_harcanan', 'biz_harcanan', 'drk_kalan', 'biz_kalan', 'durum']);
+
+        $apsTable = (new AdisyonPaketSeanslar)->getTable();
+        $okMusteri = 0; $farkMusteri = 0; $farkSatir = 0; $i = 0;
+        foreach ($musidSet as $musid => $_) {
+            $i++;
+            $userId = $this->ensureUserByMusid((string) $musid);
+            if (!$userId) continue;
+            $h = $this->client->getHtml('/musteri.aspx?musid=' . $musid);
+            if (strlen($h) < 5000) continue;
+            $musteriAd = trim(trim($this->extractInputValue($h, 'TB_Ad')) . ' ' . trim($this->extractInputValue($h, 'TB_Soyad')));
+
+            // Kalan Seanslar tablosunu bul + parse et (hizmet bazinda topla)
+            $drk = []; // hizmetAd => [alinan, harcanan, kalan]
+            preg_match_all('~<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)</table>~is', $h, $tm);
+            foreach ($tm[1] as $body) {
+                preg_match_all('~<th[^>]*>(.*?)</th>~is', $body, $th);
+                $headers = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
+                if (!in_array('Harcanan', $headers, true) ||
+                    !(in_array('Satın Alınan', $headers, true) || in_array('Kalan', $headers, true))) continue;
+                $idx = [];
+                foreach ($headers as $k => $hd) $idx[$this->trKey($hd)] = $k;
+                $iH = $idx['hizmet'] ?? 0;
+                $iA = $idx[$this->trKey('Satın Alınan')] ?? 1;
+                $iHar = $idx['harcanan'] ?? 3;
+                preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $body, $rr);
+                foreach ($rr[1] as $tr) {
+                    if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+                    preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+                    if (empty($tds[1])) continue;
+                    $c = [];
+                    foreach ($tds[1] as $tdRaw) {
+                        $c[] = trim(html_entity_decode(trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw))), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    }
+                    $hAd = trim($c[$iH] ?? '');
+                    if ($hAd === '') continue;
+                    $al = (int) preg_replace('~\D~', '', $c[$iA] ?? '0');
+                    $har = (int) preg_replace('~[^\d-]~', '', $c[$iHar] ?? '0');
+                    if ($al <= 0) continue;
+                    if (!isset($drk[$hAd])) $drk[$hAd] = ['alinan' => 0, 'harcanan' => 0];
+                    $drk[$hAd]['alinan'] += $al;
+                    $drk[$hAd]['harcanan'] += max(0, $har);
+                }
+            }
+            if (empty($drk)) continue;
+
+            $musteriFarkli = false;
+            foreach ($drk as $hAd => $v) {
+                $sh = $this->findSalonHizmetByName($hAd);
+                $bizAlinan = 0; $bizHarcanan = 0;
+                if ($sh) {
+                    $ahRows = \DB::table('adisyon_hizmetler as ah')
+                        ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+                        ->where('a.user_id', $userId)->where('a.salon_id', $this->salonId)
+                        ->where('ah.hizmet_id', $sh['hizmet_id'])
+                        ->whereNotNull('ah.seans_sayisi')
+                        ->select('ah.id', 'ah.seans_sayisi')->get();
+                    $bizAlinan = (int) $ahRows->sum('seans_sayisi');
+                    if ($ahRows->count()) {
+                        $bizHarcanan = (int) \DB::table($apsTable)
+                            ->whereIn('adisyon_hizmet_id', $ahRows->pluck('id')->all())->count();
+                    }
+                }
+                $drkKalan = $v['alinan'] - $v['harcanan'];
+                $bizKalan = $bizAlinan - $bizHarcanan;
+                $durum = ($v['alinan'] === $bizAlinan && $v['harcanan'] === $bizHarcanan) ? 'OK' : 'FARK';
+                if ($durum === 'FARK') { $musteriFarkli = true; $farkSatir++; }
+                fputcsv($fp, [$musid, $musteriAd, $hAd, $v['alinan'], $bizAlinan,
+                              $v['harcanan'], $bizHarcanan, $drkKalan, $bizKalan, $durum]);
+            }
+            if ($musteriFarkli) $farkMusteri++; else $okMusteri++;
+            if ($i % 100 === 0) $this->log("  ..{$i}/" . count($musidSet) . " ok_musteri={$okMusteri} farkli_musteri={$farkMusteri}");
+        }
+        fclose($fp);
+        $this->log("Saglama bitti. OK musteri={$okMusteri}, farkli musteri={$farkMusteri}, fark satir={$farkSatir}");
+        $this->log("CSV: {$csvPath}");
+    }
+
     public function importSatisVeTahsilat($baslangic = null, $bitis = null)
     {
         $start = $baslangic ? strtotime($baslangic) : strtotime('2024-01-01');
