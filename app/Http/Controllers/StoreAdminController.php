@@ -13704,7 +13704,20 @@ DB::raw('
     // Optimized select columns
     $selectColumns = [
         'users.name as musteri',
-        DB::raw('CONCAT_WS(", ", GROUP_CONCAT(DISTINCT salon_personelleri.personel_adi SEPARATOR ", "), GROUP_CONCAT(DISTINCT cihazlar.cihaz_adi SEPARATOR ", "), GROUP_CONCAT(DISTINCT odalar.oda_adi SEPARATOR ", ")) as personelcihazoda'),
+        DB::raw('CONCAT_WS(", ",
+            NULLIF((SELECT GROUP_CONCAT(DISTINCT sp2.personel_adi SEPARATOR ", ")
+                    FROM randevu_hizmetler rh2
+                    LEFT JOIN salon_personelleri sp2 ON sp2.id = rh2.personel_id
+                    WHERE rh2.randevu_id = randevular.id AND sp2.personel_adi IS NOT NULL),""),
+            NULLIF((SELECT GROUP_CONCAT(DISTINCT c2.cihaz_adi SEPARATOR ", ")
+                    FROM randevu_hizmetler rh3
+                    LEFT JOIN cihazlar c2 ON c2.id = rh3.cihaz_id
+                    WHERE rh3.randevu_id = randevular.id AND c2.cihaz_adi IS NOT NULL),""),
+            NULLIF((SELECT GROUP_CONCAT(DISTINCT o2.oda_adi SEPARATOR ", ")
+                    FROM randevu_hizmetler rh4
+                    LEFT JOIN odalar o2 ON o2.id = rh4.oda_id
+                    WHERE rh4.randevu_id = randevular.id AND o2.oda_adi IS NOT NULL),"")
+        ) as personelcihazoda'),
         'odalar.oda_adi as odalar',
         'salon_personelleri.personel_adi as personel_adi',
         'cihazlar.cihaz_adi as cihaz_adi',
