@@ -12571,6 +12571,19 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             }
 
+            // Dakika paketi otomatik dusumu (solaryum vb. sure satislari).
+            // randevu_hizmetler.musteri_dakika_paketi_id dolu olan satirlardan
+            // paket_dakika kadar musterinin paket bakiyesinden dusulur.
+            try {
+                app(\App\Services\MusteriDakikaPaketService::class)
+                    ->randevuGeldiUygula($randevu, \Auth::id());
+            } catch (\Throwable $e) {
+                \Log::warning('[DAKIKA-PAKETI] api hook hata', [
+                    'randevu_id' => $randevu->id,
+                    'err' => $e->getMessage(),
+                ]);
+            }
+
             return ["hatali" => "0", "mesaj" => "Başarılı"];
 
             exit();
@@ -12617,6 +12630,17 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $randevu->randevuya_geldi = false;
 
         $randevu->save();
+
+        // Daha onceden dakika paketinden dusulen miktarlari iade et.
+        try {
+            app(\App\Services\MusteriDakikaPaketService::class)
+                ->randevuGelmediIade($randevu, \Auth::id());
+        } catch (\Throwable $e) {
+            \Log::warning('[DAKIKA-PAKETI] api iade hook hata', [
+                'randevu_id' => $randevu->id,
+                'err' => $e->getMessage(),
+            ]);
+        }
 
         return ["mesaj" => "Başarılı"];
 

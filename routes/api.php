@@ -454,5 +454,18 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/recete-kaydet/{salonid}',     'StokController@receteKaydet');
         Route::post('/recete-sil',                  'StokController@receteSil');
     });
+
+    /* ───────── Musteri Dakika Paketleri (solaryum, masaj vb. sure satisi) ───────── */
+    Route::prefix('dakika-paketi')->group(function () {
+        Route::post('/sat',                                   'MusteriDakikaPaketController@sat');
+        Route::get ('/musteri/{musteriPortfoyId}',            'MusteriDakikaPaketController@musteriListesi');
+        Route::get ('/musteri-uygun/{musteriPortfoyId}/hizmet/{hizmetId}', 'MusteriDakikaPaketController@musteriHizmetIcinUygun');
+        Route::get ('/{id}',                                  'MusteriDakikaPaketController@detay');
+        Route::post('/{id}/manuel-kullanim',                  'MusteriDakikaPaketController@manuelKullanim');
+        Route::post('/{id}/duzeltme',                         'MusteriDakikaPaketController@duzeltme');
+        Route::post('/{id}/iptal',                            'MusteriDakikaPaketController@iptal');
+        Route::post('/randevu-baglat',                        'MusteriDakikaPaketController@randevuBaglat');
+        Route::get ('/randevu-icin-uygun/{randevuId}',        'MusteriDakikaPaketController@randevuIcinUygun');
+        Route::post('/randevu-icin-kullanim',                 'MusteriDakikaPaketController@randevuIcinKullanim');
+    });
 });
-  

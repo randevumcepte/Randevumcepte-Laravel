@@ -796,6 +796,18 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/yenimusterilistesiekle','StoreAdminController@yenimusterilistesiekle');
 	Route::post('/cinsiyet-otomatik-doldur','StoreAdminController@cinsiyetOtomatikDoldur');
 	Route::get('/musteridetay/{id}','StoreAdminController@musteridetay');
+
+	// Musteri Dakika Paketleri (solaryum, masaj gibi sure satilan hizmetler)
+	Route::post('/dakika-paketi/sat',                                   'MusteriDakikaPaketController@sat');
+	Route::get ('/dakika-paketi/musteri/{musteriPortfoyId}',            'MusteriDakikaPaketController@musteriListesi');
+	Route::get ('/dakika-paketi/musteri-uygun/{musteriPortfoyId}/hizmet/{hizmetId}', 'MusteriDakikaPaketController@musteriHizmetIcinUygun');
+	Route::get ('/dakika-paketi/{id}',                                  'MusteriDakikaPaketController@detay')->where('id','[0-9]+');
+	Route::post('/dakika-paketi/{id}/manuel-kullanim',                  'MusteriDakikaPaketController@manuelKullanim');
+	Route::post('/dakika-paketi/{id}/duzeltme',                         'MusteriDakikaPaketController@duzeltme');
+	Route::post('/dakika-paketi/{id}/iptal',                            'MusteriDakikaPaketController@iptal');
+	Route::post('/dakika-paketi/randevu-baglat',                        'MusteriDakikaPaketController@randevuBaglat');
+	Route::get ('/dakika-paketi/randevu-icin-uygun/{randevuId}',        'MusteriDakikaPaketController@randevuIcinUygun');
+	Route::post('/dakika-paketi/randevu-icin-kullanim',                 'MusteriDakikaPaketController@randevuIcinKullanim');
 	Route::get('/musteribilgiguncelle','StoreAdminController@musteribilgiguncelle');
 	Route::get('/avantajraporlar','StoreAdminController@avantajraporlar');
 	Route::get('/kampanyadetaylari/{id}','StoreAdminController@kampanyadetaylari');

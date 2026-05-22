@@ -11393,6 +11393,11 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
                 if ($('#calendar').length) {
                     takvimyukle(false, false);
                 }
+                // Dakika paketi kontrolu: musterinin solaryum vb. sure paketi varsa
+                // popup ac ve kac dakika dusulecegini sor
+                if (typeof dakikaPaketiSorgula === 'function') {
+                    dakikaPaketiSorgula(randevu_id);
+                }
             } else {
                 if (result.onayGerekli) {
                     kvkkGerekli(randevu_id, hizmetid, result, dogrulamaKodu,dogrulamaSoruldu,dogrulamaSorulduGonderilecek);
@@ -23159,4 +23164,135 @@ function seansSecimPopupAc(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu
     });
 
     $('#seansSecimModal').modal('show');
+}
+
+// ============================================================================
+// DAKIKA PAKETI — "Geldi" sonrasi otomatik kullanim popup'i
+// ============================================================================
+// Randevu basariyla "Geldi" isaretlendigi anda, musterinin paketinden hangi
+// hizmet icin kac dakika dusulecegini sorar. Hizmet bazli paket yoksa hic
+// popup acmaz (sessiz gecer). Solaryum, masaj gibi sure satilan hizmetler
+// icin tasarlandi.
+
+function dakikaPaketiSorgula(randevu_id) {
+    if (!randevu_id) return;
+    $.ajax({
+        type: 'GET',
+        url: '/isletmeyonetim/dakika-paketi/randevu-icin-uygun/' + randevu_id,
+        dataType: 'json',
+        headers: { 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
+        success: function (res) {
+            if (!res || res.hatali !== '0') return;
+            var liste = res.liste || [];
+            if (!liste.length) return;
+            dakikaPaketiPopupAc(randevu_id, liste);
+        },
+        error: function () { /* sessiz */ }
+    });
+}
+
+function dakikaPaketiPopupAc(randevu_id, liste) {
+    if ($('#dakikaPaketiModal').length === 0) {
+        $('body').append(
+            '<div id="dakikaPaketiModal" class="modal fade" tabindex="-1" role="dialog">' +
+              '<div class="modal-dialog modal-dialog-centered" style="max-width:720px;">' +
+                '<div class="modal-content">' +
+                  '<div class="modal-header" style="background:#f5f7fb;border-bottom:1px solid #e6e9f0;">' +
+                    '<h4 class="modal-title" style="margin:0;font-weight:600;">Dakika Paketinden Dusum</h4>' +
+                    '<button type="button" class="close" data-dismiss="modal" aria-label="Kapat" style="font-size:24px;">&times;</button>' +
+                  '</div>' +
+                  '<div class="modal-body" style="padding:20px;">' +
+                    '<div style="background:#eef4ff;border-left:3px solid #0d6efd;padding:8px 12px;margin-bottom:12px;font-size:13px;border-radius:4px;">' +
+                      'Musterinin dakika paketi olan hizmetler asagida listeleniyor. Bu randevuda kac dakika kullanildiysa girip <b>Paketten Dus</b> tiklayin. Dusurmek istemediginiz satirin <b>Sec</b> checkbox\'ini kapatabilirsiniz.' +
+                    '</div>' +
+                    '<div id="dakikaPaketiListesi"></div>' +
+                  '</div>' +
+                  '<div class="modal-footer" style="border-top:1px solid #e6e9f0;">' +
+                    '<button type="button" class="btn btn-secondary" data-dismiss="modal">Atla</button>' +
+                    '<button type="button" class="btn btn-success" id="dakikaPaketiKaydet">Paketten Dus</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+        );
+    }
+
+    var html = '<table class="table table-bordered" style="margin:0;font-size:14px;">' +
+                 '<thead style="background:#f5f7fb;">' +
+                   '<tr>' +
+                     '<th style="width:55px;text-align:center;">Sec</th>' +
+                     '<th>Hizmet</th>' +
+                     '<th style="width:180px;">Paket (Kalan)</th>' +
+                     '<th style="width:140px;text-align:center;">Kullanim (dk)</th>' +
+                   '</tr>' +
+                 '</thead><tbody>';
+    liste.forEach(function (it) {
+        var defaultDk = it.sure_dk > 0 ? it.sure_dk : '';
+        var paketOpts = it.paketler.map(function (p) {
+            return '<option value="' + p.id + '" data-kalan="' + p.kalan_dakika + '">' +
+                   'Paket #' + p.id + ' (' + p.kalan_dakika + '/' + p.toplam_dakika + ' dk kalan)' +
+                   '</option>';
+        }).join('');
+        html += '<tr class="dakikaPaketiRow" data-rh="' + it.rh_id + '">' +
+                  '<td style="text-align:center;vertical-align:middle;">' +
+                    '<input type="checkbox" class="dakikaPaketiCheck" checked style="width:20px;height:20px;cursor:pointer;">' +
+                  '</td>' +
+                  '<td style="vertical-align:middle;"><b>' + (it.hizmet_adi || 'Hizmet #' + it.hizmet_id) + '</b></td>' +
+                  '<td style="vertical-align:middle;">' +
+                    '<select class="form-control form-control-sm dakikaPaketiPaketId" style="height:32px;font-size:13px;">' + paketOpts + '</select>' +
+                  '</td>' +
+                  '<td style="text-align:center;vertical-align:middle;">' +
+                    '<input type="number" class="form-control form-control-sm dakikaPaketiDakika" value="' + defaultDk + '" min="1" style="text-align:center;height:32px;font-size:14px;">' +
+                  '</td>' +
+                '</tr>';
+    });
+    html += '</tbody></table>';
+    $('#dakikaPaketiListesi').html(html);
+
+    $('#dakikaPaketiKaydet').off('click').on('click', function () {
+        var kullanimlar = [];
+        var hata = '';
+        $('#dakikaPaketiListesi .dakikaPaketiRow').each(function () {
+            var sec = $(this).find('.dakikaPaketiCheck').is(':checked');
+            if (!sec) return;
+            var rhId = parseInt($(this).attr('data-rh'), 10);
+            var paketId = parseInt($(this).find('.dakikaPaketiPaketId').val(), 10);
+            var dakika = parseInt($(this).find('.dakikaPaketiDakika').val(), 10) || 0;
+            var kalan = parseInt($(this).find('.dakikaPaketiPaketId option:selected').data('kalan'), 10) || 0;
+            if (dakika <= 0) { hata = 'Kullanim dakikasi 0 dan buyuk olmali'; return false; }
+            if (dakika > kalan) { hata = 'Yetersiz bakiye (kalan: ' + kalan + ' dk)'; return false; }
+            kullanimlar.push({ rh_id: rhId, paket_id: paketId, dakika: dakika });
+        });
+        if (hata) { alert(hata); return; }
+        if (kullanimlar.length === 0) { $('#dakikaPaketiModal').modal('hide'); return; }
+
+        $.ajax({
+            type: 'POST',
+            url: '/isletmeyonetim/dakika-paketi/randevu-icin-kullanim',
+            dataType: 'json',
+            data: { randevu_id: randevu_id, kullanimlar: JSON.stringify(kullanimlar) },
+            headers: { 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
+            beforeSend: function () { $('#preloader').show(); },
+            success: function (res) {
+                $('#preloader').hide();
+                $('#dakikaPaketiModal').modal('hide');
+                if (res && res.hatali === '0') {
+                    var ozet = (res.sonuc || []).filter(function (s) { return s.dusuldu; });
+                    if (ozet.length) {
+                        if (typeof swal === 'function') {
+                            swal({ title: 'Paketten Dusuldu', text: ozet.length + ' kalem isleme alindi.', type: 'success', timer: 1500, showConfirmButton: false });
+                        }
+                    }
+                } else {
+                    alert((res && res.mesaj) || 'Hata');
+                }
+            },
+            error: function (xhr) {
+                $('#preloader').hide();
+                alert('Sunucu hatasi: ' + (xhr.responseJSON && xhr.responseJSON.mesaj ? xhr.responseJSON.mesaj : xhr.status));
+            }
+        });
+    });
+
+    $('#dakikaPaketiModal').modal('show');
 }

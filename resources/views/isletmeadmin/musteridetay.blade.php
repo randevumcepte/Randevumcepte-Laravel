@@ -92,6 +92,17 @@
                   aria-selected="false"
                   >Seanslar</a>
             </li>
+            <li class="nav-item" style="margin:5px">
+               <a
+                  class="btn btn-outline-primary"
+                  data-toggle="tab"
+                  href="#dakika_paketleri"
+                  style="width: 160px;"
+                  role="tab"
+                  aria-selected="false"
+                  onclick="dakikaPaketleriYukle()"
+                  >Dakika Paketleri</a>
+            </li>
             @endif
             @if($_SERVER['HTTP_HOST']!='randevu.randevumcepte.com.tr')
             @yetki('musteri.gecmis_satis_gor')
@@ -194,6 +205,18 @@
                >
                <div class="pd-20">
                   Hizmetler
+               </div>
+            </div>
+            {{-- Dakika Paketleri: solaryum, masaj gibi sure satilan hizmetler --}}
+            <div class="tab-pane fade" id="dakika_paketleri" role="tabpanel">
+               <div class="card-box pd-20">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                     <h4 style="margin:0"><b>{{$musteri_bilgi->name}} - Dakika Paketleri</b></h4>
+                     <button type="button" class="btn btn-primary" onclick="dakikaPaketSatModal()">+ Yeni Paket Sat</button>
+                  </div>
+                  <div id="dakika_paketleri_liste" style="display:flex;flex-direction:column;gap:12px;">
+                     <div style="color:#888;text-align:center;padding:30px;">Yukleniyor...</div>
+                  </div>
                </div>
             </div>
             @if($_SERVER['HTTP_HOST']!='randevu.randevumcepte.com.tr')
@@ -1115,5 +1138,256 @@
    function thisFileUpload() {
        document.getElementById("musteri_profil_resmi").click();
    };
+</script>
+
+{{-- ====== DAKIKA PAKETLERI: MODAL + JS ====== --}}
+<div id="dakika_paketi_sat_modal" class="modal fade" tabindex="-1" role="dialog">
+   <div class="modal-dialog modal-dialog-centered" style="max-width: 520px;">
+      <div class="modal-content">
+         <div class="modal-header" style="background:#f5f7fb;">
+            <h5 class="modal-title"><b>Yeni Dakika Paketi Sat</b></h5>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+         </div>
+         <div class="modal-body">
+            <div class="form-group">
+               <label>Hizmet</label>
+               <select id="dp_hizmet_id" class="form-control">
+                  <option value="">— Hizmet Seciniz —</option>
+                  @foreach(\App\SalonHizmetler::where('salon_id',$isletme->id)->where('aktif',true)->with('hizmetler')->get() as $sh)
+                     @if($sh->hizmetler)
+                        <option value="{{$sh->hizmet_id}}">{{$sh->hizmetler->hizmet_adi}}</option>
+                     @endif
+                  @endforeach
+               </select>
+            </div>
+            <div class="form-group">
+               <label>Toplam Dakika</label>
+               <input type="number" id="dp_toplam_dakika" class="form-control" min="1" placeholder="orn: 100">
+            </div>
+            <div class="form-group">
+               <label>Satis Fiyati (TL)</label>
+               <input type="number" id="dp_satis_fiyati" class="form-control" min="0" step="0.01" value="0">
+            </div>
+            <div class="form-group">
+               <label>Bitis Tarihi <small style="color:#999">(opsiyonel, bos = suresiz)</small></label>
+               <input type="date" id="dp_bitis_tarihi" class="form-control">
+            </div>
+            <div class="form-group">
+               <label>Notlar</label>
+               <textarea id="dp_notlar" class="form-control" rows="2"></textarea>
+            </div>
+         </div>
+         <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Iptal</button>
+            <button type="button" class="btn btn-primary" onclick="dakikaPaketSatKaydet()">Paketi Sat</button>
+         </div>
+      </div>
+   </div>
+</div>
+
+<div id="dakika_paketi_kullanim_modal" class="modal fade" tabindex="-1" role="dialog">
+   <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;">
+      <div class="modal-content">
+         <div class="modal-header" style="background:#f5f7fb;">
+            <h5 class="modal-title"><b>Manuel Kullanim Ekle</b></h5>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+         </div>
+         <div class="modal-body">
+            <input type="hidden" id="dpk_paket_id">
+            <div id="dpk_paket_bilgi" style="background:#f8f9fa;padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
+            <div class="form-group">
+               <label>Kullanilan Dakika</label>
+               <input type="number" id="dpk_dakika" class="form-control" min="1" placeholder="orn: 10">
+            </div>
+            <div class="form-group">
+               <label>Aciklama</label>
+               <textarea id="dpk_aciklama" class="form-control" rows="2" placeholder="orn: Randevusuz geldi, 10 dk yandi"></textarea>
+            </div>
+         </div>
+         <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Iptal</button>
+            <button type="button" class="btn btn-warning" onclick="dakikaPaketKullanimKaydet()">Dus</button>
+         </div>
+      </div>
+   </div>
+</div>
+
+<div id="dakika_paketi_hareket_modal" class="modal fade" tabindex="-1" role="dialog">
+   <div class="modal-dialog modal-dialog-centered" style="max-width: 640px;">
+      <div class="modal-content">
+         <div class="modal-header" style="background:#f5f7fb;">
+            <h5 class="modal-title"><b>Hareket Gecmisi</b></h5>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+         </div>
+         <div class="modal-body" style="max-height:500px;overflow-y:auto;">
+            <div id="dpgecmis_icerik">Yukleniyor...</div>
+         </div>
+      </div>
+   </div>
+</div>
+
+<script>
+   const DP_PORTFOY_ID = {{ $portfoy ? (int)$portfoy->id : 0 }};
+   const DP_SALON_ID   = {{ (int)$isletme->id }};
+   const DP_CSRF       = document.querySelector('meta[name=csrf-token]')?.content || '';
+
+   function dpFmtTr(n){ return Number(n).toLocaleString('tr-TR'); }
+   function dpDurumRozet(d){
+      const renkler = { aktif:'#28a745', bitti:'#6c757d', iptal:'#dc3545' };
+      const yazi    = { aktif:'Aktif', bitti:'Bitti', iptal:'Iptal' };
+      return `<span style="background:${renkler[d]||'#6c757d'};color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">${yazi[d]||d}</span>`;
+   }
+
+   async function dpFetch(url, opts){
+      opts = opts || {};
+      opts.headers = Object.assign({
+         'Accept': 'application/json',
+         'X-CSRF-TOKEN': DP_CSRF,
+         'X-Requested-With': 'XMLHttpRequest',
+      }, opts.headers || {});
+      if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+         opts.headers['Content-Type'] = 'application/json';
+         opts.body = JSON.stringify(opts.body);
+      }
+      const r = await fetch(url, opts);
+      let j = {};
+      try { j = await r.json(); } catch(e){}
+      return { ok: r.ok, status: r.status, data: j };
+   }
+
+   async function dakikaPaketleriYukle(){
+      const kutu = document.getElementById('dakika_paketleri_liste');
+      kutu.innerHTML = '<div style="color:#888;text-align:center;padding:30px;">Yukleniyor...</div>';
+      if (!DP_PORTFOY_ID) {
+         kutu.innerHTML = '<div style="color:#dc3545;text-align:center;padding:30px;">Musteri portfoy bulunamadi.</div>';
+         return;
+      }
+      const res = await dpFetch(`/isletmeyonetim/dakika-paketi/musteri/${DP_PORTFOY_ID}?salon_id=${DP_SALON_ID}`);
+      if (!res.ok) {
+         kutu.innerHTML = '<div style="color:#dc3545;text-align:center;padding:30px;">Yuklenemedi.</div>';
+         return;
+      }
+      const paketler = res.data.paketler || [];
+      if (paketler.length === 0) {
+         kutu.innerHTML = '<div style="color:#888;text-align:center;padding:30px;">Bu musterinin dakika paketi yok. Ust sagdan yeni paket satabilirsiniz.</div>';
+         return;
+      }
+      kutu.innerHTML = paketler.map(p => dpPaketKart(p)).join('');
+   }
+
+   function dpPaketKart(p){
+      const yuzde = p.toplam_dakika > 0 ? Math.round((p.kalan_dakika / p.toplam_dakika) * 100) : 0;
+      const barRenk = yuzde > 40 ? '#28a745' : (yuzde > 15 ? '#ffc107' : '#dc3545');
+      const aktif = p.durum === 'aktif';
+      return `
+        <div style="border:1px solid #e0e4eb;border-radius:10px;padding:14px;background:#fff;">
+           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+              <div>
+                 <div style="font-weight:600;font-size:15px;">${p.hizmet_adi || 'Hizmet #' + p.hizmet_id}</div>
+                 <div style="color:#777;font-size:12px;margin-top:2px;">Satis: ${p.satis_tarihi || '-'} ${p.bitis_tarihi ? ' / Bitis: ' + p.bitis_tarihi : '/ Suresiz'} ${p.satis_fiyati > 0 ? ' / ' + dpFmtTr(p.satis_fiyati) + ' TL' : ''}</div>
+              </div>
+              ${dpDurumRozet(p.durum)}
+           </div>
+           <div style="margin:10px 0;">
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+                 <span><b>${dpFmtTr(p.kalan_dakika)}</b> dk kalan</span>
+                 <span style="color:#888">${dpFmtTr(p.kullanilan_dakika)} / ${dpFmtTr(p.toplam_dakika)} kullanildi</span>
+              </div>
+              <div style="height:8px;background:#eef0f5;border-radius:4px;overflow:hidden;">
+                 <div style="height:100%;width:${100-yuzde}%;background:${barRenk};transition:width .3s;"></div>
+              </div>
+           </div>
+           ${p.notlar ? `<div style="color:#666;font-size:12px;font-style:italic;margin:6px 0;">${p.notlar}</div>` : ''}
+           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+              ${aktif ? `<button class="btn btn-sm btn-warning" onclick="dakikaPaketKullanimAc(${p.id}, '${(p.hizmet_adi||'').replace(/'/g,'')}', ${p.kalan_dakika})">+ Manuel Kullanim</button>` : ''}
+              <button class="btn btn-sm btn-outline-secondary" onclick="dakikaPaketGecmis(${p.id})">Hareket Gecmisi</button>
+              ${aktif ? `<button class="btn btn-sm btn-outline-danger" onclick="dakikaPaketIptal(${p.id})">Iptal Et</button>` : ''}
+           </div>
+        </div>`;
+   }
+
+   function dakikaPaketSatModal(){
+      document.getElementById('dp_hizmet_id').value = '';
+      document.getElementById('dp_toplam_dakika').value = '';
+      document.getElementById('dp_satis_fiyati').value = '0';
+      document.getElementById('dp_bitis_tarihi').value = '';
+      document.getElementById('dp_notlar').value = '';
+      $('#dakika_paketi_sat_modal').modal('show');
+   }
+
+   async function dakikaPaketSatKaydet(){
+      const hizmet_id = document.getElementById('dp_hizmet_id').value;
+      const toplam = parseInt(document.getElementById('dp_toplam_dakika').value || '0', 10);
+      if (!hizmet_id) { alert('Hizmet seciniz'); return; }
+      if (toplam <= 0) { alert('Toplam dakika 0 dan buyuk olmali'); return; }
+
+      const res = await dpFetch('/isletmeyonetim/dakika-paketi/sat', {
+         method: 'POST',
+         body: {
+            salon_id: DP_SALON_ID,
+            musteri_portfoy_id: DP_PORTFOY_ID,
+            hizmet_id: parseInt(hizmet_id, 10),
+            toplam_dakika: toplam,
+            satis_fiyati: parseFloat(document.getElementById('dp_satis_fiyati').value || '0'),
+            bitis_tarihi: document.getElementById('dp_bitis_tarihi').value || null,
+            notlar: document.getElementById('dp_notlar').value || null,
+         }
+      });
+      if (!res.ok) {
+         alert(res.data.mesaj || res.data.message || 'Hata olustu');
+         return;
+      }
+      $('#dakika_paketi_sat_modal').modal('hide');
+      dakikaPaketleriYukle();
+   }
+
+   function dakikaPaketKullanimAc(paketId, hizmetAdi, kalan){
+      document.getElementById('dpk_paket_id').value = paketId;
+      document.getElementById('dpk_paket_bilgi').innerHTML = `<b>${hizmetAdi}</b> &middot; Kalan: <b>${kalan} dk</b>`;
+      document.getElementById('dpk_dakika').value = '';
+      document.getElementById('dpk_aciklama').value = '';
+      $('#dakika_paketi_kullanim_modal').modal('show');
+   }
+
+   async function dakikaPaketKullanimKaydet(){
+      const id = document.getElementById('dpk_paket_id').value;
+      const dakika = parseInt(document.getElementById('dpk_dakika').value || '0', 10);
+      if (dakika <= 0) { alert('Dakika girilmeli'); return; }
+      const res = await dpFetch(`/isletmeyonetim/dakika-paketi/${id}/manuel-kullanim`, {
+         method: 'POST',
+         body: { dakika, aciklama: document.getElementById('dpk_aciklama').value || null }
+      });
+      if (!res.ok) { alert(res.data.mesaj || 'Hata'); return; }
+      $('#dakika_paketi_kullanim_modal').modal('hide');
+      dakikaPaketleriYukle();
+   }
+
+   async function dakikaPaketGecmis(id){
+      $('#dakika_paketi_hareket_modal').modal('show');
+      document.getElementById('dpgecmis_icerik').innerHTML = 'Yukleniyor...';
+      const res = await dpFetch(`/isletmeyonetim/dakika-paketi/${id}`);
+      if (!res.ok) { document.getElementById('dpgecmis_icerik').innerHTML = 'Yuklenemedi'; return; }
+      const tur = { randevu_kullanim:'Randevu', manuel_kullanim:'Manuel', iade:'Iade', duzeltme:'Duzeltme' };
+      const turRenk = { randevu_kullanim:'#0d6efd', manuel_kullanim:'#fd7e14', iade:'#198754', duzeltme:'#6c757d' };
+      const hrk = (res.data.hareketler || []).map(h => `
+         <tr>
+           <td>${h.tarih || ''}</td>
+           <td><span style="background:${turRenk[h.tur]||'#6c757d'};color:#fff;padding:2px 8px;border-radius:8px;font-size:11px;">${tur[h.tur]||h.tur}</span></td>
+           <td style="text-align:right;font-weight:600;color:${h.dakika > 0 ? '#dc3545' : '#198754'};">${h.dakika > 0 ? '-' : '+'}${Math.abs(h.dakika)} dk</td>
+           <td style="font-size:12px;color:#666;">${h.aciklama || ''}</td>
+         </tr>`).join('');
+      document.getElementById('dpgecmis_icerik').innerHTML = `
+         <table class="table table-sm" style="font-size:13px;">
+            <thead><tr><th>Tarih</th><th>Tur</th><th style="text-align:right;">Dakika</th><th>Aciklama</th></tr></thead>
+            <tbody>${hrk || '<tr><td colspan=4 style="text-align:center;color:#888;">Henuz hareket yok</td></tr>'}</tbody>
+         </table>`;
+   }
+
+   async function dakikaPaketIptal(id){
+      if (!confirm('Bu paketi iptal etmek istiyor musunuz? Kalan dakika silinir, hareket gecmisi durur.')) return;
+      const res = await dpFetch(`/isletmeyonetim/dakika-paketi/${id}/iptal`, { method: 'POST', body: {} });
+      if (!res.ok) { alert(res.data.mesaj || 'Hata'); return; }
+      dakikaPaketleriYukle();
+   }
 </script>
 @endsection
