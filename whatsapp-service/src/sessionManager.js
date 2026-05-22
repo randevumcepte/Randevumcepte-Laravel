@@ -77,11 +77,16 @@ const buildSender = (salonId) => async (job) => {
     logger.warn({ err: err.message }, 'onWhatsApp check failed, continuing');
   }
 
-  // Urgent mesajlar typing simulation'i atlar — sifre/OTP icin anlik gonderim
   if (!job.urgent) {
+    // Normal mesajlar: 2-4 sn typing simulation (antiban)
     await session.sock.sendPresenceUpdate('composing', jid);
     await sleep(gaussianJitter(config.antiban.typingMinMs, config.antiban.typingMaxMs));
     await session.sock.sendPresenceUpdate('paused', jid);
+  } else {
+    // Urgent (sifre/OTP): typing simulation yok — anlik gonderim.
+    // Yine de kisa bir 'available' presence atilir (~50ms): E2E sifreleme
+    // oturumunu canlandirir, alicida 'mesaj bekleniyor' takilmasini azaltir.
+    try { await session.sock.sendPresenceUpdate('available', jid); } catch (_) {}
   }
 
   const result = await session.sock.sendMessage(jid, { text: job.message });
