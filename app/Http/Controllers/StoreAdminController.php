@@ -13704,26 +13704,38 @@ DB::raw('
     // Optimized select columns
     $selectColumns = [
         'users.name as musteri',
-        DB::raw('COALESCE(NULLIF(CONCAT_WS(", ",
-            NULLIF((SELECT GROUP_CONCAT(DISTINCT sp2.personel_adi SEPARATOR ", ")
-                    FROM randevu_hizmetler rh2
-                    LEFT JOIN salon_personelleri sp2 ON sp2.id = rh2.personel_id
-                    WHERE rh2.randevu_id = randevular.id AND sp2.personel_adi IS NOT NULL),""),
-            NULLIF((SELECT GROUP_CONCAT(DISTINCT c2.cihaz_adi SEPARATOR ", ")
-                    FROM randevu_hizmetler rh3
-                    LEFT JOIN cihazlar c2 ON c2.id = rh3.cihaz_id
-                    WHERE rh3.randevu_id = randevular.id AND c2.cihaz_adi IS NOT NULL),""),
-            NULLIF((SELECT GROUP_CONCAT(DISTINCT o2.oda_adi SEPARATOR ", ")
-                    FROM randevu_hizmetler rh4
-                    LEFT JOIN odalar o2 ON o2.id = rh4.oda_id
-                    WHERE rh4.randevu_id = randevular.id AND o2.oda_adi IS NOT NULL),"")
-        ),""), CONCAT(
-            "<span style=\"color:#999;font-size:11px\">[",
-            "p:", IFNULL((SELECT GROUP_CONCAT(DISTINCT IFNULL(rh5.personel_id,"-")) FROM randevu_hizmetler rh5 WHERE rh5.randevu_id = randevular.id),"-"),
-            " c:", IFNULL((SELECT GROUP_CONCAT(DISTINCT IFNULL(rh6.cihaz_id,"-")) FROM randevu_hizmetler rh6 WHERE rh6.randevu_id = randevular.id),"-"),
-            " o:", IFNULL((SELECT GROUP_CONCAT(DISTINCT IFNULL(rh7.oda_id,"-")) FROM randevu_hizmetler rh7 WHERE rh7.randevu_id = randevular.id),"-"),
-            "]</span>"
-        )) as personelcihazoda'),
+        DB::raw('CASE
+            WHEN randevular.randevuya_geldi = 1 AND EXISTS(SELECT 1 FROM adisyon_paket_seanslar aps_x WHERE aps_x.randevu_id = randevular.id) THEN
+                CONCAT_WS(", ",
+                    NULLIF((SELECT GROUP_CONCAT(DISTINCT sp.personel_adi SEPARATOR ", ")
+                            FROM adisyon_paket_seanslar aps1
+                            LEFT JOIN salon_personelleri sp ON sp.id = aps1.personel_id
+                            WHERE aps1.randevu_id = randevular.id AND aps1.geldi = 1 AND sp.personel_adi IS NOT NULL),""),
+                    NULLIF((SELECT GROUP_CONCAT(DISTINCT c.cihaz_adi SEPARATOR ", ")
+                            FROM adisyon_paket_seanslar aps2
+                            LEFT JOIN cihazlar c ON c.id = aps2.cihaz_id
+                            WHERE aps2.randevu_id = randevular.id AND aps2.geldi = 1 AND c.cihaz_adi IS NOT NULL),""),
+                    NULLIF((SELECT GROUP_CONCAT(DISTINCT o.oda_adi SEPARATOR ", ")
+                            FROM adisyon_paket_seanslar aps3
+                            LEFT JOIN odalar o ON o.id = aps3.oda_id
+                            WHERE aps3.randevu_id = randevular.id AND aps3.geldi = 1 AND o.oda_adi IS NOT NULL),"")
+                )
+            ELSE
+                CONCAT_WS(", ",
+                    NULLIF((SELECT GROUP_CONCAT(DISTINCT sp2.personel_adi SEPARATOR ", ")
+                            FROM randevu_hizmetler rh2
+                            LEFT JOIN salon_personelleri sp2 ON sp2.id = rh2.personel_id
+                            WHERE rh2.randevu_id = randevular.id AND sp2.personel_adi IS NOT NULL),""),
+                    NULLIF((SELECT GROUP_CONCAT(DISTINCT c2.cihaz_adi SEPARATOR ", ")
+                            FROM randevu_hizmetler rh3
+                            LEFT JOIN cihazlar c2 ON c2.id = rh3.cihaz_id
+                            WHERE rh3.randevu_id = randevular.id AND c2.cihaz_adi IS NOT NULL),""),
+                    NULLIF((SELECT GROUP_CONCAT(DISTINCT o2.oda_adi SEPARATOR ", ")
+                            FROM randevu_hizmetler rh4
+                            LEFT JOIN odalar o2 ON o2.id = rh4.oda_id
+                            WHERE rh4.randevu_id = randevular.id AND o2.oda_adi IS NOT NULL),"")
+                )
+        END as personelcihazoda'),
         'odalar.oda_adi as odalar',
         'salon_personelleri.personel_adi as personel_adi',
         'cihazlar.cihaz_adi as cihaz_adi',
@@ -13731,7 +13743,14 @@ DB::raw('
         DB::raw('CONCAT(COALESCE(SUM(randevu_hizmetler.fiyat),0) ," ₺") as toplam'),
         DB::raw('CASE WHEN randevular.web=1 THEN "Web" WHEN randevular.uygulama=1 THEN "Uygulama" ELSE y1.name END as olusturan'),
         DB::raw('DATE_FORMAT(randevular.created_at, "%d.%m.%Y %H:%i") as olusturulma'),
-        DB::raw("GROUP_CONCAT(hizmetler.hizmet_adi) as hizmetler"),
+        DB::raw('CASE
+            WHEN randevular.randevuya_geldi = 1 AND EXISTS(SELECT 1 FROM adisyon_paket_seanslar aps_h WHERE aps_h.randevu_id = randevular.id) THEN
+                (SELECT GROUP_CONCAT(DISTINCT h.hizmet_adi SEPARATOR ",")
+                 FROM adisyon_paket_seanslar aps
+                 LEFT JOIN hizmetler h ON h.id = aps.hizmet_id
+                 WHERE aps.randevu_id = randevular.id AND aps.geldi = 1)
+            ELSE GROUP_CONCAT(DISTINCT hizmetler.hizmet_adi)
+        END as hizmetler'),
         DB::raw('CONCAT("<span style=\"display:none\">",UNIX_TIMESTAMP(randevular.tarih),UNIX_TIMESTAMP(randevular.saat),"</span>",DATE_FORMAT(randevular.tarih, "%d.%m.%Y")) as tarih'),
         DB::raw('CASE WHEN randevular.randevuya_geldi=1 THEN "Geldi" ELSE "Gelmedi" END as geldimi'),
     ];
