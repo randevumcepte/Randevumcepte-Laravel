@@ -15798,15 +15798,10 @@ DB::raw('
             // Sadece secilen seanslar gelmis olarak isaretlenir + her birine
             // popup'tan girilen 'dusulen_miktar' yazilir.
             // Isaretlenmeyenler bu randevudan TAMAMEN SILINIR — paketteki
-            // seans hakki kalir, sonraki randevuya bagli ayri satir olarak
-            // yeniden olusturulabilir.
+            // seans hakki kalir (seans_sayisi adisyon_paketler'de tutulur),
+            // sonraki randevuya yeniden bagli satir eklenebilir.
             $secilenIds = array_map('intval', (array) $secilenSeansIdler);
             $miktarlar = (array) $request->input('seans_miktarlari', []);
-            \Log::info('[SEANS-MIKTAR-DEBUG] web in', [
-                'randevu_id'  => $randevu->id,
-                'secilen_ids' => $secilenIds,
-                'miktarlar'   => $miktarlar,
-            ]);
             foreach ($secilenIds as $sid) {
                 $m = 1;
                 if (isset($miktarlar[$sid]))            $m = max(1, (int) $miktarlar[$sid]);
@@ -15814,24 +15809,7 @@ DB::raw('
                 AdisyonPaketSeanslar::where('id', $sid)
                     ->where('randevu_id', $randevu->id)
                     ->update(['geldi' => true, 'dusulen_miktar' => $m]);
-                \Log::info('[SEANS-MIKTAR-DEBUG] update', ['sid' => $sid, 'm' => $m]);
             }
-            // DB'den geri oku — gercekten yazildi mi?
-            try {
-                $rows = \DB::table('adisyon_paket_seanslar')
-                    ->whereIn('id', $secilenIds)
-                    ->get(['id', 'geldi', 'dusulen_miktar', 'adisyon_paket_id']);
-                \Log::info('[SEANS-MIKTAR-DEBUG] db_after', ['rows' => $rows->toArray()]);
-                $apIds = $rows->pluck('adisyon_paket_id')->filter()->unique()->values()->all();
-                foreach ($apIds as $apId) {
-                    $cnt = \DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id', $apId)->where('geldi', true)->count();
-                    $sum = (int) \DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id', $apId)->where('geldi', true)->sum('dusulen_miktar');
-                    \Log::info('[SEANS-MIKTAR-DEBUG] paket_hesap', ['ap_id' => $apId, 'count' => $cnt, 'sum' => $sum]);
-                }
-            } catch (\Throwable $e) {
-                \Log::error('[SEANS-MIKTAR-DEBUG] read_err', ['err' => $e->getMessage()]);
-            }
-            // Isaretlenmeyenleri sil — bu randevuya bagli rezervasyon kalmasin
             AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
                 ->whereNotIn('id', $secilenIds)
                 ->delete();
@@ -25669,11 +25647,12 @@ DB::raw('
         foreach($hizmetSeanslari->hizmetler as $hizmetA) {
             if (!$hizmetA->hizmet) continue;
             // Seans takibi formulu (8590-8622): toplam - kullanilan(geldi=1) - kullanilmayan(geldi=0)
+            // dusulen_miktar destegi: kullanilan SUM ile hesaplanir (1 satir N seans/dakika dusebilir)
             $toplamSeansHizmet = (int)($hizmetA->seans_sayisi ?? $hizmetA->bekleyen_seans ?? 0);
-            $kullanilanHizmet = DB::table('adisyon_paket_seanslar')
+            $kullanilanHizmet = (int) DB::table('adisyon_paket_seanslar')
                 ->where('adisyon_hizmet_id', $hizmetA->id)
                 ->where('geldi', 1)
-                ->count();
+                ->sum('dusulen_miktar');
             $kullanilmayanHizmet = DB::table('adisyon_paket_seanslar')
                 ->where('adisyon_hizmet_id', $hizmetA->id)
                 ->where('geldi', 0)
@@ -25727,12 +25706,13 @@ DB::raw('
             $hizmetSayisi = $paketA->paket->hizmetler ? count($paketA->paket->hizmetler) : 0;
             if ($hizmetSayisi <= 0) continue;
             // Round basina seans sayisi (adisyon_paketler.seans_sayisi)
+            // dusulen_miktar destegi: kullanilan SUM ile hesaplanir
             $seansPerHizmet = (int)($paketA->seans_sayisi ?? $paketA->bekleyen_seans ?? 0);
             $toplamSeansPaket = $seansPerHizmet * $hizmetSayisi;
-            $kullanilanPaket = DB::table('adisyon_paket_seanslar')
+            $kullanilanPaket = (int) DB::table('adisyon_paket_seanslar')
                 ->where('adisyon_paket_id', $paketA->id)
                 ->where('geldi', 1)
-                ->count();
+                ->sum('dusulen_miktar');
             $kullanilmayanPaket = DB::table('adisyon_paket_seanslar')
                 ->where('adisyon_paket_id', $paketA->id)
                 ->where('geldi', 0)
