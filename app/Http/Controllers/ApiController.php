@@ -12474,7 +12474,53 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             exit();
 
         }
-        
+
+            // Seans secim modu: yeni Flutter app 'seans_secim_destek' bayragiyla gelir
+            // ve paket seansi varsa kullaniciya hangi seanslarin dusulecegini sorar.
+            // Eski client'lar bu bayragi gondermez — eski davranis (hepsi geldi=true)
+            // korunur.
+            $seansSecimDestek = $request->boolean('seans_secim_destek', false);
+            $secilenSeansIdler = $request->input('secilen_seans_idler');
+            $secilenVerildi = is_array($secilenSeansIdler);
+
+            if ($seansVar > 0 && $seansSecimDestek && !$secilenVerildi) {
+                $seanslar = AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)->get();
+                $list = [];
+                foreach ($seanslar as $s) {
+                    $ap = AdisyonPaketler::where('id', $s->adisyon_paket_id)->first();
+                    $paketAdi = '';
+                    $toplamSeans = 0;
+                    $kullanilan = 0;
+                    if ($ap) {
+                        $paketObj = Paketler::where('id', $ap->paket_id)->first();
+                        $paketAdi = $paketObj ? $paketObj->paket_adi : '';
+                        $toplamSeans = (int)$ap->seans_sayisi;
+                        $kullanilan = AdisyonPaketSeanslar::where('adisyon_paket_id', $ap->id)
+                            ->where('geldi', true)
+                            ->count();
+                    }
+                    $kalan = max(0, $toplamSeans - $kullanilan);
+                    $list[] = [
+                        'id' => (int)$s->id,
+                        'hizmet_adi' => $s->hizmet ? $s->hizmet->hizmet_adi : '',
+                        'paket_adi' => $paketAdi,
+                        'adisyon_paket_id' => (int)$s->adisyon_paket_id,
+                        'kalan_seans' => $kalan,
+                        'toplam_seans' => $toplamSeans,
+                        'seans_no' => (int)($s->seans_no ?? 0),
+                        'simdi_geldi' => $s->geldi == true,
+                    ];
+                }
+                return response()->json([
+                    'hatali' => '4',
+                    'mesaj' => 'Seans secimi yapilmali',
+                    'seanslar' => $list,
+                    'musteri_adi' => $randevu->users->name ?? '',
+                    'tarih' => $randevu->tarih ?? '',
+                    'saat' => $randevu->saat ?? '',
+                ]);
+            }
+
             $randevu->randevuya_geldi = true;
             $portfoy->kvkk_onay_alindi=1;
             $portfoy->save();
@@ -12492,13 +12538,23 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             ) {
 
-                AdisyonPaketSeanslar::where(
+                if ($secilenVerildi) {
+                    $secilenIds = array_map('intval', $secilenSeansIdler);
+                    AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)
+                        ->whereIn('id', $secilenIds)
+                        ->update(['geldi' => true]);
+                    AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)
+                        ->whereNotIn('id', $secilenIds)
+                        ->update(['geldi' => false]);
+                } else {
+                    AdisyonPaketSeanslar::where(
 
-                    "randevu_id",
+                        "randevu_id",
 
-                    $request->randevuid
+                        $request->randevuid
 
-                )->update(["geldi" => true]);
+                    )->update(["geldi" => true]);
+                }
 
                 // Musteriye seans kullanim bilgilendirme push'u — paket/hizmet
                 // bazinda kullanilan ve kalan seans sayisini ozetler. Mantik
