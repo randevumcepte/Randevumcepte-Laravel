@@ -336,7 +336,11 @@ class RandevuSMSHatirlatma extends Command
         }
 
         if (!$whatsappBasarili) {
-            $smsMesaj = $mesajBase;
+            // SMS'te gönderici kimliği görünmediği için işletme adını başa ekle.
+            // (WhatsApp'ta mesaj salonun kendi numarasından gittiği için eklenmez.)
+            $smsMesaj = !empty($salon->salon_adi)
+                ? $salon->salon_adi . ' - ' . $mesajBase
+                : $mesajBase;
             Log::info('[RND-SMS] müşteri SMS gönderiliyor', [
                 'salon_id' => $salon->id,
                 'randevu_id' => $randevu->id,
