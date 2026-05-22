@@ -11469,26 +11469,33 @@ function paketSeansSecim(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, 
         var kalan = (typeof s.kalan_seans !== 'undefined') ? s.kalan_seans : 0;
         var toplam = (typeof s.toplam_seans !== 'undefined') ? s.toplam_seans : 0;
         var kalanRenk = (kalan <= 0) ? '#e74c3c' : '#16a085';
+        // Default miktar: paket sure_dakika varsa onu, yoksa 1 seans
+        var defaultMiktar = (s.sure_dk && s.sure_dk > 0) ? s.sure_dk : 1;
 
-        html += '<label style="display:flex;align-items:center;gap:10px;padding:10px 9px;border-bottom:1px solid #eee;cursor:pointer;margin:0;">';
-        html += '  <input type="checkbox" class="paket-seans-secim" data-value="'+s.id+'" style="width:18px;height:18px;flex:0 0 auto;">';
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 9px;border-bottom:1px solid #eee;margin:0;">';
+        html += '  <input type="checkbox" class="paket-seans-secim" data-value="'+s.id+'" style="width:18px;height:18px;flex:0 0 auto;cursor:pointer;">';
         html += '  <span style="flex:1;min-width:0;">';
         html += '    <span style="font-weight:600;color:#333;">'+ (s.hizmet_adi || 'Hizmet') +'</span>';
         if (altSatir) {
             html += '<br><span style="font-size:12px;color:#888;">'+ altSatir +'</span>';
         }
         html += '  </span>';
-        html += '  <span style="font-size:12px;color:'+kalanRenk+';white-space:nowrap;">kalan '+ kalan +'/'+ toplam +'</span>';
-        html += '</label>';
+        html += '  <span style="display:flex;align-items:center;gap:6px;">';
+        html += '    <input type="number" class="paket-seans-miktar" data-id="'+s.id+'" min="1" value="'+ defaultMiktar +'" style="width:65px;height:30px;padding:2px 6px;border:1px solid #ddd;border-radius:4px;text-align:center;font-size:13px;">';
+        html += '    <span style="font-size:11px;color:#888;">düşecek</span>';
+        html += '  </span>';
+        html += '  <span style="font-size:12px;color:'+kalanRenk+';white-space:nowrap;min-width:60px;text-align:right;">kalan '+ kalan +'/'+ toplam +'</span>';
+        html += '</div>';
     });
 
     html += '</div>';
+    html += '<div style="margin-top:8px;font-size:11px;color:#999;text-align:left;">İpucu: Miktarı seans veya dakika cinsinden girin (ör. 2 seans, 15 dk).</div>';
 
     swal({
         title: 'Paket Seans Seçimi',
         html: html,
         icon: null,
-        width: 500,
+        width: 580,
         showCloseButton: false,
         showCancelButton: true,
         showConfirmButton: true,
@@ -11500,12 +11507,15 @@ function paketSeansSecim(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, 
     }).then(function(res){
         if (res.value) {
             var formData = new FormData();
-            // secim_yapildi: hicbiri secilmese bile backend'in tekrar popup
-            // dondurmesini engeller (sonsuz dongu korumasi).
             formData.append('secim_yapildi', 1);
             formData.append('seans_secim_destek', 1);
             $('.paket-seans-secim:checked').each(function(){
-                formData.append('secilen_seans_idler[]', $(this).attr('data-value'));
+                var sid = $(this).attr('data-value');
+                formData.append('secilen_seans_idler[]', sid);
+                var mInput = $('.paket-seans-miktar[data-id="'+sid+'"]');
+                var miktar = parseInt(mInput.val(), 10);
+                if (isNaN(miktar) || miktar < 1) miktar = 1;
+                formData.append('seans_miktarlari['+sid+']', miktar);
             });
             randevuyaGeldiIsaretle(randevu_id, hizmetid, dogrulamaKodu, kvkkKodu, dogrulamaSoruldu, dogrulamaSorulduGonderilecek, false, false, formData);
         }

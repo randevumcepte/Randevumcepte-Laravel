@@ -118,7 +118,8 @@ class SeansBildirimService
 
         $seanslar = AdisyonPaketSeanslar::where('adisyon_paket_id', $adisyonPaketId)->get();
         $toplam = (int) ($paket->seans_sayisi ?? $seanslar->count());
-        $kullanilan = $seanslar->where('geldi', 1)->count();
+        // dusulen_miktar destegi: bir satir N seans/dakika dusebilir
+        $kullanilan = (int) $seanslar->where('geldi', 1)->sum('dusulen_miktar');
         $kalan = $seanslar->filter(function ($s) {
             return $s->geldi === null && !$s->iptal;
         })->count();
@@ -142,7 +143,7 @@ class SeansBildirimService
 
         $seanslar = AdisyonPaketSeanslar::where('adisyon_hizmet_id', $adisyonHizmetId)->get();
         $toplam = (int) ($hizmet->seans_sayisi ?? $seanslar->count());
-        $kullanilan = $seanslar->where('geldi', 1)->count();
+        $kullanilan = (int) $seanslar->where('geldi', 1)->sum('dusulen_miktar');
         $kalan = $seanslar->filter(function ($s) {
             return $s->geldi === null && !$s->iptal;
         })->count();

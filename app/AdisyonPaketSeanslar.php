@@ -11,7 +11,7 @@ class AdisyonPaketSeanslar extends Model
 
     protected $table = 'adisyon_paket_seanslar';
 
-    protected $fillable = ['geldi'];
+    protected $fillable = ['geldi', 'dusulen_miktar'];
     
     protected $with =  ['personel','cihaz','oda','hizmet','randevu'];
 

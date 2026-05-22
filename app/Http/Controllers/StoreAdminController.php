@@ -13063,7 +13063,7 @@ DB::raw('
                            '.AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',null)->count().'&nbsp;
                             <i class="fa fa-calendar"></i></button>
                            <button name="paketteki_seanslari_geldi_isaretle" type="button" class="btn btn-success">
-                           '.AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->count().'&nbsp;
+                           '.((int) AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->sum('dusulen_miktar')).'&nbsp;
                             <i class="fa fa-check"></i></button>
                            <button name="paketteki_seanslari_geldi_isaretle" type="button" class="btn btn-danger">
                            '.AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',false)->count().'&nbsp;
@@ -15733,11 +15733,17 @@ DB::raw('
                     $paketObj = Paketler::where('id', $ap->paket_id)->first();
                     $paketAdi = $paketObj ? $paketObj->paket_adi : '';
                     $toplamSeans = (int) $ap->seans_sayisi;
-                    $kullanilan = AdisyonPaketSeanslar::where('adisyon_paket_id', $ap->id)
+                    // dusulen_miktar destegi: her satir kendi miktari kadar duser.
+                    // Eski default 1 oldugu icin eski paketler bozulmaz.
+                    $kullanilan = (int) AdisyonPaketSeanslar::where('adisyon_paket_id', $ap->id)
                         ->where('geldi', true)
-                        ->count();
+                        ->sum('dusulen_miktar');
                 }
                 $kalan = max(0, $toplamSeans - $kullanilan);
+                // Default miktar onerisi: bu hizmetin randevudaki sure_dk degeri
+                $sureDk = (int) (RandevuHizmetler::where('randevu_id', $randevu->id)
+                    ->where('hizmet_id', $s->hizmet_id)
+                    ->value('sure_dk') ?? 0);
                 $list[] = [
                     'id'               => (int) $s->id,
                     'hizmet_adi'       => $s->hizmet ? $s->hizmet->hizmet_adi : '',
@@ -15747,6 +15753,8 @@ DB::raw('
                     'kalan_seans'      => $kalan,
                     'toplam_seans'     => $toplamSeans,
                     'seans_no'         => (int) ($s->seans_no ?? 0),
+                    'sure_dk'          => $sureDk,
+                    'dusulen_miktar'   => (int) ($s->dusulen_miktar ?? 1),
                     'simdi_geldi'      => $s->geldi == true,
                 ];
             }
@@ -15773,11 +15781,16 @@ DB::raw('
         $seanslar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id);
 
         if ($secilenVerildi) {
-            // Sadece secilen seanslar gelmis olarak isaretlenir, digerleri false.
+            // Sadece secilen seanslar gelmis olarak isaretlenir + her birine
+            // popup'tan girilen 'dusulen_miktar' yazilir. Digerleri false.
             $secilenIds = array_map('intval', (array) $secilenSeansIdler);
-            AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
-                ->whereIn('id', $secilenIds)
-                ->update(['geldi' => true]);
+            $miktarlar = (array) $request->input('seans_miktarlari', []);
+            foreach ($secilenIds as $sid) {
+                $m = isset($miktarlar[$sid]) ? max(1, (int) $miktarlar[$sid]) : 1;
+                AdisyonPaketSeanslar::where('id', $sid)
+                    ->where('randevu_id', $randevu->id)
+                    ->update(['geldi' => true, 'dusulen_miktar' => $m]);
+            }
             AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
                 ->whereNotIn('id', $secilenIds)
                 ->update(['geldi' => false]);
@@ -18524,7 +18537,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                                        ".AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',null)->count()."&nbsp;
                                         <i class='fa fa-calendar'></i></button>
                                        <button name='paketteki_seanslari_geldi_isaretle' title='Geldi' class='btn btn-success'>
-                                       ".AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->count()."&nbsp;
+                                       ".((int) AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->sum('dusulen_miktar'))."&nbsp;
                                         <i class='fa fa-check'></i></button>
                                        <button name='paketteki_seanslari_gelmedi_isaretle' title='Gelmedi' class='btn btn-danger'>
                                        ".AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',false)->count()." &nbsp;

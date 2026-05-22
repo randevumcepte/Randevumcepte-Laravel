@@ -12121,8 +12121,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             foreach ($hizmetSeanslari->hizmetler as $hizmetA) {
                 if (!$hizmetA->hizmet) continue;
                 $toplamSeansHizmet = (int)($hizmetA->seans_sayisi ?? $hizmetA->bekleyen_seans ?? 0);
-                $kullanilanHizmet = DB::table('adisyon_paket_seanslar')
-                    ->where('adisyon_hizmet_id', $hizmetA->id)->where('geldi', 1)->count();
+                $kullanilanHizmet = (int) DB::table('adisyon_paket_seanslar')
+                    ->where('adisyon_hizmet_id', $hizmetA->id)->where('geldi', 1)->sum('dusulen_miktar');
                 $kullanilmayanHizmet = DB::table('adisyon_paket_seanslar')
                     ->where('adisyon_hizmet_id', $hizmetA->id)->where('geldi', 0)->count();
                 $kalanSeansHizmet = max(0, $toplamSeansHizmet - $kullanilanHizmet - $kullanilmayanHizmet);
@@ -12168,8 +12168,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 if ($hizmetSayisi <= 0) continue;
                 $seansPerHizmet = (int)($paketA->seans_sayisi ?? $paketA->bekleyen_seans ?? 0);
                 $toplamSeansPaket = $seansPerHizmet * $hizmetSayisi;
-                $kullanilanPaket = DB::table('adisyon_paket_seanslar')
-                    ->where('adisyon_paket_id', $paketA->id)->where('geldi', 1)->count();
+                $kullanilanPaket = (int) DB::table('adisyon_paket_seanslar')
+                    ->where('adisyon_paket_id', $paketA->id)->where('geldi', 1)->sum('dusulen_miktar');
                 $kullanilmayanPaket = DB::table('adisyon_paket_seanslar')
                     ->where('adisyon_paket_id', $paketA->id)->where('geldi', 0)->count();
                 $bekleyenToplamPaket = $toplamSeansPaket - $kullanilanPaket - $kullanilmayanPaket;
@@ -12495,11 +12495,17 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         $paketObj = Paketler::where('id', $ap->paket_id)->first();
                         $paketAdi = $paketObj ? $paketObj->paket_adi : '';
                         $toplamSeans = (int)$ap->seans_sayisi;
-                        $kullanilan = AdisyonPaketSeanslar::where('adisyon_paket_id', $ap->id)
+                        // dusulen_miktar destegi: her satir 1 yerine kendi miktari kadar duser.
+                        // Eski default 1 oldugu icin eski paketler bozulmadan calismaya devam eder.
+                        $kullanilan = (int) AdisyonPaketSeanslar::where('adisyon_paket_id', $ap->id)
                             ->where('geldi', true)
-                            ->count();
+                            ->sum('dusulen_miktar');
                     }
                     $kalan = max(0, $toplamSeans - $kullanilan);
+                    // Default miktar onerisi: bu hizmetin randevudaki sure_dk degeri
+                    $sureDk = (int) (RandevuHizmetler::where('randevu_id', $request->randevuid)
+                        ->where('hizmet_id', $s->hizmet_id)
+                        ->value('sure_dk') ?? 0);
                     $list[] = [
                         'id' => (int)$s->id,
                         'hizmet_adi' => $s->hizmet ? $s->hizmet->hizmet_adi : '',
@@ -12508,6 +12514,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         'kalan_seans' => $kalan,
                         'toplam_seans' => $toplamSeans,
                         'seans_no' => (int)($s->seans_no ?? 0),
+                        'sure_dk' => $sureDk,
+                        'dusulen_miktar' => (int) ($s->dusulen_miktar ?? 1),
                         'simdi_geldi' => $s->geldi == true,
                     ];
                 }
@@ -12540,9 +12548,15 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                 if ($secilenVerildi) {
                     $secilenIds = array_map('intval', $secilenSeansIdler);
-                    AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)
-                        ->whereIn('id', $secilenIds)
-                        ->update(['geldi' => true]);
+                    // seans_miktarlari: { id: miktar } map'i — her seans icin
+                    // salonun girdigi dusulen_miktar
+                    $miktarlar = (array) $request->input('seans_miktarlari', []);
+                    foreach ($secilenIds as $sid) {
+                        $m = isset($miktarlar[$sid]) ? max(1, (int) $miktarlar[$sid]) : 1;
+                        AdisyonPaketSeanslar::where('id', $sid)
+                            ->where('randevu_id', $request->randevuid)
+                            ->update(['geldi' => true, 'dusulen_miktar' => $m]);
+                    }
                     AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)
                         ->whereNotIn('id', $secilenIds)
                         ->update(['geldi' => false]);

@@ -6352,7 +6352,7 @@ class SatisOrtakligiSistemDemoController extends Controller
                            '.AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',null)->count().'&nbsp;
                             <i class="fa fa-calendar"></i></button>
                            <button name="paketteki_seanslari_geldi_isaretle" type="button" class="btn btn-success">
-                           '.AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->count().'&nbsp;
+                           '.((int) AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->sum('dusulen_miktar')).'&nbsp;
                             <i class="fa fa-check"></i></button>
                            <button name="paketteki_seanslari_geldi_isaretle" type="button" class="btn btn-danger">
                            '.AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',false)->count().'&nbsp;
@@ -9779,7 +9779,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                                        ".AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',null)->count()."&nbsp;
                                         <i class='fa fa-calendar'></i></button>
                                        <button name='paketteki_seanslari_geldi_isaretle' title='Geldi' class='btn btn-success'>
-                                       ".AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->count()."&nbsp;
+                                       ".((int) AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->sum('dusulen_miktar'))."&nbsp;
                                         <i class='fa fa-check'></i></button>
                                        <button name='paketteki_seanslari_gelmedi_isaretle' title='Gelmedi' class='btn btn-danger'>
                                        ".AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',false)->count()." &nbsp;

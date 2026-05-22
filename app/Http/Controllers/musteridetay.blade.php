@@ -175,7 +175,7 @@
                                        {{\App\AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',null)->count()}} &nbsp;
                                         <i class="fa fa-calendar"></i></button>
                                        <button name='paketteki_seanslari_geldi_isaretle' title='Geldi' class="btn btn-success">
-                                       {{\App\AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->count()}} &nbsp;
+                                       {{(int) \App\AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->sum('dusulen_miktar')}} &nbsp;
                                         <i class="fa fa-check"></i></button>
                                        <button name='paketteki_seanslari_gelmedi_isaretle' title='Gelmedi' class="btn btn-danger">
                                        {{\App\AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',false)->count()}} &nbsp;
