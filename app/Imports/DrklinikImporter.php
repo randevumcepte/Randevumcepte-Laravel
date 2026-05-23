@@ -1602,8 +1602,8 @@ class DrklinikImporter
         $apsTable = (new AdisyonPaketSeanslar)->getTable();
         $hasRandevuId = \Schema::hasColumn($apsTable, 'randevu_id');
 
-        // 1) Tum satirlari hizmet bazinda TOPLA (ayni hizmet birden fazla satirda olabilir)
-        $agg = []; // hizmetId => ['alinan'=>, 'harcanan'=>]
+        // 1) Tum drk satirlarini hizmet bazinda LISTELE (sira korunarak)
+        $perHizmet = []; // hizmetId => [['alinan','harcanan'], ...]
         preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
         foreach ($rows[1] as $tr) {
             if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
@@ -1617,7 +1617,6 @@ class DrklinikImporter
             $hizmetAd = trim($cells[$iHizmet] ?? '');
             if ($hizmetAd === '') continue;
             $satinAlinan = (int) preg_replace('~\D~', '', $cells[$iAlinan] ?? '0');
-            // Harcanan negatif olabilir (drklinik 'Suresi Biten' -2 gibi) - isaret korunsun
             $harcananRaw = trim($cells[$iHarcanan] ?? '0');
             $harcanan = (int) preg_replace('~[^\d-]~', '', $harcananRaw);
             if ($satinAlinan <= 0) continue;
@@ -1625,57 +1624,82 @@ class DrklinikImporter
             $sh = $this->findSalonHizmetByName($hizmetAd);
             if (!$sh) continue;
             $hid = $sh['hizmet_id'];
-            if (!isset($agg[$hid])) $agg[$hid] = ['alinan' => 0, 'harcanan' => 0];
-            $agg[$hid]['alinan']   += $satinAlinan;
-            $agg[$hid]['harcanan'] += max(0, $harcanan);
+            if (!isset($perHizmet[$hid])) $perHizmet[$hid] = [];
+            $perHizmet[$hid][] = ['alinan' => $satinAlinan, 'harcanan' => max(0, $harcanan)];
         }
 
-        // 2) Hizmet bazinda reconcile
-        foreach ($agg as $hizmetId => $sum) {
-            $harcanan = (int) $sum['harcanan'];
-
+        // 2) Hizmet bazinda: drk satirlari ile AH'lar (adisyon tarihine gore sirali) 1:1 esle.
+        //    Her AH icin: seans_sayisi = drk alinan, APS sayisi = drk harcanan (kapasite asilsa bile).
+        //    Bu, drklinik UI'daki paket basina dagilimla birebir uyum saglar.
+        foreach ($perHizmet as $hizmetId => $drkRows) {
             $ahRows = \DB::table('adisyon_hizmetler as ah')
                 ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
                 ->where('a.user_id', $userId)->where('a.salon_id', $this->salonId)
                 ->where('ah.hizmet_id', $hizmetId)
                 ->whereNotNull('ah.seans_sayisi')
-                ->select('ah.id', 'ah.seans_sayisi')->orderBy('a.tarih')->get();
+                ->select('ah.id', 'ah.seans_sayisi')
+                ->orderBy('a.tarih')->orderBy('ah.id')->get();
             if ($ahRows->isEmpty()) continue;
-            $ahIds = $ahRows->pluck('id')->all();
 
-            // tek paket ise seans_sayisi'ni Satin Alinan'a esitle
-            if ($ahRows->count() === 1 && (int) $ahRows[0]->seans_sayisi !== (int) $sum['alinan'] && $sum['alinan'] > 0) {
-                \DB::table('adisyon_hizmetler')->where('id', $ahRows[0]->id)
-                    ->update(['seans_sayisi' => (int) $sum['alinan']]);
+            $matched = min($ahRows->count(), count($drkRows));
+            for ($i = 0; $i < $matched; $i++) {
+                $ahId = $ahRows[$i]->id;
+                $hedefAlinan = (int) $drkRows[$i]['alinan'];
+                $hedefHarcanan = (int) $drkRows[$i]['harcanan'];
+
+                // seans_sayisi = drk alinan
+                if ((int) $ahRows[$i]->seans_sayisi !== $hedefAlinan && $hedefAlinan > 0) {
+                    \DB::table('adisyon_hizmetler')->where('id', $ahId)
+                        ->update(['seans_sayisi' => $hedefAlinan]);
+                }
+
+                $this->reconcileApsCount($ahId, $hizmetId, $hedefHarcanan, $apsTable, $hasRandevuId);
             }
+            // Drk'de fazladan satir varsa (drk sayisi > bizdeki AH) -> son AH'a topla
+            if (count($drkRows) > $ahRows->count()) {
+                $extraHarcanan = 0;
+                for ($j = $ahRows->count(); $j < count($drkRows); $j++) {
+                    $extraHarcanan += (int) $drkRows[$j]['harcanan'];
+                }
+                if ($extraHarcanan > 0) {
+                    $sonAh = $ahRows->last();
+                    $mevcut = (int) \DB::table($apsTable)->where('adisyon_hizmet_id', $sonAh->id)->count();
+                    $this->reconcileApsCount($sonAh->id, $hizmetId, $mevcut + $extraHarcanan, $apsTable, $hasRandevuId);
+                }
+            }
+        }
+    }
 
-            // tuketilen APS sayisini Harcanan'a esitle
-            $mevcut = (int) \DB::table($apsTable)->whereIn('adisyon_hizmet_id', $ahIds)->count();
-            if ($mevcut < $harcanan) {
-                $eklenecek = $harcanan - $mevcut;
-                $hedefAh = $ahRows[0]->id;
-                $sonNo = (int) (\DB::table($apsTable)->where('adisyon_hizmet_id', $hedefAh)->max('seans_no') ?? 0);
-                for ($k = 0; $k < $eklenecek; $k++) {
-                    $sonNo++;
-                    \DB::table($apsTable)->insert([
-                        'adisyon_hizmet_id' => $hedefAh,
-                        'hizmet_id' => $hizmetId,
-                        'seans_no'  => $sonNo,
-                        'geldi'     => 1,
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'updated_at' => date('Y-m-d H:i:s'),
-                    ]);
-                }
-                $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + $eklenecek;
-            } elseif ($mevcut > $harcanan) {
-                $fazla = $mevcut - $harcanan;
-                $q = \DB::table($apsTable)->whereIn('adisyon_hizmet_id', $ahIds);
-                if ($hasRandevuId) $q->orderByRaw('randevu_id IS NULL DESC'); // once randevusuzlar
-                $silId = $q->orderByDesc('id')->limit($fazla)->pluck('id')->all();
-                if ($silId) {
-                    \DB::table($apsTable)->whereIn('id', $silId)->delete();
-                    $this->counts['seans_silinen'] = ($this->counts['seans_silinen'] ?? 0) + count($silId);
-                }
+    /**
+     * Bir AH'in APS sayisini hedef harcanan'a esitler (kapasite kontrolu yok,
+     * drklinik over-consumption gosterirse biz de gosteriyoruz).
+     */
+    private function reconcileApsCount($ahId, $hizmetId, $hedefHarcanan, $apsTable, $hasRandevuId)
+    {
+        $mevcut = (int) \DB::table($apsTable)->where('adisyon_hizmet_id', $ahId)->count();
+        if ($mevcut < $hedefHarcanan) {
+            $eklenecek = $hedefHarcanan - $mevcut;
+            $sonNo = (int) (\DB::table($apsTable)->where('adisyon_hizmet_id', $ahId)->max('seans_no') ?? 0);
+            for ($k = 0; $k < $eklenecek; $k++) {
+                $sonNo++;
+                \DB::table($apsTable)->insert([
+                    'adisyon_hizmet_id' => $ahId,
+                    'hizmet_id' => $hizmetId,
+                    'seans_no'  => $sonNo,
+                    'geldi'     => 1,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+            }
+            $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + $eklenecek;
+        } elseif ($mevcut > $hedefHarcanan) {
+            $fazla = $mevcut - $hedefHarcanan;
+            $q = \DB::table($apsTable)->where('adisyon_hizmet_id', $ahId);
+            if ($hasRandevuId) $q->orderByRaw('randevu_id IS NULL DESC');
+            $silId = $q->orderByDesc('id')->limit($fazla)->pluck('id')->all();
+            if ($silId) {
+                \DB::table($apsTable)->whereIn('id', $silId)->delete();
+                $this->counts['seans_silinen'] = ($this->counts['seans_silinen'] ?? 0) + count($silId);
             }
         }
     }
