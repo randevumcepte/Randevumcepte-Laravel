@@ -72,6 +72,21 @@ class DrklinikImport extends Command
             if (!$salonId) { $this->error('--cleanup-dummy-aps icin --salon zorunlu.'); return 1; }
             return $this->cleanupDummyAps((int) $salonId, (bool) $this->option('dry-run'));
         }
+        if ((bool) $this->option('cleanup-0000-randevu')) {
+            if (!$salonId) { $this->error('--cleanup-0000-randevu icin --salon zorunlu.'); return 1; }
+            $rIds = \DB::table('randevular')->where('salon_id', $salonId)
+                ->where('saat', '00:00:00')->pluck('id');
+            $this->line("Salon {$salonId} saat=00:00 randevu sayisi: " . $rIds->count());
+            if ((bool) $this->option('dry-run')) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
+            if ($rIds->count()) {
+                foreach (array_chunk($rIds->all(), 1000) as $ck) {
+                    \DB::table('randevu_hizmetler')->whereIn('randevu_id', $ck)->delete();
+                }
+                \DB::table('randevular')->where('salon_id', $salonId)->where('saat', '00:00:00')->delete();
+                $this->info('Silindi: ' . $rIds->count() . ' randevu (+ randevu_hizmetler).');
+            }
+            return 0;
+        }
         if ($musid = $this->option('inspect-musid')) {
             if (!$username || !$password) { $this->error('--inspect-musid icin --username ve --password zorunlu.'); return 1; }
             return $this->inspectMusid((string) $musid, $username, $password);
@@ -161,22 +176,6 @@ class DrklinikImport extends Command
             if (!$salonId) { $this->error('--report-seans-fark icin --salon zorunlu.'); return 1; }
             $importer = new DrklinikImporter($client, $salonId, $this->output);
             $importer->raporSeansFark($this->option('from'), $this->option('to'));
-            return 0;
-        }
-
-        if ((bool) $this->option('cleanup-0000-randevu')) {
-            if (!$salonId) { $this->error('--cleanup-0000-randevu icin --salon zorunlu.'); return 1; }
-            $rIds = \DB::table('randevular')->where('salon_id', $salonId)
-                ->where('saat', '00:00:00')->pluck('id');
-            $this->line("Salon {$salonId} saat=00:00 randevu sayisi: " . $rIds->count());
-            if ($this->option('dry-run')) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
-            if ($rIds->count()) {
-                foreach (array_chunk($rIds->all(), 1000) as $ck) {
-                    \DB::table('randevu_hizmetler')->whereIn('randevu_id', $ck)->delete();
-                }
-                \DB::table('randevular')->where('salon_id', $salonId)->where('saat', '00:00:00')->delete();
-                $this->info('Silindi: ' . $rIds->count() . ' randevu (+ randevu_hizmetler).');
-            }
             return 0;
         }
 
