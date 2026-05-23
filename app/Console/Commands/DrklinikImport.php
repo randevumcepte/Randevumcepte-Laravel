@@ -327,23 +327,19 @@ class DrklinikImport extends Command
         $client = new \App\Services\DrklinikClient($username, $password);
         $login = $client->login();
         if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
-        $this->line("Drklinik tahsilatlari gunluk taraniyor: {$from} - {$to}");
+        $this->line("Drklinik tahsilatlari TEK SEFER BTN_Hepsi (Tum Gelirler) ile cekiliyor: {$from} - {$to}");
 
-        // 1) Drklinik scrape - gunluk
+        // 1) Drklinik scrape - TEK CAGRI ile tum donem ('Tum Gelirler' butonu)
         $drkCount = []; // strict signature (name+date+amount+method) -> count
         $drkRows = [];
         $drkLooseCount = []; // loose signature (date+amount+method) -> count
         $drkLooseNames = []; // loose -> [isim, ...]
-        $start = strtotime($from); $end = strtotime($to);
-        $days = 0; $rowsFound = 0;
-        for ($t = $start; $t <= $end; $t += 86400) {
-            $days++;
-            $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Ara', '', [
-                'TB_TarihSec1' => date('d.m.Y', $t),
-                'TB_TarihSec2' => date('d.m.Y', $t),
-            ]);
-            usleep(200000);
-            if ($h === null) continue;
+        $rowsFound = 0;
+        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Hepsi', '', [
+            'TB_TarihSec1' => date('d.m.Y', strtotime($from)),
+            'TB_TarihSec2' => date('d.m.Y', strtotime($to)),
+        ]);
+        if ($h !== null) {
             preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
             foreach ($rows[1] as $tr) {
                 if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
@@ -378,7 +374,6 @@ class DrklinikImport extends Command
                 $drkLooseNames[$sigLoose][] = $musteri;
                 $rowsFound++;
             }
-            if ($days % 30 === 0) $this->line("  ..gun {$days} (" . date('Y-m-d', $t) . ") drklinik_satir={$rowsFound}");
         }
         $this->info("Drklinik toplam: {$rowsFound} satir, " . count($drkCount) . " unique signature");
 
@@ -852,31 +847,16 @@ class DrklinikImport extends Command
         $client = new \App\Services\DrklinikClient($username, $password);
         $login = $client->login();
         if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
-        $this->line("Tahsilat HTML toplam: {$from} - {$to}, haftalik tarama (50 cap recursive split)...");
+        $this->line("Tahsilat HTML toplam: {$from} - {$to}, BTN_Hepsi (Tum Gelirler) tek cagri...");
 
-        $start = strtotime($from);
-        $end   = strtotime($to);
-        $weekStart = $start;
         $totalSum = 0.0; $totalCount = 0;
         $monthly = []; // 'YYYY-MM' => ['adet','toplam']
 
-        $process = function($startTs, $endTs, $depth) use (&$process, $client, &$totalSum, &$totalCount, &$monthly) {
-            $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Ara', '', [
-                'TB_TarihSec1' => date('d.m.Y', $startTs),
-                'TB_TarihSec2' => date('d.m.Y', $endTs),
-            ]);
-            usleep(250000);
-            if ($h === null) return;
-            preg_match_all('~<table[^>]*>(.*?)</table>~is', $h, $tm);
-            $maxTr = 0;
-            foreach ($tm[1] as $t) if (preg_match_all('~<tr[^>]*>~i', $t, $rm) && count($rm[0]) > $maxTr) $maxTr = count($rm[0]);
-            if ($maxTr >= 50 && ($endTs - $startTs) >= 86400 && $depth < 8) {
-                $mid = $startTs + intval(($endTs - $startTs) / 2);
-                $process($startTs, $mid, $depth + 1);
-                $process($mid + 86400, $endTs, $depth + 1);
-                return;
-            }
-            // Tablodan satirlari parse et
+        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Hepsi', '', [
+            'TB_TarihSec1' => date('d.m.Y', strtotime($from)),
+            'TB_TarihSec2' => date('d.m.Y', strtotime($to)),
+        ]);
+        if ($h !== null) {
             preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
             foreach ($rows[1] as $tr) {
                 if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
@@ -898,21 +878,11 @@ class DrklinikImport extends Command
                 if ($tutar <= 0) continue;
                 $totalSum += $tutar;
                 $totalCount++;
-                // Aylik
                 [$g, $a, $y] = explode('.', substr($tarihStr, 0, 10));
                 $ay = $y . '-' . $a;
                 if (!isset($monthly[$ay])) $monthly[$ay] = ['adet' => 0, 'toplam' => 0];
                 $monthly[$ay]['adet']++;
                 $monthly[$ay]['toplam'] += $tutar;
-            }
-        };
-
-        while ($weekStart <= $end) {
-            $weekEnd = min($end, strtotime('+6 days', $weekStart));
-            $process($weekStart, $weekEnd, 0);
-            $weekStart = strtotime('+7 days', $weekStart);
-            if ((int) date('d', $weekStart) === 1) {
-                $this->line("  ..haftaba: " . date('Y-m', $weekStart) . " toplam={$totalCount} sum=" . number_format($totalSum, 2));
             }
         }
 
