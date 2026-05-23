@@ -361,10 +361,14 @@ class DrklinikImport extends Command
                 $odemeSekli = $cells[2] ?? '';
                 $tutarStr = $cells[3] ?? '';
                 $musteri = trim($cells[4] ?? '');
-                if (!$musteri) continue;
+                // NOT: musteri bos olabilir (walk-in, kasa devri, direkt gelir).
+                // Eskiden 'continue' ediyorduk -> drklinik kasa toplamiyla 1.7M+
+                // fark cikiyordu. Artik bos isimle de raporlanir; loose match
+                // (date+tutar+method) ile DB'ye gore eslesir.
                 $tutar = 0.0;
                 if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
                 if ($tutar <= 0) continue;
+                if ($musteri === '') $musteri = '(Kasa)'; // placeholder, strict match'te gecmez
 
                 $odemeYontemi = $this->__y($odemeSekli);
                 $sigStrict = $this->__trk($musteri) . '|' . $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
