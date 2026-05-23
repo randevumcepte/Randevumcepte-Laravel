@@ -33,6 +33,7 @@ class DrklinikImport extends Command
         {--report-tahsilat-fark : Drklinik kasayi gunluk tarayip DB tahsilatlari ile karsilastir, fazlalari CSV\'ye yaz}
         {--report-seans-fark : Her musteri icin drklinik Kalan Seanslar vs DB seans karsilastir, /tmp/drk_seans_fark_<salon>.csv}
         {--repair-musid= : Tek musid icin musteri.aspx tam onarim (randevu+satis+tahsilat+seans) - test/debug icin}
+        {--cleanup-0000-randevu : Salon icinde saat=00:00 olan placeholder randevulari ve baglı randevu_hizmetler kayitlarini siler}
         {--apply-fazla-sil : /tmp/drk_tahsilat_gercek_fazla_<salon>.csv ID\'lerini DB\'den sil}
         {--apply-eksik-ekle : /tmp/drk_tahsilat_eksik_<salon>.csv satirlarini DB\'ye ekle (isim eslesmesi ile)}
         {--dry-run : Sadece raporla, silme}';
@@ -160,6 +161,22 @@ class DrklinikImport extends Command
             if (!$salonId) { $this->error('--report-seans-fark icin --salon zorunlu.'); return 1; }
             $importer = new DrklinikImporter($client, $salonId, $this->output);
             $importer->raporSeansFark($this->option('from'), $this->option('to'));
+            return 0;
+        }
+
+        if ((bool) $this->option('cleanup-0000-randevu')) {
+            if (!$salonId) { $this->error('--cleanup-0000-randevu icin --salon zorunlu.'); return 1; }
+            $rIds = \DB::table('randevular')->where('salon_id', $salonId)
+                ->where('saat', '00:00:00')->pluck('id');
+            $this->line("Salon {$salonId} saat=00:00 randevu sayisi: " . $rIds->count());
+            if ($this->option('dry-run')) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
+            if ($rIds->count()) {
+                foreach (array_chunk($rIds->all(), 1000) as $ck) {
+                    \DB::table('randevu_hizmetler')->whereIn('randevu_id', $ck)->delete();
+                }
+                \DB::table('randevular')->where('salon_id', $salonId)->where('saat', '00:00:00')->delete();
+                $this->info('Silindi: ' . $rIds->count() . ' randevu (+ randevu_hizmetler).');
+            }
             return 0;
         }
 
