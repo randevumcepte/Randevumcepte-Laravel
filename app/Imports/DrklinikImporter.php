@@ -1201,6 +1201,12 @@ class DrklinikImporter
     {
         $defaultPers = $this->defaultPersonelId();
         preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
+
+        // Per-customer ordinal counter: ayni (tarih, tutar, yontem) icin drklinik
+        // birden fazla tahsilat gosterirse, dedup ikinci/ucuncu kaydi atlamasin.
+        // claimed[sig] = bu loop'ta su ana kadar eslestirdigimiz mevcut DB sayisi
+        $claimed = [];
+
         foreach ($rows[1] as $tr) {
             if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
             preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
@@ -1223,14 +1229,22 @@ class DrklinikImporter
 
             $adisyonId = $this->findMatchingAdisyonId($userId, $tarih, $tutar);
 
-            $exists = Tahsilatlar::where('user_id', $userId)
+            // Sig + ordinal dedup: ayni signature'dan drklinik N tane gosteriyorsa
+            // bizde de N tane olmali. claimed[sig] su anki match offset.
+            $sig = $tarih . '|' . $tutar . '|' . $odemeYontemi;
+            $offset = $claimed[$sig] ?? 0;
+
+            $matches = Tahsilatlar::where('user_id', $userId)
                 ->where('salon_id', $this->salonId)
                 ->where('odeme_tarihi', $tarih)
                 ->where('tutar', $tutar)
                 ->where('odeme_yontemi_id', $odemeYontemi)
-                ->first();
-            if ($exists) {
-                // Mevcut tahsilatin adisyon_id NULL ise yeni adisyona bagla
+                ->orderBy('id')->get();
+
+            if ($matches->count() > $offset) {
+                // Bu drklinik satirina karsi gelen DB kaydi var
+                $exists = $matches[$offset];
+                $claimed[$sig] = $offset + 1;
                 if (!$exists->adisyon_id && $adisyonId) {
                     $exists->adisyon_id = $adisyonId;
                     $exists->save();
@@ -1241,6 +1255,8 @@ class DrklinikImporter
                 }
                 continue;
             }
+            // DB'de bu signature icin yeterli kayit yok -> yeni ekle (claimed sayar)
+            $claimed[$sig] = $offset + 1;
 
             $t = new Tahsilatlar();
             $t->user_id = $userId;
