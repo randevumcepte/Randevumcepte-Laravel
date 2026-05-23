@@ -1363,23 +1363,28 @@ class DrklinikImporter
      */
     private function findMatchingAdisyonId($userId, $tarih, $tutar)
     {
-        // 1) ayni tarih: tutar eslesmesi varsa onu, yoksa ilk adisyonu dondur
+        // SIKI eslesme: ya kesin tutar match'i ya NULL. Alakasiz adisyona
+        // baglamaktansa tahsilat adisyon_id=NULL kalsin (sonra repair edilebilir).
+        $tol = 0.01;
+        // 1) Ayni tarih + ayni tutar
         $sameDate = Adisyonlar::where('user_id', $userId)
             ->where('salon_id', $this->salonId)
             ->where('tarih', $tarih)->orderBy('id')->get();
         foreach ($sameDate as $ad) {
-            if (abs($this->adisyonTutar($ad) - $tutar) < 0.01) return $ad->id;
+            if (abs($this->adisyonTutar($ad) - $tutar) < $tol) return $ad->id;
         }
-        if ($sameDate->count() > 0) return $sameDate->first()->id;
-        // 2) son 30 gun icinde ayni tutarli adisyon
+        // 2) Tahsilat tarihi onceki 30 gun icindeki bir adisyona ait olabilir
+        //    (taksit/sonradan odeme) -- SADECE tutar tam eslesirse
         $oncesi = Adisyonlar::where('user_id', $userId)
             ->where('salon_id', $this->salonId)
             ->whereDate('tarih', '<=', $tarih)
             ->whereDate('tarih', '>=', date('Y-m-d', strtotime($tarih . ' -30 days')))
             ->orderBy('tarih', 'desc')->get();
         foreach ($oncesi as $ad) {
-            if (abs($this->adisyonTutar($ad) - $tutar) < 0.01) return $ad->id;
+            if (abs($this->adisyonTutar($ad) - $tutar) < $tol) return $ad->id;
         }
+        // Hicbir kesin eslesme yok -> NULL. Tahsilat adisyona baglanmaz,
+        // alakasiz bir adisyona yanlislikla yapismaz.
         return null;
     }
 
