@@ -1130,6 +1130,11 @@ class DrklinikImporter
         preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
         foreach ($rows[1] as $tr) {
             if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            // satis.aspx?id=X linkini RAW satirdan cikar - detay tahsilat icin
+            $satisDetayId = null;
+            if (preg_match('~satis\.aspx\?id=(\d+)~i', $tr, $sdm)) {
+                $satisDetayId = $sdm[1];
+            }
             preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
             if (empty($tds[1])) continue;
             $cells = [];
@@ -1238,6 +1243,124 @@ class DrklinikImporter
                 // AdisyonPaketSeanslar pre-create EDILMEZ. Sadece seans tuketilince
                 // (processMusteriRandevuSeansDusumu) tek tek olusturulur.
             }
+
+            // Satis detayindan tahsilatlari direkt bu adisyona bagla (taksit dahil).
+            // Bu, findMatchingAdisyonId heuristigine ihtiyac birakmaz.
+            if ($satisDetayId) {
+                $this->importSatisDetayTahsilat($satisDetayId, $satisNo, $userId, $ad->id);
+            }
+        }
+    }
+
+    /**
+     * /satis.aspx?id=X&tip=d detay sayfasindan o satisin tahsilat
+     * geçmişini (taksitler dahil) okur ve direkt adisyon_id'ye baglar.
+     * Marker: [drk-tah:SatisNo:idx] tahsilatlar.notlar (varsa) veya
+     * adisyon-baz dedup ile cift insert engellenir.
+     */
+    private function importSatisDetayTahsilat($satisDetayId, $satisNo, $userId, $adisyonId)
+    {
+        $h = $this->client->getHtml('/satis.aspx?id=' . $satisDetayId . '&tip=d');
+        if (strlen($h) < 1000) return;
+        // Tahsilat tablosunu bul (Odeme Sekli + Banka Hesabi headerli VEYA Tarih+Tutar minimum)
+        preg_match_all('~<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)</table>~is', $h, $tm);
+        $tahsilatTbody = null;
+        foreach ($tm[1] as $body) {
+            preg_match_all('~<th[^>]*>(.*?)</th>~is', $body, $th);
+            $hdrs = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
+            // Tahsilat tablosu sinyalleri
+            if (in_array('Ödeme Şekli', $hdrs, true) || in_array('Tahsilat Tutarı', $hdrs, true) ||
+                (in_array('Tarih', $hdrs, true) && in_array('Tutar', $hdrs, true) && in_array('Ödeme Şekli', $hdrs, true))) {
+                $tahsilatTbody = $body;
+                break;
+            }
+        }
+        if ($tahsilatTbody === null) return;
+
+        $defaultPers = $this->defaultPersonelId();
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tahsilatTbody, $rows);
+        $idx = 0;
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) { $cells[] = ''; continue; }
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            // Bos basta atla
+            $i = 0; while ($i < count($cells) && $cells[$i] === '') $i++;
+            $data = array_values(array_slice($cells, $i));
+            if (count($data) < 3) continue;
+
+            $tarih = $this->tarihNormalize($data[0] ?? '');
+            // Format varyantlari: data[1]=Aciklama olabilir, data[2]=OdemeSekli, data[3]=Kasa, data[4]=Tutar
+            // veya data[1]=OdemeSekli, data[2]=Tutar gibi sade. Akilli pick:
+            $odemeSekli = ''; $tutar = 0;
+            foreach ($data as $idxC => $val) {
+                if ($idxC === 0) continue;
+                // Tutar: virgullu sayi formatinda
+                if ($tutar === 0 && preg_match('~^[\d.]+,\d{1,2}$~', trim($val))) {
+                    if (preg_match('~([\d.]+),(\d{1,2})~', $val, $m)) {
+                        $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+                    }
+                }
+                // Odeme sekli: metin (Nakit/Kredi/Havale/Çek)
+                if ($odemeSekli === '' && preg_match('~(nakit|kredi|havale|cek|çek|pos)~i', $val)) {
+                    $odemeSekli = $val;
+                }
+            }
+            if (!$tarih || $tutar <= 0) continue;
+            $idx++;
+            $marker = "[drk-tah:{$satisNo}:{$idx}]";
+
+            // Dedup: ayni marker varsa atla
+            if (\Schema::hasColumn('tahsilatlar', 'notlar')) {
+                $exists = Tahsilatlar::where('salon_id', $this->salonId)
+                    ->where('user_id', $userId)
+                    ->where('notlar', 'LIKE', '%' . $marker . '%')
+                    ->first();
+                if ($exists) {
+                    // Adisyon_id duzgun degilse duzelt
+                    if ((int) $exists->adisyon_id !== (int) $adisyonId) {
+                        $exists->adisyon_id = $adisyonId;
+                        $exists->save();
+                    }
+                    continue;
+                }
+            }
+            // Dedup 2: ayni (date+tutar+yontem+adisyon_id) varsa atla
+            $odemeYontemi = $this->odemeYontemiMap($odemeSekli);
+            $dup = Tahsilatlar::where('salon_id', $this->salonId)
+                ->where('user_id', $userId)
+                ->where('adisyon_id', $adisyonId)
+                ->where('odeme_tarihi', $tarih)
+                ->where('tutar', $tutar)
+                ->where('odeme_yontemi_id', $odemeYontemi)
+                ->first();
+            if ($dup) {
+                if (\Schema::hasColumn('tahsilatlar', 'notlar') && stripos((string) $dup->notlar, $marker) === false) {
+                    $dup->notlar = trim((string) $dup->notlar . ' ' . $marker);
+                    $dup->save();
+                }
+                continue;
+            }
+            // Yeni tahsilat
+            $t = new Tahsilatlar();
+            $t->user_id = $userId;
+            $t->salon_id = $this->salonId;
+            $t->adisyon_id = $adisyonId;
+            $t->tutar = $tutar;
+            if (\Schema::hasColumn('tahsilatlar', 'yapilan_odeme')) $t->yapilan_odeme = $tutar;
+            $t->odeme_tarihi = $tarih;
+            $t->odeme_yontemi_id = $odemeYontemi;
+            if (\Schema::hasColumn('tahsilatlar', 'notlar')) $t->notlar = $marker;
+            $t->save();
+            $this->counts['tahsilat'] = ($this->counts['tahsilat'] ?? 0) + 1;
+            // Hizmet/urun kalemleri propagate
+            $this->propagateAdisyonToTahsilat($t);
         }
     }
 
