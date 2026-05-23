@@ -989,9 +989,15 @@ class DrklinikImporter
         $end   = $bitis ? strtotime($bitis) : strtotime('2026-12-31');
         $this->log('Satis+Tahsilat: ' . date('Y-m-d', $start) . ' - ' . date('Y-m-d', $end));
 
-        // 1) Tarih aralığındaki tüm musid'leri topla
-        $this->log('Musid toplama (randevu listesi haftalik tarama)...');
+        // 1) MUSID KAYNAGI: musterilistesi.aspx (TUM musteriler) - kapsamli
+        //    + randevu listesi (date range) ile birlestir - eksiksiz garantisi
         $musidSet = [];
+        $this->log('Musid toplama 1/2: musterilistesi.aspx (TUM musteriler)...');
+        $this->collectMusidsFromMusteriListesi($musidSet);
+        $tum = count($musidSet);
+        $this->log("  musterilistesi.aspx: {$tum} unique musid");
+
+        $this->log('Musid toplama 2/2: randevu listesi (tarih araligi - ek olarak)...');
         $weekStart = $start; $iter = 0;
         while ($weekStart <= $end) {
             $weekEnd = min($end, strtotime('+6 days', $weekStart));
@@ -1000,6 +1006,8 @@ class DrklinikImporter
             if ($iter % 20 === 0) $this->log("  ..hafta {$iter} unique musid: " . count($musidSet));
             $weekStart = strtotime('+7 days', $weekStart);
         }
+        $randevudan = count($musidSet) - $tum;
+        $this->log("  randevu listesinden ek: {$randevudan} musid");
         $this->log('Toplam unique musid: ' . count($musidSet));
 
         // 2) Her musid için detay sayfasını işle
@@ -1021,6 +1029,40 @@ class DrklinikImporter
         $rl = $this->counts['tahsilat_relink'] ?? 0;
         $tp = $this->counts['tahsilat_propagate'] ?? 0;
         $this->log("Aktarim tamam: satis={$this->counts['satis']}, tahsilat={$this->counts['tahsilat']}, tahsilat_relink={$rl}, tahsilat_propagate={$tp}, seans_dusumu={$sd}");
+    }
+
+    /**
+     * Drklinik musterilistesi.aspx'ten TUM musid'leri toplar (pagination dahil).
+     * Her satirda 'musteri.aspx?musid=X' linki var; bunlari cikar.
+     */
+    private function collectMusidsFromMusteriListesi(&$musidSet)
+    {
+        $h = $this->client->getHtml('/musterilistesi.aspx');
+        if ($h === '') { $this->log('  musterilistesi.aspx cekilemedi.'); return; }
+        $page = 1; $sayfaUyari = 0;
+        while (true) {
+            if (preg_match_all('~musteri\.aspx\?musid=(\d+)~', $h, $m)) {
+                foreach ($m[1] as $id) $musidSet[$id] = true;
+            }
+            $next = $page + 1;
+            $hasNext = preg_match('~__doPostBack\([\'"&#39;]+DGRV_MusteriListesi[\'"&#39;]+,\s*[\'"&#39;]+Page\$' . $next . '[\'"&#39;]+~i', $h);
+            if (!$hasNext) {
+                if (preg_match_all('~Page\$(\d+)~', $h, $m2)) {
+                    $maxSeen = max(array_map('intval', $m2[1]));
+                    if ($maxSeen >= $next) $hasNext = true;
+                }
+            }
+            if (!$hasNext) {
+                $sayfaUyari++;
+                if ($sayfaUyari > 1) break;
+            } else { $sayfaUyari = 0; }
+            $h = $this->client->postBack('/musterilistesi.aspx', 'DGRV_MusteriListesi', 'Page$' . $next);
+            if ($h === null) break;
+            if (!preg_match('~Page\$\d+~', $h)) break;
+            $page = $next;
+            usleep(150000);
+            if ($page % 20 === 0) $this->log("    ..musterilistesi sayfa {$page}, toplam musid " . count($musidSet));
+        }
     }
 
     private function collectMusidsRange($startTs, $endTs, &$musidSet, $depth)
