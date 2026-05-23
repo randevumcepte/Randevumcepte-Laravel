@@ -32,6 +32,7 @@ class DrklinikImport extends Command
         {--repair-tahsilat-yanlis-adisyon : Yanlis adisyona bagli tahsilatlari ayir, tutar match ile yeniden bagla}
         {--report-tahsilat-fark : Drklinik kasayi gunluk tarayip DB tahsilatlari ile karsilastir, fazlalari CSV\'ye yaz}
         {--report-seans-fark : Her musteri icin drklinik Kalan Seanslar vs DB seans karsilastir, /tmp/drk_seans_fark_<salon>.csv}
+        {--repair-musid= : Tek musid icin musteri.aspx tam onarim (randevu+satis+tahsilat+seans) - test/debug icin}
         {--apply-fazla-sil : /tmp/drk_tahsilat_gercek_fazla_<salon>.csv ID\'lerini DB\'den sil}
         {--apply-eksik-ekle : /tmp/drk_tahsilat_eksik_<salon>.csv satirlarini DB\'ye ekle (isim eslesmesi ile)}
         {--dry-run : Sadece raporla, silme}';
@@ -159,6 +160,18 @@ class DrklinikImport extends Command
             if (!$salonId) { $this->error('--report-seans-fark icin --salon zorunlu.'); return 1; }
             $importer = new DrklinikImporter($client, $salonId, $this->output);
             $importer->raporSeansFark($this->option('from'), $this->option('to'));
+            return 0;
+        }
+
+        if ($repairMusid = $this->option('repair-musid')) {
+            if (!$salonId) { $this->error('--repair-musid icin --salon zorunlu.'); return 1; }
+            $importer = new DrklinikImporter($client, $salonId, $this->output);
+            $this->info("Tek musid onarim: {$repairMusid}");
+            $userId = $importer->ensureUserByMusidPublic((string) $repairMusid);
+            if (!$userId) { $this->error('User olusturulamadi/bulunamadi.'); return 1; }
+            $this->line("user_id={$userId}");
+            $importer->importMusteriDetay((string) $repairMusid, $userId);
+            $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
             return 0;
         }
 

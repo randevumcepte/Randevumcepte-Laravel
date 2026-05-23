@@ -1592,6 +1592,11 @@ class DrklinikImporter
             $saat  = $cells[$iSaat] ?? '';
             if (!$tarih || !$saat) continue;
             if (strlen($saat) === 5) $saat .= ':00';
+            // Drklinik musteri.aspx Randevular tablosu, her satis icin SAAT=00:00
+            // placeholder satir uretiyor (cogu zaman hizmet "(NxAd)" paket notasyonu
+            // veya bos). Bunlar gercek randevu degil, satis kaydinin yanseimasi.
+            // Atla -> takvimde duble/gereksiz 00:00 randevular cikmasin.
+            if ($saat === '00:00:00') continue;
 
             $bitis = '';
             if ($iBitis !== null && !empty($cells[$iBitis]) && preg_match('~^\d{1,2}:\d{2}~', $cells[$iBitis])) {
@@ -2174,6 +2179,8 @@ class DrklinikImporter
      * Detay sayfasi GET (musteri.aspx?musid=XXX), TB_CepTel + TB_Ad + TB_Soyad parse,
      * telefon ile DB'de User bul/yarat. Cache'lenir, ayni musid icin tek GET.
      */
+    public function ensureUserByMusidPublic($musid) { return $this->ensureUserByMusid($musid); }
+
     private function ensureUserByMusid($musid)
     {
         $musid = trim((string) $musid);
