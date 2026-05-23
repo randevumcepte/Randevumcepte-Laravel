@@ -1065,7 +1065,9 @@ class DrklinikImporter
             } elseif (in_array('Ödeme Şekli', $headers, true) && in_array('Banka Hesabı', $headers, true)) {
                 $this->processMusteriTahsilatlar($body, $userId);
             } elseif (in_array('Seans Düşümü', $headers, true)) {
-                $this->processMusteriRandevuSeansDusumu($body, $userId);
+                // Musteri.aspx Randevular tablosu: hem Randevular+RandevuHizmetler
+                // olusturur hem Seans Dusumu sutunundan APS tuketimi yapar.
+                $this->processMusteriRandevular($body, $userId, $headers);
             } elseif (in_array('Harcanan', $headers, true) &&
                       (in_array('Satın Alınan', $headers, true) || in_array('Kalan', $headers, true))) {
                 // Drklinik "Kalan Seanslar" tablosu - OTORITER seans kaynagi.
@@ -1494,6 +1496,144 @@ class DrklinikImporter
                 if ($silId) {
                     \DB::table($apsTable)->whereIn('id', $silId)->delete();
                     $this->counts['seans_silinen'] = ($this->counts['seans_silinen'] ?? 0) + count($silId);
+                }
+            }
+        }
+    }
+
+    /**
+     * Musteri.aspx "Randevular" tablosu (Seans Dusumu sutunu iceren).
+     * Header-indexed parsing: kolon yerleri degisirse calismaya devam eder.
+     * Yaptiklari:
+     *   1) Randevular (tarih+saat+user+salon ile dedup, update)
+     *   2) RandevuHizmetler (randevu_id+hizmet_id ile dedup, update)
+     *   3) Personel ve oda lookup/create
+     *   4) durum: iptal->2, diger->1
+     *   5) randevuya_geldi: geldi/gelmedi/iptal'den
+     *   6) Seans Dusumu varsa AdisyonPaketSeanslar tuketim
+     */
+    private function processMusteriRandevular($tbody, $userId, $headers)
+    {
+        // Header'lardan kolon indeksi cikar (sira degisikligine dayanikli)
+        $idx = [];
+        foreach ($headers as $k => $hd) $idx[$this->trKey($hd)] = $k;
+        $iTarih      = $idx['tarih'] ?? 0;
+        $iSaat       = $idx['saat'] ?? 1;
+        $iBitis      = $idx['bitis'] ?? $idx[$this->trKey('Bitiş')] ?? null;
+        $iHizmet     = $idx['hizmet'] ?? $idx['hizmetler'] ?? null;
+        $iPersonel   = $idx['personel'] ?? $idx['calisan'] ?? $idx[$this->trKey('Çalışan')] ?? null;
+        $iOda        = $idx['oda'] ?? null;
+        $iDurum      = $idx['durum'] ?? null;
+        $iAciklama   = $idx['aciklama'] ?? $idx[$this->trKey('Açıklama')] ?? null;
+        $iSeansDus   = $idx[$this->trKey('Seans Düşümü')] ?? $idx[$this->trKey('Seans Dusumu')] ?? null;
+
+        // Lazy maps (her musteri icin tekrar kurmuyoruz — sadece bir kere)
+        static $persMap = null; static $odaMap = null;
+        if ($persMap === null) $persMap = $this->buildPersonelMapByName();
+        if ($odaMap === null)  $odaMap  = $this->buildOdaMapByName();
+
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                if ($this->isButtonCell($tdRaw)) { $cells[] = ''; continue; }
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            if (empty($cells)) continue;
+
+            $tarihStr = preg_replace('~\s*\([^)]+\)~u', '', $cells[$iTarih] ?? '');
+            $tarih = $this->tarihNormalize($tarihStr);
+            $saat  = $cells[$iSaat] ?? '';
+            if (!$tarih || !$saat) continue;
+            if (strlen($saat) === 5) $saat .= ':00';
+
+            $bitis = '';
+            if ($iBitis !== null && !empty($cells[$iBitis]) && preg_match('~^\d{1,2}:\d{2}~', $cells[$iBitis])) {
+                $bitis = $cells[$iBitis];
+                if (strlen($bitis) === 5) $bitis .= ':00';
+            }
+
+            $hizmetStr = $iHizmet !== null ? trim($cells[$iHizmet] ?? '') : '';
+            $personel  = $iPersonel !== null ? trim($cells[$iPersonel] ?? '') : '';
+            $oda       = $iOda !== null ? trim($cells[$iOda] ?? '') : '';
+            $durum     = $iDurum !== null ? trim($cells[$iDurum] ?? '') : '';
+            $aciklama  = $iAciklama !== null ? trim($cells[$iAciklama] ?? '') : '';
+            $seansDus  = $iSeansDus !== null ? trim($cells[$iSeansDus] ?? '') : '';
+
+            // 1) Randevular - dedup + update
+            $r = Randevular::where('tarih', $tarih)->where('saat', $saat)
+                ->where('user_id', $userId)->where('salon_id', $this->salonId)->first();
+            if (!$r) $r = new Randevular();
+            $r->tarih = $tarih;
+            $r->saat = $saat;
+            $r->user_id = $userId;
+            $r->salon_id = $this->salonId;
+            $r->salon = 0;
+            $r->olusturan_personel_id = null;
+            $du = mb_strtolower($durum, 'UTF-8');
+            if (strpos($du, 'iptal') !== false) $r->durum = 2;
+            else $r->durum = 1;
+            if (strpos($du, 'geldi') !== false && strpos($du, 'gelmedi') === false) $r->randevuya_geldi = 1;
+            elseif (strpos($du, 'gelmedi') !== false || strpos($du, 'iptal') !== false) $r->randevuya_geldi = 0;
+            if ($aciklama) $r->personel_notu = $aciklama;
+            $r->save();
+            $this->counts['randevu'] = ($this->counts['randevu'] ?? 0) + 1;
+
+            // 2) Personel + oda lookup
+            $personelId = null;
+            if ($personel) {
+                $personelId = $persMap[$this->trKey($personel)] ?? null;
+                if (!$personelId) { $personelId = $this->ensurePersonelId($personel, $persMap); }
+            }
+            $odaId = null;
+            if ($oda) {
+                $odaId = $odaMap[$this->trKey($oda)] ?? null;
+                if (!$odaId) { $odaId = $this->ensureOdaId($oda, $odaMap); }
+            }
+
+            // 3) Hizmet (paket "(NxAd)" formati da olabilir)
+            $hizmetId = null; $sureDk = 30;
+            $hizmetAdiHint = $hizmetStr;
+            if ($hizmetAdiHint && preg_match('~\((\d+)x([^)]+)\)~iu', $hizmetAdiHint, $m)) {
+                $hizmetAdiHint = trim($m[2]);
+            }
+            if ($hizmetAdiHint !== '') {
+                $sh = $this->findSalonHizmetByName($hizmetAdiHint);
+                if (!$sh) $sh = $this->ensureSalonHizmet($hizmetAdiHint, 0);
+                if ($sh) { $hizmetId = $sh['hizmet_id']; $sureDk = $sh['sure_dk'] ?: 30; }
+            }
+            if ($bitis) {
+                $diff = (int) round((strtotime($bitis) - strtotime($saat)) / 60);
+                if ($diff > 0) $sureDk = $diff;
+            }
+
+            // 4) RandevuHizmetler - dedup + update
+            $rhQuery = RandevuHizmetler::where('randevu_id', $r->id);
+            if ($hizmetId) $rhQuery->where('hizmet_id', $hizmetId);
+            else $rhQuery->whereNull('hizmet_id');
+            $rh = $rhQuery->first();
+            if (!$rh) $rh = new RandevuHizmetler();
+            $rh->randevu_id = $r->id;
+            $rh->hizmet_id = $hizmetId;
+            $rh->saat = $saat;
+            $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $sureDk . ' minutes', strtotime($saat)));
+            $rh->sure_dk = $sureDk;
+            if ($personelId) $rh->personel_id = $personelId;
+            if ($odaId) $rh->oda_id = $odaId;
+            try { $rh->save(); } catch (\Throwable $e) { Log::warning('drk musteri rh: ' . $e->getMessage()); }
+
+            // 5) Seans Dusumu (varsa) -> AdisyonPaketSeanslar tuketim
+            if ($seansDus !== '' && mb_stripos($seansDus, 'Düş', 0, 'UTF-8') !== false) {
+                $seansSayisi = 1;
+                $paketHint = $this->parsePaketSeansHint($hizmetStr);
+                if ($paketHint) $seansSayisi = max(1, (int) $paketHint['seans']);
+                $yazilan = $this->seanslariTuket($userId, $hizmetId, $tarih, $saat, $seansSayisi);
+                if ($yazilan > 0) {
+                    $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + $yazilan;
                 }
             }
         }
