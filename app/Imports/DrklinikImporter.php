@@ -734,6 +734,28 @@ class DrklinikImporter
         return $out;
     }
 
+    /**
+     * Para tutari hem TR (5.000,00) hem EN/plain (5000.00, 5000) formatlarini parse eder.
+     * satis.aspx detay sayfasi 5000.00 doner, listeler 5.000,00 TRY doner.
+     */
+    private function parseAnyAmount($s)
+    {
+        $s = trim((string) $s);
+        if ($s === '') return 0.0;
+        // TR: 5.000,00 veya 5.000,5
+        if (preg_match('~^[\d.]+,\d{1,2}$~', $s)) {
+            return (float) (str_replace('.', '', explode(',', $s)[0]) . '.' . explode(',', $s)[1]);
+        }
+        // Plain: 5000 veya 5000.00
+        if (preg_match('~^\d+(\.\d{1,2})?$~', $s)) return (float) $s;
+        // Karma metin icinde: oncelik TR sonra plain
+        if (preg_match('~([\d.]+),(\d{1,2})~', $s, $m)) {
+            return (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+        }
+        if (preg_match('~(\d+(?:\.\d+)?)~', $s, $m)) return (float) $m[1];
+        return 0.0;
+    }
+
     private function paraParse($s)
     {
         if (preg_match('~([\d.]+),(\d{1,2})~', $s, $m)) {
@@ -1262,20 +1284,29 @@ class DrklinikImporter
     {
         $h = $this->client->getHtml('/satis.aspx?id=' . $satisDetayId . '&tip=d');
         if (strlen($h) < 1000) return;
-        // Tahsilat tablosunu bul (Odeme Sekli + Banka Hesabi headerli VEYA Tarih+Tutar minimum)
+        // Tahsilat tablosunu bul (Odeme Sekli + Banka Hesabi + Tarih)
         preg_match_all('~<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)</table>~is', $h, $tm);
         $tahsilatTbody = null;
+        $tahsilatHeaders = [];
         foreach ($tm[1] as $body) {
             preg_match_all('~<th[^>]*>(.*?)</th>~is', $body, $th);
             $hdrs = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
-            // Tahsilat tablosu sinyalleri
-            if (in_array('Ödeme Şekli', $hdrs, true) || in_array('Tahsilat Tutarı', $hdrs, true) ||
-                (in_array('Tarih', $hdrs, true) && in_array('Tutar', $hdrs, true) && in_array('Ödeme Şekli', $hdrs, true))) {
+            // Tahsilat tablosu: Tarih + Odeme Sekli + Tutar
+            if (in_array('Tarih', $hdrs, true) && in_array('Tutar', $hdrs, true)
+                && (in_array('Ödeme Şekli', $hdrs, true) || in_array('Banka Hesabı', $hdrs, true))) {
                 $tahsilatTbody = $body;
+                $tahsilatHeaders = $hdrs;
                 break;
             }
         }
         if ($tahsilatTbody === null) return;
+
+        // Header-indexed kolon yerleri
+        $hIdx = [];
+        foreach ($tahsilatHeaders as $k => $hd) $hIdx[$this->trKey($hd)] = $k;
+        $iTarih = $hIdx['tarih'] ?? 0;
+        $iOdeme = $hIdx[$this->trKey('Ödeme Şekli')] ?? 2;
+        $iTutar = $hIdx['tutar'] ?? 4;
 
         $defaultPers = $this->defaultPersonelId();
         preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tahsilatTbody, $rows);
@@ -1290,28 +1321,11 @@ class DrklinikImporter
                 $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
                 $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
             }
-            // Bos basta atla
-            $i = 0; while ($i < count($cells) && $cells[$i] === '') $i++;
-            $data = array_values(array_slice($cells, $i));
-            if (count($data) < 3) continue;
+            if (count($cells) <= max($iTarih, $iTutar)) continue;
 
-            $tarih = $this->tarihNormalize($data[0] ?? '');
-            // Format varyantlari: data[1]=Aciklama olabilir, data[2]=OdemeSekli, data[3]=Kasa, data[4]=Tutar
-            // veya data[1]=OdemeSekli, data[2]=Tutar gibi sade. Akilli pick:
-            $odemeSekli = ''; $tutar = 0;
-            foreach ($data as $idxC => $val) {
-                if ($idxC === 0) continue;
-                // Tutar: virgullu sayi formatinda
-                if ($tutar === 0 && preg_match('~^[\d.]+,\d{1,2}$~', trim($val))) {
-                    if (preg_match('~([\d.]+),(\d{1,2})~', $val, $m)) {
-                        $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
-                    }
-                }
-                // Odeme sekli: metin (Nakit/Kredi/Havale/Çek)
-                if ($odemeSekli === '' && preg_match('~(nakit|kredi|havale|cek|çek|pos)~i', $val)) {
-                    $odemeSekli = $val;
-                }
-            }
+            $tarih = $this->tarihNormalize($cells[$iTarih] ?? '');
+            $odemeSekli = trim($cells[$iOdeme] ?? '');
+            $tutar = $this->parseAnyAmount($cells[$iTutar] ?? '');
             if (!$tarih || $tutar <= 0) continue;
             $idx++;
             $marker = "[drk-tah:{$satisNo}:{$idx}]";
