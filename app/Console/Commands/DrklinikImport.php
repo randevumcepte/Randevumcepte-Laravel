@@ -593,52 +593,61 @@ class DrklinikImport extends Command
         $login = $client->login();
         if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
 
-        // musterilistesi.aspx sayfa sayfa gez
+        // musterilistesi.aspx sayfa sayfa gez (mevcut collectMusidsFromMusteriListesi paterni)
         $h = $client->getHtml('/musterilistesi.aspx');
         if (!$h) { $this->error('musterilistesi.aspx cekilemedi'); return 1; }
 
         $found = []; // norm => musid
         $page = 1; $sayfaUyari = 0;
-        while (count($found) < count($aranacak) && $page < 500) {
+        while (count($found) < count($aranacak) && $page < 1000) {
+            // Sayfadaki tum satirlari parse et + ad/soyad eslesmesi
             preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
             foreach ($rows[1] as $tr) {
                 preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
                 if (empty($tds[1])) continue;
                 $cells = [];
                 foreach ($tds[1] as $tdRaw) {
+                    // Buton hucresi atla
+                    if (preg_match('~<input[^>]*type="(submit|button|image)"~i', $tdRaw)) continue;
                     $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
                     $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
                 }
-                $cells = array_values(array_filter($cells, function ($c) { return $c !== ''; }));
-                if (count($cells) < 3) continue;
-                $musid = null;
-                foreach ($cells as $c) { if (preg_match('~^\d{5,}$~', $c)) { $musid = $c; break; } }
-                if (!$musid) continue;
-                // Ad+Soyad genellikle ID'den sonraki 2 hucre
-                $idxMusid = array_search($musid, $cells, true);
-                $ad = $cells[$idxMusid + 1] ?? '';
-                $soyad = $cells[$idxMusid + 2] ?? '';
+                if (count($cells) < 4) continue;
+                // Sutunlar: ID | Ad | Soyad | Cep | D.Tarihi
+                $musid = $cells[0] ?? '';
+                if (!preg_match('~^\d{5,}$~', $musid)) continue;
+                $ad = $cells[1] ?? '';
+                $soyad = $cells[2] ?? '';
                 $tamAd = trim($ad . ' ' . $soyad);
                 $norm = $this->normalizeIsim($tamAd);
                 if (isset($aranacak[$norm]) && !isset($found[$norm])) {
                     $found[$norm] = $musid;
-                    $this->info("  BULUNDU: {$aranacak[$norm]} -> musid={$musid}");
+                    $this->info("  BULUNDU sayfa {$page}: {$aranacak[$norm]} -> musid={$musid}");
                 }
             }
             if (count($found) >= count($aranacak)) break;
 
+            // Sayfa ilerlet - collectMusidsFromMusteriListesi paterni
             $next = $page + 1;
-            $hasNext = preg_match('~Page\$' . $next . '~i', $h);
+            $hasNext = preg_match('~__doPostBack\([\'"&#39;]+DGRV_MusteriListesi[\'"&#39;]+,\s*[\'"&#39;]+Page\$' . $next . '[\'"&#39;]+~i', $h);
+            if (!$hasNext) {
+                if (preg_match_all('~Page\$(\d+)~', $h, $m2)) {
+                    $maxSeen = max(array_map('intval', $m2[1]));
+                    if ($maxSeen >= $next) $hasNext = true;
+                }
+            }
             if (!$hasNext) {
                 $sayfaUyari++;
                 if ($sayfaUyari > 1) break;
             } else { $sayfaUyari = 0; }
             $h = $client->postBack('/musterilistesi.aspx', 'DGRV_MusteriListesi', 'Page$' . $next);
             if ($h === null) break;
+            if (!preg_match('~Page\$\d+~', $h)) break;
             $page = $next;
             if ($page % 20 === 0) $this->line("  ..sayfa {$page}, bulunan " . count($found) . '/' . count($aranacak));
             usleep(150000);
         }
+        $this->line("Sayfa taramasi bitti: {$page} sayfa, " . count($found) . '/' . count($aranacak) . ' bulundu');
 
         $this->line('--- Arama sonucu ---');
         $this->line('  bulunan : ' . count($found) . '/' . count($aranacak));
