@@ -125,6 +125,62 @@ class DrklinikClient
         return ['ok' => false, 'method' => 'webforms', 'detail' => 'Login basarisiz; cevap login formuna donmus. Dump: login_webforms_' . $status . '.body'];
     }
 
+    /**
+     * Form'daki tum <input> (text/hidden/checkbox/radio) ve <select> alanlarinin
+     * current value'larini cikarir. ASP.NET pagination/postback'lerinde state
+     * preservation icin gerekli.
+     *
+     * NOT: type=submit/button alanlari atlanir (sadece tetiklenen buton form_params'a
+     * eklenir, digerleri sunucu tarafinda click event'i tetiklemeyecek sekilde
+     * gonderilmeli — submit-style postback yapan caller bunlari extraFields ile
+     * ekler).
+     */
+    private function extractAllInputs($html)
+    {
+        $fields = [];
+
+        // <input type="..." name="..." value="..." />
+        if (preg_match_all('~<input\b[^>]*>~i', $html, $inputs)) {
+            foreach ($inputs[0] as $tag) {
+                if (preg_match('~\btype="([^"]+)"~i', $tag, $tm)) {
+                    $type = strtolower($tm[1]);
+                    if (in_array($type, ['submit', 'button', 'image', 'reset', 'file'], true)) continue;
+                } else {
+                    $type = 'text';
+                }
+                if (!preg_match('~\bname="([^"]+)"~i', $tag, $nm)) continue;
+                $name = $nm[1];
+                if (preg_match('~^__(VIEWSTATE|VIEWSTATEGENERATOR|EVENTVALIDATION|EVENTTARGET|EVENTARGUMENT)~', $name)) continue;
+                $value = '';
+                if (preg_match('~\bvalue="([^"]*)"~i', $tag, $vm)) $value = html_entity_decode($vm[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                if ($type === 'checkbox' || $type === 'radio') {
+                    if (!preg_match('~\bchecked\b~i', $tag)) continue; // checked degilse gonderme
+                }
+                $fields[$name] = $value;
+            }
+        }
+
+        // <select name="..."> ... <option value="X" selected>...</option> ... </select>
+        if (preg_match_all('~<select\b([^>]*)>(.*?)</select>~is', $html, $selects, PREG_SET_ORDER)) {
+            foreach ($selects as $s) {
+                if (!preg_match('~\bname="([^"]+)"~i', $s[1], $nm)) continue;
+                $name = $nm[1];
+                $body = $s[2];
+                $value = '';
+                if (preg_match('~<option\b[^>]*\bselected[^>]*\bvalue="([^"]*)"~is', $body, $om)
+                    || preg_match('~<option\b[^>]*\bvalue="([^"]*)"[^>]*\bselected~is', $body, $om)) {
+                    $value = html_entity_decode($om[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                } elseif (preg_match('~<option\b[^>]*\bvalue="([^"]*)"~i', $body, $om)) {
+                    // selected yoksa ilk option default
+                    $value = html_entity_decode($om[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                }
+                $fields[$name] = $value;
+            }
+        }
+
+        return $fields;
+    }
+
     private function extractFormField($html, $name)
     {
         $pat = '#<input[^>]+name=["\']' . preg_quote($name, '#') . '["\'][^>]+value=["\']([^"\']*)["\']#i';
@@ -422,7 +478,12 @@ class DrklinikClient
         $ev   = $this->extractFormField($referenceHtml, '__EVENTVALIDATION');
         if (!$vs) return null;
 
-        $body = array_merge([
+        // ASP.NET form'unda <input/select> alanlarinin TUM current value'larini cikar.
+        // Bunlar gonderilmezse server "filtre durumu" state'ini kaybedip default'a
+        // donyor (orn: HF_Sayfa, HF_GelirAramaTipi, DDL_Kasa, TB_TarihSec1/2).
+        $autoFields = $this->extractAllInputs($referenceHtml);
+
+        $body = array_merge($autoFields, [
             '__EVENTTARGET'        => $eventTarget,
             '__EVENTARGUMENT'      => $eventArgument,
             '__VIEWSTATE'          => $vs,
