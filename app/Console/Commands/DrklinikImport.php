@@ -1217,27 +1217,57 @@ class DrklinikImport extends Command
         // Ilk sayfa rowlari + pagination
         $this->parseKasaPageRows($h, $onRow);
 
-        // Pagination: RP_Sayfalar_Gelir$ctl00$Button1 = sayfa 1 (mevcut),
-        // ctl01 = sayfa 2, ctl02 = sayfa 3, ... her sayfa icin yeni postback.
-        // ASP.NET sayfasi TB_TarihSec1/2'yi her postback'te tekrar gormezse
-        // "DateTime parse hatasi" donyor; o yuzden extraFields'a koyuyoruz.
+        // Pagination: RP_Sayfalar_Gelir$ctl##$Button1 butonlari submit-type ve
+        // onclick'siz - ASP.NET'te bu durumda __EVENTTARGET ile degil,
+        // BUTON_ADI=VALUE form field'i olarak tetiklenir. Onceki yontem
+        // (__EVENTTARGET) sayfa 1'i tekrar donduruyordu.
         $pageHtml = $h;
         $pageIdx = 1;
-        while ($pageIdx < 200) { // safety cap
+        $seenSigs = [];
+        while ($pageIdx < 200) { // safety
             $btnName = 'RP_Sayfalar_Gelir$ctl' . str_pad($pageIdx, 2, '0', STR_PAD_LEFT) . '$Button1';
-            $needle = 'name="' . $btnName . '"';
-            if (strpos($pageHtml, $needle) === false) break;
-            $next = $client->postBackFromHtml('/kasa_islemleri.aspx', $pageHtml, $btnName, '', $tarihFields);
+            // Onceki cevapta bu buton var mi?
+            if (!preg_match('/name="' . preg_quote($btnName, '/') . '"\s+value="(\d+)"/', $pageHtml, $bm)) break;
+            $pageNum = $bm[1];
+            // submit-style: button_name=value + TB tarih + __EVENTTARGET BOSLA
+            $extra = $tarihFields + [$btnName => $pageNum];
+            $next = $client->postBackFromHtml('/kasa_islemleri.aspx', $pageHtml, '', '', $extra);
             usleep(250000);
             if ($next === null) break;
-            // Sayfa donmusse parse et; donmemisse (DateTime hatasi vs.) loop'tan cik
-            if (stripos($next, 'String was not recognized') !== false || stripos($next, 'Server Error') !== false) {
+            if (stripos($next, 'String was not recognized') !== false || stripos($next, 'Server Error') !== false) break;
+
+            // Dupe sayfa donmusunu tespit et: ilk tarihli satirin imzasini kontrol et
+            $sig = $this->firstRowSignature($next);
+            if ($sig === '' || isset($seenSigs[$sig])) {
+                // Ayni sayfa tekrar geldi -> pagination ilerlemiyor, cik
                 break;
             }
+            $seenSigs[$sig] = true;
+
             $this->parseKasaPageRows($next, $onRow);
             $pageHtml = $next;
             $pageIdx++;
         }
+    }
+
+    /**
+     * Sayfanin ilk tarihli (kasa) satirinin (tarih+tutar+musteri) imzasi.
+     * Ayni sayfanin tekrar gelip gelmedigini tespit icin.
+     */
+    private function firstRowSignature($html)
+    {
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $html, $rows);
+        foreach ($rows[1] as $tr) {
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                $cells[] = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+            }
+            if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $cells[0] ?? '')) continue;
+            return ($cells[0] ?? '') . '|' . ($cells[3] ?? '') . '|' . ($cells[4] ?? '');
+        }
+        return '';
     }
 
     /**
