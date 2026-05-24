@@ -1,0 +1,95 @@
+nohup: ignoring input
+Planla client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/planla/20260423_155935
+Login deneniyor...
+Login sonuc: OK - json:/sign-in
+Detay: JSON login ok via /sign-in variant 0
+Randevular cekiliyor (category=appointments)...
+Musteri map kuruluyor (eksik olanlar olusturuluyor)...
+  category=customers -> 5975 kayit
+Musteri map: bulundu=5974, yeni=1, hata=0, map=5975
+  category=services -> 91 kayit
+  category=employees -> 14 kayit
+  category=appointments -> 40022 kayit
+  ..500 randevu islendi
+  ..1000 randevu islendi
+  ..1500 randevu islendi
+  ..2000 randevu islendi
+  ..2500 randevu islendi
+  ..3000 randevu islendi
+  ..3500 randevu islendi
+  ..4000 randevu islendi
+  ..4500 randevu islendi
+  ..5000 randevu islendi
+  ..5500 randevu islendi
+  ..6000 randevu islendi
+  ..6500 randevu islendi
+  ..7000 randevu islendi
+  ..7500 randevu islendi
+  ..8000 randevu islendi
+  ..8500 randevu islendi
+  ..9000 randevu islendi
+  ..9500 randevu islendi
+  ..10000 randevu islendi
+  ..10500 randevu islendi
+  ..11000 randevu islendi
+  ..11500 randevu islendi
+  ..12000 randevu islendi
+  ..12500 randevu islendi
+  ..13000 randevu islendi
+  ..13500 randevu islendi
+  ..14000 randevu islendi
+  ..14500 randevu islendi
+  ..15000 randevu islendi
+  ..15500 randevu islendi
+  ..16000 randevu islendi
+  ..16500 randevu islendi
+  ..17000 randevu islendi
+  ..17500 randevu islendi
+  ..18000 randevu islendi
+  ..18500 randevu islendi
+  ..19000 randevu islendi
+  ..19500 randevu islendi
+  ..20000 randevu islendi
+  ..20500 randevu islendi
+  ..21000 randevu islendi
+  ..21500 randevu islendi
+  ..22000 randevu islendi
+  ..22500 randevu islendi
+  ..23000 randevu islendi
+  ..23500 randevu islendi
+  ..24000 randevu islendi
+  ..24500 randevu islendi
+  ..25000 randevu islendi
+  ..25500 randevu islendi
+  ..26000 randevu islendi
+  ..26500 randevu islendi
+  ..27000 randevu islendi
+  ..27500 randevu islendi
+  ..28000 randevu islendi
+  ..28500 randevu islendi
+  ..29000 randevu islendi
+  ..29500 randevu islendi
+  ..30000 randevu islendi
+  ..30500 randevu islendi
+  ..31000 randevu islendi
+  ..31500 randevu islendi
+  ..32000 randevu islendi
+  ..32500 randevu islendi
+  ..33000 randevu islendi
+  ..33500 randevu islendi
+  ..34000 randevu islendi
+  ..34500 randevu islendi
+  ..35000 randevu islendi
+  ..35500 randevu islendi
+  ..36000 randevu islendi
+  ..36500 randevu islendi
+  ..37000 randevu islendi
+  ..37500 randevu islendi
+  ..38000 randevu islendi
+  ..38500 randevu islendi
+  ..39000 randevu islendi
+  ..39500 randevu islendi
+  ..40000 randevu islendi
+Randevu aktarim: 40022
+Tamam. Ozet: {"personel":0,"hizmet":0,"musteri":0,"randevu":40022,"skipped":0}

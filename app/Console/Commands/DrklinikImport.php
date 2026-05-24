@@ -379,7 +379,10 @@ class DrklinikImport extends Command
                     $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
                     $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
                 }
-                if (count($cells) < 5) continue;
+                // BTN_Hepsi yaniti: bazi satirlarda musteri kolonu yok (sadece 4 td).
+                // Eskiden < 5 idi, 494 satir filtreleniyordu. < 4 yapip
+                // musteri yoksa '(Kasa)' placeholder ile loose match'e birak.
+                if (count($cells) < 4) continue;
                 if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $cells[0] ?? '')) continue;
 
                 $tarihIso = $this->__d($cells[0]);

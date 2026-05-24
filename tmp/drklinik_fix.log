@@ -1,0 +1,37 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260505_182839
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=202655182839867
+Odalar cekiliyor (DDL_Oda dropdown)...
+Oda aktarim: yeni=0, toplam_map=11
+Personel listesi cekiliyor (calisanmodulu.aspx)...
+  39 personel id bulundu.
+  ..10/39 personel okundu
+  ..20/39 personel okundu
+  ..30/39 personel okundu
+Personel aktarim: 2 yeni
+Hizmetler cekiliyor (hizmet_listesi.aspx)...
+  10 birim bulundu.
+  [Birim Seçiniz]: 329 hizmet
+  [Mani̇kür-Pedi̇kür]: 6 hizmet
+  [Masaj]: 14 hizmet
+  [Solaryum]: 13 hizmet
+  [Erkek Bölgesel İncelme]: 34 hizmet
+  [Lazer Epi̇lasyon]: 27 hizmet
+  [Ci̇lt Bakimi]: 10 hizmet
+  [Kadin Bölgesel İncelme]: 38 hizmet
+  [Ci̇lt Tedavi̇leri̇]: 4 hizmet
+  [Berber]: 4 hizmet
+Hizmet aktarim toplam: 479
+Urunler cekiliyor (uruntanimlamalari.aspx)...
+  HTML tablodan 112 satir cikartildi.
+Urun aktarim: 112
+Randevular cekiliyor: 2024-06-01 - 2024-06-30 (haftalik)...
+Randevu aktarim toplam: 166 (skipped: 0)
+Randevu eksikleri (oda+personel) onariliyor: 2024-06-01 - 2024-06-30
+Onarim toplam: oda_upd=0, personel_upd=0
+Eslesemeyen personel adlari (1): Yudum Ser
+Eslesemeyen oda adlari: KADIN BÖLGESEL İNCELME | MASAJ | SOLARYUM | MANİKÜR-PEDİKÜR | ERKEK BÖLGESEL İNCELME | İpek kirpik
+Tamam. Ozet: {"hizmet":479,"personel":2,"urun":112,"oda":11,"musteri":0,"randevu":166,"tahsilat":0,"skipped":0}

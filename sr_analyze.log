@@ -1,0 +1,96 @@
+Salonrandevu client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/salonrandevu/20260520_115815
+Anasayfa + JS bundle analizi...
+Anasayfa boyut: 5090 byte
+--- Asset (5) ---
+  /static/js/3.4f858bbb.chunk.js
+  /static/js/main.8fc8c412.chunk.js
+  https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.2/animate.min.css
+  /static/css/3.6a2ba361.chunk.css
+  /static/css/main.03405ef3.chunk.css
+--- HTML icindeki API path adaylari (0) ---
+--- Tum API path adaylari (bundle taramasindan, ilk 80) ---
+  /v2/recaptchaConfig
+  /v1/token
+  /v2/passwordPolicy
+  /v1/projects
+  /auth/staff
+  /customers/detail/
+  /expense/types
+  /packages/sales/add
+  /customers/add
+  /services/add
+  /packages/add
+  /appointments/online
+  /staff/theme
+  /staff/favorites
+  /staff/favorite/save
+  /staff/reset/password/cd
+  /staff/reset/password
+  /customers/passive
+  /customers/rating
+  /customers/add/bulk
+  /services/requests
+  /services/bounty
+  /packages/list
+  /packages/sales
+  /packages/unbooked
+  /products/add
+  /appointments/list
+  /appointments/detail/
+  /packages/detail/
+  /staff/sd/update
+  /services/detail/
+  /products/detail/
+  /salon/wp/login/qr
+  /salon/wp/login/code
+  /api/v1
+  /api/v1/
+  /api/platform/appointment/request
+  /api/platform/appointment/request/approve
+  /payment-notify
+  /appointment/customer/state
+  /appointment/cancel
+  /appointments/repeat
+  /appointments/add
+  /customers/risky
+--- Bundle findings (her bundle'in icindeki hits) ---
+### https://app.salonrandevu.com/static/js/3.4f858bbb.chunk.js (6 hit)
+  /v2/recaptchaConfig
+  /v1/token
+  /v2/passwordPolicy
+  /v1/projects
+  BASE: https://apis.google.com/js/api.js?onload=
+  BASE: https://github.com/mui-org/material-ui/tree/master/packages/material-ui-codemod/README.md#theme-spacing-api
+### https://app.salonrandevu.com/static/js/main.8fc8c412.chunk.js (61 hit)
+  /auth/staff
+  /customers/detail/
+  /expense/types
+  /packages/sales/add
+  /customers/add
+  /services/add
+  /packages/add
+  /appointments/online
+  /staff/theme
+  /staff/favorites
+  /staff/favorite/save
+  /staff/reset/password/cd
+  /staff/reset/password
+  /customers/passive
+  /customers/rating
+  /customers/add/bulk
+  /services/requests
+  /services/bounty
+  /packages/list
+  /packages/sales
+  /packages/unbooked
+  /products/add
+  /appointments/list
+  /appointments/detail/
+  /packages/detail/
+  /staff/sd/update
+  /services/detail/
+  /products/detail/
+  /salon/wp/login/qr
+  /salon/wp/login/code
+Detayli dump: /var/www/www-root/data/www/randevumceptetest/storage/app/salonrandevu/20260520_115815

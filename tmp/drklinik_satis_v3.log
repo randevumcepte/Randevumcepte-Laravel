@@ -1,0 +1,93 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260506_174559
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=202656174559658
+Satislar (=Adisyonlar) cekiliyor: 2024-01-01 - 2030-12-31 (aylik)...
+  ..ay 1 (2024-01) eklendi=0 atlandi=1
+  ..ay 2 (2024-02) eklendi=0 atlandi=2
+  ..ay 3 (2024-03) eklendi=0 atlandi=3
+  ..ay 4 (2024-04) eklendi=0 atlandi=4
+  ..ay 5 (2024-05) eklendi=0 atlandi=5
+  ..ay 6 (2024-06) eklendi=120 atlandi=6
+  ..ay 7 (2024-07) eklendi=260 atlandi=7
+  ..ay 8 (2024-08) eklendi=372 atlandi=8
+  ..ay 9 (2024-09) eklendi=492 atlandi=9
+  ..ay 10 (2024-10) eklendi=650 atlandi=10
+  ..ay 11 (2024-11) eklendi=796 atlandi=11
+  ..ay 12 (2024-12) eklendi=943 atlandi=12
+  ..ay 13 (2025-01) eklendi=1084 atlandi=13
+  ..ay 14 (2025-02) eklendi=1241 atlandi=14
+  ..ay 15 (2025-03) eklendi=1347 atlandi=15
+  ..ay 16 (2025-04) eklendi=1613 atlandi=16
+  ..ay 17 (2025-05) eklendi=1863 atlandi=17
+  ..ay 18 (2025-06) eklendi=1998 atlandi=18
+  ..ay 19 (2025-07) eklendi=2154 atlandi=19
+  ..ay 20 (2025-08) eklendi=2321 atlandi=20
+  ..ay 21 (2025-09) eklendi=2520 atlandi=21
+  ..ay 22 (2025-10) eklendi=2693 atlandi=22
+  ..ay 23 (2025-11) eklendi=2894 atlandi=23
+  ..ay 24 (2025-12) eklendi=3098 atlandi=24
+  ..ay 25 (2026-01) eklendi=3239 atlandi=25
+  ..ay 26 (2026-02) eklendi=3375 atlandi=26
+  ..ay 27 (2026-03) eklendi=3573 atlandi=27
+  ..ay 28 (2026-04) eklendi=3807 atlandi=28
+  ..ay 29 (2026-05) eklendi=3875 atlandi=29
+  ..ay 30 (2026-06) eklendi=3875 atlandi=30
+  ..ay 31 (2026-07) eklendi=3875 atlandi=31
+  ..ay 32 (2026-08) eklendi=3875 atlandi=32
+  ..ay 33 (2026-09) eklendi=3875 atlandi=33
+  ..ay 34 (2026-10) eklendi=3875 atlandi=34
+  ..ay 35 (2026-11) eklendi=3875 atlandi=35
+  ..ay 36 (2026-12) eklendi=3875 atlandi=36
+  ..ay 37 (2027-01) eklendi=3875 atlandi=37
+  ..ay 38 (2027-02) eklendi=3875 atlandi=38
+  ..ay 39 (2027-03) eklendi=3875 atlandi=39
+  ..ay 40 (2027-04) eklendi=3875 atlandi=40
+  ..ay 41 (2027-05) eklendi=3875 atlandi=41
+  ..ay 42 (2027-06) eklendi=3875 atlandi=42
+  ..ay 43 (2027-07) eklendi=3875 atlandi=43
+  ..ay 44 (2027-08) eklendi=3875 atlandi=44
+  ..ay 45 (2027-09) eklendi=3875 atlandi=45
+  ..ay 46 (2027-10) eklendi=3875 atlandi=46
+  ..ay 47 (2027-11) eklendi=3875 atlandi=47
+  ..ay 48 (2027-12) eklendi=3875 atlandi=48
+  ..ay 49 (2028-01) eklendi=3875 atlandi=49
+  ..ay 50 (2028-02) eklendi=3875 atlandi=50
+  ..ay 51 (2028-03) eklendi=3875 atlandi=51
+  ..ay 52 (2028-04) eklendi=3875 atlandi=52
+  ..ay 53 (2028-05) eklendi=3875 atlandi=53
+  ..ay 54 (2028-06) eklendi=3875 atlandi=54
+  ..ay 55 (2028-07) eklendi=3875 atlandi=55
+  ..ay 56 (2028-08) eklendi=3875 atlandi=56
+  ..ay 57 (2028-09) eklendi=3875 atlandi=57
+  ..ay 58 (2028-10) eklendi=3875 atlandi=58
+  ..ay 59 (2028-11) eklendi=3875 atlandi=59
+  ..ay 60 (2028-12) eklendi=3875 atlandi=60
+  ..ay 61 (2029-01) eklendi=3875 atlandi=61
+  ..ay 62 (2029-02) eklendi=3875 atlandi=62
+  ..ay 63 (2029-03) eklendi=3875 atlandi=63
+  ..ay 64 (2029-04) eklendi=3875 atlandi=64
+  ..ay 65 (2029-05) eklendi=3875 atlandi=65
+  ..ay 66 (2029-06) eklendi=3875 atlandi=66
+  ..ay 67 (2029-07) eklendi=3875 atlandi=67
+  ..ay 68 (2029-08) eklendi=3875 atlandi=68
+  ..ay 69 (2029-09) eklendi=3875 atlandi=69
+  ..ay 70 (2029-10) eklendi=3875 atlandi=70
+  ..ay 71 (2029-11) eklendi=3875 atlandi=71
+  ..ay 72 (2029-12) eklendi=3875 atlandi=72
+  ..ay 73 (2030-01) eklendi=3875 atlandi=73
+  ..ay 74 (2030-02) eklendi=3875 atlandi=74
+  ..ay 75 (2030-03) eklendi=3875 atlandi=75
+  ..ay 76 (2030-04) eklendi=3875 atlandi=76
+  ..ay 77 (2030-05) eklendi=3875 atlandi=77
+  ..ay 78 (2030-06) eklendi=3875 atlandi=78
+  ..ay 79 (2030-07) eklendi=3875 atlandi=79
+  ..ay 80 (2030-08) eklendi=3875 atlandi=80
+  ..ay 81 (2030-09) eklendi=3875 atlandi=81
+  ..ay 82 (2030-10) eklendi=3875 atlandi=82
+  ..ay 83 (2030-11) eklendi=3875 atlandi=83
+  ..ay 84 (2030-12) eklendi=3875 atlandi=84
+Satis aktarim toplam: 3875 (atlandi=84)
+Tamam. Ozet: {"hizmet":37,"personel":0,"urun":0,"oda":0,"musteri":1,"randevu":0,"satis":3875,"tahsilat":0,"skipped":0}

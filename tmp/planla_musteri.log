@@ -1,0 +1,21 @@
+nohup: ignoring input
+Planla client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/planla/20260423_141942
+Login deneniyor...
+Login sonuc: OK - json:/sign-in
+Detay: JSON login ok via /sign-in variant 0
+Musteriler cekiliyor (category=customers)...
+  category=customers -> 5974 kayit
+  ..500 musteri islendi (aktarilan: 499, skipped: 0)
+  ..1000 musteri islendi (aktarilan: 999, skipped: 0)
+  ..1500 musteri islendi (aktarilan: 1499, skipped: 0)
+  ..2000 musteri islendi (aktarilan: 1999, skipped: 0)
+  ..2500 musteri islendi (aktarilan: 2499, skipped: 0)
+  ..3000 musteri islendi (aktarilan: 2998, skipped: 1)
+  ..3500 musteri islendi (aktarilan: 3497, skipped: 2)
+  ..4000 musteri islendi (aktarilan: 3997, skipped: 2)
+  ..4500 musteri islendi (aktarilan: 4497, skipped: 2)
+  ..5000 musteri islendi (aktarilan: 4997, skipped: 2)
+  ..5500 musteri islendi (aktarilan: 5497, skipped: 2)
+Musteri aktarim: 5972
+Tamam. Ozet: {"personel":0,"hizmet":0,"musteri":5972,"randevu":0,"skipped":2}

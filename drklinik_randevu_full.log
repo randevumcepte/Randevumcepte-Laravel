@@ -1,0 +1,24 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260507_002538
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=20265702539296
+Randevular cekiliyor: 2024-01-01 - 2026-12-31 (haftalik)...
+  ..hafta 10 (2024-03-04..) son_eklenen=0 toplam_randevu=0
+  ..hafta 20 (2024-05-13..) son_eklenen=0 toplam_randevu=0
+  ..hafta 30 (2024-07-22..) son_eklenen=66 toplam_randevu=465
+  ..hafta 40 (2024-09-30..) son_eklenen=89 toplam_randevu=1147
+  ..hafta 50 (2024-12-09..) son_eklenen=77 toplam_randevu=2068
+  ..hafta 60 (2025-02-17..) son_eklenen=86 toplam_randevu=2833
+  ..hafta 70 (2025-04-28..) son_eklenen=141 toplam_randevu=3840
+  ..hafta 80 (2025-07-07..) son_eklenen=114 toplam_randevu=5025
+  ..hafta 90 (2025-09-15..) son_eklenen=86 toplam_randevu=5934
+  ..hafta 100 (2025-11-24..) son_eklenen=94 toplam_randevu=6994
+  ..hafta 110 (2026-02-02..) son_eklenen=98 toplam_randevu=8047
+  ..hafta 120 (2026-04-13..) son_eklenen=174 toplam_randevu=9444
+  ..hafta 130 (2026-06-22..) son_eklenen=0 toplam_randevu=10015
+  ..hafta 140 (2026-08-31..) son_eklenen=1 toplam_randevu=10016
+  ..hafta 150 (2026-11-09..) son_eklenen=0 toplam_randevu=10016
+Randevu aktarim toplam: 10016 (skipped: 0)
+Tamam. Ozet: {"hizmet":0,"personel":0,"urun":0,"oda":0,"musteri":4,"randevu":10016,"satis":0,"tahsilat":0,"skipped":0}

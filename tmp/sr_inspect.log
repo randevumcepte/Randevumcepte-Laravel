@@ -1,0 +1,2361 @@
+Salonrandevu client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/salonrandevu/20260520_134149
+Login deneniyor...
+Login sonuc: OK - POST /auth/staff [mail+password]
+Detay: token alindi (uzunluk 4416)
+Inspect modu: her endpoint ilk kaydin tam yapisi...
+
+======== ITSELF  (/company/itself)  count=0 ========
+{
+    "id": 15157,
+    "name": "Dr Met Estetik ve Zayıflama",
+    "mail": "suleymanovametanet28@gmail.com",
+    "dialCode": "+90",
+    "countryCode": "TR",
+    "currency": "₺",
+    "currencyCode": "TRY",
+    "phone": "5412471863",
+    "address": "latife hanım sok.No 19\/9 Bahriye Üçok .Karşıyaka\/İzmir ",
+    "province": "35",
+    "district": "Karşıyaka",
+    "map": "38.458546, 27.114314",
+    "instagram": "drmet_estetik",
+    "facebook": "",
+    "website": "",
+    "logo_src": "1680434643-3054892398543551742-image_6487327.jpg",
+    "category_id": 27,
+    "sender": "",
+    "hours": {
+        "id": 13545,
+        "start_hour": "09:00",
+        "end_hour": "23:00",
+        "slice": "30",
+        "IsSet": 1
+    },
+    "shortly": "",
+    "about": "",
+    "iyzico_api_key": "",
+    "iyzico_secret_key": ""
+}
+
+======== CUSTOMER  (/company/customers)  count=250 ========
+META: {"total_record":24080}
+{
+    "id": 2450883,
+    "name": "Beyza",
+    "surname": "Cire",
+    "nationalityID": "",
+    "full_name": "Beyza Cire",
+    "dialCode": "+90",
+    "phone": "5527357402",
+    "s_dialCode": "+90",
+    "s_phone": "",
+    "sex": 0,
+    "is_passive": false,
+    "birthday": null,
+    "email": "",
+    "send_sms": true,
+    "description": "",
+    "point": 0,
+    "selectedPhone": 0
+}
+
+======== SERVICE  (/company/services/filter?key=&paginate=1)  count=701 ========
+{
+    "id": 392122,
+    "name": "1 aylık 2 seans diyet danışmanlığı",
+    "process_time": 30,
+    "amount": 100,
+    "bounty": 0,
+    "repeat": 0,
+    "point": 0,
+    "show_at_url": true,
+    "is_campaign": 0,
+    "is_passive": false,
+    "campaign_title": null,
+    "description": null,
+    "staffs": null,
+    "platform_services": null,
+    "category_name": "Beslenme Danışmanlığı ve Spor Hizmetleri",
+    "type": 0
+}
+
+======== STAFF  (/company/staffs/unsafe)  count=15 ========
+{
+    "id": 35184,
+    "name": "BUSE",
+    "surname": "GÖRÜŞME",
+    "sex": 0,
+    "send_sms": true,
+    "show_at_url": true,
+    "detail": {
+        "id": 35246,
+        "profile_photo": "1697385369-7441440185087227998-blob.jpg",
+        "national_id": null,
+        "mail": "suleymanovametanet28@gmail.com",
+        "dialCode": "+90",
+        "phone": "5072411410",
+        "job_title": "HALKLA İLİŞKİLER SATIŞ PAZARLAMA ",
+        "bounty": 5,
+        "birthday": null
+    },
+    "bounty": 486459.5,
+    "closed_appointments": {
+        "id": 0,
+        "un_appointments": ""
+    },
+    "staff_availability_per_day": null,
+    "services": null,
+    "appointments": null,
+    "license": null,
+    "hours": null,
+    "company_services": null,
+    "staff_packets": null,
+    "company": null,
+    "limited_perm": null,
+    "favorite": null,
+    "company_license_end_date": "0001-01-01T00:00:00Z",
+    "company_tutorial": null,
+    "full_name": "BUSE GÖRÜŞME",
+    "company_id": 15157,
+    "permission": 1,
+    "last_login_platform": "web",
+    "color": "#ffc600",
+    "deleted_at": null
+}
+
+======== APPOINTMENT  (/company/appointment/list)  count=10 ========
+META: {"offset":0,"limit":10,"page":1,"prev_page":1,"next_page":2}
+{
+    "id": 7731366,
+    "appointment_start_date": "2027-01-13T09:30:00+03:00",
+    "appointment_end_date": "2027-01-13T09:45:00+03:00",
+    "active": null,
+    "customer_state": 2,
+    "receipt": null,
+    "service": {
+        "id": 245305,
+        "name": "arama randevusu",
+        "process_time": 15,
+        "amount": 0,
+        "bounty": 0,
+        "repeat": 7,
+        "point": 0,
+        "show_at_url": true,
+        "is_campaign": 0,
+        "campaign_title": "",
+        "description": "Aranıp Görüşme randevusu verilecek ",
+        "staffs": null,
+        "rooms": null,
+        "platform_services": null,
+        "category_name": null,
+        "is_passive": false,
+        "type": 0
+    },
+    "packet": null,
+    "staff": {
+        "id": 63377,
+        "name": "BUSE DATA ",
+        "surname": "TAKİP",
+        "sex": 0,
+        "send_sms": true,
+        "show_at_url": false,
+        "detail": {
+            "id": 63618,
+            "profile_photo": "",
+            "national_id": null,
+            "mail": "MEHMET11@GMAİL.COM",
+            "dialCode": "",
+            "phone": "5541258972",
+            "job_title": "Halkla İşikliler ",
+            "bounty": 5,
+            "birthday": null
+        },
+        "bounty": 7147.5,
+        "closed_appointments": {
+            "id": 0,
+            "un_appointments": ""
+        },
+        "staff_availability_per_day": null,
+        "services": null,
+        "appointments": null,
+        "license": null,
+        "hours": null,
+        "company_services": null,
+        "staff_packets": null,
+        "company": null,
+        "limited_perm": null,
+        "favorite": null,
+        "company_license_end_date": "0001-01-01T00:00:00Z",
+        "company_tutorial": null,
+        "full_name": "BUSE DATA  TAKİP",
+        "company_id": 15157,
+        "permission": 0,
+        "last_login_platform": "",
+        "color": "",
+        "deleted_at": null
+    },
+    "room": null,
+    "customer": {
+        "id": 2373209,
+        "name": "selma",
+        "surname": "hanım",
+        "username": "",
+        "nationalityID": "",
+        "password": "",
+        "dialCode": "+90",
+        "phone": "5053739658",
+        "s_dialCode": "+90",
+        "secondary_phone": "",
+        "email": "",
+        "birthday": null,
+        "sex": 0,
+        "description": "",
+        "related_company": "",
+        "send_sms": true,
+        "extra_detail": {
+            "sum_income": null,
+            "total_debt": null,
+            "last_transaction_date": null
+        },
+        "full_name": "selma hanım",
+        "disable_online_booking": false,
+        "is_passive": false,
+        "working_status": null,
+        "marital_status": null,
+        "point": 0,
+        "created_at": "2026-04-18T00:36:41+03:00",
+        "selectedPhone": 0
+    },
+    "reminding": 2,
+    "reminding_greater": 2,
+    "remind_date": "2027-01-13T08:30:00+03:00",
+    "remind_date_greater": "2027-01-12T09:30:00+03:00",
+    "repeat_date": "2027-01-20T09:30:00+03:00",
+    "repeat": 2,
+    "zone": 2,
+    "after_appointment_sms": 2,
+    "note": "",
+    "app_request_id": null,
+    "created_at": "2026-04-24T18:21:46+03:00",
+    "recurrence_rule_id": null,
+    "receipt_transaction_id": null,
+    "receipt_transaction": null,
+    "service_fee": 0
+}
+
+======== PACKET  (/company/packets?name=&page=-1)  count=0 ========
+{
+    "packets": {
+        "records": [
+            {
+                "id": 13042,
+                "name": "YANAK + BOYUN + ENSE ",
+                "all_amount": 7008,
+                "created_at": "2025-12-28T14:20:30+03:00",
+                "packet_details": [
+                    {
+                        "id": 30288,
+                        "company_id": 15157,
+                        "packet_id": 13042,
+                        "service_id": 231156,
+                        "amount": 438,
+                        "period": 16,
+                        "service": {
+                            "id": 231156,
+                            "name": "Lazer ( 3 Bölge )",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-12-28T14:20:30+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 13041,
+                "name": "GÖBEK + BEL BOŞLUĞU + TÜM BACAK + TÜM KOL + KOL ALTI + BİKİNİ ",
+                "all_amount": 12496,
+                "created_at": "2025-12-28T13:40:00+03:00",
+                "packet_details": [
+                    {
+                        "id": 30287,
+                        "company_id": 15157,
+                        "packet_id": 13041,
+                        "service_id": 231488,
+                        "amount": 781,
+                        "period": 16,
+                        "service": {
+                            "id": 231488,
+                            "name": "6 BÖLGE BUZ LAZER",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-12-28T13:40:00+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12789,
+                "name": "Yarım Alt Paket+ Yarım Alt Kol + bikini +Kol Altı ",
+                "all_amount": 10000,
+                "created_at": "2025-12-14T18:00:43+03:00",
+                "packet_details": [
+                    {
+                        "id": 29896,
+                        "company_id": 15157,
+                        "packet_id": 12789,
+                        "service_id": 231421,
+                        "amount": 625,
+                        "period": 16,
+                        "service": {
+                            "id": 231421,
+                            "name": "4 Bölge Lazer (Kadın)",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-12-14T18:00:43+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12788,
+                "name": "Tam Bacak + Özel Bölge  + Bel + Göbek +Kol + Kol Altı + Ense + Yüz ",
+                "all_amount": 240000,
+                "created_at": "2025-12-14T17:00:07+03:00",
+                "packet_details": [
+                    {
+                        "id": 29895,
+                        "company_id": 15157,
+                        "packet_id": 12788,
+                        "service_id": 231496,
+                        "amount": 15000,
+                        "period": 16,
+                        "service": {
+                            "id": 231496,
+                            "name": "8 BÖLGE LAZER",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-12-14T17:00:07+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12787,
+                "name": "Sırt+ Göğüs+ GÖbek + Kol Altı + Tam Bacak + Ense + Sakal Üstü + Sakal Altı +Kuyruk Sokumu ",
+                "all_amount": 10000,
+                "created_at": "2025-12-14T15:06:07+03:00",
+                "packet_details": [
+                    {
+                        "id": 29894,
+                        "company_id": 15157,
+                        "packet_id": 12787,
+                        "service_id": 231219,
+                        "amount": 625,
+                        "period": 16,
+                        "service": {
+                            "id": 231219,
+                            "name": "UTOPIA LAZER TÜM VÜCUT 8 BÖLGE",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-12-14T15:06:07+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12786,
+                "name": "Tam Bacak + Tam kol + Kol Altı + Özel Bölge +Göbek ",
+                "all_amount": 10000,
+                "created_at": "2025-12-14T15:01:47+03:00",
+                "packet_details": [
+                    {
+                        "id": 29893,
+                        "company_id": 15157,
+                        "packet_id": 12786,
+                        "service_id": 231487,
+                        "amount": 625,
+                        "period": 16,
+                        "service": {
+                            "id": 231487,
+                            "name": "5 BÖLGE BUZ LAZER",
+                            "process_time": 120,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-12-14T15:01:47+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12592,
+                "name": "TAM BACAK + ÖZEL BÖLGE  + KOL ALTI + TAM KOL + ENSE +YÜZ",
+                "all_amount": 11408,
+                "created_at": "2025-11-02T16:13:50+03:00",
+                "packet_details": [
+                    {
+                        "id": 29502,
+                        "company_id": 15157,
+                        "packet_id": 12592,
+                        "service_id": 231488,
+                        "amount": 713,
+                        "period": 16,
+                        "service": {
+                            "id": 231488,
+                            "name": "6 BÖLGE BUZ LAZER",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-11-02T16:13:50+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12553,
+                "name": "tam bacak +  tam kol + özel bölge+ kol altı + bel boşluğu + alt göbek ",
+                "all_amount": 10000,
+                "created_at": "2025-10-19T18:21:56+03:00",
+                "packet_details": [
+                    {
+                        "id": 29412,
+                        "company_id": 15157,
+                        "packet_id": 12553,
+                        "service_id": 231488,
+                        "amount": 625,
+                        "period": 16,
+                        "service": {
+                            "id": 231488,
+                            "name": "6 BÖLGE BUZ LAZER",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-10-19T18:21:56+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12552,
+                "name": "Üst Bacak + Tüm Yüz + Bikini ",
+                "all_amount": 7008,
+                "created_at": "2025-10-19T16:30:30+03:00",
+                "packet_details": [
+                    {
+                        "id": 29411,
+                        "company_id": 15157,
+                        "packet_id": 12552,
+                        "service_id": 231423,
+                        "amount": 438,
+                        "period": 16,
+                        "service": {
+                            "id": 231423,
+                            "name": "Seçili 3 Bölge",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-10-19T16:30:30+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12499,
+                "name": "TAM BACAK + ÖZEL BÖLGE+ KOL ALTI + GÖĞÜS UCU+ ÇENE BIYIK+ GÖBEK ",
+                "all_amount": 10000,
+                "created_at": "2025-10-05T15:24:49+03:00",
+                "packet_details": [
+                    {
+                        "id": 29241,
+                        "company_id": 15157,
+                        "packet_id": 12499,
+                        "service_id": 231488,
+                        "amount": 625,
+                        "period": 16,
+                        "service": {
+                            "id": 231488,
+                            "name": "6 BÖLGE BUZ LAZER",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-10-05T15:24:49+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12475,
+                "name": "ÖZEL BÖLGE + KOL ALTI ",
+                "all_amount": 8000,
+                "created_at": "2025-10-02T19:16:37+03:00",
+                "packet_details": [
+                    {
+                        "id": 29191,
+                        "company_id": 15157,
+                        "packet_id": 12475,
+                        "service_id": 230766,
+                        "amount": 500,
+                        "period": 16,
+                        "service": {
+                            "id": 230766,
+                            "name": "Lazer epilasyon (2 bölge)",
+                            "process_time": 30,
+                            "amount": 50,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-10-02T19:16:37+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12446,
+                "name": "SIRT + POPO + YÜZ + GENİTAL ",
+                "all_amount": 10000,
+                "created_at": "2025-09-21T17:27:59+03:00",
+                "packet_details": [
+                    {
+                        "id": 29136,
+                        "company_id": 15157,
+                        "packet_id": 12446,
+                        "service_id": 231419,
+                        "amount": 625,
+                        "period": 16,
+                        "service": {
+                            "id": 231419,
+                            "name": "Lazer epilasyon ( 4 Bölge )",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-09-21T17:27:59+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12445,
+                "name": "Tam Bacak + Özel Bölge + Kol Altı + Yarım Alt Kol ",
+                "all_amount": 15504,
+                "created_at": "2025-09-21T15:22:28+03:00",
+                "packet_details": [
+                    {
+                        "id": 29135,
+                        "company_id": 15157,
+                        "packet_id": 12445,
+                        "service_id": 231419,
+                        "amount": 969,
+                        "period": 16,
+                        "service": {
+                            "id": 231419,
+                            "name": "Lazer epilasyon ( 4 Bölge )",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-09-21T15:22:49+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12154,
+                "name": "Sırt + Göbek + Göğüs  + Tam Kol + Kol Altı ",
+                "all_amount": 9008,
+                "created_at": "2025-08-09T11:32:13+03:00",
+                "packet_details": [
+                    {
+                        "id": 28438,
+                        "company_id": 15157,
+                        "packet_id": 12154,
+                        "service_id": 231191,
+                        "amount": 563,
+                        "period": 16,
+                        "service": {
+                            "id": 231191,
+                            "name": "Lazer ( 5 Bölge )",
+                            "process_time": 150,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-08-09T11:32:13+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12146,
+                "name": "Tam Bacak + Tam Kol + Kol aLTI + Özel Bölge + Sırt +Göbek + Göğüs+ Yüz +Popo Üstü ",
+                "all_amount": 10000,
+                "created_at": "2025-08-08T14:26:17+03:00",
+                "packet_details": [
+                    {
+                        "id": 28429,
+                        "company_id": 15157,
+                        "packet_id": 12146,
+                        "service_id": 231238,
+                        "amount": 625,
+                        "period": 16,
+                        "service": {
+                            "id": 231238,
+                            "name": "Lazer (tüm vücut)",
+                            "process_time": 60,
+                            "amount": 1500,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-08-08T14:26:17+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12059,
+                "name": "TAM BACAK + ÖZEEL BÖLGE + POPO ÜSTÜ + SAKAL ÜSTÜ + SAKAL ALTI + ENSE + SIRT + GÖBEK + GÖĞÜS + TAM KOL+ KOL ALTI ",
+                "all_amount": 12000,
+                "created_at": "2025-07-13T18:18:20+03:00",
+                "packet_details": [
+                    {
+                        "id": 28151,
+                        "company_id": 15157,
+                        "packet_id": 12059,
+                        "service_id": 230754,
+                        "amount": 750,
+                        "period": 16,
+                        "service": {
+                            "id": 230754,
+                            "name": "Lazer (tüm vücut)",
+                            "process_time": 120,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-07-13T18:18:20+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12006,
+                "name": "Özel Bölge  + Kol Altı ",
+                "all_amount": 7504,
+                "created_at": "2025-07-06T10:52:26+03:00",
+                "packet_details": [
+                    {
+                        "id": 27914,
+                        "company_id": 15157,
+                        "packet_id": 12006,
+                        "service_id": 230766,
+                        "amount": 469,
+                        "period": 16,
+                        "service": {
+                            "id": 230766,
+                            "name": "Lazer epilasyon (2 bölge)",
+                            "process_time": 30,
+                            "amount": 50,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-07-06T10:52:26+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 12005,
+                "name": "Tam Bacak + Özel Bölge + Kol Altı + Bıyık + Yarım Alt Kol ",
+                "all_amount": 7504,
+                "created_at": "2025-07-06T10:50:10+03:00",
+                "packet_details": [
+                    {
+                        "id": 27913,
+                        "company_id": 15157,
+                        "packet_id": 12005,
+                        "service_id": 231487,
+                        "amount": 469,
+                        "period": 16,
+                        "service": {
+                            "id": 231487,
+                            "name": "5 BÖLGE BUZ LAZER",
+                            "process_time": 120,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-07-06T10:50:10+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11994,
+                "name": "Yüz + Kol Altı + Bikini ",
+                "all_amount": 9008,
+                "created_at": "2025-07-02T02:16:44+03:00",
+                "packet_details": [
+                    {
+                        "id": 27886,
+                        "company_id": 15157,
+                        "packet_id": 11994,
+                        "service_id": 231418,
+                        "amount": 563,
+                        "period": 16,
+                        "service": {
+                            "id": 231418,
+                            "name": "Lazer epilasyon ( 3 Bölge )",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-07-02T02:16:44+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11971,
+                "name": "Tüm Kol + kol Altı + Özel Bölge + Yüz ",
+                "all_amount": 12000,
+                "created_at": "2025-06-29T15:55:36+03:00",
+                "packet_details": [
+                    {
+                        "id": 27854,
+                        "company_id": 15157,
+                        "packet_id": 11971,
+                        "service_id": 231419,
+                        "amount": 750,
+                        "period": 16,
+                        "service": {
+                            "id": 231419,
+                            "name": "Lazer epilasyon ( 4 Bölge )",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-06-29T15:55:36+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11890,
+                "name": "Tam Bacak + Tam kol + Kol Altı ",
+                "all_amount": 2600,
+                "created_at": "2025-06-15T18:30:15+03:00",
+                "packet_details": [
+                    {
+                        "id": 27634,
+                        "company_id": 15157,
+                        "packet_id": 11890,
+                        "service_id": 231418,
+                        "amount": 2600,
+                        "period": 1,
+                        "service": {
+                            "id": 231418,
+                            "name": "Lazer epilasyon ( 3 Bölge )",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-06-15T18:30:15+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11889,
+                "name": "Sırt + Popo + Yarım Kol ",
+                "all_amount": 11008,
+                "created_at": "2025-06-15T18:00:25+03:00",
+                "packet_details": [
+                    {
+                        "id": 27633,
+                        "company_id": 15157,
+                        "packet_id": 11889,
+                        "service_id": 231156,
+                        "amount": 688,
+                        "period": 16,
+                        "service": {
+                            "id": 231156,
+                            "name": "Lazer ( 3 Bölge )",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-06-15T18:00:25+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11819,
+                "name": "Yüz ",
+                "all_amount": 5000,
+                "created_at": "2025-06-01T15:52:22+03:00",
+                "packet_details": [
+                    {
+                        "id": 27502,
+                        "company_id": 15157,
+                        "packet_id": 11819,
+                        "service_id": 231483,
+                        "amount": 500,
+                        "period": 10,
+                        "service": {
+                            "id": 231483,
+                            "name": "1 BÖLGE BUZ LAZER",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-06-01T15:52:22+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11818,
+                "name": "Yarım Üst Bacak + Yüz + Bikini ",
+                "all_amount": 7504,
+                "created_at": "2025-06-01T15:44:41+03:00",
+                "packet_details": [
+                    {
+                        "id": 27501,
+                        "company_id": 15157,
+                        "packet_id": 11818,
+                        "service_id": 231418,
+                        "amount": 469,
+                        "period": 16,
+                        "service": {
+                            "id": 231418,
+                            "name": "Lazer epilasyon ( 3 Bölge )",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-06-01T15:44:41+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11817,
+                "name": "Sırt + Yüz + Kol Altı ",
+                "all_amount": 5504,
+                "created_at": "2025-06-01T14:02:07+03:00",
+                "packet_details": [
+                    {
+                        "id": 27500,
+                        "company_id": 15157,
+                        "packet_id": 11817,
+                        "service_id": 231193,
+                        "amount": 344,
+                        "period": 16,
+                        "service": {
+                            "id": 231193,
+                            "name": "Seçili 3 Bölge (Erkek)",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-06-01T14:02:07+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11816,
+                "name": "Tüm Bacak + Tüm  Kol + Kol Altı +Yüz +Genital + Sırt +Göbek ",
+                "all_amount": 13008,
+                "created_at": "2025-06-01T13:58:44+03:00",
+                "packet_details": [
+                    {
+                        "id": 27499,
+                        "company_id": 15157,
+                        "packet_id": 11816,
+                        "service_id": 231495,
+                        "amount": 813,
+                        "period": 16,
+                        "service": {
+                            "id": 231495,
+                            "name": "7 BÖLGE LAZER",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-06-01T13:58:44+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11805,
+                "name": "bıyık ",
+                "all_amount": 300,
+                "created_at": "2025-05-28T14:08:16+03:00",
+                "packet_details": [
+                    {
+                        "id": 27456,
+                        "company_id": 15157,
+                        "packet_id": 11805,
+                        "service_id": 231483,
+                        "amount": 100,
+                        "period": 3,
+                        "service": {
+                            "id": 231483,
+                            "name": "1 BÖLGE BUZ LAZER",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-28T14:08:16+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11804,
+                "name": "Tüm Bacak ",
+                "all_amount": 6000,
+                "created_at": "2025-05-28T14:06:36+03:00",
+                "packet_details": [
+                    {
+                        "id": 27455,
+                        "company_id": 15157,
+                        "packet_id": 11804,
+                        "service_id": 231483,
+                        "amount": 1000,
+                        "period": 6,
+                        "service": {
+                            "id": 231483,
+                            "name": "1 BÖLGE BUZ LAZER",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-28T14:06:36+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11773,
+                "name": "Tüm Bacak + Tüm Kol + Kol altı + göğüs + Göbek ",
+                "all_amount": 12000,
+                "created_at": "2025-05-25T19:31:24+03:00",
+                "packet_details": [
+                    {
+                        "id": 27379,
+                        "company_id": 15157,
+                        "packet_id": 11773,
+                        "service_id": 231191,
+                        "amount": 750,
+                        "period": 16,
+                        "service": {
+                            "id": 231191,
+                            "name": "Lazer ( 5 Bölge )",
+                            "process_time": 150,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-25T19:31:24+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11772,
+                "name": "Yarım Bacak + Kol Altı ",
+                "all_amount": 7008,
+                "created_at": "2025-05-25T19:28:45+03:00",
+                "packet_details": [
+                    {
+                        "id": 27378,
+                        "company_id": 15157,
+                        "packet_id": 11772,
+                        "service_id": 231255,
+                        "amount": 438,
+                        "period": 16,
+                        "service": {
+                            "id": 231255,
+                            "name": "Lazer epilasyon (2 bölge)",
+                            "process_time": 30,
+                            "amount": 50,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-25T19:28:45+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11768,
+                "name": "Yüz + Tam Kol + Yarım Üst Sırt + Bel Boşluğu + Genital + Popo Üstü + Tam Bacak+ Kol altı ",
+                "all_amount": 8000,
+                "created_at": "2025-05-24T17:51:46+03:00",
+                "packet_details": [
+                    {
+                        "id": 27374,
+                        "company_id": 15157,
+                        "packet_id": 11768,
+                        "service_id": 231496,
+                        "amount": 1000,
+                        "period": 8,
+                        "service": {
+                            "id": 231496,
+                            "name": "8 BÖLGE LAZER",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-24T17:51:46+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11766,
+                "name": "Tam Bacak + Tam Kol + Özel Bölge + Kol Altı + Göbek Deliği altı Komple ",
+                "all_amount": 10000,
+                "created_at": "2025-05-24T15:32:27+03:00",
+                "packet_details": [
+                    {
+                        "id": 27372,
+                        "company_id": 15157,
+                        "packet_id": 11766,
+                        "service_id": 231420,
+                        "amount": 625,
+                        "period": 16,
+                        "service": {
+                            "id": 231420,
+                            "name": "Lazer epilasyon ( 5 Bölge )",
+                            "process_time": 120,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-24T15:32:27+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11745,
+                "name": "KOL ALTI + ENSE (E) ",
+                "all_amount": 6752,
+                "created_at": "2025-05-18T17:43:55+03:00",
+                "packet_details": [
+                    {
+                        "id": 27308,
+                        "company_id": 15157,
+                        "packet_id": 11745,
+                        "service_id": 230754,
+                        "amount": 422,
+                        "period": 16,
+                        "service": {
+                            "id": 230754,
+                            "name": "Lazer (tüm vücut)",
+                            "process_time": 120,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-18T17:43:55+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11701,
+                "name": "Yarım Alt bacak + Yarım Alt Kol + Özel bölge + Bıyık ",
+                "all_amount": 6000,
+                "created_at": "2025-05-11T19:45:08+03:00",
+                "packet_details": [
+                    {
+                        "id": 27200,
+                        "company_id": 15157,
+                        "packet_id": 11701,
+                        "service_id": 231421,
+                        "amount": 375,
+                        "period": 16,
+                        "service": {
+                            "id": 231421,
+                            "name": "4 Bölge Lazer (Kadın)",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-11T19:45:08+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11700,
+                "name": "Tam Bacak + Kol Altı + Çene ",
+                "all_amount": 7504,
+                "created_at": "2025-05-11T15:49:11+03:00",
+                "packet_details": [
+                    {
+                        "id": 27199,
+                        "company_id": 15157,
+                        "packet_id": 11700,
+                        "service_id": 230779,
+                        "amount": 469,
+                        "period": 16,
+                        "service": {
+                            "id": 230779,
+                            "name": "Lazer (sırt)",
+                            "process_time": 20,
+                            "amount": 30,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-11T15:49:11+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11661,
+                "name": "Tam Bacak + Özel Bölge + Koltuk Altı ",
+                "all_amount": 7504,
+                "created_at": "2025-05-04T18:29:59+03:00",
+                "packet_details": [
+                    {
+                        "id": 27096,
+                        "company_id": 15157,
+                        "packet_id": 11661,
+                        "service_id": 230777,
+                        "amount": 469,
+                        "period": 16,
+                        "service": {
+                            "id": 230777,
+                            "name": "Lazer (bacak-yarım)",
+                            "process_time": 15,
+                            "amount": 30,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-04T18:29:59+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11659,
+                "name": "Çene Tek Seans ",
+                "all_amount": 450,
+                "created_at": "2025-05-04T13:58:09+03:00",
+                "packet_details": [
+                    {
+                        "id": 27094,
+                        "company_id": 15157,
+                        "packet_id": 11659,
+                        "service_id": 228550,
+                        "amount": 450,
+                        "period": 1,
+                        "service": {
+                            "id": 228550,
+                            "name": "Lazer(Tüm Bacak+Genital+Koltuk Altı)",
+                            "process_time": 90,
+                            "amount": 500,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-05-04T13:58:09+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11628,
+                "name": "Ems 8 seans + G8 8 seans (Sıkılaşma Paketi ) ",
+                "all_amount": 6500,
+                "created_at": "2025-04-28T11:26:58+03:00",
+                "packet_details": [
+                    {
+                        "id": 26948,
+                        "company_id": 15157,
+                        "packet_id": 11628,
+                        "service_id": 413017,
+                        "amount": 406.25,
+                        "period": 16,
+                        "service": {
+                            "id": 413017,
+                            "name": "G8 Bölgesel incelme ve Sıkılaştırma",
+                            "process_time": 45,
+                            "amount": 3500,
+                            "bounty": 5,
+                            "repeat": 3,
+                            "point": 0,
+                            "show_at_url": false,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-28T11:26:58+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11627,
+                "name": "Göbek +Göğüs +  Sırt + Tam Kol + Kol Altı + Ense  + Sakal üstü + Sakal Altı ",
+                "all_amount": 12500,
+                "created_at": "2025-04-28T11:24:22+03:00",
+                "packet_details": [
+                    {
+                        "id": 26947,
+                        "company_id": 15157,
+                        "packet_id": 11627,
+                        "service_id": 231229,
+                        "amount": 781.25,
+                        "period": 16,
+                        "service": {
+                            "id": 231229,
+                            "name": "KEMER ÜSTÜ KOMPLE BUZ LAZER 8 SEANS",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-28T11:24:22+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11625,
+                "name": "Tam Bacak + Yarım Kol + Göğüs +Göbek +Sırt + Kol Altı ",
+                "all_amount": 14000,
+                "created_at": "2025-04-27T18:55:55+03:00",
+                "packet_details": [
+                    {
+                        "id": 26945,
+                        "company_id": 15157,
+                        "packet_id": 11625,
+                        "service_id": 230761,
+                        "amount": 875,
+                        "period": 16,
+                        "service": {
+                            "id": 230761,
+                            "name": "Lazer (kol)",
+                            "process_time": 15,
+                            "amount": 30,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-27T18:55:55+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11624,
+                "name": "Mega paket ( 10 seans g5 + 4 seans kavitasyon +4 seans magic +10 seans lenf drenaj ) ",
+                "all_amount": 7500,
+                "created_at": "2025-04-27T16:38:22+03:00",
+                "packet_details": [
+                    {
+                        "id": 26944,
+                        "company_id": 15157,
+                        "packet_id": 11624,
+                        "service_id": 230951,
+                        "amount": 267.86000000000001,
+                        "period": 28,
+                        "service": {
+                            "id": 230951,
+                            "name": "G5 bölgesel incelme ve sıkılaştırma",
+                            "process_time": 120,
+                            "amount": 60,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-27T16:38:22+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11623,
+                "name": "Burun Üstü + Kulak Üstü +Yanak ",
+                "all_amount": 4500,
+                "created_at": "2025-04-27T16:33:10+03:00",
+                "packet_details": [
+                    {
+                        "id": 26943,
+                        "company_id": 15157,
+                        "packet_id": 11623,
+                        "service_id": 230755,
+                        "amount": 281.25,
+                        "period": 16,
+                        "service": {
+                            "id": 230755,
+                            "name": "Lazer (yüz)",
+                            "process_time": 30,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-27T16:34:33+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11613,
+                "name": "Tam Bacak + Özel Bölge + Kol altı + Tam kol ",
+                "all_amount": 8800,
+                "created_at": "2025-04-25T11:37:49+03:00",
+                "packet_details": [
+                    {
+                        "id": 26918,
+                        "company_id": 15157,
+                        "packet_id": 11613,
+                        "service_id": 231419,
+                        "amount": 550,
+                        "period": 16,
+                        "service": {
+                            "id": 231419,
+                            "name": "Lazer epilasyon ( 4 Bölge )",
+                            "process_time": 1,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-25T11:37:49+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11612,
+                "name": "ÖZEL BÖLGE 8 ANA +8 KONTROL ",
+                "all_amount": 4800,
+                "created_at": "2025-04-25T11:34:29+03:00",
+                "packet_details": [
+                    {
+                        "id": 26917,
+                        "company_id": 15157,
+                        "packet_id": 11612,
+                        "service_id": 230780,
+                        "amount": 300,
+                        "period": 16,
+                        "service": {
+                            "id": 230780,
+                            "name": "Lazer (bikini bölgesi)",
+                            "process_time": 15,
+                            "amount": 30,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-25T11:34:29+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11601,
+                "name": "Tam Bacak + Özel Bölge + Tam Kol + Kol Altı + Yüz ",
+                "all_amount": 10000,
+                "created_at": "2025-04-21T17:35:36+03:00",
+                "packet_details": [
+                    {
+                        "id": 26891,
+                        "company_id": 15157,
+                        "packet_id": 11601,
+                        "service_id": 231420,
+                        "amount": 625,
+                        "period": 16,
+                        "service": {
+                            "id": 231420,
+                            "name": "Lazer epilasyon ( 5 Bölge )",
+                            "process_time": 120,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-21T17:35:36+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11540,
+                "name": "Çene +Bıyık ",
+                "all_amount": 4500,
+                "created_at": "2025-04-05T23:58:37+03:00",
+                "packet_details": [
+                    {
+                        "id": 26647,
+                        "company_id": 15157,
+                        "packet_id": 11540,
+                        "service_id": 230776,
+                        "amount": 281.25,
+                        "period": 16,
+                        "service": {
+                            "id": 230776,
+                            "name": "Lazer (yüz)",
+                            "process_time": 15,
+                            "amount": 30,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": null,
+                            "description": null,
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-05T23:58:37+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11539,
+                "name": "TAM BACAK + ÖZEL BÖLGE + KOL ALTI + POPO ÜSTÜ + TAM KOL + OMUZ+ MEME UCU + GÖBEK ",
+                "all_amount": 7500,
+                "created_at": "2025-04-05T18:24:33+03:00",
+                "packet_details": [
+                    {
+                        "id": 26646,
+                        "company_id": 15157,
+                        "packet_id": 11539,
+                        "service_id": 230756,
+                        "amount": 468.75,
+                        "period": 16,
+                        "service": {
+                            "id": 230756,
+                            "name": "Lazer (bacak-yarım)",
+                            "process_time": 15,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-05T23:57:24+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 11538,
+                "name": "sırt + göğüs + göbek + ense + boyun + tüm kol ",
+                "all_amount": 7500,
+                "created_at": "2025-04-05T17:49:11+03:00",
+                "packet_details": [
+                    {
+                        "id": 26642,
+                        "company_id": 15157,
+                        "packet_id": 11538,
+                        "service_id": 230754,
+                        "amount": 468.75,
+                        "period": 16,
+                        "service": {
+                            "id": 230754,
+                            "name": "Lazer (tüm vücut)",
+                            "process_time": 120,
+                            "amount": 1,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2025-04-05T17:49:11+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 5259,
+                "name": "erkek 3 bölge kampanya",
+                "all_amount": 1998,
+                "created_at": "2023-03-26T00:00:12+03:00",
+                "packet_details": [
+                    {
+                        "id": 11163,
+                        "company_id": 15157,
+                        "packet_id": 5259,
+                        "service_id": 230773,
+                        "amount": 333,
+                        "period": 6,
+                        "service": {
+                            "id": 230773,
+                            "name": "Lazer (kemer üstü)",
+                            "process_time": 90,
+                            "amount": 25,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2023-03-26T00:00:12+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 5169,
+                "name": "Kadın 3 bölge ",
+                "all_amount": 1500,
+                "created_at": "2023-03-23T17:57:22+03:00",
+                "packet_details": [
+                    {
+                        "id": 11015,
+                        "company_id": 15157,
+                        "packet_id": 5169,
+                        "service_id": 228550,
+                        "amount": 250,
+                        "period": 6,
+                        "service": {
+                            "id": 228550,
+                            "name": "Lazer(Tüm Bacak+Genital+Koltuk Altı)",
+                            "process_time": 90,
+                            "amount": 500,
+                            "bounty": 0,
+                            "repeat": 0,
+                            "point": 0,
+                            "show_at_url": true,
+                            "is_campaign": 0,
+                            "campaign_title": "",
+                            "description": "",
+                            "staffs": null,
+                            "rooms": null,
+                            "platform_services": null,
+                            "category_name": null,
+                            "is_passive": false,
+                            "type": 0
+                        },
+                        "created_at": "2023-03-23T17:57:22+03:00"
+                    }
+                ],
+                "is_passive": false
+            },
+            {
+                "id": 5145,
+                "name": "3 BÖLGE",
+                "all_amount": 1500,
+                "created_at": "2023-03-22T13:12:32+03:00",
+                "packet_details": [
+                    {
+                        "id": 10979,
+                        "company_id": 15157,
+                        "packet_id": 5145,
+                        "service_id": 223242,
+                        "amount": 250,
+                        "period": 6,
+                        "service": null,
+                        "created_at": "2023-03-22T13:12:47+03:00"
+                    }
+                ],
+                "is_passive": false
+            }
+        ],
+        "offset": -20,
+        "limit": 10,
+        "page": -1,
+        "prev_page": -1,
+        "next_page": 0
+    }
+}
+
+======== STOCK  (/company/stock/items/notpag)  count=85 ========
+{
+    "id": 6586,
+    "name": "CHAUDIERE  LAZER ÖNCESİ SONRASI  150ml",
+    "amount": 1000,
+    "bounty": 10,
+    "point": 0,
+    "limit": 1,
+    "is_passive": false,
+    "barcode": ""
+}
+
+======== RECEIPT_OPEN  (/company/receipts/opened)  count=0 ========
+{
+    "receipts": {
+        "records": [
+            {
+                "id": 1534791,
+                "customer": {
+                    "id": 2334932,
+                    "name": "Mevlüt",
+                    "surname": "Toparlak",
+                    "full_name": "Mevlüt Toparlak"
+                },
+                "all_amount": 0,
+                "paid": 0,
+                "debt": 0,
+                "is_paid": true,
+                "is_package": false,
+                "note": "",
+                "info": "arama randevusu\n",
+                "service_count": 1,
+                "stock_item_count": 0,
+                "state": 1,
+                "created_at": "2026-05-19T17:53:09+03:00"
+            },
+            {
+                "id": 1534659,
+                "customer": {
+                    "id": 2421225,
+                    "name": "Beste",
+                    "surname": "Duman Akkaya",
+                    "full_name": "Beste Duman Akkaya"
+                },
+                "all_amount": 0,
+                "paid": 0,
+                "debt": 0,
+                "is_paid": true,
+                "is_package": false,
+                "note": "",
+                "info": "arama randevusu\n",
+                "service_count": 1,
+                "stock_item_count": 0,
+                "state": 1,
+                "created_at": "2026-05-19T17:02:37+03:00"
+            },
+            {
+                "id": 1533449,
+                "customer": {
+                    "id": 2447557,
+                    "name": "leyla",
+                    "surname": "bakır",
+                    "full_name": "leyla bakır"
+                },
+                "all_amount": 12000,
+                "paid": 1000,
+                "debt": 11000,
+                "is_paid": false,
+                "is_package": false,
+                "note": "KOL ALTI + GENİTAL + TÜM BACAK + TÜM KOL  \nKALAN ÖDEME TARİHİ : 19.05.2026 = 11.000 TL",
+                "info": "4 BÖLGE BUZ LAZER\n",
+                "service_count": 1,
+                "stock_item_count": 0,
+                "state": 1,
+                "created_at": "2026-05-18T18:42:06+03:00"
+            },
+            {
+                "id": 1532105,
+                "customer": {
+                    "id": 2447217,
+                    "name": "Daran",
+                    "surname": "Yenigün",
+                    "full_name": "Daran Yenigün"
+                },
+                "all_amount": 6000,
+                "paid": 3000,
+                "debt": 3000,
+                "is_paid": false,
+                "is_package": false,
+                "note": "ems+g8\n21.05.2026=3.000 tl",
+                "info": "G8 Masajı ve diğer 1 hizmet ",
+                "service_count": 2,
+                "stock_item_count": 0,
+                "state": 1,
+                "created_at": "2026-05-17T17:28:13+03:00"
+            },
+            {
+                "id": 1528313,
+                "customer": {
+                    "id": 2099367,
+                    "name": "busem",
+                    "surname": "şenol",
+                    "full_name": "busem şenol"
+                },
+                "all_amount": 1250,
+                "paid": 1250,
+                "debt": 0,
+                "is_paid": true,
+                "is_package": false,
+                "note": "",
+                "info": "MAX LORA HAND FACE BODY PEELING ÜZÜM ÇEKİRDEĞİ\n",
+                "service_count": 0,
+                "stock_item_count": 1,
+                "state": 1,
+                "created_at": "2026-05-14T19:27:29+03:00"
+            },
+            {
+                "id": 1528303,
+                "customer": {
+                    "id": 2296864,
+                    "name": "Pınar",
+                    "surname": "Baturay",
+                    "full_name": "Pınar Baturay"
+                },
+                "all_amount": 7500,
+                "paid": 1000,
+                "debt": 6500,
+                "is_paid": false,
+                "is_package": false,
+                "note": "8+8 LENF G8 \n02.06.2026= 6.500 TL",
+                "info": "Lenf Drenaj\/G8 Masajı\n",
+                "service_count": 1,
+                "stock_item_count": 0,
+                "state": 1,
+                "created_at": "2026-05-14T19:23:58+03:00"
+            },
+            {
+                "id": 1527904,
+                "customer": {
+                    "id": 2444607,
+                    "name": "BÜŞRA",
+                    "surname": "ÖZAYDIN",
+                    "full_name": "BÜŞRA ÖZAYDIN"
+                },
+                "all_amount": 7500,
+                "paid": 500,
+                "debt": 7000,
+                "is_paid": false,
+                "is_package": false,
+                "note": "8+8 EMS G8\n05.06.2026= 7.000 TL",
+                "info": "EMS (göbek) ve diğer 1 hizmet ",
+                "service_count": 2,
+                "stock_item_count": 0,
+                "state": 1,
+                "created_at": "2026-05-14T16:32:41+03:00"
+            },
+            {
+                "id": 1525802,
+                "customer": {
+                    "id": 1738596,
+                    "name": "Dilek",
+                    "surname": "Candan",
+                    "full_name": "Dilek Candan"
+                },
+                "all_amount": 1,
+                "paid": 0,
+                "debt": 1,
+                "is_paid": false,
+                "is_package": false,
+                "note": "",
+                "info": "5 BÖLGE BUZ LAZER\n",
+                "service_count": 1,
+                "stock_item_count": 0,
+                "state": 1,
+                "created_at": "2026-05-13T09:58:12+03:00"
+            },
+            {
+                "id": 1524763,
+                "customer": {
+                    "id": 1892819,
+                    "name": "Hatice",
+                    "surname": "Bilgiç",
+                    "full_name": "Hatice Bilgiç"
+                },
+                "all_amount": 1,
+                "paid": 0,
+                "debt": 1,
+                "is_paid": false,
+                "is_package": false,
+                "note": "",
+                "info": "4 BÖLGE BUZ LAZER\n",
+                "service_count": 1,
+                "stock_item_count": 0,
+                "state": 1,
+                "created_at": "2026-05-12T09:44:25+03:00"
+            },
+            {
+                "id": 1524176,
+                "customer": {
+                    "id": 938586,
+                    "name": "YAĞIZ",
+                    "surname": "ARIKBUĞA",
+                    "full_name": "YAĞIZ ARIKBUĞA"
+                },
+                "all_amount": 1,
+                "paid": 0,
+                "debt": 1,
+                "is_paid": false,
+                "is_package": false,
+                "note": "",
+                "info": "2 BÖLGE BUZ LAZER\n",
+                "service_count": 1,
+                "stock_item_count": 0,
+                "state": 1,
+                "created_at": "2026-05-11T16:03:04+03:00"
+            }
+        ],
+        "offset": 0,
+        "limit": 10,
+        "page": 1,
+        "prev_page": 1,
+        "next_page": 2
+    },
+    "start_time": "0001-01-01T00:00:00Z",
+    "end_time": "0001-01-01T00:00:00Z"
+}
+
+======== EXPENSE_CAT  (/company/expense/categories)  count=0 ========
+{
+    "name": "{\"custom_expense_1\":\"Kira\",\"custom_expense_2\":\"Maaş\",\"custom_expense_3\":\"Fatura\",\"custom_expense_4\":\"Yemek\",\"custom_expense_5\":\"Alışveriş\",\"custom_expense_6\":\"İADE\",\"custom_expense_7\":\"avans\",\"custom_expense_8\":\"stopaj \",\"custom_expense_9\":\"mutfak \",\"custom_expense_10\":\"ürün \",\"custom_expense_11\":\"pirim \",\"custom_expense_12\":\"muhasebe üçreti \",\"custom_expense_13\":\"taksit\",\"custom_expense_14\":\"reklam\",\"custom_expense_15\":\"kdv \",\"custom_expense_16\":\"aidat \",\"custom_expense_17\":\"tamir \",\"custom_expense_18\":null,\"custom_expense_19\":\"siğorta pirimi\",\"custom_expense_20\":null,\"custom_expense_21\":null,\"custom_expense_22\":null,\"custom_expense_23\":null,\"custom_expense_24\":null,\"custom_expense_25\":null,\"custom_expense_26\":null,\"custom_expense_27\":null,\"custom_expense_28\":null,\"custom_expense_29\":null,\"custom_expense_30\":null,\"custom_expense_31\":null,\"custom_expense_32\":null,\"custom_expense_33\":null,\"custom_expense_34\":null,\"custom_expense_35\":null,\"custom_expense_36\":null,\"custom_expense_37\":null,\"custom_expense_38\":null,\"custom_expense_39\":null,\"custom_expense_40\":null,\"custom_expense_41\":null,\"custom_expense_42\":null,\"custom_expense_43\":null,\"custom_expense_44\":null,\"custom_expense_45\":null,\"custom_expense_46\":null,\"custom_expense_47\":null,\"custom_expense_48\":null,\"custom_expense_49\":null,\"custom_expense_50\":null}",
+    "company_id": 15157
+}
+Tam JSON dump: /var/www/www-root/data/www/randevumceptetest/storage/app/salonrandevu/20260520_134149/inspect_*.json

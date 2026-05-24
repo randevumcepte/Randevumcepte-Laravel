@@ -1,0 +1,9 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260506_162826
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=202656162827267
+Satislar (=Adisyonlar) cekiliyor: 2024-01-01 - 2030-12-31 (aylik)...
+  ..ay 6 (2024-06) eklendi=120 atlandi=6
+  ..ay 12 (2024-12) eklendi=943 atlandi=12

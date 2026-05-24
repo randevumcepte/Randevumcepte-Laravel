@@ -1,0 +1,17 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260510_172330
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=2026510172331175
+Satis+Tahsilat: 2026-04-09 - 2026-05-10
+Musid toplama (randevu listesi haftalik tarama)...
+Toplam unique musid: 347
+  ..musteri 50/347 satis=168 tahsilat=3 relink=0 prop=1 seans=600
+  ..musteri 100/347 satis=337 tahsilat=4 relink=0 prop=2 seans=1359
+  ..musteri 150/347 satis=498 tahsilat=6 relink=0 prop=4 seans=1607
+  ..musteri 200/347 satis=657 tahsilat=7 relink=0 prop=5 seans=2039
+  ..musteri 250/347 satis=787 tahsilat=7 relink=0 prop=5 seans=2104
+  ..musteri 300/347 satis=937 tahsilat=7 relink=0 prop=5 seans=2391
+Aktarim tamam: satis=1017, tahsilat=19, tahsilat_relink=0, tahsilat_propagate=17, seans_dusumu=2543
+Tamam. Ozet: {"hizmet":0,"personel":0,"urun":0,"oda":0,"musteri":5,"randevu":0,"satis":1017,"tahsilat":19,"skipped":0,"seans_dusumu":2543,"tahsilat_propagate":17}

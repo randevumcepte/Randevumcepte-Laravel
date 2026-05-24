@@ -1,0 +1,56 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260505_180110
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=20265518110876
+Randevular cekiliyor: 2018-01-01 - 2026-12-31 (haftalik)...
+  ..hafta 10 (2018-03-05..) eklenen=0 toplam_randevu=0
+  ..hafta 20 (2018-05-14..) eklenen=0 toplam_randevu=0
+  ..hafta 30 (2018-07-23..) eklenen=0 toplam_randevu=0
+  ..hafta 40 (2018-10-01..) eklenen=0 toplam_randevu=0
+  ..hafta 50 (2018-12-10..) eklenen=0 toplam_randevu=0
+  ..hafta 60 (2019-02-18..) eklenen=0 toplam_randevu=0
+  ..hafta 70 (2019-04-29..) eklenen=0 toplam_randevu=0
+  ..hafta 80 (2019-07-08..) eklenen=0 toplam_randevu=0
+  ..hafta 90 (2019-09-16..) eklenen=0 toplam_randevu=0
+  ..hafta 100 (2019-11-25..) eklenen=0 toplam_randevu=0
+  ..hafta 110 (2020-02-03..) eklenen=0 toplam_randevu=0
+  ..hafta 120 (2020-04-13..) eklenen=0 toplam_randevu=0
+  ..hafta 130 (2020-06-22..) eklenen=0 toplam_randevu=0
+  ..hafta 140 (2020-08-31..) eklenen=0 toplam_randevu=0
+  ..hafta 150 (2020-11-09..) eklenen=0 toplam_randevu=0
+  ..hafta 160 (2021-01-18..) eklenen=0 toplam_randevu=0
+  ..hafta 170 (2021-03-29..) eklenen=0 toplam_randevu=0
+  ..hafta 180 (2021-06-07..) eklenen=0 toplam_randevu=0
+  ..hafta 190 (2021-08-16..) eklenen=0 toplam_randevu=0
+  ..hafta 200 (2021-10-25..) eklenen=0 toplam_randevu=0
+  ..hafta 210 (2022-01-03..) eklenen=0 toplam_randevu=0
+  ..hafta 220 (2022-03-14..) eklenen=0 toplam_randevu=0
+  ..hafta 230 (2022-05-23..) eklenen=0 toplam_randevu=0
+  ..hafta 240 (2022-08-01..) eklenen=0 toplam_randevu=0
+  ..hafta 250 (2022-10-10..) eklenen=0 toplam_randevu=0
+  ..hafta 260 (2022-12-19..) eklenen=0 toplam_randevu=0
+  ..hafta 270 (2023-02-27..) eklenen=0 toplam_randevu=0
+  ..hafta 280 (2023-05-08..) eklenen=0 toplam_randevu=0
+  ..hafta 290 (2023-07-17..) eklenen=0 toplam_randevu=0
+  ..hafta 300 (2023-09-25..) eklenen=0 toplam_randevu=0
+  ..hafta 310 (2023-12-04..) eklenen=0 toplam_randevu=0
+  ..hafta 320 (2024-02-12..) eklenen=0 toplam_randevu=0
+  ..hafta 330 (2024-04-22..) eklenen=0 toplam_randevu=0
+  ..hafta 340 (2024-07-01..) eklenen=50 toplam_randevu=211
+  ..hafta 350 (2024-09-09..) eklenen=50 toplam_randevu=711
+  ..hafta 360 (2024-11-18..) eklenen=50 toplam_randevu=1211
+  ..hafta 370 (2025-01-27..) eklenen=50 toplam_randevu=1708
+  ..hafta 380 (2025-04-07..) eklenen=50 toplam_randevu=2208
+  ..hafta 390 (2025-06-16..) eklenen=50 toplam_randevu=2708
+  ..hafta 400 (2025-08-25..) eklenen=50 toplam_randevu=3208
+  ..hafta 410 (2025-11-03..) eklenen=50 toplam_randevu=3708
+  ..hafta 420 (2026-01-12..) eklenen=50 toplam_randevu=4208
+  ..hafta 430 (2026-03-23..) eklenen=50 toplam_randevu=4708
+  ..hafta 440 (2026-06-01..) eklenen=7 toplam_randevu=5062
+  ..hafta 450 (2026-08-10..) eklenen=0 toplam_randevu=5062
+  ..hafta 460 (2026-10-19..) eklenen=0 toplam_randevu=5063
+  ..hafta 470 (2026-12-28..) eklenen=0 toplam_randevu=5063
+Randevu aktarim toplam: 5063 (skipped: 0)
+Tamam. Ozet: {"hizmet":0,"personel":0,"urun":0,"oda":0,"musteri":1462,"randevu":5063,"tahsilat":0,"skipped":0}

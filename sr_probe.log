@@ -1,0 +1,16 @@
+Salonrandevu client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/salonrandevu/20260520_123448
+Login deneniyor...
+Login sonuc: OK - POST /auth/staff [mail+password]
+Detay: token alindi (uzunluk 4416)
+Probe modu: yaygin endpoint'ler taraniyor...
+GET /customers                           -> status=404 size=46
+GET /services                            -> status=404 size=46
+GET /staff                               -> status=404 size=46
+GET /products                            -> status=404 size=46
+GET /expense                             -> status=404 size=46
+GET /expense/types                       -> status=404 size=46
+GET /packages/list                       -> status=404 size=46
+GET /packages/sales                      -> status=404 size=46
+GET /appointments/list                   -> status=404 size=46
+Probe tamam. Dump: /var/www/www-root/data/www/randevumceptetest/storage/app/salonrandevu/20260520_123448

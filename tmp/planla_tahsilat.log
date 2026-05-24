@@ -1,0 +1,19 @@
+nohup: ignoring input
+Planla client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/planla/20260429_205624
+Login deneniyor...
+Login sonuc: OK - json:/sign-in
+Detay: JSON login ok via /sign-in variant 0
+Harici tahsilatlar cekiliyor (category=finances, sadece price>0)...
+  category=customers -> 6019 kayit
+  category=finances -> 13747 kayit
+  ..2000 finance kaydi islendi (tahsilat=486, skipped=1514)
+  ..4500 finance kaydi islendi (tahsilat=1369, skipped=3131)
+  ..7000 finance kaydi islendi (tahsilat=1978, skipped=5022)
+  ..7500 finance kaydi islendi (tahsilat=2159, skipped=5341)
+  ..8500 finance kaydi islendi (tahsilat=2637, skipped=5863)
+  ..9000 finance kaydi islendi (tahsilat=2914, skipped=6086)
+  ..10000 finance kaydi islendi (tahsilat=3400, skipped=6600)
+  ..11000 finance kaydi islendi (tahsilat=3925, skipped=7075)
+Harici tahsilat aktarim: 4460, skipped: 9287
+Tamam. Ozet: {"personel":0,"hizmet":0,"musteri":0,"randevu":0,"tahsilat":4460,"skipped":0}

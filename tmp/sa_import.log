@@ -1,0 +1,34 @@
+nohup: ignoring input
+Salonappy client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/salonappy/20260513_125443
+v5 dump: clients={1316}, visits={4567}, bookingDetails={4567}, clientDetails={0}
+  müşteri 199/1316 eklenen=200 hata=0
+  müşteri 399/1316 eklenen=400 hata=0
+  müşteri 599/1316 eklenen=600 hata=0
+  müşteri 799/1316 eklenen=800 hata=0
+  müşteri 999/1316 eklenen=1000 hata=0
+  müşteri 1199/1316 eklenen=1200 hata=0
+Musteri: eklenen=1316, hata=0
+  visit 200/4567 eklenen=0 dedup=0 hata=200 tahsilat=0
+  visit 400/4567 eklenen=0 dedup=0 hata=400 tahsilat=0
+  visit 600/4567 eklenen=0 dedup=0 hata=600 tahsilat=0
+  visit 800/4567 eklenen=0 dedup=0 hata=800 tahsilat=0
+  visit 1000/4567 eklenen=0 dedup=0 hata=1000 tahsilat=0
+  visit 1200/4567 eklenen=0 dedup=0 hata=1200 tahsilat=0
+  visit 1400/4567 eklenen=0 dedup=0 hata=1400 tahsilat=0
+  visit 1600/4567 eklenen=0 dedup=0 hata=1600 tahsilat=0
+  visit 1800/4567 eklenen=0 dedup=0 hata=1800 tahsilat=0
+  visit 2000/4567 eklenen=0 dedup=0 hata=2000 tahsilat=0
+  visit 2200/4567 eklenen=0 dedup=0 hata=2200 tahsilat=0
+  visit 2400/4567 eklenen=0 dedup=0 hata=2400 tahsilat=0
+  visit 2600/4567 eklenen=0 dedup=0 hata=2600 tahsilat=0
+  visit 2800/4567 eklenen=0 dedup=0 hata=2800 tahsilat=0
+  visit 3000/4567 eklenen=0 dedup=0 hata=3000 tahsilat=0
+  visit 3200/4567 eklenen=0 dedup=0 hata=3200 tahsilat=0
+  visit 3400/4567 eklenen=0 dedup=0 hata=3400 tahsilat=0
+  visit 3600/4567 eklenen=0 dedup=0 hata=3600 tahsilat=0
+  visit 3800/4567 eklenen=0 dedup=0 hata=3800 tahsilat=0
+  visit 4000/4567 eklenen=0 dedup=0 hata=4000 tahsilat=0
+  visit 4200/4567 eklenen=0 dedup=0 hata=4200 tahsilat=0
+  visit 4400/4567 eklenen=0 dedup=0 hata=4400 tahsilat=0
+Visit: eklenen=0, dedup=0, hata=4567, tahsilat=0

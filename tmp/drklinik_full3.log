@@ -1,0 +1,65 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260506_120127
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=20265612128228
+Randevular cekiliyor: 2024-01-01 - 2030-12-31 (haftalik)...
+  ..hafta 10 (2024-03-04..) son_eklenen=0 toplam_randevu=0
+  ..hafta 20 (2024-05-13..) son_eklenen=0 toplam_randevu=0
+  ..hafta 30 (2024-07-22..) son_eklenen=66 toplam_randevu=465
+  ..hafta 40 (2024-09-30..) son_eklenen=89 toplam_randevu=1147
+  ..hafta 50 (2024-12-09..) son_eklenen=77 toplam_randevu=2068
+  ..hafta 60 (2025-02-17..) son_eklenen=86 toplam_randevu=2833
+  ..hafta 70 (2025-04-28..) son_eklenen=141 toplam_randevu=3840
+  ..hafta 80 (2025-07-07..) son_eklenen=114 toplam_randevu=5025
+  ..hafta 90 (2025-09-15..) son_eklenen=86 toplam_randevu=5934
+  ..hafta 100 (2025-11-24..) son_eklenen=94 toplam_randevu=6994
+  ..hafta 110 (2026-02-02..) son_eklenen=98 toplam_randevu=8047
+  ..hafta 120 (2026-04-13..) son_eklenen=174 toplam_randevu=9444
+  ..hafta 130 (2026-06-22..) son_eklenen=0 toplam_randevu=10003
+  ..hafta 140 (2026-08-31..) son_eklenen=1 toplam_randevu=10004
+  ..hafta 150 (2026-11-09..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 160 (2027-01-18..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 170 (2027-03-29..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 180 (2027-06-07..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 190 (2027-08-16..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 200 (2027-10-25..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 210 (2028-01-03..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 220 (2028-03-13..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 230 (2028-05-22..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 240 (2028-07-31..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 250 (2028-10-09..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 260 (2028-12-18..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 270 (2029-02-26..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 280 (2029-05-07..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 290 (2029-07-16..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 300 (2029-09-24..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 310 (2029-12-03..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 320 (2030-02-11..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 330 (2030-04-22..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 340 (2030-07-01..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 350 (2030-09-09..) son_eklenen=0 toplam_randevu=10004
+  ..hafta 360 (2030-11-18..) son_eklenen=0 toplam_randevu=10004
+Randevu aktarim toplam: 10004 (skipped: 0)
+Randevu eksikleri (oda+personel) onariliyor: 2024-01-01 - 2030-12-31
+  ..hafta 20 oda_upd=0 personel_upd=0
+  ..hafta 40 oda_upd=2 personel_upd=2
+  ..hafta 60 oda_upd=3 personel_upd=2
+  ..hafta 80 oda_upd=3 personel_upd=2
+  ..hafta 100 oda_upd=3 personel_upd=2
+  ..hafta 120 oda_upd=6 personel_upd=3
+  ..hafta 140 oda_upd=6 personel_upd=3
+  ..hafta 160 oda_upd=6 personel_upd=3
+  ..hafta 180 oda_upd=6 personel_upd=3
+  ..hafta 200 oda_upd=6 personel_upd=3
+  ..hafta 220 oda_upd=6 personel_upd=3
+  ..hafta 240 oda_upd=6 personel_upd=3
+  ..hafta 260 oda_upd=6 personel_upd=3
+  ..hafta 280 oda_upd=6 personel_upd=3
+  ..hafta 300 oda_upd=6 personel_upd=3
+  ..hafta 320 oda_upd=6 personel_upd=3
+  ..hafta 340 oda_upd=6 personel_upd=3
+  ..hafta 360 oda_upd=6 personel_upd=3
+Onarim toplam: oda_upd=6, personel_upd=3
+Tamam. Ozet: {"hizmet":0,"personel":0,"urun":0,"oda":0,"musteri":687,"randevu":10004,"tahsilat":0,"skipped":0}

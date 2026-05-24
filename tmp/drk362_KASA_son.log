@@ -1,0 +1,11 @@
+nohup: ignoring input
+Drklinik tahsilatlari TEK SEFER BTN_Hepsi (Tum Gelirler) ile cekiliyor: 2026-01-01 - 2026-12-31
+Drklinik toplam: 25 satir, 25 unique signature
+DB toplam: 1176 tahsilat
+Esleyen (OK): 22 - 64.170,00 TRY
+Isim farki   : 1 - 1.000,00 TRY (yanlis musteriye yazilmis olabilir)
+Gercek fazla : 1153 - 4.125.889,00 TRY (drklinik'te hic yok)
+CSV (isim farki) : /tmp/drk_tahsilat_isim_farki_362.csv
+CSV (gercek fazla): /tmp/drk_tahsilat_gercek_fazla_362.csv
+Drklinik'te var DB'de yok: 2 - 864,00 TRY
+CSV (eksik)       : /tmp/drk_tahsilat_eksik_362.csv

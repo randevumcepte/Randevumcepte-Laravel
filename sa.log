@@ -1,0 +1,35 @@
+Salonappy client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/salonappy/20260513_205435
+Services master yuklendi (dump.servicesMaster): 136 hizmet (id -> TR title)
+Master ile doldurulan service_text: 0 kalem
+v5 dump: clients={1321}, visits={4578}, bookingDetails={4578}, clientDetails={0}
+  müşteri 199/1321 eklenen=200 hata=0
+  müşteri 399/1321 eklenen=400 hata=0
+  müşteri 599/1321 eklenen=600 hata=0
+  müşteri 799/1321 eklenen=800 hata=0
+  müşteri 999/1321 eklenen=1000 hata=0
+  müşteri 1199/1321 eklenen=1200 hata=0
+Musteri: eklenen=1321, hata=0
+  visit 200/4578 eklenen=199 dedup=0 hata=1 tahsilat=143
+  visit 400/4578 eklenen=399 dedup=0 hata=1 tahsilat=275
+  visit 600/4578 eklenen=599 dedup=0 hata=1 tahsilat=367
+  visit 800/4578 eklenen=799 dedup=0 hata=1 tahsilat=452
+  visit 1000/4578 eklenen=999 dedup=0 hata=1 tahsilat=520
+  visit 1200/4578 eklenen=1198 dedup=0 hata=2 tahsilat=593
+  visit 1400/4578 eklenen=1398 dedup=0 hata=2 tahsilat=656
+  visit 1600/4578 eklenen=1598 dedup=0 hata=2 tahsilat=755
+  visit 1800/4578 eklenen=1798 dedup=0 hata=2 tahsilat=830
+  visit 2000/4578 eklenen=1998 dedup=0 hata=2 tahsilat=923
+  visit 2200/4578 eklenen=2198 dedup=0 hata=2 tahsilat=1037
+  visit 2400/4578 eklenen=2398 dedup=0 hata=2 tahsilat=1162
+  visit 2600/4578 eklenen=2598 dedup=0 hata=2 tahsilat=1285
+  visit 2800/4578 eklenen=2798 dedup=0 hata=2 tahsilat=1400
+  visit 3000/4578 eklenen=2998 dedup=0 hata=2 tahsilat=1505
+  visit 3200/4578 eklenen=3198 dedup=0 hata=2 tahsilat=1616
+  visit 3400/4578 eklenen=3398 dedup=0 hata=2 tahsilat=1728
+  visit 3600/4578 eklenen=3598 dedup=0 hata=2 tahsilat=1840
+  visit 3800/4578 eklenen=3798 dedup=0 hata=2 tahsilat=1952
+  visit 4000/4578 eklenen=3998 dedup=0 hata=2 tahsilat=2063
+  visit 4200/4578 eklenen=4198 dedup=0 hata=2 tahsilat=2123
+  visit 4400/4578 eklenen=4398 dedup=0 hata=2 tahsilat=2202
+Visit: eklenen=4576, dedup=0, hata=2, tahsilat=2278

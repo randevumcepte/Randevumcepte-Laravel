@@ -1,0 +1,26 @@
+Salonrandevu client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/salonrandevu/20260520_133239
+Login deneniyor...
+Login sonuc: OK - POST /auth/staff [mail+password]
+Detay: token alindi (uzunluk 4416)
+Probe modu: yaygin endpoint'ler taraniyor...
+GET /company/itself                      -> status=201 size=844 keys=[data,status]
+GET /company/customers                   -> status=201 size=116563 keys=[data,status] data.records=array(250) fields=[id,name,surname,nationalityID,full_name,dialCode,phone,s_dialCode,s_phone,sex,is_passive,birthday]
+GET /company/customers?page=1            -> status=201 size=4722 keys=[data,status] data.records=array(10) fields=[id,name,surname,nationalityID,full_name,dialCode,phone,s_dialCode,s_phone,sex,is_passive,birthday]
+GET /company/services                    -> status=201 size=6568 keys=[data,status] data.records=array(10) fields=[id,name,process_time,amount,bounty,repeat,point,show_at_url,is_campaign,campaign_title,description,staffs]
+GET /company/services/filter?key=&paginate=1 -> status=201 size=303450 keys=[data,status] data=array(701) fields=[id,name,process_time,amount,bounty,repeat,point,show_at_url,is_campaign,is_passive,campaign_title,description]
+GET /company/services/with/category/all  -> status=200 size=356906 keys=[data,status] data=array(10) fields=[id,name,services,platform_services]
+GET /company/category/all                -> status=200 size=1736 keys=[data,status] data=array(18) fields=[id,name,slug]
+GET /company/staffs/unsafe               -> status=200 size=16684 keys=[data,status] data=array(15) fields=[id,name,surname,sex,send_sms,show_at_url,detail,bounty,closed_appointments,staff_availability_per_day,services,appointments]
+GET /company/appointment/list            -> status=200 size=35718 keys=[data,status] data.records=array(10) fields=[id,appointment_start_date,appointment_end_date,active,customer_state,receipt,service,packet,staff,room,customer,reminding]
+GET /company/appointments                -> status=404 size=46
+GET /company/appointments/index2         -> status=200 size=5328351 keys=[data,status] data=array(15) fields=[id,name,surname,sex,send_sms,show_at_url,detail,bounty,closed_appointments,staff_availability_per_day,services,appointments]
+GET /company/packets?name=&page=-1       -> status=201 size=59420 keys=[data,status]
+GET /company/stock/items/notpag          -> status=201 size=17273 keys=[data,status] data=array(85) fields=[id,name,amount,bounty,point,limit,is_passive,barcode]
+GET /company/accounting/expenses         -> status=200 size=161 keys=[data,status] data.records=array(0)
+GET /company/expense/categories          -> status=201 size=1549 keys=[data,status]
+GET /company/accounting/incomes          -> status=200 size=160 keys=[data,status] data.records=array(0)
+GET /company/receipts/opened             -> status=200 size=6005 keys=[data,status]
+GET /company/room                        -> status=200 size=99 keys=[records,offset,limit,page,prev_page,next_page] data.records=array(0)
+GET /company/hours                       -> status=201 size=140 keys=[data,status]
+Probe tamam. Dump: /var/www/www-root/data/www/randevumceptetest/storage/app/salonrandevu/20260520_133239

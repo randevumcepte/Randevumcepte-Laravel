@@ -1,0 +1,34 @@
+Planla client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/planla/20260520_152045
+Login deneniyor...
+Login sonuc: OK - json:/sign-in
+Detay: JSON login ok via /sign-in variant 0
+Personel cekiliyor (category=employees)...
+  category=employees -> 8 kayit
+Personel aktarim: 8
+Hizmetler cekiliyor (category=services)...
+  category=services -> 21 kayit
+Hizmet aktarim: 21
+Musteriler cekiliyor (category=customers)...
+  category=customers -> 1124 kayit
+  ..500 musteri islendi (aktarilan: 499, skipped: 0)
+  ..1000 musteri islendi (aktarilan: 999, skipped: 0)
+Musteri aktarim: 1124
+Randevular cekiliyor (category=appointments)...
+Musteri map kuruluyor (eksik olanlar olusturuluyor)...
+  category=customers -> 1124 kayit
+Musteri map: bulundu=1124, yeni=0, hata=0, map=1124
+  category=appointments -> 3848 kayit
+  ..500 randevu islendi
+  ..1000 randevu islendi
+  ..1500 randevu islendi
+  ..2000 randevu islendi
+  ..2500 randevu islendi
+  ..3000 randevu islendi
+  ..3500 randevu islendi
+Randevu aktarim: 3848
+Harici tahsilatlar cekiliyor (category=finances, sadece price>0)...
+  category=finances -> 9 kayit
+Harici tahsilat aktarim: 0
+  skip kirilimi: outgoing=0, price=0=0, musteri_yok=0, duplicate=9
+Tamam. Ozet: {"personel":8,"hizmet":21,"musteri":1124,"randevu":3848,"tahsilat":0,"skipped":0}
