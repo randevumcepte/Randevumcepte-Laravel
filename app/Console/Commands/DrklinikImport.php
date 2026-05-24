@@ -382,7 +382,7 @@ class DrklinikImport extends Command
             $drkLooseNames[$sigLoose][] = $musteri;
             $rowsFound++;
         };
-        $this->scrapeKasaAraRange($client, strtotime($from), strtotime($to), 0, $onRow);
+        $this->scrapeKasaAraWeekly($client, strtotime($from), strtotime($to), $onRow);
         $this->info("Drklinik toplam: {$rowsFound} satir, " . count($drkCount) . " unique signature");
 
         // 2) DB tahsilatlari
@@ -878,7 +878,7 @@ class DrklinikImport extends Command
             $monthly[$ay]['adet']++;
             $monthly[$ay]['toplam'] += $tutar;
         };
-        $this->scrapeKasaAraRange($client, strtotime($from), strtotime($to), 0, $onRow);
+        $this->scrapeKasaAraWeekly($client, strtotime($from), strtotime($to), $onRow);
 
         $this->info('HTML toplam: ' . number_format($totalSum, 2, ',', '.') . " TRY ({$totalCount} satir)");
         $this->line('--- Aylik dagilim ---');
@@ -890,12 +890,28 @@ class DrklinikImport extends Command
     }
 
     /**
+     * Tum araligi haftalik chunklara bolup her hafta icin scrapeKasaAraRange cagir.
+     * Buyuk araliklarda BTN_Ara server-side capping/timeout yapip eksik dondurebiliyor;
+     * importer pattern'i (DrklinikImporter::importTahsilatlar) gibi haftalik yuruyoruz.
+     */
+    private function scrapeKasaAraWeekly($client, $startTs, $endTs, callable $onRow)
+    {
+        $weekStart = $startTs; $iter = 0;
+        while ($weekStart <= $endTs) {
+            $weekEnd = min($endTs, strtotime('+6 days', $weekStart));
+            $this->scrapeKasaAraRange($client, $weekStart, $weekEnd, 0, $onRow);
+            $iter++;
+            if ($iter % 13 === 0) {
+                $this->line("  ..hafta {$iter} (" . date('Y-m-d', $weekStart) . "...)");
+            }
+            $weekStart = strtotime('+7 days', $weekStart);
+        }
+    }
+
+    /**
      * kasa_islemleri.aspx BTN_Ara ile tarih araliginda tahsilat satirlarini tara.
      * Server cap'i 50 oldugu icin satir sayisi 50'ye eristiginde ve aralik
      * 1 gunden buyukse araligi ortadan ikiye bolerek recursive cagri yap.
-     *
-     * Ilk cagri tum araligi dener; haftalik chunk yerine cap'e gore dinamik halving
-     * (drklinik UI'sinde aralik buyukse 50 cap server-side basliyor).
      * Her parse edilen satirin cells[] dizisi $onRow callback'ine verilir.
      *
      * @param \App\Services\DrklinikClient $client
