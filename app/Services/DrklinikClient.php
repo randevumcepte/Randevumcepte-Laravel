@@ -402,6 +402,56 @@ class DrklinikClient
         return $b;
     }
 
+    /**
+     * postBack varyanti: GET ile yeni viewstate cekmek yerine sagilanan HTML'in
+     * (onceki cevabin) viewstate'ini kullanir. Pagination icin kullanilir —
+     * BTN_Ara cevabindaki viewstate filtre durumunu tasiyor; o sayede page2/3
+     * butonlarina basildiginda filtre korunur.
+     *
+     * @param string $path   POST yapilacak yol
+     * @param string $referenceHtml Viewstate'in cekilecegi onceki HTML
+     * @param string $eventTarget   __EVENTTARGET (orn: 'RP_Sayfalar_Gelir$ctl01$Button1')
+     * @param string $eventArgument __EVENTARGUMENT
+     * @param array  $extraFields   Ek form alanlari
+     * @return string|null
+     */
+    public function postBackFromHtml($path, $referenceHtml, $eventTarget, $eventArgument = '', array $extraFields = [])
+    {
+        $vs   = $this->extractFormField($referenceHtml, '__VIEWSTATE');
+        $vsg  = $this->extractFormField($referenceHtml, '__VIEWSTATEGENERATOR');
+        $ev   = $this->extractFormField($referenceHtml, '__EVENTVALIDATION');
+        if (!$vs) return null;
+
+        $body = array_merge([
+            '__EVENTTARGET'        => $eventTarget,
+            '__EVENTARGUMENT'      => $eventArgument,
+            '__VIEWSTATE'          => $vs,
+            '__VIEWSTATEGENERATOR' => $vsg ?: '',
+            '__EVENTVALIDATION'    => $ev ?: '',
+        ], $extraFields);
+
+        $action = $path;
+        if (preg_match('#<form[^>]*action="([^"]+)"#i', $referenceHtml, $m)) {
+            $a = $m[1];
+            $action = (strpos($a, 'http') === 0) ? $a : ('/' . ltrim(str_replace('./', '', $a), '/'));
+        }
+
+        try {
+            $resp = $this->http->post($action, [
+                'headers' => [
+                    'Referer' => self::BASE . $path,
+                    'Origin'  => self::BASE,
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ],
+                'form_params' => $body,
+            ]);
+        } catch (RequestException $e) { return null; }
+        $b = (string) $resp->getBody();
+        $tag = 'postbackFH_' . $this->slug($path) . '_' . $this->slug($eventTarget);
+        $this->dump($tag, $b, $resp->getHeaders());
+        return $b;
+    }
+
     public function getJson($path, array $query = [])
     {
         try {

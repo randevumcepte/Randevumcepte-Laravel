@@ -1213,16 +1213,37 @@ class DrklinikImport extends Command
         usleep(250000);
         if ($h === null) return;
 
-        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
-        $trCount = count($rows[1]);
-        // 50+ tr ve aralik 1 gunden buyukse halving (server cap'ine takilmis olabilir)
-        if ($trCount >= 50 && ($endTs - $startTs) >= 86400 && $depth < 8) {
-            $mid = $startTs + intval(($endTs - $startTs) / 2);
-            $this->scrapeKasaAraRange($client, $startTs, $mid, $depth + 1, $onRow);
-            $this->scrapeKasaAraRange($client, $mid + 86400, $endTs, $depth + 1, $onRow);
-            return;
-        }
+        // Ilk sayfa rowlari + pagination
+        $this->parseKasaPageRows($h, $onRow);
 
+        // Pagination: RP_Sayfalar_Gelir$ctl00$Button1 = sayfa 1 (mevcut),
+        // ctl01 = sayfa 2, ctl02 = sayfa 3, ... her sayfa icin yeni postback
+        // yap; viewstate onceki cevaptan (filtreyi koruyacak sekilde) cek.
+        $pageHtml = $h;
+        $pageIdx = 1;
+        while ($pageIdx < 200) { // safety cap
+            $btnName = 'RP_Sayfalar_Gelir$ctl' . str_pad($pageIdx, 2, '0', STR_PAD_LEFT) . '$Button1';
+            $needle = 'name="' . htmlspecialchars($btnName, ENT_QUOTES) . '"';
+            if (strpos($pageHtml, $needle) === false) {
+                // alternatif: raw $ encoded asilmaz, name attribute aynen yazilir
+                $needle2 = 'name="' . $btnName . '"';
+                if (strpos($pageHtml, $needle2) === false) break;
+            }
+            $next = $client->postBackFromHtml('/kasa_islemleri.aspx', $pageHtml, $btnName, '');
+            usleep(250000);
+            if ($next === null) break;
+            $this->parseKasaPageRows($next, $onRow);
+            $pageHtml = $next;
+            $pageIdx++;
+        }
+    }
+
+    /**
+     * Bir kasa_islemleri.aspx cevabinin tahsilat satirlarini callback'e gonder.
+     */
+    private function parseKasaPageRows($html, callable $onRow)
+    {
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $html, $rows);
         foreach ($rows[1] as $tr) {
             if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
             preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
