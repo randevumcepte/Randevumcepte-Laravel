@@ -41,6 +41,7 @@ class DrklinikImport extends Command
         {--nuke-salon-data : Salon icin TUM transactional veri (randevu/adisyon/tahsilat/masraf) + drklinik musterileri sil. Hizmetler/personeller/odalar korunur.}
         {--merge-tahsilat-duplicates : (user+date+tutar+yontem) eslesen tahsilat ciftlerinde adisyon_id NULL olana drk-tah\'in adisyon_id\'sini kopyala, sonra drk-tah duplicate\'i sil}
         {--dedupe-internal-tahsilat : Salon icinde ayni (user+tarih+tutar+yontem) imzasi >1 olan tahsilatlardan en iyiyi tut, digerlerini sil}
+        {--add-eksik-musteriler : /tmp/drk_tahsilat_eksik_<salon>.csv\'deki bulunamayan musterileri drklinik\'te isimle arar, musid bulup musteri+detay olarak ekler}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -159,6 +160,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('dedupe-internal-tahsilat')) {
             if (!$salonId) { $this->error('--dedupe-internal-tahsilat icin --salon zorunlu.'); return 1; }
             return $this->dedupeInternalTahsilat((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('add-eksik-musteriler')) {
+            if (!$username || !$password || !$salonId) { $this->error('--add-eksik-musteriler icin --username/--password/--salon zorunlu.'); return 1; }
+            return $this->addEksikMusteriler($username, $password, (int) $salonId, (bool) $this->option('dry-run'));
         }
         if ((bool) $this->option('wipe-salon-masraflar')) {
             if (!$salonId) { $this->error('--wipe-salon-masraflar icin --salon zorunlu.'); return 1; }
@@ -549,6 +554,120 @@ class DrklinikImport extends Command
             $this->error('Hata: ' . $e->getMessage());
             return 1;
         }
+    }
+
+    /**
+     * /tmp/drk_tahsilat_eksik_<salon>.csv'deki bulunamayan musterileri
+     * drklinik musterilistesi.aspx'te isimle arar (sayfa sayfa gezerek).
+     * Bulduklarini ensureUserByMusid + importMusteriDetay ile ekler.
+     */
+    private function addEksikMusteriler($username, $password, $salonId, $dryRun)
+    {
+        $csv = '/tmp/drk_tahsilat_eksik_' . $salonId . '.csv';
+        if (!file_exists($csv)) { $this->error("CSV yok: {$csv} - once --report-tahsilat-fark calistirin"); return 1; }
+
+        $fp = fopen($csv, 'r');
+        fgetcsv($fp);
+        $eksikIsimler = []; // normalized => orijinal isim
+        while (($r = fgetcsv($fp)) !== false) {
+            $isim = trim($r[3] ?? '');
+            if ($isim) $eksikIsimler[$this->normalizeIsim($isim)] = $isim;
+        }
+        fclose($fp);
+        if (empty($eksikIsimler)) { $this->info('Eksik isim yok.'); return 0; }
+
+        // DB'de zaten olanlari at (sadece YOK olanlari arayalim)
+        $aranacak = [];
+        foreach ($eksikIsimler as $norm => $isim) {
+            $exists = \DB::table('users as u')->join('musteri_portfoy as p', 'p.user_id', '=', 'u.id')
+                ->where('p.salon_id', $salonId)->where('u.name', 'LIKE', '%' . $isim . '%')
+                ->exists();
+            if (!$exists) $aranacak[$norm] = $isim;
+        }
+        $this->line('Toplam eksik isim    : ' . count($eksikIsimler));
+        $this->line('DB\'de yok (aranacak): ' . count($aranacak));
+        if (empty($aranacak)) { $this->info('Hepsi DB\'de var, eklemeye gerek yok.'); return 0; }
+        foreach ($aranacak as $isim) $this->line("  - {$isim}");
+
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+
+        // musterilistesi.aspx sayfa sayfa gez
+        $h = $client->getHtml('/musterilistesi.aspx');
+        if (!$h) { $this->error('musterilistesi.aspx cekilemedi'); return 1; }
+
+        $found = []; // norm => musid
+        $page = 1; $sayfaUyari = 0;
+        while (count($found) < count($aranacak) && $page < 500) {
+            preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
+            foreach ($rows[1] as $tr) {
+                preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+                if (empty($tds[1])) continue;
+                $cells = [];
+                foreach ($tds[1] as $tdRaw) {
+                    $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                    $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                }
+                $cells = array_values(array_filter($cells, function ($c) { return $c !== ''; }));
+                if (count($cells) < 3) continue;
+                $musid = null;
+                foreach ($cells as $c) { if (preg_match('~^\d{5,}$~', $c)) { $musid = $c; break; } }
+                if (!$musid) continue;
+                // Ad+Soyad genellikle ID'den sonraki 2 hucre
+                $idxMusid = array_search($musid, $cells, true);
+                $ad = $cells[$idxMusid + 1] ?? '';
+                $soyad = $cells[$idxMusid + 2] ?? '';
+                $tamAd = trim($ad . ' ' . $soyad);
+                $norm = $this->normalizeIsim($tamAd);
+                if (isset($aranacak[$norm]) && !isset($found[$norm])) {
+                    $found[$norm] = $musid;
+                    $this->info("  BULUNDU: {$aranacak[$norm]} -> musid={$musid}");
+                }
+            }
+            if (count($found) >= count($aranacak)) break;
+
+            $next = $page + 1;
+            $hasNext = preg_match('~Page\$' . $next . '~i', $h);
+            if (!$hasNext) {
+                $sayfaUyari++;
+                if ($sayfaUyari > 1) break;
+            } else { $sayfaUyari = 0; }
+            $h = $client->postBack('/musterilistesi.aspx', 'DGRV_MusteriListesi', 'Page$' . $next);
+            if ($h === null) break;
+            $page = $next;
+            if ($page % 20 === 0) $this->line("  ..sayfa {$page}, bulunan " . count($found) . '/' . count($aranacak));
+            usleep(150000);
+        }
+
+        $this->line('--- Arama sonucu ---');
+        $this->line('  bulunan : ' . count($found) . '/' . count($aranacak));
+        foreach ($aranacak as $norm => $isim) {
+            if (!isset($found[$norm])) $this->warn("  BULUNAMAYAN: {$isim}");
+        }
+
+        if ($dryRun) { $this->warn('DRY-RUN: musteri eklenmedi.'); return 0; }
+        if (empty($found)) return 0;
+
+        $importer = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+        foreach ($found as $norm => $musid) {
+            $this->info("\nEkleniyor: musid={$musid} ({$aranacak[$norm]})");
+            $userId = $importer->ensureUserByMusidPublic($musid);
+            if (!$userId) { $this->warn('  user olusturulamadi'); continue; }
+            $this->line("  user_id={$userId}");
+            $importer->importMusteriDetay($musid, $userId);
+        }
+        $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+        return 0;
+    }
+
+    private function normalizeIsim($s)
+    {
+        $s = mb_strtolower((string) $s, 'UTF-8');
+        $s = preg_replace('/\p{M}+/u', '', $s);
+        $s = strtr($s, ['ı'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ç'=>'c','Ç'=>'c']);
+        $s = preg_replace('~[^a-z0-9]+~', ' ', $s);
+        return trim($s);
     }
 
     private function applyFazlaSil($salonId, $dryRun)
