@@ -593,61 +593,60 @@ class DrklinikImport extends Command
         $login = $client->login();
         if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
 
-        // musterilistesi.aspx sayfa sayfa gez (mevcut collectMusidsFromMusteriListesi paterni)
-        $h = $client->getHtml('/musterilistesi.aspx');
-        if (!$h) { $this->error('musterilistesi.aspx cekilemedi'); return 1; }
-
+        // musterilistesi.aspx ARAMA FORMU: TB_Ara + BTN_MusteriAra
+        // Sayfada varsayilan listesi gosterilmiyor, her isim icin arama yapmaliyiz.
         $found = []; // norm => musid
-        $page = 1; $sayfaUyari = 0;
-        while (count($found) < count($aranacak) && $page < 1000) {
-            // Sayfadaki tum satirlari parse et + ad/soyad eslesmesi
+        foreach ($aranacak as $norm => $isim) {
+            // Tek bir kelime (en uzun olani) ile arama daha esnek
+            $parts = preg_split('~\s+~', $isim);
+            usort($parts, function ($a, $b) { return mb_strlen($b, 'UTF-8') - mb_strlen($a, 'UTF-8'); });
+            $aramaTerimi = $parts[0]; // en uzun kelime
+
+            $this->line("  Aranıyor: '{$isim}' (terim: '{$aramaTerimi}')");
+            $h = $client->postBack('/musterilistesi.aspx', 'BTN_MusteriAra', '', [
+                'TB_Ara' => $aramaTerimi,
+                'HF_AramaTipi' => 'Ad',
+            ]);
+            usleep(200000);
+            if ($h === null) { $this->warn('  postback null'); continue; }
+
+            // Sonuc satirlarini parse et + normalize match
             preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
             foreach ($rows[1] as $tr) {
                 preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
                 if (empty($tds[1])) continue;
                 $cells = [];
                 foreach ($tds[1] as $tdRaw) {
-                    // Buton hucresi atla
                     if (preg_match('~<input[^>]*type="(submit|button|image)"~i', $tdRaw)) continue;
                     $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
                     $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
                 }
-                if (count($cells) < 4) continue;
-                // Sutunlar: ID | Ad | Soyad | Cep | D.Tarihi
+                if (count($cells) < 3) continue;
                 $musid = $cells[0] ?? '';
                 if (!preg_match('~^\d{5,}$~', $musid)) continue;
                 $ad = $cells[1] ?? '';
                 $soyad = $cells[2] ?? '';
                 $tamAd = trim($ad . ' ' . $soyad);
-                $norm = $this->normalizeIsim($tamAd);
-                if (isset($aranacak[$norm]) && !isset($found[$norm])) {
+                $candNorm = $this->normalizeIsim($tamAd);
+                if ($candNorm === $norm) {
                     $found[$norm] = $musid;
-                    $this->info("  BULUNDU sayfa {$page}: {$aranacak[$norm]} -> musid={$musid}");
+                    $this->info("    BULUNDU: musid={$musid} ({$tamAd})");
+                    break;
+                }
+                // Sub-string esleme: aranan adim tum kelimeleri sonuctaki tamAd icinde geciyor mu
+                $allMatch = true;
+                $aranOk = $this->normalizeIsim($isim);
+                foreach (preg_split('~\s+~', $aranOk) as $p) {
+                    if ($p !== '' && strpos($candNorm, $p) === false) { $allMatch = false; break; }
+                }
+                if ($allMatch) {
+                    $found[$norm] = $musid;
+                    $this->info("    BULUNDU (substring): musid={$musid} ({$tamAd})");
+                    break;
                 }
             }
-            if (count($found) >= count($aranacak)) break;
-
-            // Sayfa ilerlet - collectMusidsFromMusteriListesi paterni
-            $next = $page + 1;
-            $hasNext = preg_match('~__doPostBack\([\'"&#39;]+DGRV_MusteriListesi[\'"&#39;]+,\s*[\'"&#39;]+Page\$' . $next . '[\'"&#39;]+~i', $h);
-            if (!$hasNext) {
-                if (preg_match_all('~Page\$(\d+)~', $h, $m2)) {
-                    $maxSeen = max(array_map('intval', $m2[1]));
-                    if ($maxSeen >= $next) $hasNext = true;
-                }
-            }
-            if (!$hasNext) {
-                $sayfaUyari++;
-                if ($sayfaUyari > 1) break;
-            } else { $sayfaUyari = 0; }
-            $h = $client->postBack('/musterilistesi.aspx', 'DGRV_MusteriListesi', 'Page$' . $next);
-            if ($h === null) break;
-            if (!preg_match('~Page\$\d+~', $h)) break;
-            $page = $next;
-            if ($page % 20 === 0) $this->line("  ..sayfa {$page}, bulunan " . count($found) . '/' . count($aranacak));
-            usleep(150000);
+            if (!isset($found[$norm])) $this->warn("    BULUNAMADI: {$isim}");
         }
-        $this->line("Sayfa taramasi bitti: {$page} sayfa, " . count($found) . '/' . count($aranacak) . ' bulundu');
 
         $this->line('--- Arama sonucu ---');
         $this->line('  bulunan : ' . count($found) . '/' . count($aranacak));
