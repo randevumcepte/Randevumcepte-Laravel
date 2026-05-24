@@ -40,6 +40,7 @@ class DrklinikImport extends Command
         {--wipe-salon-masraflar : Salon icin drklinik markerli masraflar sil}
         {--nuke-salon-data : Salon icin TUM transactional veri (randevu/adisyon/tahsilat/masraf) + drklinik musterileri sil. Hizmetler/personeller/odalar korunur.}
         {--merge-tahsilat-duplicates : (user+date+tutar+yontem) eslesen tahsilat ciftlerinde adisyon_id NULL olana drk-tah\'in adisyon_id\'sini kopyala, sonra drk-tah duplicate\'i sil}
+        {--dedupe-internal-tahsilat : Salon icinde ayni (user+tarih+tutar+yontem) imzasi >1 olan tahsilatlardan en iyiyi tut, digerlerini sil}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -154,6 +155,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('merge-tahsilat-duplicates')) {
             if (!$salonId) { $this->error('--merge-tahsilat-duplicates icin --salon zorunlu.'); return 1; }
             return $this->mergeTahsilatDuplicates((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('dedupe-internal-tahsilat')) {
+            if (!$salonId) { $this->error('--dedupe-internal-tahsilat icin --salon zorunlu.'); return 1; }
+            return $this->dedupeInternalTahsilat((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ((bool) $this->option('wipe-salon-masraflar')) {
             if (!$salonId) { $this->error('--wipe-salon-masraflar icin --salon zorunlu.'); return 1; }
@@ -468,6 +473,76 @@ class DrklinikImport extends Command
             }
             $db->commit();
             $this->info("Merge tamam. Silindi: " . count($idsToDelete) . " tahsilat (" . number_format($deletedSum, 2, ',', '.') . " TRY).");
+            return 0;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            $this->error('Hata: ' . $e->getMessage());
+            return 1;
+        }
+    }
+
+    /**
+     * Salon icinde ayni (user_id+odeme_tarihi+tutar+odeme_yontemi_id) imzasi
+     * >1 olan tahsilatlari tespit eder, her gruptan EN IYI olani tutar (priority:
+     * 1) notlar [drk-tah:..] markerli (satis-detay scrape)
+     * 2) adisyon_id NOT NULL
+     * 3) min id (ilk eklenen)
+     * Digerlerini cocuk satirlari ile birlikte siler.
+     */
+    private function dedupeInternalTahsilat($salonId, $dryRun)
+    {
+        $db = \DB::connection();
+        $all = $db->table('tahsilatlar')
+            ->where('salon_id', $salonId)
+            ->select('id','user_id','odeme_tarihi','tutar','odeme_yontemi_id','adisyon_id','notlar')
+            ->orderBy('id')->get();
+        $this->line("Salon {$salonId} toplam tahsilat: " . $all->count());
+
+        $groups = [];
+        foreach ($all as $r) {
+            $sig = $r->user_id . '|' . $r->odeme_tarihi . '|' . number_format((float) $r->tutar, 2, '.', '') . '|' . (int) $r->odeme_yontemi_id;
+            $groups[$sig][] = $r;
+        }
+
+        $score = function ($r) {
+            $s = 0;
+            if (stripos((string) $r->notlar, '[drk-tah:') !== false) $s += 100;
+            if ($r->adisyon_id) $s += 10;
+            return $s;
+        };
+
+        $idsToDelete = []; $delSum = 0.0; $grpCnt = 0;
+        foreach ($groups as $sig => $rows) {
+            if (count($rows) < 2) continue;
+            $grpCnt++;
+            // En iyi: en yuksek score, ayni ise min id
+            usort($rows, function ($a, $b) use ($score) {
+                $sa = $score($a); $sb = $score($b);
+                if ($sa !== $sb) return $sb - $sa; // desc
+                return $a->id - $b->id; // asc id
+            });
+            // 0. eleman tutulur, gerisi silinir
+            for ($i = 1; $i < count($rows); $i++) {
+                $idsToDelete[] = (int) $rows[$i]->id;
+                $delSum += (float) $rows[$i]->tutar;
+            }
+        }
+
+        $this->line("  duplicate grup sayisi : {$grpCnt}");
+        $this->line("  silinecek tahsilat    : " . count($idsToDelete) . " - " . number_format($delSum, 2, ',', '.') . " TRY");
+
+        if ($dryRun) { $this->warn('DRY-RUN: degisiklik yapilmadi.'); return 0; }
+        if (empty($idsToDelete)) { $this->info('Duplicate yok.'); return 0; }
+
+        $db->beginTransaction();
+        try {
+            foreach (array_chunk($idsToDelete, 1000) as $ck) {
+                $db->table('tahsilat_hizmetler')->whereIn('tahsilat_id', $ck)->delete();
+                $db->table('tahsilat_urunler')->whereIn('tahsilat_id', $ck)->delete();
+                $db->table('tahsilatlar')->whereIn('id', $ck)->delete();
+            }
+            $db->commit();
+            $this->info("Dedup tamam. Silindi: " . count($idsToDelete) . " tahsilat (" . number_format($delSum, 2, ',', '.') . " TRY).");
             return 0;
         } catch (\Throwable $e) {
             $db->rollBack();
