@@ -309,9 +309,9 @@ class DrklinikImport extends Command
      * - adisyonlar + adisyon_hizmetler + adisyon_urunler + adisyon_paket_seanslar
      * - tahsilatlar + tahsilat_hizmetler + tahsilat_urunler
      * - masraflar
-     * - musteri_portfoy (salon) + drklinik tarafindan eklenmis users (notlar markerli)
      *
-     * KORUNAN: hizmetler, personeller, odalar, salon kaydi, kategori vb. config.
+     * KORUNAN: musteriler (users + musteri_portfoy), hizmetler, personeller,
+     *          odalar, salon kaydi, kategori vb. config.
      */
     private function nukeSalonData($salonId, $dryRun)
     {
@@ -321,31 +321,14 @@ class DrklinikImport extends Command
         $adisyonIds  = $db->table('adisyonlar')->where('salon_id', $salonId)->pluck('id')->all();
         $randevuIds  = $db->table('randevular')->where('salon_id', $salonId)->pluck('id')->all();
         $masrafCnt   = $db->table('masraflar')->where('salon_id', $salonId)->count();
-        $portfoyIds  = $db->table('musteri_portfoy')->where('salon_id', $salonId)->pluck('user_id')->all();
-
-        // user_id'leri sadece BU salonda kayitliysa sil (baska salonda da varsa korunmali)
-        $silinecekUserIds = [];
-        if (!empty($portfoyIds)) {
-            foreach (array_chunk($portfoyIds, 1000) as $ck) {
-                $rows = $db->table('musteri_portfoy')
-                    ->whereIn('user_id', $ck)
-                    ->select('user_id', \DB::raw('COUNT(*) as c'))
-                    ->groupBy('user_id')->get();
-                foreach ($rows as $r) {
-                    if ((int) $r->c <= 1) $silinecekUserIds[] = (int) $r->user_id;
-                }
-            }
-        }
 
         $this->line("=== Salon {$salonId} NUKE plani ===");
-        $this->line("  randevular         : " . count($randevuIds));
-        $this->line("  adisyonlar         : " . count($adisyonIds));
-        $this->line("  tahsilatlar        : " . count($tahsilatIds) . " (toplam tutar: " . number_format((float) $db->table('tahsilatlar')->where('salon_id', $salonId)->sum('tutar'), 2, ',', '.') . " TRY)");
-        $this->line("  masraflar          : {$masrafCnt}");
-        $this->line("  musteri_portfoy    : " . count($portfoyIds));
-        $this->line("  users (sadece bu salon): " . count($silinecekUserIds));
+        $this->line("  randevular  : " . count($randevuIds));
+        $this->line("  adisyonlar  : " . count($adisyonIds));
+        $this->line("  tahsilatlar : " . count($tahsilatIds) . " (toplam tutar: " . number_format((float) $db->table('tahsilatlar')->where('salon_id', $salonId)->sum('tutar'), 2, ',', '.') . " TRY)");
+        $this->line("  masraflar   : {$masrafCnt}");
         $this->line('---');
-        $this->warn('KORUNAN: hizmetler, personeller, odalar, salon, kategoriler.');
+        $this->warn('KORUNAN: musteriler, hizmetler, personeller, odalar, salon, kategoriler.');
 
         if ($dryRun) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
 
@@ -392,16 +375,6 @@ class DrklinikImport extends Command
 
             // 4) masraflar
             $db->table('masraflar')->where('salon_id', $salonId)->delete();
-
-            // 5) musteri_portfoy (salon) - users'a dokunmadan once
-            $db->table('musteri_portfoy')->where('salon_id', $salonId)->delete();
-
-            // 6) sadece bu salonda olan user'lari sil
-            if (!empty($silinecekUserIds)) {
-                foreach (array_chunk($silinecekUserIds, 1000) as $ck) {
-                    $db->table('users')->whereIn('id', $ck)->delete();
-                }
-            }
 
             $db->commit();
             $this->info('NUKE tamam. Yeniden full import edebilirsiniz.');
