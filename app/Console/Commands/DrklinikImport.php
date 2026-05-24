@@ -617,15 +617,19 @@ class DrklinikImport extends Command
                 if (empty($tds[1])) continue;
                 $cells = [];
                 foreach ($tds[1] as $tdRaw) {
-                    if (preg_match('~<input[^>]*type="(submit|button|image)"~i', $tdRaw)) continue;
                     $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
                     $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
                 }
-                if (count($cells) < 3) continue;
-                $musid = $cells[0] ?? '';
-                if (!preg_match('~^\d{5,}$~', $musid)) continue;
-                $ad = $cells[1] ?? '';
-                $soyad = $cells[2] ?? '';
+                if (count($cells) < 4) continue;
+                // Musid'i herhangi bir hucrede 5+ haneli sayi olarak ara
+                $musid = null; $musidIdx = -1;
+                foreach ($cells as $idx => $c) {
+                    if (preg_match('~^\d{5,}$~', $c)) { $musid = $c; $musidIdx = $idx; break; }
+                }
+                if (!$musid) continue;
+                // Ad+Soyad genelde musid'den sonraki 2 hucre
+                $ad = $cells[$musidIdx + 1] ?? '';
+                $soyad = $cells[$musidIdx + 2] ?? '';
                 $tamAd = trim($ad . ' ' . $soyad);
                 $candNorm = $this->normalizeIsim($tamAd);
                 if ($candNorm === $norm) {
