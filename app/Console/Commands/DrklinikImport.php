@@ -39,6 +39,7 @@ class DrklinikImport extends Command
         {--wipe-salon-tahsilatlar : Salon icin TUM tahsilatlar+tahsilat_hizmetler+tahsilat_urunler sil (clean slate)}
         {--wipe-salon-masraflar : Salon icin drklinik markerli masraflar sil}
         {--nuke-salon-data : Salon icin TUM transactional veri (randevu/adisyon/tahsilat/masraf) + drklinik musterileri sil. Hizmetler/personeller/odalar korunur.}
+        {--merge-tahsilat-duplicates : (user+date+tutar+yontem) eslesen tahsilat ciftlerinde adisyon_id NULL olana drk-tah\'in adisyon_id\'sini kopyala, sonra drk-tah duplicate\'i sil}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -149,6 +150,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('nuke-salon-data')) {
             if (!$salonId) { $this->error('--nuke-salon-data icin --salon zorunlu.'); return 1; }
             return $this->nukeSalonData((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('merge-tahsilat-duplicates')) {
+            if (!$salonId) { $this->error('--merge-tahsilat-duplicates icin --salon zorunlu.'); return 1; }
+            return $this->mergeTahsilatDuplicates((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ((bool) $this->option('wipe-salon-masraflar')) {
             if (!$salonId) { $this->error('--wipe-salon-masraflar icin --salon zorunlu.'); return 1; }
@@ -378,6 +383,91 @@ class DrklinikImport extends Command
 
             $db->commit();
             $this->info('NUKE tamam. Yeniden full import edebilirsiniz.');
+            return 0;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            $this->error('Hata: ' . $e->getMessage());
+            return 1;
+        }
+    }
+
+    /**
+     * Kasa-scrape (importTahsilatlar) ile satis-detay scrape (importSatisDetayTahsilat)
+     * arasinda olusan duplicate'leri merge eder.
+     *
+     * Senaryo: kasa-scrape adisyon_id=NULL ile ekledi; satis-detay dedup kontrolu
+     * adisyon_id'yi sart kostugu icin ayni odeme ikinci kez (adisyon_id=X) eklendi.
+     *
+     * Strateji: salon icin (user_id+odeme_tarihi+tutar+odeme_yontemi_id) ile
+     * gruplandir. Grupta hem adisyon_id=NULL kayit varsa hem de drk-tah markerli
+     * (adisyon_id NOT NULL) kayit varsa:
+     *   - NULL olana drk-tah'in adisyon_id'sini kopyala
+     *   - drk-tah duplicate'i sil
+     * Boylece adisyon-tahsilat baglantisi korunur, kayit tek kalir.
+     */
+    private function mergeTahsilatDuplicates($salonId, $dryRun)
+    {
+        $db = \DB::connection();
+        $this->line("Salon {$salonId} icin tahsilat duplicate analizi...");
+
+        // Tum salon tahsilatlari, gruplama icin
+        $all = $db->table('tahsilatlar')
+            ->where('salon_id', $salonId)
+            ->select('id','user_id','odeme_tarihi','tutar','odeme_yontemi_id','adisyon_id','notlar')
+            ->orderBy('id')->get();
+        $this->line("  toplam tahsilat: " . $all->count());
+
+        $groups = [];
+        foreach ($all as $r) {
+            $sig = $r->user_id . '|' . $r->odeme_tarihi . '|' . number_format((float) $r->tutar, 2, '.', '') . '|' . (int) $r->odeme_yontemi_id;
+            $groups[$sig][] = $r;
+        }
+
+        $mergeable = 0; $deletedSum = 0.0;
+        $idsToDelete = []; // satis-detay duplicate'lari
+        $kasaUpdates = []; // [kasa_id => adisyon_id]
+        foreach ($groups as $sig => $rows) {
+            if (count($rows) < 2) continue;
+            // NULL adisyon_id kasa adaylari ve drk-tah markerli adaylari ayir
+            $kasaNull = []; $satisDetay = [];
+            foreach ($rows as $r) {
+                $isDrkTah = (stripos((string) $r->notlar, '[drk-tah:') !== false);
+                if ($isDrkTah && $r->adisyon_id) $satisDetay[] = $r;
+                elseif (!$r->adisyon_id) $kasaNull[] = $r;
+            }
+            // Eslesme: min(count) kadar cift kur
+            $pairs = min(count($kasaNull), count($satisDetay));
+            for ($i = 0; $i < $pairs; $i++) {
+                $k = $kasaNull[$i];
+                $s = $satisDetay[$i];
+                $kasaUpdates[$k->id] = (int) $s->adisyon_id;
+                $idsToDelete[] = (int) $s->id;
+                $deletedSum += (float) $s->tutar;
+                $mergeable++;
+            }
+        }
+
+        $this->line("  merge edilebilir cift: {$mergeable}");
+        $this->line("  silinecek satis-detay duplicate: " . count($idsToDelete) . " - " . number_format($deletedSum, 2, ',', '.') . " TRY");
+        $this->line("  kasa kaydina yazilacak adisyon_id update: " . count($kasaUpdates));
+
+        if ($dryRun) { $this->warn('DRY-RUN: degisiklik yapilmadi.'); return 0; }
+        if (empty($idsToDelete)) { $this->info('Yapilacak is yok.'); return 0; }
+
+        $db->beginTransaction();
+        try {
+            // 1) kasa kayitlarinda adisyon_id update
+            foreach ($kasaUpdates as $kasaId => $adisyonId) {
+                $db->table('tahsilatlar')->where('id', $kasaId)->update(['adisyon_id' => $adisyonId]);
+            }
+            // 2) satis-detay duplicate'i sil (children dahil)
+            foreach (array_chunk($idsToDelete, 1000) as $ck) {
+                $db->table('tahsilat_hizmetler')->whereIn('tahsilat_id', $ck)->delete();
+                $db->table('tahsilat_urunler')->whereIn('tahsilat_id', $ck)->delete();
+                $db->table('tahsilatlar')->whereIn('id', $ck)->delete();
+            }
+            $db->commit();
+            $this->info("Merge tamam. Silindi: " . count($idsToDelete) . " tahsilat (" . number_format($deletedSum, 2, ',', '.') . " TRY).");
             return 0;
         } catch (\Throwable $e) {
             $db->rollBack();
