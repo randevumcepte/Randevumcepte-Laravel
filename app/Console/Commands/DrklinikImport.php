@@ -38,6 +38,7 @@ class DrklinikImport extends Command
         {--apply-eksik-ekle : /tmp/drk_tahsilat_eksik_<salon>.csv satirlarini DB\'ye ekle (isim eslesmesi ile)}
         {--wipe-salon-tahsilatlar : Salon icin TUM tahsilatlar+tahsilat_hizmetler+tahsilat_urunler sil (clean slate)}
         {--wipe-salon-masraflar : Salon icin drklinik markerli masraflar sil}
+        {--nuke-salon-data : Salon icin TUM transactional veri (randevu/adisyon/tahsilat/masraf) + drklinik musterileri sil. Hizmetler/personeller/odalar korunur.}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -144,6 +145,10 @@ class DrklinikImport extends Command
                 $this->info('Silindi: ' . $ids->count() . ' tahsilat (+ hizmet/urun cocuklar).');
             }
             return 0;
+        }
+        if ((bool) $this->option('nuke-salon-data')) {
+            if (!$salonId) { $this->error('--nuke-salon-data icin --salon zorunlu.'); return 1; }
+            return $this->nukeSalonData((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ((bool) $this->option('wipe-salon-masraflar')) {
             if (!$salonId) { $this->error('--wipe-salon-masraflar icin --salon zorunlu.'); return 1; }
@@ -298,6 +303,116 @@ class DrklinikImport extends Command
      * notlar'i NULL/bos olan kayda hash yazar (n-to-n eslestirme).
      * Eslesemeyen satirlar -> yeni Masraflar olarak eklenir.
      */
+    /**
+     * Nuclear wipe: salon icin TUM transactional veriyi sil.
+     * - randevular + randevu_hizmetler
+     * - adisyonlar + adisyon_hizmetler + adisyon_urunler + adisyon_paket_seanslar
+     * - tahsilatlar + tahsilat_hizmetler + tahsilat_urunler
+     * - masraflar
+     * - musteri_portfoy (salon) + drklinik tarafindan eklenmis users (notlar markerli)
+     *
+     * KORUNAN: hizmetler, personeller, odalar, salon kaydi, kategori vb. config.
+     */
+    private function nukeSalonData($salonId, $dryRun)
+    {
+        $db = \DB::connection();
+
+        $tahsilatIds = $db->table('tahsilatlar')->where('salon_id', $salonId)->pluck('id')->all();
+        $adisyonIds  = $db->table('adisyonlar')->where('salon_id', $salonId)->pluck('id')->all();
+        $randevuIds  = $db->table('randevular')->where('salon_id', $salonId)->pluck('id')->all();
+        $masrafCnt   = $db->table('masraflar')->where('salon_id', $salonId)->count();
+        $portfoyIds  = $db->table('musteri_portfoy')->where('salon_id', $salonId)->pluck('user_id')->all();
+
+        // user_id'leri sadece BU salonda kayitliysa sil (baska salonda da varsa korunmali)
+        $silinecekUserIds = [];
+        if (!empty($portfoyIds)) {
+            foreach (array_chunk($portfoyIds, 1000) as $ck) {
+                $rows = $db->table('musteri_portfoy')
+                    ->whereIn('user_id', $ck)
+                    ->select('user_id', \DB::raw('COUNT(*) as c'))
+                    ->groupBy('user_id')->get();
+                foreach ($rows as $r) {
+                    if ((int) $r->c <= 1) $silinecekUserIds[] = (int) $r->user_id;
+                }
+            }
+        }
+
+        $this->line("=== Salon {$salonId} NUKE plani ===");
+        $this->line("  randevular         : " . count($randevuIds));
+        $this->line("  adisyonlar         : " . count($adisyonIds));
+        $this->line("  tahsilatlar        : " . count($tahsilatIds) . " (toplam tutar: " . number_format((float) $db->table('tahsilatlar')->where('salon_id', $salonId)->sum('tutar'), 2, ',', '.') . " TRY)");
+        $this->line("  masraflar          : {$masrafCnt}");
+        $this->line("  musteri_portfoy    : " . count($portfoyIds));
+        $this->line("  users (sadece bu salon): " . count($silinecekUserIds));
+        $this->line('---');
+        $this->warn('KORUNAN: hizmetler, personeller, odalar, salon, kategoriler.');
+
+        if ($dryRun) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
+
+        $db->beginTransaction();
+        try {
+            // 1) tahsilat children + tahsilatlar
+            if (!empty($tahsilatIds)) {
+                foreach (array_chunk($tahsilatIds, 1000) as $ck) {
+                    $db->table('tahsilat_hizmetler')->whereIn('tahsilat_id', $ck)->delete();
+                    $db->table('tahsilat_urunler')->whereIn('tahsilat_id', $ck)->delete();
+                }
+                foreach (array_chunk($tahsilatIds, 1000) as $ck) {
+                    $db->table('tahsilatlar')->whereIn('id', $ck)->delete();
+                }
+            }
+
+            // 2) adisyon children + adisyonlar
+            if (!empty($adisyonIds)) {
+                $ahIds = [];
+                foreach (array_chunk($adisyonIds, 1000) as $ck) {
+                    $ahIds = array_merge($ahIds, $db->table('adisyon_hizmetler')->whereIn('adisyon_id', $ck)->pluck('id')->all());
+                }
+                if (!empty($ahIds)) {
+                    foreach (array_chunk($ahIds, 1000) as $ck) {
+                        $db->table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ck)->delete();
+                    }
+                }
+                foreach (array_chunk($adisyonIds, 1000) as $ck) {
+                    $db->table('adisyon_hizmetler')->whereIn('adisyon_id', $ck)->delete();
+                    $db->table('adisyon_urunler')->whereIn('adisyon_id', $ck)->delete();
+                    $db->table('adisyonlar')->whereIn('id', $ck)->delete();
+                }
+            }
+
+            // 3) randevu children + randevular
+            if (!empty($randevuIds)) {
+                foreach (array_chunk($randevuIds, 1000) as $ck) {
+                    $db->table('randevu_hizmetler')->whereIn('randevu_id', $ck)->delete();
+                }
+                foreach (array_chunk($randevuIds, 1000) as $ck) {
+                    $db->table('randevular')->whereIn('id', $ck)->delete();
+                }
+            }
+
+            // 4) masraflar
+            $db->table('masraflar')->where('salon_id', $salonId)->delete();
+
+            // 5) musteri_portfoy (salon) - users'a dokunmadan once
+            $db->table('musteri_portfoy')->where('salon_id', $salonId)->delete();
+
+            // 6) sadece bu salonda olan user'lari sil
+            if (!empty($silinecekUserIds)) {
+                foreach (array_chunk($silinecekUserIds, 1000) as $ck) {
+                    $db->table('users')->whereIn('id', $ck)->delete();
+                }
+            }
+
+            $db->commit();
+            $this->info('NUKE tamam. Yeniden full import edebilirsiniz.');
+            return 0;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            $this->error('Hata: ' . $e->getMessage());
+            return 1;
+        }
+    }
+
     private function applyFazlaSil($salonId, $dryRun)
     {
         $csv = '/tmp/drk_tahsilat_gercek_fazla_' . $salonId . '.csv';
