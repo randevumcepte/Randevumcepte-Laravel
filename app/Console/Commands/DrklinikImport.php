@@ -1206,10 +1206,11 @@ class DrklinikImport extends Command
     private function scrapeKasaAraRange($client, $startTs, $endTs, $depth, callable $onRow)
     {
         if ($startTs > $endTs) return;
-        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Ara', '', [
+        $tarihFields = [
             'TB_TarihSec1' => date('d.m.Y', $startTs),
             'TB_TarihSec2' => date('d.m.Y', $endTs),
-        ]);
+        ];
+        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Ara', '', $tarihFields);
         usleep(250000);
         if ($h === null) return;
 
@@ -1217,21 +1218,22 @@ class DrklinikImport extends Command
         $this->parseKasaPageRows($h, $onRow);
 
         // Pagination: RP_Sayfalar_Gelir$ctl00$Button1 = sayfa 1 (mevcut),
-        // ctl01 = sayfa 2, ctl02 = sayfa 3, ... her sayfa icin yeni postback
-        // yap; viewstate onceki cevaptan (filtreyi koruyacak sekilde) cek.
+        // ctl01 = sayfa 2, ctl02 = sayfa 3, ... her sayfa icin yeni postback.
+        // ASP.NET sayfasi TB_TarihSec1/2'yi her postback'te tekrar gormezse
+        // "DateTime parse hatasi" donyor; o yuzden extraFields'a koyuyoruz.
         $pageHtml = $h;
         $pageIdx = 1;
         while ($pageIdx < 200) { // safety cap
             $btnName = 'RP_Sayfalar_Gelir$ctl' . str_pad($pageIdx, 2, '0', STR_PAD_LEFT) . '$Button1';
-            $needle = 'name="' . htmlspecialchars($btnName, ENT_QUOTES) . '"';
-            if (strpos($pageHtml, $needle) === false) {
-                // alternatif: raw $ encoded asilmaz, name attribute aynen yazilir
-                $needle2 = 'name="' . $btnName . '"';
-                if (strpos($pageHtml, $needle2) === false) break;
-            }
-            $next = $client->postBackFromHtml('/kasa_islemleri.aspx', $pageHtml, $btnName, '');
+            $needle = 'name="' . $btnName . '"';
+            if (strpos($pageHtml, $needle) === false) break;
+            $next = $client->postBackFromHtml('/kasa_islemleri.aspx', $pageHtml, $btnName, '', $tarihFields);
             usleep(250000);
             if ($next === null) break;
+            // Sayfa donmusse parse et; donmemisse (DateTime hatasi vs.) loop'tan cik
+            if (stripos($next, 'String was not recognized') !== false || stripos($next, 'Server Error') !== false) {
+                break;
+            }
             $this->parseKasaPageRows($next, $onRow);
             $pageHtml = $next;
             $pageIdx++;
