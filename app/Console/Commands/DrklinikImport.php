@@ -36,6 +36,8 @@ class DrklinikImport extends Command
         {--cleanup-0000-randevu : Salon icinde saat=00:00 olan placeholder randevulari ve baglı randevu_hizmetler kayitlarini siler}
         {--apply-fazla-sil : /tmp/drk_tahsilat_gercek_fazla_<salon>.csv ID\'lerini DB\'den sil}
         {--apply-eksik-ekle : /tmp/drk_tahsilat_eksik_<salon>.csv satirlarini DB\'ye ekle (isim eslesmesi ile)}
+        {--wipe-salon-tahsilatlar : Salon icin TUM tahsilatlar+tahsilat_hizmetler+tahsilat_urunler sil (clean slate)}
+        {--wipe-salon-masraflar : Salon icin drklinik markerli masraflar sil}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -126,6 +128,34 @@ class DrklinikImport extends Command
         if ((bool) $this->option('apply-eksik-ekle')) {
             if (!$salonId) { $this->error('--apply-eksik-ekle icin --salon zorunlu.'); return 1; }
             return $this->applyEksikEkle((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('wipe-salon-tahsilatlar')) {
+            if (!$salonId) { $this->error('--wipe-salon-tahsilatlar icin --salon zorunlu.'); return 1; }
+            $ids = \DB::table('tahsilatlar')->where('salon_id', $salonId)->pluck('id');
+            $sumQ = \DB::table('tahsilatlar')->where('salon_id', $salonId)->sum('tutar');
+            $this->line("Salon {$salonId} tahsilat sayisi: " . $ids->count() . " - toplam: " . number_format((float) $sumQ, 2, ',', '.') . " TRY");
+            if ((bool) $this->option('dry-run')) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
+            if ($ids->count()) {
+                foreach (array_chunk($ids->all(), 1000) as $ck) {
+                    \DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $ck)->delete();
+                    \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $ck)->delete();
+                    \DB::table('tahsilatlar')->whereIn('id', $ck)->delete();
+                }
+                $this->info('Silindi: ' . $ids->count() . ' tahsilat (+ hizmet/urun cocuklar).');
+            }
+            return 0;
+        }
+        if ((bool) $this->option('wipe-salon-masraflar')) {
+            if (!$salonId) { $this->error('--wipe-salon-masraflar icin --salon zorunlu.'); return 1; }
+            $q = \DB::table('masraflar')->where('salon_id', $salonId)->where('notlar', 'LIKE', '%drk:%');
+            $cnt = $q->count();
+            $this->line("Salon {$salonId} drklinik markerli masraf: {$cnt}");
+            if ((bool) $this->option('dry-run')) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
+            if ($cnt) {
+                $q->delete();
+                $this->info("Silindi: {$cnt} masraf.");
+            }
+            return 0;
         }
 
         if (!$analyze && (!$username || !$password)) {
