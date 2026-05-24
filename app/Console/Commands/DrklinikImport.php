@@ -356,57 +356,33 @@ class DrklinikImport extends Command
         $client = new \App\Services\DrklinikClient($username, $password);
         $login = $client->login();
         if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
-        $this->line("Drklinik tahsilatlari TEK SEFER BTN_Hepsi (Tum Gelirler) ile cekiliyor: {$from} - {$to}");
+        $this->line("Drklinik tahsilatlari BTN_Ara haftalik+halving ile cekiliyor: {$from} - {$to}");
 
-        // 1) Drklinik scrape - TEK CAGRI ile tum donem ('Tum Gelirler' butonu)
+        // 1) Drklinik scrape - BTN_Ara (BTN_Hepsi sadece son ayi donuyor, ise yaramaz)
         $drkCount = []; // strict signature (name+date+amount+method) -> count
-        $drkRows = [];
         $drkLooseCount = []; // loose signature (date+amount+method) -> count
         $drkLooseNames = []; // loose -> [isim, ...]
         $rowsFound = 0;
-        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Hepsi', '', [
-            'TB_TarihSec1' => date('d.m.Y', strtotime($from)),
-            'TB_TarihSec2' => date('d.m.Y', strtotime($to)),
-        ]);
-        if ($h !== null) {
-            preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
-            foreach ($rows[1] as $tr) {
-                if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
-                preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
-                if (empty($tds[1])) continue;
-                $cells = [];
-                foreach ($tds[1] as $tdRaw) {
-                    $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
-                    $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                }
-                // BTN_Hepsi yaniti: bazi satirlarda musteri kolonu yok (sadece 4 td).
-                // Eskiden < 5 idi, 494 satir filtreleniyordu. < 4 yapip
-                // musteri yoksa '(Kasa)' placeholder ile loose match'e birak.
-                if (count($cells) < 4) continue;
-                if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $cells[0] ?? '')) continue;
-
-                $tarihIso = $this->__d($cells[0]);
-                $odemeSekli = $cells[2] ?? '';
-                $tutarStr = $cells[3] ?? '';
-                $musteri = trim($cells[4] ?? '');
-                // NOT: musteri bos olabilir (walk-in, kasa devri, direkt gelir).
-                // Eskiden 'continue' ediyorduk -> drklinik kasa toplamiyla 1.7M+
-                // fark cikiyordu. Artik bos isimle de raporlanir; loose match
-                // (date+tutar+method) ile DB'ye gore eslesir.
-                $tutar = 0.0;
-                if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
-                if ($tutar <= 0) continue;
-                if ($musteri === '') $musteri = '(Kasa)'; // placeholder, strict match'te gecmez
-
-                $odemeYontemi = $this->__y($odemeSekli);
-                $sigStrict = $this->__trk($musteri) . '|' . $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
-                $sigLoose  = $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
-                $drkCount[$sigStrict] = ($drkCount[$sigStrict] ?? 0) + 1;
-                $drkLooseCount[$sigLoose] = ($drkLooseCount[$sigLoose] ?? 0) + 1;
-                $drkLooseNames[$sigLoose][] = $musteri;
-                $rowsFound++;
-            }
-        }
+        $onRow = function ($cells) use (&$drkCount, &$drkLooseCount, &$drkLooseNames, &$rowsFound) {
+            if (count($cells) < 4) return;
+            if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $cells[0] ?? '')) return;
+            $tarihIso = $this->__d($cells[0]);
+            $odemeSekli = $cells[2] ?? '';
+            $tutarStr = $cells[3] ?? '';
+            $musteri = trim($cells[4] ?? '');
+            $tutar = 0.0;
+            if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+            if ($tutar <= 0) return;
+            if ($musteri === '') $musteri = '(Kasa)';
+            $odemeYontemi = $this->__y($odemeSekli);
+            $sigStrict = $this->__trk($musteri) . '|' . $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
+            $sigLoose  = $tarihIso . '|' . number_format($tutar, 2, '.', '') . '|' . $odemeYontemi;
+            $drkCount[$sigStrict] = ($drkCount[$sigStrict] ?? 0) + 1;
+            $drkLooseCount[$sigLoose] = ($drkLooseCount[$sigLoose] ?? 0) + 1;
+            $drkLooseNames[$sigLoose][] = $musteri;
+            $rowsFound++;
+        };
+        $this->scrapeKasaAraRange($client, strtotime($from), strtotime($to), 0, $onRow);
         $this->info("Drklinik toplam: {$rowsFound} satir, " . count($drkCount) . " unique signature");
 
         // 2) DB tahsilatlari
@@ -879,44 +855,30 @@ class DrklinikImport extends Command
         $client = new \App\Services\DrklinikClient($username, $password);
         $login = $client->login();
         if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
-        $this->line("Tahsilat HTML toplam: {$from} - {$to}, BTN_Hepsi (Tum Gelirler) tek cagri...");
+        $this->line("Tahsilat HTML toplam: {$from} - {$to}, BTN_Ara haftalik+halving ...");
 
         $totalSum = 0.0; $totalCount = 0;
         $monthly = []; // 'YYYY-MM' => ['adet','toplam']
 
-        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Hepsi', '', [
-            'TB_TarihSec1' => date('d.m.Y', strtotime($from)),
-            'TB_TarihSec2' => date('d.m.Y', strtotime($to)),
-        ]);
-        if ($h !== null) {
-            preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
-            foreach ($rows[1] as $tr) {
-                if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
-                preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
-                if (empty($tds[1])) continue;
-                $cells = [];
-                foreach ($tds[1] as $tdRaw) {
-                    $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
-                    $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                }
-                if (count($cells) < 4) continue;
-                $tarihStr = $cells[0] ?? '';
-                $tutarStr = $cells[3] ?? '';
-                if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $tarihStr)) continue;
-                $tutar = 0;
-                if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) {
-                    $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
-                }
-                if ($tutar <= 0) continue;
-                $totalSum += $tutar;
-                $totalCount++;
-                [$g, $a, $y] = explode('.', substr($tarihStr, 0, 10));
-                $ay = $y . '-' . $a;
-                if (!isset($monthly[$ay])) $monthly[$ay] = ['adet' => 0, 'toplam' => 0];
-                $monthly[$ay]['adet']++;
-                $monthly[$ay]['toplam'] += $tutar;
+        $onRow = function ($cells) use (&$totalSum, &$totalCount, &$monthly) {
+            if (count($cells) < 4) return;
+            $tarihStr = $cells[0] ?? '';
+            $tutarStr = $cells[3] ?? '';
+            if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $tarihStr)) return;
+            $tutar = 0.0;
+            if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) {
+                $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
             }
-        }
+            if ($tutar <= 0) return;
+            $totalSum += $tutar;
+            $totalCount++;
+            [$g, $a, $y] = explode('.', substr($tarihStr, 0, 10));
+            $ay = $y . '-' . $a;
+            if (!isset($monthly[$ay])) $monthly[$ay] = ['adet' => 0, 'toplam' => 0];
+            $monthly[$ay]['adet']++;
+            $monthly[$ay]['toplam'] += $tutar;
+        };
+        $this->scrapeKasaAraRange($client, strtotime($from), strtotime($to), 0, $onRow);
 
         $this->info('HTML toplam: ' . number_format($totalSum, 2, ',', '.') . " TRY ({$totalCount} satir)");
         $this->line('--- Aylik dagilim ---');
@@ -925,6 +887,54 @@ class DrklinikImport extends Command
             $this->line(sprintf('  %s : %d satir, %s TRY', $ay, $d['adet'], number_format($d['toplam'], 2, ',', '.')));
         }
         return 0;
+    }
+
+    /**
+     * kasa_islemleri.aspx BTN_Ara ile tarih araliginda tahsilat satirlarini tara.
+     * Server cap'i 50 oldugu icin satir sayisi 50'ye eristiginde ve aralik
+     * 1 gunden buyukse araligi ortadan ikiye bolerek recursive cagri yap.
+     *
+     * Ilk cagri tum araligi dener; haftalik chunk yerine cap'e gore dinamik halving
+     * (drklinik UI'sinde aralik buyukse 50 cap server-side basliyor).
+     * Her parse edilen satirin cells[] dizisi $onRow callback'ine verilir.
+     *
+     * @param \App\Services\DrklinikClient $client
+     * @param int $startTs unix ts (sn)
+     * @param int $endTs   unix ts (sn)
+     * @param int $depth   recursive depth (cap 8)
+     * @param callable $onRow function(array $cells): void
+     */
+    private function scrapeKasaAraRange($client, $startTs, $endTs, $depth, callable $onRow)
+    {
+        if ($startTs > $endTs) return;
+        $h = $client->postBack('/kasa_islemleri.aspx', 'BTN_Ara', '', [
+            'TB_TarihSec1' => date('d.m.Y', $startTs),
+            'TB_TarihSec2' => date('d.m.Y', $endTs),
+        ]);
+        usleep(250000);
+        if ($h === null) return;
+
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $h, $rows);
+        $trCount = count($rows[1]);
+        // 50+ tr ve aralik 1 gunden buyukse halving (server cap'ine takilmis olabilir)
+        if ($trCount >= 50 && ($endTs - $startTs) >= 86400 && $depth < 8) {
+            $mid = $startTs + intval(($endTs - $startTs) / 2);
+            $this->scrapeKasaAraRange($client, $startTs, $mid, $depth + 1, $onRow);
+            $this->scrapeKasaAraRange($client, $mid + 86400, $endTs, $depth + 1, $onRow);
+            return;
+        }
+
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            $onRow($cells);
+        }
     }
 
     private function inspectKasaIslemleri($username, $password, $from = null, $to = null)
