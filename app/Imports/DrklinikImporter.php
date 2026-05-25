@@ -1820,53 +1820,75 @@ class DrklinikImporter
                 if (!$odaId) { $odaId = $this->ensureOdaId($oda, $odaMap); }
             }
 
-            // 3) Hizmet (paket formati). Drklinik formatlari:
-            //    "(N seans Name x M)" -> tek hizmet (multi olabilir, virgul ile)
-            //    "(NxName)"           -> kompakt format (eski sistem)
-            //    "Hizmet adi"          -> parens'siz tek hizmet
-            // Multi-hizmet ("...),(... gibi) varsa hizmet_id atamiyoruz; cunku
-            // randevu_hizmetler 1-to-1, monster name ya da yari-parsed ekleyip
-            // hizmet listesini bozmasin. Adisyon_hizmetler zaten satis tarafindan
-            // dogru olusturuluyor; randevu sadece slot olarak kalsin.
-            $hizmetId = null; $sureDk = 30;
-            $hizmetStrTrim = trim($hizmetStr);
-            $multiHizmet = (substr_count($hizmetStrTrim, '),(') > 0) || (substr_count($hizmetStrTrim, '(') > 1);
-            if (!$multiHizmet && $hizmetStrTrim !== '') {
-                $hizmetAdiHint = $hizmetStrTrim;
-                // "(N seans Name x M)" -> "N seans Name" cikar
-                if (preg_match('~\(([^)]+?)\s+x\s*\d+\)~iu', $hizmetAdiHint, $m1)) {
-                    $hizmetAdiHint = trim($m1[1]);
-                } elseif (preg_match('~\((\d+)x([^)]+)\)~iu', $hizmetAdiHint, $m2)) {
-                    $hizmetAdiHint = trim($m2[2]);
-                }
-                // Tek-kelime sayisal degerleri atla (orn "6")
-                if ($hizmetAdiHint !== '' && !ctype_digit($hizmetAdiHint)) {
-                    $sh = $this->findSalonHizmetByName($hizmetAdiHint);
-                    if ($sh) { $hizmetId = $sh['hizmet_id']; $sureDk = $sh['sure_dk'] ?: 30; }
-                    // ensureSalonHizmet kaldirildi - randevu icin yeni hizmet uretmiyoruz,
-                    // sadece var olan hizmetlere baglanıyoruz. Adisyon-side ensureSalonHizmet
-                    // hizmet katalogunu zaten yonetiyor.
-                }
-            }
+            // 3) Hizmetler — multi-hizmet destegi.
+            //    Drklinik formati: "(6 seans heykeltıraş x 1),(6 seans G5 x 2),(6 seans X)"
+            //    Her "(...)" bloğu icin: hizmet_adi + dusum_miktari cikar.
+            //    Regex: \(([^)]+?)\s+x\s*(\d+)\)  -> grup1=hizmet_adi, grup2=dusum_miktari
+            //    "x N" yoksa: \(([^)]+)\) tek hizmet adi, dusum_miktari=1
+            //    Parens yoksa: tum string hizmet adi, dusum_miktari=1
+            $sureDk = 30;
             if ($bitis) {
                 $diff = (int) round((strtotime($bitis) - strtotime($saat)) / 60);
                 if ($diff > 0) $sureDk = $diff;
             }
 
-            // 4) RandevuHizmetler - dedup + update
-            $rhQuery = RandevuHizmetler::where('randevu_id', $r->id);
-            if ($hizmetId) $rhQuery->where('hizmet_id', $hizmetId);
-            else $rhQuery->whereNull('hizmet_id');
-            $rh = $rhQuery->first();
-            if (!$rh) $rh = new RandevuHizmetler();
-            $rh->randevu_id = $r->id;
-            $rh->hizmet_id = $hizmetId;
-            $rh->saat = $saat;
-            $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $sureDk . ' minutes', strtotime($saat)));
-            $rh->sure_dk = $sureDk;
-            if ($personelId) $rh->personel_id = $personelId;
-            if ($odaId) $rh->oda_id = $odaId;
-            try { $rh->save(); } catch (\Throwable $e) { Log::warning('drk musteri rh: ' . $e->getMessage()); }
+            $hizmetKalemleri = []; // [ ['ad'=>..., 'dusum'=>...] ]
+            $hizmetStrTrim = trim($hizmetStr);
+            if ($hizmetStrTrim !== '') {
+                if (preg_match_all('~\(([^)]+)\)~u', $hizmetStrTrim, $mAll)) {
+                    foreach ($mAll[1] as $inner) {
+                        $inner = trim($inner);
+                        if (preg_match('~^(.+?)\s+x\s*(\d+)$~iu', $inner, $mx)) {
+                            $hizmetKalemleri[] = ['ad' => trim($mx[1]), 'dusum' => max(1, (int) $mx[2])];
+                        } else {
+                            $hizmetKalemleri[] = ['ad' => $inner, 'dusum' => 1];
+                        }
+                    }
+                } else {
+                    // Parens yoksa tek hizmet adi
+                    $hizmetKalemleri[] = ['ad' => $hizmetStrTrim, 'dusum' => 1];
+                }
+            }
+
+            // 4) Mevcut bu randevuya ait randevu_hizmetler'i sil (clean rebuild),
+            //    sonra her parse edilen kalem icin ayri kayit ac. Boylece multi-hizmet
+            //    de korunur, re-import'ta duplicate olmaz.
+            $hasDusumKol = \Schema::hasColumn('randevu_hizmetler', 'dusum_miktari');
+            RandevuHizmetler::where('randevu_id', $r->id)->delete();
+            if (empty($hizmetKalemleri)) {
+                // Hizmet bilgisi yok: bir tane bos randevu_hizmet ac (slot bilgisi icin)
+                $hizmetKalemleri[] = ['ad' => '', 'dusum' => 1];
+            }
+            foreach ($hizmetKalemleri as $kalem) {
+                $hid = null;
+                $sureLocal = $sureDk;
+                if ($kalem['ad'] !== '' && !ctype_digit($kalem['ad'])) {
+                    // Once mevcut bir hizmet'e bagla; yoksa olustur
+                    $sh = $this->findSalonHizmetByName($kalem['ad']);
+                    if (!$sh) $sh = $this->ensureSalonHizmet($kalem['ad'], 0);
+                    if ($sh) { $hid = $sh['hizmet_id']; if ($sh['sure_dk'] > 0) $sureLocal = $sh['sure_dk']; }
+                }
+                if ($bitis && count($hizmetKalemleri) === 1) {
+                    $diff = (int) round((strtotime($bitis) - strtotime($saat)) / 60);
+                    if ($diff > 0) $sureLocal = $diff;
+                }
+                $rh = new RandevuHizmetler();
+                $rh->randevu_id = $r->id;
+                $rh->hizmet_id = $hid;
+                $rh->saat = $saat;
+                $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $sureLocal . ' minutes', strtotime($saat)));
+                $rh->sure_dk = $sureLocal;
+                if ($personelId) $rh->personel_id = $personelId;
+                if ($odaId) $rh->oda_id = $odaId;
+                if ($hasDusumKol) $rh->dusum_miktari = $kalem['dusum'];
+                try { $rh->save(); } catch (\Throwable $e) { Log::warning('drk musteri rh: ' . $e->getMessage()); }
+            }
+            // ilk kalemin hizmet_id'sini seans tuketim icin sakla
+            $hizmetId = null;
+            if (!empty($hizmetKalemleri) && $hizmetKalemleri[0]['ad'] !== '') {
+                $sh = $this->findSalonHizmetByName($hizmetKalemleri[0]['ad']);
+                if ($sh) $hizmetId = $sh['hizmet_id'];
+            }
 
             // 5) Seans Dusumu (varsa) -> AdisyonPaketSeanslar tuketim
             if ($seansDus !== '' && mb_stripos($seansDus, 'Düş', 0, 'UTF-8') !== false) {
