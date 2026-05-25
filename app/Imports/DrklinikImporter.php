@@ -1628,9 +1628,14 @@ class DrklinikImporter
             $perHizmet[$hid][] = ['alinan' => $satinAlinan, 'harcanan' => max(0, $harcanan)];
         }
 
-        // 2) Hizmet bazinda: drk satirlari ile AH'lar (adisyon tarihine gore sirali) 1:1 esle.
-        //    Her AH icin: seans_sayisi = drk alinan, APS sayisi = drk harcanan (kapasite asilsa bile).
-        //    Bu, drklinik UI'daki paket basina dagilimla birebir uyum saglar.
+        // 2) Hizmet bazinda reconcile - AGGREGATE yaklasimi:
+        //    Drklinik Kalan Seanslar tab AGGREGATE gosterir (hizmet basina toplam
+        //    alinan/harcanan). Satislar tab birebir (her satis bir satir).
+        //    processMusteriSatislar her satistan dogru seans_sayisi (parseHizmetlerStr
+        //    ile "(N Seans = Y TRY)") atadi. processKalanSeanslar gorevi:
+        //      a) AH.seans_sayisi'larina dokunma (over-write/silme yok)
+        //      b) Drk_harcanan toplamini bizdeki AH'lara seans_sayisi orantisinda
+        //         dagit, her AH'in APS count'unu o orantili paya esitle
         foreach ($perHizmet as $hizmetId => $drkRows) {
             $ahRows = \DB::table('adisyon_hizmetler as ah')
                 ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
@@ -1641,43 +1646,24 @@ class DrklinikImporter
                 ->orderBy('a.tarih')->orderBy('ah.id')->get();
             if ($ahRows->isEmpty()) continue;
 
-            $matched = min($ahRows->count(), count($drkRows));
-            for ($i = 0; $i < $matched; $i++) {
-                $ahId = $ahRows[$i]->id;
-                $hedefAlinan = (int) $drkRows[$i]['alinan'];
-                $hedefHarcanan = (int) $drkRows[$i]['harcanan'];
+            $drkToplamHarcanan = 0;
+            foreach ($drkRows as $dr) $drkToplamHarcanan += max(0, (int) $dr['harcanan']);
+            $bizToplamSeans = 0;
+            foreach ($ahRows as $ah) $bizToplamSeans += max(1, (int) $ah->seans_sayisi);
+            if ($bizToplamSeans <= 0) continue;
 
-                // seans_sayisi = drk alinan
-                if ((int) $ahRows[$i]->seans_sayisi !== $hedefAlinan && $hedefAlinan > 0) {
-                    \DB::table('adisyon_hizmetler')->where('id', $ahId)
-                        ->update(['seans_sayisi' => $hedefAlinan]);
+            // Her AH'a orantili pay; yuvarlama farkini son AH'a topla
+            $kalanHarcanan = $drkToplamHarcanan;
+            $sonIdx = $ahRows->count() - 1;
+            foreach ($ahRows as $idx => $ah) {
+                if ($idx === $sonIdx) {
+                    $pay = $kalanHarcanan;
+                } else {
+                    $pay = (int) floor($drkToplamHarcanan * ((int) $ah->seans_sayisi / $bizToplamSeans));
+                    $kalanHarcanan -= $pay;
                 }
-
-                $this->reconcileApsCount($ahId, $hizmetId, $hedefHarcanan, $apsTable, $hasRandevuId);
-            }
-            // Drk'de fazladan satir varsa (drk sayisi > bizdeki AH) -> son AH'a topla
-            if (count($drkRows) > $ahRows->count()) {
-                $extraHarcanan = 0;
-                for ($j = $ahRows->count(); $j < count($drkRows); $j++) {
-                    $extraHarcanan += (int) $drkRows[$j]['harcanan'];
-                }
-                if ($extraHarcanan > 0) {
-                    $sonAh = $ahRows->last();
-                    $mevcut = (int) \DB::table($apsTable)->where('adisyon_hizmet_id', $sonAh->id)->count();
-                    $this->reconcileApsCount($sonAh->id, $hizmetId, $mevcut + $extraHarcanan, $apsTable, $hasRandevuId);
-                }
-            }
-            // Bizde fazladan AH varsa (biz sayisi > drk sayisi) -> extra AH'lari sil.
-            // Sebep: mukerrer import veya yanlis seans_sayisi parse'i ile over-count
-            // olusmus. Drklinik Kalan Seanslar otoriter; biz fazlasini kaldirip
-            // baglantili APS'lerini de temizleyelim. Adisyon kaydi kalir (tahsilatlari
-            // baglantili oldugu icin), sadece bu hizmet kalemi cikariliyor.
-            elseif ($ahRows->count() > count($drkRows) && count($drkRows) > 0) {
-                $silinecek = array_slice($ahRows->all(), count($drkRows));
-                foreach ($silinecek as $extra) {
-                    \DB::table($apsTable)->where('adisyon_hizmet_id', $extra->id)->delete();
-                    \DB::table('adisyon_hizmetler')->where('id', $extra->id)->delete();
-                }
+                if ($pay < 0) $pay = 0;
+                $this->reconcileApsCount($ah->id, $hizmetId, $pay, $apsTable, $hasRandevuId);
             }
         }
     }
