@@ -1792,7 +1792,11 @@ class DrklinikImporter
             $r->salon_id = $this->salonId;
             $r->salon = 0;
             $r->olusturan_personel_id = null;
-            $du = mb_strtolower($durum, 'UTF-8');
+            // Turkce 'İ' bug fix: mb_strtolower("İptal") -> "i̇ptal" (combining dot)
+            // strpos eslesemiyordu. Once combining marks kaldir, sonra trk normalize.
+            $du = mb_strtolower((string) $durum, 'UTF-8');
+            $du = preg_replace('/\p{M}+/u', '', $du);
+            $du = strtr($du, ['ı'=>'i','i̇'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ç'=>'c','Ç'=>'c']);
             if (strpos($du, 'iptal') !== false) $r->durum = 2;
             else $r->durum = 1;
             if (strpos($du, 'geldi') !== false && strpos($du, 'gelmedi') === false) $r->randevuya_geldi = 1;
@@ -2684,7 +2688,10 @@ class DrklinikImporter
             $r->salon_id = $this->salonId;
             $r->salon = 0;
             $r->olusturan_personel_id = null;
-            $du = mb_strtolower($durum, 'UTF-8');
+            // Turkce 'İ' bug fix: mb_strtolower("İptal") -> "i̇ptal" (combining dot)
+            $du = mb_strtolower((string) $durum, 'UTF-8');
+            $du = preg_replace('/\p{M}+/u', '', $du);
+            $du = strtr($du, ['ı'=>'i','i̇'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ç'=>'c','Ç'=>'c']);
             // durum: iptal -> 2, diger -> 1. Re-import'ta iptal olan randevu guncellensin.
             if (strpos($du, 'iptal') !== false) $r->durum = 2;
             else $r->durum = 1;
