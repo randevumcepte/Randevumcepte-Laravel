@@ -1646,24 +1646,32 @@ class DrklinikImporter
                 ->orderBy('a.tarih')->orderBy('ah.id')->get();
             if ($ahRows->isEmpty()) continue;
 
-            $drkToplamHarcanan = 0;
-            foreach ($drkRows as $dr) $drkToplamHarcanan += max(0, (int) $dr['harcanan']);
-
-            // FIFO dagilim: en eski AH'tan (tarih sirali) baslayip sira ile tuket.
-            // Her AH icin: min(AH.seans_sayisi, kalan_harcanan) kadar APS yaz.
-            // Son AH'ta overflow olursa kapasiteyi gecip yine de drk toplamini yakalar.
-            $kalanHarcanan = $drkToplamHarcanan;
-            $sonIdx = $ahRows->count() - 1;
-            foreach ($ahRows as $idx => $ah) {
-                $kapasite = max(1, (int) $ah->seans_sayisi);
-                if ($idx === $sonIdx) {
-                    // Son AH'a kalan tum harcananı yaz (kapasiteyi asabilir)
-                    $pay = max(0, $kalanHarcanan);
-                } else {
-                    $pay = min($kapasite, max(0, $kalanHarcanan));
-                    $kalanHarcanan -= $pay;
+            // 1:1 esleme: drk Kalan Seanslar tablosu satir-satir bizdeki AH'lara map.
+            // - Bizdeki AH'lar a.tarih ASC sirali
+            // - drk satirlari da kronolojik sirali (drklinik UI olusturma sirasi)
+            // - AH.seans_sayisi'na DOKUNMA (PELIN SEVIN bug'i: 50+50 -> 100+sil)
+            // - APS sayisi = drk[i].harcanan, kapasite asilirsa reconcileApsCount halleder
+            $matched = min($ahRows->count(), count($drkRows));
+            for ($i = 0; $i < $matched; $i++) {
+                $ahId = $ahRows[$i]->id;
+                $hedef = max(0, (int) $drkRows[$i]['harcanan']);
+                $this->reconcileApsCount($ahId, $hizmetId, $hedef, $apsTable, $hasRandevuId);
+            }
+            // Bizde fazladan AH varsa (drk'de bu kadar satir yok) -> APS'i 0'a cek
+            for ($i = $matched; $i < $ahRows->count(); $i++) {
+                $this->reconcileApsCount($ahRows[$i]->id, $hizmetId, 0, $apsTable, $hasRandevuId);
+            }
+            // Drk'de fazladan satir varsa -> son AH'a artikleri topla
+            if (count($drkRows) > $ahRows->count()) {
+                $extra = 0;
+                for ($i = $ahRows->count(); $i < count($drkRows); $i++) {
+                    $extra += max(0, (int) $drkRows[$i]['harcanan']);
                 }
-                $this->reconcileApsCount($ah->id, $hizmetId, $pay, $apsTable, $hasRandevuId);
+                if ($extra > 0) {
+                    $sonAh = $ahRows->last();
+                    $mevcut = (int) \DB::table($apsTable)->where('adisyon_hizmet_id', $sonAh->id)->count();
+                    $this->reconcileApsCount($sonAh->id, $hizmetId, $mevcut + $extra, $apsTable, $hasRandevuId);
+                }
             }
         }
     }
