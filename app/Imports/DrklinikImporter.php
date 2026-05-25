@@ -1648,21 +1648,21 @@ class DrklinikImporter
 
             $drkToplamHarcanan = 0;
             foreach ($drkRows as $dr) $drkToplamHarcanan += max(0, (int) $dr['harcanan']);
-            $bizToplamSeans = 0;
-            foreach ($ahRows as $ah) $bizToplamSeans += max(1, (int) $ah->seans_sayisi);
-            if ($bizToplamSeans <= 0) continue;
 
-            // Her AH'a orantili pay; yuvarlama farkini son AH'a topla
+            // FIFO dagilim: en eski AH'tan (tarih sirali) baslayip sira ile tuket.
+            // Her AH icin: min(AH.seans_sayisi, kalan_harcanan) kadar APS yaz.
+            // Son AH'ta overflow olursa kapasiteyi gecip yine de drk toplamini yakalar.
             $kalanHarcanan = $drkToplamHarcanan;
             $sonIdx = $ahRows->count() - 1;
             foreach ($ahRows as $idx => $ah) {
+                $kapasite = max(1, (int) $ah->seans_sayisi);
                 if ($idx === $sonIdx) {
-                    $pay = $kalanHarcanan;
+                    // Son AH'a kalan tum harcananı yaz (kapasiteyi asabilir)
+                    $pay = max(0, $kalanHarcanan);
                 } else {
-                    $pay = (int) floor($drkToplamHarcanan * ((int) $ah->seans_sayisi / $bizToplamSeans));
+                    $pay = min($kapasite, max(0, $kalanHarcanan));
                     $kalanHarcanan -= $pay;
                 }
-                if ($pay < 0) $pay = 0;
                 $this->reconcileApsCount($ah->id, $hizmetId, $pay, $apsTable, $hasRandevuId);
             }
         }
