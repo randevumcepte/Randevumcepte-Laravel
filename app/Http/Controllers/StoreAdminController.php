@@ -13760,7 +13760,11 @@ DB::raw('
                  FROM adisyon_paket_seanslar aps
                  LEFT JOIN hizmetler h ON h.id = aps.hizmet_id
                  WHERE aps.randevu_id = randevular.id AND aps.geldi = 1)
-            ELSE GROUP_CONCAT(DISTINCT hizmetler.hizmet_adi)
+            ELSE GROUP_CONCAT(DISTINCT
+                CASE WHEN randevu_hizmetler.dusum_miktari > 1
+                     THEN CONCAT(hizmetler.hizmet_adi, " x", randevu_hizmetler.dusum_miktari)
+                     ELSE hizmetler.hizmet_adi
+                END SEPARATOR ", ")
         END as hizmetler'),
         DB::raw('CONCAT("<span style=\"display:none\">",UNIX_TIMESTAMP(randevular.tarih),UNIX_TIMESTAMP(randevular.saat),"</span>",DATE_FORMAT(randevular.tarih, "%d.%m.%Y")) as tarih'),
         DB::raw('CASE WHEN randevular.randevuya_geldi=1 THEN "Geldi" ELSE "Gelmedi" END as geldimi'),
