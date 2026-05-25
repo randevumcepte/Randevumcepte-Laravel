@@ -1139,11 +1139,16 @@ class DrklinikImporter
                 $kalanSeansTablo = $body; $kalanSeansHeaders = $headers;
             }
         }
-        // Kalan Seanslar en son: satis + seans dusumu islendikten sonra
-        // tuketilen seans sayisini drklinik'in kesin degerine esitler.
-        if ($kalanSeansTablo !== null) {
-            $this->processKalanSeanslar($kalanSeansTablo, $userId, $kalanSeansHeaders);
-        }
+        // NOT: processKalanSeanslar devre disi birakildi. Sebep:
+        // - processMusteriRandevular her randevuyu okuyup "Seans Düşümü işaretlenmiş"
+        //   olanlardan 1 APS tuketiyor (drklinik UI ile birebir mantik).
+        // - processKalanSeanslar bu APS sayilarini toplam-bazli yeniden dagitiyor,
+        //   FIFO/LIFO/proportional hangi mantik secilse de cakisma yaratiyor.
+        // - Randevu-bazli tuketim drklinik'in gercek mantigi, bunu override etmek yanlis.
+        // Kalan Seanslar tablosu sadece DOGRULAMA icin (--report-seans-fark) kullanilir.
+        // if ($kalanSeansTablo !== null) {
+        //     $this->processKalanSeanslar($kalanSeansTablo, $userId, $kalanSeansHeaders);
+        // }
     }
 
     private function processMusteriSatislar($tbody, $userId, $musid)
@@ -1646,11 +1651,11 @@ class DrklinikImporter
                 ->orderBy('a.tarih')->orderBy('ah.id')->get();
             if ($ahRows->isEmpty()) continue;
 
-            // FIFO dagilim: drklinik Kalan Seanslar per-hizmet konsolide gosteriyor
-            // (1 satirda tum satin alimlarin toplami). Bizdeki AH'lara kronolojik
-            // sirali (en eski once) dagit: her AH icin min(seans_sayisi, kalan_harcanan)
-            // kadar APS yaz. Eski AH'lar dolduktan sonra yeni AH'lara gec.
-            // Bu, drklinik'in "1. satistan tuket, sonra 2.'den" mantigi.
+            // FIFO dagilim: drklinik Kalan Seanslar per-hizmet konsolide gosteriyor.
+            // Bizdeki AH'lar a.tarih ASC sirali ($ahRows[0] = en eski).
+            // En eskiden basla, her AH'a min(seans_sayisi, kalan_harcanan) APS yaz.
+            // Drklinik mantigi: ilk satin alimdan tuket, dolduktan sonra sonrakine gec.
+            // Drklinik UI listesi en yeniden-eskiye sirali olsa bile veritabani ASC.
             $drkToplamHarcanan = 0;
             foreach ($drkRows as $dr) $drkToplamHarcanan += max(0, (int) $dr['harcanan']);
 
@@ -1661,7 +1666,7 @@ class DrklinikImporter
                 $this->reconcileApsCount($ah->id, $hizmetId, $pay, $apsTable, $hasRandevuId);
                 $kalanHarcanan -= $pay;
             }
-            // Kalan harcanan varsa (toplam kapasiteden buyukse) -> son AH'a topla
+            // Kalan harcanan varsa (toplam kapasiteden buyukse) -> son AH'a (en yeni) topla
             if ($kalanHarcanan > 0 && $ahRows->count() > 0) {
                 $sonAh = $ahRows->last();
                 $mevcut = (int) \DB::table($apsTable)->where('adisyon_hizmet_id', $sonAh->id)->count();
