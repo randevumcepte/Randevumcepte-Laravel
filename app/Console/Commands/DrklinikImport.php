@@ -43,6 +43,7 @@ class DrklinikImport extends Command
         {--dedupe-internal-tahsilat : Salon icinde ayni (user+tarih+tutar+yontem) imzasi >1 olan tahsilatlardan en iyiyi tut, digerlerini sil}
         {--add-eksik-musteriler : /tmp/drk_tahsilat_eksik_<salon>.csv\'deki bulunamayan musterileri drklinik\'te isimle arar, musid bulup musteri+detay olarak ekler}
         {--reprocess-seans-fark-musteriler : /tmp/drk_seans_fark_<salon>.csv\'deki FARK satirlarinin musteri.aspx detayini tekrar isle (processKalanSeanslar over-count temizliyor)}
+        {--cleanup-hatali-hizmetler : Salon icin adi parens iceren ya da "N seans X" gibi hatali olusturulmus hizmet kayitlarini ve bunlara bagli randevu/adisyon kayitlarini temizle}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -169,6 +170,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('reprocess-seans-fark-musteriler')) {
             if (!$username || !$password || !$salonId) { $this->error('--reprocess-seans-fark-musteriler icin --username/--password/--salon zorunlu.'); return 1; }
             return $this->reprocessSeansFarkMusteriler($username, $password, (int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('cleanup-hatali-hizmetler')) {
+            if (!$salonId) { $this->error('--cleanup-hatali-hizmetler icin --salon zorunlu.'); return 1; }
+            return $this->cleanupHataliHizmetler((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ((bool) $this->option('wipe-salon-masraflar')) {
             if (!$salonId) { $this->error('--wipe-salon-masraflar icin --salon zorunlu.'); return 1; }
@@ -676,6 +681,75 @@ class DrklinikImport extends Command
         }
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
         return 0;
+    }
+
+    /**
+     * Salon icin processMusteriRandevular bug'undan kalan hatali hizmet kayitlarini sil:
+     * - hizmet adi parens iceriyorsa (orn "(6 seans X x 1)")
+     * - hizmet adi "N seans X" formundaysa (parser yari-cikarmis)
+     * - hizmet adi virgul iceriyorsa (multi-hizmet monster string)
+     * Once bagli randevu_hizmetler / adisyon_hizmetler / tahsilat_hizmetler /
+     * salon_hizmetler ile baglantilarini sil, sonra hizmetler tablosunu sil.
+     */
+    private function cleanupHataliHizmetler($salonId, $dryRun)
+    {
+        $db = \DB::connection();
+
+        // Hizmetler tablosunda: bu salonun salon_hizmetler'i uzerinden bagli olanlardan
+        // adi parens/virgul iceren ya da "<digit> seans" ile baslayan kayitlar
+        $hatali = $db->table('hizmetler as h')
+            ->join('salon_hizmetler as sh', 'sh.hizmet_id', '=', 'h.id')
+            ->where('sh.salon_id', $salonId)
+            ->where(function ($q) {
+                $q->where('h.hizmet_adi', 'LIKE', '%(%')
+                  ->orWhere('h.hizmet_adi', 'LIKE', '%),(%')
+                  ->orWhere('h.hizmet_adi', 'REGEXP', '^[0-9]+ seans ');
+            })
+            ->distinct()
+            ->select('h.id', 'h.hizmet_adi')->get();
+
+        $this->line("Hatali hizmet kaydi: " . $hatali->count());
+        foreach ($hatali->take(20) as $h) {
+            $this->line("  id={$h->id} adi=" . mb_substr($h->hizmet_adi, 0, 80));
+        }
+        if ($hatali->count() > 20) $this->line('  ... +' . ($hatali->count() - 20) . ' diger');
+
+        if ($hatali->isEmpty()) { $this->info('Hatali hizmet yok.'); return 0; }
+        if ($dryRun) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
+
+        $hizmetIds = $hatali->pluck('id')->all();
+
+        $db->beginTransaction();
+        try {
+            foreach (array_chunk($hizmetIds, 1000) as $ck) {
+                // Bagli randevu_hizmetler -> NULL'a cek (randevu kalsin, hizmet kopsun)
+                $db->table('randevu_hizmetler')->whereIn('hizmet_id', $ck)->update(['hizmet_id' => null]);
+                // Bagli adisyon_hizmetler -> sil (APS dahil)
+                $ahIds = $db->table('adisyon_hizmetler')->whereIn('hizmet_id', $ck)->pluck('id')->all();
+                if ($ahIds) {
+                    foreach (array_chunk($ahIds, 1000) as $ack) {
+                        $db->table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ack)->delete();
+                    }
+                    $db->table('adisyon_hizmetler')->whereIn('id', $ahIds)->delete();
+                }
+                // Bagli tahsilat_hizmetler -> sil
+                $db->table('tahsilat_hizmetler')->whereIn('hizmet_id', $ck)->delete();
+                // salon_hizmetler -> sil
+                $db->table('salon_hizmetler')->whereIn('hizmet_id', $ck)->where('salon_id', $salonId)->delete();
+                // hizmetler -> sil (baska salonda kullanilmiyorsa)
+                $kalanCount = $db->table('salon_hizmetler')->whereIn('hizmet_id', $ck)->count();
+                if ($kalanCount === 0) {
+                    $db->table('hizmetler')->whereIn('id', $ck)->delete();
+                }
+            }
+            $db->commit();
+            $this->info("Temizlik tamam: " . count($hizmetIds) . " hatali hizmet (ve bagli kayitlar) silindi.");
+            return 0;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            $this->error('Hata: ' . $e->getMessage());
+            return 1;
+        }
     }
 
     /**

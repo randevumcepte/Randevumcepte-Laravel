@@ -1820,16 +1820,33 @@ class DrklinikImporter
                 if (!$odaId) { $odaId = $this->ensureOdaId($oda, $odaMap); }
             }
 
-            // 3) Hizmet (paket "(NxAd)" formati da olabilir)
+            // 3) Hizmet (paket formati). Drklinik formatlari:
+            //    "(N seans Name x M)" -> tek hizmet (multi olabilir, virgul ile)
+            //    "(NxName)"           -> kompakt format (eski sistem)
+            //    "Hizmet adi"          -> parens'siz tek hizmet
+            // Multi-hizmet ("...),(... gibi) varsa hizmet_id atamiyoruz; cunku
+            // randevu_hizmetler 1-to-1, monster name ya da yari-parsed ekleyip
+            // hizmet listesini bozmasin. Adisyon_hizmetler zaten satis tarafindan
+            // dogru olusturuluyor; randevu sadece slot olarak kalsin.
             $hizmetId = null; $sureDk = 30;
-            $hizmetAdiHint = $hizmetStr;
-            if ($hizmetAdiHint && preg_match('~\((\d+)x([^)]+)\)~iu', $hizmetAdiHint, $m)) {
-                $hizmetAdiHint = trim($m[2]);
-            }
-            if ($hizmetAdiHint !== '') {
-                $sh = $this->findSalonHizmetByName($hizmetAdiHint);
-                if (!$sh) $sh = $this->ensureSalonHizmet($hizmetAdiHint, 0);
-                if ($sh) { $hizmetId = $sh['hizmet_id']; $sureDk = $sh['sure_dk'] ?: 30; }
+            $hizmetStrTrim = trim($hizmetStr);
+            $multiHizmet = (substr_count($hizmetStrTrim, '),(') > 0) || (substr_count($hizmetStrTrim, '(') > 1);
+            if (!$multiHizmet && $hizmetStrTrim !== '') {
+                $hizmetAdiHint = $hizmetStrTrim;
+                // "(N seans Name x M)" -> "N seans Name" cikar
+                if (preg_match('~\(([^)]+?)\s+x\s*\d+\)~iu', $hizmetAdiHint, $m1)) {
+                    $hizmetAdiHint = trim($m1[1]);
+                } elseif (preg_match('~\((\d+)x([^)]+)\)~iu', $hizmetAdiHint, $m2)) {
+                    $hizmetAdiHint = trim($m2[2]);
+                }
+                // Tek-kelime sayisal degerleri atla (orn "6")
+                if ($hizmetAdiHint !== '' && !ctype_digit($hizmetAdiHint)) {
+                    $sh = $this->findSalonHizmetByName($hizmetAdiHint);
+                    if ($sh) { $hizmetId = $sh['hizmet_id']; $sureDk = $sh['sure_dk'] ?: 30; }
+                    // ensureSalonHizmet kaldirildi - randevu icin yeni hizmet uretmiyoruz,
+                    // sadece var olan hizmetlere baglanıyoruz. Adisyon-side ensureSalonHizmet
+                    // hizmet katalogunu zaten yonetiyor.
+                }
             }
             if ($bitis) {
                 $diff = (int) round((strtotime($bitis) - strtotime($saat)) / 60);
