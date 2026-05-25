@@ -44,6 +44,7 @@ class DrklinikImport extends Command
         {--add-eksik-musteriler : /tmp/drk_tahsilat_eksik_<salon>.csv\'deki bulunamayan musterileri drklinik\'te isimle arar, musid bulup musteri+detay olarak ekler}
         {--reprocess-seans-fark-musteriler : /tmp/drk_seans_fark_<salon>.csv\'deki FARK satirlarinin musteri.aspx detayini tekrar isle (processKalanSeanslar over-count temizliyor)}
         {--cleanup-hatali-hizmetler : Salon icin adi parens iceren ya da "N seans X" gibi hatali olusturulmus hizmet kayitlarini ve bunlara bagli randevu/adisyon kayitlarini temizle}
+        {--verify : Import sirasinda her musid icin drklinik Kalan Seanslar vs DB karsilastir, /tmp/drk_verify_<salon>.csv\'ye yaz}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -253,6 +254,13 @@ class DrklinikImport extends Command
 
         $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet', 'personel', 'urun', 'oda', 'randevu'];
         $importer = new DrklinikImporter($client, $salonId, $this->output);
+        // Verify mode: per-musteri Kalan Seanslar dogrulama CSV
+        if ((bool) $this->option('verify')) {
+            $verifyCsv = '/tmp/drk_verify_' . $salonId . '.csv';
+            if ($importer->enableVerify($verifyCsv)) {
+                $this->info('Verify aktif: ' . $verifyCsv);
+            }
+        }
         if (in_array('oda', $types))      $importer->importOdalar();
         if (in_array('personel', $types)) $importer->importPersoneller();
         if (in_array('hizmet', $types))   $importer->importHizmetler();
@@ -267,6 +275,12 @@ class DrklinikImport extends Command
             $importer->importSatisVeTahsilat($this->option('from'), $this->option('to'));
         }
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
+        if ((bool) $this->option('verify')) {
+            $vs = $importer->verifyStats();
+            $importer->closeVerify();
+            $this->info('Verify ozet: OK=' . ($vs['ok'] ?? 0) . ' FARK=' . ($vs['fark'] ?? 0) . ' EKSIK_DB=' . ($vs['eksik_db'] ?? 0));
+            $this->info('CSV: /tmp/drk_verify_' . $salonId . '.csv');
+        }
         return 0;
     }
 

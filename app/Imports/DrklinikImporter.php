@@ -48,12 +48,39 @@ class DrklinikImporter
     private $musteriMap = []; // drklinik musteri id => local user id
     private $drklinikUserCache = []; // drklinik musid => local user id (musid bazli)
     private $defaultKategoriId = null;
+    private $verifyCsvFp = null;
+    private $verifyStats = ['ok' => 0, 'fark' => 0, 'eksik_db' => 0];
 
     public function __construct(DrklinikClient $client, $salonId, $out = null)
     {
         $this->client = $client;
         $this->salonId = (int) $salonId;
         $this->out = $out;
+    }
+
+    /**
+     * Per-musteri verify mode: her musid import edildikten sonra drklinik Kalan
+     * Seanslar tablosu DB AH ile karsilastir, CSV'ye yaz. Sonda ozet log'da.
+     * Constructor sonrasi cagrilir.
+     */
+    public function enableVerify($csvPath)
+    {
+        if ($this->verifyCsvFp) { @fclose($this->verifyCsvFp); }
+        $this->verifyCsvFp = @fopen($csvPath, 'w');
+        if (!$this->verifyCsvFp) return false;
+        fputcsv($this->verifyCsvFp, ['musid','musteri','hizmet','drk_alinan','db_alinan','drk_harcanan','db_harcanan','drk_kalan','db_kalan','durum']);
+        $this->verifyStats = ['ok' => 0, 'fark' => 0, 'eksik_db' => 0];
+        return true;
+    }
+
+    public function verifyStats()
+    {
+        return $this->verifyStats;
+    }
+
+    public function closeVerify()
+    {
+        if ($this->verifyCsvFp) { @fclose($this->verifyCsvFp); $this->verifyCsvFp = null; }
     }
 
     public function summary()
@@ -1145,10 +1172,84 @@ class DrklinikImporter
         // - processKalanSeanslar bu APS sayilarini toplam-bazli yeniden dagitiyor,
         //   FIFO/LIFO/proportional hangi mantik secilse de cakisma yaratiyor.
         // - Randevu-bazli tuketim drklinik'in gercek mantigi, bunu override etmek yanlis.
-        // Kalan Seanslar tablosu sadece DOGRULAMA icin (--report-seans-fark) kullanilir.
-        // if ($kalanSeansTablo !== null) {
-        //     $this->processKalanSeanslar($kalanSeansTablo, $userId, $kalanSeansHeaders);
-        // }
+
+        // VERIFY mode aktif ise: drklinik Kalan Seanslar tablosunu DB ile karsilastir
+        if ($kalanSeansTablo !== null && $this->verifyCsvFp !== null) {
+            $this->verifyMusteriKalanSeanslar($musid, $userId, $kalanSeansTablo, $kalanSeansHeaders);
+        }
+    }
+
+    /**
+     * Drklinik Kalan Seanslar tablosunu okur, DB AH ile karsilastirir,
+     * verify CSV'sine satir yazar. Override yapmaz, sadece raporlar.
+     */
+    private function verifyMusteriKalanSeanslar($musid, $userId, $tbody, $headers)
+    {
+        if (!$this->verifyCsvFp) return;
+
+        $idx = [];
+        foreach ($headers as $k => $hd) $idx[$this->trKey($hd)] = $k;
+        $iHizmet   = $idx['hizmet'] ?? 0;
+        $iAlinan   = $idx[$this->trKey('Satın Alınan')] ?? 1;
+        $iHarcanan = $idx['harcanan'] ?? 3;
+
+        $musteri = \DB::table('users')->where('id', $userId)->value('name') ?? '';
+
+        // Drklinik satirlarini hizmet bazinda topla
+        $drkPerHizmet = []; // hizmetAdi => ['alinan', 'harcanan']
+        preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
+        foreach ($rows[1] as $tr) {
+            if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
+            preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+            if (empty($tds[1])) continue;
+            $cells = [];
+            foreach ($tds[1] as $tdRaw) {
+                $clean = trim(preg_replace('~\s+~', ' ', strip_tags($tdRaw)));
+                $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            }
+            $hizmetAd = trim($cells[$iHizmet] ?? '');
+            if ($hizmetAd === '') continue;
+            $alinan = (int) preg_replace('~\D~', '', $cells[$iAlinan] ?? '0');
+            $harcanan = (int) preg_replace('~[^\d-]~', '', $cells[$iHarcanan] ?? '0');
+            if ($alinan <= 0) continue;
+            if (!isset($drkPerHizmet[$hizmetAd])) $drkPerHizmet[$hizmetAd] = ['alinan' => 0, 'harcanan' => 0];
+            $drkPerHizmet[$hizmetAd]['alinan'] += $alinan;
+            $drkPerHizmet[$hizmetAd]['harcanan'] += max(0, $harcanan);
+        }
+
+        // DB AH'lari hizmet bazinda topla
+        $dbRows = \DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+            ->leftJoin('hizmetler as h', 'h.id', '=', 'ah.hizmet_id')
+            ->where('a.salon_id', $this->salonId)->where('a.user_id', $userId)
+            ->whereNotNull('ah.seans_sayisi')
+            ->select('ah.id', 'h.hizmet_adi as hizmet_adi', 'ah.seans_sayisi')
+            ->get();
+        $dbPerHizmet = [];
+        foreach ($dbRows as $r) {
+            $ad = $r->hizmet_adi ?? '';
+            if (!isset($dbPerHizmet[$ad])) $dbPerHizmet[$ad] = ['alinan' => 0, 'harcanan' => 0];
+            $dbPerHizmet[$ad]['alinan'] += (int) $r->seans_sayisi;
+            $aps = (int) \DB::table('adisyon_paket_seanslar')->where('adisyon_hizmet_id', $r->id)->count();
+            $dbPerHizmet[$ad]['harcanan'] += $aps;
+        }
+
+        // Karsilastir
+        $tumHizmetler = array_unique(array_merge(array_keys($drkPerHizmet), array_keys($dbPerHizmet)));
+        foreach ($tumHizmetler as $h) {
+            $drk = $drkPerHizmet[$h] ?? ['alinan' => 0, 'harcanan' => 0];
+            $db  = $dbPerHizmet[$h]  ?? ['alinan' => 0, 'harcanan' => 0];
+            $drkKalan = $drk['alinan'] - $drk['harcanan'];
+            $dbKalan  = $db['alinan']  - $db['harcanan'];
+            $durum = 'OK';
+            if ($drk['alinan'] !== $db['alinan'] || $drk['harcanan'] !== $db['harcanan']) {
+                $durum = ($db['alinan'] === 0 && $db['harcanan'] === 0) ? 'EKSIK_DB' : 'FARK';
+            }
+            fputcsv($this->verifyCsvFp, [$musid, $musteri, $h, $drk['alinan'], $db['alinan'], $drk['harcanan'], $db['harcanan'], $drkKalan, $dbKalan, $durum]);
+            if ($durum === 'OK') $this->verifyStats['ok']++;
+            elseif ($durum === 'EKSIK_DB') $this->verifyStats['eksik_db']++;
+            else $this->verifyStats['fark']++;
+        }
     }
 
     private function processMusteriSatislar($tbody, $userId, $musid)
