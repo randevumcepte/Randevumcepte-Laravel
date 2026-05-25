@@ -42,6 +42,7 @@ class DrklinikImport extends Command
         {--merge-tahsilat-duplicates : (user+date+tutar+yontem) eslesen tahsilat ciftlerinde adisyon_id NULL olana drk-tah\'in adisyon_id\'sini kopyala, sonra drk-tah duplicate\'i sil}
         {--dedupe-internal-tahsilat : Salon icinde ayni (user+tarih+tutar+yontem) imzasi >1 olan tahsilatlardan en iyiyi tut, digerlerini sil}
         {--add-eksik-musteriler : /tmp/drk_tahsilat_eksik_<salon>.csv\'deki bulunamayan musterileri drklinik\'te isimle arar, musid bulup musteri+detay olarak ekler}
+        {--reprocess-seans-fark-musteriler : /tmp/drk_seans_fark_<salon>.csv\'deki FARK satirlarinin musteri.aspx detayini tekrar isle (processKalanSeanslar over-count temizliyor)}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -164,6 +165,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('add-eksik-musteriler')) {
             if (!$username || !$password || !$salonId) { $this->error('--add-eksik-musteriler icin --username/--password/--salon zorunlu.'); return 1; }
             return $this->addEksikMusteriler($username, $password, (int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('reprocess-seans-fark-musteriler')) {
+            if (!$username || !$password || !$salonId) { $this->error('--reprocess-seans-fark-musteriler icin --username/--password/--salon zorunlu.'); return 1; }
+            return $this->reprocessSeansFarkMusteriler($username, $password, (int) $salonId, (bool) $this->option('dry-run'));
         }
         if ((bool) $this->option('wipe-salon-masraflar')) {
             if (!$salonId) { $this->error('--wipe-salon-masraflar icin --salon zorunlu.'); return 1; }
@@ -670,6 +675,58 @@ class DrklinikImport extends Command
             $importer->importMusteriDetay($musid, $userId);
         }
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+        return 0;
+    }
+
+    /**
+     * /tmp/drk_seans_fark_<salon>.csv'deki FARK satirlarinin unique musid'lerini
+     * topla, her musid icin importMusteriDetay'i tekrar calistir. Yeni
+     * processKalanSeanslar mantigi (extra AH silme) ile over-count temizlenir.
+     */
+    private function reprocessSeansFarkMusteriler($username, $password, $salonId, $dryRun)
+    {
+        $csv = '/tmp/drk_seans_fark_' . $salonId . '.csv';
+        if (!file_exists($csv)) { $this->error("CSV yok: {$csv}"); return 1; }
+
+        $fp = fopen($csv, 'r');
+        $header = fgetcsv($fp);
+        $idxMusid = array_search('musid', $header);
+        $idxDurum = array_search('durum', $header);
+        if ($idxMusid === false || $idxDurum === false) { $this->error('CSV header beklenmedik'); return 1; }
+
+        $musidler = []; // musid => musteri_ad (ilk gorulen)
+        while (($r = fgetcsv($fp)) !== false) {
+            if (($r[$idxDurum] ?? '') !== 'FARK') continue;
+            $musid = trim($r[$idxMusid] ?? '');
+            if ($musid && !isset($musidler[$musid])) {
+                $musidler[$musid] = $r[1] ?? '';
+            }
+        }
+        fclose($fp);
+        $this->line('FARK musteri sayisi (unique musid): ' . count($musidler));
+        if (empty($musidler)) { $this->info('FARK yok.'); return 0; }
+        foreach (array_slice($musidler, 0, 10, true) as $musid => $ad) {
+            $this->line("  - musid={$musid} {$ad}");
+        }
+        if (count($musidler) > 10) $this->line('  ... +' . (count($musidler) - 10) . ' diger');
+
+        if ($dryRun) { $this->warn('DRY-RUN: reprocess yapilmadi.'); return 0; }
+
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+
+        $importer = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+        $i = 0; $toplam = count($musidler);
+        foreach ($musidler as $musid => $ad) {
+            $i++;
+            $this->info("[{$i}/{$toplam}] musid={$musid} {$ad}");
+            $userId = $importer->ensureUserByMusidPublic($musid);
+            if (!$userId) { $this->warn("  user bulunamadi/olusturulamadi, atlaniyor"); continue; }
+            $importer->importMusteriDetay($musid, $userId);
+            usleep(150000);
+        }
+        $this->info('Reprocess tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
         return 0;
     }
 

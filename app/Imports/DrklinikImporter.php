@@ -1667,6 +1667,18 @@ class DrklinikImporter
                     $this->reconcileApsCount($sonAh->id, $hizmetId, $mevcut + $extraHarcanan, $apsTable, $hasRandevuId);
                 }
             }
+            // Bizde fazladan AH varsa (biz sayisi > drk sayisi) -> extra AH'lari sil.
+            // Sebep: mukerrer import veya yanlis seans_sayisi parse'i ile over-count
+            // olusmus. Drklinik Kalan Seanslar otoriter; biz fazlasini kaldirip
+            // baglantili APS'lerini de temizleyelim. Adisyon kaydi kalir (tahsilatlari
+            // baglantili oldugu icin), sadece bu hizmet kalemi cikariliyor.
+            elseif ($ahRows->count() > count($drkRows) && count($drkRows) > 0) {
+                $silinecek = array_slice($ahRows->all(), count($drkRows));
+                foreach ($silinecek as $extra) {
+                    \DB::table($apsTable)->where('adisyon_hizmet_id', $extra->id)->delete();
+                    \DB::table('adisyon_hizmetler')->where('id', $extra->id)->delete();
+                }
+            }
         }
     }
 
