@@ -1733,8 +1733,11 @@ class DrklinikImporter
         $idx = [];
         foreach ($headers as $k => $hd) $idx[$this->trKey($hd)] = $k;
         $iTarih      = $idx['tarih'] ?? 0;
-        $iSaat       = $idx['saat'] ?? 1;
-        $iBitis      = $idx['bitis'] ?? $idx[$this->trKey('Bitiş')] ?? null;
+        // Drklinik header: "Baş.Saati" (trKey -> 'bas saati'), "Bit.Saati" (trKey -> 'bit saati').
+        // Eski default 1 (= Tarih kolonu) idi -> saat alanina tarih string'i giriyordu,
+        // MySQL time kolonu bunu 00:00:00 olarak kaydediyordu -> sahte 00:00 randevu.
+        $iSaat       = $idx['saat'] ?? $idx[$this->trKey('Baş.Saati')] ?? $idx['bas saati'] ?? null;
+        $iBitis      = $idx['bitis'] ?? $idx[$this->trKey('Bitiş')] ?? $idx[$this->trKey('Bit.Saati')] ?? $idx['bit saati'] ?? null;
         $iHizmet     = $idx['hizmet'] ?? $idx['hizmetler'] ?? null;
         $iPersonel   = $idx['personel'] ?? $idx['calisan'] ?? $idx[$this->trKey('Çalışan')] ?? null;
         $iOda        = $idx['oda'] ?? null;
@@ -1762,8 +1765,10 @@ class DrklinikImporter
 
             $tarihStr = preg_replace('~\s*\([^)]+\)~u', '', $cells[$iTarih] ?? '');
             $tarih = $this->tarihNormalize($tarihStr);
-            $saat  = $cells[$iSaat] ?? '';
+            $saat  = $iSaat !== null ? trim($cells[$iSaat] ?? '') : '';
             if (!$tarih || !$saat) continue;
+            // Saat HH:MM veya HH:MM:SS formatinda olmali. Aksi halde header parse hatasi var.
+            if (!preg_match('~^\d{1,2}:\d{2}(:\d{2})?$~', $saat)) continue;
             if (strlen($saat) === 5) $saat .= ':00';
             // Drklinik musteri.aspx Randevular tablosu, her satis icin SAAT=00:00
             // placeholder satir uretiyor (cogu zaman hizmet "(NxAd)" paket notasyonu
