@@ -1976,13 +1976,15 @@ class DrklinikImporter
             ->select('ah.id', 'ah.hizmet_id', 'ah.seans_sayisi')
             ->orderBy('a.tarih')->get();
 
-        // Once hizmet_id eslesenleri sirala
+        // SADECE ayni hizmet'in AH'larini tuket. Eski kod hizmet doldugunda
+        // baska hizmetlere fallback yapiyordu (Solaryum randevusu Epilasyon AH'i
+        // tuketebiliyordu) - kasiti karistirici, kaldirildi.
         $sira = [];
         if ($hizmetId) {
             foreach ($rows as $r) if ((int) $r->hizmet_id === (int) $hizmetId) $sira[] = $r;
-            foreach ($rows as $r) if ((int) $r->hizmet_id !== (int) $hizmetId) $sira[] = $r;
         } else {
-            $sira = $rows->all();
+            // hizmet_id yoksa (parse edemediysek) hicbir AH tuketme, randevu kaydi yetsin
+            $sira = [];
         }
 
         $yazilan = 0;
