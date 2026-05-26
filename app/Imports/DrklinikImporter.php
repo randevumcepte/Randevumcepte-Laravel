@@ -1870,6 +1870,20 @@ class DrklinikImporter
         if ($persMap === null) $persMap = $this->buildPersonelMapByName();
         if ($odaMap === null)  $odaMap  = $this->buildOdaMapByName();
 
+        // CLEAN REBUILD: bu musterinin TUM APS'lerini sil. seanslariTuket
+        // hata + orphan APS bug'larini (randevu_id NULL, processKalanSeanslar
+        // artigi) komple siler. Sonra randevular sirasiyla yeniden olusur.
+        // Drklinik kalan seanslar = bizim APS sayisi olur.
+        $ahIds = \DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.user_id', $userId)->where('a.salon_id', $this->salonId)
+            ->pluck('ah.id')->all();
+        if (!empty($ahIds)) {
+            foreach (array_chunk($ahIds, 1000) as $ck) {
+                \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ck)->delete();
+            }
+        }
+
         preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
         foreach ($rows[1] as $tr) {
             if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
