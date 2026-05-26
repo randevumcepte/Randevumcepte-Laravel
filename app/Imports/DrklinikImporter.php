@@ -1347,12 +1347,23 @@ class DrklinikImporter
                 $existAh = AdisyonHizmetler::where('adisyon_id', $ad->id)
                     ->where('hizmet_id', $sh['hizmet_id'])->first();
                 if ($existAh) {
-                    // Eski import'larda seans_sayisi bos olabilir; doldur
+                    // Drklinik'in mevcut degerine GUNCELLE — eski hatali seans_sayisi
+                    // varsa duzelt (drklinik kullanici satislari editleyebilir, biz
+                    // de senkron tutmaliyiz). seans_sayisi degisirse APS over/under
+                    // olabilir, processKalanSeanslar reconcile etmiyor (devre disi)
+                    // o yuzden burada degisikligi yansitiyoruz.
+                    $degisti = false;
                     if (\Schema::hasColumn((new AdisyonHizmetler)->getTable(), 'seans_sayisi')
-                        && empty($existAh->seans_sayisi)) {
+                        && (int) $existAh->seans_sayisi !== (int) $seansSayisi
+                        && $seansSayisi > 0) {
                         $existAh->seans_sayisi = $seansSayisi;
-                        $existAh->save();
+                        $degisti = true;
                     }
+                    if ((float) ($existAh->fiyat ?? 0) !== (float) $hv['tutar'] && $hv['tutar'] > 0) {
+                        $existAh->fiyat = $hv['tutar'];
+                        $degisti = true;
+                    }
+                    if ($degisti) $existAh->save();
                     continue;
                 }
                 $ah = new AdisyonHizmetler();
