@@ -2060,12 +2060,29 @@ class DrklinikImporter
             // dediyse drklinik düşmüş (Geldi/Beklemede fark etmez). Geldi sartini kaldirdik.
             $randevuGeldi = true;
             if ($isIsaret && !$isDusulmeyecek && $randevuGeldi) {
-                $seansSayisi = 1;
-                $paketHint = $this->parsePaketSeansHint($hizmetStr);
-                if ($paketHint) $seansSayisi = max(1, (int) $paketHint['seans']);
-                $yazilan = $this->seanslariTuket($userId, $hizmetId, $tarih, $saat, $seansSayisi, $r->id);
-                if ($yazilan > 0) {
-                    $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + $yazilan;
+                // MULTI-HIZMET destek: hizmetKalemleri array'inde her kalem icin
+                // ayri seanslariTuket cagir. Onceki kod tek hizmet_id ile yaziyordu,
+                // multi-hizmet randevularda diger hizmetlerin dusumu kaybediyordu
+                // (PELIN SEVIL 02.05.2026 "İsveç+Solaryum x10" -> sadece İsveç yazıldı)
+                if (!empty($hizmetKalemleri)) {
+                    foreach ($hizmetKalemleri as $kalem) {
+                        if ($kalem['ad'] === '') continue;
+                        $sh = $this->findSalonHizmetByName($kalem['ad']);
+                        if (!$sh) continue;
+                        $yazilan = $this->seanslariTuket($userId, $sh['hizmet_id'], $tarih, $saat, (int) $kalem['dusum'], $r->id);
+                        if ($yazilan > 0) {
+                            $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + $yazilan;
+                        }
+                    }
+                } else {
+                    // Fallback (eski yol) - hizmetKalemleri yoksa
+                    $seansSayisi = 1;
+                    $paketHint = $this->parsePaketSeansHint($hizmetStr);
+                    if ($paketHint) $seansSayisi = max(1, (int) $paketHint['seans']);
+                    $yazilan = $this->seanslariTuket($userId, $hizmetId, $tarih, $saat, $seansSayisi, $r->id);
+                    if ($yazilan > 0) {
+                        $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + $yazilan;
+                    }
                 }
             }
         }
