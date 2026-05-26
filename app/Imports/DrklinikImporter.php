@@ -2184,18 +2184,12 @@ class DrklinikImporter
             $bosKalan = $toplam - $kullanilan;
             if ($bosKalan <= 0) continue;
 
-            // Idempotent: (ah_id, tarih, saat) uclusu icin mevcut sayi
-            $mevcutBuSatir = (int) \DB::table('adisyon_paket_seanslar')
-                ->where('adisyon_hizmet_id', $r->id)
-                ->where('seans_tarih', $tarih)
-                ->where('seans_saat', $saat)
-                ->count();
-            $hedef = min($kac, $bosKalan);
-            $eksik = max(0, $hedef - $mevcutBuSatir);
-            if ($eksik === 0) {
-                $kac -= $hedef; // bu satir icin gereken zaten yazilmis say
-                continue;
-            }
+            // (ah_id, tarih, saat) bazli idempotent dedup KALDIRILDI cunku:
+            // 1) processMusteriRandevular basinda CLEAN REBUILD ile tum APS siliniyor
+            // 2) Bir randevuda ayni hizmet 2 kez '(...x 1),(...x 1)' formatinda olabilir
+            //    (18.11.2024 SERAP UYSAL ornek), dedup 2. yazimi engelliyordu.
+            // Kapasite zaten $bosKalan ile kontrol ediliyor.
+            $eksik = min($kac, $bosKalan);
 
             $sonNo = (int) (\DB::table('adisyon_paket_seanslar')
                 ->where('adisyon_hizmet_id', $r->id)->max('seans_no') ?? 0);
