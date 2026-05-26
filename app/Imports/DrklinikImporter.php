@@ -2029,7 +2029,16 @@ class DrklinikImporter
             }
 
             // 5) Seans Dusumu (varsa) -> AdisyonPaketSeanslar tuketim
-            if ($seansDus !== '' && mb_stripos($seansDus, 'Düş', 0, 'UTF-8') !== false) {
+            // Drklinik mantigi:
+            //   "Seanstan Düş İşaretlenmiş"   -> seans tuket
+            //   "Seans Hakkından Düşülmeyecek" -> tuketme (bizim ESKI kod "Düş"
+            //     arıyor, "Düşülmeyecek" de eşleşiyordu -> yanlis pozitif bug)
+            // Ek: randevu durumu da onemli. Drklinik bir randevu iptal/gelmedi ise
+            // "İşaretlenmiş" olsa bile seans dusurmuyor. Bizim de gelmediyse atla.
+            $isIsaret = (mb_stripos($seansDus, 'işaret', 0, 'UTF-8') !== false);
+            $isDusulmeyecek = (mb_stripos($seansDus, 'düşülmeyecek', 0, 'UTF-8') !== false);
+            $randevuGeldi = ($r->randevuya_geldi == 1);
+            if ($isIsaret && !$isDusulmeyecek && $randevuGeldi) {
                 $seansSayisi = 1;
                 $paketHint = $this->parsePaketSeansHint($hizmetStr);
                 if ($paketHint) $seansSayisi = max(1, (int) $paketHint['seans']);
