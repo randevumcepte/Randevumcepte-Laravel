@@ -45,6 +45,7 @@ class DrklinikImport extends Command
         {--reprocess-seans-fark-musteriler : /tmp/drk_seans_fark_<salon>.csv\'deki FARK satirlarinin musteri.aspx detayini tekrar isle (processKalanSeanslar over-count temizliyor)}
         {--cleanup-hatali-hizmetler : Salon icin adi parens iceren ya da "N seans X" gibi hatali olusturulmus hizmet kayitlarini ve bunlara bagli randevu/adisyon kayitlarini temizle}
         {--cleanup-duplicate-hizmetler : Salon icin trKey (case+aksan normalize) ayni olan hizmet kayitlarini merge et: en eski id\'yi tut, digerlerinin AH/RH/TH/SH baglantilarini ona transfer et + fazlalari sil}
+        {--cleanup-aps-overflow : Salon icin APS sayisi > seans_sayisi (kapasite) olan adisyon_hizmetler kayitlarinin fazla APS\'lerini sil (en son eklenenler once)}
         {--verify : Import sirasinda her musid icin drklinik Kalan Seanslar vs DB karsilastir, /tmp/drk_verify_<salon>.csv\'ye yaz}
         {--dry-run : Sadece raporla, silme}';
 
@@ -180,6 +181,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('cleanup-duplicate-hizmetler')) {
             if (!$salonId) { $this->error('--cleanup-duplicate-hizmetler icin --salon zorunlu.'); return 1; }
             return $this->cleanupDuplicateHizmetler((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('cleanup-aps-overflow')) {
+            if (!$salonId) { $this->error('--cleanup-aps-overflow icin --salon zorunlu.'); return 1; }
+            return $this->cleanupApsOverflow((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ((bool) $this->option('wipe-salon-masraflar')) {
             if (!$salonId) { $this->error('--wipe-salon-masraflar icin --salon zorunlu.'); return 1; }
@@ -699,6 +704,60 @@ class DrklinikImport extends Command
             $importer->importMusteriDetay($musid, $userId);
         }
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+        return 0;
+    }
+
+    /**
+     * Salon icin APS sayisi > seans_sayisi (kapasite) olan adisyon_hizmetler
+     * kayitlarinin fazla APS'lerini sil (en son id'liler once). Eski import
+     * bug'larindan kalan over-capacity APS'leri temizler. seans_sayisi degeri
+     * korunur, sadece APS azaltilir.
+     */
+    private function cleanupApsOverflow($salonId, $dryRun)
+    {
+        $db = \DB::connection();
+
+        // Salon AH'larini APS count ile cek
+        $ahs = $db->table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)
+            ->whereNotNull('ah.seans_sayisi')
+            ->where('ah.seans_sayisi', '>', 0)
+            ->select('ah.id', 'ah.seans_sayisi',
+                $db->raw("(SELECT COUNT(*) FROM adisyon_paket_seanslar WHERE adisyon_hizmet_id = ah.id) as aps_count"))
+            ->get();
+
+        $overflow = $ahs->filter(function ($r) { return (int) $r->aps_count > (int) $r->seans_sayisi; });
+        $this->line("Toplam AH: " . $ahs->count() . ", overflow: " . $overflow->count());
+        if ($overflow->isEmpty()) { $this->info('Overflow yok.'); return 0; }
+
+        $totalSil = 0;
+        foreach ($overflow->take(20) as $r) {
+            $fazla = (int) $r->aps_count - (int) $r->seans_sayisi;
+            $totalSil += $fazla;
+            $this->line("  AH id={$r->id} seans={$r->seans_sayisi} aps={$r->aps_count} -> sil={$fazla}");
+        }
+        if ($overflow->count() > 20) $this->line('  ... +' . ($overflow->count() - 20) . ' diger');
+
+        // Toplam silinecek (tum overflow icin)
+        $tumSil = 0;
+        foreach ($overflow as $r) $tumSil += (int) $r->aps_count - (int) $r->seans_sayisi;
+        $this->line("Toplam silinecek APS: $tumSil");
+
+        if ($dryRun) { $this->warn('DRY-RUN: silme yapilmadi.'); return 0; }
+
+        $sayim = 0;
+        foreach ($overflow as $r) {
+            $fazla = (int) $r->aps_count - (int) $r->seans_sayisi;
+            $silId = $db->table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $r->id)
+                ->orderByDesc('id')->limit($fazla)->pluck('id')->all();
+            if ($silId) {
+                $db->table('adisyon_paket_seanslar')->whereIn('id', $silId)->delete();
+                $sayim += count($silId);
+            }
+        }
+        $this->info("Silindi: $sayim APS kaydi.");
         return 0;
     }
 

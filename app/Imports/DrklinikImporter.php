@@ -1349,12 +1349,11 @@ class DrklinikImporter
                 if ($existAh) {
                     // Drklinik'in mevcut degerine GUNCELLE — eski hatali seans_sayisi
                     // varsa duzelt (drklinik kullanici satislari editleyebilir, biz
-                    // de senkron tutmaliyiz). seans_sayisi degisirse APS over/under
-                    // olabilir, processKalanSeanslar reconcile etmiyor (devre disi)
-                    // o yuzden burada degisikligi yansitiyoruz.
+                    // de senkron tutmaliyiz).
                     $degisti = false;
+                    $eskiSeansSayisi = (int) $existAh->seans_sayisi;
                     if (\Schema::hasColumn((new AdisyonHizmetler)->getTable(), 'seans_sayisi')
-                        && (int) $existAh->seans_sayisi !== (int) $seansSayisi
+                        && $eskiSeansSayisi !== (int) $seansSayisi
                         && $seansSayisi > 0) {
                         $existAh->seans_sayisi = $seansSayisi;
                         $degisti = true;
@@ -1364,6 +1363,22 @@ class DrklinikImporter
                         $degisti = true;
                     }
                     if ($degisti) $existAh->save();
+                    // seans_sayisi azaldiysa APS over capacity olabilir — fazlasini sil
+                    // (en son eklenenler once). Bu, "alindi 253 ama kullanildi 653" gibi
+                    // negatif kalan goruntusunu engeller.
+                    if ($eskiSeansSayisi > 0 && (int) $seansSayisi > 0 && (int) $seansSayisi < $eskiSeansSayisi) {
+                        $apsCount = (int) \DB::table('adisyon_paket_seanslar')
+                            ->where('adisyon_hizmet_id', $existAh->id)->count();
+                        if ($apsCount > (int) $seansSayisi) {
+                            $fazla = $apsCount - (int) $seansSayisi;
+                            $silId = \DB::table('adisyon_paket_seanslar')
+                                ->where('adisyon_hizmet_id', $existAh->id)
+                                ->orderByDesc('id')->limit($fazla)->pluck('id')->all();
+                            if ($silId) {
+                                \DB::table('adisyon_paket_seanslar')->whereIn('id', $silId)->delete();
+                            }
+                        }
+                    }
                     continue;
                 }
                 $ah = new AdisyonHizmetler();
