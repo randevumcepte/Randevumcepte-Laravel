@@ -48,3 +48,22 @@ yarn-error.log
 # Root-level debug artefacts
 /api_request.json
 /laravel.log
+
+# Root-level drklinik/import debug logs ve CSV (tmp gibi dizinde tutulmali)
+/drk*.log
+/drk*.csv
+/drk*.html
+/dr_*.php
+/drklinik_*.log
+/sa.log
+/sa_*.log
+/sr[0-9]*.log
+/sr_*.log
+/planla*.log
+/salonappy_*.json
+/salonappy_*.log
+/sema_*.php
+/sema_*.html
+/inspect_*.php
+/kasa_islemleri.html
+/resp.txt
