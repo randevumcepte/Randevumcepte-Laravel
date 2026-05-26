@@ -652,6 +652,14 @@ Route::prefix('isletmeyonetim')->middleware('auth:isletmeyonetim')->group(functi
     Route::post('/destek/{id}/yanit', 'SalonDestekController@destekYanit');
     // Firebase Web Push — tarayicidan gelen FCM tokeni kaydet
     Route::post('/bildirim/cihaz-kaydet', 'StoreAdminController@bildirimCihazKaydet');
+
+    // === Drklinik import/diagnostic API ===
+    // Tarayici/Postman ile cagri: ?user=X&pass=Y (veya env DRKLINIK_USER/PASS)
+    Route::get('/api/drklinik/scan/{musid}', 'DrklinikApiController@scanMusteri');
+    Route::post('/api/drklinik/repair/{musid}', 'DrklinikApiController@repairMusteri');
+    Route::get('/api/drklinik/satis-mismatch', 'DrklinikApiController@satisMismatch');
+    Route::get('/api/drklinik/verify-ozet', 'DrklinikApiController@verifyOzet');
+    Route::post('/api/drklinik/full-reimport', 'DrklinikApiController@fullReimport');
 });
 
 // Firebase Messaging service worker (config env'den)
