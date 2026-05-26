@@ -44,6 +44,7 @@ class DrklinikImport extends Command
         {--add-eksik-musteriler : /tmp/drk_tahsilat_eksik_<salon>.csv\'deki bulunamayan musterileri drklinik\'te isimle arar, musid bulup musteri+detay olarak ekler}
         {--reprocess-seans-fark-musteriler : /tmp/drk_seans_fark_<salon>.csv\'deki FARK satirlarinin musteri.aspx detayini tekrar isle (processKalanSeanslar over-count temizliyor)}
         {--cleanup-hatali-hizmetler : Salon icin adi parens iceren ya da "N seans X" gibi hatali olusturulmus hizmet kayitlarini ve bunlara bagli randevu/adisyon kayitlarini temizle}
+        {--cleanup-duplicate-hizmetler : Salon icin trKey (case+aksan normalize) ayni olan hizmet kayitlarini merge et: en eski id\'yi tut, digerlerinin AH/RH/TH/SH baglantilarini ona transfer et + fazlalari sil}
         {--verify : Import sirasinda her musid icin drklinik Kalan Seanslar vs DB karsilastir, /tmp/drk_verify_<salon>.csv\'ye yaz}
         {--dry-run : Sadece raporla, silme}';
 
@@ -175,6 +176,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('cleanup-hatali-hizmetler')) {
             if (!$salonId) { $this->error('--cleanup-hatali-hizmetler icin --salon zorunlu.'); return 1; }
             return $this->cleanupHataliHizmetler((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('cleanup-duplicate-hizmetler')) {
+            if (!$salonId) { $this->error('--cleanup-duplicate-hizmetler icin --salon zorunlu.'); return 1; }
+            return $this->cleanupDuplicateHizmetler((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ((bool) $this->option('wipe-salon-masraflar')) {
             if (!$salonId) { $this->error('--wipe-salon-masraflar icin --salon zorunlu.'); return 1; }
@@ -695,6 +700,122 @@ class DrklinikImport extends Command
         }
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
         return 0;
+    }
+
+    /**
+     * Salon icin trKey (lowercase + aksan normalize) ayni olan hizmet kayitlarini merge eder.
+     * Drklinik re-import sirasinda findSalonHizmetByName cache hatalarindan dolayi
+     * ayni isimle 2-3 ayri hizmet kaydi (3125, 3447, 3586 gibi) olusmus olabilir.
+     * Bu fonksiyon her grup icin en eski ID'yi tutar, digerlerinin tum baglantilarini
+     * (adisyon_hizmetler, randevu_hizmetler, tahsilat_hizmetler, salon_sunulan_hizmetler)
+     * en eski id'ye transfer eder, sonra fazlalari siler.
+     */
+    private function cleanupDuplicateHizmetler($salonId, $dryRun)
+    {
+        $db = \DB::connection();
+
+        // Salon icindeki hizmetleri (salon_sunulan_hizmetler ile join) cek
+        $rows = $db->table('hizmetler as h')
+            ->join('salon_sunulan_hizmetler as sh', 'sh.hizmet_id', '=', 'h.id')
+            ->where('sh.salon_id', $salonId)
+            ->select('h.id', 'h.hizmet_adi')->distinct()->orderBy('h.id')->get();
+
+        $trKey = function ($s) {
+            $s = mb_strtolower((string) $s, 'UTF-8');
+            $s = preg_replace('/\p{M}+/u', '', $s);
+            $s = strtr($s, ['ı'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ç'=>'c','Ç'=>'c']);
+            return trim(preg_replace('~[^a-z0-9]+~', ' ', $s));
+        };
+
+        $groups = [];
+        foreach ($rows as $r) {
+            $k = $trKey($r->hizmet_adi);
+            if ($k === '') continue;
+            $groups[$k][] = ['id' => $r->id, 'ad' => $r->hizmet_adi];
+        }
+        $dups = array_filter($groups, function ($g) { return count($g) > 1; });
+
+        $this->line("Toplam hizmet: " . count($rows) . ", duplicate grup: " . count($dups));
+        if (empty($dups)) { $this->info('Duplicate yok.'); return 0; }
+
+        // Onizleme - ilk 10
+        $i = 0;
+        foreach ($dups as $key => $arr) {
+            if (++$i > 10) break;
+            $ids = array_map(function ($x) { return $x['id']; }, $arr);
+            $this->line("  [" . substr($key, 0, 40) . "] -> ids=" . implode(',', $ids));
+        }
+
+        if ($dryRun) { $this->warn('DRY-RUN: merge yapilmadi.'); return 0; }
+
+        $mergedCount = 0; $deletedHizmet = 0;
+        $stats = ['ah' => 0, 'rh' => 0, 'th' => 0, 'sh' => 0];
+
+        $db->beginTransaction();
+        try {
+            foreach ($dups as $key => $arr) {
+                // En kucuk id = en eski = tutulacak
+                usort($arr, function ($a, $b) { return $a['id'] - $b['id']; });
+                $keepId = $arr[0]['id'];
+                $deleteIds = array_map(function ($x) { return $x['id']; }, array_slice($arr, 1));
+                if (empty($deleteIds)) continue;
+
+                // adisyon_hizmetler.hizmet_id transfer
+                $stats['ah'] += $db->table('adisyon_hizmetler')
+                    ->whereIn('hizmet_id', $deleteIds)
+                    ->update(['hizmet_id' => $keepId]);
+                // randevu_hizmetler.hizmet_id transfer
+                $stats['rh'] += $db->table('randevu_hizmetler')
+                    ->whereIn('hizmet_id', $deleteIds)
+                    ->update(['hizmet_id' => $keepId]);
+                // tahsilat_hizmetler.hizmet_id transfer
+                $stats['th'] += $db->table('tahsilat_hizmetler')
+                    ->whereIn('hizmet_id', $deleteIds)
+                    ->update(['hizmet_id' => $keepId]);
+                // adisyon_paket_seanslar.hizmet_id transfer
+                $db->table('adisyon_paket_seanslar')
+                    ->whereIn('hizmet_id', $deleteIds)
+                    ->update(['hizmet_id' => $keepId]);
+                // salon_sunulan_hizmetler: salon_id+hizmet_id unique olabilir, dikkat
+                // Once delete edilecek olanlarin sh kaydini sil (eger keepId zaten varsa)
+                $keepShExists = $db->table('salon_sunulan_hizmetler')
+                    ->where('salon_id', $salonId)->where('hizmet_id', $keepId)->exists();
+                if ($keepShExists) {
+                    // Duplicate id'lerin sh kayitlarini sil
+                    $stats['sh'] += $db->table('salon_sunulan_hizmetler')
+                        ->whereIn('hizmet_id', $deleteIds)->where('salon_id', $salonId)->delete();
+                } else {
+                    // keepId'nin sh yok, duplicate'in birini keepId'ye guncelle, kalanlari sil
+                    $firstDel = reset($deleteIds);
+                    $db->table('salon_sunulan_hizmetler')
+                        ->where('hizmet_id', $firstDel)->where('salon_id', $salonId)
+                        ->update(['hizmet_id' => $keepId]);
+                    $remaining = array_diff($deleteIds, [$firstDel]);
+                    if ($remaining) {
+                        $stats['sh'] += $db->table('salon_sunulan_hizmetler')
+                            ->whereIn('hizmet_id', $remaining)->where('salon_id', $salonId)->delete();
+                    }
+                }
+                // hizmetler tablosundan sil (baska salon kullanmiyorsa)
+                $kalanSh = $db->table('salon_sunulan_hizmetler')->whereIn('hizmet_id', $deleteIds)->count();
+                if ($kalanSh === 0) {
+                    $deletedHizmet += $db->table('hizmetler')->whereIn('id', $deleteIds)->delete();
+                }
+                $mergedCount++;
+            }
+            $db->commit();
+            $this->info("Merge tamam: $mergedCount grup birlestirildi.");
+            $this->line("  adisyon_hizmetler update: {$stats['ah']}");
+            $this->line("  randevu_hizmetler update: {$stats['rh']}");
+            $this->line("  tahsilat_hizmetler update: {$stats['th']}");
+            $this->line("  salon_sunulan_hizmetler delete: {$stats['sh']}");
+            $this->line("  hizmetler delete: $deletedHizmet");
+            return 0;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            $this->error('Hata: ' . $e->getMessage());
+            return 1;
+        }
     }
 
     /**
