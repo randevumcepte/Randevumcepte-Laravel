@@ -1195,8 +1195,17 @@ class DrklinikImporter
 
         $musteri = \DB::table('users')->where('id', $userId)->value('name') ?? '';
 
+        // Hizmet karsilastirmasi icin trKey normalize (case+aksan)
+        // "PROTEZ TIRNAK" ve "Protez tırnak" ayni hizmet kabul edilir
+        $normKey = function ($s) {
+            $s = mb_strtolower((string) $s, 'UTF-8');
+            $s = preg_replace('/\p{M}+/u', '', $s);
+            $s = strtr($s, ['ı'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ç'=>'c','Ç'=>'c']);
+            return trim(preg_replace('~[^a-z0-9]+~', ' ', $s));
+        };
+
         // Drklinik satirlarini hizmet bazinda topla
-        $drkPerHizmet = []; // hizmetAdi => ['alinan', 'harcanan']
+        $drkPerHizmet = []; // normKey => ['ad','alinan','harcanan']
         preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $tbody, $rows);
         foreach ($rows[1] as $tr) {
             if (stripos($tr, '<th') !== false && stripos($tr, '<td') === false) continue;
@@ -1212,12 +1221,14 @@ class DrklinikImporter
             $alinan = (int) preg_replace('~\D~', '', $cells[$iAlinan] ?? '0');
             $harcanan = (int) preg_replace('~[^\d-]~', '', $cells[$iHarcanan] ?? '0');
             if ($alinan <= 0) continue;
-            if (!isset($drkPerHizmet[$hizmetAd])) $drkPerHizmet[$hizmetAd] = ['alinan' => 0, 'harcanan' => 0];
-            $drkPerHizmet[$hizmetAd]['alinan'] += $alinan;
-            $drkPerHizmet[$hizmetAd]['harcanan'] += max(0, $harcanan);
+            $key = $normKey($hizmetAd);
+            if ($key === '') continue;
+            if (!isset($drkPerHizmet[$key])) $drkPerHizmet[$key] = ['ad' => $hizmetAd, 'alinan' => 0, 'harcanan' => 0];
+            $drkPerHizmet[$key]['alinan'] += $alinan;
+            $drkPerHizmet[$key]['harcanan'] += max(0, $harcanan);
         }
 
-        // DB AH'lari hizmet bazinda topla
+        // DB AH'lari hizmet bazinda topla (normKey ile)
         $dbRows = \DB::table('adisyon_hizmetler as ah')
             ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
             ->leftJoin('hizmetler as h', 'h.id', '=', 'ah.hizmet_id')
@@ -1228,24 +1239,27 @@ class DrklinikImporter
         $dbPerHizmet = [];
         foreach ($dbRows as $r) {
             $ad = $r->hizmet_adi ?? '';
-            if (!isset($dbPerHizmet[$ad])) $dbPerHizmet[$ad] = ['alinan' => 0, 'harcanan' => 0];
-            $dbPerHizmet[$ad]['alinan'] += (int) $r->seans_sayisi;
+            $key = $normKey($ad);
+            if ($key === '') continue;
+            if (!isset($dbPerHizmet[$key])) $dbPerHizmet[$key] = ['ad' => $ad, 'alinan' => 0, 'harcanan' => 0];
+            $dbPerHizmet[$key]['alinan'] += (int) $r->seans_sayisi;
             $aps = (int) \DB::table('adisyon_paket_seanslar')->where('adisyon_hizmet_id', $r->id)->count();
-            $dbPerHizmet[$ad]['harcanan'] += $aps;
+            $dbPerHizmet[$key]['harcanan'] += $aps;
         }
 
-        // Karsilastir
-        $tumHizmetler = array_unique(array_merge(array_keys($drkPerHizmet), array_keys($dbPerHizmet)));
-        foreach ($tumHizmetler as $h) {
-            $drk = $drkPerHizmet[$h] ?? ['alinan' => 0, 'harcanan' => 0];
-            $db  = $dbPerHizmet[$h]  ?? ['alinan' => 0, 'harcanan' => 0];
+        // Karsilastir (normalize edilmis key'ler uzerinden)
+        $tumKeys = array_unique(array_merge(array_keys($drkPerHizmet), array_keys($dbPerHizmet)));
+        foreach ($tumKeys as $key) {
+            $drk = $drkPerHizmet[$key] ?? ['ad' => '', 'alinan' => 0, 'harcanan' => 0];
+            $db  = $dbPerHizmet[$key]  ?? ['ad' => '', 'alinan' => 0, 'harcanan' => 0];
+            $hizmetAdGoster = $drk['ad'] ?: ($db['ad'] ?: $key);
             $drkKalan = $drk['alinan'] - $drk['harcanan'];
             $dbKalan  = $db['alinan']  - $db['harcanan'];
             $durum = 'OK';
             if ($drk['alinan'] !== $db['alinan'] || $drk['harcanan'] !== $db['harcanan']) {
                 $durum = ($db['alinan'] === 0 && $db['harcanan'] === 0) ? 'EKSIK_DB' : 'FARK';
             }
-            fputcsv($this->verifyCsvFp, [$musid, $musteri, $h, $drk['alinan'], $db['alinan'], $drk['harcanan'], $db['harcanan'], $drkKalan, $dbKalan, $durum]);
+            fputcsv($this->verifyCsvFp, [$musid, $musteri, $hizmetAdGoster, $drk['alinan'], $db['alinan'], $drk['harcanan'], $db['harcanan'], $drkKalan, $dbKalan, $durum]);
             if ($durum === 'OK') $this->verifyStats['ok']++;
             elseif ($durum === 'EKSIK_DB') $this->verifyStats['eksik_db']++;
             else $this->verifyStats['fark']++;
