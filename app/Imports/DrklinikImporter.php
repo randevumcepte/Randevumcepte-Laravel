@@ -2033,7 +2033,7 @@ class DrklinikImporter
                 $seansSayisi = 1;
                 $paketHint = $this->parsePaketSeansHint($hizmetStr);
                 if ($paketHint) $seansSayisi = max(1, (int) $paketHint['seans']);
-                $yazilan = $this->seanslariTuket($userId, $hizmetId, $tarih, $saat, $seansSayisi);
+                $yazilan = $this->seanslariTuket($userId, $hizmetId, $tarih, $saat, $seansSayisi, $r->id);
                 if ($yazilan > 0) {
                     $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + $yazilan;
                 }
@@ -2103,7 +2103,7 @@ class DrklinikImporter
      *
      * Donus: yazilan APS sayisi.
      */
-    private function seanslariTuket($userId, $hizmetId, $tarih, $saat, $kac)
+    private function seanslariTuket($userId, $hizmetId, $tarih, $saat, $kac, $randevuId = null)
     {
         $kac = max(1, (int) $kac);
         $saat = $saat ?: '00:00:00';
@@ -2162,6 +2162,9 @@ class DrklinikImporter
                 $aps->seans_tarih = $tarih;
                 $aps->seans_saat = $saat;
                 $aps->geldi = 1;
+                if ($randevuId && \Schema::hasColumn('adisyon_paket_seanslar', 'randevu_id')) {
+                    $aps->randevu_id = $randevuId;
+                }
                 $aps->save();
                 $yazilan++;
             }
