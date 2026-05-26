@@ -749,7 +749,7 @@ class DrklinikImport extends Command
         if ($dryRun) { $this->warn('DRY-RUN: merge yapilmadi.'); return 0; }
 
         $mergedCount = 0; $deletedHizmet = 0;
-        $stats = ['ah' => 0, 'rh' => 0, 'th' => 0, 'sh' => 0];
+        $stats = ['ah' => 0, 'rh' => 0, 'sh' => 0];
 
         $db->beginTransaction();
         try {
@@ -768,10 +768,9 @@ class DrklinikImport extends Command
                 $stats['rh'] += $db->table('randevu_hizmetler')
                     ->whereIn('hizmet_id', $deleteIds)
                     ->update(['hizmet_id' => $keepId]);
-                // tahsilat_hizmetler.hizmet_id transfer
-                $stats['th'] += $db->table('tahsilat_hizmetler')
-                    ->whereIn('hizmet_id', $deleteIds)
-                    ->update(['hizmet_id' => $keepId]);
+                // tahsilat_hizmetler hizmet_id kolonu YOK; adisyon_hizmet_id uzerinden
+                // adisyon_hizmetler.hizmet_id'ye bagli. AH transferi yapildigi icin
+                // tahsilat_hizmetler otomatik dogru hizmete bagli olur.
                 // adisyon_paket_seanslar.hizmet_id transfer
                 $db->table('adisyon_paket_seanslar')
                     ->whereIn('hizmet_id', $deleteIds)
@@ -807,7 +806,7 @@ class DrklinikImport extends Command
             $this->info("Merge tamam: $mergedCount grup birlestirildi.");
             $this->line("  adisyon_hizmetler update: {$stats['ah']}");
             $this->line("  randevu_hizmetler update: {$stats['rh']}");
-            $this->line("  tahsilat_hizmetler update: {$stats['th']}");
+            $this->line("  tahsilat_hizmetler: AH transferi ile otomatik dogrulandi");
             $this->line("  salon_sunulan_hizmetler delete: {$stats['sh']}");
             $this->line("  hizmetler delete: $deletedHizmet");
             return 0;
