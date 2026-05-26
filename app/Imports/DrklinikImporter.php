@@ -2035,9 +2035,16 @@ class DrklinikImporter
             //     arıyor, "Düşülmeyecek" de eşleşiyordu -> yanlis pozitif bug)
             // Ek: randevu durumu da onemli. Drklinik bir randevu iptal/gelmedi ise
             // "İşaretlenmiş" olsa bile seans dusurmuyor. Bizim de gelmediyse atla.
-            $isIsaret = (mb_stripos($seansDus, 'işaret', 0, 'UTF-8') !== false);
-            $isDusulmeyecek = (mb_stripos($seansDus, 'düşülmeyecek', 0, 'UTF-8') !== false);
-            $randevuGeldi = ($r->randevuya_geldi == 1);
+            // Turkce 'İ' bug: mb_stripos("İşaretlenmiş", "işaret") FALSE donyor cunku
+            // lowercase "i̇" (combining dot) ile "i" ayni degil. Once normalize et.
+            $dusN = mb_strtolower((string) $seansDus, 'UTF-8');
+            $dusN = preg_replace('/\p{M}+/u', '', $dusN);
+            $dusN = strtr($dusN, ['ı'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ç'=>'c','Ç'=>'c']);
+            $isIsaret = (strpos($dusN, 'isaret') !== false);
+            $isDusulmeyecek = (strpos($dusN, 'dusulmeyecek') !== false);
+            // Drklinik seans düşümünde randevu durumu sart degil — admin "İşaretlenmiş"
+            // dediyse drklinik düşmüş (Geldi/Beklemede fark etmez). Geldi sartini kaldirdik.
+            $randevuGeldi = true;
             if ($isIsaret && !$isDusulmeyecek && $randevuGeldi) {
                 $seansSayisi = 1;
                 $paketHint = $this->parsePaketSeansHint($hizmetStr);
