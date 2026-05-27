@@ -46,6 +46,7 @@ class DrklinikImport extends Command
         {--cleanup-hatali-hizmetler : Salon icin adi parens iceren ya da "N seans X" gibi hatali olusturulmus hizmet kayitlarini ve bunlara bagli randevu/adisyon kayitlarini temizle}
         {--cleanup-duplicate-hizmetler : Salon icin trKey (case+aksan normalize) ayni olan hizmet kayitlarini merge et: en eski id\'yi tut, digerlerinin AH/RH/TH/SH baglantilarini ona transfer et + fazlalari sil}
         {--cleanup-aps-overflow : Salon icin APS sayisi > seans_sayisi (kapasite) olan adisyon_hizmetler kayitlarinin fazla APS\'lerini sil (en son eklenenler once)}
+        {--add-missing-hizmetler : /tmp/drk_verify_<salon>.csv\'deki EKSIK_DB hizmetlerini pasif olarak Hizmetler kataloguna ekle + ilgili musid\'leri tekrar repair et}
         {--verify : Import sirasinda her musid icin drklinik Kalan Seanslar vs DB karsilastir, /tmp/drk_verify_<salon>.csv\'ye yaz}
         {--dry-run : Sadece raporla, silme}';
 
@@ -185,6 +186,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('cleanup-aps-overflow')) {
             if (!$salonId) { $this->error('--cleanup-aps-overflow icin --salon zorunlu.'); return 1; }
             return $this->cleanupApsOverflow((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('add-missing-hizmetler')) {
+            if (!$username || !$password || !$salonId) { $this->error('--add-missing-hizmetler icin --username/--password/--salon zorunlu.'); return 1; }
+            return $this->addMissingHizmetler($username, $password, (int) $salonId, (bool) $this->option('dry-run'));
         }
         if ((bool) $this->option('wipe-salon-masraflar')) {
             if (!$salonId) { $this->error('--wipe-salon-masraflar icin --salon zorunlu.'); return 1; }
@@ -704,6 +709,79 @@ class DrklinikImport extends Command
             $importer->importMusteriDetay($musid, $userId);
         }
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+        return 0;
+    }
+
+    /**
+     * Verify CSV'sindeki EKSIK_DB hizmetlerini pasif olarak Hizmetler kataloguna
+     * ekler, salon_sunulan_hizmetler'a aktif=0 olarak baglayip o musid'leri
+     * tekrar repair eder. Sonuc: importMusteriDetay artik o hizmeti findSalonHizmetByName
+     * ile bulup AH'i dogru olusturur.
+     */
+    private function addMissingHizmetler($username, $password, $salonId, $dryRun)
+    {
+        $csv = '/tmp/drk_verify_' . $salonId . '.csv';
+        if (!file_exists($csv)) { $this->error("CSV yok: {$csv}"); return 1; }
+
+        $fp = fopen($csv, 'r');
+        $hdr = fgetcsv($fp);
+        $eksikSet = []; // hizmet_adi => true
+        $musidSet = []; // musid => user_id
+        while (($r = fgetcsv($fp)) !== false) {
+            if (($r[9] ?? '') !== 'EKSIK_DB') continue;
+            $hizmet = trim($r[2] ?? '');
+            $musid = trim($r[0] ?? '');
+            if ($hizmet === '' || $musid === '') continue;
+            $eksikSet[$hizmet] = true;
+            $musidSet[$musid] = true;
+        }
+        fclose($fp);
+        $this->line('EKSIK_DB hizmet sayisi : ' . count($eksikSet));
+        $this->line('Etkilenen musid sayisi : ' . count($musidSet));
+        foreach (array_slice(array_keys($eksikSet), 0, 15) as $h) $this->line('  - ' . $h);
+
+        if (empty($eksikSet)) { $this->info('EKSIK_DB yok.'); return 0; }
+        if ($dryRun) { $this->warn('DRY-RUN: ekleme/repair yapilmadi.'); return 0; }
+
+        // 1) Eksik hizmetleri pasif olarak ekle (ensureSalonHizmet kullan)
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+
+        $importer = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+
+        $rcEnsure = new \ReflectionClass($importer);
+        $methEnsure = $rcEnsure->getMethod('ensureSalonHizmet');
+        $methEnsure->setAccessible(true);
+
+        $eklenen = 0; $mevcut = 0;
+        foreach ($eksikSet as $hizmetAd => $_) {
+            $sh = $methEnsure->invoke($importer, $hizmetAd, 0);
+            if (!$sh) { $this->warn("  Olusturulamadi: $hizmetAd"); continue; }
+            // SH kaydini pasif yap (aktif=0) — drklinik'ten gelen, sezenler arasinda gozukmesin
+            // Schema'da aktif/durum kolonu varsa
+            $shTable = 'salon_sunulan_hizmetler';
+            if (\Schema::hasColumn($shTable, 'aktif')) {
+                \DB::table($shTable)->where('hizmet_id', $sh['hizmet_id'])
+                    ->where('salon_id', $salonId)
+                    ->update(['aktif' => 0]);
+            }
+            $eklenen++;
+        }
+        $this->info("Hizmet ekleme tamam: $eklenen yeni hizmet (pasif olarak)");
+
+        // 2) Etkilenen musid'leri tekrar repair et
+        $this->line(chr(10) . 'Etkilenen musteriler repair ediliyor...');
+        $i = 0; $tot = count($musidSet);
+        foreach ($musidSet as $musid => $_) {
+            $i++;
+            $userId = $importer->ensureUserByMusidPublic((string) $musid);
+            if (!$userId) { $this->warn("  [$i/$tot] musid=$musid user yok"); continue; }
+            $importer->importMusteriDetay((string) $musid, $userId);
+            if ($i % 5 === 0) $this->line("  ..repair $i/$tot");
+            usleep(150000);
+        }
+        $this->info("Repair tamam: $i musteri yeniden islendi");
         return 0;
     }
 
