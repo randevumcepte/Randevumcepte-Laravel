@@ -404,14 +404,14 @@ class SalonrandevuImporter
                 $i++;
                 $this->importOneAppointment($appt);
             }
-            $this->log("  sayfa {$page} islendi (toplam islenen={$i} eklenen=" . $this->counts['randevu'] . " dedup=" . $this->counts['randevu_dedup'] . " skip=" . $this->counts['skip'] . ')');
+            $this->log("  sayfa {$page} islendi (toplam islenen={$i} eklenen=" . $this->counts['randevu'] . " update=" . ($this->counts['randevu_update'] ?? 0) . " skip=" . $this->counts['skip'] . ')');
 
             $cur  = $d['page'] ?? $page;
             $next = $d['next_page'] ?? null;
             if ($next === null || (int) $next <= (int) $cur) break;
             $page = (int) $next;
         }
-        $this->log('Randevu: eklenen=' . $this->counts['randevu'] . ' dedup=' . $this->counts['randevu_dedup'] . ' skip=' . $this->counts['skip']);
+        $this->log('Randevu: eklenen=' . $this->counts['randevu'] . ' update=' . ($this->counts['randevu_update'] ?? 0) . ' skip=' . $this->counts['skip']);
     }
 
     private function importOneAppointment($appt)
@@ -428,11 +428,10 @@ class SalonrandevuImporter
             list(, $saatBitis) = $this->isoBol($appt['appointment_end_date'] ?? null);
 
             $marker = '[salonrandevu-rdv:' . $apptId . ']';
-            if (Randevular::where('salon_id', $this->salonId)
-                ->where('personel_notu', 'LIKE', '%' . $marker . '%')->exists()) {
-                $this->counts['randevu_dedup']++;
-                return;
-            }
+            // Upsert: marker varsa UPDATE (durum/geldi degisikligi senkron), yoksa INSERT.
+            // Eskiden SKIP idi, salonrandevu'da durum degisirse bizde eski halde kaliyor.
+            $existRandevu = Randevular::where('salon_id', $this->salonId)
+                ->where('personel_notu', 'LIKE', '%' . $marker . '%')->first();
 
             // Personel
             $personelId = null;
@@ -468,25 +467,30 @@ class SalonrandevuImporter
             elseif (in_array($state, [4, 5], true)) $durum = 2;
 
             try {
-                $r = new Randevular();
+                $r = $existRandevu ?: new Randevular();
                 $r->tarih = $tarih;
                 $r->saat = $saat;
                 $r->user_id = $userId;
                 $r->salon_id = $this->salonId;
                 $r->durum = $durum;
-                $r->salon = 0;
-                $r->olusturan_personel_id = null;
+                if (!$existRandevu) {
+                    $r->salon = 0;
+                    $r->olusturan_personel_id = null;
+                }
                 if ($geldi !== null) $r->randevuya_geldi = $geldi;
                 $not = trim((string) ($appt['note'] ?? ''));
                 $r->personel_notu = trim(($not ? $not . ' ' : '') . $marker);
-                if (!empty($appt['created_at'])) {
+                if (!$existRandevu && !empty($appt['created_at'])) {
                     $ct = strtotime($appt['created_at']);
                     if ($ct) $r->created_at = date('Y-m-d H:i:s', $ct);
                 }
                 $r->save();
 
                 if ($hizmetId) {
-                    $rh = new RandevuHizmetler();
+                    // RandevuHizmetler upsert: (randevu_id, hizmet_id) bazli
+                    $rh = RandevuHizmetler::where('randevu_id', $r->id)
+                        ->where('hizmet_id', $hizmetId)->first();
+                    if (!$rh) $rh = new RandevuHizmetler();
                     $rh->randevu_id = $r->id;
                     $rh->hizmet_id = $hizmetId;
                     $rh->saat = $saat;
@@ -496,7 +500,8 @@ class SalonrandevuImporter
                     if ($personelId) $rh->personel_id = $personelId;
                     $rh->save();
                 }
-                $this->counts['randevu']++;
+                if ($existRandevu) $this->counts['randevu_update'] = ($this->counts['randevu_update'] ?? 0) + 1;
+                else $this->counts['randevu']++;
             } catch (\Throwable $e) {
                 $this->counts['hata']++;
                 \Log::warning('[Salonrandevu] randevu', ['appt' => $apptId, 'err' => $e->getMessage()]);
