@@ -6,6 +6,9 @@
 .env
 .env.*.local
 
+# Firebase service account JSON'lari (private_key icerir, asla git'e girmesin)
+/storage/app/firebase/*.json
+
 # Logs
 /storage/logs/*
 /storage/framework/cache/*

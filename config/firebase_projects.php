@@ -17,5 +17,8 @@
  *  4) Salon kayitinda firebase_profile alanini bu isme set et
  */
 return [
-    'default' => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    // Eski "uygulamala" projesi (5ff4d) - cogu marka burada
+    'default'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    // Yeni "uygulamalar" projesi - bazi markalar buraya tasindi
+    'uygulamalar'  => 'app/firebase/uygulamalar.json',
 ];
