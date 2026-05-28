@@ -67,90 +67,167 @@ php artisan planla:import --salon=355 --fix-olusturan # Gecersiz olusturan_perso
 
 **Kaynak**: uygulama.drklinik.net (ASP.NET WebForms). `__VIEWSTATE` + `__EVENTVALIDATION` ile sayfa scrape eder. CSRF token rotasyonlu.
 
-**Sinyal**: HTML form post + table parse. Sayfalama, satır limiti gibi WebForms tuzakları için recursive split kullanır.
+**Sinyal**: HTML form post + table parse. Sayfalama, satır limiti gibi WebForms tuzakları için pagination (RP_Sayfalar_*) + form state preservation kullanır.
+
+### Genel akış
+
+Drklinik UI **musid-bazlı atomik** modelle çalışır. Her müsteri için `musteri.aspx?musid=X` sayfasında 5 tablo var:
+1. **Satışlar** → adisyon + adisyon_hizmetler + tahsilatlar (satis.aspx?id=X&tip=d detay'dan)
+2. **Hizmet/Ürün** alımları (yalnız goruntu, biz Satislar tab'ından yazıyoruz)
+3. **Randevular** + Seans Düşümü işareti → randevular + randevu_hizmetler + APS tüketimi
+4. **Kalan Seanslar** → drklinik aggregate sayım (sadece DOĞRULAMA için; biz override etmiyoruz)
+5. **Tahsilatlar** → tahsilatlar (alternatif kaynak)
+
+Tüm aktarım **idempotent**: marker dedup ile tekrar çalıştırılabilir, eski kayıtlar update edilir.
 
 ### Kullanım
 
 ```bash
-# Tam aktarım (geçmiş + gelecek randevular dahil)
+# === EN SIK KULLANILAN: full reimport + per-musteri verify ===
 php artisan drklinik:import \
-  --username=KULLANICI \
-  --password=SIFRE \
+  --username=KULLANICI --password=SIFRE \
   --salon=362 \
-  --from=2018-01-01 \
-  --to=2030-12-31
+  --only=satis-tahsilat \
+  --verify
 
-# Sadece belirli tip
-php artisan drklinik:import --username=X --password=Y --salon=362 \
-  --only=tahsilat,gider
+# Cikti: /tmp/drk_verify_<salon>.csv
+# Her musteri+hizmet icin OK / FARK / EKSIK_DB durumu yazilir
+# Sonda ozet: "Verify ozet: OK=X FARK=Y EKSIK_DB=Z"
 
-# Sadece son durumu raporla, yazma yapma
-php artisan drklinik:import --username=X --password=Y --salon=362 \
-  --inspect-tahsilat
+# === Spesifik tip ===
+php artisan drklinik:import --salon=362 --only=hizmet,personel,urun,oda  # kurulum
+php artisan drklinik:import --salon=362 --only=randevu                    # gunlukrandevulistesi.aspx (eski yol)
+php artisan drklinik:import --salon=362 --only=satis-tahsilat             # musteri.aspx atomik (yeni)
+php artisan drklinik:import --salon=362 --only=gider                      # masraflar
 
-# Tahsilat reconciliation (4 CSV cikti uretir):
+# === Tek-musteri repair (tanılama) ===
+php artisan drklinik:import --salon=362 --username=X --password=Y \
+  --repair-musid=2295052
+
+# === Tanılama ===
+php artisan drklinik:import --username=X --password=Y --salon=362 --inspect-tahsilat
+php artisan drklinik:import --username=X --password=Y --salon=362 --inspect-kasa
+php artisan drklinik:import --username=X --password=Y --salon=362 --inspect-musid=2295052
+php artisan drklinik:import --salon=362 --debug-seans-musid=2295052
+
+# === Reconciliation (drklinik kasa vs DB tahsilat) ===
 php artisan drklinik:import --username=X --password=Y --salon=362 \
-  --report-tahsilat-fark --from=2018-01-01 --to=2026-12-31
+  --report-tahsilat-fark --from=2024-01-01 --to=2026-12-31
 # Cikti:
-#   /tmp/drk_tahsilat_ok_362.csv         (strict match)
-#   /tmp/drk_tahsilat_isim_farki_362.csv (loose match, isim farki)
-#   /tmp/drk_tahsilat_gercek_fazla_362.csv (DB'de var, drklinikte yok)
-#   /tmp/drk_tahsilat_eksik_362.csv      (drklinikte var, DB'de yok)
+#   /tmp/drk_tahsilat_isim_farki_<salon>.csv   (loose match)
+#   /tmp/drk_tahsilat_gercek_fazla_<salon>.csv (DB'de var, drklinikte yok)
+#   /tmp/drk_tahsilat_eksik_<salon>.csv        (drklinikte var, DB'de yok)
 
-# Reconciliation uygula:
+php artisan drklinik:import --salon=362 --apply-fazla-sil
+php artisan drklinik:import --salon=362 --apply-eksik-ekle
+php artisan drklinik:import --username=X --password=Y --salon=362 --add-eksik-musteriler
+
+# === Seans dogrulama ===
+php artisan drklinik:import --username=X --password=Y --salon=362 --report-seans-fark
 php artisan drklinik:import --username=X --password=Y --salon=362 \
-  --apply-fazla-sil      # Fazla DB kayitlarini sil
+  --reprocess-seans-fark-musteriler
+
+# === Onarim / Temizlik komutlari ===
+php artisan drklinik:import --salon=362 --cleanup-0000-randevu          # saat=00:00 placeholder randevular
+php artisan drklinik:import --salon=362 --cleanup-hatali-hizmetler      # parens/N seans formati bozuk hizmet
+php artisan drklinik:import --salon=362 --cleanup-duplicate-hizmetler   # trKey ayni hizmetleri merge
+php artisan drklinik:import --salon=362 --cleanup-aps-overflow          # APS > seans_sayisi (kapasite)
+php artisan drklinik:import --salon=362 --dedupe-internal-tahsilat      # ic-duplicate tahsilat
+php artisan drklinik:import --salon=362 --merge-tahsilat-duplicates     # kasa-NULL + satis-detay merge
 php artisan drklinik:import --username=X --password=Y --salon=362 \
-  --apply-eksik-ekle     # Eksik drklinik tahsilatlari ekle
+  --add-missing-hizmetler                                                # EKSIK_DB hizmetlerini pasif olarak ekle
 
-# Gider tamir (HTML'de 100TL'lik dup'lar icin):
-php artisan drklinik:import --salon=362 --repair-gider-dedup
-php artisan drklinik:import --salon=362 --repair-masraf-kategori
-
-# Seans tamir
-php artisan drklinik:import --salon=362 --repair-seans-sayisi
-php artisan drklinik:import --salon=362 --cleanup-dummy-aps
-
-# Reset (sadece [drklinik:...] markerli kayitlari):
-php artisan drklinik:import --salon=362 --reset-drklinik-satis --dry-run
-php artisan drklinik:import --salon=362 --reset-drklinik-satis
+# === Reset ===
+php artisan drklinik:import --salon=362 --reset-drklinik-satis          # [drklinik:..] markerli adisyonlar
+php artisan drklinik:import --salon=362 --nuke-salon-data               # tum hareket verisi (musteri korunur)
+php artisan drklinik:import --salon=362 --wipe-salon-tahsilatlar        # sadece tahsilatlar
+php artisan drklinik:import --salon=362 --wipe-salon-masraflar          # sadece masraflar
 ```
-
-### Parametreler (önemliler)
-
-- `--username`, `--password`, `--salon`: Zorunlu
-- `--from`, `--to`: Tarih aralığı (varsayılan 2018-2026)
-- `--only=musteri,hizmet,personel,urun,oda,randevu,tahsilat`
-- `--analyze`, `--probe`: Salt-okunur keşif
-- `--inspect-tahsilat`, `--inspect-kasa`, `--inspect-musid=X`: Tanı
-- `--report-tahsilat-fark`: Reconciliation raporu (4 CSV)
-- `--apply-fazla-sil`, `--apply-eksik-ekle`: Reconciliation uygula
-- `--repair-*`: Hedef onarımlar
-- `--reset-drklinik-satis`: `[drklinik:SatisNo]` markerlı kayıtları sil
 
 ### Aktarılan veri
 
-- Müşteriler (musid bazlı, fallback: ad+tel)
-- Hizmetler + kategoriler
-- Personeller, odalar, cihazlar
-- Randevular (geçmiş + gelecek; geldi/gelmedi durumu)
-- **Adisyonlar + adisyon_hizmetler** (`seans_sayisi` paket için)
-- **AdisyonPaketSeanslar** (kullanılan seanslar `geldi=1`)
-- **Tahsilatlar** (ödeme yöntemi + tarih)
-- **Masraflar / giderler** (kategori + ödeme + açıklama)
+| Yer | Açıklama |
+|---|---|
+| `users` + `musteri_portfoy` | musid bazlı; telefon/ad fallback ile dedup |
+| `hizmetler` + `salon_sunulan_hizmetler` | Drklinik kategori; bulunamayan hizmet adları için **pasif kayıt** (`aktif=0`) otomatik açılır |
+| `personeller`, `odalar` | calisanmodulu.aspx + cihazlar |
+| `adisyonlar` + `adisyon_hizmetler` | seans_sayısı paket bilgisi; idempotent update |
+| `adisyon_paket_seanslar` (APS) | **randevu-bazlı** tüketim (her "Seanstan Düş İşaretlenmiş" randevu → APS) |
+| `randevular` + `randevu_hizmetler` | `dusum_miktari` kolonu ile multi-hizmet "(X x N)" desteği |
+| `tahsilatlar` | satis.aspx?tip=d detay sayfasından kalemleri ile |
+| `masraflar` | kasa_islemleri.aspx gider sekmesi |
 
 ### Dedup marker'ları
 
-- `[drklinik:SatisNo]` — adisyon notunda
-- `drk:HASH` — gider için tarih+tutar+saat+aciklama hash'i (`:2`, `:3` suffix'i ile aynı hash tekrarları için)
+| Marker | Yer | Amaç |
+|---|---|---|
+| `[drklinik:SatisNo]` | `adisyonlar.notlar` | Satış idempotent dedup |
+| `[drk-tah:SatisNo:idx]` | `tahsilatlar.notlar` | Satis-detay'dan gelen tahsilat dedup |
+| `drk:HASH` | `masraflar.notlar` | Gider için tarih+tutar+saat+aciklama hash (`:N` suffix ile dup) |
 
-### Reconciliation iş akışı
+### Seans (APS) yazma kuralları — KRITIK
 
-Tahsilat eşitleme için tipik akış:
-1. `--report-tahsilat-fark` ile 4 CSV üret
-2. `gercek_fazla.csv`'yi gözden geçir, `--apply-fazla-sil` ile sil
-3. `eksik.csv`'yi gözden geçir, `--apply-eksik-ekle` ile ekle
-4. Tekrar `--inspect-tahsilat` ile toplamları kontrol et
+Drklinik **per-hizmet aggregate** sayıyor (Kalan Seanslar tablosu: alındı/harcanan/kalan). Biz **per-randevu** kayıt tutuyoruz (APS). İki sistem arası uyumsuzluk hep bug üretmişti — **kalıcı çözüm**:
+
+1. `processKalanSeanslar` DEVRE DIŞI — randevu-bazlı APS tek source of truth
+2. `processMusteriRandevular` başında o müşterinin TÜM APS'leri silinir → randevulardan **CLEAN REBUILD**
+3. Multi-hizmet randevu `(Hizmet1 x 1),(Hizmet2 x 10)` her kalem için **ayrı `seanslariTuket`** çağrısı
+4. `seanslariTuket` SADECE eşleşen `hizmet_id` AH'larını tüketir (cross-hizmet fallback YOK)
+5. Türkçe `İ` normalize: `mb_strtolower("İşaretlenmiş")` → `i̇şaretlenmiş` combining mark → strpos eşleşmez → normalize sart
+6. "Seanstan Düş İşaretlenmiş" + NOT "Düşülmeyecek" + (durum şart değil — admin işaretlediyse drk düşmüş)
+7. AH dedup'ta `seans_sayisi` GUNCELLENIR (drklinik admin satışı edit etmis olabilir); kapasite azalırsa APS overflow temizlenir
+8. **ensureSalonHizmet `forceHizmet` kuralı**: seans bağlamı (randevu/seans tablosu) %100 hizmet; satış kaleminde `seans>1` %100 hizmet; aksi durumda urun-skip aktif
+
+Detay: [`memory/project_drklinik_seans_dusumu.md`](../.claude/projects/-Users-ferdi-Desktop-randevumcepte-yeni/memory/project_drklinik_seans_dusumu.md)
+
+### Tipik reconciliation iş akışı
+
+```bash
+# 1) Cleanup (eski hatali data)
+php artisan drklinik:import --salon=362 --cleanup-duplicate-hizmetler
+php artisan drklinik:import --salon=362 --cleanup-0000-randevu
+php artisan drklinik:import --salon=362 --cleanup-aps-overflow
+
+# 2) Full reimport + verify
+nohup php artisan drklinik:import --salon=362 --username=X --password=Y \
+    --only=satis-tahsilat --verify > /tmp/drk362_reimport.log 2>&1 &
+tail -f /tmp/drk362_reimport.log
+# Bittiginde: "Verify ozet: OK=X FARK=Y EKSIK_DB=Z" satirina bak
+
+# 3) EKSIK_DB hizmetler (drklinikte var bizde yok)
+php artisan drklinik:import --salon=362 --username=X --password=Y \
+    --add-missing-hizmetler                  # forceHizmet ile urun-also olanlar dahil
+
+# 4) Tahsilat reconciliation
+php artisan drklinik:import --salon=362 --username=X --password=Y \
+    --report-tahsilat-fark --from=2024-06-01 --to=2026-12-31
+# Eksik tahsilatlari musteri ismi uzerinden bagla:
+php artisan drklinik:import --salon=362 --apply-eksik-ekle
+# Bulunamayan musterileri drklinik aramasiyla ekle:
+php artisan drklinik:import --salon=362 --username=X --password=Y \
+    --add-eksik-musteriler
+
+# 5) Final verify
+nohup php artisan drklinik:import --salon=362 --username=X --password=Y \
+    --only=satis-tahsilat --verify > /tmp/drk362_final.log 2>&1 &
+```
+
+### Web tabanli API endpoint'leri (alternatif)
+
+CLI yerine HTTP cagri ile (admin auth altinda):
+- `GET  /isletmeyonetim/api/drklinik/scan/{musid}?salon=362` — DB vs drklinik karsilastir
+- `POST /isletmeyonetim/api/drklinik/repair/{musid}?salon=362` — tek musteri repair
+- `GET  /isletmeyonetim/api/drklinik/satis-mismatch?salon=362` — verify CSV'den satis farklarini liste
+- `GET  /isletmeyonetim/api/drklinik/verify-ozet?salon=362` — verify CSV ozet
+- `POST /isletmeyonetim/api/drklinik/full-reimport?salon=362` — background reimport baslat
+
+Controller: [`app/Http/Controllers/DrklinikApiController.php`](../app/Http/Controllers/DrklinikApiController.php)
+
+### Bilinen yapısal farklar
+
+- **Compound paketler**: "Heykel+Ems+G5+Lenf Drenaj 3 seans" tek isimli hizmet ama drklinik Kalan Seanslar'da 4 hizmet × 3 seans = 12 olarak aggregate edebiliyor. Bizim parser literal "X Seans = Y TRY" alır; admin manuel "1×12" yazarsa düzgün okunur. Otomatik decompose yok.
+- **Drklinik admin manuel düzeltmeleri**: Kalan Seanslar tablosunda admin manuel harcanan ayarlayabilir; bizim randevu sayımı ile birebir tutmayabilir (örnek: aynı randevuda "X seans ems x 1" iki kez geçen satır bizde 2 düşülür, drklinik elle 1'e indirmiş olabilir).
+- **Kasa-only entries**: Drklinik kasa listesinde gözüken ama satis-detay'da olmayan tahsilatlar mevcut. `--apply-eksik-ekle` bunları musteri ismi LIKE match ile bağlar.
 
 ---
 
@@ -347,17 +424,88 @@ Tarayıcı scripti throttle (250ms default) ile 4 req/s gönderir. 429 görürse
 
 ---
 
+## 4) Salonrandevu (`salonrandevu:import`)
+
+**Kaynak**: app.salonrandevu.com (web app) + REST API. `SalonrandevuClient` servisi.
+
+**Sinyal**: Login (email/şifre veya telefon) + Bearer token + `/company/*` endpoint'leri JSON döner.
+
+### Kullanım
+
+```bash
+# Tam aktarım
+php artisan salonrandevu:import \
+  --email=KULLANICI \
+  --password=SIFRE \
+  --salon=195
+
+# Sadece belirli tip
+php artisan salonrandevu:import --email=X --password=Y --salon=195 \
+  --only=musteri,hizmet,randevu
+
+# Endpoint keşfi (yazma yapmaz)
+php artisan salonrandevu:import --analyze            # Anasayfa + bundle.js
+php artisan salonrandevu:import --email=X --password=Y --probe   # Login + endpoint kesfi
+php artisan salonrandevu:import --email=X --password=Y --inspect # Her endpoint ilk kayit yapisi
+
+# Reset
+php artisan salonrandevu:import --salon=195 --reset-salonrandevu  # [salonrandevu:RefId] markerli sil
+php artisan salonrandevu:import --salon=195 --reset-all           # Tum islem verisi (salon sr'ya aitse)
+
+# Proxy ile (rate limit/IP blok varsa)
+php artisan salonrandevu:import --email=X --password=Y --salon=195 \
+  --proxy=http://user:pass@host:port
+```
+
+### Parametreler
+
+- `--email`, `--password`: Salonrandevu giriş (telefon da kabul edilir)
+- `--salon`: Hedef randevumcepte salon_id
+- `--only=musteri,hizmet,personel,randevu,tahsilat,paket,urun,gider`
+- `--from`, `--to`: Tarih aralığı (varsayılan 2020-2030)
+- `--analyze`, `--probe`, `--inspect`: Salt-okunur keşif
+- `--reset-salonrandevu`, `--reset-all`: Geri alma
+
+### Aktarılan veri
+
+- **Müşteriler** (`/company/customers?extra=1&page=N` — pagination'lı)
+- **Hizmetler** + kategoriler
+- **Personeller**
+- **Ürünler**
+- **Randevular** (sayfa-sayfa, resilient retry ile)
+- **Tahsilatlar / receipt'ler** (her receipt detay'i)
+- **Giderler**
+
+### Dedup marker
+
+- `[salonrandevu:RefId]` — adisyon/randevu notunda
+
+### Notlar
+
+- `SalonrandevuClient.get` bağlantı koparsa **6x backoff retry** yapar
+- Müşteri listesi pagination'lı; tüm sayfalar çekilir
+- Receipt'ler tek tek detay endpoint'inden okunur (kalemler dahil)
+- Drklinik gibi atomik **musid-bazlı** akış değil — REST API üzerinden tip-tip iterasyon
+
+---
+
 ## Repo dosyaları
 
 ```
 app/Console/Commands/PlanlaImport.php
 app/Console/Commands/DrklinikImport.php
 app/Console/Commands/SalonappyImport.php
+app/Console/Commands/SalonrandevuImport.php
 app/Services/PlanlaClient.php
 app/Services/DrklinikClient.php
 app/Services/SalonappyClient.php
+app/Services/SalonrandevuClient.php
 app/Imports/PlanlaImporter.php
+app/Imports/DrklinikImporter.php
+app/Imports/SalonrandevuImporter.php
+app/Http/Controllers/DrklinikApiController.php   # REST API endpoint'leri
 scripts/salonappy_dump_v7.js
 scripts/salonappy_dump_v6.js           # eski versiyon
 scripts/salonappy_scraper_resilient.py # Python Selenium fallback (deprecated)
+scripts/drklinik.py                    # Python Selenium scraper (referans implementasyon)
 ```
