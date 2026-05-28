@@ -607,7 +607,8 @@ class DrklinikImporter
                 $birimFiyat = $hv['tutar'] / $seansSayisi;
                 $sh = $this->findSalonHizmetByName($hv['ad']);
                 if (!$sh) {
-                    $sh = $this->ensureSalonHizmet($hv['ad'], $birimFiyat);
+                    // Seans > 1 ise %100 hizmet (paket satisi), forceHizmet=true
+                    $sh = $this->ensureSalonHizmet($hv['ad'], $birimFiyat, $seansSayisi > 1);
                     if (!$sh) continue;
                 }
                 $existAh = AdisyonHizmetler::where('adisyon_id', $ad->id)
@@ -1365,7 +1366,8 @@ class DrklinikImporter
                 }
                 $sh = $this->findSalonHizmetByName($hv['ad']);
                 if (!$sh) {
-                    $sh = $this->ensureSalonHizmet($hv['ad'], $birimFiyat);
+                    // Seans > 1 ise %100 hizmet (paket satisi), forceHizmet=true
+                    $sh = $this->ensureSalonHizmet($hv['ad'], $birimFiyat, $seansSayisi > 1);
                     if (!$sh) continue;
                 }
                 $existAh = AdisyonHizmetler::where('adisyon_id', $ad->id)
@@ -2025,9 +2027,10 @@ class DrklinikImporter
                 $hid = null;
                 $sureLocal = $sureDk;
                 if ($kalem['ad'] !== '' && !ctype_digit($kalem['ad'])) {
-                    // Once mevcut bir hizmet'e bagla; yoksa olustur
+                    // Randevuda gozuken kalem %100 hizmet (urun da olsa hizmet kayit
+                    // gerekli — randevu = hizmet kullanimi). forceHizmet=true.
                     $sh = $this->findSalonHizmetByName($kalem['ad']);
-                    if (!$sh) $sh = $this->ensureSalonHizmet($kalem['ad'], 0);
+                    if (!$sh) $sh = $this->ensureSalonHizmet($kalem['ad'], 0, true);
                     if ($sh) { $hid = $sh['hizmet_id']; if ($sh['sure_dk'] > 0) $sureLocal = $sh['sure_dk']; }
                 }
                 if ($bitis && count($hizmetKalemleri) === 1) {
@@ -2914,8 +2917,9 @@ class DrklinikImporter
                 }
             }
             if ($hizmetAdiHint) {
+                // Randevu/seans kalemleri %100 hizmet (forceHizmet=true)
                 $sh2 = $this->findSalonHizmetByName($hizmetAdiHint);
-                if (!$sh2) $sh2 = $this->ensureSalonHizmet($hizmetAdiHint, 0);
+                if (!$sh2) $sh2 = $this->ensureSalonHizmet($hizmetAdiHint, 0, true);
                 if ($sh2) $hizmetIdAtanacak = $sh2['hizmet_id'];
             }
 
