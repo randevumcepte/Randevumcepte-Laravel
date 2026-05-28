@@ -461,9 +461,14 @@ class SalonrandevuImporter
             // customer_state -> durum / geldi
             $state = $appt['customer_state'] ?? null;
             $durum = 1; $geldi = null;
+            // Gelecek randevu kontrolü: bugünden sonraysa geldi/gelmedi atama
+            // ($state=2 "onayli" anlami; salonrandevu gelecek randevulara da
+            // 2 atayabiliyor — biz geldi=1 koyarsak takvimde yapilmis gibi gozukur).
+            $randevuTs = $tarih . ' ' . $saat;
+            $isFuture = (strtotime($randevuTs) > time());
             if ($state === 0) $durum = 0;
-            elseif ($state === 2) { $durum = 1; $geldi = 1; }
-            elseif ($state === 3) { $durum = 1; $geldi = 0; }
+            elseif ($state === 2) { $durum = 1; if (!$isFuture) $geldi = 1; }
+            elseif ($state === 3) { $durum = 1; if (!$isFuture) $geldi = 0; }
             elseif (in_array($state, [4, 5], true)) $durum = 2;
 
             try {
