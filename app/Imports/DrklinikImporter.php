@@ -869,12 +869,15 @@ class DrklinikImporter
      * Drklinik aktariminda kayitli hizmet bulunamayan satirlarda 0 TL adisyon
      * olusmasini engellemek icin pasif olarak hizmeti otomatik ekler.
      */
-    private function ensureSalonHizmet($ad, $fiyat)
+    public function ensureSalonHizmet($ad, $fiyat, $forceHizmet = false)
     {
         $ad = trim((string) $ad);
         if ($ad === '') return null;
-        // Urun ismi ise hizmet uretme; cagiran taraf null'a gore islem yapacak
-        if ($this->isUrunName($ad)) {
+        // Urun ismi ise hizmet uretme — AMA $forceHizmet true ise olussun.
+        // Drklinik bazi kalemleri ("Hydrafacial cilt bakımı" gibi) hem urun
+        // hem hizmet ekraninda gosteriyor; bizim importUrunler bunlari urun
+        // olarak almis. EKSIK_DB hizmetlerini eklerken force ile gec.
+        if (!$forceHizmet && $this->isUrunName($ad)) {
             return null;
         }
 

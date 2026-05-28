@@ -756,8 +756,11 @@ class DrklinikImport extends Command
 
         $eklenen = 0; $mevcut = 0;
         foreach ($eksikSet as $hizmetAd => $_) {
-            $sh = $methEnsure->invoke($importer, $hizmetAd, 0);
+            // forceHizmet=true: drklinik bazi hizmetleri urun olarak da listeliyor
+            // ("Hydrafacial cilt bakımı" gibi), force ile hizmet kayit zorla
+            $sh = $methEnsure->invoke($importer, $hizmetAd, 0, true);
             if (!$sh) { $this->warn("  Olusturulamadi: $hizmetAd"); continue; }
+            $this->info("  Olusturuldu: $hizmetAd (id={$sh['hizmet_id']}, pasif)");
             // SH kaydini pasif yap (aktif=0) — drklinik'ten gelen, sezenler arasinda gozukmesin
             // Schema'da aktif/durum kolonu varsa
             $shTable = 'salon_sunulan_hizmetler';
