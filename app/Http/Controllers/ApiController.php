@@ -1052,6 +1052,9 @@ class ApiController extends Controller
     )
     ->orderBy('tarih', 'desc');
 
+    $_faturasizGizleAktif = (bool) Salonlar::where('id', $isletmeId)->value('faturasiz_gizle');
+    $faturaFiltreSayim = $_faturasizGizleAktif ? " AND a.fatura_kesildi = 1" : "";
+
     // AÇIK/KAPALI FİLTRELEME (SQL ile)
     if($acikKapali != -1) {
         $operator = $acikKapali == 1 ? '>' : '=';
@@ -1136,6 +1139,7 @@ class ApiController extends Controller
                 ) as kalan
             FROM adisyonlar a
             WHERE a.salon_id = ? AND a.tarih BETWEEN ? AND ?
+            $faturaFiltreSayim
             $personelFiltre
         ) sub",
         array_merge(
