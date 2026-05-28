@@ -889,8 +889,15 @@ class DrklinikImporter
             $h->hizmet_adi = $ad;
             $h->hizmet_kategori_id = $kategoriId;
             $h->ozel_hizmet = true;
+            // fiyat NOT NULL constraint koruyucu: model fillable disinda olabilir
+            // ama property atayinca da gider.
+            if (Schema::hasColumn('hizmetler', 'fiyat')) $h->fiyat = $fiyat ?: 0;
             if (Schema::hasColumn('hizmetler', 'salon_id')) $h->salon_id = $this->salonId;
             if (Schema::hasColumn('hizmetler', 'aktif'))    $h->aktif = 0;
+            // Bazi tablo schema'larinda olabilecek diger NOT NULL'lar icin defaults
+            foreach (['sure_dk' => 30, 'baslangic_fiyat' => 0, 'son_fiyat' => 0] as $col => $def) {
+                if (Schema::hasColumn('hizmetler', $col)) $h->{$col} = $def;
+            }
             $h->save();
 
             $sh = new SalonHizmetler();
