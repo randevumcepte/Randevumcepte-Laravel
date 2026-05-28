@@ -19,6 +19,6 @@
 return [
     // Eski "uygulamala" projesi (5ff4d) - cogu marka burada
     'default'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
-    // Yeni "uygulamalar" projesi - bazi markalar buraya tasindi
-    'uygulamalar'  => 'app/firebase/uygulamalar.json',
+    // Salooncadde markasi - randevumcepte-uygulamalar projesinde
+    'salooncadde'  => 'app/firebase/salooncadde.json',
 ];
