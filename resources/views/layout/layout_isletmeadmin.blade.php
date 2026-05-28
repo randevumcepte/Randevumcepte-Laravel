@@ -889,7 +889,6 @@
                </div>
             </div>
             @endif
-            @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
             <div class="header-right" style="display:inline-block;margin-right:12px;vertical-align:middle;">
                 <a href="#" id="faturasizGizleTopbarBtn"
                    data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
@@ -898,7 +897,6 @@
                     <i class="fa fa-file-text-o"></i>
                 </a>
             </div>
-            @endif
             <div class="user-info-dropdown">
                <div class="dropdown">
                   <a
@@ -946,7 +944,6 @@
          <div class="menu-block customscroll">
             <div class="sidebar-menu">
                <ul>
-                  @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
                   <li>
                      <a href="#" id="faturasizGizleSidebarBtn"
                         data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
@@ -956,7 +953,6 @@
                         <span class="mtext">Fatura</span>
                      </a>
                   </li>
-                  @endif
                   {{-- Ozet menusu (gizli/legacy) --}}
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
                   <!--<li>
