@@ -1346,18 +1346,28 @@ class DrklinikImporter
             $this->counts['satis']++;
 
             // Hizmetler "Ad (N Seans = X TRY)" parse
+            // Kural: urun varsa urun, hizmet varsa hizmet, hicbiri yoksa hizmet (pasif).
             $hizmetler = $this->parseHizmetlerStr($hizmetlerStr);
             foreach ($hizmetler as $hv) {
                 $seansSayisi = max(1, (int) $hv['seans']);
                 $birimFiyat = $hv['tutar'] / $seansSayisi;
-                // Drklinik Satislar tab'i sadece hizmet/paket gosterir (urunler
-                // ayri tab/sayfa). Satilan her kalem = hizmet. Eskiden urun match
-                // ediyorduk ve "Hydrafacial cilt bakımı" gibi yanlislikla urunler
-                // tablosunda da kayitli olanlar AH'a yazilmiyordu -> APS olmuyor
-                // -> Kalan Seanslar'da EKSIK_DB. Urun check kaldirildi.
+                // 1) Urunler tablosunda var mi
+                $urunId = $this->findUrunIdByName($hv['ad']);
+                if ($urunId) {
+                    $existAu = AdisyonUrunler::where('adisyon_id', $ad->id)
+                        ->where('urun_id', $urunId)->first();
+                    if ($existAu) continue;
+                    $au = new AdisyonUrunler();
+                    $au->adisyon_id = $ad->id;
+                    $au->urun_id = $urunId;
+                    $au->adet = $seansSayisi;
+                    $au->fiyat = $hv['tutar'] ?: 0;
+                    $au->save();
+                    continue;
+                }
+                // 2) Hizmetler'de var mi, yoksa hizmet olarak pasif ekle (forceHizmet=true)
                 $sh = $this->findSalonHizmetByName($hv['ad']);
                 if (!$sh) {
-                    // forceHizmet=true: satilan kalem (urun olsa bile) %100 hizmet
                     $sh = $this->ensureSalonHizmet($hv['ad'], $birimFiyat, true);
                     if (!$sh) continue;
                 }
