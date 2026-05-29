@@ -2606,8 +2606,10 @@ function initPersonelTomAll(){
 // edilir -> dinamik satirlarda olusan bozuk render duzelir).
 function genelPanelHazirla(){
     var data = window.randevuModalData || {};
+    console.log('[GENEL PANEL] basladi — personel:', (data.personeller||[]).length, 'cihaz:', (data.cihazlar||[]).length, 'oda:', (data.odalar||[]).length);
     // --- Genel CIHAZ: destroy-first, options doldur, select2 ---
     var $gc = $('#modal-view-event-add .genel-cihaz-select');
+    console.log('[GENEL PANEL] cihaz select bulundu:', $gc.length);
     if($gc.length){
         var curC = $gc.val();
         try { if($gc.hasClass('select2-hidden-accessible')) $gc.select2('destroy'); } catch(e){}
@@ -2618,6 +2620,7 @@ function genelPanelHazirla(){
     }
     // --- Genel ODA: destroy-first, tam liste, select2 ---
     var $go = $('#modal-view-event-add .genel-oda-select');
+    console.log('[GENEL PANEL] oda select bulundu:', $go.length);
     if($go.length){
         var curO = $go.val();
         try { if($go.hasClass('select2-hidden-accessible')) $go.select2('destroy'); } catch(e){}
@@ -2628,6 +2631,7 @@ function genelPanelHazirla(){
     }
     // --- Genel PERSONEL: destroy-first, options doldur, Tom Select ---
     var $gp = $('#modal-view-event-add .genel-personel-select');
+    console.log('[GENEL PANEL] personel select bulundu:', $gp.length, 'TomSelect var mi:', (typeof TomSelect !== 'undefined'));
     if($gp.length){
         var curP = '';
         try { curP = ($gp[0] && $gp[0].tomselect) ? $gp[0].tomselect.getValue() : $gp.val(); } catch(e){ curP = $gp.val(); }
@@ -2649,6 +2653,7 @@ function genelPanelHazirla(){
     var r0o = $r0g.find('.oda-select').val();
     if(r0c && $gc.length && !$gc.val() && $gc.find('option[value="'+r0c+'"]').length){ $gc.val(r0c).trigger('change.select2'); }
     if(r0o && $go.length && !$go.val() && $go.find('option[value="'+r0o+'"]').length){ $go.val(r0o).trigger('change.select2'); }
+    console.log('[GENEL PANEL] bitti — genel personel option sayisi:', $('#modal-view-event-add .genel-personel-select option').length, 'genel oda option:', $('#modal-view-event-add .genel-oda-select option').length);
     // Satir header'larina Ozellestir butonu
     ozellestirButonlariEkle();
 }
