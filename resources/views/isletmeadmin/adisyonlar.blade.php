@@ -104,6 +104,7 @@
          </div>
           <div class="col-md-3" style="    margin-top: 2%;"> <span  id="satisDurumuSayilari" style="font-size: 12px; font-weight: normal;"></span>
 </div>
+@if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
 <div class="col-md-3" style="margin-top:1.5%;">
    <button type="button" id="faturasizGizleSatisBtn"
            data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
@@ -111,6 +112,7 @@
        <i class="fa fa-file-text-o"></i>
    </button>
 </div>
+@endif
       </div>
 
       <ul class="nav nav-tabs element" role="tablist">
