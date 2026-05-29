@@ -1639,15 +1639,27 @@ function _hizliPaketRandevuModalAc(hizmetData){
         cihaz:    (turu === 0 || turu === 2),
         oda:      (turu === 0 || turu === 3),
     };
-    // Personel + (Oda?) + (Cihaz?) + Süre = aktif sutun sayisi
-    var aktifSayi = 1 + (goster.cihaz ? 1 : 0) + (goster.oda ? 1 : 0) + 1; // +1 for süre
-    var dropdownColClass = 'col-md-3';
-    if(aktifSayi === 2) dropdownColClass = 'col-md-6';
-    else if(aktifSayi === 3) dropdownColClass = 'col-md-4';
-    else if(aktifSayi === 4) dropdownColClass = 'col-md-3';
+    // Ozellestir alanindaki dropdown sutun genisligi: Personel + (Oda?) + (Cihaz?)
+    var ozelSayi = 1 + (goster.cihaz ? 1 : 0) + (goster.oda ? 1 : 0);
+    var dropdownColClass = (ozelSayi === 1) ? 'col-12' : (ozelSayi === 2 ? 'col-md-6' : 'col-md-4');
 
-    // Satir kartlari uret
-    var hizmetSatirlariHtml = hizmetData.map(function(item, i){
+    // --- ORTAK AYAR PANELI: tum hizmetlere tek seferde personel/oda/cihaz uygula ---
+    // Salon vakalarinin cogu "hepsi ayni kiside, art arda" oldugundan tek dropdown'la biter.
+    var ortakCols = ''
+        + '<div class="col-md-4"><label style="font-size:0.75rem;color:#0369a1;font-weight:600;">Personel</label><select class="form-control form-control-sm" id="paketHizli_ortakPersonel" style="font-size:0.85rem;">'+_opt(personeller, basePersonel)+'</select></div>'
+        + (goster.oda   ? '<div class="col-md-4"><label style="font-size:0.75rem;color:#0369a1;font-weight:600;">Oda</label><select class="form-control form-control-sm" id="paketHizli_ortakOda" style="font-size:0.85rem;">'+_opt(tumOdalar, baseOda)+'</select></div>' : '')
+        + (goster.cihaz ? '<div class="col-md-4"><label style="font-size:0.75rem;color:#0369a1;font-weight:600;">Cihaz</label><select class="form-control form-control-sm" id="paketHizli_ortakCihaz" style="font-size:0.85rem;">'+_opt(cihazlar, baseCihaz)+'</select></div>' : '');
+    var ortakPanelHtml = ''
+        + '<div class="card mb-3" style="border:1px solid #bae6fd;background:#f0f9ff;border-radius:10px;">'
+        +   '<div class="card-body" style="padding:12px 14px;">'
+        +     '<div style="font-weight:700;font-size:0.85rem;color:#075985;margin-bottom:8px;"><i class="fa fa-users"></i> Tüm hizmetlere uygula</div>'
+        +     '<div class="row g-2">'+ortakCols+'</div>'
+        +     '<div style="font-size:0.72rem;color:#0369a1;margin-top:6px;">Buradan seçtiğiniz tüm hizmetlere uygulanır. Bir hizmeti ayrı ayarlamak için satırdaki <strong>Özelleştir</strong>’e tıklayın.</div>'
+        +   '</div>'
+        + '</div>';
+
+    // Satir kartlari uret (sade: isim + sure gorunur; personel/oda/cihaz "Ozellestir" arkasinda gizli)
+    var hizmetSatirlariHtml = ortakPanelHtml + hizmetData.map(function(item, i){
         var hizmetId = item.hizmet_id || item.id;
         var sure = item.sure || 0;
         var fiyat = item.fiyat || 0;
@@ -1656,11 +1668,11 @@ function _hizliPaketRandevuModalAc(hizmetData){
             ? '<span class="badge" style="background:#f59e0b;color:#fff;font-size:0.7rem;margin-left:6px;font-weight:600;padding:3px 8px;border-radius:6px;">📦 '+$('<div>').text(item.paket_adi).html()+'</span>'
             : '<span class="badge" style="background:#3b82f6;color:#fff;font-size:0.7rem;margin-left:6px;padding:3px 8px;border-radius:6px;">Hizmet</span>';
 
+        // Ozellestir alani (varsayilan GIZLI): personel/oda/cihaz + paralel
         var dropdowns = ''
             + '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Personel</label><select class="form-control form-control-sm hizli-personel" style="font-size:0.85rem;">'+_opt(personeller, basePersonel)+'</select></div>'
             + (goster.oda    ? '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Oda</label><select class="form-control form-control-sm hizli-oda" style="font-size:0.85rem;">'+_opt(odaSec, baseOda)+'</select></div>' : '')
-            + (goster.cihaz  ? '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Cihaz</label><select class="form-control form-control-sm hizli-cihaz" style="font-size:0.85rem;">'+_opt(cihazlar, baseCihaz)+'</select></div>' : '')
-            + '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Süre (dk)</label><input type="number" min="0" step="5" value="'+sure+'" class="form-control form-control-sm hizli-sure" style="font-size:0.85rem;"></div>';
+            + (goster.cihaz  ? '<div class="'+dropdownColClass+'"><label style="font-size:0.75rem;color:#6b7280;font-weight:600;">Cihaz</label><select class="form-control form-control-sm hizli-cihaz" style="font-size:0.85rem;">'+_opt(cihazlar, baseCihaz)+'</select></div>' : '');
 
         // Ilk satir DISINDA "Ustteki ile birlestir" checkbox'i goster (paralel hizmet icin)
         var birlestirHtml = (i > 0)
@@ -1672,15 +1684,24 @@ function _hizliPaketRandevuModalAc(hizmetData){
             + '</div>'
             : '';
 
+        var ozelAlan = ''
+            + '<div class="hizli-ozel-alan" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed #e5e7eb;">'
+            +   '<div class="row g-2">'+dropdowns+'</div>'
+            +   birlestirHtml
+            + '</div>';
+
         return ''
         + '<div class="paket-hizli-satir card mb-2" data-hizmet-id="'+item.id+'" data-hizmet-orig-id="'+hizmetId+'" data-sure="'+sure+'" data-fiyat="'+fiyat+'" style="border:1px solid #e5e7eb;border-radius:10px;">'
         +   '<div class="card-body" style="padding:12px 14px;">'
-        +     '<div class="d-flex justify-content-between align-items-center mb-2" style="border-bottom:1px solid #f3f4f6;padding-bottom:8px;">'
-        +       '<div style="font-weight:700;color:#111827;font-size:0.92rem;">'+(i+1)+'. '+$('<div>').text(item.text).html()+paketRozet+'</div>'
-        +       (fiyat > 0 ? '<small style="color:#6b7280;"><i class="fa fa-money"></i> '+fiyat+' ₺</small>' : '')
+        +     '<div class="d-flex justify-content-between align-items-center" style="gap:10px;">'
+        +       '<div style="font-weight:700;color:#111827;font-size:0.92rem;flex:1;min-width:0;">'+(i+1)+'. '+$('<div>').text(item.text).html()+paketRozet+(fiyat > 0 ? ' <small style="color:#6b7280;font-weight:500;">'+fiyat+' ₺</small>' : '')+'</div>'
+        +       '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
+        +         '<label style="font-size:0.72rem;color:#6b7280;font-weight:600;margin:0;">Süre</label>'
+        +         '<input type="number" min="0" step="5" value="'+sure+'" class="form-control form-control-sm hizli-sure" style="font-size:0.85rem;width:72px;text-align:center;">'
+        +         '<button type="button" class="btn btn-sm hizli-ozellestir-btn" style="font-size:0.72rem;color:#6366f1;background:#eef2ff;border:1px solid #e0e7ff;border-radius:6px;padding:4px 9px;white-space:nowrap;"><i class="fa fa-sliders"></i> Özelleştir</button>'
+        +       '</div>'
         +     '</div>'
-        +     '<div class="row g-2">'+dropdowns+'</div>'
-        +     birlestirHtml
+        +     ozelAlan
         +   '</div>'
         + '</div>';
     }).join('');
@@ -1694,6 +1715,26 @@ function _hizliPaketRandevuModalAc(hizmetData){
 
     $('#paketHizli_baslikYazi').text(baslik);
     $('#paketHizli_satirlar').html(hizmetSatirlariHtml);
+
+    // "Tum hizmetlere uygula": ortak panelden secince TUM satir dropdownlarini doldur.
+    // Oda hizmet bazli filtreli oldugundan, secilen oda satirda yoksa o satir es gecilir (best-effort).
+    function _ortakYay(sinif, val){
+        $('#paketHizli_satirlar .paket-hizli-satir').find(sinif).each(function(){
+            if($(this).find('option[value="'+val+'"]').length || val === ''){ $(this).val(val); }
+        });
+    }
+    $('#paketHizli_ortakPersonel').off('change.ortak').on('change.ortak', function(){ _ortakYay('.hizli-personel', $(this).val()); });
+    $('#paketHizli_ortakOda').off('change.ortak').on('change.ortak', function(){ _ortakYay('.hizli-oda', $(this).val()); });
+    $('#paketHizli_ortakCihaz').off('change.ortak').on('change.ortak', function(){ _ortakYay('.hizli-cihaz', $(this).val()); });
+
+    // "Ozellestir": satira ozel personel/oda/cihaz alanini ac/kapat
+    $(document).off('click.ozellestir').on('click.ozellestir', '#paketHizli_satirlar .hizli-ozellestir-btn', function(){
+        var $alan = $(this).closest('.paket-hizli-satir').find('.hizli-ozel-alan');
+        var acik = $alan.is(':visible');
+        $alan.slideToggle(120);
+        $(this).toggleClass('active', !acik)
+               .css(acik ? {color:'#6366f1',background:'#eef2ff'} : {color:'#fff',background:'#6366f1'});
+    });
 
     // Ozet (canli guncellenir)
     function _ozetGuncelle(){
