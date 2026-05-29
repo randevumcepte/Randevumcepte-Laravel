@@ -1186,9 +1186,22 @@ class DrklinikImport extends Command
     {
         $from = $from ?: '2024-01-01';
         $to   = $to   ?: date('Y-m-d');
-        $client = new \App\Services\DrklinikClient($username, $password);
-        $login = $client->login();
-        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+        // Login retry (drklinik gecici sorunlar icin)
+        $client = null; $loginOk = false; $lastErr = '';
+        for ($try = 1; $try <= 5; $try++) {
+            $client = new \App\Services\DrklinikClient($username, $password);
+            $login = $client->login();
+            if ($login['ok'] ?? false) { $loginOk = true; break; }
+            $lastErr = $login['detail'] ?? '?';
+            $this->warn("Login deneme $try/5 fail: $lastErr — 5sn sonra retry");
+            sleep(5);
+        }
+        if (!$loginOk) {
+            $this->error('Drklinik 5 denemede de login olmadi: ' . $lastErr);
+            $this->error('Drklinik karsilastirma olmadan rapor anlamsiz, IPTAL.');
+            return 1;
+        }
+        $this->info('Drklinik login OK');
 
         $ozetTxt = '/tmp/drk_saglama_' . $salonId . '_OZET.txt';
         $detayCsv = '/tmp/drk_saglama_' . $salonId . '_DETAY.csv';
@@ -1229,24 +1242,28 @@ class DrklinikImport extends Command
         $this->line(sprintf('  Tahsilatlar (%s-%s) : %d adet, %s TRY', $from, $to, $dbTahsilat, number_format($dbTahsilatTutar, 2, ',', '.')));
         $this->line(sprintf('  Masraflar             : %d adet, %s TRY', $dbMasraf, number_format($dbMasrafTutar, 2, ',', '.')));
 
-        // 2) Drklinik kasa toplami (BTN_Ara haftalik)
+        // 2) Drklinik kasa toplami (BTN_Ara haftalik) - sadece login OK ise
         $this->line('');
-        $this->line('--- Drklinik Kasa (BTN_Ara haftalik) ---');
-        $drkKasaToplam = 0.0; $drkKasaAdet = 0;
-        $onRow = function ($cells) use (&$drkKasaToplam, &$drkKasaAdet) {
-            if (count($cells) < 4) return;
-            if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $cells[0] ?? '')) return;
-            $tutarStr = $cells[3] ?? '';
-            $tutar = 0.0;
-            if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
-            if ($tutar <= 0) return;
-            $drkKasaToplam += $tutar;
-            $drkKasaAdet++;
-        };
-        $this->scrapeKasaAraWeekly($client, strtotime($from), strtotime($to), $onRow);
-        $this->line(sprintf('  Drklinik kasa (%s-%s) : %d satir, %s TRY', $from, $to, $drkKasaAdet, number_format($drkKasaToplam, 2, ',', '.')));
-        $kasaFark = $dbTahsilatTutar - $drkKasaToplam;
-        $this->line(sprintf('  FARK (DB - Drklinik)        : %s TRY (%s)', number_format($kasaFark, 2, ',', '.'), abs($kasaFark) < 1 ? 'OK ✓' : ($kasaFark > 0 ? 'DB FAZLA' : 'DRK FAZLA')));
+        $drkKasaToplam = 0.0; $drkKasaAdet = 0; $kasaFark = null;
+        if ($loginOk) {
+            $this->line('--- Drklinik Kasa (BTN_Ara haftalik) ---');
+            $onRow = function ($cells) use (&$drkKasaToplam, &$drkKasaAdet) {
+                if (count($cells) < 4) return;
+                if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $cells[0] ?? '')) return;
+                $tutarStr = $cells[3] ?? '';
+                $tutar = 0.0;
+                if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+                if ($tutar <= 0) return;
+                $drkKasaToplam += $tutar;
+                $drkKasaAdet++;
+            };
+            $this->scrapeKasaAraWeekly($client, strtotime($from), strtotime($to), $onRow);
+            $this->line(sprintf('  Drklinik kasa (%s-%s) : %d satir, %s TRY', $from, $to, $drkKasaAdet, number_format($drkKasaToplam, 2, ',', '.')));
+            $kasaFark = $dbTahsilatTutar - $drkKasaToplam;
+            $this->line(sprintf('  FARK (DB - Drklinik)        : %s TRY (%s)', number_format($kasaFark, 2, ',', '.'), abs($kasaFark) < 1 ? 'OK ✓' : ($kasaFark > 0 ? 'DB FAZLA' : 'DRK FAZLA')));
+        } else {
+            $this->line('--- Drklinik Kasa (atlandi - login fail) ---');
+        }
 
         // 3) Verify CSV ozeti (varsa)
         $verifyCsv = '/tmp/drk_verify_' . $salonId . '.csv';
