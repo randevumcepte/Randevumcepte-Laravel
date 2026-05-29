@@ -2527,14 +2527,14 @@ function doldurSelect($sel, liste){
 
 // Tum .personel-select, .cihaz-select, .oda-select ve yardimci personelleri doldur
 function doldurRandevuSecenekleri(){
-    $('#modal-view-event-add .personel-select, #modal-view-event-add .personel_secimi').each(function(){
+    $('#modal-view-event-add select.personel-select, #modal-view-event-add select.personel_secimi').each(function(){
         // Hizmet select'ini atla (hizmet-select class'i var)
         if($(this).hasClass('hizmet-select')) return;
         // Genel kaynak paneli ayri yonetilir (satir ekleme/refresh churn'unden etkilenmesin)
         if($(this).hasClass('genel-personel-select')) return;
         doldurSelect($(this), window.randevuModalData.personeller);
     });
-    $('#modal-view-event-add .cihaz-select').each(function(){
+    $('#modal-view-event-add select.cihaz-select').each(function(){
         if($(this).hasClass('genel-cihaz-select')) return;
         doldurSelect($(this), window.randevuModalData.cihazlar);
     });
@@ -2567,6 +2567,11 @@ function initPersonelTom($sel){
     if(!$sel || !$sel.length || typeof TomSelect === 'undefined') return null;
     var el = $sel[0];
     if(!el) return null;
+    // KRITIK: Tom Select init olunca urettigi .ts-wrapper DIV'i orijinal select'in
+    // class'larini (personel-select dahil) kopyaliyor. Sonraki cagrilarda selector
+    // hem select'i hem o div'i yakalayinca div'e new TomSelect -> getSettings 'trim'
+    // hatasi (div.value undefined). Sadece gercek <select> uzerinde calis.
+    if(el.tagName !== 'SELECT') return null;
     // Zaten Tom Select init'liyse ve saglikli ise mevcudu dondur (double-init'i engelle)
     if(el.tomselect){
         try { return el.tomselect; } catch(e){}
@@ -2592,7 +2597,8 @@ function initPersonelTom($sel){
 }
 
 function initPersonelTomAll(){
-    $('#modal-view-event-add .personel-select').each(function(){
+    // select. ile sinirla: tom-select wrapper DIV'i de personel-select class'i tasiyor
+    $('#modal-view-event-add select.personel-select').each(function(){
         // Genel kaynak paneli personeli genelPanelHazirla() tarafindan yonetilir
         if($(this).hasClass('genel-personel-select')) return;
         initPersonelTom($(this));
@@ -2608,7 +2614,7 @@ function genelPanelHazirla(){
     var data = window.randevuModalData || {};
     console.log('[GENEL PANEL] basladi — personel:', (data.personeller||[]).length, 'cihaz:', (data.cihazlar||[]).length, 'oda:', (data.odalar||[]).length);
     // --- Genel CIHAZ: destroy-first, options doldur, select2 ---
-    var $gc = $('#modal-view-event-add .genel-cihaz-select');
+    var $gc = $('#modal-view-event-add select.genel-cihaz-select');
     console.log('[GENEL PANEL] cihaz select bulundu:', $gc.length);
     if($gc.length){
         var curC = $gc.val();
@@ -2619,7 +2625,7 @@ function genelPanelHazirla(){
         try { $gc.select2({ placeholder:'Seçiniz', allowClear:true, width:'100%' }); } catch(e){}
     }
     // --- Genel ODA: destroy-first, tam liste, select2 ---
-    var $go = $('#modal-view-event-add .genel-oda-select');
+    var $go = $('#modal-view-event-add select.genel-oda-select');
     console.log('[GENEL PANEL] oda select bulundu:', $go.length);
     if($go.length){
         var curO = $go.val();
@@ -2630,7 +2636,7 @@ function genelPanelHazirla(){
         try { $go.select2({ placeholder:'Seçiniz', allowClear:true, width:'100%' }); } catch(e){}
     }
     // --- Genel PERSONEL: destroy-first, options doldur, Tom Select ---
-    var $gp = $('#modal-view-event-add .genel-personel-select');
+    var $gp = $('#modal-view-event-add select.genel-personel-select');
     console.log('[GENEL PANEL] personel select bulundu:', $gp.length, 'TomSelect var mi:', (typeof TomSelect !== 'undefined'));
     if($gp.length){
         var curP = '';
@@ -2644,7 +2650,7 @@ function genelPanelHazirla(){
         // Takvimden gelen row0 secimini genel panele yansit (gorunur + tutarli) — sessizce
         try {
             var $r0 = $('#yenirandevuekleform .hizmet-satiri').first();
-            var r0p = $r0.find('.personel-select').val();
+            var r0p = $r0.find('select.personel-select').val();
             if(!curP && r0p && tsg){ tsg.setValue(r0p, true); }
         } catch(e){}
     }
@@ -2659,15 +2665,15 @@ function genelPanelHazirla(){
 }
 
 function genelKaynakUygula(){
-    var p = $('#modal-view-event-add .genel-personel-select').val() || '';
-    var c = $('#modal-view-event-add .genel-cihaz-select').val() || '';
-    var o = $('#modal-view-event-add .genel-oda-select').val() || '';
+    var p = $('#modal-view-event-add select.genel-personel-select').val() || '';
+    var c = $('#modal-view-event-add select.genel-cihaz-select').val() || '';
+    var o = $('#modal-view-event-add select.genel-oda-select').val() || '';
     var cihazlar = (window.randevuModalData && window.randevuModalData.cihazlar) || [];
     var odalar   = (window.randevuModalData && window.randevuModalData.odalar) || [];
     $('#modal-view-event-add .hizmet-satiri').each(function(){
         var $row = $(this);
         if(p !== ''){
-            var $p = $row.find('.personel-select');
+            var $p = $row.find('select.personel-select');
             if($p.length){
                 if($p[0] && $p[0].tomselect){ try { $p[0].tomselect.setValue(p, true); } catch(e){} }
                 $p.val(p).trigger('change');
@@ -2718,7 +2724,7 @@ $(document).on('click', '#modal-view-event-add .kaynak-ozellestir-btn', function
     $(this).css(acildi ? { color:'#fff', background:'#6366f1' } : { color:'#6366f1', background:'#eef2ff' });
     if(acildi){
         // Personel Tom Select'i temiz yeniden kur (gizliyken bozuk render olabiliyor)
-        var $p = $row.find('.personel-select');
+        var $p = $row.find('select.personel-select');
         if($p.length){
             var cur = '';
             try { cur = ($p[0] && $p[0].tomselect) ? $p[0].tomselect.getValue() : $p.val(); } catch(err){ cur = $p.val(); }
