@@ -3647,11 +3647,15 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         setTimeout(() => {
             initSelect2();
             updateRandevuOzeti();
-            // Genel kaynak panelini hazirla (oda secenekleri + select2/TS + Ozellestir butonlari)
-            try { genelPanelHazirla(); } catch(e){ console.warn('[GENEL PANEL] hazirla hatasi:', e); }
             // Tab durumuna gore butonlari guncelle (varsayilan: Randevu tab -> kaydet gizli)
             if (typeof updateFooterButtons === 'function') updateFooterButtons();
         }, 100);
+        // Genel kaynak paneli + Ozellestir butonlari: AYRI setTimeout (initSelect2 hata
+        // verirse bile calissin). Buton ekleme ve panel hazirligi ayri try ile izole.
+        setTimeout(() => {
+            try { ozellestirButonlariEkle(); } catch(e){ console.warn('[OZELLESTIR btn] hata:', e); }
+            try { genelPanelHazirla(); } catch(e){ console.warn('[GENEL PANEL] hazirla hatasi:', e); }
+        }, 300);
     });
 
 });
