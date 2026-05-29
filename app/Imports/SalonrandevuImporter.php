@@ -458,18 +458,27 @@ class SalonrandevuImporter
                 $fiyat = (float) ($svc['amount'] ?? 0);
             }
 
-            // customer_state -> durum / geldi
+            // customer_state -> durum / geldi mapping
+            // Salonrandevu state degerleri (sample inspect ile dogrulandi):
+            //   0 = Beklemede (onaysiz)
+            //   1 = Onaylı (rezerve edilmis, henuz olmamis)
+            //   2 = Geldi (musteri geldi - sadece GECMIS randevular icin anlamli)
+            //   3 = Gelmedi (musteri gelmedi)
+            //   4 = İptal
+            //   5 = İptal (alternatif)
             $state = $appt['customer_state'] ?? null;
-            $durum = 1; $geldi = null;
-            // Gelecek randevu kontrolü: bugünden sonraysa geldi/gelmedi atama
-            // ($state=2 "onayli" anlami; salonrandevu gelecek randevulara da
-            // 2 atayabiliyor — biz geldi=1 koyarsak takvimde yapilmis gibi gozukur).
             $randevuTs = $tarih . ' ' . $saat;
             $isFuture = (strtotime($randevuTs) > time());
-            if ($state === 0) $durum = 0;
-            elseif ($state === 2) { $durum = 1; if (!$isFuture) $geldi = 1; }
-            elseif ($state === 3) { $durum = 1; if (!$isFuture) $geldi = 0; }
-            elseif (in_array($state, [4, 5], true)) $durum = 2;
+
+            $durum = 1; // default: onayli
+            $geldi = null; // default: belli degil
+            if ($state === 0)                         { $durum = 0; }
+            elseif ($state === 1)                     { $durum = 1; }
+            elseif ($state === 2 && !$isFuture)       { $durum = 1; $geldi = 1; }
+            elseif ($state === 2 && $isFuture)        { $durum = 1; } // gelecekse Geldi degil
+            elseif ($state === 3 && !$isFuture)       { $durum = 1; $geldi = 0; }
+            elseif ($state === 3 && $isFuture)        { $durum = 1; }
+            elseif (in_array($state, [4, 5], true))   { $durum = 2; $geldi = 0; }
 
             try {
                 $r = $existRandevu ?: new Randevular();
@@ -482,7 +491,10 @@ class SalonrandevuImporter
                     $r->salon = 0;
                     $r->olusturan_personel_id = null;
                 }
-                if ($geldi !== null) $r->randevuya_geldi = $geldi;
+                // EXPLICIT olarak set — null bile olsa eski yanlis degeri silsin
+                // (eski kod "if !== null" kontrol ediyordu, gelecek randevu icin
+                // null oldugundan eski geldi=1 silinmiyordu, hatali kayit kaliyordu)
+                $r->randevuya_geldi = $geldi;
                 $not = trim((string) ($appt['note'] ?? ''));
                 $r->personel_notu = trim(($not ? $not . ' ' : '') . $marker);
                 if (!$existRandevu && !empty($appt['created_at'])) {
