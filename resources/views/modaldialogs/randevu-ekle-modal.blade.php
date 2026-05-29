@@ -2554,6 +2554,9 @@ function doldurRandevuSecenekleri(){
     });
     // Personel selectlerini Tom Select'e cevir (form submit name'i degismez)
     initPersonelTomAll();
+    // GARANTI: Genel kaynak panelini de hazirla (shown.bs.modal tetiklenmese bile
+    // doldurRandevuSecenekleri her acilista + her satir eklemede calisir)
+    try { genelPanelHazirla(); } catch(e){ console.warn('[GENEL PANEL] doldur sonrasi hata:', e); }
 }
 
 // Personel select Tom Select destroy/init helpers — submit parametresi degisikligi yok.
@@ -3634,6 +3637,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
 
     // Modal açıldığında select2'leri yeniden başlat
     $('#modal-view-event-add').on('shown.bs.modal', function() {
+        console.log('[SHOWN] shown.bs.modal tetiklendi — genel panel init edilecek');
         // Guvence: eger hizmet-select'e yanlislikla Select2 eklenmisse onu da destroy et
         $('.hizmet-select').each(function(){
             if($(this).hasClass('select2-hidden-accessible')){
