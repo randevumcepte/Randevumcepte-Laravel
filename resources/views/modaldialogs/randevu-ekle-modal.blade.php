@@ -1546,20 +1546,15 @@ function _yeniRandevuAddServicesToForm(hizmetData, result, showSuccessMessage){
     window._paketEklemeKilidi = true;
     setTimeout(function(){ window._paketEklemeKilidi = false; }, 3500);
 
-    // Tek hizmet -> dogrudan forma ekle (popup ACMA, kullanici Randevu Olustur'a kendi basar)
-    // Birden fazla hizmet -> Hizli Randevu popup'i ac (her hizmete inline personel/oda/cihaz secimi)
+    // Hizli Paket Randevu modali KALDIRILDI: tek/cok hizmet farketmeksizin tum
+    // paket hizmetleri dogrudan ana Yeni Randevu formuna (her hizmet ayri satir,
+    // personel/oda/cihaz row0'dan miras) yerlesir. Boylece Personel Notu alani da
+    // kullanilabilir; kullanici secimleri/notu duzenleyip "Randevu Olustur"a kendi basar.
     var $soft = $('#softPaketSecimModal');
-    var tekHizmet = hizmetData.length === 1;
     var _acSiradaki = function(){
-        if(tekHizmet){
-            console.log('[PAKET] tek hizmet -> dogrudan forma yerlestir');
-            try { _paketHizmetleriniAyriSatirlaraEkle(hizmetData); }
-            catch(e){ console.error('[PAKET] forma yerlestirme hatasi:', e); window._paketEklemeKilidi = false; }
-        } else {
-            console.log('[PAKET] '+hizmetData.length+' hizmet -> Hizli Randevu popup');
-            try { _hizliPaketRandevuModalAc(hizmetData); }
-            catch(e){ console.error('[PAKET-HIZLI] modal ac hatasi:', e); _paketHizmetleriniAyriSatirlaraEkle(hizmetData); }
-        }
+        console.log('[PAKET] '+hizmetData.length+' hizmet -> ana forma yerlestir (modalsiz)');
+        try { _paketHizmetleriniAyriSatirlaraEkle(hizmetData); }
+        catch(e){ console.error('[PAKET] forma yerlestirme hatasi:', e); window._paketEklemeKilidi = false; }
     };
     if($soft.length){
         $soft.one('hidden.bs.modal', function(){
