@@ -49,6 +49,8 @@ class DrklinikImporter
     private $drklinikUserCache = []; // drklinik musid => local user id (musid bazli)
     private $defaultKategoriId = null;
     private $verifyCsvFp = null;
+    /** @var array trKey => true; mevcut musteri.aspx Kalan Seanslar tablosundaki hizmet adlari (her musteri icin reset edilir) */
+    private $drkKalanSeansAdSet = [];
     private $verifyStats = ['ok' => 0, 'fark' => 0, 'eksik_db' => 0];
 
     public function __construct(DrklinikClient $client, $salonId, $out = null)
@@ -1159,24 +1161,48 @@ class DrklinikImporter
 
         preg_match_all('~<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)</table>~is', $h, $tm);
         $kalanSeansTablo = null; $kalanSeansHeaders = null;
+        $satislarTablo = null;
+        $tahsilatTablo = null;
+        $randevularTablo = null; $randevularHeaders = null;
+
+        // 1. GECIS: tum tablolari kategorize et (Kalan Seanslar set'ini ONCE kurmak icin)
         foreach ($tm[1] as $body) {
             preg_match_all('~<th[^>]*>(.*?)</th>~is', $body, $th);
             $headers = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
             if (in_array('Satış No', $headers, true) && in_array('Hizmetler', $headers, true)) {
-                $this->processMusteriSatislar($body, $userId, $musid);
+                $satislarTablo = $body;
             } elseif (in_array('Ödeme Şekli', $headers, true) && in_array('Banka Hesabı', $headers, true)) {
-                $this->processMusteriTahsilatlar($body, $userId);
+                $tahsilatTablo = $body;
             } elseif (in_array('Seans Düşümü', $headers, true)) {
-                // Musteri.aspx Randevular tablosu: hem Randevular+RandevuHizmetler
-                // olusturur hem Seans Dusumu sutunundan APS tuketimi yapar.
-                $this->processMusteriRandevular($body, $userId, $headers);
+                $randevularTablo = $body; $randevularHeaders = $headers;
             } elseif (in_array('Harcanan', $headers, true) &&
                       (in_array('Satın Alınan', $headers, true) || in_array('Kalan', $headers, true))) {
-                // Drklinik "Kalan Seanslar" tablosu - OTORITER seans kaynagi.
-                // Diger tablolar islendikten SONRA reconcile etsin diye sakla.
                 $kalanSeansTablo = $body; $kalanSeansHeaders = $headers;
             }
         }
+
+        // 2. Kalan Seanslar tablosundaki hizmet adlarini (trKey) set'e koy.
+        // processMusteriSatislar bu set'i kullanir: drk hizmet sayiyorsa
+        // urun match yapma, hizmet (AH) olarak yaz. Boylece "Hydrafacial cilt
+        // bakimi" gibi urun-also kalemler drk Kalan Seanslar'da gozukurse hizmet
+        // olarak yazilir, urun envanteri korunur (silinmez).
+        $this->drkKalanSeansAdSet = [];
+        if ($kalanSeansTablo !== null) {
+            preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $kalanSeansTablo, $rows);
+            foreach ($rows[1] as $tr) {
+                if (stripos($tr, '<th') !== false) continue;
+                preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+                if (empty($tds[1])) continue;
+                $ad = trim(preg_replace('~\s+~', ' ', strip_tags($tds[1][0] ?? '')));
+                $ad = trim(html_entity_decode($ad, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if ($ad !== '') $this->drkKalanSeansAdSet[$this->trKey($ad)] = true;
+            }
+        }
+
+        // 3. GECIS: islemleri sirayla yap (Satislar -> Tahsilatlar -> Randevular)
+        if ($satislarTablo !== null) $this->processMusteriSatislar($satislarTablo, $userId, $musid);
+        if ($tahsilatTablo !== null) $this->processMusteriTahsilatlar($tahsilatTablo, $userId);
+        if ($randevularTablo !== null) $this->processMusteriRandevular($randevularTablo, $userId, $randevularHeaders);
         // NOT: processKalanSeanslar devre disi birakildi. Sebep:
         // - processMusteriRandevular her randevuyu okuyup "Seans Düşümü işaretlenmiş"
         //   olanlardan 1 APS tuketiyor (drklinik UI ile birebir mantik).
@@ -1346,26 +1372,33 @@ class DrklinikImporter
             $this->counts['satis']++;
 
             // Hizmetler "Ad (N Seans = X TRY)" parse
-            // Kural: urun varsa urun, hizmet varsa hizmet, hicbiri yoksa hizmet (pasif).
+            // Kural sirasi:
+            //   1) Drk Kalan Seanslar'da varsa = HIZMET (otoriter, urun match atla)
+            //   2) Yoksa urun match -> urun olarak yaz
+            //   3) Hicbiri olmazsa hizmet pasif olarak ekle
             $hizmetler = $this->parseHizmetlerStr($hizmetlerStr);
             foreach ($hizmetler as $hv) {
                 $seansSayisi = max(1, (int) $hv['seans']);
                 $birimFiyat = $hv['tutar'] / $seansSayisi;
-                // 1) Urunler tablosunda var mi
-                $urunId = $this->findUrunIdByName($hv['ad']);
-                if ($urunId) {
-                    $existAu = AdisyonUrunler::where('adisyon_id', $ad->id)
-                        ->where('urun_id', $urunId)->first();
-                    if ($existAu) continue;
-                    $au = new AdisyonUrunler();
-                    $au->adisyon_id = $ad->id;
-                    $au->urun_id = $urunId;
-                    $au->adet = $seansSayisi;
-                    $au->fiyat = $hv['tutar'] ?: 0;
-                    $au->save();
-                    continue;
+                $isHizmetFromDrk = isset($this->drkKalanSeansAdSet[$this->trKey($hv['ad'])]);
+
+                // 1) Urun match (sadece drk hizmet SAYMIYORSA)
+                if (!$isHizmetFromDrk) {
+                    $urunId = $this->findUrunIdByName($hv['ad']);
+                    if ($urunId) {
+                        $existAu = AdisyonUrunler::where('adisyon_id', $ad->id)
+                            ->where('urun_id', $urunId)->first();
+                        if ($existAu) continue;
+                        $au = new AdisyonUrunler();
+                        $au->adisyon_id = $ad->id;
+                        $au->urun_id = $urunId;
+                        $au->adet = $seansSayisi;
+                        $au->fiyat = $hv['tutar'] ?: 0;
+                        $au->save();
+                        continue;
+                    }
                 }
-                // 2) Hizmetler'de var mi, yoksa hizmet olarak pasif ekle (forceHizmet=true)
+                // 2) Hizmet match veya pasif olarak ekle (forceHizmet=true)
                 $sh = $this->findSalonHizmetByName($hv['ad']);
                 if (!$sh) {
                     $sh = $this->ensureSalonHizmet($hv['ad'], $birimFiyat, true);
