@@ -102,6 +102,30 @@
                                                 </button>
                                             </div>
                                             <div class="card-body p-2 hizmetler_bolumu" style="overflow: visible;">
+                                                <!-- Tüm hizmetlere uygula: genel kaynak paneli (name YOK -> submit'e girmez) -->
+                                                <div class="card mb-2 genel-kaynak-panel" style="border:1px solid #bae6fd;background:#f0f9ff;border-radius:8px;">
+                                                    <div class="card-body p-2">
+                                                        <div class="d-flex align-items-center mb-1" style="gap:6px;flex-wrap:wrap;">
+                                                            <i class="fa fa-users" style="color:#0369a1;"></i>
+                                                            <span class="fw-bold" style="font-size:0.82rem;color:#075985;">Tüm hizmetlere uygula</span>
+                                                            <small style="color:#0369a1;font-size:0.72rem;">— buradan seçtikleriniz tüm hizmet satırlarına uygulanır; tek bir hizmeti ayrı ayarlamak için satırdaki <strong>Özelleştir</strong>’e tıklayın</small>
+                                                        </div>
+                                                        <div class="row g-2">
+                                                            <div class="col-md-4 secim-personel" style="{{ $__personel_style }}">
+                                                                <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Personel</label>
+                                                                <select class="form-control personel-select genel-personel-select" data-genel="1" style="width:100%;min-height:36px;font-size:0.85rem;"><option></option></select>
+                                                            </div>
+                                                            <div class="col-md-4 secim-cihaz" style="{{ $__cihaz_style }}">
+                                                                <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Cihaz</label>
+                                                                <select class="form-control opsiyonelSelect cihaz-select genel-cihaz-select" data-genel="1" style="width:100%;height:32px;font-size:0.8rem;"><option></option></select>
+                                                            </div>
+                                                            <div class="col-md-4 secim-oda" style="{{ $__oda_style }}">
+                                                                <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Oda</label>
+                                                                <select class="form-control opsiyonelSelect oda-select genel-oda-select" data-genel="1" style="width:100%;height:32px;font-size:0.8rem;"><option></option></select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                                 <!-- Hizmet Satırı 0 -->
                                                 <div class="hizmet-satiri card mb-2" data-value="0" style="border: 1px solid #dee2e6;">
                                                     <div class="card-header py-1 d-flex justify-content-between align-items-center" style="padding: 4px 8px; background-color: #f8f9fa;">
@@ -113,7 +137,7 @@
                                                     <div class="card-body p-2">
                                                         <div class="row g-2">
                                                             <!-- Sol kolon: Personel / Yardimci / Cihaz / Oda -->
-                                                            <div class="col-md-6">
+                                                            <div class="col-md-6 kaynak-kolon">
                                                                 <div class="row g-2">
                                                                     <!-- Personel -->
                                                                     <div class="col-12 mb-1 secim-personel" style="{{ $__personel_style }}">
@@ -149,7 +173,7 @@
                                                             </div>
 
                                                             <!-- Sağ kolon: Hizmet Seçimi -->
-                                                            <div class="col-md-6 mb-1">
+                                                            <div class="col-md-6 mb-1 hizmet-kolon">
                                                                 <label class="form-label" style="font-size: 0.8rem;">Hizmetler (Çoklu Seçim)</label>
                                                                 <select name="randevuhizmetleriyeni_0[]" id="randevuhizmetleriyeni_0" multiple class="form-control hizmet-select" data-index="0" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                                                     <option></option>
@@ -318,6 +342,12 @@
 
 <style>
 /* Genel Modal Stilleri */
+
+/* Kolay kullanim: hizmet satirlarindaki kaynak (personel/oda/cihaz) kolonu
+   varsayilan gizli; "Ozellestir" ile acilir. Gizliyken hizmet kolonu tam genislik. */
+#modal-view-event-add .hizmet-satiri .kaynak-kolon { display: none; }
+#modal-view-event-add .hizmet-satiri.kaynak-acik .kaynak-kolon { display: block; }
+#modal-view-event-add .hizmet-satiri:not(.kaynak-acik) .hizmet-kolon { flex: 0 0 100%; max-width: 100%; }
 
 /* Yeni Randevu modali dikey ortalama (modal-dialog-centered ::before hack i olmadan) */
 /* z-index: swal v1 99999 kullaniyor, modal'in onun ustunde kalmasi icin 100002 (Tom Select dropdown=100000, Select2=100001 ile uyumlu) */
@@ -2500,9 +2530,12 @@ function doldurRandevuSecenekleri(){
     $('#modal-view-event-add .personel-select, #modal-view-event-add .personel_secimi').each(function(){
         // Hizmet select'ini atla (hizmet-select class'i var)
         if($(this).hasClass('hizmet-select')) return;
+        // Genel kaynak paneli ayri yonetilir (satir ekleme/refresh churn'unden etkilenmesin)
+        if($(this).hasClass('genel-personel-select')) return;
         doldurSelect($(this), window.randevuModalData.personeller);
     });
     $('#modal-view-event-add .cihaz-select').each(function(){
+        if($(this).hasClass('genel-cihaz-select')) return;
         doldurSelect($(this), window.randevuModalData.cihazlar);
     });
     // Oda dropdown'larini her satirin kendi hizmetine gore filtreleyerek doldur
@@ -2560,9 +2593,143 @@ function initPersonelTom($sel){
 
 function initPersonelTomAll(){
     $('#modal-view-event-add .personel-select').each(function(){
+        // Genel kaynak paneli personeli genelPanelHazirla() tarafindan yonetilir
+        if($(this).hasClass('genel-personel-select')) return;
         initPersonelTom($(this));
     });
 }
+
+// ===================== GENEL KAYNAK PANELI (kolay kullanim) =====================
+// Ust "Tum hizmetlere uygula" panelinden secilen personel/oda/cihaz, tum hizmet
+// satirlarina uygulanir. Satirlardaki kaynak alanlari varsayilan gizli; satir
+// header'indaki "Ozellestir" ile acilir (acilirken personel Tom Select temiz reinit
+// edilir -> dinamik satirlarda olusan bozuk render duzelir).
+function genelPanelHazirla(){
+    var data = window.randevuModalData || {};
+    // --- Genel CIHAZ: destroy-first, options doldur, select2 ---
+    var $gc = $('#modal-view-event-add .genel-cihaz-select');
+    if($gc.length){
+        var curC = $gc.val();
+        try { if($gc.hasClass('select2-hidden-accessible')) $gc.select2('destroy'); } catch(e){}
+        $gc.empty().append('<option></option>');
+        (data.cihazlar || []).forEach(function(c){ $gc.append(new Option(c.ad, c.id, false, false)); });
+        if(curC) $gc.val(curC);
+        try { $gc.select2({ placeholder:'Seçiniz', allowClear:true, width:'100%' }); } catch(e){}
+    }
+    // --- Genel ODA: destroy-first, tam liste, select2 ---
+    var $go = $('#modal-view-event-add .genel-oda-select');
+    if($go.length){
+        var curO = $go.val();
+        try { if($go.hasClass('select2-hidden-accessible')) $go.select2('destroy'); } catch(e){}
+        $go.empty().append('<option></option>');
+        (data.odalar || []).forEach(function(o){ $go.append(new Option(o.ad, o.id, false, false)); });
+        if(curO) $go.val(curO);
+        try { $go.select2({ placeholder:'Seçiniz', allowClear:true, width:'100%' }); } catch(e){}
+    }
+    // --- Genel PERSONEL: destroy-first, options doldur, Tom Select ---
+    var $gp = $('#modal-view-event-add .genel-personel-select');
+    if($gp.length){
+        var curP = '';
+        try { curP = ($gp[0] && $gp[0].tomselect) ? $gp[0].tomselect.getValue() : $gp.val(); } catch(e){ curP = $gp.val(); }
+        try { tomDestroyPersonel($gp); } catch(e){}
+        $gp.empty().append('<option></option>');
+        (data.personeller || []).forEach(function(p){ $gp.append(new Option(p.ad, p.id, false, false)); });
+        if(curP) $gp.val(curP);
+        var tsg = initPersonelTom($gp);
+        if(curP && tsg){ try { tsg.setValue(curP, true); } catch(e){} }
+        // Takvimden gelen row0 secimini genel panele yansit (gorunur + tutarli) — sessizce
+        try {
+            var $r0 = $('#yenirandevuekleform .hizmet-satiri').first();
+            var r0p = $r0.find('.personel-select').val();
+            if(!curP && r0p && tsg){ tsg.setValue(r0p, true); }
+        } catch(e){}
+    }
+    var $r0g = $('#yenirandevuekleform .hizmet-satiri').first();
+    var r0c = $r0g.find('.cihaz-select').val();
+    var r0o = $r0g.find('.oda-select').val();
+    if(r0c && $gc.length && !$gc.val() && $gc.find('option[value="'+r0c+'"]').length){ $gc.val(r0c).trigger('change.select2'); }
+    if(r0o && $go.length && !$go.val() && $go.find('option[value="'+r0o+'"]').length){ $go.val(r0o).trigger('change.select2'); }
+    // Satir header'larina Ozellestir butonu
+    ozellestirButonlariEkle();
+}
+
+function genelKaynakUygula(){
+    var p = $('#modal-view-event-add .genel-personel-select').val() || '';
+    var c = $('#modal-view-event-add .genel-cihaz-select').val() || '';
+    var o = $('#modal-view-event-add .genel-oda-select').val() || '';
+    var cihazlar = (window.randevuModalData && window.randevuModalData.cihazlar) || [];
+    var odalar   = (window.randevuModalData && window.randevuModalData.odalar) || [];
+    $('#modal-view-event-add .hizmet-satiri').each(function(){
+        var $row = $(this);
+        if(p !== ''){
+            var $p = $row.find('.personel-select');
+            if($p.length){
+                if($p[0] && $p[0].tomselect){ try { $p[0].tomselect.setValue(p, true); } catch(e){} }
+                $p.val(p).trigger('change');
+            }
+        }
+        if(c !== ''){
+            var $c = $row.find('.cihaz-select');
+            if($c.length){
+                if($c.find('option[value="'+c+'"]').length === 0){
+                    var cc = cihazlar.find(function(x){ return String(x.id) === String(c); });
+                    if(cc) $c.append(new Option(cc.ad, cc.id, false, false));
+                }
+                $c.val(c).trigger('change');
+            }
+        }
+        if(o !== ''){
+            var $o = $row.find('.oda-select');
+            if($o.length){
+                if($o.find('option[value="'+o+'"]').length === 0){
+                    var oo = odalar.find(function(x){ return String(x.id) === String(o); });
+                    if(oo) $o.append(new Option(oo.ad, oo.id, false, false));
+                }
+                $o.val(o).trigger('change');
+            }
+        }
+    });
+    try { updateRandevuOzeti(); } catch(e){}
+}
+
+// Her hizmet satirinin header'ina "Ozellestir" butonu ekle (yoksa)
+function ozellestirButonlariEkle(){
+    $('#modal-view-event-add .hizmet-satiri').each(function(){
+        var $row = $(this);
+        var $hdr = $row.find('.card-header').first();
+        if(!$hdr.length || $hdr.find('.kaynak-ozellestir-btn').length) return;
+        var $btn = $('<button type="button" class="btn btn-sm kaynak-ozellestir-btn" style="font-size:0.7rem;color:#6366f1;background:#eef2ff;border:1px solid #e0e7ff;border-radius:6px;padding:2px 8px;margin-right:6px;"><i class="fa fa-sliders"></i> Özelleştir</button>');
+        var $sil = $hdr.find('.hizmet-sil').first();
+        if($sil.length) $btn.insertBefore($sil); else $hdr.append($btn);
+    });
+}
+
+// Ozellestir toggle
+$(document).on('click', '#modal-view-event-add .kaynak-ozellestir-btn', function(e){
+    e.preventDefault();
+    var $row = $(this).closest('.hizmet-satiri');
+    var acildi = !$row.hasClass('kaynak-acik');
+    $row.toggleClass('kaynak-acik', acildi);
+    $(this).css(acildi ? { color:'#fff', background:'#6366f1' } : { color:'#6366f1', background:'#eef2ff' });
+    if(acildi){
+        // Personel Tom Select'i temiz yeniden kur (gizliyken bozuk render olabiliyor)
+        var $p = $row.find('.personel-select');
+        if($p.length){
+            var cur = '';
+            try { cur = ($p[0] && $p[0].tomselect) ? $p[0].tomselect.getValue() : $p.val(); } catch(err){ cur = $p.val(); }
+            try { tomDestroyPersonel($p); } catch(err){}
+            doldurSelect($p, (window.randevuModalData && window.randevuModalData.personeller) || []);
+            if(cur) $p.val(cur);
+            var ts = initPersonelTom($p);
+            if(cur && ts){ try { ts.setValue(cur, true); } catch(err){} }
+        }
+    }
+});
+
+// Genel panel degisince tum satirlara uygula
+$(document).on('change', '#modal-view-event-add .genel-personel-select, #modal-view-event-add .genel-cihaz-select, #modal-view-event-add .genel-oda-select', function(){
+    genelKaynakUygula();
+});
 
 $(document).ready(function() {
     // Tab değişimlerini takip et ve butonları göster/gizle — sadece bu modal icinde
@@ -3048,7 +3215,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                 <div class="card-body p-2">
                     <div class="row g-2">
                         <!-- Sol kolon: Personel / Yardimci / Cihaz / Oda -->
-                        <div class="col-md-6">
+                        <div class="col-md-6 kaynak-kolon">
                             <div class="row g-2">
                                 <div class="col-12 mb-1 secim-personel" style="{{ $__personel_style }}">
                                     <label class="form-label" style="font-size: 0.8rem;">Personel</label>
@@ -3076,7 +3243,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                             </div>
                         </div>
                         <!-- Sağ kolon: Hizmet Seçimi -->
-                        <div class="col-md-6 mb-1">
+                        <div class="col-md-6 mb-1 hizmet-kolon">
                             <label class="form-label" style="font-size: 0.8rem;">Hizmetler (Çoklu Seçim)</label>
                             <select name="randevuhizmetleriyeni_${newIndex}[]" id="randevuhizmetleriyeni_${newIndex}" multiple class="form-control hizmet-select" data-index="${newIndex}" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                 <option></option>
@@ -3131,10 +3298,14 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         // initPersonelTomAll() tarafindan zaten init edildi; tekrari kaldirdik
         // (double init Tom Select'te getSettings.trim() hatasini tetikliyordu).
         $('.hizmet-sil[data-value="0"]').removeAttr('disabled');
-        
+
         hizmetSatirSayisi++;
         updateRandevuOzeti();
-        
+
+        // Yeni satira Ozellestir butonu ekle + genel paneldeki kaynaklari uygula
+        try { ozellestirButonlariEkle(); } catch(e){}
+        try { genelKaynakUygula(); } catch(e){}
+
         // Yeni satir eklendiginde sayfayi oraya kaydir
         setTimeout(function() {
             var $last = $('.hizmet-satiri').last();
@@ -3476,6 +3647,8 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         setTimeout(() => {
             initSelect2();
             updateRandevuOzeti();
+            // Genel kaynak panelini hazirla (oda secenekleri + select2/TS + Ozellestir butonlari)
+            try { genelPanelHazirla(); } catch(e){ console.warn('[GENEL PANEL] hazirla hatasi:', e); }
             // Tab durumuna gore butonlari guncelle (varsayilan: Randevu tab -> kaydet gizli)
             if (typeof updateFooterButtons === 'function') updateFooterButtons();
         }, 100);
