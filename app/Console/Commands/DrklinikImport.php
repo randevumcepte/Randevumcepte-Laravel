@@ -48,6 +48,7 @@ class DrklinikImport extends Command
         {--cleanup-aps-overflow : Salon icin APS sayisi > seans_sayisi (kapasite) olan adisyon_hizmetler kayitlarinin fazla APS\'lerini sil (en son eklenenler once)}
         {--add-missing-hizmetler : /tmp/drk_verify_<salon>.csv\'deki EKSIK_DB hizmetlerini pasif olarak Hizmetler kataloguna ekle + ilgili musid\'leri tekrar repair et}
         {--verify : Import sirasinda her musid icin drklinik Kalan Seanslar vs DB karsilastir, /tmp/drk_verify_<salon>.csv\'ye yaz}
+        {--full-saglama : Salon icin tum metrikler kapsamli rapor (randevu/satis/tahsilat/seans). Her musteri icin drklinik vs DB; ozet TXT ve detayli CSV uretir}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -126,6 +127,10 @@ class DrklinikImport extends Command
         if ((bool) $this->option('repair-tahsilat-yanlis-adisyon')) {
             if (!$salonId) { $this->error('--repair-tahsilat-yanlis-adisyon icin --salon zorunlu.'); return 1; }
             return $this->repairTahsilatYanlisAdisyon((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('full-saglama')) {
+            if (!$username || !$password || !$salonId) { $this->error('--full-saglama icin --username/--password/--salon zorunlu.'); return 1; }
+            return $this->fullSaglama($username, $password, (int) $salonId, $this->option('from'), $this->option('to'));
         }
         if ((bool) $this->option('report-tahsilat-fark')) {
             if (!$username || !$password || !$salonId) { $this->error('--report-tahsilat-fark icin --username/--password/--salon zorunlu.'); return 1; }
@@ -1168,6 +1173,182 @@ class DrklinikImport extends Command
      *
      * Cikti: /tmp/drk_tahsilat_fazla_362.csv
      */
+    /**
+     * Kapsamli saglama: salon icin tum metrikleri (musteri/randevu/satis/tahsilat/seans)
+     * drklinik vs DB karsilastir, ozet TXT + detayli CSV uretir.
+     * Cikti dosyalari:
+     *   /tmp/drk_saglama_<salon>_OZET.txt
+     *   /tmp/drk_saglama_<salon>_DETAY.csv   (per-musteri)
+     *   /tmp/drk_verify_<salon>.csv          (per-hizmet seans karsilastirma - mevcut)
+     *   /tmp/drk_tahsilat_*_<salon>.csv      (tahsilat raporu - mevcut)
+     */
+    private function fullSaglama($username, $password, $salonId, $from = null, $to = null)
+    {
+        $from = $from ?: '2024-01-01';
+        $to   = $to   ?: date('Y-m-d');
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+
+        $ozetTxt = '/tmp/drk_saglama_' . $salonId . '_OZET.txt';
+        $detayCsv = '/tmp/drk_saglama_' . $salonId . '_DETAY.csv';
+
+        $this->info('=== DRKLINIK SAGLAMA RAPORU SALON ' . $salonId . ' ===');
+        $this->line('Tarih: ' . date('Y-m-d H:i:s'));
+        $this->line('Aralik: ' . $from . ' - ' . $to);
+        $this->line('');
+
+        // 1) DB tarafi toplamlar
+        $dbMusteri = \DB::table('musteri_portfoy')->where('salon_id', $salonId)->count();
+        $dbRandevu = \DB::table('randevular')->where('salon_id', $salonId)->count();
+        $dbRandevuGelecek = \DB::table('randevular')->where('salon_id', $salonId)
+            ->whereRaw('CONCAT(tarih," ",saat) > NOW()')->count();
+        $dbRandevuGelmis = $dbRandevu - $dbRandevuGelecek;
+        $dbAdisyon = \DB::table('adisyonlar')->where('salon_id', $salonId)->count();
+        $dbAdisyonDrk = \DB::table('adisyonlar')->where('salon_id', $salonId)
+            ->where('notlar', 'LIKE', '%[drklinik:%')->count();
+        $dbAh = \DB::table('adisyon_hizmetler as ah')->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)->count();
+        $dbApsToplam = \DB::table('adisyon_paket_seanslar as aps')
+            ->join('adisyon_hizmetler as ah', 'ah.id', '=', 'aps.adisyon_hizmet_id')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)->count();
+        $dbTahsilat = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+            ->whereBetween('odeme_tarihi', [$from, $to])->count();
+        $dbTahsilatTutar = (float) \DB::table('tahsilatlar')->where('salon_id', $salonId)
+            ->whereBetween('odeme_tarihi', [$from, $to])->sum('tutar');
+        $dbMasraf = \DB::table('masraflar')->where('salon_id', $salonId)->count();
+        $dbMasrafTutar = (float) \DB::table('masraflar')->where('salon_id', $salonId)->sum('tutar');
+
+        $this->line('--- DB Toplamlari ---');
+        $this->line(sprintf('  Musteriler (portfoy)  : %d', $dbMusteri));
+        $this->line(sprintf('  Randevular (toplam)   : %d (gelmis=%d gelecek=%d)', $dbRandevu, $dbRandevuGelmis, $dbRandevuGelecek));
+        $this->line(sprintf('  Adisyonlar (toplam)   : %d (drklinik markerli=%d)', $dbAdisyon, $dbAdisyonDrk));
+        $this->line(sprintf('  Adisyon hizmetler (AH): %d', $dbAh));
+        $this->line(sprintf('  APS (kullanilan seans): %d', $dbApsToplam));
+        $this->line(sprintf('  Tahsilatlar (%s-%s) : %d adet, %s TRY', $from, $to, $dbTahsilat, number_format($dbTahsilatTutar, 2, ',', '.')));
+        $this->line(sprintf('  Masraflar             : %d adet, %s TRY', $dbMasraf, number_format($dbMasrafTutar, 2, ',', '.')));
+
+        // 2) Drklinik kasa toplami (BTN_Ara haftalik)
+        $this->line('');
+        $this->line('--- Drklinik Kasa (BTN_Ara haftalik) ---');
+        $drkKasaToplam = 0.0; $drkKasaAdet = 0;
+        $onRow = function ($cells) use (&$drkKasaToplam, &$drkKasaAdet) {
+            if (count($cells) < 4) return;
+            if (!preg_match('~^\d{2}\.\d{2}\.\d{4}~', $cells[0] ?? '')) return;
+            $tutarStr = $cells[3] ?? '';
+            $tutar = 0.0;
+            if (preg_match('~([\d.]+),(\d{1,2})~', $tutarStr, $m)) $tutar = (float) (str_replace('.', '', $m[1]) . '.' . $m[2]);
+            if ($tutar <= 0) return;
+            $drkKasaToplam += $tutar;
+            $drkKasaAdet++;
+        };
+        $this->scrapeKasaAraWeekly($client, strtotime($from), strtotime($to), $onRow);
+        $this->line(sprintf('  Drklinik kasa (%s-%s) : %d satir, %s TRY', $from, $to, $drkKasaAdet, number_format($drkKasaToplam, 2, ',', '.')));
+        $kasaFark = $dbTahsilatTutar - $drkKasaToplam;
+        $this->line(sprintf('  FARK (DB - Drklinik)        : %s TRY (%s)', number_format($kasaFark, 2, ',', '.'), abs($kasaFark) < 1 ? 'OK ✓' : ($kasaFark > 0 ? 'DB FAZLA' : 'DRK FAZLA')));
+
+        // 3) Verify CSV ozeti (varsa)
+        $verifyCsv = '/tmp/drk_verify_' . $salonId . '.csv';
+        $vStat = ['OK' => 0, 'FARK' => 0, 'EKSIK_DB' => 0];
+        $vMusteriler = [];
+        if (file_exists($verifyCsv)) {
+            $fp = fopen($verifyCsv, 'r'); fgetcsv($fp);
+            while (($r = fgetcsv($fp)) !== false) {
+                $d = $r[9] ?? '';
+                if (isset($vStat[$d])) $vStat[$d]++;
+                if (!empty($r[0])) $vMusteriler[$r[0]] = true;
+            }
+            fclose($fp);
+        }
+        $this->line('');
+        $this->line('--- Verify CSV (seans karsilastirma) ---');
+        $vTot = $vStat['OK'] + $vStat['FARK'] + $vStat['EKSIK_DB'];
+        $this->line(sprintf('  Musteri sayisi (verify): %d', count($vMusteriler)));
+        $this->line(sprintf('  OK       : %d', $vStat['OK']));
+        $this->line(sprintf('  FARK     : %d', $vStat['FARK']));
+        $this->line(sprintf('  EKSIK_DB : %d', $vStat['EKSIK_DB']));
+        $this->line(sprintf('  OK orani : %.1f%%', $vTot > 0 ? $vStat['OK'] / $vTot * 100 : 0));
+
+        // 4) Tahsilat fark ozeti (varsa)
+        $eksikCsv = '/tmp/drk_tahsilat_eksik_' . $salonId . '.csv';
+        $fazlaCsv = '/tmp/drk_tahsilat_gercek_fazla_' . $salonId . '.csv';
+        $eksikSayim = file_exists($eksikCsv) ? max(0, count(file($eksikCsv)) - 1) : null;
+        $fazlaSayim = file_exists($fazlaCsv) ? max(0, count(file($fazlaCsv)) - 1) : null;
+        $this->line('');
+        $this->line('--- Tahsilat fark (en son rapor) ---');
+        $this->line(sprintf('  Drk\'de var DB\'de yok : %s', $eksikSayim !== null ? $eksikSayim : '(rapor yok, --report-tahsilat-fark calistir)'));
+        $this->line(sprintf('  DB\'de var Drk\'de yok : %s', $fazlaSayim !== null ? $fazlaSayim : '(rapor yok)'));
+
+        // 5) Sample randevu sayisi karsilastirma (ilk 5 drklinik markerli musteri)
+        $this->line('');
+        $this->line('--- Sample randevu sayisi (ilk 5 musteri) ---');
+        $sampleUsers = \DB::table('adisyonlar as a')
+            ->join('users as u', 'u.id', '=', 'a.user_id')
+            ->where('a.salon_id', $salonId)
+            ->where('a.notlar', 'LIKE', '%[drklinik:%')
+            ->select('u.id', 'u.name')->distinct()->limit(5)->get();
+        foreach ($sampleUsers as $u) {
+            $dbR = \DB::table('randevular')->where('salon_id', $salonId)->where('user_id', $u->id)->count();
+            $this->line(sprintf('  user=%d %s : DB randevu=%d', $u->id, mb_substr($u->name, 0, 30), $dbR));
+        }
+
+        // 6) Per-musteri detay CSV
+        $fp = fopen($detayCsv, 'w');
+        fputcsv($fp, ['user_id', 'musteri', 'db_randevu', 'db_adisyon', 'db_ah', 'db_aps', 'db_tahsilat_adet', 'db_tahsilat_tutar']);
+        $musteriler = \DB::table('musteri_portfoy as p')->join('users as u', 'u.id', '=', 'p.user_id')
+            ->where('p.salon_id', $salonId)
+            ->select('u.id', 'u.name')->get();
+        foreach ($musteriler as $u) {
+            $dbR = \DB::table('randevular')->where('salon_id', $salonId)->where('user_id', $u->id)->count();
+            $dbA = \DB::table('adisyonlar')->where('salon_id', $salonId)->where('user_id', $u->id)->count();
+            $dbAh = \DB::table('adisyon_hizmetler as ah')->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+                ->where('a.salon_id', $salonId)->where('a.user_id', $u->id)->count();
+            $dbAps = \DB::table('adisyon_paket_seanslar as aps')
+                ->join('adisyon_hizmetler as ah', 'ah.id', '=', 'aps.adisyon_hizmet_id')
+                ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+                ->where('a.salon_id', $salonId)->where('a.user_id', $u->id)->count();
+            $dbT = \DB::table('tahsilatlar')->where('salon_id', $salonId)->where('user_id', $u->id)
+                ->whereBetween('odeme_tarihi', [$from, $to])->count();
+            $dbTtut = (float) \DB::table('tahsilatlar')->where('salon_id', $salonId)->where('user_id', $u->id)
+                ->whereBetween('odeme_tarihi', [$from, $to])->sum('tutar');
+            if ($dbR === 0 && $dbA === 0 && $dbT === 0) continue; // hareketi olmayan musteri yazma
+            fputcsv($fp, [$u->id, $u->name, $dbR, $dbA, $dbAh, $dbAps, $dbT, number_format($dbTtut, 2, '.', '')]);
+        }
+        fclose($fp);
+        $this->line('');
+        $this->info('=== Cikti dosyalari ===');
+        $this->line('  Detay CSV : ' . $detayCsv);
+        $this->line('  Verify    : ' . $verifyCsv);
+        $this->line('  OZET TXT  : ' . $ozetTxt);
+
+        // 7) Ozeti TXT'ye yaz
+        ob_start();
+        $fp = fopen('php://output', 'w');
+        fwrite($fp, "DRKLINIK SAGLAMA RAPORU - SALON $salonId\n");
+        fwrite($fp, "Tarih: " . date('Y-m-d H:i:s') . "\n");
+        fwrite($fp, "Aralik: $from - $to\n\n");
+        fwrite($fp, "--- DB Toplamlari ---\n");
+        fwrite($fp, "Musteri portfoy : $dbMusteri\n");
+        fwrite($fp, "Randevu toplam  : $dbRandevu (gelmis=$dbRandevuGelmis gelecek=$dbRandevuGelecek)\n");
+        fwrite($fp, "Adisyon (drk)   : $dbAdisyon ($dbAdisyonDrk markerli)\n");
+        fwrite($fp, "AH              : $dbAh\n");
+        fwrite($fp, "APS             : $dbApsToplam\n");
+        fwrite($fp, "Tahsilat        : $dbTahsilat adet | " . number_format($dbTahsilatTutar, 2, ',', '.') . " TRY\n");
+        fwrite($fp, "Masraf          : $dbMasraf adet | " . number_format($dbMasrafTutar, 2, ',', '.') . " TRY\n\n");
+        fwrite($fp, "--- Drklinik Kasa ---\n");
+        fwrite($fp, "Drk kasa toplam : $drkKasaAdet satir | " . number_format($drkKasaToplam, 2, ',', '.') . " TRY\n");
+        fwrite($fp, "Kasa farki      : " . number_format($kasaFark, 2, ',', '.') . " TRY\n\n");
+        fwrite($fp, "--- Seans Verify ---\n");
+        fwrite($fp, "OK / FARK / EKSIK_DB : {$vStat['OK']} / {$vStat['FARK']} / {$vStat['EKSIK_DB']}\n");
+        fwrite($fp, sprintf("OK orani: %.1f%%\n", $vTot > 0 ? $vStat['OK'] / $vTot * 100 : 0));
+        fclose($fp);
+        $ozetIcerik = ob_get_clean();
+        file_put_contents($ozetTxt, $ozetIcerik);
+
+        return 0;
+    }
+
     private function reportTahsilatFark($username, $password, $salonId, $from = null, $to = null)
     {
         $from = $from ?: '2024-01-01';
