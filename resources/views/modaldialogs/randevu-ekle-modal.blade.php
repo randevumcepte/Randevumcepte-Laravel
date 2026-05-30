@@ -2835,6 +2835,20 @@ function paketModunuKapat(){
     $('#modal-view-event-add .genel-sure-input').val('');
 }
 
+// "Tum hizmetlere uygula" panelini sifirla (modal kapanis / submit sonrasi)
+function genelPaneliSifirla(){
+    var $gp = $('#modal-view-event-add select.genel-personel-select');
+    if($gp.length){
+        if($gp[0] && $gp[0].tomselect){ try { $gp[0].tomselect.clear(true); } catch(e){} }
+        try { $gp.val('').trigger('change.select2'); } catch(e){}
+    }
+    ['genel-cihaz-select','genel-oda-select'].forEach(function(cls){
+        var $s = $('#modal-view-event-add select.'+cls);
+        if($s.length){ try { $s.val('').trigger('change.select2'); } catch(e){} }
+    });
+    $('#modal-view-event-add .genel-sure-input').val('');
+}
+
 // Master toggle: paket modunda hizmet satirlarini ac/kapat
 $(document).on('click', '#modal-view-event-add .paket-master-ozellestir', function(e){
     e.preventDefault();
@@ -4042,6 +4056,7 @@ function formatHizmetSecim(hizmet) {
  // Form resetleme fonksiyonu
   function resetForm() {
     try { paketModunuKapat(); } catch(e){}
+    try { genelPaneliSifirla(); } catch(e){}
     $('.hizmet-satiri').slice(1).remove();
 
     // Hizmet-select ve personel-select Tom Select kullanir: native val degisimi TS'i etkilemez, TS API ile temizle
