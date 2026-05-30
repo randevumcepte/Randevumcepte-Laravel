@@ -21,7 +21,7 @@ class PlanlaImport extends Command
         {--backfill-personel-oda : Salon personellerine birebir oda olustur, mevcut randevu_hizmetler.oda_id NULL olanlari personel adi ile esleyen oda\'ya bagla}
         {--fix-sure-dk : Salon randevu_hizmetler/adisyon_hizmetler icinde 15dk altindaki sureleri 15\'e cek, saat_bitis yeniden hesapla}
         {--merge-duplicate-odalar : Salon icin trKey (case+aksan+whitespace normalize) ayni olan oda kayitlarini merge et: en eski id\'yi tut, digerlerin tum baglantilarini ona transfer + fazlalari sil}
-        {--merge-prefix-odalar : Salon icin "kisa ad" (canonical) + "uzun ad" (kisa adin prefix'i olan) tum odalari kisa olana merge et. Orn: "LAZER KONTROL" + "lazer kontrol emine/buse/ela" -> hepsi tek LAZER KONTROL odasina. Personel-bazli oda olusturma bug\'unun temizligi}
+        {--merge-prefix-odalar : Kisa+uzun ad odalari merge eder (LAZER KONTROL + lazer kontrol emine -> tek)}
         {--dry-run : fix-sure-dk vb. islemlerde sadece sayim, yazma}
         {--only= : Sadece bu tip(ler)i al (virgulle: musteri,hizmet,randevu)}';
 
