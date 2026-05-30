@@ -2809,9 +2809,15 @@ $(document).ready(function() {
     $('#modal-view-event-add').on('show.bs.modal', function() {
         // Saat kapama tab'ını kapat, randevu tab'ını aç
         $('.nav-tabs a[href="#yeni-randevu"]').tab('show');
-        
+
         // Footer butonlarını güncelle
         updateFooterButtons();
+
+        // Genel kaynak paneli: shown.bs.modal bazen tetiklenmiyor; show.bs.modal'da
+        // GARANTI olarak personel/oda/cihaz'i doldur (modal animasyonu icin gecikme).
+        setTimeout(function(){
+            try { genelPanelHazirla(); } catch(e){ console.warn('[GENEL PANEL] show.bs.modal hata:', e); }
+        }, 350);
     });
     // Sayfa yüklendiğinde varsayılan butonu göster
     updateFooterButtons();
