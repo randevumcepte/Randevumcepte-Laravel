@@ -396,6 +396,42 @@
     box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
 }
 
+/* ===== STANDART: cihaz/oda (opsiyonelSelect) select2 single =====
+   Personel Tom Select (38px) ile ayni gorsel dil — tum tekli secim kutulari hizali. */
+#modal-view-event-add .opsiyonelSelect + .select2-container { width: 100% !important; }
+#modal-view-event-add .opsiyonelSelect + .select2-container .select2-selection--single {
+    height: 38px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    padding: 0 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    background: #fff !important;
+}
+#modal-view-event-add .opsiyonelSelect + .select2-container .select2-selection--single .select2-selection__rendered {
+    line-height: 36px !important;
+    font-size: 0.85rem !important;
+    color: #111827 !important;
+    padding: 0 !important;
+}
+#modal-view-event-add .opsiyonelSelect + .select2-container .select2-selection--single .select2-selection__placeholder {
+    color: #9ca3af !important;
+}
+#modal-view-event-add .opsiyonelSelect + .select2-container .select2-selection--single .select2-selection__arrow {
+    height: 36px !important;
+    right: 8px !important;
+}
+#modal-view-event-add .opsiyonelSelect + .select2-container .select2-selection__clear {
+    color: #9ca3af !important;
+    font-size: 16px !important;
+    margin-right: 6px !important;
+}
+#modal-view-event-add .opsiyonelSelect + .select2-container--default.select2-container--focus .select2-selection--single,
+#modal-view-event-add .opsiyonelSelect + .select2-container--default.select2-container--open .select2-selection--single {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+}
+
 /* Tom Select ozel stili */
 #modal-view-event-add .ts-wrapper {
     min-height: 40px;
