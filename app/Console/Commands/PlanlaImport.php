@@ -20,6 +20,7 @@ class PlanlaImport extends Command
         {--fix-olusturan : Gecerli personele bagli olmayan olusturan_personel_id degerlerini salonun default personeline ayarla}
         {--backfill-personel-oda : Salon personellerine birebir oda olustur, mevcut randevu_hizmetler.oda_id NULL olanlari personel adi ile esleyen oda\'ya bagla}
         {--fix-sure-dk : Salon randevu_hizmetler/adisyon_hizmetler icinde 15dk altindaki sureleri 15\'e cek, saat_bitis yeniden hesapla}
+        {--merge-duplicate-odalar : Salon icin trKey (case+aksan+whitespace normalize) ayni olan oda kayitlarini merge et: en eski id\'yi tut, digerlerin tum baglantilarini ona transfer + fazlalari sil}
         {--dry-run : fix-sure-dk vb. islemlerde sadece sayim, yazma}
         {--only= : Sadece bu tip(ler)i al (virgulle: musteri,hizmet,randevu)}';
 
@@ -103,6 +104,11 @@ class PlanlaImport extends Command
             }
             $this->info('Tam analiz: ' . $client->dumpDir() . '/bundle_analysis.body');
             return 0;
+        }
+
+        if ((bool) $this->option('merge-duplicate-odalar')) {
+            if (!$salonId) { $this->error('--merge-duplicate-odalar icin --salon zorunlu.'); return 1; }
+            return $this->mergeDuplicateOdalar((int) $salonId, (bool) $this->option('dry-run'));
         }
 
         if ($fixOlusturan) {
@@ -373,6 +379,68 @@ class PlanlaImport extends Command
         if (in_array('tahsilat', $types)) $importer->importTahsilatlar();
 
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
+        return 0;
+    }
+
+    /**
+     * Salon icin ayni isimli (case+whitespace normalize) oda kayitlarini merge eder.
+     * En eski id'yi tutar, digerlerin bagliliklarini ona transfer eder, fazlalari siler.
+     * Transfer edilen baglilik: randevu_hizmetler.oda_id, adisyon_hizmetler.oda_id (varsa),
+     * salon_oda_renkleri.oda_id, personeller.oda_id (varsa).
+     */
+    private function mergeDuplicateOdalar($salonId, $dryRun)
+    {
+        $odalar = \DB::table('odalar')->where('salon_id', $salonId)
+            ->select('id', 'oda_adi', 'personel_id', 'created_at')->orderBy('id')->get();
+        $norm = function ($s) {
+            return mb_strtoupper(trim(preg_replace('/\s+/u', ' ', (string) $s)), 'UTF-8');
+        };
+        $g = [];
+        foreach ($odalar as $o) $g[$norm($o->oda_adi)][] = $o;
+        $dups = array_filter($g, function ($x) { return count($x) > 1; });
+        $this->line('Toplam oda: ' . count($odalar) . ', duplicate grup: ' . count($dups));
+
+        if (empty($dups)) { $this->info('Duplicate yok.'); return 0; }
+
+        $silinecek = 0; $aktarilan = 0;
+        $renkTblExists = \Schema::hasTable('salon_oda_renkleri');
+        $rhHasOda = \Schema::hasColumn('randevu_hizmetler', 'oda_id');
+        $ahHasOda = \Schema::hasColumn('adisyon_hizmetler', 'oda_id');
+        $persHasOda = \Schema::hasColumn('personeller', 'oda_id');
+
+        foreach ($dups as $key => $arr) {
+            $tut = $arr[0]; // en eski (id asc sirali)
+            $silIds = array_map(function ($x) { return $x->id; }, array_slice($arr, 1));
+            $this->line("  [$key] tut id={$tut->id}, sil: " . implode(',', $silIds));
+            $silinecek += count($silIds);
+            if ($dryRun) continue;
+
+            // Bagliliklari transfer
+            if ($rhHasOda) {
+                $aktarilan += \DB::table('randevu_hizmetler')->whereIn('oda_id', $silIds)
+                    ->update(['oda_id' => $tut->id]);
+            }
+            if ($ahHasOda) {
+                $aktarilan += \DB::table('adisyon_hizmetler')->whereIn('oda_id', $silIds)
+                    ->update(['oda_id' => $tut->id]);
+            }
+            if ($persHasOda) {
+                $aktarilan += \DB::table('personeller')->whereIn('oda_id', $silIds)
+                    ->update(['oda_id' => $tut->id]);
+            }
+            if ($renkTblExists) {
+                // Silinecek odalardaki renk kayitlari sil (tut'unki yoksa olustur)
+                \DB::table('salon_oda_renkleri')->whereIn('oda_id', $silIds)->delete();
+            }
+            // Odalari sil
+            \DB::table('odalar')->whereIn('id', $silIds)->delete();
+        }
+
+        $this->line('--- Sonuc ---');
+        $this->line('  silinecek/silinen oda : ' . $silinecek);
+        $this->line('  aktarilan baglanti     : ' . $aktarilan);
+        if ($dryRun) $this->warn('DRY-RUN: silme/transfer yapilmadi.');
+        else $this->info('Merge tamam.');
         return 0;
     }
 }

@@ -161,7 +161,13 @@ class PlanlaImporter
         if (isset($this->personelOdaMap[$p->id])) return $this->personelOdaMap[$p->id];
         $ad = trim((string) $p->personel_adi);
         if ($ad === '') return null;
-        $oda = \App\Odalar::where('salon_id', $this->salonId)->where('oda_adi', $ad)->first();
+        // Case-insensitive + whitespace normalize match: "LAZER KONTROL", "Lazer Kontrol",
+        // "lazer  kontrol" hepsi ayni odaya bagli. Eski exact match ile 3 personel
+        // ayni isimde 3 ayri oda olusturuyordu.
+        $adNorm = mb_strtoupper(preg_replace('/\s+/', ' ', $ad), 'UTF-8');
+        $oda = \App\Odalar::where('salon_id', $this->salonId)
+            ->whereRaw('UPPER(TRIM(REPLACE(REPLACE(oda_adi, "\t", " "), "\n", " "))) = ?', [$adNorm])
+            ->first();
         if (!$oda) {
             $oda = new \App\Odalar();
             $oda->salon_id = $this->salonId;
