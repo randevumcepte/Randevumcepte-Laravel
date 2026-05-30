@@ -3262,13 +3262,17 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     $(document).on('click', '#bir_hizmet_daha_ekle', function(e) {
         e.preventDefault();
         
-        $("select.custom-select2").each(function(i) {
+        // SADECE hizmet satirlarindaki select2'leri yeniden kur. ESKIDEN global'di
+        // ($("select.custom-select2")) ve sayfadaki TUM custom-select2/opsiyonelSelect'lerin
+        // (musteri select'i + layout aramasi dahil) id'sini siliyordu -> paket eklerken
+        // 9x calisinca musteri secimi bozuluyordu.
+        $("#modal-view-event-add .hizmet-satiri select.custom-select2").each(function(i) {
             $(this).removeAttr('data-select2-id').removeAttr('id');
             $(this).find('option').removeAttr('data-select2-id');
             $(this).select2({width: '100%'});
         });
-        
-        $("select.opsiyonelSelect").each(function(i) {
+
+        $("#modal-view-event-add .hizmet-satiri select.opsiyonelSelect").each(function(i) {
             $(this).removeAttr('data-select2-id').removeAttr('id');
             $(this).find('option').removeAttr('data-select2-id');
             $(this).select2({
