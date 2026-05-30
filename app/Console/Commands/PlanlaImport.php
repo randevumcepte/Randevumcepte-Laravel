@@ -45,7 +45,9 @@ class PlanlaImport extends Command
         $analyze  = (bool) $this->option('analyze');
         $only     = $this->option('only');
 
-        if (!$analyze && !$diagnose && !$fixOlusturan && !$backfillOda && !$fixSure && (!$email || !$password)) {
+        $mergeDup    = (bool) $this->option('merge-duplicate-odalar');
+        $mergePrefix = (bool) $this->option('merge-prefix-odalar');
+        if (!$analyze && !$diagnose && !$fixOlusturan && !$backfillOda && !$fixSure && !$mergeDup && !$mergePrefix && (!$email || !$password)) {
             $this->error('--email ve --password zorunlu.');
             return 1;
         }
