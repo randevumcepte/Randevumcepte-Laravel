@@ -3779,6 +3779,20 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     // Modal kapatıldığında formu temizle
     $('#modal-view-event-add').on('hidden.bs.modal', function() {
         resetForm();
+        // Genel "Tüm hizmetlere uygula" panelini de sifirla — resetForm form fields'a
+        // dokunuyor ama genel panel select'lerinde TomSelect/Select2 cache kaliyor.
+        try {
+            var $gp = $('#modal-view-event-add select.genel-personel-select');
+            if ($gp.length) {
+                if ($gp[0] && $gp[0].tomselect) { try { $gp[0].tomselect.clear(true); } catch(e){} }
+                $gp.val('').trigger('change');
+            }
+            var $gc = $('#modal-view-event-add select.genel-cihaz-select');
+            if ($gc.length) { $gc.val('').trigger('change'); try { $gc.trigger('change.select2'); } catch(e){} }
+            var $go = $('#modal-view-event-add select.genel-oda-select');
+            if ($go.length) { $go.val('').trigger('change'); try { $go.trigger('change.select2'); } catch(e){} }
+            $('#modal-view-event-add .genel-sure-input').val('');
+        } catch(e) { console.warn('[GENEL PANEL] reset hatasi:', e); }
     });
 
     // Modal açıldığında select2'leri yeniden başlat
