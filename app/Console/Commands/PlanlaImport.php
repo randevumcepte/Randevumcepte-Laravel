@@ -514,12 +514,26 @@ class PlanlaImport extends Command
         $renkTblExists = \Schema::hasTable('salon_oda_renkleri');
         $rhHasOda = \Schema::hasColumn('randevu_hizmetler', 'oda_id');
         $ahHasOda = \Schema::hasColumn('adisyon_hizmetler', 'oda_id');
-        $persHasOda = \Schema::hasColumn('personeller', 'oda_id');
+        // Tablo adi: salon_personelleri (model App\Personeller -> 'salon_personelleri')
+        $persHasOda = \Schema::hasColumn('salon_personelleri', 'oda_id');
 
         foreach ($dups as $key => $arr) {
-            $tut = $arr[0]; // en eski (id asc sirali)
-            $silIds = array_map(function ($x) { return $x->id; }, array_slice($arr, 1));
-            $this->line("  [$key] tut id={$tut->id}, sil: " . implode(',', $silIds));
+            // AKILLI secim: pasif (personel_id NULL) yerine personel'i olan tut.
+            // Esit ise en cok RH bagli olani tut. Es ise en eski id'ye dus.
+            $secim = [];
+            foreach ($arr as $o) {
+                $rhCnt = $rhHasOda ? \DB::table('randevu_hizmetler')->where('oda_id', $o->id)->count() : 0;
+                $secim[] = ['o' => $o, 'aktif' => !empty($o->personel_id), 'rh' => $rhCnt];
+            }
+            usort($secim, function ($a, $b) {
+                if ($a['aktif'] !== $b['aktif']) return $b['aktif'] - $a['aktif']; // aktif onde
+                if ($a['rh'] !== $b['rh']) return $b['rh'] - $a['rh']; // cok RH onde
+                return $a['o']->id - $b['o']->id; // en eski onde
+            });
+            $tut = $secim[0]['o'];
+            $silIds = [];
+            foreach (array_slice($secim, 1) as $s) $silIds[] = $s['o']->id;
+            $this->line("  [$key] tut id={$tut->id} (pers=" . ($tut->personel_id ?? 'NULL') . ", rh={$secim[0]['rh']}), sil: " . implode(',', $silIds));
             $silinecek += count($silIds);
             if ($dryRun) continue;
 
@@ -533,7 +547,7 @@ class PlanlaImport extends Command
                     ->update(['oda_id' => $tut->id]);
             }
             if ($persHasOda) {
-                $aktarilan += \DB::table('personeller')->whereIn('oda_id', $silIds)
+                $aktarilan += \DB::table('salon_personelleri')->whereIn('oda_id', $silIds)
                     ->update(['oda_id' => $tut->id]);
             }
             if ($renkTblExists) {
