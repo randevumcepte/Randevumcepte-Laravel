@@ -111,17 +111,21 @@
                                                             <small style="color:#0369a1;font-size:0.72rem;">— buradan seçtikleriniz tüm hizmet satırlarına uygulanır; tek bir hizmeti ayrı ayarlamak için satırdaki <strong>Özelleştir</strong>’e tıklayın</small>
                                                         </div>
                                                         <div class="row g-2">
-                                                            <div class="col-md-4 secim-personel" style="{{ $__personel_style }}">
+                                                            <div class="col-md-3 secim-personel" style="{{ $__personel_style }}">
                                                                 <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Personel</label>
                                                                 <select class="form-control personel-select genel-personel-select" data-genel="1" style="width:100%;min-height:36px;font-size:0.85rem;"><option></option></select>
                                                             </div>
-                                                            <div class="col-md-4 secim-cihaz" style="{{ $__cihaz_style }}">
+                                                            <div class="col-md-3 secim-cihaz" style="{{ $__cihaz_style }}">
                                                                 <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Cihaz</label>
                                                                 <select class="form-control opsiyonelSelect cihaz-select genel-cihaz-select" data-genel="1" style="width:100%;height:32px;font-size:0.8rem;"><option></option></select>
                                                             </div>
-                                                            <div class="col-md-4 secim-oda" style="{{ $__oda_style }}">
+                                                            <div class="col-md-3 secim-oda" style="{{ $__oda_style }}">
                                                                 <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Oda</label>
                                                                 <select class="form-control opsiyonelSelect oda-select genel-oda-select" data-genel="1" style="width:100%;height:32px;font-size:0.8rem;"><option></option></select>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Paket Süresi (dk)</label>
+                                                                <input type="number" min="0" step="5" class="form-control genel-sure-input" data-genel="1" placeholder="Toplam" style="width:100%;height:38px;font-size:0.85rem;">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -2114,6 +2118,8 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                 console.log('[PAKET] yerlestirme tamamlandi, kilit serbest');
                 // Paket modu: satirlar gizli kalsin (bastan aktif edildi; burada sayiyi+collapse'i teyit et)
                 try { if(hizmetData.length >= 2) paketModunaGec(hizmetData.length); } catch(e){ console.warn('[PAKET MODU] hata:', e); }
+                // Genel "Paket Süresi" input'unu paket toplam suresiyle doldur
+                try { genelSureInputDoldur(); } catch(e){}
             }, 150);
             return;
         }
@@ -2773,6 +2779,33 @@ function genelKaynakUygula(){
     try { updateRandevuOzeti(); } catch(e){}
 }
 
+// Genel "Paket Süresi (dk)" input'unu mevcut hizmet sureleri toplamiyla doldur
+function genelSureInputDoldur(){
+    var $inp = $('#modal-view-event-add .genel-sure-input');
+    if(!$inp.length) return;
+    var toplam = 0;
+    $('#modal-view-event-add .hizmet-satiri .hizmet-suresi').each(function(){
+        var s = parseInt($(this).val(), 10);
+        if(!isNaN(s) && s > 0) toplam += s;
+    });
+    $inp.val(toplam > 0 ? toplam : '');
+}
+
+// Genel "Paket Süresi" degisince: paket eklemedeki gibi ILK hizmete toplam sureyi ver,
+// digerlerine 0 (blok/zincir mantigi -> randevu toplam sure kadar yer kaplar).
+function genelSureUygula(){
+    var toplam = parseInt($('#modal-view-event-add .genel-sure-input').val(), 10);
+    if(isNaN(toplam) || toplam < 0) return;
+    var $sureler = $('#modal-view-event-add .hizmet-satiri .hizmet-suresi');
+    $sureler.each(function(i){
+        $(this).val(i === 0 ? toplam : 0).trigger('input');
+    });
+    try { updateRandevuOzeti(); } catch(e){}
+}
+$(document).on('change', '#modal-view-event-add .genel-sure-input', function(){
+    genelSureUygula();
+});
+
 // ===================== PAKET MODU =====================
 // Cok hizmetli pakette: hizmet satirlari gizlenir, genel panelin hemen altina TEK
 // "Hizmetleri ozellestir" butonu + ozet konur. Tikla -> satirlar gorunur olur.
@@ -2800,6 +2833,7 @@ function paketModunuKapat(){
     var $bolum = $('#modal-view-event-add .hizmetler_bolumu');
     $bolum.removeClass('paket-modu hizmetler-acik');
     $bolum.find('.paket-master-wrap').remove();
+    $('#modal-view-event-add .genel-sure-input').val('');
 }
 
 // Master toggle: paket modunda hizmet satirlarini ac/kapat
