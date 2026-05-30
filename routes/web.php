@@ -1011,6 +1011,7 @@ Route::prefix('isletmeyonetim')->group(function() {
  	Route::post('/urunadetdegistir','StoreAdminController@urunadetdegistir');
 
  	Route::post('/paketseansdegistir','StoreAdminController@paketseansdegistir');
+ 	Route::post('/hizmetseansdegistir','StoreAdminController@hizmetseansdegistir');
 
  	Route::post('/pakettahsilattutaridegistir','StoreAdminController@pakettahsilattutaridegistir');
  	Route::post('/hizmet-hediye-isle','StoreAdminController@hizmet_hediye_isle');

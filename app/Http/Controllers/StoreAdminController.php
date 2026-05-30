@@ -20754,17 +20754,17 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
          $musteri_id = Adisyonlar::where('id',$adisyon_paket->adisyon_id)->value('user_id');
          $adisyon_paket->seans_sayisi = $request->seans;
          $adisyon_paket->bekleyen_seans =  $request->seans - ($adisyon_paket->kullanilan_seans + $adisyon_paket->kullanilmayan_seans);
-         $adisyon_paket->save(); 
-          
+         $adisyon_paket->save();
+         return self::musteri_tahsilatlari($request,$musteri_id,"",$request->satisDuzenle);
     }
     public function hizmetseansdegistir(Request $request)
     {
          $adisyon_hizmet = AdisyonHizmetler::where('id',$request->adisyonhizmetid)->first();
          $musteri_id = Adisyonlar::where('id',$adisyon_hizmet->adisyon_id)->value('user_id');
          $adisyon_hizmet->seans_sayisi = $request->seans;
-         $adisyon_hizmet->bekleyen_seans =  $request->seans - ($adisyon_paket->kullanilan_seans + $adisyon_paket->kullanilmayan_seans);
-         $adisyon_hizmet->save(); 
-          
+         $adisyon_hizmet->bekleyen_seans =  $request->seans - ($adisyon_hizmet->kullanilan_seans + $adisyon_hizmet->kullanilmayan_seans);
+         $adisyon_hizmet->save();
+         return self::musteri_tahsilatlari($request,$musteri_id,"",$request->satisDuzenle);
     }
     public function pakettahsilattutaridegistir(Request $request)
     {
