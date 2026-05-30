@@ -3762,23 +3762,13 @@ function updateHizmetDetaylari(index) {
         const fiyat = cachedData.fiyat || 0;
         const renk = cachedData.renk || '#007bff';
         const serviceText = cachedData.text || service.text || '';
-        const checkboxDisabled = serviceIndex === 0 ? 'disabled' : '';
-        
-        const birlestirNum = serviceIndex + 1;
-        const birlestirDisabled = serviceIndex === 0 ? 'disabled' : '';
         const hizmetDetayHtml = `
             <div class="hizmet-detay-item">
                 <div class="hizmet-detay-header" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
                     <span class="hizmet-ad" style="color: ${renk}; font-size: 0.8rem;">${serviceText}</span>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <label style="font-size:0.72rem; margin:0; display:flex; align-items:center; gap:4px; ${serviceIndex === 0 ? 'opacity:0.4;' : ''}">
-                            <input type="checkbox" name="birlestir${birlestirNum}" ${birlestirDisabled} style="margin:0;">
-                            Üstteki ile birleştir
-                        </label>
-                        <button type="button" class="btn btn-sm btn-outline-danger hizmet-kaldir" data-index="${index}" data-service-id="${service.id}" style="padding: 1px 4px; font-size: 0.7rem;">
-                            <i class="fa fa-times"></i>
-                        </button>
-                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger hizmet-kaldir" data-index="${index}" data-service-id="${service.id}" style="padding: 1px 4px; font-size: 0.7rem;">
+                        <i class="fa fa-times"></i>
+                    </button>
                 </div>
                 <div class="row g-1 hizmet-detay-inputs">
                     <div class="col-md-5">
