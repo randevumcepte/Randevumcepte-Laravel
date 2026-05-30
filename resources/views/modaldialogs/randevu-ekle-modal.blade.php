@@ -456,6 +456,22 @@
 #modal-view-event-add .ts-wrapper.single .ts-control > .item {
     line-height: 24px !important;
 }
+/* Tom Select single (personel) "temizle" (x) butonu: HER ZAMAN gorunur + tiklanabilir
+   (varsayilan opacity:0 idi, sadece hover'da gozukuyordu) ve caret ile cakismaz. */
+#modal-view-event-add .ts-wrapper.single .ts-control { padding-right: 44px !important; }
+#modal-view-event-add .ts-wrapper.single .clear-button {
+    opacity: 1 !important;
+    color: #9ca3af !important;
+    font-size: 19px !important;
+    line-height: 1 !important;
+    right: 26px !important;
+    top: 50% !important;
+    margin-top: 0 !important;
+    transform: translateY(-50%) !important;
+    cursor: pointer !important;
+    z-index: 3 !important;
+}
+#modal-view-event-add .ts-wrapper.single .clear-button:hover { color: #ef4444 !important; }
 #modal-view-event-add .ts-wrapper.focus .ts-control {
     border-color: #6366f1 !important;
     box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
@@ -2632,9 +2648,9 @@ function initPersonelTom($sel){
     }
     try {
         return new TomSelect(el, {
-            plugins: ['clear_button'],
+            plugins: { clear_button: { title: 'Seçimi temizle' } },
             placeholder: 'Personel seçin...',
-            allowEmptyOption: true,
+            allowEmptyOption: false, // ici bos <option></option> dropdown'da gozukmesin
             persist: false,
             maxOptions: null,
             searchField: ['text'],
