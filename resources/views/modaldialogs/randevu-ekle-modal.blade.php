@@ -349,6 +349,11 @@
 #modal-view-event-add .hizmet-satiri.kaynak-acik .kaynak-kolon { display: block; }
 #modal-view-event-add .hizmet-satiri:not(.kaynak-acik) .hizmet-kolon { flex: 0 0 100%; max-width: 100%; }
 
+/* Paket modu: cok hizmetli pakette hizmet satirlari varsayilan GIZLI; tek
+   "Hizmetleri ozellestir" butonu ile acilir (akordiyon yigilmasini onler). */
+#modal-view-event-add .hizmetler_bolumu.paket-modu .hizmet-satiri { display: none; }
+#modal-view-event-add .hizmetler_bolumu.paket-modu.hizmetler-acik .hizmet-satiri { display: block; }
+
 /* Yeni Randevu modali dikey ortalama (modal-dialog-centered ::before hack i olmadan) */
 /* z-index: swal v1 99999 kullaniyor, modal'in onun ustunde kalmasi icin 100002 (Tom Select dropdown=100000, Select2=100001 ile uyumlu) */
 #modal-view-event-add { z-index: 100002 !important; }
@@ -2047,6 +2052,8 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                 try { updateRandevuOzeti(); } catch(e){}
                 window._paketEklemeKilidi = false;
                 console.log('[PAKET] yerlestirme tamamlandi, kilit serbest');
+                // Paket modu: cok hizmetli pakette satirlari gizle, tek "Hizmetleri ozellestir" goster
+                try { if(hizmetData.length >= 2) paketModunaGec(hizmetData.length); } catch(e){ console.warn('[PAKET MODU] hata:', e); }
             }, 150);
             return;
         }
@@ -2706,6 +2713,46 @@ function genelKaynakUygula(){
     try { updateRandevuOzeti(); } catch(e){}
 }
 
+// ===================== PAKET MODU =====================
+// Cok hizmetli pakette: hizmet satirlari gizlenir, genel panelin hemen altina TEK
+// "Hizmetleri ozellestir" butonu + ozet konur. Tikla -> satirlar gorunur olur.
+function paketModunaGec(hizmetSayisi){
+    var $bolum = $('#modal-view-event-add .hizmetler_bolumu');
+    if(!$bolum.length) return;
+    $bolum.addClass('paket-modu').removeClass('hizmetler-acik');
+    // Master ozet+toggle (yoksa olustur), genel-kaynak-panel'den hemen sonra
+    if(!$bolum.find('.paket-master-wrap').length){
+        var html = ''
+            + '<div class="paket-master-wrap mb-2 p-2 d-flex justify-content-between align-items-center" style="background:#fffaf0;border:1px solid #fde8c8;border-radius:8px;">'
+            +   '<div style="font-size:0.82rem;color:#92400e;"><i class="fa fa-box" style="margin-right:5px;"></i><strong class="paket-master-sayi">'+hizmetSayisi+'</strong> hizmet pakete eklendi — hepsi yukarıdaki personel/oda/cihaz ile uygulanır.</div>'
+            +   '<button type="button" class="btn btn-sm paket-master-ozellestir" style="font-size:0.72rem;color:#6366f1;background:#eef2ff;border:1px solid #e0e7ff;border-radius:6px;padding:3px 10px;white-space:nowrap;"><i class="fa fa-sliders"></i> Hizmetleri özelleştir</button>'
+            + '</div>';
+        var $panel = $bolum.find('.genel-kaynak-panel').first();
+        if($panel.length) $panel.after(html); else $bolum.prepend(html);
+    } else {
+        $bolum.find('.paket-master-sayi').text(hizmetSayisi);
+    }
+}
+
+// Paket modunu kapat (modal reset / yeni randevu)
+function paketModunuKapat(){
+    var $bolum = $('#modal-view-event-add .hizmetler_bolumu');
+    $bolum.removeClass('paket-modu hizmetler-acik');
+    $bolum.find('.paket-master-wrap').remove();
+}
+
+// Master toggle: paket modunda hizmet satirlarini ac/kapat
+$(document).on('click', '#modal-view-event-add .paket-master-ozellestir', function(e){
+    e.preventDefault();
+    var $bolum = $('#modal-view-event-add .hizmetler_bolumu');
+    var acik = !$bolum.hasClass('hizmetler-acik');
+    $bolum.toggleClass('hizmetler-acik', acik);
+    $(this).html(acik
+        ? '<i class="fa fa-chevron-up"></i> Hizmetleri gizle'
+        : '<i class="fa fa-sliders"></i> Hizmetleri özelleştir');
+    $(this).css(acik ? { color:'#fff', background:'#6366f1' } : { color:'#6366f1', background:'#eef2ff' });
+});
+
 // Her hizmet satirinin header'ina "Ozellestir" butonu ekle (yoksa)
 function ozellestirButonlariEkle(){
     $('#modal-view-event-add .hizmet-satiri').each(function(){
@@ -3320,6 +3367,12 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         try { ozellestirButonlariEkle(); } catch(e){}
         try { genelKaynakUygula(); } catch(e){}
 
+        // Manuel "Yeni Hizmet Ekle" ise (paket yerlestirme degil) paket modunda
+        // satirlari goster ki yeni eklenen satir gorunur olsun
+        if(!window._paketEklemeKilidi){
+            $('#modal-view-event-add .hizmetler_bolumu').addClass('hizmetler-acik');
+        }
+
         // Yeni satir eklendiginde sayfayi oraya kaydir
         setTimeout(function() {
             var $last = $('.hizmet-satiri').last();
@@ -3638,6 +3691,8 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     // Modal açıldığında select2'leri yeniden başlat
     $('#modal-view-event-add').on('shown.bs.modal', function() {
         console.log('[SHOWN] shown.bs.modal tetiklendi — genel panel init edilecek');
+        // Paket modunu sifirla (her acilis temiz baslasin; paket secilince tekrar aktiflesir)
+        try { paketModunuKapat(); } catch(e){}
         // Guvence: eger hizmet-select'e yanlislikla Select2 eklenmisse onu da destroy et
         $('.hizmet-select').each(function(){
             if($(this).hasClass('select2-hidden-accessible')){
@@ -3903,6 +3958,7 @@ function formatHizmetSecim(hizmet) {
 }
  // Form resetleme fonksiyonu
   function resetForm() {
+    try { paketModunuKapat(); } catch(e){}
     $('.hizmet-satiri').slice(1).remove();
 
     // Hizmet-select ve personel-select Tom Select kullanir: native val degisimi TS'i etkilemez, TS API ile temizle
