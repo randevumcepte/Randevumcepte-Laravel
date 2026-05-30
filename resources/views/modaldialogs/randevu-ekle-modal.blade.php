@@ -347,11 +347,8 @@
 <style>
 /* Genel Modal Stilleri */
 
-/* Kolay kullanim: hizmet satirlarindaki kaynak (personel/oda/cihaz) kolonu
-   varsayilan gizli; "Ozellestir" ile acilir. Gizliyken hizmet kolonu tam genislik. */
-#modal-view-event-add .hizmet-satiri .kaynak-kolon { display: none; }
-#modal-view-event-add .hizmet-satiri.kaynak-acik .kaynak-kolon { display: block; }
-#modal-view-event-add .hizmet-satiri:not(.kaynak-acik) .hizmet-kolon { flex: 0 0 100%; max-width: 100%; }
+/* Kaynak (personel/oda/cihaz) kolonu her zaman gorunur — eski "Ozellestir"
+   buton + akordiyon mantigi kaldirildi (genel panel mevcut, gerek kalmadi). */
 
 /* Paket modu: cok hizmetli pakette hizmet satirlari varsayilan GIZLI; tek
    "Hizmetleri ozellestir" butonu ile acilir (akordiyon yigilmasini onler). */
@@ -2848,39 +2845,10 @@ $(document).on('click', '#modal-view-event-add .paket-master-ozellestir', functi
     $(this).css(acik ? { color:'#fff', background:'#6366f1' } : { color:'#6366f1', background:'#eef2ff' });
 });
 
-// Her hizmet satirinin header'ina "Ozellestir" butonu ekle (yoksa)
-function ozellestirButonlariEkle(){
-    $('#modal-view-event-add .hizmet-satiri').each(function(){
-        var $row = $(this);
-        var $hdr = $row.find('.card-header').first();
-        if(!$hdr.length || $hdr.find('.kaynak-ozellestir-btn').length) return;
-        var $btn = $('<button type="button" class="btn btn-sm kaynak-ozellestir-btn" style="font-size:0.7rem;color:#6366f1;background:#eef2ff;border:1px solid #e0e7ff;border-radius:6px;padding:2px 8px;margin-right:6px;"><i class="fa fa-sliders"></i> Özelleştir</button>');
-        var $sil = $hdr.find('.hizmet-sil').first();
-        if($sil.length) $btn.insertBefore($sil); else $hdr.append($btn);
-    });
-}
-
-// Ozellestir toggle
-$(document).on('click', '#modal-view-event-add .kaynak-ozellestir-btn', function(e){
-    e.preventDefault();
-    var $row = $(this).closest('.hizmet-satiri');
-    var acildi = !$row.hasClass('kaynak-acik');
-    $row.toggleClass('kaynak-acik', acildi);
-    $(this).css(acildi ? { color:'#fff', background:'#6366f1' } : { color:'#6366f1', background:'#eef2ff' });
-    if(acildi){
-        // Personel Tom Select'i temiz yeniden kur (gizliyken bozuk render olabiliyor)
-        var $p = $row.find('select.personel-select');
-        if($p.length){
-            var cur = '';
-            try { cur = ($p[0] && $p[0].tomselect) ? $p[0].tomselect.getValue() : $p.val(); } catch(err){ cur = $p.val(); }
-            try { tomDestroyPersonel($p); } catch(err){}
-            doldurSelect($p, (window.randevuModalData && window.randevuModalData.personeller) || []);
-            if(cur) $p.val(cur);
-            var ts = initPersonelTom($p);
-            if(cur && ts){ try { ts.setValue(cur, true); } catch(err){} }
-        }
-    }
-});
+// "Ozellestir" butonu ve kaynak-acik toggle mantigi tamamen kaldirildi
+// (genel panel mevcut + personel/cihaz/oda kolonlari her zaman gorunur).
+// Geriye uyumluluk icin no-op stub korunur.
+function ozellestirButonlariEkle(){ /* deprecated, no-op */ }
 
 // Genel panel degisince tum satirlara uygula
 $(document).on('change', '#modal-view-event-add .genel-personel-select, #modal-view-event-add .genel-cihaz-select, #modal-view-event-add .genel-oda-select', function(){
