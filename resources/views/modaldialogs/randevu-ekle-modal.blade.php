@@ -2733,7 +2733,9 @@ function genelPanelHazirla(){
     if(r0c && $gc.length && !$gc.val() && $gc.find('option[value="'+r0c+'"]').length){ $gc.val(r0c).trigger('change.select2'); }
     if(r0o && $go.length && !$go.val() && $go.find('option[value="'+r0o+'"]').length){ $go.val(r0o).trigger('change.select2'); }
     console.log('[GENEL PANEL] bitti — genel personel option sayisi:', $('#modal-view-event-add .genel-personel-select option').length, 'genel oda option:', $('#modal-view-event-add .genel-oda-select option').length);
-    // Satir header'larina Ozellestir butonu
+    // Genel "Paket Süresi" inputunu mevcut hizmet süreleri toplamiyla doldur
+    try { genelSureInputDoldur(); } catch(e){}
+    // Satir header'larina Ozellestir butonu (deprecated stub, geriye uyumluluk icin)
     ozellestirButonlariEkle();
 }
 
@@ -3066,6 +3068,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                 // hizmet sectiyse "sure" inputu 0 render olmus oluyordu (gec gozukur).
                 // Tum mevcut hizmet-satir'lari icin updateHizmetDetaylari'yi tekrar
                 // calistir — yeni cache verisi ile sure/fiyat otomatik dolar.
+                // Ayrica genel "Paket Suresi" inputunu da doldur (toplam dakika).
                 try {
                     $('#modal-view-event-add .hizmet-select').each(function(){
                         var idx = $(this).data('index');
@@ -3073,6 +3076,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                             updateHizmetDetaylari(idx);
                         }
                     });
+                    if (typeof genelSureInputDoldur === 'function') genelSureInputDoldur();
                     if (typeof updateRandevuOzeti === 'function') updateRandevuOzeti();
                 } catch (e) { console.warn('[HizmetCache] post-fetch re-render hata:', e); }
             },
@@ -3320,9 +3324,12 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         updateRandevuOzeti();
     });
     
-    // Süre veya fiyat değiştiğinde toplamı güncelle
+    // Süre veya fiyat değiştiğinde toplamı güncelle + genel sureyi senkronla
     $(document).on('input', '.hizmet-suresi, .hizmet-fiyati', function() {
         updateRandevuOzeti();
+        if ($(this).hasClass('hizmet-suresi')) {
+            try { genelSureInputDoldur(); } catch(e){}
+        }
     });
     
     // Yeni hizmet satırı ekle
