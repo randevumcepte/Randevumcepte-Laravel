@@ -1963,6 +1963,13 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
 function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
     if(!hizmetData || !hizmetData.length) return;
 
+    // Cok hizmetli pakette: paket moduna HEMEN gec (satirlar yerlesirken hic gorunmesin).
+    // _paketYerlestiriliyor bayragi add-row handler'in satirlari acmasini engeller.
+    if(hizmetData.length >= 2){
+        window._paketYerlestiriliyor = true;
+        try { paketModunaGec(hizmetData.length); } catch(e){ console.warn('[PAKET MODU] erken gec hatasi:', e); }
+    }
+
     // Row 0'daki mevcut personel/cihaz/oda degerlerini sakla (takvimden inheritance icin)
     var $row0 = $('#yenirandevuekleform .hizmet-satiri').first();
     var basePersonel = $row0.find('.personel-select').val() || '';
@@ -2051,8 +2058,9 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                 _finalRebaseAllRows();
                 try { updateRandevuOzeti(); } catch(e){}
                 window._paketEklemeKilidi = false;
+                window._paketYerlestiriliyor = false;
                 console.log('[PAKET] yerlestirme tamamlandi, kilit serbest');
-                // Paket modu: cok hizmetli pakette satirlari gizle, tek "Hizmetleri ozellestir" goster
+                // Paket modu: satirlar gizli kalsin (bastan aktif edildi; burada sayiyi+collapse'i teyit et)
                 try { if(hizmetData.length >= 2) paketModunaGec(hizmetData.length); } catch(e){ console.warn('[PAKET MODU] hata:', e); }
             }, 150);
             return;
@@ -2736,6 +2744,7 @@ function paketModunaGec(hizmetSayisi){
 
 // Paket modunu kapat (modal reset / yeni randevu)
 function paketModunuKapat(){
+    window._paketYerlestiriliyor = false;
     var $bolum = $('#modal-view-event-add .hizmetler_bolumu');
     $bolum.removeClass('paket-modu hizmetler-acik');
     $bolum.find('.paket-master-wrap').remove();
@@ -3369,7 +3378,7 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
 
         // Manuel "Yeni Hizmet Ekle" ise (paket yerlestirme degil) paket modunda
         // satirlari goster ki yeni eklenen satir gorunur olsun
-        if(!window._paketEklemeKilidi){
+        if(!window._paketYerlestiriliyor){
             $('#modal-view-event-add .hizmetler_bolumu').addClass('hizmetler-acik');
         }
 
