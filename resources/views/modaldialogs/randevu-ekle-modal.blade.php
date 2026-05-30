@@ -2016,11 +2016,12 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
 function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
     if(!hizmetData || !hizmetData.length) return;
 
-    // Cok hizmetli pakette: paket moduna HEMEN gec (satirlar yerlesirken hic gorunmesin).
-    // _paketYerlestiriliyor bayragi add-row handler'in satirlari acmasini engeller.
+    // Cok hizmetli pakette: yerlestirme boyunca _paketYerlestiriliyor=true (add-row handler
+    // satirlari acmasin). DIKKAT: paket moduna (display:none) burada GECMIYORUZ — satirlar
+    // GORUNUR kalmali ki Tom Select/select2 init+setValue native select'e senkron olsun
+    // (gizli elemanda senkron bozulup hizmet/oda BOS kaydediliyordu). Gizleme en sonda yapilir.
     if(hizmetData.length >= 2){
         window._paketYerlestiriliyor = true;
-        try { paketModunaGec(hizmetData.length); } catch(e){ console.warn('[PAKET MODU] erken gec hatasi:', e); }
     }
 
     // Row 0'daki mevcut personel/cihaz/oda degerlerini sakla (takvimden inheritance icin)
