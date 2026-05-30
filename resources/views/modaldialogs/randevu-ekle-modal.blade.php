@@ -351,9 +351,26 @@
    buton + akordiyon mantigi kaldirildi (genel panel mevcut, gerek kalmadi). */
 
 /* Paket modu: cok hizmetli pakette hizmet satirlari varsayilan GIZLI; tek
-   "Hizmetleri ozellestir" butonu ile acilir (akordiyon yigilmasini onler). */
-#modal-view-event-add .hizmetler_bolumu.paket-modu .hizmet-satiri { display: none; }
-#modal-view-event-add .hizmetler_bolumu.paket-modu.hizmetler-acik .hizmet-satiri { display: block; }
+   "Hizmetleri ozellestir" butonu ile acilir (akordiyon yigilmasini onler).
+   DIKKAT: display:none KULLANMA! Gizli elemanda Tom Select/select2 init+setValue
+   native <select>'e senkron olmaz -> randevu hizmet/oda BOS kaydedilir. Bunun yerine
+   satirlari ekran disina al (render edilir, olculur, senkron olur ama gorunmez). */
+#modal-view-event-add .hizmetler_bolumu { position: relative; }
+#modal-view-event-add .hizmetler_bolumu.paket-modu .hizmet-satiri {
+    position: absolute !important;
+    left: -99999px !important;
+    top: 0 !important;
+    width: 100% !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+#modal-view-event-add .hizmetler_bolumu.paket-modu.hizmetler-acik .hizmet-satiri {
+    position: static !important;
+    left: auto !important;
+    width: auto !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
 
 /* Yeni Randevu modali dikey ortalama (modal-dialog-centered ::before hack i olmadan) */
 /* z-index: swal v1 99999 kullaniyor, modal'in onun ustunde kalmasi icin 100002 (Tom Select dropdown=100000, Select2=100001 ile uyumlu) */
@@ -2016,12 +2033,12 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
 function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
     if(!hizmetData || !hizmetData.length) return;
 
-    // Cok hizmetli pakette: yerlestirme boyunca _paketYerlestiriliyor=true (add-row handler
-    // satirlari acmasin). DIKKAT: paket moduna (display:none) burada GECMIYORUZ — satirlar
-    // GORUNUR kalmali ki Tom Select/select2 init+setValue native select'e senkron olsun
-    // (gizli elemanda senkron bozulup hizmet/oda BOS kaydediliyordu). Gizleme en sonda yapilir.
+    // Cok hizmetli pakette paket moduna HEMEN gec (flash yok). Gizleme artik ekran-disi
+    // (display:none DEGIL) oldugu icin satirlar render edilir -> Tom Select/select2 init+
+    // setValue native <select>'e dogru senkron olur (hizmet/oda artik dolu kaydedilir).
     if(hizmetData.length >= 2){
         window._paketYerlestiriliyor = true;
+        try { paketModunaGec(hizmetData.length); } catch(e){ console.warn('[PAKET MODU] erken gec hatasi:', e); }
     }
 
     // Row 0'daki mevcut personel/cihaz/oda degerlerini sakla (takvimden inheritance icin)
@@ -3481,13 +3498,16 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             $('#modal-view-event-add .hizmetler_bolumu').addClass('hizmetler-acik');
         }
 
-        // Yeni satir eklendiginde sayfayi oraya kaydir
-        setTimeout(function() {
-            var $last = $('.hizmet-satiri').last();
-            if($last.length && $last[0].scrollIntoView){
-                $last[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 100);
+        // Yeni satir eklendiginde sayfayi oraya kaydir (paket yerlestirme sirasinda DEGIL;
+        // satirlar ekran disinda oldugundan oraya kaymak istemeyiz)
+        if(!window._paketYerlestiriliyor){
+            setTimeout(function() {
+                var $last = $('.hizmet-satiri').last();
+                if($last.length && $last[0].scrollIntoView){
+                    $last[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
         // select2YenidenYukle() cagrilmiyor - eski satirlarin secimlerini sifirlar
     });
     
