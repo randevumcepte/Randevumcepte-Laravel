@@ -3288,23 +3288,31 @@ $(document).on('submit','#yenirandevuekleform',function(e){
     var warningtext = "";
     var saatsecili = true;
     var totalFormDuration = 0;
+    // Takvim turu: 1=Personele gore (personel sart), 2=Cihaza, 3=Odaya, 0=Hizmete.
+    // Personele gore DEGILSE personel zorunlu degil (oda/cihaz yeterli).
+    var __turu = parseInt($('#randevu_ayarina_gore').val(), 10);
+    if(isNaN(__turu)) __turu = parseInt(window.randevuTakvimTuru || 0, 10);
+    // Musteri kontrolu loop DISINDA (10 satirda 10 kez tekrar etmesin)
+    if($('#randevuekle_musteri_id').val()==""){
+        warningtext += "- Müşteri/danışan seçiniz.<br>";
+        musterisecili = false;
+    }
     $('#yenirandevuekleform select[name="randevupersonelleriyeni[]"]').each(function(index){
-        if($('#randevuekle_musteri_id').val()=="")
-        {
-            warningtext += "- Müşteri/danışan seçiniz.<br>";
-            musterisecili = false;
+        var p = $(this).val();
+        var c = $('#yenirandevuekleform select[name="randevucihazlariyeni[]"]').eq(index).val();
+        var o = $('#yenirandevuekleform select[name="randevuodalariyeni[]"]').eq(index).val();
+        // Personele gore -> personel sart; degilse personel/cihaz/oda'dan herhangi biri yeterli
+        var kaynakVar = (__turu === 1) ? !!p : !!(p || c || o);
+        if(!kaynakVar && personelveyacihasecili){
+            warningtext += (__turu === 1)
+                ? "- Personel seçiniz.<br>"
+                : "- En az bir personel, cihaz veya oda seçiniz.<br>";
+            personelveyacihasecili = false; // sadece 1 kez uyar (paket = 10 satir -> tek uyari)
         }
-        if($('#yenirandevuekleform select[name="randevucihazlariyeni[]"]').eq(index).val() == '' && $(this).val()=='')
-        {
-            warningtext += "- En az bir personel veya cihaz seçiniz.<br>";
-            personelveyacihasecili = false;
-        }
-        if($('#yenirandevuekleform select[name="randevuhizmetleriyeni[]"]').eq(index).val() == '')
-        {
+        if($('#yenirandevuekleform select[name="randevuhizmetleriyeni[]"]').eq(index).val() == '' && hizmetsecili){
             warningtext += "- Hizmet seçiniz.<br>";
             hizmetsecili = false;
         }
-       
     });
      if($('#randevuduzenle_saat').val()==''){
 
