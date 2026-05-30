@@ -21,6 +21,7 @@ class PlanlaImport extends Command
         {--backfill-personel-oda : Salon personellerine birebir oda olustur, mevcut randevu_hizmetler.oda_id NULL olanlari personel adi ile esleyen oda\'ya bagla}
         {--fix-sure-dk : Salon randevu_hizmetler/adisyon_hizmetler icinde 15dk altindaki sureleri 15\'e cek, saat_bitis yeniden hesapla}
         {--merge-duplicate-odalar : Salon icin trKey (case+aksan+whitespace normalize) ayni olan oda kayitlarini merge et: en eski id\'yi tut, digerlerin tum baglantilarini ona transfer + fazlalari sil}
+        {--merge-prefix-odalar : Salon icin "kisa ad" (canonical) + "uzun ad" (kisa adin prefix'i olan) tum odalari kisa olana merge et. Orn: "LAZER KONTROL" + "lazer kontrol emine/buse/ela" -> hepsi tek LAZER KONTROL odasina. Personel-bazli oda olusturma bug\'unun temizligi}
         {--dry-run : fix-sure-dk vb. islemlerde sadece sayim, yazma}
         {--only= : Sadece bu tip(ler)i al (virgulle: musteri,hizmet,randevu)}';
 
@@ -109,6 +110,11 @@ class PlanlaImport extends Command
         if ((bool) $this->option('merge-duplicate-odalar')) {
             if (!$salonId) { $this->error('--merge-duplicate-odalar icin --salon zorunlu.'); return 1; }
             return $this->mergeDuplicateOdalar((int) $salonId, (bool) $this->option('dry-run'));
+        }
+
+        if ((bool) $this->option('merge-prefix-odalar')) {
+            if (!$salonId) { $this->error('--merge-prefix-odalar icin --salon zorunlu.'); return 1; }
+            return $this->mergePrefixOdalar((int) $salonId, (bool) $this->option('dry-run'));
         }
 
         if ($fixOlusturan) {
@@ -379,6 +385,106 @@ class PlanlaImport extends Command
         if (in_array('tahsilat', $types)) $importer->importTahsilatlar();
 
         $this->info('Tamam. Ozet: ' . json_encode($importer->summary()));
+        return 0;
+    }
+
+    /**
+     * Salon icin "kisa ad" (canonical) + "uzun ad (kisa adin prefix'i)" oda
+     * kayitlarini tek odaya merge eder. Orn:
+     *   "LAZER KONTROL"       (canonical, kisa)
+     *   "lazer kontrol emine" (uzun, kisa olanin prefix'i)
+     *   "lazer kontrol buse"  (uzun, ayni grup)
+     *   -> Hepsi tek "LAZER KONTROL" odasina merge.
+     *
+     * Algorithm:
+     *   1. Tum oda_adlarini trKey ile normalize et + kelimelerine bol
+     *   2. Her oda icin "olasi parent" bul: kelime sayisi daha az olan ve
+     *      bu odanin baslangic kelimeleriyle BIREBIR eslesen oda
+     *   3. Parent varsa: child'in tum baglantilarini parent'a aktar + child'i sil
+     */
+    private function mergePrefixOdalar($salonId, $dryRun)
+    {
+        $odalar = \DB::table('odalar')->where('salon_id', $salonId)
+            ->select('id', 'oda_adi', 'personel_id')->orderBy('id')->get();
+
+        $trKey = function ($s) {
+            $s = mb_strtolower((string) $s, 'UTF-8');
+            $s = preg_replace('/\p{M}+/u', '', $s);
+            $s = strtr($s, ['ı'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ç'=>'c','Ç'=>'c']);
+            return trim(preg_replace('~[^a-z0-9]+~', ' ', $s));
+        };
+
+        // Her oda icin: id, normalize kelimeler, kelime sayisi
+        $items = [];
+        foreach ($odalar as $o) {
+            $norm = $trKey($o->oda_adi);
+            $words = $norm === '' ? [] : explode(' ', $norm);
+            $items[] = ['id' => $o->id, 'ad' => $o->oda_adi, 'norm' => $norm, 'words' => $words, 'wc' => count($words)];
+        }
+
+        // Parent map: child_id => parent_id
+        $parentMap = []; // child_id => parent_id
+        foreach ($items as $child) {
+            if ($child['wc'] < 2) continue; // 1 kelimelik tek baslarina kalsin
+            $bestParent = null; $bestWc = 0;
+            foreach ($items as $parent) {
+                if ($parent['id'] === $child['id']) continue;
+                if ($parent['wc'] >= $child['wc']) continue; // child uzun, parent kisa olmali
+                // parent kelimeleri child'in basinda BIREBIR eslesmeli
+                $match = true;
+                for ($i = 0; $i < $parent['wc']; $i++) {
+                    if (($child['words'][$i] ?? '') !== $parent['words'][$i]) { $match = false; break; }
+                }
+                if ($match && $parent['wc'] > $bestWc) {
+                    $bestParent = $parent['id'];
+                    $bestWc = $parent['wc'];
+                }
+            }
+            if ($bestParent !== null) $parentMap[$child['id']] = $bestParent;
+        }
+
+        if (empty($parentMap)) { $this->info('Prefix-match oda yok.'); return 0; }
+
+        // Parent → child listesi (gosterim icin)
+        $groupByParent = [];
+        foreach ($parentMap as $childId => $parentId) $groupByParent[$parentId][] = $childId;
+
+        $this->line('--- Prefix-match merge plani ---');
+        foreach ($groupByParent as $parentId => $children) {
+            $parentAd = array_values(array_filter($items, function ($x) use ($parentId) { return $x['id'] === $parentId; }))[0]['ad'];
+            $this->line("  Parent: id=$parentId \"$parentAd\"");
+            foreach ($children as $cid) {
+                $cAd = array_values(array_filter($items, function ($x) use ($cid) { return $x['id'] === $cid; }))[0]['ad'];
+                $this->line("    -> child id=$cid \"$cAd\"");
+            }
+        }
+        $this->line('Toplam: ' . count($parentMap) . ' child oda parent\'a merge edilecek');
+
+        if ($dryRun) { $this->warn('DRY-RUN: silme/transfer yapilmadi.'); return 0; }
+
+        $rhHasOda  = \Schema::hasColumn('randevu_hizmetler', 'oda_id');
+        $ahHasOda  = \Schema::hasColumn('adisyon_hizmetler', 'oda_id');
+        $persHasOda = \Schema::hasColumn('salon_personelleri', 'oda_id');
+        $renkExists = \Schema::hasTable('salon_oda_renkleri');
+
+        $silinen = 0; $aktarilan = 0;
+        \DB::beginTransaction();
+        try {
+            foreach ($groupByParent as $parentId => $children) {
+                if ($rhHasOda)  $aktarilan += \DB::table('randevu_hizmetler')->whereIn('oda_id', $children)->update(['oda_id' => $parentId]);
+                if ($ahHasOda)  $aktarilan += \DB::table('adisyon_hizmetler')->whereIn('oda_id', $children)->update(['oda_id' => $parentId]);
+                if ($persHasOda) $aktarilan += \DB::table('salon_personelleri')->whereIn('oda_id', $children)->update(['oda_id' => $parentId]);
+                if ($renkExists) \DB::table('salon_oda_renkleri')->whereIn('oda_id', $children)->delete();
+                \DB::table('odalar')->whereIn('id', $children)->delete();
+                $silinen += count($children);
+            }
+            \DB::commit();
+            $this->info("Merge tamam: $silinen oda silindi, $aktarilan baglanti aktarildi.");
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            $this->error('Hata: ' . $e->getMessage());
+            return 1;
+        }
         return 0;
     }
 
