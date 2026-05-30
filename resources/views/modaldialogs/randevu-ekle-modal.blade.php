@@ -3062,6 +3062,19 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                     };
                 });
                 bitir();
+                // Cache async geldigi icin: kullanici cache yuklenmeden once
+                // hizmet sectiyse "sure" inputu 0 render olmus oluyordu (gec gozukur).
+                // Tum mevcut hizmet-satir'lari icin updateHizmetDetaylari'yi tekrar
+                // calistir — yeni cache verisi ile sure/fiyat otomatik dolar.
+                try {
+                    $('#modal-view-event-add .hizmet-select').each(function(){
+                        var idx = $(this).data('index');
+                        if (idx !== undefined && typeof updateHizmetDetaylari === 'function') {
+                            updateHizmetDetaylari(idx);
+                        }
+                    });
+                    if (typeof updateRandevuOzeti === 'function') updateRandevuOzeti();
+                } catch (e) { console.warn('[HizmetCache] post-fetch re-render hata:', e); }
             },
             error: function(){
                 console.warn('Hizmet verisi yuklenemedi');
