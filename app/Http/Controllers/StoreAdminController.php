@@ -4752,7 +4752,8 @@ private function ayAdiCevir($ingilizceAy)
 
             foreach($randevu->hizmetler as $hizmet)
             {
-                $mesaj = $randevu->users->name .' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmet->hizmetler->hizmet_adi.' randevusu '.Auth::guard('isletmeyonetim')->user()->name.' tarafından reddedilmiştir.';
+                $hizmetAdi = ($hizmet->hizmetler && isset($hizmet->hizmetler->hizmet_adi)) ? $hizmet->hizmetler->hizmet_adi : '';
+                $mesaj = $randevu->users->name .' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmetAdi.' randevusu '.Auth::guard('isletmeyonetim')->user()->name.' tarafından reddedilmiştir.';
                 $yetkiliid = Personeller::where('id',$hizmet->personel_id)->value('yetkili_id');
                 $personelTel = IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1');
                 $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 3, 'personel', $randevu->id, null, $mesajlar);
@@ -4793,7 +4794,8 @@ private function ayAdiCevir($ingilizceAy)
             {
                 $yetkiliid = Personeller::where('id',$hizmet->personel_id)->value('yetkili_id');
                 $personelTel = IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1');
-                $mesaj = $randevu->users->name .' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmet->hizmetler->hizmet_adi.' randevusu '.Auth::guard('isletmeyonetim')->user()->name.' tarafından iptal edilmiştir.';
+                $hizmetAdi = ($hizmet->hizmetler && isset($hizmet->hizmetler->hizmet_adi)) ? $hizmet->hizmetler->hizmet_adi : '';
+                $mesaj = $randevu->users->name .' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmetAdi.' randevusu '.Auth::guard('isletmeyonetim')->user()->name.' tarafından iptal edilmiştir.';
                 $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 3, 'personel', $randevu->id, null, $mesajlar);
 
                 self::bildirimekle($request,$randevu->salon_id,$mesaj,"#",$hizmet->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
