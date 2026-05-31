@@ -51,6 +51,7 @@ class DrklinikImporter
     private $verifyCsvFp = null;
     /** @var array trKey => true; mevcut musteri.aspx Kalan Seanslar tablosundaki hizmet adlari (her musteri icin reset edilir) */
     private $drkKalanSeansAdSet = [];
+    private $drkKalanHarcananMap = []; // trKey(hizmet_adi) => harcanan_seans (drklinik otoriter)
     private $verifyStats = ['ok' => 0, 'fark' => 0, 'eksik_db' => 0];
 
     public function __construct(DrklinikClient $client, $salonId, $out = null)
@@ -1187,7 +1188,15 @@ class DrklinikImporter
         // bakimi" gibi urun-also kalemler drk Kalan Seanslar'da gozukurse hizmet
         // olarak yazilir, urun envanteri korunur (silinmez).
         $this->drkKalanSeansAdSet = [];
+        $this->drkKalanHarcananMap = [];
         if ($kalanSeansTablo !== null) {
+            // Kalan tablosu header'larindan "Harcanan" kolonunu bul
+            $iHarcanan = null;
+            if (is_array($kalanSeansHeaders)) {
+                foreach ($kalanSeansHeaders as $k => $hd) {
+                    if ($this->trKey($hd) === 'harcanan') { $iHarcanan = $k; break; }
+                }
+            }
             preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $kalanSeansTablo, $rows);
             foreach ($rows[1] as $tr) {
                 if (stripos($tr, '<th') !== false) continue;
@@ -1195,7 +1204,14 @@ class DrklinikImporter
                 if (empty($tds[1])) continue;
                 $ad = trim(preg_replace('~\s+~', ' ', strip_tags($tds[1][0] ?? '')));
                 $ad = trim(html_entity_decode($ad, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                if ($ad !== '') $this->drkKalanSeansAdSet[$this->trKey($ad)] = true;
+                if ($ad === '') continue;
+                $k = $this->trKey($ad);
+                $this->drkKalanSeansAdSet[$k] = true;
+                // Harcanan kolonu varsa map'e koy (drklinik UI otoriter)
+                if ($iHarcanan !== null && isset($tds[1][$iHarcanan])) {
+                    $har = trim(preg_replace('~\D~', '', strip_tags($tds[1][$iHarcanan])));
+                    if ($har !== '') $this->drkKalanHarcananMap[$k] = (int) $har;
+                }
             }
         }
 
@@ -1203,6 +1219,13 @@ class DrklinikImporter
         if ($satislarTablo !== null) $this->processMusteriSatislar($satislarTablo, $userId, $musid);
         if ($tahsilatTablo !== null) $this->processMusteriTahsilatlar($tahsilatTablo, $userId);
         if ($randevularTablo !== null) $this->processMusteriRandevular($randevularTablo, $userId, $randevularHeaders);
+        // POST-PROCESS: drklinik Kalan Seanslar tablosu otoriter. Randevu listesinde
+        // gozuken x N toplamlari ile Kalan tablosundaki "Harcanan" arasinda fark olabilir
+        // (drklinik UI ic hesabi). CANSU UZUN: x N toplam=81 ama Harcanan=72, kalan=28.
+        // Eger bizim count(geldi=1) > harcanan ise farki sil (en son tarihliden basla).
+        if (!empty($this->drkKalanHarcananMap)) {
+            $this->trimAPSPerDrklinikHarcanan($userId);
+        }
         // NOT: processKalanSeanslar devre disi birakildi. Sebep:
         // - processMusteriRandevular her randevuyu okuyup "Seans Düşümü işaretlenmiş"
         //   olanlardan 1 APS tuketiyor (drklinik UI ile birebir mantik).
@@ -2684,6 +2707,48 @@ class DrklinikImporter
      * telefon ile DB'de User bul/yarat. Cache'lenir, ayni musid icin tek GET.
      */
     public function ensureUserByMusidPublic($musid) { return $this->ensureUserByMusid($musid); }
+
+    /**
+     * Drklinik Kalan Seanslar tablosundaki "Harcanan" sutunu otoriter.
+     * Her hizmet icin bizim DB'deki count(APS where geldi=1) > drkHarcanan ise
+     * en son tarih-saatli APS'lerden basla, farki sil.
+     * (CANSU UZUN: randevu listesinde x N toplam=81 ama drk Kalan Harcanan=72 → 9 fazla)
+     */
+    private function trimAPSPerDrklinikHarcanan($userId)
+    {
+        // user'in salon AH'larini hizmet_adi ile esle
+        $rows = \DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->join('hizmetler as h', 'h.id', '=', 'ah.hizmet_id')
+            ->where('a.user_id', $userId)->where('a.salon_id', $this->salonId)
+            ->select('ah.id as ah_id', 'h.hizmet_adi')
+            ->get();
+        // Hizmet bazli AH grupla
+        $hizmetAhMap = []; // trKey => [ah_id, ...]
+        foreach ($rows as $r) {
+            $k = $this->trKey($r->hizmet_adi);
+            $hizmetAhMap[$k][] = (int) $r->ah_id;
+        }
+        foreach ($this->drkKalanHarcananMap as $k => $drkHar) {
+            if (!isset($hizmetAhMap[$k])) continue;
+            $ahIds = $hizmetAhMap[$k];
+            $bizCount = (int) \DB::table('adisyon_paket_seanslar')
+                ->whereIn('adisyon_hizmet_id', $ahIds)->where('geldi', 1)->count();
+            if ($bizCount <= $drkHar) continue;
+            $fazla = $bizCount - $drkHar;
+            // En son tarih+saatlilerden basla
+            $silIds = \DB::table('adisyon_paket_seanslar')
+                ->whereIn('adisyon_hizmet_id', $ahIds)
+                ->where('geldi', 1)
+                ->orderByDesc('seans_tarih')->orderByDesc('seans_saat')->orderByDesc('id')
+                ->limit($fazla)
+                ->pluck('id')->all();
+            if (!empty($silIds)) {
+                \DB::table('adisyon_paket_seanslar')->whereIn('id', $silIds)->delete();
+                $this->log("[APS TRIM] user=$userId hizmet_trKey=$k bizCount=$bizCount drkHarcanan=$drkHar silinen=" . count($silIds));
+            }
+        }
+    }
 
     /**
      * splitMusid icin: musid -> userId esleme cache'ini disardan prime et.
