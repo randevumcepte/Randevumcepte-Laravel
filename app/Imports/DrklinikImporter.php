@@ -2080,7 +2080,10 @@ class DrklinikImporter
                 if ($personelId) $rh->personel_id = $personelId;
                 if ($odaId) $rh->oda_id = $odaId;
                 if ($hasDusumKol) $rh->dusum_miktari = $kalem['dusum'];
-                try { $rh->save(); } catch (\Throwable $e) { Log::warning('drk musteri rh: ' . $e->getMessage()); }
+                try { $rh->save(); } catch (\Throwable $e) {
+                    Log::warning('drk musteri rh: ' . $e->getMessage());
+                    $this->log("[RH SAVE FAIL] r={$r->id} hizmet=\"{$kalem['ad']}\" hid=" . ($hid ?: 'null') . " err=" . $e->getMessage());
+                }
             }
             // ilk kalemin hizmet_id'sini seans tuketim icin sakla
             $hizmetId = null;
