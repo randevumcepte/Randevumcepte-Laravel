@@ -2110,16 +2110,27 @@ class DrklinikImporter
             // dediyse drklinik düşmüş (Geldi/Beklemede fark etmez). Geldi sartini kaldirdik.
             $randevuGeldi = true;
             if ($isIsaret && !$isDusulmeyecek && $randevuGeldi) {
-                // MULTI-HIZMET destek: hizmetKalemleri array'inde her kalem icin
-                // ayri seanslariTuket cagir. Onceki kod tek hizmet_id ile yaziyordu,
-                // multi-hizmet randevularda diger hizmetlerin dusumu kaybediyordu
-                // (PELIN SEVIL 02.05.2026 "İsveç+Solaryum x10" -> sadece İsveç yazıldı)
+                // MULTI-HIZMET destek: hizmetKalemleri array'inde farkli hizmet adlari
+                // icin ayri seanslariTuket cagir. AYNI hizmet ad'i bir randevuda
+                // birden cok kez gectiginde drklinik bunlari TEK seans olarak sayiyor
+                // (ESRA CAKIR 01.05.2025: "(lenf drenaj x1),(ems x1),(lenf drenaj x1)"
+                // → drklinik lenf drenaj'dan 1 dustu, biz 2 dusuyorduk → 6 fazlalik).
+                // Onceki SERAP UYSAL 18.11.2024 yorumu yanlistiymis: aslinda
+                // drklinik orada da 1 dusurmustu. Kural: per (ad) GROUP + max dusum.
                 if (!empty($hizmetKalemleri)) {
+                    $grup = []; // trKey => ['ad' => orijinal, 'dusum' => max]
                     foreach ($hizmetKalemleri as $kalem) {
                         if ($kalem['ad'] === '') continue;
-                        $sh = $this->findSalonHizmetByName($kalem['ad']);
+                        $k = $this->trKey($kalem['ad']);
+                        $kd = max(1, (int) $kalem['dusum']);
+                        if (!isset($grup[$k]) || $grup[$k]['dusum'] < $kd) {
+                            $grup[$k] = ['ad' => $kalem['ad'], 'dusum' => $kd];
+                        }
+                    }
+                    foreach ($grup as $g) {
+                        $sh = $this->findSalonHizmetByName($g['ad']);
                         if (!$sh) continue;
-                        $yazilan = $this->seanslariTuket($userId, $sh['hizmet_id'], $tarih, $saat, (int) $kalem['dusum'], $r->id);
+                        $yazilan = $this->seanslariTuket($userId, $sh['hizmet_id'], $tarih, $saat, $g['dusum'], $r->id);
                         if ($yazilan > 0) {
                             $this->counts['seans_dusumu'] = ($this->counts['seans_dusumu'] ?? 0) + $yazilan;
                         }
@@ -2234,11 +2245,13 @@ class DrklinikImporter
             $bosKalan = $toplam - $kullanilan;
             if ($bosKalan <= 0) continue;
 
-            // (ah_id, tarih, saat) bazli idempotent dedup KALDIRILDI cunku:
-            // 1) processMusteriRandevular basinda CLEAN REBUILD ile tum APS siliniyor
-            // 2) Bir randevuda ayni hizmet 2 kez '(...x 1),(...x 1)' formatinda olabilir
-            //    (18.11.2024 SERAP UYSAL ornek), dedup 2. yazimi engelliyordu.
-            // Kapasite zaten $bosKalan ile kontrol ediliyor.
+            // (ah_id, tarih, saat) bazli idempotent dedup KALDIRILDI:
+            // processMusteriRandevular basinda CLEAN REBUILD ile tum APS siliniyor,
+            // kapasite zaten $bosKalan ile kontrol ediliyor.
+            // NOT: Ayni hizmet ad'i bir randevuda birden cok kez gectiginde drklinik
+            // bunu TEK seans olarak sayar (ESRA CAKIR 01.05.2025: drklinik 1 dustu,
+            // biz 2 dusuyorduk). Bu yuzden processMusteriRandevular cagri tarafinda
+            // kalemleri trKey ile group_by yapip per-hizmet tek seanslariTuket cagriyoruz.
             $eksik = min($kac, $bosKalan);
 
             $sonNo = (int) (\DB::table('adisyon_paket_seanslar')
