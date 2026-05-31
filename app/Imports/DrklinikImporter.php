@@ -2071,16 +2071,22 @@ class DrklinikImporter
                     $diff = (int) round((strtotime($bitis) - strtotime($saat)) / 60);
                     if ($diff > 0) $sureLocal = $diff;
                 }
-                $rh = new RandevuHizmetler();
-                $rh->randevu_id = $r->id;
-                $rh->hizmet_id = $hid;
-                $rh->saat = $saat;
-                $rh->saat_bitis = $bitis ?: date('H:i:s', strtotime('+' . $sureLocal . ' minutes', strtotime($saat)));
-                $rh->sure_dk = $sureLocal;
-                if ($personelId) $rh->personel_id = $personelId;
-                if ($odaId) $rh->oda_id = $odaId;
-                if ($hasDusumKol) $rh->dusum_miktari = $kalem['dusum'];
-                try { $rh->save(); } catch (\Throwable $e) {
+                // Eloquent save() yerine ham insert: aynı (randevu_id,hizmet_id) icin
+                // model-level/observer-level kosullar bos kayit dondurebilir; ham insert
+                // her cagride yeni satir uretir. Hata olursa Exception konsola dusurulur.
+                $row = [
+                    'randevu_id' => $r->id,
+                    'hizmet_id' => $hid,
+                    'saat' => $saat,
+                    'saat_bitis' => $bitis ?: date('H:i:s', strtotime('+' . $sureLocal . ' minutes', strtotime($saat))),
+                    'sure_dk' => $sureLocal,
+                ];
+                if ($personelId) $row['personel_id'] = $personelId;
+                if ($odaId) $row['oda_id'] = $odaId;
+                if ($hasDusumKol) $row['dusum_miktari'] = $kalem['dusum'];
+                try {
+                    \DB::table('randevu_hizmetler')->insert($row);
+                } catch (\Throwable $e) {
                     Log::warning('drk musteri rh: ' . $e->getMessage());
                     $this->log("[RH SAVE FAIL] r={$r->id} hizmet=\"{$kalem['ad']}\" hid=" . ($hid ?: 'null') . " err=" . $e->getMessage());
                 }
@@ -2254,23 +2260,57 @@ class DrklinikImporter
             // kalemleri trKey ile group_by yapip per-hizmet tek seanslariTuket cagriyoruz.
             $eksik = min($kac, $bosKalan);
 
-            $sonNo = (int) (\DB::table('adisyon_paket_seanslar')
-                ->where('adisyon_hizmet_id', $r->id)->max('seans_no') ?? 0);
+            // CIFT SAYIM FIX: processSatislar paket icin N adet geldi=0 placeholder
+            // yazmis durumda. UI kalan = seans_sayisi - sum(geldi=1) - count(geldi=0).
+            // Yeni APS yaratmak yerine ONCE placeholder'lari (geldi=0, randevu_id NULL)
+            // tuket: update geldi=1 + randevu_id + tarih + saat. Placeholder bittiginde
+            // (paket capacity ustu) yeni APS yarat.
+            $placeholders = \DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_hizmet_id', $r->id)
+                ->where('geldi', 0)
+                ->whereNull('randevu_id')
+                ->orderBy('seans_no')
+                ->limit($eksik)
+                ->pluck('id')->all();
 
-            for ($i = 0; $i < $eksik; $i++) {
-                $sonNo++;
-                $aps = new AdisyonPaketSeanslar();
-                $aps->adisyon_hizmet_id = $r->id;
-                $aps->hizmet_id = $r->hizmet_id;
-                $aps->seans_no = $sonNo;
-                $aps->seans_tarih = $tarih;
-                $aps->seans_saat = $saat;
-                $aps->geldi = 1;
-                if ($randevuId && \Schema::hasColumn('adisyon_paket_seanslar', 'randevu_id')) {
-                    $aps->randevu_id = $randevuId;
+            foreach ($placeholders as $apsId) {
+                $upd = [
+                    'geldi' => 1,
+                    'seans_tarih' => $tarih,
+                    'seans_saat' => $saat,
+                ];
+                if (\Schema::hasColumn('adisyon_paket_seanslar', 'randevu_id') && $randevuId) {
+                    $upd['randevu_id'] = $randevuId;
                 }
-                $aps->save();
+                if (\Schema::hasColumn('adisyon_paket_seanslar', 'dusulen_miktar')) {
+                    $upd['dusulen_miktar'] = 1;
+                }
+                \DB::table('adisyon_paket_seanslar')->where('id', $apsId)->update($upd);
                 $yazilan++;
+            }
+
+            $kalanYaratilacak = $eksik - count($placeholders);
+            if ($kalanYaratilacak > 0) {
+                $sonNo = (int) (\DB::table('adisyon_paket_seanslar')
+                    ->where('adisyon_hizmet_id', $r->id)->max('seans_no') ?? 0);
+                for ($i = 0; $i < $kalanYaratilacak; $i++) {
+                    $sonNo++;
+                    $aps = new AdisyonPaketSeanslar();
+                    $aps->adisyon_hizmet_id = $r->id;
+                    $aps->hizmet_id = $r->hizmet_id;
+                    $aps->seans_no = $sonNo;
+                    $aps->seans_tarih = $tarih;
+                    $aps->seans_saat = $saat;
+                    $aps->geldi = 1;
+                    if (\Schema::hasColumn('adisyon_paket_seanslar', 'dusulen_miktar')) {
+                        $aps->dusulen_miktar = 1;
+                    }
+                    if ($randevuId && \Schema::hasColumn('adisyon_paket_seanslar', 'randevu_id')) {
+                        $aps->randevu_id = $randevuId;
+                    }
+                    $aps->save();
+                    $yazilan++;
+                }
             }
             $kac -= $eksik;
         }
