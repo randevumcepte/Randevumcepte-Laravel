@@ -33,6 +33,7 @@ class DrklinikImport extends Command
         {--report-tahsilat-fark : Drklinik kasayi gunluk tarayip DB tahsilatlari ile karsilastir, fazlalari CSV\'ye yaz}
         {--report-seans-fark : Her musteri icin drklinik Kalan Seanslar vs DB seans karsilastir, /tmp/drk_seans_fark_<salon>.csv}
         {--repair-musid= : Tek musid icin musteri.aspx tam onarim (randevu+satis+tahsilat+seans) - test/debug icin}
+        {--reset-musid= : Tek musid icin SIFIRLAYIP yeniden import: bizdeki user_id\'ye bagli drklinik markerli adisyon/tahsilat/masraf sil + bu user\'in salon randevu+APS\'lerini sil + tekrar importMusteriDetay calistir}
         {--split-musid= : Bir musid (ayri kisi) ayni isimle baska musid ile birlestiginde, bu musid icin yeni user yarat ve adisyon/tahsilat/randevu kayitlarini yeni user_id\'ye tasi. Format: --split-musid=MUSID --source-user=ESKI_USER_ID}
         {--source-user= : --split-musid icin kaynak user_id (mevcut yanlislikla birlesmis user)}
         {--cleanup-0000-randevu : Salon icinde saat=00:00 olan placeholder randevulari ve baglı randevu_hizmetler kayitlarini siler}
@@ -279,6 +280,11 @@ class DrklinikImport extends Command
             $importer->importMusteriDetay((string) $repairMusid, $userId);
             $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
             return 0;
+        }
+
+        if ($resetMusid = $this->option('reset-musid')) {
+            if (!$salonId || !$username || !$password) { $this->error('--reset-musid icin --salon/--username/--password zorunlu.'); return 1; }
+            return $this->resetMusid($username, $password, (int) $salonId, (string) $resetMusid);
         }
 
         $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet', 'personel', 'urun', 'oda', 'randevu'];
@@ -1284,6 +1290,118 @@ class DrklinikImport extends Command
         $importer->primeUserCache($musid, $yeniUserId);
         $importer->importMusteriDetay((string) $musid, $yeniUserId);
         $this->info('Import tamam: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+
+        return 0;
+    }
+
+    /**
+     * Bir musid icin user'i drklinik telefon match'i ile bul, sonra:
+     *  - Bu user'in salon icindeki TUM randevularini sil (drklinik salonu icin tek kaynak drklinik)
+     *  - Bu user'in [drklinik:SatisNo] markerli adisyonlarini + alt kayitlari (AH/AU/APS) sil
+     *  - Bu user'in [drk-tah:SatisNo:idx] markerli ve adisyon_id'si silinen adisyona giden tahsilatlari sil
+     *  - importMusteriDetay'i tekrar calistir
+     * Bu, fazla aktarilmis randevu / yanlis kalan adisyon / APS overflow durumlarini topyekun sifirlar.
+     */
+    private function resetMusid($username, $password, $salonId, $musid)
+    {
+        $this->line("=== Reset musid={$musid} salon={$salonId} ===");
+
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+
+        $importer = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+        $userId = $importer->ensureUserByMusidPublic((string) $musid);
+        if (!$userId) { $this->error('User bulunamadi/yaratilamadi.'); return 1; }
+        $this->line("  user_id={$userId}");
+
+        \DB::beginTransaction();
+        try {
+            // 1. user'in salon icindeki TUM randevularini ve bagli randevu_hizmetler'i sil
+            $rndIds = \DB::table('randevular')->where('salon_id', $salonId)
+                ->where('user_id', $userId)->pluck('id')->all();
+            $rndCnt = count($rndIds);
+            if ($rndCnt) {
+                \DB::table('randevu_hizmetler')->whereIn('randevu_id', $rndIds)->delete();
+                // randevu_id ile bagli APS'leri kopar (silmeden)
+                \DB::table('adisyon_personel_seans')->whereIn('randevu_id', $rndIds)
+                    ->update(['randevu_id' => null, 'geldi' => 0]);
+                \DB::table('randevular')->whereIn('id', $rndIds)->delete();
+            }
+
+            // 2. drklinik markerli adisyonlar + alt kayitlar
+            $adIds = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                ->where('user_id', $userId)
+                ->where('notlar', 'LIKE', '%[drklinik:%')
+                ->pluck('id')->all();
+            $adCnt = count($adIds);
+            $ahIds = [];
+            if ($adCnt) {
+                $ahIds = \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $adIds)->pluck('id')->all();
+                if (!empty($ahIds)) {
+                    \DB::table('adisyon_personel_seans')->whereIn('adisyon_hizmet_id', $ahIds)->delete();
+                    \DB::table('adisyon_hizmetler')->whereIn('id', $ahIds)->delete();
+                }
+                \DB::table('adisyon_urunler')->whereIn('adisyon_id', $adIds)->delete();
+            }
+
+            // 3. Tahsilatlar: hem adisyon_id silinen adisyonlara giden, hem [drk-tah markerli
+            $tahMarker = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                ->where('user_id', $userId)
+                ->where('notlar', 'LIKE', '%[drk-tah:%')
+                ->pluck('id')->all();
+            $tahAdisyonli = !empty($adIds)
+                ? \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                    ->where('user_id', $userId)
+                    ->whereIn('adisyon_id', $adIds)->pluck('id')->all()
+                : [];
+            $tahIds = array_values(array_unique(array_merge($tahMarker, $tahAdisyonli)));
+            $tahCnt = count($tahIds);
+            if ($tahCnt) {
+                \DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $tahIds)->delete();
+                if (\Schema::hasTable('tahsilat_urunler')) {
+                    \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $tahIds)->delete();
+                }
+                \DB::table('tahsilatlar')->whereIn('id', $tahIds)->delete();
+            }
+
+            // 4. Adisyonlari sil
+            if ($adCnt) {
+                \DB::table('adisyonlar')->whereIn('id', $adIds)->delete();
+            }
+
+            // 5. Bu user icin Kalan Seanslar tablosundan yazilmis ama randevu_id bagli olmayan
+            // tum APS'leri sil (orphan tuketmeli stoklari). adisyon_hizmetler.musteri_id user_id'ye
+            // bagli olabilir veya adisyonlar uzerinden — adisyonlar silindigi icin AH'lar zaten yok.
+            // Yine de orphan APS olabilirse (eski hatali kayit), bu user'in salon AH'larina bagli
+            // APS'leri sil:
+            $kalanAhIds = \DB::table('adisyon_hizmetler as ah')
+                ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+                ->where('a.salon_id', $salonId)->where('a.user_id', $userId)
+                ->pluck('ah.id')->all();
+            if (!empty($kalanAhIds)) {
+                \DB::table('adisyon_personel_seans')->whereIn('adisyon_hizmet_id', $kalanAhIds)->delete();
+            }
+
+            \DB::commit();
+            $this->info('Reset tamam:');
+            $this->info("  Randevu silinen   : $rndCnt");
+            $this->info("  Adisyon silinen   : $adCnt");
+            $this->info("  AH silinen        : " . count($ahIds));
+            $this->info("  Tahsilat silinen  : $tahCnt");
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            $this->error('Hata: ' . $e->getMessage());
+            return 1;
+        }
+
+        // 6. Reimport
+        $this->line('');
+        $this->line('importMusteriDetay yeniden calistiriliyor...');
+        $importer2 = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+        $importer2->primeUserCache($musid, $userId);
+        $importer2->importMusteriDetay((string) $musid, $userId);
+        $this->info('Import tamam: ' . json_encode($importer2->summary(), JSON_UNESCAPED_UNICODE));
 
         return 0;
     }
