@@ -1324,7 +1324,7 @@ class DrklinikImport extends Command
             if ($rndCnt) {
                 \DB::table('randevu_hizmetler')->whereIn('randevu_id', $rndIds)->delete();
                 // randevu_id ile bagli APS'leri kopar (silmeden)
-                \DB::table('adisyon_personel_seans')->whereIn('randevu_id', $rndIds)
+                \DB::table('adisyon_paket_seanslar')->whereIn('randevu_id', $rndIds)
                     ->update(['randevu_id' => null, 'geldi' => 0]);
                 \DB::table('randevular')->whereIn('id', $rndIds)->delete();
             }
@@ -1339,7 +1339,7 @@ class DrklinikImport extends Command
             if ($adCnt) {
                 $ahIds = \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $adIds)->pluck('id')->all();
                 if (!empty($ahIds)) {
-                    \DB::table('adisyon_personel_seans')->whereIn('adisyon_hizmet_id', $ahIds)->delete();
+                    \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ahIds)->delete();
                     \DB::table('adisyon_hizmetler')->whereIn('id', $ahIds)->delete();
                 }
                 \DB::table('adisyon_urunler')->whereIn('adisyon_id', $adIds)->delete();
@@ -1380,7 +1380,7 @@ class DrklinikImport extends Command
                 ->where('a.salon_id', $salonId)->where('a.user_id', $userId)
                 ->pluck('ah.id')->all();
             if (!empty($kalanAhIds)) {
-                \DB::table('adisyon_personel_seans')->whereIn('adisyon_hizmet_id', $kalanAhIds)->delete();
+                \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $kalanAhIds)->delete();
             }
 
             \DB::commit();
