@@ -33,6 +33,8 @@ class DrklinikImport extends Command
         {--report-tahsilat-fark : Drklinik kasayi gunluk tarayip DB tahsilatlari ile karsilastir, fazlalari CSV\'ye yaz}
         {--report-seans-fark : Her musteri icin drklinik Kalan Seanslar vs DB seans karsilastir, /tmp/drk_seans_fark_<salon>.csv}
         {--repair-musid= : Tek musid icin musteri.aspx tam onarim (randevu+satis+tahsilat+seans) - test/debug icin}
+        {--split-musid= : Bir musid (ayri kisi) ayni isimle baska musid ile birlestiginde, bu musid icin yeni user yarat ve adisyon/tahsilat/randevu kayitlarini yeni user_id\'ye tasi. Format: --split-musid=MUSID --source-user=ESKI_USER_ID}
+        {--source-user= : --split-musid icin kaynak user_id (mevcut yanlislikla birlesmis user)}
         {--cleanup-0000-randevu : Salon icinde saat=00:00 olan placeholder randevulari ve baglı randevu_hizmetler kayitlarini siler}
         {--apply-fazla-sil : /tmp/drk_tahsilat_gercek_fazla_<salon>.csv ID\'lerini DB\'den sil}
         {--apply-eksik-ekle : /tmp/drk_tahsilat_eksik_<salon>.csv satirlarini DB\'ye ekle (isim eslesmesi ile)}
@@ -258,6 +260,13 @@ class DrklinikImport extends Command
             $importer = new DrklinikImporter($client, $salonId, $this->output);
             $importer->raporSeansFark($this->option('from'), $this->option('to'));
             return 0;
+        }
+
+        if ($splitMusid = $this->option('split-musid')) {
+            if (!$salonId || !$username || !$password) { $this->error('--split-musid icin --salon/--username/--password zorunlu.'); return 1; }
+            $sourceUser = (int) $this->option('source-user');
+            if (!$sourceUser) { $this->error('--source-user=ESKI_USER_ID zorunlu.'); return 1; }
+            return $this->splitMusid($username, $password, (int) $salonId, (string) $splitMusid, $sourceUser);
         }
 
         if ($repairMusid = $this->option('repair-musid')) {
@@ -1090,6 +1099,169 @@ class DrklinikImport extends Command
         $s = strtr($s, ['ı'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ğ'=>'g','Ğ'=>'g','ü'=>'u','Ü'=>'u','ö'=>'o','Ö'=>'o','ç'=>'c','Ç'=>'c']);
         $s = preg_replace('~[^a-z0-9]+~', ' ', $s);
         return trim($s);
+    }
+
+    /**
+     * Bir musid (ayri kisi) yanlislikla baska musid ile ayni user'a yazilmis ise:
+     * 1. Drklinik'ten bu musid'in ad/soyad/tel'ini cek, YENI USER + portfoy olustur
+     * 2. musid'in satislarini (SatisNo) drklinik'ten cek
+     * 3. DB'de bu SatisNo'lu adisyonlar varsa user_id'sini yeni user'a tasi
+     * 4. Tahsilatlari (adisyon_id ile bagli + drk-tah marker) yeni user'a tasi
+     * 5. Randevular: drklinik'ten musid randevu tarih+saat listesi al, ayni source_user'da
+     *    matching olanlari yeni user'a tasi
+     *
+     * Idempotent: birden cok kez calistirsa bile yanlis user'a yazilan kayitlari
+     * yenisine tasir, mevcut yeni user'i bulup kullanir.
+     */
+    private function splitMusid($username, $password, $salonId, $musid, $sourceUser)
+    {
+        $this->line("=== Split musid={$musid} from source user={$sourceUser} salon={$salonId} ===");
+
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+
+        // 1. musid'in detayini cek (ad, soyad, telefon)
+        $h = $client->getHtml('/musteri.aspx?musid=' . $musid);
+        if (strlen($h) < 5000) { $this->error('musteri.aspx?musid=' . $musid . ' cekilemedi'); return 1; }
+        $ad = ''; $soyad = ''; $tel = '';
+        if (preg_match('~name="TB_Ad"[^>]*value="([^"]*)"~i', $h, $m)) $ad = $m[1];
+        if (preg_match('~name="TB_Soyad"[^>]*value="([^"]*)"~i', $h, $m)) $soyad = $m[1];
+        if (preg_match('~name="TB_CepTel"[^>]*value="([^"]*)"~i', $h, $m)) $tel = preg_replace('~\D~', '', $m[1]);
+        $tamAd = trim($ad . ' ' . $soyad);
+        $this->line("  Drklinik musid={$musid}: \"$tamAd\" tel=$tel");
+
+        if (!$tamAd) { $this->error('Ad/soyad cekilemedi'); return 1; }
+
+        // 2. Yeni user olustur (telefonu farkli yap, dedup'a takilmasin)
+        // Telefonu varsa ?Drklinik suffix ile yaz (gercek telefon source user'da)
+        $yeniTel = $tel ? 'drk_' . $musid : null;
+        $yeniUserId = \DB::table('users')->insertGetId([
+            'name' => $tamAd,
+            'cep_telefon' => $yeniTel,
+            'profil_resim' => '/public/isletmeyonetim_assets/img/avatar.png',
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+        $this->info("  Yeni user olusturuldu: id={$yeniUserId} name=\"$tamAd\" tel=$yeniTel");
+
+        // Portfoy ekle
+        $portfoyVar = \DB::table('musteri_portfoy')->where('user_id', $yeniUserId)->where('salon_id', $salonId)->exists();
+        if (!$portfoyVar) {
+            \DB::table('musteri_portfoy')->insert([
+                'user_id' => $yeniUserId, 'salon_id' => $salonId, 'aktif' => 1,
+                'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        // 3. musid'in satislarini drklinik'ten cek (SatisNo listesi)
+        $satisNos = [];
+        $randevuTSList = []; // [['tarih'=>...,'saat'=>...], ...]
+        preg_match_all('~<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)</table>~is', $h, $tm);
+        foreach ($tm[1] as $body) {
+            preg_match_all('~<th[^>]*>(.*?)</th>~is', $body, $th);
+            $hdrs = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
+            // Satislar tablosu
+            if (in_array('Satış No', $hdrs, true) && in_array('Hizmetler', $hdrs, true)) {
+                preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $body, $rs);
+                foreach ($rs[1] as $tr) {
+                    if (stripos($tr, '<th') !== false) continue;
+                    preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+                    if (empty($tds[1])) continue;
+                    $cells = [];
+                    foreach ($tds[1] as $td) {
+                        $clean = trim(preg_replace('~\s+~', ' ', strip_tags($td)));
+                        $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    }
+                    foreach ($cells as $c) {
+                        if (preg_match('~^\d{6,}$~', $c)) { $satisNos[] = $c; break; }
+                    }
+                }
+            }
+            // Randevular tablosu (Seans Düşümü iceren)
+            if (in_array('Seans Düşümü', $hdrs, true)) {
+                preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $body, $rs);
+                foreach ($rs[1] as $tr) {
+                    if (stripos($tr, '<th') !== false) continue;
+                    preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+                    if (empty($tds[1])) continue;
+                    $cells = [];
+                    foreach ($tds[1] as $td) {
+                        $clean = trim(preg_replace('~\s+~', ' ', strip_tags($td)));
+                        $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    }
+                    $tarihStr = preg_replace('~\s*\([^)]+\)~u', '', $cells[1] ?? '');
+                    $saat = $cells[2] ?? '';
+                    if (preg_match('~^(\d{2})\.(\d{2})\.(\d{4})~', $tarihStr, $tm2)) {
+                        $tarih = "{$tm2[3]}-{$tm2[2]}-{$tm2[1]}";
+                        if (strlen($saat) === 5) $saat .= ':00';
+                        if (preg_match('~^\d{1,2}:\d{2}~', $saat)) {
+                            $randevuTSList[] = ['tarih' => $tarih, 'saat' => $saat];
+                        }
+                    }
+                }
+            }
+        }
+        $this->line('  Drklinik musid satislari: ' . count($satisNos) . ' adet');
+        $this->line('  Drklinik musid randevulari: ' . count($randevuTSList) . ' adet');
+
+        // 4. DB'deki bu SatisNo'lu adisyonlari yeni user'a tasi
+        $adisyonTas = 0; $tahTas = 0; $rndTas = 0;
+        \DB::beginTransaction();
+        try {
+            foreach ($satisNos as $sn) {
+                $marker = '[drklinik:' . $sn . ']';
+                $adIds = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                    ->where('user_id', $sourceUser)
+                    ->where('notlar', 'LIKE', '%' . $marker . '%')
+                    ->pluck('id')->all();
+                if (empty($adIds)) continue;
+                \DB::table('adisyonlar')->whereIn('id', $adIds)->update(['user_id' => $yeniUserId]);
+                $adisyonTas += count($adIds);
+                // Bagli tahsilatlar
+                $thCnt = \DB::table('tahsilatlar')->where('user_id', $sourceUser)
+                    ->whereIn('adisyon_id', $adIds)->update(['user_id' => $yeniUserId]);
+                $tahTas += $thCnt;
+                // [drk-tah:SatisNo:idx] markerli tahsilatlar (adisyon_id NULL olabilir)
+                $thMarkerCnt = \DB::table('tahsilatlar')->where('user_id', $sourceUser)
+                    ->where('salon_id', $salonId)
+                    ->where('notlar', 'LIKE', '%[drk-tah:' . $sn . ':%')
+                    ->update(['user_id' => $yeniUserId]);
+                $tahTas += $thMarkerCnt;
+            }
+
+            // 5. Randevular: musid'in (tarih+saat) listesinde olanlari yeni user'a tasi
+            foreach ($randevuTSList as $rts) {
+                $r = \DB::table('randevular')->where('salon_id', $salonId)
+                    ->where('user_id', $sourceUser)
+                    ->where('tarih', $rts['tarih'])
+                    ->where('saat', $rts['saat'])->get();
+                foreach ($r as $rec) {
+                    \DB::table('randevular')->where('id', $rec->id)->update(['user_id' => $yeniUserId]);
+                    $rndTas++;
+                }
+            }
+
+            \DB::commit();
+            $this->info('Split tamam:');
+            $this->info("  Adisyon tasinan : $adisyonTas");
+            $this->info("  Tahsilat tasinan: $tahTas");
+            $this->info("  Randevu tasinan : $rndTas");
+            $this->info("  Yeni user_id    : $yeniUserId (musid={$musid})");
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            $this->error('Hata: ' . $e->getMessage());
+            return 1;
+        }
+
+        // 6. Yeni user icin importMusteriDetay calistir (eksik kayitlari da yakalar)
+        $this->line('');
+        $this->line('Yeni user icin importMusteriDetay calistiriliyor...');
+        $importer = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+        $importer->importMusteriDetay((string) $musid, $yeniUserId);
+        $this->info('Import tamam: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+
+        return 0;
     }
 
     private function applyFazlaSil($salonId, $dryRun)
