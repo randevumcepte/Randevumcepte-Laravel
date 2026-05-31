@@ -1133,17 +1133,38 @@ class DrklinikImport extends Command
 
         if (!$tamAd) { $this->error('Ad/soyad cekilemedi'); return 1; }
 
-        // 2. Yeni user olustur (telefonu farkli yap, dedup'a takilmasin)
-        // Telefonu varsa ?Drklinik suffix ile yaz (gercek telefon source user'da)
-        $yeniTel = $tel ? 'drk_' . $musid : null;
-        $yeniUserId = \DB::table('users')->insertGetId([
-            'name' => $tamAd,
-            'cep_telefon' => $yeniTel,
-            'profil_resim' => '/public/isletmeyonetim_assets/img/avatar.png',
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
-        $this->info("  Yeni user olusturuldu: id={$yeniUserId} name=\"$tamAd\" tel=$yeniTel");
+        // 2. Yeni user bul/yarat — GERCEK telefon yaz
+        // Once: bu musid icin daha onceden yanlislikla yaratilmis (drk_musid prefix'li)
+        // user'lar varsa onlari topla, en eskisini kullan, kalanlari merge et.
+        $eskiYanlislar = \DB::table('users')->where('cep_telefon', 'drk_' . $musid)->pluck('id')->all();
+        if (!empty($eskiYanlislar)) {
+            sort($eskiYanlislar);
+            $yeniUserId = $eskiYanlislar[0];
+            \DB::table('users')->where('id', $yeniUserId)->update([
+                'name' => $tamAd,
+                'cep_telefon' => $tel ?: null,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+            $this->line("  Mevcut drk_-prefix user bulundu/duzeltildi: id={$yeniUserId} tel=$tel");
+            $diger = array_slice($eskiYanlislar, 1);
+            if (!empty($diger)) {
+                \DB::table('adisyonlar')->whereIn('user_id', $diger)->update(['user_id' => $yeniUserId]);
+                \DB::table('tahsilatlar')->whereIn('user_id', $diger)->update(['user_id' => $yeniUserId]);
+                \DB::table('randevular')->whereIn('user_id', $diger)->update(['user_id' => $yeniUserId]);
+                \DB::table('musteri_portfoy')->whereIn('user_id', $diger)->delete();
+                \DB::table('users')->whereIn('id', $diger)->delete();
+                $this->line('  Yanlis-prefix duplicate user(lar) silindi: ' . implode(',', $diger));
+            }
+        } else {
+            $yeniUserId = \DB::table('users')->insertGetId([
+                'name' => $tamAd,
+                'cep_telefon' => $tel ?: null,
+                'profil_resim' => '/public/isletmeyonetim_assets/img/avatar.png',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+            $this->info("  Yeni user olusturuldu: id={$yeniUserId} name=\"$tamAd\" tel=$tel");
+        }
 
         // Portfoy ekle
         $portfoyVar = \DB::table('musteri_portfoy')->where('user_id', $yeniUserId)->where('salon_id', $salonId)->exists();
@@ -1258,6 +1279,9 @@ class DrklinikImport extends Command
         $this->line('');
         $this->line('Yeni user icin importMusteriDetay calistiriliyor...');
         $importer = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+        // Cache'i prime et: ayni musid icin import sirasinda ensureUserByMusid
+        // tekrar telefon match'iyle source_user'a yazmaz, yeniUserId'yi kullanir.
+        $importer->primeUserCache($musid, $yeniUserId);
         $importer->importMusteriDetay((string) $musid, $yeniUserId);
         $this->info('Import tamam: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
 

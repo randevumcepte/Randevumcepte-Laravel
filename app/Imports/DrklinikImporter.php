@@ -2629,6 +2629,16 @@ class DrklinikImporter
      */
     public function ensureUserByMusidPublic($musid) { return $this->ensureUserByMusid($musid); }
 
+    /**
+     * splitMusid icin: musid -> userId esleme cache'ini disardan prime et.
+     * Boylece ayni musid'in importMusteriDetay'i tekrar telefon match'iyle yanlis
+     * user'a yazmaz.
+     */
+    public function primeUserCache($musid, $userId)
+    {
+        $this->drklinikUserCache[(string) $musid] = $userId;
+    }
+
     private function ensureUserByMusid($musid)
     {
         $musid = trim((string) $musid);
