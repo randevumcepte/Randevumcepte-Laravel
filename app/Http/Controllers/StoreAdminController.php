@@ -4596,15 +4596,40 @@ private function ayAdiCevir($ingilizceAy)
         $hizmet->saat_bitis = $bitis[1];
         $hizmet->save();
 
-        if($seans){
-            $seans->randevu_id = $randevu->id;
-            $seans->seans_tarih = $baslangic[0];
-            $seans->seans_saat = $baslangic[1];
-            $seans->personel_id = $hizmet->personel_id;
-            $seans->cihaz_id = $hizmet->cihaz_id;
-            $seans->oda_id = $hizmet->oda_id;
-            $seans->save();
+        // PAKET RANDEVUSU: paket randevularinda ayni randevu_id altinda birden cok
+        // randevu_hizmetler satiri olur (ilkinde sure_dk>0, digerlerinde 0). Takvim
+        // sorgusu (sure_dk>0) yalnizca sure'li kalemi event olarak gosterdiginden,
+        // surukleme yapildiginda 0 sureli kardes kalemler eski randevuda kalip
+        // paketten KOPUYOR ve seanslari da eski randevu_id'de takili kaliyordu.
+        // Cozum: surulen hizmet + 0 sureli kardes kalemleri birlikte yeni randevuya
+        // tasi; eski randevu_id'ye bagli tum ilgili seanslari yeni randevuya + yeni
+        // tarih/saate guncelle. Diger sure_dk>0 kalemler kendi event'leri oldugundan
+        // dokunulmaz.
+        $tasinanServisIds = [(int)$hizmet->hizmet_id];
+        $sifirSureliKardesler = RandevuHizmetler::where('randevu_id',$randevu_eski->id)
+            ->where('id','!=',$hizmet->id)
+            ->where(function($q){ $q->whereNull('sure_dk')->orWhere('sure_dk','<=',0); })
+            ->get();
+        foreach($sifirSureliKardesler as $kardes){
+            $kardes->randevu_id = $randevu->id;
+            $kardes->saat = $baslangic[1];
+            $kardes->saat_bitis = $bitis[1];
+            $kardes->save();
+            $tasinanServisIds[] = (int)$kardes->hizmet_id;
         }
+        $tasinanServisIds = array_values(array_unique($tasinanServisIds));
+
+        // Tasinan kalemlere ait TUM seanslari yeni randevuya + yeni tarih/saate guncelle
+        AdisyonPaketSeanslar::where('randevu_id',$randevu_eski->id)
+            ->whereIn('hizmet_id',$tasinanServisIds)
+            ->update([
+                'randevu_id'  => $randevu->id,
+                'seans_tarih' => $baslangic[0],
+                'seans_saat'  => $baslangic[1],
+                'personel_id' => $hizmet->personel_id,
+                'cihaz_id'    => $hizmet->cihaz_id,
+                'oda_id'      => $hizmet->oda_id,
+            ]);
         // Saat/tarih degisti — SMS Ayarlari ayar_id=14 (Randevu Guncelleme) musteri/personel
         // toggle'ina gore WhatsApp-first (salon WA aktifse) yoksa SMS gonderilir.
         // randevuguncelle ile ayni davranis.
