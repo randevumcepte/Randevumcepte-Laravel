@@ -9549,6 +9549,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         $yenirandevuhizmetpersonel->sure_dk = ($value["sure_dk"] != '' ? $value['sure_dk'] : '30');
                         $yenirandevuhizmetpersonel->fiyat = $value["fiyat"];
 
+                        // Paketten dusulen seans miktari (mobil dialog "Adet" stepper'i).
+                        // Web StoreAdminController@yenirandevuekle ile esit semantik:
+                        // dolu degerde min 1; bos/null ise NULL kalir -> "Geldi" popup'i
+                        // default 1 ile devam eder.
+                        if (isset($value["dusum_miktari"]) && $value["dusum_miktari"] !== null && $value["dusum_miktari"] !== '') {
+                            $yenirandevuhizmetpersonel->dusum_miktari = max(1, (int) $value["dusum_miktari"]);
+                        }
+
                         if ($key2 == 0) {
                             $yenirandevuhizmetpersonel->saat = $request->randevu_saati;
                             $yenirandevuhizmetpersonel->saat_bitis = date("H:i", strtotime("+" . $value["sure_dk"] . " minutes", strtotime($request->randevu_saati)));
