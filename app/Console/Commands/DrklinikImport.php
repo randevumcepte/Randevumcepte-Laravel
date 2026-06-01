@@ -52,6 +52,7 @@ class DrklinikImport extends Command
         {--add-missing-hizmetler : /tmp/drk_verify_<salon>.csv\'deki EKSIK_DB hizmetlerini pasif olarak Hizmetler kataloguna ekle + ilgili musid\'leri tekrar repair et}
         {--verify : Import sirasinda her musid icin drklinik Kalan Seanslar vs DB karsilastir, /tmp/drk_verify_<salon>.csv\'ye yaz}
         {--full-saglama : Salon icin tum metrikler kapsamli rapor (randevu/satis/tahsilat/seans). Her musteri icin drklinik vs DB; ozet TXT ve detayli CSV uretir}
+        {--report-acik-adisyon : Drklinik genel_kasa_raporu_satis.aspx tarayip (haftalik) acik satislari cek, bizdeki acik adisyonlarla SatisNo bazli karsilastir, /tmp/drk_acik_adisyon_<salon>.csv'ye yaz. DB'ye yazma yapmaz, sadece rapor.}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -285,6 +286,11 @@ class DrklinikImport extends Command
         if ($resetMusid = $this->option('reset-musid')) {
             if (!$salonId || !$username || !$password) { $this->error('--reset-musid icin --salon/--username/--password zorunlu.'); return 1; }
             return $this->resetMusid($username, $password, (int) $salonId, (string) $resetMusid);
+        }
+
+        if ((bool) $this->option('report-acik-adisyon')) {
+            if (!$salonId || !$username || !$password) { $this->error('--report-acik-adisyon icin --salon/--username/--password zorunlu.'); return 1; }
+            return $this->reportAcikAdisyon($username, $password, (int) $salonId, $this->option('from'), $this->option('to'));
         }
 
         $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet', 'personel', 'urun', 'oda', 'randevu'];
@@ -1404,6 +1410,177 @@ class DrklinikImport extends Command
         $this->info('Import tamam: ' . json_encode($importer2->summary(), JSON_UNESCAPED_UNICODE));
 
         return 0;
+    }
+
+    /**
+     * Drklinik genel_kasa_raporu_satis.aspx'i haftalik tarama ile cek, acik satislari
+     * (Kalan Tutar > 0) topla. Bizdeki acik adisyonlarla SatisNo bazli karsilastir.
+     * CSV: /tmp/drk_acik_adisyon_<salon>.csv
+     *
+     * Durumlar:
+     *  - DRK_ACIK_DB_KAPALI: drklinik kalan>0, bizde bakiye=0 (eksik tahsilat girilmis olabilir)
+     *  - DRK_KAPALI_DB_ACIK: drklinik kalan=0, bizde bakiye>0 (drklinik'te kapanan tahsilat bize gelmemis)
+     *  - BOTH_OPEN_DIFF    : ikisi de acik ama bakiye/kalan tutar farkli
+     *  - BOTH_OPEN_OK      : bakiye eslesik (problem yok)
+     *  - DB_YOK            : drklinik'te acik ama bizde adisyon kaydi yok
+     */
+    private function reportAcikAdisyon($username, $password, $salonId, $from, $to)
+    {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '2048M');
+
+        $start = $from ?: '2024-01-01';
+        $end   = $to ?: date('Y-m-d');
+        $this->line("=== Acik Adisyon Raporu salon={$salonId}, tarih: {$start} ... {$end} ===");
+
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+
+        // 1. Haftalik tarama: tarih araliginin her haftasi icin BTN_Ara post
+        $drkAcikMap = []; // SatisNo => ['tarih','musteri','tutar','odenen','kalan']
+        $tStart = strtotime($start);
+        $tEnd   = strtotime($end);
+        $haftaSayisi = 0;
+        for ($t = $tStart; $t <= $tEnd; $t += 7 * 86400) {
+            $ws = date('d.m.Y', $t);
+            $we = date('d.m.Y', min($t + 6 * 86400, $tEnd));
+            $haftaSayisi++;
+            $html = $client->postBack('/genel_kasa_raporu_satis.aspx', 'BTN_Ara', '', [
+                'TB_TarihSec1' => $ws,
+                'TB_TarihSec2' => $we,
+                'BTN_Ara'      => 'Ara',
+            ]);
+            if (!$html) { $this->line("  hafta $ws-$we: post hata"); continue; }
+            $sayfaCount = $this->parseAcikSatislar($html, $drkAcikMap);
+            $this->line("  hafta $ws-$we: $sayfaCount satir okundu, kumule acik=" . count($drkAcikMap));
+        }
+        $this->info("Drklinik tarama bitti. Acik satis sayisi: " . count($drkAcikMap) . " ($haftaSayisi hafta)");
+
+        // 2. Bizdeki acik adisyonlar (kalemler toplami > odenen)
+        $dbAcik = \DB::select("
+          SELECT a.id AS db_id, a.tarih AS db_tarih, a.user_id, u.name AS musteri,
+                 COALESCE(sh.toplam,0) + COALESCE(su.toplam,0) AS db_tutar,
+                 COALESCE(t.odenen,0) AS db_odenen,
+                 (COALESCE(sh.toplam,0)+COALESCE(su.toplam,0)-COALESCE(t.odenen,0)) AS db_bakiye,
+                 a.notlar
+          FROM adisyonlar a
+          LEFT JOIN users u ON u.id=a.user_id
+          LEFT JOIN (SELECT adisyon_id, SUM(fiyat) AS toplam FROM adisyon_hizmetler GROUP BY adisyon_id) sh ON sh.adisyon_id=a.id
+          LEFT JOIN (SELECT adisyon_id, SUM(fiyat*GREATEST(adet,1)) AS toplam FROM adisyon_urunler GROUP BY adisyon_id) su ON su.adisyon_id=a.id
+          LEFT JOIN (SELECT adisyon_id, SUM(tutar) AS odenen FROM tahsilatlar WHERE adisyon_id IS NOT NULL GROUP BY adisyon_id) t ON t.adisyon_id=a.id
+          WHERE a.salon_id = ?
+            AND a.notlar LIKE '%[drklinik:%'
+        ", [$salonId]);
+        $this->line("Bizdeki drklinik adisyon sayisi: " . count($dbAcik));
+
+        // SatisNo bazli map
+        $dbBySatisNo = [];
+        foreach ($dbAcik as $r) {
+            if (preg_match('~\[drklinik:(\d+)\]~', (string) $r->notlar, $m)) {
+                $dbBySatisNo[$m[1]] = $r;
+            }
+        }
+
+        // 3. Karsilastir + CSV yaz
+        $csv = '/tmp/drk_acik_adisyon_' . $salonId . '.csv';
+        $fp = fopen($csv, 'w');
+        fputcsv($fp, ['durum','SatisNo','musteri','drk_tarih','db_tarih','drk_tutar','drk_odenen','drk_kalan','db_tutar','db_odenen','db_bakiye','db_id']);
+
+        $cnt = ['DRK_ACIK_DB_KAPALI'=>0,'DRK_KAPALI_DB_ACIK'=>0,'BOTH_OPEN_DIFF'=>0,'BOTH_OPEN_OK'=>0,'DB_YOK'=>0];
+        $tutarBakiye = ['DRK_ACIK_DB_KAPALI'=>0.0,'DRK_KAPALI_DB_ACIK'=>0.0,'BOTH_OPEN_DIFF'=>0.0];
+
+        // Drklinik acik satislari uzerinden gec
+        foreach ($drkAcikMap as $sn => $d) {
+            $db = $dbBySatisNo[$sn] ?? null;
+            if (!$db) {
+                $cnt['DB_YOK']++;
+                fputcsv($fp, ['DB_YOK', $sn, $d['musteri'], $d['tarih'], '', $d['tutar'], $d['odenen'], $d['kalan'], '', '', '', '']);
+                continue;
+            }
+            $drkKalan = (float) $d['kalan'];
+            $dbBakiye = (float) $db->db_bakiye;
+            if ($drkKalan > 0.01 && $dbBakiye <= 0.01) {
+                $cnt['DRK_ACIK_DB_KAPALI']++; $tutarBakiye['DRK_ACIK_DB_KAPALI'] += $drkKalan;
+                fputcsv($fp, ['DRK_ACIK_DB_KAPALI', $sn, $d['musteri'], $d['tarih'], $db->db_tarih, $d['tutar'], $d['odenen'], $d['kalan'], $db->db_tutar, $db->db_odenen, $db->db_bakiye, $db->db_id]);
+            } elseif (abs($drkKalan - $dbBakiye) < 0.01) {
+                $cnt['BOTH_OPEN_OK']++;
+                fputcsv($fp, ['BOTH_OPEN_OK', $sn, $d['musteri'], $d['tarih'], $db->db_tarih, $d['tutar'], $d['odenen'], $d['kalan'], $db->db_tutar, $db->db_odenen, $db->db_bakiye, $db->db_id]);
+            } else {
+                $cnt['BOTH_OPEN_DIFF']++; $tutarBakiye['BOTH_OPEN_DIFF'] += abs($drkKalan - $dbBakiye);
+                fputcsv($fp, ['BOTH_OPEN_DIFF', $sn, $d['musteri'], $d['tarih'], $db->db_tarih, $d['tutar'], $d['odenen'], $d['kalan'], $db->db_tutar, $db->db_odenen, $db->db_bakiye, $db->db_id]);
+            }
+        }
+        // Bizde acik (bakiye>0) ama drklinik'te yok/kapali
+        foreach ($dbBySatisNo as $sn => $db) {
+            if (isset($drkAcikMap[$sn])) continue; // zaten yukarida
+            if ((float) $db->db_bakiye <= 0.01) continue;
+            $cnt['DRK_KAPALI_DB_ACIK']++; $tutarBakiye['DRK_KAPALI_DB_ACIK'] += (float) $db->db_bakiye;
+            fputcsv($fp, ['DRK_KAPALI_DB_ACIK', $sn, $db->musteri, '', $db->db_tarih, '', '', '', $db->db_tutar, $db->db_odenen, $db->db_bakiye, $db->db_id]);
+        }
+        fclose($fp);
+
+        $this->info('');
+        $this->info("== OZET ==");
+        foreach ($cnt as $k => $v) {
+            $extra = isset($tutarBakiye[$k]) ? sprintf(' (bakiye toplam: %s TRY)', number_format($tutarBakiye[$k], 2)) : '';
+            $this->info(sprintf("  %-22s %d%s", $k, $v, $extra));
+        }
+        $this->info("CSV: $csv");
+        return 0;
+    }
+
+    /**
+     * genel_kasa_raporu_satis.aspx HTML'inden satis tablosu satirlarini parse.
+     * TH: Satis No | Tarih | Musteri | Hizmetler | Aciklama | Tutar | Odenen Tutar | Kalan Tutar | Satisi Yapan
+     * Sadece Kalan Tutar > 0 olanlari $drkAcikMap'e ekler. Donus: parse edilen satir.
+     */
+    private function parseAcikSatislar($html, &$drkAcikMap)
+    {
+        $sayac = 0;
+        // Tum tabloları ara, header'inda Satis No + Kalan Tutar olan tek tablo
+        preg_match_all('~<table[^>]*>(.*?)</table>~is', $html, $tm);
+        foreach ($tm[1] as $body) {
+            preg_match_all('~<th[^>]*>(.*?)</th>~is', $body, $th);
+            $hdrs = array_map(function ($t) { return trim(html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8')); }, $th[1]);
+            if (!in_array('Satış No', $hdrs, true) || !in_array('Kalan Tutar', $hdrs, true)) continue;
+            // Kolon indexleri
+            $iSn = array_search('Satış No', $hdrs, true);
+            $iTr = array_search('Tarih', $hdrs, true);
+            $iMs = array_search('Müşteri', $hdrs, true);
+            $iTu = array_search('Tutar', $hdrs, true);
+            $iOd = array_search('Ödenen Tutar', $hdrs, true);
+            $iKl = array_search('Kalan Tutar', $hdrs, true);
+
+            preg_match_all('~<tr[^>]*>(.*?)</tr>~is', $body, $rs);
+            foreach ($rs[1] as $tr) {
+                if (stripos($tr, '<th') !== false) continue;
+                preg_match_all('~<td[^>]*>(.*?)</td>~is', $tr, $tds);
+                if (empty($tds[1])) continue;
+                $cells = [];
+                foreach ($tds[1] as $td) {
+                    $clean = trim(preg_replace('~\s+~', ' ', strip_tags($td)));
+                    $cells[] = trim(html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                }
+                if (!isset($cells[$iSn])) continue;
+                $sn = preg_replace('~\D~', '', $cells[$iSn] ?? '');
+                if (!$sn) continue;
+                $sayac++;
+                $kalan = (float) str_replace(['.',','], ['','.'], preg_replace('~[^\d,.\-]~', '', $cells[$iKl] ?? '0'));
+                if ($kalan <= 0.01) continue; // sadece acik
+                $tutar = (float) str_replace(['.',','], ['','.'], preg_replace('~[^\d,.\-]~', '', $cells[$iTu] ?? '0'));
+                $odenen = (float) str_replace(['.',','], ['','.'], preg_replace('~[^\d,.\-]~', '', $cells[$iOd] ?? '0'));
+                $drkAcikMap[$sn] = [
+                    'tarih' => $cells[$iTr] ?? '',
+                    'musteri' => $cells[$iMs] ?? '',
+                    'tutar' => $tutar,
+                    'odenen' => $odenen,
+                    'kalan' => $kalan,
+                ];
+            }
+            break;
+        }
+        return $sayac;
     }
 
     private function applyFazlaSil($salonId, $dryRun)
