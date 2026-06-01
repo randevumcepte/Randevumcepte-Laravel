@@ -2733,6 +2733,19 @@ class DrklinikImport extends Command
 
     private function findAdisyonForTahsilat($t)
     {
+        // 1) En kesin yontem: tahsilat notlar'inda [drk-tah:SatisNo:idx] varsa
+        // adisyon notlar'inda [drklinik:SatisNo] eseleyen kayit bul.
+        // (ELZEM SUL 15000 TL adisyon 2344260: drk-tah marker'i var ama
+        // tarih/tutar eslesmedigi icin tarih+tutar fallback'i bulamiyordu.)
+        if (!empty($t->notlar) && preg_match('~\[drk-tah:(\d+):~', (string) $t->notlar, $m)) {
+            $satisNo = $m[1];
+            $adId = \App\Adisyonlar::where('salon_id', $t->salon_id)
+                ->where('notlar', 'LIKE', '%[drklinik:' . $satisNo . ']%')
+                ->value('id');
+            if ($adId) return (int) $adId;
+        }
+
+        // 2) Ayni gun + tutar tam eslesmesi
         $sameDate = \App\Adisyonlar::where('user_id', $t->user_id)
             ->where('salon_id', $t->salon_id)
             ->where('tarih', $t->odeme_tarihi)->orderBy('id')->get();
@@ -2740,6 +2753,8 @@ class DrklinikImport extends Command
             if (abs($this->adisyonTutar($ad) - (float) $t->tutar) < 0.01) return $ad->id;
         }
         if ($sameDate->count() > 0) return $sameDate->first()->id;
+
+        // 3) Onceki 30 gun + tutar tam eslesmesi
         $oncesi = \App\Adisyonlar::where('user_id', $t->user_id)
             ->where('salon_id', $t->salon_id)
             ->whereDate('tarih', '<=', $t->odeme_tarihi)
