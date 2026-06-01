@@ -53,6 +53,7 @@ class DrklinikImport extends Command
         {--verify : Import sirasinda her musid icin drklinik Kalan Seanslar vs DB karsilastir, /tmp/drk_verify_<salon>.csv\'ye yaz}
         {--full-saglama : Salon icin tum metrikler kapsamli rapor (randevu/satis/tahsilat/seans). Her musteri icin drklinik vs DB; ozet TXT ve detayli CSV uretir}
         {--report-acik-adisyon : Drklinik genel_kasa_raporu_satis.aspx tarayip (haftalik) acik satislari cek + bizdeki ile SatisNo bazli karsilastir + CSV yaz (/tmp/drk_acik_adisyon_SALONID.csv). DB yazimi yoktur.}
+        {--fix-acik-adisyon : --report-acik-adisyon CSV satirlarindaki problematik durumlari otomatik fix et (bizdeki user_id\'den cep_telefon al, drklinik telefon ile musid bul, reset-musid mantigi). DB yazimi yapar.}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
@@ -291,6 +292,11 @@ class DrklinikImport extends Command
         if ((bool) $this->option('report-acik-adisyon')) {
             if (!$salonId || !$username || !$password) { $this->error('--report-acik-adisyon icin --salon/--username/--password zorunlu.'); return 1; }
             return $this->reportAcikAdisyon($username, $password, (int) $salonId, $this->option('from'), $this->option('to'));
+        }
+
+        if ((bool) $this->option('fix-acik-adisyon')) {
+            if (!$salonId || !$username || !$password) { $this->error('--fix-acik-adisyon icin --salon/--username/--password zorunlu.'); return 1; }
+            return $this->fixAcikAdisyon($username, $password, (int) $salonId);
         }
 
         $types = $only ? array_map('trim', explode(',', $only)) : ['hizmet', 'personel', 'urun', 'oda', 'randevu'];
@@ -1581,6 +1587,166 @@ class DrklinikImport extends Command
             break;
         }
         return $sayac;
+    }
+
+    /**
+     * --report-acik-adisyon CSV'sindeki problematik satirlari otomatik fix:
+     * 1) CSV oku, sadece DRK_KAPALI_DB_ACIK / DRK_ACIK_DB_KAPALI / DB_YOK satirlari
+     * 2) Her satirin db_id'si varsa → user_id → cep_telefon al
+     * 3) Drklinik musterilistesi.aspx'te TB_Ara=telefon ile arama → musid bul
+     * 4) musid bazli dedup (ayni musid icin tek reset)
+     * 5) Her unique musid icin resetMusid mantigi (sil+reimport)
+     */
+    private function fixAcikAdisyon($username, $password, $salonId)
+    {
+        @set_time_limit(0);
+        @ini_set('memory_limit', '2048M');
+        $csv = '/tmp/drk_acik_adisyon_' . $salonId . '.csv';
+        if (!is_file($csv)) { $this->error("CSV yok: $csv. Once --report-acik-adisyon calistirin."); return 1; }
+
+        $client = new \App\Services\DrklinikClient($username, $password);
+        $login = $client->login();
+        if (!$login['ok']) { $this->error('Login fail: ' . $login['detail']); return 1; }
+
+        $fp = fopen($csv, 'r');
+        $header = fgetcsv($fp);
+        $idx = array_flip($header);
+        $fixHedef = []; // [user_id => ['musteri'=>..., 'satisNoList'=>[...]]]
+        $dbYokList = []; // [['musteri'=>..., 'satisNo'=>..., 'tarih'=>...]]
+        $satirSay = ['target'=>0,'skip'=>0,'db_yok'=>0];
+        while (($row = fgetcsv($fp)) !== false) {
+            $durum = $row[$idx['durum']];
+            $sn    = $row[$idx['SatisNo']];
+            $musteri = $row[$idx['musteri']];
+            $dbId  = $row[$idx['db_id']];
+            if (!in_array($durum, ['DRK_KAPALI_DB_ACIK','DRK_ACIK_DB_KAPALI','DB_YOK'], true)) { $satirSay['skip']++; continue; }
+            if ($durum === 'DB_YOK') {
+                $dbYokList[] = ['musteri'=>$musteri, 'satisNo'=>$sn, 'tarih'=>$row[$idx['drk_tarih']]];
+                $satirSay['db_yok']++;
+                continue;
+            }
+            if (!$dbId) { $satirSay['skip']++; continue; }
+            // db_id'den user_id al
+            $userId = \DB::table('adisyonlar')->where('id', $dbId)->value('user_id');
+            if (!$userId) { $satirSay['skip']++; continue; }
+            if (!isset($fixHedef[$userId])) $fixHedef[$userId] = ['musteri'=>$musteri, 'satisNoList'=>[]];
+            $fixHedef[$userId]['satisNoList'][] = $sn;
+            $satirSay['target']++;
+        }
+        fclose($fp);
+
+        $this->info("CSV oku: target_satir={$satirSay['target']} unique_user=" . count($fixHedef) . " db_yok={$satirSay['db_yok']} skip={$satirSay['skip']}");
+
+        // Importer ile birlikte calismak icin musteri arama fn
+        $bulMusid = function ($telefon, $musteriAdi = null) use ($client) {
+            $telefon = preg_replace('~\D~', '', (string) $telefon);
+            $ara = $telefon ?: $musteriAdi;
+            if (!$ara) return null;
+            $h = $client->postBack('/musterilistesi.aspx', 'BTN_MusteriAra', '', ['TB_Ara' => $ara]);
+            if (!$h) return null;
+            // musid: tabloda 5+ haneli sayilar; ilk eslesen musid
+            if (preg_match_all('~musid=(\d{5,})~', $h, $m)) {
+                $musids = array_unique($m[1]);
+                return reset($musids) ?: null;
+            }
+            // Alternatif: <a href="musteri.aspx?musid=X">
+            return null;
+        };
+
+        // 5) Her hedef user icin: telefon → musid → resetMusid mantigini cagir
+        $ok = 0; $fail = 0;
+        foreach ($fixHedef as $userId => $info) {
+            $tel = \DB::table('users')->where('id', $userId)->value('cep_telefon');
+            $musid = $bulMusid($tel, $info['musteri']);
+            if (!$musid) {
+                $this->warn("  [SKIP] user_id={$userId} musteri=\"{$info['musteri']}\" telefon=$tel — drklinik'te musid bulunamadi");
+                $fail++;
+                continue;
+            }
+            $this->line("  [FIX] user_id={$userId} musid=$musid musteri=\"{$info['musteri']}\" (" . count($info['satisNoList']) . " satis)");
+            try {
+                $r = $this->resetMusidInner($client, $salonId, (string) $musid);
+                if ($r === 0) $ok++; else $fail++;
+            } catch (\Throwable $e) {
+                $this->error("  hata: " . $e->getMessage());
+                $fail++;
+            }
+        }
+
+        // DB_YOK: musteri adi ile drklinik'te ara, musid bul + importMusteriDetay
+        $dbYokOk = 0; $dbYokFail = 0;
+        foreach ($dbYokList as $d) {
+            $musid = $bulMusid(null, $d['musteri']);
+            if (!$musid) { $this->warn("  [DB_YOK SKIP] musteri=\"{$d['musteri']}\" sn={$d['satisNo']} — musid bulunamadi"); $dbYokFail++; continue; }
+            $this->line("  [DB_YOK FIX] musteri=\"{$d['musteri']}\" musid=$musid sn={$d['satisNo']}");
+            try {
+                $importer = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+                $newUid = $importer->ensureUserByMusidPublic($musid);
+                if ($newUid) { $importer->importMusteriDetay($musid, $newUid); $dbYokOk++; }
+                else $dbYokFail++;
+            } catch (\Throwable $e) { $this->error("  hata: " . $e->getMessage()); $dbYokFail++; }
+        }
+
+        $this->info('');
+        $this->info('== OZET ==');
+        $this->info("  Fix basarili    : $ok");
+        $this->info("  Fix basarisiz   : $fail");
+        $this->info("  DB_YOK eklenen  : $dbYokOk");
+        $this->info("  DB_YOK eklenmedi: $dbYokFail");
+        return 0;
+    }
+
+    /**
+     * resetMusid'in inner kismi: musid icin user'i bul + sil + reimport (login dis tarafta).
+     * Donus: 0 = OK, !=0 = fail.
+     */
+    private function resetMusidInner($client, $salonId, $musid)
+    {
+        $importer = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+        $userId = $importer->ensureUserByMusidPublic($musid);
+        if (!$userId) { $this->error('  User bulunamadi (musid='.$musid.')'); return 1; }
+
+        \DB::beginTransaction();
+        try {
+            $rndIds = \DB::table('randevular')->where('salon_id', $salonId)->where('user_id', $userId)->pluck('id')->all();
+            if ($rndIds) {
+                \DB::table('randevu_hizmetler')->whereIn('randevu_id', $rndIds)->delete();
+                \DB::table('adisyon_paket_seanslar')->whereIn('randevu_id', $rndIds)->update(['randevu_id' => null, 'geldi' => 0]);
+                \DB::table('randevular')->whereIn('id', $rndIds)->delete();
+            }
+            $adIds = \DB::table('adisyonlar')->where('salon_id', $salonId)->where('user_id', $userId)
+                ->where('notlar', 'LIKE', '%[drklinik:%')->pluck('id')->all();
+            $ahIds = [];
+            if ($adIds) {
+                $ahIds = \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $adIds)->pluck('id')->all();
+                if ($ahIds) {
+                    \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ahIds)->delete();
+                    \DB::table('adisyon_hizmetler')->whereIn('id', $ahIds)->delete();
+                }
+                \DB::table('adisyon_urunler')->whereIn('adisyon_id', $adIds)->delete();
+            }
+            $tahMarker = \DB::table('tahsilatlar')->where('salon_id', $salonId)->where('user_id', $userId)
+                ->where('notlar', 'LIKE', '%[drk-tah:%')->pluck('id')->all();
+            $tahAdisyonli = $adIds ? \DB::table('tahsilatlar')->where('salon_id', $salonId)->where('user_id', $userId)
+                ->whereIn('adisyon_id', $adIds)->pluck('id')->all() : [];
+            $tahIds = array_values(array_unique(array_merge($tahMarker, $tahAdisyonli)));
+            if ($tahIds) {
+                \DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $tahIds)->delete();
+                if (\Schema::hasTable('tahsilat_urunler')) \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $tahIds)->delete();
+                \DB::table('tahsilatlar')->whereIn('id', $tahIds)->delete();
+            }
+            if ($adIds) \DB::table('adisyonlar')->whereIn('id', $adIds)->delete();
+            \DB::commit();
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            $this->error('  Reset hata: ' . $e->getMessage());
+            return 1;
+        }
+
+        $importer2 = new \App\Imports\DrklinikImporter($client, $salonId, $this->output);
+        $importer2->primeUserCache($musid, $userId);
+        $importer2->importMusteriDetay((string) $musid, $userId);
+        return 0;
     }
 
     private function applyFazlaSil($salonId, $dryRun)
