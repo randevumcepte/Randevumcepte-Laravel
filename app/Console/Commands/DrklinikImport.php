@@ -1638,18 +1638,30 @@ class DrklinikImport extends Command
         $this->info("CSV oku: target_satir={$satirSay['target']} unique_user=" . count($fixHedef) . " db_yok={$satirSay['db_yok']} skip={$satirSay['skip']}");
 
         // Importer ile birlikte calismak icin musteri arama fn
+        // ASP.NET submit button: __EVENTTARGET bos, body'de BTN_MusteriAra=Ara.
+        // Sonuc HTML'inde DGRV_MusteriListesi tablosundaki ID hucresi musid.
         $bulMusid = function ($telefon, $musteriAdi = null) use ($client) {
-            $telefon = preg_replace('~\D~', '', (string) $telefon);
-            $ara = $telefon ?: $musteriAdi;
-            if (!$ara) return null;
-            $h = $client->postBack('/musterilistesi.aspx', 'BTN_MusteriAra', '', ['TB_Ara' => $ara]);
-            if (!$h) return null;
-            // musid: tabloda 5+ haneli sayilar; ilk eslesen musid
-            if (preg_match_all('~musid=(\d{5,})~', $h, $m)) {
-                $musids = array_unique($m[1]);
-                return reset($musids) ?: null;
+            $tryAra = [];
+            $tel = preg_replace('~\D~', '', (string) $telefon);
+            if ($tel) $tryAra[] = $tel;
+            if ($musteriAdi) $tryAra[] = $musteriAdi;
+            foreach ($tryAra as $ara) {
+                $h = $client->postBack('/musterilistesi.aspx', '', '', [
+                    'TB_Ara' => $ara,
+                    'BTN_MusteriAra' => 'Ara',
+                    'HF_AramaTipi' => 'Arama',
+                    'HF_MusID' => '',
+                ]);
+                if (!$h) continue;
+                // DGRV_MusteriListesi tablosundaki ID hucresi (ilk 5+ haneli sayi)
+                if (preg_match('~id="DGRV_MusteriListesi".*?<tr[^>]*>.*?<tr[^>]*>(.*?)</tr>~is', $h, $bm)) {
+                    if (preg_match('~<td[^>]*>(\d{5,})</td>~', $bm[1], $cm)) {
+                        return $cm[1];
+                    }
+                }
+                // Fallback: HTML'de herhangi bir musid= linki
+                if (preg_match('~musid=(\d{5,})~', $h, $m)) return $m[1];
             }
-            // Alternatif: <a href="musteri.aspx?musid=X">
             return null;
         };
 
