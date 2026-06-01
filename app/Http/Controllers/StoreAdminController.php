@@ -23388,51 +23388,6 @@ public function musteriportfoydropliste(Request $request)
                 break;
         }
 
-        // ===== GECICI: SADECE SON 90 GUNDUR GELMEMIS MUSTERILER (SMS kampanyasi) =====
-        // SMS gonderimi bittikten sonra bu blok TUMUYLE SILINECEK. Baska yeri etkilemez.
-        // Kural: daha once en az 1 kez gelmis (tahsilat VEYA randevuya_geldi=1) AMA son
-        // 90 gunde ne tahsilat ne de gelinmis randevu olan musteriler.
-        {
-            $sms90_esik = now()->subDays(90)->toDateString();
-            $sms90_dahil = [2021, 46120]; // 90 gun filtresine takilsa da listeye eklenecek user id'ler
-
-            $query->where(function($dis) use ($salonId, $sms90_esik, $sms90_dahil){
-                // 90 gun kurali VEYA elle eklenen id'ler
-                $dis->where(function($q) use ($salonId, $sms90_esik){
-                    // (A) gecmiste en az 1 gercek ziyaret olmali
-                    $q->where(function($qq) use ($salonId){
-                        $qq->whereExists(function($s) use ($salonId){
-                            $s->select(DB::raw(1))->from('tahsilatlar')
-                              ->whereRaw('tahsilatlar.user_id = musteri_portfoy.user_id')
-                              ->where('tahsilatlar.salon_id', $salonId);
-                        })->orWhereExists(function($s) use ($salonId){
-                            $s->select(DB::raw(1))->from('randevular')
-                              ->whereRaw('randevular.user_id = musteri_portfoy.user_id')
-                              ->where('randevular.salon_id', $salonId)
-                              ->where('randevular.randevuya_geldi', 1);
-                        });
-                    });
-                    // (B) son 90 gunde ne tahsilat ne gelinmis randevu olmamali
-                    $q->whereNotExists(function($s) use ($salonId, $sms90_esik){
-                        $s->select(DB::raw(1))->from('tahsilatlar')
-                          ->whereRaw('tahsilatlar.user_id = musteri_portfoy.user_id')
-                          ->where('tahsilatlar.salon_id', $salonId)
-                          ->whereRaw('COALESCE(tahsilatlar.odeme_tarihi, DATE(tahsilatlar.created_at)) >= ?', [$sms90_esik]);
-                    });
-                    $q->whereNotExists(function($s) use ($salonId, $sms90_esik){
-                        $s->select(DB::raw(1))->from('randevular')
-                          ->whereRaw('randevular.user_id = musteri_portfoy.user_id')
-                          ->where('randevular.salon_id', $salonId)
-                          ->where('randevular.randevuya_geldi', 1)
-                          ->where('randevular.tarih', '>=', $sms90_esik);
-                    });
-                })->orWhereIn('users.id', $sms90_dahil);
-            });
-
-            $musteriTuru = '90 gündür gelmeyen';
-        }
-        // ===== GECICI BLOK SONU =====
-
         if($request->grup=='')
             $musteriTuru .= ' müşteriler';
         else
