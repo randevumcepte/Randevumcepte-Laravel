@@ -2745,16 +2745,17 @@ class DrklinikImport extends Command
             if ($adId) return (int) $adId;
         }
 
-        // 2) Ayni gun + tutar tam eslesmesi
+        // 2) Ayni gun + tutar TAM eslesmesi (tutar farkli ise eslestirme yok —
+        // eski fallback 'aynı günün ilk adisyonuna yaz' KALDIRILDI: tutar eslesmeyen
+        // adisyona zorla baglamak yanlis veriye yol acabiliyordu).
         $sameDate = \App\Adisyonlar::where('user_id', $t->user_id)
             ->where('salon_id', $t->salon_id)
             ->where('tarih', $t->odeme_tarihi)->orderBy('id')->get();
         foreach ($sameDate as $ad) {
             if (abs($this->adisyonTutar($ad) - (float) $t->tutar) < 0.01) return $ad->id;
         }
-        if ($sameDate->count() > 0) return $sameDate->first()->id;
 
-        // 3) Onceki 30 gun + tutar tam eslesmesi
+        // 3) Onceki 30 gun + tutar TAM eslesmesi (sadece kesin match)
         $oncesi = \App\Adisyonlar::where('user_id', $t->user_id)
             ->where('salon_id', $t->salon_id)
             ->whereDate('tarih', '<=', $t->odeme_tarihi)
