@@ -2656,11 +2656,21 @@ class DrklinikImport extends Command
                     continue;
                 }
             }
-            // 2) tahsilat_hizmetler/tahsilat_urunler bos mu, doldurabilir miyiz
+            // 2) tahsilat_hizmetler/tahsilat_urunler bos mu VEYA mevcut TH/TU
+            // bagli oldugu adisyon disindaki AH'ye isaret ediyor mu kontrol et.
+            // (Eski reset/repair'lerden kalma orphan TH-AH bag'lari UI'da "adisyona
+            // bagli degil" gibi gozukuyor. ELZEM SUL 15000 TL ornegi:
+            //  TH.adisyon_hizmet_id=504760 ama adisyonun gercek AH'si 507903.)
             if (!$t->adisyon_id) continue;
-            $hasContent = \App\TahsilatHizmetler::where('tahsilat_id', $t->id)->exists()
-                       || \App\TahsilatUrunler::where('tahsilat_id', $t->id)->exists();
-            if ($hasContent) continue;
+            $validAhIds = \App\AdisyonHizmetler::where('adisyon_id', $t->adisyon_id)->pluck('id')->all();
+            $validAuIds = \App\AdisyonUrunler::where('adisyon_id', $t->adisyon_id)->pluck('id')->all();
+            $thRows = \App\TahsilatHizmetler::where('tahsilat_id', $t->id)->get();
+            $tuRows = \App\TahsilatUrunler::where('tahsilat_id', $t->id)->get();
+            $orphanTh = false; $orphanTu = false;
+            foreach ($thRows as $th) if (!in_array((int) $th->adisyon_hizmet_id, $validAhIds, true)) { $orphanTh = true; break; }
+            foreach ($tuRows as $tu) if (!in_array((int) $tu->adisyon_urun_id, $validAuIds, true)) { $orphanTu = true; break; }
+            $hasValidContent = ($thRows->count() > 0 && !$orphanTh) || ($tuRows->count() > 0 && !$orphanTu);
+            if ($hasValidContent) continue;
 
             $hizmetler = \App\AdisyonHizmetler::where('adisyon_id', $t->adisyon_id)->get();
             $urunler   = \App\AdisyonUrunler::where('adisyon_id', $t->adisyon_id)->get();
@@ -2668,6 +2678,11 @@ class DrklinikImport extends Command
             if ((float) $t->tutar <= 0) continue;
 
             if (!$dryRun) {
+                // Orphan TH/TU sil, yeniden dagit
+                if ($orphanTh || $orphanTu) {
+                    \App\TahsilatHizmetler::where('tahsilat_id', $t->id)->delete();
+                    \App\TahsilatUrunler::where('tahsilat_id', $t->id)->delete();
+                }
                 $this->dagitVeYazContent($t, $hizmetler, $urunler);
             }
             $propagated++;
