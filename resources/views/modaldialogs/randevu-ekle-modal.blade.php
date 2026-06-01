@@ -2058,17 +2058,19 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
 
     function _applyBaseSelections($row){
         // Sadece bos olan dropdown'lara base degeri uygula (kullanici daha onceden ozellestirmis olabilir)
+        // ONEMLI: plain 'change' TETIKLEME -> change.hizmetLoad/yukleHizmetler paketteki secili
+        // hizmeti siler (ozellikle takvim personele gore). Sessiz set + change.select2 (UI).
         if(basePersonel){
-            var $p = $row.find('.personel-select');
+            var $p = $row.find('select.personel-select');
             if($p.length && !$p.val()){
-                if($p[0] && $p[0].tomselect){
-                    try { $p[0].tomselect.setValue(basePersonel, true); $p.val(basePersonel).trigger('change'); } catch(e){ $p.val(basePersonel).trigger('change'); }
-                } else { $p.val(basePersonel).trigger('change'); }
+                if($p[0] && $p[0].tomselect){ try { $p[0].tomselect.setValue(basePersonel, true); } catch(e){} }
+                else { $p.val(basePersonel); }
+                $p.val(basePersonel).trigger('change.select2');
             }
         }
         if(baseCihaz){
             var $c = $row.find('.cihaz-select');
-            if($c.length && !$c.val()) $c.val(baseCihaz).trigger('change');
+            if($c.length && !$c.val()) $c.val(baseCihaz).trigger('change.select2');
         }
         if(baseOda){
             var $o = $row.find('.oda-select');
@@ -2087,7 +2089,8 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                     var bO = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){ return String(o.id) === String(baseOda); });
                     if(bO) $o.append(new Option(bO.ad, bO.id, false, false));
                 }
-                if(!$o.val()) $o.val(baseOda).trigger('change');
+                // change.select2 (plain 'change' degil) -> oda-degisim hizmet reload'u paketi silmesin
+                if(!$o.val()) $o.val(baseOda).trigger('change.select2');
             }
         }
     }
@@ -2763,13 +2766,20 @@ function genelKaynakUygula(){
     var o = $('#modal-view-event-add select.genel-oda-select').val() || '';
     var cihazlar = (window.randevuModalData && window.randevuModalData.cihazlar) || [];
     var odalar   = (window.randevuModalData && window.randevuModalData.odalar) || [];
+    // ONEMLI: kaynak set ederken 'change' (plain) TETIKLEME! Personel/cihaz/oda 'change'
+    // -> change.hizmetLoad/oda-degisim -> yukleHizmetler hizmet TS'ini personele/odaya gore
+    // YENIDEN doldurur ve paketteki secili hizmeti SILER (ozellikle takvim personele gore).
+    // Cozum: personel TS'i sessiz (setValue silent) + native .val(); select2 cihaz/oda'yi
+    // 'change.select2' ile (sadece UI guncellenir, hizmet reload tetiklenmez). Native deger
+    // yine submit'e gider (serializeArray isim bazli okur).
     $('#modal-view-event-add .hizmet-satiri').each(function(){
         var $row = $(this);
         if(p !== ''){
             var $p = $row.find('select.personel-select');
             if($p.length){
                 if($p[0] && $p[0].tomselect){ try { $p[0].tomselect.setValue(p, true); } catch(e){} }
-                $p.val(p).trigger('change');
+                else { $p.val(p); }
+                $p.val(p).trigger('change.select2');
             }
         }
         if(c !== ''){
@@ -2779,7 +2789,7 @@ function genelKaynakUygula(){
                     var cc = cihazlar.find(function(x){ return String(x.id) === String(c); });
                     if(cc) $c.append(new Option(cc.ad, cc.id, false, false));
                 }
-                $c.val(c).trigger('change');
+                $c.val(c).trigger('change.select2');
             }
         }
         if(o !== ''){
@@ -2789,7 +2799,7 @@ function genelKaynakUygula(){
                     var oo = odalar.find(function(x){ return String(x.id) === String(o); });
                     if(oo) $o.append(new Option(oo.ad, oo.id, false, false));
                 }
-                $o.val(o).trigger('change');
+                $o.val(o).trigger('change.select2');
             }
         }
     });
