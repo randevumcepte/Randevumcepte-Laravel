@@ -5,8 +5,8 @@
   const BASE = 'https://web-api.salonappy.com/api';
 
   // Auth (Network tabindan)
-  let TOKEN = '288401&fJqmdVpa7b01e19c0KUNVnvz4644713c6e717fe0c169b82a60a47e';
-  let X_DEVICE = 'deovpplHniEa2s8oE12C7phjNlxsolkP';
+  let TOKEN = '288401&Oc1lPAy62641ff1camqsiK7919e9107f826b22f39ede49c6ff4eaa';
+  let X_DEVICE = '1tevuO7938R1ggFPtQZVerlqY2GfIBJK';
   let X_VERSION = '2026.05.07.1';
   TOKEN = prompt('Bearer token', TOKEN) || TOKEN;
   X_DEVICE = prompt('x-device', X_DEVICE) || X_DEVICE;
@@ -110,7 +110,43 @@
     await sleep(RATE_DELAY_MS);
   } else console.log('  resume: visits (cached)');
 
-  console.log(`  services:${servicesMaster.length||Object.keys(servicesMaster||{}).length} staff:${staffMaster.length||Object.keys(staffMaster||{}).length} products:${productsMaster.length||Object.keys(productsMaster||{}).length} clients:${clients.length} visits:${visits.length}`);
+  // === Gelecek randevular: /booking/list (visit/list bunlari dondurmuyor) ===
+  // status=2 onayli; tarih araligi bugun → 1 yil ileri; pagination ile tamamini cek.
+  let upcomingVisits = await dbGet('upcomingVisits');
+  if (!upcomingVisits) {
+    upcomingVisits = [];
+    const today = new Date(); const toDt = new Date(); toDt.setFullYear(toDt.getFullYear() + 1);
+    const fmt = d => d.toISOString().slice(0,10);
+    const dateStart = fmt(today), dateEnd = fmt(toDt);
+    // Tum statuslar: 1=beklemede, 2=onayli, 3=iptal vs. UI'da hangi statuslar gerekiyorsa.
+    // Pratik: 1 ve 2'yi cek (iptal ve gecmis durumlar dahil olmasin).
+    for (const st of [1, 2]) {
+      let offset = 0; const limit = 100;
+      while (true) {
+        const j = await get(`/booking/list?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}&status=${st}`);
+        const arr = j?.data?.bookings || j?.data?.visits || j?.data?.list || j?.data || [];
+        if (!arr.length) break;
+        // /booking/list response sema'sini visit/list ile uyumlu hale getir
+        for (const b of arr) {
+          if (!b.session && b.id) b.session = b.id;
+          upcomingVisits.push(b);
+        }
+        offset += arr.length;
+        await sleep(RATE_DELAY_MS);
+        if (arr.length < limit) break;
+      }
+      console.log(`  upcoming status=${st}: kumule=${upcomingVisits.length}`);
+    }
+    await dbPut('upcomingVisits', upcomingVisits);
+  } else console.log('  resume: upcomingVisits (cached, ' + upcomingVisits.length + ')');
+
+  // Visit'leri birlestir (session bazli dedup — ayni id 2 kez gelmesin)
+  const visitsBySess = {};
+  for (const v of visits) if (v?.session) visitsBySess[v.session] = v;
+  for (const v of upcomingVisits) if (v?.session && !visitsBySess[v.session]) visitsBySess[v.session] = v;
+  visits = Object.values(visitsBySess);
+
+  console.log(`  services:${servicesMaster.length||Object.keys(servicesMaster||{}).length} staff:${staffMaster.length||Object.keys(staffMaster||{}).length} products:${productsMaster.length||Object.keys(productsMaster||{}).length} clients:${clients.length} visits:${visits.length} (gecmis+gelecek)`);
 
   // === Booking detayları (resume destekli) ===
   console.log('\n🔹 2) Booking detail (resume + throttle)...');
