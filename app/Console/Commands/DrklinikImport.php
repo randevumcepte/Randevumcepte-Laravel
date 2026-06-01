@@ -52,7 +52,7 @@ class DrklinikImport extends Command
         {--add-missing-hizmetler : /tmp/drk_verify_<salon>.csv\'deki EKSIK_DB hizmetlerini pasif olarak Hizmetler kataloguna ekle + ilgili musid\'leri tekrar repair et}
         {--verify : Import sirasinda her musid icin drklinik Kalan Seanslar vs DB karsilastir, /tmp/drk_verify_<salon>.csv\'ye yaz}
         {--full-saglama : Salon icin tum metrikler kapsamli rapor (randevu/satis/tahsilat/seans). Her musteri icin drklinik vs DB; ozet TXT ve detayli CSV uretir}
-        {--report-acik-adisyon : Drklinik genel_kasa_raporu_satis.aspx tarayip (haftalik) acik satislari cek, bizdeki acik adisyonlarla SatisNo bazli karsilastir, /tmp/drk_acik_adisyon_<salon>.csv'ye yaz. DB'ye yazma yapmaz, sadece rapor.}
+        {--report-acik-adisyon : Drklinik genel_kasa_raporu_satis.aspx tarayip (haftalik) acik satislari cek + bizdeki ile SatisNo bazli karsilastir + CSV yaz (/tmp/drk_acik_adisyon_SALONID.csv). DB yazimi yoktur.}
         {--dry-run : Sadece raporla, silme}';
 
     protected $description = 'uygulama.drklinik.net hesabindan veri cekip randevumcepte\'ye aktarir.';
