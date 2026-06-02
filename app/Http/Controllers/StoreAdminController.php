@@ -1193,12 +1193,24 @@ public function carkverilerigetir(Request $request)
                 ->where('salon_id', $salonId)
                 ->whereBetween('tarih', [$t1, $t2])
                 ->count();
+            // Sonuclanan = musteri geldi (durum=1 AND randevuya_geldi=true)
             $sonuclanan = DB::table('randevular')
                 ->where('salon_id', $salonId)
                 ->whereBetween('tarih', [$t1, $t2])
-                ->whereIn('durum', [4,5])
+                ->where('durum', 1)
+                ->where('randevuya_geldi', true)
                 ->count();
-            $sonuclanmayan = max(0, $olusturulan - $sonuclanan);
+            // Sonuclanmayan = iptal (2,3) veya gelmedi (durum=1 AND randevuya_geldi=false)
+            $sonuclanmayan = DB::table('randevular')
+                ->where('salon_id', $salonId)
+                ->whereBetween('tarih', [$t1, $t2])
+                ->where(function($q){
+                    $q->whereIn('durum', [2,3])
+                      ->orWhere(function($qq){
+                          $qq->where('durum', 1)->where('randevuya_geldi', false);
+                      });
+                })
+                ->count();
 
             $isletme = Salonlar::where('id', $salonId)->first();
             $randevuSuresi = max(15, (int) ($isletme->randevu_araligi ?? 30));

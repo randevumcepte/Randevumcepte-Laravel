@@ -13,24 +13,69 @@
 
 <style>
 :root{
-  --dash-bg:#f7f8fc;
+  --dash-bg:#f6f7fb;
   --dash-card-bg:#ffffff;
-  --dash-border:#eef0f4;
-  --dash-text:#1a2233;
-  --dash-text-soft:#5c6678;
-  --dash-text-muted:#9aa3b2;
-  --dash-accent:#5b6bf7;
-  --dash-accent-soft:#eef0ff;
-  --dash-green:#27c281;
-  --dash-orange:#ff9f43;
-  --dash-pink:#ff6f91;
-  --dash-blue:#3aaaff;
-  --dash-violet:#9b5cff;
-  --dash-radius:18px;
-  --dash-shadow:0 2px 14px rgba(34,42,82,0.05);
+  --dash-border:#ecedf4;
+  --dash-text:#181b2c;
+  --dash-text-soft:#5c6486;
+  --dash-text-muted:#9097ad;
+  --dash-accent:#6e4bff;
+  --dash-accent-soft:#efe9ff;
+  --dash-accent-strong:#4c2dd6;
+  --dash-green:#1fbf6f;
+  --dash-orange:#ff8a3d;
+  --dash-pink:#ff5c8a;
+  --dash-blue:#1e9fff;
+  --dash-violet:#a16bff;
+  --dash-cyan:#22c4cb;
+  --dash-yellow:#f7c948;
+  --dash-radius:20px;
+  --dash-shadow:0 4px 24px rgba(28,32,72,0.06);
+  --dash-shadow-hover:0 10px 36px rgba(28,32,72,0.12);
 }
 
-.rmc-dash-wrap{padding:6px 4px 40px 4px;}
+.rmc-dash-wrap{
+  padding:8px 4px 40px 4px;
+  background:radial-gradient(ellipse 900px 360px at 0% 0%, rgba(110,75,255,.05), transparent 55%), radial-gradient(ellipse 800px 380px at 100% 0%, rgba(255,92,138,.04), transparent 50%);
+  min-height:600px;
+}
+
+/* ===== Hero Greeting ===== */
+.rmc-hero{
+  position:relative;overflow:hidden;
+  background:linear-gradient(120deg,#6e4bff 0%, #a16bff 55%, #ff5c8a 100%);
+  border-radius:24px;
+  padding:22px 28px;
+  color:#fff;
+  margin-bottom:22px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:center;gap:18px;
+  box-shadow:0 14px 40px rgba(110,75,255,.20);
+}
+.rmc-hero::before{
+  content:'';position:absolute;right:-60px;top:-60px;width:240px;height:240px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.18),transparent 70%);
+}
+.rmc-hero::after{
+  content:'';position:absolute;left:-30px;bottom:-60px;width:160px;height:160px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.10),transparent 70%);
+}
+.rmc-hero-text{position:relative;z-index:1;}
+.rmc-hero-date{font-size:12px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;opacity:.82;}
+.rmc-hero-greet{font-size:22px;font-weight:800;margin-top:4px;line-height:1.2;}
+.rmc-hero-sub{font-size:13.5px;opacity:.88;margin-top:6px;font-weight:500;}
+.rmc-hero-stats{position:relative;z-index:1;display:flex;gap:18px;}
+.rmc-hero-stat{
+  text-align:center;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);
+  border-radius:14px;padding:10px 16px;min-width:84px;border:1px solid rgba(255,255,255,.18);
+}
+.rmc-hero-stat .v{font-size:22px;font-weight:800;line-height:1;}
+.rmc-hero-stat .l{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;opacity:.85;margin-top:4px;}
+@media (max-width:767px){
+  .rmc-hero{grid-template-columns:1fr;}
+  .rmc-hero-stats{margin-top:6px;}
+}
 
 /* ===== Hızlı Eylem Şeridi ===== */
 .rmc-quick-actions{
@@ -45,22 +90,36 @@
 .rmc-qa{
   background:var(--dash-card-bg);
   border:1px solid var(--dash-border);
-  border-radius:14px;
+  border-radius:16px;
   padding:14px 16px;
   display:flex;align-items:center;gap:12px;
   cursor:pointer;
   text-decoration:none !important;
   color:var(--dash-text) !important;
-  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease;
   position:relative;overflow:hidden;
   opacity:0;animation:rmcRise .55s ease forwards;
 }
-.rmc-qa:hover{transform:translateY(-3px);box-shadow:var(--dash-shadow);border-color:#dde1ec;}
+.rmc-qa::after{
+  content:'';position:absolute;left:0;top:0;height:3px;width:0;
+  background:linear-gradient(90deg, var(--dash-accent), var(--dash-pink));
+  transition:width .35s cubic-bezier(.16,1,.3,1);border-radius:0 3px 3px 0;
+}
+.rmc-qa:hover{transform:translateY(-4px);box-shadow:var(--dash-shadow-hover);border-color:transparent;}
+.rmc-qa:hover::after{width:100%;}
 .rmc-qa .rmc-qa-icon{
-  width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;
-  font-size:18px;flex-shrink:0;
+  width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;color:#fff;
+  box-shadow:0 6px 14px rgba(0,0,0,.12);
 }
 .rmc-qa .rmc-qa-text{font-weight:600;font-size:13.5px;line-height:1.25;}
+.rmc-qa.var-1 .rmc-qa-icon{background:linear-gradient(135deg,#1fbf6f,#46d68b);}
+.rmc-qa.var-2 .rmc-qa-icon{background:linear-gradient(135deg,#1e9fff,#5cc0ff);}
+.rmc-qa.var-3 .rmc-qa-icon{background:linear-gradient(135deg,#a16bff,#d199ff);}
+.rmc-qa.var-4 .rmc-qa-icon{background:linear-gradient(135deg,#6e4bff,#9a7cff);}
+.rmc-qa.var-5 .rmc-qa-icon{background:linear-gradient(135deg,#ff8a3d,#ffac6e);}
+.rmc-qa.var-6 .rmc-qa-icon{background:linear-gradient(135deg,#ff5c8a,#ff8aae);}
+.rmc-qa.var-7 .rmc-qa-icon{background:linear-gradient(135deg,#22c4cb,#5dd6dc);}
 .rmc-qa:nth-child(1){animation-delay:.00s}
 .rmc-qa:nth-child(2){animation-delay:.05s}
 .rmc-qa:nth-child(3){animation-delay:.10s}
@@ -74,16 +133,32 @@
   background:var(--dash-card-bg);
   border:1px solid var(--dash-border);
   border-radius:var(--dash-radius);
-  padding:20px 22px;
+  padding:22px 24px;
   box-shadow:var(--dash-shadow);
   opacity:0;animation:rmcRise .55s ease forwards;
+  position:relative;overflow:hidden;
 }
+.rmc-card::before{
+  content:'';position:absolute;left:0;top:0;width:100%;height:4px;
+  background:linear-gradient(90deg, var(--c-from,#6e4bff), var(--c-to,#a16bff));
+  opacity:.95;
+}
+.rmc-card.tone-green{--c-from:#1fbf6f;--c-to:#46d68b;}
+.rmc-card.tone-violet{--c-from:#6e4bff;--c-to:#a16bff;}
+.rmc-card.tone-orange{--c-from:#ff8a3d;--c-to:#ff5c8a;}
+.rmc-card.tone-blue{--c-from:#1e9fff;--c-to:#22c4cb;}
+.rmc-card.tone-pink{--c-from:#ff5c8a;--c-to:#ff8aae;}
+.rmc-card.tone-mix{--c-from:#6e4bff;--c-to:#22c4cb;}
 .rmc-card .rmc-card-head{
   display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:14px;
+  margin-bottom:16px;gap:10px;flex-wrap:wrap;
 }
-.rmc-card-title{font-size:15px;font-weight:700;color:var(--dash-text);display:flex;align-items:center;gap:8px;}
-.rmc-card-title i{color:var(--dash-accent);}
+.rmc-card-title{font-size:15px;font-weight:700;color:var(--dash-text);display:flex;align-items:center;gap:10px;}
+.rmc-card-title .rmc-title-icon{
+  width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg, var(--c-from,#6e4bff), var(--c-to,#a16bff));
+  color:#fff;font-size:15px;box-shadow:0 4px 10px rgba(110,75,255,.18);
+}
 
 /* periyot sekmesi */
 .rmc-period{display:flex;background:#f3f4f8;border-radius:10px;padding:3px;gap:0;}
@@ -148,17 +223,25 @@
 .rmc-randevu-item .txt .lbl{font-size:12px;color:var(--dash-text-soft);}
 
 .rmc-doluluk-ring{
-  width:130px;height:130px;border-radius:50%;
-  background:conic-gradient(var(--dash-orange) 0deg, #f3f4f8 0deg);
+  width:148px;height:148px;border-radius:50%;
+  background:conic-gradient(var(--dash-accent) 0deg, #eef0f6 0deg);
   display:flex;align-items:center;justify-content:center;
   transition:background 1.2s cubic-bezier(.16,1,.3,1);
+  box-shadow:0 8px 24px rgba(110,75,255,.16), inset 0 0 0 2px rgba(255,255,255,.6);
+  position:relative;
+}
+.rmc-doluluk-ring::before{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(110,75,255,.12), transparent 40%);
+  filter:blur(8px);z-index:-1;
 }
 .rmc-doluluk-ring-inner{
-  width:104px;height:104px;border-radius:50%;background:#fff;
+  width:116px;height:116px;border-radius:50%;background:#fff;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
 }
-.rmc-doluluk-pct{font-size:22px;font-weight:800;color:var(--dash-text);}
-.rmc-doluluk-lbl{font-size:10.5px;color:var(--dash-text-muted);font-weight:600;text-align:center;letter-spacing:.3px;}
+.rmc-doluluk-pct{font-size:28px;font-weight:800;color:var(--dash-text);line-height:1;}
+.rmc-doluluk-lbl{font-size:10.5px;color:var(--dash-text-muted);font-weight:600;text-align:center;letter-spacing:.3px;margin-top:6px;}
 
 /* ===== Tabbed Alt Panel ===== */
 .rmc-tabs-card{margin-bottom:22px;}
@@ -231,13 +314,14 @@
 @keyframes rmcPulse{0%,100%{box-shadow:0 0 0 4px rgba(255,111,145,.2);}50%{box-shadow:0 0 0 8px rgba(255,111,145,.05);}}
 
 /* renkler */
-.bg-soft-blue{background:#eaf4ff;color:#3aaaff;}
-.bg-soft-green{background:#e7faf1;color:#27c281;}
-.bg-soft-orange{background:#fff3e3;color:#ff9f43;}
-.bg-soft-pink{background:#ffe9ef;color:#ff6f91;}
-.bg-soft-violet{background:#f1e9ff;color:#9b5cff;}
-.bg-soft-accent{background:#eef0ff;color:#5b6bf7;}
-.bg-soft-gray{background:#f3f4f8;color:#5c6678;}
+.bg-soft-blue{background:#e3f2ff;color:#1e9fff;}
+.bg-soft-green{background:#defaeb;color:#1fbf6f;}
+.bg-soft-orange{background:#fff0e3;color:#ff8a3d;}
+.bg-soft-pink{background:#ffe3eb;color:#ff5c8a;}
+.bg-soft-violet{background:#efe9ff;color:#a16bff;}
+.bg-soft-accent{background:#efe9ff;color:#6e4bff;}
+.bg-soft-gray{background:#f3f4f8;color:#5c6486;}
+.bg-soft-cyan{background:#deffff;color:#22c4cb;}
 
 /* Eylem badge */
 .rmc-yeni{position:absolute;top:6px;right:8px;background:var(--dash-pink);color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:5px;letter-spacing:.4px;}
@@ -252,42 +336,61 @@
 
 <div class="rmc-dash-wrap">
 
-  {{-- Üyelik bilgi şeridi --}}
-  @if(isset($kalan_uyelik_suresi) && is_numeric($kalan_uyelik_suresi) && $kalan_uyelik_suresi >= 0 && $kalan_uyelik_suresi <= 30)
-  <div class="rmc-lic-bar">
-    <i class="bi bi-info-circle-fill"></i>
-    Üyelik sürenizin bitmesine <b>{{$kalan_uyelik_suresi}} gün</b> kaldı.
+  {{-- HERO GREETING --}}
+  @php
+    $hourNow = (int) date('H');
+    $greet = $hourNow < 6 ? 'İyi geceler' : ($hourNow < 12 ? 'Günaydın' : ($hourNow < 18 ? 'İyi günler' : 'İyi akşamlar'));
+    $userName = '';
+    if(Auth::guard('isletmeyonetim')->check()){
+        $userName = Auth::guard('isletmeyonetim')->user()->name ?? '';
+    }
+    $aylarArr = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+    $gunlerArr = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+    $bugunStr = date('j').' '.$aylarArr[date('n')-1].' '.date('Y').' · '.$gunlerArr[(int)date('w')];
+  @endphp
+  <div class="rmc-hero">
+    <div class="rmc-hero-text">
+      <div class="rmc-hero-date">{{$bugunStr}}</div>
+      <div class="rmc-hero-greet">{{$greet}}{{ $userName ? ', '.explode(' ',$userName)[0] : '' }} 👋</div>
+      <div class="rmc-hero-sub">{{$isletme->salon_adi}} — Bugünün özetine göz at, aşağıdaki kartlardan her şeyi tek tıkla yönet.</div>
+    </div>
+    <div class="rmc-hero-stats">
+      <div class="rmc-hero-stat"><div class="v" id="rmc-hero-bugun">—</div><div class="l">Bugün Randevu</div></div>
+      <div class="rmc-hero-stat"><div class="v" id="rmc-hero-gelir">—</div><div class="l">Bugün Gelir ₺</div></div>
+      @if(isset($kalan_uyelik_suresi) && is_numeric($kalan_uyelik_suresi) && $kalan_uyelik_suresi >= 0)
+      <div class="rmc-hero-stat"><div class="v">{{$kalan_uyelik_suresi}}</div><div class="l">Üyelik Gün</div></div>
+      @endif
+    </div>
   </div>
-  @endif
 
   {{-- HIZLI EYLEM ŞERIDI --}}
   <div class="rmc-quick-actions">
-    <a class="rmc-qa" href="#" onclick="$('#randevu-ekle-modal').modal('show');return false;">
-      <div class="rmc-qa-icon bg-soft-green"><i class="bi bi-calendar-plus-fill"></i></div>
+    <a class="rmc-qa var-1" href="#" onclick="$('#randevu-ekle-modal').modal('show');return false;">
+      <div class="rmc-qa-icon"><i class="bi bi-calendar-plus-fill"></i></div>
       <div class="rmc-qa-text">Yeni Randevu Oluştur</div>
     </a>
-    <a class="rmc-qa" href="/isletmeyonetim/adisyonlar{{$subeQuery}}">
-      <div class="rmc-qa-icon bg-soft-blue"><i class="bi bi-receipt"></i></div>
+    <a class="rmc-qa var-2" href="/isletmeyonetim/adisyonlar{{$subeQuery}}">
+      <div class="rmc-qa-icon"><i class="bi bi-receipt"></i></div>
       <div class="rmc-qa-text">Adisyon Oluştur</div>
     </a>
-    <a class="rmc-qa" href="/isletmeyonetim/paketler{{$subeQuery}}">
-      <div class="rmc-qa-icon bg-soft-violet"><i class="bi bi-gift-fill"></i></div>
+    <a class="rmc-qa var-3" href="/isletmeyonetim/paketler{{$subeQuery}}">
+      <div class="rmc-qa-icon"><i class="bi bi-gift-fill"></i></div>
       <div class="rmc-qa-text">Yeni Paket Oluştur</div>
     </a>
-    <a class="rmc-qa" href="/isletmeyonetim/hizmetler{{$subeQuery}}">
-      <div class="rmc-qa-icon bg-soft-accent"><i class="bi bi-stars"></i></div>
+    <a class="rmc-qa var-4" href="/isletmeyonetim/hizmetler{{$subeQuery}}">
+      <div class="rmc-qa-icon"><i class="bi bi-stars"></i></div>
       <div class="rmc-qa-text">Yeni Hizmet Oluştur</div>
     </a>
-    <a class="rmc-qa" href="/isletmeyonetim/islemraporlari{{$subeQuery}}">
-      <div class="rmc-qa-icon bg-soft-orange"><i class="bi bi-bar-chart-line-fill"></i></div>
+    <a class="rmc-qa var-5" href="/isletmeyonetim/islemraporlari{{$subeQuery}}">
+      <div class="rmc-qa-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
       <div class="rmc-qa-text">İşletme Raporları</div>
     </a>
-    <a class="rmc-qa" href="/isletmeyonetim/musteriler{{$subeQuery}}">
-      <div class="rmc-qa-icon bg-soft-pink"><i class="bi bi-people-fill"></i></div>
+    <a class="rmc-qa var-6" href="/isletmeyonetim/musteriler{{$subeQuery}}">
+      <div class="rmc-qa-icon"><i class="bi bi-people-fill"></i></div>
       <div class="rmc-qa-text">Müşteri Listesi</div>
     </a>
-    <a class="rmc-qa" href="/isletmeyonetim/excelmusteritopluekle{{$subeQuery}}">
-      <div class="rmc-qa-icon bg-soft-gray"><i class="bi bi-file-earmark-spreadsheet-fill"></i></div>
+    <a class="rmc-qa var-7" href="/isletmeyonetim/excelmusteritopluekle{{$subeQuery}}">
+      <div class="rmc-qa-icon"><i class="bi bi-file-earmark-spreadsheet-fill"></i></div>
       <div class="rmc-qa-text">Excel ile Toplu Müşteri</div>
     </a>
   </div>
@@ -296,9 +399,9 @@
   <div class="rmc-grid-top">
 
     {{-- KASA İSTATISTIKLERI --}}
-    <div class="rmc-card delay-1" id="rmc-kasa-card">
+    <div class="rmc-card tone-green delay-1" id="rmc-kasa-card">
       <div class="rmc-card-head">
-        <div class="rmc-card-title"><i class="bi bi-wallet2"></i> Kasa İstatistikleri</div>
+        <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-wallet2"></i></span> Kasa İstatistikleri</div>
         <div class="rmc-period" data-target="kasa">
           <button data-period="daily" class="is-active">Günlük</button>
           <button data-period="7d">Son 7 gün</button>
@@ -308,10 +411,10 @@
       <div class="rmc-kasa-body">
         <div class="rmc-kasa-chart-box"><canvas id="rmc-kasa-chart"></canvas></div>
         <div class="rmc-kasa-legend">
-          <div class="rmc-kasa-row"><span class="rmc-dot" style="background:#27c281"></span> Nakit <span id="rmc-kasa-nakit-pct" style="margin-left:auto;color:#9aa3b2;font-weight:600;">— %</span></div>
-          <div class="rmc-kasa-row"><span class="rmc-dot" style="background:#5b6bf7"></span> Kart <span id="rmc-kasa-kart-pct" style="margin-left:auto;color:#9aa3b2;font-weight:600;">— %</span></div>
-          <div class="rmc-kasa-row"><span class="rmc-dot" style="background:#ff9f43"></span> Havale/EFT <span id="rmc-kasa-havale-pct" style="margin-left:auto;color:#9aa3b2;font-weight:600;">— %</span></div>
-          <div class="rmc-kasa-row"><span class="rmc-dot" style="background:#9aa3b2"></span> Diğer <span id="rmc-kasa-diger-pct" style="margin-left:auto;color:#9aa3b2;font-weight:600;">— %</span></div>
+          <div class="rmc-kasa-row"><span class="rmc-dot" style="background:#1fbf6f"></span> Nakit <span id="rmc-kasa-nakit-pct" style="margin-left:auto;color:#9097ad;font-weight:600;">— %</span></div>
+          <div class="rmc-kasa-row"><span class="rmc-dot" style="background:#6e4bff"></span> Kart <span id="rmc-kasa-kart-pct" style="margin-left:auto;color:#9097ad;font-weight:600;">— %</span></div>
+          <div class="rmc-kasa-row"><span class="rmc-dot" style="background:#ff8a3d"></span> Havale/EFT <span id="rmc-kasa-havale-pct" style="margin-left:auto;color:#9097ad;font-weight:600;">— %</span></div>
+          <div class="rmc-kasa-row"><span class="rmc-dot" style="background:#9097ad"></span> Diğer <span id="rmc-kasa-diger-pct" style="margin-left:auto;color:#9097ad;font-weight:600;">— %</span></div>
         </div>
       </div>
       <div class="rmc-kasa-total">
@@ -322,9 +425,9 @@
     </div>
 
     {{-- RANDEVU TAKVIMI --}}
-    <div class="rmc-card delay-2" id="rmc-cal-card">
+    <div class="rmc-card tone-violet delay-2" id="rmc-cal-card">
       <div class="rmc-card-head">
-        <div class="rmc-card-title"><i class="bi bi-calendar3"></i> Randevu Takvimi</div>
+        <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-calendar3"></i></span> Randevu Takvimi</div>
       </div>
       <div class="rmc-cal-head">
         <button class="rmc-cal-nav" data-cal-nav="-1"><i class="bi bi-chevron-left"></i></button>
@@ -338,9 +441,9 @@
     </div>
 
     {{-- RANDEVU AYRINTILARI --}}
-    <div class="rmc-card delay-3" id="rmc-randevu-card">
+    <div class="rmc-card tone-orange delay-3" id="rmc-randevu-card">
       <div class="rmc-card-head">
-        <div class="rmc-card-title"><i class="bi bi-clock-history"></i> Randevu Ayrıntıları</div>
+        <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-clock-history"></i></span> Randevu Ayrıntıları</div>
         <div class="rmc-period" data-target="randevu">
           <button data-period="daily" class="is-active">Günlük</button>
           <button data-period="7d">7g</button>
@@ -376,7 +479,7 @@
   </div>
 
   {{-- ALT PANEL: SEKMELER --}}
-  <div class="rmc-card rmc-tabs-card delay-4">
+  <div class="rmc-card tone-mix rmc-tabs-card delay-4">
     <div class="rmc-tabs-nav">
       <button class="rmc-tab is-active" data-tab="online-talep"><i class="bi bi-globe2"></i> Online Randevu Talepleri</button>
       <button class="rmc-tab" data-tab="bugunku-randevu"><i class="bi bi-calendar-day"></i> Bugünkü Randevular <span class="badge-new">YENİ</span></button>
@@ -395,9 +498,9 @@
 
   {{-- ALT GRID: Timeline + Personel Anlık Durum --}}
   <div class="rmc-grid-bottom">
-    <div class="rmc-card delay-5">
+    <div class="rmc-card tone-pink delay-5">
       <div class="rmc-card-head">
-        <div class="rmc-card-title"><i class="bi bi-activity"></i> Bugünkü Akış</div>
+        <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-activity"></i></span> Bugünkü Akış</div>
         <span style="font-size:11px;color:var(--dash-text-muted);font-weight:600;">Randevu + Tahsilat</span>
       </div>
       <div class="rmc-timeline" id="rmc-timeline">
@@ -406,9 +509,9 @@
         @endfor
       </div>
     </div>
-    <div class="rmc-card delay-6">
+    <div class="rmc-card tone-blue delay-6">
       <div class="rmc-card-head">
-        <div class="rmc-card-title"><i class="bi bi-person-workspace"></i> Personel Anlık Durum</div>
+        <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-person-workspace"></i></span> Personel Anlık Durum</div>
         <span style="font-size:11px;color:var(--dash-text-muted);font-weight:600;">Bugün</span>
       </div>
       <div class="rmc-personel-list" id="rmc-personel-list">
@@ -461,12 +564,12 @@ function rmcDashInit(){
       var ctx = document.getElementById('rmc-kasa-chart').getContext('2d');
       if(kasaChart) kasaChart.destroy();
       var values = [d.nakit, d.kart, d.havale, d.diger];
-      var colors = ['#27c281','#5b6bf7','#ff9f43','#9aa3b2'];
-      if(d.toplam <= 0){ values = [0,0,0,1]; colors = ['#27c281','#5b6bf7','#ff9f43','#eef0f4']; }
+      var colors = ['#1fbf6f','#6e4bff','#ff8a3d','#9097ad'];
+      if(d.toplam <= 0){ values = [0,0,0,1]; colors = ['#1fbf6f','#6e4bff','#ff8a3d','#eef0f6']; }
       kasaChart = new Chart(ctx, {
         type:'doughnut',
         data:{labels:['Nakit','Kart','Havale','Diğer'],datasets:[{data:values,backgroundColor:colors,borderWidth:0,hoverOffset:6}]},
-        options:{cutout:'68%',plugins:{legend:{display:false},tooltip:{enabled:d.toplam>0}},animation:{duration:900,easing:'easeOutQuart'}}
+        options:{cutout:'70%',plugins:{legend:{display:false},tooltip:{enabled:d.toplam>0}},animation:{duration:900,easing:'easeOutQuart'}}
       });
       var t = d.toplam || 0;
       document.getElementById('rmc-kasa-nakit-pct').textContent = pct(d.nakit,t)+' %';
@@ -474,6 +577,12 @@ function rmcDashInit(){
       document.getElementById('rmc-kasa-havale-pct').textContent = pct(d.havale,t)+' %';
       document.getElementById('rmc-kasa-diger-pct').textContent = pct(d.diger,t)+' %';
       animateCount(document.getElementById('rmc-kasa-total'), t);
+
+      // hero: bugun gelir (period=daily ise)
+      if(period === 'daily'){
+        var heroGelir = document.getElementById('rmc-hero-gelir');
+        if(heroGelir) animateCount(heroGelir, t);
+      }
 
       // sparkline (son 7 gün)
       var svg = document.getElementById('rmc-kasa-spark');
@@ -487,9 +596,9 @@ function rmcDashInit(){
         }).join(' ');
         var area = path + ' L'+w+','+h+' L0,'+h+' Z';
         svg.innerHTML =
-          '<defs><linearGradient id="rmcSparkG" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#5b6bf7" stop-opacity=".35"/><stop offset="100%" stop-color="#5b6bf7" stop-opacity="0"/></linearGradient></defs>'
+          '<defs><linearGradient id="rmcSparkG" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#1fbf6f" stop-opacity=".40"/><stop offset="100%" stop-color="#1fbf6f" stop-opacity="0"/></linearGradient></defs>'
         + '<path d="'+area+'" fill="url(#rmcSparkG)"/>'
-        + '<path d="'+path+'" fill="none" stroke="#5b6bf7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
+        + '<path d="'+path+'" fill="none" stroke="#1fbf6f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
       }
     }).catch(function(e){console.warn('kasa err',e);});
   }
@@ -500,11 +609,18 @@ function rmcDashInit(){
       animateCount(document.getElementById('rmc-rnd-olusturulan'), d.olusturulan);
       animateCount(document.getElementById('rmc-rnd-sonuclanan'), d.sonuclanan);
       animateCount(document.getElementById('rmc-rnd-sonuclanmayan'), d.sonuclanmayan);
+      // hero: bugun randevu (period=daily ise)
+      if(period === 'daily'){
+        var heroBugun = document.getElementById('rmc-hero-bugun');
+        if(heroBugun) animateCount(heroBugun, d.olusturulan);
+      }
       var ring = document.getElementById('rmc-doluluk-ring');
       var pctVal = Number(d.doluluk)||0;
       var deg = Math.round(pctVal*3.6);
-      var color = pctVal>=70 ? '#27c281' : pctVal>=40 ? '#ff9f43' : '#ff6f91';
-      ring.style.background = 'conic-gradient('+color+' '+deg+'deg, #f3f4f8 '+deg+'deg)';
+      // doluluk renk skalasi — yeni paleti kullan, gradient ring icin iki renk
+      var c1 = pctVal>=70 ? '#1fbf6f' : pctVal>=40 ? '#ff8a3d' : '#ff5c8a';
+      var c2 = pctVal>=70 ? '#46d68b' : pctVal>=40 ? '#ffac6e' : '#ff8aae';
+      ring.style.background = 'conic-gradient(from -90deg, '+c1+' 0deg, '+c2+' '+deg+'deg, #eef0f6 '+deg+'deg)';
       var pctEl = document.getElementById('rmc-doluluk-pct');
       var startTs = performance.now(); var dur = 1100;
       function step(t){
