@@ -2146,16 +2146,76 @@
         }, 80);
     });
 
-    // Saat Kapama submit — basitce v1 saat kapama formunu kullan
+    // Saat Kapama submit — dogrudan /isletmeyonetim/saatkapamaekle endpoint'ine
+    // (V1 saat_kapama formu personel select'i bos kaliyor cunku v1 modal acilmamis
+    // oldugundan options yuklenmemis — proxy patliyor.)
     $modal.on('click', '#v2_submit_kapama_btn', function(){
-        // V1'deki saat kapama formunu doldur ve submit et
-        $('#saat_kapama select[name="personel"]').val($('#v2_kapama_personel').val()).trigger('change');
-        $('#saat_kapama input[name="tarih"]').val($('#v2_kapama_tarih').val());
-        $('#saat_kapama input[name="saat"]').val($('#saatkapamaform_v2 input[name="saat"]').val());
-        $('#saat_kapama input[name="saat_bitis"]').val($('#saatkapamaform_v2 input[name="saat_bitis"]').val());
-        $('#saat_kapama input[name="tum_gun"]').prop('checked', $('#v2_kapama_tumgun').is(':checked'));
-        $('#saat_kapama textarea[name="personel_notu"]').val($('#saatkapamaform_v2 textarea[name="personel_notu"]').val());
-        $('#saat_kapama').trigger('submit');
+        var personelId = $('#v2_kapama_personel').val();
+        var tarih      = $('#v2_kapama_tarih').val();
+        var $saat      = $('#saatkapamaform_v2 input[name="saat"]');
+        var $saatBitis = $('#saatkapamaform_v2 input[name="saat_bitis"]');
+        var tumGun     = $('#v2_kapama_tumgun').is(':checked');
+        var notu       = $('#saatkapamaform_v2 textarea[name="personel_notu"]').val();
+
+        // Frontend validation
+        var hata = '';
+        if(!personelId) hata += '- Personel seçiniz<br>';
+        if(!tarih)      hata += '- Tarih giriniz<br>';
+        if(!tumGun){
+            if(!$saat.val())      hata += '- Başlangıç saati giriniz<br>';
+            if(!$saatBitis.val()) hata += '- Bitiş saati giriniz<br>';
+        }
+        if(hata){
+            if(typeof swal !== 'undefined'){
+                swal({ type:'warning', title:'Uyarı', html:hata, timer:3000, showConfirmButton:false });
+            } else {
+                alert(hata.replace(/<br>/g,'\n'));
+            }
+            return;
+        }
+
+        var formData = new FormData();
+        formData.append('_token', $('input[name="_token"]').first().val() || $('meta[name="csrf-token"]').attr('content') || '');
+        formData.append('sube', '{{ $isletme->id }}');
+        formData.append('personel', personelId);
+        formData.append('tarih', tarih);
+        formData.append('saat', $saat.val() || '');
+        formData.append('saat_bitis', $saatBitis.val() || '');
+        formData.append('tum_gun', tumGun ? 'on' : '');
+        formData.append('personel_notu', notu || '');
+        // Tekrarlayan v2'de yok — v1 backend opsiyonel kabul ediyor
+        formData.append('tekrarlayan', '');
+        formData.append('tekrar_sikligi', '+1 day');
+        formData.append('tekrar_sayisi', '0');
+
+        $.ajax({
+            type: 'POST',
+            url: '/isletmeyonetim/saatkapamaekle',
+            data: formData,
+            processData: false,
+            contentType: false,
+            beforeSend: function(){ $('#preloader').show(); },
+            success: function(result){
+                $('#preloader').hide();
+                var msg = (result && result.message) ? result.message : 'Saat kapama eklendi';
+                if(typeof swal !== 'undefined'){
+                    swal({ type:'success', title:'Başarılı', text:msg, timer:2000, showConfirmButton:false });
+                }
+                $modal.modal('hide');
+                if(typeof takvimyukle === 'function'){ takvimyukle(false,false); }
+            },
+            error: function(req){
+                $('#preloader').hide();
+                var errMsg = '';
+                try { var j = JSON.parse(req.responseText); errMsg = j && j.error ? j.error : req.responseText; }
+                catch(e){ errMsg = req.responseText || 'Bilinmeyen hata'; }
+                if(typeof swal !== 'undefined'){
+                    swal({ type:'error', title:'Saat kapama kaydedilemedi', text:errMsg });
+                } else {
+                    alert('Hata: '+errMsg);
+                }
+            }
+        });
     });
 
 })();
