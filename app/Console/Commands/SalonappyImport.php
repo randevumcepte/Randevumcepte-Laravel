@@ -756,20 +756,24 @@ class SalonappyImport extends Command
                         ->orderByDesc('id')->value('id');
                 }
                 if (!$userId) { $pHata++; continue; }
-                // Source bazli ayni user+tarih+tutar tahsilat var mi (visit/urun
-                // pipeline'in ekledigi marker'siz tahsilatla cakismayi engelle).
-                $existSame = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                // Cakisma engeli: ayni user+tarih+tutar'da BASKA bir salonappy marker'li
+                // tahsilat (visit/urun/pkgsale pipeline ekledi: [salonappy:sess],
+                // [salonappy-prodsale:id], [salonappy-pkgsale:gid]) varsa o tahsilata
+                // payment marker'i CONCAT'le, yeni tahsilat INSERT etme. Boylece duplicate olmaz.
+                // Onceki kod sadece whereNull('notlar') aramasiyla yapiyordu —
+                // visit pipeline marker yazdigi icin (NULL degil) match olmuyor,
+                // duplicate insert ediyordu.
+                $eslesen = \DB::table('tahsilatlar')->where('salon_id', $salonId)
                     ->where('user_id', $userId)
                     ->where('odeme_tarihi', $odemeTarih)
                     ->where('tutar', $tutar)
-                    ->whereNull('notlar')->exists();
-                if ($existSame) {
-                    // Mevcut tahsilata marker yaz (ileride dedup icin)
-                    $upd = \DB::table('tahsilatlar')->where('salon_id', $salonId)
-                        ->where('user_id', $userId)->where('odeme_tarihi', $odemeTarih)
-                        ->where('tutar', $tutar)->whereNull('notlar')
-                        ->limit(1)->update(['notlar' => $payMarker]);
-                    if ($upd) { $pDedup++; continue; }
+                    ->where('notlar', 'NOT LIKE', '%[salonappy-payment:%')
+                    ->orderBy('id')->first();
+                if ($eslesen) {
+                    $yeniNot = trim(($eslesen->notlar ?? '') . ' ' . $payMarker);
+                    \DB::table('tahsilatlar')->where('id', $eslesen->id)->update(['notlar' => $yeniNot]);
+                    $pDedup++;
+                    continue;
                 }
                 // Tamamen yeni tahsilat (ozellikle "Paket satisi" source — paymentslar
                 // visit pipeline'a girmiyor). Adisyon_id NULL (bagimsiz kasa kaydi).
