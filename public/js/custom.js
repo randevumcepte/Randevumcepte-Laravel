@@ -10119,7 +10119,7 @@ function takvimyukle(preload,turdegisti)
 
                  
                   
-                     if(new Date(event.start.format()) < new Date())
+                     if(false) // Gecmis tarihe randevu engeli kaldirildi
                      swal(
                             {
                                 type: 'warning',
