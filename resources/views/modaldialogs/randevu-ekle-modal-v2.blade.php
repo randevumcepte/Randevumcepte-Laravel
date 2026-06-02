@@ -88,20 +88,6 @@
                             </div>
                         </div>
 
-                        {{-- Bulk paneli — sadece 2+ satirda gosterilir --}}
-                        <div class="v2-bulk" id="v2_bulk_panel" style="display:none;">
-                            <div class="v2-bulk-title"><i class="fa fa-magic"></i> Tüm satırlara uygula</div>
-                            <div class="v2-bulk-grid">
-                                <select id="v2_bulk_personel" class="form-control v2-input v2-sm"><option value="">Personel...</option></select>
-                                @if ($__cihazVar)
-                                <select id="v2_bulk_cihaz" class="form-control v2-input v2-sm"><option value="">Cihaz...</option></select>
-                                @endif
-                                @if ($__odaVar)
-                                <select id="v2_bulk_oda" class="form-control v2-input v2-sm"><option value="">Oda...</option></select>
-                                @endif
-                            </div>
-                        </div>
-
                         <div class="v2-services" id="v2_services">
                             {{-- ilk satir JS ile eklenir --}}
                         </div>
@@ -467,32 +453,10 @@
 }
 
 /* ===== BULK ===== */
-#modal-view-event-add-v2 .v2-bulk {
-    background: linear-gradient(135deg, #faf5ff, #fdf4ff);
-    border: 1px dashed #d8b4fe;
-    border-radius: 9px;
-    padding: 10px 12px;
-    margin-bottom: 10px;
-    animation: v2-slide-down 0.2s ease;
-}
 @keyframes v2-slide-down {
     from { opacity: 0; transform: translateY(-6px); }
     to   { opacity: 1; transform: translateY(0); }
 }
-#modal-view-event-add-v2 .v2-bulk-title {
-    font-size: 0.74rem;
-    color: #7c2d92;
-    font-weight: 600;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-#modal-view-event-add-v2 .v2-bulk-grid {
-    display: flex;
-    gap: 6px;
-}
-#modal-view-event-add-v2 .v2-bulk-grid > select { flex: 1; min-width: 0; }
 
 /* ===== SERVICE ROW ===== */
 #modal-view-event-add-v2 .v2-services { display: flex; flex-direction: column; gap: 8px; }
@@ -948,7 +912,6 @@
             $(this).find('.v2-row-meta').attr('data-meta-for', i);
         });
         var count = $services.find('.v2-service-row').length;
-        $('#v2_bulk_panel').toggle(count >= 2);
         $services.find('.v2-remove-row').prop('disabled', count <= 1);
     }
 
@@ -1502,34 +1465,6 @@
     function escapeHtml(s){ return $('<div>').text(s == null ? '' : s).html(); }
     function escapeAttr(s){ return String(s == null ? '' : s).replace(/"/g,'&quot;'); }
 
-    function initBulkSelects(){
-        var data = getRandevuModalData();
-        var $bp = $('#v2_bulk_personel').empty().append('<option value="">Personel...</option>');
-        data.personeller.forEach(function(p){ $bp.append(new Option(p.ad, p.id)); });
-        var $bc = $('#v2_bulk_cihaz');
-        if($bc.length){
-            $bc.empty().append('<option value="">Cihaz...</option>');
-            data.cihazlar.forEach(function(c){ $bc.append(new Option(c.ad, c.id)); });
-        }
-        var $bo = $('#v2_bulk_oda');
-        if($bo.length){
-            $bo.empty().append('<option value="">Oda...</option>');
-            data.odalar.forEach(function(o){ $bo.append(new Option(o.ad, o.id)); });
-        }
-        $bp.off('change.v2bulk').on('change.v2bulk', function(){
-            var v = $(this).val();
-            $services.find('.v2-personel').val(v);
-        });
-        $bc.off('change.v2bulk').on('change.v2bulk', function(){
-            var v = $(this).val();
-            $services.find('.v2-cihaz').val(v);
-        });
-        $bo.off('change.v2bulk').on('change.v2bulk', function(){
-            var v = $(this).val();
-            $services.find('.v2-oda').val(v);
-        });
-    }
-
     // -------- HIZMET VERISI YUKLE (v1'in cache'i bos ise) --------
     function ensureHizmetVerisi(cb){
         // Eger v1 modali zaten cache'i doldurmussa kullan
@@ -1584,7 +1519,6 @@
         }
         initMusteriSelect();
         ensureHizmetVerisi(function(){
-            initBulkSelects();
             if($services.children().length === 0) addRow();
             installPaketDispatcher();
             v2Init = true;
@@ -1615,12 +1549,6 @@
         });
         $services.empty();
         addRow();
-        $('#v2_bulk_panel').hide();
-
-        // Bulk panel inputs
-        $('#v2_bulk_personel').val('');
-        $('#v2_bulk_cihaz').val('');
-        $('#v2_bulk_oda').val('');
 
         // Notlar
         $('#v2_not').val('');
