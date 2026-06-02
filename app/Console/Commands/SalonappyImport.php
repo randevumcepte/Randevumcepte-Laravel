@@ -473,17 +473,34 @@ class SalonappyImport extends Command
                     }
                 }
 
-                // Paket kullanimlari: package_usages'den seans dusumu
+                // Paket kullanimlari: package_usages'den seans dusumu (varsa)
+                // Salonappy bu alani sik sik bos birakiyor — eger doluysa kullan,
+                // degilse asagidaki "visit services'a gore otomatik tuketim" devreye girer.
                 if (!empty($bd['package_usages'])) {
                     foreach ($bd['package_usages'] as $use) {
                         $hizmetAd = trim((string) ($use['service_text'] ?? ''));
                         if ($hizmetAd === '') continue;
-                        // Canonical'a normalize et (yoksa create) - seans hizmet_id eslestirmesi icin
                         $canonAd = $hizmetAd;
                         $this->ensureSalonHizmet($salonId, $hizmetAd, 30, 0, $canonAd);
                         $kullanimSayisi = (int) ($use['quantity'] ?? 1);
                         $kullanimTarih = $use['date'] ?? $tarih;
                         $this->salonappySeansiTuket($userId, $salonId, $canonAd, $kullanimTarih, $saat, $kullanimSayisi);
+                    }
+                } else {
+                    // Drklinik mantigi: visit'in her hizmeti icin musterinin acik paketinde
+                    // ayni hizmet varsa OTOMATIK paket seansi tuket. status/showup kontrol:
+                    //  - Iptal/gelmedi randevu ise tuketme (paket placeholder geldi=0 kalir).
+                    //  - Approved + Showed up (geldi) ise tuket.
+                    $statusKel = $this->normalizeStatus($v['status_text'] ?? '', $detail['status'] ?? null);
+                    $geldiKel = $this->normalizeShowup($v['showup_text'] ?? '', $detail['showup'] ?? null);
+                    $iptalMi = (mb_stripos($statusKel, 'iptal', 0, 'UTF-8') !== false);
+                    $gelmediMi = (mb_stripos($geldiKel, 'gelmedi', 0, 'UTF-8') !== false);
+                    if (!$iptalMi && !$gelmediMi) {
+                        foreach ($hizmetler as $h) {
+                            $hAd = trim((string) ($h['hizmet'] ?? ''));
+                            if ($hAd === '') continue;
+                            $this->salonappySeansiTuket($userId, $salonId, $hAd, $tarih, $saat, 1);
+                        }
                     }
                 }
 
