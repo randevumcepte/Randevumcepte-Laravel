@@ -672,6 +672,12 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                                     var $lastFiyat = $fiyatInputs.last();
                                     if($lastSure.length && h.sure_dk) $lastSure.val(h.sure_dk);
                                     if($lastFiyat.length && h.fiyat) $lastFiyat.val(h.fiyat);
+                                    // Miktar (dusum_miktari) — detay render'i opt.dusum_miktari'yi
+                                    // bilmiyor (option'a yazilmiyor), o yuzden randevudan gelen
+                                    // gercek dusum_miktari'yi Miktar input'una burada yaz.
+                                    var $miktarInputs = $row.find('input.hizmet-miktari');
+                                    var $lastMiktar = $miktarInputs.last();
+                                    if($lastMiktar.length && h.dusum_miktari) $lastMiktar.val(h.dusum_miktari);
                                 }, 50);
                             }
                         }, 100);
