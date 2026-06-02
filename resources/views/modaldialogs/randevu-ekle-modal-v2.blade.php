@@ -1951,18 +1951,22 @@
     // tiklamasi v1 modalini acmaya calisir; biz yakalayip kapatip
     // alanlari v2'ye kopyalayip v2'yi aciyoruz.
     // ============================================================
-    $(document).on('show.bs.modal', '#modal-view-event-add', function(e){
+    function _v2InterceptHandler(e){
         if(!window.useV2Modal) return;
         if(window._v2BypassIntercept) return;
-        // Bootstrap 4: show.bs.modal'da preventDefault() v1'in acilmasini engeller
-        if(e.preventDefault) e.preventDefault();
-        var $v1 = $(this);
-        // Yedek: yine de acilirsa hide
-        setTimeout(function(){
-            if($v1.hasClass('show') || $v1.is(':visible')){ $v1.modal('hide'); }
-        }, 50);
+        console.log('[V2 INTERCEPT] v1 modal show yakalandi → v2 acilacak');
+        // Bootstrap 4'te preventDefault bazen yetmiyor; her yolu dene
+        if(e && e.preventDefault) e.preventDefault();
+        if(e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+        if(e && e.stopPropagation) e.stopPropagation();
 
-        // Slot bilgilerini v1 alanlarindan oku
+        var $v1 = $('#modal-view-event-add');
+        // V1'i ZORLA gizle (Bootstrap classlari + inline style + backdrop temizligi)
+        $v1.removeClass('show in').css('display','none').attr('aria-hidden','true').removeAttr('aria-modal');
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('padding-right','');
+
+        // Slot bilgilerini v1 alanlarindan oku (eventClick handler zaten doldurmustu)
         var tarih = $('#randevutarihiyeni').val();
         var saat  = $('#randevu_saat').val();
         var v1PersonelOpt = $('select[name="randevupersonelleriyeni[]"]:first option:selected');
@@ -2019,7 +2023,11 @@
             $modal.one('shown.bs.modal', function(){ setTimeout(fillV2, 100); });
             $modal.modal('show');
         }
-    });
+    }
+
+    // V1 modal hem show hem shown event'lerinde yakalanir (safety net)
+    $(document).on('show.bs.modal',   '#modal-view-event-add', _v2InterceptHandler);
+    $(document).on('shown.bs.modal',  '#modal-view-event-add', _v2InterceptHandler);
 
     // -------- SUBMIT (proxy to v1) --------
     $modal.on('click', '#v2_submit_btn', function(){
