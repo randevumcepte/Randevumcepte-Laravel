@@ -2143,7 +2143,16 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                 // son calistigi ve sonrasinda reload olmadigi icin secim KESIN kalir.
                 setTimeout(function(){
                     $('#yenirandevuekleform .hizmet-satiri').each(function(i){
-                        if(hizmetData[i]){ try { _setHizmetInRow($(this), hizmetData[i]); } catch(e){} }
+                        if(hizmetData[i]){ try { _setHizmetInRow($(this), hizmetData[i]); } catch(e){ console.warn('[REASSERT] hata', e); } }
+                    });
+                    // TANI: re-assert sonrasi her satirin hizmet TS durumu
+                    $('#yenirandevuekleform .hizmet-satiri').each(function(i){
+                        var sel = $(this).find('.hizmet-select')[0];
+                        var ts = sel && sel.tomselect;
+                        console.log('[REASSERT] satir '+i+' tomselect=', !!ts,
+                            'items=', ts ? JSON.stringify(ts.items) : 'YOK',
+                            'optionKeys=', ts ? Object.keys(ts.options).length : 0,
+                            'nativeVal=', $(this).find('.hizmet-select').val());
                     });
                     try { updateRandevuOzeti(); } catch(e){}
                 }, 200);
