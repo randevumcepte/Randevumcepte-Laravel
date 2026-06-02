@@ -25709,19 +25709,21 @@ DB::raw('
         ]);
     }
 
-    // HİZMETLER için sorgu - düzeltildi
+    // HİZMETLER için sorgu.
+    // NOT: 'bekleyen_seans > 0' filtresi KALDIRILDI — bu kolon guvenilir degil (asagidaki
+    // kalan-seans formulu de bu yuzden var). Bayat bekleyen_seans=0 yuzunden gercekte seansi
+    // olan paket/hizmetler yanlislikla eleniyor, modal acilmiyordu. Tukenmisleri asagidaki
+    // formul ($kalanSeans <= 0 continue) zaten eliyor.
     $randevuOlusturulmamisHizmetAdisyonuVarmi = Adisyonlar::whereHas('hizmetler', function($q) {
-        $q->where('otomatik_randevu_olusturuldu', '!=', 1)
-          ->where('bekleyen_seans', '>', 0);
+        $q->where('otomatik_randevu_olusturuldu', '!=', 1);
     })->where('user_id', $user->id)
       ->where('salon_id', $request->sube)
       ->with(['hizmetler.hizmet']) // İlişkileri yükle
       ->get();
 
-    // PAKETLER için sorgu - düzeltildi
+    // PAKETLER için sorgu (bekleyen_seans filtresi ayni nedenle kaldirildi).
     $randevuOlusturulmamisPaketAdisyonuVarmi = Adisyonlar::whereHas('paketler', function($q) {
-        $q->where('otomatik_randevu_olusturuldu', '!=', 1)
-          ->where('bekleyen_seans', '>', 0);
+        $q->where('otomatik_randevu_olusturuldu', '!=', 1);
     })->where('user_id', $user->id)
       ->where('salon_id', $request->sube)
       ->with(['paketler.paket.hizmetler.hizmet']) // İlişkileri yükle
