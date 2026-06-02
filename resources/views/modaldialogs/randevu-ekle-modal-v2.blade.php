@@ -541,6 +541,134 @@
     letter-spacing: 0.3px;
 }
 #modal-view-event-add-v2 .v2-paket-rozet i { font-size: 0.66rem; }
+
+/* ===== PAKET KART (akordiyon) ===== */
+#modal-view-event-add-v2 .v2-paket-card {
+    background: linear-gradient(180deg, #fdfbff, #faf5ff);
+    border: 1px solid #ddd6fe;
+    box-shadow: 0 1px 3px rgba(124, 58, 237, 0.06);
+    padding: 0;
+    overflow: hidden;
+}
+#modal-view-event-add-v2 .v2-paket-card:hover {
+    border-color: #c4b5fd;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.12);
+}
+#modal-view-event-add-v2 .v2-paket-head { padding: 0; }
+#modal-view-event-add-v2 .v2-paket-toggle {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s;
+}
+#modal-view-event-add-v2 .v2-paket-toggle:hover { background: rgba(124,58,237,0.04); }
+#modal-view-event-add-v2 .v2-paket-toggle > .fa-gift {
+    color: #7c3aed;
+    font-size: 1.1rem;
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+#modal-view-event-add-v2 .v2-paket-title {
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: #4c1d95;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#modal-view-event-add-v2 .v2-paket-count {
+    font-size: 0.7rem;
+    color: #6d28d9;
+    background: #ede9fe;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+#modal-view-event-add-v2 .v2-paket-meta {
+    font-size: 0.78rem;
+    color: #6b21a8;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-left: 4px;
+}
+#modal-view-event-add-v2 .v2-paket-chev {
+    color: #9ca3af;
+    font-size: 0.72rem;
+    transition: transform 0.2s;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+#modal-view-event-add-v2 .v2-paket-card.expanded .v2-paket-chev { transform: rotate(180deg); }
+
+#modal-view-event-add-v2 .v2-paket-controls {
+    padding: 0 14px 12px;
+    border-top: 1px dashed rgba(124, 58, 237, 0.15);
+    padding-top: 10px;
+}
+
+#modal-view-event-add-v2 .v2-paket-detay {
+    padding: 0 14px 14px;
+    border-top: 1px solid #ede9fe;
+    background: rgba(255,255,255,0.6);
+}
+#modal-view-event-add-v2 .v2-paket-hizmet-list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+}
+#modal-view-event-add-v2 .v2-paket-hizmet-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    margin-bottom: 4px;
+    background: #fff;
+    border: 1px solid #f3f0fc;
+    border-radius: 7px;
+    font-size: 0.82rem;
+}
+#modal-view-event-add-v2 .v2-paket-hizmet-list li::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #c026d3);
+    flex-shrink: 0;
+}
+#modal-view-event-add-v2 .v2-paket-hizmet-ad {
+    color: #1f2937;
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+}
+#modal-view-event-add-v2 .v2-seans-badge {
+    background: #ede9fe;
+    color: #6d28d9;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+#modal-view-event-add-v2 .v2-paket-hizmet-sure {
+    color: #9ca3af;
+    font-size: 0.74rem;
+    font-weight: 500;
+    flex-shrink: 0;
+}
 #modal-view-event-add-v2 .v2-service-grid {
     display: grid;
     gap: 6px;
@@ -926,8 +1054,11 @@
     function updateSummary(){
         var totalSure = 0, totalFiyat = 0;
         $services.find('.v2-service-row').each(function(){
-            var idx = $(this).data('index');
-            var ids = $(this).find('.v2-hizmet').val() || [];
+            var $row = $(this);
+            // Paket card data('hizmetIds') saklar; normal satir .v2-hizmet'i kullanir
+            var ids = $row.data('hizmetIds');
+            if(!ids || !ids.length){ ids = $row.find('.v2-hizmet').val() || []; }
+            if(!Array.isArray(ids)) ids = ids ? [ids] : [];
             ids.forEach(function(id){
                 var d = window.hizmetDataCache ? window.hizmetDataCache[id] : null;
                 if(d){
@@ -1130,16 +1261,246 @@
         if(window._v2DispatcherInstalled) return;
         var original = window.addServicesToForm;
         window.addServicesToForm = function(hizmetData, result, showMsg){
-            // Once orijinali calistir (v1 form'una hizmetler ekleyecek)
+            var v2Visible = $modal.hasClass('show') || $modal.is(':visible');
+            var v2Akis = window._v2PaketAkisi && v2Visible;
+
+            // Once: v1'deki dolu satirlarin indekslerini sakla (sonradan eklenenleri bulmak icin)
+            var beforeFilledV1 = [];
+            $('#modal-view-event-add .hizmet-satiri').each(function(i){
+                var hEl = $(this).find('.hizmet-select')[0];
+                var vals = (hEl && hEl.tomselect) ? hEl.tomselect.getValue() : ($(this).find('.hizmet-select').val() || []);
+                if(!Array.isArray(vals)) vals = vals ? [vals] : [];
+                if(vals.filter(function(x){return x;}).length) beforeFilledV1.push(i);
+            });
+
             var ret = original ? original.apply(this, arguments) : null;
-            // V2 acik ve v2 paket akisindaysak, v1 -> v2 sync
-            if(window._v2PaketAkisi && ($modal.hasClass('show') || $modal.is(':visible'))){
-                setTimeout(syncFromV1ToV2, 700);
+
+            if(v2Akis && Array.isArray(hizmetData) && hizmetData.length){
+                // V1'e eklenmesini bekle, sonra hizmetData -> v2 render
+                setTimeout(function(){
+                    var newV1Indices = []; // { v1Index, hizmetIds:[id,...] }
+                    $('#modal-view-event-add .hizmet-satiri').each(function(i){
+                        if(beforeFilledV1.indexOf(i) !== -1) return; // onceden doluydu, paket icin degil
+                        var hEl = $(this).find('.hizmet-select')[0];
+                        var vals = (hEl && hEl.tomselect) ? hEl.tomselect.getValue() : ($(this).find('.hizmet-select').val() || []);
+                        if(!Array.isArray(vals)) vals = vals ? [vals] : [];
+                        vals = vals.filter(function(x){return x;}).map(String);
+                        if(!vals.length) return;
+                        newV1Indices.push({ v1Index: i, hizmetIds: vals });
+                    });
+                    renderPaketRowsInV2(hizmetData, newV1Indices);
+                }, 700);
             }
             return ret;
         };
         window._v2DispatcherInstalled = true;
     }
+
+    // -------- PAKET RENDER (akordiyon kartlar) --------
+    // hizmetData: convertAllPackagesToServiceData cikti yapisindaki dizi
+    //   { id, text, seans, tur:'paket'|'hizmet', sure, paket_adi, paket_id, ... }
+    // newV1Indices: paket secimi sonrasi v1'e eklenen satirlarin indeksleri
+    function renderPaketRowsInV2(hizmetData, newV1Indices){
+        // 1. Paket grubu vs standalone hizmet ayrimi
+        var paketler = {};     // paket_id -> { adi, paket_id, hizmetler:[], v1Indices:[] }
+        var paketOrder = [];   // gorunum sirasi
+        var standalone = [];   // tur='hizmet'
+
+        hizmetData.forEach(function(h){
+            if(h.tur === 'paket' && h.paket_id){
+                var key = String(h.paket_id);
+                if(!paketler[key]){
+                    paketler[key] = {
+                        adi: h.paket_adi || ('Paket #'+h.paket_id),
+                        paket_id: h.paket_id,
+                        hizmetler: [],
+                        v1Indices: []
+                    };
+                    paketOrder.push(key);
+                }
+                paketler[key].hizmetler.push(h);
+            } else {
+                standalone.push(h);
+            }
+        });
+
+        // 2. Her paket grubuna v1 satir indekslerini bagla (hizmet ID'siyle eslesen)
+        paketOrder.forEach(function(key){
+            paketler[key].hizmetler.forEach(function(h){
+                var hidStr = String(h.id);
+                newV1Indices.forEach(function(item){
+                    if(item.hizmetIds.indexOf(hidStr) !== -1){
+                        if(paketler[key].v1Indices.indexOf(item.v1Index) === -1){
+                            paketler[key].v1Indices.push(item.v1Index);
+                        }
+                    }
+                });
+            });
+        });
+
+        // 3. V2'yi temizle (paket-card ve service-row hepsi)
+        $services.find('.v2-service-row, .v2-paket-card').each(function(){
+            var el = $(this).find('.v2-hizmet')[0];
+            if(el && el.tomselect){ try{el.tomselect.destroy();}catch(e){} }
+        });
+        $services.empty();
+
+        // 4. Her paket icin akordiyon kart olustur
+        paketOrder.forEach(function(key, i){
+            var grp = paketler[key];
+            $services.append(buildPaketCardHTML(grp, i));
+        });
+
+        // 5. Standalone hizmetler icin kategori bazli gruplama (eski mantik)
+        if(standalone.length){
+            renderStandaloneAsRows(standalone, newV1Indices, paketOrder.length);
+        }
+
+        // 6. Dropdownlari doldur, secimleri uygula + v1RowIndices data'sini ata
+        $services.find('.v2-paket-card').each(function(idx){
+            var $card = $(this);
+            var key = $card.attr('data-paket-id');
+            var grp = paketler[String(key)];
+            if(!grp) return;
+            // V1 indekslerini sakla (submit & silme bunlari kullanir)
+            $card.data('isPaket', true);
+            $card.data('v1RowIndices', grp.v1Indices.slice());
+            // Summary icin paketin tum hizmet ID'lerini sakla (paket card'da .v2-hizmet yok)
+            $card.data('hizmetIds', grp.hizmetler.map(function(h){ return String(h.id); }));
+            // Personel/cihaz/oda dropdownlarini doldur
+            populateDropdownsInCard($card);
+            // V1'in ilk grup satirindan personel/oda al
+            if(grp.v1Indices.length){
+                var $v1First = $('#modal-view-event-add .hizmet-satiri').eq(grp.v1Indices[0]);
+                var p = $v1First.find('.personel-select, .personel_secimi').not('.hizmet-select').val();
+                var c = $v1First.find('.cihaz-select, .cihaz_secimi').val();
+                var o = $v1First.find('.oda-select, .oda_secimi').val();
+                if(p) $card.find('.v2-personel').val(p);
+                if(c) $card.find('.v2-cihaz').val(c);
+                if(o) $card.find('.v2-oda').val(o);
+            }
+        });
+
+        reindexRows();
+        updateSummary();
+    }
+
+    function buildPaketCardHTML(grp, idx){
+        var totalSure = 0, totalFiyat = 0;
+        var hizmetListHTML = grp.hizmetler.map(function(h){
+            var d = window.hizmetDataCache ? window.hizmetDataCache[h.id] : null;
+            var sure = (d && d.sure) || h.sure || 0;
+            var fiyat = (d && d.fiyat) || 0;
+            totalSure += parseFloat(sure) || 0;
+            totalFiyat += parseFloat(fiyat) || 0;
+            var seansTxt = h.seans ? ' <span class="v2-seans-badge">'+h.seans+' seans</span>' : '';
+            return '<li><span class="v2-paket-hizmet-ad">'+escapeHtml(h.text)+'</span>'+seansTxt+'<span class="v2-paket-hizmet-sure">'+sure+' dk</span></li>';
+        }).join('');
+
+        var metaParts = [];
+        if(totalSure > 0) metaParts.push(totalSure+' dk');
+        if(totalFiyat > 0) metaParts.push(fmtTL(totalFiyat));
+        var metaTxt = metaParts.join(' · ');
+
+        var cihazSelHTML = @json($__cihazVar) ?
+            '<div class="v2-field"><select class="form-control v2-input v2-sm v2-cihaz"><option value="">Cihaz...</option></select></div>' : '';
+        var odaSelHTML = @json($__odaVar) ?
+            '<div class="v2-field"><select class="form-control v2-input v2-sm v2-oda"><option value="">Oda...</option></select></div>' : '';
+
+        return ''+
+        '<div class="v2-service-row v2-paket-card" data-paket-id="'+escapeAttr(grp.paket_id)+'" data-index="'+idx+'">'+
+            '<div class="v2-paket-head">'+
+                '<button type="button" class="v2-paket-toggle" title="Hizmetleri göster/gizle">'+
+                    '<i class="fa fa-gift"></i>'+
+                    '<span class="v2-paket-title">'+escapeHtml(grp.adi)+'</span>'+
+                    '<span class="v2-paket-count">'+grp.hizmetler.length+' hizmet</span>'+
+                    '<span class="v2-paket-meta">'+metaTxt+'</span>'+
+                    '<i class="fa fa-chevron-down v2-paket-chev"></i>'+
+                '</button>'+
+            '</div>'+
+            '<div class="v2-paket-controls">'+
+                '<div class="v2-service-grid-row">'+
+                    '<div class="v2-field"><select class="form-control v2-input v2-sm v2-personel"><option value="">Personel...</option></select></div>'+
+                    cihazSelHTML+
+                    odaSelHTML+
+                    '<button type="button" class="v2-icon-trash v2-remove-row" title="Bu paketi kaldır"><i class="fa fa-trash"></i></button>'+
+                '</div>'+
+            '</div>'+
+            '<div class="v2-paket-detay" style="display:none;">'+
+                '<ul class="v2-paket-hizmet-list">'+hizmetListHTML+'</ul>'+
+            '</div>'+
+        '</div>';
+    }
+
+    function populateDropdownsInCard($card){
+        var data = getRandevuModalData();
+        var $p = $card.find('.v2-personel');
+        $p.empty().append('<option value="">Personel...</option>');
+        data.personeller.forEach(function(p){ $p.append(new Option(p.ad, p.id)); });
+        var $c = $card.find('.v2-cihaz');
+        if($c.length){
+            $c.empty().append('<option value="">Cihaz...</option>');
+            data.cihazlar.forEach(function(c){ $c.append(new Option(c.ad, c.id)); });
+        }
+        var $o = $card.find('.v2-oda');
+        if($o.length){
+            $o.empty().append('<option value="">Oda...</option>');
+            data.odalar.forEach(function(o){ $o.append(new Option(o.ad, o.id)); });
+        }
+    }
+
+    function renderStandaloneAsRows(standalone, newV1Indices, startIdx){
+        // Paket disindaki bireysel hizmetler — kategori bazli gruplama
+        function getKategori(hid){
+            var d = window.hizmetDataCache ? window.hizmetDataCache[hid] : null;
+            if(d && d.kategori) return d.kategori;
+            if(d && d.text){
+                var clean = d.text.replace(/\(.*?\)/g,'').trim();
+                return clean.split(/\s+/).slice(0,2).join(' ');
+            }
+            return '_default_';
+        }
+        var groups = {}, order = [];
+        standalone.forEach(function(h){
+            var kat = getKategori(h.id);
+            if(!groups[kat]){ groups[kat] = { hizmetIds:[], v1Indices:[] }; order.push(kat); }
+            if(groups[kat].hizmetIds.indexOf(String(h.id)) === -1) groups[kat].hizmetIds.push(String(h.id));
+        });
+        // V1 indeks eslestir
+        order.forEach(function(kat){
+            groups[kat].hizmetIds.forEach(function(hid){
+                newV1Indices.forEach(function(item){
+                    if(item.hizmetIds.indexOf(hid) !== -1 && groups[kat].v1Indices.indexOf(item.v1Index) === -1){
+                        groups[kat].v1Indices.push(item.v1Index);
+                    }
+                });
+            });
+        });
+        order.forEach(function(kat, i){
+            addRow();
+            var $row = $services.find('.v2-service-row').last();
+            $row.data('isPaket', true);
+            $row.data('v1RowIndices', groups[kat].v1Indices.slice());
+            var hizmetEl = $row.find('.v2-hizmet')[0];
+            if(hizmetEl && hizmetEl.tomselect){
+                hizmetEl.tomselect.setValue(groups[kat].hizmetIds, true);
+            }
+            // V1'in ilk satirindan personel/oda al
+            if(groups[kat].v1Indices.length){
+                var $v1First = $('#modal-view-event-add .hizmet-satiri').eq(groups[kat].v1Indices[0]);
+                var p = $v1First.find('.personel-select, .personel_secimi').not('.hizmet-select').val();
+                var c = $v1First.find('.cihaz-select, .cihaz_secimi').val();
+                var o = $v1First.find('.oda-select, .oda_secimi').val();
+                if(p) $row.find('.v2-personel').val(p);
+                if(c) $row.find('.v2-cihaz').val(c);
+                if(o) $row.find('.v2-oda').val(o);
+            }
+            updateRowMeta(startIdx + i);
+        });
+    }
+
+    function escapeHtml(s){ return $('<div>').text(s == null ? '' : s).html(); }
+    function escapeAttr(s){ return String(s == null ? '' : s).replace(/"/g,'&quot;'); }
 
     function initBulkSelects(){
         var data = getRandevuModalData();
@@ -1301,7 +1662,16 @@
 
     $modal.on('click', '#v2_add_row', addRow);
 
-    $modal.on('click', '.v2-remove-row', function(){
+    // Paket kart akordiyon toggle
+    $modal.on('click', '.v2-paket-toggle', function(e){
+        e.preventDefault();
+        var $card = $(this).closest('.v2-paket-card');
+        $card.toggleClass('expanded');
+        $card.find('.v2-paket-detay').slideToggle(180);
+    });
+
+    $modal.on('click', '.v2-remove-row', function(e){
+        e.stopPropagation(); // paket-toggle'i tetiklemesin
         var $row = $(this).closest('.v2-service-row');
         var rowCount = $services.find('.v2-service-row').length;
         if(rowCount <= 1) return;
