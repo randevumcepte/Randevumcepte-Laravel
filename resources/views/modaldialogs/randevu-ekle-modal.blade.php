@@ -3238,14 +3238,22 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
 
     // Bir select'i verilen hizmet listesiyle doldur (Tom Select)
     function doldurHizmetTom($hizmet, liste, placeholder){
-        var idx = $hizmet.data('index');
-        var el0 = $hizmet[0];
-        var oldTs = el0 && el0.tomselect;
-        var secili = $hizmet.val() || [];
+        // $hizmet, TS wrapper DIV'ini de icerebilir (class kopyalanir). Gercek <select>'i ve
+        // aktif TS'i guvenilir sekilde bul (boylece secili koruma her zaman calisir).
+        var natEl = null, oldTs = null;
+        $hizmet.each(function(){
+            if(this.tagName === 'SELECT' && !natEl) natEl = this;
+            if(this.tomselect && !oldTs) oldTs = this.tomselect;
+        });
+        if(!natEl && oldTs) natEl = oldTs.input;       // TS'in orijinal input'u
+        if(!natEl) natEl = $hizmet[0];
+        var $nat = $(natEl);
+        var idx = $nat.data('index');
+        // SECILI = TS items (kaynak gercek); yoksa native val
+        var secili = oldTs ? oldTs.items.slice() : ($nat.val() || []);
         if(!Array.isArray(secili)) secili = secili ? [secili] : [];
         // YENILERKEN SECILENE DOKUNMA: secili item'larin meta'sini sakla; yeni listede
-        // olmasalar bile ( or. paket hizmeti o odanin listesinde degil) geri ekleyip
-        // yeniden secebilelim. Boylece refilter/refresh secimi ASLA dusurmez.
+        // olmasalar bile geri ekleyip yeniden secebilelim. Filtreleme olur, SIFIRLAMA olmaz.
         var seciliMeta = {};
         secili.forEach(function(id){
             var o = (oldTs && oldTs.options && oldTs.options[id]) || hizmetDataCache[id];
@@ -3253,13 +3261,13 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         });
 
         // Native select'e option'lari koy (form submit icin gerekli)
-        tomDestroyHizmet($hizmet);
-        $hizmet.empty();
+        if(oldTs){ try { oldTs.destroy(); } catch(e){} }
+        $nat.empty();
         liste.forEach(function(h){
-            $hizmet.append(new Option(h.ad, h.id, false, false));
+            $nat.append(new Option(h.ad, h.id, false, false));
         });
 
-        var ts = initHizmetTom($hizmet, placeholder);
+        var ts = initHizmetTom($nat, placeholder);
 
         // Option'lara meta (kategori, sure, fiyat) ekle — updateHizmetDetaylari bunlari kullanir
         liste.forEach(function(h){
