@@ -1160,40 +1160,18 @@
             window._v2PaketAkisi = false;
         });
 
-        // Manuel "Paketler" butonu — secili musteri icin paket modalini TEKRAR ac
-        // Kullanici yanlis paket secmis olabilir; mevcut paket secimini temizleyip
-        // modalin tekrar acilmasini saglariz. Manuel (paket olmayan) satirlar kalir.
+        // Manuel "Paketler" butonu — secili musteri icin paket modalini TEKRAR ac.
+        // Mevcut paket kartlarini SILMIYORUZ; kullanici ek paket secebilir ya da
+        // ayni paketi tekrar secerse duplicate edilmez (renderPaketRowsInV2 paket_id
+        // bazli skip yapiyor).
         $('#v2_paket_aç').off('click.v2paket').on('click.v2paket', function(){
             var userId = $musteri.val();
             if(!userId) return;
-            clearExistingPaketSelection();
             window._v2PaketAkisi = true;
             if(typeof paketKontrolü === 'function'){
                 paketKontrolü(userId, false);
             }
         });
-    }
-
-    function clearExistingPaketSelection(){
-        // V2 paket kartlarinin temsil ettigi v1 satirlarini bosalt
-        $services.find('.v2-paket-card').each(function(){
-            var v1Indices = $(this).data('v1RowIndices') || [];
-            v1Indices.forEach(function(v1i){
-                var $v1Row = $('#modal-view-event-add .hizmet-satiri').eq(v1i);
-                if(!$v1Row.length) return;
-                var el = $v1Row.find('.hizmet-select')[0];
-                if(el && el.tomselect){ try{el.tomselect.clear(true);}catch(e){} }
-                $v1Row.find('.personel-select, .personel_secimi').not('.hizmet-select').val(null).trigger('change');
-                $v1Row.find('.cihaz-select, .cihaz_secimi').val(null).trigger('change');
-                $v1Row.find('.oda-select, .oda_secimi').val(null).trigger('change');
-            });
-        });
-        // V2'den paket kartlarini kaldir
-        $services.find('.v2-paket-card').remove();
-        // En az bir satir kalsin (manuel)
-        if($services.find('.v2-service-row').length === 0) addRow();
-        reindexRows();
-        updateSummary();
     }
 
     // -------- PAKET → V2 SATIRLARI SYNC --------
@@ -1395,27 +1373,68 @@
             });
         });
 
-        // 3. V2'yi temizle (paket-card ve service-row hepsi)
-        $services.find('.v2-service-row, .v2-paket-card').each(function(){
-            var el = $(this).find('.v2-hizmet')[0];
-            if(el && el.tomselect){ try{el.tomselect.destroy();}catch(e){} }
-        });
-        $services.empty();
-
-        // 4. Her paket icin akordiyon kart olustur
-        paketOrder.forEach(function(key, i){
-            var grp = paketler[key];
-            $services.append(buildPaketCardHTML(grp, i));
+        // 3. Mevcut paket kartlarini ve ilk-acilis bos manuel satirini koru.
+        //    DUPLICATE PROTECTION: V2'de zaten bulunan paket_id'leri tespit et,
+        //    yeni hizmetData'da bunlar varsa: skip + ilgili duplicate v1 satirlarini bosalt.
+        var existingPaketIds = {};
+        $services.find('.v2-paket-card').each(function(){
+            existingPaketIds[String($(this).attr('data-paket-id'))] = true;
         });
 
-        // 5. Standalone hizmetler icin kategori bazli gruplama (eski mantik)
-        if(standalone.length){
-            renderStandaloneAsRows(standalone, newV1Indices, paketOrder.length);
+        var paketOrderFiltered = [];
+        paketOrder.forEach(function(key){
+            if(existingPaketIds[key]){
+                // Bu paket zaten v2'de var — yeni eklenen v1 satirlarini bosalt
+                paketler[key].v1Indices.forEach(function(v1i){
+                    var $v1Row = $('#modal-view-event-add .hizmet-satiri').eq(v1i);
+                    if(!$v1Row.length) return;
+                    var el = $v1Row.find('.hizmet-select')[0];
+                    if(el && el.tomselect){ try{el.tomselect.clear(true);}catch(e){} }
+                    $v1Row.find('.personel-select, .personel_secimi').not('.hizmet-select').val(null).trigger('change');
+                    $v1Row.find('.cihaz-select, .cihaz_secimi').val(null).trigger('change');
+                    $v1Row.find('.oda-select, .oda_secimi').val(null).trigger('change');
+                });
+            } else {
+                paketOrderFiltered.push(key);
+            }
+        });
+
+        // Ilk paket eklenirken bos manuel satiri kaldir (kullanici hicbir hizmet
+        // secmemis ise) — temiz gorunum icin.
+        if(paketOrderFiltered.length){
+            var existingPaketCount = $services.find('.v2-paket-card').length;
+            if(existingPaketCount === 0){
+                // Hicbir paket yokken: bos manuel satirlari sil
+                $services.find('.v2-service-row').not('.v2-paket-card').filter(function(){
+                    var $h = $(this).find('.v2-hizmet');
+                    var el = $h[0];
+                    var vals = (el && el.tomselect) ? el.tomselect.getValue() : ($h.val() || []);
+                    if(!Array.isArray(vals)) vals = vals ? [vals] : [];
+                    return vals.filter(function(x){return x;}).length === 0;
+                }).each(function(){
+                    var el = $(this).find('.v2-hizmet')[0];
+                    if(el && el.tomselect){ try{el.tomselect.destroy();}catch(e){} }
+                    $(this).remove();
+                });
+            }
         }
 
-        // 6. Dropdownlari doldur, secimleri uygula + v1RowIndices data'sini ata
+        // 4. Yeni paketler icin (mevcut olmayanlar) akordiyon kart EKLE
+        var startIdx = $services.find('.v2-service-row').length;
+        paketOrderFiltered.forEach(function(key, i){
+            var grp = paketler[key];
+            $services.append(buildPaketCardHTML(grp, startIdx + i));
+        });
+
+        // 5. Standalone hizmetler — yalnizca paket akisindan duplicate degilse ekle
+        if(standalone.length){
+            renderStandaloneAsRows(standalone, newV1Indices, $services.find('.v2-service-row').length);
+        }
+
+        // 6. Yeni eklenen paket kartlarinda data + dropdownlari ata
         $services.find('.v2-paket-card').each(function(idx){
             var $card = $(this);
+            if($card.data('v1RowIndices') && $card.data('v1RowIndices').length) return; // zaten ayarlandi (mevcut kart)
             var key = $card.attr('data-paket-id');
             var grp = paketler[String(key)];
             if(!grp) return;
