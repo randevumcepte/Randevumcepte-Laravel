@@ -2214,7 +2214,11 @@ function _hizmetiSatiraKoy($sel, item, secVe){
         var mevcut = ts.getValue();
         if(!Array.isArray(mevcut)) mevcut = mevcut ? [mevcut] : [];
         if(mevcut.indexOf(String(item.id)) === -1) mevcut.push(String(item.id));
-        ts.setValue(mevcut, false);
+        // SESSIZ sec (silent=true): onChange -> odaSecimleriniHizmeteGoreYenile -> oda-change
+        // -> hizmet reload zinciri paket hizmetinin CHIP'ini siliyordu. Detayi manuel guncelle.
+        ts.setValue(mevcut, true);
+        try { updateHizmetDetaylari($sel.data('index')); } catch(e){}
+        try { updateRandevuOzeti(); } catch(e){}
     }
     return true;
 }
