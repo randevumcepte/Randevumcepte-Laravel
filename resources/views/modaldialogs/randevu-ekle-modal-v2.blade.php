@@ -1254,10 +1254,79 @@
 
     // Gelismis moda gec (v1 modali ac)
     $modal.on('click', '#v2_open_v1', function(){
+        window._v2BypassIntercept = true; // intercept bunu yakalayinca v1'i normal acsin
         $modal.modal('hide');
         setTimeout(function(){
             $('#modal-view-event-add').modal('show');
+            window._v2BypassIntercept = false;
         }, 250);
+    });
+
+    // ============================================================
+    // V1 -> V2 REDIRECT INTERCEPT
+    // window.useV2Modal=true ise (v2 takvim sayfasi), takvim slot
+    // tiklamasi v1 modalini acmaya calisir; biz yakalayip kapatip
+    // alanlari v2'ye kopyalayip v2'yi aciyoruz.
+    // ============================================================
+    $(document).on('show.bs.modal', '#modal-view-event-add', function(e){
+        if(!window.useV2Modal) return;
+        if(window._v2BypassIntercept) return;
+        // Bootstrap 4: show.bs.modal'da preventDefault() v1'in acilmasini engeller
+        if(e.preventDefault) e.preventDefault();
+        var $v1 = $(this);
+        // Yedek: yine de acilirsa hide
+        setTimeout(function(){
+            if($v1.hasClass('show') || $v1.is(':visible')){ $v1.modal('hide'); }
+        }, 50);
+
+        // Slot bilgilerini v1 alanlarindan oku
+        var tarih = $('#randevutarihiyeni').val();
+        var saat  = $('#randevu_saat').val();
+        var v1PersonelOpt = $('select[name="randevupersonelleriyeni[]"]:first option:selected');
+        var v1OdaOpt      = $('select[name="randevuodalariyeni[]"]:first option:selected');
+        var v1CihazOpt    = $('select[name="randevucihazlariyeni[]"]:first option:selected');
+
+        // V2'yi ac, shown event'inde alanlari doldur
+        var fillV2 = function(){
+            if(tarih) $tarih.val(tarih);
+            if(saat) $saat.val(saat);
+
+            // Ilk satira personel/oda/cihaz yaz
+            var $firstRow = $services.find('.v2-service-row').first();
+            if(!$firstRow.length){
+                addRow();
+                $firstRow = $services.find('.v2-service-row').first();
+            }
+            if(v1PersonelOpt.val()){
+                var $vp = $firstRow.find('.v2-personel');
+                if($vp.find('option[value="'+v1PersonelOpt.val()+'"]').length === 0){
+                    $vp.append(new Option(v1PersonelOpt.text(), v1PersonelOpt.val()));
+                }
+                $vp.val(v1PersonelOpt.val());
+            }
+            if(v1OdaOpt.val()){
+                var $vo = $firstRow.find('.v2-oda');
+                if($vo.length){
+                    if($vo.find('option[value="'+v1OdaOpt.val()+'"]').length === 0){
+                        $vo.append(new Option(v1OdaOpt.text(), v1OdaOpt.val()));
+                    }
+                    $vo.val(v1OdaOpt.val());
+                }
+            }
+            $modal.off('shown.bs.modal.slotfill').on('shown.bs.modal.slotfill', function(){
+                // Bu handler bir kez calissin; yukaridaki kopyalamalar zaten run etti.
+                $modal.off('shown.bs.modal.slotfill');
+            });
+        };
+
+        // V2 init zaten yapildiysa direkt doldur; degilse shown'da
+        if(v2Init){
+            $modal.modal('show');
+            setTimeout(fillV2, 100);
+        } else {
+            $modal.one('shown.bs.modal', function(){ setTimeout(fillV2, 100); });
+            $modal.modal('show');
+        }
     });
 
     // -------- SUBMIT (proxy to v1) --------

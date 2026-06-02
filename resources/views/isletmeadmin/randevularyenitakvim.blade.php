@@ -2,122 +2,148 @@
 @extends($_layout)
 
 @section('content')
+{{-- V2 TAKVIM SAYFASI: randevular.blade.php'nin takvim yapisi ile birebir,
+     fark: window.useV2Modal=true flag'i ile slot tiklaninca v1 yerine v2 acilir. --}}
+
+<script>
+    // Bu flag #modal-view-event-add (v1) modali acilmaya calistiginda
+    // randevu-ekle-modal-v2.blade.php icindeki intercept tarafindan kullanilir.
+    // V1 modali sayfa ustunde duruyor (DOM'da include edili) ki paket akisi/
+    // submit proxy mantigi calissin — ama gorsel olarak v2 acilir.
+    window.useV2Modal = true;
+</script>
+
 <style>
-    .yt-wrap { padding: 16px 22px; }
-    .yt-header {
-        display:flex; justify-content:space-between; align-items:center;
-        background: linear-gradient(135deg,#4f46e5 0%, #7c3aed 100%);
-        color:#fff; padding:16px 22px; border-radius:12px;
-        margin-bottom: 18px;
-        box-shadow: 0 6px 18px rgba(124,58,237,0.18);
-    }
-    .yt-header h1 { font-size: 1.25rem; margin:0; font-weight:600; }
-    .yt-header .yt-sub { font-size:0.78rem; opacity:0.85; margin-top:4px; display:block; }
-    .yt-cta {
-        background:#fff; color:#6d28d9; border:none;
-        padding: 10px 18px; border-radius: 8px;
-        font-weight:600; font-size:0.92rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-    .yt-cta:hover { background:#f5f3ff; color:#5b21b6; }
-    .yt-cta i { margin-right: 6px; }
+    .rd-detail { font-size:13.5px; color:#3a2e57; margin:-10px -15px; }
+    .rd-detail .rd-row { display:flex; align-items:flex-start; padding:9px 14px; border-bottom:1px solid #f1ecf7; gap:10px; }
+    .rd-detail .rd-row:last-child { border-bottom:0; }
+    .rd-detail .rd-row:nth-child(odd) { background:#fbfafd; }
+    .rd-detail .rd-label { flex:0 0 160px; color:#7c6c8a; font-weight:600; font-size:12.5px; display:flex; align-items:center; gap:6px; }
+    .rd-detail .rd-label i { color:#5C008E; opacity:.75; width:14px; text-align:center; }
+    .rd-detail .rd-value { flex:1; color:#2d2143; font-weight:500; word-break:break-word; }
+    .rd-detail .rd-value.empty { color:#bcb3c9; font-style:italic; font-weight:400; }
+    .rd-status { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:700; }
+    .rd-status.beklemede { background:#fff4e0; color:#a86200; }
+    .rd-status.basarili  { background:#e6f9ed; color:#0c7a3a; }
+    .rd-status.iptal     { background:#fdecec; color:#c81e1e; }
+    .rd-status.geldi     { background:#e6f9ed; color:#0c7a3a; }
+    .rd-status.gelmedi   { background:#fdecec; color:#c81e1e; }
+    .rdb-row { display:flex; gap:8px; flex-wrap:wrap; width:100%; }
+    .rdb-row .btn { flex: 1 1 130px; min-width: 0; border-radius: 8px; font-weight: 600; font-size: 13px; padding: 9px 12px; line-height: 1.2; white-space: normal; }
+    .rdb-row .btn i { margin-right: 4px; }
+    .rdb-row .rdb-pull-right { margin-left: auto; flex-grow: 0; }
 
-    .yt-grid {
-        display:grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-bottom: 18px;
-    }
-    .yt-card {
-        background:#fff; border:1px solid #ececec; border-radius:10px;
-        padding: 16px 18px;
-    }
-    .yt-card h3 { font-size:0.95rem; margin:0 0 8px; color:#374151; font-weight:600; }
-    .yt-card .yt-list { margin:0; padding-left:18px; font-size:0.82rem; color:#4b5563; line-height:1.7; }
-    .yt-card .yt-list strong { color:#111827; }
+    body > .select2-container--open { z-index: 100015 !important; }
+    body > .ts-dropdown { z-index: 100015 !important; }
+    #softPaketSecimModal { z-index: 100020 !important; }
+    .sweet-overlay { z-index: 100029 !important; }
+    .sweet-alert   { z-index: 100030 !important; }
+    .swal2-container { z-index: 100030 !important; }
 
-    .yt-compare {
-        background:#fff; border:1px solid #ececec; border-radius:10px;
-        padding: 14px 18px;
-    }
-    .yt-compare h3 { font-size:0.95rem; margin:0 0 10px; color:#374151; font-weight:600; }
-    .yt-compare-row { display:flex; gap:10px; }
-    .yt-btn-old {
-        flex:1; padding:14px; border-radius:8px;
-        background:#f0fdf4; color:#166534; border:1px solid #bbf7d0;
-        text-align:center; font-weight:600; font-size:0.88rem;
-        text-decoration:none;
-    }
-    .yt-btn-old:hover { background:#dcfce7; color:#166534; text-decoration:none; }
-    .yt-btn-new {
-        flex:1; padding:14px; border-radius:8px;
-        background: linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; border:none;
-        text-align:center; font-weight:600; font-size:0.88rem;
-        cursor:pointer;
-    }
-    .yt-btn-new:hover { filter:brightness(1.05); }
-
-    .yt-info {
-        background:#fef9c3; border:1px solid #fde047; color:#713f12;
-        padding:10px 14px; border-radius:8px; font-size:0.82rem;
-        margin-bottom:14px;
+    /* V2 sayfasinda ust bar ozel rozet */
+    .v2-page-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: linear-gradient(135deg,#4f46e5,#7c3aed);
+        color: #fff;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-left: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 </style>
 
-<div class="yt-wrap">
-
-    <div class="yt-header">
-        <div>
-            <h1><i class="fa fa-calendar-check-o"></i> {{ $sayfa_baslik }}</h1>
-            <span class="yt-sub">Yeni randevu ekleme tasarımının test sayfası — eski takvim aynen çalışmaya devam ediyor.</span>
+<div class="page-header">
+    <div class="row">
+        <div class="col-md-4 col-sm-6 col-xs-7 col-7">
+            <div class="title">
+                <h1>{{ $sayfa_baslik }} <span class="v2-page-badge"><i class="fa fa-magic"></i> Yeni Tasarım</span></h1>
+            </div>
+            <nav aria-label="breadcrumb" role="navigation">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/isletmeyonetim{{ (isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ $sayfa_baslik }}</li>
+                </ol>
+            </nav>
         </div>
-        <button type="button" class="yt-cta" data-toggle="modal" data-target="#modal-view-event-add-v2">
-            <i class="fa fa-plus"></i> Yeni Randevu (v2)
-        </button>
-    </div>
-
-    <div class="yt-info">
-        <i class="fa fa-info-circle"></i> Bu sayfa <strong>sadece v2 randevu modalini</strong> test etmek için ayrı bir rotada açıldı (<code>/randevularyenitakvim</code>). Form henüz backend'e bağlı değil; submit demo amaçlı uyarı verir.
-    </div>
-
-    <div class="yt-grid">
-        <div class="yt-card">
-            <h3><i class="fa fa-check-circle" style="color:#10b981;"></i> v2'de değişen şeyler</h3>
-            <ul class="yt-list">
-                <li>Modal genişliği <strong>1200px → 640px</strong></li>
-                <li>Tek kolon, kart-içinde-kart yok</li>
-                <li>Hizmet satırı: <strong>Hizmet → Personel → Oda → Süre</strong></li>
-                <li>"Tümüne uygula" sadece 2+ satırda görünür</li>
-                <li>Tekrarlayan: switch açılınca detay açılır</li>
-                <li>Notlar: collapsible (varsayılan kapalı)</li>
-                <li>Saat Kapama: header'daki kilit ikonu ile geçiş</li>
-                <li>Tek satırda <strong>Sil disabled</strong></li>
-            </ul>
-        </div>
-        <div class="yt-card">
-            <h3><i class="fa fa-clock-o" style="color:#6366f1;"></i> Test akışı</h3>
-            <ul class="yt-list">
-                <li><strong>Müşteri ara</strong> — eski modaldekiyle aynı select</li>
-                <li><strong>"Hizmet Ekle"</strong> ile 2. satır ekle → bulk panel görünmeli</li>
-                <li><strong>Tek satır kalınca</strong> sil butonu disable olmalı</li>
-                <li><strong>Tekrarlayan</strong> switch'i — alanlar açılıp kapanmalı</li>
-                <li><strong>Not</strong> butonu — toggle çalışmalı</li>
-                <li>Header'daki <strong>kilit ikonu</strong> — Saat Kapama moduna geçer</li>
-            </ul>
-        </div>
-    </div>
-
-    <div class="yt-compare">
-        <h3><i class="fa fa-columns"></i> Yan yana karşılaştır</h3>
-        <div class="yt-compare-row">
-            <a href="#" class="yt-btn-old" data-toggle="modal" data-target="#modal-view-event-add">
-                <i class="fa fa-calendar"></i> Eski Modal (v1)
-            </a>
-            <button type="button" class="yt-btn-new" data-toggle="modal" data-target="#modal-view-event-add-v2">
-                <i class="fa fa-magic"></i> Yeni Modal (v2)
-            </button>
+        <div class="col-md-8 col-sm-6 col-xs-5 col-5">
+            <div class="d-flex justify-content-end">
+                <a href="/isletmeyonetim/randevular{{ (isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="btn btn-outline-secondary mr-2" title="Eski takvime dön">
+                    <i class="fa fa-arrow-left"></i> Eski Takvim
+                </a>
+                <button class="btn btn-primary mr-2 randevu-count-button">
+                    Toplam Randevu: {{ $randevular['randevu_sayisi'] }}
+                </button>
+                @yetki('randevu.olustur')
+                <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2" class="btn btn-lg" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;">
+                    <i class="fa fa-plus"></i> Yeni Randevu
+                </a>
+                @endyetki
+            </div>
         </div>
     </div>
 </div>
+
+<div class="pd-20 card-box mb-30">
+    <div class="row" style="margin-bottom: 10px;">
+        @if(Auth::guard('satisortakligi')->check() || (Auth::guard('isletmeyonetim')->check() && !Auth::guard('isletmeyonetim')->user()->hasRole('Personel')))
+        <div class="col-md-6 col-sm-6 col-xs-6 col-6">
+        @else
+        <div class="col-md-6 col-sm-6 col-xs-6 col-6" style="display:none">
+        @endif
+            <select class="form-control" id="randevu_ayarina_gore">
+                <option {{ ($isletme->randevu_takvim_turu==1) ? 'selected' : '' }} value="1">Personele Göre</option>
+                <option {{ ($isletme->randevu_takvim_turu==0) ? 'selected' : '' }} value="0">Hizmete Göre</option>
+                <option {{ ($isletme->randevu_takvim_turu==2) ? 'selected' : '' }} value="2">Cihaza Göre</option>
+                <option {{ ($isletme->randevu_takvim_turu==3) ? 'selected' : '' }} value="3">Odaya Göre</option>
+            </select>
+        </div>
+        <div class="col-md-6 col-sm-6 col-xs-6 col-6">
+            <input type="text" class="form-control calendardatepicker" autocomplete="off" id='takvim_tarihe_gore' placeholder='Tarih Seçiniz'>
+        </div>
+    </div>
+    <div style="position:relative; width:100%; overflow-y:auto">
+        @if(!empty($gapKampanyalari))
+        <div class="gap-info-strip">
+            <span class="gap-strip-label"><i class="fa fa-tag"></i> Aktif Kampanya:</span>
+            @foreach($gapKampanyalari as $k)
+            <span class="gap-chip gap-{{ $k['gapKey'] }}" title="{{ $k['gapLabel'] }} Kampanyası — %{{ $k['discount'] }} indirim">
+                <span class="gap-chip-dot" style="background:{{ $k['color'] }}"></span>
+                <span class="gap-chip-time">{{ $k['gapLabel'] }} {{ sprintf('%02d:00-%02d:00', $k['startHour'], $k['endHour']) }}</span>
+                <span class="gap-chip-disc">%{{ $k['discount'] }}</span>
+            </span>
+            @endforeach
+        </div>
+        @endif
+
+        <div class="calendar-wrap">
+            <div id="calendar"></div>
+        </div>
+    </div>
+</div>
+<div id="hata"></div>
+
+<style type="text/css">
+    .gap-info-strip {
+        display: flex; align-items: center; gap: 10px;
+        padding: 9px 14px; margin: 0 0 12px 0;
+        background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+        border: 1px solid rgba(251, 191, 36, 0.40);
+        border-radius: 12px; flex-wrap: wrap;
+        font-size: 13px; box-shadow: 0 2px 6px rgba(251, 191, 36, 0.08);
+    }
+    .gap-info-strip .gap-strip-label { font-weight: 700; color: #92400E; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+    .gap-info-strip .gap-strip-label i { color: #D97706; }
+    .gap-info-strip .gap-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; background: #fff; border: 1px solid #FCD34D; border-radius: 999px; font-size: 12px; font-weight: 600; color: #1f2937; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+    .gap-info-strip .gap-chip-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .gap-info-strip .gap-chip-time { font-weight: 600; }
+    .gap-info-strip .gap-chip-disc { background: linear-gradient(135deg, #22C55E, #16A34A); color: #fff; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: -0.2px; }
+</style>
 
 @endsection
