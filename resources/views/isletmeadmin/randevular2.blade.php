@@ -7,6 +7,7 @@
           <h2 class="page-head-title" style="float: left;">Randevular</h2>
           @yetki('randevu.olustur')
           <span style="float: left;"><button id="yenirandevuekle" type="button" data-modal="md-scale2" class="btn btn-space btn-success md-trigger" style="margin-top: 10px;margin-left: 20px" >Yeni Randevu Ekle</button></span>
+          <span style="float: left;"><button type="button" data-toggle="modal" data-target="#modal-view-event-add-v2" class="btn btn-space" style="margin-top:10px;margin-left:8px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;" title="Yeni tasarım önizleme"><i class="fa fa-magic"></i> v2 Tasarım</button></span>
           @endyetki
           <button type="button" id="randevudetayigetir" style="display: none" data-modal="md-scale" class="btn btn-space btn-primary md-trigger">Modal</button>
             <button type="button" id="randevuraporformunuac" style="display: none" data-modal="md-scale3" class="btn btn-space btn-primary md-trigger">Modal</button>

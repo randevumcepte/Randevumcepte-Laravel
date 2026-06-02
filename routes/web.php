@@ -681,7 +681,16 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/sifredegistir','AuthStoreAdmin\LoginController@sifredegistir');
 	Route::get('/kayitol','AuthStoreAdmin\RegisterController@kayit_ol');
 	Route::get('/','StoreAdminController@index')->name('isletmeadmin.dashboard');
+	// Hizli dashboard widget endpointleri — view ilk acilista bos render olur, JS bunlari paralel cekers
+	Route::get('/api/dashboard/kasa','StoreAdminController@dashboardKasa')->name('isletmeadmin.dashboard.kasa');
+	Route::get('/api/dashboard/randevu-ozet','StoreAdminController@dashboardRandevuOzet')->name('isletmeadmin.dashboard.randevuozet');
+	Route::get('/api/dashboard/takvim','StoreAdminController@dashboardTakvim')->name('isletmeadmin.dashboard.takvim');
+	Route::get('/api/dashboard/bugun','StoreAdminController@dashboardBugun')->name('isletmeadmin.dashboard.bugun');
+	Route::get('/api/dashboard/sekme','StoreAdminController@dashboardSekme')->name('isletmeadmin.dashboard.sekme');
+	Route::get('/api/dashboard/timeline','StoreAdminController@dashboardTimeline')->name('isletmeadmin.dashboard.timeline');
+	Route::get('/api/dashboard/personel-durum','StoreAdminController@dashboardPersonelDurum')->name('isletmeadmin.dashboard.personeldurum');
 	Route::get('/randevular','StoreAdminController@randevular')->name('isletmeadmin.randevular');
+	Route::get('/randevularyenitakvim','StoreAdminController@randevularyenitakvim')->name('isletmeadmin.randevularyenitakvim');
 	Route::get('/randevular-filtre','StoreAdminController@randevularfiltre');
 	Route::get('/randevusil','StoreAdminController@randevu_sil');
 	Route::get('/randevugetir','StoreAdminController@randevugetir');

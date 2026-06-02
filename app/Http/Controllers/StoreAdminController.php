@@ -1391,6 +1391,59 @@ public function carkverilerigetir(Request $request)
     }
 
     /**
+     * Yeni tasarim (v2) randevu modali icin test takvim sayfasi.
+     * randevular() ile ayni context, sadece view dosyasi farkli.
+     */
+    public function randevularyenitakvim(Request $request){
+        $isletmeler = '';
+        $isletme = '';
+        if(Auth::guard('satisortakligi')->check()) {
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+
+        if(!in_array(self::mevcutsube($request),$isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if ($authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+            $authUser->id, self::mevcutsube($request), 'randevu.takvim_gor'
+        )) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(str_contains(self::lisans_sure_kontrol($request),'-')) {
+            return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+        }
+        if(count($isletmeler)>1 && !isset($_GET['sube'])) {
+            return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
+        }
+
+        $randevular = '';
+        if(self::personelmi($request, 'randevu.tum_personel_gor'))
+            $randevular = self::randevuyukle($request,1,date('Y-m-d'),date('Y-m-d'));
+        else
+            $randevular = self::randevuyukle($request,Salonlar::where('id',self::mevcutsube($request))->value('randevu_takvim_turu'),date('Y-m-d'),date('Y-m-d'));
+
+        $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
+        $gapKampanyalari = $this->_gapKampanyalariListesi(self::mevcutsube($request));
+
+        return view('isletmeadmin.randevularyenitakvim',[
+            'bildirimler'=>self::bildirimgetir($request),
+            'sayfa_baslik'=>'Yeni Takvim (v2)',
+            'pageindex' => 2,
+            'randevular'=>$randevular,
+            'isletme'=>$isletme,
+            'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,
+            'yetkiliolunanisletmeler'=>$isletmeler,
+            'gapKampanyalari'=>$gapKampanyalari
+        ]);
+    }
+
+    /**
      * Aktif [gap:KEY] etiketli kampanyalari blade icin liste halinde dondurur.
      */
     private function _gapKampanyalariListesi($salonId)

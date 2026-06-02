@@ -1573,6 +1573,7 @@
       @include('modaldialogs.taksit-ode-modal')
       @endif
       @include('modaldialogs.randevu-ekle-modal')
+      @include('modaldialogs.randevu-ekle-modal-v2')
       @include('modaldialogs.ongorusme-modal')
       @include('modaldialogs.musteri-ekle-modal')
       @include('modaldialogs.masraf-ekle-modal')

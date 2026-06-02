@@ -68,6 +68,9 @@
       <a href="#" data-toggle="modal" data-target="#modal-view-event-add" class="btn btn-success btn-lg yenieklebuton">
          <i class="fa fa-plus"></i> Yeni Randevu
       </a>
+      <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2" class="btn btn-lg" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;margin-left:6px;" title="Yeni tasarım (v2) önizleme">
+         <i class="fa fa-magic"></i> v2
+      </a>
       @endyetki
    </div>
 </div>
