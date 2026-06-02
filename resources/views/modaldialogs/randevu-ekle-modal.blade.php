@@ -2807,6 +2807,13 @@ function genelKaynakUygula(){
     // yine submit'e gider (serializeArray isim bazli okur).
     $('#modal-view-event-add .hizmet-satiri').each(function(){
         var $row = $(this);
+        // --- HIZMET SECIMINI KORU: yayim her ne tetiklerse tetiklesin, sonunda geri yukle ---
+        var $h = $row.find('select.hizmet-select');
+        var hEl = $h[0]; var hts = null;
+        $h.each(function(){ if(this.tomselect && !hts) hts = this.tomselect; });
+        var hSec = hts ? hts.items.slice() : ($h.filter('select').val() || []);
+        if(!Array.isArray(hSec)) hSec = hSec ? [hSec] : [];
+
         if(p !== ''){
             var $p = $row.find('select.personel-select');
             if($p.length){
@@ -2833,6 +2840,21 @@ function genelKaynakUygula(){
                     if(oo) $o.append(new Option(oo.ad, oo.id, false, false));
                 }
                 $o.val(o).trigger('change.select2');
+            }
+        }
+
+        // --- HIZMET GERI YUKLE: yayim sirasinda dustuyse tekrar sec (filtreleme olur, sifirlama olmaz) ---
+        if(hts && hSec.length){
+            var nowSec = hts.items.slice();
+            if(JSON.stringify(nowSec.sort()) !== JSON.stringify(hSec.slice().sort())){
+                hSec.forEach(function(id){
+                    if(!hts.options[id]){
+                        var m = hizmetDataCache[id] || {};
+                        hts.addOption({ value:String(id), text:(m.text||String(id)), kategori:m.kategori||'', sure:m.sure||0, fiyat:m.fiyat||0 });
+                    }
+                });
+                try { hts.setValue(hSec, true); } catch(e){}
+                console.log('[GKU] hizmet geri yuklendi:', JSON.stringify(hSec));
             }
         }
     });
