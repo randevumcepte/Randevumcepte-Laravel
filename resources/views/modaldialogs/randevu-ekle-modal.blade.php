@@ -2138,6 +2138,15 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                 try { if(hizmetData.length >= 2) paketModunaGec(hizmetData.length); } catch(e){ console.warn('[PAKET MODU] hata:', e); }
                 // Genel "Paket Süresi" input'unu paket toplam suresiyle doldur
                 try { genelSureInputDoldur(); } catch(e){}
+                // SON ADIM: hizmet secimlerini yeniden ata. Yerlestirme sirasindaki reload
+                // zincirleri (oda/personel -> yukleHizmetler) chip'i silmis olabilir; bu en
+                // son calistigi ve sonrasinda reload olmadigi icin secim KESIN kalir.
+                setTimeout(function(){
+                    $('#yenirandevuekleform .hizmet-satiri').each(function(i){
+                        if(hizmetData[i]){ try { _setHizmetInRow($(this), hizmetData[i]); } catch(e){} }
+                    });
+                    try { updateRandevuOzeti(); } catch(e){}
+                }, 200);
             }, 150);
             return;
         }
