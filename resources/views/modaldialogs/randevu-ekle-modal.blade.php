@@ -2143,16 +2143,27 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                 // son calistigi ve sonrasinda reload olmadigi icin secim KESIN kalir.
                 setTimeout(function(){
                     $('#yenirandevuekleform .hizmet-satiri').each(function(i){
-                        if(hizmetData[i]){ try { _setHizmetInRow($(this), hizmetData[i]); } catch(e){ console.warn('[REASSERT] hata', e); } }
-                    });
-                    // TANI: re-assert sonrasi her satirin hizmet TS durumu
-                    $('#yenirandevuekleform .hizmet-satiri').each(function(i){
-                        var sel = $(this).find('.hizmet-select')[0];
-                        var ts = sel && sel.tomselect;
-                        console.log('[REASSERT] satir '+i+' tomselect=', !!ts,
-                            'items=', ts ? JSON.stringify(ts.items) : 'YOK',
-                            'optionKeys=', ts ? Object.keys(ts.options).length : 0,
-                            'nativeVal=', $(this).find('.hizmet-select').val());
+                        if(!hizmetData[i]) return;
+                        var $row = $(this);
+                        // Sadece gercek <select>'i al (TS wrapper div'i de .hizmet-select class'i tasir)
+                        var $nat = $row.find('select.hizmet-select');
+                        var ts = $nat[0] && $nat[0].tomselect;
+                        // ORPHAN WRAPPER TEMIZLIGI: aktif TS'in wrapper'i disindaki bos .ts-wrapper'lari
+                        // sil (destroy/init dongusunde DOM'da kalip bos "Tüm hizmetler" gosteriyorlardi).
+                        if(ts && ts.wrapper){
+                            $row.find('.ts-wrapper').each(function(){
+                                if(this !== ts.wrapper){ $(this).remove(); }
+                            });
+                        }
+                        // Secimi yeniden ata + kontrol render'ini zorla
+                        try { _setHizmetInRow($row, hizmetData[i]); } catch(e){ console.warn('[REASSERT] hata', e); }
+                        var ts2 = $nat[0] && $nat[0].tomselect;
+                        if(ts2){
+                            try { ts2.refreshItems(); } catch(e){}
+                            try { if(ts2.refreshState) ts2.refreshState(); } catch(e){}
+                        }
+                        console.log('[REASSERT] satir '+i+' wrapperCount=', $row.find('.ts-wrapper').length,
+                            'items=', ts2 ? JSON.stringify(ts2.items) : 'YOK');
                     });
                     try { updateRandevuOzeti(); } catch(e){}
                 }, 200);
