@@ -93,6 +93,9 @@
                             <div class="v2-bulk-title"><i class="fa fa-magic"></i> Tüm satırlara uygula</div>
                             <div class="v2-bulk-grid">
                                 <select id="v2_bulk_personel" class="form-control v2-input v2-sm"><option value="">Personel...</option></select>
+                                @if ($__cihazVar)
+                                <select id="v2_bulk_cihaz" class="form-control v2-input v2-sm"><option value="">Cihaz...</option></select>
+                                @endif
                                 @if ($__odaVar)
                                 <select id="v2_bulk_oda" class="form-control v2-input v2-sm"><option value="">Oda...</option></select>
                                 @endif
@@ -486,10 +489,10 @@
     gap: 5px;
 }
 #modal-view-event-add-v2 .v2-bulk-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
     gap: 6px;
 }
+#modal-view-event-add-v2 .v2-bulk-grid > select { flex: 1; min-width: 0; }
 
 /* ===== SERVICE ROW ===== */
 #modal-view-event-add-v2 .v2-services { display: flex; flex-direction: column; gap: 8px; }
@@ -528,15 +531,14 @@
     gap: 6px;
 }
 #modal-view-event-add-v2 .v2-service-grid .v2-hizmet-wrap { margin-bottom: 4px; }
+/* Flexbox: degisken sutun sayisi (Personel + Cihaz? + Oda? + Trash) — her select esit pay alir */
 #modal-view-event-add-v2 .v2-service-grid-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
+    display: flex;
     gap: 6px;
     align-items: end;
 }
-@if(!$__odaVar)
-#modal-view-event-add-v2 .v2-service-grid-row { grid-template-columns: 1fr auto; }
-@endif
+#modal-view-event-add-v2 .v2-service-grid-row > .v2-field { flex: 1; min-width: 0; }
+#modal-view-event-add-v2 .v2-service-grid-row > .v2-icon-trash { flex: 0 0 auto; }
 #modal-view-event-add-v2 .v2-icon-trash {
     width: 38px; height: 38px;
     background: #fef2f2;
@@ -769,6 +771,8 @@
 
     // -------- ROW MANAGEMENT --------
     function newServiceRowHTML(idx){
+        var cihazHTML = @json($__cihazVar) ?
+            '<div class="v2-field"><select class="form-control v2-input v2-sm v2-cihaz" data-index="'+idx+'"><option value="">Cihaz...</option></select></div>' : '';
         var odaHTML = @json($__odaVar) ?
             '<div class="v2-field"><select class="form-control v2-input v2-sm v2-oda" data-index="'+idx+'"><option value="">Oda...</option></select></div>' : '';
         return ''+
@@ -785,6 +789,7 @@
                 '</div>'+
                 '<div class="v2-service-grid-row">'+
                     '<div class="v2-field"><select class="form-control v2-input v2-sm v2-personel" data-index="'+idx+'"><option value="">Personel...</option></select></div>'+
+                    cihazHTML+
                     odaHTML+
                     '<button type="button" class="v2-icon-trash v2-remove-row" title="Bu hizmeti sil"><i class="fa fa-trash"></i></button>'+
                 '</div>'+
@@ -814,6 +819,15 @@
         data.personeller.forEach(function(p){
             $p.append(new Option(p.ad, p.id));
         });
+
+        // Cihaz
+        var $c = $row.find('.v2-cihaz');
+        if($c.length){
+            $c.empty().append('<option value="">Cihaz...</option>');
+            data.cihazlar.forEach(function(c){
+                $c.append(new Option(c.ad, c.id));
+            });
+        }
 
         // Oda
         var $o = $row.find('.v2-oda');
@@ -1005,6 +1019,7 @@
             rowsData.push({
                 hizmetIds: ids,
                 personelId: $r.find('.personel-select, .personel_secimi').not('.hizmet-select').val() || '',
+                cihazId: $r.find('.cihaz-select, .cihaz_secimi').val() || '',
                 odaId: $r.find('.oda-select, .oda_secimi').val() || ''
             });
         });
@@ -1026,8 +1041,9 @@
             if(hizmetEl && hizmetEl.tomselect){
                 hizmetEl.tomselect.setValue(row.hizmetIds, true);
             }
-            // Personel + Oda
+            // Personel + Cihaz + Oda
             if(row.personelId) $row.find('.v2-personel').val(row.personelId);
+            if(row.cihazId) $row.find('.v2-cihaz').val(row.cihazId);
             if(row.odaId) $row.find('.v2-oda').val(row.odaId);
             updateRowMeta(i);
         });
@@ -1055,6 +1071,11 @@
         var data = getRandevuModalData();
         var $bp = $('#v2_bulk_personel').empty().append('<option value="">Personel...</option>');
         data.personeller.forEach(function(p){ $bp.append(new Option(p.ad, p.id)); });
+        var $bc = $('#v2_bulk_cihaz');
+        if($bc.length){
+            $bc.empty().append('<option value="">Cihaz...</option>');
+            data.cihazlar.forEach(function(c){ $bc.append(new Option(c.ad, c.id)); });
+        }
         var $bo = $('#v2_bulk_oda');
         if($bo.length){
             $bo.empty().append('<option value="">Oda...</option>');
@@ -1063,6 +1084,10 @@
         $bp.off('change.v2bulk').on('change.v2bulk', function(){
             var v = $(this).val();
             $services.find('.v2-personel').val(v);
+        });
+        $bc.off('change.v2bulk').on('change.v2bulk', function(){
+            var v = $(this).val();
+            $services.find('.v2-cihaz').val(v);
         });
         $bo.off('change.v2bulk').on('change.v2bulk', function(){
             var v = $(this).val();
@@ -1159,6 +1184,7 @@
 
         // Bulk panel inputs
         $('#v2_bulk_personel').val('');
+        $('#v2_bulk_cihaz').val('');
         $('#v2_bulk_oda').val('');
 
         // Notlar
@@ -1304,6 +1330,15 @@
                 }
                 $vp.val(v1PersonelOpt.val());
             }
+            if(v1CihazOpt.val()){
+                var $vc = $firstRow.find('.v2-cihaz');
+                if($vc.length){
+                    if($vc.find('option[value="'+v1CihazOpt.val()+'"]').length === 0){
+                        $vc.append(new Option(v1CihazOpt.text(), v1CihazOpt.val()));
+                    }
+                    $vc.val(v1CihazOpt.val());
+                }
+            }
             if(v1OdaOpt.val()){
                 var $vo = $firstRow.find('.v2-oda');
                 if($vo.length){
@@ -1377,6 +1412,7 @@
             var $v2Row = $(this);
             var hizmetIds = $v2Row.find('.v2-hizmet').val() || [];
             var personelId = $v2Row.find('.v2-personel').val();
+            var cihazId = $v2Row.find('.v2-cihaz').val();
             var odaId = $v2Row.find('.v2-oda').val();
 
             // V1 satirini bul (i. indeksli)
@@ -1394,6 +1430,10 @@
             // Personel
             if(personelId){
                 $v1Row.find('.personel-select, .personel_secimi').not('.hizmet-select').val(personelId).trigger('change');
+            }
+            // Cihaz
+            if(cihazId){
+                $v1Row.find('.cihaz-select, .cihaz_secimi').val(cihazId).trigger('change');
             }
             // Oda
             if(odaId){
