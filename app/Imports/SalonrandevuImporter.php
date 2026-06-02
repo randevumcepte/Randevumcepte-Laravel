@@ -35,6 +35,7 @@ class SalonrandevuImporter
 
     private $musteriMap = [];   // sr customer id -> users.id
     private $hizmetMap = [];     // sr service id -> hizmetler.id
+    private $packetMaster = null; // packet_id => [service_id => period]
     private $personelMap = [];   // sr staff id -> personeller.id
     private $urunMap = [];        // sr stock id -> urunler.id
 
@@ -573,6 +574,31 @@ class SalonrandevuImporter
         $this->log('Fis: adisyon=' . $this->counts['adisyon'] . ' tahsilat=' . $this->counts['tahsilat']);
     }
 
+    /**
+     * /company/packets master listesini bir kerelik yukle.
+     * packet_id => [service_id => period (toplam seans sayisi)]
+     */
+    private function loadPacketMaster()
+    {
+        if ($this->packetMaster !== null) return;
+        $this->packetMaster = [];
+        $j = $this->client->get('/company/packets?name=&page=-1');
+        $rows = $j['data']['packets']['records'] ?? ($j['data']['records'] ?? []);
+        foreach ($rows as $pkg) {
+            $pkgId = (int) ($pkg['id'] ?? 0);
+            if (!$pkgId) continue;
+            $details = $pkg['packet_details'] ?? [];
+            foreach ($details as $det) {
+                $svcId = (int) ($det['service_id'] ?? 0);
+                $period = (int) ($det['period'] ?? 0);
+                if ($svcId && $period > 0) {
+                    $this->packetMaster[$pkgId][$svcId] = $period;
+                }
+            }
+        }
+        $this->log('Paket master yuklendi: ' . count($this->packetMaster) . ' paket.');
+    }
+
     private function importOneReceipt($rid)
     {
         $marker = '[salonrandevu:' . $rid . ']';
@@ -608,6 +634,17 @@ class SalonrandevuImporter
         }
         $this->counts['adisyon']++;
 
+        // Paket fişi ise paket master'ı yukle (lazy)
+        // receipt_packages[idx].packet_id (master ref) + receipt_packages[idx].id (sale id)
+        // receipt_transactions[idx].receipt_package_id => receipt_packages[idx].id
+        $pkgById = []; // receipt_packages.id => packet_id (master)
+        foreach (($rc['receipt_packages'] ?? []) as $pkg) {
+            $pkgById[(int) ($pkg['id'] ?? 0)] = (int) ($pkg['packet_id'] ?? 0);
+        }
+        if (!empty($pkgById)) {
+            $this->loadPacketMaster();
+        }
+
         // Hizmet kalemleri (receipt_transactions)
         foreach (($rc['receipt_transactions'] ?? []) as $tx) {
             $svc = $tx['Service'] ?? [];
@@ -626,6 +663,18 @@ class SalonrandevuImporter
                 $personelId = $this->ensurePersonel($tx['staff']['full_name']);
             }
             list($pTarih,) = $this->isoBol($tx['process_date'] ?? null);
+
+            // Paket icindeki transaction mi? Master'dan period (seans sayisi) al.
+            $seansSayisi = null;
+            $recPkgId = (int) ($tx['receipt_package_id'] ?? 0);
+            if ($recPkgId && isset($pkgById[$recPkgId])) {
+                $masterPkgId = $pkgById[$recPkgId];
+                $svcId = (int) ($tx['service_id'] ?? 0);
+                if ($masterPkgId && $svcId && isset($this->packetMaster[$masterPkgId][$svcId])) {
+                    $seansSayisi = (int) $this->packetMaster[$masterPkgId][$svcId];
+                }
+            }
+
             $ah = new AdisyonHizmetler();
             $ah->adisyon_id = $ad->id;
             $ah->hizmet_id = $hizmetId;
@@ -633,7 +682,25 @@ class SalonrandevuImporter
             $ah->geldi = !empty($tx['is_paid']) ? 1 : 0;
             $ah->islem_tarihi = $pTarih ?: $tarih;
             $ah->fiyat = (float) ($tx['amount'] ?? 0);
+            if ($seansSayisi && $seansSayisi > 1 && \Schema::hasColumn('adisyon_hizmetler', 'seans_sayisi')) {
+                $ah->seans_sayisi = $seansSayisi;
+            }
             $ah->save();
+
+            // Paket ise placeholder AdisyonPaketSeanslar (geldi=0) yaz —
+            // randevu sirasinda tuketilecek. Drklinik/salonappy ile ayni mantik.
+            if ($seansSayisi && $seansSayisi > 1) {
+                for ($i = 1; $i <= $seansSayisi; $i++) {
+                    \DB::table('adisyon_paket_seanslar')->insert([
+                        'adisyon_hizmet_id' => $ah->id,
+                        'hizmet_id' => $hizmetId,
+                        'seans_no' => $i,
+                        'geldi' => 0,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                }
+            }
         }
 
         // Urun satislari (receipt_sales)
