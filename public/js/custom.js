@@ -3322,9 +3322,16 @@ $(document).on('submit','#yenirandevuekleform',function(e){
     $(this).find('.hizmet-suresi').each(function() {
                     totalFormDuration += parseFloat($(this).val()) || 0;
     });
+    // Hizmetsiz randevu: hic hizmet (dolayisiyla hizmet-suresi) yoksa, her zaman gorunur
+    // "Paket Süresi (dk)" (genel-sure-input) alani sureyi belirler. Boylece hizmet secimi
+    // zorunlu olmadan sadece sure ile randevu eklenebilir.
+    var __genelSure = parseInt($('#modal-view-event-add .genel-sure-input').val(), 10) || 0;
+    if(totalFormDuration == 0 && __genelSure > 0){
+        totalFormDuration = __genelSure;
+    }
     if(totalFormDuration == 0)
     {
-         warningtext += "- Hizmetlerin toplam süresi sıfırdan büyük olmalıdır.<br>";
+         warningtext += "- Hizmet seçiniz veya süre (dk) giriniz.<br>";
         suregirildi =false;
     }
     if(personelveyacihasecili == false || hizmetsecili == false || suregirildi == false || musterisecili == false ||saatsecili ==false  || totalFormDuration == 0){
@@ -3345,6 +3352,11 @@ $(document).on('submit','#yenirandevuekleform',function(e){
         var formData = new FormData();
         formData.append('cakisanrandevuekle',1);
         formData.append('sube',$('input[name="sube"]').val());
+        // Hizmetsiz randevu: hic hizmet-suresi yoksa "Paket Süresi (dk)" degerini backend'e gonder
+        // (backend bunu hizmet_id=NULL tek satir olarak kaydeder).
+        if($('#yenirandevuekleform .hizmet-suresi').length == 0 && __genelSure > 0){
+            formData.append('randevusuz_sure', __genelSure);
+        }
         var other_data = $('#yenirandevuekleform').serializeArray();
         $('#yenirandevuekleform select[name="randevuyardimcipersonelleriyeni"]').each(function(index1){
             if($(this).val()=='')

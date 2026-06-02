@@ -5471,7 +5471,24 @@ private function ayAdiCevir($ingilizceAy)
                     }
                     $hizmetlerToplami = 0;
                     $rHizmetler = $request->{"randevuhizmetleriyeni_{$key2}"};
-                    if(!is_array($rHizmetler) || empty($rHizmetler)) { continue; }
+                    if(!is_array($rHizmetler) || empty($rHizmetler)) {
+                        // Hizmetsiz randevu: hizmet secilmeden, sadece "Paket Süresi (dk)" girilmisse
+                        // tek bir hizmet_id=NULL satiri olustur (genel sure tek kez uygulanir -> sadece ilk satir).
+                        if($key2 == 0 && (int)($request->randevusuz_sure ?? 0) > 0) {
+                            $hizmetsizSure = (int) $request->randevusuz_sure;
+                            $rhSuresiz = new RandevuHizmetler();
+                            $rhSuresiz->randevu_id  = $yenirandevu->id;
+                            $rhSuresiz->hizmet_id   = null;
+                            $rhSuresiz->cihaz_id    = $cihaz_id;
+                            $rhSuresiz->personel_id = $personel_id;
+                            $rhSuresiz->oda_id      = $oda_id;
+                            $rhSuresiz->sure_dk     = $hizmetsizSure;
+                            $rhSuresiz->saat        = $yenisaatbaslangic;
+                            $rhSuresiz->saat_bitis  = date("H:i", strtotime('+'.$hizmetsizSure.' minutes', strtotime($yenisaatbaslangic)));
+                            $rhSuresiz->save();
+                        }
+                        continue;
+                    }
                     foreach($rHizmetler as $_key=>  $rHizmet)
                     {
                         array_push($hizmet_sureleri_okunan,$request->{"hizmet_sureleri-$rHizmet"});
