@@ -124,7 +124,7 @@
                                                                 <select class="form-control opsiyonelSelect oda-select genel-oda-select" data-genel="1" style="width:100%;height:32px;font-size:0.8rem;"><option></option></select>
                                                             </div>
                                                             <div class="col-md-3">
-                                                                <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Paket Süresi (dk)</label>
+                                                                <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Süre (dk)</label>
                                                                 <input type="number" min="0" step="5" class="form-control genel-sure-input" data-genel="1" placeholder="Toplam" style="width:100%;height:38px;font-size:0.85rem;">
                                                             </div>
                                                         </div>
