@@ -3206,8 +3206,18 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     // Bir select'i verilen hizmet listesiyle doldur (Tom Select)
     function doldurHizmetTom($hizmet, liste, placeholder){
         var idx = $hizmet.data('index');
+        var el0 = $hizmet[0];
+        var oldTs = el0 && el0.tomselect;
         var secili = $hizmet.val() || [];
         if(!Array.isArray(secili)) secili = secili ? [secili] : [];
+        // YENILERKEN SECILENE DOKUNMA: secili item'larin meta'sini sakla; yeni listede
+        // olmasalar bile ( or. paket hizmeti o odanin listesinde degil) geri ekleyip
+        // yeniden secebilelim. Boylece refilter/refresh secimi ASLA dusurmez.
+        var seciliMeta = {};
+        secili.forEach(function(id){
+            var o = (oldTs && oldTs.options && oldTs.options[id]) || hizmetDataCache[id];
+            if(o) seciliMeta[id] = o;
+        });
 
         // Native select'e option'lari koy (form submit icin gerekli)
         tomDestroyHizmet($hizmet);
@@ -3232,13 +3242,24 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                 kategori: h.kategori || '', renk: h.renk || '#6366f1'
             };
         });
+
+        // Secili olup yeni listede OLMAYAN hizmetleri geri ekle (secime dokunma)
+        secili.forEach(function(id){
+            if(!ts.options[id]){
+                var m = seciliMeta[id] || {};
+                ts.addOption({
+                    value: String(id),
+                    text: (m.text || m.ad) || String(id),
+                    kategori: m.kategori || '',
+                    sure: m.sure || 0,
+                    fiyat: m.fiyat || 0
+                });
+            }
+        });
         ts.refreshOptions(false);
 
-        // Onceki secimleri koru (yeni listede varsa)
-        var korunan = secili.filter(function(id){
-            return liste.some(function(h){ return String(h.id) === String(id); });
-        });
-        if(korunan.length) ts.setValue(korunan, true); // silent
+        // Onceki TUM secimleri koru (yeni listede olmasa da geri eklendi)
+        if(secili.length) ts.setValue(secili, true); // silent
     }
 
     // Hizmet secimini AJAX cache'e gore yukle
