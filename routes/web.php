@@ -690,6 +690,11 @@ Route::prefix('isletmeyonetim')->group(function() {
 	// Yeni Isletme Raporlari sayfasi (Salon Randevu tarzi tabbed rapor dashboard)
 	Route::get('/isletmeraporlari','StoreAdminController@isletmeRaporlari')->name('isletmeadmin.isletmeraporlari');
 	Route::get('/api/isletmeraporlari/ozet','StoreAdminController@isletmeRaporlariOzet')->name('isletmeadmin.isletmeraporlari.ozet');
+	Route::get('/api/isletmeraporlari/hizmet','StoreAdminController@isletmeRaporlariHizmet')->name('isletmeadmin.isletmeraporlari.hizmet');
+	Route::get('/api/isletmeraporlari/urun','StoreAdminController@isletmeRaporlariUrun')->name('isletmeadmin.isletmeraporlari.urun');
+	Route::get('/api/isletmeraporlari/personel','StoreAdminController@isletmeRaporlariPersonel')->name('isletmeadmin.isletmeraporlari.personel');
+	Route::get('/api/isletmeraporlari/musteri','StoreAdminController@isletmeRaporlariMusteri')->name('isletmeadmin.isletmeraporlari.musteri');
+	Route::get('/api/isletmeraporlari/randevu','StoreAdminController@isletmeRaporlariRandevu')->name('isletmeadmin.isletmeraporlari.randevu');
 	Route::get('/api/dashboard/bugun','StoreAdminController@dashboardBugun')->name('isletmeadmin.dashboard.bugun');
 	Route::get('/api/dashboard/sekme','StoreAdminController@dashboardSekme')->name('isletmeadmin.dashboard.sekme');
 	Route::get('/api/dashboard/timeline','StoreAdminController@dashboardTimeline')->name('isletmeadmin.dashboard.timeline');

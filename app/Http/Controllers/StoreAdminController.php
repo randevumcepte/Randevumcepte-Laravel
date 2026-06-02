@@ -1466,6 +1466,271 @@ public function carkverilerigetir(Request $request)
         });
     }
 
+    public function isletmeRaporlariHizmet(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
+        $cacheKey = 'rapor:hizmet:'.$periodKey.':'.$t1.':'.$t2;
+
+        return \Cache::remember($this->dashCacheKey($salonId, $cacheKey), 60, function() use ($salonId, $t1, $t2) {
+            $rows = DB::table('adisyon_hizmetler as ah')
+                ->join('adisyonlar as a','a.id','=','ah.adisyon_id')
+                ->join('hizmetler as h','h.id','=','ah.hizmet_id')
+                ->where('a.salon_id', $salonId)
+                ->whereBetween('a.created_at', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                ->select('h.id','h.hizmet_adi',
+                    DB::raw('COUNT(*) as adet'),
+                    DB::raw('SUM(ah.fiyat - COALESCE(ah.indirim_tutari,0)) as ciro'))
+                ->groupBy('h.id','h.hizmet_adi')
+                ->orderByDesc('ciro')
+                ->limit(20)
+                ->get();
+
+            $toplamAdet = 0; $toplamCiro = 0;
+            foreach($rows as $r){ $toplamAdet += (int)$r->adet; $toplamCiro += (float)$r->ciro; }
+            $ortFiyat = $toplamAdet > 0 ? round($toplamCiro / $toplamAdet, 2) : 0;
+
+            return response()->json([
+                'toplam_adet' => $toplamAdet,
+                'toplam_ciro' => $toplamCiro,
+                'ortalama_fiyat' => $ortFiyat,
+                'hizmetler' => $rows,
+            ]);
+        });
+    }
+
+    public function isletmeRaporlariUrun(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
+        $cacheKey = 'rapor:urun:'.$periodKey.':'.$t1.':'.$t2;
+
+        return \Cache::remember($this->dashCacheKey($salonId, $cacheKey), 60, function() use ($salonId, $t1, $t2) {
+            $rows = DB::table('adisyon_urunler as au')
+                ->join('adisyonlar as a','a.id','=','au.adisyon_id')
+                ->leftJoin('urunler as u','u.id','=','au.urun_id')
+                ->where('a.salon_id', $salonId)
+                ->whereBetween('a.created_at', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                ->select(
+                    DB::raw('COALESCE(u.id, 0) as urun_id'),
+                    DB::raw("COALESCE(u.urun_adi,'Silinmiş Ürün') as urun_adi"),
+                    DB::raw('SUM(COALESCE(au.adet,1)) as adet'),
+                    DB::raw('SUM(au.fiyat - COALESCE(au.indirim_tutari,0)) as ciro'))
+                ->groupBy('u.id','u.urun_adi')
+                ->orderByDesc('ciro')
+                ->limit(20)
+                ->get();
+
+            $toplamAdet = 0; $toplamCiro = 0;
+            foreach($rows as $r){ $toplamAdet += (int)$r->adet; $toplamCiro += (float)$r->ciro; }
+            $ortFiyat = $toplamAdet > 0 ? round($toplamCiro / $toplamAdet, 2) : 0;
+
+            return response()->json([
+                'toplam_adet' => $toplamAdet,
+                'toplam_ciro' => $toplamCiro,
+                'ortalama_fiyat' => $ortFiyat,
+                'urunler' => $rows,
+            ]);
+        });
+    }
+
+    public function isletmeRaporlariPersonel(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
+        $cacheKey = 'rapor:personel:'.$periodKey.':'.$t1.':'.$t2;
+
+        return \Cache::remember($this->dashCacheKey($salonId, $cacheKey), 60, function() use ($salonId, $t1, $t2) {
+            $hizmetRows = DB::table('adisyon_hizmetler as ah')
+                ->join('adisyonlar as a','a.id','=','ah.adisyon_id')
+                ->where('a.salon_id', $salonId)
+                ->whereBetween('a.created_at', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                ->whereNotNull('ah.personel_id')
+                ->select('ah.personel_id',
+                    DB::raw('COUNT(*) as hizmet_say'),
+                    DB::raw('SUM(ah.fiyat - COALESCE(ah.indirim_tutari,0)) as ciro'))
+                ->groupBy('ah.personel_id')
+                ->get()
+                ->keyBy('personel_id');
+
+            $randevuRows = DB::table('randevu_hizmetler as rh')
+                ->join('randevular as r','r.id','=','rh.randevu_id')
+                ->where('r.salon_id', $salonId)
+                ->whereBetween('r.tarih', [$t1, $t2])
+                ->whereNotNull('rh.personel_id')
+                ->where(function($q){ $q->where('rh.yardimci_personel','!=',true)->orWhereNull('rh.yardimci_personel'); })
+                ->select('rh.personel_id', DB::raw('COUNT(DISTINCT r.id) as randevu_say'))
+                ->groupBy('rh.personel_id')
+                ->get()
+                ->keyBy('personel_id');
+
+            $personeller = DB::table('salon_personelleri')
+                ->where('salon_id', $salonId)
+                ->where('aktif', 1)
+                ->select('id','personel_adi')
+                ->get();
+
+            $sonuc = [];
+            foreach($personeller as $p){
+                $h = $hizmetRows[$p->id] ?? null;
+                $r = $randevuRows[$p->id] ?? null;
+                $sonuc[] = [
+                    'id' => $p->id,
+                    'personel_adi' => $p->personel_adi,
+                    'randevu_say' => $r ? (int)$r->randevu_say : 0,
+                    'hizmet_say' => $h ? (int)$h->hizmet_say : 0,
+                    'ciro' => $h ? (float)$h->ciro : 0,
+                ];
+            }
+            usort($sonuc, function($a,$b){ return $b['ciro'] <=> $a['ciro']; });
+
+            return response()->json(['personeller' => $sonuc]);
+        });
+    }
+
+    public function isletmeRaporlariMusteri(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
+        $cacheKey = 'rapor:musteri:'.$periodKey.':'.$t1.':'.$t2;
+
+        return \Cache::remember($this->dashCacheKey($salonId, $cacheKey), 60, function() use ($salonId, $t1, $t2) {
+            $aktifMusteriler = DB::table('randevular')
+                ->where('salon_id', $salonId)
+                ->whereBetween('tarih', [$t1, $t2])
+                ->distinct()
+                ->pluck('user_id');
+            $toplamAktif = $aktifMusteriler->count();
+
+            $yeniMusteri = 0;
+            if(\Schema::hasTable('musteri_portfoy')){
+                $yeniMusteri = DB::table('musteri_portfoy')
+                    ->where('salon_id', $salonId)
+                    ->whereBetween('created_at', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                    ->count();
+            }
+            $tekrarGelen = max(0, $toplamAktif - $yeniMusteri);
+
+            $cinsiyet = ['kadin'=>0,'erkek'=>0,'belirsiz'=>0];
+            if($aktifMusteriler->count() > 0){
+                $cinsiyetRows = DB::table('users')
+                    ->whereIn('id', $aktifMusteriler)
+                    ->select('cinsiyet', DB::raw('COUNT(*) as adet'))
+                    ->groupBy('cinsiyet')
+                    ->get();
+                foreach($cinsiyetRows as $c){
+                    $cins = mb_strtolower($c->cinsiyet ?? '', 'UTF-8');
+                    if(strpos($cins,'kad') !== false || $cins === 'k' || $cins === 'female' || $cins === 'f'){
+                        $cinsiyet['kadin'] += (int)$c->adet;
+                    } elseif(strpos($cins,'erk') !== false || $cins === 'e' || $cins === 'male' || $cins === 'm'){
+                        $cinsiyet['erkek'] += (int)$c->adet;
+                    } else {
+                        $cinsiyet['belirsiz'] += (int)$c->adet;
+                    }
+                }
+            }
+
+            $topMusteriler = DB::table('tahsilatlar as t')
+                ->join('users as u','u.id','=','t.user_id')
+                ->where('t.salon_id', $salonId)
+                ->whereBetween('t.odeme_tarihi', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                ->select('u.id','u.name','u.cep_telefon', DB::raw('SUM(t.tutar) as toplam'), DB::raw('COUNT(t.id) as islem_say'))
+                ->groupBy('u.id','u.name','u.cep_telefon')
+                ->orderByDesc('toplam')
+                ->limit(10)
+                ->get();
+
+            return response()->json([
+                'toplam_aktif' => $toplamAktif,
+                'yeni_musteri' => $yeniMusteri,
+                'tekrar_gelen' => $tekrarGelen,
+                'cinsiyet' => $cinsiyet,
+                'top_musteriler' => $topMusteriler,
+            ]);
+        });
+    }
+
+    public function isletmeRaporlariRandevu(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
+        $cacheKey = 'rapor:randevu:'.$periodKey.':'.$t1.':'.$t2;
+
+        return \Cache::remember($this->dashCacheKey($salonId, $cacheKey), 60, function() use ($salonId, $t1, $t2) {
+            $toplam = DB::table('randevular')
+                ->where('salon_id', $salonId)
+                ->whereBetween('tarih', [$t1, $t2])
+                ->count();
+            $sonuclanan = DB::table('randevular')
+                ->where('salon_id', $salonId)->whereBetween('tarih',[$t1,$t2])
+                ->where('durum',1)->where('randevuya_geldi',true)->count();
+            $gelmedi = DB::table('randevular')
+                ->where('salon_id', $salonId)->whereBetween('tarih',[$t1,$t2])
+                ->where('durum',1)->where('randevuya_geldi',false)->count();
+            $iptal = DB::table('randevular')
+                ->where('salon_id', $salonId)->whereBetween('tarih',[$t1,$t2])
+                ->whereIn('durum',[2,3])->count();
+            $bekleyen = DB::table('randevular')
+                ->where('salon_id', $salonId)->whereBetween('tarih',[$t1,$t2])
+                ->where('durum',0)->count();
+
+            $kaynak = DB::table('randevular')
+                ->where('salon_id', $salonId)->whereBetween('tarih',[$t1,$t2])
+                ->selectRaw('SUM(CASE WHEN salon=1 THEN 1 ELSE 0 END) as isletme, SUM(CASE WHEN web=1 THEN 1 ELSE 0 END) as web, SUM(CASE WHEN uygulama=1 THEN 1 ELSE 0 END) as uygulama')
+                ->first();
+
+            $saatRows = DB::table('randevular')
+                ->where('salon_id', $salonId)->whereBetween('tarih',[$t1,$t2])
+                ->select(DB::raw('HOUR(saat) as h'), DB::raw('COUNT(*) as adet'))
+                ->groupBy('h')
+                ->get()
+                ->keyBy('h');
+            $saatDagilim = [];
+            for($i=0; $i<24; $i++){
+                $saatDagilim[] = [
+                    'saat' => sprintf('%02d', $i),
+                    'adet' => isset($saatRows[$i]) ? (int)$saatRows[$i]->adet : 0,
+                ];
+            }
+
+            $gunRows = DB::table('randevular')
+                ->where('salon_id', $salonId)->whereBetween('tarih',[$t1,$t2])
+                ->select(DB::raw('DAYOFWEEK(tarih) as g'), DB::raw('COUNT(*) as adet'))
+                ->groupBy('g')
+                ->get()
+                ->keyBy('g');
+            $gunSira = [2,3,4,5,6,7,1];
+            $gunAdlari = ['Pts','Sal','Çar','Per','Cum','Cts','Paz'];
+            $gunDagilim = [];
+            foreach($gunSira as $idx => $g){
+                $gunDagilim[] = [
+                    'gun' => $gunAdlari[$idx],
+                    'adet' => isset($gunRows[$g]) ? (int)$gunRows[$g]->adet : 0,
+                ];
+            }
+
+            return response()->json([
+                'toplam' => $toplam,
+                'sonuclanan' => $sonuclanan,
+                'gelmedi' => $gelmedi,
+                'iptal' => $iptal,
+                'bekleyen' => $bekleyen,
+                'kaynak' => [
+                    'isletme' => (int)($kaynak->isletme ?? 0),
+                    'web' => (int)($kaynak->web ?? 0),
+                    'uygulama' => (int)($kaynak->uygulama ?? 0),
+                ],
+                'saat_dagilim' => $saatDagilim,
+                'gun_dagilim' => $gunDagilim,
+            ]);
+        });
+    }
+
     public function dashboardCark(Request $request)
     {
         $salonId = $this->dashSalonId($request);
@@ -24611,21 +24876,44 @@ public function musteriportfoydropliste(Request $request)
     {
 
         $isletmeId = self::mevcutsube($request);
-        $randevular = Randevular::has('hizmetler')->where('durum',1)->where(function($q){
+
+        // Tarihleri tek seferde hesapla (her where closure'unda yeniden hesaplama yok)
+        $today = date('Y-m-d');
+        $randevuDate  = date('Y-m-d', strtotime('+'.($bugunYarin+1).' days', strtotime($today)));
+        $alacakDate   = date('Y-m-d', strtotime('+'.($bugunYarin+2).' days', strtotime($today)));
+        $kampanyaDate = date('Y-m-d', strtotime('+'.($bugunYarin).' days',   strtotime($today)));
+
+        // Randevular: musteri + salon iliskilerini eager load et (N+1 onleme).
+        // Onceden her randevu icin 2 ek query atiliyordu (users + salonlar).
+        // 100+ randevuda yuzlerce gereksiz sorgu olusuyordu.
+        $randevular = Randevular::has('hizmetler')
+            ->with(['users:id,name', 'salonlar:id,salon_turu_id'])
+            ->where('salon_id',$isletmeId)
+            ->where('durum',1)
+            ->where(function($q){
                 $q->where('randevuya_geldi',null);
-            $q->orWhere('randevuya_geldi','!=',0);
-        })->where('salon_id',$isletmeId)->where(function($q) use($bugunYarin){
-                $q->where('tarih', date('Y-m-d', strtotime('+'.($bugunYarin+1) .' days', strtotime(date('Y-m-d')))));
-                $q->orWhere('onceki_tarih', date('Y-m-d', strtotime('+'.($bugunYarin+1).' days', strtotime(date('Y-m-d')))));
-        })->get();
-        $alacaklar = Alacaklar::where('salon_id',$isletmeId)->where(function ($q) use($bugunYarin) {
-                $q->where('planlanan_odeme_tarihi', date('Y-m-d', strtotime('+'.($bugunYarin+2).' days', strtotime(date('Y-m-d')))));
-                $q->orWhere('onceki_planlanan_odeme_tarihi', date('Y-m-d', strtotime('+'.($bugunYarin+2).' days', strtotime(date('Y-m-d')))));
-        })->get();
-        $kampanyalar = KampanyaYonetimi::where('salon_id',$isletmeId)->where(function($q) use($bugunYarin){
-                $q->where('asistan_tarih_saat', 'LIKE','%'.date('Y-m-d', strtotime('+'.($bugunYarin).' days', strtotime(date('Y-m-d')))).'%');
-                $q->orWhere('asistan_tarih_saat','LIKE', '%'.date('Y-m-d', strtotime('+'.($bugunYarin).' days', strtotime(date('Y-m-d')))).'%');
-        })->get();
+                $q->orWhere('randevuya_geldi','!=',0);
+            })
+            ->where(function($q) use($randevuDate){
+                $q->where('tarih', $randevuDate);
+                $q->orWhere('onceki_tarih', $randevuDate);
+            })
+            ->get();
+
+        // Alacaklar: default $with array'i 7 belongsTo iliskisini her sorguda yukluyor.
+        // Bu sayfada sadece musteri + salon kullaniliyor; gerisini bypass et.
+        $alacaklar = Alacaklar::without(['paketsatis','olusturan','randevu','senet','urunsatisi'])
+            ->where('salon_id',$isletmeId)
+            ->where(function ($q) use($alacakDate) {
+                $q->where('planlanan_odeme_tarihi', $alacakDate);
+                $q->orWhere('onceki_planlanan_odeme_tarihi', $alacakDate);
+            })
+            ->get();
+
+        // KampanyaYonetimi: LIKE '%tarih%' yerine indekslenebilir whereDate.
+        $kampanyalar = KampanyaYonetimi::where('salon_id',$isletmeId)
+            ->whereDate('asistan_tarih_saat', $kampanyaDate)
+            ->get();
 
 
         $formattedRandevular = $randevular->map(function($randevu){
