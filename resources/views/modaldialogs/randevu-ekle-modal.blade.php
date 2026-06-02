@@ -2568,14 +2568,23 @@ function _formaYerlestir(hizmetData, odaAtama, onTamamlandi){
 }
 
 // custom.js'in `function addServicesToForm` hoisting'i bizim atamayi ezdigi icin
-// DOMContentLoaded sonrasi window.addServicesToForm'u override et
+// DOMContentLoaded sonrasi window.addServicesToForm'u override et.
+// DISPATCHER: paket secim modali HANGI modal acikken tetiklendiyse ona yonlendirir.
+// Duzenle modali (#randevu-duzenle-modal) aciksa duzenleme formuna, degilse yeni randevu formuna.
+function _paketAddServicesDispatcher(hizmetData, result, showMsg){
+    var $dz = $('#randevu-duzenle-modal');
+    if($dz.length && ($dz.hasClass('show') || $dz.is(':visible')) && typeof window._duzenleAddServicesToForm === 'function'){
+        return window._duzenleAddServicesToForm(hizmetData, result, showMsg);
+    }
+    return _yeniRandevuAddServicesToForm(hizmetData, result, showMsg);
+}
 $(window).on('load', function(){
-    window.addServicesToForm = _yeniRandevuAddServicesToForm;
-    console.log('[PAKET] addServicesToForm override aktif (window load)');
+    window.addServicesToForm = _paketAddServicesDispatcher;
+    console.log('[PAKET] addServicesToForm dispatcher aktif (window load)');
 });
 $(document).ready(function(){
     // Erken override (modal acilirken hazir olsun)
-    window.addServicesToForm = _yeniRandevuAddServicesToForm;
+    window.addServicesToForm = _paketAddServicesDispatcher;
 });
 
 // Randevu modali icin: aktif personel + aktif & musait cihaz + aktif & musait oda listeleri

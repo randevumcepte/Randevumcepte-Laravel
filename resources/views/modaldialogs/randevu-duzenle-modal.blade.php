@@ -67,9 +67,14 @@
                             <div class="card mb-2">
                                 <div class="card-header py-1 d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0" style="font-size: 0.9rem;">Hizmetler</h6>
-                                    <button type="button" id="bir_hizmet_daha_ekle_randevu_duzenleme" class="btn btn-outline-success btn-sm" style="padding: 3px 8px; font-size: 0.75rem;">
-                                        <i class="icon-copy fi-plus"></i> Yeni Hizmet Ekle
-                                    </button>
+                                    <div class="d-flex" style="gap:6px;">
+                                        <button type="button" id="duzenle-paketleri-goster" class="btn btn-sm" style="padding: 3px 8px; font-size: 0.75rem; background:#5C008E; color:#fff; border:none;">
+                                            <i class="fa fa-gift"></i> Paketleri Göster
+                                        </button>
+                                        <button type="button" id="bir_hizmet_daha_ekle_randevu_duzenleme" class="btn btn-outline-success btn-sm" style="padding: 3px 8px; font-size: 0.75rem;">
+                                            <i class="icon-copy fi-plus"></i> Yeni Hizmet Ekle
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="card-body p-2 hizmetler_bolumu_randevu_duzenleme" style="overflow: visible;">
                                     {{-- Hizmet satirlari JS ile dinamik olarak bu container'a eklenir (ekleme modalinin template'i ile ayni) --}}
@@ -428,6 +433,51 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
         }
         return $el;
     }
+
+    // ===================== PAKET SECIMI (DUZENLEME) =====================
+    // Paket secim modalindan (custom.js showSoftPackageSelectionModal) gelen hizmetleri
+    // DUZENLEME formuna ekler — her hizmet ayri satir. addServicesToForm dispatcher'i
+    // (ekle blade) duzenle modali aciksa burayi cagirir.
+    function _duzenleAddServicesToForm(hizmetData, result, showMsg){
+        if(!hizmetData || !hizmetData.length) return;
+        hizmetData.forEach(function(item){
+            var $row = duzenleYeniHizmetSatiri();
+            if(!$row) return;
+            var hid = item.hizmet_id || item.id;
+            (function wait(tries){
+                var $hz = $row.find('.duzenle-hizmet-select');
+                var ts = $hz[0] && $hz[0].tomselect;
+                if(ts){
+                    if(!ts.options[hid]){
+                        ts.addOption({ value:String(hid), text:item.text,
+                            kategori:(item.tur==='paket' ? ('Paket: '+(item.paket_adi||'')) : 'Hizmet'),
+                            sure:item.sure||0, fiyat:item.fiyat||0 });
+                    }
+                    ts.addItem(String(hid), false); // onChange -> detay render
+                    setTimeout(function(){
+                        var $sure = $row.find('input.hizmet-suresi').last();
+                        if($sure.length && item.sure) $sure.val(item.sure);
+                    }, 60);
+                } else if(tries < 40){
+                    setTimeout(function(){ wait(tries+1); }, 80);
+                }
+            })(0);
+        });
+        try { if(typeof duzenleUpdateOzeti === 'function') duzenleUpdateOzeti(); } catch(e){}
+    }
+    window._duzenleAddServicesToForm = _duzenleAddServicesToForm;
+
+    // "Paketleri Göster" (duzenleme) — secili musterinin paketlerini soft modalda goster.
+    // paketKontrolü(uid, false): false => onay gerekli => modal acilir (true olsaydi otomatik eklerdi).
+    $(document).on('click', '#duzenle-paketleri-goster', function(){
+        var uid = $('#randevuduzenle_musteri_id').val();
+        if(!uid){
+            if(typeof swal === 'function') swal({type:'warning', title:'Uyarı', text:'Önce müşteri seçiniz.', timer:2500, showConfirmButton:false});
+            return;
+        }
+        try { paketKontrolü(uid, false); }
+        catch(e){ try { window['paketKontrolü'](uid, false); } catch(e2){ console.warn('paketKontrolü bulunamadi', e2); } }
+    });
 
     // Hizmet select options'i doldur (tum hizmetler veya personel/cihaz/oda filtreli)
     // Eslesme yoksa filtreleme YAPMA (tum hizmetler gosterilir)
