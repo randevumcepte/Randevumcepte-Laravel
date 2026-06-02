@@ -8,6 +8,7 @@ use App\SalonSMSAyarlari;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class DogumGunuSMSHatirlatma extends Command
 {
@@ -38,6 +39,19 @@ class DogumGunuSMSHatirlatma extends Command
                 continue;
             }
 
+            // Bugun isletme panelinden manuel olarak (popup uzerinden) gonderildiyse tekrar gonderme
+            $manuelGonderildi = DB::table('dogum_gunu_mesaj_loglari')
+                ->where('salon_id', $dogumGunu->salon_id)
+                ->where('user_id', $dogumGunu->user_id)
+                ->whereDate('gonderim_tarihi', date('Y-m-d'))
+                ->exists();
+            if ($manuelGonderildi) {
+                Log::info('doğum günü otomatik SMS atlandı (manuel gönderim var)', [
+                    'salon_id' => $dogumGunu->salon_id, 'user_id' => $dogumGunu->user_id,
+                ]);
+                continue;
+            }
+
             $kutlamaMesaji = 'Sayın ' . $dogumGunu->users->name . ' ' . $dogumGunu->salonlar->salon_adi . ' olarak doğum gününüzü kutlar, sağlıklı, mutlu ve başarılı dolu seneler dileriz.';
 
             $mesaj = [[
@@ -46,6 +60,22 @@ class DogumGunuSMSHatirlatma extends Command
             ]];
             Log::info('doğum günü SMS salon_id ' . $dogumGunu->salon_id);
             $controller->sms_gonder($dogumGunu->salon_id, $mesaj);
+
+            // Otomatik SMS gonderildigine dair log dus (gun icinde duplicate engellemesi icin)
+            try {
+                DB::table('dogum_gunu_mesaj_loglari')->insert([
+                    'salon_id' => $dogumGunu->salon_id,
+                    'user_id' => $dogumGunu->user_id,
+                    'kanal' => 'sms-otomatik',
+                    'mesaj' => mb_substr($kutlamaMesaji, 0, 500),
+                    'detay' => 'scheduled',
+                    'gonderim_tarihi' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('[DOGUM-GUNU-AUTO] log yazilamadi', ['err' => $e->getMessage()]);
+            }
 
             try {
                 \App\Services\NotificationService::toCustomer((int) $dogumGunu->user_id, (int) $dogumGunu->salon_id)

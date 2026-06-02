@@ -978,6 +978,91 @@ function rmcDashInit(){
     });
   });
 
+  // ===== DOĞUM GÜNÜ POPUP =====
+  function dogumGunuPopupGoster(){
+    if(typeof Swal === 'undefined') return;
+    var lsKey = 'rmc_dogumgunu_kapatildi_' + new Date().toISOString().slice(0,10);
+    api('/bugun-dogum-gunu').then(function(d){
+      var liste = (d.liste || []).filter(function(m){ return !m.gonderildi; });
+      if(liste.length === 0) return;
+
+      // Bugün manuel kapatılan müşterileri filtrele
+      var kapatilanlar = [];
+      try { kapatilanlar = JSON.parse(localStorage.getItem(lsKey) || '[]'); } catch(e){}
+      liste = liste.filter(function(m){ return kapatilanlar.indexOf(m.id) === -1; });
+      if(liste.length === 0) return;
+
+      function sirayaAl(idx){
+        if(idx >= liste.length) return;
+        var m = liste[idx];
+        var ad = m.name || 'Müşteri';
+        var html = '<div style="text-align:center;">'
+                 + '<div style="font-size:48px;margin-bottom:8px;">🎂</div>'
+                 + '<p style="font-size:15px;color:#444;margin:0 0 4px 0;">Bugün</p>'
+                 + '<h3 style="margin:0 0 8px 0;color:#e63b6e;font-weight:700;">'+ ad +'</h3>'
+                 + '<p style="font-size:14px;color:#666;">Müşterinize doğum günü mesajı göndermek ister misiniz?</p>'
+                 + '<p style="font-size:12px;color:#999;margin-top:8px;">Önce WhatsApp denenecek, başarısız olursa SMS gönderilecek.</p>'
+                 + '</div>';
+        Swal.fire({
+          html: html,
+          showCancelButton: true,
+          showDenyButton: true,
+          confirmButtonText: '<i class="bi bi-send"></i> Evet, Gönder',
+          denyButtonText: 'Bugün Gösterme',
+          cancelButtonText: 'Hayır',
+          confirmButtonColor: '#1fbf6f',
+          denyButtonColor: '#9097ad',
+          cancelButtonColor: '#ff5c8a',
+          reverseButtons: false,
+          allowOutsideClick: false,
+        }).then(function(res){
+          if(res.isConfirmed){
+            // Gönderim isteği
+            Swal.fire({title:'Gönderiliyor…', didOpen: function(){ Swal.showLoading(); }, allowOutsideClick:false});
+            var csrf = document.querySelector('meta[name="csrf-token"]');
+            csrf = csrf ? csrf.getAttribute('content') : (document.querySelector('input[name="_token"]') ? document.querySelector('input[name="_token"]').value : '');
+            var fd = new FormData();
+            fd.append('musteri_id', m.id);
+            fd.append('_token', csrf);
+            fetch('/isletmeyonetim/dogum-gunu-mesaj-gonder' + subeParam, {
+              method:'POST',
+              credentials:'same-origin',
+              headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN': csrf},
+              body: fd,
+            }).then(function(r){ return r.json(); }).then(function(out){
+              if(out && out.ok){
+                Swal.fire({
+                  icon:'success',
+                  title:'Gönderildi!',
+                  text: out.mesaj || (out.kanal === 'whatsapp' ? 'WhatsApp üzerinden gönderildi.' : 'SMS olarak gönderildi.'),
+                  timer: 2200,
+                });
+              } else {
+                Swal.fire({icon:'error', title:'Hata', text:(out && out.mesaj) ? out.mesaj : 'Gönderim sırasında hata oluştu.'});
+              }
+              setTimeout(function(){ sirayaAl(idx+1); }, 800);
+            }).catch(function(){
+              Swal.fire({icon:'error', title:'Hata', text:'Sunucuya bağlanılamadı.'});
+              setTimeout(function(){ sirayaAl(idx+1); }, 800);
+            });
+          } else if(res.isDenied){
+            // Bugün gösterme — LocalStorage'a ekle
+            try {
+              var arr = JSON.parse(localStorage.getItem(lsKey) || '[]');
+              if(arr.indexOf(m.id) === -1) arr.push(m.id);
+              localStorage.setItem(lsKey, JSON.stringify(arr));
+            } catch(e){}
+            sirayaAl(idx+1);
+          } else {
+            // Hayır / iptal — sıradakine geç (yarın tekrar sorabilir)
+            sirayaAl(idx+1);
+          }
+        });
+      }
+      sirayaAl(0);
+    }).catch(function(e){ console.warn('bugun dogum gunu err', e); });
+  }
+
   // ===== İlk yükleme — paralel =====
   renderKasa('daily');
   renderRandevu('daily');
@@ -986,6 +1071,9 @@ function rmcDashInit(){
   renderTab('online-talep');
   renderTimeline();
   renderPersonel();
+
+  // Popup'ı sayfa biraz yerleşsin diye 1.5sn sonra çağır
+  setTimeout(dogumGunuPopupGoster, 1500);
 }
 
 (function rmcDashBoot(){
