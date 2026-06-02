@@ -518,24 +518,26 @@
     border-color: #c4b5fd;
     box-shadow: 0 4px 12px rgba(124, 58, 237, 0.12);
 }
-#modal-view-event-add-v2 .v2-paket-head { padding: 0; }
-#modal-view-event-add-v2 .v2-paket-toggle {
-    width: 100%;
-    background: transparent;
-    border: none;
+#modal-view-event-add-v2 .v2-paket-head {
     padding: 12px 14px;
     display: flex;
     align-items: center;
     gap: 10px;
     cursor: pointer;
-    text-align: left;
     transition: background 0.12s;
 }
-#modal-view-event-add-v2 .v2-paket-toggle:hover { background: rgba(124,58,237,0.04); }
-#modal-view-event-add-v2 .v2-paket-toggle > .fa-gift {
+#modal-view-event-add-v2 .v2-paket-head:hover { background: rgba(124,58,237,0.04); }
+#modal-view-event-add-v2 .v2-paket-head-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+#modal-view-event-add-v2 .v2-paket-icon {
     color: #7c3aed;
     font-size: 1.1rem;
-    width: 28px; height: 28px;
+    width: 32px; height: 32px;
     background: linear-gradient(135deg, #ede9fe, #ddd6fe);
     border-radius: 8px;
     display: inline-flex;
@@ -562,19 +564,79 @@
     font-weight: 600;
     flex-shrink: 0;
 }
-#modal-view-event-add-v2 .v2-paket-meta {
-    font-size: 0.78rem;
-    color: #6b21a8;
-    font-weight: 600;
+
+/* Sure + Fiyat input wrappers — prominent, editable */
+#modal-view-event-add-v2 .v2-paket-totals {
+    display: flex;
+    gap: 6px;
     flex-shrink: 0;
-    margin-left: 4px;
+}
+#modal-view-event-add-v2 .v2-paket-input-wrap {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border: 1.5px solid #ddd6fe;
+    border-radius: 8px;
+    padding: 4px 8px 4px 6px;
+    gap: 4px;
+    transition: all 0.12s;
+    box-shadow: 0 1px 2px rgba(124, 58, 237, 0.05);
+}
+#modal-view-event-add-v2 .v2-paket-input-wrap:hover {
+    border-color: #c4b5fd;
+    box-shadow: 0 2px 6px rgba(124, 58, 237, 0.12);
+}
+#modal-view-event-add-v2 .v2-paket-input-wrap:focus-within {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+#modal-view-event-add-v2 .v2-paket-sure-input,
+#modal-view-event-add-v2 .v2-paket-fiyat-input {
+    border: none;
+    background: transparent;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #4c1d95;
+    width: 56px;
+    padding: 2px;
+    text-align: right;
+    outline: none;
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+#modal-view-event-add-v2 .v2-paket-fiyat-input { width: 72px; }
+#modal-view-event-add-v2 .v2-paket-sure-input::-webkit-inner-spin-button,
+#modal-view-event-add-v2 .v2-paket-sure-input::-webkit-outer-spin-button {
+    -webkit-appearance: none; margin: 0;
+}
+#modal-view-event-add-v2 .v2-paket-input-unit {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #7c3aed;
+    flex-shrink: 0;
+}
+
+#modal-view-event-add-v2 .v2-paket-toggle-btn {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    width: 24px; height: 24px;
+    padding: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.12s;
+}
+#modal-view-event-add-v2 .v2-paket-toggle-btn:hover {
+    background: rgba(124,58,237,0.1);
+    color: #7c3aed;
 }
 #modal-view-event-add-v2 .v2-paket-chev {
-    color: #9ca3af;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     transition: transform 0.2s;
-    margin-left: 4px;
-    flex-shrink: 0;
 }
 #modal-view-event-add-v2 .v2-paket-card.expanded .v2-paket-chev { transform: rotate(180deg); }
 
@@ -1018,9 +1080,16 @@
         var totalSure = 0, totalFiyat = 0;
         $services.find('.v2-service-row').each(function(){
             var $row = $(this);
-            // Paket card data('hizmetIds') saklar; normal satir .v2-hizmet'i kullanir
-            var ids = $row.data('hizmetIds');
-            if(!ids || !ids.length){ ids = $row.find('.v2-hizmet').val() || []; }
+            // Paket card: kullanicinin overrideladigi sure/fiyat input'larindan oku
+            if($row.hasClass('v2-paket-card')){
+                var s = parseFloat($row.find('.v2-paket-sure-input').val()) || 0;
+                var f = parseFloat(String($row.find('.v2-paket-fiyat-input').val() || '').replace(',','.')) || 0;
+                totalSure += s;
+                totalFiyat += f;
+                return;
+            }
+            // Normal satir: .v2-hizmet secimden cache uzerinden topla
+            var ids = $row.find('.v2-hizmet').val() || [];
             if(!Array.isArray(ids)) ids = ids ? [ids] : [];
             ids.forEach(function(id){
                 var d = window.hizmetDataCache ? window.hizmetDataCache[id] : null;
@@ -1091,15 +1160,40 @@
             window._v2PaketAkisi = false;
         });
 
-        // Manuel "Paketler" butonu — secili musteri icin paket modali ac
+        // Manuel "Paketler" butonu — secili musteri icin paket modalini TEKRAR ac
+        // Kullanici yanlis paket secmis olabilir; mevcut paket secimini temizleyip
+        // modalin tekrar acilmasini saglariz. Manuel (paket olmayan) satirlar kalir.
         $('#v2_paket_aç').off('click.v2paket').on('click.v2paket', function(){
             var userId = $musteri.val();
             if(!userId) return;
+            clearExistingPaketSelection();
             window._v2PaketAkisi = true;
             if(typeof paketKontrolü === 'function'){
-                paketKontrolü(userId, true); // onayVar=true: modal her zaman acilir
+                paketKontrolü(userId, false);
             }
         });
+    }
+
+    function clearExistingPaketSelection(){
+        // V2 paket kartlarinin temsil ettigi v1 satirlarini bosalt
+        $services.find('.v2-paket-card').each(function(){
+            var v1Indices = $(this).data('v1RowIndices') || [];
+            v1Indices.forEach(function(v1i){
+                var $v1Row = $('#modal-view-event-add .hizmet-satiri').eq(v1i);
+                if(!$v1Row.length) return;
+                var el = $v1Row.find('.hizmet-select')[0];
+                if(el && el.tomselect){ try{el.tomselect.clear(true);}catch(e){} }
+                $v1Row.find('.personel-select, .personel_secimi').not('.hizmet-select').val(null).trigger('change');
+                $v1Row.find('.cihaz-select, .cihaz_secimi').val(null).trigger('change');
+                $v1Row.find('.oda-select, .oda_secimi').val(null).trigger('change');
+            });
+        });
+        // V2'den paket kartlarini kaldir
+        $services.find('.v2-paket-card').remove();
+        // En az bir satir kalsin (manuel)
+        if($services.find('.v2-service-row').length === 0) addRow();
+        reindexRows();
+        updateSummary();
     }
 
     // -------- PAKET → V2 SATIRLARI SYNC --------
@@ -1330,6 +1424,18 @@
             $card.data('v1RowIndices', grp.v1Indices.slice());
             // Summary icin paketin tum hizmet ID'lerini sakla (paket card'da .v2-hizmet yok)
             $card.data('hizmetIds', grp.hizmetler.map(function(h){ return String(h.id); }));
+            // Orijinal sure/fiyat hizmet detaylari (submit'te orantili dagilim icin)
+            var origDetails = grp.hizmetler.map(function(h){
+                var d = window.hizmetDataCache ? window.hizmetDataCache[h.id] : null;
+                return {
+                    id: String(h.id),
+                    sure: parseFloat((d && d.sure) || h.sure || 0) || 0,
+                    fiyat: parseFloat((d && d.fiyat) || 0) || 0
+                };
+            });
+            $card.data('origHizmetler', origDetails);
+            $card.data('origTotalSure', parseFloat($card.attr('data-orig-sure')) || 0);
+            $card.data('origTotalFiyat', parseFloat($card.attr('data-orig-fiyat')) || 0);
             // Personel/cihaz/oda dropdownlarini doldur
             populateDropdownsInCard($card);
             // V1'in ilk grup satirindan personel/oda al
@@ -1350,34 +1456,46 @@
 
     function buildPaketCardHTML(grp, idx){
         var totalSure = 0, totalFiyat = 0;
+        // Orijinal hizmet bilgilerini topla (submit'te orantili dagilim icin gerekli)
+        var origHizmetler = [];
         var hizmetListHTML = grp.hizmetler.map(function(h){
             var d = window.hizmetDataCache ? window.hizmetDataCache[h.id] : null;
-            var sure = (d && d.sure) || h.sure || 0;
-            var fiyat = (d && d.fiyat) || 0;
-            totalSure += parseFloat(sure) || 0;
-            totalFiyat += parseFloat(fiyat) || 0;
+            var sure = parseFloat((d && d.sure) || h.sure || 0) || 0;
+            var fiyat = parseFloat((d && d.fiyat) || 0) || 0;
+            totalSure += sure;
+            totalFiyat += fiyat;
+            origHizmetler.push({ id: String(h.id), sure: sure, fiyat: fiyat });
             var seansTxt = h.seans ? ' <span class="v2-seans-badge">'+h.seans+' seans</span>' : '';
             return '<li><span class="v2-paket-hizmet-ad">'+escapeHtml(h.text)+'</span>'+seansTxt+'<span class="v2-paket-hizmet-sure">'+sure+' dk</span></li>';
         }).join('');
-
-        var metaParts = [];
-        if(totalSure > 0) metaParts.push(totalSure+' dk');
-        if(totalFiyat > 0) metaParts.push(fmtTL(totalFiyat));
-        var metaTxt = metaParts.join(' · ');
 
         var cihazSelHTML = @json($__cihazVar) ?
             '<div class="v2-field"><select class="form-control v2-input v2-sm v2-cihaz"><option value="">Cihaz...</option></select></div>' : '';
         var odaSelHTML = @json($__odaVar) ?
             '<div class="v2-field"><select class="form-control v2-input v2-sm v2-oda"><option value="">Oda...</option></select></div>' : '';
 
+        // Orijinal degerleri JSON olarak sakla (event handler'larin direkt erisebilmesi icin)
+        var dataAttrs = ' data-orig-sure="'+totalSure+'" data-orig-fiyat="'+totalFiyat+'"';
+
         return ''+
-        '<div class="v2-service-row v2-paket-card" data-paket-id="'+escapeAttr(grp.paket_id)+'" data-index="'+idx+'">'+
+        '<div class="v2-service-row v2-paket-card" data-paket-id="'+escapeAttr(grp.paket_id)+'" data-index="'+idx+'"'+dataAttrs+'>'+
             '<div class="v2-paket-head">'+
-                '<button type="button" class="v2-paket-toggle" title="Hizmetleri göster/gizle">'+
-                    '<i class="fa fa-gift"></i>'+
+                '<div class="v2-paket-head-main">'+
+                    '<i class="fa fa-gift v2-paket-icon"></i>'+
                     '<span class="v2-paket-title">'+escapeHtml(grp.adi)+'</span>'+
                     '<span class="v2-paket-count">'+grp.hizmetler.length+' hizmet</span>'+
-                    '<span class="v2-paket-meta">'+metaTxt+'</span>'+
+                '</div>'+
+                '<div class="v2-paket-totals">'+
+                    '<div class="v2-paket-input-wrap" title="Toplam süreyi düzenleyebilirsiniz">'+
+                        '<input type="number" class="v2-paket-sure-input" value="'+totalSure+'" min="0" step="5" autocomplete="off">'+
+                        '<span class="v2-paket-input-unit">dk</span>'+
+                    '</div>'+
+                    '<div class="v2-paket-input-wrap" title="Toplam fiyatı düzenleyebilirsiniz">'+
+                        '<input type="text" class="v2-paket-fiyat-input" value="'+totalFiyat+'" inputmode="decimal" autocomplete="off">'+
+                        '<span class="v2-paket-input-unit">₺</span>'+
+                    '</div>'+
+                '</div>'+
+                '<button type="button" class="v2-paket-toggle-btn" title="Hizmetleri göster/gizle">'+
                     '<i class="fa fa-chevron-down v2-paket-chev"></i>'+
                 '</button>'+
             '</div>'+
@@ -1464,6 +1582,64 @@
 
     function escapeHtml(s){ return $('<div>').text(s == null ? '' : s).html(); }
     function escapeAttr(s){ return String(s == null ? '' : s).replace(/"/g,'&quot;'); }
+
+    // -------- PAKET SURE/FIYAT OVERRIDE (orantili dagilim) --------
+    // Kullanici paket kartinda toplam sure/fiyat'i degistirdiyse, v1'deki her
+    // hizmet satirinin hizmet-suresi / hizmet-fiyati input'larina orantili
+    // olarak yansit. Boylece v1 submit handler dogru toplami hesaplar.
+    function applyPaketSureFiyatOverride($card, v1Indices){
+        var newSure  = parseFloat($card.find('.v2-paket-sure-input').val()) || 0;
+        var newFiyat = parseFloat(String($card.find('.v2-paket-fiyat-input').val() || '').replace(',','.')) || 0;
+        var origSure  = parseFloat($card.data('origTotalSure')) || 0;
+        var origFiyat = parseFloat($card.data('origTotalFiyat')) || 0;
+        var origHizmetler = $card.data('origHizmetler') || [];
+        if(!origHizmetler.length) return;
+
+        // Eger orijinal toplam 0 ise (cache eksik), tek hizmete eslit-paylastir
+        var sureRatio  = origSure  > 0 ? (newSure  / origSure)  : (newSure  > 0 ? 1 : 0);
+        var fiyatRatio = origFiyat > 0 ? (newFiyat / origFiyat) : (newFiyat > 0 ? 1 : 0);
+
+        // Her v1 satirinda, hizmet ID'sine gore orijinal degeri bulup ratio uygula
+        v1Indices.forEach(function(v1i){
+            var $v1Row = $('#modal-view-event-add .hizmet-satiri').eq(v1i);
+            if(!$v1Row.length) return;
+            var hEl = $v1Row.find('.hizmet-select')[0];
+            var ids = (hEl && hEl.tomselect) ? hEl.tomselect.getValue() : ($v1Row.find('.hizmet-select').val() || []);
+            if(!Array.isArray(ids)) ids = ids ? [ids] : [];
+            ids.forEach(function(hid){
+                var orig = null;
+                for(var k=0; k<origHizmetler.length; k++){
+                    if(String(origHizmetler[k].id) === String(hid)){ orig = origHizmetler[k]; break; }
+                }
+                if(!orig) return;
+                var newH_sure  = Math.round((orig.sure  || 0) * sureRatio);
+                var newH_fiyat = ((orig.fiyat || 0) * fiyatRatio);
+
+                // V1'in hizmet detay alanindaki input'lari guncelle
+                // Input name'leri: hizmet_sureleri-{hizmetId} / hizmet_fiyatlari-{hizmetId}
+                var $sureInput  = $v1Row.find('input[name="hizmet_sureleri-'+hid+'"]');
+                var $fiyatInput = $v1Row.find('input[name="hizmet_fiyatlari-'+hid+'"]');
+                if(!$sureInput.length){
+                    // Fallback: class bazli
+                    $sureInput = $v1Row.find('.hizmet-suresi').filter(function(){
+                        return $(this).attr('name') === ('hizmet_sureleri-'+hid);
+                    });
+                }
+                if(!$fiyatInput.length){
+                    $fiyatInput = $v1Row.find('.hizmet-fiyati').filter(function(){
+                        return $(this).attr('name') === ('hizmet_fiyatlari-'+hid);
+                    });
+                }
+                if($sureInput.length){
+                    $sureInput.val(newH_sure).trigger('input').trigger('change');
+                }
+                if($fiyatInput.length){
+                    // Fiyat formatini fazla yuvarlamadan koy
+                    $fiyatInput.val(newH_fiyat.toFixed(2)).trigger('input').trigger('change');
+                }
+            });
+        });
+    }
 
     // -------- HIZMET VERISI YUKLE (v1'in cache'i bos ise) --------
     function ensureHizmetVerisi(cb){
@@ -1590,12 +1766,27 @@
 
     $modal.on('click', '#v2_add_row', addRow);
 
-    // Paket kart akordiyon toggle
-    $modal.on('click', '.v2-paket-toggle', function(e){
-        e.preventDefault();
+    // Paket kart akordiyon: header'a tiklayinca veya chevron butonuna basinca toggle
+    // ANCAK input/select/butonlara tiklamak tetiklemesin
+    $modal.on('click', '.v2-paket-head', function(e){
+        if($(e.target).closest('.v2-paket-totals, .v2-paket-input-wrap, input, select, button').length){
+            return; // input/buton'a tiklandi, toggle yapma
+        }
         var $card = $(this).closest('.v2-paket-card');
         $card.toggleClass('expanded');
         $card.find('.v2-paket-detay').slideToggle(180);
+    });
+    $modal.on('click', '.v2-paket-toggle-btn', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        var $card = $(this).closest('.v2-paket-card');
+        $card.toggleClass('expanded');
+        $card.find('.v2-paket-detay').slideToggle(180);
+    });
+
+    // Sure / Fiyat input degisince summary'yi yenile
+    $modal.on('input change', '.v2-paket-sure-input, .v2-paket-fiyat-input', function(){
+        updateSummary();
     });
 
     $modal.on('click', '.v2-remove-row', function(e){
@@ -1796,6 +1987,7 @@
         var $v1RowsLive = function(){ return $('#modal-view-event-add .hizmet-satiri'); };
 
         // Phase 1: Paket satirlari - personel/cihaz/oda v1'deki gruplanmis satirlara uygula
+        // VE paket kartlarinda kullanici sure/fiyat'i degistirdiyse orantili olarak dagit
         $services.find('.v2-service-row').each(function(){
             var $v2Row = $(this);
             var v1Indices = $v2Row.data('v1RowIndices');
@@ -1810,6 +2002,11 @@
                 if(cihazId)    $v1Row.find('.cihaz-select, .cihaz_secimi').val(cihazId).trigger('change');
                 if(odaId)      $v1Row.find('.oda-select, .oda_secimi').val(odaId).trigger('change');
             });
+
+            // Sure / Fiyat override (sadece paket kartlarinda)
+            if($v2Row.hasClass('v2-paket-card')){
+                applyPaketSureFiyatOverride($v2Row, v1Indices);
+            }
         });
 
         // Phase 2: Manuel satirlar - her biri icin v1 satiri olustur ve doldur
