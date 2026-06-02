@@ -23,9 +23,6 @@
                     </div>
                 </div>
                 <div class="v2-header-right">
-                    <button type="button" class="v2-icon-btn" id="v2_mode_toggle" title="Saat Kapamaya geç">
-                        <i class="fa fa-lock"></i>
-                    </button>
                     <button type="button" class="v2-icon-btn" id="v2_open_v1" title="Gelişmiş moda geç (paket, yardımcı personel, cihaz)">
                         <i class="fa fa-cog"></i>
                     </button>
@@ -34,6 +31,18 @@
                     </button>
                 </div>
             </div>
+
+            @if (\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.kapanis_blok_ekle'))
+            {{-- ============ MODE TABS (Randevu / Saat Kapama) ============ --}}
+            <div class="v2-tabs">
+                <button type="button" class="v2-tab active" data-mode="randevu">
+                    <i class="fa fa-calendar-plus-o"></i> Randevu
+                </button>
+                <button type="button" class="v2-tab" data-mode="kapama">
+                    <i class="fa fa-ban"></i> Saat Kapama
+                </button>
+            </div>
+            @endif
 
             {{-- ============ BODY ============ --}}
             <div class="v2-body">
@@ -298,6 +307,46 @@
     background: #fff;
     color: #7c3aed;
 }
+
+/* ===== MODE TABS (Randevu / Saat Kapama) ===== */
+#modal-view-event-add-v2 .v2-tabs {
+    display: flex;
+    background: #fff;
+    border-bottom: 1px solid #ececf0;
+    padding: 0;
+    gap: 0;
+}
+#modal-view-event-add-v2 .v2-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    position: relative;
+    border-bottom: 2px solid transparent;
+}
+#modal-view-event-add-v2 .v2-tab i { font-size: 0.95rem; }
+#modal-view-event-add-v2 .v2-tab:hover { color: #4b5563; background: rgba(124,58,237,0.04); }
+#modal-view-event-add-v2 .v2-tab.active {
+    color: #7c3aed;
+    background: #faf5ff;
+    border-bottom-color: #7c3aed;
+}
+#modal-view-event-add-v2 .v2-tab.active i { color: #7c3aed; }
+#modal-view-event-add-v2 .v2-tab[data-mode="kapama"].active {
+    color: #d97706;
+    background: #fffbeb;
+    border-bottom-color: #f59e0b;
+}
+#modal-view-event-add-v2 .v2-tab[data-mode="kapama"].active i { color: #d97706; }
 
 /* ===== BODY ===== */
 #modal-view-event-add-v2 .v2-body {
@@ -1763,6 +1812,16 @@
 
         // Paket flag
         window._v2PaketAkisi = false;
+
+        // Mode'u Randevu'ya sifirla (tab varsa)
+        $modal.find('.v2-tab').removeClass('active');
+        $modal.find('.v2-tab[data-mode="randevu"]').addClass('active');
+        $('.v2-mode-kapama').hide();
+        $('.v2-mode-randevu').show();
+        $('.v2-submit-kapama').hide();
+        $('.v2-submit-randevu').show();
+        $('.v2-title').text('Yeni Randevu');
+        $('#v2_subtitle_text').text('Müşteri ve hizmet seç');
     }
     window._v2ResetForm = resetV2Form;
 
@@ -1854,17 +1913,18 @@
         else $('#v2_tekrarlayan_body').hide();
     });
 
-    // Mode toggle (Randevu <-> Saat Kapama)
-    var modeIsKapama = false;
-    $modal.on('click', '#v2_mode_toggle', function(){
-        modeIsKapama = !modeIsKapama;
-        var $btn = $(this);
-        if(modeIsKapama){
+    // Mode toggle: header tab'lariyla (Randevu / Saat Kapama)
+    $modal.on('click', '.v2-tab', function(){
+        var $tab = $(this);
+        if($tab.hasClass('active')) return;
+        $modal.find('.v2-tab').removeClass('active');
+        $tab.addClass('active');
+        var mode = $tab.data('mode');
+        if(mode === 'kapama'){
             $('.v2-mode-randevu').hide();
             $('.v2-mode-kapama').show();
             $('.v2-submit-randevu').hide();
             $('.v2-submit-kapama').show();
-            $btn.addClass('active').attr('title','Randevuya geç').find('i').removeClass('fa-lock').addClass('fa-calendar');
             $('.v2-title').text('Saat Kapama');
             $('#v2_subtitle_text').text('Personel için zaman bloku oluştur');
         } else {
@@ -1872,7 +1932,6 @@
             $('.v2-mode-randevu').show();
             $('.v2-submit-kapama').hide();
             $('.v2-submit-randevu').show();
-            $btn.removeClass('active').attr('title','Saat Kapamaya geç').find('i').removeClass('fa-calendar').addClass('fa-lock');
             $('.v2-title').text('Yeni Randevu');
             $('#v2_subtitle_text').text('Müşteri ve hizmet seç');
         }
