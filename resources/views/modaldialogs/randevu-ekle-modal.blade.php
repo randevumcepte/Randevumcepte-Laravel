@@ -15,7 +15,7 @@
 {{-- Tom Select — sadece Randevu modalinda hizmet secimi icin kullanilir --}}
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-<div id="modal-view-event-add" class="modal modal-top fade calendar-modal" data-backdrop="static" data-keyboard="false">
+<div id="modal-view-event-add" class="modal modal-top fade calendar-modal" data-backdrop="true" data-keyboard="true">
     <div class="modal-dialog" style="max-width: 1200px !important; width: 96% !important; margin: 0 auto !important;">
         <div class="modal-content">
             <div class="modal-header">
@@ -4275,7 +4275,7 @@ function formatHizmetSecim(hizmet) {
 {{-- Paket secimi sonrasi forma yerlestirme yerine tek pencerede --}}
 {{-- tum hizmetler icin atama yapilir ve direkt randevu olusturulur --}}
 {{-- ============================================================ --}}
-<div class="modal fade" id="paketHizliRandevuModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" style="z-index:100025;">
+<div class="modal fade" id="paketHizliRandevuModal" tabindex="-1" role="dialog" data-backdrop="true" data-keyboard="true" style="z-index:100025;">
     <div class="modal-dialog modal-dialog-centered" style="max-width:900px;">
         <div class="modal-content" style="border-radius:14px;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,0.35);">
             <div class="modal-header" style="background:linear-gradient(135deg,#10b981 0%,#0ea5e9 100%);border:none;padding:16px 22px;">

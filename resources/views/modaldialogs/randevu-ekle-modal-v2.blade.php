@@ -9,7 +9,7 @@
     $__musteriEtiket = in_array(($isletme->salon_turu_id ?? 0), [15, 28, 29]) ? 'Danışan' : 'Müşteri';
 @endphp
 
-<div id="modal-view-event-add-v2" class="modal modal-top fade" data-backdrop="static" data-keyboard="false">
+<div id="modal-view-event-add-v2" class="modal modal-top fade" data-backdrop="true" data-keyboard="true">
     <div class="modal-dialog v2-dialog">
         <div class="modal-content v2-modal">
 
@@ -23,9 +23,6 @@
                     </div>
                 </div>
                 <div class="v2-header-right">
-                    <button type="button" class="v2-icon-btn" id="v2_open_v1" title="Gelişmiş moda geç (paket, yardımcı personel, cihaz)">
-                        <i class="fa fa-cog"></i>
-                    </button>
                     <button type="button" class="v2-icon-btn v2-close" data-dismiss="modal" title="Kapat">
                         <i class="fa fa-times"></i>
                     </button>
@@ -194,9 +191,7 @@
 
             {{-- ============ FOOTER ============ --}}
             <div class="v2-footer">
-                <div class="v2-footer-left" id="v2_footer_hint">
-                    <i class="fa fa-info-circle"></i> v2 önizleme — gelişmiş özellikler için <i class="fa fa-cog"></i> butonu
-                </div>
+                <div class="v2-footer-left" id="v2_footer_hint"></div>
                 <div class="v2-footer-right">
                     <button type="button" class="v2-btn v2-btn-ghost" data-dismiss="modal">Vazgeç</button>
                     <button type="button" class="v2-btn v2-btn-primary v2-submit-randevu" id="v2_submit_btn">
@@ -1949,15 +1944,6 @@
         }
     });
 
-    // Gelismis moda gec (v1 modali ac)
-    $modal.on('click', '#v2_open_v1', function(){
-        window._v2BypassIntercept = true; // intercept bunu yakalayinca v1'i normal acsin
-        $modal.modal('hide');
-        setTimeout(function(){
-            $('#modal-view-event-add').modal('show');
-            window._v2BypassIntercept = false;
-        }, 250);
-    });
 
     // ============================================================
     // V1 -> V2 REDIRECT INTERCEPT

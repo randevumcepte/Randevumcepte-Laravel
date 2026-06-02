@@ -191,27 +191,43 @@ class StoreAdminController extends Controller
         return (float) $s;
     }
 
+    // Performans: e_asistan gibi sayfalarda 5-6 kez cagriliyor. Her cagri
+    // user relation + (eskiden) loop icinde Salonlar query atiyordu. Cache.
+    private static $_mevcutsubeCache = [];
     public function mevcutsube($request)
     {
-        $sube = "";
         if(isset($request->sube))
-            $sube = $request->sube;
-        else
-        {
-            $subeler = array();
-            if(Auth::guard('satisortakligi')->check())
-                $subeler = [15];
-            else
-                $subeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->pluck('salon_id')->toArray();
-            if($_SERVER['HTTP_HOST'] != 'app.randevumcepte.com.tr' && $_SERVER['HTTP_HOST'] != 'apptest.randevumcepte.com.tr' && $_SERVER['HTTP_HOST'] != 'demoapp.randevumcepte.com.tr' && $_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr' ){
-                foreach($subeler as $sube_list)
-                    if(Salonlar::where('domain',$_SERVER['HTTP_HOST'])->value('id') == $sube_list)
-                        $sube = $sube_list;
-            }
-            else
-                $sube = $subeler[0];
+            return $request->sube;
+
+        // Request'siz cagri olabilir, host + auth user id'ye gore cache key
+        $authId = Auth::guard('isletmeyonetim')->check()
+            ? Auth::guard('isletmeyonetim')->user()->id
+            : (Auth::guard('satisortakligi')->check() ? 'satisortakligi' : 'guest');
+        $cacheKey = ($_SERVER['HTTP_HOST'] ?? '').'|'.$authId;
+        if (array_key_exists($cacheKey, self::$_mevcutsubeCache)) {
+            return self::$_mevcutsubeCache[$cacheKey];
         }
-        return $sube;
+
+        $sube = "";
+        $subeler = array();
+        if(Auth::guard('satisortakligi')->check())
+            $subeler = [15];
+        else
+            $subeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->pluck('salon_id')->toArray();
+
+        $apiHosts = ['app.randevumcepte.com.tr','apptest.randevumcepte.com.tr','demoapp.randevumcepte.com.tr','randevu.randevumcepte.com.tr'];
+        if(!in_array($_SERVER['HTTP_HOST'] ?? '', $apiHosts, true)){
+            // Eskiden loop icinde her iterasyonda ayni Salonlar query atiliyordu.
+            // Tek seferde cek, sonra match et.
+            $hostSalonId = Salonlar::where('domain',$_SERVER['HTTP_HOST'] ?? '')->value('id');
+            foreach($subeler as $sube_list)
+                if($hostSalonId == $sube_list)
+                    $sube = $sube_list;
+        }
+        else
+            $sube = $subeler[0] ?? '';
+
+        return self::$_mevcutsubeCache[$cacheKey] = $sube;
     }
     public function carkifelek(Request $request){
         $isletmeler = '';
@@ -1361,7 +1377,10 @@ public function carkverilerigetir(Request $request)
         if(count($isletmeler)>1 && !isset($_GET['sube'])){
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
         }
-        return view('isletmeadmin.isletme_raporlari',[
+        $view = ($request->input('stil') === 'klasik')
+            ? 'isletmeadmin.isletme_raporlari_klasik'
+            : 'isletmeadmin.isletme_raporlari';
+        return view($view,[
             'sayfa_baslik' => 'İşletme Raporları',
             'title' => 'İşletme Raporları | '.$isletme->salon_adi,
             'pageindex' => 600,
@@ -3016,9 +3035,14 @@ public function carkverilerigetir(Request $request)
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
        
         $e_asistan_ayarlari = SalonEAsistanAyarlari::where('salon_id',self::mevcutsube($request))->get();
-       
-        $paketler = self::paket_liste_getir("",true,$request);
-        if(SalonEAsistanAyarlari::where('salon_id',self::mevcutsube($request))->count()==0)
+
+        // Not: paket_liste_getir() onceden burada cagriliyordu fakat e_asistan view'i
+        // ne de layout'taki paketler bolumu (paketler_bolumu CSS sinifi) $paketler
+        // degiskenini kullaniyor. Yalnizca pageindex=13'te kullanildigi icin
+        // burada yuklemiyoruz; view'in kontrol akisinda hata cikmamasi icin bos
+        // bir struct gonderiyoruz.
+        $paketler = ['status'=>'','paket_liste'=>[]];
+        if($e_asistan_ayarlari->count()==0)
         {
             for($i=1;$i<=8;$i++){
                 $asistanAyar = new SalonEAsistanAyarlari();
@@ -3028,12 +3052,17 @@ public function carkverilerigetir(Request $request)
                 $asistanAyar->save();
 
             }
+            // Yeni eklenen ayarlari geri yukle ki view'deki index erisimleri patlamasin
+            $e_asistan_ayarlari = SalonEAsistanAyarlari::where('salon_id',self::mevcutsube($request))->get();
             $isletme->e_asistan_hatirlatma=1;
             $isletme->save();
-            
+
         }
-       
-        return view('isletmeadmin.e_asistan',['paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'E-Asistan','pageindex' => 60,'isletme'=>$isletme,'e_asistan_ayarlari'=>$e_asistan_ayarlari,'sayfa_baslik'=>'E-Asistan' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request), 'easistandata'=>self::easistandata($request,0),'easistanYarinYapilacak'=>self::easistandata($request,1),
+
+        // E-Asistan tablosu artik server-side DataTables. Sayfa yuklemede
+        // easistandata() cagrilmiyor; frontend tablo asagidaki AJAX endpoint
+        // ile veri ceker: /isletmeyonetim/easistandata_ajax/{0|1}
+        return view('isletmeadmin.e_asistan',['paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'E-Asistan','pageindex' => 60,'isletme'=>$isletme,'e_asistan_ayarlari'=>$e_asistan_ayarlari,'sayfa_baslik'=>'E-Asistan' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request), 'easistandata'=>collect(), 'easistanYarinYapilacak'=>collect(),
            'yetkiliolunanisletmeler'=>$isletmeler]);
     }
     public function smslistesi(){
@@ -9682,10 +9711,13 @@ private function ayAdiCevir($ingilizceAy)
     }
 
     private function dogum_tarihi_formatla($request) {
-        if ($request->dogum_tarihi_gun && $request->dogum_tarihi_ay && $request->dogum_tarihi_yil) {
-            return date('Y-m-d', strtotime("{$request->dogum_tarihi_yil}-{$request->dogum_tarihi_ay}-{$request->dogum_tarihi_gun}"));
-        }
-        return null;
+        $gun = $request->dogum_tarihi_gun;
+        $ay = $request->dogum_tarihi_ay;
+        $yil = $request->dogum_tarihi_yil;
+        if (!$gun || !$ay) return null;
+        if (!$yil) $yil = '1900';
+        $tarih = date('Y-m-d', strtotime("{$yil}-{$ay}-{$gun}"));
+        return $tarih && $tarih !== '1970-01-01' ? $tarih : null;
     }
     private function portfoy_ekle_guncelle($userId, $salonId, $tip, $notlar) {
         $portfoy = MusteriPortfoy::firstOrNew([
@@ -9810,8 +9842,10 @@ private function ayAdiCevir($ingilizceAy)
             $musteri->email = $request->email;
             $musteri->cep_telefon = $request->telefon;
             $musteri->tc_kimlik_no = $request->tc_kimlik_no;
-            if($request->dogum_tarihi_gun != '' && $request->dogum_tarihi_ay != '' && $request->dogum_tarihi_yil != '' )
-                $musteri->dogum_tarihi = date('Y-m-d',strtotime($request->dogum_tarihi_yil.'-'.$request->dogum_tarihi_ay.'-'.$request->dogum_tarihi_gun));
+            $_dogum_kaydet = $this->dogum_tarihi_formatla($request);
+            if ($_dogum_kaydet) {
+                $musteri->dogum_tarihi = $_dogum_kaydet;
+            }
             if($request->cinsiyet == 0 || $request->cinsiyet == 1) {
                 $musteri->cinsiyet = $request->cinsiyet;
             } elseif ($request->musteri_id == "" && !empty($request->ad_soyad)) {
@@ -10311,8 +10345,27 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function yaklasan_dogumgunleri()
     {
-         $yaklasan_dogumgunleri = DB::table('musteri_portfoy')->join('users','musteri_portfoy.user_id','=','users.id')->select('users.name as ad_soyad','users.cep_telefon as telefon', 'users.dogum_tarihi as dogum_tarihi')->whereDay('dogum_tarihi', '>=',date('d'))->whereMonth('dogum_tarihi',date('m'))->whereDay('dogum_tarihi','<=',date('d',strtotime('+5 days',strtotime(date('Y-m-d')))))->where('musteri_portfoy.salon_id',Auth::guard('isletmeyonetim')->user()->salon_id)->get();
-         // Personel "musteri.telefon_gor" yetkisi yoksa telefon maskeli
+         $salonId = Auth::guard('isletmeyonetim')->user()->salon_id;
+         $bugun = date('m-d');
+         $bes_gun_sonra = date('m-d', strtotime('+5 days'));
+
+         $query = DB::table('musteri_portfoy')
+            ->join('users','musteri_portfoy.user_id','=','users.id')
+            ->select('users.name as ad_soyad','users.cep_telefon as telefon', 'users.dogum_tarihi as dogum_tarihi')
+            ->where('musteri_portfoy.salon_id', $salonId)
+            ->where('musteri_portfoy.aktif', 1)
+            ->whereNotNull('users.dogum_tarihi');
+
+         if ($bugun <= $bes_gun_sonra) {
+            $query->whereRaw("DATE_FORMAT(users.dogum_tarihi,'%m-%d') BETWEEN ? AND ?", [$bugun, $bes_gun_sonra]);
+         } else {
+            $query->where(function($q) use ($bugun, $bes_gun_sonra) {
+                $q->whereRaw("DATE_FORMAT(users.dogum_tarihi,'%m-%d') >= ?", [$bugun])
+                  ->orWhereRaw("DATE_FORMAT(users.dogum_tarihi,'%m-%d') <= ?", [$bes_gun_sonra]);
+            });
+         }
+
+         $yaklasan_dogumgunleri = $query->orderByRaw("DATE_FORMAT(users.dogum_tarihi,'%m-%d')")->get();
          $yaklasan_dogumgunleri = $yaklasan_dogumgunleri->map(function ($r) {
              if (isset($r->telefon)) {
                  $r->telefon = \App\PersonelYetkiSabitleri::telefonGoster($r->telefon);
@@ -10320,6 +10373,122 @@ private function ayAdiCevir($ingilizceAy)
              return $r;
          });
          echo $yaklasan_dogumgunleri;
+    }
+
+    public function dashboardBugunDogumGunu(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+
+        $bugun = date('m-d');
+        $liste = DB::table('users')
+            ->join('musteri_portfoy','musteri_portfoy.user_id','=','users.id')
+            ->where('musteri_portfoy.salon_id', $salonId)
+            ->where('musteri_portfoy.aktif', 1)
+            ->whereNotNull('users.dogum_tarihi')
+            ->whereRaw("DATE_FORMAT(users.dogum_tarihi, '%m-%d') = ?", [$bugun])
+            ->select('users.id','users.name','users.cep_telefon','users.dogum_tarihi')
+            ->limit(20)
+            ->get();
+
+        // Bugün için zaten gönderim yapılan müşterileri işaretle
+        $gonderilenIds = DB::table('dogum_gunu_mesaj_loglari')
+            ->where('salon_id', $salonId)
+            ->whereDate('gonderim_tarihi', date('Y-m-d'))
+            ->pluck('user_id')
+            ->toArray();
+
+        $liste = $liste->map(function($r) use ($gonderilenIds) {
+            $r->gonderildi = in_array($r->id, $gonderilenIds);
+            return $r;
+        });
+
+        return response()->json(['liste' => $liste, 'tarih' => date('Y-m-d')]);
+    }
+
+    public function dogumGunuMesajGonder(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        if(!$salonId) return response()->json(['ok' => false, 'error' => 'forbidden'], 403);
+
+        $musteriId = (int) $request->musteri_id;
+        if(!$musteriId) return response()->json(['ok' => false, 'error' => 'musteri_id-gerekli'], 422);
+
+        $musteri = User::where('id', $musteriId)->first();
+        if(!$musteri || !$musteri->cep_telefon) {
+            return response()->json(['ok' => false, 'error' => 'musteri-bulunamadi'], 404);
+        }
+
+        $portfoyVar = MusteriPortfoy::where('user_id', $musteriId)
+            ->where('salon_id', $salonId)
+            ->where('aktif', 1)
+            ->exists();
+        if(!$portfoyVar) {
+            return response()->json(['ok' => false, 'error' => 'portfoy-disi'], 403);
+        }
+
+        $bugunGonderildi = DB::table('dogum_gunu_mesaj_loglari')
+            ->where('salon_id', $salonId)
+            ->where('user_id', $musteriId)
+            ->whereDate('gonderim_tarihi', date('Y-m-d'))
+            ->exists();
+        if($bugunGonderildi) {
+            return response()->json(['ok' => false, 'error' => 'zaten-gonderildi', 'mesaj' => 'Bu müşteriye bugün zaten doğum günü mesajı gönderildi.']);
+        }
+
+        $salon = Salonlar::where('id', $salonId)->first();
+        $salonAdi = $salon ? $salon->salon_adi : '';
+        $mesaj = 'Sayın ' . $musteri->name . ', ' . $salonAdi . ' olarak doğum gününüzü kutlar; sağlıklı, mutlu ve başarı dolu bir yıl dileriz. 🎂';
+
+        // sms_gonder_bildirimli WhatsApp'i once dener (salon WA aktif+connected ise),
+        // basarisiz olursa SMS'e duser
+        $mesajlar = [[
+            'to' => $musteri->cep_telefon,
+            'message' => $mesaj,
+            'user_id' => $musteri->id,
+        ]];
+
+        $waKanaliAcik = $salon && !empty($salon->whatsapp_aktif) && ($salon->whatsapp_durum ?? null) === 'connected';
+        $kanal = 'sms';
+        $kanalDetay = '';
+
+        try {
+            if ($waKanaliAcik) {
+                $wa = app(\App\Services\WhatsAppService::class);
+                $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $mesaj, null, $musteri->id);
+                if (!empty($sonuc['ok'])) {
+                    $kanal = 'whatsapp';
+                    $kanalDetay = 'queued';
+                } else {
+                    $kanalDetay = 'wa-fail:' . ($sonuc['error'] ?? 'unknown');
+                    self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+                }
+            } else {
+                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+            }
+
+            DB::table('dogum_gunu_mesaj_loglari')->insert([
+                'salon_id' => $salonId,
+                'user_id' => $musteri->id,
+                'kanal' => $kanal,
+                'mesaj' => mb_substr($mesaj, 0, 500),
+                'detay' => mb_substr($kanalDetay, 0, 200),
+                'gonderim_tarihi' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return response()->json([
+                'ok' => true,
+                'kanal' => $kanal,
+                'mesaj' => $kanal === 'whatsapp' ? 'WhatsApp üzerinden gönderildi.' : 'SMS olarak gönderildi.',
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('[DOGUM-GUNU-MANUEL] gonderim hatasi', [
+                'salon_id' => $salonId, 'user_id' => $musteri->id, 'err' => $e->getMessage(),
+            ]);
+            return response()->json(['ok' => false, 'error' => 'gonderim-hatasi', 'mesaj' => 'Mesaj gönderiminde hata oluştu.'], 500);
+        }
     }
     public function tahsilatekle(Request $request){
         $tahsilat = new Tahsilatlar();
@@ -21275,15 +21444,22 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                  
             );
     }
+    // Performans: ayni sayfada bircok kez cagriliyor (e_asistan'da 2 defa).
+    // Salon ID basina cache; bir request icinde lisans degismez.
+    private static $_lisansCache = [];
     public function lisans_sure_kontrol(Request $request)
     {
-        $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        $salonId = self::mevcutsube($request);
+        if (array_key_exists($salonId, self::$_lisansCache)) {
+            return self::$_lisansCache[$salonId];
+        }
+        $isletme = Salonlar::where('id',$salonId)->first();
         $from_time = strtotime(date('Y-m-d H:i:s'));
         $to_time = strtotime(date($isletme->uyelik_bitis_tarihi.' 23:59:59'));
         $diff = round(($to_time - $from_time) / (3600*24),0);
         if($isletme->uyelik_bitis_tarihi == null||$isletme->uyelik_bitis_tarihi == '' )
             $diff .= '-';
-        return $diff;
+        return self::$_lisansCache[$salonId] = $diff;
     }
     public function senetlitahsilatekle(Request $request){
         $tahsilat = '';
@@ -25078,6 +25254,71 @@ public function musteriportfoydropliste(Request $request)
             "easistanYarinYapilacak" =>self::easistandata($request,1),
 
         );
+    }
+
+    /**
+     * E-Asistan tablosu icin DataTables server-side endpoint.
+     * Sayfa yuklemede butun easistandata cagrisi yapmak yerine,
+     * tablo bos olarak yuklenir, bu endpoint AJAX ile sayfa basina veri doner.
+     *
+     * Format: {draw, recordsTotal, recordsFiltered, data}
+     *
+     * easistandata() collection'i 3 ayri tablodan (randevu/alacak/kampanya)
+     * gelen formatlanmis verileri birlestirir; pagination/sort/search'i
+     * burada PHP tarafinda uygularken sorgu sayisi ayni kaliyor (3 query).
+     */
+    public function easistandata_ajax(Request $request, $bugunYarin)
+    {
+        $draw   = (int) $request->input('draw', 0);
+        $start  = (int) $request->input('start', 0);
+        $length = (int) $request->input('length', 25);
+        $search = trim((string) $request->input('search.value', ''));
+        $orderColIdx = (int) $request->input('order.0.column', 2);
+        $orderDir    = strtolower((string) $request->input('order.0.dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+        // Tum formatli veriyi cek (zaten eager-loaded + index-optimized)
+        $all = self::easistandata($request, (int) $bugunYarin);
+        // Collection olabilir; her zaman Collection'a normalize et
+        if (!($all instanceof \Illuminate\Support\Collection)) {
+            $all = collect($all);
+        }
+        $recordsTotal = $all->count();
+
+        // Arama: tum metin alanlari icinde case-insensitive substring
+        if ($search !== '') {
+            $needle = mb_strtolower($search, 'UTF-8');
+            $all = $all->filter(function($row) use ($needle) {
+                foreach (['baslik','mesaj','sonuc','saat','durum'] as $k) {
+                    $v = is_array($row) ? ($row[$k] ?? '') : ($row->$k ?? '');
+                    // HTML icerebilir; metni temizleyip karsilastir
+                    $plain = mb_strtolower(strip_tags((string)$v), 'UTF-8');
+                    if ($needle !== '' && mb_strpos($plain, $needle) !== false) return true;
+                }
+                return false;
+            })->values();
+        }
+        $recordsFiltered = $all->count();
+
+        // Siralama: DataTables column index → array key
+        // Bugunkugorevtablo kolonlari: baslik, mesaj, saat, durum, sonuc, islemler
+        // Yarinkigorevtablo kolonlari : baslik, mesaj, saat, durum, islemler
+        // Her ikisinde de col[2] = saat, default sort burasi.
+        $colMap = [0=>'baslik', 1=>'mesaj', 2=>'saat', 3=>'durum', 4=>'sonuc', 5=>'islemler'];
+        $sortKey = $colMap[$orderColIdx] ?? 'saat';
+        $all = $all->sortBy(function($row) use ($sortKey) {
+            $v = is_array($row) ? ($row[$sortKey] ?? '') : ($row->$sortKey ?? '');
+            return strip_tags((string)$v);
+        }, SORT_NATURAL | SORT_FLAG_CASE, $orderDir === 'desc')->values();
+
+        // Pagination
+        $page = $length > 0 ? $all->slice($start, $length)->values() : $all->values();
+
+        return response()->json([
+            'draw'            => $draw,
+            'recordsTotal'    => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $page,
+        ]);
     }
     public function drKlinikMusteriAktarma (Request $request)
     {

@@ -22343,7 +22343,7 @@ function showSoftPackageSelectionModal(result) {
     const packageCount = result.paketDetaylari?.length || 0;
     
     const modalHtml = `
-        <div class="modal fade" id="softPaketSecimModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+        <div class="modal fade" id="softPaketSecimModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="true" data-keyboard="true">
             <div class="modal-dialog modal-dialog-centered" role="document" style="width: 40%;">
                 <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
                     <div class="modal-header py-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: none;">

@@ -1268,57 +1268,71 @@ console.log("İlk satır hizmet detayları:", <?php echo json_encode($seanslar[0
          </script>
          @endif
          @if($pageindex==1 || $pageindex==60)
+          {{-- E-Asistan tablolari: server-side DataTables. Sayfa yuklemede
+               easistandata() hic cagrilmaz; ilk render sonrasi tablo kendisi
+               AJAX ile veriyi ceker. Boylece 100+ randevulu salonlarda
+               sayfa yuklemesi anlik olur. --}}
           <script type="text/javascript">
-            $(document).ready(function(){
-                $('#bugunkugorevtablo').DataTable({
-                     autoWidth: false,
-                    responsive: true,
-                       columns:[
-                            { data: 'baslik'},
-                            { data: 'mesaj' ,"width": "500px" },
-                            { data: 'saat'  },
+            (function(){
+                var subeParam = (function(){
+                    var m = window.location.search.match(/[?&]sube=(\d+)/);
+                    return m ? '?sube=' + m[1] : '';
+                })();
+                var commonLang = {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
+                    "searchPlaceholder": "Ara",
+                    "paginate": {
+                        "next": '<i class="ion-chevron-right"></i>',
+                        "previous": '<i class="ion-chevron-left"></i>'
+                    },
+                    "processing": "Yükleniyor..."
+                };
+                $(document).ready(function(){
+                    if (!$('#bugunkugorevtablo').length) return;
+                    $('#bugunkugorevtablo').DataTable({
+                        processing: true,
+                        serverSide: true,
+                        ajax: {
+                            url: '/isletmeyonetim/easistandata_ajax/0' + subeParam,
+                            type: 'GET'
+                        },
+                        autoWidth: false,
+                        responsive: true,
+                        columns: [
+                            { data: 'baslik' },
+                            { data: 'mesaj', "width": "500px" },
+                            { data: 'saat' },
                             { data: 'durum' },
-                            { data: 'sonuc' }, 
-                            { data: 'islemler' }, 
-                       ],
-                       "order": [[ 2, "asc" ]],
-                       data: <?php echo $easistandata; ?>,
-            
-                       "language" : {
-                           "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
-                           searchPlaceholder: "Ara",
-                           paginate: {
-                               next: '<i class="ion-chevron-right"></i>',
-                               previous: '<i class="ion-chevron-left"></i>'  
-                           }
-                     },
-               });
-            });
-        
-            $(document).ready(function(){
-                $('#yarinkigorevtablo').DataTable({
-                     autoWidth: false,
-                    responsive: true,
-                       columns:[
-                            { data: 'baslik'},
-                            { data: 'mesaj' ,"width": "500px" },
-                            { data: 'saat'  },
+                            { data: 'sonuc' },
+                            { data: 'islemler' }
+                        ],
+                        order: [[ 2, "asc" ]],
+                        language: commonLang
+                    });
+                });
+                $(document).ready(function(){
+                    if (!$('#yarinkigorevtablo').length) return;
+                    $('#yarinkigorevtablo').DataTable({
+                        processing: true,
+                        serverSide: true,
+                        ajax: {
+                            url: '/isletmeyonetim/easistandata_ajax/1' + subeParam,
+                            type: 'GET'
+                        },
+                        autoWidth: false,
+                        responsive: true,
+                        columns: [
+                            { data: 'baslik' },
+                            { data: 'mesaj', "width": "500px" },
+                            { data: 'saat' },
                             { data: 'durum' },
-                            { data: 'islemler' }, 
-                       ],
-                       "order": [[ 2, "asc" ]],
-                       data: <?php echo $easistanYarinYapilacak; ?>,
-            
-                       "language" : {
-                           "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
-                           searchPlaceholder: "Ara",
-                           paginate: {
-                               next: '<i class="ion-chevron-right"></i>',
-                               previous: '<i class="ion-chevron-left"></i>'  
-                           }
-                     },
-               });
-            });
+                            { data: 'islemler' }
+                        ],
+                        order: [[ 2, "asc" ]],
+                        language: commonLang
+                    });
+                });
+            })();
         </script>
         @endif
         @if($pageindex==1)

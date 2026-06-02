@@ -699,6 +699,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/api/dashboard/sekme','StoreAdminController@dashboardSekme')->name('isletmeadmin.dashboard.sekme');
 	Route::get('/api/dashboard/timeline','StoreAdminController@dashboardTimeline')->name('isletmeadmin.dashboard.timeline');
 	Route::get('/api/dashboard/personel-durum','StoreAdminController@dashboardPersonelDurum')->name('isletmeadmin.dashboard.personeldurum');
+	Route::get('/api/dashboard/bugun-dogum-gunu','StoreAdminController@dashboardBugunDogumGunu')->name('isletmeadmin.dashboard.bugundogumgunu');
+	Route::post('/dogum-gunu-mesaj-gonder','StoreAdminController@dogumGunuMesajGonder')->name('isletmeadmin.dogumgunumesajgonder');
 	Route::get('/randevular','StoreAdminController@randevular')->name('isletmeadmin.randevular');
 	Route::get('/randevularyenitakvim','StoreAdminController@randevularyenitakvim')->name('isletmeadmin.randevularyenitakvim');
 	Route::get('/randevular-filtre','StoreAdminController@randevularfiltre');
@@ -1118,6 +1120,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/kampanyaSMSGonder','StoreAdminController@kampanyabeklenensms');
 	Route::post('/kampanyaAra','StoreAdminController@kampanyaAra');
 	Route::get('/easistandata/{bugunyarin}','StoreAdminController@easistandata');
+	// E-Asistan server-side DataTables endpoint (pagination/search/sort)
+	Route::get('/easistandata_ajax/{bugunYarin}','StoreAdminController@easistandata_ajax');
 	Route::get('/drKlinikMusteriAktarma','StoreAdminController@drKlinikMusteriAktarma');
 	Route::get('/musteri-arama-bolumu-verileri','StoreAdminController@musteri_arama_bolumu_verileri');
 	Route::get('/personel-secimi','StoreAdminController@personel_secimi');

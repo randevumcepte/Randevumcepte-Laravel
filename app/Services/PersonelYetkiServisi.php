@@ -77,28 +77,37 @@ class PersonelYetkiServisi
      * @param int|string $salonId
      * @param string     $key         Ornek: 'musteri.telefon_gor'
      */
+    // Performans: ayni personel/salon kombinasyonu icin yetki ayarlari
+    // ve personelRolu sonucu request boyunca cache'lensin.
+    private static $_ayarlarCache = [];
+    private static $_personelRoluCache = [];
     public static function yetkiVar($personelId, $salonId, string $key): bool
     {
         self::tabloyuHazirla();
         if (!$personelId || !$salonId) return true; // bilinmiyorsa engelleme
 
-        // 1. Personel rolu degilse → tam yetki
-        if (!self::personelRolundeMi($personelId, $salonId)) {
+        // 1. Personel rolu degilse → tam yetki (sonucu cache'le)
+        $roluKey = $personelId.'|'.$salonId;
+        if (!array_key_exists($roluKey, self::$_personelRoluCache)) {
+            self::$_personelRoluCache[$roluKey] = self::personelRolundeMi($personelId, $salonId);
+        }
+        if (!self::$_personelRoluCache[$roluKey]) {
             return true;
         }
 
-        // 2. Yetki ayar kaydi
-        $ayar = PersonelYetkiAyari::where('personel_id', $personelId)
-            ->where('salon_id', $salonId)
-            ->first();
-
-        $ayarlar = [];
-        if ($ayar && is_array($ayar->ayarlar)) {
-            $ayarlar = $ayar->ayarlar;
-        } else {
-            // Default: personel (sade)
-            $ayarlar = PersonelYetkiSabitleri::sablonAyarlari('personel');
+        // 2. Yetki ayar kaydi (personel+salon basina tek query)
+        if (!array_key_exists($roluKey, self::$_ayarlarCache)) {
+            $ayar = PersonelYetkiAyari::where('personel_id', $personelId)
+                ->where('salon_id', $salonId)
+                ->first();
+            if ($ayar && is_array($ayar->ayarlar)) {
+                self::$_ayarlarCache[$roluKey] = $ayar->ayarlar;
+            } else {
+                // Default: personel (sade)
+                self::$_ayarlarCache[$roluKey] = PersonelYetkiSabitleri::sablonAyarlari('personel');
+            }
         }
+        $ayarlar = self::$_ayarlarCache[$roluKey];
 
         // Anahtar tabloda yoksa default sade'den al
         if (!array_key_exists($key, $ayarlar)) {
@@ -112,22 +121,38 @@ class PersonelYetkiServisi
     /**
      * IsletmeYetkilileri.id (giris yapan kullanici) icin yetki kontrolu.
      * Yetkili'nin personel_id'sini bulup ana yetkiVar()'a yonlendirir.
+     *
+     * Performans: layout'ta 30+ defa cagrildigi icin request-level static cache.
+     * Her cagri normalde 1-2 query atiyor; cache ile ilk cagri haric 0 query.
      */
+    private static $_yetkiliYetkiVarCache = [];
+    private static $_personelIdCache = [];
     public static function yetkiliYetkiVar($yetkiliId, $salonId, string $key): bool
     {
         if (!$yetkiliId || !$salonId) return true;
 
+        $cacheKey = $yetkiliId.'|'.$salonId.'|'.$key;
+        if (array_key_exists($cacheKey, self::$_yetkiliYetkiVarCache)) {
+            return self::$_yetkiliYetkiVarCache[$cacheKey];
+        }
+
         // Yetkili'nin baglandigi personel_id (Personeller.yetkili_id uzerinden,
         // belirli salon icin). Tersine arama: IsletmeYetkilileri tablosunda
         // personel_id alani yok — bag Personeller tarafindadir.
-        $personelId = \App\Personeller::where('yetkili_id', $yetkiliId)
-            ->where('salon_id', $salonId)
-            ->value('id');
+        $personelCacheKey = $yetkiliId.'|'.$salonId;
+        if (array_key_exists($personelCacheKey, self::$_personelIdCache)) {
+            $personelId = self::$_personelIdCache[$personelCacheKey];
+        } else {
+            $personelId = \App\Personeller::where('yetkili_id', $yetkiliId)
+                ->where('salon_id', $salonId)
+                ->value('id');
+            self::$_personelIdCache[$personelCacheKey] = $personelId;
+        }
         if (!$personelId) {
             // Personel kaydi yoksa salon sahibidir veya direk yetkilidir → tam yetki
-            return true;
+            return self::$_yetkiliYetkiVarCache[$cacheKey] = true;
         }
-        return self::yetkiVar($personelId, $salonId, $key);
+        return self::$_yetkiliYetkiVarCache[$cacheKey] = self::yetkiVar($personelId, $salonId, $key);
     }
 
     /**
