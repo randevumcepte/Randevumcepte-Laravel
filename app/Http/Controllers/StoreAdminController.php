@@ -5568,8 +5568,12 @@ private function ayAdiCevir($ingilizceAy)
                         }
 
                         // Adisyon kontrolü ve seans kaydı
+                        // NOT: 'otomatik_randevu_olusturuldu != 1' NULL satirlari da eliyordu (SQL NULL!=1
+                        // -> unknown). Kolon cogu kayitta NULL; o yuzden whereNull OR != 1.
                         $randevuOlusturulmamisHizmetAdisyonuVarmi = Adisyonlar::whereHas('hizmetler',function($q) use($rHizmet){
-                            $q->where('hizmet_id',$rHizmet)->where('otomatik_randevu_olusturuldu','!=',1)->where('bekleyen_seans','>',0);
+                            $q->where('hizmet_id',$rHizmet)
+                              ->where(function($qq){ $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu','!=',1); })
+                              ->where('bekleyen_seans','>',0);
                         })->where('user_id',$musteriid)->where('salon_id',$request->sube)->first();
 
                         $randevuOlusturulmamisPaketAdisyonuVarmi = Adisyonlar::whereHas('paketler',function($q) use($rHizmet){
@@ -5577,8 +5581,8 @@ private function ayAdiCevir($ingilizceAy)
                                 $q2->whereHas('hizmetler',function($q3) use($rHizmet){
                                     $q3->where('hizmet_id',$rHizmet);
                                 });
-                            })->where('otomatik_randevu_olusturuldu','!=',1)->where('bekleyen_seans','>',0);
-                            
+                            })->where(function($qq){ $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu','!=',1); })->where('bekleyen_seans','>',0);
+
                         })->where('user_id',$musteriid)->where('salon_id',$request->sube)->first();
                         
                         $hizmetAdisyonundanIsle = false;
