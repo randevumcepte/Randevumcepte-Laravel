@@ -528,21 +528,28 @@ class SalonrandevuImporter
 
     // ======================= RECEIPT (ADISYON + TAHSILAT) =======================
 
-    public function importReceipts()
+    public function importReceipts($from = null, $to = null)
     {
-        $this->log('Fisler cekiliyor (/company/receipt/index) - sayfa sayfa...');
+        // Dogru endpoint: /company/receipts/opened
+        //   ispaid=2 (odenmis+odenmemis hepsi), isbetween=true (tarih araligi), start/end
+        // /company/receipt/index sadece filter formu icin dropdown data donduruyor.
+        $from = $from ?: '2020-01-01';
+        $to   = $to   ?: date('Y-m-d', strtotime('+1 day'));
+        $this->log("Fisler cekiliyor (/company/receipts/opened ispaid=2 {$from}..{$to}) - sayfa sayfa...");
         $i = 0;
         $page = 1;
         $guard = 0;
-        $bosSayfa = false;
         while ($guard++ < 100000) {
-            $j = $this->client->get('/company/receipt/index?page=' . $page);
+            $qs = http_build_query([
+                'page' => $page, 'ispaid' => 2, 'order' => 0,
+                'start' => $from, 'end' => $to, 'isbetween' => 'true',
+            ]);
+            $j = $this->client->get('/company/receipts/opened?' . $qs);
             if (!$j) { $this->log("  sayfa {$page} alinamadi, durdu."); break; }
             $d = $j['data'] ?? [];
-            $rows = isset($d['records']) && is_array($d['records']) ? $d['records']
-                  : (isset($d['receipts']['records']) ? $d['receipts']['records']
-                  : (isset($d[0]) ? $d : []));
-            if (empty($rows)) { if ($page === 1) $bosSayfa = true; break; }
+            // Response sema esnek: receipts.records, records, ya da data dizisi
+            $rows = $d['receipts']['records'] ?? $d['records'] ?? (isset($d[0]) ? $d : []);
+            if (empty($rows)) break;
 
             foreach ($rows as $rcRow) {
                 $i++;
@@ -557,24 +564,11 @@ class SalonrandevuImporter
             }
             $this->log("  fis sayfa {$page} islendi (toplam={$i} adisyon=" . $this->counts['adisyon'] . " tahsilat=" . $this->counts['tahsilat'] . ')');
 
-            $meta = isset($d['records']) ? $d : ($d['receipts'] ?? $d);
+            $meta = $d['receipts'] ?? $d;
             $cur  = $meta['page'] ?? $page;
             $next = $meta['next_page'] ?? null;
             if ($next === null || (int) $next <= (int) $cur) break;
             $page = (int) $next;
-        }
-
-        // receipt/index hic veri vermediyse acik fislere dus
-        if ($bosSayfa) {
-            $this->log('  receipt/index bos -> /company/receipts/opened deneniyor...');
-            $j = $this->client->get('/company/receipts/opened');
-            $rows = $j['data']['receipts']['records'] ?? [];
-            foreach ($rows as $rcRow) {
-                $rid = $rcRow['id'] ?? null;
-                if (!$rid) continue;
-                try { $this->importOneReceipt($rid); }
-                catch (\Throwable $e) { $this->counts['hata']++; }
-            }
         }
         $this->log('Fis: adisyon=' . $this->counts['adisyon'] . ' tahsilat=' . $this->counts['tahsilat']);
     }

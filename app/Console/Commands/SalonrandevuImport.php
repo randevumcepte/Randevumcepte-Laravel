@@ -120,7 +120,7 @@ class SalonrandevuImport extends Command
         if (in_array('musteri', $types))  $importer->importMusteriler();
         if (in_array('randevu', $types))  $importer->importRandevular();
         if (in_array('receipt', $types) || in_array('tahsilat', $types) || in_array('paket', $types)) {
-            $importer->importReceipts();
+            $importer->importReceipts($this->option('from'), $this->option('to'));
         }
         if (in_array('gider', $types)) {
             $importer->importGiderler($this->option('from'), $this->option('to'));
