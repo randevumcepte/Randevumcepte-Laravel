@@ -1272,6 +1272,136 @@ public function carkverilerigetir(Request $request)
         });
     }
 
+    public function dashboardAnket(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        $period = $request->input('period','30d');
+        $gunSay = $period === '7d' ? 7 : ($period === '90d' ? 90 : 30);
+        $bas = date('Y-m-d 00:00:00', strtotime('-'.($gunSay-1).' days'));
+        $bit = date('Y-m-d 23:59:59');
+
+        return \Cache::remember($this->dashCacheKey($salonId, 'anket:'.$period), 120, function() use ($salonId, $bas, $bit) {
+            $base = DB::table('anket_gonderimleri')
+                ->where('salon_id', $salonId)
+                ->whereBetween('gonderim_zamani', [$bas, $bit]);
+
+            $toplamGonderim = (clone $base)->count();
+            $toplamCevap = (clone $base)->where('cevaplandi', 1)->count();
+            $cevapOrani = $toplamGonderim > 0 ? round(($toplamCevap / $toplamGonderim) * 100, 1) : 0;
+
+            $cevaplar = DB::table('anket_gonderimleri')
+                ->where('salon_id', $salonId)
+                ->whereBetween('gonderim_zamani', [$bas, $bit])
+                ->where('cevaplandi', 1);
+
+            $promoter = (clone $cevaplar)->whereNotNull('nps_skoru')->where('nps_skoru', '>=', 9)->count();
+            $passive = (clone $cevaplar)->whereNotNull('nps_skoru')->where('nps_skoru', '>=', 7)->where('nps_skoru', '<=', 8)->count();
+            $detractor = (clone $cevaplar)->whereNotNull('nps_skoru')->where('nps_skoru', '<=', 6)->count();
+            $npsToplam = $promoter + $passive + $detractor;
+            $npsSkor = $npsToplam > 0 ? round((($promoter - $detractor) / $npsToplam) * 100) : null;
+
+            $csatOrt = (clone $cevaplar)->whereNotNull('csat_skoru')->avg('csat_skoru');
+            $csatOrt = $csatOrt !== null ? round($csatOrt, 2) : null;
+
+            $sonYorumlar = DB::table('anket_gonderimleri')
+                ->where('salon_id', $salonId)
+                ->whereBetween('gonderim_zamani', [$bas, $bit])
+                ->where('cevaplandi', 1)
+                ->whereNotNull('genel_yorum')
+                ->where('genel_yorum', '!=', '')
+                ->orderByDesc('cevap_zamani')
+                ->limit(3)
+                ->get(['ad_soyad','genel_yorum','nps_skoru','csat_skoru','cevap_zamani']);
+
+            return response()->json([
+                'period_gun' => (int) ((strtotime($bit) - strtotime($bas)) / 86400 + 1),
+                'toplam_gonderim' => $toplamGonderim,
+                'toplam_cevap' => $toplamCevap,
+                'cevap_orani' => $cevapOrani,
+                'nps' => [
+                    'skor' => $npsSkor,
+                    'promoter' => $promoter,
+                    'passive' => $passive,
+                    'detractor' => $detractor,
+                    'toplam' => $npsToplam,
+                ],
+                'csat_ort' => $csatOrt,
+                'son_yorumlar' => $sonYorumlar,
+            ]);
+        });
+    }
+
+    public function dashboardCark(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        $period = $request->input('period','30d');
+        $gunSay = $period === '7d' ? 7 : ($period === '90d' ? 90 : 30);
+        $bas = date('Y-m-d 00:00:00', strtotime('-'.($gunSay-1).' days'));
+        $bit = date('Y-m-d 23:59:59');
+
+        return \Cache::remember($this->dashCacheKey($salonId, 'cark:'.$period), 120, function() use ($salonId, $bas, $bit) {
+            $cark = null;
+            if(\Schema::hasTable('carkifelek_cevirme_loglari')){
+                $base = DB::table('carkifelek_cevirme_loglari')
+                    ->where('salon_id', $salonId)
+                    ->whereBetween('created_at', [$bas, $bit]);
+
+                $toplamCevrim = (clone $base)->count();
+                $kazanan = (clone $base)->where('tip', '!=', 'bos')->count();
+                $bos = $toplamCevrim - $kazanan;
+                $kazanmaOrani = $toplamCevrim > 0 ? round(($kazanan / $toplamCevrim) * 100, 1) : 0;
+
+                $tipDagilim = DB::table('carkifelek_cevirme_loglari')
+                    ->where('salon_id', $salonId)
+                    ->whereBetween('created_at', [$bas, $bit])
+                    ->where('tip', '!=', 'bos')
+                    ->select('tip', DB::raw('COUNT(*) as adet'))
+                    ->groupBy('tip')
+                    ->get();
+
+                $sonKazananlar = DB::table('carkifelek_cevirme_loglari as l')
+                    ->leftJoin('users','users.id','=','l.user_id')
+                    ->where('l.salon_id', $salonId)
+                    ->whereBetween('l.created_at', [$bas, $bit])
+                    ->where('l.tip', '!=', 'bos')
+                    ->select('users.name as musteri','l.dilim_ismi','l.tip','l.deger','l.created_at')
+                    ->orderByDesc('l.id')
+                    ->limit(3)
+                    ->get();
+
+                $kupon = ['verilen'=>0,'kullanilan'=>0,'orani'=>0];
+                if(\Schema::hasTable('carkifelek_odulleri')){
+                    $kupon['verilen'] = DB::table('carkifelek_odulleri')
+                        ->where('salon_id', $salonId)
+                        ->whereBetween('created_at', [$bas, $bit])
+                        ->count();
+                    $kupon['kullanilan'] = DB::table('carkifelek_odulleri')
+                        ->where('salon_id', $salonId)
+                        ->whereBetween('created_at', [$bas, $bit])
+                        ->where('kullanildi', 1)
+                        ->count();
+                    $kupon['orani'] = $kupon['verilen'] > 0 ? round(($kupon['kullanilan']/$kupon['verilen'])*100, 1) : 0;
+                }
+
+                $cark = [
+                    'toplam_cevrim' => $toplamCevrim,
+                    'kazanan' => $kazanan,
+                    'bos' => $bos,
+                    'kazanma_orani' => $kazanmaOrani,
+                    'tip_dagilim' => $tipDagilim,
+                    'son_kazananlar' => $sonKazananlar,
+                    'kupon' => $kupon,
+                ];
+            }
+            return response()->json($cark ?: [
+                'toplam_cevrim' => 0,'kazanan' => 0,'bos' => 0,'kazanma_orani' => 0,
+                'tip_dagilim' => [],'son_kazananlar' => [],'kupon' => ['verilen'=>0,'kullanilan'=>0,'orani'=>0],
+            ]);
+        });
+    }
+
     public function dashboardBugun(Request $request)
     {
         $salonId = $this->dashSalonId($request);

@@ -685,6 +685,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/api/dashboard/kasa','StoreAdminController@dashboardKasa')->name('isletmeadmin.dashboard.kasa');
 	Route::get('/api/dashboard/randevu-ozet','StoreAdminController@dashboardRandevuOzet')->name('isletmeadmin.dashboard.randevuozet');
 	Route::get('/api/dashboard/takvim','StoreAdminController@dashboardTakvim')->name('isletmeadmin.dashboard.takvim');
+	Route::get('/api/dashboard/anket','StoreAdminController@dashboardAnket')->name('isletmeadmin.dashboard.anket');
+	Route::get('/api/dashboard/cark','StoreAdminController@dashboardCark')->name('isletmeadmin.dashboard.cark');
 	Route::get('/api/dashboard/bugun','StoreAdminController@dashboardBugun')->name('isletmeadmin.dashboard.bugun');
 	Route::get('/api/dashboard/sekme','StoreAdminController@dashboardSekme')->name('isletmeadmin.dashboard.sekme');
 	Route::get('/api/dashboard/timeline','StoreAdminController@dashboardTimeline')->name('isletmeadmin.dashboard.timeline');

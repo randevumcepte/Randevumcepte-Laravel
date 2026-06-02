@@ -169,16 +169,18 @@
 .rmc-period button.is-active{background:#fff;color:var(--dash-accent);box-shadow:0 1px 3px rgba(0,0,0,.07);}
 
 .rmc-grid-top{
-  display:grid;grid-template-columns:1.15fr 1fr 1.15fr;gap:18px;margin-bottom:22px;
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:22px;
 }
-@media (max-width:1199px){.rmc-grid-top{grid-template-columns:1fr;}}
+@media (max-width:1599px){.rmc-grid-top{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:767px){.rmc-grid-top{grid-template-columns:1fr;}}
 
-.rmc-card.delay-1{animation-delay:.10s}
-.rmc-card.delay-2{animation-delay:.18s}
-.rmc-card.delay-3{animation-delay:.26s}
-.rmc-card.delay-4{animation-delay:.34s}
-.rmc-card.delay-5{animation-delay:.42s}
-.rmc-card.delay-6{animation-delay:.50s}
+.rmc-card.delay-1{animation-delay:.08s}
+.rmc-card.delay-2{animation-delay:.14s}
+.rmc-card.delay-3{animation-delay:.20s}
+.rmc-card.delay-4{animation-delay:.26s}
+.rmc-card.delay-5{animation-delay:.34s}
+.rmc-card.delay-6{animation-delay:.42s}
+.rmc-card.delay-7{animation-delay:.50s}
 
 /* ===== Kasa İstatistikleri ===== */
 .rmc-kasa-body{display:grid;grid-template-columns:160px 1fr;gap:18px;align-items:center;}
@@ -193,24 +195,71 @@
 .rmc-kasa-total .val{font-size:26px;font-weight:800;color:var(--dash-text);margin-top:4px;}
 .rmc-kasa-spark{margin-top:10px;height:36px;}
 
-/* ===== Mini Takvim ===== */
-.rmc-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.rmc-cal-nav{background:none;border:0;color:var(--dash-text-soft);font-size:18px;cursor:pointer;padding:4px 10px;border-radius:8px;}
-.rmc-cal-nav:hover{background:#f3f4f8;}
-.rmc-cal-month{font-weight:700;font-size:14px;color:var(--dash-text);}
-.rmc-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;}
-.rmc-cal-grid .day-name{font-size:11px;color:var(--dash-text-muted);font-weight:600;padding:6px 0;}
-.rmc-cal-grid .day{
-  position:relative;padding:9px 0;border-radius:9px;font-size:13px;color:var(--dash-text);cursor:default;
-  transition:background .15s;
+/* ===== Memnuniyet Anketi ===== */
+.rmc-anket-body{display:grid;grid-template-columns:1fr;gap:18px;margin-bottom:12px;}
+.rmc-nps-block{display:flex;flex-direction:column;gap:10px;}
+.rmc-nps-skor{
+  display:flex;align-items:baseline;gap:8px;
 }
-.rmc-cal-grid .day:not(.empty):hover{background:#f3f4f8;}
-.rmc-cal-grid .day.today{background:var(--dash-accent);color:#fff;font-weight:700;}
-.rmc-cal-grid .day .heat-dot{
-  position:absolute;bottom:3px;left:50%;transform:translateX(-50%);
-  width:6px;height:6px;border-radius:50%;
+.rmc-nps-skor #rmc-anket-nps{
+  font-size:38px;font-weight:800;line-height:1;
+  background:linear-gradient(135deg,#6e4bff,#ff5c8a);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
 }
-.rmc-cal-grid .day.today .heat-dot{background:#fff;}
+.rmc-nps-lbl{font-size:11px;color:var(--dash-text-muted);font-weight:700;letter-spacing:.6px;text-transform:uppercase;}
+.rmc-nps-bar{
+  display:flex;height:14px;border-radius:8px;overflow:hidden;background:#eef0f6;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.04);
+}
+.rmc-nps-bar .seg{height:100%;width:0;transition:width 1s cubic-bezier(.16,1,.3,1);}
+.rmc-nps-bar .seg-prom{background:linear-gradient(90deg,#1fbf6f,#46d68b);}
+.rmc-nps-bar .seg-pas{background:linear-gradient(90deg,#ffac6e,#ff8a3d);}
+.rmc-nps-bar .seg-det{background:linear-gradient(90deg,#ff5c8a,#ff85aa);}
+.rmc-nps-legend{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--dash-text-soft);}
+.rmc-nps-legend span{display:flex;align-items:center;gap:5px;}
+.rmc-nps-legend i.dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.rmc-nps-legend i.dot.prom{background:#1fbf6f;}
+.rmc-nps-legend i.dot.pas{background:#ff8a3d;}
+.rmc-nps-legend i.dot.det{background:#ff5c8a;}
+.rmc-nps-legend b{color:var(--dash-text);font-weight:700;}
+
+.rmc-anket-mini{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.mini-stat{
+  background:#fafbff;border:1px solid var(--dash-border);border-radius:14px;padding:10px 12px;
+  text-align:center;
+}
+.mini-stat .mini-val{font-size:22px;font-weight:800;color:var(--dash-text);line-height:1;}
+.mini-stat .mini-lbl{font-size:10.5px;color:var(--dash-text-muted);font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-top:4px;}
+.mini-stat .mini-sub{font-size:11px;color:var(--dash-text-soft);font-weight:600;margin-top:3px;}
+
+.rmc-anket-yorumlar{border-top:1px dashed var(--dash-border);padding-top:10px;display:flex;flex-direction:column;gap:8px;max-height:130px;overflow-y:auto;}
+.rmc-yorum{
+  display:flex;align-items:flex-start;gap:8px;
+  padding:6px 9px;background:#fafbff;border-radius:9px;border-left:3px solid var(--dash-accent);
+}
+.rmc-yorum.lo{border-left-color:#ff5c8a;}
+.rmc-yorum.hi{border-left-color:#1fbf6f;}
+.rmc-yorum .y-txt{font-size:12px;color:var(--dash-text-soft);line-height:1.35;flex:1;}
+.rmc-yorum .y-meta{font-size:10px;color:var(--dash-text-muted);margin-top:2px;font-weight:600;}
+.rmc-yorum-bos{font-size:12px;color:var(--dash-text-muted);text-align:center;padding:14px 0;}
+
+/* ===== Çarkıfelek ===== */
+.rmc-cark-body{display:grid;grid-template-columns:120px 1fr;gap:16px;align-items:center;margin-bottom:12px;}
+.rmc-cark-wheel{display:flex;align-items:center;justify-content:center;}
+.rmc-cark-wheel svg{filter:drop-shadow(0 6px 14px rgba(110,75,255,.16));}
+.rmc-cark-stats{display:flex;flex-direction:column;gap:7px;font-size:12.5px;}
+.rmc-cark-stats .cark-row{display:flex;align-items:center;justify-content:space-between;gap:6px;color:var(--dash-text-soft);}
+.rmc-cark-stats .cark-row .lbl{display:flex;align-items:center;gap:6px;}
+.rmc-cark-stats .cark-row .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.rmc-cark-stats .cark-row b{color:var(--dash-text);font-weight:700;}
+.rmc-cark-stats .cark-row-sep{border-top:1px dashed var(--dash-border);padding-top:7px;margin-top:3px;}
+.rmc-cark-yorumlar{border-top:1px dashed var(--dash-border);padding-top:10px;display:flex;flex-direction:column;gap:6px;max-height:110px;overflow-y:auto;}
+.rmc-cark-kazanan-row{
+  display:flex;align-items:center;gap:8px;padding:5px 8px;background:#fafbff;border-radius:8px;
+  border-left:3px solid var(--dash-cyan);font-size:12px;
+}
+.rmc-cark-kazanan-row .ad{font-weight:600;color:var(--dash-text);}
+.rmc-cark-kazanan-row .od{color:var(--dash-text-soft);margin-left:auto;font-weight:600;}
 
 /* ===== Randevu Ayrıntıları ===== */
 .rmc-randevu-body{display:grid;grid-template-columns:1fr 130px;gap:16px;align-items:center;}
@@ -371,7 +420,7 @@
     </a>
     <a class="rmc-qa var-2" href="/isletmeyonetim/adisyonlar{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-receipt"></i></div>
-      <div class="rmc-qa-text">Adisyon Oluştur</div>
+      <div class="rmc-qa-text">Yeni Satış Oluştur</div>
     </a>
     <a class="rmc-qa var-3" href="/isletmeyonetim/paketler{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-gift-fill"></i></div>
@@ -389,9 +438,9 @@
       <div class="rmc-qa-icon"><i class="bi bi-people-fill"></i></div>
       <div class="rmc-qa-text">Müşteri Listesi</div>
     </a>
-    <a class="rmc-qa var-7" href="/isletmeyonetim/excelmusteritopluekle{{$subeQuery}}">
-      <div class="rmc-qa-icon"><i class="bi bi-file-earmark-spreadsheet-fill"></i></div>
-      <div class="rmc-qa-text">Excel ile Toplu Müşteri</div>
+    <a class="rmc-qa var-7" href="/isletmeyonetim/seanstakip{{$subeQuery}}">
+      <div class="rmc-qa-icon"><i class="bi bi-list-check"></i></div>
+      <div class="rmc-qa-text">Seans Takibi</div>
     </a>
   </div>
 
@@ -424,19 +473,42 @@
       </div>
     </div>
 
-    {{-- RANDEVU TAKVIMI --}}
-    <div class="rmc-card tone-violet delay-2" id="rmc-cal-card">
+    {{-- MEMNUNIYET ANKETI --}}
+    <div class="rmc-card tone-violet delay-2" id="rmc-anket-card">
       <div class="rmc-card-head">
-        <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-calendar3"></i></span> Randevu Takvimi</div>
+        <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-emoji-heart-eyes"></i></span> Memnuniyet Anketi</div>
+        <div class="rmc-period" data-target="anket">
+          <button data-period="7d">7g</button>
+          <button data-period="30d" class="is-active">30g</button>
+          <button data-period="90d">90g</button>
+        </div>
       </div>
-      <div class="rmc-cal-head">
-        <button class="rmc-cal-nav" data-cal-nav="-1"><i class="bi bi-chevron-left"></i></button>
-        <div class="rmc-cal-month" id="rmc-cal-month">—</div>
-        <button class="rmc-cal-nav" data-cal-nav="1"><i class="bi bi-chevron-right"></i></button>
+      <div class="rmc-anket-body">
+        <div class="rmc-nps-block">
+          <div class="rmc-nps-skor"><span id="rmc-anket-nps">—</span><span class="rmc-nps-lbl">NPS</span></div>
+          <div class="rmc-nps-bar" id="rmc-nps-bar" title="Promoter / Pasif / Detractor">
+            <div class="seg seg-prom" data-w="0"></div><div class="seg seg-pas" data-w="0"></div><div class="seg seg-det" data-w="0"></div>
+          </div>
+          <div class="rmc-nps-legend">
+            <span><i class="dot prom"></i> Promoter <b id="rmc-anket-prom">0</b></span>
+            <span><i class="dot pas"></i> Pasif <b id="rmc-anket-pas">0</b></span>
+            <span><i class="dot det"></i> Detractor <b id="rmc-anket-det">0</b></span>
+          </div>
+        </div>
+        <div class="rmc-anket-mini">
+          <div class="mini-stat">
+            <div class="mini-val" id="rmc-anket-csat">—</div>
+            <div class="mini-lbl">CSAT / 5</div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-val"><span id="rmc-anket-orani">—</span>%</div>
+            <div class="mini-lbl">Cevap Oranı</div>
+            <div class="mini-sub" id="rmc-anket-sayilar">0 / 0</div>
+          </div>
+        </div>
       </div>
-      <div class="rmc-cal-grid" id="rmc-cal-grid">
-        <div class="day-name">Pts</div><div class="day-name">Sal</div><div class="day-name">Çar</div><div class="day-name">Per</div><div class="day-name">Cum</div><div class="day-name">Cts</div><div class="day-name">Paz</div>
-        @for($i=0;$i<35;$i++)<div class="rmc-skel" style="height:32px;margin:2px 0;"></div>@endfor
+      <div class="rmc-anket-yorumlar" id="rmc-anket-yorumlar">
+        @for($i=0;$i<2;$i++)<div class="rmc-skel rmc-skel-line" style="width:{{90-$i*10}}%;margin:8px 0;"></div>@endfor
       </div>
     </div>
 
@@ -476,10 +548,47 @@
       </div>
     </div>
 
+    {{-- ÇARKIFELEK --}}
+    <div class="rmc-card tone-mix delay-4" id="rmc-cark-card">
+      <div class="rmc-card-head">
+        <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-stars"></i></span> Çarkıfelek</div>
+        <div class="rmc-period" data-target="cark">
+          <button data-period="7d">7g</button>
+          <button data-period="30d" class="is-active">30g</button>
+          <button data-period="90d">90g</button>
+        </div>
+      </div>
+      <div class="rmc-cark-body">
+        <div class="rmc-cark-wheel" id="rmc-cark-wheel">
+          <svg viewBox="0 0 100 100" width="120" height="120">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="#eef0f6" stroke-width="10"/>
+            <circle id="rmc-cark-ring" cx="50" cy="50" r="44" fill="none" stroke="url(#rmcCarkGrad)" stroke-width="10"
+              stroke-linecap="round" stroke-dasharray="276.46" stroke-dashoffset="276.46"
+              transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 1.2s cubic-bezier(.16,1,.3,1);"/>
+            <defs><linearGradient id="rmcCarkGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#22c4cb"/><stop offset="100%" stop-color="#6e4bff"/>
+            </linearGradient></defs>
+            <text x="50" y="52" text-anchor="middle" font-size="18" font-weight="800" fill="#181b2c" id="rmc-cark-rate">0%</text>
+            <text x="50" y="66" text-anchor="middle" font-size="6.5" font-weight="700" fill="#9097ad">KAZANMA</text>
+          </svg>
+        </div>
+        <div class="rmc-cark-stats">
+          <div class="cark-row"><span class="lbl">Toplam Çevrim</span><b id="rmc-cark-toplam">0</b></div>
+          <div class="cark-row"><span class="lbl"><i class="dot" style="background:#1fbf6f"></i> Kazanan</span><b id="rmc-cark-kazanan">0</b></div>
+          <div class="cark-row"><span class="lbl"><i class="dot" style="background:#9097ad"></i> Boş</span><b id="rmc-cark-bos">0</b></div>
+          <div class="cark-row cark-row-sep"><span class="lbl">Kupon (verilen/kullanılan)</span><b><span id="rmc-cark-kupon-v">0</span> / <span id="rmc-cark-kupon-k">0</span></b></div>
+          <div class="cark-row"><span class="lbl">Kupon Kullanım</span><b id="rmc-cark-kupon-pct">0%</b></div>
+        </div>
+      </div>
+      <div class="rmc-cark-yorumlar" id="rmc-cark-son">
+        @for($i=0;$i<2;$i++)<div class="rmc-skel rmc-skel-line" style="width:{{90-$i*10}}%;margin:8px 0;"></div>@endfor
+      </div>
+    </div>
+
   </div>
 
   {{-- ALT PANEL: SEKMELER --}}
-  <div class="rmc-card tone-mix rmc-tabs-card delay-4">
+  <div class="rmc-card tone-mix rmc-tabs-card delay-5">
     <div class="rmc-tabs-nav">
       <button class="rmc-tab is-active" data-tab="online-talep"><i class="bi bi-globe2"></i> Online Randevu Talepleri</button>
       <button class="rmc-tab" data-tab="bugunku-randevu"><i class="bi bi-calendar-day"></i> Bugünkü Randevular <span class="badge-new">YENİ</span></button>
@@ -498,7 +607,7 @@
 
   {{-- ALT GRID: Timeline + Personel Anlık Durum --}}
   <div class="rmc-grid-bottom">
-    <div class="rmc-card tone-pink delay-5">
+    <div class="rmc-card tone-pink delay-6">
       <div class="rmc-card-head">
         <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-activity"></i></span> Bugünkü Akış</div>
         <span style="font-size:11px;color:var(--dash-text-muted);font-weight:600;">Randevu + Tahsilat</span>
@@ -509,7 +618,7 @@
         @endfor
       </div>
     </div>
-    <div class="rmc-card tone-blue delay-6">
+    <div class="rmc-card tone-blue delay-7">
       <div class="rmc-card-head">
         <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-person-workspace"></i></span> Personel Anlık Durum</div>
         <span style="font-size:11px;color:var(--dash-text-muted);font-weight:600;">Bugün</span>
@@ -633,35 +742,65 @@ function rmcDashInit(){
     }).catch(function(e){console.warn('randevu err',e);});
   }
 
-  // ===== TAKVIM =====
-  var calState = {year:0,month:0};
-  var aylar = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-  function renderCal(y,m){
-    api('/takvim', 'year='+y+'&month='+m).then(function(d){
-      calState.year = y; calState.month = m;
-      document.getElementById('rmc-cal-month').textContent = aylar[m-1]+' '+y;
-      var firstDay = new Date(y, m-1, 1).getDay(); // 0=Paz
-      var startOffset = firstDay === 0 ? 6 : firstDay - 1; // Pts başlat
-      var daysInMonth = new Date(y, m, 0).getDate();
-      var grid = document.getElementById('rmc-cal-grid');
-      var html = '<div class="day-name">Pts</div><div class="day-name">Sal</div><div class="day-name">Çar</div><div class="day-name">Per</div><div class="day-name">Cum</div><div class="day-name">Cts</div><div class="day-name">Paz</div>';
-      for(var i=0;i<startOffset;i++) html += '<div class="day empty"></div>';
-      var bugun = new Date(); var by=bugun.getFullYear(), bm=bugun.getMonth()+1, bd=bugun.getDate();
-      var max = 1;
-      for(var k in d.gunler){ if(d.gunler[k]>max) max = d.gunler[k]; }
-      for(var j=1;j<=daysInMonth;j++){
-        var adet = d.gunler[j]||0;
-        var isToday = (y===by && m===bm && j===bd);
-        var ratio = adet/max;
-        var dot = '';
-        if(adet>0){
-          var bg = ratio>0.66 ? '#27c281' : ratio>0.33 ? '#5b6bf7' : '#9b5cff';
-          dot = '<span class="heat-dot" style="background:'+bg+'" title="'+adet+' randevu"></span>';
+  // ===== MEMNUNIYET ANKETI =====
+  function renderAnket(period){
+    api('/anket', 'period='+period).then(function(d){
+      var nps = (d.nps && d.nps.skor !== null && d.nps.skor !== undefined) ? d.nps.skor : null;
+      var npsEl = document.getElementById('rmc-anket-nps');
+      if(nps === null){
+        npsEl.textContent = '—';
+      } else {
+        // animate from 0
+        var startTs = performance.now(); var dur = 1100;
+        function step(t){
+          var k = Math.min(1,(t-startTs)/dur);
+          var eased = 1 - Math.pow(1-k, 4);
+          npsEl.textContent = (nps>=0?'+':'') + Math.round(nps*eased);
+          if(k<1) requestAnimationFrame(step);
         }
-        html += '<div class="day '+(isToday?'today':'')+'" title="'+(adet>0?adet+' randevu':'')+'">'+j+dot+'</div>';
+        requestAnimationFrame(step);
       }
-      grid.innerHTML = html;
-    }).catch(function(e){console.warn('cal err',e);});
+      var nt = (d.nps && d.nps.toplam) ? d.nps.toplam : 0;
+      var pW = nt>0 ? (d.nps.promoter/nt)*100 : 0;
+      var paW = nt>0 ? (d.nps.passive/nt)*100 : 0;
+      var dW = nt>0 ? (d.nps.detractor/nt)*100 : 0;
+      var bar = document.getElementById('rmc-nps-bar');
+      bar.querySelector('.seg-prom').style.width = pW+'%';
+      bar.querySelector('.seg-pas').style.width = paW+'%';
+      bar.querySelector('.seg-det').style.width = dW+'%';
+      document.getElementById('rmc-anket-prom').textContent = d.nps ? d.nps.promoter : 0;
+      document.getElementById('rmc-anket-pas').textContent = d.nps ? d.nps.passive : 0;
+      document.getElementById('rmc-anket-det').textContent = d.nps ? d.nps.detractor : 0;
+
+      var csat = d.csat_ort;
+      document.getElementById('rmc-anket-csat').textContent = csat !== null && csat !== undefined ? csat.toFixed(2).replace('.', ',') : '—';
+      document.getElementById('rmc-anket-orani').textContent = (d.cevap_orani || 0).toString().replace('.', ',');
+      document.getElementById('rmc-anket-sayilar').textContent = (d.toplam_cevap||0)+' / '+(d.toplam_gonderim||0);
+
+      var box = document.getElementById('rmc-anket-yorumlar');
+      var yorumlar = d.son_yorumlar || [];
+      if(yorumlar.length === 0){
+        box.innerHTML = '<div class="rmc-yorum-bos"><i class="bi bi-chat-quote" style="font-size:20px;color:#dde1ec;display:block;margin-bottom:4px;"></i>Henüz yorum yok.</div>';
+      } else {
+        var html = '';
+        yorumlar.forEach(function(y){
+          var cls = '';
+          if(y.nps_skoru !== null && y.nps_skoru !== undefined){
+            if(y.nps_skoru >= 9) cls = 'hi';
+            else if(y.nps_skoru <= 6) cls = 'lo';
+          }
+          var ad = y.ad_soyad ? y.ad_soyad.split(' ')[0] : 'Müşteri';
+          var tarih = y.cevap_zamani ? new Date(y.cevap_zamani.replace(' ','T')).toLocaleDateString('tr-TR') : '';
+          var skor = y.nps_skoru !== null && y.nps_skoru !== undefined ? ('NPS '+y.nps_skoru) : (y.csat_skoru !== null && y.csat_skoru !== undefined ? ('CSAT '+y.csat_skoru) : '');
+          var yorum = (y.genel_yorum || '').toString();
+          if(yorum.length > 110) yorum = yorum.substring(0,110)+'…';
+          html += '<div class="rmc-yorum '+cls+'">'
+                + '<div style="flex:1;"><div class="y-txt">"'+yorum.replace(/</g,'&lt;')+'"</div>'
+                + '<div class="y-meta">'+ad+(skor?' · '+skor:'')+(tarih?' · '+tarih:'')+'</div></div></div>';
+        });
+        box.innerHTML = html;
+      }
+    }).catch(function(e){console.warn('anket err',e);});
   }
 
   // ===== SEKME =====
@@ -767,6 +906,54 @@ function rmcDashInit(){
     }).catch(function(e){console.warn('personel err',e);});
   }
 
+  // ===== ÇARKIFELEK =====
+  function renderCark(period){
+    api('/cark', 'period='+period).then(function(d){
+      var t = Number(d.toplam_cevrim)||0;
+      animateCount(document.getElementById('rmc-cark-toplam'), t);
+      animateCount(document.getElementById('rmc-cark-kazanan'), Number(d.kazanan)||0);
+      animateCount(document.getElementById('rmc-cark-bos'), Number(d.bos)||0);
+      var kupon = d.kupon || {verilen:0,kullanilan:0,orani:0};
+      document.getElementById('rmc-cark-kupon-v').textContent = kupon.verilen;
+      document.getElementById('rmc-cark-kupon-k').textContent = kupon.kullanilan;
+      document.getElementById('rmc-cark-kupon-pct').textContent = (kupon.orani || 0)+'%';
+
+      // ring + center text
+      var rate = Number(d.kazanma_orani)||0;
+      var dash = 276.46, off = dash * (1 - rate/100);
+      var ring = document.getElementById('rmc-cark-ring');
+      if(ring) ring.setAttribute('stroke-dashoffset', off);
+      var rateEl = document.getElementById('rmc-cark-rate');
+      if(rateEl){
+        var s = performance.now(), dur = 1100;
+        function step(ts){
+          var k = Math.min(1,(ts-s)/dur);
+          var eased = 1 - Math.pow(1-k, 4);
+          rateEl.textContent = Math.round(rate*eased)+'%';
+          if(k<1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }
+
+      // son kazananlar
+      var box = document.getElementById('rmc-cark-son');
+      var rows = d.son_kazananlar || [];
+      if(rows.length === 0){
+        box.innerHTML = '<div class="rmc-yorum-bos"><i class="bi bi-trophy" style="font-size:20px;color:#dde1ec;display:block;margin-bottom:4px;"></i>Henüz kazanan yok.</div>';
+      } else {
+        var html = '';
+        rows.forEach(function(r){
+          var ad = r.musteri ? r.musteri.split(' ')[0] : 'Müşteri';
+          var od = (r.dilim_ismi || r.tip || 'Ödül');
+          html += '<div class="rmc-cark-kazanan-row"><i class="bi bi-trophy-fill" style="color:#f7c948"></i>'
+                + '<span class="ad">'+ad+'</span>'
+                + '<span class="od">'+od+'</span></div>';
+        });
+        box.innerHTML = html;
+      }
+    }).catch(function(e){console.warn('cark err',e);});
+  }
+
   // ===== Event bağlantıları =====
   document.querySelectorAll('.rmc-period').forEach(function(grp){
     var target = grp.getAttribute('data-target');
@@ -777,6 +964,8 @@ function rmcDashInit(){
         var p = btn.getAttribute('data-period');
         if(target === 'kasa') renderKasa(p);
         else if(target === 'randevu') renderRandevu(p);
+        else if(target === 'anket') renderAnket(p);
+        else if(target === 'cark') renderCark(p);
       });
     });
   });
@@ -789,21 +978,11 @@ function rmcDashInit(){
     });
   });
 
-  document.querySelectorAll('[data-cal-nav]').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var dir = parseInt(btn.getAttribute('data-cal-nav'),10);
-      var y = calState.year, m = calState.month + dir;
-      if(m < 1){ m = 12; y--; }
-      if(m > 12){ m = 1; y++; }
-      renderCal(y, m);
-    });
-  });
-
   // ===== İlk yükleme — paralel =====
-  var today = new Date();
   renderKasa('daily');
   renderRandevu('daily');
-  renderCal(today.getFullYear(), today.getMonth()+1);
+  renderAnket('30d');
+  renderCark('30d');
   renderTab('online-talep');
   renderTimeline();
   renderPersonel();
