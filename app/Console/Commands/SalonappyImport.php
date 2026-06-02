@@ -239,9 +239,79 @@ class SalonappyImport extends Command
             $saat = strlen($saatStr) === 5 ? $saatStr . ':00' : $saatStr;
             $marker = '[salonappy:' . $session . ']';
 
-            // Dedup: marker
-            if (\DB::table('randevular')->where('salon_id', $salonId)->where('user_id', $userId)
-                ->where('personel_notu', 'LIKE', '%' . $marker . '%')->exists()) { $rDedup++; continue; }
+            // Dedup: marker. Marker'li randevuda DELTA SYNC yap — visite sonradan eklenen
+            // payments[] ve product_sales[]'i tarayip eksikleri ekle. continue YOK.
+            $markerExistsRandevu = \DB::table('randevular')->where('salon_id', $salonId)
+                ->where('user_id', $userId)
+                ->where('personel_notu', 'LIKE', '%' . $marker . '%')->exists();
+            if ($markerExistsRandevu) {
+                $rDedup++;
+                // Mevcut adisyon_id'yi bul (marker LIKE)
+                $existAdId = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                    ->where('user_id', $userId)
+                    ->where('notlar', 'LIKE', '%' . $marker . '%')
+                    ->value('id');
+                if ($existAdId && !empty($bd['payments'])) {
+                    foreach ($bd['payments'] as $pIdx => $p) {
+                        $tutar = (float) ($p['amount'] ?? 0);
+                        if ($tutar <= 0) continue;
+                        $odemeYontem = $p['payment_method_text'] ?? $p['payment_method'] ?? 'Nakit';
+                        $odemeTarih = $p['date'] ?? $tarih;
+                        $payMarker = '[salonappy-pay:' . $session . ':' . $pIdx . ']';
+                        // 1) Onceden bu payment marker'i ile yazilmis mi?
+                        $existPay = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                            ->where('user_id', $userId)
+                            ->where('notlar', 'LIKE', '%' . $payMarker . '%')->exists();
+                        if ($existPay) continue;
+                        // 2) Marker yok ama ayni user+adisyon+tarih+tutar+yontem var mi
+                        $existSame = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                            ->where('user_id', $userId)->where('adisyon_id', $existAdId)
+                            ->where('odeme_tarihi', $odemeTarih)
+                            ->where('tutar', $tutar)->exists();
+                        if ($existSame) continue;
+                        try {
+                            $tReq = new \Illuminate\Http\Request([
+                                'userId' => $userId, 'adisyonId' => $existAdId,
+                                'odemeTarihi' => $odemeTarih, 'tahsilatTutari' => $tutar,
+                                'odemeYontemi' => $odemeYontem, 'salonId' => $salonId,
+                            ]);
+                            $apiController->salonAppyTahsilatEkle($tReq);
+                            $tEklenen++;
+                            $newT = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                                ->where('user_id', $userId)->where('odeme_tarihi', $odemeTarih)
+                                ->where('tutar', $tutar)->orderByDesc('id')->first();
+                            if ($newT && \Schema::hasColumn('tahsilatlar', 'notlar')) {
+                                \DB::table('tahsilatlar')->where('id', $newT->id)->update(['notlar' => $payMarker]);
+                            }
+                        } catch (\Throwable $e) {}
+                    }
+                }
+                // Eksik ürün satışlarını da ekle (mevcut AU ile karşılaştır)
+                if ($existAdId && !empty($bd['product_sales'])) {
+                    foreach ($bd['product_sales'] as $uIdx => $p) {
+                        $urunAdi = trim((string) ($p['product_text'] ?? $p['product_name'] ?? $p['name'] ?? ''));
+                        if ($urunAdi === '') continue;
+                        $fiyat = (float) ($p['amount'] ?? $p['price'] ?? 0);
+                        $adet = max(1, (int) ($p['quantity'] ?? $p['qty'] ?? 1));
+                        $urunMarker = '[salonappy-urun:' . $session . ':' . $uIdx . ']';
+                        // Aynı adisyon altında ayni urun+adet+fiyat var mı?
+                        $urunId = $this->ensureUrun($salonId, $urunAdi, $fiyat, $urunAdi);
+                        if (!$urunId) continue;
+                        $existAu = \DB::table('adisyon_urunler')
+                            ->where('adisyon_id', $existAdId)->where('urun_id', $urunId)
+                            ->where('fiyat', $fiyat)->where('adet', $adet)->exists();
+                        if ($existAu) continue;
+                        try {
+                            \DB::table('adisyon_urunler')->insert([
+                                'adisyon_id' => $existAdId, 'urun_id' => $urunId,
+                                'fiyat' => $fiyat, 'adet' => $adet,
+                                'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                            ]);
+                        } catch (\Throwable $e) {}
+                    }
+                }
+                continue;
+            }
 
             // Hizmetler itemized. service_text bos olanlar (salonappy'de silinmis hizmet
             // referanslari) atlanir; placeholder uretilmez.
