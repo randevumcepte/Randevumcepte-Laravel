@@ -946,12 +946,109 @@
             $('#v2_musteri_info').text('✓ '+data.text).show();
             $('#v2_paket_aç').prop('disabled', false);
             $('#v2_subtitle_text').text('Hizmet ve personel seç');
+
+            // V1'in musteri select'ine de yansit (paketKontrolü v1 form fieldlarini okuyor)
+            var userId = data.id;
+            var $v1Musteri = $('#randevuekle_musteri_id');
+            if($v1Musteri.find('option[value="'+userId+'"]').length === 0){
+                $v1Musteri.append(new Option(data.text, userId, true, true));
+            }
+            $v1Musteri.val(userId).trigger('change');
+
+            // Paket otomatik popup (v1'in paketKontrolü fonksiyonu)
+            window._v2PaketAkisi = true; // dispatcher routing icin flag
+            if(typeof paketKontrolü === 'function'){
+                paketKontrolü(userId, false);
+            }
         });
         $musteri.on('select2:clear', function(){
             $('#v2_musteri_info').hide().text('');
             $('#v2_paket_aç').prop('disabled', true);
             $('#v2_subtitle_text').text('Müşteri ve hizmet seç');
+            window._v2PaketAkisi = false;
         });
+
+        // Manuel "Paketler" butonu — secili musteri icin paket modali ac
+        $('#v2_paket_aç').off('click.v2paket').on('click.v2paket', function(){
+            var userId = $musteri.val();
+            if(!userId) return;
+            window._v2PaketAkisi = true;
+            if(typeof paketKontrolü === 'function'){
+                paketKontrolü(userId, true); // onayVar=true: modal her zaman acilir
+            }
+        });
+    }
+
+    // -------- PAKET → V2 SATIRLARI SYNC --------
+    // Paket modali kapaninca veya hizmetler dogrudan eklenince v1 formuna yazilir;
+    // biz v1 satirlarini okuyup v2'ye yansitiyoruz.
+    function syncFromV1ToV2(){
+        var $v1Rows = $('#modal-view-event-add .hizmet-satiri');
+        if(!$v1Rows.length) return;
+
+        // V1'de gercek hizmet secili satirlari topla (bos satirlari atla)
+        var rowsData = [];
+        $v1Rows.each(function(){
+            var $r = $(this);
+            var $h = $r.find('.hizmet-select');
+            var hEl = $h[0];
+            var ids = [];
+            if(hEl && hEl.tomselect){
+                ids = hEl.tomselect.getValue();
+                if(!Array.isArray(ids)) ids = ids ? [ids] : [];
+            } else {
+                ids = $h.val() || [];
+                if(!Array.isArray(ids)) ids = ids ? [ids] : [];
+            }
+            ids = ids.filter(function(x){ return x; });
+            if(!ids.length) return;
+            rowsData.push({
+                hizmetIds: ids,
+                personelId: $r.find('.personel-select, .personel_secimi').not('.hizmet-select').val() || '',
+                odaId: $r.find('.oda-select, .oda_secimi').val() || ''
+            });
+        });
+
+        if(!rowsData.length) return;
+
+        // V2 mevcut satirlarini temizle, yeniden olustur
+        $services.find('.v2-service-row').each(function(){
+            var el = $(this).find('.v2-hizmet')[0];
+            if(el && el.tomselect){ try{el.tomselect.destroy();}catch(e){} }
+        });
+        $services.empty();
+
+        rowsData.forEach(function(row, i){
+            addRow();
+            var $row = $services.find('.v2-service-row').eq(i);
+            // Hizmet IDs
+            var hizmetEl = $row.find('.v2-hizmet')[0];
+            if(hizmetEl && hizmetEl.tomselect){
+                hizmetEl.tomselect.setValue(row.hizmetIds, true);
+            }
+            // Personel + Oda
+            if(row.personelId) $row.find('.v2-personel').val(row.personelId);
+            if(row.odaId) $row.find('.v2-oda').val(row.odaId);
+            updateRowMeta(i);
+        });
+        updateSummary();
+    }
+    window._v2SyncFromV1 = syncFromV1ToV2; // disardan tetiklenebilsin
+
+    // -------- PAKET DISPATCHER OVERRIDE --------
+    function installPaketDispatcher(){
+        if(window._v2DispatcherInstalled) return;
+        var original = window.addServicesToForm;
+        window.addServicesToForm = function(hizmetData, result, showMsg){
+            // Once orijinali calistir (v1 form'una hizmetler ekleyecek)
+            var ret = original ? original.apply(this, arguments) : null;
+            // V2 acik ve v2 paket akisindaysak, v1 -> v2 sync
+            if(window._v2PaketAkisi && ($modal.hasClass('show') || $modal.is(':visible'))){
+                setTimeout(syncFromV1ToV2, 700);
+            }
+            return ret;
+        };
+        window._v2DispatcherInstalled = true;
     }
 
     function initBulkSelects(){
@@ -1029,9 +1126,61 @@
         ensureHizmetVerisi(function(){
             initBulkSelects();
             if($services.children().length === 0) addRow();
+            installPaketDispatcher();
             v2Init = true;
         });
     }
+
+    // -------- FORM RESET --------
+    function resetV2Form(){
+        // Musteri
+        if($musteri.data('select2')){
+            $musteri.val(null).trigger('change');
+        } else {
+            $musteri.val('');
+        }
+        $('#v2_musteri_info').hide().text('');
+        $('#v2_paket_aç').prop('disabled', true);
+        $('#v2_subtitle_text').text('Müşteri ve hizmet seç');
+
+        // Tarih + saat default
+        $tarih.val('{{ date("Y-m-d") }}');
+        // Saat default ilk option
+        $saat.prop('selectedIndex', 0);
+
+        // Hizmet satirlari sifirla
+        $services.find('.v2-service-row').each(function(){
+            var el = $(this).find('.v2-hizmet')[0];
+            if(el && el.tomselect){ try{el.tomselect.destroy();}catch(e){} }
+        });
+        $services.empty();
+        addRow();
+        $('#v2_bulk_panel').hide();
+
+        // Bulk panel inputs
+        $('#v2_bulk_personel').val('');
+        $('#v2_bulk_oda').val('');
+
+        // Notlar
+        $('#v2_not').val('');
+        $('#v2_not_body').hide();
+        $('.v2-collapse-toggle').removeClass('open');
+
+        // Tekrarlayan
+        $('#v2_tekrarlayan').prop('checked', false);
+        $('#v2_tekrarlayan_body').hide();
+        $('#v2_tekrar_sikligi').val('+1 week');
+        $('#v2_tekrar_sayisi').val(4);
+
+        // Summary
+        $summary.hide();
+        $totalSure.text('0 dk');
+        $totalFiyat.text('0 ₺');
+
+        // Paket flag
+        window._v2PaketAkisi = false;
+    }
+    window._v2ResetForm = resetV2Form;
 
     // -------- EVENTS --------
     $modal.on('shown.bs.modal', function(){
@@ -1046,7 +1195,8 @@
     });
 
     $modal.on('hidden.bs.modal', function(){
-        // Cache temiz tutmak icin reset etmiyoruz - tekrar acildiginda hizli olsun
+        // Form'u tamamen sifirla: musteri, hizmet, personel, oda, not, tekrar, summary
+        resetV2Form();
     });
 
     $modal.on('click', '#v2_add_row', addRow);
