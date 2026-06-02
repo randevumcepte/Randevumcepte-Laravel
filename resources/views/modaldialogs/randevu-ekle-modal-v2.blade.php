@@ -1765,7 +1765,19 @@
         ensureHizmetVerisi(function(){
             if($services.children().length === 0) addRow();
             installPaketDispatcher();
+            initKapamaPersonel();
             v2Init = true;
+        });
+    }
+
+    // Saat Kapama formundaki personel dropdownini doldur
+    function initKapamaPersonel(){
+        var $sel = $('#v2_kapama_personel');
+        if(!$sel.length) return;
+        var data = getRandevuModalData();
+        $sel.empty().append('<option value="">Personel seçin...</option>');
+        data.personeller.forEach(function(p){
+            $sel.append(new Option(p.ad, p.id));
         });
     }
 
