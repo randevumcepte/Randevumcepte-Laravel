@@ -1287,6 +1287,9 @@ console.log("İlk satır hizmet detayları:", <?php echo json_encode($seanslar[0
                     },
                     "processing": "Yükleniyor..."
                 };
+                // Mobil/tablette DataTables responsive plugin'in en az onemli
+                // kolonlari onceliksizleri once gizlemesi icin priority verilir.
+                // En kucuk priority en once goosterilir; yuksek priority gerekirse gizlenir.
                 $(document).ready(function(){
                     if (!$('#bugunkugorevtablo').length) return;
                     $('#bugunkugorevtablo').DataTable({
@@ -1299,12 +1302,12 @@ console.log("İlk satır hizmet detayları:", <?php echo json_encode($seanslar[0
                         autoWidth: false,
                         responsive: true,
                         columns: [
-                            { data: 'baslik' },
-                            { data: 'mesaj', "width": "500px" },
-                            { data: 'saat' },
-                            { data: 'durum' },
-                            { data: 'sonuc' },
-                            { data: 'islemler' }
+                            { data: 'baslik',  responsivePriority: 2 },
+                            { data: 'mesaj',   responsivePriority: 3 },
+                            { data: 'saat',    responsivePriority: 1 },
+                            { data: 'durum',   responsivePriority: 5 },
+                            { data: 'sonuc',   responsivePriority: 4 },
+                            { data: 'islemler', responsivePriority: 1, className: 'easistan-islemler-col' }
                         ],
                         order: [[ 2, "asc" ]],
                         language: commonLang
@@ -1322,11 +1325,11 @@ console.log("İlk satır hizmet detayları:", <?php echo json_encode($seanslar[0
                         autoWidth: false,
                         responsive: true,
                         columns: [
-                            { data: 'baslik' },
-                            { data: 'mesaj', "width": "500px" },
-                            { data: 'saat' },
-                            { data: 'durum' },
-                            { data: 'islemler' }
+                            { data: 'baslik',  responsivePriority: 2 },
+                            { data: 'mesaj',   responsivePriority: 3 },
+                            { data: 'saat',    responsivePriority: 1 },
+                            { data: 'durum',   responsivePriority: 4 },
+                            { data: 'islemler', responsivePriority: 1, className: 'easistan-islemler-col' }
                         ],
                         order: [[ 2, "asc" ]],
                         language: commonLang

@@ -6,6 +6,32 @@
    #e_asistan_ayarlari h2.text-blue { color: #7800B3 !important; }
    #e_asistan_ayarlari .card-box h6 { color: #7800B3 !important; }
    .page-header h1 { color: #7800B3 !important; }
+
+   /* E-Asistan tablo butonlari: kontroller normal line-height ile dursun,
+      btn-block buyuk ekranlarda tam kolon genisligini kapsasin ama text
+      iki satira dustugunde okunabilir kalsin. */
+   #bugunkugorevtablo .btn,
+   #yarinkigorevtablo .btn {
+      white-space: normal !important;
+      line-height: 1.4 !important;
+      padding: 8px 12px !important;
+      min-width: 0;
+      word-break: keep-all;
+   }
+   /* Islemler kolonu cok dar olmasin: min 120px, tablette/mobilde butonun
+      bir satira sigmasi icin yer kalsin. */
+   #bugunkugorevtablo td.easistan-islemler-col,
+   #yarinkigorevtablo td.easistan-islemler-col {
+      min-width: 120px;
+   }
+   /* Cok kucuk ekranlarda (xs) butonu daha kompakt yap */
+   @media (max-width: 575.98px) {
+      #bugunkugorevtablo .btn,
+      #yarinkigorevtablo .btn {
+         font-size: 12px;
+         padding: 6px 8px !important;
+      }
+   }
 </style>
 <div class="page-header">
       <div class="row">

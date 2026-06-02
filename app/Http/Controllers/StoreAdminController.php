@@ -25126,9 +25126,9 @@ public function musteriportfoydropliste(Request $request)
                 )&&($randevu->tekrar_arandi != 1 || $randevu->tekrar_arandi == null)
 
             )
-                $islemler = '<button name="gorev_iptal_et_randevu" class="btn btn-primary btn-block" data-value="'. $randevu->id.'" style="line-height:5px;width:auto">Görevi İptal Et</button>';
+                $islemler = '<button name="gorev_iptal_et_randevu" class="btn btn-primary btn-block" data-value="'. $randevu->id.'" style="white-space:normal;line-height:1.4;padding:6px 12px;min-width:0;word-break:keep-all">Görevi İptal Et</button>';
             if($randevu->hatirlatma_ulasilamadi == 1)
-                $durum = '<button class="btn btn-danger btn-block" style="line-height:5px;width:auto">Ulaşılamadı</button>';
+                $durum = '<button class="btn btn-danger btn-block" style="white-space:normal;line-height:1.4;padding:6px 12px;min-width:0;word-break:keep-all">Ulaşılamadı</button>';
            
 
             if($randevu->hatirlatma_aramasi_yapildi === null)
@@ -25180,7 +25180,7 @@ public function musteriportfoydropliste(Request $request)
             else
                 $sonuc = date('H:i',strtotime($alacak->tekrar_arama_tarih_saat))." saatinde tekrar aradım, ulaşılamadı";
             if($alacak->hatirlatma_ulasilamadi == 1 )
-                $durum = '<button class="btn btn-success btn-block" style="line-height:5px;width:auto">Ulaşıldı</button>';
+                $durum = '<button class="btn btn-success btn-block" style="white-space:normal;line-height:1.4;padding:6px 12px;min-width:0;word-break:keep-all">Ulaşıldı</button>';
 
              
 
@@ -25193,7 +25193,7 @@ public function musteriportfoydropliste(Request $request)
                 )&&($alacak->tekrar_arandi != 1 || $alacak->tekrar_arandi == null)
 
             )
-                $islemler = '<button name="gorev_iptal_et_alacak" class="btn btn-primary btn-block" data-value="'. $alacak->id.'" style="line-height:5px;width:auto">Görevi İptal Et</button>';
+                $islemler = '<button name="gorev_iptal_et_alacak" class="btn btn-primary btn-block" data-value="'. $alacak->id.'" style="white-space:normal;line-height:1.4;padding:6px 12px;min-width:0;word-break:keep-all">Görevi İptal Et</button>';
 
 
             return [
@@ -25210,7 +25210,7 @@ public function musteriportfoydropliste(Request $request)
         $formattedKampanyalar = $kampanyalar->map(function($kampanya){
             $baslik = $kampanya->paket_isim." kampanya ";
             $sonuc = "";
-            $durum = '<a style="color:#fff;width:auto;line-height:5px" class="btn btn-primary" data-value="'.$kampanya->id.'" data-toggle="modal" name="kampanya_detay" data-target="#kampanya_detay_modal">Rapor Detayı >></a>';
+            $durum = '<a style="color:#fff;white-space:normal;line-height:1.4;padding:6px 12px" class="btn btn-primary" data-value="'.$kampanya->id.'" data-toggle="modal" name="kampanya_detay" data-target="#kampanya_detay_modal">Rapor Detayı &raquo;</a>';
             $islemler = "";
               
             if($kampanya->arama_ile_gonderim == 1 && $kampanya->sms_ile_gonderm != 1)
