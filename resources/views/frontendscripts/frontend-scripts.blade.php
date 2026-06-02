@@ -155,7 +155,7 @@
              },
               dayClick: function (start) {
                var tarihsaattext = start.format().split("T");
-               if(new Date(start.format()) < new Date())
+               if(false) // Gecmis tarihe randevu engeli kaldirildi
                      swal(
                             {
                                 type: 'warning',
@@ -253,7 +253,7 @@
         if (event.title === 'Boş slot') {
             var tarihsaattext = event.start.format().split("T");
             
-            if (new Date(event.start.format()) < new Date()) {
+            if (false) { // Gecmis tarihe randevu engeli kaldirildi
                 swal({
                     type: 'warning',
                     title: 'Uyarı',
