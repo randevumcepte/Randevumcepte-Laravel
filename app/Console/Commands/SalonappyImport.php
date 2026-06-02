@@ -659,6 +659,70 @@ class SalonappyImport extends Command
             }
             $this->info("Giderler: eklenen={$eEklenen}, dedup={$eDedup}, hata={$eHata}");
         }
+
+        // 5) PAYMENTS — comprehensive tahsilat listesi
+        // /api/payment/list tum kaynaklarin tahsilatlarini tek listede veriyor (Adisyon /
+        // Paket satisi / Urun satisi / Borc odemesi vb). Her payment id ile dedup yapilir.
+        // Visit/urun pipeline kendi tahsilatlarini ekledi ama marker'lari yok — burada
+        // [salonappy-payment:id] marker'i ile bizdeki tahsilat'a check yapip eksikleri ekle.
+        $pays = $j['payments'] ?? [];
+        if (!empty($pays)) {
+            $this->line('Payments isleniyor: ' . count($pays) . ' kayit');
+            $pEklenen = 0; $pDedup = 0; $pHata = 0;
+            foreach ($pays as $pay) {
+                $payId = (string) ($pay['id'] ?? '');
+                if (!$payId) { $pHata++; continue; }
+                $payMarker = '[salonappy-payment:' . $payId . ']';
+                $exists = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                    ->where('notlar', 'LIKE', '%' . $payMarker . '%')->exists();
+                if ($exists) { $pDedup++; continue; }
+                $tutar = (float) ($pay['amount'] ?? 0);
+                if ($tutar <= 0) continue;
+                $odemeTarih = $pay['date'] ?? date('Y-m-d');
+                $odemeYontem = $pay['payment_method_text'] ?? 'Nakit';
+                // client_id YOK — sadece client_name var. Telefon mevcut olmadigi icin
+                // name match (mecburen) — multi-match riski var, en yeni user'i secelim.
+                $clientName = trim((string) ($pay['client_name'] ?? ''));
+                $userId = null;
+                if ($clientName) {
+                    $userId = \DB::table('users')
+                        ->where('name', 'LIKE', $clientName)
+                        ->orderByDesc('id')->value('id');
+                }
+                if (!$userId) { $pHata++; continue; }
+                // Source bazli ayni user+tarih+tutar tahsilat var mi (visit/urun
+                // pipeline'in ekledigi marker'siz tahsilatla cakismayi engelle).
+                $existSame = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                    ->where('user_id', $userId)
+                    ->where('odeme_tarihi', $odemeTarih)
+                    ->where('tutar', $tutar)
+                    ->whereNull('notlar')->exists();
+                if ($existSame) {
+                    // Mevcut tahsilata marker yaz (ileride dedup icin)
+                    $upd = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                        ->where('user_id', $userId)->where('odeme_tarihi', $odemeTarih)
+                        ->where('tutar', $tutar)->whereNull('notlar')
+                        ->limit(1)->update(['notlar' => $payMarker]);
+                    if ($upd) { $pDedup++; continue; }
+                }
+                // Tamamen yeni tahsilat (ozellikle "Paket satisi" source — paymentslar
+                // visit pipeline'a girmiyor). Adisyon_id NULL (bagimsiz kasa kaydi).
+                try {
+                    \DB::table('tahsilatlar')->insert([
+                        'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => null,
+                        'odeme_tarihi' => $odemeTarih, 'tutar' => $tutar,
+                        'odeme_yontemi_id' => 1, 'notlar' => $payMarker,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $pEklenen++;
+                } catch (\Throwable $e) {
+                    $pHata++;
+                    \Log::warning('[Salonappy payment] hata', ['id' => $payId, 'err' => $e->getMessage()]);
+                }
+            }
+            $this->info("Payments: eklenen={$pEklenen}, dedup={$pDedup}, hata={$pHata}");
+        }
+
         return 0;
     }
 

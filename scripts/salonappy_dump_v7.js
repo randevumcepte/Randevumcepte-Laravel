@@ -171,6 +171,53 @@
     console.log(`  product_sales toplam: ${productSales.length}`);
   } else console.log('  resume: productSales (cached, ' + productSales.length + ')');
 
+  // === Paket satislari (/api/package_sale/list) ===
+  // Her paket satisinin bir kaydi (group_id ile gruplandirilir, her satir=paketin 1 hizmeti).
+  let packageSales = await dbGet('packageSales');
+  if (!packageSales) {
+    packageSales = [];
+    const dateStart = '2018-01-01';
+    const dEnd = new Date(); dEnd.setFullYear(dEnd.getFullYear() + 1);
+    const dateEnd = dEnd.toISOString().slice(0,10);
+    let offset = 0; const limit = 100;
+    while (true) {
+      const j = await get(`/package_sale/list?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}`);
+      const arr = j?.data?.package_sales || [];
+      if (!arr.length) break;
+      packageSales.push(...arr);
+      offset += arr.length;
+      await sleep(RATE_DELAY_MS);
+      if (arr.length < limit) break;
+      if (offset % 500 === 0) console.log(`  package_sales kumule: ${packageSales.length}`);
+    }
+    await dbPut('packageSales', packageSales);
+    console.log(`  package_sales toplam: ${packageSales.length}`);
+  } else console.log('  resume: packageSales (cached, ' + packageSales.length + ')');
+
+  // === Tum tahsilatlar (/api/payment/list) ===
+  // Visit + urun + paket tum kaynaklarin tahsilatlari tek listede.
+  // source_text: "Adisyon" / "Urun satisi" / "Paket satisi" / "Borc odemesi" vb.
+  let payments = await dbGet('payments');
+  if (!payments) {
+    payments = [];
+    const dateStart = '2018-01-01';
+    const dEnd = new Date(); dEnd.setFullYear(dEnd.getFullYear() + 1);
+    const dateEnd = dEnd.toISOString().slice(0,10);
+    let offset = 0; const limit = 100;
+    while (true) {
+      const j = await get(`/payment/list?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}`);
+      const arr = j?.data?.payments || [];
+      if (!arr.length) break;
+      payments.push(...arr);
+      offset += arr.length;
+      await sleep(RATE_DELAY_MS);
+      if (arr.length < limit) break;
+      if (offset % 500 === 0) console.log(`  payments kumule: ${payments.length}`);
+    }
+    await dbPut('payments', payments);
+    console.log(`  payments toplam: ${payments.length}`);
+  } else console.log('  resume: payments (cached, ' + payments.length + ')');
+
   // === Giderler / Masraflar (/api/expense/list) ===
   // Pagination offset+limit, tarih araligi 2018 -> +1 yil ileri, is_deleted=0
   let expenses = await dbGet('expenses');
@@ -237,6 +284,8 @@
     clients, clientDetails: {},
     visits, bookingDetails,
     productSales,
+    packageSales,
+    payments,
     expenses
   };
   const txt = JSON.stringify(dump);
