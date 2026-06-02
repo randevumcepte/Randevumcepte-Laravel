@@ -375,6 +375,10 @@
 /* Yeni Randevu modali dikey ortalama (modal-dialog-centered ::before hack i olmadan) */
 /* z-index: swal v1 99999 kullaniyor, modal'in onun ustunde kalmasi icin 100002 (Tom Select dropdown=100000, Select2=100001 ile uyumlu) */
 #modal-view-event-add { z-index: 100002 !important; }
+/* Paket secim modali (custom.js'te uretilir) — yeni randevu modalinin (100002) ONUNDE olmali.
+   z-index TEK BASINA yetmez; modal DOM'da en sona alinir (appendTo body, asagidaki JS). */
+#softPaketSecimModal { z-index: 100050 !important; }
+.modal-backdrop.soft-paket-backdrop { z-index: 100049 !important; }
 /* Oda secim modali parent'in uzerinde olmali (parent 100002 !important) */
 #hizmetOdaAtamaModal { z-index: 100020 !important; }
 .modal-backdrop.hizmet-oda-backdrop { z-index: 100015 !important; }
@@ -2886,6 +2890,21 @@ function genelSureUygula(){
 }
 $(document).on('change', '#modal-view-event-add .genel-sure-input', function(){
     genelSureUygula();
+});
+
+// ===================== PAKET SECIM MODALI Z-SIRA =====================
+// Paket secim modali (#softPaketSecimModal, custom.js'te uretilir) yeni randevu modalinin
+// (#modal-view-event-add) ARKASINDA kaliyordu. z-index tek basina yetmez (DOM sirasi/stacking);
+// modali DOM'da en sona alip (appendTo body) backdrop'unu da uste cekiyoruz.
+$(document).on('show.bs.modal', '#softPaketSecimModal', function(){
+    try { $(this).appendTo('body'); } catch(e){}   // DOM'da en sona -> randevu modalinin ustunde yigilir
+});
+$(document).on('shown.bs.modal', '#softPaketSecimModal', function(){
+    var $m = $(this);
+    $m.css('z-index', 100050);
+    // Bu modalin backdrop'u (en son eklenen) randevu modalinin ustunde, modalin altinda olsun
+    var $bd = $('.modal-backdrop').not('.soft-paket-backdrop').last();
+    $bd.addClass('soft-paket-backdrop').css('z-index', 100049);
 });
 
 // ===================== PAKET MODU =====================
