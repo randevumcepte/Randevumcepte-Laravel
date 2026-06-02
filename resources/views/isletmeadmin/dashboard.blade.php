@@ -430,7 +430,7 @@
       <div class="rmc-qa-icon"><i class="bi bi-stars"></i></div>
       <div class="rmc-qa-text">Yeni Hizmet Oluştur</div>
     </a>
-    <a class="rmc-qa var-5" href="/isletmeyonetim/islemraporlari{{$subeQuery}}">
+    <a class="rmc-qa var-5" href="/isletmeyonetim/isletmeraporlari{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
       <div class="rmc-qa-text">İşletme Raporları</div>
     </a>

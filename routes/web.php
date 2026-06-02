@@ -687,6 +687,9 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/api/dashboard/takvim','StoreAdminController@dashboardTakvim')->name('isletmeadmin.dashboard.takvim');
 	Route::get('/api/dashboard/anket','StoreAdminController@dashboardAnket')->name('isletmeadmin.dashboard.anket');
 	Route::get('/api/dashboard/cark','StoreAdminController@dashboardCark')->name('isletmeadmin.dashboard.cark');
+	// Yeni Isletme Raporlari sayfasi (Salon Randevu tarzi tabbed rapor dashboard)
+	Route::get('/isletmeraporlari','StoreAdminController@isletmeRaporlari')->name('isletmeadmin.isletmeraporlari');
+	Route::get('/api/isletmeraporlari/ozet','StoreAdminController@isletmeRaporlariOzet')->name('isletmeadmin.isletmeraporlari.ozet');
 	Route::get('/api/dashboard/bugun','StoreAdminController@dashboardBugun')->name('isletmeadmin.dashboard.bugun');
 	Route::get('/api/dashboard/sekme','StoreAdminController@dashboardSekme')->name('isletmeadmin.dashboard.sekme');
 	Route::get('/api/dashboard/timeline','StoreAdminController@dashboardTimeline')->name('isletmeadmin.dashboard.timeline');

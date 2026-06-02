@@ -1179,6 +1179,21 @@
                   @endif
                   @endif
 
+                  {{-- 13.5) Isletme Raporlari (yeni — tabbed rapor dashboard) --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && DB::table('model_has_roles')->where('role_id',4)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  <li>
+                     @if(($pageindex ?? -1) == 600)
+                     <a href="/isletmeyonetim/isletmeraporlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/isletmeraporlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-graph-up-arrow"></span><span class="mtext">İşletme Raporları</span>
+                     </a>
+                  </li>
+                  @endif
+                  @endif
+
                   {{-- 14) Satış Raporları --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && DB::table('model_has_roles')->where('role_id',4)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)

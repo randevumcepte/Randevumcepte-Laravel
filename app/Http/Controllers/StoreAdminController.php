@@ -1332,6 +1332,140 @@ public function carkverilerigetir(Request $request)
         });
     }
 
+    public function isletmeRaporlari(Request $request)
+    {
+        $isletmeler = '';
+        $isletme = '';
+        if(Auth::guard('satisortakligi')->check())
+        {
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        }
+        else{
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+        if(!in_array(self::mevcutsube($request),$isletmeler))
+        {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(str_contains(self::lisans_sure_kontrol($request),'-'))
+        {
+            return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+        }
+        if(!Auth::guard('satisortakligi')->check()){
+            if(self::personelmi($request)){
+                return redirect()->route('isletmeadmin.randevular');
+            }
+        }
+        if(count($isletmeler)>1 && !isset($_GET['sube'])){
+            return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
+        }
+        return view('isletmeadmin.isletme_raporlari',[
+            'sayfa_baslik' => 'İşletme Raporları',
+            'title' => 'İşletme Raporları | '.$isletme->salon_adi,
+            'pageindex' => 600,
+            'isletme' => $isletme,
+            'bildirimler' => self::bildirimgetir($request),
+            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
+            'yetkiliolunanisletmeler' => $isletmeler,
+        ]);
+    }
+
+    private function raporPeriodDates($request)
+    {
+        $period = $request->input('period', 'bugun');
+        $bugun = date('Y-m-d');
+        if($period === 'custom'){
+            $bas = $request->input('bas') ? date('Y-m-d', strtotime($request->input('bas'))) : $bugun;
+            $bit = $request->input('bit') ? date('Y-m-d', strtotime($request->input('bit'))) : $bugun;
+            return [$bas, $bit, 'custom'];
+        }
+        if($period === 'hafta'){
+            $haftaBas = date('Y-m-d', strtotime('monday this week'));
+            $haftaBit = date('Y-m-d', strtotime('sunday this week'));
+            return [$haftaBas, $haftaBit, 'hafta'];
+        }
+        if($period === 'ay'){
+            return [date('Y-m-01'), date('Y-m-t'), 'ay'];
+        }
+        return [$bugun, $bugun, 'bugun'];
+    }
+
+    public function isletmeRaporlariOzet(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
+        $cacheKey = 'rapor:isletme:'.$periodKey.':'.$t1.':'.$t2;
+
+        return \Cache::remember($this->dashCacheKey($salonId, $cacheKey), 60, function() use ($salonId, $t1, $t2) {
+            $toplamRandevu = DB::table('randevular')
+                ->where('salon_id', $salonId)
+                ->whereBetween('tarih', [$t1, $t2])
+                ->count();
+
+            $toplamAdisyon = DB::table('adisyonlar')
+                ->where('salon_id', $salonId)
+                ->whereBetween('created_at', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                ->count();
+
+            $satilanUrun = DB::table('adisyon_urunler')
+                ->join('adisyonlar','adisyonlar.id','=','adisyon_urunler.adisyon_id')
+                ->where('adisyonlar.salon_id', $salonId)
+                ->whereBetween('adisyonlar.created_at', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                ->count();
+
+            $uygulananHizmet = DB::table('adisyon_hizmetler')
+                ->join('adisyonlar','adisyonlar.id','=','adisyon_hizmetler.adisyon_id')
+                ->where('adisyonlar.salon_id', $salonId)
+                ->whereBetween('adisyonlar.created_at', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                ->count();
+
+            $tahsilatRows = DB::table('tahsilatlar')
+                ->leftJoin('odeme_yontemleri','tahsilatlar.odeme_yontemi_id','=','odeme_yontemleri.id')
+                ->where('tahsilatlar.salon_id', $salonId)
+                ->whereBetween('tahsilatlar.odeme_tarihi', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                ->select('odeme_yontemleri.odeme_yontemi as yontem', DB::raw('SUM(tahsilatlar.tutar) as toplam'))
+                ->groupBy('odeme_yontemleri.odeme_yontemi')
+                ->get();
+
+            $nakit = 0; $kart = 0; $havale = 0; $diger = 0; $toplamGelir = 0;
+            foreach($tahsilatRows as $r){
+                $tutar = (float) $r->toplam;
+                $toplamGelir += $tutar;
+                $yontem = mb_strtolower($r->yontem ?? '', 'UTF-8');
+                if(strpos($yontem,'nakit') !== false || strpos($yontem,'cash') !== false){
+                    $nakit += $tutar;
+                } elseif(strpos($yontem,'kart') !== false || strpos($yontem,'kredi') !== false || strpos($yontem,'pos') !== false || strpos($yontem,'card') !== false){
+                    $kart += $tutar;
+                } elseif(strpos($yontem,'havale') !== false || strpos($yontem,'eft') !== false || strpos($yontem,'transfer') !== false || strpos($yontem,'iban') !== false){
+                    $havale += $tutar;
+                } else {
+                    $diger += $tutar;
+                }
+            }
+
+            // Odenen gelir = toplam tahsilat (zaten tahsilatlar tablosunda kayitli olan = odenen)
+            $odenenGelir = $toplamGelir;
+
+            return response()->json([
+                'tarih_bas' => $t1,
+                'tarih_bit' => $t2,
+                'toplam_randevu' => $toplamRandevu,
+                'toplam_adisyon' => $toplamAdisyon,
+                'satilan_urun' => $satilanUrun,
+                'uygulanan_hizmet' => $uygulananHizmet,
+                'toplam_gelir' => $toplamGelir,
+                'nakit' => $nakit,
+                'kart' => $kart,
+                'havale' => $havale,
+                'diger' => $diger,
+                'odenen' => $odenenGelir,
+            ]);
+        });
+    }
+
     public function dashboardCark(Request $request)
     {
         $salonId = $this->dashSalonId($request);
