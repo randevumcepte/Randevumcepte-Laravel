@@ -660,7 +660,73 @@ class SalonappyImport extends Command
             $this->info("Giderler: eklenen={$eEklenen}, dedup={$eDedup}, hata={$eHata}");
         }
 
-        // 5) PAYMENTS — comprehensive tahsilat listesi
+        // 5) PACKAGE SALES — paket satislari (visit'siz, tahsilatlari payments'tan)
+        // Her satir = paket satisinin 1 hizmeti, group_id ile grupla → 1 adisyon.
+        $pkgSales = $j['packageSales'] ?? [];
+        if (!empty($pkgSales)) {
+            $groups = [];
+            foreach ($pkgSales as $row) {
+                $gid = (string) ($row['group_id'] ?? $row['id'] ?? '');
+                if (!$gid) continue;
+                $groups[$gid][] = $row;
+            }
+            $this->line('Package sales gruplari: ' . count($groups) . ' kayit (toplam satir: ' . count($pkgSales) . ')');
+            $gEklenen = 0; $gDedup = 0; $gHata = 0;
+            foreach ($groups as $gid => $rows) {
+                $marker = '[salonappy-pkgsale:' . $gid . ']';
+                $exists = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                    ->where('notlar', 'LIKE', '%' . $marker . '%')->exists();
+                if ($exists) { $gDedup++; continue; }
+                $first = $rows[0];
+                $clientId = (string) ($first['client_id'] ?? '');
+                $userId = $clientId ? ($idMap[$clientId] ?? null) : null;
+                if (!$userId) {
+                    $clientName = trim((string) ($first['client_name'] ?? ''));
+                    if ($clientName) $userId = \DB::table('users')->where('name', 'LIKE', $clientName)->orderByDesc('id')->value('id');
+                }
+                if (!$userId) { $gHata++; continue; }
+                $tarih = $first['date'] ?? date('Y-m-d');
+                try {
+                    $adId = \DB::table('adisyonlar')->insertGetId([
+                        'salon_id' => $salonId, 'user_id' => $userId, 'tarih' => $tarih,
+                        'notlar' => $marker,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    foreach ($rows as $r) {
+                        $svcAd = trim((string) ($r['service_text'] ?? ''));
+                        if ($svcAd === '') continue;
+                        $period = max(1, (int) ($r['quantity'] ?? $r['total_usage'] ?? 1));
+                        $tutar = (float) ($r['total_amount'] ?? 0);
+                        $fiyat = $period > 0 ? round($tutar / $period, 2) : $tutar;
+                        $hid = $this->ensureSalonHizmet($salonId, $svcAd, 30, $fiyat, $svcAd);
+                        if (!$hid) continue;
+                        $ahId = \DB::table('adisyon_hizmetler')->insertGetId([
+                            'adisyon_id' => $adId, 'hizmet_id' => $hid,
+                            'geldi' => 0, 'islem_tarihi' => $tarih, 'islem_saati' => '00:00:00',
+                            'sure' => 30, 'fiyat' => $tutar, 'seans_sayisi' => $period,
+                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                        if ($period > 1) {
+                            for ($i = 1; $i <= $period; $i++) {
+                                \DB::table('adisyon_paket_seanslar')->insert([
+                                    'adisyon_hizmet_id' => $ahId, 'hizmet_id' => $hid,
+                                    'seans_no' => $i, 'geldi' => 0,
+                                    'created_at' => date('Y-m-d H:i:s'),
+                                    'updated_at' => date('Y-m-d H:i:s'),
+                                ]);
+                            }
+                        }
+                    }
+                    $gEklenen++;
+                } catch (\Throwable $e) {
+                    $gHata++;
+                    \Log::warning('[Salonappy pkgsale] hata', ['gid' => $gid, 'err' => $e->getMessage()]);
+                }
+            }
+            $this->info("Package sales: eklenen={$gEklenen}, dedup={$gDedup}, hata={$gHata}");
+        }
+
+        // 6) PAYMENTS — comprehensive tahsilat listesi
         // /api/payment/list tum kaynaklarin tahsilatlarini tek listede veriyor (Adisyon /
         // Paket satisi / Urun satisi / Borc odemesi vb). Her payment id ile dedup yapilir.
         // Visit/urun pipeline kendi tahsilatlarini ekledi ama marker'lari yok — burada
