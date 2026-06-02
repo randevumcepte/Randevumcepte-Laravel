@@ -171,6 +171,29 @@
     console.log(`  product_sales toplam: ${productSales.length}`);
   } else console.log('  resume: productSales (cached, ' + productSales.length + ')');
 
+  // === Giderler / Masraflar (/api/expense/list) ===
+  // Pagination offset+limit, tarih araligi 2018 -> +1 yil ileri, is_deleted=0
+  let expenses = await dbGet('expenses');
+  if (!expenses) {
+    expenses = [];
+    const dateStart = '2018-01-01';
+    const dEnd = new Date(); dEnd.setFullYear(dEnd.getFullYear() + 1);
+    const dateEnd = dEnd.toISOString().slice(0,10);
+    let offset = 0; const limit = 100;
+    while (true) {
+      const j = await get(`/expense/list?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}&is_deleted=0`);
+      const arr = j?.data?.expenses || [];
+      if (!arr.length) break;
+      expenses.push(...arr);
+      offset += arr.length;
+      await sleep(RATE_DELAY_MS);
+      if (arr.length < limit) break;
+      if (offset % 500 === 0) console.log(`  expenses kumule: ${expenses.length}`);
+    }
+    await dbPut('expenses', expenses);
+    console.log(`  expenses toplam: ${expenses.length}`);
+  } else console.log('  resume: expenses (cached, ' + expenses.length + ')');
+
   console.log(`  services:${servicesMaster.length||Object.keys(servicesMaster||{}).length} staff:${staffMaster.length||Object.keys(staffMaster||{}).length} products:${productsMaster.length||Object.keys(productsMaster||{}).length} clients:${clients.length} visits:${visits.length} (gecmis+gelecek)`);
 
   // === Booking detayları (resume destekli) ===
@@ -213,7 +236,8 @@
     servicesMaster, staffMaster, productsMaster,
     clients, clientDetails: {},
     visits, bookingDetails,
-    productSales
+    productSales,
+    expenses
   };
   const txt = JSON.stringify(dump);
   console.log('  Boyut:', (txt.length/1024/1024).toFixed(2), 'MB');

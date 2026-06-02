@@ -601,6 +601,64 @@ class SalonappyImport extends Command
             }
             $this->info("Standalone urun: eklenen={$psEklenen}, dedup={$psDedup}, hata={$psHata}, tahsilat={$psTahsilat}");
         }
+
+        // 4) GIDERLER / MASRAFLAR (/api/expense/list)
+        // Marker [salonappy-expense:id], masraflar tablosuna idempotent insert.
+        $exps = $j['expenses'] ?? [];
+        if (!empty($exps)) {
+            $this->line('Giderler isleniyor: ' . count($exps) . ' kayit');
+            $eEklenen = 0; $eDedup = 0; $eHata = 0;
+            $masTable = (new \App\Masraflar)->getTable();
+            $hasNotlar = \Schema::hasColumn($masTable, 'notlar');
+            foreach ($exps as $ex) {
+                $exId = (string) ($ex['id'] ?? '');
+                if (!$exId) { $eHata++; continue; }
+                $exMarker = '[salonappy-expense:' . $exId . ']';
+                if ($hasNotlar) {
+                    $exists = \DB::table($masTable)->where('salon_id', $salonId)
+                        ->where('notlar', 'LIKE', '%' . $exMarker . '%')->exists();
+                    if ($exists) { $eDedup++; continue; }
+                }
+                $tarih = $ex['date'] ?? date('Y-m-d');
+                $tutar = (float) ($ex['amount'] ?? 0);
+                $aciklama = trim((string) ($ex['description_raw'] ?? $ex['description'] ?? ''));
+                $kategoriAd = trim((string) ($ex['category_text'] ?? ''));
+                $odemeYontem = $ex['payment_method_text'] ?? $ex['payment_method'] ?? 'Nakit';
+                $harcayanAd = (string) ($ex['created_by_name'] ?? '');
+                try {
+                    $kategoriId = null;
+                    if ($kategoriAd && \Schema::hasColumn($masTable, 'masraf_kategori_id')) {
+                        $kategoriId = \DB::table('masraf_kategorisi')->where('salon_id', $salonId)
+                            ->where('masraf_kategorisi_adi', $kategoriAd)->value('id');
+                        if (!$kategoriId) {
+                            $kategoriId = \DB::table('masraf_kategorisi')->insertGetId([
+                                'salon_id' => $salonId, 'masraf_kategorisi_adi' => $kategoriAd,
+                                'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                            ]);
+                        }
+                    }
+                    $harcayanId = null;
+                    if ($harcayanAd && \Schema::hasColumn($masTable, 'harcayan_id')) {
+                        $harcayanId = \DB::table('salon_personelleri')->where('salon_id', $salonId)
+                            ->where('personel_adi', 'LIKE', '%' . $harcayanAd . '%')->value('id');
+                    }
+                    $row = [
+                        'salon_id' => $salonId, 'tarih' => $tarih, 'tutar' => $tutar,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ];
+                    if (\Schema::hasColumn($masTable, 'aciklama')) $row['aciklama'] = $aciklama;
+                    if ($kategoriId) $row['masraf_kategori_id'] = $kategoriId;
+                    if ($harcayanId) $row['harcayan_id'] = $harcayanId;
+                    if ($hasNotlar) $row['notlar'] = $exMarker;
+                    \DB::table($masTable)->insert($row);
+                    $eEklenen++;
+                } catch (\Throwable $e) {
+                    $eHata++;
+                    \Log::warning('[Salonappy expense] hata', ['id' => $exId, 'err' => $e->getMessage()]);
+                }
+            }
+            $this->info("Giderler: eklenen={$eEklenen}, dedup={$eDedup}, hata={$eHata}");
+        }
         return 0;
     }
 
