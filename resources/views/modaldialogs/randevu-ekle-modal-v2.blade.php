@@ -526,6 +526,21 @@
     color: #6d28d9;
     font-weight: 600;
 }
+#modal-view-event-add-v2 .v2-paket-rozet {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    padding: 2px 8px;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #92400e;
+    border-radius: 999px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+#modal-view-event-add-v2 .v2-paket-rozet i { font-size: 0.66rem; }
 #modal-view-event-add-v2 .v2-service-grid {
     display: grid;
     gap: 6px;
@@ -994,15 +1009,18 @@
     }
 
     // -------- PAKET → V2 SATIRLARI SYNC --------
-    // Paket modali kapaninca veya hizmetler dogrudan eklenince v1 formuna yazilir;
-    // biz v1 satirlarini okuyup v2'ye yansitiyoruz.
+    // Paket modali her hizmeti ayri v1 satiri olarak ekler. UX icin v2'de
+    // KATEGORIYE GORE gruplayip her grubu TEK satir gosteriyoruz: ayni
+    // "Lazer Epilasyon" alti dort hizmet -> 1 satir; "Lazer" + "Cilt Bakimi"
+    // -> 2 satir. Her v2 satiri data('v1RowIndices') ile temsil ettigi
+    // v1 satirlarinin indekslerini saklar; submit/silme bunlari kullanir.
     function syncFromV1ToV2(){
         var $v1Rows = $('#modal-view-event-add .hizmet-satiri');
         if(!$v1Rows.length) return;
 
-        // V1'de gercek hizmet secili satirlari topla (bos satirlari atla)
-        var rowsData = [];
-        $v1Rows.each(function(){
+        // V1 satirlarindan hizmet secili olanlari topla + v1 index'leri sakla
+        var v1Data = [];
+        $v1Rows.each(function(v1i){
             var $r = $(this);
             var $h = $r.find('.hizmet-select');
             var hEl = $h[0];
@@ -1016,7 +1034,8 @@
             }
             ids = ids.filter(function(x){ return x; });
             if(!ids.length) return;
-            rowsData.push({
+            v1Data.push({
+                v1Index: v1i,
                 hizmetIds: ids,
                 personelId: $r.find('.personel-select, .personel_secimi').not('.hizmet-select').val() || '',
                 cihazId: $r.find('.cihaz-select, .cihaz_secimi').val() || '',
@@ -1024,32 +1043,87 @@
             });
         });
 
-        if(!rowsData.length) return;
+        if(!v1Data.length) return;
 
-        // V2 mevcut satirlarini temizle, yeniden olustur
+        // Kategoriye gore grupla — ayni kategori = ayni v2 satiri
+        // (kategori bos ise hizmet adinin ilk kelimesi fallback olarak kullanilir;
+        // boylece "kategori" alani veri tabaninda doldurulmasa bile makul gruplama olur)
+        function getKategori(hizmetId){
+            var d = window.hizmetDataCache ? window.hizmetDataCache[hizmetId] : null;
+            if(d && d.kategori) return d.kategori;
+            // Fallback: hizmet adinin ilk anlamli kelimesi (parantez/sayilari at)
+            if(d && d.text){
+                var clean = d.text.replace(/\(.*?\)/g,'').trim();
+                return clean.split(/\s+/).slice(0,2).join(' ');
+            }
+            return '_default_';
+        }
+
+        var groups = {};      // kategori -> { hizmetIds, v1Indices, personelId, cihazId, odaId }
+        var groupOrder = [];  // kategorilerin gorunum sirasi
+        v1Data.forEach(function(row){
+            row.hizmetIds.forEach(function(hid){
+                var kat = getKategori(hid);
+                if(!groups[kat]){
+                    groups[kat] = {
+                        hizmetIds: [],
+                        v1Indices: [],
+                        personelId: row.personelId,
+                        cihazId: row.cihazId,
+                        odaId: row.odaId
+                    };
+                    groupOrder.push(kat);
+                }
+                if(groups[kat].hizmetIds.indexOf(String(hid)) === -1){
+                    groups[kat].hizmetIds.push(String(hid));
+                }
+                if(groups[kat].v1Indices.indexOf(row.v1Index) === -1){
+                    groups[kat].v1Indices.push(row.v1Index);
+                }
+                // Personel/cihaz/oda: ilk dolu deger kazansin
+                if(!groups[kat].personelId && row.personelId) groups[kat].personelId = row.personelId;
+                if(!groups[kat].cihazId && row.cihazId)       groups[kat].cihazId = row.cihazId;
+                if(!groups[kat].odaId && row.odaId)           groups[kat].odaId = row.odaId;
+            });
+        });
+
+        // V2 mevcut satirlarini temizle
         $services.find('.v2-service-row').each(function(){
             var el = $(this).find('.v2-hizmet')[0];
             if(el && el.tomselect){ try{el.tomselect.destroy();}catch(e){} }
         });
         $services.empty();
 
-        rowsData.forEach(function(row, i){
+        // Her kategori icin TEK v2 satiri olustur
+        groupOrder.forEach(function(kat, i){
+            var g = groups[kat];
             addRow();
             var $row = $services.find('.v2-service-row').eq(i);
-            // Hizmet IDs
+            // Paket'ten geldigini ve hangi v1 satirlarini temsil ettigini sakla
+            $row.data('isPaket', true);
+            $row.data('v1RowIndices', g.v1Indices.slice());
+
+            // Hizmet listesini Tom Select'e bas (cogul)
             var hizmetEl = $row.find('.v2-hizmet')[0];
             if(hizmetEl && hizmetEl.tomselect){
-                hizmetEl.tomselect.setValue(row.hizmetIds, true);
+                hizmetEl.tomselect.setValue(g.hizmetIds, true);
             }
             // Personel + Cihaz + Oda
-            if(row.personelId) $row.find('.v2-personel').val(row.personelId);
-            if(row.cihazId) $row.find('.v2-cihaz').val(row.cihazId);
-            if(row.odaId) $row.find('.v2-oda').val(row.odaId);
+            if(g.personelId) $row.find('.v2-personel').val(g.personelId);
+            if(g.cihazId)    $row.find('.v2-cihaz').val(g.cihazId);
+            if(g.odaId)      $row.find('.v2-oda').val(g.odaId);
+
+            // Paket rozeti (gorsel ipucu)
+            if(!$row.find('.v2-paket-rozet').length){
+                var rozet = '<span class="v2-paket-rozet" title="Bu satir paketten geldi"><i class="fa fa-gift"></i> Paket</span>';
+                $row.find('.v2-row-num').after(rozet);
+            }
             updateRowMeta(i);
         });
         updateSummary();
+        reindexRows();
     }
-    window._v2SyncFromV1 = syncFromV1ToV2; // disardan tetiklenebilsin
+    window._v2SyncFromV1 = syncFromV1ToV2;
 
     // -------- PAKET DISPATCHER OVERRIDE --------
     function installPaketDispatcher(){
@@ -1231,9 +1305,27 @@
         var $row = $(this).closest('.v2-service-row');
         var rowCount = $services.find('.v2-service-row').length;
         if(rowCount <= 1) return;
-        var idx = $row.data('index');
         var hizmetEl = $row.find('.v2-hizmet')[0];
         if(hizmetEl && hizmetEl.tomselect){ try{hizmetEl.tomselect.destroy();}catch(e){} }
+
+        // Paket satiriysa: v1'deki temsil eden satirlari da temizle (hizmet'i bosalt)
+        // — fiziksel olarak silmiyoruz cunku tum v1 row indeksleri kayar; sadece
+        //   hizmet secimini bosaltinca v1 submit handler'i bos satirlari atlar
+        var v1Indices = $row.data('v1RowIndices');
+        if(v1Indices && v1Indices.length){
+            v1Indices.forEach(function(v1i){
+                var $v1Row = $('#modal-view-event-add .hizmet-satiri').eq(v1i);
+                if(!$v1Row.length) return;
+                var el = $v1Row.find('.hizmet-select')[0];
+                if(el && el.tomselect){ try{el.tomselect.clear(true);}catch(e){} }
+                $v1Row.find('.personel-select, .personel_secimi').not('.hizmet-select').val(null).trigger('change');
+                $v1Row.find('.cihaz-select, .cihaz_secimi').val(null).trigger('change');
+                $v1Row.find('.oda-select, .oda_secimi').val(null).trigger('change');
+            });
+            // Diger paket satirlarinin v1Indices'larini guncellemek gerekmiyor:
+            // silmiyoruz, sadece hizmet'i bosaltiyoruz -> indeksler kayar olmaz.
+        }
+
         $row.remove();
         reindexRows();
         updateSummary();
@@ -1398,48 +1490,79 @@
             $('#yenirandevuekleform input[name="tekrar_sayisi"]').val($('#v2_tekrar_sayisi').val());
         }
 
-        // Hizmet satirlari — v1'de yeterli satir yoksa "Yeni Hizmet Ekle" tetikleyerek olustur
-        var v2RowCount = $services.find('.v2-service-row').length;
-        var v1RowCount = $('#modal-view-event-add .hizmet-satiri').length;
-        while(v1RowCount < v2RowCount){
-            $('#bir_hizmet_daha_ekle').trigger('click');
-            v1RowCount = $('#modal-view-event-add .hizmet-satiri').length;
-            if(v1RowCount > 20) break; // emniyet
-        }
+        // ===== HIZMET SATIRLARI: paket vs manuel ayrimi =====
+        // Paket satirlari: v2 satiri data('v1RowIndices') ile birden fazla v1
+        //   satirini temsil eder. Sadece personel/cihaz/oda kopyalanir; hizmet
+        //   secimi (paket tracking metadata'sini koruyabilmek icin) korunur.
+        // Manuel satirlar: v2 -> yeni v1 satiri (her hizmet ayri satir).
+        var $v1RowsLive = function(){ return $('#modal-view-event-add .hizmet-satiri'); };
 
-        // Her satir icin v2 -> v1 kopyala
-        $services.find('.v2-service-row').each(function(i){
+        // Phase 1: Paket satirlari - personel/cihaz/oda v1'deki gruplanmis satirlara uygula
+        $services.find('.v2-service-row').each(function(){
             var $v2Row = $(this);
-            var hizmetIds = $v2Row.find('.v2-hizmet').val() || [];
+            var v1Indices = $v2Row.data('v1RowIndices');
+            if(!v1Indices || !v1Indices.length) return; // manuel satir, phase 2'de
             var personelId = $v2Row.find('.v2-personel').val();
-            var cihazId = $v2Row.find('.v2-cihaz').val();
-            var odaId = $v2Row.find('.v2-oda').val();
-
-            // V1 satirini bul (i. indeksli)
-            var $v1Row = $('#modal-view-event-add .hizmet-satiri').eq(i);
-            if(!$v1Row.length) return;
-
-            // V1 hizmet Tom Select instance'ina set et
-            var v1HizmetEl = $v1Row.find('.hizmet-select')[0];
-            if(v1HizmetEl && v1HizmetEl.tomselect){
-                v1HizmetEl.tomselect.setValue(hizmetIds, true);
-            } else if(v1HizmetEl){
-                $(v1HizmetEl).val(hizmetIds).trigger('change');
-            }
-
-            // Personel
-            if(personelId){
-                $v1Row.find('.personel-select, .personel_secimi').not('.hizmet-select').val(personelId).trigger('change');
-            }
-            // Cihaz
-            if(cihazId){
-                $v1Row.find('.cihaz-select, .cihaz_secimi').val(cihazId).trigger('change');
-            }
-            // Oda
-            if(odaId){
-                $v1Row.find('.oda-select, .oda_secimi').val(odaId).trigger('change');
-            }
+            var cihazId    = $v2Row.find('.v2-cihaz').val();
+            var odaId      = $v2Row.find('.v2-oda').val();
+            v1Indices.forEach(function(v1i){
+                var $v1Row = $v1RowsLive().eq(v1i);
+                if(!$v1Row.length) return;
+                if(personelId) $v1Row.find('.personel-select, .personel_secimi').not('.hizmet-select').val(personelId).trigger('change');
+                if(cihazId)    $v1Row.find('.cihaz-select, .cihaz_secimi').val(cihazId).trigger('change');
+                if(odaId)      $v1Row.find('.oda-select, .oda_secimi').val(odaId).trigger('change');
+            });
         });
+
+        // Phase 2: Manuel satirlar - her biri icin v1 satiri olustur ve doldur
+        var manualV2Rows = $services.find('.v2-service-row').filter(function(){
+            var idx = $(this).data('v1RowIndices');
+            return !idx || !idx.length;
+        });
+
+        if(manualV2Rows.length){
+            var existingV1Count = $v1RowsLive().length;
+            // V1'in basinda olustugunda zaten 1 bos satir vardir; manuel sayi kadar lazim
+            // Once mevcut bos satirlari say (hizmet secili olmayan v1 satirlari kullanilabilir)
+            var bosV1Indices = [];
+            $v1RowsLive().each(function(i){
+                var hEl = $(this).find('.hizmet-select')[0];
+                var vals = (hEl && hEl.tomselect) ? hEl.tomselect.getValue() : ($(this).find('.hizmet-select').val() || []);
+                if(!Array.isArray(vals)) vals = vals ? [vals] : [];
+                vals = vals.filter(function(x){ return x; });
+                if(!vals.length) bosV1Indices.push(i);
+            });
+            // Eksik kalan satir sayisini "Yeni Hizmet Ekle" ile uret
+            var needed = manualV2Rows.length - bosV1Indices.length;
+            while(needed > 0){
+                $('#bir_hizmet_daha_ekle').trigger('click');
+                bosV1Indices.push($v1RowsLive().length - 1);
+                needed--;
+                if(bosV1Indices.length > 30) break;
+            }
+
+            manualV2Rows.each(function(mi){
+                var $v2Row = $(this);
+                var hizmetIds = $v2Row.find('.v2-hizmet').val() || [];
+                var personelId = $v2Row.find('.v2-personel').val();
+                var cihazId    = $v2Row.find('.v2-cihaz').val();
+                var odaId      = $v2Row.find('.v2-oda').val();
+
+                var v1i = bosV1Indices[mi];
+                var $v1Row = $v1RowsLive().eq(v1i);
+                if(!$v1Row.length) return;
+
+                var v1HizmetEl = $v1Row.find('.hizmet-select')[0];
+                if(v1HizmetEl && v1HizmetEl.tomselect){
+                    v1HizmetEl.tomselect.setValue(hizmetIds, true);
+                } else if(v1HizmetEl){
+                    $(v1HizmetEl).val(hizmetIds).trigger('change');
+                }
+                if(personelId) $v1Row.find('.personel-select, .personel_secimi').not('.hizmet-select').val(personelId).trigger('change');
+                if(cihazId)    $v1Row.find('.cihaz-select, .cihaz_secimi').val(cihazId).trigger('change');
+                if(odaId)      $v1Row.find('.oda-select, .oda_secimi').val(odaId).trigger('change');
+            });
+        }
 
         // V1 submit handler'ini tetikle
         setTimeout(function(){
