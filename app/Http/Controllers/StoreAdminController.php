@@ -5534,7 +5534,19 @@ private function ayAdiCevir($ingilizceAy)
                        
                         
                         $yenirandevuhizmetpersonel->save();
-                        
+
+                        // [DUSUM-DEBUG] dusum_miktari kaydoluyor mu? (gecici tani)
+                        try {
+                            \Log::info('[DUSUM-DEBUG] yenirandevuekle', [
+                                'rh_id'          => $yenirandevuhizmetpersonel->id,
+                                'hizmet_id'      => $rHizmet,
+                                'miktar_request' => $request->{"hizmet_miktarlari-$rHizmet"} ?? 'YOK',
+                                'dusum_set'      => $yenirandevuhizmetpersonel->dusum_miktari,
+                                'has_column'     => \Schema::hasColumn('randevu_hizmetler','dusum_miktari'),
+                                'dusum_db'       => \DB::table('randevu_hizmetler')->where('id',$yenirandevuhizmetpersonel->id)->value('dusum_miktari'),
+                            ]);
+                        } catch(\Throwable $e){ \Log::warning('[DUSUM-DEBUG] hata: '.$e->getMessage()); }
+
                         // Yardımcı personelleri ekle
                         if(isset($request->{"randevuyardimcipersonelleriyeni_{$key2}"}) && is_array($request->{"randevuyardimcipersonelleriyeni_{$key2}"})) {
                             foreach($request->{"randevuyardimcipersonelleriyeni_{$key2}"} as $yardimci_personel_id) {
@@ -15852,10 +15864,18 @@ DB::raw('
                 $orijinal->dusulen_miktar = 1;
                 $orijinal->save();
 
-                if ($m > 1 && $orijinal->adisyon_paket_id) {
-                    $maxSeansNo = (int) AdisyonPaketSeanslar::where('adisyon_paket_id', $orijinal->adisyon_paket_id)->max('seans_no');
+                // Replika kosulu: paket seansi (adisyon_paket_id) VEYA hizmet seansi
+                // (adisyon_hizmet_id). Eskiden sadece adisyon_paket_id kontrol ediliyordu;
+                // hizmet-adisyonu seanslari adisyon_paket_id NULL oldugu icin replika atlanip
+                // dusum_miktari kadar yerine 1 kayit ekleniyordu.
+                if ($m > 1 && ($orijinal->adisyon_paket_id || $orijinal->adisyon_hizmet_id)) {
+                    $maxQ = AdisyonPaketSeanslar::query();
+                    if ($orijinal->adisyon_paket_id) $maxQ->where('adisyon_paket_id', $orijinal->adisyon_paket_id);
+                    else                              $maxQ->where('adisyon_hizmet_id', $orijinal->adisyon_hizmet_id);
+                    $maxSeansNo = (int) $maxQ->max('seans_no');
                     \Log::info('[SEANS-REPLICATE] ekleme baslayacak', [
                         'sid' => $sid, 'm' => $m, 'eklenecek_adet' => $m - 1, 'max_seans_no' => $maxSeansNo,
+                        'ap_id' => $orijinal->adisyon_paket_id, 'ah_id' => $orijinal->adisyon_hizmet_id,
                     ]);
                     for ($i = 1; $i < $m; $i++) {
                         $maxSeansNo++;
@@ -15876,7 +15896,7 @@ DB::raw('
                     }
                 } else {
                     \Log::info('[SEANS-REPLICATE] ekleme atlandi', [
-                        'sid' => $sid, 'm' => $m, 'ap_id' => $orijinal->adisyon_paket_id,
+                        'sid' => $sid, 'm' => $m, 'ap_id' => $orijinal->adisyon_paket_id, 'ah_id' => $orijinal->adisyon_hizmet_id,
                     ]);
                 }
             }
