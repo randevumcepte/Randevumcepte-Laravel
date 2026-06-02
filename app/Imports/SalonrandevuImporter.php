@@ -623,6 +623,21 @@ class SalonrandevuImporter
         list($tarih,) = $this->isoBol($rc['created_at'] ?? null);
         if (!$tarih) $tarih = date('Y-m-d');
 
+        // Paket fişi ise paket master'ı yukle (lazy)
+        // receipt_packages[idx].packet_id (master ref) + receipt_packages[idx].id (sale id)
+        // receipt_transactions[idx].receipt_package_id => receipt_packages[idx].id
+        $pkgById = []; // receipt_packages.id => packet_id (master)
+        $pkgAdlari = []; // paket name listesi (notlar icin)
+        foreach (($rc['receipt_packages'] ?? []) as $pkg) {
+            $pkgById[(int) ($pkg['id'] ?? 0)] = (int) ($pkg['packet_id'] ?? 0);
+            $pn = trim((string) ($pkg['package_name'] ?? ''));
+            if ($pn !== '') $pkgAdlari[] = $pn;
+        }
+        $isPaketFisi = !empty($rc['is_package']) || !empty($pkgById);
+        if ($isPaketFisi) {
+            $this->loadPacketMaster();
+        }
+
         // Adisyon
         $ad = new Adisyonlar();
         $ad->user_id = $userId;
@@ -630,20 +645,14 @@ class SalonrandevuImporter
         $ad->tarih = $tarih;
         $ad->save();
         if ($markerCol) {
-            DB::table($adisyonTable)->where('id', $ad->id)->update([$markerCol => $marker]);
+            // Paket fişi ise extra marker ekle: [salonrandevu-paket:rid] + paket adlari (UI'da tanima)
+            $finalMarker = $marker;
+            if ($isPaketFisi) {
+                $finalMarker = trim('[salonrandevu-paket:' . $rid . '] ' . (count($pkgAdlari) ? implode(', ', $pkgAdlari) . ' ' : '') . $marker);
+            }
+            DB::table($adisyonTable)->where('id', $ad->id)->update([$markerCol => $finalMarker]);
         }
         $this->counts['adisyon']++;
-
-        // Paket fişi ise paket master'ı yukle (lazy)
-        // receipt_packages[idx].packet_id (master ref) + receipt_packages[idx].id (sale id)
-        // receipt_transactions[idx].receipt_package_id => receipt_packages[idx].id
-        $pkgById = []; // receipt_packages.id => packet_id (master)
-        foreach (($rc['receipt_packages'] ?? []) as $pkg) {
-            $pkgById[(int) ($pkg['id'] ?? 0)] = (int) ($pkg['packet_id'] ?? 0);
-        }
-        if (!empty($pkgById)) {
-            $this->loadPacketMaster();
-        }
 
         // Hizmet kalemleri (receipt_transactions)
         foreach (($rc['receipt_transactions'] ?? []) as $tx) {
@@ -675,11 +684,19 @@ class SalonrandevuImporter
                 }
             }
 
+            // AH.geldi semantigi:
+            // - Paket icindeki transaction (receipt_package_id var) → henuz randevuyla
+            //   tuketilmedi, paketten cekilecek → geldi=0 (placeholder AH, seans paketi)
+            // - Normal hizmet satisi (paket disi) → satis aninda yapilmis kabul → geldi=1
+            // Onceki kod is_paid'i geldi olarak yorumluyordu (yanlis semantik —
+            // is_paid: odeme durumu, AH.geldi: hizmet verildi mi).
+            $ahGeldi = $recPkgId ? 0 : 1;
+
             $ah = new AdisyonHizmetler();
             $ah->adisyon_id = $ad->id;
             $ah->hizmet_id = $hizmetId;
             $ah->personel_id = $personelId;
-            $ah->geldi = !empty($tx['is_paid']) ? 1 : 0;
+            $ah->geldi = $ahGeldi;
             $ah->islem_tarihi = $pTarih ?: $tarih;
             $ah->fiyat = (float) ($tx['amount'] ?? 0);
             if ($seansSayisi && $seansSayisi > 1 && \Schema::hasColumn('adisyon_hizmetler', 'seans_sayisi')) {
