@@ -25714,35 +25714,28 @@ DB::raw('
     // kalan-seans formulu de bu yuzden var). Bayat bekleyen_seans=0 yuzunden gercekte seansi
     // olan paket/hizmetler yanlislikla eleniyor, modal acilmiyordu. Tukenmisleri asagidaki
     // formul ($kalanSeans <= 0 continue) zaten eliyor.
+    // NOT: 'otomatik_randevu_olusturuldu != 1' TEK BASINA NULL satirlari da eler (SQL'de
+    // NULL != 1 -> unknown). Kolon cogu kayitta NULL oldugundan, paketi olan musteride
+    // adisyon yanlislikla elenip "paket yok" gibi gozukuyordu. NULL'i da dahil ediyoruz.
     $randevuOlusturulmamisHizmetAdisyonuVarmi = Adisyonlar::whereHas('hizmetler', function($q) {
-        $q->where('otomatik_randevu_olusturuldu', '!=', 1);
+        $q->where(function($qq){
+            $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu', '!=', 1);
+        });
     })->where('user_id', $user->id)
       ->where('salon_id', $request->sube)
       ->with(['hizmetler.hizmet']) // İlişkileri yükle
       ->get();
 
-    // PAKETLER için sorgu (bekleyen_seans filtresi ayni nedenle kaldirildi).
+    // PAKETLER için sorgu (ayni NULL duzeltmesi + bekleyen_seans filtresi kaldirildi).
     $randevuOlusturulmamisPaketAdisyonuVarmi = Adisyonlar::whereHas('paketler', function($q) {
-        $q->where('otomatik_randevu_olusturuldu', '!=', 1);
+        $q->where(function($qq){
+            $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu', '!=', 1);
+        });
     })->where('user_id', $user->id)
       ->where('salon_id', $request->sube)
       ->with(['paketler.paket.hizmetler.hizmet']) // İlişkileri yükle
       ->get();
     
-    // [PAKET-DEBUG] gecici tani — paket neden gozukmuyor?
-    try {
-        \Log::info('[PAKET-DEBUG] sorgu', [
-            'user' => $user->id, 'salon' => $request->sube,
-            'hizmet_adisyon_count' => $randevuOlusturulmamisHizmetAdisyonuVarmi->count(),
-            'paket_adisyon_count'  => $randevuOlusturulmamisPaketAdisyonuVarmi->count(),
-            // Bu user+salon icin TUM adisyon hizmet/paketleri (filtre olmadan) — neyin elendigini gor
-            'tum_hizmet_adisyon' => \App\Adisyonlar::whereHas('hizmetler')->where('user_id',$user->id)->where('salon_id',$request->sube)->count(),
-            'tum_paket_adisyon'  => \App\Adisyonlar::whereHas('paketler')->where('user_id',$user->id)->where('salon_id',$request->sube)->count(),
-            'hizmet_otomatik1'   => \App\Adisyonlar::whereHas('hizmetler',function($q){ $q->where('otomatik_randevu_olusturuldu',1); })->where('user_id',$user->id)->where('salon_id',$request->sube)->count(),
-            'paket_otomatik1'    => \App\Adisyonlar::whereHas('paketler',function($q){ $q->where('otomatik_randevu_olusturuldu',1); })->where('user_id',$user->id)->where('salon_id',$request->sube)->count(),
-        ]);
-    } catch(\Throwable $e){ \Log::warning('[PAKET-DEBUG] hata: '.$e->getMessage()); }
-
     // Paket var mı kontrolü
     $paketVarMi = ($randevuOlusturulmamisHizmetAdisyonuVarmi->count() > 0 ||
                    $randevuOlusturulmamisPaketAdisyonuVarmi->count() > 0);
@@ -25787,7 +25780,6 @@ DB::raw('
                 ->where('geldi', 0)
                 ->count();
             $kalanSeansHizmet = max(0, $toplamSeansHizmet - $kullanilanHizmet - $kullanilmayanHizmet);
-            \Log::info('[PAKET-DEBUG] hizmet', ['ah_id'=>$hizmetA->id, 'hizmet_id'=>$hizmetA->hizmet_id, 'toplam'=>$toplamSeansHizmet, 'kullanilan'=>$kullanilanHizmet, 'kullanilmayan'=>$kullanilmayanHizmet, 'kalan'=>$kalanSeansHizmet]);
             if ($kalanSeansHizmet <= 0) continue; // Tukenmis hizmetleri popup'a hic dahil etme
 
             $hizmetAdi = $hizmetA->hizmet->hizmet_adi;
@@ -25850,7 +25842,6 @@ DB::raw('
             $bekleyenToplamPaket = $toplamSeansPaket - $kullanilanPaket - $kullanilmayanPaket;
             // Per-hizmet kalan = bekleyen / hizmet sayisi
             $kalanSeansPaket = max(0, (int)floor($bekleyenToplamPaket / $hizmetSayisi));
-            \Log::info('[PAKET-DEBUG] paket', ['ap_id'=>$paketA->id, 'paket_id'=>$paketA->paket_id, 'seansPerHizmet'=>$seansPerHizmet, 'hizmetSayisi'=>$hizmetSayisi, 'toplam'=>$toplamSeansPaket, 'kullanilan'=>$kullanilanPaket, 'kullanilmayan'=>$kullanilmayanPaket, 'kalan'=>$kalanSeansPaket]);
             if ($kalanSeansPaket <= 0) continue; // Tukenmis paketleri popup'a dahil etme
 
             $paketAdi = $paketA->paket->paket_adi;
