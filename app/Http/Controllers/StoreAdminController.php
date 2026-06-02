@@ -1047,10 +1047,420 @@ public function carkverilerigetir(Request $request)
     }
     
     public function index(Request $request)
-    {   
-         return redirect()->route('isletmeadmin.randevular');
-                    
-        /*$isletmeler = '';
+    {
+        $isletmeler = '';
+        $isletme = '';
+        if(Auth::guard('satisortakligi')->check())
+        {
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        }
+        else{
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+
+        if(!in_array(self::mevcutsube($request),$isletmeler))
+        {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(str_contains(self::lisans_sure_kontrol($request),'-'))
+        {
+            return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+        }
+        if(!Auth::guard('satisortakligi')->check()){
+            if(self::personelmi($request))
+            {
+                return redirect()->route('isletmeadmin.randevular');
+            }
+        }
+        if(count($isletmeler)>1 && !isset($_GET['sube']))
+        {
+            return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
+        }
+
+        return view('isletmeadmin.dashboard',[
+            'sayfa_baslik' => 'Özet',
+            'title' => 'Özet | '.$isletme->salon_adi,
+            'pageindex' => 0,
+            'isletme' => $isletme,
+            'bildirimler' => self::bildirimgetir($request),
+            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
+            'yetkiliolunanisletmeler' => $isletmeler,
+        ]);
+    }
+
+    private function dashCacheKey($salonId, $key)
+    {
+        return 'dash:'.$salonId.':'.$key;
+    }
+
+    private function dashSalonId(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $yetkili = Auth::guard('isletmeyonetim')->check()
+            ? Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray()
+            : [15];
+        if(!in_array($salonId, $yetkili)){
+            return null;
+        }
+        return (int) $salonId;
+    }
+
+    private function dashPeriodDates($period)
+    {
+        $bugun = date('Y-m-d');
+        switch($period){
+            case '7d':
+                return [date('Y-m-d', strtotime('-6 days')), $bugun];
+            case '30d':
+                return [date('Y-m-d', strtotime('-29 days')), $bugun];
+            case 'daily':
+            default:
+                return [$bugun, $bugun];
+        }
+    }
+
+    public function dashboardKasa(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        $period = $request->input('period','daily');
+        list($t1, $t2) = $this->dashPeriodDates($period);
+
+        return \Cache::remember($this->dashCacheKey($salonId, 'kasa:'.$period), 60, function() use ($salonId, $t1, $t2, $period) {
+            $rows = DB::table('tahsilatlar')
+                ->leftJoin('odeme_yontemleri','tahsilatlar.odeme_yontemi_id','=','odeme_yontemleri.id')
+                ->where('tahsilatlar.salon_id', $salonId)
+                ->whereBetween('tahsilatlar.odeme_tarihi', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                ->select('odeme_yontemleri.odeme_yontemi as yontem', DB::raw('SUM(tahsilatlar.tutar) as toplam'))
+                ->groupBy('odeme_yontemleri.odeme_yontemi')
+                ->get();
+
+            $nakit = 0; $kart = 0; $havale = 0; $diger = 0; $toplam = 0;
+            foreach($rows as $r){
+                $tutar = (float) $r->toplam;
+                $toplam += $tutar;
+                $yontem = mb_strtolower($r->yontem ?? '', 'UTF-8');
+                if(strpos($yontem,'nakit') !== false || strpos($yontem,'cash') !== false){
+                    $nakit += $tutar;
+                } elseif(strpos($yontem,'kart') !== false || strpos($yontem,'kredi') !== false || strpos($yontem,'pos') !== false || strpos($yontem,'card') !== false){
+                    $kart += $tutar;
+                } elseif(strpos($yontem,'havale') !== false || strpos($yontem,'eft') !== false || strpos($yontem,'transfer') !== false || strpos($yontem,'iban') !== false){
+                    $havale += $tutar;
+                } else {
+                    $diger += $tutar;
+                }
+            }
+
+            $sparkline = [];
+            $sparkRows = DB::table('tahsilatlar')
+                ->where('salon_id', $salonId)
+                ->where('odeme_tarihi','>=', date('Y-m-d 00:00:00', strtotime('-6 days')))
+                ->select(DB::raw('DATE(odeme_tarihi) as gun'), DB::raw('SUM(tutar) as toplam'))
+                ->groupBy('gun')
+                ->get()
+                ->keyBy('gun');
+            for($i=6; $i>=0; $i--){
+                $g = date('Y-m-d', strtotime('-'.$i.' days'));
+                $sparkline[] = [
+                    'tarih' => $g,
+                    'tutar' => isset($sparkRows[$g]) ? (float) $sparkRows[$g]->toplam : 0,
+                ];
+            }
+
+            return response()->json([
+                'period' => $period,
+                'nakit' => $nakit,
+                'kart' => $kart,
+                'havale' => $havale,
+                'diger' => $diger,
+                'toplam' => $toplam,
+                'sparkline' => $sparkline,
+            ]);
+        });
+    }
+
+    public function dashboardRandevuOzet(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        $period = $request->input('period','daily');
+        list($t1, $t2) = $this->dashPeriodDates($period);
+
+        return \Cache::remember($this->dashCacheKey($salonId, 'randevuozet:'.$period), 60, function() use ($salonId, $t1, $t2) {
+            $olusturulan = DB::table('randevular')
+                ->where('salon_id', $salonId)
+                ->whereBetween('tarih', [$t1, $t2])
+                ->count();
+            $sonuclanan = DB::table('randevular')
+                ->where('salon_id', $salonId)
+                ->whereBetween('tarih', [$t1, $t2])
+                ->whereIn('durum', [4,5])
+                ->count();
+            $sonuclanmayan = max(0, $olusturulan - $sonuclanan);
+
+            $isletme = Salonlar::where('id', $salonId)->first();
+            $randevuSuresi = max(15, (int) ($isletme->randevu_araligi ?? 30));
+            $personelSay = max(1, DB::table('salon_personelleri')->where('salon_id', $salonId)->where('aktif', 1)->count());
+
+            $gunler = max(1, (strtotime($t2) - strtotime($t1)) / 86400 + 1);
+            $calismaSaat = 10;
+            $kapasite = $personelSay * $calismaSaat * (60 / $randevuSuresi) * $gunler;
+            $doluluk = $kapasite > 0 ? min(100, round(($olusturulan / $kapasite) * 100)) : 0;
+
+            $kaynak = DB::table('randevular')
+                ->where('salon_id', $salonId)
+                ->whereBetween('tarih', [$t1, $t2])
+                ->selectRaw('SUM(CASE WHEN salon=1 THEN 1 ELSE 0 END) as isletme_say, SUM(CASE WHEN web=1 THEN 1 ELSE 0 END) as web_say, SUM(CASE WHEN uygulama=1 THEN 1 ELSE 0 END) as uygulama_say')
+                ->first();
+
+            return response()->json([
+                'olusturulan' => $olusturulan,
+                'sonuclanan' => $sonuclanan,
+                'sonuclanmayan' => $sonuclanmayan,
+                'doluluk' => $doluluk,
+                'kaynak' => [
+                    'isletme' => (int) ($kaynak->isletme_say ?? 0),
+                    'web' => (int) ($kaynak->web_say ?? 0),
+                    'uygulama' => (int) ($kaynak->uygulama_say ?? 0),
+                ],
+            ]);
+        });
+    }
+
+    public function dashboardTakvim(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        $year = (int) $request->input('year', date('Y'));
+        $month = (int) $request->input('month', date('n'));
+        $month = max(1, min(12, $month));
+        $year = max(2020, min(2099, $year));
+
+        return \Cache::remember($this->dashCacheKey($salonId, 'takvim:'.$year.'-'.$month), 120, function() use ($salonId, $year, $month) {
+            $t1 = sprintf('%04d-%02d-01', $year, $month);
+            $t2 = date('Y-m-t', strtotime($t1));
+            $rows = DB::table('randevular')
+                ->where('salon_id', $salonId)
+                ->whereBetween('tarih', [$t1, $t2])
+                ->select(DB::raw('DATE(tarih) as gun'), DB::raw('COUNT(*) as adet'))
+                ->groupBy('gun')
+                ->get();
+            $gunler = [];
+            foreach($rows as $r){
+                $gun = (int) date('j', strtotime($r->gun));
+                $gunler[$gun] = (int) $r->adet;
+            }
+            return response()->json([
+                'year' => $year,
+                'month' => $month,
+                'gunler' => $gunler,
+            ]);
+        });
+    }
+
+    public function dashboardBugun(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+
+        return \Cache::remember($this->dashCacheKey($salonId, 'bugun'), 30, function() use ($salonId) {
+            $rows = DB::table('randevular')
+                ->leftJoin('users','randevular.user_id','=','users.id')
+                ->leftJoin('randevu_hizmetler','randevu_hizmetler.randevu_id','=','randevular.id')
+                ->leftJoin('hizmetler','randevu_hizmetler.hizmet_id','=','hizmetler.id')
+                ->leftJoin('salon_personelleri','randevu_hizmetler.personel_id','=','salon_personelleri.id')
+                ->where('randevular.salon_id', $salonId)
+                ->where('randevular.tarih', date('Y-m-d'))
+                ->select(
+                    'randevular.id as randevu_id',
+                    'randevular.saat',
+                    'randevular.durum',
+                    'users.name as musteri',
+                    'users.cep_telefon as telefon',
+                    'hizmetler.hizmet_adi as hizmet',
+                    'salon_personelleri.personel_adi as personel'
+                )
+                ->orderBy('randevular.saat')
+                ->limit(50)
+                ->get();
+            return response()->json(['liste' => $rows]);
+        });
+    }
+
+    public function dashboardSekme(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        $tab = $request->input('tab','online-talep');
+
+        return \Cache::remember($this->dashCacheKey($salonId, 'sekme:'.$tab), 30, function() use ($salonId, $tab) {
+            $data = [];
+            switch($tab){
+                case 'online-talep':
+                    $data = DB::table('randevular')
+                        ->leftJoin('users','randevular.user_id','=','users.id')
+                        ->leftJoin('randevu_hizmetler','randevu_hizmetler.randevu_id','=','randevular.id')
+                        ->leftJoin('hizmetler','randevu_hizmetler.hizmet_id','=','hizmetler.id')
+                        ->where('randevular.salon_id', $salonId)
+                        ->whereIn('randevular.durum', [0,1])
+                        ->where(function($q){
+                            $q->where('randevular.web', 1)->orWhere('randevular.uygulama', 1);
+                        })
+                        ->where('randevular.tarih','>=', date('Y-m-d'))
+                        ->select('randevular.id','randevular.tarih','randevular.saat','users.name as musteri','users.cep_telefon as telefon','hizmetler.hizmet_adi as hizmet')
+                        ->orderBy('randevular.tarih')
+                        ->limit(30)
+                        ->get();
+                    break;
+                case 'acik-adisyon':
+                    $sonOtuzGun = date('Y-m-d 00:00:00', strtotime('-30 days'));
+                    $data = DB::table('adisyonlar')
+                        ->leftJoin('users','adisyonlar.user_id','=','users.id')
+                        ->where('adisyonlar.salon_id', $salonId)
+                        ->where('adisyonlar.created_at', '>=', $sonOtuzGun)
+                        ->select(
+                            'adisyonlar.id',
+                            'adisyonlar.adisyon_no',
+                            'adisyonlar.created_at',
+                            'users.name as musteri',
+                            'users.cep_telefon as telefon',
+                            DB::raw('((SELECT COALESCE(SUM(fiyat-COALESCE(indirim_tutari,0)),0) FROM adisyon_hizmetler WHERE adisyon_id=adisyonlar.id)
+                                    + (SELECT COALESCE(SUM(fiyat-COALESCE(indirim_tutari,0)),0) FROM adisyon_urunler WHERE adisyon_id=adisyonlar.id)
+                                    + (SELECT COALESCE(SUM(fiyat-COALESCE(indirim_tutari,0)),0) FROM adisyon_paketler WHERE adisyon_id=adisyonlar.id)) as toplam_tutar'),
+                            DB::raw('(SELECT COALESCE(SUM(tutar),0) FROM tahsilatlar WHERE adisyon_id=adisyonlar.id) as odenen_tutar')
+                        )
+                        ->havingRaw('toplam_tutar > odenen_tutar AND toplam_tutar > 0')
+                        ->orderByDesc('adisyonlar.created_at')
+                        ->limit(30)
+                        ->get()
+                        ->map(function($r){
+                            $r->kalan = (float) $r->toplam_tutar - (float) $r->odenen_tutar;
+                            return $r;
+                        });
+                    break;
+                case 'alacak':
+                    $data = DB::table('alacaklar')
+                        ->leftJoin('users','alacaklar.user_id','=','users.id')
+                        ->where('alacaklar.salon_id', $salonId)
+                        ->select('alacaklar.id','alacaklar.planlanan_odeme_tarihi','alacaklar.tutar','users.name as musteri','users.cep_telefon as telefon')
+                        ->orderBy('alacaklar.planlanan_odeme_tarihi')
+                        ->limit(30)
+                        ->get();
+                    break;
+                case 'dogum-gunu':
+                    $bugun = date('m-d');
+                    $artiOnGun = date('m-d', strtotime('+10 days'));
+                    $data = DB::table('users')
+                        ->join('musteri_portfoy','musteri_portfoy.user_id','=','users.id')
+                        ->where('musteri_portfoy.salon_id', $salonId)
+                        ->whereNotNull('users.dogum_tarihi')
+                        ->whereRaw("DATE_FORMAT(users.dogum_tarihi, '%m-%d') >= ?", [$bugun])
+                        ->whereRaw("DATE_FORMAT(users.dogum_tarihi, '%m-%d') <= ?", [$artiOnGun])
+                        ->select('users.name as musteri','users.cep_telefon as telefon','users.dogum_tarihi')
+                        ->orderByRaw("DATE_FORMAT(users.dogum_tarihi, '%m-%d')")
+                        ->limit(30)
+                        ->get();
+                    break;
+                case 'bugunku-randevu':
+                    $data = DB::table('randevular')
+                        ->leftJoin('users','randevular.user_id','=','users.id')
+                        ->leftJoin('randevu_hizmetler','randevu_hizmetler.randevu_id','=','randevular.id')
+                        ->leftJoin('hizmetler','randevu_hizmetler.hizmet_id','=','hizmetler.id')
+                        ->leftJoin('salon_personelleri','randevu_hizmetler.personel_id','=','salon_personelleri.id')
+                        ->where('randevular.salon_id', $salonId)
+                        ->where('randevular.tarih', date('Y-m-d'))
+                        ->select('randevular.id','randevular.saat','randevular.durum','users.name as musteri','users.cep_telefon as telefon','hizmetler.hizmet_adi as hizmet','salon_personelleri.personel_adi as personel')
+                        ->orderBy('randevular.saat')
+                        ->limit(50)
+                        ->get();
+                    break;
+            }
+            return response()->json(['tab' => $tab, 'liste' => $data]);
+        });
+    }
+
+    public function dashboardTimeline(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+
+        return \Cache::remember($this->dashCacheKey($salonId, 'timeline'), 30, function() use ($salonId) {
+            $bugun = date('Y-m-d');
+            $randevular = DB::table('randevular')
+                ->leftJoin('users','randevular.user_id','=','users.id')
+                ->where('randevular.salon_id', $salonId)
+                ->where('randevular.tarih', $bugun)
+                ->select('randevular.id','randevular.saat','randevular.durum','users.name as musteri')
+                ->orderBy('randevular.saat')
+                ->get()
+                ->map(function($r){
+                    return [
+                        'tip' => 'randevu',
+                        'saat' => substr($r->saat, 0, 5),
+                        'baslik' => $r->musteri ?: 'Randevu',
+                        'durum' => (int) $r->durum,
+                        'id' => $r->id,
+                    ];
+                });
+
+            $tahsilatlar = DB::table('tahsilatlar')
+                ->leftJoin('users','tahsilatlar.user_id','=','users.id')
+                ->where('tahsilatlar.salon_id', $salonId)
+                ->whereBetween('tahsilatlar.odeme_tarihi', [$bugun.' 00:00:00', $bugun.' 23:59:59'])
+                ->select('tahsilatlar.id','tahsilatlar.odeme_tarihi','tahsilatlar.tutar','users.name as musteri')
+                ->get()
+                ->map(function($r){
+                    return [
+                        'tip' => 'tahsilat',
+                        'saat' => date('H:i', strtotime($r->odeme_tarihi)),
+                        'baslik' => ($r->musteri ?: 'Müşteri').' — '.number_format($r->tutar,0,',','.').' ₺',
+                        'id' => $r->id,
+                    ];
+                });
+
+            $birlesik = collect($randevular)->merge($tahsilatlar)->sortBy('saat')->values();
+            return response()->json(['liste' => $birlesik, 'simdi' => date('H:i')]);
+        });
+    }
+
+    public function dashboardPersonelDurum(Request $request)
+    {
+        $salonId = $this->dashSalonId($request);
+        if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+
+        return \Cache::remember($this->dashCacheKey($salonId, 'personel'), 30, function() use ($salonId) {
+            $personeller = DB::table('salon_personelleri')
+                ->where('salon_id', $salonId)
+                ->where('aktif', 1)
+                ->select('id','personel_adi')
+                ->get();
+            $bugun = date('Y-m-d');
+            $sonuc = [];
+            foreach($personeller as $p){
+                $bugunRandevu = DB::table('randevu_hizmetler')
+                    ->join('randevular','randevu_hizmetler.randevu_id','=','randevular.id')
+                    ->where('randevular.salon_id', $salonId)
+                    ->where('randevular.tarih', $bugun)
+                    ->where('randevu_hizmetler.personel_id', $p->id)
+                    ->where('randevu_hizmetler.yardimci_personel','!=', true)
+                    ->count();
+                $kapasite = 16;
+                $doluluk = $kapasite > 0 ? min(100, round(($bugunRandevu / $kapasite) * 100)) : 0;
+                $sonuc[] = [
+                    'id' => $p->id,
+                    'ad' => $p->personel_adi,
+                    'randevu' => $bugunRandevu,
+                    'doluluk' => $doluluk,
+                ];
+            }
+            usort($sonuc, function($a,$b){ return $b['doluluk'] - $a['doluluk']; });
+            return response()->json(['personeller' => array_slice($sonuc, 0, 12)]);
+        });
+    }
+
+    /*$isletmeler = '';
         $isletme='';
         if(Auth::guard('satisortakligi')->check())
         {
@@ -1171,12 +1581,11 @@ public function carkverilerigetir(Request $request)
             'kalan_uyelik_suresi' => $kalan_uyelik_suresi,
             'santral_raporlari'=>$santral_raporlari,
             'yetkiliolunanisletmeler'=>$isletmeler,
-             
+
             'easistandata' => $easistanquery,
             'easistanYarinYapilacak' => $easistanYarinYapilacak,
         ]);*/
-        
-    }
+
    public function musteri_arama_bolumu_verileri(Request $request)
 {
     $search = $request->input('query');

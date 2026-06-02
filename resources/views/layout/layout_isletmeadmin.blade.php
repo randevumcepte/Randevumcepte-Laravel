@@ -957,18 +957,18 @@
                      </a>
                   </li>
                   @endif
-                  {{-- Ozet menusu (gizli/legacy) --}}
+                  {{-- Ozet (yeni dashboard, hizli paralel-yukleme) --}}
                   @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
-                  <!--<li>
-                     @if($pageindex==1)
+                  <li>
+                     @if(($pageindex ?? -1) === 0)
                      <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
                      <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
                      @endif
-                     <span class="micon bi bi-house"></span
+                     <span class="micon bi bi-grid-1x2-fill"></span
                         ><span class="mtext">Özet</span>
                      </a>
-                  </li>-->
+                  </li>
                   @endif
 
                   {{-- 1) Asistanım --}}
