@@ -20,14 +20,10 @@ use Illuminate\Support\Facades\Schema;
  *  - randevu_hizmetler(randevu_id)            → has('hizmetler') EXISTS
  *  - bildirimler(salon_id, personel_id, id)   → notification dropdown
  *  - kampanya_yonetimi(salon_id, asistan_tarih_saat) → asistan kampanya
- *
- * MariaDB 10.6+ / MySQL 8.0+ "ALTER TABLE ... ADD INDEX" ONLINE DDL ile
- * calisir; bloklama minimumdur. Yine de tablo gerinde calistirilmasi
- * onerilir (gece). Index zaten varsa skip edilir.
  */
-return new class extends Migration
+class AddPerformanceIndexesForEasistandata extends Migration
 {
-    public function up(): void
+    public function up()
     {
         $this->addIndexIfMissing('randevular',         ['salon_id','tarih'],                          'rand_salon_tarih_idx');
         $this->addIndexIfMissing('randevular',         ['salon_id','onceki_tarih'],                   'rand_salon_onceki_idx');
@@ -39,7 +35,7 @@ return new class extends Migration
         $this->addIndexIfMissing('kampanya_yonetimi',  ['salon_id','asistan_tarih_saat'],             'kampanya_salon_tarih_idx');
     }
 
-    public function down(): void
+    public function down()
     {
         $this->dropIndexIfExists('randevular',         'rand_salon_tarih_idx');
         $this->dropIndexIfExists('randevular',         'rand_salon_onceki_idx');
@@ -51,14 +47,12 @@ return new class extends Migration
         $this->dropIndexIfExists('kampanya_yonetimi',  'kampanya_salon_tarih_idx');
     }
 
-    private function addIndexIfMissing(string $table, array $cols, string $indexName): void
+    private function addIndexIfMissing($table, array $cols, $indexName)
     {
         if (!Schema::hasTable($table)) return;
-        // Kolonlarin hepsi var mi?
         foreach ($cols as $c) {
             if (!Schema::hasColumn($table, $c)) return;
         }
-        // Index zaten var mi? information_schema'dan kontrol
         $exists = collect(DB::select(
             "SHOW INDEX FROM `{$table}` WHERE Key_name = ?",
             [$indexName]
@@ -68,13 +62,12 @@ return new class extends Migration
         try {
             $colList = implode('`,`', $cols);
             DB::statement("ALTER TABLE `{$table}` ADD INDEX `{$indexName}` (`{$colList}`)");
-        } catch (\Throwable $e) {
-            // index olusturma hatasini sessizce gec, log
+        } catch (\Exception $e) {
             \Log::warning('Index olusturulamadi: '.$indexName.' on '.$table.' — '.$e->getMessage());
         }
     }
 
-    private function dropIndexIfExists(string $table, string $indexName): void
+    private function dropIndexIfExists($table, $indexName)
     {
         if (!Schema::hasTable($table)) return;
         $exists = collect(DB::select(
@@ -84,8 +77,8 @@ return new class extends Migration
         if (!$exists) return;
         try {
             DB::statement("ALTER TABLE `{$table}` DROP INDEX `{$indexName}`");
-        } catch (\Throwable $e) {
+        } catch (\Exception $e) {
             \Log::warning('Index silinemedi: '.$indexName.' — '.$e->getMessage());
         }
     }
-};
+}
