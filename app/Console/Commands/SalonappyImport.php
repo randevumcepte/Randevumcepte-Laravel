@@ -523,6 +523,84 @@ class SalonappyImport extends Command
             if ($i % 200 === 0) $this->line("  visit {$i}/" . count($visits) . " eklenen={$rEklenen} dedup={$rDedup} hata={$rHata} tahsilat={$tEklenen}");
         }
         $this->info("Visit: eklenen={$rEklenen}, dedup={$rDedup}, hata={$rHata}, tahsilat={$tEklenen}");
+
+        // 3) STANDALONE PRODUCT_SALES (visit'ten bagimsiz urun satislari)
+        // is_session=false olanlar manuel kasa girisi. Visit-bagli (is_session=true)
+        // olanlar zaten yukaridaki product_sales pipeline'i ile islendi, atla.
+        $ps = $j['productSales'] ?? [];
+        if (!empty($ps)) {
+            $this->line('Standalone urun satislari isleniyor: ' . count($ps) . ' kayit');
+            $psEklenen = 0; $psDedup = 0; $psHata = 0; $psTahsilat = 0;
+            foreach ($ps as $sale) {
+                // Visit-bagli ise visit pipeline zaten isledi, atla
+                if (!empty($sale['is_session'])) { $psDedup++; continue; }
+                $saleId = (string) ($sale['id'] ?? '');
+                if (!$saleId) { $psHata++; continue; }
+                $saleMarker = '[salonappy-prodsale:' . $saleId . ']';
+                // Dedup: marker ile mevcut mu
+                $existAd = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                    ->where('notlar', 'LIKE', '%' . $saleMarker . '%')->value('id');
+                if ($existAd) { $psDedup++; continue; }
+                // Musteri eslestir (idMap'ten veya telefondan)
+                $clientId = (string) ($sale['client_id'] ?? '');
+                $userId = $clientId ? ($idMap[$clientId] ?? null) : null;
+                if (!$userId) {
+                    $phone = preg_replace('~\D~', '', $sale['client_full_phone_number'] ?? $sale['client_phone_number'] ?? '');
+                    if ($phone) $userId = \DB::table('users')->where('cep_telefon', $phone)->value('id');
+                }
+                if (!$userId) { $psHata++; continue; }
+                $tarih = $sale['date'] ?? date('Y-m-d');
+                $urunAdi = trim((string) ($sale['product_text'] ?? ''));
+                $fiyat = (float) ($sale['product_price'] ?? 0);
+                $adet = max(1, (int) ($sale['quantity'] ?? 1));
+                $toplam = (float) ($sale['total_amount'] ?? ($fiyat * $adet));
+                $odenen = (float) ($sale['paid_amount'] ?? 0);
+                $odemeYontem = $sale['payment_method_text'] ?? $sale['payment_method'] ?? 'Nakit';
+                $sellerAdi = $sale['seller_name'] ?? '';
+                $notlar = trim(($sale['notes'] ?? '') . ' ' . $saleMarker);
+                $urunId = $this->ensureUrun($salonId, $urunAdi, $fiyat, $urunAdi);
+                if (!$urunId) { $psHata++; continue; }
+                if ($sellerAdi) $this->ensurePersonel($salonId, $sellerAdi);
+                try {
+                    // Adisyon olustur (urun satisi adisyonu)
+                    $defaultPersId = $sellerAdi
+                        ? \DB::table('salon_personelleri')->where('salon_id', $salonId)
+                            ->where('personel_adi', $sellerAdi)->value('id')
+                        : null;
+                    $adId = \DB::table('adisyonlar')->insertGetId([
+                        'salon_id' => $salonId, 'user_id' => $userId, 'tarih' => $tarih,
+                        'olusturan_id' => $defaultPersId, 'notlar' => $notlar,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    \DB::table('adisyon_urunler')->insert([
+                        'adisyon_id' => $adId, 'urun_id' => $urunId,
+                        'fiyat' => $fiyat, 'adet' => $adet,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $psEklenen++;
+                    // Tahsilat (paid_amount > 0 ise)
+                    if ($odenen > 0.01) {
+                        $tReq = new \Illuminate\Http\Request([
+                            'userId' => $userId, 'adisyonId' => $adId,
+                            'odemeTarihi' => $tarih, 'tahsilatTutari' => $odenen,
+                            'odemeYontemi' => $odemeYontem, 'salonId' => $salonId,
+                        ]);
+                        $apiController->salonAppyTahsilatEkle($tReq);
+                        $newT = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                            ->where('user_id', $userId)->where('odeme_tarihi', $tarih)
+                            ->where('tutar', $odenen)->orderByDesc('id')->first();
+                        if ($newT && \Schema::hasColumn('tahsilatlar', 'notlar')) {
+                            \DB::table('tahsilatlar')->where('id', $newT->id)->update(['notlar' => $saleMarker]);
+                        }
+                        $psTahsilat++;
+                    }
+                } catch (\Throwable $e) {
+                    $psHata++;
+                    \Log::warning('[Salonappy prodsale] hata', ['id' => $saleId, 'err' => $e->getMessage()]);
+                }
+            }
+            $this->info("Standalone urun: eklenen={$psEklenen}, dedup={$psDedup}, hata={$psHata}, tahsilat={$psTahsilat}");
+        }
         return 0;
     }
 

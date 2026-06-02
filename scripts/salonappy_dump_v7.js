@@ -146,6 +146,31 @@
   for (const v of upcomingVisits) if (v?.session && !visitsBySess[v.session]) visitsBySess[v.session] = v;
   visits = Object.values(visitsBySess);
 
+  // === Standalone urun satislari (visit'siz, manuel kasa) ===
+  // /api/product_sale/list hem visit-bagli hem standalone hepsini doner.
+  // Import tarafinda is_session=false olanlar standalone olarak islenir.
+  let productSales = await dbGet('productSales');
+  if (!productSales) {
+    productSales = [];
+    // Genis tarih araligi: 2023 -> +1 yil ileri
+    const dateStart = '2023-01-01';
+    const dEnd = new Date(); dEnd.setFullYear(dEnd.getFullYear() + 1);
+    const dateEnd = dEnd.toISOString().slice(0,10);
+    let offset = 0; const limit = 100;
+    while (true) {
+      const j = await get(`/product_sale/list?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}&is_deleted=0`);
+      const arr = j?.data?.product_sales || [];
+      if (!arr.length) break;
+      productSales.push(...arr);
+      offset += arr.length;
+      await sleep(RATE_DELAY_MS);
+      if (arr.length < limit) break;
+      if (offset % 500 === 0) console.log(`  product_sales kumule: ${productSales.length}`);
+    }
+    await dbPut('productSales', productSales);
+    console.log(`  product_sales toplam: ${productSales.length}`);
+  } else console.log('  resume: productSales (cached, ' + productSales.length + ')');
+
   console.log(`  services:${servicesMaster.length||Object.keys(servicesMaster||{}).length} staff:${staffMaster.length||Object.keys(staffMaster||{}).length} products:${productsMaster.length||Object.keys(productsMaster||{}).length} clients:${clients.length} visits:${visits.length} (gecmis+gelecek)`);
 
   // === Booking detayları (resume destekli) ===
@@ -187,7 +212,8 @@
     generated_at: new Date().toISOString(),
     servicesMaster, staffMaster, productsMaster,
     clients, clientDetails: {},
-    visits, bookingDetails
+    visits, bookingDetails,
+    productSales
   };
   const txt = JSON.stringify(dump);
   console.log('  Boyut:', (txt.length/1024/1024).toFixed(2), 'MB');
