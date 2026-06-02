@@ -414,7 +414,7 @@
 
   {{-- HIZLI EYLEM ŞERIDI --}}
   <div class="rmc-quick-actions">
-    <a class="rmc-qa var-1" href="#" onclick="$('#randevu-ekle-modal').modal('show');return false;">
+    <a class="rmc-qa var-1" href="/isletmeyonetim/randevular{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-calendar-plus-fill"></i></div>
       <div class="rmc-qa-text">Yeni Randevu Oluştur</div>
     </a>
@@ -422,11 +422,11 @@
       <div class="rmc-qa-icon"><i class="bi bi-receipt"></i></div>
       <div class="rmc-qa-text">Yeni Satış Oluştur</div>
     </a>
-    <a class="rmc-qa var-3" href="/isletmeyonetim/paketler{{$subeQuery}}">
+    <a class="rmc-qa var-3" href="/isletmeyonetim/paketsatislari{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-gift-fill"></i></div>
       <div class="rmc-qa-text">Yeni Paket Oluştur</div>
     </a>
-    <a class="rmc-qa var-4" href="/isletmeyonetim/hizmetler{{$subeQuery}}">
+    <a class="rmc-qa var-4" href="/isletmeyonetim/ayarlar?p=hizmetler{{ isset($_GET['sube']) ? '&sube='.$isletme->id : '' }}">
       <div class="rmc-qa-icon"><i class="bi bi-stars"></i></div>
       <div class="rmc-qa-text">Yeni Hizmet Oluştur</div>
     </a>
