@@ -21031,53 +21031,14 @@ $(document).on('click', '#sablonkapatmodal', function () {
                                     showConfirmButton:false,
                                     timer:3000,
                                 });
-                                $('#bugunkugorevtablo').DataTable().destroy();
-                                $('#yarinkigorevtablo').DataTable().destroy();
-                                $('#bugunkugorevtablo').DataTable({
-                                    autoWidth: false,
-                                    responsive: true,
-                                       columns:[
-                                            { data: 'baslik'},
-                                            { data: 'mesaj' ,"width": "500px" },
-                                            { data: 'saat'  },
-                                            { data: 'durum' },
-                                            { data: 'sonuc' }, 
-                                            { data: 'islemler' }, 
-                                       ],
-                                       "order": [[ 2, "asc" ]],
-                                       data: result.easistandata,
-                            
-                                       "language" : {
-                                           "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
-                                           searchPlaceholder: "Ara",
-                                           paginate: {
-                                               next: '<i class="ion-chevron-right"></i>',
-                                               previous: '<i class="ion-chevron-left"></i>'  
-                                           }
-                                     },
-                               });
-                                $('#yarinkigorevtablo').DataTable({
-                                    autoWidth: false,
-                                    responsive: true,
-                                       columns:[
-                                            { data: 'baslik'},
-                                            { data: 'mesaj' ,"width": "500px" },
-                                            { data: 'saat'  },
-                                            { data: 'durum' },
-                                            { data: 'islemler' }, 
-                                       ],
-                                       "order": [[ 2, "asc" ]],
-                                       data: result.easistanYarinYapilacak,
-                            
-                                       "language" : {
-                                           "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
-                                           searchPlaceholder: "Ara",
-                                           paginate: {
-                                               next: '<i class="ion-chevron-right"></i>',
-                                               previous: '<i class="ion-chevron-left"></i>'  
-                                           }
-                                     },
-                               });
+                                // E-Asistan tablolari artik server-side DataTables.
+                                // Destroy + reinit yerine ajax.reload ile tazele.
+                                if ($.fn.DataTable.isDataTable('#bugunkugorevtablo')) {
+                                    $('#bugunkugorevtablo').DataTable().ajax.reload(null, false);
+                                }
+                                if ($.fn.DataTable.isDataTable('#yarinkigorevtablo')) {
+                                    $('#yarinkigorevtablo').DataTable().ajax.reload(null, false);
+                                }
                             },
                             error: function (request, status, error) {
                                 $("#preloader").hide();
