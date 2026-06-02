@@ -176,11 +176,17 @@ class SalonrandevuImport extends Command
         $this->info("Salon {$salonId}: [salonrandevu:*] markerli kayitlar bulunuyor...");
         $rIds = \DB::table('randevular')->where('salon_id', $salonId)
             ->whereRaw("personel_notu LIKE '%[salonrandevu:%'")->pluck('id');
+        // Adisyonlar tablosunda hangi marker kolonu var, sadece onu kullan
+        $adNoteCols = [];
+        foreach (['aciklama', 'adisyon_notu', 'genel_aciklama', 'notlar'] as $col) {
+            if (\Schema::hasColumn('adisyonlar', $col)) $adNoteCols[] = $col;
+        }
+        if (empty($adNoteCols)) { $this->error('adisyonlar not kolonu yok.'); return 1; }
         $aIds = \DB::table('adisyonlar')->where('salon_id', $salonId)
-            ->where(function ($q) {
-                $q->whereRaw("COALESCE(aciklama,'') LIKE '%[salonrandevu:%'")
-                  ->orWhereRaw("COALESCE(adisyon_notu,'') LIKE '%[salonrandevu:%'")
-                  ->orWhereRaw("COALESCE(notlar,'') LIKE '%[salonrandevu:%'");
+            ->where(function ($q) use ($adNoteCols) {
+                foreach ($adNoteCols as $col) {
+                    $q->orWhereRaw("COALESCE($col,'') LIKE '%[salonrandevu:%'");
+                }
             })->pluck('id');
         $tIds = \DB::table('tahsilatlar')->where('salon_id', $salonId)
             ->whereRaw("COALESCE(notlar,'') LIKE '%[salonrandevu:%'")->pluck('id');
