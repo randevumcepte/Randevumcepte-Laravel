@@ -1164,48 +1164,14 @@ class SalonappyImport extends Command
         $tT = (new \App\Tahsilatlar)->getTable();
         $tAps = (new \App\AdisyonPaketSeanslar)->getTable();
 
-        // TUM salonappy markerlari (visit + pkgsale + prodsale + payment + pkgsale-pay + expense)
-        $salonappyPattern = "%[salonappy%";
-
-        // Randevular
-        $randevuIds = \DB::table($tR)->where('salon_id', $salonId)
-            ->where('personel_notu', 'LIKE', $salonappyPattern)->pluck('id')->all();
-
-        // Adisyon not kolonu
-        $notKol = null;
-        foreach (['adisyon_notu','aciklama','genel_aciklama','notlar','not','dosya_no','referans'] as $col) {
-            if (\Schema::hasColumn($tA, $col)) { $notKol = $col; break; }
-        }
-        $adisyonIds = [];
-        if ($notKol) {
-            $adisyonIds = \DB::table($tA)->where('salon_id', $salonId)
-                ->where($notKol, 'LIKE', $salonappyPattern)->pluck('id')->all();
-        }
-        // Fallback: markersiz adisyonlar icin marker'li randevu user+tarih ile eslestir
-        if (!empty($randevuIds)) {
-            $rPairs = \DB::table($tR)->whereIn('id', $randevuIds)
-                ->select('user_id', 'tarih')->distinct()->get();
-            foreach ($rPairs as $p) {
-                $more = \DB::table($tA)->where('salon_id', $salonId)
-                    ->where('user_id', $p->user_id)->where('tarih', $p->tarih)
-                    ->pluck('id')->all();
-                foreach ($more as $aid) if (!in_array($aid, $adisyonIds)) $adisyonIds[] = $aid;
-            }
-        }
-
-        // Tahsilatlar: TUM salonappy* markerli + adisyon_id eslesen
-        $tahsilatIds = \DB::table($tT)->where('salon_id', $salonId)
-            ->where(function ($q) use ($adisyonIds, $salonappyPattern) {
-                $q->where('notlar', 'LIKE', $salonappyPattern);
-                if (!empty($adisyonIds)) $q->orWhereIn('adisyon_id', $adisyonIds);
-            })->pluck('id')->all();
-
-        // Masraflar (salonappy-expense markerli)
-        $masrafIds = [];
-        if (\Schema::hasColumn('masraflar', 'notlar')) {
-            $masrafIds = \DB::table('masraflar')->where('salon_id', $salonId)
-                ->where('notlar', 'LIKE', $salonappyPattern)->pluck('id')->all();
-        }
+        // AGRESIF RESET: salon_id=X icin TUM transactional veri silinir
+        // (randevu/adisyon/tahsilat/masraf + tum bagli detaylar).
+        // Salon salonappy kaynakli oldugu icin marker check'siz salon_id bazli silme guvenli.
+        // Korunanlar: musteri (users + musteri_portfoy), kurulum (hizmet/personel/urun/paket master).
+        $randevuIds = \DB::table($tR)->where('salon_id', $salonId)->pluck('id')->all();
+        $adisyonIds = \DB::table($tA)->where('salon_id', $salonId)->pluck('id')->all();
+        $tahsilatIds = \DB::table($tT)->where('salon_id', $salonId)->pluck('id')->all();
+        $masrafIds = \DB::table('masraflar')->where('salon_id', $salonId)->pluck('id')->all();
 
         $this->line("Salon {$salonId} silinecek:");
         $this->line("  randevu: " . count($randevuIds));
