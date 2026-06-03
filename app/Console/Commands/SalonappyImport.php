@@ -1201,9 +1201,10 @@ class SalonappyImport extends Command
                     }
                 }
                 // Alacak: remaining_payment > 0 ise TaksitliTahsilatlar + TaksitVadeleri + Alacaklar
-                // (vade = paket tarihi +30g). Tahsilat YOK; sadece kalan tutar alacak olarak yazilir.
+                // Vade = paket satis tarihi (Salonappy'de paket satildigi anda alacak olusur,
+                // ayri vade alani YOK). UI 'geciken alacak' olarak dogru gosterir.
                 if ($grpKalan > 0.01) {
-                    $vadeTarih = date('Y-m-d', strtotime($tarih . ' +30 days'));
+                    $vadeTarih = $tarih;
                     $tt = \DB::table('taksitli_tahsilatlar')->insertGetId([
                         'user_id' => $userId, 'adisyon_id' => $adId,
                         'salon_id' => $salonId, 'vade_sayisi' => 1,
