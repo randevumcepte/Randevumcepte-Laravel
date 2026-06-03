@@ -23,6 +23,11 @@ class SalonappyImport extends Command
         {--only-package-payments : Daha onceden --only-package-sales ile yazilmis paket adisyonlarina dump payments[] eslestir; source_text="Paket satisi" olanlar tahsilat olarak baglanir + kalan alacak (TaksitliTahsilatlar+Vadeler+Alacaklar).}
         {--only-product-sales : Sadece urun satislarini isle (dump productSales) — adisyon+adisyon_urunler+alacak (receivable_amount > 0 ise). Tahsilat DOKUNMAZ.}
         {--only-product-payments : Daha onceden --only-product-sales ile yazilmis urun adisyonlarina dump payments[] eslestir; source_text="Urun satisi" olanlar tahsilat olarak baglanir.}
+        {--only-visits : Dump visit/bookingDetails -> randevu+adisyon+AH+tahsilat+TH/TU+alacak+paket usage isaretle. --from/--to araligi sart. Marker [salonappy-visit:<session>].}
+        {--with-products : --only-visits filtresine ek: sadece product_sales[] dolu visit'leri isle (urun tasima testi icin).}
+        {--reset-visits : Tarih araligindaki [salonappy-visit:%] markerli randevu+adisyon+tahsilat+taksit+alacak sil. --from/--to sart.}
+        {--from= : Visit aktarim/reset baslangic tarihi YYYY-MM-DD}
+        {--to= : Visit aktarim/reset bitis tarihi YYYY-MM-DD}
         {--dry-run : Reset/import oncesi sadece sayim}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
@@ -104,6 +109,18 @@ class SalonappyImport extends Command
             // --only-product-payments: urun adisyonlarina payments[] eslestir
             if ((bool) $this->option('only-product-payments')) {
                 return $this->importProductPaymentsOnly($dumpFile, (int) $salonId);
+            }
+            // --only-visits: tarih araliginda visit detail -> randevu+adisyon+...
+            if ((bool) $this->option('only-visits')) {
+                $from = $this->option('from'); $to = $this->option('to');
+                if (!$from || !$to) { $this->error('--only-visits icin --from ve --to zorunlu.'); return 1; }
+                return $this->importVisitsOnly($dumpFile, (int) $salonId, $from, $to, (bool) $this->option('with-products'));
+            }
+            // --reset-visits: tarih araligindaki visit markerli kayitlari sil
+            if ((bool) $this->option('reset-visits')) {
+                $from = $this->option('from'); $to = $this->option('to');
+                if (!$from || !$to) { $this->error('--reset-visits icin --from ve --to zorunlu.'); return 1; }
+                return $this->resetVisits((int) $salonId, $from, $to, (bool) $this->option('dry-run'));
             }
             // v5 yapısını otomatik dedect et: visits + bookingDetails
             $peek = json_decode(file_get_contents($dumpFile), true);
@@ -1845,6 +1862,414 @@ class SalonappyImport extends Command
             }
         }
         $this->info("Product payments: tahsilat=$gTah, atanan=$pAtanan, atlanan=$pAtlanan, hata=$pHata");
+        return 0;
+    }
+
+    /**
+     * --reset-visits --from --to:
+     * Tarih araligindaki [salonappy-visit:<session>] markerli kayitlari sil.
+     * randevu+adisyon+tahsilat+taksit+alacak. Katalog dokunulmaz.
+     * Ayni aralikta ayni session UPSERT icin de kullanilir.
+     */
+    private function resetVisits($salonId, $from, $to, $dryRun)
+    {
+        $like = '%[salonappy-visit:%';
+        $aIds = \DB::table('adisyonlar')->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$from, $to])
+            ->where('notlar', 'LIKE', $like)->pluck('id')->all();
+        $rIds = \DB::table('randevular')->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$from, $to])
+            ->where('personel_notu', 'LIKE', $like)->pluck('id')->all();
+        $this->line("Visit reset {$from} .. {$to}: randevu=" . count($rIds) . " adisyon=" . count($aIds));
+        if ($dryRun) { $this->warn('DRY-RUN'); return 0; }
+
+        if (!empty($aIds)) {
+            $tIds = \DB::table('tahsilatlar')->whereIn('adisyon_id', $aIds)->pluck('id')->all();
+            if (!empty($tIds)) {
+                \DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $tIds)->delete();
+                \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $tIds)->delete();
+                \DB::table('tahsilatlar')->whereIn('id', $tIds)->delete();
+            }
+            $ttIds = \DB::table('taksitli_tahsilatlar')->whereIn('adisyon_id', $aIds)->pluck('id')->all();
+            if (!empty($ttIds)) {
+                \DB::table('taksit_vadeleri')->whereIn('taksitli_tahsilat_id', $ttIds)->delete();
+                if (\Schema::hasTable('alacaklar')) {
+                    \DB::table('alacaklar')->whereIn('adisyon_id', $aIds)->delete();
+                }
+                \DB::table('taksitli_tahsilatlar')->whereIn('id', $ttIds)->delete();
+            }
+            \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $aIds)->delete();
+            \DB::table('adisyon_urunler')->whereIn('adisyon_id', $aIds)->delete();
+            \DB::table('adisyonlar')->whereIn('id', $aIds)->delete();
+        }
+        if (!empty($rIds)) {
+            \DB::table('randevu_hizmetler')->whereIn('randevu_id', $rIds)->delete();
+            \DB::table('randevular')->whereIn('id', $rIds)->delete();
+        }
+        $this->info('Visit reset tamam.');
+        return 0;
+    }
+
+    /**
+     * --only-visits --from --to:
+     * Dump visit + bookingDetails listesinden tarih araligindaki kayitlari isle.
+     * Her visit icin:
+     *   1) UPSERT (mevcut marker silinir)
+     *   2) Adisyon + AH (services)
+     *   3) Randevu + randevu_hizmetler (showup map)
+     *   4) Urun tasima: visit.product_sales[] -> ayni tarih+product_text+adet+tutar ile mevcut
+     *      [salonappy-prodsale:%] adisyonu varsa onun AU+tahsilat+alacak'larini visit adisyonuna tasi,
+     *      eski adisyonu sil. Yoksa AU dogrudan visit adisyonuna eklenir.
+     *   5) Paket usage: package_usages[] -> bu musterinin [salonappy-pkgsale:%] adisyonlarinda
+     *      ayni service_id'li AH'in APS placeholder'larindan ilk geldi=0 olani geldi=1+tarih.
+     *   6) Tahsilat: payments[] -> tahsilatlar+TH dagit, marker [salonappy-visit-pay:<pid>].
+     *   7) Alacak: unpaid_amount > 0 -> taksitli_tahsilatlar+vadeler+alacaklar (vade=tarih).
+     */
+    private function importVisitsOnly($file, $salonId, $from, $to, $withProductsOnly = false)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: $file"); return 1; }
+        $j = json_decode(file_get_contents($file), true);
+        if (!is_array($j)) { $this->error('Gecersiz JSON.'); return 1; }
+        $bdMap = $j['bookingDetails'] ?? [];
+        if (empty($bdMap)) { $this->warn('bookingDetails[] bos.'); return 0; }
+
+        // idMap (clients phone -> users.id)
+        $idMap = [];
+        foreach (($j['clients'] ?? []) as $c) {
+            $sid = (string) ($c['id'] ?? '');
+            if (!$sid) continue;
+            $phone = preg_replace('~\D~', '', (string) ($c['phone_number_local'] ?? $c['phone_number'] ?? ''));
+            if ($phone) {
+                $uid = \DB::table('users')->where('cep_telefon', $phone)->value('id');
+                if ($uid) $idMap[$sid] = $uid;
+            }
+        }
+
+        $yontemMap = function ($txt) {
+            $t = mb_strtolower(trim((string)$txt), 'UTF-8');
+            if ($t === '') return 1;
+            if (strpos($t, 'kredi') !== false || strpos($t, 'kart') !== false || strpos($t, 'pos') !== false) return 2;
+            if (strpos($t, 'havale') !== false || strpos($t, 'eft') !== false || strpos($t, 'banka') !== false) return 3;
+            if (strpos($t, 'nakit') !== false) return 1;
+            return 4;
+        };
+
+        // Showup map -> randevular.geldi (0=bekleniyor,1=geldi,2=gelmedi,3=iptal)
+        $showupMap = function ($txt, $isCancelled) {
+            if ($isCancelled) return 3;
+            $t = mb_strtolower(trim((string)$txt), 'UTF-8');
+            if (strpos($t, 'gelmedi') !== false || strpos($t, 'no show') !== false) return 2;
+            if (strpos($t, 'geldi') !== false || strpos($t, 'showed') !== false) return 1;
+            return 0;
+        };
+
+        $gVisit = 0; $gAdisyon = 0; $gRand = 0; $gAH = 0; $gAU = 0;
+        $gUrunTasinan = 0; $gPaketUsage = 0; $gTah = 0; $gAlacak = 0; $gHata = 0; $gAtlanan = 0;
+
+        // Tarih filtresi: bookingDetails uzerinden details.date kullan
+        // --with-products ek filtre: sadece product_sales[] dolu olan visit'ler
+        $kapsamSession = [];
+        foreach ($bdMap as $sid => $bd) {
+            $tarih = trim((string) ($bd['details']['date'] ?? ''));
+            if ($tarih < $from || $tarih > $to) continue;
+            if ($withProductsOnly && empty($bd['product_sales'])) continue;
+            $kapsamSession[] = (string) $sid;
+        }
+        $extra = $withProductsOnly ? ' (sadece product_sales dolu)' : '';
+        $this->line("Visit aktarim {$from} .. {$to}{$extra}: kapsamda " . count($kapsamSession) . ' visit');
+
+        foreach ($kapsamSession as $sid) {
+            $bd = $bdMap[$sid];
+            $d  = $bd['details'] ?? [];
+            $marker = '[salonappy-visit:' . $sid . ']';
+
+            try {
+                // UPSERT — bu session'in mevcut markerli randevu+adisyon silinir (resetVisits ile ayni mantik)
+                $eskiAdIds = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                    ->where('notlar', 'LIKE', '%' . $marker . '%')->pluck('id')->all();
+                if (!empty($eskiAdIds)) {
+                    $tIds = \DB::table('tahsilatlar')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+                    if (!empty($tIds)) {
+                        \DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $tIds)->delete();
+                        \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $tIds)->delete();
+                        \DB::table('tahsilatlar')->whereIn('id', $tIds)->delete();
+                    }
+                    $ttIds = \DB::table('taksitli_tahsilatlar')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+                    if (!empty($ttIds)) {
+                        \DB::table('taksit_vadeleri')->whereIn('taksitli_tahsilat_id', $ttIds)->delete();
+                        if (\Schema::hasTable('alacaklar')) {
+                            \DB::table('alacaklar')->whereIn('adisyon_id', $eskiAdIds)->delete();
+                        }
+                        \DB::table('taksitli_tahsilatlar')->whereIn('id', $ttIds)->delete();
+                    }
+                    \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $eskiAdIds)->delete();
+                    \DB::table('adisyon_urunler')->whereIn('adisyon_id', $eskiAdIds)->delete();
+                    \DB::table('adisyonlar')->whereIn('id', $eskiAdIds)->delete();
+                }
+                $eskiRIds = \DB::table('randevular')->where('salon_id', $salonId)
+                    ->where('personel_notu', 'LIKE', '%' . $marker . '%')->pluck('id')->all();
+                if (!empty($eskiRIds)) {
+                    \DB::table('randevu_hizmetler')->whereIn('randevu_id', $eskiRIds)->delete();
+                    \DB::table('randevular')->whereIn('id', $eskiRIds)->delete();
+                }
+
+                // Musteri resolve
+                $clientId = (string) ($d['client_id'] ?? '');
+                $userId = $clientId ? ($idMap[$clientId] ?? null) : null;
+                if (!$userId) {
+                    $phone = preg_replace('~\D~', '', (string) ($d['client_phone_number'] ?? ''));
+                    if ($phone) $userId = \DB::table('users')->where('cep_telefon', $phone)->value('id');
+                }
+                if (!$userId) {
+                    $clientName = trim((string) ($d['client_name'] ?? ''));
+                    if ($clientName) $userId = \DB::table('users')->where('name', 'LIKE', $clientName)->orderByDesc('id')->value('id');
+                }
+                if (!$userId) { $gHata++; continue; }
+
+                $tarih = $d['date'] ?? date('Y-m-d');
+                $saat  = trim((string) ($d['time_text_24'] ?? $d['time_text'] ?? '00:00')) . ':00';
+                $geldi = $showupMap($d['showup_text'] ?? '', !empty($d['is_cancelled']));
+
+                // Adisyon
+                $adId = \DB::table('adisyonlar')->insertGetId([
+                    'salon_id' => $salonId, 'user_id' => $userId, 'tarih' => $tarih,
+                    'notlar' => $marker,
+                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+                $gAdisyon++;
+
+                // AH (services[])
+                $svcIdToAh = []; // service_id -> [ah_id, ...] (paket usage match icin)
+                foreach (($bd['services'] ?? []) as $svc) {
+                    $svcAd = trim((string) ($svc['service_text'] ?? ''));
+                    if ($svcAd === '') continue;
+                    $fiyat = (float) ($svc['price'] ?? 0);
+                    $sure  = max(15, (int) ($svc['duration'] ?? 30));
+                    $hid = $this->ensureSalonHizmet($salonId, $svcAd, $sure, $fiyat, $svcAd);
+                    if (!$hid) continue;
+                    $persId = null;
+                    $staffAd = trim((string) ($svc['staff_name'] ?? ''));
+                    if ($staffAd !== '') {
+                        $this->ensurePersonel($salonId, $staffAd);
+                        $persId = \DB::table('salon_personelleri')->where('salon_id', $salonId)
+                            ->where('personel_adi', $staffAd)->value('id');
+                    }
+                    $ahId = \DB::table('adisyon_hizmetler')->insertGetId([
+                        'adisyon_id' => $adId, 'hizmet_id' => $hid,
+                        'fiyat' => $fiyat, 'sure' => $sure,
+                        'islem_tarihi' => $tarih, 'islem_saati' => '00:00:00',
+                        'personel_id' => $persId,
+                        'geldi' => ($geldi === 1) ? 1 : 0,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $gAH++;
+                    $svcKey = (string) ($svc['service_id'] ?? '');
+                    if ($svcKey !== '') $svcIdToAh[$svcKey][] = $ahId;
+                }
+
+                // Randevu + randevu_hizmetler
+                $rId = \DB::table('randevular')->insertGetId([
+                    'salon_id' => $salonId, 'user_id' => $userId,
+                    'randevu_tarihi' => $tarih, 'randevu_saati' => $saat,
+                    'tarih' => $tarih, 'saat' => $saat,
+                    'durum' => 'Onaylandı',
+                    'geldi' => $geldi,
+                    'adisyon_id' => $adId,
+                    'personel_notu' => $marker,
+                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+                $gRand++;
+                foreach (($bd['services'] ?? []) as $svc) {
+                    $svcAd = trim((string) ($svc['service_text'] ?? ''));
+                    if ($svcAd === '') continue;
+                    $hid = $this->ensureSalonHizmet($salonId, $svcAd, 30, (float) ($svc['price'] ?? 0), $svcAd);
+                    if (!$hid) continue;
+                    $persId = null;
+                    $staffAd = trim((string) ($svc['staff_name'] ?? ''));
+                    if ($staffAd !== '') {
+                        $persId = \DB::table('salon_personelleri')->where('salon_id', $salonId)
+                            ->where('personel_adi', $staffAd)->value('id');
+                    }
+                    \DB::table('randevu_hizmetler')->insert([
+                        'randevu_id' => $rId, 'hizmet_id' => $hid,
+                        'fiyat' => (float) ($svc['price'] ?? 0),
+                        'personel_id' => $persId,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                }
+
+                // Urun tasima: visit.product_sales[] her item icin
+                // ayni tarih + product_text + adet + tutar ile [salonappy-prodsale:%] adisyonu varsa
+                // o adisyonun AU + tahsilat'larini visit adisyonuna tasi.
+                foreach (($bd['product_sales'] ?? []) as $ps) {
+                    $pAd = trim((string) ($ps['product_text'] ?? ''));
+                    if ($pAd === '') continue;
+                    $pAdet = max(1, (int) ($ps['quantity'] ?? 1));
+                    $pTutar = (float) ($ps['total_amount'] ?? ($ps['product_price'] ?? 0) * $pAdet);
+                    $pFiyat = (float) ($ps['product_price'] ?? ($pAdet ? $pTutar / $pAdet : 0));
+                    $urunId = $this->ensureUrun($salonId, $pAd, $pFiyat, $pAd);
+                    if (!$urunId) continue;
+
+                    // Mevcut prodsale adisyonu ara (ayni tarih + ayni urun + adet + tutar)
+                    $cand = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                        ->where('user_id', $userId)->where('tarih', $tarih)
+                        ->where('notlar', 'LIKE', '%[salonappy-prodsale:%')->pluck('id')->all();
+                    $tasinanAdId = null;
+                    foreach ($cand as $cAdId) {
+                        $au = \DB::table('adisyon_urunler')->where('adisyon_id', $cAdId)
+                            ->where('urun_id', $urunId)->where('adet', $pAdet)
+                            ->whereBetween('fiyat', [$pFiyat - 0.01, $pFiyat + 0.01])->first();
+                        if ($au) { $tasinanAdId = $cAdId; break; }
+                    }
+                    if ($tasinanAdId) {
+                        // AU'lari visit adisyonuna tasi
+                        \DB::table('adisyon_urunler')->where('adisyon_id', $tasinanAdId)
+                            ->update(['adisyon_id' => $adId]);
+                        // Tahsilatlari tasi
+                        \DB::table('tahsilatlar')->where('adisyon_id', $tasinanAdId)
+                            ->update(['adisyon_id' => $adId]);
+                        // TaksitliTahsilatlar
+                        \DB::table('taksitli_tahsilatlar')->where('adisyon_id', $tasinanAdId)
+                            ->update(['adisyon_id' => $adId]);
+                        if (\Schema::hasTable('alacaklar')) {
+                            \DB::table('alacaklar')->where('adisyon_id', $tasinanAdId)
+                                ->update(['adisyon_id' => $adId]);
+                        }
+                        // Eski adisyon sil
+                        \DB::table('adisyonlar')->where('id', $tasinanAdId)->delete();
+                        $gUrunTasinan++;
+                    } else {
+                        // Yeni AU ekle (visit adisyonu altinda)
+                        \DB::table('adisyon_urunler')->insert([
+                            'adisyon_id' => $adId, 'urun_id' => $urunId,
+                            'fiyat' => $pFiyat, 'adet' => $pAdet,
+                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                        $gAU++;
+                    }
+                }
+
+                // Paket usage: package_usages[] her usage icin
+                // bu musterinin [salonappy-pkgsale:%] adisyonlarinda ayni service_id'li AH'i bul,
+                // APS placeholder'larindan ilk geldi=0 olani geldi=1 + seans_tarih = usage.date.
+                foreach (($bd['package_usages'] ?? []) as $pu) {
+                    $puSvcId = (string) ($pu['service_id'] ?? '');
+                    $puQty   = max(1, (int) ($pu['quantity'] ?? 1));
+                    $puDate  = trim((string) ($pu['date'] ?? $tarih));
+                    if ($puSvcId === '') continue;
+                    // Bu musterinin paket adisyonlarinda ayni Salonappy service_id ile AH(ler)i bul
+                    // ensureSalonHizmet salon hizmetini olustururken Salonappy service_id'yi
+                    // hatirlamadigi icin svcAd uzerinden gidiyoruz (puSvcId yerine pu.service_text varsa onu kullan).
+                    $puSvcAd = trim((string) ($pu['service_text'] ?? ''));
+                    if ($puSvcAd === '') continue;
+                    $hid = $this->ensureSalonHizmet($salonId, $puSvcAd, 30, 0, $puSvcAd);
+                    if (!$hid) continue;
+                    // Musterinin paket adisyonlari (markerli) altinda bu hizmet_id'li AH(ler)
+                    $ahsForPkg = \DB::table('adisyon_hizmetler as ah')
+                        ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+                        ->where('a.salon_id', $salonId)->where('a.user_id', $userId)
+                        ->where('a.notlar', 'LIKE', '%[salonappy-pkgsale:%')
+                        ->where('ah.hizmet_id', $hid)
+                        ->orderBy('a.tarih')->pluck('ah.id')->all();
+                    $kalanQty = $puQty;
+                    foreach ($ahsForPkg as $ahId) {
+                        if ($kalanQty <= 0) break;
+                        // Bu AH'in geldi=0 APS'lerinden $kalanQty kadar isaretle
+                        $apsList = \DB::table('adisyon_paket_seanslar')
+                            ->where('adisyon_hizmet_id', $ahId)->where('geldi', 0)
+                            ->orderBy('seans_no')->limit($kalanQty)->pluck('id')->all();
+                        if (!empty($apsList)) {
+                            \DB::table('adisyon_paket_seanslar')->whereIn('id', $apsList)
+                                ->update(['geldi' => 1, 'seans_tarih' => $puDate, 'updated_at' => date('Y-m-d H:i:s')]);
+                            $kalanQty -= count($apsList);
+                            $gPaketUsage += count($apsList);
+                        }
+                    }
+                }
+
+                // Tahsilat: payments[]
+                $payAcc = 0.0;
+                foreach (($bd['payments'] ?? []) as $p) {
+                    $amount = (float) ($p['amount'] ?? 0);
+                    if ($amount <= 0) continue;
+                    $pid = (string) ($p['id'] ?? '');
+                    $pMarker = $marker . ($pid ? '[salonappy-visit-pay:' . $pid . ']' : '');
+                    $pDate = trim((string) ($p['date'] ?? $tarih));
+                    $yontemId = $yontemMap($p['payment_method_text'] ?? $p['payment_method'] ?? '');
+                    $tahId = \DB::table('tahsilatlar')->insertGetId([
+                        'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => $adId,
+                        'odeme_tarihi' => $pDate, 'tutar' => $amount,
+                        'odeme_yontemi_id' => $yontemId, 'notlar' => $pMarker,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    // TH dagit (fiyat orantili)
+                    $ahsBu = \DB::table('adisyon_hizmetler')->where('adisyon_id', $adId)->get(['id', 'fiyat']);
+                    $tFiyat = 0.0;
+                    foreach ($ahsBu as $a) $tFiyat += (float) $a->fiyat;
+                    $paylar = []; $payToplam = 0;
+                    $n = $ahsBu->count();
+                    if ($tFiyat > 0) {
+                        $oran = $amount / $tFiyat;
+                        foreach ($ahsBu as $a) {
+                            $py = round((float) $a->fiyat * $oran, 2);
+                            $paylar[(int) $a->id] = $py;
+                            $payToplam += $py;
+                        }
+                    } elseif ($n > 0) {
+                        $per = round($amount / $n, 2);
+                        foreach ($ahsBu as $a) {
+                            $paylar[(int) $a->id] = $per;
+                            $payToplam += $per;
+                        }
+                    }
+                    $fark = round($amount - $payToplam, 2);
+                    if (abs($fark) > 0.001 && !empty($paylar)) {
+                        end($paylar); $sk = key($paylar);
+                        $paylar[$sk] = round($paylar[$sk] + $fark, 2);
+                    }
+                    foreach ($paylar as $ahKey => $py) {
+                        if ($py <= 0) continue;
+                        \DB::table('tahsilat_hizmetler')->insert([
+                            'tahsilat_id' => $tahId, 'adisyon_hizmet_id' => $ahKey, 'tutar' => $py,
+                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                    $gTah++;
+                    $payAcc += $amount;
+                }
+
+                // Alacak: unpaid_amount (visit detaylarinda kalan tutar)
+                $unpaid = (float) ($d['unpaid_amount'] ?? 0);
+                if ($unpaid > 0.01) {
+                    $tutar = round($unpaid, 2);
+                    $tt = \DB::table('taksitli_tahsilatlar')->insertGetId([
+                        'user_id' => $userId, 'adisyon_id' => $adId,
+                        'salon_id' => $salonId, 'vade_sayisi' => 1,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $vadeId = \DB::table('taksit_vadeleri')->insertGetId([
+                        'taksitli_tahsilat_id' => $tt, 'odendi' => 0,
+                        'vade_tarih' => $tarih, 'tutar' => $tutar,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    if (\Schema::hasTable('alacaklar')) {
+                        \DB::table('alacaklar')->insert([
+                            'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => $adId,
+                            'tutar' => $tutar, 'taksit_vade_id' => $vadeId,
+                            'planlanan_odeme_tarihi' => $tarih,
+                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                    $gAlacak++;
+                }
+                $gVisit++;
+            } catch (\Throwable $e) {
+                $gHata++;
+                \Log::warning('[Salonappy visit] hata', ['session' => $sid, 'err' => $e->getMessage()]);
+            }
+        }
+
+        $this->info("Visit aktarim sonuc: visit=$gVisit adisyon=$gAdisyon randevu=$gRand AH=$gAH AU=$gAU urun-tasinan=$gUrunTasinan paket-usage=$gPaketUsage tahsilat=$gTah alacak=$gAlacak hata=$gHata");
         return 0;
     }
 

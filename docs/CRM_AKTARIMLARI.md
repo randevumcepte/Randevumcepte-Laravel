@@ -387,9 +387,42 @@ Paket akışıyla simetrik. Dump: [scripts/salonappy_dump_product_sales.js](../s
 
 **PASS2 (`--only-product-payments`)**: dump `payments[]`'tan `source_text="Ürün satışı"` olanları ürün adisyonlarına eşleştirir; aynı algoritma (exact > substring > fallback, her sınıfta FIT öncelik + en yakın tarih, FIT yoksa atla). Tahsilat insert + `tahsilat_urunler` (TU) dağıtımı (`fiyat*adet` orantılı; tFiyat=0 ise eşit). Marker `[salonappy-prod-pay:<payment_id>]`.
 
+#### Visit / randevu (tarih aralıklı, peyderpey)
+
+Visit aktarımı tüm sistemi sıfırlamadan tarih aralığında çalışır. Marker: `[salonappy-visit:<session>]` — sadece kendi aralığını UPSERT eder.
+
+**Dump**: [scripts/salonappy_dump_visits.js](../scripts/salonappy_dump_visits.js) — `/client/list` + `/visit/list` (full) + her visit için `/booking/detail` + `/payment/list`. IndexedDB resume; binlerce visit'te yarım kalsa devam eder.
+
+```bash
+# 1) Tarayıcıda full dump indir (uzun süre — her visit ayrı detail)
+# 2) Tarih aralıklı import (örn. tek bir gün)
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_visits_<ts>.json \
+    --salon=368 --only-visits --from=2026-05-16 --to=2026-05-16
+
+# Sadece ürün satışı içeren visit'leri test etmek için:
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_visits_<ts>.json \
+    --salon=368 --only-visits --from=2026-05-01 --to=2026-05-31 --with-products
+
+# Tarih aralığını sıfırla (hata olursa kolay temizlik):
+/opt/php74/bin/php artisan salonappy:import \
+    --salon=368 --reset-visits --from=2026-05-16 --to=2026-05-16
+```
+
+**Visit başına yapılanlar** (her session UPSERT):
+1. **Adisyon** insert (marker, salon+user+tarih)
+2. **Adisyon hizmetleri** (services[]) — fiyat, personel, geldi=1 (showup="Geldi" ise)
+3. **Randevu** + randevu_hizmetler (showup map: Geldi=1, Gelmedi=2, İptal=3)
+4. **Ürün taşıma**: `product_sales[]` her item için aynı tarih+ürün+adet+tutar ile mevcut `[salonappy-prodsale:%]` adisyonu varsa → AU + tahsilat + alacak visit adisyonuna **taşınır**, eski prodsale adisyonu silinir. Yoksa AU direkt visit adisyonuna eklenir.
+5. **Paket kullanımı**: `package_usages[]` her usage için müşterinin `[salonappy-pkgsale:%]` adisyonlarındaki aynı hizmetin AH'lerini bul → APS placeholder'larından (geldi=0) `quantity` kadarını `geldi=1` + `seans_tarih=usage.date` yap.
+6. **Tahsilat**: `payments[]` her ödeme tahsilatlar + TH dağıt. Marker: `[salonappy-visit-pay:<pid>]`.
+7. **Alacak**: `unpaid_amount > 0` → TaksitliTahsilatlar + TaksitVadeleri (vade=visit tarihi) + Alacaklar.
+
+`--reset-visits --from --to`: tarih aralığındaki `[salonappy-visit:%]` markerlı tüm randevu+adisyon+tahsilat+taksit+alacak siler. Katalog dokunulmaz.
+
 #### Diğer modüler dump'lar (yakında)
 
-- Visit/randevu (`visit/list` + `booking/detail`)
 - Gider (`expense/list`)
 
 ### Aktarılan veri
