@@ -470,19 +470,29 @@
             .user-notification { padding: 0 !important; }
          }
 
-         /* ----- ≤1024px ----- */
+         /* ----- TEK SATIR GARANTISI: header asla satira inmesin ----- */
+         .header { flex-wrap: nowrap !important; }
+         .header-left { flex: 1 1 0 !important; min-width: 0 !important; overflow: hidden; flex-wrap: nowrap !important; }
+         .header-right { flex-wrap: nowrap !important; flex-shrink: 0 !important; }
+
+         /* ----- ≤1024px: salon kart kucult, header tek satir kal ----- */
          @media (max-width: 1024px) {
-            .header { flex-wrap: wrap !important; min-height: 60px !important; }
-            .header-left { width: auto !important; flex: 1 1 auto !important; min-width: 0; }
-            .header-right { width: auto !important; flex: 0 0 auto !important; flex-wrap: wrap !important; }
+            .header { min-height: 60px !important; }
             .header-left #myLabel { max-width: 140px !important; }
+            .header-left .header-search,
+            .header-left .header-search2 { display: none !important; }
          }
 
-         /* ----- ≤767px ----- */
+         /* ----- ≤900px: salon kart gizle (search butonlarina yer kalsin) ----- */
+         @media (max-width: 900px) {
+            .header-left #myLabel,
+            .header-left .form-group.mb-0 { display: none !important; }
+         }
+
+         /* ----- ≤767px: kompakt - boyutlar kuculur, hala tek satir ----- */
          @media (max-width: 767px) {
             .header { padding: 4px 8px !important; }
             .header-right { gap: 3px !important; padding-right: 4px !important; }
-            .header-left #myLabel { max-width: 120px !important; padding: 4px 8px !important; font-size: 10.5px !important; }
             .header-right .kalansms,
             .header-right #whatsappDurumKutu > a.btn,
             .header-right #webtelefon,
@@ -492,9 +502,12 @@
             .header-right .user-notification .dropdown > a.dropdown-toggle.no-arrow:not(.kalansms):not(.btn-warning):not(.btn-success):not(.btn-primary) {
                width: 34px !important; height: 34px !important; font-size: 15px !important;
             }
+            /* SMS sayisini gizle, sadece zarf ikonu kalsin */
+            .header-right .kalansms { font-size: 0 !important; padding: 0 9px !important; }
+            .header-right .kalansms i { font-size: 16px !important; }
          }
 
-         /* ----- ≤575px ----- */
+         /* ----- ≤575px: en kompakt mod, sube secici de gizle ----- */
          @media (max-width: 575px) {
             .header-right { gap: 2px !important; }
             .header-right .user-notification .dropdown > a.dropdown-toggle.no-arrow:not(.kalansms):not(.btn-warning):not(.btn-success):not(.btn-primary) {
@@ -503,6 +516,15 @@
             #whatsappDurumKutu > a.btn,
             #indirimKullan,
             #webtelefon { height: 32px !important; padding: 0 8px !important; }
+            /* Sube home ikonu gizle (zaten search-toggle ile aciliyor) */
+            .header-left .search-toggle-icon.fa-home { display: none !important; }
+         }
+
+         /* ----- ≤420px: yardimci ikonlari da gizle, tek satir korunur ----- */
+         @media (max-width: 420px) {
+            .header-left .search-toggle-icon { display: none !important; }
+            .header-right .kalansms { display: none !important; }
+            #whatsappDurumKutu { display: none !important; }
          }
       </style>
 
