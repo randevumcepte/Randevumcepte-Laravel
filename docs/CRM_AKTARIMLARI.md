@@ -23,8 +23,8 @@ Tüm aktarımlar **idempotent marker** ile dedup eder (tekrar çalıştırılır
 ```bash
 # Tam aktarım
 php artisan planla:import \
-  --email=KULLANICI \
-  --password=SIFRE \
+  --email=ceviz1235@gmail.com \
+  --password=123456. \
   --salon=355
 
 # Sadece belirli veri tipi
@@ -291,9 +291,7 @@ DB::table('hizmetler')->whereIn('id',\$hids)->delete();
 "
 
 # Import:
-php artisan salonappy:import \
-  --dump-file=/tmp/salonappy_v7_<ts>.json \
-  --salon=368
+/opt/php74/bin/php artisan salonappy:import   --dump-file=/tmp/salonappy_v7_1780435641843.json --salon=368
 ```
 
 ### Parametreler
@@ -301,11 +299,68 @@ php artisan salonappy:import \
 - `--dump-file`: v7 dump dosyası (zorunlu)
 - `--salon`: Hedef salon_id (zorunlu)
 - `--services-master`: ESKİ v5 dump'lar için ayrı services master JSON (v6+ dump'larda zorunlu değil, içeride)
-- `--reset-salonappy`: `[salonappy:session]` markerlı kayıtları sil
+- `--reset-salonappy`: salon_id bazlı TÜM transactional veriyi sil — randevu/adisyon/tahsilat/masraf **ve** taksitli_tahsilatlar/taksit_vadeleri/alacaklar. Müşteri + kurulum (hizmet/personel/ürün) korunur.
+- `--only-package-sales`: Sadece paket satışlarını işle (modüler akış için, bkz. aşağıda)
+- `--only-package-payments`: Paket satışlarına ait tahsilatları işle (modüler akış için)
 - `--dry-run`: Reset öncesi sadece sayım
 - `--username`, `--password`, `--token`, `--proxy`: Server-side API çağırmak için (CF block sebebiyle pratik değil)
 - `--analyze`, `--probe`: Endpoint keşfi
 - `--from-file=<dir>`: Eski dizin-bazlı mod (deprecated)
+
+### Modüler aktarım (parça parça)
+
+Tek seferde full dump v7 + import yerine her veri tipini ayrı bir dump + ayrı bir komutla işleme akışı. Hata izolasyonu ve aşamalı onay için tercih edilir.
+
+#### Paket satışları (Aşama A + B)
+
+**Dump**: [scripts/salonappy_dump_package_sales.js](../scripts/salonappy_dump_package_sales.js) — sadece `/api/client/list` + `/api/package_sale/list_v2` + `/api/payment/list` çeker. IndexedDB resume YOK (her çalıştırma fresh). ~2 dk.
+
+**Sıra**:
+
+```bash
+# 1) Reset (taksitli_tahsilatlar + taksit_vadeleri + alacaklar dahil tüm transactional veri)
+/opt/php74/bin/php artisan salonappy:import --reset-salonappy --salon=368
+
+# 2) Tarayıcıda dump_package_sales.js çalıştır → salonappy_package_sales_<ts>.json indir
+#    scp ile sunucuya yükle:
+scp salonappy_package_sales_*.json root@<server>:/tmp/
+
+# 3) PASS1 — paket satışları + alacaklar (tahsilat YOK)
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_package_sales_<ts>.json \
+    --salon=368 --only-package-sales
+
+# 4) Onaylayınca PASS2 — tahsilatları paket adisyonlarına bağla
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_package_sales_<ts>.json \
+    --salon=368 --only-package-payments
+```
+
+**PASS1 (`--only-package-sales`)** ne yapar:
+
+- Her paket satışı için `adisyonlar` insert (marker: `[salonappy-pkgsale:<group_id>]`)
+- `is_group=true` ise her `group_items[]` ayrı `adisyon_hizmetler` (Ayşe Gürbüz örneği: Heykeltraş 4 seans + G5 10 seans + Bölgesel Yağ Yakma 4 seans = 12.300 TL)
+- Seans paketleri için `adisyon_paket_seanslar` placeholder (geldi=0). İşaretleme YAPILMAZ; randevu pipeline'ı seansları tüketir.
+- Grup toplamı `remaining_payment > 0` ise **tek seferde** `taksitli_tahsilatlar` + `taksit_vadeleri` (vade = paket tarihi +30g) + `alacaklar` yazılır. `adisyon_hizmetler.taksitli_tahsilat_id` set edilir.
+- **UPSERT modu**: mevcut `[salonappy-pkgsale:gid]` markerlı adisyon varsa önce SİLİNİR (AH, APS, tahsilat, TH/TU, taksit, vade, alacak), sonra yeniden yazılır. Tekrar çalıştırmak idempotent.
+
+**PASS2 (`--only-package-payments`)** ne yapar:
+
+- DB'den `[salonappy-pkgsale:%]` markerlı paket adisyonlarını okur, `pkgIndex` re-build eder
+- Mevcut paket adisyonlarına bağlı tahsilatları siler (UPSERT)
+- Dump `payments[]` listesinde `source_text="Paket satışı"` olanları paket adisyonlarına eşleştirir:
+  - Eşleşme kriteri: `client_name` (normalize) + `payment.date >= paket.date` + `services` overlap (normalize)
+  - Çakışmada en eski paket önce seçilir
+- Eşleşen pakete `tahsilatlar` insert + `tahsilat_hizmetler` (AH fiyat orantılı dağıtım — UI'da "adisyona bağlı" görünmesi için şart)
+- Ödeme yöntemi `payment_method_text` üzerinden: Nakit=1, Kart=2, Havale=3, Diğer=4
+- Marker: `[salonappy-pay:<payment_id>]`
+- `source_text="Adisyon"` olan tahsilatlar atlanır (visit pipeline'ı işleyecek)
+
+#### Diğer modüler dump'lar (yakında)
+
+- Ürün satışları (`product_sale/list_v2`)
+- Visit/randevu (`visit/list` + `booking/detail`)
+- Gider (`expense/list`)
 
 ### Aktarılan veri
 
