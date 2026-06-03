@@ -357,7 +357,7 @@ scp salonappy_package_sales_*.json root@<server>:/tmp/
   - **`payment.date >= paket.date` filtresi YOK** — Salonappy'de kaparo veya geriye dönük kayıt nedeniyle ödeme paketten önce de gözükebilir (Yıldız Acar 2025-05-01 payment, paket 2025-05-02)
   - **Services overlap fail fallback**: müşterinin DB'deki en eski paket adisyonuna bağlan (Nesrin Özmen payment svc=G5+Heykeltraş, paketleri Pedikür+Manikür — tutarsız Salonappy verisi için)
   - Çakışmada **en eski paket** önce seçilir
-- Eşleşen pakete `tahsilatlar` insert + `tahsilat_hizmetler` (AH fiyat orantılı dağıtım — UI'da "adisyona bağlı" görünmesi için şart)
+- Eşleşen pakete `tahsilatlar` insert + `tahsilat_hizmetler` (AH fiyat orantılı dağıtım — UI'da "adisyona bağlı" görünmesi için şart). **AH fiyat toplamı 0 ise** (Salonappy'de 87 fiyat=0 paket) **eşit pay** ile dağıtılır; aksi halde UI "Satış Takibi" `odenenTutar=SUM(tahsilat_hizmetler.tutar)` hesabı eksik gösterir.
 - **Ödeme yöntemi** `payment_method_text` üzerinden: Nakit=1, Kart=2, Havale=3, Diğer=4
 - Marker: `[salonappy-pay:<payment_id>]`
 - `source_text="Adisyon"` olan tahsilatlar atlanır (visit pipeline'ı işleyecek)

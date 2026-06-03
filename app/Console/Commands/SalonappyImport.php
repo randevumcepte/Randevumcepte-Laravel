@@ -1422,26 +1422,36 @@ class SalonappyImport extends Command
                 $ahsBu = \DB::table('adisyon_hizmetler')->where('adisyon_id', $m['adId'])->get(['id', 'fiyat']);
                 $tFiyat = 0.0;
                 foreach ($ahsBu as $a) $tFiyat += (float) $a->fiyat;
+                $paylar = []; $payToplam = 0;
+                $n = $ahsBu->count();
                 if ($tFiyat > 0) {
+                    // Fiyat orantili dagit
                     $oran = $amount / $tFiyat;
-                    $paylar = []; $payToplam = 0;
                     foreach ($ahsBu as $a) {
                         $py = round((float)$a->fiyat * $oran, 2);
                         $paylar[(int)$a->id] = $py;
                         $payToplam += $py;
                     }
-                    $fark = round($amount - $payToplam, 2);
-                    if (abs($fark) > 0.001 && !empty($paylar)) {
-                        end($paylar); $sk = key($paylar);
-                        $paylar[$sk] = round($paylar[$sk] + $fark, 2);
+                } elseif ($n > 0) {
+                    // Salonappy paket fiyat=0 ise (87 paket) esit dagit; UI 'Satis Takibi'
+                    // odenenTutar = SUM(tahsilat_hizmetler.tutar), TH bos kalirsa eksik gosterir.
+                    $per = round($amount / $n, 2);
+                    foreach ($ahsBu as $a) {
+                        $paylar[(int)$a->id] = $per;
+                        $payToplam += $per;
                     }
-                    foreach ($paylar as $ahKey => $py) {
-                        if ($py <= 0) continue;
-                        \DB::table('tahsilat_hizmetler')->insert([
-                            'tahsilat_id' => $tahId, 'adisyon_hizmet_id' => $ahKey, 'tutar' => $py,
-                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                        ]);
-                    }
+                }
+                $fark = round($amount - $payToplam, 2);
+                if (abs($fark) > 0.001 && !empty($paylar)) {
+                    end($paylar); $sk = key($paylar);
+                    $paylar[$sk] = round($paylar[$sk] + $fark, 2);
+                }
+                foreach ($paylar as $ahKey => $py) {
+                    if ($py <= 0) continue;
+                    \DB::table('tahsilat_hizmetler')->insert([
+                        'tahsilat_id' => $tahId, 'adisyon_hizmet_id' => $ahKey, 'tutar' => $py,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
                 }
                 $pkgIndex[$gid]['paid'] = round($m['paid'] + $amount, 2);
                 $gTah++; $pAtanan++;
