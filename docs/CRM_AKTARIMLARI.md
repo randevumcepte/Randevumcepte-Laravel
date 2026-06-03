@@ -341,7 +341,9 @@ scp salonappy_package_sales_*.json root@<server>:/tmp/
 - Her paket satışı için `adisyonlar` insert (marker: `[salonappy-pkgsale:<group_id>]`)
 - `is_group=true` ise her `group_items[]` ayrı `adisyon_hizmetler` (Ayşe Gürbüz örneği: Heykeltraş 4 seans + G5 10 seans + Bölgesel Yağ Yakma 4 seans = 12.300 TL)
 - Seans paketleri için `adisyon_paket_seanslar` placeholder (geldi=0). İşaretleme YAPILMAZ; randevu pipeline'ı seansları tüketir.
-- Grup toplamı `remaining_payment > 0` ise **tek seferde** `taksitli_tahsilatlar` + `taksit_vadeleri` (vade = paket tarihi +30g) + `alacaklar` yazılır. `adisyon_hizmetler.taksitli_tahsilat_id` set edilir.
+- **Alacak filtresi**: `receivable_amount > 0` VEYA (`remaining_payment > 0` AND `paid_amount > 0`). Hiç ödenmemiş paketler (paid=0, rec=0) alacak DEĞİL — Salonappy de göstermiyor (Hayal Kıran vb 18 örnek).
+- **Vade tarihi**: `created_at`'in gün kısmı (Salonappy UI ile %100 uyum). Önder Yılmaz: date=2025-03-20 + payment_date=2025-04-21 olsa da UI 25.03.2025 gösteriyor — bu `created_at=2025-03-25` değerinden geliyor.
+- Filtreyi geçen her paket için `taksitli_tahsilatlar` + `taksit_vadeleri` + `alacaklar` üçlüsü atomik yazılır (vade_sayisi=1). `adisyon_hizmetler.taksitli_tahsilat_id` set edilir. Hem "Alacaklar" sayfası hem "Satış Takibi" sayfası bunlara JOIN yaptığı için üçü beraber zorunlu.
 - **UPSERT modu**: mevcut `[salonappy-pkgsale:gid]` markerlı adisyon varsa önce SİLİNİR (AH, APS, tahsilat, TH/TU, taksit, vade, alacak), sonra yeniden yazılır. Tekrar çalıştırmak idempotent.
 
 **PASS2 (`--only-package-payments`)** ne yapar:
