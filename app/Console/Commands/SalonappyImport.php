@@ -1154,6 +1154,7 @@ class SalonappyImport extends Command
                     'notlar' => $marker,
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                 ]);
+                $grpKalan = 0.0;
                 foreach ($rows as $r) {
                     // Salonappy iki yapi:
                     //  (a) is_group=true + group_items[] → her hizmet KENDI quantity+total_usage+total_amount
@@ -1163,6 +1164,7 @@ class SalonappyImport extends Command
                     $items = (!empty($r['is_group']) && !empty($r['group_items']) && is_array($r['group_items']))
                         ? $r['group_items']
                         : [$r];
+                    $grpKalan += (float) ($r['remaining_payment'] ?? 0);
                     foreach ($items as $it) {
                         $svcAd = trim((string) ($it['service_text'] ?? ''));
                         if ($svcAd === '') continue;
@@ -1198,6 +1200,33 @@ class SalonappyImport extends Command
                         }
                     }
                 }
+                // Alacak: remaining_payment > 0 ise TaksitliTahsilatlar + TaksitVadeleri + Alacaklar
+                // (vade = paket tarihi +30g). Tahsilat YOK; sadece kalan tutar alacak olarak yazilir.
+                if ($grpKalan > 0.01) {
+                    $vadeTarih = date('Y-m-d', strtotime($tarih . ' +30 days'));
+                    $tt = \DB::table('taksitli_tahsilatlar')->insertGetId([
+                        'user_id' => $userId, 'adisyon_id' => $adId,
+                        'salon_id' => $salonId, 'vade_sayisi' => 1,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $vadeId = \DB::table('taksit_vadeleri')->insertGetId([
+                        'taksitli_tahsilat_id' => $tt, 'odendi' => 0,
+                        'vade_tarih' => $vadeTarih, 'tutar' => round($grpKalan, 2),
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    if (\Schema::hasTable('alacaklar')) {
+                        \DB::table('alacaklar')->insert([
+                            'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => $adId,
+                            'tutar' => round($grpKalan, 2), 'taksit_vade_id' => $vadeId,
+                            'planlanan_odeme_tarihi' => $vadeTarih,
+                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                    \DB::table('adisyon_hizmetler')->where('adisyon_id', $adId)
+                        ->whereNull('taksitli_tahsilat_id')
+                        ->update(['taksitli_tahsilat_id' => $tt]);
+                    $gTaksit++;
+                }
                 $gEklenen++;
             } catch (\Throwable $e) {
                 $gHata++;
@@ -1205,8 +1234,8 @@ class SalonappyImport extends Command
             }
         }
 
-        $this->info("Package sales (PASS1 only - tahsilat YOK): eklenen=$gEklenen, dedup=$gDedup, hata=$gHata");
-        $this->line('Bir sonraki adim: --only-package-payments ile ayni dump dosyasiyla tahsilatlari + kalan alacagi yaz.');
+        $this->info("Package sales (PASS1 - paket+alacak, tahsilat YOK): eklenen=$gEklenen, dedup=$gDedup, hata=$gHata, taksitli_alacak=$gTaksit");
+        $this->line('Bir sonraki adim: --only-package-payments ile ayni dump dosyasiyla tahsilatlari yaz.');
         return 0;
     }
 
@@ -1259,18 +1288,9 @@ class SalonappyImport extends Command
             \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $eskiTahIds)->delete();
             \DB::table('tahsilatlar')->whereIn('id', $eskiTahIds)->delete();
         }
-        $eskiTtIds = \DB::table('taksitli_tahsilatlar')->whereIn('adisyon_id', $pkgIds)->pluck('id')->all();
-        if (!empty($eskiTtIds)) {
-            \DB::table('taksit_vadeleri')->whereIn('taksitli_tahsilat_id', $eskiTtIds)->delete();
-            if (\Schema::hasTable('alacaklar')) {
-                \DB::table('alacaklar')->whereIn('adisyon_id', $pkgIds)->delete();
-            }
-            \DB::table('taksitli_tahsilatlar')->whereIn('id', $eskiTtIds)->delete();
-        }
-        \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $pkgIds)
-            ->whereNotNull('taksitli_tahsilat_id')
-            ->update(['taksitli_tahsilat_id' => null]);
-        $this->line("Temizlendi: tahsilat={" . count($eskiTahIds) . "} taksitli_tahsilat={" . count($eskiTtIds) . "}");
+        // NOT: taksitli_tahsilatlar + taksit_vadeleri + alacaklar Pass1'de remaining_payment'a gore
+        // zaten yazildi. Pass2 yalniz tahsilat eklemekle ilgilenir; alacak'a dokunmaz.
+        $this->line("Temizlendi: tahsilat=" . count($eskiTahIds));
 
         // 2) pkgIndex re-build (DB'den)
         $pkgIndex = [];
@@ -1379,42 +1399,7 @@ class SalonappyImport extends Command
                 \Log::warning('[Salonappy pay-match] hata', ['pid' => $pid, 'err' => $e->getMessage()]);
             }
         }
-        $this->line("PASS2 sonuc: atanan=$pAtanan, atlanan=$pAtlanan, hata=$pHata");
-
-        // 4) PASS3: kalan > 0 ise taksit
-        foreach ($pkgIndex as $gid => $m) {
-            $kalan = round($m['total'] - $m['paid'], 2);
-            if ($kalan <= 0.01) continue;
-            try {
-                $vadeTarih = date('Y-m-d', strtotime($m['date'] . ' +30 days'));
-                $tt = \DB::table('taksitli_tahsilatlar')->insertGetId([
-                    'user_id' => $m['userId'], 'adisyon_id' => $m['adId'],
-                    'salon_id' => $salonId, 'vade_sayisi' => 1,
-                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                ]);
-                $vadeId = \DB::table('taksit_vadeleri')->insertGetId([
-                    'taksitli_tahsilat_id' => $tt, 'odendi' => 0,
-                    'vade_tarih' => $vadeTarih, 'tutar' => $kalan,
-                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                ]);
-                if (\Schema::hasTable('alacaklar')) {
-                    \DB::table('alacaklar')->insert([
-                        'salon_id' => $salonId, 'user_id' => $m['userId'], 'adisyon_id' => $m['adId'],
-                        'tutar' => $kalan, 'taksit_vade_id' => $vadeId,
-                        'planlanan_odeme_tarihi' => $vadeTarih,
-                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                    ]);
-                }
-                \DB::table('adisyon_hizmetler')->where('adisyon_id', $m['adId'])
-                    ->whereNull('taksitli_tahsilat_id')
-                    ->update(['taksitli_tahsilat_id' => $tt]);
-                $gTaksit++;
-            } catch (\Throwable $e) {
-                \Log::warning('[Salonappy taksit] hata', ['gid' => $gid, 'err' => $e->getMessage()]);
-            }
-        }
-
-        $this->info("Package payments: tahsilat=$gTah, taksit=$gTaksit");
+        $this->info("Package payments: tahsilat=$gTah, atanan=$pAtanan, atlanan=$pAtlanan, hata=$pHata");
         return 0;
     }
 
