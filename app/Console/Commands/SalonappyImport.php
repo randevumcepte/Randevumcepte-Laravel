@@ -1163,17 +1163,43 @@ class SalonappyImport extends Command
                         $payExists = \DB::table('tahsilatlar')->where('salon_id', $salonId)
                             ->where('notlar', 'LIKE', '%' . $payMarker . '%')->exists();
                         if (!$payExists) {
-                            // payments map'ten payment_method_text bul (client_name+date+amount)
                             $cn = strtolower(trim((string)($first['client_name'] ?? '')));
                             $pmt = $payIdx[$cn . '|' . $payDate . '|' . $paid] ?? '';
                             $yontemId = $yontemMap($pmt);
-                            \DB::table('tahsilatlar')->insert([
+                            $tahId = \DB::table('tahsilatlar')->insertGetId([
                                 'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => $adId,
                                 'odeme_tarihi' => $payDate, 'tutar' => $paid,
                                 'odeme_yontemi_id' => $yontemId, 'notlar' => $payMarker,
                                 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                             ]);
                             $gTah++;
+                            // TH dagitimi (UI'da adisyona bagli gozukmesi icin sart)
+                            // Adisyondaki tum AH'lerin fiyat toplamina orantili boluştur.
+                            $ahsBu = \DB::table('adisyon_hizmetler')->where('adisyon_id', $adId)
+                                ->get(['id', 'fiyat']);
+                            $tFiyat = 0.0;
+                            foreach ($ahsBu as $a) $tFiyat += (float) $a->fiyat;
+                            if ($tFiyat > 0) {
+                                $oran = $paid / $tFiyat;
+                                $paylar = []; $payToplam = 0;
+                                foreach ($ahsBu as $a) {
+                                    $p = round((float)$a->fiyat * $oran, 2);
+                                    $paylar[(int)$a->id] = $p;
+                                    $payToplam += $p;
+                                }
+                                $fark = round($paid - $payToplam, 2);
+                                if (abs($fark) > 0.001 && !empty($paylar)) {
+                                    end($paylar); $sk = key($paylar);
+                                    $paylar[$sk] = round($paylar[$sk] + $fark, 2);
+                                }
+                                foreach ($paylar as $ahKey => $py) {
+                                    if ($py <= 0) continue;
+                                    \DB::table('tahsilat_hizmetler')->insert([
+                                        'tahsilat_id' => $tahId, 'adisyon_hizmet_id' => $ahKey, 'tutar' => $py,
+                                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                                    ]);
+                                }
+                            }
                         }
                     }
                     // ALACAK: remaining_payment > 0 ise TaksitliTahsilatlar + TaksitVadeleri + Alacaklar
