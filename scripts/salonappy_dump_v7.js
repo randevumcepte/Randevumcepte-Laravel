@@ -181,7 +181,7 @@
     const dateEnd = dEnd.toISOString().slice(0,10);
     let offset = 0; const limit = 100;
     while (true) {
-      const j = await get(`/package_sale/list?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}`);
+      const j = await get(`/package_sale/list_v2?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}&is_deleted=0`);
       const arr = j?.data?.package_sales || [];
       if (!arr.length) break;
       packageSales.push(...arr);

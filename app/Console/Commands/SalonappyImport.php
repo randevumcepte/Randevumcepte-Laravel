@@ -19,6 +19,7 @@ class SalonappyImport extends Command
         {--dump-file= : Tarayici scripti ile indirilen tek JSON dump dosyasi (clients + bookings)}
         {--services-master= : Salonappy /setup/services endpointinden cekilen master JSON (id->title TR)}
         {--reset-salonappy : [salonappy:session] markerli randevu+adisyon+kalemleri sil (musteriler kalir)}
+        {--only-package-sales : Dump'tan sadece paket satislarini (packageSales[]) isle: adisyon+AH+APS (usage_date doluysa geldi=1) + tahsilat (paid_amount > 0). Diger pipeline'lari (visit, payment, expense) atlar.}
         {--dry-run : Reset/import oncesi sadece sayim}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
@@ -85,6 +86,10 @@ class SalonappyImport extends Command
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            // --only-package-sales: dump'tan sadece packageSales[] isle, digerlerini atla
+            if ((bool) $this->option('only-package-sales')) {
+                return $this->importPackageSalesOnly($dumpFile, (int) $salonId);
+            }
             // v5 yapısını otomatik dedect et: visits + bookingDetails
             $peek = json_decode(file_get_contents($dumpFile), true);
             $servicesMasterFile = $this->option('services-master');
@@ -687,8 +692,11 @@ class SalonappyImport extends Command
             $this->info("Giderler: eklenen={$eEklenen}, dedup={$eDedup}, hata={$eHata}");
         }
 
-        // 5) PACKAGE SALES — paket satislari (visit'siz, tahsilatlari payments'tan)
-        // Her satir = paket satisinin 1 hizmeti, group_id ile grupla → 1 adisyon.
+        // 5) PACKAGE SALES — /api/package_sale/list_v2 zengin alanlar:
+        //  usage_date doluysa AH.geldi=1 + APS.geldi=1 (seans kullanildi)
+        //  paid_amount > 0 ise tahsilat ekle (marker [salonappy-pkgsale-pay:id])
+        //  total_usage / quantity bazli AH.seans_sayisi
+        //  client_phone_number_local ile telefon eslestirme
         $pkgSales = $j['packageSales'] ?? [];
         if (!empty($pkgSales)) {
             $groups = [];
@@ -697,8 +705,8 @@ class SalonappyImport extends Command
                 if (!$gid) continue;
                 $groups[$gid][] = $row;
             }
-            $this->line('Package sales gruplari: ' . count($groups) . ' kayit (toplam satir: ' . count($pkgSales) . ')');
-            $gEklenen = 0; $gDedup = 0; $gHata = 0;
+            $this->line('Package sales gruplari: ' . count($groups) . ' (toplam satir: ' . count($pkgSales) . ')');
+            $gEklenen = 0; $gDedup = 0; $gHata = 0; $gTah = 0;
             foreach ($groups as $gid => $rows) {
                 $marker = '[salonappy-pkgsale:' . $gid . ']';
                 $exists = \DB::table('adisyonlar')->where('salon_id', $salonId)
@@ -707,6 +715,11 @@ class SalonappyImport extends Command
                 $first = $rows[0];
                 $clientId = (string) ($first['client_id'] ?? '');
                 $userId = $clientId ? ($idMap[$clientId] ?? null) : null;
+                if (!$userId) {
+                    // Telefon match (v2 zengin alan)
+                    $phone = preg_replace('~\D~', '', (string) ($first['client_phone_number_local'] ?? ''));
+                    if ($phone) $userId = \DB::table('users')->where('cep_telefon', $phone)->value('id');
+                }
                 if (!$userId) {
                     $clientName = trim((string) ($first['client_name'] ?? ''));
                     if ($clientName) $userId = \DB::table('users')->where('name', 'LIKE', $clientName)->orderByDesc('id')->value('id');
@@ -722,25 +735,52 @@ class SalonappyImport extends Command
                     foreach ($rows as $r) {
                         $svcAd = trim((string) ($r['service_text'] ?? ''));
                         if ($svcAd === '') continue;
-                        $period = max(1, (int) ($r['quantity'] ?? $r['total_usage'] ?? 1));
+                        $period = max(1, (int) ($r['quantity'] ?? 1));
+                        $kullanilan = max(0, (int) ($r['total_usage'] ?? 0));
                         $tutar = (float) ($r['total_amount'] ?? 0);
                         $fiyat = $period > 0 ? round($tutar / $period, 2) : $tutar;
+                        $usageDate = trim((string) ($r['usage_date'] ?? '')) ?: null;
                         $hid = $this->ensureSalonHizmet($salonId, $svcAd, 30, $fiyat, $svcAd);
                         if (!$hid) continue;
+                        // AH.geldi: tum quantity kullanildiysa 1, kismi/hic ise 0
+                        $ahGeldi = ($kullanilan >= $period) ? 1 : 0;
                         $ahId = \DB::table('adisyon_hizmetler')->insertGetId([
                             'adisyon_id' => $adId, 'hizmet_id' => $hid,
-                            'geldi' => 0, 'islem_tarihi' => $tarih, 'islem_saati' => '00:00:00',
+                            'geldi' => $ahGeldi, 'islem_tarihi' => ($usageDate ?: $tarih), 'islem_saati' => '00:00:00',
                             'sure' => 30, 'fiyat' => $tutar, 'seans_sayisi' => $period,
                             'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                         ]);
-                        if ($period > 1) {
-                            for ($i = 1; $i <= $period; $i++) {
-                                \DB::table('adisyon_paket_seanslar')->insert([
-                                    'adisyon_hizmet_id' => $ahId, 'hizmet_id' => $hid,
-                                    'seans_no' => $i, 'geldi' => 0,
-                                    'created_at' => date('Y-m-d H:i:s'),
-                                    'updated_at' => date('Y-m-d H:i:s'),
+                        // N adet APS: ilk $kullanilan tanesi geldi=1 (usage_date), kalani geldi=0 placeholder
+                        for ($i = 1; $i <= $period; $i++) {
+                            $apsGeldi = ($i <= $kullanilan) ? 1 : 0;
+                            $row = [
+                                'adisyon_hizmet_id' => $ahId, 'hizmet_id' => $hid,
+                                'seans_no' => $i, 'geldi' => $apsGeldi,
+                                'created_at' => date('Y-m-d H:i:s'),
+                                'updated_at' => date('Y-m-d H:i:s'),
+                            ];
+                            if ($apsGeldi && $usageDate) {
+                                $row['seans_tarih'] = $usageDate;
+                                $row['seans_saat'] = '00:00:00';
+                                if (\Schema::hasColumn('adisyon_paket_seanslar', 'dusulen_miktar')) $row['dusulen_miktar'] = 1;
+                            }
+                            \DB::table('adisyon_paket_seanslar')->insert($row);
+                        }
+                        // Tahsilat: paid_amount > 0 ise (her satir kendi paymentini gosterir)
+                        $paid = (float) ($r['paid_amount'] ?? 0);
+                        if ($paid > 0) {
+                            $payDate = trim((string) ($r['payment_date'] ?? '')) ?: $tarih;
+                            $payMarker = '[salonappy-pkgsale-pay:' . ($r['id'] ?? $gid) . ']';
+                            $payExists = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                                ->where('notlar', 'LIKE', '%' . $payMarker . '%')->exists();
+                            if (!$payExists) {
+                                \DB::table('tahsilatlar')->insert([
+                                    'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => $adId,
+                                    'odeme_tarihi' => $payDate, 'tutar' => $paid,
+                                    'odeme_yontemi_id' => 1, 'notlar' => $payMarker,
+                                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                                 ]);
+                                $gTah++;
                             }
                         }
                     }
@@ -750,7 +790,7 @@ class SalonappyImport extends Command
                     \Log::warning('[Salonappy pkgsale] hata', ['gid' => $gid, 'err' => $e->getMessage()]);
                 }
             }
-            $this->info("Package sales: eklenen={$gEklenen}, dedup={$gDedup}, hata={$gHata}");
+            $this->info("Package sales: eklenen={$gEklenen}, dedup={$gDedup}, hata={$gHata}, tahsilat={$gTah}");
         }
 
         // 6) PAYMENTS — comprehensive tahsilat listesi
@@ -997,6 +1037,123 @@ class SalonappyImport extends Command
      * adisyon kayitlarini ve bagli alt kayitlari sil. Tahsilatlar'da bagli olanlarin
      * adisyon_id'sini NULL'a cek (tahsilat'i tutup, sonra reimport'ta dedup gecer).
      */
+    /**
+     * Dump'tan SADECE paket satislarini parse et — visit/payment/expense'i atla.
+     * usage_date doluysa APS.geldi=1 + seans_tarih, paid_amount > 0 ise tahsilat.
+     */
+    private function importPackageSalesOnly($file, $salonId)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: $file"); return 1; }
+        $j = json_decode(file_get_contents($file), true);
+        if (!is_array($j)) { $this->error('Gecersiz JSON.'); return 1; }
+        $pkgSales = $j['packageSales'] ?? [];
+        if (empty($pkgSales)) { $this->warn('packageSales[] bos veya yok'); return 0; }
+
+        // Musteri eslestirme icin clients map (idMap)
+        $idMap = [];
+        foreach (($j['clients'] ?? []) as $c) {
+            $sid = (string) ($c['id'] ?? '');
+            if (!$sid) continue;
+            $phone = preg_replace('~\D~', '', (string) ($c['phone_number_local'] ?? $c['phone_number'] ?? ''));
+            if ($phone) {
+                $uid = \DB::table('users')->where('cep_telefon', $phone)->value('id');
+                if ($uid) $idMap[$sid] = $uid;
+            }
+        }
+        $this->line('idMap kuruldu: ' . count($idMap) . ' musteri eslesti');
+
+        $groups = [];
+        foreach ($pkgSales as $row) {
+            $gid = (string) ($row['group_id'] ?? $row['id'] ?? '');
+            if (!$gid) continue;
+            $groups[$gid][] = $row;
+        }
+        $this->line('Package sales gruplari: ' . count($groups) . ' (toplam satir: ' . count($pkgSales) . ')');
+
+        $gEklenen = 0; $gDedup = 0; $gHata = 0; $gTah = 0;
+        foreach ($groups as $gid => $rows) {
+            $marker = '[salonappy-pkgsale:' . $gid . ']';
+            $exists = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                ->where('notlar', 'LIKE', '%' . $marker . '%')->exists();
+            if ($exists) { $gDedup++; continue; }
+            $first = $rows[0];
+            $clientId = (string) ($first['client_id'] ?? '');
+            $userId = $clientId ? ($idMap[$clientId] ?? null) : null;
+            if (!$userId) {
+                $phone = preg_replace('~\D~', '', (string) ($first['client_phone_number_local'] ?? ''));
+                if ($phone) $userId = \DB::table('users')->where('cep_telefon', $phone)->value('id');
+            }
+            if (!$userId) {
+                $clientName = trim((string) ($first['client_name'] ?? ''));
+                if ($clientName) $userId = \DB::table('users')->where('name', 'LIKE', $clientName)->orderByDesc('id')->value('id');
+            }
+            if (!$userId) { $gHata++; continue; }
+            $tarih = $first['date'] ?? date('Y-m-d');
+            try {
+                $adId = \DB::table('adisyonlar')->insertGetId([
+                    'salon_id' => $salonId, 'user_id' => $userId, 'tarih' => $tarih,
+                    'notlar' => $marker,
+                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+                foreach ($rows as $r) {
+                    $svcAd = trim((string) ($r['service_text'] ?? ''));
+                    if ($svcAd === '') continue;
+                    $period = max(1, (int) ($r['quantity'] ?? 1));
+                    $kullanilan = max(0, (int) ($r['total_usage'] ?? 0));
+                    $tutar = (float) ($r['total_amount'] ?? 0);
+                    $fiyat = $period > 0 ? round($tutar / $period, 2) : $tutar;
+                    $usageDate = trim((string) ($r['usage_date'] ?? '')) ?: null;
+                    $hid = $this->ensureSalonHizmet($salonId, $svcAd, 30, $fiyat, $svcAd);
+                    if (!$hid) continue;
+                    $ahGeldi = ($kullanilan >= $period) ? 1 : 0;
+                    $ahId = \DB::table('adisyon_hizmetler')->insertGetId([
+                        'adisyon_id' => $adId, 'hizmet_id' => $hid,
+                        'geldi' => $ahGeldi, 'islem_tarihi' => ($usageDate ?: $tarih), 'islem_saati' => '00:00:00',
+                        'sure' => 30, 'fiyat' => $tutar, 'seans_sayisi' => $period,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    for ($i = 1; $i <= $period; $i++) {
+                        $apsGeldi = ($i <= $kullanilan) ? 1 : 0;
+                        $row2 = [
+                            'adisyon_hizmet_id' => $ahId, 'hizmet_id' => $hid,
+                            'seans_no' => $i, 'geldi' => $apsGeldi,
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ];
+                        if ($apsGeldi && $usageDate) {
+                            $row2['seans_tarih'] = $usageDate;
+                            $row2['seans_saat'] = '00:00:00';
+                            if (\Schema::hasColumn('adisyon_paket_seanslar', 'dusulen_miktar')) $row2['dusulen_miktar'] = 1;
+                        }
+                        \DB::table('adisyon_paket_seanslar')->insert($row2);
+                    }
+                    $paid = (float) ($r['paid_amount'] ?? 0);
+                    if ($paid > 0) {
+                        $payDate = trim((string) ($r['payment_date'] ?? '')) ?: $tarih;
+                        $payMarker = '[salonappy-pkgsale-pay:' . ($r['id'] ?? $gid) . ']';
+                        $payExists = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                            ->where('notlar', 'LIKE', '%' . $payMarker . '%')->exists();
+                        if (!$payExists) {
+                            \DB::table('tahsilatlar')->insert([
+                                'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => $adId,
+                                'odeme_tarihi' => $payDate, 'tutar' => $paid,
+                                'odeme_yontemi_id' => 1, 'notlar' => $payMarker,
+                                'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                            ]);
+                            $gTah++;
+                        }
+                    }
+                }
+                $gEklenen++;
+            } catch (\Throwable $e) {
+                $gHata++;
+                \Log::warning('[Salonappy pkgsale-only] hata', ['gid' => $gid, 'err' => $e->getMessage()]);
+            }
+        }
+        $this->info("Package sales (only): eklenen=$gEklenen, dedup=$gDedup, hata=$gHata, tahsilat=$gTah");
+        return 0;
+    }
+
     private function resetSalonappy($salonId, $dryRun)
     {
         $tR = (new \App\Randevular)->getTable();
