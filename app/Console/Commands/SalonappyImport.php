@@ -1583,9 +1583,9 @@ class SalonappyImport extends Command
             $adet = max(1, (int) ($r['quantity'] ?? 1));
             $toplam = (float) ($r['total_amount'] ?? 0);
             $ppRaw = (float) ($r['product_price'] ?? 0);
-            // Salonappy product_price bazen 0 doner, ama total_amount dolu. Birim fiyat
-            // her zaman total_amount / quantity (dump otoriter).
-            $fiyat = $toplam > 0 ? round($toplam / $adet, 2) : $ppRaw;
+            // AU.fiyat = SATIS TOPLAMI (paket akisiyla simetrik). UI SUM(fiyat) hesabi
+            // birim*adet round farkindan kurus kaybi yaratiyordu (toplamda kusurat).
+            $fiyat = $toplam > 0 ? $toplam : ($ppRaw * $adet);
 
             $urunId = $this->ensureUrun($salonId, $urunAdi, $fiyat, $urunAdi);
             if (!$urunId) { $gHata++; continue; }
@@ -2082,15 +2082,27 @@ class SalonappyImport extends Command
                 $totalSvcPrice = (float) ($d['total_service_price'] ?? 0);
                 $rawSvcPriceSum = 0.0;
                 foreach ($svcArr as $svc) $rawSvcPriceSum += (float) ($svc['price'] ?? 0);
-                $svcFallbackPer = ($rawSvcPriceSum <= 0.01 && $totalSvcPrice > 0 && count($svcArr) > 0)
-                    ? round($totalSvcPrice / count($svcArr), 2) : null;
+                $svcUseFallback = ($rawSvcPriceSum <= 0.01 && $totalSvcPrice > 0 && count($svcArr) > 0);
+                $svcFallbackPer = $svcUseFallback ? round($totalSvcPrice / count($svcArr), 2) : null;
+                $svcCount = count($svcArr);
+                $svcAcc = 0.0;
+                $svcIdx = -1;
 
                 $svcIdToAh = []; // service_id -> [ah_id, ...] (paket usage match icin)
                 foreach ($svcArr as $svc) {
+                    $svcIdx++;
                     $svcAd = trim((string) ($svc['service_text'] ?? ''));
                     if ($svcAd === '') continue;
                     $rawPrice = (float) ($svc['price'] ?? 0);
-                    $fiyat = $svcFallbackPer !== null ? $svcFallbackPer : $rawPrice;
+                    if ($svcUseFallback) {
+                        // Yuvarlama farki son AH'ye yansir; toplam = total_service_price tam
+                        $fiyat = ($svcIdx === $svcCount - 1)
+                            ? round($totalSvcPrice - $svcAcc, 2)
+                            : $svcFallbackPer;
+                        $svcAcc += $fiyat;
+                    } else {
+                        $fiyat = $rawPrice;
+                    }
                     $sure  = max(15, (int) ($svc['duration'] ?? 30));
                     $hid = $this->ensureSalonHizmet($salonId, $svcAd, $sure, $fiyat, $svcAd);
                     if (!$hid) continue;
@@ -2179,19 +2191,28 @@ class SalonappyImport extends Command
                 foreach ($psArr as $ps) {
                     $rawPsTotalSum += (float) ($ps['total_amount'] ?? 0);
                 }
-                $psFallbackPer = ($rawPsTotalSum <= 0.01 && $totalSalesAmt > 0 && count($psArr) > 0)
-                    ? round($totalSalesAmt / count($psArr), 2) : null;
+                $psUseFallback = ($rawPsTotalSum <= 0.01 && $totalSalesAmt > 0 && count($psArr) > 0);
+                $psFallbackPer = $psUseFallback ? round($totalSalesAmt / count($psArr), 2) : null;
+                $psCount = count($psArr);
+                $psAcc = 0.0;
+                $psIdx = -1;
                 foreach ($psArr as $ps) {
+                    $psIdx++;
                     $pAd = trim((string) ($ps['product_text'] ?? ''));
                     if ($pAd === '') continue;
                     $pAdet = max(1, (int) ($ps['quantity'] ?? 1));
                     $pTutar = (float) ($ps['total_amount'] ?? 0);
                     $ppRaw = (float) ($ps['product_price'] ?? 0);
-                    if ($psFallbackPer !== null) {
-                        // Hepsi 0 ise: visit'in total_sales_amount'i kalemlere esit boluştur
-                        $pFiyat = round($psFallbackPer / $pAdet, 2);
+                    if ($psUseFallback) {
+                        // Yuvarlama farki son AU'ya tasinir; toplam = total_sales_amount tam
+                        $pFiyat = ($psIdx === $psCount - 1)
+                            ? round($totalSalesAmt - $psAcc, 2)
+                            : $psFallbackPer;
+                        $psAcc += $pFiyat;
                     } else {
-                        $pFiyat = $pTutar > 0 ? round($pTutar / $pAdet, 2) : $ppRaw;
+                        // AU.fiyat = SATIS TOPLAMI (paket akisiyla simetrik). Birim*adet round
+                        // kurus kaybi yaratiyordu; UI controller SUM(fiyat) hesabini yapiyor.
+                        $pFiyat = $pTutar > 0 ? $pTutar : ($ppRaw * $pAdet);
                     }
                     $urunId = $this->ensureUrun($salonId, $pAd, $pFiyat, $pAd);
                     if (!$urunId) continue;
