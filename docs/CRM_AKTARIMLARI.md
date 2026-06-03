@@ -353,6 +353,8 @@ scp salonappy_package_sales_*.json root@<server>:/tmp/
 - Mevcut paket adisyonlarına bağlı tahsilatları siler (UPSERT)
 - Dump `payments[]` listesinde `source_text="Paket satışı"` olanları paket adisyonlarına eşleştirir:
   - **Eşleşme kriteri** (öncelik sırası): (1) EXACT services match (payment.svc paket.svcNorms içinde tam eşleşme), (2) SUBSTRING match (birinin diğerini içermesi), (3) FALLBACK (müşterinin tüm paketleri). Dilzerin örneği: payment "Kaş Alma" → exact "Kaş Alma" paketi substring "Ölçülü Kaş Alma"dan önce seçilir.
+  - **Aday içinde paket seçimi**: her sınıfta FIT olan (`paket.kalan = paket.total - paid_so_far >= payment.amount` — UI'da eksi göstermesin) adaylar önce; FIT içinden `payment.date`'e mutlak farkı en yakın paket seçilir. Bir sınıfta FIT yoksa alt sınıfa düşülür. Hiçbir sınıfta FIT yoksa **payment atlanır** (Gülcan Bikini paid=2000 tot=2000, ikinci 1000 TL payment'ı atlanır — Salonappy taraflı overpay).
+  - Cennet örneği: payment 1750 TL date=2025-05-10, adaylar 2025-04-16 G5 (total=0 FIT değil) + 2025-05-10 G5+Heykeltraş (total=1750 FIT) → 10.05.2025 paketine atanır, eski 16.04 paketinde eksi gözükmez.
   - **`kalan > 0` filtresi YOK** — tamamen ödenmiş paketler (Gülcan Bikini paid=2000 tot=2000) de geçmiş tahsilat alabilir
   - **`payment.date >= paket.date` filtresi YOK** — Salonappy'de kaparo veya geriye dönük kayıt nedeniyle ödeme paketten önce de gözükebilir (Yıldız Acar 2025-05-01 payment, paket 2025-05-02)
   - **Services overlap fail fallback**: müşterinin DB'deki en eski paket adisyonuna bağlan (Nesrin Özmen payment svc=G5+Heykeltraş, paketleri Pedikür+Manikür — tutarsız Salonappy verisi için)

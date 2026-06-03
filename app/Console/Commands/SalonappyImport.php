@@ -1387,6 +1387,7 @@ class SalonappyImport extends Command
             //  - kaparo / ileri tarihli kayit (Yildiz Acar payment=2025-05-01 paket date=2025-05-02)
             // Cakismada en eski paket secilir.
             // Dilzerin ornek: payment 'kas alma' -> exact 'Kas Alma' paketi 'Olculu Kas Alma' (substring) yerine secilir.
+            // 3 sinif aday: exact / substring / fallback (musterinin tum paketleri).
             $exactMatch = [];
             $substrMatch = [];
             foreach ($pkgByClient[$cnL] as $gid) {
@@ -1400,19 +1401,37 @@ class SalonappyImport extends Command
                         }
                     }
                 }
-                if ($exact)        $exactMatch[$gid]  = $m['date'];
-                elseif ($substr)   $substrMatch[$gid] = $m['date'];
+                if ($exact)      $exactMatch[$gid]  = $m['date'];
+                elseif ($substr) $substrMatch[$gid] = $m['date'];
             }
-            $adaylar = !empty($exactMatch) ? $exactMatch : (!empty($substrMatch) ? $substrMatch : []);
-            // FALLBACK: hicbiri eslemiyorsa musterinin tum paketleri (Nesrin Ozmen vb).
-            if (empty($adaylar)) {
-                foreach ($pkgByClient[$cnL] as $gid) {
-                    $adaylar[$gid] = $pkgIndex[$gid]['date'];
+            $fallbackMatch = [];
+            foreach ($pkgByClient[$cnL] as $gid) {
+                $fallbackMatch[$gid] = $pkgIndex[$gid]['date'];
+            }
+            // FIT secimi: paket.kalan (total - paid_so_far) >= amount -> UI'da eksi gozukmez.
+            // Sinif onceligi: exactFit -> substrFit -> fallbackFit. Her sinifta payment.date'e en YAKIN.
+            // Hicbir sinifta FIT yoksa ATLA (kullanici: adisyonda kalan alacak eksi gozukmemeli).
+            $payTs = $pDate ? strtotime($pDate) : 0;
+            $pickFit = function (array $cand) use ($pkgIndex, $amount, $payTs) {
+                $fit = [];
+                foreach ($cand as $gid => $pkgDate) {
+                    $kalan = $pkgIndex[$gid]['total'] - $pkgIndex[$gid]['paid'];
+                    if ($kalan + 0.01 < $amount) continue;
+                    $diff = $payTs && $pkgDate ? abs($payTs - strtotime($pkgDate)) : PHP_INT_MAX;
+                    $fit[$gid] = $diff;
                 }
+                if (empty($fit)) return null;
+                asort($fit);
+                return array_key_first($fit);
+            };
+            $gid = $pickFit($exactMatch) ?: $pickFit($substrMatch) ?: $pickFit($fallbackMatch);
+            if (!$gid) {
+                // Salonappy tarafinda overpay (Gulcan Bikini 2000+1000 = 3000 > 2000 total).
+                // Atla — paket adisyon eksi gozukmesin. Toplam tahsilat -1000 kaybeder.
+                $pAtlanan++;
+                \Log::info('[Salonappy pay-skip-overfit]', ['pid' => $pid, 'amount' => $amount, 'client' => $cnL]);
+                continue;
             }
-            if (empty($adaylar)) { $pAtlanan++; continue; }
-            asort($adaylar);
-            $gid = array_key_first($adaylar);
             $m = $pkgIndex[$gid];
 
             $payMarker = '[salonappy-pay:' . $pid . ']';
