@@ -2075,11 +2075,22 @@ class SalonappyImport extends Command
                 $gAdisyon++;
 
                 // AH (services[])
+                // Salonappy bazi visit'lerde service.price=0 doner ama bd.details.total_service_price
+                // visit'in toplam hizmet tutarini gosterir. Tum service.price=0 + tot_svc_price>0 ise
+                // tutari hizmet sayisina esit boluştur ki adisyon toplami dogru hesaplansin.
+                $svcArr = $bd['services'] ?? [];
+                $totalSvcPrice = (float) ($d['total_service_price'] ?? 0);
+                $rawSvcPriceSum = 0.0;
+                foreach ($svcArr as $svc) $rawSvcPriceSum += (float) ($svc['price'] ?? 0);
+                $svcFallbackPer = ($rawSvcPriceSum <= 0.01 && $totalSvcPrice > 0 && count($svcArr) > 0)
+                    ? round($totalSvcPrice / count($svcArr), 2) : null;
+
                 $svcIdToAh = []; // service_id -> [ah_id, ...] (paket usage match icin)
-                foreach (($bd['services'] ?? []) as $svc) {
+                foreach ($svcArr as $svc) {
                     $svcAd = trim((string) ($svc['service_text'] ?? ''));
                     if ($svcAd === '') continue;
-                    $fiyat = (float) ($svc['price'] ?? 0);
+                    $rawPrice = (float) ($svc['price'] ?? 0);
+                    $fiyat = $svcFallbackPer !== null ? $svcFallbackPer : $rawPrice;
                     $sure  = max(15, (int) ($svc['duration'] ?? 30));
                     $hid = $this->ensureSalonHizmet($salonId, $svcAd, $sure, $fiyat, $svcAd);
                     if (!$hid) continue;
@@ -2160,14 +2171,28 @@ class SalonappyImport extends Command
                 }
                 // Ek olarak bd.product_sales[] icindeki ozel urunler ayrica ekle
                 // (taşinan adisyondaki AU'larda zaten var olabilir; eklenirken urun_id ile dedup).
-                foreach (($bd['product_sales'] ?? []) as $ps) {
+                // Salonappy product_sales bazen tum kalemler price=null doner ama bd.details.
+                // total_sales_amount visit'in toplam urun tutarini tutar — esit dagit.
+                $psArr = $bd['product_sales'] ?? [];
+                $totalSalesAmt = (float) ($d['total_sales_amount'] ?? 0);
+                $rawPsTotalSum = 0.0;
+                foreach ($psArr as $ps) {
+                    $rawPsTotalSum += (float) ($ps['total_amount'] ?? 0);
+                }
+                $psFallbackPer = ($rawPsTotalSum <= 0.01 && $totalSalesAmt > 0 && count($psArr) > 0)
+                    ? round($totalSalesAmt / count($psArr), 2) : null;
+                foreach ($psArr as $ps) {
                     $pAd = trim((string) ($ps['product_text'] ?? ''));
                     if ($pAd === '') continue;
                     $pAdet = max(1, (int) ($ps['quantity'] ?? 1));
                     $pTutar = (float) ($ps['total_amount'] ?? 0);
                     $ppRaw = (float) ($ps['product_price'] ?? 0);
-                    // Birim fiyat = total_amount / quantity (product_price 0 gelebiliyor)
-                    $pFiyat = $pTutar > 0 ? round($pTutar / $pAdet, 2) : $ppRaw;
+                    if ($psFallbackPer !== null) {
+                        // Hepsi 0 ise: visit'in total_sales_amount'i kalemlere esit boluştur
+                        $pFiyat = round($psFallbackPer / $pAdet, 2);
+                    } else {
+                        $pFiyat = $pTutar > 0 ? round($pTutar / $pAdet, 2) : $ppRaw;
+                    }
                     $urunId = $this->ensureUrun($salonId, $pAd, $pFiyat, $pAd);
                     if (!$urunId) continue;
                     // Visit adisyonunda zaten bu urun var mi (tasinmadan dolayi)? Varsa atla.
