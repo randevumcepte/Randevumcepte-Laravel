@@ -2029,8 +2029,44 @@ class SalonappyImport extends Command
                 $tarih = $d['date'] ?? date('Y-m-d');
                 $saat  = trim((string) ($d['time_text_24'] ?? $d['time_text'] ?? '00:00')) . ':00';
                 $geldi = $showupMap($d['showup_text'] ?? '', !empty($d['is_cancelled']));
+                $isPast = !empty($d['is_past']);
 
-                // Adisyon
+                // Upcoming (is_past=false) -> sadece randevu yaz, adisyon ve sonrakileri atla.
+                if (!$isPast) {
+                    $rId = \DB::table('randevular')->insertGetId([
+                        'salon_id' => $salonId, 'user_id' => $userId,
+                        'randevu_tarihi' => $tarih, 'randevu_saati' => $saat,
+                        'tarih' => $tarih, 'saat' => $saat,
+                        'durum' => 'Onaylandı',
+                        'geldi' => $geldi,
+                        'personel_notu' => $marker,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $gRand++;
+                    foreach (($bd['services'] ?? []) as $svc) {
+                        $svcAd = trim((string) ($svc['service_text'] ?? ''));
+                        if ($svcAd === '') continue;
+                        $hid = $this->ensureSalonHizmet($salonId, $svcAd, 30, (float) ($svc['price'] ?? 0), $svcAd);
+                        if (!$hid) continue;
+                        $persId = null;
+                        $staffAd = trim((string) ($svc['staff_name'] ?? ''));
+                        if ($staffAd !== '') {
+                            $this->ensurePersonel($salonId, $staffAd);
+                            $persId = \DB::table('salon_personelleri')->where('salon_id', $salonId)
+                                ->where('personel_adi', $staffAd)->value('id');
+                        }
+                        \DB::table('randevu_hizmetler')->insert([
+                            'randevu_id' => $rId, 'hizmet_id' => $hid,
+                            'fiyat' => (float) ($svc['price'] ?? 0),
+                            'personel_id' => $persId,
+                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                    $gVisit++;
+                    continue;
+                }
+
+                // Adisyon (is_past=true)
                 $adId = \DB::table('adisyonlar')->insertGetId([
                     'salon_id' => $salonId, 'user_id' => $userId, 'tarih' => $tarih,
                     'notlar' => $marker,

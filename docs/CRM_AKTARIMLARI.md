@@ -411,6 +411,10 @@ Visit aktarımı tüm sistemi sıfırlamadan tarih aralığında çalışır. Ma
 ```
 
 **Visit başına yapılanlar** (her session UPSERT):
+
+> **Upcoming visit** (`details.is_past === false`) → **sadece randevu** + randevu_hizmetler yazılır, adisyon ve sonraki adımlar atlanır. Gelecek randevular için adisyon/tahsilat oluşmaz.
+
+Geçmiş visit (`is_past=true`):
 1. **Adisyon** insert (marker, salon+user+tarih)
 2. **Adisyon hizmetleri** (services[]) — fiyat, personel, geldi=1 (showup="Geldi" ise)
 3. **Randevu** + randevu_hizmetler (showup map: Geldi=1, Gelmedi=2, İptal=3)
