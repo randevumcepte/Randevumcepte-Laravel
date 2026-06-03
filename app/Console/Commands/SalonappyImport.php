@@ -1453,13 +1453,28 @@ class SalonappyImport extends Command
         $adisyonIds = \DB::table($tA)->where('salon_id', $salonId)->pluck('id')->all();
         $tahsilatIds = \DB::table($tT)->where('salon_id', $salonId)->pluck('id')->all();
         $masrafIds = \DB::table('masraflar')->where('salon_id', $salonId)->pluck('id')->all();
+        $taksitIds = \DB::table('taksitli_tahsilatlar')->where('salon_id', $salonId)->pluck('id')->all();
+        $alacakCnt = \Schema::hasTable('alacaklar') ? \DB::table('alacaklar')->where('salon_id', $salonId)->count() : 0;
 
         $this->line("Salon {$salonId} silinecek:");
         $this->line("  randevu: " . count($randevuIds));
         $this->line("  adisyon: " . count($adisyonIds));
         $this->line("  tahsilat: " . count($tahsilatIds));
+        $this->line("  taksitli_tahsilat: " . count($taksitIds));
+        $this->line("  alacak: " . $alacakCnt);
         $this->line("  masraf: " . count($masrafIds));
         if ($dryRun) { $this->warn('DRY-RUN'); return 0; }
+
+        // Taksitli tahsilat + vadeler + alacaklar (adisyon silinmeden once FK-safe)
+        if (\Schema::hasTable('alacaklar')) {
+            \DB::table('alacaklar')->where('salon_id', $salonId)->delete();
+        }
+        if (!empty($taksitIds)) {
+            foreach (array_chunk($taksitIds, 1000) as $ck) {
+                \DB::table('taksit_vadeleri')->whereIn('taksitli_tahsilat_id', $ck)->delete();
+                \DB::table('taksitli_tahsilatlar')->whereIn('id', $ck)->delete();
+            }
+        }
 
         // AdisyonHizmetler -> AdisyonPaketSeanslar -> AdisyonUrunler -> Adisyonlar
         if (!empty($adisyonIds)) {
