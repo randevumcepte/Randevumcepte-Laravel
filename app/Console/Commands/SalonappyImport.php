@@ -24,7 +24,7 @@ class SalonappyImport extends Command
         {--only-product-sales : Sadece urun satislarini isle (dump productSales) — adisyon+adisyon_urunler+alacak (receivable_amount > 0 ise). Tahsilat DOKUNMAZ.}
         {--only-product-payments : Daha onceden --only-product-sales ile yazilmis urun adisyonlarina dump payments[] eslestir; source_text="Urun satisi" olanlar tahsilat olarak baglanir.}
         {--only-visits : Dump visit/bookingDetails -> randevu+adisyon+AH+tahsilat+TH/TU+alacak+paket usage isaretle. --from/--to araligi sart. Marker [salonappy-visit:<session>].}
-        {--with-products : --only-visits filtresine ek: sadece product_sales[] dolu visit'leri isle (urun tasima testi icin).}
+        {--with-products : --only-visits filtresine ek: sadece product_sales[] dolu visitleri isle (urun tasima testi icin).}
         {--reset-visits : Tarih araligindaki [salonappy-visit:%] markerli randevu+adisyon+tahsilat+taksit+alacak sil. --from/--to sart.}
         {--from= : Visit aktarim/reset baslangic tarihi YYYY-MM-DD}
         {--to= : Visit aktarim/reset bitis tarihi YYYY-MM-DD}
