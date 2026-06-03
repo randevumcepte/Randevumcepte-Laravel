@@ -1179,13 +1179,8 @@ class SalonappyImport extends Command
                     } elseif ($rem > 0.01 && $paid > 0.01) {
                         $grpReceivable += $rem;
                     }
-                    // Vade tarihi = paket created_at'inin gun kismi. Salonappy UI'sinde alacak
-                    // tarihi bu degerdir (date veya payment_date degil). Onder Yilmaz date=03-20
-                    // pay_date=04-21 ama UI 25.03 -> created_at=2025-03-25 20:35 dogru sinyal.
-                    $cAt = trim((string) ($r['created_at'] ?? ''));
-                    if ($grpVadeTarih === null && $cAt !== '') {
-                        $grpVadeTarih = substr($cAt, 0, 10);
-                    }
+                    $payD = trim((string) ($r['payment_date'] ?? ''));
+                    if ($grpVadeTarih === null && $payD !== '') $grpVadeTarih = $payD;
                     foreach ($items as $it) {
                         $svcAd = trim((string) ($it['service_text'] ?? ''));
                         if ($svcAd === '') continue;
