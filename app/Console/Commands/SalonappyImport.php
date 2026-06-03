@@ -19,7 +19,7 @@ class SalonappyImport extends Command
         {--dump-file= : Tarayici scripti ile indirilen tek JSON dump dosyasi (clients + bookings)}
         {--services-master= : Salonappy /setup/services endpointinden cekilen master JSON (id->title TR)}
         {--reset-salonappy : [salonappy:session] markerli randevu+adisyon+kalemleri sil (musteriler kalir)}
-        {--only-package-sales : Dump'tan sadece paket satislarini (packageSales[]) isle: adisyon+AH+APS (usage_date doluysa geldi=1) + tahsilat (paid_amount > 0). Diger pipeline'lari (visit, payment, expense) atlar.}
+        {--only-package-sales : Sadece paket satislarini isle (dump packageSales) — adisyon+AH+APS (usage_date doluysa geldi=1) + tahsilat (paid_amount > 0). Visit/payment/expense atlar.}
         {--dry-run : Reset/import oncesi sadece sayim}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
