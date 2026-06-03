@@ -1122,46 +1122,37 @@ class SalonappyImport extends Command
                     $items = (!empty($r['is_group']) && !empty($r['group_items']) && is_array($r['group_items']))
                         ? $r['group_items']
                         : [$r];
-                    $usageDateAll = trim((string) ($r['usage_date'] ?? '')) ?: null;
                     foreach ($items as $it) {
                         $svcAd = trim((string) ($it['service_text'] ?? ''));
                         if ($svcAd === '') continue;
                         $qtyRaw = $it['quantity'] ?? null;
                         $period = ($qtyRaw === null || $qtyRaw === '') ? null : max(1, (int) $qtyRaw);
-                        $tu = $it['total_usage'] ?? null;
-                        $kullanilan = ($tu === null || $tu === '') ? null : max(0, (int) $tu);
                         $tutar = (float) ($it['total_amount'] ?? 0);
                         $fiyatBirim = ($period && $period > 0) ? round($tutar / $period, 2) : $tutar;
-                        $usageDate = trim((string) ($it['usage_date'] ?? '')) ?: $usageDateAll;
                         $hid = $this->ensureSalonHizmet($salonId, $svcAd, 30, $fiyatBirim, $svcAd);
                         if (!$hid) continue;
-                        $ahGeldi = ($period !== null && $kullanilan !== null && $kullanilan >= $period) ? 1 : 0;
+                        // Paket import sirasinda HIC isaretleme YAPMA — kullanicinin istegi:
+                        // "ilk paketleri aktarirken isaretleme yapmayacagiz". total_usage / usage_date
+                        // YOK SAYILIR; AH.geldi=0, APS hepsi geldi=0 (bekleyen). Randevular geldikce
+                        // visit pipeline + drklinik mantigi seanslari tuketir.
                         $ahRow = [
                             'adisyon_id' => $adId, 'hizmet_id' => $hid,
-                            'geldi' => $ahGeldi, 'islem_tarihi' => ($usageDate ?: $tarih), 'islem_saati' => '00:00:00',
+                            'geldi' => 0, 'islem_tarihi' => $tarih, 'islem_saati' => '00:00:00',
                             'sure' => 30, 'fiyat' => $tutar,
                             'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                         ];
                         if ($period !== null) $ahRow['seans_sayisi'] = $period;
                         $ahId = \DB::table('adisyon_hizmetler')->insertGetId($ahRow);
                         // APS placeholder SADECE seans paketi (period > 0). quantity null ise
-                        // satis-only — placeholder YAZMA (kullanicinin istegi).
+                        // satis-only — placeholder YAZMA.
                         if ($period !== null && $period > 0) {
-                            $kullanilanLocal = $kullanilan ?? 0;
                             for ($i = 1; $i <= $period; $i++) {
-                                $apsGeldi = ($i <= $kullanilanLocal) ? 1 : 0;
-                                $row2 = [
+                                \DB::table('adisyon_paket_seanslar')->insert([
                                     'adisyon_hizmet_id' => $ahId, 'hizmet_id' => $hid,
-                                    'seans_no' => $i, 'geldi' => $apsGeldi,
+                                    'seans_no' => $i, 'geldi' => 0,
                                     'created_at' => date('Y-m-d H:i:s'),
                                     'updated_at' => date('Y-m-d H:i:s'),
-                                ];
-                                if ($apsGeldi && $usageDate) {
-                                    $row2['seans_tarih'] = $usageDate;
-                                    $row2['seans_saat'] = '00:00:00';
-                                    if (\Schema::hasColumn('adisyon_paket_seanslar', 'dusulen_miktar')) $row2['dusulen_miktar'] = 1;
-                                }
-                                \DB::table('adisyon_paket_seanslar')->insert($row2);
+                                ]);
                             }
                         }
                     }
