@@ -1974,6 +1974,25 @@ class SalonappyImport extends Command
         $extra = $withProductsOnly ? ' (sadece product_sales dolu)' : '';
         $this->line("Visit aktarim {$from} .. {$to}{$extra}: kapsamda " . count($kapsamSession) . ' visit');
 
+        // Paket APS reset: bu aralikta yazilan APS'ler + eski geldi=0 placeholder'lar silinir.
+        // package_usages her visit'te yeniden insert edilecek (drklinik mantigi).
+        $pkgAhIds = \DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)
+            ->where('a.notlar', 'LIKE', '%[salonappy-pkgsale:%')
+            ->pluck('ah.id')->all();
+        if (!empty($pkgAhIds)) {
+            $silinen1 = \DB::table('adisyon_paket_seanslar')
+                ->whereIn('adisyon_hizmet_id', $pkgAhIds)
+                ->whereBetween('seans_tarih', [$from, $to])
+                ->delete();
+            $silinen2 = \DB::table('adisyon_paket_seanslar')
+                ->whereIn('adisyon_hizmet_id', $pkgAhIds)
+                ->where('geldi', 0)
+                ->delete();
+            $this->line("Paket APS reset: aralik={$silinen1} eski-placeholder={$silinen2}");
+        }
+
         foreach ($kapsamSession as $sid) {
             $bd = $bdMap[$sid];
             $d  = $bd['details'] ?? [];
