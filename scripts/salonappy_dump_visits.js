@@ -79,28 +79,46 @@
   } else console.log(`  resume: clients (${clients.length})`);
   await sleep(RATE_DELAY_MS);
 
-  // 2) Visit listesi (full)
+  // 2) Visit listesi (full — /visit/list parametresiz tek seferde tum gecmis visit'leri doner)
   let visits = await dbGet('visits');
   if (!visits) {
-    console.log('🔹 Visit listesi cekiliyor (/visit/list)...');
-    const dateStart = '2018-01-01';
-    const dEnd = new Date(); dEnd.setFullYear(dEnd.getFullYear() + 1);
-    const dateEnd = dEnd.toISOString().slice(0,10);
-    visits = [];
-    let offset = 0; const limit = 100;
-    while (true) {
-      const j = await get(`/visit/list?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}`);
-      const arr = j?.data?.visits || j?.data?.bookings || [];
-      if (!arr.length) break;
-      visits.push(...arr);
-      offset += arr.length;
-      if (offset % 500 === 0) console.log(`  kumule: ${visits.length}`);
-      await sleep(RATE_DELAY_MS);
-      if (arr.length < limit) break;
-    }
+    console.log('🔹 Visit listesi cekiliyor (/visit/list — parametresiz, tek istek)...');
+    const j = await get('/visit/list');
+    visits = j?.data?.visits || [];
     await dbPut('visits', visits);
     console.log(`✓ Visit toplam: ${visits.length}`);
+    await sleep(RATE_DELAY_MS);
   } else console.log(`  resume: visits (${visits.length})`);
+
+  // 2b) Gelecek randevular (visit/list bunlari icermez) — /booking/list status=1,2
+  let upcoming = await dbGet('upcomingVisits');
+  if (!upcoming) {
+    upcoming = [];
+    const today = new Date(); const toDt = new Date(); toDt.setFullYear(toDt.getFullYear() + 1);
+    const fmt = d => d.toISOString().slice(0,10);
+    const ds = fmt(today), de = fmt(toDt);
+    for (const st of [1, 2]) {
+      let offset = 0; const limit = 100;
+      while (true) {
+        const j = await get(`/booking/list?offset=${offset}&limit=${limit}&date_start=${ds}&date_end=${de}&status=${st}`);
+        const arr = j?.data?.bookings || j?.data?.visits || [];
+        if (!arr.length) break;
+        for (const b of arr) { if (!b.session && b.id) b.session = b.id; upcoming.push(b); }
+        offset += arr.length;
+        await sleep(RATE_DELAY_MS);
+        if (arr.length < limit) break;
+      }
+      console.log(`  upcoming status=${st}: kumule=${upcoming.length}`);
+    }
+    await dbPut('upcomingVisits', upcoming);
+  } else console.log(`  resume: upcomingVisits (${upcoming.length})`);
+
+  // Birlestir (session bazli dedup)
+  const visitsBySess = {};
+  for (const v of visits) if (v?.session) visitsBySess[v.session] = v;
+  for (const v of upcoming) if (v?.session && !visitsBySess[v.session]) visitsBySess[v.session] = v;
+  visits = Object.values(visitsBySess);
+  console.log(`✓ Toplam (visit+upcoming dedup): ${visits.length}`);
 
   // 3) Her visit icin booking detail (resume — cached olan atlanir)
   let bookingDetails = (await dbGet('bookingDetails')) || {};
