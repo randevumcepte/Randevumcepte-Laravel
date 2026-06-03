@@ -55,7 +55,7 @@
   const productSales = [];
   let offset = 0; const limit = 100;
   while (true) {
-    const j = await get(`/product_sale/list_v2?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}&is_deleted=0`);
+    const j = await get(`/product_sale/list?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}&is_deleted=0`);
     const arr = j?.data?.product_sales || [];
     if (!arr.length) break;
     productSales.push(...arr);
