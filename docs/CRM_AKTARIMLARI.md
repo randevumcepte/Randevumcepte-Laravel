@@ -366,9 +366,29 @@ scp salonappy_package_sales_*.json root@<server>:/tmp/
 - **UPSERT**: çalıştırışta önce paket adisyonlara bağlı tüm tahsilatları siler, sonra yeniden yazar — idempotent
 - **Sonuç (dump 1780483152143 örneği)**: 379 paket tahsilatından 378'i yazıldı (1 atlanan = paketi dump'ta olmayan tek müşteri). Toplam ~933.325 TL.
 
+#### Ürün satışları (Aşama A + B)
+
+Paket akışıyla simetrik. Dump: [scripts/salonappy_dump_product_sales.js](../scripts/salonappy_dump_product_sales.js) — `/api/client/list` + `/api/product_sale/list_v2` + `/api/payment/list`.
+
+```bash
+# 1) Dump indir
+# 2) PASS1 — ürün satışları + alacaklar (tahsilat YOK)
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_product_sales_<ts>.json \
+    --salon=368 --only-product-sales
+
+# 3) PASS2 — tahsilatları ürün adisyonlarına bağla
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_product_sales_<ts>.json \
+    --salon=368 --only-product-payments
+```
+
+**PASS1 (`--only-product-sales`)**: her satış için `adisyonlar` + `adisyon_urunler` insert (marker `[salonappy-prodsale:<id>]`). Alacak filtresi paket akışıyla aynı (`receivable_amount > 0` VEYA kısmi ödenmiş). Vade = `created_at` gün kısmı. UPSERT.
+
+**PASS2 (`--only-product-payments`)**: dump `payments[]`'tan `source_text="Ürün satışı"` olanları ürün adisyonlarına eşleştirir; aynı algoritma (exact > substring > fallback, her sınıfta FIT öncelik + en yakın tarih, FIT yoksa atla). Tahsilat insert + `tahsilat_urunler` (TU) dağıtımı (`fiyat*adet` orantılı; tFiyat=0 ise eşit). Marker `[salonappy-prod-pay:<payment_id>]`.
+
 #### Diğer modüler dump'lar (yakında)
 
-- Ürün satışları (`product_sale/list_v2`)
 - Visit/randevu (`visit/list` + `booking/detail`)
 - Gider (`expense/list`)
 
