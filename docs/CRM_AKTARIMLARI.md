@@ -352,7 +352,7 @@ scp salonappy_package_sales_*.json root@<server>:/tmp/
 - `pkgIndex` re-build **dump otoriter**: `client_name` ve `service_text` dump'taki `packageSales[]`'den çekilir (DB users.name ve hizmetler.hizmet_adi'nde Türkçe karakter / format farklılığı oluyordu — Sinem Soybek, Yasemin Şahin vb 16 ödeme eşleşmiyordu). `adId` + `userId` DB'den.
 - Mevcut paket adisyonlarına bağlı tahsilatları siler (UPSERT)
 - Dump `payments[]` listesinde `source_text="Paket satışı"` olanları paket adisyonlarına eşleştirir:
-  - **Eşleşme kriteri**: `client_name` (normalize) + `services` overlap (normalize)
+  - **Eşleşme kriteri** (öncelik sırası): (1) EXACT services match (payment.svc paket.svcNorms içinde tam eşleşme), (2) SUBSTRING match (birinin diğerini içermesi), (3) FALLBACK (müşterinin tüm paketleri). Dilzerin örneği: payment "Kaş Alma" → exact "Kaş Alma" paketi substring "Ölçülü Kaş Alma"dan önce seçilir.
   - **`kalan > 0` filtresi YOK** — tamamen ödenmiş paketler (Gülcan Bikini paid=2000 tot=2000) de geçmiş tahsilat alabilir
   - **`payment.date >= paket.date` filtresi YOK** — Salonappy'de kaparo veya geriye dönük kayıt nedeniyle ödeme paketten önce de gözükebilir (Yıldız Acar 2025-05-01 payment, paket 2025-05-02)
   - **Services overlap fail fallback**: müşterinin DB'deki en eski paket adisyonuna bağlan (Nesrin Özmen payment svc=G5+Heykeltraş, paketleri Pedikür+Manikür — tutarsız Salonappy verisi için)

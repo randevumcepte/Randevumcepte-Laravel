@@ -1378,28 +1378,33 @@ class SalonappyImport extends Command
             }, explode(',', (string)($p['services'] ?? ''))));
             if (empty($pkgByClient[$cnL])) { $pAtlanan++; continue; }
 
-            $adaylar = [];
+            // Match onceligi (paket secimi):
+            //   1) EXACT match: payment.svc paket.svcNorms icinde in_array (tam isim)
+            //   2) SUBSTRING match: birinin digerini icermesi
+            //   3) FALLBACK: musterinin tum paketleri (Salonappy services tutarsizligi)
+            // NOT: 'kalan > 0' veya 'pDate >= paket.date' filtreleri YOK
+            //  - tamamen odenmis paketler de gecmis tahsilat alabilir (Gulcan Bikini)
+            //  - kaparo / ileri tarihli kayit (Yildiz Acar payment=2025-05-01 paket date=2025-05-02)
+            // Cakismada en eski paket secilir.
+            // Dilzerin ornek: payment 'kas alma' -> exact 'Kas Alma' paketi 'Olculu Kas Alma' (substring) yerine secilir.
+            $exactMatch = [];
+            $substrMatch = [];
             foreach ($pkgByClient[$cnL] as $gid) {
                 $m = $pkgIndex[$gid];
-                // NOT: 'kalan > 0' veya 'pDate >= paket.date' filtreleri yok.
-                // (1) Tamamen odenmis paketler de gecmis tahsilat alabilir (Gulcan Bikini).
-                // (2) Salonappy'de odeme paket tarih kaydindan once de gozukebilir
-                //     (kaparo / ileri tarihli kayit; Yildiz Acar payment=2025-05-01 paket date=2025-05-02).
-                // Match icin musteri + services overlap yeterli; cakismada en eski paket secilir.
-                $overlap = false;
+                $exact = false; $substr = false;
                 foreach ($svcList as $sv) {
-                    if (in_array($sv, $m['svcNorms'], true)) { $overlap = true; break; }
+                    if (in_array($sv, $m['svcNorms'], true)) { $exact = true; break; }
                     foreach ($m['svcNorms'] as $ms) {
-                        if ($sv && $ms && (strpos($ms, $sv) !== false || strpos($sv, $ms) !== false)) { $overlap = true; break 2; }
+                        if ($sv && $ms && (strpos($ms, $sv) !== false || strpos($sv, $ms) !== false)) {
+                            $substr = true;
+                        }
                     }
                 }
-                if (!$overlap) continue;
-                $adaylar[$gid] = $m['date'];
+                if ($exact)        $exactMatch[$gid]  = $m['date'];
+                elseif ($substr)   $substrMatch[$gid] = $m['date'];
             }
-            // Services overlap fail -> fallback: musterinin en eski paket adisyonu.
-            // Salonappy bazi paymentlerin services'i ile musteri paketi arasinda tutarsiz olabilir
-            // (orn. Nesrin Ozmen payment svc=G5+Heykeltras, paketleri Pedikur+Manikur). Kullanici
-            // ayni musteri icin tahsilatin paket adisyonuna eklenmesini bekler.
+            $adaylar = !empty($exactMatch) ? $exactMatch : (!empty($substrMatch) ? $substrMatch : []);
+            // FALLBACK: hicbiri eslemiyorsa musterinin tum paketleri (Nesrin Ozmen vb).
             if (empty($adaylar)) {
                 foreach ($pkgByClient[$cnL] as $gid) {
                     $adaylar[$gid] = $pkgIndex[$gid]['date'];
