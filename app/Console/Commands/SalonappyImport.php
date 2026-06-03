@@ -2035,7 +2035,6 @@ class SalonappyImport extends Command
                 if (!$isPast) {
                     $rId = \DB::table('randevular')->insertGetId([
                         'salon_id' => $salonId, 'user_id' => $userId,
-                        'randevu_tarihi' => $tarih, 'randevu_saati' => $saat,
                         'tarih' => $tarih, 'saat' => $saat,
                         'durum' => 'Onaylandı',
                         'geldi' => $geldi,
@@ -2106,7 +2105,6 @@ class SalonappyImport extends Command
                 // Randevu + randevu_hizmetler
                 $rId = \DB::table('randevular')->insertGetId([
                     'salon_id' => $salonId, 'user_id' => $userId,
-                    'randevu_tarihi' => $tarih, 'randevu_saati' => $saat,
                     'tarih' => $tarih, 'saat' => $saat,
                     'durum' => 'Onaylandı',
                     'geldi' => $geldi,
