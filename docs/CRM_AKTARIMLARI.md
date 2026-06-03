@@ -340,7 +340,7 @@ scp salonappy_package_sales_*.json root@<server>:/tmp/
 
 - Her paket satışı için `adisyonlar` insert (marker: `[salonappy-pkgsale:<group_id>]`)
 - `is_group=true` ise her `group_items[]` ayrı `adisyon_hizmetler` (Ayşe Gürbüz örneği: Heykeltraş 4 seans + G5 10 seans + Bölgesel Yağ Yakma 4 seans = 12.300 TL)
-- Seans paketleri için `adisyon_paket_seanslar` placeholder (geldi=0). İşaretleme YAPILMAZ; randevu pipeline'ı seansları tüketir.
+- **Seans paketleri için APS placeholder YAZILMAZ.** Drklinik mantığı: visit/usage geldikçe `adisyon_paket_seanslar` INSERT (geldi=1, seans_tarih=usage.date). `AH.seans_sayisi` paket toplam seansını tutar; "kalan seans" = `seans_sayisi - mevcut APS sayısı`. "Gelmedi" gösterimi yok.
 - **Alacak filtresi**: `receivable_amount > 0` VEYA (`remaining_payment > 0` AND `paid_amount > 0`). Hiç ödenmemiş paketler (paid=0, rec=0) alacak DEĞİL — Salonappy de göstermiyor (Hayal Kıran vb 18 örnek).
 - **Vade tarihi**: `created_at`'in gün kısmı (Salonappy UI ile %100 uyum). Önder Yılmaz: date=2025-03-20 + payment_date=2025-04-21 olsa da UI 25.03.2025 gösteriyor — bu `created_at=2025-03-25` değerinden geliyor.
 - Filtreyi geçen her paket için `taksitli_tahsilatlar` + `taksit_vadeleri` + `alacaklar` üçlüsü atomik yazılır (vade_sayisi=1). `adisyon_hizmetler.taksitli_tahsilat_id` set edilir. Hem "Alacaklar" sayfası hem "Satış Takibi" sayfası bunlara JOIN yaptığı için üçü beraber zorunlu.
@@ -419,7 +419,7 @@ Geçmiş visit (`is_past=true`):
 2. **Adisyon hizmetleri** (services[]) — fiyat, personel, geldi=1 (showup="Geldi" ise)
 3. **Randevu** + randevu_hizmetler (showup map: Geldi=1, Gelmedi=2, İptal=3)
 4. **Ürün taşıma**: aynı tarih + aynı müşteri ile mevcut `[salonappy-prodsale:%]` adisyon(lar)ı varsa **tüm AU + tahsilat + alacak visit adisyonuna taşınır**, eski adisyon silinir (item-level kontrol yok — Salonappy aynı gün aynı müşteriye yapılmış ürün satışlarını visit'le ilişkili kabul eder). Ek olarak `bd.product_sales[]` içindeki ürünler visit adisyonuna yoksa eklenir (urun_id+adet+fiyat dedup).
-5. **Paket kullanımı**: `package_usages[]` her usage için müşterinin `[salonappy-pkgsale:%]` adisyonlarındaki aynı hizmetin AH'lerini bul → APS placeholder'larından (geldi=0) `quantity` kadarını `geldi=1` + `seans_tarih=usage.date` yap.
+5. **Paket kullanımı**: `package_usages[]` her usage için müşterinin `[salonappy-pkgsale:%]` adisyonlarındaki aynı hizmetin AH'lerini bul → kalan kapasiteye (`seans_sayisi - mevcut APS sayısı`) göre yeni APS **INSERT** (geldi=1, seans_tarih=usage.date). Placeholder yok; APS'lerin tümü gerçekleşen kullanımdır.
 6. **Tahsilat**: `payments[]` her ödeme tahsilatlar + TH dağıt. Marker: `[salonappy-visit-pay:<pid>]`.
 7. **Alacak**: `unpaid_amount > 0` → TaksitliTahsilatlar + TaksitVadeleri (vade=visit tarihi) + Alacaklar.
 

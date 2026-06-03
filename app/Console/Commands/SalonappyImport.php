@@ -1234,18 +1234,10 @@ class SalonappyImport extends Command
                         ];
                         if ($period !== null) $ahRow['seans_sayisi'] = $period;
                         $ahId = \DB::table('adisyon_hizmetler')->insertGetId($ahRow);
-                        // APS placeholder SADECE seans paketi (period > 0). quantity null ise
-                        // satis-only — placeholder YAZMA.
-                        if ($period !== null && $period > 0) {
-                            for ($i = 1; $i <= $period; $i++) {
-                                \DB::table('adisyon_paket_seanslar')->insert([
-                                    'adisyon_hizmet_id' => $ahId, 'hizmet_id' => $hid,
-                                    'seans_no' => $i, 'geldi' => 0,
-                                    'created_at' => date('Y-m-d H:i:s'),
-                                    'updated_at' => date('Y-m-d H:i:s'),
-                                ]);
-                            }
-                        }
+                        // APS placeholder YAZILMAZ — drklinik mantigi: visit/usage geldikce
+                        // adisyon_paket_seanslar INSERT edilir (geldi=1, seans_tarih=usage.date).
+                        // AH.seans_sayisi paket toplam seans bilgisini tutar; "kalan" = seans_sayisi -
+                        // mevcut APS sayisi. "Gelmedi" gosterimi olmaz.
                     }
                 }
                 // Planlanan alacak: receivable_amount > 0 ise UI "Satis Takibi" sayfasi icin
@@ -2204,19 +2196,33 @@ class SalonappyImport extends Command
                         ->where('a.notlar', 'LIKE', '%[salonappy-pkgsale:%')
                         ->where('ah.hizmet_id', $hid)
                         ->orderBy('a.tarih')->pluck('ah.id')->all();
+                    // Drklinik mantigi: package_usage geldikce AH'in altina YENI APS INSERT
+                    // (geldi=1, seans_tarih=usage.date). Placeholder yok; mevcut APS'lerin tum'u
+                    // gerceklesen kullanim. AH.seans_sayisi paket toplamini tutar; "kalan"
+                    // seans_sayisi - mevcut APS sayisi.
                     $kalanQty = $puQty;
                     foreach ($ahsForPkg as $ahId) {
                         if ($kalanQty <= 0) break;
-                        // Bu AH'in geldi=0 APS'lerinden $kalanQty kadar isaretle
-                        $apsList = \DB::table('adisyon_paket_seanslar')
-                            ->where('adisyon_hizmet_id', $ahId)->where('geldi', 0)
-                            ->orderBy('seans_no')->limit($kalanQty)->pluck('id')->all();
-                        if (!empty($apsList)) {
-                            \DB::table('adisyon_paket_seanslar')->whereIn('id', $apsList)
-                                ->update(['geldi' => 1, 'seans_tarih' => $puDate, 'updated_at' => date('Y-m-d H:i:s')]);
-                            $kalanQty -= count($apsList);
-                            $gPaketUsage += count($apsList);
+                        // Bu AH icin kalan kapasite = seans_sayisi - mevcut APS sayisi
+                        $ahMeta = \DB::table('adisyon_hizmetler')->where('id', $ahId)
+                            ->value('seans_sayisi');
+                        $sansSay = $ahMeta ? (int) $ahMeta : 0;
+                        $mevcutApsCnt = \DB::table('adisyon_paket_seanslar')
+                            ->where('adisyon_hizmet_id', $ahId)->count();
+                        $kapasite = max(0, $sansSay - $mevcutApsCnt);
+                        if ($kapasite <= 0) continue;
+                        $eklenecek = min($kalanQty, $kapasite);
+                        for ($i = 1; $i <= $eklenecek; $i++) {
+                            \DB::table('adisyon_paket_seanslar')->insert([
+                                'adisyon_hizmet_id' => $ahId, 'hizmet_id' => $hid,
+                                'seans_no' => $mevcutApsCnt + $i,
+                                'geldi' => 1, 'seans_tarih' => $puDate,
+                                'created_at' => date('Y-m-d H:i:s'),
+                                'updated_at' => date('Y-m-d H:i:s'),
+                            ]);
                         }
+                        $kalanQty -= $eklenecek;
+                        $gPaketUsage += $eklenecek;
                     }
                 }
 
