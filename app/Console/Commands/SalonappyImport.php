@@ -1316,24 +1316,40 @@ class SalonappyImport extends Command
         // zaten yazildi. Pass2 yalniz tahsilat eklemekle ilgilenir; alacak'a dokunmaz.
         $this->line("Temizlendi: tahsilat=" . count($eskiTahIds));
 
-        // 2) pkgIndex re-build (DB'den)
+        // 2) pkgIndex re-build — client_name + service_text dump'tan, adId+userId DB'den
+        // (DB users.name'i Turkce karakter/format farkliligi nedeniyle dump'taki ile birebir
+        // eslesmeyebilir; dump otoriter kaynak.)
+        $dumpPkgByGid = [];
+        foreach ($j['packageSales'] ?? [] as $r) {
+            $gid = (string) ($r['group_id'] ?? $r['id'] ?? '');
+            if ($gid === '') continue;
+            $dumpPkgByGid[$gid][] = $r;
+        }
+
         $pkgIndex = [];
         foreach ($pkgRows as $row) {
             if (!preg_match('~\[salonappy-pkgsale:([^\]]+)\]~', (string) $row->notlar, $mm)) continue;
             $gid = $mm[1];
             $svcNorms = [];
+            $cnFromDump = '';
+            foreach ($dumpPkgByGid[$gid] ?? [] as $r) {
+                if ($cnFromDump === '') $cnFromDump = (string) ($r['client_name'] ?? '');
+                $items = (!empty($r['is_group']) && !empty($r['group_items']) && is_array($r['group_items']))
+                    ? $r['group_items'] : [$r];
+                foreach ($items as $it) {
+                    $sv = trim((string) ($it['service_text'] ?? ''));
+                    if ($sv !== '') $svcNorms[] = $normSvc($sv);
+                }
+            }
             $totalTutar = 0.0;
-            foreach (\DB::table('adisyon_hizmetler')->where('adisyon_id', $row->id)->get(['hizmet_id', 'fiyat']) as $ah) {
-                $hn = \DB::table('hizmetler')->where('id', $ah->hizmet_id)->value('hizmet_adi');
-                if ($hn) $svcNorms[] = $normSvc($hn);
+            foreach (\DB::table('adisyon_hizmetler')->where('adisyon_id', $row->id)->get(['fiyat']) as $ah) {
                 $totalTutar += (float) $ah->fiyat;
             }
-            $cn = \DB::table('users')->where('id', $row->user_id)->value('name');
             $pkgIndex[$gid] = [
                 'adId' => (int) $row->id,
                 'userId' => (int) $row->user_id,
                 'date' => (string) $row->tarih,
-                'cnLower' => $normName($cn),
+                'cnLower' => $normName($cnFromDump),
                 'svcNorms' => array_values(array_unique($svcNorms)),
                 'total' => round($totalTutar, 2),
                 'paid' => 0.0,
