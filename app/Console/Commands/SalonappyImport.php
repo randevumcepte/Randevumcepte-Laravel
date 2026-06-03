@@ -19,7 +19,8 @@ class SalonappyImport extends Command
         {--dump-file= : Tarayici scripti ile indirilen tek JSON dump dosyasi (clients + bookings)}
         {--services-master= : Salonappy /setup/services endpointinden cekilen master JSON (id->title TR)}
         {--reset-salonappy : [salonappy:session] markerli randevu+adisyon+kalemleri sil (musteriler kalir)}
-        {--only-package-sales : Sadece paket satislarini isle (dump packageSales) — adisyon+AH+APS (usage_date doluysa geldi=1) + tahsilat (paid_amount > 0). Visit/payment/expense atlar.}
+        {--only-package-sales : Sadece paket satislarini isle (dump packageSales) — adisyon+AH+APS olusturur, tahsilat/alacak DOKUNMAZ.}
+        {--only-package-payments : Daha onceden --only-package-sales ile yazilmis paket adisyonlarina dump payments[] eslestir; source_text="Paket satisi" olanlar tahsilat olarak baglanir + kalan alacak (TaksitliTahsilatlar+Vadeler+Alacaklar).}
         {--dry-run : Reset/import oncesi sadece sayim}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
@@ -89,6 +90,10 @@ class SalonappyImport extends Command
             // --only-package-sales: dump'tan sadece packageSales[] isle, digerlerini atla
             if ((bool) $this->option('only-package-sales')) {
                 return $this->importPackageSalesOnly($dumpFile, (int) $salonId);
+            }
+            // --only-package-payments: paket adisyonlarina payments[] eslestir + kalan alacak
+            if ((bool) $this->option('only-package-payments')) {
+                return $this->importPackagePaymentsOnly($dumpFile, (int) $salonId);
             }
             // v5 yapısını otomatik dedect et: visits + bookingDetails
             $peek = json_decode(file_get_contents($dumpFile), true);
@@ -1217,21 +1222,107 @@ class SalonappyImport extends Command
             }
         }
 
-        // ====== Pass 2: payments[] -> source_text="Paket satisi" olanlari paketlere ata ======
-        // Match: client_name normalize + tarih >= paket.date + services overlap (en az 1 ortak)
-        // Birden cok aday: kalan > 0 olan + en eski paket secilir.
-        // Allocation: payment.amount paket.kalan'ina kadar dusulur (asarsa overflow log).
-        // Idempotent: marker [salonappy-pay:id] -> ayni paymentid tekrar islemez (UPSERT zaten silmiş olur).
+        $this->info("Package sales (PASS1 only - tahsilat YOK): eklenen=$gEklenen, dedup=$gDedup, hata=$gHata");
+        $this->line('Bir sonraki adim: --only-package-payments ile ayni dump dosyasiyla tahsilatlari + kalan alacagi yaz.');
+        return 0;
+    }
+
+    /**
+     * PASS2 + PASS3: Daha onceden --only-package-sales ile yazilmis [salonappy-pkgsale:gid] markerli
+     * paket adisyonlari icin dump payments[] tarayip source_text="Paket satisi" olanlari eslestirip
+     * tahsilat insert, kalan tutari TaksitliTahsilatlar+Vadeler+Alacaklar olarak yazar.
+     */
+    private function importPackagePaymentsOnly($file, $salonId)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: $file"); return 1; }
+        $j = json_decode(file_get_contents($file), true);
+        if (!is_array($j)) { $this->error('Gecersiz JSON.'); return 1; }
         $payments = $j['payments'] ?? [];
-        $this->line('Pass2: payments=' . count($payments) . ' (Paket satisi filtresi sonrasi ataniyor)');
+        if (empty($payments)) { $this->warn('payments[] bos.'); return 0; }
+
+        $yontemMap = function ($txt) {
+            $t = mb_strtolower(trim((string)$txt), 'UTF-8');
+            if ($t === '') return 1;
+            if (strpos($t, 'kredi') !== false || strpos($t, 'kart') !== false || strpos($t, 'pos') !== false) return 2;
+            if (strpos($t, 'havale') !== false || strpos($t, 'eft') !== false || strpos($t, 'banka') !== false) return 3;
+            if (strpos($t, 'nakit') !== false) return 1;
+            return 4;
+        };
+        $normName = function ($s) {
+            $s = mb_strtolower(trim((string)$s), 'UTF-8');
+            return preg_replace('~\s+~', ' ', $s);
+        };
+        $normSvc = function ($s) {
+            $s = mb_strtolower(trim((string)$s), 'UTF-8');
+            $s = str_replace(['(', ')', '.', ','], ' ', $s);
+            return trim(preg_replace('~\s+~', ' ', $s));
+        };
+
+        // 1) UPSERT: salon paket adisyonlarina ait mevcut tahsilatlari + taksit/vade/alacak SIL
+        // Boylece payments dump'i tekrar import edilince hep ayni sonuc verir.
+        $pkgRows = \DB::table('adisyonlar')->where('salon_id', $salonId)
+            ->where('notlar', 'LIKE', '%[salonappy-pkgsale:%')
+            ->get(['id', 'user_id', 'tarih', 'notlar']);
+        $this->line('Paket adisyonlari bulundu: ' . count($pkgRows));
+        if ($pkgRows->isEmpty()) {
+            $this->error('Paket adisyon yok — once --only-package-sales calistir.');
+            return 1;
+        }
+
+        $pkgIds = $pkgRows->pluck('id')->all();
+        $eskiTahIds = \DB::table('tahsilatlar')->whereIn('adisyon_id', $pkgIds)->pluck('id')->all();
+        if (!empty($eskiTahIds)) {
+            \DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $eskiTahIds)->delete();
+            \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $eskiTahIds)->delete();
+            \DB::table('tahsilatlar')->whereIn('id', $eskiTahIds)->delete();
+        }
+        $eskiTtIds = \DB::table('taksitli_tahsilatlar')->whereIn('adisyon_id', $pkgIds)->pluck('id')->all();
+        if (!empty($eskiTtIds)) {
+            \DB::table('taksit_vadeleri')->whereIn('taksitli_tahsilat_id', $eskiTtIds)->delete();
+            if (\Schema::hasTable('alacaklar')) {
+                \DB::table('alacaklar')->whereIn('adisyon_id', $pkgIds)->delete();
+            }
+            \DB::table('taksitli_tahsilatlar')->whereIn('id', $eskiTtIds)->delete();
+        }
+        \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $pkgIds)
+            ->whereNotNull('taksitli_tahsilat_id')
+            ->update(['taksitli_tahsilat_id' => null]);
+        $this->line("Temizlendi: tahsilat={" . count($eskiTahIds) . "} taksitli_tahsilat={" . count($eskiTtIds) . "}");
+
+        // 2) pkgIndex re-build (DB'den)
+        $pkgIndex = [];
+        foreach ($pkgRows as $row) {
+            if (!preg_match('~\[salonappy-pkgsale:([^\]]+)\]~', (string) $row->notlar, $mm)) continue;
+            $gid = $mm[1];
+            $svcNorms = [];
+            $totalTutar = 0.0;
+            foreach (\DB::table('adisyon_hizmetler')->where('adisyon_id', $row->id)->get(['hizmet_id', 'fiyat']) as $ah) {
+                $hn = \DB::table('salon_sunulan_hizmetler')->where('id', $ah->hizmet_id)->value('hizmet_adi');
+                if ($hn) $svcNorms[] = $normSvc($hn);
+                $totalTutar += (float) $ah->fiyat;
+            }
+            $cn = \DB::table('users')->where('id', $row->user_id)->value('name');
+            $pkgIndex[$gid] = [
+                'adId' => (int) $row->id,
+                'userId' => (int) $row->user_id,
+                'date' => (string) $row->tarih,
+                'cnLower' => $normName($cn),
+                'svcNorms' => array_values(array_unique($svcNorms)),
+                'total' => round($totalTutar, 2),
+                'paid' => 0.0,
+            ];
+        }
+        $this->line('pkgIndex re-build: ' . count($pkgIndex));
+
+        // 3) PASS2: payments tara, source="Paket satisi" olanlari ata
         $pkgByClient = [];
         foreach ($pkgIndex as $gid => $m) {
             $pkgByClient[$m['cnLower']][] = $gid;
         }
         $pAtanan = 0; $pAtlanan = 0; $pHata = 0;
+        $gTah = 0; $gTaksit = 0;
         foreach ($payments as $p) {
             $src = trim((string) ($p['source_text'] ?? ''));
-            // Sadece paket satisi tahsilatlari (Adisyon tahsilatlari visit pipeline'inda)
             if (mb_strtolower($src, 'UTF-8') !== mb_strtolower('Paket satışı', 'UTF-8')) continue;
             $pid = (string) ($p['id'] ?? '');
             if (!$pid) { $pAtlanan++; continue; }
@@ -1244,7 +1335,6 @@ class SalonappyImport extends Command
             }, explode(',', (string)($p['services'] ?? ''))));
             if (empty($pkgByClient[$cnL])) { $pAtlanan++; continue; }
 
-            // Aday paketler: kalan > 0, payment.date >= paket.date, services overlap
             $adaylar = [];
             foreach ($pkgByClient[$cnL] as $gid) {
                 $m = $pkgIndex[$gid];
@@ -1262,15 +1352,11 @@ class SalonappyImport extends Command
                 $adaylar[$gid] = $m['date'];
             }
             if (empty($adaylar)) { $pAtlanan++; continue; }
-            asort($adaylar); // en eski paket once
+            asort($adaylar);
             $gid = array_key_first($adaylar);
             $m = $pkgIndex[$gid];
 
             $payMarker = '[salonappy-pay:' . $pid . ']';
-            $payExists = \DB::table('tahsilatlar')->where('salon_id', $salonId)
-                ->where('notlar', 'LIKE', '%' . $payMarker . '%')->exists();
-            if ($payExists) { $pAtlanan++; continue; }
-
             try {
                 $yontemId = $yontemMap($p['payment_method_text'] ?? '');
                 $tahId = \DB::table('tahsilatlar')->insertGetId([
@@ -1279,9 +1365,7 @@ class SalonappyImport extends Command
                     'odeme_yontemi_id' => $yontemId, 'notlar' => $payMarker,
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                 ]);
-                // TH dagitimi (UI 'adisyona bagli' icin sart)
-                $ahsBu = \DB::table('adisyon_hizmetler')->where('adisyon_id', $m['adId'])
-                    ->get(['id', 'fiyat']);
+                $ahsBu = \DB::table('adisyon_hizmetler')->where('adisyon_id', $m['adId'])->get(['id', 'fiyat']);
                 $tFiyat = 0.0;
                 foreach ($ahsBu as $a) $tFiyat += (float) $a->fiyat;
                 if ($tFiyat > 0) {
@@ -1312,9 +1396,9 @@ class SalonappyImport extends Command
                 \Log::warning('[Salonappy pay-match] hata', ['pid' => $pid, 'err' => $e->getMessage()]);
             }
         }
-        $this->line("Pass2 sonuc: atanan=$pAtanan, atlanan=$pAtlanan, hata=$pHata");
+        $this->line("PASS2 sonuc: atanan=$pAtanan, atlanan=$pAtlanan, hata=$pHata");
 
-        // ====== Pass 3: paket.kalan > 0 ise TaksitliTahsilatlar + TaksitVadeleri + Alacaklar ======
+        // 4) PASS3: kalan > 0 ise taksit
         foreach ($pkgIndex as $gid => $m) {
             $kalan = round($m['total'] - $m['paid'], 2);
             if ($kalan <= 0.01) continue;
@@ -1347,7 +1431,7 @@ class SalonappyImport extends Command
             }
         }
 
-        $this->info("Package sales: eklenen=$gEklenen, dedup=$gDedup, hata=$gHata, tahsilat=$gTah, taksit=$gTaksit");
+        $this->info("Package payments: tahsilat=$gTah, taksit=$gTaksit");
         return 0;
     }
 
