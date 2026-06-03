@@ -353,6 +353,13 @@
            Marka renkleri: #5C008E mor, #9D5DC8 açık mor, #d946ef fuşya
            ============================================================ --}}
       <style id="ust-bar-responsive-2606">
+         /* Telefon (Dahili) ve Faturasiz Gizle butonlarini ust bardan gizle.
+            Markup'ta dururlar (JS hooklari korunsun diye) ama gorunmezler. */
+         #webTelefonDropDown, #webtelefon,
+         #faturasizGizleTopbarBtn { display: none !important; }
+         .header-right > .user-notification:has(#webTelefonDropDown),
+         .header-right > .header-right:has(#faturasizGizleTopbarBtn) { display: none !important; }
+
          .header { align-items: center !important; padding-right: 16px; }
          .header-right {
             display: flex !important; flex-wrap: nowrap; align-items: center;
