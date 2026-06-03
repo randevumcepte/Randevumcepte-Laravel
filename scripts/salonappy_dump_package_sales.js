@@ -5,8 +5,8 @@
 (async () => {
   const BASE = 'https://web-api.salonappy.com/api';
 
-  let TOKEN = '';
-  let X_DEVICE = '';
+  let TOKEN = '288401&Oc1lPAy62641ff1camqsiK7919e9107f826b22f39ede49c6ff4eaa';
+  let X_DEVICE = '1tevuO7938R1ggFPtQZVerlqY2GfIBJK';
   let X_VERSION = '2026.05.07.1';
   TOKEN = prompt('Bearer token', TOKEN) || TOKEN;
   X_DEVICE = prompt('x-device', X_DEVICE) || X_DEVICE;
@@ -65,8 +65,24 @@
   }
   console.log(`✓ Toplam paket satisi satir: ${packageSales.length}`);
 
-  // 3) Dump indir
-  const dump = { generated_at: new Date().toISOString(), clients, packageSales };
+  // 3) Payments (payment_method_text icin parser eslestirir: client_name+date+amount match)
+  console.log('🔹 Payments cekiliyor (/payment/list, payment_method icin)...');
+  const payments = [];
+  offset = 0;
+  while (true) {
+    const j = await get(`/payment/list?offset=${offset}&limit=${limit}&date_start=${dateStart}&date_end=${dateEnd}`);
+    const arr = j?.data?.payments || [];
+    if (!arr.length) break;
+    payments.push(...arr);
+    offset += arr.length;
+    if (offset % 500 === 0) console.log(`  payments kumule: ${payments.length}`);
+    await sleep(RATE_DELAY_MS);
+    if (arr.length < limit) break;
+  }
+  console.log(`✓ Toplam payment: ${payments.length}`);
+
+  // 4) Dump indir
+  const dump = { generated_at: new Date().toISOString(), clients, packageSales, payments };
   const txt = JSON.stringify(dump);
   console.log(`Boyut: ${(txt.length/1024/1024).toFixed(2)} MB`);
   const blob = new Blob([txt], { type: 'application/json' });
