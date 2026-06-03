@@ -1165,9 +1165,20 @@ class SalonappyImport extends Command
                     $items = (!empty($r['is_group']) && !empty($r['group_items']) && is_array($r['group_items']))
                         ? $r['group_items']
                         : [$r];
-                    // receivable_amount: Salonappy'nin gercek "planlanan alacak" sinyali.
-                    // remaining_payment "kalan tutar"dir; alacak olmasi icin receivable_amount > 0 sart.
-                    $grpReceivable += (float) ($r['receivable_amount'] ?? 0);
+                    // Alacak iki sinyalden biri:
+                    //   (a) receivable_amount > 0 — Salonappy'nin "alacak" alani
+                    //   (b) remaining_payment > 0 AND paid_amount > 0 — kismi odenmis paket
+                    //       (Salonappy bazen receivable_amount'i guncellemiyor; orn. Gulcan Lazer Bacak
+                    //       paid=2250 rem=2250 rec=0 ama UI'da alacak.)
+                    // Hic odenmemis paketler (paid=0, rec=0) alacak DEGIL (Hayal Kiran vb).
+                    $rec  = (float) ($r['receivable_amount'] ?? 0);
+                    $rem  = (float) ($r['remaining_payment'] ?? 0);
+                    $paid = (float) ($r['paid_amount'] ?? 0);
+                    if ($rec > 0.01) {
+                        $grpReceivable += $rec;
+                    } elseif ($rem > 0.01 && $paid > 0.01) {
+                        $grpReceivable += $rem;
+                    }
                     $payD = trim((string) ($r['payment_date'] ?? ''));
                     if ($grpVadeTarih === null && $payD !== '') $grpVadeTarih = $payD;
                     foreach ($items as $it) {
