@@ -557,9 +557,8 @@
 
 <script>
 /* Tab count badge'lerini DataTables AJAX response'undan guncelle.
-   DataTables init frontend-scripts.blade.php'de @if(pageindex==60) blogunda
-   yapiliyor — DOM ready'de zaten init olmus oluyor; biz xhr.dt event'ine
-   bir kez baglanacagiz. */
+   DataTables init frontend-scripts'te pageindex==60 blogunda yapiliyor —
+   DOM ready'de zaten init olmus oluyor; biz xhr.dt event'ine baglaniyoruz. */
 (function(){
     function bindBadge(tableId, badgeKey){
         var $t = $(tableId);

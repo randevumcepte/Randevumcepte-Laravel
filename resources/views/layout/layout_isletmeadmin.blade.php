@@ -170,7 +170,7 @@
          href="{{secure_asset('public/yeni_panel/src/plugins/jquery-steps/jquery.steps.css')}}"
          />
       @endif
-      <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/vendors/styles/style.css?v=20.5')}}" />
+      <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/vendors/styles/style.css?v=22.0')}}" />
       <script src="{{secure_asset('public/js/OneSignalSDKWorker.js')}}"></script>
       <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
       <script>
@@ -346,6 +346,157 @@
 .fc-center h2{
    color: #000 !important;
 }
+      </style>
+
+      {{-- ============================================================
+           ÜST BAR — RESPONSIVE & MODERN TASARIM (inline, cache-bypass)
+           Marka renkleri: #5C008E mor, #9D5DC8 açık mor, #d946ef fuşya
+           ============================================================ --}}
+      <style id="ust-bar-responsive-2606">
+         .header { align-items: center !important; padding-right: 16px; }
+         .header-right {
+            display: flex !important; flex-wrap: nowrap; align-items: center;
+            gap: 6px; padding-right: 12px !important; overflow: visible;
+            justify-content: flex-end;
+         }
+         .header-right .user-notification {
+            float: none !important; margin-right: 0 !important;
+            padding: 0 !important; display: flex; align-items: center;
+         }
+         .header-right .user-notification > .dropdown,
+         .header-right .user-notification > a { display: flex; align-items: center; }
+
+         /* Pill butonlar: SMS sayacı, WhatsApp, Telefon, İndirim Kullan */
+         .header-right .kalansms,
+         .header-right #whatsappDurumKutu > a.btn,
+         .header-right #webtelefon,
+         .header-right #indirimKullan {
+            height: 38px !important; padding: 0 12px !important;
+            border-radius: 999px !important; display: inline-flex !important;
+            align-items: center !important; gap: 6px !important;
+            line-height: 1 !important; font-size: 13px !important;
+            font-weight: 600 !important; white-space: nowrap;
+            box-shadow: 0 1px 2px rgba(0,0,0,.08); border: none !important;
+        }
+         .header-right .kalansms i,
+         .header-right #whatsappDurumKutu > a.btn i,
+         .header-right #webtelefon i { font-size: 16px !important; }
+
+         /* Bildirim / Ayar / Plus → yumuşak mor yuvarlak ikon butonlar */
+         .header-right .user-notification .dropdown > a.dropdown-toggle.no-arrow:not(.kalansms):not(.btn-warning):not(.btn-success):not(.btn-primary) {
+            width: 40px !important; height: 40px !important;
+            border-radius: 50% !important; background: #f5eefe !important;
+            color: #5C008E !important; display: inline-flex !important;
+            align-items: center !important; justify-content: center !important;
+            padding: 0 !important; font-size: 18px !important;
+            transition: background .15s ease;
+         }
+         .header-right .user-notification .dropdown > a.dropdown-toggle.no-arrow:not(.kalansms):not(.btn-warning):not(.btn-success):not(.btn-primary):hover {
+            background: #ead4ff !important;
+         }
+
+         /* Bildirim badge'i marka fuşyası */
+         .header-right .user-notification .dropdown-toggle .badge,
+         .header-right .user-notification .dropdown-toggle span.badge {
+            position: absolute !important; top: -3px !important; right: -3px !important;
+            background: #d946ef !important; color: #fff !important; font-weight: 700 !important;
+            box-shadow: 0 0 0 2px #fff !important; padding: 0 5px !important;
+            height: 18px !important; min-width: 18px !important;
+            border-radius: 999px !important; font-size: 11px !important; line-height: 18px !important;
+         }
+
+         /* Salon adı + gün kaldı: küçük mor kart, ellipsis */
+         .header-left #myLabel {
+            display: block !important; margin-bottom: 0 !important;
+            padding: 6px 12px !important;
+            background: linear-gradient(135deg, #faf3ff 0%, #f4e6ff 100%) !important;
+            border: 1px solid #ead4ff !important; border-radius: 10px !important;
+            font-size: 12px !important; line-height: 1.3 !important;
+            color: #5C008E !important; font-weight: 600 !important;
+            max-width: 260px !important; overflow: hidden !important;
+            text-overflow: ellipsis !important; white-space: nowrap !important;
+         }
+         .header-left .form-group.mb-0 { width: auto !important; max-width: 260px !important; }
+
+         /* Avatar dropdown */
+         .user-info-dropdown { padding: 5px 4px 5px 8px !important; }
+         .user-info-dropdown .dropdown-toggle .user-icon {
+            width: 38px !important; height: 38px !important;
+            line-height: 38px !important; font-size: 16px !important;
+         }
+         .user-info-dropdown .dropdown-toggle .user-name { font-size: 13px !important; }
+
+         /* ----- ≤1400px ----- */
+         @media (max-width: 1400px) {
+            .header-right { gap: 4px !important; padding-right: 8px !important; }
+            .header-left #myLabel { max-width: 200px !important; font-size: 11.5px !important; }
+            .header-right .kalansms,
+            .header-right #whatsappDurumKutu > a.btn,
+            .header-right #webtelefon,
+            .header-right #indirimKullan {
+               height: 36px !important; padding: 0 10px !important; font-size: 12px !important;
+            }
+            .header-right .user-notification .dropdown > a.dropdown-toggle.no-arrow:not(.kalansms):not(.btn-warning):not(.btn-success):not(.btn-primary) {
+               width: 36px !important; height: 36px !important; font-size: 16px !important;
+            }
+         }
+
+         /* ----- ≤1199px ----- */
+         @media (max-width: 1199px) {
+            .header-left #myLabel { max-width: 160px !important; font-size: 11px !important; }
+            #whatsappDurumKutu > a.btn > span:not(:last-child) { display: none !important; }
+            #whatsappDurumKutu > a.btn { padding: 0 10px !important; }
+            #indirimKullan {
+               width: 36px !important; padding: 0 !important;
+               justify-content: center !important; font-size: 0 !important; position: relative !important;
+            }
+            #indirimKullan::after {
+               content: "%" !important; font-size: 16px !important;
+               font-weight: 700 !important; line-height: 1 !important; color: #fff !important;
+            }
+            .user-info-dropdown .dropdown-toggle .user-name { display: none !important; }
+         }
+
+         /* ----- ≤1300px: layout dosyasındaki inline kuralla uyumlu çalış ----- */
+         @media (max-width: 1300px) {
+            .header { height: auto !important; min-height: 50px !important; }
+            .user-notification { padding: 0 !important; }
+         }
+
+         /* ----- ≤1024px ----- */
+         @media (max-width: 1024px) {
+            .header { flex-wrap: wrap !important; min-height: 60px !important; }
+            .header-left { width: auto !important; flex: 1 1 auto !important; min-width: 0; }
+            .header-right { width: auto !important; flex: 0 0 auto !important; flex-wrap: wrap !important; }
+            .header-left #myLabel { max-width: 140px !important; }
+         }
+
+         /* ----- ≤767px ----- */
+         @media (max-width: 767px) {
+            .header { padding: 4px 8px !important; }
+            .header-right { gap: 3px !important; padding-right: 4px !important; }
+            .header-left #myLabel { max-width: 120px !important; padding: 4px 8px !important; font-size: 10.5px !important; }
+            .header-right .kalansms,
+            .header-right #whatsappDurumKutu > a.btn,
+            .header-right #webtelefon,
+            .header-right #indirimKullan {
+               height: 34px !important; padding: 0 8px !important;
+            }
+            .header-right .user-notification .dropdown > a.dropdown-toggle.no-arrow:not(.kalansms):not(.btn-warning):not(.btn-success):not(.btn-primary) {
+               width: 34px !important; height: 34px !important; font-size: 15px !important;
+            }
+         }
+
+         /* ----- ≤575px ----- */
+         @media (max-width: 575px) {
+            .header-right { gap: 2px !important; }
+            .header-right .user-notification .dropdown > a.dropdown-toggle.no-arrow:not(.kalansms):not(.btn-warning):not(.btn-success):not(.btn-primary) {
+               width: 32px !important; height: 32px !important; font-size: 14px !important;
+            }
+            #whatsappDurumKutu > a.btn,
+            #indirimKullan,
+            #webtelefon { height: 32px !important; padding: 0 8px !important; }
+         }
       </style>
 
    </head>
@@ -4608,7 +4759,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=230.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=231.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>

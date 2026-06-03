@@ -159,7 +159,7 @@
          href="{{secure_asset('public/yeni_panel/src/plugins/jquery-steps/jquery.steps.css')}}"
          />
       @endif
-      <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/vendors/styles/style.css?v=21.1')}}" />
+      <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/vendors/styles/style.css?v=22.0')}}" />
       <script src="{{secure_asset('public/js/OneSignalSDKWorker.js')}}"></script>
       <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
       <script>
