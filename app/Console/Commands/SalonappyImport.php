@@ -1580,9 +1580,12 @@ class SalonappyImport extends Command
             $tarih = $r['date'] ?? date('Y-m-d');
             $urunAdi = trim((string) ($r['product_text'] ?? ''));
             if ($urunAdi === '') { $gHata++; continue; }
-            $fiyat = (float) ($r['product_price'] ?? 0);
             $adet = max(1, (int) ($r['quantity'] ?? 1));
-            $toplam = (float) ($r['total_amount'] ?? ($fiyat * $adet));
+            $toplam = (float) ($r['total_amount'] ?? 0);
+            $ppRaw = (float) ($r['product_price'] ?? 0);
+            // Salonappy product_price bazen 0 doner, ama total_amount dolu. Birim fiyat
+            // her zaman total_amount / quantity (dump otoriter).
+            $fiyat = $toplam > 0 ? round($toplam / $adet, 2) : $ppRaw;
 
             $urunId = $this->ensureUrun($salonId, $urunAdi, $fiyat, $urunAdi);
             if (!$urunId) { $gHata++; continue; }
@@ -1603,7 +1606,7 @@ class SalonappyImport extends Command
                 ]);
                 \DB::table('adisyon_urunler')->insert([
                     'adisyon_id' => $adId, 'urun_id' => $urunId,
-                    'fiyat' => $fiyat ?: ($adet > 0 ? round($toplam / $adet, 2) : $toplam),
+                    'fiyat' => $fiyat,
                     'adet' => $adet,
                     'personel_id' => $persId,
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
@@ -2161,8 +2164,10 @@ class SalonappyImport extends Command
                     $pAd = trim((string) ($ps['product_text'] ?? ''));
                     if ($pAd === '') continue;
                     $pAdet = max(1, (int) ($ps['quantity'] ?? 1));
-                    $pTutar = (float) ($ps['total_amount'] ?? ($ps['product_price'] ?? 0) * $pAdet);
-                    $pFiyat = (float) ($ps['product_price'] ?? ($pAdet ? $pTutar / $pAdet : 0));
+                    $pTutar = (float) ($ps['total_amount'] ?? 0);
+                    $ppRaw = (float) ($ps['product_price'] ?? 0);
+                    // Birim fiyat = total_amount / quantity (product_price 0 gelebiliyor)
+                    $pFiyat = $pTutar > 0 ? round($pTutar / $pAdet, 2) : $ppRaw;
                     $urunId = $this->ensureUrun($salonId, $pAd, $pFiyat, $pAd);
                     if (!$urunId) continue;
                     // Visit adisyonunda zaten bu urun var mi (tasinmadan dolayi)? Varsa atla.
