@@ -1396,6 +1396,15 @@ class SalonappyImport extends Command
                 if (!$overlap) continue;
                 $adaylar[$gid] = $m['date'];
             }
+            // Services overlap fail -> fallback: musterinin en eski paket adisyonu.
+            // Salonappy bazi paymentlerin services'i ile musteri paketi arasinda tutarsiz olabilir
+            // (orn. Nesrin Ozmen payment svc=G5+Heykeltras, paketleri Pedikur+Manikur). Kullanici
+            // ayni musteri icin tahsilatin paket adisyonuna eklenmesini bekler.
+            if (empty($adaylar)) {
+                foreach ($pkgByClient[$cnL] as $gid) {
+                    $adaylar[$gid] = $pkgIndex[$gid]['date'];
+                }
+            }
             if (empty($adaylar)) { $pAtlanan++; continue; }
             asort($adaylar);
             $gid = array_key_first($adaylar);
