@@ -2137,7 +2137,30 @@ class SalonappyImport extends Command
 
                 // Urun tasima: visit.product_sales[] her item icin
                 // ayni tarih + product_text + adet + tutar ile [salonappy-prodsale:%] adisyonu varsa
-                // o adisyonun AU + tahsilat'larini visit adisyonuna tasi.
+                // o adisyonun AU + tahsilat + alacak'larini visit adisyonuna tasi.
+                // Mantik: ayni tarih + ayni musteri ile [salonappy-prodsale:%] markerli
+                // adisyon(lar) varsa hepsini visit adisyonuna birlestir + eski adisyon sil.
+                // (Strict urun item-level match yerine adisyon-level; cunku Salonappy ayni gun ayni
+                // musteriye yapilmis urun satislari visit'le iliskili kabul edilir.)
+                $prodAdIds = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                    ->where('user_id', $userId)->where('tarih', $tarih)
+                    ->where('notlar', 'LIKE', '%[salonappy-prodsale:%')->pluck('id')->all();
+                foreach ($prodAdIds as $cAdId) {
+                    \DB::table('adisyon_urunler')->where('adisyon_id', $cAdId)
+                        ->update(['adisyon_id' => $adId]);
+                    \DB::table('tahsilatlar')->where('adisyon_id', $cAdId)
+                        ->update(['adisyon_id' => $adId]);
+                    \DB::table('taksitli_tahsilatlar')->where('adisyon_id', $cAdId)
+                        ->update(['adisyon_id' => $adId]);
+                    if (\Schema::hasTable('alacaklar')) {
+                        \DB::table('alacaklar')->where('adisyon_id', $cAdId)
+                            ->update(['adisyon_id' => $adId]);
+                    }
+                    \DB::table('adisyonlar')->where('id', $cAdId)->delete();
+                    $gUrunTasinan++;
+                }
+                // Ek olarak bd.product_sales[] icindeki ozel urunler ayrica ekle
+                // (taşinan adisyondaki AU'larda zaten var olabilir; eklenirken urun_id ile dedup).
                 foreach (($bd['product_sales'] ?? []) as $ps) {
                     $pAd = trim((string) ($ps['product_text'] ?? ''));
                     if ($pAd === '') continue;
@@ -2146,44 +2169,17 @@ class SalonappyImport extends Command
                     $pFiyat = (float) ($ps['product_price'] ?? ($pAdet ? $pTutar / $pAdet : 0));
                     $urunId = $this->ensureUrun($salonId, $pAd, $pFiyat, $pAd);
                     if (!$urunId) continue;
-
-                    // Mevcut prodsale adisyonu ara (ayni tarih + ayni urun + adet + tutar)
-                    $cand = \DB::table('adisyonlar')->where('salon_id', $salonId)
-                        ->where('user_id', $userId)->where('tarih', $tarih)
-                        ->where('notlar', 'LIKE', '%[salonappy-prodsale:%')->pluck('id')->all();
-                    $tasinanAdId = null;
-                    foreach ($cand as $cAdId) {
-                        $au = \DB::table('adisyon_urunler')->where('adisyon_id', $cAdId)
-                            ->where('urun_id', $urunId)->where('adet', $pAdet)
-                            ->whereBetween('fiyat', [$pFiyat - 0.01, $pFiyat + 0.01])->first();
-                        if ($au) { $tasinanAdId = $cAdId; break; }
-                    }
-                    if ($tasinanAdId) {
-                        // AU'lari visit adisyonuna tasi
-                        \DB::table('adisyon_urunler')->where('adisyon_id', $tasinanAdId)
-                            ->update(['adisyon_id' => $adId]);
-                        // Tahsilatlari tasi
-                        \DB::table('tahsilatlar')->where('adisyon_id', $tasinanAdId)
-                            ->update(['adisyon_id' => $adId]);
-                        // TaksitliTahsilatlar
-                        \DB::table('taksitli_tahsilatlar')->where('adisyon_id', $tasinanAdId)
-                            ->update(['adisyon_id' => $adId]);
-                        if (\Schema::hasTable('alacaklar')) {
-                            \DB::table('alacaklar')->where('adisyon_id', $tasinanAdId)
-                                ->update(['adisyon_id' => $adId]);
-                        }
-                        // Eski adisyon sil
-                        \DB::table('adisyonlar')->where('id', $tasinanAdId)->delete();
-                        $gUrunTasinan++;
-                    } else {
-                        // Yeni AU ekle (visit adisyonu altinda)
-                        \DB::table('adisyon_urunler')->insert([
-                            'adisyon_id' => $adId, 'urun_id' => $urunId,
-                            'fiyat' => $pFiyat, 'adet' => $pAdet,
-                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                        ]);
-                        $gAU++;
-                    }
+                    // Visit adisyonunda zaten bu urun var mi (tasinmadan dolayi)? Varsa atla.
+                    $varMi = \DB::table('adisyon_urunler')->where('adisyon_id', $adId)
+                        ->where('urun_id', $urunId)->where('adet', $pAdet)
+                        ->whereBetween('fiyat', [$pFiyat - 0.01, $pFiyat + 0.01])->exists();
+                    if ($varMi) continue;
+                    \DB::table('adisyon_urunler')->insert([
+                        'adisyon_id' => $adId, 'urun_id' => $urunId,
+                        'fiyat' => $pFiyat, 'adet' => $pAdet,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $gAU++;
                 }
 
                 // Paket usage: package_usages[] her usage icin

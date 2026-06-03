@@ -418,7 +418,7 @@ Geçmiş visit (`is_past=true`):
 1. **Adisyon** insert (marker, salon+user+tarih)
 2. **Adisyon hizmetleri** (services[]) — fiyat, personel, geldi=1 (showup="Geldi" ise)
 3. **Randevu** + randevu_hizmetler (showup map: Geldi=1, Gelmedi=2, İptal=3)
-4. **Ürün taşıma**: `product_sales[]` her item için aynı tarih+ürün+adet+tutar ile mevcut `[salonappy-prodsale:%]` adisyonu varsa → AU + tahsilat + alacak visit adisyonuna **taşınır**, eski prodsale adisyonu silinir. Yoksa AU direkt visit adisyonuna eklenir.
+4. **Ürün taşıma**: aynı tarih + aynı müşteri ile mevcut `[salonappy-prodsale:%]` adisyon(lar)ı varsa **tüm AU + tahsilat + alacak visit adisyonuna taşınır**, eski adisyon silinir (item-level kontrol yok — Salonappy aynı gün aynı müşteriye yapılmış ürün satışlarını visit'le ilişkili kabul eder). Ek olarak `bd.product_sales[]` içindeki ürünler visit adisyonuna yoksa eklenir (urun_id+adet+fiyat dedup).
 5. **Paket kullanımı**: `package_usages[]` her usage için müşterinin `[salonappy-pkgsale:%]` adisyonlarındaki aynı hizmetin AH'lerini bul → APS placeholder'larından (geldi=0) `quantity` kadarını `geldi=1` + `seans_tarih=usage.date` yap.
 6. **Tahsilat**: `payments[]` her ödeme tahsilatlar + TH dağıt. Marker: `[salonappy-visit-pay:<pid>]`.
 7. **Alacak**: `unpaid_amount > 0` → TaksitliTahsilatlar + TaksitVadeleri (vade=visit tarihi) + Alacaklar.
