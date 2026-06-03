@@ -1365,8 +1365,8 @@ class SalonappyImport extends Command
             $adaylar = [];
             foreach ($pkgByClient[$cnL] as $gid) {
                 $m = $pkgIndex[$gid];
-                $kalan = round($m['total'] - $m['paid'], 2);
-                if ($kalan <= 0.01) continue;
+                // NOT: 'kalan > 0' filtresi yok — tamamen odenmis paketler de (Gulcan Bikini
+                // paid=2000 tot=2000 gibi) gecmis tahsilat alabilir. Bu eksikleri kapatiyor.
                 if ($pDate && $m['date'] && $pDate < $m['date']) continue;
                 $overlap = false;
                 foreach ($svcList as $sv) {
