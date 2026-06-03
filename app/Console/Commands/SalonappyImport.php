@@ -505,16 +505,25 @@ class SalonappyImport extends Command
                 }
 
                 // Tahsilatlar itemized (payments[] dolu ise her birini ayrı ekle)
+                // Dedup: ayni user+tarih+tutar+yontem (payment_method) → skip.
+                // Onceki kod sadece (user+tarih+tutar) bakiyordu → ayni adisyonda ayni
+                // tutarda farkli yontem (orn: 750 Nakit + 750 KK) varsa 2. atlanip
+                // payment parser tarafindan adisyon_id NULL ile ayri ekleniyordu.
+                // payment_method_text karsilastirmasiyla artik ikisi de visit adisyonuna baglanir.
                 if ($adisyonId && ctype_digit($adisyonId) && !empty($bd['payments'])) {
                     foreach ($bd['payments'] as $p) {
                         $tutar = (float) ($p['amount'] ?? 0);
                         if ($tutar <= 0) continue;
                         $odemeYontem = $p['payment_method_text'] ?? $p['payment_method'] ?? 'Nakit';
                         $odemeTarih = $p['date'] ?? $tarih;
-                        $existsT = \DB::table('tahsilatlar')->where('salon_id', $salonId)
-                            ->where('user_id', $userId)->where('odeme_tarihi', $odemeTarih)
-                            ->where('tutar', $tutar)->exists();
-                        if ($existsT) continue;
+                        // Marker bazli dedup: bu payment_id zaten yazilmis mi?
+                        $payId = (string) ($p['id'] ?? '');
+                        $payIdMarker = $payId ? '[salonappy-pay:' . $session . ':' . $payId . ']' : '';
+                        if ($payIdMarker) {
+                            $exists = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+                                ->where('notlar', 'LIKE', '%' . $payIdMarker . '%')->exists();
+                            if ($exists) continue;
+                        }
                         try {
                             $tReq = new \Illuminate\Http\Request([
                                 'userId' => $userId, 'adisyonId' => $adisyonId,
@@ -523,12 +532,13 @@ class SalonappyImport extends Command
                             ]);
                             $apiController->salonAppyTahsilatEkle($tReq);
                             $tEklenen++;
-                            // Tahsilata marker yaz (reset icin)
+                            // Tahsilata marker yaz (reset + payment dedup icin)
                             $newT = \DB::table('tahsilatlar')->where('salon_id', $salonId)
                                 ->where('user_id', $userId)->where('odeme_tarihi', $odemeTarih)
                                 ->where('tutar', $tutar)->orderByDesc('id')->first();
                             if ($newT && \Schema::hasColumn('tahsilatlar', 'notlar')) {
-                                \DB::table('tahsilatlar')->where('id', $newT->id)->update(['notlar' => $marker]);
+                                $not = trim($marker . ($payIdMarker ? ' ' . $payIdMarker : ''));
+                                \DB::table('tahsilatlar')->where('id', $newT->id)->update(['notlar' => $not]);
                             }
                         } catch (\Throwable $e) {}
                     }
