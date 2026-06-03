@@ -1164,8 +1164,12 @@ class SalonappyImport extends Command
         $tT = (new \App\Tahsilatlar)->getTable();
         $tAps = (new \App\AdisyonPaketSeanslar)->getTable();
 
+        // TUM salonappy markerlari (visit + pkgsale + prodsale + payment + pkgsale-pay + expense)
+        $salonappyPattern = "%[salonappy%";
+
+        // Randevular
         $randevuIds = \DB::table($tR)->where('salon_id', $salonId)
-            ->where('personel_notu', 'LIKE', '%[salonappy:%')->pluck('id')->all();
+            ->where('personel_notu', 'LIKE', $salonappyPattern)->pluck('id')->all();
 
         // Adisyon not kolonu
         $notKol = null;
@@ -1175,7 +1179,7 @@ class SalonappyImport extends Command
         $adisyonIds = [];
         if ($notKol) {
             $adisyonIds = \DB::table($tA)->where('salon_id', $salonId)
-                ->where($notKol, 'LIKE', '%[salonappy:%')->pluck('id')->all();
+                ->where($notKol, 'LIKE', $salonappyPattern)->pluck('id')->all();
         }
         // Fallback: markersiz adisyonlar icin marker'li randevu user+tarih ile eslestir
         if (!empty($randevuIds)) {
@@ -1189,18 +1193,28 @@ class SalonappyImport extends Command
             }
         }
 
-        $this->line("Salon {$salonId}: " . count($randevuIds) . " randevu, " . count($adisyonIds) . " adisyon silinecek (markerli)");
-        if ($dryRun) { $this->warn('DRY-RUN'); return 0; }
-
-        // Tahsilatlar: marker'li veya adisyon_id eslesen
+        // Tahsilatlar: TUM salonappy* markerli + adisyon_id eslesen
         $tahsilatIds = \DB::table($tT)->where('salon_id', $salonId)
-            ->where(function ($q) use ($adisyonIds) {
-                $q->where('notlar', 'LIKE', '%[salonappy:%');
+            ->where(function ($q) use ($adisyonIds, $salonappyPattern) {
+                $q->where('notlar', 'LIKE', $salonappyPattern);
                 if (!empty($adisyonIds)) $q->orWhereIn('adisyon_id', $adisyonIds);
             })->pluck('id')->all();
-        $this->line("Tahsilat (markerli veya adisyon_id eslesen): " . count($tahsilatIds));
 
-        // AdisyonHizmetler -> AdisyonPaketSeanslar -> AdisyonUrunler -> Tahsilatlar -> Adisyonlar
+        // Masraflar (salonappy-expense markerli)
+        $masrafIds = [];
+        if (\Schema::hasColumn('masraflar', 'notlar')) {
+            $masrafIds = \DB::table('masraflar')->where('salon_id', $salonId)
+                ->where('notlar', 'LIKE', $salonappyPattern)->pluck('id')->all();
+        }
+
+        $this->line("Salon {$salonId} silinecek:");
+        $this->line("  randevu: " . count($randevuIds));
+        $this->line("  adisyon: " . count($adisyonIds));
+        $this->line("  tahsilat: " . count($tahsilatIds));
+        $this->line("  masraf: " . count($masrafIds));
+        if ($dryRun) { $this->warn('DRY-RUN'); return 0; }
+
+        // AdisyonHizmetler -> AdisyonPaketSeanslar -> AdisyonUrunler -> Adisyonlar
         if (!empty($adisyonIds)) {
             $ahIds = \DB::table($tAh)->whereIn('adisyon_id', $adisyonIds)->pluck('id')->all();
             if (!empty($ahIds)) {
@@ -1229,7 +1243,13 @@ class SalonappyImport extends Command
                 \DB::table($tR)->whereIn('id', $ck)->delete();
             }
         }
-        $this->info('Reset tamam. Simdi --dump-file ile re-import yapabilirsiniz.');
+        // Masraflar
+        if (!empty($masrafIds)) {
+            foreach (array_chunk($masrafIds, 1000) as $ck) {
+                \DB::table('masraflar')->whereIn('id', $ck)->delete();
+            }
+        }
+        $this->info('Reset tamam. Musteri + kurulum (hizmet/personel/urun) korunur. Simdi --dump-file ile re-import yapabilirsiniz.');
         return 0;
     }
 
