@@ -1091,9 +1091,37 @@ class SalonappyImport extends Command
         $gEklenen = 0; $gDedup = 0; $gHata = 0; $gTah = 0; $gTaksit = 0;
         foreach ($groups as $gid => $rows) {
             $marker = '[salonappy-pkgsale:' . $gid . ']';
-            $exists = \DB::table('adisyonlar')->where('salon_id', $salonId)
-                ->where('notlar', 'LIKE', '%' . $marker . '%')->exists();
-            if ($exists) { $gDedup++; continue; }
+            // UPSERT MOD: mevcut markerli adisyon varsa once SIL (+ bagli kayitlar),
+            // sonra yeniden yaz. Boylece her import tek seferde tamamlanir, eski TH/AH/APS
+            // kalintilari temizlenir (kullanicinin istegi: "tek seferde eksik tamamlama").
+            $eskiAdIds = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                ->where('notlar', 'LIKE', '%' . $marker . '%')->pluck('id')->all();
+            if (!empty($eskiAdIds)) {
+                $eskiAhIds = \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+                $eskiTahIds = \DB::table('tahsilatlar')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+                // Bagli tahsilat marker'larini bul (pkgsale-pay)
+                if (!empty($eskiTahIds)) {
+                    \DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $eskiTahIds)->delete();
+                    \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $eskiTahIds)->delete();
+                    \DB::table('tahsilatlar')->whereIn('id', $eskiTahIds)->delete();
+                }
+                if (!empty($eskiAhIds)) {
+                    \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $eskiAhIds)->delete();
+                }
+                // Taksitli tahsilatlar + vadeler + alacaklar
+                $eskiTtIds = \DB::table('taksitli_tahsilatlar')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+                if (!empty($eskiTtIds)) {
+                    \DB::table('taksit_vadeleri')->whereIn('taksitli_tahsilat_id', $eskiTtIds)->delete();
+                    if (\Schema::hasTable('alacaklar')) {
+                        \DB::table('alacaklar')->whereIn('adisyon_id', $eskiAdIds)->delete();
+                    }
+                    \DB::table('taksitli_tahsilatlar')->whereIn('id', $eskiTtIds)->delete();
+                }
+                \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $eskiAdIds)->delete();
+                \DB::table('adisyon_urunler')->whereIn('adisyon_id', $eskiAdIds)->delete();
+                \DB::table('adisyonlar')->whereIn('id', $eskiAdIds)->delete();
+                $gDedup++; // sayim: yeniden yazildi
+            }
             $first = $rows[0];
             $clientId = (string) ($first['client_id'] ?? '');
             $userId = $clientId ? ($idMap[$clientId] ?? null) : null;
