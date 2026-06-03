@@ -348,15 +348,21 @@ scp salonappy_package_sales_*.json root@<server>:/tmp/
 
 **PASS2 (`--only-package-payments`)** ne yapar:
 
-- DB'den `[salonappy-pkgsale:%]` markerlı paket adisyonlarını okur, `pkgIndex` re-build eder
+- DB'den `[salonappy-pkgsale:%]` markerlı paket adisyonlarını okur
+- `pkgIndex` re-build **dump otoriter**: `client_name` ve `service_text` dump'taki `packageSales[]`'den çekilir (DB users.name ve hizmetler.hizmet_adi'nde Türkçe karakter / format farklılığı oluyordu — Sinem Soybek, Yasemin Şahin vb 16 ödeme eşleşmiyordu). `adId` + `userId` DB'den.
 - Mevcut paket adisyonlarına bağlı tahsilatları siler (UPSERT)
 - Dump `payments[]` listesinde `source_text="Paket satışı"` olanları paket adisyonlarına eşleştirir:
-  - Eşleşme kriteri: `client_name` (normalize) + `payment.date >= paket.date` + `services` overlap (normalize)
-  - Çakışmada en eski paket önce seçilir
+  - **Eşleşme kriteri**: `client_name` (normalize) + `services` overlap (normalize)
+  - **`kalan > 0` filtresi YOK** — tamamen ödenmiş paketler (Gülcan Bikini paid=2000 tot=2000) de geçmiş tahsilat alabilir
+  - **`payment.date >= paket.date` filtresi YOK** — Salonappy'de kaparo veya geriye dönük kayıt nedeniyle ödeme paketten önce de gözükebilir (Yıldız Acar 2025-05-01 payment, paket 2025-05-02)
+  - **Services overlap fail fallback**: müşterinin DB'deki en eski paket adisyonuna bağlan (Nesrin Özmen payment svc=G5+Heykeltraş, paketleri Pedikür+Manikür — tutarsız Salonappy verisi için)
+  - Çakışmada **en eski paket** önce seçilir
 - Eşleşen pakete `tahsilatlar` insert + `tahsilat_hizmetler` (AH fiyat orantılı dağıtım — UI'da "adisyona bağlı" görünmesi için şart)
-- Ödeme yöntemi `payment_method_text` üzerinden: Nakit=1, Kart=2, Havale=3, Diğer=4
+- **Ödeme yöntemi** `payment_method_text` üzerinden: Nakit=1, Kart=2, Havale=3, Diğer=4
 - Marker: `[salonappy-pay:<payment_id>]`
 - `source_text="Adisyon"` olan tahsilatlar atlanır (visit pipeline'ı işleyecek)
+- **UPSERT**: çalıştırışta önce paket adisyonlara bağlı tüm tahsilatları siler, sonra yeniden yazar — idempotent
+- **Sonuç (dump 1780483152143 örneği)**: 379 paket tahsilatından 378'i yazıldı (1 atlanan = paketi dump'ta olmayan tek müşteri). Toplam ~933.325 TL.
 
 #### Diğer modüler dump'lar (yakında)
 
