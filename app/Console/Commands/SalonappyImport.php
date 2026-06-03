@@ -1154,6 +1154,8 @@ class SalonappyImport extends Command
                     'notlar' => $marker,
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                 ]);
+                $grpReceivable = 0.0;
+                $grpVadeTarih = null;
                 foreach ($rows as $r) {
                     // Salonappy iki yapi:
                     //  (a) is_group=true + group_items[] → her hizmet KENDI quantity+total_usage+total_amount
@@ -1163,6 +1165,11 @@ class SalonappyImport extends Command
                     $items = (!empty($r['is_group']) && !empty($r['group_items']) && is_array($r['group_items']))
                         ? $r['group_items']
                         : [$r];
+                    // receivable_amount: Salonappy'nin gercek "planlanan alacak" sinyali.
+                    // remaining_payment "kalan tutar"dir; alacak olmasi icin receivable_amount > 0 sart.
+                    $grpReceivable += (float) ($r['receivable_amount'] ?? 0);
+                    $payD = trim((string) ($r['payment_date'] ?? ''));
+                    if ($grpVadeTarih === null && $payD !== '') $grpVadeTarih = $payD;
                     foreach ($items as $it) {
                         $svcAd = trim((string) ($it['service_text'] ?? ''));
                         if ($svcAd === '') continue;
@@ -1198,9 +1205,18 @@ class SalonappyImport extends Command
                         }
                     }
                 }
-                // Alacak/taksit YAZILMIYOR. Salonappy paket satisinda "planlanan odeme tarihi"
-                // ayri bir alan yok; remaining_payment > 0 sadece "kalan tutar" demek.
-                // Gerceken planlanmis alacak (vade tarihli) varsa o ayri akista islenmeli.
+                // Planlanan alacak: receivable_amount > 0 ise alacaklar tablosuna yaz.
+                // Vade = payment_date (paketten dump'lanan planlanan odeme tarihi) varsa,
+                // yoksa paket satis tarihi.
+                if ($grpReceivable > 0.01 && \Schema::hasTable('alacaklar')) {
+                    \DB::table('alacaklar')->insert([
+                        'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => $adId,
+                        'tutar' => round($grpReceivable, 2),
+                        'planlanan_odeme_tarihi' => $grpVadeTarih ?: $tarih,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $gTaksit++;
+                }
                 $gEklenen++;
             } catch (\Throwable $e) {
                 $gHata++;
@@ -1208,7 +1224,7 @@ class SalonappyImport extends Command
             }
         }
 
-        $this->info("Package sales (PASS1 - paket adisyon+AH+APS, tahsilat/alacak YOK): eklenen=$gEklenen, dedup=$gDedup, hata=$gHata");
+        $this->info("Package sales (PASS1 - adisyon+AH+APS+alacak, tahsilat YOK): eklenen=$gEklenen, dedup=$gDedup, hata=$gHata, alacak=$gTaksit");
         $this->line('Bir sonraki adim: --only-package-payments ile ayni dump dosyasiyla tahsilatlari yaz.');
         return 0;
     }
