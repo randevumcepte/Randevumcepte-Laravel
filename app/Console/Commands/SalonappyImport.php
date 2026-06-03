@@ -1365,9 +1365,11 @@ class SalonappyImport extends Command
             $adaylar = [];
             foreach ($pkgByClient[$cnL] as $gid) {
                 $m = $pkgIndex[$gid];
-                // NOT: 'kalan > 0' filtresi yok — tamamen odenmis paketler de (Gulcan Bikini
-                // paid=2000 tot=2000 gibi) gecmis tahsilat alabilir. Bu eksikleri kapatiyor.
-                if ($pDate && $m['date'] && $pDate < $m['date']) continue;
+                // NOT: 'kalan > 0' veya 'pDate >= paket.date' filtreleri yok.
+                // (1) Tamamen odenmis paketler de gecmis tahsilat alabilir (Gulcan Bikini).
+                // (2) Salonappy'de odeme paket tarih kaydindan once de gozukebilir
+                //     (kaparo / ileri tarihli kayit; Yildiz Acar payment=2025-05-01 paket date=2025-05-02).
+                // Match icin musteri + services overlap yeterli; cakismada en eski paket secilir.
                 $overlap = false;
                 foreach ($svcList as $sv) {
                     if (in_array($sv, $m['svcNorms'], true)) { $overlap = true; break; }
