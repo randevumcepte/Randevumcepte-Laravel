@@ -1205,16 +1205,34 @@ class SalonappyImport extends Command
                         }
                     }
                 }
-                // Planlanan alacak: receivable_amount > 0 ise alacaklar tablosuna yaz.
-                // Vade = payment_date (paketten dump'lanan planlanan odeme tarihi) varsa,
-                // yoksa paket satis tarihi.
-                if ($grpReceivable > 0.01 && \Schema::hasTable('alacaklar')) {
-                    \DB::table('alacaklar')->insert([
-                        'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => $adId,
-                        'tutar' => round($grpReceivable, 2),
-                        'planlanan_odeme_tarihi' => $grpVadeTarih ?: $tarih,
+                // Planlanan alacak: receivable_amount > 0 ise UI "Satis Takibi" sayfasi icin
+                // TaksitliTahsilatlar + TaksitVadeleri (taksit_vade_id ile baglanir) + Alacaklar
+                // uclusunu birlikte yaz; aksi halde satis takibi tablosunda gozukmez.
+                // Vade = payment_date varsa onu, yoksa paket satis tarihi.
+                if ($grpReceivable > 0.01) {
+                    $vadeTarih = $grpVadeTarih ?: $tarih;
+                    $tutar = round($grpReceivable, 2);
+                    $tt = \DB::table('taksitli_tahsilatlar')->insertGetId([
+                        'user_id' => $userId, 'adisyon_id' => $adId,
+                        'salon_id' => $salonId, 'vade_sayisi' => 1,
                         'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                     ]);
+                    $vadeId = \DB::table('taksit_vadeleri')->insertGetId([
+                        'taksitli_tahsilat_id' => $tt, 'odendi' => 0,
+                        'vade_tarih' => $vadeTarih, 'tutar' => $tutar,
+                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    if (\Schema::hasTable('alacaklar')) {
+                        \DB::table('alacaklar')->insert([
+                            'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => $adId,
+                            'tutar' => $tutar, 'taksit_vade_id' => $vadeId,
+                            'planlanan_odeme_tarihi' => $vadeTarih,
+                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                    \DB::table('adisyon_hizmetler')->where('adisyon_id', $adId)
+                        ->whereNull('taksitli_tahsilat_id')
+                        ->update(['taksitli_tahsilat_id' => $tt]);
                     $gTaksit++;
                 }
                 $gEklenen++;
