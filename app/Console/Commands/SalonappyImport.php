@@ -1114,36 +1114,38 @@ class SalonappyImport extends Command
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                 ]);
                 foreach ($rows as $r) {
-                    $svcRaw = trim((string) ($r['service_text'] ?? ''));
-                    if ($svcRaw === '') continue;
-                    // Salonappy bazen birden cok hizmeti virgulle TEK satirda gosteriyor
-                    // (Ayse Gurbuz: "Heykeltras, G5 Masaji, Bolgesel Yag Yakma" tek satis 12300 TL).
-                    // Virgulle split, her parca ayri AH. Fiyat hizmet sayisina bolunur.
-                    $svcAds = array_values(array_filter(array_map('trim', explode(',', $svcRaw))));
-                    if (empty($svcAds)) continue;
-                    $parca = count($svcAds);
-                    $qtyRaw = $r['quantity'] ?? null;
-                    $period = ($qtyRaw === null || $qtyRaw === '') ? null : max(1, (int) $qtyRaw);
-                    $kullanilan = ($r['total_usage'] === null || $r['total_usage'] === '') ? null : max(0, (int) $r['total_usage']);
-                    $tutarToplam = (float) ($r['total_amount'] ?? 0);
-                    $tutarHizmet = $parca > 0 ? round($tutarToplam / $parca, 2) : $tutarToplam;
-                    $usageDate = trim((string) ($r['usage_date'] ?? '')) ?: null;
-                    foreach ($svcAds as $svcAd) {
-                        $hid = $this->ensureSalonHizmet($salonId, $svcAd, 30, $tutarHizmet, $svcAd);
+                    // Salonappy iki yapi:
+                    //  (a) is_group=true + group_items[] → her hizmet KENDI quantity+total_usage+total_amount
+                    //      ile detay (Ayse Gurbuz: 4800 Heykeltras 4 seans, 3500 G5 10 seans, 4000 Yag Yakma 4 seans).
+                    //      Ust seviye service_text "A, B, C" virguluyle birlestirilmis ozet — KULLANMA.
+                    //  (b) is_group=false → tek satir, kendi alanlari kullanilir.
+                    $items = (!empty($r['is_group']) && !empty($r['group_items']) && is_array($r['group_items']))
+                        ? $r['group_items']
+                        : [$r];
+                    $usageDateAll = trim((string) ($r['usage_date'] ?? '')) ?: null;
+                    foreach ($items as $it) {
+                        $svcAd = trim((string) ($it['service_text'] ?? ''));
+                        if ($svcAd === '') continue;
+                        $qtyRaw = $it['quantity'] ?? null;
+                        $period = ($qtyRaw === null || $qtyRaw === '') ? null : max(1, (int) $qtyRaw);
+                        $tu = $it['total_usage'] ?? null;
+                        $kullanilan = ($tu === null || $tu === '') ? null : max(0, (int) $tu);
+                        $tutar = (float) ($it['total_amount'] ?? 0);
+                        $fiyatBirim = ($period && $period > 0) ? round($tutar / $period, 2) : $tutar;
+                        $usageDate = trim((string) ($it['usage_date'] ?? '')) ?: $usageDateAll;
+                        $hid = $this->ensureSalonHizmet($salonId, $svcAd, 30, $fiyatBirim, $svcAd);
                         if (!$hid) continue;
-                        // AH.geldi: period biliniyorsa ve kullanilan>=period ise 1, aksi 0
                         $ahGeldi = ($period !== null && $kullanilan !== null && $kullanilan >= $period) ? 1 : 0;
                         $ahRow = [
                             'adisyon_id' => $adId, 'hizmet_id' => $hid,
                             'geldi' => $ahGeldi, 'islem_tarihi' => ($usageDate ?: $tarih), 'islem_saati' => '00:00:00',
-                            'sure' => 30, 'fiyat' => $tutarHizmet,
+                            'sure' => 30, 'fiyat' => $tutar,
                             'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                         ];
                         if ($period !== null) $ahRow['seans_sayisi'] = $period;
                         $ahId = \DB::table('adisyon_hizmetler')->insertGetId($ahRow);
-                        // APS placeholder SADECE seans paketi ise (period > 0). quantity null ise
-                        // bu bir paket degil tek satis — placeholder yazma (kullanicinin istegi:
-                        // "randevu yapilmadigi icin bir isleme yapilmayacak").
+                        // APS placeholder SADECE seans paketi (period > 0). quantity null ise
+                        // satis-only — placeholder YAZMA (kullanicinin istegi).
                         if ($period !== null && $period > 0) {
                             $kullanilanLocal = $kullanilan ?? 0;
                             for ($i = 1; $i <= $period; $i++) {
