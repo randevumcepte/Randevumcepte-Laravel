@@ -1154,7 +1154,6 @@ class SalonappyImport extends Command
                     'notlar' => $marker,
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                 ]);
-                $grpKalan = 0.0;
                 foreach ($rows as $r) {
                     // Salonappy iki yapi:
                     //  (a) is_group=true + group_items[] → her hizmet KENDI quantity+total_usage+total_amount
@@ -1164,7 +1163,6 @@ class SalonappyImport extends Command
                     $items = (!empty($r['is_group']) && !empty($r['group_items']) && is_array($r['group_items']))
                         ? $r['group_items']
                         : [$r];
-                    $grpKalan += (float) ($r['remaining_payment'] ?? 0);
                     foreach ($items as $it) {
                         $svcAd = trim((string) ($it['service_text'] ?? ''));
                         if ($svcAd === '') continue;
@@ -1200,34 +1198,9 @@ class SalonappyImport extends Command
                         }
                     }
                 }
-                // Alacak: remaining_payment > 0 ise TaksitliTahsilatlar + TaksitVadeleri + Alacaklar
-                // Vade = paket satis tarihi (Salonappy'de paket satildigi anda alacak olusur,
-                // ayri vade alani YOK). UI 'geciken alacak' olarak dogru gosterir.
-                if ($grpKalan > 0.01) {
-                    $vadeTarih = $tarih;
-                    $tt = \DB::table('taksitli_tahsilatlar')->insertGetId([
-                        'user_id' => $userId, 'adisyon_id' => $adId,
-                        'salon_id' => $salonId, 'vade_sayisi' => 1,
-                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                    ]);
-                    $vadeId = \DB::table('taksit_vadeleri')->insertGetId([
-                        'taksitli_tahsilat_id' => $tt, 'odendi' => 0,
-                        'vade_tarih' => $vadeTarih, 'tutar' => round($grpKalan, 2),
-                        'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                    ]);
-                    if (\Schema::hasTable('alacaklar')) {
-                        \DB::table('alacaklar')->insert([
-                            'salon_id' => $salonId, 'user_id' => $userId, 'adisyon_id' => $adId,
-                            'tutar' => round($grpKalan, 2), 'taksit_vade_id' => $vadeId,
-                            'planlanan_odeme_tarihi' => $vadeTarih,
-                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                        ]);
-                    }
-                    \DB::table('adisyon_hizmetler')->where('adisyon_id', $adId)
-                        ->whereNull('taksitli_tahsilat_id')
-                        ->update(['taksitli_tahsilat_id' => $tt]);
-                    $gTaksit++;
-                }
+                // Alacak/taksit YAZILMIYOR. Salonappy paket satisinda "planlanan odeme tarihi"
+                // ayri bir alan yok; remaining_payment > 0 sadece "kalan tutar" demek.
+                // Gerceken planlanmis alacak (vade tarihli) varsa o ayri akista islenmeli.
                 $gEklenen++;
             } catch (\Throwable $e) {
                 $gHata++;
@@ -1235,7 +1208,7 @@ class SalonappyImport extends Command
             }
         }
 
-        $this->info("Package sales (PASS1 - paket+alacak, tahsilat YOK): eklenen=$gEklenen, dedup=$gDedup, hata=$gHata, taksitli_alacak=$gTaksit");
+        $this->info("Package sales (PASS1 - paket adisyon+AH+APS, tahsilat/alacak YOK): eklenen=$gEklenen, dedup=$gDedup, hata=$gHata");
         $this->line('Bir sonraki adim: --only-package-payments ile ayni dump dosyasiyla tahsilatlari yaz.');
         return 0;
     }
