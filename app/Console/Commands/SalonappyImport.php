@@ -1954,13 +1954,14 @@ class SalonappyImport extends Command
             return 4;
         };
 
-        // Showup map -> randevular.geldi (0=bekleniyor,1=geldi,2=gelmedi,3=iptal)
+        // randevular sema: durum int (1=Onayli, 2=Iptal), randevuya_geldi bool
+        // Showup map -> [durum, randevuya_geldi]
         $showupMap = function ($txt, $isCancelled) {
-            if ($isCancelled) return 3;
+            if ($isCancelled) return [2, null];
             $t = mb_strtolower(trim((string)$txt), 'UTF-8');
-            if (strpos($t, 'gelmedi') !== false || strpos($t, 'no show') !== false) return 2;
-            if (strpos($t, 'geldi') !== false || strpos($t, 'showed') !== false) return 1;
-            return 0;
+            if (strpos($t, 'gelmedi') !== false || strpos($t, 'no show') !== false) return [1, 0];
+            if (strpos($t, 'geldi') !== false || strpos($t, 'showed') !== false) return [1, 1];
+            return [1, null]; // bekleniyor
         };
 
         $gVisit = 0; $gAdisyon = 0; $gRand = 0; $gAH = 0; $gAU = 0;
@@ -2028,19 +2029,20 @@ class SalonappyImport extends Command
 
                 $tarih = $d['date'] ?? date('Y-m-d');
                 $saat  = trim((string) ($d['time_text_24'] ?? $d['time_text'] ?? '00:00')) . ':00';
-                $geldi = $showupMap($d['showup_text'] ?? '', !empty($d['is_cancelled']));
+                [$rDurum, $rGeldi] = $showupMap($d['showup_text'] ?? '', !empty($d['is_cancelled']));
                 $isPast = !empty($d['is_past']);
 
                 // Upcoming (is_past=false) -> sadece randevu yaz, adisyon ve sonrakileri atla.
                 if (!$isPast) {
-                    $rId = \DB::table('randevular')->insertGetId([
+                    $randevuRow = [
                         'salon_id' => $salonId, 'user_id' => $userId,
                         'tarih' => $tarih, 'saat' => $saat,
-                        'durum' => 'Onaylandı',
-                        'geldi' => $geldi,
+                        'durum' => $rDurum,
                         'personel_notu' => $marker,
                         'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                    ]);
+                    ];
+                    if ($rGeldi !== null) $randevuRow['randevuya_geldi'] = $rGeldi;
+                    $rId = \DB::table('randevular')->insertGetId($randevuRow);
                     $gRand++;
                     foreach (($bd['services'] ?? []) as $svc) {
                         $svcAd = trim((string) ($svc['service_text'] ?? ''));
@@ -2094,7 +2096,7 @@ class SalonappyImport extends Command
                         'fiyat' => $fiyat, 'sure' => $sure,
                         'islem_tarihi' => $tarih, 'islem_saati' => '00:00:00',
                         'personel_id' => $persId,
-                        'geldi' => ($geldi === 1) ? 1 : 0,
+                        'geldi' => ($rGeldi === 1) ? 1 : 0,
                         'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                     ]);
                     $gAH++;
@@ -2103,15 +2105,16 @@ class SalonappyImport extends Command
                 }
 
                 // Randevu + randevu_hizmetler
-                $rId = \DB::table('randevular')->insertGetId([
+                $randevuRow = [
                     'salon_id' => $salonId, 'user_id' => $userId,
                     'tarih' => $tarih, 'saat' => $saat,
-                    'durum' => 'Onaylandı',
-                    'geldi' => $geldi,
+                    'durum' => $rDurum,
                     'adisyon_id' => $adId,
                     'personel_notu' => $marker,
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                ]);
+                ];
+                if ($rGeldi !== null) $randevuRow['randevuya_geldi'] = $rGeldi;
+                $rId = \DB::table('randevular')->insertGetId($randevuRow);
                 $gRand++;
                 foreach (($bd['services'] ?? []) as $svc) {
                     $svcAd = trim((string) ($svc['service_text'] ?? ''));
