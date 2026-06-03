@@ -360,6 +360,9 @@
          .header-right > .user-notification:has(#webTelefonDropDown),
          .header-right > .header-right:has(#faturasizGizleTopbarBtn) { display: none !important; }
 
+         /* Header-left'teki arama/sube toggle ikonlarini komple gizle (kullanilmiyor) */
+         .header-left .search-toggle-icon { display: none !important; }
+
          .header { align-items: center !important; padding-right: 16px; }
          .header-right {
             display: flex !important; flex-wrap: nowrap; align-items: center;
