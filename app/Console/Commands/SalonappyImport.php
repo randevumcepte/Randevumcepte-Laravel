@@ -1202,7 +1202,7 @@ class SalonappyImport extends Command
                 $svcNorms = [];
                 $totalTutar = 0.0;
                 foreach (\DB::table('adisyon_hizmetler')->where('adisyon_id', $adId)->get(['hizmet_id', 'fiyat']) as $ah) {
-                    $hn = \DB::table('salon_sunulan_hizmetler')->where('id', $ah->hizmet_id)->value('hizmet_adi');
+                    $hn = \DB::table('hizmetler')->where('id', $ah->hizmet_id)->value('hizmet_adi');
                     if ($hn) $svcNorms[] = $normSvc($hn);
                     $totalTutar += (float) $ah->fiyat;
                 }
@@ -1297,7 +1297,7 @@ class SalonappyImport extends Command
             $svcNorms = [];
             $totalTutar = 0.0;
             foreach (\DB::table('adisyon_hizmetler')->where('adisyon_id', $row->id)->get(['hizmet_id', 'fiyat']) as $ah) {
-                $hn = \DB::table('salon_sunulan_hizmetler')->where('id', $ah->hizmet_id)->value('hizmet_adi');
+                $hn = \DB::table('hizmetler')->where('id', $ah->hizmet_id)->value('hizmet_adi');
                 if ($hn) $svcNorms[] = $normSvc($hn);
                 $totalTutar += (float) $ah->fiyat;
             }
