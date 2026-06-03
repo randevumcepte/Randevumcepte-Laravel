@@ -1995,6 +1995,10 @@ class SalonappyImport extends Command
                         }
                         \DB::table('taksitli_tahsilatlar')->whereIn('id', $ttIds)->delete();
                     }
+                    $ahIds = \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+                    if (!empty($ahIds)) {
+                        \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ahIds)->delete();
+                    }
                     \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $eskiAdIds)->delete();
                     \DB::table('adisyon_urunler')->whereIn('adisyon_id', $eskiAdIds)->delete();
                     \DB::table('adisyonlar')->whereIn('id', $eskiAdIds)->delete();
@@ -2162,9 +2166,10 @@ class SalonappyImport extends Command
                     $urunId = $this->ensureUrun($salonId, $pAd, $pFiyat, $pAd);
                     if (!$urunId) continue;
                     // Visit adisyonunda zaten bu urun var mi (tasinmadan dolayi)? Varsa atla.
+                    // Fiyat KONTROL ETMEZ — tasinan AU fiyati otoriter; bd.product_sales fiyat=0
+                    // gelse bile uzerine yazmasin.
                     $varMi = \DB::table('adisyon_urunler')->where('adisyon_id', $adId)
-                        ->where('urun_id', $urunId)->where('adet', $pAdet)
-                        ->whereBetween('fiyat', [$pFiyat - 0.01, $pFiyat + 0.01])->exists();
+                        ->where('urun_id', $urunId)->where('adet', $pAdet)->exists();
                     if ($varMi) continue;
                     \DB::table('adisyon_urunler')->insert([
                         'adisyon_id' => $adId, 'urun_id' => $urunId,
