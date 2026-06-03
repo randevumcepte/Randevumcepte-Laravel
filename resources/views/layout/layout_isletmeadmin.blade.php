@@ -453,7 +453,8 @@
 
          /* ----- ≤1199px ----- */
          @media (max-width: 1199px) {
-            .header-left #myLabel { max-width: 160px !important; font-size: 11px !important; }
+            .rc-salon-card .rc-salon-name { max-width: 130px !important; }
+            .header-left .form-group.mb-0.rc-salon-card { max-width: 200px !important; }
             #whatsappDurumKutu > a.btn > span:not(:last-child) { display: none !important; }
             #whatsappDurumKutu > a.btn { padding: 0 10px !important; }
             #indirimKullan {
@@ -473,23 +474,186 @@
             .user-notification { padding: 0 !important; }
          }
 
+         /* ============================================================
+            MOCKUP MATCH — Gradient pill butonlar, shop ikonlu salon karti,
+            caret'li kullanici pill'i
+            ============================================================ */
+
+         /* SMS pill: turuncu-kirmizi gradient (btn-warning sarisini override) */
+         .header-right .kalansms {
+            background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%) !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,.06), inset 0 1px 0 rgba(255,255,255,.18) !important;
+         }
+         .header-right .kalansms:hover {
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+         }
+
+         /* WhatsApp pill: yesil/kirmizi gradient (inline solid renkleri override) */
+         .header-right #whatsappDurumKutu > a.btn[style*="#25D366"] {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+         }
+         .header-right #whatsappDurumKutu > a.btn[style*="#DC2626"] {
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%) !important;
+         }
+         .header-right #whatsappDurumKutu > a.btn {
+            box-shadow: 0 1px 2px rgba(0,0,0,.06), inset 0 1px 0 rgba(255,255,255,.18) !important;
+         }
+         .header-right #whatsappDurumKutu > a.btn:hover {
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+         }
+
+         /* Plus butonu: mor gradient + golgeli (icindeki fa-plus'a gore tespit) */
+         .header-right .user-notification .dropdown > a.dropdown-toggle.no-arrow:has(> i.fa-plus) {
+            background: linear-gradient(135deg, #5C008E 0%, #9D5DC8 100%) !important;
+            color: #fff !important;
+            box-shadow: 0 3px 10px rgba(92, 0, 142, .35) !important;
+         }
+         .header-right .user-notification .dropdown > a.dropdown-toggle.no-arrow:has(> i.fa-plus):hover {
+            background: linear-gradient(135deg, #4a006e 0%, #8a4cb8 100%) !important;
+            color: #fff !important;
+            transform: translateY(-1px);
+         }
+
+         /* Salon kart: shop ikonu solda, isim + gun kaldi sagda */
+         .rc-salon-wrap { margin-left: 12px; }
+         .header-left .form-group.mb-0.rc-salon-card {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            padding: 6px 12px 6px 8px !important;
+            background: linear-gradient(135deg, #faf3ff 0%, #f4e6ff 100%) !important;
+            border: 1px solid #ead4ff !important;
+            border-radius: 10px !important;
+            max-width: 260px !important;
+            width: auto !important;
+            min-width: 0;
+         }
+         .rc-salon-card .rc-salon-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #5C008E 0%, #9D5DC8 100%);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex: 0 0 auto;
+            box-shadow: 0 2px 6px rgba(92, 0, 142, .25);
+         }
+         .rc-salon-card #myLabel {
+            display: flex !important;
+            flex-direction: column !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            line-height: 1.2 !important;
+            min-width: 0;
+            overflow: hidden;
+         }
+         .rc-salon-card .rc-salon-name {
+            font-size: 13px !important;
+            font-weight: 700 !important;
+            color: #2c2c3a !important;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 180px;
+         }
+         .rc-salon-card .rc-salon-meta {
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            color: #5C008E !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            margin-top: 1px;
+         }
+         .rc-salon-card .rc-salon-meta i { font-size: 12px; }
+
+         /* Kullanici pill (avatar + isim + caret) */
+         .user-info-dropdown {
+            padding: 0 !important;
+         }
+         .user-info-dropdown .dropdown-toggle {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            padding: 3px 12px 3px 3px !important;
+            background: #f5eefe !important;
+            border-radius: 999px !important;
+            border: 1px solid transparent !important;
+            transition: background .15s, border-color .15s !important;
+            position: relative;
+         }
+         .user-info-dropdown .dropdown-toggle:hover {
+            background: #ead4ff !important;
+            border-color: #d6c0f0 !important;
+         }
+         .user-info-dropdown .dropdown-toggle .user-icon {
+            width: 34px !important;
+            height: 34px !important;
+            line-height: 30px !important;
+            border: 2px solid #fff !important;
+            box-shadow: 0 0 0 1px #d6c0f0 !important;
+            background: #fff !important;
+            padding: 0 !important;
+            overflow: hidden;
+         }
+         .user-info-dropdown .dropdown-toggle .user-icon img {
+            width: 100% !important;
+            height: 100% !important;
+            border-radius: 50% !important;
+            object-fit: cover;
+            display: block;
+         }
+         .user-info-dropdown .dropdown-toggle .user-name {
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            color: #2c2c3a !important;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+         }
+         .user-info-dropdown .dropdown-toggle::after {
+            content: "\f282" !important; /* bi-chevron-down */
+            font-family: "bootstrap-icons" !important;
+            font-size: 11px !important;
+            color: #5C008E !important;
+            border: none !important;
+            margin: 0 !important;
+            line-height: 1 !important;
+            display: inline-block !important;
+            vertical-align: middle !important;
+            transition: transform .15s;
+         }
+         .user-info-dropdown .dropdown.show .dropdown-toggle::after {
+            transform: rotate(180deg);
+         }
+
          /* ----- TEK SATIR GARANTISI: header asla satira inmesin ----- */
          .header { flex-wrap: nowrap !important; }
          .header-left { flex: 1 1 0 !important; min-width: 0 !important; overflow: hidden; flex-wrap: nowrap !important; }
          .header-right { flex-wrap: nowrap !important; flex-shrink: 0 !important; }
 
-         /* ----- ≤1024px: salon kart kucult, header tek satir kal ----- */
+         /* ----- ≤1024px: salon kart kucult, search'leri gizle, header tek satir ----- */
          @media (max-width: 1024px) {
             .header { min-height: 60px !important; }
-            .header-left #myLabel { max-width: 140px !important; }
+            .header-left .form-group.mb-0.rc-salon-card { max-width: 180px !important; padding: 5px 10px 5px 5px !important; }
+            .rc-salon-card .rc-salon-name { max-width: 110px !important; }
+            .rc-salon-card .rc-salon-icon { width: 28px; height: 28px; font-size: 13px; }
             .header-left .header-search,
             .header-left .header-search2 { display: none !important; }
          }
 
          /* ----- ≤900px: salon kart gizle (search butonlarina yer kalsin) ----- */
          @media (max-width: 900px) {
-            .header-left #myLabel,
-            .header-left .form-group.mb-0 { display: none !important; }
+            .rc-salon-wrap,
+            .header-left .form-group.mb-0.rc-salon-card { display: none !important; }
          }
 
          /* ----- ≤767px: kompakt - boyutlar kuculur, hala tek satir ----- */
@@ -799,9 +963,13 @@
                </select>
             </div>
             @endif
-            <div style="margin-left: 20px;">
-               <div class="form-group mb-0 " style="width: 300px;" >
-                  <label id="myLabel">{{$isletme->salon_adi}}<br>{{$kalan_uyelik_suresi}} gün kaldı.</label>
+            <div class="rc-salon-wrap">
+               <div class="form-group mb-0 rc-salon-card">
+                  <span class="rc-salon-icon"><i class="bi bi-shop"></i></span>
+                  <label id="myLabel">
+                     <span class="rc-salon-name">{{$isletme->salon_adi}}</span>
+                     <span class="rc-salon-meta"><i class="bi bi-clock-history"></i> {{$kalan_uyelik_suresi}} gün kaldı</span>
+                  </label>
                </div>
             </div>
          </div>
