@@ -1198,23 +1198,6 @@ class SalonappyImport extends Command
                         }
                     }
                 }
-                // pkgIndex: bu paket adisyonu Pass2 (payment match) + Pass3 (alacak) icin
-                $svcNorms = [];
-                $totalTutar = 0.0;
-                foreach (\DB::table('adisyon_hizmetler')->where('adisyon_id', $adId)->get(['hizmet_id', 'fiyat']) as $ah) {
-                    $hn = \DB::table('hizmetler')->where('id', $ah->hizmet_id)->value('hizmet_adi');
-                    if ($hn) $svcNorms[] = $normSvc($hn);
-                    $totalTutar += (float) $ah->fiyat;
-                }
-                $pkgIndex[$gid] = [
-                    'adId' => $adId,
-                    'userId' => $userId,
-                    'date' => $tarih,
-                    'cnLower' => $normName($first['client_name'] ?? ''),
-                    'svcNorms' => array_values(array_unique($svcNorms)),
-                    'total' => round($totalTutar, 2),
-                    'paid' => 0.0,
-                ];
                 $gEklenen++;
             } catch (\Throwable $e) {
                 $gHata++;
