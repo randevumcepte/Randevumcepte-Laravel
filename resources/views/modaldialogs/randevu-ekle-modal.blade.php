@@ -3054,6 +3054,7 @@ $(document).ready(function() {
     });
 
  let paketKontrolTimeout = null;
+ let aktifPaketIsteki = null;
 
 $('#randevuekle_musteri_id').on('select2:select', function(e) {
     seciliMusteriId = e.params.data.id;
@@ -3688,115 +3689,17 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         });
     }
     
-    // Form gönderilmeden önce toplam süre ve fiyatları hesapla
-    $('#yenirandevuekleform').on('submit', function(e) {
-        e.preventDefault();
-
-        // Satir indekslerini sirali (0..N-1) yap; backend foreach($randevupersonelleriyeni as $key2) ile $request->{"randevuhizmetleriyeni_{$key2}"} eslesmesi icin sart
-        try { reorganizeRowIndexes(); } catch(err){ console.warn('reorganizeRowIndexes hata:', err); }
-
-        let totalFormDuration = 0;
-        let totalFormPrice = 0;
-        let hasServices = false;
-        let hizmetDetaylari = [];
-        
-        $('.hizmet-satiri').each(function(index) {
-            const selectedServices = getHizmetSecimi($(this).find('.hizmet-select'));
-            
-            if (selectedServices && selectedServices.length > 0) {
-                hasServices = true;
-                
-                $(this).find('.hizmet-suresi').each(function() {
-                    totalFormDuration += parseFloat($(this).val()) || 0;
-                });
-                
-                $(this).find('.hizmet-detay-item').each(function() {
-                    const serviceName = $(this).find('.hizmet-ad').text();
-                    const sure = $(this).find('.hizmet-suresi').val();
-                    const fiyat = $(this).find('.hizmet-fiyati').val();
-                    
-                    totalFormPrice += parseFloat(fiyat) || 0;
-                    
-                    hizmetDetaylari.push({
-                        ad: serviceName,
-                        sure: sure,
-                        fiyat: fiyat
-                    });
-                });
-            }
-        });
-        
-        if (!hasServices) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Uyarı',
-                text: 'Lütfen en az bir hizmet seçiniz.',
-                confirmButtonText: 'Tamam',
-                confirmButtonColor: '#3085d6'
-            });
-            return false;
-        }
-        
-        if (!seciliMusteriId) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Uyarı',
-                text: 'Lütfen bir müşteri seçiniz.',
-                confirmButtonText: 'Tamam',
-                confirmButtonColor: '#3085d6'
-            });
-            return false;
-        }
-        
-        $(this).append(`
-            <input type="hidden" name="toplam_sure" value="${totalFormDuration}">
-            <input type="hidden" name="toplam_fiyat" value="${totalFormPrice.toFixed(2)}">
-            <input type="hidden" name="hizmet_detaylari" value='${JSON.stringify(hizmetDetaylari)}'>
-            <input type="hidden" name="musteri_id" value="${seciliMusteriId}">
-        `);
-        
-        Swal.fire({
-            title: 'Randevu Oluşturuluyor',
-            html: `
-                <div class="text-start">
-                    <div class="mb-2">
-                        <h6 class="fw-bold mb-1" style="font-size: 0.9rem;">Randevu Özeti:</h6>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Toplam Hizmet:</span>
-                            <span class="fw-bold">${hizmetDetaylari.length} adet</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Toplam Süre:</span>
-                            <span class="fw-bold">${totalFormDuration} dakika</span>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2 pt-2 border-top">
-                            <span>Toplam Tutar:</span>
-                            <span class="fw-bold text-success" style="font-size: 0.95rem;">${totalFormPrice.toFixed(2)} ₺</span>
-                        </div>
-                    </div>
-                </div>
-            `,
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonText: '<i class="fa fa-calendar-plus"></i> Randevuyu Oluştur',
-            cancelButtonText: '<i class="fa fa-times"></i> İptal',
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            reverseButtons: true,
-            showCloseButton: true,
-            width: '450px'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $(this).find('button[type="submit"]').html('<i class="fa fa-spinner fa-spin"></i> Oluşturuluyor...').prop('disabled', true);
-                
-                setTimeout(() => {
-                    $(this).unbind('submit').submit();
-                }, 500);
-            }
-        });
-        
-        return false;
-    });
+    // OLU/BOZUK HANDLER KALDIRILDI:
+    // Bu blade'de duplicate bir #yenirandevuekleform submit handler vardi;
+    // Swal.fire() (sweetalert2) kullaniyor ama projede sweetalert1 (swal()) yuklu.
+    // "Swal is not defined" hatasiyla submit zincirini kiriyordu (v2 proxy de
+    // bundan etkileniyordu). Asil submit logici custom.js:3282'de zaten var
+    // (validation + cakisma kontrolu + AJAX). Bu handler sadece confirmation
+    // dialog'u eklemek istiyordu ama bozuk + gereksiz; tamamen kaldirildi.
+    // Yalnizca satir indekslerini yeniden duzenleme custom.js submit'in
+    // basinda zaten yapilmali, gerekirse oraya tasinabilir.
+    // Eski kod git history'de mevcut.
+    if(false){ /* dead-code parantezi — gelecekte referans icin */ }
     
     // Modal kapatıldığında formu temizle
     $('#randevu_modal_kapat').on('click', function() {
