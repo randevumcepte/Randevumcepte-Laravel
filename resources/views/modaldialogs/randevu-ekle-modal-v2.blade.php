@@ -1355,11 +1355,28 @@
             var ret = original ? original.apply(this, arguments) : null;
 
             if(v2Akis && Array.isArray(hizmetData) && hizmetData.length){
-                // V1'e eklenmesini bekle, sonra hizmetData -> v2 render
-                setTimeout(function(){
-                    var newV1Indices = []; // { v1Index, hizmetIds:[id,...] }
+                // V1 paket yerlesimi async ve uzun surer (her hizmet icin Tom Select init,
+                // her satir icin oda/personel inheritance, vs.). window._paketYerlestiriliyor
+                // flag'i true iken bekliyoruz; false oldugu an v1 satirlarini okuyup
+                // hizmetData ile birlikte v2'ye yansitiyoruz. Bu sayede tum paket
+                // hizmetleri (saç + lazer gibi) dogru gruplaniyor, hicbiri kacmiyor.
+                var startWait = Date.now();
+                var pollPlacement = function(){
+                    var stillPlacing = !!window._paketYerlestiriliyor;
+                    var elapsed = Date.now() - startWait;
+                    // En az 600ms bekle (flag set olmadan once), sonra flag bittikten 250ms sonra
+                    if(stillPlacing || elapsed < 600){
+                        if(elapsed > 30000){ console.warn('[V2 DISP] timeout 30s'); return doRender(); }
+                        setTimeout(pollPlacement, 200);
+                        return;
+                    }
+                    // Flag false, ek 250ms guvenlik
+                    setTimeout(doRender, 250);
+                };
+                var doRender = function(){
+                    var newV1Indices = [];
                     $('#modal-view-event-add .hizmet-satiri').each(function(i){
-                        if(beforeFilledV1.indexOf(i) !== -1) return; // onceden doluydu, paket icin degil
+                        if(beforeFilledV1.indexOf(i) !== -1) return;
                         var hEl = $(this).find('.hizmet-select')[0];
                         var vals = (hEl && hEl.tomselect) ? hEl.tomselect.getValue() : ($(this).find('.hizmet-select').val() || []);
                         if(!Array.isArray(vals)) vals = vals ? [vals] : [];
@@ -1367,8 +1384,10 @@
                         if(!vals.length) return;
                         newV1Indices.push({ v1Index: i, hizmetIds: vals });
                     });
+                    console.log('[V2 DISP] yerlesim bitti, v1 yeni satir sayisi:', newV1Indices.length, 'hizmetData uzunlugu:', hizmetData.length);
                     renderPaketRowsInV2(hizmetData, newV1Indices);
-                }, 700);
+                };
+                pollPlacement();
             }
             return ret;
         };
@@ -1658,11 +1677,22 @@
         var origHizmetler = $card.data('origHizmetler') || [];
         if(!origHizmetler.length) return;
 
-        // Eger orijinal toplam 0 ise (cache eksik), tek hizmete eslit-paylastir
-        var sureRatio  = origSure  > 0 ? (newSure  / origSure)  : (newSure  > 0 ? 1 : 0);
-        var fiyatRatio = origFiyat > 0 ? (newFiyat / origFiyat) : (newFiyat > 0 ? 1 : 0);
+        var n = origHizmetler.length;
 
-        // Her v1 satirinda, hizmet ID'sine gore orijinal degeri bulup ratio uygula
+        // Sure dagilim mantigi:
+        // - origSure > 0 ise: orantili (her hizmet * yeniSure/origSure)
+        // - origSure = 0 ise (hizmet detaylari cache'de eksik): TOPLAM newSure'yi
+        //   hizmet sayisina esit dagit (her birine newSure/n)
+        function calcSure(orig){
+            if(origSure > 0) return Math.round((orig.sure || 0) * (newSure / origSure));
+            return Math.round(newSure / n);
+        }
+        function calcFiyat(orig){
+            if(origFiyat > 0) return ((orig.fiyat || 0) * (newFiyat / origFiyat));
+            return (newFiyat / n);
+        }
+
+        // Her v1 satirinda, hizmet ID'sine gore orijinal degeri bulup yeni degeri yaz
         v1Indices.forEach(function(v1i){
             var $v1Row = $('#modal-view-event-add .hizmet-satiri').eq(v1i);
             if(!$v1Row.length) return;
@@ -1674,30 +1704,21 @@
                 for(var k=0; k<origHizmetler.length; k++){
                     if(String(origHizmetler[k].id) === String(hid)){ orig = origHizmetler[k]; break; }
                 }
-                if(!orig) return;
-                var newH_sure  = Math.round((orig.sure  || 0) * sureRatio);
-                var newH_fiyat = ((orig.fiyat || 0) * fiyatRatio);
+                if(!orig) orig = { id:hid, sure:0, fiyat:0 };
+                var newH_sure  = calcSure(orig);
+                var newH_fiyat = calcFiyat(orig);
 
-                // V1'in hizmet detay alanindaki input'lari guncelle
-                // Input name'leri: hizmet_sureleri-{hizmetId} / hizmet_fiyatlari-{hizmetId}
+                // V1'in hizmet detay alanindaki input'larini guncelle.
+                // Name pattern: hizmet_sureleri-{hizmetId} / hizmet_fiyatlari-{hizmetId}
                 var $sureInput  = $v1Row.find('input[name="hizmet_sureleri-'+hid+'"]');
                 var $fiyatInput = $v1Row.find('input[name="hizmet_fiyatlari-'+hid+'"]');
-                if(!$sureInput.length){
-                    // Fallback: class bazli
-                    $sureInput = $v1Row.find('.hizmet-suresi').filter(function(){
-                        return $(this).attr('name') === ('hizmet_sureleri-'+hid);
-                    });
-                }
-                if(!$fiyatInput.length){
-                    $fiyatInput = $v1Row.find('.hizmet-fiyati').filter(function(){
-                        return $(this).attr('name') === ('hizmet_fiyatlari-'+hid);
-                    });
-                }
+                // class bazli fallback (eger ad farkli ise)
+                if(!$sureInput.length)  $sureInput  = $v1Row.find('.hizmet-suresi').first();
+                if(!$fiyatInput.length) $fiyatInput = $v1Row.find('.hizmet-fiyati').first();
                 if($sureInput.length){
                     $sureInput.val(newH_sure).trigger('input').trigger('change');
                 }
                 if($fiyatInput.length){
-                    // Fiyat formatini fazla yuvarlamadan koy
                     $fiyatInput.val(newH_fiyat.toFixed(2)).trigger('input').trigger('change');
                 }
             });
@@ -1847,6 +1868,16 @@
     $modal.on('hidden.bs.modal', function(){
         // Form'u tamamen sifirla: musteri, hizmet, personel, oda, not, tekrar, summary
         resetV2Form();
+        // V1 modal'inin Bootstrap state'ini sifirla — sonraki slot tiklamasi calissin
+        var $v1 = $('#modal-view-event-add');
+        $v1.removeClass('show in').css('display','none').attr('aria-hidden','true').removeAttr('aria-modal');
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('padding-right','');
+        var bsData = $v1.data('bs.modal');
+        if(bsData){
+            bsData._isShown = false;
+            bsData._isTransitioning = false;
+        }
     });
 
     $modal.on('click', '#v2_add_row', addRow);
@@ -1965,6 +1996,16 @@
         $v1.removeClass('show in').css('display','none').attr('aria-hidden','true').removeAttr('aria-modal');
         $('.modal-backdrop').remove();
         $('body').removeClass('modal-open').css('padding-right','');
+
+        // KRITIK: Bootstrap modal'inin INTERNAL STATE'ini de sifirla. Aksi takdirde
+        // _isShown=true kalir, bir sonraki .modal('show') cagrisi no-op olur ve
+        // show.bs.modal hic firlamaz — bizim intercept de calismaz, slot tiklamasi
+        // hicbir sey acmaz (yenileme gerekene kadar).
+        var bsData = $v1.data('bs.modal');
+        if(bsData){
+            bsData._isShown = false;
+            bsData._isTransitioning = false;
+        }
 
         // Slot bilgilerini v1 alanlarindan oku (eventClick handler zaten doldurmustu)
         var tarih = $('#randevutarihiyeni').val();
