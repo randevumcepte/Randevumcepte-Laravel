@@ -2251,35 +2251,51 @@ class SalonappyImport extends Command
                         'odeme_yontemi_id' => $yontemId, 'notlar' => $pMarker,
                         'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                     ]);
-                    // TH dagit (fiyat orantili)
+                    // TH + TU dagit (fiyat orantili — UI 'odenen' = SUM(TH)+SUM(TU); hem hizmet
+                    // hem urun fiyatlarini birlikte hesaba kat ki ürün adisyonlarinda eksi gozukmesin)
                     $ahsBu = \DB::table('adisyon_hizmetler')->where('adisyon_id', $adId)->get(['id', 'fiyat']);
+                    $ausBu = \DB::table('adisyon_urunler')->where('adisyon_id', $adId)->get(['id', 'fiyat', 'adet']);
                     $tFiyat = 0.0;
                     foreach ($ahsBu as $a) $tFiyat += (float) $a->fiyat;
-                    $paylar = []; $payToplam = 0;
-                    $n = $ahsBu->count();
+                    foreach ($ausBu as $a) $tFiyat += (float) $a->fiyat * max(1, (int) $a->adet);
+                    $thPay = []; $tuPay = []; $payToplam = 0;
+                    $totCnt = $ahsBu->count() + $ausBu->count();
                     if ($tFiyat > 0) {
                         $oran = $amount / $tFiyat;
                         foreach ($ahsBu as $a) {
                             $py = round((float) $a->fiyat * $oran, 2);
-                            $paylar[(int) $a->id] = $py;
-                            $payToplam += $py;
+                            $thPay[(int) $a->id] = $py; $payToplam += $py;
                         }
-                    } elseif ($n > 0) {
-                        $per = round($amount / $n, 2);
-                        foreach ($ahsBu as $a) {
-                            $paylar[(int) $a->id] = $per;
-                            $payToplam += $per;
+                        foreach ($ausBu as $a) {
+                            $py = round((float) $a->fiyat * max(1, (int) $a->adet) * $oran, 2);
+                            $tuPay[(int) $a->id] = $py; $payToplam += $py;
                         }
+                    } elseif ($totCnt > 0) {
+                        $per = round($amount / $totCnt, 2);
+                        foreach ($ahsBu as $a) { $thPay[(int) $a->id] = $per; $payToplam += $per; }
+                        foreach ($ausBu as $a) { $tuPay[(int) $a->id] = $per; $payToplam += $per; }
                     }
                     $fark = round($amount - $payToplam, 2);
-                    if (abs($fark) > 0.001 && !empty($paylar)) {
-                        end($paylar); $sk = key($paylar);
-                        $paylar[$sk] = round($paylar[$sk] + $fark, 2);
+                    if (abs($fark) > 0.001) {
+                        if (!empty($tuPay)) {
+                            end($tuPay); $sk = key($tuPay);
+                            $tuPay[$sk] = round($tuPay[$sk] + $fark, 2);
+                        } elseif (!empty($thPay)) {
+                            end($thPay); $sk = key($thPay);
+                            $thPay[$sk] = round($thPay[$sk] + $fark, 2);
+                        }
                     }
-                    foreach ($paylar as $ahKey => $py) {
+                    foreach ($thPay as $ahKey => $py) {
                         if ($py <= 0) continue;
                         \DB::table('tahsilat_hizmetler')->insert([
                             'tahsilat_id' => $tahId, 'adisyon_hizmet_id' => $ahKey, 'tutar' => $py,
+                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                    foreach ($tuPay as $auKey => $py) {
+                        if ($py <= 0) continue;
+                        \DB::table('tahsilat_urunler')->insert([
+                            'tahsilat_id' => $tahId, 'adisyon_urun_id' => $auKey, 'tutar' => $py,
                             'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                         ]);
                     }
