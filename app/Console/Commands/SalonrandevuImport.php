@@ -24,6 +24,8 @@ class SalonrandevuImport extends Command
         {--report-package-sales : Salonrandevu paket fisleri vs bizdeki paket adisyonlari karsilastir, eksikleri rapor et. Aktarim yapmaz, sadece okur.}
         {--only-package-payments : Paket fisi tahsilatlarini aktar (Tahsilatlar+TahsilatPaketler). Onceden --only-package-sales calistirilmis olmali (adisyon+AdisyonPaketler mevcut).}
         {--report-package-payments : SR paket fis odenen toplam vs DB SR-payment markerli Tahsilatlar toplami karsilastir.}
+        {--only-other-receipts : Paket-disi receipt\'leri (/receipts/opened) aktar — hizmet+urun satislari + tahsilatlari + dagilim (TahsilatHizmetler/TahsilatUrunler). Tek flag, kompozit akis.}
+        {--report-other-receipts : Paket-disi receipt karsilastirma raporu (SR vs DB).}
         {--dry-run : Reset oncesi sayim}';
 
     protected $description = 'app.salonrandevu.com hesabindan veri cekip randevumcepte\'ye aktarir (Asama 1: kesif).';
@@ -137,6 +139,19 @@ class SalonrandevuImport extends Command
         // --report-package-payments: tahsilat raporu, sadece okur
         if ((bool) $this->option('report-package-payments')) {
             $importer->reportPackagePayments();
+            return 0;
+        }
+
+        // --only-other-receipts: paket-disi receipt akisi (hizmet+urun+tahsilat)
+        if ((bool) $this->option('only-other-receipts')) {
+            $importer->importOtherReceiptsOnly();
+            $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+            return 0;
+        }
+
+        // --report-other-receipts: karsilastirma raporu
+        if ((bool) $this->option('report-other-receipts')) {
+            $importer->reportOtherReceipts();
             return 0;
         }
 

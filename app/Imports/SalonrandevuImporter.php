@@ -195,6 +195,318 @@ class SalonrandevuImporter
         $this->log("Paket tahsilatlari tamamlandi: $toplam fis islendi.");
     }
 
+    /**
+     * Paket-disi receipt'leri (hizmet/urun satislari + tahsilatlari) UPSERT eder.
+     * Endpoint: /company/receipts/opened?page=N&ispaid=2&order=0 (paginated, is_package=false)
+     * Receipt detay: receipt_transactions (hizmet), receipt_sales (urun), receipt_payments (tahsilat).
+     * Tahsilat dagilimi: s_type=1 -> TahsilatHizmetler, s_type=3 -> TahsilatUrunler.
+     */
+    public function importOtherReceiptsOnly()
+    {
+        if (!$this->client->getToken()) {
+            $login = $this->client->login();
+            if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
+        }
+        $page = 1; $toplam = 0;
+        while (true) {
+            $j = $this->client->get('/company/receipts/opened', ['page' => $page, 'ispaid' => 2, 'order' => 0]);
+            $records = $j['data']['receipts']['records'] ?? [];
+            if (empty($records)) break;
+            $this->log("Paket-disi receipt sayfasi $page: " . count($records) . ' kayit');
+            foreach ($records as $rec) {
+                $rid = (int) ($rec['id'] ?? 0);
+                if (!$rid) continue;
+                if (!empty($rec['is_package'])) continue; // emniyet: paket fisi ise atla
+                $this->importOtherReceiptOne($rid, ['rec' => $rec]);
+                $toplam++;
+            }
+            $next = (int) ($j['data']['receipts']['next_page'] ?? 0);
+            if (!$next || $next === $page) break;
+            $page = $next;
+        }
+        $this->log("Paket-disi receipt aktarimi tamamlandi: $toplam fis islendi.");
+    }
+
+    /**
+     * Tek bir paket-disi receipt'i UPSERT eder: adisyon + AdisyonHizmetler +
+     * AdisyonUrunler + Tahsilatlar + TahsilatHizmetler/TahsilatUrunler.
+     */
+    private function importOtherReceiptOne($rid, array $opts = [])
+    {
+        $marker = '[salonrandevu:' . $rid . ']';
+        $adisyonTable = (new Adisyonlar)->getTable();
+        $markerCol = null;
+        foreach (['aciklama', 'adisyon_notu', 'genel_aciklama', 'notlar', 'not'] as $col) {
+            if (\Schema::hasColumn($adisyonTable, $col)) { $markerCol = $col; break; }
+        }
+        if (!$markerCol) { \Log::warning('[Salonrandevu other] adisyon marker kolonu yok'); return; }
+
+        // UPSERT: eski markerli adisyon ve bagli kayitlari sil
+        $eskiAdIds = DB::table($adisyonTable)->where('salon_id', $this->salonId)
+            ->where($markerCol, 'LIKE', '%' . $marker . '%')->pluck('id')->all();
+        if (!empty($eskiAdIds)) {
+            $apIds = DB::table('adisyon_paketler')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+            if (!empty($apIds)) DB::table('adisyon_paket_seanslar')->whereIn('adisyon_paket_id', $apIds)->delete();
+            $ahIds = DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+            if (!empty($ahIds)) DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ahIds)->delete();
+            DB::table('adisyon_paketler')->whereIn('adisyon_id', $eskiAdIds)->delete();
+            DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $eskiAdIds)->delete();
+            DB::table('adisyon_urunler')->whereIn('adisyon_id', $eskiAdIds)->delete();
+            $tIds = DB::table('tahsilatlar')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+            if (!empty($tIds)) {
+                DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $tIds)->delete();
+                DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $tIds)->delete();
+                if (\Schema::hasTable('tahsilat_paketler')) DB::table('tahsilat_paketler')->whereIn('tahsilat_id', $tIds)->delete();
+                DB::table('tahsilatlar')->whereIn('id', $tIds)->delete();
+            }
+            DB::table($adisyonTable)->whereIn('id', $eskiAdIds)->delete();
+        }
+
+        // Receipt detay
+        $j = $this->client->get('/company/receipt/' . $rid);
+        $rc = $j['data']['receipt'] ?? null;
+        if (!$rc) { \Log::warning('[Salonrandevu other] rc null', ['rid' => $rid]); return; }
+        if (!empty($rc['is_package'])) return; // paket fisi ise atla (Adim 1+2 isi)
+
+        $userId = $this->resolveUser($rc['customer'] ?? []);
+        if (!$userId) {
+            \Log::warning('[Salonrandevu other] user resolve fail', [
+                'rid' => $rid, 'customer' => $rc['customer']['full_name'] ?? '?',
+            ]);
+            return;
+        }
+        list($tarih,) = $this->isoBol($rc['created_at'] ?? null);
+        if (!$tarih) $tarih = date('Y-m-d');
+
+        // Adisyon
+        $ad = new Adisyonlar();
+        $ad->user_id = $userId;
+        $ad->salon_id = $this->salonId;
+        $ad->tarih = $tarih;
+        $ad->save();
+        DB::table($adisyonTable)->where('id', $ad->id)->update([$markerCol => $marker]);
+        $this->counts['adisyon'] = ($this->counts['adisyon'] ?? 0) + 1;
+
+        // Hizmet satislari (receipt_transactions) -> AdisyonHizmetler
+        // srTxId => ah.id map (tahsilat dagilimi icin)
+        $txIdToAhId = [];
+        $ahIds = [];
+        $ahToplam = 0.0;
+        foreach (($rc['receipt_transactions'] ?? []) as $tx) {
+            $svcId = (int) ($tx['service_id'] ?? 0);
+            $svc = $tx['Service'] ?? [];
+            $hizmetId = null;
+            if ($svcId && isset($this->hizmetMap[$svcId])) $hizmetId = $this->hizmetMap[$svcId];
+            if (!$hizmetId && !empty($svc['name'])) {
+                $hizmetId = $this->ensureHizmet($svc['name'], (int) ($svc['process_time'] ?? 30),
+                    (float) ($svc['amount'] ?? 0), $svc['category_name'] ?? null);
+                if ($hizmetId && $svcId) $this->hizmetMap[$svcId] = $hizmetId;
+            }
+            if (!$hizmetId) continue;
+            $personelId = null;
+            if (!empty($tx['staffID'])) $personelId = $this->personelMap[$tx['staffID']] ?? null;
+            if (!$personelId && !empty($tx['staff']['full_name'])) {
+                $personelId = $this->ensurePersonel($tx['staff']['full_name']);
+                if ($personelId && !empty($tx['staffID'])) $this->personelMap[$tx['staffID']] = $personelId;
+            }
+            list($pTarih,) = $this->isoBol($tx['process_date'] ?? null);
+            $ah = new AdisyonHizmetler();
+            $ah->adisyon_id = $ad->id;
+            $ah->hizmet_id = $hizmetId;
+            $ah->personel_id = $personelId;
+            $ah->geldi = 1;
+            $ah->islem_tarihi = $pTarih ?: $tarih;
+            $ah->fiyat = (float) ($tx['amount'] ?? 0);
+            $ah->save();
+            $txIdToAhId[(int) $tx['id']] = $ah->id;
+            $ahIds[] = $ah->id;
+            $ahToplam += (float) ($tx['amount'] ?? 0);
+            $this->counts['hizmet'] = ($this->counts['hizmet'] ?? 0) + 1;
+        }
+
+        // Urun satislari (receipt_sales) -> AdisyonUrunler
+        $saleIdToAuId = [];
+        $auIds = [];
+        $auToplam = 0.0;
+        foreach (($rc['receipt_sales'] ?? []) as $sale) {
+            $urunId = null;
+            $srStockId = $sale['stock_item_id'] ?? null;
+            if ($srStockId && isset($this->urunMap[$srStockId])) $urunId = $this->urunMap[$srStockId];
+            $urunAd = $sale['stock_item']['name'] ?? ($sale['name'] ?? '');
+            if (!$urunId && $urunAd) {
+                $urunId = $this->ensureUrun($urunAd, (float) ($sale['amount'] ?? 0));
+                if ($urunId && $srStockId) $this->urunMap[$srStockId] = $urunId;
+            }
+            if (!$urunId) continue;
+            list($pTarih,) = $this->isoBol($sale['sold_date'] ?? null);
+            $au = new AdisyonUrunler();
+            $au->adisyon_id = $ad->id;
+            $au->urun_id = $urunId;
+            $au->adet = (int) ($sale['quantity'] ?? 1);
+            $au->fiyat = (float) ($sale['amount'] ?? 0);
+            if (\Schema::hasColumn('adisyon_urunler', 'islem_tarihi')) $au->islem_tarihi = $pTarih ?: $tarih;
+            $au->save();
+            $saleIdToAuId[(int) $sale['id']] = $au->id;
+            $auIds[] = $au->id;
+            $auToplam += (float) ($sale['amount'] ?? 0);
+            $this->counts['urun'] = ($this->counts['urun'] ?? 0) + 1;
+        }
+
+        // Tahsilatlar (receipt_payments) -> Tahsilatlar + s_type'a gore dagilim
+        // s_type=1 -> TahsilatHizmetler (adisyon_hizmet_id = srTxId->ah)
+        // s_type=3 -> TahsilatUrunler (adisyon_urun_id = srSaleId->au)
+        $payCount = 0; $payToplam = 0.0;
+        foreach (($rc['receipt_payments'] ?? []) as $pay) {
+            $tutar = (float) ($pay['amount'] ?? 0);
+            if ($tutar <= 0) continue;
+            $payId = (int) ($pay['id'] ?? 0);
+            $sId = (int) ($pay['s_id'] ?? 0);
+            $sType = (int) ($pay['s_type'] ?? 0);
+            list($odemeTarih,) = $this->isoBol($pay['payment_date'] ?? null);
+            $payType = (int) ($pay['payment_type'] ?? 1);
+            $odemeYontemiId = in_array($payType, [1, 2, 3, 4, 5]) ? $payType : 1;
+
+            $t = new Tahsilatlar();
+            $t->user_id = $userId;
+            $t->adisyon_id = $ad->id;
+            $t->salon_id = $this->salonId;
+            $t->tutar = $tutar;
+            if (\Schema::hasColumn('tahsilatlar', 'yapilan_odeme')) $t->yapilan_odeme = $tutar;
+            $t->odeme_yontemi_id = $odemeYontemiId;
+            $t->odeme_tarihi = $odemeTarih ?: $tarih;
+            if (\Schema::hasColumn('tahsilatlar', 'notlar')) {
+                $t->notlar = $marker . ' [SR-payment:' . $payId . ']';
+            }
+            if (\Schema::hasColumn('tahsilatlar', 'aciklama') && !empty($pay['description'])) {
+                $t->aciklama = (string) $pay['description'];
+            }
+            $t->save();
+            $payCount++; $payToplam += $tutar;
+
+            // Dagilim
+            if ($sType === 1 && $sId && isset($txIdToAhId[$sId])) {
+                DB::table('tahsilat_hizmetler')->insert([
+                    'tahsilat_id' => $t->id,
+                    'adisyon_hizmet_id' => $txIdToAhId[$sId],
+                    'tutar' => $tutar,
+                ]);
+            } elseif ($sType === 3 && $sId && isset($saleIdToAuId[$sId])) {
+                DB::table('tahsilat_urunler')->insert([
+                    'tahsilat_id' => $t->id,
+                    'adisyon_urun_id' => $saleIdToAuId[$sId],
+                    'tutar' => $tutar,
+                ]);
+            } else {
+                // Fallback: pro-rata fiyat oraniyla AH+AU arasinda dagit
+                $toplamFiyat = $ahToplam + $auToplam;
+                if ($toplamFiyat > 0) {
+                    foreach ($txIdToAhId as $ahId) {
+                        $ah = DB::table('adisyon_hizmetler')->where('id', $ahId)->value('fiyat');
+                        $dt = round($tutar * ($ah / $toplamFiyat), 2);
+                        if ($dt > 0) DB::table('tahsilat_hizmetler')->insert([
+                            'tahsilat_id' => $t->id, 'adisyon_hizmet_id' => $ahId, 'tutar' => $dt,
+                        ]);
+                    }
+                    foreach ($saleIdToAuId as $auId) {
+                        $au = DB::table('adisyon_urunler')->where('id', $auId)->value('fiyat');
+                        $dt = round($tutar * ($au / $toplamFiyat), 2);
+                        if ($dt > 0) DB::table('tahsilat_urunler')->insert([
+                            'tahsilat_id' => $t->id, 'adisyon_urun_id' => $auId, 'tutar' => $dt,
+                        ]);
+                    }
+                    \Log::info('[Salonrandevu other] payment pro-rata dagitim', [
+                        'rid' => $rid, 'payId' => $payId, 'tutar' => $tutar,
+                        'sType' => $sType, 'sId' => $sId,
+                    ]);
+                }
+            }
+            $this->counts['tahsilat'] = ($this->counts['tahsilat'] ?? 0) + 1;
+        }
+        \Log::info('[Salonrandevu other] OK', [
+            'rid' => $rid, 'adId' => $ad->id,
+            'ah' => count($ahIds), 'au' => count($auIds),
+            'pay_sayi' => $payCount, 'pay_toplam' => $payToplam,
+        ]);
+    }
+
+    public function reportOtherReceipts()
+    {
+        if (!$this->client->getToken()) {
+            $login = $this->client->login();
+            if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
+        }
+        $srRecords = [];
+        $srPaidToplam = 0.0; $srAmountToplam = 0.0;
+        $page = 1;
+        while (true) {
+            $j = $this->client->get('/company/receipts/opened', ['page' => $page, 'ispaid' => 2, 'order' => 0]);
+            $records = $j['data']['receipts']['records'] ?? [];
+            if (empty($records)) break;
+            foreach ($records as $r) {
+                $rid = (int) ($r['id'] ?? 0);
+                if (!$rid) continue;
+                if (!empty($r['is_package'])) continue;
+                $srRecords[$rid] = [
+                    'all_amount' => (float) ($r['all_amount'] ?? 0),
+                    'paid' => (float) ($r['paid'] ?? 0),
+                    'full_name' => trim((string) (($r['customer']['full_name'] ?? '') ?: '')),
+                    'created_at' => $r['created_at'] ?? '',
+                    'info' => trim((string) ($r['info'] ?? '')),
+                ];
+                $srPaidToplam += (float) ($r['paid'] ?? 0);
+                $srAmountToplam += (float) ($r['all_amount'] ?? 0);
+            }
+            $next = (int) ($j['data']['receipts']['next_page'] ?? 0);
+            if (!$next || $next === $page) break;
+            $page = $next;
+        }
+        $this->log("SR paket-disi receipt sayisi: " . count($srRecords));
+        $this->log("SR toplam tutar: $srAmountToplam TL (odenen: $srPaidToplam TL)");
+
+        $adisyonTable = (new Adisyonlar)->getTable();
+        $markerCol = null;
+        foreach (['aciklama', 'adisyon_notu', 'genel_aciklama', 'notlar', 'not'] as $col) {
+            if (\Schema::hasColumn($adisyonTable, $col)) { $markerCol = $col; break; }
+        }
+        // SR receipt id'leri ile DB markerli adisyonlar
+        $rows = DB::table($adisyonTable)->where('salon_id', $this->salonId)
+            ->where($markerCol, 'LIKE', '%[salonrandevu:%')
+            ->get(['id', $markerCol]);
+        $bizdekiRids = [];
+        $bizdekiHizmetUrunToplam = 0.0;
+        $bizdekiTahsilatToplam = 0.0;
+        foreach ($rows as $r) {
+            if (!preg_match('~\[salonrandevu:(\d+)\]~', (string) $r->{$markerCol}, $mm)) continue;
+            $rid = (int) $mm[1];
+            if (!isset($srRecords[$rid])) continue; // paket fisi olabilir, SR open listede yok
+            $ahT = DB::table('adisyon_hizmetler')->where('adisyon_id', $r->id)->sum('fiyat');
+            $auT = DB::table('adisyon_urunler')->where('adisyon_id', $r->id)->sum('fiyat');
+            $tahT = DB::table('tahsilatlar')->where('adisyon_id', $r->id)
+                ->where('notlar', 'LIKE', '%[SR-payment:%')->sum('tutar');
+            if (($ahT + $auT) > 0 || $tahT > 0) {
+                $bizdekiRids[$rid] = true;
+                $bizdekiHizmetUrunToplam += (float) ($ahT + $auT);
+                $bizdekiTahsilatToplam += (float) $tahT;
+            }
+        }
+        $this->log("Bizdeki paket-disi receipt sayisi: " . count($bizdekiRids));
+        $this->log("Bizdeki hizmet+urun toplam: $bizdekiHizmetUrunToplam TL");
+        $this->log("Bizdeki tahsilat toplam: $bizdekiTahsilatToplam TL");
+        $eksikler = array_diff_key($srRecords, $bizdekiRids);
+        $eksikAmount = array_sum(array_column($eksikler, 'all_amount'));
+        $this->log("EKSIK: " . count($eksikler) . " (toplam $eksikAmount TL)");
+        if (!empty($eksikler)) {
+            $this->log("\n=== EKSIK paket-disi receipt'ler (ilk 30) ===");
+            $i = 0;
+            foreach ($eksikler as $rid => $r) {
+                if ($i++ >= 30) break;
+                $this->log("  #$rid {$r['created_at']} | {$r['full_name']} | {$r['all_amount']} TL | {$r['info']}");
+            }
+        }
+        $this->log("\nOzet: SR=" . count($srRecords) . " DB=" . count($bizdekiRids)
+            . " eksik=" . count($eksikler) . " SR_odenen=$srPaidToplam DB_tahsilat=$bizdekiTahsilatToplam fark=" . ($srPaidToplam - $bizdekiTahsilatToplam));
+    }
+
     public function reportPackagePayments()
     {
         if (!$this->client->getToken()) {
