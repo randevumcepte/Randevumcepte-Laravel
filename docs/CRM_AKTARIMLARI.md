@@ -575,14 +575,18 @@ Salonappy'deki gibi parça-parça aşamalı ilerleme. Tek seferlik full aktarım
 | 3a | `--only-other-receipts` | Paket-dışı receipt'ler (hizmet+ürün satışları + tahsilatları + dağılım). Tek flag, kompozit akış. |
 | 3b | `--report-other-receipts` | Paket-dışı SR vs DB karşılaştırması (sayım+toplam+eksik liste) |
 | 3+ | `--start-page=N`, `--max-page=M` | `--only-other-receipts` için partition/resume (büyük dataset, ~7000 receipt) |
-| 4 | `--only-expenses` | (TBD — giderler) |
+| 4a | `--only-expenses` | Masraflar (`Masraflar` + `masraf_kategorileri` firstOrCreate). Kategori ad map `/expense/categories` JSON-decode. |
+| 4b | `--report-expenses` | SR `total_expense` vs DB masraf toplamı |
 
 ### Endpoint haritası
 
 ```
-GET /company/receipts/packets?page=N&order=0       — paket fişleri listesi (paginated)
-GET /company/receipts/opened?page=N&ispaid=2&order=0 — paket-dışı receipt listesi (paginated)
-GET /company/receipt/{id}                          — receipt detayı (her aşamada)
+GET /company/receipts/packets?page=N&order=0          — paket fişleri (paginated, next_page var)
+GET /company/receipts/opened?page=N&ispaid=2&order=0  — paket-dışı receipt'ler (paginated, next_page var)
+GET /company/receipt/{id}                             — receipt detayı (her aşamada)
+GET /company/accounting/expenses?page=N&isbetween=true&start=Y-m-d&end=Y-m-d
+                                                      — masraflar (paginated, next_page YOK; records<10 ise dur)
+GET /company/expense/categories                       — kategori ad map (data.name JSON-encoded string)
 ```
 
 ### Receipt detay yapısı (kritik)
@@ -639,6 +643,7 @@ GET /company/receipt/{id}                          — receipt detayı (her aşa
 | `[salonrandevu-paket:RID]` | `adisyonlar.aciklama` | Paket fişi etiketi (UI için) |
 | `[SR-sale:saleId]` | `paketler.paket_adi` suffix | Paket master = receipt_packages[].id; tahsilat eşleme için |
 | `[SR-payment:payId]` | `tahsilatlar.notlar` | Tahsilat UPSERT marker |
+| `[salonrandevu-gider:id]` | `masraflar.notlar` | Masraf UPSERT marker (Adım 4) |
 
 ### Adım 1 — Paket satışları
 
@@ -740,6 +745,47 @@ nohup /opt/php74/bin/php artisan salonrandevu:import \
 
 **Resume notu**: Her sayfa sonunda log'a `[Salonrandevu other] sayfa OK page=N toplam=M` yazılır. Yarım kalırsa son işlenmiş sayfayı + 1 ile `--start-page=N+1` çalıştır.
 
+### Adım 4 — Masraflar (giderler)
+
+```bash
+# Tarih aralığı zorunlu (varsayılan 2020-01-01..bugün)
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --only-expenses \
+    --from=2020-01-01 --to=2026-06-05
+
+# Rapor
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --report-expenses \
+    --from=2020-01-01 --to=2026-06-05
+```
+
+**Akış (`importExpensesOnly`)**:
+
+1. **Kategori map yükle** — `/company/expense/categories` çek; `data.name` JSON-encoded string'i decode et (`custom_expense_N → ad`). Örnek: `custom_expense_2 → "Maaş"`, `custom_expense_9 → "mutfak"`, `custom_expense_19 → "siğorta pirimi"`. `null` değerler tanımsız (atlanır, kod string'i fallback).
+2. **UPSERT sil** — salonun tüm `[salonrandevu-gider:%]` markerlı `Masraflar` satırlarını sil.
+3. **Paginated fetch** — `/accounting/expenses?isbetween=true&start&end&page=N`. **`next_page` yok** — `count(records) < 10` olunca dur.
+4. Her record için `Masraflar` insert:
+   - `masraf_kategori_id` ← `ensureMasrafKategorisi($kategoriAdi)` (`masraf_kategorileri` GLOBAL tablo, kolon `kategori`, `firstOrCreate`)
+   - `harcayan_id` ← `ensurePersonel(spender)`, boşsa salon default
+   - `odeme_yontemi_id` ← SR `payment_type` map: `0 → 1` (Nakit), `1 → 2` (KK), `2 → 3` (Havale), diğer → `4` (Diğer)
+   - `tarih` ← `transaction_date` gün kısmı
+   - `aciklama` ← `description`
+   - `tutar` ← `amount`
+   - `notlar` ← marker `[salonrandevu-gider:id]`
+
+**Field eşlemeleri**:
+
+| SR | Sistem |
+|---|---|
+| `amount` | `Masraflar.tutar` |
+| `transaction_date` | `Masraflar.tarih` |
+| `description` | `Masraflar.aciklama` |
+| `json_id` (`custom_expense_2`) | `masraf_kategorileri.kategori` (lookup `data.name`'den) |
+| `payment_type` (0/1/2) | `odeme_yontemi_id` (1=Nakit, 2=KK, 3=Havale) |
+| `spender` (string) | `harcayan_id` (`ensurePersonel` → Personel ID) |
+
+**Test sonucu (salon 195, 2020-01-01..2026-06-05)**: SR 153 masraf 1083303 TL, DB 153 masraf 1083303 TL, **fark=0 TL**. API `total_expense` = `records` toplamı = DB toplamı.
+
 ### Sağlama / doğrulama komutları (tek panoda)
 
 Her aşamadan sonra çalıştırılacak rapor komutları. Hepsi **sadece okur**, DB'ye dokunmaz.
@@ -768,6 +814,20 @@ Her aşamadan sonra çalıştırılacak rapor komutları. Hepsi **sadece okur**,
 #   Fark (SR-DB): 0 TL
 # Yorum: Fark=0 ise birebir tutuyor. Fark>0 ise: Adim 2 yarim kaldi,
 # adisyon eksik (Adim 1 calistir), veya pkg.amount=0 fallback gerekiyor.
+
+# Adim 4 sonrasi — masraflar
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --report-expenses \
+    --from=2020-01-01 --to=2026-06-05
+# Cikti yapisi:
+#   SR masraf sayisi: 153
+#   SR toplam (records): 1083303 TL
+#   SR total_expense (API): 1083303 TL
+#   Bizdeki SR masraf sayisi: 153
+#   Bizdeki toplam tutar: 1083303 TL
+#   Fark (SR-DB): 0 TL
+# Yorum: total_expense (API toplami) records toplamiyla eslesmeli;
+# DB toplam = SR toplam = fark 0.
 
 # Adim 3 sonrasi — paket-disi receipt'ler (hizmet + urun + tahsilat)
 /opt/php74/bin/php artisan salonrandevu:import \
