@@ -323,14 +323,15 @@
 
 /* Mobile -------------------------------------------------------------- */
 /* ===== Modern task card feed (Mockup B) ============================ */
-.ea-feed { display: flex; flex-direction: column; gap: 10px; }
+.ea-feed { display: flex; flex-direction: column; gap: 8px; }
 .ea-task-card {
-    display: flex; gap: 14px;
+    display: flex; gap: 12px;
+    align-items: center;
     background: #fff;
     border: 1px solid var(--line);
     border-left: 3px solid var(--brand);
     border-radius: 12px;
-    padding: 14px 16px;
+    padding: 10px 14px;
     transition: all .15s ease;
 }
 .ea-task-card:hover {
@@ -342,12 +343,12 @@
 .ea-task-card.t-kampanya{ border-left-color: #8b5cf6; }
 
 .ea-task-icon {
-    width: 40px; height: 40px;
-    border-radius: 10px;
+    width: 36px; height: 36px;
+    border-radius: 9px;
     background: var(--brand-soft);
     color: var(--brand);
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 16px;
+    font-size: 14px;
     flex-shrink: 0;
 }
 .t-randevu  .ea-task-icon { background: #dbeafe; color: #3b82f6; }
@@ -357,23 +358,24 @@
 .ea-task-body { flex: 1; min-width: 0; }
 .ea-task-top {
     display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
 }
 .ea-task-top h4 {
     font-size: 13.5px; font-weight: 700; margin: 0; color: var(--ink);
 }
 .ea-task-time {
-    font-size: 12.5px; font-weight: 700;
+    font-size: 12px; font-weight: 700;
     color: var(--brand); white-space: nowrap;
     background: var(--brand-soft);
-    padding: 3px 9px; border-radius: 999px;
+    padding: 2px 8px; border-radius: 999px;
 }
 .ea-task-msg {
-    font-size: 13px; color: var(--ink-2);
-    margin: 0 0 8px; line-height: 1.5;
+    font-size: 12.5px; color: var(--ink-2);
+    margin: 0; line-height: 1.45;
 }
 .ea-task-meta {
     display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+    margin-top: 8px;
 }
 .ea-task-result {
     font-size: 12.5px; color: var(--ink-3);
@@ -728,19 +730,20 @@
             if (saat) html += '      <span class="ea-task-time">' + saat + '</span>';
             html += '    </div>';
             html += '    <p class="ea-task-msg">' + escapeHtml(item.mesaj) + '</p>';
-            html += '    <div class="ea-task-meta">';
-            // durum: controller HTML donuyor (btn-danger/btn-success rozet) — escape ETME
-            if (item.durum) html += '      <div class="ea-task-status">' + item.durum + '</div>';
-            // sonuc: varsayilan "Hatirlatma aramasi yapilacak." baslikta zaten anlasiliyor,
-            // sadece gercek bir durum bilgisi varsa goster (Randevuya gelecek, Ulasilamadi vs.).
+            // Meta satiri sadece icerik varsa goster — bos durumda ekstra
+            // dikey bosluk olusmasin.
             var sonuc = (item.sonuc || '').trim();
             var isDefaultSonuc = sonuc === 'Hatırlatma araması yapılacak.' || sonuc === 'Hatirlatma aramasi yapilacak.';
-            if (sonuc && !isDefaultSonuc) {
-                html += '      <div class="ea-task-result">' + escapeHtml(sonuc) + '</div>';
+            var hasDurum   = !!(item.durum && String(item.durum).trim());
+            var hasSonuc   = sonuc && !isDefaultSonuc;
+            var hasIslem   = !!(item.islemler && String(item.islemler).trim());
+            if (hasDurum || hasSonuc || hasIslem) {
+                html += '    <div class="ea-task-meta">';
+                if (hasDurum) html += '      <div class="ea-task-status">' + item.durum + '</div>';
+                if (hasSonuc) html += '      <div class="ea-task-result">' + escapeHtml(sonuc) + '</div>';
+                if (hasIslem) html += '      <div class="ea-task-actions">' + item.islemler + '</div>';
+                html += '    </div>';
             }
-            // islemler: controller HTML donuyor (gorev iptal et butonu) — escape ETME
-            if (item.islemler) html += '      <div class="ea-task-actions">' + item.islemler + '</div>';
-            html += '    </div>';
             html += '  </div>';
             html += '</div>';
         });
