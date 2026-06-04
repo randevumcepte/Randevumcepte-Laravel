@@ -48,15 +48,15 @@
       <div class="rc-tip-row"><i class="fa fa-phone"></i><span>{{ $telGosterim }}</span></div>
       @endif
       @if($isOnGorusme)
-         @if($ognAdi)<div class="rc-tip-row"><i class="fa fa-bullhorn"></i><span>{{ $ognAdi }}</span></div>@endif
+         <div class="rc-tip-row"><i class="fa fa-bullhorn"></i><span><span style="display:inline-block;background:#ede7f6;color:#5C008E;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;letter-spacing:.3px;text-transform:uppercase;margin-right:6px;vertical-align:1px;">Ön Görüşme</span><strong>{{ $ognAdi ?: '—' }}</strong></span></div>
          @if($r->ongorusme && $r->ongorusme->personel)
          <div class="rc-tip-row"><i class="fa fa-user"></i><span>{{ $r->ongorusme->personel->personel_adi ?? '—' }}</span></div>
          @endif
       @else
          @if(!empty($paketAdi))
-            <div class="rc-tip-row"><i class="fa fa-gift"></i><span><strong>{{ $paketAdi }}</strong>@if($hizmetAdi) <span style="opacity:.7">· {{ $hizmetAdi }}</span>@endif</span></div>
+            <div class="rc-tip-row"><i class="fa fa-gift"></i><span><span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;letter-spacing:.3px;text-transform:uppercase;margin-right:6px;vertical-align:1px;">Paket</span><strong>{{ $paketAdi }}</strong></span></div>
          @elseif($hizmetAdi)
-            <div class="rc-tip-row"><i class="fa fa-magic"></i><span>{{ $hizmetAdi }}</span></div>
+            <div class="rc-tip-row"><i class="fa fa-magic"></i><span><span style="display:inline-block;background:#e0f2fe;color:#075985;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;letter-spacing:.3px;text-transform:uppercase;margin-right:6px;vertical-align:1px;">Hizmet</span>{{ $hizmetAdi }}</span></div>
          @endif
          @if($personelAdi)<div class="rc-tip-row"><i class="fa fa-user"></i><span>{{ $personelAdi }}</span></div>@endif
          @if($odaAdi)<div class="rc-tip-row"><i class="fa fa-cube"></i><span>{{ $odaAdi }}</span></div>@endif
