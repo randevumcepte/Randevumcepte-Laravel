@@ -51,8 +51,9 @@ class SalonappyImport extends Command
         $dumpFile = $this->option('dump-file');
         $fromFile = $this->option('from-file');
         $resetMode = (bool) $this->option('reset-salonappy');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && (!$username || !$password)) {
-            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy verin).');
+        $fixRhSaat = (bool) $this->option('fix-rh-saat');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && (!$username || !$password)) {
+            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat verin).');
             return 1;
         }
         if (!$probe && !$analyze && !$salonId) {
