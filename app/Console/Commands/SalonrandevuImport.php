@@ -20,6 +20,7 @@ class SalonrandevuImport extends Command
         {--proxy= : http://user:pass@host:port}
         {--reset-salonrandevu : [salonrandevu:RefId] markerli randevu+adisyon+kalemleri sil}
         {--reset-all : Salonun TUM islem verisini sil (randevu+adisyon+tahsilat+masraf) - marker aramaz, salon salonrandevu\'ya ait ise}
+        {--only-package-sales : Sadece paket fislerini cek (/company/receipts/packets paginated) ve paket satislari aktar (Paketler+PaketHizmetler+AdisyonPaketler). Tahsilat/hizmet/urun YOK.}
         {--dry-run : Reset oncesi sayim}';
 
     protected $description = 'app.salonrandevu.com hesabindan veri cekip randevumcepte\'ye aktarir (Asama 1: kesif).';
@@ -108,10 +109,18 @@ class SalonrandevuImport extends Command
             return 0;
         }
 
-        // Concrete import
+        $importer = new \App\Imports\SalonrandevuImporter($client, (int) $salonId, $this->output);
+
+        // --only-package-sales: modular akis, sadece paket fislerini cek + paket satisi yaz
+        if ((bool) $this->option('only-package-sales')) {
+            $importer->importPackageSalesOnly();
+            $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+            return 0;
+        }
+
+        // Concrete import (eski tum-akis modu)
         $types = $only ? array_map('trim', explode(',', $only))
                        : ['personel', 'hizmet', 'urun', 'musteri', 'randevu', 'receipt', 'gider'];
-        $importer = new \App\Imports\SalonrandevuImporter($client, (int) $salonId, $this->output);
 
         // Sira: personel -> hizmet -> urun -> musteri -> randevu -> receipt -> gider
         if (in_array('personel', $types)) $importer->importPersoneller();

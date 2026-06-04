@@ -55,6 +55,41 @@ class SalonrandevuImporter
     }
 
     public function summary() { return $this->counts; }
+
+    /**
+     * --only-package-sales: /company/receipts/packets paginated tara, her receipt id icin
+     * /company/receipt/{id} detayi cek, paket akisini UPSERT'le yaz. Hizmet/urun/tahsilat YAZILMAZ.
+     * (Adim 1: paket satislari ayri akis — sonraki adimlar: tahsilat, hizmet, randevu, gider.)
+     */
+    public function importPackageSalesOnly()
+    {
+        if (!$this->client->getToken()) {
+            $login = $this->client->login();
+            if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
+        }
+        // Master listeleri yukle (idempotent: var olanlari atlar, yenileri kaydeder)
+        $this->importMusteriler();
+        $this->importHizmetler();
+        $this->importPersoneller();
+
+        $page = 1; $toplam = 0;
+        while (true) {
+            $j = $this->client->get('/company/receipts/packets', ['page' => $page, 'order' => 0]);
+            $records = $j['data']['records'] ?? [];
+            if (empty($records)) break;
+            $this->log("Paket fis sayfasi $page: " . count($records) . ' kayit');
+            foreach ($records as $rec) {
+                $rid = (int) ($rec['id'] ?? 0);
+                if (!$rid) continue;
+                $this->importOneReceipt($rid, ['package_only' => true]);
+                $toplam++;
+            }
+            $next = (int) ($j['data']['next_page'] ?? 0);
+            if (!$next || $next === $page) break;
+            $page = $next;
+        }
+        $this->log("Paket satislari tamamlandi: $toplam fis islendi.");
+    }
     private function log($m) { if ($this->out) $this->out->writeln($m); }
 
     // ======================= YARDIMCILAR =======================
@@ -633,18 +668,41 @@ class SalonrandevuImporter
         return $paket->id;
     }
 
-    private function importOneReceipt($rid)
+    private function importOneReceipt($rid, array $opts = [])
     {
+        $packageOnly = !empty($opts['package_only']);
         $marker = '[salonrandevu:' . $rid . ']';
-        // Dedup
+        // Dedup / UPSERT: mevcut markerli adisyon varsa SIL (paket-only modunda yeniden yaz)
         $adisyonTable = (new Adisyonlar)->getTable();
         $markerCol = null;
         foreach (['aciklama', 'adisyon_notu', 'genel_aciklama', 'notlar', 'not'] as $col) {
             if (\Schema::hasColumn($adisyonTable, $col)) { $markerCol = $col; break; }
         }
-        if ($markerCol && DB::table($adisyonTable)->where('salon_id', $this->salonId)
-            ->where($markerCol, 'LIKE', '%' . $marker . '%')->exists()) {
-            return; // zaten var
+        if ($markerCol) {
+            $eskiAdIds = DB::table($adisyonTable)->where('salon_id', $this->salonId)
+                ->where($markerCol, 'LIKE', '%' . $marker . '%')->pluck('id')->all();
+            if (!empty($eskiAdIds)) {
+                if ($packageOnly) {
+                    // UPSERT — eski adisyon ve bagli kayitlari sil
+                    $apIds = DB::table('adisyon_paketler')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+                    if (!empty($apIds)) DB::table('adisyon_paket_seanslar')->whereIn('adisyon_paket_id', $apIds)->delete();
+                    $ahIds = DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+                    if (!empty($ahIds)) DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ahIds)->delete();
+                    DB::table('adisyon_paketler')->whereIn('adisyon_id', $eskiAdIds)->delete();
+                    DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $eskiAdIds)->delete();
+                    DB::table('adisyon_urunler')->whereIn('adisyon_id', $eskiAdIds)->delete();
+                    $tIds = DB::table('tahsilatlar')->whereIn('adisyon_id', $eskiAdIds)->pluck('id')->all();
+                    if (!empty($tIds)) {
+                        DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $tIds)->delete();
+                        DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $tIds)->delete();
+                        if (\Schema::hasTable('tahsilat_paketler')) DB::table('tahsilat_paketler')->whereIn('tahsilat_id', $tIds)->delete();
+                        DB::table('tahsilatlar')->whereIn('id', $tIds)->delete();
+                    }
+                    DB::table($adisyonTable)->whereIn('id', $eskiAdIds)->delete();
+                } else {
+                    return; // eski akis: zaten var ise atla
+                }
+            }
         }
 
         $j = $this->client->get('/company/receipt/' . $rid);
@@ -729,6 +787,7 @@ class SalonrandevuImporter
             }
 
             // Paket disi normal hizmet satisi — eski AH mantigi (geldi=1)
+            if ($packageOnly) continue; // --only-package-sales modunda paket disi hizmet YAZMA
             $personelId = null;
             if (!empty($tx['staffID'])) $personelId = $this->personelMap[$tx['staffID']] ?? null;
             if (!$personelId && !empty($tx['staff']['full_name'])) {
@@ -779,6 +838,8 @@ class SalonrandevuImporter
             // Kalan seans = paket_hizmetler.seans - APS_sayisi (UI hesabi).
             // Bu sayede UI "gelmedi" (geldi=0 placeholder) olarak gostermez.
         }
+
+        if ($packageOnly) { $this->counts['paket_satis'] = ($this->counts['paket_satis'] ?? 0) + 1; return; }
 
         // Urun satislari (receipt_sales)
         foreach (($rc['receipt_sales'] ?? []) as $sale) {
