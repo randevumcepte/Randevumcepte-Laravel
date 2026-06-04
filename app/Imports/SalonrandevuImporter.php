@@ -1736,8 +1736,11 @@ class SalonrandevuImporter
                 }
 
                 // Ödeme yöntemi: payment_type=0 -> 1 (Nakit), 2 -> 3 (Havale), digerleri 4
+                // SR gider payment_type: 0=Nakit, 1=KrediKart, 2=Havale
+                // Sistem odeme_yontemleri: 1=Nakit, 2=KK, 3=Havale, 4=Diger, 5=Senet
+                // -> sistem_id = SR + 1 (0..2 araliginda)
                 $payType = (int) ($g['payment_type'] ?? 0);
-                $odemeYontemiId = $payType === 2 ? 3 : ($payType === 0 ? 1 : ($payType >= 1 && $payType <= 5 ? $payType : 4));
+                $odemeYontemiId = ($payType >= 0 && $payType <= 2) ? ($payType + 1) : 4;
 
                 try {
                     DB::table('masraflar')->insert([
