@@ -30,16 +30,17 @@
       </div>
    </div>
 <div class="card-box mb-30">
-             
+
             <div class="pb-20" style="padding : 20px">
                <form id="on_gorusme_liste_form">
-                <table class="data-table table stripe hover nowrap" id="on_gorusme_liste">
+                <div class="on-gorusme-tablo-wrap" style="width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+                <table class="data-table table stripe hover nowrap" id="on_gorusme_liste" style="width:100%">
                   <thead>
                      <th>
                                  <div class="dt-checkbox">
                                     <input
                                        type="checkbox"
-                                        
+
                                        id="hepsini_sec_liste"
                                     />
                                     <span class="dt-checkbox-label"></span>
@@ -48,7 +49,7 @@
                     <th>Oluşturma</th>
                     <th>Müşteri</th>
                     <th>Müşteri Tipi</th>
-                    <th>Telefon</th> 
+                    <th>Telefon</th>
                     <th>Randevu Tarihi</th>
                     <th>Ön Görüşme Nedeni</th>
                     <th>Görüşmeyi Yapan</th>
@@ -56,10 +57,83 @@
                     <th>İşlemler</th>
                   </thead>
                   <tbody>
-                    
+
                   </tbody>
-                </table></form>
+                </table>
+                </div>
+                </form>
             </div>
 </div>
+
+<style>
+/* === ÖN GÖRÜŞME TABLO RESPONSIVE FIX (v3) === */
+/* Wrapper'a yatay scroll */
+.on-gorusme-tablo-wrap {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+.on-gorusme-tablo-wrap .dataTables_wrapper {
+    width: 100% !important;
+    overflow-x: visible !important;
+}
+
+/* SÜTUN GİZLEME ENGELLEME: Responsive plugin sütunları gizleyemesin */
+#on_gorusme_liste thead th,
+#on_gorusme_liste tbody td {
+    display: table-cell !important;
+}
+/* Responsive plugin'in eklediği expand kontrolünü ve child satırı GİZLE */
+#on_gorusme_liste td.dtr-control,
+#on_gorusme_liste th.dtr-control {
+    display: none !important;
+}
+#on_gorusme_liste tr.child,
+#on_gorusme_liste tr.dtr-expanded + tr.child {
+    display: none !important;
+}
+/* Eski responsive plugin'in eklediği sınıfı baypas et */
+#on_gorusme_liste td.dtr-hidden,
+#on_gorusme_liste th.dtr-hidden,
+#on_gorusme_liste td.none,
+#on_gorusme_liste th.none {
+    display: table-cell !important;
+}
+
+/* Tablo minimum genişliği — sütunlar sıkışmasın */
+.on-gorusme-tablo-wrap #on_gorusme_liste {
+    min-width: 1200px !important;
+    width: 1200px !important;
+}
+
+/* Mor scrollbar */
+.on-gorusme-tablo-wrap::-webkit-scrollbar {
+    height: 12px;
+}
+.on-gorusme-tablo-wrap::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+.on-gorusme-tablo-wrap::-webkit-scrollbar-thumb {
+    background: #9D5DC8;
+    border-radius: 6px;
+}
+.on-gorusme-tablo-wrap::-webkit-scrollbar-thumb:hover {
+    background: #5C008E;
+}
+</style>
+
+<script>
+/* Responsive plugin'in dinamik olarak attığı sınıfları geri al */
+$(document).on('init.dt', '#on_gorusme_liste', function() {
+    var $t = $('#on_gorusme_liste');
+    $t.removeClass('dtr-inline collapsed');
+    setTimeout(function() {
+        $t.find('td, th').removeClass('dtr-hidden none');
+        $t.find('tr.child').remove();
+        $t.find('td.dtr-control, th.dtr-control').remove();
+    }, 50);
+});
+</script>
 
 @endsection()

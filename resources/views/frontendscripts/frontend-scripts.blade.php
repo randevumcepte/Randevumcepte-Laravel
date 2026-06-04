@@ -1682,28 +1682,18 @@ console.log("İlk satır hizmet detayları:", <?php echo json_encode($seanslar[0
             $(document).ready(function(){
                  $('#on_gorusme_liste').DataTable({
                     autoWidth: false,
-                     responsive: true,
                        "order": [[ 1, "desc" ]],
-                      columns:[     
+                      columns:[
                          {data:'id'},
                           { data: 'olusturulma'   },
                           { data: 'musteri'   },
                           { data: 'musteri_tipi'   },
-            
                           { data: 'telefon' },
-                           
-                          
                           { data: 'hatirlatma' },
-                       
                            { data: 'paket' },
-                            
                               { data: 'gorusmeyiyapan' },
-            
                              { data: 'durum' },
                               { data: 'islemler' },
-                          
-                     
-                         
                       ],
                       data: <?php echo $on_gorusmeler; ?>,
             

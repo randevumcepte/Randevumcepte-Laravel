@@ -7815,7 +7815,6 @@ $(document).on('submit','#ongorusmeformu',function(e){
                 $('#on_gorusme_liste').DataTable().destroy();
                 $('#on_gorusme_liste').DataTable({
                         autoWidth: false,
-                         scrollX: true,
                            "order": [[ 1, "desc" ]],
                           columns:[
                              {data:'id'},
@@ -8000,7 +7999,6 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                             $('#on_gorusme_liste').DataTable().destroy();
                             $('#on_gorusme_liste').DataTable({
                                     autoWidth: false,
-                                    scrollX: true,
                                     "order": [[ 1, "desc" ]],
                                     columns:[
                                         {data:'id'},
@@ -8089,7 +8087,6 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                             $('#on_gorusme_liste').DataTable().destroy();
                             $('#on_gorusme_liste').DataTable({
                                     autoWidth: false,
-                                    scrollX: true,
                                     "order": [[ 1, "desc" ]],
                                     columns:[
                                         {data:'id'},
@@ -8174,7 +8171,6 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                                 $('#on_gorusme_liste').DataTable().destroy();
                                 $('#on_gorusme_liste').DataTable({
                                         autoWidth: false,
-                                        scrollX: true,
                                         "order": [[ 1, "desc" ]],
                                         columns:[
                                             {data:'id'},
@@ -8266,7 +8262,6 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                             $('#on_gorusme_liste').DataTable().destroy();
                             $('#on_gorusme_liste').DataTable({
                                     autoWidth: false,
-                                    scrollX: true,
                                     "order": [[ 1, "desc" ]],
                                     columns:[
                                         {data:'id'},
