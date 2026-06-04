@@ -53,7 +53,11 @@
          <div class="rc-tip-row"><i class="fa fa-user"></i><span>{{ $r->ongorusme->personel->personel_adi ?? '—' }}</span></div>
          @endif
       @else
-         @if($hizmetAdi)<div class="rc-tip-row"><i class="fa fa-magic"></i><span>{{ $hizmetAdi }}</span></div>@endif
+         @if(!empty($paketAdi))
+            <div class="rc-tip-row"><i class="fa fa-gift"></i><span><strong>{{ $paketAdi }}</strong>@if($hizmetAdi) <span style="opacity:.7">· {{ $hizmetAdi }}</span>@endif</span></div>
+         @elseif($hizmetAdi)
+            <div class="rc-tip-row"><i class="fa fa-magic"></i><span>{{ $hizmetAdi }}</span></div>
+         @endif
          @if($personelAdi)<div class="rc-tip-row"><i class="fa fa-user"></i><span>{{ $personelAdi }}</span></div>@endif
          @if($odaAdi)<div class="rc-tip-row"><i class="fa fa-cube"></i><span>{{ $odaAdi }}</span></div>@endif
          @if($cihazAdi)<div class="rc-tip-row"><i class="fa fa-microchip"></i><span>{{ $cihazAdi }}</span></div>@endif

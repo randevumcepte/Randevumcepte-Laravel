@@ -3586,7 +3586,7 @@ public function carkverilerigetir(Request $request)
             'end' => $end,
             'eventbuttons'=> view('partials.randevuDetayiButonlar',['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat])->render(),
             'description' => view('partials.randevuDetayi', ['randevu' => $rh,'rol'=>$rol,'paketAdi'=>$paketAdi])->render(),
-            'hoverHtml' => view('partials.randevuHoverDetayi', ['randevu' => $rh,'rol'=>$rol])->render(),
+            'hoverHtml' => view('partials.randevuHoverDetayi', ['randevu' => $rh,'rol'=>$rol,'paketAdi'=>$paketAdi])->render(),
             'color' => $color,
             'randevuId'=>$rh->randevu_id,
             'resourceId' =>  $resourceId,
