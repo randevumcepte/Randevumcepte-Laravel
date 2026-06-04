@@ -11561,7 +11561,7 @@ function paketSeansSecim(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, 
         var defaultMiktar = (s.default_miktar && s.default_miktar > 0) ? s.default_miktar : 1;
 
         html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 9px;border-bottom:1px solid #eee;margin:0;">';
-        html += '  <input type="checkbox" class="paket-seans-secim" data-value="'+s.id+'" style="width:18px;height:18px;flex:0 0 auto;cursor:pointer;">';
+        html += '  <input type="checkbox" class="paket-seans-secim" data-value="'+s.id+'" checked style="width:18px;height:18px;flex:0 0 auto;cursor:pointer;">';
         html += '  <span style="flex:1;min-width:0;">';
         html += '    <span style="font-weight:600;color:#333;">'+ (s.hizmet_adi || 'Hizmet') +'</span>';
         if (altSatir) {
@@ -23173,7 +23173,8 @@ function seansSecimPopupAc(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu
                   '</thead>' +
                   '<tbody>';
         seanslar.forEach(function (s) {
-            var checked = s.simdi_geldi ? 'checked' : '';
+            // Default: TUM seanslar isaretli gelir; salon sahibi dusmeyenleri unchecker.
+            var checked = 'checked';
             var paketAd = s.paket_adi || ('Paket #' + s.adisyon_paket_id);
             var kalanRenk = s.kalan_seans > 0 ? '#28a745' : '#dc3545';
             html += '<tr style="cursor:pointer;" class="seansSecimRow" data-id="' + s.id + '">' +
