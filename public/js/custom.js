@@ -21,7 +21,7 @@ function rcEventTipPosition($tip, rect) {
     var th = $tip.outerHeight();
     var vw = jQuery(window).width();
     var vh = jQuery(window).height();
-    var gap = 10;
+    var gap = 14;
     // Tercih: event'in sagina yerlestir
     var left = rect.right + gap;
     var top  = rect.top + (rect.height / 2) - (th / 2);
@@ -38,15 +38,20 @@ function rcEventTipPosition($tip, rect) {
     if (top + th > vh - 8) top = vh - th - 8;
     $tip.css({ left: left + 'px', top: top + 'px' });
 }
+window.rcEventTipHideTimer = window.rcEventTipHideTimer || null;
 function rcEventTipBind($el, event) {
-    var hideTimer = null;
+    // Duplicate bind onleme — re-render'larda eski handler temizlenir
+    $el.off('.rcTip');
     $el.on('mouseenter.rcTip', function(e) {
-        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        if (window.rcEventTipHideTimer) {
+            clearTimeout(window.rcEventTipHideTimer);
+            window.rcEventTipHideTimer = null;
+        }
         var $tip = rcEventTipEnsure();
         var bg = event.color || '#5C008E';
         $tip.html(event.hoverHtml)
             .css('--rc-tip-bg', bg)
-            // CSS degisken fallback (IE/Edge eski) — head bg'sini direkt set et
+            // CSS degisken fallback — head bg'sini direkt set et
             .find('.rc-tip-head').css('background', bg).end()
             .find('.rc-tip-row i').css('color', bg);
         // Once goster ki olcum dogru olsun
@@ -55,9 +60,11 @@ function rcEventTipBind($el, event) {
         rcEventTipPosition($tip, rect);
     });
     $el.on('mouseleave.rcTip', function() {
-        hideTimer = setTimeout(function() {
+        // 250ms grace: takvim event'leri arasinda kucuk mouse atlamasi
+        // yuzunden anlik mouseleave tetiklenirse tooltip kapanmasin
+        window.rcEventTipHideTimer = setTimeout(function() {
             jQuery('#rc-event-tip').removeClass('rc-tip-show');
-        }, 60);
+        }, 250);
     });
 }
 $(document).ready(function($) {

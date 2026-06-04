@@ -50,7 +50,7 @@
         border-radius: 12px;
         box-shadow: 0 12px 32px rgba(40, 12, 80, 0.18), 0 2px 6px rgba(40, 12, 80, 0.08);
         border: 1px solid rgba(0, 0, 0, 0.06);
-        pointer-events: none;
+        pointer-events: none !important;
         opacity: 0;
         transition: opacity 120ms ease, transform 120ms ease;
         transform: translateY(4px);
