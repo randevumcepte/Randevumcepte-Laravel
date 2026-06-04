@@ -14844,7 +14844,13 @@ DB::raw('
     public function bildirimkontrolet(Request $request)
     {
         $personel = Auth::guard('isletmeyonetim')->check() ? Personeller::where('salon_id',self::mevcutsube($request) )->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id') : 0;
-        $bildirimler = Bildirimler::where('personel_id',$personel)->where('salon_id',self::mevcutsube($request) )->orderBy('id','desc')->get();
+        $bildirimler = Bildirimler::setEagerLoads([])
+            ->select('id','aciklama','tarih_saat','url','img_src','okundu','randevu_id')
+            ->where('personel_id',$personel)
+            ->where('salon_id',self::mevcutsube($request))
+            ->orderBy('id','desc')
+            ->limit(50)
+            ->get();
         $html = "";
         foreach($bildirimler as $bildirim) {
             $to_time = strtotime(date('Y-m-d H:i:s'));
@@ -14866,7 +14872,7 @@ DB::raw('
             $html .= '<div class="rc-notif-item '.$okunduClass.'" data-bildirim-id="'.$bildirim->id.'">';
             $html .=   '<a href="'.$url.'" name="bildirim" data-index-number="'.$bildirim->id.'" data-value="'.$bildirim->randevu_id.'" class="rc-notif-link">';
             $html .=     '<div class="rc-notif-avatar">';
-            $html .=       '<img src="'.$imgSrcEsc.'" alt="">';
+            $html .=       '<img src="'.$imgSrcEsc.'" alt="" loading="lazy" decoding="async">';
             if (!$bildirim->okundu) {
                 $html .=   '<span class="rc-notif-dot"></span>';
             }

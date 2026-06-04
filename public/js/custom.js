@@ -8908,8 +8908,9 @@ function bildirimKontrol() {
                         $('#bildirim-badge').removeClass('badge notification-afctive');
                         $('#bildirim-badge').empty();
                     }
-                    /* Modern bildirim listesini her zaman tazele (boş durum dahil) */
-                    if(result.bildirimler !== undefined){
+                    /* Dropdown acikken listeyi rebuild etme (kasma/flicker'i onler) */
+                    var dropdownOpen = $('.user-notification .dropdown.show, .user-notification .dropdown-menu.show').length > 0;
+                    if(!dropdownOpen && result.bildirimler !== undefined){
                         $('#bildirim_listesi').empty();
                         $('#bildirim_listesi').append(result.bildirimler);
                     }
