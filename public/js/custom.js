@@ -9005,115 +9005,84 @@ $(document).on('click', '#bildirim-tumusil', function(e){
 
 $(document).on('click','a[name="bildirim"]', function(e){
     e.preventDefault();
-    /*var bildirimid = $(this).attr('data-value');
-    $.ajax({
-                type: "POST",
-                url: '/isletmeyonetim/bildirimokundu',
-                dataType: "text",
-                data : {_token: $('input[name="_token"]').val(),bildirim_id:bildirimid},
-                success: function(result)  {
-                   window.location.href = result;
-                },
-                error: function (request, status, error) {
-                     document.getElementById('hata').innerHTML = request.responseText;
-                }
-    });
-     e.preventDefault();*/
-    var randevu_id = $(this).attr('data-value');
-     var arsivid = $(this).attr('data-value');
-    var bildirim_id =$(this).attr('data-index-number');
-    var href = $(this).attr('href');
-    if(href.indexOf("#not-") >= 0)
-    {
-        url = href.split('-');
+    var $a = $(this);
+    var randevu_id = $a.attr('data-value');
+    var bildirim_id = $a.attr('data-index-number');
+    var href = $a.attr('href');
+    var sube = $('input[name="sube"]').val();
+    var subeQS = sube ? ('?sube=' + sube) : '';
+    var subeQS2 = sube ? ('&sube=' + sube) : '';
+
+    function markReadThenGo(targetUrl){
+        $('#preloader').show();
         $.ajax({
-            type: "GET",
-            dataType: "json",
-            url: '/isletmeyonetim/ajandadetaygetir',
-            data: {ajandaid:url[1],bildirimid:bildirim_id,sube:$('input[name="sube"]').val()},
-            beforeSend: function(){
-                $('#preloader').show();
-            },
-            success: function(result)  {
-                  $('#preloader').hide();
-                bildirimKontrol();
-                jQuery(".event-title").html(result.baslik);
-                jQuery(".event-body").html("<div class='row' ><b style='margin-left:20px;'>İçerik :</b> <p style='margin-left:20px;'>"+result.icerik+"</p></div> <div class='row' ><b style='margin-left:20px;'>Tarih :</b> <p style='margin-left:23px;'>"+result.tarih+"</p></div> </div> <div class='row' ><b style='margin-left:20px;'>Saat :</b> <p style='margin-left:30px;'>"+result.saat+"</p></div>");
-                jQuery(".event-buttons").html('<div class="modal-footer" style="justify-content: center;">'+
-                   '<div class="col-md-6 col-xs-6 col-6 col-sm-6">'+
-                         '<button data-toggle="modal" class="btn btn-success btn-block" data-value="'+result.id+'" data-target="#ajanda_duzenle_modal" name="ajanda_notu_duzenle">Düzenle</button>'+
-                   '</div>'+
-                '</div>');
-                jQuery("#ajandadetayigetir").trigger('click');
-            },
-            error: function (request, status, error) {
-                 $('#preloader').hide();
-                 document.getElementById('hata').innerHTML = request.responseText;
-            }
+            type: 'POST',
+            url: '/isletmeyonetim/bildirimokundu',
+            dataType: 'text',
+            data: { _token: $('input[name="_token"]').val(), bildirim_id: bildirim_id }
+        }).always(function(){
+            window.location.href = targetUrl;
         });
     }
-    else if(href.indexOf("#form-") >= 0){
-        url = href.split('-');
-         $.ajax({
-        type: "GET",
-        url: '/isletmeyonetim/formyazdir',
-        dataType: "text",
-        data : {arsiv_id:url[1],bildirimid:bildirim_id,sube:$('input[name="sube"]').val()},
-        headers: {
-             'X-CSRF-TOKEN': $('input[name="_token"]').val()
-        },
-        beforeSend: function() {
-            $("#preloader").show();
-        },
-        success: function(result)  {
-            $("#preloader").hide();
-            $('#yazdirilacak').empty()
-            $('#yazdirilacak').append(result);
-            $('#yazdirilacak div').each(function(){
-               // $(this).removeAttr('style');
-            });
-            var originalContents = $("body").html();
-            var printContents = $("#yazdirilacak").html();
-            var myStyle = '<link rel="stylesheet" href="public/yeni_panel/vendors/styles/style.css" />';
-            var content = '<div style="padding: 20px;">';
-            var myStyle2 = '<link rel="stylesheet" href="public/yeni_panel/src/plugins/datatables/css/responsive.bootstrap4.min.css" />'
-             myWindow = window.open('https://app.randevumcepte.com.tr/'+$(this).attr('data-value'));
-             myWindow.document.write(myStyle + myStyle2 + printContents + content);
-             myWindow.print();
-        },
-        error: function (request, status, error) {
-            $("#preloader").hide();
-            document.getElementById('hata').innerHTML = request.responseText;
-        }
-        });
+
+    /* Ajanda notu bildirimi → ajanda sayfasi */
+    if(href && href.indexOf('#not-') === 0){
+        var ajandaid = href.split('-')[1];
+        markReadThenGo('/isletmeyonetim/ajanda' + subeQS + '#not-' + ajandaid);
+        return;
     }
-    else
-    {
+
+    /* Form bildirimi → form yazdirma penceresi (mevcut davranis korunuyor) */
+    if(href && href.indexOf('#form-') === 0){
+        var arsivid = href.split('-')[1];
         $.ajax({
-            type: "GET",
-            dataType: "json",
-            url: '/isletmeyonetim/randevugetir',
-            data: {randevuid:randevu_id,bildirim_okundu:true,bildirimid:bildirim_id,sube:$('input[name="sube"]').val()},
-            beforeSend: function(){
-                $('#preloader').show();
-            },
-            success: function(result)  {
-                bildirimKontrol();
-                $('.event-body').empty();
-                $('.event-body').append(result.randevu_icerik);
-                $('.event-title').empty();
-                $(".event-title").append(result.ad_soyad+" Randevu Detayı");
-                $('.event-buttons').empty();
-                $('.event-buttons').append(result.butonlar);
+            type: 'GET',
+            url: '/isletmeyonetim/formyazdir',
+            dataType: 'text',
+            data: { arsiv_id: arsivid, bildirimid: bildirim_id, sube: sube },
+            headers: { 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
+            beforeSend: function(){ $('#preloader').show(); },
+            success: function(result){
                 $('#preloader').hide();
-                $('#randevudetayigetir').trigger('click');
+                $('#yazdirilacak').empty().append(result);
+                var printContents = $('#yazdirilacak').html();
+                var myStyle = '<link rel="stylesheet" href="public/yeni_panel/vendors/styles/style.css" />';
+                var content = '<div style="padding: 20px;">';
+                var myStyle2 = '<link rel="stylesheet" href="public/yeni_panel/src/plugins/datatables/css/responsive.bootstrap4.min.css" />';
+                var myWindow = window.open('https://app.randevumcepte.com.tr/' + arsivid);
+                myWindow.document.write(myStyle + myStyle2 + printContents + content);
+                myWindow.print();
+                bildirimKontrol();
             },
-            error: function (request, status, error) {
-                 $('#preloader').hide();
-                 document.getElementById('hata').innerHTML = request.responseText;
+            error: function(request){
+                $('#preloader').hide();
+                if(document.getElementById('hata')) document.getElementById('hata').innerHTML = request.responseText;
             }
         });
+        return;
     }
+
+    /* Eger url alaninda gercek bir hedef varsa (# degil), oraya git */
+    if(href && href !== '#' && href.charAt(0) !== '#'){
+        markReadThenGo(href);
+        return;
+    }
+
+    /* Varsayilan: randevu detay sayfasi */
+    if(randevu_id && randevu_id !== '' && randevu_id !== '0'){
+        markReadThenGo('/isletmeyonetim/randevudetay/' + randevu_id + subeQS);
+        return;
+    }
+
+    /* Hicbir hedef yoksa sadece okundu isaretle */
+    $.ajax({
+        type: 'POST',
+        url: '/isletmeyonetim/bildirimokundu',
+        dataType: 'text',
+        data: { _token: $('input[name="_token"]').val(), bildirim_id: bildirim_id }
+    }).always(function(){
+        bildirimKontrol();
+    });
 });
 function randevufiltre()
 {
