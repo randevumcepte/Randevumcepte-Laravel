@@ -26,11 +26,6 @@
             <i class="fa fa-plus"></i><span>Yeni Ön Görüşme</span>
          </a>
          @endyetki
-         @yetki('pazarlama.sms_gonder')
-         <a id="secilenlere_sms_gonder" href="#" class="rc-og-btn rc-og-btn-primary yenieklebuton502">
-            <i class="fa fa-envelope"></i><span>SMS Gönder</span>
-         </a>
-         @endyetki
       </div>
    </div>
 
@@ -41,12 +36,6 @@
             <table class="data-table rc-og-table" id="on_gorusme_liste" style="width:100%">
                <thead>
                   <tr>
-                     <th class="rc-og-col-check">
-                        <div class="dt-checkbox">
-                           <input type="checkbox" id="hepsini_sec_liste" />
-                           <span class="dt-checkbox-label"></span>
-                        </div>
-                     </th>
                      <th>Oluşturma</th>
                      <th>Müşteri</th>
                      <th>Müşteri Tipi</th>
@@ -562,7 +551,6 @@ $(document).on('init.dt', '#on_gorusme_liste', function() {
    draw.dt eventinde tekrar uygula. */
 (function(){
    var labels = [
-      '',           // checkbox
       'Oluşturma',
       'Müşteri',
       'Müşteri Tipi',
@@ -574,7 +562,6 @@ $(document).on('init.dt', '#on_gorusme_liste', function() {
       'İşlemler'
    ];
    var tdClasses = [
-      'rc-og-td-check',
       'rc-og-td-olusturma',
       'rc-og-td-musteri',
       'rc-og-td-tipi',

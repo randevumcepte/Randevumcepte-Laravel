@@ -7813,9 +7813,8 @@ $(document).on('submit','#ongorusmeformu',function(e){
                 $('#on_gorusme_liste').DataTable().destroy();
                 $('#on_gorusme_liste').DataTable({
                         autoWidth: false,
-                           "order": [[ 1, "desc" ]],
+                           "order": [[ 0, "desc" ]],
                           columns:[
-                             {data:'id'},
                               { data: 'olusturulma'   },
                               { data: 'musteri'   },
                               { data: 'musteri_tipi'   },
@@ -7997,9 +7996,8 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                             $('#on_gorusme_liste').DataTable().destroy();
                             $('#on_gorusme_liste').DataTable({
                                     autoWidth: false,
-                                    "order": [[ 1, "desc" ]],
+                                    "order": [[ 0, "desc" ]],
                                     columns:[
-                                        {data:'id'},
                                         { data: 'olusturulma'   },
                                         { data: 'musteri'   },
                                         { data: 'musteri_tipi'   },
@@ -8085,9 +8083,8 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                             $('#on_gorusme_liste').DataTable().destroy();
                             $('#on_gorusme_liste').DataTable({
                                     autoWidth: false,
-                                    "order": [[ 1, "desc" ]],
+                                    "order": [[ 0, "desc" ]],
                                     columns:[
-                                        {data:'id'},
                                         { data: 'olusturulma'   },
                                         { data: 'musteri'   },
                                         { data: 'musteri_tipi'   },
@@ -8169,9 +8166,8 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                                 $('#on_gorusme_liste').DataTable().destroy();
                                 $('#on_gorusme_liste').DataTable({
                                         autoWidth: false,
-                                        "order": [[ 1, "desc" ]],
+                                        "order": [[ 0, "desc" ]],
                                         columns:[
-                                            {data:'id'},
                                             { data: 'olusturulma'   },
                                             { data: 'musteri'   },
                                             { data: 'musteri_tipi'   },
@@ -8260,9 +8256,8 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                             $('#on_gorusme_liste').DataTable().destroy();
                             $('#on_gorusme_liste').DataTable({
                                     autoWidth: false,
-                                    "order": [[ 1, "desc" ]],
+                                    "order": [[ 0, "desc" ]],
                                     columns:[
-                                        {data:'id'},
                                         { data: 'olusturulma'   },
                                         { data: 'musteri'   },
                                         { data: 'musteri_tipi'   },

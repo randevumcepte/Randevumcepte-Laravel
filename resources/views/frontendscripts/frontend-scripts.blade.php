@@ -1682,9 +1682,8 @@ console.log("İlk satır hizmet detayları:", <?php echo json_encode($seanslar[0
             $(document).ready(function(){
                  $('#on_gorusme_liste').DataTable({
                     autoWidth: false,
-                       "order": [[ 1, "desc" ]],
+                       "order": [[ 0, "desc" ]],
                       columns:[
-                         {data:'id'},
                           { data: 'olusturulma'   },
                           { data: 'musteri'   },
                           { data: 'musteri_tipi'   },
