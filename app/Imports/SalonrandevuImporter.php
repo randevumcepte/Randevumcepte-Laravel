@@ -67,10 +67,8 @@ class SalonrandevuImporter
             $login = $this->client->login();
             if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
         }
-        // Master listeleri yukle (idempotent: var olanlari atlar, yenileri kaydeder)
-        $this->importMusteriler();
-        $this->importHizmetler();
-        $this->importPersoneller();
+        // Master ön yükleme yok — receipt detayindaki customer'dan müşteri inline yaratilir,
+        // hizmet ve personel ensureHizmet/ensurePersonel ile inline.
 
         $page = 1; $toplam = 0;
         while (true) {
