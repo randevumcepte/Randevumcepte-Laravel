@@ -2062,10 +2062,12 @@ class SalonappyImport extends Command
                     if ($rGeldi !== null) $randevuRow['randevuya_geldi'] = $rGeldi;
                     $rId = \DB::table('randevular')->insertGetId($randevuRow);
                     $gRand++;
+                    $cumSaat = $saat;
                     foreach (($bd['services'] ?? []) as $svc) {
                         $svcAd = trim((string) ($svc['service_text'] ?? ''));
                         if ($svcAd === '') continue;
-                        $hid = $this->ensureSalonHizmet($salonId, $svcAd, 30, (float) ($svc['price'] ?? 0), $svcAd);
+                        $sureDk = max(15, (int) ($svc['duration'] ?? 30));
+                        $hid = $this->ensureSalonHizmet($salonId, $svcAd, $sureDk, (float) ($svc['price'] ?? 0), $svcAd);
                         if (!$hid) continue;
                         $persId = null;
                         $staffAd = trim((string) ($svc['staff_name'] ?? ''));
@@ -2074,12 +2076,16 @@ class SalonappyImport extends Command
                             $persId = \DB::table('salon_personelleri')->where('salon_id', $salonId)
                                 ->where('personel_adi', $staffAd)->value('id');
                         }
+                        $saatBitis = date('H:i:s', strtotime($cumSaat) + $sureDk * 60);
                         \DB::table('randevu_hizmetler')->insert([
                             'randevu_id' => $rId, 'hizmet_id' => $hid,
                             'fiyat' => (float) ($svc['price'] ?? 0),
                             'personel_id' => $persId,
+                            'sure_dk' => $sureDk,
+                            'saat' => $cumSaat, 'saat_bitis' => $saatBitis,
                             'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                         ]);
+                        $cumSaat = $saatBitis;
                     }
                     $gVisit++;
                     continue;
@@ -2157,10 +2163,12 @@ class SalonappyImport extends Command
                 if ($rGeldi !== null) $randevuRow['randevuya_geldi'] = $rGeldi;
                 $rId = \DB::table('randevular')->insertGetId($randevuRow);
                 $gRand++;
+                $cumSaat2 = $saat;
                 foreach (($bd['services'] ?? []) as $svc) {
                     $svcAd = trim((string) ($svc['service_text'] ?? ''));
                     if ($svcAd === '') continue;
-                    $hid = $this->ensureSalonHizmet($salonId, $svcAd, 30, (float) ($svc['price'] ?? 0), $svcAd);
+                    $sureDk = max(15, (int) ($svc['duration'] ?? 30));
+                    $hid = $this->ensureSalonHizmet($salonId, $svcAd, $sureDk, (float) ($svc['price'] ?? 0), $svcAd);
                     if (!$hid) continue;
                     $persId = null;
                     $staffAd = trim((string) ($svc['staff_name'] ?? ''));
@@ -2168,12 +2176,16 @@ class SalonappyImport extends Command
                         $persId = \DB::table('salon_personelleri')->where('salon_id', $salonId)
                             ->where('personel_adi', $staffAd)->value('id');
                     }
+                    $saatBitis = date('H:i:s', strtotime($cumSaat2) + $sureDk * 60);
                     \DB::table('randevu_hizmetler')->insert([
                         'randevu_id' => $rId, 'hizmet_id' => $hid,
                         'fiyat' => (float) ($svc['price'] ?? 0),
                         'personel_id' => $persId,
+                        'sure_dk' => $sureDk,
+                        'saat' => $cumSaat2, 'saat_bitis' => $saatBitis,
                         'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                     ]);
+                    $cumSaat2 = $saatBitis;
                 }
 
                 // Urun tasima: visit.product_sales[] her item icin
