@@ -701,7 +701,7 @@ class SalonappyImport extends Command
                             ->where('masraf_kategorisi_adi', $kategoriAd)->value('id');
                         if (!$kategoriId) {
                             $kategoriId = \DB::table('masraf_kategorisi')->insertGetId([
-                                'salon_id' => $salonId, 'masraf_kategorisi_adi' => $kategoriAd,
+                                'salon_id' => $salonId, 'kategori' => $kategoriAd,
                                 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                             ]);
                         }
@@ -1892,7 +1892,7 @@ class SalonappyImport extends Command
         }
         $this->line("Mevcut salonappy gider silindi: $silinen. Dump'tan yeniden yazilacak: " . count($exps));
 
-        // Tablo: masraf_kategorileri (MasrafKategorisi model). Kolon: masraf_kategorisi_adi.
+        // Tablo: masraf_kategorileri (MasrafKategorisi model). Kolon: kategori (sade).
         $katTable = 'masraf_kategorileri';
         $hasOdemeYontem = \Schema::hasColumn($masTable, 'odeme_yontemi_id');
         $yontemMap = function ($txt) {
@@ -1917,13 +1917,15 @@ class SalonappyImport extends Command
             $odemeYontemAd = (string) ($ex['payment_method_text'] ?? $ex['payment_method'] ?? '');
 
             try {
+                // MasrafKategorisi::firstOrCreate(['kategori' => $ad]) sistem mantigi —
+                // tablo global (salon_id YOK). StoreAdminController line 28415 ile ayni.
                 $kategoriId = null;
                 if ($kategoriAd && $hasKategori) {
-                    $kategoriId = \DB::table($katTable)->where('salon_id', $salonId)
-                        ->where('masraf_kategorisi_adi', $kategoriAd)->value('id');
+                    $kategoriId = \DB::table($katTable)
+                        ->where('kategori', $kategoriAd)->value('id');
                     if (!$kategoriId) {
                         $kategoriId = \DB::table($katTable)->insertGetId([
-                            'salon_id' => $salonId, 'masraf_kategorisi_adi' => $kategoriAd,
+                            'kategori' => $kategoriAd,
                             'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                         ]);
                     }
