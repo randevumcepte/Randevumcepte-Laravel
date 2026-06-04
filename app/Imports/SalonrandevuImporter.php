@@ -833,10 +833,30 @@ class SalonrandevuImporter
                 \Log::warning('[Salonrandevu paket] AdisyonPaketler save hata', ['rid' => $rid, 'err' => $e->getMessage()]);
                 continue;
             }
-            // APS PLACEHOLDER YAZILMAZ — drklinik/salonappy mantigi: paket satildiginda
-            // henuz hicbir seans gerceklesmemis, randevu/visit geldikce APS INSERT (geldi=1).
-            // Kalan seans = paket_hizmetler.seans - APS_sayisi (UI hesabi).
-            // Bu sayede UI "gelmedi" (geldi=0 placeholder) olarak gostermez.
+            // APS yaz: Salonrandevu'da paket transaction'larinin her biri zaten process_date
+            // ile bir seans planlamasi (randevu ile eslesme YOK). Her tx -> 1 APS.
+            // geldi: process_date gecmis ise 1 (kullanilmis), gelecek ise 0 (planlanmis).
+            $bugun = date('Y-m-d');
+            foreach ($info['hizmetler'] as $svcId => $svcGroup) {
+                $hid = $svcGroup['hizmet_id'];
+                $seansNo = 0;
+                foreach ($svcGroup['tx_list'] as $tx) {
+                    $seansNo++;
+                    list($pTarih,) = $this->isoBol($tx['process_date'] ?? null);
+                    $geldi = ($pTarih && $pTarih <= $bugun) ? 1 : 0;
+                    $aps = new AdisyonPaketSeanslar();
+                    $aps->adisyon_paket_id = $apkt->id;
+                    $aps->hizmet_id = $hid;
+                    $aps->seans_no = $seansNo;
+                    $aps->geldi = $geldi;
+                    if (\Schema::hasColumn('adisyon_paket_seanslar', 'seans_tarih')) {
+                        $aps->seans_tarih = $pTarih ?: null;
+                    }
+                    try { $aps->save(); } catch (\Throwable $e) {
+                        \Log::warning('[Salonrandevu paket APS] hata', ['rid' => $rid, 'err' => $e->getMessage()]);
+                    }
+                }
+            }
         }
 
         if ($packageOnly) { $this->counts['paket_satis'] = ($this->counts['paket_satis'] ?? 0) + 1; return; }
