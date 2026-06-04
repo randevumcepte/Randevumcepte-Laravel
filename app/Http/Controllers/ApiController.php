@@ -12152,17 +12152,17 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             ]);
         }
 
+        // NOT: 'otomatik_randevu_olusturuldu != 1' NULL satirlari da eliyor (SQL NULL!=1 -> unknown);
+        // 'bekleyen_seans > 0' kolonu da guvenilir degil. Ikisini de duzeltiyoruz (web modal ile ayni).
         $randevuOlusturulmamisHizmetAdisyonuVarmi = Adisyonlar::whereHas('hizmetler', function ($q) {
-            $q->where('otomatik_randevu_olusturuldu', '!=', 1)
-              ->where('bekleyen_seans', '>', 0);
+            $q->where(function($qq){ $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu','!=',1); });
         })->where('user_id', $user->id)
           ->where('salon_id', $request->sube)
           ->with(['hizmetler.hizmet'])
           ->get();
 
         $randevuOlusturulmamisPaketAdisyonuVarmi = Adisyonlar::whereHas('paketler', function ($q) {
-            $q->where('otomatik_randevu_olusturuldu', '!=', 1)
-              ->where('bekleyen_seans', '>', 0);
+            $q->where(function($qq){ $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu','!=',1); });
         })->where('user_id', $user->id)
           ->where('salon_id', $request->sube)
           ->with(['paketler.paket.hizmetler.hizmet'])
@@ -12193,12 +12193,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         foreach ($randevuOlusturulmamisHizmetAdisyonuVarmi as $hizmetSeanslari) {
             foreach ($hizmetSeanslari->hizmetler as $hizmetA) {
                 if (!$hizmetA->hizmet) continue;
+                // KALAN = toplam - adisyon_paket_seanslar KAYIT SAYISI (her kayit 1 seans)
                 $toplamSeansHizmet = (int)($hizmetA->seans_sayisi ?? $hizmetA->bekleyen_seans ?? 0);
                 $kullanilanHizmet = (int) DB::table('adisyon_paket_seanslar')
-                    ->where('adisyon_hizmet_id', $hizmetA->id)->where('geldi', 1)->sum('dusulen_miktar');
-                $kullanilmayanHizmet = DB::table('adisyon_paket_seanslar')
-                    ->where('adisyon_hizmet_id', $hizmetA->id)->where('geldi', 0)->count();
-                $kalanSeansHizmet = max(0, $toplamSeansHizmet - $kullanilanHizmet - $kullanilmayanHizmet);
+                    ->where('adisyon_hizmet_id', $hizmetA->id)->count();
+                $kalanSeansHizmet = max(0, $toplamSeansHizmet - $kullanilanHizmet);
                 if ($kalanSeansHizmet <= 0) continue;
 
                 $hizmetAdi = $hizmetA->hizmet->hizmet_adi;
@@ -12239,13 +12238,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 if (!$paketA->paket) continue;
                 $hizmetSayisi = $paketA->paket->hizmetler ? count($paketA->paket->hizmetler) : 0;
                 if ($hizmetSayisi <= 0) continue;
+                // KALAN = toplam - adisyon_paket_seanslar KAYIT SAYISI (her kayit 1 seans)
                 $seansPerHizmet = (int)($paketA->seans_sayisi ?? $paketA->bekleyen_seans ?? 0);
                 $toplamSeansPaket = $seansPerHizmet * $hizmetSayisi;
                 $kullanilanPaket = (int) DB::table('adisyon_paket_seanslar')
-                    ->where('adisyon_paket_id', $paketA->id)->where('geldi', 1)->sum('dusulen_miktar');
-                $kullanilmayanPaket = DB::table('adisyon_paket_seanslar')
-                    ->where('adisyon_paket_id', $paketA->id)->where('geldi', 0)->count();
-                $bekleyenToplamPaket = $toplamSeansPaket - $kullanilanPaket - $kullanilmayanPaket;
+                    ->where('adisyon_paket_id', $paketA->id)->count();
+                $bekleyenToplamPaket = $toplamSeansPaket - $kullanilanPaket;
                 $kalanSeansPaket = max(0, (int)floor($bekleyenToplamPaket / $hizmetSayisi));
                 if ($kalanSeansPaket <= 0) continue;
 
