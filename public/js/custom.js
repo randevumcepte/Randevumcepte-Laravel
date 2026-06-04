@@ -11400,7 +11400,8 @@ $('#cihaz_tablo').on('click','button[name="cihaz_siralamayi_bir_asagi_tasi"]',fu
 
 $(document).on('click','a[name="tahsil_et"]',function(e){
     e.preventDefault();
-    // Once arkadaki randevu detay swal'ini kapat
+    // Arkadaki randevu detay modali (#modal-view-event) ve olasi swal'leri kapat
+    try { $('#modal-view-event').modal('hide'); } catch(err) {}
     try { swal.close(); } catch(err) {}
     try { if(typeof Swal !== 'undefined') Swal.close(); } catch(err) {}
     var randevu_id = $(this).attr('data-value');
@@ -21646,7 +21647,9 @@ $(document).on('click','#alacaklar_listeme_git',function(e){
 })
 $(document).on('click','a[name="paket_tahsilatlari"]',function(e){
     e.preventDefault();
-    // Once arkadaki randevu detay swal'ini kapat — yoksa iki modal usteke ust kalir
+    // Arkadaki randevu detay modali (#modal-view-event) ve olasi swal'leri kapat
+    try { $('#modal-view-event').modal('hide'); } catch(err) {}
+    try { $('.modal.show, .modal.in').not('#paket_odeme_detay_modal').modal('hide'); } catch(err) {}
     try { swal.close(); } catch(err) {}
     try { if(typeof Swal !== 'undefined') Swal.close(); } catch(err) {}
      $.ajax({
