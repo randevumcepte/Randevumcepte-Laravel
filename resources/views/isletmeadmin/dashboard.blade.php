@@ -978,91 +978,6 @@ function rmcDashInit(){
     });
   });
 
-  // ===== DOĞUM GÜNÜ POPUP =====
-  function dogumGunuPopupGoster(){
-    if(typeof Swal === 'undefined') return;
-    var lsKey = 'rmc_dogumgunu_kapatildi_' + new Date().toISOString().slice(0,10);
-    api('/bugun-dogum-gunu').then(function(d){
-      var liste = (d.liste || []).filter(function(m){ return !m.gonderildi; });
-      if(liste.length === 0) return;
-
-      // Bugün manuel kapatılan müşterileri filtrele
-      var kapatilanlar = [];
-      try { kapatilanlar = JSON.parse(localStorage.getItem(lsKey) || '[]'); } catch(e){}
-      liste = liste.filter(function(m){ return kapatilanlar.indexOf(m.id) === -1; });
-      if(liste.length === 0) return;
-
-      function sirayaAl(idx){
-        if(idx >= liste.length) return;
-        var m = liste[idx];
-        var ad = m.name || 'Müşteri';
-        var html = '<div style="text-align:center;">'
-                 + '<div style="font-size:48px;margin-bottom:8px;">🎂</div>'
-                 + '<p style="font-size:15px;color:#444;margin:0 0 4px 0;">Bugün</p>'
-                 + '<h3 style="margin:0 0 8px 0;color:#e63b6e;font-weight:700;">'+ ad +'</h3>'
-                 + '<p style="font-size:14px;color:#666;">Müşterinize doğum günü mesajı göndermek ister misiniz?</p>'
-                 + '<p style="font-size:12px;color:#999;margin-top:8px;">Önce WhatsApp denenecek, başarısız olursa SMS gönderilecek.</p>'
-                 + '</div>';
-        Swal.fire({
-          html: html,
-          showCancelButton: true,
-          showDenyButton: true,
-          confirmButtonText: '<i class="bi bi-send"></i> Evet, Gönder',
-          denyButtonText: 'Bugün Gösterme',
-          cancelButtonText: 'Hayır',
-          confirmButtonColor: '#1fbf6f',
-          denyButtonColor: '#9097ad',
-          cancelButtonColor: '#ff5c8a',
-          reverseButtons: false,
-          allowOutsideClick: false,
-        }).then(function(res){
-          if(res.isConfirmed){
-            // Gönderim isteği
-            Swal.fire({title:'Gönderiliyor…', didOpen: function(){ Swal.showLoading(); }, allowOutsideClick:false});
-            var csrf = document.querySelector('meta[name="csrf-token"]');
-            csrf = csrf ? csrf.getAttribute('content') : (document.querySelector('input[name="_token"]') ? document.querySelector('input[name="_token"]').value : '');
-            var fd = new FormData();
-            fd.append('musteri_id', m.id);
-            fd.append('_token', csrf);
-            fetch('/isletmeyonetim/dogum-gunu-mesaj-gonder' + subeParam, {
-              method:'POST',
-              credentials:'same-origin',
-              headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN': csrf},
-              body: fd,
-            }).then(function(r){ return r.json(); }).then(function(out){
-              if(out && out.ok){
-                Swal.fire({
-                  icon:'success',
-                  title:'Gönderildi!',
-                  text: out.mesaj || (out.kanal === 'whatsapp' ? 'WhatsApp üzerinden gönderildi.' : 'SMS olarak gönderildi.'),
-                  timer: 2200,
-                });
-              } else {
-                Swal.fire({icon:'error', title:'Hata', text:(out && out.mesaj) ? out.mesaj : 'Gönderim sırasında hata oluştu.'});
-              }
-              setTimeout(function(){ sirayaAl(idx+1); }, 800);
-            }).catch(function(){
-              Swal.fire({icon:'error', title:'Hata', text:'Sunucuya bağlanılamadı.'});
-              setTimeout(function(){ sirayaAl(idx+1); }, 800);
-            });
-          } else if(res.isDenied){
-            // Bugün gösterme — LocalStorage'a ekle
-            try {
-              var arr = JSON.parse(localStorage.getItem(lsKey) || '[]');
-              if(arr.indexOf(m.id) === -1) arr.push(m.id);
-              localStorage.setItem(lsKey, JSON.stringify(arr));
-            } catch(e){}
-            sirayaAl(idx+1);
-          } else {
-            // Hayır / iptal — sıradakine geç (yarın tekrar sorabilir)
-            sirayaAl(idx+1);
-          }
-        });
-      }
-      sirayaAl(0);
-    }).catch(function(e){ console.warn('bugun dogum gunu err', e); });
-  }
-
   // ===== İlk yükleme — paralel =====
   renderKasa('daily');
   renderRandevu('daily');
@@ -1071,9 +986,6 @@ function rmcDashInit(){
   renderTab('online-talep');
   renderTimeline();
   renderPersonel();
-
-  // Popup'ı sayfa biraz yerleşsin diye 1.5sn sonra çağır
-  setTimeout(dogumGunuPopupGoster, 1500);
 }
 
 (function rmcDashBoot(){
@@ -1089,6 +1001,142 @@ function rmcDashInit(){
   } else {
     ready();
   }
+})();
+</script>
+
+{{-- ====== DOĞUM GÜNÜ POPUP (Vanilla — Chart/Swal bağımsız) ====== --}}
+<style>
+.rmc-bday-overlay{position:fixed;inset:0;background:rgba(20,20,40,.55);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;animation:rmcBdayFade .2s ease-out;}
+@keyframes rmcBdayFade{from{opacity:0}to{opacity:1}}
+.rmc-bday-box{background:#fff;border-radius:16px;padding:28px 24px;width:92%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.25);text-align:center;animation:rmcBdayPop .25s cubic-bezier(.34,1.56,.64,1);}
+@keyframes rmcBdayPop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.rmc-bday-emoji{font-size:56px;line-height:1;margin-bottom:10px;}
+.rmc-bday-lbl{font-size:14px;color:#666;margin:0 0 4px;}
+.rmc-bday-name{font-size:22px;font-weight:700;color:#e63b6e;margin:0 0 8px;}
+.rmc-bday-q{font-size:14px;color:#444;margin:0 0 6px;}
+.rmc-bday-info{font-size:12px;color:#999;margin:0 0 18px;}
+.rmc-bday-btns{display:flex;flex-direction:column;gap:8px;}
+.rmc-bday-btn{padding:12px 16px;border:0;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .1s,filter .15s;}
+.rmc-bday-btn:hover{filter:brightness(.95);}
+.rmc-bday-btn:active{transform:scale(.97);}
+.rmc-bday-btn.ok{background:#1fbf6f;color:#fff;}
+.rmc-bday-btn.deny{background:#9097ad;color:#fff;}
+.rmc-bday-btn.no{background:#ff5c8a;color:#fff;}
+.rmc-bday-msg{margin-top:14px;padding:10px;border-radius:8px;font-size:13px;}
+.rmc-bday-msg.ok{background:#e8f8ee;color:#1a7f47;}
+.rmc-bday-msg.err{background:#fde8ec;color:#a01035;}
+</style>
+<script>
+(function rmcBdayPopupInit(){
+  var subeParam = @json($apiSubeParam);
+  var lsKey = 'rmc_dogumgunu_kapatildi_' + new Date().toISOString().slice(0,10);
+
+  function fetchJSON(url, opts){
+    return fetch(url, Object.assign({credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}}, opts||{}))
+      .then(function(r){ return r.json(); });
+  }
+
+  function gosterModal(m, onResult){
+    var ov = document.createElement('div');
+    ov.className = 'rmc-bday-overlay';
+    ov.innerHTML =
+      '<div class="rmc-bday-box">'
+    + '  <div class="rmc-bday-emoji">🎂</div>'
+    + '  <p class="rmc-bday-lbl">Bugün</p>'
+    + '  <h3 class="rmc-bday-name"></h3>'
+    + '  <p class="rmc-bday-q">Müşterinize doğum günü mesajı göndermek ister misiniz?</p>'
+    + '  <p class="rmc-bday-info">Önce WhatsApp denenecek, başarısız olursa SMS gönderilecek.</p>'
+    + '  <div class="rmc-bday-btns">'
+    + '    <button class="rmc-bday-btn ok" data-r="ok">✉️ Evet, Gönder</button>'
+    + '    <button class="rmc-bday-btn deny" data-r="deny">Bugün Gösterme</button>'
+    + '    <button class="rmc-bday-btn no" data-r="no">Hayır</button>'
+    + '  </div>'
+    + '  <div class="rmc-bday-result"></div>'
+    + '</div>';
+    ov.querySelector('.rmc-bday-name').textContent = m.name || 'Müşteri';
+    document.body.appendChild(ov);
+
+    var sonucBox = ov.querySelector('.rmc-bday-result');
+    var btnsBox = ov.querySelector('.rmc-bday-btns');
+
+    ov.querySelectorAll('.rmc-bday-btn').forEach(function(b){
+      b.addEventListener('click', function(){
+        var r = b.getAttribute('data-r');
+        if(r === 'ok'){
+          btnsBox.style.opacity = '.4';
+          btnsBox.style.pointerEvents = 'none';
+          sonucBox.innerHTML = '<div class="rmc-bday-msg ok">Gönderiliyor…</div>';
+          gonderim(m, function(out){
+            if(out && out.ok){
+              sonucBox.innerHTML = '<div class="rmc-bday-msg ok">✅ '+(out.mesaj || 'Gönderildi.')+'</div>';
+            } else {
+              sonucBox.innerHTML = '<div class="rmc-bday-msg err">⚠️ '+((out && out.mesaj) ? out.mesaj : 'Hata oluştu.')+'</div>';
+            }
+            setTimeout(function(){ ov.remove(); onResult && onResult(); }, 1800);
+          });
+        } else if(r === 'deny'){
+          try {
+            var arr = JSON.parse(localStorage.getItem(lsKey) || '[]');
+            if(arr.indexOf(m.id) === -1) arr.push(m.id);
+            localStorage.setItem(lsKey, JSON.stringify(arr));
+          } catch(e){}
+          ov.remove(); onResult && onResult();
+        } else {
+          ov.remove(); onResult && onResult();
+        }
+      });
+    });
+  }
+
+  function gonderim(m, cb){
+    var csrf = '';
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if(meta) csrf = meta.getAttribute('content');
+    if(!csrf){
+      var inp = document.querySelector('input[name="_token"]');
+      if(inp) csrf = inp.value;
+    }
+    var fd = new FormData();
+    fd.append('musteri_id', m.id);
+    fd.append('_token', csrf);
+    fetch('/isletmeyonetim/dogum-gunu-mesaj-gonder' + (subeParam || ''), {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN': csrf},
+      body: fd,
+    }).then(function(r){ return r.json(); }).then(cb).catch(function(){ cb({ok:false, mesaj:'Sunucuya bağlanılamadı.'}); });
+  }
+
+  function basla(){
+    fetchJSON('/isletmeyonetim/api/dashboard/bugun-dogum-gunu' + (subeParam || ''))
+      .then(function(d){
+        var liste = (d && d.liste ? d.liste : []).filter(function(m){ return !m.gonderildi; });
+        try {
+          var kapatilanlar = JSON.parse(localStorage.getItem(lsKey) || '[]');
+          liste = liste.filter(function(m){ return kapatilanlar.indexOf(m.id) === -1; });
+        } catch(e){}
+        if(liste.length === 0){ console.log('[BDAY] bugun gosterilecek dogum gunu yok'); return; }
+        console.log('[BDAY] popup acilacak, musteri sayisi:', liste.length);
+
+        var idx = 0;
+        function sira(){
+          if(idx >= liste.length) return;
+          gosterModal(liste[idx], function(){ idx++; setTimeout(sira, 300); });
+        }
+        sira();
+      })
+      .catch(function(e){ console.warn('[BDAY] api hatasi', e); });
+  }
+
+  // Window load eventinde calistir — Chart/Swal/diger bagimli scriptlerden bagimsiz
+  if(document.readyState === 'complete'){
+    setTimeout(basla, 800);
+  } else {
+    window.addEventListener('load', function(){ setTimeout(basla, 800); });
+  }
+
+  // Manuel test icin global tetikleyici
+  window.rmcBdayTrigger = basla;
 })();
 </script>
 
