@@ -10526,6 +10526,19 @@ private function ayAdiCevir($ingilizceAy)
             return response()->json(['ok' => false, 'error' => 'gonderim-hatasi', 'mesaj' => 'Mesaj gönderiminde hata oluştu.'], 500);
         }
     }
+    public function cacheTemizle(Request $request)
+    {
+        $cikti = [];
+        try { \Artisan::call('view:clear');  $cikti['view']  = trim(\Artisan::output()); } catch(\Throwable $e){ $cikti['view']  = 'HATA: '.$e->getMessage(); }
+        try { \Artisan::call('cache:clear'); $cikti['cache'] = trim(\Artisan::output()); } catch(\Throwable $e){ $cikti['cache'] = 'HATA: '.$e->getMessage(); }
+        try { \Artisan::call('route:clear'); $cikti['route'] = trim(\Artisan::output()); } catch(\Throwable $e){ $cikti['route'] = 'HATA: '.$e->getMessage(); }
+        try { \Artisan::call('config:clear');$cikti['config']= trim(\Artisan::output()); } catch(\Throwable $e){ $cikti['config']= 'HATA: '.$e->getMessage(); }
+        $html  = '<html><head><meta charset="utf-8"><title>Cache Temizle</title>';
+        $html .= '<style>body{font-family:system-ui;background:#f6f7fb;padding:32px;max-width:640px;margin:auto;}h2{color:#1fbf6f;}pre{background:#fff;padding:16px;border-radius:8px;border:1px solid #e6e9f2;}a{display:inline-block;margin-top:16px;padding:10px 18px;background:#6e4bff;color:#fff;text-decoration:none;border-radius:6px;}</style>';
+        $html .= '</head><body><h2>✅ Cache Temizlendi</h2><pre>'.htmlspecialchars(json_encode($cikti, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE)).'</pre>';
+        $html .= '<a href="/isletmeyonetim?sube='.((int) $request->sube).'">Dashboard\'a Dön</a></body></html>';
+        return $html;
+    }
     public function tahsilatekle(Request $request){
         $tahsilat = new Tahsilatlar();
         $tahsilat->adisyon_id = $request->adisyon_id;

@@ -701,6 +701,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/api/dashboard/personel-durum','StoreAdminController@dashboardPersonelDurum')->name('isletmeadmin.dashboard.personeldurum');
 	Route::get('/api/dashboard/bugun-dogum-gunu','StoreAdminController@dashboardBugunDogumGunu')->name('isletmeadmin.dashboard.bugundogumgunu');
 	Route::post('/dogum-gunu-mesaj-gonder','StoreAdminController@dogumGunuMesajGonder')->name('isletmeadmin.dogumgunumesajgonder');
+	Route::get('/cache-temizle','StoreAdminController@cacheTemizle')->name('isletmeadmin.cachetemizle');
 	Route::get('/randevular','StoreAdminController@randevular')->name('isletmeadmin.randevular');
 	Route::get('/randevularyenitakvim','StoreAdminController@randevularyenitakvim')->name('isletmeadmin.randevularyenitakvim');
 	Route::get('/randevular-filtre','StoreAdminController@randevularfiltre');
