@@ -731,7 +731,13 @@
             html += '    <div class="ea-task-meta">';
             // durum: controller HTML donuyor (btn-danger/btn-success rozet) — escape ETME
             if (item.durum) html += '      <div class="ea-task-status">' + item.durum + '</div>';
-            if (item.sonuc) html += '      <div class="ea-task-result">' + escapeHtml(item.sonuc) + '</div>';
+            // sonuc: varsayilan "Hatirlatma aramasi yapilacak." baslikta zaten anlasiliyor,
+            // sadece gercek bir durum bilgisi varsa goster (Randevuya gelecek, Ulasilamadi vs.).
+            var sonuc = (item.sonuc || '').trim();
+            var isDefaultSonuc = sonuc === 'Hatırlatma araması yapılacak.' || sonuc === 'Hatirlatma aramasi yapilacak.';
+            if (sonuc && !isDefaultSonuc) {
+                html += '      <div class="ea-task-result">' + escapeHtml(sonuc) + '</div>';
+            }
             // islemler: controller HTML donuyor (gorev iptal et butonu) — escape ETME
             if (item.islemler) html += '      <div class="ea-task-actions">' + item.islemler + '</div>';
             html += '    </div>';
