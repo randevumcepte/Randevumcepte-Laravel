@@ -2209,14 +2209,15 @@
                 if(typeof swal !== 'undefined'){
                     swal({
                         type: 'warning',
-                        title: 'Çakışma — ' + (group.type==='paket' ? ($(group.$el).find('.v2-paket-title').text() || 'Paket') : 'Manuel hizmet'),
-                        background: '#dc2626',
-                        html: '<p style="color:#fff;font-size:15px;margin:8px 0;">Bu randevu aşağıdaki ile çakışıyor:</p>'+result.cakismavar+'<p style="color:#fff;font-size:14px;margin-top:8px;">Yine de oluşturulsun mu?</p>',
+                        title: 'Randevu Çakışması',
+                        html: '<p style="font-size:14.5px;color:#4b5563;margin:6px 0 12px;line-height:1.5;">Vermek istediğiniz randevu saati dolu, gene de randevu vermek istiyor musunuz?</p>',
                         showCancelButton: true,
-                        confirmButtonText: 'Evet, oluştur',
-                        cancelButtonText: 'Bu paketi atla',
-                        confirmButtonColor: '#5C008E',
-                        cancelButtonColor: '#666'
+                        confirmButtonText: '<i class="fa fa-check"></i> Evet',
+                        cancelButtonText: '<i class="fa fa-times"></i> Hayır',
+                        confirmButtonColor: '#7c3aed',
+                        cancelButtonColor: '#9ca3af',
+                        reverseButtons: true,
+                        focusCancel: true
                     }).then(function(confirm){
                         if(confirm.value){
                             postOneGroup(group, common, true, function(r2){
@@ -2229,7 +2230,7 @@
                         }
                     });
                 } else {
-                    if(confirm('Çakışma var. Yine de oluştur?')){
+                    if(confirm('Vermek istediğiniz randevu saati dolu, gene de vermek istiyor musunuz?')){
                         postOneGroup(group, common, true, function(r2){
                             results.push(r2.success ? {success:true} : {error:true});
                             submitGroupsSeq(groups, idx+1, common, results);

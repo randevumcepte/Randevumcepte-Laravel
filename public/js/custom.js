@@ -3532,16 +3532,15 @@ $(document).on('submit','#yenirandevuekleform',function(e){
                     swal(
                         {
                             type: "warning",
-                            title: "<h2 style='font-size:40px;font-weight:bold;color:#fff'>Uyarı</h2>",
-                            background: '#ff0000',
-                            html: "<p style='color:#fff; font-size:20px'>Bu randevu aşağıdakilerle çakışmaktadır</p>"+result.cakismavar+
-                                  "<p style='color:#fff; font-size:20px;padding:10px;border:1px solid #fff;border-radius:10px;margin:0 20px 0 20px'>Yine de kayıt etmek istiyor musunuz?",
+                            title: "Randevu Çakışması",
+                            html: "<p style='font-size:14.5px;color:#4b5563;margin:6px 0 12px;line-height:1.5;'>Vermek istediğiniz randevu saati dolu, gene de randevu vermek istiyor musunuz?</p>",
                             showCancelButton: true,
-                            confirmButtonColor: '#5C008E',
-                            confirmButtonText: 'Randevuyu Oluştur',
-                            cancelButtonText: "Vazgeç",
-                            confirmButtonClass: 'btn btn-primary',
-                            cancelButtonClass: 'btn btn-danger',
+                            confirmButtonText: '<i class="fa fa-check"></i> Evet',
+                            cancelButtonText: '<i class="fa fa-times"></i> Hayır',
+                            confirmButtonColor: '#7c3aed',
+                            cancelButtonColor: '#9ca3af',
+                            reverseButtons: true,
+                            focusCancel: true,
                         }
                     ).then(function(result2){
                         if(result2.value)
@@ -3722,16 +3721,15 @@ $(document).on('submit','#randevuduzenleform',function(e){
                 swal(
                     {
                         type: "warning",
-                        title: "<h2 style='font-size:40px;font-weight:bold;color:#fff'>Uyarı</h2>",
-                        background: '#ff0000',
-                        html: "<p style='color:#fff; font-size:20px'>Bu randevu aşağıdakilerle çakışmaktadır</p>"+result.cakismavar+
-                              "<p style='color:#fff; font-size:20px;padding:10px;border:1px solid #fff;border-radius:10px;margin:0 20px 0 20px'>Yine de kayıt etmek istiyor musunuz?",
+                        title: "Randevu Çakışması",
+                        html: "<p style='font-size:14.5px;color:#4b5563;margin:6px 0 12px;line-height:1.5;'>Vermek istediğiniz randevu saati dolu, gene de randevu vermek istiyor musunuz?</p>",
                         showCancelButton: true,
-                        confirmButtonColor: '#5C008E',
-                        confirmButtonText: 'Randevuyu Oluştur',
-                        cancelButtonText: "Vazgeç",
-                        confirmButtonClass: 'btn btn-primary',
-                        cancelButtonClass: 'btn btn-danger',
+                        confirmButtonText: '<i class="fa fa-check"></i> Evet',
+                        cancelButtonText: '<i class="fa fa-times"></i> Hayır',
+                        confirmButtonColor: '#7c3aed',
+                        cancelButtonColor: '#9ca3af',
+                        reverseButtons: true,
+                        focusCancel: true,
                     }
                 ).then(function(result2){
                     if(result2.value)
@@ -8893,35 +8891,45 @@ $('#alacak_formu').on('submit',function(e){
 if(($('#formdoldurma').length>0 && $('#formdoldurma').val()!= '1')||$('#formdoldurma').length==0)
     setInterval(bildirimKontrol, 10000);
 function bildirimKontrol() {
-    $(".notification-list.customscroll").first().mCustomScrollbar();
     $.ajax({
                 type: "GET",
                 url: '/isletmeyonetim/bildirimkontrolet',
                 dataType: "json",
                 data:{sube:$('input[name="sube"]').val()},
                success: function(result)  {
-                    $(".notification-list.customscroll").first().mCustomScrollbar("destroy");
-                    if(result.bildirim_sayisi!=0)
+                    if(result.bildirim_sayisi != 0)
                     {
                         $('#bildirim-badge').addClass('badge notification-afctive');
                         $('#bildirim-badge').empty();
                         $('#bildirim-badge').append(result.bildirim_sayisi);
-                        $('#bildirim_listesi').empty();
-                        $('#bildirim_listesi').append(result.bildirimler);
                     }
                     else
                     {
                         $('#bildirim-badge').removeClass('badge notification-afctive');
                         $('#bildirim-badge').empty();
                     }
-                },
-                complete: function () {
-                    jQuery(".notification-list.customscroll").first().mCustomScrollbar({
-                        theme: "dark-2",
-                        scrollInertia: 300,
-                        autoExpandScrollbar: true,
-                        advanced: { autoExpandHorizontalScroll: true },
-                    });
+                    /* Modern bildirim listesini her zaman tazele (boş durum dahil) */
+                    if(result.bildirimler !== undefined){
+                        $('#bildirim_listesi').empty();
+                        $('#bildirim_listesi').append(result.bildirimler);
+                    }
+                    /* Üst başlıktaki "X yeni" pill'i ve Tümünü Sil butonunu güncelle */
+                    if(result.bildirim_sayisi > 0){
+                        if($('#bildirim-count-pill').length === 0){
+                            $('.rc-notif-head .rc-notif-title').append('<span class="rc-notif-count" id="bildirim-count-pill">'+result.bildirim_sayisi+' yeni</span>');
+                        } else {
+                            $('#bildirim-count-pill').text(result.bildirim_sayisi + ' yeni');
+                        }
+                    } else {
+                        $('#bildirim-count-pill').remove();
+                    }
+                    if(result.toplam_bildirim > 0){
+                        if($('#bildirim-tumusil').length === 0){
+                            $('.rc-notif-head .rc-notif-actions').append('<button type="button" class="rc-notif-clear" id="bildirim-tumusil" title="Tümünü Sil"><i class="fa fa-trash-o"></i> <span>Tümünü Sil</span></button>');
+                        }
+                    } else {
+                        $('#bildirim-tumusil').remove();
+                    }
                 },
                 error: function (request, status, error) {
                     $('#preloader').hide();
@@ -8932,6 +8940,69 @@ function bildirimKontrol() {
                 }
     });
 }
+/* === Modern bildirim: tekli silme === */
+$(document).on('click', '.rc-notif-del, button[name="bildirim-sil"]', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    var $btn = $(this);
+    var bildirimId = $btn.data('bildirim-id') || $btn.attr('data-bildirim-id');
+    if(!bildirimId) return;
+    $btn.prop('disabled', true);
+    $.ajax({
+        type: 'POST',
+        url: '/isletmeyonetim/bildirimsil',
+        dataType: 'json',
+        data: { _token: $('input[name="_token"]').val(), bildirim_id: bildirimId, sube: $('input[name="sube"]').val() },
+        success: function(result){
+            var $item = $btn.closest('.rc-notif-item');
+            $item.css({transition: 'opacity .2s ease, transform .2s ease', opacity: 0, transform: 'translateX(24px)'});
+            setTimeout(function(){
+                $item.remove();
+                if($('#bildirim_listesi .rc-notif-item').length === 0){
+                    $('#bildirim_listesi').html('<div class="rc-notif-empty"><div class="rc-notif-empty-icon"><i class="icon-copy dw dw-notification"></i></div><p>Bildiriminiz bulunmamaktadır</p></div>');
+                    $('#bildirim-tumusil').remove();
+                }
+                if(result && typeof result.bildirim_sayisi !== 'undefined'){
+                    if(result.bildirim_sayisi > 0){
+                        $('#bildirim-badge').addClass('badge notification-afctive').text(result.bildirim_sayisi);
+                        $('#bildirim-count-pill').text(result.bildirim_sayisi + ' yeni');
+                    } else {
+                        $('#bildirim-badge').removeClass('badge notification-afctive').empty();
+                        $('#bildirim-count-pill').remove();
+                    }
+                }
+            }, 200);
+        },
+        error: function(){
+            $btn.prop('disabled', false);
+        }
+    });
+});
+
+/* === Modern bildirim: tümünü silme === */
+$(document).on('click', '#bildirim-tumusil', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    if(!confirm('Tüm bildirimler silinecek. Devam edilsin mi?')) return;
+    var $btn = $(this);
+    $btn.prop('disabled', true);
+    $.ajax({
+        type: 'POST',
+        url: '/isletmeyonetim/bildirimtumusil',
+        dataType: 'json',
+        data: { _token: $('input[name="_token"]').val(), sube: $('input[name="sube"]').val() },
+        success: function(){
+            $('#bildirim_listesi').html('<div class="rc-notif-empty"><div class="rc-notif-empty-icon"><i class="icon-copy dw dw-notification"></i></div><p>Bildiriminiz bulunmamaktadır</p></div>');
+            $('#bildirim-badge').removeClass('badge notification-afctive').empty();
+            $('#bildirim-count-pill').remove();
+            $btn.remove();
+        },
+        error: function(){
+            $btn.prop('disabled', false);
+        }
+    });
+});
+
 $(document).on('click','a[name="bildirim"]', function(e){
     e.preventDefault();
     /*var bildirimid = $(this).attr('data-value');
