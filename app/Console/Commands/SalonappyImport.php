@@ -1239,10 +1239,23 @@ class SalonappyImport extends Command
                         ];
                         if ($period !== null) $ahRow['seans_sayisi'] = $period;
                         $ahId = \DB::table('adisyon_hizmetler')->insertGetId($ahRow);
-                        // APS placeholder YAZILMAZ — drklinik mantigi: visit/usage geldikce
-                        // adisyon_paket_seanslar INSERT edilir (geldi=1, seans_tarih=usage.date).
-                        // AH.seans_sayisi paket toplam seans bilgisini tutar; "kalan" = seans_sayisi -
-                        // mevcut APS sayisi. "Gelmedi" gosterimi olmaz.
+                        // total_usage: Salonappy'nin kayitli kullanim sayisi. Bazi seanslar
+                        // visit-detail disinda manuel girilmis olabilir (Duru Datca total_usage=7,
+                        // package_usages=5 — 2 manuel kullanim). Visit Pass package_usages icin
+                        // tarihsiz APS'lerin seans_tarih'ini update eder; geri kalanlar NULL kalir.
+                        // Boylece "kalan seans" hesabi (seans_sayisi - aps_sayisi) Salonappy ile esit.
+                        $totalUsage = (int) ($it['total_usage'] ?? 0);
+                        if ($totalUsage > 0) {
+                            for ($i = 1; $i <= $totalUsage; $i++) {
+                                \DB::table('adisyon_paket_seanslar')->insert([
+                                    'adisyon_hizmet_id' => $ahId, 'hizmet_id' => $hid,
+                                    'seans_no' => $i, 'geldi' => 1,
+                                    'seans_tarih' => null,
+                                    'created_at' => date('Y-m-d H:i:s'),
+                                    'updated_at' => date('Y-m-d H:i:s'),
+                                ]);
+                            }
+                        }
                     }
                 }
                 // Planlanan alacak: receivable_amount > 0 ise UI "Satis Takibi" sayfasi icin
@@ -2378,14 +2391,27 @@ class SalonappyImport extends Command
                         ->where('a.notlar', 'LIKE', '%[salonappy-pkgsale:%')
                         ->where('ah.hizmet_id', $hid)
                         ->orderBy('a.tarih')->pluck('ah.id')->all();
-                    // Drklinik mantigi: package_usage geldikce AH'in altina YENI APS INSERT
-                    // (geldi=1, seans_tarih=usage.date). Placeholder yok; mevcut APS'lerin tum'u
-                    // gerceklesen kullanim. AH.seans_sayisi paket toplamini tutar; "kalan"
-                    // seans_sayisi - mevcut APS sayisi.
+                    // Mantik: Paket Pass1 total_usage kadar APS yazmis (seans_tarih=NULL).
+                    // Visit Pass package_usages icin once tarihsiz APS'leri usage.date ile UPDATE et;
+                    // tarihsiz APS bittiyse yeni APS insert (kapasite sinirinda). Bu sayede
+                    // Salonappy'nin total_usage'i (manuel kullanim dahil) korunur + bilinen tarihler
+                    // visit'lerden gelir.
                     $kalanQty = $puQty;
                     foreach ($ahsForPkg as $ahId) {
                         if ($kalanQty <= 0) break;
-                        // Bu AH icin kalan kapasite = seans_sayisi - mevcut APS sayisi
+                        // Once tarihsiz APS'leri date ile guncelle
+                        $tarihsiz = \DB::table('adisyon_paket_seanslar')
+                            ->where('adisyon_hizmet_id', $ahId)
+                            ->whereNull('seans_tarih')
+                            ->orderBy('seans_no')->limit($kalanQty)->pluck('id')->all();
+                        if (!empty($tarihsiz)) {
+                            \DB::table('adisyon_paket_seanslar')->whereIn('id', $tarihsiz)
+                                ->update(['seans_tarih' => $puDate, 'updated_at' => date('Y-m-d H:i:s')]);
+                            $kalanQty -= count($tarihsiz);
+                            $gPaketUsage += count($tarihsiz);
+                        }
+                        if ($kalanQty <= 0) break;
+                        // Kalan kapasite varsa yeni APS insert
                         $ahMeta = \DB::table('adisyon_hizmetler')->where('id', $ahId)
                             ->value('seans_sayisi');
                         $sansSay = $ahMeta ? (int) $ahMeta : 0;
