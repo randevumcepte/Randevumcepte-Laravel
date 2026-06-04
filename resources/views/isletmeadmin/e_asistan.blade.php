@@ -372,12 +372,6 @@
         {{-- ============================== BUGÜN ============================== --}}
         <div class="tab-pane fade show active" id="bugunku_e_asistan" role="tabpanel">
             <div class="ea-card">
-                <div class="ea-card-head">
-                    <div>
-                        <h2>Bugünkü Görevlerim</h2>
-                        <div class="ea-card-sub">Yapılacak ve yapılmış hatırlatma araması görevlerin</div>
-                    </div>
-                </div>
                 <table class="data-table table" id="bugunkugorevtablo">
                     <thead>
                         <tr>
@@ -397,12 +391,6 @@
         {{-- ============================== YARIN ============================== --}}
         <div class="tab-pane fade" id="yarinki_gorevler" role="tabpanel">
             <div class="ea-card">
-                <div class="ea-card-head">
-                    <div>
-                        <h2>Yarınki Görevlerim</h2>
-                        <div class="ea-card-sub">Yarın için planlanmış hatırlatma görevleri</div>
-                    </div>
-                </div>
                 <table class="data-table table" id="yarinkigorevtablo">
                     <thead>
                         <tr>
@@ -421,13 +409,6 @@
         {{-- ============================== AYARLAR ============================== --}}
         <div class="tab-pane fade" id="e_asistan_ayarlari" role="tabpanel">
             <div class="ea-card">
-                <div class="ea-card-head">
-                    <div>
-                        <h2>Asistan Ayarları</h2>
-                        <div class="ea-card-sub">Hangi tür hatırlatmalar yapılsın, hangileri yapılmasın</div>
-                    </div>
-                </div>
-
                 <form id="otomatik_e_asistan_ayarlari" method="POST">
                     {{csrf_field()}}
                     <input type="hidden" name="sube" value="{{$isletme->id}}">
