@@ -668,14 +668,18 @@ class SalonrandevuImporter
      * Sistem mantigi: paket adi + hizmetler[hid=>['seans'=>N,'fiyat'=>F]] -> Paketler + PaketHizmetler.
      * Ayni salon+paket_adi varsa o ID donulur (paket_hizmetler eksik kalanlari da tamamlar).
      */
-    private function ensurePaket($salonId, $paketAdi, array $hizmetler)
+    private function ensurePaket($salonId, $paketAdi, array $hizmetler, $srPacketId = null)
     {
         $paketAdi = trim((string) $paketAdi);
         if ($paketAdi === '') return null;
-        $paket = Paketler::where('salon_id', $salonId)->where('paket_adi', $paketAdi)->first();
+        // Salonrandevu farkli packet_id'lerin aynı paket_adi'ye sahip olmasi mumkun
+        // (Onur "Lazer tüm vücut" + Ege "Lazer kemer üstü" ikisi de "sirt + göğüs..." adli).
+        // Master paket ayri olmali — paket_adi'ye [SR:<packet_id>] suffix ekleyerek ayır.
+        $aramaAdi = $srPacketId ? $paketAdi . ' [SR:' . $srPacketId . ']' : $paketAdi;
+        $paket = Paketler::where('salon_id', $salonId)->where('paket_adi', $aramaAdi)->first();
         if (!$paket) {
             $paket = new Paketler();
-            $paket->paket_adi = $paketAdi;
+            $paket->paket_adi = $aramaAdi;
             $paket->salon_id = $salonId;
             if (\Schema::hasColumn('paketler', 'aktif')) $paket->aktif = true;
             $paket->save();
@@ -781,8 +785,9 @@ class SalonrandevuImporter
             $saleId = (int) ($pkg['id'] ?? 0);
             if (!$saleId) continue;
             $pkgInfoBySaleId[$saleId] = [
-                'adi'      => trim((string) ($pkg['package_name'] ?? '')),
-                'fiyat'    => (float) ($pkg['amount'] ?? 0),
+                'adi'       => trim((string) ($pkg['package_name'] ?? '')),
+                'fiyat'     => (float) ($pkg['amount'] ?? 0),
+                'packet_id' => (int) ($pkg['packet_id'] ?? 0),
                 'hizmetler' => [], // service_id -> ['hizmet_id'=>X, 'tx_list'=>[$tx,...]]
             ];
         }
@@ -844,7 +849,8 @@ class SalonrandevuImporter
                 foreach ($svcGroup['tx_list'] as $tx) $fiyat += (float) ($tx['amount'] ?? 0);
                 $hzMap[$hid] = ['seans' => $seans, 'fiyat' => $fiyat];
             }
-            $paketId = $this->ensurePaket($this->salonId, $paketAdi, $hzMap);
+            $srPacketId = $info['packet_id'] ?? null;
+            $paketId = $this->ensurePaket($this->salonId, $paketAdi, $hzMap, $srPacketId);
             if (!$paketId) continue;
             $totalSeans = array_sum(array_column($hzMap, 'seans'));
             // AdisyonPaketler insert (paket satisi) — StoreAdminController:17487/22006 formati
