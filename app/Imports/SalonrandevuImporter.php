@@ -668,14 +668,15 @@ class SalonrandevuImporter
      * Sistem mantigi: paket adi + hizmetler[hid=>['seans'=>N,'fiyat'=>F]] -> Paketler + PaketHizmetler.
      * Ayni salon+paket_adi varsa o ID donulur (paket_hizmetler eksik kalanlari da tamamlar).
      */
-    private function ensurePaket($salonId, $paketAdi, array $hizmetler, $srPacketId = null)
+    private function ensurePaket($salonId, $paketAdi, array $hizmetler, $srSaleId = null)
     {
         $paketAdi = trim((string) $paketAdi);
         if ($paketAdi === '') return null;
-        // Salonrandevu farkli packet_id'lerin aynı paket_adi'ye sahip olmasi mumkun
-        // (Onur "Lazer tüm vücut" + Ege "Lazer kemer üstü" ikisi de "sirt + göğüs..." adli).
-        // Master paket ayri olmali — paket_adi'ye [SR:<packet_id>] suffix ekleyerek ayır.
-        $aramaAdi = $srPacketId ? $paketAdi . ' [SR:' . $srPacketId . ']' : $paketAdi;
+        // Salonrandevu'da paket_id MASTER degil TEMPLATE — ayni packet_id farkli satislarda
+        // farkli hizmetler iceriyor (Onur 'Lazer tüm vücut' + Ege 'Lazer kemer üstü' ikisi de
+        // packet_id=11538). Bu yuzden her receipt_packages.id (satis) icin AYRI master paket
+        // yaratiyoruz; suffix '[SR-sale:<saleId>]' ile UI'da gizli olarak ayirt edilir.
+        $aramaAdi = $srSaleId ? $paketAdi . ' [SR-sale:' . $srSaleId . ']' : $paketAdi;
         $paket = Paketler::where('salon_id', $salonId)->where('paket_adi', $aramaAdi)->first();
         if (!$paket) {
             $paket = new Paketler();
@@ -850,8 +851,7 @@ class SalonrandevuImporter
                 foreach ($svcGroup['tx_list'] as $tx) $fiyat += (float) ($tx['amount'] ?? 0);
                 $hzMap[$hid] = ['seans' => $seans, 'fiyat' => $fiyat];
             }
-            $srPacketId = $info['packet_id'] ?? null;
-            $paketId = $this->ensurePaket($this->salonId, $paketAdi, $hzMap, $srPacketId);
+            $paketId = $this->ensurePaket($this->salonId, $paketAdi, $hzMap, $saleId);
             if (!$paketId) continue;
             $totalSeans = array_sum(array_column($hzMap, 'seans'));
             // Satisi yapan personel (receipt_packages.staff_id)
