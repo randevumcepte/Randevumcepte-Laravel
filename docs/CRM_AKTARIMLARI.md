@@ -740,6 +740,76 @@ nohup /opt/php74/bin/php artisan salonrandevu:import \
 
 **Resume notu**: Her sayfa sonunda log'a `[Salonrandevu other] sayfa OK page=N toplam=M` yazılır. Yarım kalırsa son işlenmiş sayfayı + 1 ile `--start-page=N+1` çalıştır.
 
+### Sağlama / doğrulama komutları (tek panoda)
+
+Her aşamadan sonra çalıştırılacak rapor komutları. Hepsi **sadece okur**, DB'ye dokunmaz.
+
+```bash
+# Adim 1 sonrasi — paket satislari
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --report-package-sales
+# Cikti yapisi:
+#   SR paket fis sayisi: 76
+#   SR toplam tutar: 605616 TL (odenen: 536152 TL)
+#   Bizdeki paket adisyon sayisi (AdisyonPaketler dolu): 73
+#   Bizdeki toplam tutar: 601116 TL
+#   DB'de EKSIK: 3 (toplam 0 TL) + eksik liste (ilk 30)
+#   DB'de FAZLA: 0
+# Yorum: eksik liste 0 TL ise bedava bekleyen bos paketler (anlamli).
+# Eksik > 0 TL ise: Adim 1 yarim kaldi veya bir fallback eksik.
+
+# Adim 2 sonrasi — paket tahsilatlari
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --report-package-payments
+# Cikti yapisi:
+#   SR paket fis odenen toplam: 536152 TL
+#   Bizdeki SR paket tahsilat sayisi: 117
+#   Bizdeki SR paket tahsilat toplam: 536152 TL
+#   Fark (SR-DB): 0 TL
+# Yorum: Fark=0 ise birebir tutuyor. Fark>0 ise: Adim 2 yarim kaldi,
+# adisyon eksik (Adim 1 calistir), veya pkg.amount=0 fallback gerekiyor.
+
+# Adim 3 sonrasi — paket-disi receipt'ler (hizmet + urun + tahsilat)
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --report-other-receipts
+# Cikti yapisi:
+#   SR paket-disi receipt sayisi: 6932
+#   SR toplam tutar: 42298503 TL (odenen: 39621176 TL)
+#   Bizdeki paket-disi receipt sayisi: 5800
+#   Bizdeki hizmet+urun toplam: ... TL
+#   Bizdeki tahsilat toplam: ... TL
+#   EKSIK: N (toplam X TL) + eksik liste (ilk 30)
+#   Ozet: SR=6932 DB=5800 eksik=1132 fark=...
+# Yorum: 'eksik' tum SR'de var ama bizde yok. EKSIK'in cogu 0 TL ise
+# bos receipt'lerdir. >0 TL ise: yarim kaldi (--start-page=N+1 devam et).
+# Listenin tarihine bak — eski sayfalar islenmemis olabilir.
+```
+
+**Hizli sayim sorulari (artisan tinker)**:
+
+```bash
+/opt/php74/bin/php artisan tinker --execute="
+echo 'Salonrandevu markerli adisyon: ' .
+  DB::table('adisyonlar')->where('salon_id',195)
+    ->where('aciklama','LIKE','%[salonrandevu:%')->count() . PHP_EOL;
+echo 'Paket AdisyonPaketler: ' .
+  DB::table('adisyon_paketler')->whereIn('adisyon_id',
+    DB::table('adisyonlar')->where('salon_id',195)
+      ->where('aciklama','LIKE','%[salonrandevu:%')->pluck('id'))->count() . PHP_EOL;
+echo 'SR-payment markerli Tahsilatlar: ' .
+  DB::table('tahsilatlar')->whereIn('adisyon_id',
+    DB::table('adisyonlar')->where('salon_id',195)
+      ->where('aciklama','LIKE','%[salonrandevu:%')->pluck('id'))
+    ->where('notlar','LIKE','%[SR-payment:%')->count() . PHP_EOL;
+"
+```
+
+**UI doğrulama (örnek)**: SR'de bir paketli müşteri (örn. Onur Hasan Acun) — yan panelde:
+- Paket: `[SR-sale:5382378]` marker'lı, 16 seans Lazer (tüm vücut), 12000 TL
+- Seanslar: 16 APS, `geldi=NULL` (Bekleniyor)
+- Tahsilatlar: 1 × 12000 TL Kredi Kartı, paket'e bağlı (`TahsilatPaketler.adisyon_paket_id` set)
+- "Satış Takibi"nde: paket fiyat=12000, ödenen=12000, kalan=0
+
 ### Salt-okunur / tanı modları
 
 ```bash
