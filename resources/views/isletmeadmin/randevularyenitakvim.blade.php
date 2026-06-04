@@ -40,6 +40,88 @@
     .sweet-alert   { z-index: 100030 !important; }
     .swal2-container { z-index: 100030 !important; }
 
+    /* V2 hover tooltip — randevunun uzerine gelince acilir minik kart */
+    #rc-event-tip {
+        position: fixed;
+        z-index: 99999;
+        min-width: 240px;
+        max-width: 320px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(40, 12, 80, 0.18), 0 2px 6px rgba(40, 12, 80, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 120ms ease, transform 120ms ease;
+        transform: translateY(4px);
+        overflow: hidden;
+        font-family: inherit;
+    }
+    #rc-event-tip.rc-tip-show { opacity: 1; transform: translateY(0); }
+    #rc-event-tip .rc-tip { font-size: 12.5px; color: #2d2143; }
+    #rc-event-tip .rc-tip-head {
+        background: var(--rc-tip-bg, #5C008E);
+        color: #fff;
+        padding: 10px 14px 9px;
+    }
+    #rc-event-tip .rc-tip-name {
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #rc-event-tip .rc-tip-meta {
+        display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+        font-size: 11.5px; opacity: .95;
+    }
+    #rc-event-tip .rc-tip-meta i { margin-right: 3px; opacity: .9; }
+    #rc-event-tip .rc-tip-dur { opacity: .85; }
+    #rc-event-tip .rc-tip-status {
+        margin-left: auto;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 800;
+        letter-spacing: .2px;
+        text-transform: uppercase;
+        background: rgba(255,255,255,0.25);
+        color: #fff;
+    }
+    #rc-event-tip .rc-tip-status.rc-st-geldi      { background: #e6f9ed; color: #0c7a3a; }
+    #rc-event-tip .rc-tip-status.rc-st-gelmedi    { background: #fdecec; color: #c81e1e; }
+    #rc-event-tip .rc-tip-status.rc-st-beklemede  { background: #fff4e0; color: #a86200; }
+    #rc-event-tip .rc-tip-status.rc-st-gelecek    { background: #ffe6d4; color: #b34a00; }
+    #rc-event-tip .rc-tip-body { padding: 8px 14px 10px; background: #fff; }
+    #rc-event-tip .rc-tip-row {
+        display: flex; align-items: flex-start; gap: 8px;
+        padding: 4px 0;
+        font-size: 12.5px;
+        line-height: 1.35;
+        color: #3a2e57;
+    }
+    #rc-event-tip .rc-tip-row + .rc-tip-row { border-top: 1px dashed #f1ecf7; }
+    #rc-event-tip .rc-tip-row i {
+        flex: 0 0 14px;
+        color: var(--rc-tip-bg, #5C008E);
+        opacity: .8;
+        margin-top: 2px;
+        text-align: center;
+    }
+    #rc-event-tip .rc-tip-row span {
+        flex: 1;
+        word-break: break-word;
+        color: #2d2143;
+        font-weight: 500;
+    }
+    #rc-event-tip .rc-tip-note span { color: #5b4d75; font-style: italic; }
+    /* Mobilde / dokunmatik cihazlarda gizle (hover yok zaten) */
+    @media (hover: none) {
+        #rc-event-tip { display: none !important; }
+    }
+
     /* V2 sayfasinda ust bar ozel rozet */
     .v2-page-badge {
         display: inline-flex;

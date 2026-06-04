@@ -3586,6 +3586,7 @@ public function carkverilerigetir(Request $request)
             'end' => $end,
             'eventbuttons'=> view('partials.randevuDetayiButonlar',['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat])->render(),
             'description' => view('partials.randevuDetayi', ['randevu' => $rh,'rol'=>$rol,'paketAdi'=>$paketAdi])->render(),
+            'hoverHtml' => view('partials.randevuHoverDetayi', ['randevu' => $rh,'rol'=>$rol])->render(),
             'color' => $color,
             'randevuId'=>$rh->randevu_id,
             'resourceId' =>  $resourceId,
@@ -3598,7 +3599,40 @@ public function carkverilerigetir(Request $request)
             'duzenle_buton'=>$duzenleButon,
         ];
     });
-    
+
+    // ============================================================
+    // PAKET MERGE: Bir randevu'da paket seanslari varsa, o randevu'nun
+    // tum hizmetlerini TEK event'e birlestir (kullanici takvimde paketi
+    // tek blok olarak gormek istiyor; ic hizmetler ayri ayri seans
+    // dusumune ayri popup'tan erisilebiliyor).
+    // - randevuId bazinda grupla
+    // - Eger randevu paket randevusu ise (randevuIdsHasSeans'da varsa):
+    //   * Ilk hizmetin event'ini al
+    //   * end = grubun max end'i (paketin gercek bitisi)
+    //   * Diger hizmetlerin event'lerini at
+    // - Paket olmayan randevular icin orijinal davranis (hizmet basina
+    //   ayri event) korunur — birlestir checkbox'lariyle birlesik
+    //   gostermeyi bozmamak icin.
+    // ============================================================
+    if($randevuIdsHasSeans instanceof \Illuminate\Support\Collection && $randevuIdsHasSeans->count() > 0){
+        $grouped = collect($randevu_hizmetler)->groupBy('randevuId');
+        $merged = collect();
+        foreach($grouped as $randevuId => $events){
+            $isPaket = isset($randevuIdsHasSeans[$randevuId]);
+            if($isPaket && $events->count() > 1){
+                // Ilk event'i temel al, end'i max yap
+                $sorted = $events->sortBy('start')->values();
+                $first = $sorted->first();
+                $maxEnd = $sorted->max('end');
+                $first['end'] = $maxEnd;
+                $merged->push($first);
+            } else {
+                foreach($events as $e){ $merged->push($e); }
+            }
+        }
+        $randevu_hizmetler = $merged;
+    }
+
     $emptySlots = [];
     $startDate = Carbon::parse($tarih1 . " 07:00:00");
     $endDate = Carbon::parse($tarih2 . " 23:00:00");

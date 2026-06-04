@@ -5,6 +5,61 @@ var automaticGeoLocation = false;
 var resizeId;
 const gizliAlanAdlari = ['randevu.randevumcepte.com.tr'];   // değiştirebilirsiniz
 const odenenGizlensin = gizliAlanAdlari.includes(window.location.hostname);
+
+// V2 takvim icin randevu hover tooltip — eventRender'da cagrilir.
+// Tek bir #rc-event-tip elementi body'ye lazy append edilir, position:fixed
+// ile event'in yanina yerlestirilir; ekran tasmasinda otomatik flip.
+function rcEventTipEnsure() {
+    var $tip = jQuery('#rc-event-tip');
+    if ($tip.length === 0) {
+        $tip = jQuery('<div id="rc-event-tip"></div>').appendTo('body');
+    }
+    return $tip;
+}
+function rcEventTipPosition($tip, rect) {
+    var tw = $tip.outerWidth();
+    var th = $tip.outerHeight();
+    var vw = jQuery(window).width();
+    var vh = jQuery(window).height();
+    var gap = 10;
+    // Tercih: event'in sagina yerlestir
+    var left = rect.right + gap;
+    var top  = rect.top + (rect.height / 2) - (th / 2);
+    // Sag tasarsa sola koy
+    if (left + tw > vw - 8) left = rect.left - tw - gap;
+    // Hala tasarsa altina koy
+    if (left < 8) {
+        left = Math.max(8, Math.min(rect.left, vw - tw - 8));
+        top  = rect.bottom + gap;
+        if (top + th > vh - 8) top = rect.top - th - gap;
+    }
+    // Dikey clamp
+    if (top < 8) top = 8;
+    if (top + th > vh - 8) top = vh - th - 8;
+    $tip.css({ left: left + 'px', top: top + 'px' });
+}
+function rcEventTipBind($el, event) {
+    var hideTimer = null;
+    $el.on('mouseenter.rcTip', function(e) {
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        var $tip = rcEventTipEnsure();
+        var bg = event.color || '#5C008E';
+        $tip.html(event.hoverHtml)
+            .css('--rc-tip-bg', bg)
+            // CSS degisken fallback (IE/Edge eski) — head bg'sini direkt set et
+            .find('.rc-tip-head').css('background', bg).end()
+            .find('.rc-tip-row i').css('color', bg);
+        // Once goster ki olcum dogru olsun
+        $tip.css({ left: '-9999px', top: '0' }).addClass('rc-tip-show');
+        var rect = this.getBoundingClientRect();
+        rcEventTipPosition($tip, rect);
+    });
+    $el.on('mouseleave.rcTip', function() {
+        hideTimer = setTimeout(function() {
+            jQuery('#rc-event-tip').removeClass('rc-tip-show');
+        }, 60);
+    });
+}
 $(document).ready(function($) {
     "use strict";
     var interval='';
@@ -7688,7 +7743,7 @@ $(document).on('submit','#ongorusmeformu',function(e){
                 $('#on_gorusme_liste').DataTable().destroy();
                 $('#on_gorusme_liste').DataTable({
                         autoWidth: false,
-                         responsive: true,
+                         scrollX: true,
                            "order": [[ 1, "desc" ]],
                           columns:[
                              {data:'id'},
@@ -7873,7 +7928,7 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                             $('#on_gorusme_liste').DataTable().destroy();
                             $('#on_gorusme_liste').DataTable({
                                     autoWidth: false,
-                                    responsive: true,
+                                    scrollX: true,
                                     "order": [[ 1, "desc" ]],
                                     columns:[
                                         {data:'id'},
@@ -7962,7 +8017,7 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                             $('#on_gorusme_liste').DataTable().destroy();
                             $('#on_gorusme_liste').DataTable({
                                     autoWidth: false,
-                                    responsive: true,
+                                    scrollX: true,
                                     "order": [[ 1, "desc" ]],
                                     columns:[
                                         {data:'id'},
@@ -8047,7 +8102,7 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                                 $('#on_gorusme_liste').DataTable().destroy();
                                 $('#on_gorusme_liste').DataTable({
                                         autoWidth: false,
-                                        responsive: true,
+                                        scrollX: true,
                                         "order": [[ 1, "desc" ]],
                                         columns:[
                                             {data:'id'},
@@ -8139,7 +8194,7 @@ function ongorusmeseansgirdikontrol(ongorusme_id,durum,tur)
                             $('#on_gorusme_liste').DataTable().destroy();
                             $('#on_gorusme_liste').DataTable({
                                     autoWidth: false,
-                                    responsive: true,
+                                    scrollX: true,
                                     "order": [[ 1, "desc" ]],
                                     columns:[
                                         {data:'id'},
@@ -10109,11 +10164,17 @@ function takvimyukle(preload,turdegisti)
                 //interval = setInterval(takvimyukle.bind(false), 10000);
              },  
              eventRender: function(event, element) {
-                   
+
                     // Arkaplan etkinlikleri tıklanabilir hale getirme
                     if (event.title === 'Boş slot') {
-                        event.editable = false; 
-                        event.className += " disabled-event"; 
+                        event.editable = false;
+                        event.className += " disabled-event";
+                    }
+
+                    // V2 takvim hover tooltip — sadece useV2Modal aktifken,
+                    // bos slot disinda ve hoverHtml dolu ise
+                    if (window.useV2Modal === true && event.title !== 'Boş slot' && event.hoverHtml) {
+                        rcEventTipBind(element, event);
                     }
 
                 },
