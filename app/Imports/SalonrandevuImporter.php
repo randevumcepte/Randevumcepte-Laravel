@@ -846,11 +846,13 @@ class SalonrandevuImporter
             }
             $paketId = $this->ensurePaket($this->salonId, $paketAdi, $hzMap);
             if (!$paketId) continue;
-            // AdisyonPaketler insert (paket satisi) — ApiController:1388+ formati
+            $totalSeans = array_sum(array_column($hzMap, 'seans'));
+            // AdisyonPaketler insert (paket satisi) — StoreAdminController:17487/22006 formati
             $apkt = new AdisyonPaketler();
             $apkt->adisyon_id = $ad->id;
             $apkt->paket_id = $paketId;
             $apkt->fiyat = $paketFiyat ?: array_sum(array_column($hzMap, 'fiyat'));
+            if (\Schema::hasColumn('adisyon_paketler', 'seans_sayisi')) $apkt->seans_sayisi = $totalSeans;
             if (\Schema::hasColumn('adisyon_paketler', 'baslangic_tarihi')) $apkt->baslangic_tarihi = $tarih;
             if (\Schema::hasColumn('adisyon_paketler', 'seans_araligi')) $apkt->seans_araligi = 7;
             try {
@@ -861,7 +863,9 @@ class SalonrandevuImporter
             }
             // APS yaz: Salonrandevu'da paket transaction'larinin her biri zaten process_date
             // ile bir seans planlamasi (randevu ile eslesme YOK). Her tx -> 1 APS.
-            // geldi: process_date gecmis ise 1 (kullanilmis), gelecek ise 0 (planlanmis).
+            // geldi semantigi (sistem mantigi): NULL=bekleniyor/planlanmis, 1=geldi, 0=gelmedi.
+            // UI 'gelinmeyen_seans_sayisi' WHERE geldi IS NULL ile sorgulanır.
+            // process_date gecmis -> 1 (kullanildi), gelecek -> NULL (bekleniyor).
             $bugun = date('Y-m-d');
             foreach ($info['hizmetler'] as $svcId => $svcGroup) {
                 $hid = $svcGroup['hizmet_id'];
@@ -869,7 +873,7 @@ class SalonrandevuImporter
                 foreach ($svcGroup['tx_list'] as $tx) {
                     $seansNo++;
                     list($pTarih,) = $this->isoBol($tx['process_date'] ?? null);
-                    $geldi = ($pTarih && $pTarih <= $bugun) ? 1 : 0;
+                    $geldi = ($pTarih && $pTarih <= $bugun) ? 1 : null;
                     $aps = new AdisyonPaketSeanslar();
                     $aps->adisyon_paket_id = $apkt->id;
                     $aps->hizmet_id = $hid;
