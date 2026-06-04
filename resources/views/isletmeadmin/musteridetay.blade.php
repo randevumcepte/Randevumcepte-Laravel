@@ -92,17 +92,6 @@
                   aria-selected="false"
                   >Seanslar</a>
             </li>
-            <li class="nav-item" style="margin:5px">
-               <a
-                  class="btn btn-outline-primary"
-                  data-toggle="tab"
-                  href="#dakika_paketleri"
-                  style="width: 160px;"
-                  role="tab"
-                  aria-selected="false"
-                  onclick="dakikaPaketleriYukle()"
-                  >Dakika Paketleri</a>
-            </li>
             @endif
             @if($_SERVER['HTTP_HOST']!='randevu.randevumcepte.com.tr')
             @yetki('musteri.gecmis_satis_gor')
