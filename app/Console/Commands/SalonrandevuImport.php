@@ -26,6 +26,8 @@ class SalonrandevuImport extends Command
         {--report-package-payments : SR paket fis odenen toplam vs DB SR-payment markerli Tahsilatlar toplami karsilastir.}
         {--only-other-receipts : Paket-disi receipt\'leri (/receipts/opened) aktar — hizmet+urun satislari + tahsilatlari + dagilim (TahsilatHizmetler/TahsilatUrunler). Tek flag, kompozit akis.}
         {--report-other-receipts : Paket-disi receipt karsilastirma raporu (SR vs DB).}
+        {--start-page= : --only-other-receipts icin baslangic sayfa (resume). Default 1.}
+        {--max-page= : --only-other-receipts icin son sayfa (inclusive). Belirtilmezse SR'nin next_page=0 donene kadar.}
         {--dry-run : Reset oncesi sayim}';
 
     protected $description = 'app.salonrandevu.com hesabindan veri cekip randevumcepte\'ye aktarir (Asama 1: kesif).';
@@ -144,7 +146,11 @@ class SalonrandevuImport extends Command
 
         // --only-other-receipts: paket-disi receipt akisi (hizmet+urun+tahsilat)
         if ((bool) $this->option('only-other-receipts')) {
-            $importer->importOtherReceiptsOnly();
+            $sp = $this->option('start-page'); $mp = $this->option('max-page');
+            $importer->importOtherReceiptsOnly(
+                $sp !== null ? (int) $sp : 1,
+                $mp !== null ? (int) $mp : null
+            );
             $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
             return 0;
         }

@@ -201,14 +201,19 @@ class SalonrandevuImporter
      * Receipt detay: receipt_transactions (hizmet), receipt_sales (urun), receipt_payments (tahsilat).
      * Tahsilat dagilimi: s_type=1 -> TahsilatHizmetler, s_type=3 -> TahsilatUrunler.
      */
-    public function importOtherReceiptsOnly()
+    public function importOtherReceiptsOnly($startPage = 1, $maxPage = null)
     {
         if (!$this->client->getToken()) {
             $login = $this->client->login();
             if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
         }
-        $page = 1; $toplam = 0;
+        $page = (int) $startPage; if ($page < 1) $page = 1;
+        $toplam = 0;
         while (true) {
+            if ($maxPage !== null && $page > (int) $maxPage) {
+                $this->log("max-page=$maxPage limitine ulasildi, duruluyor.");
+                break;
+            }
             $j = $this->client->get('/company/receipts/opened', ['page' => $page, 'ispaid' => 2, 'order' => 0]);
             $records = $j['data']['receipts']['records'] ?? [];
             if (empty($records)) break;
@@ -220,11 +225,13 @@ class SalonrandevuImporter
                 $this->importOtherReceiptOne($rid, ['rec' => $rec]);
                 $toplam++;
             }
+            // Her sayfa sonunda ilerleme log'u (resume rehberi)
+            \Log::info('[Salonrandevu other] sayfa OK', ['page' => $page, 'toplam' => $toplam]);
             $next = (int) ($j['data']['receipts']['next_page'] ?? 0);
             if (!$next || $next === $page) break;
             $page = $next;
         }
-        $this->log("Paket-disi receipt aktarimi tamamlandi: $toplam fis islendi.");
+        $this->log("Paket-disi receipt aktarimi tamamlandi: $toplam fis islendi. Son sayfa: " . ($page - 1));
     }
 
     /**
