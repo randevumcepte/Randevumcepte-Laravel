@@ -1520,23 +1520,32 @@
             $card.data('origTotalFiyat', parseFloat($card.attr('data-orig-fiyat')) || 0);
             // Personel/cihaz/oda dropdownlarini doldur
             populateDropdownsInCard($card);
-            // V1'in ilk grup satirindan personel/cihaz al. ODA'yi MIRAS ALMA —
-            // farkli paketler farkli odalara ait olabilir; backend hizmete gore
-            // otomatik atar (OdaAtamaServisi::uygunOdaSec). Boyle birakirsak iki
-            // paket ayni oda'ya zorlanmaz. Kullanici manuel secebilir.
-            // Sadece TAKVIM TURU "Odaya Gore" (3) ise slot tiklama oda'sini
-            // miras al — cunku kullanici bilerek o oda kolonuna tikladi.
+            // Personel ve Cihaz: v1'in ilk grup satirindan miras al (slot tiklamasinin niyeti).
             if(grp.v1Indices.length){
                 var $v1First = $('#modal-view-event-add .hizmet-satiri').eq(grp.v1Indices[0]);
                 var p = $v1First.find('.personel-select, .personel_secimi').not('.hizmet-select').val();
                 var c = $v1First.find('.cihaz-select, .cihaz_secimi').val();
                 if(p) $card.find('.v2-personel').val(p);
                 if(c) $card.find('.v2-cihaz').val(c);
-                if(parseInt(window.randevuTakvimTuru || 0, 10) === 3){
-                    var o = $v1First.find('.oda-select, .oda_secimi').val();
-                    if(o) $card.find('.v2-oda').val(o);
+            }
+
+            // ODA: Slot tiklamasini DEGIL, paketin hizmetlerine gore sistemde
+            // tanimli oda'yi (oda_sunulan_hizmetler) bul ve otomatik ata.
+            // Kullanici yanlis oda slotuna tiklasa bile dogru oda secilir.
+            var hizmetIdsInPaket = grp.hizmetler.map(function(h){ return h.id; });
+            var autoOda = findOdaForPaketHizmetler(hizmetIdsInPaket);
+            if(autoOda){
+                // Dropdown'a option yoksa append et
+                var $odaSel = $card.find('.v2-oda');
+                if($odaSel.length){
+                    if($odaSel.find('option[value="'+autoOda.id+'"]').length === 0){
+                        $odaSel.append(new Option(autoOda.ad, autoOda.id));
+                    }
+                    $odaSel.val(autoOda.id);
                 }
             }
+            // autoOda null ise: oda bos kalir, backend hizmet bazinda
+            // OdaAtamaServisi::uygunOdaSec ile her hizmete dogru oda'yi atar.
         });
 
         reindexRows();
@@ -1600,6 +1609,33 @@
                 '<ul class="v2-paket-hizmet-list">'+hizmetListHTML+'</ul>'+
             '</div>'+
         '</div>';
+    }
+
+    // Bir paketin tum hizmetleri icin sistemde tanimli (oda_sunulan_hizmetler)
+    // ortak oda'yi bulur. Tum hizmetler ayni oda'ya tanimliysa o oda'yi doner.
+    // Karisik durum (lazer + cilt bakim ayni paket) varsa null doner — bu
+    // durumda backend her hizmet icin ayri ayri otomatik atar.
+    function findOdaForPaketHizmetler(hizmetIds){
+        if(!window.randevuModalData || !Array.isArray(window.randevuModalData.odalar)) return null;
+        var odalar = window.randevuModalData.odalar;
+        var ids = hizmetIds.map(function(x){ return parseInt(x, 10); }).filter(function(x){ return !!x; });
+        if(!ids.length) return null;
+
+        // Her oda icin: paketin kac hizmetini icerebiliyor
+        var best = null;
+        var bestScore = 0;
+        odalar.forEach(function(oda){
+            if(!Array.isArray(oda.hizmet_idleri) || !oda.hizmet_idleri.length) return;
+            var match = 0;
+            ids.forEach(function(hid){
+                if(oda.hizmet_idleri.indexOf(hid) !== -1) match++;
+            });
+            if(match > bestScore){ bestScore = match; best = oda; }
+        });
+
+        // SADECE tum hizmetler eslesirse oda'yi don
+        if(best && bestScore === ids.length) return best;
+        return null;
     }
 
     function populateDropdownsInCard($card){
