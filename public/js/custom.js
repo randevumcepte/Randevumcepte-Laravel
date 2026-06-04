@@ -12,9 +12,66 @@ const odenenGizlensin = gizliAlanAdlari.includes(window.location.hostname);
 function rcEventTipEnsure() {
     var $tip = jQuery('#rc-event-tip');
     if ($tip.length === 0) {
-        $tip = jQuery('<div id="rc-event-tip"></div>').appendTo('body');
+        // Inline style — sayfa CSS'i yuklenmese bile dogru gozuksun
+        var coreStyle = [
+            'position:fixed', 'z-index:2147483600',
+            'min-width:240px', 'max-width:320px', 'width:auto',
+            'background:#fff', 'border-radius:12px',
+            'box-shadow:0 12px 32px rgba(40,12,80,0.18), 0 2px 6px rgba(40,12,80,0.08)',
+            'border:1px solid rgba(0,0,0,0.06)',
+            'pointer-events:none', 'opacity:0',
+            'transition:opacity 120ms ease, transform 120ms ease',
+            'transform:translateY(4px)', 'overflow:hidden',
+            'font:12.5px/1.35 inherit', 'color:#2d2143',
+            'left:-9999px', 'top:0', 'display:block'
+        ].join(';');
+        $tip = jQuery('<div id="rc-event-tip" style="'+coreStyle+'"></div>').appendTo('body');
     }
     return $tip;
+}
+function rcEventTipApplyContentStyles($tip, bg){
+    // Iç sınıflar için inline style fallback — CSS yuklenmediginde de duzgun gozuksun
+    $tip.find('.rc-tip-head').css({
+        background: bg, color: '#fff', padding: '10px 14px 9px'
+    });
+    $tip.find('.rc-tip-name').css({
+        fontSize: '14px', fontWeight: 700, lineHeight: 1.2,
+        marginBottom: '4px', whiteSpace: 'nowrap',
+        overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff'
+    });
+    $tip.find('.rc-tip-meta').css({
+        display: 'flex', alignItems: 'center', flexWrap: 'wrap',
+        gap: '6px', fontSize: '11.5px', opacity: 0.95, color: '#fff'
+    });
+    $tip.find('.rc-tip-status').each(function(){
+        var $s = jQuery(this);
+        var cls = $s.attr('class') || '';
+        var bgC = 'rgba(255,255,255,0.25)', col = '#fff';
+        if (cls.indexOf('rc-st-geldi')     > -1) { bgC = '#e6f9ed'; col = '#0c7a3a'; }
+        else if (cls.indexOf('rc-st-gelmedi')   > -1) { bgC = '#fdecec'; col = '#c81e1e'; }
+        else if (cls.indexOf('rc-st-beklemede') > -1) { bgC = '#fff4e0'; col = '#a86200'; }
+        else if (cls.indexOf('rc-st-gelecek')   > -1) { bgC = '#ffe6d4'; col = '#b34a00'; }
+        $s.css({
+            marginLeft: 'auto', padding: '2px 9px', borderRadius: '999px',
+            fontSize: '10.5px', fontWeight: 800, letterSpacing: '0.2px',
+            textTransform: 'uppercase', background: bgC, color: col
+        });
+    });
+    $tip.find('.rc-tip-body').css({ padding: '8px 14px 10px', background: '#fff' });
+    $tip.find('.rc-tip-row').css({
+        display: 'flex', alignItems: 'flex-start', gap: '8px',
+        padding: '4px 0', fontSize: '12.5px', lineHeight: 1.35, color: '#3a2e57',
+        borderTop: '0'
+    });
+    $tip.find('.rc-tip-row').slice(1).css({ borderTop: '1px dashed #f1ecf7' });
+    $tip.find('.rc-tip-row i').css({
+        flex: '0 0 14px', color: bg, opacity: 0.8,
+        marginTop: '2px', textAlign: 'center'
+    });
+    $tip.find('.rc-tip-row span').css({
+        flex: '1', wordBreak: 'break-word', color: '#2d2143', fontWeight: 500
+    });
+    $tip.find('.rc-tip-note span').css({ color: '#5b4d75', fontStyle: 'italic' });
 }
 function rcEventTipPosition($tip, rect) {
     var tw = $tip.outerWidth();
@@ -62,17 +119,16 @@ function rcEventTipBind(element, event) {
         }
         var $tip = rcEventTipEnsure();
         var bg = evData.color || '#5C008E';
-        $tip.html(evData.hoverHtml)
-            .css('--rc-tip-bg', bg)
-            .find('.rc-tip-head').css('background', bg).end()
-            .find('.rc-tip-row i').css('color', bg);
-        $tip.css({ left: '-9999px', top: '0' }).addClass('rc-tip-show');
+        $tip.html(evData.hoverHtml);
+        rcEventTipApplyContentStyles($tip, bg);
+        // Once -9999px'e koy, olcum yap, sonra dogru pozisyonu set et
+        $tip.css({ left: '-9999px', top: '0', opacity: 1, transform: 'translateY(0)' });
         var rect = this.getBoundingClientRect();
         rcEventTipPosition($tip, rect);
     });
     jQuery(document).on('mouseleave.rcTipDeleg', '.fc-event', function(){
         window.rcEventTipHideTimer = setTimeout(function(){
-            jQuery('#rc-event-tip').removeClass('rc-tip-show');
+            jQuery('#rc-event-tip').css({ opacity: 0, transform: 'translateY(4px)', left: '-9999px' });
         }, 200);
     });
 })();
