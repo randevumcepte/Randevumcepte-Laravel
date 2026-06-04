@@ -869,17 +869,17 @@ class SalonrandevuImporter
             }
             // APS yaz: Salonrandevu'da paket transaction'larinin her biri zaten process_date
             // ile bir seans planlamasi (randevu ile eslesme YOK). Her tx -> 1 APS.
-            // geldi semantigi (sistem mantigi): NULL=bekleniyor/planlanmis, 1=geldi, 0=gelmedi.
-            // UI 'gelinmeyen_seans_sayisi' WHERE geldi IS NULL ile sorgulanır.
-            // process_date gecmis -> 1 (kullanildi), gelecek -> NULL (bekleniyor).
-            $bugun = date('Y-m-d');
+            // geldi semantigi: Salonrandevu UI'da TUMU "Bekleniyor" gozukuyor (process_date
+            // gecmis bile olsa) — Salonrandevu'da "Geldi" durumu MANUEL isaretleniyor, otomatik
+            // tarihten cikarilmiyor. Bizim de tum APS'ler geldi=NULL (bekleniyor) yazilmali;
+            // sonra kullanici bizim sistemde manuel "Geldi" isaretleyecek.
             foreach ($info['hizmetler'] as $svcId => $svcGroup) {
                 $hid = $svcGroup['hizmet_id'];
                 $seansNo = 0;
                 foreach ($svcGroup['tx_list'] as $tx) {
                     $seansNo++;
                     list($pTarih,) = $this->isoBol($tx['process_date'] ?? null);
-                    $geldi = ($pTarih && $pTarih <= $bugun) ? 1 : null;
+                    $geldi = null;
                     $aps = new AdisyonPaketSeanslar();
                     $aps->adisyon_paket_id = $apkt->id;
                     $aps->hizmet_id = $hid;
