@@ -1762,9 +1762,10 @@ class SalonrandevuImporter
                     ]);
                 }
             }
-            $next = (int) ($j['data']['next_page'] ?? 0);
-            if (!$next || $next === $page) break;
-            $page = $next;
+            // SR /accounting/expenses endpoint'i next_page DONDURMUYOR.
+            // count(records) sayfa basina sabit ise (10) bir sonraki sayfayi dene; az ise dur.
+            if (count($records) < 10) break;
+            $page++;
         }
         $this->counts['gider'] = ($this->counts['gider'] ?? 0) + $toplam;
         $this->log("Masraf yazma tamam: $toplam adet ($toplamTutar TL)");
@@ -1792,9 +1793,9 @@ class SalonrandevuImporter
                 $srSayi++;
                 $srTutar += (float) ($r['amount'] ?? 0);
             }
-            $next = (int) ($j['data']['next_page'] ?? 0);
-            if (!$next || $next === $page) break;
-            $page = $next;
+            // /accounting/expenses next_page yok; records boslaninca dur
+            if (count($records) < 10) break;
+            $page++;
         }
         $this->log("SR masraf sayisi: $srSayi");
         $this->log("SR toplam (records): $srTutar TL");
