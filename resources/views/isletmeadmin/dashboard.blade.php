@@ -1048,7 +1048,6 @@ function rmcDashInit(){
     + '  <p class="rmc-bday-info">Önce WhatsApp denenecek, başarısız olursa SMS gönderilecek.</p>'
     + '  <div class="rmc-bday-btns">'
     + '    <button class="rmc-bday-btn ok" data-r="ok">✉️ Evet, Gönder</button>'
-    + '    <button class="rmc-bday-btn deny" data-r="deny">Bugün Gösterme</button>'
     + '    <button class="rmc-bday-btn no" data-r="no">Hayır</button>'
     + '  </div>'
     + '  <div class="rmc-bday-result"></div>'
@@ -1074,14 +1073,13 @@ function rmcDashInit(){
             }
             setTimeout(function(){ ov.remove(); onResult && onResult(); }, 1800);
           });
-        } else if(r === 'deny'){
+        } else {
+          // Hayir: o gun bu musteri icin bir daha sorma
           try {
             var arr = JSON.parse(localStorage.getItem(lsKey) || '[]');
             if(arr.indexOf(m.id) === -1) arr.push(m.id);
             localStorage.setItem(lsKey, JSON.stringify(arr));
           } catch(e){}
-          ov.remove(); onResult && onResult();
-        } else {
           ov.remove(); onResult && onResult();
         }
       });
