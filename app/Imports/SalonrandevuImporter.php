@@ -932,9 +932,15 @@ class SalonrandevuImporter
         foreach (($rc['receipt_packages'] ?? []) as $pkg) {
             $saleId = (int) ($pkg['id'] ?? 0);
             if (!$saleId) continue;
+            $pkgFiyat = (float) ($pkg['amount'] ?? 0);
+            // pkg.amount=0 ise paginated rec.all_amount kullan (tek paketli fislerde)
+            if ($pkgFiyat == 0.0 && !empty($opts['rec']['all_amount'])
+                && count($rc['receipt_packages']) === 1) {
+                $pkgFiyat = (float) $opts['rec']['all_amount'];
+            }
             $pkgInfoBySaleId[$saleId] = [
                 'adi'       => trim((string) ($pkg['package_name'] ?? '')),
-                'fiyat'     => (float) ($pkg['amount'] ?? 0),
+                'fiyat'     => $pkgFiyat,
                 'packet_id' => (int) ($pkg['packet_id'] ?? 0),
                 'staff_id'  => (int) ($pkg['staff_id'] ?? 0), // satisi yapan personel
                 'hizmetler' => [], // service_id -> ['hizmet_id'=>X, 'tx_list'=>[$tx,...]]
@@ -963,6 +969,19 @@ class SalonrandevuImporter
                     ];
                 }
                 $pkgInfoBySaleId[$recPkgId]['hizmetler'][$svcId]['tx_list'][] = $tx;
+                continue;
+            }
+
+            // FALLBACK: tx.receipt_package_id=0 ve receipt'te tek paket varsa
+            // (SR'de "acik paket" — tx pakete bagli degil ama paket fisinde tek master var)
+            if (!$recPkgId && $packageOnly && count($pkgInfoBySaleId) === 1) {
+                $onlySaleId = array_key_first($pkgInfoBySaleId);
+                if (!isset($pkgInfoBySaleId[$onlySaleId]['hizmetler'][$svcId])) {
+                    $pkgInfoBySaleId[$onlySaleId]['hizmetler'][$svcId] = [
+                        'hizmet_id' => $hizmetId, 'tx_list' => [],
+                    ];
+                }
+                $pkgInfoBySaleId[$onlySaleId]['hizmetler'][$svcId]['tx_list'][] = $tx;
                 continue;
             }
 
