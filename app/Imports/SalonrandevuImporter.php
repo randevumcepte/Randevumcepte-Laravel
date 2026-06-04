@@ -169,6 +169,69 @@ class SalonrandevuImporter
         }
         $this->log("Paket satislari tamamlandi: $toplam fis islendi.");
     }
+
+    public function importPackagePaymentsOnly()
+    {
+        if (!$this->client->getToken()) {
+            $login = $this->client->login();
+            if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
+        }
+        $page = 1; $toplam = 0;
+        while (true) {
+            $j = $this->client->get('/company/receipts/packets', ['page' => $page, 'order' => 0]);
+            $records = $j['data']['records'] ?? [];
+            if (empty($records)) break;
+            $this->log("Paket fis tahsilat sayfasi $page: " . count($records) . ' kayit');
+            foreach ($records as $rec) {
+                $rid = (int) ($rec['id'] ?? 0);
+                if (!$rid) continue;
+                $this->importOneReceipt($rid, ['payment_only' => true, 'rec' => $rec]);
+                $toplam++;
+            }
+            $next = (int) ($j['data']['next_page'] ?? 0);
+            if (!$next || $next === $page) break;
+            $page = $next;
+        }
+        $this->log("Paket tahsilatlari tamamlandi: $toplam fis islendi.");
+    }
+
+    public function reportPackagePayments()
+    {
+        if (!$this->client->getToken()) {
+            $login = $this->client->login();
+            if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
+        }
+        $srToplam = 0.0; $srOdeme = 0; $srPaidToplam = 0.0;
+        $page = 1;
+        while (true) {
+            $j = $this->client->get('/company/receipts/packets', ['page' => $page, 'order' => 0]);
+            $records = $j['data']['records'] ?? [];
+            if (empty($records)) break;
+            foreach ($records as $r) {
+                $srPaidToplam += (float) ($r['paid'] ?? 0);
+            }
+            $next = (int) ($j['data']['next_page'] ?? 0);
+            if (!$next || $next === $page) break;
+            $page = $next;
+        }
+        $this->log("SR paket fis odenen toplam: $srPaidToplam TL");
+
+        $adisyonTable = (new Adisyonlar)->getTable();
+        $markerCol = null;
+        foreach (['aciklama', 'adisyon_notu', 'genel_aciklama', 'notlar', 'not'] as $col) {
+            if (\Schema::hasColumn($adisyonTable, $col)) { $markerCol = $col; break; }
+        }
+        $adIds = DB::table($adisyonTable)->where('salon_id', $this->salonId)
+            ->where($markerCol, 'LIKE', '%[salonrandevu:%')->pluck('id')->all();
+        $tahsilatRows = DB::table('tahsilatlar')->whereIn('adisyon_id', $adIds)
+            ->where('notlar', 'LIKE', '%[SR-payment:%')->get(['id', 'tutar']);
+        $dbToplam = (float) array_sum(array_column($tahsilatRows->all(), 'tutar'));
+        $dbSayi = $tahsilatRows->count();
+        $this->log("Bizdeki SR paket tahsilat sayisi: $dbSayi");
+        $this->log("Bizdeki SR paket tahsilat toplam: $dbToplam TL");
+        $fark = $srPaidToplam - $dbToplam;
+        $this->log("Fark (SR-DB): $fark TL");
+    }
     private function log($m) { if ($this->out) $this->out->writeln($m); }
 
     // ======================= YARDIMCILAR =======================
@@ -780,10 +843,151 @@ class SalonrandevuImporter
         return $paket->id;
     }
 
+    /**
+     * Bir paket fişinin sadece tahsilatlarını UPSERT eder.
+     * Adım 1 (paket satışları) çalıştırılmış olmalı — markerli adisyon + AdisyonPaketler mevcut.
+     * SR receipt_payments[i].s_id => receipt_packages[].id => Paketler markeri [SR-sale:sId]
+     * üzerinden AdisyonPaketler.id ile eşleştirilir, TahsilatPaketler insert edilir.
+     */
+    private function importPaymentsForOneReceipt($rid, array $opts = [])
+    {
+        $marker = '[salonrandevu:' . $rid . ']';
+        $adisyonTable = (new Adisyonlar)->getTable();
+        $markerCol = null;
+        foreach (['aciklama', 'adisyon_notu', 'genel_aciklama', 'notlar', 'not'] as $col) {
+            if (\Schema::hasColumn($adisyonTable, $col)) { $markerCol = $col; break; }
+        }
+        if (!$markerCol) {
+            \Log::warning('[Salonrandevu payment] adisyon marker kolonu yok', ['rid' => $rid]);
+            return;
+        }
+        $adRow = DB::table($adisyonTable)->where('salon_id', $this->salonId)
+            ->where($markerCol, 'LIKE', '%' . $marker . '%')
+            ->select('id', 'user_id')->first();
+        if (!$adRow) {
+            \Log::warning('[Salonrandevu payment] adisyon yok (Adim 1 cal. mi?)', ['rid' => $rid]);
+            return;
+        }
+        $adId = $adRow->id; $userId = $adRow->user_id;
+
+        // UPSERT: eski SR tahsilatlarini sil ([SR-payment:] markeri tasiyanlari)
+        $eskiTids = DB::table('tahsilatlar')->where('adisyon_id', $adId)
+            ->where('notlar', 'LIKE', '%[SR-payment:%')->pluck('id')->all();
+        if (!empty($eskiTids)) {
+            DB::table('tahsilat_paketler')->whereIn('tahsilat_id', $eskiTids)->delete();
+            if (\Schema::hasTable('tahsilat_hizmetler')) DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $eskiTids)->delete();
+            if (\Schema::hasTable('tahsilat_urunler')) DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $eskiTids)->delete();
+            DB::table('tahsilatlar')->whereIn('id', $eskiTids)->delete();
+        }
+
+        // Receipt detayini cek
+        $j = $this->client->get('/company/receipt/' . $rid);
+        $rc = $j['data']['receipt'] ?? null;
+        if (!$rc) {
+            \Log::warning('[Salonrandevu payment] receipt detay null', ['rid' => $rid]);
+            return;
+        }
+        $payments = $rc['receipt_payments'] ?? [];
+        if (empty($payments)) {
+            \Log::info('[Salonrandevu payment] tahsilat yok', ['rid' => $rid]);
+            return;
+        }
+
+        // Adisyonun tum AdisyonPaketler kayitlarini al (Paketler.paket_adi ile)
+        // Map: SR sale_id (Paketler markeri [SR-sale:saleId]) => AdisyonPaketler.id
+        $apkts = DB::table('adisyon_paketler')
+            ->join('paketler', 'paketler.id', '=', 'adisyon_paketler.paket_id')
+            ->where('adisyon_paketler.adisyon_id', $adId)
+            ->select('adisyon_paketler.id as ap_id', 'adisyon_paketler.fiyat as ap_fiyat',
+                     'paketler.paket_adi as paket_adi')
+            ->get();
+        $saleIdToApId = [];
+        $apIdToFiyat = [];
+        $tekApId = null;
+        foreach ($apkts as $a) {
+            $apIdToFiyat[$a->ap_id] = (float) $a->ap_fiyat;
+            $tekApId = $a->ap_id;
+            if (preg_match('~\[SR-sale:(\d+)\]~', $a->paket_adi, $mm)) {
+                $saleIdToApId[(int) $mm[1]] = $a->ap_id;
+            }
+        }
+        if (empty($apIdToFiyat)) {
+            \Log::warning('[Salonrandevu payment] AdisyonPaketler yok', ['rid' => $rid, 'adId' => $adId]);
+            return;
+        }
+
+        $sayac = 0; $toplam = 0.0;
+        foreach ($payments as $pay) {
+            $tutar = (float) ($pay['amount'] ?? 0);
+            if ($tutar <= 0) continue;
+            $payId = (int) ($pay['id'] ?? 0);
+            $sId = (int) ($pay['s_id'] ?? 0); // hangi paket
+            list($odemeTarih,) = $this->isoBol($pay['payment_date'] ?? null);
+            $payType = (int) ($pay['payment_type'] ?? 1);
+            // SR payment_type sistem odeme_yontemi_id ile uyumlu (1=Nakit, 2=KK, 3=Havale, 4=Diger, 5=Senet)
+            $odemeYontemiId = in_array($payType, [1, 2, 3, 4, 5]) ? $payType : 1;
+
+            $t = new Tahsilatlar();
+            $t->user_id = $userId;
+            $t->adisyon_id = $adId;
+            $t->salon_id = $this->salonId;
+            $t->tutar = $tutar;
+            if (\Schema::hasColumn('tahsilatlar', 'yapilan_odeme')) $t->yapilan_odeme = $tutar;
+            $t->odeme_yontemi_id = $odemeYontemiId;
+            $t->odeme_tarihi = $odemeTarih ?: ($rc['created_at'] ? substr($rc['created_at'], 0, 10) : date('Y-m-d'));
+            $payMarker = $marker . ' [SR-payment:' . $payId . ']';
+            if (\Schema::hasColumn('tahsilatlar', 'notlar')) $t->notlar = $payMarker;
+            if (\Schema::hasColumn('tahsilatlar', 'aciklama') && !empty($pay['description'])) {
+                $t->aciklama = (string) $pay['description'];
+            }
+            $t->save();
+
+            // Paket dagilimi: s_id varsa direkt eşleştir, yoksa tek AP'ye bağla,
+            // çoklu AP varsa fiyat oranıyla pro-rata
+            $dagitim = []; // ap_id => tutar
+            if ($sId && isset($saleIdToApId[$sId])) {
+                $dagitim[$saleIdToApId[$sId]] = $tutar;
+            } elseif (count($apIdToFiyat) === 1) {
+                $dagitim[$tekApId] = $tutar;
+            } else {
+                $toplamFiyat = array_sum($apIdToFiyat);
+                if ($toplamFiyat > 0) {
+                    foreach ($apIdToFiyat as $apId => $apFiyat) {
+                        $dagitim[$apId] = round($tutar * $apFiyat / $toplamFiyat, 2);
+                    }
+                }
+            }
+            foreach ($dagitim as $apId => $dt) {
+                if ($dt <= 0) continue;
+                DB::table('tahsilat_paketler')->insert([
+                    'tahsilat_id'       => $t->id,
+                    'adisyon_paket_id'  => $apId,
+                    'tutar'             => $dt,
+                ]);
+            }
+            $sayac++; $toplam += $tutar;
+        }
+        $this->counts['tahsilat'] = ($this->counts['tahsilat'] ?? 0) + $sayac;
+        \Log::info('[Salonrandevu payment] OK', [
+            'rid' => $rid, 'adId' => $adId,
+            'tahsilat_sayisi' => $sayac, 'toplam' => $toplam,
+            'ap_count' => count($apIdToFiyat),
+        ]);
+    }
+
     private function importOneReceipt($rid, array $opts = [])
     {
         $packageOnly = !empty($opts['package_only']);
+        $paymentOnly = !empty($opts['payment_only']);
         $marker = '[salonrandevu:' . $rid . ']';
+
+        // ===== PAYMENT-ONLY MODE =====
+        // Adım 1 (paket satışları) çalıştırılmış olmalı: markerli adisyon ve AdisyonPaketler mevcut.
+        // Bu modda: receipt_payments[]'i Tahsilatlar + TahsilatPaketler olarak yaz.
+        if ($paymentOnly) {
+            $this->importPaymentsForOneReceipt($rid, $opts);
+            return;
+        }
         // Dedup / UPSERT: mevcut markerli adisyon varsa SIL (paket-only modunda yeniden yaz)
         $adisyonTable = (new Adisyonlar)->getTable();
         $markerCol = null;

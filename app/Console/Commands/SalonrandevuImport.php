@@ -22,6 +22,8 @@ class SalonrandevuImport extends Command
         {--reset-all : Salonun TUM islem verisini sil (randevu+adisyon+tahsilat+masraf) - marker aramaz, salon salonrandevu\'ya ait ise}
         {--only-package-sales : Sadece paket fislerini cek (/company/receipts/packets paginated) ve paket satislari aktar (Paketler+PaketHizmetler+AdisyonPaketler). Tahsilat/hizmet/urun YOK.}
         {--report-package-sales : Salonrandevu paket fisleri vs bizdeki paket adisyonlari karsilastir, eksikleri rapor et. Aktarim yapmaz, sadece okur.}
+        {--only-package-payments : Paket fisi tahsilatlarini aktar (Tahsilatlar+TahsilatPaketler). Onceden --only-package-sales calistirilmis olmali (adisyon+AdisyonPaketler mevcut).}
+        {--report-package-payments : SR paket fis odenen toplam vs DB SR-payment markerli Tahsilatlar toplami karsilastir.}
         {--dry-run : Reset oncesi sayim}';
 
     protected $description = 'app.salonrandevu.com hesabindan veri cekip randevumcepte\'ye aktarir (Asama 1: kesif).';
@@ -122,6 +124,19 @@ class SalonrandevuImport extends Command
         // --report-package-sales: karsilastirma raporu, sadece okur
         if ((bool) $this->option('report-package-sales')) {
             $importer->reportPackageSales();
+            return 0;
+        }
+
+        // --only-package-payments: paket fisi tahsilatlari (Tahsilatlar+TahsilatPaketler)
+        if ((bool) $this->option('only-package-payments')) {
+            $importer->importPackagePaymentsOnly();
+            $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+            return 0;
+        }
+
+        // --report-package-payments: tahsilat raporu, sadece okur
+        if ((bool) $this->option('report-package-payments')) {
+            $importer->reportPackagePayments();
             return 0;
         }
 
