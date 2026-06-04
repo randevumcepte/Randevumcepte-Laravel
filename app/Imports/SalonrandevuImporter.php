@@ -761,12 +761,19 @@ class SalonrandevuImporter
             }
             $paketId = $this->ensurePaket($this->salonId, $paketAdi, $hzMap);
             if (!$paketId) continue;
-            // AdisyonPaketler insert (paket satisi)
+            // AdisyonPaketler insert (paket satisi) — ApiController:1388+ formati
             $apkt = new AdisyonPaketler();
             $apkt->adisyon_id = $ad->id;
             $apkt->paket_id = $paketId;
             $apkt->fiyat = $paketFiyat ?: array_sum(array_column($hzMap, 'fiyat'));
-            $apkt->save();
+            if (\Schema::hasColumn('adisyon_paketler', 'baslangic_tarihi')) $apkt->baslangic_tarihi = $tarih;
+            if (\Schema::hasColumn('adisyon_paketler', 'seans_araligi')) $apkt->seans_araligi = 7;
+            try {
+                $apkt->save();
+            } catch (\Throwable $e) {
+                \Log::warning('[Salonrandevu paket] AdisyonPaketler save hata', ['rid' => $rid, 'err' => $e->getMessage()]);
+                continue;
+            }
             // Her seans icin AdisyonPaketSeanslar (geldi=0 placeholder, randevudan tuketilecek)
             foreach ($info['hizmetler'] as $svcId => $svcGroup) {
                 $hid = $svcGroup['hizmet_id'];
