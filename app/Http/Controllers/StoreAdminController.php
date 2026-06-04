@@ -14846,52 +14846,47 @@ DB::raw('
         $personel = Auth::guard('isletmeyonetim')->check() ? Personeller::where('salon_id',self::mevcutsube($request) )->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id') : 0;
         $bildirimler = Bildirimler::where('personel_id',$personel)->where('salon_id',self::mevcutsube($request) )->orderBy('id','desc')->get();
         $html = "";
-      foreach($bildirimler as $bildirim) {
-    $html .= '<ul><li>
-        <a href="'.$bildirim->url.'" name="bildirim" data-index-number="'.$bildirim->id.'" data-value="'.$bildirim->randevu_id.'">';
-    
-    // Image with fallback
-    if(!empty($bildirim->img_src)) {
-        $html .= '<img src="'.$bildirim->img_src.'" alt="" class="mCS_img_loaded">';
-    } else {
-        $html .= '<img src="/public/isletmeyonetim_assets/img/avatar.png" alt="Kullanıcı" class="mCS_img_loaded">';
-    }
+        foreach($bildirimler as $bildirim) {
+            $to_time = strtotime(date('Y-m-d H:i:s'));
+            $from_time = strtotime($bildirim->tarih_saat);
+            $diff = round(abs($to_time - $from_time) / 60, 0) . " dakika önce";
+            if ($diff >= 60) {
+                $diff = round(abs($to_time - $from_time) / 3600, 0) . " saat önce";
+                if (round(abs($to_time - $from_time) / 3600, 0) >= 24) {
+                    $diff = date('d.m.Y H:i', strtotime($bildirim->tarih_saat));
+                }
+            }
 
-    // Title with different style if unread
-    if(!$bildirim->okundu) {
-        $html .= '<h3 style="background: rgba(248, 244, 255, 0.9); padding: 5px; border-radius: 5px; color: #888; font-size:13px;">';
-    } else {
-        $html .= '<h3>';
-    }
-    
-    $html .= $bildirim->aciklama;
-    
-    if(!$bildirim->okundu) {
-        $html .= '</b>';
-    }
-    
-    $html .= '</h3>';
-    
-    // Time difference calculation
-    $html .= '<p style="font-size: 10px;">';
-    $to_time = strtotime(date('Y-m-d H:i:s'));
-    $from_time = strtotime($bildirim->tarih_saat);
-    $diff = round(abs($to_time - $from_time) / 60, 0) . " dakika önce";
+            $okunduClass = $bildirim->okundu ? 'is-read' : 'is-unread';
+            $imgSrc = !empty($bildirim->img_src) ? $bildirim->img_src : '/public/isletmeyonetim_assets/img/avatar.png';
+            $aciklama = e($bildirim->aciklama);
+            $url = e($bildirim->url);
+            $imgSrcEsc = e($imgSrc);
 
-    if ($diff >= 60) {
-        $diff = round(abs($to_time - $from_time) / 3600, 0) . " saat önce";
-
-        if (round(abs($to_time - $from_time) / 3600, 0) >= 24) {
-            $diff = date('d.m.Y H:i', strtotime($bildirim->tarih_saat));
+            $html .= '<div class="rc-notif-item '.$okunduClass.'" data-bildirim-id="'.$bildirim->id.'">';
+            $html .=   '<a href="'.$url.'" name="bildirim" data-index-number="'.$bildirim->id.'" data-value="'.$bildirim->randevu_id.'" class="rc-notif-link">';
+            $html .=     '<div class="rc-notif-avatar">';
+            $html .=       '<img src="'.$imgSrcEsc.'" alt="">';
+            if (!$bildirim->okundu) {
+                $html .=   '<span class="rc-notif-dot"></span>';
+            }
+            $html .=     '</div>';
+            $html .=     '<div class="rc-notif-body">';
+            $html .=       '<p class="rc-notif-text">'.$aciklama.'</p>';
+            $html .=       '<span class="rc-notif-time"><i class="fa fa-clock-o"></i> '.$diff.'</span>';
+            $html .=     '</div>';
+            $html .=   '</a>';
+            $html .=   '<button type="button" class="rc-notif-del" name="bildirim-sil" data-bildirim-id="'.$bildirim->id.'" title="Sil" aria-label="Bildirimi sil"><i class="fa fa-times"></i></button>';
+            $html .= '</div>';
         }
-    }
-    
-    $html .= $diff . '</p>
-        </a>
-    </li></ul>';
-}
+
+        if ($bildirimler->count() == 0) {
+            $html .= '<div class="rc-notif-empty"><div class="rc-notif-empty-icon"><i class="icon-copy dw dw-notification"></i></div><p>Bildiriminiz bulunmamaktadır</p></div>';
+        }
+
         return array(
             'bildirim_sayisi' => $bildirimler->where('okundu',false)->count(),
+            'toplam_bildirim' => $bildirimler->count(),
             'bildirimler' => $html
         );
     }
@@ -14901,6 +14896,51 @@ DB::raw('
         $bildirim->okundu = true;
         $bildirim->save();
         return $bildirim->url;
+    }
+    public function bildirimsil(Request $request)
+    {
+        $personel = Auth::guard('isletmeyonetim')->check()
+            ? Personeller::where('salon_id', self::mevcutsube($request))
+                ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+                ->value('id')
+            : 0;
+
+        $silinen = Bildirimler::where('id', $request->bildirim_id)
+            ->where('personel_id', $personel)
+            ->where('salon_id', self::mevcutsube($request))
+            ->delete();
+
+        $okunmamis = Bildirimler::where('personel_id', $personel)
+            ->where('salon_id', self::mevcutsube($request))
+            ->where('okundu', false)
+            ->count();
+        $toplam = Bildirimler::where('personel_id', $personel)
+            ->where('salon_id', self::mevcutsube($request))
+            ->count();
+
+        return array(
+            'success' => $silinen > 0,
+            'bildirim_sayisi' => $okunmamis,
+            'toplam_bildirim' => $toplam,
+        );
+    }
+    public function bildirimtumusil(Request $request)
+    {
+        $personel = Auth::guard('isletmeyonetim')->check()
+            ? Personeller::where('salon_id', self::mevcutsube($request))
+                ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+                ->value('id')
+            : 0;
+
+        Bildirimler::where('personel_id', $personel)
+            ->where('salon_id', self::mevcutsube($request))
+            ->delete();
+
+        return array(
+            'success' => true,
+            'bildirim_sayisi' => 0,
+            'toplam_bildirim' => 0,
+        );
     }
     public function randevu_liste_filtre(Request $request)
     {

@@ -415,6 +415,168 @@
             border-radius: 999px !important; font-size: 11px !important; line-height: 18px !important;
          }
 
+         /* ============================================================
+            MODERN BILDIRIM DROPDOWN — kart, başlık, item, sil butonu
+            ============================================================ */
+         .user-notification .dropdown-menu.rc-notif-dropdown {
+            width: 380px !important; max-width: 95vw !important;
+            padding: 0 !important; margin-top: 10px !important;
+            border: 1px solid #ead4ff !important;
+            border-radius: 14px !important;
+            box-shadow: 0 18px 48px rgba(92, 0, 142, 0.20), 0 4px 14px rgba(92, 0, 142, 0.08) !important;
+            overflow: hidden !important;
+            background: #fff !important;
+         }
+         .rc-notif-card { display: flex; flex-direction: column; }
+         .rc-notif-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 13px 14px;
+            background: linear-gradient(135deg, #5C008E 0%, #9D5DC8 100%);
+            color: #fff;
+         }
+         .rc-notif-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+         .rc-notif-title-text {
+            font-size: 15px; font-weight: 700; color: #fff;
+            font-family: Inter, sans-serif; letter-spacing: .2px;
+         }
+         .rc-notif-count {
+            background: rgba(255, 255, 255, .22); color: #fff;
+            font-size: 11px; font-weight: 700;
+            padding: 2px 9px; border-radius: 999px;
+            white-space: nowrap;
+         }
+         .rc-notif-actions { display: flex; align-items: center; gap: 6px; }
+         .rc-notif-clear {
+            background: rgba(255, 255, 255, .16); color: #fff; border: 0;
+            font-size: 11.5px; font-weight: 600;
+            padding: 6px 11px; border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: background .15s ease, transform .1s ease;
+            font-family: Inter, sans-serif;
+         }
+         .rc-notif-clear:hover { background: rgba(255, 255, 255, .32); color: #fff; }
+         .rc-notif-clear:active { transform: scale(.97); }
+         .rc-notif-clear i { font-size: 12px; }
+
+         .rc-notif-list {
+            max-height: 65vh; min-height: 120px;
+            overflow-y: auto; padding: 6px 6px 8px;
+            background: #fafafd;
+         }
+         .rc-notif-list::-webkit-scrollbar { width: 6px; }
+         .rc-notif-list::-webkit-scrollbar-thumb { background: #d4b5f0; border-radius: 999px; }
+         .rc-notif-list::-webkit-scrollbar-thumb:hover { background: #9D5DC8; }
+         .rc-notif-list::-webkit-scrollbar-track { background: transparent; }
+
+         /* mCustomScrollbar tema override: arka plan beyaz olsun */
+         .rc-notif-list.mCustomScrollbar { background: #fafafd !important; }
+
+         .rc-notif-item {
+            position: relative; background: #fff;
+            border-radius: 12px; margin: 6px 4px;
+            transition: box-shadow .18s ease, transform .15s ease, border-color .18s ease;
+            border: 1px solid #f0eaf7;
+         }
+         .rc-notif-item:hover {
+            box-shadow: 0 6px 18px rgba(92, 0, 142, .10);
+            border-color: #ead4ff;
+            transform: translateY(-1px);
+         }
+         .rc-notif-item.is-unread {
+            background: linear-gradient(135deg, #faf3ff 0%, #fff 100%);
+            border-color: #ead4ff;
+         }
+
+         .rc-notif-link {
+            display: flex; gap: 11px; padding: 12px 38px 12px 12px;
+            text-decoration: none !important; color: inherit !important;
+            min-height: 0 !important;
+            border-radius: 12px !important;
+         }
+         .rc-notif-link:hover, .rc-notif-link:focus { text-decoration: none !important; color: inherit !important; }
+
+         .rc-notif-avatar { position: relative; flex-shrink: 0; }
+         .rc-notif-avatar img {
+            width: 44px !important; height: 44px !important;
+            border-radius: 12px !important;
+            object-fit: cover !important;
+            position: static !important;
+            top: auto !important; left: auto !important;
+            box-shadow: 0 2px 8px rgba(92, 0, 142, .12) !important;
+         }
+         .rc-notif-dot {
+            position: absolute; top: -3px; right: -3px;
+            width: 12px; height: 12px;
+            background: #d946ef; border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 2px rgba(217, 70, 239, .22);
+         }
+
+         .rc-notif-body { flex: 1; min-width: 0; }
+         .rc-notif-text {
+            margin: 0 0 5px !important; font-size: 13px !important;
+            color: #222 !important; font-weight: 600 !important;
+            line-height: 1.4 !important;
+            font-family: Inter, sans-serif !important;
+            word-wrap: break-word; overflow-wrap: anywhere;
+            white-space: normal !important;
+         }
+         .rc-notif-item.is-read .rc-notif-text { color: #555 !important; font-weight: 500 !important; }
+         .rc-notif-time {
+            font-size: 11px; color: #9b8fb1; font-weight: 500;
+            display: inline-flex; align-items: center; gap: 4px;
+            font-family: Inter, sans-serif;
+         }
+         .rc-notif-time i { font-size: 10px; }
+
+         .rc-notif-del {
+            position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+            width: 26px; height: 26px;
+            background: #fff; color: #b08bd0;
+            border: 1px solid #ead4ff;
+            border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer; opacity: 0;
+            transition: opacity .15s ease, background .15s ease, color .15s ease, border-color .15s ease, transform .15s ease;
+            font-size: 11px;
+            padding: 0; line-height: 1;
+            z-index: 2;
+         }
+         .rc-notif-item:hover .rc-notif-del { opacity: 1; }
+         .rc-notif-del:hover {
+            background: #fee2e2; border-color: #fecaca; color: #dc2626;
+            transform: translateY(-50%) scale(1.08);
+         }
+         .rc-notif-del:active { transform: translateY(-50%) scale(.94); }
+
+         .rc-notif-empty {
+            text-align: center; padding: 44px 20px 36px;
+            color: #9b8fb1;
+         }
+         .rc-notif-empty-icon {
+            font-size: 42px; color: #d4b5f0; margin-bottom: 10px;
+            line-height: 1;
+         }
+         .rc-notif-empty p {
+            margin: 0; font-size: 13px; font-weight: 500;
+            font-family: Inter, sans-serif;
+         }
+
+         /* Eski .notification-list ul li a stillerini bizim itemler için sıfırla */
+         .rc-notif-list ul, .rc-notif-list ul li { list-style: none; margin: 0; padding: 0; }
+         .rc-notif-list .rc-notif-link img.mCS_img_loaded {
+            width: 44px !important; height: 44px !important;
+            border-radius: 12px !important;
+            position: static !important; top: auto !important; left: auto !important;
+         }
+
+         @media (max-width: 480px) {
+            .user-notification .dropdown-menu.rc-notif-dropdown { width: 94vw !important; }
+            .rc-notif-clear span { display: none; }
+            .rc-notif-clear { padding: 6px 8px; }
+         }
+
          /* Salon adı + gün kaldı: küçük mor kart, ellipsis */
          .header-left #myLabel {
             display: block !important; margin-bottom: 0 !important;
@@ -1131,55 +1293,65 @@
                   @endif
                   </span>
                   </a>
-                  <div class="dropdown-menu dropdown-menu-left">
-                     <div class="notification-list  customscroll" id="bildirim_listesi" style="height:80vh">
-                        @foreach($bildirimler as $bildirim)
-                        <ul>
-                           <li>
-                             <a href="{{ $bildirim->url }}" name="bildirim" data-index-number="{{ $bildirim->id }}" data-value="{{ $bildirim->randevu_id }}">
-    
-    {{-- Resim varsa onu göster, yoksa varsayılan kullanıcı ikonu --}}
-    @if(!empty($bildirim->img_src))
-        <img src="{{ $bildirim->img_src }}" alt="" class="mCS_img_loaded">
-    @else
-        <img src="/public/isletmeyonetim_assets/img/avatar.png" alt="Kullanıcı" class="mCS_img_loaded">
-    @endif
-
-    {{-- Başlık (okunmamışsa özel stil) --}}
-    @if(!$bildirim->okundu)
-        <h3 style="background: rgba(248, 244, 255, 0.9); padding: 5px; border-radius: 5px; color: #888; font-size:13px; ">
-    @else
-        <h3>
-    @endif
-        {{ $bildirim->aciklama }}
-    </h3>
-
-    {{-- Tarih / Zaman farkı --}}
-    <p style="font-size: 10px;">
-        <?php
-        $to_time = strtotime(date('Y-m-d H:i:s'));
-        $from_time = strtotime($bildirim->tarih_saat);
-        $diff = round(abs($to_time - $from_time) / 60, 0) . " dakika önce";
-
-        if ($diff >= 60) {
-            $diff = round(abs($to_time - $from_time) / 3600, 0) . " saat önce";
-
-            if (round(abs($to_time - $from_time) / 3600, 0) >= 24) {
-                $diff = date('d.m.Y H:i', strtotime($bildirim->tarih_saat));
-            }
-        }
-
-        echo $diff;
-        ?>
-    </p>
-</a>
-
-                           </li>
-                        </ul>
-                        @endforeach
-                        @if($bildirimler->count() == 0)
-                        <p style="color: black;text-align: center;">Bildiriminiz bulunmamaktadır</p>
-                        @endif
+                  <div class="dropdown-menu dropdown-menu-left rc-notif-dropdown">
+                     <div class="rc-notif-card">
+                        <div class="rc-notif-head">
+                           <div class="rc-notif-title">
+                              <span class="rc-notif-title-text">Bildirimler</span>
+                              @if($bildirimler->where('okundu',false)->count() > 0)
+                                 <span class="rc-notif-count" id="bildirim-count-pill">{{ $bildirimler->where('okundu',false)->count() }} yeni</span>
+                              @endif
+                           </div>
+                           <div class="rc-notif-actions">
+                              @if($bildirimler->count() > 0)
+                                 <button type="button" class="rc-notif-clear" id="bildirim-tumusil" title="Tümünü Sil">
+                                    <i class="fa fa-trash-o"></i> <span>Tümünü Sil</span>
+                                 </button>
+                              @endif
+                           </div>
+                        </div>
+                        <div class="notification-list customscroll rc-notif-list" id="bildirim_listesi">
+                           @foreach($bildirimler as $bildirim)
+                              @php
+                                 $to_time = strtotime(date('Y-m-d H:i:s'));
+                                 $from_time = strtotime($bildirim->tarih_saat);
+                                 $diff = round(abs($to_time - $from_time) / 60, 0) . " dakika önce";
+                                 if ($diff >= 60) {
+                                    $diff = round(abs($to_time - $from_time) / 3600, 0) . " saat önce";
+                                    if (round(abs($to_time - $from_time) / 3600, 0) >= 24) {
+                                       $diff = date('d.m.Y H:i', strtotime($bildirim->tarih_saat));
+                                    }
+                                 }
+                              @endphp
+                              <div class="rc-notif-item {{ $bildirim->okundu ? 'is-read' : 'is-unread' }}" data-bildirim-id="{{ $bildirim->id }}">
+                                 <a href="{{ $bildirim->url }}" name="bildirim" data-index-number="{{ $bildirim->id }}" data-value="{{ $bildirim->randevu_id }}" class="rc-notif-link">
+                                    <div class="rc-notif-avatar">
+                                       @if(!empty($bildirim->img_src))
+                                          <img src="{{ $bildirim->img_src }}" alt="">
+                                       @else
+                                          <img src="/public/isletmeyonetim_assets/img/avatar.png" alt="">
+                                       @endif
+                                       @if(!$bildirim->okundu)
+                                          <span class="rc-notif-dot"></span>
+                                       @endif
+                                    </div>
+                                    <div class="rc-notif-body">
+                                       <p class="rc-notif-text">{{ $bildirim->aciklama }}</p>
+                                       <span class="rc-notif-time"><i class="fa fa-clock-o"></i> {{ $diff }}</span>
+                                    </div>
+                                 </a>
+                                 <button type="button" class="rc-notif-del" name="bildirim-sil" data-bildirim-id="{{ $bildirim->id }}" title="Sil" aria-label="Bildirimi sil">
+                                    <i class="fa fa-times"></i>
+                                 </button>
+                              </div>
+                           @endforeach
+                           @if($bildirimler->count() == 0)
+                              <div class="rc-notif-empty">
+                                 <div class="rc-notif-empty-icon"><i class="icon-copy dw dw-notification"></i></div>
+                                 <p>Bildiriminiz bulunmamaktadır</p>
+                              </div>
+                           @endif
+                        </div>
                      </div>
                   </div>
                </div>
@@ -4959,7 +5131,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=233.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=234.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
