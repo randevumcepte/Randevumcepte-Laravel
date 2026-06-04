@@ -788,6 +788,7 @@ class SalonrandevuImporter
                 'adi'       => trim((string) ($pkg['package_name'] ?? '')),
                 'fiyat'     => (float) ($pkg['amount'] ?? 0),
                 'packet_id' => (int) ($pkg['packet_id'] ?? 0),
+                'staff_id'  => (int) ($pkg['staff_id'] ?? 0), // satisi yapan personel
                 'hizmetler' => [], // service_id -> ['hizmet_id'=>X, 'tx_list'=>[$tx,...]]
             ];
         }
@@ -853,11 +854,18 @@ class SalonrandevuImporter
             $paketId = $this->ensurePaket($this->salonId, $paketAdi, $hzMap, $srPacketId);
             if (!$paketId) continue;
             $totalSeans = array_sum(array_column($hzMap, 'seans'));
+            // Satisi yapan personel (receipt_packages.staff_id)
+            $satisPersonelId = null;
+            $pkgStaffId = $info['staff_id'] ?? 0;
+            if ($pkgStaffId && isset($this->personelMap[$pkgStaffId])) {
+                $satisPersonelId = $this->personelMap[$pkgStaffId];
+            }
             // AdisyonPaketler insert (paket satisi) — StoreAdminController:17487/22006 formati
             $apkt = new AdisyonPaketler();
             $apkt->adisyon_id = $ad->id;
             $apkt->paket_id = $paketId;
             $apkt->fiyat = $paketFiyat ?: array_sum(array_column($hzMap, 'fiyat'));
+            if ($satisPersonelId && \Schema::hasColumn('adisyon_paketler', 'personel_id')) $apkt->personel_id = $satisPersonelId;
             if (\Schema::hasColumn('adisyon_paketler', 'seans_sayisi')) $apkt->seans_sayisi = $totalSeans;
             if (\Schema::hasColumn('adisyon_paketler', 'baslangic_tarihi')) $apkt->baslangic_tarihi = $tarih;
             if (\Schema::hasColumn('adisyon_paketler', 'seans_araligi')) $apkt->seans_araligi = 7;
@@ -867,30 +875,44 @@ class SalonrandevuImporter
                 \Log::warning('[Salonrandevu paket] AdisyonPaketler save hata', ['rid' => $rid, 'err' => $e->getMessage()]);
                 continue;
             }
-            // APS yaz: Salonrandevu'da paket transaction'larinin her biri zaten process_date
-            // ile bir seans planlamasi (randevu ile eslesme YOK). Her tx -> 1 APS.
-            // geldi semantigi: Salonrandevu UI'da TUMU "Bekleniyor" gozukuyor (process_date
-            // gecmis bile olsa) — Salonrandevu'da "Geldi" durumu MANUEL isaretleniyor, otomatik
-            // tarihten cikarilmiyor. Bizim de tum APS'ler geldi=NULL (bekleniyor) yazilmali;
-            // sonra kullanici bizim sistemde manuel "Geldi" isaretleyecek.
+            // APS yaz: her tx -> 1 APS. geldi=NULL (Bekleniyor, Salonrandevu UI ile esit).
+            // Her APS'in personel_id'sini transaction.staffID'den al (her seans icin atanan personel).
             foreach ($info['hizmetler'] as $svcId => $svcGroup) {
                 $hid = $svcGroup['hizmet_id'];
                 $seansNo = 0;
                 foreach ($svcGroup['tx_list'] as $tx) {
                     $seansNo++;
                     list($pTarih,) = $this->isoBol($tx['process_date'] ?? null);
-                    $geldi = null;
+                    $txStaffId = (int) ($tx['staffID'] ?? 0);
+                    $apsPersonelId = $txStaffId && isset($this->personelMap[$txStaffId])
+                        ? $this->personelMap[$txStaffId] : null;
+                    if (!$apsPersonelId && !empty($tx['staff']['full_name'])) {
+                        $apsPersonelId = $this->ensurePersonel($tx['staff']['full_name']);
+                        if ($apsPersonelId && $txStaffId) $this->personelMap[$txStaffId] = $apsPersonelId;
+                    }
                     $aps = new AdisyonPaketSeanslar();
                     $aps->adisyon_paket_id = $apkt->id;
                     $aps->hizmet_id = $hid;
                     $aps->seans_no = $seansNo;
-                    $aps->geldi = $geldi;
+                    $aps->geldi = null; // Salonrandevu = Bekleniyor
+                    if ($apsPersonelId && \Schema::hasColumn('adisyon_paket_seanslar', 'personel_id')) {
+                        $aps->personel_id = $apsPersonelId;
+                    }
                     if (\Schema::hasColumn('adisyon_paket_seanslar', 'seans_tarih')) {
                         $aps->seans_tarih = $pTarih ?: null;
                     }
                     try { $aps->save(); } catch (\Throwable $e) {
                         \Log::warning('[Salonrandevu paket APS] hata', ['rid' => $rid, 'err' => $e->getMessage()]);
                     }
+                }
+            }
+            // Satisi yapan personel ilk denemede personelMap'ten yoksa, ilk APS'in personel'inden al
+            if (!$satisPersonelId && $apkt->id && \Schema::hasColumn('adisyon_paketler', 'personel_id')) {
+                $firstApsPers = DB::table('adisyon_paket_seanslar')
+                    ->where('adisyon_paket_id', $apkt->id)
+                    ->whereNotNull('personel_id')->value('personel_id');
+                if ($firstApsPers) {
+                    DB::table('adisyon_paketler')->where('id', $apkt->id)->update(['personel_id' => $firstApsPers]);
                 }
             }
         }
