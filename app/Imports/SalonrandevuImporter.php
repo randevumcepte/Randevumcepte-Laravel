@@ -819,7 +819,25 @@ class SalonrandevuImporter
 
         $j = $this->client->get('/company/receipt/' . $rid);
         $rc = $j['data']['receipt'] ?? null;
-        if (!$rc) return;
+        if (!$rc) {
+            if ($packageOnly) {
+                $this->counts['skip']++;
+                \Log::warning('[Salonrandevu] paket rc null', [
+                    'rid' => $rid,
+                    'http' => $j['_http'] ?? '?',
+                    'raw_keys' => array_keys($j['data'] ?? []),
+                ]);
+            }
+            return;
+        }
+        if ($packageOnly) {
+            \Log::info('[Salonrandevu] paket processing', [
+                'rid' => $rid,
+                'customer' => $rc['customer']['full_name'] ?? '?',
+                'pkg_count' => count($rc['receipt_packages'] ?? []),
+                'tx_count' => count($rc['receipt_transactions'] ?? []),
+            ]);
+        }
 
         $userId = $this->resolveUser($rc['customer'] ?? []);
         if (!$userId) {
