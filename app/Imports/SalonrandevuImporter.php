@@ -160,7 +160,7 @@ class SalonrandevuImporter
             foreach ($records as $rec) {
                 $rid = (int) ($rec['id'] ?? 0);
                 if (!$rid) continue;
-                $this->importOneReceipt($rid, ['package_only' => true]);
+                $this->importOneReceipt($rid, ['package_only' => true, 'rec' => $rec]);
                 $toplam++;
             }
             $next = (int) ($j['data']['next_page'] ?? 0);
@@ -831,12 +831,21 @@ class SalonrandevuImporter
             return;
         }
         if ($packageOnly) {
+            $pkgCnt = count($rc['receipt_packages'] ?? []);
+            $txCnt = count($rc['receipt_transactions'] ?? []);
             \Log::info('[Salonrandevu] paket processing', [
                 'rid' => $rid,
                 'customer' => $rc['customer']['full_name'] ?? '?',
-                'pkg_count' => count($rc['receipt_packages'] ?? []),
-                'tx_count' => count($rc['receipt_transactions'] ?? []),
+                'pkg_count' => $pkgCnt,
+                'tx_count' => $txCnt,
             ]);
+            if ($pkgCnt === 0 && !empty($opts['rec'])) {
+                \Log::warning('[Salonrandevu] paket DETAYDA YOK — paginated rec dump', [
+                    'rid' => $rid,
+                    'rec_keys' => array_keys($opts['rec']),
+                    'rec' => $opts['rec'],
+                ]);
+            }
         }
 
         $userId = $this->resolveUser($rc['customer'] ?? []);
