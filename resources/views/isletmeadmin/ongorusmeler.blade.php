@@ -66,65 +66,38 @@
 </div>
 
 <style>
-/* === ÖN GÖRÜŞME TABLO RESPONSIVE FIX (v3) === */
-/* Wrapper'a yatay scroll */
+/* On Gorusme tablo: yatay scroll wrapper - sadece gerektiginde scroll */
 .on-gorusme-tablo-wrap {
-    width: 100% !important;
-    overflow-x: auto !important;
+    width: 100%;
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
 }
-.on-gorusme-tablo-wrap .dataTables_wrapper {
-    width: 100% !important;
-    overflow-x: visible !important;
+/* Sutunlar sikismasin diye min-width, ama genis ekranda tabloyu uzatma */
+.on-gorusme-tablo-wrap #on_gorusme_liste {
+    min-width: 1100px;
 }
-
-/* SÜTUN GİZLEME ENGELLEME: Responsive plugin sütunları gizleyemesin */
+/* Responsive plugin sutunlari gizlemesin */
 #on_gorusme_liste thead th,
 #on_gorusme_liste tbody td {
     display: table-cell !important;
 }
-/* Responsive plugin'in eklediği expand kontrolünü ve child satırı GİZLE */
 #on_gorusme_liste td.dtr-control,
 #on_gorusme_liste th.dtr-control {
     display: none !important;
 }
-#on_gorusme_liste tr.child,
-#on_gorusme_liste tr.dtr-expanded + tr.child {
+#on_gorusme_liste tr.child {
     display: none !important;
 }
-/* Eski responsive plugin'in eklediği sınıfı baypas et */
 #on_gorusme_liste td.dtr-hidden,
 #on_gorusme_liste th.dtr-hidden,
 #on_gorusme_liste td.none,
 #on_gorusme_liste th.none {
     display: table-cell !important;
 }
-
-/* Tablo minimum genişliği — sütunlar sıkışmasın */
-.on-gorusme-tablo-wrap #on_gorusme_liste {
-    min-width: 1200px !important;
-    width: 1200px !important;
-}
-
-/* Mor scrollbar */
-.on-gorusme-tablo-wrap::-webkit-scrollbar {
-    height: 12px;
-}
-.on-gorusme-tablo-wrap::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 6px;
-}
-.on-gorusme-tablo-wrap::-webkit-scrollbar-thumb {
-    background: #9D5DC8;
-    border-radius: 6px;
-}
-.on-gorusme-tablo-wrap::-webkit-scrollbar-thumb:hover {
-    background: #5C008E;
-}
 </style>
 
 <script>
-/* Responsive plugin'in dinamik olarak attığı sınıfları geri al */
+/* Responsive plugin'in dinamik attigi siniflari geri al */
 $(document).on('init.dt', '#on_gorusme_liste', function() {
     var $t = $('#on_gorusme_liste');
     $t.removeClass('dtr-inline collapsed');
