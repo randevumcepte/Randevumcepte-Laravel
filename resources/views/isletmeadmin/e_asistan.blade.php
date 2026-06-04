@@ -24,23 +24,22 @@
     color: var(--ink);
 }
 
-/* Page header (yedek, original page-header kullanilmiyor) ------------- */
+/* Page header — kompakt, tek satira yakin --------------------------- */
 .ea-hero {
-    background: linear-gradient(135deg, #faf6ff 0%, #ffffff 60%);
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: 26px 30px;
-    margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 4px 2px 14px;
+    margin: 0 0 12px;
+    border-bottom: 1px solid var(--line);
 }
-.ea-breadcrumb { color: var(--ink-3); font-size: 13px; margin-bottom: 10px; }
+.ea-hero-left { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.ea-hero h1 {
+    color: var(--ink); font-size: 18px; font-weight: 700;
+    margin: 0; letter-spacing: -0.3px;
+}
+.ea-breadcrumb { color: var(--ink-3); font-size: 12.5px; }
 .ea-breadcrumb a { color: var(--ink-3); text-decoration: none; }
 .ea-breadcrumb a:hover { color: var(--brand); }
-.ea-breadcrumb .sep { margin: 0 6px; }
-.ea-hero h1 {
-    color: var(--ink); font-size: 28px; font-weight: 700;
-    margin: 0 0 6px; letter-spacing: -0.5px;
-}
-.ea-hero .subtitle { color: var(--ink-2); font-size: 14px; margin: 0; max-width: 640px; }
+.ea-breadcrumb .sep { margin: 0 4px; }
 
 /* Tabs ---------------------------------------------------------------- */
 .ea-tabs {
@@ -323,25 +322,160 @@
 .ea-btn-save:active { transform: translateY(0); }
 
 /* Mobile -------------------------------------------------------------- */
+/* ===== Modern task card feed (Mockup B) ============================ */
+.ea-feed { display: flex; flex-direction: column; gap: 10px; }
+.ea-task-card {
+    display: flex; gap: 14px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--brand);
+    border-radius: 12px;
+    padding: 14px 16px;
+    transition: all .15s ease;
+}
+.ea-task-card:hover {
+    border-color: rgba(120,0,179,.25);
+    box-shadow: 0 4px 14px rgba(15,9,30,.05);
+}
+.ea-task-card.t-randevu { border-left-color: #3b82f6; }
+.ea-task-card.t-alacak  { border-left-color: #f59e0b; }
+.ea-task-card.t-kampanya{ border-left-color: #8b5cf6; }
+
+.ea-task-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+.t-randevu  .ea-task-icon { background: #dbeafe; color: #3b82f6; }
+.t-alacak   .ea-task-icon { background: #fef3c7; color: #d97706; }
+.t-kampanya .ea-task-icon { background: #ede9fe; color: #8b5cf6; }
+
+.ea-task-body { flex: 1; min-width: 0; }
+.ea-task-top {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    margin-bottom: 3px;
+}
+.ea-task-top h4 {
+    font-size: 13.5px; font-weight: 700; margin: 0; color: var(--ink);
+}
+.ea-task-time {
+    font-size: 12.5px; font-weight: 700;
+    color: var(--brand); white-space: nowrap;
+    background: var(--brand-soft);
+    padding: 3px 9px; border-radius: 999px;
+}
+.ea-task-msg {
+    font-size: 13px; color: var(--ink-2);
+    margin: 0 0 8px; line-height: 1.5;
+}
+.ea-task-meta {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+}
+.ea-task-result {
+    font-size: 12.5px; color: var(--ink-3);
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.ea-task-result:before {
+    content: ""; width: 4px; height: 4px;
+    background: var(--ink-3); border-radius: 50%;
+}
+.ea-task-actions { margin-left: auto; display: flex; gap: 8px; }
+
+/* Feed icindeki controller'in donen buton stillerini override et */
+.ea-feed .btn {
+    line-height: 1.3 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    padding: 5px 11px !important;
+    border-radius: 999px !important;
+    box-shadow: none !important;
+    white-space: nowrap !important;
+}
+.ea-feed .btn.btn-danger {
+    background: var(--danger-soft) !important;
+    color: var(--danger) !important;
+    border: 1px solid transparent !important;
+}
+.ea-feed .btn.btn-success {
+    background: var(--ok-soft) !important;
+    color: var(--ok) !important;
+    border: 1px solid transparent !important;
+}
+.ea-feed .btn[name^="gorev_iptal_et"] {
+    background: #fff !important;
+    color: var(--danger) !important;
+    border: 1px solid var(--danger-soft) !important;
+    border-radius: 8px !important;
+    padding: 6px 12px !important;
+}
+.ea-feed .btn[name^="gorev_iptal_et"]:hover {
+    background: var(--danger-soft) !important;
+}
+.ea-feed .btn[name="kampanya_detay"] {
+    background: var(--brand-soft) !important;
+    color: var(--brand) !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
+    padding: 6px 12px !important;
+}
+
+/* Empty state */
+.ea-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--ink-3);
+}
+.ea-empty .icon-wrap {
+    width: 64px; height: 64px;
+    background: var(--ok-soft);
+    color: var(--ok);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    margin: 0 auto 14px;
+}
+.ea-empty h3 {
+    font-size: 16px; font-weight: 700; color: var(--ink);
+    margin: 0 0 4px;
+}
+.ea-empty p { font-size: 13.5px; margin: 0; }
+
+/* Loading skeleton */
+.ea-loading {
+    text-align: center; padding: 40px 20px;
+    color: var(--ink-3); font-size: 13px;
+}
+.ea-loading i { margin-right: 6px; }
+
+/* DataTables UI'si gizle — biz data'yi xhr.dt event'i ile aliyoruz */
+#bugunkugorevtablo_wrapper, #yarinkigorevtablo_wrapper { display: none !important; }
+.ea-hidden-table { display: none; }
+
 @media (max-width: 575.98px) {
-    .ea-hero { padding: 20px 16px; }
-    .ea-hero h1 { font-size: 22px; }
-    .ea-card { padding: 16px; }
+    .ea-card { padding: 14px; }
     .ea-tabs .nav-link { padding: 9px 14px; font-size: 13px; }
     .ea-settings-grid { grid-template-columns: 1fr; }
+    .ea-task-card { padding: 12px; gap: 10px; }
+    .ea-task-icon { width: 36px; height: 36px; font-size: 14px; }
+    .ea-task-actions { margin-left: 0; width: 100%; }
 }
 </style>
 
 <div class="ea-page">
 
     <div class="ea-hero">
-        <div class="ea-breadcrumb">
-            <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
-            <span class="sep">›</span>
-            <span>Asistanım</span>
+        <div class="ea-hero-left">
+            <h1>Asistanım</h1>
+            <div class="ea-breadcrumb">
+                <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
+                <span class="sep">›</span>
+                <span>Asistanım</span>
+            </div>
         </div>
-        <h1>Asistanım</h1>
-        <p class="subtitle">Bugünkü ve yarınki hatırlatma görevlerini takip et, e-asistanın hangi tür hatırlatmaları yapacağını yönet.</p>
     </div>
 
     <ul class="nav ea-tabs" role="tablist">
@@ -372,37 +506,48 @@
         {{-- ============================== BUGÜN ============================== --}}
         <div class="tab-pane fade show active" id="bugunku_e_asistan" role="tabpanel">
             <div class="ea-card">
-                <table class="data-table table" id="bugunkugorevtablo">
-                    <thead>
-                        <tr>
-                            <th>Başlık</th>
-                            <th>İçerik</th>
-                            <th>Arama Saati</th>
-                            <th>Durum</th>
-                            <th>Sonuç</th>
-                            <th>İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <div class="ea-feed" id="bugun-feed">
+                    <div class="ea-loading"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>
+                </div>
+                {{-- DataTables init'i bozmayalim diye tablo DOM'da gizli kaliyor --}}
+                <div class="ea-hidden-table">
+                    <table class="data-table table" id="bugunkugorevtablo">
+                        <thead>
+                            <tr>
+                                <th>Başlık</th>
+                                <th>İçerik</th>
+                                <th>Arama Saati</th>
+                                <th>Durum</th>
+                                <th>Sonuç</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         {{-- ============================== YARIN ============================== --}}
         <div class="tab-pane fade" id="yarinki_gorevler" role="tabpanel">
             <div class="ea-card">
-                <table class="data-table table" id="yarinkigorevtablo">
-                    <thead>
-                        <tr>
-                            <th>Başlık</th>
-                            <th>İçerik</th>
-                            <th>Arama Saati</th>
-                            <th>Durum</th>
-                            <th>İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <div class="ea-feed" id="yarin-feed">
+                    <div class="ea-loading"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>
+                </div>
+                <div class="ea-hidden-table">
+                    <table class="data-table table" id="yarinkigorevtablo">
+                        <thead>
+                            <tr>
+                                <th>Başlık</th>
+                                <th>İçerik</th>
+                                <th>Arama Saati</th>
+                                <th>Durum</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -537,38 +682,87 @@
 </div>
 
 <script>
-/* Tab count badge'lerini DataTables AJAX response'undan guncelle.
-   DataTables init frontend-scripts'te pageindex==60 blogunda yapiliyor —
-   DOM ready'de zaten init olmus oluyor; biz xhr.dt event'ine baglaniyoruz. */
+/* ===========================================================================
+   E-Asistan kart feed render'i
+   DataTables init frontend-scripts'te yapiliyor (tablo DOM'da gizli).
+   Biz xhr.dt event'i ile gelen veriyi yakalayip kart olarak basiyoruz.
+   Sayisi tab badge'lerine yansiyor. Gorev iptal sonrasi ajax.reload otomatik
+   tekrar render tetikliyor (custom.js degismeden calisir).
+   =========================================================================== */
 (function(){
-    function bindBadge(tableId, badgeKey){
+    function escapeHtml(s){
+        if (s === null || s === undefined) return '';
+        return String(s).replace(/[&<>"']/g, function(c){
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+        });
+    }
+
+    function typeOf(baslik){
+        var b = String(baslik || '');
+        if (b.indexOf('Randevu')  !== -1) return {cls:'t-randevu',  icon:'fa fa-calendar-check-o'};
+        if (b.indexOf('Alacak')   !== -1) return {cls:'t-alacak',   icon:'fa fa-money'};
+        if (b.indexOf('Kampanya') !== -1) return {cls:'t-kampanya', icon:'fa fa-bullhorn'};
+        return {cls:'', icon:'fa fa-bell'};
+    }
+
+    function renderFeed($target, items){
+        if (!items || items.length === 0){
+            $target.html(
+                '<div class="ea-empty">' +
+                  '<div class="icon-wrap"><i class="fa fa-check"></i></div>' +
+                  '<h3>Bu sekmede görev yok</h3>' +
+                  '<p>E-asistanın yapacağı bir hatırlatma bulunmuyor.</p>' +
+                '</div>'
+            );
+            return;
+        }
+        var html = '';
+        items.forEach(function(item){
+            var t = typeOf(item.baslik);
+            var saat = escapeHtml(item.saat || '');
+            html += '<div class="ea-task-card ' + t.cls + '">';
+            html += '  <div class="ea-task-icon"><i class="' + t.icon + '"></i></div>';
+            html += '  <div class="ea-task-body">';
+            html += '    <div class="ea-task-top">';
+            html += '      <h4>' + escapeHtml(item.baslik) + '</h4>';
+            if (saat) html += '      <span class="ea-task-time">' + saat + '</span>';
+            html += '    </div>';
+            html += '    <p class="ea-task-msg">' + escapeHtml(item.mesaj) + '</p>';
+            html += '    <div class="ea-task-meta">';
+            // durum: controller HTML donuyor (btn-danger/btn-success rozet) — escape ETME
+            if (item.durum) html += '      <div class="ea-task-status">' + item.durum + '</div>';
+            if (item.sonuc) html += '      <div class="ea-task-result">' + escapeHtml(item.sonuc) + '</div>';
+            // islemler: controller HTML donuyor (gorev iptal et butonu) — escape ETME
+            if (item.islemler) html += '      <div class="ea-task-actions">' + item.islemler + '</div>';
+            html += '    </div>';
+            html += '  </div>';
+            html += '</div>';
+        });
+        $target.html(html);
+    }
+
+    function bind(tableId, feedSel, badgeKey){
         var $t = $(tableId);
         if (!$t.length) return;
         $t.on('xhr.dt', function(e, settings, json){
-            var n = (json && (json.recordsTotal !== undefined)) ? json.recordsTotal : 0;
-            $('[data-badge="'+badgeKey+'"]').text(n);
+            var data = (json && json.data) ? json.data : [];
+            var total = (json && (json.recordsTotal !== undefined)) ? json.recordsTotal : data.length;
+            renderFeed($(feedSel), data);
+            $('[data-badge="'+badgeKey+'"]').text(total);
         });
-        // Init tamamlanmis ve veri zaten gelmis olabilir; bir initial AJAX
-        // (re)load tetiklemek yerine current data sayisini yansit.
-        if ($.fn.DataTable && $.fn.DataTable.isDataTable(tableId)) {
-            var info = $t.DataTable().page.info();
-            if (info && info.recordsTotal !== undefined) {
-                $('[data-badge="'+badgeKey+'"]').text(info.recordsTotal);
-            }
-        }
     }
+
     $(document).ready(function(){
-        // Tablolar init olduktan sonra bagla (kucuk gecikme yeter)
         var tries = 0;
         var iv = setInterval(function(){
             tries++;
-            var bugunReady = $.fn.DataTable && $.fn.DataTable.isDataTable('#bugunkugorevtablo');
-            var yarinReady = $.fn.DataTable && $.fn.DataTable.isDataTable('#yarinkigorevtablo');
-            if (bugunReady && yarinReady) {
+            var b = $.fn.DataTable && $.fn.DataTable.isDataTable('#bugunkugorevtablo');
+            var y = $.fn.DataTable && $.fn.DataTable.isDataTable('#yarinkigorevtablo');
+            if (b && y){
                 clearInterval(iv);
-                bindBadge('#bugunkugorevtablo', 'bugun');
-                bindBadge('#yarinkigorevtablo', 'yarin');
-            } else if (tries > 50) { // ~10s timeout
+                bind('#bugunkugorevtablo', '#bugun-feed', 'bugun');
+                bind('#yarinkigorevtablo', '#yarin-feed', 'yarin');
+            } else if (tries > 50){
                 clearInterval(iv);
             }
         }, 200);
