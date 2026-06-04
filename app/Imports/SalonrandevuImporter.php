@@ -15,6 +15,10 @@ use App\AdisyonHizmetler;
 use App\AdisyonUrunler;
 use App\Tahsilatlar;
 use App\Urunler;
+use App\Paketler;
+use App\PaketHizmetler;
+use App\AdisyonPaketler;
+use App\AdisyonPaketSeanslar;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -599,6 +603,36 @@ class SalonrandevuImporter
         $this->log('Paket master yuklendi: ' . count($this->packetMaster) . ' paket.');
     }
 
+    /**
+     * Sistem mantigi: paket adi + hizmetler[hid=>['seans'=>N,'fiyat'=>F]] -> Paketler + PaketHizmetler.
+     * Ayni salon+paket_adi varsa o ID donulur (paket_hizmetler eksik kalanlari da tamamlar).
+     */
+    private function ensurePaket($salonId, $paketAdi, array $hizmetler)
+    {
+        $paketAdi = trim((string) $paketAdi);
+        if ($paketAdi === '') return null;
+        $paket = Paketler::where('salon_id', $salonId)->where('paket_adi', $paketAdi)->first();
+        if (!$paket) {
+            $paket = new Paketler();
+            $paket->paket_adi = $paketAdi;
+            $paket->salon_id = $salonId;
+            if (\Schema::hasColumn('paketler', 'aktif')) $paket->aktif = true;
+            $paket->save();
+        }
+        foreach ($hizmetler as $hid => $info) {
+            $ph = PaketHizmetler::where('paket_id', $paket->id)->where('hizmet_id', $hid)->first();
+            if (!$ph) {
+                $ph = new PaketHizmetler();
+                $ph->paket_id = $paket->id;
+                $ph->hizmet_id = $hid;
+            }
+            $ph->seans = (int) ($info['seans'] ?? 1);
+            $ph->fiyat = (float) ($info['fiyat'] ?? 0);
+            $ph->save();
+        }
+        return $paket->id;
+    }
+
     private function importOneReceipt($rid)
     {
         $marker = '[salonrandevu:' . $rid . ']';
@@ -654,68 +688,101 @@ class SalonrandevuImporter
         }
         $this->counts['adisyon']++;
 
-        // Hizmet kalemleri (receipt_transactions)
+        // === Paket fişlerini parse et: receipt_packages[idx] + onun altındaki transactions ===
+        // Sistem mantigi (ApiController:878+): Paketler + PaketHizmetler master, AdisyonPaketler +
+        // AdisyonPaketSeanslar satis. Paket transaction'lari icin AH YAZILMAZ — kullanicinin istegi
+        // "sadece paket olarak kaydolsun, her seans ayri hizmet kaydi olmasın".
+        $pkgInfoBySaleId = []; // receipt_packages.id => ['adi'=>..., 'fiyat'=>..., 'hizmetler'=>[svcId=>['hizmet_id'=>X,'tx_list'=>[...]]]]
+        foreach (($rc['receipt_packages'] ?? []) as $pkg) {
+            $saleId = (int) ($pkg['id'] ?? 0);
+            if (!$saleId) continue;
+            $pkgInfoBySaleId[$saleId] = [
+                'adi'      => trim((string) ($pkg['package_name'] ?? '')),
+                'fiyat'    => (float) ($pkg['amount'] ?? 0),
+                'hizmetler' => [], // service_id -> ['hizmet_id'=>X, 'tx_list'=>[$tx,...]]
+            ];
+        }
+
         foreach (($rc['receipt_transactions'] ?? []) as $tx) {
+            $recPkgId = (int) ($tx['receipt_package_id'] ?? 0);
+            $svcId = (int) ($tx['service_id'] ?? 0);
             $svc = $tx['Service'] ?? [];
             $hizmetId = null;
-            if (!empty($tx['service_id']) && isset($this->hizmetMap[$tx['service_id']])) {
-                $hizmetId = $this->hizmetMap[$tx['service_id']];
+            if ($svcId && isset($this->hizmetMap[$svcId])) {
+                $hizmetId = $this->hizmetMap[$svcId];
             }
             if (!$hizmetId && !empty($svc['name'])) {
                 $hizmetId = $this->ensureHizmet($svc['name'], (int) ($svc['process_time'] ?? 30), (float) ($svc['amount'] ?? 0), $svc['category_name'] ?? null);
-                if ($hizmetId && !empty($tx['service_id'])) $this->hizmetMap[$tx['service_id']] = $hizmetId;
+                if ($hizmetId && $svcId) $this->hizmetMap[$svcId] = $hizmetId;
             }
             if (!$hizmetId) continue;
+
+            if ($recPkgId && isset($pkgInfoBySaleId[$recPkgId])) {
+                // Paket icine ait transaction — grupla, AH yazma
+                if (!isset($pkgInfoBySaleId[$recPkgId]['hizmetler'][$svcId])) {
+                    $pkgInfoBySaleId[$recPkgId]['hizmetler'][$svcId] = [
+                        'hizmet_id' => $hizmetId, 'tx_list' => [],
+                    ];
+                }
+                $pkgInfoBySaleId[$recPkgId]['hizmetler'][$svcId]['tx_list'][] = $tx;
+                continue;
+            }
+
+            // Paket disi normal hizmet satisi — eski AH mantigi (geldi=1)
             $personelId = null;
             if (!empty($tx['staffID'])) $personelId = $this->personelMap[$tx['staffID']] ?? null;
             if (!$personelId && !empty($tx['staff']['full_name'])) {
                 $personelId = $this->ensurePersonel($tx['staff']['full_name']);
             }
             list($pTarih,) = $this->isoBol($tx['process_date'] ?? null);
-
-            // Paket icindeki transaction mi? Master'dan period (seans sayisi) al.
-            $seansSayisi = null;
-            $recPkgId = (int) ($tx['receipt_package_id'] ?? 0);
-            if ($recPkgId && isset($pkgById[$recPkgId])) {
-                $masterPkgId = $pkgById[$recPkgId];
-                $svcId = (int) ($tx['service_id'] ?? 0);
-                if ($masterPkgId && $svcId && isset($this->packetMaster[$masterPkgId][$svcId])) {
-                    $seansSayisi = (int) $this->packetMaster[$masterPkgId][$svcId];
-                }
-            }
-
-            // AH.geldi semantigi:
-            // - Paket icindeki transaction (receipt_package_id var) → henuz randevuyla
-            //   tuketilmedi, paketten cekilecek → geldi=0 (placeholder AH, seans paketi)
-            // - Normal hizmet satisi (paket disi) → satis aninda yapilmis kabul → geldi=1
-            // Onceki kod is_paid'i geldi olarak yorumluyordu (yanlis semantik —
-            // is_paid: odeme durumu, AH.geldi: hizmet verildi mi).
-            $ahGeldi = $recPkgId ? 0 : 1;
-
             $ah = new AdisyonHizmetler();
             $ah->adisyon_id = $ad->id;
             $ah->hizmet_id = $hizmetId;
             $ah->personel_id = $personelId;
-            $ah->geldi = $ahGeldi;
+            $ah->geldi = 1;
             $ah->islem_tarihi = $pTarih ?: $tarih;
             $ah->fiyat = (float) ($tx['amount'] ?? 0);
-            if ($seansSayisi && $seansSayisi > 1 && \Schema::hasColumn('adisyon_hizmetler', 'seans_sayisi')) {
-                $ah->seans_sayisi = $seansSayisi;
-            }
             $ah->save();
+        }
 
-            // Paket ise placeholder AdisyonPaketSeanslar (geldi=0) yaz —
-            // randevu sirasinda tuketilecek. Drklinik/salonappy ile ayni mantik.
-            if ($seansSayisi && $seansSayisi > 1) {
-                for ($i = 1; $i <= $seansSayisi; $i++) {
-                    \DB::table('adisyon_paket_seanslar')->insert([
-                        'adisyon_hizmet_id' => $ah->id,
-                        'hizmet_id' => $hizmetId,
-                        'seans_no' => $i,
-                        'geldi' => 0,
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'updated_at' => date('Y-m-d H:i:s'),
-                    ]);
+        // Paket SATIŞ akisi: her receipt_packages icin Paketler master + AdisyonPaketler + APS
+        foreach ($pkgInfoBySaleId as $saleId => $info) {
+            $paketAdi = $info['adi'] ?: ('Paket #' . $saleId);
+            $paketFiyat = $info['fiyat'];
+            if (empty($info['hizmetler'])) continue;
+            // Master paket: paket_hizmetler her service icin seans=tx_count, fiyat=sum(amount)
+            $hzMap = [];
+            foreach ($info['hizmetler'] as $svcId => $svcGroup) {
+                $hid = $svcGroup['hizmet_id'];
+                $seans = count($svcGroup['tx_list']);
+                $fiyat = 0.0;
+                foreach ($svcGroup['tx_list'] as $tx) $fiyat += (float) ($tx['amount'] ?? 0);
+                $hzMap[$hid] = ['seans' => $seans, 'fiyat' => $fiyat];
+            }
+            $paketId = $this->ensurePaket($this->salonId, $paketAdi, $hzMap);
+            if (!$paketId) continue;
+            // AdisyonPaketler insert (paket satisi)
+            $apkt = new AdisyonPaketler();
+            $apkt->adisyon_id = $ad->id;
+            $apkt->paket_id = $paketId;
+            $apkt->fiyat = $paketFiyat ?: array_sum(array_column($hzMap, 'fiyat'));
+            $apkt->save();
+            // Her seans icin AdisyonPaketSeanslar (geldi=0 placeholder, randevudan tuketilecek)
+            foreach ($info['hizmetler'] as $svcId => $svcGroup) {
+                $hid = $svcGroup['hizmet_id'];
+                $seansNo = 0;
+                foreach ($svcGroup['tx_list'] as $tx) {
+                    $seansNo++;
+                    list($pTarih,) = $this->isoBol($tx['process_date'] ?? null);
+                    $seans = new AdisyonPaketSeanslar();
+                    $seans->adisyon_paket_id = $apkt->id;
+                    $seans->hizmet_id = $hid;
+                    $seans->seans_no = $seansNo;
+                    $seans->geldi = 0;
+                    if (\Schema::hasColumn('adisyon_paket_seanslar', 'seans_tarih')) {
+                        $seans->seans_tarih = null; // randevu zamani gelince doldurulur
+                    }
+                    $seans->save();
                 }
             }
         }
