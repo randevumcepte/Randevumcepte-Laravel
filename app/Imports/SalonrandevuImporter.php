@@ -774,24 +774,10 @@ class SalonrandevuImporter
                 \Log::warning('[Salonrandevu paket] AdisyonPaketler save hata', ['rid' => $rid, 'err' => $e->getMessage()]);
                 continue;
             }
-            // Her seans icin AdisyonPaketSeanslar (geldi=0 placeholder, randevudan tuketilecek)
-            foreach ($info['hizmetler'] as $svcId => $svcGroup) {
-                $hid = $svcGroup['hizmet_id'];
-                $seansNo = 0;
-                foreach ($svcGroup['tx_list'] as $tx) {
-                    $seansNo++;
-                    list($pTarih,) = $this->isoBol($tx['process_date'] ?? null);
-                    $seans = new AdisyonPaketSeanslar();
-                    $seans->adisyon_paket_id = $apkt->id;
-                    $seans->hizmet_id = $hid;
-                    $seans->seans_no = $seansNo;
-                    $seans->geldi = 0;
-                    if (\Schema::hasColumn('adisyon_paket_seanslar', 'seans_tarih')) {
-                        $seans->seans_tarih = null; // randevu zamani gelince doldurulur
-                    }
-                    $seans->save();
-                }
-            }
+            // APS PLACEHOLDER YAZILMAZ — drklinik/salonappy mantigi: paket satildiginda
+            // henuz hicbir seans gerceklesmemis, randevu/visit geldikce APS INSERT (geldi=1).
+            // Kalan seans = paket_hizmetler.seans - APS_sayisi (UI hesabi).
+            // Bu sayede UI "gelmedi" (geldi=0 placeholder) olarak gostermez.
         }
 
         // Urun satislari (receipt_sales)
