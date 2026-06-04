@@ -967,7 +967,15 @@ class SalonrandevuImporter
             }
 
             // Paket disi normal hizmet satisi — eski AH mantigi (geldi=1)
-            if ($packageOnly) continue; // --only-package-sales modunda paket disi hizmet YAZMA
+            if ($packageOnly) {
+                // Paket modunda paket disi tx — log: receipt_package_id'si yok ya da match etmiyor
+                \Log::warning('[Salonrandevu] paket-only mod: tx receipt_package_id match yok', [
+                    'rid' => $rid, 'tx_recPkgId' => $recPkgId,
+                    'svc_id' => $svcId, 'svc_name' => $svc['name'] ?? '?',
+                    'mevcut_sale_ids' => array_keys($pkgInfoBySaleId),
+                ]);
+                continue; // --only-package-sales modunda paket disi hizmet YAZMA
+            }
             $personelId = null;
             if (!empty($tx['staffID'])) $personelId = $this->personelMap[$tx['staffID']] ?? null;
             if (!$personelId && !empty($tx['staff']['full_name'])) {
@@ -1028,6 +1036,13 @@ class SalonrandevuImporter
             } catch (\Throwable $e) {
                 \Log::warning('[Salonrandevu paket] AdisyonPaketler save hata', ['rid' => $rid, 'err' => $e->getMessage()]);
                 continue;
+            }
+            if ($packageOnly) {
+                \Log::info('[Salonrandevu] paket SAVE OK', [
+                    'rid' => $rid, 'saleId' => $saleId,
+                    'paket_id' => $paketId, 'ap_id' => $apkt->id,
+                    'fiyat' => $apkt->fiyat, 'seans' => $totalSeans,
+                ]);
             }
             // APS yaz: her tx -> 1 APS. geldi=NULL (Bekleniyor, Salonrandevu UI ile esit).
             // Her APS'in personel_id'sini transaction.staffID'den al (her seans icin atanan personel).
