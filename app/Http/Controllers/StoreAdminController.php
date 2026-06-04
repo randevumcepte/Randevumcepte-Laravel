@@ -21226,7 +21226,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             }
         }
 
-        return false;//$cakisan_unsurlar;
+        return $cakisan_unsurlar;
     }
     public function cikisyap(Request $request){
         auth('isletmeyonetim')->logout();
