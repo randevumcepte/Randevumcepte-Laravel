@@ -29,6 +29,7 @@ class SalonappyImport extends Command
         {--reset-visits : Tarih araligindaki [salonappy-visit:%] markerli randevu+adisyon+tahsilat+taksit+alacak sil. --from/--to sart.}
         {--from= : Visit aktarim/reset baslangic tarihi YYYY-MM-DD}
         {--to= : Visit aktarim/reset bitis tarihi YYYY-MM-DD}
+        {--fix-rh-saat : Salonun [salonappy:%] veya [salonappy-visit:%] markerli randevularinda RandevuHizmetler.saat/saat_bitis bos olanlari Randevular.saat tabaninda cumulative sure_dk ile yeniden hesapla. --salon zorunlu.}
         {--dry-run : Reset/import oncesi sadece sayim}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
@@ -92,6 +93,10 @@ class SalonappyImport extends Command
         if ((bool) $this->option('reset-salonappy')) {
             if (!$salonId) { $this->error('--reset-salonappy icin --salon zorunlu.'); return 1; }
             return $this->resetSalonappy((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('fix-rh-saat')) {
+            if (!$salonId) { $this->error('--fix-rh-saat icin --salon zorunlu.'); return 1; }
+            return $this->fixRandevuHizmetSaat((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -2533,6 +2538,75 @@ class SalonappyImport extends Command
         }
 
         $this->info("Visit aktarim sonuc: visit=$gVisit adisyon=$gAdisyon randevu=$gRand AH=$gAH AU=$gAU urun-tasinan=$gUrunTasinan paket-usage=$gPaketUsage tahsilat=$gTah alacak=$gAlacak hata=$gHata");
+        return 0;
+    }
+
+    /**
+     * Salonun [salonappy:%] veya [salonappy-visit:%] markerli randevularinda
+     * randevu_hizmetler.saat / saat_bitis NULL olanlari, randevular.saat
+     * tabaninda cumulative sure_dk ile yeniden hesapla.
+     *
+     * Default --dump-file akisindaki controller (salonAppyAdisyonRandevuEkle)
+     * RH.saat/saat_bitis yazmiyordu — bu komut tek seferlik tamir.
+     */
+    private function fixRandevuHizmetSaat($salonId, $dryRun)
+    {
+        $this->info("Salon {$salonId}: RH.saat NULL kayitlari tamir ediliyor" . ($dryRun ? ' (DRY-RUN)' : '') . '...');
+        $rRows = \DB::table('randevular')->where('salon_id', $salonId)
+            ->where(function ($q) {
+                $q->where('personel_notu', 'LIKE', '%[salonappy:%')
+                  ->orWhere('personel_notu', 'LIKE', '%[salonappy-visit:%');
+            })
+            ->select('id', 'saat')
+            ->get();
+        $this->line("Markerli randevu sayisi: " . $rRows->count());
+
+        $totalRh = 0; $guncellenen = 0; $atlananRandevu = 0;
+        foreach (array_chunk($rRows->all(), 500) as $chunk) {
+            $rIds = array_column($chunk, 'id');
+            $rhRows = \DB::table('randevu_hizmetler')
+                ->whereIn('randevu_id', $rIds)
+                ->where(function ($q) {
+                    $q->whereNull('saat')->orWhere('saat', '00:00:00')->orWhere('saat', '');
+                })
+                ->orderBy('randevu_id')->orderBy('id')
+                ->get(['id', 'randevu_id', 'sure_dk']);
+            // randevu_id => [rh, rh, ...] grupla
+            $byRandevu = [];
+            foreach ($rhRows as $rh) {
+                $byRandevu[$rh->randevu_id][] = $rh;
+            }
+            // randevu.saat lookup
+            $saatMap = [];
+            foreach ($chunk as $r) $saatMap[$r->id] = $r->saat;
+
+            foreach ($byRandevu as $rid => $rhList) {
+                $baseSaat = $saatMap[$rid] ?? null;
+                if (!$baseSaat || $baseSaat === '00:00:00' || strlen($baseSaat) < 5) {
+                    $atlananRandevu++; continue;
+                }
+                if (strlen($baseSaat) === 5) $baseSaat .= ':00';
+                $cumSaat = $baseSaat;
+                foreach ($rhList as $rh) {
+                    $totalRh++;
+                    $sureDk = (int) ($rh->sure_dk ?: 30);
+                    if ($sureDk < 1) $sureDk = 30;
+                    $saatBitis = date('H:i:s', strtotime($cumSaat) + $sureDk * 60);
+                    if (!$dryRun) {
+                        \DB::table('randevu_hizmetler')->where('id', $rh->id)->update([
+                            'saat' => $cumSaat,
+                            'saat_bitis' => $saatBitis,
+                            'sure_dk' => $sureDk,
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                    $guncellenen++;
+                    $cumSaat = $saatBitis;
+                }
+            }
+        }
+        $this->info("RH.saat NULL toplam: $totalRh, guncellenen: " . ($dryRun ? '(DRY-RUN)' : $guncellenen)
+            . ", atlanan randevu (saat=NULL/00:00): $atlananRandevu");
         return 0;
     }
 
