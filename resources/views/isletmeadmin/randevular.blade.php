@@ -1,5 +1,17 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
+<script>
+    // V2 (modern) randevu modali artik standart akis. Slot tiklamalari da
+    // v2'ye yonlendirilir (modal-view-event-add-v2.blade.php intercept'i).
+    window.useV2Modal = true;
+</script>
+<style>
+   /* V1 modali tamamen gizle — v2 dependency'leri (window.randevuModalData,
+      hizmetDataCache, paketKontrolu vs.) icin DOM'da kalmasi gerekiyor ama
+      kullaniciya GORUNMEMELI. Intercept v1'in show'unu yakaliyor zaten;
+      bu CSS son guvenlik perdesi. */
+   #modal-view-event-add { display: none !important; }
+</style>
 <style>
    /* Randevu detay popup gorunumu (eskiden her event icin partial'dan tekrar tekrar gomuluyordu, sayfaya bir kez tasindi) */
    .rd-detail { font-size:13.5px; color:#3a2e57; margin:-10px -15px; }
@@ -65,11 +77,8 @@
 </button>
       
       @yetki('randevu.olustur')
-      <a href="#" data-toggle="modal" data-target="#modal-view-event-add" class="btn btn-success btn-lg yenieklebuton">
+      <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2" class="btn btn-lg yenieklebuton" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;">
          <i class="fa fa-plus"></i> Yeni Randevu
-      </a>
-      <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2" class="btn btn-lg" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;margin-left:6px;" title="Yeni tasarım (v2) önizleme">
-         <i class="fa fa-magic"></i> v2
       </a>
       @endyetki
    </div>

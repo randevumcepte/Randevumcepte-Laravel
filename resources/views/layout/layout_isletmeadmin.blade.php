@@ -1212,7 +1212,7 @@
                   <div
                      class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list"
                      style="width: 200px;">
-                     <a class="dropdown-item" href="#" data-toggle="modal" data-target="#modal-view-event-add"
+                     <a class="dropdown-item" href="#" data-toggle="modal" data-target="#modal-view-event-add-v2"
                         ><i class="fa fa-calendar"></i> Yeni Randevu</a>
                      <a class="dropdown-item" href="#" data-toggle="modal" data-target="#ongorusme-modal" onclick="modalbaslikata('Yeni Ön Görüşme','ongorusmeformu')"
                         ><i class="fa fa-calendar"></i> Yeni Ön Görüşme</a>
@@ -4959,7 +4959,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=231.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=232.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
