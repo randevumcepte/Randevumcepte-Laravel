@@ -1892,6 +1892,18 @@ class SalonappyImport extends Command
         }
         $this->line("Mevcut salonappy gider silindi: $silinen. Dump'tan yeniden yazilacak: " . count($exps));
 
+        // Tablo: masraf_kategorileri (MasrafKategorisi model). Kolon: masraf_kategorisi_adi.
+        $katTable = 'masraf_kategorileri';
+        $hasOdemeYontem = \Schema::hasColumn($masTable, 'odeme_yontemi_id');
+        $yontemMap = function ($txt) {
+            $t = mb_strtolower(trim((string)$txt), 'UTF-8');
+            if ($t === '') return 1;
+            if (strpos($t, 'kredi') !== false || strpos($t, 'kart') !== false || strpos($t, 'pos') !== false) return 2;
+            if (strpos($t, 'havale') !== false || strpos($t, 'eft') !== false || strpos($t, 'banka') !== false) return 3;
+            if (strpos($t, 'nakit') !== false) return 1;
+            return 4;
+        };
+
         $eEklenen = 0; $eHata = 0;
         foreach ($exps as $ex) {
             $exId = (string) ($ex['id'] ?? '');
@@ -1902,14 +1914,15 @@ class SalonappyImport extends Command
             $aciklama = trim((string) ($ex['description_raw'] ?? $ex['description'] ?? ''));
             $kategoriAd = trim((string) ($ex['category_text'] ?? ''));
             $harcayanAd = trim((string) ($ex['created_by_name'] ?? $ex['created_by'] ?? ''));
+            $odemeYontemAd = (string) ($ex['payment_method_text'] ?? $ex['payment_method'] ?? '');
 
             try {
                 $kategoriId = null;
                 if ($kategoriAd && $hasKategori) {
-                    $kategoriId = \DB::table('masraf_kategorisi')->where('salon_id', $salonId)
+                    $kategoriId = \DB::table($katTable)->where('salon_id', $salonId)
                         ->where('masraf_kategorisi_adi', $kategoriAd)->value('id');
                     if (!$kategoriId) {
-                        $kategoriId = \DB::table('masraf_kategorisi')->insertGetId([
+                        $kategoriId = \DB::table($katTable)->insertGetId([
                             'salon_id' => $salonId, 'masraf_kategorisi_adi' => $kategoriAd,
                             'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                         ]);
@@ -1927,6 +1940,7 @@ class SalonappyImport extends Command
                 if ($hasAciklama) $row['aciklama'] = $aciklama;
                 if ($kategoriId) $row['masraf_kategori_id'] = $kategoriId;
                 if ($harcayanId) $row['harcayan_id'] = $harcayanId;
+                if ($hasOdemeYontem) $row['odeme_yontemi_id'] = $yontemMap($odemeYontemAd);
                 if ($hasNotlar) $row['notlar'] = $exMarker;
                 \DB::table($masTable)->insert($row);
                 $eEklenen++;
