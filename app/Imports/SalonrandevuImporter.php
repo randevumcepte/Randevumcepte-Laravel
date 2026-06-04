@@ -822,7 +822,16 @@ class SalonrandevuImporter
         if (!$rc) return;
 
         $userId = $this->resolveUser($rc['customer'] ?? []);
-        if (!$userId) { $this->counts['skip']++; return; }
+        if (!$userId) {
+            $this->counts['skip']++;
+            \Log::warning('[Salonrandevu] skip user resolve fail', [
+                'rid' => $rid,
+                'customer_name' => $rc['customer']['full_name'] ?? '?',
+                'customer_phone' => $rc['customer']['phone'] ?? '?',
+                'customer_id' => $rc['customer']['id'] ?? 0,
+            ]);
+            return;
+        }
 
         list($tarih,) = $this->isoBol($rc['created_at'] ?? null);
         if (!$tarih) $tarih = date('Y-m-d');
@@ -922,7 +931,14 @@ class SalonrandevuImporter
         foreach ($pkgInfoBySaleId as $saleId => $info) {
             $paketAdi = $info['adi'] ?: ('Paket #' . $saleId);
             $paketFiyat = $info['fiyat'];
-            if (empty($info['hizmetler'])) continue;
+            if (empty($info['hizmetler'])) {
+                \Log::warning('[Salonrandevu] paket bos hizmetler', [
+                    'rid' => $rid, 'saleId' => $saleId,
+                    'paket_adi' => $paketAdi, 'fiyat' => $paketFiyat,
+                    'tx_count' => count($rc['receipt_transactions'] ?? []),
+                ]);
+                continue;
+            }
             // Master paket: paket_hizmetler her service icin seans=tx_count, fiyat=sum(amount)
             $hzMap = [];
             foreach ($info['hizmetler'] as $svcId => $svcGroup) {
