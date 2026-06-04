@@ -2071,129 +2071,242 @@
     $(document).on('shown.bs.modal',  '#modal-view-event-add', _v2InterceptHandler);
 
     // -------- SUBMIT (proxy to v1) --------
-    $modal.on('click', '#v2_submit_btn', function(){
-        // 1. V1 modalini gorunmez sekilde acmak yerine, mevcut formuna direkt yaz:
-        //    V1 modali sayfada include edilmis durumda, form alanlari DOM'da var.
-        //    V1 submit handler'i jQuery .trigger('submit') ile calistirilacak.
+    // ============================================================
+    // V2 SUBMIT — Her paket AYRI bir randevu kaydi (sequential POST).
+    // V1 proxy yaklasimi tek randevu olusturuyor (backend foreach
+    // randevupersonelleriyeni). Iki paket secince kullanici takvimde
+    // iki ayri blok bekliyor. Bu yuzden her paket card icin ayri
+    // FormData kurup /yenirandevuekle'ye sirayla POST atiyoruz.
+    // Manuel satirlar tek bir randevuda toplaniyor.
+    // ============================================================
+    $modal.on('click', '#v2_submit_btn', function(){ v2SubmitAll(); });
 
-        // Musteri
+    function v2SubmitAll(){
         var musteriId = $musteri.val();
-        if(musteriId){
-            // V1'in select2'sini doldur ve trigger
-            var $v1Musteri = $('#randevuekle_musteri_id');
-            // Eger v1'de option yoksa, ekle
-            if($v1Musteri.find('option[value="'+musteriId+'"]').length === 0){
-                var text = $musteri.find('option:selected').text();
-                $v1Musteri.append(new Option(text, musteriId, true, true));
-            }
-            $v1Musteri.val(musteriId).trigger('change');
+        var tarih = $tarih.val();
+        var saat = $saat.val();
+
+        var paketCards = $services.find('.v2-paket-card').toArray();
+        var manualRows = $services.find('.v2-service-row').not('.v2-paket-card').filter(function(){
+            var vals = $(this).find('.v2-hizmet').val();
+            if(!vals) return false;
+            if(!Array.isArray(vals)) vals = [vals];
+            return vals.filter(function(x){return x;}).length > 0;
+        }).toArray();
+
+        // Validation
+        var errs = [];
+        if(!musteriId) errs.push('Müşteri seçiniz');
+        if(!tarih) errs.push('Tarih seçiniz');
+        if(!saat) errs.push('Saat seçiniz');
+        if(!paketCards.length && !manualRows.length) errs.push('Hizmet seçiniz');
+
+        // Her grup icin personel/cihaz/oda kontrolu (takvim turune gore)
+        var turu = parseInt(window.randevuTakvimTuru || 0, 10);
+        function eksikKaynak($el){
+            var p = $el.find('.v2-personel').val();
+            var c = $el.find('.v2-cihaz').val();
+            var o = $el.find('.v2-oda').val();
+            return (turu === 1) ? !p : !(p || c || o);
         }
-
-        // Tarih ve saat
-        $('#randevutarihiyeni').val($tarih.val()).trigger('change');
-        $('#randevu_saat').val($saat.val()).trigger('change');
-
-        // Not
-        $('#yenirandevuekleform textarea[name="personel_notu"]').val($('#v2_not').val());
-
-        // Tekrarlayan
-        var tek = $('#v2_tekrarlayan').is(':checked');
-        $('#tekrarlayan').prop('checked', tek).trigger('change');
-        if(tek){
-            $('#yenirandevuekleform select[name="tekrar_sikligi"]').val($('#v2_tekrar_sikligi').val());
-            $('#yenirandevuekleform input[name="tekrar_sayisi"]').val($('#v2_tekrar_sayisi').val());
-        }
-
-        // ===== HIZMET SATIRLARI: paket vs manuel ayrimi =====
-        // Paket satirlari: v2 satiri data('v1RowIndices') ile birden fazla v1
-        //   satirini temsil eder. Sadece personel/cihaz/oda kopyalanir; hizmet
-        //   secimi (paket tracking metadata'sini koruyabilmek icin) korunur.
-        // Manuel satirlar: v2 -> yeni v1 satiri (her hizmet ayri satir).
-        var $v1RowsLive = function(){ return $('#modal-view-event-add .hizmet-satiri'); };
-
-        // Phase 1: Paket satirlari - personel/cihaz/oda v1'deki gruplanmis satirlara uygula
-        // VE paket kartlarinda kullanici sure/fiyat'i degistirdiyse orantili olarak dagit
-        $services.find('.v2-service-row').each(function(){
-            var $v2Row = $(this);
-            var v1Indices = $v2Row.data('v1RowIndices');
-            if(!v1Indices || !v1Indices.length) return; // manuel satir, phase 2'de
-            var personelId = $v2Row.find('.v2-personel').val();
-            var cihazId    = $v2Row.find('.v2-cihaz').val();
-            var odaId      = $v2Row.find('.v2-oda').val();
-            v1Indices.forEach(function(v1i){
-                var $v1Row = $v1RowsLive().eq(v1i);
-                if(!$v1Row.length) return;
-                if(personelId) $v1Row.find('.personel-select, .personel_secimi').not('.hizmet-select').val(personelId).trigger('change');
-                if(cihazId)    $v1Row.find('.cihaz-select, .cihaz_secimi').val(cihazId).trigger('change');
-                if(odaId)      $v1Row.find('.oda-select, .oda_secimi').val(odaId).trigger('change');
-            });
-
-            // Sure / Fiyat override (sadece paket kartlarinda)
-            if($v2Row.hasClass('v2-paket-card')){
-                applyPaketSureFiyatOverride($v2Row, v1Indices);
+        var kaynakErrAdded = false;
+        var allGroups = paketCards.concat(manualRows);
+        allGroups.forEach(function(el){
+            if(eksikKaynak($(el)) && !kaynakErrAdded){
+                errs.push(turu === 1 ? 'Her satıra personel seçiniz' : 'Her satıra personel, cihaz veya oda seçiniz');
+                kaynakErrAdded = true;
             }
         });
 
-        // Phase 2: Manuel satirlar - her biri icin v1 satiri olustur ve doldur
-        var manualV2Rows = $services.find('.v2-service-row').filter(function(){
-            var idx = $(this).data('v1RowIndices');
-            return !idx || !idx.length;
-        });
+        if(errs.length){
+            var html = errs.map(function(e){ return '- '+e+'<br>'; }).join('');
+            if(typeof swal !== 'undefined'){
+                swal({type:'warning', title:'Uyarı', html:'Devam etmek için;<br><br>'+html, timer:4000, showConfirmButton:false});
+            } else { alert(html.replace(/<br>/g,'\n')); }
+            return;
+        }
 
-        if(manualV2Rows.length){
-            var existingV1Count = $v1RowsLive().length;
-            // V1'in basinda olustugunda zaten 1 bos satir vardir; manuel sayi kadar lazim
-            // Once mevcut bos satirlari say (hizmet secili olmayan v1 satirlari kullanilabilir)
-            var bosV1Indices = [];
-            $v1RowsLive().each(function(i){
-                var hEl = $(this).find('.hizmet-select')[0];
-                var vals = (hEl && hEl.tomselect) ? hEl.tomselect.getValue() : ($(this).find('.hizmet-select').val() || []);
-                if(!Array.isArray(vals)) vals = vals ? [vals] : [];
-                vals = vals.filter(function(x){ return x; });
-                if(!vals.length) bosV1Indices.push(i);
-            });
-            // Eksik kalan satir sayisini "Yeni Hizmet Ekle" ile uret
-            var needed = manualV2Rows.length - bosV1Indices.length;
-            while(needed > 0){
-                $('#bir_hizmet_daha_ekle').trigger('click');
-                bosV1Indices.push($v1RowsLive().length - 1);
-                needed--;
-                if(bosV1Indices.length > 30) break;
+        var common = {
+            musteriId: musteriId, tarih: tarih, saat: saat,
+            not: $('#v2_not').val() || '',
+            tek: $('#v2_tekrarlayan').is(':checked'),
+            tekSiklik: $('#v2_tekrar_sikligi').val(),
+            tekSayi: $('#v2_tekrar_sayisi').val()
+        };
+
+        var groups = [];
+        paketCards.forEach(function(c){ groups.push({type:'paket', $el: $(c)}); });
+        if(manualRows.length){ groups.push({type:'manual', rows: manualRows}); }
+
+        $('#preloader').show();
+        submitGroupsSeq(groups, 0, common, []);
+    }
+
+    function submitGroupsSeq(groups, idx, common, results){
+        if(idx >= groups.length){
+            $('#preloader').hide();
+            var ok = results.filter(function(r){return r.success;}).length;
+            var fail = results.filter(function(r){return r.error;}).length;
+            var skipped = results.filter(function(r){return r.skipped;}).length;
+            if(ok > 0){
+                $modal.modal('hide');
+                if(typeof takvimyukle === 'function') takvimyukle(false, false);
             }
-
-            manualV2Rows.each(function(mi){
-                var $v2Row = $(this);
-                var hizmetIds = $v2Row.find('.v2-hizmet').val() || [];
-                var personelId = $v2Row.find('.v2-personel').val();
-                var cihazId    = $v2Row.find('.v2-cihaz').val();
-                var odaId      = $v2Row.find('.v2-oda').val();
-
-                var v1i = bosV1Indices[mi];
-                var $v1Row = $v1RowsLive().eq(v1i);
-                if(!$v1Row.length) return;
-
-                var v1HizmetEl = $v1Row.find('.hizmet-select')[0];
-                if(v1HizmetEl && v1HizmetEl.tomselect){
-                    v1HizmetEl.tomselect.setValue(hizmetIds, true);
-                } else if(v1HizmetEl){
-                    $(v1HizmetEl).val(hizmetIds).trigger('change');
+            var summary = ok + ' randevu oluşturuldu';
+            if(skipped) summary += ', ' + skipped + ' atlandı';
+            if(fail) summary += ', ' + fail + ' hata';
+            if(typeof swal !== 'undefined'){
+                swal({type: fail ? 'warning' : 'success', title: fail ? 'Kısmi başarı' : 'Başarılı', text: summary, timer:3500, showConfirmButton:false});
+            }
+            return;
+        }
+        var group = groups[idx];
+        postOneGroup(group, common, false, function(result){
+            if(result.cakismavar){
+                if(typeof swal !== 'undefined'){
+                    swal({
+                        type: 'warning',
+                        title: 'Çakışma — ' + (group.type==='paket' ? ($(group.$el).find('.v2-paket-title').text() || 'Paket') : 'Manuel hizmet'),
+                        background: '#dc2626',
+                        html: '<p style="color:#fff;font-size:15px;margin:8px 0;">Bu randevu aşağıdaki ile çakışıyor:</p>'+result.cakismavar+'<p style="color:#fff;font-size:14px;margin-top:8px;">Yine de oluşturulsun mu?</p>',
+                        showCancelButton: true,
+                        confirmButtonText: 'Evet, oluştur',
+                        cancelButtonText: 'Bu paketi atla',
+                        confirmButtonColor: '#5C008E',
+                        cancelButtonColor: '#666'
+                    }).then(function(confirm){
+                        if(confirm.value){
+                            postOneGroup(group, common, true, function(r2){
+                                results.push(r2.success ? {success:true} : {error:true});
+                                submitGroupsSeq(groups, idx+1, common, results);
+                            });
+                        } else {
+                            results.push({skipped:true});
+                            submitGroupsSeq(groups, idx+1, common, results);
+                        }
+                    });
+                } else {
+                    if(confirm('Çakışma var. Yine de oluştur?')){
+                        postOneGroup(group, common, true, function(r2){
+                            results.push(r2.success ? {success:true} : {error:true});
+                            submitGroupsSeq(groups, idx+1, common, results);
+                        });
+                    } else {
+                        results.push({skipped:true});
+                        submitGroupsSeq(groups, idx+1, common, results);
+                    }
                 }
-                if(personelId) $v1Row.find('.personel-select, .personel_secimi').not('.hizmet-select').val(personelId).trigger('change');
-                if(cihazId)    $v1Row.find('.cihaz-select, .cihaz_secimi').val(cihazId).trigger('change');
-                if(odaId)      $v1Row.find('.oda-select, .oda_secimi').val(odaId).trigger('change');
+            } else if(result.success){
+                results.push({success:true});
+                submitGroupsSeq(groups, idx+1, common, results);
+            } else {
+                results.push({error:true});
+                if(typeof swal !== 'undefined'){
+                    swal({type:'error', title:'Hata', text: result.errorMsg || 'Randevu oluşturulamadı', timer:4000, showConfirmButton:false});
+                }
+                submitGroupsSeq(groups, idx+1, common, results);
+            }
+        });
+    }
+
+    function postOneGroup(group, common, forceCakisma, cb){
+        var formData = new FormData();
+        var csrf = $('input[name="_token"]').first().val() || $('meta[name="csrf-token"]').attr('content') || '';
+        formData.append('_token', csrf);
+        formData.append('sube', '{{ $isletme->id }}');
+        formData.append('adsoyad', common.musteriId);
+        formData.append('tarih', common.tarih);
+        formData.append('saat', common.saat);
+        formData.append('personel_notu', common.not);
+        if(forceCakisma) formData.append('cakisanrandevuekle', '1');
+        if(common.tek){
+            formData.append('tekrarlayan', 'on');
+            formData.append('tekrar_sikligi', common.tekSiklik);
+            formData.append('tekrar_sayisi', common.tekSayi);
+        }
+
+        if(group.type === 'paket'){
+            var $card = group.$el;
+            var personelId = $card.find('.v2-personel').val() || '';
+            var cihazId    = $card.find('.v2-cihaz').val() || '';
+            var odaId      = $card.find('.v2-oda').val() || '';
+            var hizmetIds  = $card.data('hizmetIds') || [];
+            var newSure    = parseFloat($card.find('.v2-paket-sure-input').val()) || 0;
+            var newFiyat   = parseFloat(String($card.find('.v2-paket-fiyat-input').val()||'').replace(',','.')) || 0;
+            var origHizmetler = $card.data('origHizmetler') || [];
+            var origTotalSure  = origHizmetler.reduce(function(s,h){return s+(parseFloat(h.sure)||0);},0);
+            var origTotalFiyat = origHizmetler.reduce(function(s,h){return s+(parseFloat(h.fiyat)||0);},0);
+
+            // Her hizmet = bir satir (key2 = i)
+            hizmetIds.forEach(function(hid, i){
+                formData.append('randevupersonelleriyeni[]', personelId);
+                formData.append('randevucihazlariyeni[]', cihazId);
+                formData.append('randevuodalariyeni[]', odaId);
+                formData.append('randevuhizmetleriyeni_'+i+'[]', hid);
+                formData.append('randevuyardimcipersonelleriyeni_'+i+'[]', '');
+
+                var origH = null;
+                for(var k=0; k<origHizmetler.length; k++){
+                    if(String(origHizmetler[k].id) === String(hid)){ origH = origHizmetler[k]; break; }
+                }
+                if(!origH) origH = {sure:0, fiyat:0};
+                var calcSure = origTotalSure > 0
+                    ? Math.round((parseFloat(origH.sure)||0) * newSure/origTotalSure)
+                    : Math.round(newSure/hizmetIds.length);
+                var calcFiyat = origTotalFiyat > 0
+                    ? ((parseFloat(origH.fiyat)||0) * newFiyat/origTotalFiyat)
+                    : (newFiyat/hizmetIds.length);
+
+                formData.append('hizmet_sureleri-'+hid, calcSure);
+                formData.append('hizmet_fiyatlari-'+hid, calcFiyat.toFixed(2));
+                formData.append('hizmet_miktarlari-'+hid, '1');
+            });
+        } else {
+            // Manuel satirlar (tek bir randevu icinde gruplanir)
+            group.rows.forEach(function(row, i){
+                var $row = $(row);
+                var personelId = $row.find('.v2-personel').val() || '';
+                var cihazId    = $row.find('.v2-cihaz').val() || '';
+                var odaId      = $row.find('.v2-oda').val() || '';
+                var hizmetIds  = $row.find('.v2-hizmet').val() || [];
+                if(!Array.isArray(hizmetIds)) hizmetIds = [hizmetIds];
+
+                formData.append('randevupersonelleriyeni[]', personelId);
+                formData.append('randevucihazlariyeni[]', cihazId);
+                formData.append('randevuodalariyeni[]', odaId);
+                formData.append('randevuyardimcipersonelleriyeni_'+i+'[]', '');
+
+                hizmetIds.forEach(function(hid){
+                    formData.append('randevuhizmetleriyeni_'+i+'[]', hid);
+                    var d = window.hizmetDataCache ? window.hizmetDataCache[hid] : null;
+                    if(d){
+                        formData.append('hizmet_sureleri-'+hid, d.sure || 0);
+                        formData.append('hizmet_fiyatlari-'+hid, (parseFloat(d.fiyat)||0).toFixed(2));
+                        formData.append('hizmet_miktarlari-'+hid, '1');
+                    }
+                });
             });
         }
 
-        // V1 submit handler'ini tetikle
-        setTimeout(function(){
-            // V1 modalini gor; submit oncesi gosterip arka planda calistirilabilir
-            // V1 submit handler #yenirandevuekleform submit event'ine bagli
-            $('#yenirandevuekleform').trigger('submit');
-
-            // Submit basariliysa v2 modal kapanir; backend'in donusu otomatik gosterilir
-            // (v1'in cakisma uyarisi vs. zaten gorunecek)
-        }, 80);
-    });
+        $.ajax({
+            type: 'POST',
+            url: '/isletmeyonetim/yenirandevuekle',
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            success: function(res){
+                if(res && res.cakismavar){ cb({cakismavar: res.cakismavar}); }
+                else { cb({success:true, response: res}); }
+            },
+            error: function(req){
+                var msg = '';
+                try { var j = JSON.parse(req.responseText); msg = j && j.error ? j.error : req.responseText; }
+                catch(e){ msg = req.responseText || ('HTTP '+req.status); }
+                cb({error:true, errorMsg: msg});
+            }
+        });
+    }
 
     // Saat Kapama submit — dogrudan /isletmeyonetim/saatkapamaekle endpoint'ine
     // (V1 saat_kapama formu personel select'i bos kaliyor cunku v1 modal acilmamis
