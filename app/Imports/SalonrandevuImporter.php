@@ -1672,6 +1672,165 @@ class SalonrandevuImporter
 
     // ======================= GIDER =======================
 
+    /**
+     * Salonrandevu masraflarini UPSERT eder.
+     * Endpoint: /company/accounting/expenses?isbetween=true&start=Y-m-d&end=Y-m-d&page=N
+     * Kategori: /company/expense/categories (data.name JSON-encoded string;
+     * decode -> custom_expense_N => ad).
+     */
+    public function importExpensesOnly($from = null, $to = null)
+    {
+        if (!$this->client->getToken()) {
+            $login = $this->client->login();
+            if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
+        }
+        $from = $from ?: '2020-01-01';
+        $to   = $to ?: date('Y-m-d');
+        $this->log("Masraflar cekiliyor (/accounting/expenses {$from}..{$to})...");
+
+        // 1) Kategori map: custom_expense_N => "Kira" / "Maaş" / ...
+        $catMap = $this->loadExpenseCategories();
+        $this->log('Kategori sayisi: ' . count(array_filter($catMap)));
+
+        // 2) UPSERT: salonun TUM [salonrandevu-gider:%] markerli masraflarini sil
+        $eski = DB::table('masraflar')->where('salon_id', $this->salonId)
+            ->where('notlar', 'LIKE', '%[salonrandevu-gider:%')->count();
+        if ($eski > 0) {
+            DB::table('masraflar')->where('salon_id', $this->salonId)
+                ->where('notlar', 'LIKE', '%[salonrandevu-gider:%')->delete();
+            $this->log("Eski markerli masraf silindi: $eski");
+        }
+
+        // 3) Paginated fetch + insert
+        $defaultPersId = Personeller::where('salon_id', $this->salonId)->value('id');
+        $page = 1; $toplam = 0; $toplamTutar = 0.0;
+        while (true) {
+            $j = $this->client->get('/company/accounting/expenses', [
+                'page' => $page, 'isbetween' => 'true',
+                'start' => $from, 'end' => $to,
+            ]);
+            $records = $j['data']['records'] ?? [];
+            if (empty($records)) break;
+            $this->log("Sayfa $page: " . count($records) . ' kayit');
+            foreach ($records as $g) {
+                $gid = (int) ($g['id'] ?? 0);
+                if (!$gid) continue;
+                $marker = '[salonrandevu-gider:' . $gid . ']';
+                list($tarih,) = $this->isoBol($g['transaction_date'] ?? ($g['created_at'] ?? null));
+                $tutar = (float) ($g['amount'] ?? 0);
+                $aciklama = (string) ($g['description'] ?? '');
+
+                // Kategori
+                $jsonId = (string) ($g['json_id'] ?? '');
+                $kategoriAdi = isset($catMap[$jsonId]) && $catMap[$jsonId] !== null
+                    ? trim((string) $catMap[$jsonId]) : $jsonId;
+                if ($kategoriAdi === '') $kategoriAdi = 'Diger';
+                $katId = $this->ensureMasrafKategorisi($kategoriAdi);
+
+                // Harcayan: spender ad -> ensurePersonel
+                $harcayanId = $defaultPersId;
+                $spender = trim((string) ($g['spender'] ?? ''));
+                if ($spender !== '') {
+                    $pid = $this->ensurePersonel($spender);
+                    if ($pid) $harcayanId = $pid;
+                }
+
+                // Ödeme yöntemi: payment_type=0 -> 1 (Nakit), 2 -> 3 (Havale), digerleri 4
+                $payType = (int) ($g['payment_type'] ?? 0);
+                $odemeYontemiId = $payType === 2 ? 3 : ($payType === 0 ? 1 : ($payType >= 1 && $payType <= 5 ? $payType : 4));
+
+                try {
+                    DB::table('masraflar')->insert([
+                        'salon_id' => $this->salonId,
+                        'masraf_kategori_id' => $katId,
+                        'tarih' => $tarih ?: date('Y-m-d'),
+                        'odeme_yontemi_id' => $odemeYontemiId,
+                        'harcayan_id' => $harcayanId,
+                        'tutar' => $tutar,
+                        'aciklama' => $aciklama,
+                        'notlar' => $marker,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $toplam++; $toplamTutar += $tutar;
+                } catch (\Throwable $e) {
+                    \Log::warning('[Salonrandevu] gider insert hata', [
+                        'gid' => $gid, 'err' => $e->getMessage(),
+                    ]);
+                }
+            }
+            $next = (int) ($j['data']['next_page'] ?? 0);
+            if (!$next || $next === $page) break;
+            $page = $next;
+        }
+        $this->counts['gider'] = ($this->counts['gider'] ?? 0) + $toplam;
+        $this->log("Masraf yazma tamam: $toplam adet ($toplamTutar TL)");
+    }
+
+    public function reportExpenses($from = null, $to = null)
+    {
+        if (!$this->client->getToken()) {
+            $login = $this->client->login();
+            if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
+        }
+        $from = $from ?: '2020-01-01';
+        $to   = $to ?: date('Y-m-d');
+        $srSayi = 0; $srTutar = 0.0; $srTotalApi = 0.0;
+        $page = 1;
+        while (true) {
+            $j = $this->client->get('/company/accounting/expenses', [
+                'page' => $page, 'isbetween' => 'true',
+                'start' => $from, 'end' => $to,
+            ]);
+            $records = $j['data']['records'] ?? [];
+            if (empty($records)) break;
+            if ($page === 1) $srTotalApi = (float) ($j['data']['total_expense'] ?? 0);
+            foreach ($records as $r) {
+                $srSayi++;
+                $srTutar += (float) ($r['amount'] ?? 0);
+            }
+            $next = (int) ($j['data']['next_page'] ?? 0);
+            if (!$next || $next === $page) break;
+            $page = $next;
+        }
+        $this->log("SR masraf sayisi: $srSayi");
+        $this->log("SR toplam (records): $srTutar TL");
+        $this->log("SR total_expense (API): $srTotalApi TL");
+        $dbRows = DB::table('masraflar')->where('salon_id', $this->salonId)
+            ->where('notlar', 'LIKE', '%[salonrandevu-gider:%')
+            ->whereBetween('tarih', [$from, $to])
+            ->get(['id', 'tutar']);
+        $dbSayi = $dbRows->count();
+        $dbTutar = (float) $dbRows->sum('tutar');
+        $this->log("Bizdeki SR masraf sayisi: $dbSayi");
+        $this->log("Bizdeki toplam tutar: $dbTutar TL");
+        $this->log("Fark (SR-DB): " . ($srTutar - $dbTutar) . " TL");
+    }
+
+    private function loadExpenseCategories()
+    {
+        $j = $this->client->get('/company/expense/categories');
+        $raw = $j['data']['name'] ?? null;
+        if (!$raw) return [];
+        // SR data.name = JSON-encoded string (escape'lı). decode et.
+        $map = is_string($raw) ? json_decode($raw, true) : (is_array($raw) ? $raw : []);
+        return is_array($map) ? $map : [];
+    }
+
+    private function ensureMasrafKategorisi($kategoriAdi)
+    {
+        $kategoriAdi = trim((string) $kategoriAdi);
+        if ($kategoriAdi === '') return null;
+        // masraf_kategorileri GLOBAL tablo (salon_id YOK), kolon: kategori
+        $row = DB::table('masraf_kategorileri')->where('kategori', $kategoriAdi)->first();
+        if ($row) return $row->id;
+        return DB::table('masraf_kategorileri')->insertGetId([
+            'kategori' => $kategoriAdi,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
     public function importGiderler($from = null, $to = null)
     {
         $from = $from ?: '2020-01-01';

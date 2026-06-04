@@ -26,6 +26,8 @@ class SalonrandevuImport extends Command
         {--report-package-payments : SR paket fis odenen toplam vs DB SR-payment markerli Tahsilatlar toplami karsilastir.}
         {--only-other-receipts : Paket-disi receipt\'leri (/receipts/opened) aktar — hizmet+urun satislari + tahsilatlari + dagilim (TahsilatHizmetler/TahsilatUrunler). Tek flag, kompozit akis.}
         {--report-other-receipts : Paket-disi receipt karsilastirma raporu (SR vs DB).}
+        {--only-expenses : Masraflari aktar (/accounting/expenses paginated + /expense/categories ad map). UPSERT.}
+        {--report-expenses : SR masraflar vs DB masraflar karsilastirma.}
         {--start-page= : --only-other-receipts icin baslangic sayfa (resume). Default 1.}
         {--max-page= : --only-other-receipts icin son sayfa (inclusive). Belirtilmezse SR\'nin next_page=0 donene kadar.}
         {--dry-run : Reset oncesi sayim}';
@@ -158,6 +160,19 @@ class SalonrandevuImport extends Command
         // --report-other-receipts: karsilastirma raporu
         if ((bool) $this->option('report-other-receipts')) {
             $importer->reportOtherReceipts();
+            return 0;
+        }
+
+        // --only-expenses: masraflar
+        if ((bool) $this->option('only-expenses')) {
+            $importer->importExpensesOnly($this->option('from'), $this->option('to'));
+            $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+            return 0;
+        }
+
+        // --report-expenses: masraf raporu
+        if ((bool) $this->option('report-expenses')) {
+            $importer->reportExpenses($this->option('from'), $this->option('to'));
             return 0;
         }
 
