@@ -11343,6 +11343,10 @@ $('#cihaz_tablo').on('click','button[name="cihaz_siralamayi_bir_asagi_tasi"]',fu
 
 
 $(document).on('click','a[name="tahsil_et"]',function(e){
+    e.preventDefault();
+    // Once arkadaki randevu detay swal'ini kapat
+    try { swal.close(); } catch(err) {}
+    try { if(typeof Swal !== 'undefined') Swal.close(); } catch(err) {}
     var randevu_id = $(this).attr('data-value');
      $.ajax({
                                     type: "POST",
@@ -21586,6 +21590,9 @@ $(document).on('click','#alacaklar_listeme_git',function(e){
 })
 $(document).on('click','a[name="paket_tahsilatlari"]',function(e){
     e.preventDefault();
+    // Once arkadaki randevu detay swal'ini kapat — yoksa iki modal usteke ust kalir
+    try { swal.close(); } catch(err) {}
+    try { if(typeof Swal !== 'undefined') Swal.close(); } catch(err) {}
      $.ajax({
             type:"GET",
             url:'/isletmeyonetim/paketTahsilatlari',
