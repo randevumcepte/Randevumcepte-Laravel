@@ -887,9 +887,60 @@ echo 'SR-payment markerli Tahsilatlar: ' .
   --proxy=http://user:pass@host:port
 ```
 
-### Eski/legacy aktarım (deprecated — modüler akışı tercih edin)
+### Adım 0 — Kurulum kayıtları + randevular (`--only=...`)
 
-`--only=musteri,hizmet,personel,randevu,tahsilat,paket,urun,gider` ile tek-seferlik full akış mevcut (`SalonrandevuImporter.importPersonel()`, `importHizmetler()`, vs.) ama modüler akış (Adım 1+2+3) daha güvenli; her aşamada rapor ile doğrulama yapılır.
+Modüler akış (Adım 1-4) sadece **adisyon/tahsilat/masraf** seviyesinde çalışır — müşteri/personel/hizmet/ürün **inline** yaratılır (`resolveUser`, `ensureHizmet`, `ensurePersonel`, `ensureUrun`). Ancak **takvim randevuları** ayrı endpoint'tedir (`/company/appointment/list`) ve modüler akışta yer almaz. Randevu importu + master kayıtları toplu çekme için `--only=` flag'i kullanılır.
+
+```bash
+# Kurulum kayıtları (master listeler — modüler akıştan önce de çalıştırılabilir)
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 \
+    --only=personel,hizmet,urun,musteri
+
+# Sadece randevular (takvim)
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --only=randevu
+
+# Tam aktarım (eski default tek-seferlik akış — receipt+gider modüler akışı tercih edin)
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195
+# = --only=personel,hizmet,urun,musteri,randevu,receipt,gider
+```
+
+| `--only` değeri | Method | Endpoint | Veri |
+|---|---|---|---|
+| `personel` | `importPersoneller()` | `/company/employees` | `Personeller` (`ensurePersonel`) |
+| `hizmet` | `importHizmetler()` | `/company/services` | `Hizmetler` + kategori |
+| `urun` | `importUrunler()` | `/company/stock_items` | `Urunler` |
+| `musteri` | `importMusteriler()` | `/company/customers?extra=1&page=N` paginated | `users` + `musteri_portfoy` (`aktarimMusteriKontrol`) |
+| `randevu` | `importRandevular()` | `/company/appointment/list` paginated | `Randevular` + `RandevuHizmetler` + adisyon iskeleti |
+| `receipt`, `tahsilat`, `paket` | `importReceipts(from, to)` | `/company/receipts/list` + `/company/receipt/{id}` | **legacy karışık akış** — Adım 1+2+3'ü tercih et |
+| `gider` | `importGiderler(from, to)` | (eski kod: broken pagination + kategori eksik) | **legacy** — Adım 4'ü tercih et |
+
+#### Randevu akışı (`importRandevular`)
+
+- `/company/appointment/list` paginated (`page=N`, `next_page` var)
+- Her appointment için `processOneAppointment($appt)`:
+  - `resolveUser(appt.customer)` → user_id
+  - `Randevular` insert/update: `tarih=appointment_date`, `saat=appointment_time`, `durum=1`
+  - Marker `[salonrandevu:appointmentId]` `randevular.personel_notu`
+  - Her `appt.transactions[]` (hizmet) için `RandevuHizmetler` + `AdisyonHizmetler` insert; `geldi` ← `customer_state` map
+- **`customer_state` map**: `0`=Bekleniyor (`geldi=null`), `1`=Geldi (`1`), `2`=Gelmedi (`0`)
+- **6x backoff retry**: `SalonrandevuClient.get` bağlantı koparsa exponential backoff
+
+**Modüler akışla ilişki**: Randevu kaynağındaki `appointment_id` ile receipt kaynağındaki `receipt_id` (rid) **farklı pool'dan**. Modüler Adım 1-3 receipt'leri işler (paket/hizmet/ürün satış+tahsilat); Adım 0'daki randevu akışı takvim görünümü içindir, satış zincirine değmez.
+
+#### Önerilen sıra (boş salon → full sync)
+
+```
+1) --only=personel,hizmet,urun,musteri   # master kayıtlar (opsiyonel; modüler akış inline de yaratıyor)
+2) --only=randevu                        # takvim
+3) --only-package-sales + --only-package-payments  # Adım 1+2 (paket fişleri)
+4) --only-other-receipts                 # Adım 3 (paket-dışı receipt'ler — ~2 saat, nohup öner)
+5) --only-expenses                       # Adım 4 (giderler)
+```
+
+Her adımdan sonra ilgili `--report-*` ile doğrulayın.
 
 ### Sunucu dump (debug için)
 
