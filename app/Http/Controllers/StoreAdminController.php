@@ -14310,7 +14310,7 @@ DB::raw('
                            '.AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',null)->count().'&nbsp;
                             <i class="fa fa-calendar"></i></button>
                            <button name="paketteki_seanslari_geldi_isaretle" type="button" class="btn btn-success">
-                           '.((int) AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->sum('dusulen_miktar')).'&nbsp;
+                           '.AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->count().'&nbsp;
                             <i class="fa fa-check"></i></button>
                            <button name="paketteki_seanslari_geldi_isaretle" type="button" class="btn btn-danger">
                            '.AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',false)->count().'&nbsp;
@@ -19866,7 +19866,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                                        ".AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',null)->count()."&nbsp;
                                         <i class='fa fa-calendar'></i></button>
                                        <button name='paketteki_seanslari_geldi_isaretle' title='Geldi' class='btn btn-success'>
-                                       ".((int) AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->sum('dusulen_miktar'))."&nbsp;
+                                       ".AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',true)->count()."&nbsp;
                                         <i class='fa fa-check'></i></button>
                                        <button name='paketteki_seanslari_gelmedi_isaretle' title='Gelmedi' class='btn btn-danger'>
                                        ".AdisyonPaketSeanslar::where('adisyon_paket_id',$paket->id)->where('geldi',false)->count()." &nbsp;
@@ -27060,18 +27060,12 @@ DB::raw('
     foreach($randevuOlusturulmamisHizmetAdisyonuVarmi as $hizmetSeanslari) {
         foreach($hizmetSeanslari->hizmetler as $hizmetA) {
             if (!$hizmetA->hizmet) continue;
-            // Seans takibi formulu (8590-8622): toplam - kullanilan(geldi=1) - kullanilmayan(geldi=0)
-            // dusulen_miktar destegi: kullanilan SUM ile hesaplanir (1 satir N seans/dakika dusebilir)
+            // KALAN = toplam - adisyon_paket_seanslar KAYIT SAYISI (her kayit 1 seans; geldi/beklemede farketmez).
             $toplamSeansHizmet = (int)($hizmetA->seans_sayisi ?? $hizmetA->bekleyen_seans ?? 0);
             $kullanilanHizmet = (int) DB::table('adisyon_paket_seanslar')
                 ->where('adisyon_hizmet_id', $hizmetA->id)
-                ->where('geldi', 1)
-                ->sum('dusulen_miktar');
-            $kullanilmayanHizmet = DB::table('adisyon_paket_seanslar')
-                ->where('adisyon_hizmet_id', $hizmetA->id)
-                ->where('geldi', 0)
                 ->count();
-            $kalanSeansHizmet = max(0, $toplamSeansHizmet - $kullanilanHizmet - $kullanilmayanHizmet);
+            $kalanSeansHizmet = max(0, $toplamSeansHizmet - $kullanilanHizmet);
             if ($kalanSeansHizmet <= 0) continue; // Tukenmis hizmetleri popup'a hic dahil etme
 
             $hizmetAdi = $hizmetA->hizmet->hizmet_adi;
@@ -27120,18 +27114,13 @@ DB::raw('
             $hizmetSayisi = $paketA->paket->hizmetler ? count($paketA->paket->hizmetler) : 0;
             if ($hizmetSayisi <= 0) continue;
             // Round basina seans sayisi (adisyon_paketler.seans_sayisi)
-            // dusulen_miktar destegi: kullanilan SUM ile hesaplanir
+            // KALAN = toplam - adisyon_paket_seanslar KAYIT SAYISI (her kayit 1 seans).
             $seansPerHizmet = (int)($paketA->seans_sayisi ?? $paketA->bekleyen_seans ?? 0);
             $toplamSeansPaket = $seansPerHizmet * $hizmetSayisi;
             $kullanilanPaket = (int) DB::table('adisyon_paket_seanslar')
                 ->where('adisyon_paket_id', $paketA->id)
-                ->where('geldi', 1)
-                ->sum('dusulen_miktar');
-            $kullanilmayanPaket = DB::table('adisyon_paket_seanslar')
-                ->where('adisyon_paket_id', $paketA->id)
-                ->where('geldi', 0)
                 ->count();
-            $bekleyenToplamPaket = $toplamSeansPaket - $kullanilanPaket - $kullanilmayanPaket;
+            $bekleyenToplamPaket = $toplamSeansPaket - $kullanilanPaket;
             // Per-hizmet kalan = bekleyen / hizmet sayisi
             $kalanSeansPaket = max(0, (int)floor($bekleyenToplamPaket / $hizmetSayisi));
             if ($kalanSeansPaket <= 0) continue; // Tukenmis paketleri popup'a dahil etme
