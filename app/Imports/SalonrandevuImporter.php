@@ -57,6 +57,87 @@ class SalonrandevuImporter
     public function summary() { return $this->counts; }
 
     /**
+     * --report-package-sales: Salonrandevu /receipts/packets ile bizdeki paket adisyonlarini karsilastir.
+     * Hicbir DB degisikligi yapmaz; sadece sayim+eksik liste.
+     */
+    public function reportPackageSales()
+    {
+        if (!$this->client->getToken()) {
+            $login = $this->client->login();
+            if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
+        }
+        $srRecords = [];
+        $page = 1;
+        while (true) {
+            $j = $this->client->get('/company/receipts/packets', ['page' => $page, 'order' => 0]);
+            $records = $j['data']['records'] ?? [];
+            if (empty($records)) break;
+            foreach ($records as $r) {
+                $rid = (int) ($r['id'] ?? 0);
+                if (!$rid) continue;
+                $srRecords[$rid] = [
+                    'all_amount' => (float) ($r['all_amount'] ?? 0),
+                    'paid' => (float) ($r['paid'] ?? 0),
+                    'debt' => (float) ($r['debt'] ?? 0),
+                    'full_name' => trim((string) ($r['full_name'] ?? '')),
+                    'info' => trim((string) ($r['info'] ?? '')),
+                    'created_at' => $r['created_at'] ?? '',
+                ];
+            }
+            $next = (int) ($j['data']['next_page'] ?? 0);
+            if (!$next || $next === $page) break;
+            $page = $next;
+        }
+        $srSayi = count($srRecords);
+        $srTutar = array_sum(array_column($srRecords, 'all_amount'));
+        $srOdenen = array_sum(array_column($srRecords, 'paid'));
+        $this->log("Salonrandevu paket fis sayisi: $srSayi");
+        $this->log("Salonrandevu toplam tutar: $srTutar TL (odenen: $srOdenen TL)");
+
+        // Bizdeki: [salonrandevu:rid] markerli adisyonlarin AdisyonPaketler'i
+        $adisyonTable = (new Adisyonlar)->getTable();
+        $markerCol = null;
+        foreach (['aciklama', 'adisyon_notu', 'genel_aciklama', 'notlar', 'not'] as $col) {
+            if (\Schema::hasColumn($adisyonTable, $col)) { $markerCol = $col; break; }
+        }
+        if (!$markerCol) { $this->log('Marker kolonu yok.'); return; }
+
+        $bizdekiRids = [];
+        $bizdekiTutar = 0.0;
+        $rows = DB::table($adisyonTable)->where('salon_id', $this->salonId)
+            ->where($markerCol, 'LIKE', '%[salonrandevu:%')
+            ->get(['id', $markerCol]);
+        foreach ($rows as $r) {
+            if (!preg_match('~\[salonrandevu:(\d+)\]~', (string) $r->{$markerCol}, $mm)) continue;
+            $rid = (int) $mm[1];
+            $apFiyat = DB::table('adisyon_paketler')->where('adisyon_id', $r->id)->sum('fiyat');
+            if ($apFiyat > 0) {
+                $bizdekiRids[$rid] = (float) $apFiyat;
+                $bizdekiTutar += (float) $apFiyat;
+            }
+        }
+        $bizdekiSayi = count($bizdekiRids);
+        $this->log("Bizdeki paket adisyon sayisi (AdisyonPaketler dolu): $bizdekiSayi");
+        $this->log("Bizdeki toplam tutar: $bizdekiTutar TL");
+
+        $eksikler = array_diff_key($srRecords, $bizdekiRids);
+        $fazlalar = array_diff_key($bizdekiRids, $srRecords);
+        $eksikTutar = array_sum(array_column($eksikler, 'all_amount'));
+        $this->log("DB'de EKSIK olan (Salonrandevu'da var, bizde yok): " . count($eksikler) . " (toplam $eksikTutar TL)");
+        $this->log("DB'de FAZLA olan (bizde var, Salonrandevu'da yok): " . count($fazlalar));
+
+        if (!empty($eksikler)) {
+            $this->log("\n=== EKSIK paket fisleri (ilk 30) ===");
+            $i = 0;
+            foreach ($eksikler as $rid => $r) {
+                if ($i++ >= 30) break;
+                $this->log("  #$rid {$r['created_at']} | {$r['full_name']} | {$r['all_amount']} TL | {$r['info']}");
+            }
+        }
+        $this->log("\nOzet: SR=$srSayi DB=$bizdekiSayi eksik=" . count($eksikler) . " fazla=" . count($fazlalar));
+    }
+
+    /**
      * --only-package-sales: /company/receipts/packets paginated tara, her receipt id icin
      * /company/receipt/{id} detayi cek, paket akisini UPSERT'le yaz. Hizmet/urun/tahsilat YAZILMAZ.
      * (Adim 1: paket satislari ayri akis — sonraki adimlar: tahsilat, hizmet, randevu, gider.)
