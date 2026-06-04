@@ -361,17 +361,17 @@
     margin-bottom: 2px;
 }
 .ea-task-top h4 {
-    font-size: 13.5px; font-weight: 700; margin: 0; color: var(--ink);
+    font-size: 14.5px; font-weight: 700; margin: 0; color: var(--ink);
 }
 .ea-task-time {
-    font-size: 12px; font-weight: 700;
+    font-size: 12.5px; font-weight: 700;
     color: var(--brand); white-space: nowrap;
     background: var(--brand-soft);
-    padding: 2px 8px; border-radius: 999px;
+    padding: 3px 9px; border-radius: 999px;
 }
 .ea-task-msg {
-    font-size: 12.5px; color: var(--ink-2);
-    margin: 0; line-height: 1.45;
+    font-size: 14px; color: var(--ink-2);
+    margin: 2px 0 0; line-height: 1.5;
 }
 .ea-task-meta {
     display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
