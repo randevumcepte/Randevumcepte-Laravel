@@ -239,6 +239,8 @@ class PlanlaImporter
             if (!$title) continue;
             $sure = (int) (isset($row['time']) ? $row['time'] : 30);
             if ($sure <= 0) $sure = 30;
+            // Planla'da bazi hizmetler 1 dk (placeholder); UI/takvim icin min 15 dk
+            if ($sure < 15) $sure = 15;
             $fiyat = 0;
             if (isset($row['price']) && $row['price'] !== '') {
                 $fiyat = (float) preg_replace('/[^0-9.]/', '', str_replace(',', '.', (string) $row['price']));
@@ -457,6 +459,8 @@ class PlanlaImporter
                 $sh = SalonHizmetler::where('salon_id', $this->salonId)->where('hizmet_id', $localHizmetId)->first();
                 $sure = $sh ? (int) $sh->sure_dk : 30;
                 if ($sure <= 0) $sure = 30;
+                // Planla'da bazi hizmetler 1 dk; min 15 dk (randevu cakismasi olmasin)
+                if ($sure < 15) $sure = 15;
                 $fiyatVarsayilan = $sh ? (float) $sh->baslangic_fiyat : 0;
                 $bitis = date('H:i:s', strtotime('+' . $sure . ' minutes', strtotime($baslangic)));
 
