@@ -2150,7 +2150,7 @@
             var skipped = results.filter(function(r){return r.skipped;}).length;
             if(ok > 0){
                 $modal.modal('hide');
-                if(typeof takvimyukle === 'function') takvimyukle(false, false);
+                if(typeof takvimyukle === 'function') takvimyukle(true, true);
             }
             var summary = ok + ' randevu oluşturuldu';
             if(skipped) summary += ', ' + skipped + ' atlandı';
@@ -2364,7 +2364,7 @@
                     swal({ type:'success', title:'Başarılı', text:msg, timer:2000, showConfirmButton:false });
                 }
                 $modal.modal('hide');
-                if(typeof takvimyukle === 'function'){ takvimyukle(false,false); }
+                if(typeof takvimyukle === 'function'){ takvimyukle(true,true); }
             },
             error: function(req){
                 $('#preloader').hide();
