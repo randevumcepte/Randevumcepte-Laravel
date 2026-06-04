@@ -195,9 +195,26 @@ class SalonrandevuImport extends Command
 
         if ($aIds->count()) {
             $ahIds = \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $aIds)->pluck('id');
+            // APS iki sekilde bagli: adisyon_hizmet_id (eski mantik) VEYA adisyon_paket_id (yeni paket mantigi)
             if ($ahIds->count()) \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ahIds)->delete();
+            $apIds = \DB::table('adisyon_paketler')->whereIn('adisyon_id', $aIds)->pluck('id');
+            if ($apIds->count()) \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_paket_id', $apIds)->delete();
             \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $aIds)->delete();
             \DB::table('adisyon_urunler')->whereIn('adisyon_id', $aIds)->delete();
+            \DB::table('adisyon_paketler')->whereIn('adisyon_id', $aIds)->delete();
+        }
+        // Adisyon silinmis ama AdisyonPaketler/APS orphan kalmis olabilir (eski reset bug'i):
+        // salon paketlerinden orphan AdisyonPaketler temizle (adisyon_id artik adisyonlar'da yoksa)
+        $orphanApIds = \DB::table('adisyon_paketler as ap')
+            ->leftJoin('adisyonlar as a', 'a.id', '=', 'ap.adisyon_id')
+            ->whereNull('a.id')
+            ->join('paketler as p', 'p.id', '=', 'ap.paket_id')
+            ->where('p.salon_id', $salonId)
+            ->pluck('ap.id');
+        if ($orphanApIds->count()) {
+            \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_paket_id', $orphanApIds)->delete();
+            \DB::table('adisyon_paketler')->whereIn('id', $orphanApIds)->delete();
+            $this->line("Orphan AdisyonPaketler temizlendi: " . $orphanApIds->count());
         }
         if ($tIds->count()) \DB::table('tahsilatlar')->whereIn('id', $tIds)->delete();
         if ($aIds->count()) \DB::table('adisyonlar')->whereIn('id', $aIds)->delete();
