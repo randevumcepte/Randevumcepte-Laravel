@@ -839,11 +839,41 @@ class SalonrandevuImporter
                 'pkg_count' => $pkgCnt,
                 'tx_count' => $txCnt,
             ]);
-            if ($pkgCnt === 0 && !empty($opts['rec'])) {
-                \Log::warning('[Salonrandevu] paket DETAYDA YOK — paginated rec dump', [
-                    'rid' => $rid,
-                    'rec_keys' => array_keys($opts['rec']),
-                    'rec' => $opts['rec'],
+            // FALLBACK: eski 2023 paketleri /receipt/{id} detayinda receipt_packages=[] doner,
+            // ama paginated /receipts/packets listesinde is_package=true ile gelir + tx'ler dolu.
+            // Bu durumda paginated rec'ten sentetik paket master uret + tx'leri buna bagla.
+            if ($pkgCnt === 0 && $txCnt > 0 && !empty($opts['rec']) && !empty($opts['rec']['is_package'])) {
+                $rec = $opts['rec'];
+                // Customer detay bos ise paginated rec.full_name kullan
+                if (empty($rc['customer']) || empty($rc['customer']['full_name'])) {
+                    $rc['customer'] = is_array($rc['customer'] ?? null) ? $rc['customer'] : [];
+                    $rc['customer']['full_name'] = $rec['full_name'] ?? ($rc['customer']['full_name'] ?? '');
+                }
+                // info'nun ilk satirini paket adi olarak al (multi-line: "Lazer ( 3 Bölge )\nDIGER URUNLER")
+                $infoStr = trim((string) ($rec['info'] ?? ''));
+                $paketAdiSentez = $infoStr;
+                if (strpos($infoStr, "\n") !== false) {
+                    $paketAdiSentez = trim(strstr($infoStr, "\n", true));
+                }
+                if ($paketAdiSentez === '') $paketAdiSentez = 'Paket #' . $rid;
+                $syntheticSaleId = $rid; // benzersiz fallback id
+                $rc['receipt_packages'] = [[
+                    'id'           => $syntheticSaleId,
+                    'package_name' => $paketAdiSentez,
+                    'packet_id'    => 0,
+                    'amount'       => (float) ($rec['all_amount'] ?? 0),
+                    'paid_amount'  => (float) ($rec['paid'] ?? 0),
+                    'staff_id'     => 0,
+                ]];
+                // Tx'lerin hicbirinde receipt_package_id yok — hepsini sentetik paket altina sok
+                $rc['receipt_transactions'] = array_map(function ($tx) use ($syntheticSaleId) {
+                    $tx['receipt_package_id'] = $syntheticSaleId;
+                    return $tx;
+                }, $rc['receipt_transactions'] ?? []);
+                $rc['is_package'] = true;
+                \Log::info('[Salonrandevu] paket FALLBACK sentez', [
+                    'rid' => $rid, 'paket_adi' => $paketAdiSentez,
+                    'fiyat' => $rec['all_amount'] ?? 0, 'tx_count' => $txCnt,
                 ]);
             }
         }
