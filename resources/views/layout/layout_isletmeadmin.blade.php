@@ -1161,7 +1161,7 @@
                   : 'WhatsApp Bağlı Değil — tıklayın, QR ile bağlayın';
             @endphp
             <div class="user-notification" style="padding:20px 0 0 0" id="whatsappDurumKutu">
-               <a href="{{ url('/isletmeyonetim/whatsapp') }}"
+               <a href="/isletmeyonetim/whatsapp{{ isset($_GET['sube']) ? '?sube='.$isletme->id : '' }}"
                   class="btn"
                   title="{{ $waTitle }}"
                   style="background:{{ $waBagli ? '#25D366' : '#DC2626' }};color:#fff;padding:5px 9px;border:none;display:inline-flex;align-items:center;gap:6px;">
@@ -1293,7 +1293,7 @@
                   @endif
                   </span>
                   </a>
-                  <div class="dropdown-menu dropdown-menu-left rc-notif-dropdown">
+                  <div class="dropdown-menu dropdown-menu-right rc-notif-dropdown">
                      <div class="rc-notif-card">
                         <div class="rc-notif-head">
                            <div class="rc-notif-title">
@@ -1327,9 +1327,9 @@
                                  <a href="{{ $bildirim->url }}" name="bildirim" data-index-number="{{ $bildirim->id }}" data-value="{{ $bildirim->randevu_id }}" class="rc-notif-link">
                                     <div class="rc-notif-avatar">
                                        @if(!empty($bildirim->img_src))
-                                          <img src="{{ $bildirim->img_src }}" alt="">
+                                          <img src="{{ $bildirim->img_src }}" alt="" loading="lazy" decoding="async">
                                        @else
-                                          <img src="/public/isletmeyonetim_assets/img/avatar.png" alt="">
+                                          <img src="/public/isletmeyonetim_assets/img/avatar.png" alt="" loading="lazy" decoding="async">
                                        @endif
                                        @if(!$bildirim->okundu)
                                           <span class="rc-notif-dot"></span>
@@ -5131,7 +5131,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=236.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=237.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
