@@ -419,6 +419,34 @@ class SalonrandevuImporter
             $uid = DB::table('users')->where('cep_telefon', $tel)->value('id');
             if ($uid) { if ($srId) $this->musteriMap[$srId] = $uid; return $uid; }
         }
+        // Inline create: receipt detayinda customer.name/surname/phone var ise
+        // ApiController.aktarimMusteriKontrol ile musteri yarat veya bul.
+        $ad = trim((string) ($srCustomer['name'] ?? ''));
+        $soyad = trim((string) ($srCustomer['surname'] ?? ''));
+        $fullName = trim($ad . ' ' . $soyad) ?: trim((string) ($srCustomer['full_name'] ?? ''));
+        if ($fullName === '' && !$tel) return null;
+        try {
+            $apiController = app(\App\Http\Controllers\ApiController::class);
+            $req = new \Illuminate\Http\Request([
+                'musteriAdi'  => $fullName ?: ($tel ?: 'İsimsiz'),
+                'telefon'     => $tel,
+                'ePosta'      => $srCustomer['email'] ?? '',
+                'dogumTarihi' => $srCustomer['birthday'] ?? '',
+                'cinsiyet'    => isset($srCustomer['sex']) ? ($srCustomer['sex'] == 1 ? 'Erkek' : 'Kadın') : '',
+                'notlar'      => $srCustomer['description'] ?? '',
+                'medeniDurum' => '', 'meslek' => '', 'adres' => '',
+                'kayitTarihi' => $srCustomer['created_at'] ?? '',
+                'salonId'     => $this->salonId,
+            ]);
+            $resp = $apiController->aktarimMusteriKontrol($req);
+            $uid = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
+            if ($uid && ctype_digit($uid)) {
+                if ($srId) $this->musteriMap[$srId] = (int) $uid;
+                return (int) $uid;
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('[Salonrandevu] inline musteri', ['err' => $e->getMessage()]);
+        }
         return null;
     }
 
