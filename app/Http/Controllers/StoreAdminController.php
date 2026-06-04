@@ -3601,26 +3601,24 @@ public function carkverilerigetir(Request $request)
     });
 
     // ============================================================
-    // PAKET MERGE: Bir randevu'da paket seanslari varsa, o randevu'nun
-    // tum hizmetlerini TEK event'e birlestir (kullanici takvimde paketi
-    // tek blok olarak gormek istiyor; ic hizmetler ayri ayri seans
-    // dusumune ayri popup'tan erisilebiliyor).
+    // RANDEVU MERGE: Bir Randevular kaydina ait tum RandevuHizmetler'i
+    // TEK event'e birlestir (kullanici takvimde her randevu icin tek
+    // blok gormek istiyor; ic hizmetler/seanslar ayri popup'tan
+    // (detay/duzenle/geldi/tahsilat) erisilebiliyor).
+    //
     // - randevuId bazinda grupla
-    // - Eger randevu paket randevusu ise (randevuIdsHasSeans'da varsa):
-    //   * Ilk hizmetin event'ini al
-    //   * end = grubun max end'i (paketin gercek bitisi)
-    //   * Diger hizmetlerin event'lerini at
-    // - Paket olmayan randevular icin orijinal davranis (hizmet basina
-    //   ayri event) korunur — birlestir checkbox'lariyle birlesik
-    //   gostermeyi bozmamak icin.
+    // - Bir grup birden fazla event iceriyorsa: ilk event temel alinir,
+    //   end = max end (gercek randevu bitisi), digerleri atilir
+    // - Paket flag bagimsiz: AdisyonPaketSeanslar kayitlari "Geldi"
+    //   isaretlenirken silinse bile (selective seans modu), v2 multi-POST
+    //   her paket icin ayri Randevular yarattigi icin grupping yine
+    //   paket sinirlariyla ortusur.
     // ============================================================
-    if($randevuIdsHasSeans instanceof \Illuminate\Support\Collection && $randevuIdsHasSeans->count() > 0){
-        $grouped = collect($randevu_hizmetler)->groupBy('randevuId');
+    if($randevu_hizmetler instanceof \Illuminate\Support\Collection && $randevu_hizmetler->count() > 0){
+        $grouped = $randevu_hizmetler->groupBy('randevuId');
         $merged = collect();
         foreach($grouped as $randevuId => $events){
-            $isPaket = isset($randevuIdsHasSeans[$randevuId]);
-            if($isPaket && $events->count() > 1){
-                // Ilk event'i temel al, end'i max yap
+            if($events->count() > 1){
                 $sorted = $events->sortBy('start')->values();
                 $first = $sorted->first();
                 $maxEnd = $sorted->max('end');
