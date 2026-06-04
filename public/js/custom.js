@@ -39,35 +39,43 @@ function rcEventTipPosition($tip, rect) {
     $tip.css({ left: left + 'px', top: top + 'px' });
 }
 window.rcEventTipHideTimer = window.rcEventTipHideTimer || null;
+// rcEventTipBind: element bazli bind (deprecated). Document delegation kullaniyoruz
+// asagida — takvim 10 sn'de bir refresh oluyor ve element bazli bind kayboluyor.
 function rcEventTipBind(element, event) {
-    // element jQuery wrapper veya DOM olabilir — jQuery'ye normalize et
-    var $el = jQuery(element);
-    if ($el.length === 0) { console.warn('rcTip: empty element'); return; }
-    var domEl = $el[0];
-    // Duplicate bind onleme — re-render'larda eski handler temizlenir
-    $el.off('.rcTip');
-    $el.on('mouseenter.rcTip', function(e) {
-        console.log('rcTip mouseenter fired', event.title?.substring(0, 20));
+    // Geriye uyumluluk icin korundu; delegation zaten yakalar.
+}
+// Document delegation — bir kez kurulur, takvim refresh'lerinden etkilenmez
+(function rcEventTipDelegate(){
+    if (window.__rcTipDelegated) return;
+    window.__rcTipDelegated = true;
+    jQuery(document).on('mouseenter.rcTipDeleg', '.fc-event', function(){
+        if (window.useV2Modal !== true) return;
+        var $el = jQuery(this);
+        if ($el.hasClass('disabled-event')) return;
+        // FullCalendar v3: event objesi element data 'fcSeg.event' icinde
+        var evData = $el.data('fcSeg');
+        evData = evData && evData.event ? evData.event : null;
+        if (!evData || !evData.hoverHtml) return;
         if (window.rcEventTipHideTimer) {
             clearTimeout(window.rcEventTipHideTimer);
             window.rcEventTipHideTimer = null;
         }
         var $tip = rcEventTipEnsure();
-        var bg = event.color || '#5C008E';
-        $tip.html(event.hoverHtml)
+        var bg = evData.color || '#5C008E';
+        $tip.html(evData.hoverHtml)
             .css('--rc-tip-bg', bg)
             .find('.rc-tip-head').css('background', bg).end()
             .find('.rc-tip-row i').css('color', bg);
         $tip.css({ left: '-9999px', top: '0' }).addClass('rc-tip-show');
-        var rect = domEl.getBoundingClientRect();
+        var rect = this.getBoundingClientRect();
         rcEventTipPosition($tip, rect);
     });
-    $el.on('mouseleave.rcTip', function() {
-        window.rcEventTipHideTimer = setTimeout(function() {
+    jQuery(document).on('mouseleave.rcTipDeleg', '.fc-event', function(){
+        window.rcEventTipHideTimer = setTimeout(function(){
             jQuery('#rc-event-tip').removeClass('rc-tip-show');
-        }, 250);
+        }, 200);
     });
-}
+})();
 $(document).ready(function($) {
     "use strict";
     var interval='';
@@ -10179,14 +10187,9 @@ function takvimyukle(preload,turdegisti)
                         event.className += " disabled-event";
                     }
 
-                    // V2 takvim hover tooltip — sadece useV2Modal aktifken,
-                    // bos slot disinda ve hoverHtml dolu ise
-                    if (window.useV2Modal === true && event.title !== 'Boş slot' && event.hoverHtml) {
-                        window.__rcTipBindCount = (window.__rcTipBindCount || 0) + 1;
-                        rcEventTipBind(element, event);
-                    } else if (window.useV2Modal === true && event.title !== 'Boş slot') {
-                        window.__rcTipSkipNoHover = (window.__rcTipSkipNoHover || 0) + 1;
-                    }
+                    // V2 takvim hover tooltip artik document delegation ile
+                    // calisiyor (custom.js basinda kuruluyor) — eventRender'da
+                    // bind yapmaya gerek yok, takvim refresh'lerinde kaybolmaz.
 
                 },
 
