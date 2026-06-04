@@ -6619,10 +6619,14 @@ private function ayAdiCevir($ingilizceAy)
                         // Adisyon kontrolü ve seans kaydı
                         // NOT: 'otomatik_randevu_olusturuldu != 1' NULL satirlari da eliyordu (SQL NULL!=1
                         // -> unknown). Kolon cogu kayitta NULL; o yuzden whereNull OR != 1.
+                        // NOT: 'bekleyen_seans > 0' filtresi de KALDIRILDI — bu kolon guvenilir degil
+                        // (modal/paketVarmiKontrolu de bu yuzden formul kullaniyor). Bayat bekleyen_seans=0
+                        // yuzunden seansli hizmet/paket icin adisyon bulunamiyor, adisyon_paket_seanslar'a
+                        // seans YAZILMIYORDU. NULL otomatik fix'i + bekleyen filtresinin kaldirilmasi ile
+                        // seansli hizmette de paket randevusu (seans kaydi) olusur.
                         $randevuOlusturulmamisHizmetAdisyonuVarmi = Adisyonlar::whereHas('hizmetler',function($q) use($rHizmet){
                             $q->where('hizmet_id',$rHizmet)
-                              ->where(function($qq){ $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu','!=',1); })
-                              ->where('bekleyen_seans','>',0);
+                              ->where(function($qq){ $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu','!=',1); });
                         })->where('user_id',$musteriid)->where('salon_id',$request->sube)->first();
 
                         $randevuOlusturulmamisPaketAdisyonuVarmi = Adisyonlar::whereHas('paketler',function($q) use($rHizmet){
@@ -6630,7 +6634,7 @@ private function ayAdiCevir($ingilizceAy)
                                 $q2->whereHas('hizmetler',function($q3) use($rHizmet){
                                     $q3->where('hizmet_id',$rHizmet);
                                 });
-                            })->where(function($qq){ $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu','!=',1); })->where('bekleyen_seans','>',0);
+                            })->where(function($qq){ $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu','!=',1); });
 
                         })->where('user_id',$musteriid)->where('salon_id',$request->sube)->first();
                         
