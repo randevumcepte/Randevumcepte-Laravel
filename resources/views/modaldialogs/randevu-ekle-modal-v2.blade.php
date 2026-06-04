@@ -2225,6 +2225,20 @@
             formData.append('tekrar_sayisi', common.tekSayi);
         }
 
+        // BACKEND'IN BEKLEDIGI ALANLAR:
+        // 1) Create logic (line 6484+ yenirandevuekle):
+        //    foreach($request->randevupersonelleriyeni as $key2 => $value){
+        //      $rHizmetler = $request->{"randevuhizmetleriyeni_{$key2}"};
+        //      ...
+        //    }
+        //    Bu yuzden randevupersonelleriyeni[] (her satir icin 1) + her satir
+        //    icin ayri randevuhizmetleriyeni_N[] gerek.
+        // 2) Conflict check (line 21070 cakisan_randevu_kontrol):
+        //    foreach($request->randevuhizmetleriyeni as $key => $value){
+        //      $request->hizmet_suresi[$key]
+        //    }
+        //    Bu yuzden EK olarak FLAT randevuhizmetleriyeni[] ve hizmet_suresi[]
+        //    de gonderilmeli (her hizmet icin 1 entry, satir bazli sirayla).
         if(group.type === 'paket'){
             var $card = group.$el;
             var personelId = $card.find('.v2-personel').val() || '';
@@ -2260,9 +2274,14 @@
                 formData.append('hizmet_sureleri-'+hid, calcSure);
                 formData.append('hizmet_fiyatlari-'+hid, calcFiyat.toFixed(2));
                 formData.append('hizmet_miktarlari-'+hid, '1');
+
+                // BACKWARD COMPAT (conflict check icin)
+                formData.append('randevuhizmetleriyeni[]', hid);
+                formData.append('hizmet_suresi[]', calcSure);
             });
         } else {
             // Manuel satirlar (tek bir randevu icinde gruplanir)
+            var flatIdx = 0; // her satirdaki her hizmet icin global index (flat compat)
             group.rows.forEach(function(row, i){
                 var $row = $(row);
                 var personelId = $row.find('.v2-personel').val() || '';
@@ -2279,11 +2298,17 @@
                 hizmetIds.forEach(function(hid){
                     formData.append('randevuhizmetleriyeni_'+i+'[]', hid);
                     var d = window.hizmetDataCache ? window.hizmetDataCache[hid] : null;
+                    var sure = d ? parseFloat(d.sure)||0 : 0;
+                    var fiyat = d ? parseFloat(d.fiyat)||0 : 0;
                     if(d){
-                        formData.append('hizmet_sureleri-'+hid, d.sure || 0);
-                        formData.append('hizmet_fiyatlari-'+hid, (parseFloat(d.fiyat)||0).toFixed(2));
+                        formData.append('hizmet_sureleri-'+hid, sure);
+                        formData.append('hizmet_fiyatlari-'+hid, fiyat.toFixed(2));
                         formData.append('hizmet_miktarlari-'+hid, '1');
                     }
+                    // BACKWARD COMPAT (conflict check)
+                    formData.append('randevuhizmetleriyeni[]', hid);
+                    formData.append('hizmet_suresi[]', sure);
+                    flatIdx++;
                 });
             });
         }
