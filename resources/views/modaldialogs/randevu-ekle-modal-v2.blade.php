@@ -1520,15 +1520,22 @@
             $card.data('origTotalFiyat', parseFloat($card.attr('data-orig-fiyat')) || 0);
             // Personel/cihaz/oda dropdownlarini doldur
             populateDropdownsInCard($card);
-            // V1'in ilk grup satirindan personel/oda al
+            // V1'in ilk grup satirindan personel/cihaz al. ODA'yi MIRAS ALMA —
+            // farkli paketler farkli odalara ait olabilir; backend hizmete gore
+            // otomatik atar (OdaAtamaServisi::uygunOdaSec). Boyle birakirsak iki
+            // paket ayni oda'ya zorlanmaz. Kullanici manuel secebilir.
+            // Sadece TAKVIM TURU "Odaya Gore" (3) ise slot tiklama oda'sini
+            // miras al — cunku kullanici bilerek o oda kolonuna tikladi.
             if(grp.v1Indices.length){
                 var $v1First = $('#modal-view-event-add .hizmet-satiri').eq(grp.v1Indices[0]);
                 var p = $v1First.find('.personel-select, .personel_secimi').not('.hizmet-select').val();
                 var c = $v1First.find('.cihaz-select, .cihaz_secimi').val();
-                var o = $v1First.find('.oda-select, .oda_secimi').val();
                 if(p) $card.find('.v2-personel').val(p);
                 if(c) $card.find('.v2-cihaz').val(c);
-                if(o) $card.find('.v2-oda').val(o);
+                if(parseInt(window.randevuTakvimTuru || 0, 10) === 3){
+                    var o = $v1First.find('.oda-select, .oda_secimi').val();
+                    if(o) $card.find('.v2-oda').val(o);
+                }
             }
         });
 
