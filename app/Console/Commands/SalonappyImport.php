@@ -24,6 +24,7 @@ class SalonappyImport extends Command
         {--only-product-sales : Sadece urun satislarini isle (dump productSales) — adisyon+adisyon_urunler+alacak (receivable_amount > 0 ise). Tahsilat DOKUNMAZ.}
         {--only-product-payments : Daha onceden --only-product-sales ile yazilmis urun adisyonlarina dump payments[] eslestir; source_text="Urun satisi" olanlar tahsilat olarak baglanir.}
         {--only-visits : Dump visit/bookingDetails -> randevu+adisyon+AH+tahsilat+TH/TU+alacak+paket usage isaretle. --from/--to araligi sart. Marker [salonappy-visit:<session>].}
+        {--only-expenses : Dump expenses[] -> masraflar tablosuna idempotent insert. UPSERT marker [salonappy-expense:id]. masraf_kategorisi auto-create.}
         {--with-products : --only-visits filtresine ek: sadece product_sales[] dolu visitleri isle (urun tasima testi icin).}
         {--reset-visits : Tarih araligindaki [salonappy-visit:%] markerli randevu+adisyon+tahsilat+taksit+alacak sil. --from/--to sart.}
         {--from= : Visit aktarim/reset baslangic tarihi YYYY-MM-DD}
@@ -109,6 +110,10 @@ class SalonappyImport extends Command
             // --only-product-payments: urun adisyonlarina payments[] eslestir
             if ((bool) $this->option('only-product-payments')) {
                 return $this->importProductPaymentsOnly($dumpFile, (int) $salonId);
+            }
+            // --only-expenses: dump expenses[] -> masraflar UPSERT
+            if ((bool) $this->option('only-expenses')) {
+                return $this->importExpensesOnly($dumpFile, (int) $salonId);
             }
             // --only-visits: tarih araliginda visit detail -> randevu+adisyon+...
             if ((bool) $this->option('only-visits')) {
@@ -1857,6 +1862,80 @@ class SalonappyImport extends Command
             }
         }
         $this->info("Product payments: tahsilat=$gTah, atanan=$pAtanan, atlanan=$pAtlanan, hata=$pHata");
+        return 0;
+    }
+
+    /**
+     * --only-expenses: dump expenses[] -> masraflar tablosuna idempotent insert.
+     * UPSERT: mevcut [salonappy-expense:id] markerli kayitlar silinir + yeniden yazilir.
+     * masraf_kategorisi auto-create. harcayan personel name match.
+     */
+    private function importExpensesOnly($file, $salonId)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: $file"); return 1; }
+        $j = json_decode(file_get_contents($file), true);
+        if (!is_array($j)) { $this->error('Gecersiz JSON.'); return 1; }
+        $exps = $j['expenses'] ?? [];
+        if (empty($exps)) { $this->warn('expenses[] bos.'); return 0; }
+
+        $masTable = (new \App\Masraflar)->getTable();
+        $hasNotlar    = \Schema::hasColumn($masTable, 'notlar');
+        $hasAciklama  = \Schema::hasColumn($masTable, 'aciklama');
+        $hasKategori  = \Schema::hasColumn($masTable, 'masraf_kategori_id');
+        $hasHarcayan  = \Schema::hasColumn($masTable, 'harcayan_id');
+
+        // UPSERT temizlik: salon icin tum salonappy-expense markerlilari sil
+        $silinen = 0;
+        if ($hasNotlar) {
+            $silinen = \DB::table($masTable)->where('salon_id', $salonId)
+                ->where('notlar', 'LIKE', '%[salonappy-expense:%')->delete();
+        }
+        $this->line("Mevcut salonappy gider silindi: $silinen. Dump'tan yeniden yazilacak: " . count($exps));
+
+        $eEklenen = 0; $eHata = 0;
+        foreach ($exps as $ex) {
+            $exId = (string) ($ex['id'] ?? '');
+            if (!$exId) { $eHata++; continue; }
+            $exMarker = '[salonappy-expense:' . $exId . ']';
+            $tarih = $ex['date'] ?? date('Y-m-d');
+            $tutar = (float) ($ex['amount'] ?? 0);
+            $aciklama = trim((string) ($ex['description_raw'] ?? $ex['description'] ?? ''));
+            $kategoriAd = trim((string) ($ex['category_text'] ?? ''));
+            $harcayanAd = trim((string) ($ex['created_by_name'] ?? $ex['created_by'] ?? ''));
+
+            try {
+                $kategoriId = null;
+                if ($kategoriAd && $hasKategori) {
+                    $kategoriId = \DB::table('masraf_kategorisi')->where('salon_id', $salonId)
+                        ->where('masraf_kategorisi_adi', $kategoriAd)->value('id');
+                    if (!$kategoriId) {
+                        $kategoriId = \DB::table('masraf_kategorisi')->insertGetId([
+                            'salon_id' => $salonId, 'masraf_kategorisi_adi' => $kategoriAd,
+                            'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                }
+                $harcayanId = null;
+                if ($harcayanAd && $hasHarcayan) {
+                    $harcayanId = \DB::table('salon_personelleri')->where('salon_id', $salonId)
+                        ->where('personel_adi', 'LIKE', '%' . $harcayanAd . '%')->value('id');
+                }
+                $row = [
+                    'salon_id' => $salonId, 'tarih' => $tarih, 'tutar' => $tutar,
+                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                ];
+                if ($hasAciklama) $row['aciklama'] = $aciklama;
+                if ($kategoriId) $row['masraf_kategori_id'] = $kategoriId;
+                if ($harcayanId) $row['harcayan_id'] = $harcayanId;
+                if ($hasNotlar) $row['notlar'] = $exMarker;
+                \DB::table($masTable)->insert($row);
+                $eEklenen++;
+            } catch (\Throwable $e) {
+                $eHata++;
+                \Log::warning('[Salonappy expense] hata', ['id' => $exId, 'err' => $e->getMessage()]);
+            }
+        }
+        $this->info("Expenses: eklenen=$eEklenen, hata=$eHata, silinen=$silinen");
         return 0;
     }
 

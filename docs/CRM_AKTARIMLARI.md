@@ -425,9 +425,17 @@ Geçmiş visit (`is_past=true`):
 
 `--reset-visits --from --to`: tarih aralığındaki `[salonappy-visit:%]` markerlı tüm randevu+adisyon+tahsilat+taksit+alacak siler. Katalog dokunulmaz.
 
-#### Diğer modüler dump'lar (yakında)
+#### Gider / Masraf
 
-- Gider (`expense/list`)
+**Dump**: [scripts/salonappy_dump_expenses.js](../scripts/salonappy_dump_expenses.js) — `/api/expense/list` (paginated). Cıktı: `salonappy_expenses_<ts>.json` (~50 KB).
+
+```bash
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_expenses_<ts>.json \
+    --salon=368 --only-expenses
+```
+
+UPSERT: önce salondaki `[salonappy-expense:%]` markerlı tüm masraflar silinir, sonra dump'tan yeniden yazılır. `masraf_kategorisi` auto-create (`category_text` → `masraf_kategorisi_adi`). `harcayan_id` salon_personelleri.personel_adi LIKE match. İdempotent.
 
 ### Aktarılan veri
 
