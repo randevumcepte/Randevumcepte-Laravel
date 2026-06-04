@@ -27,6 +27,8 @@ php artisan planla:import \
   --password=123456. \
   --salon=355
 
+  /opt/php74/bin/php artisan planla:import --email=suveydascaylak@gmail.com  --password=svyd6717 --salon=370
+
 # Sadece belirli veri tipi
 php artisan planla:import --email=X --password=Y --salon=355 --only=musteri,hizmet
 
@@ -556,66 +558,241 @@ Tarayıcı scripti throttle (250ms default) ile 4 req/s gönderir. 429 görürse
 
 ## 4) Salonrandevu (`salonrandevu:import`)
 
-**Kaynak**: app.salonrandevu.com (web app) + REST API. `SalonrandevuClient` servisi.
+**Kaynak**: app.salonrandevu.com (web app) + REST API (api.salonrandevu.com). `SalonrandevuClient` servisi.
 
-**Sinyal**: Login (email/şifre veya telefon) + Bearer token + `/company/*` endpoint'leri JSON döner.
+**Sinyal**: Login (email/şifre veya telefon) + Bearer token + `/company/*` endpoint'leri JSON döner. Cloudflare datacenter blok'u **YOK** — sunucu doğrudan API çağırır.
 
-### Kullanım
+### Aktif modüler akış (önerilen)
+
+Salonappy'deki gibi parça-parça aşamalı ilerleme. Tek seferlik full aktarım değil; her veri tipi ayrı flag, ayrı çalıştırma, ayrı rapor.
+
+| Aşama | Flag | İşlev |
+|---|---|---|
+| 1a | `--only-package-sales` | Paket satışları (Paketler+PaketHizmetler+AdisyonPaketler+APS). Tahsilat YOK. |
+| 1b | `--report-package-sales` | SR `/receipts/packets` vs DB AdisyonPaketler karşılaştırması |
+| 2a | `--only-package-payments` | Paket fişi tahsilatları (Tahsilatlar+TahsilatPaketler). Adım 1 çalıştırılmış olmalı. |
+| 2b | `--report-package-payments` | SR `paid` toplam vs DB Tahsilatlar toplam |
+| 3a | `--only-other-receipts` | Paket-dışı receipt'ler (hizmet+ürün satışları + tahsilatları + dağılım). Tek flag, kompozit akış. |
+| 3b | `--report-other-receipts` | Paket-dışı SR vs DB karşılaştırması (sayım+toplam+eksik liste) |
+| 3+ | `--start-page=N`, `--max-page=M` | `--only-other-receipts` için partition/resume (büyük dataset, ~7000 receipt) |
+| 4 | `--only-expenses` | (TBD — giderler) |
+
+### Endpoint haritası
+
+```
+GET /company/receipts/packets?page=N&order=0       — paket fişleri listesi (paginated)
+GET /company/receipts/opened?page=N&ispaid=2&order=0 — paket-dışı receipt listesi (paginated)
+GET /company/receipt/{id}                          — receipt detayı (her aşamada)
+```
+
+### Receipt detay yapısı (kritik)
+
+```json
+{
+  "receipt": {
+    "id": 1554595,
+    "customer": {...},
+    "is_package": false,         // paket fişi mi
+    "receipt_transactions": [    // hizmet satışları (paket içiyse receipt_package_id != 0)
+      {"id", "service_id", "Service", "amount", "process_date",
+       "receipt_package_id", "staffID", "is_paid"}
+    ],
+    "receipt_sales": [           // ürün satışları
+      {"id", "stock_item_id", "stock_item{name}", "quantity",
+       "amount", "staff_id", "sold_date"}
+    ],
+    "receipt_packages": [        // paket satışı master kayıtları
+      {"id", "packet_id", "package_name", "amount",
+       "paid_amount", "staff_id"}
+    ],
+    "receipt_payments": [        // ÖDEMELERİN HEPSİ BURADA
+      {"id", "amount", "payment_type",  // 1=Nakit, 2=KK, 3=Havale, 4=Diğer, 5=Senet
+       "payment_date", "s_id", "s_type", "description"}
+    ]
+  }
+}
+```
+
+**`s_type` taksonomisi (tahsilat ne'ye bağlı)** — pro-rata gerekmez:
+
+| s_type | Anlam | s_id referansı |
+|---|---|---|
+| **1** | Hizmet | `receipt_transactions[].id` |
+| **2** | Paket | `receipt_packages[].id` |
+| **3** | Ürün | `receipt_sales[].id` |
+
+### Sistem tarafı tablo eşlemeleri
+
+| SR alanı | DB tablo |
+|---|---|
+| `receipt_packages[]` | `Paketler` master + `PaketHizmetler` + `AdisyonPaketler` (paket satışı) |
+| `receipt_transactions[]` (paket içi, `receipt_package_id != 0`) | `AdisyonPaketSeanslar` (1 tx = 1 APS, `geldi=NULL`=Bekleniyor) |
+| `receipt_transactions[]` (paket dışı) | `AdisyonHizmetler` (`geldi=1`, `islem_tarihi=process_date`) |
+| `receipt_sales[]` | `AdisyonUrunler` (`adet=quantity`, `fiyat=amount`) |
+| `receipt_payments[]` | `Tahsilatlar` + `TahsilatPaketler` (s_type=2) / `TahsilatHizmetler` (s_type=1) / `TahsilatUrunler` (s_type=3) |
+
+### Marker'lar
+
+| Marker | Yer | Amaç |
+|---|---|---|
+| `[salonrandevu:RID]` | `adisyonlar.aciklama` (veya `notlar`/`adisyon_notu`) | Receipt → adisyon dedup |
+| `[salonrandevu-paket:RID]` | `adisyonlar.aciklama` | Paket fişi etiketi (UI için) |
+| `[SR-sale:saleId]` | `paketler.paket_adi` suffix | Paket master = receipt_packages[].id; tahsilat eşleme için |
+| `[SR-payment:payId]` | `tahsilatlar.notlar` | Tahsilat UPSERT marker |
+
+### Adım 1 — Paket satışları
 
 ```bash
-# Tam aktarım
-php artisan salonrandevu:import \
-  --email=KULLANICI \
-  --password=SIFRE \
-  --salon=195
+# Önce reset (gerekirse)
+/opt/php74/bin/php artisan salonrandevu:import --reset-salonrandevu --salon=195
 
-# Sadece belirli tip
-php artisan salonrandevu:import --email=X --password=Y --salon=195 \
-  --only=musteri,hizmet,randevu
+# Paket satışlarını yaz
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=KULLANICI --password=SIFRE --salon=195 --only-package-sales
 
-# Endpoint keşfi (yazma yapmaz)
-php artisan salonrandevu:import --analyze            # Anasayfa + bundle.js
-php artisan salonrandevu:import --email=X --password=Y --probe   # Login + endpoint kesfi
-php artisan salonrandevu:import --email=X --password=Y --inspect # Her endpoint ilk kayit yapisi
+# Karşılaştırma raporu
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=KULLANICI --password=SIFRE --salon=195 --report-package-sales
+```
+
+**Akış (`importOneReceipt` `package_only=true`)**:
+
+1. Markerlı eski adisyon ve tüm bağlı kayıtları sil (UPSERT)
+2. `/receipt/{id}` detayı çek
+3. `resolveUser` — inline müşteri yarat (`ApiController::aktarimMusteriKontrol`)
+4. Adisyon insert + marker
+5. Her `receipt_packages[]` için:
+   - `Paketler` master oluştur (paket_adi suffix `[SR-sale:saleId]`)
+   - `receipt_transactions` (recPkgId match'leyenler) → `PaketHizmetler` (her svc için seans+fiyat)
+   - `AdisyonPaketler` insert (adisyon_id, paket_id, fiyat, `baslangic_tarihi=tarih`, `seans_araligi=7`, `seans_sayisi=total`, `personel_id`)
+   - Her tx → 1 `AdisyonPaketSeanslar` (`geldi=NULL`=Bekleniyor, `seans_tarih=process_date`, `personel_id=tx.staffID`)
+
+**Fallback'ler (3 adet)**:
+
+- **Eski 2023 paket fişleri** (`receipt_packages=[]` boş ama paginated rec `is_package=true`): Paginated rec'in `info` ilk satırı paket adı, `all_amount` fiyat. Sentetik paket master + tx'leri pakete bağla. ~8 receipt için.
+- **`receipt_package_id=0` tx + tek paketli receipt**: tx'leri o tek pakete bağla (SR "açık paket" mantığı). ~2 receipt için.
+- **`pkg.amount=0` + tek paketli**: paginated rec.`all_amount` kullan. ~1-2 receipt için.
+
+**Test sonucu (salon 195)**: SR=76 paket, DB=73 (eksik 3 = SR'de bedava bekleyen boş paket, anlamsız).
+
+### Adım 2 — Paket tahsilatları
+
+```bash
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --only-package-payments
+
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --report-package-payments
+```
+
+**Akış (`importPaymentsForOneReceipt`)**:
+
+1. `[salonrandevu:RID]` markerlı adisyon bul (yoksa SKIP+warn — Adım 1 çalıştırılmamış)
+2. Eski `[SR-payment:%]` markerlı `Tahsilatlar` + TP/TH/TU sil (UPSERT)
+3. `/receipt/{id}` detay çek
+4. Adisyon altındaki `AdisyonPaketler` + `Paketler.paket_adi` JOIN → `[SR-sale:saleId]` markeri parse → `saleId → ap_id` map
+5. Her `receipt_payments[]`:
+   - `Tahsilatlar` insert (tutar, `odeme_yontemi_id=payment_type`, `odeme_tarihi=payment_date`, marker `[SR-payment:payId]`, `aciklama=description`)
+   - Dağılım:
+     - `s_id` saleIdToApId map'te varsa → direkt o `AdisyonPaketler.id`
+     - yoksa + tek AP varsa → o AP
+     - yoksa + çoklu AP → pro-rata fiyat oranıyla böl
+   - `TahsilatPaketler` insert (tahsilat_id, adisyon_paket_id, tutar)
+
+**Test sonucu (salon 195)**: SR ödenen 536152 TL, DB 536152 TL, fark **0 TL**, 117 tahsilat.
+
+### Adım 3 — Paket-dışı receipt'ler (hizmet+ürün+tahsilat)
+
+Tek flag (`--only-other-receipts`) ile kompozit akış. Salonappy gibi paket/ürün/visit ayrımına gerek yok — SR'de tek bir receipt'te hizmet ve ürün karışık olabilir.
+
+```bash
+# Büyük dataset — arka planda çalıştır (~7000 receipt × ~1sn = ~2 saat)
+nohup /opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --only-other-receipts \
+    > /var/www/.../tmp/sr_other.log 2>&1 &
+
+# Yarıda kesildi → belirli sayfadan devam
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --only-other-receipts \
+    --start-page=350
+
+# Sayfa aralığı (batch'leme)
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --only-other-receipts \
+    --start-page=1 --max-page=100
+
+# Rapor
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=195 --report-other-receipts
+```
+
+**Akış (`importOtherReceiptOne`)**:
+
+1. UPSERT sil (markerlı adisyon + AH + AU + T + TP/TH/TU)
+2. `/receipt/{id}` detay; `is_package=true` ise atla (Adım 1+2 işi)
+3. `resolveUser` → adisyon + marker
+4. `receipt_transactions[]` → `AdisyonHizmetler` (geldi=1, fiyat, personel `ensurePersonel`). `srTxId → ah.id` map.
+5. `receipt_sales[]` → `AdisyonUrunler` (`adet=quantity`, ürün `ensureUrun`). `srSaleId → au.id` map.
+6. `receipt_payments[]` → `Tahsilatlar` + dağılım:
+   - `s_type=1`, `s_id` map'te → `TahsilatHizmetler`
+   - `s_type=3`, `s_id` map'te → `TahsilatUrunler`
+   - eşleşme yoksa → **pro-rata** AH+AU fiyat oranıyla (info log)
+
+**Resume notu**: Her sayfa sonunda log'a `[Salonrandevu other] sayfa OK page=N toplam=M` yazılır. Yarım kalırsa son işlenmiş sayfayı + 1 ile `--start-page=N+1` çalıştır.
+
+### Salt-okunur / tanı modları
+
+```bash
+# Endpoint keşfi
+/opt/php74/bin/php artisan salonrandevu:import --analyze            # Anasayfa+bundle.js
+/opt/php74/bin/php artisan salonrandevu:import --email=X --password=Y --probe
+/opt/php74/bin/php artisan salonrandevu:import --email=X --password=Y --inspect
 
 # Reset
-php artisan salonrandevu:import --salon=195 --reset-salonrandevu  # [salonrandevu:RefId] markerli sil
-php artisan salonrandevu:import --salon=195 --reset-all           # Tum islem verisi (salon sr'ya aitse)
+/opt/php74/bin/php artisan salonrandevu:import --salon=195 --reset-salonrandevu
+/opt/php74/bin/php artisan salonrandevu:import --salon=195 --reset-all
 
-# Proxy ile (rate limit/IP blok varsa)
-php artisan salonrandevu:import --email=X --password=Y --salon=195 \
+# Proxy
+/opt/php74/bin/php artisan salonrandevu:import --email=X --password=Y --salon=195 \
   --proxy=http://user:pass@host:port
 ```
 
-### Parametreler
+### Eski/legacy aktarım (deprecated — modüler akışı tercih edin)
 
-- `--email`, `--password`: Salonrandevu giriş (telefon da kabul edilir)
-- `--salon`: Hedef randevumcepte salon_id
-- `--only=musteri,hizmet,personel,randevu,tahsilat,paket,urun,gider`
-- `--from`, `--to`: Tarih aralığı (varsayılan 2020-2030)
-- `--analyze`, `--probe`, `--inspect`: Salt-okunur keşif
-- `--reset-salonrandevu`, `--reset-all`: Geri alma
+`--only=musteri,hizmet,personel,randevu,tahsilat,paket,urun,gider` ile tek-seferlik full akış mevcut (`SalonrandevuImporter.importPersonel()`, `importHizmetler()`, vs.) ama modüler akış (Adım 1+2+3) daha güvenli; her aşamada rapor ile doğrulama yapılır.
 
-### Aktarılan veri
+### Sunucu dump (debug için)
 
-- **Müşteriler** (`/company/customers?extra=1&page=N` — pagination'lı)
-- **Hizmetler** + kategoriler
-- **Personeller**
-- **Ürünler**
-- **Randevular** (sayfa-sayfa, resilient retry ile)
-- **Tahsilatlar / receipt'ler** (her receipt detay'i)
-- **Giderler**
+`SalonrandevuClient` her HTTP GET'i `storage/app/salonrandevu/<timestamp>/get_<safe>.body` olarak diske yazar. Sorunlu bir receipt'in tam JSON'unu görmek için:
 
-### Dedup marker
+```bash
+LATEST=$(ls -t storage/app/salonrandevu/ | head -1)
+cat storage/app/salonrandevu/$LATEST/get_company_receipt_1509321.body
+```
 
-- `[salonrandevu:RefId]` — adisyon/randevu notunda
+### Bilinen yapısal farklar
 
-### Notlar
+- **Eski paket fişleri (2023 öncesi)** SR detay API'sinde `receipt_packages=[]` boş döner — paginated `/receipts/packets` listesinde paket olarak görünür. Fallback: paginated rec'ten sentetik paket master üret (`importOneReceipt` package_only modu).
+- **"Açık paket"** durumu: SR'de paket master oluşturulmuş, içine seans atanmamış (tx'ler `receipt_package_id=0`). Tek paketli receipt'lerde tx'leri o pakete bağlamak fallback'i mevcut.
+- **Bedava bekleyen boş paketler** (`tx_count=0, amount=0`): `bos hizmetler` warning'i ile atlanır (DB'de yer almaması doğru — anlamsız kayıt).
+- **`payment_type` sistem `odeme_yontemleri.id` ile birebir uyumlu**: 1=Nakit, 2=KK, 3=Havale, 4=Diğer, 5=Senet. Mapping gereksiz.
+- **`SalonrandevuClient.get` 6x backoff retry** yapar bağlantı koparsa.
 
-- `SalonrandevuClient.get` bağlantı koparsa **6x backoff retry** yapar
-- Müşteri listesi pagination'lı; tüm sayfalar çekilir
-- Receipt'ler tek tek detay endpoint'inden okunur (kalemler dahil)
-- Drklinik gibi atomik **musid-bazlı** akış değil — REST API üzerinden tip-tip iterasyon
+### Sorun giderme
+
+#### Adım 3 yarıda kesildi (SSH timeout, oturum düştü)
+
+`--only-other-receipts` ~7000 receipt için ~2 saat sürer. SSH oturumu kapanırsa kesilir.
+
+**Çözüm**: `nohup ... &` ile arka plana al, log'dan son işlenen sayfayı bul, `--start-page=N+1` ile devam. Marker UPSERT olduğu için aynı sayfadan başlatmak da güvenli (idempotent).
+
+#### Paket fişi raporda eksik gözüküyor ama log'da `paket SAVE OK`
+
+Rapor `AdisyonPaketler.fiyat > 0` filtresi uyguluyor. SR'de `pkg.amount=0` ise fallback ile `paginated rec.all_amount` kullanılır; o da 0 ise raporda eksik gözükür. UI'da gerçek paket var, sadece fiyat 0.
+
+#### `[Salonrandevu] paket bos hizmetler` warning
+
+Receipt detayında paket master var ama içine bağlı transaction yok (`tx_count=0`). SR'de bedava/iptal paket — DB'de yer almaması doğru, sessiz atlanır.
 
 ---
 
@@ -632,10 +809,31 @@ app/Services/SalonappyClient.php
 app/Services/SalonrandevuClient.php
 app/Imports/PlanlaImporter.php
 app/Imports/DrklinikImporter.php
+app/Imports/SalonappyImporter.php
 app/Imports/SalonrandevuImporter.php
 app/Http/Controllers/DrklinikApiController.php   # REST API endpoint'leri
-scripts/salonappy_dump_v7.js
-scripts/salonappy_dump_v6.js           # eski versiyon
-scripts/salonappy_scraper_resilient.py # Python Selenium fallback (deprecated)
-scripts/drklinik.py                    # Python Selenium scraper (referans implementasyon)
+scripts/salonappy_dump_v7.js                     # full visit-bazli dump
+scripts/salonappy_dump_v6.js                     # eski versiyon
+scripts/salonappy_dump_package_sales.js          # modular: sadece paket satışları
+scripts/salonappy_dump_product_sales.js          # modular: sadece ürün satışları
+scripts/salonappy_dump_visits.js                 # modular: visit detayları + ödemeler
+scripts/salonappy_dump_expenses.js               # modular: giderler
+scripts/salonappy_scraper_resilient.py           # Python Selenium fallback (deprecated)
+scripts/drklinik.py                              # Python Selenium scraper (referans implementasyon)
 ```
+
+---
+
+## Salonappy + Salonrandevu modular akış karşılaştırması
+
+| Konsept | Salonappy | Salonrandevu |
+|---|---|---|
+| Veri kaynağı | Tarayıcıdan JSON dump (Cloudflare blok) | Sunucu doğrudan API çağırır |
+| Modüler giriş | `--dump-file=...` + flag (`--only-package-sales`, `--only-visits`, vb.) | Login + flag (`--only-package-sales`, `--only-other-receipts`, vb.) |
+| Paket satış akışı | Dump'tan `package_sale/list_v2` | `/receipts/packets` paginated |
+| Tahsilat-paket bağı | Dump `source_text="Paket satışı"` + exact/substring service match (heuristic) | SR `s_type=2 + s_id` (deterministik, pro-rata gerekmez) |
+| Tahsilat-hizmet bağı | Visit içi (`bd.payments[]`) | SR `s_type=1 + s_id` |
+| Tahsilat-ürün bağı | Visit içi / product sale payment | SR `s_type=3 + s_id` |
+| Paket sevkiyat (APS) | `package_usages[]` visit içinde insert | `receipt_transactions` paket içi = APS (`geldi=NULL`) |
+| Resume | IndexedDB (dump) | `--start-page=N` (import) |
+| Rapor | (manuel sayım/grep) | `--report-package-sales/payments/other-receipts` |
