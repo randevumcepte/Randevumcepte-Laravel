@@ -39,10 +39,15 @@ function rcEventTipPosition($tip, rect) {
     $tip.css({ left: left + 'px', top: top + 'px' });
 }
 window.rcEventTipHideTimer = window.rcEventTipHideTimer || null;
-function rcEventTipBind($el, event) {
+function rcEventTipBind(element, event) {
+    // element jQuery wrapper veya DOM olabilir — jQuery'ye normalize et
+    var $el = jQuery(element);
+    if ($el.length === 0) { console.warn('rcTip: empty element'); return; }
+    var domEl = $el[0];
     // Duplicate bind onleme — re-render'larda eski handler temizlenir
     $el.off('.rcTip');
     $el.on('mouseenter.rcTip', function(e) {
+        console.log('rcTip mouseenter fired', event.title?.substring(0, 20));
         if (window.rcEventTipHideTimer) {
             clearTimeout(window.rcEventTipHideTimer);
             window.rcEventTipHideTimer = null;
@@ -51,17 +56,13 @@ function rcEventTipBind($el, event) {
         var bg = event.color || '#5C008E';
         $tip.html(event.hoverHtml)
             .css('--rc-tip-bg', bg)
-            // CSS degisken fallback — head bg'sini direkt set et
             .find('.rc-tip-head').css('background', bg).end()
             .find('.rc-tip-row i').css('color', bg);
-        // Once goster ki olcum dogru olsun
         $tip.css({ left: '-9999px', top: '0' }).addClass('rc-tip-show');
-        var rect = this.getBoundingClientRect();
+        var rect = domEl.getBoundingClientRect();
         rcEventTipPosition($tip, rect);
     });
     $el.on('mouseleave.rcTip', function() {
-        // 250ms grace: takvim event'leri arasinda kucuk mouse atlamasi
-        // yuzunden anlik mouseleave tetiklenirse tooltip kapanmasin
         window.rcEventTipHideTimer = setTimeout(function() {
             jQuery('#rc-event-tip').removeClass('rc-tip-show');
         }, 250);
@@ -10181,7 +10182,10 @@ function takvimyukle(preload,turdegisti)
                     // V2 takvim hover tooltip — sadece useV2Modal aktifken,
                     // bos slot disinda ve hoverHtml dolu ise
                     if (window.useV2Modal === true && event.title !== 'Boş slot' && event.hoverHtml) {
+                        window.__rcTipBindCount = (window.__rcTipBindCount || 0) + 1;
                         rcEventTipBind(element, event);
+                    } else if (window.useV2Modal === true && event.title !== 'Boş slot') {
+                        window.__rcTipSkipNoHover = (window.__rcTipSkipNoHover || 0) + 1;
                     }
 
                 },
