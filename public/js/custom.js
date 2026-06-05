@@ -10065,21 +10065,20 @@ function takvimyukle(preload,turdegisti)
             if(preload){
                 $('#preloader').hide();
             }
+            // Takvim yuksekligi — her yuklemede (init VE 10sn'lik periyodik
+            // refresh) hesaplanir, asagida else dalinda da yeniden uygulanir.
+            var calendarHeight = '';
+            if ($(window).width() < 1300) {
+                // Mobil cihaz
+                calendarHeight = $(window).height() - 110;
+            } else {
+                // Masaüstü — baslik+filtreler tek satira birlestirildigi icin
+                // offset dusuruldu, takvim ekranin altina kadar uzasin.
+                calendarHeight = $(window).height() - 215;
+            }
+
             if(turdegisti)
             {
-                  
-
-                var calendarHeight = '';
-                 if ($(window).width() < 1300) {
-                    // Mobil cihaz
-                      calendarHeight = $(window).height() - 110;
-                } else {
-                    // Masaüstü — baslik+filtreler tek satira birlestirildigi icin
-                    // offset dusuruldu, takvim ekranin altina kadar uzasin.
-                    calendarHeight = $(window).height() - 215;
-                }
-             
-                
                 $('#calendar').fullCalendar('destroy');
                 $('#calendar').fullCalendar({
                     titleFormat: 'D MMMM YYYY dddd',  
@@ -10361,6 +10360,8 @@ if (preload && !turdegisti) {
                 $('#calendar').fullCalendar('removeEvents');
                 $('#calendar').fullCalendar('addEventSource', result.randevu);
                 $('#calendar').fullCalendar('refetchEvents');
+                // Yuksekligi her refresh'te yeniden uygula (init disinda da dolu kalsin)
+                $('#calendar').fullCalendar('option', 'height', calendarHeight);
             }
             if($('.fc-resource-cell').width()<80)
             {
