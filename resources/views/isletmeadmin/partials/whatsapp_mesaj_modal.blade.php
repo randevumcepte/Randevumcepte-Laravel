@@ -138,3 +138,102 @@
       </div>
    </div>
 </div>
+
+<script>
+// Handler'lar burada (custom.js'e bagimli degil). Idempotent: birden fazla include olsa da bir kez baglanir.
+// Bu partial jQuery yuklenmeden ONCE render olabilir (layout ortasi); jQuery hazir olana kadar bekle.
+(function waMsgInit(){
+   if (!window.jQuery) { return setTimeout(waMsgInit, 50); }
+   if (window.__waMsgInit) { return; }
+   window.__waMsgInit = true;
+   var $ = window.jQuery;
+
+   // Butona tiklayinca: bagli degilse uyari, bagliysa mesaj ekrani
+   $(document).on('click', '.whatsapp-mesaj-ac', function(e){
+      e.preventDefault();
+      var ad     = $(this).data('ad') || '';
+      var telefon= $(this).data('telefon') || '';
+      var userid = $(this).data('userid') || '';
+      var onay   = parseInt($(this).data('onay') || 0, 10);
+      var bagli  = parseInt($(this).data('bagli') || 0, 10);
+
+      // Takvim randevu detay modali aciksa once onu kapat (z-index cakismasi)
+      $('#modal-view-event').modal('hide');
+
+      if(bagli !== 1){
+         swal({
+            type: "warning",
+            title: "WhatsApp Bağlı Değil",
+            text: "Müşterilerinize WhatsApp mesajı gönderebilmek için önce WhatsApp hesabınızı sisteme bağlamanız gerekiyor. WhatsApp Ayarları sayfasından QR kodu okutarak birkaç saniyede bağlayabilirsiniz.",
+            showCancelButton: true,
+            confirmButtonText: "WhatsApp Ayarlarına Git",
+            cancelButtonText: "Daha Sonra",
+            confirmButtonColor: '#25D366',
+            confirmButtonClass: 'btn btn-success',
+            cancelButtonClass: 'btn btn-secondary'
+         }).then(function(result){
+            if(result && result.value){ window.location.href = '/isletmeyonetim/whatsapp'; }
+         });
+         return;
+      }
+
+      $('#wam_user_id').val(userid);
+      $('#wam_musteri_ad').text(ad || '-');
+      $('#wam_musteri_tel').text(telefon || '-');
+      $('#wam_mesaj').val('');
+      $('#wam_sayac').text('0');
+      $('#wam_gonder_btn').prop('disabled', false);
+      $('#wam_onay_uyari').css('display', onay === 1 ? 'none' : 'flex');
+
+      // appendTo body — parent container centering'i bozmasin; setTimeout: detay modali kapanma animasyonu bitsin
+      setTimeout(function(){
+         $('#whatsapp-mesaj-modal').appendTo('body').modal('show');
+      }, 200);
+   });
+
+   // Karakter sayaci
+   $(document).on('input', '#wam_mesaj', function(){
+      $('#wam_sayac').text($(this).val().length);
+   });
+
+   // Gonder
+   $(document).on('click', '#wam_gonder_btn', function(e){
+      e.preventDefault();
+      var mesaj = $.trim($('#wam_mesaj').val());
+      if(mesaj === ''){
+         swal({type:"warning", title:"Mesaj boş", text:"Lütfen göndermek istediğiniz mesajı yazın."});
+         return;
+      }
+      var btn = $(this);
+      $.ajax({
+         type: "POST",
+         url: '/isletmeyonetim/musterimanuelwhatsapp',
+         dataType: "json",
+         data: {
+            user_id: $('#wam_user_id').val(),
+            mesaj: mesaj,
+            sube: $('#wam_sube').val(),
+            _token: $('#wam_token').val()
+         },
+         beforeSend: function(){ btn.prop('disabled', true); $("#preloader").show(); },
+         success: function(res){
+            $("#preloader").hide();
+            if(res && res.ok){
+               $('#whatsapp-mesaj-modal').modal('hide');
+               swal({type:"success", title:"Gönderildi", text: res.mesaj || "Mesaj gönderim kuyruğuna alındı.", showConfirmButton:false, timer:2500});
+            } else {
+               btn.prop('disabled', false);
+               swal({type:"error", title:"Gönderilemedi", text: (res && res.mesaj) ? res.mesaj : "Mesaj gönderilemedi."});
+            }
+         },
+         error: function(request){
+            $("#preloader").hide();
+            btn.prop('disabled', false);
+            var msg = "Mesaj gönderilemedi. Lütfen tekrar deneyin.";
+            try { var j = JSON.parse(request.responseText); if(j && j.mesaj){ msg = j.mesaj; } } catch(err){}
+            swal({type:"error", title:"Gönderilemedi", text: msg});
+         }
+      });
+   });
+})();
+</script>
