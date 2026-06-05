@@ -2073,8 +2073,9 @@
       @endif
        
       <!-- End Google Tag Manager (noscript) -->
-      @if($pageindex==2) 
+      @if($pageindex==2)
       @include('modaldialogs.randevu-detayi-kart')
+      @include('isletmeadmin.partials.whatsapp_mesaj_modal')
       @endif
       @if($pageindex==40)
       @include('modaldialogs.ajandaekle-modal')
@@ -5183,7 +5184,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=247.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=248.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>

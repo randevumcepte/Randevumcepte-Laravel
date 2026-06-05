@@ -1,3 +1,19 @@
+@php
+   // WhatsApp mesaj butonu — sadece musterinin telefonu varsa goster
+   $_waUser = $randevu->randevu->users ?? null;
+   $_waTel  = $_waUser->cep_telefon ?? '';
+   $_waBagliBtn = (isset($waBagli) && $waBagli) ? 1 : 0;
+   $_waBtn = '';
+   if (!empty($_waTel)) {
+      $_waBtn = '<a href="#" class="btn btn-success whatsapp-mesaj-ac"'
+         .' data-userid="'.($randevu->randevu->user_id ?? '').'"'
+         .' data-telefon="'.e($_waTel).'"'
+         .' data-ad="'.e($_waUser->name ?? '').'"'
+         .' data-onay="'.(int)($_waUser->whatsapp_onay ?? 0).'"'
+         .' data-bagli="'.$_waBagliBtn.'">'
+         .'<i class="fa fa-whatsapp"></i> WhatsApp</a>';
+   }
+@endphp
 @if($randevu->randevu->on_gorusme_id !== null)
    <div class="rdb-row">
       <a name="gelmedi_isaretle" href="#" class="btn btn-danger" data-value="{{$randevu->randevu_id}}"><i class="fa fa-times"></i> Gelmedi</a>
@@ -11,11 +27,14 @@
          <a name="urun_satis_yapildi" href="#" class="btn btn-success" data-value="{{$randevu->on_gorusme_id}}"><i class="fa fa-plus"></i> Satış Yapıldı</a>
       @endif
 
+      {!! $_waBtn !!}
+
       <a class="btn btn-danger rdb-pull-right" href="#" name="satis_yapilmadi" data-value="{{$randevu->on_gorusme_id}}"><i class="fa fa-times"></i> Satış Yapılmadı</a>
    </div>
 @elseif($randevu->randevu->durum == 0)
    <div class="rdb-row">
       <button data-value="{{$randevu->randevu_id}}" class="btn btn-success randevuonayla"><i class="fa fa-check"></i> Onayla</button>
+      {!! $_waBtn !!}
       <button class="btn btn-danger randevuiptalet" data-value="{{$randevu->randevu_id}}"><i class="fa fa-times"></i> İptal Et</button>
    </div>
 @else
@@ -30,6 +49,8 @@
             <a name="tahsil_et" href="#" class="btn btn-primary" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-money"></i> Tahsilat</a>
          @endif
       @endif
+
+      {!! $_waBtn !!}
 
       <button class="btn btn-danger randevuiptalet" data-value="{{$randevu->randevu_id}}" data-index-number="{{$randevu->hizmet_id}}"><i class="fa fa-times"></i> İptal Et</button>
    </div>

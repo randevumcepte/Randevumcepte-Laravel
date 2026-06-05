@@ -1,4 +1,6 @@
 <style>
+/* Takvim detay modali z-index 100001 — compose modal onun da ustunde kalsin */
+#whatsapp-mesaj-modal { z-index:100060 !important; }
 #whatsapp-mesaj-modal .modal-dialog { max-width:520px; }
 .wam-modal { border-radius:12px; border:0; overflow:hidden; box-shadow:0 20px 50px rgba(92,0,142,.18); }
 .wam-header {

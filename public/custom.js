@@ -32127,6 +32127,9 @@ $(document).on('click', '.whatsapp-mesaj-ac', function(e){
     var onay   = parseInt($(this).data('onay') || 0, 10);
     var bagli  = parseInt($(this).data('bagli') || 0, 10);
 
+    // Takvim randevu detay modali aciksa once onu kapat (z-index cakismasini onle)
+    $('#modal-view-event').modal('hide');
+
     // WhatsApp bagli degilse mesaj ekrani yerine yonlendirme uyarisi goster
     if(bagli !== 1){
         swal({

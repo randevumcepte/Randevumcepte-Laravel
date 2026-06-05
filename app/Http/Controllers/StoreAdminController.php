@@ -3362,6 +3362,13 @@ public function carkverilerigetir(Request $request)
         ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id ?? 0)
         ->value('role_id');
 
+    // WhatsApp bagli mi? Bir kez hesapla, randevu detay modalindaki WhatsApp butonu icin kullan (per-row N+1 yok)
+    $_waSalon = Salonlar::find($isletmeId);
+    $_waSaglayici = $_waSalon->whatsapp_saglayici ?? 'baileys';
+    $_waBagli = $_waSaglayici === 'cloud_api'
+        ? (!empty($_waSalon->cloud_api_token) && !empty($_waSalon->cloud_api_phone_number_id))
+        : (($_waSalon->whatsapp_aktif ?? 0) && ($_waSalon->whatsapp_durum ?? '') === 'connected');
+
     // Renk haritalarini bir kez yukle, id->renk dictionary olarak tut (per-row N+1 yerine)
     $kategoriRenkMap = [];
     $cihazRenkMap    = [];
@@ -3440,7 +3447,7 @@ public function carkverilerigetir(Request $request)
         : collect();
 
     $randevu_hizmetler = $randevu_hizmetler_raw
-    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet) {
+    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet) {
 
         $start = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat)->toIso8601String();
 
@@ -3584,7 +3591,7 @@ public function carkverilerigetir(Request $request)
             'title' => $title,
             'start' => $start,
             'end' => $end,
-            'eventbuttons'=> view('partials.randevuDetayiButonlar',['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat])->render(),
+            'eventbuttons'=> view('partials.randevuDetayiButonlar',['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat, 'waBagli' => $_waBagli])->render(),
             'description' => view('partials.randevuDetayi', ['randevu' => $rh,'rol'=>$rol,'paketAdi'=>$paketAdi])->render(),
             'hoverHtml' => view('partials.randevuHoverDetayi', ['randevu' => $rh,'rol'=>$rol,'paketAdi'=>$paketAdi])->render(),
             'color' => $color,
