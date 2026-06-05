@@ -10074,7 +10074,8 @@ function takvimyukle(preload,turdegisti)
             } else {
                 // Masaüstü — baslik+filtreler tek satira birlestirildigi icin
                 // offset dusuruldu, takvim ekranin altina kadar uzasin.
-                calendarHeight = $(window).height() - 215;
+                // Alttaki bosluk kapansin diye offset 215 -> 170.
+                calendarHeight = $(window).height() - 170;
             }
 
             if(turdegisti)
