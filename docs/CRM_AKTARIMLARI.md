@@ -920,13 +920,31 @@ Modüler akış (Adım 1-4) sadece **adisyon/tahsilat/masraf** seviyesinde çal�
 #### Randevu akışı (`importRandevular`)
 
 - `/company/appointment/list` paginated (`page=N`, `next_page` var)
-- Her appointment için `processOneAppointment($appt)`:
+- Her appointment için:
   - `resolveUser(appt.customer)` → user_id
-  - `Randevular` insert/update: `tarih=appointment_date`, `saat=appointment_time`, `durum=1`
-  - Marker `[salonrandevu:appointmentId]` `randevular.personel_notu`
-  - Her `appt.transactions[]` (hizmet) için `RandevuHizmetler` + `AdisyonHizmetler` insert; `geldi` ← `customer_state` map
-- **`customer_state` map**: `0`=Bekleniyor (`geldi=null`), `1`=Geldi (`1`), `2`=Gelmedi (`0`)
+  - `Randevular` UPSERT: `tarih`, `saat` ← `appointment_start_date` ISO split, `durum` ← `customer_state` map, `randevuya_geldi` ← state map
+  - **Marker `[salonrandevu-rdv:APPT_ID]`** → `randevular.personel_notu` (orijinal `appt.note` varsa "not [marker]" formatında)
+  - **UPSERT mantığı**: marker LIKE search → varsa update (durum/geldi/personel senkron), yoksa insert
+  - Hizmet (`appt.service`) → `RandevuHizmetler` upsert (`saat`, `saat_bitis`, `sure_dk` set edilir; `sure < 15` ise 15)
+- **`customer_state` map** (sample inspect ile doğrulandı):
+  - `0` = Beklemede → `durum=0`
+  - `1` = Onaylı → `durum=1`
+  - `2` + geçmiş = Geldi → `durum=1, geldi=1`
+  - `3` + geçmiş = Gelmedi → `durum=1, geldi=0`
+  - `4`/`5` = İptal → `durum=2, geldi=0`
+  - gelecek tarihliyse `geldi=null` (state=2/3 bile olsa)
 - **6x backoff retry**: `SalonrandevuClient.get` bağlantı koparsa exponential backoff
+
+**Marker farkı**: Randevu marker'ı `[salonrandevu-rdv:APPT_ID]`, receipt marker'ı `[salonrandevu:RID]` — birbirine karışmaz (appointment_id ≠ receipt_id farklı pool).
+
+**UPSERT — mevcut randevuyu da içerik olarak günceller**:
+
+| Tablo | Senkron edilen alanlar | Not |
+|---|---|---|
+| `Randevular` | `tarih`, `saat`, `durum`, **`randevuya_geldi`**, `personel_notu` | `geldi` EXPLICIT null bile olsa set edilir (eski yanlış değer silinir). `personel_notu` = `"SR appt.note + [salonrandevu-rdv:X]"` — manuel girilmiş not OVERWRITE olur. |
+| `RandevuHizmetler` (per `hizmet_id`) | `saat`, `saat_bitis`, `sure_dk`, `fiyat`, `personel_id` | `saat_bitis` = SR `appointment_end_date` doluysa o, yoksa `saat + sure_dk`. `sure_dk < 15` ise 15. |
+
+Yani re-import güvenli: SR'de yapılan değişiklikler (durum, geldi, personel, saat, süre) DB'ye yansır. Tek kayıp: manuel `personel_notu` (SR notu overwrite ediyor) — orijinal not düzenlemeleri kaybolur.
 
 **Modüler akışla ilişki**: Randevu kaynağındaki `appointment_id` ile receipt kaynağındaki `receipt_id` (rid) **farklı pool'dan**. Modüler Adım 1-3 receipt'leri işler (paket/hizmet/ürün satış+tahsilat); Adım 0'daki randevu akışı takvim görünümü içindir, satış zincirine değmez.
 
