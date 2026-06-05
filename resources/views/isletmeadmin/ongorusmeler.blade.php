@@ -268,7 +268,7 @@
    background: transparent !important;
 }
 
-/* TD -> Kart İçi Alan */
+/* TD -> Kart İçi Alan (varsayilan) */
 .rc-og-table tbody td {
    display: flex !important;
    flex-direction: column !important;
@@ -283,7 +283,6 @@
    width: auto !important;
 }
 .rc-og-table tbody td::before {
-   content: attr(data-label);
    font-size: 10.5px;
    font-weight: 700;
    color: var(--rc-text-soft);
@@ -293,45 +292,27 @@
    line-height: 1.2;
 }
 
-/* Sutun adlari -> Grid Areas */
-.rc-og-table tbody td.rc-og-td-musteri { grid-area: musteri; }
-.rc-og-table tbody td.rc-og-td-tipi { grid-area: tipi; }
-.rc-og-table tbody td.rc-og-td-telefon { grid-area: telefon; }
-.rc-og-table tbody td.rc-og-td-randevu { grid-area: randevu; }
-.rc-og-table tbody td.rc-og-td-yapan { grid-area: yapan; }
-.rc-og-table tbody td.rc-og-td-neden { grid-area: neden; }
-.rc-og-table tbody td.rc-og-td-durum { grid-area: durum; justify-self: end; align-items: flex-end; }
-.rc-og-table tbody td.rc-og-td-olusturma { grid-area: olusturma; }
-.rc-og-table tbody td.rc-og-td-islemler { grid-area: islemler; justify-self: end; align-items: flex-end; }
+/* === SÜTUN SIRASI (nth-child) — JS'ye bagimli degil ===
+   Backend siralamasi:
+   1=olusturma  2=musteri  3=musteri_tipi  4=telefon
+   5=randevu_tarihi  6=on_gorusme_nedeni  7=gorusmeyi_yapan
+   8=durum  9=islemler
+*/
 
-/* MÜŞTERİ – büyük başlık, label gizli */
-.rc-og-table tbody td.rc-og-td-musteri {
-   font-size: 16px;
-   font-weight: 700;
-   color: var(--rc-text);
-   line-height: 1.3;
-}
-.rc-og-table tbody td.rc-og-td-musteri::before { display: none; }
-
-/* DURUM – sağ üstte rozetle */
-.rc-og-table tbody td.rc-og-td-durum::before { display: none; }
-
-/* İŞLEMLER – sağ altta ikon button */
-.rc-og-table tbody td.rc-og-td-islemler::before { display: none; }
-
-/* OLUŞTURMA – sol altta küçük tarih ikonuyla */
-.rc-og-table tbody td.rc-og-td-olusturma {
+/* 1) OLUŞTURMA — footer sol, kucuk tarih + ikon */
+.rc-og-table tbody td:nth-child(1) {
+   grid-area: olusturma;
    flex-direction: row !important;
    align-items: center !important;
    gap: 6px !important;
    font-size: 12px;
    color: var(--rc-text-soft);
-   padding-top: 6px !important;
+   padding-top: 10px !important;
    border-top: 1px solid var(--rc-border) !important;
-   margin-top: 2px;
+   margin-top: 4px;
    width: 100% !important;
 }
-.rc-og-table tbody td.rc-og-td-olusturma::before {
+.rc-og-table tbody td:nth-child(1)::before {
    content: "\f073"; /* fa-calendar */
    font-family: "FontAwesome";
    font-size: 12px;
@@ -339,16 +320,58 @@
    text-transform: none;
    letter-spacing: 0;
    font-weight: 400;
-   margin-right: 2px;
 }
-.rc-og-table tbody td.rc-og-td-islemler {
-   padding-top: 6px !important;
+
+/* 2) MÜŞTERİ — buyuk baslik, label yok */
+.rc-og-table tbody td:nth-child(2) {
+   grid-area: musteri;
+   font-size: 16px;
+   font-weight: 700;
+   color: var(--rc-text);
+   line-height: 1.3;
+}
+.rc-og-table tbody td:nth-child(2)::before { display: none; }
+
+/* 3) MÜŞTERİ TİPİ */
+.rc-og-table tbody td:nth-child(3) { grid-area: tipi; }
+.rc-og-table tbody td:nth-child(3)::before { content: "Müşteri Tipi"; }
+
+/* 4) TELEFON */
+.rc-og-table tbody td:nth-child(4) { grid-area: telefon; }
+.rc-og-table tbody td:nth-child(4)::before { content: "Telefon"; }
+
+/* 5) RANDEVU TARİHİ */
+.rc-og-table tbody td:nth-child(5) { grid-area: randevu; }
+.rc-og-table tbody td:nth-child(5)::before { content: "Randevu Tarihi"; }
+
+/* 6) ÖN GÖRÜŞME NEDENİ */
+.rc-og-table tbody td:nth-child(6) { grid-area: neden; }
+.rc-og-table tbody td:nth-child(6)::before { content: "Ön Görüşme Nedeni"; }
+
+/* 7) GÖRÜŞMEYİ YAPAN */
+.rc-og-table tbody td:nth-child(7) { grid-area: yapan; }
+.rc-og-table tbody td:nth-child(7)::before { content: "Görüşmeyi Yapan"; }
+
+/* 8) DURUM — sag ust rozet, label yok */
+.rc-og-table tbody td:nth-child(8) {
+   grid-area: durum;
+   justify-self: end;
+   align-items: flex-end;
+}
+.rc-og-table tbody td:nth-child(8)::before { display: none; }
+
+/* 9) İŞLEMLER — footer sag, label yok */
+.rc-og-table tbody td:nth-child(9) {
+   grid-area: islemler;
+   justify-self: end;
+   align-items: flex-end !important;
+   padding-top: 10px !important;
    border-top: 1px solid var(--rc-border) !important;
-   margin-top: 2px;
+   margin-top: 4px;
    align-self: stretch !important;
    width: 100% !important;
-   align-items: flex-end !important;
 }
+.rc-og-table tbody td:nth-child(9)::before { display: none; }
 
 /* RESPONSIVE PLUGIN'I DEVRE DIŞI */
 #on_gorusme_liste td.dtr-control,
@@ -574,7 +597,7 @@
    .rc-og-title-row { gap: 10px; }
    .rc-og-icon-bubble { width: 36px; height: 36px; font-size: 14px; }
    .rc-og-table tbody tr {
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr !important;
       grid-template-areas:
          "musteri"
          "durum"
@@ -586,17 +609,17 @@
          "olusturma"
          "islemler" !important;
    }
-   .rc-og-table tbody td.rc-og-td-durum,
-   .rc-og-table tbody td.rc-og-td-islemler {
-      justify-self: start;
-      align-items: flex-start;
+   .rc-og-table tbody td:nth-child(8),
+   .rc-og-table tbody td:nth-child(9) {
+      justify-self: start !important;
+      align-items: flex-start !important;
    }
 }
 </style>
 
 <script>
-/* Responsive plugin'in dinamik attigi siniflari geri al */
-$(document).on('init.dt', '#on_gorusme_liste', function() {
+/* Responsive plugin'in dinamik attigi siniflari temizle */
+$(document).on('init.dt draw.dt', '#on_gorusme_liste', function() {
    var $t = $('#on_gorusme_liste');
    $t.removeClass('dtr-inline collapsed');
    setTimeout(function() {
@@ -605,50 +628,6 @@ $(document).on('init.dt', '#on_gorusme_liste', function() {
       $t.find('td.dtr-control, th.dtr-control').remove();
    }, 50);
 });
-
-/* Her hucreye data-label + sutun adi sinifi ekle (kart icin) */
-(function(){
-   var labels = [
-      'Oluşturma',
-      'Müşteri',
-      'Müşteri Tipi',
-      'Telefon',
-      'Randevu Tarihi',
-      'Ön Görüşme Nedeni',
-      'Görüşmeyi Yapan',
-      'Durum',
-      'İşlemler'
-   ];
-   var tdClasses = [
-      'rc-og-td-olusturma',
-      'rc-og-td-musteri',
-      'rc-og-td-tipi',
-      'rc-og-td-telefon',
-      'rc-og-td-randevu',
-      'rc-og-td-neden',
-      'rc-og-td-yapan',
-      'rc-og-td-durum',
-      'rc-og-td-actions rc-og-td-islemler'
-   ];
-   function applyLabels(){
-      $('#on_gorusme_liste tbody tr').not('.dataTables_empty').each(function(){
-         $(this).find('> td').each(function(idx){
-            var label = labels[idx] || '';
-            var cls = tdClasses[idx] || '';
-            $(this).attr('data-label', label);
-            if(cls){
-               cls.split(' ').forEach(function(c){
-                  if(c && !$(this).hasClass(c)) $(this).addClass(c);
-               }.bind(this));
-            }
-         });
-      });
-   }
-   $(document).on('draw.dt init.dt', '#on_gorusme_liste', function(){
-      setTimeout(applyLabels, 80);
-   });
-   $(document).ready(function(){ setTimeout(applyLabels, 200); });
-})();
 </script>
 
 @endsection()
