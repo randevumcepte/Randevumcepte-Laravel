@@ -21598,6 +21598,18 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 $senet->delete();
             }
             Tahsilatlar::whereIn('id',$tahsilat_idler)->delete();
+            // Guvenlik agi: adisyon_id ile bagli ama breakdown (tahsilat_hizmetler/
+            // urunler/paketler) satiri olmayan tahsilatlar yukaridaki whereIn ile
+            // yakalanmaz (orn. import edilmis dagilim satiri olusmamis kayitlar).
+            // Bunlar adisyon silinince oksuz kalip ciroya/musteri bakiyesine
+            // "hayalet" tutar olarak yansiyordu; burada birlikte temizleniyor.
+            $oksuzTahsilatIdler = Tahsilatlar::where('adisyon_id',$request->adisyon_id)->pluck('id')->toArray();
+            if(count($oksuzTahsilatIdler) > 0){
+                TahsilatHizmetler::whereIn('tahsilat_id',$oksuzTahsilatIdler)->delete();
+                TahsilatUrunler::whereIn('tahsilat_id',$oksuzTahsilatIdler)->delete();
+                TahsilatPaketler::whereIn('tahsilat_id',$oksuzTahsilatIdler)->delete();
+                Tahsilatlar::whereIn('id',$oksuzTahsilatIdler)->delete();
+            }
             Adisyonlar::where('id',$request->adisyon_id)->delete();
             $musteriid = '';
             if($request->musteri_id!='')
