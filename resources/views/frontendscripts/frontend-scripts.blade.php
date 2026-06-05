@@ -88,13 +88,20 @@
                   tarih = new Date();
                }
                var calendarHeight = '';
-                 if ($(window).width() < 1300) { 
+                 if ($(window).width() < 1300) {
                     // Mobil cihaz
                       calendarHeight = $(window).height() - 50;
                 } else {
-                    // Masaüstü
-                    calendarHeight = $(window).height() - 310;
-                }  
+                    // Masaüstü — sabit offset her ekranda dogru oturmuyordu.
+                    // Takvimin gercek ust konumunu (viewport'a gore) olcup
+                    // ekranin altina kadar uzatiyoruz; boylece altta bosluk kalmaz.
+                    var _calEl = document.getElementById('calendar');
+                    var _calTop = _calEl ? _calEl.getBoundingClientRect().top : 200;
+                    calendarHeight = $(window).height() - _calTop - 6;
+                    if (calendarHeight < 400) {
+                        calendarHeight = $(window).height() - 310;
+                    }
+                }
              
             $('#calendar').fullCalendar({
                 titleFormat: 'D MMMM YYYY dddd',  
