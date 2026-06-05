@@ -502,30 +502,36 @@
    letter-spacing: .03em;
    white-space: nowrap;
 }
+/* Durum rozetleri — dolgulu/canli (belirgin), beyaz yazi */
 .rc-rl-table tbody td .btn.btn-warning {
-   background: var(--rc-warning-soft) !important;
-   color: #b45309 !important;
-   border: 1px solid #fde68a !important;
+   background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%) !important;
+   color: #fff !important;
+   border: none !important;
+   box-shadow: 0 2px 6px rgba(245, 158, 11, .30) !important;
 }
 .rc-rl-table tbody td .btn.btn-success {
-   background: var(--rc-success-soft) !important;
-   color: #15803d !important;
-   border: 1px solid #bbf7d0 !important;
+   background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%) !important;
+   color: #fff !important;
+   border: none !important;
+   box-shadow: 0 2px 6px rgba(22, 163, 74, .30) !important;
 }
 .rc-rl-table tbody td .btn.btn-primary {
-   background: var(--rc-purple-light) !important;
-   color: var(--rc-purple-dark) !important;
-   border: 1px solid var(--rc-purple-soft) !important;
+   background: linear-gradient(135deg, var(--rc-purple-dark) 0%, var(--rc-purple) 100%) !important;
+   color: #fff !important;
+   border: none !important;
+   box-shadow: 0 2px 6px rgba(92, 0, 142, .30) !important;
 }
 .rc-rl-table tbody td .btn.btn-danger {
-   background: var(--rc-danger-soft) !important;
-   color: #b91c1c !important;
-   border: 1px solid #fecaca !important;
+   background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+   color: #fff !important;
+   border: none !important;
+   box-shadow: 0 2px 6px rgba(220, 38, 38, .30) !important;
 }
 .rc-rl-table tbody td .btn.btn-dark {
-   background: #f1f5f9 !important;
-   color: #475569 !important;
-   border: 1px solid #e2e8f0 !important;
+   background: linear-gradient(135deg, #475569 0%, #64748b 100%) !important;
+   color: #fff !important;
+   border: none !important;
+   box-shadow: 0 2px 6px rgba(71, 85, 105, .28) !important;
 }
 
 /* === İŞLEMLER DROPDOWN === */
