@@ -1,25 +1,17 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
-<div class="page-header">
-      <div class="row">
-         <div class="col-md-6 col-sm-6">
-            <div class="title">
-               <h1 style="font-size:20px">SMS Yönetimi</h1>
-            </div>
-            <nav aria-label="breadcrumb" role="navigation">
-               <ol class="breadcrumb">
-                  <li class="breadcrumb-item">
-                     <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
-                  </li>
-                  
-                  <li class="breadcrumb-item active" aria-current="page">
-                     SMS Yönetimi
-                  </li>
-               </ol>
+<div class="rc-sm-page">
+   <div class="rc-sm-header">
+      <div class="rc-sm-title-row">
+         <div class="rc-sm-icon-bubble"><i class="fa fa-commenting-o"></i></div>
+         <div>
+            <h1 class="rc-sm-title">SMS Yönetimi</h1>
+            <nav class="rc-sm-breadcrumb" aria-label="breadcrumb">
+               <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
+               <span class="rc-sm-sep">›</span>
+               <span class="rc-sm-active">SMS Yönetimi</span>
             </nav>
          </div>
-  
- 
       </div>
    </div>
    <div class="row clearfix">
@@ -850,6 +842,7 @@
        </div>
      </div>
    </div>
+</div>{{-- /rc-sm-page --}}
 
  <!-- SMS rapor detay modal -->
  <style>
@@ -1346,6 +1339,251 @@
     });
 
     window.TopluSMSSecici = TopluSMSSecici;
+})();
+</script>
+
+<style>
+/* =================================================================
+   SMS YÖNETİMİ — MODERN RESPONSIVE SKIN
+   Markaya uygun mor (#5C008E / #9D5DC8 / #d946ef)
+   ================================================================= */
+.rc-sm-page {
+   --rc-purple-dark: #5C008E;
+   --rc-purple: #9D5DC8;
+   --rc-purple-light: #f5eefe;
+   --rc-purple-soft: #ead4ff;
+   --rc-success: #16a34a;
+   --rc-warning: #f59e0b;
+   --rc-danger: #dc2626;
+   --rc-info: #2563eb;
+   --rc-text: #1f2937;
+   --rc-text-soft: #6b7280;
+   --rc-border: #eef0f4;
+}
+
+/* === HEADER === */
+.rc-sm-header {
+   display: flex; align-items: center; justify-content: space-between;
+   gap: 16px; flex-wrap: wrap; padding: 18px 22px; margin-bottom: 18px;
+   background: #fff; border-radius: 14px;
+   box-shadow: 0 1px 3px rgba(17,24,39,.04), 0 4px 16px rgba(92,0,142,.04);
+}
+.rc-sm-title-row { display: flex; align-items: center; gap: 14px; }
+.rc-sm-icon-bubble {
+   width: 46px; height: 46px; border-radius: 12px;
+   background: linear-gradient(135deg, var(--rc-purple-dark) 0%, var(--rc-purple) 100%);
+   color: #fff; display: inline-flex; align-items: center; justify-content: center;
+   font-size: 18px; box-shadow: 0 6px 18px rgba(92,0,142,.25); flex-shrink: 0;
+}
+.rc-sm-title { margin: 0; font-size: 19px; font-weight: 700; color: var(--rc-text); line-height: 1.2; }
+.rc-sm-breadcrumb { margin-top: 4px; font-size: 12.5px; color: var(--rc-text-soft); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rc-sm-breadcrumb a { color: var(--rc-text-soft); text-decoration: none; transition: color .15s; }
+.rc-sm-breadcrumb a:hover { color: var(--rc-purple-dark); }
+.rc-sm-breadcrumb .rc-sm-sep { color: #cbd5e1; }
+.rc-sm-breadcrumb .rc-sm-active { color: var(--rc-purple-dark); font-weight: 600; }
+
+/* === ANA KART KONTEYNER === */
+.rc-sm-page .pd-20.card-box {
+   border-radius: 16px !important;
+   border: 1px solid var(--rc-border) !important;
+   box-shadow: 0 1px 3px rgba(17,24,39,.04), 0 6px 24px rgba(92,0,142,.05) !important;
+}
+
+/* === YASAL UYARI === */
+.rc-sm-page .alert-warning {
+   background: #fffbeb !important; border: 1px solid #fde68a !important;
+   border-left: 4px solid var(--rc-warning) !important; border-radius: 12px !important;
+   color: #92400e !important; font-size: 12.5px; line-height: 1.55;
+}
+.rc-sm-page .alert-warning img { max-width: 34px; margin-right: 8px; vertical-align: top; }
+
+/* === SEKMELER (her iki seviye) === */
+.rc-sm-page .nav-tabs.element {
+   border: none !important; height: auto !important; overflow-x: auto !important;
+   overflow-y: hidden; display: flex; flex-wrap: wrap; gap: 8px;
+   padding: 8px !important; background: #fff; border-radius: 14px;
+   box-shadow: 0 1px 3px rgba(17,24,39,.04), 0 4px 16px rgba(92,0,142,.04);
+}
+.rc-sm-page .nav-tabs.element .nav-item { margin: 0 !important; }
+.rc-sm-page .nav-tabs.element .nav-item > button,
+.rc-sm-page .nav-tabs.element .nav-item > a {
+   width: auto !important; height: auto !important; min-height: 40px;
+   margin: 0 !important; padding: 9px 16px !important; border-radius: 10px !important;
+   border: 1px solid transparent !important; background: transparent !important;
+   color: var(--rc-text-soft) !important; font-size: 13px !important; font-weight: 600 !important;
+   white-space: nowrap; transition: background .15s, color .15s, box-shadow .15s; box-shadow: none !important;
+}
+.rc-sm-page .nav-tabs.element .nav-item > button:hover,
+.rc-sm-page .nav-tabs.element .nav-item > a:hover {
+   background: var(--rc-purple-light) !important; color: var(--rc-purple-dark) !important;
+}
+.rc-sm-page .nav-tabs.element .nav-item > button.active,
+.rc-sm-page .nav-tabs.element .nav-item > a.active {
+   background: linear-gradient(135deg, var(--rc-purple-dark) 0%, var(--rc-purple) 100%) !important;
+   color: #fff !important; border-color: transparent !important;
+   box-shadow: 0 4px 12px rgba(92,0,142,.25) !important;
+}
+
+/* İç sekme paneli üst başlık + buton barı */
+.rc-sm-page h2.text-blue { color: var(--rc-purple-dark) !important; font-size: 16px; font-weight: 700; }
+
+/* === DATATABLES SKIN === */
+.rc-sm-page .dataTables_wrapper { padding: 6px 2px 0; overflow-x: auto; }
+.rc-sm-page .dataTables_filter input {
+   border: 1px solid var(--rc-border) !important; border-radius: 999px !important;
+   padding: 9px 18px !important; margin-left: 8px; font-size: 13px; max-width: 100%;
+   background: #fff !important; outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.rc-sm-page .dataTables_filter input:focus { border-color: var(--rc-purple) !important; box-shadow: 0 0 0 4px rgba(157,93,200,.12); }
+.rc-sm-page .dataTables_length select {
+   border: 1px solid var(--rc-border) !important; border-radius: 8px !important;
+   padding: 4px 8px !important; font-size: 13px; margin: 0 6px; background: #fff !important;
+}
+.rc-sm-page .dataTables_length label, .rc-sm-page .dataTables_filter label,
+.rc-sm-page .dataTables_info { color: var(--rc-text-soft); font-size: 12.5px; }
+.rc-sm-page .dataTables_paginate .paginate_button {
+   border-radius: 8px !important; padding: 6px 12px !important; margin: 0 2px !important;
+   border: 1px solid var(--rc-border) !important; color: var(--rc-text-soft) !important;
+   background: #fff !important; font-size: 13px !important;
+}
+.rc-sm-page .dataTables_paginate .paginate_button:hover {
+   background: var(--rc-purple-light) !important; color: var(--rc-purple-dark) !important; border-color: var(--rc-purple-soft) !important;
+}
+.rc-sm-page .dataTables_paginate .paginate_button.current,
+.rc-sm-page .dataTables_paginate .paginate_button.current:hover {
+   background: linear-gradient(135deg, var(--rc-purple-dark) 0%, var(--rc-purple) 100%) !important;
+   color: #fff !important; border-color: transparent !important; box-shadow: 0 4px 10px rgba(92,0,142,.25) !important;
+}
+
+/* DataTables responsive plugin'i devre disi (kendi yiginimizi kullaniyoruz) */
+.rc-sm-page table.data-table td.dtr-control,
+.rc-sm-page table.data-table th.dtr-control { display: none !important; }
+.rc-sm-page table.data-table tr.child { display: none !important; }
+.rc-sm-page table.data-table td.dtr-hidden,
+.rc-sm-page table.data-table th.dtr-hidden,
+.rc-sm-page table.data-table td.none,
+.rc-sm-page table.data-table th.none { display: table-cell !important; }
+
+/* === MODERN TABLO === */
+.rc-sm-page table.data-table {
+   border-collapse: separate !important; border-spacing: 0 !important; width: 100% !important;
+}
+.rc-sm-page table.data-table thead th {
+   background: var(--rc-purple-light) !important; color: var(--rc-purple-dark) !important;
+   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+   padding: 12px 14px !important; text-align: left; border: none !important;
+   border-bottom: 2px solid var(--rc-purple-soft) !important; white-space: nowrap; vertical-align: middle;
+}
+.rc-sm-page table.data-table thead th:first-child { border-top-left-radius: 12px; }
+.rc-sm-page table.data-table thead th:last-child { border-top-right-radius: 12px; }
+.rc-sm-page table.data-table tbody td {
+   padding: 12px 14px !important; font-size: 13px; color: var(--rc-text);
+   border: none !important; border-bottom: 1px solid var(--rc-border) !important; vertical-align: middle !important; line-height: 1.45;
+}
+.rc-sm-page table.data-table tbody tr:last-child td { border-bottom: none !important; }
+.rc-sm-page table.data-table tbody tr:nth-child(even) { background: #fcfbfe; }
+.rc-sm-page table.data-table tbody tr:hover { background: #f7f1fd; }
+/* Detay/işlem butonları kompakt */
+.rc-sm-page table.data-table tbody td .btn {
+   border-radius: 8px !important; padding: 5px 12px !important; font-size: 12px !important; font-weight: 600 !important;
+}
+
+/* === SMS AYARLARI KARTLARI === */
+.rc-sm-page #sms_ayarlari .card-box {
+   border-radius: 12px !important; border: 1px solid var(--rc-border) !important;
+   box-shadow: 0 1px 3px rgba(17,24,39,.03) !important; transition: box-shadow .15s, border-color .15s;
+}
+.rc-sm-page #sms_ayarlari .card-box:hover { box-shadow: 0 6px 18px rgba(92,0,142,.08) !important; border-color: var(--rc-purple-soft) !important; }
+.rc-sm-page #sms_ayarlari h6 { font-weight: 700; color: var(--rc-purple-dark); font-size: 13.5px; }
+.rc-sm-page #sms_ayarlari .card-box p { color: var(--rc-text-soft); font-size: 12px; }
+
+/* === ŞABLON CHIP'LERİ === */
+.rc-sm-page .smstaslaklari p:first-child {
+   background: var(--rc-purple-light) !important; border: 1px solid var(--rc-purple-soft) !important;
+   color: var(--rc-purple-dark) !important; font-size: 14px !important; padding: 6px 10px;
+}
+.rc-sm-page .smstaslaklari:hover p { filter: brightness(.99); }
+
+/* === MÜŞTERİ SEÇİM KUTUSU === */
+.rc-sm-page #musteriListesiTopluSMS { border-radius: 10px !important; border-color: var(--rc-border) !important; }
+
+/* === RESPONSIVE: TABLET (≤1024px) === */
+@media (max-width: 1024px) {
+   .rc-sm-header { padding: 14px 16px; }
+   .rc-sm-icon-bubble { width: 40px; height: 40px; font-size: 16px; }
+   .rc-sm-title { font-size: 17px; }
+   .rc-sm-page .nav-tabs.element { flex-wrap: nowrap; }
+}
+
+/* === RESPONSIVE: TABLET PORTRAIT + MOBILE (≤900px) === */
+@media (max-width: 900px) {
+   .rc-sm-header { padding: 12px 14px; border-radius: 12px; }
+   .rc-sm-title { font-size: 16px; }
+   .rc-sm-page .pd-20.card-box { padding: 14px !important; }
+
+   /* Tablolari blok-yigin yap */
+   .rc-sm-page table.data-table { display: block !important; }
+   .rc-sm-page table.data-table thead { display: none !important; }
+   .rc-sm-page table.data-table tbody { display: block !important; }
+   .rc-sm-page table.data-table tbody tr {
+      display: block !important; background: #fff !important;
+      border: 1px solid var(--rc-border) !important; border-radius: 12px !important;
+      box-shadow: 0 2px 8px rgba(92,0,142,.05); padding: 4px 2px; margin-bottom: 12px;
+   }
+   .rc-sm-page table.data-table tbody tr:nth-child(even) { background: #fff !important; }
+   .rc-sm-page table.data-table tbody td {
+      display: flex !important; justify-content: space-between; align-items: center; gap: 14px;
+      padding: 8px 14px !important; border: none !important; border-bottom: 1px solid #f4f0fa !important;
+      text-align: right; white-space: normal !important;
+   }
+   .rc-sm-page table.data-table tbody tr td:last-child { border-bottom: none !important; }
+   .rc-sm-page table.data-table tbody td::before {
+      content: attr(data-label); flex: 0 0 auto; margin-right: auto;
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--rc-purple-dark); text-align: left;
+   }
+   .rc-sm-page table.data-table tbody td:empty { display: none !important; }
+}
+
+/* === RESPONSIVE: KÜÇÜK MOBILE (≤420px) === */
+@media (max-width: 420px) {
+   .rc-sm-title-row { gap: 10px; }
+   .rc-sm-icon-bubble { width: 36px; height: 36px; font-size: 14px; }
+}
+</style>
+
+<script>
+/* SMS Yönetimi tablolari: responsive plugin'in eklediği sınıfları geri al +
+   mobil yığın için her hücreye sütun başlığına göre data-label ekle.
+   draw.dt'de tekrar uygulanır (DataTables redraw sonrası). */
+(function(){
+   var TABLES = [
+      '#bildirim_sms_raporlari', '#toplu_sms_raporlari', '#grup_sms_raporlari',
+      '#filtreli_sms_raporlari', '#kampanya_sms_raporlari', '#karaliste_sms_tablo'
+   ];
+   function applyLabels(sel){
+      var $t = $(sel);
+      if(!$t.length) return;
+      var heads = [];
+      $t.find('thead th').each(function(){ heads.push($(this).text().trim()); });
+      $t.find('tbody tr').each(function(){
+         $(this).find('> td').each(function(i){ $(this).attr('data-label', heads[i] || ''); });
+      });
+   }
+   TABLES.forEach(function(sel){
+      $(document).on('init.dt', sel, function(){
+         var $t = $(sel);
+         $t.removeClass('dtr-inline collapsed');
+         setTimeout(function(){
+            $t.find('td.dtr-control, th.dtr-control').remove();
+            $t.find('td, th').removeClass('dtr-hidden none');
+            $t.find('tr.child').remove();
+            applyLabels(sel);
+         }, 40);
+      });
+      $(document).on('draw.dt', sel, function(){ setTimeout(function(){ applyLabels(sel); }, 60); });
+   });
+   $(document).ready(function(){ setTimeout(function(){ TABLES.forEach(applyLabels); }, 400); });
 })();
 </script>
 
