@@ -34,6 +34,10 @@ class RandevuSMSHatirlatma extends Command
         $controller = app()->make(Controller::class);
         $wa = app(WhatsAppService::class);
 
+        // Personel/yonetici hatirlatmasi randevu basina yalnizca BIR kez gonderilsin
+        // diye idempotency bayragi (cron overlap / yeniden tetikleme korumasi).
+        $personelFlagVar = Schema::hasColumn('randevular', 'hatirlatma_personel_gonderildi');
+
         Log::info('[RND-SMS] cron tick', [
             'simdi' => date('d.m.Y H:i'),
             'aday_randevu_sayisi' => $randevular->count(),
@@ -166,6 +170,20 @@ class RandevuSMSHatirlatma extends Command
 
             if (empty($tetiklenenHizmetler)) continue;
 
+            // Idempotency: bu randevu icin personel/yonetici hatirlatmasi daha once
+            // gonderildiyse tekrar gonderme. Atomik claim — es zamanli/overlap eden
+            // cron kosulari ayni bildirimi cogaltmasin.
+            if ($personelFlagVar) {
+                $claimed = \Illuminate\Support\Facades\DB::table('randevular')
+                    ->where('id', $value->id)
+                    ->whereNull('hatirlatma_personel_gonderildi')
+                    ->update(['hatirlatma_personel_gonderildi' => now()]);
+                if (!$claimed) {
+                    Log::info('[RND-SMS] personel hatirlatmasi zaten gonderilmis — atlandi', ['randevu_id' => $value->id]);
+                    continue;
+                }
+            }
+
             $personelAyari = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->first();
 
             // Personel bazinda hizmetleri grupla -> tek SMS, tek push
@@ -206,11 +224,16 @@ class RandevuSMSHatirlatma extends Command
             $yoneticiMesaji = $value->users->name . ' isimli müşterinin bugün ' . implode(', ', $tumSatirlar) . ' randevu' . (count($tumSatirlar) > 1 ? 'larını' : 'sunu') . ' hatırlatmak isteriz.';
 
             $atanmisPersonelIdleri = array_keys($personelHizmetMap);
+            // DISTINCT + array_unique: bir yoneticinin role_id<5 olan birden fazla
+            // rolu varsa JOIN ayni salon_personelleri.id'yi tekrar dondurup ayni kisiye
+            // mukerrer bildirim/push gonderiyordu. Tekillestir.
             $yoneticiIdleri = Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
                 ->where('salon_personelleri.salon_id', $value->salon_id)
                 ->where('model_has_roles.role_id', '<', 5)
                 ->whereNotIn('salon_personelleri.id', $atanmisPersonelIdleri)
+                ->distinct()
                 ->pluck('salon_personelleri.id')->toArray();
+            $yoneticiIdleri = array_values(array_unique($yoneticiIdleri));
             foreach ($yoneticiIdleri as $yId) {
                 try {
                     \App\Services\NotificationService::toStaff((int) $yId, (int) $value->salon_id)
