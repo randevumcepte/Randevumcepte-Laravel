@@ -48,12 +48,14 @@
 #mdetay .prof-card .avatar-photo{border-radius:50%!important;border:4px solid #fff;box-shadow:0 0 0 3px var(--m3),0 12px 26px rgba(92,0,142,.2);}
 #mdetay .prof-card .edit-avatar{position:absolute;right:4px;bottom:4px;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--m1),var(--m3));color:#fff!important;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 14px rgba(92,0,142,.35);z-index:3;border:2px solid #fff;}
 #mdetay .prof-name{font-size:21px;font-weight:800;color:var(--ink);margin:14px 0 2px;}
-#mdetay .info-list{list-style:none;margin:16px 0 0;padding:0;text-align:left;}
-#mdetay .info-list li{display:flex;gap:12px;align-items:center;padding:11px 4px;border-bottom:1px dashed var(--line);}
-#mdetay .info-list li:last-child{border-bottom:0;}
-#mdetay .info-list .ico{flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:var(--soft);color:var(--m2);display:flex;align-items:center;justify-content:center;font-size:15px;}
-#mdetay .info-list .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;font-weight:600;line-height:1.2;}
+#mdetay .info-list{list-style:none;margin:16px 0 0;padding:0;text-align:left;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+#mdetay .info-list li{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;min-width:0;}
+#mdetay .info-list li.info-full{grid-column:1 / -1;align-items:flex-start;}
+#mdetay .info-list .ico{flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:var(--soft);color:var(--m2);display:flex;align-items:center;justify-content:center;font-size:14px;}
+#mdetay .info-list li>div{min-width:0;}
+#mdetay .info-list .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;font-weight:600;line-height:1.2;}
 #mdetay .info-list .v{font-size:14px;color:var(--ink);font-weight:600;word-break:break-word;line-height:1.35;margin-top:1px;}
+@media (max-width:575px){#mdetay .info-list{grid-template-columns:1fr;}}
 #mdetay .prof-card .card-footer{border:0!important;background:none!important;padding:18px 0 0!important;}
 #mdetay .prof-edit-btn{border:0;border-radius:12px;padding:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--m1),var(--m3));box-shadow:0 8px 18px rgba(92,0,142,.25);}
 #mdetay .prof-edit-btn:hover{color:#fff;filter:brightness(1.05);}
@@ -590,7 +592,7 @@
                            <li><span class="ico"><i class="fa fa-birthday-cake"></i></span><div><div class="k">Doğum Tarihi</div><div class="v">{{date('d.m.Y', strtotime($musteri_bilgi->dogum_tarihi))}}</div></div></li>
                            <li><span class="ico"><i class="fa fa-id-card-o"></i></span><div><div class="k">TC Kimlik No</div><div class="v">{{$musteri_bilgi->tc_kimlik_no ?: '—'}}</div></div></li>
                            <li><span class="ico"><i class="fa fa-venus-mars"></i></span><div><div class="k">Cinsiyet</div><div class="v">@if($musteri_bilgi->cinsiyet === 0)Kadın @elseif($musteri_bilgi->cinsiyet===1)Erkek @else Belirtilmemiş @endif</div></div></li>
-                           <li><span class="ico"><i class="fa fa-sticky-note-o"></i></span><div><div class="k">Notlar</div><div class="v">{{$portfoy->ozel_notlar ?: '—'}}</div></div></li>
+                           <li class="info-full"><span class="ico"><i class="fa fa-sticky-note-o"></i></span><div><div class="k">Notlar</div><div class="v">{{$portfoy->ozel_notlar ?: '—'}}</div></div></li>
                         </ul>
                         <div class="card-footer">
                            @yetki('musteri.ekle_duzenle')
