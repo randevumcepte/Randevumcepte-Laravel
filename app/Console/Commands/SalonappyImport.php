@@ -25,6 +25,7 @@ class SalonappyImport extends Command
         {--only-product-payments : Daha onceden --only-product-sales ile yazilmis urun adisyonlarina dump payments[] eslestir; source_text="Urun satisi" olanlar tahsilat olarak baglanir.}
         {--only-visits : Dump visit/bookingDetails -> randevu+adisyon+AH+tahsilat+TH/TU+alacak+paket usage isaretle. --from/--to araligi sart. Marker [salonappy-visit:<session>].}
         {--only-expenses : Dump expenses[] -> masraflar tablosuna idempotent insert. UPSERT marker [salonappy-expense:id]. masraf_kategorisi auto-create.}
+        {--only-setup : Kurulum dump (salonappy_setup_*.json) icindeki master kayitlari (services+staffs+products+clients+devices) idempotent yaz. Visit/paket/tahsilat YOK.}
         {--with-products : --only-visits filtresine ek: sadece product_sales[] dolu visitleri isle (urun tasima testi icin).}
         {--reset-visits : Tarih araligindaki [salonappy-visit:%] markerli randevu+adisyon+tahsilat+taksit+alacak sil. --from/--to sart.}
         {--from= : Visit aktarim/reset baslangic tarihi YYYY-MM-DD}
@@ -134,6 +135,10 @@ class SalonappyImport extends Command
             // --only-expenses: dump expenses[] -> masraflar UPSERT
             if ((bool) $this->option('only-expenses')) {
                 return $this->importExpensesOnly($dumpFile, (int) $salonId);
+            }
+            // --only-setup: kurulum dump'tan master kayitlari (services+staffs+products+clients+devices)
+            if ((bool) $this->option('only-setup')) {
+                return $this->importSetupOnly($dumpFile, (int) $salonId);
             }
             // --only-visits: tarih araliginda visit detail -> randevu+adisyon+...
             if ((bool) $this->option('only-visits')) {
@@ -2553,6 +2558,134 @@ class SalonappyImport extends Command
         }
 
         $this->info("Visit aktarim sonuc: visit=$gVisit adisyon=$gAdisyon randevu=$gRand AH=$gAH AU=$gAU urun-tasinan=$gUrunTasinan paket-usage=$gPaketUsage tahsilat=$gTah alacak=$gAlacak hata=$gHata");
+        return 0;
+    }
+
+    /**
+     * Kurulum dump (salonappy_setup_*.json) icindeki master kayitlari yaz:
+     * services + staffs + products + clients + devices.
+     * Visit/paket/tahsilat/randevu/adisyon YOK — sadece kurulum.
+     * Mevcut helper'lar idempotent (ensureSalonHizmet, ensurePersonel, ensureUrun,
+     * aktarimMusteriKontrol), tekrar calistirma guvenli.
+     */
+    private function importSetupOnly($file, $salonId)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: {$file}"); return 1; }
+        $j = json_decode(file_get_contents($file), true);
+        if (!is_array($j)) { $this->error('Gecersiz JSON.'); return 1; }
+        $services = $j['services'] ?? [];
+        $staffs   = $j['staffs']   ?? ($j['staff'] ?? []);
+        $products = $j['products'] ?? [];
+        $clients  = $j['clients']  ?? [];
+        $devices  = $j['devices']  ?? [];
+        $this->line(sprintf('Dump iceri: services=%d staffs=%d products=%d clients=%d devices=%d',
+            count($services), count($staffs), count($products), count($clients), count($devices)));
+
+        // 1) Hizmetler
+        $hizmetEklenen = 0;
+        foreach ($services as $s) {
+            $ad = trim((string) ($s['name'] ?? $s['service_name'] ?? $s['title'] ?? ''));
+            if ($ad === '') continue;
+            $sure = (int) ($s['duration'] ?? $s['process_time'] ?? $s['minutes'] ?? 30);
+            if ($sure < 15) $sure = 15;
+            $fiyat = (float) ($s['price'] ?? $s['amount'] ?? $s['service_price'] ?? 0);
+            $canon = $ad;
+            $hid = $this->ensureSalonHizmet($salonId, $ad, $sure, $fiyat, $canon);
+            if ($hid) $hizmetEklenen++;
+        }
+        $this->line("Hizmet eklendi/eslesti: $hizmetEklenen / " . count($services));
+
+        // 2) Personeller
+        $personelEklenen = 0;
+        foreach ($staffs as $p) {
+            $ad = trim((string) ($p['name'] ?? $p['full_name'] ?? $p['staff_name'] ?? ''));
+            if ($ad === '') continue;
+            $canon = $ad;
+            $this->ensurePersonel($salonId, $ad, $canon);
+            $personelEklenen++;
+        }
+        $this->line("Personel eklendi/eslesti: $personelEklenen / " . count($staffs));
+
+        // 3) Urunler
+        $urunEklenen = 0;
+        foreach ($products as $u) {
+            $ad = trim((string) ($u['name'] ?? $u['product_name'] ?? $u['title'] ?? ''));
+            if ($ad === '') continue;
+            $fiyat = (float) ($u['price'] ?? $u['amount'] ?? $u['sale_price'] ?? 0);
+            $canon = $ad;
+            $uid = $this->ensureUrun($salonId, $ad, $fiyat, $canon);
+            if ($uid) $urunEklenen++;
+        }
+        $this->line("Urun eklendi/eslesti: $urunEklenen / " . count($products));
+
+        // 4) Musteriler (aktarimMusteriKontrol ile — telefon dedup ApiController tarafinda)
+        $apiController = app(\App\Http\Controllers\ApiController::class);
+        $musteriEklenen = 0; $musteriHata = 0;
+        foreach ($clients as $c) {
+            $payload = [
+                'musteriAdi'   => $c['name'] ?? '',
+                'telefon'      => $c['phone_number_local'] ?? $c['phone_number'] ?? '',
+                'ePosta'       => $c['email'] ?? '',
+                'dogumTarihi'  => $c['birthdate'] ?? '',
+                'cinsiyet'     => $c['gender_text'] ?? '',
+                'notlar'       => $c['notes'] ?? '',
+                'medeniDurum'  => '', 'meslek' => '', 'adres' => '',
+                'kayitTarihi'  => $c['created_at'] ?? '',
+                'salonId'      => $salonId,
+                'salonAppyId'  => $c['id'] ?? null,
+            ];
+            try {
+                $req = new \Illuminate\Http\Request($payload);
+                $resp = $apiController->aktarimMusteriKontrol($req);
+                $uid = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
+                if ($uid && ctype_digit($uid)) $musteriEklenen++;
+                else $musteriHata++;
+            } catch (\Throwable $e) {
+                $musteriHata++;
+                \Log::warning('[Salonappy setup] musteri', ['cid' => $c['id'] ?? '?', 'err' => $e->getMessage()]);
+            }
+        }
+        $this->line("Musteri eklendi/eslesti: $musteriEklenen, hata: $musteriHata / " . count($clients));
+
+        // 5) Cihazlar (StoreAdminController:16403 sema: salon_id, cihaz_adi, aktifmi=true, durum=true)
+        $cihazEklenen = 0;
+        foreach ($devices as $dv) {
+            $ad = trim((string) ($dv['name'] ?? $dv['device_name'] ?? $dv['title'] ?? ''));
+            if ($ad === '') continue;
+            // Idempotent: ayni isimde cihaz varsa atla
+            $exists = \DB::table('cihazlar')->where('salon_id', $salonId)
+                ->where('cihaz_adi', $ad)->exists();
+            if ($exists) continue;
+            try {
+                $cihazId = \DB::table('cihazlar')->insertGetId([
+                    'salon_id'  => $salonId,
+                    'cihaz_adi' => $ad,
+                    'aktifmi'   => 1,
+                    'durum'     => 1,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+                // SalonCihazRenkleri ekle (StoreAdminController:16411 mantigi)
+                if (\Schema::hasTable('salon_cihaz_renkleri')) {
+                    $sonRenk = \DB::table('salon_cihaz_renkleri')->where('salon_id', $salonId)
+                        ->orderByDesc('id')->value('renk_id');
+                    $renkId = $sonRenk ? (($sonRenk % 10) + 1) : 1;
+                    \DB::table('salon_cihaz_renkleri')->insert([
+                        'salon_id' => $salonId,
+                        'cihaz_id' => $cihazId,
+                        'renk_id'  => $renkId,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                }
+                $cihazEklenen++;
+            } catch (\Throwable $e) {
+                \Log::warning('[Salonappy setup] cihaz', ['ad' => $ad, 'err' => $e->getMessage()]);
+            }
+        }
+        $this->line("Cihaz eklendi: $cihazEklenen / " . count($devices));
+
+        $this->info('Kurulum aktarimi tamam.');
         return 0;
     }
 
