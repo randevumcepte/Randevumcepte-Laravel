@@ -30,6 +30,10 @@ class SalonappyImport extends Command
         {--from= : Visit aktarim/reset baslangic tarihi YYYY-MM-DD}
         {--to= : Visit aktarim/reset bitis tarihi YYYY-MM-DD}
         {--fix-rh-saat : Salonun [salonappy:%] veya [salonappy-visit:%] markerli randevularinda RandevuHizmetler.saat/saat_bitis bos olanlari Randevular.saat tabaninda cumulative sure_dk ile yeniden hesapla. --salon zorunlu.}
+        {--inspect-musteri : Belirli bir musteri icin DB tani: --tel=X veya --ad=Y veya --musteri-id=Z + --salon=N. Salonappy markerli kayit sayilarini doker. Login gerekmez.}
+        {--tel= : --inspect-musteri icin telefon (sadece rakam)}
+        {--ad= : --inspect-musteri icin ad (LIKE match)}
+        {--musteri-id= : --inspect-musteri icin DB user_id direkt}
         {--dry-run : Reset/import oncesi sadece sayim}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
@@ -52,8 +56,9 @@ class SalonappyImport extends Command
         $fromFile = $this->option('from-file');
         $resetMode = (bool) $this->option('reset-salonappy');
         $fixRhSaat = (bool) $this->option('fix-rh-saat');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && (!$username || !$password)) {
-            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat verin).');
+        $inspectMus = (bool) $this->option('inspect-musteri');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && (!$username || !$password)) {
+            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri verin).');
             return 1;
         }
         if (!$probe && !$analyze && !$salonId) {
@@ -98,6 +103,15 @@ class SalonappyImport extends Command
         if ((bool) $this->option('fix-rh-saat')) {
             if (!$salonId) { $this->error('--fix-rh-saat icin --salon zorunlu.'); return 1; }
             return $this->fixRandevuHizmetSaat((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('inspect-musteri')) {
+            if (!$salonId) { $this->error('--inspect-musteri icin --salon zorunlu.'); return 1; }
+            return $this->inspectMusteri(
+                (int) $salonId,
+                $this->option('tel'),
+                $this->option('ad'),
+                $this->option('musteri-id')
+            );
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -2539,6 +2553,64 @@ class SalonappyImport extends Command
         }
 
         $this->info("Visit aktarim sonuc: visit=$gVisit adisyon=$gAdisyon randevu=$gRand AH=$gAH AU=$gAU urun-tasinan=$gUrunTasinan paket-usage=$gPaketUsage tahsilat=$gTah alacak=$gAlacak hata=$gHata");
+        return 0;
+    }
+
+    /**
+     * Bir musteriyi DB'den tani: tel / ad LIKE / user_id ile bul.
+     * Bulunan her user icin salondaki Salonappy markerli kayit sayilarini doker.
+     */
+    private function inspectMusteri($salonId, $tel = null, $ad = null, $userId = null)
+    {
+        $tel = $tel ? preg_replace('~\D~', '', (string) $tel) : null;
+        $ad  = $ad ? trim((string) $ad) : null;
+        $userId = $userId ? (int) $userId : null;
+
+        $q = \DB::table('users');
+        if ($userId) {
+            $q->where('id', $userId);
+        } elseif ($tel) {
+            $q->where('cep_telefon', $tel);
+        } elseif ($ad) {
+            $q->where('name', 'LIKE', '%' . $ad . '%');
+        } else {
+            $this->error('--tel / --ad / --musteri-id en az biri zorunlu.');
+            return 1;
+        }
+        $users = $q->select('id', 'name', 'cep_telefon', 'created_at')
+            ->orderBy('id')->limit(20)->get();
+
+        if ($users->isEmpty()) {
+            $this->warn('Eslesen user YOK.');
+            $this->line('   Kullanilan filtre: ' . json_encode(compact('tel', 'ad', 'userId'), JSON_UNESCAPED_UNICODE));
+            return 0;
+        }
+
+        $this->info("Eslesen kullanici sayisi: " . $users->count());
+        foreach ($users as $u) {
+            $this->line('=== USER #' . $u->id . ' | ' . $u->name . ' | tel=' . ($u->cep_telefon ?? '?') . ' | kayit=' . ($u->created_at ?? '?') . ' ===');
+            $rs = \DB::table('randevular')->where('user_id', $u->id)->where('salon_id', $salonId)->count();
+            $ads = \DB::table('adisyonlar')->where('user_id', $u->id)->where('salon_id', $salonId)->count();
+            $ts = \DB::table('tahsilatlar')->where('user_id', $u->id)->where('salon_id', $salonId)->count();
+            $rsApp = \DB::table('randevular')->where('user_id', $u->id)->where('salon_id', $salonId)
+                ->where(function ($q) {
+                    $q->where('personel_notu', 'LIKE', '%[salonappy:%')
+                      ->orWhere('personel_notu', 'LIKE', '%[salonappy-visit:%');
+                })->count();
+            $adsApp = \DB::table('adisyonlar')->where('user_id', $u->id)->where('salon_id', $salonId)
+                ->where(function ($q) {
+                    $q->where('notlar', 'LIKE', '%[salonappy%')
+                      ->orWhere('aciklama', 'LIKE', '%[salonappy%');
+                })->count();
+            $this->line(sprintf('  randevu: total=%d, salonappy-markerli=%d', $rs, $rsApp));
+            $this->line(sprintf('  adisyon: total=%d, salonappy-markerli=%d', $ads, $adsApp));
+            $this->line(sprintf('  tahsilat: total=%d', $ts));
+            // Portfoy
+            if (\Schema::hasTable('musteri_portfoy')) {
+                $pf = \DB::table('musteri_portfoy')->where('user_id', $u->id)->where('salon_id', $salonId)->count();
+                $this->line('  portfoy kaydi: ' . $pf);
+            }
+        }
         return 0;
     }
 
