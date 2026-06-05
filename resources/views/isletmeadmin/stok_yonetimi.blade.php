@@ -96,6 +96,19 @@
 }
 .stk-modal .modal-footer .stk-aksiyon-btn { margin: 0; }
 
+/* === HIZLI SATIŞ — ÜRÜN LİSTESİ === */
+.satis-urun-liste { max-height: 220px; overflow-y: auto; border: 1px solid var(--stk-cizgi); border-radius: 10px; }
+.satis-urun-satir {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  border-bottom: 1px solid #f1f1f6; cursor: pointer; transition: background .12s;
+}
+.satis-urun-satir:last-child { border-bottom: none; }
+.satis-urun-satir:hover { background: var(--stk-yesil-soft); }
+.satis-urun-satir .su-ad { flex: 1; font-weight: 600; font-size: 13px; color: #1a1a2e; }
+.satis-urun-satir .su-stok { font-size: 11px; color: #8a8a9a; font-weight: 500; }
+.satis-urun-satir .su-fiyat { font-weight: 700; font-size: 13px; color: var(--stk-mor); min-width: 80px; text-align: right; }
+.satis-urun-satir .su-ekle { color: var(--stk-yesil); font-size: 16px; }
+
 /* === FORM BÖLÜMLERİ (modal içinde) === */
 .stk-bolum {
   background: #fff; border-radius: 12px; padding: 16px 18px; margin-bottom: 14px;
@@ -346,10 +359,10 @@
 
       <div class="stk-bolum">
         <div class="stk-bolum-baslik" style="color:var(--stk-yesil);">Ürün Ekle</div>
-        <div class="stk-form-grup">
-          <label>Barkod veya ürün adı yazıp <kbd style="background:#fff;border:1px solid #e0e0e7;border-radius:4px;padding:2px 6px;font-size:11px;">Enter</kbd>'a bas</label>
-          <input type="text" id="satis_barkod" class="form-control" placeholder="🔍 Barkod gir veya ürün ara..." autocomplete="off">
+        <div class="stk-form-grup" style="margin-bottom:8px;">
+          <input type="text" id="satis_barkod" class="form-control" placeholder="🔍 Barkod gir veya ürün adıyla filtrele..." autocomplete="off">
         </div>
+        <div id="satis_urun_liste" class="satis-urun-liste"></div>
       </div>
 
       <div class="stk-bolum" style="padding:0;">
@@ -830,6 +843,7 @@ function sepetSifirla(){
         $('#satis_personel_id').val(null).trigger('change');
         var p = document.getElementById('satis_pesin'); if (p) p.checked = true;
     }
+    satisUrunListesiHazirla();
 }
 
 function sepeteEkle(urun){
@@ -837,6 +851,41 @@ function sepeteEkle(urun){
     if (v) v.miktar += 1;
     else satisSepeti.push({ urun_id: urun.id, urun_adi: urun.urun_adi, birim_fiyat: Number(urun.fiyat||0), miktar: 1, birim: urun.birim || 'adet' });
     sepetCiz();
+}
+
+// Hızlı satış modalindeki ürün listesi (filtrelenebilir)
+let satisUrunCache = [];
+async function satisUrunListesiHazirla(){
+    var el = document.getElementById('satis_urun_liste');
+    if (el) el.innerHTML = '<div class="stk-bos-durum" style="padding:18px;"><span class="stk-yukleniyor"></span> Yükleniyor...</div>';
+    satisUrunCache = await stokApi('urunler', { arama:'', kategori_id:'', tip:'' }) || [];
+    satisUrunListesiCiz('');
+}
+function satisUrunListesiCiz(filtre){
+    var el = document.getElementById('satis_urun_liste');
+    if (!el) return;
+    filtre = (filtre||'').toLowerCase().trim();
+    var liste = satisUrunCache;
+    if (filtre) liste = satisUrunCache.filter(function(u){
+        return ((u.urun_adi||'').toLowerCase().indexOf(filtre) >= 0)
+            || ((u.barkod||'').toLowerCase().indexOf(filtre) >= 0)
+            || ((u.sku||'').toLowerCase().indexOf(filtre) >= 0);
+    });
+    if (!liste.length){
+        el.innerHTML = '<div class="stk-bos-durum" style="padding:18px;"><i class="fa fa-search"></i><p>Ürün bulunamadı</p></div>';
+        return;
+    }
+    el.innerHTML = liste.map(function(u){
+        return '<div class="satis-urun-satir" onclick="sepeteEkleId('+u.id+')">'
+            + '<div class="su-ad">'+escapeHtml(u.urun_adi)+' <span class="su-stok">· stok: '+adetFormat(u.stok_adedi)+' '+escapeHtml(u.birim||'')+'</span></div>'
+            + '<div class="su-fiyat">₺'+tlFormat(u.fiyat)+'</div>'
+            + '<div class="su-ekle"><i class="fa fa-plus-circle"></i></div>'
+            + '</div>';
+    }).join('');
+}
+function sepeteEkleId(id){
+    var u = satisUrunCache.find(function(x){return x.id == id;});
+    if (u) sepeteEkle(u);
 }
 function sepetCiz(){
     var html = '';
@@ -1084,24 +1133,26 @@ async function tedarikciSil(id){
 document.addEventListener('DOMContentLoaded', function(){
     const barkodInput = document.getElementById('satis_barkod');
     if (barkodInput){
-        barkodInput.addEventListener('keypress', async function(e){
+        // Yazdıkça listeyi filtrele
+        barkodInput.addEventListener('input', function(){
+            satisUrunListesiCiz(barkodInput.value);
+        });
+        // Enter: tam barkod eşleşmesi veya filtrelenmiş ilk ürünü sepete ekle (barkod okuyucu için)
+        barkodInput.addEventListener('keypress', function(e){
             if (e.key !== 'Enter') return;
             e.preventDefault();
             const kod = barkodInput.value.trim();
             if (!kod) return;
-            var bulundu = false;
-            try {
-                const r = await stokApi('urun-barkod', { barkod: kod }, 'POST', [404]);
-                if (r && r.id) { sepeteEkle(r); bulundu = true; }
-            } catch(e) {}
-            if (!bulundu) {
-                const u = urunCache.find(function(x){
-                    return ((x.urun_adi||'').toLowerCase().indexOf(kod.toLowerCase()) >= 0) || x.barkod === kod;
-                });
-                if (u) { sepeteEkle(u); bulundu = true; }
-            }
-            if (!bulundu) toast('Bulunamadı: ' + kod, 'uyari');
-            barkodInput.value = ''; barkodInput.focus();
+            var kodLower = kod.toLowerCase();
+            var u = satisUrunCache.find(function(x){ return (x.barkod||'') === kod; })
+                 || satisUrunCache.find(function(x){
+                        return ((x.urun_adi||'').toLowerCase().indexOf(kodLower) >= 0)
+                            || ((x.barkod||'').toLowerCase().indexOf(kodLower) >= 0)
+                            || ((x.sku||'').toLowerCase().indexOf(kodLower) >= 0);
+                    });
+            if (u) { sepeteEkle(u); barkodInput.value = ''; satisUrunListesiCiz(''); }
+            else { toast('Bulunamadı: ' + kod, 'uyari'); }
+            barkodInput.focus();
         });
     }
 
