@@ -10070,13 +10070,14 @@ function takvimyukle(preload,turdegisti)
                   
 
                 var calendarHeight = '';
-                 if ($(window).width() < 1300) { 
+                 if ($(window).width() < 1300) {
                     // Mobil cihaz
                       calendarHeight = $(window).height() - 110;
                 } else {
-                    // Masaüstü
-                    calendarHeight = $(window).height() - 310;
-                }  
+                    // Masaüstü — baslik+filtreler tek satira birlestirildigi icin
+                    // offset dusuruldu, takvim ekranin altina kadar uzasin.
+                    calendarHeight = $(window).height() - 215;
+                }
              
                 
                 $('#calendar').fullCalendar('destroy');
