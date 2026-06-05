@@ -28,7 +28,8 @@ class SalonrandevuImport extends Command
         {--report-other-receipts : Paket-disi receipt karsilastirma raporu (SR vs DB).}
         {--only-expenses : Masraflari aktar (/accounting/expenses paginated + /expense/categories ad map). UPSERT.}
         {--report-expenses : SR masraflar vs DB masraflar karsilastirma.}
-        {--report-randevu : SR /appointment/list vs DB [salonrandevu-rdv:%] aylik dagilim + eksik aylar raporu.}
+        {--only-randevu : Sadece randevu aktarimi (/appointment/list, UPSERT marker [salonrandevu-rdv:X]). --from --to ile aylik parti aktarim.}
+        {--report-randevu : SR /appointment/list vs DB [salonrandevu-rdv:%] aylik dagilim + eksik aylar raporu. --from --to ile sinirlandirilabilir.}
         {--start-page= : --only-other-receipts icin baslangic sayfa (resume). Default 1.}
         {--max-page= : --only-other-receipts icin son sayfa (inclusive). Belirtilmezse SR\'nin next_page=0 donene kadar.}
         {--dry-run : Reset oncesi sayim}';
@@ -177,9 +178,16 @@ class SalonrandevuImport extends Command
             return 0;
         }
 
+        // --only-randevu: sadece randevu aktarimi (from/to ile aylik parti)
+        if ((bool) $this->option('only-randevu')) {
+            $importer->importRandevular($this->option('from'), $this->option('to'));
+            $this->info('Tamam. Ozet: ' . json_encode($importer->summary(), JSON_UNESCAPED_UNICODE));
+            return 0;
+        }
+
         // --report-randevu: aylik dagilim raporu
         if ((bool) $this->option('report-randevu')) {
-            $importer->reportRandevular();
+            $importer->reportRandevular($this->option('from'), $this->option('to'));
             return 0;
         }
 
@@ -192,7 +200,7 @@ class SalonrandevuImport extends Command
         if (in_array('hizmet', $types))   $importer->importHizmetler();
         if (in_array('urun', $types))     $importer->importUrunler();
         if (in_array('musteri', $types))  $importer->importMusteriler();
-        if (in_array('randevu', $types))  $importer->importRandevular();
+        if (in_array('randevu', $types))  $importer->importRandevular($this->option('from'), $this->option('to'));
         if (in_array('receipt', $types) || in_array('tahsilat', $types) || in_array('paket', $types)) {
             $importer->importReceipts($this->option('from'), $this->option('to'));
         }

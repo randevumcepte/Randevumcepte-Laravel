@@ -922,37 +922,44 @@ class SalonrandevuImporter
      * SR'den /appointment/list ile paginated cek, DB'de [salonrandevu-rdv:%] markerli
      * randevulari say. Hicbir yere yazmaz.
      */
-    public function reportRandevular()
+    public function reportRandevular($from = null, $to = null)
     {
         if (!$this->client->getToken()) {
             $login = $this->client->login();
             if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
         }
-        // SR'den ay-bazli sayim — her sayfada ilerleme log'u
-        $this->log('SR /appointment/list paginated cekiliyor...');
+        $qs = '';
+        if ($from && $to) {
+            $qs = '&isbetween=true&start=' . urlencode($from) . '&end=' . urlencode($to);
+            $this->log("SR /appointment/list cekiliyor (from=$from to=$to)...");
+        } else {
+            $this->log('SR /appointment/list cekiliyor (TUM)...');
+        }
         $srAyBazli = []; // 'YYYY-MM' => sayi
         $srToplam = 0;
-        $page = 1; $guard = 0;
+        $page = 1;
+        $guard = 0;
         $t0 = microtime(true);
         while ($guard++ < 100000) {
             $tPage = microtime(true);
-            $j = $this->client->get('/company/appointment/list?page=' . $page);
+            $j = $this->client->get('/company/appointment/list?page=' . $page . $qs);
             if (!$j) { $this->log("  sayfa {$page} alinamadi, durdu."); break; }
             $d = $j['data'] ?? [];
             $rows = $d['records'] ?? (isset($d[0]) ? $d : []);
             if (empty($rows)) break;
+            $sayfaIcin = 0; $sayfaDisinda = 0;
             foreach ($rows as $r) {
                 list($tarih,) = $this->isoBol($r['appointment_start_date'] ?? null);
-                if (!$tarih) continue;
+                if (!$tarih) { $sayfaDisinda++; continue; }
+                if ($from && $to && ($tarih < $from || $tarih > $to)) { $sayfaDisinda++; continue; }
                 $ay = substr($tarih, 0, 7);
                 $srAyBazli[$ay] = ($srAyBazli[$ay] ?? 0) + 1;
-                $srToplam++;
+                $srToplam++; $sayfaIcin++;
             }
-            // Her sayfa sonunda ilerleme
             $dt = round(microtime(true) - $tPage, 2);
             $elapsed = round(microtime(true) - $t0);
-            $this->log(sprintf("  sayfa %4d: +%d kayit (%ss) | toplam=%d, gecen=%ds",
-                $page, count($rows), $dt, $srToplam, $elapsed));
+            $this->log(sprintf("  sayfa %4d: +%d (disinda=%d, %ss) | toplam=%d, gecen=%ds",
+                $page, $sayfaIcin, $sayfaDisinda, $dt, $srToplam, $elapsed));
             $cur = $d['page'] ?? $page;
             $next = $d['next_page'] ?? null;
             if ($next === null || (int) $next <= (int) $cur) break;
@@ -989,32 +996,57 @@ class SalonrandevuImporter
         $this->log("\nOzet: SR=$srToplam DB=$dbToplam, eksik (SR>DB)=$eksikToplam, fazla (DB>SR)=$fazlaToplam");
     }
 
-    public function importRandevular()
+    public function importRandevular($from = null, $to = null)
     {
-        $this->log('Randevular cekiliyor (/company/appointment/list) - sayfa sayfa...');
+        // --from --to ile aylik/donemsel parti aktarim. SR endpoint'ine
+        // isbetween=true&start&end gonderilir (receipts'teki gibi); SR destekliyorsa
+        // sunucu-side filtre, desteklemiyorsa client-side ek filtre uygulariz.
+        $qs = '';
+        if ($from && $to) {
+            $qs = '&isbetween=true&start=' . urlencode($from) . '&end=' . urlencode($to);
+            $this->log("Randevular cekiliyor (/company/appointment/list, from=$from to=$to)...");
+        } else {
+            $this->log("Randevular cekiliyor (/company/appointment/list, TUM)...");
+        }
         $i = 0;
         $page = 1;
         $guard = 0;
+        $t0 = microtime(true);
         while ($guard++ < 100000) {
-            $j = $this->client->get('/company/appointment/list?page=' . $page);
+            $tPage = microtime(true);
+            $j = $this->client->get('/company/appointment/list?page=' . $page . $qs);
             if (!$j) { $this->log("  sayfa {$page} alinamadi, durdu."); break; }
             $d = $j['data'] ?? [];
             $rows = isset($d['records']) && is_array($d['records']) ? $d['records']
                   : (isset($d[0]) ? $d : []);
             if (empty($rows)) break;
 
+            $sayfaIsledi = 0; $sayfaAtladi = 0;
             foreach ($rows as $appt) {
-                $i++;
+                // Client-side ek tarih filtresi (SR endpoint filtreyi destekliyor olmasa bile)
+                if ($from && $to) {
+                    list($t,) = $this->isoBol($appt['appointment_start_date'] ?? null);
+                    if (!$t || $t < $from || $t > $to) { $sayfaAtladi++; continue; }
+                }
+                $i++; $sayfaIsledi++;
                 $this->importOneAppointment($appt);
             }
-            $this->log("  sayfa {$page} islendi (toplam islenen={$i} eklenen=" . $this->counts['randevu'] . " update=" . ($this->counts['randevu_update'] ?? 0) . " skip=" . $this->counts['skip'] . ')');
+            $dt = round(microtime(true) - $tPage, 2);
+            $elapsed = round(microtime(true) - $t0);
+            $this->log(sprintf("  sayfa %4d (+%d islendi, %d atlandi/disinda, %ss) | toplam=%d, ekle=%d, update=%d, skip=%d, gecen=%ds",
+                $page, $sayfaIsledi, $sayfaAtladi, $dt, $i, $this->counts['randevu'],
+                ($this->counts['randevu_update'] ?? 0), $this->counts['skip'], $elapsed));
 
             $cur  = $d['page'] ?? $page;
             $next = $d['next_page'] ?? null;
             if ($next === null || (int) $next <= (int) $cur) break;
             $page = (int) $next;
         }
-        $this->log('Randevu: eklenen=' . $this->counts['randevu'] . ' update=' . ($this->counts['randevu_update'] ?? 0) . ' skip=' . $this->counts['skip']);
+        $sure = round(microtime(true) - $t0);
+        $this->log("Randevu: eklenen=" . $this->counts['randevu']
+            . ' update=' . ($this->counts['randevu_update'] ?? 0)
+            . ' skip=' . $this->counts['skip']
+            . " | son sayfa=" . ($page - 1) . " sure={$sure}s");
     }
 
     private function importOneAppointment($appt)
