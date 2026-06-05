@@ -364,6 +364,9 @@
 .hizmet-icon.turuncu { background: linear-gradient(135deg, #f97316 0%, #fbbf24 100%); }
 .hizmet-icon.mavi { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); }
 .hizmet-icon.kirmizi { background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); }
+.hizmet-icon.lacivert { background: linear-gradient(135deg, #0f172a 0%, #334155 100%); }
+.hizmet-icon.pembe { background: linear-gradient(135deg, #be185d 0%, #ec4899 100%); }
+.hizmet-icon.teal { background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%); }
 
 .hizmet-card-title {
     font-size: 16px;
@@ -683,7 +686,7 @@
                         <span class="val">{{ $hizmet['periyot'] ?? '-' }}</span>
                     </div>
                     @if(!empty($hizmet['deneme']))
-                        <span class="hizmet-pill deneme"><i class="fa fa-gift"></i> Ücretsiz Deneme</span>
+                        <span class="hizmet-pill deneme"><i class="fa fa-gift"></i> {{ $hizmet['deneme_label'] ?? 'Ücretsiz Deneme' }}</span>
                     @elseif($hizmet['aktif'])
                         <span class="hizmet-pill aktif"><i class="fa fa-check"></i> Aktif</span>
                     @else

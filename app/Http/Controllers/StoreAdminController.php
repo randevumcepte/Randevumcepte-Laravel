@@ -15749,6 +15749,65 @@ DB::raw('
                 'deneme' => $isDeneme,
             ];
         }
+        else
+        {
+            // WhatsApp 2 Ay Ücretsiz tanıtım — süre dolunca cron otomatik kapatır
+            $waPromo = \App\Salonlar::whatsappPromoBilgisi($isletme);
+            if(!empty($waPromo['promo']))
+            {
+                $promoBitti = !empty($waPromo['suresi_doldu']);
+                $hizmetler[] = [
+                    'kod' => 'whatsapp',
+                    'ad' => 'WhatsApp Hatırlatma',
+                    'aciklama' => $promoBitti
+                        ? 'Ücretsiz süre doldu — devam için iletişime geçin: '.$waPromo['iletisim']
+                        : 'Otomatik WhatsApp ile randevu hatırlatma · 2 ay ücretsiz',
+                    'icon' => 'fa-whatsapp',
+                    'renk' => 'yesil',
+                    'aktif' => !empty($waPromo['aktif']),
+                    'periyot' => $promoBitti ? 'Ücretsiz süre bitti' : '2 Ay Ücretsiz',
+                    'baslangic' => $waPromo['baslangic'] ?? null,
+                    'bitis' => $waPromo['bitis'] ?? null,
+                    'kalan_gun' => $waPromo['kalan_gun'] ?? null,
+                    'deneme' => !$promoBitti,
+                    'deneme_label' => '2 Ay Ücretsiz',
+                ];
+            }
+        }
+
+        // Pakete dahil ek hizmetler (Santral, E-Asistan, Memnuniyet Anketi)
+        $hizmetler[] = [
+            'kod' => 'santral',
+            'ad' => 'Santral Sistemi',
+            'aciklama' => 'Çağrı yönetimi, arama kayıtları ve web telefon',
+            'icon' => 'fa-headphones',
+            'renk' => 'lacivert',
+            'aktif' => true,
+            'periyot' => 'Pakete dahil',
+            'bitis' => null,
+        ];
+
+        $hizmetler[] = [
+            'kod' => 'easistan',
+            'ad' => 'Asistanım',
+            'aciklama' => 'Yapay zekâ destekli akıllı işletme asistanı',
+            'icon' => 'fa-magic',
+            'renk' => 'pembe',
+            'aktif' => true,
+            'periyot' => 'Pakete dahil',
+            'bitis' => null,
+        ];
+
+        $hizmetler[] = [
+            'kod' => 'anket',
+            'ad' => 'Memnuniyet Anketi',
+            'aciklama' => 'Randevu sonrası otomatik memnuniyet anketi',
+            'icon' => 'fa-star',
+            'renk' => 'teal',
+            'aktif' => true,
+            'periyot' => 'Pakete dahil',
+            'bitis' => null,
+        ];
 
         // Çarkıfelek - gercek aktiflik durumu (carkifelek_sistemi tablosundan)
         try {

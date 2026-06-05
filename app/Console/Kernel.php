@@ -38,6 +38,7 @@ class Kernel extends ConsoleKernel
         Commands\SeansHatirlatma::class,
         Commands\FormVarsayilanYay::class,
         Commands\EasistanIndexEnsure::class,
+        Commands\WhatsappPromoKontrol::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
@@ -95,6 +96,9 @@ class Kernel extends ConsoleKernel
         // calismiyordu; bu komut eksik index'leri kendiliginden olusturur.
         // Index'ler mevcutken sadece ucuz SHOW INDEX kontrolu (no-op).
         $schedule->command('easistan:index-ensure --quiet-noop')->withoutOverlapping()->hourly();
+
+        // WhatsApp 2 ay ücretsiz promo — günde bir: promosu başlat + süresi dolanı kapat
+        $schedule->command('whatsapp:promo-kontrol')->withoutOverlapping()->dailyAt('00:30');
 
         // Yedek
         $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();
