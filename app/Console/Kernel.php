@@ -37,6 +37,7 @@ class Kernel extends ConsoleKernel
         Commands\OlcumHatirlatmalari::class,
         Commands\SeansHatirlatma::class,
         Commands\FormVarsayilanYay::class,
+        Commands\EasistanIndexEnsure::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
@@ -88,6 +89,12 @@ class Kernel extends ConsoleKernel
         // WhatsApp kuyrukta takılı kalan mesajları SMS'e düşür — her 3 dakikada bir
         // Sebep: Node service RAM-only queue, restart/crash olunca mesajlar takılı kalıyordu
         $schedule->command('whatsapp:stuck-kurtar')->withoutOverlapping()->cron('*/3 * * * *');
+
+        // E-Asistan sorgu index'lerini garanti et (idempotent). Deploy sadece
+        // `git pull` yaptigi icin perf-index migration'i prod'da otomatik
+        // calismiyordu; bu komut eksik index'leri kendiliginden olusturur.
+        // Index'ler mevcutken sadece ucuz SHOW INDEX kontrolu (no-op).
+        $schedule->command('easistan:index-ensure --quiet-noop')->withoutOverlapping()->hourly();
 
         // Yedek
         $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();
