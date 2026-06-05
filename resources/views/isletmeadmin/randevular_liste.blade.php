@@ -210,46 +210,28 @@
    box-shadow: 0 6px 16px rgba(92, 0, 142, .28);
 }
 
-/* === FİLTRE KARTI === */
-.rc-rl-filter-card {
-   background: #fff;
-   border-radius: 14px;
-   padding: 18px 20px 20px;
-   margin-bottom: 18px;
-   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 4px 16px rgba(92, 0, 142, .04);
-}
-.rc-rl-filter-head {
-   display: inline-flex;
-   align-items: center;
-   gap: 8px;
-   font-size: 12.5px;
-   font-weight: 700;
-   color: var(--rc-purple-dark);
-   text-transform: uppercase;
-   letter-spacing: .04em;
-   padding-bottom: 14px;
-   margin-bottom: 14px;
-   border-bottom: 1px solid var(--rc-border);
-   width: 100%;
-}
-.rc-rl-filter-head i {
-   width: 28px; height: 28px;
-   border-radius: 8px;
-   background: var(--rc-purple-light);
-   display: inline-flex;
-   align-items: center;
+/* === BIRLESIK HEADER: baslik + filtreler + aksiyon tek blokta === */
+.rc-rl-header--merged { gap: 14px 22px; }
+.rc-rl-header--merged .rc-rl-header-left { flex: 0 1 auto; }
+.rc-rl-header--merged .rc-rl-header-right { flex: 0 0 auto; }
+.rc-rl-header-filters {
+   display: flex;
+   align-items: flex-end;
+   gap: 12px;
+   flex: 1 1 auto;
+   flex-wrap: wrap;
    justify-content: center;
-   font-size: 13px;
+   min-width: 0;
 }
-.rc-rl-filter-grid {
-   display: grid;
-   grid-template-columns: repeat(4, minmax(0, 1fr));
-   gap: 14px;
+.rc-rl-header-filters .rc-rl-field {
+   flex: 1 1 150px;
+   min-width: 130px;
+   max-width: 230px;
 }
 .rc-rl-field {
    display: flex;
    flex-direction: column;
-   gap: 6px;
+   gap: 5px;
    min-width: 0;
 }
 .rc-rl-field label {
@@ -615,13 +597,19 @@
    background: #fff !important;
 }
 
-/* === RESPONSIVE: TABLET LANDSCAPE (≤1024px) === */
+/* === RESPONSIVE: TABLET LANDSCAPE (≤1024px) ===
+   Tek satira sigmazsa filtreler basligin altina, tam genislige gecer. */
 @media (max-width: 1024px) {
    .rc-rl-header { padding: 14px 16px; }
    .rc-rl-icon-bubble { width: 40px; height: 40px; font-size: 16px; }
    .rc-rl-title { font-size: 17px; }
    .rc-rl-btn { height: 38px; padding: 0 14px; font-size: 12.5px; }
-   .rc-rl-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+   .rc-rl-header-filters {
+      flex-basis: 100%;
+      order: 3;
+      justify-content: flex-start;
+   }
+   .rc-rl-header-filters .rc-rl-field { max-width: none; }
    .rc-rl-card .dataTables_wrapper { padding: 12px 10px 6px; }
    .rc-rl-card .dataTables_filter input { width: 200px; }
    .rc-rl-table tbody td { padding: 12px 14px !important; }
@@ -642,8 +630,14 @@
    .rc-rl-title { font-size: 16px; }
    .rc-rl-breadcrumb { font-size: 11.5px; }
 
-   .rc-rl-filter-card { padding: 14px 14px 16px; border-radius: 12px; }
-   .rc-rl-filter-grid { grid-template-columns: 1fr; gap: 10px; }
+   .rc-rl-header-filters {
+      flex-basis: 100%;
+      order: 3;
+      width: 100%;
+      justify-content: stretch;
+      gap: 10px;
+   }
+   .rc-rl-header-filters .rc-rl-field { flex: 1 1 140px; max-width: none; }
 
    .rc-rl-card { padding: 8px; border-radius: 14px; }
    .rc-rl-card .dataTables_wrapper { padding: 10px 8px 4px; }
