@@ -14873,12 +14873,25 @@ DB::raw('
     public function bildirimkontrolet(Request $request)
     {
         $personel = Auth::guard('isletmeyonetim')->check() ? Personeller::where('salon_id',self::mevcutsube($request) )->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id') : 0;
+        $salonId = self::mevcutsube($request);
+
+        // Sayaclar TUM tablo uzerinden hesaplanir; liste limiti ile karistirilmaz.
+        // (Aksi halde badge yalnizca yuklenen satirlar icinde sayilip dusuyordu.)
+        $okunmamisSayi = Bildirimler::where('personel_id',$personel)
+            ->where('salon_id',$salonId)
+            ->where('okundu',false)
+            ->count();
+        $toplamSayi = Bildirimler::where('personel_id',$personel)
+            ->where('salon_id',$salonId)
+            ->count();
+
+        // Liste: dropdown performansi icin yalnizca son 100 kayit.
         $bildirimler = Bildirimler::setEagerLoads([])
             ->select('id','aciklama','tarih_saat','url','img_src','okundu','randevu_id')
             ->where('personel_id',$personel)
-            ->where('salon_id',self::mevcutsube($request))
+            ->where('salon_id',$salonId)
             ->orderBy('id','desc')
-            ->limit(50)
+            ->limit(100)
             ->get();
         $html = "";
         foreach($bildirimler as $bildirim) {
@@ -14920,8 +14933,8 @@ DB::raw('
         }
 
         return array(
-            'bildirim_sayisi' => $bildirimler->where('okundu',false)->count(),
-            'toplam_bildirim' => $bildirimler->count(),
+            'bildirim_sayisi' => $okunmamisSayi,
+            'toplam_bildirim' => $toplamSayi,
             'bildirimler' => $html
         );
     }
@@ -15188,7 +15201,12 @@ DB::raw('
             <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                 <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_sonrasi_islem_notu" href="#"> <i class="fa fa-plus"></i> İşlem Not Ekle</a>
             </div></div>')
-        WHEN randevular.durum = 2 THEN ""
+        WHEN randevular.durum IN (2,3) THEN CONCAT('<div class="dropdown">
+            <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
+            </a>
+            <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
+                <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_duzenle" data-index-number="',COALESCE(randevu_hizmetler.hizmet_id, 0),'" href="#"> <i class="fa fa-edit"></i> Düzenle</a>
+            </div></div>')
     END AS islemler
     SQL;
     $selectColumns[] = DB::raw($actionsHtml);

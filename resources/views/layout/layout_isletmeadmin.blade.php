@@ -1363,7 +1363,7 @@
                            </div>
                         </div>
                         <div class="rc-notif-list" id="bildirim_listesi">
-                           @foreach($bildirimler as $bildirim)
+                           @foreach($bildirimler->take(100) as $bildirim)
                               @php
                                  $to_time = strtotime(date('Y-m-d H:i:s'));
                                  $from_time = strtotime($bildirim->tarih_saat);
