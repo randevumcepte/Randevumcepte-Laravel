@@ -2599,8 +2599,12 @@ class SalonappyImport extends Command
                 })->count();
             $adsApp = \DB::table('adisyonlar')->where('user_id', $u->id)->where('salon_id', $salonId)
                 ->where(function ($q) {
-                    $q->where('notlar', 'LIKE', '%[salonappy%')
-                      ->orWhere('aciklama', 'LIKE', '%[salonappy%');
+                    $q->where('notlar', 'LIKE', '%[salonappy%');
+                    foreach (['aciklama', 'adisyon_notu', 'genel_aciklama'] as $col) {
+                        if (\Schema::hasColumn('adisyonlar', $col)) {
+                            $q->orWhere($col, 'LIKE', '%[salonappy%');
+                        }
+                    }
                 })->count();
             $this->line(sprintf('  randevu: total=%d, salonappy-markerli=%d', $rs, $rsApp));
             $this->line(sprintf('  adisyon: total=%d, salonappy-markerli=%d', $ads, $adsApp));
