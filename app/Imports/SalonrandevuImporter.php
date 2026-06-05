@@ -928,13 +928,16 @@ class SalonrandevuImporter
             $login = $this->client->login();
             if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
         }
-        // SR'den ay-bazli sayim
+        // SR'den ay-bazli sayim — her sayfada ilerleme log'u
+        $this->log('SR /appointment/list paginated cekiliyor...');
         $srAyBazli = []; // 'YYYY-MM' => sayi
         $srToplam = 0;
         $page = 1; $guard = 0;
+        $t0 = microtime(true);
         while ($guard++ < 100000) {
+            $tPage = microtime(true);
             $j = $this->client->get('/company/appointment/list?page=' . $page);
-            if (!$j) break;
+            if (!$j) { $this->log("  sayfa {$page} alinamadi, durdu."); break; }
             $d = $j['data'] ?? [];
             $rows = $d['records'] ?? (isset($d[0]) ? $d : []);
             if (empty($rows)) break;
@@ -945,11 +948,18 @@ class SalonrandevuImporter
                 $srAyBazli[$ay] = ($srAyBazli[$ay] ?? 0) + 1;
                 $srToplam++;
             }
+            // Her sayfa sonunda ilerleme
+            $dt = round(microtime(true) - $tPage, 2);
+            $elapsed = round(microtime(true) - $t0);
+            $this->log(sprintf("  sayfa %4d: +%d kayit (%ss) | toplam=%d, gecen=%ds",
+                $page, count($rows), $dt, $srToplam, $elapsed));
             $cur = $d['page'] ?? $page;
             $next = $d['next_page'] ?? null;
             if ($next === null || (int) $next <= (int) $cur) break;
             $page = (int) $next;
         }
+        $sure = round(microtime(true) - $t0);
+        $this->log("\nSR appointment toplam: $srToplam (sayfa: " . ($page - 1) . ", sure: {$sure}s)");
         $this->log("SR appointment sayisi: $srToplam");
         $this->log("SR ay araligi: " . (count($srAyBazli) ? min(array_keys($srAyBazli)) . ' - ' . max(array_keys($srAyBazli)) : '-'));
 
