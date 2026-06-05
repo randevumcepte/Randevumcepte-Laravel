@@ -29,10 +29,10 @@
       </div>
    </div>
 
-   {{-- Kart Grid Tablosu --}}
+   {{-- Modern Tablo --}}
    <div class="rc-og-card">
       <form id="on_gorusme_liste_form">
-         <div class="on-gorusme-tablo-wrap">
+         <div class="rc-og-table-scroll">
             <table class="data-table rc-og-table" id="on_gorusme_liste" style="width:100%">
                <thead>
                   <tr>
@@ -44,7 +44,7 @@
                      <th>Ön Görüşme Nedeni</th>
                      <th>Görüşmeyi Yapan</th>
                      <th>Durum</th>
-                     <th>İşlemler</th>
+                     <th class="rc-og-col-actions">İşlemler</th>
                   </tr>
                </thead>
                <tbody></tbody>
@@ -57,7 +57,7 @@
 
 <style>
 /* =================================================================
-   ÖN GÖRÜŞMELER — KART YAPISI (tüm ekranlarda)
+   ÖN GÖRÜŞMELER — MODERN TABLO
    ================================================================= */
 
 .rc-og-page {
@@ -160,28 +160,23 @@
    box-shadow: 0 6px 16px rgba(22, 163, 74, .28);
 }
 
-/* === DIŞ KAP === */
+/* === DIŞ KAP (tek beyaz panel) === */
 .rc-og-card {
-   background: transparent;
+   background: #fff;
+   border-radius: 16px;
+   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 6px 24px rgba(92, 0, 142, .05);
+   padding: 10px 18px 18px;
    margin-bottom: 30px;
 }
-.on-gorusme-tablo-wrap {
-   width: 100%;
-   overflow: visible;
-}
-.on-gorusme-tablo-wrap #on_gorusme_liste {
-   min-width: 0 !important;
-   width: 100% !important;
-}
 
-/* === DATATABLES WRAPPER (search/length/info/pagination) === */
+/* === DATATABLES TOOLBAR (search/length) === */
 .rc-og-card .dataTables_wrapper {
-   padding: 6px 0;
+   padding: 6px 0 0;
 }
 .rc-og-card .dataTables_length,
 .rc-og-card .dataTables_filter {
-   margin-bottom: 16px;
-   padding: 0 8px;
+   margin-bottom: 14px;
+   padding: 6px 4px;
 }
 .rc-og-card .dataTables_length label,
 .rc-og-card .dataTables_filter label {
@@ -198,11 +193,12 @@
    width: 240px;
    max-width: 100%;
    outline: none;
-   background: #fff;
-   transition: border-color .15s, box-shadow .15s;
+   background: #fafafe;
+   transition: border-color .15s, box-shadow .15s, background .15s;
 }
 .rc-og-card .dataTables_filter input:focus {
    border-color: var(--rc-purple) !important;
+   background: #fff;
    box-shadow: 0 0 0 4px rgba(157, 93, 200, .12);
 }
 .rc-og-card .dataTables_length select {
@@ -214,182 +210,106 @@
    background: #fff;
 }
 
-/* =================================================================
-   KART YAPISI — tüm ekranlar
-   ================================================================= */
+/* === SCROLL KABI (mobilde yatay kaydirma) === */
+.rc-og-table-scroll {
+   width: 100%;
+   overflow-x: auto;
+   -webkit-overflow-scrolling: touch;
+}
 
-/* THEAD GİZLE (sıralama hâlâ JS ile çalışır, sadece UI yok) */
-.rc-og-table thead { display: none !important; }
-
-/* TABLE/TBODY -> Grid Container */
-.rc-og-table,
-.rc-og-table tbody {
-   display: block !important;
+/* === MODERN TABLO === */
+.rc-og-table {
    width: 100% !important;
+   border-collapse: separate !important;
+   border-spacing: 0 !important;
+}
+
+/* THEAD — yapiskan, yumusak basliklar */
+.rc-og-table thead th {
+   background: var(--rc-purple-light);
+   color: var(--rc-purple-dark);
+   font-size: 11px;
+   font-weight: 700;
+   text-transform: uppercase;
+   letter-spacing: .04em;
+   text-align: left;
+   padding: 13px 16px !important;
    border: none !important;
+   white-space: nowrap;
+   vertical-align: middle;
 }
-.rc-og-table tbody {
-   display: grid !important;
-   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-   gap: 16px;
-   padding: 4px;
+.rc-og-table thead th:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
+.rc-og-table thead th:last-child  { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+
+/* DataTables siralama oklari */
+.rc-og-table thead th.sorting,
+.rc-og-table thead th.sorting_asc,
+.rc-og-table thead th.sorting_desc {
+   cursor: pointer;
+}
+.rc-og-table thead th.sorting:after,
+.rc-og-table thead th.sorting_asc:after,
+.rc-og-table thead th.sorting_desc:after {
+   opacity: .45;
+   font-size: 10px;
+   margin-left: 4px;
 }
 
-/* TR -> Kart */
-.rc-og-table tbody tr {
-   display: grid !important;
-   grid-template-columns: 1fr 1fr;
-   grid-template-areas:
-      "musteri durum"
-      "tipi tipi"
-      "randevu telefon"
-      "yapan yapan"
-      "neden neden"
-      "olusturma islemler";
-   gap: 12px;
-   background: #fff !important;
-   border: 1px solid var(--rc-border) !important;
-   border-radius: 16px !important;
-   padding: 18px !important;
-   box-shadow: 0 1px 3px rgba(17,24,39,.04) !important;
-   transition: transform .2s, box-shadow .2s, border-color .2s !important;
-   position: relative;
-}
-.rc-og-table tbody tr:hover {
-   transform: translateY(-3px);
-   box-shadow: 0 14px 30px rgba(92, 0, 142, .12) !important;
-   border-color: var(--rc-purple-soft) !important;
-}
-
-/* Striped'i kaldır */
-.rc-og-table.stripe tbody tr.odd,
-.rc-og-table tbody tr.odd td,
-.rc-og-table tbody tr:hover td {
-   background: transparent !important;
-}
-
-/* TD -> Kart İçi Alan (varsayilan) */
+/* TBODY satirlari */
 .rc-og-table tbody td {
-   display: flex !important;
-   flex-direction: column !important;
-   align-items: flex-start;
-   gap: 3px !important;
-   padding: 0 !important;
-   border: none !important;
-   background: transparent !important;
+   padding: 14px 16px !important;
    font-size: 13.5px;
    color: var(--rc-text);
-   min-width: 0;
-   width: auto !important;
+   border: none !important;
+   border-bottom: 1px solid var(--rc-border) !important;
+   vertical-align: middle;
+   background: transparent !important;
 }
-.rc-og-table tbody td::before {
-   font-size: 10.5px;
-   font-weight: 700;
-   color: var(--rc-text-soft);
-   text-transform: uppercase;
-   letter-spacing: .05em;
-   display: block;
-   line-height: 1.2;
+.rc-og-table tbody tr {
+   transition: background .15s;
 }
-
-/* === SÜTUN SIRASI (nth-child) — JS'ye bagimli degil ===
-   Backend siralamasi:
-   1=olusturma  2=musteri  3=musteri_tipi  4=telefon
-   5=randevu_tarihi  6=on_gorusme_nedeni  7=gorusmeyi_yapan
-   8=durum  9=islemler
-*/
-
-/* 1) OLUŞTURMA — footer sol, kucuk tarih + ikon */
-.rc-og-table tbody td:nth-child(1) {
-   grid-area: olusturma;
-   flex-direction: row !important;
-   align-items: center !important;
-   gap: 6px !important;
-   font-size: 12px;
-   color: var(--rc-text-soft);
-   padding-top: 10px !important;
-   border-top: 1px solid var(--rc-border) !important;
-   margin-top: 4px;
-   width: 100% !important;
+.rc-og-table tbody tr:hover td {
+   background: #faf7fe !important;
 }
-.rc-og-table tbody td:nth-child(1)::before {
-   content: "\f073"; /* fa-calendar */
-   font-family: "FontAwesome";
-   font-size: 12px;
-   color: var(--rc-purple);
-   text-transform: none;
-   letter-spacing: 0;
-   font-weight: 400;
+.rc-og-table tbody tr:last-child td {
+   border-bottom: none !important;
 }
 
-/* 2) MÜŞTERİ — buyuk baslik, label yok */
+/* Striped'i kaldir (tek tip zemin) */
+.rc-og-table.stripe tbody tr.odd td,
+.rc-og-table tbody tr.odd td { background: transparent !important; }
+
+/* Musteri sutunu (2.) vurgulu */
 .rc-og-table tbody td:nth-child(2) {
-   grid-area: musteri;
-   font-size: 16px;
    font-weight: 700;
    color: var(--rc-text);
-   line-height: 1.3;
 }
-.rc-og-table tbody td:nth-child(2)::before { display: none; }
-
-/* 3) MÜŞTERİ TİPİ */
-.rc-og-table tbody td:nth-child(3) { grid-area: tipi; }
-.rc-og-table tbody td:nth-child(3)::before { content: "Müşteri Tipi"; }
-
-/* 4) TELEFON */
-.rc-og-table tbody td:nth-child(4) { grid-area: telefon; }
-.rc-og-table tbody td:nth-child(4)::before { content: "Telefon"; }
-
-/* 5) RANDEVU TARİHİ */
-.rc-og-table tbody td:nth-child(5) { grid-area: randevu; }
-.rc-og-table tbody td:nth-child(5)::before { content: "Randevu Tarihi"; }
-
-/* 6) ÖN GÖRÜŞME NEDENİ */
-.rc-og-table tbody td:nth-child(6) { grid-area: neden; }
-.rc-og-table tbody td:nth-child(6)::before { content: "Ön Görüşme Nedeni"; }
-
-/* 7) GÖRÜŞMEYİ YAPAN */
-.rc-og-table tbody td:nth-child(7) { grid-area: yapan; }
-.rc-og-table tbody td:nth-child(7)::before { content: "Görüşmeyi Yapan"; }
-
-/* 8) DURUM — sag ust rozet, label yok */
-.rc-og-table tbody td:nth-child(8) {
-   grid-area: durum;
-   justify-self: end;
-   align-items: flex-end;
+/* Oluşturma (1.) ve Görüşmeyi Yapan (7.) — soluk */
+.rc-og-table tbody td:nth-child(1),
+.rc-og-table tbody td:nth-child(7) {
+   color: var(--rc-text-soft);
+   white-space: nowrap;
 }
-.rc-og-table tbody td:nth-child(8)::before { display: none; }
-
-/* 9) İŞLEMLER — footer sag, label yok */
+/* Telefon (4.) — okunakli rakam */
+.rc-og-table tbody td:nth-child(4) {
+   font-variant-numeric: tabular-nums;
+   white-space: nowrap;
+}
+/* Islemler sutunu — saga hizali, dar */
+.rc-og-table thead th.rc-og-col-actions,
 .rc-og-table tbody td:nth-child(9) {
-   grid-area: islemler;
-   justify-self: end;
-   align-items: flex-end !important;
-   padding-top: 10px !important;
-   border-top: 1px solid var(--rc-border) !important;
-   margin-top: 4px;
-   align-self: stretch !important;
-   width: 100% !important;
+   text-align: right;
+   width: 1%;
+   white-space: nowrap;
 }
-.rc-og-table tbody td:nth-child(9)::before { display: none; }
 
-/* RESPONSIVE PLUGIN'I DEVRE DIŞI */
-#on_gorusme_liste td.dtr-control,
-#on_gorusme_liste th.dtr-control { display: none !important; }
-#on_gorusme_liste tr.child { display: none !important; }
-#on_gorusme_liste td.dtr-hidden,
-#on_gorusme_liste th.dtr-hidden,
-#on_gorusme_liste td.none,
-#on_gorusme_liste th.none { display: flex !important; }
-
-/* === DURUM BADGE OVERRIDE === */
-.rc-og-table tbody td .btn.btn-warning {
-   background: var(--rc-warning-soft) !important;
-   color: #b45309 !important;
-   border: 1px solid #fde68a !important;
+/* === DURUM BADGE === */
+.rc-og-table tbody td .btn.btn-warning,
+.rc-og-table tbody td .btn.btn-success,
+.rc-og-table tbody td .btn.btn-danger {
    border-radius: 999px !important;
    padding: 5px 14px !important;
-   font-size: 11.5px !important;
+   font-size: 11px !important;
    font-weight: 700 !important;
    line-height: 1.4 !important;
    display: inline-block !important;
@@ -397,51 +317,32 @@
    min-width: 0;
    text-align: center;
    box-shadow: none !important;
-   pointer-events: none;
    text-transform: uppercase;
    letter-spacing: .03em;
+}
+.rc-og-table tbody td .btn.btn-warning {
+   background: var(--rc-warning-soft) !important;
+   color: #b45309 !important;
+   border: 1px solid #fde68a !important;
+   pointer-events: none;
 }
 .rc-og-table tbody td .btn.btn-success {
    background: var(--rc-success-soft) !important;
    color: #15803d !important;
    border: 1px solid #bbf7d0 !important;
-   border-radius: 999px !important;
-   padding: 5px 14px !important;
-   font-size: 11.5px !important;
-   font-weight: 700 !important;
-   line-height: 1.4 !important;
-   display: inline-block !important;
-   width: auto !important;
-   min-width: 0;
-   text-align: center;
-   box-shadow: none !important;
-   text-transform: uppercase;
-   letter-spacing: .03em;
 }
 .rc-og-table tbody td .btn.btn-danger {
    background: var(--rc-danger-soft) !important;
    color: #b91c1c !important;
    border: 1px solid #fecaca !important;
-   border-radius: 999px !important;
-   padding: 5px 14px !important;
-   font-size: 11.5px !important;
-   font-weight: 700 !important;
-   line-height: 1.4 !important;
-   display: inline-block !important;
-   width: auto !important;
-   min-width: 0;
-   text-align: center;
-   box-shadow: none !important;
    cursor: pointer;
-   text-transform: uppercase;
-   letter-spacing: .03em;
 }
-.rc-og-table tbody td .btn.btn-danger:hover { filter: brightness(.95); }
+.rc-og-table tbody td .btn.btn-danger:hover { filter: brightness(.96); }
 
 /* === İŞLEMLER DROPDOWN === */
 .rc-og-table tbody td .dropdown .dropdown-toggle.btn-link {
-   width: 38px;
-   height: 38px;
+   width: 36px;
+   height: 36px;
    border-radius: 50%;
    background: var(--rc-purple-light) !important;
    color: var(--rc-purple-dark) !important;
@@ -494,7 +395,7 @@
 
 /* === PAGINATION === */
 .rc-og-card .dataTables_paginate {
-   padding: 16px 8px 8px;
+   padding: 16px 4px 6px;
 }
 .rc-og-card .dataTables_paginate .paginate_button {
    border-radius: 8px !important;
@@ -521,45 +422,27 @@
 .rc-og-card .dataTables_info {
    color: var(--rc-text-soft);
    font-size: 12.5px;
-   padding: 16px 8px 0 !important;
+   padding: 16px 4px 0 !important;
 }
 
 /* === BOŞ DURUM === */
-.rc-og-table tbody tr.dataTables_empty {
-   grid-column: 1 / -1;
-   display: flex !important;
-   align-items: center;
-   justify-content: center;
-   padding: 60px 20px !important;
+.rc-og-table tbody tr.dataTables_empty td {
+   text-align: center;
+   padding: 56px 20px !important;
    color: var(--rc-text-soft);
    font-size: 14px;
-   background: #fff !important;
-   border: 2px dashed var(--rc-border) !important;
-   border-radius: 16px !important;
+   border-bottom: none !important;
 }
-.rc-og-table tbody tr.dataTables_empty td {
-   border: none !important;
-   width: 100%;
-   text-align: center;
-   align-items: center;
+.rc-og-table tbody tr.dataTables_empty:hover td {
+   background: transparent !important;
 }
-.rc-og-table tbody tr.dataTables_empty td::before { display: none; }
-.rc-og-table tbody tr.dataTables_empty:hover {
-   transform: none;
-   box-shadow: none !important;
-}
+
+/* Responsive plugin artiklarini gizle (bu tabloda kullanilmiyor) */
+#on_gorusme_liste td.dtr-control,
+#on_gorusme_liste th.dtr-control,
+#on_gorusme_liste tr.child { display: none !important; }
 
 /* === RESPONSIVE === */
-
-/* Tablet: 2 kart yan yana */
-@media (max-width: 1200px) {
-   .rc-og-table tbody {
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 14px;
-   }
-}
-
-/* Tablet medium */
 @media (max-width: 1024px) {
    .rc-og-header { padding: 14px 16px; }
    .rc-og-icon-bubble { width: 40px; height: 40px; font-size: 16px; }
@@ -568,7 +451,6 @@
    .rc-og-card .dataTables_filter input { width: 200px; }
 }
 
-/* Mobil: tek kart */
 @media (max-width: 768px) {
    .rc-og-header { padding: 12px 14px; border-radius: 12px; }
    .rc-og-header-left { width: 100%; }
@@ -577,18 +459,16 @@
    .rc-og-title { font-size: 16px; }
    .rc-og-breadcrumb { font-size: 11.5px; }
 
+   .rc-og-card { padding: 8px 10px 14px; }
    .rc-og-card .dataTables_filter { float: none; text-align: left; }
    .rc-og-card .dataTables_filter input { width: 100%; margin-left: 0; margin-top: 6px; }
    .rc-og-card .dataTables_filter label { display: block; width: 100%; }
    .rc-og-card .dataTables_length { display: none; }
 
-   .rc-og-table tbody {
-      grid-template-columns: 1fr;
-      gap: 12px;
-   }
-   .rc-og-table tbody tr {
-      padding: 16px !important;
-   }
+   /* tablo yatay kayar; sutunlar daralmasin */
+   .rc-og-table { min-width: 760px; }
+   .rc-og-table thead th,
+   .rc-og-table tbody td { padding: 12px 12px !important; }
 }
 
 @media (max-width: 420px) {
@@ -596,38 +476,7 @@
    .rc-og-header-right .rc-og-btn { width: 100%; }
    .rc-og-title-row { gap: 10px; }
    .rc-og-icon-bubble { width: 36px; height: 36px; font-size: 14px; }
-   .rc-og-table tbody tr {
-      grid-template-columns: 1fr !important;
-      grid-template-areas:
-         "musteri"
-         "durum"
-         "tipi"
-         "randevu"
-         "telefon"
-         "yapan"
-         "neden"
-         "olusturma"
-         "islemler" !important;
-   }
-   .rc-og-table tbody td:nth-child(8),
-   .rc-og-table tbody td:nth-child(9) {
-      justify-self: start !important;
-      align-items: flex-start !important;
-   }
 }
 </style>
-
-<script>
-/* Responsive plugin'in dinamik attigi siniflari temizle */
-$(document).on('init.dt draw.dt', '#on_gorusme_liste', function() {
-   var $t = $('#on_gorusme_liste');
-   $t.removeClass('dtr-inline collapsed');
-   setTimeout(function() {
-      $t.find('td, th').removeClass('dtr-hidden none');
-      $t.find('tr.child').remove();
-      $t.find('td.dtr-control, th.dtr-control').remove();
-   }, 50);
-});
-</script>
 
 @endsection()
