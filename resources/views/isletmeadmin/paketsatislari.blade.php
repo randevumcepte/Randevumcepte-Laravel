@@ -96,12 +96,12 @@
 }
 
 /* === TEK SATIR TOOLBAR (başlık + satış alanları + butonlar) === */
+.rc-pk-action-card.rc-pk-toolbar { padding: 14px 18px; }
 .rc-pk-toolbar {
    display: flex;
    align-items: center;
    gap: 14px;
    flex-wrap: wrap;
-   padding: 14px 18px;
 }
 .rc-pk-toolbar .rc-pk-title-row { flex: 0 0 auto; margin-right: 4px; }
 .rc-pk-toolbar .rc-pk-field { flex: 1 1 190px; min-width: 160px; }
@@ -542,7 +542,7 @@
 
 /* === RESPONSIVE: TABLET LANDSCAPE (≤1024px) === */
 @media (max-width: 1024px) {
-   .rc-pk-action-card { padding: 16px 16px 18px; }
+   .rc-pk-action-card.rc-pk-toolbar { padding: 12px 16px; }
    .rc-pk-icon-bubble { width: 40px; height: 40px; font-size: 16px; }
    .rc-pk-title { font-size: 17px; }
    .rc-pk-btn { height: 38px; padding: 0 14px; font-size: 12.5px; }
@@ -557,7 +557,8 @@
    .rc-pk-title { font-size: 16px; }
    .rc-pk-breadcrumb { font-size: 11.5px; }
 
-   .rc-pk-action-card { padding: 12px 14px; border-radius: 12px; }
+   .rc-pk-action-card.rc-pk-toolbar { padding: 12px 14px; }
+   .rc-pk-action-card { border-radius: 12px; }
 
    /* Tablet: başlık tam satır, iki seçim yan yana, butonlar yan yana altta */
    .rc-pk-toolbar .rc-pk-title-row { flex: 1 1 100%; margin-right: 0; }
