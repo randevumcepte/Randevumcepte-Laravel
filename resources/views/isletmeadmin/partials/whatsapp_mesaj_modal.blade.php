@@ -141,9 +141,11 @@
 
 <script>
 // Handler'lar burada (custom.js'e bagimli degil). Idempotent: birden fazla include olsa da bir kez baglanir.
-// Bu partial jQuery yuklenmeden ONCE render olabilir (layout ortasi); jQuery hazir olana kadar bekle.
+// Bu partial jQuery yuklenmeden ONCE render olabilir (layout ortasi). Head'deki eski jQuery 2.1.3'te
+// Bootstrap .modal() YOK; modal eklentisi footer'daki core.js (jQuery 3.2.1 + Bootstrap) ile geliyor.
+// Bu yuzden sadece window.jQuery degil, .fn.modal hazir olana kadar bekle ki dogru jQuery'yi yakalayalim.
 (function waMsgInit(){
-   if (!window.jQuery) { return setTimeout(waMsgInit, 50); }
+   if (!window.jQuery || !window.jQuery.fn || typeof window.jQuery.fn.modal !== 'function') { return setTimeout(waMsgInit, 50); }
    if (window.__waMsgInit) { return; }
    window.__waMsgInit = true;
    var $ = window.jQuery;
