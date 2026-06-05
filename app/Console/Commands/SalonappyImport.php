@@ -2581,31 +2581,19 @@ class SalonappyImport extends Command
         $this->line(sprintf('Dump iceri: services=%d staffs=%d products=%d clients=%d devices=%d',
             count($services), count($staffs), count($products), count($clients), count($devices)));
 
-        // 1) Hizmetler
-        $hizmetEklenen = 0;
-        foreach ($services as $s) {
-            $ad = trim((string) ($s['name'] ?? $s['service_name'] ?? $s['title'] ?? ''));
-            if ($ad === '') continue;
-            $sure = (int) ($s['duration'] ?? $s['process_time'] ?? $s['minutes'] ?? 30);
-            if ($sure < 15) $sure = 15;
-            $fiyat = (float) ($s['price'] ?? $s['amount'] ?? $s['service_price'] ?? 0);
-            $canon = $ad;
-            $hid = $this->ensureSalonHizmet($salonId, $ad, $sure, $fiyat, $canon);
-            if ($hid) $hizmetEklenen++;
-        }
-        $this->line("Hizmet eklendi/eslesti: $hizmetEklenen / " . count($services));
-
-        // 2) Personeller + Cihazlar (staff.type ayrimi)
+        // 1) Personeller + Cihazlar ÖNCE (staff.type ayrimi)
         // Salonappy'de cihazlar ayri tablo degil, staff listesinde 'type' alaniyla
-        // ayriliyor ('personel' / 'yonetici' / 'cihaz' ...).
+        // ayriliyor ('personel' / 'yonetici' / 'cihaz' ...). saStaffId -> personel_id
+        // map'i kurmaliyiz ki services iterasyonunda providing_staff'i eslesirebilelim.
         $personelTipleri = ['personel', 'yonetici', 'manager', 'employee', 'staff', 'owner', 'admin'];
         $personelEklenen = 0; $cihazStaffEklenen = 0;
+        $saStaffIdToPersonelId = []; // Salonappy staff_id => DB salon_personelleri.id
         foreach ($staffs as $p) {
             $ad = trim((string) ($p['name'] ?? $p['full_name'] ?? $p['staff_name'] ?? ''));
             if ($ad === '') continue;
+            $saStaffId = (string) ($p['id'] ?? '');
             $tip = strtolower(trim((string) ($p['type'] ?? '')));
             if ($tip !== '' && !in_array($tip, $personelTipleri, true)) {
-                // Cihaz olarak ele al (StoreAdminController:16403 sema)
                 $exists = \DB::table('cihazlar')->where('salon_id', $salonId)
                     ->where('cihaz_adi', $ad)->exists();
                 if (!$exists) {
@@ -2629,8 +2617,97 @@ class SalonappyImport extends Command
             $canon = $ad;
             $this->ensurePersonel($salonId, $ad, $canon);
             $personelEklenen++;
+            // Map: Salonappy staff_id -> DB salon_personelleri.id
+            $persId = \DB::table('salon_personelleri')->where('salon_id', $salonId)
+                ->where('personel_adi', $canon)->value('id');
+            if ($persId && $saStaffId !== '') {
+                $saStaffIdToPersonelId[$saStaffId] = $persId;
+            }
         }
         $this->line("Personel eklendi/eslesti: $personelEklenen, cihaz olarak ayrilan: $cihazStaffEklenen / " . count($staffs));
+
+        // 2) Hizmetler + kategori + providing_staff pivot
+        // - ensureSalonHizmet havuzda match varsa o hizmeti kullanir (ozel_hizmet=1 yaratmaz)
+        // - service_group_title -> hizmet_kategorisi firstOrCreate -> SalonHizmetler.hizmet_kategori_id UPDATE
+        // - providing_staff[] -> personel_sunulan_hizmetler insert (idempotent, bolum=2)
+        // - sure_dk & fiyat: SalonHizmetler'e Salonappy parametreleriyle UPDATE (re-import guvenli)
+        $hizmetEklenen = 0; $kategoriBaglanan = 0; $personelHizmetEklenen = 0;
+        foreach ($services as $s) {
+            $ad = trim((string) ($s['name'] ?? $s['service_name'] ?? $s['title'] ?? ''));
+            if ($ad === '') continue;
+            $sure = (int) ($s['duration'] ?? $s['duration_default'] ?? $s['process_time'] ?? 30);
+            if ($sure < 15) $sure = 15;
+            $fiyat = (float) ($s['price'] ?? $s['amount'] ?? $s['service_price'] ?? 0);
+            $canon = $ad;
+            $hid = $this->ensureSalonHizmet($salonId, $ad, $sure, $fiyat, $canon);
+            if (!$hid) continue;
+            $hizmetEklenen++;
+
+            // Salonappy parametreleri ile SalonHizmetler'i UPDATE (re-import sure/fiyat yenile)
+            \DB::table('salon_sunulan_hizmetler')
+                ->where('salon_id', $salonId)->where('hizmet_id', $hid)
+                ->update([
+                    'sure_dk' => $sure,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+
+            // Kategori bagla (service_group_title)
+            $catTitle = trim((string) ($s['service_group_title'] ?? ''));
+            if ($catTitle !== '') {
+                // Once salon-specific veya global match ara
+                $catId = \DB::table('hizmet_kategorisi')
+                    ->where('hizmet_kategorisi_adi', $catTitle)
+                    ->where(function ($q) use ($salonId) {
+                        $q->whereNull('salon_id')->orWhere('salon_id', $salonId);
+                    })
+                    ->value('id');
+                if (!$catId) {
+                    // Salon-specific yarat
+                    $insert = [
+                        'hizmet_kategorisi_adi' => $catTitle,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ];
+                    if (\Schema::hasColumn('hizmet_kategorisi', 'salon_id')) $insert['salon_id'] = $salonId;
+                    if (\Schema::hasColumn('hizmet_kategorisi', 'ozel_kategori')) $insert['ozel_kategori'] = 1;
+                    $catId = \DB::table('hizmet_kategorisi')->insertGetId($insert);
+                }
+                if ($catId) {
+                    \DB::table('salon_sunulan_hizmetler')
+                        ->where('salon_id', $salonId)->where('hizmet_id', $hid)
+                        ->update(['hizmet_kategori_id' => $catId]);
+                    $kategoriBaglanan++;
+                }
+            }
+
+            // providing_staff -> personel_sunulan_hizmetler pivot
+            foreach (($s['providing_staff'] ?? []) as $ps) {
+                $saStaffId = (string) ($ps['id'] ?? '');
+                if ($saStaffId === '') continue;
+                $persId = $saStaffIdToPersonelId[$saStaffId] ?? null;
+                if (!$persId) continue;
+                $exists = \DB::table('personel_sunulan_hizmetler')
+                    ->where('personel_id', $persId)
+                    ->where('hizmet_id', $hid)->exists();
+                if ($exists) continue;
+                try {
+                    \DB::table('personel_sunulan_hizmetler')->insert([
+                        'personel_id' => $persId,
+                        'hizmet_id'   => $hid,
+                        'bolum'       => 2, // 0=Bayan, 1=Bay, 2=Ortak (default)
+                        'created_at'  => date('Y-m-d H:i:s'),
+                        'updated_at'  => date('Y-m-d H:i:s'),
+                    ]);
+                    $personelHizmetEklenen++;
+                } catch (\Throwable $e) {
+                    \Log::warning('[Salonappy setup] personel-hizmet', [
+                        'pers' => $persId, 'hizmet' => $hid, 'err' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+        $this->line("Hizmet eklendi/eslesti: $hizmetEklenen / " . count($services));
+        $this->line("Kategori baglanan: $kategoriBaglanan, personel-hizmet pivot: $personelHizmetEklenen");
 
         // 3) Urunler
         $urunEklenen = 0;
