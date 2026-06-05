@@ -28,6 +28,7 @@ class SalonrandevuImport extends Command
         {--report-other-receipts : Paket-disi receipt karsilastirma raporu (SR vs DB).}
         {--only-expenses : Masraflari aktar (/accounting/expenses paginated + /expense/categories ad map). UPSERT.}
         {--report-expenses : SR masraflar vs DB masraflar karsilastirma.}
+        {--report-randevu : SR /appointment/list vs DB [salonrandevu-rdv:%] aylik dagilim + eksik aylar raporu.}
         {--start-page= : --only-other-receipts icin baslangic sayfa (resume). Default 1.}
         {--max-page= : --only-other-receipts icin son sayfa (inclusive). Belirtilmezse SR\'nin next_page=0 donene kadar.}
         {--dry-run : Reset oncesi sayim}';
@@ -173,6 +174,12 @@ class SalonrandevuImport extends Command
         // --report-expenses: masraf raporu
         if ((bool) $this->option('report-expenses')) {
             $importer->reportExpenses($this->option('from'), $this->option('to'));
+            return 0;
+        }
+
+        // --report-randevu: aylik dagilim raporu
+        if ((bool) $this->option('report-randevu')) {
+            $importer->reportRandevular();
             return 0;
         }
 
