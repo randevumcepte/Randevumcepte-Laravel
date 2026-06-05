@@ -43,7 +43,7 @@
 
 /* === AKSİYON BUTONLARI === */
 .stk-aksiyon-btn {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 6px; vertical-align: middle;
   padding: 9px 16px; border-radius: 10px; font-weight: 600; font-size: 13px;
   border: none; transition: all .2s; cursor: pointer; margin-right: 6px; margin-bottom: 6px;
 }
@@ -210,7 +210,7 @@
         </ol>
       </nav>
     </div>
-    <div class="col-md-6 text-right">
+    <div class="col-md-6 text-right" style="display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
       @yetki('urun.tanim_olustur')
       <button class="stk-aksiyon-btn primary" data-toggle="modal" data-target="#urun_modal" onclick="urunModalAc(null)"><i class="fa fa-plus"></i> Yeni Ürün</button>
       @endyetki

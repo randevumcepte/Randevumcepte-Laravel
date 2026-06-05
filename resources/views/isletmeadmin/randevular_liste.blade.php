@@ -3,8 +3,8 @@
 
 <div class="rc-rl-page">
 
-   {{-- Modern Page Header --}}
-   <div class="rc-rl-header">
+   {{-- Modern Page Header — baslik + filtreler + aksiyon TEK blokta --}}
+   <div class="rc-rl-header rc-rl-header--merged">
       <div class="rc-rl-header-left">
          <div class="rc-rl-title-row">
             <div class="rc-rl-icon-bubble"><i class="fa fa-calendar-check-o"></i></div>
@@ -18,21 +18,8 @@
             </div>
          </div>
       </div>
-      <div class="rc-rl-header-right">
-         <a href="#" data-toggle="modal" data-target="#modal-view-event-add"
-            class="rc-rl-btn rc-rl-btn-success yenieklebuton">
-            <i class="fa fa-plus"></i><span>Yeni Randevu</span>
-         </a>
-      </div>
-   </div>
 
-   {{-- Modern Filtre Kartı --}}
-   <div class="rc-rl-filter-card">
-      <div class="rc-rl-filter-head">
-         <i class="fa fa-filter"></i>
-         <span>Filtrele</span>
-      </div>
-      <div class="rc-rl-filter-grid">
+      <div class="rc-rl-header-filters">
          <div class="rc-rl-field">
             <label for="olusturulmaya_gore_filtre">Kaynak</label>
             <select name="olusturulma" id="olusturulmaya_gore_filtre" class="form-control rc-rl-select">
@@ -45,7 +32,7 @@
          <div class="rc-rl-field">
             <label for="duruma_gore_filtre">Durum</label>
             <select class="form-control rc-rl-select" id="duruma_gore_filtre">
-               <option selected value="">Tüm Randevu Durumları</option>
+               <option selected value="">Tüm Durumlar</option>
                <option value="0">Onay bekleyen</option>
                <option value="1">Onaylı</option>
                <option value="2">Reddedilen</option>
@@ -66,13 +53,20 @@
             </select>
          </div>
          <div class="rc-rl-field" id="ozel_tarih_filtresi" style="display:none;">
-            <label for="tarihe_gore_filtre">Özel Tarih Aralığı</label>
+            <label for="tarihe_gore_filtre">Özel Tarih</label>
             <input
                class="form-control rc-rl-input datetimepicker-range"
-               placeholder="Tarih aralığını seçiniz.."
+               placeholder="Tarih aralığı.."
                type="text" id="tarihe_gore_filtre" style="display: none;"
             />
          </div>
+      </div>
+
+      <div class="rc-rl-header-right">
+         <a href="#" data-toggle="modal" data-target="#modal-view-event-add"
+            class="rc-rl-btn rc-rl-btn-success yenieklebuton">
+            <i class="fa fa-plus"></i><span>Yeni Randevu</span>
+         </a>
       </div>
    </div>
 
