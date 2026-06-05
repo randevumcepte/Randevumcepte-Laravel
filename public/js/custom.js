@@ -10072,10 +10072,16 @@ function takvimyukle(preload,turdegisti)
                 // Mobil cihaz
                 calendarHeight = $(window).height() - 110;
             } else {
-                // Masaüstü — baslik+filtreler tek satira birlestirildigi icin
-                // offset dusuruldu, takvim ekranin altina kadar uzasin.
-                // Alttaki bosluk kapansin diye offset 215 -> 170.
-                calendarHeight = $(window).height() - 170;
+                // Masaüstü — sabit offset her ekranda dogru oturmuyordu.
+                // Takvimin gercek ust konumunu (viewport'a gore) olcup
+                // ekranin altina kadar uzatiyoruz; boylece altta bosluk kalmaz.
+                var _calEl = document.getElementById('calendar');
+                var _calTop = _calEl ? _calEl.getBoundingClientRect().top : 200;
+                calendarHeight = $(window).height() - _calTop - 12;
+                // Asiri kucuk/negatif degerlere karsi taban guvence.
+                if (calendarHeight < 400) {
+                    calendarHeight = $(window).height() - 170;
+                }
             }
 
             if(turdegisti)
