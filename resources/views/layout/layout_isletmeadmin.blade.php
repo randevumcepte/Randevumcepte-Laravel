@@ -1,3 +1,26 @@
+@php
+    // ── PERFORMANS: Bu layout boyunca ASAGIDA onlarca kez TEKRAR eden iki sorgu
+    // (kullanicinin model_has_roles rolleri + yetkili personel kaydi) burada TEK
+    // seferde cekilip degisken olarak kullanilir. Onceden her sayfa render'inda
+    // ~17 model_has_roles + ~13 Personeller = ~30 ozdes DB sorgusu atiliyordu;
+    // simdi 2 sorgu. (E-Asistan dahil tum admin sayfalarini hizlandirir.)
+    $_layoutAuthId = Auth::guard('isletmeyonetim')->check()
+        ? Auth::guard('isletmeyonetim')->user()->id : null;
+    $_layoutRoller = $_layoutAuthId
+        ? \DB::table('model_has_roles')
+            ->where('model_id', $_layoutAuthId)
+            ->where('salon_id', $isletme->id)
+            ->pluck('role_id')->all()
+        : [];
+    $_layoutYetkiliPersonel = $_layoutAuthId
+        ? \App\Personeller::where('yetkili_id', $_layoutAuthId)
+            ->where('salon_id', $isletme->id)->first()
+        : null;
+    // Yetkili personelin dahili numarasinin santral durumu (asagida 2 kez kullanilir).
+    $_layoutDahiliDurum = optional($_layoutYetkiliPersonel)->dahili_no
+        ? \App\Dahililer::where('numara', $_layoutYetkiliPersonel->dahili_no)->value('durum')
+        : null;
+@endphp
 <html>
    <head>
       <!-- Basic Page Info -->
@@ -1106,8 +1129,8 @@
       <input id='dogrulama_kodu_ayari' type="hidden" value="{{\App\SalonSMSAyarlari::where('salon_id',$isletme->id)->where('ayar_id',16)->value('musteri')}}">
       <input id='ekleme_onay_ayari' type="hidden" value="{{\App\SalonSMSAyarlari::where('salon_id',$isletme->id)->where('ayar_id',22)->value('musteri')}}">
       <input name="sube" type="hidden" value="{{$isletme->id}}">
-      <input id='santral_dahili_no' type="hidden" value="{{\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('dahili_no')}}">
-      <input id='santral_dahili_sifre' type="hidden" value="{{\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('dahili_sifre')}}">
+      <input id='santral_dahili_no' type="hidden" value="{{optional($_layoutYetkiliPersonel)->dahili_no}}">
+      <input id='santral_dahili_sifre' type="hidden" value="{{optional($_layoutYetkiliPersonel)->dahili_sifre}}">
       <div id="preloader">
          <div id="loaderstatus">&nbsp;</div>
       </div>
@@ -1164,7 +1187,7 @@
             </div>
          </div>
          <div class="header-right">
-            @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0  )
+            @if(!in_array(5, $_layoutRoller)  )
             <div class="user-notification " style="padding:20px 0 0 0" id="kalansmskaybet">
                <div class="dropdown">
                   <a
@@ -1200,16 +1223,16 @@
             </div>
             @endif
             @endif
-            @if(\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->where('salon_id',$isletme->id)->value('dahili_no') !== null)
+            @if(optional($_layoutYetkiliPersonel)->dahili_no !== null)
             <div class="user-notification " style="padding:20px 0 0 0">
                <div class="dropdown" id="webTelefonDropDown">
-                  <!--{{(!\App\Dahililer::where('numara',\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('dahili_no'))->value('durum')) ? 'dropdown' : 'modal'}}
-                     {{(!\App\Dahililer::where('numara',\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('dahili_no'))->value('durum')) ? '' : 'data-target=#santral-ustune-al'}}
+                  <!--{{(!$_layoutDahiliDurum) ? 'dropdown' : 'modal'}}
+                     {{(!$_layoutDahiliDurum) ? '' : 'data-target=#santral-ustune-al'}}
                      
                      -->
                   <span
                      id='webtelefon'
-                     class="dropdown-toggle no-arrow {{(\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('dahili_no') !== null) ? 'btn btn-success':''}}"
+                     class="dropdown-toggle no-arrow {{(optional($_layoutYetkiliPersonel)->dahili_no !== null) ? 'btn btn-success':''}}"
                      href="#"
                      role="button"
                      data-toggle="dropdown" 
@@ -1229,11 +1252,11 @@
                      <div class="row input-group-prepend" id="dial-input">
                         <div class="col-12" style="padding-left: 0;padding-right: 0; border:1px solid #e2e2e2">
                            <div class="form-group">
-                              @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
+                              @if(in_array(5, $_layoutRoller))
 
-                              <input type="tel" style="display: none;" id="dial" class="form-control"  placeholder="{{(\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('dahili_no') === null) ? 'Web telefonunu kullanabilmek için lütfen ayarlardan dahili numara ataması yapınız!' : 'Çevirmek istediğiniz dahili/numara'}}"   aria-describedby="dial-input">
+                              <input type="tel" style="display: none;" id="dial" class="form-control"  placeholder="{{(optional($_layoutYetkiliPersonel)->dahili_no === null) ? 'Web telefonunu kullanabilmek için lütfen ayarlardan dahili numara ataması yapınız!' : 'Çevirmek istediğiniz dahili/numara'}}"   aria-describedby="dial-input">
                               @else
-                              <input type="tel" style="border-radius: 0; padding: 35px; text-align:center; border-color: #fff;" id="dial" class="form-control"  placeholder="{{(\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('dahili_no') === null) ? 'Web telefonunu kullanabilmek için lütfen ayarlardan dahili numara ataması yapınız!' : 'Çevirmek istediğiniz dahili/numara'}}"   aria-describedby="dial-input">
+                              <input type="tel" style="border-radius: 0; padding: 35px; text-align:center; border-color: #fff;" id="dial" class="form-control"  placeholder="{{(optional($_layoutYetkiliPersonel)->dahili_no === null) ? 'Web telefonunu kullanabilmek için lütfen ayarlardan dahili numara ataması yapınız!' : 'Çevirmek istediğiniz dahili/numara'}}"   aria-describedby="dial-input">
                               @endif
                            </div>
                            <span style="display: none;" id='aranacak_dahili_telefon'></span>
@@ -1386,7 +1409,7 @@
                </div>
             </div>
             @if($_SERVER['HTTP_HOST']!='randevu.randevumcepte.com.tr')
-            @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0 )
+            @if(!in_array(5, $_layoutRoller) )
             <div class="user-notification">
                <div class="dropdown">
                   <a
@@ -1433,7 +1456,7 @@
                         >
                      @endyetki
                      @endif
-                     @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                     @if(!in_array(5, $_layoutRoller))
                      <a class="dropdown-item" href="/isletmeyonetim/form-sablonlari?sube={{$isletme->id}}"
                         ><i class="fa fa-file-text-o"></i> Yeni Form Oluştur</a>
                      @endif
@@ -1441,7 +1464,7 @@
                </div>
             </div>
             @endif
-            @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
+            @if(in_array(1, $_layoutRoller))
             <div class="header-right" style="display:inline-block;margin-right:12px;vertical-align:middle;">
                 <a href="#" id="faturasizGizleTopbarBtn"
                    data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
@@ -1499,7 +1522,7 @@
             <div class="sidebar-menu">
                <ul>
                   {{-- Ozet (yeni dashboard, hizli paralel-yukleme) --}}
-                  @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  @if(!in_array(5, $_layoutRoller))
                   <li>
                      @if(($pageindex ?? -1) === 0)
                      <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1514,7 +1537,7 @@
 
                   {{-- 1) Asistanım --}}
                   @if($isletme->uyelik_turu > 2)
-                  @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  @if(!in_array(5, $_layoutRoller))
                   <li>
                      @if($pageindex==60)
                      <a href="/isletmeyonetim/e_asistan{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1529,7 +1552,7 @@
                   @endif
 
                   {{-- 2) Santral --}}
-                  @if(($isletme->santral_aktif) && DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
                   <li>
                      @if($pageindex==43)
                      <a href="/isletmeyonetim/santral{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1722,7 +1745,7 @@
 
                   {{-- 13.5) Isletme Raporlari (yeni — tabbed rapor dashboard) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && DB::table('model_has_roles')->where('role_id',4)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller))
                   <li>
                      @if(($pageindex ?? -1) == 600)
                      <a href="/isletmeyonetim/isletmeraporlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1737,7 +1760,7 @@
 
                   {{-- 14) Satış Raporları --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && DB::table('model_has_roles')->where('role_id',4)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller))
                   <li>
                      @if($pageindex==400)
                      <a href="/isletmeyonetim/raporlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1853,7 +1876,7 @@
                         \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.masraf_ekle') ||
                         \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.alacak_yonet')
                      )
-                     && DB::table('model_has_roles')->where('role_id',4)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0
+                     && !in_array(4, $_layoutRoller)
                   )
                   <li>
                      @if($pageindex==103)
@@ -1872,7 +1895,7 @@
                   {{-- 19) WhatsApp (sadece uyelik_turu == 3) --}}
                   @if($isletme->uyelik_turu == 3)
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  @if(!in_array(5, $_layoutRoller))
                   <li>
                      @if($pageindex==65)
                      <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1916,7 +1939,7 @@
                         \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'hizmet.kategori_yonet') ||
                         \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.indirim_uygula')
                      )
-                     && DB::table('model_has_roles')->where('role_id',4)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0
+                     && !in_array(4, $_layoutRoller)
                   )
                   <li>
                      @if($pageindex==9)
@@ -1933,7 +1956,7 @@
 
                   {{-- 22) Log Hareketleri: sadece Hesap Sahibi (1), Yonetici (2),
                        Supervisor (4) gorsun. Sekreter (3) ve Personel (5) gizli. --}}
-                  @if(DB::table('model_has_roles')->whereIn('role_id',[3,5])->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0)
+                  @if(!array_intersect([3,5], $_layoutRoller))
                   <li>
                      @if($pageindex==999)
                      <a href="/isletmeyonetim/log-hareketleri{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1947,12 +1970,12 @@
                   @endif
 
                   {{-- Personel rolu (5) icin Raporlar linki --}}
-                  @if(DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() > 0 )
+                  @if(in_array(5, $_layoutRoller) )
                   <li>
                      @if($pageindex==105)
-                     <a href="/isletmeyonetim/personeldetay/{{\App\Personeller::where('salon_id',$isletme->id)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id')}}{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     <a href="/isletmeyonetim/personeldetay/{{optional($_layoutYetkiliPersonel)->id}}{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
-                     <a href="/isletmeyonetim/personeldetay/{{\App\Personeller::where('salon_id',$isletme->id)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id')}}{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     <a href="/isletmeyonetim/personeldetay/{{optional($_layoutYetkiliPersonel)->id}}{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
                      @endif
                      <span class="micon bi bi-pie-chart"></span>
                      <span class="mtext">Raporlar</span>
@@ -2186,7 +2209,7 @@
                                  <label>Personel</label>
                                  <select name="adisyonhizmetpersonelleriyeni[]" class="form-control custom-select2 personel_secimi" style="width: 100%;">
                                     <option></option>
-                                     @php $defaultPersonelId = \App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('id'); @endphp
+                                     @php $defaultPersonelId = optional($_layoutYetkiliPersonel)->id; @endphp
                                      @if($defaultPersonelId)
                                      <option selected value="{{$defaultPersonelId}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
                                      @endif
@@ -2399,7 +2422,7 @@
                               <label>Satıcı</label>
                               <select name="urun_satici" class="form-control custom-select2 personel_secimi" style="width: 100%;">
                                   <option></option>
-                                  @php $defaultPersonelId = \App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('id'); @endphp
+                                  @php $defaultPersonelId = optional($_layoutYetkiliPersonel)->id; @endphp
                                   @if($defaultPersonelId)
                                   <option selected value="{{$defaultPersonelId}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
                                   @endif
@@ -2578,7 +2601,7 @@
                               <label>Satıcı</label>
                               <select name="paket_satici" class="form-control custom-select2 personel_secimi" style="width: 100%;">
                                  <option></option>
-                                 @php $defaultPaketSaticiId = \App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('id'); @endphp
+                                 @php $defaultPaketSaticiId = optional($_layoutYetkiliPersonel)->id; @endphp
                                  @if($defaultPaketSaticiId)
                                  <option selected value="{{$defaultPaketSaticiId}}">{{Auth::guard('isletmeyonetim')->user()->name}}</option>
                                  @endif
@@ -4881,7 +4904,7 @@ document.addEventListener('DOMContentLoaded', function() {
          
       </script>
       @endif
-      @if($pageindex==43 && DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 0 )
+      @if($pageindex==43 && !in_array(5, $_layoutRoller) )
       <script>
          $(document).ready(function(){
          
@@ -5144,7 +5167,7 @@ document.addEventListener('DOMContentLoaded', function() {
          
       </script>
       @endif
-       @if($pageindex==43 && DB::table('model_has_roles')->where('role_id',5)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1 )
+       @if($pageindex==43 && in_array(5, $_layoutRoller) )
        <script type="text/javascript">
            $(document).ready(function(){
             $('#arama_listesi_tablosu_button').trigger('click');
@@ -5205,7 +5228,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <script src="{{secure_asset('public/js/accounting.js')}}"></script>
       <span id="server" style="display: none;"></span>
       
-      @if(\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('dahili_no')!==null)
+      @if(optional($_layoutYetkiliPersonel)->dahili_no!==null)
       <audio id="ringtone" src="/public/telefon-ses/phone_incoming.mp3" class="d-none" loop></audio>
       <audio id="ringtone-local" src="/public/telefon-ses/phone_incoming.mp3" class="d-none" loop></audio>
       <audio id="ringbacktone" src="/public/telefon-ses/phone-outgoing.mp3" class="d-none" loop></audio>
@@ -5217,7 +5240,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <audio id="ringtone-local" src="/public/telefon-ses/phone_incoming.mp3"></audio>
       <audio id="remoteAudio"class="d-none"></audio>
       <script src="{{secure_asset('public/js/santral/sip-0.21.2.min.js')}}"></script>
-      @if($isletme->santral_aktif && (\App\Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->value('dahili_no') !== null))
+      @if($isletme->santral_aktif && (optional($_layoutYetkiliPersonel)->dahili_no !== null))
       <script src="{{secure_asset('public/js/santral/webphone.js?v=11.9')}}"></script>
       @endif
  
