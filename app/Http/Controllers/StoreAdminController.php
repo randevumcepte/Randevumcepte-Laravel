@@ -12114,10 +12114,16 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     // Hesap sahibi mi? (role_id=1) — fatura isaretleme butonu sadece hesap sahibinde gozukur
     $_hesapSahibi = false;
     if (Auth::guard('isletmeyonetim')->check()) {
+        $_uid = Auth::guard('isletmeyonetim')->user()->id;
         $_hesapSahibiRol = Personeller::where('salon_id', $isletmeId)
-            ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+            ->where('yetkili_id', $_uid)
             ->value('role_id');
-        $_hesapSahibi = ((int) $_hesapSahibiRol === 1);
+        $_hesapSahibi = ((int) $_hesapSahibiRol === 1)
+            || (DB::table('model_has_roles')
+                ->where('role_id', 1)
+                ->where('model_id', $_uid)
+                ->where('salon_id', $isletmeId)
+                ->count() >= 1);
     }
 
     $formatted = $sayfalanmisAdisyonlar->map(function ($adisyon) use ($isletmeId, $personel_id, $_silYetki, $_hesapSahibi, &$hizmetHakedisToplam, &$urunHakedisToplam, &$paketHakedisToplam, &$hizmetSatisToplam, &$urunSatisToplam, &$paketSatisToplam) {
@@ -12255,9 +12261,11 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         if ($_silYetki) {
             $islemler .= '&nbsp;<button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Adisyonu Sil"  name="adisyon_sil" data-value="'.$adisyon->id.'"><i class="fa fa-times"></i></button>';
         }
-        // Fatura ikonu SADECE odemesi olan adisyonlarda gozukur (kismi
-        // veya tam odenmis). Hic odeme yapilmamis adisyonda fatura kesilemez.
-        if ($_hesapSahibi && $kalanVar < $toplamTutar) {
+        // Fatura ikonu hesap sahibinin TUM satislarinda gozukur (eski
+        // tasarimdaki davranis): tiklayinca yesil (faturali) olur, tekrar
+        // tiklayinca geri alinir. Ust taraftaki fatura filtresi sadece
+        // yesil/faturali satislari listeler.
+        if ($_hesapSahibi) {
             $_fk = (int) $adisyon->fatura_kesildi;
             // Net renk farki: faturali = yesil, faturasiz = saydam gri (bakar bakmaz ayrilabilsin)
             $_btnStyle = $_fk

@@ -104,6 +104,11 @@
             <label>&nbsp;</label>
             <div class="rc-adi-extras">
                <span id="satisDurumuSayilari" class="rc-adi-status-counts"></span>
+               <button type="button" id="faturaliFiltreBtn"
+                       class="btn btn-default rc-adi-fatura-btn"
+                       title="Sadece Faturalı (Yeşil) Satışları Göster">
+                   <i class="fa fa-file-text-o"></i>
+               </button>
                @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
                <button type="button" id="faturasizGizleSatisBtn"
                        data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
@@ -629,6 +634,11 @@
    background: var(--rc-warning-soft) !important;
    color: #b45309 !important;
    border-color: #fde68a !important;
+}
+.rc-adi-fatura-btn.rc-adi-fatura-aktif {
+   background: var(--rc-success-soft) !important;
+   color: #15803d !important;
+   border-color: #bbf7d0 !important;
 }
 .rc-adi-fatura-btn:hover { filter: brightness(.97); }
 
@@ -1572,10 +1582,24 @@ $(document).ready(function() {
 
     // Satış durumu filtresini dinle
     $('#satis_durumu_filtre').on('change', function() {
+        // Üstteki fatura ikonunu filtre durumuyla senkron tut
+        if ($(this).val() === 'faturali') {
+            $('#faturaliFiltreBtn').addClass('rc-adi-fatura-aktif');
+        } else {
+            $('#faturaliFiltreBtn').removeClass('rc-adi-fatura-aktif');
+        }
         // Önce sayıları güncelle
         updateSalesStatusCounts();
         // Sonra filtreleri uygula
         applyFilters();
+    });
+
+    // Üstteki "Faturalı" ikonu: tıklayınca sadece yeşil (faturalı) satışları
+    // listele, tekrar tıklayınca tüm satışlara dön. Mevcut "faturali" sunucu
+    // filtresini kullanır (satis_durumu_filtre üzerinden).
+    $('#faturaliFiltreBtn').on('click', function() {
+        var aktif = $(this).hasClass('rc-adi-fatura-aktif');
+        $('#satis_durumu_filtre').val(aktif ? '' : 'faturali').trigger('change');
     });
 
     // Tab değiştiğinde
