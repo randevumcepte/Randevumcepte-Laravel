@@ -947,13 +947,43 @@ class SalonrandevuImporter
     {
         {
             $apptId = $appt['id'] ?? null;
-            if (!$apptId) { $this->counts['skip']++; return; }
+            // Debug: ilk 3 appointment'in tam JSON yapisini logla (field keşfi)
+            static $debugCount = 0;
+            if ($debugCount < 3) {
+                $debugCount++;
+                \Log::info('[Salonrandevu rdv] SAMPLE appt JSON', [
+                    'keys' => array_keys($appt ?? []),
+                    'appt' => $appt,
+                ]);
+            }
+
+            if (!$apptId) {
+                $this->counts['skip']++;
+                \Log::warning('[Salonrandevu rdv] SKIP no-id', ['appt_keys' => array_keys($appt ?? [])]);
+                return;
+            }
 
             $userId = $this->resolveUser($appt['customer'] ?? []);
-            if (!$userId) { $this->counts['skip']++; return; }
+            if (!$userId) {
+                $this->counts['skip']++;
+                \Log::warning('[Salonrandevu rdv] SKIP no-user', [
+                    'apptId' => $apptId,
+                    'customer_name' => $appt['customer']['full_name'] ?? '?',
+                    'customer_phone' => $appt['customer']['phone'] ?? '?',
+                    'customer_id' => $appt['customer']['id'] ?? 0,
+                ]);
+                return;
+            }
 
             list($tarih, $saat) = $this->isoBol($appt['appointment_start_date'] ?? null);
-            if (!$tarih) { $this->counts['skip']++; return; }
+            if (!$tarih) {
+                $this->counts['skip']++;
+                \Log::warning('[Salonrandevu rdv] SKIP no-tarih', [
+                    'apptId' => $apptId,
+                    'appointment_start_date' => $appt['appointment_start_date'] ?? '?',
+                ]);
+                return;
+            }
             list(, $saatBitis) = $this->isoBol($appt['appointment_end_date'] ?? null);
 
             $marker = '[salonrandevu-rdv:' . $apptId . ']';
@@ -1024,7 +1054,17 @@ class SalonrandevuImporter
                 // (eski kod "if !== null" kontrol ediyordu, gelecek randevu icin
                 // null oldugundan eski geldi=1 silinmiyordu, hatali kayit kaliyordu)
                 $r->randevuya_geldi = $geldi;
-                $not = trim((string) ($appt['note'] ?? ''));
+                // Not field alternatifleri: SR farklı isimlerde dondurmus olabilir
+                $not = '';
+                foreach (['note', 'notes', 'description', 'customer_note', 'appointment_note',
+                          'personal_note', 'note_text', 'comment', 'comments'] as $nf) {
+                    $candidate = trim((string) ($appt[$nf] ?? ''));
+                    if ($candidate !== '') { $not = $candidate; break; }
+                }
+                // Customer-level not da olabilir
+                if ($not === '' && !empty($appt['customer']['description'])) {
+                    $not = trim((string) $appt['customer']['description']);
+                }
                 $r->personel_notu = trim(($not ? $not . ' ' : '') . $marker);
                 if (!$existRandevu && !empty($appt['created_at'])) {
                     $ct = strtotime($appt['created_at']);
