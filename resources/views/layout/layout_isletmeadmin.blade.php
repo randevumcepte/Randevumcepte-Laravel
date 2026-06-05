@@ -5241,7 +5241,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <audio id="remoteAudio"class="d-none"></audio>
       <script src="{{secure_asset('public/js/santral/sip-0.21.2.min.js')}}"></script>
       @if($isletme->santral_aktif && (optional($_layoutYetkiliPersonel)->dahili_no !== null))
-      <script src="{{secure_asset('public/js/santral/webphone.js?v=11.9')}}"></script>
+      <script src="{{secure_asset('public/js/santral/webphone.js?v=12.0')}}"></script>
       @endif
  
       <select id="audioOutputSelect" style="display: none"></select>

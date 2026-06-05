@@ -64,10 +64,12 @@ simpleUserOptions = {
     },
     aor: `sip:${dahili}@${defaultSIPServer}`,
     userAgentOptions: {
-        logLevel: "debug",
+        logLevel: "error",
         displayName: dahili,
         authorizationUsername: dahili,
-        authorizationPassword: dahiliSifre
+        authorizationPassword: dahiliSifre,
+        // Santral erisilemezse hizli vazgec (varsayilan 5sn) — UI bekletmesin
+        transportOptions: { connectionTimeout: 3 }
     }
 };
 
@@ -81,18 +83,31 @@ var simpleUser = new SIP.Web.SimpleUser(webSocketServer, simpleUserOptions);
 // connect
 callButton.disabled = true;
 hangupButton.disabled = true;
-simpleUser.connect().then(function()
+
+function webphoneBaglan()
 {
-    callButton.disabled = false;
-    hangupButton.disabled = true;
-    serverSpan.innerHTML = defaultSIPServer;
-})
-.catch(function(error)
-{
-    console.error(`[${simpleUser.id}] failed to connect`);
-    console.error(error);
-    targetSpan.innerHTML = "Sunucuya bağlanamadı: " + error;
-});
+    simpleUser.connect().then(function()
+    {
+        callButton.disabled = false;
+        hangupButton.disabled = true;
+        serverSpan.innerHTML = defaultSIPServer;
+    })
+    .catch(function(error)
+    {
+        console.error(`[${simpleUser.id}] failed to connect`);
+        console.error(error);
+        targetSpan.innerHTML = "Sunucuya bağlanamadı: " + error;
+    });
+}
+
+// Baglantiyi sayfa ETKILESIME HAZIR olduktan sonra arka planda baslat.
+// Santral2 down olsa bile sayfa acilisi/tiklamalar bloklanmaz; santral
+// donunce telefon yine baglanir (sadece ~1.5sn gec baslar).
+if (document.readyState === 'complete') {
+    setTimeout(webphoneBaglan, 1500);
+} else {
+    window.addEventListener('load', function () { setTimeout(webphoneBaglan, 1500); });
+}
 
 /*
 ** Event Listeners
