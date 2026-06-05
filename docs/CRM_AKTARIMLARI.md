@@ -313,6 +313,33 @@ DB::table('hizmetler')->whereIn('id',\$hids)->delete();
 
 Tek seferde full dump v7 + import yerine her veri tipini ayrı bir dump + ayrı bir komutla işleme akışı. Hata izolasyonu ve aşamalı onay için tercih edilir.
 
+#### Kurulum (`--only-setup`) — hizmet/personel/ürün/müşteri/cihaz
+
+Sadece master listeleri aktarır; visit/paket/tahsilat **dokunmaz**. Boş bir salon kurarken ilk adım olmaya uygun.
+
+**Dump**: [scripts/salonappy_dump_setup.js](../scripts/salonappy_dump_setup.js) — `/service/salon` + `/staff/list` + `/product/list` + `/client/list` + cihazlar için 5 endpoint dener (`/device/list`, `/devices`, `/salon/device`, `/salon/devices`, `/equipment/list`). ~10 sn, <1MB JSON.
+
+```bash
+# 1) Tarayıcıda scripts/salonappy_dump_setup.js çalıştır → salonappy_setup_<ts>.json indir
+# 2) scp ile sunucuya
+scp salonappy_setup_*.json root@<server>:/tmp/
+
+# 3) Import
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_setup_<ts>.json --salon=368 --only-setup
+```
+
+**`--only-setup`** ne yapar:
+- `services[]` → `Hizmetler` + `SalonHizmetler` (`ensureSalonHizmet`, `sure_dk < 15` ise 15)
+- `staffs[]` → `Personeller` + `SalonPersonelleri` (`ensurePersonel`)
+- `products[]` → `Urunler` (`ensureUrun`)
+- `clients[]` → `users` + `musteri_portfoy` (`aktarimMusteriKontrol` — telefon dedup)
+- `devices[]` → `cihazlar` + `salon_cihaz_renkleri` (isim dedup; sema `salon_id, cihaz_adi, aktifmi=1, durum=1` StoreAdminController:16403'ten)
+
+Tüm yardımcılar **idempotent** — tekrar çalıştırmak güvenli.
+
+**Cihaz endpoint'i bulunamazsa** dump'ta `devices: []` boş olur — UI'dan manuel ekle.
+
 #### Paket satışları (Aşama A + B)
 
 **Dump**: [scripts/salonappy_dump_package_sales.js](../scripts/salonappy_dump_package_sales.js) — sadece `/api/client/list` + `/api/package_sale/list_v2` + `/api/payment/list` çeker. IndexedDB resume YOK (her çalıştırma fresh). ~2 dk.
@@ -1013,6 +1040,7 @@ app/Imports/SalonrandevuImporter.php
 app/Http/Controllers/DrklinikApiController.php   # REST API endpoint'leri
 scripts/salonappy_dump_v7.js                     # full visit-bazli dump
 scripts/salonappy_dump_v6.js                     # eski versiyon
+scripts/salonappy_dump_setup.js                  # modular: sadece kurulum (hizmet/personel/ürün/müşteri/cihaz)
 scripts/salonappy_dump_package_sales.js          # modular: sadece paket satışları
 scripts/salonappy_dump_product_sales.js          # modular: sadece ürün satışları
 scripts/salonappy_dump_visits.js                 # modular: visit detayları + ödemeler
