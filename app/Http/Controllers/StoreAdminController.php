@@ -12258,13 +12258,11 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         }
         
         $islemler .= '&nbsp;<button style="line-height:5px;padding:5px" name="satisDuzenle" data-index-number="'.$adisyon->user_id.'" data-value="'.$adisyon->id.'" title="Düzenle" href="#" type="button"  class="btn btn-success"><i class="fa fa-edit"></i></button>';
-        if ($_silYetki) {
-            $islemler .= '&nbsp;<button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Adisyonu Sil"  name="adisyon_sil" data-value="'.$adisyon->id.'"><i class="fa fa-times"></i></button>';
-        }
         // Fatura ikonu hesap sahibinin TUM satislarinda gozukur (eski
         // tasarimdaki davranis): tiklayinca yesil (faturali) olur, tekrar
         // tiklayinca geri alinir. Ust taraftaki fatura filtresi sadece
-        // yesil/faturali satislari listeler.
+        // yesil/faturali satislari listeler. Sil (X) ikonu en sagda kalsin
+        // diye faturadan once render edilir.
         if ($_hesapSahibi) {
             $_fk = (int) $adisyon->fatura_kesildi;
             // Net renk farki: faturali = yesil, faturasiz = saydam gri (bakar bakmaz ayrilabilsin)
@@ -12273,6 +12271,10 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
                 : 'background-color:#f5f5f5;color:#999;border-color:#ddd;';
             $_btnTitle = $_fk ? 'Faturali (kaldirmak icin tikla)' : 'Faturasiz (isaretlemek icin tikla)';
             $islemler .= '&nbsp;<button style="line-height:5px;padding:5px;'.$_btnStyle.'" class="btn" href="#" name="adisyon_fatura_isaretle" data-value="'.$adisyon->id.'" data-kesildi="'.$_fk.'" title="'.$_btnTitle.'"><i class="fa fa-file-text-o"></i></button>';
+        }
+        // Sil (X) ikonu en sagda dursun diye en sona eklenir.
+        if ($_silYetki) {
+            $islemler .= '&nbsp;<button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Adisyonu Sil"  name="adisyon_sil" data-value="'.$adisyon->id.'"><i class="fa fa-times"></i></button>';
         }
 
         $acilisTarihiKaynak = $adisyon->tarih ?: $adisyon->created_at;
