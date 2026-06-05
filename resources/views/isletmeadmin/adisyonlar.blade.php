@@ -104,11 +104,14 @@
             <label>&nbsp;</label>
             <div class="rc-adi-extras">
                <span id="satisDurumuSayilari" class="rc-adi-status-counts"></span>
-               <button type="button" id="faturaliFiltreBtn"
-                       class="btn btn-default rc-adi-fatura-btn"
-                       title="Sadece Faturalı (Yeşil) Satışları Göster">
+               @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
+               <button type="button" id="faturasizGizleSatisBtn"
+                       data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
+                       class="btn btn-{{ (int)($isletme->faturasiz_gizle ?? 0) === 1 ? 'warning' : 'default' }} rc-adi-fatura-btn"
+                       title="Faturasız İşlemleri Gizle/Göster">
                    <i class="fa fa-file-text-o"></i>
                </button>
+               @endif
             </div>
          </div>
       </div>
@@ -1598,24 +1601,10 @@ $(document).ready(function() {
 
     // Satış durumu filtresini dinle
     $('#satis_durumu_filtre').on('change', function() {
-        // Üstteki fatura ikonunu filtre durumuyla senkron tut
-        if ($(this).val() === 'faturali') {
-            $('#faturaliFiltreBtn').addClass('rc-adi-fatura-aktif');
-        } else {
-            $('#faturaliFiltreBtn').removeClass('rc-adi-fatura-aktif');
-        }
         // Önce sayıları güncelle
         updateSalesStatusCounts();
         // Sonra filtreleri uygula
         applyFilters();
-    });
-
-    // Üstteki "Faturalı" ikonu: tıklayınca sadece yeşil (faturalı) satışları
-    // listele, tekrar tıklayınca tüm satışlara dön. Mevcut "faturali" sunucu
-    // filtresini kullanır (satis_durumu_filtre üzerinden).
-    $('#faturaliFiltreBtn').on('click', function() {
-        var aktif = $(this).hasClass('rc-adi-fatura-aktif');
-        $('#satis_durumu_filtre').val(aktif ? '' : 'faturali').trigger('change');
     });
 
     // Tab değiştiğinde
