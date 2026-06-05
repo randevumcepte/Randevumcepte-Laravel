@@ -634,8 +634,10 @@ class SalonrandevuImporter
                 $p->salon_id = $this->salonId;
                 $p->yetkili_id = $yetkili->id;
                 $p->role_id = 5;
-                $p->aktif = 1;
-                $p->takvimde_gorunsun = 1;
+                // Randevu importunda inline yaratilan personel PASIF baslar
+                // (kullanici incelemeden onayladiktan sonra panelden aktif edebilir).
+                $p->aktif = 0;
+                $p->takvimde_gorunsun = 0;
                 $p->takvim_sirasi = ($sonSira ?: 0) + 1;
                 $p->renk = $renk;
                 $p->save();
@@ -914,6 +916,68 @@ class SalonrandevuImporter
     }
 
     // ======================= RANDEVU =======================
+
+    /**
+     * SR vs DB randevu karsilastirma: aylik dagilim + eksik aylar.
+     * SR'den /appointment/list ile paginated cek, DB'de [salonrandevu-rdv:%] markerli
+     * randevulari say. Hicbir yere yazmaz.
+     */
+    public function reportRandevular()
+    {
+        if (!$this->client->getToken()) {
+            $login = $this->client->login();
+            if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
+        }
+        // SR'den ay-bazli sayim
+        $srAyBazli = []; // 'YYYY-MM' => sayi
+        $srToplam = 0;
+        $page = 1; $guard = 0;
+        while ($guard++ < 100000) {
+            $j = $this->client->get('/company/appointment/list?page=' . $page);
+            if (!$j) break;
+            $d = $j['data'] ?? [];
+            $rows = $d['records'] ?? (isset($d[0]) ? $d : []);
+            if (empty($rows)) break;
+            foreach ($rows as $r) {
+                list($tarih,) = $this->isoBol($r['appointment_start_date'] ?? null);
+                if (!$tarih) continue;
+                $ay = substr($tarih, 0, 7);
+                $srAyBazli[$ay] = ($srAyBazli[$ay] ?? 0) + 1;
+                $srToplam++;
+            }
+            $cur = $d['page'] ?? $page;
+            $next = $d['next_page'] ?? null;
+            if ($next === null || (int) $next <= (int) $cur) break;
+            $page = (int) $next;
+        }
+        $this->log("SR appointment sayisi: $srToplam");
+        $this->log("SR ay araligi: " . (count($srAyBazli) ? min(array_keys($srAyBazli)) . ' - ' . max(array_keys($srAyBazli)) : '-'));
+
+        // DB'den ay-bazli sayim
+        $dbAyBazli = DB::table('randevular')->where('salon_id', $this->salonId)
+            ->where('personel_notu', 'LIKE', '%[salonrandevu-rdv:%')
+            ->select(DB::raw("DATE_FORMAT(tarih, '%Y-%m') as ay, COUNT(*) as cnt"))
+            ->groupBy('ay')->pluck('cnt', 'ay')->all();
+        $dbToplam = array_sum($dbAyBazli);
+        $this->log("DB markerli randevu sayisi: $dbToplam");
+
+        // Tum aylar (SR + DB birlesim) — siralanmis
+        $tumAylar = array_unique(array_merge(array_keys($srAyBazli), array_keys($dbAyBazli)));
+        sort($tumAylar);
+        $this->log("\n=== Aylik dagilim (SR / DB / FARK) ===");
+        $eksikToplam = 0; $fazlaToplam = 0;
+        foreach ($tumAylar as $ay) {
+            $sr = $srAyBazli[$ay] ?? 0;
+            $db = $dbAyBazli[$ay] ?? 0;
+            $fark = $sr - $db;
+            if ($fark > 0) $eksikToplam += $fark;
+            elseif ($fark < 0) $fazlaToplam += abs($fark);
+            $bar = ($fark > 0 ? str_repeat('-', min(20, $fark)) : ($fark < 0 ? str_repeat('+', min(20, abs($fark))) : ''));
+            $this->log(sprintf("  %s | SR=%4d | DB=%4d | fark=%4d %s",
+                $ay, $sr, $db, $fark, $bar));
+        }
+        $this->log("\nOzet: SR=$srToplam DB=$dbToplam, eksik (SR>DB)=$eksikToplam, fazla (DB>SR)=$fazlaToplam");
+    }
 
     public function importRandevular()
     {
