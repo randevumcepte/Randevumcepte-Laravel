@@ -41,7 +41,7 @@
             </button>
          </div>
          @endif
-         @if(($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') == 'connected')
+         @if(($isletme->whatsapp_aktif ?? 0))
          <div class="d-inline-block mr-2">
             <button class="btn btn-success btn-lg whatsapp-mesaj-ac"
                data-userid="{{$musteri_bilgi->id}}"
@@ -1391,7 +1391,7 @@
    }
 </script>
 
-@if(($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') == 'connected')
+@if(($isletme->whatsapp_aktif ?? 0))
 @include('isletmeadmin.partials.whatsapp_mesaj_modal')
 @endif
 @endsection

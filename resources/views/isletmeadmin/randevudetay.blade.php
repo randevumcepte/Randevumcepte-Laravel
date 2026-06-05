@@ -24,7 +24,7 @@
             </nav>
          </div>
          <div class="col-md-6 col-sm-6 text-right">
-            @if(($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') == 'connected')
+            @if(($isletme->whatsapp_aktif ?? 0))
             <button type="button" class="btn btn-success whatsapp-mesaj-ac"
                data-userid="{{$randevu->user_id}}"
                data-telefon="{{$randevu->users->cep_telefon ?? ''}}"
@@ -706,7 +706,7 @@
 
 </div>
 
-@if(($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') == 'connected')
+@if(($isletme->whatsapp_aktif ?? 0))
 @include('isletmeadmin.partials.whatsapp_mesaj_modal')
 @endif
 @endsection
