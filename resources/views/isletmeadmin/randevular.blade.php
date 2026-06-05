@@ -276,13 +276,17 @@
    box-shadow: 0 6px 16px rgba(92, 0, 142, .28);
 }
 
-/* === FİLTRE KARTI === */
+/* === FİLTRE KARTI (kompakt tek satır) === */
 .rc-rt-filter-card {
    background: #fff;
    border-radius: 14px;
-   padding: 18px 20px 20px;
-   margin-bottom: 18px;
+   padding: 10px 18px;
+   margin-bottom: 14px;
    box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 4px 16px rgba(92, 0, 142, .04);
+   display: flex;
+   align-items: center;
+   gap: 20px;
+   flex-wrap: wrap;
 }
 .rc-rt-filter-head {
    display: inline-flex;
@@ -293,10 +297,8 @@
    color: var(--rc-purple-dark);
    text-transform: uppercase;
    letter-spacing: .04em;
-   padding-bottom: 14px;
-   margin-bottom: 14px;
-   border-bottom: 1px solid var(--rc-border);
-   width: 100%;
+   white-space: nowrap;
+   flex-shrink: 0;
 }
 .rc-rt-filter-head i {
    width: 28px; height: 28px;
@@ -310,12 +312,15 @@
 .rc-rt-filter-grid {
    display: grid;
    grid-template-columns: repeat(2, minmax(0, 1fr));
-   gap: 14px;
+   gap: 16px;
+   flex: 1;
+   min-width: 280px;
 }
 .rc-rt-field {
    display: flex;
-   flex-direction: column;
-   gap: 6px;
+   flex-direction: row;
+   align-items: center;
+   gap: 10px;
    min-width: 0;
 }
 .rc-rt-field label {
@@ -325,10 +330,12 @@
    letter-spacing: .04em;
    color: var(--rc-text-soft);
    margin: 0;
+   white-space: nowrap;
+   flex-shrink: 0;
 }
 .rc-rt-select,
 .rc-rt-input {
-   height: 42px !important;
+   height: 40px !important;
    border: 1px solid var(--rc-border) !important;
    border-radius: 10px !important;
    padding: 0 14px !important;
@@ -392,8 +399,9 @@
    .rc-rt-title { font-size: 16px; }
    .rc-rt-breadcrumb { font-size: 11.5px; }
 
-   .rc-rt-filter-card { padding: 14px 14px 16px; border-radius: 12px; }
+   .rc-rt-filter-card { padding: 14px; border-radius: 12px; flex-direction: column; align-items: stretch; gap: 12px; }
    .rc-rt-filter-grid { grid-template-columns: 1fr; gap: 10px; }
+   .rc-rt-field { flex-direction: column; align-items: stretch; gap: 6px; }
 
    .rc-rt-card { padding: 10px; border-radius: 12px; }
 }
