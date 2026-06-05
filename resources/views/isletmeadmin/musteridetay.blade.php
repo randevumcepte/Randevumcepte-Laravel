@@ -75,6 +75,16 @@
 #mdetay .tl-body:empty::after{content:"—";color:#c5c9d3;}
 #mdetay .mdetay-empty{background:var(--soft);border:1px dashed var(--line);color:var(--muted);border-radius:12px;padding:22px;text-align:center;font-size:14px;font-weight:600;}
 #mdetay .mdetay-empty i{color:var(--m3);margin-right:6px;}
+#mdetay .notes-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
+#mdetay .notes-count{font-size:12px;font-weight:700;color:var(--m2);background:var(--soft);padding:5px 12px;border-radius:999px;white-space:nowrap;}
+#mdetay .tl-head{align-items:flex-start;}
+#mdetay .tl-tags{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;}
+#mdetay .tl-tag{font-size:11px;font-weight:600;color:var(--m1);background:rgba(157,93,200,.13);padding:3px 9px;border-radius:8px;line-height:1.5;}
+#mdetay .tl-notes{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+#mdetay .tl-note{font-size:13px;color:#3a4252;line-height:1.5;background:var(--soft);border-radius:10px;padding:9px 12px;border-left:3px solid var(--m3);white-space:pre-line;word-break:break-word;}
+#mdetay .tl-note-lbl{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--m2);margin-bottom:3px;}
+#mdetay .tl-empty-note{font-size:12.5px;color:#aeb4c2;font-style:italic;margin-top:8px;}
+#mdetay .tl-empty-note i{margin-right:5px;}
 
 /* Sağlık bilgileri formu */
 #mdetay #musteri_saglik_bilgileri .col-md-6,#mdetay #musteri_saglik_bilgileri .col-md-12{margin-bottom:16px;}
@@ -604,62 +614,32 @@
                      </div>
                   </div>
                   <div class="col-md-7">
-                     <ul class="nav nav-tabs element" role="tablist">
-                        <li class="nav-item" style="margin-left: 20px;">
-                           <button
-                              class="btn btn-outline-primary active"
-                              data-toggle="tab"
-                              href="#musteri_hareketleri"
-                              role="tab"
-                              aria-selected="false"
-                              >Müşteri Hareketleri</button
-                              >
-                        </li>
-                        <li class="nav-item" style="margin-left: 20px;display: inline-block; ">
-                           <button
-                              class="btn btn-outline-primary"
-                              data-toggle="tab"
-                              href="#islem_notlari"
-                              role="tab"
-                              aria-selected="false"
-                              style="width: 150px"
-                              >İşlem Notları</button
-                              >
-                        </li>
-                     </ul>
-                     <div class="tab-content">
-                        <div class="tab-pane fade show active" id="musteri_hareketleri" role="tab-panel" style="margin-top: 20px">
-                           <div class="tl-wrap">
-                              @foreach($randevular as $randevu)
-                              <div class="tl-item">
-                                 <div class="tl-head">
-                                    <span class="tl-date">{{date('d.m.Y',strtotime($randevu->tarih))}}</span>
-                                    <span class="tl-serv">@foreach($randevu->hizmetler as $hizmet){{($hizmet->hizmet_id? $hizmet->hizmetler->hizmet_adi : "")}} @endforeach</span>
-                                 </div>
-                                 <div class="tl-body">{{$randevu->personel_notu}}</div>
+                     <div class="notes-head">
+                        <h4 class="text-blue" style="margin:0;">Randevu Notları</h4>
+                        <span class="notes-count">{{$randevular->count()}} randevu</span>
+                     </div>
+                     <div class="tl-wrap">
+                        @forelse($randevular as $randevu)
+                        @php $_pn = trim($randevu->personel_notu ?? ''); $_rn = trim($randevu->randevu_sonrasi_not ?? ''); @endphp
+                        <div class="tl-item">
+                           <div class="tl-head">
+                              <span class="tl-date">{{date('d.m.Y',strtotime($randevu->tarih))}}</span>
+                              <div class="tl-tags">
+                                 @foreach($randevu->hizmetler as $hizmet)@if($hizmet->hizmet_id && $hizmet->hizmetler)<span class="tl-tag">{{$hizmet->hizmetler->hizmet_adi}}</span>@endif @endforeach
                               </div>
-                              @endforeach
-                              @if($randevular->count()==0)
-                              <div class="mdetay-empty"><i class="fa fa-calendar-o"></i> Müşteriye ait randevu veya işlem bulunamadı!</div>
-                              @endif
                            </div>
-                        </div>
-                        <div class="tab-pane fade show " id="islem_notlari" role="tab-panel" style="margin-top: 20px">
-                           <div class="tl-wrap">
-                              @foreach($randevular as $randevu)
-                              <div class="tl-item">
-                                 <div class="tl-head">
-                                    <span class="tl-date">{{date('d.m.Y',strtotime($randevu->tarih))}}</span>
-                                    <span class="tl-serv">@foreach($randevu->hizmetler as $hizmet){{($hizmet->hizmet_id? $hizmet->hizmetler->hizmet_adi : "")}} @endforeach</span>
-                                 </div>
-                                 <div class="tl-body">{{$randevu->randevu_sonrasi_not}}</div>
-                              </div>
-                              @endforeach
-                              @if($randevular->count()==0)
-                              <div class="mdetay-empty"><i class="fa fa-calendar-o"></i> Müşteriye ait randevu veya işlem bulunamadı!</div>
-                              @endif
+                           @if($_pn || $_rn)
+                           <div class="tl-notes">
+                              @if($_pn)<div class="tl-note"><span class="tl-note-lbl">Personel Notu</span>{{$_pn}}</div>@endif
+                              @if($_rn)<div class="tl-note"><span class="tl-note-lbl">Randevu Sonrası Not</span>{{$_rn}}</div>@endif
                            </div>
+                           @else
+                           <div class="tl-empty-note"><i class="fa fa-pencil"></i> Bu randevuya not girilmemiş</div>
+                           @endif
                         </div>
+                        @empty
+                        <div class="mdetay-empty"><i class="fa fa-calendar-o"></i> Müşteriye ait randevu veya işlem bulunamadı!</div>
+                        @endforelse
                      </div>
                   </div>
                </div>
