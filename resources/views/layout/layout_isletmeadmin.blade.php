@@ -2011,6 +2011,39 @@
       <!-- js -->
       <script src="{{secure_asset('public/yeni_panel/vendors/scripts/core.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/vendors/scripts/script.js?v=11.8')}}"></script>
+      <!-- Sol menü scroll konumunu sayfalar arası koru (tıklayınca menü tepeye kaymasın) -->
+      <script>
+         (function () {
+            var SEL = '.menu-block.customscroll';
+            var KEY = 'rcSidebarScrollTop';
+            function readPos() {
+               var $m = jQuery(SEL);
+               var inst = $m.length ? $m.data('mCS') : null;
+               if (inst && inst.mcs && typeof inst.mcs.top !== 'undefined') {
+                  return Math.abs(parseInt(inst.mcs.top)) || 0;
+               }
+               var c = document.querySelector(SEL + ' .mCSB_container');
+               if (c) { return Math.abs(parseInt(window.getComputedStyle(c).top)) || 0; }
+               return 0;
+            }
+            function save() {
+               try { sessionStorage.setItem(KEY, readPos()); } catch (e) {}
+            }
+            // Menü linkine tıklanınca ve sayfadan ayrılırken mevcut konumu kaydet
+            jQuery(document).on('click', SEL + ' a[href]', save);
+            jQuery(window).on('beforeunload', save);
+            // mCustomScrollbar "load" üzerinde init oluyor; biz de load'a bağlanıp
+            // (sonra çalışacak şekilde) kayıtlı konumu animasyonsuz geri yükleriz
+            jQuery(window).on('load', function () {
+               var pos = parseInt(sessionStorage.getItem(KEY));
+               if (pos && jQuery(SEL).length) {
+                  setTimeout(function () {
+                     jQuery(SEL).mCustomScrollbar('scrollTo', pos, { scrollInertia: 0, timeout: 0, callbacks: false });
+                  }, 0);
+               }
+            });
+         })();
+      </script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/jquery.dataTables.min.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/dataTables.bootstrap4.min.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/dataTables.responsive.min.js')}}"></script>
