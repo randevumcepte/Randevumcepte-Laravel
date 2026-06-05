@@ -32125,6 +32125,27 @@ $(document).on('click', '.whatsapp-mesaj-ac', function(e){
     var telefon= $(this).data('telefon') || '';
     var userid = $(this).data('userid') || '';
     var onay   = parseInt($(this).data('onay') || 0, 10);
+    var bagli  = parseInt($(this).data('bagli') || 0, 10);
+
+    // WhatsApp bagli degilse mesaj ekrani yerine yonlendirme uyarisi goster
+    if(bagli !== 1){
+        swal({
+            type: "warning",
+            title: "WhatsApp Bağlı Değil",
+            text: "Müşterilerinize WhatsApp mesajı gönderebilmek için önce WhatsApp hesabınızı sisteme bağlamanız gerekiyor. WhatsApp Ayarları sayfasından QR kodu okutarak birkaç saniyede bağlayabilirsiniz.",
+            showCancelButton: true,
+            confirmButtonText: "WhatsApp Ayarlarına Git",
+            cancelButtonText: "Daha Sonra",
+            confirmButtonColor: '#25D366',
+            confirmButtonClass: 'btn btn-success',
+            cancelButtonClass: 'btn btn-secondary'
+        }).then(function(result){
+            if(result.value){
+                window.location.href = '/isletmeyonetim/whatsapp';
+            }
+        });
+        return;
+    }
 
     $('#wam_user_id').val(userid);
     $('#wam_musteri_ad').text(ad || '-');

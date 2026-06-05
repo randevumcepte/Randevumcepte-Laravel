@@ -24,15 +24,20 @@
             </nav>
          </div>
          <div class="col-md-6 col-sm-6 text-right">
-            @if(($isletme->whatsapp_aktif ?? 0))
+            @php
+               $_waSaglayici = $isletme->whatsapp_saglayici ?? 'baileys';
+               $_waBagli = $_waSaglayici === 'cloud_api'
+                  ? (!empty($isletme->cloud_api_token) && !empty($isletme->cloud_api_phone_number_id))
+                  : (($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') === 'connected');
+            @endphp
             <button type="button" class="btn btn-success whatsapp-mesaj-ac"
                data-userid="{{$randevu->user_id}}"
                data-telefon="{{$randevu->users->cep_telefon ?? ''}}"
                data-ad="{{$randevu->users->name ?? ''}}"
-               data-onay="{{ (int)($randevu->users->whatsapp_onay ?? 0) }}">
+               data-onay="{{ (int)($randevu->users->whatsapp_onay ?? 0) }}"
+               data-bagli="{{ $_waBagli ? 1 : 0 }}">
                <i class="fa fa-whatsapp"></i> WhatsApp Mesaj
             </button>
-            @endif
          </div>
       </div>
    </div>
@@ -706,7 +711,5 @@
 
 </div>
 
-@if(($isletme->whatsapp_aktif ?? 0))
 @include('isletmeadmin.partials.whatsapp_mesaj_modal')
-@endif
 @endsection

@@ -41,17 +41,22 @@
             </button>
          </div>
          @endif
-         @if(($isletme->whatsapp_aktif ?? 0))
+         @php
+            $_waSaglayici = $isletme->whatsapp_saglayici ?? 'baileys';
+            $_waBagli = $_waSaglayici === 'cloud_api'
+               ? (!empty($isletme->cloud_api_token) && !empty($isletme->cloud_api_phone_number_id))
+               : (($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') === 'connected');
+         @endphp
          <div class="d-inline-block mr-2">
             <button class="btn btn-success btn-lg whatsapp-mesaj-ac"
                data-userid="{{$musteri_bilgi->id}}"
                data-telefon="{{$musteri_bilgi->cep_telefon}}"
                data-ad="{{$musteri_bilgi->name}}"
-               data-onay="{{ (int)($musteri_bilgi->whatsapp_onay ?? 0) }}">
+               data-onay="{{ (int)($musteri_bilgi->whatsapp_onay ?? 0) }}"
+               data-bagli="{{ $_waBagli ? 1 : 0 }}">
                <i class="fa fa-whatsapp"></i> WhatsApp Mesaj
             </button>
          </div>
-         @endif
          @if(!$is_personel_rolu)
          <div class="d-inline-block">
             <button style='display:{{($kara_liste != 1) ? "inline-block": "none"}}' class="btn btn-primary btn-lg" id='musteri_sms_kara_listeye_ekle' data-value='{{$musteri_bilgi->id}}'>
@@ -1391,7 +1396,5 @@
    }
 </script>
 
-@if(($isletme->whatsapp_aktif ?? 0))
 @include('isletmeadmin.partials.whatsapp_mesaj_modal')
-@endif
 @endsection
