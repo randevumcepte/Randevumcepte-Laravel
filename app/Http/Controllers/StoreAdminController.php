@@ -15799,6 +15799,17 @@ DB::raw('
         ];
 
         $hizmetler[] = [
+            'kod' => 'markaliuygulama',
+            'ad' => 'Markanıza Özel Uygulama',
+            'aciklama' => 'İşletmenize özel markalı mobil uygulama',
+            'icon' => 'fa-mobile',
+            'renk' => 'mor',
+            'aktif' => true,
+            'periyot' => 'Pakete dahil',
+            'bitis' => null,
+        ];
+
+        $hizmetler[] = [
             'kod' => 'anket',
             'ad' => 'Memnuniyet Anketi',
             'aciklama' => 'Randevu sonrası otomatik memnuniyet anketi',
