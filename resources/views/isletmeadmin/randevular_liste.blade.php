@@ -353,48 +353,92 @@
    margin: 0 6px;
 }
 
-/* === TABLO === */
+/* === TABLO (KART SATIR YAPISI) ===
+   Her tr bir "kart satir" gibi davranir: rounded, soft border,
+   aralarinda dikey bosluk, hover'da hafif yukari kalkma + sol mor
+   gradient seritin yanmasi. Thead kolon legend'i olarak korunur. */
 .rc-rl-table {
    border-collapse: separate !important;
-   border-spacing: 0 !important;
+   border-spacing: 0 10px !important;
 }
 .rc-rl-table thead th {
-   background: #fafbfc !important;
+   background: transparent !important;
    color: var(--rc-text-soft) !important;
-   font-size: 11.5px !important;
+   font-size: 11px !important;
    font-weight: 700 !important;
    text-transform: uppercase;
-   letter-spacing: .04em;
-   padding: 14px 14px !important;
+   letter-spacing: .06em;
+   padding: 4px 14px 8px !important;
    border: none !important;
-   border-bottom: 1px solid var(--rc-border) !important;
    white-space: nowrap;
 }
-.rc-rl-table thead th:first-child { border-top-left-radius: 10px; }
-.rc-rl-table thead th:last-child { border-top-right-radius: 10px; }
+.rc-rl-table thead th:first-child { padding-left: 22px !important; }
+
 .rc-rl-table tbody td {
-   padding: 14px 14px !important;
+   padding: 16px 14px !important;
    font-size: 13.5px;
    color: var(--rc-text);
    border: none !important;
+   border-top: 1px solid var(--rc-border) !important;
    border-bottom: 1px solid var(--rc-border) !important;
    vertical-align: middle !important;
-   background: #fff;
+   background: #fff !important;
+   transition: border-color .2s, background .2s;
 }
+.rc-rl-table tbody td:first-child {
+   border-left: 1px solid var(--rc-border) !important;
+   border-top-left-radius: 12px;
+   border-bottom-left-radius: 12px;
+   padding-left: 26px !important;
+   position: relative;
+}
+.rc-rl-table tbody td:last-child {
+   border-right: 1px solid var(--rc-border) !important;
+   border-top-right-radius: 12px;
+   border-bottom-right-radius: 12px;
+}
+
+/* Sol mor gradient accent serit */
+.rc-rl-table tbody td:first-child::before {
+   content: '';
+   position: absolute;
+   left: 8px; top: 12px; bottom: 12px;
+   width: 3px;
+   border-radius: 3px;
+   background: var(--rc-border);
+   transition: background .2s, width .2s;
+}
+
+/* Hover: kart yukari kalk + accent yan + golge */
 .rc-rl-table tbody tr {
-   transition: background-color .15s;
+   transition: transform .2s, box-shadow .2s;
+}
+.rc-rl-table tbody tr:hover {
+   transform: translateY(-2px);
 }
 .rc-rl-table tbody tr:hover td {
-   background: var(--rc-purple-light) !important;
+   border-color: var(--rc-purple-soft) !important;
+   background: #fff !important;
+   box-shadow: 0 0 0 transparent;
 }
-.rc-rl-table tbody tr:last-child td {
-   border-bottom: none !important;
+.rc-rl-table tbody tr:hover td:first-child {
+   box-shadow: -6px 8px 18px -8px rgba(92, 0, 142, .18);
 }
-.rc-rl-table.stripe tbody tr.odd td {
-   background: #fbfaff;
+.rc-rl-table tbody tr:hover td:last-child {
+   box-shadow: 6px 8px 18px -8px rgba(92, 0, 142, .18);
 }
-.rc-rl-table.stripe tbody tr.odd:hover td {
-   background: var(--rc-purple-light) !important;
+.rc-rl-table tbody tr:hover td:not(:first-child):not(:last-child) {
+   box-shadow: 0 8px 18px -8px rgba(92, 0, 142, .18);
+}
+.rc-rl-table tbody tr:hover td:first-child::before {
+   background: linear-gradient(180deg, var(--rc-purple-dark), var(--rc-purple), var(--rc-pink));
+   width: 4px;
+}
+
+/* Stripe'i devre disi birak — kart goruntusu icin gerekli degil */
+.rc-rl-table.stripe tbody tr.odd td,
+.rc-rl-table.stripe tbody tr.even td {
+   background: #fff !important;
 }
 
 /* === RESPONSIVE PLUGIN'I DEVRE DIŞI === */
@@ -577,6 +621,10 @@
    .rc-rl-tablo-wrap { overflow: visible; }
    .rc-rl-tablo-wrap #randevu_liste { min-width: 0; width: 100% !important; }
 
+   /* Desktop kart-satir border-spacing/transform'larini sifirla */
+   .rc-rl-table { border-spacing: 0 !important; }
+   .rc-rl-table tbody tr { transform: none !important; }
+
    .rc-rl-table,
    .rc-rl-table thead,
    .rc-rl-table tbody,
@@ -608,6 +656,30 @@
       align-items: center;
       gap: 12px;
       font-size: 13px;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+   }
+   /* Desktop'taki ilk td accent serit + radius'u kapat */
+   .rc-rl-table tbody td:first-child,
+   .rc-rl-table tbody td:last-child {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+   }
+   .rc-rl-table tbody td:first-child::before {
+      content: attr(data-label) !important;
+      position: static !important;
+      width: auto !important;
+      background: transparent !important;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--rc-text-soft);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      flex-shrink: 0;
+      min-width: 115px;
+      border-radius: 0;
    }
    .rc-rl-table tbody td::before {
       content: attr(data-label);

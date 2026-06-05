@@ -8883,58 +8883,67 @@ $('#alacak_formu').on('submit',function(e){
                 }
         });
 });
+/* Polling: 10sn → 30sn, sadece badge guncelle. Liste yapilandirmasi
+   dropdown acildiginda yapilir (asagidaki shown.bs.dropdown handler). */
+var _rcBildirimSon = { sayisi: -1, toplam: -1, html: '' };
 if(($('#formdoldurma').length>0 && $('#formdoldurma').val()!= '1')||$('#formdoldurma').length==0)
-    setInterval(bildirimKontrol, 10000);
-function bildirimKontrol() {
+    setInterval(bildirimKontrol, 30000);
+function bildirimKontrol(rebuildList) {
     $.ajax({
                 type: "GET",
                 url: '/isletmeyonetim/bildirimkontrolet',
                 dataType: "json",
                 data:{sube:$('input[name="sube"]').val()},
                success: function(result)  {
-                    if(result.bildirim_sayisi != 0)
-                    {
-                        $('#bildirim-badge').addClass('badge notification-afctive');
-                        $('#bildirim-badge').empty();
-                        $('#bildirim-badge').append(result.bildirim_sayisi);
-                    }
-                    else
-                    {
-                        $('#bildirim-badge').removeClass('badge notification-afctive');
-                        $('#bildirim-badge').empty();
-                    }
-                    /* Modern bildirim listesini her zaman tazele (boş durum dahil) */
-                    if(result.bildirimler !== undefined){
-                        $('#bildirim_listesi').empty();
-                        $('#bildirim_listesi').append(result.bildirimler);
-                    }
-                    /* Üst başlıktaki "X yeni" pill'i ve Tümünü Sil butonunu güncelle */
-                    if(result.bildirim_sayisi > 0){
-                        if($('#bildirim-count-pill').length === 0){
-                            $('.rc-notif-head .rc-notif-title').append('<span class="rc-notif-count" id="bildirim-count-pill">'+result.bildirim_sayisi+' yeni</span>');
-                        } else {
-                            $('#bildirim-count-pill').text(result.bildirim_sayisi + ' yeni');
-                        }
+                    _rcBildirimSon.sayisi = result.bildirim_sayisi;
+                    _rcBildirimSon.toplam = result.toplam_bildirim;
+                    _rcBildirimSon.html   = result.bildirimler || '';
+
+                    if(result.bildirim_sayisi != 0) {
+                        $('#bildirim-badge').addClass('badge notification-afctive').text(result.bildirim_sayisi);
                     } else {
-                        $('#bildirim-count-pill').remove();
+                        $('#bildirim-badge').removeClass('badge notification-afctive').empty();
                     }
-                    if(result.toplam_bildirim > 0){
-                        if($('#bildirim-tumusil').length === 0){
-                            $('.rc-notif-head .rc-notif-actions').append('<button type="button" class="rc-notif-clear" id="bildirim-tumusil" title="Tümünü Sil"><i class="fa fa-trash-o"></i> <span>Tümünü Sil</span></button>');
-                        }
-                    } else {
-                        $('#bildirim-tumusil').remove();
+
+                    /* Liste rebuild sadece explicit istendiginde (dropdown acilinca) */
+                    if(rebuildList === true){
+                        rcBildirimListeYap();
                     }
                 },
-                error: function (request, status, error) {
-                    $('#preloader').hide();
+                error: function (request) {
                     if(request.status==401 && window.location.href.indexOf("/isletmeyonetim") !== -1)
                         window.location.href = '/isletmeyonetim/girisyap';
-                    else
-                         document.getElementById('hata').innerHTML = request.responseText;
                 }
     });
 }
+function rcBildirimListeYap(){
+    if(_rcBildirimSon.html){
+        $('#bildirim_listesi').html(_rcBildirimSon.html);
+    }
+    if(_rcBildirimSon.sayisi > 0){
+        if($('#bildirim-count-pill').length === 0){
+            $('.rc-notif-head .rc-notif-title').append('<span class="rc-notif-count" id="bildirim-count-pill">'+_rcBildirimSon.sayisi+' yeni</span>');
+        } else {
+            $('#bildirim-count-pill').text(_rcBildirimSon.sayisi + ' yeni');
+        }
+    } else {
+        $('#bildirim-count-pill').remove();
+    }
+    if(_rcBildirimSon.toplam > 0){
+        if($('#bildirim-tumusil').length === 0){
+            $('.rc-notif-head .rc-notif-actions').append('<button type="button" class="rc-notif-clear" id="bildirim-tumusil" title="Tümünü Sil"><i class="fa fa-trash-o"></i> <span>Tümünü Sil</span></button>');
+        }
+    } else {
+        $('#bildirim-tumusil').remove();
+    }
+}
+/* Bildirim dropdown'i acildiginda listeyi tazele (cached varsa direkt goster) */
+$(document).on('shown.bs.dropdown', '.user-notification', function(){
+    if(_rcBildirimSon.html){
+        rcBildirimListeYap();
+    }
+    bildirimKontrol(true);
+});
 /* === Modern bildirim: tekli silme === */
 $(document).on('click', '.rc-notif-del, button[name="bildirim-sil"]', function(e){
     e.preventDefault();
@@ -9000,84 +9009,12 @@ $(document).on('click', '#bildirim-tumusil', function(e){
 
 $(document).on('click','a[name="bildirim"]', function(e){
     e.preventDefault();
-    var $a = $(this);
-    var randevu_id = $a.attr('data-value');
-    var bildirim_id = $a.attr('data-index-number');
-    var href = $a.attr('href');
+    var bildirim_id = $(this).attr('data-index-number');
     var sube = $('input[name="sube"]').val();
     var subeQS = sube ? ('?sube=' + sube) : '';
-    var subeQS2 = sube ? ('&sube=' + sube) : '';
-
-    function markReadThenGo(targetUrl){
-        $('#preloader').show();
-        $.ajax({
-            type: 'POST',
-            url: '/isletmeyonetim/bildirimokundu',
-            dataType: 'text',
-            data: { _token: $('input[name="_token"]').val(), bildirim_id: bildirim_id }
-        }).always(function(){
-            window.location.href = targetUrl;
-        });
-    }
-
-    /* Ajanda notu bildirimi → ajanda sayfasi */
-    if(href && href.indexOf('#not-') === 0){
-        var ajandaid = href.split('-')[1];
-        markReadThenGo('/isletmeyonetim/ajanda' + subeQS + '#not-' + ajandaid);
-        return;
-    }
-
-    /* Form bildirimi → form yazdirma penceresi (mevcut davranis korunuyor) */
-    if(href && href.indexOf('#form-') === 0){
-        var arsivid = href.split('-')[1];
-        $.ajax({
-            type: 'GET',
-            url: '/isletmeyonetim/formyazdir',
-            dataType: 'text',
-            data: { arsiv_id: arsivid, bildirimid: bildirim_id, sube: sube },
-            headers: { 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
-            beforeSend: function(){ $('#preloader').show(); },
-            success: function(result){
-                $('#preloader').hide();
-                $('#yazdirilacak').empty().append(result);
-                var printContents = $('#yazdirilacak').html();
-                var myStyle = '<link rel="stylesheet" href="public/yeni_panel/vendors/styles/style.css" />';
-                var content = '<div style="padding: 20px;">';
-                var myStyle2 = '<link rel="stylesheet" href="public/yeni_panel/src/plugins/datatables/css/responsive.bootstrap4.min.css" />';
-                var myWindow = window.open('https://app.randevumcepte.com.tr/' + arsivid);
-                myWindow.document.write(myStyle + myStyle2 + printContents + content);
-                myWindow.print();
-                bildirimKontrol();
-            },
-            error: function(request){
-                $('#preloader').hide();
-                if(document.getElementById('hata')) document.getElementById('hata').innerHTML = request.responseText;
-            }
-        });
-        return;
-    }
-
-    /* Eger url alaninda gercek bir hedef varsa (# degil), oraya git */
-    if(href && href !== '#' && href.charAt(0) !== '#'){
-        markReadThenGo(href);
-        return;
-    }
-
-    /* Varsayilan: randevu detay sayfasi */
-    if(randevu_id && randevu_id !== '' && randevu_id !== '0'){
-        markReadThenGo('/isletmeyonetim/randevudetay/' + randevu_id + subeQS);
-        return;
-    }
-
-    /* Hicbir hedef yoksa sadece okundu isaretle */
-    $.ajax({
-        type: 'POST',
-        url: '/isletmeyonetim/bildirimokundu',
-        dataType: 'text',
-        data: { _token: $('input[name="_token"]').val(), bildirim_id: bildirim_id }
-    }).always(function(){
-        bildirimKontrol();
-    });
+    if(!bildirim_id) return;
+    $('#preloader').show();
+    window.location.href = '/isletmeyonetim/bildirimgit/' + bildirim_id + subeQS;
 });
 function randevufiltre()
 {

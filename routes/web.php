@@ -874,6 +874,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/seanslar','StoreAdminController@seanslar');
 	Route::get('/bildirimkontrolet','StoreAdminController@bildirimkontrolet');
 	Route::post('/bildirimokundu','StoreAdminController@bildirimokundu');
+	Route::get('/bildirimgit/{id}','StoreAdminController@bildirimgit');
 	Route::post('/bildirimsil','StoreAdminController@bildirimsil');
 	Route::post('/bildirimtumusil','StoreAdminController@bildirimtumusil');
 	Route::get('/randevulistefiltre','StoreAdminController@randevu_liste_filtre');

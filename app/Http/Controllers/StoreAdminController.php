@@ -14903,6 +14903,42 @@ DB::raw('
         $bildirim->save();
         return $bildirim->url;
     }
+    public function bildirimgit(Request $request, $id)
+    {
+        $bildirim = Bildirimler::setEagerLoads([])->find($id);
+        $sube = self::mevcutsube($request);
+        $subeQS = $sube ? ('?sube='.$sube) : '';
+
+        if(!$bildirim) {
+            return redirect('/isletmeyonetim/randevular'.$subeQS);
+        }
+
+        $bildirim->okundu = true;
+        $bildirim->save();
+
+        $url = is_string($bildirim->url) ? trim($bildirim->url) : '';
+
+        if($url && strpos($url, '#not-') === 0) {
+            return redirect('/isletmeyonetim/ajanda'.$subeQS);
+        }
+        if($url && strpos($url, '#form-') === 0) {
+            return redirect('/isletmeyonetim/randevular'.$subeQS);
+        }
+        if($url && $url !== '#' && substr($url, 0, 1) !== '#') {
+            return redirect($url);
+        }
+
+        if(!empty($bildirim->randevu_id)) {
+            $randevu = Randevular::where('id', $bildirim->randevu_id)->first();
+            if($randevu && !empty($randevu->user_id)) {
+                return redirect('/isletmeyonetim/musteridetay/'.$randevu->user_id.$subeQS);
+            }
+        }
+        if(!empty($bildirim->user_id)) {
+            return redirect('/isletmeyonetim/musteridetay/'.$bildirim->user_id.$subeQS);
+        }
+        return redirect('/isletmeyonetim/randevular'.$subeQS);
+    }
     public function bildirimsil(Request $request)
     {
         $personel = Auth::guard('isletmeyonetim')->check()
@@ -15060,7 +15096,7 @@ DB::raw('
         DB::raw('DATE_FORMAT(randevular.saat, "%H:%i") as saat'),
         DB::raw('CONCAT(COALESCE(SUM(randevu_hizmetler.fiyat),0) ," ₺") as toplam'),
         DB::raw('CASE WHEN randevular.web=1 THEN "Web" WHEN randevular.uygulama=1 THEN "Uygulama" ELSE y1.name END as olusturan'),
-        DB::raw('DATE_FORMAT(randevular.created_at, "%d.%m.%Y %H:%i") as olusturulma'),
+        DB::raw('CONCAT("<span style=\"display:none\">",UNIX_TIMESTAMP(randevular.created_at),"</span>",DATE_FORMAT(randevular.created_at, "%d.%m.%Y %H:%i")) as olusturulma'),
         DB::raw('CASE
             WHEN randevular.randevuya_geldi = 1 AND EXISTS(SELECT 1 FROM adisyon_paket_seanslar aps_h WHERE aps_h.randevu_id = randevular.id) THEN
                 (SELECT GROUP_CONCAT(DISTINCT h.hizmet_adi SEPARATOR ",")

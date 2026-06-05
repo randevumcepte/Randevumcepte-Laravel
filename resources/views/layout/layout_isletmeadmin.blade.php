@@ -426,6 +426,19 @@
             box-shadow: 0 18px 48px rgba(92, 0, 142, 0.20), 0 4px 14px rgba(92, 0, 142, 0.08) !important;
             overflow: hidden !important;
             background: #fff !important;
+            /* Popper.js'in transform/position calculation'ini ezerek dropdown'u
+               viewport'un sag kenarina sabitle */
+            position: fixed !important;
+            top: 60px !important;
+            right: 12px !important;
+            left: auto !important;
+            bottom: auto !important;
+            transform: none !important;
+         }
+         @media (max-width: 480px) {
+            .user-notification .dropdown-menu.rc-notif-dropdown {
+               right: 6px !important; top: 56px !important;
+            }
          }
          .rc-notif-card { display: flex; flex-direction: column; }
          .rc-notif-head {
@@ -1285,6 +1298,7 @@
                      href="#"
                      role="button"
                      data-toggle="dropdown"
+                     data-display="static"
                      >
                   <i class="icon-copy dw dw-notification"></i>
                   <span id="bildirim-badge" class="{{($bildirimler->where('okundu',false)->count()>0) ? 'badge notification-afctive' : ''}}">
@@ -5131,7 +5145,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=238.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=239.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
