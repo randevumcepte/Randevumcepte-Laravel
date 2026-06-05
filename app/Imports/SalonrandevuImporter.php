@@ -922,6 +922,66 @@ class SalonrandevuImporter
      * SR'den /appointment/list ile paginated cek, DB'de [salonrandevu-rdv:%] markerli
      * randevulari say. Hicbir yere yazmaz.
      */
+    /**
+     * SR /appointment/list endpoint'ini farkli parametre kombinasyonlariyla dener.
+     * Her variant icin ilk sayfadan donen kayit sayisini logla — kullanici hangi
+     * parametre/kombinasyon en kapsamli sonucu donduguyu gor.
+     */
+    public function probeAppointmentParams($from = null, $to = null)
+    {
+        if (!$this->client->getToken()) {
+            $login = $this->client->login();
+            if (!$login['ok']) { $this->log('Login fail: ' . $login['detail']); return; }
+        }
+        $from = $from ?: date('Y-m-d');
+        $to   = $to   ?: $from;
+        $this->log("SR appointment endpoint probe ($from..$to) — farkli param kombinasyonlari deneniyor");
+        $this->log(str_repeat('-', 80));
+
+        $variants = [
+            'A: default'                     => [],
+            'B: isbetween+from/to'           => ['isbetween' => 'true', 'start' => $from, 'end' => $to],
+            'C: ispaid=2'                    => ['ispaid' => 2],
+            'D: ispaid=2 + isbetween'        => ['ispaid' => 2, 'isbetween' => 'true', 'start' => $from, 'end' => $to],
+            'E: with_cancelled=true'         => ['with_cancelled' => 'true'],
+            'F: include_cancelled=1'         => ['include_cancelled' => 1],
+            'G: status=0 (tum)'              => ['status' => 0],
+            'H: order=0 + isbetween'         => ['order' => 0, 'isbetween' => 'true', 'start' => $from, 'end' => $to],
+            'I: ispast=true + isbetween'     => ['ispast' => 'true', 'isbetween' => 'true', 'start' => $from, 'end' => $to],
+            'J: deleted=1 + isbetween'       => ['deleted' => 1, 'isbetween' => 'true', 'start' => $from, 'end' => $to],
+            'K: customer_state=0 (Beklemede)'=> ['customer_state' => 0, 'isbetween' => 'true', 'start' => $from, 'end' => $to],
+            'L: all=1 + isbetween'           => ['all' => 1, 'isbetween' => 'true', 'start' => $from, 'end' => $to],
+            'M: limit=50 + isbetween'        => ['limit' => 50, 'isbetween' => 'true', 'start' => $from, 'end' => $to],
+            'N: per_page=100 + isbetween'    => ['per_page' => 100, 'isbetween' => 'true', 'start' => $from, 'end' => $to],
+        ];
+
+        $bestCount = 0; $bestVariant = '';
+        foreach ($variants as $label => $params) {
+            $params['page'] = 1;
+            $qs = http_build_query($params);
+            $j = $this->client->get('/company/appointment/list?' . $qs);
+            $d = $j['data'] ?? [];
+            $rows = $d['records'] ?? (isset($d[0]) ? $d : []);
+            $count = is_array($rows) ? count($rows) : 0;
+            $nextPage = $d['next_page'] ?? '-';
+            $totalKey = '';
+            foreach (['total','count','total_count','total_records'] as $tk) {
+                if (isset($d[$tk])) { $totalKey = "$tk={$d[$tk]}"; break; }
+            }
+            $sample = '';
+            if ($count > 0 && isset($rows[0]['appointment_start_date'])) {
+                $sample = ' first=' . substr($rows[0]['appointment_start_date'], 0, 16);
+            }
+            $this->log(sprintf("  %-35s sayfa1=%d, next=%s, %s%s", $label, $count, (string) $nextPage, $totalKey, $sample));
+            if ($count > $bestCount) { $bestCount = $count; $bestVariant = $label; }
+            usleep(200000); // 200ms throttle
+        }
+        $this->log(str_repeat('-', 80));
+        $this->log("En cok kayit donen: $bestVariant ($bestCount kayit)");
+        $this->log('NOT: sayfa1 sayisi farkliysa endpoint bu parametreye duyarli demek;');
+        $this->log('     ayni sayi donerse parametre etkisiz/varsayilan gibi.');
+    }
+
     public function reportRandevular($from = null, $to = null)
     {
         if (!$this->client->getToken()) {
