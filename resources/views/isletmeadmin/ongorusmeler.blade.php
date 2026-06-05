@@ -448,7 +448,31 @@
    .rc-og-icon-bubble { width: 40px; height: 40px; font-size: 16px; }
    .rc-og-title { font-size: 17px; }
    .rc-og-btn { height: 38px; padding: 0 14px; font-size: 12.5px; }
+   .rc-og-card { padding: 8px 12px 14px; }
    .rc-og-card .dataTables_filter input { width: 200px; }
+
+   /* Tablet: 9 sutun da sigsin diye sikistir, Islemler kirpilmasin */
+   .rc-og-table thead th { padding: 11px 9px !important; font-size: 10px; letter-spacing: .02em; }
+   .rc-og-table tbody td { padding: 11px 9px !important; font-size: 12.5px; }
+   .rc-og-table tbody td .btn.btn-warning,
+   .rc-og-table tbody td .btn.btn-success,
+   .rc-og-table tbody td .btn.btn-danger {
+      padding: 4px 9px !important;
+      font-size: 10px !important;
+   }
+   .rc-og-table tbody td .dropdown .dropdown-toggle.btn-link {
+      width: 32px; height: 32px; font-size: 16px !important;
+   }
+   /* Islemler hucresini en dara sabitle ve gorunur tut */
+   .rc-og-table thead th.rc-og-col-actions,
+   .rc-og-table tbody td:nth-child(9) {
+      position: sticky;
+      right: 0;
+      background: #fff;
+      box-shadow: -6px 0 8px -6px rgba(17, 24, 39, .12);
+   }
+   .rc-og-table tbody tr:hover td:nth-child(9) { background: #faf7fe; }
+   .rc-og-table thead th.rc-og-col-actions { background: var(--rc-purple-light); }
 }
 
 @media (max-width: 768px) {
