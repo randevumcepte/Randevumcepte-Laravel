@@ -10360,8 +10360,6 @@ if (preload && !turdegisti) {
                 $('#calendar').fullCalendar('removeEvents');
                 $('#calendar').fullCalendar('addEventSource', result.randevu);
                 $('#calendar').fullCalendar('refetchEvents');
-                // Yuksekligi her refresh'te yeniden uygula (init disinda da dolu kalsin)
-                $('#calendar').fullCalendar('option', 'height', calendarHeight);
             }
             if($('.fc-resource-cell').width()<80)
             {

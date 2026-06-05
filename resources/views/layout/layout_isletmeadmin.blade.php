@@ -1457,8 +1457,8 @@
                      @endyetki
                      @endif
                      @if(!in_array(5, $_layoutRoller))
-                     <a class="dropdown-item" href="/isletmeyonetim/form-sablonlari?sube={{$isletme->id}}"
-                        ><i class="fa fa-file-text-o"></i> Yeni Form Oluştur</a>
+                     <a class="dropdown-item" href="#" data-toggle="modal" data-target="#formugondermodal"
+                        ><i class="fa fa-paper-plane"></i> Form Gönder</a>
                      @endif
                   </div>
                </div>
@@ -5183,7 +5183,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=241.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=242.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
