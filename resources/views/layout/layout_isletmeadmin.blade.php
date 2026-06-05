@@ -908,6 +908,17 @@
          }
       </style>
 
+      <!-- Sol menü scroll konumu korunurken (geri yüklenirken) menüyü gizle ki tepeden başlayıp zıplaması görülmesin -->
+      <style>
+         html.rc-sidebar-restoring .left-side-bar .menu-block.customscroll { visibility: hidden; }
+      </style>
+      <script>
+         try {
+            if (parseInt(sessionStorage.getItem('rcSidebarScrollTop')) > 0) {
+               document.documentElement.classList.add('rc-sidebar-restoring');
+            }
+         } catch (e) {}
+      </script>
    </head>
    
    <body>
@@ -2011,7 +2022,7 @@
       <!-- js -->
       <script src="{{secure_asset('public/yeni_panel/vendors/scripts/core.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/vendors/scripts/script.js?v=11.8')}}"></script>
-      <!-- Sol menü scroll konumunu sayfalar arası koru (tıklayınca menü tepeye kaymasın) -->
+      <!-- Sol menü scroll konumunu sayfalar arası koru (tıklayınca menü hiç hareket etmesin) -->
       <script>
          (function () {
             var SEL = '.menu-block.customscroll';
@@ -2029,19 +2040,43 @@
             function save() {
                try { sessionStorage.setItem(KEY, readPos()); } catch (e) {}
             }
+            function reveal() {
+               document.documentElement.classList.remove('rc-sidebar-restoring');
+            }
+            function restore(instant) {
+               var pos = parseInt(sessionStorage.getItem(KEY));
+               var $m = jQuery(SEL);
+               if (pos && $m.length && $m.data('mCS')) {
+                  $m.mCustomScrollbar('scrollTo', pos, { scrollInertia: 0, timeout: 0, callbacks: false });
+               }
+            }
             // Menü linkine tıklanınca ve sayfadan ayrılırken mevcut konumu kaydet
             jQuery(document).on('click', SEL + ' a[href]', save);
             jQuery(window).on('beforeunload', save);
-            // mCustomScrollbar "load" üzerinde init oluyor; biz de load'a bağlanıp
-            // (sonra çalışacak şekilde) kayıtlı konumu animasyonsuz geri yükleriz
-            jQuery(window).on('load', function () {
-               var pos = parseInt(sessionStorage.getItem(KEY));
-               if (pos && jQuery(SEL).length) {
-                  setTimeout(function () {
-                     jQuery(SEL).mCustomScrollbar('scrollTo', pos, { scrollInertia: 0, timeout: 0, callbacks: false });
-                  }, 0);
+            // DOMContentLoaded: mCustomScrollbar henüz init olmadıysa erkenden init edip
+            // (görseller yüklenmeden) konuma yerleştir ve menüyü göster. Böylece
+            // kullanıcı menüyü hep doğru konumda görür, hiç tepeden başlamaz.
+            jQuery(function () {
+               var $m = jQuery(SEL);
+               if ($m.length && !$m.data('mCS') && jQuery.fn.mCustomScrollbar) {
+                  $m.mCustomScrollbar({
+                     theme: 'dark-2',
+                     scrollInertia: 300,
+                     autoExpandScrollbar: true,
+                     advanced: { autoExpandHorizontalScroll: true }
+                  });
                }
+               restore(true);
+               reveal();
             });
+            // window load: script.js mCustomScrollbar'ı yeniden init edip tepeye alır;
+            // aynı tick içinde tekrar geri yükleriz (arada boyama olmaz -> zıplama yok)
+            jQuery(window).on('load', function () {
+               restore(true);
+               reveal();
+            });
+            // Güvenlik ağı: bir sebeple geri yükleme olmazsa menü gizli kalmasın
+            setTimeout(reveal, 2000);
          })();
       </script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/jquery.dataTables.min.js')}}"></script>
