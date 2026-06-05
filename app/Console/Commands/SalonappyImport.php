@@ -2595,16 +2595,42 @@ class SalonappyImport extends Command
         }
         $this->line("Hizmet eklendi/eslesti: $hizmetEklenen / " . count($services));
 
-        // 2) Personeller
-        $personelEklenen = 0;
+        // 2) Personeller + Cihazlar (staff.type ayrimi)
+        // Salonappy'de cihazlar ayri tablo degil, staff listesinde 'type' alaniyla
+        // ayriliyor ('personel' / 'yonetici' / 'cihaz' ...).
+        $personelTipleri = ['personel', 'yonetici', 'manager', 'employee', 'staff', 'owner', 'admin'];
+        $personelEklenen = 0; $cihazStaffEklenen = 0;
         foreach ($staffs as $p) {
             $ad = trim((string) ($p['name'] ?? $p['full_name'] ?? $p['staff_name'] ?? ''));
             if ($ad === '') continue;
+            $tip = strtolower(trim((string) ($p['type'] ?? '')));
+            if ($tip !== '' && !in_array($tip, $personelTipleri, true)) {
+                // Cihaz olarak ele al (StoreAdminController:16403 sema)
+                $exists = \DB::table('cihazlar')->where('salon_id', $salonId)
+                    ->where('cihaz_adi', $ad)->exists();
+                if (!$exists) {
+                    try {
+                        \DB::table('cihazlar')->insert([
+                            'salon_id'  => $salonId,
+                            'cihaz_adi' => $ad,
+                            'aktifmi'   => 1,
+                            'durum'     => 1,
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                        $cihazStaffEklenen++;
+                    } catch (\Throwable $e) {
+                        \Log::warning('[Salonappy setup] cihaz (staff)', ['ad' => $ad, 'tip' => $tip, 'err' => $e->getMessage()]);
+                    }
+                }
+                continue;
+            }
+            // Normal personel
             $canon = $ad;
             $this->ensurePersonel($salonId, $ad, $canon);
             $personelEklenen++;
         }
-        $this->line("Personel eklendi/eslesti: $personelEklenen / " . count($staffs));
+        $this->line("Personel eklendi/eslesti: $personelEklenen, cihaz olarak ayrilan: $cihazStaffEklenen / " . count($staffs));
 
         // 3) Urunler
         $urunEklenen = 0;

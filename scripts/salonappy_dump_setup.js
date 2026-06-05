@@ -1,5 +1,7 @@
-// === Salonappy Kurulum Dump (services + staffs + products + clients + devices) ===
+// === Salonappy Kurulum Dump (services + staffs + products + clients) ===
 // Sadece master kayıtları çeker — visit/booking/payment YOK. ~10 saniye.
+// NOT: Cihazlar Salonappy'de ayrı tablo değil; staff listesinde 'type' alanıyla
+// belirleniyor (personel/yonetici/cihaz vb.). Importer staff.type'a göre ayırır.
 // Kullanım: Salonappy giriş → F12 → Console → bu scripti yapıştır → Enter.
 // Çıktı: salonappy_setup_<ts>.json (Downloads klasörüne iner)
 (async () => {
@@ -38,48 +40,35 @@
 
   console.log('🔹 Master listeler çekiliyor...');
 
-  console.log('  1/5 services...');
+  console.log('  1/4 services...');
   const sj = await get('/service/salon');
   const services = sj?.data?.services || sj?.data || [];
   console.log('     ', services.length, 'hizmet');
   await sleep(RATE);
 
-  console.log('  2/5 staffs...');
+  console.log('  2/4 staffs (personel + cihaz tipler)...');
   const stj = await get('/staff/list');
   const staffs = stj?.data?.staff || stj?.data?.list || stj?.data || [];
   console.log('     ', staffs.length, 'personel');
   await sleep(RATE);
 
-  console.log('  3/5 products...');
+  console.log('  3/4 products...');
   const pj = await get('/product/list');
   const products = pj?.data?.products || pj?.data?.list || pj?.data || [];
   console.log('     ', products.length, 'ürün');
   await sleep(RATE);
 
-  console.log('  4/5 clients...');
+  console.log('  4/4 clients...');
   const cj = await get('/client/list');
   const clients = cj?.data?.clients || cj?.data || [];
   console.log('     ', clients.length, 'müşteri');
   await sleep(RATE);
 
-  // 5) Cihazlar — birkaç olası endpoint dene
-  console.log('  5/5 devices (cihazlar)...');
-  let devices = [];
-  for (const path of ['/device/list', '/devices', '/salon/device', '/salon/devices', '/equipment/list']) {
-    const dj = await get(path);
-    const arr = dj?.data?.devices || dj?.data?.list || dj?.data || [];
-    if (Array.isArray(arr) && arr.length) {
-      devices = arr;
-      console.log('      endpoint:', path, '→', arr.length, 'cihaz');
-      break;
-    }
-    await sleep(RATE);
-  }
-  if (!devices.length) console.log('      cihaz endpoint bulunamadı, manuel ekleyin');
-
+  // Cihazlar Salonappy'de ayrı entity DEĞİL — staff.type='cihaz' (vs.) olarak
+  // staffs[] içinde gelir. Importer staff.type bazlı ayrım yapar.
   const out = {
     generated_at: new Date().toISOString(),
-    services, staffs, products, clients, devices,
+    services, staffs, products, clients,
   };
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
   const ts = Date.now();
