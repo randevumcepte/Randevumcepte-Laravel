@@ -52,87 +52,359 @@
    .sweet-alert   { z-index: 100030 !important; }
    .swal2-container { z-index: 100030 !important; }
 </style>
-<div class="page-header">
-   <div class="row">
-   <div class="col-md-4 col-sm-6 col-xs-7 col-7">
-   <div class="title">
-      <h1>{{$sayfa_baslik}}</h1>
-   </div>
-   <nav aria-label="breadcrumb" role="navigation">
-      <ol class="breadcrumb">
-         <li class="breadcrumb-item">
-            <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
-         </li>
-         <li class="breadcrumb-item active" aria-current="page">
-            {{$sayfa_baslik}}
-         </li>
-      </ol>
-   </nav>
-</div>
+<div class="rc-rt-page">
 
-<div class="col-md-8 col-sm-6 col-xs-5 col-5">
-   <div class="d-flex justify-content-end">
-   <button class="btn btn-primary mr-2 randevu-count-button">
-    Toplam Randevu: {{$randevular['randevu_sayisi']}}
-</button>
-      
-      @yetki('randevu.olustur')
-      <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2" class="btn btn-lg yenieklebuton" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;">
-         <i class="fa fa-plus"></i> Yeni Randevu
-      </a>
-      @endyetki
-   </div>
-</div>
-   </div>
-</div>
-<div class="pd-20 card-box mb-30" >
-   <div class="row" style="margin-bottom: 10px;">
-
-      @if(Auth::guard('satisortakligi')->check() || ( Auth::guard('isletmeyonetim')->check() && !Auth::guard('isletmeyonetim')->user()->hasRole('Personel')))
-      <div class="col-md-6 col-sm-6 col-xs-6 col-6">
-      @else
-      <div class="col-md-6 col-sm-6 col-xs-6 col-6" style="display:none">
-      @endif 
-         <select class="form-control" id="randevu_ayarina_gore">
-                     
-                    <option {{($isletme->randevu_takvim_turu==1) ? 'selected' : ''}} value="1">Personele Göre</option>
-                    <option {{($isletme->randevu_takvim_turu==0) ? 'selected' : ''}} value="0">Hizmete Göre</option>
-                    <option {{($isletme->randevu_takvim_turu==2) ? 'selected' : ''}} value="2">Cihaza Göre</option>
-                    <option {{($isletme->randevu_takvim_turu==3) ? 'selected' : ''}} value="3">Odaya Göre</option>
-         </select>
+   {{-- Modern Page Header --}}
+   <div class="rc-rt-header">
+      <div class="rc-rt-header-left">
+         <div class="rc-rt-title-row">
+            <div class="rc-rt-icon-bubble"><i class="fa fa-calendar"></i></div>
+            <div>
+               <h1 class="rc-rt-title">{{$sayfa_baslik}}</h1>
+               <nav class="rc-rt-breadcrumb" aria-label="breadcrumb">
+                  <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
+                  <span class="rc-rt-sep">›</span>
+                  <span class="rc-rt-active">{{$sayfa_baslik}}</span>
+               </nav>
+            </div>
+         </div>
       </div>
-      
-      <div class="col-md-6 col-sm-6 col-xs-6 col-6">
-         <input type="text" class="form-control calendardatepicker" autocomplete="off" id='takvim_tarihe_gore' placeholder='Tarih Seçiniz'>
+      <div class="rc-rt-header-right">
+         <div class="rc-rt-count-pill randevu-count-button">
+            <i class="fa fa-list-ul"></i>
+            <span class="rc-rt-count-label">Toplam Randevu</span>
+            <span class="rc-rt-count-value">{{$randevular['randevu_sayisi']}}</span>
+         </div>
+         @yetki('randevu.olustur')
+         <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2"
+            class="rc-rt-btn rc-rt-btn-primary yenieklebuton">
+            <i class="fa fa-plus"></i><span>Yeni Randevu</span>
+         </a>
+         @endyetki
       </div>
    </div>
-   <div style="position:relative; width:100%; overflow-y:auto">
 
-      {{-- Aktif gap kampanyalari bilgi seridi --}}
-      @if(!empty($gapKampanyalari))
-      <div class="gap-info-strip">
-        <span class="gap-strip-label"><i class="fa fa-tag"></i> Aktif Kampanya:</span>
-        @foreach($gapKampanyalari as $k)
-          <span class="gap-chip gap-{{ $k['gapKey'] }}" title="{{ $k['gapLabel'] }} Kampanyası — %{{ $k['discount'] }} indirim">
-            <span class="gap-chip-dot" style="background:{{ $k['color'] }}"></span>
-            <span class="gap-chip-time">{{ $k['gapLabel'] }} {{ sprintf('%02d:00-%02d:00', $k['startHour'], $k['endHour']) }}</span>
-            <span class="gap-chip-disc">%{{ $k['discount'] }}</span>
-          </span>
-        @endforeach
+   {{-- Modern Filtre Kartı --}}
+   <div class="rc-rt-filter-card">
+      <div class="rc-rt-filter-head">
+         <i class="fa fa-sliders"></i>
+         <span>Takvim Ayarları</span>
       </div>
-      @endif
+      <div class="rc-rt-filter-grid">
+         @if(Auth::guard('satisortakligi')->check() || ( Auth::guard('isletmeyonetim')->check() && !Auth::guard('isletmeyonetim')->user()->hasRole('Personel')))
+         <div class="rc-rt-field">
+         @else
+         <div class="rc-rt-field" style="display:none">
+         @endif
+            <label for="randevu_ayarina_gore">Görünüm</label>
+            <select class="form-control rc-rt-select" id="randevu_ayarina_gore">
+               <option {{($isletme->randevu_takvim_turu==1) ? 'selected' : ''}} value="1">Personele Göre</option>
+               <option {{($isletme->randevu_takvim_turu==0) ? 'selected' : ''}} value="0">Hizmete Göre</option>
+               <option {{($isletme->randevu_takvim_turu==2) ? 'selected' : ''}} value="2">Cihaza Göre</option>
+               <option {{($isletme->randevu_takvim_turu==3) ? 'selected' : ''}} value="3">Odaya Göre</option>
+            </select>
+         </div>
 
-      <div class="calendar-wrap">
-         <div id="calendar">
+         <div class="rc-rt-field">
+            <label for="takvim_tarihe_gore">Tarih</label>
+            <input type="text" class="form-control rc-rt-input calendardatepicker" autocomplete="off" id="takvim_tarihe_gore" placeholder="Tarih Seçiniz">
          </div>
       </div>
    </div>
 
+   {{-- Aktif gap kampanyalari bilgi seridi --}}
+   @if(!empty($gapKampanyalari))
+   <div class="gap-info-strip">
+      <span class="gap-strip-label"><i class="fa fa-tag"></i> Aktif Kampanya:</span>
+      @foreach($gapKampanyalari as $k)
+        <span class="gap-chip gap-{{ $k['gapKey'] }}" title="{{ $k['gapLabel'] }} Kampanyası — %{{ $k['discount'] }} indirim">
+          <span class="gap-chip-dot" style="background:{{ $k['color'] }}"></span>
+          <span class="gap-chip-time">{{ $k['gapLabel'] }} {{ sprintf('%02d:00-%02d:00', $k['startHour'], $k['endHour']) }}</span>
+          <span class="gap-chip-disc">%{{ $k['discount'] }}</span>
+        </span>
+      @endforeach
+   </div>
+   @endif
 
-
+   {{-- Takvim Kartı --}}
+   <div class="rc-rt-card rc-rt-calendar-card">
+      <div style="position:relative; width:100%; overflow-y:auto">
+         <div class="calendar-wrap">
+            <div id="calendar"></div>
+         </div>
+      </div>
+   </div>
 
 </div>
 <div id="hata"></div>
+
+<style>
+/* =================================================================
+   RANDEVU TAKVIMI — MODERN KARTLI SISTEM
+   Markaya uygun mor (#5C008E / #9D5DC8 / #d946ef)
+   ================================================================= */
+.rc-rt-page {
+   --rc-purple-dark: #5C008E;
+   --rc-purple: #9D5DC8;
+   --rc-purple-light: #f5eefe;
+   --rc-purple-soft: #ead4ff;
+   --rc-pink: #d946ef;
+   --rc-text: #1f2937;
+   --rc-text-soft: #6b7280;
+   --rc-border: #eef0f4;
+}
+
+/* === HEADER === */
+.rc-rt-header {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 16px;
+   flex-wrap: wrap;
+   padding: 18px 22px;
+   margin-bottom: 18px;
+   background: #fff;
+   border-radius: 14px;
+   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 4px 16px rgba(92, 0, 142, .04);
+}
+.rc-rt-header-left,
+.rc-rt-header-right {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   flex-wrap: wrap;
+}
+.rc-rt-title-row {
+   display: flex;
+   align-items: center;
+   gap: 14px;
+}
+.rc-rt-icon-bubble {
+   width: 46px; height: 46px;
+   border-radius: 12px;
+   background: linear-gradient(135deg, var(--rc-purple-dark) 0%, var(--rc-purple) 100%);
+   color: #fff;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   font-size: 18px;
+   box-shadow: 0 6px 18px rgba(92, 0, 142, .25);
+   flex-shrink: 0;
+}
+.rc-rt-title {
+   margin: 0;
+   font-size: 19px;
+   font-weight: 700;
+   color: var(--rc-text);
+   line-height: 1.2;
+}
+.rc-rt-breadcrumb {
+   margin-top: 4px;
+   font-size: 12.5px;
+   color: var(--rc-text-soft);
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   flex-wrap: wrap;
+}
+.rc-rt-breadcrumb a {
+   color: var(--rc-text-soft);
+   text-decoration: none;
+   transition: color .15s;
+}
+.rc-rt-breadcrumb a:hover { color: var(--rc-purple-dark); }
+.rc-rt-breadcrumb .rc-rt-sep { color: #cbd5e1; }
+.rc-rt-breadcrumb .rc-rt-active { color: var(--rc-purple-dark); font-weight: 600; }
+
+/* === TOPLAM RANDEVU PILL === */
+.rc-rt-count-pill {
+   display: inline-flex;
+   align-items: center;
+   gap: 8px;
+   height: 42px;
+   padding: 0 16px;
+   background: var(--rc-purple-light);
+   border: 1px solid var(--rc-purple-soft);
+   border-radius: 999px;
+   font-size: 13px;
+   font-weight: 600;
+   color: var(--rc-purple-dark);
+   white-space: nowrap;
+   cursor: pointer;
+   transition: background .15s;
+}
+.rc-rt-count-pill:hover { background: var(--rc-purple-soft); }
+.rc-rt-count-pill i { font-size: 13px; opacity: .8; }
+.rc-rt-count-pill .rc-rt-count-label { font-weight: 600; }
+.rc-rt-count-pill .rc-rt-count-value {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   min-width: 28px;
+   height: 26px;
+   padding: 0 9px;
+   background: linear-gradient(135deg, var(--rc-purple-dark) 0%, var(--rc-purple) 100%);
+   color: #fff;
+   border-radius: 999px;
+   font-size: 12.5px;
+   font-weight: 800;
+   box-shadow: 0 2px 6px rgba(92, 0, 142, .25);
+}
+
+/* === HEADER BUTONLAR === */
+.rc-rt-btn {
+   display: inline-flex;
+   align-items: center;
+   gap: 8px;
+   height: 42px;
+   padding: 0 18px;
+   border-radius: 999px;
+   font-size: 13.5px;
+   font-weight: 600;
+   color: #fff !important;
+   text-decoration: none !important;
+   border: none;
+   white-space: nowrap;
+   cursor: pointer;
+   transition: transform .15s, box-shadow .15s, filter .15s;
+}
+.rc-rt-btn i { font-size: 14px; }
+.rc-rt-btn:hover { transform: translateY(-1px); filter: brightness(1.06); color: #fff; }
+.rc-rt-btn:active { transform: translateY(0); }
+.rc-rt-btn-primary {
+   background: linear-gradient(135deg, var(--rc-purple-dark) 0%, var(--rc-purple) 100%);
+   box-shadow: 0 6px 16px rgba(92, 0, 142, .28);
+}
+
+/* === FİLTRE KARTI === */
+.rc-rt-filter-card {
+   background: #fff;
+   border-radius: 14px;
+   padding: 18px 20px 20px;
+   margin-bottom: 18px;
+   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 4px 16px rgba(92, 0, 142, .04);
+}
+.rc-rt-filter-head {
+   display: inline-flex;
+   align-items: center;
+   gap: 8px;
+   font-size: 12.5px;
+   font-weight: 700;
+   color: var(--rc-purple-dark);
+   text-transform: uppercase;
+   letter-spacing: .04em;
+   padding-bottom: 14px;
+   margin-bottom: 14px;
+   border-bottom: 1px solid var(--rc-border);
+   width: 100%;
+}
+.rc-rt-filter-head i {
+   width: 28px; height: 28px;
+   border-radius: 8px;
+   background: var(--rc-purple-light);
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   font-size: 13px;
+}
+.rc-rt-filter-grid {
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 14px;
+}
+.rc-rt-field {
+   display: flex;
+   flex-direction: column;
+   gap: 6px;
+   min-width: 0;
+}
+.rc-rt-field label {
+   font-size: 11.5px;
+   font-weight: 700;
+   text-transform: uppercase;
+   letter-spacing: .04em;
+   color: var(--rc-text-soft);
+   margin: 0;
+}
+.rc-rt-select,
+.rc-rt-input {
+   height: 42px !important;
+   border: 1px solid var(--rc-border) !important;
+   border-radius: 10px !important;
+   padding: 0 14px !important;
+   font-size: 13.5px !important;
+   color: var(--rc-text) !important;
+   background-color: #fafbfc !important;
+   transition: border-color .15s, box-shadow .15s, background-color .15s;
+   width: 100%;
+   appearance: none;
+   -webkit-appearance: none;
+   -moz-appearance: none;
+   background-repeat: no-repeat;
+   background-position: right 12px center;
+   background-size: 12px;
+}
+.rc-rt-select {
+   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+   padding-right: 36px !important;
+}
+.rc-rt-select:focus,
+.rc-rt-input:focus {
+   border-color: var(--rc-purple) !important;
+   background-color: #fff !important;
+   box-shadow: 0 0 0 4px rgba(157, 93, 200, .12) !important;
+   outline: none;
+}
+
+/* === TAKVIM KARTI === */
+.rc-rt-card {
+   background: #fff;
+   border-radius: 14px;
+   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 4px 16px rgba(92, 0, 142, .04);
+   padding: 18px;
+   margin-bottom: 30px;
+}
+.rc-rt-calendar-card .calendar-wrap { margin-top: 0; }
+
+/* === RESPONSIVE === */
+@media (max-width: 1024px) {
+   .rc-rt-header { padding: 14px 16px; }
+   .rc-rt-icon-bubble { width: 40px; height: 40px; font-size: 16px; }
+   .rc-rt-title { font-size: 17px; }
+   .rc-rt-btn { height: 38px; padding: 0 14px; font-size: 12.5px; }
+   .rc-rt-count-pill { height: 38px; font-size: 12.5px; padding: 0 14px; }
+   .rc-rt-card { padding: 14px; }
+}
+@media (max-width: 768px) {
+   .rc-rt-header {
+      padding: 12px 14px;
+      border-radius: 12px;
+   }
+   .rc-rt-header-left { width: 100%; }
+   .rc-rt-header-right {
+      width: 100%;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+   }
+   .rc-rt-header-right .rc-rt-btn { flex: 1; justify-content: center; }
+   .rc-rt-count-pill { flex: 1; justify-content: center; }
+   .rc-rt-title { font-size: 16px; }
+   .rc-rt-breadcrumb { font-size: 11.5px; }
+
+   .rc-rt-filter-card { padding: 14px 14px 16px; border-radius: 12px; }
+   .rc-rt-filter-grid { grid-template-columns: 1fr; gap: 10px; }
+
+   .rc-rt-card { padding: 10px; border-radius: 12px; }
+}
+@media (max-width: 420px) {
+   .rc-rt-header-right { flex-direction: column; }
+   .rc-rt-header-right .rc-rt-btn,
+   .rc-rt-header-right .rc-rt-count-pill { width: 100%; }
+   .rc-rt-title-row { gap: 10px; }
+   .rc-rt-icon-bubble { width: 36px; height: 36px; font-size: 14px; }
+}
+</style>
 
 {{-- Gap kampanya gorsel: bilgi seridi + kart rozeti. TAKVIM GRID'INE DOKUNMAZ --}}
 <style type="text/css">
