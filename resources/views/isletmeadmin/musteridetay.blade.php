@@ -74,6 +74,24 @@
 #mdetay .mdetay-empty{background:var(--soft);border:1px dashed var(--line);color:var(--muted);border-radius:12px;padding:22px;text-align:center;font-size:14px;font-weight:600;}
 #mdetay .mdetay-empty i{color:var(--m3);margin-right:6px;}
 
+/* Sağlık bilgileri formu */
+#mdetay #musteri_saglik_bilgileri .col-md-6,#mdetay #musteri_saglik_bilgileri .col-md-12{margin-bottom:16px;}
+#mdetay #musteri_saglik_bilgileri label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:7px;display:block;}
+#mdetay #musteri_saglik_bilgileri .form-control{border:1px solid var(--line);border-radius:10px;padding:10px 12px;height:auto;background:#fff;box-shadow:none;transition:border-color .15s,box-shadow .15s;}
+#mdetay #musteri_saglik_bilgileri .form-control:focus{border-color:var(--m3);box-shadow:0 0 0 3px rgba(157,93,200,.15);}
+#mdetay #musteri_saglik_bilgileri textarea.form-control{min-height:90px;}
+#mdetay #musteri_saglik_bilgileri .btn-success{background:linear-gradient(135deg,var(--m1),var(--m3))!important;border:0!important;border-radius:12px!important;padding:13px!important;font-weight:700;box-shadow:0 8px 18px rgba(92,0,142,.25);}
+
+/* Müşteri resimleri galeri */
+#mdetay #musteri_resimleri .mr-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+#mdetay #musteri_resimleri .mr-add{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:12px;padding:11px 18px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--m1),var(--m3));box-shadow:0 8px 18px rgba(92,0,142,.25);}
+#mdetay #musteri_resimleri .mr-add:hover{color:#fff;filter:brightness(1.05);}
+#mdetay #buttonContainer{display:flex;flex-wrap:wrap;gap:14px;}
+#mdetay #buttonContainer .btn{border:1px solid var(--line)!important;border-radius:14px!important;padding:10px!important;margin-top:0!important;background:#fff!important;color:var(--ink)!important;font-size:12px;font-weight:600;box-shadow:0 6px 16px rgba(31,37,51,.06);transition:transform .12s,box-shadow .12s;}
+#mdetay #buttonContainer .btn:hover{transform:translateY(-2px);box-shadow:0 12px 24px rgba(92,0,142,.14);}
+#mdetay #buttonContainer .btn img{border-radius:10px;object-fit:cover;}
+#mdetay .mr-empty{flex:1;}
+
 @media (max-width:991px){#mdetay .mh-right{width:100%;justify-content:flex-start;}}
 </style>
 <div id="mdetay">
@@ -650,6 +668,7 @@
                role="tabpanel"
                >
                <div class="card-box pd-20">
+                  <h4 class="text-blue" style="margin:0 0 18px;">Sağlık Bilgileri</h4>
                   <form id="musteri_saglik_bilgileri" method="GET">
                      <input name="musteri_id" type="hidden" value="{{$musteri_bilgi->id}}">
                      <div class="row">
@@ -856,16 +875,10 @@
                id="musteri_resimleri"
                role="tabpanel"
                >
-               <div class="card-box pd-10">
-                  <div class="row">
-                     <div class="col-md-6">
-                        <h4  class="text-blue">Müşteri 
-                           Resimleri 
-                        </h4>
-                     </div>
-                     <div class="col-md-6" style="text-align:right;">
-                        <button class="btn btn-success brn-lg "  data-target="#musterifotoekle" data-toggle="modal" type="button">Yeni Resim Ekle</button>
-                     </div>
+               <div class="card-box pd-20">
+                  <div class="mr-head">
+                     <h4 class="text-blue" style="margin:0;">Müşteri Resimleri</h4>
+                     <button class="mr-add" data-target="#musterifotoekle" data-toggle="modal" type="button"><i class="fa fa-plus"></i> Yeni Resim Ekle</button>
                   </div>
                </div>
                <div class="card-box pd-20" style="margin-top: 20px">
@@ -877,6 +890,9 @@
                      <img src="/{{ $images[0] }}" alt="İşlem Fotoğrafı" style="width:100px; height:100px;">
                      <br><br>{{date('d.m.Y',strtotime($islem->tarih))}}</button>
                      @endforeach
+                     @if(count($islemler)==0)
+                     <div class="mdetay-empty mr-empty"><i class="fa fa-image"></i> Bu müşteriye ait kayıtlı resim bulunmuyor.</div>
+                     @endif
                   </div>
                </div>
             </div>
