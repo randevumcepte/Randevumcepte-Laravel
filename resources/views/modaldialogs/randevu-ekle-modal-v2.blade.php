@@ -2449,5 +2449,25 @@
         });
     });
 
+    // ---- Musteri ekleme modali, randevu (v2) modali ustunde acilsin ----
+    // v2 randevu modali z-index:100003. Bootstrap musteri-bilgi-modal varsayilan 1050
+    // oldugu icin arkada kaliyordu. Randevu modali acikken ustune cikar.
+    $(document).on('show.bs.modal', '#musteri-bilgi-modal', function(){
+        if ($('#modal-view-event-add-v2').hasClass('show') || $('#modal-view-event-add-v2').is(':visible')) {
+            $(this).css('z-index', 100020);
+            // bu modal icin olusan backdrop'i da randevu modali ustune al (dimming icin)
+            setTimeout(function(){
+                $('.modal-backdrop').last().css('z-index', 100015);
+            }, 0);
+        }
+    });
+    $(document).on('hidden.bs.modal', '#musteri-bilgi-modal', function(){
+        $(this).css('z-index', '');
+        // alttaki randevu modali hala acikken Bootstrap'in scroll kilidini geri koy
+        if ($('#modal-view-event-add-v2').hasClass('show') || $('#modal-view-event-add-v2').is(':visible')) {
+            $('body').addClass('modal-open');
+        }
+    });
+
 })();
 </script>
