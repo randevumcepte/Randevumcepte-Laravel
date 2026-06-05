@@ -148,6 +148,9 @@
              slotDuration: '00:15:00',
              slotLabelInterval: '00:15:00',
              slotLabelFormat: 'H:mm',
+             // Cakisan eventler ust uste binmesin, yan yana stagger olsun
+             // (SR'deki gibi: ayni saatte ayni personele coklu randevu = yan yana sutunlar)
+             slotEventOverlap: false,
              height:calendarHeight,
              resources: <?php echo json_encode($randevular["resource"]) ?>,
              events: <?php echo json_encode($randevular["randevu"])?>,
@@ -759,7 +762,7 @@
              //// uncomment this line to hide the all-day slot
             allDaySlot: false,
                slotDuration: '00:15:00',
-             
+             slotEventOverlap: false,
             contentHeight: 600,   
             
              timeFormat: 'H:mm',
