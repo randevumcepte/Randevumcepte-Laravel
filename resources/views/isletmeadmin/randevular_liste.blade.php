@@ -556,7 +556,9 @@
    min-width: 180px !important;
 }
 .rc-rl-table tbody td .dropdown-menu .dropdown-item {
-   padding: 9px 12px !important;
+   /* Tema ikonu absolute (left:16px) konumluyor; sol padding korunmali
+      yoksa ikon yazinin uzerine biner. */
+   padding: 9px 14px 9px 42px !important;
    border-radius: 8px !important;
    font-size: 13px !important;
    color: var(--rc-text) !important;
