@@ -19,11 +19,11 @@
 #mdetay .mh-pill.is-pasif{background:#fdeaea;color:#d64545;}
 #mdetay .mh-pill.is-sadik{background:#fff4e0;color:#d98a00;}
 #mdetay .mh-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;}
-#mdetay .mh-stat{display:flex;flex-direction:column;gap:1px;padding:8px 16px;border-radius:14px;background:var(--soft);border:1px solid var(--line);min-width:118px;}
-#mdetay .mh-stat .lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;}
-#mdetay .mh-stat .val,#mdetay .mh-stat .val:focus,#mdetay .mh-stat .val:active{font-size:17px;font-weight:800;color:var(--ink);background:none!important;border:0!important;padding:0!important;text-align:left;cursor:default;box-shadow:none!important;outline:none!important;}
-#mdetay .mh-stat.is-borc .val{color:#d64545;}
-#mdetay .mh-stat.is-odenen .val{color:#1f9d55;}
+#mdetay .mh-stat{display:flex;flex-direction:column;gap:2px;padding:10px 18px;border-radius:14px;border:0;min-width:130px;color:#fff;}
+#mdetay .mh-stat.is-borc{background:linear-gradient(135deg,#f15a5a,#c41f1f);box-shadow:0 8px 20px rgba(196,31,31,.38);}
+#mdetay .mh-stat.is-odenen{background:linear-gradient(135deg,#34c759,#1c8a3c);box-shadow:0 8px 20px rgba(28,138,60,.38);}
+#mdetay .mh-stat .lbl{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:rgba(255,255,255,.92);text-transform:uppercase;letter-spacing:.4px;}
+#mdetay .mh-stat .val,#mdetay .mh-stat .val:focus,#mdetay .mh-stat .val:active,#mdetay .mh-stat .val:hover{font-size:20px;font-weight:800;color:#fff!important;background:none!important;border:0!important;padding:0!important;text-align:left;cursor:default;box-shadow:none!important;outline:none!important;text-shadow:0 1px 2px rgba(0,0,0,.12);}
 #mdetay .mh-btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:12px;padding:11px 18px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;transition:transform .12s,box-shadow .12s,filter .12s;}
 #mdetay .mh-btn:hover{transform:translateY(-1px);filter:brightness(1.04);color:#fff;}
 #mdetay .mh-btn.is-wa{background:#25d366;box-shadow:0 8px 18px rgba(37,211,102,.3);}
@@ -120,11 +120,11 @@
       <div class="mh-right">
          @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')
          <div class="mh-stat is-borc">
-            <span class="lbl">Toplam Borç</span>
+            <span class="lbl"><i class="fa fa-arrow-down"></i> Toplam Borç</span>
             <button type="button" class="val" id="toplamBorc">0,00 ₺</button>
          </div>
          <div class="mh-stat is-odenen">
-            <span class="lbl">Toplam Ödenen</span>
+            <span class="lbl"><i class="fa fa-check-circle"></i> Toplam Ödenen</span>
             <button type="button" class="val" id="toplamOdenen">0,00 ₺</button>
          </div>
          @endif
