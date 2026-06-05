@@ -172,7 +172,10 @@
             confirmButtonClass: 'btn btn-success',
             cancelButtonClass: 'btn btn-secondary'
          }).then(function(result){
-            if(result && result.value){ window.location.href = '/isletmeyonetim/whatsapp'; }
+            if(result && result.value){
+               var _sube = $('#wam_sube').val();
+               window.location.href = '/isletmeyonetim/whatsapp' + (_sube ? ('?sube=' + _sube) : '');
+            }
          });
          return;
       }
