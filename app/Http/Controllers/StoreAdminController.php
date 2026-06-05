@@ -3551,6 +3551,18 @@ public function carkverilerigetir(Request $request)
 
                 $_modalSubtitle = 'Randevu';
             }
+
+            // WhatsApp mesaj butonu — header'da Duzenle / Musteri Detay yaninda (sadece telefon varsa)
+            $_waTelH = $rh->randevu->users->cep_telefon ?? '';
+            if(!empty($_waTelH)){
+                $duzenleButon .= '<a href="#" class="btn btn-success btn-sm whatsapp-mesaj-ac"'
+                    .' data-userid="'.($rh->randevu->user_id ?? '').'"'
+                    .' data-telefon="'.htmlspecialchars($_waTelH, ENT_QUOTES).'"'
+                    .' data-ad="'.htmlspecialchars($rh->randevu->users->name ?? '', ENT_QUOTES).'"'
+                    .' data-onay="'.(int)($rh->randevu->users->whatsapp_onay ?? 0).'"'
+                    .' data-bagli="'.($_waBagli ? 1 : 0).'"><i class="fa fa-whatsapp"></i> WhatsApp</a>';
+            }
+
             if($seansVar->count() > 0){
                 $apIds = $seansVar->pluck('adisyon_paket_id')->filter()->values();
                 $ahIds = $seansVar->pluck('adisyon_hizmet_id')->filter()->values();
@@ -3591,7 +3603,7 @@ public function carkverilerigetir(Request $request)
             'title' => $title,
             'start' => $start,
             'end' => $end,
-            'eventbuttons'=> view('partials.randevuDetayiButonlar',['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat, 'waBagli' => $_waBagli])->render(),
+            'eventbuttons'=> view('partials.randevuDetayiButonlar',['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat])->render(),
             'description' => view('partials.randevuDetayi', ['randevu' => $rh,'rol'=>$rol,'paketAdi'=>$paketAdi])->render(),
             'hoverHtml' => view('partials.randevuHoverDetayi', ['randevu' => $rh,'rol'=>$rol,'paketAdi'=>$paketAdi])->render(),
             'color' => $color,

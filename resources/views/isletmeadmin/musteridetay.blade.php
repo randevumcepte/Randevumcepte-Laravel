@@ -1,71 +1,130 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
+<style>
+/* ====== Musteri Detay — Modern Tema (scoped) ====== */
+#mdetay{--m1:#5C008E;--m2:#7B2FB8;--m3:#9D5DC8;--ink:#1f2533;--muted:#7b8294;--line:#eceef4;--soft:#f7f6fb;}
+#mdetay .page-header{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 16px!important;}
+
+/* Header kart */
+#mdetay .mh-card{display:flex;align-items:center;gap:20px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px 22px;box-shadow:0 12px 30px rgba(92,0,142,.07);}
+#mdetay .mh-left{flex:1 1 260px;min-width:230px;}
+#mdetay .mh-titlerow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+#mdetay .mh-title{margin:0;font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-.3px;}
+#mdetay .mh-crumb{margin-top:6px;font-size:13px;color:var(--muted);}
+#mdetay .mh-crumb a{color:var(--m2);font-weight:600;text-decoration:none;}
+#mdetay .mh-crumb .sep{margin:0 7px;color:#c8c2d6;}
+#mdetay .mh-pill{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;padding:5px 13px;border-radius:999px;text-transform:uppercase;letter-spacing:.4px;}
+#mdetay .mh-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;}
+#mdetay .mh-pill.is-aktif{background:#e8f7ed;color:#1f9d55;}
+#mdetay .mh-pill.is-pasif{background:#fdeaea;color:#d64545;}
+#mdetay .mh-pill.is-sadik{background:#fff4e0;color:#d98a00;}
+#mdetay .mh-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;}
+#mdetay .mh-stat{display:flex;flex-direction:column;gap:1px;padding:8px 16px;border-radius:14px;background:var(--soft);border:1px solid var(--line);min-width:118px;}
+#mdetay .mh-stat .lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;}
+#mdetay .mh-stat .val,#mdetay .mh-stat .val:focus,#mdetay .mh-stat .val:active{font-size:17px;font-weight:800;color:var(--ink);background:none!important;border:0!important;padding:0!important;text-align:left;cursor:default;box-shadow:none!important;outline:none!important;}
+#mdetay .mh-stat.is-borc .val{color:#d64545;}
+#mdetay .mh-stat.is-odenen .val{color:#1f9d55;}
+#mdetay .mh-btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:12px;padding:11px 18px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;transition:transform .12s,box-shadow .12s,filter .12s;}
+#mdetay .mh-btn:hover{transform:translateY(-1px);filter:brightness(1.04);color:#fff;}
+#mdetay .mh-btn.is-wa{background:#25d366;box-shadow:0 8px 18px rgba(37,211,102,.3);}
+#mdetay .mh-btn.is-dark{background:linear-gradient(135deg,var(--m1),#3a1857);box-shadow:0 8px 18px rgba(92,0,142,.3);}
+#mdetay .mh-btn.is-ok{background:#1f9d55;box-shadow:0 8px 18px rgba(31,157,85,.3);}
+
+/* Ana sekmeler */
+#mdetay .elementmusteridetay{border:0;display:flex;flex-wrap:wrap;gap:8px;padding:6px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 22px rgba(92,0,142,.05);}
+#mdetay .elementmusteridetay .nav-item{margin:0!important;}
+#mdetay .elementmusteridetay .btn{width:auto!important;border:0!important;border-radius:11px!important;padding:10px 18px!important;font-weight:600;color:var(--muted);background:transparent;transition:all .15s;}
+#mdetay .elementmusteridetay .btn:hover{background:var(--soft);color:var(--m2);}
+#mdetay .elementmusteridetay .btn.active{background:linear-gradient(135deg,var(--m1),var(--m3));color:#fff!important;box-shadow:0 8px 18px rgba(92,0,142,.28);}
+#mdetay .elementmusteridetay .btn-warning,#mdetay .elementmusteridetay .btn-warning.active{background:linear-gradient(135deg,#f7971e,#ffb347)!important;color:#fff!important;box-shadow:0 8px 18px rgba(247,151,30,.28);}
+
+/* Kartlar */
+#mdetay .card-box{border-radius:16px;border:1px solid var(--line);box-shadow:0 8px 22px rgba(31,37,51,.05);}
+#mdetay .text-blue,#mdetay h3.text-blue,#mdetay h4.text-blue{color:var(--m1)!important;font-weight:800;}
+
+/* Profil kartı */
+#mdetay .prof-card{text-align:center;}
+#mdetay .prof-card .profile-photo{position:relative;display:inline-block;margin:0 auto!important;}
+#mdetay .prof-card .avatar-photo{border-radius:50%!important;border:4px solid #fff;box-shadow:0 0 0 3px var(--m3),0 12px 26px rgba(92,0,142,.2);}
+#mdetay .prof-card .edit-avatar{position:absolute;right:4px;bottom:4px;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--m1),var(--m3));color:#fff!important;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 14px rgba(92,0,142,.35);z-index:3;border:2px solid #fff;}
+#mdetay .prof-name{font-size:21px;font-weight:800;color:var(--ink);margin:14px 0 2px;}
+#mdetay .info-list{list-style:none;margin:16px 0 0;padding:0;text-align:left;}
+#mdetay .info-list li{display:flex;gap:12px;align-items:center;padding:11px 4px;border-bottom:1px dashed var(--line);}
+#mdetay .info-list li:last-child{border-bottom:0;}
+#mdetay .info-list .ico{flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:var(--soft);color:var(--m2);display:flex;align-items:center;justify-content:center;font-size:15px;}
+#mdetay .info-list .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;font-weight:600;line-height:1.2;}
+#mdetay .info-list .v{font-size:14px;color:var(--ink);font-weight:600;word-break:break-word;line-height:1.35;margin-top:1px;}
+#mdetay .prof-card .card-footer{border:0!important;background:none!important;padding:18px 0 0!important;}
+#mdetay .prof-edit-btn{border:0;border-radius:12px;padding:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--m1),var(--m3));box-shadow:0 8px 18px rgba(92,0,142,.25);}
+#mdetay .prof-edit-btn:hover{color:#fff;filter:brightness(1.05);}
+
+/* Sağ taraf sekme + zaman çizelgesi */
+#mdetay .element{border:0;display:flex;flex-wrap:wrap;gap:8px;}
+#mdetay .element .nav-item{margin:0!important;}
+#mdetay .element .btn{border:0;border-radius:11px;padding:9px 18px;font-weight:600;color:var(--muted);background:var(--soft);width:auto!important;}
+#mdetay .element .btn:hover{color:var(--m2);}
+#mdetay .element .btn.active{background:linear-gradient(135deg,var(--m1),var(--m3));color:#fff;box-shadow:0 8px 18px rgba(92,0,142,.25);}
+#mdetay .tl-wrap{overflow-y:auto;max-height:572px;padding-right:6px;}
+#mdetay .tl-item{position:relative;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:0 4px 12px rgba(31,37,51,.04);border-left:4px solid var(--m3);}
+#mdetay .tl-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+#mdetay .tl-date{font-size:13px;font-weight:700;color:var(--m1);background:var(--soft);padding:3px 11px;border-radius:8px;white-space:nowrap;}
+#mdetay .tl-serv{font-size:13px;font-weight:600;color:var(--ink);text-align:right;}
+#mdetay .tl-body{font-size:13px;color:#555c6b;line-height:1.5;white-space:pre-line;}
+#mdetay .tl-body:empty::after{content:"—";color:#c5c9d3;}
+#mdetay .mdetay-empty{background:var(--soft);border:1px dashed var(--line);color:var(--muted);border-radius:12px;padding:22px;text-align:center;font-size:14px;font-weight:600;}
+#mdetay .mdetay-empty i{color:var(--m3);margin-right:6px;}
+
+@media (max-width:991px){#mdetay .mh-right{width:100%;justify-content:flex-start;}}
+</style>
+<div id="mdetay">
 <div class="page-header">
    <input type="hidden" id="musteriKarti" value="{{$musteri_bilgi->id}}">
-   <div class="row">
-      <div class="col-md-3 col-sm-6 col-6">
-         <div class="title">
-            <h1>{{$sayfa_baslik}}</h1>
+   @php
+      if($tahsilatlar_count > 3 && $son_tahsilat_tarihi && strtotime('+90 days', strtotime($son_tahsilat_tarihi)) < strtotime('+90 days')){ $_durumKod='sadik'; $_durumYazi='Sadık Müşteri'; }
+      elseif($tahsilatlar_count == 0){ $_durumKod='pasif'; $_durumYazi='Pasif'; }
+      else { $_durumKod='aktif'; $_durumYazi='Aktif'; }
+      $_waSaglayici = $isletme->whatsapp_saglayici ?? 'baileys';
+      $_waBagli = $_waSaglayici === 'cloud_api'
+         ? (!empty($isletme->cloud_api_token) && !empty($isletme->cloud_api_phone_number_id))
+         : (($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') === 'connected');
+   @endphp
+   <div class="mh-card">
+      <div class="mh-left">
+         <div class="mh-titlerow">
+            <h1 class="mh-title">{{$sayfa_baslik}}</h1>
+            <span class="mh-pill is-{{$_durumKod}}">{{$_durumYazi}}</span>
          </div>
-         <nav aria-label="breadcrumb" role="navigation">
-            <ol class="breadcrumb">
-               <li class="breadcrumb-item">
-                  <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
-               </li>
-               <li class="breadcrumb-item active" aria-current="page">
-                  {{$sayfa_baslik}}  
-               </li>
-            </ol>
+         <nav class="mh-crumb" aria-label="breadcrumb" role="navigation">
+            <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
+            <span class="sep">/</span>{{$sayfa_baslik}}
          </nav>
       </div>
-      <div class="col-md-1 col-sm-6 col-6">
-         @if($tahsilatlar_count > 3 && $son_tahsilat_tarihi && strtotime('+90 days', strtotime($son_tahsilat_tarihi)) < strtotime('+90 days'))
-         <img src="/public/img/sadik-1.png" style="width: 100px; height:auto;">
-         @elseif($tahsilatlar_count == 0)
-         <img src="/public/img/pasif-1.png" style="width: 100px; height:auto;">
-         @else
-         <img src="/public/img/aktif-1.png" style="width: 100px; height:auto;">
-         @endif
-      </div>
-      <div class="col-md-2 col-sm-12"></div>
-      <div class="col-md-6 col-sm-12 text-right">
+      <div class="mh-right">
          @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')
-         <div class="d-inline-block mr-2">
-            <button class="btn btn-danger" id="toplamBorc">
-            Toplam Borç : 0,00 ₺
-            </button>
+         <div class="mh-stat is-borc">
+            <span class="lbl">Toplam Borç</span>
+            <button type="button" class="val" id="toplamBorc">0,00 ₺</button>
          </div>
-         <div class="d-inline-block mr-2" >
-            <button class="btn btn-success" id="toplamOdenen">
-            Toplam Ödenen : 0,00 ₺
-            </button>
+         <div class="mh-stat is-odenen">
+            <span class="lbl">Toplam Ödenen</span>
+            <button type="button" class="val" id="toplamOdenen">0,00 ₺</button>
          </div>
          @endif
-         @php
-            $_waSaglayici = $isletme->whatsapp_saglayici ?? 'baileys';
-            $_waBagli = $_waSaglayici === 'cloud_api'
-               ? (!empty($isletme->cloud_api_token) && !empty($isletme->cloud_api_phone_number_id))
-               : (($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') === 'connected');
-         @endphp
-         <div class="d-inline-block mr-2">
-            <button class="btn btn-success btn-lg whatsapp-mesaj-ac"
-               data-userid="{{$musteri_bilgi->id}}"
-               data-telefon="{{$musteri_bilgi->cep_telefon}}"
-               data-ad="{{$musteri_bilgi->name}}"
-               data-onay="{{ (int)($musteri_bilgi->whatsapp_onay ?? 0) }}"
-               data-bagli="{{ $_waBagli ? 1 : 0 }}">
-               <i class="fa fa-whatsapp"></i> WhatsApp Mesaj
-            </button>
-         </div>
+         <button class="mh-btn is-wa whatsapp-mesaj-ac"
+            data-userid="{{$musteri_bilgi->id}}"
+            data-telefon="{{$musteri_bilgi->cep_telefon}}"
+            data-ad="{{$musteri_bilgi->name}}"
+            data-onay="{{ (int)($musteri_bilgi->whatsapp_onay ?? 0) }}"
+            data-bagli="{{ $_waBagli ? 1 : 0 }}">
+            <i class="fa fa-whatsapp"></i> WhatsApp Mesaj
+         </button>
          @if(!$is_personel_rolu)
-         <div class="d-inline-block">
-            <button style='display:{{($kara_liste != 1) ? "inline-block": "none"}}' class="btn btn-primary btn-lg" id='musteri_sms_kara_listeye_ekle' data-value='{{$musteri_bilgi->id}}'>
+         <button style='display:{{($kara_liste != 1) ? "inline-flex": "none"}}' class="mh-btn is-dark" id='musteri_sms_kara_listeye_ekle' data-value='{{$musteri_bilgi->id}}'>
             <i class="fa fa-times"></i> Kara Listeye Ekle
-            </button>
-            <button style='display:{{($kara_liste == 1) ? "inline-block": "none"}}' class="btn btn-dark btn-lg" id='musteri_sms_kara_listeden_cikar' data-value='{{$musteri_bilgi->id}}'>
+         </button>
+         <button style='display:{{($kara_liste == 1) ? "inline-flex": "none"}}' class="mh-btn is-ok" id='musteri_sms_kara_listeden_cikar' data-value='{{$musteri_bilgi->id}}'>
             <i class="fa fa-check"></i> Kara Listeden Çıkar
-            </button>
-         </div>
+         </button>
          @endif
       </div>
    </div>
@@ -429,13 +488,10 @@
                id="musteri-bilgileri"
                role="tabpanel"
                >
-               <div class="row" style="padding:15px">
-                  <div class="col-md-6">
-                     <h3 class="text-blue">Bilgileri </h3>
-                     <div class="card-box">
-                        <div class="row">
-                           <div class="col-md-6">
-                              <div class="profile-photo" style="margin-top:20px">
+               <div class="row mdetay-info-row" style="padding:4px 0;">
+                  <div class="col-md-5">
+                     <div class="card-box prof-card" style="padding:24px;">
+                              <div class="profile-photo" style="margin-top:6px;">
                                  <a href="#" class="edit-avatar" onclick="thisFileUpload();"><i class="fa fa-pencil"></i></a>
                                  <img id="mevcut_musteri_profil_resmi"
                                     src="{{($musteri_bilgi->profil_resim !== null ? $musteri_bilgi->profil_resim : '/public/isletmeyonetim_assets/img/avatar.png' )}}" alt="" class="avatar-photo" style="object-fit: cover; width: 160px; height: 160px;">
@@ -507,48 +563,27 @@
                                     </div>
                                  </div>
                               </div>
-                           </div>
-                           <div class="col-md-6">
-                              <div class="card-body musteri_genel_bilgi_kart">
-                                 <p style="margin-top: 10px;"><b>ID : </b>{{$musteri_bilgi->id}}</p>
-                                 <p style="margin-top: 10px;"><b>Ad Soyad : </b>{{$musteri_bilgi->name}}</p>
-                                 <p><b>Telefon : </b>{{ \App\PersonelYetkiSabitleri::telefonGoster($musteri_bilgi->cep_telefon) }}</p>
-                                 <p><b>E-posta : </b>{{$musteri_bilgi->email}}</p>
-                                 <p><b>Referans : </b>
-                                    @if($portfoy->musteri_tipi == 1)
-                                    İnternet
-                                    @elseif($portfoy->musteri_tipi == 2)
-                                    Reklam
-                                    @elseif($portfoy->musteri_tipi == 3)
-                                    Instagram
-                                    @elseif($portfoy->musteri_tipi == 4)
-                                    Facebook
-                                    @elseif($portfoy->musteri_tipi == 5)
-                                    Tanıdık
-                                    @else
-                                    Yok
-                                    @endif
-                                 </p>
-                                 <p><b>Doğum Tarihi : </b>{{date('d.m.Y', strtotime($musteri_bilgi->dogum_tarihi))}}</p>
-                                 <p><b>TC Kimlik No : </b>{{$musteri_bilgi->tc_kimlik_no}}</p>
-                                 <p><b>Cinsiyet : </b>
-                                    @if($musteri_bilgi->cinsiyet === 0)
-                                    Kadın @elseif($musteri_bilgi->cinsiyet===1) Erkek @else Belirtilmemiş @endif
-                                 </p>
-                                 <p><b>Notlar : </b>{{$portfoy->ozel_notlar}};
-                              </div>
-                           </div>
-                        </div>
+                        <div class="prof-name">{{$musteri_bilgi->name}}</div>
+                        <ul class="info-list">
+                           <li><span class="ico"><i class="fa fa-hashtag"></i></span><div><div class="k">ID</div><div class="v">{{$musteri_bilgi->id}}</div></div></li>
+                           <li><span class="ico"><i class="fa fa-phone"></i></span><div><div class="k">Telefon</div><div class="v">{{ \App\PersonelYetkiSabitleri::telefonGoster($musteri_bilgi->cep_telefon) }}</div></div></li>
+                           <li><span class="ico"><i class="fa fa-envelope-o"></i></span><div><div class="k">E-posta</div><div class="v">{{$musteri_bilgi->email ?: '—'}}</div></div></li>
+                           <li><span class="ico"><i class="fa fa-bullhorn"></i></span><div><div class="k">Referans</div><div class="v">@if($portfoy->musteri_tipi == 1)İnternet @elseif($portfoy->musteri_tipi == 2)Reklam @elseif($portfoy->musteri_tipi == 3)Instagram @elseif($portfoy->musteri_tipi == 4)Facebook @elseif($portfoy->musteri_tipi == 5)Tanıdık @else Yok @endif</div></div></li>
+                           <li><span class="ico"><i class="fa fa-birthday-cake"></i></span><div><div class="k">Doğum Tarihi</div><div class="v">{{date('d.m.Y', strtotime($musteri_bilgi->dogum_tarihi))}}</div></div></li>
+                           <li><span class="ico"><i class="fa fa-id-card-o"></i></span><div><div class="k">TC Kimlik No</div><div class="v">{{$musteri_bilgi->tc_kimlik_no ?: '—'}}</div></div></li>
+                           <li><span class="ico"><i class="fa fa-venus-mars"></i></span><div><div class="k">Cinsiyet</div><div class="v">@if($musteri_bilgi->cinsiyet === 0)Kadın @elseif($musteri_bilgi->cinsiyet===1)Erkek @else Belirtilmemiş @endif</div></div></li>
+                           <li><span class="ico"><i class="fa fa-sticky-note-o"></i></span><div><div class="k">Notlar</div><div class="v">{{$portfoy->ozel_notlar ?: '—'}}</div></div></li>
+                        </ul>
                         <div class="card-footer">
                            @yetki('musteri.ekle_duzenle')
-                           <button onclick='modalbaslikata("<?php echo $musteri_bilgi->name;?> Bilgilerini Düzenle","");' class="btn btn-primary btn-lg btn-block" data-toggle="modal" data-target="#musteri-bilgi-duzenle-modal">
-                           <i class="fa fa-edit"></i> Düzenle
+                           <button onclick='modalbaslikata("<?php echo $musteri_bilgi->name;?> Bilgilerini Düzenle","");' class="btn prof-edit-btn btn-block" data-toggle="modal" data-target="#musteri-bilgi-duzenle-modal">
+                           <i class="fa fa-edit"></i> Bilgileri Düzenle
                            </button>
                            @endyetki
                         </div>
                      </div>
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-md-7">
                      <ul class="nav nav-tabs element" role="tablist">
                         <li class="nav-item" style="margin-left: 20px;">
                            <button
@@ -574,58 +609,34 @@
                      </ul>
                      <div class="tab-content">
                         <div class="tab-pane fade show active" id="musteri_hareketleri" role="tab-panel" style="margin-top: 20px">
-                           <div style="overflow-y: auto; max-height:572px">
+                           <div class="tl-wrap">
                               @foreach($randevular as $randevu)
-                              <div class="card-box" style="margin-bottom: 20px;">
-                                 <div class="card-header">
-                                    <div class="row">
-                                       <div class="col-6 col-xs-6">
-                                          {{date('d.m.Y',strtotime($randevu->tarih))}}
-                                       </div>
-                                       <div class="col-6 col-xs-6">
-                                          @foreach($randevu->hizmetler as $hizmet)
-                                          {{($hizmet->hizmet_id? $hizmet->hizmetler->hizmet_adi : "")}} &nbsp;
-                                          @endforeach
-                                       </div>
-                                    </div>
+                              <div class="tl-item">
+                                 <div class="tl-head">
+                                    <span class="tl-date">{{date('d.m.Y',strtotime($randevu->tarih))}}</span>
+                                    <span class="tl-serv">@foreach($randevu->hizmetler as $hizmet){{($hizmet->hizmet_id? $hizmet->hizmetler->hizmet_adi : "")}} @endforeach</span>
                                  </div>
-                                 <div class="card-body">
-                                    {{$randevu->personel_notu}}
-                                 </div>
+                                 <div class="tl-body">{{$randevu->personel_notu}}</div>
                               </div>
                               @endforeach
                               @if($randevular->count()==0)
-                              <div class="alert alert-danger" role="alert">
-                                 Müşteriye ait randevu veya işlem bulunamadı!
-                              </div>
+                              <div class="mdetay-empty"><i class="fa fa-calendar-o"></i> Müşteriye ait randevu veya işlem bulunamadı!</div>
                               @endif
                            </div>
                         </div>
                         <div class="tab-pane fade show " id="islem_notlari" role="tab-panel" style="margin-top: 20px">
-                           <div style="overflow-y: auto; max-height:572px">
+                           <div class="tl-wrap">
                               @foreach($randevular as $randevu)
-                              <div class="card-box" style="margin-bottom: 20px;">
-                                 <div class="card-header">
-                                    <div class="row">
-                                       <div class="col-6 col-xs-6">
-                                          {{date('d.m.Y',strtotime($randevu->tarih))}}
-                                       </div>
-                                       <div class="col-6 col-xs-6">
-                                          @foreach($randevu->hizmetler as $hizmet)
-                                          {{($hizmet->hizmet_id? $hizmet->hizmetler->hizmet_adi : "")}}  &nbsp;
-                                          @endforeach
-                                       </div>
-                                    </div>
+                              <div class="tl-item">
+                                 <div class="tl-head">
+                                    <span class="tl-date">{{date('d.m.Y',strtotime($randevu->tarih))}}</span>
+                                    <span class="tl-serv">@foreach($randevu->hizmetler as $hizmet){{($hizmet->hizmet_id? $hizmet->hizmetler->hizmet_adi : "")}} @endforeach</span>
                                  </div>
-                                 <div class="card-body">
-                                    {{$randevu->randevu_sonrasi_not}}
-                                 </div>
+                                 <div class="tl-body">{{$randevu->randevu_sonrasi_not}}</div>
                               </div>
                               @endforeach
                               @if($randevular->count()==0)
-                              <div class="alert alert-danger" role="alert">
-                                 Müşteriye ait randevu veya işlem bulunamadı!
-                              </div>
+                              <div class="mdetay-empty"><i class="fa fa-calendar-o"></i> Müşteriye ait randevu veya işlem bulunamadı!</div>
                               @endif
                            </div>
                         </div>
@@ -1397,4 +1408,5 @@
 </script>
 
 @include('isletmeadmin.partials.whatsapp_mesaj_modal')
+</div>{{-- /#mdetay --}}
 @endsection
