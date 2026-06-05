@@ -296,29 +296,27 @@
    outline: none;
 }
 
-/* === KART === */
+/* === KART KONTEYNER ===
+   Liste alani artik beyaz boslukta degil — hafif mor gradient
+   bir zeminde her randevu icon'lu bir kart olarak goruntuleniyor. */
 .rc-rl-card {
-   background: #fff;
-   border-radius: 14px;
-   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 4px 16px rgba(92, 0, 142, .04);
-   padding: 8px;
+   background: linear-gradient(180deg, #f8f4fd 0%, #f3ebfb 100%);
+   border-radius: 16px;
+   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 6px 24px rgba(92, 0, 142, .06);
+   padding: 10px;
    margin-bottom: 30px;
+   border: 1px solid #ede4f7;
 }
 
 /* === TABLO WRAPPER === */
 .rc-rl-tablo-wrap {
    width: 100%;
-   overflow-x: auto;
-   -webkit-overflow-scrolling: touch;
-   border-radius: 10px;
-}
-.rc-rl-tablo-wrap #randevu_liste {
-   min-width: 1200px;
+   border-radius: 12px;
 }
 
 /* === DATATABLES WRAPPER === */
 .rc-rl-card .dataTables_wrapper {
-   padding: 14px 14px 8px;
+   padding: 16px 14px 10px;
 }
 .rc-rl-card .dataTables_length,
 .rc-rl-card .dataTables_filter {
@@ -333,12 +331,13 @@
 .rc-rl-card .dataTables_filter input {
    border: 1px solid var(--rc-border) !important;
    border-radius: 999px !important;
-   padding: 8px 16px !important;
+   padding: 9px 18px !important;
    margin-left: 8px;
    font-size: 13px;
-   width: 220px;
+   width: 240px;
    max-width: 100%;
    outline: none;
+   background: #fff !important;
    transition: border-color .15s, box-shadow .15s;
 }
 .rc-rl-card .dataTables_filter input:focus {
@@ -351,124 +350,260 @@
    padding: 4px 8px !important;
    font-size: 13px;
    margin: 0 6px;
-}
-
-/* === TABLO (KART SATIR YAPISI) ===
-   Her tr bir "kart satir" gibi davranir: rounded, soft border,
-   aralarinda dikey bosluk, hover'da hafif yukari kalkma + sol mor
-   gradient seritin yanmasi. Thead kolon legend'i olarak korunur. */
-.rc-rl-table {
-   border-collapse: separate !important;
-   border-spacing: 0 10px !important;
-}
-.rc-rl-table thead th {
-   background: transparent !important;
-   color: var(--rc-text-soft) !important;
-   font-size: 11px !important;
-   font-weight: 700 !important;
-   text-transform: uppercase;
-   letter-spacing: .06em;
-   padding: 4px 14px 8px !important;
-   border: none !important;
-   white-space: nowrap;
-}
-.rc-rl-table thead th:first-child { padding-left: 22px !important; }
-
-.rc-rl-table tbody td {
-   padding: 16px 14px !important;
-   font-size: 13.5px;
-   color: var(--rc-text);
-   border: none !important;
-   border-top: 1px solid var(--rc-border) !important;
-   border-bottom: 1px solid var(--rc-border) !important;
-   vertical-align: middle !important;
-   background: #fff !important;
-   transition: border-color .2s, background .2s;
-}
-.rc-rl-table tbody td:first-child {
-   border-left: 1px solid var(--rc-border) !important;
-   border-top-left-radius: 12px;
-   border-bottom-left-radius: 12px;
-   padding-left: 26px !important;
-   position: relative;
-}
-.rc-rl-table tbody td:last-child {
-   border-right: 1px solid var(--rc-border) !important;
-   border-top-right-radius: 12px;
-   border-bottom-right-radius: 12px;
-}
-
-/* Sol mor gradient accent serit */
-.rc-rl-table tbody td:first-child::before {
-   content: '';
-   position: absolute;
-   left: 8px; top: 12px; bottom: 12px;
-   width: 3px;
-   border-radius: 3px;
-   background: var(--rc-border);
-   transition: background .2s, width .2s;
-}
-
-/* Hover: kart yukari kalk + accent yan + golge */
-.rc-rl-table tbody tr {
-   transition: transform .2s, box-shadow .2s;
-}
-.rc-rl-table tbody tr:hover {
-   transform: translateY(-2px);
-}
-.rc-rl-table tbody tr:hover td {
-   border-color: var(--rc-purple-soft) !important;
-   background: #fff !important;
-   box-shadow: 0 0 0 transparent;
-}
-.rc-rl-table tbody tr:hover td:first-child {
-   box-shadow: -6px 8px 18px -8px rgba(92, 0, 142, .18);
-}
-.rc-rl-table tbody tr:hover td:last-child {
-   box-shadow: 6px 8px 18px -8px rgba(92, 0, 142, .18);
-}
-.rc-rl-table tbody tr:hover td:not(:first-child):not(:last-child) {
-   box-shadow: 0 8px 18px -8px rgba(92, 0, 142, .18);
-}
-.rc-rl-table tbody tr:hover td:first-child::before {
-   background: linear-gradient(180deg, var(--rc-purple-dark), var(--rc-purple), var(--rc-pink));
-   width: 4px;
-}
-
-/* Stripe'i devre disi birak — kart goruntusu icin gerekli degil */
-.rc-rl-table.stripe tbody tr.odd td,
-.rc-rl-table.stripe tbody tr.even td {
    background: #fff !important;
 }
 
-/* === RESPONSIVE PLUGIN'I DEVRE DIŞI === */
-#randevu_liste thead th,
-#randevu_liste tbody td { display: table-cell !important; }
+/* === DataTables responsive plugin'ini devre disi === */
 #randevu_liste td.dtr-control,
 #randevu_liste th.dtr-control { display: none !important; }
 #randevu_liste tr.child { display: none !important; }
 #randevu_liste td.dtr-hidden,
 #randevu_liste th.dtr-hidden,
 #randevu_liste td.none,
-#randevu_liste th.none { display: table-cell !important; }
+#randevu_liste th.none { display: block !important; }
 
-/* === DURUM BADGE OVERRIDE === */
+/* === TABLO -> KART GRID DONUSUMU (TUM CIHAZLAR) ===
+   tbody auto-fill grid; her tr ayri bir kart. thead gizli.
+   td'ler grid-area ile kart icinde yerlesir. DataTables yine
+   normal tablo gibi davranir — sadece CSS gorunum farkli. */
+.rc-rl-table {
+   border-collapse: separate !important;
+   border-spacing: 0 !important;
+   display: block !important;
+   width: 100% !important;
+   min-width: 0 !important;
+}
+.rc-rl-table thead { display: none !important; }
+
+.rc-rl-table tbody {
+   display: grid !important;
+   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+   gap: 16px;
+   padding: 6px 4px;
+   width: 100% !important;
+}
+
+/* RANDEVU KARTI */
+.rc-rl-table tbody tr,
+.rc-rl-table.stripe tbody tr.odd,
+.rc-rl-table.stripe tbody tr.even {
+   display: grid !important;
+   grid-template-columns: minmax(0, 1fr) auto;
+   grid-template-areas:
+      "musteri  durum"
+      "telefon  durum"
+      "hizmetler hizmetler"
+      "personel  personel"
+      "metarow   metarow"
+      "footer    footer";
+   gap: 4px 14px;
+   padding: 18px 20px 16px;
+   background: #fff !important;
+   border: 1px solid #ece4f5 !important;
+   border-radius: 16px !important;
+   box-shadow: 0 2px 8px rgba(92, 0, 142, .04);
+   transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+   position: relative;
+   overflow: hidden;
+   width: 100% !important;
+   margin: 0 !important;
+}
+.rc-rl-table tbody tr::before {
+   content: "";
+   position: absolute;
+   left: 0; top: 0; bottom: 0;
+   width: 4px;
+   background: linear-gradient(180deg, var(--rc-purple-dark), var(--rc-purple) 60%, var(--rc-pink));
+}
+.rc-rl-table tbody tr:hover,
+.rc-rl-table.stripe tbody tr.odd:hover,
+.rc-rl-table.stripe tbody tr.even:hover {
+   transform: translateY(-3px);
+   box-shadow: 0 14px 28px rgba(92, 0, 142, .14);
+   border-color: var(--rc-purple-soft) !important;
+}
+
+/* HUCRE RESET (her td bir kart bolumu) */
+.rc-rl-table tbody tr td,
+.rc-rl-table.stripe tbody tr.odd td,
+.rc-rl-table.stripe tbody tr.even td {
+   display: block !important;
+   padding: 0 !important;
+   border: none !important;
+   background: transparent !important;
+   color: var(--rc-text);
+   font-size: 13.5px;
+   line-height: 1.5;
+   vertical-align: top !important;
+   white-space: normal !important;
+   min-width: 0;
+   overflow-wrap: break-word;
+   word-break: break-word;
+   box-shadow: none !important;
+   border-radius: 0 !important;
+}
+
+/* GRID-AREA atamalari (JS data-label/class ekledigi icin calisir) */
+.rc-rl-table tbody td.rc-rl-td-musteri    { grid-area: musteri; }
+.rc-rl-table tbody td.rc-rl-td-telefon    { grid-area: telefon; }
+.rc-rl-table tbody td.rc-rl-td-hizmetler  { grid-area: hizmetler; }
+.rc-rl-table tbody td.rc-rl-td-personel   { grid-area: personel; }
+.rc-rl-table tbody td.rc-rl-td-durum      { grid-area: durum; justify-self: end; align-self: start; }
+.rc-rl-table tbody td.rc-rl-td-tarih      { grid-area: metarow; justify-self: start; align-self: center; }
+.rc-rl-table tbody td.rc-rl-td-saat       { grid-area: metarow; justify-self: start; align-self: center; margin-left: 8px; }
+.rc-rl-table tbody td.rc-rl-td-olusturan  { grid-area: footer; }
+.rc-rl-table tbody td.rc-rl-td-actions    { grid-area: footer; justify-self: end; align-self: center; }
+
+/* MUSTERI (kart basligi) */
+.rc-rl-table tbody td.rc-rl-td-musteri {
+   font-size: 16px !important;
+   font-weight: 700 !important;
+   color: var(--rc-text) !important;
+   letter-spacing: -.1px;
+   padding-right: 90px !important;
+}
+.rc-rl-table tbody td.rc-rl-td-musteri::before { content: none !important; display: none; }
+
+/* TELEFON */
+.rc-rl-table tbody td.rc-rl-td-telefon {
+   color: var(--rc-text-soft) !important;
+   font-size: 13px !important;
+   font-weight: 500 !important;
+   display: flex !important;
+   align-items: center;
+   gap: 6px;
+   padding-right: 90px !important;
+}
+.rc-rl-table tbody td.rc-rl-td-telefon::before {
+   content: "\f095";
+   font-family: "FontAwesome";
+   color: var(--rc-purple);
+   font-size: 12px;
+   font-weight: 400;
+   margin: 0;
+   min-width: 0;
+   letter-spacing: 0;
+   text-transform: none;
+}
+
+/* HIZMETLER */
+.rc-rl-table tbody td.rc-rl-td-hizmetler {
+   margin-top: 14px;
+   padding-top: 14px !important;
+   border-top: 1px dashed #ece4f5 !important;
+}
+.rc-rl-table tbody td.rc-rl-td-hizmetler::before {
+   content: "Hizmetler";
+   display: block;
+   font-size: 10.5px;
+   font-weight: 700;
+   color: var(--rc-purple-dark);
+   text-transform: uppercase;
+   letter-spacing: .06em;
+   margin-bottom: 4px;
+}
+
+/* PERSONEL/CIHAZ/ODA */
+.rc-rl-table tbody td.rc-rl-td-personel {
+   margin-top: 10px;
+}
+.rc-rl-table tbody td.rc-rl-td-personel::before {
+   content: "Personel / Cihaz / Oda";
+   display: block;
+   font-size: 10.5px;
+   font-weight: 700;
+   color: var(--rc-purple-dark);
+   text-transform: uppercase;
+   letter-spacing: .06em;
+   margin-bottom: 4px;
+}
+
+/* TARIH + SAAT — mor pill chip'ler yan yana */
+.rc-rl-table tbody td.rc-rl-td-tarih,
+.rc-rl-table tbody td.rc-rl-td-saat {
+   display: inline-flex !important;
+   margin-top: 14px;
+   background: linear-gradient(135deg, #faf5ff 0%, #f5eefe 100%) !important;
+   border: 1px solid #ece4f5 !important;
+   border-radius: 10px !important;
+   padding: 8px 12px !important;
+   align-items: center;
+   gap: 6px;
+   font-size: 13px !important;
+   font-weight: 600 !important;
+   color: var(--rc-purple-dark) !important;
+}
+.rc-rl-table tbody td.rc-rl-td-tarih::before {
+   content: "\f073";
+   font-family: "FontAwesome";
+   color: var(--rc-purple);
+   font-size: 12px;
+   font-weight: 400;
+   margin: 0;
+   min-width: 0;
+   letter-spacing: 0;
+   text-transform: none;
+}
+.rc-rl-table tbody td.rc-rl-td-saat::before {
+   content: "\f017";
+   font-family: "FontAwesome";
+   color: var(--rc-purple);
+   font-size: 12px;
+   font-weight: 400;
+   margin: 0;
+   min-width: 0;
+   letter-spacing: 0;
+   text-transform: none;
+}
+
+/* FOOTER: olusturan + actions */
+.rc-rl-table tbody td.rc-rl-td-olusturan {
+   margin-top: 14px;
+   padding-top: 12px !important;
+   border-top: 1px dashed #ece4f5 !important;
+   color: var(--rc-text-soft) !important;
+   font-size: 12px !important;
+   display: inline-flex !important;
+   align-items: center;
+   gap: 6px;
+}
+.rc-rl-table tbody td.rc-rl-td-olusturan::before {
+   content: "Oluşturan:";
+   font-size: 11px;
+   font-weight: 700;
+   color: var(--rc-text-soft);
+   text-transform: uppercase;
+   letter-spacing: .04em;
+   margin: 0;
+   min-width: 0;
+}
+.rc-rl-table tbody td.rc-rl-td-actions {
+   margin-top: 14px;
+   padding-top: 12px !important;
+   border-top: 1px dashed #ece4f5 !important;
+}
+.rc-rl-table tbody td.rc-rl-td-actions::before { content: none !important; display: none; }
+
+/* DURUM */
+.rc-rl-table tbody td.rc-rl-td-durum::before { content: none !important; display: none; }
 .rc-rl-table tbody td .btn.btn-warning,
 .rc-rl-table tbody td .btn.btn-success,
 .rc-rl-table tbody td .btn.btn-primary,
 .rc-rl-table tbody td .btn.btn-danger,
 .rc-rl-table tbody td .btn.btn-dark {
    border-radius: 999px !important;
-   padding: 6px 14px !important;
-   font-size: 12px !important;
+   padding: 5px 12px !important;
+   font-size: 11px !important;
    font-weight: 700 !important;
    line-height: 1.4 !important;
    display: inline-block !important;
    width: auto !important;
-   min-width: 100px;
+   min-width: 0 !important;
    text-align: center;
    box-shadow: none !important;
    pointer-events: none;
+   text-transform: uppercase;
+   letter-spacing: .03em;
 }
 .rc-rl-table tbody td .btn.btn-warning {
    background: var(--rc-warning-soft) !important;
@@ -498,22 +633,23 @@
 
 /* === İŞLEMLER DROPDOWN === */
 .rc-rl-table tbody td .dropdown .dropdown-toggle.btn-link {
-   width: 36px;
-   height: 36px;
+   width: 38px;
+   height: 38px;
    border-radius: 50%;
-   background: var(--rc-purple-light) !important;
-   color: var(--rc-purple-dark) !important;
+   background: linear-gradient(135deg, var(--rc-purple-dark) 0%, var(--rc-purple) 100%) !important;
+   color: #fff !important;
    display: inline-flex !important;
    align-items: center !important;
    justify-content: center !important;
    padding: 0 !important;
    font-size: 18px !important;
-   transition: background .15s, transform .15s;
    line-height: 1 !important;
+   box-shadow: 0 4px 12px rgba(92, 0, 142, .22);
+   transition: transform .15s, filter .15s;
 }
 .rc-rl-table tbody td .dropdown .dropdown-toggle.btn-link:hover {
-   background: var(--rc-purple-soft) !important;
-   transform: scale(1.05);
+   transform: scale(1.08);
+   filter: brightness(1.06);
 }
 .rc-rl-table tbody td .dropdown-menu {
    border: 1px solid var(--rc-border) !important;
@@ -571,14 +707,17 @@
    padding: 14px !important;
 }
 
-/* === SORT İKONLARI === */
-.rc-rl-table thead th[class*="sorting"] {
-   position: relative;
-   cursor: pointer;
-}
-.rc-rl-table thead th.sorting_asc,
-.rc-rl-table thead th.sorting_desc {
-   color: var(--rc-purple-dark) !important;
+/* === BOS DURUM === */
+.rc-rl-table tbody .dataTables_empty {
+   display: block !important;
+   text-align: center;
+   padding: 50px 20px !important;
+   color: var(--rc-text-soft);
+   font-size: 14px;
+   background: #fff !important;
+   border-radius: 12px !important;
+   border: 1px dashed var(--rc-border) !important;
+   grid-column: 1 / -1;
 }
 
 /* === RESPONSIVE: TABLET (≤1024px) === */
@@ -588,14 +727,13 @@
    .rc-rl-title { font-size: 17px; }
    .rc-rl-btn { height: 38px; padding: 0 14px; font-size: 12.5px; }
    .rc-rl-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-   .rc-rl-card { padding: 6px; }
-   .rc-rl-card .dataTables_wrapper { padding: 10px 10px 4px; }
-   .rc-rl-card .dataTables_filter input { width: 180px; }
-   .rc-rl-table thead th,
-   .rc-rl-table tbody td { padding: 12px 10px !important; font-size: 13px; }
+   .rc-rl-card .dataTables_wrapper { padding: 12px 10px 6px; }
+   .rc-rl-card .dataTables_filter input { width: 200px; }
+   .rc-rl-table tbody { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+   .rc-rl-table tbody tr { padding: 16px 18px 14px; }
 }
 
-/* === RESPONSIVE: MOBILE (≤768px) — TABLE → CARD === */
+/* === RESPONSIVE: MOBILE (≤768px) === */
 @media (max-width: 768px) {
    .rc-rl-header {
       padding: 12px 14px;
@@ -610,98 +748,21 @@
    .rc-rl-filter-card { padding: 14px 14px 16px; border-radius: 12px; }
    .rc-rl-filter-grid { grid-template-columns: 1fr; gap: 10px; }
 
-   .rc-rl-card { padding: 4px; border-radius: 12px; }
-   .rc-rl-card .dataTables_wrapper { padding: 8px 8px 4px; }
+   .rc-rl-card { padding: 8px; border-radius: 14px; }
+   .rc-rl-card .dataTables_wrapper { padding: 10px 8px 4px; }
    .rc-rl-card .dataTables_filter { float: none; text-align: left; }
    .rc-rl-card .dataTables_filter input { width: 100%; margin-left: 0; margin-top: 6px; }
    .rc-rl-card .dataTables_filter label { display: block; width: 100%; }
    .rc-rl-card .dataTables_length { display: none; }
 
-   /* TABLO -> KART GORUNUMU */
-   .rc-rl-tablo-wrap { overflow: visible; }
-   .rc-rl-tablo-wrap #randevu_liste { min-width: 0; width: 100% !important; }
-
-   /* Desktop kart-satir border-spacing/transform'larini sifirla */
-   .rc-rl-table { border-spacing: 0 !important; }
-   .rc-rl-table tbody tr { transform: none !important; }
-
-   .rc-rl-table,
-   .rc-rl-table thead,
-   .rc-rl-table tbody,
-   .rc-rl-table tr,
-   .rc-rl-table td,
-   .rc-rl-table th {
-      display: block !important;
-      width: 100% !important;
-   }
-   .rc-rl-table thead { display: none !important; }
-
-   .rc-rl-table tbody tr {
-      background: #fff;
-      border: 1px solid var(--rc-border);
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 12px;
-      box-shadow: 0 1px 2px rgba(17, 24, 39, .03);
-      position: relative;
-   }
-   .rc-rl-table tbody tr:hover td,
-   .rc-rl-table tbody tr.odd td,
-   .rc-rl-table tbody td {
-      background: transparent !important;
-      border: none !important;
-      padding: 6px 0 !important;
-      display: flex !important;
-      justify-content: space-between;
-      align-items: center;
+   .rc-rl-table tbody {
+      grid-template-columns: 1fr;
       gap: 12px;
-      font-size: 13px;
-      border-radius: 0 !important;
-      box-shadow: none !important;
+      padding: 4px 2px;
    }
-   /* Desktop'taki ilk td accent serit + radius'u kapat */
-   .rc-rl-table tbody td:first-child,
-   .rc-rl-table tbody td:last-child {
-      padding-left: 0 !important;
-      padding-right: 0 !important;
-      border: none !important;
-      border-radius: 0 !important;
-   }
-   .rc-rl-table tbody td:first-child::before {
-      content: attr(data-label) !important;
-      position: static !important;
-      width: auto !important;
-      background: transparent !important;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--rc-text-soft);
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      flex-shrink: 0;
-      min-width: 115px;
-      border-radius: 0;
-   }
-   .rc-rl-table tbody td::before {
-      content: attr(data-label);
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--rc-text-soft);
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      flex-shrink: 0;
-      min-width: 115px;
-   }
-   .rc-rl-table tbody td.rc-rl-td-actions,
-   .rc-rl-table tbody td.rc-rl-td-durum {
-      justify-content: flex-end;
-   }
-   .rc-rl-table tbody td .btn.btn-warning,
-   .rc-rl-table tbody td .btn.btn-success,
-   .rc-rl-table tbody td .btn.btn-primary,
-   .rc-rl-table tbody td .btn.btn-danger,
-   .rc-rl-table tbody td .btn.btn-dark {
-      min-width: 0;
-   }
+   .rc-rl-table tbody tr { padding: 16px; }
+   .rc-rl-table tbody td.rc-rl-td-musteri { padding-right: 80px !important; font-size: 15px !important; }
+   .rc-rl-table tbody td.rc-rl-td-telefon { padding-right: 80px !important; }
 }
 
 /* === RESPONSIVE: KÜÇÜK MOBILE (≤420px) === */
@@ -710,6 +771,14 @@
    .rc-rl-header-right .rc-rl-btn { width: 100%; }
    .rc-rl-title-row { gap: 10px; }
    .rc-rl-icon-bubble { width: 36px; height: 36px; font-size: 14px; }
+   .rc-rl-table tbody tr { padding: 14px; }
+   .rc-rl-table tbody td.rc-rl-td-musteri { padding-right: 70px !important; font-size: 14.5px !important; }
+   .rc-rl-table tbody td.rc-rl-td-telefon { padding-right: 70px !important; font-size: 12.5px !important; }
+   .rc-rl-table tbody td.rc-rl-td-tarih,
+   .rc-rl-table tbody td.rc-rl-td-saat {
+      font-size: 12px !important;
+      padding: 6px 10px !important;
+   }
 }
 </style>
 
