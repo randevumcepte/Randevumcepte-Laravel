@@ -97,7 +97,7 @@
                     // ekranin altina kadar uzatiyoruz; boylece altta bosluk kalmaz.
                     var _calEl = document.getElementById('calendar');
                     var _calTop = _calEl ? _calEl.getBoundingClientRect().top : 200;
-                    calendarHeight = $(window).height() - _calTop - 56;
+                    calendarHeight = $(window).height() - _calTop - 36;
                     if (calendarHeight < 400) {
                         calendarHeight = $(window).height() - 310;
                     }
