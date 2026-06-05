@@ -296,27 +296,29 @@
    outline: none;
 }
 
-/* === KART KONTEYNER ===
-   Liste alani artik beyaz boslukta degil — hafif mor gradient
-   bir zeminde her randevu icon'lu bir kart olarak goruntuleniyor. */
+/* === TABLO KARTI (konteyner) ===
+   Kartli grid kaldirildi — randevular artik temiz, modern bir
+   veri tablosu olarak listeleniyor. */
 .rc-rl-card {
-   background: linear-gradient(180deg, #f8f4fd 0%, #f3ebfb 100%);
+   background: #fff;
    border-radius: 16px;
-   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 6px 24px rgba(92, 0, 142, .06);
-   padding: 10px;
+   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 6px 24px rgba(92, 0, 142, .05);
+   padding: 4px;
    margin-bottom: 30px;
-   border: 1px solid #ede4f7;
+   border: 1px solid var(--rc-border);
+   overflow: hidden;
 }
 
 /* === TABLO WRAPPER === */
 .rc-rl-tablo-wrap {
    width: 100%;
    border-radius: 12px;
+   overflow-x: auto;
 }
 
 /* === DATATABLES WRAPPER === */
 .rc-rl-card .dataTables_wrapper {
-   padding: 16px 14px 10px;
+   padding: 14px 16px 8px;
 }
 .rc-rl-card .dataTables_length,
 .rc-rl-card .dataTables_filter {
@@ -362,239 +364,131 @@
 #randevu_liste td.none,
 #randevu_liste th.none { display: block !important; }
 
-/* === TABLO -> KART GRID DONUSUMU (TUM CIHAZLAR) ===
-   tbody auto-fill grid; her tr ayri bir kart. thead gizli.
-   td'ler grid-area ile kart icinde yerlesir. DataTables yine
-   normal tablo gibi davranir — sadece CSS gorunum farkli. */
+/* === MODERN VERI TABLOSU ===
+   thead geri acildi; her satir temiz bir tablo satiri (kart degil). */
 .rc-rl-table {
    border-collapse: separate !important;
    border-spacing: 0 !important;
-   display: block !important;
    width: 100% !important;
-   min-width: 0 !important;
-}
-.rc-rl-table thead { display: none !important; }
-
-.rc-rl-table tbody {
-   display: grid !important;
-   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-   gap: 16px;
-   padding: 6px 4px;
-   width: 100% !important;
+   min-width: 760px;
 }
 
-/* RANDEVU KARTI */
-.rc-rl-table tbody tr,
-.rc-rl-table.stripe tbody tr.odd,
-.rc-rl-table.stripe tbody tr.even {
-   display: grid !important;
-   grid-template-columns: minmax(0, 1fr) auto;
-   grid-template-areas:
-      "musteri  durum"
-      "telefon  durum"
-      "hizmetler hizmetler"
-      "personel  personel"
-      "metarow   metarow"
-      "footer    footer";
-   gap: 4px 14px;
-   padding: 18px 20px 16px;
-   background: #fff !important;
-   border: 1px solid #ece4f5 !important;
-   border-radius: 16px !important;
-   box-shadow: 0 2px 8px rgba(92, 0, 142, .04);
-   transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-   position: relative;
-   overflow: hidden;
-   width: 100% !important;
-   margin: 0 !important;
-}
-.rc-rl-table tbody tr::before {
-   content: "";
-   position: absolute;
-   left: 0; top: 0; bottom: 0;
-   width: 4px;
-   background: linear-gradient(180deg, var(--rc-purple-dark), var(--rc-purple) 60%, var(--rc-pink));
-}
-.rc-rl-table tbody tr:hover,
-.rc-rl-table.stripe tbody tr.odd:hover,
-.rc-rl-table.stripe tbody tr.even:hover {
-   transform: translateY(-3px);
-   box-shadow: 0 14px 28px rgba(92, 0, 142, .14);
-   border-color: var(--rc-purple-soft) !important;
-}
-
-/* HUCRE RESET (her td bir kart bolumu) */
-.rc-rl-table tbody tr td,
-.rc-rl-table.stripe tbody tr.odd td,
-.rc-rl-table.stripe tbody tr.even td {
-   display: block !important;
-   padding: 0 !important;
-   border: none !important;
-   background: transparent !important;
-   color: var(--rc-text);
-   font-size: 13.5px;
-   line-height: 1.5;
-   vertical-align: top !important;
-   white-space: normal !important;
-   min-width: 0;
-   overflow-wrap: break-word;
-   word-break: break-word;
-   box-shadow: none !important;
-   border-radius: 0 !important;
-}
-
-/* GRID-AREA atamalari (JS data-label/class ekledigi icin calisir) */
-.rc-rl-table tbody td.rc-rl-td-musteri    { grid-area: musteri; }
-.rc-rl-table tbody td.rc-rl-td-telefon    { grid-area: telefon; }
-.rc-rl-table tbody td.rc-rl-td-hizmetler  { grid-area: hizmetler; }
-.rc-rl-table tbody td.rc-rl-td-personel   { grid-area: personel; }
-.rc-rl-table tbody td.rc-rl-td-durum      { grid-area: durum; justify-self: end; align-self: start; }
-.rc-rl-table tbody td.rc-rl-td-tarih      { grid-area: metarow; justify-self: start; align-self: center; }
-.rc-rl-table tbody td.rc-rl-td-saat       { grid-area: metarow; justify-self: start; align-self: center; margin-left: 8px; }
-.rc-rl-table tbody td.rc-rl-td-olusturan  { grid-area: footer; }
-.rc-rl-table tbody td.rc-rl-td-actions    { grid-area: footer; justify-self: end; align-self: center; }
-
-/* MUSTERI (kart basligi) */
-.rc-rl-table tbody td.rc-rl-td-musteri {
-   font-size: 16px !important;
-   font-weight: 700 !important;
-   color: var(--rc-text) !important;
-   letter-spacing: -.1px;
-   min-width: 0 !important;
-   overflow-wrap: anywhere;
-}
-.rc-rl-table tbody td.rc-rl-td-musteri::before { content: none !important; display: none; }
-
-/* TELEFON */
-.rc-rl-table tbody td.rc-rl-td-telefon {
-   color: var(--rc-text-soft) !important;
-   font-size: 13px !important;
-   font-weight: 500 !important;
-   display: flex !important;
-   align-items: center;
-   gap: 6px;
-   min-width: 0 !important;
-   overflow-wrap: anywhere;
-}
-.rc-rl-table tbody td.rc-rl-td-telefon::before {
-   content: "\f095";
-   font-family: "FontAwesome";
-   color: var(--rc-purple);
-   font-size: 12px;
-   font-weight: 400;
-   margin: 0;
-   min-width: 0;
-   letter-spacing: 0;
-   text-transform: none;
-}
-
-/* HIZMETLER */
-.rc-rl-table tbody td.rc-rl-td-hizmetler {
-   margin-top: 14px;
-   padding-top: 14px !important;
-   border-top: 1px dashed #ece4f5 !important;
-}
-.rc-rl-table tbody td.rc-rl-td-hizmetler::before {
-   content: "Hizmetler";
-   display: block;
-   font-size: 10.5px;
-   font-weight: 700;
-   color: var(--rc-purple-dark);
-   text-transform: uppercase;
-   letter-spacing: .06em;
-   margin-bottom: 4px;
-}
-
-/* PERSONEL/CIHAZ/ODA */
-.rc-rl-table tbody td.rc-rl-td-personel {
-   margin-top: 10px;
-}
-.rc-rl-table tbody td.rc-rl-td-personel::before {
-   content: "Personel / Cihaz / Oda";
-   display: block;
-   font-size: 10.5px;
-   font-weight: 700;
-   color: var(--rc-purple-dark);
-   text-transform: uppercase;
-   letter-spacing: .06em;
-   margin-bottom: 4px;
-}
-
-/* TARIH + SAAT — mor pill chip'ler yan yana */
-.rc-rl-table tbody td.rc-rl-td-tarih,
-.rc-rl-table tbody td.rc-rl-td-saat {
-   display: inline-flex !important;
-   margin-top: 14px;
-   background: linear-gradient(135deg, #faf5ff 0%, #f5eefe 100%) !important;
-   border: 1px solid #ece4f5 !important;
-   border-radius: 10px !important;
-   padding: 8px 12px !important;
-   align-items: center;
-   gap: 6px;
-   font-size: 13px !important;
-   font-weight: 600 !important;
+/* BASLIK SATIRI */
+.rc-rl-table thead { display: table-header-group !important; }
+.rc-rl-table thead th {
+   background: var(--rc-purple-light) !important;
    color: var(--rc-purple-dark) !important;
-}
-.rc-rl-table tbody td.rc-rl-td-tarih::before {
-   content: "\f073";
-   font-family: "FontAwesome";
-   color: var(--rc-purple);
-   font-size: 12px;
-   font-weight: 400;
-   margin: 0;
-   min-width: 0;
-   letter-spacing: 0;
-   text-transform: none;
-}
-.rc-rl-table tbody td.rc-rl-td-saat::before {
-   content: "\f017";
-   font-family: "FontAwesome";
-   color: var(--rc-purple);
-   font-size: 12px;
-   font-weight: 400;
-   margin: 0;
-   min-width: 0;
-   letter-spacing: 0;
-   text-transform: none;
-}
-
-/* FOOTER: olusturan + actions */
-.rc-rl-table tbody td.rc-rl-td-olusturan {
-   margin-top: 14px;
-   padding-top: 12px !important;
-   border-top: 1px dashed #ece4f5 !important;
-   color: var(--rc-text-soft) !important;
-   font-size: 12px !important;
-   display: inline-flex !important;
-   align-items: center;
-   gap: 6px;
-}
-.rc-rl-table tbody td.rc-rl-td-olusturan::before {
-   content: "Oluşturan:";
-   font-size: 11px;
+   font-size: 11.5px;
    font-weight: 700;
-   color: var(--rc-text-soft);
    text-transform: uppercase;
    letter-spacing: .04em;
-   margin: 0;
-   min-width: 0;
+   padding: 13px 16px;
+   text-align: left;
+   border: none !important;
+   border-bottom: 2px solid var(--rc-purple-soft) !important;
+   white-space: nowrap;
+   vertical-align: middle;
 }
-.rc-rl-table tbody td.rc-rl-td-actions {
-   margin-top: 14px;
-   padding-top: 12px !important;
-   border-top: 1px dashed #ece4f5 !important;
+.rc-rl-table thead th:first-child { border-top-left-radius: 12px; }
+.rc-rl-table thead th:last-child  { border-top-right-radius: 12px; }
+/* DataTables siralama oklari */
+.rc-rl-table thead th.sorting,
+.rc-rl-table thead th.sorting_asc,
+.rc-rl-table thead th.sorting_desc {
+   cursor: pointer;
+   position: relative;
+   padding-right: 26px;
 }
-.rc-rl-table tbody td.rc-rl-td-actions::before { content: none !important; display: none; }
+.rc-rl-table thead th.sorting::after,
+.rc-rl-table thead th.sorting_asc::after,
+.rc-rl-table thead th.sorting_desc::after {
+   position: absolute;
+   right: 12px;
+   top: 50%;
+   transform: translateY(-50%);
+   font-family: "FontAwesome";
+   font-size: 11px;
+   opacity: .35;
+}
+.rc-rl-table thead th.sorting::after     { content: "\f0dc"; }
+.rc-rl-table thead th.sorting_asc::after { content: "\f0de"; opacity: .9; }
+.rc-rl-table thead th.sorting_desc::after{ content: "\f0dd"; opacity: .9; }
 
-/* DURUM */
-.rc-rl-table tbody td.rc-rl-td-durum::before { content: none !important; display: none; }
+/* GOVDE SATIRLARI */
+.rc-rl-table tbody tr {
+   background: #fff;
+   transition: background .12s ease;
+}
+.rc-rl-table.stripe tbody tr.even,
+.rc-rl-table tbody tr.even { background: #fcfbfe; }
+.rc-rl-table tbody tr:hover,
+.rc-rl-table.stripe tbody tr.odd:hover,
+.rc-rl-table.stripe tbody tr.even:hover { background: #f7f1fd; }
+
+.rc-rl-table tbody td {
+   padding: 14px 16px !important;
+   font-size: 13.5px;
+   color: var(--rc-text);
+   border: none !important;
+   border-bottom: 1px solid var(--rc-border) !important;
+   vertical-align: middle !important;
+   line-height: 1.5;
+   white-space: normal;
+}
+.rc-rl-table tbody tr:last-child td { border-bottom: none !important; }
+
+/* MUSTERI — satir basligi */
+.rc-rl-table tbody td.rc-rl-td-musteri {
+   font-size: 14px;
+   font-weight: 700;
+   color: var(--rc-text);
+   letter-spacing: -.1px;
+}
+/* TELEFON */
+.rc-rl-table tbody td.rc-rl-td-telefon {
+   color: var(--rc-text-soft);
+   font-weight: 500;
+   white-space: nowrap;
+}
+/* HIZMETLER */
+.rc-rl-table tbody td.rc-rl-td-hizmetler {
+   color: var(--rc-text);
+   max-width: 280px;
+   overflow-wrap: anywhere;
+}
+/* PERSONEL/CIHAZ/ODA */
+.rc-rl-table tbody td.rc-rl-td-personel {
+   color: var(--rc-text-soft);
+   overflow-wrap: anywhere;
+}
+/* TARIH + SAAT */
+.rc-rl-table tbody td.rc-rl-td-tarih,
+.rc-rl-table tbody td.rc-rl-td-saat {
+   white-space: nowrap;
+   font-weight: 600;
+   color: var(--rc-text);
+}
+/* OLUSTURAN */
+.rc-rl-table tbody td.rc-rl-td-olusturan {
+   color: var(--rc-text-soft);
+   font-size: 12.5px;
+   white-space: nowrap;
+}
+/* ISLEMLER hucresi */
+.rc-rl-table tbody td.rc-rl-td-actions {
+   text-align: right;
+   width: 60px;
+   white-space: nowrap;
+}
+
+/* DURUM ROZETI (server btn class'larini pill'e cevir) */
 .rc-rl-table tbody td .btn.btn-warning,
 .rc-rl-table tbody td .btn.btn-success,
 .rc-rl-table tbody td .btn.btn-primary,
 .rc-rl-table tbody td .btn.btn-danger,
 .rc-rl-table tbody td .btn.btn-dark {
    border-radius: 999px !important;
-   padding: 5px 12px !important;
+   padding: 5px 13px !important;
    font-size: 11px !important;
    font-weight: 700 !important;
    line-height: 1.4 !important;
@@ -606,6 +500,7 @@
    pointer-events: none;
    text-transform: uppercase;
    letter-spacing: .03em;
+   white-space: nowrap;
 }
 .rc-rl-table tbody td .btn.btn-warning {
    background: var(--rc-warning-soft) !important;
@@ -710,24 +605,12 @@
 }
 
 /* === BOS DURUM === */
-.rc-rl-table tbody .dataTables_empty {
-   display: block !important;
-   text-align: center;
+.rc-rl-table tbody td.dataTables_empty {
+   text-align: center !important;
    padding: 50px 20px !important;
    color: var(--rc-text-soft);
    font-size: 14px;
    background: #fff !important;
-   border-radius: 12px !important;
-   border: 1px dashed var(--rc-border) !important;
-   grid-column: 1 / -1;
-}
-
-/* === RESPONSIVE: BUYUK TABLET / KUCUK LAPTOP (≤1200px) === */
-@media (max-width: 1200px) {
-   .rc-rl-table tbody {
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 14px;
-   }
 }
 
 /* === RESPONSIVE: TABLET LANDSCAPE (≤1024px) === */
@@ -739,31 +622,14 @@
    .rc-rl-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
    .rc-rl-card .dataTables_wrapper { padding: 12px 10px 6px; }
    .rc-rl-card .dataTables_filter input { width: 200px; }
-   .rc-rl-table tbody {
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 12px;
-   }
-   .rc-rl-table tbody tr { padding: 16px 18px 14px; }
-   .rc-rl-table tbody td.rc-rl-td-musteri { font-size: 15px !important; }
+   .rc-rl-table tbody td { padding: 12px 14px !important; }
 }
 
-/* === RESPONSIVE: TABLET PORTRAIT (≤900px) — tek sutun kart ===
-   Laravel sidebar acikken icerik genisligi yetersiz oluyor;
-   bu noktada kart'lar tek sutuna geciyor. */
+/* === RESPONSIVE: TABLET PORTRAIT + MOBILE (≤900px) — yigin (etiket: deger) ===
+   Sidebar acikken icerik daraldigi icin bu noktada tablo yatay kaymak yerine
+   her satir kompakt bir blok olur; her hucre solda kucuk etiket, sagda deger.
+   Bu KART degil — standart responsive tablo desenidir (JS data-label ekliyor). */
 @media (max-width: 900px) {
-   .rc-rl-table tbody {
-      grid-template-columns: 1fr;
-      gap: 12px;
-   }
-   .rc-rl-table tbody tr {
-      grid-template-columns: minmax(0, 1fr) auto;
-      padding: 16px 18px;
-   }
-   .rc-rl-table tbody td.rc-rl-td-musteri { font-size: 15.5px !important; }
-}
-
-/* === RESPONSIVE: MOBILE (≤768px) === */
-@media (max-width: 768px) {
    .rc-rl-header {
       padding: 12px 14px;
       border-radius: 12px;
@@ -784,55 +650,65 @@
    .rc-rl-card .dataTables_filter label { display: block; width: 100%; }
    .rc-rl-card .dataTables_length { display: none; }
 
-   .rc-rl-table tbody { padding: 4px 2px; }
-   .rc-rl-table tbody tr { padding: 14px 16px; }
-   .rc-rl-table tbody td.rc-rl-td-musteri { font-size: 15px !important; }
-   .rc-rl-table tbody td.rc-rl-td-tarih,
-   .rc-rl-table tbody td.rc-rl-td-saat {
-      padding: 7px 10px !important;
-      font-size: 12.5px !important;
-   }
-   .rc-rl-table tbody td.rc-rl-td-saat { margin-left: 6px; }
-}
-
-/* === RESPONSIVE: KUCUK MOBILE (≤480px) ===
-   Cok dar ekranda durum + dropdown footer'a dussun, header sade kalsin. */
-@media (max-width: 480px) {
+   /* Tabloyu blok-yigin yap */
+   .rc-rl-tablo-wrap { overflow-x: visible; }
+   .rc-rl-table { min-width: 0 !important; display: block !important; }
+   .rc-rl-table thead { display: none !important; }
+   .rc-rl-table tbody { display: block !important; }
    .rc-rl-table tbody tr {
-      grid-template-columns: 1fr !important;
-      grid-template-areas:
-         "musteri"
-         "telefon"
-         "durum"
-         "hizmetler"
-         "personel"
-         "metarow"
-         "footer" !important;
-      gap: 6px;
+      display: block !important;
+      background: #fff !important;
+      border: 1px solid var(--rc-border) !important;
+      border-radius: 14px !important;
+      box-shadow: 0 2px 8px rgba(92, 0, 142, .05);
+      padding: 6px 4px;
+      margin-bottom: 12px;
    }
-   .rc-rl-table tbody td.rc-rl-td-durum {
-      justify-self: start !important;
-      align-self: auto !important;
-      margin-top: 8px;
+   .rc-rl-table tbody tr:last-child { margin-bottom: 0; }
+   .rc-rl-table tbody td {
+      display: flex !important;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 9px 14px !important;
+      border: none !important;
+      border-bottom: 1px solid #f4f0fa !important;
+      text-align: right;
+      white-space: normal !important;
    }
-   .rc-rl-table tbody td.rc-rl-td-tarih { margin-right: 0; }
-   .rc-rl-table tbody td.rc-rl-td-saat { margin-left: 0; }
+   .rc-rl-table tbody tr td:last-child { border-bottom: none !important; }
+   .rc-rl-table tbody td::before {
+      content: attr(data-label);
+      flex: 0 0 auto;
+      margin-right: auto;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--rc-purple-dark);
+      text-align: left;
+   }
+   /* Musteri = baslik satiri (etiketsiz, buyuk) */
+   .rc-rl-table tbody td.rc-rl-td-musteri {
+      font-size: 15px !important;
+      font-weight: 700;
+      background: #faf7fe;
+      border-radius: 10px;
+      margin: 2px 4px 6px;
+   }
+   .rc-rl-table tbody td.rc-rl-td-musteri::before { content: none; }
+   /* Bos hucreleri (ornek: durum=2 islemler bos) gizle */
+   .rc-rl-table tbody td:empty { display: none !important; }
 }
 
-/* === RESPONSIVE: KUCUCUK MOBILE (≤380px) === */
-@media (max-width: 380px) {
+/* === RESPONSIVE: KUCUK MOBILE (≤420px) === */
+@media (max-width: 420px) {
    .rc-rl-header-right { flex-direction: column; }
    .rc-rl-header-right .rc-rl-btn { width: 100%; }
    .rc-rl-title-row { gap: 10px; }
    .rc-rl-icon-bubble { width: 36px; height: 36px; font-size: 14px; }
-   .rc-rl-table tbody tr { padding: 14px; }
+   .rc-rl-table tbody td { padding: 8px 12px !important; font-size: 12.5px; }
    .rc-rl-table tbody td.rc-rl-td-musteri { font-size: 14.5px !important; }
-   .rc-rl-table tbody td.rc-rl-td-telefon { font-size: 12.5px !important; }
-   .rc-rl-table tbody td.rc-rl-td-tarih,
-   .rc-rl-table tbody td.rc-rl-td-saat {
-      font-size: 12px !important;
-      padding: 6px 10px !important;
-   }
 }
 </style>
 
