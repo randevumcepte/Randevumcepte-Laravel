@@ -815,6 +815,21 @@
          .header-left { flex: 1 1 0 !important; min-width: 0 !important; overflow: hidden; flex-wrap: nowrap !important; }
          .header-right { flex-wrap: nowrap !important; flex-shrink: 0 !important; }
 
+         /* Arama select'leri daralabilsin; salon kart hicbir zaman yari kirpilmasin.
+            (Aksi halde header-left overflow:hidden son elemani = salon kartini keser) */
+         .header-left .header-search,
+         .header-left .header-search2 {
+            flex: 0 1 auto !important;
+            min-width: 0 !important;
+         }
+         .header-left .header-search select,
+         .header-left .header-search2 select { min-width: 0 !important; }
+         .header-left .header-search .select2-container,
+         .header-left .header-search2 .select2-container {
+            width: 100% !important; max-width: 100% !important; min-width: 0 !important;
+         }
+         .rc-salon-wrap { flex: 0 0 auto !important; }
+
          /* ----- ≤1024px: salon kart kucult, search'leri gizle, header tek satir ----- */
          @media (max-width: 1024px) {
             .header { min-height: 60px !important; }
