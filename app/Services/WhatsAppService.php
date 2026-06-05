@@ -103,7 +103,37 @@ class WhatsAppService
         // 4xx/5xx = hemen başarısız, SMS fallback tetiklenmeli
         $err = $response['error'] ?? ($response['body']['error'] ?? 'unknown');
         $this->markFailed($logId, $err);
+        $this->markSessionLostIfNeeded($salon, $err);
         return ['ok' => false, 'error' => $err, 'status' => $response['status'] ?? 0, 'logId' => $logId, 'provider' => 'baileys'];
+    }
+
+    /**
+     * Bridge "unauthorized / loggedout / session-not-found" gibi bir hata dondurduyse
+     * salonun WhatsApp durumunu DB'de "disconnected" yap. Aksi halde panel "Bagli"
+     * gostermeye devam eder, her mesajda bos yere WA denenir ve fallback gecikir.
+     */
+    public function markSessionLostIfNeeded(Salonlar $salon, $error)
+    {
+        $err = strtolower((string) $error);
+        $markers = ['unauthorized', 'loggedout', 'logged-out', 'logged_out', 'session-not-found', 'no-session', 'session-missing', 'not-authenticated'];
+        $sessionLost = false;
+        foreach ($markers as $m) {
+            if (strpos($err, $m) !== false) { $sessionLost = true; break; }
+        }
+        if (!$sessionLost) return;
+
+        $simdiki = (string) ($salon->whatsapp_durum ?? '');
+        // Zaten disconnected/banned ise tekrar yazma — gereksiz update + log gurultusu olmasin
+        if (in_array($simdiki, ['disconnected', 'banned-or-loggedout', 'auto-paused-ban-risk'], true)) {
+            return;
+        }
+
+        $salon->whatsapp_durum = 'disconnected';
+        $salon->whatsapp_son_hata = substr('Bridge: ' . $error, 0, 120);
+        $salon->save();
+        Log::warning('[WA] oturum yetkisiz tespit edildi, salon disconnected isaretlendi', [
+            'salon_id' => $salon->id, 'error' => $error,
+        ]);
     }
 
     protected function sendViaCloudApi(Salonlar $salon, $to, $message, $randevuId, $userId, $templateCtx)

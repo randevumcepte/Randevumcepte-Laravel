@@ -77,6 +77,10 @@ class WhatsAppWebhookController extends Controller
             ->where('id', $logId)
             ->update(['durum' => 2, 'hata' => $err, 'updated_at' => now()]);
 
+        // Bridge oturumun yetkisiz oldugunu soyluyorsa salonu disconnected isaretle.
+        // Sonraki mesajlar bos yere WA denenmesin, panel gercek durumu gostersin.
+        app(\App\Services\WhatsAppService::class)->markSessionLostIfNeeded($salon, $err);
+
         // SMS'e düşür — aynı randevu için
         if (!config('whatsapp.fallback_to_sms', true)) return;
 
