@@ -941,10 +941,10 @@ Modüler akış (Adım 1-4) sadece **adisyon/tahsilat/masraf** seviyesinde çal�
 
 | Tablo | Senkron edilen alanlar | Not |
 |---|---|---|
-| `Randevular` | `tarih`, `saat`, `durum`, **`randevuya_geldi`**, `personel_notu` | `geldi` EXPLICIT null bile olsa set edilir (eski yanlış değer silinir). `personel_notu` = `"SR appt.note + [salonrandevu-rdv:X]"` — manuel girilmiş not OVERWRITE olur. |
+| `Randevular` | `tarih`, `saat`, `durum`, **`randevuya_geldi`**, `personel_notu` | `geldi` EXPLICIT null bile olsa set edilir (eski yanlış değer silinir). `personel_notu` = `"SR appt.note + [salonrandevu-rdv:X]"` — SR'deki güncel not her seferinde yansır. |
 | `RandevuHizmetler` (per `hizmet_id`) | `saat`, `saat_bitis`, `sure_dk`, `fiyat`, `personel_id` | `saat_bitis` = SR `appointment_end_date` doluysa o, yoksa `saat + sure_dk`. `sure_dk < 15` ise 15. |
 
-Yani re-import güvenli: SR'de yapılan değişiklikler (durum, geldi, personel, saat, süre) DB'ye yansır. Tek kayıp: manuel `personel_notu` (SR notu overwrite ediyor) — orijinal not düzenlemeleri kaybolur.
+Re-import güvenli: SR'de yapılan değişiklikler (durum, geldi, personel, saat, süre, not) DB'ye yansır. SR otoriter (aktarım öncesi sistem kullanılmadığı için manuel not çakışması yok).
 
 **Modüler akışla ilişki**: Randevu kaynağındaki `appointment_id` ile receipt kaynağındaki `receipt_id` (rid) **farklı pool'dan**. Modüler Adım 1-3 receipt'leri işler (paket/hizmet/ürün satış+tahsilat); Adım 0'daki randevu akışı takvim görünümü içindir, satış zincirine değmez.
 
