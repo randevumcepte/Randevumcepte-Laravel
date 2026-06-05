@@ -2120,62 +2120,131 @@
       </div>
    </div>
 </div>
+<style>
+#yeni_oda_modal .modal-dialog,
+#oda_duzenle_modal2 .modal-dialog { max-width:520px; }
+.roo-modal { border-radius:12px; border:0; overflow:hidden; box-shadow:0 20px 50px rgba(92,0,142,.18); }
+.roo-header {
+   display:flex; align-items:center; gap:10px;
+   padding:13px 18px; background:#faf5ff;
+   border-bottom:1px solid #ede1f7; position:relative;
+}
+.roo-header .roo-icon {
+   width:36px; height:36px; border-radius:9px;
+   background:#5C008E; color:#fff;
+   display:inline-flex; align-items:center; justify-content:center;
+   font-size:16px; flex-shrink:0;
+}
+.roo-header h2 { margin:0; font-size:16px; color:#3a1a52; font-weight:700; }
+.roo-header p { margin:1px 0 0; font-size:11.5px; color:#7c6c8a; }
+.roo-close {
+   position:absolute; top:9px; right:11px;
+   background:transparent; border:0; font-size:21px; line-height:1;
+   color:#9d8ba8; cursor:pointer; transition:color .15s, background .15s;
+   width:27px; height:27px; border-radius:6px;
+}
+.roo-close:hover { color:#ef4444; background:#fdecec; }
+.roo-body { padding:14px 18px 6px; background:#fff; max-height:70vh; overflow-y:auto; }
+.roo-fg { margin-bottom:13px; }
+.roo-fg:last-child { margin-bottom:4px; }
+.roo-fg > label { font-size:11.5px; font-weight:600; color:#3a2e57; margin-bottom:3px; display:block; }
+.roo-fg > label .roo-opt { color:#94a3b8; font-weight:500; }
+.roo-hint { display:block; color:#9d8ba8; font-size:10.5px; margin:0 0 6px; }
+.roo-body input.form-control:not(.select2-search__field) {
+   border-radius:8px; border:1px solid #dfd6ea; min-height:38px;
+   font-size:13px; padding:6px 12px;
+}
+.roo-body input.form-control:not(.select2-search__field):focus {
+   border-color:#5C008E; box-shadow:0 0 0 3px rgba(92,0,142,.1);
+}
+/* Select2 (multiple) — sadece gorunur kismi ayarla, search input'a dokunma */
+.roo-body .select2-container--default .select2-selection--multiple {
+   border-radius:8px; border:1px solid #dfd6ea; min-height:38px;
+}
+.roo-body .select2-container--default.select2-container--focus .select2-selection--multiple,
+.roo-body .select2-container--default.select2-container--open .select2-selection--multiple {
+   border-color:#5C008E; box-shadow:0 0 0 3px rgba(92,0,142,.1);
+}
+.roo-body .select2-container--default .select2-selection--multiple .select2-selection__choice {
+   background:#f1e8fa; border:1px solid #d9c6ee; color:#5C008E;
+   border-radius:6px; font-size:12px; padding:1px 7px;
+}
+.roo-body .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+   color:#9d5dc8; margin-right:4px;
+}
+.roo-footer {
+   display:flex; justify-content:flex-end; gap:8px;
+   padding:11px 18px; border-top:1px solid #ece6f3; background:#fbfafd;
+}
+.roo-btn-save {
+   background:#5C008E; color:#fff !important;
+   padding:8px 20px; border-radius:8px; font-weight:700; font-size:13px;
+   border:0; box-shadow:0 4px 10px rgba(92,0,142,.25); transition:background .15s;
+}
+.roo-btn-save:hover { background:#48006e; }
+.roo-btn-cancel {
+   background:#fff; color:#7c6c8a !important;
+   padding:8px 18px; border-radius:8px; font-weight:600; font-size:13px;
+   border:1px solid #dfd6ea;
+}
+.roo-btn-cancel:hover { background:#f5f0fa; color:#3a2e57 !important; }
+@media (max-width:600px) {
+   #yeni_oda_modal .modal-dialog,
+   #oda_duzenle_modal2 .modal-dialog { max-width:96%; }
+   .roo-header { padding:11px 14px; }
+   .roo-body { padding:12px 14px 4px; }
+   .roo-footer { padding:9px 14px; }
+}
+</style>
 <div
    id="yeni_oda_modal"
    class="modal modal-top fade calendar-modal"
    >
-   <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
-      <div class="modal-content" style="max-height: 90%;">
+   <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content roo-modal">
          <form id="yeniodabilgiekle"  method="POST">
-            <div class="modal-body">
-               {!!csrf_field()!!}
-               <input type="hidden" name="sube" value="{{$isletme->id}}">
-               <h2 class="text-blue h2 mb-10" >Yeni Oda</h2>
-               <div class="form-group">
-                  <label>Oda Adı</label>
-                  <input type="text" required name="oda_adi"  class="form-control">
+            {!!csrf_field()!!}
+            <input type="hidden" name="sube" value="{{$isletme->id}}">
 
+            <div class="roo-header">
+               <div class="roo-icon"><i class="fa fa-door-open"></i></div>
+               <div>
+                  <h2>Yeni Oda</h2>
+                  <p>Odayı tanımlayın, personel ve hizmetleri eşleştirin.</p>
                </div>
-               <div class="form-group">
-                  <label>Personel (opsiyonel)</label>
+               <button type="button" class="roo-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
+            </div>
+
+            <div class="modal-body roo-body">
+               <div class="roo-fg">
+                  <label>Oda Adı</label>
+                  <input type="text" required name="oda_adi" class="form-control" placeholder="Örn. 1. Kat Lazer Odası">
+               </div>
+               <div class="roo-fg">
+                  <label>Personel <span class="roo-opt">(opsiyonel)</span></label>
                   <select name="oda_personeli[]" multiple style="width:100%" class="form-control oda_personel_secimi custom-select2" data-placeholder="Personel seçiniz (boş bırakılabilir)">
                      @foreach($personeller_raw as $per)
                         <option value="{{ $per->id }}">{{ $per->personel_adi }}</option>
                      @endforeach
                   </select>
                </div>
-               <div class="form-group">
+               <div class="roo-fg">
                   <label>Bu odada verilen hizmetler</label>
-                  <small class="form-text text-muted" style="margin-bottom:6px;">Paket satışlarında uygun oda otomatik atanır.</small>
+                  <small class="roo-hint">Paket satışlarında uygun oda otomatik atanır.</small>
                   <select name="oda_hizmetleri[]" multiple style="width:100%" class="form-control oda_hizmet_secimi custom-select2" data-placeholder="Hizmet seçiniz">
                      @foreach(($hizmetler_raw ?? []) as $hz)
                         <option value="{{ $hz['id'] }}">{{ $hz['hizmet_adi'] }}</option>
                      @endforeach
                   </select>
                </div>
-
             </div>
 
-            <div class="modal-footer" style="display:block">
-               <div class="row">
-                  <div class="col-6 col-xs-6 col-sm-6">
-                     <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i>
-                     Kaydet
-                     </button>
-                  </div>
-                  <div class="col-6 col-xs-6 col-sm-6">
-                     <button id="modal_kapat"
-                        type="button"
-                        class="btn btn-danger btn-lg btn-block"
-                        data-dismiss="modal"
-                        ><i class="fa fa times"></i>
-                     Kapat
-                     </button>
-                  </div>
-               </div>
+            <div class="roo-footer">
+               <button id="modal_kapat" type="button" class="btn roo-btn-cancel" data-dismiss="modal">Vazgeç</button>
+               <button type="submit" class="btn roo-btn-save"><i class="fa fa-save"></i> Kaydet</button>
             </div>
-         </div>
-      </form>
+         </form>
+      </div>
    </div>
 </div>
 
@@ -2184,59 +2253,52 @@
    id="oda_duzenle_modal2"
    class="modal modal-top fade calendar-modal"
    >
-   <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
-      <div class="modal-content" style="max-height: 90%;">
+   <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content roo-modal">
          <form id="odabilgiduzenle"  method="POST">
-            <div class="modal-body">
-               {!!csrf_field()!!}
-               <input type="hidden" name="sube" value="{{$isletme->id}}">
-               <input type="hidden" name="oda_id" id="duzenlenecek_oda_id">
-               <h2 class="text-blue h2 mb-10" >Oda Düzenle</h2>
-               <div class="form-group">
-                  <label>Oda Adı</label>
-                  <input type="text" required name="oda_adi" id="oda_adi" class="form-control">
+            {!!csrf_field()!!}
+            <input type="hidden" name="sube" value="{{$isletme->id}}">
+            <input type="hidden" name="oda_id" id="duzenlenecek_oda_id">
 
+            <div class="roo-header">
+               <div class="roo-icon"><i class="fa fa-pen"></i></div>
+               <div>
+                  <h2>Oda Düzenle</h2>
+                  <p>Oda bilgilerini, personel ve hizmetleri güncelleyin.</p>
                </div>
-               <div class="form-group">
-                  <label>Personel (opsiyonel)</label>
+               <button type="button" class="roo-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
+            </div>
+
+            <div class="modal-body roo-body">
+               <div class="roo-fg">
+                  <label>Oda Adı</label>
+                  <input type="text" required name="oda_adi" id="oda_adi" class="form-control" placeholder="Örn. 1. Kat Lazer Odası">
+               </div>
+               <div class="roo-fg">
+                  <label>Personel <span class="roo-opt">(opsiyonel)</span></label>
                   <select name="oda_personeli[]" multiple id="oda_personeli" style="width:100%" class="form-control oda_personel_secimi custom-select2" data-placeholder="Personel seçiniz (boş bırakılabilir)">
                      @foreach($personeller_raw as $per)
                         <option value="{{ $per->id }}">{{ $per->personel_adi }}</option>
                      @endforeach
                   </select>
                </div>
-               <div class="form-group">
+               <div class="roo-fg">
                   <label>Bu odada verilen hizmetler</label>
-                  <small class="form-text text-muted" style="margin-bottom:6px;">Paket satışlarında uygun oda otomatik atanır.</small>
+                  <small class="roo-hint">Paket satışlarında uygun oda otomatik atanır.</small>
                   <select name="oda_hizmetleri[]" multiple id="oda_hizmetleri" style="width:100%" class="form-control oda_hizmet_secimi custom-select2" data-placeholder="Hizmet seçiniz">
                      @foreach(($hizmetler_raw ?? []) as $hz)
                         <option value="{{ $hz['id'] }}">{{ $hz['hizmet_adi'] }}</option>
                      @endforeach
                   </select>
                </div>
-
             </div>
 
-            <div class="modal-footer" style="display:block">
-               <div class="row">
-                  <div class="col-6 col-xs-6 col-sm-6">
-                     <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i>
-                     Kaydet
-                     </button>
-                  </div>
-                  <div class="col-6 col-xs-6 col-sm-6">
-                     <button id="modal_kapat"
-                        type="button"
-                        class="btn btn-danger btn-lg btn-block"
-                        data-dismiss="modal" 
-                        ><i class="fa fa times"></i>
-                     Kapat
-                     </button>
-                  </div>
-               </div>
+            <div class="roo-footer">
+               <button id="modal_kapat" type="button" class="btn roo-btn-cancel" data-dismiss="modal">Vazgeç</button>
+               <button type="submit" class="btn roo-btn-save"><i class="fa fa-save"></i> Kaydet</button>
             </div>
+         </form>
       </div>
-      </form>
    </div>
 </div>
 
