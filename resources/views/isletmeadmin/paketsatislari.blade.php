@@ -5,55 +5,41 @@
  <form id="paket_satis_form" action="{{route('pakettahsilatagit')}}" method="POST">
   <input name="sube" type="hidden" value="{{$isletme->id}}">
 
-   {{-- Modern Satış Kartı (başlık + satış alanları tek blokta) --}}
-   <div class="rc-pk-action-card">
-      {{-- Üst şerit: başlık + Yeni Paket --}}
-      <div class="rc-pk-card-top">
-         <div class="rc-pk-title-row">
-            <div class="rc-pk-icon-bubble"><i class="fa fa-cubes"></i></div>
-            <div>
-               <h1 class="rc-pk-title">{{$sayfa_baslik}}</h1>
-               <nav class="rc-pk-breadcrumb" aria-label="breadcrumb">
-                  <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
-                  <span class="rc-pk-sep">›</span>
-                  <span class="rc-pk-active">{{$sayfa_baslik}}</span>
-               </nav>
-            </div>
+   {{-- Tek satır toolbar: başlık + satış alanları + butonlar --}}
+   <div class="rc-pk-action-card rc-pk-toolbar">
+      <div class="rc-pk-title-row">
+         <div class="rc-pk-icon-bubble"><i class="fa fa-cubes"></i></div>
+         <div>
+            <h1 class="rc-pk-title">{{$sayfa_baslik}}</h1>
+            <nav class="rc-pk-breadcrumb" aria-label="breadcrumb">
+               <a href="/isletmeyonetim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}">Ana Sayfa</a>
+               <span class="rc-pk-sep">›</span>
+               <span class="rc-pk-active">{{$sayfa_baslik}}</span>
+            </nav>
          </div>
-         <button type="button" data-toggle="modal" data-target="#paket-modal"
-                 class="rc-pk-btn rc-pk-btn-success yenieklebuton501">
-            <i class="fa fa-plus"></i><span>Yeni Paket</span>
-         </button>
       </div>
 
-      {{-- Satış başlığı --}}
-      <div class="rc-pk-action-head">
-         <i class="fa fa-shopping-cart"></i>
-         <span>Paket Satışı</span>
-         <span class="rc-pk-action-hint">Listeden paket(ler) seçin, müşteri ve personel belirleyip “Satış Yap”a basın.</span>
+      <div class="rc-pk-field">
+         <select class="form-control custom-select2 musteri_secimi" id="paket_satis_musteri_id"
+                 name="paket_satis_musteri_id" aria-label="Müşteri / Danışan" style="width:100%">
+            <option></option>
+         </select>
       </div>
-      <div class="rc-pk-action-grid">
-         <div class="rc-pk-field">
-            <label for="paket_satis_musteri_id">Müşteri / Danışan</label>
-            <select class="form-control custom-select2 musteri_secimi" id="paket_satis_musteri_id"
-                    name="paket_satis_musteri_id" style="width:100%">
-               <option></option>
-            </select>
-         </div>
-         <div class="rc-pk-field">
-            <label for="paket_satis_personel_id">Personel</label>
-            <select class="form-control custom-select2 personel_secimi" id="paket_satis_personel_id"
-                    name="paket_satis_personel_id" style="width:100%">
-               <option value=""></option>
-            </select>
-         </div>
-         <div class="rc-pk-field rc-pk-field-action">
-            <a title="Tahsil Et" id="secilenpaket_satis_yap" href="isletmeyonetim/adisyondetay"
-               class="rc-pk-btn rc-pk-btn-primary yenieklebuton502">
-               <i class="fa fa-check"></i><span>Satış Yap</span>
-            </a>
-         </div>
+      <div class="rc-pk-field">
+         <select class="form-control custom-select2 personel_secimi" id="paket_satis_personel_id"
+                 name="paket_satis_personel_id" aria-label="Personel" style="width:100%">
+            <option value=""></option>
+         </select>
       </div>
+
+      <button type="button" data-toggle="modal" data-target="#paket-modal"
+              class="rc-pk-btn rc-pk-btn-success yenieklebuton501">
+         <i class="fa fa-plus"></i><span>Yeni Paket</span>
+      </button>
+      <a title="Tahsil Et" id="secilenpaket_satis_yap" href="isletmeyonetim/adisyondetay"
+         class="rc-pk-btn rc-pk-btn-primary yenieklebuton502">
+         <i class="fa fa-check"></i><span>Satış Yap</span>
+      </a>
    </div>
 
    {{-- Modern Tablo Kartı --}}
@@ -109,17 +95,17 @@
    --rc-border: #eef0f4;
 }
 
-/* === KART ÜST ŞERİT (başlık + Yeni Paket, tek blok içinde) === */
-.rc-pk-card-top {
+/* === TEK SATIR TOOLBAR (başlık + satış alanları + butonlar) === */
+.rc-pk-toolbar {
    display: flex;
    align-items: center;
-   justify-content: space-between;
-   gap: 16px;
+   gap: 14px;
    flex-wrap: wrap;
-   padding-bottom: 16px;
-   margin-bottom: 16px;
-   border-bottom: 1px solid var(--rc-border);
+   padding: 14px 18px;
 }
+.rc-pk-toolbar .rc-pk-title-row { flex: 0 0 auto; margin-right: 4px; }
+.rc-pk-toolbar .rc-pk-field { flex: 1 1 190px; min-width: 160px; }
+.rc-pk-toolbar .rc-pk-btn { flex: 0 0 auto; }
 .rc-pk-title-row {
    display: flex;
    align-items: center;
@@ -571,15 +557,12 @@
    .rc-pk-title { font-size: 16px; }
    .rc-pk-breadcrumb { font-size: 11.5px; }
 
-   .rc-pk-action-card { padding: 14px 14px 16px; border-radius: 12px; }
+   .rc-pk-action-card { padding: 12px 14px; border-radius: 12px; }
 
-   /* Tablette başlık solda, Yeni Paket sağda kalsın (sığıyor) */
-   .rc-pk-card-top { padding-bottom: 14px; margin-bottom: 14px; }
-
-   /* İki seçim yan yana, Satış Yap altta tam genişlik */
-   .rc-pk-action-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-   .rc-pk-field-action { grid-column: 1 / -1; width: 100%; }
-   .rc-pk-field-action .rc-pk-btn { width: 100%; }
+   /* Tablet: başlık tam satır, iki seçim yan yana, butonlar yan yana altta */
+   .rc-pk-toolbar .rc-pk-title-row { flex: 1 1 100%; margin-right: 0; }
+   .rc-pk-toolbar .rc-pk-field { flex: 1 1 44%; min-width: 0; }
+   .rc-pk-toolbar .rc-pk-btn { flex: 1 1 44%; }
 
    .rc-pk-card { padding: 8px; border-radius: 14px; }
    .rc-pk-card .dataTables_wrapper { padding: 10px 8px 4px; }
@@ -649,13 +632,10 @@
 
 /* === RESPONSIVE: TELEFON (≤600px) === */
 @media (max-width: 600px) {
-   /* Başlık üstte, Yeni Paket altta tam genişlik */
-   .rc-pk-card-top { gap: 12px; }
-   .rc-pk-card-top .rc-pk-title-row { width: 100%; }
-   .rc-pk-card-top > .rc-pk-btn { width: 100%; }
-
-   /* Seçimler tek sütun */
-   .rc-pk-action-grid { grid-template-columns: 1fr; }
+   /* Her şey tam genişlik, alt alta */
+   .rc-pk-toolbar { gap: 10px; }
+   .rc-pk-toolbar .rc-pk-field { flex: 1 1 100%; }
+   .rc-pk-toolbar .rc-pk-btn { flex: 1 1 100%; }
 }
 
 /* === RESPONSIVE: KÜÇÜK MOBILE (≤420px) === */
