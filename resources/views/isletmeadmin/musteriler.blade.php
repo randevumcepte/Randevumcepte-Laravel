@@ -25,11 +25,9 @@
          @if(!Auth::guard('satisortakligi')->check())
          @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.ekle_duzenle'))
          <a href="#" data-toggle="modal" data-target="#toplu-musteri-modal" class="rc-mu-btn rc-mu-btn-primary yenieklebuton502"><i class="fa fa-user-plus"></i><span>Toplu Müşteri Ekle</span></a>
-         <a href="#" id="cinsiyet-otomatik-doldur-btn" class="rc-mu-btn rc-mu-btn-info" title="İsme göre otomatik cinsiyet tespiti"><i class="fa fa-magic"></i><span>Cinsiyetleri Otomatik Doldur</span></a>
          @endif
          @else
          <a href="#" data-toggle="modal" data-target="#toplu-musteri-modal" class="rc-mu-btn rc-mu-btn-primary yenieklebuton502"><i class="fa fa-user-plus"></i><span>Toplu Müşteri Ekle</span></a>
-         <a href="#" id="cinsiyet-otomatik-doldur-btn" class="rc-mu-btn rc-mu-btn-info" title="İsme göre otomatik cinsiyet tespiti"><i class="fa fa-magic"></i><span>Cinsiyetleri Otomatik Doldur</span></a>
          @endif
       </div>
    </div>
@@ -686,62 +684,6 @@
       $(document).on('draw.dt', sel, function(){ setTimeout(function(){ applyLabels(sel); }, 60); });
    });
 })();
-
-$(document).on('click', '#cinsiyet-otomatik-doldur-btn', function(e) {
-    e.preventDefault();
-    var $btn = $(this);
-    var sube = (new URLSearchParams(window.location.search)).get('sube') || '';
-
-    Swal.fire({
-        title: 'Cinsiyetleri Otomatik Doldur',
-        html: 'Bu işlem, cinsiyeti <b>belirtilmemiş</b> tüm müşterilerin cinsiyetini ad-soyada göre tespit eder. Mevcut cinsiyet değerlerine dokunulmaz.<br><br>Devam etmek istiyor musunuz?',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Evet, doldur',
-        cancelButtonText: 'Vazgeç',
-        confirmButtonColor: '#5C008E'
-    }).then(function(result) {
-        if (!result.value) return;
-
-        Swal.fire({
-            title: 'İşleniyor...',
-            text: 'Cinsiyetler tespit ediliyor, lütfen bekleyiniz.',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            onBeforeOpen: function() { Swal.showLoading(); }
-        });
-
-        $btn.prop('disabled', true);
-
-        $.ajax({
-            type: 'POST',
-            url: '/isletmeyonetim/cinsiyet-otomatik-doldur' + (sube ? ('?sube=' + sube) : ''),
-            data: { _token: $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val() },
-            dataType: 'json',
-            success: function(res) {
-                $btn.prop('disabled', false);
-                if (res && res.status === 'success') {
-                    Swal.fire({
-                        title: 'Tamamlandı',
-                        html: '<b>' + res.guncellenen + '</b> müşterinin cinsiyeti otomatik olarak belirlendi.<br>'
-                            + '<b>' + res.kalan_bos + '</b> müşterinin adı sözlükte bulunmadığı için belirsiz kaldı.',
-                        icon: 'success',
-                        confirmButtonText: 'Tamam',
-                        confirmButtonColor: '#5C008E'
-                    }).then(function() {
-                        if (res.guncellenen > 0) location.reload();
-                    });
-                } else {
-                    Swal.fire('Hata', (res && res.mesaj) ? res.mesaj : 'İşlem başarısız oldu.', 'error');
-                }
-            },
-            error: function(xhr) {
-                $btn.prop('disabled', false);
-                Swal.fire('Hata', 'Sunucu hatası: ' + (xhr.status || ''), 'error');
-            }
-        });
-    });
-});
 </script>
 
 @endsection()
