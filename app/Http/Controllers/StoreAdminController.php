@@ -15775,7 +15775,10 @@ DB::raw('
             }
         }
 
-        // Pakete dahil ek hizmetler (Santral, E-Asistan, Memnuniyet Anketi)
+        // Pakete dahil ek hizmetler — SADECE Premium pakette (uyelik_turu == 3) gösterilir.
+        // Standart/Başlangıç paketlerine kesinlikle eklenmez.
+        if((int) $isletme->uyelik_turu === 3)
+        {
         $hizmetler[] = [
             'kod' => 'santral',
             'ad' => 'Santral Sistemi',
@@ -15863,6 +15866,7 @@ DB::raw('
                 }
             }
         } catch(\Exception $e) { /* sessiz gec */ }
+        } // /Premium pakete dahil hizmetler
 
         // Faturalar — Salonun yapmış olduğu paket ödemeleri (eger boyle bir tablo varsa)
         // Mevcut sistemde ayri bir salon-fatura tablosu yok; subscriptions/abone tablosu olusturulana kadar bos liste
