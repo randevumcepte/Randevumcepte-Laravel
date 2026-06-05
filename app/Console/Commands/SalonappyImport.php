@@ -2581,18 +2581,37 @@ class SalonappyImport extends Command
         $this->line(sprintf('Dump iceri: services=%d staffs=%d products=%d clients=%d devices=%d',
             count($services), count($staffs), count($products), count($clients), count($devices)));
 
-        // 1) Personeller + Cihazlar ÖNCE (staff.type ayrimi)
-        // Salonappy'de cihazlar ayri tablo degil, staff listesinde 'type' alaniyla
-        // ayriliyor ('personel' / 'yonetici' / 'cihaz' ...). saStaffId -> personel_id
-        // map'i kurmaliyiz ki services iterasyonunda providing_staff'i eslesirebilelim.
+        // 1) Personeller + Cihazlar ÖNCE (staff.type ayrimi).
+        // Salonappy staff'larini canonical akista (StoreAdminController:personelekleduzenle)
+        // yazariz: aktif=1, takvimde_gorunsun=1, cep_telefon, role_id, IsletmeYetkilileri,
+        // PersonelCalismaSaatleri 7 gun default (Mon-Sat 09:00-18:00, Sun pasif).
         $personelTipleri = ['personel', 'yonetici', 'manager', 'employee', 'staff', 'owner', 'admin'];
-        $personelEklenen = 0; $cihazStaffEklenen = 0;
+        $personelEklenen = 0; $personelGuncel = 0; $cihazStaffEklenen = 0;
         $saStaffIdToPersonelId = []; // Salonappy staff_id => DB salon_personelleri.id
+
+        // Role map: type_text/type -> roles.name -> id
+        $roleResolve = function ($p) {
+            $tt = trim((string) ($p['type_text'] ?? ''));
+            $t  = strtolower(trim((string) ($p['type'] ?? '')));
+            $candidates = [];
+            if ($tt !== '') $candidates[] = $tt;
+            if ($t === 'yonetici') { $candidates[] = 'Hesap Sahibi'; $candidates[] = 'Yönetici'; }
+            elseif ($t === 'personel') $candidates[] = 'Personel';
+            $candidates[] = 'Hesap Sahibi'; // fallback
+            foreach ($candidates as $name) {
+                $id = \DB::table('roles')->where('name', $name)->value('id');
+                if ($id) return $id;
+            }
+            return \DB::table('roles')->orderBy('id')->value('id');
+        };
+
         foreach ($staffs as $p) {
             $ad = trim((string) ($p['name'] ?? $p['full_name'] ?? $p['staff_name'] ?? ''));
             if ($ad === '') continue;
             $saStaffId = (string) ($p['id'] ?? '');
             $tip = strtolower(trim((string) ($p['type'] ?? '')));
+
+            // CIHAZ
             if ($tip !== '' && !in_array($tip, $personelTipleri, true)) {
                 $exists = \DB::table('cihazlar')->where('salon_id', $salonId)
                     ->where('cihaz_adi', $ad)->exists();
@@ -2601,30 +2620,114 @@ class SalonappyImport extends Command
                         \DB::table('cihazlar')->insert([
                             'salon_id'  => $salonId,
                             'cihaz_adi' => $ad,
-                            'aktifmi'   => 1,
-                            'durum'     => 1,
+                            'aktifmi'   => 1, 'durum' => 1,
                             'created_at' => date('Y-m-d H:i:s'),
                             'updated_at' => date('Y-m-d H:i:s'),
                         ]);
                         $cihazStaffEklenen++;
                     } catch (\Throwable $e) {
-                        \Log::warning('[Salonappy setup] cihaz (staff)', ['ad' => $ad, 'tip' => $tip, 'err' => $e->getMessage()]);
+                        \Log::warning('[Salonappy setup] cihaz', ['ad' => $ad, 'err' => $e->getMessage()]);
                     }
                 }
                 continue;
             }
-            // Normal personel
-            $canon = $ad;
-            $this->ensurePersonel($salonId, $ad, $canon);
-            $personelEklenen++;
-            // Map: Salonappy staff_id -> DB salon_personelleri.id
-            $persId = \DB::table('salon_personelleri')->where('salon_id', $salonId)
-                ->where('personel_adi', $canon)->value('id');
-            if ($persId && $saStaffId !== '') {
-                $saStaffIdToPersonelId[$saStaffId] = $persId;
+
+            // PERSONEL (canonical detayli)
+            $tel = preg_replace('~\D~', '', (string) ($p['phone_number'] ?? $p['phone_number_full'] ?? ''));
+            $email = trim((string) ($p['email_address'] ?? $p['email'] ?? ''));
+            $unvan = trim((string) ($p['type_text'] ?? ''));
+            $roleId = $roleResolve($p);
+
+            // Dedup: salon + (ad veya cep_telefon) ile mevcut personel ara
+            $existPers = null;
+            if ($tel) {
+                $existPers = \App\Personeller::where('salon_id', $salonId)
+                    ->where('cep_telefon', $tel)->first();
+            }
+            if (!$existPers) {
+                $existPers = \App\Personeller::where('salon_id', $salonId)
+                    ->where('personel_adi', $ad)->first();
+            }
+
+            try {
+                // IsletmeYetkilileri firstOrCreate (gsm1 ile)
+                $yetkili = null;
+                if ($tel) {
+                    $yetkili = \App\IsletmeYetkilileri::where('gsm1', $tel)->first();
+                }
+                $isYeniYetkili = false;
+                if (!$yetkili) {
+                    $yetkili = new \App\IsletmeYetkilileri();
+                    $isYeniYetkili = true;
+                }
+                $yetkili->name = $ad;
+                if ($tel) $yetkili->gsm1 = $tel;
+                if ($email && \Schema::hasColumn('isletmeyetkilileri', 'email')) $yetkili->email = $email;
+                if ($unvan && \Schema::hasColumn('isletmeyetkilileri', 'unvan')) $yetkili->unvan = $unvan;
+                $yetkili->aktif = true;
+                if ($isYeniYetkili) {
+                    $random = str_shuffle('abcdefghjklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ1234567890');
+                    $yetkili->password = \Hash::make(substr($random, 0, 8));
+                }
+                $yetkili->save();
+
+                // Personeller insert/update
+                if (!$existPers) {
+                    $personel = new \App\Personeller();
+                    $personel->salon_id = $salonId;
+                    $personel->aktif = true;
+                    $personel->takvimde_gorunsun = 1;
+                    $sonSira = \App\Personeller::where('salon_id', $salonId)
+                        ->orderBy('takvim_sirasi', 'desc')->value('takvim_sirasi');
+                    $personel->takvim_sirasi = ($sonSira ? $sonSira : 0) + 1;
+                    $sonRenk = \App\Personeller::where('salon_id', $salonId)
+                        ->orderBy('id', 'desc')->value('renk');
+                    $personel->renk = (!$sonRenk || $sonRenk == 10) ? 1 : ($sonRenk + 1);
+                    $personelEklenen++;
+                } else {
+                    $personel = $existPers;
+                    $personel->aktif = true;
+                    if (!$personel->takvimde_gorunsun) $personel->takvimde_gorunsun = 1;
+                    $personelGuncel++;
+                }
+                $personel->personel_adi = $ad;
+                if ($tel) $personel->cep_telefon = $tel;
+                if ($unvan) $personel->unvan = $unvan;
+                $personel->yetkili_id = $yetkili->id;
+                if ($roleId) $personel->role_id = $roleId;
+                if (\Schema::hasColumn('salon_personelleri', 'hizmet_prim_yuzde')) $personel->hizmet_prim_yuzde = 0;
+                if (\Schema::hasColumn('salon_personelleri', 'urun_prim_yuzde'))   $personel->urun_prim_yuzde = 0;
+                if (\Schema::hasColumn('salon_personelleri', 'paket_prim_yuzde')) $personel->paket_prim_yuzde = 0;
+                $personel->save();
+
+                // Calisma saatleri (yoksa 7 gun default ekle, varsa dokunma)
+                $varOlanGunSayisi = \DB::table('personel_calisma_saatleri')
+                    ->where('personel_id', $personel->id)->count();
+                if ($varOlanGunSayisi === 0) {
+                    for ($i = 1; $i <= 7; $i++) {
+                        \DB::table('personel_calisma_saatleri')->insert([
+                            'personel_id'     => $personel->id,
+                            'haftanin_gunu'   => $i,
+                            'calisiyor'       => ($i === 7) ? 0 : 1, // Pazar pasif
+                            'baslangic_saati' => '09:00:00',
+                            'bitis_saati'     => '18:00:00',
+                            'created_at'      => date('Y-m-d H:i:s'),
+                            'updated_at'      => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                }
+
+                // Map: Salonappy staff_id -> DB personel_id
+                if ($saStaffId !== '') {
+                    $saStaffIdToPersonelId[$saStaffId] = $personel->id;
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('[Salonappy setup] personel', [
+                    'ad' => $ad, 'tel' => $tel, 'err' => $e->getMessage(),
+                ]);
             }
         }
-        $this->line("Personel eklendi/eslesti: $personelEklenen, cihaz olarak ayrilan: $cihazStaffEklenen / " . count($staffs));
+        $this->line("Personel: yeni=$personelEklenen guncel=$personelGuncel, cihaz=$cihazStaffEklenen / " . count($staffs));
 
         // 2) Hizmetler + kategori + providing_staff pivot
         // - ensureSalonHizmet havuzda match varsa o hizmeti kullanir (ozel_hizmet=1 yaratmaz)
