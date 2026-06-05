@@ -5,9 +5,10 @@
  <form id="paket_satis_form" action="{{route('pakettahsilatagit')}}" method="POST">
   <input name="sube" type="hidden" value="{{$isletme->id}}">
 
-   {{-- Modern Page Header --}}
-   <div class="rc-pk-header">
-      <div class="rc-pk-header-left">
+   {{-- Modern Satış Kartı (başlık + satış alanları tek blokta) --}}
+   <div class="rc-pk-action-card">
+      {{-- Üst şerit: başlık + Yeni Paket --}}
+      <div class="rc-pk-card-top">
          <div class="rc-pk-title-row">
             <div class="rc-pk-icon-bubble"><i class="fa fa-cubes"></i></div>
             <div>
@@ -19,17 +20,13 @@
                </nav>
             </div>
          </div>
-      </div>
-      <div class="rc-pk-header-right">
          <button type="button" data-toggle="modal" data-target="#paket-modal"
                  class="rc-pk-btn rc-pk-btn-success yenieklebuton501">
             <i class="fa fa-plus"></i><span>Yeni Paket</span>
          </button>
       </div>
-   </div>
 
-   {{-- Modern Satış Kartı --}}
-   <div class="rc-pk-action-card">
+      {{-- Satış başlığı --}}
       <div class="rc-pk-action-head">
          <i class="fa fa-shopping-cart"></i>
          <span>Paket Satışı</span>
@@ -112,25 +109,16 @@
    --rc-border: #eef0f4;
 }
 
-/* === HEADER === */
-.rc-pk-header {
+/* === KART ÜST ŞERİT (başlık + Yeni Paket, tek blok içinde) === */
+.rc-pk-card-top {
    display: flex;
    align-items: center;
    justify-content: space-between;
    gap: 16px;
    flex-wrap: wrap;
-   padding: 18px 22px;
-   margin-bottom: 18px;
-   background: #fff;
-   border-radius: 14px;
-   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 4px 16px rgba(92, 0, 142, .04);
-}
-.rc-pk-header-left,
-.rc-pk-header-right {
-   display: flex;
-   align-items: center;
-   gap: 10px;
-   flex-wrap: wrap;
+   padding-bottom: 16px;
+   margin-bottom: 16px;
+   border-bottom: 1px solid var(--rc-border);
 }
 .rc-pk-title-row {
    display: flex;
@@ -568,7 +556,7 @@
 
 /* === RESPONSIVE: TABLET LANDSCAPE (≤1024px) === */
 @media (max-width: 1024px) {
-   .rc-pk-header { padding: 14px 16px; }
+   .rc-pk-action-card { padding: 16px 16px 18px; }
    .rc-pk-icon-bubble { width: 40px; height: 40px; font-size: 16px; }
    .rc-pk-title { font-size: 17px; }
    .rc-pk-btn { height: 38px; padding: 0 14px; font-size: 12.5px; }
@@ -578,21 +566,19 @@
    .rc-pk-table tbody td { padding: 12px 14px !important; }
 }
 
-/* === RESPONSIVE: TABLET PORTRAIT + MOBILE (≤900px) === */
+/* === RESPONSIVE: TABLET PORTRAIT (≤900px) === */
 @media (max-width: 900px) {
-   .rc-pk-header {
-      padding: 12px 14px;
-      border-radius: 12px;
-   }
-   .rc-pk-header-left { width: 100%; }
-   .rc-pk-header-right { width: 100%; }
-   .rc-pk-header-right .rc-pk-btn { flex: 1; }
    .rc-pk-title { font-size: 16px; }
    .rc-pk-breadcrumb { font-size: 11.5px; }
 
    .rc-pk-action-card { padding: 14px 14px 16px; border-radius: 12px; }
-   .rc-pk-action-grid { grid-template-columns: 1fr; gap: 12px; }
-   .rc-pk-field-action { width: 100%; }
+
+   /* Tablette başlık solda, Yeni Paket sağda kalsın (sığıyor) */
+   .rc-pk-card-top { padding-bottom: 14px; margin-bottom: 14px; }
+
+   /* İki seçim yan yana, Satış Yap altta tam genişlik */
+   .rc-pk-action-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+   .rc-pk-field-action { grid-column: 1 / -1; width: 100%; }
    .rc-pk-field-action .rc-pk-btn { width: 100%; }
 
    .rc-pk-card { padding: 8px; border-radius: 14px; }
@@ -659,6 +645,17 @@
    .rc-pk-table tbody td.rc-pk-td-ad::before { content: none; }
    .rc-pk-table tbody td.rc-pk-td-actions { justify-content: flex-end; }
    .rc-pk-table tbody td:empty { display: none !important; }
+}
+
+/* === RESPONSIVE: TELEFON (≤600px) === */
+@media (max-width: 600px) {
+   /* Başlık üstte, Yeni Paket altta tam genişlik */
+   .rc-pk-card-top { gap: 12px; }
+   .rc-pk-card-top .rc-pk-title-row { width: 100%; }
+   .rc-pk-card-top > .rc-pk-btn { width: 100%; }
+
+   /* Seçimler tek sütun */
+   .rc-pk-action-grid { grid-template-columns: 1fr; }
 }
 
 /* === RESPONSIVE: KÜÇÜK MOBILE (≤420px) === */
