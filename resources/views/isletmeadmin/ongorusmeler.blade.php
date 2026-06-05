@@ -213,8 +213,8 @@
 /* === SCROLL KABI (mobilde yatay kaydirma) === */
 .rc-og-table-scroll {
    width: 100%;
-   overflow-x: auto;
-   -webkit-overflow-scrolling: touch;
+   /* overflow yalnizca gercek mobilde (<=768) acilir; aksi halde
+      dropdown menusu kirpilir. Bkz. media query. */
 }
 
 /* === MODERN TABLO === */
@@ -451,28 +451,27 @@
    .rc-og-card { padding: 8px 12px 14px; }
    .rc-og-card .dataTables_filter input { width: 200px; }
 
-   /* Tablet: 9 sutun da sigsin diye sikistir, Islemler kirpilmasin */
-   .rc-og-table thead th { padding: 11px 9px !important; font-size: 10px; letter-spacing: .02em; }
-   .rc-og-table tbody td { padding: 11px 9px !important; font-size: 12.5px; }
+   /* Tablet: ikincil sutunlari gizle ki Durum + Islemler kaydirmadan sigsin.
+      (Olusturma=1, Musteri Tipi=3, Gorusmeyi Yapan=7 gizlenir; siralama/arama
+      DataTables tarafinda calismaya devam eder.) */
+   .rc-og-table thead th:nth-child(1),
+   .rc-og-table tbody td:nth-child(1),
+   .rc-og-table thead th:nth-child(3),
+   .rc-og-table tbody td:nth-child(3),
+   .rc-og-table thead th:nth-child(7),
+   .rc-og-table tbody td:nth-child(7) {
+      display: none !important;
+   }
+
+   /* Kalan sutunlari biraz sikistir */
+   .rc-og-table thead th { padding: 11px 10px !important; font-size: 10.5px; letter-spacing: .02em; }
+   .rc-og-table tbody td { padding: 12px 10px !important; font-size: 12.5px; }
    .rc-og-table tbody td .btn.btn-warning,
    .rc-og-table tbody td .btn.btn-success,
    .rc-og-table tbody td .btn.btn-danger {
-      padding: 4px 9px !important;
+      padding: 4px 10px !important;
       font-size: 10px !important;
    }
-   .rc-og-table tbody td .dropdown .dropdown-toggle.btn-link {
-      width: 32px; height: 32px; font-size: 16px !important;
-   }
-   /* Islemler hucresini en dara sabitle ve gorunur tut */
-   .rc-og-table thead th.rc-og-col-actions,
-   .rc-og-table tbody td:nth-child(9) {
-      position: sticky;
-      right: 0;
-      background: #fff;
-      box-shadow: -6px 0 8px -6px rgba(17, 24, 39, .12);
-   }
-   .rc-og-table tbody tr:hover td:nth-child(9) { background: #faf7fe; }
-   .rc-og-table thead th.rc-og-col-actions { background: var(--rc-purple-light); }
 }
 
 @media (max-width: 768px) {
@@ -489,8 +488,12 @@
    .rc-og-card .dataTables_filter label { display: block; width: 100%; }
    .rc-og-card .dataTables_length { display: none; }
 
-   /* tablo yatay kayar; sutunlar daralmasin */
-   .rc-og-table { min-width: 760px; }
+   /* Gercek mobilde yatay kaydirma ac (dropdown kirpilmasin diye sadece burada) */
+   .rc-og-table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+   }
+   .rc-og-table { min-width: 560px; }
    .rc-og-table thead th,
    .rc-og-table tbody td { padding: 12px 12px !important; }
 }
