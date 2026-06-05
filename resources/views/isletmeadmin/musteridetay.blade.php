@@ -41,6 +41,17 @@
             </button>
          </div>
          @endif
+         @if(($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') == 'connected')
+         <div class="d-inline-block mr-2">
+            <button class="btn btn-success btn-lg whatsapp-mesaj-ac"
+               data-userid="{{$musteri_bilgi->id}}"
+               data-telefon="{{$musteri_bilgi->cep_telefon}}"
+               data-ad="{{$musteri_bilgi->name}}"
+               data-onay="{{ (int)($musteri_bilgi->whatsapp_onay ?? 0) }}">
+               <i class="fa fa-whatsapp"></i> WhatsApp Mesaj
+            </button>
+         </div>
+         @endif
          @if(!$is_personel_rolu)
          <div class="d-inline-block">
             <button style='display:{{($kara_liste != 1) ? "inline-block": "none"}}' class="btn btn-primary btn-lg" id='musteri_sms_kara_listeye_ekle' data-value='{{$musteri_bilgi->id}}'>
@@ -1379,4 +1390,8 @@
       dakikaPaketleriYukle();
    }
 </script>
+
+@if(($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') == 'connected')
+@include('isletmeadmin.partials.whatsapp_mesaj_modal')
+@endif
 @endsection

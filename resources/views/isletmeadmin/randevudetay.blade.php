@@ -23,7 +23,17 @@
                </ol>
             </nav>
          </div>
-  
+         <div class="col-md-6 col-sm-6 text-right">
+            @if(($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') == 'connected')
+            <button type="button" class="btn btn-success whatsapp-mesaj-ac"
+               data-userid="{{$randevu->user_id}}"
+               data-telefon="{{$randevu->users->cep_telefon ?? ''}}"
+               data-ad="{{$randevu->users->name ?? ''}}"
+               data-onay="{{ (int)($randevu->users->whatsapp_onay ?? 0) }}">
+               <i class="fa fa-whatsapp"></i> WhatsApp Mesaj
+            </button>
+            @endif
+         </div>
       </div>
    </div>
    <div class="row">
@@ -692,7 +702,11 @@
                </form>
          </div>
          
-      </div>      
+      </div>
 
 </div>
+
+@if(($isletme->whatsapp_aktif ?? 0) && ($isletme->whatsapp_durum ?? '') == 'connected')
+@include('isletmeadmin.partials.whatsapp_mesaj_modal')
+@endif
 @endsection

@@ -826,6 +826,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/yenimusterilistesiekle','StoreAdminController@yenimusterilistesiekle');
 	Route::post('/cinsiyet-otomatik-doldur','StoreAdminController@cinsiyetOtomatikDoldur');
 	Route::get('/musteridetay/{id}','StoreAdminController@musteridetay');
+	Route::post('/musterimanuelwhatsapp','StoreAdminController@musterimanuelwhatsappgonder');
 
 	// Musteri Dakika Paketleri (solaryum, masaj gibi sure satilan hizmetler)
 	Route::post('/dakika-paketi/sat',                                   'MusteriDakikaPaketController@sat');
