@@ -319,13 +319,31 @@
 {{-- ============================================================ --}}
 {{-- HIZLI SATIŞ MODAL                                            --}}
 {{-- ============================================================ --}}
-<div class="modal fade stk-modal" id="hizli_satis_modal" tabindex="-1" aria-hidden="true">
+<div class="modal fade stk-modal" id="hizli_satis_modal" aria-hidden="true">
   <div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header" style="background: linear-gradient(135deg, var(--stk-yesil), #2E7D32);">
       <h5><i class="fa fa-shopping-cart"></i> Hızlı Satış</h5>
       <button type="button" class="close" data-dismiss="modal">&times;</button>
     </div>
     <div class="modal-body">
+      <div class="stk-bolum">
+        <div class="stk-bolum-baslik" style="color:var(--stk-yesil);">Müşteri &amp; Personel</div>
+        <div class="row">
+          <div class="col-md-7 stk-form-grup">
+            <label>Müşteri <span style="color:var(--stk-kirmizi);">*</span></label>
+            <select id="satis_musteri_id" class="form-control custom-select2 musteri_secimi" style="width:100%;">
+              <option value=""></option>
+            </select>
+          </div>
+          <div class="col-md-5 stk-form-grup">
+            <label>Personel (opsiyonel)</label>
+            <select id="satis_personel_id" class="form-control custom-select2 personel_secimi" style="width:100%;">
+              <option value=""></option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="stk-bolum">
         <div class="stk-bolum-baslik" style="color:var(--stk-yesil);">Ürün Ekle</div>
         <div class="stk-form-grup">
@@ -336,6 +354,24 @@
 
       <div class="stk-bolum" style="padding:0;">
         <div id="satis_sepet" style="min-height:140px;"></div>
+      </div>
+
+      <div class="stk-bolum">
+        <div class="row" style="align-items:center;">
+          <div class="col-md-7 stk-form-grup" style="margin-bottom:0;">
+            <label>Ödeme Yöntemi</label>
+            <select id="satis_odeme_yontemi" class="form-control" style="width:100%;">
+              @foreach(\App\OdemeYontemleri::all() as $oy)
+              <option value="{{$oy->id}}">{{$oy->odeme_yontemi}}</option>
+              @endforeach
+            </select>
+          </div>
+          <div class="col-md-5" style="padding-top:22px;">
+            <label style="cursor:pointer;font-weight:600;">
+              <input type="checkbox" id="satis_pesin" checked style="vertical-align:middle;"> Ödemeyi şimdi al (peşin)
+            </label>
+          </div>
+        </div>
       </div>
 
       <div class="sepet-toplam-kutu">
@@ -547,9 +583,10 @@ function toast(mesaj, tip) {
 // ============================================================
 // API HELPER
 // ============================================================
-async function stokApi(action, data, method) {
+async function stokApi(action, data, method, silentStatuses) {
     method = method || 'POST';
     data = data || {};
+    silentStatuses = silentStatuses || [];
     // Aktif sube id'si — yoksa server varsayilan ilk subeyi kullanir, bu da
     // tum isletmelerde ayni urunlerin cikmasina yol acar.
     const subeId = (document.getElementById('stok_sube_id') || {}).value || '';
@@ -577,6 +614,8 @@ async function stokApi(action, data, method) {
         const r = await fetch(url, opts);
         const txt = await r.text();
         if (!r.ok) {
+            // Beklenen (sessiz) statuler: ör. urun-barkod 404 -> isimle arama fallback'i devreye girer
+            if (silentStatuses.indexOf(r.status) >= 0) return null;
             // 422 ise body içinde mesaj olabilir, JSON parse dene
             try { const j = JSON.parse(txt); toast(j.mesaj || ('Sunucu hatası: ' + r.status), 'hata'); }
             catch(e) { toast('İşlem başarısız (HTTP ' + r.status + ')', 'hata'); console.error('Stok API '+r.status+':', txt); }
@@ -784,7 +823,14 @@ async function hareketleriGoster(urunId, urunAdi){
 // ============================================================
 // HIZLI SATIŞ
 // ============================================================
-function sepetSifirla(){ satisSepeti = []; sepetCiz(); document.getElementById('satis_barkod').value = ''; }
+function sepetSifirla(){
+    satisSepeti = []; sepetCiz(); document.getElementById('satis_barkod').value = '';
+    if (window.jQuery) {
+        $('#satis_musteri_id').val(null).trigger('change');
+        $('#satis_personel_id').val(null).trigger('change');
+        var p = document.getElementById('satis_pesin'); if (p) p.checked = true;
+    }
+}
 
 function sepeteEkle(urun){
     const v = satisSepeti.find(function(x){return x.urun_id == urun.id;});
@@ -811,15 +857,22 @@ function sepetCiz(){
 }
 async function hizliSatisGonder(){
     if (!satisSepeti.length) { toast('Sepet boş', 'uyari'); return; }
+    var musteriId = $('#satis_musteri_id').val();
+    if (!musteriId) { toast('Lütfen müşteri seçin', 'uyari'); $('#satis_musteri_id').select2('open'); return; }
+    var pesin = document.getElementById('satis_pesin').checked;
     var btn = document.getElementById('hizli_satis_btn');
     btn.disabled = true; var eski = btn.innerHTML; btn.innerHTML = '<span class="stk-yukleniyor"></span> İşleniyor...';
     const r = await stokApi('hizli-satis', {
         sepet: satisSepeti.map(function(k){return { urun_id: k.urun_id, miktar: k.miktar, birim_fiyat: k.birim_fiyat };}),
+        musteri_id: musteriId,
+        personel_id: $('#satis_personel_id').val() || '',
+        odeme_yontemi_id: $('#satis_odeme_yontemi').val() || '',
+        tahsilat_yap: pesin ? 1 : 0,
         kullanici_tipi: 'isletme_yonetim'
     });
     btn.disabled = false; btn.innerHTML = eski;
     if (r && r.status === 'ok'){
-        toast('Satış tamam — ₺' + tlFormat(r.toplam_tutar), 'basari');
+        toast((pesin ? 'Satış + tahsilat tamam' : 'Satış kaydedildi (ödeme bekliyor)') + ' — ₺' + tlFormat(r.toplam_tutar), 'basari');
         satisSepeti = []; sepetCiz();
         $('#hizli_satis_modal').modal('hide');
         urunleriYukle(); ozetiYukle();
@@ -1038,7 +1091,7 @@ document.addEventListener('DOMContentLoaded', function(){
             if (!kod) return;
             var bulundu = false;
             try {
-                const r = await stokApi('urun-barkod', { barkod: kod });
+                const r = await stokApi('urun-barkod', { barkod: kod }, 'POST', [404]);
                 if (r && r.id) { sepeteEkle(r); bulundu = true; }
             } catch(e) {}
             if (!bulundu) {

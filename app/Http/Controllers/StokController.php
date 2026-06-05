@@ -703,23 +703,53 @@ class StokController extends Controller
     // ============================================================
 
     /**
+     * Sistem-uyumlu hizli satis.
      * sepet: [{urun_id, miktar, birim_fiyat}]
-     * Satis hareketi ve urun_satislari kayitlari olusturur.
+     * Sistemde urun satisi DAIMA bir adisyona baglidir; bu yuzden:
+     *   1) Adisyon olusturulur (musteriye bagli)
+     *   2) Her kalem AdisyonUrunler'e yazilir + stok hareketi dusulur
+     *   3) Pesin tahsilat istenirse Tahsilatlar + TahsilatUrunler kaydi acilir
+     * Boylece satis Kasa / Satis raporlarinda gorunur (eski urun_satislari tablosu
+     * artik kullanilmadigi icin terk edildi).
      */
     public function hizliSatis(Request $request, $salonid)
     {
         $sepet = self::dizi($request->sepet);
         if (count($sepet) === 0) {
-            return response()->json(['status' => 'error', 'mesaj' => 'Sepet bos'], 422);
+            return response()->json(['status' => 'error', 'mesaj' => 'Sepet boş'], 422);
         }
-        $batch       = (string) Str::uuid();
-        $musteriId   = $request->user_id;
-        $personelId  = $request->personel_id;
-        $randevuId   = $request->randevu_id;
-        $toplamTutar = 0;
-        $satisIds    = [];
 
-        DB::transaction(function () use (&$sepet, $salonid, $batch, $musteriId, $personelId, $randevuId, &$toplamTutar, &$satisIds, $request) {
+        $musteriId = $request->musteri_id ?: $request->user_id;
+        if (!$musteriId) {
+            return response()->json(['status' => 'error', 'mesaj' => 'Müşteri seçilmedi'], 422);
+        }
+
+        $personelId   = $request->personel_id ?: null;
+        $odemeYontemi = $request->odeme_yontemi_id ?: ($request->odeme_yontemi ?: null);
+        // Pesin (ödemeyi simdi al) varsayilan: true. filter_var ile bool cevir (eski Laravel).
+        $tahsilatYap  = filter_var($request->input('tahsilat_yap', true), FILTER_VALIDATE_BOOLEAN);
+        $tarih        = $request->satis_tarihi ?: now()->toDateString();
+
+        $olusturanUserId     = \Illuminate\Support\Facades\Auth::guard('isletmeyonetim')->user()->id ?? null;
+        $olusturanPersonelId = \App\Personeller::where('salon_id', $salonid)
+            ->where('yetkili_id', $olusturanUserId)->value('id');
+
+        $batch       = (string) Str::uuid();
+        $toplamTutar = 0;
+        $sonuc       = ['adisyon_id' => null, 'tahsilat_id' => null];
+
+        DB::transaction(function () use (&$sepet, $salonid, $batch, $musteriId, $personelId, $tarih, $olusturanUserId, $olusturanPersonelId, $odemeYontemi, $tahsilatYap, &$toplamTutar, &$sonuc) {
+            // 1) Adisyon (urunsatisiekle akisindaki yeni_adisyon_olustur ile birebir)
+            $adisyon = new \App\Adisyonlar();
+            $adisyon->user_id      = $musteriId;
+            $adisyon->salon_id     = $salonid;
+            $adisyon->olusturan_id = $olusturanUserId;
+            $adisyon->tarih        = $tarih;
+            $adisyon->save();
+            $sonuc['adisyon_id'] = $adisyon->id;
+
+            $kalemTutarlari = []; // [adisyon_urun_id => satir_tutari]
+
             foreach ($sepet as $k) {
                 $urunId = $k['urun_id'] ?? null;
                 $miktar = abs((float) ($k['miktar'] ?? 1));
@@ -731,42 +761,74 @@ class StokController extends Controller
                     continue;
                 }
                 $birimFiyat = isset($k['birim_fiyat']) ? (float) $k['birim_fiyat'] : (float) $urun->fiyat;
-                $depoId = $k['depo_id'] ?? $urun->varsayilan_depo_id;
+                $satirTutar = $birimFiyat * $miktar;
+                $depoId     = $k['depo_id'] ?? $urun->varsayilan_depo_id;
 
-                $satis = new UrunSatislari();
-                $satis->salon_id    = $salonid;
-                $satis->urun_id     = $urun->id;
-                $satis->user_id     = $musteriId;
-                $satis->personel_id = $personelId;
-                $satis->randevu_id  = $randevuId;
-                $satis->adet        = $miktar;
-                $satis->fiyat       = $birimFiyat;
-                $satis->tarih       = now();
-                $satis->save();
-                $satisIds[] = (string) $satis->id;
+                // 2a) Adisyon kalemi (fiyat = satir toplami; mevcut urun satisi akisiyla ayni)
+                $adisyonUrun = new \App\AdisyonUrunler();
+                $adisyonUrun->islem_tarihi = $tarih;
+                $adisyonUrun->adisyon_id   = $adisyon->id;
+                $adisyonUrun->urun_id      = $urun->id;
+                $adisyonUrun->personel_id  = $personelId;
+                $adisyonUrun->adet         = $miktar;
+                $adisyonUrun->fiyat        = $satirTutar;
+                $adisyonUrun->save();
 
+                // 2b) Stok dusumu
                 self::hareketKaydet([
-                    'salon_id'            => $salonid,
-                    'urun_id'             => $urun->id,
-                    'depo_id'             => $depoId,
-                    'miktar'              => -$miktar,
-                    'hareket_tipi'        => 'satis',
-                    'referans_tip'        => 'urun_satislari',
-                    'referans_id'         => $satis->id,
-                    'batch_uuid'          => $batch,
-                    'birim_satis_fiyati'  => $birimFiyat,
-                    'birim_alis_fiyati'   => $urun->alis_fiyati,
-                    'kullanici_id'        => $request->kullanici_id,
-                    'kullanici_tipi'      => $request->kullanici_tipi,
+                    'salon_id'           => $salonid,
+                    'urun_id'            => $urun->id,
+                    'depo_id'            => $depoId,
+                    'miktar'             => -$miktar,
+                    'hareket_tipi'       => 'satis',
+                    'referans_tip'       => 'adisyon_urun',
+                    'referans_id'        => $adisyonUrun->id,
+                    'batch_uuid'         => $batch,
+                    'birim_satis_fiyati' => $birimFiyat,
+                    'birim_alis_fiyati'  => $urun->alis_fiyati,
+                    'kullanici_id'       => $olusturanUserId,
+                    'kullanici_tipi'     => 'isletme_yonetim',
+                    'aciklama'           => 'Hızlı satış',
                 ]);
-                $toplamTutar += $birimFiyat * $miktar;
+
+                $kalemTutarlari[$adisyonUrun->id] = $satirTutar;
+                $toplamTutar += $satirTutar;
+            }
+
+            // 3) Pesin tahsilat
+            if ($tahsilatYap && $toplamTutar > 0) {
+                $tahsilat = new \App\Tahsilatlar();
+                $tahsilat->adisyon_id    = $adisyon->id;
+                $tahsilat->tutar         = $toplamTutar;
+                $tahsilat->yapilan_odeme = $toplamTutar;
+                $tahsilat->user_id       = $musteriId;
+                $tahsilat->odeme_tarihi  = $tarih;
+                $tahsilat->olusturan_id  = $olusturanPersonelId;
+                $tahsilat->salon_id      = $salonid;
+                if ($odemeYontemi) {
+                    $tahsilat->odeme_yontemi_id = $odemeYontemi;
+                }
+                $tahsilat->notlar = 'Hızlı satış';
+                $tahsilat->save();
+                $sonuc['tahsilat_id'] = $tahsilat->id;
+
+                foreach ($kalemTutarlari as $adisyonUrunId => $satirTutar) {
+                    $tahsilatUrun = new \App\TahsilatUrunler();
+                    $tahsilatUrun->adisyon_urun_id = $adisyonUrunId;
+                    $tahsilatUrun->tahsilat_id     = $tahsilat->id;
+                    $tahsilatUrun->tutar           = $satirTutar;
+                    $tahsilatUrun->salon_id        = $salonid;
+                    $tahsilatUrun->user_id         = $musteriId;
+                    $tahsilatUrun->save();
+                }
             }
         });
 
         return [
             'status'       => 'ok',
             'batch_uuid'   => $batch,
-            'satis_ids'    => $satisIds,
+            'adisyon_id'   => (string) $sonuc['adisyon_id'],
+            'tahsilat_id'  => $sonuc['tahsilat_id'] ? (string) $sonuc['tahsilat_id'] : null,
             'toplam_tutar' => (string) $toplamTutar,
         ];
     }
