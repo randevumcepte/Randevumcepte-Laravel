@@ -4136,7 +4136,7 @@
          <script src="{{secure_asset('public/yeni_panel/src/plugins/jquery-steps/jquery.steps.js')}}"></script>
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif   
-      <script src="{{secure_asset('public/js/custom.js?v=244.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=245.0')}}"></script>
       <script src="{{secure_asset('public/js/randevuModu.js?v=1.5')}}"></script>
 
       @if($pageindex==4)

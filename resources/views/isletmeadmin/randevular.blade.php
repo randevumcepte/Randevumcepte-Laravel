@@ -342,6 +342,8 @@
    margin-bottom: 30px;
 }
 .rc-rt-calendar-card .calendar-wrap { margin-top: 0; }
+/* Takvim karti: alttaki bosluk kapansin diye ic/dis bosluklar kisildi. */
+.rc-rt-calendar-card { padding: 12px 14px 8px; margin-bottom: 10px; }
 
 /* === RESPONSIVE === */
 @media (max-width: 1024px) {
