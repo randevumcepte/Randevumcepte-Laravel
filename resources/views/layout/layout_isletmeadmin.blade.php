@@ -2109,7 +2109,6 @@
       @include('modaldialogs.senet-yeni-paket-modal')
       @endif
       @if($pageindex==50)
-      @include('modaldialogs.arsiv-form-ekle-modal')
       @include('modaldialogs.sozlesme-olustur-modal')
       @include('modaldialogs.arsiv-form-gonder-modal')
       @endif
@@ -2156,6 +2155,7 @@
       @include('modaldialogs.ongorusme-modal')
       @include('modaldialogs.musteri-ekle-modal')
       @include('modaldialogs.masraf-ekle-modal')
+      @include('modaldialogs.arsiv-form-ekle-modal')
       @include('modaldialogs.santral-web-telefon-ustune-al-modal')
       @include('modaldialogs.odeme-detay-modal')
        @include('modaldialogs.paket-tahsilat-detay-modal')
