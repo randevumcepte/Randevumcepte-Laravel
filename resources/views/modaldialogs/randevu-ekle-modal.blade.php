@@ -1989,16 +1989,10 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
                 console.log('[PAKET-HIZLI] response:', result);
                 if(result.cakismavar){
                     swal({
-                        type:'warning',
-                        title: 'Randevu Çakışması',
-                        html: "<p style='font-size:14.5px;color:#4b5563;margin:6px 0 12px;line-height:1.5;'>Vermek istediğiniz randevu saati dolu, gene de randevu vermek istiyor musunuz?</p>",
-                        showCancelButton: true,
-                        confirmButtonText: '<i class="fa fa-check"></i> Evet',
-                        cancelButtonText: '<i class="fa fa-times"></i> Hayır',
-                        confirmButtonColor: '#7c3aed',
-                        cancelButtonColor: '#9ca3af',
-                        reverseButtons: true,
-                        focusCancel: true,
+                        type:'warning', title:"<h2 style='font-size:24px;color:#fff'>Çakışma Var</h2>",
+                        background:'#ef4444',
+                        html:"<p style='color:#fff;font-size:14px'>"+result.cakismavar+"</p><p style='color:#fff'>Yine de oluşturmak ister misiniz?</p>",
+                        showCancelButton:true, confirmButtonText:'Evet, Oluştur', cancelButtonText:'Vazgeç',
                     }).then(function(r2){
                         if(r2.value) _post(true);
                         else if(onBitti) onBitti(false);
