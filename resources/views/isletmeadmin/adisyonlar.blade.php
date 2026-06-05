@@ -109,14 +109,6 @@
                        title="Sadece Faturalı (Yeşil) Satışları Göster">
                    <i class="fa fa-file-text-o"></i>
                </button>
-               @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
-               <button type="button" id="faturasizGizleSatisBtn"
-                       data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
-                       class="btn btn-{{ (int)($isletme->faturasiz_gizle ?? 0) === 1 ? 'warning' : 'default' }} rc-adi-fatura-btn"
-                       title="Faturasız İşlemleri Gizle/Göster">
-                   <i class="fa fa-file-text-o"></i>
-               </button>
-               @endif
             </div>
          </div>
       </div>
@@ -906,6 +898,30 @@
    color: #4b5563 !important;
    border: 1px solid #e5e7eb !important;
 }
+
+/* === İŞLEMLER SUTUNU: kompakt ikon butonlar, hepsi tek satirda === */
+/* İşlemler her zaman son sutun; aksiyon butonlarini esit boyutlu kare ikon
+   yapip tek satira sigdiriyoruz (genis pill gorunumu sadece tutar/durum
+   sutunlarinda kalsin). */
+.rc-adi-page .rc-adi-table tbody td:last-child {
+   white-space: nowrap !important;
+}
+.rc-adi-page .rc-adi-table tbody td:last-child .btn {
+   min-width: 0 !important;
+   width: 34px !important;
+   height: 34px !important;
+   padding: 0 !important;
+   margin: 0 1px !important;
+   display: inline-flex !important;
+   align-items: center !important;
+   justify-content: center !important;
+   border-radius: 8px !important;
+   font-size: 14px !important;
+   line-height: 1 !important;
+   vertical-align: middle !important;
+   box-shadow: none !important;
+}
+.rc-adi-page .rc-adi-table tbody td:last-child .btn i { font-size: 14px !important; margin: 0 !important; }
 
 /* === İŞLEMLER DROPDOWN === */
 .rc-adi-table tbody td .dropdown .dropdown-toggle.btn-link,
