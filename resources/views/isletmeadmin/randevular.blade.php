@@ -54,8 +54,8 @@
 </style>
 <div class="rc-rt-page">
 
-   {{-- Modern Page Header --}}
-   <div class="rc-rt-header">
+   {{-- Modern Page Header (başlık + filtreler + aksiyonlar TEK satırda) --}}
+   <div class="rc-rt-header rc-rt-header--merged">
       <div class="rc-rt-header-left">
          <div class="rc-rt-title-row">
             <div class="rc-rt-icon-bubble"><i class="fa fa-calendar"></i></div>
@@ -69,28 +69,8 @@
             </div>
          </div>
       </div>
-      <div class="rc-rt-header-right">
-         <div class="rc-rt-count-pill randevu-count-button">
-            <i class="fa fa-list-ul"></i>
-            <span class="rc-rt-count-label">Toplam Randevu</span>
-            <span class="rc-rt-count-value">{{$randevular['randevu_sayisi']}}</span>
-         </div>
-         @yetki('randevu.olustur')
-         <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2"
-            class="rc-rt-btn rc-rt-btn-primary yenieklebuton">
-            <i class="fa fa-plus"></i><span>Yeni Randevu</span>
-         </a>
-         @endyetki
-      </div>
-   </div>
 
-   {{-- Modern Filtre Kartı --}}
-   <div class="rc-rt-filter-card">
-      <div class="rc-rt-filter-head">
-         <i class="fa fa-sliders"></i>
-         <span>Takvim Ayarları</span>
-      </div>
-      <div class="rc-rt-filter-grid">
+      <div class="rc-rt-header-filters">
          @if(Auth::guard('satisortakligi')->check() || ( Auth::guard('isletmeyonetim')->check() && !Auth::guard('isletmeyonetim')->user()->hasRole('Personel')))
          <div class="rc-rt-field">
          @else
@@ -109,6 +89,20 @@
             <label for="takvim_tarihe_gore">Tarih</label>
             <input type="text" class="form-control rc-rt-input calendardatepicker" autocomplete="off" id="takvim_tarihe_gore" placeholder="Tarih Seçiniz">
          </div>
+      </div>
+
+      <div class="rc-rt-header-right">
+         <div class="rc-rt-count-pill randevu-count-button">
+            <i class="fa fa-list-ul"></i>
+            <span class="rc-rt-count-label">Toplam Randevu</span>
+            <span class="rc-rt-count-value">{{$randevular['randevu_sayisi']}}</span>
+         </div>
+         @yetki('randevu.olustur')
+         <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2"
+            class="rc-rt-btn rc-rt-btn-primary yenieklebuton">
+            <i class="fa fa-plus"></i><span>Yeni Randevu</span>
+         </a>
+         @endyetki
       </div>
    </div>
 
@@ -174,6 +168,21 @@
    gap: 10px;
    flex-wrap: wrap;
 }
+/* Tek satira birlesik header: ortadaki filtre bolumu */
+.rc-rt-header--merged { gap: 18px 24px; }
+.rc-rt-header-left { flex: 0 1 auto; }
+.rc-rt-header-filters {
+   display: flex;
+   align-items: center;
+   gap: 16px;
+   flex: 1 1 auto;
+   justify-content: center;
+   min-width: 280px;
+}
+.rc-rt-header-filters .rc-rt-field { flex: 1 1 200px; }
+.rc-rt-header-filters .rc-rt-select,
+.rc-rt-header-filters .rc-rt-input { min-width: 130px; }
+.rc-rt-header-right { flex: 0 1 auto; }
 .rc-rt-title-row {
    display: flex;
    align-items: center;
@@ -276,46 +285,7 @@
    box-shadow: 0 6px 16px rgba(92, 0, 142, .28);
 }
 
-/* === FİLTRE KARTI (kompakt tek satır) === */
-.rc-rt-filter-card {
-   background: #fff;
-   border-radius: 14px;
-   padding: 10px 18px;
-   margin-bottom: 14px;
-   box-shadow: 0 1px 3px rgba(17, 24, 39, .04), 0 4px 16px rgba(92, 0, 142, .04);
-   display: flex;
-   align-items: center;
-   gap: 20px;
-   flex-wrap: wrap;
-}
-.rc-rt-filter-head {
-   display: inline-flex;
-   align-items: center;
-   gap: 8px;
-   font-size: 12.5px;
-   font-weight: 700;
-   color: var(--rc-purple-dark);
-   text-transform: uppercase;
-   letter-spacing: .04em;
-   white-space: nowrap;
-   flex-shrink: 0;
-}
-.rc-rt-filter-head i {
-   width: 28px; height: 28px;
-   border-radius: 8px;
-   background: var(--rc-purple-light);
-   display: inline-flex;
-   align-items: center;
-   justify-content: center;
-   font-size: 13px;
-}
-.rc-rt-filter-grid {
-   display: grid;
-   grid-template-columns: repeat(2, minmax(0, 1fr));
-   gap: 16px;
-   flex: 1;
-   min-width: 280px;
-}
+/* === FİLTRE ALANLARI (header içinde) === */
 .rc-rt-field {
    display: flex;
    flex-direction: row;
@@ -388,6 +358,14 @@
       border-radius: 12px;
    }
    .rc-rt-header-left { width: 100%; }
+   .rc-rt-header-filters {
+      width: 100%;
+      flex-wrap: wrap;
+      justify-content: stretch;
+      gap: 10px;
+      min-width: 0;
+   }
+   .rc-rt-header-filters .rc-rt-field { flex: 1 1 100%; }
    .rc-rt-header-right {
       width: 100%;
       justify-content: space-between;
@@ -398,10 +376,6 @@
    .rc-rt-count-pill { flex: 1; justify-content: center; }
    .rc-rt-title { font-size: 16px; }
    .rc-rt-breadcrumb { font-size: 11.5px; }
-
-   .rc-rt-filter-card { padding: 14px; border-radius: 12px; flex-direction: column; align-items: stretch; gap: 12px; }
-   .rc-rt-filter-grid { grid-template-columns: 1fr; gap: 10px; }
-   .rc-rt-field { flex-direction: column; align-items: stretch; gap: 6px; }
 
    .rc-rt-card { padding: 10px; border-radius: 12px; }
 }
