@@ -460,7 +460,8 @@
    font-weight: 700 !important;
    color: var(--rc-text) !important;
    letter-spacing: -.1px;
-   padding-right: 90px !important;
+   min-width: 0 !important;
+   overflow-wrap: anywhere;
 }
 .rc-rl-table tbody td.rc-rl-td-musteri::before { content: none !important; display: none; }
 
@@ -472,7 +473,8 @@
    display: flex !important;
    align-items: center;
    gap: 6px;
-   padding-right: 90px !important;
+   min-width: 0 !important;
+   overflow-wrap: anywhere;
 }
 .rc-rl-table tbody td.rc-rl-td-telefon::before {
    content: "\f095";
@@ -720,7 +722,15 @@
    grid-column: 1 / -1;
 }
 
-/* === RESPONSIVE: TABLET (≤1024px) === */
+/* === RESPONSIVE: BUYUK TABLET / KUCUK LAPTOP (≤1200px) === */
+@media (max-width: 1200px) {
+   .rc-rl-table tbody {
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+   }
+}
+
+/* === RESPONSIVE: TABLET LANDSCAPE (≤1024px) === */
 @media (max-width: 1024px) {
    .rc-rl-header { padding: 14px 16px; }
    .rc-rl-icon-bubble { width: 40px; height: 40px; font-size: 16px; }
@@ -729,8 +739,27 @@
    .rc-rl-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
    .rc-rl-card .dataTables_wrapper { padding: 12px 10px 6px; }
    .rc-rl-card .dataTables_filter input { width: 200px; }
-   .rc-rl-table tbody { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+   .rc-rl-table tbody {
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+   }
    .rc-rl-table tbody tr { padding: 16px 18px 14px; }
+   .rc-rl-table tbody td.rc-rl-td-musteri { font-size: 15px !important; }
+}
+
+/* === RESPONSIVE: TABLET PORTRAIT (≤900px) — tek sutun kart ===
+   Laravel sidebar acikken icerik genisligi yetersiz oluyor;
+   bu noktada kart'lar tek sutuna geciyor. */
+@media (max-width: 900px) {
+   .rc-rl-table tbody {
+      grid-template-columns: 1fr;
+      gap: 12px;
+   }
+   .rc-rl-table tbody tr {
+      grid-template-columns: minmax(0, 1fr) auto;
+      padding: 16px 18px;
+   }
+   .rc-rl-table tbody td.rc-rl-td-musteri { font-size: 15.5px !important; }
 }
 
 /* === RESPONSIVE: MOBILE (≤768px) === */
@@ -755,25 +784,50 @@
    .rc-rl-card .dataTables_filter label { display: block; width: 100%; }
    .rc-rl-card .dataTables_length { display: none; }
 
-   .rc-rl-table tbody {
-      grid-template-columns: 1fr;
-      gap: 12px;
-      padding: 4px 2px;
+   .rc-rl-table tbody { padding: 4px 2px; }
+   .rc-rl-table tbody tr { padding: 14px 16px; }
+   .rc-rl-table tbody td.rc-rl-td-musteri { font-size: 15px !important; }
+   .rc-rl-table tbody td.rc-rl-td-tarih,
+   .rc-rl-table tbody td.rc-rl-td-saat {
+      padding: 7px 10px !important;
+      font-size: 12.5px !important;
    }
-   .rc-rl-table tbody tr { padding: 16px; }
-   .rc-rl-table tbody td.rc-rl-td-musteri { padding-right: 80px !important; font-size: 15px !important; }
-   .rc-rl-table tbody td.rc-rl-td-telefon { padding-right: 80px !important; }
+   .rc-rl-table tbody td.rc-rl-td-saat { margin-left: 6px; }
 }
 
-/* === RESPONSIVE: KÜÇÜK MOBILE (≤420px) === */
-@media (max-width: 420px) {
+/* === RESPONSIVE: KUCUK MOBILE (≤480px) ===
+   Cok dar ekranda durum + dropdown footer'a dussun, header sade kalsin. */
+@media (max-width: 480px) {
+   .rc-rl-table tbody tr {
+      grid-template-columns: 1fr !important;
+      grid-template-areas:
+         "musteri"
+         "telefon"
+         "durum"
+         "hizmetler"
+         "personel"
+         "metarow"
+         "footer" !important;
+      gap: 6px;
+   }
+   .rc-rl-table tbody td.rc-rl-td-durum {
+      justify-self: start !important;
+      align-self: auto !important;
+      margin-top: 8px;
+   }
+   .rc-rl-table tbody td.rc-rl-td-tarih { margin-right: 0; }
+   .rc-rl-table tbody td.rc-rl-td-saat { margin-left: 0; }
+}
+
+/* === RESPONSIVE: KUCUCUK MOBILE (≤380px) === */
+@media (max-width: 380px) {
    .rc-rl-header-right { flex-direction: column; }
    .rc-rl-header-right .rc-rl-btn { width: 100%; }
    .rc-rl-title-row { gap: 10px; }
    .rc-rl-icon-bubble { width: 36px; height: 36px; font-size: 14px; }
    .rc-rl-table tbody tr { padding: 14px; }
-   .rc-rl-table tbody td.rc-rl-td-musteri { padding-right: 70px !important; font-size: 14.5px !important; }
-   .rc-rl-table tbody td.rc-rl-td-telefon { padding-right: 70px !important; font-size: 12.5px !important; }
+   .rc-rl-table tbody td.rc-rl-td-musteri { font-size: 14.5px !important; }
+   .rc-rl-table tbody td.rc-rl-td-telefon { font-size: 12.5px !important; }
    .rc-rl-table tbody td.rc-rl-td-tarih,
    .rc-rl-table tbody td.rc-rl-td-saat {
       font-size: 12px !important;
