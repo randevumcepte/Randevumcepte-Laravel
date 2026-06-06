@@ -20659,6 +20659,35 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return response()->json(['ok'=>false,'mesaj'=>$hataMetin],422);
     }
 
+    /**
+     * Salonun Google Maps konum linkini kaydeder (WhatsApp mesajinda "Konum Ekle" butonu icin).
+     */
+    public function whatsappKonumKaydet(Request $request)
+    {
+        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        if(!$isletme){
+            return response()->json(['ok'=>false,'mesaj'=>'Salon bulunamadi.'],404);
+        }
+
+        $link = trim((string)$request->input('konum_linki',''));
+        if($link !== '' && !preg_match('~^https?://~i', $link)){
+            return response()->json(['ok'=>false,'mesaj'=>'Geçerli bir bağlantı girin (https:// ile başlamalı).'],422);
+        }
+        if(mb_strlen($link) > 500){
+            return response()->json(['ok'=>false,'mesaj'=>'Bağlantı çok uzun (en fazla 500 karakter).'],422);
+        }
+
+        // self-heal: kolon yoksa ekle (migrate calismamis sunucular icin)
+        if(!\Schema::hasColumn('salonlar','konum_linki')){
+            try { DB::statement('ALTER TABLE salonlar ADD COLUMN konum_linki VARCHAR(500) NULL'); } catch(\Exception $e){}
+        }
+
+        $isletme->konum_linki = $link !== '' ? $link : null;
+        $isletme->save();
+
+        return response()->json(['ok'=>true]);
+    }
+
     public function sms_raporlari(Request $request)
     {
 

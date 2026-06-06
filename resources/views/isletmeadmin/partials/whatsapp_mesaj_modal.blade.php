@@ -64,6 +64,11 @@
    border-color:#5C008E; box-shadow:0 0 0 3px rgba(92,0,142,.1);
 }
 .wam-sayac { display:block; text-align:right; color:#9d8ba8; font-size:10.5px; margin-top:3px; }
+.wam-konum-btn {
+   margin-top:6px; background:#eef6ff; color:#0b6bcb !important; border:1px solid #cfe3fb;
+   border-radius:7px; font-size:12px; font-weight:600; padding:5px 11px;
+}
+.wam-konum-btn:hover { background:#dcecfb; color:#084e96 !important; }
 
 .wam-footer {
    display:flex; justify-content:flex-end; gap:8px;
@@ -126,6 +131,13 @@
             <div class="wam-section__title"><i class="fa fa-comment"></i> Mesajınız</div>
             <textarea id="wam_mesaj" class="form-control" maxlength="1000" placeholder="Müşterinize göndermek istediğiniz mesajı buraya yazın..."></textarea>
             <small class="wam-sayac"><span id="wam_sayac">0</span> / 1000</small>
+
+            @if(!empty($isletme->konum_linki))
+            <input type="hidden" id="wam_konum_link" value="{{ $isletme->konum_linki }}">
+            <button type="button" class="btn wam-konum-btn" id="wam_konum_ekle">
+               <i class="fa fa-map-marker"></i> Konum Ekle
+            </button>
+            @endif
 
          </div>
 
@@ -199,6 +211,22 @@
    // Karakter sayaci
    $(document).on('input', '#wam_mesaj', function(){
       $('#wam_sayac').text($(this).val().length);
+   });
+
+   // Konum Ekle — salonun Google Maps linkini mesaja ekler
+   $(document).on('click', '#wam_konum_ekle', function(){
+      var link = $('#wam_konum_link').val();
+      if(!link){ return; }
+      var ta = $('#wam_mesaj');
+      var cur = ta.val();
+      // Ayni link zaten eklenmisse tekrar ekleme
+      if(cur.indexOf(link) !== -1){ return; }
+      var prefix = (cur && cur.slice(-1) !== '\n') ? '\n' : '';
+      var next = cur + prefix + '📍 Konumumuz: ' + link;
+      if(next.length > 1000){ next = next.slice(0, 1000); }
+      ta.val(next);
+      $('#wam_sayac').text(ta.val().length);
+      ta.focus();
    });
 
    // Gonder

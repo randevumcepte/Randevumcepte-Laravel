@@ -193,6 +193,59 @@
     </div>
 </div>
 
+<div class="wa-card" style="margin-top:18px;">
+    <h3 style="margin-bottom:8px">📍 İşletme Konumu</h3>
+    <p style="color:#555; margin-bottom:12px; font-size:13.5px; line-height:1.5;">
+        Google Maps'te işletmenizi bulun, <b>Paylaş → Bağlantıyı kopyala</b> ile linki alıp buraya yapıştırın.
+        Müşteriye WhatsApp mesajı yazarken <b>"📍 Konum Ekle"</b> butonuyla bu linki tek tıkla mesaja ekleyebilirsiniz;
+        müşteri tıklayınca harita ve yol tarifi açılır.
+    </p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input type="url" id="wa-konum-link"
+               style="flex:1; min-width:260px; padding:9px 11px; border:1px solid #ced4da; border-radius:6px; font-size:13px;"
+               value="{{ $isletme->konum_linki ?? '' }}" placeholder="https://maps.app.goo.gl/...  veya  https://maps.google.com/...">
+        <button type="button" class="btn-wa" id="wa-konum-kaydet">Kaydet</button>
+    </div>
+    <div id="wa-konum-status" style="margin-top:8px; font-size:13px; display:none;"></div>
+    <input type="hidden" id="wa-konum-sube" value="{{ $isletme->id }}">
+    <input type="hidden" id="wa-konum-token" value="{{ csrf_token() }}">
+</div>
+
+<script>
+(function(){
+    var kBtn = document.getElementById('wa-konum-kaydet');
+    if(kBtn){
+        kBtn.addEventListener('click', function(){
+            var link  = document.getElementById('wa-konum-link').value.trim();
+            var sube  = document.getElementById('wa-konum-sube').value;
+            var token = document.getElementById('wa-konum-token').value;
+            var st    = document.getElementById('wa-konum-status');
+            kBtn.disabled = true;
+            fetch('/isletmeyonetim/whatsapp/konum-kaydet', {
+                method: 'POST',
+                headers: { 'Content-Type':'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': token },
+                body: 'konum_linki=' + encodeURIComponent(link) + '&sube=' + encodeURIComponent(sube) + '&_token=' + encodeURIComponent(token)
+            }).then(function(r){ return r.json(); }).then(function(res){
+                kBtn.disabled = false;
+                st.style.display = 'block';
+                if(res && res.ok){
+                    st.style.color = '#1a7f3e';
+                    st.textContent = '✓ Konum kaydedildi. Artık mesaj ekranında "Konum Ekle" ile gönderebilirsiniz.';
+                    setTimeout(function(){ st.style.display='none'; }, 4000);
+                } else {
+                    st.style.color = '#dc3545';
+                    st.textContent = (res && res.mesaj) ? res.mesaj : 'Kaydedilemedi.';
+                }
+            }).catch(function(){
+                kBtn.disabled = false;
+                st.style.display = 'block'; st.style.color = '#dc3545';
+                st.textContent = 'Bağlantı hatası, tekrar deneyin.';
+            });
+        });
+    }
+})();
+</script>
+
 <script>
 (function(){
     var statusBadge = document.getElementById('wa-status-badge');
