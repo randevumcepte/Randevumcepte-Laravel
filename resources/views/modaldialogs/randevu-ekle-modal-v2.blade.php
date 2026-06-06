@@ -995,10 +995,19 @@
                 '<span class="v2-row-meta" data-meta-for="'+idx+'"></span>'+
             '</div>'+
             '<div class="v2-service-grid">'+
-                '<div class="v2-hizmet-wrap">'+
-                    '<select multiple class="form-control v2-input v2-hizmet" id="v2_hizmet_'+idx+'" data-index="'+idx+'">'+
-                        '<option></option>'+
-                    '</select>'+
+                // Hizmet 6 | Süre 3 | Fiyat 3 (Bootstrap row)
+                '<div class="row g-2 v2-hizmet-wrap">'+
+                    '<div class="col-md-6">'+
+                        '<select multiple class="form-control v2-input v2-hizmet" id="v2_hizmet_'+idx+'" data-index="'+idx+'">'+
+                            '<option></option>'+
+                        '</select>'+
+                    '</div>'+
+                    '<div class="col-md-3">'+
+                        '<input type="number" min="0" step="5" class="form-control v2-input v2-sm v2-row-sure" data-index="'+idx+'" placeholder="Süre (dk)">'+
+                    '</div>'+
+                    '<div class="col-md-3">'+
+                        '<input type="text" inputmode="decimal" class="form-control v2-input v2-sm v2-row-fiyat hy-fiyat-input" data-index="'+idx+'" placeholder="Fiyat (₺)" autocomplete="off">'+
+                    '</div>'+
                 '</div>'+
                 '<div class="v2-service-grid-row">'+
                     '<div class="v2-field"><select class="form-control v2-input v2-sm v2-personel" data-index="'+idx+'"><option value="">Personel...</option></select></div>'+
@@ -1114,11 +1123,35 @@
                 fiyat += parseFloat(d.fiyat) || 0;
             }
         });
+        // Hizmet seçilince satır seviyesindeki Süre + Fiyat input'larına default değerleri yaz
+        // (kullanıcı sonradan manuel düzenleyebilir; manuel edit varsa override etmemek için
+        // sadece input boşsa veya hizmet hiç seçili değilse yaz)
+        var $sureInp = $row.find('.v2-row-sure');
+        var $fiyatInp = $row.find('.v2-row-fiyat');
+        if(!$row.data('userEditedSure')){
+            $sureInp.val(sure > 0 ? sure : '');
+        }
+        if(!$row.data('userEditedFiyat')){
+            var fmt = sure > 0 || fiyat > 0
+                ? fiyat.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})
+                : '';
+            $fiyatInp.val(fiyat > 0 ? fmt : '');
+        }
         var meta = '';
         if(sure > 0) meta += sure + ' dk';
         if(fiyat > 0) meta += (meta ? ' · ' : '') + fmtTL(fiyat);
         $row.find('.v2-row-meta').text(meta);
     }
+
+    // Kullanıcı manuel edit yaparsa flag set et (sonraki hizmet selection override etmesin)
+    $(document).on('input', '#modal-view-event-add-v2 .v2-row-sure', function(){
+        $(this).closest('.v2-service-row').data('userEditedSure', true);
+        updateSummary();
+    });
+    $(document).on('input', '#modal-view-event-add-v2 .v2-row-fiyat', function(){
+        $(this).closest('.v2-service-row').data('userEditedFiyat', true);
+        updateSummary();
+    });
 
     function updateSummary(){
         var totalSure = 0, totalFiyat = 0;
@@ -1132,16 +1165,32 @@
                 totalFiyat += f;
                 return;
             }
-            // Normal satir: .v2-hizmet secimden cache uzerinden topla
-            var ids = $row.find('.v2-hizmet').val() || [];
-            if(!Array.isArray(ids)) ids = ids ? [ids] : [];
-            ids.forEach(function(id){
-                var d = window.hizmetDataCache ? window.hizmetDataCache[id] : null;
-                if(d){
-                    totalSure += parseFloat(d.sure) || 0;
-                    totalFiyat += parseFloat(d.fiyat) || 0;
-                }
-            });
+            // Normal satir: ÖNCE row-level Süre/Fiyat input'larını oku (kullanıcı manuel girmiş olabilir);
+            // input boşsa cache'den default değerleri kullan
+            var $rs = $row.find('.v2-row-sure');
+            var $rf = $row.find('.v2-row-fiyat');
+            var rawSure = String($rs.val() || '').trim();
+            var rawFiyat = String($rf.val() || '').trim();
+            var manualSure = parseFloat(rawSure);
+            var manualFiyat = parseFloat(rawFiyat.replace(/\./g,'').replace(',','.'));
+            if(!isNaN(manualSure) && rawSure !== ''){
+                totalSure += manualSure;
+            }
+            if(!isNaN(manualFiyat) && rawFiyat !== ''){
+                totalFiyat += manualFiyat;
+            }
+            // Input boşsa cache'den oku (geriye dönük summary)
+            if((isNaN(manualSure) || rawSure === '') || (isNaN(manualFiyat) || rawFiyat === '')){
+                var ids = $row.find('.v2-hizmet').val() || [];
+                if(!Array.isArray(ids)) ids = ids ? [ids] : [];
+                ids.forEach(function(id){
+                    var d = window.hizmetDataCache ? window.hizmetDataCache[id] : null;
+                    if(d){
+                        if(isNaN(manualSure) || rawSure === '') totalSure += parseFloat(d.sure) || 0;
+                        if(isNaN(manualFiyat) || rawFiyat === '') totalFiyat += parseFloat(d.fiyat) || 0;
+                    }
+                });
+            }
         });
         if(totalSure > 0 || totalFiyat > 0){
             $totalSure.text(totalSure + ' dk');
@@ -2354,17 +2403,27 @@
                 formData.append('randevuodalariyeni[]', odaId);
                 formData.append('randevuyardimcipersonelleriyeni_'+i+'[]', '');
 
-                hizmetIds.forEach(function(hid){
+                // Satır seviyesi manuel Süre + Fiyat input'larından oku
+                var rowSureRaw = String($row.find('.v2-row-sure').val() || '').trim();
+                var rowFiyatRaw = String($row.find('.v2-row-fiyat').val() || '').trim();
+                var rowSureMan = parseFloat(rowSureRaw);
+                var rowFiyatMan = parseFloat(rowFiyatRaw.replace(/\./g,'').replace(',','.'));
+                var hasManSure  = !isNaN(rowSureMan)  && rowSureRaw  !== '';
+                var hasManFiyat = !isNaN(rowFiyatMan) && rowFiyatRaw !== '';
+
+                hizmetIds.forEach(function(hid, hidx){
                     formData.append('randevuhizmetleriyeni_'+i+'[]', hid);
                     var d = window.hizmetDataCache ? window.hizmetDataCache[hid] : null;
-                    var sure = d ? parseFloat(d.sure)||0 : 0;
-                    var fiyat = d ? parseFloat(d.fiyat)||0 : 0;
-                    if(d){
-                        formData.append('hizmet_sureleri-'+hid, sure);
-                        formData.append('hizmet_fiyatlari-'+hid, fiyat.toFixed(2));
-                        formData.append('hizmet_miktarlari-'+hid, '1');
-                    }
-                    // BACKWARD COMPAT (conflict check)
+                    var defaultSure  = d ? parseFloat(d.sure)||0  : 0;
+                    var defaultFiyat = d ? parseFloat(d.fiyat)||0 : 0;
+                    // Manuel girilmişse: ilk hizmete TOPLAM ata, diğerlerine 0 (paket mantığı,
+                    // randevu blok-bazlı toplam süre/fiyat kadar yer kaplar)
+                    var sure  = hasManSure  ? (hidx === 0 ? rowSureMan  : 0) : defaultSure;
+                    var fiyat = hasManFiyat ? (hidx === 0 ? rowFiyatMan : 0) : defaultFiyat;
+                    formData.append('hizmet_sureleri-'+hid, sure);
+                    formData.append('hizmet_fiyatlari-'+hid, (typeof fiyat === 'number' ? fiyat : 0).toFixed(2));
+                    formData.append('hizmet_miktarlari-'+hid, '1');
+                    // BACKWARD COMPAT (cakisma kontrolu)
                     formData.append('randevuhizmetleriyeni[]', hid);
                     formData.append('hizmet_suresi[]', sure);
                     flatIdx++;
