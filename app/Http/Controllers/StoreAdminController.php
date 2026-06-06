@@ -20664,38 +20664,29 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
      */
     public function whatsappKonumKaydet(Request $request)
     {
-        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
-        if(!$isletme){
-            return response()->json(['ok'=>false,'mesaj'=>'Salon bulunamadi.'],404);
-        }
-
-        $link = trim((string)$request->input('konum_linki',''));
-        if($link !== '' && !preg_match('~^https?://~i', $link)){
-            return response()->json(['ok'=>false,'mesaj'=>'Geçerli bir bağlantı girin (https:// ile başlamalı).'],422);
-        }
-        if(mb_strlen($link) > 500){
-            return response()->json(['ok'=>false,'mesaj'=>'Bağlantı çok uzun (en fazla 500 karakter).'],422);
-        }
-
         try {
-            // self-heal: kolon yoksa ekle (migrate calismamis sunucular icin)
-            if(!\Schema::hasColumn('salonlar','konum_linki')){
-                DB::statement('ALTER TABLE salonlar ADD COLUMN konum_linki VARCHAR(500) NULL');
+            $subeId  = self::mevcutsube($request);
+            $isletme = Salonlar::where('id', $subeId)->first();
+            if(!$isletme){
+                return response()->json(['ok'=>false,'mesaj'=>'Salon bulunamadi (sube: '.$subeId.').'],404);
             }
 
-            $isletme->konum_linki = $link !== '' ? $link : null;
-            $isletme->save();
-        } catch(\Exception $e){
-            // Kolon eklenemezse (ALTER yetkisi yoksa) ham UPDATE ile yedek dene
-            try {
-                DB::table('salonlar')->where('id', $isletme->id)->update(['konum_linki' => ($link !== '' ? $link : null)]);
-            } catch(\Exception $e2){
-                \Log::error('whatsappKonumKaydet hata: '.$e->getMessage().' | '.$e2->getMessage());
-                return response()->json(['ok'=>false,'mesaj'=>'Konum kaydedilemedi: '.$e2->getMessage()],500);
+            $link = trim((string)$request->input('konum_linki',''));
+            if($link !== '' && !preg_match('~^https?://~i', $link)){
+                return response()->json(['ok'=>false,'mesaj'=>'Geçerli bir bağlantı girin (https:// ile başlamalı).'],422);
             }
+            if(mb_strlen($link) > 500){
+                return response()->json(['ok'=>false,'mesaj'=>'Bağlantı çok uzun (en fazla 500 karakter).'],422);
+            }
+
+            // Eloquent save() yerine direkt UPDATE — model event/cast/timestamps risklerini bypass eder
+            DB::table('salonlar')->where('id', $isletme->id)->update(['konum_linki' => ($link !== '' ? $link : null)]);
+
+            return response()->json(['ok'=>true]);
+        } catch(\Throwable $e){
+            \Log::error('whatsappKonumKaydet hata: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
+            return response()->json(['ok'=>false,'mesaj'=>'Konum kaydedilemedi: '.$e->getMessage()],500);
         }
-
-        return response()->json(['ok'=>true]);
     }
 
     public function sms_raporlari(Request $request)
