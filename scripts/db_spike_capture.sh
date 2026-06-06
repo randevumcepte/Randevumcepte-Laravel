@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# MariaDB CPU spike yakalama — Threads_running eşiği aşılınca processlist + innodb status kaydeder.
+# Kurulum (sunucuda):
+#   nohup bash scripts/db_spike_capture.sh > /dev/null 2>&1 &
+# Loglar: storage/logs/db_spike/ altına timestamp'li dosyalar.
+#
+# DB bağlantısı için .env'den okumaya çalışır; gerekirse aşağıdaki değişkenleri elle doldur.
+
+cd "$(dirname "$0")/.." || exit 1
+ENVF=".env"
+DBH=$(grep -m1 '^DB_HOST=' "$ENVF" | cut -d= -f2)
+DBP=$(grep -m1 '^DB_PORT=' "$ENVF" | cut -d= -f2)
+DBU=$(grep -m1 '^DB_USERNAME=' "$ENVF" | cut -d= -f2)
+DBPW=$(grep -m1 '^DB_PASSWORD=' "$ENVF" | cut -d= -f2)
+DBN=$(grep -m1 '^DB_DATABASE=' "$ENVF" | cut -d= -f2)
+
+THRESHOLD="${1:-25}"     # Threads_running eşiği (varsayılan 25)
+SLEEP="${2:-3}"          # örnekleme aralığı (sn)
+OUTDIR="storage/logs/db_spike"
+mkdir -p "$OUTDIR"
+
+MYSQL="mysql -h${DBH} -P${DBP} -u${DBU} -p${DBPW} ${DBN} -N -B"
+
+echo "[$(date)] spike capture başladı (eşik=${THRESHOLD} threads, aralık=${SLEEP}s)" >> "$OUTDIR/capture.log"
+
+while true; do
+  TR=$($MYSQL -e "SHOW GLOBAL STATUS LIKE 'Threads_running';" 2>/dev/null | awk '{print $2}')
+  if [ -n "$TR" ] && [ "$TR" -ge "$THRESHOLD" ] 2>/dev/null; then
+    TS=$(date +%Y%m%d_%H%M%S)
+    F="$OUTDIR/spike_${TS}.log"
+    {
+      echo "==== $(date) | Threads_running=$TR ===="
+      echo "---- SHOW FULL PROCESSLIST ----"
+      $MYSQL -e "SHOW FULL PROCESSLIST;"
+      echo "---- En uzun süren 20 sorgu (info dolu) ----"
+      $MYSQL -e "SELECT ID,USER,HOST,DB,COMMAND,TIME,STATE,LEFT(INFO,300) AS Q FROM information_schema.PROCESSLIST WHERE INFO IS NOT NULL ORDER BY TIME DESC LIMIT 20;"
+      echo "---- INNODB STATUS (kilitler/transaction) ----"
+      $MYSQL -e "SHOW ENGINE INNODB STATUS\G"
+    } >> "$F" 2>&1
+    echo "[$(date)] SPIKE yakalandı: Threads_running=$TR -> $F" >> "$OUTDIR/capture.log"
+    sleep 5
+  fi
+  sleep "$SLEEP"
+done
