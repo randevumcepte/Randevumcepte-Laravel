@@ -598,7 +598,7 @@
                                  </div>
                               </div>
                         <div class="prof-name">{{$musteri_bilgi->name}}</div>
-                        <ul class="info-list">
+                        <ul class="info-list musteri_genel_bilgi_kart">
                            <li><span class="ico"><i class="fa fa-hashtag"></i></span><div><div class="k">ID</div><div class="v">{{$musteri_bilgi->id}}</div></div></li>
                            <li><span class="ico"><i class="fa fa-phone"></i></span><div><div class="k">Telefon</div><div class="v">{{ \App\PersonelYetkiSabitleri::telefonGoster($musteri_bilgi->cep_telefon) }}</div></div></li>
                            <li><span class="ico"><i class="fa fa-envelope-o"></i></span><div><div class="k">E-posta</div><div class="v">{{$musteri_bilgi->email ?: '—'}}</div></div></li>
@@ -1157,9 +1157,18 @@
        document.getElementById("musteri_profil_resmi").click();
    };
    // Notlar kutusunu en alta (en yeni nota) kaydir
-   document.addEventListener('DOMContentLoaded', function(){
+   function mdetayNotlarKaydir(){
        var nb = document.getElementById('musteriNotlarKutu');
        if (nb) { nb.scrollTop = nb.scrollHeight; }
+   }
+   document.addEventListener('DOMContentLoaded', function(){
+       mdetayNotlarKaydir();
+       // Bilgiler kaydedildiginde (.musteri_genel_bilgi_kart yeniden doldurulur)
+       // Notlar kutusunu tekrar en alta kaydir.
+       var kart = document.querySelector('#mdetay .musteri_genel_bilgi_kart');
+       if (kart && window.MutationObserver) {
+           new MutationObserver(function(){ mdetayNotlarKaydir(); }).observe(kart, {childList:true});
+       }
    });
 </script>
 

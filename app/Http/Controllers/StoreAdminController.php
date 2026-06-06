@@ -9929,34 +9929,23 @@ private function ayAdiCevir($ingilizceAy)
             $portfoy->onay_kodu = $kvkkKodu;
             $portfoy->olusturan_personel_id = \App\Services\PersonelYetkiServisi::authPersonelId($portfoy->salon_id);
             $portfoy->save();
-            $returntext =  "<p><b>ID : </b>".$musteri->id."</p>";
-            $returntext .= "<p><b>Ad Soyad : </b>".$musteri->name."</p>";
-            $returntext .= "<p><b>Telefon : </b>".$musteri->cep_telefon."</p>";
-            $returntext .= "<p><b>E-posta : </b>".$musteri->email."</p>";
-            $returntext .= "<p><b>Referans : </b>";
-            if($portfoy->musteri_tipi == 1)
-                $returntext .= "İnternet";
-            elseif($portfoy->musteri_tipi == 2)
-                $returntext .= "Reklam";
-            elseif($portfoy->musteri_tipi == 3)
-                $returntext .= "Instagram";
-            elseif($portfoy->musteri_tipi == 4)
-                $returntext .= "Facebook";
-            elseif($portfoy->musteri_tipi == 5)
-                $returntext .= "Tanıdık";
-            else
-                $returntext .= "Yok";
-            $returntext .= "</p>";
-            $returntext .= "<p><b>Doğum Tarihi : </b>".date('d.m.Y', strtotime($musteri->dogum_tarihi))."</p>";
-             $returntext .= '<p><b>TC Kimlik No : </b>'.$musteri->tc_kimlik_no.'</p>';
-            $returntext .= "<p><b>Cinsiyet : </b>";
-            if ($musteri->cinsiyet === 0)
-                    $returntext .="Kadın";
-            elseif ($musteri->cinsiyet === 1)
-                    $returntext .= "Erkek";
-            else
-                    $returntext .= "Belirtilmemiş";
-            $returntext .= "<p><b>Notlar : </b>".$portfoy->ozel_notlar;
+            $_refMap = [1=>'İnternet',2=>'Reklam',3=>'Instagram',4=>'Facebook',5=>'Tanıdık'];
+            $_ref  = $_refMap[$portfoy->musteri_tipi] ?? 'Yok';
+            if ($musteri->cinsiyet === 0)      $_cins = 'Kadın';
+            elseif ($musteri->cinsiyet === 1)  $_cins = 'Erkek';
+            else                               $_cins = 'Belirtilmemiş';
+            $_tel    = \App\PersonelYetkiSabitleri::telefonGoster($musteri->cep_telefon);
+            $_email  = ($musteri->email !== null && $musteri->email !== '') ? e($musteri->email) : '—';
+            $_tc     = ($musteri->tc_kimlik_no !== null && $musteri->tc_kimlik_no !== '') ? e($musteri->tc_kimlik_no) : '—';
+            $_notlar = ($portfoy->ozel_notlar !== null && $portfoy->ozel_notlar !== '') ? e($portfoy->ozel_notlar) : '—';
+            $returntext  = '<li><span class="ico"><i class="fa fa-hashtag"></i></span><div><div class="k">ID</div><div class="v">'.$musteri->id.'</div></div></li>';
+            $returntext .= '<li><span class="ico"><i class="fa fa-phone"></i></span><div><div class="k">Telefon</div><div class="v">'.e($_tel).'</div></div></li>';
+            $returntext .= '<li><span class="ico"><i class="fa fa-envelope-o"></i></span><div><div class="k">E-posta</div><div class="v">'.$_email.'</div></div></li>';
+            $returntext .= '<li><span class="ico"><i class="fa fa-bullhorn"></i></span><div><div class="k">Referans</div><div class="v">'.$_ref.'</div></div></li>';
+            $returntext .= '<li><span class="ico"><i class="fa fa-birthday-cake"></i></span><div><div class="k">Doğum Tarihi</div><div class="v">'.date('d.m.Y', strtotime($musteri->dogum_tarihi)).'</div></div></li>';
+            $returntext .= '<li><span class="ico"><i class="fa fa-id-card-o"></i></span><div><div class="k">TC Kimlik No</div><div class="v">'.$_tc.'</div></div></li>';
+            $returntext .= '<li><span class="ico"><i class="fa fa-venus-mars"></i></span><div><div class="k">Cinsiyet</div><div class="v">'.$_cins.'</div></div></li>';
+            $returntext .= '<li class="info-full"><span class="ico"><i class="fa fa-sticky-note-o"></i></span><div><div class="k">Notlar</div><div class="v notlar-box" id="musteriNotlarKutu">'.$_notlar.'</div></div></li>';
             if(SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',4)->value('musteri')){
                 if($yeniekleme || $portfoyeEkleme){
                     $mesaj = 'Sayın '.$musteri->name.'. '.Salonlar::where('id',$request->sube)->value('salon_adi')." tarafından müşteri kaydınız oluşturulmuştur.";
@@ -9967,7 +9956,6 @@ private function ayAdiCevir($ingilizceAy)
                     self::sms_gonder_bildirimli($request,array(array("to"=>$musteri->cep_telefon,"message"=>$mesaj)),false,1,false);
                 }
             }
-            $returntext .= "</p>";
             $returnvar = array(
                 'title' => "Başarılı",
                 'detailtext' => $returntext,
