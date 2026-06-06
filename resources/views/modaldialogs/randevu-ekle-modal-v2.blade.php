@@ -1823,6 +1823,21 @@
         initMusteriSelect();
         ensureHizmetVerisi(function(){
             if($services.children().length === 0) addRow();
+            // YARIS KOSULU FIX: resetV2Form modal acilinca addRow cagirdi ama
+            // o anda hizmetDataCache henuz bos olabiliyordu -> Row 1'in Tom Select'i
+            // bos options ile init edildi. Cache simdi dolu -> bos TS'leri yeniden init et.
+            try {
+                $services.find('.v2-service-row').each(function(){
+                    var el = $(this).find('.v2-hizmet')[0];
+                    if(!el) return;
+                    var ts = el.tomselect;
+                    // TS yok ya da options bos -> yeniden init
+                    if(!ts || (ts && Object.keys(ts.options).length === 0)){
+                        if(ts){ try { ts.destroy(); } catch(e){} }
+                        initRowSelects($(this));
+                    }
+                });
+            } catch(e){ console.warn('[V2] hizmet TS reinit hata:', e); }
             installPaketDispatcher();
             initKapamaPersonel();
             v2Init = true;
