@@ -37,6 +37,14 @@ class EasistanIndexEnsure extends Command
         ['table' => 'alacaklar',         'cols' => ['salon_id', 'onceki_planlanan_odeme_tarihi'], 'name' => 'alacak_salon_onceki_idx'],
         ['table' => 'randevu_hizmetler', 'cols' => ['randevu_id'],                                'name' => 'rh_randevu_idx'],
         ['table' => 'bildirimler',       'cols' => ['salon_id', 'personel_id', 'id'],             'name' => 'bild_salon_personel_idx'],
+        // bildirimkontrolet polling COUNT'lari (30sn): okunmamis + toplam sayim.
+        // okundu kolonunu da kapsar -> index-only count, full scan biter (CPU spike fix).
+        ['table' => 'bildirimler',       'cols' => ['salon_id', 'personel_id', 'okundu'],         'name' => 'bild_salon_personel_okundu_idx'],
+        // MOBIL MUSTERI uygulamasi (musteriozet/bildirimgetirmusteri): user_id uzerinden
+        // okunmamis sayim + liste. user_id'de HIC index yoktu -> her cagri full table scan,
+        // CPU spike'in asil kaynagi buydu. (user_id, salon_id, okundu) -> index-only count.
+        ['table' => 'bildirimler',       'cols' => ['user_id', 'salon_id', 'okundu'],             'name' => 'bild_user_salon_okundu_idx'],
+        ['table' => 'bildirimler',       'cols' => ['user_id', 'salon_id', 'tarih_saat'],         'name' => 'bild_user_salon_tarih_idx'],
         ['table' => 'kampanya_yonetimi', 'cols' => ['salon_id', 'asistan_tarih_saat'],            'name' => 'kampanya_salon_tarih_idx'],
     ];
 
