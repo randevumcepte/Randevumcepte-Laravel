@@ -38,6 +38,16 @@ class AnketOtomatikGonder extends Command
         $toplam = 0;
         $salonAyarCache = []; // salon_id => bool (ayar_id=13 musteri aktif mi?)
 
+        // ── Ban koruması: anket WhatsApp burst gönderimini engelle ───────────────────
+        // Aynı dakikada onlarca anket kuyruğa düşüp WhatsApp'ı spam'e itmesin diye 2 katman:
+        //  1) STAGGER: randevu bitişinden sonra randevu id'sine göre 0..STAGGER-1 dk geciktir
+        //     (aynı anda biten randevular farklı dakikalara yayılır)
+        //  2) MAX_PER_MINUTE: her cron tikinde salon başına en fazla N anket gönder
+        // Gönderilemeyenler sonraki dakikalarda alınır (26 saatlik pencere içinde).
+        $STAGGER_MINUTES = 10;    // randevu id'sine göre dakikalara yayma genişliği
+        $MAX_PER_MINUTE  = 5;     // salon başına dakikada en fazla anket
+        $salonGonderimSayac = []; // salon_id => bu cron tikinde gönderilen anket sayısı
+
         foreach ($aktifSablonlar as $sablon) {
             // SMS Ayarları → "Randevu Sonrası Değerlendirme" (ayar_id=13, musteri=1) açık değilse atla.
             $salonId = $sablon->salon_id;
@@ -58,6 +68,7 @@ class AnketOtomatikGonder extends Command
                 ])
                 ->whereNotNull('user_id')
                 ->where('user_id', '!=', 0)
+                ->orderBy('id', 'asc') // FIFO: dakika limiti dolunca eski randevular önce gider
                 ->get();
 
             foreach ($randevular as $rnd) {
@@ -79,10 +90,15 @@ class AnketOtomatikGonder extends Command
                     continue;
                 }
 
-                // 3) Henüz bitiş saati gelmediyse atla (gelecek randevulara gitmesin)
-                if ($now->lt($bitis)) continue;
+                // 3) STAGGER: bitişten sonra randevu id'sine göre 0..STAGGER-1 dk geciktir.
+                //    Hedef an gelmediyse atla (aynı anda biten randevular dakikalara yayılır).
+                $hedefAn = $bitis->copy()->addMinutes(((int) $rnd->id) % $STAGGER_MINUTES);
+                if ($now->lt($hedefAn)) continue;
                 // 4) 26 saatten eski randevuya da gönderme (geç kalmış cron için makul üst sınır)
                 if ($bitis->diffInHours($now, false) > 26) continue;
+
+                // 5) Dakika başına salon limiti — burst engeli. Doluysa bu randevu sonraki tikte gider.
+                if (($salonGonderimSayac[$salonId] ?? 0) >= $MAX_PER_MINUTE) continue;
 
                 $musteri = User::where('id', $rnd->user_id)->first();
                 if (!$musteri) continue;
@@ -104,6 +120,7 @@ class AnketOtomatikGonder extends Command
 
                     StoreAdminController::anketSmsGonder(null, $gonderim, $sablon, $musteri);
                     $toplam++;
+                    $salonGonderimSayac[$salonId] = ($salonGonderimSayac[$salonId] ?? 0) + 1;
 
                     Log::info('[ANKET-OTO] gönderim', [
                         'randevu_id'  => $rnd->id,
