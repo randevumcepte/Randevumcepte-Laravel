@@ -119,13 +119,17 @@
                                                                 <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Cihaz</label>
                                                                 <select class="form-control opsiyonelSelect cihaz-select genel-cihaz-select" data-genel="1" style="width:100%;height:32px;font-size:0.8rem;"><option></option></select>
                                                             </div>
-                                                            <div class="col-md-3 secim-oda" style="{{ $__oda_style }}">
+                                                            <div class="col-md-2 secim-oda" style="{{ $__oda_style }}">
                                                                 <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Oda</label>
                                                                 <select class="form-control opsiyonelSelect oda-select genel-oda-select" data-genel="1" style="width:100%;height:32px;font-size:0.8rem;"><option></option></select>
                                                             </div>
-                                                            <div class="col-md-3">
+                                                            <div class="col-md-2">
                                                                 <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Süre (dk)</label>
                                                                 <input type="number" min="0" step="5" class="form-control genel-sure-input" data-genel="1" placeholder="Toplam" style="width:100%;height:38px;font-size:0.85rem;">
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label class="form-label" style="font-size:0.78rem;color:#0369a1;">Fiyat (₺)</label>
+                                                                <input type="text" inputmode="decimal" class="form-control genel-fiyat-input hy-fiyat-input" data-genel="1" placeholder="Toplam" autocomplete="off" style="width:100%;height:38px;font-size:0.85rem;">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -2901,6 +2905,29 @@ $(document).on('change', '#modal-view-event-add .genel-sure-input', function(){
     genelSureUygula();
 });
 
+// Genel "Toplam Fiyat" degisince: ilk hizmete toplam fiyati ver, digerlerine 0
+// (sure ile ayni mantik — paket modunda toplam fiyat ilk satira yazilir).
+function genelFiyatUygula(){
+    var $inp = $('#modal-view-event-add .genel-fiyat-input');
+    if(!$inp.length) return;
+    var raw = String($inp.val() || '').trim();
+    if(!raw) return;
+    // Turkce ondalik (virgul) ve nokta (binlik) ayraclari normalize et
+    var toplam = parseFloat(window.HyFiyat && window.HyFiyat.parse ? window.HyFiyat.parse(raw) : raw.replace(/\./g,'').replace(',','.'));
+    if(isNaN(toplam) || toplam < 0) return;
+    var $fiyatlar = $('#modal-view-event-add .hizmet-satiri .hizmet-fiyati');
+    var fmt = window.HyFiyat && window.HyFiyat.format
+        ? window.HyFiyat.format(toplam)
+        : toplam.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    $fiyatlar.each(function(i){
+        $(this).val(i === 0 ? fmt : '0').trigger('input');
+    });
+    try { updateRandevuOzeti(); } catch(e){}
+}
+$(document).on('change', '#modal-view-event-add .genel-fiyat-input', function(){
+    genelFiyatUygula();
+});
+
 // ===================== PAKET SECIM MODALI Z-SIRA =====================
 // Paket secim modali (#softPaketSecimModal, custom.js'te uretilir) yeni randevu modalinin
 // (#modal-view-event-add) ARKASINDA kaliyordu. z-index tek basina yetmez (DOM sirasi/stacking);
@@ -2944,6 +2971,7 @@ function paketModunuKapat(){
     $bolum.removeClass('paket-modu hizmetler-acik');
     $bolum.find('.paket-master-wrap').remove();
     $('#modal-view-event-add .genel-sure-input').val('');
+    $('#modal-view-event-add .genel-fiyat-input').val('');
 }
 
 // "Tum hizmetlere uygula" panelini sifirla (modal kapanis / submit sonrasi)
@@ -2958,6 +2986,7 @@ function genelPaneliSifirla(){
         if($s.length){ try { $s.val('').trigger('change.select2'); } catch(e){} }
     });
     $('#modal-view-event-add .genel-sure-input').val('');
+    $('#modal-view-event-add .genel-fiyat-input').val('');
 }
 
 // Master toggle: paket modunda hizmet satirlarini ac/kapat
