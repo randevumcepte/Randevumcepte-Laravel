@@ -56,6 +56,10 @@
 #mdetay .info-list .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;font-weight:600;line-height:1.2;}
 #mdetay .info-list .v{font-size:14px;color:var(--ink);font-weight:600;word-break:break-word;line-height:1.35;margin-top:1px;}
 @media (max-width:575px){#mdetay .info-list{grid-template-columns:1fr;}}
+#mdetay .notlar-box{max-height:150px;overflow-y:auto;padding-right:8px;white-space:pre-line;}
+#mdetay .notlar-box::-webkit-scrollbar{width:6px;}
+#mdetay .notlar-box::-webkit-scrollbar-thumb{background:var(--m3);border-radius:3px;}
+#mdetay .notlar-box::-webkit-scrollbar-track{background:transparent;}
 #mdetay .prof-card .card-footer{border:0!important;background:none!important;padding:18px 0 0!important;}
 #mdetay .prof-edit-btn{border:0;border-radius:12px;padding:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--m1),var(--m3));box-shadow:0 8px 18px rgba(92,0,142,.25);}
 #mdetay .prof-edit-btn:hover{color:#fff;filter:brightness(1.05);}
@@ -602,7 +606,7 @@
                            <li><span class="ico"><i class="fa fa-birthday-cake"></i></span><div><div class="k">Doğum Tarihi</div><div class="v">{{date('d.m.Y', strtotime($musteri_bilgi->dogum_tarihi))}}</div></div></li>
                            <li><span class="ico"><i class="fa fa-id-card-o"></i></span><div><div class="k">TC Kimlik No</div><div class="v">{{$musteri_bilgi->tc_kimlik_no ?: '—'}}</div></div></li>
                            <li><span class="ico"><i class="fa fa-venus-mars"></i></span><div><div class="k">Cinsiyet</div><div class="v">@if($musteri_bilgi->cinsiyet === 0)Kadın @elseif($musteri_bilgi->cinsiyet===1)Erkek @else Belirtilmemiş @endif</div></div></li>
-                           <li class="info-full"><span class="ico"><i class="fa fa-sticky-note-o"></i></span><div><div class="k">Notlar</div><div class="v">{{$portfoy->ozel_notlar ?: '—'}}</div></div></li>
+                           <li class="info-full"><span class="ico"><i class="fa fa-sticky-note-o"></i></span><div><div class="k">Notlar</div><div class="v notlar-box" id="musteriNotlarKutu">{{$portfoy->ozel_notlar ?: '—'}}</div></div></li>
                         </ul>
                         <div class="card-footer">
                            @yetki('musteri.ekle_duzenle')
@@ -1152,6 +1156,11 @@
    function thisFileUpload() {
        document.getElementById("musteri_profil_resmi").click();
    };
+   // Notlar kutusunu en alta (en yeni nota) kaydir
+   document.addEventListener('DOMContentLoaded', function(){
+       var nb = document.getElementById('musteriNotlarKutu');
+       if (nb) { nb.scrollTop = nb.scrollHeight; }
+   });
 </script>
 
 {{-- ====== DAKIKA PAKETLERI: MODAL + JS ====== --}}
