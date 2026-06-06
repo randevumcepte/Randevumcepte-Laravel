@@ -14,7 +14,10 @@ function rcEventTipEnsure() {
     if ($tip.length === 0) {
         // Inline style — sayfa CSS'i yuklenmese bile dogru gozuksun
         var coreStyle = [
-            'position:fixed', 'z-index:2147483600',
+            // z-index DUSUK tutuluyor: hover karti takvimin ustunde dursun ama
+            // TUM popup/modal/backdrop/swal'larin ARKASINDA kalsin (modal-backdrop
+            // 1040, modal'lar 100001+, onay swal'lari 100030). 1030 = backdrop alti.
+            'position:fixed', 'z-index:1030',
             'min-width:240px', 'max-width:320px', 'width:auto',
             'background:#fff', 'border-radius:12px',
             'box-shadow:0 12px 32px rgba(40,12,80,0.18), 0 2px 6px rgba(40,12,80,0.08)',
@@ -10201,6 +10204,10 @@ function takvimyukle(preload,turdegisti)
              },
              eventDragStart: function (event, jsEvent, view){
                clearInterval(interval);
+               // Surukleme baslayinca hover bilgi kartini hemen gizle — drop
+               // sonrasi acilan onay popup'inin uzerinde kalmasin.
+               if (window.rcEventTipHideTimer) { clearTimeout(window.rcEventTipHideTimer); window.rcEventTipHideTimer = null; }
+               jQuery('#rc-event-tip').css({ opacity: 0, transform: 'translateY(4px)', left: '-9999px' });
                console.log('Event drag start');
                console.log(event);
              },
