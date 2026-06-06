@@ -14,14 +14,17 @@ DBU=$(grep -m1 '^DB_USERNAME=' "$ENVF" | cut -d= -f2)
 DBPW=$(grep -m1 '^DB_PASSWORD=' "$ENVF" | cut -d= -f2)
 DBN=$(grep -m1 '^DB_DATABASE=' "$ENVF" | cut -d= -f2)
 
-THRESHOLD="${1:-25}"     # Threads_running eşiği (varsayılan 25)
-SLEEP="${2:-3}"          # örnekleme aralığı (sn)
+THRESHOLD="${1:-15}"     # Threads_running eşiği (varsayılan 15 — tırmanmayı erken yakala)
+SLEEP="${2:-2}"          # örnekleme aralığı (sn)
 OUTDIR="storage/logs/db_spike"
 mkdir -p "$OUTDIR"
 
-MYSQL="mysql -h${DBH} -P${DBP} -u${DBU} -p${DBPW} ${DBN} -N -B"
+# --connect-timeout=2: doygunlukta hızlı başarısız ol, takılma yapma
+MYSQL="mysql --connect-timeout=2 -h${DBH} -P${DBP} -u${DBU} -p${DBPW} ${DBN} -N -B"
 
-echo "[$(date)] spike capture başladı (eşik=${THRESHOLD} threads, aralık=${SLEEP}s)" >> "$OUTDIR/capture.log"
+# Başlangıçta baseline Threads_running'i göster ki eşiği doğru seçebilelim
+BASE=$($MYSQL -e "SHOW GLOBAL STATUS LIKE 'Threads_running';" 2>/dev/null | awk '{print $2}')
+echo "[$(date)] spike capture başladı (eşik=${THRESHOLD}, aralık=${SLEEP}s, mevcut Threads_running=${BASE:-BAGLANTI_YOK})" | tee -a "$OUTDIR/capture.log"
 
 while true; do
   TR=$($MYSQL -e "SHOW GLOBAL STATUS LIKE 'Threads_running';" 2>/dev/null | awk '{print $2}')
