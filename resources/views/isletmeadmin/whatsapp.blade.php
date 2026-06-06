@@ -223,18 +223,34 @@
             kBtn.disabled = true;
             fetch('/isletmeyonetim/whatsapp/konum-kaydet', {
                 method: 'POST',
-                headers: { 'Content-Type':'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': token },
+                headers: { 'Content-Type':'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': token, 'Accept':'application/json' },
                 body: 'konum_linki=' + encodeURIComponent(link) + '&sube=' + encodeURIComponent(sube) + '&_token=' + encodeURIComponent(token)
-            }).then(function(r){ return r.json(); }).then(function(res){
+            }).then(function(r){
+                // Sunucu JSON yerine HTML donerse (404/419/500) once durum kodunu yakala
+                return r.text().then(function(t){
+                    var res = null;
+                    try { res = JSON.parse(t); } catch(e){}
+                    return { status: r.status, res: res };
+                });
+            }).then(function(d){
                 kBtn.disabled = false;
                 st.style.display = 'block';
-                if(res && res.ok){
+                if(d.res && d.res.ok){
                     st.style.color = '#1a7f3e';
                     st.textContent = '✓ Konum kaydedildi. Artık mesaj ekranında "Konum Ekle" ile gönderebilirsiniz.';
                     setTimeout(function(){ st.style.display='none'; }, 4000);
+                } else if(d.res && d.res.mesaj){
+                    st.style.color = '#dc3545';
+                    st.textContent = d.res.mesaj;
+                } else if(d.status === 419){
+                    st.style.color = '#dc3545';
+                    st.textContent = 'Oturum süresi doldu. Sayfayı yenileyip tekrar deneyin.';
+                } else if(d.status === 404){
+                    st.style.color = '#dc3545';
+                    st.textContent = 'Kayıt adresi bulunamadı (404). Sistem güncellemesi gerekiyor olabilir.';
                 } else {
                     st.style.color = '#dc3545';
-                    st.textContent = (res && res.mesaj) ? res.mesaj : 'Kaydedilemedi.';
+                    st.textContent = 'Kaydedilemedi (hata kodu: ' + d.status + ').';
                 }
             }).catch(function(){
                 kBtn.disabled = false;

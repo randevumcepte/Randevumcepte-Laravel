@@ -20677,13 +20677,23 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             return response()->json(['ok'=>false,'mesaj'=>'Bağlantı çok uzun (en fazla 500 karakter).'],422);
         }
 
-        // self-heal: kolon yoksa ekle (migrate calismamis sunucular icin)
-        if(!\Schema::hasColumn('salonlar','konum_linki')){
-            try { DB::statement('ALTER TABLE salonlar ADD COLUMN konum_linki VARCHAR(500) NULL'); } catch(\Exception $e){}
-        }
+        try {
+            // self-heal: kolon yoksa ekle (migrate calismamis sunucular icin)
+            if(!\Schema::hasColumn('salonlar','konum_linki')){
+                DB::statement('ALTER TABLE salonlar ADD COLUMN konum_linki VARCHAR(500) NULL');
+            }
 
-        $isletme->konum_linki = $link !== '' ? $link : null;
-        $isletme->save();
+            $isletme->konum_linki = $link !== '' ? $link : null;
+            $isletme->save();
+        } catch(\Exception $e){
+            // Kolon eklenemezse (ALTER yetkisi yoksa) ham UPDATE ile yedek dene
+            try {
+                DB::table('salonlar')->where('id', $isletme->id)->update(['konum_linki' => ($link !== '' ? $link : null)]);
+            } catch(\Exception $e2){
+                \Log::error('whatsappKonumKaydet hata: '.$e->getMessage().' | '.$e2->getMessage());
+                return response()->json(['ok'=>false,'mesaj'=>'Konum kaydedilemedi: '.$e2->getMessage()],500);
+            }
+        }
 
         return response()->json(['ok'=>true]);
     }
