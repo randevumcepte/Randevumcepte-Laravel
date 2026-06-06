@@ -186,9 +186,20 @@
                                                                 <select name="randevuhizmetleriyeni_0[]" id="randevuhizmetleriyeni_0" multiple class="form-control hizmet-select" data-index="0" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                                                     <option></option>
                                                                 </select>
+                                                                <!-- Satır seviyesinde Süre + Fiyat — her zaman görünür, manuel girilebilir -->
+                                                                <div class="row g-2 mt-2 row-default-detay">
+                                                                    <div class="col-6">
+                                                                        <label class="form-label" style="font-size: 0.75rem;">Süre (dk)</label>
+                                                                        <input type="number" min="0" step="5" class="form-control row-default-sure" data-index="0" placeholder="0" style="height: 30px; font-size: 0.8rem;">
+                                                                    </div>
+                                                                    <div class="col-6">
+                                                                        <label class="form-label" style="font-size: 0.75rem;">Fiyat (₺)</label>
+                                                                        <input type="text" inputmode="decimal" class="form-control row-default-fiyat hy-fiyat-input" data-index="0" placeholder="0,00" autocomplete="off" style="height: 30px; font-size: 0.8rem;">
+                                                                    </div>
+                                                                </div>
                                                             </div>
 
-                                                            <!-- Hizmet Detayları -->
+                                                            <!-- Hizmet Detayları (per-hizmet, hizmet seciminden sonra render olur) -->
                                                             <div class="col-12 mt-1" id="hizmet-detaylari-0" style="font-size: 0.8rem;">
                                                                 <!-- Hizmet detayları dinamik olarak buraya eklenecek -->
                                                             </div>
@@ -3586,6 +3597,17 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
                             <select name="randevuhizmetleriyeni_${newIndex}[]" id="randevuhizmetleriyeni_${newIndex}" multiple class="form-control hizmet-select" data-index="${newIndex}" style="width: 100%; font-size: 0.8rem; min-height: 30px;">
                                 <option></option>
                             </select>
+                            <!-- Satır seviyesinde Süre + Fiyat — her zaman görünür, manuel girilebilir -->
+                            <div class="row g-2 mt-2 row-default-detay">
+                                <div class="col-6">
+                                    <label class="form-label" style="font-size: 0.75rem;">Süre (dk)</label>
+                                    <input type="number" min="0" step="5" class="form-control row-default-sure" data-index="${newIndex}" placeholder="0" style="height: 30px; font-size: 0.8rem;">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label" style="font-size: 0.75rem;">Fiyat (₺)</label>
+                                    <input type="text" inputmode="decimal" class="form-control row-default-fiyat hy-fiyat-input" data-index="${newIndex}" placeholder="0,00" autocomplete="off" style="height: 30px; font-size: 0.8rem;">
+                                </div>
+                            </div>
                         </div>
                         <!-- Hizmet Detaylari -->
                         <div class="col-12 mt-1" id="hizmet-detaylari-${newIndex}" style="font-size: 0.8rem;">
@@ -3997,7 +4019,89 @@ function updateHizmetDetaylari(index) {
         const firstRowHasServices = validServices.length > 0;
         $('.hizmet-sil[data-value="0"]').prop('disabled', !firstRowHasServices);
     }
+
+    // Hizmet seçilince satır seviyesindeki Süre/Fiyat input'larına default değerleri yaz
+    // (kullanıcı manuel düzeltebilir; per-hizmet detay kartlarındaki değerlerle bidirectional sync)
+    try { _rowDefaultDoldur(index); } catch(e) { console.warn('_rowDefaultDoldur:', e); }
 }
+
+// === Satır seviyesi (row-default) Süre + Fiyat input senkronizasyonu ===
+// Hizmet seçildikten sonra ya da per-hizmet detay kartında değer değişince
+// row-default-sure / row-default-fiyat input'ları otomatik güncellenir.
+// Kullanıcı row-default'a manuel girince per-hizmet kartlarındaki değerlere de yazılır.
+window._rowDefaultEcho = window._rowDefaultEcho || {};
+function _rowDefaultDoldur(rowIndex) {
+    if (window._rowDefaultEcho[rowIndex]) return; // echo guard
+    var $row = $('#modal-view-event-add .hizmet-satiri[data-value="' + rowIndex + '"]');
+    if (!$row.length) return;
+    var toplamSure = 0;
+    $row.find('.hizmet-detay-item .hizmet-suresi').each(function(){
+        var v = parseInt($(this).val(), 10);
+        if (!isNaN(v)) toplamSure += v;
+    });
+    var toplamFiyat = 0;
+    $row.find('.hizmet-detay-item .hizmet-fiyati').each(function(){
+        var raw = String($(this).val() || '').trim();
+        var v = (window.HyFiyat && window.HyFiyat.parse) ? window.HyFiyat.parse(raw)
+                                                        : parseFloat(raw.replace(/\./g,'').replace(',','.'));
+        if (!isNaN(v)) toplamFiyat += v;
+    });
+    var $rs = $row.find('.row-default-sure');
+    var $rf = $row.find('.row-default-fiyat');
+    if ($rs.length) $rs.val(toplamSure > 0 ? toplamSure : '');
+    if ($rf.length) {
+        var fmt = (window.HyFiyat && window.HyFiyat.format)
+            ? window.HyFiyat.format(toplamFiyat)
+            : toplamFiyat.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
+        $rf.val(toplamFiyat > 0 ? fmt : '');
+    }
+}
+
+// Per-hizmet detay kartındaki süre/fiyat değişince row-default'u güncelle
+$(document).on('input', '#modal-view-event-add .hizmet-detay-item .hizmet-suresi, #modal-view-event-add .hizmet-detay-item .hizmet-fiyati', function(){
+    var $row = $(this).closest('.hizmet-satiri');
+    var idx = $row.data('value');
+    if (idx === undefined) return;
+    _rowDefaultDoldur(idx);
+});
+
+// Row-default Süre değişince per-hizmet süre input'larına paket mantığıyla yaz
+// (ilk hizmete toplam süre, diğerlerine 0 — randevu blok-bazlı toplam süre kadar yer kaplar)
+$(document).on('input', '#modal-view-event-add .row-default-sure', function(){
+    var $row = $(this).closest('.hizmet-satiri');
+    var idx = $row.data('value');
+    var v = parseInt($(this).val(), 10);
+    if (isNaN(v)) v = 0;
+    var $items = $row.find('.hizmet-detay-item .hizmet-suresi');
+    if (!$items.length) return;
+    window._rowDefaultEcho[idx] = true;
+    $items.each(function(i){
+        $(this).val(i === 0 ? v : 0).trigger('input');
+    });
+    setTimeout(function(){ window._rowDefaultEcho[idx] = false; }, 50);
+    try { updateRandevuOzeti(); } catch(e){}
+});
+
+// Row-default Fiyat değişince per-hizmet fiyat input'larına yaz
+$(document).on('input', '#modal-view-event-add .row-default-fiyat', function(){
+    var $row = $(this).closest('.hizmet-satiri');
+    var idx = $row.data('value');
+    var raw = String($(this).val() || '').trim();
+    var v = (window.HyFiyat && window.HyFiyat.parse) ? window.HyFiyat.parse(raw)
+                                                    : parseFloat(raw.replace(/\./g,'').replace(',','.'));
+    if (isNaN(v)) v = 0;
+    var $items = $row.find('.hizmet-detay-item .hizmet-fiyati');
+    if (!$items.length) return;
+    var fmt = (window.HyFiyat && window.HyFiyat.format)
+        ? window.HyFiyat.format(v)
+        : v.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    window._rowDefaultEcho[idx] = true;
+    $items.each(function(i){
+        $(this).val(i === 0 ? fmt : '0').trigger('input');
+    });
+    setTimeout(function(){ window._rowDefaultEcho[idx] = false; }, 50);
+    try { updateRandevuOzeti(); } catch(e){}
+});
 
 // Randevu özetini güncelle
 function updateRandevuOzeti() {
