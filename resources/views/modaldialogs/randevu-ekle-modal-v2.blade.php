@@ -1612,31 +1612,36 @@
             if(inheritP) $card.find('.v2-personel').val(inheritP);
             if(inheritC) $card.find('.v2-cihaz').val(inheritC);
 
-            // ODA: kullanıcı zaten seçmişse onu kullan; aksi takdirde paketin
-            // hizmetlerine göre sistemde tanımlı oda'yı (oda_sunulan_hizmetler) bul.
-            if(inheritO){
-                var $odaSelManual = $card.find('.v2-oda');
-                if($odaSelManual.length){
-                    if($odaSelManual.find('option[value="'+inheritO+'"]').length === 0){
-                        // Inherited oda dropdown'da yoksa append et
+            // ODA mantigi — DAGILIMA DUYARLI:
+            //  - Paketin hizmetleri FARKLI odalara aitse ('coklu'): tiklanan/miras
+            //    oda dayatilmaz; kart bos birakilir, backend her hizmeti KENDI
+            //    odasina dagitir (ornek: lazer -> Lazer odasi, cilt -> Cilt odasi).
+            //    Boylece yanlislikla tiklanan slot (or. SOPRANO) tum pakete yapismaz.
+            //  - Tum hizmetler TEK odaya aitse: o oda secilir.
+            //  - Oda bilgisi cikarilamiyorsa: kullanicinin sectigi/tikladigi (inheritO) oda.
+            var hizmetIdsInPaket = grp.hizmetler.map(function(h){ return h.id; });
+            var dagilim = paketOdaDagilimi(hizmetIdsInPaket);
+            var $odaSel = $card.find('.v2-oda');
+            if($odaSel.length){
+                if(dagilim.mode === 'coklu'){
+                    // FARKLI odalar — tiklanan/miras oda dayatilmaz; kart bos kalir,
+                    // backend her hizmeti kendi odasina dagitir.
+                    $odaSel.val('');
+                } else if(inheritO){
+                    // tek/bilinmiyor + kullanicinin sectigi/tikladigi oda varsa onu kullan
+                    if($odaSel.find('option[value="'+inheritO+'"]').length === 0){
                         var odaObj = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){ return String(o.id) === String(inheritO); });
-                        if(odaObj) $odaSelManual.append(new Option(odaObj.ad, odaObj.id));
+                        if(odaObj) $odaSel.append(new Option(odaObj.ad, odaObj.id));
                     }
-                    $odaSelManual.val(inheritO);
-                }
-            } else {
-                var hizmetIdsInPaket = grp.hizmetler.map(function(h){ return h.id; });
-                var autoOda = findOdaForPaketHizmetler(hizmetIdsInPaket);
-                if(autoOda){
-                    var $odaSel = $card.find('.v2-oda');
-                    if($odaSel.length){
-                        if($odaSel.find('option[value="'+autoOda.id+'"]').length === 0){
-                            $odaSel.append(new Option(autoOda.ad, autoOda.id));
-                        }
-                        $odaSel.val(autoOda.id);
+                    $odaSel.val(inheritO);
+                } else if(dagilim.mode === 'tek' && dagilim.oda){
+                    // Tek odali paket, kullanici secimi yok -> sistemde tanimli oda
+                    if($odaSel.find('option[value="'+dagilim.oda.id+'"]').length === 0){
+                        $odaSel.append(new Option(dagilim.oda.ad, dagilim.oda.id));
                     }
+                    $odaSel.val(dagilim.oda.id);
                 }
-                // autoOda null ise: oda bos kalir, backend hizmet bazinda OdaAtamaServisi::uygunOdaSec ile atar.
+                // hicbiri degilse oda bos kalir -> backend OdaAtamaServisi ile atar
             }
         });
 
@@ -1728,6 +1733,30 @@
         // SADECE tum hizmetler eslesirse oda'yi don
         if(best && bestScore === ids.length) return best;
         return null;
+    }
+
+    // Paketin hizmetlerinin oda dagilimini belirler:
+    //  - 'tek'        : tum hizmetler TEK odaya ait -> o oda dondurulur
+    //  - 'coklu'      : hizmetler FARKLI odalara dagiliyor -> tek oda dayatma,
+    //                   backend her hizmeti kendi odasina atar (oda:null)
+    //  - 'bilinmiyor' : en az bir hizmetin tanimli odasi yok -> miras/tiklanan oda kullanilabilir
+    function paketOdaDagilimi(hizmetIds){
+        var odalar = (window.randevuModalData && window.randevuModalData.odalar) || [];
+        var ids = hizmetIds.map(function(x){ return parseInt(x, 10); }).filter(function(x){ return !!x; });
+        if(!ids.length || !odalar.length) return { mode: 'bilinmiyor', oda: null };
+
+        // Tek oda hepsini kapsiyor mu?
+        var tek = findOdaForPaketHizmetler(hizmetIds);
+        if(tek) return { mode: 'tek', oda: tek };
+
+        // Her hizmetin en az bir tanimli odasi var mi?
+        var hepsininOdasiVar = ids.every(function(hid){
+            return odalar.some(function(o){
+                return Array.isArray(o.hizmet_idleri) && o.hizmet_idleri.indexOf(hid) !== -1;
+            });
+        });
+        if(hepsininOdasiVar) return { mode: 'coklu', oda: null };
+        return { mode: 'bilinmiyor', oda: null };
     }
 
     function populateDropdownsInCard($card){
