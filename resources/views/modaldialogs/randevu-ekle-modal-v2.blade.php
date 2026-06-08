@@ -2648,6 +2648,17 @@
             });
         }
 
+        // --- GECICI TESHIS LOGU (sorun cozulunce kaldirilacak) ---
+        try {
+            var _dbg = {};
+            formData.forEach(function(v,k){
+                if(_dbg[k]===undefined) _dbg[k]=v;
+                else if(Array.isArray(_dbg[k])) _dbg[k].push(v);
+                else _dbg[k]=[_dbg[k],v];
+            });
+            console.log('[RANDEVU GONDER]', 'tip='+group.type, _dbg);
+        } catch(e){}
+
         $.ajax({
             type: 'POST',
             url: '/isletmeyonetim/yenirandevuekle',
@@ -2656,6 +2667,7 @@
             contentType: false,
             dataType: 'json',
             success: function(res){
+                try { console.log('[RANDEVU SONUC]', res); } catch(e){}
                 if(res && res.cakismavar){ cb({cakismavar: res.cakismavar}); }
                 else { cb({success:true, response: res}); }
             },
