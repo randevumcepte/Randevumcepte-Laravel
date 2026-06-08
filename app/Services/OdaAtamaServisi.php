@@ -73,6 +73,14 @@ class OdaAtamaServisi
             ->pluck('oda_id')
             ->toArray();
 
+        // FALLBACK: oda_sunulan_hizmetler bu hizmet icin tanimsizsa, odayi
+        // odanin ATANMIS PERSONELININ yaptigi hizmetlerden cikar. Boylece salon
+        // ekstra "oda-hizmet" ayari girmeden de paket hizmetleri dogru odalara
+        // dagilir (oda->personel ve personel->hizmet eslesmeleri zaten girili).
+        if (empty($odaIdleri)) {
+            $odaIdleri = self::personeldenOdaCikar($salonId, $hizmetId);
+        }
+
         if (empty($odaIdleri)) {
             return null;
         }
@@ -112,5 +120,42 @@ class OdaAtamaServisi
         }
 
         return (int) array_values($bosOdalar)[0];
+    }
+
+    /**
+     * oda_sunulan_hizmetler tanimsizsa: hizmeti yapabilen personellere atanmis
+     * odalari dondur. Oda-personel iliskisi iki yerde tutulur: odalar.personel_id
+     * (birincil) ve oda_personelleri (coklu). Ikisini de tarar.
+     *
+     * @return int[] Oda ID listesi (bos olabilir)
+     */
+    private static function personeldenOdaCikar(int $salonId, int $hizmetId): array
+    {
+        // Bu hizmeti yapabilen personeller
+        $personelIdleri = DB::table('personel_sunulan_hizmetler')
+            ->where('hizmet_id', $hizmetId)
+            ->pluck('personel_id')
+            ->unique()
+            ->toArray();
+
+        if (empty($personelIdleri)) {
+            return [];
+        }
+
+        // oda_personelleri uzerinden (coklu personel atamasi)
+        $odaIdleri = DB::table('oda_personelleri')
+            ->where('salon_id', $salonId)
+            ->whereIn('personel_id', $personelIdleri)
+            ->pluck('oda_id')
+            ->toArray();
+
+        // odalar.personel_id uzerinden (birincil personel)
+        $odaIdleri2 = DB::table('odalar')
+            ->where('salon_id', $salonId)
+            ->whereIn('personel_id', $personelIdleri)
+            ->pluck('id')
+            ->toArray();
+
+        return array_values(array_unique(array_merge($odaIdleri, $odaIdleri2)));
     }
 }
