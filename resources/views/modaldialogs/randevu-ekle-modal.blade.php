@@ -2610,31 +2610,6 @@ window.randevuModalData = {
                     ->map(function($g){ return $g->pluck('hizmet_id')->map(fn($x)=>(int)$x)->values()->all(); })
                     ->toArray();
             }
-            // FALLBACK (backend OdaAtamaServisi ile ayni mantik): oda_sunulan_hizmetler
-            // tanimsiz odalar icin, odanin atanmis personelinin yaptigi hizmetlerden
-            // cikar. Tum sorgular batch (N+1 yok).
-            $__odalarHepsi = \App\Odalar::where('salon_id',$isletme->id)->where('aktifmi',1)->where('durum',1)->get();
-            // oda -> personel id'leri (coklu: oda_personelleri + birincil: odalar.personel_id)
-            $__odaPersonelMap = \App\OdaPersonelleri::where('salon_id',$isletme->id)
-                ->get()->groupBy('oda_id')
-                ->map(function($g){ return $g->pluck('personel_id')->all(); })->toArray();
-            // personel -> yaptigi hizmet id'leri (tek sorgu)
-            $__tumPersonelIdleri = $__odalarHepsi->pluck('personel_id')->filter()->all();
-            foreach ($__odaPersonelMap as $__ps) { $__tumPersonelIdleri = array_merge($__tumPersonelIdleri, $__ps); }
-            $__tumPersonelIdleri = array_values(array_unique(array_filter($__tumPersonelIdleri)));
-            $__personelHizmetMap = empty($__tumPersonelIdleri) ? collect() :
-                \App\PersonelHizmetler::whereIn('personel_id',$__tumPersonelIdleri)
-                    ->get()->groupBy('personel_id')
-                    ->map(function($g){ return $g->pluck('hizmet_id')->map(fn($x)=>(int)$x)->all(); });
-            foreach ($__odalarHepsi as $__o) {
-                if (!empty($__oda_hizmet_map[$__o->id])) continue; // explicit tanim varsa dokunma
-                $__pers = $__odaPersonelMap[$__o->id] ?? [];
-                if ($__o->personel_id) $__pers[] = $__o->personel_id;
-                $__pers = array_values(array_unique(array_filter($__pers)));
-                $__hids = [];
-                foreach ($__pers as $__pid) { $__hids = array_merge($__hids, $__personelHizmetMap->get($__pid, [])); }
-                if (!empty($__hids)) $__oda_hizmet_map[$__o->id] = array_values(array_unique($__hids));
-            }
         @endphp
         @foreach(\App\Odalar::where('salon_id',$isletme->id)->where('aktifmi',1)->where('durum',1)->orderBy('oda_adi','asc')->get() as $o)
             { id: {{ (int)$o->id }}, ad: @json($o->oda_adi), hizmet_idleri: @json($__oda_hizmet_map[$o->id] ?? []) },

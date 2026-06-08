@@ -739,66 +739,6 @@
     font-weight: 500;
     flex-shrink: 0;
 }
-/* === Cok hizmetli paket: hizmet basina oda + sure (duzenlenebilir) === */
-#modal-view-event-add-v2 .v2-ph-list-head {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    color: #7c3aed;
-    margin: 10px 2px 2px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-#modal-view-event-add-v2 .v2-ph-row {
-    flex-wrap: wrap;
-}
-#modal-view-event-add-v2 .v2-ph-ad {
-    color: #1f2937;
-    font-weight: 600;
-    flex: 1 1 120px;
-    min-width: 0;
-}
-#modal-view-event-add-v2 .v2-ph-controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 0 0 auto;
-    margin-left: auto;
-}
-#modal-view-event-add-v2 .v2-ph-input-wrap {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-}
-#modal-view-event-add-v2 .v2-ph-sure {
-    width: 64px;
-    height: 32px;
-    border: 1px solid #e5e7eb;
-    border-radius: 7px;
-    padding: 0 22px 0 8px;
-    font-size: 0.8rem;
-    text-align: right;
-    background: #fff;
-    color: #1f2937;
-}
-#modal-view-event-add-v2 .v2-ph-sure::-webkit-inner-spin-button,
-#modal-view-event-add-v2 .v2-ph-sure::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-#modal-view-event-add-v2 .v2-ph-unit {
-    position: absolute;
-    right: 7px;
-    font-size: 0.68rem;
-    color: #9ca3af;
-    pointer-events: none;
-}
-#modal-view-event-add-v2 .v2-ph-oda {
-    height: 32px !important;
-    min-width: 120px;
-    max-width: 170px;
-    font-size: 0.8rem;
-    padding: 0 8px;
-}
 #modal-view-event-add-v2 .v2-service-grid {
     display: grid;
     gap: 6px;
@@ -1672,27 +1612,31 @@
             if(inheritP) $card.find('.v2-personel').val(inheritP);
             if(inheritC) $card.find('.v2-cihaz').val(inheritC);
 
-            // ODA — TEK hizmetli paket icin (cok hizmetlide oda HER HIZMET satirinda,
-            // build sirasinda otomatik secili gelir; burada .v2-oda bulunmaz, atlanir):
-            //  - Kullanicinin sectigi/tikladigi oda (inheritO) varsa onu kullan.
-            //  - Yoksa sistemde tanimli oda (tek).
-            var $odaSel = $card.find('.v2-oda');
-            if($odaSel.length){
-                if(inheritO){
-                    if($odaSel.find('option[value="'+inheritO+'"]').length === 0){
+            // ODA: kullanıcı zaten seçmişse onu kullan; aksi takdirde paketin
+            // hizmetlerine göre sistemde tanımlı oda'yı (oda_sunulan_hizmetler) bul.
+            if(inheritO){
+                var $odaSelManual = $card.find('.v2-oda');
+                if($odaSelManual.length){
+                    if($odaSelManual.find('option[value="'+inheritO+'"]').length === 0){
+                        // Inherited oda dropdown'da yoksa append et
                         var odaObj = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){ return String(o.id) === String(inheritO); });
-                        if(odaObj) $odaSel.append(new Option(odaObj.ad, odaObj.id));
+                        if(odaObj) $odaSelManual.append(new Option(odaObj.ad, odaObj.id));
                     }
-                    $odaSel.val(inheritO);
-                } else {
-                    var tekOda = findOdaForPaketHizmetler(grp.hizmetler.map(function(h){ return h.id; }));
-                    if(tekOda){
-                        if($odaSel.find('option[value="'+tekOda.id+'"]').length === 0){
-                            $odaSel.append(new Option(tekOda.ad, tekOda.id));
+                    $odaSelManual.val(inheritO);
+                }
+            } else {
+                var hizmetIdsInPaket = grp.hizmetler.map(function(h){ return h.id; });
+                var autoOda = findOdaForPaketHizmetler(hizmetIdsInPaket);
+                if(autoOda){
+                    var $odaSel = $card.find('.v2-oda');
+                    if($odaSel.length){
+                        if($odaSel.find('option[value="'+autoOda.id+'"]').length === 0){
+                            $odaSel.append(new Option(autoOda.ad, autoOda.id));
                         }
-                        $odaSel.val(tekOda.id);
+                        $odaSel.val(autoOda.id);
                     }
                 }
+                // autoOda null ise: oda bos kalir, backend hizmet bazinda OdaAtamaServisi::uygunOdaSec ile atar.
             }
         });
 
@@ -1702,8 +1646,6 @@
 
     function buildPaketCardHTML(grp, idx){
         var totalSure = 0, totalFiyat = 0;
-        var cokHizmet = grp.hizmetler.length > 1;   // birden fazla FARKLI hizmet
-        var odaVar = @json($__odaVar);
         // Orijinal hizmet bilgilerini topla (submit'te orantili dagilim icin gerekli)
         var origHizmetler = [];
         var hizmetListHTML = grp.hizmetler.map(function(h){
@@ -1714,41 +1656,19 @@
             totalFiyat += fiyat;
             origHizmetler.push({ id: String(h.id), sure: sure, fiyat: fiyat });
             var seansTxt = h.seans ? ' <span class="v2-seans-badge">'+h.seans+' seans</span>' : '';
-            if(cokHizmet){
-                // DUZENLENEBILIR satir: her hizmet icin kendi sure + oda (seans degil, HIZMET basina)
-                var odaSel = odaVar ? odaSelectHTMLForHizmet(h.id) : '';
-                return ''+
-                '<li class="v2-ph-row" data-hid="'+escapeAttr(h.id)+'">'+
-                    '<span class="v2-ph-ad">'+escapeHtml(h.text)+'</span>'+ seansTxt +
-                    '<span class="v2-ph-controls">'+
-                        '<span class="v2-ph-input-wrap" title="Bu hizmetin süresi">'+
-                            '<input type="number" class="v2-ph-sure" data-hid="'+escapeAttr(h.id)+'" value="'+sure+'" min="0" step="5" autocomplete="off">'+
-                            '<span class="v2-ph-unit">dk</span>'+
-                        '</span>'+
-                        odaSel +
-                    '</span>'+
-                '</li>';
-            }
             return '<li><span class="v2-paket-hizmet-ad">'+escapeHtml(h.text)+'</span>'+seansTxt+'<span class="v2-paket-hizmet-sure">'+sure+' dk</span></li>';
         }).join('');
 
         var cihazSelHTML = @json($__cihazVar) ?
             '<div class="v2-field"><select class="form-control v2-input v2-sm v2-cihaz"><option value="">Cihaz...</option></select></div>' : '';
-        // Paket seviyesi ODA yalniz TEK hizmetli pakette gosterilir. Cok hizmetlide
-        // oda HER HIZMETIN kendi satirindadir (yukarida).
-        var odaSelHTML = (odaVar && !cokHizmet) ?
+        var odaSelHTML = @json($__odaVar) ?
             '<div class="v2-field"><select class="form-control v2-input v2-sm v2-oda"><option value="">Oda...</option></select></div>' : '';
 
-        // Cok hizmetlide toplam sure input'u READONLY (hizmet sureleri toplami) gosterilir.
-        var sureReadonly = cokHizmet ? ' readonly title="Hizmet süreleri toplamı (her hizmeti aşağıdan düzenleyin)"' : ' title="Toplam süreyi düzenleyebilirsiniz"';
         // Orijinal degerleri JSON olarak sakla (event handler'larin direkt erisebilmesi icin)
-        var dataAttrs = ' data-orig-sure="'+totalSure+'" data-orig-fiyat="'+totalFiyat+'" data-cok-hizmet="'+(cokHizmet?'1':'0')+'"';
-        // Cok hizmetli pakette hizmet listesi VARSAYILAN ACIK (kullanici oda/sure gorsun-duzenlesin)
-        var detayStyle = cokHizmet ? '' : 'style="display:none;"';
-        var detayBaslik = cokHizmet ? '<div class="v2-ph-list-head"><i class="fa fa-sliders-h"></i> Hizmet başına oda &amp; süre</div>' : '';
+        var dataAttrs = ' data-orig-sure="'+totalSure+'" data-orig-fiyat="'+totalFiyat+'"';
 
         return ''+
-        '<div class="v2-service-row v2-paket-card'+(cokHizmet?' expanded':'')+'" data-paket-id="'+escapeAttr(grp.paket_id)+'" data-index="'+idx+'"'+dataAttrs+'>'+
+        '<div class="v2-service-row v2-paket-card" data-paket-id="'+escapeAttr(grp.paket_id)+'" data-index="'+idx+'"'+dataAttrs+'>'+
             '<div class="v2-paket-head">'+
                 '<div class="v2-paket-head-main">'+
                     '<i class="fa fa-gift v2-paket-icon"></i>'+
@@ -1756,8 +1676,8 @@
                     '<span class="v2-paket-count">'+grp.hizmetler.length+' hizmet</span>'+
                 '</div>'+
                 '<div class="v2-paket-totals">'+
-                    '<div class="v2-paket-input-wrap">'+
-                        '<input type="number" class="v2-paket-sure-input" value="'+totalSure+'" min="0" step="5" autocomplete="off"'+sureReadonly+'>'+
+                    '<div class="v2-paket-input-wrap" title="Toplam süreyi düzenleyebilirsiniz">'+
+                        '<input type="number" class="v2-paket-sure-input" value="'+totalSure+'" min="0" step="5" autocomplete="off">'+
                         '<span class="v2-paket-input-unit">dk</span>'+
                     '</div>'+
                     '<div class="v2-paket-input-wrap" title="Toplam fiyatı düzenleyebilirsiniz">'+
@@ -1777,8 +1697,7 @@
                     '<button type="button" class="v2-icon-trash v2-remove-row" title="Bu paketi kaldır"><i class="fa fa-trash"></i></button>'+
                 '</div>'+
             '</div>'+
-            '<div class="v2-paket-detay" '+detayStyle+'>'+
-                detayBaslik +
+            '<div class="v2-paket-detay" style="display:none;">'+
                 '<ul class="v2-paket-hizmet-list">'+hizmetListHTML+'</ul>'+
             '</div>'+
         '</div>';
@@ -1809,48 +1728,6 @@
         // SADECE tum hizmetler eslesirse oda'yi don
         if(best && bestScore === ids.length) return best;
         return null;
-    }
-
-    // Paketin hizmetlerinin oda dagilimini belirler:
-    //  - 'tek'        : tum hizmetler TEK odaya ait -> o oda dondurulur
-    //  - 'coklu'      : hizmetler FARKLI odalara dagiliyor -> tek oda dayatma,
-    //                   backend her hizmeti kendi odasina atar (oda:null)
-    //  - 'bilinmiyor' : en az bir hizmetin tanimli odasi yok -> miras/tiklanan oda kullanilabilir
-    function paketOdaDagilimi(hizmetIds){
-        var odalar = (window.randevuModalData && window.randevuModalData.odalar) || [];
-        var ids = hizmetIds.map(function(x){ return parseInt(x, 10); }).filter(function(x){ return !!x; });
-        if(!ids.length || !odalar.length) return { mode: 'bilinmiyor', oda: null };
-
-        // Tek oda hepsini kapsiyor mu?
-        var tek = findOdaForPaketHizmetler(hizmetIds);
-        if(tek) return { mode: 'tek', oda: tek };
-
-        // Her hizmetin en az bir tanimli odasi var mi?
-        var hepsininOdasiVar = ids.every(function(hid){
-            return odalar.some(function(o){
-                return Array.isArray(o.hizmet_idleri) && o.hizmet_idleri.indexOf(hid) !== -1;
-            });
-        });
-        if(hepsininOdasiVar) return { mode: 'coklu', oda: null };
-        return { mode: 'bilinmiyor', oda: null };
-    }
-
-    // Tek bir hizmet icin oda <select> HTML'i. Hizmeti sunan ILK oda otomatik
-    // secili gelir (kullanici degistirebilir). Cok hizmetli pakette her hizmet
-    // satirinda kullanilir.
-    function odaSelectHTMLForHizmet(hid){
-        var odalar = (window.randevuModalData && window.randevuModalData.odalar) || [];
-        var hidInt = parseInt(hid, 10);
-        var auto = '';
-        for(var i=0; i<odalar.length; i++){
-            var o = odalar[i];
-            if(Array.isArray(o.hizmet_idleri) && o.hizmet_idleri.indexOf(hidInt) !== -1){ auto = String(o.id); break; }
-        }
-        var opts = '<option value="">Oda...</option>';
-        odalar.forEach(function(o){
-            opts += '<option value="'+escapeAttr(o.id)+'"'+(String(o.id) === auto ? ' selected' : '')+'>'+escapeHtml(o.ad)+'</option>';
-        });
-        return '<select class="form-control v2-input v2-sm v2-ph-oda" data-hid="'+escapeAttr(hid)+'">'+opts+'</select>';
     }
 
     function populateDropdownsInCard($card){
@@ -2178,16 +2055,6 @@
         updateSummary();
     });
 
-    // Cok hizmetli pakette: bir hizmetin suresi degisince paket TOPLAM suresini
-    // (hizmet sureleri toplami) yeniden hesapla ve summary'yi guncelle.
-    $modal.on('input change', '.v2-ph-sure', function(){
-        var $card = $(this).closest('.v2-paket-card');
-        var toplam = 0;
-        $card.find('.v2-ph-sure').each(function(){ toplam += parseFloat($(this).val()) || 0; });
-        $card.find('.v2-paket-sure-input').val(toplam);
-        updateSummary();
-    });
-
     $modal.on('click', '.v2-remove-row', function(e){
         e.stopPropagation(); // paket-toggle'i tetiklemesin
         var $row = $(this).closest('.v2-service-row');
@@ -2384,41 +2251,19 @@
         if(!saat) errs.push('Saat seçiniz');
         if(!paketCards.length && !manualRows.length) errs.push('Hizmet seçiniz');
 
-        // Her grup icin kaynak kontrolu (takvim turune gore).
-        //  - Personele gore (1): personel zorunlu.
-        //  - Odaya gore (3): ODA zorunlu (personel ZORUNLU DEGIL). Cok hizmetli
-        //    pakette her hizmetin kendi odasi (.v2-ph-oda) secili olmali.
-        //  - Hizmete (0) / Cihaza gore (2): en az bir kaynak (esnek).
+        // Her grup icin personel/cihaz/oda kontrolu (takvim turune gore)
         var turu = parseInt(window.randevuTakvimTuru || 0, 10);
         function eksikKaynak($el){
             var p = $el.find('.v2-personel').val();
             var c = $el.find('.v2-cihaz').val();
-            var isCokPaket = $el.hasClass('v2-paket-card') && $el.attr('data-cok-hizmet') === '1';
-            var $ph = isCokPaket ? $el.find('.v2-ph-oda') : $();
-
-            if(turu === 1) return !p;                       // personele gore
-            if(turu === 3){                                 // odaya gore -> ODA zorunlu
-                if(isCokPaket && $ph.length){
-                    return $ph.toArray().some(function(s){ return !$(s).val(); });
-                }
-                return !($el.find('.v2-oda').val());
-            }
-            // hizmete (0) / cihaza (2) gore: en az biri
-            if(isCokPaket && $ph.length){
-                var anyOda = $ph.toArray().some(function(s){ return !!$(s).val(); });
-                return !(p || c || anyOda);
-            }
-            return !(p || c || ($el.find('.v2-oda').val()));
+            var o = $el.find('.v2-oda').val();
+            return (turu === 1) ? !p : !(p || c || o);
         }
         var kaynakErrAdded = false;
         var allGroups = paketCards.concat(manualRows);
         allGroups.forEach(function(el){
             if(eksikKaynak($(el)) && !kaynakErrAdded){
-                errs.push(
-                    turu === 1 ? 'Her satıra personel seçiniz' :
-                    turu === 3 ? 'Her hizmet için oda seçiniz' :
-                    'Her satıra personel, cihaz veya oda seçiniz'
-                );
+                errs.push(turu === 1 ? 'Her satıra personel seçiniz' : 'Her satıra personel, cihaz veya oda seçiniz');
                 kaynakErrAdded = true;
             }
         });
@@ -2549,8 +2394,7 @@
             var $card = group.$el;
             var personelId = $card.find('.v2-personel').val() || '';
             var cihazId    = $card.find('.v2-cihaz').val() || '';
-            var cardOdaId  = $card.find('.v2-oda').val() || '';        // tek hizmetli pakette
-            var cokHizmet  = $card.attr('data-cok-hizmet') === '1';
+            var odaId      = $card.find('.v2-oda').val() || '';
             var hizmetIds  = $card.data('hizmetIds') || [];
             var newSure    = parseFloat($card.find('.v2-paket-sure-input').val()) || 0;
             var newFiyat   = parseFloat(String($card.find('.v2-paket-fiyat-input').val()||'').replace(',','.')) || 0;
@@ -2560,41 +2404,23 @@
 
             // Her hizmet = bir satir (key2 = i)
             hizmetIds.forEach(function(hid, i){
-                // ODA: cok hizmetlide her hizmetin KENDI secimi; tek hizmetlide kart odasi.
-                //      Bos birakilirsa backend OdaAtamaServisi ile otomatik atar.
-                var hizOda = cardOdaId;
-                if(cokHizmet){
-                    var $phOda = $card.find('.v2-ph-oda[data-hid="'+hid+'"]');
-                    hizOda = $phOda.length ? ($phOda.val() || '') : '';
-                }
+                formData.append('randevupersonelleriyeni[]', personelId);
+                formData.append('randevucihazlariyeni[]', cihazId);
+                formData.append('randevuodalariyeni[]', odaId);
+                formData.append('randevuhizmetleriyeni_'+i+'[]', hid);
+                formData.append('randevuyardimcipersonelleriyeni_'+i+'[]', '');
 
                 var origH = null;
                 for(var k=0; k<origHizmetler.length; k++){
                     if(String(origHizmetler[k].id) === String(hid)){ origH = origHizmetler[k]; break; }
                 }
                 if(!origH) origH = {sure:0, fiyat:0};
-
-                // SURE: cok hizmetlide her hizmetin KENDI input'u; tek hizmetlide
-                //       paket toplamindan orantili dagilim.
-                var calcSure;
-                if(cokHizmet){
-                    var $phSure = $card.find('.v2-ph-sure[data-hid="'+hid+'"]');
-                    calcSure = $phSure.length ? (parseInt($phSure.val(),10)||0) : (parseFloat(origH.sure)||0);
-                } else {
-                    calcSure = origTotalSure > 0
-                        ? Math.round((parseFloat(origH.sure)||0) * newSure/origTotalSure)
-                        : Math.round(newSure/hizmetIds.length);
-                }
-                // FIYAT: her zaman paket toplam fiyatindan orantili dagilim
+                var calcSure = origTotalSure > 0
+                    ? Math.round((parseFloat(origH.sure)||0) * newSure/origTotalSure)
+                    : Math.round(newSure/hizmetIds.length);
                 var calcFiyat = origTotalFiyat > 0
                     ? ((parseFloat(origH.fiyat)||0) * newFiyat/origTotalFiyat)
                     : (newFiyat/hizmetIds.length);
-
-                formData.append('randevupersonelleriyeni[]', personelId);
-                formData.append('randevucihazlariyeni[]', cihazId);
-                formData.append('randevuodalariyeni[]', hizOda);
-                formData.append('randevuhizmetleriyeni_'+i+'[]', hid);
-                formData.append('randevuyardimcipersonelleriyeni_'+i+'[]', '');
 
                 formData.append('hizmet_sureleri-'+hid, calcSure);
                 formData.append('hizmet_fiyatlari-'+hid, calcFiyat.toFixed(2));
@@ -2648,17 +2474,6 @@
             });
         }
 
-        // --- GECICI TESHIS LOGU (sorun cozulunce kaldirilacak) ---
-        try {
-            var _dbg = {};
-            formData.forEach(function(v,k){
-                if(_dbg[k]===undefined) _dbg[k]=v;
-                else if(Array.isArray(_dbg[k])) _dbg[k].push(v);
-                else _dbg[k]=[_dbg[k],v];
-            });
-            console.log('[RANDEVU GONDER]', 'tip='+group.type, _dbg);
-        } catch(e){}
-
         $.ajax({
             type: 'POST',
             url: '/isletmeyonetim/yenirandevuekle',
@@ -2667,7 +2482,6 @@
             contentType: false,
             dataType: 'json',
             success: function(res){
-                try { console.log('[RANDEVU SONUC]', res); } catch(e){}
                 if(res && res.cakismavar){ cb({cakismavar: res.cakismavar}); }
                 else { cb({success:true, response: res}); }
             },
