@@ -2384,19 +2384,41 @@
         if(!saat) errs.push('Saat seçiniz');
         if(!paketCards.length && !manualRows.length) errs.push('Hizmet seçiniz');
 
-        // Her grup icin personel/cihaz/oda kontrolu (takvim turune gore)
+        // Her grup icin kaynak kontrolu (takvim turune gore).
+        //  - Personele gore (1): personel zorunlu.
+        //  - Odaya gore (3): ODA zorunlu (personel ZORUNLU DEGIL). Cok hizmetli
+        //    pakette her hizmetin kendi odasi (.v2-ph-oda) secili olmali.
+        //  - Hizmete (0) / Cihaza gore (2): en az bir kaynak (esnek).
         var turu = parseInt(window.randevuTakvimTuru || 0, 10);
         function eksikKaynak($el){
             var p = $el.find('.v2-personel').val();
             var c = $el.find('.v2-cihaz').val();
-            var o = $el.find('.v2-oda').val();
-            return (turu === 1) ? !p : !(p || c || o);
+            var isCokPaket = $el.hasClass('v2-paket-card') && $el.attr('data-cok-hizmet') === '1';
+            var $ph = isCokPaket ? $el.find('.v2-ph-oda') : $();
+
+            if(turu === 1) return !p;                       // personele gore
+            if(turu === 3){                                 // odaya gore -> ODA zorunlu
+                if(isCokPaket && $ph.length){
+                    return $ph.toArray().some(function(s){ return !$(s).val(); });
+                }
+                return !($el.find('.v2-oda').val());
+            }
+            // hizmete (0) / cihaza (2) gore: en az biri
+            if(isCokPaket && $ph.length){
+                var anyOda = $ph.toArray().some(function(s){ return !!$(s).val(); });
+                return !(p || c || anyOda);
+            }
+            return !(p || c || ($el.find('.v2-oda').val()));
         }
         var kaynakErrAdded = false;
         var allGroups = paketCards.concat(manualRows);
         allGroups.forEach(function(el){
             if(eksikKaynak($(el)) && !kaynakErrAdded){
-                errs.push(turu === 1 ? 'Her satıra personel seçiniz' : 'Her satıra personel, cihaz veya oda seçiniz');
+                errs.push(
+                    turu === 1 ? 'Her satıra personel seçiniz' :
+                    turu === 3 ? 'Her hizmet için oda seçiniz' :
+                    'Her satıra personel, cihaz veya oda seçiniz'
+                );
                 kaynakErrAdded = true;
             }
         });
