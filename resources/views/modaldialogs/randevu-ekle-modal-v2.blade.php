@@ -1513,10 +1513,12 @@
 
         // Ilk paket eklenirken bos manuel satiri kaldir (kullanici hicbir hizmet
         // secmemis ise) — temiz gorunum icin.
+        // ÖNCE: silinecek satırlardan personel/cihaz/oda seçimlerini yakala (paket karta miras için)
+        var inheritedFromRemoved = { personel:'', cihaz:'', oda:'' };
         if(paketOrderFiltered.length){
             var existingPaketCount = $services.find('.v2-paket-card').length;
             if(existingPaketCount === 0){
-                // Hicbir paket yokken: bos manuel satirlari sil
+                // Hicbir paket yokken: bos manuel satirlari sil (hizmet seçimi yoksa)
                 $services.find('.v2-service-row').not('.v2-paket-card').filter(function(){
                     var $h = $(this).find('.v2-hizmet');
                     var el = $h[0];
@@ -1524,12 +1526,21 @@
                     if(!Array.isArray(vals)) vals = vals ? [vals] : [];
                     return vals.filter(function(x){return x;}).length === 0;
                 }).each(function(){
+                    // Silmeden önce personel/cihaz/oda yakala (ilk dolu olanı kullan)
+                    var p = $(this).find('.v2-personel').val();
+                    var c = $(this).find('.v2-cihaz').val();
+                    var o = $(this).find('.v2-oda').val();
+                    if(!inheritedFromRemoved.personel && p) inheritedFromRemoved.personel = p;
+                    if(!inheritedFromRemoved.cihaz && c)    inheritedFromRemoved.cihaz = c;
+                    if(!inheritedFromRemoved.oda && o)       inheritedFromRemoved.oda = o;
                     var el = $(this).find('.v2-hizmet')[0];
                     if(el && el.tomselect){ try{el.tomselect.destroy();}catch(e){} }
                     $(this).remove();
                 });
             }
         }
+        // Paket kartlarına aktarmak için sakla
+        window._v2InheritFromRemoved = inheritedFromRemoved;
 
         // 4. Yeni paketler icin (mevcut olmayanlar) akordiyon kart EKLE
         var startIdx = $services.find('.v2-service-row').length;
@@ -1569,32 +1580,64 @@
             $card.data('origTotalFiyat', parseFloat($card.attr('data-orig-fiyat')) || 0);
             // Personel/cihaz/oda dropdownlarini doldur
             populateDropdownsInCard($card);
-            // Personel ve Cihaz: v1'in ilk grup satirindan miras al (slot tiklamasinin niyeti).
-            if(grp.v1Indices.length){
-                var $v1First = $('#modal-view-event-add .hizmet-satiri').eq(grp.v1Indices[0]);
-                var p = $v1First.find('.personel-select, .personel_secimi').not('.hizmet-select').val();
-                var c = $v1First.find('.cihaz-select, .cihaz_secimi').val();
-                if(p) $card.find('.v2-personel').val(p);
-                if(c) $card.find('.v2-cihaz').val(c);
-            }
 
-            // ODA: Slot tiklamasini DEGIL, paketin hizmetlerine gore sistemde
-            // tanimli oda'yi (oda_sunulan_hizmetler) bul ve otomatik ata.
-            // Kullanici yanlis oda slotuna tiklasa bile dogru oda secilir.
-            var hizmetIdsInPaket = grp.hizmetler.map(function(h){ return h.id; });
-            var autoOda = findOdaForPaketHizmetler(hizmetIdsInPaket);
-            if(autoOda){
-                // Dropdown'a option yoksa append et
-                var $odaSel = $card.find('.v2-oda');
-                if($odaSel.length){
-                    if($odaSel.find('option[value="'+autoOda.id+'"]').length === 0){
-                        $odaSel.append(new Option(autoOda.ad, autoOda.id));
-                    }
-                    $odaSel.val(autoOda.id);
+            // Inheritance hiyerarşisi:
+            // 1) Silinen boş manuel satırdan (kullanıcı paket'ten ÖNCE personel/cihaz/oda seçmiş)
+            // 2) Hala duran v2 manuel satırdan
+            // 3) v1'in ilk grup satırından (slot tıklaması)
+            var inheritP = '', inheritC = '', inheritO = '';
+            var removedInh = window._v2InheritFromRemoved || {};
+            if(removedInh.personel) inheritP = removedInh.personel;
+            if(removedInh.cihaz)    inheritC = removedInh.cihaz;
+            if(removedInh.oda)      inheritO = removedInh.oda;
+
+            if(!inheritP || !inheritC || !inheritO){
+                var $v2FirstManual = $services.find('.v2-service-row').not('.v2-paket-card').filter(function(){
+                    return ($(this).find('.v2-personel').val() || $(this).find('.v2-cihaz').val() || $(this).find('.v2-oda').val());
+                }).first();
+                if($v2FirstManual.length){
+                    if(!inheritP) inheritP = $v2FirstManual.find('.v2-personel').val() || '';
+                    if(!inheritC) inheritC = $v2FirstManual.find('.v2-cihaz').val() || '';
+                    if(!inheritO) inheritO = $v2FirstManual.find('.v2-oda').val() || '';
                 }
             }
-            // autoOda null ise: oda bos kalir, backend hizmet bazinda
-            // OdaAtamaServisi::uygunOdaSec ile her hizmete dogru oda'yi atar.
+            // Fallback: v1'in ilk grup satırından
+            if((!inheritP || !inheritC || !inheritO) && grp.v1Indices.length){
+                var $v1First = $('#modal-view-event-add .hizmet-satiri').eq(grp.v1Indices[0]);
+                if(!inheritP) inheritP = $v1First.find('.personel-select, .personel_secimi').not('.hizmet-select').val() || '';
+                if(!inheritC) inheritC = $v1First.find('.cihaz-select, .cihaz_secimi').val() || '';
+                if(!inheritO) inheritO = $v1First.find('.oda-select, .oda_secimi').val() || '';
+            }
+
+            if(inheritP) $card.find('.v2-personel').val(inheritP);
+            if(inheritC) $card.find('.v2-cihaz').val(inheritC);
+
+            // ODA: kullanıcı zaten seçmişse onu kullan; aksi takdirde paketin
+            // hizmetlerine göre sistemde tanımlı oda'yı (oda_sunulan_hizmetler) bul.
+            if(inheritO){
+                var $odaSelManual = $card.find('.v2-oda');
+                if($odaSelManual.length){
+                    if($odaSelManual.find('option[value="'+inheritO+'"]').length === 0){
+                        // Inherited oda dropdown'da yoksa append et
+                        var odaObj = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){ return String(o.id) === String(inheritO); });
+                        if(odaObj) $odaSelManual.append(new Option(odaObj.ad, odaObj.id));
+                    }
+                    $odaSelManual.val(inheritO);
+                }
+            } else {
+                var hizmetIdsInPaket = grp.hizmetler.map(function(h){ return h.id; });
+                var autoOda = findOdaForPaketHizmetler(hizmetIdsInPaket);
+                if(autoOda){
+                    var $odaSel = $card.find('.v2-oda');
+                    if($odaSel.length){
+                        if($odaSel.find('option[value="'+autoOda.id+'"]').length === 0){
+                            $odaSel.append(new Option(autoOda.ad, autoOda.id));
+                        }
+                        $odaSel.val(autoOda.id);
+                    }
+                }
+                // autoOda null ise: oda bos kalir, backend hizmet bazinda OdaAtamaServisi::uygunOdaSec ile atar.
+            }
         });
 
         reindexRows();
