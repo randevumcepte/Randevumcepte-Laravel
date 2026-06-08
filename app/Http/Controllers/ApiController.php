@@ -15892,6 +15892,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             OdaPersonelleri::where("oda_id", $request->oda_id)->delete();
 
+            \App\OdaHizmetler::where("oda_id", $request->oda_id)->delete();
+
         } else {
 
             $odalar = new Odalar();
@@ -15955,6 +15957,46 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $odaPersoneli->personel_id = $personel;
 
             $odaPersoneli->save();
+
+        }
+
+        $secilenHizmetler = $request->oda_hizmetleri ?? [];
+
+        if (is_string($secilenHizmetler)) {
+
+            $decoded = json_decode($secilenHizmetler, true);
+
+            if (is_array($decoded)) {
+
+                $secilenHizmetler = $decoded;
+
+            } else {
+
+                $secilenHizmetler = array_values(array_filter(array_map('trim', explode(',', $secilenHizmetler)), function ($v) { return $v !== ''; }));
+
+            }
+
+        }
+
+        if (!is_array($secilenHizmetler)) {
+
+            $secilenHizmetler = [];
+
+        }
+
+        foreach ($secilenHizmetler as $hizmetId) {
+
+            if (!$hizmetId) { continue; }
+
+            \App\OdaHizmetler::create([
+
+                'salon_id' => $isletme_id,
+
+                'oda_id' => $odalar->id,
+
+                'hizmet_id' => $hizmetId,
+
+            ]);
 
         }
 
@@ -16050,6 +16092,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             ->all();
 
+        $hizmetIds = \App\OdaHizmetler::where("oda_id", $oda_id)
+
+            ->pluck("hizmet_id")
+
+            ->map(function ($v) { return (string) $v; })
+
+            ->values()
+
+            ->all();
+
         return [
 
             'id' => (string) $oda->id,
@@ -16060,7 +16112,41 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             'personel_ids' => $personelIds,
 
+            'hizmet_ids' => $hizmetIds,
+
         ];
+
+    }
+
+    public function oda_hizmet_listesi(Request $request, $isletme_id)
+
+    {
+
+        $hizmetler = SalonHizmetler::with('hizmetler:id,hizmet_adi')
+
+            ->where('salon_id', $isletme_id)
+
+            ->where('aktif', 1)
+
+            ->get()
+
+            ->map(function ($sh) {
+
+                return [
+
+                    'id' => (string) $sh->hizmet_id,
+
+                    'hizmet_adi' => $sh->hizmetler ? $sh->hizmetler->hizmet_adi : 'Bilinmeyen',
+
+                ];
+
+            })
+
+            ->sortBy('hizmet_adi')
+
+            ->values();
+
+        return ['data' => $hizmetler];
 
     }
   public function personelekleduzenle(Request $request)

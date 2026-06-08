@@ -245,6 +245,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
   Route::get('/odaekleduzenle/{salonid}','ApiController@odaekleduzenle');
   Route::post('/odaekleduzenle/{salonid}','ApiController@odaekleduzenle');
   Route::get('/oda_personel_listesi/{salonid}','ApiController@oda_personel_listesi');
+  Route::get('/oda_hizmet_listesi/{salonid}','ApiController@oda_hizmet_listesi');
   Route::get('/oda_detay/{oda_id}','ApiController@oda_detay');
   Route::post('/personelekleduzenle','ApiController@personelekleduzenle');
   Route::get('/personelcalismasaatleri/{personelid}','ApiController@personelcalismasaatleri');
