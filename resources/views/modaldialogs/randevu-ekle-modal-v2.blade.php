@@ -1613,29 +1613,38 @@
             if(inheritC) $card.find('.v2-cihaz').val(inheritC);
 
             // ODA mantigi — DAGILIMA DUYARLI:
-            //  - Paketin hizmetleri FARKLI odalara aitse ('coklu'): tiklanan/miras
-            //    oda dayatilmaz; kart bos birakilir, backend her hizmeti KENDI
-            //    odasina dagitir (ornek: lazer -> Lazer odasi, cilt -> Cilt odasi).
-            //    Boylece yanlislikla tiklanan slot (or. SOPRANO) tum pakete yapismaz.
-            //  - Tum hizmetler TEK odaya aitse: o oda secilir.
-            //  - Oda bilgisi cikarilamiyorsa: kullanicinin sectigi/tikladigi (inheritO) oda.
+            //  - Paket BIRDEN FAZLA hizmet iceriyorsa VE en az bir hizmetin tanimli
+            //    odasi varsa: tiklanan/miras oda DAYATILMAZ; kart bos birakilir,
+            //    backend her hizmeti KENDI odasina dagitir (lazer->Lazer, cilt->Cilt).
+            //    Tek odali cikan paketlerde bile her hizmet ayni odaya zaten duser.
+            //  - Tek hizmetli paket: kullanicinin sectigi/tikladigi (inheritO) oda.
+            //  - Oda bilgisi hic yoksa ('bilinmiyor'): inheritO kullanilir.
             var hizmetIdsInPaket = grp.hizmetler.map(function(h){ return h.id; });
             var dagilim = paketOdaDagilimi(hizmetIdsInPaket);
+            var cokHizmet = hizmetIdsInPaket.length > 1;
             var $odaSel = $card.find('.v2-oda');
+            // --- GECICI TESHIS LOGU (sorun cozulunce kaldirilacak) ---
+            try {
+                console.log('[PAKET ODA]', {
+                    hizmetler: hizmetIdsInPaket,
+                    cokHizmet: cokHizmet,
+                    mode: dagilim.mode,
+                    inheritO: inheritO,
+                    odaHizmetMap: ((window.randevuModalData && window.randevuModalData.odalar) || [])
+                        .map(function(o){ return { id:o.id, ad:o.ad, hizmet_idleri:o.hizmet_idleri }; })
+                });
+            } catch(e){}
             if($odaSel.length){
-                if(dagilim.mode === 'coklu'){
-                    // FARKLI odalar — tiklanan/miras oda dayatilmaz; kart bos kalir,
-                    // backend her hizmeti kendi odasina dagitir.
+                if(cokHizmet && dagilim.mode !== 'bilinmiyor'){
+                    // Cok hizmetli + dagitilabilir oda bilgisi var -> DAGIT (bos birak)
                     $odaSel.val('');
                 } else if(inheritO){
-                    // tek/bilinmiyor + kullanicinin sectigi/tikladigi oda varsa onu kullan
                     if($odaSel.find('option[value="'+inheritO+'"]').length === 0){
                         var odaObj = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){ return String(o.id) === String(inheritO); });
                         if(odaObj) $odaSel.append(new Option(odaObj.ad, odaObj.id));
                     }
                     $odaSel.val(inheritO);
                 } else if(dagilim.mode === 'tek' && dagilim.oda){
-                    // Tek odali paket, kullanici secimi yok -> sistemde tanimli oda
                     if($odaSel.find('option[value="'+dagilim.oda.id+'"]').length === 0){
                         $odaSel.append(new Option(dagilim.oda.ad, dagilim.oda.id));
                     }
