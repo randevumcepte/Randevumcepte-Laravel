@@ -19,9 +19,22 @@
       <button class="btn btn-danger randevuiptalet" data-value="{{$randevu->randevu_id}}"><i class="fa fa-times"></i> İptal Et</button>
    </div>
 @else
+   @php
+      // Geldi olarak işaretli mi? — randevuya_geldi==1 VEYA bu hizmetin seansa_geldi==1
+      $__zatenGeldi = (
+         (isset($randevu->randevu->randevuya_geldi) && $randevu->randevu->randevuya_geldi === 1)
+         || (isset($randevu->seansa_geldi) && $randevu->seansa_geldi === 1)
+      );
+   @endphp
    <div class="rdb-row">
       <a name="gelmedi_isaretle" href="#" class="btn btn-danger" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-times"></i> Gelmedi</a>
-      <a name="geldi_isaretle"   href="#" class="btn btn-success" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-check"></i> Geldi</a>
+
+      @if($__zatenGeldi)
+         {{-- Zaten geldi -> Beklemede butonu (geldi işaretini kaldırır; hem randevu hem seanstan) --}}
+         <a name="geldi_isareti_kaldir" href="#" class="btn btn-warning" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-undo"></i> Beklemede</a>
+      @else
+         <a name="geldi_isaretle"   href="#" class="btn btn-success" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-check"></i> Geldi</a>
+      @endif
 
       @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')
          @if(!empty($hasPaketTahsilat))
