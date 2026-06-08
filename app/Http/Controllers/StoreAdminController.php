@@ -27546,6 +27546,9 @@ DB::raw('
     public function randevuGeldiGelmediIsaretiKaldir(Request $request)
     {
         $randevu = Randevular::where('id',$request->randevuid)->first();
+        if(!$randevu){
+            return response()->json(['ok' => false, 'message' => 'Randevu bulunamadı'], 404);
+        }
         $randevu->randevuya_geldi = null;
         $randevu->save();
         foreach($randevu->hizmetler as $hizmet)
@@ -27561,7 +27564,9 @@ DB::raw('
             $seans->geldi = null;
             $seans->save();
         }
-
+        // AJAX (dataType:'json') parse hatasi yememesi icin gecerli JSON yaniti dondur;
+        // success callback artik modal'i kapatabilir + takvimi yenileyebilir.
+        return response()->json(['ok' => true, 'message' => 'Geldi işareti kaldırıldı']);
     }
 
     public function hizmetYonetimiGuncelle(Request $request){
