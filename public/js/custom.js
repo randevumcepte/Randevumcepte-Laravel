@@ -9096,6 +9096,11 @@ $('#zamana_gore_filtre').change(function(e){
     }
 });
 
+// Randevu listesi sayfasi acilirken bir kez calistir: tablo bos gelmesin, varsayilan (Bugun) filtre ile yuklensin
+if($('#randevu_liste').length){
+    randevufiltre();
+}
+
 $('#hizmet_rapor_zamana_gore_filtre').change(function(e){
     e.preventDefault();
     if($('#hizmet_rapor_zamana_gore_filtre').val()=="ozel"){
