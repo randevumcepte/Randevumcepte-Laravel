@@ -1030,13 +1030,17 @@ class SalonrandevuImporter
         $this->log("SR appointment sayisi: $srToplam");
         $this->log("SR ay araligi: " . (count($srAyBazli) ? min(array_keys($srAyBazli)) . ' - ' . max(array_keys($srAyBazli)) : '-'));
 
-        // DB'den ay-bazli sayim
-        $dbAyBazli = DB::table('randevular')->where('salon_id', $this->salonId)
-            ->where('personel_notu', 'LIKE', '%[salonrandevu-rdv:%')
+        // DB'den ay-bazli sayim — from/to varsa ayni araliga sinirla
+        $dbQuery = DB::table('randevular')->where('salon_id', $this->salonId)
+            ->where('personel_notu', 'LIKE', '%[salonrandevu-rdv:%');
+        if ($from && $to) {
+            $dbQuery->whereBetween('tarih', [$from, $to]);
+        }
+        $dbAyBazli = $dbQuery
             ->select(DB::raw("DATE_FORMAT(tarih, '%Y-%m') as ay, COUNT(*) as cnt"))
             ->groupBy('ay')->pluck('cnt', 'ay')->all();
         $dbToplam = array_sum($dbAyBazli);
-        $this->log("DB markerli randevu sayisi: $dbToplam");
+        $this->log("DB markerli randevu sayisi" . ($from && $to ? " ({$from}..{$to})" : "") . ": $dbToplam");
 
         // Tum aylar (SR + DB birlesim) — siralanmis
         $tumAylar = array_unique(array_merge(array_keys($srAyBazli), array_keys($dbAyBazli)));
