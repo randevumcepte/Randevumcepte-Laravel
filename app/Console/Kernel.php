@@ -37,6 +37,8 @@ class Kernel extends ConsoleKernel
         Commands\OlcumHatirlatmalari::class,
         Commands\SeansHatirlatma::class,
         Commands\FormVarsayilanYay::class,
+        Commands\HizmetVarsayilanYay::class,
+        Commands\GuzellikMedikalKur::class,
         Commands\EasistanIndexEnsure::class,
         Commands\WhatsappPromoKontrol::class,
         Commands\CagriMerkeziSchemaEnsure::class,
