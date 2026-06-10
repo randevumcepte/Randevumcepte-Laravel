@@ -20,16 +20,16 @@
             <div class="sy-card-body">
                 <div class="sy-form-row">
                     <div class="sy-form-group">
-                        <label>Alt Başlık</label>
-                        <input type="text" name="alt_baslik" class="sy-input"
-                               value="{{ old('alt_baslik', $paket->alt_baslik ?? '') }}" placeholder="İnteraktif Duyuru Paketi">
-                        <div class="sy-text-muted sy-fs-12 sy-mt-12">Boş bırakılırsa "İnteraktif Duyuru Paketi" gösterilir.</div>
-                    </div>
-                    <div class="sy-form-group">
                         <label>Paket Başlığı</label>
                         <input type="text" name="paket_adi" class="sy-input"
                                value="{{ old('paket_adi', $paket->paket_adi ?? '') }}" placeholder="örn. 10.000 SMS">
                         <div class="sy-text-muted sy-fs-12 sy-mt-12">Boş bırakılırsa "{SMS adedi} SMS" gösterilir.</div>
+                    </div>
+                    <div class="sy-form-group">
+                        <label>Alt Başlık</label>
+                        <input type="text" name="alt_baslik" class="sy-input"
+                               value="{{ old('alt_baslik', $paket->alt_baslik ?? '') }}" placeholder="İnteraktif Duyuru Paketi">
+                        <div class="sy-text-muted sy-fs-12 sy-mt-12">Boş bırakılırsa "İnteraktif Duyuru Paketi" gösterilir.</div>
                     </div>
                 </div>
                 <div class="sy-form-row">
