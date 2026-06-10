@@ -2962,6 +2962,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             // Varsayilan form sablonlarini (Semall Beauty - id 370) ayni sektordeki yeni salona kopyala
             self::varsayilanFormlariKopyala($salon->id);
 
+            // Varsayilan hizmetleri (guzellik sablonu) ayni turdeki yeni salona kopyala
+            self::varsayilanHizmetleriKopyala($salon->id);
+
             $santral_ayari = new SalonSantralAyarlari();
 
             $santral_ayari->ayar_id = 1;
@@ -4462,6 +4465,65 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             return $eklenen;
         } catch (\Exception $e) {
             \Log::error('varsayilanFormlariKopyala hata salon='.$hedefSalonId.': '.$e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Sablon salonun (varsayilan: guzellik sablonu) sunulan hizmetlerini
+     * AYNI salon turundeki hedef salona kopyalar. Sadece ayni tur eslesirse
+     * calisir; boylece guzellik sablonu yalnizca guzellik salonlarina dagilir.
+     * Hedefte zaten olan hizmet_id'ler atlanir (idempotent). varsayilanFormlariKopyala ile ayni desen.
+     */
+    public static function varsayilanHizmetleriKopyala($hedefSalonId, $kaynakSalonId = null)
+    {
+        try {
+            if ($kaynakSalonId === null) {
+                $kaynakSalonId = (int) config('varsayilanlar.guzellik_sablon_salon_id', 0);
+            }
+            if (!$kaynakSalonId || (int)$hedefSalonId === (int)$kaynakSalonId) {
+                return 0;
+            }
+            $hedefSalon = Salonlar::find($hedefSalonId);
+            if (!$hedefSalon) {
+                return 0;
+            }
+            $kaynakSalon = Salonlar::find($kaynakSalonId);
+            if (!$kaynakSalon) {
+                return 0;
+            }
+            // Sadece ayni salon turu (or. guzellik) icin kopyala
+            if ((int)$kaynakSalon->salon_turu_id !== (int)$hedefSalon->salon_turu_id) {
+                return 0;
+            }
+            $kaynakHizmetler = SalonHizmetler::where('salon_id', $kaynakSalonId)->get();
+            if ($kaynakHizmetler->isEmpty()) {
+                return 0;
+            }
+            // Hedefte zaten olan hizmet_id'ler — mukerrer eklenmesin
+            $mevcutHizmetIdler = SalonHizmetler::where('salon_id', $hedefSalonId)
+                ->pluck('hizmet_id')
+                ->map(function ($v) { return (int)$v; })
+                ->all();
+            $eklenen = 0;
+            foreach ($kaynakHizmetler as $kh) {
+                if (in_array((int)$kh->hizmet_id, $mevcutHizmetIdler, true)) {
+                    continue;
+                }
+                $yeni = new SalonHizmetler();
+                $yeni->salon_id           = $hedefSalonId;
+                $yeni->hizmet_id          = $kh->hizmet_id;
+                $yeni->hizmet_kategori_id = $kh->hizmet_kategori_id;
+                $yeni->baslangic_fiyat    = $kh->baslangic_fiyat;
+                $yeni->son_fiyat          = $kh->son_fiyat;
+                $yeni->bolum              = $kh->bolum;
+                $yeni->save();
+                $mevcutHizmetIdler[] = (int)$kh->hizmet_id;
+                $eklenen++;
+            }
+            return $eklenen;
+        } catch (\Exception $e) {
+            \Log::error('varsayilanHizmetleriKopyala hata salon='.$hedefSalonId.': '.$e->getMessage());
             return 0;
         }
     }

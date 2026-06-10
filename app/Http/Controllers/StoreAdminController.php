@@ -26485,31 +26485,38 @@ DB::raw('
      */
     public function arama_filtre_onizleme(Request $request)
     {
-        $salonId = self::mevcutsube($request);
-        $filtre = \App\Services\AramaFiltreService::parseRequest($request);
+        try {
+            $salonId = self::mevcutsube($request);
+            $filtre = \App\Services\AramaFiltreService::parseRequest($request);
 
-        $page = max(1, (int) $request->input('page', 1));
-        $perPage = (int) $request->input('perPage', 100);
+            $page = max(1, (int) $request->input('page', 1));
+            $perPage = (int) $request->input('perPage', 100);
 
-        $base = \App\Services\AramaFiltreService::build($salonId, $filtre);
+            $base = \App\Services\AramaFiltreService::build($salonId, $filtre);
 
-        // distinct user_id uzerinden dogrudan say (fromSub Laravel 5.6.x'te yok)
-        $total = (clone $base)->count('musteri_portfoy.user_id');
+            // distinct user_id uzerinden dogrudan say (fromSub Laravel 5.6.x'te yok)
+            $total = (clone $base)->count('musteri_portfoy.user_id');
 
-        $musteriIdler = (clone $base)->pluck('id')->toArray();
+            $musteriIdler = (clone $base)->pluck('id')->toArray();
 
-        $customers = $base->orderBy('users.name')
-            ->skip(($page - 1) * $perPage)
-            ->take($perPage)
-            ->get();
+            $customers = $base->orderBy('users.name')
+                ->skip(($page - 1) * $perPage)
+                ->take($perPage)
+                ->get();
 
-        return response()->json([
-            'total'        => $total,
-            'page'         => $page,
-            'perPage'      => $perPage,
-            'musteriIdler' => $musteriIdler,
-            'customers'    => $customers,
-        ]);
+            return response()->json([
+                'total'        => $total,
+                'page'         => $page,
+                'perPage'      => $perPage,
+                'musteriIdler' => $musteriIdler,
+                'customers'    => $customers,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('[CAGRI-MERKEZI] arama_filtre_onizleme: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+            return response()->json([
+                'message' => $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')',
+            ], 500);
+        }
     }
 
     /**
