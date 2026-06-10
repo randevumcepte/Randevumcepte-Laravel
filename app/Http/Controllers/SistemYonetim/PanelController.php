@@ -15,6 +15,8 @@ use App\SistemYonetim\ImpersonationLog;
 use App\SistemYonetim\SalonNotu;
 use App\SistemYonetim\DestekTalebi;
 use App\SistemYonetim\DestekMesaji;
+use App\SatisOrtakligiModel\Musteri_Formlari;
+use App\SatisOrtakligiModel\Musteri_Formlari_Hizmetler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -879,6 +881,86 @@ class PanelController extends Controller
         return view('sistemyonetim.v2.whatsapp', [
             'title' => 'WhatsApp Yönetim',
             'aktifMenu' => 'whatsapp',
+        ]);
+    }
+
+    /* ============================================================
+     * MANUEL ODEME LINKI
+     * Serbest metin hizmet + adet + tutar girip PayTR odeme linki uretir.
+     * (Mevcut Musteri_Formlari + /odeme?form=ID + PayTR callback akisini kullanir)
+     * ============================================================ */
+    public function manuelOdemeLinki()
+    {
+        $isletmeler = Salonlar::orderBy('salon_adi')
+            ->get(['id', 'salon_adi', 'yetkili_adi', 'yetkili_mail', 'yetkili_telefon']);
+
+        return view('sistemyonetim.v2.manuel-odeme-linki', [
+            'title' => 'Manuel Ödeme Linki',
+            'aktifMenu' => 'manuelodeme',
+            'isletmeler' => $isletmeler,
+        ]);
+    }
+
+    public function manuelOdemeLinkiOlustur(Request $request)
+    {
+        $salon = Salonlar::find($request->salon_id);
+        if (!$salon) {
+            return response()->json(['type' => 'error', 'message' => 'Lütfen geçerli bir işletme seçin.']);
+        }
+
+        $hizmetler = $request->hizmetler;
+        if (empty($hizmetler) || !is_array($hizmetler)) {
+            return response()->json(['type' => 'error', 'message' => 'En az bir hizmet satırı girmelisiniz.']);
+        }
+
+        // Gecerli satirlari ayikla (form, en az 1 gecerli satir olmadan olusmasin)
+        $gecerli = [];
+        foreach ($hizmetler as $h) {
+            $ad    = isset($h['ad']) ? trim($h['ad']) : '';
+            $adet  = isset($h['adet']) ? (int) $h['adet'] : 1;
+            // tutar: binlik ayraci '.' temizlenir, ondalik icin ',' beklenir (Turkce bicim)
+            $tutar = isset($h['tutar']) ? (float) str_replace(',', '.', str_replace('.', '', $h['tutar'])) : 0;
+            if ($ad === '' || $tutar <= 0) {
+                continue;
+            }
+            if ($adet < 1) {
+                $adet = 1;
+            }
+            $gecerli[] = ['ad' => $ad, 'adet' => $adet, 'tutar' => $tutar];
+        }
+
+        if (empty($gecerli)) {
+            return response()->json(['type' => 'error', 'message' => 'Geçerli bir hizmet satırı bulunamadı (ad ve tutar zorunlu).']);
+        }
+
+        $form = new Musteri_Formlari();
+        $form->salon_id = $salon->id;
+        $form->durum_id = 6; // Odeme bekleniyor
+        $form->satis_tarihi = date('Y-m-d H:i:s');
+        $form->notlar = $request->notlar;
+        $form->save();
+
+        $toplam = 0;
+        foreach ($gecerli as $g) {
+            $satir = new Musteri_Formlari_Hizmetler();
+            $satir->form_id = $form->id;
+            $satir->uyelik_id = null;     // manuel/serbest hizmet — uyelik paketine bagli degil
+            $satir->aciklama = $g['ad'];
+            $satir->adet = $g['adet'];
+            $satir->ucret = $g['tutar']; // birim tutar (odeme.blade adet ile carpar)
+            $satir->save();
+            $toplam += $g['tutar'] * $g['adet'];
+        }
+
+        Audit::log('manuel_odeme_linki', 'musteri_formu', $form->id, $salon->salon_adi, number_format($toplam, 2, ',', '.') . ' TL');
+
+        $link = 'https://app.randevumcepte.com.tr/odeme?form=' . $form->id;
+
+        return response()->json([
+            'type' => 'success',
+            'form_id' => $form->id,
+            'link' => $link,
+            'toplam' => number_format($toplam, 2, ',', '.'),
         ]);
     }
 

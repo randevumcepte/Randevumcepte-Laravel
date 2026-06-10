@@ -176,8 +176,6 @@ Route::prefix('sistemyonetim')->group(function() {
     Route::get('/avantajpasifdurumaal','AdminController@avantajpasifdurumaal');
     Route::get('/avantajdetay/{id}','AdminController@avantajdetayi');
     Route::post('/mevcutavantajduzenleme','AdminController@mevcutavantajduzenleme');
-	Route::get('/manuel-odeme-linki','AdminController@manuel_odeme_linki');
-	Route::post('/manuel-odeme-linki-olustur','AdminController@manuel_odeme_linki_olustur');
 	Route::get('/isletmedetay/{id}','AdminController@isletmedetay');
 	Route::get('/hizmetler','AdminController@hizmetlistesi');
 	Route::get('/yenihizmetekleme','AdminController@yenihizmetekleme');

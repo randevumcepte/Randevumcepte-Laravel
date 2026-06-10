@@ -73,6 +73,10 @@
                 <span class="icon mdi mdi-message-text-fast"></span>
                 Hazır Cevaplar
             </a>
+            <a href="/sistemyonetim/v2/manuel-odeme-linki" class="sy-nav-item {{ $aktifMenu === 'manuelodeme' ? 'active' : '' }}">
+                <span class="icon mdi mdi-link-variant"></span>
+                Manuel Ödeme Linki
+            </a>
 
             @if(in_array($rol, ['super_admin','yonetici']))
                 <div class="sy-nav-section">Ekip & İzleme</div>

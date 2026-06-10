@@ -26,8 +26,6 @@ use App\AramaTerimleri;
 use App\AramaTerimleriKampanya;
 use App\SalonKampanyalar;
 use App\SatinAlinanKampanyalar;
-use App\SatisOrtakligiModel\Musteri_Formlari;
-use App\SatisOrtakligiModel\Musteri_Formlari_Hizmetler;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Auth\SessionGuard; 
@@ -50,72 +48,6 @@ class AdminController extends Controller
     {
        return view('superadmin.dashboard',['title' =>  'Sistem Yönetim Paneli | randevumcepte.com.tr','pageindex' => 0]); 
     }
-    // Manuel odeme linki: serbest metin hizmet + adet + tutar girip PayTR odeme linki uretir
-    public function manuel_odeme_linki(){
-        $isletmeler = Salonlar::orderBy('salon_adi')
-            ->get(['id','salon_adi','yetkili_adi','yetkili_mail','yetkili_telefon']);
-        return view('superadmin.manuel_odeme_linki',[
-            'title' => 'Manuel Ödeme Linki | randevumcepte.com.tr',
-            'pageindex' => 80,
-            'isletmeler' => $isletmeler,
-        ]);
-    }
-
-    public function manuel_odeme_linki_olustur(Request $request){
-        $salon = Salonlar::find($request->salon_id);
-        if(!$salon){
-            return response()->json(['type'=>'error','message'=>'Lütfen geçerli bir işletme seçin.']);
-        }
-
-        $hizmetler = $request->hizmetler;
-        if(empty($hizmetler) || !is_array($hizmetler)){
-            return response()->json(['type'=>'error','message'=>'En az bir hizmet satırı girmelisiniz.']);
-        }
-
-        // Once gecerli satirlari ayikla (form, en az 1 gecerli satir olmadan olusmasin)
-        $gecerli = [];
-        foreach($hizmetler as $h){
-            $ad   = isset($h['ad']) ? trim($h['ad']) : '';
-            $adet = isset($h['adet']) ? (int)$h['adet'] : 1;
-            $tutar = isset($h['tutar']) ? (float)str_replace(',', '.', str_replace('.', '', $h['tutar'])) : 0;
-            // not: tutar alaninda binlik ayraci '.' temizlenir, ondalik icin ',' beklenir
-            if($ad === '' || $tutar <= 0){ continue; }
-            if($adet < 1){ $adet = 1; }
-            $gecerli[] = ['ad'=>$ad,'adet'=>$adet,'tutar'=>$tutar];
-        }
-
-        if(empty($gecerli)){
-            return response()->json(['type'=>'error','message'=>'Geçerli bir hizmet satırı bulunamadı (ad ve tutar zorunlu).']);
-        }
-
-        $form = new Musteri_Formlari();
-        $form->salon_id = $salon->id;
-        $form->durum_id = 6; // Odeme bekleniyor
-        $form->satis_tarihi = date('Y-m-d H:i:s');
-        $form->notlar = $request->notlar;
-        $form->save();
-
-        $toplam = 0;
-        foreach($gecerli as $g){
-            $satir = new Musteri_Formlari_Hizmetler();
-            $satir->form_id = $form->id;
-            $satir->uyelik_id = null;     // manuel/serbest hizmet — uyelik paketine bagli degil
-            $satir->aciklama = $g['ad'];
-            $satir->adet = $g['adet'];
-            $satir->ucret = $g['tutar']; // birim tutar (odeme.blade adet ile carpar)
-            $satir->save();
-            $toplam += $g['tutar'] * $g['adet'];
-        }
-
-        $link = 'https://app.randevumcepte.com.tr/odeme?form='.$form->id;
-        return response()->json([
-            'type' => 'success',
-            'form_id' => $form->id,
-            'link' => $link,
-            'toplam' => number_format($toplam, 2, ',', '.'),
-        ]);
-    }
-
     public function isletmeler(){
         // il/ilce eager-load: N+1 patlamayi onler (300 salon × 2 = 600 query azaldi)
         if(Auth::user()->admin==1)

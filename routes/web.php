@@ -598,6 +598,10 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     // WhatsApp panel (v2 layout, AJAX endpoint'leri eski controllerda kalir)
     Route::get('/whatsapp', 'PanelController@whatsappPanel');
 
+    // Manuel odeme linki (serbest hizmet + adet + tutar -> PayTR linki)
+    Route::get('/manuel-odeme-linki', 'PanelController@manuelOdemeLinki');
+    Route::post('/manuel-odeme-linki', 'PanelController@manuelOdemeLinkiOlustur');
+
     // Profil
     Route::get('/profil', 'PanelController@profil');
     Route::put('/profil', 'PanelController@profilGuncelle');
