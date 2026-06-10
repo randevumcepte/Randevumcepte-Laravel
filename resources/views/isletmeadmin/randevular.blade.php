@@ -163,56 +163,52 @@
 (function(){
    // Salon bazli, tarayicida kalici (cikis yapsa bile ayni boyutta acilir)
    var KEY  = 'rc_takvim_zoom_{{ (int)$isletme->id }}';
-   var BASE = 21;     // 100% slot yuksekligi (px) — FC varsayilanina yakin
+   var BASE = 26;     // buyutmede 100% ustu slot yuksekligi (px)
    var MIN  = 1.0, MAX = 3.0, STEP = 0.2;
 
    function clamp(z){ return Math.min(MAX, Math.max(MIN, Math.round(z*100)/100)); }
    function getZoom(){
       var v = parseFloat(localStorage.getItem(KEY));
-      // Kullanici daha once ayarladiysa onu kullan; aksi halde okunur bir varsayilan
-      // (rakipteki gibi ferah). Salon isterse buyutec ile kuculur/buyur, secim kalici.
-      return (!isNaN(v) && v >= MIN && v <= MAX) ? v : 1.6;
+      // Kullanici daha once ayarladiysa onu kullan; YOKSA %100 (FC dogal boyutu —
+      // tanidik gorunum, randevular eskisi gibi yerinde). Buyutme tamamen istege bagli.
+      return (!isNaN(v) && v >= MIN && v <= MAX) ? v : 1.0;
    }
    function apply(z, rerender){
-      var h = Math.round(BASE * z);
-      var css = '#calendar .fc-time-grid .fc-slats td{height:'+h+'px !important;}';
       var el = document.getElementById('rc-zoom-style');
       if(!el){ el = document.createElement('style'); el.id = 'rc-zoom-style'; document.head.appendChild(el); }
-      el.innerHTML = css;
+      // %100'de FC'nin DOGAL slot yuksekligine dokunma (override yok) -> regresyon/
+      // kayip olmaz. Sadece %100 ustunde slat yuksekligini buyut.
+      if(z <= 1.001){
+         el.innerHTML = '';
+      } else {
+         var h = Math.round(BASE * z);
+         el.innerHTML = '#calendar .fc-time-grid .fc-slats td{height:'+h+'px !important;}';
+      }
       var lbl = document.getElementById('rc-zoom-val');
       if(lbl) lbl.textContent = Math.round(z*100) + '%';
       if(rerender){
-         // FC 3.1.0'da event'ler PIKSEL bazli konumlanir; slot yuksekligi degisince
-         // sadece render() kartlari tasimaz (event'leri yalnizca isResize=true reflow
-         // tasir). 'height' option'ini degistirmek FC'de updateViewSize(true) tetikler:
-         // slat coord cache yenilenir VE event'ler yeni slot yuksekligine gore YENIDEN
-         // konumlanir -> kartlar da buyur. curH+1 -> curH ile iki gercek degisiklik
-         // yaptiririz (gorsel sicrama/'auto' flash olmaz).
+         // Slot yuksekligi degisti. FC ic API'lerini zorlamak (height toggle vs.)
+         // randevularin kaybolmasina yol acabiliyor; bu yuzden GUVENLI yol: takvimi
+         // uygulamanin KENDI normal render yolundan tam yeniden cizdir. Boylece
+         // slatlar yeniden olculur ve event'ler dogru (yeni) yukseklikte cizilir.
          try {
-            var $c = jQuery('#calendar');
-            if(window.jQuery && $c.length && $c.fullCalendar('getView')){
-               var curH = $c.fullCalendar('option', 'height');
-               if(typeof curH === 'number'){
-                  $c.fullCalendar('option', 'height', curH + 1);
-                  $c.fullCalendar('option', 'height', curH);
-               } else {
-                  $c.fullCalendar('option', 'height', 'auto');
-               }
-               $c.fullCalendar('rerenderEvents');
+            if(typeof window.takvimyukle === 'function'){
+               window.takvimyukle(false, true);   // turdegisti=true -> destroy + tam re-render
+            } else if(window.jQuery && jQuery('#calendar').length && jQuery('#calendar').fullCalendar('getView')){
+               jQuery('#calendar').fullCalendar('render');
             }
          } catch(e){}
       }
    }
    function setZoom(z){ z = clamp(z); try{ localStorage.setItem(KEY, z); }catch(e){} apply(z, true); }
 
-   // Ilk uygulama (CSS head'e yazilir; FC ne zaman cizilirse o yuksekligi alir)
+   // Ilk uygulama: SADECE CSS yaz (FC ilk render'inda bu slat yuksekligini olcer ve
+   // kartlari dogru/buyuk cizer). Burada FC'yi yeniden cizdirmiyoruz -> randevular
+   // kaybolmaz; takvim normal akisinda zaten dogru boyutta gelir.
    apply(getZoom(), false);
 
    jQuery(document).on('click', '#rc-zoom-in',  function(){ setZoom(getZoom() + STEP); });
    jQuery(document).on('click', '#rc-zoom-out', function(){ setZoom(getZoom() - STEP); });
-
-   // Takvim ilk kez/yeniden cizildikten sonra konumlar dogru olsun diye bir kez daha uygula
-   jQuery(window).on('load', function(){ setTimeout(function(){ apply(getZoom(), true); }, 1200); });
 })();
 </script>
 
