@@ -4480,6 +4480,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         try {
             if ($kaynakSalonId === null) {
                 $kaynakSalonId = (int) config('varsayilanlar.guzellik_sablon_salon_id', 0);
+                if (!$kaynakSalonId) {
+                    // ID verilmemis — sablonu sabit adindan coz
+                    $sablonAd = config('varsayilanlar.guzellik_sablon_salon_adi');
+                    if ($sablonAd) {
+                        $kaynakSalonId = (int) Salonlar::where('salon_adi', $sablonAd)->value('id');
+                    }
+                }
             }
             if (!$kaynakSalonId || (int)$hedefSalonId === (int)$kaynakSalonId) {
                 return 0;
