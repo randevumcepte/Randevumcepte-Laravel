@@ -226,8 +226,8 @@ class ApiController extends Controller
     public function salonAyarlariByBundle(Request $request)
     {
         $gelenBundle = trim((string) $request->appBundle);
-        $isletme = Salonlar::where('app_bundle', $gelenBundle)->first();
-        if (!$isletme) {
+        $subeler = Salonlar::where('app_bundle', $gelenBundle)->get();
+        if ($subeler->isEmpty()) {
             return array(
                 'musteri_online_randevu_aktif' => 0,
                 'debug' => array(
@@ -237,14 +237,17 @@ class ApiController extends Controller
                 ),
             );
         }
+        // Ayni app_bundle altindaki subelerden herhangi biri online randevuya
+        // acik ise buton gorunsun; ancak tum subeler kapaliysa gizlensin.
+        $herhangiAktif = $subeler->contains(function ($salon) {
+            return (int) ($salon->musteri_online_randevu_aktif ?? 0) === 1;
+        });
         return array(
-            'musteri_online_randevu_aktif' => (int) ($isletme->musteri_online_randevu_aktif ?? 0),
+            'musteri_online_randevu_aktif' => $herhangiAktif ? 1 : 0,
             'debug' => array(
-                'gelen_bundle'   => $gelenBundle,
-                'eslesen_salon'  => $isletme->id,
-                'salon_adi'      => $isletme->salon_adi,
-                'salon_app_bundle' => $isletme->app_bundle,
-                'ham_deger'      => $isletme->musteri_online_randevu_aktif,
+                'gelen_bundle'     => $gelenBundle,
+                'sube_sayisi'      => $subeler->count(),
+                'aktif_sube_idler' => $subeler->where('musteri_online_randevu_aktif', 1)->pluck('id')->values(),
             ),
         );
     }
@@ -23211,7 +23214,8 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         // Personeller
         $personeller = '';
 
-       
+
+        $hizmetler='';
         $odalar='';
         $cihazlar='';
         $musteriler='';
@@ -23258,15 +23262,25 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         }
         else{
             $subeler = Salonlar::where('app_bundle',$request->appBundle)->get();
-            if($subeler->count()==1 && $request->salonid=='')
+            // Hizmet/personel hangi sube icin yuklenecek?
+            //  - Sube secildiyse (salonid dolu) o sube
+            //  - Tek sube varsa otomatik o sube
+            //  - Birden fazla sube + sube secilmediyse: bos (once sube secilsin)
+            $hedefSalonId = 0;
+            if($request->salonid != '')
+                $hedefSalonId = (int) $request->salonid;
+            elseif($subeler->count()==1)
+                $hedefSalonId = (int) $subeler[0]->id;
+
+            if($hedefSalonId > 0)
             {
-                $personeller = Personeller::where("salon_id", $subeler[0]->id)
+                $personeller = Personeller::where("salon_id", $hedefSalonId)
                     ->where("aktif", true)
                     ->get();
                 $hizmetler =  SalonHizmetler::join(
-    DB::raw('(SELECT MAX(id) as id 
+    DB::raw('(SELECT MAX(id) as id
               FROM salon_sunulan_hizmetler
-              WHERE salon_id = '.$subeler[0]->id.'
+              WHERE salon_id = '.$hedefSalonId.'
                 AND aktif = 1
                 AND (santral_hizmeti != 1 OR santral_hizmeti IS NULL)
               GROUP BY hizmet_id) as latest'),
@@ -24268,7 +24282,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                     $gonderildi = false;
                     if ($waAcik) {
                         try {
-                            $r = $waService->sendReminder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaj, $randevu->id, $randevu->user_id);
+                            $r = $waService->sendReminder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaj, $randevu->id, $randevu->user_id, null, false, 'guncelleme_bildirim');
                             $gonderildi = ($r['ok'] ?? false) === true;
                         } catch (\Throwable $e) { Log::warning('suruklebirak musteri WA fail: ' . $e->getMessage()); }
                     }
@@ -24299,7 +24313,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                         $gonderildi = false;
                         if ($waAcik) {
                             try {
-                                $r = $waService->sendReminder($randevu->salonlar, $gsm, $personelMesaj, $randevu->id, null);
+                                $r = $waService->sendReminder($randevu->salonlar, $gsm, $personelMesaj, $randevu->id, null, null, false, 'guncelleme_bildirim');
                                 $gonderildi = ($r['ok'] ?? false) === true;
                             } catch (\Throwable $e) { Log::warning('suruklebirak personel WA fail: ' . $e->getMessage()); }
                         }

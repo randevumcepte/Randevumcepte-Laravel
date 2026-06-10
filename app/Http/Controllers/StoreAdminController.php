@@ -10511,7 +10511,7 @@ private function ayAdiCevir($ingilizceAy)
         try {
             if ($waKanaliAcik) {
                 $wa = app(\App\Services\WhatsAppService::class);
-                $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $mesaj, null, $musteri->id);
+                $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $mesaj, null, $musteri->id, null, false, 'dogum_gunu');
                 if (!empty($sonuc['ok'])) {
                     $kanal = 'whatsapp';
                     $kanalDetay = 'queued';
@@ -13761,7 +13761,7 @@ DB::raw('
                     $to = $mesaj['to'] ?? null;
                     $msg = $mesaj['message'] ?? null;
                     if (!$to || !$msg) { $kalan[] = $mesaj; continue; }
-                    $sonuc = $wa->sendReminder($isletme, $to, $msg, $mesaj['randevu_id'] ?? null, $mesaj['user_id'] ?? null);
+                    $sonuc = $wa->sendReminder($isletme, $to, $msg, $mesaj['randevu_id'] ?? null, $mesaj['user_id'] ?? null, null, false, 'transaksiyonel');
                     if ($sonuc['ok'] ?? false) {
                         Log::info('[Transactional WA] kuyruğa eklendi', [
                             'salon_id' => $isletme->id, 'to' => $to, 'logId' => $sonuc['logId'] ?? null, 'tur' => $tur,
@@ -20643,7 +20643,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
 
         $wa = app(\App\Services\WhatsAppService::class);
-        $sonuc = $wa->sendReminder($isletme, $musteri->cep_telefon, $mesaj, null, $musteri->id, null, false);
+        $sonuc = $wa->sendReminder($isletme, $musteri->cep_telefon, $mesaj, null, $musteri->id, null, false, 'manuel_musteri');
 
         if(!empty($sonuc['ok'])){
             return response()->json(['ok'=>true,'mesaj'=>'Mesaj gonderim kuyruguna alindi. Birazdan musteriye ulasacak.']);

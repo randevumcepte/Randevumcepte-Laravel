@@ -44,8 +44,11 @@ class WhatsAppService
      * Hatırlatma gönderir. Salon `whatsapp_saglayici`'ya göre Baileys veya Cloud API.
      *
      * @param array|null $templateCtx Cloud API kullanırken: ['key' => '1gun|yaklasan|iptal|guncelleme', 'params' => [...]]
+     * @param string|null $gonderimTipi Log'a yazilacak tip etiketi: 'randevu_hatirlatma',
+     *        'personel_hatirlatma', 'sifre_kodu', 'anket', 'iptal_bildirim', 'guncelleme_bildirim',
+     *        'manuel', 'kampanya' vb. Bos birakilirsa null kaydedilir.
      */
-    public function sendReminder(Salonlar $salon, $to, $message, $randevuId = null, $userId = null, $templateCtx = null, $urgent = false)
+    public function sendReminder(Salonlar $salon, $to, $message, $randevuId = null, $userId = null, $templateCtx = null, $urgent = false, $gonderimTipi = null)
     {
         $normalized = $this->normalizePhone($to);
         if (!$normalized) {
@@ -65,10 +68,10 @@ class WhatsAppService
         $saglayici = $salon->whatsapp_saglayici ?? 'baileys';
 
         if ($saglayici === 'cloud_api') {
-            return $this->sendViaCloudApi($salon, $normalized, $message, $randevuId, $userId, $templateCtx);
+            return $this->sendViaCloudApi($salon, $normalized, $message, $randevuId, $userId, $templateCtx, $gonderimTipi);
         }
 
-        return $this->sendViaBaileys($salon, $normalized, $message, $randevuId, $userId, $urgent);
+        return $this->sendViaBaileys($salon, $normalized, $message, $randevuId, $userId, $urgent, $gonderimTipi);
     }
 
     /**
@@ -76,14 +79,14 @@ class WhatsAppService
      * Anti-ban delay (60-120s), typing simulation ve business hours kontrolu atlanir.
      * Ban riski yuksek oldugundan sadece zorunlu durumlarda kullanilmali.
      */
-    public function sendUrgent(Salonlar $salon, $to, $message, $userId = null)
+    public function sendUrgent(Salonlar $salon, $to, $message, $userId = null, $gonderimTipi = 'sifre_kodu')
     {
-        return $this->sendReminder($salon, $to, $message, null, $userId, null, true);
+        return $this->sendReminder($salon, $to, $message, null, $userId, null, true, $gonderimTipi);
     }
 
-    protected function sendViaBaileys(Salonlar $salon, $to, $message, $randevuId, $userId, $urgent = false)
+    protected function sendViaBaileys(Salonlar $salon, $to, $message, $randevuId, $userId, $urgent = false, $gonderimTipi = null)
     {
-        $logId = $this->logPending($salon->id, $userId, $randevuId, $to, $message);
+        $logId = $this->logPending($salon->id, $userId, $randevuId, $to, $message, 'baileys', $gonderimTipi);
 
         $response = $this->request('POST', "/session/{$salon->id}/send", [
             'to' => $to,
@@ -136,9 +139,9 @@ class WhatsAppService
         ]);
     }
 
-    protected function sendViaCloudApi(Salonlar $salon, $to, $message, $randevuId, $userId, $templateCtx)
+    protected function sendViaCloudApi(Salonlar $salon, $to, $message, $randevuId, $userId, $templateCtx, $gonderimTipi = null)
     {
-        $logId = $this->logPending($salon->id, $userId, $randevuId, $to, $message);
+        $logId = $this->logPending($salon->id, $userId, $randevuId, $to, $message, 'cloud_api', $gonderimTipi);
 
         // Template adını salon ayarlarından çöz (key: '1gun', 'yaklasan', 'iptal', 'guncelleme')
         $templateKey = $templateCtx['key'] ?? null;
@@ -243,9 +246,9 @@ class WhatsAppService
         return trim($greet . $name . ' ' . $base . ' ' . $close);
     }
 
-    protected function logPending($salonId, $userId, $randevuId, $telefon, $mesaj)
+    protected function logPending($salonId, $userId, $randevuId, $telefon, $mesaj, $provider = null, $gonderimTipi = null)
     {
-        return DB::table('whatsapp_gonderim_loglari')->insertGetId([
+        $row = [
             'salon_id' => $salonId,
             'user_id' => $userId,
             'randevu_id' => $randevuId,
@@ -254,7 +257,15 @@ class WhatsAppService
             'durum' => 0,
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ];
+        // Yeni kolonlar opsiyonel — migration calismadiysa schema check ile koruma
+        if ($provider !== null && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_gonderim_loglari', 'provider')) {
+            $row['provider'] = $provider;
+        }
+        if ($gonderimTipi !== null && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_gonderim_loglari', 'gonderim_tipi')) {
+            $row['gonderim_tipi'] = $gonderimTipi;
+        }
+        return DB::table('whatsapp_gonderim_loglari')->insertGetId($row);
     }
 
     protected function markSent($logId, $messageId)

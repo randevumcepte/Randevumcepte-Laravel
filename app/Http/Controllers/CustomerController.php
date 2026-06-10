@@ -261,7 +261,7 @@ class CustomerController extends Controller
                     if (!empty($isletme->whatsapp_aktif) && ($isletme->whatsapp_durum ?? null) === 'connected') {
                         try {
                             $wa = app(\App\Services\WhatsAppService::class)
-                                ->sendUrgent($isletme, $telefon, $mesaj_isletme_bildirim, null);
+                                ->sendUrgent($isletme, $telefon, $mesaj_isletme_bildirim, null, 'yeni_randevu_bildirim');
                             $waOk = !empty($wa['ok']);
                         } catch (\Throwable $e) {
                             \Log::warning('WA personel bildirim hata: '.$e->getMessage());

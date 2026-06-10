@@ -272,7 +272,7 @@ class RandevuSMSHatirlatma extends Command
 
         $whatsappBasarili = false;
         if ($whatsappKanaliAcik) {
-            $sonuc = $wa->sendReminder($salon, $telefon, $mesajBase, $randevuId, null);
+            $sonuc = $wa->sendReminder($salon, $telefon, $mesajBase, $randevuId, null, null, false, 'personel_hatirlatma');
             Log::info('[RND-SMS] personel WA sonuc', [
                 'salon_id' => $salon->id, 'randevu_id' => $randevuId, 'sonuc' => $sonuc,
             ]);
@@ -343,7 +343,7 @@ class RandevuSMSHatirlatma extends Command
             $whatsappDenendi = true;
             // WA metni SMS ile birebir aynı olsun (Cloud API kendi template'ini kullanır).
             $personalized = $mesajBase;
-            $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $personalized, $randevu->id, $musteri->id, $templateCtx);
+            $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $personalized, $randevu->id, $musteri->id, $templateCtx, false, 'randevu_hatirlatma');
             Log::info('[RND-SMS] müşteri WA sonuc', [
                 'salon_id' => $salon->id, 'randevu_id' => $randevu->id, 'sonuc' => $sonuc,
             ]);

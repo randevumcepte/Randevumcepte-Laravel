@@ -43,6 +43,12 @@ class WhatsAppWebhookController extends Controller
             case 'message.sent':
                 $this->onMessageSent($request);
                 break;
+            case 'message.delivered':
+                $this->onMessageDelivered($request);
+                break;
+            case 'message.read':
+                $this->onMessageRead($request);
+                break;
             case 'message.failed':
                 $this->onMessageFailed($salon, $request);
                 break;
@@ -62,6 +68,64 @@ class WhatsAppWebhookController extends Controller
                 'mesaj_id' => $request->input('messageId'),
                 'gonderim_tarihi' => now(),
                 'updated_at' => now(),
+            ]);
+    }
+
+    /**
+     * Bridge: mesaj alici cihaza teslim oldu (WA cift gri tik).
+     * "Gonderildi" goruluyor ama karsida saat ikonu kaliyor sikayetini ayirt etmek icin.
+     */
+    protected function onMessageDelivered(Request $request)
+    {
+        $logId = $request->input('logId');
+        if (!$logId) {
+            // logId yoksa messageId ile ara
+            $messageId = $request->input('messageId');
+            if (!$messageId) return;
+            $log = DB::table('whatsapp_gonderim_loglari')->where('mesaj_id', $messageId)->first();
+            if (!$log) return;
+            $logId = $log->id;
+        }
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_gonderim_loglari', 'teslim_tarihi')) {
+            return; // migration kosmamis
+        }
+        DB::table('whatsapp_gonderim_loglari')
+            ->where('id', $logId)
+            ->whereNull('teslim_tarihi')
+            ->update([
+                'teslim_tarihi' => now(),
+                'updated_at' => now(),
+            ]);
+    }
+
+    /**
+     * Bridge: mesaj alici tarafindan okundu (WA cift mavi tik).
+     */
+    protected function onMessageRead(Request $request)
+    {
+        $logId = $request->input('logId');
+        if (!$logId) {
+            $messageId = $request->input('messageId');
+            if (!$messageId) return;
+            $log = DB::table('whatsapp_gonderim_loglari')->where('mesaj_id', $messageId)->first();
+            if (!$log) return;
+            $logId = $log->id;
+        }
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_gonderim_loglari', 'okundu_tarihi')) {
+            return;
+        }
+        $simdi = now();
+        // Okundu ise teslim de olmustur — teslim_tarihi bossa beraberinde doldur
+        DB::table('whatsapp_gonderim_loglari')
+            ->where('id', $logId)
+            ->whereNull('teslim_tarihi')
+            ->update(['teslim_tarihi' => $simdi]);
+
+        DB::table('whatsapp_gonderim_loglari')
+            ->where('id', $logId)
+            ->update([
+                'okundu_tarihi' => $simdi,
+                'updated_at' => $simdi,
             ]);
     }
 
