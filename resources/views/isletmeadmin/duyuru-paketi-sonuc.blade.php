@@ -1,7 +1,7 @@
 @extends('layout.layout_isletmeadmin')
 @section('content')
 <div class="main-content container-fluid">
-    <h1 class="display-heading text-center">Ödeme Sonucu</h1>
+    <h2 style="text-align:center;color:#2d3748;font-weight:800;margin:10px 0 24px;">Ödeme Sonucu</h2>
     <div class="row">
         <div class="col-xs-12 col-sm-8 col-md-6 col-sm-offset-2 col-md-offset-3">
             <div class="panel panel-default">
