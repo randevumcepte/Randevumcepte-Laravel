@@ -10421,11 +10421,11 @@ if (preload && !turdegisti) {
                 $('#calendar').fullCalendar('addEventSource', result.randevu);
                 $('#calendar').fullCalendar('refetchEvents');
             }
-            if($('.fc-resource-cell').width()<80)
+            if($('.fc-resource-cell').width()<160)
             {
                //$('.fc-view-container').attr('style','overflow-x:scroll;');
-               $('.fc-resource-cell').attr('style','width:80px');
-               var newwidth=  Number($('.fc-resource-cell').length*80) + Number(95);
+               $('.fc-resource-cell').attr('style','width:160px');
+               var newwidth=  Number($('.fc-resource-cell').length*160) + Number(95);
                $('.fc-agendaDay-view').attr('style','width:'+newwidth+'px');
             }
             
