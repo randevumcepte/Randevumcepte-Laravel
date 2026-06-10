@@ -10017,10 +10017,11 @@ $('#randevu_ayarina_gore').change(function(e){
 });
 if($('#calendar').length){
     // Sekme arka plandayken (document.hidden) takvimi bosuna yenileme — gereksiz AJAX yuku.
+    // Yogun salonlarda agir bir sorgu oldugu icin 30sn'de bir (eskiden 10sn) yenilenir.
     interval = setInterval(function(){
         if (document.hidden) return;
         takvimyukle(false, false);
-    }, 10000);
+    }, 30000);
 }
 function takvimyukle(preload,turdegisti)
 {
