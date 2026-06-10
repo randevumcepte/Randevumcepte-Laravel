@@ -630,16 +630,27 @@
          				 		}
          				 		if($paket->periyot == 'yillik'){
          				 			$periyot_yazi = 'Yıllık';
-         				 			 
+
          				 		}
-                           $payment_amount += $paket->ucret*100;
-                           $paketAdi = $paket->uyelik_id == 4 ? $paket->uyelik->uyelik_adi : $paket->uyelik->uyelik_adi .' Paket '.$periyot_yazi. ' Üyelik';
+                           $adet = $paket->adet > 0 ? $paket->adet : 1;
+                           // payment_amount toplam tahsil edilecek tutardir: birim ucret * adet
+                           $payment_amount += $paket->ucret * $adet * 100;
+
+                           if(empty($paket->uyelik_id) || !$paket->uyelik)
+                           {
+                              // Manuel / serbest hizmet satiri (uyelik paketine bagli degil)
+                              $paketAdi = $paket->aciklama ? $paket->aciklama : 'Hizmet Bedeli';
+                           }
+                           else
+                           {
+                              $paketAdi = $paket->uyelik_id == 4 ? $paket->uyelik->uyelik_adi : $paket->uyelik->uyelik_adi .' Paket '.$periyot_yazi. ' Üyelik';
+                           }
 
          				 		array_push(
          				 				$paketler, array(
-         				 					$paketAdi,$paket->ucret*100,$paket->adet>0 ? $paket->adet : 1
+         				 					$paketAdi,$paket->ucret*100,$adet
          				 				)
-         				 		);		
+         				 		);
          				 	}
                
          				 

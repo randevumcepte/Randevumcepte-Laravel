@@ -139,6 +139,12 @@
                     </a>
                   </li>
 
+                  <li class="{{ $pageindex == 80 ? 'active' : '' }}">
+                    <a href="/sistemyonetim/manuel-odeme-linki">
+                      <span class="icon mdi mdi-link"></span> Manuel Ödeme Linki
+                    </a>
+                  </li>
+
                   @if($pageindex==1 ||$pageindex == 2)
 
                   <li class="parent"><a href="#">İşletmeler</a>

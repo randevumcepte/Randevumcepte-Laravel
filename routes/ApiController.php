@@ -4810,7 +4810,8 @@ class ApiController extends Controller
 
                 {
 
-                    if($paket->uyelik->id <= 3)
+                    // Manuel/serbest hizmet satirinda uyelik yoktur; uyelik aktivasyonunu atla
+                    if($paket->uyelik && $paket->uyelik->id <= 3)
 
                     {
 
