@@ -182,16 +182,23 @@
       var lbl = document.getElementById('rc-zoom-val');
       if(lbl) lbl.textContent = Math.round(z*100) + '%';
       if(rerender){
-         // FC v3 event konumlari/yukseklikleri PIKSEL bazli ve slot yuksekligine
-         // gore hesaplandigindan, slat yuksekligi degisince koordinat cache'i
-         // tazelenip event'lerin yeniden cizilmesi gerek. En guvenilir yol FC'nin
-         // dogal "resize" reflow'unu tetiklemek (slat coord cache yenilenir + event'ler
-         // yeni yuksekliklere gore tekrar konumlanir -> kartlar da buyur).
+         // FC 3.1.0'da event'ler PIKSEL bazli konumlanir; slot yuksekligi degisince
+         // sadece render() kartlari tasimaz (event'leri yalnizca isResize=true reflow
+         // tasir). 'height' option'ini degistirmek FC'de updateViewSize(true) tetikler:
+         // slat coord cache yenilenir VE event'ler yeni slot yuksekligine gore YENIDEN
+         // konumlanir -> kartlar da buyur. curH+1 -> curH ile iki gercek degisiklik
+         // yaptiririz (gorsel sicrama/'auto' flash olmaz).
          try {
-            if(window.jQuery && jQuery('#calendar').length && jQuery('#calendar').fullCalendar('getView')){
-               jQuery('#calendar').fullCalendar('render');
-               jQuery('#calendar').fullCalendar('rerenderEvents');
-               jQuery(window).trigger('resize');
+            var $c = jQuery('#calendar');
+            if(window.jQuery && $c.length && $c.fullCalendar('getView')){
+               var curH = $c.fullCalendar('option', 'height');
+               if(typeof curH === 'number'){
+                  $c.fullCalendar('option', 'height', curH + 1);
+                  $c.fullCalendar('option', 'height', curH);
+               } else {
+                  $c.fullCalendar('option', 'height', 'auto');
+               }
+               $c.fullCalendar('rerenderEvents');
             }
          } catch(e){}
       }
