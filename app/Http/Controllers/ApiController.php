@@ -1438,17 +1438,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ->pluck('cnt','randevu_id');
 
         // "Paket Randevusu" tespiti: seansin gercek pakete (adisyon_paket_id) bagli olmasi
-        // VEYA bagli hizmetin (adisyon_hizmetler.seans_sayisi) > 1 olmasi gerekir.
-        // Tek seansli normal hizmet satislari da seans kaydi olusturuyor; bunlar paket sayilmaz.
+        // VEYA bagli adisyon_hizmetler kaydinda seans sayisinin KAYITLI olmasi (seans_sayisi > 0).
+        // Seans sayisi kayitli olmayan (NULL/bos/0) hizmet satislari da seans kaydi
+        // olusturuyor; bunlar paket sayilmaz.
         $seansKayitlari = AdisyonPaketSeanslar::whereIn('randevu_id', $randevuIds)
             ->get(['randevu_id','adisyon_paket_id','adisyon_hizmet_id']);
-        $cokSeansliHizmetIds = AdisyonHizmetler::whereIn('id', $seansKayitlari->pluck('adisyon_hizmet_id')->filter()->unique()->values())
-            ->where('seans_sayisi','>',1)
+        $seansSayisiKayitliHizmetIds = AdisyonHizmetler::whereIn('id', $seansKayitlari->pluck('adisyon_hizmet_id')->filter()->unique()->values())
+            ->where('seans_sayisi','>',0)
             ->pluck('id')
             ->flip();
         $paketRandevuIds = collect();
         foreach($seansKayitlari as $_sk){
-            if($_sk->adisyon_paket_id || ($_sk->adisyon_hizmet_id && isset($cokSeansliHizmetIds[$_sk->adisyon_hizmet_id]))){
+            if($_sk->adisyon_paket_id || ($_sk->adisyon_hizmet_id && isset($seansSayisiKayitliHizmetIds[$_sk->adisyon_hizmet_id]))){
                 $paketRandevuIds[$_sk->randevu_id] = true;
             }
         }

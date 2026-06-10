@@ -3526,15 +3526,16 @@ public function carkverilerigetir(Request $request)
             $_modalSubtitle = '';
             $seansVar = $seanslarByRandevu->get($rh->randevu_id, collect());
             // "Paket Randevusu" yalnizca gercek paket (adisyon_paket_id dolu) ya da
-            // cok seansli hizmet satisi (adisyon_hizmetler.seans_sayisi > 1) icin gosterilir.
-            // Tek seansli normal hizmet satislari da seans kaydi olusturuyor; bunlari
+            // adisyon_hizmetler tablosunda seans sayisi KAYITLI olan (seans_sayisi > 0)
+            // hizmet satislari icin gosterilir. Seans sayisi kayitli olmayan
+            // (NULL / bos / 0) hizmet satislari da seans kaydi olusturuyor; bunlari
             // paket saymak yanlis "(PAKET)" etiketine yol aciyordu (issue: salon 204 / user 53153).
             $paketRandevusu = false;
             foreach($seansVar as $_sv){
                 if($_sv->adisyon_paket_id){ $paketRandevusu = true; break; }
                 if($_sv->adisyon_hizmet_id){
                     $_ah = $adisyonHizmetMap->get($_sv->adisyon_hizmet_id);
-                    if($_ah && (int)$_ah->seans_sayisi > 1){ $paketRandevusu = true; break; }
+                    if($_ah && (int)$_ah->seans_sayisi > 0){ $paketRandevusu = true; break; }
                 }
             }
             if($paketRandevusu){
