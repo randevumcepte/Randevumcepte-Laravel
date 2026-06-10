@@ -10143,6 +10143,21 @@ function takvimyukle(preload,turdegisti)
               editable: true,
               selectable: true,
               eventLimit: true, // allow "more" link when too many events
+              // FC tum render'i (ilk acilis dahil) bitince resource kolon genisligini
+              // uygula. FC kolonlari konteynere bolustururken eziyordu; bu callback
+              // render'dan SONRA calistigindan genislik kalici olur (ilk acilista da
+              // hemen genis gelir, ~30sn beklenmez).
+              eventAfterAllRender: function(view){
+                 try {
+                    var $cells = $('#calendar .fc-resource-cell');
+                    if($cells.length && $cells.first().width() < 160){
+                       $cells.attr('style','width:160px');
+                       var nw = Number($cells.length * 160) + Number(95);
+                       $('#calendar .fc-agendaDay-view').attr('style','width:'+nw+'px');
+                    }
+                    $('#calendar .fc-view-container').attr('style','overflow-x:scroll');
+                 } catch(e){}
+              },
               header: {
                 left: 'prev,next today',
                 center: 'title',
