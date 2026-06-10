@@ -48,7 +48,7 @@
       <link
          rel="stylesheet"
          type="text/css"
-         href="{{secure_asset('public/yeni_panel/src/plugins/datatables/css/responsive.bootstrap4.min.css')}}"
+         href="{{secure_asset('pubƒöerlic/yeni_panel/src/plugins/datatables/css/responsive.bootstrap4.min.css')}}"
          />
       <link
          rel="stylesheet"
@@ -588,9 +588,9 @@
          					####################### DÜZENLEMESİ ZORUNLU ALANLAR #######################
          					#
          					## API Entegrasyon Bilgileri - Mağaza paneline giriş yaparak BİLGİ sayfasından alabilirsiniz.
-         					$merchant_id 	= '615336';
-         					$merchant_key 	= 'tBEfk7B2zQEw4hDN';
-         					$merchant_salt	= '2Qi3MmYEtRoo1BXw';
+         					$merchant_id 	= '452223';
+         					$merchant_key 	= 'Mwjwj1HdCwxYJY2j';
+         					$merchant_salt	= 'TuF3kaYgxbNKR7Zx';
          					#
          					## Müşterinizin sitenizde kayıtlı veya form vasıtasıyla aldığınız eposta adresi
          					$email = $musteriEmail;
