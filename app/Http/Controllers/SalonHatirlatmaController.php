@@ -53,7 +53,7 @@ class SalonHatirlatmaController extends Controller
         }
 
         $cacheKey = 'salon_hatirlatma.' . $salonId;
-        if ($request->boolean('refresh')) {
+        if (filter_var($request->input('refresh'), FILTER_VALIDATE_BOOLEAN)) { // Request::boolean() bu surumde yok
             Cache::forget($cacheKey);
         }
         $hatirlatmalar = Cache::remember($cacheKey, 15, function () use ($salonId) {
