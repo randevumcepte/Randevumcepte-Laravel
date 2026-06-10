@@ -26390,9 +26390,15 @@ DB::raw('
         })->where('salon_id',$isletmeId)->where('arama_baslik','like','%'.$searchValue.'%')->paginate($length, ['*'], 'page', $currentPage);
         
         $formated=$arama_listesi->map(function($aramalistesi){
+            $toplam = AranacakMusteriler::where('arama_id',$aramalistesi->id)->count();
+            $arandi = AranacakMusteriler::where('arama_id',$aramalistesi->id)->whereNotNull('durum')->count();
             return [
                 'arama_baslik'=>$aramalistesi->arama_baslik,
-                'personel'=>$aramalistesi->personel->personel_adi,
+                'personel'=>optional($aramalistesi->personel)->personel_adi,
+                'aranacak_tarih'=>$aramalistesi->aranacak_tarih ? date('d.m.Y',strtotime($aramalistesi->aranacak_tarih)) : '-',
+                'musteri_sayisi'=>$toplam,
+                'arandi_sayisi'=>$arandi,
+                'ilerleme'=>$toplam > 0 ? round(($arandi/$toplam)*100) : 0,
                 'detaylar'=>'<a style="line-height:5px;padding:5px" title="Liste Detayı" href="#" name="arama_liste_detaylari" type="button" data-value="'.$aramalistesi->id.'"  class="btn btn-primary"><i class="dw dw-eye"></i></a>'
             ];
         });
@@ -26413,40 +26419,296 @@ DB::raw('
     $existingList = AramaListesi::where('salon_id', $request->sube)
         ->where('arama_baslik', $request->arama_basligi)
         ->first();
-    
+
     if ($existingList) {
         return array(
             "mesaj" => "Bu isimde bir arama listesi zaten mevcut",
             'arama' => self::arama_listesi_getir($request)
         );
     }
-    
+
+    // Filtre kriterleri (canli onizleme ile ayni motor)
+    $filtre = \App\Services\AramaFiltreService::parseRequest($request);
+
+    // Aranacak musteri kumesi: sahip ekranda secim yaptiysa onu kullan,
+    // aksi halde filtreye uyan TUM musteriler (filtre = liste mantigi).
+    $secilenHam = $request->input('secilenMusteriler');
+    $secilenMusteriler = $secilenHam ? json_decode($secilenHam, true) : null;
+    if (empty($secilenMusteriler)) {
+        $secilenMusteriler = \App\Services\AramaFiltreService::ids($request->sube, $filtre);
+    }
+    $secilenMusteriler = array_values(array_unique(array_map('intval', (array) $secilenMusteriler)));
+
+    if (empty($secilenMusteriler)) {
+        return array(
+            "mesaj" => "Seçilen filtreye uyan müşteri bulunamadı.",
+            'arama' => self::arama_listesi_getir($request)
+        );
+    }
+
     $arama_listesi = new AramaListesi();
     $arama_listesi->salon_id = $request->sube;
     $arama_listesi->arama_baslik = $request->arama_basligi;
     $arama_listesi->personel_id = $request->aramapersoneli;
+    $arama_listesi->aranacak_tarih = $request->input('aranacak_tarih') ?: null;
+    $arama_listesi->filtre_snapshot = $filtre;
+    $arama_listesi->olusturan_yetkili_id = Auth::guard('isletmeyonetim')->user()->id;
+    $arama_listesi->durum = 1;
     $arama_listesi->save();
-    
-    // Get existing customer IDs to prevent duplicates
-    $existingCustomers = AranacakMusteriler::where('arama_id', $arama_listesi->id)
-        ->pluck('user_id')
-        ->toArray();
-    $secilenMusteriler = json_decode($request->input('secilenMusteriler'), true);
-    foreach ($secilenMusteriler as $musteri) {
-        if (!in_array($musteri, $existingCustomers)) {
-            $aranacak = new AranacakMusteriler();
-            $aranacak->user_id = $musteri;
-            $aranacak->arama_id = $arama_listesi->id;
-            $aranacak->durum = null;
-            $aranacak->save();
-        }
+
+    // Toplu insert (foreach save yerine) — buyuk listelerde performans.
+    // created_at/updated_at elle eklenir cunku insert() model timestamp'lerini atlar.
+    $now = date('Y-m-d H:i:s');
+    $satirlar = [];
+    foreach ($secilenMusteriler as $userId) {
+        $satirlar[] = [
+            'user_id'    => $userId,
+            'arama_id'   => $arama_listesi->id,
+            'durum'      => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
     }
-    
+    foreach (array_chunk($satirlar, 500) as $parca) {
+        AranacakMusteriler::insert($parca);
+    }
+
     return array(
-        "mesaj" => "Arama Listesi Başarıyla Oluşturuldu",
+        "mesaj" => count($secilenMusteriler) . " müşteri ile arama listesi başarıyla oluşturuldu.",
         'arama' => self::arama_listesi_getir($request)
     );
 }
+
+    /**
+     * Cagri Merkezi: filtre onizlemesi. Filtreye uyan musteri sayisi + sayfali liste doner.
+     * Modaldaki canli "X musteri eslesti" sayaci ve secilebilir liste icin kullanilir.
+     */
+    public function arama_filtre_onizleme(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $filtre = \App\Services\AramaFiltreService::parseRequest($request);
+
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = (int) $request->input('perPage', 100);
+
+        $base = \App\Services\AramaFiltreService::build($salonId, $filtre);
+
+        // groupBy nedeniyle toplam icin alt-sorgu say
+        $total = DB::query()->fromSub(\App\Services\AramaFiltreService::build($salonId, $filtre), 't')->count();
+
+        $musteriIdler = (clone $base)->pluck('id')->toArray();
+
+        $customers = $base->orderBy('users.name')
+            ->skip(($page - 1) * $perPage)
+            ->take($perPage)
+            ->get();
+
+        return response()->json([
+            'total'        => $total,
+            'page'         => $page,
+            'perPage'      => $perPage,
+            'musteriIdler' => $musteriIdler,
+            'customers'    => $customers,
+        ]);
+    }
+
+    /**
+     * Cagri Merkezi — Personel calisma alani. Sol menudeki "Arama Listesi" sayfasi.
+     * Personele (rol 5) atanan arama listeleri KART halinde gelir; karta tiklayinca
+     * maskeli musteri listesi acilir (KVKK: ad soyad ilk harf, telefon yildizli).
+     */
+    public function arama_listelerim(Request $request)
+    {
+        $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+
+        if (!in_array(self::mevcutsube($request), $isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if (str_contains(self::lisans_sure_kontrol($request), '-')) {
+            return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
+        }
+        if (count($isletmeler) > 1 && !isset($_GET['sube'])) {
+            return view('isletmeadmin.isletmesec', ['isletmeler' => $isletmeler, 'isletme' => $isletme]);
+        }
+
+        $rol = self::kullaniciRolu(self::mevcutsube($request), Auth::guard('isletmeyonetim')->user()->id);
+        $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
+
+        return view('isletmeadmin.arama_listelerim', [
+            'kullaniciRolu'           => $rol,
+            'bildirimler'             => self::bildirimgetir($request),
+            'sayfa_baslik'            => 'Arama Listelerim',
+            'pageindex'               => 44,
+            'isletme'                 => $isletme,
+            'kalan_uyelik_suresi'     => $kalan_uyelik_suresi,
+            'yetkiliolunanisletmeler' => $isletmeler,
+        ]);
+    }
+
+    /**
+     * Cagri Merkezi — Personel kart listesi (JSON). Rol 5 ise sadece kendine atanan
+     * listeler; yonetici ise salonun tum listeleri. Her kart: baslik, aranacak tarih,
+     * musteri sayisi, arandi/kalan, ilerleme %.
+     */
+    public function arama_kartlarim(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+
+        $q = AramaListesi::where('salon_id', $salonId);
+        if ($rol == 5) {
+            $q->where('personel_id', $this->aktifPersonelId($salonId));
+        }
+        $listeler = $q->orderByRaw('ISNULL(aranacak_tarih) asc')
+            ->orderBy('aranacak_tarih', 'asc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $kartlar = $listeler->map(function ($l) {
+            $toplam = AranacakMusteriler::where('arama_id', $l->id)->count();
+            $arandi = AranacakMusteriler::where('arama_id', $l->id)->whereNotNull('durum')->count();
+            return [
+                'id'             => $l->id,
+                'baslik'         => $l->arama_baslik,
+                'personel'       => optional($l->personel)->personel_adi,
+                'aranacak_tarih' => $l->aranacak_tarih ? date('d.m.Y', strtotime($l->aranacak_tarih)) : null,
+                'toplam'         => $toplam,
+                'arandi'         => $arandi,
+                'kalan'          => $toplam - $arandi,
+                'ilerleme'       => $toplam > 0 ? round(($arandi / $toplam) * 100) : 0,
+            ];
+        });
+
+        return response()->json(['kartlar' => $kartlar]);
+    }
+
+    /**
+     * Cagri Merkezi — Sahip/Yonetici Dashboard. Arama yapan tum personelleri kart
+     * halinde gosterir (atanan data, aranan, cevapsiz, konusulan, randevu, toplam dk).
+     * Sadece yonetici (rol < 5).
+     */
+    public function arama_dashboard(Request $request)
+    {
+        $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+
+        if (!in_array(self::mevcutsube($request), $isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if (str_contains(self::lisans_sure_kontrol($request), '-')) {
+            return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
+        }
+        if (count($isletmeler) > 1 && !isset($_GET['sube'])) {
+            return view('isletmeadmin.isletmesec', ['isletmeler' => $isletmeler, 'isletme' => $isletme]);
+        }
+
+        $salonId = self::mevcutsube($request);
+        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+        if ($rol == 5) {
+            return view('isletmeadmin.yetkisizerisim'); // personel goremez
+        }
+
+        return view('isletmeadmin.arama_dashboard', [
+            'kullaniciRolu'           => $rol,
+            'bildirimler'             => self::bildirimgetir($request),
+            'sayfa_baslik'            => 'Çağrı Merkezi Performans Paneli',
+            'pageindex'               => 45,
+            'isletme'                 => $isletme,
+            'kalan_uyelik_suresi'     => self::lisans_sure_kontrol($request),
+            'yetkiliolunanisletmeler' => $isletmeler,
+        ]);
+    }
+
+    /** Dashboard JSON: personel bazli arama metrikleri (kart verileri). */
+    public function arama_dashboard_verileri(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+
+        // Aranacak musteri durum metrikleri (personel = arama_listesi.personel_id)
+        $rows = DB::table('aranacak_musteriler as am')
+            ->join('arama_listesi as al', 'al.id', '=', 'am.arama_id')
+            ->where('al.salon_id', $salonId)
+            ->select(
+                'al.personel_id',
+                DB::raw('COUNT(*) as atanan'),
+                DB::raw('SUM(CASE WHEN am.durum IS NOT NULL THEN 1 ELSE 0 END) as aranan'),
+                DB::raw('SUM(CASE WHEN am.durum=2 THEN 1 ELSE 0 END) as cevapsiz'),
+                DB::raw('SUM(CASE WHEN am.durum IN (1,4) THEN 1 ELSE 0 END) as konusulan'),
+                DB::raw('SUM(CASE WHEN am.durum=0 THEN 1 ELSE 0 END) as ulasilamadi'),
+                DB::raw('SUM(CASE WHEN am.durum=3 THEN 1 ELSE 0 END) as randevu')
+            )
+            ->groupBy('al.personel_id')
+            ->get()
+            ->keyBy('personel_id');
+
+        // Gorusme notu metrikleri (toplam sure + gorusme sayisi)
+        $gn = collect();
+        if (Schema::hasTable('gorusme_notlari')) {
+            $gn = DB::table('gorusme_notlari')
+                ->where('salon_id', $salonId)
+                ->select('personel_id', DB::raw('SUM(sure_dk) as toplam_dk'), DB::raw('COUNT(*) as gorusme_sayisi'))
+                ->groupBy('personel_id')
+                ->get()
+                ->keyBy('personel_id');
+        }
+
+        $kartlar = [];
+        foreach ($rows as $pid => $r) {
+            if (!$pid) continue;
+            $p = Personeller::where('id', $pid)->first();
+            $g = $gn[$pid] ?? null;
+            $kartlar[] = [
+                'personel_id'    => (int) $pid,
+                'ad'             => optional($p)->personel_adi ?? 'Bilinmeyen Personel',
+                'atanan'         => (int) $r->atanan,
+                'aranan'         => (int) $r->aranan,
+                'kalan'          => (int) $r->atanan - (int) $r->aranan,
+                'cevapsiz'       => (int) $r->cevapsiz,
+                'konusulan'      => (int) $r->konusulan,
+                'ulasilamadi'    => (int) $r->ulasilamadi,
+                'randevu'        => (int) $r->randevu,
+                'toplam_dk'      => $g ? (int) $g->toplam_dk : 0,
+                'gorusme_sayisi' => $g ? (int) $g->gorusme_sayisi : 0,
+            ];
+        }
+
+        // Atanan datasi cok olan ustte
+        usort($kartlar, function ($a, $b) { return $b['atanan'] <=> $a['atanan']; });
+
+        return response()->json(['kartlar' => $kartlar]);
+    }
+
+    /** Dashboard JSON: bir personelin gorusme notlari/ses kayitlari (detay). */
+    public function arama_dashboard_personel_detay(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $personelId = $request->personel_id;
+
+        if (!Schema::hasTable('gorusme_notlari')) {
+            return response()->json(['notlar' => []]);
+        }
+
+        $notlar = DB::table('gorusme_notlari as g')
+            ->leftJoin('users as u', 'u.id', '=', 'g.user_id')
+            ->where('g.salon_id', $salonId)
+            ->where('g.personel_id', $personelId)
+            ->orderBy('g.id', 'desc')
+            ->limit(300)
+            ->select('g.not', 'g.ses_kaydi', 'g.sonuc', 'g.created_at', 'u.name')
+            ->get()
+            ->map(function ($n) {
+                return [
+                    'musteri'    => $n->name ?? '-',
+                    'not'        => $n->not ?? '',
+                    'sonuc'      => self::aranacakDurumMetin($n->sonuc),
+                    'ses'        => $n->ses_kaydi ? 'https://voicerecords.randevumcepte.com.tr' . $n->ses_kaydi : '',
+                    'tarih'      => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
+                ];
+            });
+
+        return response()->json(['notlar' => $notlar]);
+    }
     public function arama_liste_detay_getir(Request $request)
     {
         $aramaDetayId = $request->arama_detay_id;
@@ -26464,24 +26726,39 @@ DB::raw('
             ->take($perPage)
             ->get();
 
-        $data = $aranacaklar->map(function ($item) use ($salonId, $aramaDetayId) {
+        // Rol bir kez hesaplanir (map icinde her satirda DB sorgusu yapmamak icin).
+        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+        $personelMi = ($rol == 5);
+
+        $data = $aranacaklar->map(function ($item) use ($aramaDetayId, $personelMi) {
             $telefon = $item->musteri->cep_telefon ?? '';
-            $telefonGizlenmis = $telefon;
-            $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
-            if ($telefonGizlenmis != '' && $rol == 5) {
-                $telefonGizlenmis = self::telefonGizle($item->musteri->cep_telefon);
+            $ad = $item->musteri->name ?? '';
+
+            // KVKK: personel (rol 5) ham numarayi ve tam soyadi GORMEZ.
+            if ($personelMi) {
+                $ad = self::adSoyadMaskele($ad);
+                $telefonCikti = $telefon !== '' ? self::telefonGizle($telefon) : '';
+                $telefonHam = null; // ham numara personel frontend'ine ASLA gonderilmez
+            } else {
+                $telefonCikti = $telefon;
+                $telefonHam = $telefon;
             }
 
+            $durumMetin = self::aranacakDurumMetin($item->durum);
+
             return [
-                'aramaListesi' => $aramaDetayId,
-                'ad' => $item->musteri->name ?? '',
-                'telefon' => $telefon,
-                'telefonGizlenmis' => $telefonGizlenmis,
-                'durum' => $item->durum === 1 ? 'Arandı' : ($item->durum === 0 ? 'Ulaşılamadı' : 'Bekliyor'),
-                'not' => $item->musteri_not ?? '',
-                'not_tarih' => $item->tarih ?? '',
-                'not_saat' => $item->saat ?? '',
-                'ses' => $item->ses_kaydi ? 'https://voicerecords.randevumcepte.com.tr' . $item->ses_kaydi : '',
+                'aramaListesi'        => $aramaDetayId,
+                'aranacak_musteri_id' => $item->id,
+                'ad'                  => $ad,
+                // Geriye donuk uyumluluk: 'telefon' sadece yoneticiye (personele null) gider
+                'telefon'             => $telefonHam,
+                'telefonGizlenmis'    => $telefonCikti,
+                'durum'               => $durumMetin,
+                'durum_kod'           => $item->durum,
+                'not'                 => $item->musteri_not ?? '',
+                'not_tarih'           => $item->tarih ?? '',
+                'not_saat'            => $item->saat ?? '',
+                'ses'                 => $item->ses_kaydi ? 'https://voicerecords.randevumcepte.com.tr' . $item->ses_kaydi : '',
             ];
         });
 
@@ -26492,45 +26769,181 @@ DB::raw('
             'perPage' => $perPage
         ]);
     }
+    /** Aranacak musteri durum kodunu metne cevirir. */
+    public static function aranacakDurumMetin($kod)
+    {
+        switch ((int) $kod) {
+            case 1: return 'Arandı';
+            case 0: return 'Ulaşılamadı';
+            case 2: return 'Cevapsız';
+            case 3: return 'Arama Randevusu';
+            case 4: return 'Görüşüldü';
+            default: return is_null($kod) ? 'Bekliyor' : 'Bekliyor';
+        }
+    }
+
+    /** Giris yapan yetkilinin bu salondaki personel (salon_personelleri) kaydinin id'sini doner. */
+    private function aktifPersonelId($salonId)
+    {
+        return Personeller::where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+            ->where('salon_id', $salonId)
+            ->value('id');
+    }
+
     public function santral_not_ekle(Request $request)
     {
         $aramaDetayId = $request->arama_detay_id;
-        $notId = $request->not_id; // index veya kayıt ID olabilir
         $notIcerik = $request->noticerik;
 
-        // Örnek: arama_id ve index veya müşteri ID bazında kayıt bul ve güncelle
-        $aranacaklar = AranacakMusteriler::where('arama_id', $aramaDetayId)->get();
+        // KIRILGAN index-bazli bulma yerine aranacak_musteri_id ile bul.
+        $kayit = null;
+        if ($request->filled('aranacak_musteri_id')) {
+            $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)
+                ->where('arama_id', $aramaDetayId)
+                ->first();
+        } elseif ($request->filled('not_id')) {
+            // Geriye donuk uyumluluk: eski index tabanli cagrilar
+            $aranacaklar = AranacakMusteriler::where('arama_id', $aramaDetayId)->get();
+            $kayit = $aranacaklar[$request->not_id] ?? null;
+        }
 
-        // Burada notId index olarak geldiğini varsayalım
-        if (!isset($aranacaklar[$notId])) {
+        if (!$kayit) {
             return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı']);
         }
 
-        $kayit = $aranacaklar[$notId];
+        $liste = AramaListesi::where('id', $aramaDetayId)->first();
+        $salonId = $liste ? $liste->salon_id : self::mevcutsube($request);
+
+        $tekrarTarih = $request->santralnottarih;
+        $tekrarSaat  = $request->santralnotsaat;
+        $randevuMu = (!empty($tekrarTarih) && !empty($tekrarSaat));
+
+        // Mevcut tablo: tekrar arama randevusu tarih/saat alanlari (TekrarAramaHatirlat bunu okur)
         $kayit->musteri_not = $notIcerik;
-        $kayit->tarih=$request->santralnottarih;
-        $kayit->saat=$request->santralnotsaat;
+        $kayit->tarih = $tekrarTarih;
+        $kayit->saat  = $tekrarSaat;
+        if ($randevuMu) {
+            $kayit->durum = 3; // Arama Randevusu
+        } elseif (is_null($kayit->durum)) {
+            $kayit->durum = 4; // Görüşüldü (not eklendi)
+        }
+        if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
+            $kayit->son_arama_zamani = date('Y-m-d H:i:s');
+        }
         $kayit->save();
+
+        // Cogul gorusme notu gecmisi (musteriye kalici bag)
+        try {
+            \App\GorusmeNotlari::create([
+                'aranacak_musteri_id' => $kayit->id,
+                'arama_id'            => $aramaDetayId,
+                'salon_id'            => $salonId,
+                'user_id'             => $kayit->user_id,
+                'personel_id'         => $this->aktifPersonelId($salonId),
+                'not'                 => $notIcerik,
+                'sonuc'               => $randevuMu ? 3 : 4,
+                'ses_kaydi'           => $kayit->ses_kaydi,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('[CAGRI-MERKEZI] gorusme_notlari yazilamadi: ' . $e->getMessage());
+        }
 
         return response()->json(['success' => true]);
     }
+
+    /**
+     * KVKK uyumlu arama baslatma: personel ham numarayi GORMEZ; sadece bu uc-nokta
+     * aranacak_musteri_id ile gercek numarayi doner, JS dogrudan arar (ekrana yazmadan).
+     */
+    public function arama_baslat(Request $request)
+    {
+        $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
+        if (!$kayit) {
+            return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı'], 404);
+        }
+
+        $liste = AramaListesi::where('id', $kayit->arama_id)->first();
+        if (!$liste) {
+            return response()->json(['success' => false, 'message' => 'Liste bulunamadı'], 404);
+        }
+        $salonId = $liste->salon_id;
+
+        // Yetki: yonetici (rol<5) ya da listenin atandigi personel arayabilir.
+        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+        if ($rol == 5) {
+            $benimPersonelId = $this->aktifPersonelId($salonId);
+            if ((int) $liste->personel_id !== (int) $benimPersonelId) {
+                return response()->json(['success' => false, 'message' => 'Bu listeyi arama yetkiniz yok'], 403);
+            }
+        }
+
+        $numara = $kayit->musteri->cep_telefon ?? '';
+        if ($numara === '') {
+            return response()->json(['success' => false, 'message' => 'Müşteri telefonu yok'], 422);
+        }
+        // Baslina 0 ekle (cevirme formati)
+        $aranacakNumara = '0' . ltrim($numara, '0');
+
+        // Arama randevusu (durum=3) ise arandi olarak isaretle ki popup tekrar nag yapmasin.
+        if ((int) $kayit->durum === 3) {
+            $kayit->durum = 1;
+        }
+        if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
+            $kayit->son_arama_zamani = date('Y-m-d H:i:s');
+        }
+        $kayit->save();
+
+        return response()->json([
+            'success' => true,
+            'numara'  => $aranacakNumara,
+            'aramaListeId' => $kayit->arama_id,
+        ]);
+    }
+
     public function arama_listesi_arandi_isaretle(Request $request)
     {
-         
-        $musteri = AranacakMusteriler::where('arama_id',$request->aramaListeId)->whereHas('musteri',function($q) use($request){
-            $q->where('cep_telefon',ltrim($request->telefon, '0'));
-        })->first();
-        $musteri->durum=1;
-        $musteri->save();
+        // ID bazli (yeni) veya telefon bazli (eski) eslestirme
+        $musteri = null;
+        if ($request->filled('aranacak_musteri_id')) {
+            $musteri = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
+        } else {
+            $musteri = AranacakMusteriler::where('arama_id', $request->aramaListeId)
+                ->whereHas('musteri', function ($q) use ($request) {
+                    $q->where('cep_telefon', ltrim($request->telefon, '0'));
+                })->first();
+        }
+        if (!$musteri) return response()->json(['success' => false], 404);
 
+        $musteri->durum = 1;
+        if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
+            $musteri->son_arama_zamani = date('Y-m-d H:i:s');
+        }
+        $musteri->save();
+        return response()->json(['success' => true]);
     }
     public function aramaListesineSesKaydiEkle(Request $request)
     {
         $musteri = AranacakMusteriler::where('arama_id',$request->aramaListeId)->whereHas('musteri',function($q) use($request){
             $q->where('cep_telefon',ltrim($request->arananNo, '0'));
         })->first();
+        if (!$musteri) return response()->json(['success' => false], 404);
+
         $musteri->ses_kaydi=$request->sesKaydi;
         $musteri->save();
+
+        // Ses kaydini en guncel gorusme notuna da bagla (varsa)
+        try {
+            $sonNot = \App\GorusmeNotlari::where('aranacak_musteri_id', $musteri->id)
+                ->orderBy('id', 'desc')->first();
+            if ($sonNot && empty($sonNot->ses_kaydi)) {
+                $sonNot->ses_kaydi = $request->sesKaydi;
+                $sonNot->save();
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('[CAGRI-MERKEZI] ses kaydi gorusme notuna baglanamadi: ' . $e->getMessage());
+        }
+
+        return response()->json(['success' => true]);
     }
     public function bosFormIndir(Request $request)
     {

@@ -109,18 +109,40 @@
         $('#sht-popup-altbaslik').text('Aşağıdakileri hızlıca halletmek günü kurtarır 💪');
         var $body = $('#sht-popup-body').empty();
         liste.forEach(function(h){
-            var $item = $(
-                '<a class="sht-popup-item tema-' + (h.tema||'default') + '" href="' + (h.link || '#') + '">' +
-                    '<div class="sht-emoji">' + (h.emoji || '🔔') + '</div>' +
-                    '<div>' +
-                        '<p class="sht-baslik">' + escapeHtml(h.baslik) +
-                            (h.sayac ? ' <span style="color:#5C008E;font-weight:800">(' + h.sayac + ')</span>' : '') +
-                        '</p>' +
-                        '<p class="sht-mesaj">' + escapeHtml(h.mesaj) + '</p>' +
-                        (h.altMesaj ? '<p class="sht-altmesaj">' + escapeHtml(h.altMesaj) + '</p>' : '') +
-                    '</div>' +
-                '</a>'
-            );
+            var $item;
+            if (h.aksiyon === 'arama_baslat') {
+                // Cagri Merkezi: "Hemen Ara" butonlu arama randevusu karti (numara gosterilmez)
+                var sesHtml = h.son_ses
+                    ? '<audio controls src="' + h.son_ses + '" style="width:100%;margin-top:6px;"></audio>'
+                    : '';
+                $item = $(
+                    '<div class="sht-popup-item tema-' + (h.tema||'default') + '">' +
+                        '<div class="sht-emoji">' + (h.emoji || '📞') + '</div>' +
+                        '<div style="flex:1;">' +
+                            '<p class="sht-baslik">' + escapeHtml(h.baslik) + '</p>' +
+                            '<p class="sht-mesaj">' + escapeHtml(h.mesaj) + '</p>' +
+                            (h.altMesaj ? '<p class="sht-altmesaj">' + escapeHtml(h.altMesaj) + '</p>' : '') +
+                            sesHtml +
+                            '<button type="button" class="btn btn-success sht-hemen-ara" data-aranacak-id="' + h.aranacak_musteri_id + '" style="margin-top:8px;">' +
+                                '<i class="fa fa-phone"></i> ' + escapeHtml(h.cta_text || 'Hemen Ara') +
+                            '</button>' +
+                        '</div>' +
+                    '</div>'
+                );
+            } else {
+                $item = $(
+                    '<a class="sht-popup-item tema-' + (h.tema||'default') + '" href="' + (h.link || '#') + '">' +
+                        '<div class="sht-emoji">' + (h.emoji || '🔔') + '</div>' +
+                        '<div>' +
+                            '<p class="sht-baslik">' + escapeHtml(h.baslik) +
+                                (h.sayac ? ' <span style="color:#5C008E;font-weight:800">(' + h.sayac + ')</span>' : '') +
+                            '</p>' +
+                            '<p class="sht-mesaj">' + escapeHtml(h.mesaj) + '</p>' +
+                            (h.altMesaj ? '<p class="sht-altmesaj">' + escapeHtml(h.altMesaj) + '</p>' : '') +
+                        '</div>' +
+                    '</a>'
+                );
+            }
             $body.append($item);
         });
         $('#salon-hatirlatma-bigpopup').addClass('show');
@@ -131,6 +153,43 @@
     function bigPopupKapat(){
         $('#salon-hatirlatma-bigpopup').removeClass('show');
     }
+    /* ---------- CAGRI MERKEZI: Hemen Ara (KVKK uyumlu, numara gosterilmez) ---------- */
+    $(document).on('click', '.sht-hemen-ara', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        aramaRandevusuAra($(this).data('aranacak-id'));
+    });
+    function aramaRandevusuAra(aranacakId){
+        if (typeof makeCall !== 'function') {
+            alert('Web telefon yüklü değil. Dahili numaranızı kontrol edip sayfayı yenileyin.');
+            return;
+        }
+        var token = $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').first().val();
+        $.ajax({
+            url: '/isletmeyonetim/arama-baslat',
+            method: 'POST',
+            data: { aranacak_musteri_id: aranacakId, _token: token },
+            success: function(res){
+                if (res.success && res.numara) {
+                    // Ses-kaydi eslestirmesi icin gizli arama_liste_detaylari linki (callHangUp okur)
+                    var $link = $('#aktif_arama_liste_link');
+                    if (!$link.length) {
+                        $link = $('<a id="aktif_arama_liste_link" name="arama_liste_detaylari" href="#" style="display:none"></a>').appendTo('body');
+                    }
+                    $link.attr('data-value', res.aramaListeId).attr('disabled', 'disabled');
+                    makeCall(res.numara); // numara DOM'a yazilmadan dogrudan aranir
+                    bigPopupKapat();
+                    fetchFeed(true);
+                } else {
+                    alert(res.message || 'Arama başlatılamadı.');
+                }
+            },
+            error: function(xhr){
+                alert((xhr.responseJSON && xhr.responseJSON.message) || 'Arama başlatılamadı.');
+            }
+        });
+    }
+
     $(document).on('click', '#sht-btn-sonra, #sht-btn-anla', bigPopupKapat);
     $(document).on('click', '#salon-hatirlatma-bigpopup', function(e){
         if (e.target === this) bigPopupKapat();

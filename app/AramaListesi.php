@@ -11,7 +11,11 @@ class AramaListesi extends Model
 
     protected $table = 'arama_listesi';
     protected $with = ['personel','salon','aranacaklar'];
-    
+
+    protected $casts = [
+        'filtre_snapshot' => 'array',
+    ];
+
     public function personel()
     {
          return $this->belongsTo(Personeller::class,'personel_id');

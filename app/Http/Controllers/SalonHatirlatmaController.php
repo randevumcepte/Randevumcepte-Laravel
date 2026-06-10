@@ -60,10 +60,98 @@ class SalonHatirlatmaController extends Controller
             return $this->topla($salonId);
         });
 
+        // Arama randevulari KULLANICIYA OZEL -> salon cache'ine konamaz (baska personele sizar).
+        // Bu yuzden cache disinda, giris yapan kullaniciya gore taze hesaplanip eklenir.
+        try {
+            $aramaRandevulari = $this->aramaRandevulari($salonId);
+        } catch (\Throwable $e) {
+            \Log::warning('SalonHatirlatma [aramaRandevulari] hata: ' . $e->getMessage());
+            $aramaRandevulari = [];
+        }
+        if (!empty($aramaRandevulari)) {
+            $hatirlatmalar = array_merge($aramaRandevulari, $hatirlatmalar);
+            usort($hatirlatmalar, function ($a, $b) {
+                return ($b['oncelik'] ?? 1) <=> ($a['oncelik'] ?? 1);
+            });
+        }
+
         return response()->json([
             'sayi'          => count($hatirlatmalar),
             'hatirlatmalar' => $hatirlatmalar,
         ]);
+    }
+
+    /* -----------------------------------------------------------------
+     * Cagri Merkezi: zamani gelen ARAMA RANDEVULARI (kullaniciya ozel).
+     * "X müşteriniz aramanızı bekliyor" popup'i. Rol 5 ise sadece kendine
+     * atanan listeler; yonetici ise salonun tum arama randevulari.
+     * Onceki notlar + son ses kaydi popup'a eklenir (sureci takip icin).
+     * ----------------------------------------------------------------- */
+    private function aramaRandevulari($salonId)
+    {
+        if (!$this->tabloVarMi('aranacak_musteriler') || !$this->tabloVarMi('arama_listesi')) return [];
+
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if (!$authUser) return [];
+        $authId = $authUser->id;
+
+        // Arama randevusu popup'i SADECE listenin atandigi personele gider (role bakmadan).
+        // Boylece her kullanici yalnizca kendi personel kaydina atanan randevulari gorur.
+        $personelId = DB::table('salon_personelleri')->where('yetkili_id', $authId)->where('salon_id', $salonId)->value('id');
+        if (!$personelId) return [];
+
+        // Maskeleme icin rol (rol 5 ise musteri soyadi maskelenir)
+        $rol = DB::table('model_has_roles')->where('model_id', $authId)->where('salon_id', $salonId)->value('role_id');
+
+        $bugun = date('Y-m-d');
+        $simdiSaat = date('H:i:s');
+
+        $kayitlar = DB::table('aranacak_musteriler as am')
+            ->join('arama_listesi as al', 'al.id', '=', 'am.arama_id')
+            ->join('users as u', 'u.id', '=', 'am.user_id')
+            ->where('al.salon_id', $salonId)
+            ->where('al.personel_id', $personelId)
+            ->where('am.durum', 3)         // 3 = Arama Randevusu
+            ->where('am.tarih', $bugun)
+            ->whereRaw('am.saat <= ?', [$simdiSaat])
+            ->select('am.id', 'am.user_id', 'am.saat', 'u.name', 'al.personel_id')
+            ->orderBy('am.saat', 'asc')->limit(20)->get();
+
+        $gorusmeNotuVar = $this->tabloVarMi('gorusme_notlari');
+        $items = [];
+        foreach ($kayitlar as $k) {
+            $ad = ($rol == 5) ? $this->adSoyadMaskele($k->name) : $k->name;
+
+            $oncekiNot = '';
+            $sonSes = '';
+            if ($gorusmeNotuVar) {
+                $notlar = DB::table('gorusme_notlari')->where('aranacak_musteri_id', $k->id)
+                    ->orderBy('id', 'desc')->limit(5)->get();
+                foreach ($notlar as $n) {
+                    if (!$oncekiNot && !empty($n->not)) $oncekiNot = $n->not;
+                    if (!$sonSes && !empty($n->ses_kaydi)) $sonSes = 'https://voicerecords.randevumcepte.com.tr' . $n->ses_kaydi;
+                }
+            }
+
+            $items[] = [
+                'id'                  => 'arama_randevusu_' . $k->id,
+                'tip'                 => 'arama_randevusu',
+                'oncelik'             => 5,
+                'tema'                => 'mavi-cinglir',
+                'ikon'                => 'fa-phone',
+                'emoji'               => '📞',
+                'baslik'              => 'Arama Randevusu',
+                'mesaj'               => $ad . ' isimli müşteriniz aramanızı bekliyor.',
+                'altMesaj'            => substr($k->saat, 0, 5) . ' için planlandı.' . ($oncekiNot ? ' Önceki not: ' . mb_substr($oncekiNot, 0, 80) : ''),
+                'cta_text'            => 'Hemen Ara',
+                'aksiyon'             => 'arama_baslat',
+                'aranacak_musteri_id' => $k->id,
+                'son_ses'             => $sonSes,
+                'link'                => '/isletmeyonetim/arama-listelerim?sube=' . $salonId,
+                'sayac'               => 1,
+            ];
+        }
+        return $items;
     }
 
     private function topla($salonId)

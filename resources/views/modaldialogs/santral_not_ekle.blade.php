@@ -5,6 +5,7 @@
         {{ csrf_field() }}
         <input type="hidden" name="sube" value="{{$isletme->id}}">
         <input type="hidden" name="not_id" id="not_id" value="0">
+        <input type="hidden" name="aranacak_musteri_id" id="aranacak_musteri_id" value="">
         <div class="modal-content" style="min-height: 350px;">
           <div class="modal-header">
             <h4 class="h4">Not Ekle</h4>

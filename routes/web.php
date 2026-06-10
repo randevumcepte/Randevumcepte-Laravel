@@ -1182,6 +1182,16 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/musteriportfoydropliste','StoreAdminController@musteriportfoydropliste');
 	Route::post('/arama-listesi-arandi-isaretle','StoreAdminController@arama_listesi_arandi_isaretle');
 	Route::post('/aramaListesineSesKaydiEkle','StoreAdminController@aramaListesineSesKaydiEkle');
+	// Cagri Merkezi (Call Center) — Faz 1: filtre motoru + liste olusturma
+	Route::post('/arama_filtre_onizleme','StoreAdminController@arama_filtre_onizleme');
+	// Cagri Merkezi — Faz 2: personel calisma alani + KVKK uyumlu arama baslatma
+	Route::get('/arama-listelerim','StoreAdminController@arama_listelerim');
+	Route::get('/arama-kartlarim','StoreAdminController@arama_kartlarim');
+	Route::post('/arama-baslat','StoreAdminController@arama_baslat');
+	// Cagri Merkezi — Faz 3: sahip dashboard (personel performans takibi)
+	Route::get('/arama-dashboard','StoreAdminController@arama_dashboard');
+	Route::get('/arama-dashboard-verileri','StoreAdminController@arama_dashboard_verileri');
+	Route::post('/arama-dashboard-personel-detay','StoreAdminController@arama_dashboard_personel_detay');
 	Route::get('/raporlar','StoreAdminController@raporlar');
 	Route::get('/primraporu','StoreAdminController@primRaporu')->name('isletmeadmin.primraporu');
 	Route::post('/primhareketekle','StoreAdminController@primHareketEkle');

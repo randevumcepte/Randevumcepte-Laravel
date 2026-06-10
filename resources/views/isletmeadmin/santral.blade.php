@@ -306,9 +306,12 @@
                                              <thead >
                                                 <th>Başlık</th>
                                                 <th>Personel</th>
+                                                <th>Aranacak Tarih</th>
+                                                <th>Müşteri</th>
+                                                <th>İlerleme</th>
                                                 <th>Detaylar </th>
-                                              
-                                                
+
+
                                              </thead>
                                              <tbody>
                                             

@@ -39,6 +39,7 @@ class Kernel extends ConsoleKernel
         Commands\FormVarsayilanYay::class,
         Commands\EasistanIndexEnsure::class,
         Commands\WhatsappPromoKontrol::class,
+        Commands\CagriMerkeziSchemaEnsure::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
@@ -96,6 +97,11 @@ class Kernel extends ConsoleKernel
         // calismiyordu; bu komut eksik index'leri kendiliginden olusturur.
         // Index'ler mevcutken sadece ucuz SHOW INDEX kontrolu (no-op).
         $schedule->command('easistan:index-ensure --quiet-noop')->withoutOverlapping()->hourly();
+
+        // Cagri Merkezi (Call Center) semasini garanti et (idempotent). Deploy sadece
+        // `git pull` yaptigi icin cagri merkezi migration'i prod'da otomatik calismiyor;
+        // bu komut eksik kolon/tablolari kendiliginden olusturur. Her sey varken ucuz no-op.
+        $schedule->command('cagrimerkezi:schema-ensure --quiet-noop')->withoutOverlapping()->hourly();
 
         // WhatsApp 2 ay ücretsiz promo — günde bir: promosu başlat + süresi dolanı kapat
         $schedule->command('whatsapp:promo-kontrol')->withoutOverlapping()->dailyAt('00:30');

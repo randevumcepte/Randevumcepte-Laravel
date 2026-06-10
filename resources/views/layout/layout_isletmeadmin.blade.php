@@ -1565,6 +1565,20 @@
                   </li>
                   @endif
 
+                  {{-- 2b) Cagri Merkezi Dashboard (yonetici) --}}
+                  @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
+                  <li>
+                     @if($pageindex==45)
+                     <a href="/isletmeyonetim/arama-dashboard{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-dashboard{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-headset"></span>
+                     <span class="mtext"> Çağrı Merkezi </span>
+                     </a>
+                  </li>
+                  @endif
+
                   {{-- 3) Randevu Takvimi --}}
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
                   <li>

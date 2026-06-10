@@ -2137,6 +2137,24 @@ class Controller extends BaseController
     public function telefonGizle($phone) {
         return substr($phone, 0, 3) . ' *** **' . substr($phone, -2);
     }
+    /**
+     * KVKK: Personele (rol 5) gosterilen musteri adini maskeler.
+     * Ad tam, soyad SADECE ilk harf + nokta. "name" tek alan oldugu icin
+     * son kelime soyad kabul edilir (orn "Ferdi Korkmaz" -> "Ferdi K.").
+     * Tek kelime ise oldugu gibi birakilir.
+     */
+    public function adSoyadMaskele($name) {
+        $name = trim((string) $name);
+        if ($name === '') return '';
+        $parcalar = preg_split('/\s+/', $name);
+        if (count($parcalar) < 2) {
+            return $name; // tek kelime -> maskeleme yok
+        }
+        $soyad = array_pop($parcalar);
+        $ad = implode(' ', $parcalar);
+        $ilkHarf = mb_substr($soyad, 0, 1, 'UTF-8');
+        return $ad . ' ' . mb_strtoupper($ilkHarf, 'UTF-8') . '.';
+    }
     public function ePostaGizle($email) {
         [$username, $domain] = explode('@', $email);
         $maskedUsername = substr($username, 0, 1) . str_repeat('*', max(strlen($username) - 1, 3));
