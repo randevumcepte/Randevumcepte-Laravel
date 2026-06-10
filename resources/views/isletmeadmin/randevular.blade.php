@@ -180,10 +180,13 @@
       var lbl = document.getElementById('rc-zoom-val');
       if(lbl) lbl.textContent = Math.round(z*100) + '%';
       if(rerender){
-         // FC event konumlari slot yuksegine gore hesaplandigindan yeniden cizdir
+         // FC v3 event konumlari/yukseklikleri PIKSEL bazli ve slot yuksekligine
+         // gore hesaplandigindan: once boyutu guncelle (render), SONRA event'leri
+         // yeniden cizdir (rerenderEvents) — yoksa slot buyur ama kartlar buyumez.
          try {
             if(window.jQuery && jQuery('#calendar').length && jQuery('#calendar').fullCalendar('getView')){
                jQuery('#calendar').fullCalendar('render');
+               jQuery('#calendar').fullCalendar('rerenderEvents');
             }
          } catch(e){}
       }
