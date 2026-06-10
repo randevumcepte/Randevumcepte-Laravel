@@ -163,29 +163,34 @@
 (function(){
    // Salon bazli, tarayicida kalici (cikis yapsa bile ayni boyutta acilir)
    var KEY  = 'rc_takvim_zoom_{{ (int)$isletme->id }}';
-   var BASE_H = 22;   // 100% slot yuksekligi (px) — zoom ile carpilir
-   var MIN  = 0.5, MAX = 3.0, STEP = 0.2;
+   var BASE = 26;     // buyutmede 100% ustu slot yuksekligi (px)
+   var MIN  = 1.0, MAX = 3.0, STEP = 0.2;
 
    function clamp(z){ return Math.min(MAX, Math.max(MIN, Math.round(z*100)/100)); }
    function getZoom(){
       var v = parseFloat(localStorage.getItem(KEY));
+      // Kullanici daha once ayarladiysa onu kullan; YOKSA %100 (FC dogal boyutu —
+      // tanidik gorunum, randevular eskisi gibi yerinde). Buyutme tamamen istege bagli.
       return (!isNaN(v) && v >= MIN && v <= MAX) ? v : 1.0;
    }
    function apply(z, rerender){
-      // Zoom faktorunu global yap: kolon GENISLIGINI custom.js'teki eventAfterAllRender
-      // bu degere gore hesaplar (250 * z). Boylece zoom HEM yukseklik HEM genislik olcekler.
-      window.rcZoom = z;
       var el = document.getElementById('rc-zoom-style');
       if(!el){ el = document.createElement('style'); el.id = 'rc-zoom-style'; document.head.appendChild(el); }
-      // Slot YUKSEKLIGI = BASE_H * z (her zaman — kuculunce de daralir)
-      var h = Math.round(BASE_H * z);
-      el.innerHTML = '#calendar .fc-time-grid .fc-slats td{height:'+h+'px !important;}';
+      // %100'de FC'nin DOGAL slot yuksekligine dokunma (override yok) -> regresyon/
+      // kayip olmaz. Sadece %100 ustunde slat yuksekligini buyut.
+      if(z <= 1.001){
+         el.innerHTML = '';
+      } else {
+         var h = Math.round(BASE * z);
+         el.innerHTML = '#calendar .fc-time-grid .fc-slats td{height:'+h+'px !important;}';
+      }
       var lbl = document.getElementById('rc-zoom-val');
       if(lbl) lbl.textContent = Math.round(z*100) + '%';
       if(rerender){
-         // Takvimi uygulamanin KENDI render yolundan yeniden cizdir -> hem slot
-         // yuksekligi (CSS) hem kolon genisligi (eventAfterAllRender, window.rcZoom)
-         // yeni z'ye gore uygulanir. (FC ic API zorlamak randevulari kaybedebiliyor.)
+         // Slot yuksekligi degisti. FC ic API'lerini zorlamak (height toggle vs.)
+         // randevularin kaybolmasina yol acabiliyor; bu yuzden GUVENLI yol: takvimi
+         // uygulamanin KENDI normal render yolundan tam yeniden cizdir. Boylece
+         // slatlar yeniden olculur ve event'ler dogru (yeni) yukseklikte cizilir.
          try {
             if(typeof window.takvimyukle === 'function'){
                window.takvimyukle(false, true);   // turdegisti=true -> destroy + tam re-render

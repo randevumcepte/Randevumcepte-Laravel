@@ -10160,10 +10160,9 @@ function takvimyukle(preload,turdegisti)
                     var st = document.getElementById('rc-res-w');
                     if(!st){ st = document.createElement('style'); st.id = 'rc-res-w'; document.head.appendChild(st); }
                     var container = $('#calendar').width() || 0;
-                    // Kolon genisligi buyutec (zoom) ile olceklenir: 250 * zoom.
-                    // Boylece kuculunce HEM yukseklik HEM genislik daralir.
-                    var _z = (typeof window.rcZoom === 'number' && window.rcZoom > 0) ? window.rcZoom : 1;
-                    var RC_KOLON = Math.round(250 * _z); // resource kolon genisligi (px)
+                    // Kolonlar doldurunca RC_KOLON'dan dar kalacaksa: her birini o
+                    // genislige getir + yatay scroll. Az kolonda (zaten genis) dokunma.
+                    var RC_KOLON = 250; // resource kolon genisligi (px) — degistirilebilir
                     if(n > 0 && container > 0 && (container / n) < RC_KOLON){
                        var nw = (n * RC_KOLON) + 95;
                        st.innerHTML =
