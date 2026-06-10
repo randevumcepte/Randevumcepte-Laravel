@@ -10,6 +10,10 @@
 <div class="main-content container-fluid">
     <h1 class="display-heading text-center">İnteraktif Duyuru Paketi Satın Alma</h1>
 
+    @if(session('hata'))
+        <div class="alert alert-danger">{{ session('hata') }}</div>
+    @endif
+
     <div class="row">
         <div class="col-xs-12 col-sm-12 col-md-12">
             <div class="panel panel-default panel-table">
@@ -40,58 +44,50 @@
             </div>
         </div>
 
-        {{-- Fatura Bilgileri (e-Arşiv faturası için; sonradan Paraşüt'e gönderilecek) --}}
-        <div class="col-xs-12 col-sm-12 col-md-12">
-            <div class="panel panel-default panel-table">
-                <div class="panel-heading panel-heading-divider xs-pb-15" style="font-weight: bold;">Fatura Bilgileri</div>
-                <div class="panel-body">
-                    <div class="row">
-                        <div class="col-md-6 form-group">
-                            <label>Ünvan / Ad Soyad</label>
-                            <input type="text" id="fatura_unvan" class="form-control" value="{{ $isletme->salon_adi ?? '' }}" placeholder="Fatura ünvanı">
+        {{-- Kredi kartı formu: fatura bilgileri + PayTR'ye gönderim --}}
+        <form method="POST" action="/isletmeyonetim/duyuru-paketi-odeme/{{ $paket->id }}">
+            @csrf
+            <div class="col-xs-12 col-sm-12 col-md-12">
+                <div class="panel panel-default panel-table">
+                    <div class="panel-heading panel-heading-divider xs-pb-15" style="font-weight: bold;">Fatura Bilgileri</div>
+                    <div class="panel-body">
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                <label>Ünvan / Ad Soyad</label>
+                                <input type="text" name="fatura_unvan" class="form-control" value="{{ $isletme->salon_adi ?? '' }}" placeholder="Fatura ünvanı" required>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label>VKN / TC Kimlik No</label>
+                                <input type="text" name="fatura_vkn" class="form-control" placeholder="Vergi veya TC kimlik numarası" required>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label>Vergi Dairesi</label>
+                                <input type="text" name="fatura_vergi_dairesi" class="form-control" placeholder="Vergi dairesi (şahıssa boş bırakın)">
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label>Adres</label>
+                                <input type="text" name="fatura_adres" class="form-control" placeholder="Fatura adresi">
+                            </div>
                         </div>
-                        <div class="col-md-6 form-group">
-                            <label>VKN / TC Kimlik No</label>
-                            <input type="text" id="fatura_vkn" class="form-control" placeholder="Vergi veya TC kimlik numarası">
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label>Vergi Dairesi</label>
-                            <input type="text" id="fatura_vd" class="form-control" placeholder="Vergi dairesi (şahıssa boş bırakın)">
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label>Adres</label>
-                            <input type="text" id="fatura_adres" class="form-control" placeholder="Fatura adresi">
-                        </div>
+                        <p class="text-muted">Fatura, ödeme tamamlandıktan sonra e-Arşiv olarak düzenlenip "Faturalarım" alanınıza eklenecektir.</p>
                     </div>
-                    <p class="text-muted">Fatura, ödeme tamamlandıktan sonra e-Arşiv olarak düzenlenip "Faturalarım" alanınıza eklenecektir.</p>
                 </div>
             </div>
-        </div>
 
-        {{-- Ödeme yöntemi --}}
-        <div class="col-xs-12 col-sm-12 col-md-12">
-            <div class="panel panel-default panel-table">
-                <div class="panel-heading panel-heading-divider xs-pb-15" style="font-weight: bold;">Ödeme Yöntemi</div>
-                <div class="panel-body">
-                    <button type="button" class="btn btn-primary" style="font-size:15px" onclick="duyuruOdemeGoster('kart')">Kredi Kartı ile Öde</button>
-                    <button type="button" class="btn btn-primary" style="font-size:15px" onclick="duyuruOdemeGoster('havale')">Havale/EFT ile Öde</button>
-                </div>
-            </div>
-        </div>
-
-        {{-- Kredi kartı: PayTR bağlamasi sonra eklenecek (placeholder) --}}
-        <div class="col-xs-12 col-sm-12 col-md-12" id="duyuru_kart_bolum" style="display:none">
-            <div class="panel panel-default panel-table">
-                <div class="panel-heading panel-heading-divider xs-pb-15" style="font-weight: bold;">Kredi Kartı ile Ödeme</div>
-                <div class="panel-body">
-                    <div class="alert alert-info" style="margin-bottom:0">
-                        Kredi kartı ile ödeme altyapısı (PayTR) en kısa sürede aktif olacaktır. Taksit imkânı bu alanda sunulacaktır.
-                        Şimdilik <strong>Havale/EFT</strong> ile ödeme yapabilirsiniz.
+            <div class="col-xs-12 col-sm-12 col-md-12">
+                <div class="panel panel-default panel-table">
+                    <div class="panel-heading panel-heading-divider xs-pb-15" style="font-weight: bold;">Ödeme Yöntemi</div>
+                    <div class="panel-body">
+                        <button type="submit" class="btn btn-primary" style="font-size:15px">
+                            <span class="mdi mdi-credit-card-outline"></span> Kredi Kartı ile Öde (Taksit İmkânı)
+                        </button>
+                        <button type="button" class="btn btn-default" style="font-size:15px" onclick="document.getElementById('duyuru_havale_bolum').style.display='block'">
+                            Havale/EFT ile Öde
+                        </button>
                     </div>
-                    {{-- TODO(PayTR): buraya iframe token akışı + taksit (no_installment/max_installment) + fatura bilgileri submit eklenecek --}}
                 </div>
             </div>
-        </div>
+        </form>
 
         {{-- Havale/EFT: aktif --}}
         <div class="col-xs-12 col-sm-12 col-md-12" id="duyuru_havale_bolum" style="display:none">
@@ -134,11 +130,4 @@
         </div>
     </div>
 </div>
-
-<script>
-function duyuruOdemeGoster(tip){
-    document.getElementById('duyuru_kart_bolum').style.display   = (tip === 'kart')   ? 'block' : 'none';
-    document.getElementById('duyuru_havale_bolum').style.display = (tip === 'havale') ? 'block' : 'none';
-}
-</script>
 @endsection

@@ -407,6 +407,8 @@ Route::get('/save-excel', function () {
 	Route::get('/{isletme_turu}/{il}/{ilce}/{isletme_id}/{isletme_adi}/{arama_terimi}/{arama_terim_id}', 'HomeController@salonDetay_altsayfa')->name('salondetaylari_altsayfa'); 
 	Route::get('/isletmeyonetim/smspaketleri','HomeController@paketsatinalyukseltmeornek');
 	Route::get('/isletmeyonetim/smspaketsatinal/{paketno}','HomeController@smsPaketOnay');
+	Route::post('/isletmeyonetim/duyuru-paketi-odeme/{paketno}','HomeController@smsPaketOdeme');
+	Route::get('/isletmeyonetim/duyuru-paketi-sonuc/{merchant_oid}','HomeController@smsPaketSonuc');
 	Route::post('/satis-ortakligi-kayit','HomeController@satis_ortakligi_kayit'); 
 	 
 
@@ -652,6 +654,10 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::get('/sms-paket/{id}/duzenle', 'SmsPaketController@duzenle')->where('id', '[0-9]+');
     Route::put('/sms-paket/{id}', 'SmsPaketController@guncelle')->where('id', '[0-9]+');
     Route::delete('/sms-paket/{id}', 'SmsPaketController@sil')->where('id', '[0-9]+');
+
+    // Duyuru Paketi Siparişleri (ödeme + manuel SMS yükleme kuyruğu)
+    Route::get('/duyuru-paketi-siparisleri', 'DuyuruSiparisController@index')->name('sistemyonetim.v2.duyuru-siparis');
+    Route::post('/duyuru-paketi-siparisleri/{id}/yuklendi', 'DuyuruSiparisController@yuklendi')->where('id', '[0-9]+');
 });
 
 // Salon paneli — destek + duyuru okundu

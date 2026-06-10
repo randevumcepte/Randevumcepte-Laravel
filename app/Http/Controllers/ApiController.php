@@ -6510,9 +6510,47 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         if ($post["status"] == "success") {
 
+            // ---- İnteraktif Duyuru Paketi (SMS kredisi) siparişi mi? ----
+            $smsSiparis = \App\SmsPaketSiparisi::where('merchant_oid', $post['merchant_oid'])->first();
+            if ($smsSiparis) {
+                // Idempotency: aynı sipariş için tekrar bildirim gelirse işlem yapma
+                if ($smsSiparis->durum == 1) { echo "OK"; exit; }
+                $smsSiparis->durum = 1;
+                $smsSiparis->save();
+
+                // Yöneticiye bildirim maili (manuel SMS yüklemesi için)
+                try {
+                    $isletmeSms = Salonlar::where('id', $smsSiparis->salon_id)->first();
+                    $salonAdi = $isletmeSms ? $isletmeSms->salon_adi : ('Salon #'.$smsSiparis->salon_id);
+                    $mesaj = "Yeni Interaktif Duyuru Paketi odemesi alindi.\n".
+                             "Salon: ".$salonAdi." (#".$smsSiparis->salon_id.")\n".
+                             "Paket: ".$smsSiparis->sms_adet." SMS\n".
+                             "Tutar: ".$smsSiparis->tutar." TL\n".
+                             "Siparis No: ".$smsSiparis->merchant_oid."\n\n".
+                             "Lutfen VoiceTelekom panelinden ilgili alt kullaniciya SMS yuklemesini yapiniz.\n".
+                             "Yonetim: /sistemyonetim/v2/duyuru-paketi-siparisleri";
+                    $alici = env('DUYURU_SIPARIS_BILDIRIM_MAIL', 'webfirmam1035@gmail.com');
+                    \Mail::raw($mesaj, function ($m) use ($alici, $smsSiparis) {
+                        $m->to($alici)->subject('Yeni Duyuru Paketi Odemesi - '.$smsSiparis->sms_adet.' SMS');
+                    });
+                } catch (\Throwable $e) {
+                    Log::error('Duyuru paketi bildirim mail hatasi: '.$e->getMessage());
+                }
+
+                // e-Arşiv fatura (Paraşüt). Kimlik bilgisi yoksa servis sessizce no-op döner.
+                try {
+                    app(\App\Services\ParasutService::class)->duyuruPaketiFaturasiKes($smsSiparis);
+                } catch (\Throwable $e) {
+                    Log::error('Duyuru paketi Parasut fatura hatasi: '.$e->getMessage());
+                }
+
+                echo "OK";
+                exit;
+            }
+
             ## Ödeme Onaylandı
 
-            $form = Musteri_Formlari::where('merchant_oid',$post['merchant_oid'])->first(); 
+            $form = Musteri_Formlari::where('merchant_oid',$post['merchant_oid'])->first();
             if($form)
             {
                 $form->durum_id = 7;
@@ -6606,6 +6644,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             
 
  
+
+            $smsSiparisBasarisiz = \App\SmsPaketSiparisi::where('merchant_oid', $post['merchant_oid'])->first();
+            if ($smsSiparisBasarisiz) {
+                if ($smsSiparisBasarisiz->durum != 1) {
+                    $smsSiparisBasarisiz->durum = 2;
+                    $smsSiparisBasarisiz->basarisiz_neden = isset($post['failed_reason_msg']) ? $post['failed_reason_msg'] : 'Basarisiz odeme';
+                    $smsSiparisBasarisiz->save();
+                }
+                echo "OK";
+                exit();
+            }
 
             echo "Başarısız ödeme.";
 

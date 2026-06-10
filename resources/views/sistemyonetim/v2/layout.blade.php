@@ -81,6 +81,10 @@
                 <span class="icon mdi mdi-message-text"></span>
                 Duyuru Paketleri
             </a>
+            <a href="/sistemyonetim/v2/duyuru-paketi-siparisleri" class="sy-nav-item {{ $aktifMenu === 'duyurusiparis' ? 'active' : '' }}">
+                <span class="icon mdi mdi-cart-check"></span>
+                Paket Siparişleri
+            </a>
 
             @if(in_array($rol, ['super_admin','yonetici']))
                 <div class="sy-nav-section">Ekip & İzleme</div>

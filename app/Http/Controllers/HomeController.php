@@ -2023,6 +2023,133 @@ $salon = Salonlar::where('domain', $domain)->first();
         ]);
     }
 
+    // İnteraktif Duyuru Paketi — PayTR ile kredi karti odemesi baslatir.
+    // odeme.blade.php'deki PayTR altyapisi (merchant 615336) birebir kullanilir.
+    public function smsPaketOdeme(Request $request, $paketno){
+        if(!Auth::guard('isletmeyonetim')->check()){
+            return redirect('/isletmeyonetim/girisyap');
+        }
+        $kullanici = Auth::guard('isletmeyonetim')->user();
+        $paket = \App\SMSPaketleri::find($paketno);
+        if(!$paket){
+            return redirect('/isletmeyonetim/toplusmsbasvuru');
+        }
+        $isletme = Salonlar::where('id', $kullanici->salon_id)->first();
+
+        // Benzersiz siparis no (alfanumerik)
+        $merchant_oid = 'SMS'.date('YmdHis').$kullanici->salon_id.substr(uniqid(), -5);
+
+        // Siparisi kaydet (durum=0 beklemede). Callback bu kayda gore islem yapar.
+        $siparis = \App\SmsPaketSiparisi::create([
+            'salon_id'             => $kullanici->salon_id,
+            'paket_id'             => $paket->id,
+            'sms_adet'             => $paket->sms_adet,
+            'tutar'                => $paket->ucret,
+            'merchant_oid'         => $merchant_oid,
+            'durum'                => 0,
+            'fatura_unvan'         => $request->fatura_unvan,
+            'fatura_vkn'           => $request->fatura_vkn,
+            'fatura_vergi_dairesi' => $request->fatura_vergi_dairesi,
+            'fatura_adres'         => $request->fatura_adres,
+        ]);
+
+        // ---- PayTR token (odeme.blade.php ile ayni altyapi) ----
+        $merchant_id  = '615336';
+        $merchant_key = 'tBEfk7B2zQEw4hDN';
+        $merchant_salt= '2Qi3MmYEtRoo1BXw';
+
+        $email = $kullanici->email ?: ($isletme->email ?? 'destek@randevumcepte.com.tr');
+        $user_name    = $kullanici->name ?: ($isletme->salon_adi ?? 'Musteri');
+        $user_address = $request->fatura_adres ?: ($isletme->adres ?? 'Adres');
+        $user_phone   = $isletme->yetkili_telefon ?? '5000000000';
+
+        $payment_amount = (int) round($paket->ucret * 100); // kurus
+        $paketler = array(array($paket->sms_adet.' SMS - Interaktif Duyuru Paketi', $payment_amount, 1));
+        $user_basket = base64_encode(json_encode($paketler));
+
+        if(isset($_SERVER["HTTP_CLIENT_IP"])) { $ip = $_SERVER["HTTP_CLIENT_IP"]; }
+        elseif(isset($_SERVER["HTTP_X_FORWARDED_FOR"])) { $ip = $_SERVER["HTTP_X_FORWARDED_FOR"]; }
+        else { $ip = $_SERVER["REMOTE_ADDR"]; }
+        $user_ip = $ip;
+
+        $merchant_ok_url   = secure_url('/isletmeyonetim/duyuru-paketi-sonuc/'.$merchant_oid);
+        $merchant_fail_url = secure_url('/isletmeyonetim/duyuru-paketi-sonuc/'.$merchant_oid);
+
+        $timeout_limit   = "30";
+        $debug_on        = 1;
+        $test_mode       = 1;   // CANLI ödeme almak için 0 yapın (test bitince).
+        $no_installment  = 0;   // 0 = taksit acik
+        $max_installment = 0;   // 0 = izin verilen en fazla taksit
+        $currency        = "TL";
+
+        $hash_str = $merchant_id.$user_ip.$merchant_oid.$email.$payment_amount.$user_basket.$no_installment.$max_installment.$currency.$test_mode;
+        $paytr_token = base64_encode(hash_hmac('sha256', $hash_str.$merchant_salt, $merchant_key, true));
+
+        $post_vals = array(
+            'merchant_id'      => $merchant_id,
+            'user_ip'          => $user_ip,
+            'merchant_oid'     => $merchant_oid,
+            'email'            => $email,
+            'payment_amount'   => $payment_amount,
+            'paytr_token'      => $paytr_token,
+            'user_basket'      => $user_basket,
+            'debug_on'         => $debug_on,
+            'no_installment'   => $no_installment,
+            'max_installment'  => $max_installment,
+            'user_name'        => $user_name,
+            'user_address'     => $user_address,
+            'user_phone'       => $user_phone,
+            'merchant_ok_url'  => $merchant_ok_url,
+            'merchant_fail_url'=> $merchant_fail_url,
+            'timeout_limit'    => $timeout_limit,
+            'currency'         => $currency,
+            'test_mode'        => $test_mode,
+        );
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "https://www.paytr.com/odeme/api/get-token");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_vals);
+        curl_setopt($ch, CURLOPT_FRESH_CONNECT, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        $result = @curl_exec($ch);
+        if(curl_errno($ch)){
+            \Log::error('Duyuru paketi PAYTR baglanti hatasi: '.curl_error($ch));
+            curl_close($ch);
+            return redirect('/isletmeyonetim/smspaketsatinal/'.$paket->id)->with('hata', 'Ödeme başlatılamadı, lütfen tekrar deneyin.');
+        }
+        curl_close($ch);
+        $result = json_decode($result, 1);
+
+        if(isset($result['status']) && $result['status'] == 'success'){
+            $token = $result['token'];
+            return view('isletmeadmin.duyuru-paketi-iframe', [
+                'pageindex' => 114,
+                'title'     => 'Ödeme | randevumcepte.com.tr İşletme Yönetim Paneli',
+                'token'     => $token,
+                'paket'     => $paket,
+            ]);
+        }
+
+        $neden = isset($result['reason']) ? $result['reason'] : 'bilinmeyen hata';
+        $siparis->durum = 2;
+        $siparis->basarisiz_neden = 'Token alinamadi: '.$neden;
+        $siparis->save();
+        \Log::error('Duyuru paketi PAYTR token hatasi: '.$neden);
+        return redirect('/isletmeyonetim/smspaketsatinal/'.$paket->id)->with('hata', 'Ödeme başlatılamadı: '.$neden);
+    }
+
+    // PayTR ok/fail yonlendirme sonrasi sonuc sayfasi (siparis durumunu DB'den okur).
+    public function smsPaketSonuc($merchant_oid){
+        $siparis = \App\SmsPaketSiparisi::where('merchant_oid', $merchant_oid)->first();
+        return view('isletmeadmin.duyuru-paketi-sonuc', [
+            'pageindex' => 114,
+            'title'     => 'Ödeme Sonucu | randevumcepte.com.tr İşletme Yönetim Paneli',
+            'siparis'   => $siparis,
+        ]);
+    }
+
     public function etkinlikkatilimanketi(Request $request,$id,$userid)
     {
         $etkinlik = Etkinlikler::where('id',$id)->first();
