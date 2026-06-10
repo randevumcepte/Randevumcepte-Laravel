@@ -169,7 +169,9 @@
    function clamp(z){ return Math.min(MAX, Math.max(MIN, Math.round(z*100)/100)); }
    function getZoom(){
       var v = parseFloat(localStorage.getItem(KEY));
-      return (!isNaN(v) && v >= MIN && v <= MAX) ? v : 1;
+      // Kullanici daha once ayarladiysa onu kullan; aksi halde okunur bir varsayilan
+      // (rakipteki gibi ferah). Salon isterse buyutec ile kuculur/buyur, secim kalici.
+      return (!isNaN(v) && v >= MIN && v <= MAX) ? v : 1.6;
    }
    function apply(z, rerender){
       var h = Math.round(BASE * z);
@@ -181,12 +183,15 @@
       if(lbl) lbl.textContent = Math.round(z*100) + '%';
       if(rerender){
          // FC v3 event konumlari/yukseklikleri PIKSEL bazli ve slot yuksekligine
-         // gore hesaplandigindan: once boyutu guncelle (render), SONRA event'leri
-         // yeniden cizdir (rerenderEvents) — yoksa slot buyur ama kartlar buyumez.
+         // gore hesaplandigindan, slat yuksekligi degisince koordinat cache'i
+         // tazelenip event'lerin yeniden cizilmesi gerek. En guvenilir yol FC'nin
+         // dogal "resize" reflow'unu tetiklemek (slat coord cache yenilenir + event'ler
+         // yeni yuksekliklere gore tekrar konumlanir -> kartlar da buyur).
          try {
             if(window.jQuery && jQuery('#calendar').length && jQuery('#calendar').fullCalendar('getView')){
                jQuery('#calendar').fullCalendar('render');
                jQuery('#calendar').fullCalendar('rerenderEvents');
+               jQuery(window).trigger('resize');
             }
          } catch(e){}
       }
