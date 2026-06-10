@@ -743,8 +743,8 @@
             @foreach($smspaketler as $sp)
             <div class="hizmet-card" style="text-align:center;">
                 <div class="hizmet-icon mor" style="margin:0 auto 14px;"><i class="fa fa-bullhorn"></i></div>
-                <h4 class="hizmet-card-title" style="font-size:24px;">{{ number_format($sp->sms_adet, 0, ',', '.') }} SMS</h4>
-                <p class="hizmet-card-desc">İnteraktif Duyuru Paketi</p>
+                <h4 class="hizmet-card-title" style="font-size:24px;">{{ $sp->paket_adi ?: (number_format($sp->sms_adet, 0, ',', '.').' SMS') }}</h4>
+                <p class="hizmet-card-desc">{{ $sp->alt_baslik ?: 'İnteraktif Duyuru Paketi' }}</p>
                 <div style="font-size:28px;font-weight:800;color:var(--rmc-purple);margin:14px 0 2px;">
                     {{ number_format($sp->ucret, 2, ',', '.') }} ₺
                 </div>

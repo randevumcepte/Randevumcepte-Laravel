@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class SMSPaketleri extends Model
 {
    
-    protected $fillable = ['sms_adet','ucret','class'];
+    protected $fillable = ['sms_adet','ucret','class','paket_adi','alt_baslik'];
 
     protected $table = 'sms_paketleri';
 

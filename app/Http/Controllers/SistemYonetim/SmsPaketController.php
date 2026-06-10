@@ -58,15 +58,19 @@ class SmsPaketController extends Controller
     {
         $this->gerektir(['super_admin', 'yonetici']);
         $this->validate($request, [
-            'sms_adet' => 'required|integer|min:1',
-            'ucret'    => 'required|numeric|min:0',
-            'class'    => 'nullable|string|max:200',
+            'sms_adet'   => 'required|integer|min:1',
+            'ucret'      => 'required|numeric|min:0',
+            'class'      => 'nullable|string|max:200',
+            'paket_adi'  => 'nullable|string|max:255',
+            'alt_baslik' => 'nullable|string|max:255',
         ]);
 
         $p = SMSPaketleri::create([
-            'sms_adet' => (int) $request->sms_adet,
-            'ucret'    => (float) $request->ucret,
-            'class'    => $request->class ?: 'primary',
+            'sms_adet'   => (int) $request->sms_adet,
+            'ucret'      => (float) $request->ucret,
+            'class'      => $request->class ?: 'primary',
+            'paket_adi'  => $request->paket_adi ?: null,
+            'alt_baslik' => $request->alt_baslik ?: null,
         ]);
 
         Audit::log('sms_paket_olustur', 'sms_paket', $p->id, $p->sms_adet.' SMS', $p->ucret.' TL');
@@ -91,15 +95,19 @@ class SmsPaketController extends Controller
         $this->gerektir(['super_admin', 'yonetici']);
         $paket = SMSPaketleri::findOrFail($id);
         $this->validate($request, [
-            'sms_adet' => 'required|integer|min:1',
-            'ucret'    => 'required|numeric|min:0',
-            'class'    => 'nullable|string|max:200',
+            'sms_adet'   => 'required|integer|min:1',
+            'ucret'      => 'required|numeric|min:0',
+            'class'      => 'nullable|string|max:200',
+            'paket_adi'  => 'nullable|string|max:255',
+            'alt_baslik' => 'nullable|string|max:255',
         ]);
 
         $paket->fill([
-            'sms_adet' => (int) $request->sms_adet,
-            'ucret'    => (float) $request->ucret,
-            'class'    => $request->class ?: 'primary',
+            'sms_adet'   => (int) $request->sms_adet,
+            'ucret'      => (float) $request->ucret,
+            'class'      => $request->class ?: 'primary',
+            'paket_adi'  => $request->paket_adi ?: null,
+            'alt_baslik' => $request->alt_baslik ?: null,
         ])->save();
 
         Audit::log('sms_paket_guncelle', 'sms_paket', $paket->id, $paket->sms_adet.' SMS', $paket->ucret.' TL');

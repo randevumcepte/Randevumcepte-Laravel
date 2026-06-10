@@ -36,7 +36,11 @@
                         $kdv    = $tutar - $matrah;
                     @endphp
                     <tr>
-                        <td class="sy-fw-600">{{ number_format($p->sms_adet, 0, ',', '.') }} SMS</td>
+                        <td class="sy-fw-600">
+                            {{ $p->paket_adi ?: (number_format($p->sms_adet, 0, ',', '.').' SMS') }}
+                            @if($p->paket_adi)<div class="sy-text-muted sy-fs-12">{{ number_format($p->sms_adet, 0, ',', '.') }} SMS</div>@endif
+                            @if($p->alt_baslik)<div class="sy-text-muted sy-fs-12">{{ $p->alt_baslik }}</div>@endif
+                        </td>
                         <td class="sy-text-right sy-fw-600">{{ number_format($tutar, 2, ',', '.') }} ₺</td>
                         <td class="sy-text-right sy-fs-13">{{ number_format($matrah, 2, ',', '.') }} ₺</td>
                         <td class="sy-text-right sy-fs-13">{{ number_format($kdv, 2, ',', '.') }} ₺</td>
