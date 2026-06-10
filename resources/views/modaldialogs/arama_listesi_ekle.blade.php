@@ -96,6 +96,9 @@
    height:50px;border-radius:13px;font-weight:700;font-size:15px;background:#fff;color:#8a8a96;border:1.5px solid #e6e6ee;
 }
 #santral_musteri_listesi .cm-kapat:hover{background:#f4f4f8;color:#555;}
+/* Bagimli (kilitli) filtre gorunumu */
+#santral_musteri_listesi .cm-disabled{opacity:.38;pointer-events:none;filter:grayscale(.4);}
+#santral_musteri_listesi .cm-disabled label:after{content:" 🔒";font-size:11px;}
 @media (max-width:768px){
    #santral_musteri_listesi .cm-ust{grid-template-columns:1fr;}
    #santral_musteri_listesi .cm-grid{grid-template-columns:1fr 1fr;}
@@ -320,14 +323,53 @@ function debounce(func, wait) {
   return function () { clearTimeout(filtreDebounce); filtreDebounce = setTimeout(() => func.apply(this, arguments), wait); };
 }
 
+// Bir alani kilitle/ac (deger korunur, gorsel olarak grayscale + kilit)
+function setDisabled($el, disabled) {
+  $el.prop('disabled', disabled);
+  $el.closest('.cm-fld, .cm-chip').toggleClass('cm-disabled', disabled);
+}
+
+// Celiskili filtre kombinasyonlarini otomatik engelle (kademeli/bagimli filtreler)
+function filtreBagimliliklari() {
+  // 1) Musteri Durumu, Satis Durumu'nu belirler (pasif=hic islem -> satis yok; aktif/sadik -> satis var)
+  var durum = $('#f_durum').val();
+  if (durum === 'pasif') {
+    $('#f_satis').val('yok'); setDisabled($('#f_satis'), true);
+  } else if (durum === 'aktif' || durum === 'sadik') {
+    $('#f_satis').val('var'); setDisabled($('#f_satis'), true);
+  } else {
+    setDisabled($('#f_satis'), false);
+  }
+
+  // 2) "Hic randevu almamis" <-> "Gelmeyen" / "Iptal eden" karsilikli dislama
+  var hic = $('#f_hic_randevu_yok').is(':checked');
+  if (hic) {
+    $('#f_gelmeyen').val(''); setDisabled($('#f_gelmeyen'), true);
+    $('#f_iptal_eden').prop('checked', false); setDisabled($('#f_iptal_eden'), true);
+    setDisabled($('#f_hic_randevu_yok'), false);
+  } else {
+    setDisabled($('#f_gelmeyen'), false);
+    setDisabled($('#f_iptal_eden'), false);
+    var gelmeyenVeyaIptal = ($('#f_gelmeyen').val() !== '' || $('#f_iptal_eden').is(':checked'));
+    setDisabled($('#f_hic_randevu_yok'), gelmeyenVeyaIptal);
+  }
+}
+
+var debouncedFiltre = debounce(filtreUygula, 250);
+
 $(document).ready(function () {
+  filtreBagimliliklari();
   filtreUygula();
 
   $('#f_kayit').on('change', function () {
     if ($(this).val() === 'ozel') { $('.ozel-tarih').show(); } else { $('.ozel-tarih').hide(); }
   });
 
-  $(document).on('change', '.arama-filtre', debounce(filtreUygula, 250));
+  // Her filtre degisiminde once bagimliliklari guncelle, sonra sorguyu calistir
+  $(document).on('change', '.arama-filtre', function () {
+    filtreBagimliliklari();
+    debouncedFiltre();
+  });
 
   $('#musteriarama').on('input', debounce(function () { searchTerm = $(this).val().trim(); filtreUygula(); }, 400));
 
