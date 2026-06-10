@@ -10424,22 +10424,27 @@ if (preload && !turdegisti) {
                 $('#calendar').fullCalendar('addEventSource', result.randevu);
                 $('#calendar').fullCalendar('refetchEvents');
             }
-            if($('.fc-resource-cell').width()<160)
-            {
-               //$('.fc-view-container').attr('style','overflow-x:scroll;');
-               $('.fc-resource-cell').attr('style','width:160px');
-               var newwidth=  Number($('.fc-resource-cell').length*160) + Number(95);
-               $('.fc-agendaDay-view').attr('style','width:'+newwidth+'px');
+            // Resource kolon genisligini uygula. FC ilk render'i ASENKRON oldugundan
+            // (.fc-resource-cell hemen DOM'da olmayabilir -> width() undefined ->
+            // eskiden atlaniyor, ancak 10sn'lik refresh'te uygulaniyordu = ~30sn gecikme).
+            // Bu yuzden hem HEMEN hem kisa gecikmelerle dene; ilk acilista da genis gelir.
+            function _rcKolonAyarla(){
+               var $cells = $('#calendar .fc-resource-cell');
+               if($cells.length && $cells.first().width() < 160){
+                  $cells.attr('style','width:160px');
+                  var nw = Number($cells.length * 160) + Number(95);
+                  $('#calendar .fc-agendaDay-view').attr('style','width:'+nw+'px');
+               }
+               $('#calendar .fc-view-container').attr('style','overflow-x:scroll');
+               // Yenileme (veri-guncelleme) sonrasi yatay kaydirma konumunu geri yukle
+               // -> kullanici saga kaydirinca otomatik refresh onu basa atmaz.
+               if(typeof _hScroll !== 'undefined' && _hScroll > 0){
+                  $('#calendar .fc-view-container').scrollLeft(_hScroll);
+               }
             }
-
-            $('.fc-view-container').attr('style','overflow-x:scroll');
-
-            // Yenileme (veri-guncelleme) sonrasi yatay kaydirma konumunu geri yukle
-            // -> kullanici saga kaydirinca otomatik refresh onu basa atmaz.
-            if(typeof _hScroll !== 'undefined' && _hScroll > 0){
-               $('.fc-view-container').scrollLeft(_hScroll);
-               setTimeout(function(){ $('.fc-view-container').scrollLeft(_hScroll); }, 0);
-            }
+            _rcKolonAyarla();
+            setTimeout(_rcKolonAyarla, 250);
+            setTimeout(_rcKolonAyarla, 800);
             
             $('.fc-today-button').click(function(e){
                 e.preventDefault();
