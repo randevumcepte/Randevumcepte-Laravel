@@ -2,7 +2,20 @@
 
 @section('content')
 
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+
 <style>
+   /* select2'yi sy- tasarimina uyarla */
+   .select2-container { width: 100% !important; }
+   .select2-container .select2-selection--single { height: 42px; border: 1px solid var(--sy-border, #2a3550); border-radius: 10px; background: var(--sy-input-bg, #0f172a); display: flex; align-items: center; }
+   .select2-container--default .select2-selection--single .select2-selection__rendered { color: var(--sy-text, #e2e8f0); line-height: 42px; padding-left: 14px; padding-right: 30px; }
+   .select2-container--default .select2-selection--single .select2-selection__arrow { height: 40px; right: 8px; }
+   .select2-container--default .select2-selection--single .select2-selection__placeholder { color: var(--sy-muted, #94a3b8); }
+   .select2-dropdown { background: var(--sy-card-bg, #0f172a); border: 1px solid var(--sy-border, #2a3550); border-radius: 10px; }
+   .select2-container--default .select2-search--dropdown .select2-search__field { background: var(--sy-input-bg, #0b1120); border: 1px solid var(--sy-border, #2a3550); border-radius: 8px; color: var(--sy-text, #e2e8f0); padding: 7px 10px; }
+   .select2-container--default .select2-results__option { color: var(--sy-text, #e2e8f0); }
+   .select2-container--default .select2-results__option--highlighted[aria-selected] { background: var(--sy-primary, #6366f1); color: #fff; }
+   .select2-results__option { font-size: 13.5px; }
    .mol-satir { display: grid; grid-template-columns: 1fr 110px 160px 42px; gap: 10px; align-items: end; margin-bottom: 10px; }
    .mol-satir-head { display: grid; grid-template-columns: 1fr 110px 160px 42px; gap: 10px; font-size: 11px; color: var(--sy-muted, #94a3b8); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
    .mol-sil { background: rgba(239,68,68,.12); color: #ef4444; border: none; border-radius: 8px; height: 40px; font-size: 20px; line-height: 1; cursor: pointer; }
@@ -73,10 +86,25 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 (function(){
     var TOKEN = '{{ csrf_token() }}';
     var POST_URL = '/sistemyonetim/v2/manuel-odeme-linki';
+
+    // Isletme secimini aranabilir select2 yap
+    if(window.jQuery && jQuery.fn.select2){
+        jQuery('#mol-salon').select2({
+            placeholder: '— İşletme ara / seç —',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function(){ return 'Sonuç bulunamadı'; },
+                searching: function(){ return 'Aranıyor…'; }
+            }
+        });
+    }
 
     function el(html){ var d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
 
