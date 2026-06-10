@@ -2143,7 +2143,10 @@
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/dataTables.bootstrap4.min.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/dataTables.responsive.min.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/responsive.bootstrap4.min.js')}}"></script>
-      <!-- buttons for Export datatable -->
+      <!-- buttons for Export datatable — SADECE export butonu olan sayfalarda
+           (prim_hakedis_panel: personelyonetimi=401, primraporu=402).
+           pdfmake+vfs_fonts+buttons ~500KB; digerlerinde bosuna iniyordu. -->
+      @if($pageindex==401 || $pageindex==402)
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/dataTables.buttons.min.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/buttons.bootstrap4.min.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/buttons.print.min.js')}}"></script>
@@ -2151,6 +2154,7 @@
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/buttons.flash.min.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/pdfmake.min.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/datatables/js/vfs_fonts.js')}}"></script>
+      @endif
       <!-- Datatable Setting js -->
       <script src="{{secure_asset('public/yeni_panel/vendors/scripts/datatable-setting.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/src/plugins/sweetalert2/sweetalert2.all.js')}}"></script>
