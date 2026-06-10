@@ -47,6 +47,7 @@
         {{-- Kredi kartı formu: fatura bilgileri + PayTR'ye gönderim --}}
         <form method="POST" action="/isletmeyonetim/duyuru-paketi-odeme/{{ $paket->id }}">
             @csrf
+            <input type="hidden" name="sube" value="{{ $subeId ?? '' }}">
             <div class="col-xs-12 col-sm-12 col-md-12">
                 <div class="panel panel-default panel-table">
                     <div class="panel-heading panel-heading-divider xs-pb-15" style="font-weight: bold;">Fatura Bilgileri</div>
@@ -54,11 +55,11 @@
                         <div class="row">
                             <div class="col-md-6 form-group">
                                 <label>Ünvan / Ad Soyad</label>
-                                <input type="text" name="fatura_unvan" class="form-control" value="{{ $isletme->salon_adi ?? '' }}" placeholder="Fatura ünvanı" required>
+                                <input type="text" name="fatura_unvan" class="form-control" value="{{ $isletme->vergi_adi ?: ($isletme->salon_adi ?? '') }}" placeholder="Fatura ünvanı" required>
                             </div>
                             <div class="col-md-6 form-group">
                                 <label>VKN / TC Kimlik No</label>
-                                <input type="text" name="fatura_vkn" class="form-control" placeholder="Vergi veya TC kimlik numarası" required>
+                                <input type="text" name="fatura_vkn" class="form-control" value="{{ $isletme->vergi_no ?? '' }}" placeholder="Vergi veya TC kimlik numarası" required>
                             </div>
                             <div class="col-md-6 form-group">
                                 <label>Vergi Dairesi</label>
@@ -66,7 +67,7 @@
                             </div>
                             <div class="col-md-6 form-group">
                                 <label>Adres</label>
-                                <input type="text" name="fatura_adres" class="form-control" placeholder="Fatura adresi">
+                                <input type="text" name="fatura_adres" class="form-control" value="{{ $isletme->vergi_adresi ?? '' }}" placeholder="Fatura adresi">
                             </div>
                         </div>
                         <p class="text-muted">Fatura, ödeme tamamlandıktan sonra e-Arşiv olarak düzenlenip "Faturalarım" alanınıza eklenecektir.</p>

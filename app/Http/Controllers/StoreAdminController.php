@@ -15888,6 +15888,20 @@ DB::raw('
             }
         } catch(\Exception $e) { /* sessiz gec */ }
 
+        // İnteraktif Duyuru Paketleri (SMS) — satın alınabilir paketler + bu salonun siparişleri
+        $smspaketler = SMSPaketleri::orderBy('sms_adet')->get();
+        $duyuruSiparislerim = collect();
+        try {
+            if(Schema::hasTable('sms_paket_siparisleri'))
+            {
+                $duyuruSiparislerim = \App\SmsPaketSiparisi::where('salon_id', $isletme->id)
+                    ->where('durum', 1)
+                    ->orderBy('id', 'desc')
+                    ->limit(50)
+                    ->get();
+            }
+        } catch(\Exception $e) { /* sessiz gec */ }
+
         return view('isletmeadmin.hesabim', [
             'pageindex' => 19,
             'sayfa_baslik' => 'Hesabım',
@@ -15901,6 +15915,8 @@ DB::raw('
             'periyotAdlari' => $periyotAdlari,
             'hizmetler' => $hizmetler,
             'faturalar' => $faturalar,
+            'smspaketler' => $smspaketler,
+            'duyuruSiparislerim' => $duyuruSiparislerim,
         ]);
     }
 

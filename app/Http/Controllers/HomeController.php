@@ -2006,20 +2006,35 @@ $salon = Salonlar::where('domain', $domain)->first();
 
     // İnteraktif Duyuru Paketi (SMS kredisi) satin alma onay/odeme sayfasi.
     // PayTR bağlamasi sonra eklenecek; su an kredi karti butonu placeholder, havale/EFT bilgileri aktif.
-    public function smsPaketOnay($paketno){
+    // Secili sube'yi (?sube) dogrula; kullanicinin yetkili oldugu sube degilse ana salonunu dondur.
+    private function duyuruSalonId(Request $request){
+        $kullanici = Auth::guard('isletmeyonetim')->user();
+        $salonId = $kullanici->salon_id;
+        if($request->filled('sube')){
+            $yetkili = $kullanici->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            if(in_array((int)$request->sube, $yetkili)){
+                $salonId = (int)$request->sube;
+            }
+        }
+        return $salonId;
+    }
+
+    public function smsPaketOnay(Request $request, $paketno){
         if(!Auth::guard('isletmeyonetim')->check()){
             return redirect('/isletmeyonetim/girisyap');
         }
         $paket = \App\SMSPaketleri::find($paketno);
         if(!$paket){
-            return redirect('/isletmeyonetim/toplusmsbasvuru');
+            return redirect('/isletmeyonetim/hesabim');
         }
-        $isletme = Salonlar::where('id', Auth::guard('isletmeyonetim')->user()->salon_id)->first();
+        $salonId = $this->duyuruSalonId($request);
+        $isletme = Salonlar::where('id', $salonId)->first();
         return view('isletmeadmin.duyuru-paketi-onay', [
-            'pageindex' => 114,
+            'pageindex' => 19,
             'title'     => 'İnteraktif Duyuru Paketi Satın Alma | randevumcepte.com.tr İşletme Yönetim Paneli',
             'paket'     => $paket,
             'isletme'   => $isletme,
+            'subeId'    => $salonId,
         ]);
     }
 
@@ -2032,16 +2047,17 @@ $salon = Salonlar::where('domain', $domain)->first();
         $kullanici = Auth::guard('isletmeyonetim')->user();
         $paket = \App\SMSPaketleri::find($paketno);
         if(!$paket){
-            return redirect('/isletmeyonetim/toplusmsbasvuru');
+            return redirect('/isletmeyonetim/hesabim');
         }
-        $isletme = Salonlar::where('id', $kullanici->salon_id)->first();
+        $salonId = $this->duyuruSalonId($request);
+        $isletme = Salonlar::where('id', $salonId)->first();
 
         // Benzersiz siparis no (alfanumerik)
-        $merchant_oid = 'SMS'.date('YmdHis').$kullanici->salon_id.substr(uniqid(), -5);
+        $merchant_oid = 'SMS'.date('YmdHis').$salonId.substr(uniqid(), -5);
 
         // Siparisi kaydet (durum=0 beklemede). Callback bu kayda gore islem yapar.
         $siparis = \App\SmsPaketSiparisi::create([
-            'salon_id'             => $kullanici->salon_id,
+            'salon_id'             => $salonId,
             'paket_id'             => $paket->id,
             'sms_adet'             => $paket->sms_adet,
             'tutar'                => $paket->ucret,
@@ -2117,7 +2133,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         if(curl_errno($ch)){
             \Log::error('Duyuru paketi PAYTR baglanti hatasi: '.curl_error($ch));
             curl_close($ch);
-            return redirect('/isletmeyonetim/smspaketsatinal/'.$paket->id)->with('hata', 'Ödeme başlatılamadı, lütfen tekrar deneyin.');
+            return redirect('/isletmeyonetim/smspaketsatinal/'.$paket->id.'?sube='.$salonId)->with('hata', 'Ödeme başlatılamadı, lütfen tekrar deneyin.');
         }
         curl_close($ch);
         $result = json_decode($result, 1);
@@ -2137,7 +2153,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         $siparis->basarisiz_neden = 'Token alinamadi: '.$neden;
         $siparis->save();
         \Log::error('Duyuru paketi PAYTR token hatasi: '.$neden);
-        return redirect('/isletmeyonetim/smspaketsatinal/'.$paket->id)->with('hata', 'Ödeme başlatılamadı: '.$neden);
+        return redirect('/isletmeyonetim/smspaketsatinal/'.$paket->id.'?sube='.$salonId)->with('hata', 'Ödeme başlatılamadı: '.$neden);
     }
 
     // PayTR ok/fail yonlendirme sonrasi sonuc sayfasi (siparis durumunu DB'den okur).

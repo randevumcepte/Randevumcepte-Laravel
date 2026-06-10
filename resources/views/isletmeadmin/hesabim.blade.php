@@ -608,6 +608,9 @@
         <button class="hesabim-tab" data-tab="hizmetler" type="button">
             <i class="fa fa-th-large"></i> Aldığım Hizmetler
         </button>
+        <button class="hesabim-tab" data-tab="duyurupaketleri" type="button">
+            <i class="fa fa-bullhorn"></i> Duyuru Paketleri
+        </button>
         <button class="hesabim-tab" data-tab="fatura-bilgi" type="button">
             <i class="fa fa-file-text"></i> Fatura Bilgileri
         </button>
@@ -730,6 +733,42 @@
         </div>
     </div>
 
+    <!-- PANEL: DUYURU PAKETLERİ -->
+    <div class="hesabim-panel" data-panel="duyurupaketleri">
+        @if(session('hata'))
+            <div class="hesabim-empty" style="padding:18px;color:#b91c1c;">{{ session('hata') }}</div>
+        @endif
+        @if($smspaketler->count() > 0)
+        <div class="hesabim-hizmet-grid">
+            @foreach($smspaketler as $sp)
+            <div class="hizmet-card" style="text-align:center;">
+                <div class="hizmet-icon mor" style="margin:0 auto 14px;"><i class="fa fa-bullhorn"></i></div>
+                <h4 class="hizmet-card-title" style="font-size:24px;">{{ number_format($sp->sms_adet, 0, ',', '.') }} SMS</h4>
+                <p class="hizmet-card-desc">İnteraktif Duyuru Paketi</p>
+                <div style="font-size:28px;font-weight:800;color:var(--rmc-purple);margin:14px 0 2px;">
+                    {{ number_format($sp->ucret, 2, ',', '.') }} ₺
+                </div>
+                <div style="font-size:12px;color:var(--rmc-muted);margin-bottom:16px;">Tüm vergiler dahil</div>
+                <ul style="list-style:none;padding:0;margin:0 0 18px;font-size:13px;color:var(--rmc-muted);text-align:left;">
+                    <li style="padding:4px 0;"><i class="fa fa-check" style="color:#16a34a;margin-right:6px;"></i> Süresiz kullanım hakkı</li>
+                    <li style="padding:4px 0;"><i class="fa fa-check" style="color:#16a34a;margin-right:6px;"></i> Başlıklı, garantili gönderim</li>
+                    <li style="padding:4px 0;"><i class="fa fa-check" style="color:#16a34a;margin-right:6px;"></i> Kredi kartına taksit imkânı</li>
+                </ul>
+                <a href="/isletmeyonetim/smspaketsatinal/{{ $sp->id }}?sube={{ $isletme->id }}" class="hesabim-btn-save" style="text-decoration:none;width:100%;justify-content:center;">
+                    <i class="fa fa-shopping-cart"></i> Satın Al
+                </a>
+            </div>
+            @endforeach
+        </div>
+        @else
+        <div class="hesabim-empty">
+            <i class="fa fa-bullhorn"></i>
+            <p><strong>Şu an satışta paket bulunmuyor</strong></p>
+            <small>Kısa süre içinde duyuru paketleri eklenecektir.</small>
+        </div>
+        @endif
+    </div>
+
     <!-- PANEL: FATURA BİLGİLERİ -->
     <div class="hesabim-panel" data-panel="fatura-bilgi">
         <div class="hesabim-card">
@@ -768,6 +807,46 @@
 
     <!-- PANEL: FATURALAR -->
     <div class="hesabim-panel" data-panel="faturalar">
+        @if($duyuruSiparislerim->count() > 0)
+        <h3 class="hesabim-card-title" style="margin:0 0 12px;font-size:15px;"><i class="alt fa fa-bullhorn"></i> Duyuru Paketi Satın Alımları</h3>
+        <div class="hesabim-table-wrap" style="margin-bottom:22px;">
+            <table class="hesabim-table">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Paket</th>
+                        <th>Tutar</th>
+                        <th>Yükleme</th>
+                        <th>Fatura</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($duyuruSiparislerim as $s)
+                    <tr>
+                        <td>{{ \Carbon\Carbon::parse($s->created_at)->format('d.m.Y') }}</td>
+                        <td>{{ number_format($s->sms_adet, 0, ',', '.') }} SMS Duyuru Paketi</td>
+                        <td class="tutar">{{ number_format($s->tutar, 2, ',', '.') }} ₺</td>
+                        <td>
+                            @if($s->yukleme_durumu == 1)
+                                <span class="durum-pill odendi">Yüklendi</span>
+                            @else
+                                <span class="durum-pill bekliyor">Hazırlanıyor</span>
+                            @endif
+                        </td>
+                        <td style="text-align:right;">
+                            @if(!empty($s->fatura_url))
+                                <a href="{{ $s->fatura_url }}" target="_blank" class="hizmet-pill aktif" style="text-decoration:none;"><i class="fa fa-download"></i> Fatura</a>
+                            @else
+                                <span style="color:var(--rmc-muted);font-size:12px;">Hazırlanıyor</span>
+                            @endif
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
+
         <div class="hesabim-table-wrap">
             @if($faturalar->count() > 0)
             <table class="hesabim-table">
