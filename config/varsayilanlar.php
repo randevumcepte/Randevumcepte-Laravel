@@ -18,6 +18,6 @@ return [
     | 0 birakilirsa hicbir kopyalama yapilmaz (ozellik pasif).
     |
     */
-    'guzellik_sablon_salon_id' => env('GUZELLIK_SABLON_SALON_ID', 0),
+    'guzellik_sablon_salon_id' => env('GUZELLIK_SABLON_SALON_ID', 355),
 
 ];
