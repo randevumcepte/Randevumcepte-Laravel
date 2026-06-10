@@ -248,21 +248,31 @@
    gap: 10px;
    flex-wrap: wrap;
 }
-/* Tek satira birlesik header: ortadaki filtre bolumu */
-.rc-rt-header--merged { gap: 18px 24px; }
-.rc-rt-header-left { flex: 0 1 auto; }
+/* Tek satira birlesik header: title | filtreler | aksiyonlar — hepsi tek satir.
+   Filtreler BUYUMEZ (sabit kompakt genislik) yoksa TARIH alani genisleyip sag
+   bolumu (zoom/sayac/buton) alt satira itiyordu. */
+.rc-rt-header--merged { gap: 10px 14px; flex-wrap: nowrap; }
+.rc-rt-header-left { flex: 0 1 auto; min-width: 0; }
 .rc-rt-header-filters {
    display: flex;
    align-items: center;
-   gap: 16px;
-   flex: 1 1 auto;
-   justify-content: center;
-   min-width: 280px;
+   gap: 10px 12px;
+   flex: 0 1 auto;
+   flex-wrap: wrap;
+   min-width: 0;
 }
-.rc-rt-header-filters .rc-rt-field { flex: 1 1 200px; }
-.rc-rt-header-filters .rc-rt-select,
-.rc-rt-header-filters .rc-rt-input { min-width: 130px; }
-.rc-rt-header-right { flex: 0 1 auto; }
+.rc-rt-header-filters .rc-rt-field { flex: 0 0 auto; gap: 7px; }
+.rc-rt-header-filters .rc-rt-select { width: 146px !important; min-width: 0; }
+.rc-rt-header-filters .rc-rt-input  { width: 132px !important; min-width: 0; }
+.rc-rt-header-right { flex: 0 0 auto; margin-left: auto; gap: 8px; }
+/* Daralan ekranda (laptop) header tek satir kalsin diye etiketleri kucult */
+@media (max-width: 1500px){
+   .rc-rt-header-filters .rc-rt-field label { font-size: 10.5px; }
+}
+/* 1200px altinda tek satira sigmaz -> tasmamasi icin tekrar sarmalansin */
+@media (max-width: 1199px){
+   .rc-rt-header--merged { flex-wrap: wrap; }
+}
 .rc-rt-title-row {
    display: flex;
    align-items: center;
