@@ -10,8 +10,9 @@ class TahsilatPaketler extends Model
     protected $fillable = ['adisyon_paket_id','tutar','id','tahsilat_id'];
 
     protected $table = 'tahsilat_paketler';
-    
-    protected $with =  ['adisyon_paket'];
+
+    /* PERF: Global $with kaldirildi. ->with('adisyon_paket') gerektiginde acikca.
+       Eski deger: ['adisyon_paket'] */
 
     public function adisyon_paket()
     {

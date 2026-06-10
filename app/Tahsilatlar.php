@@ -9,9 +9,14 @@ class Tahsilatlar extends Model
 {
     
     protected $table = 'tahsilatlar';
-    
-    protected $with = ['banka','urun_satisi','olusturan','satici','randevu','musteri','salon','adisyon','hizmet_odemeleri','urun_odemeleri','paket_odemeleri'];
-    
+
+    /* PERF: Global $with kaldirildi. Eskiden TEK bir Tahsilatlar satiri 11 iliskiyi
+       (adisyon dahil -> o da hizmetler/urunler/paketler agacini) otomatik yukluyor,
+       satir basina onlarca sorgu aciyordu. Iliskiye erisilince Laravel zaten lazy-load
+       eder; ihtiyac duyulan listelerde ->with([...]) ile acikca yukleyin.
+       Eski deger: ['banka','urun_satisi','olusturan','satici','randevu','musteri',
+                    'salon','adisyon','hizmet_odemeleri','urun_odemeleri','paket_odemeleri'] */
+
     public function salon()
     {
         return $this->belongsTo(Salonlar::class,'salon_id');

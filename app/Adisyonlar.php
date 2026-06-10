@@ -16,8 +16,11 @@ class Adisyonlar extends Model
     ];
 
     protected $table = 'adisyonlar';
-    
-    protected $with =  ['salon','musteri','urunler','hizmetler','paketler','olusturan'];
+
+    /* PERF: Global $with kaldirildi (eskiden salon,musteri,urunler,hizmetler,paketler,olusturan
+       her zaman yukleniyordu; urunler/hizmetler/paketler kendi $with'leriyle agaci buyutuyordu).
+       Iliskiye erisilince lazy-load eder; gerekli yerlerde ->with([...]) kullanin.
+       Eski deger: ['salon','musteri','urunler','hizmetler','paketler','olusturan'] */
 
     public function salon()
     {

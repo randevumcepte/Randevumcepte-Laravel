@@ -10,8 +10,9 @@ class AdisyonHizmetler extends Model
     protected $fillable = ['adisyon_id','hizmet_id','sure','fiyat','islem_tarihi','islem_saati','indirim_tutari','hediye'];
 
     protected $table = 'adisyon_hizmetler';
-    
-    protected $with =  ['hizmet','personel','cihaz'];
+
+    /* PERF: Global $with kaldirildi. ->with(['hizmet','personel','cihaz']) gerektiginde acikca.
+       Eski deger: ['hizmet','personel','cihaz'] */
     // protected $connection = 'mysql_source'; // Varsayılan olarak kaynak database
   
      public function hizmet()

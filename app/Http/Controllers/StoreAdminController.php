@@ -8582,10 +8582,21 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
             exit(0);
         }
-        $adisyon = Adisyonlar::where('id',$id)->first();
+        // PERF: Global $with kalktigi icin bu detay sayfasinin ihtiyac duydugu agaci
+        // burada toplu (batched) eager-load ediyoruz — sayfa basina lazy N+1 olusmaz.
+        $adisyon = Adisyonlar::where('id',$id)
+            ->with([
+                'musteri','salon','olusturan',
+                'hizmetler.hizmet','hizmetler.personel','hizmetler.cihaz',
+                'urunler.urun','urunler.personel',
+                'paketler.paket','paketler.personel','paketler.seanslar',
+            ])
+            ->first();
         $paketler = self::paket_liste_getir('',true,$request);
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
-        $tahsilatlar = Tahsilatlar::where('user_id',$adisyon->user_id)->get();
+        $tahsilatlar = Tahsilatlar::where('user_id',$adisyon->user_id)
+            ->with(['hizmet_odemeleri','urun_odemeleri','paket_odemeleri','adisyon'])
+            ->get();
         return view('isletmeadmin.adisyondetay',['isletme'=>$isletme,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request), 'sayfa_baslik'=>$adisyon->musteri->name .' '.date('d.m.Y', strtotime($adisyon->created_at)).' tarihli adisyon detayı','pageindex' => 111,'adisyon'=>$adisyon,'request'=>$request, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request), 'musteri'=>$adisyon->musteri,'tahsilatlar'=>$tahsilatlar,'adisyon_id'=>$id,'portfoy_drop'=>self::musteriportfoydropliste($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),
             'personel_drop'=>self::personeldropliste($request,array()),'yetkiliolunanisletmeler'=>$isletmeler]);
     }

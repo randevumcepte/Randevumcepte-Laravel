@@ -10,8 +10,9 @@ class TahsilatUrunler extends Model
     protected $fillable = ['adisyon_urun_id','tutar','id','tahsilat_id'];
 
     protected $table = 'tahsilat_urunler';
-    
-    protected $with =  ['adisyon_urun'];
+
+    /* PERF: Global $with kaldirildi. ->with('adisyon_urun') gerektiginde acikca.
+       Eski deger: ['adisyon_urun'] */
 
     public function adisyon_urun()
     {

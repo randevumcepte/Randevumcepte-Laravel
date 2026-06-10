@@ -10,8 +10,9 @@ class AdisyonUrunler extends Model
     protected $fillable = ['adisyon_id','urun_id','adet','fiyat','indirim_tutari','hediye'];
 
     protected $table = 'adisyon_urunler';
-    
-    protected $with =  ['urun','personel'];
+
+    /* PERF: Global $with kaldirildi. ->with(['urun','personel']) gerektiginde acikca.
+       Eski deger: ['urun','personel'] */
 
   
      public function urun()
