@@ -406,7 +406,7 @@ Route::get('/save-excel', function () {
 	Route::get('/avantajsatinal/{kampanyaid}','HomeController@avantajsatinal');
 	Route::get('/{isletme_turu}/{il}/{ilce}/{isletme_id}/{isletme_adi}/{arama_terimi}/{arama_terim_id}', 'HomeController@salonDetay_altsayfa')->name('salondetaylari_altsayfa'); 
 	Route::get('/isletmeyonetim/smspaketleri','HomeController@paketsatinalyukseltmeornek');
-	Route::get('/isletmeyonetim/smspaketsatinal/{paketno}','HomeController@smspaketsatinal');
+	Route::get('/isletmeyonetim/smspaketsatinal/{paketno}','HomeController@smsPaketOnay');
 	Route::post('/satis-ortakligi-kayit','HomeController@satis_ortakligi_kayit'); 
 	 
 
@@ -644,6 +644,14 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::get('/api/hazir-cevap', 'AnalizController@hazirCevapJson');
     Route::post('/api/hazir-cevap/{id}/kullan', 'AnalizController@hazirCevapKullan');
     Route::get('/api/dashboard-chart', 'AnalizController@dashboardChartData');
+
+    // İnteraktif Duyuru Paketleri (SMS kredisi) — yonetim
+    Route::get('/sms-paket', 'SmsPaketController@index')->name('sistemyonetim.v2.sms-paket');
+    Route::get('/sms-paket/yeni', 'SmsPaketController@yeni');
+    Route::post('/sms-paket', 'SmsPaketController@kaydet');
+    Route::get('/sms-paket/{id}/duzenle', 'SmsPaketController@duzenle')->where('id', '[0-9]+');
+    Route::put('/sms-paket/{id}', 'SmsPaketController@guncelle')->where('id', '[0-9]+');
+    Route::delete('/sms-paket/{id}', 'SmsPaketController@sil')->where('id', '[0-9]+');
 });
 
 // Salon paneli — destek + duyuru okundu
@@ -735,6 +743,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/personelekle','StoreAdminController@personelekle');
 	Route::get('/personelsil','StoreAdminController@personelsil');
 	Route::get('/randevuyukle','StoreAdminController@takvim_degistir');
+	Route::get('/randevu-event-detay','StoreAdminController@randevuEventDetay');
 	Route::post('/randevuguncelle','StoreAdminController@randevuguncelle');
 	Route::post('/randevuguncelledragdropresize','StoreAdminController@randevu_resize_drop');
 	Route::get('/randevuiptalet','StoreAdminController@randevuiptalet');

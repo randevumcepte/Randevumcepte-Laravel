@@ -108,14 +108,7 @@ function rcEventTipBind(element, event) {
 (function rcEventTipDelegate(){
     if (window.__rcTipDelegated) return;
     window.__rcTipDelegated = true;
-    jQuery(document).on('mouseenter.rcTipDeleg', '.fc-event', function(){
-        if (window.useV2Modal !== true) return;
-        var $el = jQuery(this);
-        if ($el.hasClass('disabled-event')) return;
-        // FullCalendar v3: event objesi element data 'fcSeg.event' icinde
-        var evData = $el.data('fcSeg');
-        evData = evData && evData.event ? evData.event : null;
-        if (!evData || !evData.hoverHtml) return;
+    function rcShowTip(el, evData){
         if (window.rcEventTipHideTimer) {
             clearTimeout(window.rcEventTipHideTimer);
             window.rcEventTipHideTimer = null;
@@ -126,10 +119,37 @@ function rcEventTipBind(element, event) {
         rcEventTipApplyContentStyles($tip, bg);
         // Once -9999px'e koy, olcum yap, sonra dogru pozisyonu set et
         $tip.css({ left: '-9999px', top: '0', opacity: 1, transform: 'translateY(0)' });
-        var rect = this.getBoundingClientRect();
+        var rect = el.getBoundingClientRect();
         rcEventTipPosition($tip, rect);
+    }
+    jQuery(document).on('mouseenter.rcTipDeleg', '.fc-event', function(){
+        if (window.useV2Modal !== true) return;
+        var $el = jQuery(this);
+        if ($el.hasClass('disabled-event')) return;
+        // FullCalendar v3: event objesi element data 'fcSeg.event' icinde
+        var evData = $el.data('fcSeg');
+        evData = evData && evData.event ? evData.event : null;
+        if (!evData) return;
+        var el = this;
+        window.__rcTipCurrentEl = el;
+        // hoverHtml zaten cache'lenmisse hemen goster
+        if (evData.hoverHtml) { rcShowTip(el, evData); return; }
+        // PERF: hoverHtml toplu takvim yuklemesinde gelmiyor — tek randevu icin lazy fetch + cache
+        if (evData._hoverLoading || !evData.id) return;
+        evData._hoverLoading = true;
+        jQuery.getJSON('/isletmeyonetim/randevu-event-detay', {id: evData.id, sube: jQuery('input[name="sube"]').val()})
+            .done(function(d){
+                evData.hoverHtml    = d.hoverHtml;
+                evData.description  = d.description;
+                evData.eventbuttons = d.eventbuttons;
+                evData._hoverLoading = false;
+                // Sadece kullanici hala ayni event uzerindeyse goster
+                if (window.__rcTipCurrentEl === el && d.hoverHtml) rcShowTip(el, evData);
+            })
+            .fail(function(){ evData._hoverLoading = false; });
     });
     jQuery(document).on('mouseleave.rcTipDeleg', '.fc-event', function(){
+        window.__rcTipCurrentEl = null;
         window.rcEventTipHideTimer = setTimeout(function(){
             jQuery('#rc-event-tip').css({ opacity: 0, transform: 'translateY(4px)', left: '-9999px' });
         }, 200);
@@ -10337,9 +10357,27 @@ function takvimyukle(preload,turdegisti)
                 var randevuid = event.randevu_id;
                   jQuery(".event-icon").html("<i class='fa fa-" + event.icon + "'></i>");
                   jQuery(".event-title").html(event.modal_title);
-                  jQuery(".event-body").html(event.description);
-                  jQuery(".event-buttons").html(event.eventbuttons);
                   jQuery('#duzenle_butonu_bolumu').html(event.duzenle_buton);
+                  // PERF: description/eventbuttons artik toplu takvim yuklemesinde gelmiyor.
+                  // Ilk acilista tek randevu icin cekilir, event uzerinde cache'lenir.
+                  if (event.description) {
+                      jQuery(".event-body").html(event.description);
+                      jQuery(".event-buttons").html(event.eventbuttons);
+                  } else {
+                      jQuery(".event-body").html('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>');
+                      jQuery(".event-buttons").html('');
+                      jQuery.getJSON('/isletmeyonetim/randevu-event-detay', {id: event.id, sube: jQuery('input[name="sube"]').val()})
+                          .done(function(d){
+                              event.description  = d.description;
+                              event.eventbuttons = d.eventbuttons;
+                              event.hoverHtml    = d.hoverHtml;
+                              jQuery(".event-body").html(d.description);
+                              jQuery(".event-buttons").html(d.eventbuttons);
+                          })
+                          .fail(function(){
+                              jQuery(".event-body").html('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>');
+                          });
+                  }
                   jQuery(".eventUrl").attr("href", event.url);
                   jQuery('input[name="randevuhizmettarih"]').datepicker({
                      minDate: new Date(),

@@ -3606,9 +3606,13 @@ public function carkverilerigetir(Request $request)
             'title' => $title,
             'start' => $start,
             'end' => $end,
-            'eventbuttons'=> view('partials.randevuDetayiButonlar',['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat])->render(),
-            'description' => view('partials.randevuDetayi', ['randevu' => $rh,'rol'=>$rol,'paketAdi'=>$paketAdi])->render(),
-            'hoverHtml' => view('partials.randevuHoverDetayi', ['randevu' => $rh,'rol'=>$rol,'paketAdi'=>$paketAdi])->render(),
+            // PERF: Bu 3 agir Blade partial artik toplu yuklemede render EDILMIYOR.
+            // randevu basina 3 render x her poll cok pahaliydi (yogun salonda binlerce render).
+            // Bos birakiliyor; kullanici randevuya tiklayinca/hover'da
+            // /isletmeyonetim/randevu-event-detay endpoint'inden tek randevu icin cekiliyor.
+            'eventbuttons'=> '',
+            'description' => '',
+            'hoverHtml' => '',
             'color' => $color,
             'randevuId'=>$rh->randevu_id,
             'resourceId' =>  $resourceId,
@@ -16356,6 +16360,60 @@ DB::raw('
         }
         return $liste;
     }
+    /**
+     * PERF lazy-load: Takvimde bir randevuya tiklayinca/hover'da o randevunun
+     * detay/hover/buton HTML'ini tek seferde dondurur. Toplu randevuyukle artik
+     * bu agir partial'lari render etmiyor (randevu basina 3 Blade render x poll).
+     */
+    public function randevuEventDetay(Request $request)
+    {
+        $rhId = (int) $request->id;
+        if (!$rhId) return response()->json(['hata' => 'id yok'], 400);
+
+        $rh = RandevuHizmetler::with([
+            'hizmetler',
+            'personeller.trenk',
+            'cihaz',
+            'oda',
+            'randevu.users',
+            'randevu.olusturan_personel',
+            'randevu.ongorusme.paket',
+            'randevu.ongorusme.hizmet',
+            'randevu.ongorusme.urun',
+            'randevu.ongorusme.personel',
+            'randevu.hizmetler',
+        ])->find($rhId);
+
+        if (!$rh || !$rh->randevu) return response()->json(['hata' => 'bulunamadi'], 404);
+
+        // Guvenlik: randevu, kullanicinin mevcut salonuna ait olmali
+        $isletmeId = self::mevcutsube($request);
+        if (!Auth::guard('satisortakligi')->check() && (int) $rh->randevu->salon_id !== (int) $isletmeId) {
+            return response()->json(['hata' => 'yetkisiz'], 403);
+        }
+
+        $rol = Personeller::where('salon_id', $isletmeId)
+            ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id ?? 0)
+            ->value('role_id');
+
+        // paketAdi + hasPaketTahsilat — tek randevu icin (toplu yuklemedeki ayni mantik)
+        $seanslar = AdisyonPaketSeanslar::where('randevu_id', $rh->randevu_id)->get();
+        $paketAdi = '';
+        $apId = $seanslar->pluck('adisyon_paket_id')->filter()->first();
+        if ($apId) {
+            $ap = AdisyonPaketler::with('paket')->find($apId);
+            if ($ap && $ap->paket) $paketAdi = $ap->paket->paket_adi;
+        }
+        $hasPaketTahsilat = $seanslar->isNotEmpty()
+            || AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->exists();
+
+        return response()->json([
+            'eventbuttons' => view('partials.randevuDetayiButonlar', ['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat])->render(),
+            'description'  => view('partials.randevuDetayi', ['randevu' => $rh, 'rol' => $rol, 'paketAdi' => $paketAdi])->render(),
+            'hoverHtml'    => view('partials.randevuHoverDetayi', ['randevu' => $rh, 'rol' => $rol, 'paketAdi' => $paketAdi])->render(),
+        ]);
+    }
+
     public function takvim_degistir(Request $request)
     {
         // Onceki kod 'monday this week' / 'Y-m-01' icin bugunun tarihini baz
