@@ -1,4 +1,4 @@
-@extends('layout.layout_isletmeadminpaketornek')
+@extends('layout.layout_isletmeadmin')
 @section('content')
 <div class="main-content container-fluid">
     <h1 class="display-heading text-center">Ödeme Sonucu</h1>

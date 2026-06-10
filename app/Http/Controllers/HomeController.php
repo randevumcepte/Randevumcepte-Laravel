@@ -2145,6 +2145,7 @@ $salon = Salonlar::where('domain', $domain)->first();
                 'title'     => 'Ödeme | randevumcepte.com.tr İşletme Yönetim Paneli',
                 'token'     => $token,
                 'paket'     => $paket,
+                'isletme'   => $isletme,
             ]);
         }
 
@@ -2159,10 +2160,12 @@ $salon = Salonlar::where('domain', $domain)->first();
     // PayTR ok/fail yonlendirme sonrasi sonuc sayfasi (siparis durumunu DB'den okur).
     public function smsPaketSonuc($merchant_oid){
         $siparis = \App\SmsPaketSiparisi::where('merchant_oid', $merchant_oid)->first();
+        $isletme = $siparis ? Salonlar::where('id', $siparis->salon_id)->first() : null;
         return view('isletmeadmin.duyuru-paketi-sonuc', [
             'pageindex' => 114,
             'title'     => 'Ödeme Sonucu | randevumcepte.com.tr İşletme Yönetim Paneli',
             'siparis'   => $siparis,
+            'isletme'   => $isletme,
         ]);
     }
 
