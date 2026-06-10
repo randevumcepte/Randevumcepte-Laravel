@@ -92,6 +92,11 @@
       </div>
 
       <div class="rc-rt-header-right">
+         <div class="rc-zoom" title="Takvim büyüklüğü (kalıcı)">
+            <button type="button" class="rc-zoom-btn" id="rc-zoom-out" title="Küçült"><i class="fa fa-search-minus"></i></button>
+            <span class="rc-zoom-val" id="rc-zoom-val">100%</span>
+            <button type="button" class="rc-zoom-btn" id="rc-zoom-in" title="Büyüt"><i class="fa fa-search-plus"></i></button>
+         </div>
          <div class="rc-rt-count-pill randevu-count-button">
             <i class="fa fa-list-ul"></i>
             <span class="rc-rt-count-label">Toplam Randevu</span>
@@ -131,6 +136,70 @@
 
 </div>
 <div id="hata"></div>
+
+{{-- ================= TAKVIM ZOOM (buyutec) — kalici (localStorage) ================= --}}
+<style>
+.rc-zoom {
+   display: inline-flex; align-items: center; gap: 2px;
+   height: 42px; padding: 0 6px;
+   background: var(--rc-purple-light, #f5eefe);
+   border: 1px solid var(--rc-purple-soft, #ead4ff);
+   border-radius: 999px;
+}
+.rc-zoom-btn {
+   width: 30px; height: 30px; border: none; background: transparent;
+   color: var(--rc-purple-dark, #5C008E); cursor: pointer; border-radius: 50%;
+   display: inline-flex; align-items: center; justify-content: center; font-size: 13px;
+   transition: background .15s;
+}
+.rc-zoom-btn:hover { background: var(--rc-purple-soft, #ead4ff); }
+.rc-zoom-val {
+   min-width: 42px; text-align: center; font-size: 12px; font-weight: 700;
+   color: var(--rc-purple-dark, #5C008E); user-select: none;
+}
+@media (max-width: 1024px){ .rc-zoom { height: 38px; } }
+</style>
+<script>
+(function(){
+   // Salon bazli, tarayicida kalici (cikis yapsa bile ayni boyutta acilir)
+   var KEY  = 'rc_takvim_zoom_{{ (int)$isletme->id }}';
+   var BASE = 21;     // 100% slot yuksekligi (px) — FC varsayilanina yakin
+   var MIN  = 1.0, MAX = 3.0, STEP = 0.2;
+
+   function clamp(z){ return Math.min(MAX, Math.max(MIN, Math.round(z*100)/100)); }
+   function getZoom(){
+      var v = parseFloat(localStorage.getItem(KEY));
+      return (!isNaN(v) && v >= MIN && v <= MAX) ? v : 1;
+   }
+   function apply(z, rerender){
+      var h = Math.round(BASE * z);
+      var css = '#calendar .fc-time-grid .fc-slats td{height:'+h+'px !important;}';
+      var el = document.getElementById('rc-zoom-style');
+      if(!el){ el = document.createElement('style'); el.id = 'rc-zoom-style'; document.head.appendChild(el); }
+      el.innerHTML = css;
+      var lbl = document.getElementById('rc-zoom-val');
+      if(lbl) lbl.textContent = Math.round(z*100) + '%';
+      if(rerender){
+         // FC event konumlari slot yuksegine gore hesaplandigindan yeniden cizdir
+         try {
+            if(window.jQuery && jQuery('#calendar').length && jQuery('#calendar').fullCalendar('getView')){
+               jQuery('#calendar').fullCalendar('render');
+            }
+         } catch(e){}
+      }
+   }
+   function setZoom(z){ z = clamp(z); try{ localStorage.setItem(KEY, z); }catch(e){} apply(z, true); }
+
+   // Ilk uygulama (CSS head'e yazilir; FC ne zaman cizilirse o yuksekligi alir)
+   apply(getZoom(), false);
+
+   jQuery(document).on('click', '#rc-zoom-in',  function(){ setZoom(getZoom() + STEP); });
+   jQuery(document).on('click', '#rc-zoom-out', function(){ setZoom(getZoom() - STEP); });
+
+   // Takvim ilk kez/yeniden cizildikten sonra konumlar dogru olsun diye bir kez daha uygula
+   jQuery(window).on('load', function(){ setTimeout(function(){ apply(getZoom(), true); }, 1200); });
+})();
+</script>
 
 <style>
 /* =================================================================
