@@ -134,6 +134,27 @@
              defaultDate: new Date(), // Doğrudan bugünün tarihini kullanabilirsiniz
              editable: true,
              selectable: true,
+             // Resource kolon genisligini FC render'i bitince '!important' CSS ile uygula
+             // (FC kendi genisligini geri yazsa bile ezilmez). RC_KOLON tek degisken.
+             eventAfterAllRender: function(view){
+                try {
+                   var $cells = $('#calendar .fc-resource-cell');
+                   var n = $cells.length;
+                   var st = document.getElementById('rc-res-w');
+                   if(!st){ st = document.createElement('style'); st.id = 'rc-res-w'; document.head.appendChild(st); }
+                   var container = $('#calendar').width() || 0;
+                   var RC_KOLON = 250; // resource kolon genisligi (px)
+                   if(n > 0 && container > 0 && (container / n) < RC_KOLON){
+                      var nw = (n * RC_KOLON) + 95;
+                      st.innerHTML =
+                         '#calendar .fc-resource-cell{width:'+RC_KOLON+'px !important;}' +
+                         '#calendar .fc-agendaDay-view{width:'+nw+'px !important;}' +
+                         '#calendar .fc-view-container{overflow-x:scroll !important;}';
+                   } else {
+                      st.innerHTML = '';
+                   }
+                } catch(e){}
+             },
             
              eventLimit: true, // allow "more" link when too many events
              header: {
@@ -373,17 +394,8 @@
 
            $('.fc-axis.fc-widget-header').attr('style','width:43px');
 
-            if($('.fc-resource-cell').width()<80)    
-            {
-                
-               $('.fc-view-container').attr('style','overflow-x:scroll;');
-               $('.fc-resource-cell').attr('style','width:80px');
-               var newwidth=  Number($('.fc-resource-cell').length*80) + Number(95);   
-               $('.fc-agendaDay-view').attr('style','width:'+newwidth+'px');
-               
-               
-            }
-            //else
+            // Kolon GENISLIGI artik init'teki eventAfterAllRender'da !important CSS ile
+            // (RC_KOLON=250) uygulaniyor. Burada sadece yatay scroll'u ac.
             $('.fc-view-container').attr('style','overflow-x:scroll');
             var $calendarContainer = $('.fc-view-container');
             var $timeColumn = $('.fc-axis.fc-time');
