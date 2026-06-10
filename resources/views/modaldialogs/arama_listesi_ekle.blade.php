@@ -288,21 +288,33 @@ function filtreUygula() {
   if (isLoading) return;
   isLoading = true;
   $('.loading').show();
-  $('.loading-filtre').show();
+  $('.loading-filtre').html('· hesaplanıyor…').show();
   currentPage = 1;
   $.ajax({
     url: '/isletmeyonetim/arama_filtre_onizleme',
     method: 'POST',
     data: $.extend({}, getFiltre(), { page: 1, perPage: perPage, _token: $('input[name="_token"]').val() }),
     success: function (res) {
+      $('.loading-filtre').hide();
       totalCustomers = res.total;
       $('#eslesenSayisi').text(res.total);
       selectedIds = new Set((res.musteriIdler || []).map(Number));
       renderCustomers(res.customers, false);
       updateSelectedCount();
     },
-    error: function () { $('#eslesenSayisi').text('!'); },
-    complete: function () { isLoading = false; $('.loading').hide(); $('.loading-filtre').hide(); }
+    error: function (xhr) {
+      $('#eslesenSayisi').text('!');
+      var msg = 'Hata ' + xhr.status;
+      try {
+        var r = xhr.responseJSON || JSON.parse(xhr.responseText);
+        if (r && r.message) msg += ': ' + r.message;
+      } catch (e) {
+        if (xhr.responseText) msg += ': ' + xhr.responseText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').substring(0, 220);
+      }
+      console.error('arama_filtre_onizleme HATA:', xhr.status, xhr.responseText);
+      $('.loading-filtre').html('<span style="color:#c62828;font-weight:600;">' + msg + '</span>').show();
+    },
+    complete: function () { isLoading = false; $('.loading').hide(); }
   });
 }
 
