@@ -3525,7 +3525,19 @@ public function carkverilerigetir(Request $request)
             $_musteriAdi = $rh->randevu->users->name;
             $_modalSubtitle = '';
             $seansVar = $seanslarByRandevu->get($rh->randevu_id, collect());
-            if($seansVar->count() > 0 ){
+            // "Paket Randevusu" yalnizca gercek paket (adisyon_paket_id dolu) ya da
+            // cok seansli hizmet satisi (adisyon_hizmetler.seans_sayisi > 1) icin gosterilir.
+            // Tek seansli normal hizmet satislari da seans kaydi olusturuyor; bunlari
+            // paket saymak yanlis "(PAKET)" etiketine yol aciyordu (issue: salon 204 / user 53153).
+            $paketRandevusu = false;
+            foreach($seansVar as $_sv){
+                if($_sv->adisyon_paket_id){ $paketRandevusu = true; break; }
+                if($_sv->adisyon_hizmet_id){
+                    $_ah = $adisyonHizmetMap->get($_sv->adisyon_hizmet_id);
+                    if($_ah && (int)$_ah->seans_sayisi > 1){ $paketRandevusu = true; break; }
+                }
+            }
+            if($paketRandevusu){
                 $title .= " (PAKET)";
                 $_modalSubtitle = 'Paket Randevusu';
                  $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn">Müşteri Detay</a>';

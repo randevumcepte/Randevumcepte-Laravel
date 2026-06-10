@@ -1437,6 +1437,22 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ->groupBy('randevu_id')
             ->pluck('cnt','randevu_id');
 
+        // "Paket Randevusu" tespiti: seansin gercek pakete (adisyon_paket_id) bagli olmasi
+        // VEYA bagli hizmetin (adisyon_hizmetler.seans_sayisi) > 1 olmasi gerekir.
+        // Tek seansli normal hizmet satislari da seans kaydi olusturuyor; bunlar paket sayilmaz.
+        $seansKayitlari = AdisyonPaketSeanslar::whereIn('randevu_id', $randevuIds)
+            ->get(['randevu_id','adisyon_paket_id','adisyon_hizmet_id']);
+        $cokSeansliHizmetIds = AdisyonHizmetler::whereIn('id', $seansKayitlari->pluck('adisyon_hizmet_id')->filter()->unique()->values())
+            ->where('seans_sayisi','>',1)
+            ->pluck('id')
+            ->flip();
+        $paketRandevuIds = collect();
+        foreach($seansKayitlari as $_sk){
+            if($_sk->adisyon_paket_id || ($_sk->adisyon_hizmet_id && isset($cokSeansliHizmetIds[$_sk->adisyon_hizmet_id]))){
+                $paketRandevuIds[$_sk->randevu_id] = true;
+            }
+        }
+
         $kategoriRenkleri = SalonHizmetKategoriRenkleri::with('renkduzeni')
             ->where('salon_id',$isletmeId)->get()->keyBy('hizmet_kategori_id');
         $cihazRenkleri = SalonCihazRenkleri::with('renkduzeni')
@@ -1446,7 +1462,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         $randevu_hizmetler = $randevuHizmetler->map(function ($rh) use(
             $takvim_turu,$isletmeId,$personelRolu,
-            $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,
+            $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,$paketRandevuIds,
             $kategoriRenkleri,$cihazRenkleri,$odaRenkleri
         ) {
             $satisOlustu = 0;
@@ -1561,7 +1577,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $title = $rh->randevu->users->name;
                 $modalTitle = $rh->randevu->users->name;
                 $seansVar = $seansSayilariByRandevu[$rh->randevu_id] ?? 0;
-                if($seansVar > 0 ){
+                if(isset($paketRandevuIds[$rh->randevu_id])){
                     $title .= " (PAKET)";
                     $modalTitle .= " Paket Randevusu ";
                      $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"> Düzenle</a>';
