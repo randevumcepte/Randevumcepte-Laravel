@@ -341,19 +341,26 @@ function setDisabled($el, disabled) {
   $el.closest('.cm-fld, .cm-chip').toggleClass('cm-disabled', disabled);
 }
 
-// Celiskili filtre kombinasyonlarini otomatik engelle (kademeli/bagimli filtreler)
-function filtreBagimliliklari() {
-  // 1) Musteri Durumu, Satis Durumu'nu belirler (pasif=hic islem -> satis yok; aktif/sadik -> satis var)
-  var durum = $('#f_durum').val();
-  if (durum === 'pasif') {
-    $('#f_satis').val('yok'); setDisabled($('#f_satis'), true);
-  } else if (durum === 'aktif' || durum === 'sadik') {
-    $('#f_satis').val('var'); setDisabled($('#f_satis'), true);
-  } else {
-    setDisabled($('#f_satis'), false);
-  }
+// Bir dropdown icindeki TEK secenegi devre disi birak (dropdown acik kalir).
+// Secili olan secenek kapatiliyorsa "Tümü"ye (bos) doner.
+function setOptionDisabled($select, value, disabled) {
+  $select.find('option[value="' + value + '"]').prop('disabled', disabled);
+  if (disabled && $select.val() === value) { $select.val(''); }
+}
 
-  // 2) "Hic randevu almamis" <-> "Gelmeyen" / "Iptal eden" karsilikli dislama
+// Celiskili filtre kombinasyonlarini engelle — ama dropdown'lari KILITLEME,
+// sadece mantiken imkansiz olan secenekleri devre disi birak.
+function filtreBagimliliklari() {
+  // 1) Tek kati celiski: PASIF = satis yok. Yani Pasif + "Satis Yapilmis" imkansiz.
+  //    Aktif/Sadik'in satis secenekleri SERBEST birakilir (onlarda satis olabilir).
+  var durum = $('#f_durum').val();
+  setOptionDisabled($('#f_satis'), 'var', durum === 'pasif');
+  // Ters yon: "Satis Yapilmis" secilince Pasif secilemez.
+  var satis = $('#f_satis').val();
+  setOptionDisabled($('#f_durum'), 'pasif', satis === 'var');
+
+  // 2) "Hic randevu almamis" <-> "Gelmeyen" / "Iptal eden": gercekten karsilikli
+  //    dislama (ortak gecerli secenek yok), bu yuzden alan bazli devre disi.
   var hic = $('#f_hic_randevu_yok').is(':checked');
   if (hic) {
     $('#f_gelmeyen').val(''); setDisabled($('#f_gelmeyen'), true);
