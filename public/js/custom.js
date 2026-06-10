@@ -10148,14 +10148,29 @@ function takvimyukle(preload,turdegisti)
               // render'dan SONRA calistigindan genislik kalici olur (ilk acilista da
               // hemen genis gelir, ~30sn beklenmez).
               eventAfterAllRender: function(view){
+                 // KOK COZUM: Genisligi JS inline ile koymak yetmiyordu cunku FC,
+                 // render'dan sonra kendi updateSize'iyla kolon genisliklerini geri
+                 // yaziyor (inline style, !important'siz) ve bizimkini eziyordu.
+                 // CSS '!important' kurali, FC'nin inline genisligini HER ZAMAN ezer
+                 // (zamanlamadan bagimsiz). Bu yuzden genisligi <style> ile enjekte
+                 // ediyoruz; FC ne zaman geri yazarsa yazsin CSS kazanir.
                  try {
                     var $cells = $('#calendar .fc-resource-cell');
-                    if($cells.length && $cells.first().width() < 160){
-                       $cells.attr('style','width:160px');
-                       var nw = Number($cells.length * 160) + Number(95);
-                       $('#calendar .fc-agendaDay-view').attr('style','width:'+nw+'px');
+                    var n = $cells.length;
+                    var st = document.getElementById('rc-res-w');
+                    if(!st){ st = document.createElement('style'); st.id = 'rc-res-w'; document.head.appendChild(st); }
+                    var container = $('#calendar').width() || 0;
+                    // Kolonlar doldurunca 160'tan dar kalacaksa: her birini 160 yap +
+                    // yatay scroll. Az kolonda (zaten genis) dokunma.
+                    if(n > 0 && container > 0 && (container / n) < 160){
+                       var nw = (n * 160) + 95;
+                       st.innerHTML =
+                          '#calendar .fc-resource-cell{width:160px !important;}' +
+                          '#calendar .fc-agendaDay-view{width:'+nw+'px !important;}' +
+                          '#calendar .fc-view-container{overflow-x:scroll !important;}';
+                    } else {
+                       st.innerHTML = '';
                     }
-                    $('#calendar .fc-view-container').attr('style','overflow-x:scroll');
                  } catch(e){}
               },
               header: {
