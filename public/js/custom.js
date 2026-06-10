@@ -10417,6 +10417,9 @@ if (preload && !turdegisti) {
             }
             else{
                 console.log("takvim türü değişmedi sadece güncel veriler geliyor");
+                // Otomatik yenilemede DOM tazelenince yatay kaydirma sola atmasin:
+                // mevcut scrollLeft'i sakla, asagida geri yukle.
+                var _hScroll = $('.fc-view-container').scrollLeft() || 0;
                 $('#calendar').fullCalendar('removeEvents');
                 $('#calendar').fullCalendar('addEventSource', result.randevu);
                 $('#calendar').fullCalendar('refetchEvents');
@@ -10428,8 +10431,15 @@ if (preload && !turdegisti) {
                var newwidth=  Number($('.fc-resource-cell').length*160) + Number(95);
                $('.fc-agendaDay-view').attr('style','width:'+newwidth+'px');
             }
-            
+
             $('.fc-view-container').attr('style','overflow-x:scroll');
+
+            // Yenileme (veri-guncelleme) sonrasi yatay kaydirma konumunu geri yukle
+            // -> kullanici saga kaydirinca otomatik refresh onu basa atmaz.
+            if(typeof _hScroll !== 'undefined' && _hScroll > 0){
+               $('.fc-view-container').scrollLeft(_hScroll);
+               setTimeout(function(){ $('.fc-view-container').scrollLeft(_hScroll); }, 0);
+            }
             
             $('.fc-today-button').click(function(e){
                 e.preventDefault();
