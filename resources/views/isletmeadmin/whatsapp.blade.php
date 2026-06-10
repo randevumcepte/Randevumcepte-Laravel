@@ -332,6 +332,7 @@
         fetchJson('/isletmeyonetim/whatsapp/durum' + qs).then(function(res){
             var b = res.body || {};
             var s = b.status || 'not-initialized';
+            lastStatus = s;
             setStatus(s);
             if(b.lastError){ lastErrorEl.textContent = b.lastError; lastErrorWrap.style.display='block'; }
             else { lastErrorWrap.style.display='none'; }
@@ -413,8 +414,16 @@
     var kanalSwitch = document.getElementById('wa-kanal-switch');
     var kanalStatus = document.getElementById('wa-kanal-status');
 
+    // Uyarlanabilir polling: baglanana kadar 4 sn, baglandiktan sonra 15 sn;
+    // sekme arka plandayken hic sorgulama (gorunur olunca devam eder).
+    var lastStatus = null, waPollTimer = null;
     tick();
-    setInterval(tick, 4000);
+    (function scheduleTick(){
+        waPollTimer = setTimeout(function(){
+            if (!document.hidden) { tick(); }
+            scheduleTick();
+        }, lastStatus === 'connected' ? 15000 : 4000);
+    })();
 })();
 </script>
 

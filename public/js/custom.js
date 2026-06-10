@@ -2434,7 +2434,7 @@ $('#yenihizmetgir_isletme').click(function(e){
        success: function(result)  {
             alert($('#hizmetadi_yeni').val()+" adlı hizmet sisteme başarı ile eklendi");
             $('#hizmetlerlistesi_bayan').append(result);
-            $('hizmetlerlistesi_bay').append(result);
+            $('#hizmetlerlistesi_bay').append(result);
            $('#personelsunulanhizmetlerbayan_yeni').append(result);
              $('#personelsunulanhizmetlerbay_yeni').append(result);
         },
@@ -10016,13 +10016,15 @@ $('#randevu_ayarina_gore').change(function(e){
     takvimyukle(true,true);
 });
 if($('#calendar').length){
-    interval = setInterval(takvimyukle.bind(false,false), 10000);
+    // Sekme arka plandayken (document.hidden) takvimi bosuna yenileme — gereksiz AJAX yuku.
+    interval = setInterval(function(){
+        if (document.hidden) return;
+        takvimyukle(false, false);
+    }, 10000);
 }
-if($('randevu_liste').length){setInterval(randevufiltre,10000);}
 function takvimyukle(preload,turdegisti)
 {
 
-    console.log("takvim yükleniyor / güncelleniyor");
      var curview = $('#calendar').fullCalendar('getView');
      var moment = '';
      if($('#takvim_tarihe_gore').val()!= '')
@@ -17805,7 +17807,19 @@ if (dualboxvar) {
    
    
 });
-$(document).on('change paste keyup', 'input[name="himzet_tahsilat_tutari_girilen[]"]' ,function (e) {
+/* Tahsilat/adet/seans alanlarinda HER tus vurusunda sunucuya POST atilmasini onler:
+   yazma bitince ~350ms sonra bir kez calisir; alandan cikinca (change) hemen calisir.
+   Eskiden "1250" yazmak 4 ardisik istek tetikliyordu. */
+function rcDebouncedInput(selector, handler, wait){
+    wait = wait || 350;
+    $(document).on('change paste keyup', selector, function(e){
+        var el = this;
+        clearTimeout(el._rcDbTimer);
+        if (e && e.type === 'change') { handler.call(el, e); return; }
+        el._rcDbTimer = setTimeout(function(){ handler.call(el, e); }, wait);
+    });
+}
+rcDebouncedInput('input[name="himzet_tahsilat_tutari_girilen[]"]', function (e) {
     e.preventDefault();
     $.ajax({
                     type: "POST",
@@ -18044,7 +18058,7 @@ $(document).on('click','.tahsilat_paket_hediye_kaldir', function(){
                     }
     });
 });
-$(document).on('change paste keyup', 'input[name="urun_tahsilat_tutari_girilen[]"]' ,function () {
+rcDebouncedInput('input[name="urun_tahsilat_tutari_girilen[]"]', function () {
     $.ajax({
                     type: "POST",
                     url: '/isletmeyonetim/uruntahsilattutaridegistir',
@@ -18058,7 +18072,7 @@ $(document).on('change paste keyup', 'input[name="urun_tahsilat_tutari_girilen[]
                     }
     });
 });
-$(document).on('change paste keyup', 'input[name="urun_adet_girilen[]"]' ,function () {
+rcDebouncedInput('input[name="urun_adet_girilen[]"]', function () {
     $.ajax({
                     type: "POST",
                     url: '/isletmeyonetim/urunadetdegistir',
@@ -18085,7 +18099,7 @@ $(document).on('change paste keyup', 'input[name="urun_adet_girilen[]"]' ,functi
                     }
     });
 });
-$(document).on('change paste keyup', 'input[name="paket_seans_girilen[]"]' ,function () {
+rcDebouncedInput('input[name="paket_seans_girilen[]"]', function () {
     $.ajax({
                     type: "POST",
                     url: '/isletmeyonetim/paketseansdegistir',
@@ -18112,7 +18126,7 @@ $(document).on('change paste keyup', 'input[name="paket_seans_girilen[]"]' ,func
                     }
     });
 });
-$(document).on('change paste keyup', 'input[name="hizmet_seans_girilen[]"]' ,function () {
+rcDebouncedInput('input[name="hizmet_seans_girilen[]"]', function () {
     $.ajax({
                     type: "POST",
                     url: '/isletmeyonetim/hizmetseansdegistir',
@@ -18139,7 +18153,7 @@ $(document).on('change paste keyup', 'input[name="hizmet_seans_girilen[]"]' ,fun
                     }
     });
 });
-$(document).on('change paste keyup', 'input[name="paket_tahsilat_tutari_girilen[]"]' ,function () {
+rcDebouncedInput('input[name="paket_tahsilat_tutari_girilen[]"]', function () {
     $.ajax({
                     type: "POST",
                     url: '/isletmeyonetim/pakettahsilattutaridegistir',
@@ -18727,7 +18741,7 @@ $(document).on('submit','#ajanda_duzenle_form',function(e){
         data:$('#ajanda_duzenle_form').serialize(),
         headers:{'X-CSRF-TOKEN':$('meta[name="csrf-token"]').attr('content')},
         beforeSend: function(){
-            $("preloader").show();
+            $("#preloader").show();
         },
         success: function(result){
             $("#preloader").hide();
