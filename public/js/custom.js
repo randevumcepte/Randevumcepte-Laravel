@@ -10160,12 +10160,13 @@ function takvimyukle(preload,turdegisti)
                     var st = document.getElementById('rc-res-w');
                     if(!st){ st = document.createElement('style'); st.id = 'rc-res-w'; document.head.appendChild(st); }
                     var container = $('#calendar').width() || 0;
-                    // Kolonlar doldurunca 160'tan dar kalacaksa: her birini 160 yap +
-                    // yatay scroll. Az kolonda (zaten genis) dokunma.
-                    if(n > 0 && container > 0 && (container / n) < 160){
-                       var nw = (n * 160) + 95;
+                    // Kolonlar doldurunca RC_KOLON'dan dar kalacaksa: her birini o
+                    // genislige getir + yatay scroll. Az kolonda (zaten genis) dokunma.
+                    var RC_KOLON = 250; // resource kolon genisligi (px) — degistirilebilir
+                    if(n > 0 && container > 0 && (container / n) < RC_KOLON){
+                       var nw = (n * RC_KOLON) + 95;
                        st.innerHTML =
-                          '#calendar .fc-resource-cell{width:160px !important;}' +
+                          '#calendar .fc-resource-cell{width:'+RC_KOLON+'px !important;}' +
                           '#calendar .fc-agendaDay-view{width:'+nw+'px !important;}' +
                           '#calendar .fc-view-container{overflow-x:scroll !important;}';
                     } else {
@@ -10459,15 +10460,10 @@ if (preload && !turdegisti) {
             // eskiden atlaniyor, ancak 10sn'lik refresh'te uygulaniyordu = ~30sn gecikme).
             // Bu yuzden hem HEMEN hem kisa gecikmelerle dene; ilk acilista da genis gelir.
             function _rcKolonAyarla(){
-               var $cells = $('#calendar .fc-resource-cell');
-               if($cells.length && $cells.first().width() < 160){
-                  $cells.attr('style','width:160px');
-                  var nw = Number($cells.length * 160) + Number(95);
-                  $('#calendar .fc-agendaDay-view').attr('style','width:'+nw+'px');
-               }
+               // Kolon GENISLIGI artik eventAfterAllRender'da !important CSS ile
+               // uygulaniyor (tek yerden, RC_KOLON). Burada sadece yatay scroll'u ac
+               // ve yenileme sonrasi kaydirma konumunu koru.
                $('#calendar .fc-view-container').attr('style','overflow-x:scroll');
-               // Yenileme (veri-guncelleme) sonrasi yatay kaydirma konumunu geri yukle
-               // -> kullanici saga kaydirinca otomatik refresh onu basa atmaz.
                if(typeof _hScroll !== 'undefined' && _hScroll > 0){
                   $('#calendar .fc-view-container').scrollLeft(_hScroll);
                }
