@@ -77,6 +77,10 @@
                 <span class="icon mdi mdi-link-variant"></span>
                 Manuel Ödeme Linki
             </a>
+            <a href="/sistemyonetim/v2/sms-paket" class="sy-nav-item {{ $aktifMenu === 'smspaket' ? 'active' : '' }}">
+                <span class="icon mdi mdi-message-text"></span>
+                Duyuru Paketleri
+            </a>
 
             @if(in_array($rol, ['super_admin','yonetici']))
                 <div class="sy-nav-section">Ekip & İzleme</div>

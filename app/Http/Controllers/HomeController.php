@@ -2003,6 +2003,26 @@ $salon = Salonlar::where('domain', $domain)->first();
     public function odemebasarisiz(){
         return view('isletmeadmin.odeme_basarisiz');
     }
+
+    // İnteraktif Duyuru Paketi (SMS kredisi) satin alma onay/odeme sayfasi.
+    // PayTR bağlamasi sonra eklenecek; su an kredi karti butonu placeholder, havale/EFT bilgileri aktif.
+    public function smsPaketOnay($paketno){
+        if(!Auth::guard('isletmeyonetim')->check()){
+            return redirect('/isletmeyonetim/girisyap');
+        }
+        $paket = \App\SMSPaketleri::find($paketno);
+        if(!$paket){
+            return redirect('/isletmeyonetim/toplusmsbasvuru');
+        }
+        $isletme = Salonlar::where('id', Auth::guard('isletmeyonetim')->user()->salon_id)->first();
+        return view('isletmeadmin.duyuru-paketi-onay', [
+            'pageindex' => 114,
+            'title'     => 'İnteraktif Duyuru Paketi Satın Alma | randevumcepte.com.tr İşletme Yönetim Paneli',
+            'paket'     => $paket,
+            'isletme'   => $isletme,
+        ]);
+    }
+
     public function etkinlikkatilimanketi(Request $request,$id,$userid)
     {
         $etkinlik = Etkinlikler::where('id',$id)->first();
