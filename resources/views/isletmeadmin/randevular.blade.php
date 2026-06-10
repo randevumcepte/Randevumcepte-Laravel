@@ -163,11 +163,12 @@
 (function(){
    // Salon bazli, tarayicida kalici (cikis yapsa bile ayni boyutta acilir)
    var KEY  = 'rc_takvim_zoom_{{ (int)$isletme->id }}';
-   var BASE_H = 22;   // 100% slot yuksekligi (px) — zoom ile carpilir
-   // Zoom HEM yukseklik HEM genislik olcekler. Genislik 250*z oldugundan MAX'i
-   // sinirli tutuyoruz (yoksa kolonlar 750px'e firlayip dagiliyordu). 2.0 -> en fazla
-   // 500px kolon / 44px slot.
-   var MIN  = 0.6, MAX = 2.0, STEP = 0.2;
+   var BASE_H = 25;   // slot yuksekligi = 25 * zoom. MAX %400 -> en fazla 100px.
+   // Zoom HEM yukseklik HEM genislik olcekler:
+   //  - Yukseklik: 25*z  (en buyukte 25*4 = 100px)
+   //  - Genislik : 200*z, tavan 200px (custom.js) -> en buyukte 200px, devlesmez
+   // Kuculunce (z<1) ikisi de daralir; buyutunce genislik 200'de durur, yukseklik 100'e cikar.
+   var MIN  = 0.6, MAX = 4.0, STEP = 0.4;
 
    function clamp(z){ return Math.min(MAX, Math.max(MIN, Math.round(z*100)/100)); }
    function getZoom(){

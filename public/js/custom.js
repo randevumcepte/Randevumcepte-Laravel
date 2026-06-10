@@ -10160,12 +10160,12 @@ function takvimyukle(preload,turdegisti)
                     var st = document.getElementById('rc-res-w');
                     if(!st){ st = document.createElement('style'); st.id = 'rc-res-w'; document.head.appendChild(st); }
                     var container = $('#calendar').width() || 0;
-                    // Kolon genisligi zoom ile olceklenir AMA SINIRLI: kuculunce daralir,
-                    // buyutunce artar ama 280px'i gecmez (yoksa 200%'de 500px+ olup dagiliyor).
+                    // Kolon genisligi zoom ile olceklenir AMA en fazla 200px (devlesmesin).
+                    // Kuculunce daralir (z<1), buyutunce 200'de durur.
                     var _z = (typeof window.rcZoom === 'number' && window.rcZoom > 0) ? window.rcZoom : 1;
                     var RC_KOLON = Math.round(200 * _z);
-                    if(RC_KOLON > 280) RC_KOLON = 280;
-                    if(RC_KOLON < 120) RC_KOLON = 120;
+                    if(RC_KOLON > 200) RC_KOLON = 200;
+                    if(RC_KOLON < 110) RC_KOLON = 110;
                     if(n > 0 && container > 0 && (container / n) < RC_KOLON){
                        var nw = (n * RC_KOLON) + 95;
                        st.innerHTML =
@@ -21919,7 +21919,7 @@ function loadAramaDetaylari(page = 1) {
                                     <i class="fa fa-phone"></i>
                                 </button>`;
 
-                let notBtn = `<button class="btn btn-sm btn-warning btn-not-ekle" data-index="${index}" title="Not Ekle">
+                let notBtn = `<button class="btn btn-sm btn-warning btn-not-ekle" data-index="${index}" data-aranacak-id="${item.aranacak_musteri_id}" title="Not Ekle">
                                 <i class="fa fa-pencil"></i>
                               </button>`;
 
@@ -21989,6 +21989,8 @@ $(document).on('click', '.btn-not-ekle', function(e) {
     $('#santralnottarih').val(tarih);
     $('#santralnotsaat').val(saat);
     $('#not_id').val(index);
+    // KVKK/dogruluk: kaydi index yerine aranacak_musteri_id ile bul
+    $('#aranacak_musteri_id').val($(this).data('aranacak-id') || '');
 
     // Modalı göster
     $('#yeni_not_ekle_santral').modal('show');
@@ -22000,8 +22002,9 @@ $('#yeni_not_ekle_form').on('submit', function(e) {
 
     var formData = {
         _token: $('input[name="_token"]').val(),
-        arama_detay_id: $('#arama_detay_id').val(), // Bu alan modal dışında varsa sayfada tanımlı olmalı
+        arama_detay_id: aramaDetayId, // acik olan listenin id'si (global)
         not_id: $('#not_id').val(),
+        aranacak_musteri_id: $('#aranacak_musteri_id').val(),
         noticerik: $('#noticerik').val(),
         santralnottarih: $('#santralnottarih').val(),
         santralnotsaat: $('#santralnotsaat').val()

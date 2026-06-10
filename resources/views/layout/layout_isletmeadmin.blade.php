@@ -1982,6 +1982,20 @@
                      </a>
                   </li>
                   @endif
+
+                  {{-- Cagri Merkezi: Personel rolu (5) icin Arama Listesi (santral aktif + dahili varsa) --}}
+                  @if(in_array(5, $_layoutRoller) && $isletme->santral_aktif && optional($_layoutYetkiliPersonel)->dahili_no)
+                  <li>
+                     @if($pageindex==44)
+                     <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-telephone-outbound"></span>
+                     <span class="mtext">Arama Listesi</span>
+                     </a>
+                  </li>
+                  @endif
                </ul>
             </div>
          </div>
@@ -5316,7 +5330,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=259.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=260.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
@@ -5383,6 +5397,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
       <audio id="audioElement" src="/public/telefon-ses/phone_incoming.mp3"></audio>
 
+      {{-- Salon akilli hatirlatma + Cagri Merkezi arama randevusu popup'i (tum sayfalarda) --}}
+      @include('isletmeadmin.partials.hatirlatma_popup')
 
        <script>
     const audioElement = document.getElementById('audioElement');
