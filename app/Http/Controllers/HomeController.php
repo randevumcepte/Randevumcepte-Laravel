@@ -2019,6 +2019,25 @@ $salon = Salonlar::where('domain', $domain)->first();
         return $salonId;
     }
 
+    // layout_isletmeadmin'in ihtiyac duydugu sayfa degiskenlerini guvenli degerlerle uretir.
+    private function duyuruLayoutVars($isletme, $sayfaBaslik){
+        $kullanici = Auth::guard('isletmeyonetim')->check() ? Auth::guard('isletmeyonetim')->user() : null;
+        $kalanGun = 0;
+        if($isletme && $isletme->uyelik_bitis_tarihi){
+            $kalanGun = (int) \Carbon\Carbon::now()->startOfDay()
+                ->diffInDays(\Carbon\Carbon::parse($isletme->uyelik_bitis_tarihi)->startOfDay(), false);
+        }
+        $yetkili = $kullanici ? $kullanici->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray() : [];
+        if(empty($yetkili) && $isletme){ $yetkili = [$isletme->id]; }
+        return [
+            'sayfa_baslik'            => $sayfaBaslik,
+            'bildirimler'             => collect([]),
+            'kalan_uyelik_suresi'     => $kalanGun,
+            'yetkiliolunanisletmeler' => $yetkili,
+            'urun_drop'               => '',
+        ];
+    }
+
     // "Satın Al" → ARADA ONAY SAYFASI YOK, DOĞRUDAN PayTR ödeme ekranına gider.
     // Fatura bilgileri salonun kayıtlı bilgilerinden (Salonlar.vergi_*) alınır.
     public function smsPaketOnay(Request $request, $paketno){
@@ -2140,13 +2159,13 @@ $salon = Salonlar::where('domain', $domain)->first();
 
         if(isset($result['status']) && $result['status'] == 'success'){
             $token = $result['token'];
-            return view('isletmeadmin.duyuru-paketi-iframe', [
+            return view('isletmeadmin.duyuru-paketi-iframe', array_merge([
                 'pageindex' => 114,
                 'title'     => 'Ödeme | randevumcepte.com.tr İşletme Yönetim Paneli',
                 'token'     => $token,
                 'paket'     => $paket,
                 'isletme'   => $isletme,
-            ]);
+            ], $this->duyuruLayoutVars($isletme, 'Ödeme')));
         }
 
         $neden = isset($result['reason']) ? $result['reason'] : 'bilinmeyen hata';
@@ -2161,12 +2180,15 @@ $salon = Salonlar::where('domain', $domain)->first();
     public function smsPaketSonuc($merchant_oid){
         $siparis = \App\SmsPaketSiparisi::where('merchant_oid', $merchant_oid)->first();
         $isletme = $siparis ? Salonlar::where('id', $siparis->salon_id)->first() : null;
-        return view('isletmeadmin.duyuru-paketi-sonuc', [
+        if(!$isletme && Auth::guard('isletmeyonetim')->check()){
+            $isletme = Salonlar::where('id', Auth::guard('isletmeyonetim')->user()->salon_id)->first();
+        }
+        return view('isletmeadmin.duyuru-paketi-sonuc', array_merge([
             'pageindex' => 114,
             'title'     => 'Ödeme Sonucu | randevumcepte.com.tr İşletme Yönetim Paneli',
             'siparis'   => $siparis,
             'isletme'   => $isletme,
-        ]);
+        ], $this->duyuruLayoutVars($isletme, 'Ödeme Sonucu')));
     }
 
     public function etkinlikkatilimanketi(Request $request,$id,$userid)
