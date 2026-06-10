@@ -2019,23 +2019,23 @@ $salon = Salonlar::where('domain', $domain)->first();
         return $salonId;
     }
 
+    // "Satın Al" → ARADA ONAY SAYFASI YOK, DOĞRUDAN PayTR ödeme ekranına gider.
+    // Fatura bilgileri salonun kayıtlı bilgilerinden (Salonlar.vergi_*) alınır.
     public function smsPaketOnay(Request $request, $paketno){
         if(!Auth::guard('isletmeyonetim')->check()){
             return redirect('/isletmeyonetim/girisyap');
         }
-        $paket = \App\SMSPaketleri::find($paketno);
-        if(!$paket){
-            return redirect('/isletmeyonetim/hesabim');
-        }
         $salonId = $this->duyuruSalonId($request);
         $isletme = Salonlar::where('id', $salonId)->first();
-        return view('isletmeadmin.duyuru-paketi-onay', [
-            'pageindex' => 19,
-            'title'     => 'İnteraktif Duyuru Paketi Satın Alma | randevumcepte.com.tr İşletme Yönetim Paneli',
-            'paket'     => $paket,
-            'isletme'   => $isletme,
-            'subeId'    => $salonId,
-        ]);
+        if($isletme){
+            // Salonun kayıtlı fatura bilgilerini request'e enjekte et (ödeme/fatura için)
+            $request->merge([
+                'fatura_unvan' => $request->fatura_unvan ?: (($isletme->vergi_adi ?? null) ?: ($isletme->salon_adi ?? null)),
+                'fatura_vkn'   => $request->fatura_vkn ?: ($isletme->vergi_no ?? null),
+                'fatura_adres' => $request->fatura_adres ?: ($isletme->vergi_adresi ?? null),
+            ]);
+        }
+        return $this->smsPaketOdeme($request, $paketno);
     }
 
     // İnteraktif Duyuru Paketi — PayTR ile kredi karti odemesi baslatir.
@@ -2133,7 +2133,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         if(curl_errno($ch)){
             \Log::error('Duyuru paketi PAYTR baglanti hatasi: '.curl_error($ch));
             curl_close($ch);
-            return redirect('/isletmeyonetim/smspaketsatinal/'.$paket->id.'?sube='.$salonId)->with('hata', 'Ödeme başlatılamadı, lütfen tekrar deneyin.');
+            return redirect('/isletmeyonetim/hesabim?sube='.$salonId.'#duyurupaketleri')->with('hata', 'Ödeme başlatılamadı, lütfen tekrar deneyin.');
         }
         curl_close($ch);
         $result = json_decode($result, 1);
@@ -2153,7 +2153,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         $siparis->basarisiz_neden = 'Token alinamadi: '.$neden;
         $siparis->save();
         \Log::error('Duyuru paketi PAYTR token hatasi: '.$neden);
-        return redirect('/isletmeyonetim/smspaketsatinal/'.$paket->id.'?sube='.$salonId)->with('hata', 'Ödeme başlatılamadı: '.$neden);
+        return redirect('/isletmeyonetim/hesabim?sube='.$salonId.'#duyurupaketleri')->with('hata', 'Ödeme başlatılamadı: '.$neden);
     }
 
     // PayTR ok/fail yonlendirme sonrasi sonuc sayfasi (siparis durumunu DB'den okur).
