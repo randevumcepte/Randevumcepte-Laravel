@@ -48,7 +48,9 @@ class AramaFiltreService
                 'users.cinsiyet as cinsiyet',
                 'musteri_portfoy.created_at as kayit_tarihi'
             )
-            ->groupBy('musteri_portfoy.user_id', 'users.name', 'users.cep_telefon', 'users.cinsiyet', 'musteri_portfoy.created_at');
+            // Not: groupBy KULLANILMIYOR. musteri_portfoy zaten (user, salon) basina tekil;
+            // ayrica Laravel 5.6.x (bu kurulumda) fromSub icermedigi icin grup sayimi sorun cikariyordu.
+            ->distinct();
 
         // 1) Kayit durumu / tarih araligi
         $kayit = $f['kayit'] ?? '';
@@ -187,9 +189,8 @@ class AramaFiltreService
      */
     public static function count($salonId, array $f)
     {
-        // groupBy nedeniyle count() dogru sonuc icin alt-sorgu olarak sarilir.
-        $sub = self::build($salonId, $f);
-        return DB::query()->fromSub($sub, 't')->count();
+        // distinct select uzerinde dogrudan say (fromSub Laravel 5.6.x'te yok).
+        return self::build($salonId, $f)->count('musteri_portfoy.user_id');
     }
 
     /**

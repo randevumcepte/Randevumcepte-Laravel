@@ -26493,8 +26493,8 @@ DB::raw('
 
         $base = \App\Services\AramaFiltreService::build($salonId, $filtre);
 
-        // groupBy nedeniyle toplam icin alt-sorgu say
-        $total = DB::query()->fromSub(\App\Services\AramaFiltreService::build($salonId, $filtre), 't')->count();
+        // distinct user_id uzerinden dogrudan say (fromSub Laravel 5.6.x'te yok)
+        $total = (clone $base)->count('musteri_portfoy.user_id');
 
         $musteriIdler = (clone $base)->pluck('id')->toArray();
 
