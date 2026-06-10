@@ -163,27 +163,29 @@
 (function(){
    // Salon bazli, tarayicida kalici (cikis yapsa bile ayni boyutta acilir)
    var KEY  = 'rc_takvim_zoom_{{ (int)$isletme->id }}';
-   var BASE = 26;     // buyutmede 100% ustu slot yuksekligi (px)
-   var MIN  = 1.0, MAX = 3.0, STEP = 0.2;
+   var BASE_H = 22;   // 100% slot yuksekligi (px) — zoom ile carpilir
+   // Zoom HEM yukseklik HEM genislik olcekler. Genislik 250*z oldugundan MAX'i
+   // sinirli tutuyoruz (yoksa kolonlar 750px'e firlayip dagiliyordu). 2.0 -> en fazla
+   // 500px kolon / 44px slot.
+   var MIN  = 0.6, MAX = 2.0, STEP = 0.2;
 
    function clamp(z){ return Math.min(MAX, Math.max(MIN, Math.round(z*100)/100)); }
    function getZoom(){
       var v = parseFloat(localStorage.getItem(KEY));
-      // Kullanici daha once ayarladiysa onu kullan; YOKSA %100 (FC dogal boyutu —
-      // tanidik gorunum, randevular eskisi gibi yerinde). Buyutme tamamen istege bagli.
-      return (!isNaN(v) && v >= MIN && v <= MAX) ? v : 1.0;
+      if(isNaN(v)) return 1.0;
+      // Eski/araliik disi (or. %300) kayitli deger -> %100'e sifirla (dagilma onlenir).
+      if(v < MIN || v > MAX){ v = 1.0; try{ localStorage.setItem(KEY, v); }catch(e){} }
+      return v;
    }
    function apply(z, rerender){
+      // Zoom faktorunu global yap: kolon GENISLIGINI custom.js'teki eventAfterAllRender
+      // bu degere gore hesaplar (250 * z). Boylece zoom HEM yukseklik HEM genislik olcekler.
+      window.rcZoom = z;
       var el = document.getElementById('rc-zoom-style');
       if(!el){ el = document.createElement('style'); el.id = 'rc-zoom-style'; document.head.appendChild(el); }
-      // %100'de FC'nin DOGAL slot yuksekligine dokunma (override yok) -> regresyon/
-      // kayip olmaz. Sadece %100 ustunde slat yuksekligini buyut.
-      if(z <= 1.001){
-         el.innerHTML = '';
-      } else {
-         var h = Math.round(BASE * z);
-         el.innerHTML = '#calendar .fc-time-grid .fc-slats td{height:'+h+'px !important;}';
-      }
+      // Slot YUKSEKLIGI = BASE_H * z (her zaman — kuculunce de daralir)
+      var h = Math.round(BASE_H * z);
+      el.innerHTML = '#calendar .fc-time-grid .fc-slats td{height:'+h+'px !important;}';
       var lbl = document.getElementById('rc-zoom-val');
       if(lbl) lbl.textContent = Math.round(z*100) + '%';
       if(rerender){
