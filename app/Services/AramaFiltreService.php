@@ -139,7 +139,9 @@ class AramaFiltreService
 
         // 6) Akilli ek filtreler
         if (!empty($f['kara_liste_haric'])) {
-            $query->where('musteri_portfoy.kara_liste', 0);
+            // kara_liste cogu kayitta NULL -> "= 0" NULL'lari da eler ve herkes kaybolurdu.
+            // Dogrusu: kara listede OLMAYAN = IFNULL(kara_liste,0)=0 (NULL ve 0 dahil).
+            $query->whereRaw('IFNULL(musteri_portfoy.kara_liste,0) = 0');
         }
 
         if (!empty($f['whatsapp_onay'])) {
