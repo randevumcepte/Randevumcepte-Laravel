@@ -26508,12 +26508,16 @@ DB::raw('
                 ->take($perPage)
                 ->get();
 
+            // Teshis/UX: salonda hic filtre olmadan kac aranabilir musteri var?
+            $toplamFiltresiz = \App\Services\AramaFiltreService::build($salonId, [])->count('musteri_portfoy.user_id');
+
             return response()->json([
-                'total'        => $total,
-                'page'         => $page,
-                'perPage'      => $perPage,
-                'musteriIdler' => $musteriIdler,
-                'customers'    => $customers,
+                'total'            => $total,
+                'toplam_filtresiz' => $toplamFiltresiz,
+                'page'             => $page,
+                'perPage'          => $perPage,
+                'musteriIdler'     => $musteriIdler,
+                'customers'        => $customers,
             ]);
         } catch (\Throwable $e) {
             \Log::error('[CAGRI-MERKEZI] arama_filtre_onizleme: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());

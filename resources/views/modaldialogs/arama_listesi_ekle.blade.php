@@ -208,7 +208,7 @@
 
                   <div class="cm-sayac">
                      <div class="num" id="eslesenSayisi">0</div>
-                     <div class="lbl">müşteri seçtiğin filtrelere uyuyor <span class="loading-filtre" style="display:none;">· hesaplanıyor…</span></div>
+                     <div class="lbl">müşteri seçtiğin filtrelere uyuyor <span class="loading-filtre" style="display:none;">· hesaplanıyor…</span><br><span id="toplamFiltresizBilgi" style="color:#9b8fb0;font-weight:600;"></span></div>
                   </div>
                </div>
 
@@ -298,6 +298,9 @@ function filtreUygula() {
       $('.loading-filtre').hide();
       totalCustomers = res.total;
       $('#eslesenSayisi').text(res.total);
+      if (typeof res.toplam_filtresiz !== 'undefined') {
+        $('#toplamFiltresizBilgi').text('Salonda toplam ' + res.toplam_filtresiz + ' aranabilir müşteri var (filtresiz).');
+      }
       selectedIds = new Set((res.musteriIdler || []).map(Number));
       renderCustomers(res.customers, false);
       updateSelectedCount();
