@@ -4108,6 +4108,9 @@ public function kasa_raporu_getir(Request $request,$returntext)
         if($tahsilat->para_girisi == true)
             $tahsilat_liste .= '<td>
                       <button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Para Ekleme Sil"  name="para_ekleme_sil" data-value="'.$tahsilat->id.'"><i class="fa fa-times"></i></button></td>';
+        elseif($tahsilat->adisyon_id === null && $tahsilat->para_cikisi != true)
+            $tahsilat_liste .= '<td>
+                      <button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Bağımsız Tahsilatı Sil"  name="bagimsiz_tahsilat_sil" data-value="'.$tahsilat->id.'"><i class="fa fa-times"></i></button></td>';
 
         $tahsilat_liste .= '</tr>';
     }
@@ -13479,12 +13482,13 @@ DB::raw('
         $musteri_id = $tahsilat->user_id;
 
         $paraGirisi = $tahsilat->para_girisi;
+        $kasadanSil = filter_var($request->kasadan_sil, FILTER_VALIDATE_BOOLEAN);
         $request->sube = $tahsilat->salon_id;
         $tahsilat->delete();
 
-        if($paraGirisi){
+        if($paraGirisi || $kasadanSil){
             return array(
-                'mesaj' => 'Para ekleme kaydı başarıyla kaldırıldı',
+                'mesaj' => $paraGirisi ? 'Para ekleme kaydı başarıyla kaldırıldı' : 'Tahsilat kaydı başarıyla silindi',
                 'dogrulamaGerekli'=>false,
                 'kasa_raporu'=>self::kasa_raporu_getir($request,'')
             );

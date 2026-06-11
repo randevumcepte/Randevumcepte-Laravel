@@ -8741,6 +8741,82 @@ $('#masraf_tablo').on('click','*[name="masraf_duzenle"]',function(){
                         }
     });
 });
+function bagimsiz_tahsilat_sil_islemi(tahsilatId, dogrulamaKodu){
+    $.ajax({
+            type: "POST",
+            url: '/isletmeyonetim/tahsilatkaldir',
+            dataType: "json",
+            data : {sube:$('input[name="sube"]').val(),_token:$('input[name="_token"]').val(),tahsilatid:tahsilatId,adisyon_id:'',kasadan_sil:1,dogrulama_kodu:dogrulamaKodu||''},
+            beforeSend:function(){
+                $('#preloader').show();
+            },
+            success: function(result)  {
+                $('#preloader').hide();
+                if(result.dogrulamaGerekli){
+                    swal({
+                        title: "Onay Kodu",
+                        text: "Tahsilatı silmek için hesap sahibine gönderilen onay kodunu giriniz.",
+                        type: "input",
+                        showCancelButton: true,
+                        confirmButtonColor: '#00bc8c',
+                        confirmButtonText: 'Onayla',
+                        cancelButtonText: "Vazgeç",
+                        confirmButtonClass: 'btn btn-success',
+                        cancelButtonClass: 'btn btn-danger',
+                    }).then(function (kod) {
+                        if(kod.value){
+                            bagimsiz_tahsilat_sil_islemi(tahsilatId, kod.value);
+                        }
+                    });
+                    return;
+                }
+                swal({
+                    type: "success",
+                    title: "Başarılı",
+                    html:  result.mesaj,
+                    showCloseButton: false,
+                    showCancelButton: false,
+                    showConfirmButton:false,
+                });
+                if($('#kasa_sayfasi').length){
+                    $('#kasa_gelir_tutari').empty();
+                    $('#kasa_gider_tutari').empty();
+                    $('#kasa_toplam_tutar').empty();
+                    $('#toplam_ciro_tutari').empty();
+                    $('#tahsilatlar_listesi').empty();
+                    $('#masraflar_listesi').empty();
+                    $('#kasa_gelir_tutari').append(result.kasa_raporu.gelir);
+                    $('#kasa_gider_tutari').append(result.kasa_raporu.gider);
+                    $('#kasa_toplam_tutar').append(result.kasa_raporu.toplam);
+                    $('#toplam_ciro_tutari').append(result.kasa_raporu.toplam_ciro);
+                    $('#tahsilatlar_listesi').append(result.kasa_raporu.tahsilatlar);
+                    $('#masraflar_listesi').append(result.kasa_raporu.masraflar);
+                }
+            },
+            error: function (request, status, error) {
+                $('#preloader').hide();
+                document.getElementById('hata').innerHTML = request.responseText;
+            }
+    });
+}
+ $(document).on('click','button[name="bagimsiz_tahsilat_sil"]',function(){
+    var tahsilatId = $(this).attr('data-value');
+     swal({
+                        title: "Emin misiniz?",
+                        text: "Bu tahsilat kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz",
+                        type: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: '#00bc8c',
+                        confirmButtonText: 'Tahsilatı Sil',
+                        cancelButtonText: "Vazgeç",
+                        confirmButtonClass: 'btn btn-success',
+                        cancelButtonClass: 'btn btn-danger',
+    }).then(function (result) {
+                        if(result.value){
+                            bagimsiz_tahsilat_sil_islemi(tahsilatId, '');
+                        }
+    });
+});
 $('#masraf_formu').on('submit',function(e){
     e.preventDefault();
     var masrafkategorisisecili = true;
