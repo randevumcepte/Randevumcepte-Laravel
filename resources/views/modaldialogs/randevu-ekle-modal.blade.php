@@ -2141,9 +2141,15 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
             window._paketBatchMode = false;
             // Tek seferlik global update (paket eklemesi sirasinda atladigimiz isleri toplu yap)
             try { doldurRandevuSecenekleri(); } catch(e){ console.warn('[PAKET] final doldur hata:', e); }
-            // SON pass: tum satirlara base secimleri tekrar uygula (eski satirlar reset olmuş olabilir)
+            // SON pass: tum satirlara base secimleri tekrar uygula (eski satirlar reset olmus olabilir)
+            // + her satira updateHizmetDetaylari (batch'te atlamistik) + bir kez updateRandevuOzeti
             setTimeout(function(){
                 _finalRebaseAllRows();
+                // Batch sirasinda atlanan detay/ozet render'lerini tek pass'te yap
+                $('#yenirandevuekleform .hizmet-satiri').each(function(){
+                    var idx2 = $(this).data('value');
+                    try { updateHizmetDetaylari(idx2); } catch(e){}
+                });
                 try { updateRandevuOzeti(); } catch(e){}
                 window._paketEklemeKilidi = false;
                 window._paketYerlestiriliyor = false;
@@ -2152,33 +2158,6 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                 try { if(hizmetData.length >= 2) paketModunaGec(hizmetData.length); } catch(e){ console.warn('[PAKET MODU] hata:', e); }
                 // Genel "Paket Süresi" input'unu paket toplam suresiyle doldur
                 try { genelSureInputDoldur(); } catch(e){}
-                // SON ADIM: hizmet secimlerini yeniden ata. Yerlestirme sirasindaki reload
-                // zincirleri (oda/personel -> yukleHizmetler) chip'i silmis olabilir; bu en
-                // son calistigi ve sonrasinda reload olmadigi icin secim KESIN kalir.
-                setTimeout(function(){
-                    $('#yenirandevuekleform .hizmet-satiri').each(function(i){
-                        if(!hizmetData[i]) return;
-                        var $row = $(this);
-                        // Sadece gercek <select>'i al (TS wrapper div'i de .hizmet-select class'i tasir)
-                        var $nat = $row.find('select.hizmet-select');
-                        var ts = $nat[0] && $nat[0].tomselect;
-                        // ORPHAN WRAPPER TEMIZLIGI: aktif TS'in wrapper'i disindaki bos .ts-wrapper'lari
-                        // sil (destroy/init dongusunde DOM'da kalip bos "Tüm hizmetler" gosteriyorlardi).
-                        if(ts && ts.wrapper){
-                            $row.find('.ts-wrapper').each(function(){
-                                if(this !== ts.wrapper){ $(this).remove(); }
-                            });
-                        }
-                        // Secimi yeniden ata + kontrol render'ini zorla
-                        try { _setHizmetInRow($row, hizmetData[i]); } catch(e){ console.warn('[REASSERT] hata', e); }
-                        var ts2 = $nat[0] && $nat[0].tomselect;
-                        if(ts2){
-                            try { ts2.refreshItems(); } catch(e){}
-                            try { if(ts2.refreshState) ts2.refreshState(); } catch(e){}
-                        }
-                    });
-                    try { updateRandevuOzeti(); } catch(e){}
-                }, 50);
             }, 30);
             return;
         }
@@ -2258,8 +2237,13 @@ function _hizmetiSatiraKoy($sel, item, secVe){
         // SESSIZ sec (silent=true): onChange -> odaSecimleriniHizmeteGoreYenile -> oda-change
         // -> hizmet reload zinciri paket hizmetinin CHIP'ini siliyordu. Detayi manuel guncelle.
         ts.setValue(mevcut, true);
-        try { updateHizmetDetaylari($sel.data('index')); } catch(e){}
-        try { updateRandevuOzeti(); } catch(e){}
+        // PERFORMANS: batch modunda updateHizmetDetaylari (DOM render) ve
+        // updateRandevuOzeti (TUM satirlari tarar — O(N^2)) atlanir.
+        // Finalize'da bir kez global olarak calistirilir.
+        if(!window._paketBatchMode){
+            try { updateHizmetDetaylari($sel.data('index')); } catch(e){}
+            try { updateRandevuOzeti(); } catch(e){}
+        }
     }
     return true;
 }
