@@ -26534,10 +26534,19 @@ DB::raw('
             // isme gore sirali -> "ilk 100 / 101-200" toplu secimi ekrandaki sirayla ayni olur
             $musteriIdler = (clone $base)->orderBy('users.name')->pluck('id')->toArray();
 
-            $customers = $base->orderBy('users.name')
-                ->skip(($page - 1) * $perPage)
-                ->take($perPage)
-                ->get();
+            // offset/limit verilirse (toplu secim araliklarini listede gostermek icin) onu kullan;
+            // yoksa normal sayfalama.
+            if ($request->filled('offset') && $request->filled('limit')) {
+                $customers = (clone $base)->orderBy('users.name')
+                    ->skip(max(0, (int) $request->input('offset')))
+                    ->take(max(1, (int) $request->input('limit')))
+                    ->get();
+            } else {
+                $customers = (clone $base)->orderBy('users.name')
+                    ->skip(($page - 1) * $perPage)
+                    ->take($perPage)
+                    ->get();
+            }
 
             // Teshis/UX: salonda hic filtre olmadan kac aranabilir musteri var?
             $toplamFiltresiz = \App\Services\AramaFiltreService::build($salonId, [])->count('musteri_portfoy.user_id');

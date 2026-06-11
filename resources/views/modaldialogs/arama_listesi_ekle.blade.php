@@ -267,6 +267,7 @@ let searchTerm = '';
 let filtreDebounce = null;
 let tumIdler = [];          // filtreye uyan TUM id'ler (isme gore sirali) — toplu secim icin
 let sonrakiBaslangic = 0;   // "Sonraki 100" icin imlec
+let aralikModu = false;     // toplu aralik secimi listede gosteriliyor (sonsuz-scroll kapali)
 
 function getFiltre() {
   return {
@@ -307,10 +308,22 @@ function araligiSec(bas, bit) {
   var dilim = tumIdler.slice(bas - 1, bit); // bas-1 .. bit (dahil)
   selectedIds = new Set(dilim.map(Number));
   sonrakiBaslangic = bit; // "Sonraki 100" buradan devam eder
-  updateSelectedCount();
-  gorunurCheckboxSenkron();
-  $('#topluBilgi').text(bas + '–' + bit + '. sıradaki ' + dilim.length + ' müşteri seçildi ✓');
   $('#topluBas').val(bas); $('#topluBit').val(bit);
+  updateSelectedCount();
+  $('#topluBilgi').text(bas + '–' + bit + '. sıradaki ' + dilim.length + ' müşteri seçildi ✓');
+
+  // Secili araligi LISTEDE goster: o dilimin musterilerini cek + isaretli render et
+  aralikModu = true;
+  $('.loading').show();
+  $.ajax({
+    url: '/isletmeyonetim/arama_filtre_onizleme', method: 'POST',
+    data: $.extend({}, getFiltre(), { offset: bas - 1, limit: dilim.length, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() }),
+    success: function (res) {
+      renderCustomers(res.customers, false); // checkbox'lar selectedIds'e gore isaretli gelir
+      $('#customerList').scrollTop(0);
+    },
+    complete: function () { $('.loading').hide(); }
+  });
 }
 
 function renderCustomers(customers, append) {
@@ -348,6 +361,7 @@ function filtreUygula() {
       }
       tumIdler = (res.musteriIdler || []).map(Number);
       sonrakiBaslangic = 0;
+      aralikModu = false;
       $('#topluBilgi').text('');
       selectedIds = new Set(tumIdler);
       renderCustomers(res.customers, false);
@@ -450,6 +464,7 @@ $(document).ready(function () {
       success: function (res) {
         tumIdler = (res.musteriIdler || []).map(Number);
         sonrakiBaslangic = tumIdler.length;
+        aralikModu = false;
         selectedIds = new Set(tumIdler);
         gorunurCheckboxSenkron();
         updateSelectedCount();
@@ -486,6 +501,7 @@ $(document).ready(function () {
   });
 
   $('#customerList').scroll(function () {
+    if (aralikModu) return; // aralik gosteriminde sonsuz-scroll kapali
     const $this = $(this);
     if ($this.scrollTop() + $this.innerHeight() >= $this[0].scrollHeight - 50) {
       if ((currentPage * perPage) < totalCustomers) { currentPage++; loadMore(currentPage); }
