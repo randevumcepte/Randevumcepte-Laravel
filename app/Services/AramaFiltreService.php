@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 /**
@@ -52,6 +53,11 @@ class AramaFiltreService
             // ayrica Laravel 5.6.x (bu kurulumda) fromSub icermedigi icin grup sayimi sorun cikariyordu.
             ->distinct();
 
+        // adisyonlar tablosunda soft-delete (silindi) kolonu var mi? (bazi kurulumlarda yok)
+        $silindiVar = Schema::hasColumn('adisyonlar', 'silindi');
+        // Gelmeyen icin silindi filtresi SQL parcasi (whereRaw subquery'de kullanilir)
+        $silindiSql = $silindiVar ? ' AND IFNULL(adisyonlar.silindi,0)=0 ' : '';
+
         // 1) Kayit durumu / tarih araligi
         $kayit = $f['kayit'] ?? '';
         if ($kayit === 'son1yil') {
@@ -65,56 +71,63 @@ class AramaFiltreService
             }
         }
 
-        // 2) Tahsilat bazli musteri durumu (pasif/aktif/sadik)
+        // 2) Adisyon (satis fisi = "geldi + islem yapti") bazli musteri durumu.
+        //    musteri_liste_getir (ApiController) ile ayni mantik: adisyon sayisi.
+        //    Pasif = 0 adisyon, Aktif = 1-2, Sadik = 3+.
         $durum = $f['durum'] ?? '';
         if ($durum === 'pasif') {
-            $query->whereNotExists(function ($q) use ($salonId) {
-                $q->select(DB::raw(1))->from('tahsilatlar')
-                    ->whereRaw('tahsilatlar.user_id = musteri_portfoy.user_id')
-                    ->where('tahsilatlar.salon_id', $salonId);
+            $query->whereNotExists(function ($q) use ($salonId, $silindiVar) {
+                $q->select(DB::raw(1))->from('adisyonlar')
+                    ->whereRaw('adisyonlar.user_id = musteri_portfoy.user_id')
+                    ->where('adisyonlar.salon_id', $salonId);
+                if ($silindiVar) $q->whereRaw('IFNULL(adisyonlar.silindi,0)=0');
             });
         } elseif ($durum === 'aktif') {
-            $query->whereExists(function ($q) use ($salonId) {
-                $q->select(DB::raw(1))->from('tahsilatlar')
-                    ->whereRaw('tahsilatlar.user_id = musteri_portfoy.user_id')
-                    ->where('tahsilatlar.salon_id', $salonId)
-                    ->groupBy('tahsilatlar.user_id')
-                    ->havingRaw('COUNT(*) BETWEEN 1 AND 2');
+            $query->whereExists(function ($q) use ($salonId, $silindiVar) {
+                $q->select(DB::raw(1))->from('adisyonlar')
+                    ->whereRaw('adisyonlar.user_id = musteri_portfoy.user_id')
+                    ->where('adisyonlar.salon_id', $salonId);
+                if ($silindiVar) $q->whereRaw('IFNULL(adisyonlar.silindi,0)=0');
+                $q->groupBy('adisyonlar.user_id')->havingRaw('COUNT(*) BETWEEN 1 AND 2');
             });
         } elseif ($durum === 'sadik') {
-            $query->whereExists(function ($q) use ($salonId) {
-                $q->select(DB::raw(1))->from('tahsilatlar')
-                    ->whereRaw('tahsilatlar.user_id = musteri_portfoy.user_id')
-                    ->where('tahsilatlar.salon_id', $salonId)
-                    ->groupBy('tahsilatlar.user_id')
-                    ->havingRaw('COUNT(*) >= 3');
+            $query->whereExists(function ($q) use ($salonId, $silindiVar) {
+                $q->select(DB::raw(1))->from('adisyonlar')
+                    ->whereRaw('adisyonlar.user_id = musteri_portfoy.user_id')
+                    ->where('adisyonlar.salon_id', $salonId);
+                if ($silindiVar) $q->whereRaw('IFNULL(adisyonlar.silindi,0)=0');
+                $q->groupBy('adisyonlar.user_id')->havingRaw('COUNT(*) >= 3');
             });
         }
 
-        // 3) Belirli gun gelmeyenler (son gelis = MAX(randevular.tarih) < now()-N)
-        //    MAX NULL (hic randevu yok) ise NULL<tarih=false -> otomatik dislanir.
+        // 3) Belirli gun gelmeyenler. "Son gelis" = musterinin GERCEKTEN geldigi/islem
+        //    yaptigi son tarih = en son adisyonun tarihi (COALESCE(tarih,created_at)).
+        //    Iptal/gelinmeyen randevular SAYILMAZ (adisyon = gercek gelis). Hic adisyonu
+        //    olmayan (MAX NULL) bu filtreye girmez; onlar zaten "Pasif" segmentidir.
         $gelmeyen = $f['gelmeyen'] ?? '';
         if (in_array((int) $gelmeyen, [15, 30, 60, 90], true)) {
             $sinir = Carbon::now()->subDays((int) $gelmeyen)->toDateString();
             $query->whereRaw(
-                '(SELECT MAX(r.tarih) FROM randevular r WHERE r.user_id = musteri_portfoy.user_id AND r.salon_id = ?) < ?',
+                '(SELECT MAX(COALESCE(adisyonlar.tarih, adisyonlar.created_at)) FROM adisyonlar WHERE adisyonlar.user_id = musteri_portfoy.user_id AND adisyonlar.salon_id = ?' . $silindiSql . ') < ?',
                 [$salonId, $sinir]
             );
         }
 
-        // 4) Satis yapilmis / yapilmamis (tahsilat var/yok)
+        // 4) Satis yapilmis / yapilmamis = en az bir adisyonu (satis fisi) var/yok.
         $satis = $f['satis'] ?? '';
         if ($satis === 'var') {
-            $query->whereExists(function ($q) use ($salonId) {
-                $q->select(DB::raw(1))->from('tahsilatlar')
-                    ->whereRaw('tahsilatlar.user_id = musteri_portfoy.user_id')
-                    ->where('tahsilatlar.salon_id', $salonId);
+            $query->whereExists(function ($q) use ($salonId, $silindiVar) {
+                $q->select(DB::raw(1))->from('adisyonlar')
+                    ->whereRaw('adisyonlar.user_id = musteri_portfoy.user_id')
+                    ->where('adisyonlar.salon_id', $salonId);
+                if ($silindiVar) $q->whereRaw('IFNULL(adisyonlar.silindi,0)=0');
             });
         } elseif ($satis === 'yok') {
-            $query->whereNotExists(function ($q) use ($salonId) {
-                $q->select(DB::raw(1))->from('tahsilatlar')
-                    ->whereRaw('tahsilatlar.user_id = musteri_portfoy.user_id')
-                    ->where('tahsilatlar.salon_id', $salonId);
+            $query->whereNotExists(function ($q) use ($salonId, $silindiVar) {
+                $q->select(DB::raw(1))->from('adisyonlar')
+                    ->whereRaw('adisyonlar.user_id = musteri_portfoy.user_id')
+                    ->where('adisyonlar.salon_id', $salonId);
+                if ($silindiVar) $q->whereRaw('IFNULL(adisyonlar.silindi,0)=0');
             });
         }
 
