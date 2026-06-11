@@ -4512,6 +4512,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 ->pluck('hizmet_id')
                 ->map(function ($v) { return (int)$v; })
                 ->all();
+            $aktifVar = Schema::hasColumn('salon_sunulan_hizmetler', 'aktif');
             $eklenen = 0;
             foreach ($kaynakHizmetler as $kh) {
                 if (in_array((int)$kh->hizmet_id, $mevcutHizmetIdler, true)) {
@@ -4524,6 +4525,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $yeni->baslangic_fiyat    = $kh->baslangic_fiyat;
                 $yeni->son_fiyat          = $kh->son_fiyat;
                 $yeni->bolum              = $kh->bolum;
+                if ($aktifVar) {
+                    $yeni->aktif = 1;
+                }
                 $yeni->save();
                 $mevcutHizmetIdler[] = (int)$kh->hizmet_id;
                 $eklenen++;

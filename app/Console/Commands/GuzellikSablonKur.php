@@ -122,6 +122,7 @@ class GuzellikSablonKur extends Command
 
         $sablonId = $sablon ? $sablon->id : null; // dry-run'da salon yoksa null olabilir
         $hizmetTuruVar = Schema::hasColumn('hizmetler', 'salon_turu_id');
+        $aktifVar = Schema::hasColumn('salon_sunulan_hizmetler', 'aktif');
 
         $yeniKategori = 0;
         $yeniHizmet   = 0;
@@ -183,6 +184,9 @@ class GuzellikSablonKur extends Command
                         $sh->hizmet_kategori_id = $kategoriId;
                         $sh->baslangic_fiyat    = 0;
                         $sh->son_fiyat          = 0;
+                        if ($aktifVar) {
+                            $sh->aktif = 1;
+                        }
                         $sh->save();
                         $yeniSablonH++;
                     }
@@ -194,6 +198,10 @@ class GuzellikSablonKur extends Command
         if ($dryRun) {
             $this->info('DRY-RUN bitti. Yukaridakiler uygulanacak.');
         } else {
+            // Mevcut sablon satirlarini da garanti aktif yap (onceki kurulumlar icin)
+            if ($aktifVar) {
+                SalonHizmetler::where('salon_id', $sablon->id)->update(['aktif' => 1]);
+            }
             $toplam = SalonHizmetler::where('salon_id', $sablon->id)->count();
             $this->info("Bitti. Yeni: {$yeniKategori} kategori, {$yeniHizmet} hizmet, {$yeniSablonH} sablon hizmet.");
             $this->info("Sablon salon (id={$sablon->id}) toplam {$toplam} hizmet iceriyor.");
