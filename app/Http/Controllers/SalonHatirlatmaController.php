@@ -238,7 +238,9 @@ class SalonHatirlatmaController extends Controller
         $isim = optional($musteriler->first())->name ?? 'Yeni misafir';
 
         return [
-            'id'       => 'yeni_musteri_' . md5($altSinir),
+            // NOT: id SABIT olmali. Eskiden md5($altSinir) idi; $altSinir her saniye
+            // degistigi icin her feed'de yeni id uretiyor, toast'lar ust uste birikiyordu.
+            'id'       => 'yeni_musteri',
             'tip'      => 'yeni_musteri',
             'oncelik'  => 2,
             'tema'     => 'konfeti-parti',
