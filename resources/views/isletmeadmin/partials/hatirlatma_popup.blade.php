@@ -14,7 +14,7 @@
 <div id="salon-hatirlatma-toaster" aria-live="polite" aria-atomic="true"></div>
 
 <div id="salon-hatirlatma-bigpopup" role="dialog" aria-modal="true">
-    <div class="sht-popup-card" onclick="event.stopPropagation();">
+    <div class="sht-popup-card">
         <div class="sht-popup-header">
             <h2 id="sht-popup-baslik">Bugün Yapılacaklar</h2>
             <p id="sht-popup-altbaslik">Salonunuz için biriken hatırlatmalar.</p>
