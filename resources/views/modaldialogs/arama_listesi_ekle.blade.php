@@ -293,7 +293,7 @@ function filtreUygula() {
   $.ajax({
     url: '/isletmeyonetim/arama_filtre_onizleme',
     method: 'POST',
-    data: $.extend({}, getFiltre(), { page: 1, perPage: perPage, _token: $('input[name="_token"]').val() }),
+    data: $.extend({}, getFiltre(), { page: 1, perPage: perPage, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() }),
     success: function (res) {
       $('.loading-filtre').hide();
       totalCustomers = res.total;
@@ -328,7 +328,7 @@ function loadMore(page) {
   $.ajax({
     url: '/isletmeyonetim/arama_filtre_onizleme',
     method: 'POST',
-    data: $.extend({}, getFiltre(), { page: page, perPage: perPage, _token: $('input[name="_token"]').val() }),
+    data: $.extend({}, getFiltre(), { page: page, perPage: perPage, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() }),
     success: function (res) { renderCustomers(res.customers, true); },
     complete: function () { isLoading = false; $('.loading').hide(); }
   });
@@ -398,7 +398,7 @@ $(document).ready(function () {
   $('#selectAllBtn').click(function () {
     $.ajax({
       url: '/isletmeyonetim/arama_filtre_onizleme', method: 'POST',
-      data: $.extend({}, getFiltre(), { page: 1, perPage: 1, _token: $('input[name="_token"]').val() }),
+      data: $.extend({}, getFiltre(), { page: 1, perPage: 1, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() }),
       success: function (res) {
         selectedIds = new Set((res.musteriIdler || []).map(Number));
         $('#customerList input.customer-checkbox').prop('checked', true);
