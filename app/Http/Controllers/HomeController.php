@@ -2796,37 +2796,36 @@ $salon = Salonlar::where('domain', $domain)->first();
     }
     public function sitemap(Request $request)
     {
-        $domain = str_replace('www.', '', $_SERVER['HTTP_HOST']);
-        $salon = Salonlar::where('domain', $domain)->first();
-        if (!$salon) {
-            abort(404);
-        }
+        // Her isletme domaini icin DINAMIK, kendiliginden olusan sitemap.
+        // Hedef: yalnizca ana (acilan) sayfa arama sonuclarinda gorunsun.
+        // Alt sayfalar canonical ile ana sayfada birlestigi icin listelenmez.
+        // Hangi durumda olursa olsun gecerli bir XML doner (asla 500 vermez).
+        try {
+            $host   = 'https://' . $_SERVER['HTTP_HOST'];
+            $domain = str_replace('www.', '', $_SERVER['HTTP_HOST']);
+            $salon  = Salonlar::where('domain', $domain)->first();
 
-        $aramaterimleri = AramaTerimleri::where('salon_id', $salon->id)->get();
-        $host = 'https://' . $_SERVER['HTTP_HOST'];
-        $urls = [
-            ['loc' => $host . '/', 'priority' => '1.0', 'changefreq' => 'weekly'],
-        ];
-
-        if ($salon->il_id && $salon->ilce_id && $salon->salon_turu_id) {
-            $turu    = self::turkishSlug(optional(SalonTuru::find($salon->salon_turu_id))->salon_turu_adi ?? 'isletme');
-            $il      = self::turkishSlug(optional(Iller::find($salon->il_id))->il_adi ?? '');
-            $ilce    = self::turkishSlug(optional(Ilceler::find($salon->ilce_id))->ilce_adi ?? '');
-            $salonAdi = self::turkishSlug($salon->salon_adi);
-
-            foreach ($aramaterimleri as $keyword) {
-                $arama = self::turkishSlug($keyword->arama_terimi);
-                $urls[] = [
-                    'loc'        => "{$host}/{$turu}/{$il}/{$ilce}/{$salon->id}/{$salonAdi}/{$arama}/{$keyword->id}",
-                    'priority'   => '0.8',
-                    'changefreq' => 'weekly',
-                ];
+            $lastmod = date('Y-m-d');
+            if ($salon && !empty($salon->updated_at)) {
+                try { $lastmod = \Carbon\Carbon::parse($salon->updated_at)->format('Y-m-d'); } catch (\Throwable $e) {}
             }
-        }
 
-        return response()
-            ->view('sitemap', ['urls' => $urls])
-            ->header('Content-Type', 'application/xml');
+            $urls = [
+                ['loc' => $host . '/', 'priority' => '1.0', 'changefreq' => 'weekly', 'lastmod' => $lastmod],
+            ];
+
+            return response()
+                ->view('sitemap', ['urls' => $urls])
+                ->header('Content-Type', 'application/xml');
+        } catch (\Throwable $e) {
+            // Beklenmedik bir hata olsa bile en azindan anasayfayi iceren gecerli sitemap don.
+            $host = 'https://' . ($_SERVER['HTTP_HOST'] ?? '');
+            $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+                  . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n"
+                  . '  <url><loc>' . $host . '/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>' . "\n"
+                  . '</urlset>';
+            return response($xml, 200)->header('Content-Type', 'application/xml');
+        }
     }
 
     public function robots(Request $request)
