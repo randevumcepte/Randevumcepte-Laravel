@@ -32,6 +32,22 @@
         try { sessionStorage.setItem(POPUP_KAPATILDI_KEY, '1'); } catch(e){}
     }
 
+    // Tiklanan / kapatilan toast'lar oturum boyu hatirlanir; sayfa yenilense bile geri gelmez.
+    // (Hatirlatmanin asil isi cozulunce sayac/anahtar degisir, o zaman yine gosterilir.)
+    var TOAST_KAPATILDI_KEY = 'sht_toast_kapatildi_' + SALON_ID;
+    function kapatilanToastlar(){
+        try { return JSON.parse(sessionStorage.getItem(TOAST_KAPATILDI_KEY) || '[]'); } catch(e){ return []; }
+    }
+    function toastKapatildiMi(anahtar){
+        return kapatilanToastlar().indexOf(anahtar) !== -1;
+    }
+    function toastKapatildiIsaretle(anahtar){
+        try {
+            var arr = kapatilanToastlar();
+            if (arr.indexOf(anahtar) === -1) { arr.push(anahtar); sessionStorage.setItem(TOAST_KAPATILDI_KEY, JSON.stringify(arr)); }
+        } catch(e){}
+    }
+
     function fetchFeed(force){
         var url = FEED_URL + (force ? '&refresh=1' : '');
         $.ajax({
@@ -56,6 +72,7 @@
         liste.forEach(function(h){
             var anahtar = h.id + ':' + (h.sayac || 0);
             if (GOSTERILEN_TOAST[anahtar]) return;
+            if (toastKapatildiMi(anahtar)) return; // bu oturumda tiklandi/kapatildi
             GOSTERILEN_TOAST[anahtar] = Date.now();
             setTimeout(function(){ toastGoster(h); }, sirada * 350);
             sirada++;
@@ -79,10 +96,14 @@
         });
         $el.on('click', function(e){
             if ($(e.target).is('.sht-kapat')) return;
-            if (h.link) window.location.href = h.link;
+            if (h.link) {
+                toastKapatildiIsaretle(anahtar); // gidince geri gelmesin
+                window.location.href = h.link;
+            }
         });
         $el.find('.sht-kapat').on('click', function(e){
             e.stopPropagation();
+            toastKapatildiIsaretle(anahtar); // kapatilinca geri gelmesin
             $el.removeClass('show');
             setTimeout(function(){ $el.remove(); }, 400);
         });
