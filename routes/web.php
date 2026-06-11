@@ -560,6 +560,7 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     // Salonlar
     Route::get('/salonlar', 'PanelController@salonlar')->name('sistemyonetim.v2.salonlar');
     Route::get('/salon/{id}', 'PanelController@salonDetay')->name('sistemyonetim.v2.salon');
+    Route::post('/salon/{id}/bilgi-guncelle', 'PanelController@salonBilgiGuncelle');
     Route::post('/salon/{id}/askiya-al', 'PanelController@salonAskiyaAl');
     Route::post('/salon/{id}/aktif-et', 'PanelController@salonAktifEt');
     Route::post('/salon/{id}/mt-ata', 'PanelController@salonMusteriTemsilcisiAta');

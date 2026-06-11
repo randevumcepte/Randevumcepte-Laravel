@@ -4,6 +4,19 @@
 
 @php
     $rol = Auth::guard('sistemyonetim')->user()->rol ?? (Auth::guard('sistemyonetim')->user()->admin == 1 ? 'super_admin' : 'destek');
+    $duzenleyebilir = in_array($rol, ['super_admin', 'yonetici']);
+
+    // Sifir tarih (0000-00-00) ve bozuk degerlerde Carbon::parse 500 atiyor — guvenli formatlayicilar
+    $fmtTarih = function ($v, $fmt = 'd.m.Y H:i') {
+        if (empty($v)) return '—';
+        if (substr((string) $v, 0, 4) === '0000') return '—';
+        try { return \Carbon\Carbon::parse($v)->format($fmt); } catch (\Throwable $e) { return '—'; }
+    };
+    $diffTarih = function ($v) {
+        if (empty($v)) return '';
+        if (substr((string) $v, 0, 4) === '0000') return '';
+        try { return \Carbon\Carbon::parse($v)->diffForHumans(); } catch (\Throwable $e) { return ''; }
+    };
 @endphp
 
 <div class="sy-page-head">
@@ -18,7 +31,7 @@
         <div class="subtitle">
             {{ optional($salon->il)->il_adi }} / {{ optional($salon->ilce)->ilce_adi }} ·
             ID: {{ $salon->id }} ·
-            Kayıt: {{ \Carbon\Carbon::parse($salon->created_at)->format('d.m.Y') }}
+            Kayıt: {{ $fmtTarih($salon->created_at, 'd.m.Y') }}
         </div>
     </div>
     <div class="sy-flex-row">
@@ -88,6 +101,135 @@
     <div class="sy-metric {{ $istatistik['whatsapp_aktif'] ? 'success' : '' }}"><div class="icon-bg mdi mdi-whatsapp"></div><div class="label">WhatsApp</div><div class="value">{{ $istatistik['whatsapp_aktif'] ? 'Aktif' : 'Pasif' }}</div></div>
 </div>
 
+@if($duzenleyebilir)
+<!-- Isletme bilgileri — duzenlenebilir -->
+<div class="sy-card sy-mt-12">
+    <div class="sy-card-head">
+        <h3><span class="mdi mdi-store-edit"></span> İşletme Bilgileri</h3>
+        <span class="sy-text-muted sy-fs-12">Tüm temel bilgileri buradan güncelleyebilirsiniz</span>
+    </div>
+    <div class="sy-card-body">
+        <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/bilgi-guncelle">
+            @csrf
+
+            <div class="sy-form-group">
+                <label>Salon Adı</label>
+                <input type="text" name="salon_adi" class="sy-input" value="{{ $salon->salon_adi }}" required>
+            </div>
+
+            <div class="sy-form-row">
+                <div class="sy-form-group">
+                    <label>İl</label>
+                    <select name="il_id" id="sy-il-select" class="sy-select">
+                        <option value="">Seçiniz</option>
+                        @foreach($iller as $il)
+                            <option value="{{ $il->id }}" {{ $salon->il_id == $il->id ? 'selected' : '' }}>{{ $il->il_adi }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="sy-form-group">
+                    <label>İlçe</label>
+                    <select name="ilce_id" id="sy-ilce-select" class="sy-select">
+                        <option value="">Seçiniz</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sy-form-row">
+                <div class="sy-form-group">
+                    <label>İşletme Türü</label>
+                    <select name="salon_turu_id" class="sy-select">
+                        <option value="">Seçiniz</option>
+                        @foreach($salonTurleri as $st)
+                            <option value="{{ $st->id }}" {{ $salon->salon_turu_id == $st->id ? 'selected' : '' }}>{{ $st->salon_turu_adi }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="sy-form-group">
+                    <label>Domain <span class="sy-text-muted sy-fs-12">(online randevu mini web sitesi)</span></label>
+                    <input type="text" name="domain" class="sy-input" value="{{ $salon->domain }}" placeholder="ornek.randevumcepte.com.tr">
+                </div>
+            </div>
+
+            <div class="sy-form-group">
+                <label>Adres</label>
+                <textarea name="adres" class="sy-textarea" rows="2">{{ $salon->adres }}</textarea>
+            </div>
+
+            <div class="sy-form-row">
+                <div class="sy-form-group">
+                    <label>İşletme Telefon 1</label>
+                    <input type="text" name="telefon_1" class="sy-input" value="{{ $salon->telefon_1 }}">
+                </div>
+                <div class="sy-form-group">
+                    <label>İşletme Telefon 2</label>
+                    <input type="text" name="telefon_2" class="sy-input" value="{{ $salon->telefon_2 }}">
+                </div>
+                <div class="sy-form-group">
+                    <label>İşletme Telefon 3</label>
+                    <input type="text" name="telefon_3" class="sy-input" value="{{ $salon->telefon_3 }}">
+                </div>
+            </div>
+
+            <div class="sy-form-row">
+                <div class="sy-form-group">
+                    <label>Yetkili Adı</label>
+                    <input type="text" name="yetkili_adi" class="sy-input" value="{{ $salon->yetkili_adi }}">
+                </div>
+                <div class="sy-form-group">
+                    <label>Yetkili Telefon</label>
+                    <input type="text" name="yetkili_telefon" class="sy-input" value="{{ $salon->yetkili_telefon }}">
+                </div>
+                <div class="sy-form-group">
+                    <label>Yetkili Mail</label>
+                    <input type="email" name="yetkili_mail" class="sy-input" value="{{ $salon->yetkili_mail }}">
+                </div>
+            </div>
+
+            <div class="sy-form-group">
+                <label>Açıklama</label>
+                <textarea name="aciklama" class="sy-textarea" rows="2">{{ $salon->aciklama }}</textarea>
+            </div>
+
+            <div class="sy-divider" style="margin:18px 0;border-top:1px solid var(--sy-border)"></div>
+            <div class="sy-text-muted sy-fs-12" style="text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Mobil Uygulama Linkleri</div>
+
+            <div class="sy-form-group">
+                <label><span class="mdi mdi-android"></span> Android Uygulama Linki</label>
+                <input type="text" name="android_uygulama" class="sy-input" value="{{ $salon->android_uygulama }}" placeholder="https://play.google.com/...">
+            </div>
+            <div class="sy-form-group">
+                <label><span class="mdi mdi-apple"></span> iOS Uygulama Linki</label>
+                <input type="text" name="ios_uygulama" class="sy-input" value="{{ $salon->ios_uygulama }}" placeholder="https://apps.apple.com/...">
+            </div>
+            <div class="sy-form-group">
+                <label><span class="mdi mdi-cellphone"></span> Huawei Uygulama Linki</label>
+                <input type="text" name="huawei_uygulama" class="sy-input" value="{{ $salon->huawei_uygulama }}" placeholder="https://appgallery.huawei.com/...">
+            </div>
+
+            <div class="sy-form-row">
+                <div class="sy-form-group">
+                    <label>Android Son Versiyon</label>
+                    <input type="text" name="android_son_versiyon" class="sy-input" maxlength="5" value="{{ $salon->android_son_versiyon }}" placeholder="1.0.0">
+                </div>
+                <div class="sy-form-group">
+                    <label>iOS Son Versiyon</label>
+                    <input type="text" name="ios_son_versiyon" class="sy-input" maxlength="5" value="{{ $salon->ios_son_versiyon }}" placeholder="1.0.0">
+                </div>
+                <div class="sy-form-group">
+                    <label>Huawei Son Versiyon</label>
+                    <input type="text" name="huawei_son_versiyon" class="sy-input" maxlength="5" value="{{ $salon->huawei_son_versiyon }}" placeholder="1.0.0">
+                </div>
+            </div>
+
+            <div class="sy-flex-row" style="justify-content:flex-end;margin-top:8px">
+                <button class="sy-btn sy-btn-primary"><span class="mdi mdi-content-save"></span> Bilgileri Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
+
 <div class="sy-grid-2-1">
     <div class="sy-stack">
         <!-- Salon notlari -->
@@ -136,7 +278,7 @@
                                     · <span class="sy-badge sy-badge-muted">{{ $n->tip }}</span>
                                     @if($n->pinned)<span class="sy-badge sy-badge-warning"><span class="mdi mdi-pin"></span> Sabit</span>@endif
                                 </div>
-                                <div class="sy-text-soft">{{ \Carbon\Carbon::parse($n->created_at)->diffForHumans() }}</div>
+                                <div class="sy-text-soft">{{ $diffTarih($n->created_at) }}</div>
                             </div>
                             @if($n->baslik)<div class="baslik">{{ $n->baslik }}</div>@endif
                             <div>{!! nl2br(e($n->icerik)) !!}</div>
@@ -170,7 +312,7 @@
                             <span class="sy-badge sy-badge-{{ $t->durum=='cozumlendi'||$t->durum=='kapali' ? 'success' : ($t->oncelik=='acil'?'danger':'info') }}">{{ $t->durum }}</span>
                         </div>
                         <div class="sy-fs-13">{{ \Illuminate\Support\Str::limit($t->konu, 70) }}</div>
-                        <div class="sy-text-muted sy-fs-12">{{ \Carbon\Carbon::parse($t->created_at)->format('d.m.Y H:i') }}</div>
+                        <div class="sy-text-muted sy-fs-12">{{ $fmtTarih($t->created_at, 'd.m.Y H:i') }}</div>
                     </a>
                 @empty
                     <div class="sy-empty"><div class="baslik">Talep yok</div></div>
@@ -180,7 +322,8 @@
     </div>
 
     <div class="sy-stack">
-        <!-- Iletisim -->
+        @unless($duzenleyebilir)
+        <!-- Iletisim (salt okunur — duzenleme yetkisi olmayan roller icin) -->
         <div class="sy-card">
             <div class="sy-card-head"><h3><span class="mdi mdi-card-account-details"></span> İletişim</h3></div>
             <div class="sy-card-body">
@@ -192,6 +335,7 @@
                 </div>
             </div>
         </div>
+        @endunless
 
         <!-- Yetkililer -->
         <div class="sy-card">
@@ -249,7 +393,7 @@
             <div class="sy-card-body tight">
                 @forelse($impersonationGecmisi as $i)
                     <div style="padding:10px 18px; border-bottom:1px solid var(--sy-border); font-size:12.5px">
-                        <strong>{{ $i->user_name }}</strong> · {{ \Carbon\Carbon::parse($i->baslangic_tarihi)->format('d.m.Y H:i') }}
+                        <strong>{{ $i->user_name }}</strong> · {{ $fmtTarih($i->baslangic_tarihi, 'd.m.Y H:i') }}
                         <div class="sy-text-muted sy-fs-12">{{ $i->sebep ?: '—' }}</div>
                     </div>
                 @empty
@@ -259,5 +403,34 @@
         </div>
     </div>
 </div>
+
+@if($duzenleyebilir)
+<script>
+(function () {
+    var ilceData = {!! json_encode($ilceler->map(function ($i) { return ['id' => (int) $i->id, 'il_id' => (int) $i->il_id, 'ad' => $i->ilce_adi]; })->values()) !!};
+    var ilSel = document.getElementById('sy-il-select');
+    var ilceSel = document.getElementById('sy-ilce-select');
+    var seciliIlce = {{ (int) ($salon->ilce_id ?? 0) }};
+    if (!ilSel || !ilceSel) return;
+
+    function doldur() {
+        var il = parseInt(ilSel.value, 10) || 0;
+        ilceSel.innerHTML = '<option value="">Seçiniz</option>';
+        for (var k = 0; k < ilceData.length; k++) {
+            var d = ilceData[k];
+            if (d.il_id === il) {
+                var o = document.createElement('option');
+                o.value = d.id;
+                o.textContent = d.ad;
+                if (d.id === seciliIlce) o.selected = true;
+                ilceSel.appendChild(o);
+            }
+        }
+    }
+    ilSel.addEventListener('change', function () { seciliIlce = 0; doldur(); });
+    doldur();
+})();
+</script>
+@endif
 
 @endsection

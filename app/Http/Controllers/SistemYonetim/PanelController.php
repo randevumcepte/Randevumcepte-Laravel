@@ -251,6 +251,11 @@ class PanelController extends Controller
             return \App\SistemYonetim\SaglikSkoru::hesapla($id);
         });
 
+        // Duzenleme formu icin: il / ilce / salon turu listeleri (eager-load yuku olmadan)
+        $iller = DB::table('il')->orderBy('il_adi')->get(['id', 'il_adi']);
+        $ilceler = DB::table('ilce')->orderBy('ilce_adi')->get(['id', 'il_id', 'ilce_adi']);
+        $salonTurleri = DB::table('salon_turu')->orderBy('salon_turu_adi')->get(['id', 'salon_turu_adi']);
+
         return view('sistemyonetim.v2.salon-detay', [
             'title' => $salon->salon_adi,
             'aktifMenu' => 'salonlar',
@@ -263,7 +268,60 @@ class PanelController extends Controller
             'musteriTemsilcileri' => $musteriTemsilcileri,
             'istatistik' => $istatistik,
             'saglik' => $saglik,
+            'iller' => $iller,
+            'ilceler' => $ilceler,
+            'salonTurleri' => $salonTurleri,
         ]);
+    }
+
+    /**
+     * Salon temel isletme bilgilerini gunceller (v2 panel, salon detay).
+     * Mass-assignment guard'ina takilmamak icin alanlar tek tek atanir.
+     */
+    public function salonBilgiGuncelle(Request $request, $id)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $salon = Salonlar::findOrFail($id);
+
+        $temizle = function ($v) {
+            $v = is_string($v) ? trim($v) : $v;
+            return ($v === '' || $v === null) ? null : $v;
+        };
+
+        // Salon adi bos birakilmasin
+        $yeniAd = $temizle($request->get('salon_adi'));
+        if ($yeniAd !== null) {
+            $salon->salon_adi = $yeniAd;
+        }
+
+        $salon->domain          = $temizle($request->get('domain'));
+        $salon->il_id           = $temizle($request->get('il_id'));
+        $salon->ilce_id         = $temizle($request->get('ilce_id'));
+        $salon->salon_turu_id   = $temizle($request->get('salon_turu_id'));
+        $salon->adres           = $temizle($request->get('adres'));
+        $salon->telefon_1       = $temizle($request->get('telefon_1'));
+        $salon->telefon_2       = $temizle($request->get('telefon_2'));
+        $salon->telefon_3       = $temizle($request->get('telefon_3'));
+        $salon->yetkili_adi     = $temizle($request->get('yetkili_adi'));
+        $salon->yetkili_telefon = $temizle($request->get('yetkili_telefon'));
+        $salon->yetkili_mail    = $temizle($request->get('yetkili_mail'));
+        $salon->aciklama        = $temizle($request->get('aciklama'));
+
+        $salon->android_uygulama = $temizle($request->get('android_uygulama'));
+        $salon->ios_uygulama     = $temizle($request->get('ios_uygulama'));
+        $salon->huawei_uygulama  = $temizle($request->get('huawei_uygulama'));
+
+        // varchar(5) — fazlasini kirp
+        $salon->android_son_versiyon = $temizle(mb_substr((string) $request->get('android_son_versiyon'), 0, 5));
+        $salon->ios_son_versiyon     = $temizle(mb_substr((string) $request->get('ios_son_versiyon'), 0, 5));
+        $salon->huawei_son_versiyon  = $temizle(mb_substr((string) $request->get('huawei_son_versiyon'), 0, 5));
+
+        $degisen = array_keys($salon->getDirty());
+        $salon->save();
+
+        Audit::log('salon_bilgi_guncelle', 'salon', $salon->id, $salon->salon_adi, 'Temel işletme bilgileri güncellendi', ['degisen' => $degisen]);
+
+        return redirect()->back()->with('basari', 'İşletme bilgileri güncellendi.');
     }
 
     public function salonAskiyaAl(Request $request, $id)
