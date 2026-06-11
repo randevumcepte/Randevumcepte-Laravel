@@ -26514,6 +26514,21 @@ DB::raw('
 }
 
     /**
+     * Cagri Merkezi: arama listesi atanabilecek personeller (login hesabi olan = yetkili_id dolu,
+     * aktif). Modaldaki "Personel" dropdown'unu yazmadan, dogrudan doldurmak icin.
+     */
+    public function arama_personelleri(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $personeller = Personeller::where('salon_id', $salonId)
+            ->where('aktif', true)
+            ->whereNotNull('yetkili_id')
+            ->orderBy('personel_adi')
+            ->get(['id', 'personel_adi']);
+        return response()->json($personeller);
+    }
+
+    /**
      * Cagri Merkezi: filtre onizlemesi. Filtreye uyan musteri sayisi + sayfali liste doner.
      * Modaldaki canli "X musteri eslesti" sayaci ve secilebilir liste icin kullanilir.
      */

@@ -135,8 +135,8 @@
                   </div>
                   <div>
                      <label>Atanacak Personel</label>
-                     <select name="aramapersoneli" id="aramapersoneli" class="form-control opsiyonelSelect personel_secimi" style="width:100%;">
-                        <option></option>
+                     <select name="aramapersoneli" id="aramapersoneli" class="form-control" style="width:100%;">
+                        <option value="">Yükleniyor…</option>
                      </select>
                   </div>
                   <div>
@@ -441,8 +441,26 @@ function filtreBagimliliklari() {
 
 var debouncedFiltre = debounce(filtreUygula, 250);
 
+// Atanacak personelleri (login hesabi olan aktif personel) dropdown'a doldur
+function personelleriYukle() {
+  $.get('/isletmeyonetim/arama-personelleri', { sube: $('input[name="sube"]').val() }, function (list) {
+    var $sel = $('#aramapersoneli');
+    $sel.empty().append('<option value="">Personel seçin…</option>');
+    if (!list || !list.length) {
+      $sel.append('<option value="" disabled>Uygun personel bulunamadı</option>');
+      return;
+    }
+    list.forEach(function (p) {
+      $sel.append('<option value="' + p.id + '">' + (p.personel_adi || ('#' + p.id)) + '</option>');
+    });
+  }).fail(function () {
+    $('#aramapersoneli').empty().append('<option value="">Personel yüklenemedi</option>');
+  });
+}
+
 $(document).ready(function () {
   filtreBagimliliklari();
+  personelleriYukle();
   filtreUygula();
 
   $('#f_kayit').on('change', function () {
@@ -510,6 +528,16 @@ $(document).ready(function () {
 
   $('#arama_listesi_formu').on('submit', function (e) {
     e.preventDefault();
+    if (!$('#aramapersoneli').val()) {
+      swal({ type: "warning", title: "Personel seçin", text: "Listeyi oluşturmadan önce aramayı yapacak personeli seçin." });
+      $('#aramapersoneli').focus();
+      return;
+    }
+    if (!$('#arama_basligi').val().trim()) {
+      swal({ type: "warning", title: "Başlık girin", text: "Lütfen liste için bir başlık yazın (örn. 1. Gün)." });
+      $('#arama_basligi').focus();
+      return;
+    }
     if (selectedIds.size === 0) {
       swal({ type: "warning", title: "Uyarı", text: "Lütfen en az bir müşteri seçin." });
       return;

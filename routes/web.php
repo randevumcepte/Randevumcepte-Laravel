@@ -1185,6 +1185,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/aramaListesineSesKaydiEkle','StoreAdminController@aramaListesineSesKaydiEkle');
 	// Cagri Merkezi (Call Center) — Faz 1: filtre motoru + liste olusturma
 	Route::post('/arama_filtre_onizleme','StoreAdminController@arama_filtre_onizleme');
+	Route::get('/arama-personelleri','StoreAdminController@arama_personelleri');
 	// Cagri Merkezi — Faz 2: personel calisma alani + KVKK uyumlu arama baslatma
 	Route::get('/arama-listelerim','StoreAdminController@arama_listelerim');
 	Route::get('/arama-kartlarim','StoreAdminController@arama_kartlarim');
