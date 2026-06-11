@@ -3,7 +3,8 @@
 @section('content')
 
 @php
-    $tipRenk = ['bilgi'=>'info','uyari'=>'warning','onemli'=>'danger','bakim'=>'muted','kampanya'=>'success'];
+    $tipRenk = ['bilgi'=>'info','uyari'=>'warning','onemli'=>'danger','bakim'=>'muted','kampanya'=>'success','guncelleme'=>'info'];
+    $tipAd   = ['bilgi'=>'Bilgi','uyari'=>'Uyarı','onemli'=>'Önemli','bakim'=>'Bakım','kampanya'=>'Kampanya','guncelleme'=>'🚀 Güncelleme'];
     $hedefEt = ['hepsi'=>'Tüm Salonlar','secili'=>'Seçili Salonlar','il'=>'İle Göre'];
 @endphp
 
@@ -37,7 +38,7 @@
                             @if($d->sticky)<span class="sy-badge sy-badge-warning"><span class="mdi mdi-pin"></span></span>@endif
                             <div class="sy-text-muted sy-fs-12">{{ \Illuminate\Support\Str::limit(strip_tags($d->icerik), 80) }}</div>
                         </td>
-                        <td><span class="sy-badge sy-badge-{{ $tipRenk[$d->tip] ?? 'muted' }}">{{ $d->tip }}</span></td>
+                        <td><span class="sy-badge sy-badge-{{ $tipRenk[$d->tip] ?? 'muted' }}">{{ $tipAd[$d->tip] ?? $d->tip }}</span></td>
                         <td class="sy-fs-13">{{ $hedefEt[$d->hedef_tipi] ?? $d->hedef_tipi }}</td>
                         <td class="sy-fs-12 nowrap">
                             {{ $d->baslangic_tarihi ? \Carbon\Carbon::parse($d->baslangic_tarihi)->format('d.m.Y') : '—' }}

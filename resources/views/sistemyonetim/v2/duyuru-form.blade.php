@@ -49,12 +49,14 @@
                     <div class="sy-form-group">
                         <label>Tip *</label>
                         <select name="tip" class="sy-select">
+                            <option value="guncelleme" {{ $tip=='guncelleme'?'selected':'' }}>🚀 Güncelleme / Yenilik · ortada popup</option>
                             <option value="bilgi" {{ $tip=='bilgi'?'selected':'' }}>Bilgi · mavi</option>
                             <option value="uyari" {{ $tip=='uyari'?'selected':'' }}>Uyarı · sarı</option>
                             <option value="onemli" {{ $tip=='onemli'?'selected':'' }}>Önemli · kırmızı</option>
                             <option value="bakim" {{ $tip=='bakim'?'selected':'' }}>Bakım · gri</option>
                             <option value="kampanya" {{ $tip=='kampanya'?'selected':'' }}>Kampanya · yeşil</option>
                         </select>
+                        <div class="sy-text-muted sy-fs-12 sy-mt-12"><strong>🚀 Güncelleme / Yenilik</strong> tipi, salon paneline girişte <strong>ortada kaliteli bir popup</strong> olarak açılır ve salon "Anladım" deyince bir daha çıkmaz. Diğer tipler sağ üstte köşe bildirimi olarak gösterilir.</div>
                     </div>
                     <div class="sy-form-row">
                         <div class="sy-form-group">

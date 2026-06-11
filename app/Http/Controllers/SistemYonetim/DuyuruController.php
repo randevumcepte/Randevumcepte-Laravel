@@ -59,7 +59,7 @@ class DuyuruController extends Controller
         $this->validate($request, [
             'baslik' => 'required|min:2|max:200',
             'icerik' => 'required|min:2',
-            'tip'    => 'required|in:bilgi,uyari,onemli,bakim,kampanya',
+            'tip'    => 'required|in:bilgi,uyari,onemli,bakim,kampanya,guncelleme',
             'hedef_tipi' => 'required|in:hepsi,secili,il',
         ]);
 
@@ -117,7 +117,7 @@ class DuyuruController extends Controller
         $this->validate($request, [
             'baslik' => 'required|min:2|max:200',
             'icerik' => 'required|min:2',
-            'tip'    => 'required|in:bilgi,uyari,onemli,bakim,kampanya',
+            'tip'    => 'required|in:bilgi,uyari,onemli,bakim,kampanya,guncelleme',
             'hedef_tipi' => 'required|in:hepsi,secili,il',
         ]);
 

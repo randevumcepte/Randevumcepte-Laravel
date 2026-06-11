@@ -943,11 +943,14 @@
                }
             }
          } catch (\Exception $e) {}
-         $tipRenk = ['bilgi'=>['#e3eefb','#2a5793','#4a8bdc'],'uyari'=>['#fbf2dd','#876012','#d99a1f'],'onemli'=>['#fbe4e8','#8c2c39','#d04d5e'],'bakim'=>['#ededf3','#444','#777589'],'kampanya'=>['#e2f6ec','#1f7a4f','#2cae71']];
+         $tipRenk = ['bilgi'=>['#e3eefb','#2a5793','#4a8bdc'],'uyari'=>['#fbf2dd','#876012','#d99a1f'],'onemli'=>['#fbe4e8','#8c2c39','#d04d5e'],'bakim'=>['#ededf3','#444','#777589'],'kampanya'=>['#e2f6ec','#1f7a4f','#2cae71'],'guncelleme'=>['#eef2ff','#3730a3','#6366f1']];
+         // Guncelleme/yenilik duyurulari ortada kaliteli modal olarak; digerleri sag-ust kose toast'i olarak gosterilir
+         $guncellemeler = $aktifDuyurular->where('tip', 'guncelleme')->values();
+         $koseDuyurular = $aktifDuyurular->where('tip', '!=', 'guncelleme')->values();
       @endphp
-      @if($aktifDuyurular->count() > 0)
+      @if($koseDuyurular->count() > 0)
          <div id="rcDuyuruWrapper" style="position:fixed;top:8px;right:8px;z-index:99998;max-width:380px;display:flex;flex-direction:column;gap:8px">
-            @foreach($aktifDuyurular->take(3) as $d)
+            @foreach($koseDuyurular->take(3) as $d)
                @php $r = $tipRenk[$d->tip] ?? $tipRenk['bilgi']; @endphp
                <div data-duyuru-id="{{ $d->id }}" style="background:{{ $r[0] }};border-left:4px solid {{ $r[2] }};color:{{ $r[1] }};padding:12px 14px;border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,0.12);font-size:13px">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
@@ -979,6 +982,97 @@
             }).catch(()=>{});
          }
          </script>
+      @endif
+
+      {{-- Sistem Guncellemeleri — ortalanmis kaliteli modal (girisde 1 kez, "Anladim" deyince bir daha cikmaz) --}}
+      @if($guncellemeler->count() > 0)
+      <style>
+         .rc-gun-overlay{position:fixed;inset:0;z-index:100050;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);animation:rcGunFade .25s ease}
+         .rc-gun-modal{position:relative;width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;background:#fff;border-radius:20px;box-shadow:0 30px 70px rgba(15,23,42,.38);overflow:hidden;animation:rcGunPop .34s cubic-bezier(.16,1,.3,1)}
+         .rc-gun-kapat{position:absolute;top:15px;right:15px;width:34px;height:34px;border:none;border-radius:50%;background:rgba(255,255,255,.20);color:#fff;font-size:22px;line-height:30px;text-align:center;cursor:pointer;z-index:2;transition:background .2s;padding:0}
+         .rc-gun-kapat:hover{background:rgba(255,255,255,.34)}
+         .rc-gun-head{display:flex;gap:15px;align-items:center;padding:26px 24px;background:linear-gradient(135deg,#4f46e5 0%,#6366f1 55%,#818cf8 100%);color:#fff}
+         .rc-gun-ikon{flex:0 0 auto;width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:27px}
+         .rc-gun-rozet{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:1.3px;background:rgba(255,255,255,.22);padding:3px 9px;border-radius:999px;margin-bottom:6px}
+         .rc-gun-head h3{margin:0 0 3px;font-size:19px;font-weight:800;color:#fff;line-height:1.25}
+         .rc-gun-head p{margin:0;font-size:13px;opacity:.92}
+         .rc-gun-govde{padding:6px 24px 2px;overflow-y:auto}
+         .rc-gun-item{padding:18px 0;border-bottom:1px solid #eef0f4}
+         .rc-gun-item:last-child{border-bottom:none}
+         .rc-gun-item-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px}
+         .rc-gun-item-head h4{margin:0;font-size:15.5px;font-weight:700;color:#1e293b;line-height:1.35}
+         .rc-gun-tarih{flex:0 0 auto;font-size:11.5px;color:#94a3b8;font-weight:600;white-space:nowrap}
+         .rc-gun-item-text{font-size:13.5px;line-height:1.65;color:#475569}
+         .rc-gun-cta{display:inline-block;margin-top:11px;padding:7px 15px;border:1.5px solid #6366f1;color:#4f46e5;border-radius:9px;text-decoration:none;font-weight:600;font-size:13px;transition:all .2s}
+         .rc-gun-cta:hover{background:#4f46e5;color:#fff}
+         .rc-gun-footer{padding:16px 24px 22px;border-top:1px solid #eef0f4;display:flex;justify-content:flex-end;background:#fbfbfd}
+         .rc-gun-btn{display:inline-block;padding:11px 24px;border:none;border-radius:11px;background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 8px 18px rgba(79,70,229,.32);transition:transform .15s,box-shadow .2s}
+         .rc-gun-btn:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(79,70,229,.42)}
+         .rc-gun-btn:active{transform:translateY(0)}
+         @keyframes rcGunFade{from{opacity:0}to{opacity:1}}
+         @keyframes rcGunPop{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}
+         @media(max-width:560px){.rc-gun-head{padding:22px 18px}.rc-gun-govde{padding:6px 18px 2px}.rc-gun-footer{padding:14px 18px 18px}.rc-gun-btn{width:100%;text-align:center}}
+      </style>
+      <div id="rcGuncellemeOverlay" class="rc-gun-overlay" role="dialog" aria-modal="true" aria-labelledby="rcGunBaslik">
+         <div class="rc-gun-modal">
+            <button type="button" class="rc-gun-kapat" onclick="rcGuncellemeKapat()" aria-label="Kapat">&times;</button>
+            <div class="rc-gun-head">
+               <div class="rc-gun-ikon">🚀</div>
+               <div>
+                  <span class="rc-gun-rozet">YENİ</span>
+                  <h3 id="rcGunBaslik">Sistemde Yenilikler Var</h3>
+                  <p>Uygulamada yaptığımız son güncellemeler aşağıda.</p>
+               </div>
+            </div>
+            <div class="rc-gun-govde">
+               @foreach($guncellemeler as $d)
+                  <div class="rc-gun-item">
+                     <div class="rc-gun-item-head">
+                        <h4>{{ $d->baslik }}</h4>
+                        @if($d->created_at)<span class="rc-gun-tarih">{{ \Carbon\Carbon::parse($d->created_at)->format('d.m.Y') }}</span>@endif
+                     </div>
+                     <div class="rc-gun-item-text">{!! nl2br(e($d->icerik)) !!}</div>
+                     @if($d->cta_metin && $d->cta_link)
+                        <a href="{{ $d->cta_link }}" class="rc-gun-cta">{{ $d->cta_metin }} →</a>
+                     @endif
+                  </div>
+               @endforeach
+            </div>
+            <div class="rc-gun-footer">
+               <button type="button" class="rc-gun-btn" onclick="rcGuncellemeKapat()">✓ Anladım, Teşekkürler</button>
+            </div>
+         </div>
+      </div>
+      <script>
+      (function(){
+         var overlay = document.getElementById('rcGuncellemeOverlay');
+         if(!overlay) return;
+         var ids = [@foreach($guncellemeler as $d){{ $d->id }}@if(!$loop->last),@endif @endforeach];
+         var SKEY = 'rc_gun_acildi_' + ids.join('_');
+         try { if(sessionStorage.getItem(SKEY)){ overlay.parentNode && overlay.remove(); return; } } catch(e){}
+         var prevOverflow = document.body.style.overflow;
+         document.body.style.overflow = 'hidden';
+         var kapandi = false;
+         window.rcGuncellemeKapat = function(){
+            if(kapandi) return; kapandi = true;
+            try { sessionStorage.setItem(SKEY, '1'); } catch(e){}
+            overlay.style.transition = 'opacity .2s ease';
+            overlay.style.opacity = '0';
+            setTimeout(function(){ if(overlay && overlay.parentNode){ overlay.remove(); } document.body.style.overflow = prevOverflow; }, 200);
+            var t = document.querySelector('meta[name=csrf-token]');
+            var token = t ? t.content : '{{ csrf_token() }}';
+            ids.forEach(function(id){
+               fetch('/isletmeyonetim/duyuru/' + id + '/okundu', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+                  body: '{}'
+               }).catch(function(){});
+            });
+         };
+         overlay.addEventListener('click', function(e){ if(e.target === overlay) rcGuncellemeKapat(); });
+         document.addEventListener('keydown', function(e){ if(e.key === 'Escape' || e.keyCode === 27) rcGuncellemeKapat(); });
+      })();
+      </script>
       @endif
 
       <button style="display: none;" id="randevudetayigetir" data-toggle="modal" data-target="#randevu-duzenle-modal"></button>
