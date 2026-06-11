@@ -54,6 +54,11 @@
             <i class="fa fa-moon-o"></i> Pasif Müşteriler <span class="rc-mu-tab-count">{{ $odemeYapmayanlarSayisi }}</span>
          </button>
       </li>
+      <li class="nav-item">
+         <button class="rc-mu-tab" data-toggle="tab" href="#yeni-musteriler" role="tab" aria-selected="false">
+            <i class="fa fa-user-plus"></i> Yeni Eklenen Müşteriler <span class="rc-mu-tab-count">{{ $tumMusteriSayisi }}</span>
+         </button>
+      </li>
    </ul>
 
    <div class="tab-content rc-mu-tab-content">
@@ -143,6 +148,32 @@
          <div class="rc-mu-card">
             <div class="rc-mu-tablo-wrap">
                <table class="data-table table stripe hover nowrap rc-mu-table" id="musteri_tablo_pasif" style="width:100%">
+                  <thead>
+                     <tr>
+                        <th>Müşteri</th>
+                        <th>Telefon</th>
+                        <th>Kayıt Tarihi</th>
+                        <th>Son Randevusu</th>
+                        <th>Randevu Sayısı</th>
+                        <th>Toplam Alınan Ücret</th>
+                        <th class="datatable-nosort rc-mu-col-actions" data-label="İşlemler"></th>
+                     </tr>
+                  </thead>
+                  <tbody></tbody>
+               </table>
+            </div>
+         </div>
+      </div>
+
+      {{-- YENİ EKLENEN --}}
+      <div class="tab-pane fade show" id="yeni-musteriler" role="tab-panel">
+         <div class="rc-mu-note">
+            <i class="fa fa-info-circle"></i>
+            <div><b>Yeni eklenen müşteriler:</b> Tüm müşteriler en son eklenenden en eskiye doğru listelenir.</div>
+         </div>
+         <div class="rc-mu-card">
+            <div class="rc-mu-tablo-wrap">
+               <table class="data-table table stripe hover nowrap rc-mu-table" id="musteri_tablo_yeni" style="width:100%">
                   <thead>
                      <tr>
                         <th>Müşteri</th>
@@ -651,7 +682,7 @@
 /* DataTables responsive plugin'in eklediği sınıfları geri al + mobil yığın için
    her hücreye sütun başlığına göre data-label ekle (gizli kolon olsa bile kaymaz). */
 (function(){
-   var TABLES = ['#musteri_tablo', '#musteri_tablo_sadik', '#musteri_tablo_aktif', '#musteri_tablo_pasif'];
+   var TABLES = ['#musteri_tablo', '#musteri_tablo_sadik', '#musteri_tablo_aktif', '#musteri_tablo_pasif', '#musteri_tablo_yeni'];
 
    function applyLabels(sel){
       var $t = $(sel);

@@ -7829,8 +7829,12 @@ private function ayAdiCevir($ingilizceAy)
             case 3: // Tüm müşteriler
                 // Ek filtre gerekmez
                 break;
+
+            case 4: // Yeni eklenen müşteriler (tüm müşteriler, en yeniden eskiye)
+                // Ek filtre gerekmez; sıralama aşağıda kayıt tarihine göre yapılır.
+                break;
         }
-    
+
         // Arama filtresi
         if ($searchValue) {
             $query->where(function($q) use ($searchValue) {
@@ -7838,9 +7842,15 @@ private function ayAdiCevir($ingilizceAy)
                   ->orWhere('users.cep_telefon', 'like', '%'.$searchValue.'%');
             });
         }
-    
+
         // Sıralama ve sayfalama
-        $query->orderBy('users.id', 'desc');
+        if ($durum == 4) {
+            // En yeni eklenen müşteri en üstte
+            $query->orderBy('musteri_portfoy.created_at', 'desc')
+                  ->orderBy('musteri_portfoy.id', 'desc');
+        } else {
+            $query->orderBy('users.id', 'desc');
+        }
         $musteriler = $query->paginate($length, ['*'], 'page', $currentPage);
     
         // Toplu randevu bilgilerini al (N+1 problemini önlemek için)

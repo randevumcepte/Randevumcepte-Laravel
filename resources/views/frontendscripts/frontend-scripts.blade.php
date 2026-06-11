@@ -628,11 +628,54 @@
                            searchPlaceholder: "Ara",
                            paginate: {
                                next: '<i class="ion-chevron-right"></i>',
-                               previous: '<i class="ion-chevron-left"></i>'  
+                               previous: '<i class="ion-chevron-left"></i>'
                            }
-                        }, 
+                        },
                      });
-                      
+                     var yenitablo = $('#musteri_tablo_yeni').DataTable({
+
+                        autoWidth: false,
+                       responsive: true,
+                       "processing": true,
+                        "serverSide": true,
+                        "ordering": false,
+                        "ajax": {
+                            "url": "/isletmeyonetim/musterilistegetir/4",
+                            "type": "GET",
+                            "data": function (d) {
+                               var sube = $('input[name="sube"]').val();
+
+                                d.sube = sube;
+
+
+                                console.log('Request parameters:', d); // Debugging line
+                            },
+                            "error": function(xhr, error, code) {
+                                console.error('DataTables AJAX error:', error, code);
+                                console.error('XHR:', xhr);
+                            },
+                        },
+                        columns:[
+                           { data: 'ad_soyad',name: 'ad_soyad' },
+                           { data: 'telefon' ,name: 'telefon'},
+                           { data: 'kayit_tarihi',name: 'kayit_tarihi' },
+                           { data: 'son_randevu_tarihi',name: 'son_randevu_tarihi' },
+                           { data: 'randevu_sayisi',name: 'randevu_sayisi' },
+                           { data:'odenen', visible: !odenenGizlensin},
+                           { data: 'islemler'},
+                        ],
+
+
+                        "language" : {
+                           "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
+                           searchPlaceholder: "Ara",
+                           paginate: {
+                               next: '<i class="ion-chevron-right"></i>',
+                               previous: '<i class="ion-chevron-left"></i>'
+                           }
+                        },
+                     });
+
                   }
                });
               
