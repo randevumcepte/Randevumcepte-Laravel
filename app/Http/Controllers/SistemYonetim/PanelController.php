@@ -213,7 +213,8 @@ class PanelController extends Controller
 
         // Yetkililer: kanonik olarak personeller.yetkili_id uzerinden
         $personeller = Personeller::where('salon_id', $id)->get();
-        $yetkiliIds = $personeller->whereNotNull('yetkili_id')->pluck('yetkili_id')->unique()->filter()->values();
+        // NOT: Collection::whereNotNull() Laravel 5.6'da yok (5.7+); pluck->filter ile null/bos elenir
+        $yetkiliIds = $personeller->pluck('yetkili_id')->filter()->unique()->values();
 
         // Legacy: dogrudan salon_id ile bagli olabilen eski kayitlar
         $legacyIds = IsletmeYetkilileri::where('salon_id', $id)->pluck('id');
