@@ -80,7 +80,9 @@
     }
     function toastGoster(h){
         var anahtar = h.id + ':' + (h.sayac || 0);
-        var $el = $('<div class="sht-toast tema-' + (h.tema||'default') + '" data-key="' + escapeHtml(anahtar) + '"></div>');
+        // Ayni hatirlatmanin (ayni id) onceki kartini kaldir — sayac degisince tekrar birikmesin.
+        $('#salon-hatirlatma-toaster').find('[data-id="' + escapeHtml(String(h.id)) + '"]').remove();
+        var $el = $('<div class="sht-toast tema-' + (h.tema||'default') + '" data-id="' + escapeHtml(String(h.id)) + '" data-key="' + escapeHtml(anahtar) + '"></div>');
         $el.append(
             '<div class="sht-emoji">' + (h.emoji || '🔔') + '</div>' +
             '<div class="sht-body">' +
