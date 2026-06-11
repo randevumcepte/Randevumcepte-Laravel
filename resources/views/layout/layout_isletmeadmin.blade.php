@@ -921,6 +921,7 @@
       {{-- Sistem yonetimi duyurulari --}}
       @php
          $aktifDuyurular = collect();
+         $duyuruOnizle = request()->has('duyuru_onizle'); // ?duyuru_onizle=1 → okundu/oturum dinlemeden modali goster (QA/onizleme)
          try {
             $userId = Auth::guard('isletmeyonetim')->check() ? Auth::guard('isletmeyonetim')->user()->id : null;
             $salonId = isset($isletme) ? $isletme->id : null;
@@ -938,7 +939,7 @@
                $okunanlar = \App\SistemYonetim\DuyuruOkundu::where('user_id', $userId)->pluck('duyuru_id')->toArray();
                foreach ($tumDuyurular as $d) {
                   if (!$d->salonIcinGecerli($salonId, $ilId)) continue;
-                  if (!$d->sticky && in_array($d->id, $okunanlar)) continue;
+                  if (!$duyuruOnizle && !$d->sticky && in_array($d->id, $okunanlar)) continue;
                   $aktifDuyurular->push($d);
                }
             }
@@ -1027,17 +1028,19 @@
          var overlay = document.getElementById('rcGuncellemeOverlay');
          if(!overlay) return;
          var ids = [@foreach($aktifDuyurular as $d){{ $d->id }}@if(!$loop->last),@endif @endforeach];
+         var onizle = {{ $duyuruOnizle ? 'true' : 'false' }};
          var SKEY = 'rc_gun_acildi_' + ids.join('_');
-         try { if(sessionStorage.getItem(SKEY)){ overlay.parentNode && overlay.remove(); return; } } catch(e){}
+         try { if(!onizle && sessionStorage.getItem(SKEY)){ overlay.parentNode && overlay.remove(); return; } } catch(e){}
          var prevOverflow = document.body.style.overflow;
          document.body.style.overflow = 'hidden';
          var kapandi = false;
          window.rcGuncellemeKapat = function(){
             if(kapandi) return; kapandi = true;
-            try { sessionStorage.setItem(SKEY, '1'); } catch(e){}
             overlay.style.transition = 'opacity .2s ease';
             overlay.style.opacity = '0';
             setTimeout(function(){ if(overlay && overlay.parentNode){ overlay.remove(); } document.body.style.overflow = prevOverflow; }, 200);
+            if(onizle) return; // onizleme modunda okundu isaretleme / oturum kilidi koyma
+            try { sessionStorage.setItem(SKEY, '1'); } catch(e){}
             var t = document.querySelector('meta[name=csrf-token]');
             var token = t ? t.content : '{{ csrf_token() }}';
             ids.forEach(function(id){
