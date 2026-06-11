@@ -943,49 +943,25 @@
                }
             }
          } catch (\Exception $e) {}
-         $tipRenk = ['bilgi'=>['#e3eefb','#2a5793','#4a8bdc'],'uyari'=>['#fbf2dd','#876012','#d99a1f'],'onemli'=>['#fbe4e8','#8c2c39','#d04d5e'],'bakim'=>['#ededf3','#444','#777589'],'kampanya'=>['#e2f6ec','#1f7a4f','#2cae71'],'guncelleme'=>['#eef2ff','#3730a3','#6366f1']];
-         // Guncelleme/yenilik duyurulari ortada kaliteli modal olarak; digerleri sag-ust kose toast'i olarak gosterilir
-         $guncellemeler = $aktifDuyurular->where('tip', 'guncelleme')->values();
-         $koseDuyurular = $aktifDuyurular->where('tip', '!=', 'guncelleme')->values();
+         // Tum aktif duyurular ekran ortasinda kaliteli modal olarak gosterilir (tip'e gore temali).
+         $tipMeta = [
+            'guncelleme' => ['emoji'=>'🚀','c1'=>'#4f46e5','c2'=>'#6366f1','ad'=>'YENİLİK'],
+            'bilgi'      => ['emoji'=>'💡','c1'=>'#2563eb','c2'=>'#3b82f6','ad'=>'BİLGİ'],
+            'uyari'      => ['emoji'=>'⚠️','c1'=>'#d97706','c2'=>'#f59e0b','ad'=>'UYARI'],
+            'onemli'     => ['emoji'=>'🔔','c1'=>'#dc2626','c2'=>'#ef4444','ad'=>'ÖNEMLİ'],
+            'bakim'      => ['emoji'=>'🛠️','c1'=>'#475569','c2'=>'#64748b','ad'=>'BAKIM'],
+            'kampanya'   => ['emoji'=>'🎉','c1'=>'#059669','c2'=>'#10b981','ad'=>'KAMPANYA'],
+         ];
+         $basTip = $aktifDuyurular->count() ? ($aktifDuyurular->first()->tip ?: 'bilgi') : 'bilgi';
+         $hm = $tipMeta[$basTip] ?? $tipMeta['bilgi'];
+         $hepGuncelleme = $aktifDuyurular->count() > 0 && $aktifDuyurular->where('tip', '!=', 'guncelleme')->isEmpty();
+         if ($hepGuncelleme) { $basBaslik = 'Sistemde Yenilikler Var'; $basAlt = 'Uygulamada yaptığımız son güncellemeler aşağıda.'; }
+         elseif ($aktifDuyurular->count() > 1) { $basBaslik = 'Bilgilendirme'; $basAlt = 'Sizin için '.$aktifDuyurular->count().' yeni bildirim var.'; }
+         else { $basBaslik = 'Bilgilendirme'; $basAlt = 'Sizin için önemli bir duyurumuz var.'; }
       @endphp
-      @if($koseDuyurular->count() > 0)
-         <div id="rcDuyuruWrapper" style="position:fixed;top:8px;right:8px;z-index:99998;max-width:380px;display:flex;flex-direction:column;gap:8px">
-            @foreach($koseDuyurular->take(3) as $d)
-               @php $r = $tipRenk[$d->tip] ?? $tipRenk['bilgi']; @endphp
-               <div data-duyuru-id="{{ $d->id }}" style="background:{{ $r[0] }};border-left:4px solid {{ $r[2] }};color:{{ $r[1] }};padding:12px 14px;border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,0.12);font-size:13px">
-                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-                     <div>
-                        <div style="font-weight:700;margin-bottom:4px">{{ $d->baslik }}</div>
-                        <div style="font-size:12.5px;line-height:1.5">{!! nl2br(e(\Illuminate\Support\Str::limit($d->icerik, 240))) !!}</div>
-                        @if($d->cta_metin && $d->cta_link)
-                           <a href="{{ $d->cta_link }}" style="display:inline-block;margin-top:8px;padding:5px 12px;background:{{ $r[2] }};color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:12px">{{ $d->cta_metin }} →</a>
-                        @endif
-                     </div>
-                     <button onclick="rcDuyuruKapat({{ $d->id }}, this)" style="background:none;border:none;color:{{ $r[1] }};cursor:pointer;font-size:18px;line-height:1;padding:2px 6px" title="Kapat">×</button>
-                  </div>
-               </div>
-            @endforeach
-         </div>
-         <script>
-         function rcDuyuruKapat(id, btn) {
-            const card = btn.closest('[data-duyuru-id]');
-            if (!card) return;
-            card.style.opacity = '0';
-            card.style.transform = 'translateX(20px)';
-            card.style.transition = 'all .25s';
-            setTimeout(() => card.remove(), 250);
-            const t = document.querySelector('meta[name=csrf-token]');
-            fetch('/isletmeyonetim/duyuru/' + id + '/okundu', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': (t ? t.content : '{{ csrf_token() }}') },
-               body: '{}'
-            }).catch(()=>{});
-         }
-         </script>
-      @endif
 
-      {{-- Sistem Guncellemeleri — ortalanmis kaliteli modal (girisde 1 kez, "Anladim" deyince bir daha cikmaz) --}}
-      @if($guncellemeler->count() > 0)
+      {{-- Sistem Duyurulari — ekran ortasinda kaliteli modal (girisde 1 kez, "Anladim" deyince bir daha cikmaz) --}}
+      @if($aktifDuyurular->count() > 0)
       <style>
          .rc-gun-overlay{position:fixed;inset:0;z-index:100050;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);animation:rcGunFade .25s ease}
          .rc-gun-modal{position:relative;width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;background:#fff;border-radius:20px;box-shadow:0 30px 70px rgba(15,23,42,.38);overflow:hidden;animation:rcGunPop .34s cubic-bezier(.16,1,.3,1)}
@@ -997,10 +973,11 @@
          .rc-gun-head h3{margin:0 0 3px;font-size:19px;font-weight:800;color:#fff;line-height:1.25}
          .rc-gun-head p{margin:0;font-size:13px;opacity:.92}
          .rc-gun-govde{padding:6px 24px 2px;overflow-y:auto}
-         .rc-gun-item{padding:18px 0;border-bottom:1px solid #eef0f4}
+         .rc-gun-item{padding:16px 0 16px 14px;border-left:3px solid transparent;border-bottom:1px solid #eef0f4}
          .rc-gun-item:last-child{border-bottom:none}
-         .rc-gun-item-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px}
-         .rc-gun-item-head h4{margin:0;font-size:15.5px;font-weight:700;color:#1e293b;line-height:1.35}
+         .rc-gun-item-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}
+         .rc-gun-badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.7px;padding:3px 10px;border-radius:999px}
+         .rc-gun-item-baslik{margin:0 0 6px;font-size:15.5px;font-weight:700;color:#1e293b;line-height:1.35}
          .rc-gun-tarih{flex:0 0 auto;font-size:11.5px;color:#94a3b8;font-weight:600;white-space:nowrap}
          .rc-gun-item-text{font-size:13.5px;line-height:1.65;color:#475569}
          .rc-gun-cta{display:inline-block;margin-top:11px;padding:7px 15px;border:1.5px solid #6366f1;color:#4f46e5;border-radius:9px;text-decoration:none;font-weight:600;font-size:13px;transition:all .2s}
@@ -1016,30 +993,32 @@
       <div id="rcGuncellemeOverlay" class="rc-gun-overlay" role="dialog" aria-modal="true" aria-labelledby="rcGunBaslik">
          <div class="rc-gun-modal">
             <button type="button" class="rc-gun-kapat" onclick="rcGuncellemeKapat()" aria-label="Kapat">&times;</button>
-            <div class="rc-gun-head">
-               <div class="rc-gun-ikon">🚀</div>
+            <div class="rc-gun-head" style="background:linear-gradient(135deg,{{ $hm['c1'] }} 0%,{{ $hm['c2'] }} 70%,{{ $hm['c2'] }} 100%)">
+               <div class="rc-gun-ikon">{{ $hm['emoji'] }}</div>
                <div>
-                  <span class="rc-gun-rozet">YENİ</span>
-                  <h3 id="rcGunBaslik">Sistemde Yenilikler Var</h3>
-                  <p>Uygulamada yaptığımız son güncellemeler aşağıda.</p>
+                  <span class="rc-gun-rozet">{{ $hepGuncelleme ? 'YENİ SÜRÜM' : 'DUYURU' }}</span>
+                  <h3 id="rcGunBaslik">{{ $basBaslik }}</h3>
+                  <p>{{ $basAlt }}</p>
                </div>
             </div>
             <div class="rc-gun-govde">
-               @foreach($guncellemeler as $d)
-                  <div class="rc-gun-item">
+               @foreach($aktifDuyurular as $d)
+                  @php $m = $tipMeta[$d->tip] ?? $tipMeta['bilgi']; @endphp
+                  <div class="rc-gun-item" style="border-left-color:{{ $m['c2'] }}">
                      <div class="rc-gun-item-head">
-                        <h4>{{ $d->baslik }}</h4>
+                        <span class="rc-gun-badge" style="background:{{ $m['c1'] }}1a;color:{{ $m['c1'] }}">{{ $m['emoji'] }} {{ $m['ad'] }}</span>
                         @if($d->created_at)<span class="rc-gun-tarih">{{ \Carbon\Carbon::parse($d->created_at)->format('d.m.Y') }}</span>@endif
                      </div>
+                     <h4 class="rc-gun-item-baslik">{{ $d->baslik }}</h4>
                      <div class="rc-gun-item-text">{!! nl2br(e($d->icerik)) !!}</div>
                      @if($d->cta_metin && $d->cta_link)
-                        <a href="{{ $d->cta_link }}" class="rc-gun-cta">{{ $d->cta_metin }} →</a>
+                        <a href="{{ $d->cta_link }}" class="rc-gun-cta" style="border-color:{{ $m['c2'] }};color:{{ $m['c1'] }}">{{ $d->cta_metin }} →</a>
                      @endif
                   </div>
                @endforeach
             </div>
             <div class="rc-gun-footer">
-               <button type="button" class="rc-gun-btn" onclick="rcGuncellemeKapat()">✓ Anladım, Teşekkürler</button>
+               <button type="button" class="rc-gun-btn" style="background:linear-gradient(135deg,{{ $hm['c1'] }},{{ $hm['c2'] }});box-shadow:0 8px 18px {{ $hm['c1'] }}55" onclick="rcGuncellemeKapat()">✓ Anladım, Teşekkürler</button>
             </div>
          </div>
       </div>
@@ -1047,7 +1026,7 @@
       (function(){
          var overlay = document.getElementById('rcGuncellemeOverlay');
          if(!overlay) return;
-         var ids = [@foreach($guncellemeler as $d){{ $d->id }}@if(!$loop->last),@endif @endforeach];
+         var ids = [@foreach($aktifDuyurular as $d){{ $d->id }}@if(!$loop->last),@endif @endforeach];
          var SKEY = 'rc_gun_acildi_' + ids.join('_');
          try { if(sessionStorage.getItem(SKEY)){ overlay.parentNode && overlay.remove(); return; } } catch(e){}
          var prevOverflow = document.body.style.overflow;
