@@ -96,6 +96,14 @@
    height:50px;border-radius:13px;font-weight:700;font-size:15px;background:#fff;color:#8a8a96;border:1.5px solid #e6e6ee;
 }
 #santral_musteri_listesi .cm-kapat:hover{background:#f4f4f8;color:#555;}
+/* Toplu secim bari */
+#santral_musteri_listesi .cm-toplu{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;background:#f6f1fd;border:1px solid #e6dcf5;border-radius:11px;}
+#santral_musteri_listesi .cm-toplu-lbl{font-weight:800;color:#5C008E;font-size:13px;}
+#santral_musteri_listesi .cm-toplu-txt{font-size:13px;color:#6a6a78;font-weight:600;}
+#santral_musteri_listesi .cm-toplu-ayrac{color:#cbbfe0;}
+#santral_musteri_listesi .cm-toplu-input{height:36px;width:78px;border-radius:9px;border:1.5px solid #e6e3ef;text-align:center;font-size:13px;padding:4px;}
+#santral_musteri_listesi .cm-toplu .cm-btn-mini{height:36px;padding:0 12px;}
+#santral_musteri_listesi #topluBilgi{font-size:12.5px;color:#5C008E;font-weight:700;margin-left:4px;}
 /* Bagimli (kilitli) filtre gorunumu */
 #santral_musteri_listesi .cm-disabled{opacity:.38;pointer-events:none;filter:grayscale(.4);}
 #santral_musteri_listesi .cm-disabled label:after{content:" 🔒";font-size:11px;}
@@ -220,6 +228,18 @@
                      <div class="col-md-3"><button id="selectAllBtn" type="button" class="cm-btn-mini btn-block">Tümünü Seç</button></div>
                      <div class="col-md-3"><button id="deselectAllBtn" type="button" class="cm-btn-mini btn-block">Tümünü Kaldır</button></div>
                   </div>
+                  <div class="cm-toplu">
+                     <span class="cm-toplu-lbl">⚡ Toplu seç:</span>
+                     <button id="ilk100Btn" type="button" class="cm-btn-mini">İlk 100</button>
+                     <button id="sonraki100Btn" type="button" class="cm-btn-mini">Sonraki 100</button>
+                     <span class="cm-toplu-ayrac">|</span>
+                     <span class="cm-toplu-txt">Aralık:</span>
+                     <input id="topluBas" type="number" min="1" placeholder="baş." class="form-control cm-toplu-input">
+                     <span class="cm-toplu-txt">–</span>
+                     <input id="topluBit" type="number" min="1" placeholder="bit." class="form-control cm-toplu-input">
+                     <button id="topluSecBtn" type="button" class="cm-btn-mini">Seç</button>
+                     <span id="topluBilgi"></span>
+                  </div>
                   <div id="customerList"></div>
                   <div class="loading" style="display:none;color:#9b8fb0;font-size:13px;margin-top:8px;">Yükleniyor...</div>
                   <div id="selectedCount">0 müşteri seçildi</div>
@@ -245,6 +265,8 @@ const perPage = 100;
 let isLoading = false;
 let searchTerm = '';
 let filtreDebounce = null;
+let tumIdler = [];          // filtreye uyan TUM id'ler (isme gore sirali) — toplu secim icin
+let sonrakiBaslangic = 0;   // "Sonraki 100" icin imlec
 
 function getFiltre() {
   return {
@@ -266,6 +288,29 @@ function getFiltre() {
 
 function updateSelectedCount() {
   $('#selectedCount').text(selectedIds.size + ' müşteri seçildi');
+}
+
+// Gorunur listedeki checkbox'lari secime gore guncelle
+function gorunurCheckboxSenkron() {
+  $('#customerList input.customer-checkbox').each(function () {
+    $(this).prop('checked', selectedIds.has(parseInt($(this).val())));
+  });
+}
+
+// Filtreye uyan id listesinden [bas..bit] araligini (1-tabanli) sec
+function araligiSec(bas, bit) {
+  if (!tumIdler.length) { return; }
+  bas = parseInt(bas); bit = parseInt(bit);
+  if (isNaN(bas) || bas < 1) bas = 1;
+  if (isNaN(bit) || bit < bas) bit = bas;
+  if (bit > tumIdler.length) bit = tumIdler.length;
+  var dilim = tumIdler.slice(bas - 1, bit); // bas-1 .. bit (dahil)
+  selectedIds = new Set(dilim.map(Number));
+  sonrakiBaslangic = bit; // "Sonraki 100" buradan devam eder
+  updateSelectedCount();
+  gorunurCheckboxSenkron();
+  $('#topluBilgi').text(bas + '–' + bit + '. sıradaki ' + dilim.length + ' müşteri seçildi ✓');
+  $('#topluBas').val(bas); $('#topluBit').val(bit);
 }
 
 function renderCustomers(customers, append) {
@@ -301,7 +346,10 @@ function filtreUygula() {
       if (typeof res.toplam_filtresiz !== 'undefined') {
         $('#toplamFiltresizBilgi').text('Salonda toplam ' + res.toplam_filtresiz + ' aranabilir müşteri var (filtresiz).');
       }
-      selectedIds = new Set((res.musteriIdler || []).map(Number));
+      tumIdler = (res.musteriIdler || []).map(Number);
+      sonrakiBaslangic = 0;
+      $('#topluBilgi').text('');
+      selectedIds = new Set(tumIdler);
       renderCustomers(res.customers, false);
       updateSelectedCount();
     },
@@ -400,17 +448,41 @@ $(document).ready(function () {
       url: '/isletmeyonetim/arama_filtre_onizleme', method: 'POST',
       data: $.extend({}, getFiltre(), { page: 1, perPage: 1, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() }),
       success: function (res) {
-        selectedIds = new Set((res.musteriIdler || []).map(Number));
-        $('#customerList input.customer-checkbox').prop('checked', true);
+        tumIdler = (res.musteriIdler || []).map(Number);
+        sonrakiBaslangic = tumIdler.length;
+        selectedIds = new Set(tumIdler);
+        gorunurCheckboxSenkron();
         updateSelectedCount();
+        $('#topluBilgi').text('Tümü seçildi (' + tumIdler.length + ')');
       }
     });
   });
 
   $('#deselectAllBtn').click(function () {
     selectedIds.clear();
+    sonrakiBaslangic = 0;
     $('#customerList input.customer-checkbox').prop('checked', false);
     updateSelectedCount();
+    $('#topluBilgi').text('');
+  });
+
+  // Toplu secim: İlk 100
+  $('#ilk100Btn').click(function () { araligiSec(1, 100); });
+
+  // Toplu secim: Sonraki 100 (imlecten devam)
+  $('#sonraki100Btn').click(function () {
+    if (sonrakiBaslangic >= tumIdler.length) {
+      $('#topluBilgi').text('Liste sonuna gelindi (toplam ' + tumIdler.length + ').');
+      return;
+    }
+    araligiSec(sonrakiBaslangic + 1, sonrakiBaslangic + 100);
+  });
+
+  // Toplu secim: serbest aralik (orn 101-200)
+  $('#topluSecBtn').click(function () {
+    var bas = $('#topluBas').val(), bit = $('#topluBit').val();
+    if (!bas && !bit) { $('#topluBilgi').text('Başlangıç/bitiş sıra girin.'); return; }
+    araligiSec(bas || 1, bit || (tumIdler.length));
   });
 
   $('#customerList').scroll(function () {

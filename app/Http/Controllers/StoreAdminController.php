@@ -26531,7 +26531,8 @@ DB::raw('
             // distinct user_id uzerinden dogrudan say (fromSub Laravel 5.6.x'te yok)
             $total = (clone $base)->count('musteri_portfoy.user_id');
 
-            $musteriIdler = (clone $base)->pluck('id')->toArray();
+            // isme gore sirali -> "ilk 100 / 101-200" toplu secimi ekrandaki sirayla ayni olur
+            $musteriIdler = (clone $base)->orderBy('users.name')->pluck('id')->toArray();
 
             $customers = $base->orderBy('users.name')
                 ->skip(($page - 1) * $perPage)
