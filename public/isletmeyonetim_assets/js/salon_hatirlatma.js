@@ -201,6 +201,22 @@
     function bigPopupKapat(){
         $('#salon-hatirlatma-bigpopup').removeClass('show');
         popupKapatildiIsaretle(); // bu oturumda otomatik geri acilmasin
+        tepsiyeGoster();          // kapatinca kartlar sag-altta gorunsun (kullanici oradan islem yapar)
+    }
+    // Mevcut feed'deki hatirlatmalari sag-alt tepside (toast) goster.
+    // Zaten ekranda olan veya kullanicinin kapattigi kartlari tekrar acmaz.
+    function tepsiyeGoster(){
+        var liste = SON_FEED || [];
+        var sirada = 0;
+        liste.forEach(function(h){
+            var anahtar = h.id + ':' + (h.sayac || 0);
+            if (toastKapatildiMi(anahtar)) return; // kullanici bunu kapatmis
+            if ($('#salon-hatirlatma-toaster').find('[data-id="' + escapeHtml(String(h.id)) + '"]').length) return; // zaten ekranda
+            GOSTERILEN_TOAST[anahtar] = Date.now();
+            toastGosterildiIsaretle(anahtar);
+            (function(gecikme){ setTimeout(function(){ toastGoster(h); }, gecikme); })(sirada * 200);
+            sirada++;
+        });
     }
     /* ---------- CAGRI MERKEZI: Hemen Ara (KVKK uyumlu, numara gosterilmez) ---------- */
     $(document).on('click', '.sht-hemen-ara', function(e){
@@ -351,10 +367,8 @@
 
     /* ---------- BASLAT ---------- */
     $(function(){
-        if (!$('#sht-bell').length && $('.header-right').length) {
-            var $bell = $('<a href="#" id="sht-bell" class="sht-bell-badge" title="Hatırlatmalar"><i class="fa fa-bell"></i><span class="sht-bell-num" style="display:none">0</span></a>');
-            $('.header-right').prepend($bell);
-        }
+        // NOT: Header'daki can/zil ikonu kaldirildi (kullanici istegi).
+        // Hatirlatmalar ilk popup + sag-alt kartlar uzerinden yonetilir.
         fetchFeed();
         setInterval(function(){ fetchFeed(false); }, POLL_MS);
         // sayfaya geri donulunce hemen yenile (sekme arasi gecis)
