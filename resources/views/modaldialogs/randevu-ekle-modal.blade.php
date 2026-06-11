@@ -2111,8 +2111,9 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                 cb($row);
                 return;
             }
-            if(tries++ < 80){ // 80 * 80ms = 6.4sn
-                setTimeout(w, 80);
+            // PERFORMANS: 80ms -> 25ms poll, 80 -> 200 tries (toplam timeout 5sn)
+            if(tries++ < 200){
+                setTimeout(w, 25);
             } else {
                 console.warn('[PAKET] _waitRowReady timeout, best-effort yerlestir');
                 cb($row);
@@ -2128,9 +2129,17 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
         });
     }
 
+    // Batch mode: tum satir eklemeleri sirasinda doldurRandevuSecenekleri/Select2 re-init
+    // global tarmasini atla (yalnizca yeni satir icin yapilir). Finalize'da bir kez global.
+    window._paketBatchMode = true;
+
     // Sirayla her hizmeti yerlestir (Promise zinciri); biri bittikten sonra digerine gec
     function _yerlestirSira(idx){
         if(idx >= hizmetData.length){
+            // Batch mode kapali — finalize asamasi
+            window._paketBatchMode = false;
+            // Tek seferlik global update (paket eklemesi sirasinda atladigimiz isleri toplu yap)
+            try { doldurRandevuSecenekleri(); } catch(e){ console.warn('[PAKET] final doldur hata:', e); }
             // SON pass: tum satirlara base secimleri tekrar uygula (eski satirlar reset olmuş olabilir)
             setTimeout(function(){
                 _finalRebaseAllRows();
@@ -2166,12 +2175,10 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                             try { ts2.refreshItems(); } catch(e){}
                             try { if(ts2.refreshState) ts2.refreshState(); } catch(e){}
                         }
-                        console.log('[REASSERT] satir '+i+' wrapperCount=', $row.find('.ts-wrapper').length,
-                            'items=', ts2 ? JSON.stringify(ts2.items) : 'YOK');
                     });
                     try { updateRandevuOzeti(); } catch(e){}
-                }, 200);
-            }, 150);
+                }, 50);
+            }, 30);
             return;
         }
         var hizmet = hizmetData[idx];
@@ -2183,7 +2190,7 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                 _setHizmetInRow($r, hizmet);
                 _applyBaseSelections($r);
                 console.log('[PAKET] row 0 yerlesti:', hizmet.text);
-                setTimeout(function(){ _yerlestirSira(idx+1); }, 120);
+                setTimeout(function(){ _yerlestirSira(idx+1); }, 20);
             });
         } else {
             // Yeni satir ekle
@@ -2199,12 +2206,12 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
                         _setHizmetInRow($r, hizmet);
                         _applyBaseSelections($r);
                         console.log('[PAKET] yeni satir '+idx+' yerlesti:', hizmet.text);
-                        setTimeout(function(){ _yerlestirSira(idx+1); }, 120);
+                        setTimeout(function(){ _yerlestirSira(idx+1); }, 20);
                     });
                     return;
                 }
-                if(tries++ < 30){
-                    setTimeout(waitNewRow, 80);
+                if(tries++ < 100){
+                    setTimeout(waitNewRow, 25);
                 } else {
                     console.warn('[PAKET] yeni satir DOM eklenmedi, atlandi', idx);
                     _yerlestirSira(idx+1);
@@ -2663,6 +2670,34 @@ function doldurSelect($sel, liste){
 }
 
 // Tum .personel-select, .cihaz-select, .oda-select ve yardimci personelleri doldur
+// PERFORMANS: tek bir satira options doldur (paket toplu ekleme batch modu icin).
+// doldurRandevuSecenekleri() tum modali tarar (O(N)); batch'te O(N^2) olusturuyordu.
+// Bu fonksiyon sadece verilen $row icin personel/cihaz/oda options + Tom Select init yapar.
+function doldurRandevuSecenekleriRow($row){
+    if(!$row || !$row.length) return;
+    $row.find('select.personel-select, select.personel_secimi').each(function(){
+        if($(this).hasClass('hizmet-select')) return;
+        doldurSelect($(this), window.randevuModalData.personeller);
+    });
+    $row.find('select.cihaz-select').each(function(){
+        doldurSelect($(this), window.randevuModalData.cihazlar);
+    });
+    var $oda = $row.find('.oda-select');
+    if($oda.length){
+        var $hizmet = $row.find('.hizmet-select');
+        var hids = [];
+        if($hizmet.length){
+            var v = $hizmet.val();
+            if(Array.isArray(v)) hids = v.filter(Boolean);
+            else if(v) hids = [v];
+        }
+        doldurOdaSelectByHizmet($oda, hids);
+    }
+    $row.find('.personel-select').each(function(){
+        initPersonelTom($(this));
+    });
+}
+
 function doldurRandevuSecenekleri(){
     $('#modal-view-event-add select.personel-select, #modal-view-event-add select.personel_secimi').each(function(){
         // Hizmet select'ini atla (hizmet-select class'i var)
@@ -3490,25 +3525,29 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     // Yeni hizmet satırı ekle
     $(document).on('click', '#bir_hizmet_daha_ekle', function(e) {
         e.preventDefault();
-        
-        // SADECE hizmet satirlarindaki select2'leri yeniden kur. ESKIDEN global'di
-        // ($("select.custom-select2")) ve sayfadaki TUM custom-select2/opsiyonelSelect'lerin
-        // (musteri select'i + layout aramasi dahil) id'sini siliyordu -> paket eklerken
-        // 9x calisinca musteri secimi bozuluyordu.
-        $("#modal-view-event-add .hizmet-satiri select.custom-select2").each(function(i) {
-            $(this).removeAttr('data-select2-id').removeAttr('id');
-            $(this).find('option').removeAttr('data-select2-id');
-            $(this).select2({width: '100%'});
-        });
 
-        $("#modal-view-event-add .hizmet-satiri select.opsiyonelSelect").each(function(i) {
-            $(this).removeAttr('data-select2-id').removeAttr('id');
-            $(this).find('option').removeAttr('data-select2-id');
-            $(this).select2({
-                placeholder: "Seçiniz",
-                allowClear: true,
+        // PERFORMANS: paket toplu ekleme modunda mevcut satirlardaki Select2'leri
+        // tekrar tekrar re-init etmek O(N^2) yapiyor. Batch modunda atla.
+        if(!window._paketBatchMode){
+            // SADECE hizmet satirlarindaki select2'leri yeniden kur. ESKIDEN global'di
+            // ($("select.custom-select2")) ve sayfadaki TUM custom-select2/opsiyonelSelect'lerin
+            // (musteri select'i + layout aramasi dahil) id'sini siliyordu -> paket eklerken
+            // 9x calisinca musteri secimi bozuluyordu.
+            $("#modal-view-event-add .hizmet-satiri select.custom-select2").each(function(i) {
+                $(this).removeAttr('data-select2-id').removeAttr('id');
+                $(this).find('option').removeAttr('data-select2-id');
+                $(this).select2({width: '100%'});
             });
-        });
+
+            $("#modal-view-event-add .hizmet-satiri select.opsiyonelSelect").each(function(i) {
+                $(this).removeAttr('data-select2-id').removeAttr('id');
+                $(this).find('option').removeAttr('data-select2-id');
+                $(this).select2({
+                    placeholder: "Seçiniz",
+                    allowClear: true,
+                });
+            });
+        }
         
         const newIndex = hizmetSatirSayisi;
 
@@ -3575,8 +3614,15 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         
         $('.hizmetler_bolumu').append(newRow);
 
-        // Yeni satirdaki personel/cihaz/oda secimlerini aktif+musait olanlarla doldur
-        doldurRandevuSecenekleri();
+        // PERFORMANS: paket toplu ekleme modunda doldurRandevuSecenekleri()
+        // her cagriligunda TUM mevcut satirlardaki personel/cihaz/oda select'lerini
+        // yeniden populate ediyor ve initPersonelTomAll() cagiriyor (O(N^2)).
+        // Batch modunda sadece YENI satira options yaz; finalize'da global olarak bir kez.
+        if(window._paketBatchMode){
+            doldurRandevuSecenekleriRow($('.hizmetler_bolumu .hizmet-satiri').last());
+        } else {
+            doldurRandevuSecenekleri();
+        }
 
         // Yeni eklenen satirdaki personel/cihaz/oda gorunurlugunu takvim turune gore ayarla
         if (typeof window.randevuSecimleriniGuncelle === 'function') {
