@@ -1,3 +1,60 @@
+ {{-- =========================================================================
+      OTOMATIK BAS HARF BUYUTME (Turkce uyumlu)
+      Musteri adi, hizmet/urun/paket/kategori/personel/salon adi gibi isim
+      alanlarinda her kelimenin ilk harfini otomatik buyuk yapar.
+      - Kucuk yazilsa bile bas harf buyuk olur, bosluktan sonra (soyad) da olur.
+      - Sadece bas harfe dokunur; kelimenin geri kalanini (ve buyuk harfleri)
+        BOZMAZ -> kisaltmalar (VIP, SPA) ve CAPS yazim korunur.
+      - Olay delegasyonu ile dinamik (modal icinde sonradan yuklenen) alanlarda
+        da calisir.
+      - Yeni bir alani dahil etmek icin input'a "js-titlecase" sinifi eklemek
+        veya asagidaki AD_ALANLARI listesine name eklemek yeterlidir.
+     ========================================================================= --}}
+ <script type="text/javascript">
+     (function () {
+         // Hangi isim alanlari otomatik bas-harf-buyutmeye dahil olsun:
+         var AD_ALANLARI = [
+             'ad_soyad', 'adsoyad',
+             'personel_adi',
+             'hizmet_adi',
+             'kategori_adi',
+             'urun_adi', 'urun_ad',
+             'adpaket', 'paket_adi',
+             'salon_adi'
+         ];
+         var SELECTOR = AD_ALANLARI.map(function (n) {
+             return 'input[name="' + n + '"]';
+         }).join(', ') + ', input.js-titlecase, textarea.js-titlecase';
+
+         // Turkce uyumlu bas-harf buyutme (sadece i->I ve i->I locale ozeldir).
+         function trUpperFirst(ch) {
+             if (ch === 'i') return 'İ'; // i -> I (noktali)
+             if (ch === 'ı') return 'I'; // i (noktasiz) -> I
+             return ch.toUpperCase();
+         }
+         // Her kelimenin (bosluktan sonraki ilk karakter) bas harfini buyut.
+         function titleCaseTR(str) {
+             return str.replace(/(^|\s)(\S)/g, function (m, bosluk, ilk) {
+                 return bosluk + trUpperFirst(ilk);
+             });
+         }
+         function uygula(el) {
+             if (!el || typeof el.value !== 'string') return;
+             var start = el.selectionStart, end = el.selectionEnd;
+             var v = el.value;
+             var nv = titleCaseTR(v);
+             if (nv !== v) {
+                 el.value = nv;
+                 // Uzunluk degismedigi icin imleci yerinde tut.
+                 try { el.setSelectionRange(start, end); } catch (e) {}
+             }
+         }
+
+         $(document).on('input.titlecase blur.titlecase', SELECTOR, function () {
+             uygula(this);
+         });
+     })();
+ </script>
  <script type="text/javascript">
      $(document).ready(function () {
 
