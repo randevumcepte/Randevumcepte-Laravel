@@ -1413,14 +1413,14 @@
                 var pollPlacement = function(){
                     var stillPlacing = !!window._paketYerlestiriliyor;
                     var elapsed = Date.now() - startWait;
-                    // En az 600ms bekle (flag set olmadan once), sonra flag bittikten 250ms sonra
-                    if(stillPlacing || elapsed < 600){
+                    // PERFORMANS: minimum bekleme 600ms→100ms, poll 200ms→30ms,
+                    // safety 250ms→40ms (v1 batch mode toplu render daha hizli bitiyor)
+                    if(stillPlacing || elapsed < 100){
                         if(elapsed > 30000){ console.warn('[V2 DISP] timeout 30s'); return doRender(); }
-                        setTimeout(pollPlacement, 200);
+                        setTimeout(pollPlacement, 30);
                         return;
                     }
-                    // Flag false, ek 250ms guvenlik
-                    setTimeout(doRender, 250);
+                    setTimeout(doRender, 40);
                 };
                 var doRender = function(){
                     var newV1Indices = [];

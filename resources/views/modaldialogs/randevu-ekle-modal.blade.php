@@ -2099,19 +2099,20 @@ function _paketHizmetleriniAyriSatirlaraEkle(hizmetData){
         }
     }
 
-    // Bir satirin hizmet-select Tom Select'i hazir + hizmet listesi yuklenmis olana kadar bekle
-    // (yukleHizmetler async AJAX, biz bekleemeden yerlestirsek doldurHizmetTom secimi siliyor)
+    // Bir satirin hizmet-select Tom Select'i hazir olana kadar bekle.
+    // Batch modunda yukleHizmetler atladigimiz icin option count bekleyemeyiz —
+    // sadece TS instance varligini kontrol et.
     function _waitRowReady($row, cb){
         var tries = 0;
+        var batchMode = !!window._paketBatchMode;
         (function w(){
             var sel = $row.find('.hizmet-select')[0];
             var ts = sel && sel.tomselect;
-            // TS hazir VE en az 1 option yuklenmis (yukleHizmetler tamamlandi)
-            if(ts && Object.keys(ts.options).length >= 1){
-                cb($row);
-                return;
-            }
-            // PERFORMANS: 80ms -> 25ms poll, 80 -> 200 tries (toplam timeout 5sn)
+            // Batch: ts hazirsa yeterli. Normal: ts + en az 1 option (yukleHizmetler bitti).
+            var ready = batchMode
+                ? !!ts
+                : (ts && Object.keys(ts.options).length >= 1);
+            if(ready){ cb($row); return; }
             if(tries++ < 200){
                 setTimeout(w, 25);
             } else {
@@ -3638,7 +3639,10 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
             tomDestroyHizmet($s);
             $s.empty();
             initHizmetTom($s, ph);
-            if(t === 0 || t === 3){
+            // PERFORMANS: batch modunda yukleHizmetler atla. _setHizmetInRow ts.addOption
+            // ile paket hizmetlerini direkt ekler; yukleHizmetler ekstra destroy+reinit
+            // yapip her satirda gereksiz ~100-200ms ekliyor.
+            if((t === 0 || t === 3) && !window._paketBatchMode){
                 yukleHizmetler($s, { hepsi: 1 });
             }
         });
