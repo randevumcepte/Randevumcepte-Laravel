@@ -23,6 +23,11 @@ class Salonlar extends Model
         'whatsapp_promo_kapatildi' => 'boolean',
     ];
 
+    public function setSalonAdiAttribute($value)
+    {
+        $this->attributes['salon_adi'] = \App\Helpers\Metin::basHarfBuyut($value);
+    }
+
     /**
      * WhatsApp "2 Ay Ücretsiz" tanıtım durumunu hesaplar.
      * Ücretli (pro/premium) salonlar promo kapsamı dışındadır.

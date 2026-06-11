@@ -13,6 +13,11 @@ class Paketler extends Model
     
     protected $with =  ['salon','hizmetler'];
 
+    public function setPaketAdiAttribute($value)
+    {
+        $this->attributes['paket_adi'] = \App\Helpers\Metin::basHarfBuyut($value);
+    }
+
     public function hizmetler()
     {
         return $this->hasMany(PaketHizmetler::class,'paket_id');

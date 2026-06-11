@@ -24,6 +24,11 @@ class OnGorusmeler extends Model
         return RandevuHizmetler::where('randevu_id', $randevuId)->value('oda_id');
     }
 
+    public function setAdSoyadAttribute($value)
+    {
+        $this->attributes['ad_soyad'] = \App\Helpers\Metin::basHarfBuyut($value);
+    }
+
     public function musteri(){
         return $this->belongsTo(User::class,'user_id');
     }

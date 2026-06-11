@@ -13,6 +13,11 @@ class Hizmetler extends Model
     
     protected $with =  [ 'personeller'];
 
+    public function setHizmetAdiAttribute($value)
+    {
+        $this->attributes['hizmet_adi'] = \App\Helpers\Metin::basHarfBuyut($value);
+    }
+
     public function hizmet_kategorisi()
     {
         return $this->belongsTo(Hizmet_Kategorisi::class, 'hizmet_kategori_id');

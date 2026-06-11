@@ -16,6 +16,11 @@ class Personeller extends Model
         'unvan','cinsiyet','arsivli'
     ];
    
+    public function setPersonelAdiAttribute($value)
+    {
+        $this->attributes['personel_adi'] = \App\Helpers\Metin::basHarfBuyut($value);
+    }
+
     public function salonlar()
     {
         return $this->belongsTo(Salonlar::class,'salon_id');

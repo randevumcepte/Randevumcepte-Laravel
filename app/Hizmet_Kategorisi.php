@@ -9,6 +9,12 @@ class Hizmet_Kategorisi extends Model
 	protected $table = 'hizmet_kategorisi';
     protected $fillable = ['hizmet_kategorisi_adi'];
     //protected $with = ['hizmetler'];
+
+    public function setHizmetKategorisiAdiAttribute($value)
+    {
+        $this->attributes['hizmet_kategorisi_adi'] = \App\Helpers\Metin::basHarfBuyut($value);
+    }
+
     public function renk()
     {
         return $this->belongsTo(RenkDuzenleri::class,'renk');

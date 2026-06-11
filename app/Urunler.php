@@ -27,6 +27,11 @@ class Urunler extends Model
         'aktif'              => 'boolean',
     ];
 
+    public function setUrunAdiAttribute($value)
+    {
+        $this->attributes['urun_adi'] = \App\Helpers\Metin::basHarfBuyut($value);
+    }
+
     public function salonlar()
     {
         return $this->belongsTo(Salonlar::class, 'salon_id');

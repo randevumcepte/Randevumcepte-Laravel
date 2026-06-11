@@ -34,6 +34,15 @@ class User extends Authenticatable
     ];
     protected $with =  ['il', 'ilce'];
 
+    /**
+     * İsim kaydedilirken her kelimenin baş harfini otomatik büyüt (Türkçe uyumlu).
+     * Sadece yeni atamalarda çalışır; mevcut kayıtlar okunurken değişmez.
+     */
+    public function setNameAttribute($value)
+    {
+        $this->attributes['name'] = \App\Helpers\Metin::basHarfBuyut($value);
+    }
+
      public function il()
     {
         return $this->belongsTo(Iller::class,'il_id');
