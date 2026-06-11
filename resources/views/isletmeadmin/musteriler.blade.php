@@ -56,7 +56,7 @@
       </li>
       <li class="nav-item">
          <button class="rc-mu-tab" data-toggle="tab" href="#yeni-musteriler" role="tab" aria-selected="false">
-            <i class="fa fa-user-plus"></i> Yeni Eklenen Müşteriler <span class="rc-mu-tab-count">{{ $tumMusteriSayisi }}</span>
+            <i class="fa fa-user-plus"></i> Yeni Eklenen Müşteriler <span class="rc-mu-tab-count">{{ $yeniMusteriSayisi }}</span>
          </button>
       </li>
    </ul>
@@ -169,7 +169,7 @@
       <div class="tab-pane fade show" id="yeni-musteriler" role="tab-panel">
          <div class="rc-mu-note">
             <i class="fa fa-info-circle"></i>
-            <div><b>Yeni eklenen müşteriler:</b> Tüm müşteriler en son eklenenden en eskiye doğru listelenir.</div>
+            <div><b>Yeni eklenen müşteriler:</b> {{ \Carbon\Carbon::parse(\App\Http\Controllers\StoreAdminController::YENI_MUSTERI_BASLANGIC)->format('d.m.Y') }} tarihinden itibaren portföye eklenen müşteriler, en yeniden eskiye doğru listelenir.</div>
          </div>
          <div class="rc-mu-card">
             <div class="rc-mu-tablo-wrap">

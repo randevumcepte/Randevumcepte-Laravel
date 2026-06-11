@@ -145,6 +145,13 @@ use App\Services\NotificationTypes;
 
 class StoreAdminController extends Controller
 {
+    /**
+     * "Yeni Eklenen Müşteriler" sekmesi için başlangıç tarihi.
+     * Bu tarihten ÖNCE portföye eklenen müşteriler (toplu import edilenler dahil)
+     * "yeni eklenen" sayılmaz; sadece bu tarih ve sonrasında eklenenler listelenir.
+     * Tüm salonlar için geçerlidir.
+     */
+    const YENI_MUSTERI_BASLANGIC = '2026-06-11 00:00:00';
 
 
     /**
@@ -7740,7 +7747,17 @@ private function ayAdiCevir($ingilizceAy)
                     ->groupBy('tahsilatlar.user_id')
                     ->havingRaw('COUNT(*) >= 3');
             })->count();
-        
+
+        // Yeni eklenen müşteriler: başlangıç tarihinden sonra portföye eklenenler
+        $yeniMusteriSayisi = DB::table('musteri_portfoy')
+            ->where('salon_id', $salonId)
+            ->where('aktif', true)
+            ->where('created_at', '>=', self::YENI_MUSTERI_BASLANGIC)
+            ->when($kendiPortfoyUserIds !== null, function ($q) use ($kendiPortfoyUserIds) {
+                $q->whereIn('user_id', $kendiPortfoyUserIds ?: [0]);
+            })
+            ->count();
+
         $paketler = self::paket_liste_getir('',true,$request);
         return view('isletmeadmin.musteriler',[
             'bildirimler' => self::bildirimgetir($request),
@@ -7753,7 +7770,8 @@ private function ayAdiCevir($ingilizceAy)
             'tumMusteriSayisi' => $tumMusteriSayisi,
             'odemeYapmayanlarSayisi' => $odemeYapmayanlarSayisi,
             'azIslemYapanlarSayisi' => $azIslemYapanlarSayisi,
-            'sadikMusterilerSayisi' => $sadikMusterilerSayisi
+            'sadikMusterilerSayisi' => $sadikMusterilerSayisi,
+            'yeniMusteriSayisi' => $yeniMusteriSayisi
         ]);
     }
     public function musteri_liste_deneme(Request $request)
@@ -7830,8 +7848,10 @@ private function ayAdiCevir($ingilizceAy)
                 // Ek filtre gerekmez
                 break;
 
-            case 4: // Yeni eklenen müşteriler (tüm müşteriler, en yeniden eskiye)
-                // Ek filtre gerekmez; sıralama aşağıda kayıt tarihine göre yapılır.
+            case 4: // Yeni eklenen müşteriler (başlangıç tarihinden itibaren, en yeniden eskiye)
+                // Toplu import edilen eski kayıtları hariç tut; sadece belirlenen
+                // başlangıç tarihinden sonra portföye eklenenler listelenir.
+                $query->where('musteri_portfoy.created_at', '>=', self::YENI_MUSTERI_BASLANGIC);
                 break;
         }
 
