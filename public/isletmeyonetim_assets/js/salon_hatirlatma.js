@@ -16,10 +16,20 @@
     var ILK_POPUP_GOSTERILDI = false; // sayfa basina 1 kez tam-ekran popup
     var SON_IMZA = '';                // hatirlatma listesinin imzasi
     var SYNC_KEY = 'sht_yenile_sinyal_' + SALON_ID; // cross-tab senkron
+    var POPUP_KAPATILDI_KEY = 'sht_popup_kapatildi_' + SALON_ID; // bu oturumda tam-ekran popup kapatildi mi
 
     function pencereleriTetikle(){
         // localStorage 'storage' event'i SADECE diger pencerelerde tetikler
         try { localStorage.setItem(SYNC_KEY, String(Date.now())); } catch(e){}
+    }
+
+    // Tam-ekran popup bir kez kapatilinca, sayfa gecislerinde otomatik geri acilmasin
+    // (zil ikonundan istenince yine acilir). Boylece "kapanip hemen gene aciliyor" dongusu biter.
+    function popupKapatildiMi(){
+        try { return sessionStorage.getItem(POPUP_KAPATILDI_KEY) === '1'; } catch(e){ return false; }
+    }
+    function popupKapatildiIsaretle(){
+        try { sessionStorage.setItem(POPUP_KAPATILDI_KEY, '1'); } catch(e){}
     }
 
     function fetchFeed(force){
@@ -52,7 +62,8 @@
         });
     }
     function toastGoster(h){
-        var $el = $('<div class="sht-toast tema-' + (h.tema||'default') + '"></div>');
+        var anahtar = h.id + ':' + (h.sayac || 0);
+        var $el = $('<div class="sht-toast tema-' + (h.tema||'default') + '" data-key="' + escapeHtml(anahtar) + '"></div>');
         $el.append(
             '<div class="sht-emoji">' + (h.emoji || '🔔') + '</div>' +
             '<div class="sht-body">' +
@@ -78,27 +89,19 @@
         $('#salon-hatirlatma-toaster').append($el);
         if (h.tema === 'konfeti-parti') setTimeout(function(){ konfetiPatlat($el[0]); }, 600);
         setTimeout(function(){ $el.addClass('show'); }, 30);
-        setTimeout(function(){
-            $el.removeClass('show');
-            setTimeout(function(){ $el.remove(); }, 500);
-        }, 12000);
+        // NOT: Toast'lar artik otomatik kapanmaz; tepside (sag alt) kalir.
+        // Kullanici ya ilgili alana tiklar (gider) ya da × ile kapatir. "Digerleri kalsin".
     }
 
     /* ---------- TAM EKRAN POPUP ---------- */
     function otomatikBigPopup(liste){
         if (!liste || !liste.length) { SON_IMZA = ''; return; }
-        var imza = liste.map(function(h){ return h.id + ':' + (h.sayac||0); }).sort().join('|');
+        SON_IMZA = liste.map(function(h){ return h.id + ':' + (h.sayac||0); }).sort().join('|');
+        // Bu oturumda kapatildiysa otomatik acma (toast'lar + zil ikonu yine calisir).
+        if (popupKapatildiMi()) return;
         if (!ILK_POPUP_GOSTERILDI) {
             ILK_POPUP_GOSTERILDI = true;
-            SON_IMZA = imza;
             bigPopupGoster(liste);
-            return;
-        }
-        if (imza !== SON_IMZA) {
-            SON_IMZA = imza;
-            if (!$('#salon-hatirlatma-bigpopup').hasClass('show')) {
-                bigPopupGoster(liste);
-            }
         }
     }
     function bigPopupGoster(liste){
@@ -152,6 +155,7 @@
     }
     function bigPopupKapat(){
         $('#salon-hatirlatma-bigpopup').removeClass('show');
+        popupKapatildiIsaretle(); // bu oturumda otomatik geri acilmasin
     }
     /* ---------- CAGRI MERKEZI: Hemen Ara (KVKK uyumlu, numara gosterilmez) ---------- */
     $(document).on('click', '.sht-hemen-ara', function(e){
@@ -193,6 +197,15 @@
     $(document).on('click', '#sht-btn-sonra, #sht-btn-anla', bigPopupKapat);
     $(document).on('click', '#salon-hatirlatma-bigpopup', function(e){
         if (e.target === this) bigPopupKapat();
+    });
+
+    // Tam-ekran popup'taki bir satira tiklayinca: SAYFAYA GITME, sadece popup'i kapat.
+    // Hatirlatmalar sag-alt tepside sekme olarak kalir; kullanici oradan istedigine tiklayip gider.
+    // ("Hemen Ara" butonu kendi handler'inda calisir, ona dokunma.)
+    $(document).on('click', '#salon-hatirlatma-bigpopup .sht-popup-item', function(e){
+        if ($(e.target).closest('.sht-hemen-ara, audio').length) return;
+        e.preventDefault();
+        bigPopupKapat();
     });
 
     /* ---------- HEADER BELL ---------- */

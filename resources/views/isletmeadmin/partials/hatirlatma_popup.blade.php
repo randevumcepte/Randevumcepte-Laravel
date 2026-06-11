@@ -5,7 +5,7 @@
      Asset versiyonu icin asagidaki ?v=X.Y degerini guncelle.
      ============================================================= --}}
 
-@php $shtVer = '1.2'; @endphp
+@php $shtVer = '1.3'; @endphp
 
 <link rel="stylesheet" href="{{ secure_asset('public/isletmeyonetim_assets/css/salon_hatirlatma.css') }}?v={{ $shtVer }}">
 
