@@ -2821,6 +2821,7 @@ $salon = Salonlar::where('domain', $domain)->first();
             // Beklenmedik bir hata olsa bile en azindan anasayfayi iceren gecerli sitemap don.
             $host = 'https://' . ($_SERVER['HTTP_HOST'] ?? '');
             $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+                  . '<!-- DEBUG: ' . htmlspecialchars($e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine()) . ' -->' . "\n"
                   . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n"
                   . '  <url><loc>' . $host . '/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>' . "\n"
                   . '</urlset>';
