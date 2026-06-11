@@ -48,6 +48,22 @@
         } catch(e){}
     }
 
+    // Bir toast oturumda BIR KEZ otomatik gosterilsin; sayfa gecislerinde tekrar patlamasin.
+    // (Zil ikonu hep guncel listeyi acar.) Sayac degisince anahtar degisir -> tekrar gosterilir.
+    var TOAST_GOSTERILEN_KEY = 'sht_toast_gosterilen_' + SALON_ID;
+    function gosterilenToastlar(){
+        try { return JSON.parse(sessionStorage.getItem(TOAST_GOSTERILEN_KEY) || '[]'); } catch(e){ return []; }
+    }
+    function toastGosterildiMi(anahtar){
+        return gosterilenToastlar().indexOf(anahtar) !== -1;
+    }
+    function toastGosterildiIsaretle(anahtar){
+        try {
+            var arr = gosterilenToastlar();
+            if (arr.indexOf(anahtar) === -1) { arr.push(anahtar); sessionStorage.setItem(TOAST_GOSTERILEN_KEY, JSON.stringify(arr)); }
+        } catch(e){}
+    }
+
     function fetchFeed(force){
         var url = FEED_URL + (force ? '&refresh=1' : '');
         $.ajax({
@@ -73,7 +89,9 @@
             var anahtar = h.id + ':' + (h.sayac || 0);
             if (GOSTERILEN_TOAST[anahtar]) return;
             if (toastKapatildiMi(anahtar)) return; // bu oturumda tiklandi/kapatildi
+            if (toastGosterildiMi(anahtar)) return; // bu oturumda zaten gosterildi, her sayfada tekrar acma
             GOSTERILEN_TOAST[anahtar] = Date.now();
+            toastGosterildiIsaretle(anahtar);
             setTimeout(function(){ toastGoster(h); }, sirada * 350);
             sirada++;
         });
@@ -117,15 +135,19 @@
     }
 
     /* ---------- TAM EKRAN POPUP ---------- */
+    var POPUP_GOSTERILDI_KEY = 'sht_popup_gosterildi_' + SALON_ID;
     function otomatikBigPopup(liste){
         if (!liste || !liste.length) { SON_IMZA = ''; return; }
         SON_IMZA = liste.map(function(h){ return h.id + ':' + (h.sayac||0); }).sort().join('|');
-        // Bu oturumda kapatildiysa otomatik acma (toast'lar + zil ikonu yine calisir).
+        // Oturumda kapatildiysa VEYA bir kez otomatik acildiysa, sayfa gecislerinde tekrar acma.
+        // (Zil ikonu hep guncel listeyi acar.)
         if (popupKapatildiMi()) return;
-        if (!ILK_POPUP_GOSTERILDI) {
-            ILK_POPUP_GOSTERILDI = true;
-            bigPopupGoster(liste);
-        }
+        var oturumdaAcildi = false;
+        try { oturumdaAcildi = sessionStorage.getItem(POPUP_GOSTERILDI_KEY) === '1'; } catch(e){}
+        if (oturumdaAcildi || ILK_POPUP_GOSTERILDI) return;
+        ILK_POPUP_GOSTERILDI = true;
+        try { sessionStorage.setItem(POPUP_GOSTERILDI_KEY, '1'); } catch(e){}
+        bigPopupGoster(liste);
     }
     function bigPopupGoster(liste){
         if (!liste || !liste.length) return;
