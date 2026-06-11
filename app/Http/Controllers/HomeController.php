@@ -2799,34 +2799,33 @@ $salon = Salonlar::where('domain', $domain)->first();
         // Her isletme domaini icin DINAMIK, kendiliginden olusan sitemap.
         // Hedef: yalnizca ana (acilan) sayfa arama sonuclarinda gorunsun.
         // Alt sayfalar canonical ile ana sayfada birlestigi icin listelenmez.
-        // Hangi durumda olursa olsun gecerli bir XML doner (asla 500 vermez).
+        // XML controller'da duz string olarak uretilir (Blade view KULLANILMAZ):
+        // canli sunucuda short_open_tag acik oldugu icin Blade'deki <?xml satiri
+        // PHP tag'i sanilip syntax error veriyordu. Bu yontem o tuzaktan bagimsiz.
+        $host    = 'https://' . ($_SERVER['HTTP_HOST'] ?? '');
+        $lastmod = date('Y-m-d');
+
         try {
-            $host   = 'https://' . $_SERVER['HTTP_HOST'];
             $domain = str_replace('www.', '', $_SERVER['HTTP_HOST']);
             $salon  = Salonlar::where('domain', $domain)->first();
-
-            $lastmod = date('Y-m-d');
             if ($salon && !empty($salon->updated_at)) {
-                try { $lastmod = \Carbon\Carbon::parse($salon->updated_at)->format('Y-m-d'); } catch (\Throwable $e) {}
+                $lastmod = \Carbon\Carbon::parse($salon->updated_at)->format('Y-m-d');
             }
-
-            $urls = [
-                ['loc' => $host . '/', 'priority' => '1.0', 'changefreq' => 'weekly', 'lastmod' => $lastmod],
-            ];
-
-            return response()
-                ->view('sitemap', ['urls' => $urls])
-                ->header('Content-Type', 'application/xml');
         } catch (\Throwable $e) {
-            // Beklenmedik bir hata olsa bile en azindan anasayfayi iceren gecerli sitemap don.
-            $host = 'https://' . ($_SERVER['HTTP_HOST'] ?? '');
-            $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
-                  . '<!-- DEBUG: ' . htmlspecialchars($e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine()) . ' -->' . "\n"
-                  . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n"
-                  . '  <url><loc>' . $host . '/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>' . "\n"
-                  . '</urlset>';
-            return response($xml, 200)->header('Content-Type', 'application/xml');
+            // sessizce gec: lastmod bugunun tarihi olarak kalir
         }
+
+        $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+        $xml .= '  <url>' . "\n";
+        $xml .= '    <loc>' . $host . '/</loc>' . "\n";
+        $xml .= '    <lastmod>' . $lastmod . '</lastmod>' . "\n";
+        $xml .= '    <changefreq>weekly</changefreq>' . "\n";
+        $xml .= '    <priority>1.0</priority>' . "\n";
+        $xml .= '  </url>' . "\n";
+        $xml .= '</urlset>';
+
+        return response($xml, 200)->header('Content-Type', 'application/xml');
     }
 
     public function robots(Request $request)
