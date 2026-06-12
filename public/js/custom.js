@@ -23351,6 +23351,191 @@ $(document).on('focus', '.hy-fiyat-input', function(){
     }
 });
 
+// ============================================================================
+// HARİCİ TAHSİLAT (Geçmişe dönük / dış kaynaklı satış)
+// Salt-finansal: stok düşmez, seans oluşmaz. POST /isletmeyonetim/harici-tahsilat-ekle
+// ============================================================================
+(function(){
+    function hrcTL(n){ return (parseFloat(n)||0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₺'; }
+
+    // Modal açılınca müşteri select2'yi başlat (modal içi z-index için dropdownParent şart)
+    $(document).on('shown.bs.modal', '#harici_tahsilat_modal', function(){
+        var $modal = $(this);
+        var $sel = $('#harici_musteri_id');
+        if($sel.hasClass('select2-hidden-accessible')) return;
+        $sel.select2({
+            placeholder: 'Müşteri/Danışan seçin (en az 2 karakter)',
+            allowClear: true,
+            dropdownParent: $modal,
+            language: {
+                inputTooShort: function(){ return 'Lütfen en az 2 karakter girin.'; },
+                searching: function(){ return 'Aranıyor...'; },
+                noResults: function(){ return 'Sonuç bulunamadı.'; }
+            },
+            ajax: {
+                url: '/isletmeyonetim/musteri-arama-bolumu-verileri',
+                dataType: 'json',
+                delay: 250,
+                data: function(params){
+                    var term = (params.term || '')
+                        .replace(/ı/g,'i').replace(/ğ/g,'g').replace(/ü/g,'u')
+                        .replace(/ş/g,'s').replace(/ö/g,'o').replace(/ç/g,'c')
+                        .replace(/İ/g,'i').replace(/Ğ/g,'g').replace(/Ü/g,'u')
+                        .replace(/Ş/g,'s').replace(/Ö/g,'o').replace(/Ç/g,'c');
+                    return {
+                        query: params.term || '',
+                        normalized_query: term,
+                        sube: $('#harici_tahsilat_form input[name="sube"]').val(),
+                        aramaMi: false
+                    };
+                },
+                processResults: function(data){
+                    return { results: data.map(function(m){ return { id: m.id, text: m.ad_soyad }; }) };
+                }
+            },
+            minimumInputLength: 2
+        });
+    });
+
+    // Kalem türü değişince ilgili seçim kutusunu göster
+    $(document).on('change', '#harici_kalem_tip', function(){
+        var tip = $(this).val();
+        $('.harici-item-select').hide().val('');
+        $('#harici_kalem_fiyat').val(0);
+        if(tip === 'hizmet'){ $('#harici_hizmet_select').show(); $('#harici_adet_kutu').hide(); }
+        else if(tip === 'urun'){ $('#harici_urun_select').show(); $('#harici_adet_kutu').show(); $('#harici_kalem_adet').val(1); }
+        else if(tip === 'paket'){ $('#harici_paket_select').show(); $('#harici_adet_kutu').hide(); }
+    });
+
+    function hrcBirimFiyat(){
+        var tip = $('#harici_kalem_tip').val();
+        var $sel = (tip==='hizmet') ? $('#harici_hizmet_select') : (tip==='urun') ? $('#harici_urun_select') : $('#harici_paket_select');
+        return parseFloat($sel.find('option:selected').data('fiyat')) || 0;
+    }
+    function hrcFiyatGuncelle(){
+        var tip = $('#harici_kalem_tip').val();
+        var birim = hrcBirimFiyat();
+        var adet = (tip==='urun') ? (parseFloat($('#harici_kalem_adet').val())||1) : 1;
+        $('#harici_kalem_fiyat').val((birim*adet).toFixed(2));
+    }
+    $(document).on('change', '.harici-item-select', hrcFiyatGuncelle);
+    $(document).on('input', '#harici_kalem_adet', hrcFiyatGuncelle);
+
+    function hrcToplamHesapla(){
+        var toplam = 0;
+        $('#harici_kalem_tablosu tr[data-kalem]').each(function(){
+            toplam += parseFloat($(this).attr('data-fiyat')) || 0;
+        });
+        $('#harici_toplam_goster').text(hrcTL(toplam));
+        // Tahsilat tutarı henüz elle değiştirilmediyse toplamı öner
+        var $th = $('#harici_tahsilat_tutari');
+        if(!$th.data('elle')) $th.val(toplam.toFixed(2));
+        return toplam;
+    }
+    $(document).on('input', '#harici_tahsilat_tutari', function(){ $(this).data('elle', true); });
+
+    // Kalemi listeye ekle
+    $(document).on('click', '#harici_kalem_ekle', function(){
+        var tip = $('#harici_kalem_tip').val();
+        var $sel = (tip==='hizmet') ? $('#harici_hizmet_select') : (tip==='urun') ? $('#harici_urun_select') : $('#harici_paket_select');
+        var id = $sel.val();
+        var ad = $sel.find('option:selected').text();
+        if(!id){ Swal.fire({icon:'warning', text:'Lütfen bir '+(tip==='hizmet'?'hizmet':tip==='urun'?'ürün':'paket')+' seçin.', confirmButtonText:'Tamam'}); return; }
+        var adet = (tip==='urun') ? (parseFloat($('#harici_kalem_adet').val())||1) : 1;
+        var fiyat = parseFloat($('#harici_kalem_fiyat').val()) || 0;
+        var tipAd = (tip==='hizmet') ? 'Hizmet' : (tip==='urun') ? 'Ürün' : 'Paket';
+        var tipRenk = (tip==='hizmet') ? '#0ea5e9' : (tip==='urun') ? '#ef4444' : '#8b5cf6';
+
+        $('#harici_kalem_bos').remove();
+        var row = '<tr data-kalem="1" data-fiyat="'+fiyat+'">'
+            + '<td><span style="background:'+tipRenk+';color:#fff;font-size:11px;padding:2px 7px;border-radius:8px">'+tipAd+'</span>'
+            + '<input type="hidden" name="kalem_tip[]" value="'+tip+'">'
+            + '<input type="hidden" name="kalem_id[]" value="'+id+'">'
+            + '<input type="hidden" name="kalem_adet[]" value="'+adet+'">'
+            + '<input type="hidden" name="kalem_fiyat[]" value="'+fiyat.toFixed(2)+'"></td>'
+            + '<td>'+$('<div>').text(ad).html()+'</td>'
+            + '<td style="text-align:center">'+(tip==='urun'?adet:'-')+'</td>'
+            + '<td style="text-align:right">'+hrcTL(fiyat)+'</td>'
+            + '<td style="text-align:center"><button type="button" class="btn btn-sm btn-link text-danger harici-kalem-sil" style="padding:0"><i class="fa fa-trash"></i></button></td>'
+            + '</tr>';
+        $('#harici_kalem_tablosu').append(row);
+        hrcToplamHesapla();
+        // Sıfırla
+        $('.harici-item-select').val('');
+        $('#harici_kalem_fiyat').val(0);
+        $('#harici_kalem_adet').val(1);
+    });
+
+    // Kalem sil
+    $(document).on('click', '.harici-kalem-sil', function(){
+        $(this).closest('tr').remove();
+        if($('#harici_kalem_tablosu tr[data-kalem]').length === 0){
+            $('#harici_kalem_tablosu').html('<tr id="harici_kalem_bos"><td colspan="5" class="text-center" style="color:#94a3b8;padding:14px">Henüz kalem eklenmedi</td></tr>');
+        }
+        hrcToplamHesapla();
+    });
+
+    // Modal kapanınca formu temizle
+    $(document).on('hidden.bs.modal', '#harici_tahsilat_modal', function(){
+        var $f = $('#harici_tahsilat_form');
+        $f[0].reset();
+        $('#harici_musteri_id').val(null).trigger('change');
+        $('#harici_kalem_tablosu').html('<tr id="harici_kalem_bos"><td colspan="5" class="text-center" style="color:#94a3b8;padding:14px">Henüz kalem eklenmedi</td></tr>');
+        $('#harici_toplam_goster').text('0,00 ₺');
+        $('#harici_tahsilat_tutari').data('elle', false).val(0);
+        $('.harici-item-select').hide().val('');
+        $('#harici_hizmet_select').show();
+        $('#harici_adet_kutu').hide();
+    });
+
+    // Kaydet
+    $(document).on('submit', '#harici_tahsilat_form', function(e){
+        e.preventDefault();
+        if(!$('#harici_musteri_id').val()){ Swal.fire({icon:'warning', text:'Lütfen müşteri seçin.', confirmButtonText:'Tamam'}); return; }
+        if(!$('#harici_satis_tarihi').val()){ Swal.fire({icon:'warning', text:'Lütfen satış tarihi girin.', confirmButtonText:'Tamam'}); return; }
+        if($('#harici_kalem_tablosu tr[data-kalem]').length === 0){ Swal.fire({icon:'warning', text:'En az bir satış kalemi ekleyin.', confirmButtonText:'Tamam'}); return; }
+
+        var $btn = $('#harici_kaydet');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Kaydediliyor...');
+        $.ajax({
+            url: '/isletmeyonetim/harici-tahsilat-ekle',
+            method: 'POST',
+            data: $(this).serialize(),
+            dataType: 'json'
+        }).done(function(res){
+            if(res && res.durum === 'basarili'){
+                var satisTarihi = $('#harici_satis_tarihi').val();
+                $('#harici_tahsilat_modal').modal('hide');
+                Swal.fire({
+                    icon:'success', title:'Kaydedildi',
+                    html: (res.mesaj || 'Harici tahsilat eklendi.') + '<br><small style="color:#64748b">Satış tarihi: <b>'+satisTarihi+'</b> — bu tarihte listelenir.</small>',
+                    timer: 2200, showConfirmButton: false
+                }).then(function(){
+                    // Kayit gecmis tarihli olabilir; tarih filtresini satisi kapsayacak araliga al
+                    try {
+                        var yil = (satisTarihi || '').substring(0,4);
+                        if(yil){
+                            var hedef = yil + '-01-01 / ' + yil + '-12-31';
+                            var $f = $('#satis_zamana_gore_filtre');
+                            if($f.find('option[value="'+hedef+'"]').length){ $f.val(hedef).trigger('change'); }
+                        }
+                    } catch(err){}
+                    if(typeof applyFilters === 'function'){ applyFilters(); }
+                    else { location.reload(); }
+                });
+            } else {
+                Swal.fire({icon:'error', text:(res && res.mesaj) ? res.mesaj : 'Kayıt başarısız.', confirmButtonText:'Tamam'});
+            }
+        }).fail(function(xhr){
+            var msg = 'Bir hata oluştu.';
+            try { var r = JSON.parse(xhr.responseText); if(r.mesaj) msg = r.mesaj; } catch(err){}
+            Swal.fire({icon:'error', text: msg, confirmButtonText:'Tamam'});
+        }).always(function(){
+            $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Kaydet');
+        });
+    });
+})();
+
 $(document).ready(function(){
     // Sayfa yüklendiğinde mevcut fiyat inputlarını formatla
     $('.hy-fiyat-input').each(function(){

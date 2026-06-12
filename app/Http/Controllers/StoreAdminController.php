@@ -10944,8 +10944,24 @@ private function ayAdiCevir($ingilizceAy)
         $acikTaksitler = self::taksitleri_getir($request,0,'');
         $kapaliTaksitler= self::taksitleri_getir($request,1,'');
           $odenmemisTaksitler =self::taksitleri_getir($request,2,'');
-        
+
+        // Harici tahsilat modali icin salon bazli hizmet/urun/paket listeleri
+        $harici_hizmetler = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id',$isletme->id)
+            ->where('salon_sunulan_hizmetler.aktif',true)
+            ->select('hizmetler.id as id','hizmetler.hizmet_adi as ad',
+                DB::raw('COALESCE(salon_sunulan_hizmetler.son_fiyat, salon_sunulan_hizmetler.baslangic_fiyat, hizmetler.fiyat, 0) as fiyat'))
+            ->orderBy('hizmetler.hizmet_adi')->get();
+        $harici_urunler = DB::table('urunler')
+            ->where('salon_id',$isletme->id)->where('aktif',true)
+            ->select('id','urun_adi as ad','fiyat')->orderBy('urun_adi')->get();
+        $harici_paketler = DB::table('paketler')
+            ->where('salon_id',$isletme->id)
+            ->select('id','paket_adi as ad','fiyat')->orderBy('paket_adi')->get();
+
         return view('isletmeadmin.adisyonlar',['isletme'=>$isletme,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request), 'sayfa_baslik'=>'Satış Takibi','pageindex' => 11,
+            'harici_hizmetler'=>$harici_hizmetler,'harici_urunler'=>$harici_urunler,'harici_paketler'=>$harici_paketler,
             //'adisyonlar'=>$adisyonlar,
             'request'=>$request, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'tum_taksitler'=>self::taksitleri_getir($request,'',''),
          
@@ -10961,6 +10977,177 @@ private function ayAdiCevir($ingilizceAy)
 
 
 
+    /**
+     * HARICI TAHSILAT (gecmise donuk / dis kaynakli satis)
+     * Rakip programlardan aktarilan satislari sisteme finansal olarak isler.
+     * Salt-okunur mantik: adisyon + kalemler + tahsilat kaydedilir AMA
+     *   - urun stoktan DUSMEZ (hareketKaydet cagrilmaz)
+     *   - hizmet sarf recetesi UYGULANMAZ (receteyiUygula cagrilmaz)
+     *   - paket seansi OLUSMAZ (adisyon_paket_seanslar / randevu yaratilmaz)
+     * adisyonlar.harici=1 ile isaretlenir; secilen tarih adisyonlar.tarih'e yazilir,
+     * boylece tum finansal raporlar (satis/kasa) o tarihte gosterir.
+     */
+    public function hariciTahsilatEkle(Request $request)
+    {
+        $sube = $request->sube;
+        $authUser = Auth::guard('isletmeyonetim')->user();
+
+        // Yetki: yeni satis/tahsilat ile ayni
+        if ($authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $sube, 'satis.tahsilat_al')) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Bu islem icin yetkiniz yok.'], 403);
+        }
+
+        $musteri_id = $request->musteri_id;
+        if (empty($musteri_id) || empty($request->satis_tarihi)) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Musteri ve satis tarihi zorunludur.'], 422);
+        }
+        $tarih = date('Y-m-d', strtotime($request->satis_tarihi));
+
+        $tipler = $request->kalem_tip ?? [];
+        if (!is_array($tipler) || count($tipler) == 0) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'En az bir satis kalemi ekleyin.'], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // 1) Adisyon (harici isaretli, secilen tarihle)
+            $adisyon = new Adisyonlar();
+            $adisyon->user_id = $musteri_id;
+            $adisyon->salon_id = $sube;
+            $adisyon->olusturan_id = $authUser->id;
+            $adisyon->tarih = $tarih;
+            $adisyon->harici = 1;
+            $adisyon->save();
+            $adisyon_id = $adisyon->id;
+
+            // 2) Kalemleri YAN ETKISIZ ekle
+            $olusan_kalemler = []; // ['tip'=>, 'id'=>, 'fiyat'=>]
+            $toplam = 0;
+            foreach ($tipler as $k => $tip) {
+                $itemId = $request->kalem_id[$k] ?? null;
+                if (empty($itemId)) continue;
+                $fiyat = (float) str_replace(',', '.', $request->kalem_fiyat[$k] ?? 0);
+                if ($fiyat < 0) $fiyat = 0;
+                $adet = (float) str_replace(',', '.', $request->kalem_adet[$k] ?? 1);
+                if ($adet <= 0) $adet = 1;
+
+                if ($tip == 'hizmet') {
+                    $kalem = new AdisyonHizmetler();
+                    $kalem->adisyon_id = $adisyon_id;
+                    $kalem->hizmet_id = $itemId;
+                    $kalem->fiyat = $fiyat;
+                    $kalem->islem_tarihi = $tarih;
+                    $kalem->indirim_tutari = 0;
+                    $kalem->save(); // NOT: adisyon_hizmet_ekle helper'i KULLANILMADI -> recete uygulanmaz
+                    $olusan_kalemler[] = ['tip' => 'hizmet', 'id' => $kalem->id, 'fiyat' => $fiyat];
+                } elseif ($tip == 'urun') {
+                    $kalem = new AdisyonUrunler();
+                    $kalem->adisyon_id = $adisyon_id;
+                    $kalem->urun_id = $itemId;
+                    $kalem->adet = $adet;
+                    $kalem->fiyat = $fiyat;
+                    $kalem->indirim_tutari = 0;
+                    $kalem->save(); // NOT: StokController::hareketKaydet cagrilmadi -> stok dusmez
+                    $olusan_kalemler[] = ['tip' => 'urun', 'id' => $kalem->id, 'fiyat' => $fiyat];
+                } elseif ($tip == 'paket') {
+                    $kalem = new AdisyonPaketler();
+                    $kalem->adisyon_id = $adisyon_id;
+                    $kalem->paket_id = $itemId;
+                    $kalem->fiyat = $fiyat;
+                    $kalem->indirim_tutari = 0;
+                    // Salt-finansal: hic seans olusturulmaz
+                    $kalem->seans_sayisi = 0;
+                    $kalem->kullanilan_seans = 0;
+                    $kalem->bekleyen_seans = 0;
+                    $kalem->kullanilmayan_seans = 0;
+                    $kalem->otomatik_randevu_olusturuldu = false;
+                    $kalem->save(); // NOT: seans/randevu olusturulmadi
+                    $olusan_kalemler[] = ['tip' => 'paket', 'id' => $kalem->id, 'fiyat' => $fiyat];
+                } else {
+                    continue;
+                }
+                $toplam += $fiyat;
+            }
+
+            if (count($olusan_kalemler) == 0) {
+                DB::rollBack();
+                return response()->json(['durum' => 'hata', 'mesaj' => 'Gecerli satis kalemi bulunamadi.'], 422);
+            }
+
+            // 3) Tahsilat (girilen tutar; 0 ise sadece satis kaydedilir, odeme olusmaz)
+            $tahsilatTutari = (float) str_replace(',', '.', $request->tahsilat_tutari ?? 0);
+            if ($tahsilatTutari < 0) $tahsilatTutari = 0;
+            if ($tahsilatTutari > 0 && $toplam > 0) {
+                if ($tahsilatTutari > $toplam) $tahsilatTutari = $toplam;
+
+                $tahsilat = new Tahsilatlar();
+                $tahsilat->adisyon_id = $adisyon_id;
+                $tahsilat->user_id = $musteri_id;
+                $tahsilat->odeme_tarihi = $tarih;
+                $tahsilat->olusturan_id = Personeller::where('salon_id', $sube)->where('yetkili_id', $authUser->id)->value('id');
+                $tahsilat->salon_id = $sube;
+                $tahsilat->tutar = $tahsilatTutari;
+                $tahsilat->yapilan_odeme = $tahsilatTutari;
+                $tahsilat->odeme_yontemi_id = $request->odeme_yontemi;
+                $tahsilat->notlar = $request->not;
+                if (!empty($request->banka)) $tahsilat->banka_id = $request->banka;
+                $tahsilat->save();
+
+                // Kalem bazli tahsilati orana gore dagit (odenen/kalan dogru gozuksun)
+                foreach ($olusan_kalemler as $kalem) {
+                    $pay = ($kalem['fiyat'] / $toplam) * $tahsilatTutari;
+                    if ($pay <= 0) continue;
+                    if ($kalem['tip'] == 'hizmet') {
+                        $o = new TahsilatHizmetler();
+                        $o->adisyon_hizmet_id = $kalem['id'];
+                    } elseif ($kalem['tip'] == 'urun') {
+                        $o = new TahsilatUrunler();
+                        $o->adisyon_urun_id = $kalem['id'];
+                    } else {
+                        $o = new TahsilatPaketler();
+                        $o->adisyon_paket_id = $kalem['id'];
+                    }
+                    $o->tahsilat_id = $tahsilat->id;
+                    $o->tutar = $pay;
+                    $o->save();
+                }
+            }
+
+            // 4) Denetim kaydi
+            try {
+                $_musteriAdi = \App\User::where('id', $musteri_id)->value('name') ?? ('Musteri #' . $musteri_id);
+                SalonAudit::log($sube, 'harici_tahsilat_ekle', 'adisyon', $adisyon_id,
+                    $_musteriAdi . ' — ' . number_format($toplam, 2, ',', '.') . ' ₺',
+                    'Harici tahsilat (gecmise donuk satis) eklendi',
+                    ['tarih' => $tarih, 'kalem_sayisi' => count($olusan_kalemler), 'tahsilat' => $tahsilatTutari]);
+            } catch (\Throwable $e) {}
+
+            DB::commit();
+            return response()->json([
+                'durum' => 'basarili',
+                'mesaj' => 'Harici tahsilat kaydedildi.',
+                'adisyon_id' => $adisyon_id,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'durum' => 'hata',
+                'mesaj' => 'Kayit sirasinda hata olustu: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /** adisyonlar.harici kolonu var mi (migration calismadiysa listeyi bozmamak icin). */
+    private static $_hariciKolonVar = null;
+    private function hariciKolonVar()
+    {
+        if (self::$_hariciKolonVar === null) {
+            try { self::$_hariciKolonVar = \Schema::hasColumn('adisyonlar', 'harici'); }
+            catch (\Throwable $e) { self::$_hariciKolonVar = false; }
+        }
+        return self::$_hariciKolonVar;
+    }
+
     public function adisyonlistegetir(Request $request)
     {
         $personelFiltre = $request->personel_id;
@@ -10975,6 +11162,20 @@ private function ayAdiCevir($ingilizceAy)
             }
         }
         $result = self::adisyon_yukle_tahsilat($request,$request->tur,'','1970-01-01',date('Y-m-d'),'',$personelFiltre,'');
+
+        // Harici (gecmise donuk) satislari "Harici" rozetiyle isaretle
+        try {
+            if ($this->hariciKolonVar() && is_iterable($result)) {
+                $hariciIds = Adisyonlar::where('salon_id', self::mevcutsube($request))
+                    ->where('harici', 1)->pluck('id')->flip();
+                $rozet = ' <span style="display:inline-block;background:#6d28d9;color:#fff;font-size:10px;font-weight:600;padding:2px 6px;border-radius:10px;vertical-align:middle">Harici</span>';
+                foreach ($result as $row) {
+                    if (isset($row->id) && isset($hariciIds[$row->id]) && isset($row->musteri)) {
+                        $row->musteri .= $rozet;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
 
         // Yetki: satis.adisyon_sil kapali ise islemler kolonundan
         // "Adisyonu Sil" butonunu kaldir.

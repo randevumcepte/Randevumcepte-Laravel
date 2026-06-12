@@ -8,9 +8,10 @@ class Adisyonlar extends Model
 {
    
    //protected $connection = 'mysql_source'; // Varsayılan olarak kaynak database
-    protected $fillable = ['salon_id','user_id','fatura_kesildi','fatura_kesildi_tarihi','fatura_kesen_personel_id'];
+    protected $fillable = ['salon_id','user_id','harici','fatura_kesildi','fatura_kesildi_tarihi','fatura_kesen_personel_id'];
 
     protected $casts = [
+        'harici' => 'boolean',
         'fatura_kesildi' => 'boolean',
         'fatura_kesildi_tarihi' => 'datetime',
     ];
