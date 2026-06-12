@@ -8812,6 +8812,13 @@ private function ayAdiCevir($ingilizceAy)
         }
         $adisyon->tarih = date('Y-m-d', strtotime($yeniTarih));
         $adisyon->save();
+        // Kasa raporu tahsilat.odeme_tarihi uzerinden filtrelendigi icin, satis tarihi
+        // degisince bu satisa ait tahsilatlarin odeme tarihini de yeni tarihe kaydir.
+        // Aksi halde satis takibi/musteri karti yeni tarihi gosterirken kasa raporu
+        // eski tarihte kalir. (geriye donuk/harici satislarda beklenen davranis: hizali olsun)
+        Tahsilatlar::where('adisyon_id',$adisyon->id)
+            ->where('salon_id',self::mevcutsube($request))
+            ->update(['odeme_tarihi'=>$adisyon->tarih]);
         return response()->json(['ok'=>true,'tarih'=>$adisyon->tarih,'tarih_format'=>date('d.m.Y',strtotime($adisyon->tarih))]);
     }
    public function urunler(Request $request){
