@@ -23351,13 +23351,26 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         {
 
             $formlar = FormTaslaklari::where('salon_id',$request->salonid)->orWhereNull('salon_id')->get();
-                 // Hizmetler
+                 // Hizmetler — aktif=1 olanlar + bu salondaki randevu_hizmetler'de
+                 // KULLANILMIS aktif=0 hizmetler de listelenir. Boylece silinmis
+                 // hizmetli eski randevular duzenleme ekraninda crash atmaz.
+                 // Frontend'in randevu_id gondermesine veya farklı bir bayrağa
+                 // ihtiyaç kalmaz (mobil rebuild gerekmez).
             $hizmetler  =  SalonHizmetler::join(
-                DB::raw('(SELECT MAX(id) as id 
+                DB::raw('(SELECT MAX(id) as id
                           FROM salon_sunulan_hizmetler
                           WHERE salon_id = '.$request->salonid.'
-                            AND aktif = 1
                             AND (santral_hizmeti != 1 OR santral_hizmeti IS NULL)
+                            AND (
+                              aktif = 1
+                              OR hizmet_id IN (
+                                SELECT DISTINCT rh.hizmet_id
+                                FROM randevu_hizmetler rh
+                                INNER JOIN randevular r ON r.id = rh.randevu_id
+                                WHERE r.salon_id = '.$request->salonid.'
+                                  AND rh.hizmet_id IS NOT NULL
+                              )
+                            )
                           GROUP BY hizmet_id) as latest'),
                 'salon_sunulan_hizmetler.id',
                 '=',
