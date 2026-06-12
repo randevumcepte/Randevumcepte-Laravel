@@ -33,6 +33,7 @@
       <table class="table table-hover">
          <thead>
             <tr>
+               <th style="width:50px;">#</th>
                <th>Müşteri</th>
                <th>Telefon</th>
                <th>Durum</th>
@@ -166,7 +167,7 @@ function detayYukle() {
       success: function (res) {
          const tbody = $('#musteri_detay_tbody');
          tbody.empty();
-         (res.data || []).forEach(function (item) {
+         (res.data || []).forEach(function (item, index) {
             const sesBtn = item.ses
                ? `<a href="${item.ses}" target="_blank" class="btn btn-sm btn-danger" title="Ses Kaydını Dinle"><i class="fa fa-play"></i></a>`
                : '';
@@ -175,6 +176,7 @@ function detayYukle() {
                : '<span class="text-muted">-</span>';
             const row = `
                <tr data-id="${item.aranacak_musteri_id}">
+                  <td style="text-align:center;font-weight:600;color:#5C008E;">${index + 1}</td>
                   <td>${item.ad}</td>
                   <td><span class="text-muted">${item.telefonGizlenmis}</span></td>
                   <td><span class="durum-hucre">${item.durum}</span></td>
@@ -188,7 +190,7 @@ function detayYukle() {
             tbody.append(row);
          });
          if ((res.data || []).length === 0) {
-            tbody.append('<tr><td colspan="5" class="text-center text-muted">Bu listede müşteri yok.</td></tr>');
+            tbody.append('<tr><td colspan="6" class="text-center text-muted">Bu listede müşteri yok.</td></tr>');
          }
       },
       complete: function () {

@@ -20,11 +20,12 @@
             <table class="table table-bordered table-hover mb-0" id="arama_liste_detay_tablo" style="font-size: 16px;">
               <thead class="thead-light" style="position: sticky; top: 0; background-color: #f8f9fa;">
                 <tr>
-                  <th style="width: 20%;">Müşteri</th>
-                  <th style="width: 20%;">Telefon Numarası</th>
-                  <th style="width: 20%;">Durum</th>
+                  <th style="width: 6%;">#</th>
+                  <th style="width: 19%;">Müşteri</th>
+                  <th style="width: 19%;">Telefon Numarası</th>
+                  <th style="width: 18%;">Durum</th>
                   <th style="width: 20%;">Not</th>
-                  <th style="width: 20%;"></th>
+                  <th style="width: 18%;"></th>
                 </tr>
               </thead>
               <tbody>

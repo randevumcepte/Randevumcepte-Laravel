@@ -20596,6 +20596,16 @@ $('table').on('click','button[name="ses_kaydi_indir"]',function(){
 });
 $('table').on('click','button[name="musteriyi_ara"]',function (e) {
    e.preventDefault();
+   // Web telefon (SIP) yuklu degilse (dahili atanmamis) arama yapilamaz.
+   // Eskiden modal yine de kapaniyordu -> "bosa kapaniyor" goruntusu. Artik net uyari.
+   if (typeof makeCall !== 'function') {
+      if (typeof swal === 'function') {
+         swal({ type:'warning', title:'Web telefon hazır değil', text:'Arama yapabilmek için ayarlardan bu kullanıcıya bir dahili numara atanmalı. Asıl çağrıları personel kendi "Arama Listesi" ekranından yapar.' });
+      } else {
+         alert('Web telefon (dahili) tanımlı değil. Arama yapılamıyor.');
+      }
+      return;
+   }
    var telefon = $('#webtelefon')
    if(!$('#webtelefon').prop('aria-expanded')||$('#webtelefon').prop('aria-expanded')=='false')
    {
@@ -22004,8 +22014,10 @@ function loadAramaDetaylari(page = 1) {
                     notHTML += `<br><small class="text-muted">${item.not_tarih} - ${item.not_saat}</small>`;
                 }
 
+                let siraNo = (page - 1) * perPage2 + index + 1;
                 htmlRows.push(`
                     <tr data-index="${index}">
+                        <td style="text-align:center;font-weight:600;color:#5C008E;">${siraNo}</td>
                         <td>${item.ad}</td>
                         <td>${item.telefonGizlenmis}</td>
                         <td>${item.durum}</td>
