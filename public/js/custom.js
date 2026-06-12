@@ -23421,18 +23421,23 @@ $(document).on('focus', '.hy-fiyat-input', function(){
     $(document).on('change', '.harici-item-select', hrcFiyatGuncelle);
     $(document).on('input', '#harici_kalem_adet', hrcFiyatGuncelle);
 
+    // Tahsilat tutarini kullanici ELLE degistirdi mi? Sadece gercek klavye girisi
+    // (keydown) bunu true yapar; programatik .val() veya plugin 'input' eventleri etkilemez.
+    var hrcTahsilatElle = false;
+    $(document).on('keydown', '#harici_tahsilat_tutari', function(e){
+        // Tab/ok tuslari elle giris sayilmasin
+        if(e.key && e.key.length === 1) hrcTahsilatElle = true;
+    });
     function hrcToplamHesapla(){
         var toplam = 0;
         $('#harici_kalem_tablosu tr[data-kalem]').each(function(){
             toplam += parseFloat($(this).attr('data-fiyat')) || 0;
         });
         $('#harici_toplam_goster').text(hrcTL(toplam));
-        // Tahsilat tutarı henüz elle değiştirilmediyse toplamı öner
-        var $th = $('#harici_tahsilat_tutari');
-        if(!$th.data('elle')) $th.val(toplam.toFixed(2));
+        // Tahsilat tutari henuz elle degistirilmediyse toplami otomatik yaz
+        if(!hrcTahsilatElle) $('#harici_tahsilat_tutari').val(toplam.toFixed(2));
         return toplam;
     }
-    $(document).on('input', '#harici_tahsilat_tutari', function(){ $(this).data('elle', true); });
 
     // Kalemi listeye ekle
     $(document).on('click', '#harici_kalem_ekle', function(){
@@ -23482,7 +23487,8 @@ $(document).on('focus', '.hy-fiyat-input', function(){
         $('#harici_musteri_id').val(null).trigger('change');
         $('#harici_kalem_tablosu').html('<tr id="harici_kalem_bos"><td colspan="5" class="text-center" style="color:#94a3b8;padding:14px">Henüz kalem eklenmedi</td></tr>');
         $('#harici_toplam_goster').text('0,00 ₺');
-        $('#harici_tahsilat_tutari').data('elle', false).val(0);
+        hrcTahsilatElle = false;
+        $('#harici_tahsilat_tutari').val(0);
         $('.harici-item-select').hide().val('');
         $('#harici_hizmet_select').show();
         $('#harici_adet_kutu').hide();
