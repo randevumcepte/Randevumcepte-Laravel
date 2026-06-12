@@ -8193,7 +8193,27 @@ private function ayAdiCevir($ingilizceAy)
         $odeme_yontemleri = \App\OdemeYontemleri::all();
         $bankalar = \App\SatisOrtakligiModel\Bankalar::all();
 
+        // Harici tahsilat modali icin salon bazli hizmet/urun/paket listeleri
+        $harici_hizmetler = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id',$isletme->id)
+            ->where('salon_sunulan_hizmetler.aktif',true)
+            ->select('hizmetler.id as id','hizmetler.hizmet_adi as ad',
+                DB::raw('COALESCE(salon_sunulan_hizmetler.son_fiyat, salon_sunulan_hizmetler.baslangic_fiyat, hizmetler.fiyat, 0) as fiyat'))
+            ->orderBy('hizmetler.hizmet_adi')->get();
+        $harici_urunler = DB::table('urunler')
+            ->where('salon_id',$isletme->id)->where('aktif',true)
+            ->select('id','urun_adi as ad','fiyat')->orderBy('urun_adi')->get();
+        $harici_paketler = DB::table('paketler')
+            ->where('salon_id',$isletme->id)
+            ->select('id','paket_adi as ad','fiyat')->orderBy('paket_adi')->get();
+
         return view('isletmeadmin.musteridetay',[
+            'harici_hizmetler'=>$harici_hizmetler,
+            'harici_urunler'=>$harici_urunler,
+            'harici_paketler'=>$harici_paketler,
+            'harici_sabit_musteri_id'=>$portfoy->users->id,
+            'harici_sabit_musteri_adi'=>$portfoy->users->name,
             'bildirimler'=>self::bildirimgetir($request),
             'paketler'=>$paketler,
             'pageindex'=>41,
@@ -10952,23 +10972,7 @@ private function ayAdiCevir($ingilizceAy)
         $kapaliTaksitler= self::taksitleri_getir($request,1,'');
           $odenmemisTaksitler =self::taksitleri_getir($request,2,'');
 
-        // Harici tahsilat modali icin salon bazli hizmet/urun/paket listeleri
-        $harici_hizmetler = DB::table('salon_sunulan_hizmetler')
-            ->join('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')
-            ->where('salon_sunulan_hizmetler.salon_id',$isletme->id)
-            ->where('salon_sunulan_hizmetler.aktif',true)
-            ->select('hizmetler.id as id','hizmetler.hizmet_adi as ad',
-                DB::raw('COALESCE(salon_sunulan_hizmetler.son_fiyat, salon_sunulan_hizmetler.baslangic_fiyat, hizmetler.fiyat, 0) as fiyat'))
-            ->orderBy('hizmetler.hizmet_adi')->get();
-        $harici_urunler = DB::table('urunler')
-            ->where('salon_id',$isletme->id)->where('aktif',true)
-            ->select('id','urun_adi as ad','fiyat')->orderBy('urun_adi')->get();
-        $harici_paketler = DB::table('paketler')
-            ->where('salon_id',$isletme->id)
-            ->select('id','paket_adi as ad','fiyat')->orderBy('paket_adi')->get();
-
         return view('isletmeadmin.adisyonlar',['isletme'=>$isletme,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request), 'sayfa_baslik'=>'Satış Takibi','pageindex' => 11,
-            'harici_hizmetler'=>$harici_hizmetler,'harici_urunler'=>$harici_urunler,'harici_paketler'=>$harici_paketler,
             //'adisyonlar'=>$adisyonlar,
             'request'=>$request, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'tum_taksitler'=>self::taksitleri_getir($request,'',''),
          

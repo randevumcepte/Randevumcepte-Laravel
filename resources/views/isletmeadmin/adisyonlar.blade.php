@@ -28,10 +28,6 @@
       </div>
       <div class="rc-adi-header-right">
          @yetki('satis.tahsilat_al')
-         <button type="button" data-toggle="modal" data-target="#harici_tahsilat_modal"
-            class="rc-adi-btn" style="background:#4338ca;color:#fff">
-            <i class="fa fa-cloud-download"></i><span>Harici Tahsilat</span>
-         </button>
          <a href="/isletmeyonetim/yenitahsilat{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}"
             class="rc-adi-btn rc-adi-btn-success yenieklebuton">
             <i class="fa fa-plus"></i><span>Yeni Satış &amp; Tahsilat</span>
@@ -1727,6 +1723,4 @@ $(document).ready(function() {
 
 });
 </script>
-
-@include('modaldialogs.harici-tahsilat-modal')
 @endsection

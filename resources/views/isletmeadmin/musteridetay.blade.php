@@ -258,16 +258,15 @@
                   >Müşteri Resimleri</a>
             </li>
             @endif
-            @yetki('satis.adisyon_olustur')
+            @yetki('satis.tahsilat_al')
              <li class="nav-item" style="margin:5px">
-               <a
-                  class="btn btn-warning "
-                  data-toggle="tab"
-                  href="#tahsilatEkrani"
-                  style="width: 180px;"
-                  role="tab"
-                  aria-selected="false"
-                  >Randevusuz Satış Yap</a>
+               <button
+                  type="button"
+                  class="btn"
+                  style="width: 180px;background:#4338ca;color:#fff"
+                  data-toggle="modal"
+                  data-target="#harici_tahsilat_modal"
+                  ><i class="fa fa-cloud-download"></i> Harici Tahsilat</button>
             </li>
             @endyetki
          </ul>
@@ -1424,5 +1423,6 @@
 </script>
 
 @include('isletmeadmin.partials.whatsapp_mesaj_modal')
+@include('modaldialogs.harici-tahsilat-modal')
 </div>{{-- /#mdetay --}}
 @endsection

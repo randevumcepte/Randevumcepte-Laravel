@@ -33,7 +33,13 @@
                   <div class="col-md-7">
                      <div class="form-group">
                         <label style="font-weight:600;font-size:13px">Müşteri / Danışan <span style="color:#dc2626">*</span></label>
-                        <select name="musteri_id" id="harici_musteri_id" style="width:100%" class="form-control"></select>
+                        @if(isset($harici_sabit_musteri_id) && $harici_sabit_musteri_id)
+                           {{-- Musteri karti uzerinden acildi: musteri sabit --}}
+                           <input type="hidden" id="harici_musteri_id" name="musteri_id" value="{{$harici_sabit_musteri_id}}">
+                           <div class="form-control" style="background:#f1f5f9;color:#334155;font-weight:600">{{$harici_sabit_musteri_adi}}</div>
+                        @else
+                           <select name="musteri_id" id="harici_musteri_id" style="width:100%" class="form-control"></select>
+                        @endif
                      </div>
                   </div>
                   <div class="col-md-5">
