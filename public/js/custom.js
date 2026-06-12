@@ -9194,7 +9194,19 @@ $('#zamana_gore_filtre').change(function(e){
 
 // Randevu listesi sayfasi acilirken bir kez calistir: tablo bos gelmesin, varsayilan (Bugun) filtre ile yuklensin
 if($('#randevu_liste').length){
-    randevufiltre();
+    var _rlPane = $('#randevu_liste').closest('.tab-pane');
+    if(_rlPane.length && !_rlPane.hasClass('active')){
+        // Sekmeli sayfa (orn. musteri detay): randevu listesi agir oldugundan
+        // ilk acilista degil, "Randevular" sekmesi acildiginda yuklenir.
+        // Boylece sayfa acilirken preloader bekletmez.
+        var _rlYuklendi = false;
+        $('a[href="#'+_rlPane.attr('id')+'"], button[href="#'+_rlPane.attr('id')+'"]')
+            .on('shown.bs.tab click', function(){
+                if(!_rlYuklendi){ _rlYuklendi = true; randevufiltre(); }
+            });
+    } else {
+        randevufiltre();
+    }
 }
 
 $('#hizmet_rapor_zamana_gore_filtre').change(function(e){
@@ -23362,6 +23374,8 @@ $(document).on('focus', '.hy-fiyat-input', function(){
     $(document).on('shown.bs.modal', '#harici_tahsilat_modal', function(){
         var $modal = $(this);
         var $sel = $('#harici_musteri_id');
+        // Musteri karti uzerinden acildiysa alan gizli input'tur (sabit musteri) -> select2 yok
+        if(!$sel.is('select')) return;
         if($sel.hasClass('select2-hidden-accessible')) return;
         $sel.select2({
             placeholder: 'Müşteri/Danışan seçin (en az 2 karakter)',
@@ -23484,7 +23498,8 @@ $(document).on('focus', '.hy-fiyat-input', function(){
     $(document).on('hidden.bs.modal', '#harici_tahsilat_modal', function(){
         var $f = $('#harici_tahsilat_form');
         $f[0].reset();
-        $('#harici_musteri_id').val(null).trigger('change');
+        // Sabit musteri (gizli input) ise temizleme; sadece select2 modunda sifirla
+        if($('#harici_musteri_id').is('select')) $('#harici_musteri_id').val(null).trigger('change');
         $('#harici_kalem_tablosu').html('<tr id="harici_kalem_bos"><td colspan="5" class="text-center" style="color:#94a3b8;padding:14px">Henüz kalem eklenmedi</td></tr>');
         $('#harici_toplam_goster').text('0,00 ₺');
         hrcTahsilatElle = false;
