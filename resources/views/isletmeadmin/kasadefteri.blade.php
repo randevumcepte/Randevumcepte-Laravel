@@ -754,12 +754,13 @@
    $overlay.on('click', function(e){ if(e.target === this) closeModal(); });
    $(document).on('keydown', function(e){ if(e.key === 'Escape') closeModal(); });
 
-   // Gelir satirina tiklama (liste AJAX ile yenilendigi icin delegation)
-   $(document).on('click', '#tahsilatlar_listesi .rc-kd-gelir-row', function(e){
+   // Gelir satirina tiklama (liste AJAX ile yenilendigi icin delegation).
+   // Class yerine data-tahsilat-id olan herhangi bir satiri yakala (daha dayanikli).
+   $(document).on('click', '#tahsilatlar_listesi tr[data-tahsilat-id]', function(e){
       // Satir icindeki butonlara (sil vb.) tiklaninca popup acma
       if($(e.target).closest('button, a').length) return;
 
-      var id = $(this).data('tahsilat-id');
+      var id = $(this).attr('data-tahsilat-id');
       if(!id) return;
 
       $('#rc-gd-tip').text('Tahsilat');
