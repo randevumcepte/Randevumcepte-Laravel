@@ -1006,6 +1006,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/senetodemedogrulamakodugonder','StoreAdminController@senet_odeme_dogrulama_kodu_gonder');
 	Route::post('/taksitodemedogrulamakodugonder','StoreAdminController@taksit_odeme_dogrulama_kodu_gonder');
 	Route::get('/tahsilatdetaygetir','StoreAdminController@tahsilatdetaygetir');
+	Route::get('/kasagelirdetay','StoreAdminController@kasaGelirDetay');
 	Route::get('/urunfiyathesapla','StoreAdminController@urunfiyathesapla');
 	Route::get('/masrafgetir','StoreAdminController@masrafgetir');
 	Route::get('/kasaraporugetir','StoreAdminController@kasa_raporu_getir');

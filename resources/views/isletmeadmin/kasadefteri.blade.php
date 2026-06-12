@@ -336,6 +336,9 @@
 .rc-kd-table tbody tr:last-child td { border-bottom: none !important; }
 .rc-kd-table tbody tr:nth-child(even) { background: #fcfbfe; }
 .rc-kd-table tbody tr:hover { background: #f7f1fd; }
+/* Tiklanabilir gelir satiri */
+.rc-kd-gelir-row { cursor: pointer; }
+.rc-kd-gelir-row:hover { background: #f1ebfb !important; }
 /* Tutar sütunu (gelir 6, gider 5) sağa yasli + kalın */
 .rc-kd-gelir tbody td:nth-of-type(6),
 .rc-kd-gider tbody td:nth-of-type(5) { font-weight: 700; color: var(--rc-text); white-space: nowrap; }
@@ -645,6 +648,183 @@
         </div>
     </div>
 </div>
+<!-- Gelir (Tahsilat) Detay Popup -->
+<div id="rc-gd-overlay" class="rc-gd-overlay">
+   <div class="rc-gd-modal" role="dialog" aria-modal="true">
+      <div class="rc-gd-head">
+         <div class="rc-gd-head-left">
+            <span class="rc-gd-badge" id="rc-gd-tip">Tahsilat</span>
+            <h3 class="rc-gd-title">Gelir Detayı</h3>
+         </div>
+         <button type="button" class="rc-gd-close" id="rc-gd-close" aria-label="Kapat">&times;</button>
+      </div>
+      <div class="rc-gd-body" id="rc-gd-body">
+         <!-- JS ile dolacak -->
+      </div>
+   </div>
+</div>
+
+<style>
+.rc-gd-overlay {
+   display: none; position: fixed; inset: 0; z-index: 99999;
+   background: rgba(15, 23, 42, .55); backdrop-filter: blur(2px);
+   align-items: center; justify-content: center; padding: 20px;
+}
+.rc-gd-overlay.show { display: flex; }
+.rc-gd-modal {
+   background: #fff; width: 100%; max-width: 560px; max-height: 88vh; overflow: hidden;
+   border-radius: 18px; box-shadow: 0 24px 60px rgba(15,23,42,.35);
+   display: flex; flex-direction: column;
+   animation: rcgdIn .18s ease-out;
+}
+@keyframes rcgdIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+.rc-gd-head {
+   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+   padding: 18px 22px; border-bottom: 1px solid #eef0f4;
+   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+}
+.rc-gd-head-left { display: flex; flex-direction: column; gap: 8px; }
+.rc-gd-badge {
+   display: inline-block; align-self: flex-start; font-size: 11px; font-weight: 700;
+   text-transform: uppercase; letter-spacing: .04em; color: #c7d2fe;
+   background: rgba(99,102,241,.18); border: 1px solid rgba(199,210,254,.3);
+   padding: 3px 10px; border-radius: 999px;
+}
+.rc-gd-title { margin: 0; font-size: 17px; font-weight: 700; color: #fff; }
+.rc-gd-close {
+   background: rgba(255,255,255,.12); border: none; color: #fff; width: 32px; height: 32px;
+   border-radius: 9px; font-size: 20px; line-height: 1; cursor: pointer; flex-shrink: 0;
+   transition: background .15s;
+}
+.rc-gd-close:hover { background: rgba(255,255,255,.25); }
+.rc-gd-body { padding: 18px 22px 22px; overflow-y: auto; }
+
+/* Tutar vurgu kutusu */
+.rc-gd-amount {
+   text-align: center; padding: 16px; margin-bottom: 18px;
+   background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;
+}
+.rc-gd-amount .lbl { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
+.rc-gd-amount .val { font-size: 28px; font-weight: 800; color: #4338ca; letter-spacing: -.5px; margin-top: 2px; }
+
+/* Bilgi gridi */
+.rc-gd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 6px; }
+.rc-gd-item { min-width: 0; }
+.rc-gd-item .k { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #94a3b8; margin-bottom: 2px; }
+.rc-gd-item .v { font-size: 14px; font-weight: 600; color: #1e293b; word-break: break-word; }
+.rc-gd-item.full { grid-column: 1 / -1; }
+
+/* Kalemler tablosu */
+.rc-gd-section-title {
+   font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+   color: #475569; margin: 18px 0 10px; padding-top: 16px; border-top: 1px dashed #e2e8f0;
+}
+.rc-gd-kalemler { display: flex; flex-direction: column; gap: 8px; }
+.rc-gd-kalem {
+   display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+   background: #f8fafc; border: 1px solid #eef0f4; border-radius: 10px;
+}
+.rc-gd-kalem .ktip {
+   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+   color: #4f46e5; background: #eef2ff; border: 1px solid #e0e7ff;
+   padding: 2px 8px; border-radius: 6px; flex-shrink: 0; min-width: 56px; text-align: center;
+}
+.rc-gd-kalem .kad { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; color: #1e293b; }
+.rc-gd-kalem .kad small { display: block; font-size: 11.5px; font-weight: 500; color: #94a3b8; margin-top: 1px; }
+.rc-gd-kalem .ktutar { font-size: 13.5px; font-weight: 700; color: #1e293b; white-space: nowrap; }
+.rc-gd-empty { text-align: center; color: #94a3b8; font-size: 13px; padding: 8px 0; }
+.rc-gd-loading { text-align: center; color: #64748b; padding: 30px 0; font-size: 14px; }
+
+@media (max-width: 480px) {
+   .rc-gd-grid { grid-template-columns: 1fr; }
+   .rc-gd-amount .val { font-size: 24px; }
+}
+</style>
+
+<script>
+(function(){
+   var $overlay = $('#rc-gd-overlay');
+   // appendTo body — parent stacking context'ten kac, tam viewport ortasi
+   $overlay.appendTo('body');
+
+   function esc(s){ return $('<div>').text(s == null ? '' : s).html(); }
+
+   function closeModal(){ $overlay.removeClass('show'); }
+   $('#rc-gd-close').on('click', closeModal);
+   $overlay.on('click', function(e){ if(e.target === this) closeModal(); });
+   $(document).on('keydown', function(e){ if(e.key === 'Escape') closeModal(); });
+
+   // Gelir satirina tiklama (liste AJAX ile yenilendigi icin delegation)
+   $(document).on('click', '#tahsilatlar_listesi .rc-kd-gelir-row', function(e){
+      // Satir icindeki butonlara (sil vb.) tiklaninca popup acma
+      if($(e.target).closest('button, a').length) return;
+
+      var id = $(this).data('tahsilat-id');
+      if(!id) return;
+
+      $('#rc-gd-tip').text('Tahsilat');
+      $('#rc-gd-body').html('<div class="rc-gd-loading"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
+      $overlay.addClass('show');
+
+      $.ajax({
+         url: '/isletmeyonetim/kasagelirdetay',
+         type: 'GET',
+         dataType: 'json',
+         data: { tahsilat_id: id, sube: $('input[name="sube"]').val() },
+         success: function(d){
+            if(!d || d.durum !== 'ok'){
+               $('#rc-gd-body').html('<div class="rc-gd-empty">' + esc((d && d.mesaj) || 'Detay yüklenemedi.') + '</div>');
+               return;
+            }
+            $('#rc-gd-tip').text(d.tip);
+
+            var html = '';
+            html += '<div class="rc-gd-amount"><div class="lbl">Tahsil Edilen Tutar</div><div class="val">' + esc(d.tutar) + ' ₺</div></div>';
+
+            html += '<div class="rc-gd-grid">';
+            html += '<div class="rc-gd-item"><div class="k">Tarih</div><div class="v">' + esc(d.tarih) + (d.saat && d.saat !== '00:00' ? ' <small style="color:#94a3b8;font-weight:500">' + esc(d.saat) + '</small>' : '') + '</div></div>';
+            html += '<div class="rc-gd-item"><div class="k">Müşteri</div><div class="v">' + esc(d.musteri) + '</div></div>';
+            html += '<div class="rc-gd-item"><div class="k">Tahsil Eden</div><div class="v">' + esc(d.tahsil_eden) + '</div></div>';
+            html += '<div class="rc-gd-item"><div class="k">Ödeme Yöntemi</div><div class="v">' + esc(d.odeme_yontemi) + (d.banka ? ' <small style="color:#94a3b8;font-weight:500">' + esc(d.banka) + '</small>' : '') + '</div></div>';
+            if(d.satici){
+               html += '<div class="rc-gd-item"><div class="k">Satış Personeli</div><div class="v">' + esc(d.satici) + '</div></div>';
+            }
+            if(d.adisyon_id){
+               html += '<div class="rc-gd-item"><div class="k">Adisyon No</div><div class="v">#' + esc(d.adisyon_id) + (d.harici ? ' <small style="color:#f59e0b;font-weight:600">Harici</small>' : '') + '</div></div>';
+            }
+            if(d.notlar){
+               html += '<div class="rc-gd-item full"><div class="k">Notlar</div><div class="v">' + esc(d.notlar) + '</div></div>';
+            }
+            html += '</div>';
+
+            // Kalemler
+            if(d.kalemler && d.kalemler.length){
+               html += '<div class="rc-gd-section-title">Ödenen Kalemler</div>';
+               html += '<div class="rc-gd-kalemler">';
+               d.kalemler.forEach(function(k){
+                  var ad = esc(k.ad) + (k.adet && k.adet > 1 ? ' <small>x' + esc(k.adet) + '</small>' : '');
+                  if(k.personel) ad += '<small>' + esc(k.personel) + '</small>';
+                  html += '<div class="rc-gd-kalem">' +
+                          '<span class="ktip">' + esc(k.tip) + '</span>' +
+                          '<span class="kad">' + ad + '</span>' +
+                          '<span class="ktutar">' + esc(k.tutar) + ' ₺</span>' +
+                          '</div>';
+               });
+               html += '</div>';
+            } else if(d.adisyon_id){
+               html += '<div class="rc-gd-section-title">Ödenen Kalemler</div><div class="rc-gd-empty">Kalem bilgisi bulunamadı.</div>';
+            }
+
+            $('#rc-gd-body').html(html);
+         },
+         error: function(){
+            $('#rc-gd-body').html('<div class="rc-gd-empty">Detay yüklenirken bir hata oluştu.</div>');
+         }
+      });
+   });
+})();
+</script>
+
       <script>
          // Devreden Aylar butonuna tıklama
 $('#aylik_kasa_ozeti_buton').click(function() {

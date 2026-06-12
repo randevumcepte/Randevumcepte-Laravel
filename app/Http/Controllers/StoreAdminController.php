@@ -4099,7 +4099,7 @@ public function kasa_raporu_getir(Request $request,$returntext)
     $tahsilat_liste = '';
     foreach($tahsilatlar as $tahsilat){
         $_gostTutar = $_gosterTutar($tahsilat);
-        $tahsilat_liste .= '<tr>
+        $tahsilat_liste .= '<tr class="rc-kd-gelir-row" data-tahsilat-id="'.$tahsilat->id.'" title="Detayları görüntülemek için tıklayın">
                         <td>'.date('d.m.Y',strtotime($tahsilat->odeme_tarihi)).'</td>
                         <td>';
         if($tahsilat->user_id !== null)
@@ -10909,6 +10909,81 @@ private function ayAdiCevir($ingilizceAy)
     public function tahsilatdetaygetir(Request $request)
     {
         return DB::table('tahsilatlar')->select('odeme_tarihi as tarih','tutar as tutar','odeme_yontemi_id as odeme_yontemi','notlar as notlar')->where('id',$request->tahsilat_id)->get();
+    }
+
+    /**
+     * KASA DEFTERI > GELIRLER listesinde bir satira tiklayinca acilan detay popup'inin verisi.
+     * Tahsilat header bilgisi + odenen adisyon kalemleri (hizmet/urun/paket) kirilimi doner.
+     */
+    public function kasaGelirDetay(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+
+        $tahsilat = Tahsilatlar::with([
+            'musteri','olusturan','satici','odeme_yontemi','banka','adisyon',
+            'hizmet_odemeleri.adisyon_hizmet.hizmet',
+            'hizmet_odemeleri.adisyon_hizmet.personel',
+            'urun_odemeleri.adisyon_urun.urun',
+            'paket_odemeleri.adisyon_paket.paket',
+        ])->where('id',$request->tahsilat_id)->where('salon_id',$salon_id)->first();
+
+        if(!$tahsilat){
+            return response()->json(['durum'=>'hata','mesaj'=>'Kayit bulunamadi.'],404);
+        }
+
+        $kalemler = [];
+        foreach($tahsilat->hizmet_odemeleri as $h){
+            $ah = $h->adisyon_hizmet;
+            $kalemler[] = [
+                'tip'      => 'Hizmet',
+                'ad'       => ($ah && $ah->hizmet) ? $ah->hizmet->hizmet_adi : '-',
+                'personel' => ($ah && $ah->personel) ? $ah->personel->personel_adi : '',
+                'adet'     => 1,
+                'tutar'    => number_format((float)$h->tutar,2,',','.'),
+            ];
+        }
+        foreach($tahsilat->urun_odemeleri as $u){
+            $au = $u->adisyon_urun;
+            $kalemler[] = [
+                'tip'      => 'Ürün',
+                'ad'       => ($au && $au->urun) ? $au->urun->urun_adi : '-',
+                'personel' => '',
+                'adet'     => $au ? $au->adet : 1,
+                'tutar'    => number_format((float)$u->tutar,2,',','.'),
+            ];
+        }
+        foreach($tahsilat->paket_odemeleri as $p){
+            $ap = $p->adisyon_paket;
+            $kalemler[] = [
+                'tip'      => 'Paket',
+                'ad'       => ($ap && $ap->paket) ? $ap->paket->paket_adi : '-',
+                'personel' => '',
+                'adet'     => 1,
+                'tutar'    => number_format((float)$p->tutar,2,',','.'),
+            ];
+        }
+
+        if($tahsilat->para_girisi)        $tip = 'Kasa Para Girişi';
+        elseif($tahsilat->para_cikisi)    $tip = 'Kasa Para Çıkışı';
+        elseif($tahsilat->adisyon_id)     $tip = 'Satış Tahsilatı';
+        else                              $tip = 'Bağımsız Tahsilat';
+
+        return response()->json([
+            'durum'         => 'ok',
+            'tip'           => $tip,
+            'tarih'         => date('d.m.Y', strtotime($tahsilat->odeme_tarihi)),
+            'saat'          => date('H:i', strtotime($tahsilat->odeme_tarihi)),
+            'musteri'       => $tahsilat->musteri ? $tahsilat->musteri->name : '-',
+            'tahsil_eden'   => $tahsilat->olusturan ? $tahsilat->olusturan->personel_adi : '-',
+            'satici'        => $tahsilat->satici ? $tahsilat->satici->personel_adi : '',
+            'odeme_yontemi' => $tahsilat->odeme_yontemi ? $tahsilat->odeme_yontemi->odeme_yontemi : '-',
+            'banka'         => $tahsilat->banka ? $tahsilat->banka->banka : '',
+            'notlar'        => $tahsilat->notlar ?: '',
+            'tutar'         => number_format((float)$tahsilat->tutar,2,',','.'),
+            'adisyon_id'    => $tahsilat->adisyon_id,
+            'harici'        => $tahsilat->adisyon ? (int)($tahsilat->adisyon->harici ?? 0) : 0,
+            'kalemler'      => $kalemler,
+        ]);
     }
     public function adisyonlar(Request $request){
          $isletmeler = '';
