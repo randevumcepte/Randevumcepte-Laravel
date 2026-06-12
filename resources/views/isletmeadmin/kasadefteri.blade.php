@@ -823,6 +823,48 @@
          }
       });
    });
+
+   // Gider (masraf) DÜZENLE — kasa sayfasi listesi icin.
+   // custom.js'deki handler #masraf_tablo'ya bagli (bu sayfada yok), o yuzden burada delegation ile.
+   // Modal data-toggle ile acilir; biz sadece alanlari doldururuz.
+   $(document).on('click', '#masraflar_listesi button[name="masraf_duzenle"]', function(){
+      var masrafid = $(this).attr('data-value');
+      if(!masrafid) return;
+      $.ajax({
+         type: 'GET',
+         url: '/isletmeyonetim/masraf-detay',
+         dataType: 'json',
+         data: { sube: $('input[name="sube"]').val(), masraf_id: masrafid },
+         beforeSend: function(){ $('#preloader').show(); },
+         success: function(result){
+            $('#preloader').hide();
+            // Tutar Turkce formatta olmali (kayit str_replace('.'->'' , ','->'.') yapiyor)
+            var t = parseFloat(result.tutar);
+            var tutarTr = isNaN(t) ? (result.tutar || '') : t.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
+            $('#masraf_tutari').val(tutarTr);
+            $('#masraf_tarihi').val(result.tarih);
+            $('#masraf_aciklama').val(result.aciklama || '');
+            $('#masraf_kategorisi').val(result.masraf_kategori_id).trigger('change');
+            $('#masraf_odeme_yontemi').val(result.odeme_yontemi_id).trigger('change');
+            // harcayan select2 AJAX tabanli — option DOM'da yoksa olustur, sonra sec
+            var $harcayan = $('#harcayan');
+            if(result.harcayan_id){
+               if($harcayan.find('option[value="'+result.harcayan_id+'"]').length === 0){
+                  $harcayan.append(new Option(result.harcayan_adi || ('#'+result.harcayan_id), result.harcayan_id, true, true));
+               }
+               $harcayan.val(result.harcayan_id).trigger('change');
+            } else {
+               $harcayan.val('').trigger('change');
+            }
+            $('#masraf_notlari').val(result.notlar || '');
+            $('#masraf_id').val(result.id);
+         },
+         error: function(request){
+            $('#preloader').hide();
+            if(document.getElementById('hata')) document.getElementById('hata').innerHTML = request.responseText;
+         }
+      });
+   });
 })();
 </script>
 

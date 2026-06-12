@@ -4144,7 +4144,7 @@ public function kasa_raporu_getir(Request $request,$returntext)
                         <td>'.$masraf->aciklama.'</td>
                         <td>'.$masraf->odeme_yontemi->odeme_yontemi.'</td>
                         <td>'.number_format($masraf->tutar,2,',','.').'</td>
-                        <td><button style="line-height:5px;padding:5px;display:none" title="Ödeme Bilgileri"   name="masraf_duzenle" type="button" data-value="'.$masraf->id.'"  class="btn btn-primary"><i class="fa fa-edit"></i>
+                        <td><button style="line-height:5px;padding:5px" title="Düzenle"   name="masraf_duzenle" type="button" data-toggle="modal" data-target="#yeni_masraf_modal" onclick="modalbaslikata(\'Masraf Düzenleme\',\'\')" data-value="'.$masraf->id.'"  class="btn btn-primary"><i class="fa fa-edit"></i>
                         </button>
                       <button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Masrafı Sil"  name="masraf_sil" data-value="'.$masraf->id.'"><i class="fa fa-times"></i></button>
 </td>
@@ -15072,7 +15072,9 @@ DB::raw('
     {
         $masraf = "";
         $guncelleme = false;
-        if(isset($request->masraf_id))
+        // !empty: form masraf_id'yi her zaman gonderir (yeni kayitta bos string).
+        // isset bos string icin de true olabildiginden, kopya olusmasini onlemek icin !empty.
+        if(!empty($request->masraf_id))
         {
             $masraf = Masraflar::where('id',$request->masraf_id)->first();
             $guncelleme = true;
@@ -15161,10 +15163,13 @@ DB::raw('
     public function masraf_detay(Request $request)
     {
         $masraf = Masraflar::where('id',$request->masraf_id)->first();
+        // harcayan select2 AJAX tabanli; preselect icin adi da donuyoruz (option'i JS olusturur)
+        $harcayan_adi = ($masraf->harcayan_id && $masraf->harcayan) ? $masraf->harcayan->personel_adi : '';
         return array(
             'id'=>$masraf->id,
             'masraf_kategori_id'=>$masraf->masraf_kategori_id,
             'harcayan_id'=>$masraf->harcayan_id,
+            'harcayan_adi'=>$harcayan_adi,
             'tarih'=>$masraf->tarih,
             'aciklama'=>$masraf->aciklama,
             'tutar'=>$masraf->tutar,
