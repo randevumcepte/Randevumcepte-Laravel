@@ -207,26 +207,19 @@
         aramaRandevusuAra($(this).data('aranacak-id'));
     });
     function aramaRandevusuAra(aranacakId){
-        if (typeof makeCall !== 'function') {
-            alert('Web telefon yüklü değil. Dahili numaranızı kontrol edip sayfayı yenileyin.');
-            return;
-        }
+        // Santral originate — numara tarayiciya gitmez; personelin Bria'si calar.
         var token = $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').first().val();
         $.ajax({
             url: '/isletmeyonetim/arama-baslat',
             method: 'POST',
             data: { aranacak_musteri_id: aranacakId, _token: token },
             success: function(res){
-                if (res.success && res.numara) {
-                    // Ses-kaydi eslestirmesi icin gizli arama_liste_detaylari linki (callHangUp okur)
-                    var $link = $('#aktif_arama_liste_link');
-                    if (!$link.length) {
-                        $link = $('<a id="aktif_arama_liste_link" name="arama_liste_detaylari" href="#" style="display:none"></a>').appendTo('body');
-                    }
-                    $link.attr('data-value', res.aramaListeId).attr('disabled', 'disabled');
-                    makeCall(res.numara); // numara DOM'a yazilmadan dogrudan aranir
+                if (res.success) {
                     bigPopupKapat();
                     fetchFeed(true);
+                    if (typeof swal === 'function') {
+                        swal({ type:'success', title:'Arama başlatıldı', text: res.message || 'Telefonunuz (Bria) çalacak, açın.', timer:3500, showConfirmButton:false });
+                    }
                 } else {
                     alert(res.message || 'Arama başlatılamadı.');
                 }

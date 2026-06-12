@@ -21983,6 +21983,35 @@ $(document).on('click', 'a[name="arama_liste_detaylari"]', function (e) {
     loadAramaDetaylari(1);
     $('#arama_detay_modal').modal('show');
 });
+
+// Cagri Merkezi: arama listesinden "Ara" — santral originate (numara gosterilmez, modal kapanmaz).
+// Personel kendi Bria/dahilisinden kuyruga dusen aramayi acar.
+$(document).on('click', '.cm-ara-btn', function () {
+    var $btn = $(this);
+    var aranacakId = $btn.attr('data-aranacak-id');
+    $btn.prop('disabled', true);
+    $.ajax({
+        type: 'POST',
+        url: '/isletmeyonetim/arama-baslat',
+        data: { aranacak_musteri_id: aranacakId, _token: $('input[name="_token"]').val() },
+        success: function (res) {
+            if (res && res.success) {
+                $btn.closest('tr').find('td').eq(3).text('Arandı'); // Durum kolonu
+                if (typeof swal === 'function') {
+                    swal({ type: 'success', title: 'Arama başlatıldı', text: (res.message || 'Telefonunuz (Bria) çalacak, açın.'), timer: 3500, showConfirmButton: false });
+                }
+            } else {
+                if (typeof swal === 'function') { swal({ type: 'warning', title: 'Aranamadı', text: (res && res.message) || 'Arama başlatılamadı.' }); }
+                else { alert((res && res.message) || 'Arama başlatılamadı.'); }
+            }
+        },
+        error: function (xhr) {
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Arama başlatılamadı.';
+            if (typeof swal === 'function') { swal({ type: 'error', title: 'Hata', text: msg }); } else { alert(msg); }
+        },
+        complete: function () { setTimeout(function () { $btn.prop('disabled', false); }, 2000); }
+    });
+});
 function loadAramaDetaylari(page = 1) {
     if (loading) return;
     loading = true;
@@ -22013,7 +22042,7 @@ function loadAramaDetaylari(page = 1) {
                        </a>`
                     : '';
 
-                let aramaBtn = `<button name="musteriyi_ara" data-index-number="${item.aramaListesi}" data-value="0${item.telefon}" class="btn btn-sm btn-success" title="Ara">
+                let aramaBtn = `<button type="button" class="cm-ara-btn btn btn-sm btn-success" data-aranacak-id="${item.aranacak_musteri_id}" title="Ara (santral)">
                                     <i class="fa fa-phone"></i>
                                 </button>`;
 

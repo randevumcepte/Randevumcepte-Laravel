@@ -27212,6 +27212,57 @@ DB::raw('
      * KVKK uyumlu arama baslatma: personel ham numarayi GORMEZ; sadece bu uc-nokta
      * aranacak_musteri_id ile gercek numarayi doner, JS dogrudan arar (ekrana yazmadan).
      */
+    /**
+     * Cagri Merkezi click-to-call — hatirlatma aramasiyla AYNI originate yapisi (yan etkisiz).
+     * Musteri santralden cevrilir ve operator kuyruguna (operator_kanali) baglanir; personel
+     * kendi Bria/dahilisinden kuyruga dusen aramayi acar. Numara tarayiciya/personele GITMEZ.
+     */
+    private function cagriMerkeziOriginate($salonId, $tel)
+    {
+        $sabitno = \App\SabitNumaralar::where('salon_id', $salonId)->first();
+        if (!$sabitno || empty($sabitno->numara)) {
+            return ['success' => false, 'message' => 'Salon için santral (sabit) numarası tanımlı değil.'];
+        }
+        $salon = Salonlar::where('id', $salonId)->first();
+
+        $socket = @stream_socket_client('tcp://34.45.69.65:5038', $errno, $errstr, 5);
+        if (!$socket) {
+            \Log::warning('[CAGRI-MERKEZI] AMI baglanti hatasi: ' . $errstr);
+            return ['success' => false, 'message' => 'Santrale bağlanılamadı.'];
+        }
+
+        $auth = "Action: Login\r\nUsername: cxpanel\r\nSecret: cxmanager*con\r\nEvents: off\r\n\r\n";
+        stream_socket_sendto($socket, $auth);
+        usleep(200000);
+        if (strpos((string) fread($socket, 4096), 'Success') === false) {
+            fclose($socket);
+            return ['success' => false, 'message' => 'Santral kimlik doğrulaması başarısız.'];
+        }
+
+        $req  = "Action: Originate\r\n";
+        $req .= "Channel: PJSIP/0" . $tel . "@" . $sabitno->numara . "\r\n";
+        $req .= "Callerid: " . $sabitno->numara . "\r\n";
+        $req .= "Exten: 1\r\n";
+        $req .= "Context: from-internal-custom\r\n";
+        $req .= "Variable: myMessage=\r\n";
+        $req .= "Variable: kuyruk=" . optional($salon)->operator_kanali . "\r\n";
+        $req .= "Variable: telefon=" . $tel . "\r\n";
+        $req .= "Variable: sabitno=" . $sabitno->numara . "\r\n";
+        $req .= "Priority: 1\r\n";
+        $req .= "Async: yes\r\n\r\n";
+
+        stream_socket_sendto($socket, $req);
+        usleep(200000);
+        $resp = (string) fread($socket, 4096);
+        fclose($socket);
+        \Log::info('[CAGRI-MERKEZI] Originate Response: ' . $resp);
+
+        if (strpos($resp, 'Success') !== false) {
+            return ['success' => true, 'message' => 'Arama başlatıldı. Telefonunuz (Bria) çalacak, açın.'];
+        }
+        return ['success' => false, 'message' => 'Santral aramayı başlatamadı.'];
+    }
+
     public function arama_baslat(Request $request)
     {
         $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
@@ -27238,21 +27289,25 @@ DB::raw('
         if ($numara === '') {
             return response()->json(['success' => false, 'message' => 'Müşteri telefonu yok'], 422);
         }
-        // Baslina 0 ekle (cevirme formati)
-        $aranacakNumara = '0' . ltrim($numara, '0');
+        $tel = ltrim($numara, '0');
 
-        // Arama randevusu (durum=3) ise arandi olarak isaretle ki popup tekrar nag yapmasin.
-        if ((int) $kayit->durum === 3) {
-            $kayit->durum = 1;
+        // Santral uzerinden arama (hatirlatma aramasiyla AYNI originate). Numara tarayiciya GITMEZ.
+        $sonuc = $this->cagriMerkeziOriginate($salonId, $tel);
+
+        if (!empty($sonuc['success'])) {
+            // Arama randevusu (durum=3) ise arandi olarak isaretle ki popup tekrar nag yapmasin.
+            if ((int) $kayit->durum === 3) {
+                $kayit->durum = 1;
+            }
+            if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
+                $kayit->son_arama_zamani = date('Y-m-d H:i:s');
+            }
+            $kayit->save();
         }
-        if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
-            $kayit->son_arama_zamani = date('Y-m-d H:i:s');
-        }
-        $kayit->save();
 
         return response()->json([
-            'success' => true,
-            'numara'  => $aranacakNumara,
+            'success'      => !empty($sonuc['success']),
+            'message'      => $sonuc['message'] ?? '',
             'aramaListeId' => $kayit->arama_id,
         ]);
     }

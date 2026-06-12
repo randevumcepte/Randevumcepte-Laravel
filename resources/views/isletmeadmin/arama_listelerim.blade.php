@@ -200,29 +200,21 @@ function detayYukle() {
    });
 }
 
-// KVKK uyumlu arama: numara hicbir input'a yazilmadan dogrudan makeCall ile aranir
+// KVKK uyumlu arama: santral originate — numara tarayiciya GITMEZ; personelin Bria'si calar.
 $(document).on('click', '.btn-ara', function () {
    const aranacakId = $(this).data('id');
    const $btn = $(this);
-   if (typeof makeCall !== 'function') {
-      swal({ type: 'error', title: 'Telefon hazır değil', text: 'Web telefon yüklenemedi. Sayfayı yenileyin veya dahili numaranızı kontrol edin.' });
-      return;
-   }
    $btn.prop('disabled', true);
    $.ajax({
       url: '/isletmeyonetim/arama-baslat',
       method: 'POST',
       data: { aranacak_musteri_id: aranacakId, _token: $('input[name="_token"]').val() },
       success: function (res) {
-         if (res.success && res.numara) {
-            // Ses-kaydi eslestirmesi icin gizli link guncel (callHangUp bunu okur)
-            $('#aktif_arama_liste_link').attr('data-value', res.aramaListeId).attr('disabled', 'disabled');
-            // Numara DOM'a yazilmadan dogrudan aranir (KVKK)
-            makeCall(res.numara);
-            // Satir durumunu "Arandı" yap (anlik geri bildirim)
+         if (res.success) {
             $btn.closest('tr').find('.durum-hucre').text('Arandı');
+            swal({ type: 'success', title: 'Arama başlatıldı', text: res.message || 'Telefonunuz (Bria) çalacak, açın.', timer: 3500, showConfirmButton: false });
          } else {
-            swal({ type: 'warning', title: 'Aranamadı', text: res.message || 'Müşteri telefonu bulunamadı.' });
+            swal({ type: 'warning', title: 'Aranamadı', text: res.message || 'Arama başlatılamadı.' });
          }
       },
       error: function (xhr) {
