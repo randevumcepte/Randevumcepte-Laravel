@@ -12693,7 +12693,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             // ve paket seansi varsa kullaniciya hangi seanslarin dusulecegini sorar.
             // Eski client'lar bu bayragi gondermez — eski davranis (hepsi geldi=true)
             // korunur.
-            $seansSecimDestek = $request->boolean('seans_secim_destek', false);
+            $seansSecimDestek = filter_var($request->input('seans_secim_destek', false), FILTER_VALIDATE_BOOLEAN);
             $secilenSeansIdler = $request->input('secilen_seans_idler');
             $secilenVerildi = is_array($secilenSeansIdler);
 
