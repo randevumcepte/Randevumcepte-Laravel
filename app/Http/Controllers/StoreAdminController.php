@@ -27477,15 +27477,17 @@ DB::raw('
             return response()->json(['kayitlar' => []]);
         }
         $userId = $kayit->user_id;
-        $cep = ltrim((string) optional($kayit->musteri)->cep_telefon, '0');
-        if ($cep === '' && !$userId) {
+        $cepHam = preg_replace('/\D/', '', (string) optional($kayit->musteri)->cep_telefon);
+        $son10 = substr($cepHam, -10); // format farkindan bagimsiz: son 10 hane
+        if ($son10 === '' && !$userId) {
             return response()->json(['kayitlar' => []]);
         }
-        // Telefon format varyantlari (santral cdr'de 0/90/+90 farkli tutulabilir)
-        $varyantlar = array_values(array_unique(array_filter([$cep, '0' . $cep, '90' . $cep, '+90' . $cep])));
 
-        $cdrler = \App\Cdr::where(function ($q) use ($varyantlar, $userId) {
-                if (!empty($varyantlar)) $q->whereIn('telefon', $varyantlar);
+        // cdr.telefon farkli formatta olabilir (0/90/+90/bosluk/-) -> son 10 haneye gore esle
+        $cdrler = \App\Cdr::where(function ($q) use ($son10, $userId) {
+                if ($son10 !== '') {
+                    $q->whereRaw("RIGHT(REPLACE(REPLACE(REPLACE(telefon,'+',''),' ',''),'-',''), 10) = ?", [$son10]);
+                }
                 if ($userId) $q->orWhere('user_id', $userId);
             })
             ->whereNotNull('ses_kaydi')->where('ses_kaydi', '!=', '')
