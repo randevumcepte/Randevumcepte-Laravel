@@ -27192,13 +27192,15 @@ DB::raw('
             ->where('g.personel_id', $personelId)
             ->orderBy('g.id', 'desc')
             ->limit(300)
-            ->select('g.not', 'g.ses_kaydi', 'g.sonuc', 'g.created_at', 'u.name')
+            ->select('g.not', 'g.ses_kaydi', 'g.sonuc', 'g.sure_dk', 'g.created_at', 'u.name')
             ->get()
             ->map(function ($n) {
                 return [
                     'musteri'    => $n->name ?? '-',
                     'not'        => $n->not ?? '',
                     'sonuc'      => self::aranacakDurumMetin($n->sonuc),
+                    'sonuc_kod'  => is_null($n->sonuc) ? null : (int) $n->sonuc,
+                    'sure_dk'    => (int) $n->sure_dk,
                     'ses'        => $n->ses_kaydi ? 'https://voicerecords.randevumcepte.com.tr' . $n->ses_kaydi : '',
                     'tarih'      => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
                 ];
