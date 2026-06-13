@@ -104,6 +104,7 @@ class CagriMerkeziSchema
                     `updated_at` TIMESTAMP NULL,
                     PRIMARY KEY (`id`),
                     INDEX `gn_personel_created_idx` (`personel_id`, `created_at`),
+                    INDEX `gn_salon_personel_idx` (`salon_id`, `personel_id`),
                     INDEX `gn_arama_idx` (`arama_id`),
                     INDEX `gn_user_idx` (`user_id`),
                     INDEX `gn_aranacak_idx` (`aranacak_musteri_id`),
@@ -112,6 +113,9 @@ class CagriMerkeziSchema
                 'gorusme_notlari tablosu olusturuldu'
             );
         }
+
+        // Mevcut (onceden olusmus) tablolar icin: dashboard salon bazli sorgusunu hizlandirir.
+        self::addIndexIfMissing('gorusme_notlari', ['salon_id', 'personel_id'], 'gn_salon_personel_idx');
     }
 
     private static function run($sql, $aciklama = null)

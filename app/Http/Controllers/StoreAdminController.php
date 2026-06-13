@@ -27081,20 +27081,21 @@ DB::raw('
      */
     public function arama_dashboard(Request $request)
     {
+        $salonId = self::mevcutsube($request);
         $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
-        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        $isletme = Salonlar::where('id', $salonId)->first();
 
-        if (!in_array(self::mevcutsube($request), $isletmeler)) {
+        if (!in_array($salonId, $isletmeler)) {
             return view('isletmeadmin.yetkisizerisim');
         }
-        if (str_contains(self::lisans_sure_kontrol($request), '-')) {
+        $lisansSure = self::lisans_sure_kontrol($request);
+        if (str_contains($lisansSure, '-')) {
             return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
         }
         if (count($isletmeler) > 1 && !isset($_GET['sube'])) {
             return view('isletmeadmin.isletmesec', ['isletmeler' => $isletmeler, 'isletme' => $isletme]);
         }
 
-        $salonId = self::mevcutsube($request);
         $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
         if ($rol == 5) {
             return view('isletmeadmin.yetkisizerisim'); // personel goremez
@@ -27106,7 +27107,7 @@ DB::raw('
             'sayfa_baslik'            => 'Çağrı Merkezi Performans Paneli',
             'pageindex'               => 45,
             'isletme'                 => $isletme,
-            'kalan_uyelik_suresi'     => self::lisans_sure_kontrol($request),
+            'kalan_uyelik_suresi'     => $lisansSure,
             'yetkiliolunanisletmeler' => $isletmeler,
         ]);
     }
@@ -27144,14 +27145,19 @@ DB::raw('
                 ->keyBy('personel_id');
         }
 
+        // Personel adlarini TEK sorguda al (N+1 onleme)
+        $personelIdler = $rows->keys()->filter()->all();
+        $personelAdlari = $personelIdler
+            ? Personeller::whereIn('id', $personelIdler)->pluck('personel_adi', 'id')
+            : collect();
+
         $kartlar = [];
         foreach ($rows as $pid => $r) {
             if (!$pid) continue;
-            $p = Personeller::where('id', $pid)->first();
             $g = $gn[$pid] ?? null;
             $kartlar[] = [
                 'personel_id'    => (int) $pid,
-                'ad'             => optional($p)->personel_adi ?? 'Bilinmeyen Personel',
+                'ad'             => $personelAdlari[$pid] ?? 'Bilinmeyen Personel',
                 'atanan'         => (int) $r->atanan,
                 'aranan'         => (int) $r->aranan,
                 'kalan'          => (int) $r->atanan - (int) $r->aranan,
