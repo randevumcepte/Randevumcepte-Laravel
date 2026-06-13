@@ -27389,15 +27389,31 @@ DB::raw('
         $req .= "Async: yes\r\n\r\n";
 
         stream_socket_sendto($socket, $req);
-        usleep(200000);
-        $resp = (string) fread($socket, 4096);
+        // Yaniti birkac kez oku (async yanit parca parca/biraz gecikmeli gelebilir)
+        $resp = '';
+        stream_set_timeout($socket, 2);
+        for ($i = 0; $i < 6; $i++) {
+            usleep(250000);
+            $chunk = fread($socket, 4096);
+            if ($chunk !== false && $chunk !== '') {
+                $resp .= $chunk;
+                if (strpos($resp, 'Response:') !== false) break;
+            }
+        }
         fclose($socket);
-        \Log::info('[CAGRI-MERKEZI] Originate Response: ' . $resp);
+        \Log::info('[CAGRI-MERKEZI] Originate gonderildi. Channel=PJSIP/0' . $tel . '@' . $sabitno->numara . ' kuyruk=' . optional($salon)->operator_kanali . ' | Yanit: ' . $resp);
 
         if (strpos($resp, 'Success') !== false) {
             return ['success' => true, 'message' => 'Arama başlatıldı. Telefonunuz (Bria) çalacak, açın.'];
         }
-        return ['success' => false, 'message' => 'Santral aramayı başlatamadı.'];
+
+        // Teshis: Asterisk'in dondurdugu mesaji ve kullanilan trunk'i goster
+        $ozet = trim(preg_replace('/\s+/', ' ', $resp));
+        if ($ozet === '') $ozet = 'santral yanit vermedi';
+        return [
+            'success' => false,
+            'message' => 'Santral aramayı başlatamadı. Trunk=' . ($sabitno->numara ?: 'YOK') . ' | Yanıt: ' . mb_substr($ozet, 0, 180),
+        ];
     }
 
     public function arama_baslat(Request $request)
