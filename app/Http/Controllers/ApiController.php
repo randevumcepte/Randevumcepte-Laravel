@@ -13442,6 +13442,27 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     }
 
+    // Yeni satis ekraninda secilen satis tarihini ilgili adisyonun tarih alanina yazar.
+    // satis_tarihi yalnizca yeni satis akisindan gonderilir; mevcut adisyona tahsilat
+    // yapildiginda gonderilmez, dolayisiyla adisyon tarihi degistirilmez.
+    private function adisyonSatisTarihiniGuncelle(Request $request)
+    {
+        if (!$request->filled('satis_tarihi')) {
+            return;
+        }
+        $satis_adisyon_id = null;
+        if (is_array($request->adisyon_hizmet_id) && count($request->adisyon_hizmet_id)) {
+            $satis_adisyon_id = AdisyonHizmetler::where('id', $request->adisyon_hizmet_id[0])->value('adisyon_id');
+        } elseif (is_array($request->adisyon_urun_id) && count($request->adisyon_urun_id)) {
+            $satis_adisyon_id = AdisyonUrunler::where('id', $request->adisyon_urun_id[0])->value('adisyon_id');
+        } elseif (is_array($request->adisyon_paket_id) && count($request->adisyon_paket_id)) {
+            $satis_adisyon_id = AdisyonPaketler::where('id', $request->adisyon_paket_id[0])->value('adisyon_id');
+        }
+        if ($satis_adisyon_id) {
+            Adisyonlar::where('id', $satis_adisyon_id)->update(['tarih' => $request->satis_tarihi]);
+        }
+    }
+
     public function tahsilatekle(Request $request)
     {
         $tahsilat = new Tahsilatlar();
@@ -13466,6 +13487,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $tahsilat->odeme_yontemi_id = $request->odeme_yontemi;
         $tahsilat->notlar = $request->tahsilat_notlari;
         $tahsilat->save();
+        // Yeni satis ekranindan secilen satis tarihini adisyona uygula
+        self::adisyonSatisTarihiniGuncelle($request);
         $toplam_adisyon = AdisyonHizmetler::whereIn('id',$request->adisyon_hizmet_id)->sum('fiyat')
                  + AdisyonUrunler::whereIn('id',$request->adisyon_urun_id)->sum('fiyat')
                  + AdisyonPaketler::whereIn('id',$request->adisyon_paket_id)->sum('fiyat');
@@ -13782,6 +13805,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     public function taksitekleguncelle(Request $request)
     {
+        // Yeni satis ekranindan secilen satis tarihini adisyona uygula
+        self::adisyonSatisTarihiniGuncelle($request);
 
         if(isset($request->senet_vade_id))
             foreach($request->senet_vade_id as $senetvadesi)
@@ -14080,7 +14105,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             ]);
         }
 
-        return AdisyonHizmetler::where("id", $adisyon_hizmet->id)->first();
+        return AdisyonHizmetler::with(['hizmet', 'personel', 'cihaz'])->where("id", $adisyon_hizmet->id)->first();
 
     }
 
@@ -14177,7 +14202,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             }
         }
 
-        return AdisyonUrunler::where("id", $adisyon_urun->id)->first();
+        return AdisyonUrunler::with(['urun', 'personel'])->where("id", $adisyon_urun->id)->first();
 
     }
 
@@ -14244,7 +14269,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         self::pakettenrandevuveseansolustur($request, $adisyon_paket_id);*/
 
-        return AdisyonPaketler::where("id", $adisyon_paket_id)->first();
+        return AdisyonPaketler::with(['paket', 'personel'])->where("id", $adisyon_paket_id)->first();
 
     }
 
