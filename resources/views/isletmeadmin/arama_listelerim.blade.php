@@ -1,322 +1,497 @@
 @extends("layout.layout_isletmeadmin")
 @section("content")
 
-<div class="page-header">
-   <div class="row">
-      <div class="col-md-12">
-         <div class="title">
-            <h4>{{ $sayfa_baslik }}</h4>
-         </div>
-         <p class="text-muted" style="margin-top:-6px;">Size atanan arama listeleri. Bir karta tıklayarak müşterileri görüp arama yapabilirsiniz.</p>
+<style>
+/* ===== Çağrı Merkezi — Agent Cockpit ===== */
+.ag-wrap{ --mor1:#5C008E; --mor2:#7B2FB8; --mor3:#9D5DC8; }
+
+/* Başlık şeridi */
+.ag-hero{
+   background:linear-gradient(120deg,#5C008E 0%,#7B2FB8 55%,#9D5DC8 100%);
+   border-radius:18px; padding:20px 24px; color:#fff; margin-bottom:18px;
+   box-shadow:0 12px 30px -10px rgba(92,0,142,.45); position:relative; overflow:hidden;
+}
+.ag-hero:after{ content:""; position:absolute; right:-40px; top:-40px; width:180px; height:180px; border-radius:50%; background:rgba(255,255,255,.10); }
+.ag-hero h4{ margin:0 0 4px; font-weight:700; font-size:21px; color:#fff; }
+.ag-hero p{ margin:0; opacity:.92; font-size:13px; }
+.ag-hero-stats{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; position:relative; z-index:2; }
+.ag-hstat{ background:rgba(255,255,255,.14); border-radius:12px; padding:8px 16px; min-width:104px; }
+.ag-hstat .n{ font-size:22px; font-weight:800; line-height:1; }
+.ag-hstat .t{ font-size:11.5px; opacity:.9; margin-top:3px; }
+
+/* İki kolon düzen */
+.ag-grid{ display:grid; grid-template-columns:380px 1fr; gap:18px; align-items:start; }
+@media (max-width:991px){ .ag-grid{ grid-template-columns:1fr; } }
+
+.ag-panel{ background:#fff; border-radius:18px; border:1px solid #efeaf6; box-shadow:0 6px 20px -12px rgba(30,30,60,.2); overflow:hidden; }
+.ag-panel-head{ padding:14px 16px; border-bottom:1px solid #f0eef5; display:flex; align-items:center; gap:10px; }
+.ag-panel-head h5{ margin:0; font-weight:700; font-size:15px; color:#241b3a; }
+.ag-panel-head .say{ margin-left:auto; background:#f3eefa; color:#5C008E; font-weight:700; border-radius:20px; padding:3px 11px; font-size:12px; }
+
+/* Liste seçici çipleri */
+.ag-listeler{ display:flex; gap:8px; flex-wrap:wrap; padding:12px 16px 4px; }
+.ag-liste-chip{ border:1px solid #e3dcf0; background:#fff; color:#6a6580; border-radius:12px; padding:8px 13px; cursor:pointer; font-size:12.5px; font-weight:600; transition:all .12s ease; max-width:100%; }
+.ag-liste-chip:hover{ border-color:#9D5DC8; color:#5C008E; }
+.ag-liste-chip.aktif{ background:linear-gradient(120deg,#5C008E,#7B2FB8); border-color:transparent; color:#fff; }
+.ag-liste-chip .alt{ display:block; font-size:10.5px; opacity:.85; font-weight:500; margin-top:2px; }
+
+/* Arama + filtre */
+.ag-ara-kutu{ position:relative; padding:10px 16px; }
+.ag-ara-kutu input{ width:100%; border:1px solid #e3dcf0; border-radius:12px; padding:9px 12px 9px 34px; font-size:13px; outline:none; }
+.ag-ara-kutu input:focus{ border-color:#9D5DC8; }
+.ag-ara-kutu .fa{ position:absolute; left:28px; top:50%; transform:translateY(-50%); color:#b6aecb; }
+.ag-fil{ display:flex; gap:6px; flex-wrap:wrap; padding:0 16px 10px; }
+.ag-fil-chip{ border:1px solid #eceaf3; background:#faf9fc; color:#8a85a0; border-radius:20px; padding:4px 11px; cursor:pointer; font-size:11.5px; font-weight:600; }
+.ag-fil-chip.aktif{ background:#5C008E; border-color:#5C008E; color:#fff; }
+
+/* Müşteri kuyruğu */
+.ag-kuyruk{ max-height:62vh; overflow-y:auto; padding:4px 10px 12px; }
+.ag-musteri{ display:flex; align-items:center; gap:11px; padding:11px 12px; border-radius:13px; cursor:pointer; border:1px solid transparent; transition:background .12s ease, border-color .12s ease; }
+.ag-musteri:hover{ background:#faf9fc; }
+.ag-musteri.secili{ background:#f6f0fc; border-color:#d9c6ee; }
+.ag-mus-av{ width:40px; height:40px; flex:0 0 40px; border-radius:50%; background:linear-gradient(135deg,#5C008E,#9D5DC8); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; }
+.ag-mus-orta{ flex:1; min-width:0; }
+.ag-mus-ad{ font-weight:700; color:#241b3a; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ag-mus-tel{ font-size:11.5px; color:#9a95ab; margin-top:1px; }
+.ag-mus-dur{ font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; white-space:nowrap; }
+
+/* Durum renkleri */
+.d-yesil{ background:#e4f7ec; color:#1b9e4b; } .d-kirmizi{ background:#fdecec; color:#d33; }
+.d-mavi{ background:#e7f1fd; color:#1565c0; } .d-turuncu{ background:#fff2e3; color:#e07a1a; }
+.d-gri{ background:#f0eef5; color:#8a85a0; }
+.bl-yesil{ border-left-color:#1b9e4b!important; } .bl-kirmizi{ border-left-color:#d33!important; }
+.bl-mavi{ border-left-color:#1565c0!important; } .bl-turuncu{ border-left-color:#e07a1a!important; }
+.bl-gri{ border-left-color:#cfc7df!important; }
+
+/* Detay (sağ) panel */
+.ag-detay-bos{ text-align:center; padding:70px 24px; color:#9a95ab; }
+.ag-detay-bos .ic{ width:90px; height:90px; border-radius:50%; margin:0 auto 18px; background:linear-gradient(135deg,#f3eefa,#e9def5); display:flex; align-items:center; justify-content:center; font-size:40px; color:#b69ad6; }
+.ag-detay-bos .t1{ font-weight:700; color:#5a5570; font-size:16px; }
+.ag-detay-bos .t2{ font-size:13px; margin-top:5px; }
+
+.ag-dhead{ background:linear-gradient(120deg,#5C008E,#7B2FB8); color:#fff; padding:20px 22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.ag-dhead-av{ width:56px; height:56px; flex:0 0 56px; border-radius:50%; background:rgba(255,255,255,.20); display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:700; }
+.ag-dhead-ad{ font-weight:700; font-size:20px; line-height:1.1; }
+.ag-dhead-sub{ font-size:13px; opacity:.9; margin-top:4px; }
+.ag-dhead-sub .durnok{ display:inline-block; padding:2px 10px; border-radius:20px; background:rgba(255,255,255,.22); font-weight:700; font-size:11.5px; margin-left:4px; }
+.ag-ara-btn{ margin-left:auto; background:#fff; color:#5C008E; border:none; border-radius:14px; padding:13px 24px; font-weight:800; font-size:15px; cursor:pointer; box-shadow:0 8px 20px -8px rgba(0,0,0,.35); display:flex; align-items:center; gap:9px; transition:transform .12s ease; }
+.ag-ara-btn:hover{ transform:translateY(-2px); }
+.ag-ara-btn:disabled{ opacity:.6; cursor:not-allowed; transform:none; }
+.ag-ara-btn .fa{ font-size:17px; }
+
+.ag-dbody{ padding:20px 22px; }
+.ag-kart{ background:#faf9fc; border:1px solid #efeaf6; border-radius:14px; padding:15px 16px; margin-bottom:16px; }
+.ag-kart-bas{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:#8a85a0; margin-bottom:11px; display:flex; align-items:center; gap:7px; }
+.ag-kart-bas .fa{ color:#9D5DC8; }
+
+/* Sonuç butonları */
+.ag-sonuc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+@media (max-width:520px){ .ag-sonuc-grid{ grid-template-columns:repeat(2,1fr); } }
+.ag-sonuc{ border:1.5px solid #e8e3f2; background:#fff; border-radius:12px; padding:11px 6px; text-align:center; cursor:pointer; font-weight:700; font-size:12.5px; color:#6a6580; transition:all .12s ease; }
+.ag-sonuc .fa{ display:block; font-size:17px; margin-bottom:5px; }
+.ag-sonuc:hover{ border-color:#bfa9e0; }
+.ag-sonuc.sec-yesil.aktif{ background:#e4f7ec; border-color:#1b9e4b; color:#1b9e4b; }
+.ag-sonuc.sec-kirmizi.aktif{ background:#fdecec; border-color:#d33; color:#d33; }
+.ag-sonuc.sec-turuncu.aktif{ background:#fff2e3; border-color:#e07a1a; color:#e07a1a; }
+.ag-sonuc.sec-koyukirmizi.aktif{ background:#fbe9ef; border-color:#c2185b; color:#c2185b; }
+
+.ag-not-alani{ width:100%; border:1px solid #e3dcf0; border-radius:12px; padding:11px 13px; font-size:13.5px; outline:none; resize:vertical; min-height:80px; margin-top:12px; }
+.ag-not-alani:focus{ border-color:#9D5DC8; }
+.ag-sonra{ display:flex; align-items:center; gap:9px; margin-top:12px; font-size:13px; color:#574f6b; cursor:pointer; }
+.ag-sonra input{ width:17px; height:17px; }
+.ag-sonra-alan{ display:none; gap:10px; margin-top:10px; }
+.ag-sonra-alan input{ flex:1; border:1px solid #e3dcf0; border-radius:10px; padding:9px 11px; font-size:13px; outline:none; }
+.ag-kaydet{ width:100%; margin-top:14px; background:linear-gradient(120deg,#5C008E,#7B2FB8); color:#fff; border:none; border-radius:12px; padding:13px; font-weight:800; font-size:14.5px; cursor:pointer; transition:opacity .12s ease; }
+.ag-kaydet:hover{ opacity:.93; }
+.ag-kaydet:disabled{ opacity:.55; cursor:not-allowed; }
+
+/* Çağrı geçmişi */
+.ag-gecmis-item{ border:1px solid #efeaf6; border-left:4px solid #cfc7df; border-radius:12px; padding:11px 13px; margin-bottom:10px; background:#fff; }
+.ag-gecmis-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ag-gecmis-tarih{ font-weight:700; color:#5C008E; font-size:12.5px; }
+.ag-gecmis-item audio{ width:100%; height:36px; margin-top:9px; border-radius:8px; }
+.ag-gecmis-bos{ text-align:center; color:#9a95ab; padding:22px; font-size:13px; }
+.ag-gecmis-bos .fa{ font-size:28px; color:#cfc7df; display:block; margin-bottom:8px; }
+
+.ag-spin{ text-align:center; padding:30px; color:#9a95ab; }
+</style>
+
+<div class="ag-wrap">
+
+   {{-- Başlık şeridi + kuyruk özetleri --}}
+   <div class="ag-hero">
+      <h4><i class="fa fa-headphones"></i> Çağrı Merkezi — Çalışma Ekranı</h4>
+      <p>Size atanan listelerden müşterileri arayın, görüşme sonucunu ve notunu kaydedin. Numaralar KVKK gereği gizlidir — <b>Ara</b> butonuyla santral sizi bağlar.</p>
+      <div class="ag-hero-stats">
+         <div class="ag-hstat"><div class="n" id="ag_h_liste">0</div><div class="t">Atanan Liste</div></div>
+         <div class="ag-hstat"><div class="n" id="ag_h_toplam">0</div><div class="t">Toplam Müşteri</div></div>
+         <div class="ag-hstat"><div class="n" id="ag_h_arandi">0</div><div class="t">Arandı</div></div>
+         <div class="ag-hstat"><div class="n" id="ag_h_kalan">0</div><div class="t">Sırada Bekleyen</div></div>
       </div>
    </div>
-</div>
 
-{{-- KVKK uyarisi --}}
-<div class="alert alert-info" style="border-left:4px solid #5C008E;">
-   <i class="fa fa-shield"></i> Müşteri telefon numaraları KVKK gereği gizlidir. Aramak için telefon ikonuna tıklamanız yeterlidir; numara sizinle paylaşılmaz.
-</div>
+   <div class="ag-grid">
 
-{{-- Kartlar --}}
-<div id="arama_kartlari" class="row">
-   <div class="col-md-12"><p id="kart_yukleniyor">Yükleniyor...</p></div>
-</div>
+      {{-- SOL: kuyruk --}}
+      <div class="ag-panel">
+         <div class="ag-panel-head">
+            <h5><i class="fa fa-list-ul" style="color:#9D5DC8;"></i> Müşteri Kuyruğu</h5>
+            <span class="say" id="ag_kuyruk_say">0</span>
+         </div>
+         <div class="ag-listeler" id="ag_listeler"><span class="text-muted" style="font-size:12px;padding:4px;">Listeler yükleniyor...</span></div>
+         <div class="ag-ara-kutu"><i class="fa fa-search"></i><input type="text" id="ag_ara" placeholder="Müşteri ara..."></div>
+         <div class="ag-fil" id="ag_filtreler"></div>
+         <div class="ag-kuyruk" id="ag_kuyruk">
+            <div class="ag-gecmis-bos"><i class="fa fa-hand-o-up"></i>Yukarıdan bir liste seçin.</div>
+         </div>
+      </div>
 
-{{-- Liste detayi (musteri tablosu) --}}
-<div id="liste_detay_alani" class="pd-20 card-box mb-30" style="display:none;margin-top:20px;">
-   <div class="d-flex justify-content-between align-items-center" style="display:flex;justify-content:space-between;align-items:center;">
-      <h4 id="detay_baslik" style="margin:0;"></h4>
-      <button id="detay_kapat" class="btn btn-sm btn-outline-secondary"><i class="fa fa-times"></i> Kapat</button>
-   </div>
-   <hr>
-   <div class="table-responsive">
-      <table class="table table-hover">
-         <thead>
-            <tr>
-               <th style="width:50px;">#</th>
-               <th>Müşteri</th>
-               <th>Telefon</th>
-               <th>Durum</th>
-               <th>Görüşme Notu</th>
-               <th style="width:160px;">İşlemler</th>
-            </tr>
-         </thead>
-         <tbody id="musteri_detay_tbody"></tbody>
-      </table>
-      <div id="detay_loading" style="display:none;">Yükleniyor...</div>
+      {{-- SAĞ: detay cockpit --}}
+      <div class="ag-panel" id="ag_detay_panel">
+         <div class="ag-detay-bos" id="ag_detay_bos">
+            <div class="ic"><i class="fa fa-user-circle-o"></i></div>
+            <div class="t1">Bir müşteri seçin</div>
+            <div class="t2">Soldaki kuyruktan bir müşteriye tıklayın; bilgileri, arama butonu ve görüşme geçmişi burada açılır.</div>
+         </div>
+         <div id="ag_detay_icerik" style="display:none;"></div>
+      </div>
+
    </div>
 </div>
 
 {{-- KVKK: ses-kaydi eslestirmesi icin gizli arama_liste_detaylari linki (webphone callHangUp bunu okur) --}}
 <a id="aktif_arama_liste_link" name="arama_liste_detaylari" data-value="" href="#" style="display:none;"></a>
 
-{{-- Gorusme Notu / Arama Randevusu modali --}}
-<div id="gorusme_not_modal" class="modal fade" role="dialog">
-   <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-         <div class="modal-header">
-            <h5 class="modal-title">Görüşme Sonucu</h5>
-            <button type="button" class="close" data-dismiss="modal">&times;</button>
-         </div>
-         <form id="gorusme_not_form">
-            <div class="modal-body">
-               <input type="hidden" id="gn_aranacak_musteri_id">
-               <input type="hidden" id="gn_arama_detay_id">
-               <div class="form-group">
-                  <label>Görüşme Notu</label>
-                  <textarea id="gn_not" class="form-control" rows="3" placeholder="Müşteri ile görüşme notunuz..."></textarea>
-               </div>
-               <div class="custom-control custom-checkbox mb-10">
-                  <input type="checkbox" class="custom-control-input" id="gn_tekrar">
-                  <label class="custom-control-label" for="gn_tekrar">Müşteri sonra aranmak istedi (Arama Randevusu oluştur)</label>
-               </div>
-               <div class="row gn-randevu-alan" style="display:none;">
-                  <div class="col-md-6 form-group">
-                     <label>Aranacak Tarih</label>
-                     <input type="date" id="gn_tarih" class="form-control">
-                  </div>
-                  <div class="col-md-6 form-group">
-                     <label>Aranacak Saat</label>
-                     <input type="time" id="gn_saat" class="form-control">
-                  </div>
-               </div>
-            </div>
-            <div class="modal-footer">
-               <button type="submit" class="btn btn-success"><i class="fa fa-save"></i> Kaydet</button>
-               <button type="button" class="btn btn-secondary" data-dismiss="modal">İptal</button>
-            </div>
-         </form>
-      </div>
-   </div>
-</div>
-
-{{-- Ses kayitlari modali --}}
-<div id="ses_kayitlari_modal" class="modal fade" role="dialog">
-   <div class="modal-dialog modal-dialog-centered" role="document">
-      <div class="modal-content" style="border-radius:12px;">
-         <div class="modal-header" style="background:linear-gradient(120deg,#5C008E,#9D5DC8);color:#fff;border-radius:12px 12px 0 0;">
-            <h5 class="modal-title">Görüşme Kayıtları</h5>
-            <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;"><span>&times;</span></button>
-         </div>
-         <div class="modal-body" id="ses_kayitlari_govde" style="max-height:60vh;overflow-y:auto;">
-            <p class="text-muted">Yükleniyor...</p>
-         </div>
-      </div>
-   </div>
-</div>
-
 <input type="hidden" name="sube" value="{{ $isletme->id }}">
 
 <script>
-let aktifListeId = null;
-let detayLoading = false;
+function agEsc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
-// Bir musteriyle yapilan TUM ses kayitlarini goster
-$(document).on('click', '.cm-kayitlar-btn', function () {
-   var aranacakId = $(this).data('id');
-   $('#ses_kayitlari_govde').html('<p class="text-muted">Yükleniyor...</p>');
-   $('#ses_kayitlari_modal').modal('show');
+// Durum kodu -> renk/etiket. 0 Ulaşılamadı,1 Arandı,2 Cevapsız,3 Randevu,4 Görüşüldü,5 Meşgul
+function durStil(kod){
+   switch (parseInt(kod,10)){
+      case 4: return { c:'yesil',   et:'Görüşüldü' };
+      case 1: return { c:'yesil',   et:'Arandı' };
+      case 2: return { c:'kirmizi', et:'Cevapsız' };
+      case 5: return { c:'kirmizi', et:'Meşgul' };
+      case 0: return { c:'turuncu', et:'Ulaşılamadı' };
+      case 3: return { c:'mavi',    et:'Randevu' };
+      default:return { c:'gri',     et:'Bekliyor' };
+   }
+}
+
+// Kuyruk filtre grupları (durum_kod'a göre)
+var AG_FILTRELER = [
+   { key:'hepsi',     et:'Tümü',      test:function(){ return true; } },
+   { key:'bekleyen',  et:'Bekleyen',  test:function(k){ return k===null || isNaN(k); } },
+   { key:'arandi',    et:'Görüşülen', test:function(k){ return k===1 || k===4; } },
+   { key:'olumsuz',   et:'Cevapsız',  test:function(k){ return k===0 || k===2 || k===5; } },
+   { key:'randevu',   et:'Randevu',   test:function(k){ return k===3; } }
+];
+
+var agListeler = [];
+var agAktifListe = null;
+var agMusteriler = [];
+var agSecili = null;
+var agFiltre = 'hepsi';
+var agSecilenSonuc = null; // form: seçili sonuç kodu
+
+// ---- Listeler ----
+function agListeleriYukle(){
    $.ajax({
-      url: '/isletmeyonetim/musteri-ses-kayitlari', method: 'POST',
-      data: { aranacak_musteri_id: aranacakId, _token: $('input[name="_token"]').val() },
-      success: function (res) {
-         var kayitlar = (res && res.kayitlar) ? res.kayitlar : [];
-         if (!kayitlar.length) {
-            $('#ses_kayitlari_govde').html('<div style="text-align:center;color:#999;padding:24px;"><i class="fa fa-microphone-slash" style="font-size:32px;"></i><br><br>Bu müşteriyle yapılmış kayıtlı görüşme bulunamadı.</div>');
+      url:'/isletmeyonetim/arama-kartlarim', method:'GET',
+      data:{ sube:$('input[name="sube"]').val() },
+      success:function(res){
+         agListeler = (res && res.kartlar) ? res.kartlar : [];
+         var $l = $('#ag_listeler');
+         if (!agListeler.length){
+            $l.html('<span class="text-muted" style="font-size:12px;padding:4px;">Size atanmış aktif liste yok.</span>');
             return;
          }
-         var html = '';
-         kayitlar.forEach(function (k, i) {
-            html += '<div style="border:1px solid #eee;border-radius:10px;padding:10px 12px;margin-bottom:10px;">' +
-               '<div style="font-weight:600;color:#5C008E;margin-bottom:6px;"><i class="fa fa-clock-o"></i> ' + (k.tarih || ('Kayıt ' + (i + 1))) + '</div>' +
-               '<audio controls preload="none" style="width:100%;" src="' + k.url + '"></audio></div>';
-         });
-         $('#ses_kayitlari_govde').html(html);
-      },
-      error: function () { $('#ses_kayitlari_govde').html('<p style="color:#c62828;">Ses kayıtları yüklenirken hata oluştu.</p>'); }
-   });
-});
+         // Hero özet
+         var top=0, ar=0, ka=0;
+         agListeler.forEach(function(k){ top+=+k.toplam||0; ar+=+k.arandi||0; ka+=+k.kalan||0; });
+         $('#ag_h_liste').text(agListeler.length);
+         $('#ag_h_toplam').text(top); $('#ag_h_arandi').text(ar); $('#ag_h_kalan').text(ka);
 
-function kartlariYukle() {
-   $.ajax({
-      url: '/isletmeyonetim/arama-kartlarim',
-      method: 'GET',
-      data: { sube: $('input[name="sube"]').val() },
-      success: function (res) {
-         const cont = $('#arama_kartlari');
-         cont.empty();
-         if (!res.kartlar || res.kartlar.length === 0) {
-            cont.html('<div class="col-md-12"><div class="alert alert-warning">Size atanmış aktif bir arama listesi bulunmuyor.</div></div>');
-            return;
-         }
-         res.kartlar.forEach(function (k) {
-            const tarih = k.aranacak_tarih ? ('<i class="fa fa-calendar"></i> ' + k.aranacak_tarih) : '<span class="text-muted">Tarih belirtilmemiş</span>';
-            const card = `
-               <div class="col-md-4 col-sm-6 mb-20">
-                  <div class="card-box pd-20 arama-kart" data-id="${k.id}" data-baslik="${k.baslik}" style="cursor:pointer;border-top:3px solid #5C008E;">
-                     <h5 style="margin-bottom:8px;">${k.baslik}</h5>
-                     <p style="margin:4px 0;">${tarih}</p>
-                     <div style="margin:8px 0;">
-                        <span class="badge badge-primary" style="background:#5C008E;">${k.toplam} müşteri</span>
-                        <span class="badge badge-success">${k.arandi} arandı</span>
-                        <span class="badge badge-warning">${k.kalan} kaldı</span>
-                     </div>
-                     <div class="progress" style="height:8px;">
-                        <div class="progress-bar" role="progressbar" style="width:${k.ilerleme}%;background:#5C008E;"></div>
-                     </div>
-                     <small class="text-muted">%${k.ilerleme} tamamlandı</small>
-                  </div>
-               </div>`;
-            cont.append(card);
+         var html='';
+         agListeler.forEach(function(k){
+            var tar = k.aranacak_tarih ? k.aranacak_tarih : 'Tarih yok';
+            html += '<div class="ag-liste-chip" data-id="'+agEsc(k.id)+'" data-baslik="'+agEsc(k.baslik)+'" data-tarih="'+agEsc(tar)+'">'+
+                    agEsc(k.baslik)+'<span class="alt">'+agEsc(k.kalan)+' sırada • '+agEsc(tar)+'</span></div>';
          });
+         $l.html(html);
+         // İlk listeyi otomatik seç
+         agListeSec(agListeler[0].id, agListeler[0].baslik);
       },
-      error: function () {
-         $('#arama_kartlari').html('<div class="col-md-12"><div class="alert alert-danger">Listeler yüklenirken hata oluştu.</div></div>');
-      }
+      error:function(){ $('#ag_listeler').html('<span style="color:#c62828;font-size:12px;">Listeler yüklenemedi.</span>'); }
    });
 }
 
-// Karta tikla -> detay yukle
-$(document).on('click', '.arama-kart', function () {
-   aktifListeId = $(this).data('id');
-   $('#detay_baslik').text($(this).data('baslik'));
-   $('#aktif_arama_liste_link').attr('data-value', aktifListeId);
-   $('#musteri_detay_tbody').empty();
-   $('#liste_detay_alani').show();
-   $('html, body').animate({ scrollTop: $('#liste_detay_alani').offset().top - 80 }, 300);
-   detayYukle();
+function agListeSec(id, baslik){
+   agAktifListe = id;
+   $('#aktif_arama_liste_link').attr('data-value', id);
+   $('.ag-liste-chip').removeClass('aktif');
+   $('.ag-liste-chip[data-id="'+id+'"]').addClass('aktif');
+   agMusterileriYukle();
+}
+
+$(document).on('click', '.ag-liste-chip', function(){
+   agListeSec($(this).data('id'), $(this).data('baslik'));
 });
 
-$('#detay_kapat').on('click', function () {
-   $('#liste_detay_alani').hide();
-   aktifListeId = null;
-});
-
-function detayYukle() {
-   if (detayLoading || !aktifListeId) return;
-   detayLoading = true;
-   $('#detay_loading').show();
+// ---- Müşteriler (kuyruk) ----
+function agMusterileriYukle(){
+   $('#ag_kuyruk').html('<div class="ag-spin"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
    $.ajax({
-      url: '/isletmeyonetim/arama_liste_detay_getir',
-      method: 'POST',
-      data: {
-         arama_detay_id: aktifListeId,
-         page: 1,
-         perPage: 500,
-         _token: $('input[name="_token"]').val()
+      url:'/isletmeyonetim/arama_liste_detay_getir', method:'POST',
+      data:{ arama_detay_id:agAktifListe, page:1, perPage:500, _token:$('input[name="_token"]').val() },
+      success:function(res){
+         agMusteriler = (res && res.data) ? res.data : [];
+         agFiltreCiz();
+         agKuyrukCiz();
       },
-      success: function (res) {
-         const tbody = $('#musteri_detay_tbody');
-         tbody.empty();
-         (res.data || []).forEach(function (item, index) {
-            const sesBtn = `<button type="button" class="btn btn-sm btn-secondary cm-kayitlar-btn" data-id="${item.aranacak_musteri_id}" title="Görüşme Ses Kayıtları"><i class="fa fa-headphones"></i></button>`;
-            const notHTML = item.not
-               ? `${item.not}${(item.not_tarih && item.not_saat) ? '<br><small class="text-muted">Randevu: ' + item.not_tarih + ' ' + item.not_saat + '</small>' : ''}`
-               : '<span class="text-muted">-</span>';
-            const row = `
-               <tr data-id="${item.aranacak_musteri_id}">
-                  <td style="text-align:center;font-weight:600;color:#5C008E;">${index + 1}</td>
-                  <td>${item.ad}</td>
-                  <td><span class="text-muted">${item.telefonGizlenmis}</span></td>
-                  <td><span class="durum-hucre">${item.durum}</span></td>
-                  <td class="not-hucre">${notHTML}</td>
-                  <td>
-                     <button class="btn btn-sm btn-success btn-ara" data-id="${item.aranacak_musteri_id}" title="Ara"><i class="fa fa-phone"></i></button>
-                     <button class="btn btn-sm btn-warning btn-not" data-id="${item.aranacak_musteri_id}" data-not="${(item.not||'').replace(/"/g,'&quot;')}" title="Görüşme Notu"><i class="fa fa-pencil"></i></button>
-                     ${sesBtn}
-                  </td>
-               </tr>`;
-            tbody.append(row);
-         });
-         if ((res.data || []).length === 0) {
-            tbody.append('<tr><td colspan="6" class="text-center text-muted">Bu listede müşteri yok.</td></tr>');
-         }
-      },
-      complete: function () {
-         detayLoading = false;
-         $('#detay_loading').hide();
-      }
+      error:function(){ $('#ag_kuyruk').html('<div class="ag-gecmis-bos" style="color:#c62828;">Müşteriler yüklenemedi.</div>'); }
    });
 }
 
-// KVKK uyumlu arama: santral originate — numara tarayiciya GITMEZ; personelin Bria'si calar.
-$(document).on('click', '.btn-ara', function () {
-   const aranacakId = $(this).data('id');
-   const $btn = $(this);
-   $btn.prop('disabled', true);
-   $.ajax({
-      url: '/isletmeyonetim/arama-baslat',
-      method: 'POST',
-      data: { aranacak_musteri_id: aranacakId, _token: $('input[name="_token"]').val() },
-      success: function (res) {
-         if (res.success) {
-            $btn.closest('tr').find('.durum-hucre').text('Arandı');
-            swal({ type: 'success', title: 'Arama başlatıldı', text: res.message || 'Telefonunuz (Bria) çalacak, açın.', timer: 3500, showConfirmButton: false });
-         } else {
-            swal({ type: 'warning', title: 'Aranamadı', text: res.message || 'Arama başlatılamadı.' });
-         }
-      },
-      error: function (xhr) {
-         const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Arama başlatılamadı.';
-         swal({ type: 'error', title: 'Hata', text: msg });
-      },
-      complete: function () {
-         setTimeout(function () { $btn.prop('disabled', false); }, 2000);
-      }
+function agFiltreCiz(){
+   var html='';
+   AG_FILTRELER.forEach(function(f){
+      var sayi = f.key==='hepsi' ? agMusteriler.length
+               : agMusteriler.filter(function(m){ return f.test(m.durum_kod===undefined||m.durum_kod===null?null:parseInt(m.durum_kod,10)); }).length;
+      if (f.key!=='hepsi' && sayi===0) return;
+      html += '<span class="ag-fil-chip '+(agFiltre===f.key?'aktif':'')+'" data-fil="'+f.key+'">'+f.et+' ('+sayi+')</span>';
    });
-});
+   $('#ag_filtreler').html(html);
+}
 
-// Gorusme notu modali
-$(document).on('click', '.btn-not', function () {
-   $('#gn_aranacak_musteri_id').val($(this).data('id'));
-   $('#gn_arama_detay_id').val(aktifListeId);
-   $('#gn_not').val($(this).data('not') || '');
-   $('#gn_tekrar').prop('checked', false);
-   $('.gn-randevu-alan').hide();
-   $('#gn_tarih').val('');
-   $('#gn_saat').val('');
-   $('#gorusme_not_modal').modal('show');
-});
+function agKuyrukCiz(){
+   var ara = ($('#ag_ara').val()||'').toLocaleLowerCase('tr');
+   var grup = AG_FILTRELER.find(function(f){ return f.key===agFiltre; }) || AG_FILTRELER[0];
+   var veri = agMusteriler.filter(function(m){
+      var k = (m.durum_kod===undefined||m.durum_kod===null)?null:parseInt(m.durum_kod,10);
+      if (!grup.test(k)) return false;
+      if (ara && (m.ad||'').toLocaleLowerCase('tr').indexOf(ara)===-1) return false;
+      return true;
+   });
+   $('#ag_kuyruk_say').text(veri.length);
 
-$('#gn_tekrar').on('change', function () {
-   if ($(this).is(':checked')) { $('.gn-randevu-alan').show(); } else { $('.gn-randevu-alan').hide(); }
-});
-
-$('#gorusme_not_form').on('submit', function (e) {
-   e.preventDefault();
-   const randevuMu = $('#gn_tekrar').is(':checked');
-   if (randevuMu && (!$('#gn_tarih').val() || !$('#gn_saat').val())) {
-      swal({ type: 'warning', title: 'Eksik', text: 'Arama randevusu için tarih ve saat seçin.' });
+   if (!veri.length){
+      $('#ag_kuyruk').html('<div class="ag-gecmis-bos"><i class="fa fa-inbox"></i>Bu filtreye uygun müşteri yok.</div>');
       return;
    }
+   var html='';
+   veri.forEach(function(m){
+      var k = (m.durum_kod===undefined||m.durum_kod===null)?null:parseInt(m.durum_kod,10);
+      var st = durStil(k);
+      var harf = ((m.ad||'?').trim().charAt(0)||'?').toUpperCase();
+      var sec = (agSecili && agSecili.aranacak_musteri_id===m.aranacak_musteri_id) ? 'secili' : '';
+      html += '<div class="ag-musteri '+sec+'" data-id="'+agEsc(m.aranacak_musteri_id)+'">'+
+                 '<div class="ag-mus-av">'+agEsc(harf)+'</div>'+
+                 '<div class="ag-mus-orta">'+
+                    '<div class="ag-mus-ad">'+agEsc(m.ad)+'</div>'+
+                    '<div class="ag-mus-tel"><i class="fa fa-phone"></i> '+agEsc(m.telefonGizlenmis||'gizli')+'</div>'+
+                 '</div>'+
+                 '<span class="ag-mus-dur d-'+st.c+'">'+st.et+'</span>'+
+              '</div>';
+   });
+   $('#ag_kuyruk').html(html);
+}
+
+$('#ag_ara').on('input', agKuyrukCiz);
+$(document).on('click', '.ag-fil-chip', function(){ agFiltre=$(this).data('fil'); agFiltreCiz(); agKuyrukCiz(); });
+
+// ---- Müşteri seç -> detay ----
+$(document).on('click', '.ag-musteri', function(){
+   var id = $(this).data('id');
+   var m = agMusteriler.find(function(x){ return String(x.aranacak_musteri_id)===String(id); });
+   if (!m) return;
+   agSecili = m;
+   $('.ag-musteri').removeClass('secili');
+   $(this).addClass('secili');
+   agDetayCiz(m);
+});
+
+function agDetayCiz(m){
+   var k = (m.durum_kod===undefined||m.durum_kod===null)?null:parseInt(m.durum_kod,10);
+   var st = durStil(k);
+   var harf = ((m.ad||'?').trim().charAt(0)||'?').toUpperCase();
+   var listeBaslik = $('.ag-liste-chip[data-id="'+agAktifListe+'"]').data('baslik') || '';
+   var randevuBilgi = (m.not_tarih && m.not_saat) ? '<div style="margin-top:6px;font-size:12.5px;color:#1565c0;"><i class="fa fa-calendar-check-o"></i> Randevu: '+agEsc(m.not_tarih)+' '+agEsc(m.not_saat)+'</div>' : '';
+
+   var html =
+   '<div class="ag-dhead">'+
+      '<div class="ag-dhead-av">'+agEsc(harf)+'</div>'+
+      '<div>'+
+         '<div class="ag-dhead-ad">'+agEsc(m.ad)+'</div>'+
+         '<div class="ag-dhead-sub"><i class="fa fa-phone"></i> '+agEsc(m.telefonGizlenmis||'gizli')+' <span class="durnok">'+st.et+'</span></div>'+
+      '</div>'+
+      '<button class="ag-ara-btn" id="ag_ara_btn" data-id="'+agEsc(m.aranacak_musteri_id)+'"><i class="fa fa-phone"></i> ARA</button>'+
+   '</div>'+
+   '<div class="ag-dbody">'+
+
+      // Liste / kampanya bağlamı
+      '<div class="ag-kart">'+
+         '<div class="ag-kart-bas"><i class="fa fa-bullhorn"></i> Aktif Liste</div>'+
+         '<div style="font-weight:700;color:#241b3a;">'+agEsc(listeBaslik)+'</div>'+
+         randevuBilgi +
+      '</div>'+
+
+      // Görüşme sonucu formu
+      '<div class="ag-kart">'+
+         '<div class="ag-kart-bas"><i class="fa fa-check-circle"></i> Görüşme Sonucu</div>'+
+         '<div class="ag-sonuc-grid">'+
+            '<div class="ag-sonuc sec-yesil" data-sonuc="4"><i class="fa fa-phone"></i>Görüşüldü</div>'+
+            '<div class="ag-sonuc sec-kirmizi" data-sonuc="2"><i class="fa fa-phone-square"></i>Cevapsız</div>'+
+            '<div class="ag-sonuc sec-koyukirmizi" data-sonuc="5"><i class="fa fa-ban"></i>Meşgul</div>'+
+            '<div class="ag-sonuc sec-turuncu" data-sonuc="0"><i class="fa fa-volume-off"></i>Ulaşılamadı</div>'+
+         '</div>'+
+         '<textarea class="ag-not-alani" id="ag_not" placeholder="Görüşme notu (müşteri ne dedi, talep, vb.)...">'+agEsc(m.not||'')+'</textarea>'+
+         '<label class="ag-sonra"><input type="checkbox" id="ag_sonra_chk"> Müşteri sonra aranmak istedi (Arama Randevusu oluştur)</label>'+
+         '<div class="ag-sonra-alan" id="ag_sonra_alan">'+
+            '<input type="date" id="ag_sonra_tarih">'+
+            '<input type="time" id="ag_sonra_saat">'+
+         '</div>'+
+         '<button class="ag-kaydet" id="ag_kaydet"><i class="fa fa-save"></i> Sonucu Kaydet</button>'+
+      '</div>'+
+
+      // Çağrı geçmişi (ses kayıtları)
+      '<div class="ag-kart">'+
+         '<div class="ag-kart-bas"><i class="fa fa-history"></i> Çağrı Geçmişi & Ses Kayıtları</div>'+
+         '<div id="ag_gecmis"><div class="ag-spin"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div></div>'+
+      '</div>'+
+
+   '</div>';
+
+   $('#ag_detay_bos').hide();
+   $('#ag_detay_icerik').html(html).show();
+   agGecmisYukle(m.aranacak_musteri_id);
+}
+
+// ---- Çağrı geçmişi (ses kayıtları) ----
+function agGecmisYukle(aranacakId){
    $.ajax({
-      url: '/isletmeyonetim/santral_not_ekle',
-      method: 'POST',
-      data: {
-         arama_detay_id: $('#gn_arama_detay_id').val(),
-         aranacak_musteri_id: $('#gn_aranacak_musteri_id').val(),
-         noticerik: $('#gn_not').val(),
-         santralnottarih: randevuMu ? $('#gn_tarih').val() : '',
-         santralnotsaat: randevuMu ? $('#gn_saat').val() : '',
-         _token: $('input[name="_token"]').val()
+      url:'/isletmeyonetim/musteri-ses-kayitlari', method:'POST',
+      data:{ aranacak_musteri_id:aranacakId, _token:$('input[name="_token"]').val() },
+      success:function(res){
+         var kayitlar = (res && res.kayitlar) ? res.kayitlar : [];
+         if (!kayitlar.length){
+            $('#ag_gecmis').html('<div class="ag-gecmis-bos"><i class="fa fa-microphone-slash"></i>Bu müşteriyle kayıtlı görüşme bulunamadı.</div>');
+            return;
+         }
+         var html='';
+         kayitlar.forEach(function(k,i){
+            html += '<div class="ag-gecmis-item bl-mavi">'+
+                       '<div class="ag-gecmis-top"><span class="ag-gecmis-tarih"><i class="fa fa-clock-o"></i> '+agEsc(k.tarih||('Kayıt '+(i+1)))+'</span></div>'+
+                       '<audio controls preload="none" src="'+agEsc(k.url)+'"></audio>'+
+                    '</div>';
+         });
+         $('#ag_gecmis').html(html);
       },
-      success: function (res) {
-         if (res.success) {
-            $('#gorusme_not_modal').modal('hide');
-            swal({ type: 'success', title: 'Kaydedildi', timer: 1500, showConfirmButton: false });
-            detayYukle();
+      error:function(){ $('#ag_gecmis').html('<div class="ag-gecmis-bos" style="color:#c62828;">Kayıtlar yüklenemedi.</div>'); }
+   });
+}
+
+// ---- Sonuç butonları ----
+$(document).on('click', '.ag-sonuc', function(){
+   $('.ag-sonuc').removeClass('aktif');
+   $(this).addClass('aktif');
+   agSecilenSonuc = parseInt($(this).data('sonuc'),10);
+   // sonuç seçilince "sonra ara" kapanır (çelişmesin)
+   $('#ag_sonra_chk').prop('checked', false);
+   $('#ag_sonra_alan').hide();
+});
+
+$(document).on('change', '#ag_sonra_chk', function(){
+   if ($(this).is(':checked')){
+      $('#ag_sonra_alan').css('display','flex');
+      $('.ag-sonuc').removeClass('aktif'); agSecilenSonuc=null; // randevu, sonuçla çelişmesin
+   } else {
+      $('#ag_sonra_alan').hide();
+   }
+});
+
+// ---- ARA (santral originate) ----
+$(document).on('click', '#ag_ara_btn', function(){
+   var id = $(this).data('id');
+   var $btn = $(this);
+   $btn.prop('disabled', true);
+   $.ajax({
+      url:'/isletmeyonetim/arama-baslat', method:'POST',
+      data:{ aranacak_musteri_id:id, _token:$('input[name="_token"]').val() },
+      success:function(res){
+         if (res.success){
+            agDurumGuncelle(id, 1); // optimistic: Arandı
+            swal({ type:'success', title:'Arama başlatıldı', text:res.message||'Telefonunuz (Bria) çalacak, açın.', timer:3800, showConfirmButton:false });
          } else {
-            swal({ type: 'error', title: 'Hata', text: res.message || 'Not kaydedilemedi.' });
+            swal({ type:'warning', title:'Aranamadı', text:res.message||'Arama başlatılamadı.' });
          }
       },
-      error: function () {
-         swal({ type: 'error', title: 'Hata', text: 'Not kaydedilirken bir sorun oluştu.' });
-      }
+      error:function(xhr){
+         var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Arama başlatılamadı.';
+         swal({ type:'error', title:'Hata', text:msg });
+      },
+      complete:function(){ setTimeout(function(){ $btn.prop('disabled', false); }, 2000); }
    });
 });
 
-$(document).ready(function () {
-   kartlariYukle();
+// ---- Sonucu kaydet ----
+$(document).on('click', '#ag_kaydet', function(){
+   if (!agSecili) return;
+   var sonraMu = $('#ag_sonra_chk').is(':checked');
+   var tarih = $('#ag_sonra_tarih').val();
+   var saat  = $('#ag_sonra_saat').val();
+   var not   = $('#ag_not').val();
+
+   if (sonraMu && (!tarih || !saat)){
+      swal({ type:'warning', title:'Eksik', text:'Arama randevusu için tarih ve saat seçin.' }); return;
+   }
+   if (!sonraMu && agSecilenSonuc===null && !(not||'').trim()){
+      swal({ type:'warning', title:'Sonuç seçin', text:'Bir görüşme sonucu seçin, randevu oluşturun ya da not yazın.' }); return;
+   }
+
+   var $btn = $(this); $btn.prop('disabled', true);
+   $.ajax({
+      url:'/isletmeyonetim/santral_not_ekle', method:'POST',
+      data:{
+         arama_detay_id: agAktifListe,
+         aranacak_musteri_id: agSecili.aranacak_musteri_id,
+         noticerik: not,
+         sonuc: sonraMu ? '' : (agSecilenSonuc===null ? '' : agSecilenSonuc),
+         santralnottarih: sonraMu ? tarih : '',
+         santralnotsaat:  sonraMu ? saat  : '',
+         _token:$('input[name="_token"]').val()
+      },
+      success:function(res){
+         if (res.success){
+            var yeniDurum = sonraMu ? 3 : (agSecilenSonuc===null ? (agSecili.durum_kod||4) : agSecilenSonuc);
+            agSecili.not = not;
+            agSecili.not_tarih = sonraMu ? tarih : agSecili.not_tarih;
+            agSecili.not_saat  = sonraMu ? saat  : agSecili.not_saat;
+            agDurumGuncelle(agSecili.aranacak_musteri_id, yeniDurum);
+            swal({ type:'success', title:'Kaydedildi', timer:1400, showConfirmButton:false });
+         } else {
+            swal({ type:'error', title:'Hata', text:res.message||'Kaydedilemedi.' });
+         }
+      },
+      error:function(){ swal({ type:'error', title:'Hata', text:'Kaydedilirken sorun oluştu.' }); },
+      complete:function(){ $btn.prop('disabled', false); }
+   });
 });
+
+// Bir müşterinin durumunu hem state'te hem ekranda günceller
+function agDurumGuncelle(aranacakId, yeniKod){
+   var m = agMusteriler.find(function(x){ return String(x.aranacak_musteri_id)===String(aranacakId); });
+   if (m) m.durum_kod = yeniKod;
+   if (agSecili && String(agSecili.aranacak_musteri_id)===String(aranacakId)){
+      var st = durStil(yeniKod);
+      $('#ag_detay_icerik .durnok').attr('class','durnok').text(st.et);
+   }
+   agFiltreCiz();
+   agKuyrukCiz();
+}
+
+$(document).ready(function(){ agListeleriYukle(); });
 </script>
 @endsection

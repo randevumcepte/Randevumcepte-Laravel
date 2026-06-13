@@ -360,6 +360,7 @@ function pdSonucStil(kod){
       case 4: return { c:'yesil',   et:'Görüşüldü' };
       case 1: return { c:'yesil',   et:'Arandı' };
       case 2: return { c:'kirmizi', et:'Cevapsız' };
+      case 5: return { c:'kirmizi', et:'Meşgul' };
       case 0: return { c:'turuncu', et:'Ulaşılamadı' };
       case 3: return { c:'mavi',    et:'Randevu' };
       default:return { c:'gri',     et:'Bekliyor' };
@@ -370,7 +371,7 @@ function pdSonucStil(kod){
 var PD_GRUPLAR = [
    { key:'hepsi',       et:'Tümü',        test:function(){ return true; } },
    { key:'gorusuldu',   et:'Cevaplanan',  test:function(k){ return k===1 || k===4; } },
-   { key:'cevapsiz',    et:'Cevapsız',    test:function(k){ return k===2; } },
+   { key:'cevapsiz',    et:'Cevapsız / Meşgul', test:function(k){ return k===2 || k===5; } },
    { key:'ulasilamadi', et:'Ulaşılamadı', test:function(k){ return k===0; } },
    { key:'randevu',     et:'Randevu',     test:function(k){ return k===3; } }
 ];

@@ -27125,7 +27125,7 @@ DB::raw('
                 'al.personel_id',
                 DB::raw('COUNT(*) as atanan'),
                 DB::raw('SUM(CASE WHEN am.durum IS NOT NULL THEN 1 ELSE 0 END) as aranan'),
-                DB::raw('SUM(CASE WHEN am.durum=2 THEN 1 ELSE 0 END) as cevapsiz'),
+                DB::raw('SUM(CASE WHEN am.durum IN (2,5) THEN 1 ELSE 0 END) as cevapsiz'),
                 DB::raw('SUM(CASE WHEN am.durum IN (1,4) THEN 1 ELSE 0 END) as konusulan'),
                 DB::raw('SUM(CASE WHEN am.durum=0 THEN 1 ELSE 0 END) as ulasilamadi'),
                 DB::raw('SUM(CASE WHEN am.durum=3 THEN 1 ELSE 0 END) as randevu')
@@ -27277,6 +27277,7 @@ DB::raw('
             case 2: return 'Cevapsız';
             case 3: return 'Arama Randevusu';
             case 4: return 'Görüşüldü';
+            case 5: return 'Meşgul';
             default: return is_null($kod) ? 'Bekliyor' : 'Bekliyor';
         }
     }
@@ -27317,15 +27318,26 @@ DB::raw('
         $tekrarSaat  = $request->santralnotsaat;
         $randevuMu = (!empty($tekrarTarih) && !empty($tekrarSaat));
 
+        // Agent gorusme sonucu (opsiyonel): 0 Ulasilamadi, 2 Cevapsiz, 4 Gorusuldu, 5 Mesgul
+        $sonucKod = $request->filled('sonuc') ? (int) $request->sonuc : null;
+        $gecerliSonuc = in_array($sonucKod, [0, 2, 4, 5], true);
+
+        // Nihai durum: randevu her seyin onunde; yoksa secilen sonuc; o da yoksa eski davranis.
+        if ($randevuMu) {
+            $kayitDurum = 3; // Arama Randevusu
+        } elseif ($gecerliSonuc) {
+            $kayitDurum = $sonucKod;
+        } elseif (is_null($kayit->durum)) {
+            $kayitDurum = 4; // Görüşüldü (not eklendi)
+        } else {
+            $kayitDurum = (int) $kayit->durum;
+        }
+
         // Mevcut tablo: tekrar arama randevusu tarih/saat alanlari (TekrarAramaHatirlat bunu okur)
         $kayit->musteri_not = $notIcerik;
         $kayit->tarih = $tekrarTarih;
         $kayit->saat  = $tekrarSaat;
-        if ($randevuMu) {
-            $kayit->durum = 3; // Arama Randevusu
-        } elseif (is_null($kayit->durum)) {
-            $kayit->durum = 4; // Görüşüldü (not eklendi)
-        }
+        $kayit->durum = $kayitDurum;
         if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
             $kayit->son_arama_zamani = date('Y-m-d H:i:s');
         }
@@ -27340,7 +27352,7 @@ DB::raw('
                 'user_id'             => $kayit->user_id,
                 'personel_id'         => $this->aktifPersonelId($salonId),
                 'not'                 => $notIcerik,
-                'sonuc'               => $randevuMu ? 3 : 4,
+                'sonuc'               => $kayitDurum,
                 'ses_kaydi'           => $kayit->ses_kaydi,
             ]);
         } catch (\Throwable $e) {
