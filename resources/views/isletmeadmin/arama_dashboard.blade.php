@@ -83,10 +83,67 @@
 .n-yesil{ color:#1b9e4b; } .n-kirmizi{ color:#d33; } .n-mavi{ color:#1565c0; }
 .n-koyu{ color:#241b3a; } .n-gri{ color:#a7a2b5; }
 
-/* Modal tablo */
-#personel_detay_modal .modal-content{ border:none; border-radius:16px; overflow:hidden; }
-#personel_detay_modal .modal-header{ background:linear-gradient(120deg,#5C008E,#7B2FB8); color:#fff; border:none; }
-#personel_detay_modal .modal-header .close{ color:#fff; opacity:.9; text-shadow:none; }
+/* ===== Modal — görüşme dökümü ===== */
+#personel_detay_modal .modal-dialog{ max-width:680px; }
+#personel_detay_modal .modal-content{ border:none; border-radius:20px; overflow:hidden; box-shadow:0 30px 70px -20px rgba(40,10,70,.55); }
+#personel_detay_modal .modal-header{
+   background:linear-gradient(120deg,#5C008E 0%,#7B2FB8 60%,#9D5DC8 100%);
+   color:#fff; border:none; padding:20px 22px; align-items:center; position:relative; overflow:hidden;
+}
+#personel_detay_modal .modal-header:after{
+   content:""; position:absolute; right:-30px; top:-30px; width:130px; height:130px;
+   border-radius:50%; background:rgba(255,255,255,.10);
+}
+#personel_detay_modal .modal-header .close{ color:#fff; opacity:.9; text-shadow:none; font-size:26px; position:relative; z-index:2; }
+.pd-head-wrap{ display:flex; align-items:center; gap:14px; position:relative; z-index:2; }
+.pd-head-av{
+   width:46px; height:46px; border-radius:50%; flex:0 0 46px;
+   background:rgba(255,255,255,.20); display:flex; align-items:center; justify-content:center;
+   font-size:20px; font-weight:700; color:#fff;
+}
+.pd-head-tit{ font-weight:700; font-size:18px; line-height:1.1; margin:0; }
+.pd-head-sub{ font-size:12px; opacity:.85; margin-top:2px; }
+#personel_detay_modal .modal-body{ padding:18px 22px 22px; background:#faf9fc; max-height:65vh; overflow-y:auto; }
+
+/* Görüşme satırları (kart liste) */
+.pd-row{
+   background:#fff; border:1px solid #efeaf6; border-radius:14px;
+   padding:12px 14px; margin-bottom:10px; display:flex; align-items:center; gap:12px;
+   transition:box-shadow .15s ease, transform .15s ease;
+}
+.pd-row:hover{ box-shadow:0 8px 20px -10px rgba(92,0,142,.25); transform:translateY(-1px); }
+.pd-row .pd-main{ flex:1; min-width:0; }
+.pd-row .pd-musteri{ font-weight:700; color:#241b3a; font-size:14px; }
+.pd-row .pd-tarih{ font-size:12px; color:#9a95ab; margin-top:2px; }
+.pd-row .pd-not{ font-size:12.5px; color:#6a6580; margin-top:5px; line-height:1.4; }
+.pd-row .pd-not i{ color:#bcb4cf; margin-right:5px; }
+
+/* Sonuç rozeti */
+.pd-badge{ font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:20px; white-space:nowrap; }
+.pd-b-yesil{ background:#e4f7ec; color:#1b9e4b; }
+.pd-b-kirmizi{ background:#fdecec; color:#d33; }
+.pd-b-mavi{ background:#e7f1fd; color:#1565c0; }
+.pd-b-gri{ background:#f0eef5; color:#8a85a0; }
+.pd-b-turuncu{ background:#fff2e3; color:#e07a1a; }
+
+/* Ses oynat butonu */
+.pd-play{
+   width:38px; height:38px; flex:0 0 38px; border-radius:50%;
+   background:linear-gradient(135deg,#5C008E,#9D5DC8); color:#fff;
+   display:flex; align-items:center; justify-content:center; font-size:14px;
+   text-decoration:none; box-shadow:0 4px 12px -4px rgba(92,0,142,.5);
+}
+.pd-play:hover{ color:#fff; opacity:.9; }
+
+/* Modal boş / yükleniyor durumu */
+.pd-empty{ text-align:center; padding:46px 20px; color:#9a95ab; }
+.pd-empty .ic{
+   width:78px; height:78px; border-radius:50%; margin:0 auto 16px;
+   background:linear-gradient(135deg,#f3eefa,#e9def5);
+   display:flex; align-items:center; justify-content:center; font-size:34px; color:#b69ad6;
+}
+.pd-empty .t1{ font-weight:700; color:#5a5570; font-size:15px; }
+.pd-empty .t2{ font-size:13px; margin-top:4px; }
 
 /* Boş / yükleniyor durumu */
 .cm-empty{ text-align:center; padding:40px 20px; color:#8a85a0; }
@@ -157,19 +214,18 @@
    <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
          <div class="modal-header">
-            <h5 class="modal-title" id="pd_baslik">Personel Görüşmeleri</h5>
+            <div class="pd-head-wrap">
+               <div class="pd-head-av" id="pd_avatar">?</div>
+               <div>
+                  <h5 class="pd-head-tit" id="pd_baslik">Personel Görüşmeleri</h5>
+                  <div class="pd-head-sub" id="pd_altbaslik">Görüşme dökümü</div>
+               </div>
+            </div>
             <button type="button" class="close" data-dismiss="modal">&times;</button>
          </div>
          <div class="modal-body">
-            <div class="table-responsive">
-               <table class="table table-sm table-hover">
-                  <thead>
-                     <tr><th>Tarih</th><th>Müşteri</th><th>Sonuç</th><th>Not</th><th>Ses</th></tr>
-                  </thead>
-                  <tbody id="pd_tbody"></tbody>
-               </table>
-               <div id="pd_loading" style="display:none;">Yükleniyor...</div>
-            </div>
+            <div id="pd_loading" class="pd-empty"><div class="ic"><i class="fa fa-spinner fa-spin"></i></div><div class="t1">Yükleniyor...</div></div>
+            <div id="pd_liste"></div>
          </div>
       </div>
    </div>
@@ -243,10 +299,23 @@ function dashYukle() {
    });
 }
 
+// Sonuç metnine göre renkli rozet sınıfı seç
+function pdBadge(sonuc){
+   const s = (sonuc || '').toLocaleLowerCase('tr');
+   if (s.indexOf('randevu') > -1) return 'pd-b-mavi';
+   if (s.indexOf('konuş') > -1 || s.indexOf('olumlu') > -1 || s.indexOf('görüş') > -1) return 'pd-b-yesil';
+   if (s.indexOf('cevapsız') > -1 || s.indexOf('ulaşıl') > -1 || s.indexOf('olumsuz') > -1 || s.indexOf('meşgul') > -1) return 'pd-b-kirmizi';
+   if (s.indexOf('beklemede') > -1 || s.indexOf('sonra') > -1 || s.indexOf('tekrar') > -1) return 'pd-b-turuncu';
+   return 'pd-b-gri';
+}
+
 $(document).on('click', '.personel-kart', function () {
    const pid = $(this).data('id');
-   $('#pd_baslik').text($(this).data('ad') + ' — Görüşmeler');
-   $('#pd_tbody').empty();
+   const adRaw = String($(this).data('ad') || '').trim();
+   $('#pd_baslik').text(adRaw || 'Personel');
+   $('#pd_avatar').text((adRaw.charAt(0) || '?').toUpperCase());
+   $('#pd_altbaslik').text('Görüşme dökümü');
+   $('#pd_liste').empty();
    $('#pd_loading').show();
    $('#personel_detay_modal').modal('show');
    $.ajax({
@@ -254,15 +323,34 @@ $(document).on('click', '.personel-kart', function () {
       method: 'POST',
       data: { personel_id: pid, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
       success: function (res) {
-         const tbody = $('#pd_tbody');
-         tbody.empty();
-         (res.notlar || []).forEach(function (n) {
-            const ses = n.ses ? `<a href="${n.ses}" target="_blank" class="btn btn-sm btn-danger"><i class="fa fa-play"></i></a>` : '-';
-            tbody.append(`<tr><td>${cmEsc(n.tarih)}</td><td>${cmEsc(n.musteri)}</td><td>${cmEsc(n.sonuc)}</td><td>${cmEsc(n.not) || '-'}</td><td>${ses}</td></tr>`);
-         });
-         if ((res.notlar || []).length === 0) {
-            tbody.append('<tr><td colspan="5" class="text-center text-muted">Bu personelin görüşme kaydı yok.</td></tr>');
+         const liste = $('#pd_liste');
+         liste.empty();
+         const notlar = res.notlar || [];
+
+         if (notlar.length === 0) {
+            liste.html('<div class="pd-empty"><div class="ic"><i class="fa fa-comment-slash"></i></div><div class="t1">Henüz görüşme kaydı yok</div><div class="t2">Bu personel arama yaptıkça görüşmeler burada listelenecek.</div></div>');
+            $('#pd_altbaslik').text('0 görüşme');
+            return;
          }
+
+         $('#pd_altbaslik').text(notlar.length + ' görüşme');
+         notlar.forEach(function (n) {
+            const ses = n.ses ? `<a href="${cmEsc(n.ses)}" target="_blank" class="pd-play" title="Kaydı dinle"><i class="fa fa-play"></i></a>` : '';
+            const notHtml = n.not ? `<div class="pd-not"><i class="fa fa-sticky-note"></i>${cmEsc(n.not)}</div>` : '';
+            liste.append(`
+               <div class="pd-row">
+                  <div class="pd-main">
+                     <div class="pd-musteri">${cmEsc(n.musteri) || 'Müşteri'}</div>
+                     <div class="pd-tarih"><i class="fa fa-clock"></i> ${cmEsc(n.tarih)}</div>
+                     ${notHtml}
+                  </div>
+                  <span class="pd-badge ${pdBadge(n.sonuc)}">${cmEsc(n.sonuc) || '—'}</span>
+                  ${ses}
+               </div>`);
+         });
+      },
+      error: function () {
+         $('#pd_liste').html('<div class="pd-empty"><div class="ic"><i class="fa fa-exclamation-triangle"></i></div><div class="t1">Görüşmeler yüklenemedi</div><div class="t2">Lütfen tekrar deneyin.</div></div>');
       },
       complete: function () { $('#pd_loading').hide(); }
    });
