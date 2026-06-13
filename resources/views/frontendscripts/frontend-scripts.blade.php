@@ -164,7 +164,7 @@
                 titleFormat: 'D MMMM YYYY dddd',  
                  firstDay: 1, 
              timeZone:'Europe/Istanbul',
-             slotWidth: 200,
+             // slotWidth sabit 200 kaldirildi: kolon genisligi otomatik (eventAfterAllRender)
              nowIndicator:true,
               scrollTime: moment().format("HH:mm:ss"),
              monthNames: ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'],
@@ -200,18 +200,22 @@
                    var st = document.getElementById('rc-res-w');
                    if(!st){ st = document.createElement('style'); st.id = 'rc-res-w'; document.head.appendChild(st); }
                    var container = $('#calendar').width() || 0;
-                   // Kolon genisligi zoom ile olceklenir AMA en fazla 200px (devlesmesin).
+                   // OTOMATIK GENISLIK: kolonlar takvim genisligini doldursun.
+                   // Kolon basina dusen genislik MIN'in altina inerse (sigmiyorsa)
+                   // yatay scroll cikar ve her kolon en az MIN px olur.
                    var _z = (typeof window.rcZoom === 'number' && window.rcZoom > 0) ? window.rcZoom : 1;
-                   var RC_KOLON = Math.round(200 * _z);
-                   if(RC_KOLON > 200) RC_KOLON = 200;
-                   if(RC_KOLON < 110) RC_KOLON = 110;
-                   if(n > 0 && container > 0 && (container / n) < RC_KOLON){
-                      var nw = (n * RC_KOLON) + 95;
+                   var MIN = Math.round(150 * _z);  // scroll ciktiginda min kolon genisligi (en az 150px)
+                   if(MIN < 150) MIN = 150;
+                   var avail = container - 95;       // sol zaman ekseni payi
+                   if(n > 0 && container > 0 && Math.floor(avail / n) < MIN){
+                      // Sigmiyor -> min genislik + yatay scroll
+                      var nw = (n * MIN) + 95;
                       st.innerHTML =
-                         '#calendar .fc-resource-cell{width:'+RC_KOLON+'px !important;}' +
+                         '#calendar .fc-resource-cell{width:'+MIN+'px !important;}' +
                          '#calendar .fc-agendaDay-view{width:'+nw+'px !important;}' +
                          '#calendar .fc-view-container{overflow-x:scroll !important;}';
                    } else {
+                      // Hepsi sigiyor -> FC kolonlari otomatik dagitip genisligi doldursun, scroll yok
                       st.innerHTML = '';
                    }
                 } catch(e){}
