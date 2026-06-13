@@ -15384,7 +15384,11 @@ DB::raw('
             $salon = true;
         if($request->olusturulma == "uygulama")
             $uygulama = true;
-        return self::randevu_liste_getir($request,$tarih[0],$tarih[1],$salon,$web,$uygulama,$request->durum,$request->salon_id,'');
+        // Musteri kartindaki "Randevular" sekmesi bu uc noktayi musteriid ile cagirir;
+        // o durumda sadece ilgili musterinin randevulari donsun (aksi halde tum salon gelir).
+        // Genel randevu listesi sayfasinda musteriid gonderilmez => '' => filtre uygulanmaz.
+        $userid = is_numeric($request->musteriid) ? $request->musteriid : '';
+        return self::randevu_liste_getir($request,$tarih[0],$tarih[1],$salon,$web,$uygulama,$request->durum,$request->salon_id,$userid);
     }
     public function liste_deneme(Request $request)
     {
