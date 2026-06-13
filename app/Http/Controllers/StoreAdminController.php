@@ -16777,6 +16777,65 @@ DB::raw('
         ]);
     }
 
+    // GECICI TANI: bir randevuya bagli adisyon/seans/tahsilat zincirini dokumler.
+    // Sorun cozuldukten sonra bu metod + routes/web.php'deki _debug-randevu-adisyon route kaldirilacak.
+    public function debugRandevuAdisyon(Request $request, $id)
+    {
+        $randevu = Randevular::find($id);
+        if (!$randevu) return response()->json(['hata' => 'randevu yok'], 404);
+
+        $rhler = DB::table('randevu_hizmetler as rh')
+            ->leftJoin('hizmetler as h', 'rh.hizmet_id', '=', 'h.id')
+            ->where('rh.randevu_id', $id)
+            ->select('rh.id', 'rh.hizmet_id', 'h.hizmet_adi', 'rh.yardimci_personel', 'rh.fiyat')
+            ->get();
+
+        $seanslar = DB::table('adisyon_paket_seanslar as aps')
+            ->leftJoin('adisyon_paketler as ap', 'aps.adisyon_paket_id', '=', 'ap.id')
+            ->leftJoin('adisyon_hizmetler as ah2', 'aps.adisyon_hizmet_id', '=', 'ah2.id')
+            ->where('aps.randevu_id', $id)
+            ->select('aps.id', 'aps.hizmet_id', 'aps.adisyon_paket_id', 'aps.adisyon_hizmet_id', 'aps.geldi',
+                'ap.adisyon_id as paket_adisyon_id', 'ah2.adisyon_id as hizmet_adisyon_id')
+            ->get();
+
+        $adisyonHizmetler = DB::table('adisyon_hizmetler as ah')
+            ->leftJoin('hizmetler as h', 'ah.hizmet_id', '=', 'h.id')
+            ->leftJoin('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+            ->where('ah.randevu_id', $id)
+            ->select('ah.id', 'ah.adisyon_id', 'ah.hizmet_id', 'h.hizmet_adi', 'ah.fiyat', 'ah.islem_tarihi', 'a.tarih as adisyon_tarihi')
+            ->get();
+
+        // Bu musterinin tum adisyonlari (en yeni ustte)
+        $musteriAdisyonlar = DB::table('adisyonlar')
+            ->where('user_id', $randevu->user_id)
+            ->where('salon_id', $randevu->salon_id)
+            ->orderBy('id', 'desc')
+            ->select('id', 'tarih')
+            ->limit(20)->get();
+
+        // randevuEventDetay'in su an cozdugu adisyonId (mevcut mantik)
+        $rh = RandevuHizmetler::where('randevu_id', $id)->first();
+        $cozulen = null;
+        if ($rh) {
+            $sl = AdisyonPaketSeanslar::where('randevu_id', $rh->randevu_id)->get();
+            $sb = $sl->firstWhere('hizmet_id', $rh->hizmet_id) ?: $sl->first();
+            if ($sb) {
+                if ($sb->adisyon_paket_id) $cozulen = AdisyonPaketler::where('id', $sb->adisyon_paket_id)->value('adisyon_id');
+                elseif ($sb->adisyon_hizmet_id) $cozulen = AdisyonHizmetler::where('id', $sb->adisyon_hizmet_id)->value('adisyon_id');
+            }
+            if (!$cozulen) $cozulen = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
+        }
+
+        return response()->json([
+            'randevu' => ['id' => $randevu->id, 'user_id' => $randevu->user_id, 'salon_id' => $randevu->salon_id, 'tarih' => $randevu->tarih, 'seans_id' => $randevu->seans_id],
+            'randevu_hizmetler' => $rhler,
+            'adisyon_paket_seanslar(randevu_id)' => $seanslar,
+            'adisyon_hizmetler(randevu_id)' => $adisyonHizmetler,
+            'musteri_tum_adisyonlar' => $musteriAdisyonlar,
+            'su_an_cozulen_adisyon_id' => $cozulen,
+        ], 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+
     public function takvim_degistir(Request $request)
     {
         // Onceki kod 'monday this week' / 'Y-m-01' icin bugunun tarihini baz
