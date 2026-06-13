@@ -922,7 +922,7 @@
       @php
          $aktifDuyurular = collect();
          $duyuruOnizle = request()->has('duyuru_onizle'); // ?duyuru_onizle=1 → okundu/oturum dinlemeden modali goster (QA/onizleme) + teshis kutusu
-         $duyuruDebug = ['userId'=>null,'salonId'=>null,'ilId'=>null,'toplam'=>0,'eslesen'=>0,'hata'=>null];
+         $duyuruDebug = ['userId'=>null,'salonId'=>null,'ilId'=>null,'tumKayit'=>0,'toplam'=>0,'eslesen'=>0,'son'=>null,'hata'=>null];
          try {
             $userId = Auth::guard('isletmeyonetim')->check() ? Auth::guard('isletmeyonetim')->user()->id : null;
             $salonId = isset($isletme) ? $isletme->id : null;
@@ -947,6 +947,13 @@
                }
             }
             $duyuruDebug['eslesen'] = $aktifDuyurular->count();
+            if ($duyuruOnizle) {
+               $duyuruDebug['tumKayit'] = \App\SistemYonetim\Duyuru::count();
+               $sonD = \App\SistemYonetim\Duyuru::orderBy('id', 'desc')->first();
+               if ($sonD) {
+                  $duyuruDebug['son'] = 'id='.$sonD->id.' aktif='.$sonD->aktif.' tip='.$sonD->tip.' hedef='.$sonD->hedef_tipi.' bas='.($sonD->baslangic_tarihi ?: '-').' bit='.($sonD->bitis_tarihi ?: '-');
+               }
+            }
          } catch (\Exception $e) { $duyuruDebug['hata'] = $e->getMessage(); }
          // Tum aktif duyurular ekran ortasinda kaliteli modal olarak gosterilir (tip'e gore temali).
          $tipMeta = [
@@ -1067,8 +1074,10 @@
          userId: {{ $duyuruDebug['userId'] ?? 'NULL' }}<br>
          salonId: {{ $duyuruDebug['salonId'] ?? 'NULL' }}<br>
          ilId: {{ $duyuruDebug['ilId'] ?? 'NULL' }}<br>
-         DB'deki aktif duyuru: <b>{{ $duyuruDebug['toplam'] }}</b><br>
+         Tablodaki TOPLAM kayıt: <b style="color:{{ $duyuruDebug['tumKayit'] ? '#7CFC00' : '#ff6b6b' }}">{{ $duyuruDebug['tumKayit'] }}</b><br>
+         Aktif + tarihi uyan: <b>{{ $duyuruDebug['toplam'] }}</b><br>
          Bu salona uygun (gösterilecek): <b style="color:{{ $duyuruDebug['eslesen'] ? '#7CFC00' : '#ff6b6b' }}">{{ $duyuruDebug['eslesen'] }}</b><br>
+         Son kayıt: {{ $duyuruDebug['son'] ?? '(yok)' }}<br>
          hata: {{ $duyuruDebug['hata'] ?? '-' }}
       </div>
       @endif
