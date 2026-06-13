@@ -27359,10 +27359,11 @@ DB::raw('
         }
         $salon = Salonlar::where('id', $salonId)->first();
 
-        $socket = @stream_socket_client('tcp://34.45.69.65:5038', $errno, $errstr, 5);
+        $errno = 0; $errstr = '';
+        $socket = @stream_socket_client('tcp://34.45.69.65:5038', $errno, $errstr, 10);
         if (!$socket) {
-            \Log::warning('[CAGRI-MERKEZI] AMI baglanti hatasi: ' . $errstr);
-            return ['success' => false, 'message' => 'Santrale bağlanılamadı.'];
+            \Log::warning('[CAGRI-MERKEZI] AMI baglanti hatasi: (' . $errno . ') ' . $errstr);
+            return ['success' => false, 'message' => 'Santrale bağlanılamadı. [' . $errno . ' ' . $errstr . ']'];
         }
 
         $auth = "Action: Login\r\nUsername: cxpanel\r\nSecret: cxmanager*con\r\nEvents: off\r\n\r\n";
