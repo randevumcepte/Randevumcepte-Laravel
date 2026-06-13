@@ -327,14 +327,14 @@
 .rc-kd-table { width: 100% !important; margin: 0 !important; border-collapse: separate !important; border-spacing: 0 !important; min-width: 0; }
 .rc-kd-table thead th {
    background: var(--rc-purple-light) !important; color: var(--rc-purple-dark) !important;
-   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
-   padding: 12px 10px !important; text-align: left; border: none !important;
+   font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
+   padding: 8px 7px !important; text-align: left; border: none !important;
    border-bottom: 2px solid var(--rc-purple-soft) !important; white-space: normal; vertical-align: middle;
 }
 .rc-kd-table tbody td {
-   padding: 12px 10px !important; font-size: 13px; color: var(--rc-text);
+   padding: 6px 7px !important; font-size: 12.5px; color: var(--rc-text);
    border: none !important; border-bottom: 1px solid var(--rc-border) !important;
-   vertical-align: middle !important; line-height: 1.45; word-wrap: break-word; overflow-wrap: break-word;
+   vertical-align: middle !important; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;
 }
 .rc-kd-table tbody tr:last-child td { border-bottom: none !important; }
 .rc-kd-table tbody tr:nth-child(even) { background: #fcfbfe; }
@@ -348,24 +348,26 @@
 /* Tarih sütunu tek satirda kalsin (cirkin kirilmayi onle) */
 .rc-kd-gelir tbody td:nth-of-type(1),
 .rc-kd-gider tbody td:nth-of-type(1) { white-space: nowrap; }
+/* Aksiyon hucresi: sil/duzenle butonlari yan yana kalsin (satir kisalir) */
+.rc-kd-table tbody td:last-child { white-space: nowrap; }
 .rc-kd-table thead th:last-child.rc-kd-col-actions { text-align: right; }
 
 /* Satır içi sil/düzenle butonları → kompakt yuvarlak */
 .rc-kd-table tbody td .btn.btn-danger {
-   width: 30px; height: 30px; padding: 0 !important; border-radius: 50% !important;
+   width: 26px; height: 26px; padding: 0 !important; border-radius: 50% !important;
    display: inline-flex !important; align-items: center; justify-content: center;
    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important; border: none !important;
-   color: #fff !important; font-size: 12px !important; line-height: 1 !important;
+   color: #fff !important; font-size: 11px !important; line-height: 1 !important;
    box-shadow: 0 2px 6px rgba(220,38,38,.25); transition: transform .12s, filter .12s;
 }
 .rc-kd-table tbody td .btn.btn-danger:hover { transform: scale(1.08); filter: brightness(1.06); }
 .rc-kd-table tbody td .btn.btn-primary {
-   width: 30px; height: 30px; padding: 0 !important; border-radius: 50% !important;
+   width: 26px; height: 26px; padding: 0 !important; border-radius: 50% !important;
    display: inline-flex !important; align-items: center; justify-content: center;
    background: linear-gradient(135deg, var(--rc-purple-dark) 0%, var(--rc-purple) 100%) !important; border: none !important;
-   color: #fff !important; font-size: 12px !important; margin-right: 4px;
+   color: #fff !important; font-size: 11px !important; margin-right: 3px;
 }
-.rc-kd-table tbody td:empty { padding: 12px 14px !important; }
+.rc-kd-table tbody td:empty { padding: 6px 7px !important; }
 
 /* === ERİŞİM YOK === */
 .rc-kd-noaccess {
@@ -379,6 +381,10 @@
 /* === RESPONSIVE: TABLET LANDSCAPE (≤1100px) === */
 @media (max-width: 1100px) {
    .rc-kd-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+/* Tablolar olabildigince yan yana kalsin; ancak <=820px'te tek sutuna gec
+   (6 sutun yarim kaba sigamaz hale gelince). */
+@media (max-width: 820px) {
    .rc-kd-tables { grid-template-columns: 1fr; }
 }
 
@@ -392,8 +398,8 @@
    .rc-kd-stat-value { font-size: 20px; }
 }
 
-/* === RESPONSIVE: TABLET PORTRAIT + MOBILE (≤900px) === */
-@media (max-width: 900px) {
+/* === RESPONSIVE: TABLET PORTRAIT + MOBILE (≤720px) === */
+@media (max-width: 720px) {
    .rc-kd-header { padding: 12px 14px; border-radius: 12px; }
    .rc-kd-header-left { width: 100%; }
    .rc-kd-header-right { width: 100%; }
