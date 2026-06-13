@@ -304,10 +304,10 @@
 .rc-kd-stat-label small { display: block; color: var(--rc-text-soft); }
 
 /* === TABLO KARTLARI === */
-/* Varsayilan: tek sutun (tam genislik) — 6 sutunlu Gelirler tablosu her zaman sigar,
-   Tutar sutunu kesilmez. Yan yana duzen yalnizca cok genis ekranlarda (>=1700px). */
-.rc-kd-tables { display: grid; grid-template-columns: 1fr; gap: 18px; margin-bottom: 30px; }
-@media (min-width: 1700px) { .rc-kd-tables { grid-template-columns: 1fr 1fr; } }
+/* Masaustu: Gelirler & Giderler yan yana. Tablolar min-width tasimadigi ve
+   basliklar sarabildigi icin yarim kaba sigar, Tutar sutunu kesilmez.
+   <=1100px tek sutun (tablet), <=900px kart gorunumu. */
+.rc-kd-tables { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 30px; }
 .rc-kd-table-card {
    background: #fff; border: 1px solid var(--rc-border); border-radius: 16px;
    box-shadow: 0 1px 3px rgba(17,24,39,.04), 0 6px 24px rgba(92,0,142,.05); overflow: hidden;
@@ -323,18 +323,18 @@
 .rc-kd-table-wrap { width: 100%; overflow-x: auto; }
 
 /* === TABLO === */
-.rc-kd-table { width: 100% !important; margin: 0 !important; border-collapse: separate !important; border-spacing: 0 !important; min-width: 560px; }
-.rc-kd-gider.rc-kd-table { min-width: 480px; }
+/* min-width YOK: tablo kabina sigar (yarim genislikte bile tasmaz). */
+.rc-kd-table { width: 100% !important; margin: 0 !important; border-collapse: separate !important; border-spacing: 0 !important; min-width: 0; }
 .rc-kd-table thead th {
    background: var(--rc-purple-light) !important; color: var(--rc-purple-dark) !important;
    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
-   padding: 12px 14px !important; text-align: left; border: none !important;
-   border-bottom: 2px solid var(--rc-purple-soft) !important; white-space: nowrap; vertical-align: middle;
+   padding: 12px 10px !important; text-align: left; border: none !important;
+   border-bottom: 2px solid var(--rc-purple-soft) !important; white-space: normal; vertical-align: middle;
 }
 .rc-kd-table tbody td {
-   padding: 12px 14px !important; font-size: 13px; color: var(--rc-text);
+   padding: 12px 10px !important; font-size: 13px; color: var(--rc-text);
    border: none !important; border-bottom: 1px solid var(--rc-border) !important;
-   vertical-align: middle !important; line-height: 1.45;
+   vertical-align: middle !important; line-height: 1.45; word-wrap: break-word; overflow-wrap: break-word;
 }
 .rc-kd-table tbody tr:last-child td { border-bottom: none !important; }
 .rc-kd-table tbody tr:nth-child(even) { background: #fcfbfe; }
@@ -345,6 +345,9 @@
 /* Tutar sütunu (gelir 6, gider 5) sağa yasli + kalın */
 .rc-kd-gelir tbody td:nth-of-type(6),
 .rc-kd-gider tbody td:nth-of-type(5) { font-weight: 700; color: var(--rc-text); white-space: nowrap; }
+/* Tarih sütunu tek satirda kalsin (cirkin kirilmayi onle) */
+.rc-kd-gelir tbody td:nth-of-type(1),
+.rc-kd-gider tbody td:nth-of-type(1) { white-space: nowrap; }
 .rc-kd-table thead th:last-child.rc-kd-col-actions { text-align: right; }
 
 /* Satır içi sil/düzenle butonları → kompakt yuvarlak */
