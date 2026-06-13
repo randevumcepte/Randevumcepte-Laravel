@@ -27372,10 +27372,11 @@ DB::raw('
             return ['success' => false, 'message' => 'Santrale bağlanılamadı. [' . $errno . ' ' . $errstr . ']'];
         }
 
-        $auth = "Action: Login\r\nUsername: cxpanel\r\nSecret: cxmanager*con\r\nEvents: off\r\n\r\n";
+        // TESHIS: olaylar acik (hangup cause / originate reason yakalamak icin)
+        $auth = "Action: Login\r\nUsername: cxpanel\r\nSecret: cxmanager*con\r\nEvents: on\r\n\r\n";
         stream_socket_sendto($socket, $auth);
         usleep(200000);
-        if (strpos((string) fread($socket, 4096), 'Success') === false) {
+        if (strpos((string) fread($socket, 8192), 'Success') === false) {
             fclose($socket);
             return ['success' => false, 'message' => 'Santral kimlik doğrulaması başarısız.'];
         }
@@ -27383,38 +27384,50 @@ DB::raw('
         // CUSTOMER-FIRST: musteri KANITLANMIS sekilde aranir (hatirlatma ile ayni kanal),
         // acinca standart 'from-internal' context'inde personelin dahilisi (Bria) caldirilir.
         $req  = "Action: Originate\r\n";
-        $req .= "Channel: PJSIP/0" . $tel . "@" . $sabitno->numara . "\r\n";  // musteriyi trunk'tan ara (calisan yontem)
-        $req .= "Context: from-internal\r\n";                                  // standart FreePBX context
-        $req .= "Exten: " . $dahili . "\r\n";                                  // acinca personelin dahilisini cal
+        $req .= "Channel: PJSIP/0" . $tel . "@" . $sabitno->numara . "\r\n";
+        $req .= "Context: from-internal\r\n";
+        $req .= "Exten: " . $dahili . "\r\n";
         $req .= "Priority: 1\r\n";
         $req .= "Callerid: " . $sabitno->numara . "\r\n";
         $req .= "Async: yes\r\n\r\n";
 
         stream_socket_sendto($socket, $req);
-        // Yaniti birkac kez oku (async yanit parca parca/biraz gecikmeli gelebilir)
-        $resp = '';
-        stream_set_timeout($socket, 2);
-        for ($i = 0; $i < 6; $i++) {
-            usleep(250000);
-            $chunk = fread($socket, 4096);
-            if ($chunk !== false && $chunk !== '') {
-                $resp .= $chunk;
-                if (strpos($resp, 'Response:') !== false) break;
-            }
-        }
-        fclose($socket);
-        \Log::info('[CAGRI-MERKEZI] Originate (customer-first). Channel=PJSIP/0' . $tel . '@' . $sabitno->numara . ' -> from-internal exten=' . $dahili . ' | Yanit: ' . $resp);
 
-        if (strpos($resp, 'Success') !== false) {
+        // ~4 sn olaylari topla -> hangup cause / originate reason cikar (teshis)
+        $resp = '';
+        stream_set_timeout($socket, 1);
+        $bitis = microtime(true) + 4.0;
+        while (microtime(true) < $bitis && strlen($resp) < 60000) {
+            $chunk = fread($socket, 8192);
+            if ($chunk !== false && $chunk !== '') { $resp .= $chunk; }
+            else { usleep(150000); }
+        }
+        @stream_socket_sendto($socket, "Action: Logoff\r\n\r\n");
+        fclose($socket);
+        \Log::info('[CAGRI-MERKEZI] AMI trafik (kisalt): ' . mb_substr(preg_replace('/\s+/', ' ', $resp), 0, 1500));
+
+        $kuyrugaAlindi = (strpos($resp, 'Response: Success') !== false);
+        $baglandi = (strpos($resp, 'BridgeEnter') !== false) || preg_match('/DialStatus:\s*ANSWER/i', $resp);
+
+        // Hangup sebebi
+        $sebep = '';
+        if (preg_match_all('/Cause-txt:\s*([^\r\n]+)/i', $resp, $mm) && !empty($mm[1])) {
+            $sebepler = array_values(array_unique(array_map('trim', $mm[1])));
+            $sebep = implode(' / ', array_slice($sebepler, 0, 3));
+        }
+        if (preg_match('/Event:\s*OriginateResponse[\s\S]*?Reason:\s*([0-9]+)/i', $resp, $mr)) {
+            $sebep = trim($sebep . ' [OrigReason ' . $mr[1] . ']');
+        }
+
+        if ($baglandi) {
+            return ['success' => true, 'message' => 'Arama bağlandı.'];
+        }
+        if ($kuyrugaAlindi && $sebep === '') {
             return ['success' => true, 'message' => 'Arama başlatıldı. Telefonunuz (Bria) çalacak, açın.'];
         }
-
-        // Teshis: Asterisk'in dondurdugu mesaji ve kullanilan trunk'i goster
-        $ozet = trim(preg_replace('/\s+/', ' ', $resp));
-        if ($ozet === '') $ozet = 'santral yanit vermedi';
         return [
             'success' => false,
-            'message' => 'Santral aramayı başlatamadı. Trunk=' . ($sabitno->numara ?: 'YOK') . ' | Yanıt: ' . mb_substr($ozet, 0, 180),
+            'message' => 'Arama bağlanamadı. Trunk=' . ($sabitno->numara ?: 'YOK') . ' | Sebep: ' . ($sebep !== '' ? mb_substr($sebep, 0, 160) : 'santral olay dondurmedi'),
         ];
     }
 
