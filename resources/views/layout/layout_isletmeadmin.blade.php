@@ -921,11 +921,13 @@
       {{-- Sistem yonetimi duyurulari --}}
       @php
          $aktifDuyurular = collect();
-         $duyuruOnizle = request()->has('duyuru_onizle'); // ?duyuru_onizle=1 → okundu/oturum dinlemeden modali goster (QA/onizleme)
+         $duyuruOnizle = request()->has('duyuru_onizle'); // ?duyuru_onizle=1 → okundu/oturum dinlemeden modali goster (QA/onizleme) + teshis kutusu
+         $duyuruDebug = ['userId'=>null,'salonId'=>null,'ilId'=>null,'toplam'=>0,'eslesen'=>0,'hata'=>null];
          try {
             $userId = Auth::guard('isletmeyonetim')->check() ? Auth::guard('isletmeyonetim')->user()->id : null;
             $salonId = isset($isletme) ? $isletme->id : null;
             $ilId = isset($isletme) ? $isletme->il_id : null;
+            $duyuruDebug['userId'] = $userId; $duyuruDebug['salonId'] = $salonId; $duyuruDebug['ilId'] = $ilId;
             if ($userId && $salonId) {
                $tumDuyurular = \App\SistemYonetim\Duyuru::where('aktif', 1)
                   ->where(function($q){
@@ -936,6 +938,7 @@
                   })
                   ->orderBy('id', 'desc')
                   ->get();
+               $duyuruDebug['toplam'] = $tumDuyurular->count();
                $okunanlar = \App\SistemYonetim\DuyuruOkundu::where('user_id', $userId)->pluck('duyuru_id')->toArray();
                foreach ($tumDuyurular as $d) {
                   if (!$d->salonIcinGecerli($salonId, $ilId)) continue;
@@ -943,7 +946,8 @@
                   $aktifDuyurular->push($d);
                }
             }
-         } catch (\Exception $e) {}
+            $duyuruDebug['eslesen'] = $aktifDuyurular->count();
+         } catch (\Exception $e) { $duyuruDebug['hata'] = $e->getMessage(); }
          // Tum aktif duyurular ekran ortasinda kaliteli modal olarak gosterilir (tip'e gore temali).
          $tipMeta = [
             'guncelleme' => ['emoji'=>'🚀','c1'=>'#4f46e5','c2'=>'#6366f1','ad'=>'YENİLİK'],
@@ -1055,6 +1059,18 @@
          document.addEventListener('keydown', function(e){ if(e.key === 'Escape' || e.keyCode === 27) rcGuncellemeKapat(); });
       })();
       </script>
+      @endif
+
+      @if($duyuruOnizle)
+      <div style="position:fixed;bottom:12px;left:12px;z-index:100060;background:#0f172a;color:#7CFC00;font:12px/1.6 monospace;padding:12px 16px;border-radius:10px;max-width:380px;box-shadow:0 10px 30px rgba(0,0,0,.4)">
+         <div style="color:#fff;font-weight:bold;margin-bottom:6px">🔎 DUYURU ÖNİZLEME / TEŞHİS</div>
+         userId: {{ $duyuruDebug['userId'] ?? 'NULL' }}<br>
+         salonId: {{ $duyuruDebug['salonId'] ?? 'NULL' }}<br>
+         ilId: {{ $duyuruDebug['ilId'] ?? 'NULL' }}<br>
+         DB'deki aktif duyuru: <b>{{ $duyuruDebug['toplam'] }}</b><br>
+         Bu salona uygun (gösterilecek): <b style="color:{{ $duyuruDebug['eslesen'] ? '#7CFC00' : '#ff6b6b' }}">{{ $duyuruDebug['eslesen'] }}</b><br>
+         hata: {{ $duyuruDebug['hata'] ?? '-' }}
+      </div>
       @endif
 
       <button style="display: none;" id="randevudetayigetir" data-toggle="modal" data-target="#randevu-duzenle-modal"></button>

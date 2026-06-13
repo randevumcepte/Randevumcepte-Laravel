@@ -27381,12 +27381,13 @@ DB::raw('
             return ['success' => false, 'message' => 'Santral kimlik doğrulaması başarısız.'];
         }
 
-        // CUSTOMER-FIRST: musteri KANITLANMIS sekilde aranir (hatirlatma ile ayni kanal),
-        // acinca standart 'from-internal' context'inde personelin dahilisi (Bria) caldirilir.
+        // AGENT-FIRST: personelin dahilisi (Bria) calar; acinca musteri DOGRU outbound
+        // context'inden (908503403039-out) trunk uzerinden aranir.
+        $outboundContext = '908503403039-out';
         $req  = "Action: Originate\r\n";
-        $req .= "Channel: PJSIP/0" . $tel . "@" . $sabitno->numara . "\r\n";
-        $req .= "Context: from-internal\r\n";
-        $req .= "Exten: " . $dahili . "\r\n";
+        $req .= "Channel: PJSIP/" . $dahili . "\r\n";          // personelin Bria'si (calismisti)
+        $req .= "Context: " . $outboundContext . "\r\n";       // acinca musteri buradan cikar
+        $req .= "Exten: 0" . $tel . "\r\n";                    // aranacak numara (0'li)
         $req .= "Priority: 1\r\n";
         $req .= "Callerid: " . $sabitno->numara . "\r\n";
         $req .= "Async: yes\r\n\r\n";
