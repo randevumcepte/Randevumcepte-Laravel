@@ -16753,21 +16753,36 @@ DB::raw('
         $hasPaketTahsilat = $seanslar->isNotEmpty()
             || AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->exists();
 
-        // Bu randevuya/hizmete bagli adisyonu cozumle. paketTahsilatlari popup'inin
-        // kullandigi mantigin aynisini izleyerek POPUP YERINE ilgili adisyona yonlendiririz.
-        // Sira: (1) bu hizmete ait seans -> paket/hizmet -> adisyon, (2) herhangi bir seans,
-        // (3) randevu_id ile dogrudan eslesen adisyon_hizmet.
-        $adisyonId = null;
-        $seansBilgi = $seanslar->firstWhere('hizmet_id', $rh->hizmet_id) ?: $seanslar->first();
-        if ($seansBilgi) {
-            if ($seansBilgi->adisyon_paket_id) {
-                $adisyonId = AdisyonPaketler::where('id', $seansBilgi->adisyon_paket_id)->value('adisyon_id');
-            } elseif ($seansBilgi->adisyon_hizmet_id) {
-                $adisyonId = AdisyonHizmetler::where('id', $seansBilgi->adisyon_hizmet_id)->value('adisyon_id');
-            }
+        // Bu randevuya ait adisyonu cozumle (POPUP YERINE ilgili adisyona yonlendirmek icin).
+        // Oncelik sirasi:
+        //   (1) Dogrudan bu randevu_id'ye baglanmis adisyon kalemi -> en guvenilir (randevu uzerinden satis).
+        //   (2) Ayni musteri + ayni hizmet + randevu tarihli satis -> randevu disinda (manuel) acilmis,
+        //       randevu_id tasimadigi halde bu randevuya ait olan ayni-gun satisi (or. 565377/529004).
+        //   (3) Seans -> paket/hizmet -> adisyon -> sadece son care (saf paket tuketimi randevulari icin).
+        //       Bu en sona alindi cunku seans cogu zaman ESKI adisyon kalemine baglanip yanlis adisyona goturuyor.
+        $adisyonId = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
+
+        if (!$adisyonId && $rh->randevu) {
+            $randevuTarih = date('Y-m-d', strtotime($rh->randevu->tarih));
+            $adisyonId = DB::table('adisyon_hizmetler as ah')
+                ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+                ->where('a.user_id', $rh->randevu->user_id)
+                ->where('a.salon_id', $rh->randevu->salon_id)
+                ->where('ah.hizmet_id', $rh->hizmet_id)
+                ->whereDate('ah.islem_tarihi', $randevuTarih)
+                ->orderBy('ah.id', 'desc')
+                ->value('ah.adisyon_id');
         }
+
         if (!$adisyonId) {
-            $adisyonId = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
+            $seansBilgi = $seanslar->firstWhere('hizmet_id', $rh->hizmet_id) ?: $seanslar->first();
+            if ($seansBilgi) {
+                if ($seansBilgi->adisyon_paket_id) {
+                    $adisyonId = AdisyonPaketler::where('id', $seansBilgi->adisyon_paket_id)->value('adisyon_id');
+                } elseif ($seansBilgi->adisyon_hizmet_id) {
+                    $adisyonId = AdisyonHizmetler::where('id', $seansBilgi->adisyon_hizmet_id)->value('adisyon_id');
+                }
+            }
         }
 
         return response()->json([
@@ -16813,17 +16828,29 @@ DB::raw('
             ->select('id', 'tarih')
             ->limit(20)->get();
 
-        // randevuEventDetay'in su an cozdugu adisyonId (mevcut mantik)
+        // randevuEventDetay'in cozdugu adisyonId (yeni mantik ile birebir)
         $rh = RandevuHizmetler::where('randevu_id', $id)->first();
         $cozulen = null;
         if ($rh) {
-            $sl = AdisyonPaketSeanslar::where('randevu_id', $rh->randevu_id)->get();
-            $sb = $sl->firstWhere('hizmet_id', $rh->hizmet_id) ?: $sl->first();
-            if ($sb) {
-                if ($sb->adisyon_paket_id) $cozulen = AdisyonPaketler::where('id', $sb->adisyon_paket_id)->value('adisyon_id');
-                elseif ($sb->adisyon_hizmet_id) $cozulen = AdisyonHizmetler::where('id', $sb->adisyon_hizmet_id)->value('adisyon_id');
+            $cozulen = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
+            if (!$cozulen && $rh->randevu) {
+                $cozulen = DB::table('adisyon_hizmetler as ah')
+                    ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+                    ->where('a.user_id', $rh->randevu->user_id)
+                    ->where('a.salon_id', $rh->randevu->salon_id)
+                    ->where('ah.hizmet_id', $rh->hizmet_id)
+                    ->whereDate('ah.islem_tarihi', date('Y-m-d', strtotime($rh->randevu->tarih)))
+                    ->orderBy('ah.id', 'desc')
+                    ->value('ah.adisyon_id');
             }
-            if (!$cozulen) $cozulen = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
+            if (!$cozulen) {
+                $sl = AdisyonPaketSeanslar::where('randevu_id', $rh->randevu_id)->get();
+                $sb = $sl->firstWhere('hizmet_id', $rh->hizmet_id) ?: $sl->first();
+                if ($sb) {
+                    if ($sb->adisyon_paket_id) $cozulen = AdisyonPaketler::where('id', $sb->adisyon_paket_id)->value('adisyon_id');
+                    elseif ($sb->adisyon_hizmet_id) $cozulen = AdisyonHizmetler::where('id', $sb->adisyon_hizmet_id)->value('adisyon_id');
+                }
+            }
         }
 
         // Bu randevunun hizmet_id'leri
