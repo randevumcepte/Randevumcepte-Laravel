@@ -154,7 +154,7 @@
 
    {{-- Başlık şeridi --}}
    <div class="cm-hero">
-      <h4><i class="fa fa-headset"></i> {{ $sayfa_baslik }}</h4>
+      <h4><i class="fa fa-headphones"></i> {{ $sayfa_baslik }}</h4>
       <p>Çağrı yapan personellerinizin ilerlemesini tek ekrandan takip edin. Her personele <b>atanan data</b> (aranacak müşteri listesi) üzerinden ne kadarını aradığını, kaç görüşme ve randevu çıkardığını görürsünüz. Detaylı görüşme dökümü için bir personel kartına tıklayın.</p>
    </div>
 
@@ -182,7 +182,7 @@
       </div>
       <div class="col-md-3 col-sm-6 mb-20">
          <div class="cm-stat">
-            <div class="ic ic-kirmizi"><i class="fa fa-phone-slash"></i></div>
+            <div class="ic ic-kirmizi"><i class="fa fa-ban"></i></div>
             <div>
                <div class="val" id="oz_cevapsiz">0</div>
                <span class="lbl">Cevapsız</span>
@@ -192,7 +192,7 @@
       </div>
       <div class="col-md-3 col-sm-6 mb-20">
          <div class="cm-stat">
-            <div class="ic ic-mavi"><i class="fa fa-calendar-check"></i></div>
+            <div class="ic ic-mavi"><i class="fa fa-calendar-check-o"></i></div>
             <div>
                <div class="val" id="oz_randevu">0</div>
                <span class="lbl">Arama Randevusu</span>
@@ -264,7 +264,7 @@ function dashYukle() {
                      <div class="cm-card-head">
                         <div class="cm-avatar">${bashHarf}</div>
                         <p class="nm">${ad}</p>
-                        <span class="dk"><i class="fa fa-clock"></i> ${cmEsc(k.toplam_dk)} dk</span>
+                        <span class="dk"><i class="fa fa-clock-o"></i> ${cmEsc(k.toplam_dk)} dk</span>
                      </div>
                      <div class="cm-card-body">
                         <div class="cm-prog-top">
@@ -328,7 +328,7 @@ $(document).on('click', '.personel-kart', function () {
          const notlar = res.notlar || [];
 
          if (notlar.length === 0) {
-            liste.html('<div class="pd-empty"><div class="ic"><i class="fa fa-comment-slash"></i></div><div class="t1">Henüz görüşme kaydı yok</div><div class="t2">Bu personel arama yaptıkça görüşmeler burada listelenecek.</div></div>');
+            liste.html('<div class="pd-empty"><div class="ic"><i class="fa fa-comments-o"></i></div><div class="t1">Henüz görüşme kaydı yok</div><div class="t2">Bu personel arama yaptıkça görüşmeler burada listelenecek.</div></div>');
             $('#pd_altbaslik').text('0 görüşme');
             return;
          }
@@ -336,12 +336,12 @@ $(document).on('click', '.personel-kart', function () {
          $('#pd_altbaslik').text(notlar.length + ' görüşme');
          notlar.forEach(function (n) {
             const ses = n.ses ? `<a href="${cmEsc(n.ses)}" target="_blank" class="pd-play" title="Kaydı dinle"><i class="fa fa-play"></i></a>` : '';
-            const notHtml = n.not ? `<div class="pd-not"><i class="fa fa-sticky-note"></i>${cmEsc(n.not)}</div>` : '';
+            const notHtml = n.not ? `<div class="pd-not"><i class="fa fa-sticky-note-o"></i>${cmEsc(n.not)}</div>` : '';
             liste.append(`
                <div class="pd-row">
                   <div class="pd-main">
                      <div class="pd-musteri">${cmEsc(n.musteri) || 'Müşteri'}</div>
-                     <div class="pd-tarih"><i class="fa fa-clock"></i> ${cmEsc(n.tarih)}</div>
+                     <div class="pd-tarih"><i class="fa fa-clock-o"></i> ${cmEsc(n.tarih)}</div>
                      ${notHtml}
                   </div>
                   <span class="pd-badge ${pdBadge(n.sonuc)}">${cmEsc(n.sonuc) || '—'}</span>
