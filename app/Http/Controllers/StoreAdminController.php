@@ -27476,40 +27476,64 @@ DB::raw('
         if (!$kayit) {
             return response()->json(['kayitlar' => []]);
         }
-        $userId = $kayit->user_id;
         $cepHam = preg_replace('/\D/', '', (string) optional($kayit->musteri)->cep_telefon);
         $son10 = substr($cepHam, -10); // format farkindan bagimsiz: son 10 hane
-        if ($son10 === '' && !$userId) {
+        if ($son10 === '') {
             return response()->json(['kayitlar' => []]);
         }
 
-        // cdr.telefon farkli formatta olabilir (0/90/+90/bosluk/-) -> son 10 haneye gore esle
-        $cdrler = \App\Cdr::where(function ($q) use ($son10, $userId) {
-                if ($son10 !== '') {
-                    $q->whereRaw("RIGHT(REPLACE(REPLACE(REPLACE(telefon,'+',''),' ',''),'-',''), 10) = ?", [$son10]);
-                }
-                if ($userId) $q->orWhere('user_id', $userId);
-            })
-            ->whereNotNull('ses_kaydi')->where('ses_kaydi', '!=', '')
-            ->orderBy('tarih_saat', 'desc')
-            ->limit(100)
-            ->get();
+        $liste = AramaListesi::where('id', $kayit->arama_id)->first();
+        $salonId = $liste ? $liste->salon_id : self::mevcutsube($request);
+
+        // Santralin CALISAN canli CDR API'si (santral raporlariyla AYNI kaynak) — cdr DB
+        // tablosuna bagimli degil; yeni santralin kayitlarini da gosterir.
+        $dahililer = Personeller::where('salon_id', $salonId)
+            ->whereNotNull('dahili_no')->where('dahili_no', '!=', '')
+            ->pluck('dahili_no')->toArray();
+        $trunk = \App\SabitNumaralar::where('salon_id', $salonId)->value('numara');
+
+        $qs = '?offset=0';
+        foreach ($dahililer as $d) $qs .= '&dahililer[]=' . urlencode($d);
+        $qs .= '&tarih1=' . date('Y-m-d', strtotime('-120 days'));
+        $qs .= '&tarih2=' . date('Y-m-d', strtotime('+1 day'));
+        if ($trunk) $qs .= '&did=' . urlencode($trunk);
 
         $kayitlar = [];
-        foreach ($cdrler as $c) {
-            // cdr.ses_kaydi HTML icerir; icinden voicerecords URL'sini cikar
-            $url = '';
-            if (preg_match('#https://voicerecords\.randevumcepte\.com\.tr[^"\'\s]+#', (string) $c->ses_kaydi, $m)) {
-                $url = $m[0];
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, 'https://santral.randevumcepte.com.tr/monitor/api/freepbxapi.php' . $qs);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            $raw = curl_exec($ch);
+            curl_close($ch);
+            $results = json_decode($raw, true);
+            $satirlar = (isset($results['data']) && is_array($results['data'])) ? $results['data'] : (is_array($results) ? $results : []);
+
+            foreach ($satirlar as $r) {
+                if (!is_array($r) || empty($r['recording_path'])) continue;
+                $dst = preg_replace('/\D/', '', $r['dst'] ?? '');
+                $src = preg_replace('/\D/', '', $r['src'] ?? '');
+                if (substr($dst, -10) !== $son10 && substr($src, -10) !== $son10) continue;
+
+                $url = $r['recording_path'];
+                if (stripos($url, 'http') !== 0) {
+                    $url = 'https://voicerecords.randevumcepte.com.tr' . (substr($url, 0, 1) === '/' ? '' : '/') . $url;
+                }
+                $ts = isset($r['calldate']) ? strtotime($r['calldate']) : 0;
+                $kayitlar[] = [
+                    '_ts'   => $ts,
+                    'tarih' => $ts ? date('d.m.Y H:i', $ts) : '',
+                    'url'   => $url,
+                ];
             }
-            if ($url === '') continue;
-            $kayitlar[] = [
-                'tarih' => $c->tarih_saat ? date('d.m.Y H:i', strtotime($c->tarih_saat)) : '',
-                'url'   => $url,
-            ];
+            usort($kayitlar, function ($a, $b) { return $b['_ts'] <=> $a['_ts']; });
+            foreach ($kayitlar as &$k) unset($k['_ts']);
+            unset($k);
+        } catch (\Throwable $e) {
+            \Log::warning('[CAGRI-MERKEZI] ses kayitlari freepbxapi hata: ' . $e->getMessage());
         }
 
-        return response()->json(['kayitlar' => $kayitlar]);
+        return response()->json(['kayitlar' => array_values($kayitlar)]);
     }
 
     public function arama_listesi_arandi_isaretle(Request $request)
