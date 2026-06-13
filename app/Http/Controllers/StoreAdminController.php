@@ -16745,16 +16745,24 @@ DB::raw('
         // paketAdi + hasPaketTahsilat — tek randevu icin (toplu yuklemedeki ayni mantik)
         $seanslar = AdisyonPaketSeanslar::where('randevu_id', $rh->randevu_id)->get();
         $paketAdi = '';
+        $adisyonId = null;
         $apId = $seanslar->pluck('adisyon_paket_id')->filter()->first();
         if ($apId) {
             $ap = AdisyonPaketler::with('paket')->find($apId);
-            if ($ap && $ap->paket) $paketAdi = $ap->paket->paket_adi;
+            if ($ap) {
+                if ($ap->paket) $paketAdi = $ap->paket->paket_adi;
+                $adisyonId = $ap->adisyon_id;
+            }
+        }
+        // Pakete bagli adisyon yoksa hizmet uzerinden adisyonu bul
+        if (!$adisyonId) {
+            $adisyonId = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
         }
         $hasPaketTahsilat = $seanslar->isNotEmpty()
             || AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->exists();
 
         return response()->json([
-            'eventbuttons' => view('partials.randevuDetayiButonlar', ['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat])->render(),
+            'eventbuttons' => view('partials.randevuDetayiButonlar', ['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat, 'adisyonId' => $adisyonId])->render(),
             'description'  => view('partials.randevuDetayi', ['randevu' => $rh, 'rol' => $rol, 'paketAdi' => $paketAdi])->render(),
             'hoverHtml'    => view('partials.randevuHoverDetayi', ['randevu' => $rh, 'rol' => $rol, 'paketAdi' => $paketAdi])->render(),
         ]);

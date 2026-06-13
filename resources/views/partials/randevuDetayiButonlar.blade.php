@@ -37,7 +37,10 @@
       @endif
 
       @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')
-         @if(!empty($hasPaketTahsilat))
+         @if(!empty($hasPaketTahsilat) && !empty($adisyonId))
+            {{-- Randevuya bagli adisyon var -> popup yerine ilgili adisyon (tahsilat) ekranina git --}}
+            <a href="/isletmeyonetim/tahsilat/{{$randevu->randevu->user_id}}/{{$adisyonId}}?sube={{$randevu->randevu->salon_id}}" class="btn btn-primary"><i class="fa fa-money"></i> Tahsilat</a>
+         @elseif(!empty($hasPaketTahsilat))
             <a name="paket_tahsilatlari" href="#" class="btn btn-primary" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-money"></i> Tahsilat</a>
          @else
             <a name="tahsil_et" href="#" class="btn btn-primary" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-money"></i> Tahsilat</a>
