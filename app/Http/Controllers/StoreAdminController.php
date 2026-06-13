@@ -27372,64 +27372,38 @@ DB::raw('
             return ['success' => false, 'message' => 'Santrale bağlanılamadı. [' . $errno . ' ' . $errstr . ']'];
         }
 
-        // TESHIS: olaylar acik (hangup cause / originate reason yakalamak icin)
-        $auth = "Action: Login\r\nUsername: cxpanel\r\nSecret: cxmanager*con\r\nEvents: on\r\n\r\n";
+        $auth = "Action: Login\r\nUsername: cxpanel\r\nSecret: cxmanager*con\r\nEvents: off\r\n\r\n";
         stream_socket_sendto($socket, $auth);
-        usleep(200000);
+        usleep(300000);
         if (strpos((string) fread($socket, 8192), 'Success') === false) {
             fclose($socket);
             return ['success' => false, 'message' => 'Santral kimlik doğrulaması başarısız.'];
         }
 
-        // CALISAN SANTRAL FORMATI (baska projeden dogrulandi): musteri chan_sip TRUNK'tan
-        // aranir -> Channel: SIP/<trunk>-out/0<numara> (PJSIP DEGIL!). Acinca from-internal'de
-        // personelin dahilisi (extension) caldirilir -> 1:1 baglanir.
-        $trunk = '908503403039'; // santral giden trunk (SIP/<trunk>-out)
+        // CALISAN FORMAT: musteri SALONUN KENDI outbound peer'inden aranir
+        // (SIP/<salon_no>-out/0<numara>) -> CallerID otomatik salonun numarasi olur (platform
+        // trunk numarasi DEGIL). Acinca from-internal'de personelin dahilisi caldirilir (1:1).
         $req  = "Action: Originate\r\n";
-        $req .= "Channel: SIP/" . $trunk . "-out/0" . $tel . "\r\n"; // musteriyi trunk'tan ara
+        $req .= "Channel: SIP/" . $sabitno->numara . "-out/0" . $tel . "\r\n"; // salon peer'i = salon CID
         $req .= "Callerid: " . $sabitno->numara . "\r\n";
         $req .= "Context: from-internal\r\n";
-        $req .= "Exten: " . $dahili . "\r\n";                        // acinca personelin dahilisini cal
+        $req .= "Exten: " . $dahili . "\r\n";                                  // acinca personelin dahilisini cal
         $req .= "Priority: 1\r\n";
         $req .= "Async: yes\r\n\r\n";
 
         stream_socket_sendto($socket, $req);
-
-        // ~4 sn olaylari topla -> hangup cause / originate reason cikar (teshis)
-        $resp = '';
-        stream_set_timeout($socket, 1);
-        $bitis = microtime(true) + 4.0;
-        while (microtime(true) < $bitis && strlen($resp) < 60000) {
-            $chunk = fread($socket, 8192);
-            if ($chunk !== false && $chunk !== '') { $resp .= $chunk; }
-            else { usleep(150000); }
-        }
+        usleep(400000);
+        $resp = (string) fread($socket, 8192);
         @stream_socket_sendto($socket, "Action: Logoff\r\n\r\n");
         fclose($socket);
-        \Log::info('[CAGRI-MERKEZI] AMI trafik (kisalt): ' . mb_substr(preg_replace('/\s+/', ' ', $resp), 0, 1500));
+        \Log::info('[CAGRI-MERKEZI] Originate. Channel=SIP/' . $sabitno->numara . '-out/0' . $tel . ' exten=' . $dahili . ' | Yanit: ' . trim(preg_replace('/\s+/', ' ', $resp)));
 
-        $kuyrugaAlindi = (strpos($resp, 'Response: Success') !== false);
-        $baglandi = (strpos($resp, 'BridgeEnter') !== false) || preg_match('/DialStatus:\s*ANSWER/i', $resp);
-
-        // Hangup sebebi
-        $sebep = '';
-        if (preg_match_all('/Cause-txt:\s*([^\r\n]+)/i', $resp, $mm) && !empty($mm[1])) {
-            $sebepler = array_values(array_unique(array_map('trim', $mm[1])));
-            $sebep = implode(' / ', array_slice($sebepler, 0, 3));
-        }
-        if (preg_match('/Event:\s*OriginateResponse[\s\S]*?Reason:\s*([0-9]+)/i', $resp, $mr)) {
-            $sebep = trim($sebep . ' [OrigReason ' . $mr[1] . ']');
-        }
-
-        if ($baglandi) {
-            return ['success' => true, 'message' => 'Arama bağlandı.'];
-        }
-        if ($kuyrugaAlindi && $sebep === '') {
+        if (strpos($resp, 'Success') !== false) {
             return ['success' => true, 'message' => 'Müşteri aranıyor — müşteri açınca telefonunuz (Bria) çalacak, açıp görüşün.'];
         }
         return [
             'success' => false,
-            'message' => 'Arama bağlanamadı. Trunk=' . ($sabitno->numara ?: 'YOK') . ' | Sebep: ' . ($sebep !== '' ? mb_substr($sebep, 0, 160) : 'santral olay dondurmedi'),
+            'message' => 'Santral aramayı başlatamadı. ' . mb_substr(trim(preg_replace('/\s+/', ' ', $resp)), 0, 160),
         ];
     }
 
