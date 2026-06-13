@@ -27359,10 +27359,12 @@ DB::raw('
         }
         $salon = Salonlar::where('id', $salonId)->first();
 
+        // Santral AMI sunucusu
+        $amiHost = '89.252.140.61';
         $errno = 0; $errstr = '';
-        $socket = @stream_socket_client('tcp://34.45.69.65:5038', $errno, $errstr, 10);
+        $socket = @stream_socket_client('tcp://' . $amiHost . ':5038', $errno, $errstr, 10);
         if (!$socket) {
-            \Log::warning('[CAGRI-MERKEZI] AMI baglanti hatasi: (' . $errno . ') ' . $errstr);
+            \Log::warning('[CAGRI-MERKEZI] AMI baglanti hatasi: (' . $errno . ') ' . $errstr . ' host=' . $amiHost);
             return ['success' => false, 'message' => 'Santrale bağlanılamadı. [' . $errno . ' ' . $errstr . ']'];
         }
 
