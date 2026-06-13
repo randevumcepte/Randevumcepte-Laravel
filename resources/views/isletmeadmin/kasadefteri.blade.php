@@ -304,7 +304,10 @@
 .rc-kd-stat-label small { display: block; color: var(--rc-text-soft); }
 
 /* === TABLO KARTLARI === */
-.rc-kd-tables { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 30px; }
+/* Varsayilan: tek sutun (tam genislik) — 6 sutunlu Gelirler tablosu her zaman sigar,
+   Tutar sutunu kesilmez. Yan yana duzen yalnizca cok genis ekranlarda (>=1700px). */
+.rc-kd-tables { display: grid; grid-template-columns: 1fr; gap: 18px; margin-bottom: 30px; }
+@media (min-width: 1700px) { .rc-kd-tables { grid-template-columns: 1fr 1fr; } }
 .rc-kd-table-card {
    background: #fff; border: 1px solid var(--rc-border); border-radius: 16px;
    box-shadow: 0 1px 3px rgba(17,24,39,.04), 0 6px 24px rgba(92,0,142,.05); overflow: hidden;
