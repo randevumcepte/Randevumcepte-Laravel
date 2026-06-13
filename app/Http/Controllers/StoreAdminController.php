@@ -27381,15 +27381,16 @@ DB::raw('
             return ['success' => false, 'message' => 'Santral kimlik doğrulaması başarısız.'];
         }
 
-        // AGENT-FIRST: personelin dahilisi (Bria) calar; acinca musteri DOGRU outbound
-        // context'inden (908503403039-out) trunk uzerinden aranir.
-        $outboundContext = '908503403039-out';
+        // CALISAN SANTRAL FORMATI (baska projeden dogrulandi): musteri chan_sip TRUNK'tan
+        // aranir -> Channel: SIP/<trunk>-out/0<numara> (PJSIP DEGIL!). Acinca from-internal'de
+        // personelin dahilisi (extension) caldirilir -> 1:1 baglanir.
+        $trunk = '908503403039'; // santral giden trunk (SIP/<trunk>-out)
         $req  = "Action: Originate\r\n";
-        $req .= "Channel: PJSIP/" . $dahili . "\r\n";          // personelin Bria'si (calismisti)
-        $req .= "Context: " . $outboundContext . "\r\n";       // acinca musteri buradan cikar
-        $req .= "Exten: 0" . $tel . "\r\n";                    // aranacak numara (0'li)
-        $req .= "Priority: 1\r\n";
+        $req .= "Channel: SIP/" . $trunk . "-out/0" . $tel . "\r\n"; // musteriyi trunk'tan ara
         $req .= "Callerid: " . $sabitno->numara . "\r\n";
+        $req .= "Context: from-internal\r\n";
+        $req .= "Exten: " . $dahili . "\r\n";                        // acinca personelin dahilisini cal
+        $req .= "Priority: 1\r\n";
         $req .= "Async: yes\r\n\r\n";
 
         stream_socket_sendto($socket, $req);
@@ -27424,7 +27425,7 @@ DB::raw('
             return ['success' => true, 'message' => 'Arama bağlandı.'];
         }
         if ($kuyrugaAlindi && $sebep === '') {
-            return ['success' => true, 'message' => 'Arama başlatıldı. Telefonunuz (Bria) çalacak, açın.'];
+            return ['success' => true, 'message' => 'Müşteri aranıyor — müşteri açınca telefonunuz (Bria) çalacak, açıp görüşün.'];
         }
         return [
             'success' => false,
