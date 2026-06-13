@@ -27347,15 +27347,19 @@ DB::raw('
      * aranacak_musteri_id ile gercek numarayi doner, JS dogrudan arar (ekrana yazmadan).
      */
     /**
-     * Cagri Merkezi click-to-call — hatirlatma aramasiyla AYNI originate yapisi (yan etkisiz).
-     * Musteri santralden cevrilir ve operator kuyruguna (operator_kanali) baglanir; personel
-     * kendi Bria/dahilisinden kuyruga dusen aramayi acar. Numara tarayiciya/personele GITMEZ.
+     * Cagri Merkezi click-to-call (agent-first, context-free).
+     * Originate: personelin dahilisi (Bria) calar -> acinca santral musteriyi trunk'tan arar
+     * (Application: Dial). Ozel dialplan context'i (from-internal-custom) GEREKTIRMEZ.
+     * Numara tarayiciya/personele GITMEZ.
      */
-    private function cagriMerkeziOriginate($salonId, $tel)
+    private function cagriMerkeziOriginate($salonId, $tel, $dahili)
     {
+        if (empty($dahili)) {
+            return ['success' => false, 'message' => 'Arama için size bir dahili numara atanmamış. (Personel ayarlarından dahili tanımlayın.)'];
+        }
         $sabitno = \App\SabitNumaralar::where('salon_id', $salonId)->first();
         if (!$sabitno || empty($sabitno->numara)) {
-            return ['success' => false, 'message' => 'Salon için santral (sabit) numarası tanımlı değil.'];
+            return ['success' => false, 'message' => 'Salon için santral (trunk) numarası tanımlı değil.'];
         }
         $salon = Salonlar::where('id', $salonId)->first();
 
@@ -27376,16 +27380,13 @@ DB::raw('
             return ['success' => false, 'message' => 'Santral kimlik doğrulaması başarısız.'];
         }
 
+        // AGENT-FIRST: once personelin dahilisi (Bria) calar; acinca Application:Dial ile
+        // musteri trunk uzerinden aranir. Ozel context gerekmez.
         $req  = "Action: Originate\r\n";
-        $req .= "Channel: PJSIP/0" . $tel . "@" . $sabitno->numara . "\r\n";
-        $req .= "Callerid: " . $sabitno->numara . "\r\n";
-        $req .= "Exten: 1\r\n";
-        $req .= "Context: from-internal-custom\r\n";
-        $req .= "Variable: myMessage=\r\n";
-        $req .= "Variable: kuyruk=" . optional($salon)->operator_kanali . "\r\n";
-        $req .= "Variable: telefon=" . $tel . "\r\n";
-        $req .= "Variable: sabitno=" . $sabitno->numara . "\r\n";
-        $req .= "Priority: 1\r\n";
+        $req .= "Channel: PJSIP/" . $dahili . "\r\n";                 // personelin Bria'si
+        $req .= "Application: Dial\r\n";
+        $req .= "Data: PJSIP/0" . $tel . "@" . $sabitno->numara . ",60\r\n"; // acinca musteriyi ara (trunk)
+        $req .= "Callerid: Musteri Aramasi <" . $sabitno->numara . ">\r\n";
         $req .= "Async: yes\r\n\r\n";
 
         stream_socket_sendto($socket, $req);
@@ -27401,7 +27402,7 @@ DB::raw('
             }
         }
         fclose($socket);
-        \Log::info('[CAGRI-MERKEZI] Originate gonderildi. Channel=PJSIP/0' . $tel . '@' . $sabitno->numara . ' kuyruk=' . optional($salon)->operator_kanali . ' | Yanit: ' . $resp);
+        \Log::info('[CAGRI-MERKEZI] Originate gonderildi. Channel=PJSIP/' . $dahili . ' -> Dial PJSIP/0' . $tel . '@' . $sabitno->numara . ' | Yanit: ' . $resp);
 
         if (strpos($resp, 'Success') !== false) {
             return ['success' => true, 'message' => 'Arama başlatıldı. Telefonunuz (Bria) çalacak, açın.'];
@@ -27444,8 +27445,12 @@ DB::raw('
         }
         $tel = ltrim($numara, '0');
 
-        // Santral uzerinden arama (hatirlatma aramasiyla AYNI originate). Numara tarayiciya GITMEZ.
-        $sonuc = $this->cagriMerkeziOriginate($salonId, $tel);
+        // Arayan kullanicinin (personel/yonetici) dahilisi — Bria bu dahiliye kayitli.
+        $dahili = \App\Personeller::where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+            ->where('salon_id', $salonId)->value('dahili_no');
+
+        // Santral originate (agent-first, context-free). Numara tarayiciya GITMEZ.
+        $sonuc = $this->cagriMerkeziOriginate($salonId, $tel, $dahili);
 
         if (!empty($sonuc['success'])) {
             // Arama randevusu (durum=3) ise arandi olarak isaretle ki popup tekrar nag yapmasin.
