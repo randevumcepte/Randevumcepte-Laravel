@@ -1062,8 +1062,8 @@
       @endif
 
       @if($duyuruOnizle)
-      <div style="position:fixed;bottom:12px;left:12px;z-index:100060;background:#0f172a;color:#7CFC00;font:12px/1.6 monospace;padding:12px 16px;border-radius:10px;max-width:380px;box-shadow:0 10px 30px rgba(0,0,0,.4)">
-         <div style="color:#fff;font-weight:bold;margin-bottom:6px">🔎 DUYURU ÖNİZLEME / TEŞHİS</div>
+      <div style="position:fixed;top:90px;left:50%;transform:translateX(-50%);z-index:2147483600;background:#0f172a;color:#7CFC00;font:13px/1.7 monospace;padding:14px 20px;border-radius:12px;max-width:92vw;box-shadow:0 12px 40px rgba(0,0,0,.5);border:2px solid #7CFC00">
+         <div style="color:#fff;font-weight:bold;margin-bottom:6px;font-size:14px">🔎 DUYURU ÖNİZLEME / TEŞHİS</div>
          userId: {{ $duyuruDebug['userId'] ?? 'NULL' }}<br>
          salonId: {{ $duyuruDebug['salonId'] ?? 'NULL' }}<br>
          ilId: {{ $duyuruDebug['ilId'] ?? 'NULL' }}<br>
