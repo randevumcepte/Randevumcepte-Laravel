@@ -21987,6 +21987,37 @@ $(document).on('click', '.cm-ara-btn', function () {
         complete: function () { setTimeout(function () { $btn.prop('disabled', false); }, 2000); }
     });
 });
+
+// Cagri Merkezi: bir musteriyle yapilan TUM ses kayitlarini goster
+$(document).on('click', '.cm-kayitlar-btn', function () {
+    var aranacakId = $(this).attr('data-aranacak-id');
+    $('#ses_kayitlari_govde').html('<p class="text-muted">Yükleniyor...</p>');
+    $('#ses_kayitlari_modal').modal('show');
+    $.ajax({
+        type: 'POST',
+        url: '/isletmeyonetim/musteri-ses-kayitlari',
+        data: { aranacak_musteri_id: aranacakId, _token: $('input[name="_token"]').val() },
+        success: function (res) {
+            var kayitlar = (res && res.kayitlar) ? res.kayitlar : [];
+            if (!kayitlar.length) {
+                $('#ses_kayitlari_govde').html('<div style="text-align:center;color:#999;padding:24px;"><i class="fa fa-microphone-slash" style="font-size:32px;"></i><br><br>Bu müşteriyle yapılmış kayıtlı görüşme bulunamadı.</div>');
+                return;
+            }
+            var html = '';
+            kayitlar.forEach(function (k, i) {
+                html += '<div style="border:1px solid #eee;border-radius:10px;padding:10px 12px;margin-bottom:10px;">' +
+                    '<div style="font-weight:600;color:#5C008E;margin-bottom:6px;"><i class="fa fa-clock-o"></i> ' + (k.tarih || ('Kayıt ' + (i + 1))) + '</div>' +
+                    '<audio controls preload="none" style="width:100%;" src="' + k.url + '"></audio>' +
+                    '</div>';
+            });
+            $('#ses_kayitlari_govde').html(html);
+        },
+        error: function () {
+            $('#ses_kayitlari_govde').html('<p style="color:#c62828;">Ses kayıtları yüklenirken hata oluştu.</p>');
+        }
+    });
+});
+
 function loadAramaDetaylari(page = 1) {
     if (loading) return;
     loading = true;
@@ -22011,15 +22042,13 @@ function loadAramaDetaylari(page = 1) {
             let htmlRows = [];
 
             response.data.forEach(function (item, index) {
-                let sesBtn = item.ses
-                    ? `<a name="ses_kaydi_cal" data-value="${item.ses}" class="btn btn-danger btn-sm" title="Ses Kaydını Dinle">
-                           <i class="fa fa-play" style="color:white"></i>
-                       </a>`
-                    : '';
-
                 let aramaBtn = `<button type="button" class="cm-ara-btn btn btn-sm btn-success" data-aranacak-id="${item.aranacak_musteri_id}" title="Ara (santral)">
                                     <i class="fa fa-phone"></i>
                                 </button>`;
+
+                let kayitlarBtn = `<button type="button" class="cm-kayitlar-btn btn btn-sm btn-secondary" data-aranacak-id="${item.aranacak_musteri_id}" title="Görüşme Ses Kayıtları">
+                                <i class="fa fa-headphones"></i>
+                              </button>`;
 
                 let notBtn = `<button class="btn btn-sm btn-warning btn-not-ekle" data-index="${index}" data-aranacak-id="${item.aranacak_musteri_id}" title="Not Ekle">
                                 <i class="fa fa-pencil"></i>
@@ -22038,7 +22067,7 @@ function loadAramaDetaylari(page = 1) {
                         <td>${item.telefonGizlenmis}</td>
                         <td>${item.durum}</td>
                         <td class="not-cell">${notHTML}</td>
-                        <td>${aramaBtn} ${sesBtn} ${notBtn}</td>
+                        <td>${aramaBtn} ${kayitlarBtn} ${notBtn}</td>
                     </tr>
                 `);
             });

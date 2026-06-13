@@ -90,11 +90,52 @@
    </div>
 </div>
 
+{{-- Ses kayitlari modali --}}
+<div id="ses_kayitlari_modal" class="modal fade" role="dialog">
+   <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content" style="border-radius:12px;">
+         <div class="modal-header" style="background:linear-gradient(120deg,#5C008E,#9D5DC8);color:#fff;border-radius:12px 12px 0 0;">
+            <h5 class="modal-title">Görüşme Kayıtları</h5>
+            <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;"><span>&times;</span></button>
+         </div>
+         <div class="modal-body" id="ses_kayitlari_govde" style="max-height:60vh;overflow-y:auto;">
+            <p class="text-muted">Yükleniyor...</p>
+         </div>
+      </div>
+   </div>
+</div>
+
 <input type="hidden" name="sube" value="{{ $isletme->id }}">
 
 <script>
 let aktifListeId = null;
 let detayLoading = false;
+
+// Bir musteriyle yapilan TUM ses kayitlarini goster
+$(document).on('click', '.cm-kayitlar-btn', function () {
+   var aranacakId = $(this).data('id');
+   $('#ses_kayitlari_govde').html('<p class="text-muted">Yükleniyor...</p>');
+   $('#ses_kayitlari_modal').modal('show');
+   $.ajax({
+      url: '/isletmeyonetim/musteri-ses-kayitlari', method: 'POST',
+      data: { aranacak_musteri_id: aranacakId, _token: $('input[name="_token"]').val() },
+      success: function (res) {
+         var kayitlar = (res && res.kayitlar) ? res.kayitlar : [];
+         if (!kayitlar.length) {
+            $('#ses_kayitlari_govde').html('<div style="text-align:center;color:#999;padding:24px;"><i class="fa fa-microphone-slash" style="font-size:32px;"></i><br><br>Bu müşteriyle yapılmış kayıtlı görüşme bulunamadı.</div>');
+            return;
+         }
+         var html = '';
+         kayitlar.forEach(function (k, i) {
+            html += '<div style="border:1px solid #eee;border-radius:10px;padding:10px 12px;margin-bottom:10px;">' +
+               '<div style="font-weight:600;color:#5C008E;margin-bottom:6px;"><i class="fa fa-clock-o"></i> ' + (k.tarih || ('Kayıt ' + (i + 1))) + '</div>' +
+               '<audio controls preload="none" style="width:100%;" src="' + k.url + '"></audio></div>';
+         });
+         $('#ses_kayitlari_govde').html(html);
+      },
+      error: function () { $('#ses_kayitlari_govde').html('<p style="color:#c62828;">Ses kayıtları yüklenirken hata oluştu.</p>'); }
+   });
+});
 
 function kartlariYukle() {
    $.ajax({
@@ -168,9 +209,7 @@ function detayYukle() {
          const tbody = $('#musteri_detay_tbody');
          tbody.empty();
          (res.data || []).forEach(function (item, index) {
-            const sesBtn = item.ses
-               ? `<a href="${item.ses}" target="_blank" class="btn btn-sm btn-danger" title="Ses Kaydını Dinle"><i class="fa fa-play"></i></a>`
-               : '';
+            const sesBtn = `<button type="button" class="btn btn-sm btn-secondary cm-kayitlar-btn" data-id="${item.aranacak_musteri_id}" title="Görüşme Ses Kayıtları"><i class="fa fa-headphones"></i></button>`;
             const notHTML = item.not
                ? `${item.not}${(item.not_tarih && item.not_saat) ? '<br><small class="text-muted">Randevu: ' + item.not_tarih + ' ' + item.not_saat + '</small>' : ''}`
                : '<span class="text-muted">-</span>';

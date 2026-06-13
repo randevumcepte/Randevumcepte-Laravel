@@ -38,3 +38,18 @@
     </div>
   </div>
 </div>
+
+{{-- Cagri Merkezi: bir musteriyle yapilan TUM gorusme ses kayitlari --}}
+<div id="ses_kayitlari_modal" class="modal fade" role="dialog" style="z-index:1080;">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content" style="border-radius:12px;">
+      <div class="modal-header" style="background:linear-gradient(120deg,#5C008E,#9D5DC8);color:#fff;border-radius:12px 12px 0 0;">
+        <h5 class="modal-title" id="ses_kayitlari_baslik">Görüşme Kayıtları</h5>
+        <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;"><span>&times;</span></button>
+      </div>
+      <div class="modal-body" id="ses_kayitlari_govde" style="max-height:60vh;overflow-y:auto;">
+        <p class="text-muted">Yükleniyor...</p>
+      </div>
+    </div>
+  </div>
+</div>

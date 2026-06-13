@@ -27460,6 +27460,50 @@ DB::raw('
         ]);
     }
 
+    /**
+     * Cagri Merkezi: bir musteriyle yapilan TUM gorusme ses kayitlari (cdr tablosundan,
+     * telefon eslestirmesiyle). Detay ekranindaki "Ses Kayitlari" butonu kullanir.
+     */
+    public function musteri_ses_kayitlari(Request $request)
+    {
+        $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
+        if (!$kayit) {
+            return response()->json(['kayitlar' => []]);
+        }
+        $userId = $kayit->user_id;
+        $cep = ltrim((string) optional($kayit->musteri)->cep_telefon, '0');
+        if ($cep === '' && !$userId) {
+            return response()->json(['kayitlar' => []]);
+        }
+        // Telefon format varyantlari (santral cdr'de 0/90/+90 farkli tutulabilir)
+        $varyantlar = array_values(array_unique(array_filter([$cep, '0' . $cep, '90' . $cep, '+90' . $cep])));
+
+        $cdrler = \App\Cdr::where(function ($q) use ($varyantlar, $userId) {
+                if (!empty($varyantlar)) $q->whereIn('telefon', $varyantlar);
+                if ($userId) $q->orWhere('user_id', $userId);
+            })
+            ->whereNotNull('ses_kaydi')->where('ses_kaydi', '!=', '')
+            ->orderBy('tarih_saat', 'desc')
+            ->limit(100)
+            ->get();
+
+        $kayitlar = [];
+        foreach ($cdrler as $c) {
+            // cdr.ses_kaydi HTML icerir; icinden voicerecords URL'sini cikar
+            $url = '';
+            if (preg_match('#https://voicerecords\.randevumcepte\.com\.tr[^"\'\s]+#', (string) $c->ses_kaydi, $m)) {
+                $url = $m[0];
+            }
+            if ($url === '') continue;
+            $kayitlar[] = [
+                'tarih' => $c->tarih_saat ? date('d.m.Y H:i', strtotime($c->tarih_saat)) : '',
+                'url'   => $url,
+            ];
+        }
+
+        return response()->json(['kayitlar' => $kayitlar]);
+    }
+
     public function arama_listesi_arandi_isaretle(Request $request)
     {
         // ID bazli (yeni) veya telefon bazli (eski) eslestirme
