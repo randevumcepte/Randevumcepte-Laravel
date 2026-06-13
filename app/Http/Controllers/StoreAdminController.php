@@ -27513,9 +27513,10 @@ DB::raw('
 
             foreach ($satirlar as $r) {
                 if (!is_array($r) || empty($r['recording_path'])) continue;
-                $dst = preg_replace('/\D/', '', $r['dst'] ?? '');
-                $src = preg_replace('/\D/', '', $r['src'] ?? '');
-                if (substr($dst, -10) !== $son10 && substr($src, -10) !== $son10) continue;
+                // Musteri numarasi src/dst'de OLMAYABILIR (cagri merkezi aramasinda channel
+                // icinde: SIP/<salon>-out/0<musteri>). Tum ilgili alanlarin rakamlarinda ara.
+                $samanlik = preg_replace('/\D/', '', ($r['channel'] ?? '') . '|' . ($r['dstchannel'] ?? '') . '|' . ($r['src'] ?? '') . '|' . ($r['dst'] ?? ''));
+                if (strpos($samanlik, $son10) === false) continue;
 
                 $url = $r['recording_path'];
                 if (stripos($url, 'http') !== 0) {
