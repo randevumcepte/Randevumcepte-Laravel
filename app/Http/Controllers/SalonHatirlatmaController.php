@@ -56,7 +56,9 @@ class SalonHatirlatmaController extends Controller
         if (filter_var($request->input('refresh'), FILTER_VALIDATE_BOOLEAN)) { // Request::boolean() bu surumde yok
             Cache::forget($cacheKey);
         }
-        $hatirlatmalar = Cache::remember($cacheKey, 15, function () use ($salonId) {
+        // DIKKAT: Laravel 5.6'da remember TTL'i DAKIKA cinsindendir. Eskiden 15 yaziyordu =
+        // 15 DAKIKA cache -> "hep ayni veri" sikayeti buradan. Carbon ile 20 saniyeye cekildi.
+        $hatirlatmalar = Cache::remember($cacheKey, now()->addSeconds(20), function () use ($salonId) {
             return $this->topla($salonId);
         });
 
@@ -300,8 +302,9 @@ class SalonHatirlatmaController extends Controller
             'baslik'   => $oncekiAyAdi . ' ' . $oncekiAyYil . ' Maaş Ödemeleri',
             'mesaj'    => $sayi . ' personelin ' . $oncekiAyAdi . ' ayı maaş ödemesi hâlâ kayıtlı değil.',
             'altMesaj' => 'Personel motivasyonu = işletme kazancı. Ödemeleri girmeyi unutma.',
-            'cta_text' => 'Personeller',
-            'link'     => '/isletmeyonetim/personeller?sube=' . $salonId,
+            'cta_text' => 'Maaş & Prim',
+            // Maaş takibinin asil yapildigi sayfa Prim & Hak Edis; personeller listesi degil.
+            'link'     => '/isletmeyonetim/primraporu?sube=' . $salonId,
             'sayac'    => $sayi,
         ];
     }

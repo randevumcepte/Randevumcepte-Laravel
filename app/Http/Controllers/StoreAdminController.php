@@ -29529,8 +29529,14 @@ DB::raw('
 
     public function primRaporu(Request $request)
     {
-        $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
-        $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        // Guard'a gore isletme listesi (satisortakligi'nde isletmeyonetim->user() null olur).
+        if(Auth::guard('satisortakligi')->check()){
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        }
 
         if(!in_array(self::mevcutsube($request),$isletmeler)){
             return view('isletmeadmin.yetkisizerisim');
@@ -29538,7 +29544,7 @@ DB::raw('
         if(str_contains(self::lisans_sure_kontrol($request),'-')){
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
         }
-        if(self::personelmi($request)){
+        if(!Auth::guard('satisortakligi')->check() && self::personelmi($request)){
             return redirect()->route('isletmeadmin.randevular');
         }
 
