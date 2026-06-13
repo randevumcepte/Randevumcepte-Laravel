@@ -16745,21 +16745,30 @@ DB::raw('
         // paketAdi + hasPaketTahsilat — tek randevu icin (toplu yuklemedeki ayni mantik)
         $seanslar = AdisyonPaketSeanslar::where('randevu_id', $rh->randevu_id)->get();
         $paketAdi = '';
-        $adisyonId = null;
         $apId = $seanslar->pluck('adisyon_paket_id')->filter()->first();
         if ($apId) {
             $ap = AdisyonPaketler::with('paket')->find($apId);
-            if ($ap) {
-                if ($ap->paket) $paketAdi = $ap->paket->paket_adi;
-                $adisyonId = $ap->adisyon_id;
-            }
-        }
-        // Pakete bagli adisyon yoksa hizmet uzerinden adisyonu bul
-        if (!$adisyonId) {
-            $adisyonId = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
+            if ($ap && $ap->paket) $paketAdi = $ap->paket->paket_adi;
         }
         $hasPaketTahsilat = $seanslar->isNotEmpty()
             || AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->exists();
+
+        // Bu randevuya/hizmete bagli adisyonu cozumle. paketTahsilatlari popup'inin
+        // kullandigi mantigin aynisini izleyerek POPUP YERINE ilgili adisyona yonlendiririz.
+        // Sira: (1) bu hizmete ait seans -> paket/hizmet -> adisyon, (2) herhangi bir seans,
+        // (3) randevu_id ile dogrudan eslesen adisyon_hizmet.
+        $adisyonId = null;
+        $seansBilgi = $seanslar->firstWhere('hizmet_id', $rh->hizmet_id) ?: $seanslar->first();
+        if ($seansBilgi) {
+            if ($seansBilgi->adisyon_paket_id) {
+                $adisyonId = AdisyonPaketler::where('id', $seansBilgi->adisyon_paket_id)->value('adisyon_id');
+            } elseif ($seansBilgi->adisyon_hizmet_id) {
+                $adisyonId = AdisyonHizmetler::where('id', $seansBilgi->adisyon_hizmet_id)->value('adisyon_id');
+            }
+        }
+        if (!$adisyonId) {
+            $adisyonId = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
+        }
 
         return response()->json([
             'eventbuttons' => view('partials.randevuDetayiButonlar', ['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat, 'adisyonId' => $adisyonId])->render(),
