@@ -16826,12 +16826,34 @@ DB::raw('
             if (!$cozulen) $cozulen = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
         }
 
+        // Bu randevunun hizmet_id'leri
+        $hizmetIdler = $rhler->pluck('hizmet_id')->filter()->unique()->values()->all();
+
+        // Musterinin son adisyonlarinin icerikleri (hizmet kalemleri)
+        $adisyonIdler = $musteriAdisyonlar->pluck('id')->all();
+        $adisyonIcerikleri = DB::table('adisyon_hizmetler as ah')
+            ->leftJoin('hizmetler as h', 'ah.hizmet_id', '=', 'h.id')
+            ->whereIn('ah.adisyon_id', $adisyonIdler)
+            ->select('ah.id', 'ah.adisyon_id', 'ah.hizmet_id', 'h.hizmet_adi', 'ah.fiyat', 'ah.randevu_id', 'ah.islem_tarihi')
+            ->orderBy('ah.adisyon_id', 'desc')->get();
+
+        // Bu randevu hizmet(ler)i icin musterinin tahsilatlari (hangi adisyon_hizmet'e bagli + odeme)
+        $tahsilatlar = DB::table('tahsilat_hizmetler as th')
+            ->join('adisyon_hizmetler as ah', 'th.adisyon_hizmet_id', '=', 'ah.id')
+            ->leftJoin('tahsilatlar as t', 'th.tahsilat_id', '=', 't.id')
+            ->whereIn('ah.adisyon_id', $adisyonIdler)
+            ->when(!empty($hizmetIdler), function ($q) use ($hizmetIdler) { return $q->whereIn('ah.hizmet_id', $hizmetIdler); })
+            ->select('th.id as th_id', 'th.adisyon_hizmet_id', 'ah.adisyon_id', 'ah.hizmet_id', 'th.tutar', 'th.tahsilat_id', 't.odeme_tarihi')
+            ->orderBy('t.odeme_tarihi', 'desc')->get();
+
         return response()->json([
             'randevu' => ['id' => $randevu->id, 'user_id' => $randevu->user_id, 'salon_id' => $randevu->salon_id, 'tarih' => $randevu->tarih, 'seans_id' => $randevu->seans_id],
             'randevu_hizmetler' => $rhler,
             'adisyon_paket_seanslar(randevu_id)' => $seanslar,
             'adisyon_hizmetler(randevu_id)' => $adisyonHizmetler,
             'musteri_tum_adisyonlar' => $musteriAdisyonlar,
+            'adisyon_icerikleri' => $adisyonIcerikleri,
+            'randevu_hizmeti_tahsilatlari' => $tahsilatlar,
             'su_an_cozulen_adisyon_id' => $cozulen,
         ], 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     }
