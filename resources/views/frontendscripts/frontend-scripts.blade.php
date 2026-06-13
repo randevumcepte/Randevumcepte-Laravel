@@ -191,33 +191,6 @@
              defaultDate: new Date(), // Doğrudan bugünün tarihini kullanabilirsiniz
              editable: true,
              selectable: true,
-             // Resource kolon genisligini FC render'i bitince '!important' CSS ile uygula
-             // (FC kendi genisligini geri yazsa bile ezilmez). RC_KOLON tek degisken.
-             eventAfterAllRender: function(view){
-                try {
-                   var $cells = $('#calendar .fc-resource-cell');
-                   var n = $cells.length;
-                   var st = document.getElementById('rc-res-w');
-                   if(!st){ st = document.createElement('style'); st.id = 'rc-res-w'; document.head.appendChild(st); }
-                   var container = $('#calendar').width() || 0;
-                   // SABIT GENISLIK: her personel kolonu 150px.
-                   // Kolonlar takvime sigmazsa yatay scroll cikar.
-                   var KOLON = 150;
-                   if(n > 0){
-                      var nw = (n * KOLON) + 95;     // 95 = sol zaman ekseni payi
-                      var css = '#calendar .fc-resource-cell{width:'+KOLON+'px !important;}';
-                      // Toplam genislik takvimi asiyorsa: view'i genislet + yatay scroll
-                      if(container > 0 && nw > container){
-                         css += '#calendar .fc-agendaDay-view{width:'+nw+'px !important;}' +
-                                '#calendar .fc-view-container{overflow-x:scroll !important;}';
-                      }
-                      st.innerHTML = css;
-                   } else {
-                      st.innerHTML = '';
-                   }
-                } catch(e){}
-             },
-            
              eventLimit: true, // allow "more" link when too many events
              header: {
                left: 'prev,next today',

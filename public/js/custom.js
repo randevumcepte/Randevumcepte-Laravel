@@ -10246,40 +10246,6 @@ function takvimyukle(preload,turdegisti)
               editable: true,
               selectable: true,
               eventLimit: true, // allow "more" link when too many events
-              // FC tum render'i (ilk acilis dahil) bitince resource kolon genisligini
-              // uygula. FC kolonlari konteynere bolustururken eziyordu; bu callback
-              // render'dan SONRA calistigindan genislik kalici olur (ilk acilista da
-              // hemen genis gelir, ~30sn beklenmez).
-              eventAfterAllRender: function(view){
-                 // KOK COZUM: Genisligi JS inline ile koymak yetmiyordu cunku FC,
-                 // render'dan sonra kendi updateSize'iyla kolon genisliklerini geri
-                 // yaziyor (inline style, !important'siz) ve bizimkini eziyordu.
-                 // CSS '!important' kurali, FC'nin inline genisligini HER ZAMAN ezer
-                 // (zamanlamadan bagimsiz). Bu yuzden genisligi <style> ile enjekte
-                 // ediyoruz; FC ne zaman geri yazarsa yazsin CSS kazanir.
-                 try {
-                    var $cells = $('#calendar .fc-resource-cell');
-                    var n = $cells.length;
-                    var st = document.getElementById('rc-res-w');
-                    if(!st){ st = document.createElement('style'); st.id = 'rc-res-w'; document.head.appendChild(st); }
-                    var container = $('#calendar').width() || 0;
-                    // Kolon genisligi zoom ile olceklenir AMA en fazla 200px (devlesmesin).
-                    // Kuculunce daralir (z<1), buyutunce 200'de durur.
-                    var _z = (typeof window.rcZoom === 'number' && window.rcZoom > 0) ? window.rcZoom : 1;
-                    var RC_KOLON = Math.round(200 * _z);
-                    if(RC_KOLON > 200) RC_KOLON = 200;
-                    if(RC_KOLON < 110) RC_KOLON = 110;
-                    if(n > 0 && container > 0 && (container / n) < RC_KOLON){
-                       var nw = (n * RC_KOLON) + 95;
-                       st.innerHTML =
-                          '#calendar .fc-resource-cell{width:'+RC_KOLON+'px !important;}' +
-                          '#calendar .fc-agendaDay-view{width:'+nw+'px !important;}' +
-                          '#calendar .fc-view-container{overflow-x:scroll !important;}';
-                    } else {
-                       st.innerHTML = '';
-                    }
-                 } catch(e){}
-              },
               header: {
                 left: 'prev,next today',
                 center: 'title',
@@ -10561,15 +10527,9 @@ if (preload && !turdegisti) {
                 $('#calendar').fullCalendar('addEventSource', result.randevu);
                 $('#calendar').fullCalendar('refetchEvents');
             }
-            // Resource kolon genisligini uygula. FC ilk render'i ASENKRON oldugundan
-            // (.fc-resource-cell hemen DOM'da olmayabilir -> width() undefined ->
-            // eskiden atlaniyor, ancak 10sn'lik refresh'te uygulaniyordu = ~30sn gecikme).
-            // Bu yuzden hem HEMEN hem kisa gecikmelerle dene; ilk acilista da genis gelir.
+            // Yenileme sonrasi yatay kaydirma konumunu koru (kolon genisligi artik
+            // FC'nin kendi otomatik dagitimina birakildi; sabit genislik/scroll yok).
             function _rcKolonAyarla(){
-               // Kolon GENISLIGI artik eventAfterAllRender'da !important CSS ile
-               // uygulaniyor (tek yerden, RC_KOLON). Burada sadece yatay scroll'u ac
-               // ve yenileme sonrasi kaydirma konumunu koru.
-               $('#calendar .fc-view-container').attr('style','overflow-x:scroll');
                if(typeof _hScroll !== 'undefined' && _hScroll > 0){
                   $('#calendar .fc-view-container').scrollLeft(_hScroll);
                }
@@ -10577,7 +10537,7 @@ if (preload && !turdegisti) {
             _rcKolonAyarla();
             setTimeout(_rcKolonAyarla, 250);
             setTimeout(_rcKolonAyarla, 800);
-            
+
             $('.fc-today-button').click(function(e){
                 e.preventDefault();
                 
