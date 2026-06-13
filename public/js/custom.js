@@ -9128,11 +9128,21 @@ function randevufiltre()
                 success: function(result)  {
                     $('#preloader').hide();
                    $('#randevu_liste').DataTable().destroy();
-                    $('#randevu_liste').DataTable({
-                        autoWidth: false,
-                        responsive: true,
-                        "order": [[ 4, "desc" ]],
-                        columns:[
+                    // Musteri detay sayfasinda tablo basliklari farkli sirada:
+                    // Tarih, Saat, Durum, Hizmetler, Personel/Cihaz/Oda, Olusturan, Olusturulma.
+                    // Genel randevu listesinde ise Musteri, Telefon ile baslar.
+                    // Basliklari (tablo) degil, veriyi (sutun eslemesi) basliga gore esliyoruz.
+                    var _musteriDetay = $('input[name="musteri_id"]').length > 0 && $('input[name="musteri_id"]').val();
+                    var _columns = _musteriDetay ? [
+                           { data: 'tarih' },
+                           { data: 'saat' },
+                           { data: 'durum' },
+                           { data: 'hizmetler' },
+                           { data: 'personelcihazoda' },
+                           { data: 'olusturan' },
+                           { data: 'olusturulma' },
+                           { data: 'islemler' }
+                        ] : [
                            { data: 'musteri'   },
                            { data: 'telefon' },
                            { data: 'hizmetler'   },
@@ -9142,7 +9152,12 @@ function randevufiltre()
                            { data: 'durum' },
                            { data: 'olusturan' },
                            { data: 'islemler' }
-                        ],
+                        ];
+                    $('#randevu_liste').DataTable({
+                        autoWidth: false,
+                        responsive: true,
+                        "order": [[ _musteriDetay ? 0 : 4, "desc" ]],
+                        columns: _columns,
                         data: result,
                         "language" : {
                             "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
