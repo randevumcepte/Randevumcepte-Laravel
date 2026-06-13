@@ -27380,13 +27380,14 @@ DB::raw('
             return ['success' => false, 'message' => 'Santral kimlik doğrulaması başarısız.'];
         }
 
-        // AGENT-FIRST: once personelin dahilisi (Bria) calar; acinca Application:Dial ile
-        // musteri trunk uzerinden aranir. Ozel context gerekmez.
+        // CUSTOMER-FIRST: musteri KANITLANMIS sekilde aranir (hatirlatma ile ayni kanal),
+        // acinca standart 'from-internal' context'inde personelin dahilisi (Bria) caldirilir.
         $req  = "Action: Originate\r\n";
-        $req .= "Channel: PJSIP/" . $dahili . "\r\n";                 // personelin Bria'si
-        $req .= "Application: Dial\r\n";
-        $req .= "Data: PJSIP/0" . $tel . "@" . $sabitno->numara . ",60\r\n"; // acinca musteriyi ara (trunk)
-        $req .= "Callerid: Musteri Aramasi <" . $sabitno->numara . ">\r\n";
+        $req .= "Channel: PJSIP/0" . $tel . "@" . $sabitno->numara . "\r\n";  // musteriyi trunk'tan ara (calisan yontem)
+        $req .= "Context: from-internal\r\n";                                  // standart FreePBX context
+        $req .= "Exten: " . $dahili . "\r\n";                                  // acinca personelin dahilisini cal
+        $req .= "Priority: 1\r\n";
+        $req .= "Callerid: " . $sabitno->numara . "\r\n";
         $req .= "Async: yes\r\n\r\n";
 
         stream_socket_sendto($socket, $req);
@@ -27402,7 +27403,7 @@ DB::raw('
             }
         }
         fclose($socket);
-        \Log::info('[CAGRI-MERKEZI] Originate gonderildi. Channel=PJSIP/' . $dahili . ' -> Dial PJSIP/0' . $tel . '@' . $sabitno->numara . ' | Yanit: ' . $resp);
+        \Log::info('[CAGRI-MERKEZI] Originate (customer-first). Channel=PJSIP/0' . $tel . '@' . $sabitno->numara . ' -> from-internal exten=' . $dahili . ' | Yanit: ' . $resp);
 
         if (strpos($resp, 'Success') !== false) {
             return ['success' => true, 'message' => 'Arama başlatıldı. Telefonunuz (Bria) çalacak, açın.'];
