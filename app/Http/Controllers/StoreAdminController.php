@@ -23720,8 +23720,16 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
           
             $rapor = array();
             $cdrListesi = isset($results['data']) && is_array($results['data']) ? $results['data'] : (is_array($results) ? $results : []);
+            // Cagri Merkezi (agent-first) aramalari santral raporunda GORUNMESIN; bunlari zaten
+            // arama ekraninda ayri tutuyoruz. Bu aramalarda CallerID salonun KENDI trunk numarasi
+            // oldugundan src == trunk olur (normal gelen/giden aramalarda olmaz).
+            $trunkDigits = preg_replace('/\D/', '', (string) $trunk);
             foreach($cdrListesi as $key=>$result){
                 if(!is_array($result)) continue;
+                $srcDigits = preg_replace('/\D/', '', (string) ($result['src'] ?? ''));
+                if ($trunkDigits !== '' && strlen($srcDigits) >= 10 && substr($srcDigits, -10) === substr($trunkDigits, -10)) {
+                    continue; // çağrı merkezi araması -> santral raporuna alma
+                }
                 $raporaEkle = false;
                 $durum = '';
                 $musteriAdi = '';
