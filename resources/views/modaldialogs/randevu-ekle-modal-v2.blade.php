@@ -2293,6 +2293,14 @@
                     $vo.val(v1OdaOpt.val());
                 }
             }
+            // Programmatik .val() change event tetiklemiyor — filtreyi elden zorla
+            // (takvim slot tiklamasi ile gelen personel/cihaz/oda secimine gore
+            // hizmet TS'ini filtrele).
+            try {
+                if(typeof v2RefreshHizmetTS === 'function'){
+                    v2RefreshHizmetTS($firstRow);
+                }
+            } catch(e){ console.warn('[V2 slot fill filter] hata:', e); }
             $modal.off('shown.bs.modal.slotfill').on('shown.bs.modal.slotfill', function(){
                 // Bu handler bir kez calissin; yukaridaki kopyalamalar zaten run etti.
                 $modal.off('shown.bs.modal.slotfill');
