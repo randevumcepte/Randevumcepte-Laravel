@@ -270,6 +270,7 @@ $(document).on('click', '.ag-liste-chip', function(){
 
 // ---- Müşteriler (kuyruk) ----
 function agMusterileriYukle(){
+   agSecili = null; // yeni liste -> önceki seçim sıfırlanır
    $('#ag_kuyruk').html('<div class="ag-spin"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
    $.ajax({
       url:'/isletmeyonetim/arama_liste_detay_getir', method:'POST',
@@ -278,9 +279,17 @@ function agMusterileriYukle(){
          agMusteriler = (res && res.data) ? res.data : [];
          agFiltreCiz();
          agKuyrukCiz();
+         // İlk müşteriyi otomatik aç (boş "müşteri seçin" ekranı yerine)
+         agIlkMusteriyiSec();
       },
       error:function(){ $('#ag_kuyruk').html('<div class="ag-gecmis-bos" style="color:#c62828;">Müşteriler yüklenemedi.</div>'); }
    });
+}
+
+// Kuyruktaki ilk (görünen) müşteriyi otomatik seçer
+function agIlkMusteriyiSec(){
+   var ilk = $('#ag_kuyruk .ag-musteri').first();
+   if (ilk.length){ ilk.trigger('click'); }
 }
 
 function agFiltreCiz(){
