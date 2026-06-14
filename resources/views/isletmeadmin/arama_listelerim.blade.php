@@ -469,27 +469,35 @@ function agDetayCiz(m){
    agGecmisYukle(m.aranacak_musteri_id);
 }
 
-// ---- Çağrı geçmişi (ses kayıtları) ----
+// ---- Çağrı geçmişi (bu görüşmenin AYRIK kayıtları: gorusme_notlari) ----
 function agGecmisYukle(aranacakId){
    $.ajax({
-      url:'/isletmeyonetim/musteri-ses-kayitlari', method:'POST',
+      url:'/isletmeyonetim/cagri-musteri-gecmisi', method:'POST',
       data:{ aranacak_musteri_id:aranacakId, _token:$('input[name="_token"]').val() },
       success:function(res){
-         var kayitlar = (res && res.kayitlar) ? res.kayitlar : [];
-         if (!kayitlar.length){
-            $('#ag_gecmis').html('<div class="ag-gecmis-bos"><i class="fa fa-microphone-slash"></i>Bu müşteriyle kayıtlı görüşme bulunamadı.</div>');
+         var gecmis = (res && res.gecmis) ? res.gecmis : [];
+         if (!gecmis.length){
+            $('#ag_gecmis').html('<div class="ag-gecmis-bos"><i class="fa fa-microphone-slash"></i>Bu müşteriyle henüz görüşme kaydedilmedi.</div>');
             return;
          }
          var html='';
-         kayitlar.forEach(function(k,i){
-            html += '<div class="ag-gecmis-item bl-mavi">'+
-                       '<div class="ag-gecmis-top"><span class="ag-gecmis-tarih"><i class="fa fa-clock-o"></i> '+agEsc(k.tarih||('Kayıt '+(i+1)))+'</span></div>'+
-                       '<audio controls preload="none" src="'+agEsc(k.url)+'"></audio>'+
+         gecmis.forEach(function(g){
+            var st = durStil(g.sonuc_kod);
+            var not = g.not ? '<div style="font-size:12.5px;color:#574f6b;margin-top:7px;"><i class="fa fa-sticky-note-o" style="color:#b6aecb;margin-right:5px;"></i>'+agEsc(g.not)+'</div>' : '';
+            var ses = g.ses ? '<audio controls preload="none" src="'+agEsc(g.ses)+'"></audio>'
+                            : '<div style="font-size:11.5px;color:#aab0c0;margin-top:8px;"><i class="fa fa-hourglass-half"></i> Ses kaydı işleniyor — birazdan "Yenile"ye basın.</div>';
+            html += '<div class="ag-gecmis-item bl-'+st.c+'">'+
+                       '<div class="ag-gecmis-top">'+
+                          '<span class="ag-gecmis-tarih"><i class="fa fa-clock-o"></i> '+agEsc(g.tarih)+'</span>'+
+                          '<span class="ag-mus-dur d-'+st.c+'" style="margin-left:8px;">'+st.et+'</span>'+
+                       '</div>'+
+                       not +
+                       ses +
                     '</div>';
          });
          $('#ag_gecmis').html(html);
       },
-      error:function(){ $('#ag_gecmis').html('<div class="ag-gecmis-bos" style="color:#c62828;">Kayıtlar yüklenemedi.</div>'); }
+      error:function(){ $('#ag_gecmis').html('<div class="ag-gecmis-bos" style="color:#c62828;">Geçmiş yüklenemedi.</div>'); }
    });
 }
 

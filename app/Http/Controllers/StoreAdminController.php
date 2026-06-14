@@ -27371,6 +27371,9 @@ DB::raw('
         if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
             $kayit->son_arama_zamani = date('Y-m-d H:i:s');
         }
+        // NOT: Ses kaydi burada SENKRON cekilmez (kaydetmeyi bekletmemek icin). Kaydi bu
+        // gorusmeye baglama isi, sonuc kaydedilince otomatik tazelenen "cagri-musteri-gecmisi"
+        // ucunda (ve "Yenile" butonunda) AGENT DAHILISI ile yapilir — CDR gecikmesine de dayanikli.
         $kayit->save();
 
         // Gorusme sonucu kategorisi (opsiyonel, ayni salona ait olmali). Kategori semasi
@@ -27601,6 +27604,102 @@ DB::raw('
         }
 
         return response()->json(['kayitlar' => array_values($kayitlar)]);
+    }
+
+    /**
+     * Agent-first arama sonrasi: belirtilen DAHILININ santraldeki EN SON kayitli cagrisinin
+     * recording_path'ini doner. Agent-first'te musteri numarasi CDR'da salon no olarak
+     * gorunebildigi icin numara yerine DAHILI + en yeni calldate ile eslesir.
+     */
+    private function cagriMerkeziSonKaydiGetir($salonId, $dahili)
+    {
+        if (empty($dahili)) return '';
+        $trunk = \App\SabitNumaralar::where('salon_id', $salonId)->value('numara');
+        $qs = '?offset=0&dahililer[]=' . urlencode($dahili)
+            . '&tarih1=' . date('Y-m-d', strtotime('-1 day'))
+            . '&tarih2=' . date('Y-m-d', strtotime('+1 day'));
+        if ($trunk) $qs .= '&did=' . urlencode($trunk);
+
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, 'https://santral.randevumcepte.com.tr/monitor/api/freepbxapi.php' . $qs);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            $raw = curl_exec($ch);
+            curl_close($ch);
+            $results = json_decode($raw, true);
+            $satirlar = (isset($results['data']) && is_array($results['data'])) ? $results['data'] : (is_array($results) ? $results : []);
+
+            $enYeniPath = ''; $enYeniTs = -1;
+            foreach ($satirlar as $r) {
+                if (!is_array($r) || empty($r['recording_path'])) continue;
+                // channel'dan dahiliyi cikar; bu dahiliye ait kayit mi?
+                $kanalDahili = '';
+                if (preg_match('/^[^\/]+\/([^-\s]+)/', ($r['channel'] ?? ''), $m)) {
+                    $kanalDahili = preg_replace('/\D/', '', $m[1]);
+                }
+                if ($kanalDahili !== (string) $dahili) continue;
+                $ts = isset($r['calldate']) ? strtotime($r['calldate']) : 0;
+                if ($ts >= $enYeniTs) { $enYeniTs = $ts; $enYeniPath = $r['recording_path']; }
+            }
+            // ses_kaydi tutarliligi: voicerecords base + path olarak tuketildigi icin bas '/' garanti,
+            // tam URL geldiyse scheme+host ayiklanir.
+            if ($enYeniPath !== '') {
+                if (stripos($enYeniPath, 'http') === 0) {
+                    $enYeniPath = preg_replace('#^https?://[^/]+#', '', $enYeniPath);
+                }
+                if (substr($enYeniPath, 0, 1) !== '/') $enYeniPath = '/' . $enYeniPath;
+            }
+            return $enYeniPath;
+        } catch (\Throwable $e) {
+            \Log::warning('[CAGRI-MERKEZI] son kayit getirilemedi: ' . $e->getMessage());
+            return '';
+        }
+    }
+
+    /**
+     * Agent calisma ekrani — bir musterinin AYRIK gorusme gecmisi (santral havuzundan degil,
+     * dogrudan bu arama listesinin gorusme_notlari kayitlarindan). Her satir: tarih, sonuc,
+     * not, kategori, ses kaydi. Ses kaydi eksik+yeni satirlar icin dahili ile bagla (CDR gecikmesi).
+     */
+    public function cagri_musteri_gecmisi(Request $request)
+    {
+        $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
+        if (!$kayit || !Schema::hasTable('gorusme_notlari')) {
+            return response()->json(['gecmis' => []]);
+        }
+        $liste = AramaListesi::where('id', $kayit->arama_id)->first();
+        $salonId = $liste ? $liste->salon_id : self::mevcutsube($request);
+
+        $notlar = \App\GorusmeNotlari::where('aranacak_musteri_id', $kayit->id)
+            ->orderBy('id', 'desc')->limit(50)->get();
+
+        // CDR gecikmesi telafisi: SADECE en yeni gorusme ses kaydsizsa ve yeniyse santralden bagla.
+        // (Eski notlara yanlis/ayni kaydi baglamamak icin sadece ilk/sonuncu kayda uygulanir.)
+        $sonNot = $notlar->first();
+        if ($sonNot && empty($sonNot->ses_kaydi)) {
+            $olumTs = $sonNot->created_at ? strtotime($sonNot->created_at) : 0;
+            if ($olumTs >= (time() - 86400)) {
+                $dahili = $sonNot->personel_id ? Personeller::where('id', $sonNot->personel_id)->value('dahili_no') : null;
+                $path = $this->cagriMerkeziSonKaydiGetir($salonId, $dahili);
+                if ($path) {
+                    $sonNot->ses_kaydi = $path; $sonNot->save();
+                    if (empty($kayit->ses_kaydi)) { $kayit->ses_kaydi = $path; $kayit->save(); }
+                }
+            }
+        }
+
+        $gecmis = $notlar->map(function ($n) {
+            return [
+                'tarih'     => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
+                'sonuc_kod' => is_null($n->sonuc) ? null : (int) $n->sonuc,
+                'sonuc'     => self::aranacakDurumMetin($n->sonuc),
+                'not'       => $n->not ?? '',
+                'ses'       => $n->ses_kaydi ? 'https://voicerecords.randevumcepte.com.tr' . $n->ses_kaydi : '',
+            ];
+        });
+
+        return response()->json(['gecmis' => $gecmis]);
     }
 
     /* ============================================================
