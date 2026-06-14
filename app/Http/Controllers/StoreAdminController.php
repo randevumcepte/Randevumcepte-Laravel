@@ -27313,13 +27313,16 @@ DB::raw('
     }
 
     /**
-     * ses_kaydi -> oynatilabilir kaynak. CALISAN santral raporu recording_path'i HIC DOKUNMADAN
-     * dogrudan audio src yapip caliyor (custom.js: ses_kaydi_cal). Bu yuzden deger OLDUGU GIBI
-     * kullanilir (host eklenmez) — boylece agent ekraninda da raporla AYNI sekilde calar.
+     * ses_kaydi -> oynatilabilir kaynak. Kayitlar santral sunucusunda servis edilir:
+     * https://santral.randevumcepte.com.tr<recording_path> (ornek calisan src bu host'la dogrulandi).
+     * Zaten tam URL ise oldugu gibi birakilir.
      */
     public static function sesKaydiUrl($p)
     {
-        return trim((string) $p);
+        $p = trim((string) $p);
+        if ($p === '') return '';
+        if (stripos($p, 'http') === 0) return $p;
+        return 'https://santral.randevumcepte.com.tr' . (substr($p, 0, 1) === '/' ? '' : '/') . $p;
     }
 
     /** Giris yapan yetkilinin bu salondaki personel (salon_personelleri) kaydinin id'sini doner. */
