@@ -27620,16 +27620,17 @@ DB::raw('
     }
 
     /**
-     * Agent-first arama sonrasi: belirtilen DAHILININ santraldeki EN SON kayitli cagrisinin
-     * recording_path'ini doner. Agent-first'te musteri numarasi CDR'da salon no olarak
-     * gorunebildigi icin numara yerine DAHILI + en yeni calldate ile eslesir.
+     * Bir DAHILIYE ait santral ses-kayit ADAYLARINI doner: [['path'=>..., 'ts'=>YYYYMMDDHHMMSS], ...]
+     * ts DESC (en yeni once). Zaman damgasi ONCE DOSYA ADINDAN (-YYYYMMDD-HHMMSS-) okunur; bu santral
+     * raporundaki saatle birebir ayni ve timezone'dan bagimsizdir. calldate yedek.
      */
-    private function cagriMerkeziSonKaydiGetir($salonId, $dahili)
+    private function cagriMerkeziKayitAdaylari($salonId, $dahili)
     {
-        if (empty($dahili)) return '';
+        $out = [];
+        if (empty($dahili)) return $out;
         $trunk = \App\SabitNumaralar::where('salon_id', $salonId)->value('numara');
         $qs = '?offset=0&dahililer[]=' . urlencode($dahili)
-            . '&tarih1=' . date('Y-m-d', strtotime('-1 day'))
+            . '&tarih1=' . date('Y-m-d', strtotime('-2 day'))
             . '&tarih2=' . date('Y-m-d', strtotime('+1 day'));
         if ($trunk) $qs .= '&did=' . urlencode($trunk);
 
@@ -27643,24 +27644,32 @@ DB::raw('
             $results = json_decode($raw, true);
             $satirlar = (isset($results['data']) && is_array($results['data'])) ? $results['data'] : (is_array($results) ? $results : []);
 
-            $enYeniPath = ''; $enYeniTs = -1;
+            $gorulen = [];
             foreach ($satirlar as $r) {
                 if (!is_array($r) || empty($r['recording_path'])) continue;
-                // channel'dan dahiliyi cikar; bu dahiliye ait kayit mi?
                 $kanalDahili = '';
                 if (preg_match('/^[^\/]+\/([^-\s]+)/', ($r['channel'] ?? ''), $m)) {
                     $kanalDahili = preg_replace('/\D/', '', $m[1]);
                 }
                 if ($kanalDahili !== (string) $dahili) continue;
-                $ts = isset($r['calldate']) ? strtotime($r['calldate']) : 0;
-                if ($ts >= $enYeniTs) { $enYeniTs = $ts; $enYeniPath = $r['recording_path']; }
+
+                $rp = $r['recording_path'];
+                if (isset($gorulen[$rp])) continue; // ayni kayit birden fazla CDR satirinda olabilir
+                $gorulen[$rp] = true;
+
+                $ts = 0;
+                if (preg_match('/-(\d{8})-(\d{6})/', $rp, $mm)) {
+                    $ts = (int) ($mm[1] . $mm[2]); // YYYYMMDDHHMMSS
+                } elseif (!empty($r['calldate'])) {
+                    $ts = (int) date('YmdHis', strtotime($r['calldate']));
+                }
+                $out[] = ['path' => $rp, 'ts' => $ts];
             }
-            // recording_path HAM saklanir (santral raporunda dogrudan audio src olarak calistigi sekilde).
-            return $enYeniPath;
+            usort($out, function ($a, $b) { return $b['ts'] <=> $a['ts']; }); // en yeni once
         } catch (\Throwable $e) {
-            \Log::warning('[CAGRI-MERKEZI] son kayit getirilemedi: ' . $e->getMessage());
-            return '';
+            \Log::warning('[CAGRI-MERKEZI] kayit adaylari getirilemedi: ' . $e->getMessage());
         }
+        return $out;
     }
 
     /**
@@ -27678,23 +27687,41 @@ DB::raw('
         $salonId = $liste ? $liste->salon_id : self::mevcutsube($request);
 
         $notlar = \App\GorusmeNotlari::where('aranacak_musteri_id', $kayit->id)
-            ->orderBy('id', 'desc')->limit(50)->get();
+            ->orderBy('id', 'desc')->limit(50)->get(); // en yeni once
 
-        // CDR gecikmesi telafisi: SADECE en yeni gorusme ses kaydsizsa ve yeniyse santralden bagla.
-        // Ayni kaydi farkli notlara baglamamak icin, bu musterinin notlarinda zaten kullanilan
-        // kayit yollarini disla (her gorusme kendi kaydina baglansin).
-        $sonNot = $notlar->first();
-        if ($sonNot && empty($sonNot->ses_kaydi)) {
-            $olumTs = $sonNot->created_at ? strtotime($sonNot->created_at) : 0;
-            if ($olumTs >= (time() - 86400)) {
-                $kullanilan = $notlar->pluck('ses_kaydi')->filter()->values()->all();
-                $dahili = $sonNot->personel_id ? Personeller::where('id', $sonNot->personel_id)->value('dahili_no') : null;
-                $path = $this->cagriMerkeziSonKaydiGetir($salonId, $dahili);
-                if ($path && !in_array($path, $kullanilan, true)) {
-                    $sonNot->ses_kaydi = $path; $sonNot->save();
-                    if (empty($kayit->ses_kaydi)) { $kayit->ses_kaydi = $path; $kayit->save(); }
-                }
+        // Her gorusmeye KENDI ses kaydini bagla (hepsine ayni kayit gelme sorununu cozer):
+        // - Adaylar dahili bazinda santralden cekilir, zaman damgasina gore en yeni once siralanir.
+        // - En yeni gorusme -> en yeni (kullanilmamis) kayit ... seklinde sirayla, TEKRARSIZ eslesir.
+        // - Son 2 gunden eski notlar yeniden atanmaz; sadece kayitlari rezerve edilir (cakisma olmasin).
+        $esikTs = time() - 2 * 86400;
+        $kullanilan = [];
+        foreach ($notlar as $n) { // eski notlarin mevcut kayitlarini rezerve et
+            $oTs = $n->created_at ? strtotime($n->created_at) : 0;
+            if ($oTs < $esikTs && !empty($n->ses_kaydi)) $kullanilan[] = $n->ses_kaydi;
+        }
+        $adayCache = [];
+        foreach ($notlar as $n) { // en yeniden eskiye dogru ata
+            $oTs = $n->created_at ? strtotime($n->created_at) : 0;
+            if ($oTs < $esikTs) continue; // eski not: dokunma
+            $dahili = $n->personel_id ? Personeller::where('id', $n->personel_id)->value('dahili_no') : null;
+            if (empty($dahili)) { if (!empty($n->ses_kaydi)) $kullanilan[] = $n->ses_kaydi; continue; }
+            if (!isset($adayCache[$dahili])) $adayCache[$dahili] = $this->cagriMerkeziKayitAdaylari($salonId, $dahili);
+
+            $sec = '';
+            foreach ($adayCache[$dahili] as $c) {
+                if (!in_array($c['path'], $kullanilan, true)) { $sec = $c['path']; break; }
             }
+            if ($sec !== '') {
+                $kullanilan[] = $sec;
+                if ($n->ses_kaydi !== $sec) { $n->ses_kaydi = $sec; $n->save(); }
+            } elseif (!empty($n->ses_kaydi)) {
+                $kullanilan[] = $n->ses_kaydi; // uygun yeni aday yok, mevcudu koru
+            }
+        }
+        // aranacak_musteriler.ses_kaydi: en son gorusmenin kaydi (geriye donuk uyumluluk)
+        $enSon = $notlar->first();
+        if ($enSon && !empty($enSon->ses_kaydi) && $kayit->ses_kaydi !== $enSon->ses_kaydi) {
+            $kayit->ses_kaydi = $enSon->ses_kaydi; $kayit->save();
         }
 
         $gecmis = $notlar->map(function ($n) {
