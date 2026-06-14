@@ -27431,15 +27431,17 @@ DB::raw('
             return ['success' => false, 'message' => 'Santral kimlik doğrulaması başarısız.'];
         }
 
-        // CALISAN FORMAT: musteri SALONUN KENDI outbound peer'inden aranir
-        // (SIP/<salon_no>-out/0<numara>) -> CallerID otomatik salonun numarasi olur (platform
-        // trunk numarasi DEGIL). Acinca from-internal'de personelin dahilisi caldirilir (1:1).
+        // AGENT-FIRST arama: ONCE personelin dahilisi (Bria) calar; agent acinca santral
+        // musteriyi SALONUN outbound peer'inden arar -> agent calma sesini / mesgul tonunu /
+        // acilmayi KENDI kulagiyla duyar ve dogru sonucu isaretler.
+        // - Local/<dahili>@from-internal: agent'i caldiran CALISAN dialplan yolu (eski Exten ile ayni).
+        // - Dial SIP/<salon>-out/0<no>: musteriyi salon peer'inden arar (CallerID = salon no, KVKK).
+        // (Eski "musteri-first" format git gecmisinde; geri donulmek istenirse oradan alinabilir.)
         $req  = "Action: Originate\r\n";
-        $req .= "Channel: SIP/" . $sabitno->numara . "-out/0" . $tel . "\r\n"; // salon peer'i = salon CID
-        $req .= "Callerid: " . $sabitno->numara . "\r\n";
-        $req .= "Context: from-internal\r\n";
-        $req .= "Exten: " . $dahili . "\r\n";                                  // acinca personelin dahilisini cal
-        $req .= "Priority: 1\r\n";
+        $req .= "Channel: Local/" . $dahili . "@from-internal\r\n";            // once personelin dahilisi calar
+        $req .= "Callerid: " . $sabitno->numara . "\r\n";                      // Bria'da salon no gorunur (musteri no DEGIL)
+        $req .= "Application: Dial\r\n";
+        $req .= "Data: SIP/" . $sabitno->numara . "-out/0" . $tel . ",60\r\n"; // acinca musteri salon peer'inden aranir
         $req .= "Async: yes\r\n\r\n";
 
         stream_socket_sendto($socket, $req);
@@ -27447,10 +27449,10 @@ DB::raw('
         $resp = (string) fread($socket, 8192);
         @stream_socket_sendto($socket, "Action: Logoff\r\n\r\n");
         fclose($socket);
-        \Log::info('[CAGRI-MERKEZI] Originate. Channel=SIP/' . $sabitno->numara . '-out/0' . $tel . ' exten=' . $dahili . ' | Yanit: ' . trim(preg_replace('/\s+/', ' ', $resp)));
+        \Log::info('[CAGRI-MERKEZI] Originate (agent-first). Channel=Local/' . $dahili . '@from-internal -> Dial SIP/' . $sabitno->numara . '-out/0' . $tel . ' | Yanit: ' . trim(preg_replace('/\s+/', ' ', $resp)));
 
         if (strpos($resp, 'Success') !== false) {
-            return ['success' => true, 'message' => 'Müşteri aranıyor — müşteri açınca telefonunuz (Bria) çalacak, açıp görüşün.'];
+            return ['success' => true, 'message' => 'Telefonunuz (Bria) çalıyor — açın; ardından müşteri aranacak ve çalma sesini duyacaksınız.'];
         }
         return [
             'success' => false,
