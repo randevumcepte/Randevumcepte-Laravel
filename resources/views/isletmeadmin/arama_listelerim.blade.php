@@ -23,9 +23,15 @@
 .ag-grid{ display:grid; grid-template-columns:380px 1fr; gap:18px; align-items:start; }
 @media (max-width:991px){ .ag-grid{ grid-template-columns:1fr; } }
 
-/* Sağ arama paneli: sol kuyruk kaydırılırken yerinde sabit kalsın */
+/* Geniş ekran: bu bölüm ekran yüksekliğini doldursun; SOL kuyruk kendi içinde
+   kaysın, SAĞ arama paneli sabit kalsın (sayfa kaymaz). */
 @media (min-width:992px){
-   #ag_detay_panel{ position:sticky; top:16px; align-self:start; max-height:calc(100vh - 86px); overflow-y:auto; }
+   .ag-wrap{ display:flex; flex-direction:column; height:calc(100vh - 96px); }
+   .ag-hero{ flex:0 0 auto; }
+   .ag-grid{ flex:1 1 auto; min-height:0; }
+   .ag-grid > .ag-panel{ height:100%; max-height:100%; min-height:0; display:flex; flex-direction:column; }
+   #ag_kuyruk{ flex:1 1 auto; min-height:0; max-height:none; }
+   #ag_detay_panel{ overflow-y:auto; }
 }
 
 .ag-panel{ background:#fff; border-radius:18px; border:1px solid #efeaf6; box-shadow:0 6px 20px -12px rgba(30,30,60,.2); overflow:hidden; }
@@ -74,7 +80,7 @@
 .ag-detay-bos .t1{ font-weight:700; color:#5a5570; font-size:16px; }
 .ag-detay-bos .t2{ font-size:13px; margin-top:5px; }
 
-.ag-dhead{ background:linear-gradient(120deg,#5C008E,#7B2FB8); color:#fff; padding:20px 22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.ag-dhead{ background:linear-gradient(120deg,#5C008E,#7B2FB8); color:#fff; padding:20px 22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; position:sticky; top:0; z-index:3; }
 .ag-dhead-av{ width:56px; height:56px; flex:0 0 56px; border-radius:50%; background:rgba(255,255,255,.20); display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:700; }
 .ag-dhead-ad{ font-weight:700; font-size:20px; line-height:1.1; }
 .ag-dhead-sub{ font-size:13px; opacity:.9; margin-top:4px; }
