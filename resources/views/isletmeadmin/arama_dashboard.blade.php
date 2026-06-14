@@ -185,6 +185,8 @@
 .pd-call-meta .m{ font-size:12px; color:#9a95ab; white-space:nowrap; }
 .pd-call-meta .m i{ margin-right:4px; color:#bcb4cf; }
 .pd-call-sure{ background:#f3eefa; color:#5C008E; font-weight:700; border-radius:8px; padding:3px 9px; font-size:12px; white-space:nowrap; }
+.pd-call-kat{ background:#e7f1fd; color:#1565c0; font-weight:700; border-radius:8px; padding:3px 9px; font-size:12px; white-space:nowrap; }
+.pd-call-kat i{ margin-right:3px; }
 .pd-call-not{ font-size:13px; color:#574f6b; margin-top:9px; line-height:1.45; background:#faf9fc; border-radius:10px; padding:9px 11px; }
 .pd-call-not i{ color:#b69ad6; margin-right:6px; }
 .pd-call-audio{ margin-top:10px; }
@@ -420,6 +422,8 @@ function pdListeCiz(){
       const st = pdSonucStil(n.sonuc_kod);
       const etiket = cmEsc(n.sonuc) || st.et;
       const sure = (n.sure_dk && n.sure_dk > 0) ? `<span class="pd-call-sure"><i class="fa fa-clock-o"></i> ${n.sure_dk} dk</span>` : '';
+      const katMetin = [n.kategori, n.alt_kategori].filter(Boolean).join(' › ');
+      const kat = katMetin ? `<span class="pd-call-kat"><i class="fa fa-tag"></i> ${cmEsc(katMetin)}</span>` : '';
       const not = n.not ? `<div class="pd-call-not"><i class="fa fa-sticky-note-o"></i>${cmEsc(n.not)}</div>` : '';
       const audio = n.ses ? `<div class="pd-call-audio"><audio controls preload="none" src="${cmEsc(n.ses)}"></audio></div>` : '';
       html += `
@@ -428,6 +432,7 @@ function pdListeCiz(){
                <span class="pd-call-mus">${cmEsc(n.musteri) || 'Müşteri'}</span>
                <span class="pd-badge pd-b-${st.c}">${etiket}</span>
                <div class="pd-call-meta">
+                  ${kat}
                   ${sure}
                   <span class="m"><i class="fa fa-calendar-o"></i>${cmEsc(n.tarih)}</span>
                </div>

@@ -1198,6 +1198,15 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/arama-dashboard','StoreAdminController@arama_dashboard');
 	Route::get('/arama-dashboard-verileri','StoreAdminController@arama_dashboard_verileri');
 	Route::post('/arama-dashboard-personel-detay','StoreAdminController@arama_dashboard_personel_detay');
+	// Cagri Merkezi — Faz 4: scriptler + sonuc kategorileri (yonetici tanimlar, agent kullanir)
+	Route::get('/cagri-ayarlari','StoreAdminController@cagri_ayarlari');
+	Route::get('/cagri-script-liste','StoreAdminController@cagri_script_liste');
+	Route::post('/cagri-script-kaydet','StoreAdminController@cagri_script_kaydet');
+	Route::post('/cagri-script-sil','StoreAdminController@cagri_script_sil');
+	Route::get('/cagri-kategori-liste','StoreAdminController@cagri_kategori_liste');
+	Route::post('/cagri-kategori-kaydet','StoreAdminController@cagri_kategori_kaydet');
+	Route::post('/cagri-kategori-sil','StoreAdminController@cagri_kategori_sil');
+	Route::get('/cagri-scriptleri-getir','StoreAdminController@cagri_scriptleri_getir');
 	Route::get('/raporlar','StoreAdminController@raporlar');
 	Route::get('/primraporu','StoreAdminController@primRaporu')->name('isletmeadmin.primraporu');
 	Route::post('/primhareketekle','StoreAdminController@primHareketEkle');

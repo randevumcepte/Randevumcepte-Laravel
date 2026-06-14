@@ -31,6 +31,8 @@ class CagriMerkeziSchema
         self::ensureAramaListesi();
         self::ensureAranacakMusteriler();
         self::ensureGorusmeNotlari();
+        self::ensureCagriScriptleri();
+        self::ensureCagriKategorileri();
         return self::$uygulanan;
     }
 
@@ -116,6 +118,58 @@ class CagriMerkeziSchema
 
         // Mevcut (onceden olusmus) tablolar icin: dashboard salon bazli sorgusunu hizlandirir.
         self::addIndexIfMissing('gorusme_notlari', ['salon_id', 'personel_id'], 'gn_salon_personel_idx');
+
+        // Gorusme sonucuna baglanan kategori/alt-kategori (agent secer, yonetici tanimlar).
+        if (Schema::hasTable('gorusme_notlari') && !Schema::hasColumn('gorusme_notlari', 'kategori_id')) {
+            self::run("ALTER TABLE `gorusme_notlari` ADD COLUMN `kategori_id` BIGINT UNSIGNED NULL");
+        }
+        if (Schema::hasTable('gorusme_notlari') && !Schema::hasColumn('gorusme_notlari', 'alt_kategori_id')) {
+            self::run("ALTER TABLE `gorusme_notlari` ADD COLUMN `alt_kategori_id` BIGINT UNSIGNED NULL");
+        }
+    }
+
+    /** cagri_scriptleri: yoneticinin tanimladigi, agent'in okudugu gorusme scriptleri */
+    private static function ensureCagriScriptleri()
+    {
+        if (!Schema::hasTable('cagri_scriptleri')) {
+            self::run(
+                "CREATE TABLE `cagri_scriptleri` (
+                    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                    `salon_id` BIGINT UNSIGNED NOT NULL,
+                    `baslik` VARCHAR(190) NOT NULL,
+                    `icerik` TEXT NULL,
+                    `aktif` TINYINT NOT NULL DEFAULT 1,
+                    `created_at` TIMESTAMP NULL,
+                    `updated_at` TIMESTAMP NULL,
+                    PRIMARY KEY (`id`),
+                    INDEX `cs_salon_idx` (`salon_id`, `aktif`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+                'cagri_scriptleri tablosu olusturuldu'
+            );
+        }
+    }
+
+    /** cagri_kategorileri: gorusme sonucu icin ozellestirilebilir kategori/alt-kategori agaci */
+    private static function ensureCagriKategorileri()
+    {
+        if (!Schema::hasTable('cagri_kategorileri')) {
+            self::run(
+                "CREATE TABLE `cagri_kategorileri` (
+                    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                    `salon_id` BIGINT UNSIGNED NOT NULL,
+                    `ust_id` BIGINT UNSIGNED NULL,
+                    `ad` VARCHAR(190) NOT NULL,
+                    `sira` INT NOT NULL DEFAULT 0,
+                    `aktif` TINYINT NOT NULL DEFAULT 1,
+                    `created_at` TIMESTAMP NULL,
+                    `updated_at` TIMESTAMP NULL,
+                    PRIMARY KEY (`id`),
+                    INDEX `ck_salon_idx` (`salon_id`, `aktif`),
+                    INDEX `ck_ust_idx` (`ust_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+                'cagri_kategorileri tablosu olusturuldu'
+            );
+        }
     }
 
     private static function run($sql, $aciklama = null)

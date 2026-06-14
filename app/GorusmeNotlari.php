@@ -21,6 +21,8 @@ class GorusmeNotlari extends Model
         'personel_id',
         'not',
         'sonuc',
+        'kategori_id',
+        'alt_kategori_id',
         'sure_dk',
         'cdr_id',
         'ses_kaydi',

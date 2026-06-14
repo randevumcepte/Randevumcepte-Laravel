@@ -97,6 +97,10 @@
 
 .ag-not-alani{ width:100%; border:1px solid #e3dcf0; border-radius:12px; padding:11px 13px; font-size:13.5px; outline:none; resize:vertical; min-height:80px; margin-top:12px; }
 .ag-not-alani:focus{ border-color:#9D5DC8; }
+select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
+.ag-script-icerik{ background:#faf9fc; border:1px solid #efeaf6; border-radius:10px; padding:12px 14px; margin-top:10px; font-size:13.5px; color:#574f6b; white-space:pre-wrap; line-height:1.55; }
+.ag-kat-secim{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+@media (max-width:520px){ .ag-kat-secim{ grid-template-columns:1fr; } }
 .ag-sonra{ display:flex; align-items:center; gap:9px; margin-top:12px; font-size:13px; color:#574f6b; cursor:pointer; }
 .ag-sonra input{ width:17px; height:17px; }
 .ag-sonra-alan{ display:none; gap:10px; margin-top:10px; }
@@ -195,6 +199,19 @@ var agMusteriler = [];
 var agSecili = null;
 var agFiltre = 'hepsi';
 var agSecilenSonuc = null; // form: seçili sonuç kodu
+var agScriptler = [];      // yöneticinin tanımladığı görüşme scriptleri
+var agKategoriler = [];    // sonuç kategori ağacı (ana + alt)
+
+function agScriptleriYukle(){
+   $.get('/isletmeyonetim/cagri-scriptleri-getir', { sube:$('input[name="sube"]').val() }, function(res){
+      agScriptler = (res && res.scriptler) ? res.scriptler : [];
+   });
+}
+function agKategorileriYukle(){
+   $.get('/isletmeyonetim/cagri-kategori-liste', { sube:$('input[name="sube"]').val() }, function(res){
+      agKategoriler = (res && res.kategoriler) ? res.kategoriler : [];
+   });
+}
 
 // ---- Listeler ----
 function agListeleriYukle(){
@@ -313,6 +330,28 @@ $(document).on('click', '.ag-musteri', function(){
    agDetayCiz(m);
 });
 
+// Script kartı (script tanımlıysa)
+function agScriptKart(){
+   if (!agScriptler.length) return '';
+   var opts = '<option value="">— Görüşme scripti seçin —</option>';
+   agScriptler.forEach(function(s){ opts += '<option value="'+agEsc(s.id)+'">'+agEsc(s.baslik)+'</option>'; });
+   return '<div class="ag-kart">'+
+      '<div class="ag-kart-bas"><i class="fa fa-file-text-o"></i> Görüşme Scripti</div>'+
+      '<select class="ag-not-alani" id="ag_script_sec">'+opts+'</select>'+
+      '<div id="ag_script_icerik" class="ag-script-icerik" style="display:none;"></div>'+
+   '</div>';
+}
+// Kategori + alt kategori select'leri (kategori tanımlıysa)
+function agKatSelectler(){
+   if (!agKategoriler.length) return '';
+   var opts = '<option value="">Kategori seçin (opsiyonel)</option>';
+   agKategoriler.forEach(function(k){ opts += '<option value="'+agEsc(k.id)+'">'+agEsc(k.ad)+'</option>'; });
+   return '<div class="ag-kat-secim">'+
+      '<select class="ag-not-alani" id="ag_kat">'+opts+'</select>'+
+      '<select class="ag-not-alani" id="ag_altkat" style="display:none;"></select>'+
+   '</div>';
+}
+
 function agDetayCiz(m){
    var k = (m.durum_kod===undefined||m.durum_kod===null)?null:parseInt(m.durum_kod,10);
    var st = durStil(k);
@@ -338,6 +377,9 @@ function agDetayCiz(m){
          randevuBilgi +
       '</div>'+
 
+      // Görüşme scripti (tanımlıysa)
+      agScriptKart() +
+
       // Görüşme sonucu formu
       '<div class="ag-kart">'+
          '<div class="ag-kart-bas"><i class="fa fa-check-circle"></i> Görüşme Sonucu</div>'+
@@ -347,6 +389,7 @@ function agDetayCiz(m){
             '<div class="ag-sonuc sec-koyukirmizi" data-sonuc="5"><i class="fa fa-ban"></i>Meşgul</div>'+
             '<div class="ag-sonuc sec-turuncu" data-sonuc="0"><i class="fa fa-volume-off"></i>Ulaşılamadı</div>'+
          '</div>'+
+         agKatSelectler() +
          '<textarea class="ag-not-alani" id="ag_not" placeholder="Görüşme notu (müşteri ne dedi, talep, vb.)...">'+agEsc(m.not||'')+'</textarea>'+
          '<label class="ag-sonra"><input type="checkbox" id="ag_sonra_chk"> Müşteri sonra aranmak istedi (Arama Randevusu oluştur)</label>'+
          '<div class="ag-sonra-alan" id="ag_sonra_alan">'+
@@ -412,6 +455,26 @@ $(document).on('change', '#ag_sonra_chk', function(){
    }
 });
 
+// Script seçimi -> içeriği göster
+$(document).on('change', '#ag_script_sec', function(){
+   var id = $(this).val();
+   var s = agScriptler.find(function(x){ return String(x.id)===String(id); });
+   if (s && (s.icerik||'').trim()){ $('#ag_script_icerik').text(s.icerik).show(); }
+   else { $('#ag_script_icerik').hide().text(''); }
+});
+
+// Kategori seçimi -> alt kategorileri doldur
+$(document).on('change', '#ag_kat', function(){
+   var id = $(this).val();
+   var k = agKategoriler.find(function(x){ return String(x.id)===String(id); });
+   var $alt = $('#ag_altkat');
+   if (k && (k.altlar||[]).length){
+      var opts = '<option value="">Alt kategori seçin</option>';
+      k.altlar.forEach(function(a){ opts += '<option value="'+agEsc(a.id)+'">'+agEsc(a.ad)+'</option>'; });
+      $alt.html(opts).show();
+   } else { $alt.hide().html(''); }
+});
+
 // ---- ARA (santral originate) ----
 $(document).on('click', '#ag_ara_btn', function(){
    var id = $(this).data('id');
@@ -451,6 +514,9 @@ $(document).on('click', '#ag_kaydet', function(){
       swal({ type:'warning', title:'Sonuç seçin', text:'Bir görüşme sonucu seçin, randevu oluşturun ya da not yazın.' }); return;
    }
 
+   var katId = $('#ag_kat').val() || '';
+   var altKatId = $('#ag_altkat').val() || '';
+
    var $btn = $(this); $btn.prop('disabled', true);
    $.ajax({
       url:'/isletmeyonetim/santral_not_ekle', method:'POST',
@@ -459,6 +525,8 @@ $(document).on('click', '#ag_kaydet', function(){
          aranacak_musteri_id: agSecili.aranacak_musteri_id,
          noticerik: not,
          sonuc: sonraMu ? '' : (agSecilenSonuc===null ? '' : agSecilenSonuc),
+         kategori_id: katId,
+         alt_kategori_id: altKatId,
          santralnottarih: sonraMu ? tarih : '',
          santralnotsaat:  sonraMu ? saat  : '',
          _token:$('input[name="_token"]').val()
@@ -492,6 +560,6 @@ function agDurumGuncelle(aranacakId, yeniKod){
    agKuyrukCiz();
 }
 
-$(document).ready(function(){ agListeleriYukle(); });
+$(document).ready(function(){ agListeleriYukle(); agScriptleriYukle(); agKategorileriYukle(); });
 </script>
 @endsection

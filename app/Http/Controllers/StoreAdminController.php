@@ -27186,25 +27186,36 @@ DB::raw('
             return response()->json(['notlar' => []]);
         }
 
-        $notlar = DB::table('gorusme_notlari as g')
-            ->leftJoin('users as u', 'u.id', '=', 'g.user_id')
-            ->where('g.salon_id', $salonId)
+        // Kategori kolonlari prod'da schema-ensure calismadan once olmayabilir -> savunmaci.
+        $katVar = Schema::hasColumn('gorusme_notlari', 'kategori_id') && Schema::hasTable('cagri_kategorileri');
+
+        $q = DB::table('gorusme_notlari as g')
+            ->leftJoin('users as u', 'u.id', '=', 'g.user_id');
+        if ($katVar) {
+            $q->leftJoin('cagri_kategorileri as k', 'k.id', '=', 'g.kategori_id')
+              ->leftJoin('cagri_kategorileri as ak', 'ak.id', '=', 'g.alt_kategori_id');
+        }
+        $q->where('g.salon_id', $salonId)
             ->where('g.personel_id', $personelId)
             ->orderBy('g.id', 'desc')
-            ->limit(300)
-            ->select('g.not', 'g.ses_kaydi', 'g.sonuc', 'g.sure_dk', 'g.created_at', 'u.name')
-            ->get()
-            ->map(function ($n) {
-                return [
-                    'musteri'    => $n->name ?? '-',
-                    'not'        => $n->not ?? '',
-                    'sonuc'      => self::aranacakDurumMetin($n->sonuc),
-                    'sonuc_kod'  => is_null($n->sonuc) ? null : (int) $n->sonuc,
-                    'sure_dk'    => (int) $n->sure_dk,
-                    'ses'        => $n->ses_kaydi ? 'https://voicerecords.randevumcepte.com.tr' . $n->ses_kaydi : '',
-                    'tarih'      => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
-                ];
-            });
+            ->limit(300);
+
+        $sel = ['g.not', 'g.ses_kaydi', 'g.sonuc', 'g.sure_dk', 'g.created_at', 'u.name'];
+        if ($katVar) { $sel[] = 'k.ad as kategori_ad'; $sel[] = 'ak.ad as alt_kategori_ad'; }
+
+        $notlar = $q->select($sel)->get()->map(function ($n) use ($katVar) {
+            return [
+                'musteri'      => $n->name ?? '-',
+                'not'          => $n->not ?? '',
+                'sonuc'        => self::aranacakDurumMetin($n->sonuc),
+                'sonuc_kod'    => is_null($n->sonuc) ? null : (int) $n->sonuc,
+                'sure_dk'      => (int) $n->sure_dk,
+                'kategori'     => $katVar ? ($n->kategori_ad ?? '') : '',
+                'alt_kategori' => $katVar ? ($n->alt_kategori_ad ?? '') : '',
+                'ses'          => $n->ses_kaydi ? 'https://voicerecords.randevumcepte.com.tr' . $n->ses_kaydi : '',
+                'tarih'        => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
+            ];
+        });
 
         return response()->json(['notlar' => $notlar]);
     }
@@ -27343,9 +27354,24 @@ DB::raw('
         }
         $kayit->save();
 
+        // Gorusme sonucu kategorisi (opsiyonel, ayni salona ait olmali). Kategori semasi
+        // prod'da schema-ensure calismadan once olmayabilir -> savunmaci.
+        $kategoriId = null; $altKategoriId = null;
+        $katSema = Schema::hasTable('cagri_kategorileri') && Schema::hasColumn('gorusme_notlari', 'kategori_id');
+        if ($katSema) {
+            $kategoriId = $request->filled('kategori_id') ? (int) $request->kategori_id : null;
+            $altKategoriId = $request->filled('alt_kategori_id') ? (int) $request->alt_kategori_id : null;
+            if ($kategoriId && !\App\CagriKategori::where('id', $kategoriId)->where('salon_id', $salonId)->exists()) {
+                $kategoriId = null; $altKategoriId = null;
+            }
+            if ($altKategoriId && !\App\CagriKategori::where('id', $altKategoriId)->where('salon_id', $salonId)->where('ust_id', $kategoriId)->exists()) {
+                $altKategoriId = null;
+            }
+        }
+
         // Cogul gorusme notu gecmisi (musteriye kalici bag)
         try {
-            \App\GorusmeNotlari::create([
+            $gnVeri = [
                 'aranacak_musteri_id' => $kayit->id,
                 'arama_id'            => $aramaDetayId,
                 'salon_id'            => $salonId,
@@ -27354,7 +27380,12 @@ DB::raw('
                 'not'                 => $notIcerik,
                 'sonuc'               => $kayitDurum,
                 'ses_kaydi'           => $kayit->ses_kaydi,
-            ]);
+            ];
+            if ($katSema) {
+                $gnVeri['kategori_id'] = $kategoriId;
+                $gnVeri['alt_kategori_id'] = $altKategoriId;
+            }
+            \App\GorusmeNotlari::create($gnVeri);
         } catch (\Throwable $e) {
             \Log::warning('[CAGRI-MERKEZI] gorusme_notlari yazilamadi: ' . $e->getMessage());
         }
@@ -27549,6 +27580,172 @@ DB::raw('
         }
 
         return response()->json(['kayitlar' => array_values($kayitlar)]);
+    }
+
+    /* ============================================================
+     * Cagri Merkezi — Scriptler & Kategoriler (yonetici tanimlar, agent kullanir)
+     * ============================================================ */
+
+    /** Yonetici ayar sayfasi: gorusme scriptleri + sonuc kategorileri yonetimi. */
+    public function cagri_ayarlari(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+        $isletme = Salonlar::where('id', $salonId)->first();
+
+        if (!in_array($salonId, $isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+        if ($rol == 5) {
+            return view('isletmeadmin.yetkisizerisim'); // personel goremez
+        }
+
+        // Sema garantisi: prod migrate calistirmadigi icin tablolari burada da garanti et (idempotent).
+        try { \App\Services\CagriMerkeziSchema::ensure(); } catch (\Throwable $e) {}
+
+        return view('isletmeadmin.cagri_ayarlari', [
+            'kullaniciRolu'           => $rol,
+            'bildirimler'             => self::bildirimgetir($request),
+            'sayfa_baslik'            => 'Çağrı Merkezi Ayarları',
+            'pageindex'               => 46,
+            'isletme'                 => $isletme,
+            'kalan_uyelik_suresi'     => self::lisans_sure_kontrol($request),
+            'yetkiliolunanisletmeler' => $isletmeler,
+        ]);
+    }
+
+    /** Salonun tum scriptleri (yonetici listesi). */
+    public function cagri_script_liste(Request $request)
+    {
+        if (!Schema::hasTable('cagri_scriptleri')) {
+            return response()->json(['scriptler' => []]);
+        }
+        $salonId = self::mevcutsube($request);
+        $scriptler = \App\CagriScript::where('salon_id', $salonId)->orderBy('id', 'desc')->get(['id', 'baslik', 'icerik', 'aktif']);
+        return response()->json(['scriptler' => $scriptler]);
+    }
+
+    /** Script ekle/guncelle. */
+    public function cagri_script_kaydet(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        if (self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id) == 5) {
+            return response()->json(['success' => false, 'message' => 'Yetkiniz yok'], 403);
+        }
+        $baslik = trim((string) $request->baslik);
+        if ($baslik === '') {
+            return response()->json(['success' => false, 'message' => 'Başlık zorunlu']);
+        }
+        $script = $request->filled('id')
+            ? \App\CagriScript::where('id', $request->id)->where('salon_id', $salonId)->first()
+            : new \App\CagriScript();
+        if (!$script) {
+            return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı']);
+        }
+        $script->salon_id = $salonId;
+        $script->baslik = $baslik;
+        $script->icerik = (string) $request->icerik;
+        $script->aktif = $request->filled('aktif') ? (int) $request->aktif : 1;
+        $script->save();
+        return response()->json(['success' => true, 'id' => $script->id]);
+    }
+
+    /** Script sil. */
+    public function cagri_script_sil(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        if (self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id) == 5) {
+            return response()->json(['success' => false, 'message' => 'Yetkiniz yok'], 403);
+        }
+        \App\CagriScript::where('id', $request->id)->where('salon_id', $salonId)->delete();
+        return response()->json(['success' => true]);
+    }
+
+    /** Salonun kategori agaci (ana + alt). Yonetici ve agent ayni veriyi okur. */
+    public function cagri_kategori_liste(Request $request)
+    {
+        if (!Schema::hasTable('cagri_kategorileri')) {
+            return response()->json(['kategoriler' => []]);
+        }
+        $salonId = self::mevcutsube($request);
+        $hepsi = \App\CagriKategori::where('salon_id', $salonId)->where('aktif', 1)
+            ->orderBy('sira')->orderBy('id')->get(['id', 'ust_id', 'ad']);
+
+        // NOT: Laravel 5.6 Collection'da whereNull yok -> filter ile null kontrolu.
+        $analar = $hepsi->filter(function ($x) { return is_null($x->ust_id); });
+        $agac = [];
+        foreach ($analar as $ana) {
+            $altlar = $hepsi->filter(function ($a) use ($ana) { return (int) $a->ust_id === (int) $ana->id; })
+                ->map(function ($a) { return ['id' => $a->id, 'ad' => $a->ad]; })
+                ->values();
+            $agac[] = [
+                'id'     => $ana->id,
+                'ad'     => $ana->ad,
+                'altlar' => $altlar,
+            ];
+        }
+        return response()->json(['kategoriler' => $agac]);
+    }
+
+    /** Kategori veya alt kategori ekle/guncelle (ust_id bos => ana kategori). */
+    public function cagri_kategori_kaydet(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        if (self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id) == 5) {
+            return response()->json(['success' => false, 'message' => 'Yetkiniz yok'], 403);
+        }
+        $ad = trim((string) $request->ad);
+        if ($ad === '') {
+            return response()->json(['success' => false, 'message' => 'Ad zorunlu']);
+        }
+        $kat = $request->filled('id')
+            ? \App\CagriKategori::where('id', $request->id)->where('salon_id', $salonId)->first()
+            : new \App\CagriKategori();
+        if (!$kat) {
+            return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı']);
+        }
+        $kat->salon_id = $salonId;
+        $kat->ad = $ad;
+        // ust_id sadece yeni kayitta belirlenir; gecerli ve ayni salona ait olmali
+        if (!$request->filled('id')) {
+            $ustId = $request->filled('ust_id') ? (int) $request->ust_id : null;
+            if ($ustId) {
+                $ust = \App\CagriKategori::where('id', $ustId)->where('salon_id', $salonId)->whereNull('ust_id')->first();
+                $ustId = $ust ? $ust->id : null;
+            }
+            $kat->ust_id = $ustId;
+        }
+        $kat->aktif = 1;
+        $kat->save();
+        return response()->json(['success' => true, 'id' => $kat->id]);
+    }
+
+    /** Kategori sil (ana kategori silinirse alt kategorileri de gider). */
+    public function cagri_kategori_sil(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        if (self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id) == 5) {
+            return response()->json(['success' => false, 'message' => 'Yetkiniz yok'], 403);
+        }
+        $kat = \App\CagriKategori::where('id', $request->id)->where('salon_id', $salonId)->first();
+        if ($kat) {
+            \App\CagriKategori::where('ust_id', $kat->id)->where('salon_id', $salonId)->delete(); // alt kategoriler
+            $kat->delete();
+        }
+        return response()->json(['success' => true]);
+    }
+
+    /** Agent: salonun aktif scriptleri (calisma ekrani dropdown'u). */
+    public function cagri_scriptleri_getir(Request $request)
+    {
+        if (!Schema::hasTable('cagri_scriptleri')) {
+            return response()->json(['scriptler' => []]);
+        }
+        $salonId = self::mevcutsube($request);
+        $scriptler = \App\CagriScript::where('salon_id', $salonId)->where('aktif', 1)
+            ->orderBy('baslik')->get(['id', 'baslik', 'icerik']);
+        return response()->json(['scriptler' => $scriptler]);
     }
 
     public function arama_listesi_arandi_isaretle(Request $request)
