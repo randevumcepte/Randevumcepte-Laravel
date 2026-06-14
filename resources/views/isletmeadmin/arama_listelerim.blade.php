@@ -102,13 +102,33 @@
 /* Sonuç butonları */
 .ag-sonuc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
 @media (max-width:520px){ .ag-sonuc-grid{ grid-template-columns:repeat(2,1fr); } }
-.ag-sonuc{ border:1.5px solid #e9ebf2; background:#fff; border-radius:12px; padding:11px 6px; text-align:center; cursor:pointer; font-weight:700; font-size:12.5px; color:#5b6172; transition:all .12s ease; }
+.ag-sonuc{ border:1.5px solid #e9ebf2; background:#fff; border-radius:12px; padding:11px 6px; text-align:center; cursor:pointer; font-weight:700; font-size:12.5px; transition:all .12s ease; }
 .ag-sonuc .fa{ display:block; font-size:17px; margin-bottom:5px; }
-.ag-sonuc:hover{ border-color:#c4cad8; background:#fbfbfe; }
-.ag-sonuc.sec-yesil.aktif{ background:#e4f7ec; border-color:#1b9e4b; color:#1b9e4b; }
-.ag-sonuc.sec-kirmizi.aktif{ background:#fdecec; border-color:#d33; color:#d33; }
-.ag-sonuc.sec-turuncu.aktif{ background:#fff2e3; border-color:#e07a1a; color:#e07a1a; }
-.ag-sonuc.sec-koyukirmizi.aktif{ background:#fbe9ef; border-color:#c2185b; color:#c2185b; }
+.ag-sonuc.aktif{ box-shadow:0 6px 16px -8px rgba(30,30,60,.25); }
+
+/* Görüşüldü = yeşil */
+.ag-sonuc.sec-yesil{ color:#15803d; border-color:#cdeeda; background:#f5fbf7; }
+.ag-sonuc.sec-yesil .fa{ color:#16a34a; }
+.ag-sonuc.sec-yesil:hover{ border-color:#16a34a; background:#ecf8f1; }
+.ag-sonuc.sec-yesil.aktif{ background:#dff5e7; border-color:#16a34a; color:#15803d; }
+
+/* Cevapsız = kırmızı */
+.ag-sonuc.sec-kirmizi{ color:#c92a2a; border-color:#f6d4d4; background:#fdf6f6; }
+.ag-sonuc.sec-kirmizi .fa{ color:#dc2626; }
+.ag-sonuc.sec-kirmizi:hover{ border-color:#dc2626; background:#fcecec; }
+.ag-sonuc.sec-kirmizi.aktif{ background:#fce3e3; border-color:#dc2626; color:#c92a2a; }
+
+/* Meşgul = pembe/macenta */
+.ag-sonuc.sec-koyukirmizi{ color:#be185d; border-color:#f6d3e4; background:#fdf5f9; }
+.ag-sonuc.sec-koyukirmizi .fa{ color:#db2777; }
+.ag-sonuc.sec-koyukirmizi:hover{ border-color:#db2777; background:#fbeaf3; }
+.ag-sonuc.sec-koyukirmizi.aktif{ background:#fbe0ee; border-color:#db2777; color:#be185d; }
+
+/* Ulaşılamadı = turuncu */
+.ag-sonuc.sec-turuncu{ color:#c2570c; border-color:#f8ddc6; background:#fef8f2; }
+.ag-sonuc.sec-turuncu .fa{ color:#ea580c; }
+.ag-sonuc.sec-turuncu:hover{ border-color:#ea580c; background:#fdefe2; }
+.ag-sonuc.sec-turuncu.aktif{ background:#fde7d3; border-color:#ea580c; color:#c2570c; }
 
 .ag-not-alani{ width:100%; border:1px solid #e7e9f0; border-radius:12px; padding:11px 13px; font-size:13.5px; outline:none; resize:vertical; min-height:80px; margin-top:12px; transition:border-color .12s ease; }
 .ag-not-alani:focus{ border-color:#8b5cf6; }
