@@ -27231,7 +27231,7 @@ DB::raw('
                 'sure_dk'      => (int) $n->sure_dk,
                 'kategori'     => $katVar ? ($n->kategori_ad ?? '') : '',
                 'alt_kategori' => $katVar ? ($n->alt_kategori_ad ?? '') : '',
-                'ses'          => $n->ses_kaydi ? 'https://voicerecords.randevumcepte.com.tr' . $n->ses_kaydi : '',
+                'ses'          => self::sesKaydiUrl($n->ses_kaydi),
                 'tarih'        => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
             ];
         });
@@ -27287,7 +27287,7 @@ DB::raw('
                 'not'                 => $item->musteri_not ?? '',
                 'not_tarih'           => $item->tarih ?? '',
                 'not_saat'            => $item->saat ?? '',
-                'ses'                 => $item->ses_kaydi ? 'https://voicerecords.randevumcepte.com.tr' . $item->ses_kaydi : '',
+                'ses'                 => self::sesKaydiUrl($item->ses_kaydi),
             ];
         });
 
@@ -27310,6 +27310,15 @@ DB::raw('
             case 5: return 'Meşgul';
             default: return is_null($kod) ? 'Bekliyor' : 'Bekliyor';
         }
+    }
+
+    /** ses_kaydi degerini oynatilabilir URL'e cevirir: tam URL ise oldugu gibi, degilse voicerecords. */
+    public static function sesKaydiUrl($p)
+    {
+        $p = (string) $p;
+        if ($p === '') return '';
+        if (stripos($p, 'http') === 0) return $p; // CDR recording_path zaten tam URL olabilir
+        return 'https://voicerecords.randevumcepte.com.tr' . (substr($p, 0, 1) === '/' ? '' : '/') . $p;
     }
 
     /** Giris yapan yetkilinin bu salondaki personel (salon_personelleri) kaydinin id'sini doner. */
@@ -27642,14 +27651,7 @@ DB::raw('
                 $ts = isset($r['calldate']) ? strtotime($r['calldate']) : 0;
                 if ($ts >= $enYeniTs) { $enYeniTs = $ts; $enYeniPath = $r['recording_path']; }
             }
-            // ses_kaydi tutarliligi: voicerecords base + path olarak tuketildigi icin bas '/' garanti,
-            // tam URL geldiyse scheme+host ayiklanir.
-            if ($enYeniPath !== '') {
-                if (stripos($enYeniPath, 'http') === 0) {
-                    $enYeniPath = preg_replace('#^https?://[^/]+#', '', $enYeniPath);
-                }
-                if (substr($enYeniPath, 0, 1) !== '/') $enYeniPath = '/' . $enYeniPath;
-            }
+            // recording_path HAM saklanir (santral raporunda dogrudan audio src olarak calistigi sekilde).
             return $enYeniPath;
         } catch (\Throwable $e) {
             \Log::warning('[CAGRI-MERKEZI] son kayit getirilemedi: ' . $e->getMessage());
@@ -27675,14 +27677,16 @@ DB::raw('
             ->orderBy('id', 'desc')->limit(50)->get();
 
         // CDR gecikmesi telafisi: SADECE en yeni gorusme ses kaydsizsa ve yeniyse santralden bagla.
-        // (Eski notlara yanlis/ayni kaydi baglamamak icin sadece ilk/sonuncu kayda uygulanir.)
+        // Ayni kaydi farkli notlara baglamamak icin, bu musterinin notlarinda zaten kullanilan
+        // kayit yollarini disla (her gorusme kendi kaydina baglansin).
         $sonNot = $notlar->first();
         if ($sonNot && empty($sonNot->ses_kaydi)) {
             $olumTs = $sonNot->created_at ? strtotime($sonNot->created_at) : 0;
             if ($olumTs >= (time() - 86400)) {
+                $kullanilan = $notlar->pluck('ses_kaydi')->filter()->values()->all();
                 $dahili = $sonNot->personel_id ? Personeller::where('id', $sonNot->personel_id)->value('dahili_no') : null;
                 $path = $this->cagriMerkeziSonKaydiGetir($salonId, $dahili);
-                if ($path) {
+                if ($path && !in_array($path, $kullanilan, true)) {
                     $sonNot->ses_kaydi = $path; $sonNot->save();
                     if (empty($kayit->ses_kaydi)) { $kayit->ses_kaydi = $path; $kayit->save(); }
                 }
@@ -27695,7 +27699,7 @@ DB::raw('
                 'sonuc_kod' => is_null($n->sonuc) ? null : (int) $n->sonuc,
                 'sonuc'     => self::aranacakDurumMetin($n->sonuc),
                 'not'       => $n->not ?? '',
-                'ses'       => $n->ses_kaydi ? 'https://voicerecords.randevumcepte.com.tr' . $n->ses_kaydi : '',
+                'ses'       => self::sesKaydiUrl($n->ses_kaydi),
             ];
         });
 
