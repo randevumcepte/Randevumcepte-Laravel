@@ -1234,7 +1234,14 @@
     // Personel/Cihaz/Oda degisince hizmet TS'ini yenile
     $(document).on('change', '#modal-view-event-add-v2 .v2-personel, #modal-view-event-add-v2 .v2-cihaz, #modal-view-event-add-v2 .v2-oda', function(){
         var $row = $(this).closest('.v2-service-row');
-        if(!$row.length || $row.hasClass('v2-paket-card')) return; // paket kartlari farkli logic kullanir
+        var isPaket = $row.hasClass('v2-paket-card');
+        console.log('[V2 FILTRE handler]', {
+            elem: this.className,
+            val: this.value,
+            rowFound: $row.length > 0,
+            isPaket: isPaket
+        });
+        if(!$row.length || isPaket) return; // paket kartlari farkli logic kullanir
         v2RefreshHizmetTS($row);
     });
 
