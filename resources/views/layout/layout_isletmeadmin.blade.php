@@ -1680,7 +1680,21 @@
                   </li>
                   @endif
 
-                  {{-- 2c) Cagri Merkezi Ayarlari (yonetici): scriptler + sonuc kategorileri --}}
+                  {{-- 2c) Cagri Merkezi: Arama Ekrani (yonetici de gorur/test edebilir) --}}
+                  @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
+                  <li>
+                     @if($pageindex==44)
+                     <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-telephone-outbound"></span>
+                     <span class="mtext"> Arama Ekranı </span>
+                     </a>
+                  </li>
+                  @endif
+
+                  {{-- 2d) Cagri Merkezi Ayarlari (yonetici): scriptler + sonuc kategorileri --}}
                   @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
                   <li>
                      @if($pageindex==46)
