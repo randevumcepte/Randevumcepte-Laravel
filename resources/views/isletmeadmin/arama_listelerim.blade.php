@@ -98,6 +98,9 @@
 .ag-kart{ background:#fff; border:1px solid #eef0f5; border-radius:14px; padding:15px 16px; margin-bottom:16px; box-shadow:0 2px 10px -8px rgba(30,30,60,.15); }
 .ag-kart-bas{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:#8a90a2; margin-bottom:11px; display:flex; align-items:center; gap:7px; }
 .ag-kart-bas .fa{ color:#8b5cf6; }
+.ag-gecmis-yenile{ margin-left:auto; border:1px solid #e3e6ee; background:#fff; color:#6d28d9; border-radius:8px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer; text-transform:none; letter-spacing:0; }
+.ag-gecmis-yenile:hover{ border-color:#8b5cf6; background:#f7f5fe; }
+.ag-gecmis-yenile .fa{ color:#6d28d9; margin-right:3px; }
 
 /* Sonuç butonları */
 .ag-sonuc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
@@ -316,6 +319,14 @@ function agIlkMusteriyiSec(){
    if (ilk.length){ ilk.trigger('click'); }
 }
 
+// Çağrı geçmişini elle yenile
+$(document).on('click', '#ag_gecmis_yenile', function(){
+   if (agSecili){
+      $('#ag_gecmis').html('<div class="ag-spin"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
+      agGecmisYukle(agSecili.aranacak_musteri_id);
+   }
+});
+
 function agFiltreCiz(){
    var html='';
    AG_FILTRELER.forEach(function(f){
@@ -445,7 +456,9 @@ function agDetayCiz(m){
 
       // Çağrı geçmişi (ses kayıtları)
       '<div class="ag-kart">'+
-         '<div class="ag-kart-bas"><i class="fa fa-history"></i> Çağrı Geçmişi & Ses Kayıtları</div>'+
+         '<div class="ag-kart-bas"><i class="fa fa-history"></i> Çağrı Geçmişi & Ses Kayıtları'+
+            '<button class="ag-gecmis-yenile" id="ag_gecmis_yenile" title="Yenile"><i class="fa fa-refresh"></i> Yenile</button>'+
+         '</div>'+
          '<div id="ag_gecmis"><div class="ag-spin"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div></div>'+
       '</div>'+
 
@@ -582,6 +595,7 @@ $(document).on('click', '#ag_kaydet', function(){
             agSecili.not_tarih = sonraMu ? tarih : agSecili.not_tarih;
             agSecili.not_saat  = sonraMu ? saat  : agSecili.not_saat;
             agDurumGuncelle(agSecili.aranacak_musteri_id, yeniDurum);
+            agGecmisYukle(agSecili.aranacak_musteri_id); // sonuç kaydedildi -> kaydı/geçmişi tazele
             swal({ type:'success', title:'Kaydedildi', timer:1400, showConfirmButton:false });
          } else {
             swal({ type:'error', title:'Hata', text:res.message||'Kaydedilemedi.' });
