@@ -23722,6 +23722,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $cdrListesi = isset($results['data']) && is_array($results['data']) ? $results['data'] : (is_array($results) ? $results : []);
             foreach($cdrListesi as $key=>$result){
                 if(!is_array($result)) continue;
+                // GUVENLI ayiklama: SADECE bizim originate'te koydugumuz "cmerkezi" etiketini
+                // tasiyan cagrilar atlanir (agent-first cagri merkezi aramalari). Normal aramalarda
+                // bu etiket olmadigi icin onlara DOKUNMAZ; etiket CDR'a yansimazsa filtre no-op.
+                if ((($result['accountcode'] ?? '') === 'cmerkezi') || (($result['userfield'] ?? '') === 'cmerkezi')) {
+                    continue;
+                }
                 $raporaEkle = false;
                 $durum = '';
                 $musteriAdi = '';
@@ -27475,6 +27481,7 @@ DB::raw('
         $req  = "Action: Originate\r\n";
         $req .= "Channel: Local/" . $dahili . "@from-internal\r\n";            // once personelin dahilisi calar
         $req .= "Callerid: " . $sabitno->numara . "\r\n";                      // Bria'da salon no gorunur (musteri no DEGIL)
+        $req .= "Account: cmerkezi\r\n";                                       // CDR etiketi: santral raporu bu cagrilari ayiklar
         $req .= "Application: Dial\r\n";
         $req .= "Data: SIP/" . $sabitno->numara . "-out/0" . $tel . ",60\r\n"; // acinca musteri salon peer'inden aranir
         $req .= "Async: yes\r\n\r\n";
