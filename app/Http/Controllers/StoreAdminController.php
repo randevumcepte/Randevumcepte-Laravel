@@ -22455,10 +22455,27 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $cihaz_hizmet_map = (object) $cm;
         }
 
+        // Oda -> hizmet eslesmesi (v2 modal filtresi icin gerekli; blade'den de aliniyordu ama
+        // ensureHizmetVerisi cagrilarinda dinamik yenilenebilsin diye burada da donduruyoruz).
+        $oda_hizmet_map = new \stdClass();
+        if (\Schema::hasTable('oda_sunulan_hizmetler')) {
+            $om = [];
+            $rows = \DB::table('oda_sunulan_hizmetler')
+                ->where('salon_id', $isletmeid)
+                ->select('oda_id','hizmet_id')
+                ->get();
+            foreach($rows as $r){
+                if(!isset($om[$r->oda_id])) $om[$r->oda_id] = [];
+                $om[$r->oda_id][] = (int)$r->hizmet_id;
+            }
+            $oda_hizmet_map = (object) $om;
+        }
+
         return response()->json([
             'tum_hizmetler' => $tum_hizmetler,
             'personel_hizmet_map' => $personel_hizmet_map,
             'cihaz_hizmet_map' => $cihaz_hizmet_map,
+            'oda_hizmet_map' => $oda_hizmet_map,
         ]);
     }
 

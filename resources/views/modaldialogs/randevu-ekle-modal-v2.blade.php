@@ -1160,22 +1160,34 @@
     function v2FilterHizmetler(personelId, cihazId, odaId){
         var verisi = window.randevuHizmetVerisi || {};
         var tum = (verisi.tum || []).slice();
-        // Eslesme map'leri yoksa tum hizmetleri göster
         var izinli = null;
         var hp = (personelId && verisi.personel) ? (verisi.personel[personelId] || null) : null;
         var hc = (cihazId    && verisi.cihaz)    ? (verisi.cihaz[cihazId]       || null) : null;
+        // ODA: oncelikle endpoint'ten gelen taze map, yoksa blade randevuModalData fallback
         var ho = null;
         if(odaId){
-            var odaObj = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){
-                return String(o.id) === String(odaId);
-            });
-            if(odaObj && Array.isArray(odaObj.hizmet_idleri) && odaObj.hizmet_idleri.length){
-                ho = odaObj.hizmet_idleri.map(String);
+            if(verisi.oda && verisi.oda[odaId] && verisi.oda[odaId].length){
+                ho = verisi.oda[odaId].map(String);
+            } else {
+                var odaObj = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){
+                    return String(o.id) === String(odaId);
+                });
+                if(odaObj && Array.isArray(odaObj.hizmet_idleri) && odaObj.hizmet_idleri.length){
+                    ho = odaObj.hizmet_idleri.map(String);
+                }
             }
         }
         if(hp && hp.length) izinli = hp.slice();
         if(hc && hc.length) izinli = (izinli ? izinli : []).concat(hc);
         if(ho && ho.length) izinli = (izinli ? izinli : []).concat(ho);
+        console.log('[V2 FILTRE]', {personelId, cihazId, odaId,
+            hp_count: hp ? hp.length : 0,
+            hc_count: hc ? hc.length : 0,
+            ho_count: ho ? ho.length : 0,
+            tum_count: tum.length,
+            izinli: izinli ? izinli.length : 0,
+            verisi_oda_var: !!(verisi.oda && Object.keys(verisi.oda).length)
+        });
         if(izinli && izinli.length){
             izinli = Array.from(new Set(izinli.map(String)));
             return tum.filter(function(h){ return izinli.indexOf(String(h.id)) > -1; });
@@ -1956,7 +1968,8 @@
                 window.randevuHizmetVerisi = {
                     tum: (resp && resp.tum_hizmetler) ? resp.tum_hizmetler : [],
                     personel: (resp && resp.personel_hizmet_map) ? resp.personel_hizmet_map : {},
-                    cihaz: (resp && resp.cihaz_hizmet_map) ? resp.cihaz_hizmet_map : {}
+                    cihaz: (resp && resp.cihaz_hizmet_map) ? resp.cihaz_hizmet_map : {},
+                    oda: (resp && resp.oda_hizmet_map) ? resp.oda_hizmet_map : {}
                 };
                 window.randevuHizmetVerisi.tum.forEach(function(h){
                     window.hizmetDataCache[h.id] = { id:h.id, text:h.ad, sure:h.sure||0, fiyat:h.fiyat||0, kategori:h.kategori||'' };
