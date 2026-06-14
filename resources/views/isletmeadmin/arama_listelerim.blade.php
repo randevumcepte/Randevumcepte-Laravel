@@ -23,6 +23,11 @@
 .ag-grid{ display:grid; grid-template-columns:380px 1fr; gap:18px; align-items:start; }
 @media (max-width:991px){ .ag-grid{ grid-template-columns:1fr; } }
 
+/* Sağ arama paneli: sol kuyruk kaydırılırken yerinde sabit kalsın */
+@media (min-width:992px){
+   #ag_detay_panel{ position:sticky; top:16px; align-self:start; max-height:calc(100vh - 86px); overflow-y:auto; }
+}
+
 .ag-panel{ background:#fff; border-radius:18px; border:1px solid #efeaf6; box-shadow:0 6px 20px -12px rgba(30,30,60,.2); overflow:hidden; }
 .ag-panel-head{ padding:14px 16px; border-bottom:1px solid #f0eef5; display:flex; align-items:center; gap:10px; }
 .ag-panel-head h5{ margin:0; font-weight:700; font-size:15px; color:#241b3a; }
