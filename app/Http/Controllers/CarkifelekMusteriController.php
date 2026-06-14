@@ -129,6 +129,10 @@ class CarkifelekMusteriController extends Controller
             ];
         })->values()->toArray();
 
+        $kurallar = Schema::hasColumn('carkifelek_sistemi', 'kullanim_kurallari')
+            ? trim((string) ($cark->kullanim_kurallari ?? ''))
+            : '';
+
         return view('carkifelek.cevir', array_merge($this->layoutData(), [
             'salon'           => $salon,
             'cark'            => $cark,
@@ -139,6 +143,7 @@ class CarkifelekMusteriController extends Controller
             'bugunCevirdi'    => $bugunCevirdi,
             'yarinSaat'       => $yarin,
             'isMisafir'       => $isMisafir,
+            'kurallar'        => $kurallar,
         ]));
     }
 

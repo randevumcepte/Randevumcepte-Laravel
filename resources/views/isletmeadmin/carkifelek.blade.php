@@ -386,6 +386,61 @@
 .save-btn:active:not(:disabled) { transform: translateY(0); }
 .save-btn:disabled { opacity: .6; cursor: not-allowed; }
 
+/* ── Kullanım Kuralları kartı ─────────────────── */
+.rules-card {
+    background: var(--white);
+    border-radius: var(--card-r);
+    box-shadow: var(--sh);
+    padding: 22px 28px 24px;
+    margin-top: 24px;
+}
+.rules-head {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 6px;
+}
+.rules-head-icon {
+    width: 42px; height: 42px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--orange), var(--gold));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 6px 16px rgba(225,112,85,.3);
+}
+.rules-head h2 { font-size: 16px; font-weight: 800; color: var(--dark); }
+.rules-head p  { font-size: 12px; color: var(--mid); margin-top: 2px; }
+.rules-textarea {
+    width: 100%;
+    min-height: 120px;
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: #f8f9ff;
+    border: 1.5px solid #ececff;
+    border-radius: 12px;
+    font-size: 14px; line-height: 1.6; color: var(--dark);
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color .2s;
+}
+.rules-textarea:focus { outline: none; border-color: var(--purple); background: #fff; }
+.rules-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 12px; flex-wrap: wrap; gap: 10px;
+}
+.rules-hint { font-size: 12px; color: var(--mid); }
+.rules-hint b { color: var(--orange); }
+.rules-save-btn {
+    padding: 11px 26px;
+    background: linear-gradient(135deg, var(--orange), var(--gold));
+    color: white; border: none;
+    border-radius: 10px;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(225,112,85,.3);
+    transition: all .25s;
+}
+.rules-save-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(225,112,85,.4); }
+.rules-save-btn:disabled { opacity: .6; cursor: not-allowed; }
+
 /* ── Modal ───────────────────────────────────── */
 .modal-ov {
     display: none; position: fixed; inset: 0;
@@ -546,6 +601,23 @@
         </div>
 
     </div>
+
+    {{-- Kullanım Kuralları --}}
+    <div class="rules-card">
+        <div class="rules-head">
+            <div class="rules-head-icon">📋</div>
+            <div>
+                <h2>Çarkıfelek Kullanım Kuralları</h2>
+                <p>Bu metin, çarkı çeviren müşterilere bilgilendirme/uyarı olarak gösterilir. (Örn. geçerlilik süresi, kullanım koşulları)</p>
+            </div>
+        </div>
+        <textarea class="rules-textarea" id="rules-text"
+            placeholder="Örnek:&#10;• Kazandığınız ödüller 30 gün içinde geçerlidir.&#10;• Her müşteri günde 1 kez çevirebilir.&#10;• Kuponlar başka kampanyalarla birleştirilemez.&#10;• Ödüller nakde çevrilemez."></textarea>
+        <div class="rules-foot">
+            <span class="rules-hint">Boş bırakırsanız müşteri tarafında <b>kurallar alanı gösterilmez</b>.</span>
+            <button class="rules-save-btn" id="rules-save-btn" onclick="saveKurallar()">📋 Kuralları Kaydet</button>
+        </div>
+    </div>
 </div>
 
 {{-- Result Modal --}}
@@ -599,6 +671,7 @@
     let isActive    = true;
     let currentRot  = 0;
     let spinning    = false;
+    let kurallar    = '';  // salon sahibinin girdiği kullanım kuralları
 
     /* ── Elements ── */
     const wheelEl     = document.getElementById('wheel');
@@ -612,6 +685,7 @@
     const toast       = document.getElementById('toast');
     const resultModal = document.getElementById('result-modal');
     const resultText  = document.getElementById('modal-result-text');
+    const rulesText   = document.getElementById('rules-text');
 
     /* ── Init ── */
     document.addEventListener('DOMContentLoaded', () => {
@@ -628,6 +702,8 @@
             const data = await res.json();
             if (data.success && data.data) {
                 isActive = data.data.aktifmi == 1;
+                kurallar = data.data.kurallar || '';
+                if (rulesText) rulesText.value = kurallar;
                 if (data.data.dilimler && data.data.dilimler.length > 0) {
                     slices = data.data.dilimler.map(d => ({
                         name:        d.name,
@@ -1251,6 +1327,18 @@
         await saveToServer(false);
     };
 
+    /* ── Sadece kuralları kaydet (dilimlerle birlikte gönderilir) ── */
+    window.saveKurallar = async function () {
+        if (selectedIdx < 0 || selectedIdx >= slices.length) {
+            showToast('Lütfen önce bir kazanan dilim seçin.', 'error');
+            return;
+        }
+        const btn = document.getElementById('rules-save-btn');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Kaydediliyor...'; }
+        await saveToServer(false);
+        if (btn) { btn.disabled = false; btn.textContent = '📋 Kuralları Kaydet'; }
+    };
+
     async function saveToServer(statusOnly) {
         const saveBtn = document.getElementById('save-btn');
         if (!statusOnly) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Kaydediliyor...'; }
@@ -1263,11 +1351,13 @@
             deger:       sl.deger != null ? sl.deger : null,
         }));
 
+        if (rulesText) kurallar = rulesText.value;
+
         try {
             const res  = await fetch('{{ route("isletmeadmin.carkdilimekle") }}', {
                 method: 'POST',
                 headers: HEADERS,
-                body: JSON.stringify({ dilimler: payload, aktifmi: isActive ? 1 : 0 })
+                body: JSON.stringify({ dilimler: payload, aktifmi: isActive ? 1 : 0, kurallar: kurallar })
             });
             const data = await res.json();
             console.log('[Çark kaydet] yanıt:', data);

@@ -11,6 +11,7 @@ class CarkifelekSistemi extends Model
 
     protected $fillable = [
         'aktifmi',
+        'kullanim_kurallari',
         'created_at',
         'updated_at',
         'salon_id',

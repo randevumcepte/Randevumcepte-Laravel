@@ -373,24 +373,40 @@ public function carkdilimekle(Request $request)
             ]);
         }
         
+        // kullanim_kurallari kolonu yoksa runtime'da ekle (migration çalışmamış olabilir)
+        if (!\Schema::hasColumn('carkifelek_sistemi', 'kullanim_kurallari')) {
+            try {
+                \Schema::table('carkifelek_sistemi', function ($t) {
+                    $t->text('kullanim_kurallari')->nullable();
+                });
+            } catch (\Exception $e) {
+                Log::warning('kullanim_kurallari kolonu eklenemedi: ' . $e->getMessage());
+            }
+        }
+        $hasKurallar = \Schema::hasColumn('carkifelek_sistemi', 'kullanim_kurallari');
+        $kurallar    = $request->has('kurallar') ? trim((string) $request->input('kurallar')) : null;
+
         // Çarkıfelek sistemini kontrol et veya oluştur
         $carkifelek = CarkifelekSistemi::where('salon_id', $salon_id)->first();
-        
+
         if (!$carkifelek) {
-            $carkifelek = CarkifelekSistemi::create([
+            $payload = [
                 'aktifmi' => $request->input('aktifmi', 1),
                 'salon_id' => $salon_id,
                 'created_at' => now(),
                 'updated_at' => now()
-            ]);
-            
+            ];
+            if ($hasKurallar && $request->has('kurallar')) $payload['kullanim_kurallari'] = $kurallar;
+            $carkifelek = CarkifelekSistemi::create($payload);
+
             Log::info('Yeni çark oluşturuldu. ID: ' . $carkifelek->id);
         } else {
             // Çark aktif/pasif durumunu güncelle
             $carkifelek->aktifmi = $request->input('aktifmi', $carkifelek->aktifmi);
+            if ($hasKurallar && $request->has('kurallar')) $carkifelek->kullanim_kurallari = $kurallar;
             $carkifelek->updated_at = now();
             $carkifelek->save();
-            
+
             Log::info('Mevcut çark güncellendi. ID: ' . $carkifelek->id . ', Aktif mi: ' . $carkifelek->aktifmi);
         }
         
@@ -509,14 +525,17 @@ public function carkverilerigetir(Request $request)
             })
             ->values();
         
+        $hasKurallar = \Schema::hasColumn('carkifelek_sistemi', 'kullanim_kurallari');
+
         return response()->json([
             'success' => true,
             'data' => [
-                'aktifmi' => $carkifelek->aktifmi,
+                'aktifmi'  => $carkifelek->aktifmi,
+                'kurallar' => $hasKurallar ? ($carkifelek->kullanim_kurallari ?? '') : '',
                 'dilimler' => $dilimler
             ]
         ]);
-        
+
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,

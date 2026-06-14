@@ -78,6 +78,25 @@
 }
 .hak-info b { color: var(--ck-purple); font-weight:700; }
 
+/* Kullanım kuralları */
+.ck-kurallar {
+    width:100%; max-width:560px; margin:22px auto 0;
+    background: linear-gradient(135deg,#fff7ed,#fef3c7);
+    border:1.5px solid #fcd9a8;
+    border-radius:16px;
+    padding:16px 18px;
+    text-align:left;
+}
+.ck-kurallar-head {
+    display:flex; align-items:center; gap:8px;
+    font-size:14px; font-weight:800; color:#92400e;
+    margin-bottom:8px;
+}
+.ck-kurallar-body {
+    font-size:13px; line-height:1.7; color:#78350f;
+    white-space:pre-line;
+}
+
 /* Modal (kutlama sonrası sonuç) */
 .modal-ov {
     display:none; position:fixed; inset:0;
@@ -189,6 +208,13 @@
             <br>
             <a href="{{ route('cark.sadakat') }}" class="odullerim-link">⭐ Sadakat Programım — Puanlarım & Kuponlarım</a>
         </div>
+
+        @if(trim($kurallar ?? '') !== '')
+        <div class="ck-kurallar">
+            <div class="ck-kurallar-head">📋 Çarkıfelek Kullanım Kuralları</div>
+            <div class="ck-kurallar-body">{{ $kurallar }}</div>
+        </div>
+        @endif
     </div>
 </div>
 
