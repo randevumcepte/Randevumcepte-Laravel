@@ -1153,6 +1153,79 @@
         updateSummary();
     });
 
+    // -------- PERSONEL/CIHAZ/ODA → HIZMET FILTRESI --------
+    // Seçilen personel/cihaz/oda'ya tanımlı hizmetler dropdown'a yüklenir.
+    // Eslesme bulunamazsa (hiçbiri tanımlı değil) filtreleme yapılmaz — tüm hizmetler gösterilir.
+    // v1'in filtrelenmisHizmetler mantığının v2 karşılığı.
+    function v2FilterHizmetler(personelId, cihazId, odaId){
+        var verisi = window.randevuHizmetVerisi || {};
+        var tum = (verisi.tum || []).slice();
+        // Eslesme map'leri yoksa tum hizmetleri göster
+        var izinli = null;
+        var hp = (personelId && verisi.personel) ? (verisi.personel[personelId] || null) : null;
+        var hc = (cihazId    && verisi.cihaz)    ? (verisi.cihaz[cihazId]       || null) : null;
+        var ho = null;
+        if(odaId){
+            var odaObj = ((window.randevuModalData && window.randevuModalData.odalar) || []).find(function(o){
+                return String(o.id) === String(odaId);
+            });
+            if(odaObj && Array.isArray(odaObj.hizmet_idleri) && odaObj.hizmet_idleri.length){
+                ho = odaObj.hizmet_idleri.map(String);
+            }
+        }
+        if(hp && hp.length) izinli = hp.slice();
+        if(hc && hc.length) izinli = (izinli ? izinli : []).concat(hc);
+        if(ho && ho.length) izinli = (izinli ? izinli : []).concat(ho);
+        if(izinli && izinli.length){
+            izinli = Array.from(new Set(izinli.map(String)));
+            return tum.filter(function(h){ return izinli.indexOf(String(h.id)) > -1; });
+        }
+        // Hicbir secime tanimli hizmet yoksa: filtrelemez (tum hizmetler)
+        return tum;
+    }
+
+    // Verilen satirin hizmet Tom Select'ini personel/oda/cihaz secimine gore yeniler.
+    // Halihazirda secili hizmetlerden listede kalanlar korunur; listede olmayanlar dusurulur.
+    function v2RefreshHizmetTS($row){
+        var $h = $row.find('.v2-hizmet');
+        var el = $h[0];
+        if(!el || !el.tomselect) return;
+        var ts = el.tomselect;
+        var personelId = $row.find('.v2-personel').val() || '';
+        var cihazId    = $row.find('.v2-cihaz').val()    || '';
+        var odaId      = $row.find('.v2-oda').val()      || '';
+        var liste = v2FilterHizmetler(personelId, cihazId, odaId);
+        var mevcutSecim = ts.getValue() || [];
+        if(!Array.isArray(mevcutSecim)) mevcutSecim = mevcutSecim ? [mevcutSecim] : [];
+
+        // TS options'i yeniden yukle: clear + addOption
+        ts.clearOptions();
+        liste.forEach(function(h){
+            ts.addOption({
+                value: String(h.id),
+                text: h.ad,
+                sure: h.sure,
+                fiyat: h.fiyat,
+                kategori: h.kategori
+            });
+        });
+        ts.refreshOptions(false);
+        // Secimi koru — sadece yeni listede olanlar
+        var korunan = mevcutSecim.filter(function(id){
+            return liste.some(function(h){ return String(h.id) === String(id); });
+        });
+        ts.setValue(korunan, true); // silent
+        try { updateRowMeta(parseInt($row.attr('data-index'), 10)); } catch(e){}
+        try { updateSummary(); } catch(e){}
+    }
+
+    // Personel/Cihaz/Oda degisince hizmet TS'ini yenile
+    $(document).on('change', '#modal-view-event-add-v2 .v2-personel, #modal-view-event-add-v2 .v2-cihaz, #modal-view-event-add-v2 .v2-oda', function(){
+        var $row = $(this).closest('.v2-service-row');
+        if(!$row.length || $row.hasClass('v2-paket-card')) return; // paket kartlari farkli logic kullanir
+        v2RefreshHizmetTS($row);
+    });
+
     function updateSummary(){
         var totalSure = 0, totalFiyat = 0;
         $services.find('.v2-service-row').each(function(){
