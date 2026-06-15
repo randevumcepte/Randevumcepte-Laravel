@@ -1231,6 +1231,36 @@
         try { updateSummary(); } catch(e){}
     }
 
+    // -------- ODA → PERSONEL FILTRESI --------
+    // Secilen odaya tanimli personel varsa, satirdaki Personel <select> sadece
+    // o personelleri gosterir. Tanimli personel yoksa: tum personeller gosterilir.
+    function v2RefreshPersonelByOda($row){
+        var $p = $row.find('.v2-personel');
+        if(!$p.length) return;
+        var odaId = $row.find('.v2-oda').val() || '';
+        var data = getRandevuModalData();
+        var allPersoneller = (data && data.personeller) ? data.personeller : [];
+        var verisi = window.randevuHizmetVerisi || {};
+        var izinli = null;
+        if(odaId && verisi.oda_personel && verisi.oda_personel[odaId] && verisi.oda_personel[odaId].length){
+            izinli = verisi.oda_personel[odaId].map(String);
+        }
+        var liste = (izinli && izinli.length)
+            ? allPersoneller.filter(function(p){ return izinli.indexOf(String(p.id)) > -1; })
+            : allPersoneller;
+        var prevVal = $p.val() || '';
+        $p.empty().append('<option value="">Personel...</option>');
+        liste.forEach(function(p){ $p.append(new Option(p.ad, p.id)); });
+        // Onceki secimi koru — sadece yeni listede varsa
+        if(prevVal && liste.some(function(p){ return String(p.id) === String(prevVal); })){
+            $p.val(prevVal);
+        } else if(prevVal){
+            // Secim listede yok: temizle (silent — change tetiklenmesin ki hizmet TS recurse etmesin)
+            $p.val('');
+        }
+        console.log('[V2 ODA→PERSONEL]', {odaId: odaId, izinli_count: izinli ? izinli.length : 0, liste_count: liste.length, prevVal: prevVal});
+    }
+
     // Personel/Cihaz/Oda degisince hizmet TS'ini yenile
     $(document).on('change', '#modal-view-event-add-v2 .v2-personel, #modal-view-event-add-v2 .v2-cihaz, #modal-view-event-add-v2 .v2-oda', function(){
         var $row = $(this).closest('.v2-service-row');
@@ -1242,6 +1272,10 @@
             isPaket: isPaket
         });
         if(!$row.length || isPaket) return; // paket kartlari farkli logic kullanir
+        // Oda degisirse once Personel listesini guncelle (oda-personel eslesmesine gore)
+        if($(this).hasClass('v2-oda')){
+            v2RefreshPersonelByOda($row);
+        }
         v2RefreshHizmetTS($row);
     });
 
@@ -1976,7 +2010,8 @@
                     tum: (resp && resp.tum_hizmetler) ? resp.tum_hizmetler : [],
                     personel: (resp && resp.personel_hizmet_map) ? resp.personel_hizmet_map : {},
                     cihaz: (resp && resp.cihaz_hizmet_map) ? resp.cihaz_hizmet_map : {},
-                    oda: (resp && resp.oda_hizmet_map) ? resp.oda_hizmet_map : {}
+                    oda: (resp && resp.oda_hizmet_map) ? resp.oda_hizmet_map : {},
+                    oda_personel: (resp && resp.oda_personel_map) ? resp.oda_personel_map : {}
                 };
                 window.randevuHizmetVerisi.tum.forEach(function(h){
                     window.hizmetDataCache[h.id] = { id:h.id, text:h.ad, sure:h.sure||0, fiyat:h.fiyat||0, kategori:h.kategori||'' };
@@ -2268,6 +2303,23 @@
                 addRow();
                 $firstRow = $services.find('.v2-service-row').first();
             }
+            // ODA ONCE: oda-personel eslesmesini personel listesine yansitabilmek icin
+            if(v1OdaOpt.val()){
+                var $vo = $firstRow.find('.v2-oda');
+                if($vo.length){
+                    if($vo.find('option[value="'+v1OdaOpt.val()+'"]').length === 0){
+                        $vo.append(new Option(v1OdaOpt.text(), v1OdaOpt.val()));
+                    }
+                    $vo.val(v1OdaOpt.val());
+                }
+            }
+            // Oda secildiyse personel <select>'i ona gore filtrele (programmatik
+            // .val() change tetiklemediginden elden cagiriyoruz).
+            try {
+                if(typeof v2RefreshPersonelByOda === 'function'){
+                    v2RefreshPersonelByOda($firstRow);
+                }
+            } catch(e){ console.warn('[V2 slot fill oda→personel] hata:', e); }
             if(v1PersonelOpt.val()){
                 var $vp = $firstRow.find('.v2-personel');
                 if($vp.find('option[value="'+v1PersonelOpt.val()+'"]').length === 0){
@@ -2282,15 +2334,6 @@
                         $vc.append(new Option(v1CihazOpt.text(), v1CihazOpt.val()));
                     }
                     $vc.val(v1CihazOpt.val());
-                }
-            }
-            if(v1OdaOpt.val()){
-                var $vo = $firstRow.find('.v2-oda');
-                if($vo.length){
-                    if($vo.find('option[value="'+v1OdaOpt.val()+'"]').length === 0){
-                        $vo.append(new Option(v1OdaOpt.text(), v1OdaOpt.val()));
-                    }
-                    $vo.val(v1OdaOpt.val());
                 }
             }
             // Programmatik .val() change event tetiklemiyor — filtreyi elden zorla

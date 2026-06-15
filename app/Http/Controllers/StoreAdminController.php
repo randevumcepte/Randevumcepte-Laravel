@@ -22471,11 +22471,27 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $oda_hizmet_map = (object) $om;
         }
 
+        // Oda -> personel eslesmesi (Odaya gore takvimde oda secince personel filtresi)
+        $oda_personel_map = new \stdClass();
+        if (\Schema::hasTable('oda_personelleri')) {
+            $opm = [];
+            $rows = \DB::table('oda_personelleri')
+                ->where('salon_id', $isletmeid)
+                ->select('oda_id','personel_id')
+                ->get();
+            foreach($rows as $r){
+                if(!isset($opm[$r->oda_id])) $opm[$r->oda_id] = [];
+                $opm[$r->oda_id][] = (int)$r->personel_id;
+            }
+            $oda_personel_map = (object) $opm;
+        }
+
         return response()->json([
             'tum_hizmetler' => $tum_hizmetler,
             'personel_hizmet_map' => $personel_hizmet_map,
             'cihaz_hizmet_map' => $cihaz_hizmet_map,
             'oda_hizmet_map' => $oda_hizmet_map,
+            'oda_personel_map' => $oda_personel_map,
         ]);
     }
 
