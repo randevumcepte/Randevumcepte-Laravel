@@ -23420,6 +23420,70 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 $q->where('name','like','%'.$request->musteriArama.'%');
                 $q->orWhere('cep_telefon','like','%'.$request->musteriArama.'%');
             })->limit(100)->get();
+
+            // v2 randevu-ekle-modal-v2 filtreleme mantigi icin gerekli 4 map:
+            //   personel_hizmet_map: { personel_id: [hizmet_id, ...] }
+            //   cihaz_hizmet_map:    { cihaz_id:    [hizmet_id, ...] }
+            //   oda_hizmet_map:      { oda_id:      [hizmet_id, ...] }
+            //   oda_personel_map:    { oda_id:      [personel_id, ...] }
+            // Mobil tarafi bu maplerle dropdown'lari filtreliyor.
+            $personel_hizmet_map = new \stdClass();
+            $cihaz_hizmet_map = new \stdClass();
+            $oda_hizmet_map = new \stdClass();
+            $oda_personel_map = new \stdClass();
+
+            $pmRows = DB::table('personel_sunulan_hizmetler')
+                ->join('salon_personelleri','personel_sunulan_hizmetler.personel_id','=','salon_personelleri.id')
+                ->where('salon_personelleri.salon_id', $request->salonid)
+                ->select('personel_sunulan_hizmetler.personel_id','personel_sunulan_hizmetler.hizmet_id')
+                ->get();
+            $pm = [];
+            foreach ($pmRows as $r) {
+                if (!isset($pm[$r->personel_id])) $pm[$r->personel_id] = [];
+                $pm[$r->personel_id][] = (int)$r->hizmet_id;
+            }
+            $personel_hizmet_map = (object) $pm;
+
+            $cmRows = DB::table('cihaz_sunulan_hizmetler')
+                ->join('cihazlar','cihaz_sunulan_hizmetler.cihaz_id','=','cihazlar.id')
+                ->where('cihazlar.salon_id', $request->salonid)
+                ->select('cihaz_sunulan_hizmetler.cihaz_id','cihaz_sunulan_hizmetler.hizmet_id')
+                ->get();
+            $cm = [];
+            foreach ($cmRows as $r) {
+                if (!isset($cm[$r->cihaz_id])) $cm[$r->cihaz_id] = [];
+                $cm[$r->cihaz_id][] = (int)$r->hizmet_id;
+            }
+            $cihaz_hizmet_map = (object) $cm;
+
+            if (\Schema::hasTable('oda_sunulan_hizmetler')) {
+                $omRows = DB::table('oda_sunulan_hizmetler')
+                    ->where('salon_id', $request->salonid)
+                    ->select('oda_id','hizmet_id')
+                    ->get();
+                $om = [];
+                foreach ($omRows as $r) {
+                    if (!isset($om[$r->oda_id])) $om[$r->oda_id] = [];
+                    $om[$r->oda_id][] = (int)$r->hizmet_id;
+                }
+                $oda_hizmet_map = (object) $om;
+            }
+
+            if (\Schema::hasTable('oda_personelleri')) {
+                $salonOdaIds = DB::table('odalar')->where('salon_id', $request->salonid)->pluck('id')->toArray();
+                if (count($salonOdaIds) > 0) {
+                    $opRows = DB::table('oda_personelleri')
+                        ->whereIn('oda_id', $salonOdaIds)
+                        ->select('oda_id','personel_id')
+                        ->get();
+                    $opm = [];
+                    foreach ($opRows as $r) {
+                        if (!isset($opm[$r->oda_id])) $opm[$r->oda_id] = [];
+                        $opm[$r->oda_id][] = (int)$r->personel_id;
+                    }
+                    $oda_personel_map = (object) $opm;
+                }
+            }
         }
         else{
             $subeler = Salonlar::where('app_bundle',$request->appBundle)->get();
@@ -23464,6 +23528,11 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             'sehirler'=>$sehirler,
             'subeler'=>$subeler,
             'formlar'=>$formlar,
+            // v2 randevu-ekle-modal-v2 filtreleme maps (sadece randevuAlSayfasi=false dalinda doldurulur)
+            'personel_hizmet_map' => $personel_hizmet_map ?? new \stdClass(),
+            'cihaz_hizmet_map' => $cihaz_hizmet_map ?? new \stdClass(),
+            'oda_hizmet_map' => $oda_hizmet_map ?? new \stdClass(),
+            'oda_personel_map' => $oda_personel_map ?? new \stdClass(),
         ]);
     }
 
