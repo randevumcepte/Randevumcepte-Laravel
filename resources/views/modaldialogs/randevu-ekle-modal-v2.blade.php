@@ -2298,61 +2298,73 @@
         var v1CihazOpt    = $('select[name="randevucihazlariyeni[]"]:first option:selected');
 
         // V2'yi ac, shown event'inde alanlari doldur
+        // KRITIK: ensureHizmetVerisi async AJAX; setTimeout(100) bunu beklemez.
+        // Oda-personel haritasi yuklenmeden filtre calismaz. Bu yuzden gercek doldurma
+        // mantigini ensureHizmetVerisi callback'ine sariyoruz.
         var fillV2 = function(){
-            if(tarih) $tarih.val(tarih);
-            if(saat) $saat.val(saat);
+            var doFill = function(){
+                if(tarih) $tarih.val(tarih);
+                if(saat) $saat.val(saat);
 
-            // Ilk satira personel/oda/cihaz yaz
-            var $firstRow = $services.find('.v2-service-row').first();
-            if(!$firstRow.length){
-                addRow();
-                $firstRow = $services.find('.v2-service-row').first();
-            }
-            // ODA ONCE: oda-personel eslesmesini personel listesine yansitabilmek icin
-            if(v1OdaOpt.val()){
-                var $vo = $firstRow.find('.v2-oda');
-                if($vo.length){
-                    if($vo.find('option[value="'+v1OdaOpt.val()+'"]').length === 0){
-                        $vo.append(new Option(v1OdaOpt.text(), v1OdaOpt.val()));
+                // Ilk satira personel/oda/cihaz yaz
+                var $firstRow = $services.find('.v2-service-row').first();
+                if(!$firstRow.length){
+                    addRow();
+                    $firstRow = $services.find('.v2-service-row').first();
+                }
+                // ODA ONCE: oda-personel eslesmesini personel listesine yansitabilmek icin
+                if(v1OdaOpt.val()){
+                    var $vo = $firstRow.find('.v2-oda');
+                    if($vo.length){
+                        if($vo.find('option[value="'+v1OdaOpt.val()+'"]').length === 0){
+                            $vo.append(new Option(v1OdaOpt.text(), v1OdaOpt.val()));
+                        }
+                        $vo.val(v1OdaOpt.val());
                     }
-                    $vo.val(v1OdaOpt.val());
                 }
-            }
-            // Oda secildiyse personel <select>'i ona gore filtrele (programmatik
-            // .val() change tetiklemediginden elden cagiriyoruz).
-            try {
-                if(typeof v2RefreshPersonelByOda === 'function'){
-                    v2RefreshPersonelByOda($firstRow);
-                }
-            } catch(e){ console.warn('[V2 slot fill oda→personel] hata:', e); }
-            if(v1PersonelOpt.val()){
-                var $vp = $firstRow.find('.v2-personel');
-                if($vp.find('option[value="'+v1PersonelOpt.val()+'"]').length === 0){
-                    $vp.append(new Option(v1PersonelOpt.text(), v1PersonelOpt.val()));
-                }
-                $vp.val(v1PersonelOpt.val());
-            }
-            if(v1CihazOpt.val()){
-                var $vc = $firstRow.find('.v2-cihaz');
-                if($vc.length){
-                    if($vc.find('option[value="'+v1CihazOpt.val()+'"]').length === 0){
-                        $vc.append(new Option(v1CihazOpt.text(), v1CihazOpt.val()));
+                // Oda secildiyse personel <select>'i ona gore filtrele (programmatik
+                // .val() change tetiklemediginden elden cagiriyoruz).
+                try {
+                    if(typeof v2RefreshPersonelByOda === 'function'){
+                        v2RefreshPersonelByOda($firstRow);
                     }
-                    $vc.val(v1CihazOpt.val());
+                } catch(e){ console.warn('[V2 slot fill oda→personel] hata:', e); }
+                if(v1PersonelOpt.val()){
+                    var $vp = $firstRow.find('.v2-personel');
+                    if($vp.find('option[value="'+v1PersonelOpt.val()+'"]').length === 0){
+                        $vp.append(new Option(v1PersonelOpt.text(), v1PersonelOpt.val()));
+                    }
+                    $vp.val(v1PersonelOpt.val());
                 }
+                if(v1CihazOpt.val()){
+                    var $vc = $firstRow.find('.v2-cihaz');
+                    if($vc.length){
+                        if($vc.find('option[value="'+v1CihazOpt.val()+'"]').length === 0){
+                            $vc.append(new Option(v1CihazOpt.text(), v1CihazOpt.val()));
+                        }
+                        $vc.val(v1CihazOpt.val());
+                    }
+                }
+                // Programmatik .val() change event tetiklemiyor — filtreyi elden zorla
+                try {
+                    if(typeof v2RefreshHizmetTS === 'function'){
+                        v2RefreshHizmetTS($firstRow);
+                    }
+                } catch(e){ console.warn('[V2 slot fill filter] hata:', e); }
+                $modal.off('shown.bs.modal.slotfill').on('shown.bs.modal.slotfill', function(){
+                    $modal.off('shown.bs.modal.slotfill');
+                });
+            };
+            // Haritalar yuklenmis mi? Yuklenmediyse ensureHizmetVerisi cb'sinde calistir.
+            var v = window.randevuHizmetVerisi;
+            if(v && v.tum && v.tum.length && v.oda_personel){
+                doFill();
+            } else if(typeof ensureHizmetVerisi === 'function'){
+                console.log('[V2 fillV2] ensureHizmetVerisi bekleniyor (oda_personel henuz yok)');
+                ensureHizmetVerisi(function(){ doFill(); });
+            } else {
+                doFill();
             }
-            // Programmatik .val() change event tetiklemiyor — filtreyi elden zorla
-            // (takvim slot tiklamasi ile gelen personel/cihaz/oda secimine gore
-            // hizmet TS'ini filtrele).
-            try {
-                if(typeof v2RefreshHizmetTS === 'function'){
-                    v2RefreshHizmetTS($firstRow);
-                }
-            } catch(e){ console.warn('[V2 slot fill filter] hata:', e); }
-            $modal.off('shown.bs.modal.slotfill').on('shown.bs.modal.slotfill', function(){
-                // Bu handler bir kez calissin; yukaridaki kopyalamalar zaten run etti.
-                $modal.off('shown.bs.modal.slotfill');
-            });
         };
 
         // V2 init zaten yapildiysa direkt doldur; degilse shown'da
