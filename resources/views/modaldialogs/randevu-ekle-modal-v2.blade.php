@@ -1988,12 +1988,17 @@
 
     // -------- HIZMET VERISI YUKLE (v1'in cache'i bos ise) --------
     function ensureHizmetVerisi(cb){
-        // Eger v1 modali zaten cache'i doldurmussa kullan
-        if(window.hizmetDataCache && Object.keys(window.hizmetDataCache).length > 0){ cb && cb(); return; }
-        if(window.randevuHizmetVerisi && window.randevuHizmetVerisi.tum && window.randevuHizmetVerisi.tum.length){
+        // V2 filtre haritalari (personel/cihaz/oda/oda_personel) yuklendiyse short-circuit.
+        // NOT: hizmetDataCache v1'den dolu olabilir ama randevuHizmetVerisi.oda_personel
+        // bos olabilir; bu durumda mutlaka fetch yapmaliyiz, aksi takdirde oda-personel
+        // filtresi calismaz.
+        var v = window.randevuHizmetVerisi;
+        if(v && v.tum && v.tum.length && v.oda_personel && typeof v.oda_personel === 'object'){
             window.hizmetDataCache = window.hizmetDataCache || {};
-            window.randevuHizmetVerisi.tum.forEach(function(h){
-                window.hizmetDataCache[h.id] = { id:h.id, text:h.ad, sure:h.sure||0, fiyat:h.fiyat||0, kategori:h.kategori||'' };
+            v.tum.forEach(function(h){
+                if(!window.hizmetDataCache[h.id]){
+                    window.hizmetDataCache[h.id] = { id:h.id, text:h.ad, sure:h.sure||0, fiyat:h.fiyat||0, kategori:h.kategori||'' };
+                }
             });
             cb && cb();
             return;

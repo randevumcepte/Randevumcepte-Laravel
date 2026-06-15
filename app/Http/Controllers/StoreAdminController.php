@@ -22472,18 +22472,25 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
 
         // Oda -> personel eslesmesi (Odaya gore takvimde oda secince personel filtresi)
+        // NOT: salon_id filtresi yerine salonun oda_id'lerini sinir olarak kullaniyoruz.
+        // oda_personelleri.salon_id NULL olabilir; diger sistem sorgulari (ApiController
+        // getOdaPersoneli) sadece oda_id ile filtreliyor.
         $oda_personel_map = new \stdClass();
         if (\Schema::hasTable('oda_personelleri')) {
-            $opm = [];
-            $rows = \DB::table('oda_personelleri')
-                ->where('salon_id', $isletmeid)
-                ->select('oda_id','personel_id')
-                ->get();
-            foreach($rows as $r){
-                if(!isset($opm[$r->oda_id])) $opm[$r->oda_id] = [];
-                $opm[$r->oda_id][] = (int)$r->personel_id;
+            $salonOdaIds = \DB::table('odalar')->where('salon_id', $isletmeid)->pluck('id')->toArray();
+            if(count($salonOdaIds) > 0){
+                $opm = [];
+                $rows = \DB::table('oda_personelleri')
+                    ->whereIn('oda_id', $salonOdaIds)
+                    ->select('oda_id','personel_id')
+                    ->get();
+                foreach($rows as $r){
+                    if(!isset($opm[$r->oda_id])) $opm[$r->oda_id] = [];
+                    $opm[$r->oda_id][] = (int)$r->personel_id;
+                }
+                $oda_personel_map = (object) $opm;
+                \Log::info('[v2 oda_personel_map]', ['salon_id'=>$isletmeid, 'oda_count'=>count($salonOdaIds), 'row_count'=>count($rows), 'map_keys'=>array_keys($opm)]);
             }
-            $oda_personel_map = (object) $opm;
         }
 
         return response()->json([
