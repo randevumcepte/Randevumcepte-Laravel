@@ -16044,7 +16044,7 @@ DB::raw('
         }
         $isletme      = Salonlar::where('id', self::mevcutsube($request))->first();
         $linklerHazir = (trim((string) $isletme->android_uygulama) !== '' && trim((string) $isletme->ios_uygulama) !== '');
-        return view('isletmeadmin.uygulama_afisi', [
+        return response(view('isletmeadmin.uygulama_afisi', [
             'pageindex'           => 80,
             'sayfa_baslik'        => 'Uygulama İndirme Afişi',
             'bildirimler'         => self::bildirimgetir($request),
@@ -16053,7 +16053,7 @@ DB::raw('
             'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
             'urun_drop'           => self::urundropliste($request),
             'linklerHazir'        => $linklerHazir,
-        ]);
+        ])->render());
       } catch (\Throwable $e) {
         $detay = 'AFIS HATA: ' . $e->getMessage() . "\n" . $e->getFile() . ':' . $e->getLine() . "\n\n" . $e->getTraceAsString();
         @file_put_contents(public_path('afis/_err.txt'), $detay);
