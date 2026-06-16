@@ -92,9 +92,8 @@
                            <div class="col-sm-4 col-xs-6 col-6 col-md-4 text-right" >
                               <div class="form-group" >
                                     <label style="visibility:hidden">Rapor Bitiş Tarihi</label>
-                             <button class="btn btn-success"  data-toggle="modal" id='arama_listesi_olustur' data-target="#santral_musteri_listesi"> <i class="fa fa-plus"></i> Arama Listesi Oluştur</button> 
+                                    {{-- "Arama Listesi Oluştur" butonu Çağrı Merkezi paneline taşındı (oradan yönetilir). --}}
                               </div>
-                             
                            </div>
                         </div>
                         @endif

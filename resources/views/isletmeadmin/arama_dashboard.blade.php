@@ -19,6 +19,9 @@
 }
 .cm-hero h4{ margin:0 0 6px; font-weight:700; font-size:24px; color:#fff; }
 .cm-hero p{ margin:0; opacity:.92; font-size:14px; max-width:620px; }
+.cm-hero-btn{ display:inline-flex; align-items:center; gap:8px; margin-top:16px; background:#fff; color:#5C008E; font-weight:800; font-size:14px; padding:12px 22px; border-radius:12px; text-decoration:none; box-shadow:0 10px 24px -10px rgba(0,0,0,.45); position:relative; z-index:2; transition:transform .12s ease; }
+.cm-hero-btn:hover{ color:#5C008E; transform:translateY(-2px); }
+.cm-hero-btn .fa{ font-size:15px; }
 
 /* Özet istatistik kartları */
 .cm-stat{
@@ -249,6 +252,7 @@
    <div class="cm-hero">
       <h4><i class="fa fa-headphones"></i> {{ $sayfa_baslik }}</h4>
       <p>Çağrı yapan personellerinizin ilerlemesini tek ekrandan takip edin. Her personele <b>atanan data</b> (aranacak müşteri listesi) üzerinden ne kadarını aradığını, kaç görüşme ve randevu çıkardığını görürsünüz. Detaylı görüşme dökümü için bir personel kartına tıklayın.</p>
+      <a href="#" class="cm-hero-btn" data-toggle="modal" data-target="#santral_musteri_listesi"><i class="fa fa-plus"></i> Arama Listesi Oluştur</a>
    </div>
 
    {{-- Özet bant --}}
@@ -743,6 +747,12 @@ $(document).on('click', '#seg_liste_sil', function(){
          }
       ).fail(function(){ segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); });
    }
+});
+
+// Arama listesi oluştur modalı kapanınca dashboard'ı tazele (yeni liste görünsün)
+$(document).on('hidden.bs.modal', '#santral_musteri_listesi', function(){
+   segListeleriYukle();
+   dashYukle();
 });
 
 $(document).ready(function () { dashYukle(); segListeleriYukle(); segPersonelYukle(); });
