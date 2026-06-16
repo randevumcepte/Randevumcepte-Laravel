@@ -17069,6 +17069,45 @@ DB::raw('
         ]);
     }
 
+    // GECICI TANI: bir randevuda adisyon_paket_seanslar kaydi var mi, gecerli mi (yetim mi)?
+    public function debugRandevuSeans(Request $request, $id)
+    {
+        $randevu = Randevular::find($id);
+        if (!$randevu) return response()->json(['hata' => 'randevu yok'], 404);
+
+        $seanslar = AdisyonPaketSeanslar::where('randevu_id', $id)->get();
+
+        $detay = [];
+        $yetimSayisi = 0;
+        $gecerliSayisi = 0;
+        foreach ($seanslar as $s) {
+            $paketGecerli  = $s->adisyon_paket_id  && AdisyonPaketler::where('id', $s->adisyon_paket_id)->exists();
+            $hizmetGecerli = $s->adisyon_hizmet_id && AdisyonHizmetler::where('id', $s->adisyon_hizmet_id)->exists();
+            $yetim = (!$paketGecerli && !$hizmetGecerli);
+            if ($yetim) $yetimSayisi++; else $gecerliSayisi++;
+            $detay[] = [
+                'seans_id'          => $s->id,
+                'hizmet_id'         => $s->hizmet_id,
+                'adisyon_paket_id'  => $s->adisyon_paket_id,
+                'adisyon_hizmet_id' => $s->adisyon_hizmet_id,
+                'geldi'             => $s->geldi,
+                'paket_gecerli'     => $paketGecerli,
+                'hizmet_gecerli'    => $hizmetGecerli,
+                'YETIM_MI'          => $yetim,
+            ];
+        }
+
+        return response()->json([
+            'randevu_id'              => (int) $id,
+            'adisyon_paket_seans_var' => $seanslar->isNotEmpty(),
+            'toplam_seans'            => $seanslar->count(),
+            'gecerli_seans'           => $gecerliSayisi,
+            'yetim_seans'             => $yetimSayisi,
+            'paket_randevusu_sayilir' => $gecerliSayisi > 0,
+            'seanslar'                => $detay,
+        ], 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+
     public function takvim_degistir(Request $request)
     {
         // Onceki kod 'monday this week' / 'Y-m-01' icin bugunun tarihini baz
@@ -17765,6 +17804,25 @@ DB::raw('
     $dogrulamaSorulduGonderilecek = $request->dogrulamaSorulduGonderilecek ?? false;
     
     $randevu = Randevular::where('id', $request->randevuid)->first();
+
+    // YETIM/HAYALET SEANS TEMIZLIGI: Paket randevusu olmadigi halde, kazara olusmus
+    // adisyon_paket_seanslar kayitlari "paketten dus / seans secim" popup'ini yanlis
+    // tetikliyor. Ne gecerli bir adisyon_paket'e ne de gecerli bir adisyon_hizmet'e
+    // bagli olan seanslari (hicbir seyden dusulemez) geldi isaretlemeden once sil.
+    // Gecerli seanslar (paket VEYA gercek hizmet seansi) korunur.
+    $gecersizSeansIdler = [];
+    foreach (AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)->get() as $__s) {
+        $paketGecerli  = $__s->adisyon_paket_id  && AdisyonPaketler::where('id', $__s->adisyon_paket_id)->exists();
+        $hizmetGecerli = $__s->adisyon_hizmet_id && AdisyonHizmetler::where('id', $__s->adisyon_hizmet_id)->exists();
+        if (!$paketGecerli && !$hizmetGecerli) $gecersizSeansIdler[] = $__s->id;
+    }
+    if (!empty($gecersizSeansIdler)) {
+        \Log::warning('[YETIM-SEANS] gecersiz seans temizlendi', [
+            'randevu_id' => $request->randevuid,
+            'ids'        => $gecersizSeansIdler,
+        ]);
+        AdisyonPaketSeanslar::whereIn('id', $gecersizSeansIdler)->delete();
+    }
 
     $seansVar = AdisyonPaketSeanslar::where('randevu_id',$request->randevuid)->count();
  Log::info('Seans var mı? ' . $seansVar);
