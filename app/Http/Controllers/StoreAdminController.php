@@ -16024,7 +16024,6 @@ DB::raw('
     // Salon paneli: afis onizleme + indirme sayfasi
     public function uygulamaAfisi(Request $request)
     {
-      try {
         if (Auth::guard('satisortakligi')->check()) {
             $isletmeler = [15];
         } else {
@@ -16044,21 +16043,17 @@ DB::raw('
         }
         $isletme      = Salonlar::where('id', self::mevcutsube($request))->first();
         $linklerHazir = (trim((string) $isletme->android_uygulama) !== '' && trim((string) $isletme->ios_uygulama) !== '');
-        return response(view('isletmeadmin.uygulama_afisi', [
-            'pageindex'           => 80,
-            'sayfa_baslik'        => 'Uygulama İndirme Afişi',
-            'bildirimler'         => self::bildirimgetir($request),
-            'paketler'            => self::paket_liste_getir('', true, $request),
-            'isletme'             => $isletme,
-            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
-            'urun_drop'           => self::urundropliste($request),
-            'linklerHazir'        => $linklerHazir,
-        ])->render());
-      } catch (\Throwable $e) {
-        $detay = 'AFIS HATA: ' . $e->getMessage() . "\n" . $e->getFile() . ':' . $e->getLine() . "\n\n" . $e->getTraceAsString();
-        @file_put_contents(public_path('afis/_err.txt'), $detay);
-        return response('<pre style="white-space:pre-wrap;font:13px/1.5 monospace;padding:18px">' . e($detay) . '</pre>', 500);
-      }
+        return view('isletmeadmin.uygulama_afisi', [
+            'pageindex'                => 80,
+            'sayfa_baslik'             => 'Uygulama İndirme Afişi',
+            'bildirimler'              => self::bildirimgetir($request),
+            'paketler'                 => self::paket_liste_getir('', true, $request),
+            'isletme'                  => $isletme,
+            'kalan_uyelik_suresi'      => self::lisans_sure_kontrol($request),
+            'urun_drop'                => self::urundropliste($request),
+            'yetkiliolunanisletmeler'  => $isletmeler,
+            'linklerHazir'             => $linklerHazir,
+        ]);
     }
 
     // GD ile afis uret + PDF indir
