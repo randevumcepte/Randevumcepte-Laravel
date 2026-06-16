@@ -229,19 +229,22 @@ class SalonHatirlatmaController extends Controller
     {
         $altSinir = date('Y-m-d H:i:s', strtotime('-24 hours'));
 
-        $musteriler = DB::table('musteri_portfoy')
+        // GERCEK sayi: eskiden limit(10) vardi, 15 yeni musteri olsa bile "10" yaziyordu.
+        // Artik dogrudan count -> tam sayi.
+        $sayi = DB::table('musteri_portfoy')
+            ->where('salon_id', $salonId)
+            ->where('created_at', '>=', $altSinir)
+            ->count();
+
+        if ($sayi <= 0) return null;
+
+        // Tekil mesaj icin en son eklenen musterinin adi
+        $isim = DB::table('musteri_portfoy')
             ->join('users', 'users.id', '=', 'musteri_portfoy.user_id')
             ->where('musteri_portfoy.salon_id', $salonId)
             ->where('musteri_portfoy.created_at', '>=', $altSinir)
             ->orderBy('musteri_portfoy.created_at', 'desc')
-            ->limit(10)
-            ->select('users.name', 'users.cep_telefon', 'musteri_portfoy.created_at', 'musteri_portfoy.musteri_tipi')
-            ->get();
-
-        $sayi = $musteriler->count();
-        if ($sayi <= 0) return null;
-
-        $isim = optional($musteriler->first())->name ?? 'Yeni misafir';
+            ->value('users.name') ?: 'Yeni misafir';
 
         return [
             // NOT: id SABIT olmali. Eskiden md5($altSinir) idi; $altSinir her saniye
@@ -254,11 +257,12 @@ class SalonHatirlatmaController extends Controller
             'emoji'    => '🎉',
             'baslik'   => 'Yeni Müşteri Geldi! 🎊',
             'mesaj'    => $sayi == 1
-                ? "$isim ailenize katıldı! Hoş geldin demeyi unutma."
-                : "Son 24 saatte $sayi yeni müşteri portföye girdi. Şenlik var!",
-            'altMesaj' => 'İlk randevu için bir SMS atmaya ne dersin? Müşteri sadakati buradan başlar.',
-            'cta_text' => 'Müşterileri Gör',
-            'link'     => '/isletmeyonetim/musteriler?sube=' . $salonId,
+                ? "Son 24 saatte $isim portföyünüze eklendi."
+                : "Son 24 saatte $sayi yeni müşteri portföyünüze eklendi.",
+            'altMesaj' => 'Tıkla → "Yeni Eklenen Müşteriler" listesini aç (en yeniler üstte), hoş geldin SMS\'i at.',
+            'cta_text' => 'Yeni Müşterileri Gör',
+            // ?filtre=yeni: musteriler sayfasi acilinca "Yeni Eklenen Musteriler" sekmesini otomatik acar.
+            'link'     => '/isletmeyonetim/musteriler?sube=' . $salonId . '&filtre=yeni',
             'sayac'    => $sayi,
         ];
     }

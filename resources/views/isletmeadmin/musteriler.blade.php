@@ -717,4 +717,23 @@
 })();
 </script>
 
+<script>
+/* Hatirlatma "Yeni Musteri" karti ?filtre=yeni ile gelirse, "Yeni Eklenen Musteriler"
+   sekmesini otomatik ac. Boylece son eklenen musteriler (en yeniler ustte) direkt gorunur. */
+(function(){
+   try {
+      var p = new URLSearchParams(window.location.search);
+      if (p.get('filtre') === 'yeni') {
+         $(function(){
+            var $btn = $('.rc-mu-tab[href="#yeni-musteriler"]');
+            if ($btn.length) {
+               if (typeof $btn.tab === 'function') { $btn.tab('show'); }
+               else { $btn.trigger('click'); }
+            }
+         });
+      }
+   } catch(e){}
+})();
+</script>
+
 @endsection()
