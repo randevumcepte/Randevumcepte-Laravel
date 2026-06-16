@@ -248,16 +248,56 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 
 <input type="hidden" name="sube" value="{{ $isletme->id }}">
 
-{{-- Telefonda Satış: Randevusuz Satış ekranı popup (müşteri detay iframe, #tahsilatEkrani) --}}
+{{-- Telefonda Satış: sade Hızlı Satış popup (gerçek satış kaydı oluşturur -> kasa/satış takibi) --}}
 <div id="ag_satis_modal" class="modal fade" role="dialog">
-   <div class="modal-dialog" role="document" style="max-width:95%;width:95%;margin:1.5rem auto;">
-      <div class="modal-content" style="border:none;border-radius:14px;overflow:hidden;height:90vh;">
+   <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:520px;">
+      <div class="modal-content" style="border:none;border-radius:16px;overflow:hidden;">
          <div class="modal-header" style="background:linear-gradient(120deg,#16a34a,#22c55e);color:#fff;border:none;">
-            <h5 class="modal-title" style="font-weight:700;"><i class="fa fa-money"></i> Randevusuz Satış</h5>
+            <h5 class="modal-title" style="font-weight:700;"><i class="fa fa-money"></i> Telefonda Satış</h5>
             <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;"><span>&times;</span></button>
          </div>
-         <div class="modal-body" style="padding:0;height:calc(90vh - 56px);overflow:hidden;">
-            <iframe id="ag_satis_iframe" src="about:blank" style="width:100%;height:100%;border:0;"></iframe>
+         <div class="modal-body" style="padding:18px 20px;">
+            <input type="hidden" id="hs_musteri_id">
+            <div style="margin-bottom:12px;font-size:14px;"><i class="fa fa-user-circle-o" style="color:#16a34a;"></i> <b id="hs_musteri_ad" style="color:#15803d;"></b></div>
+
+            <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Ne satıldı?</label>
+            <select id="hs_tip" class="form-control" style="margin-bottom:8px;">
+               <option value="paket">Paket</option>
+               <option value="hizmet">Hizmet</option>
+               <option value="urun">Ürün</option>
+            </select>
+            <select id="hs_item_paket" class="form-control hs-item" style="margin-bottom:10px;">
+               <option value="">Paket seçin...</option>
+               @foreach(($cm_paketler ?? []) as $p)<option value="{{$p->id}}" data-fiyat="{{$p->fiyat}}">{{$p->ad}}</option>@endforeach
+            </select>
+            <select id="hs_item_hizmet" class="form-control hs-item" style="display:none;margin-bottom:10px;">
+               <option value="">Hizmet seçin...</option>
+               @foreach(($cm_hizmetler ?? []) as $h)<option value="{{$h->id}}" data-fiyat="{{$h->fiyat}}">{{$h->ad}}</option>@endforeach
+            </select>
+            <select id="hs_item_urun" class="form-control hs-item" style="display:none;margin-bottom:10px;">
+               <option value="">Ürün seçin...</option>
+               @foreach(($cm_urunler ?? []) as $u)<option value="{{$u->id}}" data-fiyat="{{$u->fiyat}}">{{$u->ad}}</option>@endforeach
+            </select>
+
+            <div class="row">
+               <div class="col-7">
+                  <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Satış fiyatı (₺)</label>
+                  <input type="number" id="hs_fiyat" class="form-control" min="0" step="0.01" placeholder="örn: 1500">
+               </div>
+               <div class="col-5">
+                  <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Ödeme</label>
+                  <select id="hs_odeme" class="form-control">
+                     @foreach(($cm_odeme_yontemleri ?? []) as $oy)<option value="{{$oy->id}}">{{$oy->odeme_yontemi}}</option>@endforeach
+                  </select>
+               </div>
+            </div>
+            <div id="hs_adet_kutu" style="display:none;margin-top:10px;">
+               <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Adet</label>
+               <input type="number" id="hs_adet" class="form-control" value="1" min="1" step="1">
+            </div>
+         </div>
+         <div class="modal-footer" style="border:none;padding:0 20px 18px;">
+            <button type="button" class="ag-kasa-btn" id="hs_kaydet" style="width:100%;justify-content:center;padding:12px;"><i class="fa fa-check"></i> Satışı Oluştur (Kasaya İşle)</button>
          </div>
       </div>
    </div>
@@ -641,17 +681,20 @@ function agOnGorusmeAc(){
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'Ön görüşme ekranı açılamadı.' }); });
 }
 
-// Telefonda Satış: müşteri detay sayfasını RANDEVUSUZ SATIŞ sekmesi açık olarak yeni sekmede açar
+// Telefonda Satış: sade satış popup'ını müşteri + tutar prefill'li açar
 $(document).on('click', '#ag_satis_kasa', function(){
    if (!agSecili) return;
-   var sube = $('input[name="sube"]').val();
+   var tutar = $('#ag_satis_tutari').val() || '';
    $.post('/isletmeyonetim/cagri-musteri-ongorusme-bilgi',
       { aranacak_musteri_id: agSecili.aranacak_musteri_id, _token: $('input[name="_token"]').val() },
       function(res){
          if (res && res.success && res.user_id){
-            var url = '/isletmeyonetim/musteridetay/'+encodeURIComponent(res.user_id)
-                    + '?sube='+encodeURIComponent(sube)+'#tahsilatEkrani';
-            $('#ag_satis_iframe').attr('src', url);
+            $('#hs_musteri_id').val(res.user_id);
+            $('#hs_musteri_ad').text(res.ad || ('#'+res.user_id));
+            $('#hs_fiyat').val(tutar);
+            $('#hs_tip').val('paket').trigger('change');
+            $('.hs-item').val('');
+            $('#hs_adet').val(1);
             $('#ag_satis_modal').modal('show');
          } else {
             swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
@@ -660,9 +703,40 @@ $(document).on('click', '#ag_satis_kasa', function(){
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'Satış ekranı açılamadı.' }); });
 });
 
-// Satış popup kapanınca iframe'i boşalt (kaynak serbest kalsın)
-$(document).on('hidden.bs.modal', '#ag_satis_modal', function(){
-   $('#ag_satis_iframe').attr('src', 'about:blank');
+// Kalem tipi -> ilgili seçim kutusu + adet (ürün)
+$(document).on('change', '#hs_tip', function(){
+   var t = $(this).val();
+   $('.hs-item').hide().val('');
+   $('#hs_item_'+t).show();
+   $('#hs_adet_kutu').toggle(t==='urun');
+});
+// Kalem seçilince fiyatı otomatik doldur
+$(document).on('change', '.hs-item', function(){
+   var f = $(this).find('option:selected').data('fiyat');
+   if (f!==undefined && f!=='' && !($('#hs_fiyat').val()>0)){ $('#hs_fiyat').val(f); }
+});
+// Satışı oluştur -> gerçek satış kaydı
+$(document).on('click', '#hs_kaydet', function(){
+   var tip = $('#hs_tip').val();
+   var itemId = $('#hs_item_'+tip).val();
+   var fiyat = $('#hs_fiyat').val();
+   var odeme = $('#hs_odeme').val();
+   var musteriId = $('#hs_musteri_id').val();
+   if (!itemId){ swal({type:'warning',title:'Seçim yapın',text:'Satılan paket/hizmet/ürünü seçin.'}); return; }
+   if (!fiyat || parseFloat(fiyat)<=0){ swal({type:'warning',title:'Fiyat girin',text:'Satış fiyatını girin.'}); return; }
+   if (!odeme){ swal({type:'warning',title:'Ödeme',text:'Ödeme yöntemi seçin.'}); return; }
+   var $btn = $(this); $btn.prop('disabled', true);
+   $.post('/isletmeyonetim/cagri-hizli-satis',
+      { sube:$('input[name="sube"]').val(), musteri_id:musteriId, kalem_tip:tip, kalem_id:itemId,
+        fiyat:fiyat, odeme_yontemi:odeme, adet:$('#hs_adet').val()||1, _token:$('input[name="_token"]').val() },
+      function(res){
+         if (res && res.success){
+            $('#ag_satis_modal').modal('hide');
+            swal({ type:'success', title:'Satış oluşturuldu', text:res.message||'Kasaya işlendi.', timer:2600, showConfirmButton:false });
+         } else { swal({ type:'error', title:'Hata', text:(res&&res.message)||'Satış oluşturulamadı.' }); }
+      }
+   ).fail(function(){ swal({ type:'error', title:'Hata', text:'İşlem başarısız.' }); })
+    .always(function(){ $btn.prop('disabled', false); });
 });
 
 $(document).on('change', '#ag_sonra_chk', function(){

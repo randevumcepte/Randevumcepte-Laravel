@@ -27314,6 +27314,22 @@ DB::raw('
         $rol = self::kullaniciRolu(self::mevcutsube($request), Auth::guard('isletmeyonetim')->user()->id);
         $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
 
+        // Telefonda Satış (Hızlı Satış popup) icin salon bazli listeler
+        $cm_odeme_yontemleri = \App\OdemeYontemleri::all();
+        $cm_hizmetler = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler', 'salon_sunulan_hizmetler.hizmet_id', '=', 'hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id', $isletme->id)
+            ->where('salon_sunulan_hizmetler.aktif', true)
+            ->select('hizmetler.id as id', 'hizmetler.hizmet_adi as ad',
+                DB::raw('COALESCE(salon_sunulan_hizmetler.son_fiyat, salon_sunulan_hizmetler.baslangic_fiyat, hizmetler.fiyat, 0) as fiyat'))
+            ->orderBy('hizmetler.hizmet_adi')->get();
+        $cm_urunler = DB::table('urunler')
+            ->where('salon_id', $isletme->id)->where('aktif', true)
+            ->select('id', 'urun_adi as ad', 'fiyat')->orderBy('urun_adi')->get();
+        $cm_paketler = DB::table('paketler')
+            ->where('salon_id', $isletme->id)
+            ->select('id', 'paket_adi as ad', 'fiyat')->orderBy('paket_adi')->get();
+
         return view('isletmeadmin.arama_listelerim', [
             'kullaniciRolu'           => $rol,
             'bildirimler'             => self::bildirimgetir($request),
@@ -27322,6 +27338,10 @@ DB::raw('
             'isletme'                 => $isletme,
             'kalan_uyelik_suresi'     => $kalan_uyelik_suresi,
             'yetkiliolunanisletmeler' => $isletmeler,
+            'cm_odeme_yontemleri'     => $cm_odeme_yontemleri,
+            'cm_hizmetler'            => $cm_hizmetler,
+            'cm_urunler'              => $cm_urunler,
+            'cm_paketler'             => $cm_paketler,
         ]);
     }
 
@@ -28121,6 +28141,91 @@ DB::raw('
             'ad'      => optional($kayit->musteri)->name ?? '',
             'telefon' => optional($kayit->musteri)->cep_telefon ?? '',
         ]);
+    }
+
+    /**
+     * Cagri Merkezi — Telefonda Satis (Hizli Satis): GERCEK satis kaydi olusturur.
+     * Adisyon + kalem (hizmet/urun/paket) + tahsilat -> kasa & satis takibine yansir.
+     * Paket icin paket_hizmetler seanslariyla adisyon_hizmetler'e acilir (SEANS verilir).
+     * Tum islem TRANSACTION icinde — hata olursa hicbir sey yazilmaz (bozuk veri yok).
+     */
+    public function cagri_hizli_satis(Request $request)
+    {
+        $sube = $request->sube;
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if ($authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $sube, 'satis.tahsilat_al')) {
+            return response()->json(['success' => false, 'message' => 'Satış için yetkiniz yok.'], 403);
+        }
+        $musteri_id = $request->musteri_id;
+        $tip = $request->kalem_tip;                 // hizmet | urun | paket
+        $itemId = $request->kalem_id;
+        $fiyat = round((float) str_replace(',', '.', (string) $request->fiyat), 2);
+        $odeme = $request->odeme_yontemi;
+        $adet = max(1, (int) ($request->adet ?? 1));
+
+        if (empty($musteri_id) || empty($itemId) || $fiyat <= 0 || empty($odeme) || !in_array($tip, ['hizmet', 'urun', 'paket'], true)) {
+            return response()->json(['success' => false, 'message' => 'Müşteri, kalem (hizmet/ürün/paket), fiyat ve ödeme yöntemi zorunludur.']);
+        }
+        $tarih = date('Y-m-d');
+
+        DB::beginTransaction();
+        try {
+            $adisyon_id = self::yeni_adisyon_olustur($musteri_id, $sube, 'Telefonda Satış (Çağrı Merkezi)', $tarih);
+
+            if ($tip === 'hizmet') {
+                $ah = new AdisyonHizmetler();
+                $ah->adisyon_id = $adisyon_id; $ah->hizmet_id = $itemId; $ah->fiyat = $fiyat;
+                $ah->islem_tarihi = $tarih; $ah->islem_saati = date('H:i:s');
+                $ah->seans_sayisi = 1; $ah->bekleyen_seans = 1; $ah->kullanilan_seans = 0; $ah->kullanilmayan_seans = 0;
+                $ah->indirim_tutari = 0; $ah->otomatik_randevu_olusturuldu = false;
+                $ah->save();
+                try { StokController::receteyiUygula((int) $sube, (int) $itemId, 'islem', null, null); } catch (\Throwable $e) {}
+            } elseif ($tip === 'urun') {
+                $au = new AdisyonUrunler();
+                $au->adisyon_id = $adisyon_id; $au->urun_id = $itemId; $au->adet = $adet; $au->fiyat = $fiyat; $au->indirim_tutari = 0;
+                $au->save();
+            } else { // paket -> AdisyonPaketler + paket hizmetlerini SEANSLARIYLA ac
+                $ap = new AdisyonPaketler();
+                $ap->adisyon_id = $adisyon_id; $ap->paket_id = $itemId; $ap->fiyat = $fiyat; $ap->indirim_tutari = 0;
+                $ph = DB::table('paket_hizmetler')->where('paket_id', $itemId)->get();
+                $toplamSeans = 0;
+                foreach ($ph as $h) { $toplamSeans += (int) ($h->seans ?? 0); }
+                $ap->seans_sayisi = $toplamSeans; $ap->bekleyen_seans = $toplamSeans;
+                $ap->kullanilan_seans = 0; $ap->kullanilmayan_seans = 0; $ap->otomatik_randevu_olusturuldu = false;
+                $ap->save();
+                foreach ($ph as $h) {
+                    $seans = (int) ($h->seans ?? 1); if ($seans < 1) $seans = 1;
+                    $ah = new AdisyonHizmetler();
+                    $ah->adisyon_id = $adisyon_id; $ah->hizmet_id = $h->hizmet_id; $ah->fiyat = 0;
+                    $ah->islem_tarihi = $tarih; $ah->islem_saati = date('H:i:s');
+                    $ah->seans_sayisi = $seans; $ah->bekleyen_seans = $seans; $ah->kullanilan_seans = 0; $ah->kullanilmayan_seans = 0;
+                    $ah->indirim_tutari = 0; $ah->otomatik_randevu_olusturuldu = false;
+                    $ah->save();
+                }
+            }
+
+            // Tahsilat (kasaya yansir)
+            $t = new Tahsilatlar();
+            $t->adisyon_id = $adisyon_id; $t->user_id = $musteri_id; $t->odeme_tarihi = $tarih;
+            $t->olusturan_id = Personeller::where('salon_id', $sube)->where('yetkili_id', $authUser->id)->value('id');
+            $t->salon_id = $sube; $t->tutar = $fiyat; $t->yapilan_odeme = $fiyat;
+            $t->odeme_yontemi_id = $odeme; $t->notlar = 'Telefonda satış (çağrı merkezi)';
+            if (!empty($request->banka)) $t->banka_id = $request->banka;
+            $t->save();
+
+            try {
+                SalonAudit::log($sube, 'cagri_hizli_satis', 'adisyon', $adisyon_id,
+                    (\App\User::where('id', $musteri_id)->value('name') ?: ('Müşteri #' . $musteri_id)) . ' — ' . number_format($fiyat, 2, ',', '.') . ' ₺',
+                    'Telefonda satış (çağrı merkezi)');
+            } catch (\Throwable $e) {}
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Satış oluşturuldu ve kasaya işlendi.', 'adisyon_id' => $adisyon_id]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::warning('[CAGRI-MERKEZI] hizli satis hatasi: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Satış oluşturulamadı: ' . $e->getMessage()]);
+        }
     }
 
     /* ============================================================
