@@ -2403,11 +2403,15 @@
       @include('modaldialogs.arsiv-form-gonder-modal')
       @endif
       @if($pageindex==43)
-     
+
       @include('modaldialogs.arama_listesi_ekle')
        @include('modaldialogs.arama_listesi_detay')
        @include('modaldialogs.santral_not_ekle')
         @include('modaldialogs.santral-ses-kaydi-cal-modal')
+      @endif
+      @if($pageindex==45)
+      {{-- Cagri Merkezi paneli: 'Arama Listesi Olustur' modali buradan yonetilir --}}
+      @include('modaldialogs.arama_listesi_ekle')
       @endif
       @if($pageindex==30)
       @include('modaldialogs.urun-ekle-modal')
