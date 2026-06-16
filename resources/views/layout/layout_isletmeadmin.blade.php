@@ -921,13 +921,11 @@
       {{-- Sistem yonetimi duyurulari --}}
       @php
          $aktifDuyurular = collect();
-         $duyuruOnizle = request()->has('duyuru_onizle'); // ?duyuru_onizle=1 → okundu/oturum dinlemeden modali goster (QA/onizleme) + teshis kutusu
-         $duyuruDebug = ['userId'=>null,'salonId'=>null,'ilId'=>null,'tumKayit'=>0,'toplam'=>0,'eslesen'=>0,'son'=>null,'hata'=>null];
+         $duyuruOnizle = request()->has('duyuru_onizle'); // ?duyuru_onizle=1 → okundu/oturum dinlemeden modali goster (QA/onizleme)
          try {
             $userId = Auth::guard('isletmeyonetim')->check() ? Auth::guard('isletmeyonetim')->user()->id : null;
             $salonId = isset($isletme) ? $isletme->id : null;
             $ilId = isset($isletme) ? $isletme->il_id : null;
-            $duyuruDebug['userId'] = $userId; $duyuruDebug['salonId'] = $salonId; $duyuruDebug['ilId'] = $ilId;
             if ($userId && $salonId) {
                $tumDuyurular = \App\SistemYonetim\Duyuru::where('aktif', 1)
                   ->where(function($q){
@@ -938,7 +936,6 @@
                   })
                   ->orderBy('id', 'desc')
                   ->get();
-               $duyuruDebug['toplam'] = $tumDuyurular->count();
                $okunanlar = \App\SistemYonetim\DuyuruOkundu::where('user_id', $userId)->pluck('duyuru_id')->toArray();
                foreach ($tumDuyurular as $d) {
                   if (!$d->salonIcinGecerli($salonId, $ilId)) continue;
@@ -946,15 +943,7 @@
                   $aktifDuyurular->push($d);
                }
             }
-            $duyuruDebug['eslesen'] = $aktifDuyurular->count();
-            if ($duyuruOnizle) {
-               $duyuruDebug['tumKayit'] = \App\SistemYonetim\Duyuru::count();
-               $sonD = \App\SistemYonetim\Duyuru::orderBy('id', 'desc')->first();
-               if ($sonD) {
-                  $duyuruDebug['son'] = 'id='.$sonD->id.' aktif='.$sonD->aktif.' tip='.$sonD->tip.' hedef='.$sonD->hedef_tipi.' bas='.($sonD->baslangic_tarihi ?: '-').' bit='.($sonD->bitis_tarihi ?: '-');
-               }
-            }
-         } catch (\Exception $e) { $duyuruDebug['hata'] = $e->getMessage(); }
+         } catch (\Exception $e) {}
          // Tum aktif duyurular ekran ortasinda kaliteli modal olarak gosterilir (tip'e gore temali).
          $tipMeta = [
             'guncelleme' => ['emoji'=>'🚀','c1'=>'#4f46e5','c2'=>'#6366f1','ad'=>'YENİLİK'],
@@ -975,42 +964,54 @@
       {{-- Sistem Duyurulari — ekran ortasinda kaliteli modal (girisde 1 kez, "Anladim" deyince bir daha cikmaz) --}}
       @if($aktifDuyurular->count() > 0)
       <style>
-         .rc-gun-overlay{position:fixed;inset:0;z-index:100050;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);animation:rcGunFade .25s ease}
-         .rc-gun-modal{position:relative;width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;background:#fff;border-radius:20px;box-shadow:0 30px 70px rgba(15,23,42,.38);overflow:hidden;animation:rcGunPop .34s cubic-bezier(.16,1,.3,1)}
-         .rc-gun-kapat{position:absolute;top:15px;right:15px;width:34px;height:34px;border:none;border-radius:50%;background:rgba(255,255,255,.20);color:#fff;font-size:22px;line-height:30px;text-align:center;cursor:pointer;z-index:2;transition:background .2s;padding:0}
-         .rc-gun-kapat:hover{background:rgba(255,255,255,.34)}
-         .rc-gun-head{display:flex;gap:15px;align-items:center;padding:26px 24px;background:linear-gradient(135deg,#4f46e5 0%,#6366f1 55%,#818cf8 100%);color:#fff}
-         .rc-gun-ikon{flex:0 0 auto;width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:27px}
-         .rc-gun-rozet{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:1.3px;background:rgba(255,255,255,.22);padding:3px 9px;border-radius:999px;margin-bottom:6px}
-         .rc-gun-head h3{margin:0 0 3px;font-size:19px;font-weight:800;color:#fff;line-height:1.25}
-         .rc-gun-head p{margin:0;font-size:13px;opacity:.92}
-         .rc-gun-govde{padding:6px 24px 2px;overflow-y:auto}
-         .rc-gun-item{padding:16px 0 16px 14px;border-left:3px solid transparent;border-bottom:1px solid #eef0f4}
-         .rc-gun-item:last-child{border-bottom:none}
-         .rc-gun-item-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}
-         .rc-gun-badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.7px;padding:3px 10px;border-radius:999px}
-         .rc-gun-item-baslik{margin:0 0 6px;font-size:15.5px;font-weight:700;color:#1e293b;line-height:1.35}
+         .rc-gun-overlay{position:fixed;inset:0;z-index:100050;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(120% 120% at 50% 0%,rgba(30,41,59,.5),rgba(15,23,42,.72));backdrop-filter:blur(7px) saturate(1.15);-webkit-backdrop-filter:blur(7px) saturate(1.15);animation:rcGunFade .3s ease}
+         .rc-gun-modal{position:relative;width:100%;max-width:500px;max-height:90vh;display:flex;flex-direction:column;background:#fff;border-radius:26px;box-shadow:0 40px 80px -24px rgba(15,23,42,.6),0 0 0 1px rgba(15,23,42,.04);overflow:hidden;animation:rcGunPop .5s cubic-bezier(.16,1,.3,1)}
+         .rc-gun-kapat{position:absolute;top:16px;right:16px;width:36px;height:36px;border:none;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;font-size:20px;line-height:36px;text-align:center;cursor:pointer;z-index:3;transition:.25s;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+         .rc-gun-kapat:hover{background:rgba(255,255,255,.42);transform:rotate(90deg)}
+         .rc-gun-head{position:relative;padding:30px 26px 28px;color:#fff;overflow:hidden}
+         .rc-gun-head::before{content:"";position:absolute;top:-55%;right:-12%;width:230px;height:230px;border-radius:50%;background:rgba(255,255,255,.16)}
+         .rc-gun-head::after{content:"";position:absolute;bottom:-65%;left:-8%;width:190px;height:190px;border-radius:50%;background:rgba(255,255,255,.10)}
+         .rc-gun-head-inner{position:relative;z-index:1;display:flex;gap:16px;align-items:center}
+         .rc-gun-ikon{flex:0 0 auto;width:60px;height:60px;border-radius:19px;background:rgba(255,255,255,.20);box-shadow:0 10px 24px rgba(0,0,0,.18),0 0 0 7px rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;font-size:31px;animation:rcGunFloat 3.2s ease-in-out infinite}
+         .rc-gun-rozet{display:inline-flex;align-items:center;font-size:10.5px;font-weight:800;letter-spacing:1.5px;background:rgba(255,255,255,.24);padding:4px 12px;border-radius:999px;margin-bottom:9px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+         .rc-gun-head h3{margin:0 0 4px;font-size:21px;font-weight:800;letter-spacing:-.3px;line-height:1.2;color:#fff}
+         .rc-gun-head p{margin:0;font-size:13.5px;opacity:.94;line-height:1.45}
+         .rc-gun-govde{padding:20px 22px 8px;overflow-y:auto}
+         .rc-gun-govde::-webkit-scrollbar{width:7px}
+         .rc-gun-govde::-webkit-scrollbar-thumb{background:#d4dae3;border-radius:10px}
+         .rc-gun-item{position:relative;padding:15px 16px 16px 18px;margin-bottom:12px;background:#f8fafc;border:1px solid #edf1f6;border-left:4px solid transparent;border-radius:16px;transition:transform .2s,box-shadow .2s}
+         .rc-gun-item:hover{transform:translateY(-2px);box-shadow:0 12px 26px -12px rgba(15,23,42,.28)}
+         .rc-gun-item:last-child{margin-bottom:4px}
+         .rc-gun-item-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px}
+         .rc-gun-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;letter-spacing:.6px;padding:4px 11px;border-radius:999px}
+         .rc-gun-item-baslik{margin:0 0 6px;font-size:16px;font-weight:800;color:#0f172a;letter-spacing:-.2px;line-height:1.35}
          .rc-gun-tarih{flex:0 0 auto;font-size:11.5px;color:#94a3b8;font-weight:600;white-space:nowrap}
-         .rc-gun-item-text{font-size:13.5px;line-height:1.65;color:#475569}
-         .rc-gun-cta{display:inline-block;margin-top:11px;padding:7px 15px;border:1.5px solid #6366f1;color:#4f46e5;border-radius:9px;text-decoration:none;font-weight:600;font-size:13px;transition:all .2s}
-         .rc-gun-cta:hover{background:#4f46e5;color:#fff}
-         .rc-gun-footer{padding:16px 24px 22px;border-top:1px solid #eef0f4;display:flex;justify-content:flex-end;background:#fbfbfd}
-         .rc-gun-btn{display:inline-block;padding:11px 24px;border:none;border-radius:11px;background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 8px 18px rgba(79,70,229,.32);transition:transform .15s,box-shadow .2s}
-         .rc-gun-btn:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(79,70,229,.42)}
+         .rc-gun-item-text{font-size:13.5px;line-height:1.68;color:#475569}
+         .rc-gun-cta{display:inline-flex;align-items:center;gap:6px;margin-top:13px;padding:8px 16px;border:1.5px solid;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;transition:.2s}
+         .rc-gun-cta:hover{filter:brightness(.96);transform:translateX(2px)}
+         .rc-gun-footer{padding:14px 22px 22px;display:flex;justify-content:flex-end;align-items:center;gap:14px}
+         .rc-gun-footer-not{font-size:12px;color:#94a3b8;font-weight:600}
+         .rc-gun-btn{position:relative;display:inline-flex;align-items:center;gap:8px;padding:13px 26px;border:none;border-radius:14px;color:#fff;font-weight:800;font-size:14px;cursor:pointer;overflow:hidden;transition:transform .15s,box-shadow .2s;letter-spacing:.2px}
+         .rc-gun-btn:hover{transform:translateY(-2px)}
          .rc-gun-btn:active{transform:translateY(0)}
+         .rc-gun-btn::after{content:"";position:absolute;top:0;left:-120%;width:55%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,.45),transparent);transition:left .55s}
+         .rc-gun-btn:hover::after{left:140%}
          @keyframes rcGunFade{from{opacity:0}to{opacity:1}}
-         @keyframes rcGunPop{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}
-         @media(max-width:560px){.rc-gun-head{padding:22px 18px}.rc-gun-govde{padding:6px 18px 2px}.rc-gun-footer{padding:14px 18px 18px}.rc-gun-btn{width:100%;text-align:center}}
+         @keyframes rcGunPop{0%{opacity:0;transform:translateY(22px) scale(.94)}100%{opacity:1;transform:none}}
+         @keyframes rcGunFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+         @media(max-width:560px){.rc-gun-head{padding:26px 20px 24px}.rc-gun-govde{padding:16px 16px 6px}.rc-gun-footer{padding:12px 16px 18px;flex-direction:column-reverse;align-items:stretch}.rc-gun-btn{width:100%;justify-content:center}.rc-gun-footer-not{text-align:center}}
       </style>
       <div id="rcGuncellemeOverlay" class="rc-gun-overlay" role="dialog" aria-modal="true" aria-labelledby="rcGunBaslik">
          <div class="rc-gun-modal">
             <button type="button" class="rc-gun-kapat" onclick="rcGuncellemeKapat()" aria-label="Kapat">&times;</button>
-            <div class="rc-gun-head" style="background:linear-gradient(135deg,{{ $hm['c1'] }} 0%,{{ $hm['c2'] }} 70%,{{ $hm['c2'] }} 100%)">
-               <div class="rc-gun-ikon">{{ $hm['emoji'] }}</div>
-               <div>
-                  <span class="rc-gun-rozet">{{ $hepGuncelleme ? 'YENİ SÜRÜM' : 'DUYURU' }}</span>
-                  <h3 id="rcGunBaslik">{{ $basBaslik }}</h3>
-                  <p>{{ $basAlt }}</p>
+            <div class="rc-gun-head" style="background:linear-gradient(135deg,{{ $hm['c1'] }} 0%,{{ $hm['c2'] }} 100%)">
+               <div class="rc-gun-head-inner">
+                  <div class="rc-gun-ikon">{{ $hm['emoji'] }}</div>
+                  <div>
+                     <span class="rc-gun-rozet">{{ $hepGuncelleme ? '✨ YENİ SÜRÜM' : '📢 DUYURU' }}</span>
+                     <h3 id="rcGunBaslik">{{ $basBaslik }}</h3>
+                     <p>{{ $basAlt }}</p>
+                  </div>
                </div>
             </div>
             <div class="rc-gun-govde">
@@ -1030,7 +1031,8 @@
                @endforeach
             </div>
             <div class="rc-gun-footer">
-               <button type="button" class="rc-gun-btn" style="background:linear-gradient(135deg,{{ $hm['c1'] }},{{ $hm['c2'] }});box-shadow:0 8px 18px {{ $hm['c1'] }}55" onclick="rcGuncellemeKapat()">✓ Anladım, Teşekkürler</button>
+               @if($aktifDuyurular->count() > 1)<span class="rc-gun-footer-not">{{ $aktifDuyurular->count() }} duyuru</span>@endif
+               <button type="button" class="rc-gun-btn" style="background:linear-gradient(135deg,{{ $hm['c1'] }},{{ $hm['c2'] }});box-shadow:0 10px 24px {{ $hm['c1'] }}55" onclick="rcGuncellemeKapat()">✓ Anladım, Teşekkürler</button>
             </div>
          </div>
       </div>
@@ -1066,20 +1068,6 @@
          document.addEventListener('keydown', function(e){ if(e.key === 'Escape' || e.keyCode === 27) rcGuncellemeKapat(); });
       })();
       </script>
-      @endif
-
-      @if($duyuruOnizle)
-      <div style="position:fixed;top:90px;left:50%;transform:translateX(-50%);z-index:2147483600;background:#0f172a;color:#7CFC00;font:13px/1.7 monospace;padding:14px 20px;border-radius:12px;max-width:92vw;box-shadow:0 12px 40px rgba(0,0,0,.5);border:2px solid #7CFC00">
-         <div style="color:#fff;font-weight:bold;margin-bottom:6px;font-size:14px">🔎 DUYURU ÖNİZLEME / TEŞHİS</div>
-         userId: {{ $duyuruDebug['userId'] ?? 'NULL' }}<br>
-         salonId: {{ $duyuruDebug['salonId'] ?? 'NULL' }}<br>
-         ilId: {{ $duyuruDebug['ilId'] ?? 'NULL' }}<br>
-         Tablodaki TOPLAM kayıt: <b style="color:{{ $duyuruDebug['tumKayit'] ? '#7CFC00' : '#ff6b6b' }}">{{ $duyuruDebug['tumKayit'] }}</b><br>
-         Aktif + tarihi uyan: <b>{{ $duyuruDebug['toplam'] }}</b><br>
-         Bu salona uygun (gösterilecek): <b style="color:{{ $duyuruDebug['eslesen'] ? '#7CFC00' : '#ff6b6b' }}">{{ $duyuruDebug['eslesen'] }}</b><br>
-         Son kayıt: {{ $duyuruDebug['son'] ?? '(yok)' }}<br>
-         hata: {{ $duyuruDebug['hata'] ?? '-' }}
-      </div>
       @endif
 
       <button style="display: none;" id="randevudetayigetir" data-toggle="modal" data-target="#randevu-duzenle-modal"></button>
