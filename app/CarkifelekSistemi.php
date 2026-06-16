@@ -12,17 +12,25 @@ class CarkifelekSistemi extends Model
     /**
      * Salon sahibi hiç kural girmediğinde müşteriye gösterilecek,
      * tüm salonları koruyan varsayılan kullanım kuralları.
+     *
+     * NOT (hukuki kurgu): Metin, faaliyeti Milli Piyango İdaresi iznine tabi bir
+     * "çekiliş / şans oyunu" olmaktan çıkarıp "sadakat / hediye kampanyası" zeminine
+     * oturtacak şekilde yazılmıştır. Backend'de ödül salon tarafından önceden
+     * belirlenir ve herkese aynıdır (şans/talih unsuru yoktur); bu yüzden "garantili
+     * hediye" muafiyetine dayanır. "Çekiliş/şans/talih/kazanmak" gibi ibarelerden
+     * kaçınılmıştır. Bu bir hukuki mütalaa değildir.
      */
     const VARSAYILAN_KURALLAR =
-        "• Çarkıfelek, salonumuza özel bir hediye/sadakat etkinliğidir; katılım tamamen isteğe bağlıdır.\n" .
-        "• Kazanılan ödüller (puan, indirim, kupon) yalnızca bu salonda geçerlidir; nakde çevrilemez, başkasına devredilemez ve satılamaz.\n" .
-        "• Çevirme hakkı onaylı randevuya bağlıdır ve her müşteri günde en fazla 1 kez çevirebilir.\n" .
-        "• Kuponlar yalnızca geçerlilik süresi (kupon üzerindeki tarih) içinde ve tek seferde kullanılır; süresi geçen ödüller iptal sayılır.\n" .
-        "• Ödüller başka kampanya, indirim veya promosyonlarla birleştirilemez.\n" .
-        "• Ödülün kullanımı, randevu/hizmet sırasında kupon kodunun salona iletilmesiyle yapılır.\n" .
-        "• Teknik hata, sistem arızası veya kötüye kullanım tespit edilen çevirme ve ödüller geçersiz sayılır.\n" .
-        "• Salonumuz; uygunluk, stok veya işletme koşullarına göre ödülü eşdeğeriyle değiştirme ya da etkinliği durdurma hakkını saklı tutar.\n" .
-        "• Çarkıfelek kuralları ve ödülleri önceden haber verilmeksizin güncellenebilir.";
+        "• Bu uygulama bir piyango, çekiliş veya şans oyunu DEĞİLDİR; salonumuzun müşterilerine yönelik bir sadakat ve hediye kampanyasıdır. Katılım ücretsizdir ve isteğe bağlıdır.\n" .
+        "• Verilen hediye (puan, indirim veya armağan) şans/talih unsuruna dayanmaz; kampanya koşullarını sağlayan müşterilerimize sunulan bir teşekkür hediyesidir.\n" .
+        "• Hediyeler yalnızca salonumuzun kendi hizmet/ürünlerinde geçerlidir; nakit değildir, nakde çevrilemez, başkasına devredilemez ve satılamaz.\n" .
+        "• Hediyeden yararlanma hakkı onaylı randevuya bağlıdır ve her müşteri günde en fazla 1 kez yararlanabilir.\n" .
+        "• Hediye/indirimler yalnızca belirtilen geçerlilik süresi içinde ve tek seferde kullanılır; süresi geçenler geçersiz olur.\n" .
+        "• Hediye/indirimler başka kampanya, indirim veya promosyonlarla birleştirilemez.\n" .
+        "• Yararlanma, randevu/hizmet sırasında ilgili hediye kodunun salonumuza iletilmesiyle yapılır.\n" .
+        "• Teknik hata, sistem arızası veya kötüye kullanım tespit edilen işlemler geçersiz sayılır.\n" .
+        "• Salonumuz; uygunluk, stok veya işletme koşullarına göre hediyeyi eşdeğeriyle değiştirme ya da kampanyayı durdurma hakkını saklı tutar.\n" .
+        "• Kampanya koşulları önceden haber verilmeksizin güncellenebilir.";
 
     protected $fillable = [
         'aktifmi',
