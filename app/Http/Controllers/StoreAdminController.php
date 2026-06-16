@@ -175,7 +175,7 @@ class StoreAdminController extends Controller
             }
 
             return $next($request);
-        });
+        })->except(['uygulamaIndir']); // /indir/{salon} public olmali (musteri QR okutur)
 
     }
     /**
