@@ -366,19 +366,21 @@ class SalonHatirlatmaController extends Controller
         if (!$this->kolonVarMi('users', 'dogum_tarihi')) return null;
 
         $bugunMd = date('m-d');
-        $musteriler = DB::table('users')
-            ->join('musteri_portfoy', 'musteri_portfoy.user_id', '=', 'users.id')
+        // aktif + distinct: mukerrer portfoy kaydi olan veya pasif musteri cifte sayilmasin.
+        // (Musteri listesi sayfasi da aktif=true filtreliyor -> ayni kume.)
+        $musteriler = DB::table('musteri_portfoy')
+            ->join('users', 'users.id', '=', 'musteri_portfoy.user_id')
             ->where('musteri_portfoy.salon_id', $salonId)
+            ->where('musteri_portfoy.aktif', true)
             ->whereNotNull('users.dogum_tarihi')
             ->whereRaw("DATE_FORMAT(users.dogum_tarihi,'%m-%d') = ?", [$bugunMd])
-            ->limit(20)
-            ->pluck('users.name')
-            ->toArray();
+            ->distinct()
+            ->pluck('users.name', 'users.id'); // [user_id => name] -> ayni kullanici tek sayilir
 
-        $sayi = count($musteriler);
+        $sayi = $musteriler->count();
         if ($sayi <= 0) return null;
 
-        $isim = $musteriler[0] ?? 'Müşteriniz';
+        $isim = $musteriler->first() ?: 'Müşteriniz';
         return [
             'id'       => 'dogum_gunu_' . date('Y-m-d'),
             'tip'      => 'dogum_gunu',
@@ -392,7 +394,9 @@ class SalonHatirlatmaController extends Controller
                 : "$sayi müşterinizin bugün doğum günü. Tebrik mesajı atmayı unutma!",
             'altMesaj' => 'Küçük bir mesaj, büyük bir sadakat oluşturur. 💝',
             'cta_text' => 'Toplu SMS',
-            'link'     => '/isletmeyonetim/toplusmsgonder?sube=' . $salonId,
+            // DIKKAT: /toplusmsgonder POST-only (gonderim endpoint'i) -> GET ile acilinca Whoops.
+            // Toplu SMS YAZMA sayfasinin GET route'u /toplusms.
+            'link'     => '/isletmeyonetim/toplusms?sube=' . $salonId,
             'sayac'    => $sayi,
         ];
     }
