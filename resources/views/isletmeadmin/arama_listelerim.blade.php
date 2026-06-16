@@ -136,6 +136,20 @@
 .ag-sonuc.sec-turuncu:hover{ border-color:#ea580c; background:#fdefe2; }
 .ag-sonuc.sec-turuncu.aktif{ background:#fde7d3; border-color:#ea580c; color:#c2570c; }
 
+/* Görüşme sonucu kartı — ARA yapılana kadar kilitli */
+.ag-kart.kilitli .ag-sonuc-grid,
+.ag-kart.kilitli .ag-donusum-grid,
+.ag-kart.kilitli .ag-donusum-lbl,
+.ag-kart.kilitli .ag-kat-secim,
+.ag-kart.kilitli .ag-not-alani,
+.ag-kart.kilitli .ag-satis-alan,
+.ag-kart.kilitli .ag-sonra,
+.ag-kart.kilitli .ag-sonra-alan,
+.ag-kart.kilitli .ag-kaydet{ opacity:.45; pointer-events:none; filter:grayscale(.3); }
+.ag-kilit-not{ display:none; background:#fff7ed; border:1px solid #fed7aa; color:#c2570c; border-radius:10px; padding:9px 12px; font-size:12.5px; font-weight:600; margin-bottom:10px; }
+.ag-kart.kilitli .ag-kilit-not{ display:block; }
+.ag-kilit-not .fa{ margin-right:5px; }
+
 /* Dönüşüm (hedef) butonları: Ön Görüşme + Telefonda Satış */
 .ag-donusum-lbl{ font-size:11.5px; font-weight:800; color:#8a90a2; text-transform:uppercase; letter-spacing:.4px; margin:14px 0 7px; }
 .ag-donusum-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -489,9 +503,10 @@ function agDetayCiz(m){
       // Görüşme scripti (tanımlıysa)
       agScriptKart() +
 
-      // Görüşme sonucu formu
-      '<div class="ag-kart">'+
+      // Görüşme sonucu formu — ARA yapilana kadar KILITLI (arama yapmadan sonuc isaretlenemez)
+      '<div class="ag-kart'+( (agBeklemedeId!==null && String(agBeklemedeId)===String(m.aranacak_musteri_id)) ? '' : ' kilitli')+'" id="ag_sonuc_kart">'+
          '<div class="ag-kart-bas"><i class="fa fa-check-circle"></i> Görüşme Sonucu</div>'+
+         '<div class="ag-kilit-not"><i class="fa fa-lock"></i> Sonuç işaretlemek için önce yukarıdan <b>ARA</b>’ya basın.</div>'+
          '<div class="ag-sonuc-grid">'+
             '<div class="ag-sonuc sec-yesil" data-sonuc="4"><i class="fa fa-phone"></i>Görüşüldü</div>'+
             '<div class="ag-sonuc sec-kirmizi" data-sonuc="2"><i class="fa fa-phone-square"></i>Cevapsız</div>'+
@@ -504,7 +519,7 @@ function agDetayCiz(m){
             '<div class="ag-sonuc ag-donusum sec-altin" data-sonuc="7"><i class="fa fa-shopping-bag"></i>Telefonda Satış</div>'+
          '</div>'+
          agKatSelectler() +
-         '<textarea class="ag-not-alani" id="ag_not" placeholder="Görüşme notu (müşteri ne dedi, talep, vb.)...">'+agEsc(m.not||'')+'</textarea>'+
+         '<textarea class="ag-not-alani" id="ag_not" placeholder="Görüşme notu (müşteri ne dedi, talep, vb.)..."></textarea>'+
          // Telefonda Satış tutarı (sonuc=7)
          '<div class="ag-satis-alan" id="ag_satis_alan" style="display:none;">'+
             '<span class="ag-satis-lbl">Satış tutarı (₺)</span>'+
@@ -633,6 +648,7 @@ $(document).on('click', '#ag_ara_btn', function(){
             agDurumGuncelle(id, 1); // optimistic: Arandı
             agBeklemedeId = id;     // sonuç kaydedilene kadar kilitle
             $('#ag_ara_btn').addClass('pasif');
+            $('#ag_sonuc_kart').removeClass('kilitli'); // arama yapıldı -> sonuç formu açılır
             swal({ type:'success', title:'Arama başlatıldı', text:res.message||'Telefonunuz (Bria) çalacak, açın.', timer:3800, showConfirmButton:false });
          } else {
             swal({ type:'warning', title:'Aranamadı', text:res.message||'Arama başlatılamadı.' });
@@ -699,6 +715,9 @@ $(document).on('click', '#ag_kaydet', function(){
                $('#ag_ara_btn').removeClass('pasif');
             }
             agSecilenSonuc = null;
+            $('.ag-sonuc').removeClass('aktif');
+            $('#ag_not').val(''); $('#ag_satis_alan').hide(); $('#ag_sonra_alan').hide(); $('#ag_sonra_chk').prop('checked', false);
+            $('#ag_sonuc_kart').addClass('kilitli'); // sonuç kaydedildi -> form tekrar kilitlenir (yeni arama gerekir)
             swal({ type:'success', title:'Kaydedildi', timer:1400, showConfirmButton:false });
          } else {
             swal({ type:'error', title:'Hata', text:res.message||'Kaydedilemedi.' });
