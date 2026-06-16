@@ -222,7 +222,7 @@
 
                {{-- Musteri secim karti --}}
                <div class="cm-sec-kart">
-                  <label>Müşterileri Seçiniz <span style="color:#9b8fb0;font-weight:600;">(varsayılan: filtreye uyan tümü)</span></label>
+                  <label>Müşterileri Seçiniz <span style="color:#9b8fb0;font-weight:600;">(varsayılan: filtreye uyan tümü — tek tek seçmek için önce <b>Tümünü Kaldır</b>, sonra arayıp tikleyin; seçimler birikir)</span></label>
                   <div class="row" style="margin-bottom:12px;">
                      <div class="col-md-6"><input type="text" id="musteriarama" name="musteriarama" class="form-control" placeholder="🔍 Müşteri arayın..."></div>
                      <div class="col-md-3"><button id="selectAllBtn" type="button" class="cm-btn-mini btn-block">Tümünü Seç</button></div>
@@ -396,6 +396,27 @@ function loadMore(page) {
   });
 }
 
+// SADECE ARAMA: eslesen musterileri listeler ama SECIMI DEGISTIRMEZ.
+// Boylece arama yaparak tek tek musteri bulup tikleyebilir, secimler BIRIKIR.
+function aramaYap() {
+  if (isLoading) return;
+  isLoading = true;
+  $('.loading').show();
+  currentPage = 1;
+  aralikModu = false;
+  $.ajax({
+    url: '/isletmeyonetim/arama_filtre_onizleme',
+    method: 'POST',
+    data: $.extend({}, getFiltre(), { page: 1, perPage: perPage, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() }),
+    success: function (res) {
+      totalCustomers = res.total;
+      renderCustomers(res.customers, false); // checkbox'lar mevcut selectedIds'e gore isaretlenir
+      updateSelectedCount();                 // selectedIds'e DOKUNULMAZ
+    },
+    complete: function () { isLoading = false; $('.loading').hide(); }
+  });
+}
+
 function debounce(func, wait) {
   return function () { clearTimeout(filtreDebounce); filtreDebounce = setTimeout(() => func.apply(this, arguments), wait); };
 }
@@ -473,7 +494,8 @@ $(document).ready(function () {
     debouncedFiltre();
   });
 
-  $('#musteriarama').on('input', debounce(function () { searchTerm = $(this).val().trim(); filtreUygula(); }, 400));
+  // Arama kutusu: seçimi SIFIRLAMAZ — sadece eşleşenleri listeler (birikerek seçim için).
+  $('#musteriarama').on('input', debounce(function () { searchTerm = $(this).val().trim(); aramaYap(); }, 400));
 
   $('#selectAllBtn').click(function () {
     $.ajax({
