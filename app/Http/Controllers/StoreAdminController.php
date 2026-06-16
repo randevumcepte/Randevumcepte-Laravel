@@ -27713,16 +27713,28 @@ DB::raw('
             ->select('durum', DB::raw('COUNT(*) as adet'))
             ->groupBy('durum')->get();
 
-        $segmentler = [];
+        $sayim = [];
         foreach ($rows as $r) {
-            $segmentler[] = [
-                'kod'  => is_null($r->durum) ? 'bekleyen' : (string) (int) $r->durum,
-                'ad'   => is_null($r->durum) ? 'Bekleyen' : self::aranacakDurumMetin($r->durum),
-                'adet' => (int) $r->adet,
-            ];
+            $key = is_null($r->durum) ? 'bekleyen' : (string) (int) $r->durum;
+            $sayim[$key] = ($sayim[$key] ?? 0) + (int) $r->adet;
         }
-        // adet'e gore buyukten kucuge
-        usort($segmentler, function ($a, $b) { return $b['adet'] <=> $a['adet']; });
+
+        // SABIT kategori seti — buton olarak hep gosterilir (0 olsa da). Arandi yalnizca varsa.
+        $tanim = [
+            ['kod' => '4', 'ad' => 'Görüşüldü'],
+            ['kod' => '2', 'ad' => 'Cevapsız'],
+            ['kod' => '5', 'ad' => 'Meşgul'],
+            ['kod' => '0', 'ad' => 'Ulaşılamadı'],
+            ['kod' => '3', 'ad' => 'Randevu'],
+            ['kod' => 'bekleyen', 'ad' => 'Bekleyen'],
+        ];
+        if (($sayim['1'] ?? 0) > 0) {
+            $tanim[] = ['kod' => '1', 'ad' => 'Arandı'];
+        }
+        $segmentler = [];
+        foreach ($tanim as $t) {
+            $segmentler[] = ['kod' => $t['kod'], 'ad' => $t['ad'], 'adet' => $sayim[$t['kod']] ?? 0];
+        }
         return response()->json(['baslik' => $liste->arama_baslik, 'segmentler' => $segmentler]);
     }
 

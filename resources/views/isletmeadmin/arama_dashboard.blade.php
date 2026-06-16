@@ -218,6 +218,21 @@
 .seg-personel{ border:1px solid #e3dcf0; border-radius:9px; padding:7px 10px; font-size:12.5px; outline:none; background:#fff; min-width:150px; }
 .seg-ata{ border:none; background:linear-gradient(120deg,#5C008E,#7B2FB8); color:#fff; border-radius:9px; padding:7px 14px; font-size:12.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
 .seg-ata:hover{ opacity:.93; } .seg-ata:disabled{ opacity:.5; cursor:not-allowed; }
+
+/* Tek satır: segment seçim çipleri + aksiyonlar */
+.seg-bar{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; border:1px solid #eef0f5; border-radius:14px; padding:12px 14px; }
+.seg-chips{ display:flex; gap:8px; flex-wrap:wrap; }
+.seg-chip{ border:1.5px solid #e9ebf2; background:#fff; color:#5b6172; border-radius:11px; padding:8px 13px; font-size:12.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:7px; transition:all .12s ease; }
+.seg-chip:hover{ border-color:#c4cad8; }
+.seg-chip-n{ background:#f0f1f5; color:#6b7280; border-radius:20px; padding:1px 8px; font-size:11px; font-weight:800; }
+.seg-chip.aktif{ color:#fff; border-color:transparent; }
+.seg-chip.aktif .seg-chip-n{ background:rgba(255,255,255,.28); color:#fff; }
+.seg-chip.s-yesil.aktif{ background:#16a34a; } .seg-chip.s-kirmizi.aktif{ background:#dc2626; }
+.seg-chip.s-mavi.aktif{ background:#1565c0; } .seg-chip.s-turuncu.aktif{ background:#ea580c; }
+.seg-chip.s-pembe.aktif{ background:#db2777; } .seg-chip.s-gri.aktif{ background:#6b7280; }
+.seg-chip.bos{ opacity:.5; } /* 0 müşterili segment soluk */
+.seg-bar .seg-aksiyon{ margin-left:auto; }
+.seg-indir.pasif, .seg-ata.pasif{ opacity:.45; cursor:not-allowed; pointer-events:none; }
 </style>
 
 <div class="cm-wrap">
@@ -570,59 +585,82 @@ function segPersonelOpts(){
 $(document).on('change', '#seg_liste_sec', function(){ segSegmentleriYukle(); });
 $(document).on('click', '#seg_yenile', function(){ segSegmentleriYukle(); });
 
+var segSecili = null; // {kod, ad, adet}
+
 function segSegmentleriYukle(){
    var aramaId = $('#seg_liste_sec').val();
    var sube = $('input[name="sube"]').val();
+   segSecili = null;
    if (!aramaId){ $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>Yukarıdan bir arama listesi seçin.</div>'); return; }
    $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
    $.get('/isletmeyonetim/cagri-liste-segmentler', { arama_id: aramaId, sube: sube }, function(res){
       var segs = (res && res.segmentler) ? res.segmentler : [];
       if (!segs.length){ $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-inbox"></i>Bu listede müşteri yok.</div>'); return; }
-      var html = '<div class="seg-tablo">';
+      var chips = '';
       segs.forEach(function(s){
-         var r = segRenk(s.kod);
-         var indirUrl = '/isletmeyonetim/cagri-segment-indir?arama_id='+encodeURIComponent(aramaId)+'&kod='+encodeURIComponent(s.kod)+'&sube='+encodeURIComponent(sube);
-         html += '<div class="seg-satir s-'+r+'">'+
-            '<span class="seg-ad">'+cmEsc(s.ad)+'</span>'+
-            '<span class="seg-adet">'+s.adet+' müşteri</span>'+
+         chips += '<button class="seg-chip s-'+segRenk(s.kod)+(s.adet===0?' bos':'')+'" data-kod="'+cmEsc(s.kod)+'" data-ad="'+cmEsc(s.ad)+'" data-adet="'+s.adet+'">'+
+                     cmEsc(s.ad)+' <span class="seg-chip-n">'+s.adet+'</span></button>';
+      });
+      var html =
+         '<div class="seg-bar">'+
+            '<div class="seg-chips">'+chips+'</div>'+
             '<div class="seg-aksiyon">'+
-               '<a class="seg-indir" href="'+indirUrl+'"><i class="fa fa-download"></i> İndir</a>'+
-               '<select class="seg-personel">'+segPersonelOpts()+'</select>'+
-               '<button class="seg-ata" data-kod="'+cmEsc(s.kod)+'"><i class="fa fa-user-plus"></i> Personele Taşı</button>'+
+               '<button class="seg-indir pasif" id="seg_indir"><i class="fa fa-download"></i> İndir</button>'+
+               '<select class="seg-personel" id="seg_personel">'+segPersonelOpts()+'</select>'+
+               '<button class="seg-ata pasif" id="seg_ata"><i class="fa fa-user-plus"></i> Personele Taşı</button>'+
             '</div>'+
          '</div>';
-      });
-      html += '</div>';
       $('#seg_govde').html(html);
+
+      // İlk DOLU segmenti otomatik seç
+      var ilkDolu = segs.filter(function(s){ return s.adet>0; })[0] || segs[0];
+      if (ilkDolu){ $('.seg-chip[data-kod="'+ilkDolu.kod+'"]').trigger('click'); }
    });
 }
 
-$(document).on('click', '.seg-ata', function(){
-   var $satir = $(this).closest('.seg-satir');
-   var kod = $(this).data('kod');
+// Çip seç -> aktif segment
+$(document).on('click', '.seg-chip', function(){
+   $('.seg-chip').removeClass('aktif');
+   $(this).addClass('aktif');
+   segSecili = { kod: String($(this).data('kod')), ad: $(this).data('ad'), adet: parseInt($(this).data('adet'),10)||0 };
+   var aktif = segSecili.adet>0;
+   $('#seg_indir').toggleClass('pasif', !aktif);
+   $('#seg_ata').toggleClass('pasif', !aktif);
+});
+
+// Seçili segmenti indir
+$(document).on('click', '#seg_indir', function(){
+   if (!segSecili || segSecili.adet<=0) return;
    var aramaId = $('#seg_liste_sec').val();
-   var personelId = $satir.find('.seg-personel').val();
-   var personelAd = $satir.find('.seg-personel option:selected').text();
-   if (!personelId){ segMsg({ type:'warning', title:'Personel seçin', text:'Bu segmenti taşımak için bir personel seçin.' }); return; }
-   var adet = $satir.find('.seg-adet').text();
-   if (confirm(adet + ' "' + personelAd + '" personeline TAŞINACAK (bu listeden çıkacak). Devam edilsin mi?')){
-      segAtaYap(aramaId, kod, personelId, $satir);
+   var sube = $('input[name="sube"]').val();
+   window.location = '/isletmeyonetim/cagri-segment-indir?arama_id='+encodeURIComponent(aramaId)+'&kod='+encodeURIComponent(segSecili.kod)+'&sube='+encodeURIComponent(sube);
+});
+
+// Seçili segmenti personele taşı
+$(document).on('click', '#seg_ata', function(){
+   if (!segSecili || segSecili.adet<=0){ segMsg({ type:'warning', title:'Segment seçin', text:'Önce dolu bir segment (Görüşüldü, Cevapsız...) seçin.' }); return; }
+   var aramaId = $('#seg_liste_sec').val();
+   var personelId = $('#seg_personel').val();
+   var personelAd = $('#seg_personel option:selected').text();
+   if (!personelId){ segMsg({ type:'warning', title:'Personel seçin', text:'Taşımak için bir personel seçin.' }); return; }
+   if (confirm(segSecili.ad+' segmentindeki '+segSecili.adet+' müşteri "'+personelAd+'" personeline TAŞINACAK (bu listeden çıkacak). Devam edilsin mi?')){
+      segAtaYap(aramaId, segSecili.kod, personelId);
    }
 });
-function segAtaYap(aramaId, kod, personelId, $satir){
-   var $btn = $satir.find('.seg-ata'); $btn.prop('disabled', true);
+
+function segAtaYap(aramaId, kod, personelId){
+   var $btn = $('#seg_ata'); $btn.addClass('pasif');
    $.post('/isletmeyonetim/cagri-segment-ata',
       { arama_id: aramaId, kod: kod, personel_id: personelId, _token: $('input[name="_token"]').val() },
       function(res){
          if (res.success){
             segMsg({ type:'success', title:'Taşındı', text:res.message, timer:2800, showConfirmButton:false });
             segListeleriYukle();                 // liste sayilari degisti
-            $('#seg_liste_sec').trigger('change'); // segmentleri tazele
+            segSegmentleriYukle();               // segmentleri tazele
             dashYukle();                          // performans kartlarini tazele
-         } else { segMsg({ type:'error', title:'Hata', text:res.message||'Taşınamadı.' }); }
+         } else { segMsg({ type:'error', title:'Hata', text:res.message||'Taşınamadı.' }); $btn.removeClass('pasif'); }
       }
-   ).fail(function(){ segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); })
-    .always(function(){ $btn.prop('disabled', false); });
+   ).fail(function(){ segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); $btn.removeClass('pasif'); });
 }
 
 $(document).ready(function () { dashYukle(); segListeleriYukle(); segPersonelYukle(); });
