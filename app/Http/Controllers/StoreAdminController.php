@@ -27700,12 +27700,20 @@ DB::raw('
      * Cagri Merkezi — Liste Segmentasyonu (sonuca gore ayikla, indir, personele tasi)
      * ============================================================ */
 
-    /** Bir arama listesini sonuca (durum) gore gruplar: her segment + adet. */
+    /** Giris yapan yetkili, bu listenin salonuna yetkili mi? (sube parametresinden bagimsiz) */
+    private function cagriListeYetkiliMi($liste)
+    {
+        if (!$liste) return false;
+        return Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler
+            ->where('aktif', 1)->pluck('salon_id')->map(function ($v) { return (int) $v; })
+            ->contains((int) $liste->salon_id);
+    }
+
+    /** Bir arama listesini sonuca (durum) gore gruplar: her segment + adet + atanan personel. */
     public function cagri_liste_segmentler(Request $request)
     {
-        $salonId = self::mevcutsube($request);
         $liste = AramaListesi::where('id', $request->arama_id)->first();
-        if (!$liste || (int) $liste->salon_id !== (int) $salonId) {
+        if (!$this->cagriListeYetkiliMi($liste)) {
             return response()->json(['baslik' => '', 'segmentler' => []], 403);
         }
         $rows = DB::table('aranacak_musteriler')
@@ -27735,7 +27743,13 @@ DB::raw('
         foreach ($tanim as $t) {
             $segmentler[] = ['kod' => $t['kod'], 'ad' => $t['ad'], 'adet' => $sayim[$t['kod']] ?? 0];
         }
-        return response()->json(['baslik' => $liste->arama_baslik, 'segmentler' => $segmentler]);
+        $personelAd = $liste->personel_id ? Personeller::where('id', $liste->personel_id)->value('personel_adi') : '';
+        return response()->json([
+            'baslik'      => $liste->arama_baslik,
+            'personel_id' => $liste->personel_id,
+            'personel_ad' => $personelAd,
+            'segmentler'  => $segmentler,
+        ]);
     }
 
     /** Segment indir (CSV, Excel uyumlu). arama_id + kod (durum veya 'bekleyen'). */
@@ -27826,6 +27840,52 @@ DB::raw('
             'message' => count($ids) . ' müşteri "' . $hedef->personel_adi . '" personeline taşındı (yeni liste: ' . $baslik . ').',
             'yeni_liste_id' => $yeni->id,
         ]);
+    }
+
+    /**
+     * Listenin TAMAMINI baska personele ata, ya da atamayi GERI AL (personel_id=null).
+     * Atamayi geri alinca liste hicbir personelin kuyrugunda gorunmez (sahip geri cekmis olur).
+     */
+    public function cagri_liste_personel_degistir(Request $request)
+    {
+        $liste = AramaListesi::where('id', $request->arama_id)->first();
+        if (!$this->cagriListeYetkiliMi($liste)) {
+            return response()->json(['success' => false, 'message' => 'Bu listeye yetkiniz yok.']);
+        }
+        $salonId = (int) $liste->salon_id;
+        $personelId = $request->filled('personel_id') ? $request->personel_id : null;
+
+        if ($personelId) {
+            $hedef = Personeller::where('id', $personelId)->where('salon_id', $salonId)->first();
+            if (!$hedef) {
+                return response()->json(['success' => false, 'message' => 'Geçerli bir personel seçin.']);
+            }
+            $liste->personel_id = $personelId;
+            $liste->save();
+            return response()->json(['success' => true, 'message' => 'Liste "' . $hedef->personel_adi . '" personeline atandı.']);
+        }
+
+        // Atamayi geri al
+        $liste->personel_id = null;
+        $liste->save();
+        return response()->json(['success' => true, 'message' => 'Atama geri alındı — bu liste artık hiçbir personelde görünmüyor.']);
+    }
+
+    /** Bir arama listesini ve icindeki tum musteri/gorusme kayitlarini SILER (geri alinamaz). */
+    public function cagri_liste_sil(Request $request)
+    {
+        $liste = AramaListesi::where('id', $request->arama_id)->first();
+        if (!$this->cagriListeYetkiliMi($liste)) {
+            return response()->json(['success' => false, 'message' => 'Bu listeye yetkiniz yok.']);
+        }
+        $ids = AranacakMusteriler::where('arama_id', $liste->id)->pluck('id')->all();
+        if (!empty($ids) && Schema::hasTable('gorusme_notlari')) {
+            \App\GorusmeNotlari::whereIn('aranacak_musteri_id', $ids)->delete();
+        }
+        AranacakMusteriler::where('arama_id', $liste->id)->delete();
+        $baslik = $liste->arama_baslik;
+        $liste->delete();
+        return response()->json(['success' => true, 'message' => '"' . $baslik . '" listesi ve ' . count($ids) . ' müşteri kaydı silindi.']);
     }
 
     /* ============================================================

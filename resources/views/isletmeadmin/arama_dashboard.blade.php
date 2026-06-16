@@ -233,6 +233,14 @@
 .seg-chip.bos{ opacity:.5; } /* 0 müşterili segment soluk */
 .seg-bar .seg-aksiyon{ margin-left:auto; }
 .seg-indir.pasif, .seg-ata.pasif{ opacity:.45; cursor:not-allowed; pointer-events:none; }
+
+/* Liste yönetim çubuğu (atama değiştir/geri al/sil) */
+.seg-yonet{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#faf9fc; border:1px solid #eef0f5; border-radius:12px; padding:10px 12px; margin-bottom:12px; }
+.seg-yonet-lbl{ font-size:12.5px; color:#6b7280; margin-right:6px; }
+.seg-yonet-lbl b{ color:#241b3a; }
+.seg-yonet .seg-personel{ min-width:150px; }
+.seg-sil{ color:#dc2626 !important; border-color:#f1c7c7 !important; margin-left:auto; }
+.seg-sil:hover{ background:#fdecec !important; border-color:#dc2626 !important; color:#dc2626 !important; }
 </style>
 
 <div class="cm-wrap">
@@ -576,9 +584,12 @@ function segRenk(kod){
       default: return 'gri';
    }
 }
-function segPersonelOpts(){
+function segPersonelOpts(seciliId){
    var o = '<option value="">Personel seç...</option>';
-   segPersoneller.forEach(function(p){ o += '<option value="'+p.id+'">'+cmEsc(p.personel_adi)+'</option>'; });
+   segPersoneller.forEach(function(p){
+      var sel = (seciliId && String(seciliId)===String(p.id)) ? ' selected' : '';
+      o += '<option value="'+p.id+'"'+sel+'>'+cmEsc(p.personel_adi)+'</option>';
+   });
    return o;
 }
 
@@ -601,7 +612,17 @@ function segSegmentleriYukle(){
          chips += '<button class="seg-chip s-'+segRenk(s.kod)+(s.adet===0?' bos':'')+'" data-kod="'+cmEsc(s.kod)+'" data-ad="'+cmEsc(s.ad)+'" data-adet="'+s.adet+'">'+
                      cmEsc(s.ad)+' <span class="seg-chip-n">'+s.adet+'</span></button>';
       });
+      var atanan = res.personel_ad ? cmEsc(res.personel_ad) : '— atanmamış —';
       var html =
+         // Liste yönetimi: atamayı değiştir / geri al / listeyi sil
+         '<div class="seg-yonet">'+
+            '<span class="seg-yonet-lbl"><i class="fa fa-user-circle-o"></i> Atanan personel: <b>'+atanan+'</b></span>'+
+            '<select class="seg-personel" id="seg_atanan">'+segPersonelOpts(res.personel_id)+'</select>'+
+            '<button class="seg-indir" id="seg_atama_kaydet"><i class="fa fa-exchange"></i> Ata / Değiştir</button>'+
+            '<button class="seg-indir" id="seg_atama_kaldir"><i class="fa fa-user-times"></i> Atamayı Geri Al</button>'+
+            '<button class="seg-indir seg-sil" id="seg_liste_sil"><i class="fa fa-trash"></i> Listeyi Sil</button>'+
+         '</div>'+
+         // Segment cipleri + segment-bazli aksiyonlar
          '<div class="seg-bar">'+
             '<div class="seg-chips">'+chips+'</div>'+
             '<div class="seg-aksiyon">'+
@@ -662,6 +683,56 @@ function segAtaYap(aramaId, kod, personelId){
       }
    ).fail(function(){ segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); $btn.removeClass('pasif'); });
 }
+
+// Listenin TAMAMINI başka personele ata / değiştir
+$(document).on('click', '#seg_atama_kaydet', function(){
+   var aramaId = $('#seg_liste_sec').val();
+   var personelId = $('#seg_atanan').val();
+   if (!personelId){ segMsg({ type:'warning', title:'Personel seçin', text:'Atamak için bir personel seçin (ya da "Atamayı Geri Al" kullanın).' }); return; }
+   segListePersonel(aramaId, personelId);
+});
+
+// Atamayı geri al (liste hiçbir personelde görünmez)
+$(document).on('click', '#seg_atama_kaldir', function(){
+   var aramaId = $('#seg_liste_sec').val();
+   if (confirm('Bu listenin ataması GERİ ALINACAK — artık hiçbir personelin ekranında görünmeyecek. Devam edilsin mi?')){
+      segListePersonel(aramaId, '');
+   }
+});
+
+function segListePersonel(aramaId, personelId){
+   $.post('/isletmeyonetim/cagri-liste-personel-degistir',
+      { arama_id: aramaId, personel_id: personelId, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+      function(res){
+         if (res.success){
+            segMsg({ type:'success', title:'Tamam', text:res.message, timer:2600, showConfirmButton:false });
+            segListeleriYukle();
+            segSegmentleriYukle();
+            dashYukle();
+         } else { segMsg({ type:'error', title:'Hata', text:res.message||'İşlem başarısız.' }); }
+      }
+   ).fail(function(){ segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); });
+}
+
+// Listeyi tamamen sil
+$(document).on('click', '#seg_liste_sil', function(){
+   var aramaId = $('#seg_liste_sec').val();
+   var ad = $('#seg_liste_sec option:selected').text();
+   if (confirm('"'+ad+'" listesi ve içindeki TÜM müşteri/görüşme kayıtları KALICI olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?')){
+      $.post('/isletmeyonetim/cagri-liste-sil',
+         { arama_id: aramaId, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+         function(res){
+            if (res.success){
+               segMsg({ type:'success', title:'Silindi', text:res.message, timer:2600, showConfirmButton:false });
+               $('#seg_liste_sec').val('');
+               $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>Yukarıdan bir arama listesi seçin.</div>');
+               segListeleriYukle();
+               dashYukle();
+            } else { segMsg({ type:'error', title:'Hata', text:res.message||'Silinemedi.' }); }
+         }
+      ).fail(function(){ segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); });
+   }
+});
 
 $(document).ready(function () { dashYukle(); segListeleriYukle(); segPersonelYukle(); });
 </script>

@@ -1211,6 +1211,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/cagri-liste-segmentler','StoreAdminController@cagri_liste_segmentler');
 	Route::get('/cagri-segment-indir','StoreAdminController@cagri_segment_indir');
 	Route::post('/cagri-segment-ata','StoreAdminController@cagri_segment_ata');
+	Route::post('/cagri-liste-personel-degistir','StoreAdminController@cagri_liste_personel_degistir');
+	Route::post('/cagri-liste-sil','StoreAdminController@cagri_liste_sil');
 	Route::get('/raporlar','StoreAdminController@raporlar');
 	Route::get('/primraporu','StoreAdminController@primRaporu')->name('isletmeadmin.primraporu');
 	Route::post('/primhareketekle','StoreAdminController@primHareketEkle');
