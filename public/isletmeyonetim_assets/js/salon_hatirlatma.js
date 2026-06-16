@@ -59,7 +59,8 @@
                 SON_FEED = liste;
                 bellGuncelle(liste);
                 otomatikToastlar(liste);
-                otomatikBigPopup(liste);
+                // NOT: Tam-ekran popup kaldirildi (kullanici istegi). Hatirlatmalar artik
+                // sadece sag-alt kartlar (toast) olarak gosterilir. otomatikBigPopup cagrilmiyor.
             },
             error: function(){ /* sessiz */ }
         });
