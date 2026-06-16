@@ -1682,19 +1682,7 @@
                   </li>
                   @endif
 
-                  {{-- 2d) Cagri Merkezi Ayarlari (yonetici): scriptler + sonuc kategorileri --}}
-                  @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
-                  <li>
-                     @if($pageindex==46)
-                     <a href="/isletmeyonetim/cagri-ayarlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/cagri-ayarlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-card-list"></span>
-                     <span class="mtext"> Çağrı Merkezi Ayarları </span>
-                     </a>
-                  </li>
-                  @endif
+                  {{-- "Çağrı Merkezi Ayarları" menü öğesi kaldırıldı (istek üzerine). Sayfa/route duruyor. --}}
 
                   {{-- 3) Randevu Takvimi --}}
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
