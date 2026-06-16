@@ -28009,10 +28009,11 @@ DB::raw('
             $ad = optional($k->musteri)->name ?? 'Müşteri';
             if ($personelMi) $ad = self::adSoyadMaskele($ad);
             return [
-                'id'    => $k->id,
-                'ad'    => $ad,
-                'tarih' => $k->tarih ? date('d.m.Y', strtotime($k->tarih)) : '',
-                'saat'  => $k->saat ? date('H:i', strtotime($k->saat)) : '',
+                'id'       => $k->id,
+                'arama_id' => $k->arama_id,
+                'ad'       => $ad,
+                'tarih'    => $k->tarih ? date('d.m.Y', strtotime($k->tarih)) : '',
+                'saat'     => $k->saat ? date('H:i', strtotime($k->saat)) : '',
             ];
         });
 

@@ -299,6 +299,8 @@ $(document).on('click', '.ag-liste-chip', function(){
    agListeSec($(this).data('id'), $(this).data('baslik'));
 });
 
+var agHedefSecim = null; // liste yuklenince secilecek belirli musteri (randevu popup'tan)
+
 // ---- Müşteriler (kuyruk) ----
 function agMusterileriYukle(){
    agSecili = null; // yeni liste -> önceki seçim sıfırlanır
@@ -310,8 +312,9 @@ function agMusterileriYukle(){
          agMusteriler = (res && res.data) ? res.data : [];
          agFiltreCiz();
          agKuyrukCiz();
-         // İlk müşteriyi otomatik aç (boş "müşteri seçin" ekranı yerine)
-         agIlkMusteriyiSec();
+         // Hedef müşteri varsa onu aç (randevu popup), yoksa ilk müşteriyi aç
+         if (agHedefSecim){ agHedefSeciminiUygula(); }
+         else { agIlkMusteriyiSec(); }
       },
       error:function(){ $('#ag_kuyruk').html('<div class="ag-gecmis-bos" style="color:#c62828;">Müşteriler yüklenemedi.</div>'); }
    });
@@ -321,6 +324,27 @@ function agMusterileriYukle(){
 function agIlkMusteriyiSec(){
    var ilk = $('#ag_kuyruk .ag-musteri').first();
    if (ilk.length){ ilk.trigger('click'); }
+}
+
+// Belirli bir müşteriyi kuyrukta seçer (randevu popup'tan gelince)
+function agHedefSeciminiUygula(){
+   if (!agHedefSecim) return;
+   var hedef = agHedefSecim; agHedefSecim = null;
+   var $el = $('#ag_kuyruk .ag-musteri[data-id="'+hedef+'"]');
+   if ($el.length){ try { $el[0].scrollIntoView({block:'center'}); } catch(e){} $el.trigger('click'); }
+   else { agIlkMusteriyiSec(); } // hedef bu filtrede yoksa ilkini aç
+}
+
+// Randevu popup'tan: müşteriyi (gerekirse listesini açarak) arama ekranında seç
+function agMusteriyeGit(aramaId, aranacakId){
+   agHedefSecim = String(aranacakId);
+   agFiltre = 'hepsi'; // hedef görünür olsun
+   if (String(agAktifListe) === String(aramaId)){
+      agFiltreCiz(); agKuyrukCiz(); agHedefSeciminiUygula();
+   } else {
+      var $chip = $('.ag-liste-chip[data-id="'+aramaId+'"]');
+      agListeSec(aramaId, $chip.length ? $chip.data('baslik') : ''); // yüklenince hedef seçilir
+   }
 }
 
 // Çağrı geçmişini elle yenile
@@ -660,12 +684,23 @@ function agRandevuKontrol(){
       if (!yeni.length) return;
       yeni.forEach(function(r){ agGosterilenRandevular[r.id] = true; });
 
+      var hedef = yeni[0]; // OK -> bu müşteri arama ekranında açılır
       var metin = yeni.map(function(r){ return '• ' + r.ad + ' — ' + r.tarih + ' ' + r.saat; }).join('\n');
       var baslik = yeni.length>1 ? (yeni.length+' arama randevusunun zamanı geldi') : 'Arama randevusu zamanı geldi';
+      var gitEt = function(){ if (hedef && hedef.arama_id){ agMusteriyeGit(hedef.arama_id, hedef.id); } };
+
       if (typeof swal === 'function'){
-         swal({ type:'info', title:'🔔 '+baslik, text:metin });
+         var sonuc = swal({
+            type:'info', title:'🔔 '+baslik, text:metin,
+            showCancelButton:true,
+            confirmButtonText: (yeni.length>1 ? 'İlk müşteriye git' : 'Müşteriye git'),
+            cancelButtonText:'Kapat'
+         }, function(onay){ if (onay) gitEt(); });            // SweetAlert1 callback
+         if (sonuc && typeof sonuc.then === 'function'){      // SweetAlert2 promise
+            sonuc.then(function(res){ if (res === true || (res && res.value)) gitEt(); }).catch(function(){});
+         }
       } else {
-         alert('🔔 '+baslik+'\n'+metin);
+         if (confirm('🔔 '+baslik+'\n'+metin+'\n\nMüşteriye gidilsin mi?')) gitEt();
       }
    });
 }
