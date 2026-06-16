@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hatırlatma Kontrol</title>
+<style>
+  body{ font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#f1f5f9; margin:0; padding:24px; color:#0f172a; }
+  .wrap{ max-width:1000px; margin:0 auto; }
+  h1{ font-size:20px; margin:0 0 4px; }
+  .alt{ color:#64748b; font-size:13px; margin:0 0 18px; }
+  .arac{ display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+  .arac input{ padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; width:160px; font-size:14px; }
+  .arac button{ padding:8px 16px; border:0; border-radius:8px; background:#5C008E; color:#fff; font-weight:600; cursor:pointer; }
+  .arac button:hover{ filter:brightness(1.08); }
+  .ozet{ background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:14px; }
+  .ozet b{ color:#5C008E; }
+  table{ width:100%; border-collapse:collapse; background:#fff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; }
+  th,td{ text-align:left; padding:10px 12px; border-bottom:1px solid #eef2f7; font-size:13px; vertical-align:top; }
+  th{ background:#f8fafc; color:#475569; font-weight:600; }
+  tr:last-child td{ border-bottom:0; }
+  .emoji{ font-size:22px; }
+  .sayac{ display:inline-block; min-width:24px; text-align:center; background:#5C008E; color:#fff; border-radius:20px; padding:2px 8px; font-weight:700; }
+  .tip{ color:#64748b; font-family:monospace; font-size:12px; }
+  .mesaj{ color:#0f172a; }
+  .altmesaj{ color:#94a3b8; font-style:italic; font-size:12px; margin-top:2px; }
+  a.link{ color:#5C008E; word-break:break-all; font-size:12px; }
+  .hata{ background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; padding:12px 16px; border-radius:10px; }
+  .bos{ text-align:center; color:#64748b; padding:30px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔔 Hatırlatma Kontrol Paneli</h1>
+  <p class="alt">Sistemin o an hesapladığı tüm hatırlatmaları gösterir. Panele giriş yapılı olmalı (aynı domain).</p>
+
+  <div class="arac">
+    <label style="font-size:13px;color:#475569;">Şube (boş = otomatik):</label>
+    <input id="sube" type="number" placeholder="otomatik" />
+    <button onclick="yukle()">Yenile</button>
+  </div>
+
+  <div id="ozet" class="ozet">Yükleniyor…</div>
+  <div id="icerik"></div>
+</div>
+
+<script>
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];}); }
+
+function yukle(){
+  var sube = document.getElementById('sube').value.trim();
+  var url = '/isletmeyonetim/api/hatirlatma-feed?refresh=1' + (sube ? '&sube='+encodeURIComponent(sube) : '');
+  document.getElementById('ozet').textContent = 'Yükleniyor…';
+  document.getElementById('icerik').innerHTML = '';
+
+  fetch(url, { credentials:'same-origin', headers:{ 'Accept':'application/json' } })
+    .then(function(r){
+      if(r.status===401){ throw new Error('Giriş yapılmamış (401). Önce bu domainde işletme paneline giriş yapın.'); }
+      if(!r.ok){ throw new Error('Sunucu hatası: HTTP '+r.status); }
+      return r.json();
+    })
+    .then(function(d){
+      var liste = (d && d.hatirlatmalar) ? d.hatirlatmalar : [];
+      document.getElementById('ozet').innerHTML =
+        'Toplam <b>'+liste.length+'</b> hatırlatma' + (sube ? ' &nbsp;|&nbsp; şube: <b>'+esc(sube)+'</b>' : ' &nbsp;|&nbsp; şube: <b>otomatik</b>');
+
+      if(!liste.length){
+        document.getElementById('icerik').innerHTML = '<div class="bos">Şu an gösterilecek hatırlatma yok (koşulu sağlayan kayıt bulunmuyor).</div>';
+        return;
+      }
+      var rows = liste.map(function(h){
+        return '<tr>'+
+          '<td class="emoji">'+esc(h.emoji||'🔔')+'</td>'+
+          '<td><b>'+esc(h.baslik)+'</b></td>'+
+          '<td>'+(h.sayac!=null?'<span class="sayac">'+esc(h.sayac)+'</span>':'')+'</td>'+
+          '<td><div class="mesaj">'+esc(h.mesaj)+'</div>'+(h.altMesaj?'<div class="altmesaj">'+esc(h.altMesaj)+'</div>':'')+'</td>'+
+          '<td class="tip">'+esc(h.tip||'')+'</td>'+
+          '<td>'+(h.link?'<a class="link" href="'+esc(h.link)+'" target="_blank">'+esc(h.link)+'</a>':'')+'</td>'+
+        '</tr>';
+      }).join('');
+      document.getElementById('icerik').innerHTML =
+        '<table><thead><tr><th></th><th>Başlık</th><th>Sayaç</th><th>Mesaj</th><th>Tip</th><th>Gittiği sayfa</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    })
+    .catch(function(e){
+      document.getElementById('ozet').textContent = '';
+      document.getElementById('icerik').innerHTML = '<div class="hata">'+esc(e.message)+'</div>';
+    });
+}
+yukle();
+</script>
+</body>
+</html>
