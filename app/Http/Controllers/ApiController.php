@@ -7700,6 +7700,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         $urun->save();
 
+        try {
+            Audit::logApi(optional($urun)->salon_id, $request, 'urun_pasif', 'urun', optional($urun)->id, optional($urun)->urun_adi, 'Ürün pasife alındı');
+        } catch (\Throwable $e) {}
+
     }
 
     public function paketpasifete(Request $request)
@@ -7711,6 +7715,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $paket->aktif = false;
 
         $paket->save();
+
+        try {
+            Audit::logApi(optional($paket)->salon_id, $request, 'paket_pasif', 'paket', optional($paket)->id, optional($paket)->paket_adi, 'Paket pasife alındı');
+        } catch (\Throwable $e) {}
 
     }
 
@@ -7762,6 +7770,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'aciklama'     => 'Eski endpoint uzerinden stok duzeltme',
             ]);
         }
+        try {
+            Audit::logApi($salonid, $request, $yeni ? 'urun_ekle' : 'urun_guncelle', 'urun', $urun->id ?? null, $request->urun_adi, $yeni ? 'Yeni ürün eklendi' : 'Ürün güncellendi');
+        } catch (\Throwable $e) {}
     }
 
     public function smstaslaklari(Request $request, $salonid)
@@ -8690,6 +8701,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $seans->geldi = $request->geldi;
         $seans->save();
 
+        try {
+            Audit::logApi($request->salonid ?? $request->sube ?? $request->salonId, $request, 'seans_ekle', 'seans', $seans->id ?? null, null, 'Seans eklendi');
+        } catch (\Throwable $e) {}
+
         return response()->json(['hatali' => '0', 'mesaj' => 'Başarılı', 'id' => $seans->id]);
     }
 
@@ -8699,12 +8714,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         if (!$seans) {
             return response()->json(['hatali' => '1', 'mesaj' => 'Seans bulunamadı']);
         }
+        $_seansSilindi = false;
         if ($request->geldi === '' || $request->geldi === null) {
             $seans->delete();
+            $_seansSilindi = true;
         } else {
             $seans->geldi = $request->geldi;
             $seans->save();
         }
+        try {
+            Audit::logApi($request->salonid ?? $request->sube ?? $request->salonId, $request, $_seansSilindi ? 'seans_sil' : 'seans_guncelle', 'seans', $request->seansId, null, $_seansSilindi ? 'Seans silindi' : 'Seans güncellendi');
+        } catch (\Throwable $e) {}
         return response()->json(['hatali' => '0', 'mesaj' => 'Başarılı']);
     }
 
@@ -9371,6 +9391,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $masraf->notlar = $request->masraf_notlari;
 
         $masraf->save();
+
+        try {
+            Audit::logApi($salonid, $request, ($request->id != "") ? 'masraf_guncelle' : 'masraf_ekle', 'masraf', $masraf->id ?? null, 'Tutar: ' . ($request->masraf_tutari ?? ''), ($request->id != "") ? 'Masraf güncellendi' : 'Masraf eklendi');
+        } catch (\Throwable $e) {}
 
     }
 
@@ -11833,6 +11857,11 @@ public function cdrRaporLatest(Request $request)
                 }
             }
 
+            try {
+                $_yeniOg = !($request->on_gorusme_id != "" && $request->on_gorusme_id != "null" && $request->on_gorusme_id != null);
+                Audit::logApi($request->salonid, $request, $_yeniOg ? 'ongorusme_ekle' : 'ongorusme_guncelle', 'ongorusme', optional($ongorusme)->id, $request->ad_soyad, $_yeniOg ? 'Ön görüşme oluşturuldu' : 'Ön görüşme güncellendi');
+            } catch (\Throwable $e) {}
+
             return response()->json(["cakismavar" => "0", "cakisanunsurlar" => "Başarılı"]);
         }
 
@@ -14178,6 +14207,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         */
 
+        try {
+            Audit::logApi($request->sube, $request, is_numeric($request->taksitli_tahsilat_id) ? 'taksit_guncelle' : 'taksit_ekle', 'taksitli_tahsilat', optional($taksitlitahsilat)->id, 'Vade: ' . ($request->vade ?? '') . ' - Tutar: ' . ($request->taksit_tutar ?? ''), is_numeric($request->taksitli_tahsilat_id) ? 'Taksitli tahsilat güncellendi' : 'Taksitli tahsilat oluşturuldu', ['adisyon_id' => $request->adisyon_id]);
+        } catch (\Throwable $e) {}
+
         return "başarılı";
 
     }
@@ -14281,6 +14314,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             ]);
         }
 
+        try {
+            $_yeniSatis = !(isset($request->adisyon_hizmet_id) && $request->adisyon_hizmet_id !== "");
+            Audit::logApi($request->sube, $request, $_yeniSatis ? 'satis_hizmet_ekle' : 'satis_hizmet_guncelle', 'adisyon_hizmet', $adisyon_hizmet->id ?? null, 'Tutar: ' . ($request->adisyonhizmetfiyati ?? ''), $_yeniSatis ? 'Hizmet satışı eklendi' : 'Hizmet satışı güncellendi', ['adisyon_id' => $adisyon_id]);
+        } catch (\Throwable $e) {}
+
         return AdisyonHizmetler::with(['hizmet', 'personel', 'cihaz'])->where("id", $adisyon_hizmet->id)->first();
 
     }
@@ -14378,6 +14416,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             }
         }
 
+        try {
+            $_yeniSatis = !(isset($request->adisyon_urun_id) && $request->adisyon_urun_id !== "");
+            Audit::logApi($request->sube, $request, $_yeniSatis ? 'satis_urun_ekle' : 'satis_urun_guncelle', 'adisyon_urun', $adisyon_urun->id ?? null, 'Tutar: ' . ($request->urun_fiyati ?? ''), $_yeniSatis ? 'Ürün satışı eklendi' : 'Ürün satışı güncellendi', ['adisyon_id' => $adisyon_id]);
+        } catch (\Throwable $e) {}
+
         return AdisyonUrunler::with(['urun', 'personel'])->where("id", $adisyon_urun->id)->first();
 
     }
@@ -14444,6 +14487,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         }
 
         self::pakettenrandevuveseansolustur($request, $adisyon_paket_id);*/
+
+        try {
+            $_yeniSatis = !(isset($request->adisyon_paket_id) && $request->adisyon_paket_id != "");
+            Audit::logApi($request->sube, $request, $_yeniSatis ? 'satis_paket_ekle' : 'satis_paket_guncelle', 'adisyon_paket', $adisyon_paket_id ?? null, optional($paket)->paket_adi . ' - Tutar: ' . ($request->paketfiyat ?? ''), $_yeniSatis ? 'Paket satışı eklendi' : 'Paket satışı güncellendi', ['adisyon_id' => $adisyon_id]);
+        } catch (\Throwable $e) {}
 
         return AdisyonPaketler::with(['paket', 'personel'])->where("id", $adisyon_paket_id)->first();
 
@@ -14763,6 +14811,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 ]);
             }
 
+            try {
+                Audit::logApi(optional($urun)->salon_id ?? $request->sube ?? $request->salonid, $request, 'satis_urun_sil', 'adisyon_urun', $request->adisyonurunid, optional(optional($adisyonurun)->urun)->urun, 'Satıştan ürün kaldırıldı', ['adisyon_id' => $adisyon_id]);
+            } catch (\Throwable $e) {}
+
             return [
 
                 "basarili" => "1",
@@ -14909,6 +14961,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             }
 
+            try {
+                Audit::logApi(optional($adisyonpaket)->salon_id ?? $request->sube ?? $request->salonid, $request, 'satis_paket_sil', 'adisyon_paket', $request->adisyonpaketid, optional(optional($adisyonpaket)->paket)->paket_adi, 'Satıştan paket kaldırıldı', ['adisyon_id' => $adisyon_id]);
+            } catch (\Throwable $e) {}
+
             return [
 
                 "basarili" => "1",
@@ -14978,6 +15034,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             exit();
 
         } else {
+
+            try {
+                Audit::logApi(optional($hizmet)->salon_id ?? $request->sube ?? $request->salonid, $request, 'satis_hizmet_sil', 'adisyon_hizmet', $request->hizmet_id, optional(optional($hizmet)->hizmet)->hizmet_adi, 'Satıştan hizmet kaldırıldı', ['adisyon_id' => $adisyon_id]);
+            } catch (\Throwable $e) {}
 
             $hizmet->delete();
 
@@ -15740,6 +15800,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $isletme->save();
 
+        try {
+            Audit::logApi($request->sube, $request, 'musteri_indirim_ayar', 'ayar', $request->sube, null, 'Müşteri indirim ayarları güncellendi');
+        } catch (\Throwable $e) {}
+
         return "İşlem başarıyla kaydedildi";
 
     }
@@ -16138,9 +16202,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     {
 
+        $_cihazSalon = Cihazlar::where("id", $request->cihaz_id)->value("salon_id");
+        $_cihazAdi = Cihazlar::where("id", $request->cihaz_id)->value("cihaz_adi");
+
         Cihazlar::where("id", $request->cihaz_id)->update(["aktifmi" => false]);
 
         SalonCihazRenkleri::where("cihaz_id", $request->cihaz_id)->delete();
+
+        try {
+            Audit::logApi($_cihazSalon ?? $request->salonid ?? $request->sube, $request, 'cihaz_sil', 'cihaz', $request->cihaz_id, $_cihazAdi, 'Cihaz silindi');
+        } catch (\Throwable $e) {}
 
     }
 
@@ -16254,9 +16325,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     {
 
+        $_odaSalon = Odalar::where("id", $request->oda_id)->value("salon_id");
+        $_odaAdi = Odalar::where("id", $request->oda_id)->value("oda_adi");
+
         Odalar::where("id", $request->oda_id)->update(["aktifmi" => false]);
 
         OdaRenkleri::where("oda_id", $request->oda_id)->delete();
+
+        try {
+            Audit::logApi($_odaSalon ?? $request->salonid ?? $request->sube, $request, 'oda_sil', 'oda', $request->oda_id, $_odaAdi, 'Oda silindi');
+        } catch (\Throwable $e) {}
 
     }
 
@@ -16419,6 +16497,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $yeni_renk->save();
 
         }
+
+        try {
+            Audit::logApi($isletme_id, $request, $duzenleme ? 'oda_guncelle' : 'oda_ekle', 'oda', $odalar->id ?? null, $request->oda_adi, $duzenleme ? 'Oda güncellendi' : 'Oda eklendi');
+        } catch (\Throwable $e) {}
 
         return ['sonuc' => 'ok', 'oda_id' => $odalar->id];
 
@@ -16957,6 +17039,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         }
 
+        try {
+            if ($swalstat == 'success') {
+                Audit::logApi($request->salon_id, $request, $guncelleme ? 'personel_guncelle' : 'personel_ekle', 'personel', ($personel && is_object($personel) ? $personel->id : null), optional($personel)->personel_adi ?? $request->ad_soyad, $guncelleme ? 'Personel güncellendi' : 'Yeni personel eklendi');
+            }
+        } catch (\Throwable $e) {}
+
         return response()->json([
             'result' => $result,
             'title' => $swaltitle,
@@ -17348,6 +17436,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         }
 
+        try {
+            Audit::logApi($isletme_id, $request, 'cihaz_ekle', 'cihaz', $cihazlar->id ?? null, $request->cihaz_adi, 'Cihaz eklendi');
+        } catch (\Throwable $e) {}
+
     }
 
      public function bildirimkimligiekleguncelle(Request $request)
@@ -17582,6 +17674,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 \Log::warning('randevuonayla push hata: ' . $e->getMessage());
             }
         }
+
+        try {
+            Audit::logApi($randevu->salon_id, $request, 'randevu_onayla', 'randevu', $randevu->id, optional($randevu->users)->name, 'Randevu onaylandı');
+        } catch (\Throwable $e) {}
 
         return "başarılı";
 
@@ -17873,6 +17969,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $yetkili->save();
 
+        try {
+            Audit::logApi(optional($yetkili)->salon_id, $request, 'personel_aktif', 'personel', $request->personelid, optional($yetkili)->personel_adi, 'Personel aktife alındı');
+        } catch (\Throwable $e) {}
+
         return $yetkili;
 
     }
@@ -17887,6 +17987,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $yetkili->aktif = false;
 
         $yetkili->save();
+
+        try {
+            Audit::logApi(optional($yetkili)->salon_id, $request, 'personel_pasif', 'personel', $request->personelid, optional($yetkili)->personel_adi, 'Personel pasife alındı');
+        } catch (\Throwable $e) {}
 
         return $yetkili;
 
@@ -17978,6 +18082,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $personel->aktif = false;
                 $personel->takvimde_gorunsun = false;
                 $personel->save();
+                try {
+                    Audit::logApi($request->sube, $request, 'personel_arsiv', 'personel', $request->personelid, optional($personel)->personel_adi, 'Personel arşivlendi');
+                } catch (\Throwable $e) {}
                 return ['sonuc' => 'ok', 'personel' => $personel];
             }
             return ['sonuc' => 'notfound'];
@@ -18304,6 +18411,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             } catch (\Exception $e) {
                 \Log::warning('Api primOde otomatik masraf basarisiz: ' . $e->getMessage());
             }
+
+            try {
+                Audit::logApi($salonId, $request, 'personel_odeme', 'personel', $personel->id ?? null, optional($personel)->personel_adi . ' - Tutar: ' . $tutar, 'Personele ödeme yapıldı (' . $odemeTipi . ' / ' . $donem . ')');
+            } catch (\Throwable $e) {}
 
             return response()->json(['basarili' => true, 'odeme_id' => $pmo->id]);
         } catch (\Exception $e) {
@@ -19102,6 +19213,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     }
 
     Log::info('========== FONKSIYON SONU - BASARILI ==========');
+    try {
+        Audit::logApi($request->sube, $request, 'hizmet_ekle_guncelle', 'hizmet', null, 'Hizmet sayısı: ' . count($request->hizmetler ?? []), 'Salon hizmetleri eklendi/güncellendi');
+    } catch (\Throwable $e) {}
     return "Başarılı";
 }
 
@@ -19426,6 +19540,10 @@ if (is_array($request->cihaz_id)) {
 
         }
 
+        try {
+            Audit::logApi($isletme_id, $request, ($request->paket_id == 0) ? 'paket_ekle' : 'paket_guncelle', 'paket', $paket->id ?? null, $request->adpaket, ($request->paket_id == 0) ? 'Yeni paket tanımlandı' : 'Paket güncellendi');
+        } catch (\Throwable $e) {}
+
         return "başarılı";
 
     }
@@ -19447,6 +19565,10 @@ if (is_array($request->cihaz_id)) {
         $paket->aktif = false;
 
         $paket->save();
+
+        try {
+            Audit::logApi(optional($paket)->salon_id ?? $request->salonid ?? $request->sube, $request, 'paket_sil', 'paket', $request->paket_id, optional($paket)->paket_adi, 'Paket silindi');
+        } catch (\Throwable $e) {}
 
         return "başarılı";
 
@@ -20209,6 +20331,10 @@ if (is_array($request->cihaz_id)) {
             self::sms_gonder_2($request,array(array("to"=>$_yetkili,"message"=>$senet->musteri->name." isimli müşteri için ".IsletmeYetkilileri::where('id',$request->olusturan)->value('name') .' tarafından '.date('d.m.Y',strtotime($request->vade_baslangic_tarihi))." vade başlangıç tarihli ve tutarı ".number_format(str_replace(['.',','],['','.'],$request->senet_tutar),2,',','.')." TL olan ".$request->vade. " adet vadeden oluşan senet oluşturulmuştur.")),false,1,false,$alacak->salon_id,false);
 
         }
+
+        try {
+            Audit::logApi(optional($senet)->salon_id ?? $request->sube, $request, 'senet_ekle_guncelle', 'senet', optional($senet)->id, 'Vade: ' . ($request->vade ?? '') . ' - Tutar: ' . ($request->senet_tutar ?? ''), 'Senet oluşturuldu/güncellendi', ['adisyon_id' => $request->adisyon_id]);
+        } catch (\Throwable $e) {}
 
         return "Başarılı";
 
@@ -24810,6 +24936,10 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             Log::warning('suruklebirak push/sms genel hata: ' . $e->getMessage());
         }
 
+        try {
+            Audit::logApi(optional($randevu)->salon_id ?? $request->salonid ?? $request->sube, $request, 'randevu_tasi', 'randevu', $request->randevu_id, null, 'Randevu sürükle-bırak ile taşındı/güncellendi');
+        } catch (\Throwable $e) {}
+
         return 'başarılı';
     }
     public function hizmetSil(Request $request)
@@ -24817,6 +24947,9 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $hizmet = SalonHizmetler::where('id',$request->hizmetId)->first();
         $hizmet->aktif = false;
         $hizmet->save();
+        try {
+            Audit::logApi(optional($hizmet)->salon_id ?? $request->sube ?? $request->salonid, $request, 'hizmet_sil', 'hizmet', $request->hizmetId, null, 'Salon hizmeti pasife alındı');
+        } catch (\Throwable $e) {}
         return 'başarılı';
     }
     public function randevuGeldiGelmediIsaretiKaldir(Request $request)
