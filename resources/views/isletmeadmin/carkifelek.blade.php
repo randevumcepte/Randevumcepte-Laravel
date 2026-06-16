@@ -693,7 +693,44 @@
         resultModal.addEventListener('click', e => {
             if (e.target === resultModal) closeModal();
         });
+        setupKurallarBullet();
     });
+
+    /* ── Kurallar kutusu: her yeni satır otomatik "• " ile başlasın ── */
+    function setupKurallarBullet() {
+        if (!rulesText) return;
+
+        // Boş kutuya odaklanınca ilk madde işaretini koy
+        rulesText.addEventListener('focus', () => {
+            if (rulesText.value.trim() === '') {
+                rulesText.value = '• ';
+                rulesText.selectionStart = rulesText.selectionEnd = rulesText.value.length;
+            }
+        });
+
+        // Enter'a basınca yeni satırı "• " ile aç (Shift+Enter düz satır sonu)
+        rulesText.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const s   = rulesText.selectionStart;
+                const en  = rulesText.selectionEnd;
+                const ins = '\n• ';
+                const val = rulesText.value;
+                rulesText.value = val.slice(0, s) + ins + val.slice(en);
+                const pos = s + ins.length;
+                rulesText.selectionStart = rulesText.selectionEnd = pos;
+            }
+        });
+    }
+
+    /* Kaydetmeden önce boş / yalnız madde işareti olan satırları temizle */
+    function temizleKurallar(text) {
+        return (text || '')
+            .split('\n')
+            .map(l => l.replace(/\s+$/, ''))                 // satır sonu boşlukları at
+            .filter(l => l !== '' && l !== '•' && l !== '-') // tamamen boş / yalnız işaret satırlarını at
+            .join('\n');
+    }
 
     /* ── Load from server ── */
     async function loadData() {
@@ -1351,7 +1388,10 @@
             deger:       sl.deger != null ? sl.deger : null,
         }));
 
-        if (rulesText) kurallar = rulesText.value;
+        if (rulesText) {
+            kurallar = temizleKurallar(rulesText.value);
+            rulesText.value = kurallar;   // kutuyu da temizlenmiş haliyle güncelle
+        }
 
         try {
             const res  = await fetch('{{ route("isletmeadmin.carkdilimekle") }}', {
