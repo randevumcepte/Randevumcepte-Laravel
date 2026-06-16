@@ -573,7 +573,10 @@ function segListeleriYukle(){
    $.get('/isletmeyonetim/arama-kartlarim', { sube: $('input[name="sube"]').val() }, function(res){
       var kartlar = (res && res.kartlar) ? res.kartlar : [];
       var opts = '<option value="">Liste seçin...</option>';
-      kartlar.forEach(function(k){ opts += '<option value="'+k.id+'">'+cmEsc(k.baslik)+' ('+k.toplam+' müşteri)</option>'; });
+      kartlar.forEach(function(k){
+         var atama = k.personel ? ('👤 '+k.personel) : '⚠ atanmamış';
+         opts += '<option value="'+k.id+'">'+cmEsc(k.baslik)+' ('+k.toplam+') — '+cmEsc(atama)+'</option>';
+      });
       $('#seg_liste_sec').html(opts);
       // Onceki secim hala listede ise geri sec (panel acik kalsin)
       if (oncekiSecim && $('#seg_liste_sec option[value="'+oncekiSecim+'"]').length){
