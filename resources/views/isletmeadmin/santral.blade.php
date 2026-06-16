@@ -140,17 +140,7 @@
                                  >
                               </li>
                               @endif
-                              <li class="nav-item" style="margin-left: 20px;display: inline-block;">
-                                 <button
-                                    id="arama_listesi_tablosu_button"
-                                    class="btn btn-outline-primary"
-                                    data-toggle="tab"
-                                    href="#arama_listesi_tablosu"
-                                    role="tab"
-                                    aria-selected="false"
-                                    >Arama Listesi</button
-                                 >
-                              </li>
+                              {{-- "Arama Listesi" sekmesi Çağrı Merkezi paneline taşındı (oradan yönetilir). --}}
                               @if($kullaniciRolu < 5)
                               <li class="nav-item" style="margin-left: 20px;display: none;">
                                  <button
@@ -294,30 +284,7 @@
                                 
                               
                               </div>
-                              <div
-                                 class="tab-pane fade {{$kullaniciRolu == 5 ? 'show active' : ''}}"
-                                 id="arama_listesi_tablosu"
-                                 role="tabpanel" style="margin-top: 20px;"
-                              >
-                                      
-
-                                    <table class="data-table table stripe hover nowrap" id="arama_liste_tablo">
-                                             <thead >
-                                                <th>Başlık</th>
-                                                <th>Personel</th>
-                                                <th>Aranacak Tarih</th>
-                                                <th>Müşteri</th>
-                                                <th>İlerleme</th>
-                                                <th>Detaylar </th>
-
-
-                                             </thead>
-                                             <tbody>
-                                            
-                                             </tbody>
-                                    </table>
-                                 
-                              </div>
+                              {{-- "Arama Listesi" sekme içeriği Çağrı Merkezi paneline taşındı. --}}
                               <div
                                  class="tab-pane fade"
                                  id="santral-ayarlar"
