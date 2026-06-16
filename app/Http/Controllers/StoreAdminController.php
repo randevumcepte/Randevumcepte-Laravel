@@ -27697,6 +27697,120 @@ DB::raw('
     }
 
     /* ============================================================
+     * Cagri Merkezi — Liste Segmentasyonu (sonuca gore ayikla, indir, personele tasi)
+     * ============================================================ */
+
+    /** Bir arama listesini sonuca (durum) gore gruplar: her segment + adet. */
+    public function cagri_liste_segmentler(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $liste = AramaListesi::where('id', $request->arama_id)->first();
+        if (!$liste || (int) $liste->salon_id !== (int) $salonId) {
+            return response()->json(['baslik' => '', 'segmentler' => []], 403);
+        }
+        $rows = DB::table('aranacak_musteriler')
+            ->where('arama_id', $liste->id)
+            ->select('durum', DB::raw('COUNT(*) as adet'))
+            ->groupBy('durum')->get();
+
+        $segmentler = [];
+        foreach ($rows as $r) {
+            $segmentler[] = [
+                'kod'  => is_null($r->durum) ? 'bekleyen' : (string) (int) $r->durum,
+                'ad'   => is_null($r->durum) ? 'Bekleyen' : self::aranacakDurumMetin($r->durum),
+                'adet' => (int) $r->adet,
+            ];
+        }
+        // adet'e gore buyukten kucuge
+        usort($segmentler, function ($a, $b) { return $b['adet'] <=> $a['adet']; });
+        return response()->json(['baslik' => $liste->arama_baslik, 'segmentler' => $segmentler]);
+    }
+
+    /** Segment indir (CSV, Excel uyumlu). arama_id + kod (durum veya 'bekleyen'). */
+    public function cagri_segment_indir(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $liste = AramaListesi::where('id', $request->arama_id)->first();
+        if (!$liste || (int) $liste->salon_id !== (int) $salonId) abort(403);
+        $kod = (string) $request->kod;
+
+        $q = AranacakMusteriler::where('arama_id', $liste->id)->with('musteri');
+        if ($kod === 'bekleyen') $q->whereNull('durum'); else $q->where('durum', (int) $kod);
+        $kayitlar = $q->get();
+
+        $csv = "\xEF\xBB\xBF"; // UTF-8 BOM (Excel Turkce karakter)
+        $csv .= "Ad Soyad;Telefon;Durum;Gorusme Notu;Randevu Tarih;Randevu Saat\n";
+        $temizle = function ($s) { return str_replace(["\r", "\n", ";"], [' ', ' ', ' '], (string) $s); };
+        foreach ($kayitlar as $k) {
+            $csv .= $temizle(optional($k->musteri)->name) . ';'
+                  . $temizle(optional($k->musteri)->cep_telefon) . ';'
+                  . self::aranacakDurumMetin($k->durum) . ';'
+                  . $temizle($k->musteri_not) . ';'
+                  . $temizle($k->tarih) . ';'
+                  . $temizle($k->saat) . "\n";
+        }
+        $adEtiket = $kod === 'bekleyen' ? 'Bekleyen' : self::aranacakDurumMetin((int) $kod);
+        $dosya = 'liste-' . $liste->id . '-' . preg_replace('/[^a-zA-Z0-9]/', '', $this->trChar($adEtiket)) . '.csv';
+        return response($csv)
+            ->header('Content-Type', 'text/csv; charset=utf-8')
+            ->header('Content-Disposition', 'attachment; filename="' . $dosya . '"');
+    }
+
+    /** Turkce karakterleri dosya adi icin sadelestir. */
+    private function trChar($s)
+    {
+        return strtr((string) $s, ['ç'=>'c','Ç'=>'C','ğ'=>'g','Ğ'=>'G','ı'=>'i','İ'=>'I','ö'=>'o','Ö'=>'O','ş'=>'s','Ş'=>'S','ü'=>'u','Ü'=>'U']);
+    }
+
+    /** Segmenti yeni bir listeye TASI ve baska personele ata (gecmis/kayitlar da tasinir). */
+    public function cagri_segment_ata(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $liste = AramaListesi::where('id', $request->arama_id)->first();
+        if (!$liste || (int) $liste->salon_id !== (int) $salonId) {
+            return response()->json(['success' => false, 'message' => 'Liste bulunamadı'], 403);
+        }
+        $personelId = $request->personel_id;
+        $hedef = $personelId ? Personeller::where('id', $personelId)->where('salon_id', $salonId)->first() : null;
+        if (!$hedef) {
+            return response()->json(['success' => false, 'message' => 'Geçerli bir personel seçin.']);
+        }
+        $kod = (string) $request->kod;
+
+        $q = AranacakMusteriler::where('arama_id', $liste->id);
+        if ($kod === 'bekleyen') $q->whereNull('durum'); else $q->where('durum', (int) $kod);
+        $ids = $q->pluck('id')->all();
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'Bu segmentte müşteri yok.']);
+        }
+
+        $adEtiket = $kod === 'bekleyen' ? 'Bekleyen' : self::aranacakDurumMetin((int) $kod);
+        $baslik = trim((string) $request->baslik);
+        if ($baslik === '') $baslik = $liste->arama_baslik . ' — ' . $adEtiket;
+
+        $yeni = new AramaListesi();
+        $yeni->salon_id = $salonId;
+        $yeni->arama_baslik = $baslik;
+        $yeni->personel_id = $personelId;
+        $yeni->aranacak_tarih = null;
+        $yeni->olusturan_yetkili_id = Auth::guard('isletmeyonetim')->user()->id;
+        $yeni->durum = 1;
+        $yeni->save();
+
+        // TASI: kayitlar yeni listeye gecer (orijinalden cikar). Gecmis/ses kayitlari da gider.
+        AranacakMusteriler::whereIn('id', $ids)->update(['arama_id' => $yeni->id, 'updated_at' => date('Y-m-d H:i:s')]);
+        if (Schema::hasTable('gorusme_notlari')) {
+            \App\GorusmeNotlari::whereIn('aranacak_musteri_id', $ids)->update(['arama_id' => $yeni->id]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => count($ids) . ' müşteri "' . $hedef->personel_adi . '" personeline taşındı (yeni liste: ' . $baslik . ').',
+            'yeni_liste_id' => $yeni->id,
+        ]);
+    }
+
+    /* ============================================================
      * Cagri Merkezi — Scriptler & Kategoriler (yonetici tanimlar, agent kullanir)
      * ============================================================ */
 

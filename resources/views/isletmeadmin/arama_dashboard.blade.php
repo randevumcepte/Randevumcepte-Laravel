@@ -195,6 +195,29 @@
 /* Boş / yükleniyor durumu */
 .cm-empty{ text-align:center; padding:40px 20px; color:#8a85a0; }
 .cm-empty i{ font-size:40px; color:#cfc7df; display:block; margin-bottom:10px; }
+
+/* ===== Liste Segmentasyonu ===== */
+.seg-kart{ background:#fff; border:1px solid #eef0f5; border-radius:18px; box-shadow:0 6px 20px -12px rgba(30,30,60,.16); padding:18px 20px; margin-top:8px; }
+.seg-bas{ display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
+.seg-bas h5{ margin:0 0 3px; font-weight:700; font-size:16px; color:#241b3a; }
+.seg-bas h5 .fa{ color:#7B2FB8; margin-right:6px; }
+.seg-aciklama{ font-size:12.5px; color:#8a85a0; max-width:640px; display:block; }
+.seg-select{ margin-left:auto; min-width:240px; border:1px solid #e3dcf0; border-radius:10px; padding:9px 12px; font-size:13px; outline:none; background:#fff; }
+.seg-select:focus{ border-color:#9D5DC8; }
+
+.seg-tablo{ display:grid; gap:10px; }
+.seg-satir{ display:flex; align-items:center; gap:12px; border:1px solid #eef0f5; border-left:4px solid #cfc7df; border-radius:12px; padding:12px 14px; flex-wrap:wrap; }
+.seg-satir.s-yesil{ border-left-color:#16a34a; } .seg-satir.s-kirmizi{ border-left-color:#dc2626; }
+.seg-satir.s-mavi{ border-left-color:#1565c0; } .seg-satir.s-turuncu{ border-left-color:#ea580c; }
+.seg-satir.s-pembe{ border-left-color:#db2777; } .seg-satir.s-gri{ border-left-color:#9aa0b0; }
+.seg-ad{ font-weight:700; color:#241b3a; font-size:14px; min-width:130px; }
+.seg-adet{ background:#f3eefa; color:#5C008E; font-weight:700; border-radius:20px; padding:3px 12px; font-size:12.5px; }
+.seg-aksiyon{ margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.seg-indir{ border:1px solid #d7d2e6; background:#fff; color:#5C008E; border-radius:9px; padding:7px 12px; font-size:12.5px; font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
+.seg-indir:hover{ border-color:#9D5DC8; background:#faf7ff; color:#5C008E; }
+.seg-personel{ border:1px solid #e3dcf0; border-radius:9px; padding:7px 10px; font-size:12.5px; outline:none; background:#fff; min-width:150px; }
+.seg-ata{ border:none; background:linear-gradient(120deg,#5C008E,#7B2FB8); color:#fff; border-radius:9px; padding:7px 14px; font-size:12.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
+.seg-ata:hover{ opacity:.93; } .seg-ata:disabled{ opacity:.5; cursor:not-allowed; }
 </style>
 
 <div class="cm-wrap">
@@ -252,6 +275,20 @@
    {{-- Personel kartları --}}
    <div id="personel_kartlari" class="row">
       <div class="col-md-12"><div class="cm-empty" id="dash_yukleniyor"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div></div>
+   </div>
+
+   {{-- Liste Segmentasyonu --}}
+   <div class="seg-kart">
+      <div class="seg-bas">
+         <div>
+            <h5><i class="fa fa-filter"></i> Liste Segmentasyonu</h5>
+            <span class="seg-aciklama">Bir arama listesini sonuca göre ayır (Görüşüldü / Cevapsız / Meşgul / Ulaşılamadı / Randevu / Bekleyen); segmenti <b>indir</b> ya da <b>başka personele taşı</b>.</span>
+         </div>
+         <select id="seg_liste_sec" class="seg-select"><option value="">Liste seçin...</option></select>
+      </div>
+      <div id="seg_govde">
+         <div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>Yukarıdan bir arama listesi seçin.</div>
+      </div>
    </div>
 
 </div>
@@ -496,6 +533,92 @@ $(document).on('click', '.personel-kart', function () {
    });
 });
 
-$(document).ready(function () { dashYukle(); });
+/* ===== Liste Segmentasyonu ===== */
+var segPersoneller = [];
+function segMsg(o){ if (typeof swal === 'function') swal(o); else alert((o.title||'')+'\n'+(o.text||'')); }
+
+function segPersonelYukle(){
+   $.get('/isletmeyonetim/arama-personelleri', { sube: $('input[name="sube"]').val() }, function(res){
+      segPersoneller = res || [];
+   });
+}
+function segListeleriYukle(){
+   $.get('/isletmeyonetim/arama-kartlarim', { sube: $('input[name="sube"]').val() }, function(res){
+      var kartlar = (res && res.kartlar) ? res.kartlar : [];
+      var opts = '<option value="">Liste seçin...</option>';
+      kartlar.forEach(function(k){ opts += '<option value="'+k.id+'">'+cmEsc(k.baslik)+' ('+k.toplam+' müşteri)</option>'; });
+      $('#seg_liste_sec').html(opts);
+   });
+}
+function segRenk(kod){
+   switch(String(kod)){
+      case '4': case '1': return 'yesil';
+      case '2': return 'kirmizi'; case '5': return 'pembe';
+      case '0': return 'turuncu'; case '3': return 'mavi';
+      default: return 'gri';
+   }
+}
+function segPersonelOpts(){
+   var o = '<option value="">Personel seç...</option>';
+   segPersoneller.forEach(function(p){ o += '<option value="'+p.id+'">'+cmEsc(p.personel_adi)+'</option>'; });
+   return o;
+}
+
+$(document).on('change', '#seg_liste_sec', function(){
+   var aramaId = $(this).val();
+   var sube = $('input[name="sube"]').val();
+   if (!aramaId){ $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>Yukarıdan bir arama listesi seçin.</div>'); return; }
+   $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
+   $.get('/isletmeyonetim/cagri-liste-segmentler', { arama_id: aramaId, sube: sube }, function(res){
+      var segs = (res && res.segmentler) ? res.segmentler : [];
+      if (!segs.length){ $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-inbox"></i>Bu listede müşteri yok.</div>'); return; }
+      var html = '<div class="seg-tablo">';
+      segs.forEach(function(s){
+         var r = segRenk(s.kod);
+         var indirUrl = '/isletmeyonetim/cagri-segment-indir?arama_id='+encodeURIComponent(aramaId)+'&kod='+encodeURIComponent(s.kod)+'&sube='+encodeURIComponent(sube);
+         html += '<div class="seg-satir s-'+r+'">'+
+            '<span class="seg-ad">'+cmEsc(s.ad)+'</span>'+
+            '<span class="seg-adet">'+s.adet+' müşteri</span>'+
+            '<div class="seg-aksiyon">'+
+               '<a class="seg-indir" href="'+indirUrl+'"><i class="fa fa-download"></i> İndir</a>'+
+               '<select class="seg-personel">'+segPersonelOpts()+'</select>'+
+               '<button class="seg-ata" data-kod="'+cmEsc(s.kod)+'"><i class="fa fa-user-plus"></i> Personele Taşı</button>'+
+            '</div>'+
+         '</div>';
+      });
+      html += '</div>';
+      $('#seg_govde').html(html);
+   });
+});
+
+$(document).on('click', '.seg-ata', function(){
+   var $satir = $(this).closest('.seg-satir');
+   var kod = $(this).data('kod');
+   var aramaId = $('#seg_liste_sec').val();
+   var personelId = $satir.find('.seg-personel').val();
+   var personelAd = $satir.find('.seg-personel option:selected').text();
+   if (!personelId){ segMsg({ type:'warning', title:'Personel seçin', text:'Bu segmenti taşımak için bir personel seçin.' }); return; }
+   var adet = $satir.find('.seg-adet').text();
+   if (confirm(adet + ' "' + personelAd + '" personeline TAŞINACAK (bu listeden çıkacak). Devam edilsin mi?')){
+      segAtaYap(aramaId, kod, personelId, $satir);
+   }
+});
+function segAtaYap(aramaId, kod, personelId, $satir){
+   var $btn = $satir.find('.seg-ata'); $btn.prop('disabled', true);
+   $.post('/isletmeyonetim/cagri-segment-ata',
+      { arama_id: aramaId, kod: kod, personel_id: personelId, _token: $('input[name="_token"]').val() },
+      function(res){
+         if (res.success){
+            segMsg({ type:'success', title:'Taşındı', text:res.message, timer:2800, showConfirmButton:false });
+            segListeleriYukle();                 // liste sayilari degisti
+            $('#seg_liste_sec').trigger('change'); // segmentleri tazele
+            dashYukle();                          // performans kartlarini tazele
+         } else { segMsg({ type:'error', title:'Hata', text:res.message||'Taşınamadı.' }); }
+      }
+   ).fail(function(){ segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); })
+    .always(function(){ $btn.prop('disabled', false); });
+}
+
+$(document).ready(function () { dashYukle(); segListeleriYukle(); segPersonelYukle(); });
 </script>
 @endsection
