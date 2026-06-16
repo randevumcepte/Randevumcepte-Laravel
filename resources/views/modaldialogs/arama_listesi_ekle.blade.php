@@ -479,8 +479,8 @@ function personelleriYukle() {
   });
 }
 
-// Modal HER ACILISTA sifirlanir — onceki liste bilgileri/secimleri kalmasin.
-$(document).on('show.bs.modal', '#santral_musteri_listesi', function () {
+// Modali SIFIRLA — gorunen her seyi ANINDA temizle (eski veri bir an bile gorunmesin).
+function aramaModalSifirla() {
   var f = document.getElementById('arama_listesi_formu');
   if (f) f.reset();                 // baslik, personel, tarih, filtreler HTML varsayilanina doner
   $('.ozel-tarih').hide();
@@ -489,10 +489,24 @@ $(document).on('show.bs.modal', '#santral_musteri_listesi', function () {
   $('#topluBilgi').text('');
   sonrakiBaslangic = 0;
   aralikModu = false;
+  tumIdler = [];
   selectedIds = new Set();
+  $('#customerList').empty();       // eski musteri listesini ANINDA temizle
+  $('#eslesenSayisi').text('0');
+  $('#toplamFiltresizBilgi').text('');
   $('#selectedCount').text('0 müşteri seçildi');
+}
+
+// KAPANIRKEN aninda temizle -> tekrar acilista eski veri DOM'da kalmaz (flaş olmaz).
+$(document).on('hide.bs.modal', '#santral_musteri_listesi', function () {
+  aramaModalSifirla();
+});
+
+// ACILIRKEN: zaten temiz; varsayilan filtreyle taze yukle.
+$(document).on('show.bs.modal', '#santral_musteri_listesi', function () {
+  aramaModalSifirla();
   filtreBagimliliklari();
-  filtreUygula();                   // varsayilan filtreye uyan tum musteriler tekrar yuklenir/secilir
+  filtreUygula();                   // varsayilan filtreye uyan tum musteriler taze yuklenir/secilir
 });
 
 $(document).ready(function () {
