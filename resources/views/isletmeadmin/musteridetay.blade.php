@@ -37,6 +37,7 @@
 #mdetay .elementmusteridetay .btn:hover{background:var(--soft);color:var(--m2);}
 #mdetay .elementmusteridetay .btn.active{background:linear-gradient(135deg,var(--m1),var(--m3));color:#fff!important;box-shadow:0 8px 18px rgba(92,0,142,.28);}
 #mdetay .elementmusteridetay .btn-warning,#mdetay .elementmusteridetay .btn-warning.active{background:linear-gradient(135deg,#f7971e,#ffb347)!important;color:#fff!important;box-shadow:0 8px 18px rgba(247,151,30,.28);}
+#mdetay .elementmusteridetay .btn.tab-mini{padding:7px 13px!important;font-size:12.5px!important;border-radius:10px!important;}
 
 /* Kartlar */
 #mdetay .card-box{border-radius:16px;border:1px solid var(--line);box-shadow:0 8px 22px rgba(31,37,51,.05);}
@@ -258,12 +259,23 @@
                   >Müşteri Resimleri</a>
             </li>
             @endif
+            @yetki('satis.adisyon_olustur')
+            <li class="nav-item" style="margin:5px">
+               <a
+                  class="btn btn-warning tab-mini"
+                  data-toggle="tab"
+                  href="#tahsilatEkrani"
+                  role="tab"
+                  aria-selected="false"
+                  ><i class="fa fa-shopping-cart"></i> Randevusuz Satış</a>
+            </li>
+            @endyetki
             @yetki('satis.tahsilat_al')
-             <li class="nav-item" style="margin:5px">
+            <li class="nav-item" style="margin:5px">
                <button
                   type="button"
-                  class="btn"
-                  style="width: 180px;background:#4338ca;color:#fff"
+                  class="btn tab-mini"
+                  style="background:#4338ca;color:#fff"
                   data-toggle="modal"
                   data-target="#harici_tahsilat_modal"
                   ><i class="fa fa-cloud-download"></i> Harici Tahsilat</button>
