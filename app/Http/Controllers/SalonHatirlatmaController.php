@@ -277,8 +277,12 @@ class SalonHatirlatmaController extends Controller
         $oncekiAyAdi   = $this->ayAdi(date('m', strtotime('first day of last month')));
         $oncekiAyYil   = date('Y', strtotime('first day of last month'));
 
+        // Personel filtresi Prim raporu sayfasiyla AYNI olmali: aktif + arsivli olmayan.
+        // (Eskiden arsivli filtresi yoktu; arsivli ama maasi>0 personel sayfada gorunmedigi
+        //  halde karta dahil oluyor, "fazla" gosteriyordu.)
         $personeller = Personeller::where('salon_id', $salonId)
             ->where('aktif', 1)
+            ->where(function ($q) { $q->where('arsivli', false)->orWhereNull('arsivli'); })
             ->where('maas', '>', 0)
             ->get(['id', 'personel_adi', 'maas']);
 
@@ -296,6 +300,10 @@ class SalonHatirlatmaController extends Controller
         $sayi = $bekleyen->count();
         if ($sayi <= 0) return null;
 
+        // Kim sayiliyor net olsun: ilk birkac adi goster (dogrulama + faydali bilgi).
+        $adlar = $bekleyen->pluck('personel_adi')->filter()->values();
+        $adListesi = $adlar->take(4)->implode(', ') . ($adlar->count() > 4 ? ' +' . ($adlar->count() - 4) : '');
+
         return [
             'id'       => 'personel_odeme_' . $oncekiAyDonem,
             'tip'      => 'personel_odeme',
@@ -305,7 +313,7 @@ class SalonHatirlatmaController extends Controller
             'emoji'    => '💸',
             'baslik'   => $oncekiAyAdi . ' ' . $oncekiAyYil . ' Maaş Ödemeleri',
             'mesaj'    => $sayi . ' personelin ' . $oncekiAyAdi . ' ayı maaş ödemesi hâlâ kayıtlı değil.',
-            'altMesaj' => 'Personel motivasyonu = işletme kazancı. Ödemeleri girmeyi unutma.',
+            'altMesaj' => 'Kayıtlı değil: ' . $adListesi,
             'cta_text' => 'Maaş & Prim',
             // Maaş takibinin asil yapildigi sayfa Prim & Hak Edis; personeller listesi degil.
             'link'     => '/isletmeyonetim/primraporu?sube=' . $salonId,
