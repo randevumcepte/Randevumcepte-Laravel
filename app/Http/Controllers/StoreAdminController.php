@@ -27033,13 +27033,30 @@ DB::raw('
             ->orderBy('id', 'desc')
             ->get();
 
-        $kartlar = $listeler->map(function ($l) {
-            $toplam = AranacakMusteriler::where('arama_id', $l->id)->count();
-            $arandi = AranacakMusteriler::where('arama_id', $l->id)->whereNotNull('durum')->count();
+        // N+1 ONLEME: tum listelerin toplam/arandi sayilari TEK sorguda; personel adlari TEK sorguda.
+        $listeIdler = $listeler->pluck('id')->all();
+        $sayimlar = collect();
+        if ($listeIdler) {
+            $sayimlar = DB::table('aranacak_musteriler')
+                ->whereIn('arama_id', $listeIdler)
+                ->select('arama_id',
+                    DB::raw('COUNT(*) as toplam'),
+                    DB::raw('SUM(CASE WHEN durum IS NOT NULL THEN 1 ELSE 0 END) as arandi'))
+                ->groupBy('arama_id')->get()->keyBy('arama_id');
+        }
+        $personelIdler = $listeler->pluck('personel_id')->filter()->unique()->all();
+        $personelAdlari = $personelIdler
+            ? Personeller::whereIn('id', $personelIdler)->pluck('personel_adi', 'id')
+            : collect();
+
+        $kartlar = $listeler->map(function ($l) use ($sayimlar, $personelAdlari) {
+            $s = $sayimlar->get($l->id);
+            $toplam = $s ? (int) $s->toplam : 0;
+            $arandi = $s ? (int) $s->arandi : 0;
             return [
                 'id'             => $l->id,
                 'baslik'         => $l->arama_baslik,
-                'personel'       => optional($l->personel)->personel_adi,
+                'personel'       => $l->personel_id ? ($personelAdlari[$l->personel_id] ?? null) : null,
                 'aranacak_tarih' => $l->aranacak_tarih ? date('d.m.Y', strtotime($l->aranacak_tarih)) : null,
                 'toplam'         => $toplam,
                 'arandi'         => $arandi,

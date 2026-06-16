@@ -502,17 +502,18 @@ $(document).on('hide.bs.modal', '#santral_musteri_listesi', function () {
   aramaModalSifirla();
 });
 
-// ACILIRKEN: zaten temiz; varsayilan filtreyle taze yukle.
+// ACILIRKEN: agir sorgular (filtre onizleme + personel) SADECE burada calisir — sayfa yuklemesini yavaslatmaz.
+var aramaPersonelYuklendiMi = false;
 $(document).on('show.bs.modal', '#santral_musteri_listesi', function () {
   aramaModalSifirla();
+  if (!aramaPersonelYuklendiMi) { personelleriYukle(); aramaPersonelYuklendiMi = true; } // bir kez yeter
   filtreBagimliliklari();
   filtreUygula();                   // varsayilan filtreye uyan tum musteriler taze yuklenir/secilir
 });
 
 $(document).ready(function () {
-  filtreBagimliliklari();
-  personelleriYukle();
-  filtreUygula();
+  // NOT: filtre onizleme/personel yuklemesi ARTIK sayfa acilista CALISMIYOR (performans).
+  // Sadece modal acilinca (show.bs.modal) yuklenir. Burada yalnizca olay baglamalari var.
 
   $('#f_kayit').on('change', function () {
     if ($(this).val() === 'ozel') { $('.ozel-tarih').show(); } else { $('.ozel-tarih').hide(); }
