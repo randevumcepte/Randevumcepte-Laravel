@@ -590,10 +590,38 @@ $(document).on('click', '.ag-sonuc', function(){
    agSecilenSonuc = parseInt($(this).data('sonuc'),10);
    // sonuç seçilince "sonra ara" kapanır (çelişmesin)
    $('#ag_sonra_chk').prop('checked', false);
-   // Ekstra alanlar: Ön Görüşme(6) -> tarih/saat; Telefonda Satış(7) -> tutar
+   $('#ag_sonra_alan').hide();
+   // Telefonda Satış(7) -> tutar alanı
    $('#ag_satis_alan').css('display', agSecilenSonuc===7 ? 'flex' : 'none');
-   $('#ag_sonra_alan').css('display', agSecilenSonuc===6 ? 'flex' : 'none');
+   // Ön Görüşme Randevusu(6) -> gerçek ön görüşme randevu ekranı açılır
+   if (agSecilenSonuc===6){ agOnGorusmeAc(); }
 });
+
+// Ön Görüşme: gerçek randevu modalını müşteri prefill'li açar (KVKK maskesi bu an için kalkar)
+function agOnGorusmeAc(){
+   if (!agSecili) return;
+   $.post('/isletmeyonetim/cagri-musteri-ongorusme-bilgi',
+      { aranacak_musteri_id: agSecili.aranacak_musteri_id, _token: $('input[name="_token"]').val() },
+      function(res){
+         if (res && res.success){
+            try {
+               var $sel = $('#musteri_select_list');
+               if ($sel.length){
+                  if ($sel.find('option[value="'+res.user_id+'"]').length===0){
+                     $sel.append(new Option(res.ad || ('#'+res.user_id), res.user_id, true, true));
+                  } else { $sel.val(res.user_id); }
+                  $sel.trigger('change');
+               }
+               if (res.ad){ $('#ad_soyad').val(res.ad); }
+               if (res.telefon){ $('#telefon').val(res.telefon); }
+            } catch(e){}
+            $('#ongorusme-modal').modal('show');
+         } else {
+            swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
+         }
+      }
+   ).fail(function(){ swal({ type:'error', title:'Hata', text:'Ön görüşme ekranı açılamadı.' }); });
+}
 
 $(document).on('change', '#ag_sonra_chk', function(){
    if ($(this).is(':checked')){
@@ -673,8 +701,8 @@ $(document).on('click', '#ag_kaydet', function(){
    var not   = $('#ag_not').val();
    var satisTutari = satisMi ? ($('#ag_satis_tutari').val()||'') : '';
 
-   if ((sonraMu || onGorusme) && (!tarih || !saat)){
-      swal({ type:'warning', title:'Tarih/saat seçin', text:(onGorusme?'Ön görüşme randevusu':'Tekrar arama')+' için tarih ve saat seçin.' }); return;
+   if (sonraMu && (!tarih || !saat)){
+      swal({ type:'warning', title:'Tarih/saat seçin', text:'Tekrar arama için tarih ve saat seçin.' }); return;
    }
    if (satisMi && (!satisTutari || parseFloat(satisTutari) <= 0)){
       swal({ type:'warning', title:'Satış tutarı', text:'Telefonda satış için tutar girin.' }); return;
@@ -697,8 +725,8 @@ $(document).on('click', '#ag_kaydet', function(){
          kategori_id: katId,
          alt_kategori_id: altKatId,
          satis_tutari: satisMi ? satisTutari : '',
-         santralnottarih: (sonraMu || onGorusme) ? tarih : '',
-         santralnotsaat:  (sonraMu || onGorusme) ? saat  : '',
+         santralnottarih: sonraMu ? tarih : '',
+         santralnotsaat:  sonraMu ? saat  : '',
          _token:$('input[name="_token"]').val()
       },
       success:function(res){

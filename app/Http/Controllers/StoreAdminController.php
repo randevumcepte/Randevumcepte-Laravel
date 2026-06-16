@@ -28100,6 +28100,29 @@ DB::raw('
         return response()->json(['randevular' => $out]);
     }
 
+    /**
+     * Ön Görüşme Randevusu için müşteri bilgisi (user_id + GERÇEK ad + telefon).
+     * KVKK: agent normalde maskeli görür; ön görüşme randevusu OLUSTURMAK icin gercek bilgi gerekir
+     * (kullanici bu davranisi acikca sececek). Sadece kendi salonunun listesindeki musteri icin.
+     */
+    public function cagri_musteri_ongorusme_bilgi(Request $request)
+    {
+        $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->with('musteri')->first();
+        if (!$kayit) {
+            return response()->json(['success' => false], 404);
+        }
+        $liste = AramaListesi::where('id', $kayit->arama_id)->first();
+        if (!$this->cagriListeYetkiliMi($liste)) {
+            return response()->json(['success' => false, 'message' => 'Yetkiniz yok'], 403);
+        }
+        return response()->json([
+            'success' => true,
+            'user_id' => $kayit->user_id,
+            'ad'      => optional($kayit->musteri)->name ?? '',
+            'telefon' => optional($kayit->musteri)->cep_telefon ?? '',
+        ]);
+    }
+
     /* ============================================================
      * Cagri Merkezi — Liste Segmentasyonu (sonuca gore ayikla, indir, personele tasi)
      * ============================================================ */
