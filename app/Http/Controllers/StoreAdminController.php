@@ -526,12 +526,17 @@ public function carkverilerigetir(Request $request)
             ->values();
         
         $hasKurallar = \Schema::hasColumn('carkifelek_sistemi', 'kullanim_kurallari');
+        $kurallar    = $hasKurallar ? trim((string) ($carkifelek->kullanim_kurallari ?? '')) : '';
+        // Henüz kural girilmemişse koruyucu varsayılanı göster (salon sahibi düzenleyebilir)
+        if ($kurallar === '') {
+            $kurallar = CarkifelekSistemi::VARSAYILAN_KURALLAR;
+        }
 
         return response()->json([
             'success' => true,
             'data' => [
                 'aktifmi'  => $carkifelek->aktifmi,
-                'kurallar' => $hasKurallar ? ($carkifelek->kullanim_kurallari ?? '') : '',
+                'kurallar' => $kurallar,
                 'dilimler' => $dilimler
             ]
         ]);

@@ -132,6 +132,10 @@ class CarkifelekMusteriController extends Controller
         $kurallar = Schema::hasColumn('carkifelek_sistemi', 'kullanim_kurallari')
             ? trim((string) ($cark->kullanim_kurallari ?? ''))
             : '';
+        // Salon kendi kuralını girmemişse, tüm salonları koruyan varsayılanı göster
+        if ($kurallar === '') {
+            $kurallar = CarkifelekSistemi::VARSAYILAN_KURALLAR;
+        }
 
         return view('carkifelek.cevir', array_merge($this->layoutData(), [
             'salon'           => $salon,

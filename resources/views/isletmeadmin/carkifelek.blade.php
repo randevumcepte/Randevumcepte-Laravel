@@ -614,7 +614,7 @@
         <textarea class="rules-textarea" id="rules-text"
             placeholder="Örnek:&#10;• Kazandığınız ödüller 30 gün içinde geçerlidir.&#10;• Her müşteri günde 1 kez çevirebilir.&#10;• Kuponlar başka kampanyalarla birleştirilemez.&#10;• Ödüller nakde çevrilemez."></textarea>
         <div class="rules-foot">
-            <span class="rules-hint">Boş bırakırsanız müşteri tarafında <b>kurallar alanı gösterilmez</b>.</span>
+            <span class="rules-hint">Boş bırakırsanız müşterilere <b>koruyucu varsayılan kurallar</b> gösterilir. İstediğiniz gibi düzenleyebilirsiniz.</span>
             <button class="rules-save-btn" id="rules-save-btn" onclick="saveKurallar()">📋 Kuralları Kaydet</button>
         </div>
     </div>
