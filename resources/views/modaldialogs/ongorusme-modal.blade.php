@@ -1,4 +1,6 @@
 <style>
+/* Tarih takvimi (bootstrap-datepicker) body'ye iliştirilir; modalın ÜSTÜNDE görünsün (modal z-index ~1050) */
+.datepicker.dropdown-menu{ z-index:1061 !important; }
 #ongorusme-modal .modal-dialog { max-width:640px; }
 .og-modal { border-radius:12px; border:0; overflow:hidden; box-shadow:0 20px 50px rgba(92,0,142,.18); }
 .og-header {

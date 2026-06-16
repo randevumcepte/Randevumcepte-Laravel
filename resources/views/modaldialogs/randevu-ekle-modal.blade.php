@@ -3844,12 +3844,14 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
         }
     });
     
-    // Tarih seçici için
+    // Tarih seçici için — modal içinde kırpılmasın: takvimi body'ye iliştir, yer yoksa yukarı aç
     $('.date-picker').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,
         todayHighlight: true,
-        language: 'tr'
+        language: 'tr',
+        container: 'body',
+        orientation: 'auto'
     });
     
     // Hizmet kaldırma butonu (ikinci handler)
