@@ -569,11 +569,16 @@ function segPersonelYukle(){
    });
 }
 function segListeleriYukle(){
+   var oncekiSecim = $('#seg_liste_sec').val(); // rebuild sonrasi secimi koru
    $.get('/isletmeyonetim/arama-kartlarim', { sube: $('input[name="sube"]').val() }, function(res){
       var kartlar = (res && res.kartlar) ? res.kartlar : [];
       var opts = '<option value="">Liste seçin...</option>';
       kartlar.forEach(function(k){ opts += '<option value="'+k.id+'">'+cmEsc(k.baslik)+' ('+k.toplam+' müşteri)</option>'; });
       $('#seg_liste_sec').html(opts);
+      // Onceki secim hala listede ise geri sec (panel acik kalsin)
+      if (oncekiSecim && $('#seg_liste_sec option[value="'+oncekiSecim+'"]').length){
+         $('#seg_liste_sec').val(oncekiSecim);
+      }
    });
 }
 function segRenk(kod){
@@ -596,12 +601,14 @@ function segPersonelOpts(seciliId){
 $(document).on('change', '#seg_liste_sec', function(){ segSegmentleriYukle(); });
 $(document).on('click', '#seg_yenile', function(){ segSegmentleriYukle(); });
 
-var segSecili = null; // {kod, ad, adet}
+var segSecili = null;     // {kod, ad, adet}
+var segAktifListe = null; // panelde yuklu listenin id'si (aksiyonlar bunu kullanir, dropdown'a bagimli degil)
 
 function segSegmentleriYukle(){
    var aramaId = $('#seg_liste_sec').val();
    var sube = $('input[name="sube"]').val();
    segSecili = null;
+   segAktifListe = aramaId || null;
    if (!aramaId){ $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>Yukarıdan bir arama listesi seçin.</div>'); return; }
    $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
    $.get('/isletmeyonetim/cagri-liste-segmentler', { arama_id: aramaId, sube: sube }, function(res){
@@ -652,20 +659,20 @@ $(document).on('click', '.seg-chip', function(){
 // Seçili segmenti indir
 $(document).on('click', '#seg_indir', function(){
    if (!segSecili || segSecili.adet<=0) return;
-   var aramaId = $('#seg_liste_sec').val();
+   if (!segAktifListe){ segMsg({ type:'warning', title:'Liste seçin', text:'Önce yukarıdan bir liste seçin.' }); return; }
    var sube = $('input[name="sube"]').val();
-   window.location = '/isletmeyonetim/cagri-segment-indir?arama_id='+encodeURIComponent(aramaId)+'&kod='+encodeURIComponent(segSecili.kod)+'&sube='+encodeURIComponent(sube);
+   window.location = '/isletmeyonetim/cagri-segment-indir?arama_id='+encodeURIComponent(segAktifListe)+'&kod='+encodeURIComponent(segSecili.kod)+'&sube='+encodeURIComponent(sube);
 });
 
 // Seçili segmenti personele taşı
 $(document).on('click', '#seg_ata', function(){
    if (!segSecili || segSecili.adet<=0){ segMsg({ type:'warning', title:'Segment seçin', text:'Önce dolu bir segment (Görüşüldü, Cevapsız...) seçin.' }); return; }
-   var aramaId = $('#seg_liste_sec').val();
+   if (!segAktifListe){ segMsg({ type:'warning', title:'Liste seçin', text:'Önce yukarıdan bir liste seçin.' }); return; }
    var personelId = $('#seg_personel').val();
    var personelAd = $('#seg_personel option:selected').text();
    if (!personelId){ segMsg({ type:'warning', title:'Personel seçin', text:'Taşımak için bir personel seçin.' }); return; }
    if (confirm(segSecili.ad+' segmentindeki '+segSecili.adet+' müşteri "'+personelAd+'" personeline TAŞINACAK (bu listeden çıkacak). Devam edilsin mi?')){
-      segAtaYap(aramaId, segSecili.kod, personelId);
+      segAtaYap(segAktifListe, segSecili.kod, personelId);
    }
 });
 
@@ -686,17 +693,17 @@ function segAtaYap(aramaId, kod, personelId){
 
 // Listenin TAMAMINI başka personele ata / değiştir
 $(document).on('click', '#seg_atama_kaydet', function(){
-   var aramaId = $('#seg_liste_sec').val();
+   if (!segAktifListe){ segMsg({ type:'warning', title:'Liste seçin', text:'Önce yukarıdan bir liste seçin.' }); return; }
    var personelId = $('#seg_atanan').val();
    if (!personelId){ segMsg({ type:'warning', title:'Personel seçin', text:'Atamak için bir personel seçin (ya da "Atamayı Geri Al" kullanın).' }); return; }
-   segListePersonel(aramaId, personelId);
+   segListePersonel(segAktifListe, personelId);
 });
 
 // Atamayı geri al (liste hiçbir personelde görünmez)
 $(document).on('click', '#seg_atama_kaldir', function(){
-   var aramaId = $('#seg_liste_sec').val();
+   if (!segAktifListe){ segMsg({ type:'warning', title:'Liste seçin', text:'Önce yukarıdan bir liste seçin.' }); return; }
    if (confirm('Bu listenin ataması GERİ ALINACAK — artık hiçbir personelin ekranında görünmeyecek. Devam edilsin mi?')){
-      segListePersonel(aramaId, '');
+      segListePersonel(segAktifListe, '');
    }
 });
 
@@ -716,11 +723,11 @@ function segListePersonel(aramaId, personelId){
 
 // Listeyi tamamen sil
 $(document).on('click', '#seg_liste_sil', function(){
-   var aramaId = $('#seg_liste_sec').val();
+   if (!segAktifListe){ segMsg({ type:'warning', title:'Liste seçin', text:'Önce yukarıdan bir liste seçin.' }); return; }
    var ad = $('#seg_liste_sec option:selected').text();
    if (confirm('"'+ad+'" listesi ve içindeki TÜM müşteri/görüşme kayıtları KALICI olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?')){
       $.post('/isletmeyonetim/cagri-liste-sil',
-         { arama_id: aramaId, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+         { arama_id: segAktifListe, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
          function(res){
             if (res.success){
                segMsg({ type:'success', title:'Silindi', text:res.message, timer:2600, showConfirmButton:false });
