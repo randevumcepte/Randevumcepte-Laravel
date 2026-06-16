@@ -248,6 +248,21 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 
 <input type="hidden" name="sube" value="{{ $isletme->id }}">
 
+{{-- Telefonda Satış: Randevusuz Satış ekranı popup (müşteri detay iframe, #tahsilatEkrani) --}}
+<div id="ag_satis_modal" class="modal fade" role="dialog">
+   <div class="modal-dialog" role="document" style="max-width:95%;width:95%;margin:1.5rem auto;">
+      <div class="modal-content" style="border:none;border-radius:14px;overflow:hidden;height:90vh;">
+         <div class="modal-header" style="background:linear-gradient(120deg,#16a34a,#22c55e);color:#fff;border:none;">
+            <h5 class="modal-title" style="font-weight:700;"><i class="fa fa-money"></i> Randevusuz Satış</h5>
+            <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;"><span>&times;</span></button>
+         </div>
+         <div class="modal-body" style="padding:0;height:calc(90vh - 56px);overflow:hidden;">
+            <iframe id="ag_satis_iframe" src="about:blank" style="width:100%;height:100%;border:0;"></iframe>
+         </div>
+      </div>
+   </div>
+</div>
+
 <script>
 function agEsc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
@@ -636,12 +651,18 @@ $(document).on('click', '#ag_satis_kasa', function(){
          if (res && res.success && res.user_id){
             var url = '/isletmeyonetim/musteridetay/'+encodeURIComponent(res.user_id)
                     + '?sube='+encodeURIComponent(sube)+'#tahsilatEkrani';
-            window.open(url, '_blank');
+            $('#ag_satis_iframe').attr('src', url);
+            $('#ag_satis_modal').modal('show');
          } else {
             swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
          }
       }
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'Satış ekranı açılamadı.' }); });
+});
+
+// Satış popup kapanınca iframe'i boşalt (kaynak serbest kalsın)
+$(document).on('hidden.bs.modal', '#ag_satis_modal', function(){
+   $('#ag_satis_iframe').attr('src', 'about:blank');
 });
 
 $(document).on('change', '#ag_sonra_chk', function(){
