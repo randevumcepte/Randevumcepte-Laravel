@@ -1654,34 +1654,6 @@
                   </li>
                   @endif
 
-                  {{-- 2b) Cagri Merkezi Dashboard (yonetici) --}}
-                  @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
-                  <li>
-                     @if($pageindex==45)
-                     <a href="/isletmeyonetim/arama-dashboard{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/arama-dashboard{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-headset"></span>
-                     <span class="mtext"> Çağrı Merkezi </span>
-                     </a>
-                  </li>
-                  @endif
-
-                  {{-- 2c) Cagri Merkezi: Arama Ekrani (yonetici de gorur/test edebilir) --}}
-                  @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
-                  <li>
-                     @if($pageindex==44)
-                     <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-telephone-outbound"></span>
-                     <span class="mtext"> Arama Ekranı </span>
-                     </a>
-                  </li>
-                  @endif
-
                   {{-- "Çağrı Merkezi Ayarları" menü öğesi kaldırıldı (istek üzerine). Sayfa/route duruyor. --}}
 
                   {{-- 3) Randevu Takvimi --}}
@@ -2021,6 +1993,34 @@
                   </li>
                   @endif
                   @endif
+                  @endif
+
+                  {{-- 2b) Cagri Merkezi Dashboard (yonetici) --}}
+                  @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
+                  <li>
+                     @if($pageindex==45)
+                     <a href="/isletmeyonetim/arama-dashboard{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-dashboard{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-headset"></span>
+                     <span class="mtext"> Çağrı Merkezi </span>
+                     </a>
+                  </li>
+                  @endif
+
+                  {{-- 2c) Cagri Merkezi: Arama Ekrani (yonetici de gorur/test edebilir) --}}
+                  @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
+                  <li>
+                     @if($pageindex==44)
+                     <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-telephone-outbound"></span>
+                     <span class="mtext"> Arama Ekranı </span>
+                     </a>
+                  </li>
                   @endif
 
                   {{-- 19) WhatsApp (sadece uyelik_turu == 3) --}}
