@@ -190,14 +190,18 @@ class SalonHatirlatmaController extends Controller
     {
         if (!$this->kolonVarMi('randevular', 'randevuya_geldi')) return null;
 
-        $simdi = date('Y-m-d H:i:s');
-        $altSinir = date('Y-m-d H:i:s', strtotime('-4 hours'));
+        // SADECE BUGUN + 15 dk tolerans: bugunun onayli (durum=1) randevulari icinden,
+        // saati su andan en az 15 dk once gecmis VE hala geldi/gelmedi isaretlenmemis (NULL) olanlar.
+        // (Eskiden son 4 saatlik pencere vardi; sabah gecen randevu ogleden sonra karttan kayboluyordu.)
+        $bugun = date('Y-m-d');
+        $esik  = date('Y-m-d H:i:s', strtotime('-15 minutes'));
 
         $sayi = DB::table('randevular')
             ->where('salon_id', $salonId)
             ->where('durum', 1)
             ->whereNull('randevuya_geldi')
-            ->whereRaw("CONCAT(tarih,' ',saat) BETWEEN ? AND DATE_SUB(?, INTERVAL 5 MINUTE)", [$altSinir, $simdi])
+            ->where('tarih', $bugun)
+            ->whereRaw("CONCAT(tarih,' ',saat) <= ?", [$esik])
             ->count();
 
         if ($sayi <= 0) return null;
@@ -209,9 +213,9 @@ class SalonHatirlatmaController extends Controller
             'tema'      => 'kirmizi-uyari',
             'ikon'      => 'fa-question-circle',
             'emoji'     => '🚨',
-            'baslik'    => 'Geldi/Gelmedi İşaretlenmedi!',
-            'mesaj'     => $sayi . ' randevu için müşterinin geldi mi gelmedi mi olduğu hâlâ işaretlenmemiş.',
-            'altMesaj'  => 'Hızlıca işaretle, gün sonu raporu doğru çıksın.',
+            'baslik'    => 'Saati Geçen Randevular',
+            'mesaj'     => $sayi . ' randevunun saati geçti, durumu hâlâ işaretlenmemiş.',
+            'altMesaj'  => 'Geldiyse işlem yapın, gelmediyse veya iptalse lütfen iptal edin — gün sonu raporunuz doğru çıksın.',
             'cta_text'  => 'Randevulara Git',
             'link'      => '/isletmeyonetim/randevular?sube=' . $salonId . '&filtre=isaretsiz',
             'sayac'     => $sayi,
