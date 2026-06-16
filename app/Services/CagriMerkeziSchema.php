@@ -126,6 +126,10 @@ class CagriMerkeziSchema
         if (Schema::hasTable('gorusme_notlari') && !Schema::hasColumn('gorusme_notlari', 'alt_kategori_id')) {
             self::run("ALTER TABLE `gorusme_notlari` ADD COLUMN `alt_kategori_id` BIGINT UNSIGNED NULL");
         }
+        // Telefonda satis tutari (sonuc=7) — dashboard ciro raporu icin.
+        if (Schema::hasTable('gorusme_notlari') && !Schema::hasColumn('gorusme_notlari', 'satis_tutari')) {
+            self::run("ALTER TABLE `gorusme_notlari` ADD COLUMN `satis_tutari` DECIMAL(12,2) NULL");
+        }
     }
 
     /** cagri_scriptleri: yoneticinin tanimladigi, agent'in okudugu gorusme scriptleri */

@@ -85,6 +85,13 @@
 .cm-mini2{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px; }
 .n-yesil{ color:#1b9e4b; } .n-kirmizi{ color:#d33; } .n-mavi{ color:#1565c0; }
 .n-koyu{ color:#241b3a; } .n-gri{ color:#a7a2b5; }
+/* Hedef (dönüşüm) kutuları: Ön Görüşme + Satış — kartta öne çıkar */
+.cm-hedef{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0 4px; }
+.cm-hedef .hbox{ border-radius:12px; padding:10px 8px; text-align:center; color:#fff; }
+.cm-hedef .hbox .n{ font-size:22px; font-weight:800; line-height:1; }
+.cm-hedef .hbox .t{ font-size:10.5px; margin-top:4px; display:block; font-weight:700; opacity:.95; }
+.cm-hedef .hb-mavi{ background:linear-gradient(135deg,#1565c0,#42a5f5); }
+.cm-hedef .hb-yesil{ background:linear-gradient(135deg,#16a34a,#22c55e); }
 
 /* ===== Modal — görüşme dökümü ===== */
 #personel_detay_modal .modal-dialog{ max-width:840px; }
@@ -149,7 +156,7 @@
 .pd-empty .t2{ font-size:13px; margin-top:4px; }
 
 /* ===== Modal — özet şerit ===== */
-.pd-ozet{ display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:16px; }
+.pd-ozet{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
 .pd-oz{ background:#fff; border:1px solid #efeaf6; border-radius:14px; padding:12px 10px; text-align:center; position:relative; }
 .pd-oz .oz-ic{ font-size:15px; margin-bottom:4px; }
 .pd-oz .oz-n{ font-size:20px; font-weight:800; line-height:1; color:#241b3a; }
@@ -157,9 +164,15 @@
 .pd-oz.mor{ background:linear-gradient(135deg,#5C008E,#7B2FB8); border:none; }
 .pd-oz.mor .oz-n, .pd-oz.mor .oz-t, .pd-oz.mor .oz-ic{ color:#fff; }
 .pd-oz.mor .oz-t{ opacity:.9; }
+/* Hedef (dönüşüm) kutuları öne çıksın */
+.pd-oz.hedef-mavi{ background:linear-gradient(135deg,#1565c0,#42a5f5); border:none; }
+.pd-oz.hedef-yesil{ background:linear-gradient(135deg,#16a34a,#22c55e); border:none; }
+.pd-oz.hedef-mavi .oz-n, .pd-oz.hedef-mavi .oz-t, .pd-oz.hedef-mavi .oz-ic,
+.pd-oz.hedef-yesil .oz-n, .pd-oz.hedef-yesil .oz-t, .pd-oz.hedef-yesil .oz-ic{ color:#fff; }
+.pd-oz.hedef-mavi .oz-t, .pd-oz.hedef-yesil .oz-t{ opacity:.95; }
 .c-yesil{ color:#1b9e4b; } .c-kirmizi{ color:#d33; } .c-mavi{ color:#1565c0; }
 .c-turuncu{ color:#e07a1a; } .c-gri{ color:#a7a2b5; }
-@media (max-width:680px){ .pd-ozet{ grid-template-columns:repeat(3,1fr); } }
+@media (max-width:680px){ .pd-ozet{ grid-template-columns:repeat(2,1fr); } }
 
 /* ===== Modal — filtre çipleri ===== */
 .pd-filtre{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
@@ -384,7 +397,8 @@ function dashYukle() {
                   <div class="cm-card personel-kart" data-id="${cmEsc(k.personel_id)}" data-ad="${ad}"
                        data-atanan="${k.atanan}" data-aranan="${k.aranan}" data-kalan="${k.kalan}"
                        data-konusulan="${k.konusulan}" data-cevapsiz="${k.cevapsiz}" data-randevu="${k.randevu}"
-                       data-ulasilamadi="${k.ulasilamadi}" data-dk="${k.toplam_dk}">
+                       data-ulasilamadi="${k.ulasilamadi}" data-dk="${k.toplam_dk}"
+                       data-ongorusme="${k.ongorusme||0}" data-satis="${k.satis||0}" data-ciro="${k.satis_cirosu||0}">
                      <div class="cm-card-head">
                         <div class="cm-avatar">${bashHarf}</div>
                         <p class="nm">${ad}</p>
@@ -397,10 +411,15 @@ function dashYukle() {
                         </div>
                         <div class="cm-prog"><span style="width:${ilerleme}%;"></span></div>
 
+                        <div class="cm-hedef">
+                           <div class="hbox hb-mavi"><div class="n">${cmEsc(k.ongorusme||0)}</div><span class="t">Ön Görüşme</span></div>
+                           <div class="hbox hb-yesil"><div class="n">${cmEsc(k.satis||0)}</div><span class="t">Satış${(k.satis_cirosu>0)?(' · '+Number(k.satis_cirosu).toLocaleString('tr-TR')+'₺'):''}</span></div>
+                        </div>
+
                         <div class="cm-mini">
                            <div class="box"><div class="n n-yesil">${cmEsc(k.konusulan)}</div><span class="t">Konuşulan</span></div>
                            <div class="box"><div class="n n-kirmizi">${cmEsc(k.cevapsiz)}</div><span class="t">Cevapsız</span></div>
-                           <div class="box"><div class="n n-mavi">${cmEsc(k.randevu)}</div><span class="t">Randevu</span></div>
+                           <div class="box"><div class="n n-mavi">${cmEsc(k.randevu)}</div><span class="t">Tekrar Ara</span></div>
                         </div>
                         <div class="cm-mini2">
                            <div class="box"><div class="n n-koyu">${cmEsc(k.kalan)}</div><span class="t">Kalan</span></div>
@@ -431,7 +450,9 @@ function pdSonucStil(kod){
       case 2: return { c:'kirmizi', et:'Cevapsız' };
       case 5: return { c:'kirmizi', et:'Meşgul' };
       case 0: return { c:'turuncu', et:'Ulaşılamadı' };
-      case 3: return { c:'mavi',    et:'Randevu' };
+      case 3: return { c:'mavi',    et:'Tekrar Aranacak' };
+      case 6: return { c:'mavi',    et:'Ön Görüşme' };
+      case 7: return { c:'yesil',   et:'Satış' };
       default:return { c:'gri',     et:'Bekliyor' };
    }
 }
@@ -439,10 +460,12 @@ function pdSonucStil(kod){
 // Filtre grupları (sayısı 0 olan çip gösterilmez; Tümü daima görünür)
 var PD_GRUPLAR = [
    { key:'hepsi',       et:'Tümü',        test:function(){ return true; } },
+   { key:'ongorusme',   et:'Ön Görüşme',  test:function(k){ return k===6; } },
+   { key:'satis',       et:'Satış',       test:function(k){ return k===7; } },
    { key:'gorusuldu',   et:'Cevaplanan',  test:function(k){ return k===1 || k===4; } },
    { key:'cevapsiz',    et:'Cevapsız / Meşgul', test:function(k){ return k===2 || k===5; } },
    { key:'ulasilamadi', et:'Ulaşılamadı', test:function(k){ return k===0; } },
-   { key:'randevu',     et:'Randevu',     test:function(k){ return k===3; } }
+   { key:'randevu',     et:'Tekrar Aranacak', test:function(k){ return k===3; } }
 ];
 
 var pdNotlar = [];
@@ -450,12 +473,15 @@ var pdAktif = 'hepsi';
 
 // Üst özet şeridini karttaki verilerden çizer (ekstra sorgu yok)
 function pdOzetCiz(d){
+   var ciroEk = (d.ciro>0) ? (' · '+Number(d.ciro).toLocaleString('tr-TR')+'₺') : '';
    $('#pd_ozet').html(`
+      <div class="pd-oz hedef-mavi"><div class="oz-ic"><i class="fa fa-calendar-check-o"></i></div><div class="oz-n">${d.ongorusme}</div><span class="oz-t">Ön Görüşme</span></div>
+      <div class="pd-oz hedef-yesil"><div class="oz-ic"><i class="fa fa-shopping-bag"></i></div><div class="oz-n">${d.satis}</div><span class="oz-t">Satış${ciroEk}</span></div>
       <div class="pd-oz mor"><div class="oz-ic"><i class="fa fa-clock-o"></i></div><div class="oz-n">${d.dk}</div><span class="oz-t">Konuşma (dk)</span></div>
       <div class="pd-oz"><div class="oz-ic c-yesil"><i class="fa fa-phone"></i></div><div class="oz-n c-yesil">${d.konusulan}</div><span class="oz-t">Cevaplanan</span></div>
       <div class="pd-oz"><div class="oz-ic c-kirmizi"><i class="fa fa-ban"></i></div><div class="oz-n c-kirmizi">${d.cevapsiz}</div><span class="oz-t">Cevapsız</span></div>
       <div class="pd-oz"><div class="oz-ic c-turuncu"><i class="fa fa-volume-off"></i></div><div class="oz-n c-turuncu">${d.ulasilamadi}</div><span class="oz-t">Ulaşılamadı</span></div>
-      <div class="pd-oz"><div class="oz-ic c-mavi"><i class="fa fa-calendar-check-o"></i></div><div class="oz-n c-mavi">${d.randevu}</div><span class="oz-t">Randevu</span></div>
+      <div class="pd-oz"><div class="oz-ic c-mavi"><i class="fa fa-redo"></i></div><div class="oz-n c-mavi">${d.randevu}</div><span class="oz-t">Tekrar Aranacak</span></div>
       <div class="pd-oz"><div class="oz-ic c-gri"><i class="fa fa-hourglass-half"></i></div><div class="oz-n c-gri">${d.kalan}</div><span class="oz-t">Sırada</span></div>
    `);
 }
@@ -493,12 +519,14 @@ function pdListeCiz(){
       const kat = katMetin ? `<span class="pd-call-kat"><i class="fa fa-tag"></i> ${cmEsc(katMetin)}</span>` : '';
       const not = n.not ? `<div class="pd-call-not"><i class="fa fa-sticky-note-o"></i>${cmEsc(n.not)}</div>` : '';
       const audio = n.ses ? `<div class="pd-call-audio"><audio controls preload="none" src="${cmEsc(n.ses)}"></audio></div>` : '';
+      const satis = (n.satis_tutari) ? `<span class="pd-call-sure" style="background:#daf5e4;color:#15803d;"><i class="fa fa-shopping-bag"></i> ${Number(n.satis_tutari).toLocaleString('tr-TR')} ₺</span>` : '';
       html += `
          <div class="pd-call bl-${st.c}">
             <div class="pd-call-top">
                <span class="pd-call-mus">${cmEsc(n.musteri) || 'Müşteri'}</span>
                <span class="pd-badge pd-b-${st.c}">${etiket}</span>
                <div class="pd-call-meta">
+                  ${satis}
                   ${kat}
                   ${sure}
                   <span class="m"><i class="fa fa-calendar-o"></i>${cmEsc(n.tarih)}</span>
@@ -531,7 +559,8 @@ $(document).on('click', '.personel-kart', function () {
       dk: +$k.data('dk') || 0, konusulan: +$k.data('konusulan') || 0,
       cevapsiz: +$k.data('cevapsiz') || 0, ulasilamadi: +$k.data('ulasilamadi') || 0,
       randevu: +$k.data('randevu') || 0, kalan: +$k.data('kalan') || 0,
-      aranan: +$k.data('aranan') || 0, atanan: +$k.data('atanan') || 0
+      aranan: +$k.data('aranan') || 0, atanan: +$k.data('atanan') || 0,
+      ongorusme: +$k.data('ongorusme') || 0, satis: +$k.data('satis') || 0, ciro: +$k.data('ciro') || 0
    };
    pdOzetCiz(d);
    $('#pd_altbaslik').text(d.aranan + ' / ' + d.atanan + ' arandı');
@@ -590,9 +619,9 @@ function segListeleriYukle(){
 }
 function segRenk(kod){
    switch(String(kod)){
-      case '4': case '1': return 'yesil';
+      case '4': case '1': case '7': return 'yesil';
       case '2': return 'kirmizi'; case '5': return 'pembe';
-      case '0': return 'turuncu'; case '3': return 'mavi';
+      case '0': return 'turuncu'; case '3': case '6': return 'mavi';
       default: return 'gri';
    }
 }

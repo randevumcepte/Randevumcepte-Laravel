@@ -26,6 +26,7 @@ class GorusmeNotlari extends Model
         'sure_dk',
         'cdr_id',
         'ses_kaydi',
+        'satis_tutari',
     ];
 
     public function musteri()

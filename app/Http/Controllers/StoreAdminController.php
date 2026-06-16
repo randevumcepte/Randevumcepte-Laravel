@@ -27375,18 +27375,23 @@ DB::raw('
                 DB::raw('SUM(CASE WHEN am.durum IN (2,5) THEN 1 ELSE 0 END) as cevapsiz'),
                 DB::raw('SUM(CASE WHEN am.durum IN (1,4) THEN 1 ELSE 0 END) as konusulan'),
                 DB::raw('SUM(CASE WHEN am.durum=0 THEN 1 ELSE 0 END) as ulasilamadi'),
-                DB::raw('SUM(CASE WHEN am.durum=3 THEN 1 ELSE 0 END) as randevu')
+                DB::raw('SUM(CASE WHEN am.durum=3 THEN 1 ELSE 0 END) as randevu'),
+                DB::raw('SUM(CASE WHEN am.durum=6 THEN 1 ELSE 0 END) as ongorusme'),
+                DB::raw('SUM(CASE WHEN am.durum=7 THEN 1 ELSE 0 END) as satis')
             )
             ->groupBy('al.personel_id')
             ->get()
             ->keyBy('personel_id');
 
-        // Gorusme notu metrikleri (toplam sure + gorusme sayisi)
+        // Gorusme notu metrikleri (toplam sure + gorusme sayisi + satis cirosu)
         $gn = collect();
         if (Schema::hasTable('gorusme_notlari')) {
+            $satisSql = Schema::hasColumn('gorusme_notlari', 'satis_tutari')
+                ? 'SUM(CASE WHEN sonuc=7 THEN COALESCE(satis_tutari,0) ELSE 0 END) as satis_cirosu'
+                : '0 as satis_cirosu';
             $gn = DB::table('gorusme_notlari')
                 ->where('salon_id', $salonId)
-                ->select('personel_id', DB::raw('SUM(sure_dk) as toplam_dk'), DB::raw('COUNT(*) as gorusme_sayisi'))
+                ->select('personel_id', DB::raw('SUM(sure_dk) as toplam_dk'), DB::raw('COUNT(*) as gorusme_sayisi'), DB::raw($satisSql))
                 ->groupBy('personel_id')
                 ->get()
                 ->keyBy('personel_id');
@@ -27412,8 +27417,11 @@ DB::raw('
                 'konusulan'      => (int) $r->konusulan,
                 'ulasilamadi'    => (int) $r->ulasilamadi,
                 'randevu'        => (int) $r->randevu,
+                'ongorusme'      => (int) $r->ongorusme,
+                'satis'          => (int) $r->satis,
                 'toplam_dk'      => $g ? (int) $g->toplam_dk : 0,
                 'gorusme_sayisi' => $g ? (int) $g->gorusme_sayisi : 0,
+                'satis_cirosu'   => $g ? (float) $g->satis_cirosu : 0,
             ];
         }
 
@@ -27447,10 +27455,12 @@ DB::raw('
             ->orderBy('g.id', 'desc')
             ->limit(300);
 
+        $satisVar = Schema::hasColumn('gorusme_notlari', 'satis_tutari');
         $sel = ['g.not', 'g.ses_kaydi', 'g.sonuc', 'g.sure_dk', 'g.created_at', 'u.name'];
         if ($katVar) { $sel[] = 'k.ad as kategori_ad'; $sel[] = 'ak.ad as alt_kategori_ad'; }
+        if ($satisVar) { $sel[] = 'g.satis_tutari'; }
 
-        $notlar = $q->select($sel)->get()->map(function ($n) use ($katVar) {
+        $notlar = $q->select($sel)->get()->map(function ($n) use ($katVar, $satisVar) {
             return [
                 'musteri'      => $n->name ?? '-',
                 'not'          => $n->not ?? '',
@@ -27459,6 +27469,7 @@ DB::raw('
                 'sure_dk'      => (int) $n->sure_dk,
                 'kategori'     => $katVar ? ($n->kategori_ad ?? '') : '',
                 'alt_kategori' => $katVar ? ($n->alt_kategori_ad ?? '') : '',
+                'satis_tutari' => ($satisVar && $n->satis_tutari !== null) ? (float) $n->satis_tutari : null,
                 'ses'          => self::sesKaydiUrl($n->ses_kaydi),
                 'tarih'        => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
             ];
@@ -27533,9 +27544,11 @@ DB::raw('
             case 1: return 'Arandı';
             case 0: return 'Ulaşılamadı';
             case 2: return 'Cevapsız';
-            case 3: return 'Arama Randevusu';
+            case 3: return 'Tekrar Aranacak';
             case 4: return 'Görüşüldü';
             case 5: return 'Meşgul';
+            case 6: return 'Ön Görüşme Randevusu';
+            case 7: return 'Telefonda Satış';
             default: return is_null($kod) ? 'Bekliyor' : 'Bekliyor';
         }
     }
@@ -27589,20 +27602,25 @@ DB::raw('
         $tekrarSaat  = $request->santralnotsaat;
         $randevuMu = (!empty($tekrarTarih) && !empty($tekrarSaat));
 
-        // Agent gorusme sonucu (opsiyonel): 0 Ulasilamadi, 2 Cevapsiz, 4 Gorusuldu, 5 Mesgul
+        // Agent gorusme sonucu: 0 Ulasilamadi, 2 Cevapsiz, 4 Gorusuldu, 5 Mesgul,
+        // 6 On Gorusme Randevusu, 7 Telefonda Satis. (3 = Tekrar Aranacak -> "sonra ara" checkbox'i)
         $sonucKod = $request->filled('sonuc') ? (int) $request->sonuc : null;
-        $gecerliSonuc = in_array($sonucKod, [0, 2, 4, 5], true);
+        $gecerliSonuc = in_array($sonucKod, [0, 2, 4, 5, 6, 7], true);
 
-        // Nihai durum: randevu her seyin onunde; yoksa secilen sonuc; o da yoksa eski davranis.
-        if ($randevuMu) {
-            $kayitDurum = 3; // Arama Randevusu
-        } elseif ($gecerliSonuc) {
-            $kayitDurum = $sonucKod;
+        // Nihai durum: ACIK secilen sonuc onceliklidir; yoksa "sonra ara" (randevu); o da yoksa eski.
+        if ($gecerliSonuc) {
+            $kayitDurum = $sonucKod;     // 6/7 dahil — tarih/saat olsa bile sonuc korunur
+        } elseif ($randevuMu) {
+            $kayitDurum = 3;             // Tekrar Aranacak (sonra ara)
         } elseif (is_null($kayit->durum)) {
-            $kayitDurum = 4; // Görüşüldü (not eklendi)
+            $kayitDurum = 4;             // Görüşüldü (not eklendi)
         } else {
             $kayitDurum = (int) $kayit->durum;
         }
+
+        // Telefonda satis tutari (sonuc=7)
+        $satisTutari = ($kayitDurum === 7 && $request->filled('satis_tutari'))
+            ? round((float) str_replace(',', '.', $request->satis_tutari), 2) : null;
 
         // Mevcut tablo: tekrar arama randevusu tarih/saat alanlari (TekrarAramaHatirlat bunu okur)
         $kayit->musteri_not = $notIcerik;
@@ -27647,6 +27665,9 @@ DB::raw('
             if ($katSema) {
                 $gnVeri['kategori_id'] = $kategoriId;
                 $gnVeri['alt_kategori_id'] = $altKategoriId;
+            }
+            if (Schema::hasColumn('gorusme_notlari', 'satis_tutari')) {
+                $gnVeri['satis_tutari'] = $satisTutari;
             }
             \App\GorusmeNotlari::create($gnVeri);
         } catch (\Throwable $e) {
@@ -27965,8 +27986,9 @@ DB::raw('
                 'sonuc'         => self::aranacakDurumMetin($n->sonuc),
                 'not'           => $n->not ?? '',
                 'ses'           => self::sesKaydiUrl($n->ses_kaydi),
-                'randevu_tarih' => $kod === 3 ? $randevuTarih : '',
-                'randevu_saat'  => $kod === 3 ? $randevuSaat : '',
+                'randevu_tarih' => ($kod === 3 || $kod === 6) ? $randevuTarih : '',
+                'randevu_saat'  => ($kod === 3 || $kod === 6) ? $randevuSaat : '',
+                'satis_tutari'  => ($kod === 7 && isset($n->satis_tutari) && $n->satis_tutari !== null) ? (float) $n->satis_tutari : null,
             ];
         });
 
@@ -27995,7 +28017,7 @@ DB::raw('
         $altSinir = date('Y-m-d H:i:s', strtotime('-12 hours')); // cok eski randevulari gosterme
 
         $kayitlar = AranacakMusteriler::whereIn('arama_id', $listeIds)
-            ->where('durum', 3)
+            ->whereIn('durum', [3, 6])
             ->whereNotNull('tarih')->where('tarih', '!=', '')
             ->whereNotNull('saat')->where('saat', '!=', '')
             ->whereRaw("CONCAT(tarih,' ',saat) <= ?", [$now])
@@ -28053,11 +28075,13 @@ DB::raw('
 
         // SABIT kategori seti — buton olarak hep gosterilir (0 olsa da). Arandi yalnizca varsa.
         $tanim = [
+            ['kod' => '6', 'ad' => 'Ön Görüşme Randevusu'],
+            ['kod' => '7', 'ad' => 'Telefonda Satış'],
             ['kod' => '4', 'ad' => 'Görüşüldü'],
             ['kod' => '2', 'ad' => 'Cevapsız'],
             ['kod' => '5', 'ad' => 'Meşgul'],
             ['kod' => '0', 'ad' => 'Ulaşılamadı'],
-            ['kod' => '3', 'ad' => 'Randevu'],
+            ['kod' => '3', 'ad' => 'Tekrar Aranacak'],
             ['kod' => 'bekleyen', 'ad' => 'Bekleyen'],
         ];
         if (($sayim['1'] ?? 0) > 0) {

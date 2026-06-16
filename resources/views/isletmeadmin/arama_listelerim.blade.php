@@ -136,6 +136,27 @@
 .ag-sonuc.sec-turuncu:hover{ border-color:#ea580c; background:#fdefe2; }
 .ag-sonuc.sec-turuncu.aktif{ background:#fde7d3; border-color:#ea580c; color:#c2570c; }
 
+/* Dönüşüm (hedef) butonları: Ön Görüşme + Telefonda Satış */
+.ag-donusum-lbl{ font-size:11.5px; font-weight:800; color:#8a90a2; text-transform:uppercase; letter-spacing:.4px; margin:14px 0 7px; }
+.ag-donusum-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+@media (max-width:520px){ .ag-donusum-grid{ grid-template-columns:1fr; } }
+.ag-donusum{ font-size:13px; }
+/* Ön Görüşme = mavi */
+.ag-sonuc.sec-mavi{ color:#1565c0; border-color:#cfe0f7; background:#f4f8fe; }
+.ag-sonuc.sec-mavi .fa{ color:#1565c0; }
+.ag-sonuc.sec-mavi:hover{ border-color:#1565c0; background:#eaf2fd; }
+.ag-sonuc.sec-mavi.aktif{ background:#e0edfb; border-color:#1565c0; color:#0d4a93; }
+/* Telefonda Satış = altın/yeşil (başarı) */
+.ag-sonuc.sec-altin{ color:#15803d; border-color:#c9ead4; background:#f3fbf6; }
+.ag-sonuc.sec-altin .fa{ color:#16a34a; }
+.ag-sonuc.sec-altin:hover{ border-color:#16a34a; background:#e9f8ef; }
+.ag-sonuc.sec-altin.aktif{ background:#daf5e4; border-color:#16a34a; color:#15803d; }
+/* Satış tutarı alanı */
+.ag-satis-alan{ display:none; align-items:center; gap:10px; margin-top:12px; background:#f3fbf6; border:1px solid #c9ead4; border-radius:12px; padding:10px 12px; }
+.ag-satis-lbl{ font-size:12.5px; font-weight:700; color:#15803d; white-space:nowrap; }
+.ag-satis-alan input{ flex:1; border:1px solid #c9ead4; border-radius:10px; padding:9px 11px; font-size:14px; outline:none; font-weight:700; }
+.ag-satis-alan input:focus{ border-color:#16a34a; }
+
 .ag-not-alani{ width:100%; border:1px solid #e7e9f0; border-radius:12px; padding:11px 13px; font-size:13.5px; outline:none; resize:vertical; min-height:80px; margin-top:12px; transition:border-color .12s ease; }
 .ag-not-alani:focus{ border-color:#8b5cf6; }
 select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
@@ -155,6 +176,7 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 .ag-gecmis-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .ag-gecmis-tarih{ font-weight:700; color:#6d28d9; font-size:12.5px; }
 .ag-randevu-zaman{ background:#e7f1fd; color:#1565c0; font-weight:700; font-size:11.5px; border-radius:20px; padding:3px 10px; margin-left:6px; white-space:nowrap; }
+.ag-satis-rozet{ background:#daf5e4; color:#15803d; font-weight:800; font-size:11.5px; border-radius:20px; padding:3px 10px; margin-left:6px; white-space:nowrap; }
 .ag-gecmis-item audio{ width:100%; height:36px; margin-top:9px; border-radius:8px; }
 .ag-gecmis-bos{ text-align:center; color:#9a95ab; padding:22px; font-size:13px; }
 .ag-gecmis-bos .fa{ font-size:28px; color:#cfc7df; display:block; margin-bottom:8px; }
@@ -213,7 +235,7 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 <script>
 function agEsc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
-// Durum kodu -> renk/etiket. 0 Ulaşılamadı,1 Arandı,2 Cevapsız,3 Randevu,4 Görüşüldü,5 Meşgul
+// Durum kodu -> renk/etiket. 0 Ulaşılamadı,1 Arandı,2 Cevapsız,3 Tekrar Aranacak,4 Görüşüldü,5 Meşgul,6 Ön Görüşme,7 Satış
 function durStil(kod){
    switch (parseInt(kod,10)){
       case 4: return { c:'yesil',   et:'Görüşüldü' };
@@ -221,7 +243,9 @@ function durStil(kod){
       case 2: return { c:'kirmizi', et:'Cevapsız' };
       case 5: return { c:'kirmizi', et:'Meşgul' };
       case 0: return { c:'turuncu', et:'Ulaşılamadı' };
-      case 3: return { c:'mavi',    et:'Randevu' };
+      case 3: return { c:'mavi',    et:'Tekrar Aranacak' };
+      case 6: return { c:'mavi',    et:'Ön Görüşme' };
+      case 7: return { c:'yesil',   et:'Satış' };
       default:return { c:'gri',     et:'Bekliyor' };
    }
 }
@@ -230,9 +254,11 @@ function durStil(kod){
 var AG_FILTRELER = [
    { key:'hepsi',     et:'Tümü',      test:function(){ return true; } },
    { key:'bekleyen',  et:'Bekleyen',  test:function(k){ return k===null || isNaN(k); } },
+   { key:'ongorusme', et:'Ön Görüşme', test:function(k){ return k===6; } },
+   { key:'satis',     et:'Satış',     test:function(k){ return k===7; } },
    { key:'arandi',    et:'Görüşülen', test:function(k){ return k===1 || k===4; } },
    { key:'olumsuz',   et:'Cevapsız',  test:function(k){ return k===0 || k===2 || k===5; } },
-   { key:'randevu',   et:'Randevu',   test:function(k){ return k===3; } }
+   { key:'randevu',   et:'Tekrar Aranacak', test:function(k){ return k===3; } }
 ];
 
 var agListeler = [];
@@ -472,9 +498,19 @@ function agDetayCiz(m){
             '<div class="ag-sonuc sec-koyukirmizi" data-sonuc="5"><i class="fa fa-ban"></i>Meşgul</div>'+
             '<div class="ag-sonuc sec-turuncu" data-sonuc="0"><i class="fa fa-volume-off"></i>Ulaşılamadı</div>'+
          '</div>'+
+         '<div class="ag-donusum-lbl">🎯 Sonuç (hedef)</div>'+
+         '<div class="ag-donusum-grid">'+
+            '<div class="ag-sonuc ag-donusum sec-mavi" data-sonuc="6"><i class="fa fa-calendar-check-o"></i>Ön Görüşme Randevusu</div>'+
+            '<div class="ag-sonuc ag-donusum sec-altin" data-sonuc="7"><i class="fa fa-shopping-bag"></i>Telefonda Satış</div>'+
+         '</div>'+
          agKatSelectler() +
          '<textarea class="ag-not-alani" id="ag_not" placeholder="Görüşme notu (müşteri ne dedi, talep, vb.)...">'+agEsc(m.not||'')+'</textarea>'+
-         '<label class="ag-sonra"><input type="checkbox" id="ag_sonra_chk"> Müşteri sonra aranmak istedi (Arama Randevusu oluştur)</label>'+
+         // Telefonda Satış tutarı (sonuc=7)
+         '<div class="ag-satis-alan" id="ag_satis_alan" style="display:none;">'+
+            '<span class="ag-satis-lbl">Satış tutarı (₺)</span>'+
+            '<input type="number" min="0" step="0.01" id="ag_satis_tutari" placeholder="örn: 1500">'+
+         '</div>'+
+         '<label class="ag-sonra"><input type="checkbox" id="ag_sonra_chk"> Müşteri sonra aranmak istedi (Tekrar Aranacak)</label>'+
          '<div class="ag-sonra-alan" id="ag_sonra_alan">'+
             '<input type="date" id="ag_sonra_tarih">'+
             '<input type="time" id="ag_sonra_saat">'+
@@ -515,11 +551,12 @@ function agGecmisYukle(aranacakId){
             var ses = g.ses ? '<audio controls preload="none" src="'+agEsc(g.ses)+'"></audio>'
                             : '<div style="font-size:11.5px;color:#aab0c0;margin-top:8px;"><i class="fa fa-hourglass-half"></i> Ses kaydı işleniyor — birazdan "Yenile"ye basın.</div>';
             var randevuBilgi = (g.randevu_tarih) ? '<span class="ag-randevu-zaman"><i class="fa fa-calendar-check-o"></i> '+agEsc(g.randevu_tarih)+(g.randevu_saat?(' '+agEsc(g.randevu_saat)):'')+'</span>' : '';
+            var satisBilgi = (g.satis_tutari) ? '<span class="ag-satis-rozet"><i class="fa fa-shopping-bag"></i> '+agEsc(g.satis_tutari)+' ₺</span>' : '';
             html += '<div class="ag-gecmis-item bl-'+st.c+'">'+
                        '<div class="ag-gecmis-top">'+
                           '<span class="ag-gecmis-tarih"><i class="fa fa-clock-o"></i> '+agEsc(g.tarih)+'</span>'+
                           '<span class="ag-mus-dur d-'+st.c+'" style="margin-left:8px;">'+st.et+'</span>'+
-                          randevuBilgi +
+                          randevuBilgi + satisBilgi +
                        '</div>'+
                        not +
                        ses +
@@ -538,13 +575,16 @@ $(document).on('click', '.ag-sonuc', function(){
    agSecilenSonuc = parseInt($(this).data('sonuc'),10);
    // sonuç seçilince "sonra ara" kapanır (çelişmesin)
    $('#ag_sonra_chk').prop('checked', false);
-   $('#ag_sonra_alan').hide();
+   // Ekstra alanlar: Ön Görüşme(6) -> tarih/saat; Telefonda Satış(7) -> tutar
+   $('#ag_satis_alan').css('display', agSecilenSonuc===7 ? 'flex' : 'none');
+   $('#ag_sonra_alan').css('display', agSecilenSonuc===6 ? 'flex' : 'none');
 });
 
 $(document).on('change', '#ag_sonra_chk', function(){
    if ($(this).is(':checked')){
       $('#ag_sonra_alan').css('display','flex');
-      $('.ag-sonuc').removeClass('aktif'); agSecilenSonuc=null; // randevu, sonuçla çelişmesin
+      $('#ag_satis_alan').hide();
+      $('.ag-sonuc').removeClass('aktif'); agSecilenSonuc=null; // tekrar aranacak, sonuçla çelişmesin
    } else {
       $('#ag_sonra_alan').hide();
    }
@@ -609,16 +649,22 @@ $(document).on('click', '#ag_ara_btn', function(){
 // ---- Sonucu kaydet ----
 $(document).on('click', '#ag_kaydet', function(){
    if (!agSecili) return;
-   var sonraMu = $('#ag_sonra_chk').is(':checked');
+   var sonraMu   = $('#ag_sonra_chk').is(':checked');
+   var onGorusme = (agSecilenSonuc===6);
+   var satisMi   = (agSecilenSonuc===7);
    var tarih = $('#ag_sonra_tarih').val();
    var saat  = $('#ag_sonra_saat').val();
    var not   = $('#ag_not').val();
+   var satisTutari = satisMi ? ($('#ag_satis_tutari').val()||'') : '';
 
-   if (sonraMu && (!tarih || !saat)){
-      swal({ type:'warning', title:'Eksik', text:'Arama randevusu için tarih ve saat seçin.' }); return;
+   if ((sonraMu || onGorusme) && (!tarih || !saat)){
+      swal({ type:'warning', title:'Tarih/saat seçin', text:(onGorusme?'Ön görüşme randevusu':'Tekrar arama')+' için tarih ve saat seçin.' }); return;
+   }
+   if (satisMi && (!satisTutari || parseFloat(satisTutari) <= 0)){
+      swal({ type:'warning', title:'Satış tutarı', text:'Telefonda satış için tutar girin.' }); return;
    }
    if (!sonraMu && agSecilenSonuc===null && !(not||'').trim()){
-      swal({ type:'warning', title:'Sonuç seçin', text:'Bir görüşme sonucu seçin, randevu oluşturun ya da not yazın.' }); return;
+      swal({ type:'warning', title:'Sonuç seçin', text:'Bir görüşme sonucu seçin, tekrar arama oluşturun ya da not yazın.' }); return;
    }
 
    var katId = $('#ag_kat').val() || '';
@@ -634,8 +680,9 @@ $(document).on('click', '#ag_kaydet', function(){
          sonuc: sonraMu ? '' : (agSecilenSonuc===null ? '' : agSecilenSonuc),
          kategori_id: katId,
          alt_kategori_id: altKatId,
-         santralnottarih: sonraMu ? tarih : '',
-         santralnotsaat:  sonraMu ? saat  : '',
+         satis_tutari: satisMi ? satisTutari : '',
+         santralnottarih: (sonraMu || onGorusme) ? tarih : '',
+         santralnotsaat:  (sonraMu || onGorusme) ? saat  : '',
          _token:$('input[name="_token"]').val()
       },
       success:function(res){
