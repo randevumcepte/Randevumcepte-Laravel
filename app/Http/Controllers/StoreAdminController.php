@@ -16055,9 +16055,9 @@ DB::raw('
             'linklerHazir'        => $linklerHazir,
         ]);
       } catch (\Throwable $e) {
-        return response('<pre style="white-space:pre-wrap;font:13px/1.5 monospace;padding:18px">AFIS HATA:&#10;'
-            . e($e->getMessage()) . "\n" . e($e->getFile()) . ':' . $e->getLine() . "\n\n"
-            . e($e->getTraceAsString()) . '</pre>', 500);
+        $detay = 'AFIS HATA: ' . $e->getMessage() . "\n" . $e->getFile() . ':' . $e->getLine() . "\n\n" . $e->getTraceAsString();
+        @file_put_contents(public_path('afis/_err.txt'), $detay);
+        return response('<pre style="white-space:pre-wrap;font:13px/1.5 monospace;padding:18px">' . e($detay) . '</pre>', 500);
       }
     }
 
