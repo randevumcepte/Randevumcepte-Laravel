@@ -192,6 +192,7 @@ use App\Uyelik;
 
 use App\OdemeYontemleri;
 use App\Imports\HizmetSureImport;
+use App\SalonYonetim\Audit;
 
 
 use Illuminate\Support\Facades\Log;
@@ -1013,7 +1014,11 @@ class ApiController extends Controller
     if(is_string($acikKapali)) {
         $acikKapali = (int)$acikKapali;
     }
-    
+
+    // faturasiz_gizle ayari hem liste filtresinde hem sayimda kullaniliyor;
+    // tek sefer cek (onceden 2 kez sorgulaniyordu).
+    $_faturasizGizleAktif = (bool) Salonlar::where('id', $isletmeId)->value('faturasiz_gizle');
+
     // ÖNCE FİLTRELERİ UYGULA
     $query = Adisyonlar::with([
         'musteri:id,name',
@@ -1050,12 +1055,11 @@ class ApiController extends Controller
     ->when($adisyonturu == 3, fn($q) => $q->whereHas('urunler'))
     ->when($adisyonturu == 2, fn($q) => $q->whereHas('paketler'))
     ->when(
-        (bool) Salonlar::where('id', $isletmeId)->value('faturasiz_gizle'),
+        $_faturasizGizleAktif,
         fn($q) => $q->where('fatura_kesildi', 1)
     )
     ->orderBy('tarih', 'desc');
 
-    $_faturasizGizleAktif = (bool) Salonlar::where('id', $isletmeId)->value('faturasiz_gizle');
     $faturaFiltreSayim = $_faturasizGizleAktif ? " AND a.fatura_kesildi = 1" : "";
 
     // AÇIK/KAPALI FİLTRELEME (SQL ile)
@@ -1077,13 +1081,15 @@ class ApiController extends Controller
         ");
     }
 
-    // SAYFALAMA (paginate zaten total count'u dahili yapar; ayrıca count() çağırmıyoruz)
+    // SAYFALAMA — paginate()'in pahali count(*) taramasini yapmamak icin
+    // manuel limit/offset kullaniyoruz; toplam adet asagidaki acik/kapali
+    // sayimindan aliniyor (zaten ayni filtrelerle hesaplaniyor).
+    $perPage = 20;
+    $sayfa = max(1, (int) $request->input('page', 1));
     if($sayfala) {
-        $adisyonlarListe = $query->paginate(20);
-        $toplamSatisSayisi = $adisyonlarListe->total();
+        $adisyonlarListe = $query->forPage($sayfa, $perPage)->get();
     } else {
         $adisyonlarListe = $query->get();
-        $toplamSatisSayisi = $adisyonlarListe->count();
     }
 
     // ALACAKLARI SADECE BU SAYFADAKİ user_id'ler için çek (önceden tüm filtreyi yeniden çalıştırıyordu)
@@ -1121,7 +1127,36 @@ class ApiController extends Controller
             )";
         $personelBind = [$personelid, $personelid, $personelid];
     }
-    $acikKapaliSayim = \DB::selectOne(
+
+    // Satis turu filtresi (1 Hizmet, 2 Paket, 3 Urun) — sayim da liste ile
+    // ayni filtreyi uygulamali ki rozet sayilari filtreyle birlikte degissin.
+    $turFiltreSayim = '';
+    if ((int)$adisyonturu === 1)      $turFiltreSayim = " AND EXISTS (SELECT 1 FROM adisyon_hizmetler ahx WHERE ahx.adisyon_id = a.id)";
+    elseif ((int)$adisyonturu === 2)  $turFiltreSayim = " AND EXISTS (SELECT 1 FROM adisyon_paketler apx WHERE apx.adisyon_id = a.id)";
+    elseif ((int)$adisyonturu === 3)  $turFiltreSayim = " AND EXISTS (SELECT 1 FROM adisyon_urunler aux WHERE aux.adisyon_id = a.id)";
+
+    // Musteri filtresi
+    $musteriFiltreSayim = '';
+    $musteriBindSayim = [];
+    if ($musteriid) {
+        $musteriFiltreSayim = " AND a.user_id = ?";
+        $musteriBindSayim = [$musteriid];
+    }
+
+    // Sayim pahali (tarih araliginda tum adisyonlari tarar); ayni filtrelerle
+    // tekrar tekrar (sayfa degisimi, sekme gecisi) cagrilmasin diye kisa sureli
+    // cache'liyoruz. Filtre degisince cache anahtari da degisir → taze sayim.
+    $sayimCacheKey = 'adisyon_sayim_' . md5(implode('|', [
+        $isletmeId, $tarih1, $tarih2, (int)$adisyonturu,
+        $personelid ?: '', $musteriid ?: '', $_faturasizGizleAktif ? '1' : '0',
+    ]));
+    // Kisa TTL: badge'ler neredeyse anlik kalsin, sadece hizli sayfa/sekme
+    // gecislerindeki tekrar hesabi emsin. Tam anlik istenirse 0 yapilabilir.
+    $acikKapaliSayim = \Cache::remember($sayimCacheKey, 15, function () use (
+        $personelid, $faturaFiltreSayim, $personelFiltre, $turFiltreSayim,
+        $musteriFiltreSayim, $isletmeId, $tarih1, $tarih2, $personelBind, $musteriBindSayim
+    ) {
+        return \DB::selectOne(
         "SELECT
             SUM(CASE WHEN kalan > 0 THEN 1 ELSE 0 END) as acik,
             SUM(CASE WHEN kalan <= 0 THEN 1 ELSE 0 END) as kapali
@@ -1144,15 +1179,28 @@ class ApiController extends Controller
             WHERE a.salon_id = ? AND a.tarih BETWEEN ? AND ?
             $faturaFiltreSayim
             $personelFiltre
+            $turFiltreSayim
+            $musteriFiltreSayim
         ) sub",
-        array_merge(
-            $personelid ? [$personelid, $personelid, $personelid, $personelid, $personelid, $personelid] : [],
-            [$isletmeId, $tarih1, $tarih2],
-            $personelBind
-        )
-    );
+            array_merge(
+                $personelid ? [$personelid, $personelid, $personelid, $personelid, $personelid, $personelid] : [],
+                [$isletmeId, $tarih1, $tarih2],
+                $personelBind,
+                $musteriBindSayim
+            )
+        );
+    });
     $acikSayisi = (int)($acikKapaliSayim->acik ?? 0);
     $kapaliSayisi = (int)($acikKapaliSayim->kapali ?? 0);
+
+    // Toplam adet: paginate count(*) yerine sayimdan al (acik/kapali sekmesine gore).
+    if ($sayfala) {
+        $toplamSatisSayisi = ($acikKapali === 1)
+            ? $acikSayisi
+            : (($acikKapali === 0) ? $kapaliSayisi : ($acikSayisi + $kapaliSayisi));
+    } else {
+        $toplamSatisSayisi = $adisyonlarListe->count();
+    }
 
     $odenenToplamTutar = 0;
     $kalanToplamTutar = 0;
@@ -1172,11 +1220,11 @@ class ApiController extends Controller
     ];
     
     if($sayfala) {
-        $response['current_page'] = $adisyonlarListe->currentPage();
-        $response['last_page'] = $adisyonlarListe->lastPage();
-        $response['total'] = $adisyonlarListe->total();
+        $response['current_page'] = $sayfa;
+        $response['last_page'] = (int) max(1, ceil($toplamSatisSayisi / $perPage));
+        $response['total'] = $toplamSatisSayisi;
     }
-    
+
     return response()->json($response);
 }
 
@@ -2405,6 +2453,73 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         return $urun_satislari;
 
+    }
+
+    // ============================================================
+    // v2 — Mobil kart tasarimi icin temiz JSON donen uc nokta.
+    // Eski (v1) alacaklar method'unu DEGISTIRMEZ; eski yuklu
+    // uygulamalar bozulmasin diye ayri method + route ("-v2") eklendi.
+    // ============================================================
+    public function alacaklar_v2(Request $request, $isletme_id)
+    {
+        $bugun = date("Y-m-d");
+
+        // Vadesi GELEN + GECMIS (planlanan_odeme_tarihi <= bugun) tum alacaklar.
+        // Eloquent kullaniyoruz cunku karttaki "kalem" bilgisini alacagin bagli
+        // oldugu adisyonun hizmet/paket/urun adlarindan turetiyoruz.
+        $alacaklar = Alacaklar::without(['paketsatis','olusturan','randevu','senet','urunsatisi','salon','musteri'])
+            ->with([
+                'musteri:id,name',
+                'adisyon.hizmetler.hizmet:id,hizmet_adi',
+                'adisyon.urunler.urun:id,urun_adi',
+                'adisyon.paketler.paket:id,paket_adi',
+            ])
+            ->where('alacaklar.salon_id', $isletme_id)
+            ->whereHas('musteri', function ($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->musteridanisan . '%');
+            })
+            ->where('planlanan_odeme_tarihi', '<=', $bugun)
+            ->orderBy('planlanan_odeme_tarihi', 'asc') // en eski/vadesi en cok gecmis ustte
+            ->paginate(10);
+
+        $alacaklar->getCollection()->transform(function ($a) use ($bugun) {
+            // Kalem: adisyondaki hizmet/paket/urun adlari (en fazla 3 + "+N").
+            $isimler = [];
+            if ($a->adisyon) {
+                foreach ($a->adisyon->hizmetler as $h) {
+                    if ($h->hizmet && $h->hizmet->hizmet_adi) $isimler[] = $h->hizmet->hizmet_adi;
+                }
+                foreach ($a->adisyon->paketler as $p) {
+                    if ($p->paket && $p->paket->paket_adi) $isimler[] = $p->paket->paket_adi;
+                }
+                foreach ($a->adisyon->urunler as $u) {
+                    if ($u->urun && $u->urun->urun_adi) $isimler[] = $u->urun->urun_adi;
+                }
+            }
+            $isimler = array_values(array_unique(array_filter($isimler)));
+            if (count($isimler) > 0) {
+                $kalem = implode(', ', array_slice($isimler, 0, 3));
+                if (count($isimler) > 3) $kalem .= ' +' . (count($isimler) - 3);
+            } elseif (!empty($a->aciklama) && $a->aciklama != 'null') {
+                $kalem = $a->aciklama;
+            } else {
+                $kalem = 'Alacak';
+            }
+
+            return [
+                'id' => $a->id,
+                'user_id' => $a->user_id,
+                'adisyon_id' => $a->adisyon_id,
+                'musteri' => $a->musteri->name ?? '',
+                'kalem' => $kalem,
+                'tutar' => number_format((float) $a->tutar, 2, ',', '.'),
+                'planlanan_odeme_tarihi' => $a->planlanan_odeme_tarihi,
+                'olusturulma' => $a->created_at ? date('d.m.Y H:i', strtotime($a->created_at)) : '',
+                'vadesi_gecmis' => ($a->planlanan_odeme_tarihi < $bugun),
+            ];
+        });
+
+        return $alacaklar;
     }
 
        public function ongorusmegetir(Request $request, $isletme_id)
@@ -5990,7 +6105,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $q->whereIn('salon_id', $salonIds);
         }
     })
-    ->orderBy("id", "desc")
+    // Randevu listesi karisik gelmesin: once tarihe, sonra randevunun en erken
+    // saatine gore (saat randevu_hizmetler'de tutuluyor), en sona id ile sirala.
+    ->orderBy("tarih", "asc")
+    ->orderByRaw('(SELECT MIN(rh.saat) FROM randevu_hizmetler rh WHERE rh.randevu_id = randevular.id) ASC')
+    ->orderBy("id", "asc")
     ->paginate(10);
         /*$randevular = DB::table("randevu_hizmetler")
 
@@ -9998,6 +10117,19 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 }
             });
 
+            try {
+                $rTarihSaat = trim(($request->randevu_tarihi ?? '') . ' ' . ($request->randevu_saati ?? ''));
+                Audit::logApi(
+                    $salonId,
+                    $request,
+                    $guncelleme ? 'randevu_guncelle' : 'randevu_ekle',
+                    'randevu',
+                    $_finalRandevuId,
+                    $rTarihSaat !== '' ? $rTarihSaat : null,
+                    $guncelleme ? 'Randevu güncellendi' : 'Yeni randevu oluşturuldu'
+                );
+            } catch (\Throwable $e) {}
+
             return ["cakismavar" => "0", "cakisanunsurlar" => "Başarılı"];
         }
     }
@@ -11583,11 +11715,7 @@ public function cdrRaporLatest(Request $request)
                 $randevu->sms_hatirlatma = true;
                 $randevu->durum = 1;
 
-                $olusturan_personel_id = Personeller::where("salon_id", $request->salonid)
-                    ->where("yetkili_id", $request->olusturan)
-                    ->value("id");
-                    
-                $randevu->olusturan_personel_id = $olusturan_personel_id ?? $request->olusturan;
+                $randevu->olusturan_personel_id = $request->olusturan;
                 $randevu->save();
 
                 // Takvim odaya gore ise (randevu_takvim_turu == 3) oda secimi randevuya islensin
@@ -12817,6 +12945,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 ]);
             }
 
+            try {
+                Audit::logApi(
+                    $randevu->salon_id,
+                    $request,
+                    'randevu_geldi',
+                    'randevu',
+                    $randevu->id,
+                    optional($randevu->users)->name,
+                    'Randevu "geldi" olarak işaretlendi'
+                );
+            } catch (\Throwable $e) {}
+
             return ["hatali" => "0", "mesaj" => "Başarılı"];
 
             exit();
@@ -12874,6 +13014,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 'err' => $e->getMessage(),
             ]);
         }
+
+        try {
+            Audit::logApi(
+                $randevu->salon_id,
+                $request,
+                'randevu_gelmedi',
+                'randevu',
+                $randevu->id,
+                optional($randevu->users)->name,
+                'Randevu "gelmedi" olarak işaretlendi'
+            );
+        } catch (\Throwable $e) {}
 
         return ["mesaj" => "Başarılı"];
 
@@ -13047,6 +13199,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 \Log::warning('musteri iptal/red push hata: ' . $e->getMessage());
             }
         }
+
+        try {
+            Audit::logApi(
+                $randevu->salon_id,
+                $request,
+                $red ? 'randevu_red' : 'randevu_iptal',
+                'randevu',
+                $randevu->id,
+                optional($randevu->users)->name,
+                $red ? 'Randevu talebi reddedildi' : 'Randevu iptal edildi'
+            );
+        } catch (\Throwable $e) {}
 
         return "Başarılı";
 
@@ -13800,6 +13964,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $alacak_kaydi->user_id = $request->ad_soyad;
             $alacak_kaydi->save();
         }
+        try {
+            Audit::logApi(
+                $request->sube,
+                $request,
+                'tahsilat_ekle',
+                'tahsilat',
+                $tahsilat->id ?? null,
+                'Tutar: ' . ($request->indirimli_toplam_tahsilat_tutari ?? ''),
+                'Tahsilat alındı',
+                ['adisyon_id' => $request->adisyon_id]
+            );
+        } catch (\Throwable $e) {}
         return "Başarılı";
     }
 
@@ -15206,6 +15382,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                     $returnvar = $mevcut;
 
+                    try {
+                        Audit::logApi(
+                            $sube,
+                            $request,
+                            'musteri_ekle',
+                            'musteri',
+                            $mevcut->id ?? null,
+                            $mevcut->name ?? $request->ad_soyad,
+                            'Mevcut müşteri salona eklendi'
+                        );
+                    } catch (\Throwable $e) {}
+
                 }
 
                 return $returnvar;
@@ -15337,11 +15525,23 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $returnvar = $musteri;
 
+        try {
+            Audit::logApi(
+                $sube,
+                $request,
+                ($request->musteri_id == "") ? 'musteri_ekle' : 'musteri_guncelle',
+                'musteri',
+                $musteri->id ?? null,
+                $musteri->name ?? $request->ad_soyad,
+                ($request->musteri_id == "") ? 'Yeni müşteri eklendi' : 'Müşteri bilgileri güncellendi'
+            );
+        } catch (\Throwable $e) {}
+
         return $returnvar;
 
     }
 
-    
+
 
     public function musteri_sil(Request $request)
 
@@ -15356,6 +15556,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $portfoy->aktif = 0;
 
         $portfoy->save();
+
+        try {
+            Audit::logApi(
+                $request->salonid,
+                $request,
+                'musteri_sil',
+                'musteri',
+                $request->portfoy_id,
+                optional(User::where('id', $request->portfoy_id)->first())->name,
+                'Müşteri pasife alındı (silindi)'
+            );
+        } catch (\Throwable $e) {}
 
     }
 
@@ -23663,7 +23875,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 'status'=>'empty',
                 'mesaj'=>'İşletme seçtiğiniz tarihte kapalıdır! Lütfen başka bir tarih seçiniz.'
             );
-           
+
         }
         $personelBilgi = "";
         $personelListe = array();
@@ -23677,13 +23889,13 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                     {
                         array_push($personelListe,$isletmePersoneli->id);
                     }
-                    
+
             }
             else
                 array_push($personelListe,$personel);
-        }   
-       
-         
+        }
+
+
         $personelCalismalari = PersonelCalismaSaatleri::whereIn('personel_id', array_unique($personelListe))
             ->where('calisiyor', 1)
             ->where('haftanin_gunu', $day)
@@ -23703,15 +23915,37 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
         $simdikiZaman = (date('Y-m-d') == $tarih) ? date('H:i') : '00:00';
         $randevusaataraligi = Salonlar::find($salonId)->randevu_saat_araligi;
-       
-       
+        if (!$randevusaataraligi) $randevusaataraligi = 30;
+
+        // ── Hizmet süresi kontrolü ──────────────────────────────────────────────
+        // Seçilen hizmetlerin toplam süresi (dk). Randevu bitişi bununla hesaplanır.
+        $toplamSure = 0;
+        foreach (($request->secilenhizmetler ?? array()) as $shid) {
+            $shRow = SalonHizmetler::where('hizmet_id', $shid)->where('salon_id', $salonId)->first();
+            $toplamSure += ($shRow && $shRow->sure_dk) ? (int) $shRow->sure_dk : 60;
+        }
+        if ($toplamSure <= 0) $toplamSure = $randevusaataraligi;
+
+        // Bir başlangıç saati ANCAK [saat, saat+toplamSure) aralığındaki tüm dilimler
+        // boşsa VE bitiş çalışma saatini aşmıyorsa müsait sayılır.
+        // Örn: 60 dk hizmette 14:00 boş ama 14:30 dolu ise, randevu 15:00'e kadar
+        // süreceği için 14:00 müsait gösterilmez.
+        $slotUygunMu = function ($saat, $doluSet) use ($toplamSure, $randevusaataraligi, $ortakBitis) {
+            $bas = strtotime($saat);
+            $bit = $bas + ($toplamSure * 60);
+            if ($bit > strtotime($ortakBitis)) return false; // hizmet kapanışı aşıyor
+            for ($k = $bas; $k < $bit; $k += ($randevusaataraligi * 60)) {
+                if (in_array(date('H:i', $k), $doluSet)) return false; // aralıkta dolu dilim var
+            }
+            return true;
+        };
 
         $dolusaatler = array();
         $bosSaatler = array();
 
         if(in_array(0,$request->personeller))
         {
-            
+
             foreach($personelListe as $pid)
             {
                 $randevular = Randevular::where('tarih', $tarih)->where('durum','<',2)
@@ -23724,40 +23958,36 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 ->get();
 
                 foreach ($randevular as $randevu) {
-                
+
                     foreach($randevu->hizmetler as $rH)
                     {
-                     
+
                         $baslangic = strtotime($rH->saat);
                         $bitis = strtotime($rH->saat_bitis);
-                        
+
                         // Tüm zaman aralığını blokla
                         for ($t = $baslangic; $t < $bitis; $t += ($randevusaataraligi * 60)) {
-                             
 
-                                array_push($dolusaatler,array('dolu'=>'1','saat'=>date('H:i', $t))); 
-                             
+
+                                array_push($dolusaatler,array('dolu'=>'1','saat'=>date('H:i', $t)));
+
                         }
-                    } 
+                    }
 
                 }
-                
-            
-                
+
+
                 $saatindex = 0;
+                // Bu personelin dolu dilimleri (hizmet süresi penceresi bununla kontrol edilir).
+                $doluSet = array_column($dolusaatler, 'saat');
 
                 for ($j = strtotime($ortakBaslangic); $j < strtotime($ortakBitis); $j += ($randevusaataraligi * 60)) {
                     $saat = date('H:i', $j);
+                    if ($saat < $simdikiZaman) continue;
 
-                    if ($saat >= $simdikiZaman && !in_array($saat, $dolusaatler)) {
-
-                       array_push($bosSaatler,array('dolu'=>'0','saat'=>$saat));
-
+                    if ($slotUygunMu($saat, $doluSet)) {
+                        array_push($bosSaatler,array('dolu'=>'0','saat'=>$saat));
                         $saatindex++;
-                        
-                    } else {
-                         continue;
-                        
                     }
                 }
 
@@ -23772,7 +24002,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             }));
 
 
-            
+
 
         }
         else
@@ -23788,38 +24018,40 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 }])
                 ->get();
             foreach ($randevular as $randevu) {
-            
+
                 foreach($randevu->hizmetler as $rH)
                 {
-                 
+
                     $baslangic = strtotime($rH->saat);
                     $bitis = strtotime($rH->saat_bitis);
-                    
+
                     // Tüm zaman aralığını blokla
                     for ($t = $baslangic; $t < $bitis; $t += ($randevusaataraligi * 60)) {
-                        array_push($dolusaatler,array('dolu'=>'1','saat'=>date('H:i', $t))); 
+                        array_push($dolusaatler,array('dolu'=>'1','saat'=>date('H:i', $t)));
                     }
-                } 
+                }
             }
-        
-        
+
+
             $bosSaatler = array();
             $saatindex = 0;
+            // Mevcut dolu dilimler (hizmet süresi penceresi bununla kontrol edilir).
+            $doluSet = array_column($dolusaatler, 'saat');
 
             for ($j = strtotime($ortakBaslangic); $j < strtotime($ortakBitis); $j += ($randevusaataraligi * 60)) {
                 $saat = date('H:i', $j);
+                if ($saat < $simdikiZaman) continue;
 
-                if ($saat >= $simdikiZaman && !in_array($saat, $dolusaatler)) {
-                   array_push($bosSaatler,array('dolu'=>'0','saat'=>$saat));
+                if ($slotUygunMu($saat, $doluSet)) {
+                    array_push($bosSaatler,array('dolu'=>'0','saat'=>$saat));
                     $saatindex++;
-                    
                 } else {
-                     continue;
-                    
+                    // Süre sığmıyor/aralık dolu → bu başlangıç saati dolu olarak gösterilsin
+                    array_push($dolusaatler,array('dolu'=>'1','saat'=>$saat));
                 }
             }
         }
-        
+
 
         if ($saatindex == 0) {
              return array(
@@ -24299,6 +24531,9 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     }
     public function adisyonSil(Request $request)
    {
+            // Adisyon silinmeden once salon_id'yi yakala (log icin)
+            $_adisyonSalonId = $request->salonId
+                ?? Adisyonlar::where('id', $request->adisyon_id)->value('salon_id');
             $adisyonhizmetler = AdisyonHizmetler::where('adisyon_id',$request->adisyon_id)->get();
             $adisyonurunler = AdisyonUrunler::where('adisyon_id',$request->adisyon_id)->get();
             $adisyonpaketler = AdisyonPaketler::where('adisyon_id',$request->adisyon_id)->get();
@@ -24369,8 +24604,20 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 $tarih2 = date('Y-m-d 23:59:59');
             }
            
+            try {
+                Audit::logApi(
+                    $_adisyonSalonId,
+                    $request,
+                    'adisyon_sil',
+                    'adisyon',
+                    $request->adisyon_id,
+                    'Adisyon #' . $request->adisyon_id,
+                    'Adisyon silindi'
+                );
+            } catch (\Throwable $e) {}
+
              return response()->json([
-            'success' => true, 
+            'success' => true,
             'message' => 'Adisyon başarıyla silindi'
         ]);
     }

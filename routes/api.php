@@ -106,6 +106,8 @@ Route::post('/paketsatisget/{salonid}','ApiController@paketsatisget');
 Route::post('/urunsatisget/{salonid}','ApiController@urunsatisgetir');
 Route::post('/ongorusmeget/{salonid}','ApiController@ongorusmegetir');
 Route::post('/ongorusmegetgunluk/{salonid}','ApiController@ongorusmegetirgunluk');
+// v2 — mobil kart tasarimi icin temiz JSON donen alacaklar uc noktasi (eski route degismedi)
+Route::post('/alacaklar-v2/{salonid}','ApiController@alacaklar_v2');
 Route::post('/salon_randevu_getir/{salonid}','ApiController@salon_tarafindan_randevular_get');
 Route::post('/web_randevu_getir/{salonid}','ApiController@web_tarafindan_randevular_get');
 Route::post('/uygulama_randevu_getir/{salonid}','ApiController@uygulama_uzerindan_randevular_get');

@@ -86,4 +86,108 @@ class Audit
             // log yazımı sessizce geçsin
         }
     }
+
+    /**
+     * Mobil uygulama (API) aktivite logger.
+     *
+     * Web panelinden farkli olarak API isteklerinde session guard (isletmeyonetim)
+     * bos olur. Bu metod kullaniciyi sirasiyla:
+     *   1) Passport API token'i (isletmeyonetim-api guard)
+     *   2) Istek govdesindeki olusturan / yetkili_id / olusturan_id alani
+     * uzerinden cozer. Hicbiri yoksa 'Mobil' olarak isaretler.
+     *
+     * Kullanım (ApiController icinde):
+     *   Audit::logApi($salonId, $request, 'randevu_iptal', 'randevu', $rid, "Ahmet Yılmaz");
+     *
+     * Try/catch ile sarili; log yazimi asla API akisini kirmaz.
+     *
+     * @param mixed                          $salonId
+     * @param \Illuminate\Http\Request|null  $req
+     */
+    public static function logApi(
+        $salonId,
+        $req = null,
+        $action = null,
+        $targetType = null,
+        $targetId = null,
+        $targetLabel = null,
+        $aciklama = null,
+        array $meta = []
+    ) {
+        try {
+            $user = null;
+            try {
+                if (Auth::guard('isletmeyonetim-api')->check()) {
+                    $user = Auth::guard('isletmeyonetim-api')->user();
+                }
+            } catch (\Exception $e) {
+                // token cozulemezse sessizce gec
+            }
+
+            $userId = $user ? $user->id : null;
+            if (!$userId && $req) {
+                $userId = $req->input('olusturan')
+                    ?? $req->input('yetkili_id')
+                    ?? $req->input('olusturan_id')
+                    ?? null;
+            }
+            // sayisal degilse (ornegin personel adi gondermisse) yok say
+            if ($userId !== null && !is_numeric($userId)) {
+                $userId = null;
+            }
+
+            $userName = $user ? $user->name : null;
+            $userType = 'yetkili';
+            $userRol  = null;
+
+            if ($userId) {
+                if (!$userName) {
+                    $userName = \App\IsletmeYetkilileri::where('id', $userId)->value('name');
+                }
+                $roleId = DB::table('model_has_roles')
+                    ->where('model_id', $userId)
+                    ->where('salon_id', $salonId)
+                    ->value('role_id');
+                $rolMap = [
+                    1 => 'Hesap Sahibi',
+                    2 => 'Süpervizör',
+                    3 => 'Yönetici',
+                    4 => 'Yönetici',
+                    5 => 'Personel',
+                ];
+                $userRol = isset($rolMap[$roleId]) ? $rolMap[$roleId] : ($roleId ? 'Rol#'.$roleId : 'Yetkili');
+                if ($roleId == 5) $userType = 'personel';
+            } else {
+                $userType = 'sistem';
+                $userName = $userName ?: 'Mobil';
+                $userRol  = 'Mobil';
+            }
+
+            // Kaynagi mobil olarak isaretle (web log'larindan ayirt etmek icin)
+            if (!isset($meta['kaynak'])) {
+                $meta['kaynak'] = 'mobil';
+            }
+
+            $ip = $req ? $req->ip() : Request::ip();
+            $ua = $req ? (string) $req->header('User-Agent') : (string) Request::header('User-Agent');
+
+            SalonAktiviteLog::create([
+                'salon_id'     => $salonId,
+                'user_id'      => $userId,
+                'user_type'    => $userType,
+                'user_name'    => $userName,
+                'user_rol'     => $userRol,
+                'action'       => $action,
+                'target_type'  => $targetType,
+                'target_id'    => $targetId,
+                'target_label' => $targetLabel ? mb_substr($targetLabel, 0, 200) : null,
+                'aciklama'     => $aciklama,
+                'meta'         => !empty($meta) ? json_encode($meta, JSON_UNESCAPED_UNICODE) : null,
+                'ip'           => $ip,
+                'user_agent'   => mb_substr($ua, 0, 255),
+            ]);
+        } catch (\Exception $e) {
+            // log yazimi sessizce gecsin
+        }
+    }
 }
