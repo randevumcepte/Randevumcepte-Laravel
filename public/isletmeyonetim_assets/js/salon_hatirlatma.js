@@ -234,15 +234,9 @@
     $(document).on('click', '#salon-hatirlatma-bigpopup', function(e){
         if (e.target === this) bigPopupKapat();
     });
-
-    // Tam-ekran popup'taki bir satira tiklayinca: SAYFAYA GITME, sadece popup'i kapat.
-    // Hatirlatmalar sag-alt tepside sekme olarak kalir; kullanici oradan istedigine tiklayip gider.
-    // ("Hemen Ara" butonu kendi handler'inda calisir, ona dokunma.)
-    $(document).on('click', '#salon-hatirlatma-bigpopup .sht-popup-item', function(e){
-        if ($(e.target).closest('.sht-hemen-ara, audio').length) return;
-        e.preventDefault();
-        bigPopupKapat();
-    });
+    // NOT: Popup satirlari normal link gibi davranir; tiklayinca dogrudan ilgili sayfaya gider.
+    // "Oturumda bir kez ac" guard'i (POPUP_GOSTERILDI_KEY) sayesinde navigasyon sonrasi
+    // popup yeniden acilmaz -> eski "kapanip gene aciliyor" dongusu olusmaz.
 
     /* ---------- HEADER BELL ---------- */
     function bellGuncelle(liste){
