@@ -16024,6 +16024,7 @@ DB::raw('
     // Salon paneli: afis onizleme + indirme sayfasi
     public function uygulamaAfisi(Request $request)
     {
+      try {
         if (Auth::guard('satisortakligi')->check()) {
             $isletmeler = [15];
         } else {
@@ -16053,6 +16054,11 @@ DB::raw('
             'urun_drop'           => self::urundropliste($request),
             'linklerHazir'        => $linklerHazir,
         ]);
+      } catch (\Throwable $e) {
+        return response('<pre style="white-space:pre-wrap;font:13px/1.5 monospace;padding:18px">AFIS HATA:&#10;'
+            . e($e->getMessage()) . "\n" . e($e->getFile()) . ':' . $e->getLine() . "\n\n"
+            . e($e->getTraceAsString()) . '</pre>', 500);
+      }
     }
 
     // GD ile afis uret + PDF indir
