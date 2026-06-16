@@ -12770,6 +12770,24 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
          Log::info('randevu geldi işaretlenecek');
         $randevu = Randevular::where("id", $request->randevuid)->first();
 
+        // YETIM/HAYALET SEANS TEMIZLIGI (web ile ayni mantik): paket randevusu olmadigi
+        // halde kazara olusmus, ne gecerli bir adisyon_paket'e ne de gecerli bir
+        // adisyon_hizmet'e bagli olmayan seanslar 'paketten dus / seans secim' akisini
+        // yanlis tetikliyor. Geldi isaretlemeden once sil. Gecerli seanslar korunur.
+        $gecersizSeansIdler = [];
+        foreach (AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)->get() as $__s) {
+            $paketGecerli  = $__s->adisyon_paket_id  && AdisyonPaketler::where('id', $__s->adisyon_paket_id)->exists();
+            $hizmetGecerli = $__s->adisyon_hizmet_id && AdisyonHizmetler::where('id', $__s->adisyon_hizmet_id)->exists();
+            if (!$paketGecerli && !$hizmetGecerli) $gecersizSeansIdler[] = $__s->id;
+        }
+        if (!empty($gecersizSeansIdler)) {
+            \Log::warning('[YETIM-SEANS] gecersiz seans temizlendi (mobil)', [
+                'randevu_id' => $request->randevuid,
+                'ids'        => $gecersizSeansIdler,
+            ]);
+            AdisyonPaketSeanslar::whereIn('id', $gecersizSeansIdler)->delete();
+        }
+
         $seansVar = AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)->count();
         Log::info('paket seans var mı? '.$seansVar);
 
