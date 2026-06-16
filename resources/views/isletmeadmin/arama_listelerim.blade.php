@@ -92,6 +92,9 @@
 .ag-ara-btn{ margin-left:auto; background:linear-gradient(135deg,#16a34a,#22c55e); color:#fff; border:none; border-radius:14px; padding:13px 26px; font-weight:800; font-size:15px; cursor:pointer; box-shadow:0 10px 22px -8px rgba(22,163,74,.55); display:flex; align-items:center; gap:9px; transition:transform .12s ease, box-shadow .12s ease; }
 .ag-ara-btn:hover{ transform:translateY(-2px); box-shadow:0 14px 26px -8px rgba(22,163,74,.6); }
 .ag-ara-btn:disabled{ opacity:.55; cursor:not-allowed; transform:none; }
+/* Sonuç kaydedilene kadar pasif görünüm (yine tıklanabilir; tıklayınca uyarı çıkar) */
+.ag-ara-btn.pasif{ background:#cbd0db; color:#fff; box-shadow:none; cursor:not-allowed; }
+.ag-ara-btn.pasif:hover{ transform:none; box-shadow:none; }
 .ag-ara-btn .fa{ font-size:17px; }
 
 .ag-dbody{ padding:20px 22px; background:#fbfbfe; }
@@ -421,7 +424,7 @@ function agDetayCiz(m){
          '<div class="ag-dhead-ad">'+agEsc(m.ad)+'</div>'+
          '<div class="ag-dhead-sub"><i class="fa fa-phone"></i> '+agEsc(m.telefonGizlenmis||'gizli')+' <span class="durnok">'+st.et+'</span></div>'+
       '</div>'+
-      '<button class="ag-ara-btn" id="ag_ara_btn" data-id="'+agEsc(m.aranacak_musteri_id)+'"><i class="fa fa-phone"></i> ARA</button>'+
+      '<button class="ag-ara-btn'+(agBeklemedeId!==null?' pasif':'')+'" id="ag_ara_btn" data-id="'+agEsc(m.aranacak_musteri_id)+'"><i class="fa fa-phone"></i> ARA</button>'+
    '</div>'+
    '<div class="ag-dbody">'+
 
@@ -541,16 +544,28 @@ $(document).on('change', '#ag_kat', function(){
 });
 
 // ---- ARA (santral originate) ----
+// Bir arama yapildiktan sonra, sonucu KAYDEDILENE kadar yeni arama yapilamaz.
+var agBeklemedeId = null;   // sonucu bekleyen aramanin musteri id'si (null = bekleyen yok)
+var agAramaGonderiliyor = false; // ayni anda cift gonderimi engeller
+
 $(document).on('click', '#ag_ara_btn', function(){
+   // Onceki aramanin sonucu kaydedilmeden yeni arama YOK
+   if (agBeklemedeId !== null){
+      swal({ type:'warning', title:'Önce sonucu kaydedin',
+             text:'Yeni arama yapmadan önce, yaptığınız aramanın sonucunu (Görüşüldü / Cevapsız / Meşgul / Ulaşılamadı veya Sonra Ara) seçip "Sonucu Kaydet"e basın.' });
+      return;
+   }
+   if (agAramaGonderiliyor) return;
    var id = $(this).data('id');
-   var $btn = $(this);
-   $btn.prop('disabled', true);
+   agAramaGonderiliyor = true;
    $.ajax({
       url:'/isletmeyonetim/arama-baslat', method:'POST',
       data:{ aranacak_musteri_id:id, _token:$('input[name="_token"]').val() },
       success:function(res){
          if (res.success){
             agDurumGuncelle(id, 1); // optimistic: Arandı
+            agBeklemedeId = id;     // sonuç kaydedilene kadar kilitle
+            $('#ag_ara_btn').addClass('pasif');
             swal({ type:'success', title:'Arama başlatıldı', text:res.message||'Telefonunuz (Bria) çalacak, açın.', timer:3800, showConfirmButton:false });
          } else {
             swal({ type:'warning', title:'Aranamadı', text:res.message||'Arama başlatılamadı.' });
@@ -560,7 +575,7 @@ $(document).on('click', '#ag_ara_btn', function(){
          var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Arama başlatılamadı.';
          swal({ type:'error', title:'Hata', text:msg });
       },
-      complete:function(){ setTimeout(function(){ $btn.prop('disabled', false); }, 2000); }
+      complete:function(){ agAramaGonderiliyor = false; }
    });
 });
 
@@ -604,6 +619,12 @@ $(document).on('click', '#ag_kaydet', function(){
             agSecili.not_saat  = sonraMu ? saat  : agSecili.not_saat;
             agDurumGuncelle(agSecili.aranacak_musteri_id, yeniDurum);
             agGecmisYukle(agSecili.aranacak_musteri_id); // sonuç kaydedildi -> kaydı/geçmişi tazele
+            // Bu müşterinin sonucu kaydedildi -> arama kilidini aç
+            if (agBeklemedeId !== null && String(agBeklemedeId) === String(agSecili.aranacak_musteri_id)){
+               agBeklemedeId = null;
+               $('#ag_ara_btn').removeClass('pasif');
+            }
+            agSecilenSonuc = null;
             swal({ type:'success', title:'Kaydedildi', timer:1400, showConfirmButton:false });
          } else {
             swal({ type:'error', title:'Hata', text:res.message||'Kaydedilemedi.' });
