@@ -27314,6 +27314,22 @@ DB::raw('
         $rol = self::kullaniciRolu(self::mevcutsube($request), Auth::guard('isletmeyonetim')->user()->id);
         $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
 
+        // Telefonda Satış -> Harici Tahsilat modali icin salon bazli listeler (musteridetay ile ayni)
+        $odeme_yontemleri = \App\OdemeYontemleri::all();
+        $harici_hizmetler = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler', 'salon_sunulan_hizmetler.hizmet_id', '=', 'hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id', $isletme->id)
+            ->where('salon_sunulan_hizmetler.aktif', true)
+            ->select('hizmetler.id as id', 'hizmetler.hizmet_adi as ad',
+                DB::raw('COALESCE(salon_sunulan_hizmetler.son_fiyat, salon_sunulan_hizmetler.baslangic_fiyat, hizmetler.fiyat, 0) as fiyat'))
+            ->orderBy('hizmetler.hizmet_adi')->get();
+        $harici_urunler = DB::table('urunler')
+            ->where('salon_id', $isletme->id)->where('aktif', true)
+            ->select('id', 'urun_adi as ad', 'fiyat')->orderBy('urun_adi')->get();
+        $harici_paketler = DB::table('paketler')
+            ->where('salon_id', $isletme->id)
+            ->select('id', 'paket_adi as ad', 'fiyat')->orderBy('paket_adi')->get();
+
         return view('isletmeadmin.arama_listelerim', [
             'kullaniciRolu'           => $rol,
             'bildirimler'             => self::bildirimgetir($request),
@@ -27322,6 +27338,10 @@ DB::raw('
             'isletme'                 => $isletme,
             'kalan_uyelik_suresi'     => $kalan_uyelik_suresi,
             'yetkiliolunanisletmeler' => $isletmeler,
+            'odeme_yontemleri'        => $odeme_yontemleri,
+            'harici_hizmetler'        => $harici_hizmetler,
+            'harici_urunler'          => $harici_urunler,
+            'harici_paketler'         => $harici_paketler,
         ]);
     }
 

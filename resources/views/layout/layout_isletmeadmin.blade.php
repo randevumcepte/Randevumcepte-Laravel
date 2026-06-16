@@ -2401,6 +2401,10 @@
       {{-- Cagri Merkezi paneli: 'Arama Listesi Olustur' modali buradan yonetilir --}}
       @include('modaldialogs.arama_listesi_ekle')
       @endif
+      @if($pageindex==44)
+      {{-- Arama Ekrani: Telefonda Satis -> gercek Harici Tahsilat modali (kasaya/satisa yansir) --}}
+      @include('modaldialogs.harici-tahsilat-modal')
+      @endif
       @if($pageindex==30)
       @include('modaldialogs.urun-ekle-modal')
       @include('modaldialogs.urun-duzenle-modal')

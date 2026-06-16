@@ -170,6 +170,8 @@
 .ag-satis-lbl{ font-size:12.5px; font-weight:700; color:#15803d; white-space:nowrap; }
 .ag-satis-alan input{ flex:1; border:1px solid #c9ead4; border-radius:10px; padding:9px 11px; font-size:14px; outline:none; font-weight:700; }
 .ag-satis-alan input:focus{ border-color:#16a34a; }
+.ag-kasa-btn{ border:none; background:linear-gradient(135deg,#16a34a,#22c55e); color:#fff; border-radius:10px; padding:9px 14px; font-size:12.5px; font-weight:800; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px; }
+.ag-kasa-btn:hover{ opacity:.93; }
 
 .ag-not-alani{ width:100%; border:1px solid #e7e9f0; border-radius:12px; padding:11px 13px; font-size:13.5px; outline:none; resize:vertical; min-height:80px; margin-top:12px; transition:border-color .12s ease; }
 .ag-not-alani:focus{ border-color:#8b5cf6; }
@@ -524,6 +526,7 @@ function agDetayCiz(m){
          '<div class="ag-satis-alan" id="ag_satis_alan" style="display:none;">'+
             '<span class="ag-satis-lbl">Satış tutarı (₺)</span>'+
             '<input type="number" min="0" step="0.01" id="ag_satis_tutari" placeholder="örn: 1500">'+
+            '<button type="button" class="ag-kasa-btn" id="ag_satis_kasa"><i class="fa fa-money"></i> Kasaya İşle</button>'+
          '</div>'+
          '<label class="ag-sonra"><input type="checkbox" id="ag_sonra_chk"> Müşteri sonra aranmak istedi (Tekrar Aranacak)</label>'+
          '<div class="ag-sonra-alan" id="ag_sonra_alan">'+
@@ -622,6 +625,34 @@ function agOnGorusmeAc(){
       }
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'Ön görüşme ekranı açılamadı.' }); });
 }
+
+// Telefonda Satış: gerçek Harici Tahsilat modalını müşteri+tutar prefill'li açar (kasaya/satışa işler)
+$(document).on('click', '#ag_satis_kasa', function(){
+   if (!agSecili) return;
+   var tutar = $('#ag_satis_tutari').val() || '';
+   $.post('/isletmeyonetim/cagri-musteri-ongorusme-bilgi',
+      { aranacak_musteri_id: agSecili.aranacak_musteri_id, _token: $('input[name="_token"]').val() },
+      function(res){
+         if (res && res.success){
+            try {
+               var $sel = $('#harici_musteri_id');
+               if ($sel.length){
+                  if ($sel.is('select')){
+                     if ($sel.find('option[value="'+res.user_id+'"]').length===0){
+                        $sel.append(new Option(res.ad || ('#'+res.user_id), res.user_id, true, true));
+                     } else { $sel.val(res.user_id); }
+                     $sel.trigger('change');
+                  } else { $sel.val(res.user_id); } // sabit (hidden) müşteri durumu
+               }
+               if (tutar){ $('#harici_tahsilat_tutari').val(tutar); }
+            } catch(e){}
+            $('#harici_tahsilat_modal').modal('show');
+         } else {
+            swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
+         }
+      }
+   ).fail(function(){ swal({ type:'error', title:'Hata', text:'Satış ekranı açılamadı.' }); });
+});
 
 $(document).on('change', '#ag_sonra_chk', function(){
    if ($(this).is(':checked')){
