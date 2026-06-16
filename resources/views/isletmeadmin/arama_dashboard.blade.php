@@ -733,7 +733,8 @@ $(document).on('click', '#seg_liste_sil', function(){
          { arama_id: segAktifListe, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
          function(res){
             if (res.success){
-               segMsg({ type:'success', title:'Silindi', text:res.message, timer:2600, showConfirmButton:false });
+               segMsg({ type:'success', title:'Silindi', text:res.message, timer:3000, showConfirmButton:false });
+               segAktifListe = null;
                $('#seg_liste_sec').val('');
                $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>Yukarıdan bir arama listesi seçin.</div>');
                segListeleriYukle();

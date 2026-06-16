@@ -27878,14 +27878,22 @@ DB::raw('
         if (!$this->cagriListeYetkiliMi($liste)) {
             return response()->json(['success' => false, 'message' => 'Bu listeye yetkiniz yok.']);
         }
-        $ids = AranacakMusteriler::where('arama_id', $liste->id)->pluck('id')->all();
-        if (!empty($ids) && Schema::hasTable('gorusme_notlari')) {
-            \App\GorusmeNotlari::whereIn('aranacak_musteri_id', $ids)->delete();
+        try {
+            $ids = AranacakMusteriler::where('arama_id', $liste->id)->pluck('id')->all();
+            if (Schema::hasTable('gorusme_notlari')) {
+                \App\GorusmeNotlari::where('arama_id', $liste->id)->delete();
+                if (!empty($ids)) {
+                    \App\GorusmeNotlari::whereIn('aranacak_musteri_id', $ids)->delete();
+                }
+            }
+            AranacakMusteriler::where('arama_id', $liste->id)->delete();
+            $baslik = $liste->arama_baslik;
+            $liste->delete();
+            return response()->json(['success' => true, 'message' => '"' . $baslik . '" listesi ve ' . count($ids) . ' müşteri kaydı silindi.']);
+        } catch (\Throwable $e) {
+            \Log::warning('[CAGRI-MERKEZI] liste silinemedi (id=' . $liste->id . '): ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Liste silinemedi: ' . $e->getMessage()]);
         }
-        AranacakMusteriler::where('arama_id', $liste->id)->delete();
-        $baslik = $liste->arama_baslik;
-        $liste->delete();
-        return response()->json(['success' => true, 'message' => '"' . $baslik . '" listesi ve ' . count($ids) . ' müşteri kaydı silindi.']);
     }
 
     /* ============================================================
