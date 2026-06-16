@@ -626,27 +626,17 @@ function agOnGorusmeAc(){
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'Ön görüşme ekranı açılamadı.' }); });
 }
 
-// Telefonda Satış: gerçek Harici Tahsilat modalını müşteri+tutar prefill'li açar (kasaya/satışa işler)
+// Telefonda Satış: müşteri detay sayfasını RANDEVUSUZ SATIŞ sekmesi açık olarak yeni sekmede açar
 $(document).on('click', '#ag_satis_kasa', function(){
    if (!agSecili) return;
-   var tutar = $('#ag_satis_tutari').val() || '';
+   var sube = $('input[name="sube"]').val();
    $.post('/isletmeyonetim/cagri-musteri-ongorusme-bilgi',
       { aranacak_musteri_id: agSecili.aranacak_musteri_id, _token: $('input[name="_token"]').val() },
       function(res){
-         if (res && res.success){
-            try {
-               var $sel = $('#harici_musteri_id');
-               if ($sel.length){
-                  if ($sel.is('select')){
-                     if ($sel.find('option[value="'+res.user_id+'"]').length===0){
-                        $sel.append(new Option(res.ad || ('#'+res.user_id), res.user_id, true, true));
-                     } else { $sel.val(res.user_id); }
-                     $sel.trigger('change');
-                  } else { $sel.val(res.user_id); } // sabit (hidden) müşteri durumu
-               }
-               if (tutar){ $('#harici_tahsilat_tutari').val(tutar); }
-            } catch(e){}
-            $('#harici_tahsilat_modal').modal('show');
+         if (res && res.success && res.user_id){
+            var url = '/isletmeyonetim/musteridetay/'+encodeURIComponent(res.user_id)
+                    + '?sube='+encodeURIComponent(sube)+'#tahsilatEkrani';
+            window.open(url, '_blank');
          } else {
             swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
          }

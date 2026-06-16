@@ -1437,4 +1437,15 @@
 @include('isletmeadmin.partials.whatsapp_mesaj_modal')
 @include('modaldialogs.harici-tahsilat-modal')
 </div>{{-- /#mdetay --}}
+
+<script>
+// URL hash'i bir sekmeye isaret ediyorsa onu aç (orn. çağrı merkezinden #tahsilatEkrani ile gelince)
+$(function(){
+   var h = window.location.hash;
+   if (h && h.length > 1){
+      var $t = $('a[data-toggle="tab"][href="'+h+'"]');
+      if ($t.length){ setTimeout(function(){ $t.tab('show'); $t[0].scrollIntoView({block:'start'}); }, 300); }
+   }
+});
+</script>
 @endsection
