@@ -222,7 +222,7 @@
 
                {{-- Musteri secim karti --}}
                <div class="cm-sec-kart">
-                  <label>Müşterileri Seçiniz <span style="color:#9b8fb0;font-weight:600;">(varsayılan: filtreye uyan tümü — tek tek seçmek için önce <b>Tümünü Kaldır</b>, sonra arayıp tikleyin; seçimler birikir)</span></label>
+                  <label>Müşterileri Seçiniz <span style="color:#9b8fb0;font-weight:600;">(başlangıçta hiçbiri seçili değil — <b>Tümünü Seç</b> / <b>İlk 100</b> ile toplu seçebilir ya da arayıp tek tek tikleyebilirsiniz)</span></label>
                   <div class="row" style="margin-bottom:12px;">
                      <div class="col-md-6"><input type="text" id="musteriarama" name="musteriarama" class="form-control" placeholder="🔍 Müşteri arayın..."></div>
                      <div class="col-md-3"><button id="selectAllBtn" type="button" class="cm-btn-mini btn-block">Tümünü Seç</button></div>
@@ -363,7 +363,7 @@ function filtreUygula() {
       sonrakiBaslangic = 0;
       aralikModu = false;
       $('#topluBilgi').text('');
-      selectedIds = new Set(tumIdler);
+      selectedIds = new Set();   // VARSAYILAN: hicbir musteri secili degil (kullanici secer)
       renderCustomers(res.customers, false);
       updateSelectedCount();
     },
