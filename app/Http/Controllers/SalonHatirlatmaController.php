@@ -314,11 +314,14 @@ class SalonHatirlatmaController extends Controller
      * ----------------------------------------------------------------- */
     private function bekleyenRandevular($salonId)
     {
+        // SADECE BUGUN: randevular sayfasi (randevuyukle) yalnizca bugunun takvimini
+        // yukluyor; kart da bugunun onay bekleyenlerini saysin ki sayi sayfayla bire bir tutsun.
+        // (Eskiden tarih>=bugun idi; gelecek gunlerin bekleyenleri "fazla" gosteriyordu.)
         $bugun = date('Y-m-d');
         $sayi = DB::table('randevular')
             ->where('salon_id', $salonId)
             ->where('durum', 0)
-            ->where('tarih', '>=', $bugun)
+            ->where('tarih', $bugun)
             ->count();
 
         if ($sayi <= 0) return null;
@@ -331,7 +334,7 @@ class SalonHatirlatmaController extends Controller
             'ikon'     => 'fa-bell',
             'emoji'    => '🔔',
             'baslik'   => 'Onay Bekleyen Randevu',
-            'mesaj'    => $sayi . ' randevu hâlâ onayınızı bekliyor.',
+            'mesaj'    => 'Bugün ' . $sayi . ' randevu hâlâ onayınızı bekliyor.',
             'altMesaj' => 'Cevapsız bırakırsan müşteri başka kapı çalar, hadi onayla!',
             'cta_text' => 'Randevular',
             'link'     => '/isletmeyonetim/randevular?sube=' . $salonId . '&durum=bekleyen',
