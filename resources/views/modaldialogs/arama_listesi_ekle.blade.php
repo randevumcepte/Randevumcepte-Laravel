@@ -479,6 +479,22 @@ function personelleriYukle() {
   });
 }
 
+// Modal HER ACILISTA sifirlanir — onceki liste bilgileri/secimleri kalmasin.
+$(document).on('show.bs.modal', '#santral_musteri_listesi', function () {
+  var f = document.getElementById('arama_listesi_formu');
+  if (f) f.reset();                 // baslik, personel, tarih, filtreler HTML varsayilanina doner
+  $('.ozel-tarih').hide();
+  searchTerm = '';
+  $('#musteriarama').val('');
+  $('#topluBilgi').text('');
+  sonrakiBaslangic = 0;
+  aralikModu = false;
+  selectedIds = new Set();
+  $('#selectedCount').text('0 müşteri seçildi');
+  filtreBagimliliklari();
+  filtreUygula();                   // varsayilan filtreye uyan tum musteriler tekrar yuklenir/secilir
+});
+
 $(document).ready(function () {
   filtreBagimliliklari();
   personelleriYukle();
