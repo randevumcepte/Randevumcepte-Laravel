@@ -154,6 +154,7 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 .ag-gecmis-item{ border:1px solid #efeaf6; border-left:4px solid #cfc7df; border-radius:12px; padding:11px 13px; margin-bottom:10px; background:#fff; }
 .ag-gecmis-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .ag-gecmis-tarih{ font-weight:700; color:#6d28d9; font-size:12.5px; }
+.ag-randevu-zaman{ background:#e7f1fd; color:#1565c0; font-weight:700; font-size:11.5px; border-radius:20px; padding:3px 10px; margin-left:6px; white-space:nowrap; }
 .ag-gecmis-item audio{ width:100%; height:36px; margin-top:9px; border-radius:8px; }
 .ag-gecmis-bos{ text-align:center; color:#9a95ab; padding:22px; font-size:13px; }
 .ag-gecmis-bos .fa{ font-size:28px; color:#cfc7df; display:block; margin-bottom:8px; }
@@ -489,10 +490,12 @@ function agGecmisYukle(aranacakId){
             var not = g.not ? '<div style="font-size:12.5px;color:#574f6b;margin-top:7px;"><i class="fa fa-sticky-note-o" style="color:#b6aecb;margin-right:5px;"></i>'+agEsc(g.not)+'</div>' : '';
             var ses = g.ses ? '<audio controls preload="none" src="'+agEsc(g.ses)+'"></audio>'
                             : '<div style="font-size:11.5px;color:#aab0c0;margin-top:8px;"><i class="fa fa-hourglass-half"></i> Ses kaydı işleniyor — birazdan "Yenile"ye basın.</div>';
+            var randevuBilgi = (g.randevu_tarih) ? '<span class="ag-randevu-zaman"><i class="fa fa-calendar-check-o"></i> '+agEsc(g.randevu_tarih)+(g.randevu_saat?(' '+agEsc(g.randevu_saat)):'')+'</span>' : '';
             html += '<div class="ag-gecmis-item bl-'+st.c+'">'+
                        '<div class="ag-gecmis-top">'+
                           '<span class="ag-gecmis-tarih"><i class="fa fa-clock-o"></i> '+agEsc(g.tarih)+'</span>'+
                           '<span class="ag-mus-dur d-'+st.c+'" style="margin-left:8px;">'+st.et+'</span>'+
+                          randevuBilgi +
                        '</div>'+
                        not +
                        ses +
@@ -647,6 +650,31 @@ function agDurumGuncelle(aranacakId, yeniKod){
    agKuyrukCiz();
 }
 
-$(document).ready(function(){ agListeleriYukle(); agScriptleriYukle(); agKategorileriYukle(); });
+// ---- Arama randevusu hatırlatma popup'ı (zamanı gelen randevular) ----
+var agGosterilenRandevular = {}; // tekrar tekrar uyarmamak icin (id -> true)
+
+function agRandevuKontrol(){
+   $.get('/isletmeyonetim/cagri-yaklasan-randevular', { sube: $('input[name="sube"]').val() }, function(res){
+      var liste = (res && res.randevular) ? res.randevular : [];
+      var yeni = liste.filter(function(r){ return !agGosterilenRandevular[r.id]; });
+      if (!yeni.length) return;
+      yeni.forEach(function(r){ agGosterilenRandevular[r.id] = true; });
+
+      var metin = yeni.map(function(r){ return '• ' + r.ad + ' — ' + r.tarih + ' ' + r.saat; }).join('\n');
+      var baslik = yeni.length>1 ? (yeni.length+' arama randevusunun zamanı geldi') : 'Arama randevusu zamanı geldi';
+      if (typeof swal === 'function'){
+         swal({ type:'info', title:'🔔 '+baslik, text:metin });
+      } else {
+         alert('🔔 '+baslik+'\n'+metin);
+      }
+   });
+}
+
+$(document).ready(function(){
+   agListeleriYukle(); agScriptleriYukle(); agKategorileriYukle();
+   // Randevu hatirlatma: acilista + her 45 sn'de bir kontrol et
+   agRandevuKontrol();
+   setInterval(agRandevuKontrol, 45000);
+});
 </script>
 @endsection

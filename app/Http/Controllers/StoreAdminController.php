@@ -27953,17 +27953,70 @@ DB::raw('
             $kayit->ses_kaydi = $enSon->ses_kaydi; $kayit->save();
         }
 
-        $gecmis = $notlar->map(function ($n) {
+        // Randevu (durum=3) satirlarinda gosterilecek aranacak tarih/saat (aranacak_musteriler).
+        $randevuTarih = $kayit->tarih ? date('d.m.Y', strtotime($kayit->tarih)) : '';
+        $randevuSaat  = $kayit->saat ? date('H:i', strtotime($kayit->saat)) : '';
+
+        $gecmis = $notlar->map(function ($n) use ($randevuTarih, $randevuSaat) {
+            $kod = is_null($n->sonuc) ? null : (int) $n->sonuc;
             return [
-                'tarih'     => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
-                'sonuc_kod' => is_null($n->sonuc) ? null : (int) $n->sonuc,
-                'sonuc'     => self::aranacakDurumMetin($n->sonuc),
-                'not'       => $n->not ?? '',
-                'ses'       => self::sesKaydiUrl($n->ses_kaydi),
+                'tarih'         => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
+                'sonuc_kod'     => $kod,
+                'sonuc'         => self::aranacakDurumMetin($n->sonuc),
+                'not'           => $n->not ?? '',
+                'ses'           => self::sesKaydiUrl($n->ses_kaydi),
+                'randevu_tarih' => $kod === 3 ? $randevuTarih : '',
+                'randevu_saat'  => $kod === 3 ? $randevuSaat : '',
             ];
         });
 
         return response()->json(['gecmis' => $gecmis]);
+    }
+
+    /**
+     * Agent calisma ekrani — ZAMANI GELEN arama randevulari (durum=3, tarih+saat <= simdi).
+     * Personel ise kendi listeleri; yonetici ise salonun tum listeleri. Popup hatirlatma kullanir.
+     */
+    public function cagri_yaklasan_randevular(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+
+        $q = AramaListesi::where('salon_id', $salonId);
+        if ($rol == 5) {
+            $q->where('personel_id', $this->aktifPersonelId($salonId));
+        }
+        $listeIds = $q->pluck('id')->all();
+        if (empty($listeIds)) {
+            return response()->json(['randevular' => []]);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $altSinir = date('Y-m-d H:i:s', strtotime('-12 hours')); // cok eski randevulari gosterme
+
+        $kayitlar = AranacakMusteriler::whereIn('arama_id', $listeIds)
+            ->where('durum', 3)
+            ->whereNotNull('tarih')->where('tarih', '!=', '')
+            ->whereNotNull('saat')->where('saat', '!=', '')
+            ->whereRaw("CONCAT(tarih,' ',saat) <= ?", [$now])
+            ->whereRaw("CONCAT(tarih,' ',saat) >= ?", [$altSinir])
+            ->with('musteri')
+            ->orderByRaw("CONCAT(tarih,' ',saat) desc")
+            ->limit(20)->get();
+
+        $personelMi = ($rol == 5);
+        $out = $kayitlar->map(function ($k) use ($personelMi) {
+            $ad = optional($k->musteri)->name ?? 'Müşteri';
+            if ($personelMi) $ad = self::adSoyadMaskele($ad);
+            return [
+                'id'    => $k->id,
+                'ad'    => $ad,
+                'tarih' => $k->tarih ? date('d.m.Y', strtotime($k->tarih)) : '',
+                'saat'  => $k->saat ? date('H:i', strtotime($k->saat)) : '',
+            ];
+        });
+
+        return response()->json(['randevular' => $out]);
     }
 
     /* ============================================================
