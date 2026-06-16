@@ -221,7 +221,7 @@
 
    @if($_aktifCark && $_cark_dilim_sayisi >= 2)
       {{-- ============ CARKIFELEK SECTION (eski silik banner yerine) ============ --}}
-      <a href="javascript:void(0)" onclick="window.openCarkModal()" class="cark-section" aria-label="Çarkıfelek'i çevir, ödül kazan">
+      <a href="javascript:void(0)" onclick="window.openCarkModal()" class="cark-section" aria-label="Hediye çarkını çevir, hediyeni al">
          <div class="cark-section__inner">
             <div class="cark-section__visual">
                <div class="cark-wheel cark-wheel--lg">
@@ -235,7 +235,7 @@
             <div class="cark-section__content">
                <span class="cark-section__eyebrow"><i class="fa fa-bolt"></i> Sana Özel · Hediye Çarkı</span>
                <h2 class="cark-section__title">Çarkı Çevir, <em>Hediyeni</em> Kap!</h2>
-               <p class="cark-section__sub">Onaylanan her randevuyla çark hakkı kazanırsın. Puan, indirim ve sürpriz hediyeler seni bekliyor.</p>
+               <p class="cark-section__sub">Onaylanan her randevuyla çevirme hakkı elde edersin. Puan, indirim ve sürpriz hediyeler seni bekliyor.</p>
                <span class="cark-section__cta">
                   <i class="fa fa-bolt"></i> Şimdi Tam Zamanı, Çevir!
                   <i class="fa fa-long-arrow-right cark-section__cta-arrow"></i>
@@ -295,9 +295,9 @@
             </div>
 
             <div class="cark-popup__content" id="carkPopupContent">
-               <span class="cark-popup__eyebrow">🎰 Şimdi Tam Zamanı</span>
-               <h2 class="cark-popup__title" id="carkPopupTitle">Çarkı Çevir,<br><em>Hediyeni Kazan!</em></h2>
-               <p class="cark-popup__sub">{{ $salon->salon_adi }}'a özel sürpriz çarkıfelek seni bekliyor. Bedava deneme hakkı şimdi açık!</p>
+               <span class="cark-popup__eyebrow">🎁 Sana Özel Hediye</span>
+               <h2 class="cark-popup__title" id="carkPopupTitle">Çarkı Çevir,<br><em>Hediyeni Al!</em></h2>
+               <p class="cark-popup__sub">{{ $salon->salon_adi }}'a özel hediye çarkı seni bekliyor. Ücretsiz çevirme hakkın şimdi açık!</p>
                @if($_bugunCevirdi)
                   <div style="padding:12px 18px; background:rgba(255,255,255,.18); border-radius:14px; color:#fff; font-weight:700; margin-bottom:12px;">
                      ✓ Bugün çarkı çevirdiniz. Yarın tekrar deneyebilirsiniz.
@@ -448,10 +448,10 @@
             function showResult(d, kod, kayitGerekli){
                let html = '';
                if (kayitGerekli){
-                  // Misafir + ödül var → kayıt formu
+                  // Misafir + hediye var → kayıt formu
                   html = `
-                     <span class="cark-popup__eyebrow">🎉 Tebrikler!</span>
-                     <h2 class="cark-popup__title" style="font-size:24px;">Kazandın: <em>${buildFullLabel(d)}</em></h2>
+                     <span class="cark-popup__eyebrow">🎁 Hediyeniz Hazır!</span>
+                     <h2 class="cark-popup__title" style="font-size:24px;">Hediyeniz: <em>${buildFullLabel(d)}</em></h2>
                      <p class="cark-popup__sub" style="margin-bottom:14px;">Kodunu almak için 10 saniyelik kayıt — telefonuna SMS gönderilecek.</p>
                      <div style="display:flex; gap:8px; margin-bottom:10px;">
                         <input type="text" id="ky-ad" placeholder="Ad" style="flex:1; padding:11px 12px; border:2px solid rgba(255,255,255,.4); border-radius:10px; background:rgba(255,255,255,.95); font-size:14px;">
@@ -463,8 +463,8 @@
                } else if (kod){
                   // Üye + kupon
                   html = `
-                     <span class="cark-popup__eyebrow">🎉 Tebrikler!</span>
-                     <h2 class="cark-popup__title" style="font-size:24px;">Kazandın: <em>${buildFullLabel(d)}</em></h2>
+                     <span class="cark-popup__eyebrow">🎁 Hediyeniz Hazır!</span>
+                     <h2 class="cark-popup__title" style="font-size:24px;">Hediyeniz: <em>${buildFullLabel(d)}</em></h2>
                      <div style="margin:14px 0; padding:14px 22px; background:#fef3c7; color:#92400e; border-radius:12px; font-family:monospace; font-size:24px; font-weight:800; letter-spacing:4px; border:2px dashed #f59e0b; display:inline-block;">${kod}</div>
                      <p class="cark-popup__sub" style="font-size:13px; margin-bottom:12px;">Bu kodu 30 gün içinde salonda kullanabilirsiniz.</p>
                      <button type="button" class="cark-popup__cta" data-cark-close>Tamam</button>
@@ -472,9 +472,9 @@
                } else {
                   // Tekrar Dene / Boş / üye + puan
                   html = `
-                     <span class="cark-popup__eyebrow">🎉 Sonuç</span>
+                     <span class="cark-popup__eyebrow">🎁 Hediyeniz</span>
                      <h2 class="cark-popup__title" style="font-size:24px;"><em>${buildFullLabel(d)}</em></h2>
-                     <p class="cark-popup__sub">${d.tip === 'tekrar_dene' ? 'Yarın tekrar deneyebilirsiniz.' : (d.tip === 'puan' ? 'Puan hesabınıza eklendi.' : 'Bir dahaki sefere şanslı olursunuz!')}</p>
+                     <p class="cark-popup__sub">${d.tip === 'tekrar_dene' ? 'Yarın tekrar yararlanabilirsiniz.' : (d.tip === 'puan' ? 'Puan hesabınıza eklendi.' : 'Bir dahaki sefere yeni bir hediye sizi bekliyor.')}</p>
                      <button type="button" class="cark-popup__cta" data-cark-close>Tamam</button>
                   `;
                }
@@ -539,7 +539,7 @@
                      content.innerHTML = `
                         <span class="cark-popup__eyebrow">🎉 Hesabın Hazır</span>
                         <h2 class="cark-popup__title" style="font-size:22px;">Puanın eklendi!</h2>
-                        <p class="cark-popup__sub">Profilinizden puan ödüllerinize göz atabilirsiniz.</p>
+                        <p class="cark-popup__sub">Profilinizden puan hediyelerinize göz atabilirsiniz.</p>
                         <button type="button" class="cark-popup__cta" data-cark-close>Tamam</button>`;
                   }
                } catch(e){ showToast('Bağlantı hatası'); btn.disabled = false; btn.innerHTML = '✓ Doğrula ve Kodu Al'; }
@@ -1272,8 +1272,8 @@
                </div>
                <div class="slp-feature">
                   <div class="slp-feature__icon"><i class="fa fa-gift"></i></div>
-                  <h3>Sadakat Ödülleri</h3>
-                  <p>Her ziyaretinizde puan kazanın, çarkı çevirin ve özel indirim fırsatları elde edin.</p>
+                  <h3>Sadakat Hediyeleri</h3>
+                  <p>Her ziyaretinizde puan biriktirin, çarkı çevirin ve özel indirim fırsatları elde edin.</p>
                </div>
                <div class="slp-feature">
                   <div class="slp-feature__icon"><i class="fa fa-coffee"></i></div>

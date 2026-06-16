@@ -153,8 +153,8 @@
 
 <div class="ck-page">
     <div class="ck-hero">
-        <h1>🎡 Çarkıfelek</h1>
-        <p>{{ $salon->salon_adi }} size özel ödüller bekliyor!</p>
+        <h1>🎁 Hediye Çarkı</h1>
+        <p>{{ $salon->salon_adi }} size özel hediyeler hazırladı!</p>
         <div class="hak-rozeti">Çevirme hakkınız: <b id="hak-sayisi">{{ $kalanHak }}</b></div>
     </div>
 
@@ -192,7 +192,7 @@
             @if($bugunCevirdi)
                 ✓ Bugün Çevirdiniz
             @else
-                🎲 Çarkı Çevir
+                🎁 Çarkı Çevir
             @endif
         </button>
 
@@ -201,9 +201,9 @@
                 Bugün çarkıfeleği çevirdiniz.<br>
                 Bir sonraki çevirme: <b>yarın {{ $yarinSaat }}</b> veya yeni onaylı randevunuzdan sonra.
             @elseif($kalanHak > 0)
-                <b>{{ $kalanHak }}</b> çevirme hakkınız var. Günde 1 kez çevirebilirsiniz; yeni onaylı randevularınız yeni hak kazandırır.
+                <b>{{ $kalanHak }}</b> çevirme hakkınız var. Günde 1 kez çevirebilirsiniz; yeni onaylı randevularınız yeni hak sağlar.
             @else
-                Çevirme hakkınız bulunmuyor. Salonumuzda randevu alıp onaylatırsanız hak kazanırsınız.
+                Çevirme hakkınız bulunmuyor. Salonumuzda randevu alıp onaylatırsanız çevirme hakkı elde edersiniz.
             @endif
             <br>
             <a href="{{ route('cark.sadakat') }}" class="odullerim-link">⭐ Sadakat Programım — Puanlarım & Kuponlarım</a>
@@ -220,15 +220,15 @@
 
 <div class="modal-ov" id="result-modal">
     <div class="modal-box">
-        <span class="modal-emoji">🎉</span>
-        <h2>Tebrikler!</h2>
-        <p class="modal-sub">Kazandığınız ödül:</p>
+        <span class="modal-emoji">🎁</span>
+        <h2>Hediyeniz Hazır!</h2>
+        <p class="modal-sub">Size özel hediyeniz:</p>
         <div class="modal-result" id="result-text">—</div>
 
-        {{-- ÜYE İSE / ÖDÜL YOKSA: kod alanı --}}
+        {{-- ÜYE İSE / HEDİYE YOKSA: kod alanı --}}
         <div id="code-wrap" style="display:none;">
             <div class="modal-code">
-                <span class="modal-code-label">Kupon Kodunuz</span>
+                <span class="modal-code-label">Hediye Kodunuz</span>
                 <span id="coupon-code">—</span>
             </div>
             <p style="font-size:12px;color:#636e72;margin-bottom:8px;">Bu kodu 30 gün içinde salonda kullanabilirsiniz.</p>
@@ -237,7 +237,7 @@
         {{-- MİSAFİR + ÖDÜL VAR: Kayıt formu (telefon) --}}
         <div id="kayit-form" style="display:none;">
             <div style="background:#fef3c7;border:1.5px dashed #f59e0b;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
-                <b style="color:#92400e;font-size:14px;">🔒 Ödülünüzü almak için hızlı kayıt</b>
+                <b style="color:#92400e;font-size:14px;">🔒 Hediyenizi almak için hızlı kayıt</b>
                 <p style="font-size:12px;color:#78350f;margin:4px 0 0;">Telefonunuza SMS ile 4 haneli kod gönderilecek.</p>
             </div>
             <div style="display:flex;gap:8px;margin-bottom:10px;">
@@ -662,11 +662,11 @@
             if (data.odulKodu) {
                 codeEl.textContent = data.odulKodu;
                 setStep('kod');
-                showToast('🎉 Hesabınız oluşturuldu, kupon hazır!');
+                showToast('🎁 Hesabınız oluşturuldu, hediyeniz hazır!');
             } else {
-                // Puan kazanılmış olabilir — kod yok ama işlem tamam
+                // Puan eklenmiş olabilir — kod yok ama işlem tamam
                 setStep('bos');
-                showToast('🎉 Hesabınız oluşturuldu, puanınız eklendi!');
+                showToast('🎁 Hesabınız oluşturuldu, puanınız eklendi!');
             }
         } catch (e) {
             btn.disabled = false; btn.textContent = '✓ Doğrula ve Kodu Al';
@@ -710,13 +710,13 @@
             data = await resp.json();
         } catch(e) {
             showToast('Bağlantı hatası');
-            spinning = false; cevirBtn.disabled = false; cevirBtn.textContent = '🎲 Çarkı Çevir';
+            spinning = false; cevirBtn.disabled = false; cevirBtn.textContent = '🎁 Çarkı Çevir';
             return;
         }
 
         if (!data.success) {
             showToast(data.message || 'Çevirme başarısız');
-            spinning = false; cevirBtn.disabled = false; cevirBtn.textContent = '🎲 Çarkı Çevir';
+            spinning = false; cevirBtn.disabled = false; cevirBtn.textContent = '🎁 Çarkı Çevir';
             return;
         }
 
