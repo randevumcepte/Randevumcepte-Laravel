@@ -125,10 +125,8 @@
   <!-- MARKA -->
   <div class="bar">
     <!-- PROD: @if(!empty($isletme->logo)) <img src="{{ secure_asset($isletme->logo) }}" alt="{{ $isletme->isletme_adi }}"> @else <span class="init">{{ mb_strtoupper(mb_substr($isletme->isletme_adi,0,1)) }}</span> @endif -->
-    <div class="logo">
-      <img src="ceren-logo.png" alt="Ceren Ceviz Estetik"><!-- PROD: secure_asset($isletme->logo) -->
-    </div>
-    <div class="ad">Ceren Ceviz Estetik</div><!-- {{ $isletme->isletme_adi }} -->
+    <div class="logo"></div>
+    <div class="ad"></div>
     <div class="tag">Mobil Uygulama</div>
   </div>
 
@@ -138,7 +136,7 @@
       <div class="qr-card">
         <div class="qr-inner">
           <span class="qr-corner tl"></span><span class="qr-corner tr"></span><span class="qr-corner bl"></span><span class="qr-corner br"></span>
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=0&data=https://randevumcepte.com.tr/indir/123" alt="QR">
+          <div style="width:100%;height:0;padding-bottom:100%;background:#fff"></div>
         </div>
       </div>
       <div class="qr-hemen">HEMEN İNDİR</div>
@@ -156,7 +154,7 @@
   <div class="band">
     <div class="band-bg"></div>
     <div class="band-l">
-      <span class="ey">Ceren Ceviz Estetik</span><!-- {{ $isletme->isletme_adi }} -->
+      <span class="ey">Mobil Uygulama</span>
       <h1>Güzelliğiniz artık <span>cebinizde</span></h1>
       <p>Randevularınız, seanslarınız, paket haklarınız ve işlem geçmişiniz tek uygulamada. Onam formlarınıza ulaşın, öncesi–sonrası fotoğraflarınızı saklayın, kampanyalardan ilk siz haberdar olun.</p>
     </div>
@@ -182,7 +180,7 @@
     </div>
     <div class="footer">
       <span class="fdot"></span>
-      <span class="ftext"><b>Ceren Ceviz Estetik</b> · Güzelliğin dijital adresi</span><!-- {{ $isletme->isletme_adi }} -->
+      <span class="ftext">Güzelliğin dijital adresi · randevucepte</span>
       <span class="fdot"></span>
     </div>
   </div>

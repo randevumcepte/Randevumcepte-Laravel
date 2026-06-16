@@ -15988,6 +15988,258 @@ DB::raw('
         ]);
         return $pdf->download(date('Y-m-d-H-i-s').'.pdf');
     }
+
+    /* ============================================================
+       UYGULAMA INDIRME AFISI
+       - /indir/{salon}  : akilli yonlendirme (QR hedefi, public)
+       - /uygulama-afisi : salon paneli onizleme + indirme sayfasi
+       - /uygulama-afisi-pdf : GD ile uretilen afis PDF indirme
+       ============================================================ */
+
+    // Akilli yonlendirme: cihaza gore Android/iOS/Huawei magazasina atar.
+    public function uygulamaIndir(Request $request, $salon)
+    {
+        $isletme = Salonlar::where('id', $salon)->first();
+        if (!$isletme) {
+            abort(404);
+        }
+        $ua      = strtolower((string) $request->header('User-Agent', ''));
+        $android = trim((string) $isletme->android_uygulama);
+        $ios     = trim((string) $isletme->ios_uygulama);
+        $huawei  = trim((string) $isletme->huawei_uygulama);
+
+        if ($huawei !== '' && (strpos($ua, 'huawei') !== false || strpos($ua, 'honor') !== false)) {
+            return redirect()->away($huawei);
+        }
+        if ($ios !== '' && preg_match('/iphone|ipad|ipod/i', $ua)) {
+            return redirect()->away($ios);
+        }
+        if ($android !== '' && strpos($ua, 'android') !== false) {
+            return redirect()->away($android);
+        }
+        // Cihaz belirsiz veya uygun link yok -> secim sayfasi
+        return view('indir', ['isletme' => $isletme]);
+    }
+
+    // Salon paneli: afis onizleme + indirme sayfasi
+    public function uygulamaAfisi(Request $request)
+    {
+        if (Auth::guard('satisortakligi')->check()) {
+            $isletmeler = [15];
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+        }
+        if (!in_array(self::mevcutsube($request), $isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if (strpos(self::lisans_sure_kontrol($request), '-') !== false) {
+            return view('isletmeadmin.lisanssurebitti', ['isletme' => Salonlar::where('id', self::mevcutsube($request))->first()]);
+        }
+        if (!Auth::guard('satisortakligi')->check() && self::personelmi($request)) {
+            return redirect()->route('isletmeadmin.randevular');
+        }
+        if (count($isletmeler) > 1 && !isset($_GET['sube'])) {
+            return view('isletmeadmin.isletmesec', ['isletmeler' => $isletmeler, 'isletme' => Salonlar::where('id', self::mevcutsube($request))->first()]);
+        }
+        $isletme      = Salonlar::where('id', self::mevcutsube($request))->first();
+        $linklerHazir = (trim((string) $isletme->android_uygulama) !== '' && trim((string) $isletme->ios_uygulama) !== '');
+        return view('isletmeadmin.uygulama_afisi', [
+            'pageindex'           => 80,
+            'sayfa_baslik'        => 'Uygulama İndirme Afişi',
+            'bildirimler'         => self::bildirimgetir($request),
+            'paketler'            => self::paket_liste_getir('', true, $request),
+            'isletme'             => $isletme,
+            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
+            'urun_drop'           => self::urundropliste($request),
+            'linklerHazir'        => $linklerHazir,
+        ]);
+    }
+
+    // GD ile afis uret + PDF indir
+    public function uygulamaAfisPdf(Request $request)
+    {
+        if (Auth::guard('satisortakligi')->check()) {
+            $isletmeler = [15];
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+        }
+        if (!in_array(self::mevcutsube($request), $isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        $android = trim((string) $isletme->android_uygulama);
+        $ios     = trim((string) $isletme->ios_uygulama);
+        if ($android === '' || $ios === '') {
+            return redirect('/isletmeyonetim/uygulama-afisi' . (isset($_GET['sube']) ? '?sube=' . $isletme->id : ''));
+        }
+
+        $png = self::afisOlustur($isletme);
+        if ($png === null) {
+            return redirect('/isletmeyonetim/uygulama-afisi' . (isset($_GET['sube']) ? '?sube=' . $isletme->id : ''));
+        }
+        // Panelde canli onizleme (PNG, indirme degil)
+        if ($request->has('onizleme')) {
+            return response($png, 200, ['Content-Type' => 'image/png', 'Cache-Control' => 'no-store']);
+        }
+        $pdf = PDF::loadView('afis_pdf', ['img' => 'data:image/png;base64,' . base64_encode($png)]);
+        $pdf->setPaper('a4', 'portrait');
+        $ad = preg_replace('/[^A-Za-z0-9_-]+/', '-', self::trSlug($isletme->isletme_adi ?: ($isletme->salon_adi ?: 'afis')));
+        return $pdf->download('uygulama-afisi-' . trim($ad, '-') . '.pdf');
+    }
+
+    // ---- afis uretim yardimcilari (GD) ----
+    private static function afisOlustur($isletme)
+    {
+        $bg = public_path('afis/afis-bg.png');
+        if (!is_file($bg) || !function_exists('imagecreatefrompng')) {
+            return null;
+        }
+        $im = @imagecreatefrompng($bg);
+        if (!$im) { return null; }
+        imagealphablending($im, true);
+
+        // QR (koordinat: 380,412 boyut 340 @2x)
+        self::afisQrCiz($im, url('/indir/' . $isletme->id), 380, 412, 340);
+        // Logo (koordinat: 102,62 kutu 102 @2x)
+        self::afisLogoCiz($im, $isletme, 102, 62, 102);
+        // Salon adi (ust bar: sol x=236, dikey merkez ~113, max gen ~780 @2x)
+        self::afisAdYaz($im, (string) ($isletme->isletme_adi ?: ($isletme->salon_adi ?: '')), 236, 113, 780, 40);
+
+        ob_start();
+        imagepng($im);
+        $bin = ob_get_clean();
+        imagedestroy($im);
+        return $bin;
+    }
+
+    private static function afisQrCiz(&$im, $text, $x, $y, $size)
+    {
+        if (!class_exists('\BaconQrCode\Encoder\Encoder')) { return; }
+        try {
+            $qr     = \BaconQrCode\Encoder\Encoder::encode($text, \BaconQrCode\Common\ErrorCorrectionLevel::M(), 'ISO-8859-1');
+            $matrix = $qr->getMatrix();
+            $count  = $matrix->getWidth();
+        } catch (\Throwable $e) {
+            return;
+        }
+        if ($count <= 0) { return; }
+        $margin  = 2;                       // sessiz alan (modul)
+        $modules = $count + $margin * 2;
+        $cell    = $size / $modules;
+        $black   = imagecolorallocate($im, 0x46, 0x34, 0x3c);
+        for ($r = 0; $r < $count; $r++) {
+            for ($c = 0; $c < $count; $c++) {
+                if ((int) $matrix->get($c, $r) === 1) {
+                    $px = $x + ($c + $margin) * $cell;
+                    $py = $y + ($r + $margin) * $cell;
+                    imagefilledrectangle($im, (int) floor($px), (int) floor($py), (int) ceil($px + $cell), (int) ceil($py + $cell), $black);
+                }
+            }
+        }
+    }
+
+    private static function afisLogoCiz(&$im, $isletme, $x, $y, $box)
+    {
+        $logo = trim((string) $isletme->logo);
+        $src  = null;
+        if ($logo !== '') {
+            $cands = [base_path($logo), public_path($logo), public_path(ltrim($logo, '/')), public_path(preg_replace('#^public/#', '', $logo))];
+            foreach ($cands as $cand) {
+                if (is_file($cand)) {
+                    $info = @getimagesize($cand);
+                    if ($info) {
+                        if ($info[2] === IMAGETYPE_JPEG)      $src = @imagecreatefromjpeg($cand);
+                        elseif ($info[2] === IMAGETYPE_PNG)   $src = @imagecreatefrompng($cand);
+                        elseif ($info[2] === IMAGETYPE_GIF)   $src = @imagecreatefromgif($cand);
+                        elseif (function_exists('imagecreatefromwebp') && $info[2] === IMAGETYPE_WEBP) $src = @imagecreatefromwebp($cand);
+                    }
+                    if ($src) break;
+                }
+            }
+        }
+
+        $inset = 4;
+        if (!$src) {
+            // logo yok -> bas harf fallback
+            $harf = mb_strtoupper(mb_substr(trim((string) ($isletme->isletme_adi ?: $isletme->salon_adi ?: 'A')), 0, 1), 'UTF-8');
+            $font = public_path('afis/Poppins-Bold.ttf');
+            if (is_file($font)) {
+                $renk = imagecolorallocate($im, 0x7c, 0x4a, 0x5a);
+                $fs   = $box * 0.5;
+                $bb   = imagettfbbox($fs, 0, $font, $harf);
+                $tw   = $bb[2] - $bb[0];
+                $th   = $bb[1] - $bb[7];
+                $bx   = $x + ($box - $tw) / 2 - $bb[0];
+                $by   = $y + ($box - $th) / 2 - $bb[7];
+                imagettftext($im, $fs, 0, (int) $bx, (int) $by, $renk, $font, $harf);
+            }
+            return;
+        }
+
+        // kareye kirp (beyaz olmayan icerik bbox'i) + kutuya yerlestir
+        $sw = imagesx($src); $sh = imagesy($src);
+        $minx = $sw; $miny = $sh; $maxx = 0; $maxy = 0;
+        $stepx = max(1, (int) ($sw / 200)); $stepy = max(1, (int) ($sh / 200));
+        for ($yy = 0; $yy < $sh; $yy += $stepy) {
+            for ($xx = 0; $xx < $sw; $xx += $stepx) {
+                $rgb = imagecolorat($src, $xx, $yy);
+                $rr = ($rgb >> 16) & 0xFF; $gg = ($rgb >> 8) & 0xFF; $bb2 = $rgb & 0xFF;
+                if ($rr < 200 || $gg < 200 || $bb2 < 200) {
+                    if ($xx < $minx) $minx = $xx; if ($xx > $maxx) $maxx = $xx;
+                    if ($yy < $miny) $miny = $yy; if ($yy > $maxy) $maxy = $yy;
+                }
+            }
+        }
+        if ($maxx <= $minx || $maxy <= $miny) { $minx = 0; $miny = 0; $maxx = $sw; $maxy = $sh; }
+        $bw = $maxx - $minx; $bh = $maxy - $miny;
+        $side = (int) (max($bw, $bh) * 1.16);
+        $cx = ($minx + $maxx) / 2; $cy = ($miny + $maxy) / 2;
+        $sx = (int) ($cx - $side / 2); $sy = (int) ($cy - $side / 2);
+
+        $inner = $box - $inset * 2;
+        $dst   = imagecreatetruecolor($inner, $inner);
+        $white = imagecolorallocate($dst, 255, 255, 255);
+        imagefilledrectangle($dst, 0, 0, $inner, $inner, $white);
+        imagecopyresampled($dst, $src, 0, 0, $sx, $sy, $inner, $inner, $side, $side);
+        imagecopy($im, $dst, $x + $inset, $y + $inset, 0, 0, $inner, $inner);
+        imagedestroy($dst);
+        imagedestroy($src);
+    }
+
+    private static function afisAdYaz(&$im, $ad, $x, $cy, $maxw, $fontpx)
+    {
+        $ad = trim($ad);
+        if ($ad === '') { return; }
+        $font = public_path('afis/Poppins-SemiBold.ttf');
+        if (!is_file($font)) { return; }
+        $renk = imagecolorallocate($im, 0x46, 0x34, 0x3c);
+        $size = $fontpx;
+        $text = $ad;
+        $bb   = imagettfbbox($size, 0, $font, $text);
+        $tw   = abs($bb[2] - $bb[0]);
+        // sigmazsa once kucult, sonra kirp
+        while ($size > 26 && $tw > $maxw) {
+            $size -= 2;
+            $bb = imagettfbbox($size, 0, $font, $text); $tw = abs($bb[2] - $bb[0]);
+        }
+        while (mb_strlen($text, 'UTF-8') > 4 && $tw > $maxw) {
+            $text = mb_substr($text, 0, mb_strlen($text, 'UTF-8') - 1, 'UTF-8');
+            $bb   = imagettfbbox($size, 0, $font, $text . '…'); $tw = abs($bb[2] - $bb[0]);
+        }
+        if (mb_strlen($text, 'UTF-8') < mb_strlen($ad, 'UTF-8')) { $text .= '…'; }
+        $bb       = imagettfbbox($size, 0, $font, $text);
+        $th       = $bb[1] - $bb[7];
+        $baseline = (int) ($cy - $th / 2 - $bb[7]);
+        imagettftext($im, $size, 0, (int) $x, $baseline, $renk, $font, $text);
+    }
+
+    private static function trSlug($s)
+    {
+        $tr = ['ç','Ç','ğ','Ğ','ı','İ','ö','Ö','ş','Ş','ü','Ü'];
+        $en = ['c','C','g','G','i','I','o','O','s','S','u','U'];
+        return str_replace($tr, $en, (string) $s);
+    }
+
     public function profilbilgileri(Request $request){
          $isletmeler = '';
         $isletme='';

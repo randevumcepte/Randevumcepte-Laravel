@@ -20,6 +20,9 @@ use Illuminate\Support\Facades\Storage;
 */
 Auth::routes();
 
+// Akilli uygulama indirme yonlendirmesi (QR hedefi) — cihaza gore magazaya atar (public)
+Route::get('/indir/{salon}', 'StoreAdminController@uygulamaIndir');
+
 // Firebase Cloud Messaging Web Service Worker.
 // Root scope'tan servis edilmeli ki SW tum site'a hakim olabilsin.
 // JS icerigi dinamik render edilir, config/firebase_web.php degerleri yedirilir.
@@ -905,6 +908,9 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/senetler', 'StoreAdminController@senetler');
    Route::post('/pdf', 'StoreAdminController@download');
    Route::get('/qrpdf', 'StoreAdminController@QRdownload')->name('download');
+   // Uygulama indirme afisi (salon paneli) — onizleme sayfasi + PDF indirme
+   Route::get('/uygulama-afisi', 'StoreAdminController@uygulamaAfisi');
+   Route::get('/uygulama-afisi-pdf', 'StoreAdminController@uygulamaAfisPdf');
    Route::get('/profil','StoreAdminController@profilbilgileri');
    Route::get('/hizmetpersoneldeneme','StoreAdminController@denemesql');
    Route::post('/yeniisletmeekle','StoreAdminController@yeniisletmeekle');

@@ -1816,6 +1816,18 @@
                   @endif
                   {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
 
+                  {{-- Uygulama İndirme Afişi --}}
+                  <li>
+                     @if(($pageindex ?? 0) == 80)
+                     <a href="/isletmeyonetim/uygulama-afisi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/uygulama-afisi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-qr-code" style="color:#7c4a5a"></span
+                        ><span class="mtext">Uygulama Afişi</span>
+                     </a>
+                  </li>
+
                   {{-- 11) Müşteriler/Danışanlar --}}
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.liste_gor'))
                   <li>
