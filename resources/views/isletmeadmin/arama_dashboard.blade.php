@@ -284,7 +284,10 @@
             <h5><i class="fa fa-filter"></i> Liste Segmentasyonu</h5>
             <span class="seg-aciklama">Bir arama listesini sonuca göre ayır (Görüşüldü / Cevapsız / Meşgul / Ulaşılamadı / Randevu / Bekleyen); segmenti <b>indir</b> ya da <b>başka personele taşı</b>.</span>
          </div>
-         <select id="seg_liste_sec" class="seg-select"><option value="">Liste seçin...</option></select>
+         <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+            <select id="seg_liste_sec" class="seg-select"><option value="">Liste seçin...</option></select>
+            <button id="seg_yenile" class="seg-indir" title="Segmentleri yenile"><i class="fa fa-refresh"></i> Yenile</button>
+         </div>
       </div>
       <div id="seg_govde">
          <div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>Yukarıdan bir arama listesi seçin.</div>
@@ -564,8 +567,11 @@ function segPersonelOpts(){
    return o;
 }
 
-$(document).on('change', '#seg_liste_sec', function(){
-   var aramaId = $(this).val();
+$(document).on('change', '#seg_liste_sec', function(){ segSegmentleriYukle(); });
+$(document).on('click', '#seg_yenile', function(){ segSegmentleriYukle(); });
+
+function segSegmentleriYukle(){
+   var aramaId = $('#seg_liste_sec').val();
    var sube = $('input[name="sube"]').val();
    if (!aramaId){ $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>Yukarıdan bir arama listesi seçin.</div>'); return; }
    $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
@@ -589,7 +595,7 @@ $(document).on('change', '#seg_liste_sec', function(){
       html += '</div>';
       $('#seg_govde').html(html);
    });
-});
+}
 
 $(document).on('click', '.seg-ata', function(){
    var $satir = $(this).closest('.seg-satir');
