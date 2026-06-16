@@ -27777,10 +27777,16 @@ DB::raw('
     /** Segmenti yeni bir listeye TASI ve baska personele ata (gecmis/kayitlar da tasinir). */
     public function cagri_segment_ata(Request $request)
     {
-        $salonId = self::mevcutsube($request);
         $liste = AramaListesi::where('id', $request->arama_id)->first();
-        if (!$liste || (int) $liste->salon_id !== (int) $salonId) {
-            return response()->json(['success' => false, 'message' => 'Liste bulunamadı'], 403);
+        if (!$liste) {
+            return response()->json(['success' => false, 'message' => 'Liste bulunamadı.']);
+        }
+        // Yetki: salon DOGRUDAN listeden alinir (sube parametresine bagimli degil).
+        $salonId = (int) $liste->salon_id;
+        $yetkiliMi = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler
+            ->where('aktif', 1)->pluck('salon_id')->map(function ($v) { return (int) $v; })->contains($salonId);
+        if (!$yetkiliMi) {
+            return response()->json(['success' => false, 'message' => 'Bu listeye yetkiniz yok.']);
         }
         $personelId = $request->personel_id;
         $hedef = $personelId ? Personeller::where('id', $personelId)->where('salon_id', $salonId)->first() : null;

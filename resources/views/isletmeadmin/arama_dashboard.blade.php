@@ -651,7 +651,7 @@ $(document).on('click', '#seg_ata', function(){
 function segAtaYap(aramaId, kod, personelId){
    var $btn = $('#seg_ata'); $btn.addClass('pasif');
    $.post('/isletmeyonetim/cagri-segment-ata',
-      { arama_id: aramaId, kod: kod, personel_id: personelId, _token: $('input[name="_token"]').val() },
+      { arama_id: aramaId, kod: kod, personel_id: personelId, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
       function(res){
          if (res.success){
             segMsg({ type:'success', title:'Taşındı', text:res.message, timer:2800, showConfirmButton:false });
