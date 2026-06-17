@@ -8484,6 +8484,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         
         // Paketleri çek
         $paketler = AdisyonPaketler::with('paket')
+            ->where('seans_sayisi', '>', 0)
             ->whereIn("adisyon_id", $adisyon_ids)
             ->get()
             ->toBase()
@@ -8498,7 +8499,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             });
  
         // Hizmetleri çek
-        $hizmetler = AdisyonHizmetler::with('hizmet')->whereNotNull('seans_sayisi')
+        $hizmetler = AdisyonHizmetler::with('hizmet')->where('seans_sayisi', '>', 0)
             ->whereIn("adisyon_id", $adisyon_ids)
             ->get()
             ->toBase()
