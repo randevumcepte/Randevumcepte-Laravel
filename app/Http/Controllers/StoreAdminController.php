@@ -8201,11 +8201,20 @@ private function ayAdiCevir($ingilizceAy)
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
             exit(0);
         }
-        // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
+        // Yetki: detay sayfasi musteri.detay_gor ile acilir; ANCAK sadece not yazma
+        // (not_yaz) veya gecmis satis gorme (gecmis_satis_gor) yetkisi olan personel de
+        // bu yetkilerini kullanabilmek icin sayfayi acabilmeli. Sayfa icindeki hassas
+        // bolumler (gecmis satis, duzenle) blade'de kendi yetkileriyle gizlenir.
         $_authUser = Auth::guard('isletmeyonetim')->user();
-        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'musteri.detay_gor')) {
-            return view('isletmeadmin.yetkisizerisim');
-            exit(0);
+        if ($_authUser) {
+            $_sube = self::mevcutsube($request);
+            $_detayErisim = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, $_sube, 'musteri.detay_gor')
+                || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, $_sube, 'musteri.not_yaz')
+                || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, $_sube, 'musteri.gecmis_satis_gor');
+            if (!$_detayErisim) {
+                return view('isletmeadmin.yetkisizerisim');
+                exit(0);
+            }
         }
         // Eski yonlendirme kaldirildi — musteridetay yetki kontrolu blade'de
         // ve listede filtreleniyor. Personel detaya gelebildiyse erisim olur.

@@ -85,11 +85,17 @@ class AppServiceProvider extends ServiceProvider
                       $isletme = \App\Salonlar::where('id', $isletmeler[0])->first();
                   }
               }
+              // Gercek kalan uyelik suresi (gun). yetkisizerisim view'a deger
+              // gecilmedigi icin eskiden sabit 999 gosteriliyordu.
+              $kalanGun = 999;
+              if ($isletme && !empty($isletme->uyelik_bitis_tarihi)) {
+                  $kalanGun = (int) round((strtotime($isletme->uyelik_bitis_tarihi.' 23:59:59') - time()) / 86400);
+              }
               $view->with([
                   'isletme'                => $isletme,
                   'bildirimler'            => collect(),
                   'pageindex'              => 0,
-                  'kalan_uyelik_suresi'    => 999,
+                  'kalan_uyelik_suresi'    => $kalanGun,
                   'yetkiliolunanisletmeler' => $isletmeler,
                   'sayfa_baslik'           => 'Yetkisiz İşlem',
               ]);
