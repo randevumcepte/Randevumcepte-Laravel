@@ -27289,7 +27289,7 @@ DB::raw('
     }
     public function arama_listesi_getir(Request $request){
         $isletmeId = self::mevcutsube($request);
-        $rol = self::kullaniciRolu($isletmeId,Auth::guard('isletmeyonetim')->user()->id);
+        $rol = self::kullaniciRolu($isletmeId,$this->cmAuthId());
         $length = $request->input('length');
         $start = $request->input('start', 0);
         $dir = $request->input('order.0.dir');
@@ -27301,7 +27301,7 @@ DB::raw('
       
         $arama_listesi=AramaListesi::where(function($q) use($rol,$isletmeId){
             if($rol > 3){
-                $personelId = Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletmeId)->value('id');
+                $personelId = Personeller::where('yetkili_id',$this->cmAuthId())->where('salon_id',$isletmeId)->value('id');
                 $q->where('personel_id',$personelId);
             }
         })->where('salon_id',$isletmeId)->where('arama_baslik','like','%'.$searchValue.'%')->paginate($length, ['*'], 'page', $currentPage);
@@ -27369,7 +27369,7 @@ DB::raw('
     $arama_listesi->personel_id = $request->aramapersoneli;
     $arama_listesi->aranacak_tarih = $request->input('aranacak_tarih') ?: null;
     $arama_listesi->filtre_snapshot = $filtre;
-    $arama_listesi->olusturan_yetkili_id = Auth::guard('isletmeyonetim')->user()->id;
+    $arama_listesi->olusturan_yetkili_id = $this->cmAuthId();
     $arama_listesi->durum = 1;
     $arama_listesi->save();
 
@@ -27527,7 +27527,7 @@ DB::raw('
     public function arama_kartlarim(Request $request)
     {
         $salonId = self::mevcutsube($request);
-        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+        $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
 
         $q = AramaListesi::where('salon_id', $salonId);
         if ($rol == 5) {
@@ -27747,7 +27747,7 @@ DB::raw('
             ->get();
 
         // Rol bir kez hesaplanir (map icinde her satirda DB sorgusu yapmamak icin).
-        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+        $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
         $personelMi = ($rol == 5);
 
         $data = $aranacaklar->map(function ($item) use ($aramaDetayId, $personelMi) {
@@ -27821,7 +27821,7 @@ DB::raw('
     /** Giris yapan yetkilinin bu salondaki personel (salon_personelleri) kaydinin id'sini doner. */
     private function aktifPersonelId($salonId)
     {
-        return Personeller::where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+        return Personeller::where('yetkili_id', $this->cmAuthId())
             ->where('salon_id', $salonId)
             ->value('id');
     }
@@ -28011,7 +28011,7 @@ DB::raw('
         $salonId = $liste->salon_id;
 
         // Yetki: yonetici (rol<5) ya da listenin atandigi personel arayabilir.
-        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+        $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
         if ($rol == 5) {
             $benimPersonelId = $this->aktifPersonelId($salonId);
             if ((int) $liste->personel_id !== (int) $benimPersonelId) {
@@ -28026,7 +28026,7 @@ DB::raw('
         $tel = ltrim($numara, '0');
 
         // Arayan kullanicinin (personel/yonetici) dahilisi — Bria bu dahiliye kayitli.
-        $dahili = \App\Personeller::where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
+        $dahili = \App\Personeller::where('yetkili_id', $this->cmAuthId())
             ->where('salon_id', $salonId)->value('dahili_no');
 
         // Santral originate (agent-first, context-free). Numara tarayiciya GITMEZ.
@@ -28254,7 +28254,7 @@ DB::raw('
     public function cagri_yaklasan_randevular(Request $request)
     {
         $salonId = self::mevcutsube($request);
-        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+        $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
 
         $q = AramaListesi::where('salon_id', $salonId);
         if ($rol == 5) {
@@ -28326,7 +28326,7 @@ DB::raw('
     public function cagri_hizli_satis(Request $request)
     {
         $sube = $request->sube;
-        $authUser = Auth::guard('isletmeyonetim')->user();
+        $authUser = $this->cmUser();
         if ($authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $sube, 'satis.tahsilat_al')) {
             return response()->json(['success' => false, 'message' => 'Satış için yetkiniz yok.'], 403);
         }
@@ -28410,7 +28410,7 @@ DB::raw('
     private function cagriListeYetkiliMi($liste)
     {
         if (!$liste) return false;
-        return Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler
+        return $this->cmUser()->yetkili_olunan_isletmeler
             ->where('aktif', 1)->pluck('salon_id')->map(function ($v) { return (int) $v; })
             ->contains((int) $liste->salon_id);
     }
@@ -28505,7 +28505,7 @@ DB::raw('
         }
         // Yetki: salon DOGRUDAN listeden alinir (sube parametresine bagimli degil).
         $salonId = (int) $liste->salon_id;
-        $yetkiliMi = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler
+        $yetkiliMi = $this->cmUser()->yetkili_olunan_isletmeler
             ->where('aktif', 1)->pluck('salon_id')->map(function ($v) { return (int) $v; })->contains($salonId);
         if (!$yetkiliMi) {
             return response()->json(['success' => false, 'message' => 'Bu listeye yetkiniz yok.']);
@@ -28533,7 +28533,7 @@ DB::raw('
         $yeni->arama_baslik = $baslik;
         $yeni->personel_id = $personelId;
         $yeni->aranacak_tarih = null;
-        $yeni->olusturan_yetkili_id = Auth::guard('isletmeyonetim')->user()->id;
+        $yeni->olusturan_yetkili_id = $this->cmAuthId();
         $yeni->durum = 1;
         $yeni->save();
 

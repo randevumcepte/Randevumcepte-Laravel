@@ -471,4 +471,40 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get ('/randevu-icin-uygun/{randevuId}',        'MusteriDakikaPaketController@randevuIcinUygun');
         Route::post('/randevu-icin-kullanim',                 'MusteriDakikaPaketController@randevuIcinKullanim');
     });
+
+    /* ───────── Cagri Merkezi (Call Center) — mobil API ─────────
+     | Web paneldeki cagri merkezi is mantiginin AYNISI; tek fark Bearer (Passport)
+     | guard. Metotlar StoreAdminController'dan miras alinir (CagriMerkeziApiController).
+     | Kimlik (personel/dahili/KVKK rolu) ve click-to-call guvenligi icin auth ZORUNLU.
+     */
+    Route::prefix('cagri-merkezi')->middleware('auth:isletmeyonetim-api')->group(function () {
+        // Arama ekrani (dialer) — personel + yonetici
+        Route::get ('/arama-kartlarim',          'CagriMerkeziApiController@arama_kartlarim');
+        Route::post('/arama-liste-detay',        'CagriMerkeziApiController@arama_liste_detay_getir');
+        Route::post('/arama-baslat',             'CagriMerkeziApiController@arama_baslat');
+        Route::post('/not-ekle',                 'CagriMerkeziApiController@santral_not_ekle');
+        Route::post('/musteri-gecmisi',          'CagriMerkeziApiController@cagri_musteri_gecmisi');
+        Route::get ('/yaklasan-randevular',      'CagriMerkeziApiController@cagri_yaklasan_randevular');
+        Route::post('/ongorusme-bilgi',          'CagriMerkeziApiController@cagri_musteri_ongorusme_bilgi');
+        Route::post('/hizli-satis',              'CagriMerkeziApiController@cagri_hizli_satis');
+
+        // Cagri merkezi dashboard — yonetici
+        Route::get ('/dashboard-verileri',       'CagriMerkeziApiController@arama_dashboard_verileri');
+        Route::post('/dashboard-personel-detay', 'CagriMerkeziApiController@arama_dashboard_personel_detay');
+
+        // Liste yonetimi — yonetici
+        Route::get ('/liste-segmentler',         'CagriMerkeziApiController@cagri_liste_segmentler');
+        Route::post('/segment-ata',              'CagriMerkeziApiController@cagri_segment_ata');
+        Route::post('/liste-personel-degistir',  'CagriMerkeziApiController@cagri_liste_personel_degistir');
+        Route::post('/liste-sil',                'CagriMerkeziApiController@cagri_liste_sil');
+        Route::get ('/personeller',              'CagriMerkeziApiController@arama_personelleri');
+        Route::get ('/listeler',                 'CagriMerkeziApiController@arama_listesi_getir');
+        Route::post('/listeler',                 'CagriMerkeziApiController@arama_listesi_getir');
+        Route::post('/liste-ekle',               'CagriMerkeziApiController@arama_listesi_ekle');
+        Route::post('/filtre-onizleme',          'CagriMerkeziApiController@arama_filtre_onizleme');
+
+        // Referans veriler — script & kategori
+        Route::get ('/scriptler',                'CagriMerkeziApiController@cagri_scriptleri_getir');
+        Route::get ('/kategoriler',              'CagriMerkeziApiController@cagri_kategori_liste');
+    });
 });

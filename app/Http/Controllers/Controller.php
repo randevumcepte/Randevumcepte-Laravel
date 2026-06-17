@@ -2169,6 +2169,29 @@ class Controller extends BaseController
     {
         return DB::table('model_has_roles')->where('model_id',$userId)->where('salon_id',$salonId)->value('role_id');
     }
+
+    /*
+     | Cagri merkezi guard-agnostik kimlik cozumleyiciler.
+     | WEB DAVRANISI DEGISMEZ: once 'isletmeyonetim' (web/session) guard kontrol
+     | edilir, web istegi her zaman bu dala girer ve eski davranisla bire bir ayni
+     | sonuc doner. 'isletmeyonetim-api' (Passport/mobil) guard SADECE web oturumu
+     | yokken devreye girer (mobil uygulama istekleri).
+     */
+    protected function cmGuard()
+    {
+        if (Auth::guard('isletmeyonetim')->check()) return 'isletmeyonetim';
+        if (Auth::guard('isletmeyonetim-api')->check()) return 'isletmeyonetim-api';
+        return 'isletmeyonetim';
+    }
+    protected function cmUser()
+    {
+        return Auth::guard($this->cmGuard())->user();
+    }
+    protected function cmAuthId()
+    {
+        $u = $this->cmUser();
+        return $u ? $u->id : null;
+    }
      
     
     function getFirebaseAccessToken($firebasePath)
