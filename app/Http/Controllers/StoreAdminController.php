@@ -4763,6 +4763,7 @@ private function ayAdiCevir($ingilizceAy)
         return $result;
     }
     public function personelekleduzenle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'personel.ekle_duzenle')) return $r;
         $result = '';
         $swaltitle = '';
         $swalstat  ='';
@@ -5091,6 +5092,7 @@ private function ayAdiCevir($ingilizceAy)
         return $personeller;*/
     }
     public function personelsistemyetkikaldir(Request $request){
+         if($r = self::yetkiYoksa403($request, 'personel.sil')) return $r;
          $yetkili = IsletmeYetkilileri::where('personel_id',$request->personelid)->first();
          $yetkili->delete();
          $personel = Personeller::where('id',$request->personelid)->value('personel_adi');
@@ -6202,6 +6204,7 @@ private function ayAdiCevir($ingilizceAy)
         echo  $sube->id;
     }
       public function yenipersonelgir(Request $request){
+        if($r = self::yetkiYoksa403($request, 'personel.ekle_duzenle')) return $r;
         $personel = new Personeller();
         $personel->personel_adi = $request->personeladi_yeni;
         $personel->cinsiyet = $request->personelcinsiyet_yeni;
@@ -6371,6 +6374,7 @@ private function ayAdiCevir($ingilizceAy)
         echo 'Salon bilgileri başarı ile güncellendi';
     }
        public function personelbilgiguncelle(Request $request,$id){
+        if($r = self::yetkiYoksa403($request, 'personel.ekle_duzenle')) return $r;
         $personel = Personeller::where('id',$id)->first();
         $personel->personel_adi = $request->personeladi;
         $personel->unvan = $request->unvan;
@@ -21821,6 +21825,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function personelsifregonder(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'personel.ekle_duzenle')) return $r;
         $personel = Personeller::where('id',$request->personelid)->first();
         $yetkili = IsletmeYetkilileri::where('id',$personel->yetkili_id)->first();
         $random = str_shuffle('ABCDEFGHJKLMNOPQRSTUVWXYZ1234567890');
@@ -21835,6 +21840,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function personelaktifpasifyap(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'personel.ekle_duzenle')) return $r;
         $yetkili = Personeller::where('id',$request->personelid)->first();
         if(!$yetkili){
             return array('mesaj'=>'Personel bulunamadi','personeller'=>self::personel_liste_getir($request));
@@ -27067,6 +27073,7 @@ DB::raw('
     }
     public function personelArsivle(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'personel.sil')) return $r;
         // Soft archive: personeli "sil" — listeden gizle, ama DB'de kalsin.
         // Iliskili randevu/tahsilat/prim kayitlari zarar gormesin.
         try {
@@ -30710,6 +30717,12 @@ DB::raw('
         if(!in_array(self::mevcutsube($request),$isletmeler)){
             return view('isletmeadmin.yetkisizerisim');
         }
+        // Prim & Hak Edis ekrani: personel.prim_hakedis_gor zorunlu (Sekreter vb. ozel
+        // yetkili hesaplar da dahil; personelmi() sadece rol-5'i engelliyordu).
+        $_primAu = Auth::guard('isletmeyonetim')->user();
+        if($_primAu && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_primAu->id, self::mevcutsube($request), 'personel.prim_hakedis_gor')){
+            return view('isletmeadmin.yetkisizerisim');
+        }
         if(str_contains(self::lisans_sure_kontrol($request),'-')){
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
         }
@@ -30886,6 +30899,7 @@ DB::raw('
 
     public function primHareketEkle(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'personel.odeme_yap')) return $r;
         try{
             $salonId = self::mevcutsube($request);
             $personel = Personeller::where('id',$request->personel_id)->where('salon_id',$salonId)->first();
@@ -30920,6 +30934,7 @@ DB::raw('
 
     public function primHareketSil(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'personel.odeme_yap')) return $r;
         try{
             $salonId = self::mevcutsube($request);
             $hareket = PersonelPrimHareketi::where('id',$request->id)->where('salon_id',$salonId)->first();
@@ -30935,6 +30950,7 @@ DB::raw('
 
     public function primHareketListesi(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'personel.prim_hakedis_gor')) return $r;
         $salonId = self::mevcutsube($request);
         $personelId = (int)$request->personel_id;
         $tarih1 = $request->tarih1 ?: date('Y-m-01');
@@ -30973,6 +30989,7 @@ DB::raw('
 
     public function primOde(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'personel.odeme_yap')) return $r;
         try{
             $salonId = self::mevcutsube($request);
             $personel = Personeller::where('id',$request->personel_id)->where('salon_id',$salonId)->first();
@@ -31052,6 +31069,7 @@ DB::raw('
 
     public function personelPrimDetayi(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'personel.prim_hakedis_gor')) return $r;
         try {
             $salonId = self::mevcutsube($request);
             $personelId = (int)$request->personel_id;
@@ -31192,6 +31210,7 @@ DB::raw('
 
     public function primOdemeListesi(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'personel.prim_hakedis_gor')) return $r;
         $salonId = self::mevcutsube($request);
         $personelId = (int)$request->personel_id;
         $donem = $request->donem ?: date('Y-m');
@@ -31256,6 +31275,7 @@ DB::raw('
 
     public function primOdemeSil(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'personel.odeme_yap')) return $r;
         try{
             $salonId = self::mevcutsube($request);
             $kayit = PersonelMaasOdemesi::where('id',$request->id)->where('salon_id',$salonId)->first();
