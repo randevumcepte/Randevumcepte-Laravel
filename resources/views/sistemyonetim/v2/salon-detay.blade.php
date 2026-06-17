@@ -337,17 +337,37 @@
         </div>
         @endunless
 
-        <!-- Yetkililer -->
+        <!-- Yetkililer / Personel hesaplari -->
         <div class="sy-card">
-            <div class="sy-card-head"><h3><span class="mdi mdi-account-key"></span> İşletme Yetkilileri</h3></div>
+            <div class="sy-card-head"><h3><span class="mdi mdi-account-key"></span> İşletme & Personel Hesapları</h3></div>
             <div class="sy-card-body tight">
                 @forelse($yetkililer as $y)
                     <div style="padding:12px 18px; border-bottom:1px solid var(--sy-border)">
-                        <div class="sy-fw-600">{{ $y->name }} @if($y->is_admin)<span class="sy-badge sy-badge-info">Admin</span>@endif</div>
-                        <div class="sy-text-muted sy-fs-12">{{ $y->email }}</div>
+                        <div class="sy-flex-row" style="justify-content:space-between;align-items:center;gap:10px">
+                            <div style="min-width:0">
+                                <div class="sy-fw-600">
+                                    {{ $y->name }}
+                                    @if($y->is_admin)
+                                        <span class="sy-badge sy-badge-info">Sahip / Admin</span>
+                                    @else
+                                        <span class="sy-badge sy-badge-muted">Personel</span>
+                                    @endif
+                                </div>
+                                <div class="sy-text-muted sy-fs-12">{{ $y->email ?: '—' }}</div>
+                            </div>
+                            <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" style="margin:0;flex-shrink:0"
+                                  onsubmit="return confirm('Bu {{ $y->is_admin ? 'sahip' : 'personel' }} hesabına geçiş yapılacak. Tüm hareketleriniz loglanacaktır. Devam edilsin mi?');">
+                                @csrf
+                                <input type="hidden" name="yetkili_id" value="{{ $y->id }}">
+                                <input type="hidden" name="sebep" value="{{ $y->is_admin ? 'Sahip hesabı girişi' : 'Personel hesabı girişi' }}">
+                                <button type="submit" class="sy-btn sy-btn-sm sy-btn-soft" {{ $salon->askiya_alindi ? 'disabled title=\'Salon askıda\'' : '' }}>
+                                    <span class="mdi mdi-login"></span> Bu hesapla gir
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 @empty
-                    <div class="sy-empty"><div class="baslik">Yetkili yok</div></div>
+                    <div class="sy-empty"><div class="baslik">Hesap yok</div></div>
                 @endforelse
             </div>
         </div>

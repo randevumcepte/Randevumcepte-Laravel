@@ -393,18 +393,36 @@ class PanelController extends Controller
             return redirect()->back()->with('hata', 'Salon askıda — önce aktif edin.');
         }
 
-        // Kanonik: yetkili-salon iliskisi personeller.yetkili_id uzerinden kurulur
         $yetkili = null;
-        $personel = Personeller::where('salon_id', $salonId)
-            ->whereNotNull('yetkili_id')
-            ->orderBy('id', 'asc')
-            ->first();
-        if ($personel) {
-            $yetkili = IsletmeYetkilileri::find($personel->yetkili_id);
+
+        // Belirli bir hesap secildiyse (personel veya sahip): yetkili_id ile gir.
+        // GUVENLIK: secilen hesap mutlaka bu salona bagli olmali.
+        $hedefYetkiliId = $request->get('yetkili_id');
+        if ($hedefYetkiliId) {
+            $bagli = Personeller::where('salon_id', $salonId)->where('yetkili_id', $hedefYetkiliId)->exists()
+                  || IsletmeYetkilileri::where('id', $hedefYetkiliId)->where('salon_id', $salonId)->exists();
+            if (!$bagli) {
+                return redirect()->back()->with('hata', 'Seçilen hesap bu salona bağlı değil.');
+            }
+            $yetkili = IsletmeYetkilileri::find($hedefYetkiliId);
+            if (!$yetkili) {
+                return redirect()->back()->with('hata', 'Seçilen hesap bulunamadı.');
+            }
         }
-        // Legacy fallback: bazi eski salonlarda isletmeyetkilileri.salon_id dolu olabilir
+
+        // Hesap secilmediyse: kanonik olarak salonun ilk yetkili hesabina gir
         if (!$yetkili) {
-            $yetkili = IsletmeYetkilileri::where('salon_id', $salonId)->first();
+            $personel = Personeller::where('salon_id', $salonId)
+                ->whereNotNull('yetkili_id')
+                ->orderBy('id', 'asc')
+                ->first();
+            if ($personel) {
+                $yetkili = IsletmeYetkilileri::find($personel->yetkili_id);
+            }
+            // Legacy fallback: bazi eski salonlarda isletmeyetkilileri.salon_id dolu olabilir
+            if (!$yetkili) {
+                $yetkili = IsletmeYetkilileri::where('salon_id', $salonId)->first();
+            }
         }
         if (!$yetkili) {
             return redirect()->back()->with('hata', 'Bu salona bağlı yetkili-personel kaydı yok. Önce salon detayından yetkili ekleyin.');
@@ -436,6 +454,7 @@ class PanelController extends Controller
         Audit::log('salon_hesabina_gir', 'salon', $salon->id, $salon->salon_adi, $sebep, [
             'yetkili_id'    => $yetkili->id,
             'yetkili_email' => $yetkili->email,
+            'hesap_tipi'    => !empty($yetkili->is_admin) ? 'sahip' : 'personel',
             'ticket_id'     => $ticketId,
         ]);
 
