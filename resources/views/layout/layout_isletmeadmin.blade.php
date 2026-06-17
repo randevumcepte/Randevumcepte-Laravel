@@ -1232,7 +1232,7 @@
                style="padding-left: 10px;"
                >
             </div>
-            @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.detay_gor')  &&  $kalan_uyelik_suresi >= 0)
+            @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.liste_gor')  &&  $kalan_uyelik_suresi >= 0)
             <div class="header-search" >
                <select id="musteri_arama" class="form-control custom-select2" style="width: 100%;">
 
