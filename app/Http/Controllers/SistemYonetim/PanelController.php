@@ -461,7 +461,11 @@ class PanelController extends Controller
         // simdi isletmeyonetim guard'ina giris yap
         Auth::guard('isletmeyonetim')->login($yetkili);
 
-        return redirect('/isletmeyonetim');
+        // ?sube= ile panelin DOGRU salon baglaminda acilmasini garantiye al.
+        // Yetki kontrolu (PersonelYetkiServisi) $isletme->id'ye gore personel
+        // kaydini bulur; salon yanlissa personel bulunamaz ve fail-open ile
+        // tum menuler acilir. sube=salon_id verince personelin yetkileri uygulanir.
+        return redirect('/isletmeyonetim?sube=' . $salon->id);
     }
 
     public function impersonationBitir()
