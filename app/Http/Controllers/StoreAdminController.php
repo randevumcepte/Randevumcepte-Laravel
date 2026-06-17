@@ -9403,6 +9403,7 @@ private function ayAdiCevir($ingilizceAy)
         return PaketHizmetler::where('paket_id',$request->paket_id)->sum('fiyat');
     }
     public function urunsatisiekle(Request $request){
+        if($r = self::satisYetkiYoksa403($request, 'urun.sat')) return $r;
         $adisyon_id = '';
         if(isset($request->adisyon_id)){
             $adisyon_id = $request->adisyon_id;
@@ -9509,6 +9510,7 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function urunadisyondansil(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
 
         $smsDogrulamaVar = SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',23)->value('personel');
         $adisyonurun = AdisyonUrunler::where('id',$request->adisyonurunid)->first();
@@ -9603,7 +9605,7 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function paketadisyondansil(Request $request)
     {
-        
+        if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
 
 
         $smsDogrulamaVar = SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',23)->value('personel');
@@ -10184,6 +10186,7 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function adisyon_hizmet_sil(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
 
         $smsDogrulamaVar = SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',23)->value('personel');
         $hizmet = AdisyonHizmetler::where('id',$request->hizmet_id)->first();
@@ -10255,6 +10258,7 @@ private function ayAdiCevir($ingilizceAy)
 
     public function adisyonhizmetekle(Request $request)
     {
+            if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
             $adisyon_id = '';
             if($request->adisyon_id != '')
             {
@@ -10649,6 +10653,7 @@ private function ayAdiCevir($ingilizceAy)
         return $html;
     }
     public function tahsilatekle(Request $request){
+        if($r = self::satisYetkiYoksa403($request, 'satis.tahsilat_al')) return $r;
         $tahsilat = new Tahsilatlar();
         $tahsilat->adisyon_id = $request->adisyon_id;
         $tahsilat->tutar = str_replace('.','',$request->indirimli_toplam_tahsilat_tutari);
@@ -11097,6 +11102,39 @@ private function ayAdiCevir($ingilizceAy)
      * adisyonlar.harici=1 ile isaretlenir; secilen tarih adisyonlar.tarih'e yazilir,
      * boylece tum finansal raporlar (satis/kasa) o tarihte gosterir.
      */
+    /**
+     * Satis/tahsilat endpoint yetki kontrolu. Verilen yetki anahtari personelde
+     * yoksa 403 JSON response dondurur; yetki varsa (veya yetkili personel degilse)
+     * null doner. Kullanim: if($r=self::satisYetkiYoksa403($request,'satis.tahsilat_al')) return $r;
+     */
+    private function satisYetkiYoksa403(Request $request, $yetkiAnahtari)
+    {
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if ($authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, self::mevcutsube($request), $yetkiAnahtari)) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Bu islem icin yetkiniz yok.'], 403);
+        }
+        return null;
+    }
+
+    /**
+     * Satis Takibi liste/veri endpointleri icin OR-yetki kontrolu — adisyonlar()
+     * sayfa gate'i ile birebir ayni: adisyon_olustur || tahsilat_al || tum_satis_gor.
+     * Ucu de kapaliysa 403 JSON dondurur, aksi halde null.
+     */
+    private function satisListeYetkiYoksa403(Request $request)
+    {
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if (!$authUser) return null;
+        $sube = self::mevcutsube($request);
+        $var = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $sube, 'satis.adisyon_olustur')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $sube, 'satis.tahsilat_al')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $sube, 'satis.tum_satis_gor');
+        if (!$var) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Bu islem icin yetkiniz yok.'], 403);
+        }
+        return null;
+    }
+
     public function hariciTahsilatEkle(Request $request)
     {
         $sube = $request->sube;
@@ -11260,6 +11298,7 @@ private function ayAdiCevir($ingilizceAy)
 
     public function adisyonlistegetir(Request $request)
     {
+        if($r = self::satisListeYetkiYoksa403($request)) return $r;
         $personelFiltre = $request->personel_id;
         // Tum satislari gor yetkisi yoksa sadece kendi satislari
         if (Auth::guard('isletmeyonetim')->check()) {
@@ -11840,6 +11879,7 @@ private function ayAdiCevir($ingilizceAy)
     }
 public function adisyon_filtreli_getir(Request $request)
 {
+    if($r = self::satisListeYetkiYoksa403($request)) return $r;
     $tur = $request->tur ?? 0; // 0: tümü, 1: hizmet, 2: paket, 3: ürün
     $durum = '';
     $personelid = $request->personel_id ?? '';
@@ -11881,6 +11921,7 @@ public function adisyon_filtreli_getir(Request $request)
 
 public function adisyon_filtreli_getir_personel(Request $request)
 {
+    if($r = self::satisListeYetkiYoksa403($request)) return $r;
     $tur = $request->satisturu;
     $tarih1 = $request->yil.'-'.$request->ay.'-01 00:00:00';
     $tarih2 = $request->yil.'-'.$request->ay.'-31 23:59:59';
@@ -12211,6 +12252,7 @@ private function getHizmetDetaylari($hizmetId)
 
     public function satis_filtre(Request $request)
     {
+        if($r = self::satisListeYetkiYoksa403($request)) return $r;
         $adisyonlar = '';
         if($request->tarih1!=''&&$request->tarih2!='')
             $adisyonlar =self::adisyon_yukle($request,'','',date($request->tarih1.' 00:00:00'),date($request->tarih2.' 23:59:59'),'',$request->personel_id);
@@ -13706,6 +13748,7 @@ DB::raw('
         $hareketler->save();
     }
     public function tahsilatkaldir(Request $request){
+        if($r = self::satisYetkiYoksa403($request, 'satis.tahsilat_sil')) return $r;
 
         $islemYapan = Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$request->sube)->first();
         $hesapSahibi = Personeller::where('salon_id',$request->sube)->where('role_id',1)->first();
@@ -14544,7 +14587,7 @@ DB::raw('
         return $bildirimler;
     }
    public function paketsatisekle(Request $request){
-   
+    if($r = self::satisYetkiYoksa403($request, 'paket.sat')) return $r;
     $adisyon_id = '';
     $hizmete_ait_randevu = array();
     $adisyon_duzenleme = false;
@@ -18549,6 +18592,7 @@ DB::raw('
     }
     public function senetekleguncelle(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.senet_olustur')) return $r;
         $adisyon_id = '';
         if(isset($request->adisyon_id)){
             $adisyon_id = Adisyonlar::where('id',$request->adisyon_id)->first();
@@ -18740,6 +18784,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function taksitekleguncelle(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.senet_olustur')) return $r;
         if(isset($request->senet_vade_id))
             foreach($request->senet_vade_id as $senetvadesi)
                 Alacaklar::where('senet_vade_id',$request->senetvadesi)->delete();
@@ -22452,6 +22497,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
   }
   public function adisyon_sil(Request $request)
    {
+            if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_sil')) return $r;
             // Audit (silmeden once kayit al)
             $_audit_adisyon = Adisyonlar::where('id',$request->adisyon_id)->first();
             if ($_audit_adisyon) {
@@ -23084,6 +23130,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return $request->urun_satis_musteri_id.'/'.$adisyon_id.'/?sube='.self::mevcutsube($request);;
     }
     public function musteriindirim_kaydet(Request $request){
+        if($r = self::satisYetkiYoksa403($request, 'satis.indirim_uygula')) return $r;
         $isletme=Salonlar::where('id',$request->sube)->first();
         $_eski = ['sadik'=>$isletme->sadik_musteri_indirim_yuzde, 'aktif'=>$isletme->aktif_musteri_indirim_yuzde];
         if(isset($request->sadik_acikkapali)){
@@ -23106,6 +23153,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function hizmettahsilattutaridegistir(Request $request)
     {
+         if($r = self::satisYetkiYoksa403($request, 'satis.indirim_uygula')) return $r;
          $adisyon_hizmet = AdisyonHizmetler::where('id',$request->adisyonhizmetid)->first();
          $_eskifiyat = $adisyon_hizmet->fiyat;
          $tahsilEdilen = TahsilatHizmetler::where('adisyon_hizmet_id',$adisyon_hizmet->id)->sum('tutar');
@@ -23121,6 +23169,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function uruntahsilattutaridegistir(Request $request)
     {
+         if($r = self::satisYetkiYoksa403($request, 'satis.indirim_uygula')) return $r;
          $adisyon_urun = AdisyonUrunler::where('id',$request->adisyonurunid)->first();
          $_eskifiyat = $adisyon_urun->fiyat;
          $tahsilEdilen = TahsilatUrunler::where('adisyon_urun_id',$adisyon_urun->id)->sum('tutar');
@@ -23162,6 +23211,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function pakettahsilattutaridegistir(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.indirim_uygula')) return $r;
         $adisyon_paket = AdisyonPaketler::where('id',$request->adisyonpaketid)->first();
         $_eskifiyat = $adisyon_paket->fiyat;
         $tahsilEdilen = TahsilatPaketler::where('adisyon_paket_id',$adisyon_paket->id)->sum('tutar');
@@ -23176,6 +23226,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function hizmet_hediye_isle(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.hediye_isle')) return $r;
         $adisyon_hizmet = AdisyonHizmetler::where('id',$request->adisyonhizmetid)->first();
         $adisyon_hizmet->fiyat = 0;
         $musteri_id = Adisyonlar::where('id',$adisyon_hizmet->adisyon_id)->value('user_id');
@@ -23185,6 +23236,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function hizmet_hediye_kaldir(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.hediye_isle')) return $r;
         $adisyon_hizmet = AdisyonHizmetler::where('id',$request->adisyonhizmetid)->first();
         $adisyon_hizmet->fiyat = SalonHizmetler::where('hizmet_id',$adisyon_hizmet->hizmet_id)->value('baslangic_fiyat');
         $musteri_id = Adisyonlar::where('id',$adisyon_hizmet->adisyon_id)->value('user_id');
@@ -23194,6 +23246,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function urun_hediye_isle(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.hediye_isle')) return $r;
         $adisyon_urun = AdisyonUrunler::where('id',$request->adisyonurunid)->first();
         $adisyon_urun->fiyat = 0;
         $musteri_id = Adisyonlar::where('id',$adisyon_urun->adisyon_id)->value('user_id');
@@ -23203,6 +23256,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function urun_hediye_kaldir(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.hediye_isle')) return $r;
         $adisyon_urun = AdisyonUrunler::where('id',$request->adisyonurunid)->first();
         $adisyon_urun->fiyat = $adisyon_urun->urun->fiyat * $request->adet;
         $musteri_id = Adisyonlar::where('id',$adisyon_urun->adisyon_id)->value('user_id');
@@ -23212,6 +23266,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function paket_hediye_isle(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.hediye_isle')) return $r;
         $adisyon_paket = AdisyonPaketler::where('id',$request->adisyonpaketid)->first();
         $adisyon_paket->fiyat = 0;
         $musteri_id = Adisyonlar::where('id',$adisyon_paket->adisyon_id)->value('user_id');
@@ -23221,6 +23276,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function paket_hediye_kaldir(Request $request)
     {
+        if($r = self::satisYetkiYoksa403($request, 'satis.hediye_isle')) return $r;
         $adisyon_paket = AdisyonPaketler::where('id',$request->adisyonpaketid)->first();
         $adisyon_paket->fiyat = PaketHizmetler::where('paket_id',$adisyon_paket->paket_id)->sum('fiyat');
         $musteri_id = Adisyonlar::where('id',$adisyon_paket->adisyon_id)->value('user_id');
