@@ -11980,15 +11980,16 @@ public function personel_listesi_getir(Request $request)
         ->when($customerFilter, function($q) use ($customerFilter) {
             return $q->where([$customerFilter]);
         })
+        ->where('adisyon_paketler.seans_sayisi', '>', 0)
         ->count();
-        
+
     $totalRecords += DB::table('adisyon_hizmetler')
         ->leftJoin('adisyonlar', 'adisyon_hizmetler.adisyon_id', '=', 'adisyonlar.id')
         ->where($commonConditions)
         ->when($customerFilter, function($q) use ($customerFilter) {
             return $q->where([$customerFilter]);
         })
-        ->whereNotNull('adisyon_hizmetler.seans_sayisi')
+        ->where('adisyon_hizmetler.seans_sayisi', '>', 0)
         ->count();
 
     // ANA SORGU - sayfalama ile
@@ -12022,7 +12023,8 @@ public function personel_listesi_getir(Request $request)
                      ->orWhere('users.cep_telefon', 'like', '%'.$searchValue.'%')
                      ->orWhere('paketler.paket_adi', 'like', '%'.$searchValue.'%');
             });
-        });
+        })
+        ->where('adisyon_paketler.seans_sayisi', '>', 0);
 
     $hizmetlerQuery = DB::table('adisyon_hizmetler')
         ->leftJoin('adisyonlar', 'adisyon_hizmetler.adisyon_id', '=', 'adisyonlar.id')
@@ -12055,7 +12057,7 @@ public function personel_listesi_getir(Request $request)
                      ->orWhere('hizmetler.hizmet_adi', 'like', '%'.$searchValue.'%');
             });
         })
-        ->whereNotNull('adisyon_hizmetler.seans_sayisi');
+        ->where('adisyon_hizmetler.seans_sayisi', '>', 0);
 
     // Sayfalama ile sonuç - en son satıştan ilk satışa
     $sonuc = $paketlerQuery->union($hizmetlerQuery)
