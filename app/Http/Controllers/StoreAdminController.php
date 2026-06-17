@@ -282,6 +282,7 @@ class StoreAdminController extends Controller
     // Çarkıfelek dilim ekleme/güncelleme fonksiyonu
 public function carkdilimekle(Request $request)
 {
+    if($r = self::yetkiYoksa403($request, 'pazarlama.cark_yonet')) return $r;
     try {
         $salon_id = $request->input('sube', self::mevcutsube($request));
         
@@ -666,6 +667,7 @@ public function carkverilerigetir(Request $request)
      */
     public function carkHatirlatmaKaydet(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'pazarlama.cark_yonet')) return $r;
         $this->carkHatirlatmaTabloGaranti();
         $salon_id = self::mevcutsube($request);
         $a = CarkHatirlatmaAyarlari::firstOrNew(['salon_id' => $salon_id]);
@@ -7623,6 +7625,7 @@ private function ayAdiCevir($ingilizceAy)
         );
     }
     public function toplusmsgonderme(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.toplu_sms')) return $r;
 
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
 
@@ -14177,6 +14180,7 @@ DB::raw('
         );
     }
     public function hatirlatmasmsgonder(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.sms_gonder')) return $r;
         $ongorusmeler = OnGorusmeler::whereIn('id',$request->on_gorusme_bilgi)->get();
         $mesajlar = array();
         foreach($ongorusmeler as $ongorusme)
@@ -19239,6 +19243,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function kampanyaekleduzenle(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'pazarlama.kampanya_yonet')) return $r;
         $gonder = "";
         $kampanya_yonetimi = "";
         $_yeniKampanya = false;
@@ -19409,6 +19414,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         );
     }
     public function kampanya_sil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.kampanya_yonet')) return $r;
         $_audit_kampanyaAdi = KampanyaYonetimi::where('id',$request->kampanya_id)->value('paket_isim');
         $_audit_salonId = KampanyaYonetimi::where('id',$request->kampanya_id)->value('salon_id') ?: self::mevcutsube($request);
         KampanyaYonetimi::where('id',$request->kampanya_id)->update(['aktifmi'=>false]);
@@ -20537,6 +20543,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     
     public function grupsmsgonderme(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.toplu_sms')) return $r;
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
         $isletmeId = $isletme->id;
         $gsm = array();
@@ -20705,6 +20712,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
       return $musterihtml;
     }
      public function filtrelismsgonder(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.toplu_sms')) return $r;
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
         $gsm = array();
         $mesajlar=array();
@@ -21497,6 +21505,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
      */
     public function musterimanuelwhatsappgonder(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'pazarlama.whatsapp_gonder')) return $r;
         $salonId = self::mevcutsube($request);
         $isletme = Salonlar::where('id',$salonId)->first();
         if(!$isletme){
@@ -23406,6 +23415,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
 
         if (!in_array(self::mevcutsube($request), $isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        // WhatsApp ekrani: pazarlama.whatsapp_gonder zorunlu
+        $_waAu = Auth::guard('isletmeyonetim')->user();
+        if($_waAu && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_waAu->id, self::mevcutsube($request), 'pazarlama.whatsapp_gonder')){
             return view('isletmeadmin.yetkisizerisim');
         }
 
@@ -30200,6 +30214,7 @@ DB::raw('
     }
 
     public function anketSablonKaydet(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.anket_yonet')) return $r;
         try {
             $sube = self::mevcutsube($request);
             $sablon = new AnketSablon();
@@ -30228,6 +30243,7 @@ DB::raw('
     }
 
     public function anketSablonGuncelle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.anket_yonet')) return $r;
         try {
             $sube = self::mevcutsube($request);
             $sablon = AnketSablon::where('id',$request->sablon_id)->where('salon_id',$sube)->first();
@@ -30258,6 +30274,7 @@ DB::raw('
     }
 
     public function anketSablonSil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.anket_yonet')) return $r;
         try {
             $sube = self::mevcutsube($request);
             $sablon = AnketSablon::where('id',$request->sablon_id)->where('salon_id',$sube)->first();
@@ -30285,6 +30302,7 @@ DB::raw('
     }
 
     public function anketManuelGonder(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.anket_yonet')) return $r;
         try {
             $sube = self::mevcutsube($request);
             $userId = (int) $request->user_id;

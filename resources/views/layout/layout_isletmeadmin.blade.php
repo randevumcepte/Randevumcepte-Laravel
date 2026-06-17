@@ -2032,7 +2032,7 @@
                   {{-- 19) WhatsApp (sadece uyelik_turu == 3) --}}
                   @if($isletme->uyelik_turu == 3)
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(!in_array(5, $_layoutRoller))
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.whatsapp_gonder'))
                   <li>
                      @if($pageindex==65)
                      <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
