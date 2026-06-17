@@ -8936,6 +8936,29 @@ private function ayAdiCevir($ingilizceAy)
             return response()->json(['status' => 'error', 'mesaj' => 'Bu isletme icin yetkiniz yok'], 403);
         }
 
+        // Yazma aksiyonlari icin aksiyona ozel yetki kontrolu (her aksiyon kendi anahtarina).
+        // Okuma aksiyonlari (ozet/listeler/raporlar) sayfa gate'ine birakildi.
+        $_stokYetkiHaritasi = [
+            'alis-girisi'      => 'urun.stok_giris',
+            'transfer'         => 'urun.stok_giris',
+            'manuel-hareket'   => 'urun.stok_giris',
+            'sayim'            => 'urun.stok_sayim',
+            'tedarikci-kaydet' => 'urun.tedarikci_yonet',
+            'tedarikci-sil'    => 'urun.tedarikci_yonet',
+            'urun-kaydet'      => 'urun.tanim_olustur',
+            'urun-sil'         => 'urun.tanim_olustur',
+            'kategori-kaydet'  => 'urun.tanim_olustur',
+            'kategori-sil'     => 'urun.tanim_olustur',
+            'depo-kaydet'      => 'urun.tanim_olustur',
+            'depo-sil'         => 'urun.tanim_olustur',
+            'recete-kaydet'    => 'urun.tanim_olustur',
+            'recete-sil'       => 'urun.tanim_olustur',
+            'hizli-satis'      => 'urun.sat',
+        ];
+        if (isset($_stokYetkiHaritasi[$action]) && ($r = self::yetkiYoksa403($request, $_stokYetkiHaritasi[$action]))) {
+            return $r;
+        }
+
         $stok = new StokController();
 
         switch ($action) {
@@ -8970,6 +8993,7 @@ private function ayAdiCevir($ingilizceAy)
         }
     }
     public function urun_ekle_guncelle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'urun.tanim_olustur')) return $r;
         $yeni = false;
         $_eski_urun_snap = null;
         if($request->urun_id == 0){
@@ -9029,6 +9053,7 @@ private function ayAdiCevir($ingilizceAy)
         return self::urun_liste_getir($request,$returntext);
     }
     public function paket_ekle_guncelle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'paket.tanim_olustur')) return $r;
         $paket="";
         $returntext="";
         $_yeni_paket = false;
@@ -9235,6 +9260,7 @@ private function ayAdiCevir($ingilizceAy)
          
     }
     public function paket_sil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'paket.tanim_olustur')) return $r;
         $paket = Paketler::where('id',$request->paket_id)->first();
         $paket->aktif = false;
         $paket->save();
@@ -9245,6 +9271,7 @@ private function ayAdiCevir($ingilizceAy)
         return self::paket_liste_getir("Paket başarıyla kaldırıldı",false,$request);
     }
     public function salonhizmetsil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'hizmet.tanim_olustur')) return $r;
         $sunulan_hizmet = SalonHizmetler::where('id',$request->sunulan_hizmet_id)->first();
         $sunulan_hizmet->aktif = false;
         $sunulan_hizmet->save();
@@ -9257,6 +9284,7 @@ private function ayAdiCevir($ingilizceAy)
         return self::hizmet_liste_getir($request,"Hizmet başarıyla kaldırıldı",$secilmeyenhizmetler);
     }
     public function urun_sil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'urun.tanim_olustur')) return $r;
         $urun = Urunler::where('id',$request->urun_id)->first();
         $urun->aktif = false;
         $urun->save();
@@ -16971,6 +16999,7 @@ DB::raw('
         return null;
     }
     public function sistemeyenihizmetekle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'hizmet.tanim_olustur')) return $r;
         $yenihizmet = new Hizmetler();
         $yenihizmet->hizmet_kategori_id = $request->hizmet_kategorisi;
         $yenihizmet->hizmet_adi = $request->hizmet_adi;
@@ -29845,6 +29874,7 @@ DB::raw('
     }
 
     public function hizmetYonetimiGuncelle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'hizmet.tanim_olustur')) return $r;
         $isletmeid = self::mevcutsube($request);
         $sh = SalonHizmetler::where('id',$request->salon_hizmet_id)->where('salon_id',$isletmeid)->first();
         if(!$sh) return response()->json(['status'=>'error','message'=>'Hizmet bulunamadı']);
@@ -29919,6 +29949,7 @@ DB::raw('
     }
 
     public function hizmetKategoriEkle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'hizmet.kategori_yonet')) return $r;
         $kategori = new Hizmet_Kategorisi();
         $kategori->hizmet_kategorisi_adi = $request->kategori_adi;
         $kategori->save();
@@ -29930,6 +29961,7 @@ DB::raw('
     }
 
     public function hizmetKategoriSil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'hizmet.kategori_yonet')) return $r;
         $isletmeid = self::mevcutsube($request);
         $kategori_hizmetler = SalonHizmetler::where('salon_id',$isletmeid)->where('hizmet_kategori_id',$request->kategori_id)->where('aktif',1)->count();
         if($kategori_hizmetler > 0){
