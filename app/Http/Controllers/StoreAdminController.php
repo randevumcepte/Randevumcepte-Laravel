@@ -5302,6 +5302,7 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function randevuguncelle(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
         $randevu_tarihleri = array();
         array_push($randevu_tarihleri, $request->tarih);
         $cakisma_varmi = '';
@@ -5670,6 +5671,7 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function randevu_resize_drop(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
 
         $randevu_eski = Randevular::where('id',$request->randevu_id)->first();
         $baslangic = explode('T',$request->start);
@@ -5854,6 +5856,7 @@ private function ayAdiCevir($ingilizceAy)
         return 'Randevu başarıyla güncellendi';
     }
     public function randevuiptalet(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
 
         $randevu = Randevular::where('id',$request->randevuid)->first();
          
@@ -6499,6 +6502,7 @@ private function ayAdiCevir($ingilizceAy)
       echo $personelsechtml;
     }
        public function yenirandevuekle(Request $request){
+    if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
     try {
     // Debug log: gelen istegi izle (hizli paket randevu hatalarini cozmek icin)
     \Log::info('[yenirandevuekle] istek', [
@@ -8474,6 +8478,7 @@ private function ayAdiCevir($ingilizceAy)
          echo 'Sağlık bilgileri başarıyla kaydedildi / güncellendi';
     }
     public function randevu_sil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
         $randevu_hizmetler = RandevuHizmetler::where('randevu_id',$request->randevuid)->get();
         foreach($randevu_hizmetler as $randevu_hizmet)
             $randevu_hizmet->delete();
@@ -11103,9 +11108,21 @@ private function ayAdiCevir($ingilizceAy)
      * boylece tum finansal raporlar (satis/kasa) o tarihte gosterir.
      */
     /**
-     * Satis/tahsilat endpoint yetki kontrolu. Verilen yetki anahtari personelde
-     * yoksa 403 JSON response dondurur; yetki varsa (veya yetkili personel degilse)
-     * null doner. Kullanim: if($r=self::satisYetkiYoksa403($request,'satis.tahsilat_al')) return $r;
+     * Genel endpoint yetki kontrolu. Verilen yetki anahtari giris yapan kullanicida
+     * yoksa 403 JSON response dondurur; yetki varsa (veya kisitlamaya tabi degilse)
+     * null doner. Tum modullerde kullanim: if($r=self::yetkiYoksa403($request,'musteri.sil')) return $r;
+     */
+    private function yetkiYoksa403(Request $request, $yetkiAnahtari)
+    {
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if ($authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, self::mevcutsube($request), $yetkiAnahtari)) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Bu islem icin yetkiniz yok.'], 403);
+        }
+        return null;
+    }
+
+    /**
+     * Satis/tahsilat endpoint yetki kontrolu (geriye uyumluluk icin; yetkiYoksa403'e delege).
      */
     private function satisYetkiYoksa403(Request $request, $yetkiAnahtari)
     {
@@ -16717,6 +16734,7 @@ DB::raw('
     }
     public function randevuayarguncelle(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'randevu.online_ayar')) return $r;
         $isletme = Salonlar::where('id',$request->salon_id)->first();
         $isletme->randevu_saat_araligi=$request->randevu_saat_araligi;
         $isletme->randevu_takvim_turu = $request->randevu_takvim_turu;
