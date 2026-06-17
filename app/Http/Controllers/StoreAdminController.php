@@ -13996,6 +13996,7 @@ DB::raw('
     }
     public function ongorusmeekleduzenle(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'gorusme.ekle_duzenle')) return $r;
         // Self-heal: migration kosulmadiysa gorusme_konusu kolonunu burada ekle
         if (!\Schema::hasColumn('on_gorusmeler', 'gorusme_konusu')) {
             try {
@@ -24814,6 +24815,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
+        // Form/sozlesme gonderme ekrani: form.gonder zorunlu (Sekreter vb. ozel yetkili dahil)
+        $_fgAu = Auth::guard('isletmeyonetim')->user();
+        if($_fgAu && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_fgAu->id, self::mevcutsube($request), 'form.gonder')){
+            return view('isletmeadmin.yetkisizerisim');
+        }
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
@@ -24826,7 +24832,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     exit(0);
             }
         }
-       
+
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
@@ -30691,6 +30697,7 @@ DB::raw('
     }
 
     public function sozlesmeOlustur(Request $request){
+        if($r = self::yetkiYoksa403($request, 'form.gonder')) return $r;
         try {
             $this->dinamikFormKolonlariOlustur();
             $sube = self::mevcutsube($request);

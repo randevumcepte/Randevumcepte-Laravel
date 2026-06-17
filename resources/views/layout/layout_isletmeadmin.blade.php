@@ -1671,6 +1671,7 @@
                   @endif
 
                   {{-- 4) Ön Görüşmeler --}}
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'gorusme.liste_gor'))
                   <li>
                      @if($pageindex==12)
                      <a href="/isletmeyonetim/ongorusmeler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1681,6 +1682,7 @@
                         ><span class="mtext"> Ön Görüşmeler</span>
                      </a>
                   </li>
+                  @endif
 
                   {{-- 5) Randevular --}}
                   <li>
