@@ -21,6 +21,25 @@ class Kernel extends HttpKernel
     ];
 
     /**
+     * The priority-sorted list of middleware.
+     *
+     * Framework default'unun aynisi; tek fark: guard'a duyarli kendi
+     * AuthenticateSession'imiz framework'unkinin yerine (Authenticate'ten
+     * sonra) calissin diye. Boylece auth:<guard> default guard'i set ettikten
+     * SONRA hash kontrolu dogru guard icin yapilir.
+     *
+     * @var array
+     */
+    protected $middlewarePriority = [
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Auth\Middleware\Authenticate::class,
+        \App\Http\Middleware\AuthenticateSession::class,
+        \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        \Illuminate\Auth\Middleware\Authorize::class,
+    ];
+
+    /**
      * The application's route middleware groups.
      *
      * @var array
@@ -35,9 +54,9 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-             \Illuminate\Session\Middleware\AuthenticateSession::class,
+             \App\Http\Middleware\AuthenticateSession::class,
              \HTMLMin\HTMLMin\Http\Middleware\MinifyMiddleware::class,
-         
+
         ],
         'isletmeyonetim' => [
              \App\Http\Middleware\EncryptCookies::class,
@@ -47,9 +66,9 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \Illuminate\Session\Middleware\AuthenticateSession::class,
+            \App\Http\Middleware\AuthenticateSession::class,
             \HTMLMin\HTMLMin\Http\Middleware\MinifyMiddleware::class,
-  
+
         ],
         'api' => [
             'throttle:60,1',
