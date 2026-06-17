@@ -86,28 +86,34 @@ class PersonelYetkiServisi
         self::tabloyuHazirla();
         if (!$personelId || !$salonId) return true; // bilinmiyorsa engelleme
 
-        // 1. Personel rolu degilse → tam yetki (sonucu cache'le)
         $roluKey = $personelId.'|'.$salonId;
-        if (!array_key_exists($roluKey, self::$_personelRoluCache)) {
-            self::$_personelRoluCache[$roluKey] = self::personelRolundeMi($personelId, $salonId);
-        }
-        if (!self::$_personelRoluCache[$roluKey]) {
-            return true;
-        }
 
-        // 2. Yetki ayar kaydi (personel+salon basina tek query)
+        // Ozel yetki kaydi (personel+salon basina tek query, request boyunca cache'li).
+        // null = kayit yok. ONEMLI: Kayit VARSA rolden BAGIMSIZ uygulanir — boylece
+        // hesap turu "Sekreter/Yonetici" olsa bile ozel yetkilendirme/kisitlamalari
+        // gecerli olur. Kayit YOKSA eski rol-bazli davranis (Personel disi rol = tam yetki).
         if (!array_key_exists($roluKey, self::$_ayarlarCache)) {
             $ayar = PersonelYetkiAyari::where('personel_id', $personelId)
                 ->where('salon_id', $salonId)
                 ->first();
-            if ($ayar && is_array($ayar->ayarlar)) {
-                self::$_ayarlarCache[$roluKey] = $ayar->ayarlar;
-            } else {
-                // Default: personel (sade)
-                self::$_ayarlarCache[$roluKey] = PersonelYetkiSabitleri::sablonAyarlari('personel');
-            }
+            self::$_ayarlarCache[$roluKey] = ($ayar && is_array($ayar->ayarlar)) ? $ayar->ayarlar : null;
         }
-        $ayarlar = self::$_ayarlarCache[$roluKey];
+        $ozelAyar = self::$_ayarlarCache[$roluKey];
+
+        if ($ozelAyar === null) {
+            // 1. Ozel kayit yok → rol bazli: Personel rolu (role_id=5) degilse tam yetki.
+            if (!array_key_exists($roluKey, self::$_personelRoluCache)) {
+                self::$_personelRoluCache[$roluKey] = self::personelRolundeMi($personelId, $salonId);
+            }
+            if (!self::$_personelRoluCache[$roluKey]) {
+                return true;
+            }
+            // Personel rolu + kayit yok → sade sablon default'u
+            $ayarlar = PersonelYetkiSabitleri::sablonAyarlari('personel');
+        } else {
+            // 2. Ozel yetki kaydi var → rolden bagimsiz bu kaydi uygula
+            $ayarlar = $ozelAyar;
+        }
 
         // Anahtar tabloda yoksa default sade'den al
         if (!array_key_exists($key, $ayarlar)) {
@@ -116,6 +122,35 @@ class PersonelYetkiServisi
         }
 
         return (bool)$ayarlar[$key];
+    }
+
+    /**
+     * Kullanici bu salonda yetki KISITLAMASINA tabi mi?
+     * Evet (true) ise: ya Personel rolunde (role_id=5) YA DA ozel yetki kaydi var
+     * (Sekreter vb. ozel yetkilendirilmis roller). Hayir ise: salon sahibi/yonetici
+     * gibi kayitsiz rol → kisitlama yok, tam yetki.
+     */
+    public static function kisitlamayaTabiMi($yetkiliId, $salonId): bool
+    {
+        if (!$yetkiliId || !$salonId) return false;
+
+        // Personel rolu (role_id=5) → her zaman kisitlamaya tabi
+        $personelRolunde = DB::table('model_has_roles')
+            ->where('role_id', 5)
+            ->where('model_id', $yetkiliId)
+            ->where('salon_id', $salonId)
+            ->exists();
+        if ($personelRolunde) return true;
+
+        // Personel rolu degil → sadece ozel yetki kaydi varsa tabi (Sekreter vb.)
+        self::tabloyuHazirla();
+        $personelId = Personeller::where('yetkili_id', $yetkiliId)
+            ->where('salon_id', $salonId)
+            ->value('id');
+        if (!$personelId) return false;
+        return PersonelYetkiAyari::where('personel_id', $personelId)
+            ->where('salon_id', $salonId)
+            ->exists();
     }
 
     /**
@@ -183,15 +218,9 @@ class PersonelYetkiServisi
             return false;
         }
 
-        // 1. Personel rolunde mi (role_id 5)?
-        $personelRolunde = DB::table('model_has_roles')
-            ->where('role_id', 5)
-            ->where('model_id', $user->id)
-            ->where('salon_id', $salonId)
-            ->exists();
-
-        if (!$personelRolunde) {
-            return false; // Personel rolu degil → kisitlama yok
+        // 1. Kisitlamaya tabi mi? (Personel rolu VEYA ozel yetki kayitli Sekreter vb.)
+        if (!self::kisitlamayaTabiMi($user->id, $salonId)) {
+            return false; // kayitsiz rol (sahip/yonetici) → kisitlama yok
         }
 
         // 2. Yetki kontrolu — yetki varsa kisitlama yok, yoksa kisitla
@@ -208,12 +237,8 @@ class PersonelYetkiServisi
         if (!$user) return false;
         $salonId = $request->sube ?? $request->salon_id ?? null;
         if (!$salonId) return false;
-        $personelRolunde = DB::table('model_has_roles')
-            ->where('role_id', 5)
-            ->where('model_id', $user->id)
-            ->where('salon_id', $salonId)
-            ->exists();
-        if (!$personelRolunde) return false;
+        // Personel rolu VEYA ozel yetki kayitli (Sekreter vb.) → kisitlamaya tabi
+        if (!self::kisitlamayaTabiMi($user->id, $salonId)) return false;
         return !self::yetkiliYetkiVar($user->id, $salonId, $bypassYetki);
     }
 
@@ -238,12 +263,8 @@ class PersonelYetkiServisi
     ) {
         $user = \Auth::guard($guard)->user();
         if (!$user || !$salonId) return null;
-        $personelRolunde = DB::table('model_has_roles')
-            ->where('role_id', 5)
-            ->where('model_id', $user->id)
-            ->where('salon_id', $salonId)
-            ->exists();
-        if (!$personelRolunde) return null;
+        // Personel rolu VEYA ozel yetki kayitli (Sekreter vb.) → kisitlamaya tabi
+        if (!self::kisitlamayaTabiMi($user->id, $salonId)) return null;
         if (self::yetkiliYetkiVar($user->id, $salonId, $bypassYetki)) return null;
         return Personeller::where('yetkili_id', $user->id)
             ->where('salon_id', $salonId)
