@@ -5255,6 +5255,7 @@ private function ayAdiCevir($ingilizceAy)
         echo "Başarılı";
     }
      public function isletmekapakresimyukle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.salon_bilgi')) return $r;
         $salon = Salonlar::where('id',$request->sube)->first();
         $folderPath = '/home/webfirma/randevumcepteweb2/public/salon_gorselleri/';
         $image_parts = explode(";base64,", $request->kapakresmi);
@@ -5276,6 +5277,7 @@ private function ayAdiCevir($ingilizceAy)
         echo "Başarılı";
     }
       public function isletmelogoyukle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.salon_bilgi')) return $r;
         $salon = Salonlar::where('id',$request->sube)->first();
          if(isset($_FILES["isletmelogo"]["name"])){
               $dosya  = $request->isletmelogo;
@@ -6176,6 +6178,7 @@ private function ayAdiCevir($ingilizceAy)
             ['eski'=>$_eski, 'yeni'=>['name'=>$user->name,'email'=>$user->email,'gsm1'=>$user->gsm1], 'sifre_degisti'=>($request->password != "")]);
     }
     public function yenisubeekle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.sube_yonet')) return $r;
         $sube = new Subeler();
         $sube->sube = $request->subeadi;
         $sube->adres = $request->subeadres;
@@ -6199,6 +6202,7 @@ private function ayAdiCevir($ingilizceAy)
         echo $sube_html;
     }
      public function subepasifet(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.sube_yonet')) return $r;
         $sube = Subeler::where('id',$request->subeid)->first();
         $sube->aktif = false;
         $sube->save();
@@ -6209,6 +6213,7 @@ private function ayAdiCevir($ingilizceAy)
         echo  $sube->id;
     }
     public function subeaktifet(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.sube_yonet')) return $r;
         $sube = Subeler::where('id',$request->subeid)->first();
         $sube->aktif = true;
         $sube->save();
@@ -10133,6 +10138,7 @@ private function ayAdiCevir($ingilizceAy)
 
 
     public function calismasaatleriduzenle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.salon_bilgi')) return $r;
         $saloncalismasaatlerieski = SalonCalismaSaatleri::where('salon_id',self::mevcutsube($request))->delete();
         $salonmolasaaterieski = SalonMolaSaatleri::where('salon_id',self::mevcutsube($request))->delete();
         for($i=1;$i<=7;$i++){
@@ -10202,6 +10208,7 @@ private function ayAdiCevir($ingilizceAy)
         return "Çalışma saatleri başarıyla kaydedildi";
     }
     public function isletmebilgiguncelle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.salon_bilgi')) return $r;
         $isletme = Salonlar::where('id',$request->sube)->first();
         $eski = [
             'salon_adi' => $isletme->salon_adi,
@@ -17394,6 +17401,7 @@ DB::raw('
     );
     }
      public function cihazekleduzenle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.cihaz_oda_yonet')) return $r;
         $cihazlar = new Cihazlar();
         $returntext="";
         $cihazlar->salon_id = $request->sube;
@@ -17505,6 +17513,7 @@ DB::raw('
         return self::cihaz_liste_getir($request,$returntext);
     }
     public function odaekleduzenle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.cihaz_oda_yonet')) return $r;
         $enSonOda = Odalar::where('salon_id',$request->sube)->where('aktifmi',1)->orderBy('takvim_sirasi','desc')->first();
 
         $odalar = "";
@@ -17783,6 +17792,7 @@ DB::raw('
         );
     }
     public function oda_sil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.cihaz_oda_yonet')) return $r;
         $oda = Odalar::where('id',$request->oda_id)->first();
         $oda->aktifmi = false;
         $silinen_sira = $oda->takvim_sirasi;
@@ -17801,6 +17811,7 @@ DB::raw('
         return self::oda_liste_getir($request,"Oda başarıyla kaldırıldı");
     }
     public function cihaz_sil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'ayar.cihaz_oda_yonet')) return $r;
         $cihaz = Cihazlar::where('id',$request->cihaz_id)->first();
         Cihazlar::where('id',$request->cihaz_id)->update(['aktifmi'=>false]);
         SalonCihazRenkleri::where('cihaz_id',$request->cihaz_id)->delete();
@@ -22017,6 +22028,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function isletmegorselekle(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'ayar.salon_bilgi')) return $r;
         if(isset($_FILES["isletmegorselleri"]["name"])){
             $mevcutSayi = SalonGorselleri::where('salon_id',$request->sube)->where('kapak_fotografi','!=',1)->count();
             $kalanSlot = max(0, 12 - $mevcutSayi);
