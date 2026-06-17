@@ -1881,6 +1881,11 @@
 
                   {{-- 15) Satış Takibi --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
+                  @if(
+                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.adisyon_olustur') ||
+                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.tahsilat_al') ||
+                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.tum_satis_gor')
+                  )
                   <li>
                      @if($pageindex==11 || $pageindex==111)
                      <a href="/isletmeyonetim/adisyonlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1893,6 +1898,7 @@
                      </span>
                      </a>
                   </li>
+                  @endif
                   {{-- Modern Tahsilat (BETA) — simdilik gizli, ileride acilacak.
                   <li>
                      @if($pageindex==1111 || $pageindex==1112)
