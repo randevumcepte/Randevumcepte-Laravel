@@ -1396,6 +1396,12 @@ public function carkverilerigetir(Request $request)
         {
             return view('isletmeadmin.yetkisizerisim');
         }
+        // Isletme Raporlari: rapor.satis zorunlu (menu ile ayni; Sekreter vb. ozel
+        // yetkili hesaplar da dahil — personelmi() sadece rol-5'i engelliyordu).
+        $_rapAu = Auth::guard('isletmeyonetim')->user();
+        if($_rapAu && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_rapAu->id, self::mevcutsube($request), 'rapor.satis')){
+            return view('isletmeadmin.yetkisizerisim');
+        }
         if(str_contains(self::lisans_sure_kontrol($request),'-'))
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
@@ -1444,6 +1450,7 @@ public function carkverilerigetir(Request $request)
 
     public function isletmeRaporlariOzet(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'rapor.satis')) return $r;
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
         list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
@@ -1518,6 +1525,7 @@ public function carkverilerigetir(Request $request)
 
     public function isletmeRaporlariHizmet(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'rapor.satis')) return $r;
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
         list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
@@ -1552,6 +1560,7 @@ public function carkverilerigetir(Request $request)
 
     public function isletmeRaporlariUrun(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'rapor.satis')) return $r;
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
         list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
@@ -1588,6 +1597,7 @@ public function carkverilerigetir(Request $request)
 
     public function isletmeRaporlariPersonel(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'rapor.personel_performans')) return $r;
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
         list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
@@ -1643,6 +1653,7 @@ public function carkverilerigetir(Request $request)
 
     public function isletmeRaporlariMusteri(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'rapor.musteri')) return $r;
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
         list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
@@ -1706,6 +1717,7 @@ public function carkverilerigetir(Request $request)
 
     public function isletmeRaporlariRandevu(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'rapor.satis')) return $r;
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
         list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
@@ -4025,6 +4037,7 @@ public function carkverilerigetir(Request $request)
     }
     public function kasa_raporu_filtre(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'rapor.kasa')) return $r;
         return self::kasa_raporu_getir($request,'');
     }
     
