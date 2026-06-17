@@ -2522,6 +2522,161 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         return $alacaklar;
     }
 
+    // ============================================================
+    // Harici Tahsilat (gecmise donuk satis + tahsilat) — mobil.
+    // Web StoreAdminController@hariciTahsilatEkle mantiginin aynisi; tek fark:
+    // olusturan/yetkili Auth guard yerine body'den (olusturan_id) alinir.
+    // Yan etkisiz: recete/stok/seans olusturulmaz (web ile birebir).
+    // ============================================================
+    public function harici_tahsilat_kalemler(Request $request, $salon_id)
+    {
+        $hizmetler = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler', 'salon_sunulan_hizmetler.hizmet_id', '=', 'hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id', $salon_id)
+            ->where('salon_sunulan_hizmetler.aktif', true)
+            ->select('hizmetler.id as id', 'hizmetler.hizmet_adi as ad',
+                DB::raw('COALESCE(salon_sunulan_hizmetler.son_fiyat, salon_sunulan_hizmetler.baslangic_fiyat, hizmetler.fiyat, 0) as fiyat'))
+            ->orderBy('hizmetler.hizmet_adi')->get();
+        $urunler = DB::table('urunler')
+            ->where('salon_id', $salon_id)->where('aktif', true)
+            ->select('id', 'urun_adi as ad', 'fiyat')->orderBy('urun_adi')->get();
+        $paketler = DB::table('paketler')
+            ->where('salon_id', $salon_id)
+            ->select('id', 'paket_adi as ad', 'fiyat')->orderBy('paket_adi')->get();
+        return response()->json(compact('hizmetler', 'urunler', 'paketler'));
+    }
+
+    public function harici_tahsilat_ekle(Request $request)
+    {
+        $sube = $request->salon_id ?? $request->sube;
+        $olusturanId = $request->olusturan_id; // giris yapan yetkili (Kullanici.id)
+        $musteri_id = $request->musteri_id;
+        if (empty($sube) || empty($musteri_id) || empty($request->satis_tarihi)) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Salon, musteri ve satis tarihi zorunludur.'], 422);
+        }
+        $tarih = date('Y-m-d', strtotime($request->satis_tarihi));
+
+        // kalemler: [{tip, id, fiyat, adet}]
+        $kalemler = $request->kalemler;
+        if (is_string($kalemler)) $kalemler = json_decode($kalemler, true);
+        if (!is_array($kalemler) || count($kalemler) == 0) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'En az bir satis kalemi ekleyin.'], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $adisyon = new \App\Adisyonlar();
+            $adisyon->user_id = $musteri_id;
+            $adisyon->salon_id = $sube;
+            $adisyon->olusturan_id = $olusturanId;
+            $adisyon->tarih = $tarih;
+            $adisyon->harici = 1;
+            $adisyon->save();
+            $adisyon_id = $adisyon->id;
+
+            $olusan = [];
+            $toplam = 0;
+            foreach ($kalemler as $k) {
+                $tip = $k['tip'] ?? null;
+                $itemId = $k['id'] ?? null;
+                if (empty($itemId) || empty($tip)) continue;
+                $fiyat = (float) str_replace(',', '.', (string) ($k['fiyat'] ?? 0));
+                if ($fiyat < 0) $fiyat = 0;
+                $adet = (float) str_replace(',', '.', (string) ($k['adet'] ?? 1));
+                if ($adet <= 0) $adet = 1;
+
+                if ($tip == 'hizmet') {
+                    $kalem = new \App\AdisyonHizmetler();
+                    $kalem->adisyon_id = $adisyon_id;
+                    $kalem->hizmet_id = $itemId;
+                    $kalem->fiyat = $fiyat;
+                    $kalem->islem_tarihi = $tarih;
+                    $kalem->indirim_tutari = 0;
+                    $kalem->save(); // recete uygulanmaz (helper kullanilmadi)
+                    $olusan[] = ['tip' => 'hizmet', 'id' => $kalem->id, 'fiyat' => $fiyat];
+                } elseif ($tip == 'urun') {
+                    $kalem = new \App\AdisyonUrunler();
+                    $kalem->adisyon_id = $adisyon_id;
+                    $kalem->urun_id = $itemId;
+                    $kalem->adet = $adet;
+                    $kalem->fiyat = $fiyat;
+                    $kalem->indirim_tutari = 0;
+                    $kalem->save(); // stok dusmez
+                    $olusan[] = ['tip' => 'urun', 'id' => $kalem->id, 'fiyat' => $fiyat];
+                } elseif ($tip == 'paket') {
+                    $kalem = new \App\AdisyonPaketler();
+                    $kalem->adisyon_id = $adisyon_id;
+                    $kalem->paket_id = $itemId;
+                    $kalem->fiyat = $fiyat;
+                    $kalem->indirim_tutari = 0;
+                    $kalem->seans_sayisi = 0;
+                    $kalem->kullanilan_seans = 0;
+                    $kalem->bekleyen_seans = 0;
+                    $kalem->kullanilmayan_seans = 0;
+                    $kalem->otomatik_randevu_olusturuldu = false;
+                    $kalem->save(); // seans/randevu olusturulmaz
+                    $olusan[] = ['tip' => 'paket', 'id' => $kalem->id, 'fiyat' => $fiyat];
+                } else {
+                    continue;
+                }
+                $toplam += $fiyat;
+            }
+
+            if (count($olusan) == 0) {
+                DB::rollBack();
+                return response()->json(['durum' => 'hata', 'mesaj' => 'Gecerli satis kalemi bulunamadi.'], 422);
+            }
+
+            $tahsilatTutari = (float) str_replace(',', '.', (string) ($request->tahsilat_tutari ?? 0));
+            if ($tahsilatTutari < 0) $tahsilatTutari = 0;
+            if ($tahsilatTutari > 0 && $toplam > 0) {
+                if ($tahsilatTutari > $toplam) $tahsilatTutari = $toplam;
+                $tahsilat = new \App\Tahsilatlar();
+                $tahsilat->adisyon_id = $adisyon_id;
+                $tahsilat->user_id = $musteri_id;
+                $tahsilat->odeme_tarihi = $tarih;
+                $tahsilat->olusturan_id = \App\Personeller::where('salon_id', $sube)->where('yetkili_id', $olusturanId)->value('id');
+                $tahsilat->salon_id = $sube;
+                $tahsilat->tutar = $tahsilatTutari;
+                $tahsilat->yapilan_odeme = $tahsilatTutari;
+                $tahsilat->odeme_yontemi_id = $request->odeme_yontemi;
+                $tahsilat->notlar = $request->not;
+                if (!empty($request->banka)) $tahsilat->banka_id = $request->banka;
+                $tahsilat->save();
+
+                foreach ($olusan as $kalem) {
+                    $pay = ($kalem['fiyat'] / $toplam) * $tahsilatTutari;
+                    if ($pay <= 0) continue;
+                    if ($kalem['tip'] == 'hizmet') {
+                        $o = new \App\TahsilatHizmetler();
+                        $o->adisyon_hizmet_id = $kalem['id'];
+                    } elseif ($kalem['tip'] == 'urun') {
+                        $o = new \App\TahsilatUrunler();
+                        $o->adisyon_urun_id = $kalem['id'];
+                    } else {
+                        $o = new \App\TahsilatPaketler();
+                        $o->adisyon_paket_id = $kalem['id'];
+                    }
+                    $o->tahsilat_id = $tahsilat->id;
+                    $o->tutar = $pay;
+                    $o->save();
+                }
+            }
+
+            DB::commit();
+            return response()->json([
+                'durum' => 'basarili',
+                'mesaj' => 'Harici tahsilat kaydedildi.',
+                'adisyon_id' => $adisyon_id,
+                'toplam' => $toplam,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::error('harici_tahsilat_ekle hata: ' . $e->getMessage());
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Kayit sirasinda hata olustu.'], 500);
+        }
+    }
+
        public function ongorusmegetir(Request $request, $isletme_id)
 
     {
@@ -9968,7 +10123,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     $ekCumle = " Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
 
                 // Müşteri mesajı
-                $musteriMesaj = $isletme->salon_adi . " tarafından " . date("d.m.Y", strtotime($request->randevu_tarihi)) . " " . $request->randevu_saati . " olarak randevunuz " . $cumleyeek . $ekCumle;
+                $musteriMesaj = $isletme->salon_adi . " tarafından " . date("d.m.Y", strtotime($request->randevu_tarihi)) . " " . $request->randevu_saati . " olarak " . $cumleyeek . $ekCumle;
 
                 // Bildirim ekle (müşteriye)
                 self::bildirimekle($request, $yenirandevu->salon_id, $musteriMesaj, "#", null, $yenirandevu->user_id, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
