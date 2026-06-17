@@ -15203,6 +15203,7 @@ DB::raw('
     }
     public function masrafekleduzenle(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'finans.masraf_ekle')) return $r;
         $masraf = "";
         $guncelleme = false;
         // !empty: form masraf_id'yi her zaman gonderir (yeni kayitta bos string).
@@ -15271,6 +15272,7 @@ DB::raw('
     }
     public function masrafSil(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'finans.masraf_ekle')) return $r;
         // Bagli PersonelMaasOdemesi varsa onu da sil (yukaridaki ile ayni mantik)
         $masraf = Masraflar::where('id',$request->masraf_id)->first();
         // Audit
@@ -15313,6 +15315,7 @@ DB::raw('
     }
     public function alacakekleduzenle(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'finans.alacak_yonet')) return $r;
         $alacak = "";
         if(isset($request->alacak_id))
             $alacak = Alacaklar::where('id',$request->alacak_id)->first();
@@ -26011,6 +26014,7 @@ public function musteriportfoydropliste(Request $request)
         return ''; // Moved outside of the foreach loop
     }
     public function kasaya_para_ekle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'finans.kasa_giris_cikis')) return $r;
         $paraekle=new Tahsilatlar();
         $paraekle->olusturan_id=$request->paraekleyen;
         $paraekle->salon_id = $request->sube;
@@ -26033,6 +26037,7 @@ public function musteriportfoydropliste(Request $request)
         return self::kasa_raporu_getir($request,'');
     }
     public function kasadanparaal(Request $request){
+        if($r = self::yetkiYoksa403($request, 'finans.kasa_giris_cikis')) return $r;
         $returntext='';
         $user = IsletmeYetkilileri::where('id',Auth::guard('isletmeyonetim')->user()->id)->first();
        if ($request->onaykoduparacekme == $user->dogrulama_kodu) {
