@@ -8539,6 +8539,7 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function musteri_sil(Request $request)
     {
+        if($r = self::yetkiYoksa403($request, 'musteri.sil')) return $r;
         $portfoy = MusteriPortfoy::where('id', $request->portfoy_id)->first();
 
         if (!$portfoy) {
@@ -9912,6 +9913,7 @@ private function ayAdiCevir($ingilizceAy)
         self::sms_gonder_bildirimli(null, [["to" => $musteri->cep_telefon, "message" => $mesaj]], false, 1, false);
     }
     public function musteriekleguncelle(Request $request){
+            if($r = self::yetkiYoksa403($request, 'musteri.ekle_duzenle')) return $r;
 
             $kvkkonayrandom = str_shuffle('1234567890');
             $kvkkKodu = substr($kvkkonayrandom, 0, 4);
@@ -26061,6 +26063,7 @@ public function musteriportfoydropliste(Request $request)
         return $resimler->id;
     }
     public function islemsonrasinotekleme(Request $request){
+         if($r = self::yetkiYoksa403($request, 'musteri.not_yaz')) return $r;
          $randevu = Randevular::where('id',$request->randevu_id)->first();
          $randevu->randevu_sonrasi_not=$request->islemsonrasinot;
          $randevu->save();
