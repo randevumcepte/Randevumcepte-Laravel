@@ -10128,34 +10128,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 // Bildirim ekle (müşteriye)
                 self::bildirimekle($request, $yenirandevu->salon_id, $musteriMesaj, "#", null, $yenirandevu->user_id, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
 
-                // Push (musteri): response sonrasi gonderilir, hot path'i yavaslatmaz
-                $_musteriUserId = $yenirandevu->user_id;
-                $_musteriSalonId = (int)$yenirandevu->salon_id;
-                $_musteriMesajCaptured = $musteriMesaj;
-                register_shutdown_function(function () use ($_musteriUserId, $_musteriSalonId, $_musteriMesajCaptured) {
-                    @ignore_user_abort(true);
-                    @set_time_limit(60);
-                    if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
-                    try {
-                        // Defense-in-depth: token havuzunu aktif + salon brand bundle ile sik
-                        // (NotificationService raw mod findTokens da ayni filtreyi uygulasa da
-                        // havuzu burada da daraltmak inbox ve push'u tutarli tutar).
-                        $brandBundle = \App\Salonlar::where('id', $_musteriSalonId)->value('app_bundle');
-                        $tq = \App\BildirimKimlikleri::where("user_id", $_musteriUserId)
-                            ->where('aktif', true);
-                        if (!empty($brandBundle)) $tq->where('app_bundle', $brandBundle);
-                        $tokenlar = $tq->pluck("bildirim_id")->toArray();
-                        if (!empty($tokenlar)) {
-                            \App\Services\NotificationService::forTokens($tokenlar, $_musteriSalonId)
-                                ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
-                                ->title("Yeni Randevunuz Oluşturuldu")
-                                ->body($_musteriMesajCaptured)
-                                ->send();
-                        }
-                    } catch (\Throwable $e) {
-                        \Log::warning('afterResponse musteri push hata: ' . $e->getMessage());
-                    }
-                });
+                // NOT: Eski musteri push akisi (forTokens raw mod) kaldirildi.
+                // Asagidaki 10250+ register_shutdown_function bloyu zaten
+                // toCustomer (randevu_id + deep_link ile) push'u yapiyor;
+                // burada ikinci push goz atti = duplicate + sizma kaynagiydi.
 
                 if (SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("musteri") == 1) {
                     if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null)
@@ -10188,41 +10164,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                         self::bildirimekle($request, $yenirandevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
 
-                        // Push (personel): response sonrasi gonderilir
-                        $_personelId = $hizmet->personel_id;
-                        $_salonIdLocal = (int)$yenirandevu->salon_id;
-                        $_mesajPersonelCaptured = $mesaj;
-                        register_shutdown_function(function () use ($_personelId, $_salonIdLocal, $_mesajPersonelCaptured) {
-                            @ignore_user_abort(true);
-                            @set_time_limit(60);
-                            if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
-                            try {
-                                // Defense-in-depth: aktif + salon brand bundle ile token havuzunu sik.
-                                // Hedef personeller: hizmete atanan kisi + ayni salonun role<5 yoneticileri.
-                                $brandBundle = \App\Salonlar::where('id', $_salonIdLocal)->value('app_bundle');
-                                $yoneticiIdleri = \App\Personeller::where('salon_id', $_salonIdLocal)
-                                    ->where('role_id', '<', 5)->pluck('id')->toArray();
-                                $tq = \App\BildirimKimlikleri::query()
-                                    ->where('aktif', true)
-                                    ->where(function ($w) use ($_personelId, $yoneticiIdleri) {
-                                        $w->where('isletme_yetkili_id', $_personelId);
-                                        if (!empty($yoneticiIdleri)) {
-                                            $w->orWhereIn('isletme_yetkili_id', $yoneticiIdleri);
-                                        }
-                                    });
-                                if (!empty($brandBundle)) $tq->where('app_bundle', $brandBundle);
-                                $tokenlar = $tq->pluck("bildirim_id")->toArray();
-                                if (!empty($tokenlar)) {
-                                    \App\Services\NotificationService::forTokens($tokenlar, $_salonIdLocal)
-                                        ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
-                                        ->title("Yeni Randevu")
-                                        ->body($_mesajPersonelCaptured)
-                                        ->send();
-                                }
-                            } catch (\Throwable $e) {
-                                \Log::warning('afterResponse personel push hata: ' . $e->getMessage());
-                            }
-                        });
+                        // NOT: Eski personel push akisi (forTokens raw mod) kaldirildi.
+                        // 10250+ register_shutdown_function bloyu zaten toStaff
+                        // (randevu_id + deep_link ile) push'u atiyor — bu blok
+                        // duplicate + brand sizmasi (Aleyna Acar -> Vionna cihazi) kaynagiydi.
                     }
                 }
             }
