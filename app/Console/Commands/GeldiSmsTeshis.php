@@ -5,25 +5,32 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Salonlar;
 use App\SalonSMSAyarlari;
-use App\Personeller;
-use App\IsletmeYetkilileri;
-use Illuminate\Support\Facades\DB;
+use App\Randevular;
+use App\AdisyonPaketSeanslar;
 
 /**
- * "Geldi" isaretlemede personele giden SMS akisinin neden gitmedigini teshis eder.
+ * "Geldi" isaretlemede MUSTERIYE giden DOGRULAMA KODU'nun neden gitmedigini teshis eder.
  *
- * Gercek akis: StoreAdminController::randevugeldiisaretle -> sadece
- *   salon_sms_ayarlari.ayar_id=21.personel == 1 ise personelin yetkilisinin
- *   gsm1'ine SMS gider (sms_gonder_bildirimli). WA acik+connected ise once
- *   WhatsApp'a kuyruga girer, SMS GITMEZ (beklenen davranis).
+ * Gercek akis (StoreAdminController::randevugeldiisaretle):
+ *   1) Blok SADECE $seansVar>0 (randevuda paket seansi varsa) calisir. Normal hizmet
+ *      randevusunda dogrulama kodu HIC gitmez.
+ *   2) salon_sms_ayarlari.ayar_id=16.musteri == 1 ise (veya personel popup'i onaylarsa)
+ *      randevu_dogrulama_kodu_gonder() musterinin cep_telefon'una "Dogrulama kodunuz" yollar.
+ *   3) Gonderim sms_gonder_bildirimli ile yapilir; salon WA aktif+connected ise mesaj
+ *      ONCE WhatsApp kuyruguna girer, SMS inline DENENMEZ.
+ *   4) $randevu->dogrulama_sms_gonderildi == 1 ise TEKRAR gondermez (bir kez gonderilmis sayilir).
  *
  * Kullanim:
  *   php artisan sms:geldi-teshis 278
+ *   php artisan sms:geldi-teshis 278 --randevu=123456
+ *
+ * WA/SMS gercek gonderimini ayrica test etmek icin:
+ *   php artisan whatsapp:test 278 <musteri_telefonu> --mesaj="Dogrulama kodunuz : 1234"
  */
 class GeldiSmsTeshis extends Command
 {
-    protected $signature = 'sms:geldi-teshis {salonId}';
-    protected $description = '"Geldi" isaretlemede SMS neden gitmiyor? Salon bazli teshis.';
+    protected $signature = 'sms:geldi-teshis {salonId} {--randevu=}';
+    protected $description = '"Geldi"de musteriye dogrulama kodu neden gitmiyor? Salon bazli teshis.';
 
     public function handle()
     {
@@ -34,85 +41,81 @@ class GeldiSmsTeshis extends Command
             $this->error("[X] Salon bulunamadi (id={$salonId})");
             return 1;
         }
-        $this->info("=== Geldi SMS Teshis: {$salon->salon_adi} (id={$salonId}) ===");
+        $this->info("=== Geldi Dogrulama Kodu Teshis: {$salon->salon_adi} (id={$salonId}) ===");
 
-        // 1) Geldi ayari (ayar_id=21, personel alani) — UI'da "Musteri Geldi Bildirimi"
-        $ayar = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 21)->first();
+        // 1) Dogrulama kodu ayari (ayar_id=16, musteri alani) — UI: "Dogrulama Kodu"
+        $ayar = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 16)->first();
         $this->line('');
-        $this->info('--- 1) Geldi bildirimi ayari (ayar_id=21) ---');
+        $this->info('--- 1) Dogrulama kodu ayari (ayar_id=16) ---');
         if (!$ayar) {
-            $this->error("[X] salon_sms_ayarlari'nda ayar_id=21 SATIRI YOK -> SMS hic gitmez.");
-            $this->line('    Cozum: bu salon icin ayar_id=21 satiri olusturulmali (personel=1).');
+            $this->error("[X] salon_sms_ayarlari'nda ayar_id=16 SATIRI YOK.");
+            $this->line('    Bu durumda otomatik gitmez; sadece personel popup\'i onaylarsa gider.');
         } else {
-            $acik = ((int) $ayar->personel) === 1;
-            $this->line('personel (geldi toggle): ' . var_export($ayar->personel, true) . ($acik ? '  [ACIK]' : '  [KAPALI]'));
+            $acik = ((int) $ayar->musteri) === 1;
+            $this->line('musteri (dogrulama toggle): ' . var_export($ayar->musteri, true) . ($acik ? '  [ACIK]' : '  [KAPALI]'));
             if (!$acik) {
-                $this->error('[X] Toggle KAPALI -> SMS gitmez. Panel > SMS Ayarlari > "Musteri Geldi Bildirimi" acilmali.');
+                $this->warn('[!] Toggle KAPALI -> kod ancak personel "gonderilsin mi?" popup\'ini onaylayinca gider.');
             } else {
-                $this->info('[OK] Toggle acik.');
+                $this->info('[OK] Toggle acik -> geldi isaretinde otomatik kod gonderilmeli.');
             }
         }
 
-        // 2) Kanal: once WhatsApp mi?
+        // 2) Kanal: WA mi SMS mi?
         $this->line('');
-        $this->info('--- 2) Gonderim kanali ---');
+        $this->info('--- 2) Gonderim kanali (sms_gonder_bildirimli pre-filter) ---');
         $waAcik = !empty($salon->whatsapp_aktif) && ($salon->whatsapp_durum ?? null) === 'connected';
         $this->line('whatsapp_aktif : ' . var_export($salon->whatsapp_aktif, true));
         $this->line('whatsapp_durum : ' . var_export($salon->whatsapp_durum, true));
         if ($waAcik) {
-            $this->warn('[!] WhatsApp acik+connected -> mesaj ONCE WhatsApp\'a gider, BASARILIYSA SMS GITMEZ.');
-            $this->line('    "SMS gelmiyor" sikayeti aslinda mesajin WhatsApp\'tan gitmesi olabilir (beklenen).');
+            $this->warn('[!] WA aktif+connected -> kod ONCE WhatsApp kuyruguna girer, inline SMS DENENMEZ.');
+            $this->line('    Musteriye WA gelmediyse: numarada WhatsApp yok / session bozuk / saat kisiti / gunluk limit olabilir.');
+            $this->line('    Gercek gonderimi test et: php artisan whatsapp:test ' . $salonId . ' <musteri_tel> --mesaj="Dogrulama kodunuz : 1234"');
         } else {
-            $this->line('[OK] WA kapali/baglanti yok -> dogrudan SMS yolu kullanilir.');
-        }
-
-        // 3) SMS saglayici yapilandirmasi
-        $this->line('');
-        $this->info('--- 3) SMS saglayici yapilandirmasi ---');
-        $yeniSms = (int) $salon->yeni_sms === 1;
-        $this->line('yeni_sms       : ' . var_export($salon->yeni_sms, true) . ($yeniSms ? '  (VoiceTelekom)' : '  (EFETech)'));
-        $this->line('sms_baslik     : ' . var_export($salon->sms_baslik, true));
-        if ($yeniSms) {
-            $this->line('sms_user_name  : ' . var_export($salon->sms_user_name, true));
-            $this->line('sms_secret     : ' . ($salon->sms_secret !== null ? '[VAR]' : '[YOK]'));
-            if (empty($salon->sms_user_name) || empty($salon->sms_secret) || empty($salon->sms_baslik)) {
-                $this->error('[X] VoiceTelekom bilgileri eksik -> SMS gitmez.');
+            $this->line('[OK] WA kapali/connected degil -> dogrudan SMS yolu kullanilir.');
+            $yeniSms = (int) $salon->yeni_sms === 1;
+            $this->line('yeni_sms: ' . var_export($salon->yeni_sms, true) . ($yeniSms ? ' (VoiceTelekom)' : ' (EFETech)'));
+            if ($yeniSms) {
+                if (empty($salon->sms_user_name) || empty($salon->sms_secret) || empty($salon->sms_baslik)) {
+                    $this->error('[X] VoiceTelekom bilgileri eksik -> SMS gitmez.');
+                } else { $this->info('[OK] VoiceTelekom bilgileri dolu.'); }
             } else {
-                $this->info('[OK] VoiceTelekom bilgileri dolu.');
-            }
-        } else {
-            $this->line('sms_apikey     : ' . ($salon->sms_apikey !== null ? '[VAR]' : '[YOK]'));
-            if ($salon->sms_baslik === null || $salon->sms_apikey === null) {
-                $this->error('[X] EFETech sms_baslik/sms_apikey NULL -> kod sessizce loglar, SMS gitmez.');
-            } else {
-                $this->info('[OK] EFETech bilgileri dolu.');
+                if ($salon->sms_baslik === null || $salon->sms_apikey === null) {
+                    $this->error('[X] EFETech sms_baslik/sms_apikey NULL -> kod sessizce loglanir, SMS gitmez.');
+                } else { $this->info('[OK] EFETech bilgileri dolu.'); }
             }
         }
 
-        // 4) Alici zinciri: personel -> yetkili -> gsm1
+        // 3) Randevu bazli: seansVar gate + dogrulama_sms_gonderildi + musteri telefonu
         $this->line('');
-        $this->info('--- 4) Alici zinciri (personel -> yetkili -> gsm1) ---');
-        $personeller = Personeller::where('salon_id', $salonId)->get();
-        if ($personeller->isEmpty()) {
-            $this->warn('[!] Bu salonda personel kaydi bulunamadi (salon_id eslesmesi?).');
-        }
-        $bosGsm = 0;
-        foreach ($personeller as $p) {
-            $yetkiliId = $p->yetkili_id;
-            $gsm = $yetkiliId ? IsletmeYetkilileri::where('id', $yetkiliId)->value('gsm1') : null;
-            $durum = (!$yetkiliId) ? 'YETKILI_ID YOK' : (empty($gsm) ? 'GSM1 BOS' : $gsm);
-            if (!$yetkiliId || empty($gsm)) { $bosGsm++; }
-            $ad = $p->ad ?? $p->personel_adi ?? $p->name ?? ('#' . $p->id);
-            $this->line(sprintf('  personel #%-5s %-25s yetkili_id=%-6s gsm1=%s',
-                $p->id, mb_substr((string)$ad, 0, 24), var_export($yetkiliId, true), $durum));
-        }
-        if ($bosGsm > 0) {
-            $this->error("[X] {$bosGsm} personelin yetkili/gsm1 bilgisi eksik -> bu personellerin randevularinda 'to' bos olur, SMS sessizce gitmez.");
+        $this->info('--- 3) Randevu kosullari ---');
+        $rid = $this->option('randevu');
+        if ($rid) {
+            $randevu = Randevular::find((int) $rid);
+            if (!$randevu) {
+                $this->error("[X] Randevu bulunamadi (id={$rid})");
+            } else {
+                $seansVar = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->count();
+                $this->line("randevu #{$randevu->id} seans (AdisyonPaketSeanslar): {$seansVar}");
+                if ($seansVar == 0) {
+                    $this->error('[X] seansVar=0 -> dogrulama kodu BLOGU HIC CALISMAZ. Bu randevuda kod gitmez.');
+                    $this->line('    Dogrulama kodu sadece PAKET SEANSI olan randevularda tetiklenir.');
+                } else {
+                    $this->info('[OK] seansVar>0 -> dogrulama blogu calisir.');
+                }
+                $this->line('dogrulama_sms_gonderildi: ' . var_export($randevu->dogrulama_sms_gonderildi, true)
+                    . (((int)$randevu->dogrulama_sms_gonderildi === 1) ? '  [!] 1 -> TEKRAR GONDERMEZ' : ''));
+                $tel = optional($randevu->users)->cep_telefon;
+                $this->line('musteri cep_telefon: ' . var_export($tel, true) . (empty($tel) ? '  [X] BOS -> gonderilemez' : ''));
+            }
+        } else {
+            $this->line('(Belirli bir randevu icin: --randevu=ID ekle.)');
+            $this->warn('[!] HATIRLATMA: Dogrulama blogu SADECE $seansVar>0 (paket seansli randevu) ise calisir.');
+            $this->warn('    Test ettigin randevu paket seansi icermiyorsa hicbir kod (ne WA ne SMS) gitmez.');
         }
 
         $this->line('');
         $this->info('=== Ozet ===');
-        $this->line('Yukarida [X] gorunen ilk madde SMS\'in gitmeme sebebidir.');
+        $this->line('Sirayla: (1) randevuda paket seansi var mi -> (2) ayar_id=16 acik mi / popup -> (3) WA connected ise WA\'dan gider -> (4) numarada WhatsApp var mi.');
         return 0;
     }
 }
