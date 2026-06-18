@@ -52,28 +52,32 @@ class SalonHatirlatmaController extends Controller
             return response()->json(['hatirlatmalar' => [], 'sayi' => 0]);
         }
 
-        // YETKI: Hatirlatma popuplari SADECE rol 1 (sahip), 2 (supervizor), 3 (yonetici)
-        // icin gosterilir. Rol 4-5 (personel vb.) finansal/operasyonel hatirlatmalari gormez.
-        // satisortakligi guard'i salon 15 yonetimi -> izinli sayilir (eski davranis).
+        // YETKI: GENEL hatirlatmalar (maas, alacak, yeni musteri, randevu, dogum gunu vb.)
+        // SADECE rol 1 (sahip), 2 (supervizor), 3 (yonetici) icin gosterilir.
+        // ISTISNA: arama randevusu (asagida) ZATEN kullaniciya ozel -> ilgili personele
+        // (rol 5 acente dahil) her rolde gosterilir. satisortakligi -> izinli (eski davranis).
+        $genelIzin = true;
         if (!Auth::guard('satisortakligi')->check()) {
             $rol = (int) self::kullaniciRolu($salonId, $this->cmAuthId());
-            if (!in_array($rol, [1, 2, 3], true)) {
-                return response()->json(['hatirlatmalar' => [], 'sayi' => 0]);
-            }
+            $genelIzin = in_array($rol, [1, 2, 3], true);
         }
 
-        $cacheKey = 'salon_hatirlatma.' . $salonId;
-        if (filter_var($request->input('refresh'), FILTER_VALIDATE_BOOLEAN)) { // Request::boolean() bu surumde yok
-            Cache::forget($cacheKey);
+        $hatirlatmalar = [];
+        if ($genelIzin) {
+            $cacheKey = 'salon_hatirlatma.' . $salonId;
+            if (filter_var($request->input('refresh'), FILTER_VALIDATE_BOOLEAN)) { // Request::boolean() bu surumde yok
+                Cache::forget($cacheKey);
+            }
+            // DIKKAT: Laravel 5.6'da remember TTL'i DAKIKA cinsindendir. Eskiden 15 yaziyordu =
+            // 15 DAKIKA cache -> "hep ayni veri" sikayeti buradan. Carbon ile 20 saniyeye cekildi.
+            $hatirlatmalar = Cache::remember($cacheKey, now()->addSeconds(20), function () use ($salonId) {
+                return $this->topla($salonId);
+            });
         }
-        // DIKKAT: Laravel 5.6'da remember TTL'i DAKIKA cinsindendir. Eskiden 15 yaziyordu =
-        // 15 DAKIKA cache -> "hep ayni veri" sikayeti buradan. Carbon ile 20 saniyeye cekildi.
-        $hatirlatmalar = Cache::remember($cacheKey, now()->addSeconds(20), function () use ($salonId) {
-            return $this->topla($salonId);
-        });
 
         // Arama randevulari KULLANICIYA OZEL -> salon cache'ine konamaz (baska personele sizar).
         // Bu yuzden cache disinda, giris yapan kullaniciya gore taze hesaplanip eklenir.
+        // Rol kisitindan BAGIMSIZ: yalnizca listenin atandigi personele dondugu icin guvenli.
         try {
             $aramaRandevulari = $this->aramaRandevulari($salonId);
         } catch (\Throwable $e) {
