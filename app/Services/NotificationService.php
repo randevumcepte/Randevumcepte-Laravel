@@ -244,6 +244,18 @@ class NotificationService
             $q->where('isletme_yetkili_id', $this->yetkiliId);
         }
 
+        // White-label brand izolasyonu: salon X icin push, sadece o salonun
+        // app_bundle'ini yuklu olan cihazlara gitsin. Ayni kullanici/personel
+        // baska bir brand build'inde de login oldu ise oraya pushu sizdirma.
+        // salon_id yerine app_bundle ile filtreliyoruz cunku musteri kaydinda
+        // salon_id NULL gelebilirken, app_bundle her cihaz kaydinda dolu.
+        if ($this->salonId) {
+            $brandBundle = \App\Salonlar::where('id', $this->salonId)->value('app_bundle');
+            if (!empty($brandBundle)) {
+                $q->where('app_bundle', $brandBundle);
+            }
+        }
+
         // Eski OneSignal-only kayıtlarda token_tipi olmayabilir; sadece bildirim_id dolu olanları al.
         $q->whereNotNull('bildirim_id')->where('bildirim_id', '!=', '');
 
