@@ -165,36 +165,16 @@ public $successStatus = 200;
              
             
             
-                $bildirimKimlikleri = BildirimKimlikleri::where(function($q) use($usertype,$user){
-                            if($usertype=='0')
-                                $q->where('user_id',$user->id);
-                            if($usertype=='1') 
-                                $q->whereIn('isletme_yetkili_id',$user->yetkili_olunan_isletmeler->pluck('id')->toArray());
-                            
-                })->where('bildirim_id',$request->bildirimId)->first();
-                if(!$bildirimKimlikleri)
-                {
-                            if($usertype == '1')
-                            {  
-                                foreach($user->yetkili_olunan_isletmeler as $yetkili)
-                                {
-                                    $bildirimKimligi  = new BildirimKimlikleri();
-                                    $bildirimKimligi->bildirim_id = $request->bildirimId;
-                                    $bildirimKimligi->cihaz = $request->cihazBilgi;
-                                    $bildirimKimligi->isletme_yetkili_id = $yetkili->id;
-                                    $bildirimKimligi->save();   
-                                }
-                            }
-                            else
-                            {
-                                $bildirimKimligi  = new BildirimKimlikleri();
-                                $bildirimKimligi->user_id = $user->id;
-                                $bildirimKimligi->bildirim_id = $request->bildirimId;
-                                $bildirimKimligi->cihaz = $request->cihazBilgi;
-                                $bildirimKimligi->save();   
-                            }
-                            
-                }
+                // KALDIRILDI: Eski OneSignal donemi /login akisinda bildirim_kimlikleri
+                // tablosuna foreach ile her yetkili_olunan_isletme icin satir aciyordu.
+                // - request->bildirimId artik onesignal_player_id (FCM gecisinde null)
+                // - foreach 27 yetkili olunan salon icin 27 satir uretiyordu
+                // - app_bundle/salon_id/kullanici_tipi set edilmiyordu, brand izolasyonu
+                //   ve push hedeflemesi bozuluyordu
+                // Yeni akis: Flutter login sonrasi (subesecimi.dart veya tek-sube login)
+                // NotificationService.registerForUser cagriyor -> /api/v1/bildirim/cihaz-kaydet
+                // (NotificationApiController@cihazKaydet) endpointinden cihaz basina TEK
+                // dogru kayit (bildirim_id+cihaz+app_bundle+salon_id+kullanici_tipi) aciliyor.
                 
 
                     
