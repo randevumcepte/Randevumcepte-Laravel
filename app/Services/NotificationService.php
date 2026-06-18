@@ -417,10 +417,19 @@ class NotificationService
         if ($this->kullaniciTipi === 'raw') {
             if (empty($this->rawTokens)) return;
             try {
-                $rows = BildirimKimlikleri::query()
+                $rowsQ = BildirimKimlikleri::query()
                     ->whereIn('bildirim_id', $this->rawTokens)
-                    ->where('aktif', true)
-                    ->get(['user_id', 'isletme_yetkili_id']);
+                    ->where('aktif', true);
+
+                // Brand izolasyonu inbox yazimi icin de gerekli: yanlis brand'deki
+                // cihaz satirindan user_id/isletme_yetkili_id turetip inbox'a yazma.
+                if ($this->salonId) {
+                    $brandBundle = \App\Salonlar::where('id', $this->salonId)->value('app_bundle');
+                    if (!empty($brandBundle)) {
+                        $rowsQ->where('app_bundle', $brandBundle);
+                    }
+                }
+                $rows = $rowsQ->get(['user_id', 'isletme_yetkili_id']);
                 $users = [];
                 $personeller = [];
                 foreach ($rows as $r) {
