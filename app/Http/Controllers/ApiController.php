@@ -9309,7 +9309,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             // Mobil kasa raporu gelir satiri bu iliskileri bekliyor (musteri adi,
             // odeme yontemi/banka, kalem detaylari). Eager-load edilmezse JSON'da
             // gelmez -> uygulamada musteri "Kasaya para ekleme" gorunur/cokerdi.
-            ->with(['musteri', 'odeme_yontemi', 'banka',
+            ->with(['musteri', 'odeme_yontemi', 'banka', 'olusturan', 'satici',
                     'hizmet_odemeleri', 'urun_odemeleri', 'paket_odemeleri', 'urun_satisi'])
             ->where(function ($q) use ($request) {
                 if ($request->tarih1 !== null && $request->tarih2 !== null) {
