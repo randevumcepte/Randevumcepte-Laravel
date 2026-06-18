@@ -16344,6 +16344,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             ->select(
 
                 "salon_personelleri.id as id",
+                "salon_personelleri.salon_id as salon_id",
 
                 "salon_personelleri.personel_adi as personel_adi",
 
@@ -16775,6 +16776,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             ->select(
 
                 "salon_personelleri.id as id",
+                "salon_personelleri.salon_id as salon_id",
 
                 "salon_personelleri.personel_adi as personel_adi"
 
