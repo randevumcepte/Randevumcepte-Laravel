@@ -1790,7 +1790,8 @@
                   @endif
                   {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
 
-                  {{-- Uygulama İndirme Afişi --}}
+                  {{-- Uygulama İndirme Afişi (sadece uyelik_turu == 3) --}}
+                  @if($isletme->uyelik_turu == 3)
                   <li>
                      @if(($pageindex ?? 0) == 80)
                      <a href="/isletmeyonetim/uygulama-afisi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1801,6 +1802,7 @@
                         ><span class="mtext">Uygulama Afişi</span>
                      </a>
                   </li>
+                  @endif
 
                   {{-- 11) Müşteriler/Danışanlar --}}
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.liste_gor'))
@@ -2003,8 +2005,8 @@
                   @endif
                   @endif
 
-                  {{-- 2b) Cagri Merkezi Dashboard (yonetici) --}}
-                  @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
+                  {{-- 2b) Cagri Merkezi Dashboard (yonetici) — sadece uyelik_turu == 3 --}}
+                  @if($isletme->uyelik_turu == 3 && ($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
                   <li>
                      @if($pageindex==45)
                      <a href="/isletmeyonetim/arama-dashboard{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2017,8 +2019,8 @@
                   </li>
                   @endif
 
-                  {{-- 2c) Cagri Merkezi: Arama Ekrani (yonetici de gorur/test edebilir) --}}
-                  @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
+                  {{-- 2c) Cagri Merkezi: Arama Ekrani (yonetici de gorur/test edebilir) — sadece uyelik_turu == 3 --}}
+                  @if($isletme->uyelik_turu == 3 && ($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
                   <li>
                      @if($pageindex==44)
                      <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2122,8 +2124,8 @@
                   </li>
                   @endif
 
-                  {{-- Cagri Merkezi: Personel rolu (5) icin Arama Listesi (santral aktif + dahili varsa) --}}
-                  @if(in_array(5, $_layoutRoller) && $isletme->santral_aktif && optional($_layoutYetkiliPersonel)->dahili_no)
+                  {{-- Cagri Merkezi: Personel rolu (5) icin Arama Listesi (santral aktif + dahili varsa) — sadece uyelik_turu == 3 --}}
+                  @if($isletme->uyelik_turu == 3 && in_array(5, $_layoutRoller) && $isletme->santral_aktif && optional($_layoutYetkiliPersonel)->dahili_no)
                   <li>
                      @if($pageindex==44)
                      <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">

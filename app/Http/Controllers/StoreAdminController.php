@@ -16175,6 +16175,9 @@ DB::raw('
             return view('isletmeadmin.isletmesec', ['isletmeler' => $isletmeler, 'isletme' => Salonlar::where('id', self::mevcutsube($request))->first()]);
         }
         $isletme      = Salonlar::where('id', self::mevcutsube($request))->first();
+        if ((int) optional($isletme)->uyelik_turu !== 3) {
+            abort(403);
+        }
         $linklerHazir = (trim((string) $isletme->android_uygulama) !== '' && trim((string) $isletme->ios_uygulama) !== '');
         return view('isletmeadmin.uygulama_afisi', [
             'pageindex'                => 80,
@@ -16201,6 +16204,9 @@ DB::raw('
             return view('isletmeadmin.yetkisizerisim');
         }
         $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        if ((int) optional($isletme)->uyelik_turu !== 3) {
+            abort(403);
+        }
         $android = trim((string) $isletme->android_uygulama);
         $ios     = trim((string) $isletme->ios_uygulama);
         if ($android === '' || $ios === '') {
@@ -23439,6 +23445,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!in_array(self::mevcutsube($request), $isletmeler)) {
             return view('isletmeadmin.yetkisizerisim');
         }
+        if ((int) optional($isletme)->uyelik_turu !== 3) {
+            abort(403);
+        }
         // WhatsApp ekrani: pazarlama.whatsapp_gonder zorunlu
         $_waAu = Auth::guard('isletmeyonetim')->user();
         if($_waAu && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_waAu->id, self::mevcutsube($request), 'pazarlama.whatsapp_gonder')){
@@ -27478,6 +27487,9 @@ DB::raw('
         if (!in_array(self::mevcutsube($request), $isletmeler)) {
             return view('isletmeadmin.yetkisizerisim');
         }
+        if ((int) optional($isletme)->uyelik_turu !== 3) {
+            abort(403);
+        }
         if (str_contains(self::lisans_sure_kontrol($request), '-')) {
             return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
         }
@@ -27587,6 +27599,9 @@ DB::raw('
         if (!in_array($salonId, $isletmeler)) {
             return view('isletmeadmin.yetkisizerisim');
         }
+        if ((int) optional($isletme)->uyelik_turu !== 3) {
+            abort(403);
+        }
         $lisansSure = self::lisans_sure_kontrol($request);
         if (str_contains($lisansSure, '-')) {
             return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
@@ -27615,6 +27630,9 @@ DB::raw('
     public function arama_dashboard_verileri(Request $request)
     {
         $salonId = self::mevcutsube($request);
+        if ((int) optional(Salonlar::where('id', $salonId)->first())->uyelik_turu !== 3) {
+            abort(403);
+        }
 
         // Aranacak musteri durum metrikleri (personel = arama_listesi.personel_id)
         $rows = DB::table('aranacak_musteriler as am')
@@ -27687,6 +27705,9 @@ DB::raw('
     public function arama_dashboard_personel_detay(Request $request)
     {
         $salonId = self::mevcutsube($request);
+        if ((int) optional(Salonlar::where('id', $salonId)->first())->uyelik_turu !== 3) {
+            abort(403);
+        }
         $personelId = $request->personel_id;
 
         if (!Schema::hasTable('gorusme_notlari')) {
