@@ -363,7 +363,8 @@ class StokController extends Controller
         $d->aciklama = $request->aciklama;
         $d->aktif    = (bool) ($request->aktif ?? true);
 
-        if ($request->boolean('varsayilan')) {
+        // NOT: Laravel 5.6'da Request::boolean() yok -> filter_var ile booleana cevir.
+        if (filter_var($request->input('varsayilan'), FILTER_VALIDATE_BOOLEAN)) {
             Depo::where('salon_id', $salonid)->update(['varsayilan' => false]);
             $d->varsayilan = true;
         }
