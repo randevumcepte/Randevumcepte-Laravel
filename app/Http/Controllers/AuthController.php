@@ -165,16 +165,54 @@ public $successStatus = 200;
              
             
             
-                // KALDIRILDI: Eski OneSignal donemi /login akisinda bildirim_kimlikleri
-                // tablosuna foreach ile her yetkili_olunan_isletme icin satir aciyordu.
-                // - request->bildirimId artik onesignal_player_id (FCM gecisinde null)
-                // - foreach 27 yetkili olunan salon icin 27 satir uretiyordu
-                // - app_bundle/salon_id/kullanici_tipi set edilmiyordu, brand izolasyonu
-                //   ve push hedeflemesi bozuluyordu
-                // Yeni akis: Flutter login sonrasi (subesecimi.dart veya tek-sube login)
-                // NotificationService.registerForUser cagriyor -> /api/v1/bildirim/cihaz-kaydet
-                // (NotificationApiController@cihazKaydet) endpointinden cihaz basina TEK
-                // dogru kayit (bildirim_id+cihaz+app_bundle+salon_id+kullanici_tipi) aciliyor.
+                // bildirim_kimlikleri kayitlari:
+                // - Brand build (app_bundle != master) -> SADECE brand'in salonlari icin kayit
+                // - Master app (com.randevumcepte.randevumcepte) -> eski davranis (tum yetkili
+                //   olunan salonlar) korunur cunku master yetkilisi sube degisiminde tum
+                //   salonlarinin pushlarini almali.
+                // app_bundle alani satira yazilir -> NotificationService brand filtresi devrede.
+                // bildirimId bos gelirse hicbir kayit acmaz (eski OneSignal'de null kayitlari
+                // engelle).
+                if (!empty($request->bildirimId)) {
+                    $isMaster = ($request->appBundle == 'com.randevumcepte.randevumcepte');
+                    $bildirimKimlikleri = BildirimKimlikleri::where(function($q) use($usertype,$user,$isMaster,$salonlar){
+                                if($usertype=='0')
+                                    $q->where('user_id',$user->id);
+                                if($usertype=='1') {
+                                    $hedefler = $isMaster
+                                        ? $user->yetkili_olunan_isletmeler
+                                        : $user->yetkili_olunan_isletmeler->whereIn('salon_id', $salonlar);
+                                    $q->whereIn('isletme_yetkili_id', $hedefler->pluck('id')->toArray());
+                                }
+                    })->where('bildirim_id',$request->bildirimId)->first();
+                    if(!$bildirimKimlikleri)
+                    {
+                                if($usertype == '1')
+                                {
+                                    $hedefler = $isMaster
+                                        ? $user->yetkili_olunan_isletmeler
+                                        : $user->yetkili_olunan_isletmeler->whereIn('salon_id', $salonlar);
+                                    foreach($hedefler as $yetkili)
+                                    {
+                                        $bildirimKimligi  = new BildirimKimlikleri();
+                                        $bildirimKimligi->bildirim_id = $request->bildirimId;
+                                        $bildirimKimligi->cihaz = $request->cihazBilgi;
+                                        $bildirimKimligi->isletme_yetkili_id = $yetkili->id;
+                                        $bildirimKimligi->app_bundle = $request->appBundle;
+                                        $bildirimKimligi->save();
+                                    }
+                                }
+                                else
+                                {
+                                    $bildirimKimligi  = new BildirimKimlikleri();
+                                    $bildirimKimligi->user_id = $user->id;
+                                    $bildirimKimligi->bildirim_id = $request->bildirimId;
+                                    $bildirimKimligi->cihaz = $request->cihazBilgi;
+                                    $bildirimKimligi->app_bundle = $request->appBundle;
+                                    $bildirimKimligi->save();
+                                }
+                    }
+                }
                 
 
                     
