@@ -14241,7 +14241,11 @@ DB::raw('
                     $to = $mesaj['to'] ?? null;
                     $msg = $mesaj['message'] ?? null;
                     if (!$to || !$msg) { $kalan[] = $mesaj; continue; }
-                    $sonuc = $wa->sendReminder($isletme, $to, $msg, $mesaj['randevu_id'] ?? null, $mesaj['user_id'] ?? null, null, false, 'transaksiyonel');
+                    // OTP/dogrulama gibi anlik gitmesi gereken mesajlar urgent=true ile
+                    // antiban pre-delay/typing/batch/saat kisitini atlar (mesaj basina
+                    // 'urgent' bayragi). Aksi halde kod 12-30sn+ kuyrukta bekler.
+                    $waUrgent = !empty($mesaj['urgent']);
+                    $sonuc = $wa->sendReminder($isletme, $to, $msg, $mesaj['randevu_id'] ?? null, $mesaj['user_id'] ?? null, null, $waUrgent, 'transaksiyonel');
                     if ($sonuc['ok'] ?? false) {
                         Log::info('[Transactional WA] kuyruğa eklendi', [
                             'salon_id' => $isletme->id, 'to' => $to, 'logId' => $sonuc['logId'] ?? null, 'tur' => $tur,
@@ -17845,7 +17849,8 @@ DB::raw('
         $randevu->dogrulama = $kod;
         $randevu->save();
         $mesaj = array(
-            array("to"=>$randevu->users->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod),
+            // urgent=true: dogrulama kodu antiban kuyrugunda beklemeden anlik gider.
+            array("to"=>$randevu->users->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod,"urgent"=>true),
         );
         $sms = self::sms_gonder_bildirimli($request,$mesaj,true,1,true);
         if(is_array($sms) && ($sms['status'] ?? null) == 'success')

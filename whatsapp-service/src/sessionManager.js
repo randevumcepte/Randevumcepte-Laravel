@@ -28,6 +28,17 @@ const sessions = new Map();
 
 const sessionDir = (salonId) => path.join(config.sessionsDir, `salon_${salonId}`);
 
+// Zombi socket korumasi: Baileys cagrisi (sendMessage/onWhatsApp) bazen DB 'connected'
+// gorunse de hic resolve/reject olmadan asilir. Bu durumda kuyruk sonsuza kadar kilitlenir
+// ve durum=0 takilir. Timeout asilirsa reject ederiz -> onFailed -> message.failed -> SMS fallback.
+const withTimeout = (promise, ms, label) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label}-timeout-${ms}ms`)), ms),
+    ),
+  ]);
+
 const normalizePhone = (raw) => {
   if (!raw) return null;
   let n = String(raw).replace(/\D/g, '');
@@ -77,7 +88,11 @@ const buildSender = (salonId) => async (job) => {
   // hatali iptal ediliyordu. Artik exists=false olsa bile sendMessage'i deniyoruz;
   // gercekten WhatsApp'ta yoksa sendMessage zaten fail eder -> webhook -> SMS fallback.
   try {
-    const [onWhatsApp] = await session.sock.onWhatsApp(jid);
+    const [onWhatsApp] = await withTimeout(
+      session.sock.onWhatsApp(jid),
+      config.antiban.sendTimeoutMs,
+      'onWhatsApp',
+    );
     if (onWhatsApp && onWhatsApp.exists === false) {
       logger.warn({ phone, jid }, 'onWhatsApp exists=false (Business hesap olabilir, yine de deneniyor)');
     }
@@ -99,9 +114,14 @@ const buildSender = (salonId) => async (job) => {
 
   let result;
   try {
-    result = await session.sock.sendMessage(jid, { text: job.message });
+    result = await withTimeout(
+      session.sock.sendMessage(jid, { text: job.message }),
+      config.antiban.sendTimeoutMs,
+      'sendMessage',
+    );
   } catch (err) {
-    // sendMessage hatasi — numara WhatsApp'ta yok / engellenmis / network vs.
+    // sendMessage hatasi/timeout — numara WhatsApp'ta yok / engellenmis / network /
+    // zombi socket. Hata firlatilir -> onFailed -> message.failed -> SMS fallback.
     logger.warn({ phone, jid, err: err.message }, 'sendMessage basarisiz, SMS fallback tetiklenecek');
     throw err;
   }

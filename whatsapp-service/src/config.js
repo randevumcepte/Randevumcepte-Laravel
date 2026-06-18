@@ -60,6 +60,11 @@ module.exports = {
     // Keep-alive: NAT/conntrack idle timeout (genelde 180s) altinda kalmak zorunda,
     // yoksa TCP baglantisi koparilir ve 408 timedOut alinir. 30s tampon.
     keepAliveIntervalMs: parseInt(process.env.KEEP_ALIVE_INTERVAL_MS || '30000', 10), // 30 saniye
+    // sendMessage/onWhatsApp icin sert timeout: zombi socket (DB connected ama olu)
+    // durumunda Baileys cagrisi sonsuza kadar asilabilir; bu durumda is kuyrukta
+    // durum=0 takilir, ne message.sent ne message.failed gelir, SMS fallback de
+    // tetiklenmez. Timeout asilan gonderim hata firlatir -> onFailed -> SMS fallback.
+    sendTimeoutMs: parseInt(process.env.SEND_TIMEOUT_MS || '45000', 10), // 45 saniye
   },
   sessionsDir: require('path').resolve(__dirname, '..', 'sessions'),
 };
