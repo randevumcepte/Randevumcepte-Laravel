@@ -507,4 +507,10 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get ('/scriptler',                'CagriMerkeziApiController@cagri_scriptleri_getir');
         Route::get ('/kategoriler',              'CagriMerkeziApiController@cagri_kategori_liste');
     });
+
+    /* ───────── Salon Hatirlatma (reminder/toast feed) — mobil API ─────────
+     | Web paneldeki sag-alt hatirlatma kart sisteminin AYNISI; Bearer (Passport) guard.
+     | feed() SalonHatirlatmaController'dan miras alinir (HatirlatmaApiController).
+     */
+    Route::get('/hatirlatma-feed', 'HatirlatmaApiController@feed')->middleware('auth:isletmeyonetim-api');
 });

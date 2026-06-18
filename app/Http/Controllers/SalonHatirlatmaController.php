@@ -52,6 +52,16 @@ class SalonHatirlatmaController extends Controller
             return response()->json(['hatirlatmalar' => [], 'sayi' => 0]);
         }
 
+        // YETKI: Hatirlatma popuplari SADECE rol 1 (sahip), 2 (supervizor), 3 (yonetici)
+        // icin gosterilir. Rol 4-5 (personel vb.) finansal/operasyonel hatirlatmalari gormez.
+        // satisortakligi guard'i salon 15 yonetimi -> izinli sayilir (eski davranis).
+        if (!Auth::guard('satisortakligi')->check()) {
+            $rol = (int) self::kullaniciRolu($salonId, $this->cmAuthId());
+            if (!in_array($rol, [1, 2, 3], true)) {
+                return response()->json(['hatirlatmalar' => [], 'sayi' => 0]);
+            }
+        }
+
         $cacheKey = 'salon_hatirlatma.' . $salonId;
         if (filter_var($request->input('refresh'), FILTER_VALIDATE_BOOLEAN)) { // Request::boolean() bu surumde yok
             Cache::forget($cacheKey);
@@ -93,7 +103,7 @@ class SalonHatirlatmaController extends Controller
     {
         if (!$this->tabloVarMi('aranacak_musteriler') || !$this->tabloVarMi('arama_listesi')) return [];
 
-        $authUser = Auth::guard('isletmeyonetim')->user();
+        $authUser = $this->cmUser(); // guard-agnostik: web=isletmeyonetim, mobil=isletmeyonetim-api
         if (!$authUser) return [];
         $authId = $authUser->id;
 
