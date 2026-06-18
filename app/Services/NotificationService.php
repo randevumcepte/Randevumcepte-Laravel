@@ -224,12 +224,23 @@ class NotificationService
         // Raw token modu: forTokens() ile gelen bildirim_id'leri DB'den bul, kullanici lookup yapma.
         if ($this->kullaniciTipi === 'raw') {
             if (empty($this->rawTokens)) return collect();
-            return BildirimKimlikleri::query()
+            $raw = BildirimKimlikleri::query()
                 ->whereIn('bildirim_id', $this->rawTokens)
                 ->where('aktif', true)
                 ->whereNotNull('bildirim_id')
-                ->where('bildirim_id', '!=', '')
-                ->get();
+                ->where('bildirim_id', '!=', '');
+
+            // Brand izolasyonu raw mode'da da gecerli: salon X'in app_bundle'ina
+            // ait olmayan cihazlara gonderme. Tokens listesi disardan gelse bile
+            // alici salonla baglantili olmali (yetkili/personelin baska brand'deki
+            // kayitlari elenir).
+            if ($this->salonId) {
+                $brandBundle = \App\Salonlar::where('id', $this->salonId)->value('app_bundle');
+                if (!empty($brandBundle)) {
+                    $raw->where('app_bundle', $brandBundle);
+                }
+            }
+            return $raw->get();
         }
 
         $q = BildirimKimlikleri::query()->where('aktif', true);
