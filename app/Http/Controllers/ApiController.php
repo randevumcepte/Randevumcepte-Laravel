@@ -10137,11 +10137,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     @set_time_limit(60);
                     if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
                     try {
-                        $tokenlar = \App\BildirimKimlikleri::where("user_id", $_musteriUserId)->pluck("bildirim_id")->toArray();
+                        // Defense-in-depth: token havuzunu aktif + salon brand bundle ile sik
+                        // (NotificationService raw mod findTokens da ayni filtreyi uygulasa da
+                        // havuzu burada da daraltmak inbox ve push'u tutarli tutar).
+                        $brandBundle = \App\Salonlar::where('id', $_musteriSalonId)->value('app_bundle');
+                        $tq = \App\BildirimKimlikleri::where("user_id", $_musteriUserId)
+                            ->where('aktif', true);
+                        if (!empty($brandBundle)) $tq->where('app_bundle', $brandBundle);
+                        $tokenlar = $tq->pluck("bildirim_id")->toArray();
                         if (!empty($tokenlar)) {
                             \App\Services\NotificationService::forTokens($tokenlar, $_musteriSalonId)
                                 ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
-                                ->title("Yeni Randevu")
+                                ->title("Yeni Randevunuz Oluşturuldu")
                                 ->body($_musteriMesajCaptured)
                                 ->send();
                         }
@@ -10190,8 +10197,21 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                             @set_time_limit(60);
                             if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
                             try {
-                                $tokenlar = \App\BildirimKimlikleri::where("isletme_yetkili_id", $_personelId)
-                                    ->orWhereIn('isletme_yetkili_id', \App\Personeller::where('salon_id', $_salonIdLocal)->where('role_id', '<', 5)->pluck('id')->toArray())->pluck("bildirim_id")->toArray();
+                                // Defense-in-depth: aktif + salon brand bundle ile token havuzunu sik.
+                                // Hedef personeller: hizmete atanan kisi + ayni salonun role<5 yoneticileri.
+                                $brandBundle = \App\Salonlar::where('id', $_salonIdLocal)->value('app_bundle');
+                                $yoneticiIdleri = \App\Personeller::where('salon_id', $_salonIdLocal)
+                                    ->where('role_id', '<', 5)->pluck('id')->toArray();
+                                $tq = \App\BildirimKimlikleri::query()
+                                    ->where('aktif', true)
+                                    ->where(function ($w) use ($_personelId, $yoneticiIdleri) {
+                                        $w->where('isletme_yetkili_id', $_personelId);
+                                        if (!empty($yoneticiIdleri)) {
+                                            $w->orWhereIn('isletme_yetkili_id', $yoneticiIdleri);
+                                        }
+                                    });
+                                if (!empty($brandBundle)) $tq->where('app_bundle', $brandBundle);
+                                $tokenlar = $tq->pluck("bildirim_id")->toArray();
                                 if (!empty($tokenlar)) {
                                     \App\Services\NotificationService::forTokens($tokenlar, $_salonIdLocal)
                                         ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
@@ -10922,7 +10942,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     {
 
-        $arsiv = Arsiv::where("id", $request->id)->first;
+        $arsiv = Arsiv::where("id", $request->id)->first();
 
         $arsiv->durum = 0;
 
@@ -15431,7 +15451,123 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     }
 
-    
+    // Mobil: form/sozlesme PDF'ini goster (inline) — session gerektirmez,
+    // isletme arsivin salon_id'sinden alinir. Web formgoster ile ayni PDF.
+    public function formgoster(Request $request)
+    {
+        $arsiv = Arsiv::where('id', $request->arsivid)->first();
+        if (!$arsiv) return abort(404);
+        $pdf = $this->arsivPdfUret($arsiv, $baslik);
+        if ($pdf === null) {
+            return response()->file($arsiv->uzanti);
+        }
+        return $pdf->stream($baslik . '.pdf');
+    }
+
+    // Mobil: form/sozlesme PDF'ini indir (download).
+    public function formindir(Request $request)
+    {
+        $arsiv = Arsiv::where('id', $request->arsivid)->first();
+        if (!$arsiv) return abort(404);
+        $pdf = $this->arsivPdfUret($arsiv, $baslik);
+        if ($pdf === null) {
+            return response()->download($arsiv->uzanti);
+        }
+        return $pdf->download($baslik . '.pdf');
+    }
+
+    // Arsiv kaydindan PDF nesnesi uretir. Harici belge ise (form_id=0,
+    // sozlesme degil) null doner — cagiran dosyayi direkt servis eder.
+    // $baslik referansla doldurulur.
+    private function arsivPdfUret($arsiv, &$baslik)
+    {
+        $formTaslak = FormTaslaklari::where('id', $arsiv->form_id)->first();
+        $baslik = $formTaslak ? $formTaslak->form_adi : ($arsiv->is_sozlesme ? 'Hizmet Sozlesmesi' : 'form');
+        $isletme = Salonlar::where('id', $arsiv->salon_id)->first();
+
+        if ($arsiv->is_sozlesme) {
+            return $this->sozlesmePdfYukle($arsiv, $isletme);
+        }
+        if ($arsiv->form_id != 0) {
+            if ($formTaslak && $formTaslak->is_dinamik) {
+                $sorular = $formTaslak->sorular_json ? json_decode($formTaslak->sorular_json, true) : [];
+                $cevaplarRaw = $arsiv->cevaplar_json ? json_decode($arsiv->cevaplar_json, true) : [];
+                $cevaplar = [];
+                foreach ($cevaplarRaw as $item) {
+                    $cevaplar[$item['indeks']] = $item['cevap'];
+                }
+                return \PDF::loadView('onamform.dinamik_form_pdf', [
+                    'arsiv'    => $arsiv,
+                    'isletme'  => $isletme,
+                    'sorular'  => $sorular,
+                    'cevaplar' => $cevaplar,
+                    'form_adi' => $baslik,
+                    'aciklama' => $formTaslak->aciklama ?? '',
+                ])->setOptions(['defaultFont' => 'DejaVu Sans']);
+            }
+            $taslak = $formTaslak ? $formTaslak->taslak : null;
+            if (!$taslak) return abort(404);
+            $html = view($taslak, [
+                'title'   => date('Y-m-d-H-i-s'),
+                'arsiv'   => $arsiv,
+                'isletme' => $isletme,
+            ])->render();
+            $html = $this->htmlOnayKoduEkle($html, $arsiv);
+            return \PDF::loadHTML($html)->setOptions(['defaultFont' => 'sans-serif']);
+        }
+        // Harici belge: dosya direkt servis edilecek.
+        return null;
+    }
+
+    private function sozlesmePdfYukle($arsiv, $isletme)
+    {
+        $hizmet_adi = null; $paket_adi = null;
+        if ($arsiv->hizmet_id) {
+            try {
+                $sh = \DB::table('salon_sunulan_hizmetler')
+                    ->leftJoin('hizmetler', 'salon_sunulan_hizmetler.hizmet_id', '=', 'hizmetler.id')
+                    ->where('salon_sunulan_hizmetler.id', $arsiv->hizmet_id)
+                    ->select('hizmetler.hizmet_adi')->first();
+                $hizmet_adi = $sh ? $sh->hizmet_adi : null;
+            } catch (\Exception $e) {}
+        }
+        if ($arsiv->paket_id) {
+            try { $paket_adi = \DB::table('paketler')->where('id', $arsiv->paket_id)->value('paket_adi'); } catch (\Exception $e) {}
+        }
+        return \PDF::loadView('onamform.sozlesme_pdf', [
+            'arsiv' => $arsiv, 'isletme' => $isletme, 'hizmet_adi' => $hizmet_adi, 'paket_adi' => $paket_adi,
+        ])->setOptions(['defaultFont' => 'DejaVu Sans']);
+    }
+
+    private function htmlOnayKoduEkle($html, $arsiv)
+    {
+        $footer = $this->onayKoduFooter($arsiv);
+        if (stripos($html, '</body>') !== false) {
+            return str_ireplace('</body>', $footer . '</body>', $html);
+        }
+        return $html . $footer;
+    }
+
+    private function onayKoduFooter($arsiv)
+    {
+        $kod = $arsiv->dogrulama_kodu ?? '-';
+        $tarih = $arsiv->created_at ? date('d.m.Y H:i', strtotime($arsiv->created_at)) : '';
+        $imzaZaman = $arsiv->imza_zaman ? date('d.m.Y H:i:s', strtotime($arsiv->imza_zaman)) : '';
+        $ip = $arsiv->imza_ip ?? '';
+        $kvkk = $arsiv->kvkk_onay ? '<span style="color:#28a745;"><b>&#10003; KVKK Onayi</b></span>' : '';
+        $extras = [];
+        if ($imzaZaman) $extras[] = 'Imza: ' . $imzaZaman;
+        if ($ip) $extras[] = 'IP: ' . $ip;
+        if ($kvkk) $extras[] = $kvkk;
+        $extrasHtml = !empty($extras) ? '<div style="font-size:9px; color:#666; margin-top:3px;">' . implode(' &nbsp;|&nbsp; ', $extras) . '</div>' : '';
+        return '<div style="margin-top:8px; padding:6px 10px; background:#fff8dc; border:1px solid #d4a017; text-align:center; font-size:11px; font-family: DejaVu Sans, sans-serif;">
+            <b>SMS ONAY KODU:</b> <span style="letter-spacing:4px; font-weight:bold; font-size:13px;">' . e($kod) . '</span>
+            ' . ($tarih ? ' &nbsp;|&nbsp; Tarih: ' . $tarih : '') . '
+            ' . $extrasHtml . '
+        </div>';
+    }
+
+
 
     public function checkPhone(Request $request)
 
