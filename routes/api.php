@@ -108,6 +108,9 @@ Route::post('/ongorusmeget/{salonid}','ApiController@ongorusmegetir');
 Route::post('/ongorusmegetgunluk/{salonid}','ApiController@ongorusmegetirgunluk');
 // v2 — mobil kart tasarimi icin temiz JSON donen alacaklar uc noktasi (eski route degismedi)
 Route::post('/alacaklar-v2/{salonid}','ApiController@alacaklar_v2');
+// Harici tahsilat (gecmise donuk satis+tahsilat) — mobil
+Route::post('/harici-tahsilat-kalemler/{salon_id}','ApiController@harici_tahsilat_kalemler');
+Route::post('/harici-tahsilat-ekle','ApiController@harici_tahsilat_ekle');
 Route::post('/salon_randevu_getir/{salonid}','ApiController@salon_tarafindan_randevular_get');
 Route::post('/web_randevu_getir/{salonid}','ApiController@web_tarafindan_randevular_get');
 Route::post('/uygulama_randevu_getir/{salonid}','ApiController@uygulama_uzerindan_randevular_get');
@@ -206,6 +209,9 @@ Route::post('/etkinliktekrarsmsgonder','ApiController@etkinliktekrarsmsgonder');
 Route::post('/etkinlikpasifet','ApiController@etkinlikpasifet');
 Route::post('/formgonder','ApiController@formgonder');
 Route::post('/arsivonayla','ApiController@arsivonayla');
+// Form/sozlesme PDF'i (session gerektirmeden; salon arsivden alinir).
+Route::get('/formgoster','ApiController@formgoster');
+Route::get('/formindir','ApiController@formindir');
 Route::post('/musteriekleguncelle/{salonid}','ApiController@musteriekleguncelle');
 Route::post('check_phone', 'ApiController@checkPhone');
 
