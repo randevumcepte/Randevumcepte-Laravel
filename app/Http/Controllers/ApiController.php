@@ -20801,9 +20801,14 @@ if (is_array($request->cihaz_id)) {
 
     {
 
-        return Islemler::where("user_id", $request->user_id)
+        $query = Islemler::where("user_id", $request->user_id);
 
-        ->get();
+        // Beyaz etiket: sadece bu isletmeye ait gorseller listelensin
+        if ($request->filled('salon_id')) {
+            $query->where('salon_id', $request->salon_id);
+        }
+
+        return $query->get();
 
     }
 
@@ -20875,6 +20880,9 @@ if (is_array($request->cihaz_id)) {
         if ($request->filled('salon_id')) {
             $islem->salon_id = $request->salon_id;
         }
+        if ($request->filled('not')) {
+            $islem->resim_notu = $request->input('not');
+        }
         $islem->tarih = Carbon::now()->format('Y-m-d');
         $islem->islem_fotolari = json_encode([$relativePath]);
         $islem->save();
@@ -20922,6 +20930,39 @@ if (is_array($request->cihaz_id)) {
             return response()->json([
                 'success' => true,
                 'deleted' => $path,
+            ]);
+        }
+
+        return response()->json(['error' => 'Resim bulunamadı'], 404);
+    }
+
+    public function musteriResimNot(Request $request)
+    {
+        $userId = $request->user_id;
+        $path = $request->path;
+
+        if (empty($userId) || empty($path)) {
+            return response()->json(['error' => 'user_id ve path gerekli'], 400);
+        }
+
+        $query = Islemler::where('user_id', $userId);
+        if ($request->filled('salon_id')) {
+            $query->where('salon_id', $request->salon_id);
+        }
+
+        $rows = $query->get();
+        foreach ($rows as $row) {
+            $images = json_decode($row->islem_fotolari, true);
+            if (!is_array($images)) continue;
+            if (!in_array($path, $images, true)) continue;
+
+            $row->resim_notu = $request->input('not');
+            $row->save();
+
+            return response()->json([
+                'success' => true,
+                'path' => $path,
+                'not' => $row->resim_notu,
             ]);
         }
 
