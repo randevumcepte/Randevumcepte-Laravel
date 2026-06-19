@@ -13409,33 +13409,64 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     }
 
     public function dogrulama_kodu_gonder(Request $request)
-
     {
-
         $randevu = Randevular::where("id", $request->randevuid)->first();
 
         $random = str_shuffle("1234567890");
-
         $kod = substr($random, 0, 4);
-
         $randevu->dogrulama = $kod;
-
         $randevu->save();
 
-        $mesaj = [
+        $telefon = $randevu->users->cep_telefon ?? null;
+        $salonId = $randevu->salon_id;
+        $mesajMetni = "Doğrulama kodunuz : " . $kod;
 
-            [
+        $mesaj = [[
+            "to" => $telefon,
+            "message" => $mesajMetni,
+        ]];
 
-                "to" => $randevu->users->cep_telefon,
+        // Kanal sirasi:
+        //  1) Isletme SMS kredisi varsa -> SMS gonder
+        //  2) Kredi yoksa ve WhatsApp bagliysa -> WhatsApp dene
+        //  3) WhatsApp basarisiz olursa -> son care olarak SMS dene
+        $smsKredi = (int) self::kalan_sms($salonId);
 
-                "message" => "Doğrulama kodunuz : " . $kod,
+        if ($smsKredi > 0) {
+            self::sms_gonder_2($request, $mesaj, false, 1, true, $salonId, false);
+            return;
+        }
 
-            ],
+        // SMS kredisi yok — WhatsApp dene
+        $salon = Salonlar::find($salonId);
+        $waBagli = $salon
+            && !empty($salon->whatsapp_aktif)
+            && ($salon->whatsapp_durum ?? null) === 'connected';
 
-        ];
+        if ($waBagli && $telefon) {
+            try {
+                $wa = app(\App\Services\WhatsAppService::class);
+                $sonuc = $wa->sendUrgent($salon, $telefon, $mesajMetni, $randevu->user_id, 'geldi_dogrulama_kodu');
+                if (!empty($sonuc['ok'])) {
+                    Log::info('[GELDI-KOD] WA gonderildi (SMS kredisi yok)', [
+                        'salon_id' => $salonId, 'randevu_id' => $randevu->id,
+                        'logId' => $sonuc['logId'] ?? null,
+                    ]);
+                    return;
+                }
+                Log::warning('[GELDI-KOD] WA basarisiz -> SMS son care', [
+                    'salon_id' => $salonId, 'randevu_id' => $randevu->id,
+                    'err' => $sonuc['error'] ?? 'unknown',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('[GELDI-KOD] WA istisna -> SMS son care: ' . $e->getMessage(), [
+                    'salon_id' => $salonId, 'randevu_id' => $randevu->id,
+                ]);
+            }
+        }
 
-        self::sms_gonder_2($request, $mesaj, false, 1, true, $randevu->salon_id,false);
-
+        // Son care: SMS dene (kredi sifir bile olsa saglayici bazi planlarda hala gonderebilir)
+        self::sms_gonder_2($request, $mesaj, false, 1, true, $salonId, false);
     }
 
     public function musteri_danisan_turunu_getir(Request $request)
