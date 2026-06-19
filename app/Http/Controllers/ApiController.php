@@ -2479,6 +2479,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $q->where('name', 'like', '%' . $request->musteridanisan . '%');
             })
             ->where('planlanan_odeme_tarihi', '<=', $bugun)
+            // KALINTI TEMIZLIGI: alacaklar satiri bir taksit/senet vadesine bagliysa
+            // (taksit_vade_id / senet_vade_id), o vade ODENDI (odendi=1) ise gosterme.
+            // Boylece odenen taksit/senet kalintisi listede kalmaz. Bagli olmayan
+            // (adisyon bazli) alacaklarda link NULL -> NOT EXISTS true -> satir kalir.
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM taksit_vadeleri tv WHERE tv.id = alacaklar.taksit_vade_id AND tv.odendi = 1)')
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM senet_vadeleri sv WHERE sv.id = alacaklar.senet_vade_id AND sv.odendi = 1)')
+            ->where('tutar', '>', 0) // sifirlanmis kalintilari gizle
             ->orderBy('planlanan_odeme_tarihi', 'asc') // en eski/vadesi en cok gecmis ustte
             ->paginate(10);
 
