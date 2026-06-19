@@ -17710,7 +17710,23 @@ DB::raw('
                     $personelBadges .= '<span class="badge badge-primary" style="margin:2px 4px 2px 0;font-size:12px;">'.htmlspecialchars($op->personel->personel_adi, ENT_QUOTES, 'UTF-8').'</span>';
                 }
             }
-            if($personelBadges === '') $personelBadges = '<span class="text-muted">-</span>';
+            if($personelBadges === '')
+                $personelBadges = '<span class="text-muted">-</span>';
+            else
+                $personelBadges = '<div style="white-space:normal;max-width:280px;line-height:1.9;">'.$personelBadges.'</div>';
+
+            // Atanan hizmetlerin tek hucrede, wrapli ozeti
+            $odaHizmetleri = \App\OdaHizmetler::where('oda_id',$oda->id)->get();
+            $hizmetBadges = '';
+            foreach($odaHizmetleri as $oh){
+                if($oh->hizmet){
+                    $hizmetBadges .= '<span class="badge badge-info" style="margin:2px 4px 2px 0;font-size:12px;">'.htmlspecialchars($oh->hizmet->hizmet_adi, ENT_QUOTES, 'UTF-8').'</span>';
+                }
+            }
+            if($hizmetBadges === '')
+                $hizmetBadges = '<span class="text-muted">-</span>';
+            else
+                $hizmetBadges = '<div style="white-space:normal;max-width:280px;line-height:1.9;">'.$hizmetBadges.'</div>';
 
             return [
                 'siralama'=> $siralama,
@@ -17718,6 +17734,7 @@ DB::raw('
                 'oda_adi'=>$oda->oda_adi,
                 'oda_aciklama'=>$oda->aciklama,
                 'personeller'=>$personelBadges,
+                'hizmetler'=>$hizmetBadges,
                 'islemler'=>$islemler,
             ];
         });

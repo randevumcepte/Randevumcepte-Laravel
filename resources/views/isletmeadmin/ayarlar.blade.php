@@ -983,6 +983,7 @@
                            <th>Takvim Sırası</th>
                            <th>Oda Adı</th>
                            <th>Personeller</th>
+                           <th>Hizmetler</th>
                            <th>Durum</th>
                            <th>Açıklama</th>
                            <th class="datatable-nosort">İşlemler</th>
