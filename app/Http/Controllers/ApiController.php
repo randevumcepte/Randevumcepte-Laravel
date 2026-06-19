@@ -6260,11 +6260,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $q->whereIn('salon_id', $salonIds);
         }
     })
-    // Randevu listesi karisik gelmesin: once tarihe, sonra randevunun en erken
-    // saatine gore (saat randevu_hizmetler'de tutuluyor), en sona id ile sirala.
-    ->orderBy("tarih", "asc")
-    ->orderByRaw('(SELECT MIN(rh.saat) FROM randevu_hizmetler rh WHERE rh.randevu_id = randevular.id) ASC')
-    ->orderBy("id", "asc")
+    // Randevu listesi: EN SON tarih en ustte (mobil liste istegi). Once tarihe DESC,
+    // sonra ayni gun icinde en gec saate gore DESC, en sona id DESC.
+    ->orderBy("tarih", "desc")
+    ->orderByRaw('(SELECT MIN(rh.saat) FROM randevu_hizmetler rh WHERE rh.randevu_id = randevular.id) DESC')
+    ->orderBy("id", "desc")
     ->paginate(10);
         /*$randevular = DB::table("randevu_hizmetler")
 
@@ -9981,6 +9981,23 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $yenirandevu->durum = $request->durum;
                 $yenirandevu->save();
 
+                // --- On gorusme randevusu duzenlendiyse on_gorusmeler tablosunu da guncelle
+                if ($yenirandevu->on_gorusme_id) {
+                    $og = OnGorusmeler::find($yenirandevu->on_gorusme_id);
+                    if ($og) {
+                        $og->hatirlatma_tarihi = $yenirandevu->tarih;
+                        $og->on_gorusme_saati = $yenirandevu->saat;
+                        // Gorusmeyi yapan = randevudaki ilk hizmetin personeli
+                        if (isset($request->hizmetler) && is_array($request->hizmetler) && count($request->hizmetler) > 0) {
+                            $ogPersonel = $request->hizmetler[0]['personel_id'] ?? null;
+                            if ($ogPersonel !== null && $ogPersonel !== 'null' && $ogPersonel !== '') {
+                                $og->personel_id = $ogPersonel;
+                            }
+                        }
+                        $og->save();
+                    }
+                }
+
                 // --- Yeni randevu hizmetlerini ekle
                 $yenisaatbaslangic = $request->randevu_saati;
                 $hizmet_sureleri_okunan = [];
@@ -11872,10 +11889,12 @@ public function cdrRaporLatest(Request $request)
                 $_takvimTuru = Salonlar::where("id", $request->salonid)->value("randevu_takvim_turu");
 
                 // Hizmetleri kaydet
+                // On gorusme randevusunun hizmeti her zaman 1 (= "On Gorusme") olarak kalir.
+                // Gercek neden (paket/urun/hizmet) on_gorusmeler tablosunda tutulur.
                 if (!empty($hizmetler) && is_array($hizmetler)) {
                     foreach ($hizmetler as $hizmetData) {
                         $ongorusmehizmeti = new RandevuHizmetler();
-                        $ongorusmehizmeti->hizmet_id = $hizmetData['hizmet_id'] ?? 1;
+                        $ongorusmehizmeti->hizmet_id = 1;
                         $ongorusmehizmeti->personel_id = $hizmetData['personel_id'] ?? $request->gorusmeyi_yapan;
                         $ongorusmehizmeti->saat = $hizmetData['saat'] ?? $request->randevu_saati;
                         $ongorusmehizmeti->sure_dk = $hizmetData['sure_dk'] ?? 60;
@@ -18106,6 +18125,15 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             if ($ongorusmePaketFiyat == 0) {
                 $ongorusmePaketFiyat = (float) ($ongorusme->paket->fiyat ?? 0);
             }
+            // Kullanici popup'ta fiyat girdiyse satir toplam fiyati olarak onu kullan
+            if ($request->filled('fiyat') && is_numeric($request->fiyat)) {
+                $ongorusmePaketFiyat = (float) $request->fiyat;
+            }
+            // Seans araligi paket tanimindan gelir ("bastan tanimlaniyor"); request bos olabilir
+            $paketSeansAraligi = (int) ($ongorusme->paket->seans_araligi ?? 0);
+            if ($paketSeansAraligi <= 0 && $request->filled('seans_araligi')) {
+                $paketSeansAraligi = (int) $request->seans_araligi;
+            }
             $adisyon_paket_id = self::adisyona_paket_ekle(
 
                 $adisyon_id,
@@ -18116,7 +18144,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                 $request->baslangic_tarihi,
 
-                $request->seans_araligi,
+                $paketSeansAraligi,
 
                 $ongorusme->personel_id,
 
@@ -18128,9 +18156,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $seanstarih = $request->baslangic_tarihi;
 
-            $toplam_seans_sayilari = $ongorusme->paket->hizmetler->sum("seans");
-            if ($toplam_seans_sayilari == 0) {
-                $toplam_seans_sayilari = (int) ($ongorusme->paket->miktar ?? 0);
+            // Kullanici popup'ta seans sayisi girdiyse onu kullan, yoksa pakete gore hesapla
+            if ($request->filled('seans_sayisi') && (int) $request->seans_sayisi > 0) {
+                $toplam_seans_sayilari = (int) $request->seans_sayisi;
+            } else {
+                $toplam_seans_sayilari = $ongorusme->paket->hizmetler->sum("seans");
+                if ($toplam_seans_sayilari == 0) {
+                    $toplam_seans_sayilari = (int) ($ongorusme->paket->miktar ?? 0);
+                }
             }
 
             for ($i = 1; $i <= $toplam_seans_sayilari; $i++) {
@@ -18143,7 +18176,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                         strtotime(
 
-                            "+" . $request->seans_araligi . " days",
+                            "+" . $paketSeansAraligi . " days",
 
                             strtotime($seanstarih)
 
@@ -18163,7 +18196,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             }
 
-        } else {
+        } elseif ($ongorusme->urun_id != null) {
 
             $urun = Urunler::where("id", $ongorusme->urun_id)->first();
 
@@ -18195,7 +18228,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $adisyon_urun->adet = $request->urun_adedi;
 
-            $adisyon_urun->fiyat = $urun->fiyat * $request->urun_adedi;
+            // Kullanici popup'ta fiyat girdiyse satir toplam fiyati olarak onu kullan (adetle carpilmaz)
+            if ($request->filled('fiyat') && is_numeric($request->fiyat)) {
+                $adisyon_urun->fiyat = (float) $request->fiyat;
+            } else {
+                $adisyon_urun->fiyat = $urun->fiyat * $request->urun_adedi;
+            }
 
             $adisyon_urun->save();
 
@@ -18213,6 +18251,32 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 'kullanici_id'       => $request->olusturan ?? null,
                 'kullanici_tipi'     => 'isletme_yonetim',
             ]);
+
+        } elseif ($ongorusme->hizmet_id != null) {
+
+            $hizmet = Hizmetler::where("id", $ongorusme->hizmet_id)->first();
+
+            $adisyon_id = self::yeni_adisyon_olustur(
+                $user->id,
+                $ongorusme->salon_id,
+                (optional($ongorusme->hizmet)->hizmet_adi ?? 'Hizmet') .
+                    " hizmetinin öngörüşme sonrası satışı",
+                date("Y-m-d"),
+                IsletmeYetkilileri::where("id", $request->olusturan)->first()
+            );
+
+            $adisyon_hizmet = new AdisyonHizmetler();
+            $adisyon_hizmet->adisyon_id = $adisyon_id;
+            $adisyon_hizmet->hizmet_id = $ongorusme->hizmet_id;
+            $adisyon_hizmet->personel_id = $ongorusme->personel_id;
+            $adisyon_hizmet->islem_tarihi = date("Y-m-d");
+            $adisyon_hizmet->islem_saati = date("H:i:s");
+            $adisyon_hizmet->sure = optional($hizmet)->sure ?? 60;
+            // Hizmette sadece fiyat girilir; girilen fiyat satir fiyatidir
+            $adisyon_hizmet->fiyat = ($request->filled('fiyat') && is_numeric($request->fiyat))
+                ? (float) $request->fiyat
+                : (optional($hizmet)->fiyat ?? 0);
+            $adisyon_hizmet->save();
 
         }
 
@@ -25051,6 +25115,20 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         }
         $randevu->saat = $randevu->hizmetler->min('saat');
         $randevu->save();
+
+        // On gorusme randevusu surukle-birak ile tasinirsa on_gorusmeler tablosunu da guncelle
+        // (oda_id OnGorusmeler'de randevu hizmetinden hesaplandigi icin otomatik yansir)
+        if ($randevu->on_gorusme_id) {
+            $og = OnGorusmeler::find($randevu->on_gorusme_id);
+            if ($og) {
+                $og->hatirlatma_tarihi = $randevu->tarih;
+                $og->on_gorusme_saati = $randevu->saat;
+                if ($request->takvimTuru == 1 && $request->resourceId) {
+                    $og->personel_id = $request->resourceId;
+                }
+                $og->save();
+            }
+        }
 
         // ============================================================
         // PUSH BILDIRIMLERI
