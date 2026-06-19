@@ -123,6 +123,12 @@ class WhatsAppService
         foreach ($markers as $m) {
             if (strpos($err, $m) !== false) { $sessionLost = true; break; }
         }
+        // Meta anti-abuse: stanza error 463 = sender numara soft-banned ("warning zone"),
+        // tum gonderimler ack'te reddediliyor. Cozumu numara dinlendirmek ya da degistirmek;
+        // bu surede WA'ya tekrar tekrar deneme yapmak ban riskini artirir.
+        if (!$sessionLost && (strpos($err, '463') !== false || strpos($err, 'error in ack') !== false)) {
+            $sessionLost = true;
+        }
         if (!$sessionLost) return;
 
         $simdiki = (string) ($salon->whatsapp_durum ?? '');

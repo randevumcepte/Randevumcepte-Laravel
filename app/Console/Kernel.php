@@ -33,6 +33,7 @@ class Kernel extends ConsoleKernel
         Commands\AnketOtomatikGonder::class,
         Commands\WhatsappStuckKurtar::class,
         Commands\WhatsappTestGonder::class,
+        Commands\WhatsappSalonTeshis::class,
         Commands\IlacHatirlatmalari::class,
         Commands\OlcumHatirlatmalari::class,
         Commands\SeansHatirlatma::class,
