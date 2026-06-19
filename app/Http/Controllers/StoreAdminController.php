@@ -18909,10 +18909,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if($r = self::satisYetkiYoksa403($request, 'satis.senet_olustur')) return $r;
         if(isset($request->senet_vade_id))
             foreach($request->senet_vade_id as $senetvadesi)
-                Alacaklar::where('senet_vade_id',$request->senetvadesi)->delete();
+                Alacaklar::where('senet_vade_id',$senetvadesi)->delete();
         if(isset($request->taksit_vade_id))
-            foreach($request->taksit_vade_id as $senetvadesi)
-                Alacaklar::where('taksit_vade_id',$request->senetvadesi)->delete();
+            foreach($request->taksit_vade_id as $taksitvadesi)
+                Alacaklar::where('taksit_vade_id',$taksitvadesi)->delete();
         $taksitlitahsilat = '';
         if(is_numeric($request->taksitli_tahsilat_id))
             $taksitlitahsilat = TaksitliTahsilatlar::where('id',$request->taksitli_tahsilat_id)->first();

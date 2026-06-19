@@ -14216,10 +14216,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         if(isset($request->senet_vade_id))
             foreach($request->senet_vade_id as $senetvadesi)
-                Alacaklar::where('senet_vade_id',$request->senetvadesi)->delete();
+                Alacaklar::where('senet_vade_id',$senetvadesi)->delete();
         if(isset($request->taksit_vade_id))
-            foreach($request->taksit_vade_id as $senetvadesi)
-                Alacaklar::where('taksit_vade_id',$request->senetvadesi)->delete();
+            foreach($request->taksit_vade_id as $taksitvadesi)
+                Alacaklar::where('taksit_vade_id',$taksitvadesi)->delete();
         $taksitlitahsilat = '';
         if(is_numeric($request->taksitli_tahsilat_id))
             $taksitlitahsilat = TaksitliTahsilatlar::where('id',$request->taksitli_tahsilat_id)->first();
@@ -25119,6 +25119,18 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 $senet->delete();
             }
             Tahsilatlar::whereIn('id',$tahsilat_idler)->delete();
+            // Guvenlik agi: breakdown (tahsilat_hizmetler/urunler/paketler) satiri
+            // olmayan tahsilatlar yukaridaki whereIn ile yakalanmaz; adisyon_id ile
+            // bagli tum tahsilatlar child satirlariyla birlikte temizleniyor.
+            $oksuzTahsilatIdler = Tahsilatlar::where('adisyon_id',$request->adisyon_id)->pluck('id')->toArray();
+            if(count($oksuzTahsilatIdler) > 0){
+                TahsilatHizmetler::whereIn('tahsilat_id',$oksuzTahsilatIdler)->delete();
+                TahsilatUrunler::whereIn('tahsilat_id',$oksuzTahsilatIdler)->delete();
+                TahsilatPaketler::whereIn('tahsilat_id',$oksuzTahsilatIdler)->delete();
+                Tahsilatlar::whereIn('id',$oksuzTahsilatIdler)->delete();
+            }
+            // Taksit/senet alacak kalintilarini temizle (vadeler yukarida silindi).
+            Alacaklar::where('adisyon_id',$request->adisyon_id)->delete();
             Adisyonlar::where('id',$request->adisyon_id)->delete();
             $musteriid = '';
             if($request->musteri_id!='')
