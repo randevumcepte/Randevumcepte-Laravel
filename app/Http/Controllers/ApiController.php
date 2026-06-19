@@ -2479,10 +2479,6 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $q->where('name', 'like', '%' . $request->musteridanisan . '%');
             })
             ->where('planlanan_odeme_tarihi', '<=', $bugun)
-            // Tahsil edilen / silinen alacaklar listede KALINTI olarak kalmasin
-            // (web 'gecikenAlacaklar' ile ayni filtre). Ayrica sifirlanmis bakiyeleri gizle.
-            ->whereRaw('IFNULL(silindi,0) = 0')
-            ->where('tutar', '>', 0)
             ->orderBy('planlanan_odeme_tarihi', 'asc') // en eski/vadesi en cok gecmis ustte
             ->paginate(10);
 
