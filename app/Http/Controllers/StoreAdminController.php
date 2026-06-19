@@ -22703,6 +22703,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 TahsilatPaketler::whereIn('tahsilat_id',$oksuzTahsilatIdler)->delete();
                 Tahsilatlar::whereIn('id',$oksuzTahsilatIdler)->delete();
             }
+            // Taksit/senet kalintisi: vadeler yukarida silindi ama bu vadelere
+            // (taksit_vade_id/senet_vade_id) ve adisyona bagli Alacaklar kayitlari
+            // siliniyordu DEGIL -> alacaklar listesinde silinmis vadeye isaret eden
+            // "hayalet borc" olarak kaliyordu. Diger silme yollariyla ayni sekilde
+            // adisyon_id uzerinden temizleniyor (her Alacaklar kaydinda adisyon_id dolu).
+            Alacaklar::where('adisyon_id',$request->adisyon_id)->delete();
             Adisyonlar::where('id',$request->adisyon_id)->delete();
             $musteriid = '';
             if($request->musteri_id!='')
