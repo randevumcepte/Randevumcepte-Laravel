@@ -63,7 +63,7 @@ fi
 OPCACHE_TOKEN=$(grep '^GITHUB_WEBHOOK_SECRET=' .env 2>/dev/null | cut -d= -f2- | tr -d '\r')
 if [ -n "$OPCACHE_TOKEN" ]; then
     OPC_OUT=$(curl -s -k -m 10 -H "Host: apptest.randevumcepte.com.tr" \
-        "https://127.0.0.1/opcache-reset.php?token=$OPCACHE_TOKEN" 2>&1)
+        "https://127.0.0.1/public/opcache-reset.php?token=$OPCACHE_TOKEN" 2>&1)
     log "opcache-reset: $OPC_OUT"
 else
     log "opcache-reset: GITHUB_WEBHOOK_SECRET bulunamadi, atlandi"
