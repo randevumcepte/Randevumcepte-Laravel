@@ -152,13 +152,25 @@ public $successStatus = 200;
                         foreach($salonlar as $salon)
                         {
                             if (!in_array($salon, $yetkiler)) {
-                          
+
                                 $message['message'] = 'Bu işletme için yetkiniz bulunmamaktadır.';
-                                $message['success'] = false;  
+                                $message['success'] = false;
                                 return response()->json(['error'=>'Unauthorised','message'=> $message], 401);
-                            } 
+                            }
                         }
-                    
+
+                    }
+                    else
+                    {
+                        // Master uygulama (com.randevumcepte.randevumcepte): yetkili olunan
+                        // salonlardan en az birinin uyelik_turu = 3 olmali. Aksi halde girise izin verme.
+                        $uyelik3Var = Salonlar::whereIn('id', $yetkiler)->where('uyelik_turu', 3)->exists();
+                        if(!$uyelik3Var)
+                        {
+                            $message['message'] = 'Yetkiniz bulunmamaktadır.';
+                            $message['success'] = false;
+                            return response()->json(['error'=>'Unauthorised','message'=> $message], 401);
+                        }
                     }
                     
                 }
