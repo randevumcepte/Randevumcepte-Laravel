@@ -34,9 +34,12 @@ if (!$isLocal || !$secret || !hash_equals($secret, $token)) {
 }
 
 $result = [
-    'opcache_loaded' => extension_loaded('Zend OPcache') || function_exists('opcache_reset'),
-    'opcache_reset'  => function_exists('opcache_reset') ? opcache_reset() : null,
-    'time'           => date('Y-m-d H:i:s'),
+    'opcache_loaded'      => extension_loaded('Zend OPcache') || function_exists('opcache_reset'),
+    'opcache_reset'       => function_exists('opcache_reset') ? opcache_reset() : null,
+    'validate_timestamps' => function_exists('opcache_get_configuration')
+        ? (opcache_get_configuration()['directives']['opcache.validate_timestamps'] ?? null)
+        : null,
+    'time'                => date('Y-m-d H:i:s'),
 ];
 
 header('Content-Type: application/json');
