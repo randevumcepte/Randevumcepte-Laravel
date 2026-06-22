@@ -589,13 +589,24 @@ class SalonrandevuImporter
         $this->log('Personel cekiliyor (/company/staffs/unsafe)...');
         $j = $this->client->get('/company/staffs/unsafe');
         $list = $j['data'] ?? [];
+        $eklenenIds = [];
         foreach ($list as $row) {
             $srId = $row['id'] ?? null;
             $ad = trim(($row['name'] ?? '') . ' ' . ($row['surname'] ?? ''));
             if ($ad === '') $ad = $row['full_name'] ?? '';
             if ($ad === '' || !$srId) continue;
             $pid = $this->ensurePersonel($ad, $row['detail']['phone'] ?? null);
-            if ($pid) { $this->personelMap[$srId] = $pid; $this->counts['personel']++; }
+            if ($pid) {
+                $this->personelMap[$srId] = $pid;
+                $this->counts['personel']++;
+                $eklenenIds[] = $pid;
+            }
+        }
+        // Master import: SR'den gelen personelleri aktif=1 + takvimde gorunsun=1 yap
+        // (ensurePersonel default pasif yaziyor inline yaratimlar icin; burada master kurulum)
+        if (!empty($eklenenIds)) {
+            DB::table('salon_personelleri')->whereIn('id', $eklenenIds)
+                ->update(['aktif' => 1, 'takvimde_gorunsun' => 1]);
         }
         $this->log('Personel: ' . $this->counts['personel']);
     }
@@ -659,12 +670,23 @@ class SalonrandevuImporter
         $this->log('Hizmetler cekiliyor (/company/services/filter?key=&paginate=1)...');
         $j = $this->client->get('/company/services/filter?key=&paginate=1');
         $list = $j['data'] ?? [];
+        $eklenenHIds = [];
         foreach ($list as $row) {
             $srId = $row['id'] ?? null;
             $ad = trim((string) ($row['name'] ?? ''));
             if (!$srId || $ad === '') continue;
             $hid = $this->ensureHizmet($ad, (int) ($row['process_time'] ?? 30), (float) ($row['amount'] ?? 0), $row['category_name'] ?? null);
-            if ($hid) { $this->hizmetMap[$srId] = $hid; $this->counts['hizmet']++; }
+            if ($hid) {
+                $this->hizmetMap[$srId] = $hid;
+                $this->counts['hizmet']++;
+                $eklenenHIds[] = $hid;
+            }
+        }
+        // Master import: salon_sunulan_hizmetler aktif=1 (kurulum)
+        if (!empty($eklenenHIds)) {
+            DB::table('salon_sunulan_hizmetler')->where('salon_id', $this->salonId)
+                ->whereIn('hizmet_id', $eklenenHIds)
+                ->update(['aktif' => 1]);
         }
         $this->log('Hizmet: ' . $this->counts['hizmet']);
     }
@@ -761,12 +783,22 @@ class SalonrandevuImporter
         $this->log('Urunler cekiliyor (/company/stock/items/notpag)...');
         $j = $this->client->get('/company/stock/items/notpag');
         $list = $j['data'] ?? [];
+        $eklenenUIds = [];
         foreach ($list as $row) {
             $srId = $row['id'] ?? null;
             $ad = trim((string) ($row['name'] ?? ''));
             if (!$srId || $ad === '') continue;
             $uid = $this->ensureUrun($ad, (float) ($row['amount'] ?? 0), $row['barcode'] ?? null);
-            if ($uid) { $this->urunMap[$srId] = $uid; $this->counts['urun']++; }
+            if ($uid) {
+                $this->urunMap[$srId] = $uid;
+                $this->counts['urun']++;
+                $eklenenUIds[] = $uid;
+            }
+        }
+        // Master import: urunler aktif=1 (kurulum)
+        if (!empty($eklenenUIds) && \Schema::hasColumn('urunler', 'aktif')) {
+            DB::table('urunler')->whereIn('id', $eklenenUIds)
+                ->update(['aktif' => 1]);
         }
         $this->log('Urun: ' . $this->counts['urun']);
     }

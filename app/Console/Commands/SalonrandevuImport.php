@@ -30,6 +30,7 @@ class SalonrandevuImport extends Command
         {--report-expenses : SR masraflar vs DB masraflar karsilastirma.}
         {--only-randevu : Sadece randevu aktarimi (/appointment/list, UPSERT marker [salonrandevu-rdv:X]). --from --to ile aylik parti aktarim.}
         {--report-randevu : SR /appointment/list vs DB [salonrandevu-rdv:%] aylik dagilim + eksik aylar raporu. --from --to ile sinirlandirilabilir.}
+        {--inspect-salon : Salon icin DB sayim: personel/hizmet/urun/musteri/randevu/adisyon (login gerekmez). --salon zorunlu.}
         {--probe-appointment-params : SR /appointment/list endpoint\'inde farkli parametre kombinasyonlarini dene (default/ispaid/cancelled/include/status...) ve sayfa1 sayilarini karsilastir. UI\'daki gercek sayiya en yakin kombinasyon bulunur.}
         {--start-page= : --only-other-receipts icin baslangic sayfa (resume). Default 1.}
         {--max-page= : --only-other-receipts icin son sayfa (inclusive). Belirtilmezse SR\'nin next_page=0 donene kadar.}
