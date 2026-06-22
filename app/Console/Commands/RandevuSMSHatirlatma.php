@@ -43,6 +43,11 @@ class RandevuSMSHatirlatma extends Command
             'aday_randevu_sayisi' => $randevular->count(),
         ]);
 
+        // 1-GUN-ONCE MUSTERI HATIRLATMASI — musteri+salon bazinda GRUPLU.
+        // Bir musterinin yarinki tum randevulari TEK mesajda toplanir; eskiden
+        // her randevu icin ayri ayri mesaj atiliyordu (4 randevu = 4 SMS).
+        $this->birGunOnceGrupluGonder($randevular, $wa, $controller);
+
         foreach ($randevular as $value) {
             if ($value->salon_id === null || $value->salon_id == 0) {
                 Log::info('[RND-SMS] atlandi (salon_id yok)', ['randevu_id' => $value->id]);
@@ -92,37 +97,8 @@ class RandevuSMSHatirlatma extends Command
                 }
             }
 
-            // Müşteriye 1 gün öncesi hatırlatma — ÇALIŞMA SAATİ KISITI YOK (kullanıcı tercihi):
-            // yarın tarihli randevu görülür görülmez (gece dahil) tek seferlik gönderilir.
-            // Burst koruması Node antiban kuyruğunda (WA sendleri 12-30sn aralıkla dağıtılır).
-            $yarinTarih = date('Y-m-d', strtotime('+1 day'));
-
-            if ($value->tarih === $yarinTarih && empty($value->hatirlatma_gunonce_gonderildi)) {
-                // Atomik claim: overlap eden cron'lar aynı hatırlatmayı çoğaltmasın.
-                $claimed = \Illuminate\Support\Facades\DB::table('randevular')
-                    ->where('id', $value->id)
-                    ->whereNull('hatirlatma_gunonce_gonderildi')
-                    ->update(['hatirlatma_gunonce_gonderildi' => now()]);
-
-                if ($claimed) {
-                    $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 6)->first();
-                    Log::info('[RND-SMS] 1 gün öncesi (kısıtsız) tetiklendi', [
-                        'randevu_id' => $value->id,
-                        'simdi' => date('d.m.Y H:i'),
-                        'ayar_var' => (bool) $ayar,
-                        'ayar_musteri' => $ayar ? (int) $ayar->musteri : null,
-                        'ayar_wa_musteri' => $ayar ? (int) ($ayar->whatsapp_musteri ?? 0) : null,
-                    ]);
-                    if ($ayar && $ayar->musteri) {
-                        $saat = date('H:i', strtotime($value->saat));
-                        $tarihStr = date('d.m.Y', strtotime($value->tarih));
-                        $hizmetMetni = $this->hizmetMetniOlustur($value);
-                        $mesaj = 'Sayın ' . optional($value->users)->name . '; ' . $tarihStr . ' tarihinde saat ' . $saat . ' ' . $hizmetMetni . 'randevunuzu hatırlatmak isteriz görüşmek üzere ✨';
-                        $templateCtx = ['key' => '1gun', 'params' => [$saat, $value->salonlar->salon_adi]];
-                        $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj, $templateCtx);
-                    }
-                }
-            }
+            // (1-gun-once musteri hatirlatmasi artik birGunOnceGrupluGonder()
+            // metodu icinde GRUPLU sekilde isleniyor — bu noktada per-randevu degil)
 
             // İlk geçiş: tetik penceresine giren hizmetleri topla.
             // Aynı randevuda birden fazla hizmet varsa personel/yöneticilere TEK
@@ -360,6 +336,106 @@ class RandevuSMSHatirlatma extends Command
             } catch (\Throwable $e) {
                 Log::warning('[RND-SMS] musteri push fail', ['randevu_id' => $randevu->id, 'err' => $e->getMessage()]);
             }
+        }
+    }
+
+    /**
+     * 1-gün-öncesi müşteri hatırlatmasını (salon_id, user_id) bazında GRUPLAR.
+     * Aynı müşterinin yarınki tüm randevuları TEK mesajda toplanır.
+     * Eskiden her randevu icin ayri mesaj atiliyordu (4 randevu = 4 SMS).
+     * Mesaj formati: "Sayin X; tarih tarihinde 10:00 hizmetA, 10:30 hizmetB, ...
+     *                 randevularinizi hatirlatmak isteriz gorusmek uzere ✨"
+     */
+    protected function birGunOnceGrupluGonder($randevular, $wa, $controller)
+    {
+        $yarinTarih = date('Y-m-d', strtotime('+1 day'));
+
+        $yarinRandevulari = $randevular->filter(function ($r) use ($yarinTarih) {
+            return $r->tarih === $yarinTarih
+                && empty($r->hatirlatma_gunonce_gonderildi)
+                && $r->salon_id && $r->salonlar
+                && $r->users;
+        });
+
+        if ($yarinRandevulari->isEmpty()) return;
+
+        $gruplar = $yarinRandevulari->groupBy(function ($r) {
+            return $r->salon_id . '|' . $r->user_id;
+        });
+
+        foreach ($gruplar as $grup) {
+            $ilk = $grup->first();
+            $salon = $ilk->salonlar;
+            $musteri = $ilk->users;
+            $randevuIdler = $grup->pluck('id')->all();
+
+            // SMS ayari kontrolu (1gun = ayar_id=6)
+            $ayar = SalonSMSAyarlari::where('salon_id', $salon->id)->where('ayar_id', 6)->first();
+            if (!$ayar || !$ayar->musteri) {
+                // Toggle kapali — tekrar tekrar denenmesin diye flag'leri set et
+                \Illuminate\Support\Facades\DB::table('randevular')
+                    ->whereIn('id', $randevuIdler)
+                    ->whereNull('hatirlatma_gunonce_gonderildi')
+                    ->update(['hatirlatma_gunonce_gonderildi' => now()]);
+                Log::info('[RND-SMS] 1 gun once GRUP atlandi (ayar kapali)', [
+                    'salon_id' => $salon->id, 'user_id' => $musteri->id,
+                    'randevu_idler' => $randevuIdler,
+                ]);
+                continue;
+            }
+
+            // Atomik grup claim: bu (salon, musteri) icin flag null olan
+            // tum randevulari bir kerede claim et. Sayi = bu cron'un kazandigi.
+            $claimed = \Illuminate\Support\Facades\DB::table('randevular')
+                ->whereIn('id', $randevuIdler)
+                ->whereNull('hatirlatma_gunonce_gonderildi')
+                ->update(['hatirlatma_gunonce_gonderildi' => now()]);
+
+            if ($claimed === 0) {
+                // Baska bir cron tick'i bu arada claim etmis — atla
+                continue;
+            }
+
+            // Hizmet + saat satirlarini topla (tum randevulardaki tum hizmetler)
+            $sortedGrup = $grup->sortBy('saat');
+            $satirlar = [];
+            foreach ($sortedGrup as $r) {
+                foreach ($r->hizmetler as $h) {
+                    $hAd = optional($h->hizmetler)->hizmet_adi;
+                    if (!$hAd) continue;
+                    $satirlar[] = date('H:i', strtotime($h->saat)) . ' ' . $hAd;
+                }
+            }
+            $satirlar = array_values(array_unique($satirlar));
+            if (empty($satirlar)) {
+                // Hizmet adlari cikmadi (iliski eksik) — sade fallback
+                $satirlar = $sortedGrup->map(function ($r) {
+                    return date('H:i', strtotime($r->saat));
+                })->unique()->values()->all();
+            }
+
+            $tarihStr = date('d.m.Y', strtotime($yarinTarih));
+            $hizmetListesi = implode(', ', $satirlar);
+            $birdenCok = count($satirlar) > 1;
+            $randevuKelime = $birdenCok ? 'randevularınızı' : 'randevunuzu';
+            $mesaj = 'Sayın ' . $musteri->name . '; ' . $tarihStr . ' tarihinde '
+                . $hizmetListesi . ' ' . $randevuKelime
+                . ' hatırlatmak isteriz görüşmek üzere ✨';
+
+            $ilkSaat = date('H:i', strtotime($sortedGrup->first()->saat));
+            $templateCtx = ['key' => '1gun', 'params' => [$ilkSaat, $salon->salon_adi]];
+
+            Log::info('[RND-SMS] 1 gun once GRUPLU gonderim', [
+                'salon_id' => $salon->id,
+                'salon' => $salon->salon_adi,
+                'user_id' => $musteri->id,
+                'randevu_idler' => $randevuIdler,
+                'hizmet_sayisi' => count($satirlar),
+                'claimed' => $claimed,
+            ]);
+
+            // musteriyeGonder ilk randevu uzerinden cagrilir (telefon, salon, vs ondan alinir)
+            $this->musteriyeGonder($wa, $controller, $ilk, $ayar, $mesaj, $templateCtx);
         }
     }
 
