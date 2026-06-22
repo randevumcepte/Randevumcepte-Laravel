@@ -2,6 +2,9 @@
 
 return [
     'service_url' => env('WHATSAPP_SERVICE_URL', 'http://127.0.0.1:3001'),
+    // whatsmeow (Go) bridge — pilot/test icin paralel calisan ikinci bridge.
+    // Salonun whatsapp_bridge_tipi='whatsmeow' ise tum istekler buraya gider.
+    'whatsmeow_service_url' => env('WHATSMEOW_SERVICE_URL', 'http://127.0.0.1:3002'),
     'service_token' => env('WHATSAPP_SERVICE_TOKEN', ''),
     'webhook_secret' => env('WHATSAPP_WEBHOOK_SECRET', ''),
     'request_timeout' => (int) env('WHATSAPP_REQUEST_TIMEOUT', 10),
