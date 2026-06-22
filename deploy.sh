@@ -57,6 +57,18 @@ if [ -x "$PHP" ]; then
     log "migrate --force: $MIGRATE_OUT"
 fi
 
+# 4b) OPcache sifirla (php-fpm SAPI). CLI artisan FPM opcache'ini sifirlamaz;
+# bu yuzden .php degisiklikleri (controller vb.) reload olmadan canli olmaz.
+# Localhost + token korumali endpoint'i curl ile tetikle.
+OPCACHE_TOKEN=$(grep '^GITHUB_WEBHOOK_SECRET=' .env 2>/dev/null | cut -d= -f2- | tr -d '\r')
+if [ -n "$OPCACHE_TOKEN" ]; then
+    OPC_OUT=$(curl -s -k -m 10 -H "Host: apptest.randevumcepte.com.tr" \
+        "https://127.0.0.1/opcache-reset.php?token=$OPCACHE_TOKEN" 2>&1)
+    log "opcache-reset: $OPC_OUT"
+else
+    log "opcache-reset: GITHUB_WEBHOOK_SECRET bulunamadi, atlandi"
+fi
+
 # 5) Son commit'i kaydet (bir sonraki cron tetiklenmesin)
 echo "$REMOTE" > "$HASH_FILE"
 
