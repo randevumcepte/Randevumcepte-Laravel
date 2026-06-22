@@ -779,6 +779,16 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/whatsapp/durum','StoreAdminController@whatsappDurum')->name('whatsapp.durum');
 	Route::get('/whatsapp/qr','StoreAdminController@whatsappQR')->name('whatsapp.qr');
 	Route::post('/whatsapp/cikis','StoreAdminController@whatsappCikis')->name('whatsapp.cikis');
+
+	// whatsmeow pilot panel — production Baileys panelinden bagimsiz paralel
+	// test arayuzu. Yeni bridge ile QR taratma, durum gozleme, manuel mesaj.
+	Route::get ('/whatsmeow',              'WhatsmeowPanelController@index')->name('whatsmeow.sayfa');
+	Route::post('/whatsmeow/baslat',       'WhatsmeowPanelController@baslat');
+	Route::get ('/whatsmeow/durum',        'WhatsmeowPanelController@durum');
+	Route::get ('/whatsmeow/qr',           'WhatsmeowPanelController@qr');
+	Route::post('/whatsmeow/cikis',        'WhatsmeowPanelController@cikis');
+	Route::post('/whatsmeow/test-mesaj',   'WhatsmeowPanelController@testMesaj');
+	Route::get ('/whatsmeow/health',       'WhatsmeowPanelController@health');
 	Route::get('/whatsapp/kanal-durum','StoreAdminController@whatsappKanalDurum')->name('whatsapp.kanal.durum');
 	Route::post('/whatsapp/kanal-toggle','StoreAdminController@whatsappKanalToggle')->name('whatsapp.kanal.toggle');
 	Route::post('/whatsapp/konum-kaydet','StoreAdminController@whatsappKonumKaydet')->name('whatsapp.konum.kaydet');
