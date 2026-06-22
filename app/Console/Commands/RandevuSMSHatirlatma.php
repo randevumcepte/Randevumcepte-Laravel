@@ -71,24 +71,50 @@ class RandevuSMSHatirlatma extends Command
                 'wa_durum' => $value->salonlar->whatsapp_durum,
             ]);
 
-            // Müşteriye hatırlatma (salon kendi belirlediği X saat önce) — WhatsApp + SMS fallback
-            if ($simdi == $tetikSalonSaat) {
-                $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->first();
-                Log::info('[RND-SMS] müşteri salon-saati tetiklendi', [
-                    'randevu_id' => $value->id,
-                    'ayar_var' => (bool) $ayar,
-                    'ayar_musteri' => $ayar ? (int) $ayar->musteri : null,
-                    'ayar_wa_musteri' => $ayar ? (int) ($ayar->whatsapp_musteri ?? 0) : null,
-                ]);
-                if ($ayar && $ayar->musteri) {
-                    $saat = date('H:i', strtotime($value->saat));
-                    $tarihStr = date('d.m.Y', strtotime($value->tarih));
-                    $hizmetMetni = $this->hizmetMetniOlustur($value);
-                    $mesaj = 'Sayın ' . optional($value->users)->name . '; ' . $tarihStr . ' tarihinde saat ' . $saat . ' ' . $hizmetMetni . 'randevunuzu hatırlatmak isteriz görüşmek üzere ✨';
-                    $templateCtx = ['key' => 'yaklasan', 'params' => [$saat, $value->salonlar->salon_adi]];
-                    $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj, $templateCtx);
-                } elseif ($ayar) {
-                    Log::info('[RND-SMS] müşteri SMS toggle kapali — atlandi', ['randevu_id' => $value->id]);
+            // Müşteriye "X saat önce" yaklaşan hatırlatma — RANGE check + atomik claim.
+            // Eskiden strict ==; cron bir tick kaçırınca o randevunun hatırlatması
+            // sonsuza kadar kayboluyordu (musteriye sadece bir randevusunun
+            // hatirlatmasi gidiyor, digerleri kayboluyor sikayetinin sebebi buydu).
+            // Yeni mantik: tetik dakikasi <= simdi < randevu_saati ve flag null ise gonder.
+            $randevuTs = strtotime($value->tarih . ' ' . $value->saat);
+            $hatirlatmaSaat = (int) ($value->salonlar->randevu_sms_hatirlatma ?? 0);
+            $tetikTs = $hatirlatmaSaat > 0
+                ? strtotime('-' . $hatirlatmaSaat . ' hours', $randevuTs)
+                : $randevuTs;
+            $simdiTs = time();
+
+            if ($hatirlatmaSaat > 0
+                && $simdiTs >= $tetikTs
+                && $simdiTs < $randevuTs
+                && empty($value->hatirlatma_yaklasan_gonderildi)
+                && \Illuminate\Support\Facades\Schema::hasColumn('randevular', 'hatirlatma_yaklasan_gonderildi')) {
+
+                // Atomik claim: ust uste cron'lar ayni hatirlatmayi cogaltmasin
+                $claimed = \Illuminate\Support\Facades\DB::table('randevular')
+                    ->where('id', $value->id)
+                    ->whereNull('hatirlatma_yaklasan_gonderildi')
+                    ->update(['hatirlatma_yaklasan_gonderildi' => now()]);
+
+                if ($claimed) {
+                    $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->first();
+                    Log::info('[RND-SMS] musteri X saat once tetiklendi (range+claim)', [
+                        'randevu_id' => $value->id,
+                        'tetik' => date('d.m.Y H:i', $tetikTs),
+                        'randevu' => date('d.m.Y H:i', $randevuTs),
+                        'simdi' => date('d.m.Y H:i', $simdiTs),
+                        'ayar_var' => (bool) $ayar,
+                        'ayar_musteri' => $ayar ? (int) $ayar->musteri : null,
+                    ]);
+                    if ($ayar && $ayar->musteri) {
+                        $saat = date('H:i', strtotime($value->saat));
+                        $tarihStr = date('d.m.Y', strtotime($value->tarih));
+                        $hizmetMetni = $this->hizmetMetniOlustur($value);
+                        $mesaj = 'Sayın ' . optional($value->users)->name . '; ' . $tarihStr . ' tarihinde saat ' . $saat . ' ' . $hizmetMetni . 'randevunuzu hatırlatmak isteriz görüşmek üzere ✨';
+                        $templateCtx = ['key' => 'yaklasan', 'params' => [$saat, $value->salonlar->salon_adi]];
+                        $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj, $templateCtx);
+                    } elseif ($ayar) {
+                        Log::info('[RND-SMS] musteri SMS toggle kapali — atlandi', ['randevu_id' => $value->id]);
+                    }
                 }
             }
 
