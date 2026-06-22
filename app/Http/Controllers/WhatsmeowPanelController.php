@@ -23,8 +23,17 @@ use Illuminate\Support\Facades\Auth;
  */
 class WhatsmeowPanelController extends Controller
 {
+    /**
+     * StoreAdminController instance method'larini buradan kolay cagirmak icin.
+     */
+    protected function admin()
+    {
+        return app(StoreAdminController::class);
+    }
+
     public function index(Request $request)
     {
+        $admin = $this->admin();
         $isletmeler = '';
         $isletme = '';
 
@@ -35,19 +44,19 @@ class WhatsmeowPanelController extends Controller
             $isletmeler = Auth::guard('isletmeyonetim')->user()
                 ->yetkili_olunan_isletmeler->where('aktif', 1)
                 ->pluck('salon_id')->toArray();
-            $isletme = Salonlar::where('id', StoreAdminController::mevcutsube($request))->first();
+            $isletme = Salonlar::where('id', $admin->mevcutsube($request))->first();
         }
 
-        if (!in_array(StoreAdminController::mevcutsube($request), $isletmeler)) {
+        if (!in_array($admin->mevcutsube($request), $isletmeler)) {
             return view('isletmeadmin.yetkisizerisim');
         }
 
         return view('isletmeadmin.whatsmeow', [
-            'bildirimler' => StoreAdminController::bildirimgetir($request),
+            'bildirimler' => $admin->bildirimgetir($request),
             'sayfa_baslik' => 'whatsmeow Pilot',
             'pageindex' => 65,
             'isletme' => $isletme,
-            'kalan_uyelik_suresi' => StoreAdminController::lisans_sure_kontrol($request),
+            'kalan_uyelik_suresi' => $admin->lisans_sure_kontrol($request),
             'yetkiliolunanisletmeler' => $isletmeler,
         ]);
     }
@@ -120,7 +129,7 @@ class WhatsmeowPanelController extends Controller
      */
     protected function yetkiliSalon(Request $request)
     {
-        $salonId = (int) StoreAdminController::mevcutsube($request);
+        $salonId = (int) $this->admin()->mevcutsube($request);
         if (!$salonId) return null;
 
         if (Auth::guard('satisortakligi')->check()) {
