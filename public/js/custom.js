@@ -7285,6 +7285,13 @@ function modalbaslikata(str,form_id){
         });
         if($('#sistem_yetki').length)
             $('#sistem_yetki').removeAttr('disabled');
+        // Yeni personel: detayli prim durumunu sifirla + urun/paket katalogunu yukle (hizmet bos)
+        if(form_id === 'yenipersonelbilgiekle' && typeof window.pmPrimReset === 'function'){
+            window.pmPrimReset();
+            if(typeof window.pmPrimKalemleriYukle === 'function'){
+                window.pmPrimKalemleriYukle(0, $('input[name="sube"]').val(), {hizmet:0, urun:0, paket:0});
+            }
+        }
     }
 }
 $(document).on('click','.yanitsiz_musteri_ekleme',function (e) {
@@ -10003,6 +10010,18 @@ $('#personel_tablo').on('click','a[name="personel_detayi"]',function(){
                             $('#personelmolabaslangicsaati'+key).val(value.baslangic_saati);
                             $('#personelmolabitissaati'+key).val(value.bitis_saati);
                         });
+                        // Detayli (kalem bazli) prim — kalem listelerini yukle + flag'leri uygula
+                        if(typeof window.pmPrimKalemleriYukle === 'function'){
+                            window.pmPrimKalemleriYukle(
+                                result.personelbilgi.id,
+                                $('input[name="sube"]').val(),
+                                {
+                                    hizmet: result.hizmet_prim_detayli,
+                                    urun:   result.urun_prim_detayli,
+                                    paket:  result.paket_prim_detayli
+                                }
+                            );
+                        }
                     },
                     error: function (request, status, error) {
                         $('#preloader').hide();

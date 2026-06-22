@@ -13,6 +13,7 @@ class Personeller extends Model
         'personel_adi', 'salon_id' ,'yetkili_id','cep_telefon',
         'uzmanlik','aciklama','yillik_tecrube','instagram',
         'maas','hizmet_prim_yuzde','urun_prim_yuzde','paket_prim_yuzde',
+        'hizmet_prim_detayli','urun_prim_detayli','paket_prim_detayli',
         'unvan','cinsiyet','arsivli'
     ];
    

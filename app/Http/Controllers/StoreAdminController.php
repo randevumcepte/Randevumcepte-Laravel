@@ -24,6 +24,7 @@ use App\SalonHizmetler;
 use App\Randevular;
 use App\KasaDefteri;
 use App\PersonelHizmetler;
+use App\PersonelPrimOrani;
 use App\CihazHizmetler;
 use App\PersonelCalismaSaatleri;
 use App\PersonelMolaSaatleri;
@@ -4861,6 +4862,12 @@ private function ayAdiCevir($ingilizceAy)
             $personel->hizmet_prim_yuzde = $request->hizmet_prim_yuzde;
             $personel->urun_prim_yuzde = $request->urun_prim_yuzde;
             $personel->paket_prim_yuzde = $request->paket_prim_yuzde;
+            // Detayli (kalem bazli) prim anahtarlari — checkbox isaretsizse gelmez
+            if(\Schema::hasColumn('salon_personelleri','hizmet_prim_detayli')){
+                $personel->hizmet_prim_detayli = $request->has('hizmet_prim_detayli') ? 1 : 0;
+                $personel->urun_prim_detayli   = $request->has('urun_prim_detayli') ? 1 : 0;
+                $personel->paket_prim_detayli  = $request->has('paket_prim_detayli') ? 1 : 0;
+            }
             $personel->yetkili_id = $yetkili->id;
             $personel->role_id = $rol_id;
             // Tanitim sayfasi icin eklenen alanlar (nullable)
@@ -4871,6 +4878,33 @@ private function ayAdiCevir($ingilizceAy)
             // Takvimde gorunsun (checkbox isaretli degilse $_POST'a gelmez)
             $personel->takvimde_gorunsun = $request->has('takvimde_gorunsun') ? 1 : 0;
             $personel->save();
+
+            // Detayli (kalem bazli) prim oranlarini kaydet — sadece deger girilen kalemler tutulur
+            if(\Schema::hasTable('personel_prim_oranlari')){
+                $primKalemMap = [
+                    'hizmet' => $request->input('hizmet_prim_kalem', []),
+                    'urun'   => $request->input('urun_prim_kalem', []),
+                    'paket'  => $request->input('paket_prim_kalem', []),
+                ];
+                foreach($primKalemMap as $tur => $kalemler){
+                    if(!is_array($kalemler)) $kalemler = [];
+                    // Bu turdeki mevcut kayitlari temizleyip yeniden yaz (en sade upsert)
+                    PersonelPrimOrani::where('personel_id',$personel->id)->where('tur',$tur)->delete();
+                    foreach($kalemler as $kalemId => $yuzde){
+                        $kalemId = (int)$kalemId;
+                        $yuzde = (float)str_replace(',', '.', $yuzde);
+                        if($kalemId <= 0 || $yuzde <= 0) continue; // bos/0 satir kaydedilmez
+                        PersonelPrimOrani::create([
+                            'personel_id' => $personel->id,
+                            'salon_id'    => $personel->salon_id,
+                            'tur'         => $tur,
+                            'kalem_id'    => $kalemId,
+                            'yuzde'       => $yuzde,
+                        ]);
+                    }
+                }
+            }
+
             PersonelCalismaSaatleri::where('personel_id',$personel->id)->delete();
             for($i=1;$i<=7;$i++){
                     $personelcalismasaatleri = new PersonelCalismaSaatleri();
@@ -12947,25 +12981,25 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     THEN (DATE_FORMAT((select taksit_vadeleri.vade_tarih  from taksit_vadeleri inner join taksitli_tahsilatlar on taksit_vadeleri.taksitli_tahsilat_id = taksitli_tahsilatlar.id   where taksitli_tahsilatlar.user_id = users.id and taksit_vadeleri.odendi = 0 order by taksit_vadeleri.vade_tarih asc LIMIT 1),"%d.%m.%Y"))
         END as planlanan_alacak_tarihi'),
                 DB::raw('CONCAT("<button class=\"btn btn-warning btn-block\" style=\'line-height:5px\'>",FORMAT(
-                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*(COALESCE(p1.hizmet_prim_yuzde,0)/100)) +
-                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*(COALESCE(p2.urun_prim_yuzde,0)/100)) +
-                     ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*(COALESCE(p3.paket_prim_yuzde,0)/100)),2,"tr_TR"),"</button>")  as hakedis'),
+                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*((CASE WHEN p1.hizmet_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p1.id AND ppo.tur="hizmet" AND ppo.kalem_id=adisyon_hizmetler.hizmet_id),0) ELSE COALESCE(p1.hizmet_prim_yuzde,0) END)/100)) +
+                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*((CASE WHEN p2.urun_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p2.id AND ppo.tur="urun" AND ppo.kalem_id=adisyon_urunler.urun_id),0) ELSE COALESCE(p2.urun_prim_yuzde,0) END)/100)) +
+                     ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*((CASE WHEN p3.paket_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p3.id AND ppo.tur="paket" AND ppo.kalem_id=adisyon_paketler.paket_id),0) ELSE COALESCE(p3.paket_prim_yuzde,0) END)/100)),2,"tr_TR"),"</button>")  as hakedis'),
                  DB::raw('FORMAT(
-                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*(COALESCE(p1.hizmet_prim_yuzde,0)/100)),2,"tr_TR") as hizmet_hakedis'),
+                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*((CASE WHEN p1.hizmet_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p1.id AND ppo.tur="hizmet" AND ppo.kalem_id=adisyon_hizmetler.hizmet_id),0) ELSE COALESCE(p1.hizmet_prim_yuzde,0) END)/100)),2,"tr_TR") as hizmet_hakedis'),
                  DB::raw('FORMAT(
-                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*(COALESCE(p2.urun_prim_yuzde,0)/100)),2,"tr_TR") as urun_hakedis'),
+                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*((CASE WHEN p2.urun_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p2.id AND ppo.tur="urun" AND ppo.kalem_id=adisyon_urunler.urun_id),0) ELSE COALESCE(p2.urun_prim_yuzde,0) END)/100)),2,"tr_TR") as urun_hakedis'),
                  DB::raw('FORMAT(
-                    ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*(COALESCE(p3.paket_prim_yuzde,0)/100)),2,"tr_TR") as paket_hakedis'),
+                    ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*((CASE WHEN p3.paket_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p3.id AND ppo.tur="paket" AND ppo.kalem_id=adisyon_paketler.paket_id),0) ELSE COALESCE(p3.paket_prim_yuzde,0) END)/100)),2,"tr_TR") as paket_hakedis'),
                   DB::raw('
-                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*(COALESCE(p1.hizmet_prim_yuzde,0)/100)) as hizmet_hakedis_numeric'),
+                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*((CASE WHEN p1.hizmet_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p1.id AND ppo.tur="hizmet" AND ppo.kalem_id=adisyon_hizmetler.hizmet_id),0) ELSE COALESCE(p1.hizmet_prim_yuzde,0) END)/100)) as hizmet_hakedis_numeric'),
                  DB::raw('
-                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*(COALESCE(p2.urun_prim_yuzde,0)/100)) as urun_hakedis_numeric'),
+                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*((CASE WHEN p2.urun_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p2.id AND ppo.tur="urun" AND ppo.kalem_id=adisyon_urunler.urun_id),0) ELSE COALESCE(p2.urun_prim_yuzde,0) END)/100)) as urun_hakedis_numeric'),
                  DB::raw('
-                   ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*(COALESCE(p3.paket_prim_yuzde,0)/100)) as paket_hakedis_numeric'),
+                   ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*((CASE WHEN p3.paket_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p3.id AND ppo.tur="paket" AND ppo.kalem_id=adisyon_paketler.paket_id),0) ELSE COALESCE(p3.paket_prim_yuzde,0) END)/100)) as paket_hakedis_numeric'),
                 DB::raw('
-                   ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*(COALESCE(p1.hizmet_prim_yuzde,0)/100)) +
-                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*(COALESCE(p2.urun_prim_yuzde,0)/100)) +
-                     ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*(COALESCE(p3.paket_prim_yuzde,0)/100)) as hakedis_numeric'),
+                   ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*((CASE WHEN p1.hizmet_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p1.id AND ppo.tur="hizmet" AND ppo.kalem_id=adisyon_hizmetler.hizmet_id),0) ELSE COALESCE(p1.hizmet_prim_yuzde,0) END)/100)) +
+                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*((CASE WHEN p2.urun_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p2.id AND ppo.tur="urun" AND ppo.kalem_id=adisyon_urunler.urun_id),0) ELSE COALESCE(p2.urun_prim_yuzde,0) END)/100)) +
+                     ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*((CASE WHEN p3.paket_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p3.id AND ppo.tur="paket" AND ppo.kalem_id=adisyon_paketler.paket_id),0) ELSE COALESCE(p3.paket_prim_yuzde,0) END)/100)) as hakedis_numeric'),
                         DB::raw('CASE WHEN adisyonlar.tarih IS NOT NULL THEN CONCAT("<p style=\"display:none\">",DATE_FORMAT(adisyonlar.tarih, "%Y%m%d"), "</p>",DATE_FORMAT(adisyonlar.tarih, "%d.%m.%Y")) ELSE CONCAT("<p style=\"display:none\">",DATE_FORMAT(adisyonlar.created_at, "%Y%m%d"), "</p>",DATE_FORMAT(adisyonlar.created_at, "%d.%m.%Y")) END AS acilis_tarihi'),
                         //DB::raw('CONCAT("<p style=\"display:none\">",DATE_FORMAT(adisyonlar.created_at, "%Y%m%d"), "</p>",DATE_FORMAT(adisyonlar.created_at, "%d.%m.%Y")) as acilis_tarihi'),
                        'users.name as musteri',
@@ -22257,6 +22291,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $personel = Personeller::where('id',$request->personelid)->first();
         $yetkili = IsletmeYetkilileri::where('id',$personel->yetkili_id)->first();
         return array(
+            'hizmet_prim_detayli' => (int)($personel->hizmet_prim_detayli ?? 0),
+            'urun_prim_detayli'   => (int)($personel->urun_prim_detayli ?? 0),
+            'paket_prim_detayli'  => (int)($personel->paket_prim_detayli ?? 0),
             'personelbilgi'=>json_decode($personel),
             'calismasaatleri'=>json_decode(PersonelCalismaSaatleri::where('personel_id',$request->personelid)->orderBy('haftanin_gunu','asc')->get()),
             'molasaatleri'=>json_decode(PersonelMolaSaatleri::where('personel_id',$request->personelid)->orderBy('haftanin_gunu','asc')->get()),
@@ -22267,6 +22304,57 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'maas' => Personeller::where('id',$request->personelid)->value('maas'),
             'cep_telefon' => $yetkili->gsm1
         );
+    }
+
+    /**
+     * Detayli prim modali icin kalem listeleri + kayitli oranlar.
+     * Hizmet: personele atanmis hizmetler. Urun/Paket: salon katalogu (atama kavrami yok).
+     */
+    public function personelPrimKalemleri(Request $request)
+    {
+        $personelId = (int)$request->personel_id;
+        $salonId    = (int)($request->sube ?: self::mevcutsube($request));
+
+        // Kayitli oranlar haritasi
+        $oranlar = ['hizmet'=>[], 'urun'=>[], 'paket'=>[]];
+        if(\Schema::hasTable('personel_prim_oranlari') && $personelId){
+            foreach(PersonelPrimOrani::where('personel_id',$personelId)->get() as $o){
+                if(isset($oranlar[$o->tur])) $oranlar[$o->tur][$o->kalem_id] = (float)$o->yuzde;
+            }
+        }
+
+        // Hizmetler: personele atanmis (personel_sunulan_hizmetler ⋈ hizmetler)
+        $hizmetler = [];
+        if($personelId){
+            $rows = \DB::table('personel_sunulan_hizmetler')
+                ->join('hizmetler','personel_sunulan_hizmetler.hizmet_id','=','hizmetler.id')
+                ->where('personel_sunulan_hizmetler.personel_id',$personelId)
+                ->select('hizmetler.id','hizmetler.hizmet_adi')
+                ->orderBy('hizmetler.hizmet_adi','asc')
+                ->get();
+            foreach($rows as $r){
+                $hizmetler[] = ['id'=>$r->id, 'ad'=>$r->hizmet_adi, 'yuzde'=>$oranlar['hizmet'][$r->id] ?? null];
+            }
+        }
+
+        // Urunler: salon katalogu
+        $urunler = [];
+        foreach(Urunler::where('salon_id',$salonId)->orderBy('urun_adi','asc')->get() as $u){
+            $urunler[] = ['id'=>$u->id, 'ad'=>$u->urun_adi, 'yuzde'=>$oranlar['urun'][$u->id] ?? null];
+        }
+
+        // Paketler: salon katalogu
+        $paketler = [];
+        foreach(Paketler::where('salon_id',$salonId)->orderBy('paket_adi','asc')->get() as $p){
+            $paketler[] = ['id'=>$p->id, 'ad'=>$p->paket_adi, 'yuzde'=>$oranlar['paket'][$p->id] ?? null];
+        }
+
+        return response()->json([
+            'basarili' => true,
+            'hizmetler'=> $hizmetler,
+            'urunler'  => $urunler,
+            'paketler' => $paketler,
+        ]);
     }
     public function saatlerigetir(Request $request)
     {
@@ -26791,25 +26879,25 @@ public function musteriportfoydropliste(Request $request)
     THEN (DATE_FORMAT((select taksit_vadeleri.vade_tarih  from taksit_vadeleri inner join taksitli_tahsilatlar on taksit_vadeleri.taksitli_tahsilat_id = taksitli_tahsilatlar.id   where taksitli_tahsilatlar.user_id = users.id and taksit_vadeleri.odendi = 0 order by taksit_vadeleri.vade_tarih asc LIMIT 1),"%d.%m.%Y"))
         END as planlanan_alacak_tarihi'),
                 DB::raw('CONCAT("<button class=\"btn btn-warning btn-block\" style=\'line-height:5px\'>",FORMAT(
-                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*(COALESCE(p1.hizmet_prim_yuzde,0)/100)) +
-                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*(COALESCE(p2.urun_prim_yuzde,0)/100)) +
-                     ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*(COALESCE(p3.paket_prim_yuzde,0)/100)),2,"tr_TR"),"</button>")  as hakedis'),
+                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*((CASE WHEN p1.hizmet_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p1.id AND ppo.tur="hizmet" AND ppo.kalem_id=adisyon_hizmetler.hizmet_id),0) ELSE COALESCE(p1.hizmet_prim_yuzde,0) END)/100)) +
+                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*((CASE WHEN p2.urun_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p2.id AND ppo.tur="urun" AND ppo.kalem_id=adisyon_urunler.urun_id),0) ELSE COALESCE(p2.urun_prim_yuzde,0) END)/100)) +
+                     ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*((CASE WHEN p3.paket_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p3.id AND ppo.tur="paket" AND ppo.kalem_id=adisyon_paketler.paket_id),0) ELSE COALESCE(p3.paket_prim_yuzde,0) END)/100)),2,"tr_TR"),"</button>")  as hakedis'),
                  DB::raw('FORMAT(
-                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*(COALESCE(p1.hizmet_prim_yuzde,0)/100)),2,"tr_TR") as hizmet_hakedis'),
+                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*((CASE WHEN p1.hizmet_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p1.id AND ppo.tur="hizmet" AND ppo.kalem_id=adisyon_hizmetler.hizmet_id),0) ELSE COALESCE(p1.hizmet_prim_yuzde,0) END)/100)),2,"tr_TR") as hizmet_hakedis'),
                  DB::raw('FORMAT(
-                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*(COALESCE(p2.urun_prim_yuzde,0)/100)),2,"tr_TR") as urun_hakedis'),
+                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*((CASE WHEN p2.urun_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p2.id AND ppo.tur="urun" AND ppo.kalem_id=adisyon_urunler.urun_id),0) ELSE COALESCE(p2.urun_prim_yuzde,0) END)/100)),2,"tr_TR") as urun_hakedis'),
                  DB::raw('FORMAT(
-                    ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*(COALESCE(p3.paket_prim_yuzde,0)/100)),2,"tr_TR") as paket_hakedis'),
+                    ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*((CASE WHEN p3.paket_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p3.id AND ppo.tur="paket" AND ppo.kalem_id=adisyon_paketler.paket_id),0) ELSE COALESCE(p3.paket_prim_yuzde,0) END)/100)),2,"tr_TR") as paket_hakedis'),
                   DB::raw('
-                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*(COALESCE(p1.hizmet_prim_yuzde,0)/100)) as hizmet_hakedis_numeric'),
+                    ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*((CASE WHEN p1.hizmet_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p1.id AND ppo.tur="hizmet" AND ppo.kalem_id=adisyon_hizmetler.hizmet_id),0) ELSE COALESCE(p1.hizmet_prim_yuzde,0) END)/100)) as hizmet_hakedis_numeric'),
                  DB::raw('
-                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*(COALESCE(p2.urun_prim_yuzde,0)/100)) as urun_hakedis_numeric'),
+                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*((CASE WHEN p2.urun_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p2.id AND ppo.tur="urun" AND ppo.kalem_id=adisyon_urunler.urun_id),0) ELSE COALESCE(p2.urun_prim_yuzde,0) END)/100)) as urun_hakedis_numeric'),
                  DB::raw('
-                   ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*(COALESCE(p3.paket_prim_yuzde,0)/100)) as paket_hakedis_numeric'),
+                   ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*((CASE WHEN p3.paket_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p3.id AND ppo.tur="paket" AND ppo.kalem_id=adisyon_paketler.paket_id),0) ELSE COALESCE(p3.paket_prim_yuzde,0) END)/100)) as paket_hakedis_numeric'),
                 DB::raw('
-                   ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*(COALESCE(p1.hizmet_prim_yuzde,0)/100)) +
-                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*(COALESCE(p2.urun_prim_yuzde,0)/100)) +
-                     ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*(COALESCE(p3.paket_prim_yuzde,0)/100)) as hakedis_numeric'),
+                   ((SELECT COALESCE(SUM(tahsilat_hizmetler.tutar),0) from tahsilat_hizmetler where tahsilat_hizmetler.adisyon_hizmet_id = adisyon_hizmetler.id)*((CASE WHEN p1.hizmet_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p1.id AND ppo.tur="hizmet" AND ppo.kalem_id=adisyon_hizmetler.hizmet_id),0) ELSE COALESCE(p1.hizmet_prim_yuzde,0) END)/100)) +
+                    ((SELECT COALESCE(SUM(tahsilat_urunler.tutar),0) from tahsilat_urunler where tahsilat_urunler.adisyon_urun_id = adisyon_urunler.id)*((CASE WHEN p2.urun_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p2.id AND ppo.tur="urun" AND ppo.kalem_id=adisyon_urunler.urun_id),0) ELSE COALESCE(p2.urun_prim_yuzde,0) END)/100)) +
+                     ((SELECT COALESCE(SUM(tahsilat_paketler.tutar),0) FROM tahsilat_paketler where tahsilat_paketler.adisyon_paket_id = adisyon_paketler.id)*((CASE WHEN p3.paket_prim_detayli=1 THEN COALESCE((SELECT ppo.yuzde FROM personel_prim_oranlari ppo WHERE ppo.personel_id=p3.id AND ppo.tur="paket" AND ppo.kalem_id=adisyon_paketler.paket_id),0) ELSE COALESCE(p3.paket_prim_yuzde,0) END)/100)) as hakedis_numeric'),
                         DB::raw('CASE WHEN adisyonlar.tarih IS NOT NULL THEN CONCAT("<p style=\"display:none\">",DATE_FORMAT(adisyonlar.tarih, "%Y%m%d"), "</p>",DATE_FORMAT(adisyonlar.tarih, "%d.%m.%Y")) ELSE CONCAT("<p style=\"display:none\">",DATE_FORMAT(adisyonlar.created_at, "%Y%m%d"), "</p>",DATE_FORMAT(adisyonlar.created_at, "%d.%m.%Y")) END AS acilis_tarihi'),
                         //DB::raw('CONCAT("<p style=\"display:none\">",DATE_FORMAT(adisyonlar.created_at, "%Y%m%d"), "</p>",DATE_FORMAT(adisyonlar.created_at, "%d.%m.%Y")) as acilis_tarihi'),
                        'users.name as musteri',
@@ -29353,17 +29441,30 @@ DB::raw('
             ->where('salon_id', $salonId)->whereBetween('tarih',[$tarih1,$tarih2])
             ->get();
 
+        // Detayli (kalem bazli) prim oranlari
+        $detayHarita = $this->detayliPrimHaritasi($salonId);
+
         // 1. Hizmet gelir ve prim
         $hizmetPersonel = $adisyonlar->flatMap(fn($adisyon) => $adisyon->hizmetler)
             ->filter(fn($item) => $item->personel && $item->personel->aktif == 1)
             ->groupBy('personel_id')
-            ->mapWithKeys(function($items, $personel_id) {
+            ->mapWithKeys(function($items, $personel_id) use($detayHarita) {
                 $personel = $items->first()->personel;
                 $toplamKazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $items->pluck('id'))->sum('tutar');
+                if(!empty($personel->hizmet_prim_detayli)){
+                    $oranlar = $detayHarita[$personel_id]['hizmet'] ?? [];
+                    $prim = 0;
+                    foreach($items->groupBy('hizmet_id') as $hizmetId => $grup){
+                        $gKazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $grup->pluck('id'))->sum('tutar');
+                        $prim += (float)$gKazanc * (float)($oranlar[$hizmetId] ?? 0)/100;
+                    }
+                } else {
+                    $prim = $toplamKazanc * ($personel->hizmet_prim_yuzde ?? 0)/100;
+                }
                 return [$personel_id => [
                     'personel_adi' => $personel->personel_adi ?? null,
                     'hizmet_geliri' => $toplamKazanc,
-                    'hizmet_primi' => $toplamKazanc * ($personel->hizmet_prim_yuzde ?? 0)/100
+                    'hizmet_primi' => $prim
                 ]];
             })->toArray();
 
@@ -29371,12 +29472,22 @@ DB::raw('
         $urunPersonel = $adisyonlar->flatMap(fn($adisyon) => $adisyon->urunler)
             ->filter(fn($item) => $item->personel && $item->personel->aktif == 1)
             ->groupBy('personel_id')
-            ->mapWithKeys(function($items, $personel_id) {
+            ->mapWithKeys(function($items, $personel_id) use($detayHarita) {
                 $personel = $items->first()->personel;
                 $toplamKazanc = TahsilatUrunler::whereIn('adisyon_urun_id', $items->pluck('id'))->sum('tutar');
+                if(!empty($personel->urun_prim_detayli)){
+                    $oranlar = $detayHarita[$personel_id]['urun'] ?? [];
+                    $prim = 0;
+                    foreach($items->groupBy('urun_id') as $urunId => $grup){
+                        $gKazanc = TahsilatUrunler::whereIn('adisyon_urun_id', $grup->pluck('id'))->sum('tutar');
+                        $prim += (float)$gKazanc * (float)($oranlar[$urunId] ?? 0)/100;
+                    }
+                } else {
+                    $prim = $toplamKazanc * ($personel->urun_prim_yuzde ?? 0)/100;
+                }
                 return [$personel_id => [
                     'urun_geliri' => $toplamKazanc,
-                    'urun_primi' => $toplamKazanc * ($personel->urun_prim_yuzde ?? 0)/100
+                    'urun_primi' => $prim
                 ]];
             })->toArray();
 
@@ -29384,12 +29495,22 @@ DB::raw('
         $paketPersonel = $adisyonlar->flatMap(fn($adisyon) => $adisyon->paketler)
             ->filter(fn($item) => $item->personel && $item->personel->aktif == 1)
             ->groupBy('personel_id')
-            ->mapWithKeys(function($items, $personel_id) {
+            ->mapWithKeys(function($items, $personel_id) use($detayHarita) {
                 $personel = $items->first()->personel;
                 $toplamKazanc = TahsilatPaketler::whereIn('adisyon_paket_id', $items->pluck('id'))->sum('tutar');
+                if(!empty($personel->paket_prim_detayli)){
+                    $oranlar = $detayHarita[$personel_id]['paket'] ?? [];
+                    $prim = 0;
+                    foreach($items->groupBy('paket_id') as $paketId => $grup){
+                        $gKazanc = TahsilatPaketler::whereIn('adisyon_paket_id', $grup->pluck('id'))->sum('tutar');
+                        $prim += (float)$gKazanc * (float)($oranlar[$paketId] ?? 0)/100;
+                    }
+                } else {
+                    $prim = $toplamKazanc * ($personel->paket_prim_yuzde ?? 0)/100;
+                }
                 return [$personel_id => [
                     'paket_geliri' => $toplamKazanc,
-                    'paket_primi' => $toplamKazanc * ($personel->paket_prim_yuzde ?? 0)/100
+                    'paket_primi' => $prim
                 ]];
             })->toArray();
 
@@ -30867,6 +30988,28 @@ DB::raw('
         ]);
     }
 
+    /**
+     * Detayli (kalem bazli) prim oranlarini salon icin haritalar.
+     * Donus: [personel_id => ['hizmet'=>[kalem_id=>yuzde], 'urun'=>[...], 'paket'=>[...]]]
+     * Oran bulunamayan kalem icin deger yoktur (cagiran taraf 0 varsayar).
+     */
+    private function detayliPrimHaritasi($salonId)
+    {
+        $harita = [];
+        if (!\Schema::hasTable('personel_prim_oranlari')) return $harita;
+
+        $satirlar = PersonelPrimOrani::where('salon_id', $salonId)->get();
+        foreach ($satirlar as $s) {
+            if (!isset($harita[$s->personel_id])) {
+                $harita[$s->personel_id] = ['hizmet' => [], 'urun' => [], 'paket' => []];
+            }
+            if (isset($harita[$s->personel_id][$s->tur])) {
+                $harita[$s->personel_id][$s->tur][$s->kalem_id] = (float)$s->yuzde;
+            }
+        }
+        return $harita;
+    }
+
     private function primHakedisVerisi($salonId, $tarih1, $tarih2)
     {
         $personeller = Personeller::where('salon_id', $salonId)
@@ -30894,15 +31037,32 @@ DB::raw('
             ];
         }
 
+        // Detayli (kalem bazli) prim oranlari
+        $detayHarita = $this->detayliPrimHaritasi($salonId);
+
         $hizmetItems = $adisyonlar->flatMap(fn($a)=>$a->hizmetler)->filter(fn($i)=>$i->personel_id);
         foreach($hizmetItems->groupBy('personel_id') as $pid => $items){
             if(!isset($primMap[$pid]) || !isset($persById[$pid])) continue;
             // ID'leri tekrarsiz al (defensive)
             $ids = $items->pluck('id')->unique()->values();
             $kazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $ids)->sum('tutar');
-            $yuzde = (float)($persById[$pid]->hizmet_prim_yuzde ?? 0);
             $primMap[$pid]['hizmet_geliri'] = (float)$kazanc;
-            $primMap[$pid]['hizmet_primi']  = round((float)$kazanc * $yuzde/100, 2);
+
+            if(!empty($persById[$pid]->hizmet_prim_detayli)){
+                // Detayli: her hizmet_id grubu icin kendi orani
+                $oranlar = $detayHarita[$pid]['hizmet'] ?? [];
+                $prim = 0;
+                foreach($items->groupBy('hizmet_id') as $hizmetId => $grup){
+                    $gIds = $grup->pluck('id')->unique()->values();
+                    $gKazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $gIds)->sum('tutar');
+                    $gYuzde = (float)($oranlar[$hizmetId] ?? 0);
+                    $prim += (float)$gKazanc * $gYuzde/100;
+                }
+                $primMap[$pid]['hizmet_primi'] = round($prim, 2);
+            } else {
+                $yuzde = (float)($persById[$pid]->hizmet_prim_yuzde ?? 0);
+                $primMap[$pid]['hizmet_primi']  = round((float)$kazanc * $yuzde/100, 2);
+            }
         }
 
         $urunItems = $adisyonlar->flatMap(fn($a)=>$a->urunler)->filter(fn($i)=>$i->personel_id);
@@ -30910,9 +31070,22 @@ DB::raw('
             if(!isset($primMap[$pid]) || !isset($persById[$pid])) continue;
             $ids = $items->pluck('id')->unique()->values();
             $kazanc = TahsilatUrunler::whereIn('adisyon_urun_id', $ids)->sum('tutar');
-            $yuzde = (float)($persById[$pid]->urun_prim_yuzde ?? 0);
             $primMap[$pid]['urun_geliri'] = (float)$kazanc;
-            $primMap[$pid]['urun_primi']  = round((float)$kazanc * $yuzde/100, 2);
+
+            if(!empty($persById[$pid]->urun_prim_detayli)){
+                $oranlar = $detayHarita[$pid]['urun'] ?? [];
+                $prim = 0;
+                foreach($items->groupBy('urun_id') as $urunId => $grup){
+                    $gIds = $grup->pluck('id')->unique()->values();
+                    $gKazanc = TahsilatUrunler::whereIn('adisyon_urun_id', $gIds)->sum('tutar');
+                    $gYuzde = (float)($oranlar[$urunId] ?? 0);
+                    $prim += (float)$gKazanc * $gYuzde/100;
+                }
+                $primMap[$pid]['urun_primi'] = round($prim, 2);
+            } else {
+                $yuzde = (float)($persById[$pid]->urun_prim_yuzde ?? 0);
+                $primMap[$pid]['urun_primi']  = round((float)$kazanc * $yuzde/100, 2);
+            }
         }
 
         $paketItems = $adisyonlar->flatMap(fn($a)=>$a->paketler)->filter(fn($i)=>$i->personel_id);
@@ -30920,9 +31093,22 @@ DB::raw('
             if(!isset($primMap[$pid]) || !isset($persById[$pid])) continue;
             $ids = $items->pluck('id')->unique()->values();
             $kazanc = TahsilatPaketler::whereIn('adisyon_paket_id', $ids)->sum('tutar');
-            $yuzde = (float)($persById[$pid]->paket_prim_yuzde ?? 0);
             $primMap[$pid]['paket_geliri'] = (float)$kazanc;
-            $primMap[$pid]['paket_primi']  = round((float)$kazanc * $yuzde/100, 2);
+
+            if(!empty($persById[$pid]->paket_prim_detayli)){
+                $oranlar = $detayHarita[$pid]['paket'] ?? [];
+                $prim = 0;
+                foreach($items->groupBy('paket_id') as $paketId => $grup){
+                    $gIds = $grup->pluck('id')->unique()->values();
+                    $gKazanc = TahsilatPaketler::whereIn('adisyon_paket_id', $gIds)->sum('tutar');
+                    $gYuzde = (float)($oranlar[$paketId] ?? 0);
+                    $prim += (float)$gKazanc * $gYuzde/100;
+                }
+                $primMap[$pid]['paket_primi'] = round($prim, 2);
+            } else {
+                $yuzde = (float)($persById[$pid]->paket_prim_yuzde ?? 0);
+                $primMap[$pid]['paket_primi']  = round((float)$kazanc * $yuzde/100, 2);
+            }
         }
 
         $hareketler = PersonelPrimHareketi::where('salon_id',$salonId)
@@ -31200,6 +31386,13 @@ DB::raw('
             $urunYuzde   = (float)($personel->urun_prim_yuzde ?? 0);
             $paketYuzde  = (float)($personel->paket_prim_yuzde ?? 0);
 
+            // Detayli (kalem bazli) prim oranlari + flag'ler
+            $hizmetDetayli = !empty($personel->hizmet_prim_detayli);
+            $urunDetayli   = !empty($personel->urun_prim_detayli);
+            $paketDetayli  = !empty($personel->paket_prim_detayli);
+            $detayHarita   = $this->detayliPrimHaritasi($salonId);
+            $detayOranlar  = $detayHarita[$personelId] ?? ['hizmet'=>[],'urun'=>[],'paket'=>[]];
+
             // Bu personelin yer aldigi adisyonlar (tarih araliginda)
             $adisyonlar = Adisyonlar::with([
                     'hizmetler.personel','hizmetler.hizmet',
@@ -31240,14 +31433,15 @@ DB::raw('
                 foreach(($a->hizmetler ?? []) as $h){
                     if(!$h->personel || $h->personel->id != $personelId) continue;
                     $tahsilEdilen = (float)TahsilatHizmetler::where('adisyon_hizmet_id',$h->id)->sum('tutar');
-                    $primTutar    = $tahsilEdilen * $hizmetYuzde / 100;
+                    $satirYuzde   = $hizmetDetayli ? (float)($detayOranlar['hizmet'][$h->hizmet_id] ?? 0) : $hizmetYuzde;
+                    $primTutar    = $tahsilEdilen * $satirYuzde / 100;
                     $hizmetSatislari[] = [
                         'tarih'        => $tarih,
                         'musteri_adi'  => $musteriAdi,
                         'urun'         => optional($h->hizmet)->hizmet_adi ?? '—',
                         'fiyat'        => (float)$h->fiyat,
                         'tahsil_edilen'=> $tahsilEdilen,
-                        'prim_yuzdesi' => $hizmetYuzde,
+                        'prim_yuzdesi' => $satirYuzde,
                         'prim_tutari'  => $primTutar,
                     ];
                     $musteriEkle($musteriId, $musteriAdi, $tahsilEdilen, $primTutar);
@@ -31255,14 +31449,15 @@ DB::raw('
                 foreach(($a->urunler ?? []) as $u){
                     if(!$u->personel || $u->personel->id != $personelId) continue;
                     $tahsilEdilen = (float)TahsilatUrunler::where('adisyon_urun_id',$u->id)->sum('tutar');
-                    $primTutar    = $tahsilEdilen * $urunYuzde / 100;
+                    $satirYuzde   = $urunDetayli ? (float)($detayOranlar['urun'][$u->urun_id] ?? 0) : $urunYuzde;
+                    $primTutar    = $tahsilEdilen * $satirYuzde / 100;
                     $urunSatislari[] = [
                         'tarih'        => $tarih,
                         'musteri_adi'  => $musteriAdi,
                         'urun'         => optional($u->urun)->urun_adi ?? '—',
                         'fiyat'        => (float)$u->fiyat,
                         'tahsil_edilen'=> $tahsilEdilen,
-                        'prim_yuzdesi' => $urunYuzde,
+                        'prim_yuzdesi' => $satirYuzde,
                         'prim_tutari'  => $primTutar,
                     ];
                     $musteriEkle($musteriId, $musteriAdi, $tahsilEdilen, $primTutar);
@@ -31270,14 +31465,15 @@ DB::raw('
                 foreach(($a->paketler ?? []) as $pk){
                     if(!$pk->personel || $pk->personel->id != $personelId) continue;
                     $tahsilEdilen = (float)TahsilatPaketler::where('adisyon_paket_id',$pk->id)->sum('tutar');
-                    $primTutar    = $tahsilEdilen * $paketYuzde / 100;
+                    $satirYuzde   = $paketDetayli ? (float)($detayOranlar['paket'][$pk->paket_id] ?? 0) : $paketYuzde;
+                    $primTutar    = $tahsilEdilen * $satirYuzde / 100;
                     $paketSatislari[] = [
                         'tarih'        => $tarih,
                         'musteri_adi'  => $musteriAdi,
                         'urun'         => optional($pk->paket)->paket_adi ?? '—',
                         'fiyat'        => (float)$pk->fiyat,
                         'tahsil_edilen'=> $tahsilEdilen,
-                        'prim_yuzdesi' => $paketYuzde,
+                        'prim_yuzdesi' => $satirYuzde,
                         'prim_tutari'  => $primTutar,
                     ];
                     $musteriEkle($musteriId, $musteriAdi, $tahsilEdilen, $primTutar);

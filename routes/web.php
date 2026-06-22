@@ -1037,6 +1037,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/isletmelogoyukle','StoreAdminController@isletmelogoyukle');
 	Route::get('/smsbakiye','StoreAdminController@sms_bakiye_sorgulama');
 	Route::get('/personeldetaygetir','StoreAdminController@personeldetaygetir');
+	Route::get('/personelPrimKalemleri','StoreAdminController@personelPrimKalemleri');
 	Route::get('/musterilerjson/{durum}','StoreAdminController@musteri_liste_getir');
 	Route::get('/adisyon-filtreli-getir-personel','StoreAdminController@satis_filtre');
 	Route::get('/saatlerigetir','StoreAdminController@saatlerigetir');

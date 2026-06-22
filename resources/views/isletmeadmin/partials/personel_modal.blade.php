@@ -187,6 +187,26 @@
    #personel-modal .pm-btn-kaydet:hover{
       transform: translateY(-1px); box-shadow: 0 8px 22px rgba(92,0,142,.4); color:#fff;
    }
+
+   /* Detayli (kalem bazli) prim */
+   #personel-modal .pm-genel-pasif{ opacity:.45; }
+   #personel-modal .pm-kalem-list{
+      margin-top:8px; border:1px solid #ece6f2; border-radius:12px;
+      background:#fbf8fd; padding:8px; max-height:240px; overflow-y:auto;
+   }
+   #personel-modal .pm-kalem-row{
+      display:grid; grid-template-columns: 1fr 110px; gap:10px; align-items:center;
+      background:#fff; border:1px solid #eef0f3; border-radius:9px;
+      padding:7px 12px; margin-bottom:6px;
+   }
+   #personel-modal .pm-kalem-row:last-child{ margin-bottom:0; }
+   #personel-modal .pm-kalem-row__ad{ font-size:13px; color:#2d1b3f; font-weight:600; }
+   #personel-modal .pm-kalem-row input[type=number]{
+      padding:6px 10px !important; font-size:13px !important; text-align:center;
+   }
+   #personel-modal .pm-kalem-bos{
+      font-size:12.5px; color:#94a3b8; text-align:center; padding:14px 8px; font-weight:500;
+   }
 </style>
 
 <div id="personel-modal" class="modal modal-top fade calendar-modal">
@@ -391,6 +411,48 @@
                         <input type="number" step="0.01" min="0" max="100" id='paket_prim_yuzde' name="paket_prim_yuzde" class="form-control" placeholder="Ör: 15">
                      </div>
                   </div>
+
+                  {{-- ===== Detayli (kalem bazli) prim ===== --}}
+                  <div class="pm-detayli-prim">
+                     {{-- HIZMET --}}
+                     <div class="pm-toggle-row pm-detay-toggle" id="hizmet_detayli_row" style="margin-top:14px">
+                        <div class="pm-toggle-row__info">
+                           <div class="pm-toggle-row__title"><i class="fa fa-list-ul"></i> Hizmet Primini Kaleme Göre Belirle</div>
+                           <div class="pm-toggle-row__hint">Açıksa genel "Hizmet Primi %" pasif olur; her hizmete ayrı yüzde girersiniz.</div>
+                        </div>
+                        <div class="pm-switch">
+                           <input type="checkbox" id="hizmet_prim_detayli" name="hizmet_prim_detayli" value="1">
+                           <label for="hizmet_prim_detayli"></label>
+                        </div>
+                     </div>
+                     <div class="pm-kalem-list" id="hizmet_kalem_list" style="display:none"></div>
+
+                     {{-- URUN --}}
+                     <div class="pm-toggle-row pm-detay-toggle" id="urun_detayli_row" style="margin-top:10px">
+                        <div class="pm-toggle-row__info">
+                           <div class="pm-toggle-row__title"><i class="fa fa-list-ul"></i> Ürün Primini Kaleme Göre Belirle</div>
+                           <div class="pm-toggle-row__hint">Açıksa genel "Ürün Primi %" pasif olur; her ürüne ayrı yüzde girersiniz.</div>
+                        </div>
+                        <div class="pm-switch">
+                           <input type="checkbox" id="urun_prim_detayli" name="urun_prim_detayli" value="1">
+                           <label for="urun_prim_detayli"></label>
+                        </div>
+                     </div>
+                     <div class="pm-kalem-list" id="urun_kalem_list" style="display:none"></div>
+
+                     {{-- PAKET --}}
+                     <div class="pm-toggle-row pm-detay-toggle" id="paket_detayli_row" style="margin-top:10px">
+                        <div class="pm-toggle-row__info">
+                           <div class="pm-toggle-row__title"><i class="fa fa-list-ul"></i> Paket Primini Kaleme Göre Belirle</div>
+                           <div class="pm-toggle-row__hint">Açıksa genel "Paket Primi %" pasif olur; her pakete ayrı yüzde girersiniz.</div>
+                        </div>
+                        <div class="pm-switch">
+                           <input type="checkbox" id="paket_prim_detayli" name="paket_prim_detayli" value="1">
+                           <label for="paket_prim_detayli"></label>
+                        </div>
+                     </div>
+                     <div class="pm-kalem-list" id="paket_kalem_list" style="display:none"></div>
+                  </div>
                </div>
 
             </div>
@@ -422,4 +484,83 @@ $(document).ready(function(){
       $('#takvimde_gorunsun_row').toggleClass('is-on', $('#takvimde_gorunsun').is(':checked'));
    });
 });
+
+// ===================== Detayli (kalem bazli) prim =====================
+(function(){
+   // tur -> {liste konteyneri, genel input, input adi}
+   var PM_DETAY = {
+      hizmet: { list:'#hizmet_kalem_list', genel:'#hizmet_prim_yuzde', name:'hizmet_prim_kalem' },
+      urun:   { list:'#urun_kalem_list',   genel:'#urun_prim_yuzde',   name:'urun_prim_kalem'   },
+      paket:  { list:'#paket_kalem_list',  genel:'#paket_prim_yuzde',  name:'paket_prim_kalem'  }
+   };
+
+   function esc(s){ return $('<div>').text(s == null ? '' : s).html(); }
+
+   function pmRenderList(tur, items){
+      var cfg = PM_DETAY[tur];
+      var $c = $(cfg.list);
+      if(!items || !items.length){
+         var msg = (tur === 'hizmet')
+            ? 'Bu personele atanmış hizmet yok. Önce Hizmet Yönetimi\'nden hizmet atayın.'
+            : 'Salonda kayıtlı ' + (tur === 'urun' ? 'ürün' : 'paket') + ' bulunamadı.';
+         $c.html('<div class="pm-kalem-bos">'+msg+'</div>');
+         return;
+      }
+      var html = '';
+      items.forEach(function(it){
+         var val = (it.yuzde == null ? '' : it.yuzde);
+         html += '<div class="pm-kalem-row">'
+               +    '<span class="pm-kalem-row__ad">'+esc(it.ad)+'</span>'
+               +    '<input type="number" step="0.01" min="0" max="100" '
+               +       'name="'+cfg.name+'['+it.id+']" value="'+val+'" placeholder="%">'
+               + '</div>';
+      });
+      $c.html(html);
+   }
+
+   // Genel input pasif/aktif + liste goster/gizle
+   function pmApplyToggle(tur, on){
+      var cfg = PM_DETAY[tur];
+      $(cfg.list).toggle(!!on);
+      var $genel = $(cfg.genel);
+      $genel.prop('disabled', !!on).closest('.pm-field').toggleClass('pm-genel-pasif', !!on);
+   }
+
+   // Toggle degisince
+   $('#personel-modal').on('change', '#hizmet_prim_detayli', function(){ pmApplyToggle('hizmet', this.checked); });
+   $('#personel-modal').on('change', '#urun_prim_detayli',   function(){ pmApplyToggle('urun',   this.checked); });
+   $('#personel-modal').on('change', '#paket_prim_detayli',  function(){ pmApplyToggle('paket',  this.checked); });
+
+   // Tum detayli prim durumunu sifirla (Yeni Personel icin)
+   window.pmPrimReset = function(){
+      ['hizmet','urun','paket'].forEach(function(tur){
+         $('#'+tur+'_prim_detayli').prop('checked', false);
+         $(PM_DETAY[tur].list).empty();
+         pmApplyToggle(tur, false);
+      });
+   };
+
+   // Kalem listelerini sunucudan yukle + flag'lere gore toggle uygula
+   // flags: {hizmet:0/1, urun:0/1, paket:0/1}
+   window.pmPrimKalemleriYukle = function(personelId, sube, flags){
+      flags = flags || {};
+      $.ajax({
+         type: 'GET',
+         url: '/isletmeyonetim/personelPrimKalemleri',
+         data: { personel_id: personelId || 0, sube: sube },
+         dataType: 'json',
+         success: function(res){
+            if(!res || !res.basarili) return;
+            pmRenderList('hizmet', res.hizmetler);
+            pmRenderList('urun',   res.urunler);
+            pmRenderList('paket',  res.paketler);
+            ['hizmet','urun','paket'].forEach(function(tur){
+               var on = !!Number(flags[tur] || 0);
+               $('#'+tur+'_prim_detayli').prop('checked', on);
+               pmApplyToggle(tur, on);
+            });
+         }
+      });
+   };
+})();
 </script>
