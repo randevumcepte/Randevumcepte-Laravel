@@ -237,6 +237,12 @@ public $successStatus = 200;
                     'yetkili_olunan_isletmeler' => function ($query) use ($salonlar,$request) {
                         if($request->appBundle  != 'com.randevumcepte.randevumcepte')
                             $query->whereIn('salon_id', $salonlar);
+                        else
+                            // Master uygulamada sadece uyelik_turu 3 DISI salonlar gosterilir;
+                            // birden fazla ise app icinde sube olarak listelenir.
+                            $query->whereHas('salonlar', function($q){
+                                $q->where('uyelik_turu', '!=', 3);
+                            });
                     },
                     'yetkili_olunan_isletmeler.salonlar',
                 ]) : '';
