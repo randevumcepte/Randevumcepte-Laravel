@@ -1123,6 +1123,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/reputation-premium-ac','StoreAdminController@reputationPremiumAc');
 
 	Route::post('/sozlesme-olustur','StoreAdminController@sozlesmeOlustur');
+	Route::post('/sozlesme-varsayilan-kaydet','StoreAdminController@sozlesmeVarsayilanKaydet');
 	Route::get('/formmusteribilgigetir','StoreAdminController@formmusteribilgigetir');
 	Route::get('/formpersonelbilgigetir','StoreAdminController@formpersonelbilgigetir');
 	Route::get('/onamformmikropdf', 'StoreAdminController@onamformindir')->name('download');

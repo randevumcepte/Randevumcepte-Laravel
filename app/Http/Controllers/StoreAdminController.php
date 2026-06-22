@@ -30249,6 +30249,10 @@ DB::raw('
             if(!in_array('sozlesme_metni',$arsivCols)){
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN sozlesme_metni TEXT NULL");
             }
+            $salonCols = array_column(\DB::select("SHOW COLUMNS FROM salonlar"), 'Field');
+            if(!in_array('sozlesme_varsayilan_metin',$salonCols)){
+                \DB::statement("ALTER TABLE salonlar ADD COLUMN sozlesme_varsayilan_metin TEXT NULL");
+            }
         } catch(\Exception $e){
             \Log::error('Dinamik form kolon oluşturma hatası: '.$e->getMessage());
         }
@@ -30929,6 +30933,22 @@ DB::raw('
             return response()->json(['basarili'=>true,'arsiv_id'=>$arsiv->id]);
         } catch(\Exception $e){
             \Log::error('sozlesmeOlustur hata: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    // Salon icin varsayilan sozlesme sartlari metnini kaydeder; bir defa girilir,
+    // sonraki sozlesmelerde otomatik dolu gelir.
+    public function sozlesmeVarsayilanKaydet(Request $request){
+        if($r = self::yetkiYoksa403($request, 'form.gonder')) return $r;
+        try {
+            $this->dinamikFormKolonlariOlustur();
+            $sube = self::mevcutsube($request);
+            $metin = trim((string)$request->sozlesme_metni);
+            \DB::table('salonlar')->where('id',$sube)->update(['sozlesme_varsayilan_metin'=>($metin !== '' ? $metin : null)]);
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            \Log::error('sozlesmeVarsayilanKaydet hata: '.$e->getMessage());
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
     }

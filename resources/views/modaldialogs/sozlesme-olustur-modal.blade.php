@@ -75,7 +75,10 @@
                   <div class="col-md-12 form-group">
                      <label><b>Sözleşme Şartları *</b> <small class="text-muted">(müşteriye gösterilecek metin — düzenleyebilirsiniz)</small></label>
                      <textarea name="sozlesme_metni" id="sozlesme_metni" class="form-control" rows="10" required style="font-size:13px;font-family:monospace;"></textarea>
-                     <small class="text-muted">İpucu: Müşteri adı, hizmet, fiyat ve kapora otomatik olarak metnin üstünde tabloda gösterilir — burada sadece sözleşme şartlarını yazın.</small>
+                     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:4px; flex-wrap:wrap;">
+                        <small class="text-muted" style="flex:1; min-width:200px;">İpucu: Müşteri adı, hizmet, fiyat ve kapora otomatik olarak metnin üstünde tabloda gösterilir — burada sadece sözleşme şartlarını yazın.</small>
+                        <button type="button" id="sozlesmeVarsayilanKaydetBtn" class="btn btn-sm btn-outline-primary" style="white-space:nowrap;"><i class="fa fa-save"></i> Bu metni varsayılan yap</button>
+                     </div>
                   </div>
                   <div class="col-md-12 form-group">
                      <label><b>Ek Not</b> <small class="text-muted">(opsiyonel — sözleşmenin altında ayrıca görünür)</small></label>
@@ -119,13 +122,27 @@ function sozlesmeTlInputBind(displayId, hiddenId){
    });
 }
 
-function sozlesmeVarsayilanMetin(){
+@php
+   try {
+      $sozlesmeSalonVarsayilan = \DB::table('salonlar')->where('id',$isletme->id)->value('sozlesme_varsayilan_metin');
+   } catch(\Exception $e){ $sozlesmeSalonVarsayilan = null; }
+@endphp
+// Salonun kaydettigi varsayilan metin (bir defa kaydedilir, sonraki sozlesmelerde otomatik dolu gelir)
+var sozlesmeSalonVarsayilan = {!! json_encode($sozlesmeSalonVarsayilan) !!};
+
+function sozlesmeFabrikaMetni(){
    return '1. Bu sözleşme {{ addslashes($isletme->salon_adi) }} ile yukarıda bilgileri yazılı müşteri arasında akdedilmiştir.\n' +
           '2. Müşteri, alacağı hizmet/paket karşılığında belirtilen toplam ücreti ödemeyi kabul ve taahhüt eder.\n' +
           '3. Kapora/ön ödeme alındığı durumda kalan bakiye, hizmet süresi içerisinde tahsil edilecektir.\n' +
           '4. Müşteri belirlenen randevu saatlerinde hazır bulunmakla yükümlüdür. Mazeretsiz iptaller veya gelmemeler için ücret iadesi yapılmaz.\n' +
           '5. İşletme, hizmeti taahhüt edilen kalitede sunmakla yükümlüdür.\n' +
           '6. Taraflar bu sözleşmeyi okuyup, anladığını ve kabul ettiğini beyan eder.';
+}
+function sozlesmeVarsayilanMetin(){
+   if(sozlesmeSalonVarsayilan && String(sozlesmeSalonVarsayilan).trim()){
+      return String(sozlesmeSalonVarsayilan);
+   }
+   return sozlesmeFabrikaMetni();
 }
 
 $(document).ready(function(){
@@ -198,6 +215,36 @@ $(document).ready(function(){
          $('#sozlesme_toplam_display').val(sozlesmeTlFormat(fiyat));
       }
    });
+   // "Bu metni varsayılan yap" → salon için kaydet, sonraki sözleşmelerde otomatik gelir
+   $('#sozlesmeVarsayilanKaydetBtn').on('click', function(){
+      var metin = $('#sozlesme_metni').val();
+      if(!metin || !metin.trim()){
+         Swal.fire('Uyarı', 'Önce sözleşme şartlarını yazın.', 'warning');
+         return;
+      }
+      var $b = $(this);
+      $b.prop('disabled', true);
+      $.ajax({
+         url: '/isletmeyonetim/sozlesme-varsayilan-kaydet',
+         type: 'POST',
+         dataType: 'json',
+         data: { sozlesme_metni: metin, _token: '{{ csrf_token() }}' },
+         success: function(resp){
+            $b.prop('disabled', false);
+            if(resp && resp.basarili){
+               sozlesmeSalonVarsayilan = metin; // bu oturumda da güncel kalsın
+               Swal.fire('Kaydedildi', 'Bu metin varsayılan sözleşme şartlarınız olarak kaydedildi. Bundan sonra otomatik dolu gelecek.', 'success');
+            } else {
+               Swal.fire('Hata', (resp && resp.mesaj) ? resp.mesaj : 'Kaydedilemedi.', 'error');
+            }
+         },
+         error: function(xhr){
+            $b.prop('disabled', false);
+            Swal.fire('Hata', 'Sunucu hatası: '+xhr.status, 'error');
+         }
+      });
+   });
+
    // Form submit
    $('#sozlesmeOlusturForm').on('submit', function(e){
       e.preventDefault();
