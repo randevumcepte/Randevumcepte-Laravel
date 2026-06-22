@@ -461,6 +461,14 @@ class PanelController extends Controller
         // simdi isletmeyonetim guard'ina giris yap
         Auth::guard('isletmeyonetim')->login($yetkili);
 
+        // ONEMLI: AuthenticateSession middleware'i oturumda 'password_hash_isletmeyonetim'
+        // tutar ve her istekte mevcut kullanicinin parola hash'iyle karsilastirir; uymazsa
+        // butun oturumu flush edip kullaniciyi atar. Onceki bir impersonation'dan (baska
+        // salon yetkilisi) kalan ESKI hash yeni girilen salonun yetkilisiyle uyusmadigi
+        // icin "girer girmez disari atiyor" yasaniyordu. Yeni kullanicinin hash'iyle
+        // senkronla ki middleware oturumu gecersiz saymasin.
+        session()->put('password_hash_isletmeyonetim', $yetkili->getAuthPassword());
+
         // ?sube= ile panelin DOGRU salon baglaminda acilmasini garantiye al.
         // Yetki kontrolu (PersonelYetkiServisi) $isletme->id'ye gore personel
         // kaydini bulur; salon yanlissa personel bulunamaz ve fail-open ile
@@ -480,6 +488,9 @@ class PanelController extends Controller
         }
         session()->forget(['sysadmin_impersonation_id', 'sysadmin_impersonation_uid']);
         Auth::guard('isletmeyonetim')->logout();
+        // AuthenticateSession hash anahtarini da temizle ki bir sonraki impersonation'da
+        // bu salonun eski hash'i kalip yeni salona girerken oturumu flush etmesin.
+        session()->forget('password_hash_isletmeyonetim');
         return redirect('/sistemyonetim/v2/dashboard')->with('basari', 'Salon hesabından çıkıldı.');
     }
 
