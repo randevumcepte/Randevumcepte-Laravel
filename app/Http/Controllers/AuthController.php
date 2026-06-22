@@ -163,9 +163,10 @@ public $successStatus = 200;
                     else
                     {
                         // Master uygulama (com.randevumcepte.randevumcepte): yetkili olunan
-                        // salonlardan en az birinin uyelik_turu = 3 olmali. Aksi halde girise izin verme.
-                        $uyelik3Var = Salonlar::whereIn('id', $yetkiler)->where('uyelik_turu', 3)->exists();
-                        if(!$uyelik3Var)
+                        // salonlardan en az birinin uyelik_turu 3 DISINDA olmasi gerekir.
+                        // Tum salonlar uyelik_turu = 3 ise girise izin verme.
+                        $uyelik3DisiVar = Salonlar::whereIn('id', $yetkiler)->where('uyelik_turu', '!=', 3)->exists();
+                        if(!$uyelik3DisiVar)
                         {
                             $message['message'] = 'Yetkiniz bulunmamaktadır.';
                             $message['success'] = false;
