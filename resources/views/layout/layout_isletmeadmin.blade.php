@@ -2317,14 +2317,11 @@
       <script>
         (function(){
             var __sessionExpiredShown = false;
-            function __handleSessionExpired(xhr){
+            // Oturumun GERCEKTEN canli olup olmadigini sinamak icin hafif endpoint
+            // (auth yoksa 401, varsa 200 doner). global:false -> kendisi ajaxError tetiklemez.
+            var __probeUrl = '/isletmeyonetim/api/hatirlatma-feed?probe=1';
+            function __redirectLogin(loginUrl){
                 if (__sessionExpiredShown) return;
-                var loginUrl = '/isletmeyonetim/girisyap';
-                try {
-                    if (xhr && xhr.responseJSON && xhr.responseJSON.redirect) {
-                        loginUrl = xhr.responseJSON.redirect;
-                    }
-                } catch(e){}
                 __sessionExpiredShown = true;
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
@@ -2341,6 +2338,23 @@
                     alert('Oturumunuz sonlanmıştır. Tekrar giriş yapmanız gerekmektedir.');
                     window.location.href = loginUrl;
                 }
+            }
+            function __handleSessionExpired(xhr){
+                if (__sessionExpiredShown) return;
+                var loginUrl = '/isletmeyonetim/girisyap';
+                try {
+                    if (xhr && xhr.responseJSON && xhr.responseJSON.redirect) {
+                        loginUrl = xhr.responseJSON.redirect;
+                    }
+                } catch(e){}
+                // ONEMLI: Tek bir arka plan 401'i (hatirlatma/bildirim poll'u veya
+                // "Hesabina Gir" impersonation sirasindaki istek yarisi) yuzunden
+                // kullaniciyi DISARI ATMA. Once oturumu dogrula; gercekten oldu ise
+                // (probe da 401) login'e gonder, aksi halde hicbir sey yapma.
+                try {
+                    jQuery.ajax({ url: __probeUrl, method: 'GET', global: false, cache: false })
+                        .fail(function(p){ if (p && p.status === 401) __redirectLogin(loginUrl); });
+                } catch(e){ /* dogrulanamadi -> sessizce gec, kullaniciyi atma */ }
             }
             if (typeof jQuery !== 'undefined') {
                 jQuery(document).ajaxError(function(event, xhr){
