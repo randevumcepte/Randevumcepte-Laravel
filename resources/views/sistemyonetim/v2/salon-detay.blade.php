@@ -39,7 +39,7 @@
         <a href="/sistemyonetim/isletmedetay/{{ $salon->id }}" class="sy-btn sy-btn-soft" target="_blank">
             <span class="mdi mdi-cog"></span> Klasik Düzenle
         </a>
-        <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" style="display:inline" onsubmit="return confirm('Salonun hesabına geçiş yapılacak. Tüm hareketleriniz loglanacaktır. Devam edilsin mi?');">
+        <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" style="display:inline">
             @csrf
             <input type="hidden" name="sebep" value="Destek girişi">
             <button type="submit" class="sy-btn sy-btn-primary" {{ $salon->askiya_alindi ? 'disabled title=\'Salon askıda\'' : '' }}>

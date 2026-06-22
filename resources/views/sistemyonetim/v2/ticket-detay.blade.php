@@ -187,7 +187,7 @@
                         <div>
                             <span class="sy-text-muted sy-fs-12">Salon</span>
                             <div class="sy-fw-600"><a href="/sistemyonetim/v2/salon/{{ $salon->id }}">{{ $salon->salon_adi }}</a></div>
-                            <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" class="sy-mt-12" onsubmit="return confirm('Salonun hesabına geçilecek. Devam?')">
+                            <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" class="sy-mt-12">
                                 @csrf
                                 <input type="hidden" name="ticket_id" value="{{ $ticket->id }}">
                                 <input type="hidden" name="sebep" value="Ticket #{{ $ticket->numara }}">

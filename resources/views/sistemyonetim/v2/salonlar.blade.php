@@ -123,7 +123,7 @@
                             <a href="/sistemyonetim/v2/salon/{{ $s->id }}" class="sy-btn sy-btn-sm sy-btn-soft" title="Detay">
                                 <span class="mdi mdi-information-outline"></span>
                             </a>
-                            <form method="post" action="/sistemyonetim/v2/salon/{{ $s->id }}/hesabina-gir" style="display:inline" onsubmit="return confirm('{{ $s->salon_adi }} hesabına geçiş yapılacak. Tüm hareketleriniz loglanacaktır. Devam edilsin mi?');">
+                            <form method="post" action="/sistemyonetim/v2/salon/{{ $s->id }}/hesabina-gir" style="display:inline">
                                 @csrf
                                 <input type="hidden" name="sebep" value="Destek girişi">
                                 <button type="submit" class="sy-btn sy-btn-sm sy-btn-primary" title="Salonun hesabına gir" {{ $s->askiya_alindi ? 'disabled' : '' }}>
