@@ -38,6 +38,17 @@ class AuthenticateSession
 
     public function handle($request, Closure $next)
     {
+        // IMPERSONATION BYPASS: "salon hesabina gir" sirasinda ayni oturumda
+        // birden cok guard (sistemyonetim + isletmeyonetim) aktif. Cok-guard'li
+        // hash celiskisi yuzunden bu middleware oturumu flush edip kullaniciyi
+        // ATIYORDU. Impersonation bir sysadmin islemi (guvenilir); bu sirada
+        // parola-degisti-cikis kontrolunu komple atla -> flush imkansiz.
+        if ($request->session() && $request->session()->has('sysadmin_impersonation_id')) {
+            $this->impDbg('[BYPASS] impersonation aktif, AuthenticateSession atlandi url=' . $request->path()
+                . ' guard=' . $this->auth->getDefaultDriver());
+            return $next($request);
+        }
+
         if (! $request->user() || ! $request->session()) {
             return $next($request);
         }
@@ -75,10 +86,24 @@ class AuthenticateSession
      */
     protected function logout($request)
     {
+        $this->impDbg('[FLUSH] AuthenticateSession oturumu FLUSH ediyor url=' . $request->path()
+            . ' guard=' . $this->auth->getDefaultDriver()
+            . ' imp=' . ($request->session()->get('sysadmin_impersonation_id') ? 'VAR' : 'yok'));
+
         $this->auth->logout();
 
         $request->session()->flush();
 
         throw new AuthenticationException;
+    }
+
+    /** Gecici teshis logu: storage/logs/impdbg.log */
+    protected function impDbg($msg)
+    {
+        @file_put_contents(
+            storage_path('logs/impdbg.log'),
+            date('Y-m-d H:i:s') . ' ' . $msg . "\n",
+            FILE_APPEND
+        );
     }
 }

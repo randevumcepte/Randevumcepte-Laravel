@@ -20,6 +20,17 @@ use Illuminate\Support\Facades\Storage;
 */
 Auth::routes();
 
+// === GECICI TESHIS UCU (impersonation kick-out) — sorun cozulunce KALDIR ===
+Route::get('/_rcdbg/{k}', function ($k) {
+    if ($k !== 'rc9k3mx7qz') abort(404);
+    $file = storage_path('logs/impdbg.log');
+    $body = is_file($file) ? implode('', array_slice(file($file), -200)) : '(impdbg.log henuz yok — once bir salona giris denemesi yap)';
+    $vt = function_exists('opcache_get_configuration')
+        ? var_export(opcache_get_configuration()['directives']['opcache.validate_timestamps'] ?? '?', true)
+        : 'n/a';
+    return response('<pre>opcache.validate_timestamps=' . $vt . "\n\n" . htmlspecialchars($body) . '</pre>');
+})->where('k', '.*');
+
 // Akilli uygulama indirme yonlendirmesi (QR hedefi) — cihaza gore magazaya atar (public)
 Route::get('/indir/{salon}', 'StoreAdminController@uygulamaIndir');
 
