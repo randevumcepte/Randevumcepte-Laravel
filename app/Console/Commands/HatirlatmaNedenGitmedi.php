@@ -64,12 +64,60 @@ class HatirlatmaNedenGitmedi extends Command
         $this->info("Bulunan randevular: " . $base->count());
         $this->line('');
 
-        // SMS ayarlari (musteri toggle)
-        $ayarMusteri = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 1)->first();
-        $musteriAcik = $ayarMusteri && $ayarMusteri->musteri;
-        $this->line('SMS ayar (ayar_id=1) "musteri toggle" : ' . ($musteriAcik ? 'ACIK' : 'KAPALI'));
-        if (!$musteriAcik) {
-            $this->warn('-> Bu acik olmadigi icin HICBIR musteri hatirlatmasi gitmez. Salon SMS ayarlarindan acin.');
+        // SMS ayarlari
+        $ayarYaklasan = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 1)->first();
+        $ayar1Gun = SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 6)->first();
+        $this->line('SMS ayar X-saat-once (ayar_id=1) musteri toggle : '
+            . (($ayarYaklasan && $ayarYaklasan->musteri) ? 'ACIK' : 'KAPALI'));
+        $this->line('SMS ayar 1-gun-once  (ayar_id=6) musteri toggle : '
+            . (($ayar1Gun && $ayar1Gun->musteri) ? 'ACIK' : 'KAPALI'));
+        $this->line('');
+
+        // Cron'un BIREBIR ayni query'sini simule et — bu musterinin randevulari icinde
+        // kac tanesi cron tarafindan goruluyor?
+        $this->info('CRON QUERY SIMULASYONU (RandevuSMSHatirlatma.handle ile birebir ayni):');
+        $cronQuery = \App\Randevular::has('hizmetler')
+            ->where('user_id', $userId)
+            ->where('salon_id', $salonId)
+            ->where('durum', 1)
+            ->where('user_id', '!=', 2012)
+            ->where(function ($q) {
+                $q->where('randevuya_geldi', null);
+                $q->orWhere('randevuya_geldi', '!=', 0);
+            })
+            ->whereBetween('tarih', [date('Y-m-d'), date('Y-m-d', strtotime('+1 days', strtotime(date('Y-m-d'))))]);
+
+        // Generated SQL'i goster
+        $sql = $cronQuery->toSql();
+        $bindings = $cronQuery->getBindings();
+        $this->line('  SQL: ' . $sql);
+        $this->line('  Bind: ' . json_encode($bindings));
+
+        $cronSonuc = $cronQuery->get();
+        $this->line('  Cron query sonucundaki randevu sayisi: ' . $cronSonuc->count());
+        if ($cronSonuc->count() > 0) {
+            $this->line('  ID listesi: ' . $cronSonuc->pluck('id')->implode(', '));
+        }
+
+        $tumIdler = $base->pluck('id')->all();
+        $cronIdler = $cronSonuc->pluck('id')->all();
+        $eksik = array_diff($tumIdler, $cronIdler);
+        if (!empty($eksik)) {
+            $this->warn('  ! Cron query DISINDA kalan randevular: ' . implode(', ', $eksik));
+            $this->warn('  ! Bu randevular cron tarafindan hic gorulmedigi icin hatirlatma denenmedi.');
+        } else {
+            $this->line('  -> Tum randevular cron query sonucunda var.');
+        }
+        $this->line('');
+
+        // Raw tarih kolonunu ham SQL ile incele — DATETIME vs DATE farkini yakalamak icin
+        $hamTarih = \Illuminate\Support\Facades\DB::select(
+            'SELECT id, tarih, CAST(tarih AS CHAR) tarih_str, DATE(tarih) tarih_date, saat
+             FROM randevular WHERE id IN (' . implode(',', $tumIdler) . ')'
+        );
+        $this->info('HAM TARIH KOLONU (DATETIME vs DATE ayirimi icin):');
+        foreach ($hamTarih as $h) {
+            $this->line("  #{$h->id} tarih={$h->tarih}  str='{$h->tarih_str}'  date={$h->tarih_date}  saat={$h->saat}");
         }
         $this->line('');
 
