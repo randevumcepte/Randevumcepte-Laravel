@@ -718,8 +718,15 @@ class Controller extends BaseController
             return false;
         }
     }
-   public function sms_gonder($salonid,$mesajlar)
+   /**
+    * Variadic signature: cocuk siniflar (ApiController vb.) farkli imza ile
+    * override edebilsin diye PHP method-incompatibility warning'ini onler.
+    * Cagri kontrati: ilk arg salon id, ikinci arg mesaj dizisi.
+    */
+   public function sms_gonder(...$args)
     {
+        $salonid = $args[0] ?? null;
+        $mesajlar = $args[1] ?? [];
         $alicilar = array_column((array) $mesajlar, 'to');
         $ilkMesaj = isset($mesajlar[0]['message']) ? $mesajlar[0]['message'] : '';
         Log::info('[SMS-API] sms_gonder cagrildi', [
