@@ -12130,12 +12130,17 @@ public function adisyon_filtreli_getir(Request $request)
         }
     }
 
-    // Yetki: satis.tum_satis_gor kapali ise personel kendi satislari ile sinirli
+    // Yetki: satis.tum_satis_gor kapali ise personel kendi satislari ile sinirli.
+    // ISTISNA: Belirli bir musteri karti goruntuleniyorsa (musteri_id var) ve kullanicinin
+    // 'musteri.gecmis_satis_gor' yetkisi varsa, o musterinin TUM satislari gosterilir —
+    // musteri karti baglaminda kendi-satisi kisitlamasi uygulanmaz.
     if (Auth::guard('isletmeyonetim')->check()) {
         $_authUid = Auth::guard('isletmeyonetim')->user()->id;
         $_salonId = self::mevcutsube($request);
         $tumGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUid, $_salonId, 'satis.tum_satis_gor');
-        if (!$tumGor) {
+        $_musteriGecmis = ($musteriid != '')
+            && \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUid, $_salonId, 'musteri.gecmis_satis_gor');
+        if (!$tumGor && !$_musteriGecmis) {
             $personelid = Personeller::where('salon_id', $_salonId)
                 ->where('yetkili_id', $_authUid)->value('id') ?: -1;
             $request->merge(['personel_id' => $personelid]);
