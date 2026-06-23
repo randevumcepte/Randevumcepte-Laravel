@@ -5423,7 +5423,18 @@ private function ayAdiCevir($ingilizceAy)
                     }
                     
                     // SADECE saat değişimi kontrolü
-                    if ($eskiRandevuBilgileri['saat'] != $yeniRandevuBilgileri['saat']) {
+                    // NOT: DB TIME alani "HH:MM:SS" donerken form "HH:MM" gonderir;
+                    // direkt string karsilastirmasi false-positive verip her guncellemede
+                    // SMS/WhatsApp tetikliyordu. Iki tarafi da "HH:MM" formatina indirgiyoruz.
+                    $_normalizeSaat = function($v){
+                        $s = trim((string)$v);
+                        if ($s === '') return '';
+                        $ts = strtotime($s);
+                        return $ts ? date('H:i', $ts) : substr($s, 0, 5);
+                    };
+                    $eskiSaatNorm = $_normalizeSaat($eskiRandevuBilgileri['saat']);
+                    $yeniSaatNorm = $_normalizeSaat($yeniRandevuBilgileri['saat']);
+                    if ($eskiSaatNorm !== $yeniSaatNorm) {
                         $saatDegisti = true;
                     }
                     
