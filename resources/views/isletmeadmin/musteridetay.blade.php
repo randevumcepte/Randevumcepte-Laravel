@@ -191,7 +191,7 @@
                   aria-selected="false"
                   >Randevular</a>
             </li>
-            @if(!$is_personel_rolu)
+            @yetki('paket.seans_takip')
             <li class="nav-item" style="margin:5px">
                <a
                   class="btn btn-outline-primary "
@@ -202,7 +202,7 @@
                   aria-selected="false"
                   >Seanslar</a>
             </li>
-            @endif
+            @endyetki
             @if($_SERVER['HTTP_HOST']!='randevu.randevumcepte.com.tr')
             @yetki('musteri.gecmis_satis_gor')
             <li class="nav-item" style="margin:5px">
