@@ -90,7 +90,7 @@
       <div class="wmw-card">
         <h3 style="margin:0 0 10px;font-size:15px;color:#333;">QR Kodu</h3>
         <div class="wmw-qr-box">
-          <canvas id="wmwQR"></canvas>
+          <img id="wmwQR" alt="" style="display:none; max-width:280px; width:100%; height:auto; image-rendering:pixelated;">
           <div id="wmwQrHint" style="color:#888;font-size:13px;margin-top:8px;">QR henüz üretilmedi. "Bağlan" butonuna basın.</div>
         </div>
         <div class="wmw-qr-help">
@@ -126,7 +126,6 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 const sube = new URLSearchParams(location.search).get('sube') || '';
 const csrf = '{{ csrf_token() }}';
@@ -208,18 +207,20 @@ async function wmwQrGetir() {
 }
 
 function drawQR(text) {
-  const canvas = document.getElementById('wmwQR');
+  const img = document.getElementById('wmwQR');
+  // QR'i image olarak ureten public API (no CDN dependency)
+  img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=10&data=' + encodeURIComponent(text);
+  img.style.display = 'inline-block';
   document.getElementById('wmwQrHint').textContent = 'Yukarıdaki QR\'ı tarat. ~40 saniye geçerli.';
-  QRCode.toCanvas(canvas, text, { width: 280, margin: 1 }, function(e) {
-    if (e) log('QR çizim hatası: ' + e.message, 'err');
-  });
 }
 
 async function wmwCikis() {
   if (!confirm('Oturumu silmek istiyor musun? Yeniden QR taratman gerekir.')) return;
   const r = await api('POST', '/isletmeyonetim/whatsmeow/cikis');
   log('logout: ' + JSON.stringify(r.body), r.status === 200 ? 'ok' : 'err');
-  document.getElementById('wmwQR').width = document.getElementById('wmwQR').width;
+  const img = document.getElementById('wmwQR');
+  img.style.display = 'none';
+  img.src = '';
   document.getElementById('wmwQrHint').textContent = 'Oturum silindi. "Bağlan" ile tekrar QR üretin.';
   setTimeout(wmwDurum, 500);
 }
