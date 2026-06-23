@@ -28,6 +28,16 @@
   $odemeYuzde = $toplamNet > 0 ? min(100, round(($toplamOdenen / $toplamNet) * 100, 1)) : 0;
   $bekleyenSayi = count(array_filter($rapor, fn($r) => $r['durum']==='bekliyor' || $r['durum']==='kismi'));
   $tamSayi = count(array_filter($rapor, fn($r) => $r['durum']==='tam' || $r['durum']==='fazla'));
+
+  // ===== Gunluk prim modu =====
+  $mod = $mod ?? 'aylik';
+  $gun = $gun ?? date('Y-m-d');
+  $isGunluk = ($mod === 'gunluk');
+  // Gunluk toplamlar (gun_* alanlari primHakedisVerisi'den gelir)
+  $gunToplamPrim   = array_sum(array_column($rapor, 'gun_prim'));
+  $gunToplamOdenen = array_sum(array_column($rapor, 'gun_odenen'));
+  $gunToplamKalan  = array_sum(array_column($rapor, 'gun_kalan'));
+  $gunOdemeYuzde   = $gunToplamPrim > 0 ? min(100, round(($gunToplamOdenen / $gunToplamPrim) * 100, 1)) : 0;
 @endphp
 <style>
   /* ============ Marka Renk Degiskenleri ============ */
@@ -656,9 +666,37 @@
   }
 </style>
 
+<style>
+  .pr-mod-toggle{ display:inline-flex; background:#f1edf5; border-radius:12px; padding:4px; gap:3px; }
+  .pr-mod-toggle button{
+    border:0; background:transparent; cursor:pointer; padding:8px 16px; border-radius:9px;
+    font-weight:700; font-size:13px; color:#7a6f86; display:inline-flex; align-items:center; gap:7px; transition:.15s;
+  }
+  .pr-mod-toggle button.is-active{ background:#fff; color:var(--rmc-purple-1); box-shadow:0 2px 6px rgba(92,0,142,.12); }
+  .pr-mod-toggle button:hover:not(.is-active){ color:var(--rmc-purple-2); }
+  .pr-filter input[type=date]{
+    border:2px solid var(--rmc-border); border-radius:12px; padding:9px 14px; font-weight:600;
+    color:var(--rmc-text); background:#fafbfc; font-size:14px; transition:all .15s;
+  }
+  .pr-filter input[type=date]:focus{ outline:none; border-color:var(--rmc-purple-2); background:#fff; box-shadow:0 0 0 4px rgba(123,47,184,.08); }
+</style>
 <form method="get" id="primRaporFiltre" class="pr-filter">
   <input type="hidden" name="sube" value="{{$isletme->id}}">
   <input type="hidden" name="_tab" value="prim">
+  <input type="hidden" name="mod" id="primMod" value="{{$mod}}">
+  <div class="pr-filter__group">
+    <label>Görünüm</label>
+    <div class="pr-mod-toggle">
+      <button type="button" class="{{ !$isGunluk ? 'is-active' : '' }}" onclick="primModuDegistir('aylik')"><i class="fa fa-calendar"></i> Aylık</button>
+      <button type="button" class="{{ $isGunluk ? 'is-active' : '' }}" onclick="primModuDegistir('gunluk')"><i class="fa fa-calendar-check-o"></i> Günlük</button>
+    </div>
+  </div>
+  @if($isGunluk)
+  <div class="pr-filter__group">
+    <label>Gün</label>
+    <input type="date" name="gun" value="{{$gun}}" max="{{date('Y-m-d')}}" onchange="document.getElementById('primRaporFiltre').submit()">
+  </div>
+  @else
   <div class="pr-filter__group">
     <label>Ay</label>
     <select name="ay" onchange="document.getElementById('primRaporFiltre').submit()">
@@ -675,15 +713,54 @@
       @endfor
     </select>
   </div>
+  @endif
   <div class="pr-filter__spacer"></div>
   <div class="pr-filter__group" style="font-size:12px; color:var(--rmc-muted); display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
     <span style="display:inline-flex; align-items:center; gap:6px; background:var(--rmc-purple-bg); color:var(--rmc-purple-1); padding:7px 12px; border-radius:30px; font-weight:700;">
-      <i class="fa fa-calendar"></i> {{date('d.m.Y', strtotime($tarih1))}} — {{date('d.m.Y', strtotime($tarih2))}}
+      <i class="fa fa-calendar"></i>
+      @if($isGunluk){{date('d.m.Y', strtotime($gun))}} günü @else{{date('d.m.Y', strtotime($tarih1))}} — {{date('d.m.Y', strtotime($tarih2))}}@endif
     </span>
-    <span><i class="fa fa-info-circle"></i> Ay/Yıl değiştirince rapor otomatik yenilenir.</span>
+    <span><i class="fa fa-info-circle"></i> @if($isGunluk)Günlük modda her personelin o günki primini tek tıkla ödeyebilirsiniz.@else Ay/Yıl değiştirince rapor otomatik yenilenir.@endif</span>
   </div>
 </form>
+<script>
+  function primModuDegistir(m){
+    var f = document.getElementById('primRaporFiltre');
+    document.getElementById('primMod').value = m;
+    if(m==='gunluk' && !f.querySelector('input[name="gun"]')){
+      var i=document.createElement('input'); i.type='hidden'; i.name='gun'; i.value='{{date("Y-m-d")}}'; f.appendChild(i);
+    }
+    f.submit();
+  }
+</script>
 
+@if($isGunluk)
+<div class="pr-stats" style="grid-template-columns: repeat(3, 1fr)">
+  <div class="pr-stat pr-stat--prim">
+    <div class="pr-stat__icon">%</div>
+    <div class="pr-stat__lbl">Günün Primi (Toplam)</div>
+    <div class="pr-stat__val">{{$_fmt($gunToplamPrim)}} <small>₺</small></div>
+    <div class="pr-stat__brut">{{date('d.m.Y', strtotime($gun))}} · tüm personel</div>
+  </div>
+  <div class="pr-stat pr-stat--bonus">
+    <div class="pr-stat__icon"><i class="fa fa-check-circle"></i></div>
+    <div class="pr-stat__lbl">Ödenen Prim (Bugün)</div>
+    <div class="pr-stat__val">{{$_fmt($gunToplamOdenen)}} <small>₺</small></div>
+    <div class="pr-stat__brut" style="opacity:.65">%{{$gunOdemeYuzde}} ödendi</div>
+  </div>
+  <div class="pr-stat pr-stat--net">
+    <div class="pr-stat__icon"><i class="fa fa-credit-card"></i></div>
+    <div class="pr-stat__lbl">Bekleyen Prim<span class="pr-net-progress__yuzde">%{{$gunOdemeYuzde}}</span></div>
+    <div class="pr-stat__val">{{$_fmt($gunToplamKalan)}} <small>₺</small></div>
+    <div class="pr-stat__brut">Prim: {{$_fmt($gunToplamPrim)}} ₺ &nbsp;·&nbsp; Ödenen: {{$_fmt($gunToplamOdenen)}} ₺</div>
+    <div class="pr-net-progress">
+      <div class="pr-net-progress__bar">
+        <div class="pr-net-progress__fill" style="width: {{$gunOdemeYuzde}}%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+@else
 <div class="pr-stats">
   <div class="pr-stat pr-stat--maas">
     <div class="pr-stat__icon">₺</div>
@@ -737,24 +814,24 @@
     </div>
   </div>
 </div>
+@endif
 
 <div class="pr-table-card">
   <div class="pr-table-toolbar">
-    <h3><i class="fa fa-users"></i> Personel Bazında Hak Ediş</h3>
+    <h3><i class="fa fa-users"></i> @if($isGunluk)Günlük Prim — {{date('d.m.Y', strtotime($gun))}}@else Personel Bazında Hak Ediş @endif</h3>
   </div>
   <div class="pr-table-scroll" style="padding: 0 14px 6px">
     <table class="data-table table hover nowrap" id="primrapor_tablo" style="width:100%">
       <thead>
         <tr>
           <th>Personel</th>
-          <th>Maaş</th>
+          @if(!$isGunluk)<th>Maaş</th>@endif
           <th>Hizmet Primi</th>
           <th>Ürün Primi</th>
           <th>Paket Primi</th>
           <th>Prim Toplam</th>
-          <th>Bonus</th>
-          <th>Kesinti</th>
-          <th>NET Ödenecek</th>
+          @if(!$isGunluk)<th>Bonus</th><th>Kesinti</th>@endif
+          <th>@if($isGunluk)Günün Primi @else NET Ödenecek @endif</th>
           <th>Durum</th>
           <th class="datatable-nosort">İşlemler</th>
         </tr>
@@ -763,43 +840,74 @@
         @foreach($rapor as $r)
           @php
             $bas = mb_strtoupper(mb_substr($r['personel_adi'],0,1,'UTF-8'),'UTF-8');
+            // Gunluk modda durum/tutarlar gun_* alanlarindan
+            $satirDurum = $isGunluk ? ($r['gun_durum'] ?? 'bekliyor') : $r['durum'];
             $rowCls = '';
-            if($r['durum']==='tam' || $r['durum']==='fazla') $rowCls = 'pr-row-tam';
-            elseif($r['durum']==='kismi') $rowCls = 'pr-row-kismi';
+            if($satirDurum==='tam' || $satirDurum==='fazla') $rowCls = 'pr-row-tam';
+            elseif($satirDurum==='kismi') $rowCls = 'pr-row-kismi';
+            $gPrim   = $r['gun_prim'] ?? 0;
+            $gOdenen = $r['gun_odenen'] ?? 0;
+            $gKalan  = $r['gun_kalan'] ?? 0;
           @endphp
           <tr class="{{ $rowCls }}">
             <td class="pr-cell-personel"><span class="pr-cell-personel-inner"><span class="pr-avatar">{{$bas}}</span><span>{{$r['personel_adi']}}</span></span></td>
-            <td>{{$_fmt($r['maas'])}} ₺</td>
+            @if(!$isGunluk)<td>{{$_fmt($r['maas'])}} ₺</td>@endif
             <td>{{$_fmt($r['hizmet_primi'])}} ₺</td>
             <td>{{$_fmt($r['urun_primi'])}} ₺</td>
             <td>{{$_fmt($r['paket_primi'])}} ₺</td>
             <td><strong>{{$_fmt($r['prim_toplam'])}} ₺</strong></td>
+            @if(!$isGunluk)
             <td class="pr-cell-bonus">+{{$_fmt($r['bonus'])}}@if($r['hareket_sayisi']>0) <small style="color:var(--rmc-muted); font-weight:500">({{$r['hareket_sayisi']}})</small>@endif</td>
             <td class="pr-cell-kesinti">−{{$_fmt($r['kesinti'])}}</td>
-            <td class="pr-cell-net"><strong>{{$_fmt($r['net_hakedis'])}} ₺</strong></td>
+            @endif
+            <td class="pr-cell-net"><strong>{{$_fmt($isGunluk ? $gPrim : $r['net_hakedis'])}} ₺</strong></td>
             <td>
-              @if($r['durum']==='bekliyor')
-                <span class="pr-durum-badge pr-durum--bekliyor"><span class="lbl"><i class="fa fa-clock-o"></i> Bekliyor</span></span>
-              @elseif($r['durum']==='kismi')
-                <span class="pr-durum-badge pr-durum--kismi prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
-                  <span class="lbl"><i class="fa fa-hourglass-half"></i> Kısmi Ödeme</span>
-                  <span class="alt">{{$_fmt($r['odenen_toplam'])}} / {{$_fmt($r['net_hakedis'])}} ₺</span>
-                </span>
-              @elseif($r['durum']==='tam')
-                <span class="pr-durum-badge pr-durum--tam prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
-                  <span class="lbl"><i class="fa fa-check-circle"></i> Tam Ödendi</span>
-                  <span class="alt">{{$_fmt($r['odenen_toplam'])}} ₺ ({{$r['odeme_sayisi']}} ödeme)</span>
-                </span>
+              @if($isGunluk)
+                @if($satirDurum==='bekliyor')
+                  <span class="pr-durum-badge pr-durum--bekliyor"><span class="lbl"><i class="fa fa-clock-o"></i> Bekliyor</span></span>
+                @elseif($satirDurum==='kismi')
+                  <span class="pr-durum-badge pr-durum--kismi"><span class="lbl"><i class="fa fa-hourglass-half"></i> Kısmi</span><span class="alt">{{$_fmt($gOdenen)}} / {{$_fmt($gPrim)}} ₺</span></span>
+                @elseif($satirDurum==='tam')
+                  <span class="pr-durum-badge pr-durum--tam"><span class="lbl"><i class="fa fa-check-circle"></i> Ödendi</span><span class="alt">{{$_fmt($gOdenen)}} ₺</span></span>
+                @else
+                  <span class="pr-durum-badge pr-durum--fazla"><span class="lbl"><i class="fa fa-arrow-up"></i> Fazla</span><span class="alt">{{$_fmt($gOdenen)}} / {{$_fmt($gPrim)}} ₺</span></span>
+                @endif
               @else
-                <span class="pr-durum-badge pr-durum--fazla prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
-                  <span class="lbl"><i class="fa fa-arrow-up"></i> Fazla Ödeme</span>
-                  <span class="alt">{{$_fmt($r['odenen_toplam'])}} / {{$_fmt($r['net_hakedis'])}} ₺</span>
-                </span>
+                @if($r['durum']==='bekliyor')
+                  <span class="pr-durum-badge pr-durum--bekliyor"><span class="lbl"><i class="fa fa-clock-o"></i> Bekliyor</span></span>
+                @elseif($r['durum']==='kismi')
+                  <span class="pr-durum-badge pr-durum--kismi prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
+                    <span class="lbl"><i class="fa fa-hourglass-half"></i> Kısmi Ödeme</span>
+                    <span class="alt">{{$_fmt($r['odenen_toplam'])}} / {{$_fmt($r['net_hakedis'])}} ₺</span>
+                  </span>
+                @elseif($r['durum']==='tam')
+                  <span class="pr-durum-badge pr-durum--tam prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
+                    <span class="lbl"><i class="fa fa-check-circle"></i> Tam Ödendi</span>
+                    <span class="alt">{{$_fmt($r['odenen_toplam'])}} ₺ ({{$r['odeme_sayisi']}} ödeme)</span>
+                  </span>
+                @else
+                  <span class="pr-durum-badge pr-durum--fazla prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
+                    <span class="lbl"><i class="fa fa-arrow-up"></i> Fazla Ödeme</span>
+                    <span class="alt">{{$_fmt($r['odenen_toplam'])}} / {{$_fmt($r['net_hakedis'])}} ₺</span>
+                  </span>
+                @endif
               @endif
             </td>
             <td>
               <div style="display:inline-flex; gap:6px; align-items:center">
                 @yetki('personel.odeme_yap')
+                @if($isGunluk)
+                <button class="pr-ode-btn prim-gunluk-ode"
+                  data-value="{{$r['personel_id']}}"
+                  data-adi="{{$r['personel_adi']}}"
+                  data-gunprim="{{$gPrim}}"
+                  data-gunkalan="{{$gKalan}}"
+                  @if($gKalan<=0) disabled style="opacity:.45;cursor:default" @endif
+                  title="Bu günün primini öde">
+                  <i class="fa fa-credit-card"></i>
+                  <span>@if($gKalan<=0)Ödendi @else Öde @endif</span>
+                </button>
+                @else
                 <button class="pr-ode-btn prim-ode"
                   data-value="{{$r['personel_id']}}"
                   data-adi="{{$r['personel_adi']}}"
@@ -810,11 +918,12 @@
                   <i class="fa fa-credit-card"></i>
                   <span>Öde</span>
                 </button>
+                @endif
                 @endyetki
                 <button class="pr-musteri-btn prim-musteri-detay"
                   data-value="{{$r['personel_id']}}"
                   data-adi="{{$r['personel_adi']}}"
-                  title="Bu ay satış yaptığı müşteriler">
+                  title="@if($isGunluk)Bu gün@else Bu ay@endif satış yaptığı müşteriler">
                   <i class="fa fa-users"></i>
                 </button>
               </div>
@@ -1225,22 +1334,76 @@ $(function(){
   var _isletmeAdi = @json($isletme->salon_adi);
   var _dosyaAdi = 'Prim_Hakedis_'+_ayAdi+'_'+_yilAdi;
 
+  // Kolon sayisi moda gore degisir: aylik 11 (siralama kolonu 8), gunluk 8 (siralama kolonu 5)
+  var _primOrderCol = {{ $isGunluk ? 5 : 8 }};
+  var _primExportCols = {!! $isGunluk ? '[0,1,2,3,4,5,6]' : '[0,1,2,3,4,5,6,7,8]' !!};
   $('#primrapor_tablo').DataTable({
     pageLength: 50,
-    order: [[8,'desc']],
+    order: [[_primOrderCol,'desc']],
     language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/tr.json' },
     dom: '<"d-flex justify-content-between align-items-center mb-2"<"d-flex"l><"d-flex"B>>frtip',
     buttons: [
-      { extend: 'excelHtml5',  text: '<i class="fa fa-file-excel-o"></i> Excel',  className: 'btn btn-success btn-sm', title: _dosyaAdi, exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } },
-      { extend: 'pdfHtml5',    text: '<i class="fa fa-file-pdf-o"></i> PDF',      className: 'btn btn-danger btn-sm',  title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', orientation: 'landscape', pageSize: 'A4', exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } },
-      { extend: 'print',       text: '<i class="fa fa-print"></i> Yazdır',         className: 'btn btn-secondary btn-sm', title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } }
+      { extend: 'excelHtml5',  text: '<i class="fa fa-file-excel-o"></i> Excel',  className: 'btn btn-success btn-sm', title: _dosyaAdi, exportOptions: { columns: _primExportCols } },
+      { extend: 'pdfHtml5',    text: '<i class="fa fa-file-pdf-o"></i> PDF',      className: 'btn btn-danger btn-sm',  title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', orientation: 'landscape', pageSize: 'A4', exportOptions: { columns: _primExportCols } },
+      { extend: 'print',       text: '<i class="fa fa-print"></i> Yazdır',         className: 'btn btn-secondary btn-sm', title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', exportOptions: { columns: _primExportCols } }
     ]
   });
 
   var _donem = '{{ sprintf("%04d-%02d", $yil, $ay) }}';
+  var _mod   = '{{ $mod }}';
+  var _gun   = '{{ $gun }}';
+  var _gunDonem = _gun ? _gun.substring(0,7) : _donem; // gunun ait oldugu Y-m
   var _raporData = @json($rapor);
   var _raporIndex = {};
   _raporData.forEach(function(r){ _raporIndex[r.personel_id] = r; });
+
+  // ===== Gunluk prim: tek-tik ode =====
+  $(document).on('click','.prim-gunluk-ode', function(){
+    var $b = $(this);
+    if($b.is(':disabled')) return;
+    var pid   = $b.data('value');
+    var adi   = $b.data('adi') || '';
+    var kalan = parseFloat($b.data('gunkalan')) || 0;
+    if(kalan <= 0) return;
+    swal({
+      title: adi + ' — Günün Primi',
+      html: '<div style="text-align:left;line-height:1.7">'+
+            '<b>'+_formatTL(kalan)+' ₺</b> tutarındaki <b>'+_gun.split('-').reverse().join('.')+'</b> günü primi ödenecek.<br>'+
+            '<span style="color:#64748b;font-size:13px">Kasa defterine "Prim Ödemesi" gideri olarak da yazılır.</span></div>',
+      type: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Evet, öde',
+      cancelButtonText: 'Vazgeç',
+      confirmButtonColor: '#16a34a',
+    }).then(function(res){
+      if(!res.value) return;
+      $.ajax({
+        type: 'POST',
+        url: '/isletmeyonetim/primode',
+        data: {
+          personel_id: pid, sube: _sube,
+          donem: _gunDonem, odeme_tipi: 'prim',
+          prim_gun: _gun, odeme_tarihi: _gun,
+          tutar: kalan, aciklama: 'Günlük prim (' + _gun + ')',
+          _token: '{{ csrf_token() }}'
+        },
+        dataType: 'json',
+        beforeSend: function(){ $('#preloader').show(); },
+        success: function(r){
+          $('#preloader').hide();
+          if(r && r.basarili){
+            swal({title:'Ödendi', type:'success', timer:1200, showConfirmButton:false});
+            var u = new URL(window.location.href);
+            u.searchParams.set('_tab','prim'); u.searchParams.set('mod','gunluk'); u.searchParams.set('gun', _gun);
+            setTimeout(function(){ window.location.href = u.toString(); }, 1000);
+          } else {
+            swal({title:'Hata', text:(r && r.mesaj) ? r.mesaj : 'Ödeme yapılamadı', type:'error'});
+          }
+        },
+        error: function(xhr){ $('#preloader').hide(); swal({title:'Hata', text:'HTTP '+xhr.status, type:'error'}); }
+      });
+    });
+  });
 
   function openBonusKesintiModal(pid, adi, tip){
     setAktifPersonel(pid);

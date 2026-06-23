@@ -29640,17 +29640,24 @@ DB::raw('
 
         $personeller = self::personel_liste_getir($request);
 
-        // Prim & Hak Edis sekmesi icin veri (ay/yil query param'lariyla)
+        // Prim & Hak Edis sekmesi icin veri (ay/yil veya gunluk mod query param'lariyla)
         $yil = (int)($request->yil ?? date('Y'));
         $ay  = (int)($request->ay ?? date('n'));
         if($ay < 1 || $ay > 12) $ay = (int)date('n');
-        $tarih1 = sprintf('%04d-%02d-01', $yil, $ay);
-        $tarih2 = date('Y-m-t', strtotime($tarih1));
-        $rapor  = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2);
+        $mod = $request->mod === 'gunluk' ? 'gunluk' : 'aylik';
+        $gun = ($mod==='gunluk' && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$request->gun)) ? $request->gun : date('Y-m-d');
+        if($mod==='gunluk'){
+            $tarih1 = $tarih2 = $gun;
+            $rapor  = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2, $gun);
+        } else {
+            $tarih1 = sprintf('%04d-%02d-01', $yil, $ay);
+            $tarih2 = date('Y-m-t', strtotime($tarih1));
+            $rapor  = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2);
+        }
 
         return view('isletmeadmin.personelyonetimi',['bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Personel Yönetimi','pageindex' => 401,'personeller' => $personeller, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler,'isletme'=>$isletme,'roller'=>Role::all(),
-            'rapor'=>$rapor,'yil'=>$yil,'ay'=>$ay,'tarih1'=>$tarih1,'tarih2'=>$tarih2]);
+            'rapor'=>$rapor,'yil'=>$yil,'ay'=>$ay,'tarih1'=>$tarih1,'tarih2'=>$tarih2,'mod'=>$mod,'gun'=>$gun]);
     }
     public function hizmetAlanMusteriler(Request $request)
     {
@@ -31061,11 +31068,17 @@ DB::raw('
         $yil = (int)($request->yil ?? date('Y'));
         $ay  = (int)($request->ay ?? date('n'));
         if($ay < 1 || $ay > 12) $ay = (int)date('n');
+        $mod = $request->mod === 'gunluk' ? 'gunluk' : 'aylik';
+        $gun = ($mod==='gunluk' && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$request->gun)) ? $request->gun : date('Y-m-d');
 
-        $tarih1 = sprintf('%04d-%02d-01', $yil, $ay);
-        $tarih2 = date('Y-m-t', strtotime($tarih1));
-
-        $rapor = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2);
+        if($mod==='gunluk'){
+            $tarih1 = $tarih2 = $gun;
+            $rapor = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2, $gun);
+        } else {
+            $tarih1 = sprintf('%04d-%02d-01', $yil, $ay);
+            $tarih2 = date('Y-m-t', strtotime($tarih1));
+            $rapor = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2);
+        }
 
         return view('isletmeadmin.primraporu', [
             'bildirimler'         => self::bildirimgetir($request),
@@ -31079,6 +31092,8 @@ DB::raw('
             'ay'                  => $ay,
             'tarih1'              => $tarih1,
             'tarih2'              => $tarih2,
+            'mod'                 => $mod,
+            'gun'                 => $gun,
         ]);
     }
 
@@ -31104,7 +31119,7 @@ DB::raw('
         return $harita;
     }
 
-    private function primHakedisVerisi($salonId, $tarih1, $tarih2)
+    private function primHakedisVerisi($salonId, $tarih1, $tarih2, $primGun = null)
     {
         $personeller = Personeller::where('salon_id', $salonId)
             ->where('aktif', 1)
@@ -31218,6 +31233,16 @@ DB::raw('
             ->get()
             ->groupBy('personel_id');
 
+        // Gunluk prim modu: o gune ait odenmis prim toplamlari (prim_gun ile isaretli)
+        $gunlukOdenenPrim = collect();
+        if($primGun && \Schema::hasColumn('personel_maas_odemeleri','prim_gun')){
+            $gunlukOdenenPrim = PersonelMaasOdemesi::where('salon_id',$salonId)
+                ->where('odeme_tipi','prim')
+                ->whereDate('prim_gun',$primGun)
+                ->get()
+                ->groupBy('personel_id');
+        }
+
         $sonuc = [];
         foreach($personeller as $p){
             $primRow = $primMap[$p->id];
@@ -31258,6 +31283,17 @@ DB::raw('
             elseif($odenenToplam == $toplam)   $durum = 'tam';
             else                               $durum = 'fazla';
 
+            // === Gunluk prim modu alanlari ===
+            // gun_prim = o gunun prim toplami; gun_odenen = o gune isaretli odenmis prim
+            $gunPrim   = (float)$primToplam;
+            $gunOdenen = (float)$gunlukOdenenPrim->get($p->id, collect())->sum('tutar');
+            $gunKalan  = max(0, $gunPrim - $gunOdenen);
+            if($gunPrim <= 0)               $gunDurum = 'bekliyor';
+            elseif($gunOdenen <= 0)         $gunDurum = 'bekliyor';
+            elseif($gunOdenen < $gunPrim)   $gunDurum = 'kismi';
+            elseif($gunOdenen == $gunPrim)  $gunDurum = 'tam';
+            else                            $gunDurum = 'fazla';
+
             $sonuc[] = [
                 'personel_id'   => $p->id,
                 'personel_adi'  => $p->personel_adi,
@@ -31284,6 +31320,11 @@ DB::raw('
                 'kalan_diger'   => (float)$kalanDiger,
                 'odeme_sayisi'  => $odemeSayisi,
                 'son_odeme_tarihi' => $sonOdeme ? optional($sonOdeme->odeme_tarihi)->format('Y-m-d') : null,
+                // Gunluk prim modu
+                'gun_prim'      => $gunPrim,
+                'gun_odenen'    => $gunOdenen,
+                'gun_kalan'     => $gunKalan,
+                'gun_durum'     => $gunDurum,
             ];
         }
 
@@ -31406,8 +31447,14 @@ DB::raw('
             // Odeme tipi: maas | prim | diger (default: diger)
             $odemeTipi = in_array($request->odeme_tipi, ['maas','prim','diger']) ? $request->odeme_tipi : 'diger';
 
+            // Gunluk prim odemesi: hangi gune ait oldugunu isaretle (opsiyonel)
+            $primGun = null;
+            if($odemeTipi==='prim' && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$request->prim_gun)){
+                $primGun = $request->prim_gun;
+            }
+
             // Coklu odeme destegi: her zaman yeni kayit ekle
-            $pmo = PersonelMaasOdemesi::create([
+            $odemeVerisi = [
                 'personel_id'        => $personel->id,
                 'salon_id'           => $salonId,
                 'donem'              => $donem,
@@ -31417,7 +31464,11 @@ DB::raw('
                 'odeme_yontemi'      => mb_substr((string)$request->odeme_yontemi, 0, 60),
                 'aciklama'           => mb_substr((string)$request->aciklama, 0, 300),
                 'ekleyen_yetkili_id' => Auth::guard('isletmeyonetim')->user()->id ?? null,
-            ]);
+            ];
+            if($primGun && \Schema::hasColumn('personel_maas_odemeleri','prim_gun')){
+                $odemeVerisi['prim_gun'] = $primGun;
+            }
+            $pmo = PersonelMaasOdemesi::create($odemeVerisi);
 
             // === OTOMATIK KASA/MASRAF KAYDI ===
             // Personel ödemesi yapılınca kasa raporuna gider olarak da yazılır.
