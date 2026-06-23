@@ -667,13 +667,31 @@
 </style>
 
 <style>
-  .pr-mod-toggle{ display:inline-flex; background:#f1edf5; border-radius:12px; padding:4px; gap:3px; }
-  .pr-mod-toggle button{
-    border:0; background:transparent; cursor:pointer; padding:8px 16px; border-radius:9px;
-    font-weight:700; font-size:13px; color:#7a6f86; display:inline-flex; align-items:center; gap:7px; transition:.15s;
+  .pr-mod-toggle{
+    display:inline-flex; background:#efe7f5; border:2px solid #e0d4ec; border-radius:14px;
+    padding:5px; gap:5px; box-shadow:0 2px 10px rgba(92,0,142,.10);
   }
-  .pr-mod-toggle button.is-active{ background:#fff; color:var(--rmc-purple-1); box-shadow:0 2px 6px rgba(92,0,142,.12); }
-  .pr-mod-toggle button:hover:not(.is-active){ color:var(--rmc-purple-2); }
+  .pr-mod-toggle button{
+    position:relative; border:0; background:transparent; cursor:pointer; padding:12px 26px; border-radius:10px;
+    font-weight:800; font-size:15px; color:#8a6fa6; display:inline-flex; align-items:center; gap:9px; transition:.18s;
+    letter-spacing:.2px;
+  }
+  .pr-mod-toggle button i{ font-size:16px; }
+  .pr-mod-toggle button.is-active{
+    background:var(--rmc-grad); color:#fff;
+    box-shadow:0 6px 16px rgba(92,0,142,.32);
+  }
+  .pr-mod-toggle button:hover:not(.is-active){ color:var(--rmc-purple-1); background:rgba(255,255,255,.6); }
+  /* "YENI" rozeti — Gunluk butonu pasifken dikkat ceksin */
+  .pr-mod-toggle button .pr-mod-yeni{
+    position:absolute; top:-9px; right:-8px; background:#f59e0b; color:#fff;
+    font-size:9px; font-weight:800; letter-spacing:.5px; padding:2px 6px; border-radius:8px;
+    box-shadow:0 2px 6px rgba(245,158,11,.4); line-height:1;
+  }
+  .pr-mod-toggle button.is-active .pr-mod-yeni{ display:none; }
+  .pr-mod-toggle button:not(.is-active) .pr-mod-yeni{ animation:prModYeniPulse 1.8s ease-in-out infinite; }
+  @keyframes prModYeniPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.12); } }
+  .pr-filter__group--mod label{ color:var(--rmc-purple-1) !important; font-weight:800 !important; }
   .pr-filter input[type=date]{
     border:2px solid var(--rmc-border); border-radius:12px; padding:9px 14px; font-weight:600;
     color:var(--rmc-text); background:#fafbfc; font-size:14px; transition:all .15s;
@@ -684,11 +702,11 @@
   <input type="hidden" name="sube" value="{{$isletme->id}}">
   <input type="hidden" name="_tab" value="prim">
   <input type="hidden" name="mod" id="primMod" value="{{$mod}}">
-  <div class="pr-filter__group">
-    <label>Görünüm</label>
+  <div class="pr-filter__group pr-filter__group--mod">
+    <label><i class="fa fa-eye"></i> Görünüm</label>
     <div class="pr-mod-toggle">
       <button type="button" class="{{ !$isGunluk ? 'is-active' : '' }}" onclick="primModuDegistir('aylik')"><i class="fa fa-calendar"></i> Aylık</button>
-      <button type="button" class="{{ $isGunluk ? 'is-active' : '' }}" onclick="primModuDegistir('gunluk')"><i class="fa fa-calendar-check-o"></i> Günlük</button>
+      <button type="button" class="{{ $isGunluk ? 'is-active' : '' }}" onclick="primModuDegistir('gunluk')"><i class="fa fa-calendar-check-o"></i> Günlük<span class="pr-mod-yeni">YENİ</span></button>
     </div>
   </div>
   @if($isGunluk)
