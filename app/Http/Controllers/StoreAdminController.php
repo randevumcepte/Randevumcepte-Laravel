@@ -30045,65 +30045,82 @@ DB::raw('
         }
     }
 
-    // PAKETLER - kalan seans (round bazli) hesaplanir
+    // PAKETLER - BOLGE bazli kalan seans hesaplanir.
+    // ESKI FORMUL (HATALI): kalan = floor((toplam - kullanilan) / hizmet_sayisi)
+    // Sorun: bolgeler esit kullanilmiyor. Or: 5 bolge x 8 = 40 kapasite, 37 kullanilmis,
+    // 3 farkli bolgede 1'er seans kalmis. Eski formul floor(3/5)=0 verip paketi
+    // 'tukenmis' sayiyor (Seans Takibi sayfasi ise her bolge icin ayri saydigindan
+    // dogru 1'er kalan goruyor). DOGRU MANTIK: her bolge icin ayri sayim, kalan>0
+    // olanlar popup'a girer.
     foreach($randevuOlusturulmamisPaketAdisyonuVarmi as $paketSeanslari) {
         foreach($paketSeanslari->paketler as $paketA) {
             if (!$paketA->paket) continue;
             $hizmetSayisi = $paketA->paket->hizmetler ? count($paketA->paket->hizmetler) : 0;
             if ($hizmetSayisi <= 0) continue;
-            // Round basina seans sayisi (adisyon_paketler.seans_sayisi)
-            // KALAN = toplam - adisyon_paket_seanslar KAYIT SAYISI (her kayit 1 seans).
+
+            // Bolge (hizmet) basina satin alinan seans sayisi
             $seansPerHizmet = (int)($paketA->seans_sayisi ?? $paketA->bekleyen_seans ?? 0);
-            $toplamSeansPaket = $seansPerHizmet * $hizmetSayisi;
-            $kullanilanPaket = (int) DB::table('adisyon_paket_seanslar')
+            if ($seansPerHizmet <= 0) continue;
+
+            // Her bolge icin kullanilan APS sayisini tek sorguda al
+            $kullanilanByHizmet = DB::table('adisyon_paket_seanslar')
                 ->where('adisyon_paket_id', $paketA->id)
-                ->count();
-            $bekleyenToplamPaket = $toplamSeansPaket - $kullanilanPaket;
-            // Per-hizmet kalan = bekleyen / hizmet sayisi
-            $kalanSeansPaket = max(0, (int)floor($bekleyenToplamPaket / $hizmetSayisi));
-            if ($kalanSeansPaket <= 0) continue; // Tukenmis paketleri popup'a dahil etme
+                ->select('hizmet_id', DB::raw('COUNT(*) as c'))
+                ->groupBy('hizmet_id')
+                ->pluck('c', 'hizmet_id')
+                ->toArray();
 
             $paketAdi = $paketA->paket->paket_adi;
-            $seansSayisi = $kalanSeansPaket;
-
-            $onayMetni .= '<div class="package-group mt-2"><strong>📦 ' .
-                         $paketAdi . '</strong> (' . $seansSayisi . ' seans)</div>';
-
             $paketHizmetleriArray = [];
             $hizmetIdleri = [];
+            $toplamKalan = 0;
+            $maxKalan = 0; // Detay 'seans' alani icin temsili deger (en yuksek bolge kalani)
 
-            foreach($paketA->paket->hizmetler as $hizmetP) {
+            foreach ($paketA->paket->hizmetler as $hizmetP) {
                 if (!$hizmetP->hizmet) continue;
+                $kullanilan = (int)($kullanilanByHizmet[$hizmetP->hizmet_id] ?? 0);
+                $kalan = max(0, $seansPerHizmet - $kullanilan);
+                if ($kalan <= 0) continue; // Bu bolgede seans yok -> popup'a dahil etme
+
+                $toplamKalan += $kalan;
+                if ($kalan > $maxKalan) $maxKalan = $kalan;
+
                 $paketHizmetleri[] = [
                     'id' => $hizmetP->hizmet_id,
                     'text' => $hizmetP->hizmet->hizmet_adi,
-                    'seans' => $seansSayisi,
+                    'seans' => $kalan,
                     'paket_adi' => $paketAdi,
                     'tur' => 'paket',
                     'sure' => $hizmetP->sure ?? 0,
-                    'original_seans' => $seansSayisi,
+                    'original_seans' => $kalan,
                     'adisyon_paket_id' => $paketA->id
                 ];
                 $paketHizmetleriArray[] = [
                     'id' => $hizmetP->hizmet_id,
                     'text' => $hizmetP->hizmet->hizmet_adi,
-                    'seans' => $seansSayisi,
+                    'seans' => $kalan,
                     'sure' => $hizmetP->sure ?? 0
                 ];
                 $hizmetIdleri[] = $hizmetP->hizmet_id;
             }
 
+            // Hicbir bolgede kalan yoksa paketi popup'a dahil etme
+            if (empty($paketHizmetleriArray)) continue;
+
+            $onayMetni .= '<div class="package-group mt-2"><strong>📦 ' .
+                         $paketAdi . '</strong> (' . $toplamKalan . ' seans)</div>';
+
             $paketDetaylari[] = [
                 'index' => $paketIndex++,
                 'adi' => $paketAdi,
-                'seans' => $seansSayisi,
+                'seans' => $maxKalan, // Bolgeler arasi farkli olabilir; en yuksek temsili
                 'tur' => 'Paket: ' . $paketAdi,
                 'sure' => $paketA->paket->sure ?? 0,
                 'hizmet_id' => $hizmetIdleri,
                 'paket_id' => $paketA->paket_id,
                 'type' => 'paket',
                 'adisyon_paket_id' => $paketA->id,
-                'toplamSeans' => $seansSayisi,
+                'toplamSeans' => $toplamKalan,
                 'icerik' => $paketHizmetleriArray
             ];
         }
