@@ -2047,6 +2047,18 @@
                      <span class="mtext">WhatsApp</span>
                      </a>
                   </li>
+
+                  {{-- 19.1) WhatsApp Yeni Test (whatsmeow pilot bridge) — sadece uyelik_turu == 3 --}}
+                  <li>
+                     @if($pageindex==651)
+                     <a href="/isletmeyonetim/whatsmeow{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/whatsmeow{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-whatsapp" style="color:#f0ad4e;"></span>
+                     <span class="mtext">WhatsApp Yeni Test</span>
+                     </a>
+                  </li>
                   @endif
                   @endif
                   @endif
@@ -5489,7 +5501,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=12.5')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=261.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=261.1')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>

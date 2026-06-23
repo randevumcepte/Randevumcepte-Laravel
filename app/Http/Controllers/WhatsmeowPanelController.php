@@ -54,7 +54,7 @@ class WhatsmeowPanelController extends Controller
         return view('isletmeadmin.whatsmeow', [
             'bildirimler' => $admin->bildirimgetir($request),
             'sayfa_baslik' => 'whatsmeow Pilot',
-            'pageindex' => 65,
+            'pageindex' => 651, // 65 mevcut WhatsApp menusu, 651 pilot menu icin
             'isletme' => $isletme,
             'kalan_uyelik_suresi' => $admin->lisans_sure_kontrol($request),
             'yetkiliolunanisletmeler' => $isletmeler,
