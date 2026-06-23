@@ -177,7 +177,7 @@ class CarkifelekApiController extends Controller
                 $puanKaydi = SalonPuanlar::firstOrNew(['salon_id' => $salonId, 'user_id' => $userId]);
                 $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $secilen->deger;
                 $puanKaydi->save();
-            } elseif (in_array($secilen->tip, ['hizmet_indirimi', 'urun_indirimi']) && $secilen->deger) {
+            } elseif (in_array($secilen->tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) && $secilen->deger) {
                 $odul = CarkifelekOdulleri::create([
                     'log_id'            => $log->id,
                     'salon_id'          => $salonId,
@@ -359,7 +359,7 @@ class CarkifelekApiController extends Controller
             $puanKaydi->puan = ((float) $puanKaydi->puan) - (float) $odul->puan_esigi;
             $puanKaydi->save();
 
-            $kuponTip = in_array($odul->tip, ['hizmet_indirimi', 'urun_indirimi'])
+            $kuponTip = in_array($odul->tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi'])
                 ? $odul->tip
                 : 'hizmet_indirimi';
 
@@ -405,6 +405,7 @@ class CarkifelekApiController extends Controller
             case 'puan':            return $d->deger ? ((int) $d->deger) . ' Puan' : 'Puan';
             case 'hizmet_indirimi': return $d->deger ? '%' . ((int) $d->deger) . ' Hizmet İndirimi' : 'Hizmet İndirimi';
             case 'urun_indirimi':   return $d->deger ? '%' . ((int) $d->deger) . ' Ürün İndirimi'   : 'Ürün İndirimi';
+            case 'paket_indirimi':  return $d->deger ? '%' . ((int) $d->deger) . ' Paket İndirimi'  : 'Paket İndirimi';
             case 'tekrar_dene':     return 'Tekrar Dene';
             case 'bos':             return 'Boş';
             default:                return $d->dilim_ismi ?: 'Ödül';

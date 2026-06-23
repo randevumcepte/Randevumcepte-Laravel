@@ -25979,12 +25979,12 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                     return response()->json(['basarili' => false, 'mesaj' => 'Gecersiz olasilik degeri'], 422);
                 }
                 $total += $prob;
-                $validTips = ['puan', 'hizmet_indirimi', 'urun_indirimi', 'tekrar_dene', 'bos'];
+                $validTips = ['puan', 'hizmet_indirimi', 'urun_indirimi', 'paket_indirimi', 'tekrar_dene', 'bos'];
                 $tip = isset($d['tip']) && in_array($d['tip'], $validTips) ? $d['tip'] : 'bos';
-                $deger = in_array($tip, ['puan', 'hizmet_indirimi', 'urun_indirimi'])
+                $deger = in_array($tip, ['puan', 'hizmet_indirimi', 'urun_indirimi', 'paket_indirimi'])
                     ? (isset($d['deger']) && $d['deger'] !== null ? (float) $d['deger'] : null)
                     : null;
-                $kupon = in_array($tip, ['hizmet_indirimi', 'urun_indirimi']) ? 1 : 0;
+                $kupon = in_array($tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) ? 1 : 0;
                 $cleaned[] = [
                     'name' => $d['name'] ?? ('Odul ' . ($i + 1)),
                     'color' => $d['color'] ?? '#6c5ce7',
@@ -26358,7 +26358,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         if ($baslik === '' || $esik < 1) {
             return response()->json(['basarili' => false, 'mesaj' => 'Baslik ve puan esigi zorunlu'], 422);
         }
-        if (!in_array($tip, ['hizmet_indirimi', 'urun_indirimi', 'hediye'])) {
+        if (!in_array($tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi', 'hediye'])) {
             return response()->json(['basarili' => false, 'mesaj' => 'Gecersiz odul tipi'], 422);
         }
 

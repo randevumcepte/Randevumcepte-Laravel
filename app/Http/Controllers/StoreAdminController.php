@@ -343,15 +343,15 @@ public function carkdilimekle(Request $request)
             $totalProbability += $probability;
             
             // Dilim tipi ve değeri
-            $validTips = ['puan', 'hizmet_indirimi', 'urun_indirimi', 'tekrar_dene', 'bos'];
+            $validTips = ['puan', 'hizmet_indirimi', 'urun_indirimi', 'paket_indirimi', 'tekrar_dene', 'bos'];
             $tip   = isset($dilim['tip']) && in_array($dilim['tip'], $validTips)
                      ? $dilim['tip'] : 'bos';
-            $deger = in_array($tip, ['puan', 'hizmet_indirimi', 'urun_indirimi'])
+            $deger = in_array($tip, ['puan', 'hizmet_indirimi', 'urun_indirimi', 'paket_indirimi'])
                      ? (isset($dilim['deger']) && $dilim['deger'] !== null ? (float)$dilim['deger'] : null)
                      : null;
 
             // kupon_mu: indirim tiplerinde otomatik 1
-            $kupon_mu = in_array($tip, ['hizmet_indirimi', 'urun_indirimi']) ? 1 : 0;
+            $kupon_mu = in_array($tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) ? 1 : 0;
 
             $cleanedDilimler[] = [
                 'name'        => $dilim['name'] ?? 'Ödül ' . ($index + 1),
@@ -29923,6 +29923,80 @@ DB::raw('
         $adisyon->tarih = date('Y-m-d',strtotime($request->satis_tarihi));
         $adisyon->save();
         return response()->json(['durum'=>'ok','tarih'=>$adisyon->tarih]);
+    }
+    public function kullaniciKuponlari(Request $request)
+    {
+        $bugun = date('Y-m-d');
+        $kuponlar = CarkifelekOdulleri::where('user_id', $request->user_id)
+            ->where('salon_id', $request->sube)
+            ->where('kullanildi', 0)
+            ->whereIn('tip', ['hizmet_indirimi','urun_indirimi','paket_indirimi'])
+            ->where(function($q) use($bugun){
+                $q->whereNull('gecerlilik_tarihi')->orWhere('gecerlilik_tarihi', '>=', $bugun);
+            })
+            ->orderBy('id','desc')
+            ->get(['id','kod','tip','deger','baslik','gecerlilik_tarihi']);
+        return response()->json(['kuponlar' => $kuponlar]);
+    }
+    public function kuponUygula(Request $request)
+    {
+        $kupon = CarkifelekOdulleri::where('kod', strtoupper(trim($request->kod)))
+            ->where('user_id', $request->musteri_id)
+            ->where('salon_id', $request->sube)
+            ->where('kullanildi', 0)
+            ->whereIn('tip', ['hizmet_indirimi','urun_indirimi','paket_indirimi'])
+            ->first();
+        if(!$kupon)
+            return response()->json(['durum'=>'hata','mesaj'=>'Kupon bulunamadı, müşteriye ait değil veya zaten kullanılmış.'], 404);
+        if($kupon->gecerlilik_tarihi && $kupon->gecerlilik_tarihi < date('Y-m-d'))
+            return response()->json(['durum'=>'hata','mesaj'=>'Kuponun süresi dolmuş.'], 422);
+
+        $adisyon = Adisyonlar::where('id', $request->adisyon_id)->where('salon_id', $request->sube)->first();
+        if(!$adisyon)
+            return response()->json(['durum'=>'hata','mesaj'=>'Önce sepete bir hizmet/ürün/paket ekleyin.'], 422);
+
+        $oran   = ((float) $kupon->deger) / 100.0;
+        $uygula = 0;
+        \DB::transaction(function() use($kupon, $adisyon, $oran, &$uygula){
+            if($kupon->tip == 'hizmet_indirimi'){
+                foreach($adisyon->hizmetler as $h){
+                    if($h->senet_id !== null || $h->taksitli_tahsilat_id !== null) continue;
+                    $h->indirim_tutari = round(((float)$h->fiyat) * $oran, 2);
+                    $h->save();
+                    $uygula++;
+                }
+            } elseif($kupon->tip == 'urun_indirimi'){
+                foreach($adisyon->urunler as $u){
+                    if($u->senet_id !== null || $u->taksitli_tahsilat_id !== null) continue;
+                    $u->indirim_tutari = round(((float)$u->fiyat) * $oran, 2);
+                    $u->save();
+                    $uygula++;
+                }
+            } elseif($kupon->tip == 'paket_indirimi'){
+                foreach($adisyon->paketler as $p){
+                    if($p->senet_id !== null || $p->taksitli_tahsilat_id !== null) continue;
+                    $p->indirim_tutari = round(((float)$p->fiyat) * $oran, 2);
+                    $p->save();
+                    $uygula++;
+                }
+            }
+            if($uygula > 0){
+                $kupon->kullanildi = 1;
+                $kupon->kullanim_tarihi = date('Y-m-d H:i:s');
+                $kupon->save();
+            }
+        });
+        if($uygula == 0){
+            $tipAd = $kupon->tip == 'hizmet_indirimi' ? 'hizmet' : ($kupon->tip == 'urun_indirimi' ? 'ürün' : 'paket');
+            return response()->json(['durum'=>'hata','mesaj'=>"Sepette {$tipAd} bulunmadığı için kupon uygulanamadı."], 422);
+        }
+        $tahsilatData = self::musteri_tahsilatlari($request, $request->musteri_id, $request->adisyon_id, $request->satisDuzenle);
+        return response()->json([
+            'durum'        => 'ok',
+            'mesaj'        => '%'.((int)$kupon->deger).' indirim ' . $uygula . ' kaleme uygulandı.',
+            'baslik'       => $kupon->baslik,
+            'tahsilatData' => $tahsilatData,
+        ]);
     }
    public function paketVarmiKontrolu(Request $request)
 {

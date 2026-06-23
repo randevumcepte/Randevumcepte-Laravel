@@ -212,7 +212,7 @@ class CarkifelekMusteriController extends Controller
         $kayitGerekli = false;
 
         if ($isMisafir) {
-            $hasPrize = in_array($secilen->tip, ['puan', 'hizmet_indirimi', 'urun_indirimi']) && $secilen->deger;
+            $hasPrize = in_array($secilen->tip, ['puan', 'hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) && $secilen->deger;
             $kayitGerekli = $hasPrize;
 
             // Log kaydet — misafir için user_id=0 (kayıt sonrası gerçek user_id'ye güncellenir)
@@ -271,7 +271,7 @@ class CarkifelekMusteriController extends Controller
                     $puanKaydi = SalonPuanlar::firstOrNew(['salon_id' => $salonId, 'user_id' => $userId]);
                     $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $secilen->deger;
                     $puanKaydi->save();
-                } elseif (in_array($secilen->tip, ['hizmet_indirimi', 'urun_indirimi']) && $secilen->deger) {
+                } elseif (in_array($secilen->tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) && $secilen->deger) {
                     $odul = CarkifelekOdulleri::create([
                         'log_id'            => $log->id,
                         'salon_id'          => $salonId,
@@ -546,7 +546,7 @@ class CarkifelekMusteriController extends Controller
                 ]);
                 $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $pending['deger'];
                 $puanKaydi->save();
-            } elseif (in_array($pending['tip'], ['hizmet_indirimi', 'urun_indirimi'])) {
+            } elseif (in_array($pending['tip'], ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi'])) {
                 $kupon = CarkifelekOdulleri::create([
                     'log_id'            => null,
                     'salon_id'          => $pending['salon_id'],
@@ -691,8 +691,8 @@ class CarkifelekMusteriController extends Controller
             $puanKaydi->puan = ((float) $puanKaydi->puan) - (float) $odul->puan_esigi;
             $puanKaydi->save();
 
-            // Kupon tipi: hizmet/ürün indirimi veya "hediye" (de hizmet_indirimi gibi davranır ama başlık farklı)
-            $kuponTip = in_array($odul->tip, ['hizmet_indirimi', 'urun_indirimi']) ? $odul->tip : 'hizmet_indirimi';
+            // Kupon tipi: hizmet/ürün/paket indirimi veya "hediye" (de hizmet_indirimi gibi davranır ama başlık farklı)
+            $kuponTip = in_array($odul->tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) ? $odul->tip : 'hizmet_indirimi';
 
             $kupon = CarkifelekOdulleri::create([
                 'log_id'            => null,
@@ -845,6 +845,7 @@ class CarkifelekMusteriController extends Controller
             case 'puan':            return $d->deger ? ((int) $d->deger) . ' Puan' : 'Puan';
             case 'hizmet_indirimi': return $d->deger ? '%' . ((int) $d->deger) . ' Hizmet İndirimi' : 'Hizmet İndirimi';
             case 'urun_indirimi':   return $d->deger ? '%' . ((int) $d->deger) . ' Ürün İndirimi'   : 'Ürün İndirimi';
+            case 'paket_indirimi':  return $d->deger ? '%' . ((int) $d->deger) . ' Paket İndirimi'  : 'Paket İndirimi';
             case 'tekrar_dene':     return 'Tekrar Dene';
             case 'bos':             return 'Boş';
             default:                return $d->dilim_ismi ?: 'Ödül';

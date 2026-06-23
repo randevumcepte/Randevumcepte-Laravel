@@ -953,6 +953,18 @@
                      </div>
                      <div id="taksitli_ve_senetli_tahsilatlar">
                      </div>
+                     <div id="cark_kupon_bolumu" style="display:none;background:#fff3cd;border:1px solid #ffeeba;border-radius:6px;padding:10px;margin:10px 0;">
+                        <label style="font-weight:bold;color:#856404;margin:0 0 6px 0;display:block;">🎁 Çark Kuponu</label>
+                        <div id="cark_kupon_listesi" style="font-size:12px;color:#856404;margin-bottom:6px;"></div>
+                        <div class="row" style="margin:0;">
+                           <div class="col-md-8 col-8" style="padding-left:0;">
+                              <input type="text" id="cark_kupon_kod" class="form-control" placeholder="Kupon kodu" autocomplete="off" style="text-transform:uppercase;">
+                           </div>
+                           <div class="col-md-4 col-4" style="padding:0;">
+                              <button type="button" id="cark_kupon_uygula_btn" class="btn btn-warning btn-block">Uygula</button>
+                           </div>
+                        </div>
+                     </div>
                   </div>
                </div>
                <div class="row tek_tahsilat_formu" data-value="0">

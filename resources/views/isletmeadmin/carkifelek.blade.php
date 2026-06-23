@@ -648,6 +648,7 @@
         { id: 'puan',            label: '💰 Puan',     hasDeger: true,  unit: 'puan' },
         { id: 'hizmet_indirimi', label: '✂️ Hizmet %', hasDeger: true,  unit: '%'    },
         { id: 'urun_indirimi',   label: '📦 Ürün %',   hasDeger: true,  unit: '%'    },
+        { id: 'paket_indirimi',  label: '🎁 Paket %',  hasDeger: true,  unit: '%'    },
         { id: 'tekrar_dene',     label: '🔄 Tekrar',   hasDeger: false, unit: ''     },
         { id: 'bos',             label: '— Boş',        hasDeger: false, unit: ''     },
     ];
@@ -822,6 +823,7 @@
                 const numStr = sl.tip.includes('indirimi') ? '%' + sl.deger : String(sl.deger);
                 const catStr = sl.tip === 'puan' ? 'Puan'
                              : sl.tip === 'hizmet_indirimi' ? 'Hizmet'
+                             : sl.tip === 'paket_indirimi' ? 'Paket'
                              : 'Ürün';
                 const numFs  = n <= 8 ? 17 : 14;
                 const catFs  = n <= 8 ? 11 : 9;
@@ -973,6 +975,7 @@
             case 'puan':            return d != null ? 'Puan'        : (sl.name || 'Puan');
             case 'hizmet_indirimi': return d != null ? 'Hizmet İnd.' : (sl.name || 'Hizmet İnd.');
             case 'urun_indirimi':   return d != null ? 'Ürün İnd.'   : (sl.name || 'Ürün İnd.');
+            case 'paket_indirimi':  return d != null ? 'Paket İnd.'  : (sl.name || 'Paket İnd.');
             case 'tekrar_dene':     return 'Tekrar Dene';
             case 'bos':             return 'Boş';
             default:                return sl.name || 'Ödül';

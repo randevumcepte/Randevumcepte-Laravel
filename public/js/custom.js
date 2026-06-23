@@ -20689,6 +20689,12 @@ $('select[name="tahsilat_musteri_id"]').change(function(){
                  $('#tahsilat_listesi').empty();
                  if($('#session_adisyon_id').length)
                     $('#session_adisyon_id').val('');
+                 $('#cark_kupon_bolumu').hide();
+                 $('#cark_kupon_listesi').empty();
+                 $('#cark_kupon_kod').val('');
+                 if($(this).val() && $(this).val()!=0){
+                     carkKuponlariniYukle($(this).val());
+                 }
     if($(this).val()!=0)
     {
         $('.adisyon_ekle_buttonlar').each(function(){
@@ -23872,3 +23878,74 @@ function dakikaPaketiPopupAc(randevu_id, liste) {
 
     $('#dakikaPaketiModal').modal('show');
 }
+
+function carkKuponlariniYukle(userId){
+    if(!$('#cark_kupon_bolumu').length) return;
+    $.ajax({
+        url: '/isletmeyonetim/kullaniciKuponlari',
+        method: 'GET',
+        data: { user_id: userId, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+        success: function(res){
+            var list = (res && res.kuponlar) || [];
+            if(!list.length){ $('#cark_kupon_bolumu').hide(); return; }
+            var tipAd = { hizmet_indirimi:'Hizmet', urun_indirimi:'Ürün', paket_indirimi:'Paket' };
+            var html = 'Mevcut kuponlar: ';
+            html += list.map(function(k){
+                var t = tipAd[k.tip] || k.tip;
+                return '<b style="cursor:pointer;text-decoration:underline" class="cark_kupon_secim" data-kod="'+k.kod+'">'+k.kod+'</b> (%'+parseInt(k.deger,10)+' '+t+')';
+            }).join(', ');
+            $('#cark_kupon_listesi').html(html);
+            $('#cark_kupon_bolumu').show();
+        }
+    });
+}
+
+$(document).on('click', '.cark_kupon_secim', function(){
+    $('#cark_kupon_kod').val($(this).data('kod'));
+});
+
+$(document).on('click', '#cark_kupon_uygula_btn', function(e){
+    e.preventDefault();
+    var kod = ($('#cark_kupon_kod').val() || '').trim().toUpperCase();
+    if(!kod){ swal({type:'warning', title:'Kupon kodu giriniz', timer:1500, showConfirmButton:false}); return; }
+    var musteriId = $('select[name="tahsilat_musteri_id"]').val();
+    var adisyonId = $('#session_adisyon_id').length ? $('#session_adisyon_id').val() : $('input[name="adisyon_id"]').val();
+    var sube = $('input[name="sube"]').val();
+    var adisyonsuz = $('#adisyonsuz').length ? $('#adisyonsuz').val() : '0';
+    if(!adisyonId){
+        swal({type:'warning', title:'Önce sepete bir hizmet/ürün/paket ekleyin', timer:2000, showConfirmButton:false});
+        return;
+    }
+    $('#preloader').show();
+    $.ajax({
+        url:'/isletmeyonetim/kuponUygula',
+        method:'POST',
+        data:{
+            kod: kod,
+            musteri_id: musteriId,
+            adisyon_id: adisyonId,
+            sube: sube,
+            adisyonsuz: adisyonsuz,
+            satisDuzenle: false,
+            _token: $('input[name="_token"]').val()
+        },
+        success: function(res){
+            $('#preloader').hide();
+            swal({type:'success', title:'Kupon Uygulandı', text: res.mesaj || '', timer:2000, showConfirmButton:false});
+            if(res.tahsilatData){
+                $('#tum_tahsilatlar').empty().append(res.tahsilatData.kalemler);
+                if($('#tahsilat_listesi').length){
+                    $('#tahsilat_listesi').empty().append(res.tahsilatData.tahsilatlar);
+                }
+            }
+            $('#cark_kupon_bolumu').hide();
+            if(typeof tahsilatyenidenhesapla === 'function') tahsilatyenidenhesapla();
+            if(typeof adisyontoplamhesapla === 'function') adisyontoplamhesapla();
+        },
+        error: function(xhr){
+            $('#preloader').hide();
+            var m = (xhr.responseJSON && xhr.responseJSON.mesaj) ? xhr.responseJSON.mesaj : 'Kupon uygulanamadı.';
+            swal({type:'error', title:'Hata', text: m});
+        }
+    });
+});

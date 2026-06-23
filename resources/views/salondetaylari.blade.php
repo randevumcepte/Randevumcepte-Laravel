@@ -344,13 +344,14 @@
                   case 'puan':            return d.deger != null ? 'Puan' : (d.ismi || 'Puan');
                   case 'hizmet_indirimi': return d.deger != null ? 'Hizmet İnd.' : (d.ismi || 'Hizmet İnd.');
                   case 'urun_indirimi':   return d.deger != null ? 'Ürün İnd.'   : (d.ismi || 'Ürün İnd.');
+                  case 'paket_indirimi':  return d.deger != null ? 'Paket İnd.'  : (d.ismi || 'Paket İnd.');
                   case 'tekrar_dene':     return 'Tekrar Dene';
                   case 'bos':             return 'Boş';
                   default:                return d.ismi || 'Ödül';
                }
             }
             function buildFullLabel(d){
-               if (['puan','hizmet_indirimi','urun_indirimi'].includes(d.tip) && d.deger != null) {
+               if (['puan','hizmet_indirimi','urun_indirimi','paket_indirimi'].includes(d.tip) && d.deger != null) {
                   const numStr = d.tip.includes('indirimi') ? '%' + d.deger : d.deger;
                   return numStr + ' ' + buildLabel(d);
                }
