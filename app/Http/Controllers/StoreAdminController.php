@@ -17397,6 +17397,63 @@ DB::raw('
         ], 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     }
 
+    // GECICI TANI: Tahsilat butonunun adisyon cozumlemesinde HANGI adimin hangi sonucu
+    // dondurdugunu ayri ayri gosterir (yanlis adisyona yonlenme teshisi).
+    public function debugRandevuCozumle(Request $request, $id)
+    {
+        $rh = RandevuHizmetler::where('randevu_id', $id)->first();
+        if (!$rh) return response()->json(['hata' => 'randevu_hizmet yok'], 404);
+        $randevu = $rh->randevu;
+
+        // ADIM 1: randevu_id ile dogrudan bagli adisyon kalemi
+        $adim1 = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
+
+        // ADIM 2: ayni musteri + ayni hizmet + randevu tarihli satis
+        $adim2 = null; $adim2detay = [];
+        if ($randevu) {
+            $randevuTarih = date('Y-m-d', strtotime($randevu->tarih));
+            $adim2detay = DB::table('adisyon_hizmetler as ah')
+                ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+                ->where('a.user_id', $randevu->user_id)
+                ->where('a.salon_id', $randevu->salon_id)
+                ->where('ah.hizmet_id', $rh->hizmet_id)
+                ->whereDate('ah.islem_tarihi', $randevuTarih)
+                ->orderBy('ah.id', 'desc')
+                ->select('ah.id', 'ah.adisyon_id', 'ah.islem_tarihi', 'ah.randevu_id', 'ah.fiyat')
+                ->get();
+            $adim2 = $adim2detay->pluck('adisyon_id')->first();
+        }
+
+        // ADIM 3: seans -> paket/hizmet -> adisyon
+        $adim3 = null; $adim3kaynak = null;
+        $seanslar = AdisyonPaketSeanslar::where('randevu_id', $rh->randevu_id)->get();
+        $seansBilgi = $seanslar->firstWhere('hizmet_id', $rh->hizmet_id) ?: $seanslar->first();
+        if ($seansBilgi) {
+            if ($seansBilgi->adisyon_paket_id) {
+                $adim3 = AdisyonPaketler::where('id', $seansBilgi->adisyon_paket_id)->value('adisyon_id');
+                $adim3kaynak = 'adisyon_paket_id='.$seansBilgi->adisyon_paket_id;
+            } elseif ($seansBilgi->adisyon_hizmet_id) {
+                $adim3 = AdisyonHizmetler::where('id', $seansBilgi->adisyon_hizmet_id)->value('adisyon_id');
+                $adim3kaynak = 'adisyon_hizmet_id='.$seansBilgi->adisyon_hizmet_id;
+            }
+        }
+
+        $sonuc = $adim1 ?: ($adim2 ?: $adim3);
+
+        return response()->json([
+            'randevu_id'   => (int) $id,
+            'hizmet_id'    => $rh->hizmet_id,
+            'randevu_tarih'=> $randevu->tarih ?? null,
+            'user_id'      => $randevu->user_id ?? null,
+            'ADIM1_randevu_id_ile' => $adim1,
+            'ADIM2_ayni_gun_satis' => $adim2,
+            'ADIM2_eslesenler'     => $adim2detay,
+            'ADIM3_seans_ile'      => $adim3,
+            'ADIM3_kaynak'         => $adim3kaynak,
+            'SECILEN_adisyon_id'   => $sonuc,
+        ], 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+
     public function takvim_degistir(Request $request)
     {
         // Onceki kod 'monday this week' / 'Y-m-01' icin bugunun tarihini baz
