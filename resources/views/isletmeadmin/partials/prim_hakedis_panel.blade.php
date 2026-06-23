@@ -923,7 +923,7 @@
                 <button class="pr-musteri-btn prim-musteri-detay"
                   data-value="{{$r['personel_id']}}"
                   data-adi="{{$r['personel_adi']}}"
-                  title="@if($isGunluk)Bu gün@else Bu ay@endif satış yaptığı müşteriler">
+                  title="{{ $isGunluk ? 'Bu gün' : 'Bu ay' }} satış yaptığı müşteriler">
                   <i class="fa fa-users"></i>
                 </button>
               </div>
