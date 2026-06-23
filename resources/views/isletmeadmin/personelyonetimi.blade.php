@@ -484,6 +484,8 @@ $(document).ready(function(){
    // Tab degisince DataTable column genisliklerini tekrar hesapla
    $('a[data-toggle="tab"]').on('shown.bs.tab', function(){
       try { $('#personel_tablo').DataTable().columns.adjust().responsive.recalc(); } catch(e){}
+      // Prim tablosu gizli sekmede init oldugu icin kolon genisliklerini burada duzelt
+      try { if($.fn.dataTable.isDataTable('#primrapor_tablo')) $('#primrapor_tablo').DataTable().columns.adjust(); } catch(e){}
    });
 
    // ====== Siralama: capture-phase handler (custom.js'i tamamen baypas) ======
