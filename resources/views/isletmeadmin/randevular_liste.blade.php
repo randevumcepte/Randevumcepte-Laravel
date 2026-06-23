@@ -63,7 +63,7 @@
       </div>
 
       <div class="rc-rl-header-right">
-         <a href="#" data-toggle="modal" data-target="#modal-view-event-add"
+         <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2"
             class="rc-rl-btn rc-rl-btn-success yenieklebuton">
             <i class="fa fa-plus"></i><span>Yeni Randevu</span>
          </a>
