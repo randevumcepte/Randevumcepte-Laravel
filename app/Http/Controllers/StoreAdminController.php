@@ -31163,11 +31163,15 @@ DB::raw('
             ->where(function($q){ $q->where('arsivli',false)->orWhereNull('arsivli'); })
             ->orderBy('takvim_sirasi','asc')->get();
 
+        // Tarih araligi: gun-kapsamli (00:00:00 - 23:59:59). adisyonlar.tarih datetime
+        // olabildigi icin tek gun (gunluk mod) veya ay sonu kayiplarini onler.
+        $tarihBas = substr($tarih1, 0, 10) . ' 00:00:00';
+        $tarihBit = substr($tarih2, 0, 10) . ' 23:59:59';
         $adisyonlar = Adisyonlar::with([
                 'hizmetler.personel','urunler.personel','paketler.personel',
             ])
             ->where('salon_id', $salonId)
-            ->whereBetween('tarih',[$tarih1,$tarih2])
+            ->whereBetween('tarih',[$tarihBas,$tarihBit])
             ->get();
 
         // Personelleri ID ile mapla — yuzdeyi DAIMA Personeller objesinden direk al,
