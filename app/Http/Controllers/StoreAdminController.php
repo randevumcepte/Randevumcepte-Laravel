@@ -30070,6 +30070,15 @@ DB::raw('
                 ->pluck('c', 'hizmet_id')
                 ->toArray();
 
+            \Log::info('[paketVarmi/PAKET]', [
+                'adisyon_paket_id' => $paketA->id,
+                'paket_id' => $paketA->paket_id,
+                'paket_adi' => $paketA->paket->paket_adi ?? null,
+                'seans_per_hizmet' => $seansPerHizmet,
+                'hizmet_sayisi' => $hizmetSayisi,
+                'kullanilan_by_hizmet' => $kullanilanByHizmet,
+            ]);
+
             $paketAdi = $paketA->paket->paket_adi;
             $paketHizmetleriArray = [];
             $hizmetIdleri = [];
@@ -30077,9 +30086,20 @@ DB::raw('
             $maxKalan = 0; // Detay 'seans' alani icin temsili deger (en yuksek bolge kalani)
 
             foreach ($paketA->paket->hizmetler as $hizmetP) {
-                if (!$hizmetP->hizmet) continue;
+                if (!$hizmetP->hizmet) {
+                    \Log::info('[paketVarmi/SKIP-no-hizmet]', ['paket_hizmet_id' => $hizmetP->id ?? null, 'hizmet_id' => $hizmetP->hizmet_id ?? null]);
+                    continue;
+                }
                 $kullanilan = (int)($kullanilanByHizmet[$hizmetP->hizmet_id] ?? 0);
                 $kalan = max(0, $seansPerHizmet - $kullanilan);
+                \Log::info('[paketVarmi/BOLGE]', [
+                    'adisyon_paket_id' => $paketA->id,
+                    'hizmet_id' => $hizmetP->hizmet_id,
+                    'hizmet_adi' => $hizmetP->hizmet->hizmet_adi,
+                    'kullanilan' => $kullanilan,
+                    'seans_per_hizmet' => $seansPerHizmet,
+                    'kalan' => $kalan,
+                ]);
                 if ($kalan <= 0) continue; // Bu bolgede seans yok -> popup'a dahil etme
 
                 $toplamKalan += $kalan;
