@@ -17422,33 +17422,36 @@ DB::raw('
             $adim2 = $adim2detay->pluck('adisyon_id')->first();
         }
 
-        // ADIM 3: seans -> paket/hizmet -> adisyon
-        $adim3 = null; $adim3kaynak = null;
+        // ADIM 3: seans -> SADECE gercek paket (adisyon_paket_id). adisyon_hizmet_id dali artik
+        // canli cozumlemede KULLANILMIYOR; burada sadece bilgi amacli gosteriliyor.
+        $adim3_paket = null; $adim3_hizmet_bilgi = null;
         $seanslar = AdisyonPaketSeanslar::where('randevu_id', $rh->randevu_id)->get();
         $seansBilgi = $seanslar->firstWhere('hizmet_id', $rh->hizmet_id) ?: $seanslar->first();
         if ($seansBilgi) {
             if ($seansBilgi->adisyon_paket_id) {
-                $adim3 = AdisyonPaketler::where('id', $seansBilgi->adisyon_paket_id)->value('adisyon_id');
-                $adim3kaynak = 'adisyon_paket_id='.$seansBilgi->adisyon_paket_id;
-            } elseif ($seansBilgi->adisyon_hizmet_id) {
-                $adim3 = AdisyonHizmetler::where('id', $seansBilgi->adisyon_hizmet_id)->value('adisyon_id');
-                $adim3kaynak = 'adisyon_hizmet_id='.$seansBilgi->adisyon_hizmet_id;
+                $adim3_paket = AdisyonPaketler::where('id', $seansBilgi->adisyon_paket_id)->value('adisyon_id');
+            }
+            if ($seansBilgi->adisyon_hizmet_id) {
+                $adim3_hizmet_bilgi = 'adisyon_hizmet_id='.$seansBilgi->adisyon_hizmet_id.' -> adisyon '
+                    .AdisyonHizmetler::where('id', $seansBilgi->adisyon_hizmet_id)->value('adisyon_id').' (KULLANILMIYOR)';
             }
         }
 
-        $sonuc = $adim1 ?: ($adim2 ?: $adim3);
+        // Canli mantik ile birebir: adim1 -> adim2 -> sadece paket adim3
+        $sonuc = $adim1 ?: ($adim2 ?: $adim3_paket);
 
         return response()->json([
             'randevu_id'   => (int) $id,
             'hizmet_id'    => $rh->hizmet_id,
             'randevu_tarih'=> $randevu->tarih ?? null,
             'user_id'      => $randevu->user_id ?? null,
-            'ADIM1_randevu_id_ile' => $adim1,
-            'ADIM2_ayni_gun_satis' => $adim2,
-            'ADIM2_eslesenler'     => $adim2detay,
-            'ADIM3_seans_ile'      => $adim3,
-            'ADIM3_kaynak'         => $adim3kaynak,
-            'SECILEN_adisyon_id'   => $sonuc,
+            'ADIM1_randevu_id_ile'   => $adim1,
+            'ADIM2_ayni_gun_satis'   => $adim2,
+            'ADIM2_eslesenler'       => $adim2detay,
+            'ADIM3_paket_seans_ile'  => $adim3_paket,
+            'ADIM3_hizmet_seans_INFO'=> $adim3_hizmet_bilgi,
+            'SECILEN_adisyon_id'     => $sonuc,
+            'buton_davranisi'        => $sonuc ? ('adisyon '.$sonuc.'\'e gider') : 'adisyon yok -> normal tahsil_et (yeni adisyon olusturur)',
         ], 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     }
 
