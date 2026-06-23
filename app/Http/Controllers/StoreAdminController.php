@@ -29908,6 +29908,20 @@ DB::raw('
         } else {
             $adisyonDetay['satisTarihi'] = '';
         }
+        $adisyonDetay['kullanilanKupon'] = null;
+        if(\Schema::hasColumn('carkifelek_odulleri','adisyon_id') && $request->adisyonId){
+            $k = CarkifelekOdulleri::where('adisyon_id',$request->adisyonId)->where('kullanildi',1)->first();
+            if($k){
+                $tipAd = $k->tip == 'hizmet_indirimi' ? 'Hizmet' : ($k->tip == 'urun_indirimi' ? 'Ürün' : 'Paket');
+                $adisyonDetay['kullanilanKupon'] = [
+                    'kod'   => $k->kod,
+                    'deger' => (int)$k->deger,
+                    'tip'   => $k->tip,
+                    'tipAd' => $tipAd,
+                    'tarih' => $k->kullanim_tarihi ? date('d.m.Y', strtotime($k->kullanim_tarihi)) : '',
+                ];
+            }
+        }
         return $adisyonDetay;
 
     }
@@ -29983,6 +29997,8 @@ DB::raw('
             if($uygula > 0){
                 $kupon->kullanildi = 1;
                 $kupon->kullanim_tarihi = date('Y-m-d H:i:s');
+                if(\Schema::hasColumn('carkifelek_odulleri','adisyon_id'))
+                    $kupon->adisyon_id = $adisyon->id;
                 $kupon->save();
             }
         });

@@ -44,6 +44,22 @@
             <input type="hidden" name="adisyon_id" value="{{$adisyon_id}}">
             <div class="modal-header">
                <h2>Satış & Tahsilat Düzenleme</h2>
+               @if(\Schema::hasColumn('carkifelek_odulleri','adisyon_id'))
+                  @php
+                     $_kullanilan_kupon = \App\CarkifelekOdulleri::where('adisyon_id',$adisyon_id)->where('kullanildi',1)->first();
+                  @endphp
+                  @if($_kullanilan_kupon)
+                     @php
+                        $_tipAd = $_kullanilan_kupon->tip == 'hizmet_indirimi' ? 'Hizmet' : ($_kullanilan_kupon->tip == 'urun_indirimi' ? 'Ürün' : 'Paket');
+                     @endphp
+                     <div style="margin-left:auto;background:#fff3cd;color:#856404;border:1px solid #ffeeba;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:bold;">
+                        🎁 Çark kuponu kullanıldı: {{ $_kullanilan_kupon->kod }} — %{{ (int)$_kullanilan_kupon->deger }} {{ $_tipAd }} İndirimi
+                        @if($_kullanilan_kupon->kullanim_tarihi)
+                           <span style="font-weight:normal;color:#7a6010;font-size:11px;">({{ date('d.m.Y', strtotime($_kullanilan_kupon->kullanim_tarihi)) }})</span>
+                        @endif
+                     </div>
+                  @endif
+               @endif
             </div>
             <div class="modal-body">
                {!!csrf_field()!!}

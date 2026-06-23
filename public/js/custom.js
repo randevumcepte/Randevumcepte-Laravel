@@ -22488,6 +22488,14 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
         success: function (result) {
            $('input[name="adisyon_id"]').val(result.adisyonId);
            $('#satis_tarihi_duzenle').val(result.satisTarihi || '');
+           if(result.kullanilanKupon){
+               var k = result.kullanilanKupon;
+               var html = '🎁 Çark kuponu kullanıldı: '+k.kod+' — %'+k.deger+' '+k.tipAd+' İndirimi';
+               if(k.tarih) html += ' <span style="font-weight:normal;color:#7a6010;font-size:11px;">('+k.tarih+')</span>';
+               $('#kullanilan_kupon_bilgi').html(html).show();
+           } else {
+               $('#kullanilan_kupon_bilgi').hide().empty();
+           }
            $('#tum_tahsilatlar_duzenleme').empty();
            $('#tum_tahsilatlar_duzenleme').append(result.kalemler);
            $('#tahsilat_listesi_duzenleme').empty();

@@ -46,6 +46,7 @@
                            <i class="fa fa-plus"></i> Paket Ekle
                         </button>
                      </div>
+                     <div id="kullanilan_kupon_bilgi" style="display:none;background:#fff3cd;color:#856404;border:1px solid #ffeeba;border-radius:6px;padding:8px 12px;font-size:13px;font-weight:bold;margin:10px 0;"></div>
 
                      {{-- ===== SATIRLAR BAŞLIĞI ===== --}}
                      <div class="sd-section">
