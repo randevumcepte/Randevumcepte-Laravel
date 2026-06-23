@@ -17324,8 +17324,10 @@ DB::raw('
         //   (1) Dogrudan bu randevu_id'ye baglanmis adisyon kalemi -> en guvenilir (randevu uzerinden satis).
         //   (2) Ayni musteri + ayni hizmet + randevu tarihli satis -> randevu disinda (manuel) acilmis,
         //       randevu_id tasimadigi halde bu randevuya ait olan ayni-gun satisi (or. 565377/529004).
-        //   (3) Seans -> paket/hizmet -> adisyon -> sadece son care (saf paket tuketimi randevulari icin).
-        //       Bu en sona alindi cunku seans cogu zaman ESKI adisyon kalemine baglanip yanlis adisyona goturuyor.
+        //   (3) Seans -> SADECE gercek paket (adisyon_paket_id) -> adisyon -> son care (paket tuketimi randevulari).
+        //       NOT: seansin adisyon_hizmet_id dali BILEREK kullanilmiyor. O dal gozlemlenen tum vakalarda
+        //       (1757538, 1761922) ESKI/alakasiz bir adisyona goturdu. Boyle randevular adisyonId=null kalip
+        //       normal tahsil_et akisina duser (gerekirse yeni adisyon olusturur), eski adisyona yanlis gitmez.
         $adisyonId = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
 
         if (!$adisyonId && $rh->randevu) {
@@ -17342,12 +17344,8 @@ DB::raw('
 
         if (!$adisyonId) {
             $seansBilgi = $seanslar->firstWhere('hizmet_id', $rh->hizmet_id) ?: $seanslar->first();
-            if ($seansBilgi) {
-                if ($seansBilgi->adisyon_paket_id) {
-                    $adisyonId = AdisyonPaketler::where('id', $seansBilgi->adisyon_paket_id)->value('adisyon_id');
-                } elseif ($seansBilgi->adisyon_hizmet_id) {
-                    $adisyonId = AdisyonHizmetler::where('id', $seansBilgi->adisyon_hizmet_id)->value('adisyon_id');
-                }
+            if ($seansBilgi && $seansBilgi->adisyon_paket_id) {
+                $adisyonId = AdisyonPaketler::where('id', $seansBilgi->adisyon_paket_id)->value('adisyon_id');
             }
         }
 
