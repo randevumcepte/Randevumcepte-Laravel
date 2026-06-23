@@ -3057,7 +3057,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
       @endif
-       @if($pageindex==13 || $pageindex==1111 || $pageindex==11111)
+       @if($pageindex==13 || $pageindex==1111 || $pageindex==11111 || $pageindex==41)
       @include('modaldialogs.paket-ekle-modal')
       @endif
       @if($pageindex==19||$pageindex==9|| $pageindex==41)
