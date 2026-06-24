@@ -261,6 +261,31 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
             return;
         }
 
+        // TESHIS LOG: Submit oncesi form alanlarini sirali yazdir
+        try {
+            var __dbg = {
+                tarih: formScope.find('#randevuduzenle_tarih').val(),
+                saat: formScope.find('#randevuduzenle_saat').val(),
+                personeller: formScope.find('select[name="randevupersonelleriyeni[]"]').map(function(){ return $(this).val() || ''; }).get(),
+                cihazlar: formScope.find('select[name="randevucihazlariyeni[]"]').map(function(){ return $(this).val() || ''; }).get(),
+                odalar: formScope.find('select[name="randevuodalariyeni[]"]').map(function(){ return $(this).val() || ''; }).get(),
+                hizmetler: formScope.find('select[name="randevuhizmetleriyeni[]"]').map(function(){
+                    var v = $(this).val(); return Array.isArray(v) ? v.join('|') : (v || '');
+                }).get(),
+                sureler: formScope.find('input[name="hizmet_suresi[]"]').map(function(){ return $(this).val(); }).get(),
+                fiyatlar: formScope.find('input[name="hizmet_fiyat[]"]').map(function(){ return $(this).val(); }).get(),
+                miktarlar: formScope.find('input[name="hizmet_miktari[]"]').map(function(){ return $(this).val(); }).get(),
+                birlestir: {}
+            };
+            for(var i=1;i<=10;i++){
+                var b = formScope.find('input[name="birlestir'+i+'"]:checked').length;
+                if(formScope.find('input[name="birlestir'+i+'"]').length){
+                    __dbg.birlestir['birlestir'+i] = b ? 1 : 0;
+                }
+            }
+            console.log('[DUZENLE SUBMIT DBG]', __dbg);
+        } catch(e){ console.warn('debug log hata:', e); }
+
         // AJAX - custom.js'in yaptigi ile ayni (validation atlanmis)
         $('#preloader').show();
         $.ajax({
