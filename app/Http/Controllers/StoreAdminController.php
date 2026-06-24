@@ -5553,7 +5553,26 @@ private function ayAdiCevir($ingilizceAy)
                         ->groupBy('hizmet_id');
                     $_tuketilenSeansSayisi = []; // hizmet_id => count
 
+                    \Log::info('[randevuguncelle/RAW]', [
+                        'randevu_id'        => $request->randevu_id,
+                        'tarih'             => $request->tarih,
+                        'saat'              => $request->saat,
+                        'hizmetler_raw'     => $request->randevuhizmetleriyeni,
+                        'hizmetler_yeni'    => $yeniRandevuBilgileri['hizmetler'],
+                        'personeller_raw'   => $request->randevupersonelleriyeni,
+                        'hizmet_suresi_raw' => $request->hizmet_suresi,
+                        'hizmet_fiyat_raw'  => $request->hizmet_fiyat,
+                        'birlestir_keys'    => array_keys(array_filter($request->all(), function($k){ return strpos($k,'birlestir')===0; }, ARRAY_FILTER_USE_KEY)),
+                    ]);
+
                     foreach ($yeniRandevuBilgileri['hizmetler'] as $key => $value) {
+                        \Log::info('[randevuguncelle/LOOP]', [
+                            'key'   => $key,
+                            'value (hizmet_id)' => $value,
+                            'personel' => $yeniRandevuBilgileri['personeller'][$key] ?? null,
+                            'sure_used' => $request->hizmet_suresi[$key] ?? null,
+                            'fiyat_used' => $request->hizmet_fiyat[$key] ?? null,
+                        ]);
                         array_push($hizmet_sureleri_okunan, $request->hizmet_suresi[$key]);
                         
                         // Fixed object initialization
