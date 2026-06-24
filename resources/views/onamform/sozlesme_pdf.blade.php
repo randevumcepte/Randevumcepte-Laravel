@@ -46,27 +46,41 @@
 
 <table width="100%" style="margin-top:20px;">
    <tr>
-      <td style="width:55%; vertical-align:bottom;">
+      <td style="width:50%; vertical-align:top; padding-right:8px;">
          <table width="100%"><tr><td class="imza-kutu">
-            @if($arsiv->musteri_imza && strpos($arsiv->musteri_imza,'data:') === 0)
-               <img src="{{ $arsiv->musteri_imza }}" style="max-height:75px; max-width:200px;">
+            @if($arsiv->salon_imza && strpos($arsiv->salon_imza,'data:') === 0)
+               <img src="{{ $arsiv->salon_imza }}" style="max-height:75px; max-width:200px;">
             @else
                <span style="color:#aaa; font-size:10px;">Imza</span>
             @endif
          </td></tr></table>
-         <div style="text-align:center; font-size:10px; margin-top:3px;">Musteri Imzasi</div>
+         <div style="text-align:center; font-size:10px; margin-top:3px;"><b>Salon Yetkilisi Imzasi</b></div>
+         <div style="font-size:9px; color:#555; margin-top:4px;">
+            @if($arsiv->salon_yetkili_ad)<p style="margin:2px 0;">Ad Soyad: {{ $arsiv->salon_yetkili_ad }}</p>@endif
+            @if($arsiv->salon_yetkili_telefon)<p style="margin:2px 0;">Telefon: {{ $arsiv->salon_yetkili_telefon }}</p>@endif
+            @if($arsiv->salon_imza_zaman)<p style="margin:2px 0;">Imza Zamani: {{ date('d.m.Y H:i:s', strtotime($arsiv->salon_imza_zaman)) }}</p>@endif
+            @if($arsiv->salon_imza_ip)<p style="margin:2px 0;">IP: {{ $arsiv->salon_imza_ip }}</p>@endif
+         </div>
       </td>
-      <td style="width:45%; font-size:9px; color:#555; padding-left:15px; vertical-align:bottom;">
-         <p style="margin:2px 0;">Tarih: {{ $arsiv->created_at ? date('d.m.Y', strtotime($arsiv->created_at)) : '' }}</p>
-         @if($arsiv->imza_zaman)
-         <p style="margin:2px 0;">Imza Zamani: {{ date('d.m.Y H:i:s', strtotime($arsiv->imza_zaman)) }}</p>
-         @endif
-         @if($arsiv->imza_ip)<p style="margin:2px 0;">IP: {{ $arsiv->imza_ip }}</p>@endif
-         @if($arsiv->imza_cihaz)<p style="margin:2px 0; font-size:8px; color:#777;">Cihaz: {{ \Illuminate\Support\Str::limit($arsiv->imza_cihaz, 80) }}</p>@endif
-         @if($arsiv->kvkk_onay)<p style="margin:2px 0; color:#28a745;"><b>&#10003; KVKK Onayi Verildi</b></p>@endif
-         <p style="margin-top:6px; padding:4px 8px; background:#fff8dc; border:1px solid #d4a017; font-size:10px;">
-            <b>SMS Onay Kodu:</b> <span style="letter-spacing:2px; font-weight:bold;">{{ $arsiv->dogrulama_kodu ?? '-' }}</span>
-         </p>
+      <td style="width:50%; vertical-align:top; padding-left:8px;">
+         <table width="100%"><tr><td class="imza-kutu">
+            @if($arsiv->musteri_imza && strpos($arsiv->musteri_imza,'data:') === 0)
+               <img src="{{ $arsiv->musteri_imza }}" style="max-height:75px; max-width:200px;">
+            @else
+               <span style="color:#aaa; font-size:10px;">Imza (bekleniyor)</span>
+            @endif
+         </td></tr></table>
+         <div style="text-align:center; font-size:10px; margin-top:3px;"><b>Musteri Imzasi</b></div>
+         <div style="font-size:9px; color:#555; margin-top:4px;">
+            @if($arsiv->musteri)<p style="margin:2px 0;">Ad Soyad: {{ $arsiv->musteri->name }}</p>@endif
+            @if($arsiv->imza_zaman)<p style="margin:2px 0;">Imza Zamani: {{ date('d.m.Y H:i:s', strtotime($arsiv->imza_zaman)) }}</p>@endif
+            @if($arsiv->imza_ip)<p style="margin:2px 0;">IP: {{ $arsiv->imza_ip }}</p>@endif
+            @if($arsiv->imza_cihaz)<p style="margin:2px 0; font-size:8px; color:#777;">Cihaz: {{ \Illuminate\Support\Str::limit($arsiv->imza_cihaz, 60) }}</p>@endif
+            @if($arsiv->kvkk_onay)<p style="margin:2px 0; color:#28a745;"><b>&#10003; KVKK Onayi Verildi</b></p>@endif
+            <p style="margin-top:4px; padding:3px 6px; background:#fff8dc; border:1px solid #d4a017; font-size:9px;">
+               <b>SMS Onay Kodu:</b> <span style="letter-spacing:2px; font-weight:bold;">{{ $arsiv->dogrulama_kodu ?? '-' }}</span>
+            </p>
+         </div>
       </td>
    </tr>
 </table>

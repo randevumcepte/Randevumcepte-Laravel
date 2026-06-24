@@ -72,6 +72,14 @@
          @if($arsiv->sozlesme_notu)<br><br><b>Ek Not:</b> {{ $arsiv->sozlesme_notu }}@endif
       </div>
 
+      @if($arsiv->salon_imza && strpos($arsiv->salon_imza,'data:') === 0)
+      <div style="border:1px solid #e3dcf2; background:#f5f3fb; border-radius:8px; padding:12px 15px; margin-bottom:20px;">
+         <p style="font-weight:600; margin:0 0 6px; color:#5C008E;"><i class="fa fa-check-circle"></i> Salon Yetkilisi İmzaladı</p>
+         <img src="{{ $arsiv->salon_imza }}" style="max-height:70px; max-width:200px; background:#fff; border:1px solid #eee; border-radius:4px;">
+         @if($arsiv->salon_yetkili_ad)<div style="font-size:12px; color:#555; margin-top:4px;">{{ $arsiv->salon_yetkili_ad }}</div>@endif
+      </div>
+      @endif
+
       <hr>
 
       <div class="mb-4">

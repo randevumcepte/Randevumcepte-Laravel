@@ -30468,6 +30468,13 @@ DB::raw('
             if(!in_array('sozlesme_metni',$arsivCols)){
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN sozlesme_metni TEXT NULL");
             }
+            if(!in_array('salon_imza',$arsivCols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_imza MEDIUMTEXT NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_yetkili_ad VARCHAR(255) NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_yetkili_telefon VARCHAR(30) NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_imza_ip VARCHAR(45) NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_imza_zaman DATETIME NULL");
+            }
             $salonCols = array_column(\DB::select("SHOW COLUMNS FROM salonlar"), 'Field');
             if(!in_array('sozlesme_varsayilan_metin',$salonCols)){
                 \DB::statement("ALTER TABLE salonlar ADD COLUMN sozlesme_varsayilan_metin TEXT NULL");
@@ -31120,6 +31127,10 @@ DB::raw('
             if(!$userId || !$cepTel){
                 return response()->json(['basarili'=>false,'mesaj'=>'Müşteri ve cep telefon zorunlu.']);
             }
+            $salonImza = (string) $request->salon_imza;
+            if(strpos($salonImza,'data:') !== 0 || strlen($salonImza) < 500){
+                return response()->json(['basarili'=>false,'mesaj'=>'Salon yetkilisi imzası zorunludur. Lütfen imza alanına imzanızı atın.']);
+            }
             $kod = substr(str_shuffle('1234567890'),0,4);
             $arsiv = new Arsiv();
             $arsiv->user_id        = $userId;
@@ -31136,7 +31147,13 @@ DB::raw('
             $arsiv->sozlesme_notu  = $request->sozlesme_notu ?: null;
             $arsiv->sozlesme_metni = $request->sozlesme_metni ?: null;
             $arsiv->cevapladi      = false;
-            $arsiv->cevapladi2     = false;
+            // Salon yetkilisi sozlesmeyi olusturma aninda panel uzerinden imzalar (cift tarafli imza)
+            $arsiv->salon_imza            = $salonImza;
+            $arsiv->salon_yetkili_ad      = trim((string)$request->salon_yetkili_ad) ?: null;
+            $arsiv->salon_yetkili_telefon = trim((string)$request->salon_yetkili_telefon) ?: null;
+            $arsiv->salon_imza_ip         = $request->ip();
+            $arsiv->salon_imza_zaman      = now();
+            $arsiv->cevapladi2            = true;
             $arsiv->harici_belge   = 'Hizmet Sözleşmesi';
             $arsiv->form_olusturan = Personeller::where('salon_id',$sube)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id');
             $arsiv->save();

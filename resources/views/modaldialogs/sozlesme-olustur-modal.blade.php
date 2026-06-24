@@ -84,6 +84,31 @@
                      <label><b>Ek Not</b> <small class="text-muted">(opsiyonel — sözleşmenin altında ayrıca görünür)</small></label>
                      <textarea name="sozlesme_notu" class="form-control" rows="2" placeholder="Örn: Seans aralığı 15 günü geçemez."></textarea>
                   </div>
+
+                  <div class="col-md-12">
+                     <hr style="margin:6px 0 16px;">
+                     <div style="background:#f5f3fb; border:1px solid #e3dcf2; border-radius:8px; padding:14px 16px;">
+                        <p style="font-weight:700; margin:0 0 4px; color:#5C008E;"><i class="fa fa-building"></i> Salon Yetkilisi İmzası <span style="color:red;">*</span></p>
+                        <p style="font-size:12px; color:#666; margin:0 0 12px;">Sözleşme çift taraflı imzalanır. Salon adına aşağıyı doldurup imzalayın; müşteri kendi imzasını SMS ile gelen link üzerinden atacaktır.</p>
+                        <div class="row">
+                           <div class="col-md-6 form-group">
+                              <label><b>Yetkili Ad Soyad</b></label>
+                              <input type="text" name="salon_yetkili_ad" id="sozlesme_salon_ad" class="form-control" value="{{ $isletme->yetkili_adi ?? optional(Auth::guard('isletmeyonetim')->user())->name ?? '' }}">
+                           </div>
+                           <div class="col-md-6 form-group">
+                              <label><b>Yetkili Telefon</b></label>
+                              <input type="tel" name="salon_yetkili_telefon" id="sozlesme_salon_tel" class="form-control" value="{{ $isletme->yetkili_telefon ?? '' }}">
+                           </div>
+                        </div>
+                        <label><b>İmza</b> <small class="text-muted">(parmağınızla veya farenizle imzalayın)</small></label>
+                        <canvas id="sozlesme_salon_imza_canvas" width="100%" height="160"
+                           style="width:100%; height:160px; display:block; border:2px dashed #c7b8e6; border-radius:8px; background:#fff; cursor:crosshair;"></canvas>
+                        <input type="hidden" name="salon_imza" id="sozlesme_salon_imza">
+                        <div style="text-align:right; margin-top:6px;">
+                           <button type="button" class="btn btn-sm btn-outline-secondary" id="sozlesmeSalonImzaTemizle"><i class="fa fa-eraser"></i> Temizle</button>
+                        </div>
+                     </div>
+                  </div>
                </div>
             </div>
             <div class="modal-footer">
@@ -123,34 +148,96 @@ function sozlesmeTlInputBind(displayId, hiddenId){
 }
 
 @php
+   // Tum salonlar icin gecerli varsayilan (fabrika) sozlesme metni
+   $sozlesmeFabrikaMetin = <<<'SOZLESME_TXT'
+1- SÖZLEŞMENİN KONUSU VE KAPSAMI
+İşbu sözleşmenin konusu, MÜŞTERİ tarafından MERKEZ'den satın aldığı aşağıda detayları belirtilen lazer, bakım ve güzellik hizmetlerinin (bundan böyle "HİZMET" olarak anılacaktır) şartlarının, hizmetlerin sunulmasının, ödeme koşullarının ve tarafların hak ve yükümlülüklerinin belirlenmesidir.
+2- ÖDEME ŞEKLİ VE KOŞULLARI
+2.1- ÖDEME YÖNTEMİ
+Nakit, Kredi Kart (tek çekim, taksit), elden taksit (vade tarihleri ekli ödeme planında belirtilir)
+2.2- Müşteri taksitli işlemlerde ödemeleri belirtilen vadelerde yapmakla yükümlüdür. Ödemelerin gecikmesi durumunda MERKEZ, yasal faiz talep etme ve kalan borcunun tamamını muaccel kılma hakkını saklı tutar.
+2.3- Hizmet bedeli ödenmeden veya ödeme planına uygulamadan hizmetin ifasına devam edilip edilmeyeceği MERKEZ'in inisiyatifindedir.
+3- TARAFLARIN HAK VE YÜKÜMLÜLÜKLERİ
+3.1- MERKEZ'İN YÜKÜMLÜLÜKLERİ
+Merkez, hizmeti mesleki standartlara uygun, hijyen kurallarına bağlı, konusunda uzman personel tarafından ve taahhüt edilen standartlarda sunmak, kullanılan cihaz ve ürünlerin standartlara uygunluğunu sağlamak ve müşteriye sözleşme şartlarına uygun olarak hizmet vermekle yükümlüdür.
+3.2- MÜŞTERİ'NİN YÜKÜMLÜLÜKLERİ VE SAĞLIK BEYANI
+Sağlık Beyanı: Müşteri, hamilelik, epilepsi, kalp pili, açık yara, cilt hastalıkları, kanser tedavisi, hormon bozuklukları veya düzenli kullandığı ilaçlar gibi hizmetin uygulanmasında engel olabilecek veya risk oluşturabilecek tüm sağlık durumlarını MERKEZ'e yazılı olarak bildirmek zorundadır.
+Müşteri, yanlış veya eksik sağlık beyanından kaynaklanabilecek komplikasyonlardan, yan etkilerden veya hizmetin sonuç vermemesinden MERKEZ'in sorumlu tutulmayacağını kabul ve beyan eder.
+İşlem Sonrası Bakım: Müşteri, işlem sonrasında kendisine iletilen (güneşten korunma, su teması vb.) bakım talimatlarına uymak zorundadır. Talimatlara uyulmaması sonucu oluşacak leke, tahriş veya sonuç almama durumlarında MERKEZ sorumlu değildir. Müşteri, işbu sorumluluğun kendisinde olduğunu kabul ve beyan edip, tüm talimatlara eksiksiz uyacağını taahhüt eder.
+3.3- TIBBİ İŞLEM UYARISI
+Müşteri, MERKEZ'de uygulanan işlemlerin birer "tıbbi tedavi" veya "hastalık teşhis, tedavi yöntemi" olmadığını ve bakım amaçlı uygulamalar olduğunu, %100 sonuç garantisi verilmeyeceğini (kıl yapısı, hormon dengesi, cilt tipi gibi biyolojik faktörlere bağlı olarak) bildiğini kabul eder. Ve hizmetin etkilerinin kişisel özelliklere göre değişebileceğini, garanti sonuç talep etmeyeceğini, kendisinden kaynaklı bir durum ortaya çıktığında bunun MERKEZ'den kaynaklı olmadığını kabul ve beyan eder.
+4- RANDEVU, İPTAL VE ERTELEME POLİTİKASI
+4.1- MERKEZ, planlanmış randevulara ilişkin hatırlatma mesajını müşterinin bildirdiği telefon numarasına SMS, WhatsApp yolu ile bilgilendirme yapmakla yükümlüdür.
+4.2- Müşteri de randevu saatine tam zamanında gelmekle yükümlüdür. 15 dakikayı aşan gecikmelerde MERKEZ, seansı iptal etme ve süreyi kısaltma hakkına sahiptir.
+4.3- Randevu iptali veya erteleme talepleri, randevu saatinden en az 24 saat önce MERKEZ'e bildirilmelidir.
+4.4- Mazeretsiz Gelmeme (No-Show): 24 saat önceden haber verilmeksizin randevuya gelinmemesi durumunda, ilgili seans "kullanılmış, yapılmış" sayılır ve paket hakkından düşülür. Müşteri bu durumda herhangi bir hak iddia edemez. Müşteri bu durumu eksiksiz kabul ve beyan eder.
+4.5- Alınan hizmet paketleri, sözleşmede belirtilen süre içerisinde kullanılmalıdır. MÜŞTERİ'nin kendi kusurlarından kaynaklanan gecikmelerde süre uzatımı talep edemez. Ancak MERKEZ mücbir bir sebep varlığında ya da işletmeden kaynaklı zorunluluklar halinde süre uzatımı yapabilir.
+5- CAYMA HAKKI, FESİH VE İADE KOŞULLARI
+5.1- Cayma Hakkı: Müşteri sözleşmenin imzalandığı tarihten itibaren 14 (on dört) gün içinde, hizmet alımına başlanmamış olması kaydıyla, herhangi bir gerekçe göstermeksizin ve cezai şart ödemeksizin sözleşmeden cayma hakkına sahiptir.
+5.2- Hizmet Başladıktan Sonra Fesih: Hizmetin ifasına başlandıktan (ilk seans yapıldıktan) sonra mücbir nedenlerle sözleşmenin feshedilmesi durumunda; kullanılan seanslar liste fiyatı (indirimli paket fiyatı değil, tek seans birim fiyatı) üzerinden hesaplanır. Toplam ödenen tutardan, kullanılan seansların liste fiyatı bedeli düşülerek kalan tutar iade edilir. Ancak MÜŞTERİ tarafından keyfi nedenlerle sözleşmenin feshedilmesi durumunda işbu sözleşme muaccel hale gelir ve ödenen bedeller geri iade edilmez. Müşteri bunu kabul ettiğini beyan eder.
+5.3- MERKEZ'den kaynaklanan kusurlu hizmet (ayıplı hizmet) durumunda, MÜŞTERİ'nin 6502 sayılı kanundan doğan bedel iadesi veya hizmetin yeniden görülmesi hakları saklıdır.
+6- HİZMETİN DEVİR VE İADESİ
+6.1- İşbu yapılan hizmet sözleşmesi sadece sözleşmeyi imzalayan MÜŞTERİ'yi bağlar. Alınan hizmet herhangi başka birine devredilemez.
+6.2- MÜŞTERİ tarafından alınan hizmet bir başkasına satılamaz ve ücret yerine kullanılamaz.
+6.3- Müşteri getireceği Resmi Sağlık Kurumu Raporu ile hizmetin kesin olarak alınamayacağını belgelemesi halinde kullanılmayan seansların bedeli iade edilir.
+6.4- Peşin ödemelerde yasal zorunluluklar dışında iade yapılmaz.
+6.5- MÜŞTERİ, kendisi adına uygulanmış olan kampanya, indirim veya özel fiyatla alınan hizmetleri farklı biri üzerinde kullanamaz.
+7- KİŞİSEL VERİLERİN KORUNMASI (KVKK)
+7.1- MÜŞTERİ, bu sözleşme kapsamında verdiği kişisel verilerin (kimlik, iletişim, sağlık bilgileri, işlem öncesi ve sonrası fotoğraflar, rıza dahilinde çekilen videolar ve fotoğraflar vb.) 6698 sayılı KVKK kapsamında hizmetin ifası, randevu takibi ve yasal yükümlülükler nedeniyle MERKEZ tarafından işlenmesine, saklanmasına ve mevzuatın izin verdiği kurumlarla, MERKEZ'in yönettiği sosyal medya hesaplarında (Instagram, Facebook, TikTok vb.) paylaşılmasına açık rıza gösterdiğini beyan eder.
+7.2- Müşteri yukarıda belirtilen ve MERKEZ'in sosyal medya hesaplarında paylaşılması için video, fotoğraf, görüntü vb. gibi alınan içeriklerin paylaşılmasına açık rıza göstermiyorsa işbu sözleşme ile birlikte imzalanan KVKK aydınlatma metni ve açık rıza formu imzalatılmıştır.
+8- YETKİLİ MAHKEMELER VE YÜRÜRLÜK
+İşbu sözleşmeden doğacak uyuşmazlıklarda, Tüketici Hakem Heyetleri ve ......................................... Mahkemeleri ve İcra daireleri yetkilidir. İşbu sözleşme 8 (sekiz) maddeden ibaret olup taraflarca iki nüsha olarak tanzim ve imza edilmiştir.
+SOZLESME_TXT;
    try {
       $sozlesmeSalonVarsayilan = \DB::table('salonlar')->where('id',$isletme->id)->value('sozlesme_varsayilan_metin');
    } catch(\Exception $e){ $sozlesmeSalonVarsayilan = null; }
 @endphp
 // Salonun kaydettigi varsayilan metin (bir defa kaydedilir, sonraki sozlesmelerde otomatik dolu gelir)
 var sozlesmeSalonVarsayilan = {!! json_encode($sozlesmeSalonVarsayilan) !!};
+// Tum salonlar icin gecerli fabrika varsayilani (salon kendi metnini kaydetmediyse bu gelir)
+var sozlesmeFabrikaVarsayilan = {!! json_encode($sozlesmeFabrikaMetin) !!};
 
-function sozlesmeFabrikaMetni(){
-   return '1. Bu sözleşme {{ addslashes($isletme->salon_adi) }} ile yukarıda bilgileri yazılı müşteri arasında akdedilmiştir.\n' +
-          '2. Müşteri, alacağı hizmet/paket karşılığında belirtilen toplam ücreti ödemeyi kabul ve taahhüt eder.\n' +
-          '3. Kapora/ön ödeme alındığı durumda kalan bakiye, hizmet süresi içerisinde tahsil edilecektir.\n' +
-          '4. Müşteri belirlenen randevu saatlerinde hazır bulunmakla yükümlüdür. Mazeretsiz iptaller veya gelmemeler için ücret iadesi yapılmaz.\n' +
-          '5. İşletme, hizmeti taahhüt edilen kalitede sunmakla yükümlüdür.\n' +
-          '6. Taraflar bu sözleşmeyi okuyup, anladığını ve kabul ettiğini beyan eder.';
-}
 function sozlesmeVarsayilanMetin(){
    if(sozlesmeSalonVarsayilan && String(sozlesmeSalonVarsayilan).trim()){
       return String(sozlesmeSalonVarsayilan);
    }
-   return sozlesmeFabrikaMetni();
+   return sozlesmeFabrikaVarsayilan;
+}
+
+// --- Salon yetkilisi imza canvas (cift tarafli imza) ---
+var sozlesmeSalonImzaCizildi = false;
+function sozlesmeSalonImzaKur(){
+   var c = document.getElementById('sozlesme_salon_imza_canvas');
+   if(!c) return;
+   var ctx = c.getContext('2d');
+   c.width = c.offsetWidth; c.height = 160;
+   ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#222';
+   sozlesmeSalonImzaCizildi = false;
+   var ciziyor = false;
+   function pos(e){ var r = c.getBoundingClientRect(); var t = e.touches ? e.touches[0] : e; return { x: t.clientX - r.left, y: t.clientY - r.top }; }
+   function start(e){ e.preventDefault(); ciziyor = true; sozlesmeSalonImzaCizildi = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+   function draw(e){ if(!ciziyor) return; e.preventDefault(); var p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }
+   function end(){ ciziyor = false; }
+   // onceki bagli olaylari temizlemek icin klon
+   var yeni = c.cloneNode(true); c.parentNode.replaceChild(yeni, c); c = yeni; ctx = c.getContext('2d');
+   c.width = c.offsetWidth; c.height = 160;
+   ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#222';
+   c.addEventListener('mousedown', start); c.addEventListener('mousemove', draw);
+   c.addEventListener('mouseup', end); c.addEventListener('mouseleave', end);
+   c.addEventListener('touchstart', start); c.addEventListener('touchmove', draw); c.addEventListener('touchend', end);
 }
 
 $(document).ready(function(){
+   $(document).on('click', '#sozlesmeSalonImzaTemizle', function(){
+      var c = document.getElementById('sozlesme_salon_imza_canvas');
+      if(c){ c.getContext('2d').clearRect(0,0,c.width,c.height); sozlesmeSalonImzaCizildi = false; $('#sozlesme_salon_imza').val(''); }
+   });
    // Modal açılınca select2'yi yeniden başlat (dialog içindeki select için gerekli)
    $('#sozlesmeOlusturModal').on('shown.bs.modal', function(){
       if(!$('#sozlesme_metni').val().trim()){
          $('#sozlesme_metni').val(sozlesmeVarsayilanMetin());
       }
+      sozlesmeSalonImzaKur();
       sozlesmeTlInputBind('sozlesme_toplam_display', 'sozlesme_toplam');
       sozlesmeTlInputBind('sozlesme_kapora_display', 'sozlesme_kapora');
       try {
@@ -248,6 +335,13 @@ $(document).ready(function(){
    // Form submit
    $('#sozlesmeOlusturForm').on('submit', function(e){
       e.preventDefault();
+      // Salon yetkilisi imzasini hidden input'a yaz + zorunlu kontrol
+      var sc = document.getElementById('sozlesme_salon_imza_canvas');
+      if(!sozlesmeSalonImzaCizildi || !sc){
+         Swal.fire('İmza Gerekli', 'Salon yetkilisi imzası zorunludur. Lütfen imza alanına imzanızı atın.', 'warning');
+         return;
+      }
+      $('#sozlesme_salon_imza').val(sc.toDataURL('image/png'));
       var $btn = $(this).find('button[type=submit]');
       $btn.prop('disabled', true).text('Gönderiliyor...');
       $.ajax({
