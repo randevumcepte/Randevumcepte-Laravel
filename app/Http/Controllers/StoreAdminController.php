@@ -5483,15 +5483,17 @@ private function ayAdiCevir($ingilizceAy)
                     
                     $hizmetAdi = "";
                     $randevu = $mevcutRandevu; // Mevcut randevuyu kullan
-                    
+
                     $salonId = $randevu->salon_id;
                     $userId = $randevu->user_id;
-                    
+
+                    // KALDIRILDI: ($seansVar var ise $randevu = new Randevular()) blogu.
+                    // Bug: paketli/seansli randevu duzenlenince YENI randevu olusturuyor,
+                    // eskisi degisik halde kaliyor, eski RandevuHizmetler kayitlari
+                    // 'silinmis gibi' gozukup duzenli liste sayfasinda bos satirlar ciktiyordu.
+                    // Duzenleme her zaman mevcut randevuyu update etmeli.
                     if ($seansVar) {
-                        $randevu = new Randevular();
                         $hizmetAdi = $seansVar->hizmet->hizmet_adi ?? '';
-                        $randevu->durum = 1;
-                        $randevu->olusturan_personel_id = Auth::guard('isletmeyonetim')->user()->id;
                     }
                     
                     // Randevu bilgilerini güncelle
@@ -5541,9 +5543,10 @@ private function ayAdiCevir($ingilizceAy)
                     $totalsure = 0;
                     $yenisaatbaslangic = $yeniRandevuBilgileri['saat'];
 
-                    if (!$seansVar) {
-                        RandevuHizmetler::where('randevu_id', $randevu->id)->delete();
-                    }
+                    // Eski hizmet satirlarini HER ZAMAN sil (eskiden seansVar varsa
+                    // silmiyordu; bu, eski satirlarin yeni durumla atil kalmasina ve
+                    // listede 'bos hizmetler' gozukmesine yol aciyordu).
+                    RandevuHizmetler::where('randevu_id', $randevu->id)->delete();
 
                     // EKSIK SEANS KAYDI INSERT'I icin: bu randevudaki mevcut APS kayitlarini
                     // hizmet_id bazinda grupla. Asagidaki foreach'ta her satir icin havuzdan
@@ -5553,21 +5556,33 @@ private function ayAdiCevir($ingilizceAy)
                         ->groupBy('hizmet_id');
                     $_tuketilenSeansSayisi = []; // hizmet_id => count
 
+                    \Log::info('[randevuguncelle/RAW]', [
+                        'randevu_id'        => $request->randevu_id,
+                        'tarih'             => $request->tarih,
+                        'saat'              => $request->saat,
+                        'hizmetler_raw'     => $request->randevuhizmetleriyeni,
+                        'hizmetler_yeni'    => $yeniRandevuBilgileri['hizmetler'],
+                        'personeller_raw'   => $request->randevupersonelleriyeni,
+                        'hizmet_suresi_raw' => $request->hizmet_suresi,
+                        'hizmet_fiyat_raw'  => $request->hizmet_fiyat,
+                        'birlestir_keys'    => array_keys(array_filter($request->all(), function($k){ return strpos($k,'birlestir')===0; }, ARRAY_FILTER_USE_KEY)),
+                    ]);
+
                     foreach ($yeniRandevuBilgileri['hizmetler'] as $key => $value) {
+                        \Log::info('[randevuguncelle/LOOP]', [
+                            'key'   => $key,
+                            'value (hizmet_id)' => $value,
+                            'personel' => $yeniRandevuBilgileri['personeller'][$key] ?? null,
+                            'sure_used' => $request->hizmet_suresi[$key] ?? null,
+                            'fiyat_used' => $request->hizmet_fiyat[$key] ?? null,
+                        ]);
                         array_push($hizmet_sureleri_okunan, $request->hizmet_suresi[$key]);
-                        
-                        // Fixed object initialization
-                        if ($seansVar) {
-                            $yenirandevuhizmetpersonel = RandevuHizmetler::where('hizmet_id', $seansVar->hizmet_id)
-                                ->where('randevu_id', $eskiSeansRandevusu)
-                                ->first();
-                            
-                            if (!$yenirandevuhizmetpersonel) {
-                                $yenirandevuhizmetpersonel = new RandevuHizmetler();
-                            }
-                        } else {
-                            $yenirandevuhizmetpersonel = new RandevuHizmetler();
-                        }
+
+                        // Eski RandevuHizmetler kayitlari yukarida silindi -> her satir TEMIZ yeni.
+                        // (Eskiden $seansVar varsa AYNI satiri fetch edip her iterde overrride
+                        // edip kaydediyordu -> 2 hizmet vermek istesen son iterin verisi kalip
+                        // ilk hizmet kaybolup gidiyordu.)
+                        $yenirandevuhizmetpersonel = new RandevuHizmetler();
                         
                         $yenirandevuhizmetpersonel->randevu_id = $randevu->id;
                         $yenirandevuhizmetpersonel->hizmet_id = $value;
@@ -5625,6 +5640,22 @@ private function ayAdiCevir($ingilizceAy)
                             $_pool = $_mevcutSeanslar->get($_hzmtId) ?: collect();
                             $_zatenVar = $_pool->count() > $_tuk;
                             $_tuketilenSeansSayisi[$_hzmtId] = $_tuk + 1;
+
+                            // Mevcut APS varsa: yeni saat/personel/cihaz/oda ile guncelle.
+                            if ($_zatenVar) {
+                                $_apsKayit = $_pool->values()[$_tuk] ?? null;
+                                if ($_apsKayit) {
+                                    $_aps = AdisyonPaketSeanslar::find($_apsKayit->id);
+                                    if ($_aps) {
+                                        $_aps->seans_tarih = $yeniRandevuBilgileri['tarih'];
+                                        $_aps->seans_saat  = $yenirandevuhizmetpersonel->saat;
+                                        $_aps->personel_id = $yenirandevuhizmetpersonel->personel_id;
+                                        $_aps->cihaz_id    = $yenirandevuhizmetpersonel->cihaz_id;
+                                        $_aps->oda_id      = $yenirandevuhizmetpersonel->oda_id;
+                                        $_aps->save();
+                                    }
+                                }
+                            }
 
                             if (!$_zatenVar) {
                                 // 1) Kullaniciya ait tek hizmet adisyonu (otomatik_randevu_olusturuldu NULL/!=1)
@@ -5968,7 +5999,9 @@ private function ayAdiCevir($ingilizceAy)
             }
 
             if (count($mesajlar) > 0) {
-                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+                // salon_id ACIKCA gec — multi-branch kullanicida mevcutsube
+                // yanlis salon (kullanicinin ilk yetkili sube'si) donerdi.
+                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false, $randevu->salon_id);
             }
         }
 
@@ -6140,7 +6173,9 @@ private function ayAdiCevir($ingilizceAy)
             }
         }
         if(count($mesajlar)>0)
-            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
+            // salon_id ACIKCA gec — multi-branch kullanicida mevcutsube
+            // yanlis salon (kullanicinin ilk yetkili sube'si) donerdi.
+            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$randevu->salon_id);
         if(is_numeric($request->musteriid))
         {
             return self::randevu_liste_getir($request, date('Y-m-d'), // tarih1: bugün
@@ -14371,9 +14406,14 @@ DB::raw('
         }
         self::sms_gonder_bildirimli($request,$mesajlar,true,1,false);
     }
-    public function sms_gonder_bildirimli(Request $request,$mesajlar,$geribildirimgonder,$tur,$dogrulama)
+    public function sms_gonder_bildirimli(Request $request,$mesajlar,$geribildirimgonder,$tur,$dogrulama,$salonOverride=null)
     {
-        $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        // $salonOverride: cagri yeri salon_id'yi ACIKCA biliyorsa bunu kullan.
+        // Aksi halde mevcutsube — multi-branch kullanicida ilk yetkili salonu doner,
+        // bu da yanlis salon'un SMS basligi/WA oturumu kullanilmasina neden olabilir
+        // (randevu sahibi salon 397 iken SMS salon 20 basligindan giderdi).
+        $aktifSalonId = $salonOverride ?: self::mevcutsube($request);
+        $isletme = Salonlar::where('id', $aktifSalonId)->first();
 
         // WhatsApp pre-filter: salon WA aktif+connected ise her mesaj once WhatsApp'a
         // kuyruga girer. Hemen basarisiz olanlar (4xx/5xx/timeout) SMS yoluyla devam eder;
