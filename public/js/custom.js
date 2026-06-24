@@ -14116,6 +14116,8 @@ $('#filtre_cinsiyet,#filtrehizmetsecim').change(function(e){
                     }
     });
 });
+$(function(){ if(window.TelefonUlke){ TelefonUlke.kurHepsi(); } });
+$(document).on('shown.bs.modal', '#musteri-bilgi-modal, #musteri-bilgi-duzenle-modal', function(){ if(window.TelefonUlke){ TelefonUlke.kurHepsi(); } });
 $('#musteri_tablo,#musteri_tablo_sadik,#musteri_tablo_aktif,#musteri_tablo_pasif').on('click','a[name="musteri_duzenle"]',function(e){
     $('input[name="musteri_id"]:eq(1)').val($(this).attr('data-value'));
      $.ajax({
@@ -14130,6 +14132,7 @@ $('#musteri_tablo,#musteri_tablo_sadik,#musteri_tablo_aktif,#musteri_tablo_pasif
             $("#preloader").hide();
             $('.musteri_bilgi_formu input[name="ad_soyad"]').eq(1).val(result.ad_soyad);
             $('.musteri_bilgi_formu input[name="telefon"]').eq(1).val(result.cep_telefon);
+            if(window.TelefonUlke){ TelefonUlke.setDeger(document.querySelector('#musteri-bilgi-duzenle-modal .tel-grup'), result.cep_telefon); }
             $('.musteri_bilgi_formu input[name="email"]').eq(1).val(result.eposta);
             $('.musteri_bilgi_formu select[name="dogum_tarihi_gun"]').eq(1).val(result.dogum_tarihi_gun).change();
             $('.musteri_bilgi_formu select[name="dogum_tarihi_ay"]').eq(1).val(result.dogum_tarihi_ay).change();

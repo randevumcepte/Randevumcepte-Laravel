@@ -27,11 +27,13 @@
                         </div>
                         <div class="col-md-6">
                            <label>Telefon  </label>
-                           @if($pageindex==41)
-                           <input type="tel" name="telefon" data-inputmask =" 'mask' : '5999999999'" required class="form-control" value="{{$musteri_bilgi->cep_telefon}}">
-                           @else
-                           <input type="tel" name="telefon" data-inputmask =" 'mask' : '5999999999'" required class="form-control" value="">
-                           @endif
+                           <div class="tel-grup" data-tel-initial="@if($pageindex==41){{$musteri_bilgi->cep_telefon}}@endif">
+                              <div style="display:flex;gap:6px;">
+                                 <select class="form-control tel-ulke" style="max-width:120px;flex:0 0 auto;padding-left:6px;padding-right:2px;"></select>
+                                 <input type="tel" class="form-control tel-num" required placeholder="Telefon" autocomplete="off" style="flex:1 1 auto;">
+                              </div>
+                              <input type="hidden" name="telefon" class="tel-val">
+                           </div>
                         </div>
                         <div class="col-md-6">
                            <label>E-posta </label>

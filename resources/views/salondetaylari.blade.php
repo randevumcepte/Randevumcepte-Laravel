@@ -894,10 +894,13 @@
 
                      <div class="rdv-input-grup">
                         <label for="rdv_telefon"><i class="fa fa-mobile"></i> Cep Telefonu</label>
-                        <input type="tel" name="cep_telefon" id="rdv_telefon"
-                               value="{{ Auth::check() ? Auth::user()->cep_telefon : '' }}"
-                               placeholder="05XXXXXXXXX"
-                               maxlength="11" minlength="11" pattern="05[0-9]{9}" required autocomplete="tel">
+                        <div class="tel-grup" id="rdv-tel-grup" data-tel-initial="{{ Auth::check() ? Auth::user()->cep_telefon : '' }}">
+                           <div style="display:flex;gap:8px;">
+                              <select class="tel-ulke" style="flex:0 0 auto;max-width:130px;"></select>
+                              <input type="tel" class="tel-num" id="rdv_telefon" placeholder="Telefon" autocomplete="tel" style="flex:1 1 auto;">
+                           </div>
+                           <input type="hidden" name="cep_telefon" class="tel-val">
+                        </div>
                         <small class="rdv-input-hint">Telefonunuz randevu bildirimleri için kullanılır. Sizinle paylaşılmaz.</small>
                      </div>
 
@@ -1603,6 +1606,7 @@
          @endif
 
          {{-- =========== Direkt randevu onay formu (sifresiz / smssiz) =========== --}}
+         <script src="{{ secure_asset('public/js/telefon-ulke.js') }}?v=1.0"></script>
          <script>
          (function(){
              // Form acildigi an kaydet (bot tespiti icin)
@@ -1611,6 +1615,10 @@
 
              var form = document.getElementById('rdv-direkt-form');
              if (!form) return;
+
+             // Alan kodu (ulke) secici + numara bilesenini kur
+             var telGrup = document.getElementById('rdv-tel-grup');
+             if (window.TelefonUlke && telGrup) TelefonUlke.kur(telGrup);
 
              var hataKutu = document.getElementById('rdv-direkt-hata');
              var submitBtn = document.getElementById('rdv-direkt-submit');
@@ -1641,11 +1649,22 @@
              var unutBtn = document.getElementById('rdv-sifremi-unuttum');
              if (unutBtn) {
                  unutBtn.addEventListener('click', function(){
-                     var telEl2 = document.getElementById('rdv_telefon');
-                     var tel2 = (telEl2 && telEl2.value || '').replace(/[^0-9]/g,'');
-                     if (!/^05[0-9]{9}$/.test(tel2)) {
-                         sifreGrubunuAc('Telefon numaranız 05XXXXXXXXX formatında olmalı.', 'err');
-                         return;
+                     var kod2 = (telGrup && telGrup.querySelector('.tel-ulke')) ? telGrup.querySelector('.tel-ulke').value : '+90';
+                     var numEl2 = telGrup ? telGrup.querySelector('.tel-num') : document.getElementById('rdv_telefon');
+                     var nat2 = (numEl2 && numEl2.value || '').replace(/\D/g,'').replace(/^0+/,'');
+                     var tel2;
+                     if (kod2 === '+90') {
+                         if (!/^5[0-9]{9}$/.test(nat2)) {
+                             sifreGrubunuAc('Telefon numaranız 5XXXXXXXXX formatında olmalı.', 'err');
+                             return;
+                         }
+                         tel2 = nat2; // backend 0/+90 zaten soyuyor
+                     } else {
+                         if (nat2.length < 7) {
+                             sifreGrubunuAc('Geçerli bir telefon numarası girin.', 'err');
+                             return;
+                         }
+                         tel2 = kod2 + nat2; // yabanci: +KOD + numara
                      }
                      var origText = unutBtn.innerHTML;
                      unutBtn.disabled = true;
@@ -1679,13 +1698,25 @@
                  e.preventDefault();
                  temizHata();
 
-                 // Telefon temizle
-                 var telEl = document.getElementById('rdv_telefon');
-                 var tel = telEl.value.replace(/[^0-9]/g, '');
-                 if (!/^05[0-9]{9}$/.test(tel)) {
-                     gosterHata('Telefon numarasını 05XXXXXXXXX formatında yazınız.');
-                     telEl.focus();
-                     return;
+                 // Telefon: alan koduna gore derle
+                 var telKod = (telGrup && telGrup.querySelector('.tel-ulke')) ? telGrup.querySelector('.tel-ulke').value : '+90';
+                 var telNumEl = telGrup ? telGrup.querySelector('.tel-num') : document.getElementById('rdv_telefon');
+                 var telNat = (telNumEl && telNumEl.value || '').replace(/\D/g, '').replace(/^0+/, '');
+                 var tel;
+                 if (telKod === '+90') {
+                     if (!/^5[0-9]{9}$/.test(telNat)) {
+                         gosterHata('Telefon numarasını 5XXXXXXXXX formatında yazınız.');
+                         if (telNumEl) telNumEl.focus();
+                         return;
+                     }
+                     tel = '0' + telNat; // backend 05XXXXXXXXX bekliyor
+                 } else {
+                     if (telNat.length < 7) {
+                         gosterHata('Geçerli bir telefon numarası girin.');
+                         if (telNumEl) telNumEl.focus();
+                         return;
+                     }
+                     tel = telKod + telNat; // yabanci: +KOD + numara
                  }
                  if (!document.getElementById('rdv_kvkk').checked) {
                      gosterHata('Devam etmek için kullanım ve gizlilik koşullarını onaylayın.');

@@ -1383,19 +1383,31 @@ $salon = Salonlar::where('domain', $domain)->first();
          }
 
          // 5) Telefon ve ad validation
-         $telRaw = preg_replace('/[^0-9]/', '', (string) $request->input('cep_telefon', ''));
+         $cepInput = (string) $request->input('cep_telefon', '');
          $ad = trim((string) $request->input('adsoyad', ''));
-         if (!preg_match('/^05[0-9]{9}$/', $telRaw)) {
-             return response()->json(['error' => 'Geçerli bir cep telefonu girin (05XXXXXXXXX).'], 422);
+
+         // Yabanci numara mi? "+" ile baslayan ve +90 olmayan -> normalize ETME,
+         // oldugu gibi sakla/ara (+491761234567). Sadece Turkiye numarasi normalize edilir.
+         $yabanci = (strpos($cepInput, '+') === 0) && (strpos($cepInput, '+90') !== 0);
+         if ($yabanci) {
+             $tel = '+' . preg_replace('/\D/', '', substr($cepInput, 1)); // +KOD + rakamlar
+             $rakamAdedi = strlen($tel) - 1;
+             if ($rakamAdedi < 7 || $rakamAdedi > 15) {
+                 return response()->json(['error' => 'Geçerli bir telefon numarası girin.'], 422);
+             }
+         } else {
+             // Turkiye: mevcut davranis — 05XXXXXXXXX bekle, 5XXXXXXXXX'e normalize et
+             $telRaw = preg_replace('/[^0-9]/', '', $cepInput);
+             if (!preg_match('/^05[0-9]{9}$/', $telRaw)) {
+                 return response()->json(['error' => 'Geçerli bir cep telefonu girin (05XXXXXXXXX).'], 422);
+             }
+             $tel = preg_replace('/^(\+?90|0)/', '', $telRaw);
+             $tel = str_replace(['(', ')', ' ', '-'], '', $tel);
          }
+
          if (mb_strlen($ad) < 2 || mb_strlen($ad) > 100) {
              return response()->json(['error' => 'Adınız ve soyadınız 2-100 karakter olmalı.'], 422);
          }
-
-         // DB'de telefonlar normalize formatta (5XXXXXXXXX — bas +90 ve 0 cikariliyor)
-         // Eslesme icin lookup ve kayit normalize forma yapilmali
-         $tel = preg_replace('/^(\+?90|0)/', '', $telRaw);
-         $tel = str_replace(['(', ')', ' ', '-'], '', $tel);
 
          // 6) Telefon bazli rate limit (yeni kayit icin)
          $telKey = 'rdv-rate:tel:'.$tel;
