@@ -68,6 +68,17 @@ class WhatsmeowPanelController extends Controller
 
         $svc = app(WhatsmeowService::class);
         $res = $svc->startSession($salonId);
+
+        // Production form/randevu yollari $isletme->whatsapp_aktif + durum='connected'
+        // sartiyla WA'ya yonleniyor. whatsmeow bridge sayfasi acilinca bu alanlari
+        // da set et ki paralel system tum cagri yollarinda WA olarak gozuksun.
+        if ($res['ok'] ?? false) {
+            Salonlar::where('id', $salonId)->update([
+                'whatsapp_aktif' => 1,
+                'whatsapp_durum' => $res['body']['status'] ?? 'connecting',
+            ]);
+        }
+
         return response()->json($res['body'] ?? ['error' => 'servis-erisilemiyor'], $res['status'] ?: 502);
     }
 
