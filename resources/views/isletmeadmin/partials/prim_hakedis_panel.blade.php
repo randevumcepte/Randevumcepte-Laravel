@@ -889,7 +889,7 @@
                 @elseif($satirDurum==='kismi')
                   <span class="pr-durum-badge pr-durum--kismi"><span class="lbl"><i class="fa fa-hourglass-half"></i> Kısmi</span><span class="alt">{{$_fmt($gOdenen)}} / {{$_fmt($gPrim)}} ₺</span></span>
                 @elseif($satirDurum==='tam')
-                  <span class="pr-durum-badge pr-durum--tam"><span class="lbl"><i class="fa fa-check-circle"></i> Ödendi</span><span class="alt">{{$_fmt($gOdenen)}} ₺</span></span>
+                  <span class="pr-durum-badge pr-durum--tam"><span class="lbl"><i class="fa fa-check-circle"></i> Ödendi</span></span>
                 @else
                   <span class="pr-durum-badge pr-durum--fazla"><span class="lbl"><i class="fa fa-arrow-up"></i> Fazla</span><span class="alt">{{$_fmt($gOdenen)}} / {{$_fmt($gPrim)}} ₺</span></span>
                 @endif
@@ -903,8 +903,7 @@
                   </span>
                 @elseif($r['durum']==='tam')
                   <span class="pr-durum-badge pr-durum--tam prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
-                    <span class="lbl"><i class="fa fa-check-circle"></i> Tam Ödendi</span>
-                    <span class="alt">{{$_fmt($r['odenen_toplam'])}} ₺ ({{$r['odeme_sayisi']}} ödeme)</span>
+                    <span class="lbl"><i class="fa fa-check-circle"></i> Ödendi</span>
                   </span>
                 @else
                   <span class="pr-durum-badge pr-durum--fazla prim-odeme-detay" data-value="{{$r['personel_id']}}" data-adi="{{$r['personel_adi']}}" title="Ödeme detayı">
