@@ -3686,10 +3686,20 @@ public function carkverilerigetir(Request $request)
     //   her paket icin ayri Randevular yarattigi icin grupping yine
     //   paket sinirlariyla ortusur.
     // ============================================================
+    // Merge sadece AYNI resourceId (ayni kolon/personel/oda/cihaz) icindeki
+    // hizmetleri tek event yapar. Farkli personel/oda/cihaz'a atanan satirlar
+    // ayri kolonlarda gozukmesi gerektigi icin ayri event olarak kalir.
+    // (Onceki versiyon randevuId tek key idi -> farkli personele atanan 2. hizmet
+    // merge sirasinda atiliyordu, kullanici "ikinci hizmet takvimde gozukmuyor"
+    // diye rapor ediyordu.)
     if($randevu_hizmetler instanceof \Illuminate\Support\Collection && $randevu_hizmetler->count() > 0){
-        $grouped = $randevu_hizmetler->groupBy('randevuId');
+        $grouped = $randevu_hizmetler->groupBy(function($e){
+            $rid = $e['randevuId'] ?? null;
+            $res = $e['resourceId'] ?? '';
+            return $rid . '|' . $res;
+        });
         $merged = collect();
-        foreach($grouped as $randevuId => $events){
+        foreach($grouped as $key => $events){
             if($events->count() > 1){
                 $sorted = $events->sortBy('start')->values();
                 $first = $sorted->first();
