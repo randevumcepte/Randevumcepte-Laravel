@@ -5968,7 +5968,9 @@ private function ayAdiCevir($ingilizceAy)
             }
 
             if (count($mesajlar) > 0) {
-                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+                // salon_id ACIKCA gec — multi-branch kullanicida mevcutsube
+                // yanlis salon (kullanicinin ilk yetkili sube'si) donerdi.
+                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false, $randevu->salon_id);
             }
         }
 
@@ -6140,7 +6142,9 @@ private function ayAdiCevir($ingilizceAy)
             }
         }
         if(count($mesajlar)>0)
-            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
+            // salon_id ACIKCA gec — multi-branch kullanicida mevcutsube
+            // yanlis salon (kullanicinin ilk yetkili sube'si) donerdi.
+            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$randevu->salon_id);
         if(is_numeric($request->musteriid))
         {
             return self::randevu_liste_getir($request, date('Y-m-d'), // tarih1: bugün
@@ -14371,9 +14375,14 @@ DB::raw('
         }
         self::sms_gonder_bildirimli($request,$mesajlar,true,1,false);
     }
-    public function sms_gonder_bildirimli(Request $request,$mesajlar,$geribildirimgonder,$tur,$dogrulama)
+    public function sms_gonder_bildirimli(Request $request,$mesajlar,$geribildirimgonder,$tur,$dogrulama,$salonOverride=null)
     {
-        $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        // $salonOverride: cagri yeri salon_id'yi ACIKCA biliyorsa bunu kullan.
+        // Aksi halde mevcutsube — multi-branch kullanicida ilk yetkili salonu doner,
+        // bu da yanlis salon'un SMS basligi/WA oturumu kullanilmasina neden olabilir
+        // (randevu sahibi salon 397 iken SMS salon 20 basligindan giderdi).
+        $aktifSalonId = $salonOverride ?: self::mevcutsube($request);
+        $isletme = Salonlar::where('id', $aktifSalonId)->first();
 
         // WhatsApp pre-filter: salon WA aktif+connected ise her mesaj once WhatsApp'a
         // kuyruga girer. Hemen basarisiz olanlar (4xx/5xx/timeout) SMS yoluyla devam eder;
