@@ -1205,9 +1205,13 @@ class ApiController extends Controller
     $odenenToplamTutar = 0;
     $kalanToplamTutar = 0;
 
-    $formatted = $adisyonlarListe->map(function ($adisyon) use ($isletmeId, &$odenenToplamTutar, &$kalanToplamTutar, $toplamSatisSayisi, $alacaklar, $sonTahsilatTarihleri) {
+    // Kalem bazli prim oranlari haritasi: [personel_id][tur][kalem_id] => yuzde
+    // (web ile ayni mantik; detayli flag aciksa kalem orani, degilse genel yuzde kullanilir)
+    $primHarita = $this->detayliPrimHaritasi($isletmeId);
+
+    $formatted = $adisyonlarListe->map(function ($adisyon) use ($isletmeId, &$odenenToplamTutar, &$kalanToplamTutar, $toplamSatisSayisi, $alacaklar, $sonTahsilatTarihleri, $primHarita) {
         $sonTarih = $sonTahsilatTarihleri[$adisyon->id] ?? null;
-        return $this->formatAdisyonFast($adisyon, $isletmeId, $odenenToplamTutar, $kalanToplamTutar, $toplamSatisSayisi, $alacaklar[$adisyon->user_id] ?? null, $sonTarih);
+        return $this->formatAdisyonFast($adisyon, $isletmeId, $odenenToplamTutar, $kalanToplamTutar, $toplamSatisSayisi, $alacaklar[$adisyon->user_id] ?? null, $sonTarih, $primHarita);
     });
 
     $response = [
@@ -1228,8 +1232,40 @@ class ApiController extends Controller
     return response()->json($response);
 }
 
+// Kalem bazli prim oranlari haritasi: personel_prim_oranlari tablosunu
+// [personel_id][tur][kalem_id] => yuzde sekline cevirir (web detayliPrimHaritasi ile ayni).
+private function detayliPrimHaritasi($salonId)
+{
+    $harita = [];
+    if (!\Schema::hasTable('personel_prim_oranlari')) return $harita;
+
+    $satirlar = \App\PersonelPrimOrani::where('salon_id', $salonId)->get();
+    foreach ($satirlar as $s) {
+        if (!isset($harita[$s->personel_id])) {
+            $harita[$s->personel_id] = ['hizmet' => [], 'urun' => [], 'paket' => []];
+        }
+        if (isset($harita[$s->personel_id][$s->tur])) {
+            $harita[$s->personel_id][$s->tur][$s->kalem_id] = (float)$s->yuzde;
+        }
+    }
+    return $harita;
+}
+
+// Bir kalem icin uygulanacak prim yuzdesini dondurur.
+// {tur}_prim_detayli=1 ise kaleme ozel oran (yoksa 0), degilse personelin genel yuzdesi.
+private function primOrani($personel, $tur, $kalemId, $primHarita)
+{
+    if (!$personel) return 0.0;
+    $detayliKol = $tur . '_prim_detayli';   // hizmet_prim_detayli / urun_prim_detayli / paket_prim_detayli
+    $genelKol   = $tur . '_prim_yuzde';      // hizmet_prim_yuzde / ...
+    if (!empty($personel->{$detayliKol})) {
+        return (float)($primHarita[$personel->id][$tur][$kalemId] ?? 0);
+    }
+    return (float)($personel->{$genelKol} ?? 0);
+}
+
 // HIZLANDIRILMIŞ FORMAT FONKSİYONU
-private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$kalanToplamTutar, $toplamSatisSayisi, $alacak = null, $sonTahsilatTarihi = null) {
+private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$kalanToplamTutar, $toplamSatisSayisi, $alacak = null, $sonTahsilatTarihi = null, $primHarita = []) {
     $satilanlarStr = "";
     $satilanlarStrKisaIcerik = '';
     $personellerStr = "";
@@ -1246,8 +1282,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $toplamTutar += $hizmet->fiyat;
         $odenen += $tahsilatToplam;
         
-        if($hizmet->personel_id && isset($hizmet->personel->hizmet_prim_yuzde)) {
-            $hizmetHakedis += $tahsilatToplam * ($hizmet->personel->hizmet_prim_yuzde / 100);
+        if($hizmet->personel_id && $hizmet->personel) {
+            $hizmetHakedis += $tahsilatToplam * ($this->primOrani($hizmet->personel, 'hizmet', $hizmet->hizmet_id, $primHarita) / 100);
         }
         
         $satilanlarStr .= ($hizmet->hizmet->hizmet_adi ?? '') . " (H)  " . 
@@ -1265,8 +1301,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $toplamTutar += $urun->fiyat;
         $odenen += $tahsilatToplam;
         
-        if($urun->personel_id && isset($urun->personel->urun_prim_yuzde)) {
-            $urunHakedis += $tahsilatToplam * ($urun->personel->urun_prim_yuzde / 100);
+        if($urun->personel_id && $urun->personel) {
+            $urunHakedis += $tahsilatToplam * ($this->primOrani($urun->personel, 'urun', $urun->urun_id, $primHarita) / 100);
         }
         
         $satilanlarStr .= ($urun->urun->urun_adi ?? '') . " (Ü)  " . 
@@ -1284,8 +1320,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $toplamTutar += $paket->fiyat;
         $odenen += $tahsilatToplam;
         
-        if($paket->personel_id && isset($paket->personel->paket_prim_yuzde)) {
-            $paketHakedis += $tahsilatToplam * ($paket->personel->paket_prim_yuzde / 100);
+        if($paket->personel_id && $paket->personel) {
+            $paketHakedis += $tahsilatToplam * ($this->primOrani($paket->personel, 'paket', $paket->paket_id, $primHarita) / 100);
         }
         
         $satilanlarStr .= ($paket->paket->paket_adi ?? '') . " (P)  " . 
@@ -16930,6 +16966,67 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         return ['data' => $hizmetler];
 
     }
+  // Mobil: bir personelin kalem bazli prim ekrani icin hizmet/urun/paket listesi
+  // + kayitli oranlar + detayli mod bayraklari. Web personelPrimKalemleri ile ayni.
+  public function personelPrimKalemleriApi(Request $request)
+  {
+      $personelId = (int)$request->personel_id;
+      $salonId    = (int)($request->sube ?: $request->salon_id);
+
+      // Mevcut detayli mod bayraklari
+      $flags = ['hizmet'=>0, 'urun'=>0, 'paket'=>0];
+      if($personelId){
+          $p = Personeller::where('id',$personelId)->where('salon_id',$salonId)->first();
+          if($p){
+              $flags['hizmet'] = (int)($p->hizmet_prim_detayli ?? 0);
+              $flags['urun']   = (int)($p->urun_prim_detayli ?? 0);
+              $flags['paket']  = (int)($p->paket_prim_detayli ?? 0);
+          }
+      }
+
+      // Kayitli kalem oranlari haritasi
+      $oranlar = ['hizmet'=>[], 'urun'=>[], 'paket'=>[]];
+      if(\Schema::hasTable('personel_prim_oranlari') && $personelId){
+          foreach(\App\PersonelPrimOrani::where('personel_id',$personelId)->get() as $o){
+              if(isset($oranlar[$o->tur])) $oranlar[$o->tur][$o->kalem_id] = (float)$o->yuzde;
+          }
+      }
+
+      // Hizmetler: personele atanmis (personel_sunulan_hizmetler ⋈ hizmetler)
+      $hizmetler = [];
+      if($personelId){
+          $rows = \DB::table('personel_sunulan_hizmetler')
+              ->join('hizmetler','personel_sunulan_hizmetler.hizmet_id','=','hizmetler.id')
+              ->where('personel_sunulan_hizmetler.personel_id',$personelId)
+              ->select('hizmetler.id','hizmetler.hizmet_adi')
+              ->orderBy('hizmetler.hizmet_adi','asc')
+              ->get();
+          foreach($rows as $r){
+              $hizmetler[] = ['id'=>(int)$r->id, 'ad'=>$r->hizmet_adi, 'yuzde'=>$oranlar['hizmet'][$r->id] ?? null];
+          }
+      }
+
+      // Urunler: salon katalogu
+      $urunler = [];
+      foreach(\App\Urunler::where('salon_id',$salonId)->orderBy('urun_adi','asc')->get() as $u){
+          $urunler[] = ['id'=>(int)$u->id, 'ad'=>$u->urun_adi, 'yuzde'=>$oranlar['urun'][$u->id] ?? null];
+      }
+
+      // Paketler: salon katalogu
+      $paketler = [];
+      foreach(\App\Paketler::where('salon_id',$salonId)->orderBy('paket_adi','asc')->get() as $pk){
+          $paketler[] = ['id'=>(int)$pk->id, 'ad'=>$pk->paket_adi, 'yuzde'=>$oranlar['paket'][$pk->id] ?? null];
+      }
+
+      return response()->json([
+          'basarili' => true,
+          'flags'    => $flags,
+          'hizmetler'=> $hizmetler,
+          'urunler'  => $urunler,
+          'paketler' => $paketler,
+      ]);
+  }
+
   public function personelekleduzenle(Request $request)
 
     {
@@ -17050,10 +17147,43 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $personel->hizmet_prim_yuzde = $request->hizmet_prim_yuzde;
             $personel->urun_prim_yuzde = $request->urun_prim_yuzde;
             $personel->paket_prim_yuzde = $request->paket_prim_yuzde;
+            // Kalem bazli prim modu bayraklari (1 = kaleme gore, 0 = genel yuzde)
+            if(\Schema::hasColumn('salon_personelleri','hizmet_prim_detayli')){
+                $personel->hizmet_prim_detayli = (int)($request->hizmet_prim_detayli ?? 0) ? 1 : 0;
+                $personel->urun_prim_detayli   = (int)($request->urun_prim_detayli ?? 0) ? 1 : 0;
+                $personel->paket_prim_detayli  = (int)($request->paket_prim_detayli ?? 0) ? 1 : 0;
+            }
             $personel->yetkili_id = $yetkili->id;
             $personel->takvimde_gorunsun = true;
             $personel->role_id = $request->sistem_yetki;
             $personel->save();
+
+            // Detayli (kalem bazli) prim oranlarini kaydet — web personelBilgiKaydet ile ayni mantik.
+            // Gelen format: hizmet_prim_kalem = { kalem_id: yuzde, ... }
+            if(\Schema::hasTable('personel_prim_oranlari')){
+                $primKalemMap = [
+                    'hizmet' => $request->input('hizmet_prim_kalem', []),
+                    'urun'   => $request->input('urun_prim_kalem', []),
+                    'paket'  => $request->input('paket_prim_kalem', []),
+                ];
+                foreach($primKalemMap as $tur => $kalemler){
+                    if(!is_array($kalemler)) $kalemler = [];
+                    // Bu turdeki mevcut kayitlari temizleyip yeniden yaz (idempotent upsert)
+                    \App\PersonelPrimOrani::where('personel_id',$personel->id)->where('tur',$tur)->delete();
+                    foreach($kalemler as $kalemId => $yuzde){
+                        $kalemId = (int)$kalemId;
+                        $yuzde = (float)str_replace(',', '.', (string)$yuzde);
+                        if($kalemId <= 0 || $yuzde <= 0) continue; // bos/0 satir kaydedilmez
+                        \App\PersonelPrimOrani::create([
+                            'personel_id' => $personel->id,
+                            'salon_id'    => $personel->salon_id,
+                            'tur'         => $tur,
+                            'kalem_id'    => $kalemId,
+                            'yuzde'       => $yuzde,
+                        ]);
+                    }
+                }
+            }
             PersonelCalismaSaatleri::where(
                 "personel_id",
                 $personel->id
@@ -26765,6 +26895,48 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             return response()->json(['basarili'=>true,'arsiv_id'=>$arsiv->id]);
         } catch(\Exception $e){
             \Log::error('API sozlesmeOlustur: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    // Mobil: salonlar.sozlesme_varsayilan_metin kolonu yoksa olusturur.
+    // (Web dinamikFormKolonlariOlustur ile ayni kolon; mobil tarafta bagimsiz garanti.)
+    private function _sozlesmeVarsayilanKolonOlustur(){
+        try {
+            $cols = array_column(\DB::select("SHOW COLUMNS FROM salonlar"), 'Field');
+            if(!in_array('sozlesme_varsayilan_metin',$cols)){
+                \DB::statement("ALTER TABLE salonlar ADD COLUMN sozlesme_varsayilan_metin TEXT NULL");
+            }
+        } catch(\Exception $e){
+            \Log::warning('salonlar sozlesme_varsayilan_metin kolon kontrol: '.$e->getMessage());
+        }
+    }
+
+    // Mobil: salonun kaydettigi varsayilan sozlesme sartlari metnini dondurur.
+    // Bos/yoksa metin null doner -> uygulama fabrika metnini kullanir.
+    public function sozlesmeVarsayilanGetirAPI(Request $request){
+        try {
+            $this->_sozlesmeVarsayilanKolonOlustur();
+            $sube = $request->sube ?? $request->salon_id;
+            $metin = \DB::table('salonlar')->where('id',$sube)->value('sozlesme_varsayilan_metin');
+            return response()->json(['basarili'=>true,'sozlesme_metni'=>$metin]);
+        } catch(\Exception $e){
+            \Log::error('API sozlesmeVarsayilanGetir: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'sozlesme_metni'=>null,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    // Mobil: salon icin varsayilan sozlesme sartlari metnini kaydeder.
+    // Bir defa girilir, sonraki sozlesmelerde otomatik dolu gelir (web sozlesmeVarsayilanKaydet ile ayni).
+    public function sozlesmeVarsayilanKaydetAPI(Request $request){
+        try {
+            $this->_sozlesmeVarsayilanKolonOlustur();
+            $sube  = $request->sube ?? $request->salon_id;
+            $metin = trim((string)$request->sozlesme_metni);
+            \DB::table('salonlar')->where('id',$sube)->update(['sozlesme_varsayilan_metin'=>($metin !== '' ? $metin : null)]);
+            return response()->json(['basarili'=>true]);
+        } catch(\Exception $e){
+            \Log::error('API sozlesmeVarsayilanKaydet: '.$e->getMessage());
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
     }

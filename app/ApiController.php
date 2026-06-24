@@ -3283,8 +3283,18 @@ class ApiController extends Controller
         $red = false;
         if($randevu->durum == 0)
             $red = true;
-        $randevu->durum = 2;
+        $randevu->durum = ($request->durum !== null) ? $request->durum : 2;
         $randevu->save();
+
+        // Musteri iptali (durum=3): paket randevusu ise seans kayitlarini sil. Boylece randevu
+        // takvimde gorunmez (takvim durum<2 filtreler, durum=3 zaten dislanir) ve seanslar pakete iade olur.
+        // StoreAdminController::randevuiptalet ile ayni mantik (foreach + delete => model event'leri calisir).
+        if($request->durum == 3){
+            $seanslar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id)->get();
+            foreach($seanslar as $seans){
+                $seans->delete();
+            }
+        }
         $isletme = Salonlar::where('id',$randevu->salon_id)->first();
         $mesajlar = array();
         if($red)

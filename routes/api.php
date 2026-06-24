@@ -173,6 +173,8 @@ Route::post('/form-sablonlari-guncelle',       'ApiController@formSablonlariGunc
 Route::post('/form-sablonlari-sil',            'ApiController@formSablonlariSil');
 Route::post('/form-sablonlari-sira-guncelle',  'ApiController@formSablonlariSiraGuncelle');
 Route::post('/sozlesme-olustur',               'ApiController@sozlesmeOlusturAPI');
+Route::get ('/sozlesme-varsayilan-getir',      'ApiController@sozlesmeVarsayilanGetirAPI');
+Route::post('/sozlesme-varsayilan-kaydet',     'ApiController@sozlesmeVarsayilanKaydetAPI');
 Route::post('/arsiviptal','ApiController@arsiviptal');
 Route::post('/cdrrapor','ApiController@cdrrapor');
 Route::get('/cdrrapor','ApiController@cdrrapor');
@@ -256,6 +258,8 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
   Route::get('/oda_hizmet_listesi/{salonid}','ApiController@oda_hizmet_listesi');
   Route::get('/oda_detay/{oda_id}','ApiController@oda_detay');
   Route::post('/personelekleduzenle','ApiController@personelekleduzenle');
+  Route::post('/personelPrimKalemleri','ApiController@personelPrimKalemleriApi');
+  Route::get('/personelPrimKalemleri','ApiController@personelPrimKalemleriApi');
   Route::get('/personelcalismasaatleri/{personelid}','ApiController@personelcalismasaatleri');
   Route::get('/personelmolasaatleri/{personelid}','ApiController@personelmolasaatleri');
  Route::post('/hizmet_liste_getir/{salonid}','ApiController@hizmet_liste_getir');
