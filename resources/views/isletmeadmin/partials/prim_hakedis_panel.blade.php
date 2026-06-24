@@ -843,12 +843,13 @@
       <thead>
         <tr>
           <th>Personel</th>
-          @if(!$isGunluk)<th>Maaş</th>@endif
+          <th>Maaş</th>
           <th>Hizmet Primi</th>
           <th>Ürün Primi</th>
           <th>Paket Primi</th>
           <th>Prim Toplam</th>
-          @if(!$isGunluk)<th>Bonus</th><th>Kesinti</th>@endif
+          <th>Bonus</th>
+          <th>Kesinti</th>
           <th>@if($isGunluk)Günün Primi @else NET Ödenecek @endif</th>
           <th>Durum</th>
           <th class="datatable-nosort">İşlemler</th>
@@ -869,15 +870,13 @@
           @endphp
           <tr class="{{ $rowCls }}">
             <td class="pr-cell-personel"><span class="pr-cell-personel-inner"><span class="pr-avatar">{{$bas}}</span><span>{{$r['personel_adi']}}</span></span></td>
-            @if(!$isGunluk)<td>{{$_fmt($r['maas'])}} ₺</td>@endif
+            <td>{{$_fmt($r['maas'])}} ₺</td>
             <td>{{$_fmt($r['hizmet_primi'])}} ₺</td>
             <td>{{$_fmt($r['urun_primi'])}} ₺</td>
             <td>{{$_fmt($r['paket_primi'])}} ₺</td>
             <td><strong>{{$_fmt($r['prim_toplam'])}} ₺</strong></td>
-            @if(!$isGunluk)
             <td class="pr-cell-bonus">+{{$_fmt($r['bonus'])}}@if($r['hareket_sayisi']>0) <small style="color:var(--rmc-muted); font-weight:500">({{$r['hareket_sayisi']}})</small>@endif</td>
             <td class="pr-cell-kesinti">−{{$_fmt($r['kesinti'])}}</td>
-            @endif
             <td class="pr-cell-net"><strong>{{$_fmt($isGunluk ? $gPrim : $r['net_hakedis'])}} ₺</strong></td>
             <td>
               @if($isGunluk)
@@ -1352,18 +1351,16 @@ $(function(){
   var _isletmeAdi = @json($isletme->salon_adi);
   var _dosyaAdi = 'Prim_Hakedis_'+_ayAdi+'_'+_yilAdi;
 
-  // Kolon sayisi moda gore degisir: aylik 11 (siralama kolonu 8), gunluk 8 (siralama kolonu 5)
-  var _primOrderCol = {{ $isGunluk ? 5 : 8 }};
-  var _primExportCols = {!! $isGunluk ? '[0,1,2,3,4,5,6]' : '[0,1,2,3,4,5,6,7,8]' !!};
+  // Tablo her iki modda da 11 kolon (yapi sabit) — siralama NET kolonu (8), export 0-8
   $('#primrapor_tablo').DataTable({
     pageLength: 50,
-    order: [[_primOrderCol,'desc']],
+    order: [[8,'desc']],
     language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/tr.json' },
     dom: '<"d-flex justify-content-between align-items-center mb-2"<"d-flex"l><"d-flex"B>>frtip',
     buttons: [
-      { extend: 'excelHtml5',  text: '<i class="fa fa-file-excel-o"></i> Excel',  className: 'btn btn-success btn-sm', title: _dosyaAdi, exportOptions: { columns: _primExportCols } },
-      { extend: 'pdfHtml5',    text: '<i class="fa fa-file-pdf-o"></i> PDF',      className: 'btn btn-danger btn-sm',  title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', orientation: 'landscape', pageSize: 'A4', exportOptions: { columns: _primExportCols } },
-      { extend: 'print',       text: '<i class="fa fa-print"></i> Yazdır',         className: 'btn btn-secondary btn-sm', title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', exportOptions: { columns: _primExportCols } }
+      { extend: 'excelHtml5',  text: '<i class="fa fa-file-excel-o"></i> Excel',  className: 'btn btn-success btn-sm', title: _dosyaAdi, exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } },
+      { extend: 'pdfHtml5',    text: '<i class="fa fa-file-pdf-o"></i> PDF',      className: 'btn btn-danger btn-sm',  title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', orientation: 'landscape', pageSize: 'A4', exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } },
+      { extend: 'print',       text: '<i class="fa fa-print"></i> Yazdır',         className: 'btn btn-secondary btn-sm', title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } }
     ]
   });
 
