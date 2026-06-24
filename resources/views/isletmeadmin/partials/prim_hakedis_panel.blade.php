@@ -697,6 +697,10 @@
     color:var(--rmc-text); background:#fafbfc; font-size:14px; transition:all .15s;
   }
   .pr-filter input[type=date]:focus{ outline:none; border-color:var(--rmc-purple-2); background:#fff; box-shadow:0 0 0 4px rgba(123,47,184,.08); }
+  /* Gunluk stat kartlari: 3 kart tek sirada, mor (net) kart asagi inmesin */
+  .pr-stats--gunluk{ grid-template-columns: repeat(3, 1fr) !important; }
+  .pr-stats--gunluk .pr-stat--net{ grid-column: auto !important; }
+  @media(max-width:768px){ .pr-stats--gunluk{ grid-template-columns: 1fr !important; } }
 </style>
 <form method="get" id="primRaporFiltre" class="pr-filter">
   <input type="hidden" name="sube" value="{{$isletme->id}}">
@@ -753,7 +757,7 @@
 </script>
 
 @if($isGunluk)
-<div class="pr-stats" style="grid-template-columns: repeat(3, 1fr)">
+<div class="pr-stats pr-stats--gunluk">
   <div class="pr-stat pr-stat--prim">
     <div class="pr-stat__icon">%</div>
     <div class="pr-stat__lbl">Günün Primi (Toplam)</div>
