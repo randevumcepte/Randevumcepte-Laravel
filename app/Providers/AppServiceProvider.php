@@ -117,6 +117,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        // WhatsAppService cagrildiginda salon basina dogru bridge'e yonlendiren
+        // alt sinifi don. Mevcut WhatsAppService.php koduna HIC dokunulmuyor;
+        // sadece container resolution noktasinda subclass donduruluyor.
+        // Salonun whatsapp_bridge_tipi 'whatsmeow' ise istek port 3002'ye,
+        // diger durumda 3001'e (Baileys) gider.
+        $this->app->bind(
+            \App\Services\WhatsAppService::class,
+            \App\Services\WhatsAppRouterService::class
+        );
     }
 }
