@@ -5483,15 +5483,17 @@ private function ayAdiCevir($ingilizceAy)
                     
                     $hizmetAdi = "";
                     $randevu = $mevcutRandevu; // Mevcut randevuyu kullan
-                    
+
                     $salonId = $randevu->salon_id;
                     $userId = $randevu->user_id;
-                    
+
+                    // KALDIRILDI: ($seansVar var ise $randevu = new Randevular()) blogu.
+                    // Bug: paketli/seansli randevu duzenlenince YENI randevu olusturuyor,
+                    // eskisi degisik halde kaliyor, eski RandevuHizmetler kayitlari
+                    // 'silinmis gibi' gozukup duzenli liste sayfasinda bos satirlar ciktiyordu.
+                    // Duzenleme her zaman mevcut randevuyu update etmeli.
                     if ($seansVar) {
-                        $randevu = new Randevular();
                         $hizmetAdi = $seansVar->hizmet->hizmet_adi ?? '';
-                        $randevu->durum = 1;
-                        $randevu->olusturan_personel_id = Auth::guard('isletmeyonetim')->user()->id;
                     }
                     
                     // Randevu bilgilerini güncelle
@@ -5541,9 +5543,10 @@ private function ayAdiCevir($ingilizceAy)
                     $totalsure = 0;
                     $yenisaatbaslangic = $yeniRandevuBilgileri['saat'];
 
-                    if (!$seansVar) {
-                        RandevuHizmetler::where('randevu_id', $randevu->id)->delete();
-                    }
+                    // Eski hizmet satirlarini HER ZAMAN sil (eskiden seansVar varsa
+                    // silmiyordu; bu, eski satirlarin yeni durumla atil kalmasina ve
+                    // listede 'bos hizmetler' gozukmesine yol aciyordu).
+                    RandevuHizmetler::where('randevu_id', $randevu->id)->delete();
 
                     // EKSIK SEANS KAYDI INSERT'I icin: bu randevudaki mevcut APS kayitlarini
                     // hizmet_id bazinda grupla. Asagidaki foreach'ta her satir icin havuzdan
@@ -5574,19 +5577,12 @@ private function ayAdiCevir($ingilizceAy)
                             'fiyat_used' => $request->hizmet_fiyat[$key] ?? null,
                         ]);
                         array_push($hizmet_sureleri_okunan, $request->hizmet_suresi[$key]);
-                        
-                        // Fixed object initialization
-                        if ($seansVar) {
-                            $yenirandevuhizmetpersonel = RandevuHizmetler::where('hizmet_id', $seansVar->hizmet_id)
-                                ->where('randevu_id', $eskiSeansRandevusu)
-                                ->first();
-                            
-                            if (!$yenirandevuhizmetpersonel) {
-                                $yenirandevuhizmetpersonel = new RandevuHizmetler();
-                            }
-                        } else {
-                            $yenirandevuhizmetpersonel = new RandevuHizmetler();
-                        }
+
+                        // Eski RandevuHizmetler kayitlari yukarida silindi -> her satir TEMIZ yeni.
+                        // (Eskiden $seansVar varsa AYNI satiri fetch edip her iterde overrride
+                        // edip kaydediyordu -> 2 hizmet vermek istesen son iterin verisi kalip
+                        // ilk hizmet kaybolup gidiyordu.)
+                        $yenirandevuhizmetpersonel = new RandevuHizmetler();
                         
                         $yenirandevuhizmetpersonel->randevu_id = $randevu->id;
                         $yenirandevuhizmetpersonel->hizmet_id = $value;
@@ -5644,6 +5640,22 @@ private function ayAdiCevir($ingilizceAy)
                             $_pool = $_mevcutSeanslar->get($_hzmtId) ?: collect();
                             $_zatenVar = $_pool->count() > $_tuk;
                             $_tuketilenSeansSayisi[$_hzmtId] = $_tuk + 1;
+
+                            // Mevcut APS varsa: yeni saat/personel/cihaz/oda ile guncelle.
+                            if ($_zatenVar) {
+                                $_apsKayit = $_pool->values()[$_tuk] ?? null;
+                                if ($_apsKayit) {
+                                    $_aps = AdisyonPaketSeanslar::find($_apsKayit->id);
+                                    if ($_aps) {
+                                        $_aps->seans_tarih = $yeniRandevuBilgileri['tarih'];
+                                        $_aps->seans_saat  = $yenirandevuhizmetpersonel->saat;
+                                        $_aps->personel_id = $yenirandevuhizmetpersonel->personel_id;
+                                        $_aps->cihaz_id    = $yenirandevuhizmetpersonel->cihaz_id;
+                                        $_aps->oda_id      = $yenirandevuhizmetpersonel->oda_id;
+                                        $_aps->save();
+                                    }
+                                }
+                            }
 
                             if (!$_zatenVar) {
                                 // 1) Kullaniciya ait tek hizmet adisyonu (otomatik_randevu_olusturuldu NULL/!=1)
