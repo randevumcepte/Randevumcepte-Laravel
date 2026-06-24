@@ -1356,8 +1356,11 @@ $(function(){
   var _dosyaAdi = 'Prim_Hakedis_'+_ayAdi+'_'+_yilAdi;
 
   // Tablo her iki modda da 11 kolon (yapi sabit) — siralama NET kolonu (8), export 0-8
+  // responsive KAPALI: kolonlar tek sirada kalsin, sigmazsa yatay kaydirma (Islemler alta dusmesin)
   $('#primrapor_tablo').DataTable({
     pageLength: 50,
+    responsive: false,
+    autoWidth: false,
     order: [[8,'desc']],
     language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/tr.json' },
     dom: '<"d-flex justify-content-between align-items-center mb-2"<"d-flex"l><"d-flex"B>>frtip',
