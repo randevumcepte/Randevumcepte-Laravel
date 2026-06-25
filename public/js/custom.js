@@ -8999,11 +8999,13 @@ function bildirimKontrol(rebuildList) {
                 type: "GET",
                 url: '/isletmeyonetim/bildirimkontrolet',
                 dataType: "json",
-                data:{sube:$('input[name="sube"]').val()},
+                data:{sube:$('input[name="sube"]').val(), liste:(rebuildList===true)?1:0},
                success: function(result)  {
                     _rcBildirimSon.sayisi = result.bildirim_sayisi;
                     _rcBildirimSon.toplam = result.toplam_bildirim;
-                    _rcBildirimSon.html   = result.bildirimler || '';
+                    // Liste yalnizca dropdown acilinca (rebuildList) istenir; 30sn sayac-only
+                    // poll'da result.bildirimler bos gelir, onceki cache'i ezme.
+                    if(rebuildList === true){ _rcBildirimSon.html = result.bildirimler || ''; }
 
                     if(result.bildirim_sayisi != 0) {
                         $('#bildirim-badge').addClass('badge notification-afctive').text(result.bildirim_sayisi);

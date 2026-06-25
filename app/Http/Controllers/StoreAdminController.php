@@ -15613,15 +15613,18 @@ DB::raw('
             ->where('salon_id',$salonId)
             ->count();
 
-        // Liste: dropdown performansi icin yalnizca son 100 kayit.
+        // Liste SADECE dropdown acilinca (liste=1) uretilir; 30sn poll yalnizca sayac
+        // doner -> her poll'de HTML uretip yollama yuku biter. Dropdown'da son 300 kayit
+        // (eski bildirimler de gorunsun; on-demand oldugu icin limit yuksek tutulabilir).
+        $html = "";
+        if ($request->liste == 1) {
         $bildirimler = Bildirimler::setEagerLoads([])
             ->select('id','aciklama','tarih_saat','url','img_src','okundu','randevu_id')
             ->where('personel_id',$personel)
             ->where('salon_id',$salonId)
             ->orderBy('id','desc')
-            ->limit(100)
+            ->limit(300)
             ->get();
-        $html = "";
         foreach($bildirimler as $bildirim) {
             $to_time = strtotime(date('Y-m-d H:i:s'));
             $from_time = strtotime($bildirim->tarih_saat);
@@ -15659,6 +15662,7 @@ DB::raw('
         if ($bildirimler->count() == 0) {
             $html .= '<div class="rc-notif-empty"><div class="rc-notif-empty-icon"><i class="icon-copy dw dw-notification"></i></div><p>Bildiriminiz bulunmamaktadır</p></div>';
         }
+        } // if ($request->liste == 1)
 
         return array(
             'bildirim_sayisi' => $okunmamisSayi,
