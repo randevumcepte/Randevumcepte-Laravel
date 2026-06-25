@@ -17485,6 +17485,50 @@ DB::raw('
 
         return self::randevuyukle($request,$request->ayar,$tarih1,$tarih2);
     }
+    /**
+     * Takvim KOSULLU POLLING icin ucuz degisiklik imzasi.
+     * Frontend bunu sik cagirir (cok ucuz); imza degismediyse AGIR randevuyukle
+     * tetiklenmez. Online randevu / iptal / duzenleme oldugunda imza degisir ->
+     * takvim otomatik yenilenir (refresh'siz, tazelik ~ayni). takvim_degistir ile
+     * BIREBIR ayni salon + tarih araligi + randevuyukle ile ayni filtre.
+     */
+    public function randevuversiyon(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+
+        $tarih = trim(str_replace('T',' ',(string)$request->takvimtarih));
+        try {
+            $tarihObj = new \DateTime($tarih !== '' ? $tarih : 'now');
+        } catch (\Exception $e) {
+            $tarihObj = new \DateTime();
+        }
+        $tarih1 = $tarihObj->format('Y-m-d');
+        $tarih2 = $tarihObj->format('Y-m-d');
+        if ($request->takvimgorunum == 'agendaWeek') {
+            $ilk = clone $tarihObj; $ilk->modify('monday this week');
+            $son = clone $tarihObj; $son->modify('sunday this week');
+            $tarih1 = $ilk->format('Y-m-d');
+            $tarih2 = $son->format('Y-m-d');
+        } elseif ($request->takvimgorunum == 'month') {
+            $tarih1 = $tarihObj->format('Y-m-01');
+            $tarih2 = $tarihObj->format('Y-m-t');
+        }
+
+        // randevuyukle ile AYNI filtre: randevu_hizmetler -> randevu (salon + tarih).
+        // Indeksli (rand_salon_tarih_idx + rh_randevu_idx) + buffer pool RAM'de -> ~ms.
+        // c: yeni/silme, MAX(rh.id)/MAX(r.id): yeni satir, MAX(updated_at): duzenleme.
+        $s = DB::table('randevu_hizmetler as rh')
+            ->join('randevular as r', 'r.id', '=', 'rh.randevu_id')
+            ->where('r.salon_id', $salonId)
+            ->where('r.tarih', '>=', $tarih1)
+            ->where('r.tarih', '<=', $tarih2)
+            ->selectRaw('COUNT(*) c, COALESCE(MAX(rh.id),0) hmx, COALESCE(MAX(rh.updated_at),0) hmu, COALESCE(MAX(r.id),0) rmx, COALESCE(MAX(r.updated_at),0) rmu')
+            ->first();
+
+        return response()->json([
+            'v' => $s->c.'|'.$s->hmx.'|'.$s->hmu.'|'.$s->rmx.'|'.$s->rmu,
+        ]);
+    }
     public function sistemeyenihizmetkategorisiekle(Request $request)
     {
         $kategori = '';

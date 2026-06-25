@@ -10158,15 +10158,48 @@ $('#randevu_ayarina_gore').change(function(e){
     takvimyukle(true,true);
 });
 if($('#calendar').length){
-    // Sekme arka plandayken (document.hidden) takvimi bosuna yenileme — gereksiz AJAX yuku.
-    // Yogun salonlarda agir bir sorgu oldugu icin 30sn'de bir (eskiden 10sn) yenilenir.
-    interval = setInterval(function(){
-        if (document.hidden) return;
-        takvimyukle(false, false);
-    }, 30000);
+    // KOSULLU POLLING: agir randevuyukle'yi her seferinde calistirmak yerine once
+    // COK UCUZ bir imza (randevuversiyon) kontrol edilir. Imza degismediyse hicbir
+    // sey yapilmaz; degistiyse (online randevu / iptal / surukle-birak / duzenleme)
+    // takvim OTOMATIK yenilenir. Tazelik ayni (~15sn, refresh'siz), DB yuku ~%95 azalir.
+    // Sekme arka plandayken (document.hidden) hic sorgu atilmaz.
+    window._takvimImza = null;
+    interval = setInterval(takvimVersiyonKontrol, 15000);
+}
+function takvimVersiyonKontrol()
+{
+    if (document.hidden) return;
+    if (!$('#calendar').length) return;
+    var curview = $('#calendar').fullCalendar('getView');
+    var moment = '';
+    if($('#takvim_tarihe_gore').val()!= '')
+        moment = $('#takvim_tarihe_gore').val();
+    else
+        moment = $('#calendar').fullCalendar('getDate').format();
+    $.ajax({
+        type: "GET",
+        url: '/isletmeyonetim/randevuversiyon',
+        data: {sube:$('input[name="sube"]').val(),takvimtarih:moment,takvimgorunum:curview.type},
+        dataType: "json",
+        success: function(res){
+            var yeni = (res && res.v) ? res.v : null;
+            if (yeni === null) return;
+            if (window._takvimImza === null){
+                window._takvimImza = yeni;   // ilk yukleme / navigasyon sonrasi: sadece baz al, cekme
+                return;
+            }
+            if (yeni !== window._takvimImza){
+                window._takvimImza = yeni;
+                takvimyukle(false, false);   // gercek degisiklik -> takvimi yenile
+            }
+        }
+    });
 }
 function takvimyukle(preload,turdegisti)
 {
+     // Takvim her (yeniden) yuklendiginde imza bazini sifirla; sonraki versiyon
+     // kontrolu mevcut araligi yeniden baz alir (navigasyonda gereksiz cift cekme olmaz).
+     window._takvimImza = null;
 
      var curview = $('#calendar').fullCalendar('getView');
      var moment = '';

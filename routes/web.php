@@ -764,6 +764,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/personelekle','StoreAdminController@personelekle');
 	Route::get('/personelsil','StoreAdminController@personelsil');
 	Route::get('/randevuyukle','StoreAdminController@takvim_degistir');
+	Route::get('/randevuversiyon','StoreAdminController@randevuversiyon');
 	Route::get('/randevu-event-detay','StoreAdminController@randevuEventDetay');
 	Route::post('/randevuguncelle','StoreAdminController@randevuguncelle');
 	Route::post('/randevuguncelledragdropresize','StoreAdminController@randevu_resize_drop');
