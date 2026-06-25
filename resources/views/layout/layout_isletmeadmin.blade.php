@@ -2483,8 +2483,8 @@
       <div id="lisansYenilemeOverlay" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,.55); align-items:center; justify-content:center;">
          <div style="background:#fff; max-width:420px; width:90%; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,.3); overflow:hidden; text-align:center; font-family:inherit;">
             <div style="background:#e74c3c; color:#fff; padding:18px 20px;">
-               <i class="bi bi-exclamation-triangle-fill" style="font-size:34px;"></i>
-               <h4 style="margin:8px 0 0; font-weight:700;">Lisans Süreniz Bitmek Üzere</h4>
+               <i class="bi bi-exclamation-triangle-fill" style="font-size:34px; color:#fff;"></i>
+               <h4 style="margin:8px 0 0; font-weight:700; color:#fff;">Lisans Süreniz Bitmek Üzere</h4>
             </div>
             <div style="padding:22px 24px; color:#333;">
                <p style="margin:0 0 6px; font-size:15px;">
