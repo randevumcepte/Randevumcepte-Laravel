@@ -8,23 +8,32 @@
 
 cd "$(dirname "$0")/.." || exit 1
 ENVF=".env"
-DBH=$(grep -m1 '^DB_HOST=' "$ENVF" | cut -d= -f2)
-DBP=$(grep -m1 '^DB_PORT=' "$ENVF" | cut -d= -f2)
-DBU=$(grep -m1 '^DB_USERNAME=' "$ENVF" | cut -d= -f2)
-DBPW=$(grep -m1 '^DB_PASSWORD=' "$ENVF" | cut -d= -f2)
-DBN=$(grep -m1 '^DB_DATABASE=' "$ENVF" | cut -d= -f2)
+# cut -f2- (= sonrasi her sey), \r temizligi, surrounding tirnak temizligi
+envval() { grep -m1 "^$1=" "$ENVF" | cut -d= -f2- | tr -d '\r' | sed 's/^"//; s/"$//; s/^'\''//; s/'\''$//'; }
+DBH=$(envval DB_HOST)
+DBP=$(envval DB_PORT)
+DBU=$(envval DB_USERNAME)
+DBPW=$(envval DB_PASSWORD)
+DBN=$(envval DB_DATABASE)
+# Sifreyi komut satirina yazma; MYSQL_PWD ile gecir (ozel karakter sorunu olmaz)
+export MYSQL_PWD="$DBPW"
 
 THRESHOLD="${1:-15}"     # Threads_running eşiği (varsayılan 15 — tırmanmayı erken yakala)
 SLEEP="${2:-2}"          # örnekleme aralığı (sn)
 OUTDIR="storage/logs/db_spike"
 mkdir -p "$OUTDIR"
 
-# --connect-timeout=2: doygunlukta hızlı başarısız ol, takılma yapma
-MYSQL="mysql --connect-timeout=2 -h${DBH} -P${DBP} -u${DBU} -p${DBPW} ${DBN} -N -B"
+# --connect-timeout=2: doygunlukta hızlı başarısız ol, takılma yapma (sifre MYSQL_PWD'de)
+MYSQL="mysql --connect-timeout=2 -h${DBH} -P${DBP} -u${DBU} ${DBN} -N -B"
 
 # Başlangıçta baseline Threads_running'i göster ki eşiği doğru seçebilelim
-BASE=$($MYSQL -e "SHOW GLOBAL STATUS LIKE 'Threads_running';" 2>/dev/null | awk '{print $2}')
-echo "[$(date)] spike capture başladı (eşik=${THRESHOLD}, aralık=${SLEEP}s, mevcut Threads_running=${BASE:-BAGLANTI_YOK})" | tee -a "$OUTDIR/capture.log"
+ERR=$($MYSQL -e "SHOW GLOBAL STATUS LIKE 'Threads_running';" 2>&1)
+BASE=$(echo "$ERR" | awk '/Threads_running/{print $2}')
+if [ -z "$BASE" ]; then
+  echo "[$(date)] BAGLANTI HATASI -> host=$DBH port=$DBP user=$DBU db=$DBN | mysql cikti: $(echo "$ERR" | head -1)" | tee -a "$OUTDIR/capture.log"
+else
+  echo "[$(date)] spike capture başladı (eşik=${THRESHOLD}, aralık=${SLEEP}s, mevcut Threads_running=${BASE})" | tee -a "$OUTDIR/capture.log"
+fi
 
 while true; do
   TR=$($MYSQL -e "SHOW GLOBAL STATUS LIKE 'Threads_running';" 2>/dev/null | awk '{print $2}')
