@@ -77,12 +77,23 @@ class AppServiceProvider extends ServiceProvider
               $isletmeler = [];
               $isletme = null;
               if ($user) {
-                  $isletmeler = $user->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
-                  $secili = request()->get('sube');
-                  if ($secili && in_array((int)$secili, array_map('intval', $isletmeler))) {
+                  $rel = $user->yetkili_olunan_isletmeler;
+                  // Sube switcher icin aktif isletmeler; $isletme fallback'i icin ise
+                  // PASIF dahil tum isletmeler (kullanicinin tek isletmesi pasif olup
+                  // 403 aliyorsa, layout yine de o isletme ile render olabilsin diye).
+                  $isletmeler = $rel->where('aktif', 1)->pluck('salon_id')->map(function ($v) { return (int) $v; })->toArray();
+                  $tumIds     = $rel->pluck('salon_id')->map(function ($v) { return (int) $v; })->toArray();
+                  $fallbackIds = !empty($isletmeler) ? $isletmeler : $tumIds;
+                  $secili = (int) request()->get('sube');
+                  if ($secili && in_array($secili, $tumIds)) {
                       $isletme = \App\Salonlar::where('id', $secili)->first();
-                  } else if (!empty($isletmeler)) {
-                      $isletme = \App\Salonlar::where('id', $isletmeler[0])->first();
+                  } else if (!empty($fallbackIds)) {
+                      $isletme = \App\Salonlar::where('id', $fallbackIds[0])->first();
+                  }
+                  // Son care: kullanicinin hic isletme bagi yoksa bile layout 500
+                  // vermesin diye istenen sube'yi dogrudan yukle (varsa).
+                  if (!$isletme && $secili) {
+                      $isletme = \App\Salonlar::where('id', $secili)->first();
                   }
               }
               // Gercek kalan uyelik suresi (gun). yetkisizerisim view'a deger

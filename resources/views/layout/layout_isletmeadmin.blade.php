@@ -6,13 +6,13 @@
     // simdi 2 sorgu. (E-Asistan dahil tum admin sayfalarini hizlandirir.)
     $_layoutAuthId = Auth::guard('isletmeyonetim')->check()
         ? Auth::guard('isletmeyonetim')->user()->id : null;
-    $_layoutRoller = $_layoutAuthId
+    $_layoutRoller = ($_layoutAuthId && $isletme)
         ? \DB::table('model_has_roles')
             ->where('model_id', $_layoutAuthId)
             ->where('salon_id', $isletme->id)
             ->pluck('role_id')->all()
         : [];
-    $_layoutYetkiliPersonel = $_layoutAuthId
+    $_layoutYetkiliPersonel = ($_layoutAuthId && $isletme)
         ? \App\Personeller::where('yetkili_id', $_layoutAuthId)
             ->where('salon_id', $isletme->id)->first()
         : null;
