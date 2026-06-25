@@ -2477,6 +2477,59 @@
       @include('modaldialogs.santral-web-telefon-ustune-al-modal')
       @include('modaldialogs.odeme-detay-modal')
        @include('modaldialogs.paket-tahsilat-detay-modal')
+
+      {{-- Lisans bitisine 30 gun veya daha az kala gunde en fazla 3 kez gosterilen yenileme hatirlaticisi --}}
+      @if(is_numeric($kalan_uyelik_suresi) && $kalan_uyelik_suresi >= 0 && $kalan_uyelik_suresi <= 30)
+      <div id="lisansYenilemeOverlay" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,.55); align-items:center; justify-content:center;">
+         <div style="background:#fff; max-width:420px; width:90%; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,.3); overflow:hidden; text-align:center; font-family:inherit;">
+            <div style="background:#e74c3c; color:#fff; padding:18px 20px;">
+               <i class="bi bi-exclamation-triangle-fill" style="font-size:34px;"></i>
+               <h4 style="margin:8px 0 0; font-weight:700;">Lisans Süreniz Bitmek Üzere</h4>
+            </div>
+            <div style="padding:22px 24px; color:#333;">
+               <p style="margin:0 0 6px; font-size:15px;">
+                  Sayın {{$isletme->salon_adi}}, lisans sürenizin bitmesine
+                  <b>{{$kalan_uyelik_suresi}} gün</b> kaldı.
+               </p>
+               <p style="margin:0 0 18px; font-size:14px; color:#666;">
+                  Kesintisiz kullanım için yenileme yapmak üzere bizimle iletişime geçiniz.
+               </p>
+               <a href="tel:05412948144" style="display:block; background:#27ae60; color:#fff; text-decoration:none; padding:13px 16px; border-radius:10px; font-weight:700; font-size:16px; margin-bottom:10px;">
+                  <i class="bi bi-telephone-fill"></i> 0541 294 81 44
+               </a>
+               <button type="button" onclick="lisansYenilemeKapat()" style="display:block; width:100%; background:#f1f1f1; color:#555; border:0; padding:11px 16px; border-radius:10px; font-weight:600; font-size:15px; cursor:pointer;">
+                  Kapat
+               </button>
+            </div>
+         </div>
+      </div>
+      <script>
+        (function(){
+          var MAX_GUNLUK = 3;          // gunde en fazla gosterim
+          var ARALIK_DK  = 60;         // gosterimler arasi minimum dakika
+          var KEY = 'lisansYenilemeUyari';
+          function bugun(){ var d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+          function durumOku(){
+            try { var s=JSON.parse(localStorage.getItem(KEY)||'{}'); if(s.tarih!==bugun()) return {tarih:bugun(),sayi:0,son:0}; return s; }
+            catch(e){ return {tarih:bugun(),sayi:0,son:0}; }
+          }
+          function durumYaz(s){ try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
+          window.lisansYenilemeKapat = function(){
+            var ov=document.getElementById('lisansYenilemeOverlay'); if(ov) ov.style.display='none';
+          };
+          var st = durumOku();
+          var simdi = Date.now();
+          if(st.sayi < MAX_GUNLUK && (simdi - (st.son||0)) >= ARALIK_DK*60*1000){
+            var ov=document.getElementById('lisansYenilemeOverlay');
+            if(ov){
+              ov.style.display='flex';
+              st.sayi = (st.sayi||0)+1; st.son = simdi; durumYaz(st);
+            }
+          }
+        })();
+      </script>
+      @endif
+
       @if($pageindex==11111 || $pageindex==1111 || $pageindex==41 || $pageindex==11)
       @include('modaldialogs.satis-detay-modal')
       <div
