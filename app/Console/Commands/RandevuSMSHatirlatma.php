@@ -22,6 +22,9 @@ class RandevuSMSHatirlatma extends Command
     public function handle()
     {
         $randevular = Randevular::has('hizmetler')
+            // EAGER LOADING: dongude $value->salonlar / ->users / ->hizmetler->hizmetler
+            // her aday icin lazy-load ediliyordu (her dakika N+1). Tek batch'e indir.
+            ->with(['salonlar', 'users', 'hizmetler.hizmetler'])
             ->where('durum', 1)
             ->where('user_id', '!=', 2012)
             ->where(function ($q) {

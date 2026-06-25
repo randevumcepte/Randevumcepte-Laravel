@@ -17,6 +17,13 @@ class DogumGunuSMSHatirlatma extends Command
 
     public function handle()
     {
+        // Saat guard'i BASTA: dogum gunu SMS'i yalnizca 15:17'de gonderiliyor.
+        // Eskiden guard dongunun icindeydi -> agir whereMonth/whereDay (users full
+        // scan) her dakika calisiyordu. Artik gunde 1 kez (15:17). Davranis ayni.
+        if (date('H:i') !== '15:17') {
+            return;
+        }
+
         $bugun = Carbon::today();
         $dogumGunleri = MusteriPortfoy::whereHas('users', function ($q) use ($bugun) {
             $q->whereMonth('dogum_tarihi', $bugun->month)
@@ -35,9 +42,7 @@ class DogumGunuSMSHatirlatma extends Command
             if (!SalonSMSAyarlari::where('salon_id', $dogumGunu->salon_id)->where('ayar_id', 8)->value('musteri')) {
                 continue;
             }
-            if (date('H:i') != date('H:i', strtotime('15:17'))) {
-                continue;
-            }
+            // (saat guard'i handle() basina alindi — 15:17 kontrolu burada tekrarlanmiyor)
 
             // Bugun isletme panelinden manuel olarak (popup uzerinden) gonderildiyse tekrar gonderme
             $manuelGonderildi = DB::table('dogum_gunu_mesaj_loglari')
