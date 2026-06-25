@@ -71,17 +71,30 @@ class AnketOtomatikGonder extends Command
                 ->orderBy('id', 'asc') // FIFO: dakika limiti dolunca eski randevular önce gider
                 ->get();
 
+            if ($randevular->isEmpty()) continue;
+
+            // N+1 -> BATCH: asagidaki 3 sorgu eskiden randevu BASINA calisiyordu (her dakika,
+            // her aday icin exists + MAX + User). Artik sablon basina TEK sorguya indirildi.
+            $randevuIds = $randevular->pluck('id')->all();
+            $gonderilmisSet = array_flip(
+                AnketGonderim::where('salon_id', $sablon->salon_id)
+                    ->whereIn('randevu_id', $randevuIds)
+                    ->pluck('randevu_id')->all()
+            );
+            $maxBitisMap = DB::table('randevu_hizmetler')
+                ->whereIn('randevu_id', $randevuIds)
+                ->groupBy('randevu_id')
+                ->selectRaw('randevu_id, MAX(saat_bitis) as max_bitis')
+                ->pluck('max_bitis', 'randevu_id')->all();
+            $userMap = User::whereIn('id', array_values(array_unique($randevular->pluck('user_id')->all())))
+                ->get()->keyBy('id');
+
             foreach ($randevular as $rnd) {
                 // 1) Aynı randevu için anket zaten gönderildi mi? Tek gönderim garantisi.
-                $varMi = AnketGonderim::where('salon_id', $sablon->salon_id)
-                    ->where('randevu_id', $rnd->id)
-                    ->exists();
-                if ($varMi) continue;
+                if (isset($gonderilmisSet[$rnd->id])) continue;
 
-                // 2) Bitiş saati = MAX(saat_bitis) FROM randevu_hizmetler WHERE randevu_id = ...
-                $maxBitis = DB::table('randevu_hizmetler')
-                    ->where('randevu_id', $rnd->id)
-                    ->max('saat_bitis');
+                // 2) Bitiş saati = MAX(saat_bitis) (yukarida sablon basina batch'lendi)
+                $maxBitis = $maxBitisMap[$rnd->id] ?? null;
                 if (!$maxBitis) continue; // hizmet yoksa veya saat_bitis boşsa atla
 
                 try {
@@ -100,7 +113,7 @@ class AnketOtomatikGonder extends Command
                 // 5) Dakika başına salon limiti — burst engeli. Doluysa bu randevu sonraki tikte gider.
                 if (($salonGonderimSayac[$salonId] ?? 0) >= $MAX_PER_MINUTE) continue;
 
-                $musteri = User::where('id', $rnd->user_id)->first();
+                $musteri = $userMap->get($rnd->user_id);
                 if (!$musteri) continue;
                 $tel = trim($musteri->cep_telefon ?? '');
                 if (!$tel) continue;

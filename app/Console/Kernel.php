@@ -72,7 +72,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('alacaksms:hatirlat')->withoutOverlapping()->everyMinute();
 
         // Arama hatırlatmaları
-        $schedule->command('randevuarama:yap')->withoutOverlapping()->everyMinute();
+        // randevuarama:yap DEVRE DISI (2026-06-26): simdilik kapatildi (chunk-ici N+1
+        // kara_liste/ayar/salon). Gerekirse yorumu kaldir.
+        // $schedule->command('randevuarama:yap')->withoutOverlapping()->everyMinute();
         //$schedule->command('kampanyaarama:yap')->withoutOverlapping()->everyMinute();
         //$schedule->command('kampanyasms:gonder')->withoutOverlapping()->everyMinute();
         $schedule->command('alacakhatirlatma:aramayap')->withoutOverlapping()->everyMinute();
