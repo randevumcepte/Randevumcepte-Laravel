@@ -24558,8 +24558,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                             $avatar = '/public/isletmeyonetim_assets/img/avatar.png' ;
                         }
                         
-                        $personel = Personeller::where('dahili_no',$result['dst'])->first() ?? '';
-                        $dahili = $personel != '' ? $personel->personel_adi.' ('.$personel->dahili_no.')' : '';
+                        $personel = Personeller::where('dahili_no',$result['dst'])->first();
+                        // İsim bağlıysa "Ad (Dahili)", değilse sadece dahili numarası göster.
+                        if ($personel && trim($personel->personel_adi) !== '') {
+                            $dahili = $personel->personel_adi.' ('.$personel->dahili_no.')';
+                        } else {
+                            $dahili = !empty($result['dst']) ? $result['dst'] : '';
+                        }
                     }
                  
                 } 
@@ -28319,6 +28324,49 @@ DB::raw('
             'success'      => !empty($sonuc['success']),
             'message'      => $sonuc['message'] ?? '',
             'aramaListeId' => $kayit->arama_id,
+        ]);
+    }
+
+    /**
+     * Santral raporlari (ve kayitli-olmayan numaralar) icin click-to-call.
+     * arama_baslat'in AYNISI ama aranacak_musteri_id yerine HAM TELEFON numarasi alir.
+     * Agent-first originate: once arayan kullanicinin dahilisi (Bria) calar, acinca
+     * musteri salonun outbound peer'inden aranir. Numara tarayiciya/cihaza GITMEZ.
+     */
+    public function arama_baslat_numara(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        if (empty($salonId)) {
+            return response()->json(['success' => false, 'message' => 'Şube bulunamadı'], 422);
+        }
+
+        // Yetki: ROL'e DEGIL, bu isletmeye (salon) yetkili olmaya bakilir.
+        // Hesap sahibi/yoneticinin model_has_roles satiri olmayabilir; asil olcut
+        // kullanicinin yetkili_olunan_isletmeler listesinde bu salonun bulunmasidir.
+        $user = $this->cmUser();
+        $yetkiliSalonlar = $user
+            ? $user->yetkili_olunan_isletmeler->pluck('salon_id')->map(function ($v) { return (int) $v; })->toArray()
+            : [];
+        if (!in_array((int) $salonId, $yetkiliSalonlar, true)) {
+            return response()->json(['success' => false, 'message' => 'Bu işletmede arama yetkiniz yok'], 403);
+        }
+
+        $numara = preg_replace('/\D/', '', (string) $request->numara);
+        if ($numara === '') {
+            return response()->json(['success' => false, 'message' => 'Telefon numarası geçersiz'], 422);
+        }
+        // Son 10 hane (90 / 0 onekleri temizlenir) -> originate icin 0<no> formatina cevrilir.
+        $tel = substr($numara, -10);
+
+        // Arayan kullanicinin (personel/yonetici) dahilisi — Bria bu dahiliye kayitli.
+        $dahili = \App\Personeller::where('yetkili_id', $this->cmAuthId())
+            ->where('salon_id', $salonId)->value('dahili_no');
+
+        $sonuc = $this->cagriMerkeziOriginate($salonId, $tel, $dahili);
+
+        return response()->json([
+            'success' => !empty($sonuc['success']),
+            'message' => $sonuc['message'] ?? '',
         ]);
     }
 

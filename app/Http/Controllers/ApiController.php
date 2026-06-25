@@ -11068,17 +11068,23 @@ public function cdrRaporLatest(Request $request)
     // -------------------------------------------------------
     // Kullanıcı haritası (N+1 önlemi — toplu sorgu)
     // -------------------------------------------------------
-    $uniquePhones = [];
-    foreach ($results as $r) {
-        if (!empty($r['src'])) $uniquePhones[] = preg_replace('/^(\+?90)/', '', preg_replace('/[^0-9+]/', '', $r['src']));
-        if (!empty($r['dst'])) $uniquePhones[] = preg_replace('/^(\+?90)/', '', preg_replace('/[^0-9+]/', '', $r['dst']));
+    // "Kayitli musteri" SADECE bu isletmenin (salon) musteri_portfoy'unda olan
+    // numaradir. Genel users tablosu degil; baska salonun musterisi burada
+    // "kayitli" sayilmaz. Eslesme telefon SON 10 HANE ile yapilir (TR/yabanci,
+    // +90 / 0 / bicim farklarindan bagimsiz).
+    // SADECE aktif portfoy kaydi "kayitli musteri" sayilir; pasif kayit musteri degildir.
+    $portfoyUsers = User::whereIn('id', function ($q) use ($request) {
+            $q->select('user_id')->from('musteri_portfoy')
+              ->where('salon_id', $request->salonId)
+              ->where('aktif', 1);
+        })->get();
+
+    $portfoyMap = [];   // son10 hane => User
+    foreach ($portfoyUsers as $pu) {
+        $k = substr(preg_replace('/\D/', '', (string) $pu->cep_telefon), -10);
+        if ($k !== '') $portfoyMap[$k] = $pu;
     }
-    $uniquePhones = array_unique($uniquePhones);
- 
-    $kullanicilar = User::whereIn('cep_telefon', $uniquePhones)
-        ->get()
-        ->keyBy('cep_telefon');
- 
+
     $personelMap = Personeller::whereIn('dahili_no', $dahililer)
         ->get()
         ->keyBy('dahili_no');
@@ -11103,13 +11109,15 @@ public function cdrRaporLatest(Request $request)
         $avatar      = $defaultAvatar;
         $personelText = '';
         $raporaEkle  = true;
+        $kayitli     = false;
 
         if ($dcontext == 'from-internal') {
             // ---------- GİDEN ARAMA ----------
             $telefon = ltrim($result['dst'] ?? '', '0');
-            $normalTel = preg_replace('/^(\+?90)/', '', preg_replace('/[^0-9]/', '', $result['dst'] ?? ''));
+            $son10   = substr(preg_replace('/\D/', '', (string) ($result['dst'] ?? '')), -10);
 
-            $musteri = $kullanicilar[$normalTel] ?? null;
+            $musteri = $son10 !== '' ? ($portfoyMap[$son10] ?? null) : null;
+            $kayitli = $musteri !== null;
             if ($musteri) {
                 $telGoster = $telGorebilir ? $musteri->cep_telefon : \App\PersonelYetkiSabitleri::telefonMaskele($musteri->cep_telefon ?? '');
                 $musteriAdi = $musteri->name . ' (' . $telGoster . ')';
@@ -11133,9 +11141,10 @@ public function cdrRaporLatest(Request $request)
  
             $srcRaw  = $result['src'] ?? '';
             $telefon = ltrim($srcRaw, '0');
-            $normalTel = preg_replace('/^(\+?90)/', '', preg_replace('/[^0-9]/', '', $srcRaw));
- 
-            $musteri = $kullanicilar[$normalTel] ?? null;
+            $son10   = substr(preg_replace('/\D/', '', (string) $srcRaw), -10);
+
+            $musteri = $son10 !== '' ? ($portfoyMap[$son10] ?? null) : null;
+            $kayitli = $musteri !== null;
             if ($musteri) {
                 $telGoster = $telGorebilir ? $musteri->cep_telefon : \App\PersonelYetkiSabitleri::telefonMaskele($musteri->cep_telefon ?? '');
                 $musteriAdi = $musteri->name . ' (' . $telGoster . ')';
@@ -11144,10 +11153,12 @@ public function cdrRaporLatest(Request $request)
                 $musteriAdi = $telGorebilir ? $telefon : \App\PersonelYetkiSabitleri::telefonMaskele($telefon);
             }
 
-            $personel = $personelMap[$result['dst'] ?? ''] ?? null;
-            $personelText = $personel
+            $dahiliNo = $result['dst'] ?? '';
+            $personel = $personelMap[$dahiliNo] ?? null;
+            // İsim bağlıysa "Ad (Dahili)", değilse sadece dahili numarası göster.
+            $personelText = ($personel && trim($personel->personel_adi) !== '')
                 ? ($personel->personel_adi . ' (' . $personel->dahili_no . ')')
-                : '';
+                : ($dahiliNo !== '' ? $dahiliNo : '');
  
             if ($disposition == 'NO ANSWER') {
                 $durum = '0';
@@ -11174,6 +11185,7 @@ public function cdrRaporLatest(Request $request)
                 'durum'           => $durum,
                 'seskaydi'        => $result['recording_path'] ?? '',
                 'avatar'          => $avatar,
+                'kayitli'         => $kayitli,
             ];
         }
     }
@@ -15454,27 +15466,13 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         }
 
-        $gonder = self::sms_gonder_2(
-
-            $request,
-
-            $mesajlar,
-
-            true,
-
-            6,
-
-            true,
-
-            $form->salon_id,false
-
-        );
+        // WhatsApp-oncelikli gonderim (router isletmeye gore Baileys/Whatsmeow secer);
+        // WA bagli degilse veya basarisizsa SMS'e duser.
+        $this->_formLinkGonder($request, $form->salon_id, $mesajlar, $form->user_id, true);
 
         return [
 
-            "mesaj" => "SMS başarıyla gönderildi",
-
-            "gonder" => $gonder,
+            "mesaj" => "Form gönderildi",
 
         ];
 
@@ -18732,14 +18730,33 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
      */
     public function primHakedisTopluApi(Request $request, $salonid)
     {
-        $ay = $request->ay ? str_pad((string)$request->ay, 2, '0', STR_PAD_LEFT) : date('m');
-        $yil = $request->yil ? (string)$request->yil : date('Y');
-        $donem = $yil . '-' . $ay;
-        $baslangic = $donem . '-01 00:00:00';
-        $sonGun = date('t', strtotime($baslangic));
-        $bitis = $donem . '-' . $sonGun . ' 23:59:59';
-        if ($ay === date('m') && $yil === date('Y')) {
-            $bitis = date('Y-m-d H:i:s');
+        // GUNLUK MOD: gecerli 'gun' (YYYY-MM-DD) geldiyse tek gun hesapla,
+        // yoksa eski davranis (ay/yil bazli). Web prim_hakedis_panel ile ayni mantik.
+        $gun = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$request->gun) ? $request->gun : null;
+        if ($gun) {
+            $donem = substr($gun, 0, 7);
+            $baslangic = $gun . ' 00:00:00';
+            $bitis = ($gun === date('Y-m-d')) ? date('Y-m-d H:i:s') : $gun . ' 23:59:59';
+        } else {
+            $ay = $request->ay ? str_pad((string)$request->ay, 2, '0', STR_PAD_LEFT) : date('m');
+            $yil = $request->yil ? (string)$request->yil : date('Y');
+            $donem = $yil . '-' . $ay;
+            $baslangic = $donem . '-01 00:00:00';
+            $sonGun = date('t', strtotime($baslangic));
+            $bitis = $donem . '-' . $sonGun . ' 23:59:59';
+            if ($ay === date('m') && $yil === date('Y')) {
+                $bitis = date('Y-m-d H:i:s');
+            }
+        }
+
+        // Gunluk modda o gune ait odenmis prim (prim_gun ile isaretli) — tek sorgu
+        $gunlukOdenenPrim = collect();
+        if ($gun && \Schema::hasColumn('personel_maas_odemeleri', 'prim_gun')) {
+            $gunlukOdenenPrim = \App\PersonelMaasOdemesi::where('salon_id', $salonid)
+                ->where('odeme_tipi', 'prim')
+                ->whereDate('prim_gun', $gun)
+                ->get()
+                ->groupBy('personel_id');
         }
 
         // Aktif personeller. where('aktif',true) zaten arsivli olanlari eliyor
@@ -18803,7 +18820,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $bonus = (float)$hareketler->where('tip', 'bonus')->sum('tutar');
             $kesinti = (float)$hareketler->where('tip', 'kesinti')->sum('tutar');
 
-            $sonuc[] = [
+            $row = [
                 'personel_id'        => (string)$p->id,
                 'personel_adi'       => (string)$p->personel_adi,
                 'unvan'              => (string)($p->unvan ?? ''),
@@ -18835,10 +18852,34 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 'bonus'              => $bonus,
                 'kesinti'            => $kesinti,
             ];
+
+            // Gunluk mod: o gunun primi / odeneni / kalani / durumu (web ile ayni)
+            if ($gun) {
+                $gunPrim = $hizmetHakedis + $urunHakedis + $paketHakedis;
+                $gunOdenen = (float)$gunlukOdenenPrim->get($p->id, collect([]))->sum('tutar');
+                $gunKalan = max(0, $gunPrim - $gunOdenen);
+                if ($gunPrim <= 0 || $gunOdenen <= 0) {
+                    $gunDurum = 'bekliyor';
+                } elseif ($gunOdenen < $gunPrim) {
+                    $gunDurum = 'kismi';
+                } elseif ($gunOdenen == $gunPrim) {
+                    $gunDurum = 'tam';
+                } else {
+                    $gunDurum = 'fazla';
+                }
+                $row['gun_prim'] = $gunPrim;
+                $row['gun_odenen'] = $gunOdenen;
+                $row['gun_kalan'] = $gunKalan;
+                $row['gun_durum'] = $gunDurum;
+            }
+
+            $sonuc[] = $row;
         }
 
         return response()->json([
             'basarili' => true,
+            'mod' => $gun ? 'gunluk' : 'aylik',
+            'gun' => $gun,
             'donem' => $donem,
             'personeller' => $sonuc,
         ]);
@@ -18868,10 +18909,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $odemeTarihi)) $odemeTarihi = date('Y-m-d');
             $odemeTipi = in_array($request->odeme_tipi, ['maas', 'prim', 'diger']) ? $request->odeme_tipi : 'diger';
 
+            // Gunluk prim odemesi: prim_gun (YYYY-MM-DD) gelirse isaretle
+            $primGun = null;
+            if ($odemeTipi === 'prim' && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$request->prim_gun)) {
+                $primGun = $request->prim_gun;
+            }
+
             $yetkiliId = null;
             try { $yetkiliId = \Auth::guard('isletmeyonetim-api')->user()->id ?? null; } catch (\Exception $e) {}
 
-            $pmo = \App\PersonelMaasOdemesi::create([
+            $odemeVerisi = [
                 'personel_id'        => $personel->id,
                 'salon_id'           => $salonId,
                 'donem'              => $donem,
@@ -18881,7 +18928,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 'odeme_yontemi'      => mb_substr((string)$request->odeme_yontemi, 0, 60),
                 'aciklama'           => mb_substr((string)$request->aciklama, 0, 300),
                 'ekleyen_yetkili_id' => $yetkiliId,
-            ]);
+            ];
+            if ($primGun && \Schema::hasColumn('personel_maas_odemeleri', 'prim_gun')) {
+                $odemeVerisi['prim_gun'] = $primGun;
+            }
+            $pmo = \App\PersonelMaasOdemesi::create($odemeVerisi);
 
             // Otomatik kasa/masraf kaydi (web ile ayni)
             try {
@@ -26848,6 +26899,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     public function sozlesmeOlusturAPI(Request $request){
         try {
             $this->_dinamikFormKolonlariOlusturAPI();
+            $this->_sozlesmeImzaKolonlariOlustur();
             $sube     = $request->sube;
             $userId   = (int) $request->user_id;
             $cepTel   = trim($request->cep_telefon);
@@ -26875,6 +26927,15 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $arsiv->cevapladi2     = false;
             $arsiv->harici_belge   = 'Hizmet Sözleşmesi';
             $arsiv->form_olusturan = $personelId ?: null;
+            // Salon yetkilisi sozlesmeyi olusturma aninda imzalar (cift tarafli imza — web ile ayni).
+            $salonImza = (string) $request->salon_imza;
+            if($salonImza !== ''){
+                $arsiv->salon_imza            = $salonImza;
+                $arsiv->salon_yetkili_ad      = trim((string)$request->salon_yetkili_ad) ?: null;
+                $arsiv->salon_yetkili_telefon = trim((string)$request->salon_yetkili_telefon) ?: null;
+                $arsiv->salon_imza_ip         = $request->ip();
+                $arsiv->salon_imza_zaman      = now();
+            }
             $arsiv->save();
 
             // 'sadece_kaydet' flag'i true ise SMS gonderme atlanir (yetki sistemi:
@@ -26887,9 +26948,10 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 $link = 'https://'.$host.'/sozlesme/'.$arsiv->id.'/'.$arsiv->user_id;
                 $mesaj = ' Hizmet Sözleşmenizi imzalamak için: '.$link.' | Onay Kodu: '.$kod;
                 try {
-                    self::sms_gonder_2($request, [['to'=>$cepTel, 'message'=>$mesaj]], false, 6, true, $sube, false);
+                    // WhatsApp-oncelikli gonderim (router isletmeye gore Baileys/Whatsmeow secer).
+                    $this->_formLinkGonder($request, $sube, [['to'=>$cepTel, 'message'=>$mesaj]], $userId, false);
                 } catch(\Exception $e){
-                    \Log::error('API Sözleşme SMS hatası: '.$e->getMessage());
+                    \Log::error('API Sözleşme gönderim hatası: '.$e->getMessage());
                 }
             }
             return response()->json(['basarili'=>true,'arsiv_id'=>$arsiv->id]);
@@ -26912,13 +26974,114 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         }
     }
 
+    // Mobil: form/sozlesme linkini once WhatsApp'tan gondermeyi dener; salon WA
+    // bagliysa WhatsAppRouterService isletmeye gore Baileys/Whatsmeow secer.
+    // WA bagli degilse veya bir mesaj basarisiz olursa o mesaj SMS'e dusurulur.
+    // (Web sms_gonder_bildirimli ve mobil arsivformekleguncelle ile ayni mantik.)
+    private function _formLinkGonder(Request $request, $salonId, array $mesajlar, $userId = null, $smsBildirim = true)
+    {
+        if (count($mesajlar) === 0) return;
+        $kalan = $mesajlar;
+        try {
+            $waSalon = \App\Salonlar::find($salonId);
+            $waBagli = $waSalon
+                && (int)$waSalon->whatsapp_aktif === 1
+                && ($waSalon->whatsapp_durum ?? '') === 'connected';
+            if ($waBagli) {
+                $waService = app(\App\Services\WhatsAppService::class);
+                $kalan = [];
+                foreach ($mesajlar as $m) {
+                    $res = $waService->sendUrgent($waSalon, $m['to'], $m['message'], $userId);
+                    if (empty($res['ok'])) $kalan[] = $m;
+                }
+            }
+        } catch(\Exception $e){
+            \Log::error('_formLinkGonder WA hatasi: '.$e->getMessage());
+            $kalan = $mesajlar;
+        }
+        if (count($kalan) > 0) {
+            self::sms_gonder_2($request, $kalan, $smsBildirim, 6, true, $salonId, false);
+        }
+    }
+
+    // Mobil: arsiv tablosunda salon yetkilisi imza kolonlari yoksa olusturur
+    // (web ile ayni kolonlar; cift tarafli imza icin gereklidir).
+    private function _sozlesmeImzaKolonlariOlustur(){
+        try {
+            $cols = array_column(\DB::select("SHOW COLUMNS FROM arsiv"), 'Field');
+            if(!in_array('salon_imza',$cols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_imza MEDIUMTEXT NULL");
+            }
+            if(!in_array('salon_yetkili_ad',$cols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_yetkili_ad VARCHAR(255) NULL");
+            }
+            if(!in_array('salon_yetkili_telefon',$cols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_yetkili_telefon VARCHAR(30) NULL");
+            }
+            if(!in_array('salon_imza_ip',$cols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_imza_ip VARCHAR(45) NULL");
+            }
+            if(!in_array('salon_imza_zaman',$cols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_imza_zaman DATETIME NULL");
+            }
+        } catch(\Exception $e){
+            \Log::warning('arsiv salon imza kolon kontrol: '.$e->getMessage());
+        }
+    }
+
+    // Tum salonlar icin gecerli fabrika (varsayilan) sozlesme metni — web modali ile birebir ayni.
+    private function _sozlesmeFabrikaMetni(){
+        return <<<'SOZLESME_TXT'
+1- SÖZLEŞMENİN KONUSU VE KAPSAMI
+İşbu sözleşmenin konusu, MÜŞTERİ tarafından MERKEZ'den satın aldığı aşağıda detayları belirtilen lazer, bakım ve güzellik hizmetlerinin (bundan böyle "HİZMET" olarak anılacaktır) şartlarının, hizmetlerin sunulmasının, ödeme koşullarının ve tarafların hak ve yükümlülüklerinin belirlenmesidir.
+2- ÖDEME ŞEKLİ VE KOŞULLARI
+2.1- ÖDEME YÖNTEMİ
+Nakit, Kredi Kart (tek çekim, taksit), elden taksit (vade tarihleri ekli ödeme planında belirtilir)
+2.2- Müşteri taksitli işlemlerde ödemeleri belirtilen vadelerde yapmakla yükümlüdür. Ödemelerin gecikmesi durumunda MERKEZ, yasal faiz talep etme ve kalan borcunun tamamını muaccel kılma hakkını saklı tutar.
+2.3- Hizmet bedeli ödenmeden veya ödeme planına uygulamadan hizmetin ifasına devam edilip edilmeyeceği MERKEZ'in inisiyatifindedir.
+3- TARAFLARIN HAK VE YÜKÜMLÜLÜKLERİ
+3.1- MERKEZ'İN YÜKÜMLÜLÜKLERİ
+Merkez, hizmeti mesleki standartlara uygun, hijyen kurallarına bağlı, konusunda uzman personel tarafından ve taahhüt edilen standartlarda sunmak, kullanılan cihaz ve ürünlerin standartlara uygunluğunu sağlamak ve müşteriye sözleşme şartlarına uygun olarak hizmet vermekle yükümlüdür.
+3.2- MÜŞTERİ'NİN YÜKÜMLÜLÜKLERİ VE SAĞLIK BEYANI
+Sağlık Beyanı: Müşteri, hamilelik, epilepsi, kalp pili, açık yara, cilt hastalıkları, kanser tedavisi, hormon bozuklukları veya düzenli kullandığı ilaçlar gibi hizmetin uygulanmasında engel olabilecek veya risk oluşturabilecek tüm sağlık durumlarını MERKEZ'e yazılı olarak bildirmek zorundadır.
+Müşteri, yanlış veya eksik sağlık beyanından kaynaklanabilecek komplikasyonlardan, yan etkilerden veya hizmetin sonuç vermemesinden MERKEZ'in sorumlu tutulmayacağını kabul ve beyan eder.
+İşlem Sonrası Bakım: Müşteri, işlem sonrasında kendisine iletilen (güneşten korunma, su teması vb.) bakım talimatlarına uymak zorundadır. Talimatlara uyulmaması sonucu oluşacak leke, tahriş veya sonuç almama durumlarında MERKEZ sorumlu değildir. Müşteri, işbu sorumluluğun kendisinde olduğunu kabul ve beyan edip, tüm talimatlara eksiksiz uyacağını taahhüt eder.
+3.3- TIBBİ İŞLEM UYARISI
+Müşteri, MERKEZ'de uygulanan işlemlerin birer "tıbbi tedavi" veya "hastalık teşhis, tedavi yöntemi" olmadığını ve bakım amaçlı uygulamalar olduğunu, %100 sonuç garantisi verilmeyeceğini (kıl yapısı, hormon dengesi, cilt tipi gibi biyolojik faktörlere bağlı olarak) bildiğini kabul eder. Ve hizmetin etkilerinin kişisel özelliklere göre değişebileceğini, garanti sonuç talep etmeyeceğini, kendisinden kaynaklı bir durum ortaya çıktığında bunun MERKEZ'den kaynaklı olmadığını kabul ve beyan eder.
+4- RANDEVU, İPTAL VE ERTELEME POLİTİKASI
+4.1- MERKEZ, planlanmış randevulara ilişkin hatırlatma mesajını müşterinin bildirdiği telefon numarasına SMS, WhatsApp yolu ile bilgilendirme yapmakla yükümlüdür.
+4.2- Müşteri de randevu saatine tam zamanında gelmekle yükümlüdür. 15 dakikayı aşan gecikmelerde MERKEZ, seansı iptal etme ve süreyi kısaltma hakkına sahiptir.
+4.3- Randevu iptali veya erteleme talepleri, randevu saatinden en az 24 saat önce MERKEZ'e bildirilmelidir.
+4.4- Mazeretsiz Gelmeme (No-Show): 24 saat önceden haber verilmeksizin randevuya gelinmemesi durumunda, ilgili seans "kullanılmış, yapılmış" sayılır ve paket hakkından düşülür. Müşteri bu durumda herhangi bir hak iddia edemez. Müşteri bu durumu eksiksiz kabul ve beyan eder.
+4.5- Alınan hizmet paketleri, sözleşmede belirtilen süre içerisinde kullanılmalıdır. MÜŞTERİ'nin kendi kusurlarından kaynaklanan gecikmelerde süre uzatımı talep edemez. Ancak MERKEZ mücbir bir sebep varlığında ya da işletmeden kaynaklı zorunluluklar halinde süre uzatımı yapabilir.
+5- CAYMA HAKKI, FESİH VE İADE KOŞULLARI
+5.1- Cayma Hakkı: Müşteri sözleşmenin imzalandığı tarihten itibaren 14 (on dört) gün içinde, hizmet alımına başlanmamış olması kaydıyla, herhangi bir gerekçe göstermeksizin ve cezai şart ödemeksizin sözleşmeden cayma hakkına sahiptir.
+5.2- Hizmet Başladıktan Sonra Fesih: Hizmetin ifasına başlandıktan (ilk seans yapıldıktan) sonra mücbir nedenlerle sözleşmenin feshedilmesi durumunda; kullanılan seanslar liste fiyatı (indirimli paket fiyatı değil, tek seans birim fiyatı) üzerinden hesaplanır. Toplam ödenen tutardan, kullanılan seansların liste fiyatı bedeli düşülerek kalan tutar iade edilir. Ancak MÜŞTERİ tarafından keyfi nedenlerle sözleşmenin feshedilmesi durumunda işbu sözleşme muaccel hale gelir ve ödenen bedeller geri iade edilmez. Müşteri bunu kabul ettiğini beyan eder.
+5.3- MERKEZ'den kaynaklanan kusurlu hizmet (ayıplı hizmet) durumunda, MÜŞTERİ'nin 6502 sayılı kanundan doğan bedel iadesi veya hizmetin yeniden görülmesi hakları saklıdır.
+6- HİZMETİN DEVİR VE İADESİ
+6.1- İşbu yapılan hizmet sözleşmesi sadece sözleşmeyi imzalayan MÜŞTERİ'yi bağlar. Alınan hizmet herhangi başka birine devredilemez.
+6.2- MÜŞTERİ tarafından alınan hizmet bir başkasına satılamaz ve ücret yerine kullanılamaz.
+6.3- Müşteri getireceği Resmi Sağlık Kurumu Raporu ile hizmetin kesin olarak alınamayacağını belgelemesi halinde kullanılmayan seansların bedeli iade edilir.
+6.4- Peşin ödemelerde yasal zorunluluklar dışında iade yapılmaz.
+6.5- MÜŞTERİ, kendisi adına uygulanmış olan kampanya, indirim veya özel fiyatla alınan hizmetleri farklı biri üzerinde kullanamaz.
+7- KİŞİSEL VERİLERİN KORUNMASI (KVKK)
+7.1- MÜŞTERİ, bu sözleşme kapsamında verdiği kişisel verilerin (kimlik, iletişim, sağlık bilgileri, işlem öncesi ve sonrası fotoğraflar, rıza dahilinde çekilen videolar ve fotoğraflar vb.) 6698 sayılı KVKK kapsamında hizmetin ifası, randevu takibi ve yasal yükümlülükler nedeniyle MERKEZ tarafından işlenmesine, saklanmasına ve mevzuatın izin verdiği kurumlarla, MERKEZ'in yönettiği sosyal medya hesaplarında (Instagram, Facebook, TikTok vb.) paylaşılmasına açık rıza gösterdiğini beyan eder.
+7.2- Müşteri yukarıda belirtilen ve MERKEZ'in sosyal medya hesaplarında paylaşılması için video, fotoğraf, görüntü vb. gibi alınan içeriklerin paylaşılmasına açık rıza göstermiyorsa işbu sözleşme ile birlikte imzalanan KVKK aydınlatma metni ve açık rıza formu imzalatılmıştır.
+8- YETKİLİ MAHKEMELER VE YÜRÜRLÜK
+İşbu sözleşmeden doğacak uyuşmazlıklarda, Tüketici Hakem Heyetleri ve ......................................... Mahkemeleri ve İcra daireleri yetkilidir. İşbu sözleşme 8 (sekiz) maddeden ibaret olup taraflarca iki nüsha olarak tanzim ve imza edilmiştir.
+SOZLESME_TXT;
+    }
+
     // Mobil: salonun kaydettigi varsayilan sozlesme sartlari metnini dondurur.
-    // Bos/yoksa metin null doner -> uygulama fabrika metnini kullanir.
+    // Salon kendi metnini kaydetmediyse fabrika (varsayilan) metin doner (web ile ayni).
     public function sozlesmeVarsayilanGetirAPI(Request $request){
         try {
             $this->_sozlesmeVarsayilanKolonOlustur();
             $sube = $request->sube ?? $request->salon_id;
             $metin = \DB::table('salonlar')->where('id',$sube)->value('sozlesme_varsayilan_metin');
+            if($metin === null || trim((string)$metin) === ''){
+                $metin = $this->_sozlesmeFabrikaMetni();
+            }
             return response()->json(['basarili'=>true,'sozlesme_metni'=>$metin]);
         } catch(\Exception $e){
             \Log::error('API sozlesmeVarsayilanGetir: '.$e->getMessage());
