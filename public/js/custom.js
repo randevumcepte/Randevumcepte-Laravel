@@ -18709,8 +18709,6 @@ function tahsilatyenidenhesapla()
         if($(this).val()=='')
             ekstragirdiler = parseInt(ekstragirdiler) + 1;
     });
-    if(ekstragirdiler  == 0)
-        $('#harici_indirim_tutari').val('0').change();
     var total = 0;
     var harici_indirim = $('#harici_indirim_tutari').val().replace(".", "");
     harici_indirim = harici_indirim.replace(',','.');
