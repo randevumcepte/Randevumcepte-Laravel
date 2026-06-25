@@ -2506,7 +2506,7 @@
       <script>
         (function(){
           var MAX_GUNLUK = 3;          // gunde en fazla gosterim
-          var ARALIK_DK  = 60;         // gosterimler arasi minimum dakika
+          var ARALIK_DK  = 210;        // gosterimler arasi minimum dakika (~3.5 saat; 09-20 mesaisine 3 gosterim yayilir)
           var KEY = 'lisansYenilemeUyari';
           function bugun(){ var d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
           function durumOku(){
