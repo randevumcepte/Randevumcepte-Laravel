@@ -2478,28 +2478,51 @@
       @include('modaldialogs.odeme-detay-modal')
        @include('modaldialogs.paket-tahsilat-detay-modal')
 
-      {{-- Lisans bitisine 30 gun veya daha az kala gunde en fazla 3 kez gosterilen yenileme hatirlaticisi --}}
+      {{-- Lisans bitisine 30 gun veya daha az kala gunde en fazla 3 kez gosterilen yenileme hatirlaticisi
+           (Tasarim: salon akilli hatirlatma "big popup" dilini takip eder) --}}
       @if(is_numeric($kalan_uyelik_suresi) && $kalan_uyelik_suresi >= 0 && $kalan_uyelik_suresi <= 30)
-      <div id="lisansYenilemeOverlay" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,.55); align-items:center; justify-content:center;">
-         <div style="background:#fff; max-width:420px; width:90%; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,.3); overflow:hidden; text-align:center; font-family:inherit;">
-            <div style="background:#e74c3c; color:#fff; padding:18px 20px;">
-               <i class="bi bi-exclamation-triangle-fill" style="font-size:34px; color:#fff;"></i>
-               <h4 style="margin:8px 0 0; font-weight:700; color:#fff;">Lisans Süreniz Bitmek Üzere</h4>
+      <style>
+      #lisansYenilemeOverlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(17,17,28,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}
+      #lisansYenilemeOverlay.ly-acik{display:flex;animation:lyFade .25s ease;}
+      #lisansYenilemeOverlay .ly-card{position:relative;width:440px;max-width:100%;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45);transform:scale(.85) translateY(20px);opacity:0;animation:lyPop .55s cubic-bezier(.2,.9,.2,1.5) forwards;}
+      #lisansYenilemeOverlay .ly-header{position:relative;overflow:hidden;padding:30px 24px 24px;text-align:center;background:linear-gradient(135deg,#5C008E 0%,#7B2FB8 50%,#9D5DC8 100%);color:#fff;}
+      #lisansYenilemeOverlay .ly-header::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 18%,rgba(255,255,255,.20) 0%,transparent 55%);pointer-events:none;}
+      #lisansYenilemeOverlay .ly-ikon{position:relative;width:74px;height:74px;margin:0 auto 14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);animation:lyPulse 1.9s infinite;}
+      #lisansYenilemeOverlay .ly-ikon i{font-size:38px;color:#fff;line-height:1;}
+      #lisansYenilemeOverlay .ly-header h2{margin:0;font-size:21px;font-weight:800;letter-spacing:.2px;color:#fff;}
+      #lisansYenilemeOverlay .ly-rozet{display:inline-block;margin-top:12px;padding:6px 16px;border-radius:30px;background:rgba(255,255,255,.18);font-size:13px;font-weight:600;color:#fff;}
+      #lisansYenilemeOverlay .ly-rozet b{font-size:15px;font-weight:800;}
+      #lisansYenilemeOverlay .ly-body{padding:22px 24px 4px;text-align:center;background:linear-gradient(180deg,#fafbff 0%,#fff 100%);}
+      #lisansYenilemeOverlay .ly-body p{margin:0;font-size:14px;line-height:1.55;color:#4b5563;}
+      #lisansYenilemeOverlay .ly-body .ly-salon{font-weight:700;color:#111827;}
+      #lisansYenilemeOverlay .ly-footer{padding:18px 24px 22px;background:#fff;}
+      #lisansYenilemeOverlay .ly-tel{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px 16px;border-radius:14px;text-decoration:none;font-weight:800;font-size:18px;color:#fff;background:linear-gradient(135deg,#16a34a,#15803d);box-shadow:0 8px 22px rgba(22,163,74,.35);transition:filter .2s,transform .15s;}
+      #lisansYenilemeOverlay .ly-tel:hover{filter:brightness(1.08);transform:translateY(-1px);color:#fff;text-decoration:none;}
+      #lisansYenilemeOverlay .ly-tel i{font-size:18px;}
+      #lisansYenilemeOverlay .ly-tel span{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;}
+      #lisansYenilemeOverlay .ly-tel small{font-size:10px;font-weight:600;opacity:.85;letter-spacing:.4px;}
+      #lisansYenilemeOverlay .ly-kapat{display:block;width:100%;margin-top:10px;padding:11px 16px;border:0;border-radius:12px;background:#f3f4f6;color:#374151;font-weight:700;font-size:14px;cursor:pointer;transition:background .2s;}
+      #lisansYenilemeOverlay .ly-kapat:hover{background:#e5e7eb;}
+      @keyframes lyFade{from{opacity:0;}to{opacity:1;}}
+      @keyframes lyPop{0%{transform:scale(.7) translateY(40px);opacity:0;}70%{transform:scale(1.04) translateY(-4px);opacity:1;}100%{transform:scale(1) translateY(0);opacity:1;}}
+      @keyframes lyPulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.30);}70%{box-shadow:0 0 0 16px rgba(255,255,255,0);}100%{box-shadow:0 0 0 0 rgba(255,255,255,0);}}
+      </style>
+      <div id="lisansYenilemeOverlay" role="dialog" aria-modal="true">
+         <div class="ly-card">
+            <div class="ly-header">
+               <div class="ly-ikon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+               <h2>Lisans Süreniz Bitmek Üzere</h2>
+               <span class="ly-rozet">Bitmesine <b>{{$kalan_uyelik_suresi}} gün</b> kaldı</span>
             </div>
-            <div style="padding:22px 24px; color:#333;">
-               <p style="margin:0 0 6px; font-size:15px;">
-                  Sayın {{$isletme->salon_adi}}, lisans sürenizin bitmesine
-                  <b>{{$kalan_uyelik_suresi}} gün</b> kaldı.
-               </p>
-               <p style="margin:0 0 18px; font-size:14px; color:#666;">
-                  Kesintisiz kullanım için yenileme yapmak üzere bizimle iletişime geçiniz.
-               </p>
-               <a href="tel:05412948144" style="display:block; background:#27ae60; color:#fff; text-decoration:none; padding:13px 16px; border-radius:10px; font-weight:700; font-size:16px; margin-bottom:10px;">
-                  <i class="bi bi-telephone-fill"></i> 0541 294 81 44
+            <div class="ly-body">
+               <p>Sayın <span class="ly-salon">{{$isletme->salon_adi}}</span>, panelinizi kesintisiz kullanmaya devam edebilmek için lisansınızı yenilemeniz gerekiyor. Yenileme için bizimle iletişime geçin.</p>
+            </div>
+            <div class="ly-footer">
+               <a href="tel:05412948144" class="ly-tel">
+                  <i class="bi bi-telephone-fill"></i>
+                  <span>0541 294 81 44<small>YENİLEME İÇİN ARAYIN</small></span>
                </a>
-               <button type="button" onclick="lisansYenilemeKapat()" style="display:block; width:100%; background:#f1f1f1; color:#555; border:0; padding:11px 16px; border-radius:10px; font-weight:600; font-size:15px; cursor:pointer;">
-                  Kapat
-               </button>
+               <button type="button" class="ly-kapat" onclick="lisansYenilemeKapat()">Şimdilik Kapat</button>
             </div>
          </div>
       </div>
@@ -2515,14 +2538,14 @@
           }
           function durumYaz(s){ try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
           window.lisansYenilemeKapat = function(){
-            var ov=document.getElementById('lisansYenilemeOverlay'); if(ov) ov.style.display='none';
+            var ov=document.getElementById('lisansYenilemeOverlay'); if(ov) ov.classList.remove('ly-acik');
           };
           var st = durumOku();
           var simdi = Date.now();
           if(st.sayi < MAX_GUNLUK && (simdi - (st.son||0)) >= ARALIK_DK*60*1000){
             var ov=document.getElementById('lisansYenilemeOverlay');
             if(ov){
-              ov.style.display='flex';
+              ov.classList.add('ly-acik');
               st.sayi = (st.sayi||0)+1; st.son = simdi; durumYaz(st);
             }
           }
