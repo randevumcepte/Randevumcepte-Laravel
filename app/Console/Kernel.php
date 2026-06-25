@@ -83,7 +83,9 @@ class Kernel extends ConsoleKernel
 
         // İlaç ve ölçüm hatırlatmaları — kullanıcının belirlediği saatte (HH:i) tetiklenir
         $schedule->command('ilac:hatirlatma-calistir')->withoutOverlapping()->everyMinute();
-        $schedule->command('olcum:hatirlatma-calistir')->withoutOverlapping()->everyMinute();
+        // olcum:hatirlatma-calistir DEVRE DISI (2026-06-26): sistemde olcum hatirlatma
+        // kullanilmiyor; her dakika WHERE'siz full-table-scan + satir basi log uretiyordu.
+        // $schedule->command('olcum:hatirlatma-calistir')->withoutOverlapping()->everyMinute();
 
         // Memnuniyet anketi otomatik gönderim — randevu bitiş saatinde (MAX randevu_hizmetler.saat_bitis) tek sefer.
         $schedule->command('anket:otomatik-gonder')->withoutOverlapping()->everyMinute();

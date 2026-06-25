@@ -98,24 +98,11 @@ class SMSGonder extends Command
             curl_close($ch);
         }
 
-        // Satış ortaklığı bildirimleri (demo süresi / lisans bitişi)
-        $satisortaklari = SatisOrtaklari::where('pasif_ortak', 0)->get();
-        foreach ($satisortaklari as $satisortagi) {
-            $demosuolanlar = self::satis_ortakligi_icin_filtreli_musteri_listesi('demolar', $satisortagi->id, '');
-            $aktifsuresibitenler = self::satis_ortakligi_icin_filtreli_musteri_listesi('aktifsuresibitenler', '', $satisortagi->id);
-
-            foreach ($demosuolanlar as $demosuolan) {
-                if ($demosuolan['kalan_sure'] <= 3 && date('H:i') == '11:00') {
-                    Log::info('Satış ortağı demo bitiş hatırlatması: ' . $satisortagi->ad_soyad . ' / ' . $demosuolan['salon_adi']);
-                }
-            }
-            foreach ($aktifsuresibitenler as $aktifsuresibiten) {
-                if ($aktifsuresibiten['kalan_sure'] <= 15 && date('H:i') == '11:00') {
-                    $bildirimmesaj = 'Sayın ' . $satisortagi->ad_soyad . '. ' . $aktifsuresibiten['salon_adi'] . ' hesabının lisans süresinin bitmesine ' . $aktifsuresibiten['kalan_sure'] . ' gün kalmış olduğunu hatırlatmak isteriz.';
-                    self::bildirimekle(null, $bildirimmesaj, 'https://app.randevumcepte.com.tr/satisortakligi/aktif-musteriler', null, null, null, null, $satisortagi->id);
-                }
-            }
-        }
+        // Satış ortaklığı bildirimleri DEVRE DISI (2026-06-26): kullanilmiyor.
+        // Her dakika satis ortagi basina 2 agir sorgu (Musteri_Formlari + whereHas('salon')
+        // + musteri basina lisans_sure_kontrol -> Salonlar::find() N+1) calistirip eylemi
+        // sadece 11:00'de yapiyordu (guard sorgudan SONRAYDI). CPU baseline yuku.
+        // Gerekirse geri acmak icin: satis_ortakligi_icin_filtreli_musteri_listesi() + 11:00 guard.
     }
 
     public function satis_ortakligi_icin_filtreli_musteri_listesi($querydurum, $satis_ortagi, $satan_satis_ortagi)
