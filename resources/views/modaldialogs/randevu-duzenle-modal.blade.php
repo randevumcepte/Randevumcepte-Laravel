@@ -537,19 +537,29 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
         } else {
             liste = v.tum.slice();
         }
-        // Mevcut secimi koru (yeni listede varsa)
+        // Mevcut secimi her zaman koru — filtre disi olsa bile.
+        // Onceden secili olan hizmet'in option'i listeye eklenmezse TS'den
+        // dusurulurdu (kullanici "hizmet seçili gelmiyor" diye rapor ediyordu).
         var mevcut = ts.getValue() || [];
         if(!Array.isArray(mevcut)) mevcut = mevcut ? [mevcut] : [];
+        // Onceki secimlerin option detayini sakla (text, sure, fiyat)
+        var mevcutOptions = mevcut.map(function(id){
+            return ts.options[id] ? Object.assign({}, ts.options[id]) : null;
+        }).filter(Boolean);
+
         ts.clearOptions();
         liste.forEach(function(h){
             ts.addOption({ value: h.id, text: h.ad, kategori: h.kategori || '', sure: h.sure || 0, fiyat: h.fiyat || 0 });
         });
-        ts.refreshOptions(false);
-        var korunan = mevcut.filter(function(id){
-            return liste.some(function(h){ return String(h.id) === String(id); });
+        // Listede olmayan ama secili olanlari geri ekle
+        mevcutOptions.forEach(function(opt){
+            if(!ts.options[opt.value]){
+                ts.addOption(opt);
+            }
         });
-        if(korunan.length){ ts.setValue(korunan, true); }
-        console.log('[DUZENLE FILTRE]', {personelId: personelId, cihazId: cihazId, odaId: odaId, liste: liste.length});
+        ts.refreshOptions(false);
+        if(mevcut.length){ ts.setValue(mevcut, true); }
+        console.log('[DUZENLE FILTRE]', {personelId: personelId, cihazId: cihazId, odaId: odaId, liste: liste.length, korundu: mevcut.length});
     }
 
     // ODA -> PERSONEL filtresi (v2 modaliyle ayni mantik)
@@ -776,10 +786,28 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                             // Hizmet select - Tom Select
                             var $hz = $row.find('.duzenle-hizmet-select');
                             var ts = $hz[0] && $hz[0].tomselect;
-                            if(ts && h.hizmet_id){
-                                if(!ts.options[h.hizmet_id] && window.randevuHizmetVerisi){
-                                    var hData = window.randevuHizmetVerisi.tum.find(function(x){ return String(x.id) === String(h.hizmet_id); });
-                                    if(hData){ ts.addOption({ value: hData.id, text: hData.ad, kategori: hData.kategori || '', sure: hData.sure, fiyat: hData.fiyat }); }
+                            if(ts && (h.hizmet_id !== undefined && h.hizmet_id !== null)){
+                                // Mevcut hizmet TS'de yoksa once cache'ten, sonra backend'in
+                                // dondurdugu 'hizmet_adi' fallback ile mutlaka eklenir. Boylece
+                                // hizmet_id=0 (Ön Görüşme) veya filtre disi (oda/personel ile
+                                // eslesmeyen) hizmetler de SECILI olarak gelir.
+                                if(!ts.options[h.hizmet_id]){
+                                    var hData = null;
+                                    if(window.randevuHizmetVerisi){
+                                        hData = window.randevuHizmetVerisi.tum.find(function(x){ return String(x.id) === String(h.hizmet_id); });
+                                    }
+                                    if(hData){
+                                        ts.addOption({ value: hData.id, text: hData.ad, kategori: hData.kategori || '', sure: hData.sure, fiyat: hData.fiyat });
+                                    } else {
+                                        // Fallback: backend'in dondurdugu hizmet_adi
+                                        ts.addOption({
+                                            value: h.hizmet_id,
+                                            text: h.hizmet_adi || ('Hizmet #' + h.hizmet_id),
+                                            kategori: '',
+                                            sure: h.sure_dk || 0,
+                                            fiyat: h.fiyat || 0
+                                        });
+                                    }
                                 }
                                 ts.addItem(String(h.hizmet_id), false); // false=event fire et -> onChange -> detay render
                                 // Randevudan gelen gercek sure/fiyat degerlerini detay input'larina yaz

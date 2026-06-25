@@ -23111,10 +23111,20 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $randevu = Randevular::where('id', $randevu_id)->first();
             if(!$randevu) return response()->json(['error' => 'Randevu bulunamadı'], 404);
 
-            $hizmetler = RandevuHizmetler::where('randevu_id', $randevu_id)->get()->map(function($rh){
+            $hizmetler = RandevuHizmetler::with('hizmetler')->where('randevu_id', $randevu_id)->get()->map(function($rh){
+                // Hizmet_id=0 (on gorusme) veya silinmis hizmet -> fallback ad uret
+                $adi = '';
+                if ($rh->hizmetler) {
+                    $adi = $rh->hizmetler->hizmet_adi;
+                } elseif ((int) $rh->hizmet_id === 0) {
+                    $adi = 'Ön Görüşme';
+                } else {
+                    $adi = 'Hizmet #' . $rh->hizmet_id;
+                }
                 return [
                     'randevu_hizmet_id' => $rh->id,
                     'hizmet_id' => $rh->hizmet_id,
+                    'hizmet_adi' => $adi,
                     'personel_id' => $rh->personel_id,
                     'cihaz_id' => $rh->cihaz_id,
                     'oda_id' => $rh->oda_id,
