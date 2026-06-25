@@ -27,7 +27,11 @@ class SMSGonder extends Command
     {
         $controller = app()->make(Controller::class);
 
-        // Ajanda notları hatırlatma
+        // Ajanda notları hatırlatma DEVRE DISI (2026-06-26): kullanilmiyor.
+        // Her dakika tum isletmelerin bugunku ajanda notlarini cekip (Ajanda where tarih)
+        // not basina SalonSMSAyarlari + IsletmeYetkilileri sorgusu yapiyordu.
+        // Gerekirse geri acmak icin asagidaki blok (Ajanda::where('ajanda_tarih', ...)).
+        /*
         $notlar = Ajanda::where('ajanda_tarih', date('Y-m-d'))->get();
         foreach ($notlar as $not) {
             if ($not->ajanda_hatirlatma != 1) {
@@ -62,6 +66,7 @@ class SMSGonder extends Command
                 null
             );
         }
+        */
 
         // Vadesi geçmiş ödenmemiş senet vadeleri
         $senet_vadeleri = SenetVadeleri::where('vade_tarih', '<', date('Y-m-d'))->get();
@@ -102,7 +107,26 @@ class SMSGonder extends Command
         // Her dakika satis ortagi basina 2 agir sorgu (Musteri_Formlari + whereHas('salon')
         // + musteri basina lisans_sure_kontrol -> Salonlar::find() N+1) calistirip eylemi
         // sadece 11:00'de yapiyordu (guard sorgudan SONRAYDI). CPU baseline yuku.
-        // Gerekirse geri acmak icin: satis_ortakligi_icin_filtreli_musteri_listesi() + 11:00 guard.
+        // Geri acmak icin asagidaki yorumu kaldir.
+        /*
+        $satisortaklari = SatisOrtaklari::where('pasif_ortak', 0)->get();
+        foreach ($satisortaklari as $satisortagi) {
+            $demosuolanlar = self::satis_ortakligi_icin_filtreli_musteri_listesi('demolar', $satisortagi->id, '');
+            $aktifsuresibitenler = self::satis_ortakligi_icin_filtreli_musteri_listesi('aktifsuresibitenler', '', $satisortagi->id);
+
+            foreach ($demosuolanlar as $demosuolan) {
+                if ($demosuolan['kalan_sure'] <= 3 && date('H:i') == '11:00') {
+                    Log::info('Satış ortağı demo bitiş hatırlatması: ' . $satisortagi->ad_soyad . ' / ' . $demosuolan['salon_adi']);
+                }
+            }
+            foreach ($aktifsuresibitenler as $aktifsuresibiten) {
+                if ($aktifsuresibiten['kalan_sure'] <= 15 && date('H:i') == '11:00') {
+                    $bildirimmesaj = 'Sayın ' . $satisortagi->ad_soyad . '. ' . $aktifsuresibiten['salon_adi'] . ' hesabının lisans süresinin bitmesine ' . $aktifsuresibiten['kalan_sure'] . ' gün kalmış olduğunu hatırlatmak isteriz.';
+                    self::bildirimekle(null, $bildirimmesaj, 'https://app.randevumcepte.com.tr/satisortakligi/aktif-musteriler', null, null, null, null, $satisortagi->id);
+                }
+            }
+        }
+        */
     }
 
     public function satis_ortakligi_icin_filtreli_musteri_listesi($querydurum, $satis_ortagi, $satan_satis_ortagi)
