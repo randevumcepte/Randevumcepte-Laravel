@@ -800,29 +800,27 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                                 }
                                 var optAd = hData ? hData.ad : (h.hizmet_adi || ('Hizmet #' + h.hizmet_id));
                                 var optKat = hData ? (hData.kategori || '') : '';
-                                var optSure  = (h.sure_dk !== undefined && h.sure_dk !== null && h.sure_dk !== '') ? h.sure_dk : (hData ? hData.sure : 0);
-                                var optFiyat = (h.fiyat !== undefined && h.fiyat !== null && h.fiyat !== '')      ? h.fiyat   : (hData ? hData.fiyat : 0);
-                                if(!ts.options[h.hizmet_id]){
-                                    ts.addOption({ value: h.hizmet_id, text: optAd, kategori: optKat, sure: optSure, fiyat: optFiyat });
-                                } else {
-                                    // Option zaten var (cache'ten dolu) — sure/fiyat'i RANDEVU degerlerine guncelle
-                                    var existing = ts.options[h.hizmet_id];
-                                    existing.sure = optSure;
-                                    existing.fiyat = optFiyat;
+                                // RANDEVUYA OZEL sure/fiyat: tanim default'u DEGIL, randevudaki kaydedilmis deger.
+                                // (0 dk de gecerli — undefined/null kontrolu yapiyoruz, falsy check yok)
+                                var optSure  = (h.sure_dk !== undefined && h.sure_dk !== null && h.sure_dk !== '') ? Number(h.sure_dk) : (hData ? hData.sure : 0);
+                                var optFiyat = (h.fiyat !== undefined && h.fiyat !== null && h.fiyat !== '')      ? Number(h.fiyat)   : (hData ? hData.fiyat : 0);
+                                // Force overwrite: hem cache'ten gelen option'u, hem yeni eklediklerimizi
+                                // RANDEVU degerleriyle yeniden olustur.
+                                if(ts.options[h.hizmet_id]){
+                                    try { ts.removeOption(h.hizmet_id); } catch(e){}
                                 }
+                                ts.addOption({ value: h.hizmet_id, text: optAd, kategori: optKat, sure: optSure, fiyat: optFiyat });
                                 ts.addItem(String(h.hizmet_id), false); // false=event fire et -> onChange -> detay render
-                                // Randevudan gelen gercek sure/fiyat degerlerini detay input'larina yaz
+                                // Belt-and-suspenders: render sonrasi input'larida overwrite et.
+                                // (Tom Select option store cache'lemesi durumunda fallback)
                                 setTimeout(function(){
-                                    // Son eklenen sure/fiyat input'u (bu hizmet icin render edilen)
                                     var $sureInputs = $row.find('input.hizmet-suresi');
                                     var $fiyatInputs = $row.find('input.hizmet-fiyati');
                                     var $lastSure = $sureInputs.last();
                                     var $lastFiyat = $fiyatInputs.last();
-                                    if($lastSure.length && h.sure_dk) $lastSure.val(h.sure_dk);
-                                    if($lastFiyat.length && h.fiyat) $lastFiyat.val(h.fiyat);
-                                    // Miktar (dusum_miktari) — detay render'i opt.dusum_miktari'yi
-                                    // bilmiyor (option'a yazilmiyor), o yuzden randevudan gelen
-                                    // gercek dusum_miktari'yi Miktar input'una burada yaz.
+                                    // 0 da gecerli deger — sadece undefined/null'da atla
+                                    if($lastSure.length && h.sure_dk !== undefined && h.sure_dk !== null && h.sure_dk !== '') $lastSure.val(h.sure_dk);
+                                    if($lastFiyat.length && h.fiyat !== undefined && h.fiyat !== null && h.fiyat !== '') $lastFiyat.val(h.fiyat);
                                     var $miktarInputs = $row.find('input.hizmet-miktari');
                                     var $lastMiktar = $miktarInputs.last();
                                     if($lastMiktar.length && h.dusum_miktari) $lastMiktar.val(h.dusum_miktari);
