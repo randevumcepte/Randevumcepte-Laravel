@@ -66,6 +66,11 @@ class RandevuSMSHatirlatma extends Command
             $tetikSalonSaat = date('d.m.Y H:i', strtotime('-' . $value->salonlar->randevu_sms_hatirlatma . ' hours', strtotime($randevutarihsaat)));
             $tetik24Saat = date('d.m.Y H:i', strtotime('-24 hours', strtotime($randevutarihsaat)));
 
+            // PER-ROW DEBUG LOG DEVRE DISI (2026-06-26): her aday icin her dakika
+            // yaziliyordu (~288K satir/gun, disk I/O). Sadece TETIK aninda loglama
+            // birakildi (asagidaki "tetiklendi" / kanal karar / WA sonuc loglari).
+            // Debug gerekirse asagidaki yorumu ac:
+            /*
             Log::info('[RND-SMS] randevu inceleniyor', [
                 'randevu_id' => $value->id,
                 'salon_id' => $value->salon_id,
@@ -78,6 +83,7 @@ class RandevuSMSHatirlatma extends Command
                 'wa_aktif' => (int) ($value->salonlar->whatsapp_aktif ?? 0),
                 'wa_durum' => $value->salonlar->whatsapp_durum,
             ]);
+            */
 
             // Müşteriye hatırlatma (salon kendi belirlediği X saat önce) — WhatsApp + SMS fallback
             if ($simdi == $tetikSalonSaat) {
