@@ -68,12 +68,15 @@ class SMSGonder extends Command
         }
         */
 
-        // Vadesi geçmiş ödenmemiş senet vadeleri
-        $senet_vadeleri = SenetVadeleri::where('vade_tarih', '<', date('Y-m-d'))->get();
+        // Vadesi geçmiş ödenmemiş senet vadeleri — GUNDE 1 KEZ (10:00).
+        // Eskiden HER DAKIKA calisip ayni vadeye her dakika SMS atiyordu (spam + her
+        // dakika tum vadeleri tarama). Saat guard'i hem yuku keser hem gunde-tek-SMS
+        // dedup'u saglar. odendi filtresi de SQL'e alindi (PHP'de degil).
+        if (date('H:i') === '10:00') {
+        $senet_vadeleri = SenetVadeleri::where('odendi', 0)
+            ->where('vade_tarih', '<', date('Y-m-d'))
+            ->get();
         foreach ($senet_vadeleri as $vade) {
-            if ($vade->odendi) {
-                continue;
-            }
             $senet = Senetler::where('id', $vade->senet_id)->first();
             if (!$senet || !$senet->musteri || !$senet->salon) {
                 continue;
@@ -102,6 +105,7 @@ class SMSGonder extends Command
             curl_exec($ch);
             curl_close($ch);
         }
+        } // if date('H:i') === '10:00'
 
         // Satış ortaklığı bildirimleri DEVRE DISI (2026-06-26): kullanilmiyor.
         // Her dakika satis ortagi basina 2 agir sorgu (Musteri_Formlari + whereHas('salon')
