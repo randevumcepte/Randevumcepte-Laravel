@@ -7026,8 +7026,33 @@ private function ayAdiCevir($ingilizceAy)
             $mesajlar = array();
             
             $musteriYeniRandevuMesaji = $isletme->salon_adi . " tarafından ".date('d.m.Y',strtotime($request->tarih)) .'-'.$request->saat .' olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$isletme->telefon_1;
-            if(SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$yenirandevu->salon_id)->value('musteri')==1) {
+            $musteriToggle = SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$yenirandevu->salon_id)->value('musteri') == 1;
+
+            // Kritik bypass: ERTESI GUN icin + saat 19:00 sonra olusturulan + <24h kala
+            // randevularda toggle KAPALI bile olsa musteriye gitsin (1-gun-once cron'un
+            // 17-19 penceresi gectigi icin baska sansi olmaz, musteri hicbir bildirim
+            // almadan randevuya gelmek zorunda kalmasin).
+            $_now = time();
+            $_hour = (int) date('G', $_now);
+            $_yarinTarih = date('Y-m-d', strtotime('+1 day'));
+            $_randevuTarihi = date('Y-m-d', strtotime($request->tarih));
+            $_randevuTs = strtotime($request->tarih . ' ' . $request->saat);
+            $_kalanSaat = ($_randevuTs - $_now) / 3600;
+            $_kritikBypass = ($_randevuTarihi === $_yarinTarih)
+                          && ($_hour >= 19)
+                          && ($_kalanSaat > 0)
+                          && ($_kalanSaat < 24);
+
+            if ($musteriToggle || $_kritikBypass) {
                 array_push($mesajlar, array("to"=>$gsm,"message"=>$musteriYeniRandevuMesaji));
+                if (!$musteriToggle && $_kritikBypass) {
+                    \Log::info('[RND-CREATE] kritik bypass (toggle kapali, 19 sonra ertesi gun <24h kala)', [
+                        'salon_id' => $yenirandevu->salon_id,
+                        'randevu_id' => $yenirandevu->id,
+                        'tarih_saat' => $request->tarih . ' ' . $request->saat,
+                        'kalan_saat' => round($_kalanSaat, 2),
+                    ]);
+                }
             }
             // Musteri push (SMS metniyle birebir)
             if($musteriid){

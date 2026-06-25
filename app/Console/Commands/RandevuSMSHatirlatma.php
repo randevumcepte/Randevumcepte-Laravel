@@ -343,12 +343,16 @@ class RandevuSMSHatirlatma extends Command
      * 1-gün-öncesi müşteri hatırlatmasını (salon_id, user_id) bazında GRUPLAR.
      * Aynı müşterinin yarınki tüm randevuları TEK mesajda toplanır.
      *
-     * Kurallar:
-     *   - NORMAL randevu (>=24h kalmış): sadece 17:00-19:00 arası, deterministik
-     *     stagger ile dakika dakika dagitilir (anti-burst). Ayar kapaliysa atlanir.
-     *   - KRITIK randevu (<24h kalmış, yani gec olusturulmus): cron gorur gormez
-     *     gonderilir, ayar KAPALI bile olsa BYPASS edilir (musteri ulasilmadan
-     *     randevuya gitmesin diye).
+     * Davranis:
+     *   - Sadece 17:00-19:00 saat araliginda gonderilir
+     *   - Pencere icinde deterministik stagger (salon_id*31 + user_id*7 mod 120dk)
+     *     ile dakika dakika dagitilir (anti-burst)
+     *   - Ayar (SalonSMSAyarlari ayar_id=6, musteri toggle) kapaliysa atlanir,
+     *     flag set edilir (bir daha denenmesin)
+     *
+     * NOT: <24h kala oluşturulan randevuda toggle bypass'i BURADA degil
+     *      randevu olusturma noktasinda yapilir (StoreAdminController),
+     *      cunku 19:00 sonrasi pencere zaten gecmis olur.
      */
     protected function birGunOnceGrupluGonder($randevular, $wa, $controller)
     {
@@ -360,6 +364,11 @@ class RandevuSMSHatirlatma extends Command
         $winStart = 17 * 60;
         $winEnd   = 19 * 60;
         $bucketSize = $winEnd - $winStart; // 120
+
+        // Pencere disindaysak hicbir sey yapma (her cron tick bos cikar)
+        if ($nowMinuteOfDay < $winStart || $nowMinuteOfDay >= $winEnd) {
+            return;
+        }
 
         $yarinRandevulari = $randevular->filter(function ($r) use ($yarinTarih) {
             return $r->tarih === $yarinTarih
@@ -380,53 +389,28 @@ class RandevuSMSHatirlatma extends Command
             $musteri = $ilk->users;
             $randevuIdler = $grup->pluck('id')->all();
 
-            // En erken randevu saati uzerinden kac saat kaldigini hesapla
-            $enErken = $grup->sortBy('saat')->first();
-            $randevuTs = strtotime($yarinTarih . ' ' . $enErken->saat);
-            $kalanSaat = ($randevuTs - $now) / 3600;
-            $kritik = $kalanSaat < 24;
+            // Deterministik stagger: ayni (salon, musteri) hep ayni dakikaya duser
+            $stagger = (int) ((($salon->id * 31) + ($musteri->id * 7)) % $bucketSize);
+            $targetMinute = $winStart + $stagger;
 
-            // 17:00-19:00 pencere ici stagger kontrolu (sadece normal randevular icin)
-            $pencereIcinde = false;
-            if (!$kritik && $nowMinuteOfDay >= $winStart && $nowMinuteOfDay < $winEnd) {
-                // Deterministik stagger: ayni (salon, musteri) hep ayni dakikaya duser
-                $stagger = (int) ((($salon->id * 31) + ($musteri->id * 7)) % $bucketSize);
-                $targetMinute = $winStart + $stagger;
-                if ($nowMinuteOfDay >= $targetMinute) {
-                    $pencereIcinde = true;
-                }
-            }
-
-            if (!$kritik && !$pencereIcinde) {
-                // Normal randevu + pencere disinda: sonraki cron tick'inde tekrar bakilir
+            if ($nowMinuteOfDay < $targetMinute) {
+                // Henuz stagger dakikasi gelmedi
                 continue;
             }
 
             // SMS ayari kontrolu (1gun = ayar_id=6)
             $ayar = SalonSMSAyarlari::where('salon_id', $salon->id)->where('ayar_id', 6)->first();
-            $ayarAcik = $ayar && $ayar->musteri;
-
-            // Kritik DEGIL ve toggle kapali → atla, flag set et (bir daha denenmesin)
-            if (!$kritik && !$ayarAcik) {
+            if (!$ayar || !$ayar->musteri) {
+                // Toggle kapali — tekrar tekrar denenmesin diye flag set
                 \Illuminate\Support\Facades\DB::table('randevular')
                     ->whereIn('id', $randevuIdler)
                     ->whereNull('hatirlatma_gunonce_gonderildi')
                     ->update(['hatirlatma_gunonce_gonderildi' => now()]);
-                Log::info('[RND-SMS] 1 gun once GRUP atlandi (ayar kapali, normal randevu)', [
+                Log::info('[RND-SMS] 1 gun once GRUP atlandi (ayar kapali)', [
                     'salon_id' => $salon->id, 'user_id' => $musteri->id,
                     'randevu_idler' => $randevuIdler,
                 ]);
                 continue;
-            }
-
-            // KRITIK + ayar kapali → BYPASS (gec olusturulmus randevuda toggle dinlenmez)
-            if ($kritik && !$ayarAcik) {
-                Log::info('[RND-SMS] 1 gun once KRITIK bypass (ayar kapali, <24h kala)', [
-                    'salon_id' => $salon->id, 'user_id' => $musteri->id,
-                    'randevu_idler' => $randevuIdler,
-                    'kalan_saat' => round($kalanSaat, 2),
-                ]);
-                // $ayar olmasa bile musteriyeGonder calisir; alttaki blok dummy ayar gecer
             }
 
             // Atomik grup claim: bu (salon, musteri) icin flag null olan
@@ -477,13 +461,12 @@ class RandevuSMSHatirlatma extends Command
                 'randevu_idler' => $randevuIdler,
                 'hizmet_sayisi' => count($satirlar),
                 'claimed' => $claimed,
-                'kritik' => $kritik,
-                'pencere_ici' => $pencereIcinde,
-                'kalan_saat' => round($kalanSaat, 2),
+                'stagger_dk' => $stagger,
+                'target_dk' => $targetMinute,
             ]);
 
-            // Kritik bypass'ta $ayar null olabilir — musteriyeGonder defansif (null kabul eder)
-            $this->musteriyeGonder($wa, $controller, $ilk, $ayar ?: (object)[], $mesaj, $templateCtx);
+            // musteriyeGonder ilk randevu uzerinden cagrilir (telefon, salon, vs ondan alinir)
+            $this->musteriyeGonder($wa, $controller, $ilk, $ayar, $mesaj, $templateCtx);
         }
     }
 
