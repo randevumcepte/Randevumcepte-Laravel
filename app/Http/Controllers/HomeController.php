@@ -3008,6 +3008,10 @@ $salon = Salonlar::where('domain', $domain)->first();
         if(!$request->musteri_imza || strpos($request->musteri_imza, 'data:') !== 0 || strlen($request->musteri_imza) < 500){
             return response()->json(['basarili'=>false,'mesaj'=>'İmza zorunludur. Lütfen imza alanına net bir imza atın.']);
         }
+        // Bos/seffaf imza guard: mobilde canvas silinip bos PNG gonderilirse kaydetme
+        if($this->imzaBosMu($request->musteri_imza)){
+            return response()->json(['basarili'=>false,'mesaj'=>'İmza okunamadı veya boş. Lütfen imza alanına net bir imza atıp tekrar deneyin.']);
+        }
         if (!$request->dogrulama_kodu || trim($arsiv->dogrulama_kodu) !== trim($request->dogrulama_kodu)) {
             return response()->json(['basarili'=>false,'mesaj'=>'Onay kodu hatalı. Lütfen SMS ile gelen 4 haneli kodu girin.']);
         }
@@ -3022,6 +3026,40 @@ $salon = Salonlar::where('domain', $domain)->first();
         $arsiv->imza_zaman   = now();
         $arsiv->save();
         return response()->json(['basarili'=>true]);
+    }
+
+    /**
+     * Data-URI PNG imzanin tamamen bos/seffaf olup olmadigini kontrol eder.
+     * GD yoksa (kontrol yapilamiyorsa) false doner -> akisi bloklamaz.
+     * En az birkac opak (cizilmis) piksel yoksa true (bos) doner.
+     */
+    private function imzaBosMu($dataUri)
+    {
+        if(!function_exists('imagecreatefromstring')) return false; // GD yok, atla
+        $virgul = strpos($dataUri, ',');
+        if($virgul === false) return false;
+        $ham = base64_decode(substr($dataUri, $virgul + 1), true);
+        if($ham === false || $ham === '') return false;
+        $img = @imagecreatefromstring($ham);
+        if(!$img) return false; // cozulemedi -> bloklama, mevcut akisa birak
+        $w = imagesx($img); $h = imagesy($img);
+        if($w < 1 || $h < 1){ imagedestroy($img); return false; }
+        $opak = 0;
+        // Performans icin orneklem: en fazla ~40x40 noktada tara
+        $adimX = max(1, (int) floor($w / 40));
+        $adimY = max(1, (int) floor($h / 40));
+        for($x = 0; $x < $w; $x += $adimX){
+            for($y = 0; $y < $h; $y += $adimY){
+                $renk = imagecolorat($img, $x, $y);
+                $alpha = ($renk >> 24) & 0x7F; // 0=opak, 127=tam seffaf
+                if($alpha < 110){ // anlamli sekilde opak bir piksel = cizim var
+                    $opak++;
+                    if($opak >= 3){ imagedestroy($img); return false; }
+                }
+            }
+        }
+        imagedestroy($img);
+        return true; // hic (yeterli) opak piksel yok -> bos imza
     }
 
     /* ============================================================
