@@ -7091,8 +7091,10 @@ private function ayAdiCevir($ingilizceAy)
             }
             
             if(count($mesajlar)>0)
-                self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
-                
+                // salon_id ACIKCA gec — multi-branch kullanicida mevcutsube
+                // yanlis salon (kullanicinin ilk yetkili sube'si) donerdi.
+                self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$yenirandevu->salon_id);
+
             $butonlar = '';
             $randevu = array();
             if(!isset($request->takvim_sayfasi) ){

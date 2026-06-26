@@ -10198,9 +10198,31 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 // toCustomer (randevu_id + deep_link ile) push'u yapiyor;
                 // burada ikinci push goz atti = duplicate + sizma kaynagiydi.
 
-                if (SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("musteri") == 1) {
-                    if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null)
+                $musteriToggle = SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("musteri") == 1;
+
+                // Kritik bypass: ERTESI GUN icin + saat 19:00 sonra olusturulan + <24h kala
+                // randevularda toggle KAPALI bile olsa musteriye gitsin
+                $_now = time();
+                $_hour = (int) date('G', $_now);
+                $_yarinTarih = date('Y-m-d', strtotime('+1 day'));
+                $_randevuTarihi = date('Y-m-d', strtotime($request->randevu_tarihi));
+                $_randevuTs = strtotime($request->randevu_tarihi . ' ' . $request->randevu_saati);
+                $_kritikBypass = ($_randevuTarihi === $_yarinTarih)
+                              && ($_hour >= 19)
+                              && ($_randevuTs - $_now > 0)
+                              && (($_randevuTs - $_now) / 3600 < 24);
+
+                if ($musteriToggle || $_kritikBypass) {
+                    if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null) {
                         array_push($mesajlar, ["to" => $gsm, "message" => $musteriMesaj]);
+                        if (!$musteriToggle && $_kritikBypass) {
+                            \Log::info('[RND-CREATE-API] kritik bypass (toggle kapali, 19 sonra ertesi gun <24h kala)', [
+                                'salon_id' => $yenirandevu->salon_id,
+                                'randevu_id' => $yenirandevu->id,
+                                'tarih_saat' => $request->randevu_tarihi . ' ' . $request->randevu_saati,
+                            ]);
+                        }
+                    }
                 }
 
                 // Personel bildirimleri: SADECE zamanDegisti veya hizmet_degisti ise gönder
