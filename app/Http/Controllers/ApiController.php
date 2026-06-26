@@ -10251,7 +10251,34 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 if (!empty($mesajlar)) {
                     try {
-                        $this->sms_gonder_2($_requestForSms, $mesajlar, false, 1, false, $salonId, false);
+                        // WhatsApp-first: salon WA aktif+connected ise once WA dene,
+                        // basarisiz olanlari SMS'e dusur. WhatsAppRouterService salonun
+                        // whatsapp_bridge_tipi'ne gore otomatik baileys/whatsmeow secer.
+                        $isletme = Salonlar::find($salonId);
+                        $waKanaliAcik = $isletme
+                            && !empty($isletme->whatsapp_aktif)
+                            && ($isletme->whatsapp_durum ?? '') === 'connected';
+
+                        $smsKalan = $mesajlar;
+                        if ($waKanaliAcik) {
+                            $wa = app(\App\Services\WhatsAppService::class);
+                            $smsKalan = [];
+                            foreach ($mesajlar as $m) {
+                                $to = $m['to'] ?? null;
+                                $msg = $m['message'] ?? null;
+                                if (!$to || !$msg) { $smsKalan[] = $m; continue; }
+                                $tip = $guncelleme ? 'guncelleme_bildirim' : 'yeni_randevu_bildirim';
+                                $sonuc = $wa->sendReminder($isletme, $to, $msg, $_finalRandevuId, null, null, false, $tip);
+                                if (!($sonuc['ok'] ?? false)) {
+                                    // WA fail/timeout → SMS fallback'e ekle
+                                    $smsKalan[] = $m;
+                                }
+                            }
+                        }
+
+                        if (!empty($smsKalan)) {
+                            $this->sms_gonder_2($_requestForSms, $smsKalan, false, 1, false, $salonId, false);
+                        }
                     } catch (\Throwable $e) {
                         \Log::warning('randevuekleguncelle SMS afterResponse hata: ' . $e->getMessage());
                     }
@@ -13423,8 +13450,37 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         }
 
         if (count($mesajlar) > 0) {
-            self::sms_gonder_2($request,$mesajlar,false,1,false,$randevu->salon_id,false);
+            // WhatsApp-first: salon WA aktif+connected ise once WA dene,
+            // basarisiz olanlari SMS'e dusur. Router salonun bridge_tipi'ne gore
+            // baileys veya whatsmeow'a otomatik yonlendirir.
+            try {
+                $isletme = Salonlar::find($randevu->salon_id);
+                $waKanaliAcik = $isletme
+                    && !empty($isletme->whatsapp_aktif)
+                    && ($isletme->whatsapp_durum ?? '') === 'connected';
 
+                $smsKalan = $mesajlar;
+                if ($waKanaliAcik) {
+                    $wa = app(\App\Services\WhatsAppService::class);
+                    $smsKalan = [];
+                    foreach ($mesajlar as $m) {
+                        $to = $m['to'] ?? null;
+                        $msg = $m['message'] ?? null;
+                        if (!$to || !$msg) { $smsKalan[] = $m; continue; }
+                        $sonuc = $wa->sendReminder($isletme, $to, $msg, $randevu->id, null, null, false, 'iptal_bildirim');
+                        if (!($sonuc['ok'] ?? false)) {
+                            $smsKalan[] = $m;
+                        }
+                    }
+                }
+
+                if (!empty($smsKalan)) {
+                    self::sms_gonder_2($request, $smsKalan, false, 1, false, $randevu->salon_id, false);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('randevuiptalet WA-first hatasi, direkt SMS denenecek: ' . $e->getMessage());
+                self::sms_gonder_2($request, $mesajlar, false, 1, false, $randevu->salon_id, false);
+            }
         }
 
         // Musteri push (red veya salon-iptal durumlarinda — musteri kendi iptal ederse mantiksiz)
