@@ -132,18 +132,28 @@ var canvas = document.getElementById('imza_canvas'); var ctx = canvas ? canvas.g
 var imzaCizildi = false; var ciziyor = false;
 var oncekiImza = @json($arsiv->musteri_imza);
 var oncekiKvkk = {{ $arsiv->kvkk_onay ? 'true' : 'false' }};
+// Taze cizilen imzanin son hali; resize/adres-cubugu nedeniyle canvas silinince geri yuklenir
+var sonImza = null;
 
 function canvasBoyutAyarla(){
    if(!canvas) return;
-   canvas.width = canvas.offsetWidth; canvas.height = 200;
+   var yeniGenislik = canvas.offsetWidth || canvas.width;
+   // Genislik degismediyse canvas'i SIFIRLAMA (mobilde scroll->resize ile imza silinmesin)
+   if(canvas.width === yeniGenislik && canvas.height === 200){
+      ctx.lineWidth = 2; ctx.lineCap='round'; ctx.strokeStyle='#333';
+      if(oncekiKvkk) $('#kvkk_onay').prop('checked', true);
+      return;
+   }
+   // Boyut gercekten degisiyorsa once mevcut imzayi sakla, sonra geri yukle
+   var korunacak = sonImza || ((oncekiImza && oncekiImza.indexOf('data:') === 0) ? oncekiImza : null);
+   canvas.width = yeniGenislik; canvas.height = 200;
    ctx.lineWidth = 2; ctx.lineCap='round'; ctx.strokeStyle='#333';
-   // Eğer önceden imza atılmışsa canvas'a yükle
-   if(oncekiImza && oncekiImza.indexOf('data:') === 0){
+   if(korunacak){
       var img = new Image();
       img.onload = function(){
          try { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); imzaCizildi = true; } catch(e){}
       };
-      img.src = oncekiImza;
+      img.src = korunacak;
    }
    if(oncekiKvkk) $('#kvkk_onay').prop('checked', true);
 }
@@ -157,14 +167,14 @@ function pos(e){
 }
 function start(e){ e.preventDefault(); ciziyor=true; imzaCizildi=true; var p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
 function draw(e){ if(!ciziyor) return; e.preventDefault(); var p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
-function end(){ ciziyor=false; }
+function end(){ ciziyor=false; if(imzaCizildi && canvas){ try { sonImza = canvas.toDataURL('image/png'); } catch(e){} } }
 if(canvas){
    canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',draw);
    canvas.addEventListener('mouseup',end); canvas.addEventListener('mouseleave',end);
    canvas.addEventListener('touchstart',start); canvas.addEventListener('touchmove',draw);
    canvas.addEventListener('touchend',end);
 }
-function imzaTemizle(){ if(!ctx) return; ctx.clearRect(0,0,canvas.width,canvas.height); imzaCizildi=false; }
+function imzaTemizle(){ if(!ctx) return; ctx.clearRect(0,0,canvas.width,canvas.height); imzaCizildi=false; sonImza=null; }
 
 function sozlesmeyiGonder(){
    var hata=false;
