@@ -116,12 +116,15 @@ class Audit
     ) {
         try {
             $user = null;
+            // Sadece Authorization: Bearer varsa passport guard'ini yokla;
+            // token cozumu \Error firlatabilir, \Throwable ile yakala ki
+            // fallback (olusturan) ile log YINE de yazilsin.
             try {
-                if (Auth::guard('isletmeyonetim-api')->check()) {
+                if ($req && $req->bearerToken() && Auth::guard('isletmeyonetim-api')->check()) {
                     $user = Auth::guard('isletmeyonetim-api')->user();
                 }
-            } catch (\Exception $e) {
-                // token cozulemezse sessizce gec
+            } catch (\Throwable $e) {
+                // token cozulemezse sessizce gec, fallback'e dus
             }
 
             $userId = $user ? $user->id : null;
@@ -186,8 +189,16 @@ class Audit
                 'ip'           => $ip,
                 'user_agent'   => mb_substr($ua, 0, 255),
             ]);
-        } catch (\Exception $e) {
-            // log yazimi sessizce gecsin
+        } catch (\Throwable $e) {
+            // Log yazimi ana akisi kirmaz; ama sessizce kaybolmasin diye
+            // sebebi laravel.log'a dusur (teshis icin).
+            try {
+                \Log::warning('Audit::logApi basarisiz', [
+                    'action' => $action,
+                    'salon_id' => $salonId,
+                    'hata' => $e->getMessage(),
+                ]);
+            } catch (\Throwable $e2) {}
         }
     }
 }
