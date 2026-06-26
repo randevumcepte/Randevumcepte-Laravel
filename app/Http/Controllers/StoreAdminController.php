@@ -16925,6 +16925,147 @@ DB::raw('
         return response()->json(['success'=>true, 'message'=>'Fatura bilgileri güncellendi']);
     }
 
+    /**
+     * Hesabim sayfasinin MOBIL (JSON) karsiligi. hesabim() blade view dondurdugu
+     * icin ayri bir JSON ucu. Guard-agnostik (cmUser): web=isletmeyonetim,
+     * mobil=isletmeyonetim-api. Satin alma YOK (Netflix modeli) — sadece bilgi:
+     * uyelik, aldigi hizmetler, fatura bilgisi, gecmis faturalar.
+     */
+    public function hesabimApiFeed(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $isletme = Salonlar::where('id', $salonId)->first();
+        if(!$isletme){ return response()->json(['success'=>false, 'message'=>'İşletme bulunamadı'], 404); }
+        $kullanici = $this->cmUser();
+
+        $paketAdlari = [1=>'Başlangıç', 2=>'Standart', 3=>'Premium'];
+        $periyotAdlari = [1=>'Aylık', 2=>'Yıllık'];
+        $whatsappPaketAdlari = [
+            'baslangic' => 'Başlangıç (Ücretsiz)',
+            'pro'       => 'WhatsApp Hatırlatma',
+            'premium'   => 'WhatsApp Hatırlatma',
+        ];
+
+        $hizmetler = [];
+        // Ana uyelik
+        $hizmetler[] = [
+            'kod' => 'uyelik',
+            'ad' => 'Randevu Yönetimi',
+            'aciklama' => isset($paketAdlari[$isletme->uyelik_turu]) ? $paketAdlari[$isletme->uyelik_turu].' Paket' : 'Üyeliğiniz aktif değil',
+            'icon' => 'fa-calendar-check-o',
+            'renk' => 'mor',
+            'aktif' => $isletme->uyelik_turu > 0,
+            'periyot' => isset($periyotAdlari[$isletme->uyelik_periyodu]) ? $periyotAdlari[$isletme->uyelik_periyodu] : '-',
+            'bitis' => $isletme->uyelik_bitis_tarihi,
+        ];
+
+        // WhatsApp
+        $waPaket = $isletme->whatsapp_paket ?: 'baslangic';
+        if(in_array($waPaket, ['pro', 'premium'])){
+            $waBitis = $isletme->whatsapp_paket_bitis;
+            $waKalanGun = $waBitis ? max(0, (int) \Carbon\Carbon::now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($waBitis)->startOfDay(), false)) : null;
+            $isDeneme = (bool) $isletme->whatsapp_paket_deneme;
+            $hizmetler[] = [
+                'kod' => 'whatsapp',
+                'ad' => $whatsappPaketAdlari[$waPaket] ?? 'WhatsApp Hatırlatma',
+                'aciklama' => $isDeneme ? 'Ücretsiz deneme süresi aktif' : 'Otomatik WhatsApp ile randevu hatırlatma',
+                'icon' => 'fa-whatsapp', 'renk' => 'yesil',
+                'aktif' => (bool) $isletme->whatsapp_aktif,
+                'periyot' => $isletme->whatsapp_paket_periyot === 'yillik' ? 'Yıllık' : 'Aylık',
+                'baslangic' => $isletme->whatsapp_paket_baslangic, 'bitis' => $waBitis,
+                'kalan_gun' => $waKalanGun, 'deneme' => $isDeneme,
+            ];
+        } else {
+            try {
+                $waPromo = \App\Salonlar::whatsappPromoBilgisi($isletme);
+                if(!empty($waPromo['promo'])){
+                    $promoBitti = !empty($waPromo['suresi_doldu']);
+                    $hizmetler[] = [
+                        'kod' => 'whatsapp', 'ad' => 'WhatsApp Hatırlatma',
+                        'aciklama' => $promoBitti ? 'Ücretsiz süre doldu' : 'Otomatik WhatsApp ile randevu hatırlatma · 2 ay ücretsiz',
+                        'icon' => 'fa-whatsapp', 'renk' => 'yesil',
+                        'aktif' => !empty($waPromo['aktif']),
+                        'periyot' => $promoBitti ? 'Ücretsiz süre bitti' : '2 Ay Ücretsiz',
+                        'baslangic' => $waPromo['baslangic'] ?? null, 'bitis' => $waPromo['bitis'] ?? null,
+                        'kalan_gun' => $waPromo['kalan_gun'] ?? null, 'deneme' => !$promoBitti,
+                        'deneme_label' => '2 Ay Ücretsiz',
+                    ];
+                }
+            } catch(\Exception $e) {}
+        }
+
+        // Premium pakete dahil ek hizmetler (uyelik_turu == 3)
+        if((int) $isletme->uyelik_turu === 3){
+            $hizmetler[] = ['kod'=>'santral','ad'=>'Santral Sistemi','aciklama'=>'Çağrı yönetimi, arama kayıtları ve web telefon','icon'=>'fa-headphones','renk'=>'lacivert','aktif'=>true,'periyot'=>'Pakete dahil','bitis'=>null];
+            $hizmetler[] = ['kod'=>'easistan','ad'=>'Asistanım','aciklama'=>'Yapay zekâ destekli akıllı işletme asistanı','icon'=>'fa-magic','renk'=>'pembe','aktif'=>true,'periyot'=>'Pakete dahil','bitis'=>null];
+            $hizmetler[] = ['kod'=>'markaliuygulama','ad'=>'Markanıza Özel Uygulama','aciklama'=>'İşletmenize özel markalı mobil uygulama','icon'=>'fa-mobile','renk'=>'mor','aktif'=>true,'periyot'=>'Pakete dahil','bitis'=>null];
+            $hizmetler[] = ['kod'=>'anket','ad'=>'Memnuniyet Anketi','aciklama'=>'Randevu sonrası otomatik memnuniyet anketi','icon'=>'fa-star','renk'=>'teal','aktif'=>true,'periyot'=>'Pakete dahil','bitis'=>null];
+            try {
+                $cark = \App\CarkifelekSistemi::where('salon_id', $isletme->id)->first();
+                if($cark){
+                    $carkAktif = (int) $cark->aktifmi === 1;
+                    $carkDilimSayisi = \App\CarkifelekDilimleri::where('cark_id', $cark->id)->count();
+                    $hizmetler[] = ['kod'=>'cark','ad'=>'Çarkıfelek','aciklama'=>$carkAktif ? ($carkDilimSayisi.' dilim tanımlı') : 'Çark kurulu fakat pasif','icon'=>'fa-trophy','renk'=>'turuncu','aktif'=>(bool)$carkAktif,'periyot'=>'Pakete dahil','bitis'=>null];
+                }
+            } catch(\Exception $e) {}
+            try {
+                if(Schema::hasColumn('formtaslaklari', 'is_dinamik')){
+                    $dinamikFormSayisi = DB::table('formtaslaklari')->where('salon_id', $isletme->id)->where('is_dinamik', 1)->count();
+                    if($dinamikFormSayisi > 0){
+                        $hizmetler[] = ['kod'=>'onam','ad'=>'Dinamik Onam Formu','aciklama'=>$dinamikFormSayisi.' form tanımlı','icon'=>'fa-file-text-o','renk'=>'mavi','aktif'=>true,'periyot'=>'Pakete dahil','bitis'=>null];
+                    }
+                }
+            } catch(\Exception $e) {}
+        }
+
+        // Gecmis faturalar
+        $faturalar = [];
+        try {
+            if(Schema::hasTable('salon_uyelik_odemeleri')){
+                $faturalar = DB::table('salon_uyelik_odemeleri')->where('salon_id', $isletme->id)->orderBy('odeme_tarihi', 'desc')->limit(50)->get();
+            }
+        } catch(\Exception $e) {}
+        $smsSiparisleri = [];
+        try {
+            if(Schema::hasTable('sms_paket_siparisleri')){
+                $smsSiparisleri = \App\SmsPaketSiparisi::where('salon_id', $isletme->id)->where('durum', 1)->orderBy('id', 'desc')->limit(50)->get();
+            }
+        } catch(\Exception $e) {}
+
+        // Kalan uyelik gunu
+        $kalanGun = null;
+        if($isletme->uyelik_bitis_tarihi){
+            $kalanGun = (int) \Carbon\Carbon::now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($isletme->uyelik_bitis_tarihi)->startOfDay(), false);
+        }
+
+        return response()->json([
+            'isletme' => [
+                'id' => $isletme->id,
+                'salon_adi' => $isletme->salon_adi,
+                'uyelik_turu' => (int) $isletme->uyelik_turu,
+                'uyelik_turu_adi' => $paketAdlari[$isletme->uyelik_turu] ?? '-',
+                'uyelik_periyodu' => (int) $isletme->uyelik_periyodu,
+                'uyelik_periyodu_adi' => $periyotAdlari[$isletme->uyelik_periyodu] ?? '-',
+                'uyelik_bitis_tarihi' => $isletme->uyelik_bitis_tarihi,
+                'kayit_tarihi' => $isletme->created_at ? date('Y-m-d', strtotime($isletme->created_at)) : null,
+                'kalan_gun' => $kalanGun,
+                'vergi_adi' => $isletme->vergi_adi,
+                'vergi_no' => $isletme->vergi_no,
+                'vergi_adresi' => $isletme->vergi_adresi,
+                'kdv_orani' => $isletme->kdv_orani,
+            ],
+            'kullanici' => [
+                'name' => $kullanici->name ?? '',
+                'email' => $kullanici->email ?? '',
+                'gsm1' => $kullanici->gsm1 ?? '',
+                'profil_resim' => $kullanici->profil_resim ?? '',
+            ],
+            'hizmetler' => $hizmetler,
+            'faturalar' => $faturalar,
+            'sms_siparisleri' => $smsSiparisleri,
+        ]);
+    }
+
     public function QrCodeController(){
          return view('qrcode');
     }

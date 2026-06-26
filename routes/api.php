@@ -525,4 +525,13 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
      | feed() SalonHatirlatmaController'dan miras alinir (HatirlatmaApiController).
      */
     Route::get('/hatirlatma-feed', 'HatirlatmaApiController@feed')->middleware('auth:isletmeyonetim-api');
+
+    /* ───────── Hesabim (My Account) — mobil API ─────────
+     | Web Hesabim sayfasinin bilgi fonksiyonlari; Bearer (Passport) guard.
+     | Satin alma yok (Netflix modeli) — sadece uyelik/hizmet/fatura bilgisi.
+     */
+    Route::middleware('auth:isletmeyonetim-api')->group(function () {
+        Route::get ('/hesabim',                      'HesabimApiController@hesabimApiFeed');
+        Route::post('/hesabim/fatura-bilgi-guncelle','HesabimApiController@hesabimFaturaBilgiGuncelle');
+    });
 });
