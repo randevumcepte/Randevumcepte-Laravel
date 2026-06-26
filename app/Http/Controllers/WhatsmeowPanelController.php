@@ -71,11 +71,13 @@ class WhatsmeowPanelController extends Controller
 
         // Production form/randevu yollari $isletme->whatsapp_aktif + durum='connected'
         // sartiyla WA'ya yonleniyor. whatsmeow bridge sayfasi acilinca bu alanlari
-        // da set et ki paralel system tum cagri yollarinda WA olarak gozuksun.
+        // ayrica whatsapp_bridge_tipi='whatsmeow' set et ki WhatsAppRouterService
+        // butun gonderim cagrilarini otomatik yeni bridge'e (port 3002) yonlendirsin.
         if ($res['ok'] ?? false) {
             Salonlar::where('id', $salonId)->update([
                 'whatsapp_aktif' => 1,
                 'whatsapp_durum' => $res['body']['status'] ?? 'connecting',
+                'whatsapp_bridge_tipi' => 'whatsmeow',
             ]);
         }
 
@@ -109,6 +111,17 @@ class WhatsmeowPanelController extends Controller
 
         $svc = app(WhatsmeowService::class);
         $res = $svc->logout($salonId);
+
+        // Cikista DB temizligi: salon Baileys'e geri donsun, aktif=0
+        Salonlar::where('id', $salonId)->update([
+            'whatsapp_aktif' => 0,
+            'whatsapp_durum' => 'cikis-yapildi',
+            'whatsapp_numara' => null,
+            'whatsapp_baglanti_tarihi' => null,
+            'whatsapp_warmup_baslangic' => null,
+            'whatsapp_bridge_tipi' => 'baileys',
+        ]);
+
         return response()->json($res['body'] ?? ['ok' => false], $res['status'] ?: 502);
     }
 

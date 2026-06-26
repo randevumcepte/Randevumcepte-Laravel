@@ -167,6 +167,7 @@ class WhatsAppWebhookController extends Controller
 
     protected function onConnected(Salonlar $salon, Request $request)
     {
+        $salon->whatsapp_aktif = 1;
         $salon->whatsapp_durum = 'connected';
         $salon->whatsapp_numara = $request->input('phone');
         if (!$salon->whatsapp_baglanti_tarihi) {
