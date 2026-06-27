@@ -18581,6 +18581,21 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         )->first();
 
+        // ⚠️ DEMO HESAP KORUMASI (Apple/Google reviewer için)
+        // IsletmeYetkilileri id=3 → demo yönetici hesabı. Şifre sabit "1234".
+        // SMS gönderilmez, fonksiyon erken döner.
+        if ($yetkili && $yetkili->id == 3) {
+            \Log::info('Demo işletme yetkilisi (id=3) personel şifre sıfırlama engellendi', [
+                'personel_id' => $personel->id,
+                'ip' => $request->ip(),
+            ]);
+            $yetkili->password = \Hash::make('1234');
+            $yetkili->save();
+            $personel->sifre = '1234';
+            $personel->save();
+            return $personel;
+        }
+
         $random = str_shuffle("ABCDEFGHJKLMNOPQRSTUVWXYZ1234567890");
 
         $kod = substr($random, 0, 6);
@@ -20082,19 +20097,47 @@ if (is_array($request->cihaz_id)) {
 
     {
 
-        $request->validate([
+        // Eski mobil uygulamalar 'Accept: application/json' header'i gondermedigi icin
+        // $request->validate() basarisiz olunca 422 yerine 302 redirect donuyordu
+        // (paket duzenleme 302 hatasi). Burada gelen veriyi once normalize ediyoruz
+        // (hizmet_id/seans/fiyat string -> sayi, hizmet_id'siz satirlari atla) ve hata
+        // durumunda 302 yerine JSON 422 donuyoruz. Boylece eski yuklu uygulamalar calisir.
+        $hizmetlerRaw = is_array($request->hizmetler) ? $request->hizmetler : [];
+
+        $hizmetler = [];
+
+        foreach ($hizmetlerRaw as $h) {
+
+            $hid = isset($h["hizmet_id"]) ? (int) $h["hizmet_id"] : 0;
+
+            if ($hid <= 0) { continue; }
+
+            $hizmetler[] = [
+                "hizmet_id" => $hid,
+                "seans" => isset($h["seans"]) && $h["seans"] !== "" ? (int) $h["seans"] : 0,
+                "fiyat" => isset($h["fiyat"]) && $h["fiyat"] !== "" ? (float) $h["fiyat"] : 0,
+            ];
+
+        }
+
+        $request->merge(["hizmetler" => $hizmetler]);
+
+        $validator = validator($request->all(), [
 
             "adpaket" => "required|string",
 
-            "hizmetler" => "required|array",
-
-            "hizmetler.*.hizmet_id" => "required|integer",
-
-            "hizmetler.*.seans" => "nullable|integer",
-
-            "hizmetler.*.fiyat" => "nullable|numeric",
+            "hizmetler" => "required|array|min:1",
 
         ]);
+
+        if ($validator->fails()) {
+
+            return response()->json(
+                ["error" => "Eksik veya hatali paket verisi.", "errors" => $validator->errors()],
+                422
+            );
+
+        }
 
         $paket =
 

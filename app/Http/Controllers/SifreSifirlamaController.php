@@ -76,7 +76,26 @@ class SifreSifirlamaController extends Controller
                 $this->incrementRateLimit($telefon, $request->ip()); // Rate limit say
                 return "error";
             }
-            
+
+            // ⚠️ DEMO HESAP KORUMASI (Apple/Google reviewer için)
+            // Demo hesapların şifresi her zaman "1234" olarak sabit kalır.
+            // SMS / WhatsApp / hiçbir bildirim TETİKLENMEZ — fonksiyon erken döner.
+            $isDemoMusteri  = ($kullanici instanceof User)              && $kullanici->id == 46120;
+            $isDemoYetkili  = ($kullanici instanceof IsletmeYetkilileri) && $kullanici->id == 3;
+            if ($isDemoMusteri || $isDemoYetkili) {
+                Log::info('Demo hesap şifre sıfırlama engellendi', [
+                    'tablo' => $isDemoMusteri ? 'users' : 'isletme_yetkilileri',
+                    'id'    => $kullanici->id,
+                    'phone' => $telefon,
+                    'ip'    => $request->ip(),
+                ]);
+                // Şifreyi 1234'e geri sabitle (önceki denemede bozulmuş olsa bile düzeltir)
+                $kullanici->password = Hash::make('1234');
+                $kullanici->save();
+                // Reviewer "success" görür, panik etmez; gerçekte SMS/WA gönderilmez.
+                return 'success';
+            }
+
             // 5. Yeni şifre oluştur - MEVCUT KODUNUZA BENZER AMA DAHA GÜVENLİ
             $random = str_shuffle("abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789");
             $olusturulansifre = substr($random, 0, 5);
