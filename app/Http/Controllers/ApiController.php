@@ -231,6 +231,8 @@ class ApiController extends Controller
         if ($subeler->isEmpty()) {
             return array(
                 'musteri_online_randevu_aktif' => 0,
+                'lisans_aktif' => 0,
+                'uyelik_bitis_tarihi' => null,
                 'debug' => array(
                     'gelen_bundle'  => $gelenBundle,
                     'eslesen_salon' => null,
@@ -243,8 +245,19 @@ class ApiController extends Controller
         $herhangiAktif = $subeler->contains(function ($salon) {
             return (int) ($salon->musteri_online_randevu_aktif ?? 0) === 1;
         });
+        // Lisans: bundle altinda lisansi GECERLI (uyelik_bitis_tarihi >= bugun) en az
+        // bir sube varsa lisans aktif. Lisans bitince tanitim 'Randevu Al' gizlenir.
+        $bugun = date('Y-m-d');
+        $lisansliSube = $subeler->first(function ($salon) use ($bugun) {
+            return !empty($salon->uyelik_bitis_tarihi)
+                && strtotime($salon->uyelik_bitis_tarihi) >= strtotime($bugun);
+        });
+        $enGecBitis = $subeler->filter(fn($s) => !empty($s->uyelik_bitis_tarihi))
+            ->max(fn($s) => $s->uyelik_bitis_tarihi);
         return array(
             'musteri_online_randevu_aktif' => $herhangiAktif ? 1 : 0,
+            'lisans_aktif' => $lisansliSube ? 1 : 0,
+            'uyelik_bitis_tarihi' => $enGecBitis,
             'debug' => array(
                 'gelen_bundle'     => $gelenBundle,
                 'sube_sayisi'      => $subeler->count(),
