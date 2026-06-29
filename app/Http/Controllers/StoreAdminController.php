@@ -13135,13 +13135,11 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             ->leftjoin('urunler','adisyon_urunler.urun_id','=','urunler.id')
             ->leftjoin('paketler','adisyon_paketler.paket_id','=','paketler.id')
             ->join('users','adisyonlar.user_id','=','users.id')
-            ->leftjoin('tahsilatlar','tahsilatlar.user_id','=','adisyonlar.user_id')
             ->leftjoin('salon_personelleri as p1','adisyon_hizmetler.personel_id','=','p1.id')
             ->leftjoin('salon_personelleri as p2','adisyon_urunler.personel_id','=','p2.id')
             ->leftjoin('salon_personelleri as p3','adisyon_paketler.personel_id','=','p3.id')
-            ->leftjoin('tahsilat_hizmetler as th1','th1.tahsilat_id','=','tahsilatlar.id')
-            ->leftjoin('tahsilat_urunler as tu1','tu1.tahsilat_id','=','tahsilatlar.id')
-            ->leftjoin('tahsilat_paketler as tp1','tp1.tahsilat_id','=','tahsilatlar.id')
+            // OLU JOIN'ler kaldirildi (tahsilatlar/th1/tu1/tp1): SELECT/WHERE/GROUP'ta
+            // kullanilmiyordu; sadece kartezyen patlama yapiyordu. Tutarlar subquery'den gelir.
         
             ->select(
                 'adisyonlar.id as id',
@@ -27199,16 +27197,12 @@ public function musteriportfoydropliste(Request $request)
             ->leftjoin('urunler','adisyon_urunler.urun_id','=','urunler.id')
             ->leftjoin('paketler','adisyon_paketler.paket_id','=','paketler.id')
             ->join('users','adisyonlar.user_id','=','users.id')
-            ->leftjoin('tahsilatlar','tahsilatlar.user_id','=','adisyonlar.user_id')
             ->leftjoin('salon_personelleri as p1','adisyon_hizmetler.personel_id','=','p1.id')
             ->leftjoin('salon_personelleri as p2','adisyon_urunler.personel_id','=','p2.id')
             ->leftjoin('salon_personelleri as p3','adisyon_paketler.personel_id','=','p3.id')
-            ->leftjoin('tahsilat_hizmetler as th1','th1.tahsilat_id','=','tahsilatlar.id')
-            ->leftjoin('tahsilat_urunler as tu1','tu1.tahsilat_id','=','tahsilatlar.id')
-            ->leftjoin('tahsilat_paketler as tp1','tp1.tahsilat_id','=','tahsilatlar.id')
-            ->leftjoin('tahsilat_hizmetler as th2','th2.adisyon_hizmet_id','=','adisyon_hizmetler.id')
-            ->leftjoin('tahsilat_urunler as tu2','tu2.adisyon_urun_id','=','adisyon_urunler.id')
-            ->leftjoin('tahsilat_paketler as tp2','tp2.adisyon_paket_id','=','adisyon_paketler.id')
+            // OLU JOIN'ler kaldirildi (tahsilatlar/th1/tu1/tp1/th2/tu2/tp2): SELECT/WHERE/
+            // GROUP'ta hic kullanilmiyordu; sadece kartezyen patlama yapip ~2.2M satir
+            // taratiyordu (15sn, CPU tavan). Tutarlar zaten korelasyonlu subquery ile gelir.
             ->select(
                 'adisyonlar.id as id',
                 'hizmetler.id as hizmet_id',
