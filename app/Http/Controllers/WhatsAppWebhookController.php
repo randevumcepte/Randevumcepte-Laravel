@@ -34,8 +34,13 @@ class WhatsAppWebhookController extends Controller
                 $this->onDisconnected($salon, $request);
                 break;
             case 'qr.ready':
-                $salon->whatsapp_durum = 'qr-pending';
-                $salon->save();
+                // Salon halen 'connected' ise qr.ready'i YOKSAY — bridge bazen
+                // bagli oturumda da yenileme amaciyla QR uretir, bu durumda
+                // 'qr-pending'e dusurursek panel "bagli degil" gozukur.
+                if ($salon->whatsapp_durum !== 'connected') {
+                    $salon->whatsapp_durum = 'qr-pending';
+                    $salon->save();
+                }
                 break;
             case 'ban.warning':
                 $this->onBanWarning($salon, $request);
