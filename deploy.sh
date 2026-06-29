@@ -55,6 +55,10 @@ if [ -x "$PHP" ]; then
     log "config:clear: $CONFIG_OUT"
     MIGRATE_OUT=$($PHP artisan migrate --force 2>&1)
     log "migrate --force: $MIGRATE_OUT"
+    # Hatirlatma arama worker'i (queue:work) bellekte ESKI job kodunu calistirir;
+    # her deploy'da nazikce yeniden baslat ki guncel HatirlatmaAramaJob yuklensin.
+    QRESTART_OUT=$($PHP artisan queue:restart 2>&1)
+    log "queue:restart: $QRESTART_OUT"
 fi
 
 # 4b) OPcache sifirla (php-fpm SAPI). CLI artisan FPM opcache'ini sifirlamaz;

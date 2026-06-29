@@ -26,6 +26,11 @@ class RandevuHatirlatmaAramasiYap extends Command
         Log::info('randevu hatırlatma araması kontrolü başlatıldı.');
         $controller = app()->make(Controller::class);
 
+        // Salon bazli tekrar eden sorgulari (ayar_id=4, telaffuz/salon_adi)
+        // chunk-ici N+1 olmaktan cikarmak icin handle suresince cache'le.
+        $ayarCache = [];   // salon_id => acik_kapali
+        $salonCache = [];  // salon_id => ['telaffuz' => ..., 'ad' => ...]
+
         Randevular::has('hizmetler')
             ->where('durum', 1)
             ->where('user_id', '!=', 2012)
@@ -39,7 +44,7 @@ class RandevuHatirlatmaAramasiYap extends Command
                        ->where('tekrar_aranacak', true);
                 });
             })
-            ->chunk(200, function ($randevular) use ($controller) {
+            ->chunk(200, function ($randevular) use ($controller, &$ayarCache, &$salonCache) {
 
                 $aramaListesi = [];
                 $salonIdList = [];
@@ -52,10 +57,12 @@ class RandevuHatirlatmaAramasiYap extends Command
                         continue;
                     }
 
-                    $ayarAcik = SalonEAsistanAyarlari::where('salon_id', $value->salon_id)
-                        ->where('ayar_id', 4)
-                        ->value('acik_kapali');
-                    if (!$ayarAcik) {
+                    if (!array_key_exists($value->salon_id, $ayarCache)) {
+                        $ayarCache[$value->salon_id] = SalonEAsistanAyarlari::where('salon_id', $value->salon_id)
+                            ->where('ayar_id', 4)
+                            ->value('acik_kapali');
+                    }
+                    if (!$ayarCache[$value->salon_id]) {
                         continue;
                     }
                     if ($value->tekrar_arandi) {
@@ -87,13 +94,22 @@ class RandevuHatirlatmaAramasiYap extends Command
                         continue;
                     }
 
+                    if (!array_key_exists($value->salon_id, $salonCache)) {
+                        $salon = Salonlar::where('id', $value->salon_id)
+                            ->first(['santral_telaffuz_2', 'salon_adi']);
+                        $salonCache[$value->salon_id] = [
+                            'telaffuz' => $salon ? $salon->santral_telaffuz_2 : '',
+                            'ad' => $salon ? ($salon->salon_adi ?? '') : '',
+                        ];
+                    }
+
                     $aramaListesi[] = [
                         'alacakIdler' => '',
                         'randevuid' => $value->id,
                         'kampanyaKatilimci' => '',
                         'katilimci' => '',
                         'mesaj' => 'Sayın ' . $value->users->name . '. ' .
-                            Salonlar::where('id', $value->salon_id)->value('santral_telaffuz_2') .
+                            $salonCache[$value->salon_id]['telaffuz'] .
                             ' için ' . $value->tarih . ' saat ' . date('H:i', strtotime($value->saat)) .
                             ' randevunuzu hatırlatmak isteriz. Randevuya gelecekseniz biri, randevunuzu başka bir tarihe ertelemek istiyorsanız ikiyi tuşlayınız.',
                         'tel' => $value->users->cep_telefon,
@@ -104,7 +120,7 @@ class RandevuHatirlatmaAramasiYap extends Command
 
                     // Paralel push: arama cevapsiz kalirsa musteri hatirlatmayi bildirim olarak gorsun
                     try {
-                        $salonAdiPush = Salonlar::where('id', $value->salon_id)->value('salon_adi') ?? '';
+                        $salonAdiPush = $salonCache[$value->salon_id]['ad'];
                         \App\Services\NotificationService::toCustomer((int) $value->user_id, (int) $value->salon_id)
                             ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
                             ->title('Randevu Hatırlatma')

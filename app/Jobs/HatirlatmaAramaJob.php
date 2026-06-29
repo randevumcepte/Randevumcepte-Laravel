@@ -10,16 +10,32 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 
+/**
+ * Bir grup hatirlatma aramasini (reklam / randevu / alacak) FreePBX santraline
+ * iletir. Controller::hatirlatmaaramasiyap() AMI Originate gonderir.
+ *
+ * Tasarim notlari:
+ * - $connection = 'database': global QUEUE_DRIVER=sync olsa bile bu job
+ *   asenkron kuyruga gider. Ilac/adet/olcum joblari sync kalir (etkilenmez).
+ *   Isleyici:  php artisan queue:work database --queue=hatirlatmalar,notifications
+ * - $tries = 1 ve handle() ICINDE hata yutulur (rethrow YOK): bir job 50 kisiyi
+ *   arar; retry edilirse o 50 numara TEKRAR aranir. Tekrar arama istemiyoruz;
+ *   tek tek basari/hata isaretlemesi zaten Controller icinde yapiliyor.
+ */
 class HatirlatmaAramaJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /** Global QUEUE_DRIVER=sync olsa da bu job DB kuyruguna gitsin. */
+    public $connection = 'database';
+    public $queue = 'hatirlatmalar';
+
+    public $timeout = 1700;
+    public $tries = 1;
+
     protected $aramaListesi;
     protected $salonId;
     protected $kaynakId;
-
-    public $timeout = 1800;
-    public $tries = 3;
 
     public function __construct(array $aramaListesi, $salonId = null, $kaynakId = null)
     {
@@ -30,23 +46,49 @@ class HatirlatmaAramaJob implements ShouldQueue
 
     public function handle()
     {
-        Log::info('Hatırlatma arama job çalışıyor. Salon: ' . $this->salonId .
-            ', Kaynak: ' . $this->kaynakId .
-            ', Kayıt: ' . count($this->aramaListesi));
+        Log::info('[ARAMA-JOB] basladi', [
+            'salon_id' => $this->salonId,
+            'kaynak_id' => $this->kaynakId,
+            'kayit' => count($this->aramaListesi),
+        ]);
 
-        $controller = app()->make(Controller::class);
-
+        $durum = 'basarili';
         try {
+            $controller = app()->make(Controller::class);
             $controller->hatirlatmaaramasiyap($this->aramaListesi);
-            Log::info('Arama job başarıyla tamamlandı.');
+            Log::info('[ARAMA-JOB] tamamlandi', ['salon_id' => $this->salonId]);
         } catch (\Throwable $e) {
-            Log::error('HatirlatmaAramaJob hata: ' . $e->getMessage());
-            throw $e;
+            // Bilerek rethrow YOK: retry = mukerrer arama. Sadece logla.
+            $durum = 'hata';
+            Log::error('[ARAMA-JOB] hata (retry yok): ' . $e->getMessage(), [
+                'salon_id' => $this->salonId,
+                'kaynak_id' => $this->kaynakId,
+            ]);
+        }
+
+        $this->istatistikYaz($durum);
+    }
+
+    /** Best-effort istatistik kaydi; basarisizlik aramayi etkilemez. */
+    protected function istatistikYaz($durum)
+    {
+        try {
+            \DB::table('arama_istatistikleri')->insert([
+                'salon_id' => $this->salonId,
+                'kampanya_id' => $this->kaynakId,
+                'toplam_arama' => count($this->aramaListesi),
+                'durum' => $durum,
+                'tamamlanma_tarihi' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('[ARAMA-JOB] istatistik yazilamadi: ' . $e->getMessage());
         }
     }
 
     public function failed(\Throwable $exception)
     {
-        Log::critical('HatirlatmaAramaJob tamamen başarısız oldu: ' . $exception->getMessage());
+        Log::critical('[ARAMA-JOB] failed(): ' . $exception->getMessage());
     }
 }

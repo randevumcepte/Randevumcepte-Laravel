@@ -4,206 +4,158 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Bus;
 use App\KampanyaYonetimi;
 use App\SalonEAsistanAyarlari;
 use App\Jobs\HatirlatmaAramaJob;
 use App\Jobs\SendCompletionNotification;
-use App\BildirimKimlikleri;
-use App\Personeller;
 
+/**
+ * Reklam (kampanya) hatirlatma aramalari — eczane24'teki sistemin RandevuMcepte
+ * uyarlamasi. Yuksek hacimli oldugu icin chunk(50) + asenkron kuyruk (database
+ * connection, queue=hatirlatmalar) + chunk'lar arasi delay ile yayilarak
+ * santral kanallarini tasirmadan calistirilir.
+ *
+ * MUKERRER ARAMA KORUMASI: Komut her dakika calisir; isaretleme ise cagri sonrasi
+ * (asenkron worker) yapilir. Eger secim kosulu surekli dogru kalsaydi (orn.
+ * asistan_tarih_saat <= now) ayni kisi isaretlenene kadar HER DAKIKA yeniden
+ * kuyruga girer ve birden cok kez aranirdi. Bunu onlemek icin secim TAM DAKIKA
+ * esaslidir (randevuarama:yap ile ayni desen):
+ *   - Ilk arama: kampanyanin asistan_tarih_saat DAKIKASI == su anki dakika.
+ *   - Tekrar arama: katilimci.tekrar_arama_tarih_saat DAKIKASI == su anki dakika.
+ * Boylece her katilimci yalnizca tek bir dakikada kuyruga alinir.
+ *
+ * NOT: Laravel 5.6'da Bus::batch YOK; duz dispatch + ->delay() kullanilir.
+ * Joblari isleyen surec calismali:
+ *   php artisan queue:work database --queue=hatirlatmalar,notifications
+ */
 class KampanyaAramaYap extends Command
 {
     protected $signature = 'kampanyaarama:yap';
-    protected $description = 'Kampanya Aramalarını Gerçekleştirir (batch + queue)';
-    
+    protected $description = 'Reklam (kampanya) hatirlatma aramalarini kuyruga ekler';
+
+    /** Santral kanal limitine gore chunk basina arama. */
+    protected $chunkSize = 50;
+    /** Bir chunk'in ortalama suresi (sn) — chunk'lar bu kadar arayla baslar. */
+    protected $callDuration = 35;
+
+    /** ayar_id = 8: reklam/kampanya aramasi acik/kapali. */
+    const AYAR_ID_KAMPANYA = 8;
+
     public function handle()
     {
-        Log::info('Kampanya arama kontrolü başlatıldı.');
-        
-        $kampanyalar = KampanyaYonetimi::where('asistan_tarih_saat', '<=', now())
-            ->where('aktifmi', 1)
+        $nowMin = now()->format('Y-m-d H:i');
+        Log::info('[REKLAM-ARAMA] kontrol basladi. dk=' . $nowMin);
+
+        KampanyaYonetimi::where('aktifmi', 1)
             ->where('arama_ile_gonderim', 1)
+            ->where('asistan_tarih_saat', '<=', now())
             ->with(['salon:id,santral_telaffuz_hatirlatma_aramasi'])
-            ->get();
-        
-        Log::info('Kampanya sayısı: ' . $kampanyalar->count());
-        
-        foreach ($kampanyalar as $kampanya) {
-            $this->processKampanya($kampanya);
-        }
-        
-        Log::info('Kampanya arama kontrolü tamamlandı.');
-    }
-    
-    protected function processKampanya($kampanya)
-    {
-        $ayarAcikMi = SalonEAsistanAyarlari::where('salon_id', $kampanya->salon_id)
-            ->where('ayar_id', 8)
-            ->value('acik_kapali');
-        
-        if (!$ayarAcikMi) {
-            Log::info("Salon {$kampanya->salon_id} için arama ayarı kapalı.");
-            return;
-        }
-        
-        Log::info("Salon {$kampanya->salon_id} için kampanya araması başlıyor.");
-        
-        // Tüm arama listesini topla
-        $tumAramaListeleri = [];
-        
-        $kampanya->kampanya_katilimcilari()
-            ->with(['musteri:id,name,cinsiyet,cep_telefon'])
-            ->select('id', 'user_id', 'kampanya_id', 'tekrar_arandi', 'tekrar_aranacak', 'tekrar_arama_tarih_saat')
-            ->chunk(200, function ($katilimcilar) use ($kampanya, &$tumAramaListeleri) {
-                
-                $aramaListesi = $this->prepareAramaListesi($katilimcilar, $kampanya);
-                
-                if (count($aramaListesi) > 0) {
-                    // 200'erli chunk'ları birleştir
-                    $tumAramaListeleri = array_merge($tumAramaListeleri, $aramaListesi);
+            ->chunk(20, function ($kampanyalar) use ($nowMin) {
+                foreach ($kampanyalar as $kampanya) {
+                    $this->kampanyayiIsle($kampanya, $nowMin);
                 }
             });
-        
-        if (empty($tumAramaListeleri)) {
-            Log::info('Bu kampanya için arama yapılacak müşteri yok.');
+
+        Log::info('[REKLAM-ARAMA] kontrol tamamlandi.');
+    }
+
+    protected function kampanyayiIsle($kampanya, $nowMin)
+    {
+        if ($kampanya->hatirlatma_gorevi_iptal) {
             return;
         }
-        
-        Log::info("Toplam " . count($tumAramaListeleri) . " arama bulundu.");
-        
-        // Batch işlemi başlat
-        $this->startBatchArama($tumAramaListeleri, $kampanya);
-    }
-    
-    protected function prepareAramaListesi($katilimcilar, $kampanya)
-    {
-        $aramaListesi = [];
-        
-        foreach ($katilimcilar as $katilimci) {
-            $aramaTarihSaatiIcinde = now()->format('d.m.Y H:i') >= date('d.m.Y H:i', strtotime($kampanya->asistan_tarih_saat));
-            $tekrarArandi = $katilimci->tekrar_arandi;
-            $tekrarAranacak = $katilimci->tekrar_aranacak;
-            
-            if ((($aramaTarihSaatiIcinde && is_null($tekrarArandi) && is_null($tekrarAranacak)) ||
-                ($tekrarAranacak == 1 && date('d.m.Y H:i', strtotime($katilimci->tekrar_arama_tarih_saat)) == now()->format('d.m.Y H:i')))
-                && !$kampanya->hatirlatma_gorevi_iptal) {
-                
-                $cinsiyetStr = $katilimci->musteri->cinsiyet === 0 ? 'hanım' : 'bey';
-                $ilkAd = explode(' ', $katilimci->musteri->name)[0];
-                $musteriAdStr = $ilkAd . ' ' . $cinsiyetStr;
-                
-                $aramaListesi[] = [
-                    "alacakIdler" => "",
-                    "randevuid" => "",
-                    "kampanyaKatilimci" => $katilimci->id,
-                    "katilimci" => $katilimci->id,
-                    "mesaj" => "Merhaba " . $musteriAdStr . ". Sizi " .
-                        $kampanya->salon->santral_telaffuz_hatirlatma_aramasi . " arıyorum. Umarım gününüz sağlıklı geçiyordur. " .
-                        $kampanya->mesaj,
-                    "tel" => $katilimci->musteri->cep_telefon,
-                    "salonId" => $kampanya->salon_id,
-                    "exten" => 3,
-                ];
+
+        $ilkAramaDakikasi = (date('Y-m-d H:i', strtotime($kampanya->asistan_tarih_saat)) === $nowMin);
+
+        // Bu kampanya bu dakikada ya yeni baslar ya da tekrar aramasi olanlari
+        // vardir. Katilimci sorgusu TAM DAKIKA esasli kurulur.
+        $sorgu = $kampanya->kampanya_katilimcilari()
+            ->with(['musteri:id,name,cinsiyet,cep_telefon'])
+            ->select('id', 'user_id', 'kampanya_id', 'tekrar_arandi', 'tekrar_aranacak', 'tekrar_arama_tarih_saat', 'durum_asistan', 'kilitli')
+            ->whereNull('durum_asistan')
+            ->where(function ($q) {
+                $q->whereNull('kilitli')->orWhere('kilitli', '!=', 1);
+            });
+
+        if ($ilkAramaDakikasi) {
+            // Ilk arama partisi: henuz hic aranmamis katilimcilar.
+            $sorgu->whereNull('tekrar_arandi')->whereNull('tekrar_aranacak');
+        } else {
+            // Sadece tekrar arama zamani su an olan katilimcilar.
+            $sorgu->where('tekrar_aranacak', 1)
+                  ->where(function ($q) {
+                      $q->whereNull('tekrar_arandi')->orWhere('tekrar_arandi', '!=', 1);
+                  })
+                  ->where('tekrar_arama_tarih_saat', 'like', $nowMin . '%');
+        }
+
+        // Ayar kontrolu (kampanya basina tek sorgu) — kapaliysa hic dolasma.
+        $ayarAcik = SalonEAsistanAyarlari::where('salon_id', $kampanya->salon_id)
+            ->where('ayar_id', self::AYAR_ID_KAMPANYA)
+            ->value('acik_kapali');
+        if (!$ayarAcik) {
+            return;
+        }
+
+        $tumListe = [];
+        $sorgu->chunk(200, function ($katilimcilar) use ($kampanya, &$tumListe) {
+            foreach ($katilimcilar as $katilimci) {
+                if (!$katilimci->musteri || !$katilimci->musteri->cep_telefon) {
+                    continue;
+                }
+                $tumListe[] = $this->katilimciParametresi($katilimci, $kampanya);
             }
+        });
+
+        if (empty($tumListe)) {
+            return;
         }
-        
-        return $aramaListesi;
-    }
-    
-    protected function startBatchArama($aramaListesi, $kampanya)
-    {
-        // Başlangıç bildirimi gönder
-        $this->sendStartNotification($kampanya);
-        
-        // Aramaları 50'şerli gruplara böl (channel limiti için)
-        $chunks = array_chunk($aramaListesi, 50);
-        $jobs = [];
-        
-        foreach ($chunks as $chunkIndex => $chunk) {
-            $jobs[] = new HatirlatmaAramaJob($chunk, $kampanya->salon_id, $kampanya->id);
-            
-            // Her chunk arasında 30 saniye boşluk bırak
-            if ($chunkIndex < count($chunks) - 1) {
-                $jobs[] = function () {
-                    sleep(30); // Kanalların boşalması için bekle
-                };
+
+        $toplam = count($tumListe);
+        Log::info("[REKLAM-ARAMA] kampanya {$kampanya->id} / salon {$kampanya->salon_id}: {$toplam} arama (" .
+            ($ilkAramaDakikasi ? 'ilk' : 'tekrar') . ').');
+
+        // 50'serli chunk'lara bol, her chunk'i 35sn arayla kuyruga koy.
+        $chunks = array_chunk($tumListe, $this->chunkSize);
+        foreach ($chunks as $i => $chunk) {
+            $job = new HatirlatmaAramaJob($chunk, $kampanya->salon_id, $kampanya->id);
+            $gecikme = $i * $this->callDuration;
+            if ($gecikme > 0) {
+                $job->delay(now()->addSeconds($gecikme));
             }
+            dispatch($job);
         }
-        
-        // Batch oluştur
-        $batch = Bus::batch($jobs)
-            ->then(function (Illuminate\Bus\Batch $batch) use ($kampanya, $aramaListesi) {
-                // Başarılı tamamlanma
-                Log::info('Batch işlemi başarıyla tamamlandı: ' . $batch->id);
-                
-                // Tamamlama bildirimi gönder
-                SendCompletionNotification::dispatch(
-                    count($aramaListesi), 
-                    $kampanya->salon_id, 
-                    $kampanya->id
-                )->onQueue('notifications');
-                
-            })->catch(function (Illuminate\Bus\Batch $batch, \Throwable $e) use ($kampanya) {
-                // Hata durumu
-                Log::error('Batch işlemi hatası: ' . $e->getMessage());
-                
-                // Hata bildirimi gönder
-                $this->sendErrorNotification($kampanya, $e->getMessage());
-                
-            })->finally(function (Illuminate\Bus\Batch $batch) use ($kampanya) {
-                // Her durumda çalışacak kod
-                Log::info('Batch işlemi sonlandı: ' . $batch->id . ' - Salon: ' . $kampanya->salon_id);
-                
-            })->name('Kampanya Aramaları - Salon: ' . $kampanya->salon_id)
-              ->onQueue('hatirlatmalar')
-              ->dispatch();
-        
-        Log::info('Batch işlemi başlatıldı. ID: ' . $batch->id . ', Chunk sayısı: ' . count($chunks));
-        
-        return $batch->id;
-    }
-    
-    protected function sendStartNotification($kampanya)
-    {
-        $personeller = Personeller::where('salon_id', $kampanya->salon_id)->pluck('id')->toArray();
-        $bildirimKimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id', $personeller)
-            ->whereNotNull('bildirim_id')
-            ->get();
-        
-        foreach ($bildirimKimlikleri as $token) {
-            $data = [
-                'category' => 'reklam',
-                'buttons' => json_encode([]),
-                'userInfo' => '',
-                'salonId' => $kampanya->salon_id,
-                'bildirimlereGitYonetici' => "1",
-                'kullaniciRolu' => Personeller::where('id', $token->isletme_yetkili_id)->value('role_id')
-            ];
-            
-            app(\App\Http\Controllers\BildirimController::class)->bildirimGonder(
-                'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
-                $token->bildirim_id,
-                'Reklam Kampanyası Araması Başlatıldı',
-                $kampanya->paket_isim . ' için hastaların aranması başlatılmıştır.',
-                $data,
-                $kampanya->salon_id,
-                null,
-                '/public/yeni_panel/vendors/images/eczane24-icon.jpg',
-                'kampanya',
-                null,
-                null,
-                null,
-                null,
-                $token->isletme_yetkili_id,
-                $kampanya->id
-            );
+
+        Log::info("[REKLAM-ARAMA] {$toplam} arama " . count($chunks) . " chunk halinde kuyruga eklendi (kampanya {$kampanya->id}).");
+
+        // Yoneticilere "tamamlandi" bildirimi yalnizca ilk arama partisinde.
+        if ($ilkAramaDakikasi) {
+            SendCompletionNotification::dispatch($toplam, $kampanya->salon_id, $kampanya->id);
         }
     }
-    
-    protected function sendErrorNotification($kampanya, $errorMessage)
+
+    /**
+     * Bir katilimci icin arama parametresi (santral icin) uretir.
+     */
+    protected function katilimciParametresi($katilimci, $kampanya)
     {
-        // Hata bildirimi gönderme kodu
-        // ...
+        $cinsiyetStr = $katilimci->musteri->cinsiyet === 0 ? 'hanim' : 'bey';
+        $ilkAd = explode(' ', trim($katilimci->musteri->name))[0];
+        $hitap = $ilkAd . ' ' . $cinsiyetStr;
+
+        $mesaj = 'Merhaba ' . $hitap . '. Sizi ' .
+            $kampanya->salon->santral_telaffuz_hatirlatma_aramasi . ' ariyorum. ' .
+            'Umarim gununuz saglikli geciyordur. ' . $kampanya->mesaj;
+
+        return [
+            'alacakIdler' => '',
+            'randevuid' => '',
+            'kampanyaKatilimci' => $katilimci->id,
+            'katilimci' => $katilimci->id,
+            'mesaj' => $mesaj,
+            'tel' => $katilimci->musteri->cep_telefon,
+            'salonId' => $kampanya->salon_id,
+            'exten' => 3,
+        ];
     }
 }

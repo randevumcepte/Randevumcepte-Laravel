@@ -71,14 +71,17 @@ class Kernel extends ConsoleKernel
         $schedule->command('dogumgunusms:hatirlat')->withoutOverlapping()->everyMinute();
         $schedule->command('alacaksms:hatirlat')->withoutOverlapping()->everyMinute();
 
-        // Arama hatırlatmaları
-        // randevuarama:yap DEVRE DISI (2026-06-26): simdilik kapatildi (chunk-ici N+1
-        // kara_liste/ayar/salon). Gerekirse yorumu kaldir.
-        // $schedule->command('randevuarama:yap')->withoutOverlapping()->everyMinute();
-        //$schedule->command('kampanyaarama:yap')->withoutOverlapping()->everyMinute();
-        //$schedule->command('kampanyasms:gonder')->withoutOverlapping()->everyMinute();
-        $schedule->command('alacakhatirlatma:aramayap')->withoutOverlapping()->everyMinute();
+        // Santral (FreePBX) hatırlatma aramaları — HatirlatmaAramaJob ile asenkron
+        // kuyruğa (database connection, queue=hatirlatmalar) eklenir. İşleyici süreç
+        // çalışmalı:  php artisan queue:work database --queue=hatirlatmalar,notifications
+        // (bkz. resources/queue-worker-ecosystem.config.js + docs/SANTRAL_ARAMALARI.md)
+        //
+        // randevuarama:yap N+1 (2026-06-29) salon ayar/bilgi cache'lenerek giderildi.
+        $schedule->command('kampanyaarama:yap')->withoutOverlapping()->everyMinute();        // Reklam (kampanya)
+        $schedule->command('randevuarama:yap')->withoutOverlapping()->everyMinute();         // Randevu teyit
+        $schedule->command('alacakhatirlatma:aramayap')->withoutOverlapping()->everyMinute(); // Alacak (borç)
         $schedule->command('arama:hatirlat')->withoutOverlapping()->everyMinute();
+        //$schedule->command('kampanyasms:gonder')->withoutOverlapping()->everyMinute();
 
         // Çarkıfelek hatırlatma — her 5 dakikada bir kontrol (saatlerin ±5dk penceresi)
         $schedule->command('cark:hatirlatma-gonder')->withoutOverlapping()->everyFiveMinutes();

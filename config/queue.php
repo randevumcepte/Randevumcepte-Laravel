@@ -38,7 +38,11 @@ return [
             'driver' => 'database',
             'table' => 'jobs',
             'queue' => 'default',
-            'retry_after' => 90,
+            // Hatirlatma ARAMA joblari (HatirlatmaAramaJob) bu baglanti uzerinden
+            // calisir ve bir job 50 aramaya kadar surebilir. retry_after job
+            // timeout'undan (1700sn) BUYUK olmali; yoksa is biterken kuyruga
+            // geri dusup AYNI numaralar TEKRAR aranir. 1800sn guvenli pencere.
+            'retry_after' => 1800,
         ],
 
         'beanstalkd' => [
