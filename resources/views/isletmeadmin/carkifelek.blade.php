@@ -736,7 +736,10 @@
     /* ── Load from server ── */
     async function loadData() {
         try {
-            const res  = await fetch('{{ route("isletmeadmin.carkverilerigetir") }}', { headers: HEADERS });
+            // FIX: Çoklu şubede ?sube= parametresini taşı; aksi halde fallback yanlış salon yükler.
+            const _subeLoad = new URLSearchParams(window.location.search).get('sube');
+            const _url = '{{ route("isletmeadmin.carkverilerigetir") }}' + (_subeLoad ? ('?sube=' + encodeURIComponent(_subeLoad)) : '');
+            const res  = await fetch(_url, { headers: HEADERS });
             const data = await res.json();
             if (data.success && data.data) {
                 isActive = data.data.aktifmi == 1;
@@ -1397,10 +1400,13 @@
         }
 
         try {
-            const res  = await fetch('{{ route("isletmeadmin.carkdilimekle") }}', {
+            // FIX: URL'deki ?sube=X parametresini POST body'sine taşı.
+            // Çoklu şube senaryosunda backend yanlış salon_id alıyordu (mevcutsube fallback).
+            const _sube = new URLSearchParams(window.location.search).get('sube');
+            const res  = await fetch('{{ route("isletmeadmin.carkdilimekle") }}' + (_sube ? ('?sube=' + encodeURIComponent(_sube)) : ''), {
                 method: 'POST',
                 headers: HEADERS,
-                body: JSON.stringify({ dilimler: payload, aktifmi: isActive ? 1 : 0, kurallar: kurallar })
+                body: JSON.stringify({ sube: _sube, dilimler: payload, aktifmi: isActive ? 1 : 0, kurallar: kurallar })
             });
             const data = await res.json();
             console.log('[Çark kaydet] yanıt:', data);
