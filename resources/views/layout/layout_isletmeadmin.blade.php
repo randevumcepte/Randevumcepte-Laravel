@@ -1536,9 +1536,12 @@
                      @endif
                      @if($isletme->uyelik_turu > 1 )
                      @if( $_SERVER["HTTP_HOST"]!="randevu.randevumcepte.com.tr")
-                     <a class="dropdown-item" href="/isletmeyonetim/yenitahsilat/?sube={{$isletme->id}}" 
+                     @yetki('satis.adisyon_olustur')
+                     <a class="dropdown-item" href="/isletmeyonetim/yenitahsilat/?sube={{$isletme->id}}"
                         ><i class="icon-copy fa fa-shopping-cart" aria-hidden="true"></i> Yeni Satış & Tahsilat</a
-                        >@endif
+                        >
+                     @endyetki
+                     @endif
                      @yetki('finans.masraf_ekle')
                      <a onclick="modalbaslikata('Yeni Masraf','masraf_formu')" class="dropdown-item" href="#"  data-toggle="modal" data-target="#yeni_masraf_modal"
                         ><i class="fa fa-upload"></i> Yeni Masraf</a

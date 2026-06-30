@@ -157,8 +157,10 @@
                   </div>
                   <div class="col-md-6"></div>
                   <div class="col-md-6">
+                     @yetki('satis.tahsilat_al')
                      <button disabled id='yeni_tahsilat_ekle' type="submit" class="btn btn-success btn-lg btn-block adisyon_ekle_buttonlar"> <i class="fa fa-money"></i>
                      Tahsil Et </button>
+                     @endyetki
                   </div>
                </div>
             </div>
