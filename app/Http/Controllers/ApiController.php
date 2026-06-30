@@ -14332,6 +14332,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $alacak_kaydi->salon_id = $request->sube;
             $alacak_kaydi->user_id = $request->ad_soyad;
             $alacak_kaydi->save();
+            try {
+                Audit::logApi($request->sube, $request, 'alacak_olustur', 'alacak', $alacak_kaydi->id ?? null, 'Tutar: ' . $alacak . ($request->planlanan_alacak_tarihi ? ' - Vade: ' . $request->planlanan_alacak_tarihi : ''), 'Planlanan alacak oluşturuldu', ['adisyon_id' => $request->adisyon_id]);
+            } catch (\Throwable $e) {}
         }
         try {
             Audit::logApi(
@@ -19350,6 +19353,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             }
 
             \App\Services\PersonelYetkiServisi::ayarlariKaydet($personelId, $salonId, $sablon, $ayarlar);
+
+            try {
+                Audit::logApi($salonId, $request, 'personel_yetki_kaydet', 'personel', $personelId, optional(\App\Personeller::find($personelId))->personel_adi, 'Personel yetkileri güncellendi', ['sablon' => $sablon]);
+            } catch (\Throwable $e) {}
 
             // Personele push gonder — mobile app icindeyse popup + logout
             // zorlanir; degilse normal bildirim olarak gozukur.

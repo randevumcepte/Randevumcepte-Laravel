@@ -15596,6 +15596,9 @@ DB::raw('
         $alacak->salon_id = self::mevcutsube($request);
         $alacak->user_id = $request->musteri;
         $alacak->save();
+        try {
+            SalonAudit::log($alacak->salon_id, isset($request->alacak_id) ? 'alacak_guncelle' : 'alacak_olustur', 'alacak', $alacak->id, 'Tutar: ' . ($request->alacak_tutari ?? '') . ($request->planlanan_odeme_tarihi ? ' - Vade: ' . $request->planlanan_odeme_tarihi : ''), isset($request->alacak_id) ? 'Planlanan alacak güncellendi' : 'Planlanan alacak oluşturuldu');
+        } catch (\Throwable $e) {}
         return 'Bilgiler başarıyla kaydedildi';
     }
     public function bildirimkontrolet(Request $request)
@@ -19452,6 +19455,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         {
             self::sms_gonder_bildirimli($request,array(array("to"=>$_yetkili,"message"=>$senet->musteri->name." isimli müşteri için ".Auth::guard('isletmeyonetim')->user()->name .' tarafından '.date('d.m.Y',strtotime($request->vade_baslangic_tarihi))." vade başlangıç tarihli ve tutarı ".number_format($request->senet_tutar,2,',','.')." TL olan ".$request->vade. " adet vadeden oluşan senet oluşturulmuştur.")),false,1,false);
         }*/
+        try {
+            SalonAudit::log($request->sube, is_numeric($request->taksitli_tahsilat_id) ? 'taksit_guncelle' : 'taksit_olustur', 'taksitli_tahsilat', optional($taksitlitahsilat)->id, 'Vade: ' . ($request->vade ?? '') . ' - Tutar: ' . ($request->taksit_tutar ?? ''), is_numeric($request->taksitli_tahsilat_id) ? 'Taksitli tahsilat güncellendi' : 'Taksitli tahsilat oluşturuldu', ['adisyon_id' => $request->adisyon_id]);
+        } catch (\Throwable $e) {}
         return self::musteri_tahsilatlari($request,$musteri->id,$request->adisyon_id,false);
         exit;
     }
@@ -26775,6 +26781,10 @@ public function musteriportfoydropliste(Request $request)
             }
 
             \App\Services\PersonelYetkiServisi::ayarlariKaydet($personelId, $salonId, $sablon, $ayarlar);
+
+            try {
+                SalonAudit::log($salonId, 'personel_yetki_kaydet', 'personel', $personelId, optional(\App\Personeller::find($personelId))->personel_adi, 'Personel yetkileri güncellendi', ['sablon' => $sablon]);
+            } catch (\Throwable $e) {}
 
             // Personele push gonder (mobile cihazindan yansisin)
             try {
