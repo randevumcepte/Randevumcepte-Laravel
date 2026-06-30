@@ -71,10 +71,11 @@ class Kernel extends ConsoleKernel
         $schedule->command('dogumgunusms:hatirlat')->withoutOverlapping()->everyMinute();
         $schedule->command('alacaksms:hatirlat')->withoutOverlapping()->everyMinute();
 
-        // Santral (FreePBX) hatırlatma aramaları — HatirlatmaAramaJob ile asenkron
-        // kuyruğa (database connection, queue=hatirlatmalar) eklenir. İşleyici süreç
-        // çalışmalı:  php artisan queue:work database --queue=hatirlatmalar,notifications
-        // (supervisor: resources/randevumcepte-arama-worker.conf + docs/SANTRAL_ARAMALARI.md)
+        // Santral (FreePBX) hatırlatma aramaları — HatirlatmaAramaJob ile
+        // `hatirlatmalar` kuyruğuna eklenir; bunları MEVCUT supervisor worker'ı
+        // (randevumcepte-worker: `queue:work --queue=hatirlatmalar`, prod
+        // QUEUE_DRIVER=database) işler. Yeni worker/program GEREKMEZ.
+        // Detay: docs/SANTRAL_ARAMALARI.md
         //
         // randevuarama:yap N+1 (2026-06-29) salon ayar/bilgi cache'lenerek giderildi.
         $schedule->command('kampanyaarama:yap')->withoutOverlapping()->everyMinute();        // Reklam (kampanya)

@@ -16,10 +16,10 @@ cron (her dakika)
              │  aranacakları toplar, 50'şerli chunk'lara böler, her chunk'ı
              │  35 sn arayla HatirlatmaAramaJob ile kuyruğa atar (delay)
              ▼
-   database kuyruğu (queue: hatirlatmalar / notifications)
+   database kuyruğu (queue: hatirlatmalar)
              │
              ▼
-   queue:work (supervisor: randevumcepte-arama-worker)
+   queue:work (MEVCUT supervisor: randevumcepte-worker)
              │
              ▼
    Controller::hatirlatmaaramasiyap()
@@ -32,38 +32,36 @@ cron (her dakika)
 - `1` → randevu / alacak teyit menüsü (1: onayla, 2: ertele/operatör)
 - `3` → reklam (kampanya) anonsu
 
-## Kuyruk mimarisi (neden ayrı connection)
+## Kuyruk mimarisi
 
-- Global `QUEUE_DRIVER` **`sync`** kalır (ilaç/adet/ölçüm hatırlatma job'ları
-  inline çalışmaya devam eder; davranışları değişmez).
-- Sadece arama job'ları (`HatirlatmaAramaJob`, `SendCompletionNotification`)
-  sınıf üzerinde `public $connection = 'database'` ile **asenkron** kuyruğa gider.
-- Bu yüzden arama job'larını işlemek için **çalışan bir worker süreci şarttır**.
+- Arama job'ları (`HatirlatmaAramaJob`, `SendCompletionNotification`) **default
+  connection** ile `hatirlatmalar` kuyruğuna gider — ilaç/adet hatırlatma
+  job'larıyla **birebir aynı** desen. Connection sınıfta zorlanmaz.
+- **Prod'da `QUEUE_DRIVER=database`** olmalı (zaten öyle; mevcut worker bunun
+  kanıtı). Lokalde `sync` ise job'lar inline çalışır.
+- `$tries = 1` (job-level) — worker CLI'da `--tries=3` olsa bile bunu ezer; bir
+  arama job'u asla retry edilmez → **mükerrer arama olmaz**.
 
-`config/queue.php` → `connections.database.retry_after = 1800`. Bir arama job'u
-50 aramaya kadar sürebildiği için bu değer job `timeout` (1700) değerinden büyük
-olmalı; aksi halde iş biterken kuyruğa geri düşer ve **aynı numaralar mükerrer
-aranır**.
+`config/queue.php` → `connections.database.retry_after = 1800` (job `timeout`
+1700'den büyük; aksi halde uzun süren iş kuyruğa geri düşüp **aynı numaralar
+mükerrer aranır**).
 
-## Worker kurulumu (prod — supervisor)
+## Worker (prod — MEVCUT, yeni kurulum gerekmez)
 
-Eczane24'teki worker ile aynı yöntem. Repodaki conf'u supervisor'a kopyala:
+Worker zaten çalışıyor: `/etc/supervisor/conf.d/randevumcepte-worker.conf`
 
-```bash
-sudo cp resources/randevumcepte-arama-worker.conf /etc/supervisor/conf.d/
-sudo supervisorctl reread
-sudo supervisorctl update          # program'ı ekler ve başlatır
-sudo supervisorctl status randevumcepte-arama-worker
+```
+[program:randevumcepte-worker]
+command=/opt/php74/bin/php .../artisan queue:work --queue=hatirlatmalar --sleep=3 --timeout=1800 --tries=3
 ```
 
-Çalıştırdığı komut:
-`php artisan queue:work database --queue=hatirlatmalar,notifications --sleep=3 --tries=1 --timeout=1700`
+Bu worker `hatirlatmalar` kuyruğunu işlediği için santral arama job'ları da
+otomatik işlenir — **ekstra program/komut gerekmez**. `deploy.sh` her deploy'da
+`php artisan queue:restart` çağırır → worker güncel job koduyla devam eder.
 
-`deploy.sh` her deploy'da `php artisan queue:restart` çağırır → supervisor worker'ı
-nazikçe yeniden başlatır, güncel job koduyla devam eder. `stopwaitsecs=1800`
-olduğu için restart sırasında süren bir arama partisi yarıda kesilmez.
-
-Log: `storage/logs/arama-worker.log`.
+Tek kontrol: prod `.env` içinde `QUEUE_DRIVER=database` olduğundan emin ol
+(`grep QUEUE_DRIVER .env`). Worker'ın canlı olduğunu görmek için:
+`supervisorctl status randevumcepte-worker`.
 
 ## Tablolar (migration ile, idempotent)
 

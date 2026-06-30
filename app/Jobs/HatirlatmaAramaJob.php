@@ -26,10 +26,14 @@ class HatirlatmaAramaJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /** Global QUEUE_DRIVER=sync olsa da bu job DB kuyruguna gitsin. */
-    public $connection = 'database';
+    // Connection ZORLANMAZ: mevcut prod worker'i (supervisor: randevumcepte-worker,
+    // `queue:work --queue=hatirlatmalar`) default connection'i (prod .env
+    // QUEUE_DRIVER=database) kullanir. Ilac/adet joblari gibi default'a birakiyoruz
+    // ki ayni worker bu joblari da islesin. (Lokalde QUEUE_DRIVER=sync → inline.)
     public $queue = 'hatirlatmalar';
 
+    // $tries=1 KRITIK: worker CLI'da --tries=3 olsa da job-level deger onu ezer.
+    // Bir job 50 kisiyi arar; retry = mukerrer arama. Asla retry etme.
     public $timeout = 1700;
     public $tries = 1;
 

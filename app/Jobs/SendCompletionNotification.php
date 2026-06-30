@@ -20,8 +20,9 @@ class SendCompletionNotification implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $connection = 'database';
-    public $queue = 'notifications';
+    // Mevcut worker yalnizca `hatirlatmalar` kuyrugunu izledigi icin bu bildirim
+    // de ayni kuyruga konur (default connection — bkz. HatirlatmaAramaJob notu).
+    public $queue = 'hatirlatmalar';
     public $tries = 2;
 
     protected $toplamArama;
