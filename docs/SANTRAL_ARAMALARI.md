@@ -19,7 +19,7 @@ cron (her dakika)
    database kuyruğu (queue: hatirlatmalar / notifications)
              │
              ▼
-   queue:work (pm2: randevumcepte-arama-worker)
+   queue:work (supervisor: randevumcepte-arama-worker)
              │
              ▼
    Controller::hatirlatmaaramasiyap()
@@ -45,20 +45,25 @@ cron (her dakika)
 olmalı; aksi halde iş biterken kuyruğa geri düşer ve **aynı numaralar mükerrer
 aranır**.
 
-## Worker kurulumu (prod)
+## Worker kurulumu (prod — supervisor)
+
+Eczane24'teki worker ile aynı yöntem. Repodaki conf'u supervisor'a kopyala:
 
 ```bash
-cd /path/to/randevumcepte-yeni
-pm2 start resources/queue-worker-ecosystem.config.js
-pm2 save
-pm2 startup    # çıkan komutu çalıştır
+sudo cp resources/randevumcepte-arama-worker.conf /etc/supervisor/conf.d/
+sudo supervisorctl reread
+sudo supervisorctl update          # program'ı ekler ve başlatır
+sudo supervisorctl status randevumcepte-arama-worker
 ```
 
-Komut özeti:
+Çalıştırdığı komut:
 `php artisan queue:work database --queue=hatirlatmalar,notifications --sleep=3 --tries=1 --timeout=1700`
 
-`deploy.sh` her deploy'da `php artisan queue:restart` çağırır → pm2 süreci canlı
-kalır, worker güncel job koduyla devam eder.
+`deploy.sh` her deploy'da `php artisan queue:restart` çağırır → supervisor worker'ı
+nazikçe yeniden başlatır, güncel job koduyla devam eder. `stopwaitsecs=1800`
+olduğu için restart sırasında süren bir arama partisi yarıda kesilmez.
+
+Log: `storage/logs/arama-worker.log`.
 
 ## Tablolar (migration ile, idempotent)
 
