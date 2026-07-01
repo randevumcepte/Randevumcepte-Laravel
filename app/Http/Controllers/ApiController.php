@@ -801,6 +801,7 @@ class ApiController extends Controller
                 $satilanlarStr .= '  ';
                 
                 $satilanlarStrKisaIcerik .=  $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi : "";
+                $satilanlarStrKisaIcerik .= $hizmet->personel_id ? ' ('.$hizmet->personel->personel_adi.')' : '';
                 $satilanlarStrKisaIcerik .= ' (H)  ';
                 
                 $satilanlarStr .= $hizmet->personel_id ? $hizmet->personel->personel_adi.' ' : '';
@@ -841,6 +842,7 @@ class ApiController extends Controller
                 $satilanlarStr .= '  ';
                 
                 $satilanlarStrKisaIcerik .= $urun->urun_id ? $urun->urun->urun_adi : "";
+                $satilanlarStrKisaIcerik .= $urun->personel_id ? ' ('.$urun->personel->personel_adi.')' : '';
                 $satilanlarStrKisaIcerik .= ' (Ü)  ';
                 
                 $satilanlarStr .= $urun->personel_id ? $urun->personel->personel_adi.' ' : '';
@@ -889,6 +891,7 @@ class ApiController extends Controller
                 $satilanlarStr .= '  ';
                 
                 $satilanlarStrKisaIcerik .= $paket->paket_id ? $paket->paket->paket_adi : "";
+                $satilanlarStrKisaIcerik .= $paket->personel_id ? ' ('.$paket->personel->personel_adi.')' : '';
                 $satilanlarStrKisaIcerik .= ' (P)  ';
                 
                 $satilanlarStr .= $paket->personel_id ? $paket->personel->personel_adi.' ' : '';
@@ -1302,8 +1305,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $satilanlarStr .= ($hizmet->hizmet->hizmet_adi ?? '') . " (H)  " . 
                           ($hizmet->personel->personel_adi ?? '') . "  " . 
                           number_format($hizmet->fiyat, 2, ',', '.') . " ₺\r\n";
-        $satilanlarStrKisaIcerik .= ($hizmet->hizmet->hizmet_adi ?? '') . " (H)  " . 
-                                     ($hizmet->personel->personel_adi ?? '') . "  " . 
+        $satilanlarStrKisaIcerik .= ($hizmet->hizmet->hizmet_adi ?? '') . ($hizmet->personel_id ? ' ('.($hizmet->personel->personel_adi ?? '').')' : '') . " (H)  " .
+                                     ($hizmet->personel->personel_adi ?? '') . "  " .
                                      number_format($hizmet->fiyat, 2, ',', '.') . " ₺\r\n";
         $personellerStr .= ($hizmet->personel->personel_adi ?? '') . ' ';
     }
@@ -1321,8 +1324,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $satilanlarStr .= ($urun->urun->urun_adi ?? '') . " (Ü)  " . 
                           ($urun->personel->personel_adi ?? '') . "  " . 
                           number_format($urun->fiyat, 2, ',', '.') . " ₺\r\n";
-        $satilanlarStrKisaIcerik .= ($urun->urun->urun_adi ?? '') . " (Ü)  " . 
-                                     ($urun->personel->personel_adi ?? '') . "  " . 
+        $satilanlarStrKisaIcerik .= ($urun->urun->urun_adi ?? '') . ($urun->personel_id ? ' ('.($urun->personel->personel_adi ?? '').')' : '') . " (Ü)  " .
+                                     ($urun->personel->personel_adi ?? '') . "  " .
                                      number_format($urun->fiyat, 2, ',', '.') . " ₺\r\n";
         $personellerStr .= ($urun->personel->personel_adi ?? '') . ' ';
     }
@@ -1340,8 +1343,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $satilanlarStr .= ($paket->paket->paket_adi ?? '') . " (P)  " . 
                           ($paket->personel->personel_adi ?? '') . "  " . 
                           number_format($paket->fiyat, 2, ',', '.') . " ₺\r\n";
-        $satilanlarStrKisaIcerik .= ($paket->paket->paket_adi ?? '') . " (P)  " . 
-                                     ($paket->personel->personel_adi ?? '') . "  " . 
+        $satilanlarStrKisaIcerik .= ($paket->paket->paket_adi ?? '') . ($paket->personel_id ? ' ('.($paket->personel->personel_adi ?? '').')' : '') . " (P)  " .
+                                     ($paket->personel->personel_adi ?? '') . "  " .
                                      number_format($paket->fiyat, 2, ',', '.') . " ₺\r\n";
         $personellerStr .= ($paket->personel->personel_adi ?? '') . ' ';
     }
@@ -12940,9 +12943,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $filename = uniqid() . "." . $file->getClientOriginalExtension();
 
-            $folderPath =
+            $folderPath = public_path('profil_resimleri') . '/';
 
-                "/var/www/www-root/data/www/randevumcepte/public/profil_resimleri/";
+            if (!is_dir($folderPath)) {
+                @mkdir($folderPath, 0755, true);
+            }
 
             $file->move($folderPath, $filename);
 
@@ -12978,9 +12983,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $filename = uniqid() . "." . $file->getClientOriginalExtension();
 
-            $folderPath =
+            $folderPath = public_path('profil_resimleri') . '/';
 
-                "/var/www/www-root/data/www/randevumcepte/public/profil_resimleri/";
+            if (!is_dir($folderPath)) {
+                @mkdir($folderPath, 0755, true);
+            }
 
             $file->move($folderPath, $filename);
 

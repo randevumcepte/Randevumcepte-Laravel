@@ -5289,14 +5289,19 @@ private function ayAdiCevir($ingilizceAy)
         if(!$personel){
             return response('Oturum bulunamadi', 401);
         }
-        $folderPath = '/home/webfirma/randevumcepteweb2/public/profil_resimleri/';
+        $folderPath = public_path('profil_resimleri') . '/';
+        if(!is_dir($folderPath)){
+            @mkdir($folderPath, 0755, true);
+        }
         $image_parts = explode(";base64,", $_POST['profilresmi']);
         $image_type_aux = explode("image/", $image_parts[0]);
         $image_type = $image_type_aux[1];
         $image_base64 = base64_decode($image_parts[1]);
         $filename = uniqid() . '.jpg';
         $file = $folderPath . $filename;
-        file_put_contents($file, $image_base64);
+        if(file_put_contents($file, $image_base64) === false){
+            return response('Resim kaydedilemedi (klasor yazma izni)', 500);
+        }
         $personel->profil_resim = "/public/profil_resimleri/".$filename;
         $personel->save();
         echo "Başarılı";
@@ -5304,7 +5309,10 @@ private function ayAdiCevir($ingilizceAy)
      public function isletmekapakresimyukle(Request $request){
         if($r = self::yetkiYoksa403($request, 'ayar.salon_bilgi')) return $r;
         $salon = Salonlar::where('id',$request->sube)->first();
-        $folderPath = '/home/webfirma/randevumcepteweb2/public/salon_gorselleri/';
+        $folderPath = public_path('salon_gorselleri') . '/';
+        if(!is_dir($folderPath)){
+            @mkdir($folderPath, 0755, true);
+        }
         $image_parts = explode(";base64,", $request->kapakresmi);
         $image_type_aux = explode("image/", $image_parts[0]);
         $image_type = $image_type_aux[1];
@@ -26669,14 +26677,19 @@ public function musteriportfoydropliste(Request $request)
     }
     public function musteriprofilresimyukle(Request $request){
         $musteri = User::where('id',$request->user_id)->first();
-        $folderPath = '/home/webfirma/randevumcepteweb2/public/profil_resimleri/';
+        $folderPath = public_path('profil_resimleri') . '/';
+        if(!is_dir($folderPath)){
+            @mkdir($folderPath, 0755, true);
+        }
         $image_parts = explode(";base64,", $_POST['profilresmi']);
         $image_type_aux = explode("image/", $image_parts[0]);
         $image_type = $image_type_aux[1];
         $image_base64 = base64_decode($image_parts[1]);
         $filename = uniqid() . '.jpg';
         $file = $folderPath . $filename;
-        file_put_contents($file, $image_base64);
+        if(file_put_contents($file, $image_base64) === false){
+            return response('Resim kaydedilemedi (klasor yazma izni)', 500);
+        }
         $musteri->profil_resim = "/public/profil_resimleri/".$filename;
         $musteri->save();
         echo "Başarılı";
