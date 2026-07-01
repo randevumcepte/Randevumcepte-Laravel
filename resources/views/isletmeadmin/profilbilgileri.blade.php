@@ -93,6 +93,7 @@
 										<div
 											class="modal-dialog"
 											role="document"
+										style="max-width: 900px; width: 95%;"
 										>
 											<div class="modal-content">
 												<div class="modal-body pd-5">

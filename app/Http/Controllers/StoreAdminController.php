@@ -5285,7 +5285,10 @@ private function ayAdiCevir($ingilizceAy)
         return $veri;
     }
     public function profilresimyukle(Request $request){
-        $personel = Auth::user();
+        $personel = Auth::guard('isletmeyonetim')->user();
+        if(!$personel){
+            return response('Oturum bulunamadi', 401);
+        }
         $folderPath = '/home/webfirma/randevumcepteweb2/public/profil_resimleri/';
         $image_parts = explode(";base64,", $_POST['profilresmi']);
         $image_type_aux = explode("image/", $image_parts[0]);
