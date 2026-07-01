@@ -9511,6 +9511,62 @@ private function ayAdiCevir($ingilizceAy)
         ]);
     }
 
+    public function salon_sunulan_hizmetleri_kopyala($kaynak_salon_id, $hedef_salon_id)
+    {
+        $kaynak_salon_id = (int) $kaynak_salon_id;
+        $hedef_salon_id  = (int) $hedef_salon_id;
+        if ($kaynak_salon_id <= 0 || $hedef_salon_id <= 0 || $kaynak_salon_id === $hedef_salon_id) {
+            return response()->json(['hata' => 'Gecersiz salon id'], 400);
+        }
+
+        $kaynak_kayitlar = SalonHizmetler::where('salon_id', $kaynak_salon_id)->get();
+        if ($kaynak_kayitlar->isEmpty()) {
+            return response()->json(['hata' => "Kaynak salon ($kaynak_salon_id) sunulan hizmet bulunamadi"], 404);
+        }
+
+        // Hedefte zaten var olan hizmet_id'ler (tekrar eklememek icin)
+        $hedefte_var_olanlar = array_flip(
+            SalonHizmetler::where('salon_id', $hedef_salon_id)->pluck('hizmet_id')->all()
+        );
+
+        $eklenen  = 0;
+        $atlandi  = 0;
+        $detay    = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($kaynak_kayitlar as $kayit) {
+                if (isset($hedefte_var_olanlar[$kayit->hizmet_id])) {
+                    $atlandi++;
+                    $detay[] = ['hizmet_id' => $kayit->hizmet_id, 'durum' => 'zaten_var'];
+                    continue;
+                }
+
+                $yeni = $kayit->replicate();          // tum kolonlari kopyalar (id haric)
+                $yeni->salon_id = $hedef_salon_id;
+                $yeni->save();
+
+                $hedefte_var_olanlar[$kayit->hizmet_id] = true; // ayni kaynakta cift kayit varsa tekrar ekleme
+                $eklenen++;
+                $detay[] = ['hizmet_id' => $kayit->hizmet_id, 'durum' => 'eklendi'];
+            }
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['hata' => 'Kopyalama basarisiz: ' . $e->getMessage()], 500);
+        }
+
+        return response()->json([
+            'durum'           => 'basarili',
+            'kaynak_salon_id' => $kaynak_salon_id,
+            'hedef_salon_id'  => $hedef_salon_id,
+            'kaynak_sayisi'   => $kaynak_kayitlar->count(),
+            'eklenen'         => $eklenen,
+            'atlandi_zaten_var' => $atlandi,
+            'detay'           => $detay,
+        ]);
+    }
+
     public function paketdetayigetir(Request $request)
     {
         $paket = Paketler::where('id',$request->paket_id)->first();
