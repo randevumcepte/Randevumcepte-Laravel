@@ -6655,9 +6655,14 @@ private function ayAdiCevir($ingilizceAy)
     }
      public function gorselsil(Request $request){
         $gorsel = SalonGorselleri::where('id',$request->gorselid)->first();
-        $isletmeid = $gorsel->salon_id;
-        unlink('/home/webfirma/randevumcepteweb2'.$gorsel->salon_gorseli);
-        $gorsel->delete();
+        if($gorsel){
+            // Dosyayi guvenli sil: yol yanlis/dosya yoksa unlink warning'i 500'e donmesin
+            $rel = preg_replace('#^/public#','',$gorsel->salon_gorseli);
+            foreach([public_path($rel), '/home/webfirma/randevumcepteweb2'.$gorsel->salon_gorseli] as $yol){
+                if(is_file($yol)){ @unlink($yol); break; }
+            }
+            $gorsel->delete();
+        }
         $gorseller_html = self::salon_gorselleri($request);
         echo $gorseller_html;
     }
