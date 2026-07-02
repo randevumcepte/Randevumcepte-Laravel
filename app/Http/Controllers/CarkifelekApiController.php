@@ -220,6 +220,13 @@ class CarkifelekApiController extends Controller
         }
 
         $odullerim = CarkifelekOdulleri::where('user_id', $userId)
+            ->when(!empty($request->input('appBundle')), function ($q) use ($request) {
+                // White-label / subeli yapi: sadece bu uygulamanin app_bundle'ina
+                // ait salonlarin (tum subeler dahil) kuponlari gorunsun.
+                $ids = Salonlar::where('app_bundle', $request->input('appBundle'))
+                    ->pluck('id')->toArray();
+                $q->whereIn('salon_id', $ids);
+            })
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($o) {
@@ -258,8 +265,24 @@ class CarkifelekApiController extends Controller
             return response()->json(['success' => false, 'message' => 'Giriş yapmalısınız.']);
         }
 
+        // White-label / subeli yapi: sadece bu uygulamanin app_bundle'ina ait
+        // salonlarin (tum subeler dahil) puanlari gorunsun; musterinin baska
+        // isletmelerdeki puanlari karismasin.
+        $bundleSalonIds = null;
+        if (!empty($request->input('appBundle'))) {
+            $bundleSalonIds = Salonlar::where('app_bundle', $request->input('appBundle'))
+                ->pluck('id')->toArray();
+            // Istenen salon bu app_bundle'a ait degilse, varsayilana dus.
+            if ($salonId > 0 && !in_array($salonId, $bundleSalonIds)) {
+                $salonId = 0;
+            }
+        }
+
         $puanKayitlari = SalonPuanlar::where('user_id', $userId)
             ->where('puan', '>', 0)
+            ->when($bundleSalonIds !== null, function ($q) use ($bundleSalonIds) {
+                $q->whereIn('salon_id', $bundleSalonIds);
+            })
             ->get();
 
         if ($puanKayitlari->isEmpty() && $salonId === 0) {

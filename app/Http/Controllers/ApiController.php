@@ -801,7 +801,7 @@ class ApiController extends Controller
                 $satilanlarStr .= '  ';
                 
                 $satilanlarStrKisaIcerik .=  $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi : "";
-                $satilanlarStrKisaIcerik .= $hizmet->personel_id ? ' ('.$hizmet->personel->personel_adi.')' : '';
+                $satilanlarStrKisaIcerik .= $hizmet->personel_id ? ' ('.trim($hizmet->personel->personel_adi).')' : '';
                 $satilanlarStrKisaIcerik .= ' (H)  ';
                 
                 $satilanlarStr .= $hizmet->personel_id ? $hizmet->personel->personel_adi.' ' : '';
@@ -842,7 +842,7 @@ class ApiController extends Controller
                 $satilanlarStr .= '  ';
                 
                 $satilanlarStrKisaIcerik .= $urun->urun_id ? $urun->urun->urun_adi : "";
-                $satilanlarStrKisaIcerik .= $urun->personel_id ? ' ('.$urun->personel->personel_adi.')' : '';
+                $satilanlarStrKisaIcerik .= $urun->personel_id ? ' ('.trim($urun->personel->personel_adi).')' : '';
                 $satilanlarStrKisaIcerik .= ' (Ü)  ';
                 
                 $satilanlarStr .= $urun->personel_id ? $urun->personel->personel_adi.' ' : '';
@@ -891,7 +891,7 @@ class ApiController extends Controller
                 $satilanlarStr .= '  ';
                 
                 $satilanlarStrKisaIcerik .= $paket->paket_id ? $paket->paket->paket_adi : "";
-                $satilanlarStrKisaIcerik .= $paket->personel_id ? ' ('.$paket->personel->personel_adi.')' : '';
+                $satilanlarStrKisaIcerik .= $paket->personel_id ? ' ('.trim($paket->personel->personel_adi).')' : '';
                 $satilanlarStrKisaIcerik .= ' (P)  ';
                 
                 $satilanlarStr .= $paket->personel_id ? $paket->personel->personel_adi.' ' : '';
@@ -1057,7 +1057,16 @@ class ApiController extends Controller
             if ($personelid) $q->where('personel_id', $personelid);
         },
     ])
-    ->where('salon_id', $isletmeId)
+    ->where(function($q) use ($request, $isletmeId) {
+        // Musteri paneli (white-label): markanin app_bundle'ina ait TUM subelerdeki
+        // adisyonlar gelsin (musterinin diger subelerdeki alimlari da gorunsun).
+        // Yonetici paneli (musteriMi=false): yalnizca ilgili sube.
+        if ($request->musteriMi) {
+            $q->whereIn('salon_id', Salonlar::where('app_bundle', $request->appBundle)->pluck('id')->toArray());
+        } else {
+            $q->where('salon_id', $isletmeId);
+        }
+    })
     ->whereBetween('adisyonlar.tarih', [$tarih1, $tarih2])
     ->when($musteriid, fn($q) => $q->where('adisyonlar.user_id', $musteriid))
     ->when($personelid, function($q) use ($personelid) {
@@ -1162,15 +1171,31 @@ class ApiController extends Controller
     // Sayim pahali (tarih araliginda tum adisyonlari tarar); ayni filtrelerle
     // tekrar tekrar (sayfa degisimi, sekme gecisi) cagrilmasin diye kisa sureli
     // cache'liyoruz. Filtre degisince cache anahtari da degisir → taze sayim.
+    // Sayim da liste ile ayni salon kapsamini kullanmali: musteri panelinde
+    // (musteriMi) markanin app_bundle'ina ait TUM subeler, aksi halde tek sube.
+    // Aksi takdirde toplam adet/rozet sayilari eksik cikar ve diger subelerdeki
+    // alimlar sayfalanamaz.
+    if ($request->musteriMi) {
+        $bundleSalonIdler = Salonlar::where('app_bundle', $request->appBundle)
+            ->pluck('id')->map(fn($v) => (int) $v)->toArray();
+        $salonScopeSql  = 'a.salon_id IN (' . (empty($bundleSalonIdler) ? '0' : implode(',', $bundleSalonIdler)) . ')';
+        $salonScopeBind = [];
+        $salonScopeSig  = 'bundle:' . $request->appBundle;
+    } else {
+        $salonScopeSql  = 'a.salon_id = ?';
+        $salonScopeBind = [$isletmeId];
+        $salonScopeSig  = 'salon:' . $isletmeId;
+    }
+
     $sayimCacheKey = 'adisyon_sayim_' . md5(implode('|', [
-        $isletmeId, $tarih1, $tarih2, (int)$adisyonturu,
+        $salonScopeSig, $tarih1, $tarih2, (int)$adisyonturu,
         $personelid ?: '', $musteriid ?: '', $_faturasizGizleAktif ? '1' : '0',
     ]));
     // Kisa TTL: badge'ler neredeyse anlik kalsin, sadece hizli sayfa/sekme
     // gecislerindeki tekrar hesabi emsin. Tam anlik istenirse 0 yapilabilir.
     $acikKapaliSayim = \Cache::remember($sayimCacheKey, 15, function () use (
         $personelid, $faturaFiltreSayim, $personelFiltre, $turFiltreSayim,
-        $musteriFiltreSayim, $isletmeId, $tarih1, $tarih2, $personelBind, $musteriBindSayim
+        $musteriFiltreSayim, $salonScopeSql, $salonScopeBind, $tarih1, $tarih2, $personelBind, $musteriBindSayim
     ) {
         return \DB::selectOne(
         "SELECT
@@ -1192,7 +1217,7 @@ class ApiController extends Controller
                         WHERE t.adisyon_paket_id IN (SELECT id FROM adisyon_paketler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . ")), 0)
                 ) as kalan
             FROM adisyonlar a
-            WHERE a.salon_id = ? AND a.tarih BETWEEN ? AND ?
+            WHERE $salonScopeSql AND a.tarih BETWEEN ? AND ?
             $faturaFiltreSayim
             $personelFiltre
             $turFiltreSayim
@@ -1200,7 +1225,8 @@ class ApiController extends Controller
         ) sub",
             array_merge(
                 $personelid ? [$personelid, $personelid, $personelid, $personelid, $personelid, $personelid] : [],
-                [$isletmeId, $tarih1, $tarih2],
+                $salonScopeBind,
+                [$tarih1, $tarih2],
                 $personelBind,
                 $musteriBindSayim
             )
@@ -1305,7 +1331,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $satilanlarStr .= ($hizmet->hizmet->hizmet_adi ?? '') . " (H)  " . 
                           ($hizmet->personel->personel_adi ?? '') . "  " . 
                           number_format($hizmet->fiyat, 2, ',', '.') . " ₺\r\n";
-        $satilanlarStrKisaIcerik .= ($hizmet->hizmet->hizmet_adi ?? '') . ($hizmet->personel_id ? ' ('.($hizmet->personel->personel_adi ?? '').')' : '') . " (H)  " .
+        $satilanlarStrKisaIcerik .= ($hizmet->hizmet->hizmet_adi ?? '') . ($hizmet->personel_id ? ' ('.trim($hizmet->personel->personel_adi ?? '').')' : '') . " (H)  " .
                                      ($hizmet->personel->personel_adi ?? '') . "  " .
                                      number_format($hizmet->fiyat, 2, ',', '.') . " ₺\r\n";
         $personellerStr .= ($hizmet->personel->personel_adi ?? '') . ' ';
@@ -1324,7 +1350,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $satilanlarStr .= ($urun->urun->urun_adi ?? '') . " (Ü)  " . 
                           ($urun->personel->personel_adi ?? '') . "  " . 
                           number_format($urun->fiyat, 2, ',', '.') . " ₺\r\n";
-        $satilanlarStrKisaIcerik .= ($urun->urun->urun_adi ?? '') . ($urun->personel_id ? ' ('.($urun->personel->personel_adi ?? '').')' : '') . " (Ü)  " .
+        $satilanlarStrKisaIcerik .= ($urun->urun->urun_adi ?? '') . ($urun->personel_id ? ' ('.trim($urun->personel->personel_adi ?? '').')' : '') . " (Ü)  " .
                                      ($urun->personel->personel_adi ?? '') . "  " .
                                      number_format($urun->fiyat, 2, ',', '.') . " ₺\r\n";
         $personellerStr .= ($urun->personel->personel_adi ?? '') . ' ';
@@ -1343,7 +1369,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $satilanlarStr .= ($paket->paket->paket_adi ?? '') . " (P)  " . 
                           ($paket->personel->personel_adi ?? '') . "  " . 
                           number_format($paket->fiyat, 2, ',', '.') . " ₺\r\n";
-        $satilanlarStrKisaIcerik .= ($paket->paket->paket_adi ?? '') . ($paket->personel_id ? ' ('.($paket->personel->personel_adi ?? '').')' : '') . " (P)  " .
+        $satilanlarStrKisaIcerik .= ($paket->paket->paket_adi ?? '') . ($paket->personel_id ? ' ('.trim($paket->personel->personel_adi ?? '').')' : '') . " (P)  " .
                                      ($paket->personel->personel_adi ?? '') . "  " .
                                      number_format($paket->fiyat, 2, ',', '.') . " ₺\r\n";
         $personellerStr .= ($paket->personel->personel_adi ?? '') . ' ';
@@ -21170,8 +21196,13 @@ if (is_array($request->cihaz_id)) {
 
         $query = Islemler::where("user_id", $request->user_id);
 
-        // Beyaz etiket: sadece bu isletmeye ait gorseller listelensin
-        if ($request->filled('salon_id')) {
+        // Beyaz etiket: oncelik app_bundle — markanin TUM subelerindeki gorseller
+        // gelsin (musterinin diger subelerdeki islem fotolari da gorunsun).
+        // appBundle yoksa tek salon_id (geriye donuk); o da yoksa yalnizca kullanici.
+        if ($request->filled('appBundle')) {
+            $ids = Salonlar::where('app_bundle', $request->appBundle)->pluck('id')->toArray();
+            $query->whereIn('salon_id', $ids);
+        } elseif ($request->filled('salon_id')) {
             $query->where('salon_id', $request->salon_id);
         }
 
@@ -21341,30 +21372,41 @@ if (is_array($request->cihaz_id)) {
     {
 
         $user = User::where("id", $request->id)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Kullanici bulunamadi'], 404);
+        }
 
-        $yorumyeni = new SalonYorumlar();
+        $salonId = (int) $request->yorum_isletmeid;
+        $yorumMetni = trim((string) $request->yorumtext_yorum);
+        $puan = (int) round((float) $request->puanlama);
+        if ($puan < 1) $puan = 1;
+        if ($puan > 5) $puan = 5;
 
-        $yorumyeni->salon_id = $request->yorum_isletmeid;
+        // Yorum: kullanici + salon basina tek kayit (idempotent — cift yorumu onler).
+        $yorum = SalonYorumlar::where('user_id', $user->id)->where('salon_id', $salonId)->first();
+        if (!$yorum) {
+            $yorum = new SalonYorumlar();
+            $yorum->salon_id = $salonId;
+            $yorum->user_id = $user->id;
+        }
+        $yorum->yorum = $yorumMetni;
+        $yorum->save();
 
-        $yorumyeni->user_id = $user->id;
+        // Yildiz puani: carkifelek sadakat satirina (salon,user) DOKUNMADAN,
+        // varsa mevcut 1-5 rating satirini guncelle; yoksa yeni satir ekle.
+        $puanKaydi = SalonPuanlar::where('salon_id', $salonId)
+            ->where('user_id', $user->id)
+            ->whereBetween('puan', [1, 5])
+            ->first();
+        if (!$puanKaydi) {
+            $puanKaydi = new SalonPuanlar();
+            $puanKaydi->salon_id = $salonId;
+            $puanKaydi->user_id = $user->id;
+        }
+        $puanKaydi->puan = $puan;
+        $puanKaydi->save();
 
-        $yorumyeni->yorum = $request->yorumtext_yorum;
-
-        $yorumyeni->save();
-
-        $puanyeni = new SalonPuanlar();
-
-        $puanyeni->salon_id = $request->yorum_isletmeid;
-
-        $puanyeni->puan = $request->puanlama;
-
-        $puanyeni->user_id = $user->id;
-
-        $puanyeni->save();
-
-        $isletme = Salonlar::where("id", $request->yorum_isletmeid)->first();
-
-        return "başarılı";
+        return response()->json(['success' => true, 'message' => 'Yorumunuz kaydedildi']);
 
     }
 
@@ -21442,16 +21484,26 @@ if (is_array($request->cihaz_id)) {
                 'toplam_yorum' => 0,
                 'dagilim' => ['1'=>0,'2'=>0,'3'=>0,'4'=>0,'5'=>0],
                 'yorumlar' => [],
+                'salon_id' => null,
+                'kullanici_yorum_yapabilir' => false,
             ];
         }
 
-        $puanlar = DB::table('salon_puanlar')->whereIn('salon_id', $salonIds)->get();
+        // Bu uygulamanin ana salonu (yorum birakma bu salona islenir).
+        $primarySalonId = (int) $salonIds[0];
+
+        // NOT: salon_puanlar tablosu ayni zamanda carkifelek sadakat puani da
+        // tutuyor (birikimli, >5). Yildiz puani sadece 1-5 araligindadir; carkin
+        // sadakat puanlarini rating gibi saymamak icin 1-5 ile suzuyoruz.
+        $puanlar = DB::table('salon_puanlar')
+            ->whereIn('salon_id', $salonIds)
+            ->whereBetween('puan', [1, 5])
+            ->get();
         $yorumlar = DB::table('salon_yorumlar')
             ->leftJoin('users', 'salon_yorumlar.user_id', '=', 'users.id')
             ->whereIn('salon_yorumlar.salon_id', $salonIds)
             ->select('salon_yorumlar.id', 'salon_yorumlar.user_id', 'salon_yorumlar.yorum',
-                     'salon_yorumlar.updated_at as tarih', 'users.name as kullanici_adi',
-                     'users.surname as kullanici_soyadi')
+                     'salon_yorumlar.updated_at as tarih', 'users.name as kullanici_adi')
             ->orderByDesc('salon_yorumlar.updated_at')
             ->get();
 
@@ -21471,12 +21523,19 @@ if (is_array($request->cihaz_id)) {
 
         $yorumListesi = [];
         foreach ($yorumlar as $y) {
-            $ad = trim(($y->kullanici_adi ?? '').' '.($y->kullanici_soyadi ?? ''));
-            // Gizlilik: tam adi soyadi yerine ad + soyad ilk harf
-            if ($y->kullanici_adi && $y->kullanici_soyadi) {
-                $gosterilenAd = $y->kullanici_adi.' '.mb_substr($y->kullanici_soyadi, 0, 1, 'UTF-8').'.';
+            // users tablosunda tek "name" alani var (soyad kolonu yok).
+            // Gizlilik: ad + varsa soyad ilk harf ("Ahmet Y.") seklinde goster.
+            $ad = trim($y->kullanici_adi ?? '');
+            if ($ad === '') {
+                $gosterilenAd = 'Müşteri';
             } else {
-                $gosterilenAd = $ad !== '' ? $ad : 'Müşteri';
+                $parcalar = preg_split('/\s+/', $ad);
+                if (count($parcalar) > 1) {
+                    $son = array_pop($parcalar);
+                    $gosterilenAd = implode(' ', $parcalar).' '.mb_substr($son, 0, 1, 'UTF-8').'.';
+                } else {
+                    $gosterilenAd = $ad;
+                }
             }
             $yorumListesi[] = [
                 'id' => $y->id,
@@ -21487,12 +21546,25 @@ if (is_array($request->cihaz_id)) {
             ];
         }
 
+        // Giris yapmis kullanici daha once bu salona yorum yazmis mi?
+        // (yazmadiysa uygulama "yorum birak" formunu gosterir — webdeki gibi)
+        $kullaniciYorumYapabilir = false;
+        if (!empty($request->user_id)) {
+            $yazmis = DB::table('salon_yorumlar')
+                ->where('user_id', $request->user_id)
+                ->whereIn('salon_id', $salonIds)
+                ->exists();
+            $kullaniciYorumYapabilir = !$yazmis;
+        }
+
         return [
             'ortalama' => (float) $ortalama,
             'toplam_puan' => $puanlar->count(),
             'toplam_yorum' => count($yorumListesi),
             'dagilim' => $dagilim,
             'yorumlar' => $yorumListesi,
+            'salon_id' => $primarySalonId,
+            'kullanici_yorum_yapabilir' => $kullaniciYorumYapabilir,
         ];
     }
 
