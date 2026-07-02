@@ -8,7 +8,7 @@ use App\CarkifelekCevirmeLoglari;
 use App\CarkifelekOdulleri;
 use App\Randevular;
 use App\Salonlar;
-use App\SalonPuanlar;
+use App\SalonSadakatPuanlari;
 use App\SalonPuanOdulleri;
 use App\Hizmet_Kategorisi;
 use App\Hizmetler;
@@ -268,7 +268,7 @@ class CarkifelekMusteriController extends Controller
                 ]);
                 $odul = null;
                 if ($secilen->tip === 'puan' && $secilen->deger) {
-                    $puanKaydi = SalonPuanlar::firstOrNew(['salon_id' => $salonId, 'user_id' => $userId]);
+                    $puanKaydi = SalonSadakatPuanlari::firstOrNew(['salon_id' => $salonId, 'user_id' => $userId]);
                     $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $secilen->deger;
                     $puanKaydi->save();
                 } elseif (in_array($secilen->tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) && $secilen->deger) {
@@ -540,7 +540,7 @@ class CarkifelekMusteriController extends Controller
         $odulKodu = null;
         DB::transaction(function () use (&$odulKodu, $pending, $user) {
             if ($pending['tip'] === 'puan' && $pending['deger']) {
-                $puanKaydi = SalonPuanlar::firstOrNew([
+                $puanKaydi = SalonSadakatPuanlari::firstOrNew([
                     'salon_id' => $pending['salon_id'],
                     'user_id'  => $user->id,
                 ]);
@@ -623,7 +623,7 @@ class CarkifelekMusteriController extends Controller
         $userId = Auth::id();
 
         // Müşterinin puanı olan salonları getir — biri istenmişse onu seç
-        $puanKayitlari = SalonPuanlar::where('user_id', $userId)
+        $puanKayitlari = SalonSadakatPuanlari::where('user_id', $userId)
             ->where('puan', '>', 0)
             ->get();
 
@@ -635,7 +635,7 @@ class CarkifelekMusteriController extends Controller
         $salon   = Salonlar::find($salonId);
         if (!$salon) abort(404);
 
-        $puanBakiyesi = (float) (SalonPuanlar::where('user_id', $userId)->where('salon_id', $salonId)->value('puan') ?: 0);
+        $puanBakiyesi = (float) (SalonSadakatPuanlari::where('user_id', $userId)->where('salon_id', $salonId)->value('puan') ?: 0);
 
         $odulSeviyeleri = SalonPuanOdulleri::where('salon_id', $salonId)
             ->where('aktif', 1)
@@ -676,7 +676,7 @@ class CarkifelekMusteriController extends Controller
             return response()->json(['success' => false, 'message' => 'Ödül bulunamadı veya pasif.']);
         }
 
-        $puanKaydi = SalonPuanlar::where('salon_id', $salonId)->where('user_id', $userId)->first();
+        $puanKaydi = SalonSadakatPuanlari::where('salon_id', $salonId)->where('user_id', $userId)->first();
         $mevcutPuan = $puanKaydi ? (float) $puanKaydi->puan : 0;
 
         if ($mevcutPuan < $odul->puan_esigi) {
@@ -728,7 +728,7 @@ class CarkifelekMusteriController extends Controller
         $this->tablolariGaranti();
         $userId = Auth::id();
 
-        $puanKayitlari = SalonPuanlar::where('user_id', $userId)->get();
+        $puanKayitlari = SalonSadakatPuanlari::where('user_id', $userId)->get();
 
         // Aktif salon — şu sıraya göre belirle:
         // 1) URL'de ?salon=X varsa onu kullan
@@ -759,7 +759,7 @@ class CarkifelekMusteriController extends Controller
         $puanBakiyesi = 0;
         $odulSeviyeleri = collect();
         if ($salon) {
-            $puanBakiyesi = (float) (SalonPuanlar::where('user_id', $userId)
+            $puanBakiyesi = (float) (SalonSadakatPuanlari::where('user_id', $userId)
                 ->where('salon_id', $aktifSalonId)->value('puan') ?: 0);
             $odulSeviyeleri = SalonPuanOdulleri::where('salon_id', $aktifSalonId)
                 ->where('aktif', 1)

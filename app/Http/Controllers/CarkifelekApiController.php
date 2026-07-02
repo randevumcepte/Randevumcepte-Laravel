@@ -8,7 +8,7 @@ use App\CarkifelekCevirmeLoglari;
 use App\CarkifelekOdulleri;
 use App\Randevular;
 use App\Salonlar;
-use App\SalonPuanlar;
+use App\SalonSadakatPuanlari;
 use App\SalonPuanOdulleri;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -174,7 +174,7 @@ class CarkifelekApiController extends Controller
 
             $odul = null;
             if ($secilen->tip === 'puan' && $secilen->deger) {
-                $puanKaydi = SalonPuanlar::firstOrNew(['salon_id' => $salonId, 'user_id' => $userId]);
+                $puanKaydi = SalonSadakatPuanlari::firstOrNew(['salon_id' => $salonId, 'user_id' => $userId]);
                 $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $secilen->deger;
                 $puanKaydi->save();
             } elseif (in_array($secilen->tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) && $secilen->deger) {
@@ -278,7 +278,7 @@ class CarkifelekApiController extends Controller
             }
         }
 
-        $puanKayitlari = SalonPuanlar::where('user_id', $userId)
+        $puanKayitlari = SalonSadakatPuanlari::where('user_id', $userId)
             ->where('puan', '>', 0)
             ->when($bundleSalonIds !== null, function ($q) use ($bundleSalonIds) {
                 $q->whereIn('salon_id', $bundleSalonIds);
@@ -304,7 +304,7 @@ class CarkifelekApiController extends Controller
         }
 
         $puanBakiyesi = (float) (
-            SalonPuanlar::where('user_id', $userId)
+            SalonSadakatPuanlari::where('user_id', $userId)
                 ->where('salon_id', $salonId)
                 ->value('puan') ?: 0
         );
@@ -368,7 +368,7 @@ class CarkifelekApiController extends Controller
             return response()->json(['success' => false, 'message' => 'Ödül bulunamadı veya pasif.']);
         }
 
-        $puanKaydi = SalonPuanlar::where('salon_id', $salonId)->where('user_id', $userId)->first();
+        $puanKaydi = SalonSadakatPuanlari::where('salon_id', $salonId)->where('user_id', $userId)->first();
         $mevcutPuan = $puanKaydi ? (float) $puanKaydi->puan : 0;
 
         if ($mevcutPuan < $odul->puan_esigi) {

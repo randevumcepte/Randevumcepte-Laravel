@@ -5007,15 +5007,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     {
 
-        return round(
-
-            SalonPuanlar::where("salon_id", $isletme_id)->sum("puan") /
-
-                SalonPuanlar::where("salon_id", $isletme_id)->count(),
-
-            1
-
-        );
+        // Sadece 1-5 yildiz rating satirlari (sadakat puanlari ayri tabloda).
+        $ratingQ = SalonPuanlar::where("salon_id", $isletme_id)->whereBetween('puan', [1, 5]);
+        $ratingAdet = (clone $ratingQ)->count();
+        return $ratingAdet == 0 ? 0 : round((clone $ratingQ)->sum("puan") / $ratingAdet, 1);
 
     }
 
@@ -5171,15 +5166,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         $ajandanot = "";
 
-        $puan =
-
-            SalonPuanlar::where("salon_id", $request->sube)->count() == 0
-
-                ? 0
-
-                : SalonPuanlar::where("salon_id", $request->sube)->sum("puan") /
-
-                    SalonPuanlar::where("salon_id", $request->sube)->count();
+        // Sadece 1-5 yildiz rating satirlari (sadakat puanlari ayri tabloda).
+        $puanQ = SalonPuanlar::where("salon_id", $request->sube)->whereBetween('puan', [1, 5]);
+        $puanAdet = (clone $puanQ)->count();
+        $puan = $puanAdet == 0 ? 0 : (clone $puanQ)->sum("puan") / $puanAdet;
 
         
             $ajandanot = DB::table("ajanda")
@@ -21450,8 +21440,8 @@ if (is_array($request->cihaz_id)) {
             $kategoriLabel = 'Pasif Müşteri';
         }
 
-        // Sadakat puanı (salon_puanlar tablosundan toplam)
-        $sadakatPuani = (int) DB::table('salon_puanlar')
+        // Sadakat puanı (carkifelek sadakat tablosundan toplam — rating'ten ayri)
+        $sadakatPuani = (int) DB::table('salon_sadakat_puanlari')
             ->where('user_id', $request->user_id)
             ->whereIn('salon_id', $salonlar)
             ->sum('puan');
