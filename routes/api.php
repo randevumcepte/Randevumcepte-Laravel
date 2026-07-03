@@ -26,6 +26,8 @@ Route::get('/musteriler','ApiController@musteriler2');
 Route::post('/musteritahsilat','ApiController@musteritahsilat');
 Route::get('/musteri-detay/{id}','ApiController@musteri_detayi');
 Route::get('/musteri-randevulari/{id}','ApiController@musteri_randevulari');
+Route::post('/musteri-karaliste-durum','ApiController@musteriKaraListeDurum');
+Route::post('/musteri-karaliste-ayari','ApiController@musteriKaraListeAyari');
 Route::get('/getUserInfo/{userid}','ApiController@getUserInfo');
 Route::post('/urunler/{salonid}','ApiController@urunler');
 Route::post('/urunler','ApiController@urunler_liste');

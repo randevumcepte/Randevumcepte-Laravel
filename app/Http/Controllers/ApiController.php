@@ -1452,6 +1452,43 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     }
 
+    // Musteri kara liste durumu (musteri_portfoy.kara_liste), salon bazinda
+    public function musteriKaraListeDurum(Request $request)
+    {
+        $salonId = $request->sube ?? $request->salon_id;
+        if (empty($request->user_id) || empty($salonId)) {
+            return response()->json(['error' => 'user_id ve salon_id gerekli'], 400);
+        }
+        $deger = MusteriPortfoy::where('user_id', $request->user_id)
+            ->where('salon_id', $salonId)
+            ->value('kara_liste');
+        return response()->json(['kara_liste' => (int) $deger]);
+    }
+
+    // Musteriyi kara listeye ekle/cikar (salon bazinda)
+    public function musteriKaraListeAyari(Request $request)
+    {
+        $salonId = $request->sube ?? $request->salon_id;
+        if (empty($request->user_id) || empty($salonId)) {
+            return response()->json(['error' => 'user_id ve salon_id gerekli'], 400);
+        }
+        $karaliste = ((int) $request->karaliste) == 1 ? 1 : 0;
+
+        $portfoy = MusteriPortfoy::where('user_id', $request->user_id)
+            ->where('salon_id', $salonId)
+            ->first();
+        if (!$portfoy) {
+            $portfoy = new MusteriPortfoy();
+            $portfoy->user_id = $request->user_id;
+            $portfoy->salon_id = $salonId;
+            $portfoy->aktif = true;
+        }
+        $portfoy->kara_liste = $karaliste;
+        $portfoy->save();
+
+        return response()->json(['success' => true, 'kara_liste' => (int) $portfoy->kara_liste]);
+    }
+
     public function urunler(Request $request, $isletme_id)
 
     {
