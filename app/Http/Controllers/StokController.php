@@ -901,6 +901,10 @@ class StokController extends Controller
 
         $satislar = StokHareketi::where('urun_id', $urunid)
             ->where('hareket_tipi', 'satis')
+            // Beyaz etiket: sadece istegi yapan salonun satislari
+            ->when($request->filled('salon_id'), function ($q) use ($request) {
+                $q->where('salon_id', $request->salon_id);
+            })
             ->whereBetween('tarih', [$baslangic, $bitis])
             ->selectRaw('DATE(tarih) gun, SUM(ABS(miktar)) adet, SUM(ABS(miktar)*COALESCE(birim_satis_fiyati,0)) tutar')
             ->groupBy('gun')

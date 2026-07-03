@@ -16276,6 +16276,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     {
 
+        // Beyaz etiket: personel istegi yapan salona ait degilse bos don
+        if ($request->filled('salon_id')) {
+            $ait = Personeller::where('id', $perosnelid)
+                ->where('salon_id', $request->salon_id)
+                ->exists();
+            if (!$ait) {
+                return response()->json([]);
+            }
+        }
+
         $isletme = PersonelMolaSaatleri::where(
 
             "personel_id",
@@ -16291,6 +16301,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function personelcalismasaatleri(Request $request, $perosnelid)
 
     {
+
+        // Beyaz etiket: personel istegi yapan salona ait degilse bos don
+        if ($request->filled('salon_id')) {
+            $ait = Personeller::where('id', $perosnelid)
+                ->where('salon_id', $request->salon_id)
+                ->exists();
+            if (!$ait) {
+                return response()->json([]);
+            }
+        }
 
         $isletme = PersonelCalismaSaatleri::where(
 
@@ -16992,7 +17012,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     {
 
-        $oda = Odalar::where("id", $oda_id)->first();
+        // Beyaz etiket: oda sadece istegi yapan salona aitse dondur
+        $odaQuery = Odalar::where("id", $oda_id);
+        if ($request->filled('salon_id')) {
+            $odaQuery->where("salon_id", $request->salon_id);
+        }
+        $oda = $odaQuery->first();
 
         if (!$oda) {
 
