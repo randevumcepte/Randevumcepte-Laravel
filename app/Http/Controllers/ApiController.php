@@ -1425,17 +1425,21 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     {
 
-        $randevular = Randevular::with(["hizmetler.hizmetler"])
+        $salonId = $request->sube ?? $request->salon_id;
 
+        $query = Randevular::with(["hizmetler.hizmetler"])
             ->where("user_id", $id)
-            ->where("user_id", '!=', 2012) // saat kapama haric
+            ->where("user_id", '!=', 2012); // saat kapama haric
 
-            ->orderBy("id", "desc")
+        // Beyaz etiket: sadece bu isletmeye ait randevular/notlar listelensin
+        if (!empty($salonId)) {
+            $query->where("salon_id", $salonId);
+        }
 
-            ->get();
+        $randevular = $query->orderBy("id", "desc")->get();
 
         // Personel musteri.telefon_gor yetkisi yoksa users telefonunu maskele
-        $salonId = $request->sube ?? $request->salon_id ?? ($randevular->first()->salon_id ?? null);
+        $salonId = $salonId ?? ($randevular->first()->salon_id ?? null);
         if ($salonId && !$this->_telGorebilir($request, $salonId)) {
             $randevular->each(function ($r) {
                 if ($r->users) {
@@ -13373,35 +13377,17 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         if ($randevu->durum == 0 && $request->durum != 3) {
             $red = true;
         }
-        $randevuHizmet = '';
-        if($request->durum!=3)
-            $randevuHizmet = RandevuHizmetler::where('randevu_id',$randevu->id)->where('hizmet_id',$request->hizmetId)->first();
-        $seansVar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id)->where(function($q) use($request,$randevuHizmet){
-            if($randevuHizmet != '')
-                $q->where('hizmet_id',$request->hizmetId);
-        })->get();
-        foreach($seansVar as $seans){
-            $seans->iptal = 1;
-            $seans->geldi = null;
-            $seans->save();
-            if($randevuHizmet != '')
-            {
-                $randevuHizmet->seansa_geldi = null;
-                $randevuHizmet->iptal = 1;
-                $randevuHizmet->save();
-            }
-            else
-            {
-                foreach($randevu->hizmetler as $rh)
-                {
-                    $rh->seansa_geldi = null;
-                    $rh->iptal = 1;
-                    $rh->save();
-                }
-            }
+        // Web StoreAdminController@randevuiptalet ile ayni semantik:
+        // Paket seanslarini SIL (flag set etmek yerine) -> paketten kullanilan
+        // seans "bosa duser" ve musteri paket bakiyesinden geri gelir.
+        // Ayrica randevu->durum kosulsuz set edilmeli (onceki kodda
+        // seans varsa durum set edilmiyordu -> randevu iptal edilmemis
+        // gorunuyordu).
+        $seansVar = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->get();
+        foreach ($seansVar as $seans) {
+            $seans->delete();
         }
-        if($seansVar->count()==0)
-            $randevu->durum = $request->durum;
+        $randevu->durum = $request->durum;
         $randevu->save();
         $isletme = Salonlar::where("id", $randevu->salon_id)->first();
         $mesajlar = [];
