@@ -398,6 +398,8 @@ class ApiController extends Controller
 
         
 
+            Audit::logApi(($salonidler[0] ?? $request->salonidler), $request, 'danisan_kaydi', 'musteri', optional($kullanici)->id, optional($kullanici)->name, 'Yeni danisan/musteri kaydi olusturuldu.');
+
             if($request->santraldenkayit)
 
             {
@@ -628,6 +630,8 @@ class ApiController extends Controller
             exit();
 
         } else {
+
+            Audit::logApi($request->salonidler, $request, 'sifre_gonder', 'musteri', optional($kullanici ?? null)->id, self::telefon_no_format_duzenle($request->cep_telefon), 'Sifre gonderme/sifirlama basarili.');
 
             return "success";
 
@@ -1485,6 +1489,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         }
         $portfoy->kara_liste = $karaliste;
         $portfoy->save();
+
+        Audit::logApi($salonId, $request, $karaliste == 1 ? 'karaliste_ekle' : 'karaliste_cikar', 'musteri', $portfoy->user_id, null, $karaliste == 1 ? 'Musteri kara listeye eklendi.' : 'Musteri kara listeden cikarildi.');
 
         return response()->json(['success' => true, 'kara_liste' => (int) $portfoy->kara_liste]);
     }
@@ -2790,6 +2796,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
 
             DB::commit();
+            Audit::logApi($sube, $request, 'harici_tahsilat', 'tahsilat', $adisyon_id, (string) $toplam, 'Harici tahsilat/adisyon kaydedildi.');
             return response()->json([
                 'durum' => 'basarili',
                 'mesaj' => 'Harici tahsilat kaydedildi.',
@@ -3354,6 +3361,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $salon->demo_hesabi = true;
 
             $salon->save();
+
+            Audit::logApi($salon->id, $request, 'isletme_kayit', 'isletme', $salon->id, $request->isletmeadi, 'Siteden yeni isletme kaydi olusturuldu.');
 
             // Varsayilan form sablonlarini (Semall Beauty - id 370) ayni sektordeki yeni salona kopyala
             self::varsayilanFormlariKopyala($salon->id);
@@ -5683,6 +5692,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $kampanya->onayli = 1;
         $kampanya->save();
 
+        Audit::logApi($salonId, $request, 'kampanya_ekle', 'kampanya', $kampanya->id, $baslik, 'Saat boslugu indirim kampanyasi olusturuldu.');
+
         return response()->json([
             'status'      => 'success',
             'message'     => $gapLabel . ' için %' . $discount . ' indirimli kampanya oluşturuldu.',
@@ -5974,6 +5985,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $k->onayli = 0;
         $k->kampanya_bitis_tarihi = Carbon::now()->subSecond()->toDateTimeString();
         $k->save();
+
+        Audit::logApi($salonId, $request, 'kampanya_iptal', 'kampanya', $k->id, optional($k)->kampanya_baslik, 'Saat boslugu kampanyasi iptal edildi.');
 
         return response()->json([
             'status'  => 'success',
@@ -7098,6 +7111,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             
 
+            Audit::logApi(optional($isletme ?? null)->id, $request, 'odeme_bildirimi', 'odeme', $post['merchant_oid'] ?? null, $post['total_amount'] ?? null, 'PayTR odeme bildirimi basariyla islendi.');
+
             echo "OK";
 
             exit();
@@ -7448,6 +7463,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         $bildirim->save();
 
+        Audit::logApi(optional($bildirim)->salon_id, $request, 'bildirim_okundu', 'bildirim', optional($bildirim)->id, null, 'Bildirim okundu isaretlendi.');
+
         return $bildirim;
 
     }
@@ -7461,6 +7478,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ->where('salon_id', $isletme_id)
             ->where('okundu', 0)
             ->update(['okundu' => 1]);
+
+        Audit::logApi($isletme_id, $request, 'bildirim_toplu_okundu', 'bildirim', null, (string) $count, 'Tum bildirimler okundu isaretlendi.');
 
         return response()->json([
             'status'   => 'success',
@@ -7510,6 +7529,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         $yeninot->save();
 
+        Audit::logApi($salonid, $request, $request->ajandaid != "" ? 'not_guncelle' : 'not_ekle', 'ajanda', optional($yeninot)->id, optional($yeninot)->ajanda_baslik, 'Ajanda notu kaydedildi.');
+
         return "Notunuz başarıyla kaydedildi";
 
     }
@@ -7519,6 +7540,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     {
 
         Ajanda::where("id", $request->id)->delete();
+
+        Audit::logApi($request->salonid ?? $request->sube, $request, 'ajanda_sil', 'ajanda', $request->id, null, 'Ajanda notu silindi.');
 
     }
 
@@ -7605,6 +7628,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $kayitSayisi++;
             }
 
+            Audit::logApi($salonId, $request, 'saat_kapama_ekle', 'randevu', null, "{$kayitSayisi} kayit", 'Takvimde saat kapama eklendi.');
             return response()->json(['message' => "Saat kapama başarıyla eklendi ({$kayitSayisi} kayit)"]);
         } catch (\Throwable $e) {
             \Log::error('API saatkapamaekle hatasi', ['err' => $e->getMessage(), 'line' => $e->getLine(), 'file' => $e->getFile()]);
@@ -7616,6 +7640,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     {
         Randevular::where('id', $request->randevu_id)->delete();
         RandevuHizmetler::where('randevu_id', $request->randevu_id)->delete();
+        Audit::logApi($request->salonid ?? $request->sube, $request, 'saat_kapama_sil', 'randevu', $request->randevu_id, null, 'Takvimde saat kapama kaldirildi.');
         return response()->json(['message' => 'Saat kapama başarıyla kaldırıldı']);
     }
 
@@ -7809,6 +7834,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         self::sms_gonder_2($request, $mesajlar, false, 6, false, $salonid,false);
 
+        Audit::logApi($salonid, $request, isset($request->etkinlik_id) ? 'etkinlik_guncelle' : 'etkinlik_ekle', 'etkinlik', optional($etkinlik)->id, optional($etkinlik)->etkinlik_adi, 'Etkinlik kaydedildi.');
+
         return "başarılı";
 
     }
@@ -7939,6 +7966,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         self::sms_gonder_2($request, $mesajlar, false, 4, false, $salonid,false);
 
+        Audit::logApi($salonid, $request, isset($request->kampanya_id) ? 'kampanya_guncelle' : 'kampanya_ekle', 'kampanya', optional($kampanya_yonetimi)->id, optional($kampanya_yonetimi)->paket_isim, 'Kampanya paketi kaydedildi.');
+
         return "başarılı";
 
     }
@@ -7958,6 +7987,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $kampanya->aktifmi = 0;
 
         $kampanya->save();
+
+        Audit::logApi(optional($kampanya)->salon_id, $request, 'kampanya_pasif', 'kampanya', optional($kampanya)->id, optional($kampanya)->paket_isim, 'Kampanya pasife alindi.');
 
     }
 
@@ -9296,6 +9327,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     " tarihli vadesinin ödemesi";
 
                 $tahsilat->save();
+
+                Audit::logApi($senet->salon_id, $request, 'senet_ode', 'senet_vade', $vade->id, $vade->senet_id, 'Senet vadesi ödendi');
 
                 return json_encode([
 
@@ -11000,6 +11033,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
+        Audit::logApi($request->salon_id, $request, $request->id ? 'arsiv_guncelle' : 'arsiv_ekle', 'arsiv', $form->id, $form->form_id, 'Arşiv formu kaydedildi');
+
         return "Başarılı";
 
     }
@@ -11066,6 +11101,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         $form->save();
 
+        Audit::logApi($request->salon_id, $request, 'harici_belge_ekle', 'arsiv', $form->id, $request->form_baslik, 'Harici belge eklendi');
+
         return "basarili";
 
     }
@@ -11079,6 +11116,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $arsiv->durum = 0;
 
         $arsiv->save();
+
+        Audit::logApi(optional($arsiv)->salon_id, $request, 'arsiv_iptal', 'arsiv', $arsiv->id, null, 'Arşiv formu iptal edildi');
 
     }
     // ApiController.php içindeki cdrRaporLatest fonksiyonu
@@ -12708,6 +12747,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $user->save();
 
+        Audit::logApi($request->salon_id ?? $request->salonid ?? $request->sube, $request, 'yetkili_guncelle', 'yetkili', $user->id, $user->name, 'Yetkili bilgileri güncellendi');
+
         return $user->load('yetkili_olunan_isletmeler.salonlar');
 
     }
@@ -12737,6 +12778,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $user->cinsiyet = $request->cinsiyet;
 
         $user->save();
+
+        Audit::logApi($request->salon_id ?? $request->salonid ?? $request->sube, $request, 'musteri_guncelle', 'musteri', $user->id, $user->name, 'Müşteri bilgileri güncellendi');
 
         return $user;
 
@@ -13012,6 +13055,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $user->save();
 
+            Audit::logApi($request->salon_id ?? $request->salonid ?? $request->sube, $request, 'profil_resim_yukle', 'yetkili', $user->id, $user->name, 'Profil resmi yüklendi');
+
             return response()->json(["profilresmi" => $user->profil_resim]);
 
         } else {
@@ -13051,6 +13096,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $user->profil_resim = "/public/profil_resimleri/" . $filename;
 
             $user->save();
+
+            Audit::logApi($request->salon_id ?? $request->salonid ?? $request->sube, $request, 'musteri_profil_resim_yukle', 'musteri', $user->id, $user->name, 'Müşteri profil resmi yüklendi');
 
             return response()->json(["profilresmi" => $user->profil_resim]);
 
@@ -15556,6 +15603,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $etkinlik->save();
 
+        Audit::logApi(optional($etkinlik)->salon_id, $request, 'etkinlik_pasif', 'etkinlik', $request->etkinlikid, null, 'Etkinlik pasife alindi');
+
     }
 
     public function formgonder(Request $request)
@@ -15610,6 +15659,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         // WA bagli degilse veya basarisizsa SMS'e duser.
         $this->_formLinkGonder($request, $form->salon_id, $mesajlar, $form->user_id, true);
 
+        Audit::logApi($form->salon_id, $request, 'form_gonder', 'arsiv', $form->id, null, 'Form musteriye gonderildi');
+
         return [
 
             "mesaj" => "Form gönderildi",
@@ -15629,6 +15680,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $form->cevapladi = false;
 
         $form->save();
+
+        Audit::logApi($form->salon_id, $request, 'arsiv_onayla', 'arsiv', $request->id, null, 'Arsiv onaylandi');
 
     }
 
@@ -16168,6 +16221,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $user->save();
 
+        Audit::logApi($request->salon_id ?? $request->input('sube'), $request, 'saglik_bilgisi_gir', 'musteri', $request->musteri_id, optional($user)->name, 'Musteri saglik bilgileri girildi');
+
     }
 
     public function salonlar(Request $request)
@@ -16202,6 +16257,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $isletme->save();
 
+        Audit::logApi($request->salon_id, $request, 'randevu_ayar_guncelle', 'salon', optional($isletme)->id, optional($isletme)->salon_adi, 'Randevu ayarlari guncellendi');
+
         return "Randevu ayarları başarıyla kaydedildi";
 
     }
@@ -16234,6 +16291,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $isletme->save();
 
+        Audit::logApi($request->sube, $request, 'isletme_guncelle', 'salon', optional($isletme)->id, optional($isletme)->salon_adi, 'Isletme bilgileri guncellendi');
+
         return "İşletme bilgileri başarıyla kaydedildi";
     }
 
@@ -16255,6 +16314,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $isletme->logo = $hedef;
         $isletme->save();
+
+        Audit::logApi($request->sube, $request, 'isletme_logo_yukle', 'salon', optional($isletme)->id, optional($isletme)->salon_adi, 'Isletme logosu yuklendi');
 
         return response()->json(['logo' => $isletme->logo]);
     }
@@ -16694,6 +16755,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $cihaz->save();
 
+        Audit::logApi(optional($cihaz)->salon_id, $request, 'cihaz_musait', 'cihaz', $request->cihaz_id, optional($cihaz)->cihaz_adi, 'Cihaz musait isaretlendi');
+
     }
 
     public function cihazmusaitdegilisaretle(Request $request)
@@ -16707,6 +16770,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $cihaz->aciklama = $request->aciklama;
 
         $cihaz->save();
+
+        Audit::logApi(optional($cihaz)->salon_id, $request, 'cihaz_musait_degil', 'cihaz', $request->cihaz_id, optional($cihaz)->cihaz_adi, 'Cihaz musait degil isaretlendi');
 
     }
 
@@ -16817,6 +16882,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $oda->save();
 
+        Audit::logApi(optional($oda)->salon_id, $request, 'oda_musait', 'oda', $request->oda_id, optional($oda)->oda_adi, 'Oda musait isaretlendi');
+
     }
 
     public function odamusaitdegilisaretle(Request $request)
@@ -16830,6 +16897,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $oda->aciklama = $request->aciklama;
 
         $oda->save();
+
+        Audit::logApi(optional($oda)->salon_id, $request, 'oda_musait_degil', 'oda', $request->oda_id, optional($oda)->oda_adi, 'Oda musait degil isaretlendi');
 
     }
 
@@ -18104,6 +18173,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $bildirimkimligi->save();
         \Log::info('Yeni kayıt oluşturuldu: ' . $bildirimkimligi->id);
         
+        Audit::logApi($request->sube, $request, 'bildirim_kimlik_guncelle', 'bildirim_kimlik', optional($bildirimkimligi)->id, null, 'Bildirim kimligi kaydedildi');
+
         return response()->json([
             'success' => true,
             'message' => 'Bildirim kimliği kaydedildi',
@@ -18129,6 +18200,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $ajandanot->aktif = true;
 
         $ajandanot->save();
+
+        Audit::logApi(optional($ajandanot)->salon_id, $request, 'ajanda_okundu', 'ajanda', $request->ajanda_id, null, 'Ajanda notu okundu isaretlendi');
 
         return $ajandanot;
 
@@ -18306,6 +18379,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $ongorusme->satisyapilmadi_not = $request->satisyapilmamasebebi;
 
         $ongorusme->save();
+
+        Audit::logApi(optional($ongorusme)->salon_id, $request, 'ongorusme_satis_yapilmadi', 'ongorusme', $request->ongorusmeid, optional($ongorusme)->ad_soyad, 'Ongorusme satis yapilmadi isaretlendi');
 
         return $ongorusme;
 
@@ -18611,6 +18686,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         }
 
+        Audit::logApi(optional($ongorusme)->salon_id, $request, 'ongorusme_satis_yapildi', 'ongorusme', $request->ongorusmeid, optional($ongorusme)->ad_soyad, 'Ongorusme satis yapildi');
+
         return "Başarılı";
 
     }
@@ -18733,6 +18810,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         );
 
+        Audit::logApi(optional($personel)->salon_id, $request, 'personel_sifre_gonder', 'personel', $personel->id, optional($personel)->personel_adi, 'Personele yeni sifre SMS gonderildi');
+
         return $personel;
 
     }
@@ -18802,6 +18881,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $a->takvim_sirasi = $bSira;
                 $a->save();
             }
+            Audit::logApi($request->sube, $request, 'personel_sirala', 'personel', $request->personelid, null, 'Personel takvim sirasi degistirildi', ['delta' => $delta]);
             return ['sonuc' => 'ok'];
         } catch (\Exception $e) {
             \Log::warning('Api personelSiralamaKaydir: ' . $e->getMessage());
@@ -18819,6 +18899,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             if ($personel) {
                 $personel->takvimde_gorunsun = !((bool)$personel->takvimde_gorunsun);
                 $personel->save();
+                Audit::logApi($request->sube, $request, 'personel_takvim_toggle', 'personel', $request->personelid, optional($personel)->personel_adi, 'Personel takvimde gorunurlugu degistirildi', ['takvimde_gorunsun' => (int)$personel->takvimde_gorunsun]);
                 return ['sonuc' => 'ok', 'takvimde_gorunsun' => (int)$personel->takvimde_gorunsun];
             }
             return ['sonuc' => 'notfound'];
@@ -19235,6 +19316,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 \Log::warning('Api primOdemeSil bagli masraf silinemedi: ' . $e->getMessage());
             }
             $kayit->delete();
+            Audit::logApi($salonId, $request, 'prim_odeme_sil', 'prim_odeme', $request->id, null, 'Personel maas/prim odemesi silindi');
             return response()->json(['basarili' => true]);
         } catch (\Exception $e) {
             return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
@@ -19273,6 +19355,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 'ekleyen_yetkili_id' => $yetkiliId,
             ]);
 
+            Audit::logApi($salonId, $request, 'prim_hareket_ekle', 'prim_hareket', $personel->id, optional($personel)->personel_adi, 'Prim bonus/kesinti hareketi eklendi', ['tip' => $tip, 'tutar' => $tutar]);
             return response()->json(['basarili' => true]);
         } catch (\Exception $e) {
             return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
@@ -19290,6 +19373,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 return response()->json(['basarili' => false, 'mesaj' => 'Kayıt bulunamadı.']);
             }
             $hareket->delete();
+            Audit::logApi($salonId, $request, 'prim_hareket_sil', 'prim_hareket', $request->id, null, 'Prim bonus/kesinti hareketi silindi');
             return response()->json(['basarili' => true]);
         } catch (\Exception $e) {
             return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
@@ -19748,6 +19832,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         }
 
+        Audit::logApi(optional($randevu)->salon_id, $request, 'randevu_tahsilat', 'randevu', $request->randevuid, null, 'Randevu tahsilati eklendi (adisyona islendi)');
+
         return $randevu->user_id;
 
         exit();
@@ -20180,6 +20266,8 @@ if (is_array($request->cihaz_id)) {
 
         }
 
+        Audit::logApi($request->sube, $request, 'hizmet_ekle', 'hizmet', $yenihizmet->id, optional($yenihizmet)->hizmet_adi, 'Sisteme yeni ozel hizmet eklendi');
+
         return "Başarılı";
 
     }
@@ -20552,6 +20640,8 @@ if (is_array($request->cihaz_id)) {
         $vade->notlar = $request->not;
 
         $vade->save();
+
+        Audit::logApi(optional($senet)->salon_id, $request, 'senet_vade_guncelle', 'senet_vade', $request->vade_id, null, 'Senet vade tarihi/notu guncellendi');
 
         return "Başarılı";
 
@@ -21323,6 +21413,42 @@ if (is_array($request->cihaz_id)) {
         $islem->islem_fotolari = json_encode([$relativePath]);
         $islem->save();
 
+        Audit::logApi($request->salon_id, $request, 'musteri_resim_ekle', 'musteri_resim', $islem->id, null, 'Musteri islem resmi eklendi');
+
+        // Cift yonlu bildirim: musteri yukledi -> isletmedeki herkes,
+        // isletme yukledi -> musteri. Kim yukledigi 'yukleyen' alaniyla gelir.
+        try {
+            $salonId = (int) $request->salon_id;
+            $yukleyen = $request->input('yukleyen'); // 'musteri' | 'isletme'
+            if ($salonId > 0 && $request->filled('user_id')) {
+                if ($yukleyen === 'musteri') {
+                    $musteriAdi = optional(\App\User::find($request->user_id))->name ?? 'Müşteri';
+                    $personelIdler = \App\Personeller::where('salon_id', $salonId)
+                        ->pluck('id')->unique()->values();
+                    foreach ($personelIdler as $pid) {
+                        NotificationService::toStaff((int) $pid, $salonId)
+                            ->type(NotificationTypes::MUSTERI_RESIM_YUKLEDI)
+                            ->title('Yeni müşteri fotoğrafı')
+                            ->body($musteriAdi . ' bir fotoğraf ekledi')
+                            ->image(url($relativePath))
+                            ->deepLink('customer_detail', ['user_id' => (int) $request->user_id])
+                            ->extra(['user_id' => (int) $request->user_id])
+                            ->send();
+                    }
+                } elseif ($yukleyen === 'isletme') {
+                    NotificationService::toCustomer((int) $request->user_id, $salonId)
+                        ->type(NotificationTypes::ISLETME_RESIM_YUKLEDI)
+                        ->title('Yeni fotoğrafınız var')
+                        ->body('İşletmeniz galerinize bir fotoğraf ekledi')
+                        ->image(url($relativePath))
+                        ->deepLink('musteri_resimlerim', [])
+                        ->send();
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('musteriResimEkle bildirim hatasi: ' . $e->getMessage());
+        }
+
         return response()->json([
             'success' => true,
             'id' => $islem->id,
@@ -21363,6 +21489,7 @@ if (is_array($request->cihaz_id)) {
                 $row->save();
             }
 
+            Audit::logApi(optional($row)->salon_id, $request, 'musteri_resim_sil', 'musteri_resim', $row->id, null, 'Musteri islem resmi silindi');
             return response()->json([
                 'success' => true,
                 'deleted' => $path,
@@ -21395,6 +21522,7 @@ if (is_array($request->cihaz_id)) {
             $row->resim_notu = $request->input('not');
             $row->save();
 
+            Audit::logApi(optional($row)->salon_id, $request, 'musteri_resim_not', 'musteri_resim', $row->id, null, 'Musteri islem resmi notu guncellendi');
             return response()->json([
                 'success' => true,
                 'path' => $path,
@@ -21443,6 +21571,8 @@ if (is_array($request->cihaz_id)) {
         }
         $puanKaydi->puan = $puan;
         $puanKaydi->save();
+
+        Audit::logApi($salonId, $request, 'yorum_yap', 'salon_yorum', $yorum->id, optional($user)->name, 'Musteri salona yorum ve puan verdi', ['puan' => $puan]);
 
         return response()->json(['success' => true, 'message' => 'Yorumunuz kaydedildi']);
 
@@ -21627,6 +21757,8 @@ if (is_array($request->cihaz_id)) {
             ->where('okundu', 0)
             ->update(['okundu' => 1]);
 
+        Audit::logApi($isletme_id, $request, 'bildirim_tumunu_oku', 'bildirim', null, null, 'Musteri tum bildirimleri okundu isaretledi', ['guncellenen' => $count, 'user_id' => $user_id]);
+
         return response()->json([
             'status'      => 'success',
             'guncellenen' => $count,
@@ -21698,6 +21830,8 @@ if (is_array($request->cihaz_id)) {
             $randevu->randevuya_gelecek = 1;
 
             $randevu->save();
+
+            Audit::logApi(optional($randevu)->salon_id, $request, 'randevu_gelecek', 'randevu', $request->randevuid, null, 'Randevuya gelinecek olarak isaretlendi');
 
 
 
@@ -21774,6 +21908,8 @@ if (is_array($request->cihaz_id)) {
             $randevu->hatirlatma_aramasi_yapildi = $request->hatirlamtaaramasiyapildi;
 
             $randevu->save();
+
+            Audit::logApi(optional($randevu)->salon_id, $request, 'randevu_hatirlatma_aramasi', 'randevu', $request->randevuid, null, 'Randevu hatirlatma aramasi yapildi olarak isaretlendi');
 
 
 
@@ -22303,6 +22439,7 @@ return date('Y')."-$ayNumara-$gun";
 
             self::sms_gonder_2($request,$mesajlar,false,1,false,$randevu->salon_id,false);
 
+        Audit::logApi($randevu->salon_id, $request, 'randevu_tarih_guncelle', 'randevu', $randevu->id, $randevu->tarih, 'Randevu en yakin tarihe guncellendi');
         return true;
 
     }
@@ -22770,6 +22907,7 @@ return date('Y')."-$ayNumara-$gun";
 
                 self::sms_gonder_2($request,$mesajlar,false,1,false,$randevu->salon_id,false);
 
+            Audit::logApi($randevu->salon_id, $request, 'santral_randevu_ekle', 'randevu', $randevu->id, $randevu->tarih, 'Santral uzerinden randevu eklendi');
             return array('success'=>true);
 
         }
@@ -22844,6 +22982,7 @@ return date('Y')."-$ayNumara-$gun";
 
            
 
+      Audit::logApi($randevu->salon_id, $request, 'asistan_randevu_iptal', 'randevu', $randevu->id, $randevu->tarih, 'Asistan uzerinden randevu iptal edildi');
       return response()->json([
 
                 'success' => true,
@@ -22930,6 +23069,7 @@ return date('Y')."-$ayNumara-$gun";
 
             }
 
+             Audit::logApi($request->salonid, $request, 'asistan_ulasti', 'randevu', $request->randevu_id, null, 'Asistan musteriye ulasti isaretlendi');
              return response()->json([
 
                 'success' => true,
@@ -22983,6 +23123,7 @@ return date('Y')."-$ayNumara-$gun";
 
             
 
+             Audit::logApi($request->salonid, $request, 'alacak_odendi', 'alacak', null, null, 'Alacaklar odenecek olarak isaretlendi', ['alacak_idler' => $request->alacak_idler]);
              return response()->json([
 
                 'success' => true,
@@ -23533,6 +23674,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
         self::sms_gonder_2($request,$mesajlar, false,1,false,$kampanya->salon_id,false);
 
+        Audit::logApi($kampanya->salon_id, $request, 'kampanyaya_katil', 'kampanya_katilimci', $katilimci->id, null, 'Kampanya katilim durumu guncellendi');
         return response()->json([
 
                 'success' => true,
@@ -23639,6 +23781,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         $adisyon->tarih = date('Y-m-d',strtotime($request->tarih));
         $adisyon->notlar = $request->not;
         $adisyon->save();
+        Audit::logApi($request->salonId, $request, 'dr_klinik_satis_ekle', 'adisyon', $adisyon->id, null, 'Dr klinik satis adisyonu olusturuldu');
         return $adisyon->id;
     }
      public function drKlinikSatisHizmetEkle(Request $request)
@@ -23690,6 +23833,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                             }
                             $seanslar->save();
                 }     
+                Audit::logApi($request->salonId, $request, 'dr_klinik_hizmet_ekle', 'adisyon_hizmet', $adisyon_hizmet->id, $request->hizmetAdi, 'Dr klinik adisyon hizmeti eklendi');
                 return response()->json([
                     'hizmet'=>$adisyon_hizmet->id]);
                 exit;
@@ -23801,6 +23945,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                     $odeme->save();
                
         }
+        Audit::logApi($request->salonId, $request, 'dr_klinik_tahsilat', 'tahsilat', $tahsilat->id, null, 'Dr klinik tahsilat eklendi', ['tutar' => $request->tahsilatTutari]);
         return $tahsilat->id;
         /*$alacak = str_replace('.','',$request->odenecek_tutar);
         if($alacak != 0)
@@ -23924,6 +24069,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             }
         }
 
+        Audit::logApi(data_get($hizmetler, '0.salonId'), $request, 'toplu_hizmet_aktar', 'hizmet', null, null, 'Toplu hizmet aktarildi', ['adet' => count($hizmetler)]);
         return "Başarılı";  // Fonksiyon başarılı şekilde tamamlandı
     }
     public function aktarimMusteriKontrol(Request $request)
@@ -24310,6 +24456,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
 
         }
+        Audit::logApi(data_get($satislar, '0.salonId'), $request, 'urun_satis_ekle', 'adisyon', null, null, 'Toplu urun satisi aktarildi', ['adet' => count($satislar)]);
         return "Başarılı aktarım";
 
         
@@ -24730,6 +24877,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             $personel->fcm_token = $request->androidFcmToken;
             $personel->save();
         }
+        Audit::logApi($request->salonid, $request, 'voip_token_kaydet', 'personel', $request->personelId, null, 'VoIP push token kaydedildi');
         
         
     }
@@ -25840,6 +25988,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $seans->geldi = null;
             $seans->save();
         }
+        Audit::logApi($randevu->salon_id, $request, 'randevu_geldi_iptal', 'randevu', $request->randevuid, null, 'Randevu geldi/gelmedi isareti kaldirildi');
 
     }
 
@@ -26130,6 +26279,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             ->orderBy('id','desc')
             ->get(['id','baslik','taslak_icerik','salon_id']);
 
+        Audit::logApi($salonid, $request, 'sms_taslak_kaydet', 'sms_taslak', $taslak->id, $baslik, 'SMS sablonu kaydedildi');
         return response()->json(['basarili'=>true,'mesaj'=>'Şablon başarıyla kaydedildi','taslaklar'=>$taslaklar]);
     }
 
@@ -26146,6 +26296,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             })
             ->orderBy('id','desc')
             ->get(['id','baslik','taslak_icerik','salon_id']);
+        Audit::logApi($salonId, $request, 'sms_taslak_sil', 'sms_taslak', $taslakId, null, 'SMS sablonu silindi');
         return response()->json(['basarili'=>true,'mesaj'=>'Şablon silindi','taslaklar'=>$taslaklar]);
     }
 
@@ -26264,6 +26415,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             }
         }
 
+        Audit::logApi($salonid, $request, 'sms_ayar_kaydet', 'sms_ayar', null, null, 'SMS bildirim ayarlari kaydedildi');
         return response()->json(['basarili'=>true,'mesaj'=>'SMS ayarları başarıyla kaydedildi']);
     }
 
@@ -26309,6 +26461,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         }
         $portfoy->kara_liste = 1;
         $portfoy->save();
+        Audit::logApi($salonid, $request, 'sms_karaliste_ekle', 'musteri', $userId, null, 'Musteri kara listeye eklendi');
         return response()->json(['basarili'=>true,'mesaj'=>'Kara listeye eklendi']);
     }
 
@@ -26319,6 +26472,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             return response()->json(['basarili'=>false,'mesaj'=>'Kullanıcı seçiniz']);
         }
         MusteriPortfoy::where('user_id',$userId)->where('salon_id',$salonid)->update(['kara_liste'=>0]);
+        Audit::logApi($salonid, $request, 'sms_karaliste_sil', 'musteri', $userId, null, 'Musteri kara listeden cikarildi');
         return response()->json(['basarili'=>true,'mesaj'=>'Kara listeden çıkarıldı']);
     }
 
@@ -26468,6 +26622,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 CarkifelekDilimleri::create($row);
             }
 
+            Audit::logApi($salonId, $request, 'cark_dilim_kaydet', 'cark', $cark->id, null, 'Cark dilimleri kaydedildi');
             return response()->json(['basarili' => true]);
         } catch (\Exception $e) {
             Log::error('API carkDilimKaydet: ' . $e->getMessage());
@@ -26481,6 +26636,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         if (!$cark) return response()->json(['basarili' => false, 'mesaj' => 'Cark sistemi bulunamadi'], 404);
         $cark->aktifmi = $request->input('aktifmi') ? 1 : 0;
         $cark->save();
+        Audit::logApi($salonId, $request, 'cark_aktif_toggle', 'cark', $cark->id, null, 'Cark aktiflik durumu degistirildi');
         return response()->json(['basarili' => true, 'aktifmi' => (int) $cark->aktifmi]);
     }
 
@@ -26691,6 +26847,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         }
         $odul->save();
 
+        Audit::logApi($salonId, $request, 'cark_kupon_kullan', 'cark_odul', $odul->id, $odul->kod, 'Cark kuponu ' . ($aksiyon === 'geri_al' ? 'geri alindi' : 'kullanildi'), ['aksiyon' => $aksiyon]);
         return response()->json([
             'basarili' => true,
             'kullanildi' => (int) $odul->kullanildi,
@@ -26736,6 +26893,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $gun = $request->input('gonderim_gunleri');
         $a->gonderim_gunleri = is_array($gun) ? $gun : (is_string($gun) && $gun ? json_decode($gun, true) : null);
         $a->save();
+        Audit::logApi($salonId, $request, 'cark_hatirlatma_kaydet', 'cark_hatirlatma', $a->id, null, 'Cark hatirlatma ayarlari kaydedildi');
         return response()->json(['basarili' => true]);
     }
 
@@ -26816,10 +26974,12 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $m = SalonPuanOdulleri::where('id', $id)->where('salon_id', $salonId)->first();
             if (!$m) return response()->json(['basarili' => false, 'mesaj' => 'Kayit bulunamadi'], 404);
             $m->update($data);
+            Audit::logApi($salonId, $request, 'cark_puan_odul_kaydet', 'cark_puan_odul', $m->id, $baslik, 'Cark puan odulu guncellendi');
             return response()->json(['basarili' => true, 'id' => $m->id]);
         }
 
         $yeni = SalonPuanOdulleri::create($data);
+        Audit::logApi($salonId, $request, 'cark_puan_odul_kaydet', 'cark_puan_odul', $yeni->id, $baslik, 'Cark puan odulu olusturuldu');
         return response()->json(['basarili' => true, 'id' => $yeni->id]);
     }
 
@@ -26829,6 +26989,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $m = SalonPuanOdulleri::where('id', $id)->where('salon_id', $salonId)->first();
         if (!$m) return response()->json(['basarili' => false, 'mesaj' => 'Kayit bulunamadi'], 404);
         $m->delete();
+        Audit::logApi($salonId, $request, 'cark_puan_odul_sil', 'cark_puan_odul', $id, null, 'Cark puan odulu silindi');
         return response()->json(['basarili' => true]);
     }
 
@@ -26869,6 +27030,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 AnketSablon::where('salon_id', $salonId)->update(['varsayilan' => 0]);
             }
             $sablon->save();
+            Audit::logApi($salonId, $request, 'anket_sablon_ekle', 'anket_sablon', $sablon->id, $sablon->ad, 'Anket sablonu olusturuldu');
             return response()->json(['basarili' => true, 'id' => $sablon->id]);
         } catch (\Exception $e) {
             Log::error('API anketSablonOlustur: ' . $e->getMessage());
@@ -26894,6 +27056,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 }
             }
             $sablon->save();
+            Audit::logApi($salonId, $request, 'anket_sablon_guncelle', 'anket_sablon', $sablon->id, $sablon->ad, 'Anket sablonu guncellendi');
             return response()->json(['basarili' => true]);
         } catch (\Exception $e) {
             Log::error('API anketSablonGuncelle: ' . $e->getMessage());
@@ -26910,9 +27073,11 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             if ($kullanim > 0) {
                 $sablon->aktif = 0;
                 $sablon->save();
+                Audit::logApi($salonId, $request, 'anket_sablon_sil', 'anket_sablon', $sablon->id, $sablon->ad, 'Anket sablonu pasiflestirildi');
                 return response()->json(['basarili' => true, 'pasiflestirildi' => true, 'kullanim' => $kullanim]);
             }
             $sablon->delete();
+            Audit::logApi($salonId, $request, 'anket_sablon_sil', 'anket_sablon', $sablonId, $sablon->ad, 'Anket sablonu silindi');
             return response()->json(['basarili' => true]);
         } catch (\Exception $e) {
             return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
@@ -27008,6 +27173,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                     $salon->kotu_puan_uyari_esik_csat = max(1, min(5, (float) $request->input('kotu_puan_uyari_esik_csat')));
                 }
                 $salon->save();
+                Audit::logApi($salonId, $request, 'anket_ayar', 'anket_ayar', null, null, 'Anket/Google degerlendirme ayarlari kaydedildi');
                 return response()->json(['basarili' => true]);
             } catch (\Exception $e) {
                 Log::error('API anketAyarlar save: ' . $e->getMessage());
@@ -27083,6 +27249,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $form->is_dinamik = 1;
             $form->is_sozlesme_tipi = $request->is_sozlesme ? 1 : 0;
             $form->save();
+            Audit::logApi($sube, $request, 'form_sablon_kaydet', 'form_sablon', $form->id, $form->form_adi, 'Form sablonu kaydedildi');
             return response()->json(['basarili'=>true,'id'=>$form->id]);
         } catch(\Exception $e){
             \Log::error('API formSablonlariKaydet: '.$e->getMessage());
@@ -27103,6 +27270,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $form->sorular_json = $request->sorular_json;
             $form->is_sozlesme_tipi = $request->is_sozlesme ? 1 : 0;
             $form->save();
+            Audit::logApi($sube, $request, 'form_sablon_guncelle', 'form_sablon', $form->id, $form->form_adi, 'Form sablonu guncellendi');
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
             \Log::error('API formSablonlariGuncelle: '.$e->getMessage());
@@ -27122,6 +27290,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 return response()->json(['basarili'=>false,'mesaj'=>'Bu form '.$kullanimSayisi.' kayıtta kullanılmaktadır. Silinemez.']);
             }
             $form->delete();
+            Audit::logApi($sube, $request, 'form_sablon_sil', 'form_sablon', $form->id, $form->form_adi, 'Form sablonu silindi');
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
@@ -27148,6 +27317,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             foreach($ids as $i => $id){
                 \DB::table('formtaslaklari')->where('id',$id)->update(['sira'=>$i]);
             }
+            Audit::logApi($sube, $request, 'form_sablon_sirala', 'form_sablon', $formId, null, 'Form sablonu sirasi degistirildi', ['yon' => $yon]);
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
@@ -27212,6 +27382,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                     \Log::error('API Sözleşme gönderim hatası: '.$e->getMessage());
                 }
             }
+            Audit::logApi($sube, $request, 'sozlesme_olustur', 'sozlesme', $arsiv->id, null, 'Hizmet sozlesmesi olusturuldu', ['user_id' => $userId]);
             return response()->json(['basarili'=>true,'arsiv_id'=>$arsiv->id]);
         } catch(\Exception $e){
             \Log::error('API sozlesmeOlustur: '.$e->getMessage());
@@ -27355,6 +27526,7 @@ SOZLESME_TXT;
             $sube  = $request->sube ?? $request->salon_id;
             $metin = trim((string)$request->sozlesme_metni);
             \DB::table('salonlar')->where('id',$sube)->update(['sozlesme_varsayilan_metin'=>($metin !== '' ? $metin : null)]);
+            Audit::logApi($sube, $request, 'sozlesme_varsayilan', 'sozlesme_varsayilan', null, null, 'Varsayilan sozlesme metni kaydedildi');
             return response()->json(['basarili'=>true]);
         } catch(\Exception $e){
             \Log::error('API sozlesmeVarsayilanKaydet: '.$e->getMessage());
@@ -27389,6 +27561,7 @@ SOZLESME_TXT;
         $adisyon->fatura_kesildi_tarihi = $yeniDurum ? now() : null;
         $adisyon->fatura_kesen_personel_id = $yeniDurum ? $personelId : null;
         $adisyon->save();
+        Audit::logApi($sube, $request, 'adisyon_fatura_isaretle', 'adisyon', $adisyon->id, null, 'Adisyon fatura durumu degistirildi', ['fatura_kesildi' => $yeniDurum ? 1 : 0]);
         return response()->json(['ok' => true, 'fatura_kesildi' => $yeniDurum ? 1 : 0]);
     }
 
@@ -27405,6 +27578,7 @@ SOZLESME_TXT;
         if (!$salon) return response()->json(['ok' => false], 404);
         $salon->faturasiz_gizle = !((bool) $salon->faturasiz_gizle);
         $salon->save();
+        Audit::logApi($sube, $request, 'faturasiz_gizle_toggle', 'salon', $sube, null, 'Faturasiz gizle modu degistirildi', ['faturasiz_gizle' => $salon->faturasiz_gizle ? 1 : 0]);
         return response()->json(['ok' => true, 'faturasiz_gizle' => $salon->faturasiz_gizle ? 1 : 0]);
     }
 

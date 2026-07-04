@@ -25,6 +25,10 @@ class NotificationTypes
     public const PAYMENT_RECEIVED          = 'payment_received';
     public const NEW_MESSAGE               = 'new_message';
 
+    // Musteri gorselleri
+    public const MUSTERI_RESIM_YUKLEDI     = 'musteri_resim_yuklendi'; // musteri -> isletme
+    public const ISLETME_RESIM_YUKLEDI     = 'isletme_resim_yuklendi'; // isletme -> musteri
+
     // Pazarlama (rich + popup)
     public const CAMPAIGN                  = 'campaign';
     public const DISCOUNT                  = 'discount';
