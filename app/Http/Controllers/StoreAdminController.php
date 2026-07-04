@@ -8488,7 +8488,15 @@ private function ayAdiCevir($ingilizceAy)
         $form_harici = self::arsiv_liste_getir($request,3,$id);
 
         $seanslar = ''/*self::seans_getir($request,0,'1970-01-01 00:00:00',date('Y-m-d 23:59:59'),$id);*/;
-        $islemler = Islemler::where('user_id',$id)->get();
+        // Isletme izolasyonu: sadece bu subenin gorselleri.
+        // salon_id NULL olan eski kayitlar (etiketlenmeden yuklenmis) her subede
+        // gorunmeye devam eder; yeni yuklemeler artik salon_id ile etiketleniyor.
+        $islemler = Islemler::where('user_id',$id)
+            ->where(function($q) use ($isletme){
+                $q->where('salon_id',$isletme->id)
+                  ->orWhereNull('salon_id');
+            })
+            ->get();
 
         // Blade'de tekrarlanan sorgular burada bir kez calistirilir
         $tahsilatlar_count = \App\Tahsilatlar::where('user_id',$id)->where('salon_id',$isletme->id)->count();
@@ -26725,6 +26733,8 @@ public function musteriportfoydropliste(Request $request)
         }
         $resimler->islem_fotolari = json_encode($imagesPaths);
         $resimler->user_id = $request->user_id;
+        // Isletme izolasyonu: gorsel hangi subede yuklendiyse ona etiketlensin
+        $resimler->salon_id = self::mevcutsube($request);
         $resimler->save();
         return $resimler->id;
     }
