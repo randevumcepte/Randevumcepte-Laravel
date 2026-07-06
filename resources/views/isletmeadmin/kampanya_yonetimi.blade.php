@@ -1754,4 +1754,33 @@
 }
 </style>
 
+<script>
+(function(){
+   // "Grupları Gör" listesi ilk yüklemede server verisiyle doldurulmuyordu (tablo boş
+   // geliyordu). Modal ilk açıldığında (henüz DataTable değilse) $gruplar ile doldur.
+   // Create/sil sonrası custom.js tabloyu zaten günceller; isDataTable guard'ı ile
+   // tekrar dokunmayız -> bayat (stale) veri riski yok.
+   var GRUPLAR = {!! json_encode($gruplar ?? [], JSON_UNESCAPED_UNICODE) !!};
+   $(function(){
+      $(document).on('show.bs.modal', '#grup_sms_liste_modal', function(){
+         if(!window.jQuery || !$.fn || !$.fn.DataTable) return;
+         if($.fn.dataTable.isDataTable('#grup_sms_tablo')) return; // zaten init/güncel
+         $('#grup_sms_tablo').DataTable({
+            columns: [
+               { data: 'grup_adi', className: 'text-center' },
+               { data: 'grup_katilimci_sayisi', className: 'text-center' },
+               { data: 'islemler', className: 'text-right' }
+            ],
+            data: GRUPLAR,
+            language: {
+               url: '//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json',
+               searchPlaceholder: 'Ara',
+               paginate: { next: '<i class="ion-chevron-right"></i>', previous: '<i class="ion-chevron-left"></i>' }
+            }
+         });
+      });
+   });
+})();
+</script>
+
 @endsection

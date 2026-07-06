@@ -22449,6 +22449,34 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
           'grup' => self::grup_sms_liste_getir($request)
         );
     }
+
+    /**
+     * Grup Düzenle modalı için müşteri dual-listbox'ını (select + option) döner.
+     * Grup üyeleri "selected" işaretlenir. JS (#grup_musteri_liste_duzenle) bu HTML'i
+     * append edip bootstrapDualListbox başlatır.
+     */
+    public function grupduzenle(Request $request){
+        $grup = GrupSms::where('id',$request->grup_id)->first();
+        $gmusteri = MusteriPortfoy::where('salon_id',self::mevcutsube($request))->where('aktif',1)->get();
+
+        // Grup üyelerinin user_id'lerini tek seferde topla (N+1 önle)
+        $uyeIdler = [];
+        if($grup){
+            $uyeIdler = GrupSmsKatilimcilari::where('grup_id',$grup->id)->pluck('user_id')->toArray();
+        }
+        $uyeIdler = array_flip($uyeIdler);
+
+        $html = '<select multiple="multiple" name="duallistbox_demo1[]" title="duallistbox_demo1[]">';
+        foreach($gmusteri as $musteri){
+            if(!$musteri->users) continue;
+            $ad = htmlspecialchars($musteri->users->name);
+            $selected = isset($uyeIdler[$musteri->user_id]) ? ' selected' : '';
+            $html .= '<option'.$selected.' value="'.$musteri->user_id.'">'.$ad.'</option>';
+        }
+        $html .= '</select>';
+
+        return $html;
+    }
     public function urun_guncelle(Request $request){
         $yeni = false;
         if($request->urun_id_duzenle == 0){
