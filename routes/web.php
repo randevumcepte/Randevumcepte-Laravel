@@ -1005,6 +1005,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/seanstakip','StoreAdminController@seanstakip');
 	Route::post('/grupsil','StoreAdminController@grup_sil');
 	Route::post('/grupduzenle','StoreAdminController@grupduzenle');
+	Route::post('/grup-katilimci-bilgi','StoreAdminController@grupBilgileriGetir');
 	 
 	Route::get('/paketfiyatgetir','StoreAdminController@paketfiyatgetir');
 	Route::post('/yeni-adisyon','StoreAdminController@yeni_adisyon');

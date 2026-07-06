@@ -22475,6 +22475,41 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         return $html;
     }
+
+    /**
+     * Yeni "Grup Düzenle" modalı (tablo tasarımı) için grup bilgisi + katılımcılar +
+     * aday müşteriler. JS (musteriSecimiDuzenle.js) bu uçtan tabloyu ve ekleme
+     * dropdown'ını doldurur.
+     */
+    public function grupBilgileriGetir(Request $request){
+        $grup = GrupSms::where('id',$request->grup_id)->first();
+        if(!$grup){
+            return response()->json(['success'=>false,'message'=>'Grup bulunamadı']);
+        }
+        $salonId = self::mevcutsube($request);
+
+        $uyeSet = array_flip(GrupSmsKatilimcilari::where('grup_id',$grup->id)->pluck('user_id')->toArray());
+
+        $katilimcilar = [];
+        $adaylar = [];
+        MusteriPortfoy::where('salon_id',$salonId)->where('aktif',1)
+            ->with('users:id,name,cep_telefon')
+            ->chunk(500, function($portfoy) use (&$katilimcilar,&$adaylar,$uyeSet){
+                foreach($portfoy as $p){
+                    if(!$p->users) continue;
+                    $satir = ['id'=>$p->user_id,'ad_soyad'=>$p->users->name,'telefon'=>$p->users->cep_telefon];
+                    if(isset($uyeSet[$p->user_id])) $katilimcilar[] = $satir;
+                    else $adaylar[] = $satir;
+                }
+            });
+
+        return response()->json([
+            'success'=>true,
+            'grup_adi'=>$grup->grup_adi,
+            'katilimcilar'=>$katilimcilar,
+            'adaylar'=>$adaylar,
+        ]);
+    }
     public function urun_guncelle(Request $request){
         $yeni = false;
         if($request->urun_id_duzenle == 0){

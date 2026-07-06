@@ -5585,7 +5585,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
-      <script src="{{secure_asset('public/js/musteriSecimiDuzenle.js?v=10.4')}}"></script>
+      <script src="{{secure_asset('public/js/musteriSecimiDuzenle.js?v=11.0')}}"></script>
       @endif
 
       @include('frontendscripts.frontend-scripts')
