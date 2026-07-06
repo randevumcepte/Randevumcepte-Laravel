@@ -20990,26 +20990,24 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             })->count();
 
         $grup =  GrupSMS::where('salon_id',$isletmeId)->where('aktif_mi',1)->get();
+        // Hazir kitle (preset) satirlari icin tek SMS butonu
+        $presetSmsBtn = function($dataValue){
+            return '<div class="grup-islemler"><button class="grup-btn grup-btn--sms" name="grup_sms_gonder" data-toggle="modal" data-target="#grup_sms_gonder_modal" data-value="'.$dataValue.'"><i class="dw dw-message"></i><span>SMS Gönder</span></button></div>';
+        };
         $pasif = [
-            "grup_katilimci_sayisi"=>$pasifMusteriSayisi,
+            "grup_katilimci_sayisi"=>'<span class="grup-say">'.$pasifMusteriSayisi.'</span>',
             'grup_adi'=>"Pasif Müşteriler",
-            'islemler'=>'<button style="margin:10px;" class=" btn btn-success " name="grup_sms_gonder" data-toggle="modal" data-target="#grup_sms_gonder_modal"
-                    data-value="pasif_musterilere_sms_gonder"><i class="dw dw-message"></i> SMS Gönder</button>',
+            'islemler'=>$presetSmsBtn('pasif_musterilere_sms_gonder'),
         ];
         $aktif = [
-            "grup_katilimci_sayisi"=>$aktifMusteriSayisi,
+            "grup_katilimci_sayisi"=>'<span class="grup-say">'.$aktifMusteriSayisi.'</span>',
             'grup_adi'=>"Aktif Müşteriler",
-            'islemler'=>'<button style="margin:10px;" class=" btn btn-success " name="grup_sms_gonder" data-toggle="modal" data-target="#grup_sms_gonder_modal"
-                    data-value="aktif_musterilere_sms_gonder"><i class="dw dw-message"></i> SMS Gönder</button>',
-
+            'islemler'=>$presetSmsBtn('aktif_musterilere_sms_gonder'),
         ];
-       
         $sadik = [
-
-            "grup_katilimci_sayisi"=>$sadikMusterilerSayisi,
+            "grup_katilimci_sayisi"=>'<span class="grup-say">'.$sadikMusterilerSayisi.'</span>',
             'grup_adi'=>"Sadık Müşteriler",
-            'islemler'=>'<button style="margin:10px;" class=" btn btn-success " name="grup_sms_gonder" data-toggle="modal" data-target="#grup_sms_gonder_modal"
-                    data-value="sadik_musterilere_sms_gonder"><i class="dw dw-message"></i> SMS Gönder</button>',
+            'islemler'=>$presetSmsBtn('sadik_musterilere_sms_gonder'),
         ];
 
 
@@ -21017,15 +21015,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
             return [
                 'id'=>$group->id,
-                'grup_katilimci_sayisi'=>$group->musteriler->count(),
+                'grup_katilimci_sayisi'=>'<span class="grup-say">'.$group->musteriler->count().'</span>',
                 'grup_adi'=>$group->grup_adi,
-                
-                'islemler'=>'<button style="margin:10px;" class=" btn btn-success " name="grup_sms_gonder" data-toggle="modal" data-target="#grup_sms_gonder_modal"
-                    data-value="'.$group->id.'"><i class="dw dw-message"></i> SMS Gönder</button>
-                    <button style="margin:10px;" class=" btn btn-primary " name="grup_duzenle" data-toggle="modal" data-target="#grup_sms_duzenle_modal"
-                    data-value="'.$group->id.'"><i class="fa fa-edit"></i> Düzenle</button>
-                    <button style="margin:10px;" class="btn btn-danger " name="grup_sil" data-value="'.$group->id.'"><i class="dw dw-delete-3"></i>Sil</button>',
-               
+
+                'islemler'=>'<div class="grup-islemler">'
+                    .'<button class="grup-btn grup-btn--sms" name="grup_sms_gonder" data-toggle="modal" data-target="#grup_sms_gonder_modal" data-value="'.$group->id.'"><i class="dw dw-message"></i><span>SMS</span></button>'
+                    .'<button class="grup-btn grup-btn--edit" name="grup_duzenle" data-toggle="modal" data-target="#grup_sms_duzenle_modal" data-value="'.$group->id.'"><i class="fa fa-edit"></i><span>Düzenle</span></button>'
+                    .'<button class="grup-btn grup-btn--del" name="grup_sil" data-value="'.$group->id.'"><i class="fa fa-trash"></i><span>Sil</span></button>'
+                    .'</div>',
+
             ];
         });
         $sonuc = array_merge(

@@ -1754,6 +1754,45 @@
 }
 </style>
 
+<style>
+/* ===== Gruplar (Grupları Gör) modalı — modern görünüm ===== */
+#grup_sms_liste_modal .modal-content{ border:none; border-radius:18px; overflow:hidden; box-shadow:0 28px 70px rgba(15,23,42,.24); }
+#grup_sms_liste_modal .modal-header{ border:none; padding:20px 24px; }
+#grup_sms_liste_modal .modal-body{ padding:18px 24px 24px; }
+#grup_sms_liste_modal .dataTables_wrapper .dataTables_filter input{ border:1px solid #e2e8f0; border-radius:9px; padding:6px 12px; outline:none; }
+#grup_sms_liste_modal .dataTables_wrapper .dataTables_filter input:focus{ border-color:#a855f7; box-shadow:0 0 0 3px rgba(168,85,247,.15); }
+#grup_sms_liste_modal .dataTables_wrapper .dataTables_length select{ border:1px solid #e2e8f0; border-radius:8px; padding:3px 8px; }
+#grup_sms_liste_modal .dataTables_wrapper .dataTables_paginate .paginate_button.current{ background:#7c3aed !important; border:none !important; color:#fff !important; border-radius:8px; }
+#grup_sms_liste_modal .dataTables_wrapper .dataTables_paginate .paginate_button{ border:none !important; }
+
+#grup_sms_tablo{ border-collapse:separate !important; border-spacing:0 10px; width:100% !important; }
+#grup_sms_tablo thead th{ border:none !important; text-transform:uppercase; font-size:11px; letter-spacing:.5px; color:#94a3b8; font-weight:700; padding:2px 16px 8px; }
+#grup_sms_tablo thead th:last-child{ text-align:right; }
+#grup_sms_tablo tbody td{ background:#fff; border:none; border-top:1px solid #eef1f6; border-bottom:1px solid #eef1f6; padding:14px 16px; vertical-align:middle; }
+#grup_sms_tablo tbody tr td:first-child{ border-left:1px solid #eef1f6; border-top-left-radius:14px; border-bottom-left-radius:14px; font-weight:700; color:#1e293b; font-size:14px; }
+#grup_sms_tablo tbody tr td:last-child{ border-right:1px solid #eef1f6; border-top-right-radius:14px; border-bottom-right-radius:14px; }
+#grup_sms_tablo tbody td:nth-child(2){ text-align:center; }
+#grup_sms_tablo tbody tr:hover td{ background:#faf5ff; border-color:#efe4fb; }
+
+.grup-say{ display:inline-block; min-width:52px; padding:5px 14px; border-radius:999px; background:#f1f5f9; color:#475569; font-weight:700; font-size:13px; }
+#grup_sms_tablo tbody tr:hover .grup-say{ background:#ede9fe; color:#6d28d9; }
+
+.grup-islemler{ display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; align-items:center; }
+.grup-btn{ display:inline-flex; align-items:center; gap:6px; border:none; border-radius:10px; padding:8px 13px; font-size:12.5px; font-weight:600; line-height:1; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease, background .12s ease, color .12s ease; }
+.grup-btn i{ font-size:13px; }
+.grup-btn:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(15,23,42,.12); }
+.grup-btn--sms{ background:#e7f7ef; color:#0f9d58; }
+.grup-btn--sms:hover{ background:#0f9d58; color:#fff; }
+.grup-btn--edit{ background:#eef2ff; color:#4f46e5; }
+.grup-btn--edit:hover{ background:#4f46e5; color:#fff; }
+.grup-btn--del{ background:#fde8e8; color:#dc2626; }
+.grup-btn--del:hover{ background:#dc2626; color:#fff; }
+@media (max-width:575px){
+   .grup-btn span{ display:none; } /* dar ekranda sadece ikon */
+   .grup-btn{ padding:9px 11px; }
+}
+</style>
+
 <script>
 (function(){
    // "Grupları Gör" listesi ilk yüklemede server verisiyle doldurulmuyordu (tablo boş
