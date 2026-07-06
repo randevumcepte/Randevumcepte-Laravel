@@ -1358,6 +1358,44 @@
                }
             } catch(_) {}
          });
+
+         // ---- GERİ KAZANIM (win-back) OTOMATİK ARAMA SENARYOSU ----
+         // Kanal = Santral Arama (gorevTuru=1) VE Hedef = Geri Kazanılmalı (preset=pasif)
+         // seçildiğinde "Kampanya Metni" alanı otomatik geri-kazanım açılış metniyle dolar.
+         // Kullanıcı bir şablon seçer/metni değiştirirse dokunulmaz; segment/kanal değişince
+         // (yalnızca bizim doldurduğumuz metin duruyorsa) geri çekilir.
+         @php
+            $__wbSalon = trim((string)($isletme->santral_telaffuz_hatirlatma_aramasi ?? '')) !== ''
+               ? $isletme->santral_telaffuz_hatirlatma_aramasi
+               : ($isletme->salon_adi ?? 'işletmemiz');
+            $__wbMetin = 'İyi günler sayın müşterimiz, sizi '.$__wbSalon.' adına arıyorum. '
+               .'Yaklaşık doksan gündür sizi aramızda göremiyoruz. Sizi bir kahve içmeye davet etmek istiyoruz. '
+               .'Ayrıca gelirken kullanabilmeniz için size özel bir indirim kuponu hazırladık. '
+               .'Bu indirim kodunuzu ve yol tarifimizi mesaj olarak göndermemi ister misiniz?';
+         @endphp
+         var _wbMetin = {!! json_encode($__wbMetin, JSON_UNESCAPED_UNICODE) !!};
+         function rkpWinbackDegerlendir(){
+            var gorev  = $('#gorevTuru').val();
+            var preset = $('#yeni_kampanya_modal .rkp-preset.is-active').data('preset');
+            var $p  = $('#kampanyaPrompt');
+            if(!$p.length) return;
+            var cur = ($p.text() || '').trim();
+            if(String(gorev) === '1' && preset === 'pasif'){
+               // Sadece boşsa ya da hâlâ bizim otomatik metnimiz duruyorsa doldur
+               if(cur === '' || cur === _wbMetin.trim()){
+                  $p.text(_wbMetin);
+                  $('#seciliSablonId').val('');
+                  if(typeof SMScountChar === 'function'){ try{ SMScountChar(_wbMetin); }catch(_){} }
+               }
+            } else if(cur === _wbMetin.trim()){
+               // Kanal/segment değişti, kullanıcı elle bir şey seçmedi → otomatik metni temizle
+               $p.empty();
+            }
+         }
+         $(document).on('click','#yeni_kampanya_modal .reklam-kanal-kart, #yeni_kampanya_modal .rkp-preset', function(){
+            setTimeout(rkpWinbackDegerlendir, 0);
+         });
+         $('#yeni_kampanya_modal').on('shown.bs.modal', function(){ setTimeout(rkpWinbackDegerlendir, 0); });
       })();
       </script>
    </div>
