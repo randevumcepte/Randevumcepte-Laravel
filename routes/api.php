@@ -332,6 +332,8 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::get('/alacakdeneme','ApiController@alacakdeneme');
     Route::post('/alacakOdenecek','ApiController@alacakOdenecek');
     Route::post('kampanyaKatilinacak','ApiController@kampanyaKatilinacak');
+    Route::post('/kampanyaSesliRandevu','ApiController@kampanyaSesliRandevu');
+    Route::get('/kampanyaSesliRandevu','ApiController@kampanyaSesliRandevu');
     Route::get('/nlpIntentDeneme','ApiController@nlpIntentDeneme');
     Route::post('/cevapVer','ApiController@cevapVer');
     Route::get('/cevapVer','ApiController@cevapVer');

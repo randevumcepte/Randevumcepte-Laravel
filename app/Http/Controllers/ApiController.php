@@ -1584,12 +1584,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $q->where('salon_id',$isletmeId);
 
         })
-        // Iptal edilen hizmetler takvimde gosterilmesin (web ile ayni davranis).
-        // Paket randevulari iptal edilince randevu.durum=1 kalabiliyor ama
-        // randevu_hizmetler.iptal=1 oluyor; bu filtre onlari da gizler.
-        ->where(function($q){
-            $q->whereNull('iptal')->orWhere('iptal','!=',1);
-        })
+        // NOT: onceki 'iptal != 1' filtresi kaldirildi (web StoreAdmin ile
+        // ayni). Sebep: paket iptal fix'i (randevuiptalet) artik durum=2
+        // set edip seanslari siliyor -> durum<2 filtresi zaten iptal edilen
+        // paketleri disliyor. Ekstra iptal filtresi, eski yanlis set edilmis
+        // 'randevu_hizmetler.iptal=1' kayitlari yuzunden onay bekleyen /
+        // aktif randevulari da yanlislikla gizliyor olabilir.
         ->where(function($q) use($personelRolu,$request){
                 if($personelRolu == 5)
                     $q->where('personel_id',$request->personel_id);
@@ -23701,6 +23701,133 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
 
 
+    }
+
+    /**
+     * Geri kazanim (win-back) sesli randevu — santral AGI'si (kampanyaGeriKazanimRandevu.php)
+     * bu ucu iki modda cagirir:
+     *   - mod=kontrol : verilen tarih/saat icin en yakin uygun slotu bulur, dogal Turkce
+     *                   ifadesiyle birlikte doner (musteri onayina sunulur).
+     *   - mod=olustur : ayni slot icin randevuyu (durum=0, talep) olusturur.
+     * Randevu hizmeti: kampanyaya bagli hizmet, yoksa salonun ilk aktif hizmeti.
+     * Tum uygunluk/olusturma mantigi mevcut randevuUygunlukKontrolEt + santralRandevuEkle
+     * ile yeniden kullanilir; AGI ince kalir.
+     */
+    public function kampanyaSesliRandevu(Request $request)
+    {
+        try {
+            $mod = $request->mod;
+
+            // mod=bilgi: AGI, diyaloga girmeden ONCE bu katilimci icin sesli randevu
+            // uygun mu diye sorar. Uygun degilse (katilimci yok / hizmet yok — orn.
+            // eczane cagrisi ayni context'i paylasiyorsa) AGI hic konusmadan sessizce
+            // atlar. Bu yuzden bilgi modunda HER ZAMAN success=true + bookable doner.
+            $katilimci = KampanyaKatilimcilari::where('id', $request->katilimci_id)->first();
+            if (!$katilimci) {
+                return response()->json($mod === 'bilgi' ? ['success'=>true,'bookable'=>false] : ['success'=>false,'message'=>'Katilimci bulunamadi']);
+            }
+            $kampanya = KampanyaYonetimi::where('id', $katilimci->kampanya_id)->first();
+            if (!$kampanya) {
+                return response()->json($mod === 'bilgi' ? ['success'=>true,'bookable'=>false] : ['success'=>false,'message'=>'Kampanya bulunamadi']);
+            }
+
+            $salonId = $kampanya->salon_id;
+            $userId  = $katilimci->user_id;
+
+            // Randevu hizmeti: once kampanyanin hizmeti, yoksa salonun ilk aktif hizmeti.
+            $hizmetId = $kampanya->hizmet_id;
+            if (!$hizmetId) {
+                $ilkHizmet = SalonHizmetler::where('salon_id', $salonId)->where('aktif', 1)->first();
+                $hizmetId = $ilkHizmet ? $ilkHizmet->hizmet_id : null;
+            }
+
+            if ($mod === 'bilgi') {
+                return response()->json(['success'=>true,'bookable'=>(bool) $hizmetId]);
+            }
+
+            if (!$hizmetId) return response()->json(['success'=>false,'message'=>'Randevu icin uygun hizmet yok']);
+            if (empty($request->tarihSaat)) return response()->json(['success'=>false,'message'=>'Tarih/saat bos']);
+
+            // Uygunluk kontrolu — mevcut enyakinuygunrandevubul mantigini kullan.
+            $uygunReq = new Request();
+            $uygunReq->merge([
+                'randevuId'     => null,
+                'salonHizmetId' => $hizmetId,
+                'salonId'       => $salonId,
+                'tarihSaat'     => date('Y-m-d H:i', strtotime($request->tarihSaat)),
+                'personelId'    => null,
+                'paketBilgi'    => null,
+            ]);
+            $uygunResp = self::randevuUygunlukKontrolEt($uygunReq);
+            $uygun = $uygunResp instanceof \Illuminate\Http\JsonResponse ? $uygunResp->getData(true) : (array) $uygunResp;
+
+            if (empty($uygun['success'])) {
+                return response()->json(['success'=>false,'metin'=>$uygun['metin'] ?? '','message'=>'Uygun slot yok']);
+            }
+
+            $tarihsaat = !empty($uygun['tarihsaat']) ? $uygun['tarihsaat'] : date('Y-m-d H:i', strtotime($request->tarihSaat));
+            $dogal = self::tarihSaatiDogalIfadeTR($tarihsaat);
+
+            if ($request->mod !== 'olustur') {
+                // mod=kontrol
+                return response()->json([
+                    'success'        => true,
+                    'tarihsaat'      => $tarihsaat,
+                    'dogalIfade'     => $dogal,
+                    'alternatifOneri'=> (bool) ($uygun['alternatifOneri'] ?? false),
+                ]);
+            }
+
+            // mod=olustur
+            $ts = strtotime($tarihsaat);
+            $olusturReq = new Request();
+            $olusturReq->merge([
+                'easistan'            => 1,
+                'olusturan_user_id'   => $userId,
+                'salon_id'            => $salonId,
+                'user_id'             => $userId,
+                'durum'               => 0,
+                'hizmetler'           => [$hizmetId],
+                'randevuPersonelleri' => [$uygun['personelid'] ?? null],
+                'tarih'               => date('Y-m-d', $ts),
+                'saat'                => date('H:i:s', $ts),
+                'hizmetSuresi'        => [$uygun['sure'] ?? null],
+                'hizmetFiyati'        => [$uygun['fiyat'] ?? 0],
+                'randevuOdalari'      => [ (isset($uygun['odaid']) && $uygun['odaid'] !== '') ? $uygun['odaid'] : null ],
+                'paketBilgi'          => null,
+            ]);
+            $sonuc = self::santralRandevuEkle($olusturReq);
+            $ok = is_array($sonuc)
+                ? !empty($sonuc['success'])
+                : (($sonuc instanceof \Illuminate\Http\JsonResponse) ? !empty($sonuc->getData(true)['success']) : false);
+
+            // Randevu olustuysa katilimciyi katildi olarak isaretle.
+            if ($ok && $katilimci->durum_asistan === null) {
+                $katilimci->durum_asistan = 1;
+                $katilimci->save();
+            }
+
+            return response()->json(['success'=>$ok,'tarihsaat'=>$tarihsaat,'dogalIfade'=>$dogal]);
+        } catch (\Exception $e) {
+            Log::error('kampanyaSesliRandevu hata: '.$e->getMessage());
+            return response()->json(['success'=>false,'message'=>$e->getMessage()], 500);
+        }
+    }
+
+    /** Bir tarih/saat'i dogal Turkce ile ifade eder (bugun/yarin/29 Nisan Carsamba gunu saat 13:00). */
+    private function tarihSaatiDogalIfadeTR($tarihsaat)
+    {
+        $ts = strtotime($tarihsaat);
+        $bugun = strtotime(date('Y-m-d'));
+        $hedef = strtotime(date('Y-m-d', $ts));
+        $fark = (int) round(($hedef - $bugun) / 86400);
+        $saat = date('H:i', $ts);
+        if ($fark === 0) return "bugün saat {$saat}";
+        if ($fark === 1) return "yarın saat {$saat}";
+        $gunler = ['Sunday'=>'Pazar','Monday'=>'Pazartesi','Tuesday'=>'Salı','Wednesday'=>'Çarşamba','Thursday'=>'Perşembe','Friday'=>'Cuma','Saturday'=>'Cumartesi'];
+        $aylar  = [1=>'Ocak',2=>'Şubat',3=>'Mart',4=>'Nisan',5=>'Mayıs',6=>'Haziran',7=>'Temmuz',8=>'Ağustos',9=>'Eylül',10=>'Ekim',11=>'Kasım',12=>'Aralık'];
+        $gunAdi = $gunler[date('l', $ts)] ?? '';
+        return ((int) date('d', $ts)).' '.$aylar[(int) date('n', $ts)].' '.$gunAdi.' günü saat '.$saat;
     }
 
     public function yolTarifiGonder(Request $request)
