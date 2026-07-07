@@ -354,6 +354,11 @@
                                     @endif
                                 </div>
                                 <div class="sy-text-muted sy-fs-12">{{ $y->email ?: '—' }}</div>
+                                @php $tel = $y->gsm1 ?: ($y->gsm2 ?: $y->telefon); @endphp
+                                <div class="sy-text-muted sy-fs-12">
+                                    <span class="mdi mdi-phone"></span>
+                                    @if($tel)<a href="tel:{{ preg_replace('/[^0-9+]/', '', $tel) }}" style="color:inherit">{{ $tel }}</a>@else — @endif
+                                </div>
                             </div>
                             <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" style="margin:0;flex-shrink:0"
                                   onsubmit="return confirm('Bu {{ $y->is_admin ? 'sahip' : 'personel' }} hesabına geçiş yapılacak. Tüm hareketleriniz loglanacaktır. Devam edilsin mi?');">
