@@ -1178,7 +1178,7 @@ public function carkverilerigetir(Request $request)
         $period = $request->input('period','daily');
         list($t1, $t2) = $this->dashPeriodDates($period);
 
-        return \Cache::remember($this->dashCacheKey($salonId, 'kasa:'.$period), 60, function() use ($salonId, $t1, $t2, $period) {
+        return \Cache::remember($this->dashCacheKey($salonId, 'kasa:'.$period), now()->addSeconds(60), function() use ($salonId, $t1, $t2, $period) {
             $rows = DB::table('tahsilatlar')
                 ->leftJoin('odeme_yontemleri','tahsilatlar.odeme_yontemi_id','=','odeme_yontemleri.id')
                 ->where('tahsilatlar.salon_id', $salonId)
@@ -1238,7 +1238,7 @@ public function carkverilerigetir(Request $request)
         $period = $request->input('period','daily');
         list($t1, $t2) = $this->dashPeriodDates($period);
 
-        return \Cache::remember($this->dashCacheKey($salonId, 'randevuozet:'.$period), 60, function() use ($salonId, $t1, $t2) {
+        return \Cache::remember($this->dashCacheKey($salonId, 'randevuozet:'.$period), now()->addSeconds(60), function() use ($salonId, $t1, $t2) {
             $olusturulan = DB::table('randevular')
                 ->where('salon_id', $salonId)
                 ->whereBetween('tarih', [$t1, $t2])
@@ -1300,7 +1300,7 @@ public function carkverilerigetir(Request $request)
         $month = max(1, min(12, $month));
         $year = max(2020, min(2099, $year));
 
-        return \Cache::remember($this->dashCacheKey($salonId, 'takvim:'.$year.'-'.$month), 120, function() use ($salonId, $year, $month) {
+        return \Cache::remember($this->dashCacheKey($salonId, 'takvim:'.$year.'-'.$month), now()->addSeconds(120), function() use ($salonId, $year, $month) {
             $t1 = sprintf('%04d-%02d-01', $year, $month);
             $t2 = date('Y-m-t', strtotime($t1));
             $rows = DB::table('randevular')
@@ -1331,7 +1331,7 @@ public function carkverilerigetir(Request $request)
         $bas = date('Y-m-d 00:00:00', strtotime('-'.($gunSay-1).' days'));
         $bit = date('Y-m-d 23:59:59');
 
-        return \Cache::remember($this->dashCacheKey($salonId, 'anket:'.$period), 120, function() use ($salonId, $bas, $bit) {
+        return \Cache::remember($this->dashCacheKey($salonId, 'anket:'.$period), now()->addSeconds(120), function() use ($salonId, $bas, $bit) {
             $base = DB::table('anket_gonderimleri')
                 ->where('salon_id', $salonId)
                 ->whereBetween('gonderim_zamani', [$bas, $bit]);
