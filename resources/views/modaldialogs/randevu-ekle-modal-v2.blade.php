@@ -1785,6 +1785,16 @@
             return '<li><span class="v2-paket-hizmet-ad">'+escapeHtml(h.text)+'</span>'+seansTxt+'<span class="v2-paket-hizmet-sure">'+sure+' dk</span></li>';
         }).join('');
 
+        // Musteriye satilan paket fiyati (adisyon_paketler.fiyat) — varsa hizmet
+        // default fiyatlari toplamini override eder. Boylece input musteriye
+        // satilan gercek tutari gosterir.
+        if (grp && grp.paket_fiyat !== undefined && grp.paket_fiyat !== null) {
+            var satisFiyati = parseFloat(grp.paket_fiyat) || 0;
+            if (satisFiyati > 0) {
+                totalFiyat = satisFiyati;
+            }
+        }
+
         var cihazSelHTML = @json($__cihazVar) ?
             '<div class="v2-field"><select class="form-control v2-input v2-sm v2-cihaz"><option value="">Cihaz...</option></select></div>' : '';
         var odaSelHTML = @json($__odaVar) ?

@@ -30707,6 +30707,10 @@ DB::raw('
             $onayMetni .= '<div class="package-group mt-2"><strong>📦 ' .
                          $paketAdi . '</strong> (' . $toplamKalan . ' seans)</div>';
 
+            // Musteriye satilan paket fiyati (adisyon_paketler.fiyat).
+            // Randevu ekleme modalinda paket kartinin fiyat input'una default olarak
+            // basilir (kullanici "0 gozukuyor, satis fiyati gelmeli" diye rapor etti).
+            $paketSatisFiyati = (float) ($paketA->fiyat ?? 0);
             $paketDetaylari[] = [
                 'index' => $paketIndex++,
                 'adi' => $paketAdi,
@@ -30718,6 +30722,7 @@ DB::raw('
                 'type' => 'paket',
                 'adisyon_paket_id' => $paketA->id,
                 'toplamSeans' => $toplamKalan,
+                'paket_fiyat' => $paketSatisFiyati,
                 'icerik' => $paketHizmetleriArray
             ];
         }
