@@ -1178,7 +1178,18 @@ public function carkverilerigetir(Request $request)
         $period = $request->input('period','daily');
         list($t1, $t2) = $this->dashPeriodDates($period);
 
-        return \Cache::remember($this->dashCacheKey($salonId, 'kasa:'.$period), now()->addSeconds(60), function() use ($salonId, $t1, $t2, $period) {
+        // Cache anahtarina tahsilat "parmak izi" gom: satir eklenince/silinince (app,
+        // query-builder YA DA direkt SQL fark etmez) COUNT/MAX degisir -> anahtar degisir
+        // -> bayat toplam gosterilmez. Aralik hem sum ([t1,t2]) hem sparkline (son 7 gun) kapsar.
+        $fpStart = min($t1, date('Y-m-d', strtotime('-6 days')));
+        $fp = DB::table('tahsilatlar')
+            ->where('salon_id', $salonId)
+            ->whereBetween('odeme_tarihi', [$fpStart.' 00:00:00', $t2.' 23:59:59'])
+            ->selectRaw('COUNT(*) as c, COALESCE(MAX(updated_at), 0) as u, COALESCE(MAX(id), 0) as m')
+            ->first();
+        $sig = $fp->c.'-'.$fp->u.'-'.$fp->m;
+
+        return \Cache::remember($this->dashCacheKey($salonId, 'kasa:'.$period.':'.$sig), now()->addSeconds(60), function() use ($salonId, $t1, $t2, $period) {
             $rows = DB::table('tahsilatlar')
                 ->leftJoin('odeme_yontemleri','tahsilatlar.odeme_yontemi_id','=','odeme_yontemleri.id')
                 ->where('tahsilatlar.salon_id', $salonId)
