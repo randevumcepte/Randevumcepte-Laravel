@@ -192,12 +192,31 @@ class PanelController extends Controller
         // MT id->name map (her satirda ayri sorgu yerine tek seferde)
         $mtMap = $musteriTemsilcileri->pluck('name', 'id');
 
+        // Hesap sahibi fallback: yetkili_adi/yetkili_telefon bos olan salonlar icin
+        // salon_personelleri'nde role_id=1 (hesap sahibi) kaydinin adi+telefonu.
+        // Sayfadaki tum salonlar icin tek sorgu (N+1 yok).
+        $salonIdler = collect($salonlar->items())->pluck('id')->all();
+        $hesapSahipleri = [];
+        if (!empty($salonIdler)) {
+            $rows = DB::table('salon_personelleri')
+                ->where('role_id', 1)
+                ->whereIn('salon_id', $salonIdler)
+                ->orderBy('id', 'asc')
+                ->get(['salon_id', 'personel_adi', 'cep_telefon']);
+            foreach ($rows as $r) {
+                if (!isset($hesapSahipleri[$r->salon_id])) {
+                    $hesapSahipleri[$r->salon_id] = $r; // salon basina ilk kayit
+                }
+            }
+        }
+
         return view('sistemyonetim.v2.salonlar', [
             'title' => 'Salonlar',
             'aktifMenu' => 'salonlar',
             'salonlar' => $salonlar,
             'musteriTemsilcileri' => $musteriTemsilcileri,
             'mtMap' => $mtMap,
+            'hesapSahipleri' => $hesapSahipleri,
             'q' => $q,
             'durum' => $durum,
             'mt' => $musteriYetkiliId,

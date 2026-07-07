@@ -107,7 +107,26 @@
                         <td class="sy-text-muted sy-fs-13">
                             {{ optional($s->il)->il_adi ?: '—' }} / {{ optional($s->ilce)->ilce_adi ?: '—' }}
                         </td>
-                        <td>{{ $s->yetkili_adi ?: '—' }}</td>
+                        <td>
+                            @php
+                                $yAd  = trim((string) $s->yetkili_adi);
+                                $yTel = trim((string) $s->yetkili_telefon);
+                                // Yetkili adi VE telefonu bos ise hesap sahibine (role_id=1) dus
+                                if ($yAd === '' && $yTel === '') {
+                                    $hs = $hesapSahipleri[$s->id] ?? null;
+                                    if ($hs) {
+                                        $yAd  = trim((string) $hs->personel_adi);
+                                        $yTel = trim((string) $hs->cep_telefon);
+                                    }
+                                }
+                            @endphp
+                            <div>{{ $yAd ?: '—' }}</div>
+                            @if($yTel !== '')
+                                <div class="sy-text-muted sy-fs-12">
+                                    <a href="tel:{{ preg_replace('/[^0-9+]/', '', $yTel) }}" style="color:inherit">{{ $yTel }}</a>
+                                </div>
+                            @endif
+                        </td>
                         <td class="sy-text-muted sy-fs-13">
                             {{ $mtMap[$s->musteri_yetkili_id] ?? '—' }}
                         </td>
