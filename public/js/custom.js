@@ -3050,10 +3050,12 @@ $(document).on('click','.randevuonayla',function(e){
                 $('.modal-backdrop').remove();
                 $('body').removeClass('modal-open').css('padding-right','');
             }, 200);
-            // Takvim varsa refetch et — randevu sariden personel rengine dönsün
+            // Takvim varsa gercekten yeniden yukle — 'refetchEvents' static events
+            // dizisi ile init edilen calendar'da hicbir sey yapmiyor, sariden yeni
+            // renge donmuyor. takvimyukle() yeni event kaynagi cekip yeniden basar.
             try {
-                if (window.$ && $('#calendar').length && $('#calendar').fullCalendar) {
-                    $('#calendar').fullCalendar('refetchEvents');
+                if (window.$ && $('#calendar').length && typeof takvimyukle === 'function') {
+                    takvimyukle(false, false);
                 }
             } catch(e){}
             if($('#randevu_liste').length){
