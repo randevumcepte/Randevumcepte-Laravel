@@ -98,9 +98,12 @@ class RandevuSMSHatirlatma extends Command
                     $saat = date('H:i', strtotime($value->saat));
                     $tarihStr = date('d.m.Y', strtotime($value->tarih));
                     $hizmetMetni = $this->hizmetMetniOlustur($value);
-                    $mesaj = 'Sayın ' . optional($value->users)->name . '; ' . $tarihStr . ' tarihinde saat ' . $saat . ' ' . $hizmetMetni . 'randevunuzu hatırlatmak isteriz görüşmek üzere ✨';
+                    // SMS icin: eski kisa format (karakter tasarrufu)
+                    $mesajSMS = 'Sayın ' . optional($value->users)->name . '; ' . $tarihStr . ' tarihinde saat ' . $saat . ' ' . $hizmetMetni . 'randevunuzu hatırlatmak isteriz görüşmek üzere ✨';
+                    // WA icin: zenginlestirilmis format (konum + telefon + emoji)
+                    $mesajWA = $this->whatsAppRichMetin($value->salonlar, $value->users, $tarihStr, $saat, 'randevunuzu');
                     $templateCtx = ['key' => 'yaklasan', 'params' => [$saat, $value->salonlar->salon_adi]];
-                    $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesaj, $templateCtx);
+                    $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesajWA, $templateCtx, $mesajSMS);
                 } elseif ($ayar) {
                     Log::info('[RND-SMS] müşteri SMS toggle kapali — atlandi', ['randevu_id' => $value->id]);
                 }
@@ -253,7 +256,7 @@ class RandevuSMSHatirlatma extends Command
         }
     }
 
-    protected function musteriyeGonder(WhatsAppService $wa, Controller $controller, $randevu, $ayar, $mesajBase, $templateCtx = null)
+    protected function musteriyeGonder(WhatsAppService $wa, Controller $controller, $randevu, $ayar, $mesajBase, $templateCtx = null, $mesajSMS = null)
     {
         $salon = $randevu->salonlar;
         $musteri = $randevu->users;
@@ -317,9 +320,12 @@ class RandevuSMSHatirlatma extends Command
         if (!$whatsappBasarili) {
             // SMS'te gönderici kimliği görünmediği için işletme adını başa ekle.
             // (WhatsApp'ta mesaj salonun kendi numarasından gittiği için eklenmez.)
+            // WA icin zenginlestirilmis format kullanildiginda $mesajSMS verilir;
+            // SMS icin bu daha kisa metni kullan. Verilmediyse eski davranis.
+            $smsBase = $mesajSMS ?: $mesajBase;
             $smsMesaj = !empty($salon->salon_adi)
-                ? $salon->salon_adi . ' - ' . $mesajBase
-                : $mesajBase;
+                ? $salon->salon_adi . ' - ' . $smsBase
+                : $smsBase;
             Log::info('[RND-SMS] müşteri SMS gönderiliyor', [
                 'salon_id' => $salon->id,
                 'randevu_id' => $randevu->id,
@@ -456,9 +462,18 @@ class RandevuSMSHatirlatma extends Command
             $hizmetListesi = implode(', ', $satirlar);
             $birdenCok = count($satirlar) > 1;
             $randevuKelime = $birdenCok ? 'randevularınızı' : 'randevunuzu';
-            $mesaj = 'Sayın ' . $musteri->name . '; ' . $tarihStr . ' tarihinde '
+
+            // SMS icin: kisa format
+            $mesajSMS = 'Sayın ' . $musteri->name . '; ' . $tarihStr . ' tarihinde '
                 . $hizmetListesi . ' ' . $randevuKelime
                 . ' hatırlatmak isteriz görüşmek üzere ✨';
+
+            // WA icin: zenginlestirilmis format. Coklu randevu ise saat listesini,
+            // tek randevu ise tek saati goster.
+            $saatler = $sortedGrup->map(function ($r) {
+                return date('H:i', strtotime($r->saat));
+            })->unique()->values()->implode(', ');
+            $mesajWA = $this->whatsAppRichMetin($salon, $musteri, $tarihStr, $saatler, $randevuKelime);
 
             $ilkSaat = date('H:i', strtotime($sortedGrup->first()->saat));
             $templateCtx = ['key' => '1gun', 'params' => [$ilkSaat, $salon->salon_adi]];
@@ -475,8 +490,34 @@ class RandevuSMSHatirlatma extends Command
             ]);
 
             // musteriyeGonder ilk randevu uzerinden cagrilir (telefon, salon, vs ondan alinir)
-            $this->musteriyeGonder($wa, $controller, $ilk, $ayar, $mesaj, $templateCtx);
+            $this->musteriyeGonder($wa, $controller, $ilk, $ayar, $mesajWA, $templateCtx, $mesajSMS);
         }
+    }
+
+    /**
+     * WhatsApp icin ZENGIN formatli hatirlatma mesaji uretir.
+     * SMS'ten farkli (link + emoji + markdown vurgu). Konum_linki / telefon_1
+     * varsa gosterilir, yoksa o satir atlanir.
+     */
+    protected function whatsAppRichMetin($salon, $musteri, $tarihStr, $saatlerStr, $randevuKelime)
+    {
+        $mesaj  = "🌸 Merhaba, *" . $musteri->name . "*,\n\n";
+        $mesaj .= ($salon->salon_adi ?? 'Salon') . " için size yaklaşan " . $randevuKelime . " hatırlatmak isteriz. 💖\n\n";
+        $mesaj .= "📅 *Tarih:* " . $tarihStr . "\n";
+        $mesaj .= "🕒 *Saat:* " . $saatlerStr . "\n\n";
+        $mesaj .= "Sizi zamanında ve en iyi şekilde ağırlayabilmemiz için randevu saatinizden birkaç dakika önce salonda olmanızı rica ederiz.\n\n";
+
+        if (!empty($salon->konum_linki)) {
+            $mesaj .= "📍 *Konum:* " . $salon->konum_linki . "\n";
+        }
+        if (!empty($salon->telefon_1)) {
+            $mesaj .= "📞 *Salon Telefonu:* " . $salon->telefon_1 . "\n";
+        }
+
+        $mesaj .= "\nHerhangi bir değişiklik yapmak veya bizimle iletişime geçmek isterseniz bu WhatsApp hattından ya da telefon numaramızdan bize ulaşabilirsiniz.\n\n";
+        $mesaj .= "Bizi tercih ettiğiniz için teşekkür eder, sizi ağırlamayı sabırsızlıkla bekleriz. 💐";
+
+        return $mesaj;
     }
 
     // Randevudaki hizmet adlarini "solaryum, saç kesimi " seklinde birlestirir.
