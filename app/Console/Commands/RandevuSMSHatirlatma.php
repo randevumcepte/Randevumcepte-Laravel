@@ -511,7 +511,12 @@ class RandevuSMSHatirlatma extends Command
             $mesaj .= "📍 *Konum:* " . $salon->konum_linki . "\n";
         }
         if (!empty($salon->telefon_1)) {
-            $mesaj .= "📞 *Salon Telefonu:* " . $salon->telefon_1 . "\n";
+            $tel = ltrim((string) $salon->telefon_1);
+            // Basina 0 yoksa ekle (ornek: "2121234567" -> "02121234567")
+            if ($tel !== '' && $tel[0] !== '0') {
+                $tel = '0' . $tel;
+            }
+            $mesaj .= "📞 *Salon Telefonu:* " . $tel . "\n";
         }
 
         $mesaj .= "\nHerhangi bir değişiklik yapmak veya bizimle iletişime geçmek isterseniz bu WhatsApp hattından ya da telefon numaramızdan bize ulaşabilirsiniz.\n\n";
