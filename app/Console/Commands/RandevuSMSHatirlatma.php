@@ -512,8 +512,10 @@ class RandevuSMSHatirlatma extends Command
         }
         if (!empty($salon->telefon_1)) {
             $tel = ltrim((string) $salon->telefon_1);
-            // Basina 0 yoksa ekle (ornek: "2121234567" -> "02121234567")
-            if ($tel !== '' && $tel[0] !== '0') {
+            // Basina 0 yoksa ve numara rakamla basliyorsa 0 ekle
+            // (ornek: "2121234567" -> "02121234567"). +90 gibi uluslararasi
+            // format zaten '+' ile basladigi icin dokunulmaz.
+            if ($tel !== '' && ctype_digit($tel[0]) && $tel[0] !== '0') {
                 $tel = '0' . $tel;
             }
             $mesaj .= "📞 *Salon Telefonu:* " . $tel . "\n";
