@@ -100,8 +100,9 @@ class RandevuSMSHatirlatma extends Command
                     $hizmetMetni = $this->hizmetMetniOlustur($value);
                     // SMS icin: eski kisa format (karakter tasarrufu)
                     $mesajSMS = 'Sayın ' . optional($value->users)->name . '; ' . $tarihStr . ' tarihinde saat ' . $saat . ' ' . $hizmetMetni . 'randevunuzu hatırlatmak isteriz görüşmek üzere ✨';
-                    // WA icin: zenginlestirilmis format (konum + telefon + emoji)
-                    $mesajWA = $this->whatsAppRichMetin($value->salonlar, $value->users, $tarihStr, $saat, 'randevunuzu');
+                    // WA icin: zenginlestirilmis format (konum + telefon + emoji + hizmet)
+                    $hizmetlerRich = trim($this->hizmetMetniOlustur($value), ' ,');
+                    $mesajWA = $this->whatsAppRichMetin($value->salonlar, $value->users, $tarihStr, $saat, 'randevunuzu', $hizmetlerRich);
                     $templateCtx = ['key' => 'yaklasan', 'params' => [$saat, $value->salonlar->salon_adi]];
                     $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesajWA, $templateCtx, $mesajSMS);
                 } elseif ($ayar) {
@@ -473,7 +474,18 @@ class RandevuSMSHatirlatma extends Command
             $saatler = $sortedGrup->map(function ($r) {
                 return date('H:i', strtotime($r->saat));
             })->unique()->values()->implode(', ');
-            $mesajWA = $this->whatsAppRichMetin($salon, $musteri, $tarihStr, $saatler, $randevuKelime);
+
+            // Hizmet listesi (uniqe, "solaryum, cilt bakimi" formatinda) — saatsiz,
+            // saat zaten yukarida ayri satirda gosteriliyor.
+            $hizmetAdlari = collect();
+            foreach ($sortedGrup as $r) {
+                foreach ($r->hizmetler as $h) {
+                    $hAd = optional($h->hizmetler)->hizmet_adi;
+                    if ($hAd) $hizmetAdlari->push($hAd);
+                }
+            }
+            $hizmetlerRich = $hizmetAdlari->unique()->values()->implode(', ');
+            $mesajWA = $this->whatsAppRichMetin($salon, $musteri, $tarihStr, $saatler, $randevuKelime, $hizmetlerRich);
 
             $ilkSaat = date('H:i', strtotime($sortedGrup->first()->saat));
             $templateCtx = ['key' => '1gun', 'params' => [$ilkSaat, $salon->salon_adi]];
@@ -499,13 +511,16 @@ class RandevuSMSHatirlatma extends Command
      * SMS'ten farkli (link + emoji + markdown vurgu). Konum_linki / telefon_1
      * varsa gosterilir, yoksa o satir atlanir.
      */
-    protected function whatsAppRichMetin($salon, $musteri, $tarihStr, $saatlerStr, $randevuKelime)
+    protected function whatsAppRichMetin($salon, $musteri, $tarihStr, $saatlerStr, $randevuKelime, $hizmetlerStr = '')
     {
         $mesaj  = "🌸 Merhaba, *" . $musteri->name . "*,\n\n";
         $mesaj .= ($salon->salon_adi ?? 'Salon') . " için size yaklaşan " . $randevuKelime . " hatırlatmak isteriz. 💖\n\n";
         $mesaj .= "📅 *Tarih:* " . $tarihStr . "\n";
-        $mesaj .= "🕒 *Saat:* " . $saatlerStr . "\n\n";
-        $mesaj .= "Sizi zamanında ve en iyi şekilde ağırlayabilmemiz için randevu saatinizden birkaç dakika önce salonda olmanızı rica ederiz.\n\n";
+        $mesaj .= "🕒 *Saat:* " . $saatlerStr . "\n";
+        if (!empty($hizmetlerStr)) {
+            $mesaj .= "✂️ *Hizmetler:* " . $hizmetlerStr . "\n";
+        }
+        $mesaj .= "\nSizi zamanında ve en iyi şekilde ağırlayabilmemiz için randevu saatinizden birkaç dakika önce salonda olmanızı rica ederiz.\n\n";
 
         if (!empty($salon->konum_linki)) {
             $mesaj .= "📍 *Konum:* " . $salon->konum_linki . "\n";
