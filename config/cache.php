@@ -15,12 +15,14 @@ return [
     |
     */
 
-    // Test sunucusunda storage/framework/cache/data altinda eksik hash subdir'leri
-    // ('90/07/' gibi) Laravel'in eski FileStore'unun mkdir yapmamasi sebebiyle
-    // tum API isteklerini 500'e dusurdu (RateLimiter file cache yazamiyordu).
-    // Default'u 'array'e cektik — RateLimiter RAM kullanir, file system'e dokunmaz.
-    // .env'de CACHE_DRIVER set edilirse o oncelikli kalir.
-    'default' => env('CACHE_DRIVER', 'array'),
+    // Eski L5.6 FileStore + degisken sunucu izinleri yuzunden 'file' cache 3+
+    // isletmede "file_put_contents ... No such file or directory" ile TUM
+    // istekleri 500'e dusurdu (RateLimiter her istekte cache'e yaziyor).
+    // .env'de CACHE_DRIVER=file yazsa bile 'database'e normalize ediyoruz ki
+    // her sunucunun .env'ine tek tek dokunmaya gerek kalmasin (deploy cron'u
+    // 'cache' tablosunu migrate eder). Persist korunur, dosya sistemine bagimli
+    // degil. Redis/memcached gibi mesru driver'lar aynen gecerli kalir.
+    'default' => env('CACHE_DRIVER') === 'file' ? 'database' : env('CACHE_DRIVER', 'database'),
 
     /*
     |--------------------------------------------------------------------------
