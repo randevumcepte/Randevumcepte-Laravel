@@ -1025,19 +1025,39 @@ class ApiController extends Controller
         
 
     }*/
-    public function adisyon_yukle( Request $request,$adisyonturu,$adisyondurumu,$tarih1, $tarih2,$musteriid,$personelid, $isletme_id,$sayfala) {
+    public function adisyon_yukle( Request $request,$adisyonturu,$adisyondurumu,$tarih1, $tarih2,$musteriid,$personelid, $isletme_id,$sayfala, $faturasiziDahilEt = false) {
 
     $isletmeId = $isletme_id;
-    
+
     // acikKapali parametresini al
     $acikKapali = $request->input('acikKapali', -1);
     if(is_string($acikKapali)) {
         $acikKapali = (int)$acikKapali;
     }
 
+    // [SATIS-TAKIBI-DEBUG] gecici log — hangi parametreler geliyor?
+    \Log::info('[SATIS-TAKIBI] giris', [
+        'isletme_id'   => $isletme_id,
+        'tarih1'       => $tarih1,
+        'tarih2'       => $tarih2,
+        'musteriid'    => $musteriid,
+        'personelid'   => $personelid,
+        'adisyonturu'  => $adisyonturu,
+        'acikKapali'   => $acikKapali,
+        'musteriMi'    => $request->musteriMi,
+        'appBundle'    => $request->appBundle,
+        'page'         => $request->input('page', 1),
+        'user_id_req'  => $request->user_id,
+    ]);
+
     // faturasiz_gizle ayari hem liste filtresinde hem sayimda kullaniliyor;
     // tek sefer cek (onceden 2 kez sorgulaniyordu).
-    $_faturasizGizleAktif = (bool) Salonlar::where('id', $isletmeId)->value('faturasiz_gizle');
+    // PRIM hesabinda (faturasiziDahilEt=true) bu filtre ATLANIR — web
+    // primHakedisVerisi fatura filtresi uygulamadigindan, faturasiz_gizle
+    // acik salonlarda mobil prim hakedisi 0 gorunmesin diye (web ile ayni).
+    $_faturasizGizleAktif = $faturasiziDahilEt
+        ? false
+        : (bool) Salonlar::where('id', $isletmeId)->value('faturasiz_gizle');
 
     // ÖNCE FİLTRELERİ UYGULA
     $query = Adisyonlar::with([
@@ -1120,6 +1140,17 @@ class ApiController extends Controller
     } else {
         $adisyonlarListe = $query->get();
     }
+
+    // [SATIS-TAKIBI-DEBUG] gecici log — bu sayfada kac kayit dondu + toplam (tarih+salon filtreli)
+    \Log::info('[SATIS-TAKIBI] sonuc', [
+        'isletme_id'      => $isletme_id,
+        'tarih1'          => $tarih1,
+        'tarih2'          => $tarih2,
+        'donen_adet'      => $adisyonlarListe->count(),
+        'sayfa'           => $sayfa,
+        'donen_ilk_id'    => optional($adisyonlarListe->first())->id,
+        'donen_ilk_tarih' => optional($adisyonlarListe->first())->tarih,
+    ]);
 
     // ALACAKLARI SADECE BU SAYFADAKİ user_id'ler için çek (önceden tüm filtreyi yeniden çalıştırıyordu)
     $userIdler = $adisyonlarListe->pluck('user_id')->unique()->toArray();
@@ -6962,6 +6993,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         }
 
+        // Teshis: her bildirim icin merchant_oid + status logla (PayTR 500 sikayetlerinde tek kaynak bu)
+        Log::info('PayTR bildirimi alindi', [
+            'merchant_oid' => isset($post['merchant_oid']) ? $post['merchant_oid'] : null,
+            'status'       => isset($post['status']) ? $post['status'] : null,
+            'total_amount' => isset($post['total_amount']) ? $post['total_amount'] : null,
+        ]);
+
         ###########################################################################
 
         ## BURADA YAPILMASI GEREKENLER
@@ -7029,6 +7067,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $form = Musteri_Formlari::where('merchant_oid',$post['merchant_oid'])->first();
             if($form)
             {
+                // Idempotency: ayni siparis icin birden fazla bildirim gelebilir (PayTR yeniden dener).
+                // Tekrar islersek uyelik bitis tarihi her seferinde bir donem daha uzardi.
+                if($form->durum_id == 7){ echo "OK"; exit(); }
+
                 $form->durum_id = 7;
 
                 $form->satis_ortagi_hakedis_odeme_durumu_id = 3;
@@ -7081,6 +7123,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                  Log::info('Özel ödeme geldi.'.$post['merchant_oid']);
 
                 $isletme = Salonlar::where('merchant_oid',$post['merchant_oid'])->first();
+
+                // Ne form ne de isletme eslesti. Once burada $isletme null olunca fatal olusuyor,
+                // PayTR'a 500 donuyordu. Tekrar denemenin faydasi yok: logla ve OK don.
+                if(!$isletme){
+                    Log::warning('PayTR bildirimi: merchant_oid hicbir kayitla eslesmedi', [
+                        'merchant_oid' => $post['merchant_oid'],
+                        'total_amount' => isset($post['total_amount']) ? $post['total_amount'] : null,
+                    ]);
+                    echo "OK";
+                    exit();
+                }
+
                 $uyelik = Uyelik::where('id',$isletme->uyelik_turu)->first();
                 $isletme->demo_hesabi = false;
                 $periyot_yazi = "";
@@ -7134,7 +7188,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 exit();
             }
 
-            echo "Başarısız ödeme.";
+            // PayTR basarisiz odemelerde de sadece "OK" bekler; baska bir cikti bildirimi
+            // basarisiz sayar, tekrar tekrar dener ve magazaya hata olarak raporlar.
+            Log::info('PayTR basarisiz odeme bildirimi', [
+                'merchant_oid' => isset($post['merchant_oid']) ? $post['merchant_oid'] : null,
+                'reason'       => isset($post['failed_reason_msg']) ? $post['failed_reason_msg'] : null,
+            ]);
+
+            echo "OK";
 
             exit();
 
@@ -9711,12 +9772,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     public function personeller(Request $request, $salonid)
 
     {
-
+        // Bu uc SECIM LISTELERINI besler (hizmet/urun/paket satisi, masraf,
+        // on gorusme, hizmet personel atamasi, ayarlar personel listesi).
+        // 'takvimde_gorunsun' SADECE takvim gorunumunu ilgilendirir; takvimde
+        // gizli ama aktif personel (kasiyer, yonetici vb.) bu listelerde
+        // secilebilmeli. Takvim kendi personelini ayri sorguyla ceker.
         return Personeller::where("salon_id", $salonid)
 
             ->where("aktif", true)
-
-            ->where("takvimde_gorunsun", true)
 
             ->get();
 
@@ -17338,6 +17401,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $personel = new Personeller();
                 $yeniekleme = true;
                 $personel->aktif = true;
+                // Varsayilan SADECE yeni kayitta atanir; duzenlemede dokunulmaz,
+                // boylece takvimde gizlenen personel guncellemede geri acilmaz.
+                $personel->takvimde_gorunsun = true;
                 $son_eklenen_personel = Personeller::where(
                     "salon_id",
                     $request->salon_id
@@ -17386,7 +17452,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $personel->paket_prim_detayli  = (int)($request->paket_prim_detayli ?? 0) ? 1 : 0;
             }
             $personel->yetkili_id = $yetkili->id;
-            $personel->takvimde_gorunsun = true;
+            // takvimde_gorunsun BURADA set EDILMEZ: burasi ekleme+duzenleme ortak
+            // yolu. Set edilirse takvimde gizlenmis personel, herhangi bir
+            // duzenlemede sessizce tekrar gorunur olur. Varsayilan sadece yeni
+            // kayitta atanir (yukaridaki 'new Personeller()' dali).
             $personel->role_id = $request->sistem_yetki;
             $personel->save();
 
@@ -18932,7 +19001,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             "",
             $request->personel_id,
             $request->sube,
-            false
+            false,
+            true // prim hesabi: faturasiz_gizle filtresini atla (web ile ayni)
         );
         // Eger JsonResponse ise data alaninda Collection var; Collection ise dogrudan kullan.
         if ($adisyonlarRaw instanceof \Illuminate\Http\JsonResponse) {
@@ -19020,10 +19090,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 ->groupBy('personel_id');
         }
 
-        // Aktif personeller. where('aktif',true) zaten arsivli olanlari eliyor
-        // (personelArsivle aktif=false yapiyor), ayri arsivli kontrolu gereksiz.
+        // Aktif + arsivli olmayan personeller — web primHakedisVerisi ile AYNI filtre.
+        // (aktif=1 ama arsivli=1 olan hesaplar da web'de gizli; sadece aktif bakmak
+        // arsivli sahip/test hesaplarini maasiyla listeye sokuyordu.)
         $personeller = Personeller::where('salon_id', $salonid)
             ->where('aktif', true)
+            ->where(function ($q) {
+                $q->where('arsivli', false)->orWhereNull('arsivli');
+            })
             ->orderBy('takvim_sirasi', 'asc')
             ->orderBy('id', 'asc')
             ->get();
@@ -19052,7 +19126,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         foreach ($personeller as $p) {
             $adisyonlarRaw = self::adisyon_yukle(
                 $request, '', '', $baslangic, $bitis, '',
-                $p->id, $salonid, false
+                $p->id, $salonid, false,
+                true // prim hesabi: faturasiz_gizle filtresini atla (web ile ayni)
             );
             if ($adisyonlarRaw instanceof \Illuminate\Http\JsonResponse) {
                 $payload = $adisyonlarRaw->getData(true);
