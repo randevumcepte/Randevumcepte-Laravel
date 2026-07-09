@@ -367,6 +367,10 @@
                         <button type="button" class="btn btn-success btn-sm" data-toggle="modal" id="sablon_olustur" data-target="#sablon_olustur_modal">
                            <i class="fa fa-plus"></i> Şablon Ekle
                         </button>
+                        <button type="button" class="btn btn-sm" id="senaryoSihirbaziBtn"
+                                style="background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; border:none;">
+                           <i class="fa fa-magic"></i> Senaryo Sihirbazı
+                        </button>
                      </div>
                      
                      <div class="col-md-6">

@@ -2412,6 +2412,7 @@
       @if($pageindex==22)
       @include('modaldialogs.reklam-ekle-modal')
       @include('modaldialogs.sablon-ekle-modal')
+      @include('modaldialogs.senaryo-sihirbaz-modal')
       @endif
       @if($pageindex==1 || $pageindex==22 || $pageindex==60)
 
@@ -5586,6 +5587,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
       <script src="{{secure_asset('public/js/musteriSecimiDuzenle.js?v=11.0')}}"></script>
+      <script src="{{secure_asset('public/js/senaryoSihirbazi.js?v=1.0')}}"></script>
       @endif
 
       @include('frontendscripts.frontend-scripts')

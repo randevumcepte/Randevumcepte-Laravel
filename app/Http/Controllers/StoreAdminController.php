@@ -95,6 +95,7 @@ use App\OdemeYontemleri;
 use App\KampanyaYonetimi;
 use App\KampanyaKatilimcilari;
 use App\KampanyaSablonlari;
+use App\KampanyaSenaryolari;
 use App\ReceteGrubu;
 use App\ReceteGrubuHastalari;
 use App\TahsilatHizmetler;
@@ -30187,7 +30188,18 @@ DB::raw('
         // Şablon ID'si "sablon-X" prefix'liyse kullanıcının kendi SMS taslağı,
         // değilse sistem KampanyaSablonlari kaydı.
         $sablonIdRaw = $request->sablonId;
-        if (is_string($sablonIdRaw) && strpos($sablonIdRaw, 'sablon-') === 0) {
+        if (is_string($sablonIdRaw) && strpos($sablonIdRaw, 'senaryo-') === 0) {
+            // Senaryo Sihirbazı ile oluşturulan senaryo: Santral Arama'da açılış + ilk
+            // soru seslendirilir (dallanma santralde), diğer kanallarda tek metin.
+            $senaryo = KampanyaSenaryolari::where('id', (int) substr($sablonIdRaw, 8))->first();
+            $sablon  = '';
+            if ($senaryo) {
+                $ad = $senaryo->adimlar ?: [];
+                $sablon = ((int) $senaryo->gorev_turu === 1)
+                    ? trim(($ad['acilis'] ?? '').' '.($ad['soru_kod'] ?? ''))
+                    : (string) ($ad['acilis'] ?? '');
+            }
+        } elseif (is_string($sablonIdRaw) && strpos($sablonIdRaw, 'sablon-') === 0) {
             $smsTaslakId = (int) substr($sablonIdRaw, 7);
             $sablon = SMSTaslaklari::where('id', $smsTaslakId)->value('taslak_icerik') ?: '';
         } else {
@@ -30260,6 +30272,275 @@ DB::raw('
     {
         SMSTaslaklari::where('id',$request->sablonId)->delete();
         return 'başarılı';
+    }
+
+    /* =====================================================================
+     * SENARYO SİHİRBAZI
+     * Salonların adım adım konuşma/mesaj senaryosu oluşturmasını sağlar.
+     * Konuşma dallanmaları santral dialplan/AGI'de sabittir; salon yalnızca
+     * adım METİNLERİNİ ve hangi AKSİYONLARIN açık olduğunu belirler.
+     * ===================================================================== */
+
+    /** Sihirbazdaki hazır senaryolar (kullanıcı bunlardan birini seçip metinleri düzenler). */
+    public static function senaryoPresetleri()
+    {
+        return [
+            'geri_kazanim' => [
+                'ad'         => 'Geri Kazanım',
+                'emoji'      => '😴',
+                'aciklama'   => 'Uzun süredir gelmeyen müşteriyi indirim + randevu ile geri kazan',
+                'gorev_turu' => 1,
+                'adimlar'    => [
+                    'acilis'        => 'İyi günler {müşteri}, sizi {işletmeden} adına arıyorum. Yaklaşık {gün} gündür sizi aramızda göremiyoruz. Sizi bir kahve içmeye davet etmek istiyoruz. Ayrıca gelirken kullanabilmeniz için size özel bir indirim kuponu hazırladık.',
+                    'soru_kod'      => 'Bu indirim kodunuzu ve yol tarifimizi mesaj olarak göndermemi ister misiniz?',
+                    'onay_kod'      => 'Mesaj olarak indirim kodunuzu ve yol tarifini gönderdim.',
+                    'soru_randevu'  => 'Dilerseniz hemen bir randevu da oluşturabilirim, ister misiniz?',
+                    'soru_gun_saat' => 'Hangi gün ve saat olsun?',
+                    'kapanis'       => 'Randevunuzu oluşturdum. On beş dakika önce gelmenizi rica eder, sağlıklı günler dilerim.',
+                    'red'           => 'Tabi, anlıyorum. İleride ihtiyaç duyarsanız biz her zaman buradayız. Sağlıklı günler dilerim.',
+                ],
+                'aksiyonlar' => ['indirim_kodu_sms'=>true, 'yol_tarifi_sms'=>true, 'randevu_olustur'=>true],
+            ],
+            'dogum_gunu' => [
+                'ad'         => 'Doğum Günü',
+                'emoji'      => '🎂',
+                'aciklama'   => 'Doğum günü kutlaması + hediye indirim',
+                'gorev_turu' => 1,
+                'adimlar'    => [
+                    'acilis'        => 'İyi günler {müşteri}, sizi {işletmeden} adına arıyorum. Doğum gününüzü en içten dileklerimizle kutlarız. Bu özel gününüze özel size bir hediye indirimimiz var.',
+                    'soru_kod'      => 'Hediye indirim kodunuzu mesaj olarak göndermemi ister misiniz?',
+                    'onay_kod'      => 'Hediye indirim kodunuzu mesaj olarak gönderdim.',
+                    'soru_randevu'  => 'Dilerseniz size uygun bir randevu oluşturabilirim, ister misiniz?',
+                    'soru_gun_saat' => 'Hangi gün ve saat olsun?',
+                    'kapanis'       => 'Randevunuzu oluşturdum. Nice mutlu yıllar dileriz, sağlıklı günler.',
+                    'red'           => 'Tabi efendim. Doğum gününüzü tekrar kutlar, sağlıklı günler dileriz.',
+                ],
+                'aksiyonlar' => ['indirim_kodu_sms'=>true, 'yol_tarifi_sms'=>false, 'randevu_olustur'=>true],
+            ],
+            'paket_bitti' => [
+                'ad'         => 'Paket / Seans Bitti',
+                'emoji'      => '📦',
+                'aciklama'   => 'Paketi biten müşteriye yenileme teklifi',
+                'gorev_turu' => 1,
+                'adimlar'    => [
+                    'acilis'        => 'İyi günler {müşteri}, sizi {işletmeden} adına arıyorum. {ürün_hizmet_paket} paketinizdeki seanslarınız tamamlandı. Sonuçlarınızın kalıcı olması için yenileme döneminiz geldi.',
+                    'soru_kod'      => 'Yenileme için size özel indirimimizi mesaj olarak göndermemi ister misiniz?',
+                    'onay_kod'      => 'İndirim kodunuzu mesaj olarak gönderdim.',
+                    'soru_randevu'  => 'Hemen bir randevu oluşturmamı ister misiniz?',
+                    'soru_gun_saat' => 'Hangi gün ve saat olsun?',
+                    'kapanis'       => 'Randevunuzu oluşturdum. On beş dakika önce gelmenizi rica eder, sağlıklı günler dilerim.',
+                    'red'           => 'Tabi, anlıyorum. Hazır olduğunuzda biz buradayız. Sağlıklı günler dilerim.',
+                ],
+                'aksiyonlar' => ['indirim_kodu_sms'=>true, 'yol_tarifi_sms'=>false, 'randevu_olustur'=>true],
+            ],
+            'yeni_hizmet' => [
+                'ad'         => 'Yeni Hizmet Tanıtımı',
+                'emoji'      => '✨',
+                'aciklama'   => 'Yeni açılan hizmeti tanıt, ilk deneme indirimi ver',
+                'gorev_turu' => 1,
+                'adimlar'    => [
+                    'acilis'        => 'İyi günler {müşteri}, sizi {işletmeden} adına arıyorum. {ürün_hizmet_paket} hizmetimiz yeni açıldı ve ilk deneyenlere özel bir indirimimiz var.',
+                    'soru_kod'      => 'İndirim kodunuzu ve yol tarifimizi mesaj olarak göndermemi ister misiniz?',
+                    'onay_kod'      => 'İndirim kodunuzu ve yol tarifini mesaj olarak gönderdim.',
+                    'soru_randevu'  => 'Denemek için bir randevu oluşturmamı ister misiniz?',
+                    'soru_gun_saat' => 'Hangi gün ve saat olsun?',
+                    'kapanis'       => 'Randevunuzu oluşturdum. On beş dakika önce gelmenizi rica eder, sağlıklı günler dilerim.',
+                    'red'           => 'Tabi efendim. Merak ederseniz her zaman bekleriz. Sağlıklı günler dilerim.',
+                ],
+                'aksiyonlar' => ['indirim_kodu_sms'=>true, 'yol_tarifi_sms'=>true, 'randevu_olustur'=>true],
+            ],
+            'ozel' => [
+                'ad'         => 'Sıfırdan Oluştur',
+                'emoji'      => '✏️',
+                'aciklama'   => 'Kendi metinlerinizi baştan yazın',
+                'gorev_turu' => 1,
+                'adimlar'    => [
+                    'acilis'        => 'İyi günler {müşteri}, sizi {işletmeden} adına arıyorum.',
+                    'soru_kod'      => '',
+                    'onay_kod'      => '',
+                    'soru_randevu'  => '',
+                    'soru_gun_saat' => 'Hangi gün ve saat olsun?',
+                    'kapanis'       => 'Sağlıklı günler dilerim.',
+                    'red'           => 'Tabi efendim, sağlıklı günler dilerim.',
+                ],
+                'aksiyonlar' => ['indirim_kodu_sms'=>false, 'yol_tarifi_sms'=>false, 'randevu_olustur'=>false],
+            ],
+        ];
+    }
+
+    /** Sihirbaz açılışında: hazır senaryolar + kullanılabilir placeholder'lar. */
+    public function senaryoPresetGetir(Request $request)
+    {
+        return response()->json([
+            'success'      => true,
+            'presetler'    => self::senaryoPresetleri(),
+            'placeholders' => [
+                ['kod'=>'{müşteri}',           'aciklama'=>'Müşterinin adı (Ferdi Bey / Ayşe Hanım)'],
+                ['kod'=>'{işletmeden}',        'aciklama'=>'İşletmenizin adı'],
+                ['kod'=>'{indirim}',           'aciklama'=>'İndirim oranı / tutarı'],
+                ['kod'=>'{gün}',               'aciklama'=>'Kampanyanın kalan gün sayısı'],
+                ['kod'=>'{ürün_hizmet_paket}', 'aciklama'=>'Seçtiğiniz ürün / hizmet / paket adı'],
+            ],
+        ]);
+    }
+
+    /** Senaryo listesi: sistem (hazır) + bu salonun kendi senaryoları. */
+    public function senaryoListe(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+
+        $sorgu = KampanyaSenaryolari::where('aktif', 1)
+            ->where(function($q) use ($salonId){
+                $q->whereNull('salon_id')->orWhere('salon_id', $salonId);
+            });
+
+        if ($request->gorevTuru !== null && $request->gorevTuru !== '') {
+            $sorgu->where('gorev_turu', (int) $request->gorevTuru);
+        }
+
+        $senaryolar = $sorgu->orderBy('salon_id')->orderBy('ad')->get()->map(function($s) use ($salonId){
+            return [
+                'id'           => $s->id,
+                'ad'           => $s->ad,
+                'senaryo_tipi' => $s->senaryo_tipi,
+                'gorev_turu'   => $s->gorev_turu,
+                'adimlar'      => $s->adimlar ?: [],
+                'aksiyonlar'   => $s->aksiyonlar ?: [],
+                'sistem_mi'    => $s->salon_id === null,
+                'duzenlenebilir' => $s->salon_id == $salonId,
+            ];
+        });
+
+        return response()->json(['success'=>true, 'senaryolar'=>$senaryolar]);
+    }
+
+    /** Senaryo kaydet (yeni / güncelle). */
+    public function senaryoKaydet(Request $request)
+    {
+        if($r = self::yetkiYoksa403($request, 'pazarlama.kampanya_yonet')) return $r;
+
+        $salonId = self::mevcutsube($request);
+        $ad      = trim((string) $request->ad);
+        if ($ad === '') {
+            return response()->json(['success'=>false, 'message'=>'Senaryo adı zorunludur.']);
+        }
+
+        $adimlar    = json_decode((string) $request->adimlar, true);
+        $aksiyonlar = json_decode((string) $request->aksiyonlar, true);
+        if (!is_array($adimlar))    $adimlar = [];
+        if (!is_array($aksiyonlar)) $aksiyonlar = [];
+
+        $senaryo = null;
+        if ($request->senaryo_id) {
+            // Yalnızca kendi senaryosunu düzenleyebilir (sistem senaryosu salt-okunur).
+            $senaryo = KampanyaSenaryolari::where('id', $request->senaryo_id)
+                ->where('salon_id', $salonId)->first();
+            if (!$senaryo) {
+                return response()->json(['success'=>false, 'message'=>'Bu senaryoyu düzenleme yetkiniz yok.']);
+            }
+        } else {
+            $senaryo = new KampanyaSenaryolari();
+            $senaryo->salon_id = $salonId;
+        }
+
+        $senaryo->ad           = $ad;
+        $senaryo->senaryo_tipi = $request->senaryo_tipi ?: 'ozel';
+        $senaryo->gorev_turu   = (int) ($request->gorev_turu ?: 1);
+        $senaryo->adimlar      = $adimlar;
+        $senaryo->aksiyonlar   = $aksiyonlar;
+        $senaryo->aktif        = true;
+        $senaryo->save();
+
+        SalonAudit::log($salonId, $request->senaryo_id ? 'senaryo_guncelle' : 'senaryo_olustur', 'kampanya_senaryo', $senaryo->id,
+            $senaryo->ad, $request->senaryo_id ? 'Kampanya senaryosu güncellendi' : 'Yeni kampanya senaryosu oluşturuldu',
+            ['senaryo_tipi'=>$senaryo->senaryo_tipi, 'gorev_turu'=>$senaryo->gorev_turu]);
+
+        return response()->json(['success'=>true, 'mesaj'=>'Senaryo kaydedildi', 'id'=>$senaryo->id]);
+    }
+
+    /** Senaryo sil (yalnızca salonun kendi senaryosu). */
+    public function senaryoSil(Request $request)
+    {
+        if($r = self::yetkiYoksa403($request, 'pazarlama.kampanya_yonet')) return $r;
+
+        $salonId = self::mevcutsube($request);
+        $senaryo = KampanyaSenaryolari::where('id', $request->senaryo_id)->where('salon_id', $salonId)->first();
+        if (!$senaryo) {
+            return response()->json(['success'=>false, 'message'=>'Senaryo bulunamadı veya silme yetkiniz yok.']);
+        }
+        $ad = $senaryo->ad;
+        $senaryo->aktif = false;
+        $senaryo->save();
+
+        SalonAudit::log($salonId, 'senaryo_sil', 'kampanya_senaryo', $request->senaryo_id, $ad, 'Kampanya senaryosu pasif yapıldı');
+        return response()->json(['success'=>true, 'mesaj'=>'Senaryo silindi']);
+    }
+
+    /**
+     * Sihirbaz önizlemesi: adım metinlerindeki placeholder'ları örnek verilerle
+     * çözer ve konuşma balonlarını (bot/müşteri) sırayla döner.
+     */
+    public function senaryoOnizle(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $isletmeAdi = Salonlar::where('id',$salonId)->value('santral_telaffuz_hatirlatma_aramasi');
+        if (!$isletmeAdi) $isletmeAdi = Salonlar::where('id',$salonId)->value('salon_adi');
+
+        $adimlar    = json_decode((string) $request->adimlar, true);
+        $aksiyonlar = json_decode((string) $request->aksiyonlar, true);
+        if (!is_array($adimlar))    $adimlar = [];
+        if (!is_array($aksiyonlar)) $aksiyonlar = [];
+
+        $coz = function($metin) use ($isletmeAdi, $request) {
+            $metin = str_replace('{müşteri}', 'Ferdi Bey', (string) $metin);
+            $metin = str_replace('{işletmeden}', $isletmeAdi, $metin);
+            $metin = str_replace('{indirim}', ($request->indirim ?: '20'), $metin);
+            $metin = str_replace('{gün}', ($request->gun ?: '7'), $metin);
+            $metin = str_replace('{ürün_hizmet_paket}', ($request->hizmet ?: 'Cilt Bakımı'), $metin);
+            return trim($metin);
+        };
+
+        $gorevTuru = (int) ($request->gorev_turu ?: 1);
+        $diyalog   = [];
+
+        // SMS / Bildirim / Bilgilendirme: tek metin
+        if ($gorevTuru !== 1) {
+            $diyalog[] = ['kim'=>'bot', 'metin'=>$coz($adimlar['acilis'] ?? '')];
+            return response()->json(['success'=>true, 'diyalog'=>$diyalog, 'tek_metin'=>$coz($adimlar['acilis'] ?? '')]);
+        }
+
+        // Santral Arama: adım adım konuşma
+        $ekle = function($kim, $metin) use (&$diyalog) {
+            $metin = trim((string) $metin);
+            if ($metin !== '') $diyalog[] = ['kim'=>$kim, 'metin'=>$metin];
+        };
+
+        $ekle('bot', $coz($adimlar['acilis'] ?? ''));
+
+        $kodAksiyonu = !empty($aksiyonlar['indirim_kodu_sms']) || !empty($aksiyonlar['yol_tarifi_sms']);
+        if ($kodAksiyonu && !empty($adimlar['soru_kod'])) {
+            $ekle('bot', $coz($adimlar['soru_kod']));
+            $ekle('musteri', 'Evet, olur.');
+            $ekle('bot', $coz($adimlar['onay_kod'] ?? ''));
+        }
+
+        if (!empty($aksiyonlar['randevu_olustur']) && !empty($adimlar['soru_randevu'])) {
+            $ekle('bot', $coz($adimlar['soru_randevu']));
+            $ekle('musteri', 'Evet.');
+            $ekle('bot', $coz($adimlar['soru_gun_saat'] ?? 'Hangi gün ve saat olsun?'));
+            $ekle('musteri', 'Çarşamba öğleden sonra olsun.');
+            $ekle('bot', 'Memnuniyetle, hemen kontrol ediyorum. Çarşamba saat 13:00 uygun mu efendim?');
+            $ekle('musteri', 'Evet.');
+        }
+
+        $ekle('bot', $coz($adimlar['kapanis'] ?? ''));
+
+        return response()->json([
+            'success' => true,
+            'diyalog' => $diyalog,
+            // Santral Arama kampanyasında "Kampanya Metni" alanına yazılacak açılış metni
+            'tek_metin' => trim($coz($adimlar['acilis'] ?? '').' '.$coz($adimlar['soru_kod'] ?? '')),
+        ]);
     }
 
     /**
@@ -30352,6 +30633,30 @@ DB::raw('
             $hariciSablonlar = SMSTaslaklari::where('salon_id',$request->salonId)->orderBy('id','desc')->get();
 
         $html = '';
+
+        // Senaryo Sihirbazı ile oluşturulan senaryolar (sistem + bu salon), kanala göre
+        $senaryolar = KampanyaSenaryolari::where('aktif',1)
+            ->where(function($q) use ($request){
+                $q->whereNull('salon_id')->orWhere('salon_id',$request->salonId);
+            })
+            ->where(function($q) use ($request){
+                if($request->gorevTuru != '') $q->where('gorev_turu',(int)$request->gorevTuru);
+            })
+            ->orderBy('ad')->get();
+
+        foreach($senaryolar as $senaryo)
+        {
+            $silBtn = '';
+            if($senaryo->salon_id == $request->salonId){
+                $silBtn = '<a name="senaryoSil" title="Senaryo Sil" data-value="'.$senaryo->id.'" style="float:right;z-index:9999999;font-size: 22px;color: red;margin-left: 5px;font-weight: 100;margin-top: -2px;"><i class="fa fa-remove"></i></a>'
+                        . '<a name="senaryoDuzenle" title="Senaryo Düzenle" data-value="'.$senaryo->id.'" style="float:right;z-index:9999999;font-size: 20px; color: #0055B4;"><i class="fa fa-edit"></i></a>';
+            }
+            $html .= '<div class="kampanyaSablonSecim" title="Metni Seç" data-value="senaryo-'.$senaryo->id.'" style="position:relative; cursor:pointer; margin-bottom:8px;" name="kampanyaSablonSecim">
+                        <p style="padding:5px;background-color:#ede9fe; border-radius:20px;border-bottom-left-radius:0;color:#4c1d95;font-size:15px;overflow:hidden;">
+                           <i class="fa fa-magic" style="margin-right:4px;"></i>'.e($senaryo->ad).' '.$silBtn.'
+                        </p>
+                      </div>';
+        }
 
         if($hariciSablonlar !='')
         {

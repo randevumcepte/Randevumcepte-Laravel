@@ -988,6 +988,12 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/etkinliksil','StoreAdminController@etkinlik_sil');
 	Route::post('/kampanyaekleduzenle','StoreAdminController@kampanyaekleduzenle');
 	Route::get('/kampanya-sablon-filtre','StoreAdminController@kampanyaSablonFiltre');
+	// Senaryo Sihirbazi
+	Route::get('/senaryo-presetleri','StoreAdminController@senaryoPresetGetir');
+	Route::get('/senaryo-liste','StoreAdminController@senaryoListe');
+	Route::post('/senaryo-kaydet','StoreAdminController@senaryoKaydet');
+	Route::post('/senaryo-sil','StoreAdminController@senaryoSil');
+	Route::post('/senaryo-onizle','StoreAdminController@senaryoOnizle');
 	Route::get('/kampanyaIceriginiGoruntule','StoreAdminController@kampanyaIceriginiGoruntule');
 	Route::get('/tts-proxy','StoreAdminController@ttsProxy');
 	Route::post('/kampanyakatilimcisil','StoreAdminController@kampanyakatilimcisil');
