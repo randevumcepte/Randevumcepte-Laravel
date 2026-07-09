@@ -10383,7 +10383,29 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 if ($musteriToggle || $_kritikBypass) {
                     if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null) {
-                        array_push($mesajlar, ["to" => $gsm, "message" => $musteriMesaj]);
+                        // WA icin zenginlestirilmis format (SMS aynen kisa kalir).
+                        // Sadece YENI olusturmada gonderilir, guncellemede degil
+                        // (kullanicinin talebi bu yonde).
+                        $_waMesaj = $musteriMesaj;
+                        if ($eskiRandevu == null && !$guncelleme) {
+                            $_hizmetAdlari = collect();
+                            foreach ($yenirandevu->hizmetler as $_h) {
+                                $_hAd = optional($_h->hizmetler)->hizmet_adi;
+                                if ($_hAd) $_hizmetAdlari->push($_hAd);
+                            }
+                            $_waMesaj = \App\Services\WhatsAppMesajFormat::randevuOlusturuldu(
+                                $isletme,
+                                $musteribilgi->name ?? '',
+                                date('d.m.Y', strtotime($request->randevu_tarihi)),
+                                $request->randevu_saati,
+                                $_hizmetAdlari->unique()->values()->implode(', ')
+                            );
+                        }
+                        array_push($mesajlar, [
+                            "to" => $gsm,
+                            "message" => $musteriMesaj, // SMS'e giden kisa metin
+                            "wa_message" => $_waMesaj,  // WA'ya giden metin (olusturmada zengin, digerinde ayni)
+                        ]);
                         if (!$musteriToggle && $_kritikBypass) {
                             \Log::info('[RND-CREATE-API] kritik bypass (toggle kapali, 19 sonra ertesi gun <24h kala)', [
                                 'salon_id' => $yenirandevu->salon_id,
@@ -10459,7 +10481,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                 $msg = $m['message'] ?? null;
                                 if (!$to || !$msg) { $smsKalan[] = $m; continue; }
                                 $tip = $guncelleme ? 'guncelleme_bildirim' : 'yeni_randevu_bildirim';
-                                $sonuc = $wa->sendReminder($isletme, $to, $msg, $_finalRandevuId, null, null, false, $tip);
+                                // WA icin farkli metin verilmis mi? Yoksa SMS metniyle ayni.
+                                $waMsg = $m['wa_message'] ?? $msg;
+                                $sonuc = $wa->sendReminder($isletme, $to, $waMsg, $_finalRandevuId, null, null, false, $tip);
                                 if (!($sonuc['ok'] ?? false)) {
                                     // WA fail/timeout → SMS fallback'e ekle
                                     $smsKalan[] = $m;

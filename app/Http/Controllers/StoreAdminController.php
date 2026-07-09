@@ -7093,6 +7093,21 @@ private function ayAdiCevir($ingilizceAy)
             $mesajlar = array();
             
             $musteriYeniRandevuMesaji = $isletme->salon_adi . " tarafından ".date('d.m.Y',strtotime($request->tarih)) .'-'.$request->saat .' olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$isletme->telefon_1;
+
+            // WA icin zenginlestirilmis format (SMS aynen kisa kalir)
+            $_hizmetAdlari = collect();
+            foreach ($yenirandevu->hizmetler as $_h) {
+                $_hAd = optional($_h->hizmetler)->hizmet_adi;
+                if ($_hAd) $_hizmetAdlari->push($_hAd);
+            }
+            $musteriYeniRandevuMesajiWA = \App\Services\WhatsAppMesajFormat::randevuOlusturuldu(
+                $isletme,
+                $musteribilgi->name ?? '',
+                date('d.m.Y', strtotime($request->tarih)),
+                $request->saat,
+                $_hizmetAdlari->unique()->values()->implode(', ')
+            );
+
             $musteriToggle = SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$yenirandevu->salon_id)->value('musteri') == 1;
 
             // Kritik bypass: ERTESI GUN icin + saat 19:00 sonra olusturulan + <24h kala
@@ -7111,7 +7126,11 @@ private function ayAdiCevir($ingilizceAy)
                           && ($_kalanSaat < 24);
 
             if ($musteriToggle || $_kritikBypass) {
-                array_push($mesajlar, array("to"=>$gsm,"message"=>$musteriYeniRandevuMesaji));
+                array_push($mesajlar, array(
+                    "to" => $gsm,
+                    "message" => $musteriYeniRandevuMesaji,       // SMS'e giden kisa metin
+                    "wa_message" => $musteriYeniRandevuMesajiWA,  // WA'ya giden zengin metin
+                ));
                 if (!$musteriToggle && $_kritikBypass) {
                     \Log::info('[RND-CREATE] kritik bypass (toggle kapali, 19 sonra ertesi gun <24h kala)', [
                         'salon_id' => $yenirandevu->salon_id,
@@ -14614,7 +14633,10 @@ DB::raw('
                     // antiban pre-delay/typing/batch/saat kisitini atlar (mesaj basina
                     // 'urgent' bayragi). Aksi halde kod 12-30sn+ kuyrukta bekler.
                     $waUrgent = !empty($mesaj['urgent']);
-                    $sonuc = $wa->sendReminder($isletme, $to, $msg, $mesaj['randevu_id'] ?? null, $mesaj['user_id'] ?? null, null, $waUrgent, 'transaksiyonel');
+                    // WA icin cagri yeri farkli metin verebilir (zenginlestirilmis
+                    // format). Yoksa SMS metni ile ayni gonderilir (eski davranis).
+                    $waMsg = $mesaj['wa_message'] ?? $msg;
+                    $sonuc = $wa->sendReminder($isletme, $to, $waMsg, $mesaj['randevu_id'] ?? null, $mesaj['user_id'] ?? null, null, $waUrgent, 'transaksiyonel');
                     if ($sonuc['ok'] ?? false) {
                         Log::info('[Transactional WA] kuyruğa eklendi', [
                             'salon_id' => $isletme->id, 'to' => $to, 'logId' => $sonuc['logId'] ?? null, 'tur' => $tur,
