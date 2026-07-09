@@ -767,9 +767,9 @@
          					####################### DÜZENLEMESİ ZORUNLU ALANLAR #######################
          					#
          					## API Entegrasyon Bilgileri - Mağaza paneline giriş yaparak BİLGİ sayfasından alabilirsiniz.
-         					$merchant_id 	= '452223';
-         					$merchant_key 	= 'Mwjwj1HdCwxYJY2j';
-         					$merchant_salt	= 'TuF3kaYgxbNKR7Zx';
+         					$merchant_id 	= '615336';
+         					$merchant_key 	= 'tBEfk7B2zQEw4hDN';
+         					$merchant_salt	= '2Qi3MmYEtRoo1BXw';
          					#
          					## Müşterinizin sitenizde kayıtlı veya form vasıtasıyla aldığınız eposta adresi
          					$email = $musteri_bilgileri->yetkili_mail;
@@ -778,8 +778,11 @@
          					#
          					## Sipariş numarası: Her işlemde benzersiz olmalıdır!! Bu bilgi bildirim sayfanıza yapılacak bildirimde geri gönderilir.
          					$merchant_oid = date('YmdHis').$musteri_bilgileri->id;
+         					// merchant_oid salon kaydina YAZILMALI: odeme bildirimi (callback) isletmeyi
+         					// Salonlar.merchant_oid uzerinden bulur. Onceden ikinci satir save() yerine
+         					// ayni atamayi tekrarliyordu, bu yuzden deger hic kaydedilmiyordu.
          					$musteri_bilgileri->merchant_oid = $merchant_oid;
-         					$musteri_bilgileri->merchant_oid = $merchant_oid;
+         					$musteri_bilgileri->save();
          				
          					#
          					## Müşterinizin sitenizde kayıtlı veya form aracılığıyla aldığınız ad ve soyad bilgisi
