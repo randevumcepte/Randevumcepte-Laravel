@@ -16581,6 +16581,7 @@ DB::raw('
             abort(403);
         }
         $linklerHazir = (trim((string) $isletme->android_uygulama) !== '' && trim((string) $isletme->ios_uygulama) !== '');
+        $herhangiLink = (trim((string) $isletme->android_uygulama) !== '' || trim((string) $isletme->ios_uygulama) !== '');
         return view('isletmeadmin.uygulama_afisi', [
             'pageindex'                => 80,
             'sayfa_baslik'             => 'Uygulama İndirme Afişi',
@@ -16591,6 +16592,8 @@ DB::raw('
             'urun_drop'                => self::urundropliste($request),
             'yetkiliolunanisletmeler'  => $isletmeler,
             'linklerHazir'             => $linklerHazir,
+            'herhangiLink'             => $herhangiLink,
+            'indirLinki'               => url('/indir/' . $isletme->id),
         ]);
     }
 
