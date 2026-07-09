@@ -1,10 +1,7 @@
 <?php
 namespace App\Console\Commands;
 use Illuminate\Console\Command;
-use Illuminate\Http\Request;
 use Ifsnop\Mysqldump as IMysqldump;
-
-
 
 class DBYedekAl extends Command
 {
@@ -23,34 +20,29 @@ class DBYedekAl extends Command
     protected $description = 'Veritabanı yedeği oluştur';
 
     /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
-    /**
      * Execute the console command.
      *
      * @return mixed
      */
     public function handle()
-    {    
-          
-         try {
-        $dump = new IMysqldump\Mysqldump('mysql:host='.env('DB_HOST').';port='.env('DB_PORT').';dbname='.env('DB_DATABASE'), env('DB_USERNAME'), env('DB_PASSWORD'));
-        $filePath = storage_path('dbyedekler/randevumceptedb-'.date('Y-m-d-H-i-s').'.sql');
-        $dump->start($filePath);
+    {
+        // env() DEGIL config(): config:cache calisinca Dotenv hic yuklenmez, env()
+        // null doner ve DSN 'mysql:host=;port=;dbname=' olup "Missing host from DSN
+        // string" ile patlar. config/database.php varsayilanlarla okudugu icin site
+        // ayakta kalir, sadece bu komut sessizce olurdu.
+        $db = config('database.connections.mysql');
 
-        \Log::info('DB backup başarıyla alındı: ' . $filePath);
-    } catch (\Exception $e) {
-        \Log::error('DB backup hatası: ' . $e->getMessage());
-    }
+        $dsn = 'mysql:host='.$db['host'].';port='.$db['port'].';dbname='.$db['database'];
 
-     
-        
+        try {
+            $dump = new IMysqldump\Mysqldump($dsn, $db['username'], $db['password']);
+            $filePath = storage_path('dbyedekler/randevumceptedb-'.date('Y-m-d-H-i-s').'.sql');
+            $dump->start($filePath);
+
+            \Log::info('DB backup başarıyla alındı: ' . $filePath);
+        } catch (\Exception $e) {
+            $this->error('DB backup hatasi: ' . $e->getMessage());
+            \Log::error('DB backup hatası: ' . $e->getMessage());
+        }
     }
 }
