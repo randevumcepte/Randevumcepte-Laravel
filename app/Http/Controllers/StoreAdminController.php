@@ -1158,6 +1158,24 @@ public function carkverilerigetir(Request $request)
         return (int) $salonId;
     }
 
+    /**
+     * Ozet (dashboard) veri uclari icin yetki kontrolu. dashSalonId() zaten salon
+     * uyeligini dogruladi; burada bilesenin gerektirdigi yetki anahtari kontrol edilir.
+     * Yetki yoksa 403 JSON doner, varsa null. Birden fazla anahtar verilirse OR mantigi.
+     * Kullanim: if($r=self::dashYetkiYoksa403($salonId,'rapor.kasa')) return $r;
+     */
+    private function dashYetkiYoksa403($salonId, $yetkiAnahtarlari)
+    {
+        $_au = Auth::guard('isletmeyonetim')->user();
+        if (!$_au || !$salonId) return null;
+        foreach ((array) $yetkiAnahtarlari as $_key) {
+            if (\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_au->id, $salonId, $_key)) {
+                return null; // en az bir yetki var
+            }
+        }
+        return response()->json(['error' => 'forbidden'], 403);
+    }
+
     private function dashPeriodDates($period)
     {
         $bugun = date('Y-m-d');
@@ -1176,6 +1194,7 @@ public function carkverilerigetir(Request $request)
     {
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        if($r = self::dashYetkiYoksa403($salonId, 'rapor.kasa')) return $r;
         $period = $request->input('period','daily');
         list($t1, $t2) = $this->dashPeriodDates($period);
 
@@ -1247,6 +1266,7 @@ public function carkverilerigetir(Request $request)
     {
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        if($r = self::dashYetkiYoksa403($salonId, 'randevu.takvim_gor')) return $r;
         $period = $request->input('period','daily');
         list($t1, $t2) = $this->dashPeriodDates($period);
 
@@ -1307,6 +1327,7 @@ public function carkverilerigetir(Request $request)
     {
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        if($r = self::dashYetkiYoksa403($salonId, 'randevu.takvim_gor')) return $r;
         $year = (int) $request->input('year', date('Y'));
         $month = (int) $request->input('month', date('n'));
         $month = max(1, min(12, $month));
@@ -1338,6 +1359,7 @@ public function carkverilerigetir(Request $request)
     {
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        if($r = self::dashYetkiYoksa403($salonId, 'pazarlama.anket_yonet')) return $r;
         $period = $request->input('period','30d');
         $gunSay = $period === '7d' ? 7 : ($period === '90d' ? 90 : 30);
         $bas = date('Y-m-d 00:00:00', strtotime('-'.($gunSay-1).' days'));
@@ -1812,6 +1834,7 @@ public function carkverilerigetir(Request $request)
     {
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        if($r = self::dashYetkiYoksa403($salonId, 'pazarlama.cark_yonet')) return $r;
         $period = $request->input('period','30d');
         $gunSay = $period === '7d' ? 7 : ($period === '90d' ? 90 : 30);
         $bas = date('Y-m-d 00:00:00', strtotime('-'.($gunSay-1).' days'));
@@ -1882,6 +1905,7 @@ public function carkverilerigetir(Request $request)
     {
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        if($r = self::dashYetkiYoksa403($salonId, 'randevu.takvim_gor')) return $r;
 
         return \Cache::remember($this->dashCacheKey($salonId, 'bugun'), 30, function() use ($salonId) {
             $rows = DB::table('randevular')
@@ -1912,6 +1936,18 @@ public function carkverilerigetir(Request $request)
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
         $tab = $request->input('tab','online-talep');
+
+        // Her sekme kendi yetkisine bagli (acik adisyon = para, alacak = finans vb.)
+        $_sekmeYetki = [
+            'online-talep'     => 'randevu.takvim_gor',
+            'bugunku-randevu'  => 'randevu.takvim_gor',
+            'acik-adisyon'     => 'satis.tum_satis_gor',
+            'alacak'           => 'finans.alacak_yonet',
+            'dogum-gunu'       => 'musteri.liste_gor',
+        ];
+        if (isset($_sekmeYetki[$tab]) && ($r = self::dashYetkiYoksa403($salonId, $_sekmeYetki[$tab]))) {
+            return $r;
+        }
 
         return \Cache::remember($this->dashCacheKey($salonId, 'sekme:'.$tab), 30, function() use ($salonId, $tab) {
             $data = [];
@@ -2003,6 +2039,8 @@ public function carkverilerigetir(Request $request)
     {
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        // Timeline tahsilat tutarlarini (₺) icerir → kasa gorme yetkisi gerekir
+        if($r = self::dashYetkiYoksa403($salonId, 'rapor.kasa')) return $r;
 
         return \Cache::remember($this->dashCacheKey($salonId, 'timeline'), 30, function() use ($salonId) {
             $bugun = date('Y-m-d');
@@ -2047,6 +2085,7 @@ public function carkverilerigetir(Request $request)
     {
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        if($r = self::dashYetkiYoksa403($salonId, ['personel.liste_gor','rapor.personel_performans'])) return $r;
 
         return \Cache::remember($this->dashCacheKey($salonId, 'personel'), 30, function() use ($salonId) {
             $personeller = DB::table('salon_personelleri')
@@ -10918,6 +10957,7 @@ private function ayAdiCevir($ingilizceAy)
     {
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
+        if($r = self::dashYetkiYoksa403($salonId, 'musteri.liste_gor')) return $r;
 
         $bugun = date('m-d');
         $liste = DB::table('users')
@@ -10949,6 +10989,8 @@ private function ayAdiCevir($ingilizceAy)
     {
         $salonId = self::mevcutsube($request);
         if(!$salonId) return response()->json(['ok' => false, 'error' => 'forbidden'], 403);
+        // Musteriye WhatsApp/SMS gonderimi → en az birinin yetkisi gerekli
+        if($r = self::dashYetkiYoksa403($salonId, ['pazarlama.whatsapp_gonder','pazarlama.sms_gonder'])) return $r;
 
         $musteriId = (int) $request->musteri_id;
         if(!$musteriId) return response()->json(['ok' => false, 'error' => 'musteri_id-gerekli'], 422);
