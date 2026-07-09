@@ -404,8 +404,12 @@
       <div class="rmc-hero-sub">{{$isletme->salon_adi}} — Bugünün özetine göz at, aşağıdaki kartlardan her şeyi tek tıkla yönet.</div>
     </div>
     <div class="rmc-hero-stats">
+      @yetki('randevu.takvim_gor')
       <div class="rmc-hero-stat"><div class="v" id="rmc-hero-bugun">—</div><div class="l">Bugün Randevu</div></div>
+      @endyetki
+      @yetki('rapor.kasa')
       <div class="rmc-hero-stat"><div class="v" id="rmc-hero-gelir">—</div><div class="l">Bugün Gelir ₺</div></div>
+      @endyetki
       @if(isset($kalan_uyelik_suresi) && is_numeric($kalan_uyelik_suresi) && $kalan_uyelik_suresi >= 0)
       <div class="rmc-hero-stat"><div class="v">{{$kalan_uyelik_suresi}}</div><div class="l">Üyelik Gün</div></div>
       @endif
@@ -414,40 +418,55 @@
 
   {{-- HIZLI EYLEM ŞERIDI --}}
   <div class="rmc-quick-actions">
+    @yetki('randevu.olustur')
     <a class="rmc-qa var-1" href="/isletmeyonetim/randevular{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-calendar-plus-fill"></i></div>
       <div class="rmc-qa-text">Yeni Randevu Oluştur</div>
     </a>
+    @endyetki
+    @yetki('satis.adisyon_olustur')
     <a class="rmc-qa var-2" href="/isletmeyonetim/adisyonlar{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-receipt"></i></div>
       <div class="rmc-qa-text">Yeni Satış Oluştur</div>
     </a>
+    @endyetki
+    @yetki('paket.tanim_olustur')
     <a class="rmc-qa var-3" href="/isletmeyonetim/paketsatislari{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-gift-fill"></i></div>
       <div class="rmc-qa-text">Yeni Paket Oluştur</div>
     </a>
+    @endyetki
+    @yetki('hizmet.tanim_olustur')
     <a class="rmc-qa var-4" href="/isletmeyonetim/ayarlar?p=hizmetler{{ isset($_GET['sube']) ? '&sube='.$isletme->id : '' }}">
       <div class="rmc-qa-icon"><i class="bi bi-stars"></i></div>
       <div class="rmc-qa-text">Yeni Hizmet Oluştur</div>
     </a>
+    @endyetki
+    @yetki('rapor.satis')
     <a class="rmc-qa var-5" href="/isletmeyonetim/isletmeraporlari{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
       <div class="rmc-qa-text">İşletme Raporları</div>
     </a>
+    @endyetki
+    @yetki('musteri.liste_gor')
     <a class="rmc-qa var-6" href="/isletmeyonetim/musteriler{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-people-fill"></i></div>
       <div class="rmc-qa-text">Müşteri Listesi</div>
     </a>
+    @endyetki
+    @yetki('paket.seans_takip')
     <a class="rmc-qa var-7" href="/isletmeyonetim/seanstakip{{$subeQuery}}">
       <div class="rmc-qa-icon"><i class="bi bi-list-check"></i></div>
       <div class="rmc-qa-text">Seans Takibi</div>
     </a>
+    @endyetki
   </div>
 
   {{-- ÜST GRID: Kasa / Takvim / Randevu Ayrıntıları --}}
   <div class="rmc-grid-top">
 
     {{-- KASA İSTATISTIKLERI --}}
+    @yetki('rapor.kasa')
     <div class="rmc-card tone-green delay-1" id="rmc-kasa-card">
       <div class="rmc-card-head">
         <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-wallet2"></i></span> Kasa İstatistikleri</div>
@@ -473,7 +492,10 @@
       </div>
     </div>
 
+    @endyetki
+
     {{-- MEMNUNIYET ANKETI --}}
+    @yetki('pazarlama.anket_yonet')
     <div class="rmc-card tone-violet delay-2" id="rmc-anket-card">
       <div class="rmc-card-head">
         <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-emoji-heart-eyes"></i></span> Memnuniyet Anketi</div>
@@ -512,7 +534,10 @@
       </div>
     </div>
 
+    @endyetki
+
     {{-- RANDEVU AYRINTILARI --}}
+    @yetki('randevu.takvim_gor')
     <div class="rmc-card tone-orange delay-3" id="rmc-randevu-card">
       <div class="rmc-card-head">
         <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-clock-history"></i></span> Randevu Ayrıntıları</div>
@@ -548,7 +573,10 @@
       </div>
     </div>
 
+    @endyetki
+
     {{-- ÇARKIFELEK --}}
+    @yetki('pazarlama.cark_yonet')
     <div class="rmc-card tone-mix delay-4" id="rmc-cark-card">
       <div class="rmc-card-head">
         <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-stars"></i></span> Çarkıfelek</div>
@@ -584,17 +612,35 @@
         @for($i=0;$i<2;$i++)<div class="rmc-skel rmc-skel-line" style="width:{{90-$i*10}}%;margin:8px 0;"></div>@endfor
       </div>
     </div>
+    @endyetki
 
   </div>
 
-  {{-- ALT PANEL: SEKMELER --}}
+  {{-- ALT PANEL: SEKMELER — her sekme kendi yetkisine bagli; sadece izinli
+       sekmeler render edilir ve ilk izinli sekme aktif olur. --}}
+  @php
+    $_sekmeTanim = [
+      'online-talep'    => ['yetki'=>'randevu.takvim_gor',  'ikon'=>'bi-globe2',         'ad'=>'Online Randevu Talepleri', 'yeni'=>false],
+      'bugunku-randevu' => ['yetki'=>'randevu.takvim_gor',  'ikon'=>'bi-calendar-day',   'ad'=>'Bugünkü Randevular',       'yeni'=>true],
+      'acik-adisyon'    => ['yetki'=>'satis.tum_satis_gor', 'ikon'=>'bi-receipt-cutoff', 'ad'=>'Açık Adisyonlar',          'yeni'=>false],
+      'alacak'          => ['yetki'=>'finans.alacak_yonet', 'ikon'=>'bi-cash-coin',      'ad'=>'Alacaklılar',              'yeni'=>false],
+      'dogum-gunu'      => ['yetki'=>'musteri.liste_gor',   'ikon'=>'bi-gift',           'ad'=>'Yaklaşan Doğum Günleri',   'yeni'=>false],
+    ];
+    $_dashUid = Auth::guard('isletmeyonetim')->user()->id ?? null;
+    $_izinliSekmeler = [];
+    foreach($_sekmeTanim as $_sk => $_sv){
+      if(!$_dashUid || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_dashUid, $isletme->id, $_sv['yetki'])){
+        $_izinliSekmeler[$_sk] = $_sv;
+      }
+    }
+    $_ilkSekme = count($_izinliSekmeler) ? array_keys($_izinliSekmeler)[0] : null;
+  @endphp
+  @if($_ilkSekme)
   <div class="rmc-card tone-mix rmc-tabs-card delay-5">
     <div class="rmc-tabs-nav">
-      <button class="rmc-tab is-active" data-tab="online-talep"><i class="bi bi-globe2"></i> Online Randevu Talepleri</button>
-      <button class="rmc-tab" data-tab="bugunku-randevu"><i class="bi bi-calendar-day"></i> Bugünkü Randevular <span class="badge-new">YENİ</span></button>
-      <button class="rmc-tab" data-tab="acik-adisyon"><i class="bi bi-receipt-cutoff"></i> Açık Adisyonlar</button>
-      <button class="rmc-tab" data-tab="alacak"><i class="bi bi-cash-coin"></i> Alacaklılar</button>
-      <button class="rmc-tab" data-tab="dogum-gunu"><i class="bi bi-gift"></i> Yaklaşan Doğum Günleri</button>
+      @foreach($_izinliSekmeler as $_sk => $_sv)
+      <button class="rmc-tab{{ $_sk === $_ilkSekme ? ' is-active' : '' }}" data-tab="{{$_sk}}"><i class="bi {{$_sv['ikon']}}"></i> {{$_sv['ad']}}@if($_sv['yeni']) <span class="badge-new">YENİ</span>@endif</button>
+      @endforeach
     </div>
     <div class="rmc-tab-content" id="rmc-tab-content">
       <div style="padding:20px 12px;">
@@ -604,9 +650,12 @@
       </div>
     </div>
   </div>
+  @endif
 
   {{-- ALT GRID: Timeline + Personel Anlık Durum --}}
   <div class="rmc-grid-bottom">
+    {{-- Bugünkü Akış: tahsilat tutarlarini gosterir → rapor.kasa --}}
+    @yetki('rapor.kasa')
     <div class="rmc-card tone-pink delay-6">
       <div class="rmc-card-head">
         <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-activity"></i></span> Bugünkü Akış</div>
@@ -618,6 +667,8 @@
         @endfor
       </div>
     </div>
+    @endyetki
+    @if(!$_dashUid || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_dashUid, $isletme->id, 'personel.liste_gor') || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_dashUid, $isletme->id, 'rapor.personel_performans'))
     <div class="rmc-card tone-blue delay-7">
       <div class="rmc-card-head">
         <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-person-workspace"></i></span> Personel Anlık Durum</div>
@@ -633,6 +684,7 @@
         @endfor
       </div>
     </div>
+    @endif
   </div>
 
 </div>
@@ -978,14 +1030,28 @@ function rmcDashInit(){
     });
   });
 
-  // ===== İlk yükleme — paralel =====
+  // ===== İlk yükleme — paralel (sadece yetkili bilesenler icin) =====
+  @yetki('rapor.kasa')
   renderKasa('daily');
+  @endyetki
+  @yetki('randevu.takvim_gor')
   renderRandevu('daily');
+  @endyetki
+  @yetki('pazarlama.anket_yonet')
   renderAnket('30d');
+  @endyetki
+  @yetki('pazarlama.cark_yonet')
   renderCark('30d');
-  renderTab('online-talep');
+  @endyetki
+  @if(!empty($_ilkSekme))
+  renderTab('{{ $_ilkSekme }}');
+  @endif
+  @yetki('rapor.kasa')
   renderTimeline();
+  @endyetki
+  @if(!$_dashUid || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_dashUid, $isletme->id, 'personel.liste_gor') || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_dashUid, $isletme->id, 'rapor.personel_performans'))
   renderPersonel();
+  @endif
 }
 
 (function rmcDashBoot(){
@@ -1026,6 +1092,8 @@ function rmcDashInit(){
 .rmc-bday-msg.ok{background:#e8f8ee;color:#1a7f47;}
 .rmc-bday-msg.err{background:#fde8ec;color:#a01035;}
 </style>
+{{-- Dogum gunu popup'i musteriye WhatsApp/SMS gonderir → en az birinin yetkisi gerekli --}}
+@if(!$_dashUid || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_dashUid, $isletme->id, 'pazarlama.whatsapp_gonder') || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_dashUid, $isletme->id, 'pazarlama.sms_gonder'))
 <script>
 (function rmcBdayPopupInit(){
   var subeParam = @json($apiSubeParam);
@@ -1137,5 +1205,6 @@ function rmcDashInit(){
   window.rmcBdayTrigger = basla;
 })();
 </script>
+@endif
 
 @endsection
