@@ -25875,6 +25875,13 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     }
     public function adisyonSil(Request $request)
    {
+            // Yetki: satis.adisyon_sil kapali ise 403
+            $_authUser = \Auth::guard('isletmeyonetim-api')->user() ?? \Auth::guard('isletmeyonetim')->user();
+            $_salonId = $request->salonId
+                ?? Adisyonlar::where('id', $request->adisyon_id)->value('salon_id');
+            if ($_authUser && $_salonId && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, $_salonId, 'satis.adisyon_sil')) {
+                return response()->json(['durum' => 'hata', 'mesaj' => 'Bu islem icin yetkiniz yok.'], 403);
+            }
             // Adisyon silinmeden once salon_id'yi yakala (log icin)
             $_adisyonSalonId = $request->salonId
                 ?? Adisyonlar::where('id', $request->adisyon_id)->value('salon_id');
