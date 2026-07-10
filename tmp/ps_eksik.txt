@@ -1,0 +1,4 @@
+TOPLAM dump productSales: 100
+EKSIK standalone: 0
+
+EKSIK visit-bagli: 0

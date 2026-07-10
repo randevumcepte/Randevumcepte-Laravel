@@ -1,0 +1,10 @@
+Toplam eksik isim    : 5
+DB'de yok (aranacak): 3
+  - NEZ ŞENYILDIZ
+  - PELİN ÇINARLI
+  - NURİYE ÇINARLI
+--- Arama sonucu ---
+  bulunan : 0/3
+  BULUNAMAYAN: NEZ ŞENYILDIZ
+  BULUNAMAYAN: PELİN ÇINARLI
+  BULUNAMAYAN: NURİYE ÇINARLI

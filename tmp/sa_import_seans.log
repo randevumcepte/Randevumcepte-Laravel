@@ -1,0 +1,46 @@
+nohup: ignoring input
+Salonappy client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/salonappy/20260603_030048
+Services master yuklendi (dump.servicesMaster): 136 hizmet (id -> TR title)
+Master ile doldurulan service_text: 0 kalem
+v5 dump: clients={1344}, visits={4815}, bookingDetails={4815}, clientDetails={0}
+  müşteri 199/1344 eklenen=200 hata=0
+  müşteri 399/1344 eklenen=400 hata=0
+  müşteri 599/1344 eklenen=600 hata=0
+  müşteri 799/1344 eklenen=800 hata=0
+  müşteri 999/1344 eklenen=1000 hata=0
+  müşteri 1199/1344 eklenen=1200 hata=0
+Musteri: eklenen=1344, hata=0
+  visit 200/4815 eklenen=199 dedup=0 hata=1 tahsilat=140
+  visit 400/4815 eklenen=399 dedup=0 hata=1 tahsilat=271
+  visit 600/4815 eklenen=599 dedup=0 hata=1 tahsilat=362
+  visit 800/4815 eklenen=799 dedup=0 hata=1 tahsilat=447
+  visit 1000/4815 eklenen=999 dedup=0 hata=1 tahsilat=515
+  visit 1200/4815 eklenen=1198 dedup=0 hata=2 tahsilat=588
+  visit 1400/4815 eklenen=1398 dedup=0 hata=2 tahsilat=648
+  visit 1600/4815 eklenen=1598 dedup=0 hata=2 tahsilat=746
+  visit 1800/4815 eklenen=1798 dedup=0 hata=2 tahsilat=821
+  visit 2000/4815 eklenen=1998 dedup=0 hata=2 tahsilat=912
+  visit 2200/4815 eklenen=2198 dedup=0 hata=2 tahsilat=1026
+  visit 2400/4815 eklenen=2398 dedup=0 hata=2 tahsilat=1150
+  visit 2600/4815 eklenen=2598 dedup=0 hata=2 tahsilat=1271
+  visit 2800/4815 eklenen=2798 dedup=0 hata=2 tahsilat=1383
+  visit 3000/4815 eklenen=2998 dedup=0 hata=2 tahsilat=1488
+  visit 3200/4815 eklenen=3198 dedup=0 hata=2 tahsilat=1596
+  visit 3400/4815 eklenen=3398 dedup=0 hata=2 tahsilat=1707
+  visit 3600/4815 eklenen=3598 dedup=0 hata=2 tahsilat=1817
+  visit 3800/4815 eklenen=3798 dedup=0 hata=2 tahsilat=1928
+  visit 4000/4815 eklenen=3998 dedup=0 hata=2 tahsilat=2039
+  visit 4200/4815 eklenen=4198 dedup=0 hata=2 tahsilat=2099
+  visit 4400/4815 eklenen=4398 dedup=0 hata=2 tahsilat=2178
+  visit 4600/4815 eklenen=4598 dedup=0 hata=2 tahsilat=2262
+  visit 4800/4815 eklenen=4798 dedup=0 hata=2 tahsilat=2339
+Visit: eklenen=4813, dedup=0, hata=2, tahsilat=2339
+Standalone urun satislari isleniyor: 100 kayit
+Standalone urun: eklenen=20, dedup=80, hata=0, tahsilat=18
+Giderler isleniyor: 1243 kayit
+Giderler: eklenen=0, dedup=0, hata=1243
+Package sales gruplari: 399 kayit (toplam satir: 444)
+Package sales: eklenen=209, dedup=190, hata=0
+Payments isleniyor: 2800 kayit
+Payments: eklenen=27, dedup=2772, hata=1

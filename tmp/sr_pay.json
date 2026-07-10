@@ -1,0 +1,16 @@
+{
+    "amount": 12000,
+    "created_at": "2026-04-29T13:36:28+03:00",
+    "description": "",
+    "id": 4646902,
+    "is_installment": false,
+    "match": 0,
+    "payment_date": "2026-04-29T13:35:41+03:00",
+    "payment_status": 1,
+    "payment_type": 2,
+    "receipt": null,
+    "receipt_id": 1509321,
+    "s_id": 5382378,
+    "s_type": 2,
+    "staff_id": 35291
+}

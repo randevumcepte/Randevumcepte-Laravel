@@ -1,0 +1,448 @@
+Dump: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260524_204312
+Toplam 1 tablo bulundu.
+  Tablo #0: 580 satir, 1386453 byte
+En buyuk tablo: #0, 580 satir
+--- Basliklar ---
+  [0] 'Tarih'
+  [1] 'Açıklama'
+  [2] 'Ödeme Şekli'
+  [3] 'Tutar'
+  [4] 'Genel Tip'
+  [5] 'Gider Tipi'
+  [6] 'Kasa'
+  [7] 'Ödenen'
+  [8] 'Saat'
+  [9] ''
+--- Satir ornek (10 td, tip='12:05') ---
+    [0] '05.10.2026'
+    [1] 'CEREN'
+    [2] 'Nakit'
+    [3] '32.000,00 TRY'
+    [4] ''
+    [5] 'Maaş'
+    [6] ''
+    [7] ''
+    [8] '12:05'
+    [9] ''
+--- Satir ornek (10 td, tip='12:05') ---
+    [0] '05.10.2026'
+    [1] 'NİSA'
+    [2] 'Nakit'
+    [3] '10.000,00 TRY'
+    [4] ''
+    [5] 'Maaş'
+    [6] ''
+    [7] ''
+    [8] '12:05'
+    [9] ''
+--- Satir ornek (10 td, tip='18:03') ---
+    [0] '22.05.2026'
+    [1] ''
+    [2] 'Nakit'
+    [3] '950,00 TRY'
+    [4] 'Maaş'
+    [5] ''
+    [6] ''
+    [7] 'Aysel'
+    [8] '18:03'
+    [9] ''
+--- Satir ornek (10 td, tip='19:37') ---
+    [0] '22.05.2026'
+    [1] 'g5 servis'
+    [2] 'Nakit'
+    [3] '1.500,00 TRY'
+    [4] ''
+    [5] 'Malzeme'
+    [6] ''
+    [7] ''
+    [8] '19:37'
+    [9] ''
+--- Satir ornek (10 td, tip='14:01') ---
+    [0] '20.05.2026'
+    [1] 'Alt başlık'
+    [2] 'Nakit'
+    [3] '5.700,00 TRY'
+    [4] ''
+    [5] 'Malzeme'
+    [6] ''
+    [7] ''
+    [8] '14:01'
+    [9] ''
+--- Satir ornek (10 td, tip='13:07') ---
+    [0] '19.05.2026'
+    [1] 'Kargo krem'
+    [2] 'Nakit'
+    [3] '750,00 TRY'
+    [4] ''
+    [5] ''
+    [6] ''
+    [7] ''
+    [8] '13:07'
+    [9] ''
+--- Tip dagilimi ---
+  '12:05' : 3 satir
+  '18:03' : 1 satir
+  '19:37' : 2 satir
+  '14:01' : 1 satir
+  '13:07' : 1 satir
+  '18:58' : 2 satir
+  '13:10' : 1 satir
+  '19:33' : 3 satir
+  '16:58' : 1 satir
+  '19:32' : 3 satir
+  '18:02' : 1 satir
+  '18:07' : 2 satir
+  '11:05' : 1 satir
+  '14:06' : 2 satir
+  '14:07' : 4 satir
+  '11:00' : 1 satir
+  '12:06' : 1 satir
+  '13:01' : 4 satir
+  '20:04' : 3 satir
+  '12:14' : 2 satir
+  '17:06' : 2 satir
+  '11:45' : 1 satir
+  '14:12' : 3 satir
+  '13:43' : 1 satir
+  '11:34' : 1 satir
+  '10:43' : 1 satir
+  '18:56' : 2 satir
+  '10:38' : 1 satir
+  '15:42' : 1 satir
+  '16:47' : 1 satir
+  '11:28' : 1 satir
+  '13:37' : 4 satir
+  '17:09' : 4 satir
+  '17:11' : 2 satir
+  '12:55' : 4 satir
+  '12:58' : 1 satir
+  '17:50' : 3 satir
+  '16:38' : 2 satir
+  '14:21' : 1 satir
+  '14:22' : 1 satir
+  '19:21' : 3 satir
+  '16:17' : 3 satir
+  '19:58' : 4 satir
+  '18:27' : 3 satir
+  '18:28' : 3 satir
+  '11:59' : 2 satir
+  '12:16' : 1 satir
+  '12:18' : 1 satir
+  '12:25' : 2 satir
+  '11:25' : 1 satir
+  '17:59' : 2 satir
+  '15:32' : 1 satir
+  '12:47' : 1 satir
+  '12:51' : 1 satir
+  '12:53' : 3 satir
+  '16:07' : 2 satir
+  '16:41' : 1 satir
+  '19:11' : 2 satir
+  '14:02' : 1 satir
+  '15:04' : 2 satir
+  '14:16' : 2 satir
+  '18:42' : 1 satir
+  '11:39' : 1 satir
+  '12:03' : 2 satir
+  '18:44' : 2 satir
+  '12:31' : 2 satir
+  '19:18' : 1 satir
+  '14:49' : 1 satir
+  '20:00' : 3 satir
+  '19:29' : 1 satir
+  '13:57' : 2 satir
+  '20:01' : 1 satir
+  '19:17' : 5 satir
+  '19:23' : 2 satir
+  '13:24' : 1 satir
+  '18:29' : 1 satir
+  '20:42' : 4 satir
+  '13:23' : 1 satir
+  '21:36' : 1 satir
+  '20:10' : 1 satir
+  '15:17' : 1 satir
+  '15:59' : 2 satir
+  '17:43' : 3 satir
+  '14:28' : 3 satir
+  '12:34' : 1 satir
+  '14:58' : 1 satir
+  '19:26' : 2 satir
+  '11:27' : 1 satir
+  '11:37' : 1 satir
+  '14:08' : 2 satir
+  '14:11' : 4 satir
+  '12:02' : 1 satir
+  '17:31' : 1 satir
+  '17:37' : 1 satir
+  '19:31' : 2 satir
+  '13:17' : 1 satir
+  '12:40' : 1 satir
+  '21:02' : 3 satir
+  '20:36' : 3 satir
+  '19:34' : 6 satir
+  '17:39' : 2 satir
+  '19:43' : 6 satir
+  '20:39' : 3 satir
+  '12:41' : 1 satir
+  '20:34' : 1 satir
+  '21:24' : 1 satir
+  '14:27' : 1 satir
+  '15:31' : 2 satir
+  '14:29' : 2 satir
+  '18:08' : 2 satir
+  '21:44' : 1 satir
+  '21:39' : 1 satir
+  '20:20' : 2 satir
+  '20:29' : 1 satir
+  '20:32' : 1 satir
+  '16:21' : 1 satir
+  '16:11' : 2 satir
+  '19:36' : 1 satir
+  '21:25' : 2 satir
+  '22:41' : 1 satir
+  '21:53' : 1 satir
+  '20:35' : 1 satir
+  '19:49' : 3 satir
+  '20:46' : 1 satir
+  '21:04' : 1 satir
+  '19:14' : 2 satir
+  '18:10' : 2 satir
+  '21:22' : 1 satir
+  '21:28' : 1 satir
+  '12:59' : 2 satir
+  '15:49' : 1 satir
+  '20:14' : 1 satir
+  '20:52' : 2 satir
+  '21:11' : 1 satir
+  '19:50' : 3 satir
+  '17:04' : 1 satir
+  '19:22' : 2 satir
+  '11:52' : 2 satir
+  '12:26' : 3 satir
+  '12:48' : 2 satir
+  '14:57' : 1 satir
+  '18:24' : 3 satir
+  '18:12' : 1 satir
+  '19:35' : 1 satir
+  '17:42' : 1 satir
+  '21:40' : 1 satir
+  '21:31' : 2 satir
+  '14:51' : 1 satir
+  '14:52' : 1 satir
+  '20:06' : 1 satir
+  '13:20' : 1 satir
+  '13:19' : 3 satir
+  '16:48' : 1 satir
+  '13:27' : 1 satir
+  '14:30' : 2 satir
+  '13:35' : 3 satir
+  '17:21' : 3 satir
+  '13:47' : 2 satir
+  '15:06' : 4 satir
+  '14:32' : 2 satir
+  '15:05' : 1 satir
+  '14:05' : 3 satir
+  '17:51' : 1 satir
+  '18:26' : 3 satir
+  '10:35' : 1 satir
+  '18:52' : 1 satir
+  '18:55' : 2 satir
+  '14:36' : 1 satir
+  '15:57' : 1 satir
+  '15:58' : 2 satir
+  '10:39' : 1 satir
+  '13:34' : 1 satir
+  '14:44' : 2 satir
+  '14:45' : 3 satir
+  '18:20' : 2 satir
+  '13:45' : 1 satir
+  '13:46' : 2 satir
+  '14:47' : 1 satir
+  '14:48' : 1 satir
+  '15:07' : 2 satir
+  '11:47' : 1 satir
+  '11:48' : 2 satir
+  '12:17' : 1 satir
+  '15:20' : 2 satir
+  '14:39' : 2 satir
+  '13:31' : 1 satir
+  '19:04' : 2 satir
+  '19:05' : 2 satir
+  '14:09' : 1 satir
+  '12:36' : 3 satir
+  '20:30' : 1 satir
+  '12:29' : 2 satir
+  '14:10' : 1 satir
+  '12:46' : 1 satir
+  '17:15' : 1 satir
+  '17:16' : 3 satir
+  '19:38' : 2 satir
+  '13:59' : 1 satir
+  '17:20' : 1 satir
+  '11:30' : 2 satir
+  '16:59' : 1 satir
+  '17:01' : 1 satir
+  '19:55' : 1 satir
+  '19:56' : 4 satir
+  '17:22' : 2 satir
+  '12:35' : 1 satir
+  '19:46' : 2 satir
+  '15:08' : 3 satir
+  '12:04' : 1 satir
+  '17:44' : 3 satir
+  '17:41' : 1 satir
+  '13:36' : 2 satir
+  '13:41' : 2 satir
+  '13:38' : 2 satir
+  '13:39' : 1 satir
+  '19:51' : 2 satir
+  '18:41' : 1 satir
+  '20:24' : 1 satir
+  '13:15' : 1 satir
+  '15:09' : 3 satir
+  '14:00' : 1 satir
+  '16:42' : 1 satir
+  '20:27' : 3 satir
+  '20:31' : 2 satir
+  '11:57' : 4 satir
+  '19:48' : 1 satir
+  '14:31' : 1 satir
+  '17:52' : 1 satir
+  '17:55' : 1 satir
+  '15:10' : 3 satir
+  '17:54' : 2 satir
+  '19:09' : 1 satir
+  '12:10' : 1 satir
+  '13:06' : 2 satir
+  '19:07' : 2 satir
+  '13:21' : 1 satir
+  '13:22' : 1 satir
+  '16:55' : 1 satir
+  '19:30' : 1 satir
+  '18:37' : 2 satir
+  '13:53' : 2 satir
+  '13:54' : 1 satir
+  '17:19' : 1 satir
+  '19:27' : 1 satir
+  '14:14' : 2 satir
+  '14:13' : 1 satir
+  '16:05' : 2 satir
+  '14:15' : 1 satir
+  '12:09' : 1 satir
+  '17:38' : 1 satir
+  '12:19' : 1 satir
+  '12:23' : 1 satir
+  '12:22' : 2 satir
+  '11:46' : 3 satir
+  '14:04' : 1 satir
+  '14:38' : 1 satir
+  '14:56' : 1 satir
+  '12:57' : 1 satir
+  '12:56' : 1 satir
+  '13:00' : 1 satir
+  '17:56' : 1 satir
+  '11:53' : 2 satir
+  '11:58' : 1 satir
+  '11:56' : 3 satir
+  '16:23' : 1 satir
+  '18:09' : 1 satir
+  '19:02' : 3 satir
+  '18:51' : 1 satir
+  '14:54' : 1 satir
+  '18:53' : 1 satir
+  '16:12' : 1 satir
+  '16:37' : 1 satir
+  '17:17' : 1 satir
+  '17:48' : 3 satir
+  '18:35' : 1 satir
+  '15:29' : 1 satir
+  '17:27' : 1 satir
+  '18:19' : 2 satir
+  '18:49' : 1 satir
+  '19:47' : 3 satir
+  '20:59' : 1 satir
+  '13:32' : 1 satir
+  '18:38' : 1 satir
+  '12:27' : 1 satir
+  '19:19' : 1 satir
+  '19:13' : 3 satir
+  '17:35' : 1 satir
+  '12:28' : 1 satir
+  '16:43' : 1 satir
+  '15:24' : 1 satir
+  '19:16' : 3 satir
+  '19:15' : 2 satir
+  '14:46' : 2 satir
+  '15:45' : 1 satir
+  '18:04' : 1 satir
+  '16:31' : 1 satir
+  '16:32' : 1 satir
+  '20:44' : 1 satir
+  '20:38' : 1 satir
+  '18:39' : 1 satir
+  '15:11' : 1 satir
+  '18:23' : 2 satir
+  '19:20' : 2 satir
+  '15:12' : 1 satir
+  '15:34' : 1 satir
+  '15:35' : 2 satir
+  '23:01' : 1 satir
+  '23:02' : 1 satir
+  '19:57' : 1 satir
+  '13:50' : 1 satir
+  '19:52' : 1 satir
+  '20:02' : 1 satir
+  '17:05' : 1 satir
+  '16:19' : 1 satir
+  '16:20' : 1 satir
+  '14:55' : 2 satir
+  '18:00' : 1 satir
+  '19:06' : 1 satir
+  '17:53' : 1 satir
+  '19:41' : 1 satir
+  '20:28' : 1 satir
+  '13:33' : 1 satir
+  '18:22' : 1 satir
+  '18:31' : 2 satir
+  '13:12' : 1 satir
+  '19:01' : 1 satir
+  '16:51' : 1 satir
+  '10:06' : 2 satir
+  '16:49' : 1 satir
+  '21:45' : 1 satir
+  '19:59' : 2 satir
+  '20:53' : 1 satir
+  '11:54' : 1 satir
+  '23:00' : 1 satir
+  '20:50' : 1 satir
+  '14:59' : 2 satir
+  '15:00' : 2 satir
+  '20:51' : 1 satir
+  '18:30' : 1 satir
+  '16:00' : 1 satir
+  '16:01' : 1 satir
+  '16:52' : 1 satir
+  '18:48' : 1 satir
+  '14:43' : 1 satir
+  '19:39' : 1 satir
+  '16:56' : 1 satir
+  '13:42' : 1 satir
+  '16:08' : 1 satir
+  '17:14' : 1 satir
+  '19:00' : 1 satir
+  '10:01' : 1 satir
+  '20:22' : 1 satir
+  '15:37' : 1 satir
+  '21:26' : 1 satir
+  '16:29' : 1 satir
+  '15:01' : 1 satir
+  '09:56' : 1 satir
+  '16:33' : 1 satir
+  '14:34' : 1 satir
+  '11:40' : 1 satir
+  '16:14' : 1 satir
+  '15:02' : 1 satir
+  '16:06' : 1 satir
+  '16:09' : 1 satir
+  '15:03' : 1 satir
+--- TOPLAM (HTML'den hesap): 579 satir, 3.815.624,53 TL ---

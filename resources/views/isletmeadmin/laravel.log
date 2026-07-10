@@ -1,0 +1,81 @@
+[2026-07-01 22:38:01] local.INFO: [RND-SMS] cron tick {"simdi":"01.07.2026 22:38","aday_randevu_sayisi":566} 
+[2026-07-01 22:38:03] local.INFO: [ALACAK-ARAMA] kontrol basladi. dk=2026-07-01 22:38  
+[2026-07-01 22:38:03] local.INFO: [ALACAK-ARAMA] aranacak alacak yok.  
+[2026-07-01 22:38:03] local.INFO: 💊 İlaç kontrol zamanı: 22:38  
+[2026-07-01 22:38:49] local.WARNING: SalonHatirlatma [acikAdisyonEski] hata: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'toplam_tutar' in 'SELECT' (SQL: select `adisyon_id`, SUM(IFNULL(toplam_tutar,IFNULL(birim_tutar,0))) as t from `adisyon_hizmetler` where `adisyon_id` in (524883, 524885, 524887, 524888, 524889, 524892, 524894, 524896, 524897, 524899, 524900, 524901, 524902, 524905, 524906, 524907, 524909, 524912, 524913, 524914, 524915, 524916, 524918, 524923, 524924, 524925, 524926, 524928, 524929, 524931, 524932, 524933, 524934, 524935, 524936, 524937, 524938, 524939, 524940, 524941, 524942, 524943, 524944, 524945, 524946, 524947, 524948, 524950, 524951, 524952, 524953, 524954, 524955, 524956, 524957, 524959, 524960, 524962, 524963, 524964, 524965, 524966, 524967, 524968, 524969, 524970, 524971, 524974, 524975, 524976, 524977, 524978, 524979, 524980, 524982, 524983, 524984, 524985, 524987, 524990, 524991, 524992, 524994, 524996, 524997, 524998, 524999, 525000, 525001, 525002, 525003, 525004, 525005, 525006, 525007, 525008, 525009, 525010, 525011, 525012) group by `adisyon_id`)  
+[2026-07-01 22:39:01] local.ERROR: file_put_contents(/home/webfirma/randevumcepteweb2/public/profil_resimleri/6a456cd51f033.jpg): failed to open stream: No such file or directory {"exception":"[object] (ErrorException(code: 0): file_put_contents(/home/webfirma/randevumcepteweb2/public/profil_resimleri/6a456cd51f033.jpg): failed to open stream: No such file or directory at /var/www/www-root/data/www/randevumcepte/app/Http/Controllers/StoreAdminController.php:5299)
+[stacktrace]
+#0 [internal function]: Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleError(2, 'file_put_conten...', '/var/www/www-ro...', 5299, Array)
+#1 /var/www/www-root/data/www/randevumcepte/app/Http/Controllers/StoreAdminController.php(5299): file_put_contents('/home/webfirma/...', '\\x89PNG\\
+\\x1A\
+\\x00\\x00\\x00\IHD...')
+#2 [internal function]: App\\Http\\Controllers\\StoreAdminController->profilresimyukle(Object(Illuminate\\Http\\Request))
+#3 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Controller.php(54): call_user_func_array(Array, Array)
+#4 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/ControllerDispatcher.php(45): Illuminate\\Routing\\Controller->callAction('profilresimyukl...', Array)
+#5 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Route.php(212): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\StoreAdminController), 'profilresimyukl...')
+#6 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Route.php(169): Illuminate\\Routing\\Route->runController()
+#7 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Router.php(665): Illuminate\\Routing\\Route->run()
+#8 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(30): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#9 /var/www/www-root/data/www/randevumcepte/app/Http/Controllers/StoreAdminController.php(178): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#10 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(133): App\\Http\\Controllers\\StoreAdminController->App\\Http\\Controllers\\{closure}(Object(Illuminate\\Http\\Request), Object(Closure))
+#11 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#12 /var/www/www-root/data/www/randevumcepte/vendor/htmlmin/htmlmin/src/Http/Middleware/MinifyMiddleware.php(55): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#13 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): HTMLMin\\HTMLMin\\Http\\Middleware\\MinifyMiddleware->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#14 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Middleware/SubstituteBindings.php(41): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#16 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#17 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#18 /var/www/www-root/data/www/randevumcepte/app/Http/Middleware/AuthenticateSession.php(42): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#19 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): App\\Http\\Middleware\\AuthenticateSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/VerifyCsrfToken.php(68): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#22 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#23 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#24 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/View/Middleware/ShareErrorsFromSession.php(49): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#25 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#26 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#27 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Session/Middleware/StartSession.php(63): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#28 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Cookie/Middleware/AddQueuedCookiesToResponse.php(37): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#31 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#32 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#33 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Cookie/Middleware/EncryptCookies.php(66): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#34 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#35 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#36 /var/www/www-root/data/www/randevumcepte/app/Http/Middleware/LogRequestPerformance.php(13): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#37 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): App\\Http\\Middleware\\LogRequestPerformance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#38 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(104): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#40 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Router.php(667): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#41 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Router.php(642): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#42 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Router.php(608): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#43 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Router.php(597): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#44 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(176): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#45 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(30): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#46 /var/www/www-root/data/www/randevumcepte/vendor/barryvdh/laravel-debugbar/src/Middleware/InjectDebugbar.php(58): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#47 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Barryvdh\\Debugbar\\Middleware\\InjectDebugbar->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TransformsRequest.php(31): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#50 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#51 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#52 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TransformsRequest.php(31): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#53 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#54 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#55 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/ValidatePostSize.php(27): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#56 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#57 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#58 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/CheckForMaintenanceMode.php(62): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#59 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(151): Illuminate\\Foundation\\Http\\Middleware\\CheckForMaintenanceMode->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#60 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php(53): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#61 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(104): Illuminate\\Routing\\Pipeline->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#62 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(151): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#63 /var/www/www-root/data/www/randevumcepte/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(116): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#64 /var/www/www-root/data/www/randevumcepte/public/index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#65 /var/www/www-root/data/www/randevumcepte/index.php(20): require_once('/var/www/www-ro...')
+#66 {main}
+"} 
+[2026-07-01 22:39:02] local.INFO: [RND-SMS] cron tick {"simdi":"01.07.2026 22:39","aday_randevu_sayisi":566} 
+[2026-07-01 22:39:03] local.INFO: [ALACAK-ARAMA] kontrol basladi. dk=2026-07-01 22:39  
+[2026-07-01 22:39:03] local.INFO: [ALACAK-ARAMA] aranacak alacak yok.  
+[2026-07-01 22:39:03] local.INFO: 💊 İlaç kontrol zamanı: 22:39  

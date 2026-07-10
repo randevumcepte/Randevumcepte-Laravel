@@ -129,10 +129,36 @@ class Audit
 
             $userId = $user ? $user->id : null;
             if (!$userId && $req) {
-                $userId = $req->input('olusturan')
-                    ?? $req->input('yetkili_id')
-                    ?? $req->input('olusturan_id')
-                    ?? null;
+                // Islemi yapan giris kullanicisi: mobil uygulama login'den sonra
+                // kullanici id'sini tutar ve mutasyon isteklerinde asagidaki
+                // alanlardan biriyle gonderir. Once "olusturan/yetkili/user"
+                // (giris yapan aktor), en son care olarak "personel_id".
+                foreach ([
+                    'olusturan',
+                    'olusturan_user_id',
+                    'olusturan_id',
+                    'yetkili_id',
+                    'user_id',
+                    'olusturan_personel_id',
+                    'personel_id',
+                ] as $alan) {
+                    $deger = $req->input($alan);
+                    // "user[id]" gibi ic ice gonderilmis olabilir
+                    if (is_array($deger)) {
+                        $deger = $deger['id'] ?? null;
+                    }
+                    if ($deger !== null && $deger !== '' && is_numeric($deger)) {
+                        $userId = $deger;
+                        break;
+                    }
+                }
+                // Nesne olarak gonderilmis "user":{"id":..} ihtimali
+                if (!$userId) {
+                    $u = $req->input('user');
+                    if (is_array($u) && isset($u['id']) && is_numeric($u['id'])) {
+                        $userId = $u['id'];
+                    }
+                }
             }
             // sayisal degilse (ornegin personel adi gondermisse) yok say
             if ($userId !== null && !is_numeric($userId)) {

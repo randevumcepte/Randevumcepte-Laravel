@@ -1,0 +1,6 @@
+BIZDEKI toplam salonappy markerli adisyon_urunler: 100
+DUMP productSales: 100
+
+EKSIK standalone: 0
+
+EKSIK visit-bagli: 0

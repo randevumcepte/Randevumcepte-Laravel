@@ -1,0 +1,22 @@
+nohup: ignoring input
+Salonappy client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/salonappy/20260603_015841
+Services master yuklendi (dump.servicesMaster): 136 hizmet (id -> TR title)
+Master ile doldurulan service_text: 0 kalem
+v5 dump: clients={1344}, visits={4815}, bookingDetails={4815}, clientDetails={0}
+  müşteri 199/1344 eklenen=200 hata=0
+  müşteri 399/1344 eklenen=400 hata=0
+  müşteri 599/1344 eklenen=600 hata=0
+  müşteri 799/1344 eklenen=800 hata=0
+  müşteri 999/1344 eklenen=1000 hata=0
+  müşteri 1199/1344 eklenen=1200 hata=0
+Musteri: eklenen=1344, hata=0
+Visit: eklenen=0, dedup=4813, hata=2, tahsilat=0
+Standalone urun satislari isleniyor: 100 kayit
+Standalone urun: eklenen=0, dedup=100, hata=0, tahsilat=0
+Giderler isleniyor: 1243 kayit
+Giderler: eklenen=0, dedup=0, hata=1243
+Package sales gruplari: 399 kayit (toplam satir: 444)
+Package sales: eklenen=399, dedup=0, hata=0
+Payments isleniyor: 2800 kayit
+Payments: eklenen=2798, dedup=1, hata=1

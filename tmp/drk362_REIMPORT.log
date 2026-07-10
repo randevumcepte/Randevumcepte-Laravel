@@ -1,0 +1,67 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260524_163724
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=2026524163725162
+Satis+Tahsilat: 2024-01-01 - 2026-12-31
+Musid toplama 1/2: musterilistesi.aspx (TUM musteriler)...
+  musterilistesi.aspx: 0 unique musid
+Musid toplama 2/2: randevu listesi (tarih araligi - ek olarak)...
+  ..hafta 20 unique musid: 0
+  ..hafta 40 unique musid: 404
+  ..hafta 60 unique musid: 894
+  ..hafta 80 unique musid: 1347
+  ..hafta 100 unique musid: 1777
+  ..hafta 120 unique musid: 2192
+  ..hafta 140 unique musid: 2339
+  randevu listesinden ek: 2339 musid
+Toplam unique musid: 2339
+  ..musteri 50/2339 satis=130 tahsilat=125 relink=0 prop=123 seans=2199
+  ..musteri 100/2339 satis=285 tahsilat=279 relink=0 prop=273 seans=3738
+  ..musteri 150/2339 satis=440 tahsilat=428 relink=0 prop=422 seans=5279
+  ..musteri 200/2339 satis=578 tahsilat=565 relink=0 prop=559 seans=6445
+  ..musteri 250/2339 satis=697 tahsilat=687 relink=0 prop=681 seans=6779
+  ..musteri 300/2339 satis=789 tahsilat=781 relink=0 prop=775 seans=7474
+  ..musteri 350/2339 satis=875 tahsilat=867 relink=0 prop=861 seans=8331
+  ..musteri 400/2339 satis=976 tahsilat=974 relink=0 prop=966 seans=8902
+  ..musteri 450/2339 satis=1056 tahsilat=1061 relink=0 prop=1053 seans=9619
+  ..musteri 500/2339 satis=1114 tahsilat=1124 relink=0 prop=1116 seans=9735
+  ..musteri 550/2339 satis=1225 tahsilat=1234 relink=0 prop=1226 seans=9997
+  ..musteri 600/2339 satis=1287 tahsilat=1297 relink=0 prop=1289 seans=11198
+  ..musteri 650/2339 satis=1352 tahsilat=1362 relink=0 prop=1354 seans=11907
+  ..musteri 700/2339 satis=1450 tahsilat=1461 relink=0 prop=1452 seans=12273
+  ..musteri 750/2339 satis=1540 tahsilat=1555 relink=0 prop=1546 seans=12491
+  ..musteri 800/2339 satis=1633 tahsilat=1655 relink=0 prop=1645 seans=13868
+  ..musteri 850/2339 satis=1741 tahsilat=1766 relink=0 prop=1756 seans=14849
+  ..musteri 900/2339 satis=1800 tahsilat=1826 relink=0 prop=1815 seans=15037
+  ..musteri 950/2339 satis=1900 tahsilat=1925 relink=0 prop=1914 seans=15735
+  ..musteri 1000/2339 satis=1953 tahsilat=1983 relink=0 prop=1972 seans=16115
+  ..musteri 1050/2339 satis=2049 tahsilat=2076 relink=0 prop=2065 seans=16528
+  ..musteri 1100/2339 satis=2154 tahsilat=2184 relink=0 prop=2173 seans=17527
+  ..musteri 1150/2339 satis=2240 tahsilat=2268 relink=0 prop=2257 seans=18553
+  ..musteri 1200/2339 satis=2322 tahsilat=2351 relink=0 prop=2339 seans=19166
+  ..musteri 1250/2339 satis=2422 tahsilat=2451 relink=0 prop=2439 seans=19715
+  ..musteri 1300/2339 satis=2505 tahsilat=2534 relink=0 prop=2522 seans=20105
+  ..musteri 1350/2339 satis=2562 tahsilat=2593 relink=0 prop=2581 seans=20295
+  ..musteri 1400/2339 satis=2628 tahsilat=2662 relink=0 prop=2650 seans=20799
+  ..musteri 1450/2339 satis=2728 tahsilat=2763 relink=0 prop=2751 seans=21337
+  ..musteri 1500/2339 satis=2799 tahsilat=2836 relink=0 prop=2824 seans=21498
+  ..musteri 1550/2339 satis=2879 tahsilat=2924 relink=0 prop=2912 seans=22060
+  ..musteri 1600/2339 satis=2963 tahsilat=3012 relink=0 prop=3000 seans=22645
+  ..musteri 1650/2339 satis=3027 tahsilat=3081 relink=0 prop=3069 seans=23313
+  ..musteri 1700/2339 satis=3104 tahsilat=3155 relink=0 prop=3142 seans=23989
+  ..musteri 1750/2339 satis=3194 tahsilat=3255 relink=0 prop=3242 seans=24953
+  ..musteri 1800/2339 satis=3285 tahsilat=3358 relink=0 prop=3345 seans=25569
+  ..musteri 1850/2339 satis=3361 tahsilat=3436 relink=0 prop=3423 seans=26096
+  ..musteri 1900/2339 satis=3429 tahsilat=3501 relink=0 prop=3488 seans=26651
+  ..musteri 1950/2339 satis=3547 tahsilat=3619 relink=0 prop=3603 seans=27540
+  ..musteri 2000/2339 satis=3600 tahsilat=3669 relink=0 prop=3652 seans=27692
+  ..musteri 2050/2339 satis=3656 tahsilat=3731 relink=0 prop=3714 seans=27911
+  ..musteri 2100/2339 satis=3701 tahsilat=3783 relink=0 prop=3766 seans=28060
+  ..musteri 2150/2339 satis=3759 tahsilat=3846 relink=0 prop=3829 seans=28496
+  ..musteri 2200/2339 satis=3831 tahsilat=3921 relink=0 prop=3903 seans=29539
+  ..musteri 2250/2339 satis=3900 tahsilat=3991 relink=0 prop=3973 seans=30038
+  ..musteri 2300/2339 satis=3965 tahsilat=4055 relink=0 prop=4037 seans=30965
+Aktarim tamam: satis=4005, tahsilat=4093, tahsilat_relink=0, tahsilat_propagate=4075, seans_dusumu=31249
+Tamam. Ozet: {"hizmet":14,"personel":0,"urun":0,"oda":0,"musteri":0,"randevu":10660,"satis":4005,"tahsilat":4093,"skipped":0,"tahsilat_propagate":4075,"seans_dusumu":31249,"seans_silinen":2462}

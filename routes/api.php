@@ -189,6 +189,7 @@ Route::post('/musteribilgiguncelle','ApiController@musteribilgiguncelle');
 Route::post('/profilresimyukle','ApiController@profilresimyukle');
 Route::post('/musteriprofilresimyukle','ApiController@musteriprofilresimyukle');
 Route::post('/satislar','ApiController@satislar');
+Route::get('/satislar','ApiController@satislar'); // [GECICI-DEBUG] tarayicidan JSON gormek icin
 Route::post('/adisyonfaturaisaretle','ApiController@adisyonFaturaIsaretle');
 Route::post('/faturasizgizletoggle','ApiController@faturasizGizleToggle');
 Route::get('/faturasizgizledurum/{salonid}','ApiController@faturasizGizleDurum');

@@ -1,0 +1,4 @@
+DUMP productSales: 100
+EKSIK standalone (siki check): 0
+
+EKSIK visit-bagli (siki check): 0

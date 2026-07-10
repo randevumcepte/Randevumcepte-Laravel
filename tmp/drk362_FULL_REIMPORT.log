@@ -1,0 +1,70 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260526_003656
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=202652603656811
+Verify aktif: /tmp/drk_verify_362.csv
+Satis+Tahsilat: 2024-01-01 - 2026-12-31
+Musid toplama 1/2: musterilistesi.aspx (TUM musteriler)...
+  musterilistesi.aspx: 0 unique musid
+Musid toplama 2/2: randevu listesi (tarih araligi - ek olarak)...
+  ..hafta 20 unique musid: 0
+  ..hafta 40 unique musid: 404
+  ..hafta 60 unique musid: 894
+  ..hafta 80 unique musid: 1347
+  ..hafta 100 unique musid: 1777
+  ..hafta 120 unique musid: 2192
+  ..hafta 140 unique musid: 2343
+  randevu listesinden ek: 2343 musid
+Toplam unique musid: 2343
+  ..musteri 50/2343 satis=130 tahsilat=0 relink=0 prop=0 seans=413
+  ..musteri 100/2343 satis=286 tahsilat=0 relink=0 prop=0 seans=822
+  ..musteri 150/2343 satis=442 tahsilat=0 relink=0 prop=0 seans=1491
+  ..musteri 200/2343 satis=580 tahsilat=0 relink=0 prop=0 seans=1776
+  ..musteri 250/2343 satis=699 tahsilat=0 relink=0 prop=0 seans=1911
+  ..musteri 300/2343 satis=791 tahsilat=0 relink=0 prop=0 seans=2038
+  ..musteri 350/2343 satis=877 tahsilat=0 relink=0 prop=0 seans=2393
+  ..musteri 400/2343 satis=978 tahsilat=0 relink=0 prop=0 seans=2543
+  ..musteri 450/2343 satis=1058 tahsilat=0 relink=0 prop=0 seans=2710
+  ..musteri 500/2343 satis=1116 tahsilat=0 relink=0 prop=0 seans=2721
+  ..musteri 550/2343 satis=1227 tahsilat=0 relink=0 prop=0 seans=2814
+  ..musteri 600/2343 satis=1289 tahsilat=0 relink=0 prop=0 seans=3127
+  ..musteri 650/2343 satis=1354 tahsilat=1 relink=0 prop=1 seans=3252
+  ..musteri 700/2343 satis=1452 tahsilat=1 relink=0 prop=1 seans=3346
+  ..musteri 750/2343 satis=1542 tahsilat=1 relink=0 prop=1 seans=3424
+  ..musteri 800/2343 satis=1635 tahsilat=1 relink=0 prop=1 seans=4054
+  ..musteri 850/2343 satis=1743 tahsilat=1 relink=0 prop=1 seans=4269
+  ..musteri 900/2343 satis=1802 tahsilat=1 relink=0 prop=1 seans=4298
+  ..musteri 950/2343 satis=1902 tahsilat=1 relink=0 prop=1 seans=4465
+  ..musteri 1000/2343 satis=1955 tahsilat=1 relink=0 prop=1 seans=4527
+  ..musteri 1050/2343 satis=2051 tahsilat=1 relink=0 prop=1 seans=4589
+  ..musteri 1100/2343 satis=2156 tahsilat=1 relink=0 prop=1 seans=4715
+  ..musteri 1150/2343 satis=2242 tahsilat=1 relink=0 prop=1 seans=5111
+  ..musteri 1200/2343 satis=2324 tahsilat=1 relink=0 prop=1 seans=5177
+  ..musteri 1250/2343 satis=2424 tahsilat=1 relink=0 prop=1 seans=5365
+  ..musteri 1300/2343 satis=2507 tahsilat=1 relink=0 prop=1 seans=5515
+  ..musteri 1350/2343 satis=2564 tahsilat=1 relink=0 prop=1 seans=5555
+  ..musteri 1400/2343 satis=2630 tahsilat=1 relink=0 prop=1 seans=5699
+  ..musteri 1450/2343 satis=2730 tahsilat=1 relink=0 prop=1 seans=5843
+  ..musteri 1500/2343 satis=2801 tahsilat=1 relink=0 prop=1 seans=5904
+  ..musteri 1550/2343 satis=2881 tahsilat=1 relink=0 prop=1 seans=6126
+  ..musteri 1600/2343 satis=2965 tahsilat=1 relink=0 prop=1 seans=6256
+  ..musteri 1650/2343 satis=3029 tahsilat=1 relink=0 prop=1 seans=6481
+  ..musteri 1700/2343 satis=3106 tahsilat=1 relink=0 prop=1 seans=6655
+  ..musteri 1750/2343 satis=3196 tahsilat=1 relink=0 prop=1 seans=7206
+  ..musteri 1800/2343 satis=3287 tahsilat=1 relink=0 prop=1 seans=7543
+  ..musteri 1850/2343 satis=3363 tahsilat=1 relink=0 prop=1 seans=7711
+  ..musteri 1900/2343 satis=3432 tahsilat=1 relink=0 prop=1 seans=7899
+  ..musteri 1950/2343 satis=3550 tahsilat=1 relink=0 prop=1 seans=8241
+  ..musteri 2000/2343 satis=3603 tahsilat=1 relink=0 prop=1 seans=8276
+  ..musteri 2050/2343 satis=3660 tahsilat=1 relink=0 prop=1 seans=8340
+  ..musteri 2100/2343 satis=3705 tahsilat=1 relink=0 prop=1 seans=8345
+  ..musteri 2150/2343 satis=3763 tahsilat=1 relink=0 prop=1 seans=8478
+  ..musteri 2200/2343 satis=3835 tahsilat=1 relink=0 prop=1 seans=8834
+  ..musteri 2250/2343 satis=3904 tahsilat=1 relink=0 prop=1 seans=9042
+  ..musteri 2300/2343 satis=3970 tahsilat=1 relink=0 prop=1 seans=9427
+Aktarim tamam: satis=4013, tahsilat=2, tahsilat_relink=0, tahsilat_propagate=2, seans_dusumu=9622
+Tamam. Ozet: {"hizmet":0,"personel":0,"urun":0,"oda":0,"musteri":2,"randevu":10687,"satis":4013,"tahsilat":2,"skipped":0,"seans_dusumu":9622,"tahsilat_propagate":2}
+Verify ozet: OK=1555 FARK=1536 EKSIK_DB=625
+CSV: /tmp/drk_verify_362.csv

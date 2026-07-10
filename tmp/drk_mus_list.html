@@ -1,0 +1,96 @@
+
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="UTF-8" /><title>
+	Sistemedya | Klinik Bilgi Yönetim Sistemi
+</title>
+    <script src="js/loading.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" /><link href="bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" /><link href="bower_components/sidebar-nav/dist/sidebar-nav.min.css" rel="stylesheet" /><link href="css/animate.css" rel="stylesheet" /><link href="css/style.css" rel="stylesheet" /><link id="theme" href="css/colors/default.css" rel="stylesheet" /></head>
+<body>
+    <form method="post" action="./musterilistesi.aspx" id="form1">
+<div class="aspNetHidden">
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwUJNDQ4NjIwNjcxDxYCHhNWYWxpZGF0ZVJlcXVlc3RNb2RlAgEWAgIDD2QWAgILDzwrABEDAA8WBB4LXyFEYXRhQm91bmRnHgtfIUl0ZW1Db3VudAIZZAEQFgAWABYADBQrAAAWAmYPZBYMAgEPZBYKAgEPDxYCHgRUZXh0BQcxOTM2NzgxZGQCAg8PFgIfAwULQUzEsCDEsEhTQU5kZAIDDw8WAh8DBQwmIzE5OTtFTEVCxLBkZAIEDw8WAh8DBQo1MzMyMTMxMzMwZGQCBQ8PFgIfAwUGJm5ic3A7ZGQCAg9kFgoCAQ8PFgIfAwUHMTkzNjc4MmRkAgIPDxYCHwMFBEFSWlVkZAIDDw8WAh8DBRAmIzIxNDtaVCYjMjIwO1JLZGQCBA8PFgIfAwUKNTM4MjAwNzUxOWRkAgUPDxYCHwMFBiZuYnNwO2RkAgMPZBYKAgEPDxYCHwMFBzE5MzY3ODRkZAICDw8WAh8DBQpCRVQmIzIyMDtMZGQCAw8PFgIfAwUIRVJGT8SeQU5kZAIEDw8WAh8DBQo1MzcyOTYwNTIyZGQCBQ8PFgIfAwUGJm5ic3A7ZGQCBA9kFgoCAQ8PFgIfAwUHMTkzNjc4NmRkAgIPDxYCHwMFBUNBTlNVZGQCAw8PFgIfAwUDQ0FOZGQCBA8PFgIfAwUKNTM5NjI3MTYxMWRkAgUPDxYCHwMFBiZuYnNwO2RkAgUPZBYKAgEPDxYCHwMFBzE5MzY3ODlkZAICDw8WAh8DBQVHQU1aRWRkAgMPDxYCHwMFBUVSREVNZGQCBA8PFgIfAwUKNTUxMzkwNTEwMWRkAgUPDxYCHwMFBiZuYnNwO2RkAgYPDxYCHgdWaXNpYmxlaGRkGAEFE0RHUlZfTXVzdGVyaUxpc3Rlc2kPPCsADAEIAgVkUV6jLKnhMFyLAljTQM79c4ToNTFp6W50B+RNkBEPZuw=" />
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['form1'];
+if (!theForm) {
+    theForm = document.form1;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<div class="aspNetHidden">
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="86789C0D" />
+</div>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="white-box">
+                    <h4 class="box-title m-b-0" style="text-align: center;">
+                        <span id="LBL_Musteri_Listesi">MÜŞTERİ LİSTESİ</span></h4>
+                    <div class="form-group">
+                        <div class="col-md-12">
+                            <div class="col-md-4" style="margin-top: 10px;">
+                                <input type="hidden" name="HF_AramaTipi" id="HF_AramaTipi" value="Tüm Liste" />
+                                <div class="input-group">
+                                    <input name="TB_Ara" type="text" id="TB_Ara" class="form-control" style="height:30px;" />
+                                    <span class="input-group-btn">
+                                        <input type="submit" name="BTN_MusteriAra" value="Ara" id="BTN_MusteriAra" class="btn btn-xs btn-info" style="font-size:12px;height:30px;" />
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="panel-body">
+                                <div class="row">
+                                    <div class="form-group">
+                                        <input type="hidden" name="HF_MusID" id="HF_MusID" />
+                                        <div>
+	<table cellspacing="0" cellpadding="4" id="DGRV_MusteriListesi" style="color:#333333;font-family:Calibri;width:100%;border-collapse:collapse;">
+		<tr align="center" style="color:White;background-color:#E05941;font-weight:bold;">
+			<th scope="col" abbr="Seç2">&nbsp;</th><th align="center" scope="col" style="color:White;">ID</th><th align="center" scope="col" style="color:White;">Ad</th><th align="center" scope="col" style="color:White;">Soyad</th><th align="center" scope="col" style="color:White;">Cep</th><th align="center" scope="col" style="color:White;">D.Tarihi</th>
+		</tr><tr align="left" style="color:#333333;background-color:#F7F6F3;">
+			<td style="color:#E05941;"><a href="javascript:__doPostBack(&#39;DGRV_MusteriListesi&#39;,&#39;Select$0&#39;)" style="color:#E05941;">Seç</a></td><td>1936781</td><td>ALİ İHSAN</td><td>&#199;ELEBİ</td><td>5332131330</td><td>&nbsp;</td>
+		</tr><tr align="left" style="color:#E05941;background-color:White;">
+			<td style="color:#E05941;"><a href="javascript:__doPostBack(&#39;DGRV_MusteriListesi&#39;,&#39;Select$1&#39;)" style="color:#E05941;">Seç</a></td><td>1936782</td><td>ARZU</td><td>&#214;ZT&#220;RK</td><td>5382007519</td><td>&nbsp;</td>
+		</tr><tr align="left" style="color:#333333;background-color:#F7F6F3;">
+			<td style="color:#E05941;"><a href="javascript:__doPostBack(&#39;DGRV_MusteriListesi&#39;,&#39;Select$2&#39;)" style="color:#E05941;">Seç</a></td><td>1936784</td><td>BET&#220;L</td><td>ERFOĞAN</td><td>5372960522</td><td>&nbsp;</td>
+		</tr><tr align="left" style="color:#E05941;background-color:White;">
+			<td style="color:#E05941;"><a href="javascript:__doPostBack(&#39;DGRV_MusteriListesi&#39;,&#39;Select$3&#39;)" style="color:#E05941;">Seç</a></td><td>1936786</td><td>CANSU</td><td>CAN</td><td>5396271611</td><td>&nbsp;</td>
+		</tr><tr align="left" style="color:#333333;background-color:#F7F6F3;">
+			<td style="color:#E05941;"><a href="javascript:__doPostBack(&#39;DGRV_MusteriListesi&#39;,&#39;Select$4&#39;)" style="color:#E05941;">Seç</a></td><td>1936789</td><td>GAMZE</td><td>ERDEM</td><td>5513905101</td><td>&nbsp;</td>
+		</tr><tr align="center" style="color:White;background-color:#E05941;">
+			<td colspan="6"><table>
+				<tr>
+					<td><span>1</span></td><td><a href="javascript:__doPostBack(&#39;DGRV_MusteriListesi&#39;,&#39;Page$2&#39;)" style="color:White;">2</a></td><td><a href="javascript:__doPostBack(&#39;DGRV_MusteriListesi&#39;,&#39;Page$3&#39;)" style="color:White;">3</a></td><td><a href="javascript:__doPostBack(&#39;DGRV_MusteriListesi&#39;,&#39;Page$4&#39;)" style="color:White;">4</a></td><td><a href="javascript:__doPostBack(&#39;DGRV_MusteriListesi&#39;,&#39;Page$5&#39;)" style="color:White;">5</a></td>
+				</tr>
+			</table></td>
+		</tr>
+	</table>
+</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </form>
+</body>
+</html>

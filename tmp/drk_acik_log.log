@@ -1,0 +1,174 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260601_125631
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/odeme_uyari.aspx
+=== Acik Adisyon Raporu salon=362, tarih: 2024-01-01 ... 2026-12-31 ===
+  hafta 01.01.2024-07.01.2024: 0 satir okundu, kumule acik=0
+  hafta 08.01.2024-14.01.2024: 0 satir okundu, kumule acik=0
+  hafta 15.01.2024-21.01.2024: 0 satir okundu, kumule acik=0
+  hafta 22.01.2024-28.01.2024: 0 satir okundu, kumule acik=0
+  hafta 29.01.2024-04.02.2024: 0 satir okundu, kumule acik=0
+  hafta 05.02.2024-11.02.2024: 0 satir okundu, kumule acik=0
+  hafta 12.02.2024-18.02.2024: 0 satir okundu, kumule acik=0
+  hafta 19.02.2024-25.02.2024: 0 satir okundu, kumule acik=0
+  hafta 26.02.2024-03.03.2024: 0 satir okundu, kumule acik=0
+  hafta 04.03.2024-10.03.2024: 0 satir okundu, kumule acik=0
+  hafta 11.03.2024-17.03.2024: 0 satir okundu, kumule acik=0
+  hafta 18.03.2024-24.03.2024: 0 satir okundu, kumule acik=0
+  hafta 25.03.2024-31.03.2024: 0 satir okundu, kumule acik=0
+  hafta 01.04.2024-07.04.2024: 0 satir okundu, kumule acik=0
+  hafta 08.04.2024-14.04.2024: 0 satir okundu, kumule acik=0
+  hafta 15.04.2024-21.04.2024: 0 satir okundu, kumule acik=0
+  hafta 22.04.2024-28.04.2024: 0 satir okundu, kumule acik=0
+  hafta 29.04.2024-05.05.2024: 0 satir okundu, kumule acik=0
+  hafta 06.05.2024-12.05.2024: 0 satir okundu, kumule acik=0
+  hafta 13.05.2024-19.05.2024: 0 satir okundu, kumule acik=0
+  hafta 20.05.2024-26.05.2024: 0 satir okundu, kumule acik=0
+  hafta 27.05.2024-02.06.2024: 0 satir okundu, kumule acik=0
+  hafta 03.06.2024-09.06.2024: 22 satir okundu, kumule acik=1
+  hafta 10.06.2024-16.06.2024: 44 satir okundu, kumule acik=6
+  hafta 17.06.2024-23.06.2024: 19 satir okundu, kumule acik=6
+  hafta 24.06.2024-30.06.2024: 35 satir okundu, kumule acik=11
+  hafta 01.07.2024-07.07.2024: 46 satir okundu, kumule acik=15
+  hafta 08.07.2024-14.07.2024: 33 satir okundu, kumule acik=16
+  hafta 15.07.2024-21.07.2024: 19 satir okundu, kumule acik=16
+  hafta 22.07.2024-28.07.2024: 32 satir okundu, kumule acik=16
+  hafta 29.07.2024-04.08.2024: 16 satir okundu, kumule acik=16
+  hafta 05.08.2024-11.08.2024: 27 satir okundu, kumule acik=17
+  hafta 12.08.2024-18.08.2024: 16 satir okundu, kumule acik=18
+  hafta 19.08.2024-25.08.2024: 31 satir okundu, kumule acik=20
+  hafta 26.08.2024-01.09.2024: 32 satir okundu, kumule acik=24
+  hafta 02.09.2024-08.09.2024: 22 satir okundu, kumule acik=24
+  hafta 09.09.2024-15.09.2024: 33 satir okundu, kumule acik=24
+  hafta 16.09.2024-22.09.2024: 32 satir okundu, kumule acik=25
+  hafta 23.09.2024-29.09.2024: 28 satir okundu, kumule acik=29
+  hafta 30.09.2024-06.10.2024: 47 satir okundu, kumule acik=30
+  hafta 07.10.2024-13.10.2024: 37 satir okundu, kumule acik=34
+  hafta 14.10.2024-20.10.2024: 34 satir okundu, kumule acik=34
+  hafta 21.10.2024-27.10.2024: 33 satir okundu, kumule acik=38
+  hafta 28.10.2024-03.11.2024: 35 satir okundu, kumule acik=39
+  hafta 04.11.2024-10.11.2024: 43 satir okundu, kumule acik=41
+  hafta 11.11.2024-17.11.2024: 36 satir okundu, kumule acik=45
+  hafta 18.11.2024-24.11.2024: 19 satir okundu, kumule acik=45
+  hafta 25.11.2024-01.12.2024: 25 satir okundu, kumule acik=45
+  hafta 02.12.2024-08.12.2024: 31 satir okundu, kumule acik=45
+  hafta 09.12.2024-15.12.2024: 33 satir okundu, kumule acik=46
+  hafta 16.12.2024-22.12.2024: 40 satir okundu, kumule acik=46
+  hafta 23.12.2024-29.12.2024: 35 satir okundu, kumule acik=47
+  hafta 30.12.2024-05.01.2025: 23 satir okundu, kumule acik=47
+  hafta 06.01.2025-12.01.2025: 43 satir okundu, kumule acik=52
+  hafta 13.01.2025-19.01.2025: 35 satir okundu, kumule acik=53
+  hafta 20.01.2025-26.01.2025: 20 satir okundu, kumule acik=53
+  hafta 27.01.2025-02.02.2025: 29 satir okundu, kumule acik=55
+  hafta 03.02.2025-09.02.2025: 43 satir okundu, kumule acik=55
+  hafta 10.02.2025-16.02.2025: 48 satir okundu, kumule acik=56
+  hafta 17.02.2025-23.02.2025: 40 satir okundu, kumule acik=59
+  hafta 24.02.2025-02.03.2025: 26 satir okundu, kumule acik=59
+  hafta 03.03.2025-09.03.2025: 22 satir okundu, kumule acik=59
+  hafta 10.03.2025-16.03.2025: 29 satir okundu, kumule acik=64
+  hafta 17.03.2025-23.03.2025: 30 satir okundu, kumule acik=64
+  hafta 24.03.2025-30.03.2025: 24 satir okundu, kumule acik=64
+  hafta 31.03.2025-06.04.2025: 22 satir okundu, kumule acik=65
+  hafta 07.04.2025-13.04.2025: 68 satir okundu, kumule acik=66
+  hafta 14.04.2025-20.04.2025: 84 satir okundu, kumule acik=71
+  hafta 21.04.2025-27.04.2025: 54 satir okundu, kumule acik=74
+  hafta 28.04.2025-04.05.2025: 63 satir okundu, kumule acik=79
+  hafta 05.05.2025-11.05.2025: 73 satir okundu, kumule acik=84
+  hafta 12.05.2025-18.05.2025: 54 satir okundu, kumule acik=84
+  hafta 19.05.2025-25.05.2025: 55 satir okundu, kumule acik=85
+  hafta 26.05.2025-01.06.2025: 43 satir okundu, kumule acik=88
+  hafta 02.06.2025-08.06.2025: 24 satir okundu, kumule acik=90
+  hafta 09.06.2025-15.06.2025: 37 satir okundu, kumule acik=92
+  hafta 16.06.2025-22.06.2025: 36 satir okundu, kumule acik=93
+  hafta 23.06.2025-29.06.2025: 34 satir okundu, kumule acik=93
+  hafta 30.06.2025-06.07.2025: 25 satir okundu, kumule acik=94
+  hafta 07.07.2025-13.07.2025: 40 satir okundu, kumule acik=95
+  hafta 14.07.2025-20.07.2025: 31 satir okundu, kumule acik=95
+  hafta 21.07.2025-27.07.2025: 54 satir okundu, kumule acik=96
+  hafta 28.07.2025-03.08.2025: 23 satir okundu, kumule acik=97
+  hafta 04.08.2025-10.08.2025: 38 satir okundu, kumule acik=97
+  hafta 11.08.2025-17.08.2025: 39 satir okundu, kumule acik=99
+  hafta 18.08.2025-24.08.2025: 34 satir okundu, kumule acik=99
+  hafta 25.08.2025-31.08.2025: 43 satir okundu, kumule acik=100
+  hafta 01.09.2025-07.09.2025: 51 satir okundu, kumule acik=100
+  hafta 08.09.2025-14.09.2025: 33 satir okundu, kumule acik=100
+  hafta 15.09.2025-21.09.2025: 50 satir okundu, kumule acik=102
+  hafta 22.09.2025-28.09.2025: 43 satir okundu, kumule acik=105
+  hafta 29.09.2025-05.10.2025: 51 satir okundu, kumule acik=106
+  hafta 06.10.2025-12.10.2025: 32 satir okundu, kumule acik=108
+  hafta 13.10.2025-19.10.2025: 45 satir okundu, kumule acik=109
+  hafta 20.10.2025-26.10.2025: 42 satir okundu, kumule acik=110
+  hafta 27.10.2025-02.11.2025: 34 satir okundu, kumule acik=111
+  hafta 03.11.2025-09.11.2025: 40 satir okundu, kumule acik=112
+  hafta 10.11.2025-16.11.2025: 50 satir okundu, kumule acik=112
+  hafta 17.11.2025-23.11.2025: 57 satir okundu, kumule acik=115
+  hafta 24.11.2025-30.11.2025: 45 satir okundu, kumule acik=115
+  hafta 01.12.2025-07.12.2025: 32 satir okundu, kumule acik=115
+  hafta 08.12.2025-14.12.2025: 48 satir okundu, kumule acik=116
+  hafta 15.12.2025-21.12.2025: 53 satir okundu, kumule acik=116
+  hafta 22.12.2025-28.12.2025: 53 satir okundu, kumule acik=116
+  hafta 29.12.2025-04.01.2026: 28 satir okundu, kumule acik=116
+  hafta 05.01.2026-11.01.2026: 31 satir okundu, kumule acik=116
+  hafta 12.01.2026-18.01.2026: 24 satir okundu, kumule acik=116
+  hafta 19.01.2026-25.01.2026: 33 satir okundu, kumule acik=116
+  hafta 26.01.2026-01.02.2026: 43 satir okundu, kumule acik=117
+  hafta 02.02.2026-08.02.2026: 34 satir okundu, kumule acik=120
+  hafta 09.02.2026-15.02.2026: 37 satir okundu, kumule acik=120
+  hafta 16.02.2026-22.02.2026: 35 satir okundu, kumule acik=120
+  hafta 23.02.2026-01.03.2026: 30 satir okundu, kumule acik=121
+  hafta 02.03.2026-08.03.2026: 52 satir okundu, kumule acik=123
+  hafta 09.03.2026-15.03.2026: 54 satir okundu, kumule acik=124
+  hafta 16.03.2026-22.03.2026: 35 satir okundu, kumule acik=126
+  hafta 23.03.2026-29.03.2026: 46 satir okundu, kumule acik=128
+  hafta 30.03.2026-05.04.2026: 38 satir okundu, kumule acik=128
+  hafta 06.04.2026-12.04.2026: 48 satir okundu, kumule acik=129
+  hafta 13.04.2026-19.04.2026: 50 satir okundu, kumule acik=131
+  hafta 20.04.2026-26.04.2026: 66 satir okundu, kumule acik=133
+  hafta 27.04.2026-03.05.2026: 69 satir okundu, kumule acik=135
+  hafta 04.05.2026-10.05.2026: 81 satir okundu, kumule acik=141
+  hafta 11.05.2026-17.05.2026: 70 satir okundu, kumule acik=145
+  hafta 18.05.2026-24.05.2026: 59 satir okundu, kumule acik=149
+  hafta 25.05.2026-31.05.2026: 14 satir okundu, kumule acik=149
+  hafta 01.06.2026-07.06.2026: 4 satir okundu, kumule acik=149
+  hafta 08.06.2026-14.06.2026: 0 satir okundu, kumule acik=149
+  hafta 15.06.2026-21.06.2026: 0 satir okundu, kumule acik=149
+  hafta 22.06.2026-28.06.2026: 0 satir okundu, kumule acik=149
+  hafta 29.06.2026-05.07.2026: 0 satir okundu, kumule acik=149
+  hafta 06.07.2026-12.07.2026: 0 satir okundu, kumule acik=149
+  hafta 13.07.2026-19.07.2026: 0 satir okundu, kumule acik=149
+  hafta 20.07.2026-26.07.2026: 0 satir okundu, kumule acik=149
+  hafta 27.07.2026-02.08.2026: 0 satir okundu, kumule acik=149
+  hafta 03.08.2026-09.08.2026: 0 satir okundu, kumule acik=149
+  hafta 10.08.2026-16.08.2026: 0 satir okundu, kumule acik=149
+  hafta 17.08.2026-23.08.2026: 0 satir okundu, kumule acik=149
+  hafta 24.08.2026-30.08.2026: 0 satir okundu, kumule acik=149
+  hafta 31.08.2026-06.09.2026: 0 satir okundu, kumule acik=149
+  hafta 07.09.2026-13.09.2026: 0 satir okundu, kumule acik=149
+  hafta 14.09.2026-20.09.2026: 0 satir okundu, kumule acik=149
+  hafta 21.09.2026-27.09.2026: 0 satir okundu, kumule acik=149
+  hafta 28.09.2026-04.10.2026: 0 satir okundu, kumule acik=149
+  hafta 05.10.2026-11.10.2026: 0 satir okundu, kumule acik=149
+  hafta 12.10.2026-18.10.2026: 0 satir okundu, kumule acik=149
+  hafta 19.10.2026-25.10.2026: 0 satir okundu, kumule acik=149
+  hafta 26.10.2026-01.11.2026: 0 satir okundu, kumule acik=149
+  hafta 02.11.2026-08.11.2026: 0 satir okundu, kumule acik=149
+  hafta 09.11.2026-15.11.2026: 0 satir okundu, kumule acik=149
+  hafta 16.11.2026-22.11.2026: 0 satir okundu, kumule acik=149
+  hafta 23.11.2026-29.11.2026: 0 satir okundu, kumule acik=149
+  hafta 30.11.2026-06.12.2026: 0 satir okundu, kumule acik=149
+  hafta 07.12.2026-13.12.2026: 0 satir okundu, kumule acik=149
+  hafta 14.12.2026-20.12.2026: 0 satir okundu, kumule acik=149
+  hafta 21.12.2026-27.12.2026: 0 satir okundu, kumule acik=149
+  hafta 28.12.2026-31.12.2026: 0 satir okundu, kumule acik=149
+Drklinik tarama bitti. Acik satis sayisi: 149 (157 hafta)
+Bizdeki drklinik adisyon sayisi: 4004
+
+== OZET ==
+  DRK_ACIK_DB_KAPALI     2 (bakiye toplam: 2,300.00 TRY)
+  DRK_KAPALI_DB_ACIK     29 (bakiye toplam: 88,280.00 TRY)
+  BOTH_OPEN_DIFF         0 (bakiye toplam: 0.00 TRY)
+  BOTH_OPEN_OK           140
+  DB_YOK                 7
+CSV: /tmp/drk_acik_adisyon_362.csv

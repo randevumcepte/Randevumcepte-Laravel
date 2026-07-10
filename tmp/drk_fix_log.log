@@ -1,0 +1,50 @@
+nohup: ignoring input
+Drklinik client baslatiliyor...
+Dump dizini: /var/www/www-root/data/www/randevumceptetest/storage/app/drklinik/20260601_135457
+Login deneniyor...
+Login sonuc: OK - webforms
+Detay: Login OK. Son URL: https://uygulama.drklinik.net/odeme_uyari.aspx
+CSV oku: target_satir=31 unique_user=30 db_yok=7 skip=140
+  [FIX] user_id=160718 musid=2120126 musteri="DERYA UNAYDIN" (1 satis)
+  [FIX] user_id=160335 musid=1993399 musteri="TAYLAN EROL" (1 satis)
+  [FIX] user_id=160121 musid=1937530 musteri="UFUK GÜNEY" (1 satis)
+  [FIX] user_id=160139 musid=1938791 musteri="GONCA CİHAN" (1 satis)
+  [FIX] user_id=160219 musid=1944619 musteri="BURAK İNCEKARA" (1 satis)
+  [FIX] user_id=160223 musid=1949448 musteri="SARA AZAR" (1 satis)
+  [FIX] user_id=160752 musid=1949929 musteri="OKAN KALKAN" (1 satis)
+  [FIX] user_id=7279 musid=1958745 musteri="ELİF AKAR" (1 satis)
+  [FIX] user_id=160337 musid=1992747 musteri="GÖLGEM ÇELEBİ" (1 satis)
+  [FIX] user_id=18517 musid=1994056 musteri="Özlem Avcı" (1 satis)
+  [FIX] user_id=160422 musid=2013159 musteri="KEZBAN AKTEPE" (1 satis)
+  [FIX] user_id=160469 musid=2023112 musteri="LEMA GÜLTEKİN" (1 satis)
+  [FIX] user_id=160561 musid=2065083 musteri="ECE AKÇAY" (1 satis)
+  [FIX] user_id=160627 musid=2081076 musteri="EMİN GÜLMÜŞ" (1 satis)
+  [FIX] user_id=160732 musid=2126759 musteri="NİLAY UZ" (1 satis)
+  [FIX] user_id=161680 musid=2138140 musteri="VESİLE ALKAN" (1 satis)
+  [FIX] user_id=160786 musid=2139920 musteri="İLKNUR KÖSELER YEĞEN" (1 satis)
+  [FIX] user_id=161071 musid=2151205 musteri="ECE YAŞAR" (2 satis)
+  [FIX] user_id=160827 musid=2151502 musteri="CANAN ÖZCAN" (1 satis)
+  [FIX] user_id=161741 musid=2165134 musteri="EMİN ATÇI" (1 satis)
+  [FIX] user_id=160912 musid=2176051 musteri="HASAN YAMAN" (1 satis)
+  [FIX] user_id=161757 musid=2182642 musteri="HASAN UYGUR" (1 satis)
+  [FIX] user_id=88994 musid=2195803 musteri="gizem tutar" (1 satis)
+  [FIX] user_id=161827 musid=2221087 musteri="SEDA SEVER" (1 satis)
+  [FIX] user_id=161133 musid=2249225 musteri="FİLİZ PAMUKÇU" (1 satis)
+  [FIX] user_id=161449 musid=2334103 musteri="EYLEM GÜLER DAMAR" (1 satis)
+  [FIX] user_id=11389 musid=2345176 musteri="Tuğçe Uluekmekçi" (1 satis)
+  [FIX] user_id=163437 musid=2351811 musteri="BANU ÖZKAN" (1 satis)
+  [FIX] user_id=176036 musid=2354142 musteri="DERİN ATOM" (1 satis)
+  [FIX] user_id=104355 musid=2319494 musteri="DENİZ ÖZTOP" (1 satis)
+  [DB_YOK FIX] musteri="AYLİN GÜVEN" musid=2006211 sn=1897254
+  [DB_YOK FIX] musteri="DUYGU ERTAN" musid=2112457 sn=2029397
+  [DB_YOK FIX] musteri="TOLGA İNANÇ" musid=2125856 sn=2045381
+  [DB_YOK FIX] musteri="İREM NİL POLAT" musid=2140997 sn=2071823
+  [DB_YOK FIX] musteri="ÖZLEM ÇİMEN" musid=2234059 sn=2199618
+  [DB_YOK FIX] musteri="EBUZER ŞEKER" musid=2248366 sn=2218691
+  [DB_YOK FIX] musteri="DİDEM KAYGUSUZ" musid=2359096 sn=2365832
+
+== OZET ==
+  Fix basarili    : 30
+  Fix basarisiz   : 0
+  DB_YOK eklenen  : 7
+  DB_YOK eklenmedi: 0

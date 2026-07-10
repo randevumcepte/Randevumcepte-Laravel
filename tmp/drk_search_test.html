@@ -1,0 +1,82 @@
+
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="UTF-8" /><title>
+	Sistemedya | Klinik Bilgi Yönetim Sistemi
+</title>
+    <script src="js/loading.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" /><link href="bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" /><link href="bower_components/sidebar-nav/dist/sidebar-nav.min.css" rel="stylesheet" /><link href="css/animate.css" rel="stylesheet" /><link href="css/style.css" rel="stylesheet" /><link id="theme" href="css/colors/default.css" rel="stylesheet" /></head>
+<body>
+    <form method="post" action="./musterilistesi.aspx" id="form1">
+<div class="aspNetHidden">
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwUJNDQ4NjIwNjcxDxYCHhNWYWxpZGF0ZVJlcXVlc3RNb2RlAgEWAgIDD2QWAgILDzwrABEDAA8WBB4LXyFEYXRhQm91bmRnHgtfIUl0ZW1Db3VudAIBZAEQFgAWABYADBQrAAAWAmYPZBYGAgEPZBYKAgEPDxYCHgRUZXh0BQcyMzUzNDg1ZGQCAg8PFgIfAwUDTkVaZGQCAw8PFgIfAwUKxZ5FTllJTERJWmRkAgQPDxYCHwMFCzA1MzM5MzAzNTk3ZGQCBQ8PFgIfAwUGJm5ic3A7ZGQCAg8PFgIeB1Zpc2libGVoZGQCAw8PFgIfBGhkZBgBBRNER1JWX011c3RlcmlMaXN0ZXNpDzwrAAwBCAIBZBJoGvFD+tSY0RhYx+/PoHKoLonLX1v5HVspYk+XLSe/" />
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['form1'];
+if (!theForm) {
+    theForm = document.form1;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<div class="aspNetHidden">
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="86789C0D" />
+</div>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="white-box">
+                    <h4 class="box-title m-b-0" style="text-align: center;">
+                        <span id="LBL_Musteri_Listesi">MÜŞTERİ LİSTESİ</span></h4>
+                    <div class="form-group">
+                        <div class="col-md-12">
+                            <div class="col-md-4" style="margin-top: 10px;">
+                                <input type="hidden" name="HF_AramaTipi" id="HF_AramaTipi" value="Arama" />
+                                <div class="input-group">
+                                    <input name="TB_Ara" type="text" value="ŞENYILDIZ" id="TB_Ara" class="form-control" style="height:30px;" />
+                                    <span class="input-group-btn">
+                                        <input type="submit" name="BTN_MusteriAra" value="Ara" id="BTN_MusteriAra" class="btn btn-xs btn-info" style="font-size:12px;height:30px;" />
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="panel-body">
+                                <div class="row">
+                                    <div class="form-group">
+                                        <input type="hidden" name="HF_MusID" id="HF_MusID" />
+                                        <div>
+	<table cellspacing="0" cellpadding="4" id="DGRV_MusteriListesi" style="color:#333333;font-family:Calibri;width:100%;border-collapse:collapse;">
+		<tr align="center" style="color:White;background-color:#E05941;font-weight:bold;">
+			<th scope="col" abbr="Seç2">&nbsp;</th><th align="center" scope="col" style="color:White;">ID</th><th align="center" scope="col" style="color:White;">Ad</th><th align="center" scope="col" style="color:White;">Soyad</th><th align="center" scope="col" style="color:White;">Cep</th><th align="center" scope="col" style="color:White;">D.Tarihi</th>
+		</tr><tr align="left" style="color:#333333;background-color:#F7F6F3;">
+			<td style="color:#E05941;"><a href="javascript:__doPostBack(&#39;DGRV_MusteriListesi&#39;,&#39;Select$0&#39;)" style="color:#E05941;">Seç</a></td><td>2353485</td><td>NEZ</td><td>ŞENYILDIZ</td><td>05339303597</td><td>&nbsp;</td>
+		</tr>
+	</table>
+</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </form>
+</body>
+</html>

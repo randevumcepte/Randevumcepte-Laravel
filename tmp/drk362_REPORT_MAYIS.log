@@ -1,0 +1,10 @@
+Drklinik tahsilatlari BTN_Ara haftalik+halving ile cekiliyor: 2026-05-01 - 2026-05-31
+Drklinik toplam: 237 satir, 237 unique signature
+DB toplam: 232 tahsilat
+Esleyen (OK): 221 - 707.124,00 TRY
+Isim farki   : 11 - 27.500,00 TRY (yanlis musteriye yazilmis olabilir)
+Gercek fazla : 0 - 0,00 TRY (drklinik'te hic yok)
+CSV (isim farki) : /tmp/drk_tahsilat_isim_farki_362.csv
+CSV (gercek fazla): /tmp/drk_tahsilat_gercek_fazla_362.csv
+Drklinik'te var DB'de yok: 5 - 10.464,00 TRY
+CSV (eksik)       : /tmp/drk_tahsilat_eksik_362.csv

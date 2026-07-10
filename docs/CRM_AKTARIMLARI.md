@@ -743,6 +743,8 @@ nohup /opt/php74/bin/php artisan salonrandevu:import \
     --email=X --password=Y --salon=195 --only-other-receipts \
     > /var/www/.../tmp/sr_other.log 2>&1 &
 
+nohup /opt/php74/bin/php artisan salonrandevu:import  --email=orkun@aybay.biz --password=Orkiasli7681.! --salon=195 --only-other-receipts 
+
 # Yarıda kesildi → belirli sayfadan devam
 /opt/php74/bin/php artisan salonrandevu:import \
     --email=X --password=Y --salon=195 --only-other-receipts \
@@ -924,9 +926,18 @@ Modüler akış (Adım 1-4) sadece **adisyon/tahsilat/masraf** seviyesinde çal�
     --email=X --password=Y --salon=195 \
     --only=personel,hizmet,urun,musteri
 
+/opt/php74/bin/php artisan salonrandevu:import \
+    --email=X --password=Y --salon=397 \
+    --only=personel,hizmet,urun,musteri
+
 # Sadece randevular (takvim)
 /opt/php74/bin/php artisan salonrandevu:import \
     --email=X --password=Y --salon=195 --only=randevu
+
+    /opt/php74/bin/php artisan salonrandevu:import \
+    --email=orkun@aybay.biz --password=Orkiasli7681.! --salon=397 --only=randevu
+
+ 
 
 # Tam aktarım (eski default tek-seferlik akış — receipt+gider modüler akışı tercih edin)
 /opt/php74/bin/php artisan salonrandevu:import \
