@@ -5180,14 +5180,45 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 }
             }
             
-            $masraf = Masraflar::where("salon_id", $request->sube) ->where("tarih", ">=", date("Y-m-01")) ->where("tarih", "<=", date("Y-m-d"))->get();
+            // Personel (rol 5) icin masrafi salon geneli olarak dusme — sadece
+            // kendi ciro toplami gosterilir. Diger rollere salon net kasa.
+            $masrafToplam = 0;
+            if ($personel->role_id != 5) {
+                $masraf = Masraflar::where("salon_id", $request->sube)
+                    ->where("tarih", ">=", date("Y-m-01"))
+                    ->where("tarih", "<=", date("Y-m-d"))
+                    ->sum("tutar");
+                $masrafToplam = (float) $masraf;
+            }
 
-            $alacaklar = Alacaklar::where("salon_id", $request->sube)->where("planlanan_odeme_tarihi", ">=", date("Y-m-01"))->where("planlanan_odeme_tarihi", "<=", date("Y-m-d"))->sum("tutar");
+            // Alacak: rol 5 icin alacaklar.adisyon_id uzerinden bu personelin
+            // adisyon kalemleri (hizmet/urun/paket) filtresine tabi tutulur.
+            $alacakQ = DB::table('alacaklar')
+                ->where('alacaklar.salon_id', $request->sube)
+                ->where('alacaklar.planlanan_odeme_tarihi', '>=', date('Y-m-01'))
+                ->where('alacaklar.planlanan_odeme_tarihi', '<=', date('Y-m-d'));
+            if ($personel->role_id == 5) {
+                $_pid = $personel->id;
+                $alacakQ->whereNotNull('alacaklar.adisyon_id')
+                    ->where(function ($outer) use ($_pid) {
+                        $outer->whereExists(function ($sub) use ($_pid) {
+                            $sub->select(DB::raw(1))->from('adisyon_hizmetler')
+                                ->whereColumn('adisyon_hizmetler.adisyon_id', 'alacaklar.adisyon_id')
+                                ->where('adisyon_hizmetler.personel_id', $_pid);
+                        })->orWhereExists(function ($sub) use ($_pid) {
+                            $sub->select(DB::raw(1))->from('adisyon_urunler')
+                                ->whereColumn('adisyon_urunler.adisyon_id', 'alacaklar.adisyon_id')
+                                ->where('adisyon_urunler.personel_id', $_pid);
+                        })->orWhereExists(function ($sub) use ($_pid) {
+                            $sub->select(DB::raw(1))->from('adisyon_paketler')
+                                ->whereColumn('adisyon_paketler.adisyon_id', 'alacaklar.adisyon_id')
+                                ->where('adisyon_paketler.personel_id', $_pid);
+                        });
+                    });
+            }
+            $alacaklar = (float) $alacakQ->sum('alacaklar.tutar');
 
-            $toplam_kasa = number_format($toplamTutar - $masraf->sum("tutar"),2,",",".");
-
-           
-                 
+            $toplam_kasa = number_format($toplamTutar - $masrafToplam,2,",",".");
 
             $kalan_tutar = number_format($alacaklar, 2, ",", ".");
             $prim = number_format($toplamPrim,2,",",".");
