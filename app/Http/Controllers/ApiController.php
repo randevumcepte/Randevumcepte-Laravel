@@ -5356,68 +5356,98 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $period = 'aylik';
         }
 
+        // Rol 5 (Personel) icin ozel filtre — tum salon yerine sadece bu
+        // personelin adisyon kalemlerinden gelen tahsilatlar/alacaklar.
+        $personelId = $request->query('personel_id', $request->input('personel_id'));
+        $personelId = ($personelId !== null && $personelId !== '') ? (int) $personelId : null;
+
         list($curStart, $curEnd, $prevStart, $prevEnd) = $this->_periodRanges($period);
 
-        $currentCiro  = $this->_ciroFor($salonId, $curStart, $curEnd);
-        $previousCiro = $this->_ciroFor($salonId, $prevStart, $prevEnd);
+        $currentCiro  = $this->_ciroFor($salonId, $curStart, $curEnd, $personelId);
+        $previousCiro = $this->_ciroFor($salonId, $prevStart, $prevEnd, $personelId);
 
-        $maliyet = (float) Masraflar::where('salon_id', $salonId)
-            ->whereBetween('tarih', [$curStart->toDateString(), $curEnd->toDateString()])
-            ->sum('tutar');
+        // Masraf salon geneli; personel filtresi yok. Rol 5 icin gostermek
+        // istemedigimizden 0'a set edilir.
+        $maliyet = 0.0;
+        if (!$personelId) {
+            $maliyet = (float) Masraflar::where('salon_id', $salonId)
+                ->whereBetween('tarih', [$curStart->toDateString(), $curEnd->toDateString()])
+                ->sum('tutar');
+        }
 
         $kar = $currentCiro - $maliyet;
 
-        $alacak = (float) Alacaklar::where('salon_id', $salonId)
-            ->whereBetween('planlanan_odeme_tarihi', [$curStart->toDateString(), $curEnd->toDateString()])
-            ->sum('tutar');
+        $alacak = (float) $this->_alacakToplamiFor(
+            $salonId,
+            $curStart->toDateString(),
+            $curEnd->toDateString(),
+            $personelId
+        );
 
         // Son 7 periyot serisi
         $series = [];
         for ($i = 6; $i >= 0; $i--) {
             list($s, $e) = $this->_offsetRange($period, $i);
-            $series[] = $this->_ciroFor($salonId, $s, $e);
+            $series[] = $this->_ciroFor($salonId, $s, $e, $personelId);
         }
 
         // Top personel (hizmet tutar toplami)
-        $topPersonel = DB::table('tahsilat_hizmetler')
+        $topPersonelQ = DB::table('tahsilat_hizmetler')
             ->join('adisyon_hizmetler', 'adisyon_hizmetler.id', '=', 'tahsilat_hizmetler.adisyon_hizmet_id')
             ->join('tahsilatlar', 'tahsilatlar.id', '=', 'tahsilat_hizmetler.tahsilat_id')
             ->join('salon_personelleri as sp', 'sp.id', '=', 'adisyon_hizmetler.personel_id')
             ->where('tahsilatlar.salon_id', $salonId)
-            ->whereBetween('tahsilatlar.odeme_tarihi', [$curStart, $curEnd])
+            ->whereBetween('tahsilatlar.odeme_tarihi', [$curStart, $curEnd]);
+        if ($personelId) {
+            $topPersonelQ->where('adisyon_hizmetler.personel_id', $personelId);
+        }
+        $topPersonel = $topPersonelQ
             ->groupBy('sp.id', 'sp.personel_adi')
             ->select('sp.personel_adi as name', DB::raw('SUM(tahsilat_hizmetler.tutar) as value'))
             ->orderByDesc('value')
             ->first();
 
         // Top hizmet
-        $topHizmet = DB::table('adisyon_hizmetler')
+        $topHizmetQ = DB::table('adisyon_hizmetler')
             ->join('hizmetler', 'hizmetler.id', '=', 'adisyon_hizmetler.hizmet_id')
             ->join('adisyonlar', 'adisyonlar.id', '=', 'adisyon_hizmetler.adisyon_id')
             ->where('adisyonlar.salon_id', $salonId)
-            ->whereBetween('adisyonlar.created_at', [$curStart, $curEnd])
+            ->whereBetween('adisyonlar.created_at', [$curStart, $curEnd]);
+        if ($personelId) {
+            $topHizmetQ->where('adisyon_hizmetler.personel_id', $personelId);
+        }
+        $topHizmet = $topHizmetQ
             ->groupBy('hizmetler.id', 'hizmetler.hizmet_adi')
             ->select('hizmetler.hizmet_adi as name', DB::raw('COUNT(*) as count'))
             ->orderByDesc('count')
             ->first();
 
         // Top urun
-        $topUrun = DB::table('adisyon_urunler')
+        $topUrunQ = DB::table('adisyon_urunler')
             ->join('urunler', 'urunler.id', '=', 'adisyon_urunler.urun_id')
             ->join('adisyonlar', 'adisyonlar.id', '=', 'adisyon_urunler.adisyon_id')
             ->where('adisyonlar.salon_id', $salonId)
-            ->whereBetween('adisyonlar.created_at', [$curStart, $curEnd])
+            ->whereBetween('adisyonlar.created_at', [$curStart, $curEnd]);
+        if ($personelId) {
+            $topUrunQ->where('adisyon_urunler.personel_id', $personelId);
+        }
+        $topUrun = $topUrunQ
             ->groupBy('urunler.id', 'urunler.urun_adi')
             ->select('urunler.urun_adi as name', DB::raw('SUM(adisyon_urunler.adet) as count'))
             ->orderByDesc('count')
             ->first();
 
         // Saat yogunlugu (24 saat, 0-1 normalize) — geri uyumluluk icin korunuyor
-        $hourlyRaw = DB::table('randevular')
+        $hourlyQ = DB::table('randevular')
             ->where('salon_id', $salonId)
             ->where('user_id', '!=', 2012) // saat kapama haric
-            ->whereBetween('tarih', [$curStart->toDateString(), $curEnd->toDateString()])
-            ->select(DB::raw('HOUR(saat) as h'), DB::raw('COUNT(*) as cnt'))
+            ->whereBetween('tarih', [$curStart->toDateString(), $curEnd->toDateString()]);
+        if ($personelId) {
+            $hourlyQ->join('randevu_hizmetler', 'randevu_hizmetler.randevu_id', '=', 'randevular.id')
+                ->where('randevu_hizmetler.personel_id', $personelId);
+        }
+        $hourlyRaw = $hourlyQ
+            ->select(DB::raw('HOUR(randevular.saat) as h'), DB::raw('COUNT(DISTINCT randevular.id) as cnt'))
             ->groupBy('h')
             ->pluck('cnt', 'h')
             ->toArray();
@@ -6025,23 +6055,67 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         ]);
     }
 
-    private function _ciroFor($salonId, $start, $end)
+    /**
+     * Alacak toplami — periyot icindeki planlanan_odeme_tarihi araligi.
+     * $personelId varsa alacaklar sadece o personelin adisyon kalemlerinden
+     * dogan alacaklarla sinirlandirilir (alacaklar.adisyon_id uzerinden
+     * adisyon_hizmetler/urunler/paketler.personel_id kontrolu).
+     */
+    private function _alacakToplamiFor($salonId, $startDate, $endDate, $personelId = null)
     {
-        $sumHizmet = (float) DB::table('tahsilat_hizmetler')
+        $q = DB::table('alacaklar')
+            ->where('alacaklar.salon_id', $salonId)
+            ->whereBetween('alacaklar.planlanan_odeme_tarihi', [$startDate, $endDate]);
+
+        if ($personelId) {
+            $q->whereNotNull('alacaklar.adisyon_id')
+                ->where(function ($outer) use ($personelId) {
+                    $outer->whereExists(function ($sub) use ($personelId) {
+                        $sub->select(DB::raw(1))->from('adisyon_hizmetler')
+                            ->whereColumn('adisyon_hizmetler.adisyon_id', 'alacaklar.adisyon_id')
+                            ->where('adisyon_hizmetler.personel_id', $personelId);
+                    })->orWhereExists(function ($sub) use ($personelId) {
+                        $sub->select(DB::raw(1))->from('adisyon_urunler')
+                            ->whereColumn('adisyon_urunler.adisyon_id', 'alacaklar.adisyon_id')
+                            ->where('adisyon_urunler.personel_id', $personelId);
+                    })->orWhereExists(function ($sub) use ($personelId) {
+                        $sub->select(DB::raw(1))->from('adisyon_paketler')
+                            ->whereColumn('adisyon_paketler.adisyon_id', 'alacaklar.adisyon_id')
+                            ->where('adisyon_paketler.personel_id', $personelId);
+                    });
+                });
+        }
+
+        return (float) $q->sum('alacaklar.tutar');
+    }
+
+    private function _ciroFor($salonId, $start, $end, $personelId = null)
+    {
+        $hizmetQ = DB::table('tahsilat_hizmetler')
             ->join('tahsilatlar', 'tahsilatlar.id', '=', 'tahsilat_hizmetler.tahsilat_id')
             ->where('tahsilatlar.salon_id', $salonId)
-            ->whereBetween('tahsilatlar.odeme_tarihi', [$start, $end])
-            ->sum('tahsilat_hizmetler.tutar');
-        $sumUrun = (float) DB::table('tahsilat_urunler')
+            ->whereBetween('tahsilatlar.odeme_tarihi', [$start, $end]);
+        $urunQ = DB::table('tahsilat_urunler')
             ->join('tahsilatlar', 'tahsilatlar.id', '=', 'tahsilat_urunler.tahsilat_id')
             ->where('tahsilatlar.salon_id', $salonId)
-            ->whereBetween('tahsilatlar.odeme_tarihi', [$start, $end])
-            ->sum('tahsilat_urunler.tutar');
-        $sumPaket = (float) DB::table('tahsilat_paketler')
+            ->whereBetween('tahsilatlar.odeme_tarihi', [$start, $end]);
+        $paketQ = DB::table('tahsilat_paketler')
             ->join('tahsilatlar', 'tahsilatlar.id', '=', 'tahsilat_paketler.tahsilat_id')
             ->where('tahsilatlar.salon_id', $salonId)
-            ->whereBetween('tahsilatlar.odeme_tarihi', [$start, $end])
-            ->sum('tahsilat_paketler.tutar');
+            ->whereBetween('tahsilatlar.odeme_tarihi', [$start, $end]);
+
+        if ($personelId) {
+            $hizmetQ->join('adisyon_hizmetler', 'adisyon_hizmetler.id', '=', 'tahsilat_hizmetler.adisyon_hizmet_id')
+                ->where('adisyon_hizmetler.personel_id', $personelId);
+            $urunQ->join('adisyon_urunler', 'adisyon_urunler.id', '=', 'tahsilat_urunler.adisyon_urun_id')
+                ->where('adisyon_urunler.personel_id', $personelId);
+            $paketQ->join('adisyon_paketler', 'adisyon_paketler.id', '=', 'tahsilat_paketler.adisyon_paket_id')
+                ->where('adisyon_paketler.personel_id', $personelId);
+        }
+
+        $sumHizmet = (float) $hizmetQ->sum('tahsilat_hizmetler.tutar');
+        $sumUrun   = (float) $urunQ->sum('tahsilat_urunler.tutar');
+        $sumPaket  = (float) $paketQ->sum('tahsilat_paketler.tutar');
         return $sumHizmet + $sumUrun + $sumPaket;
     }
 
