@@ -1119,6 +1119,12 @@ public function carkverilerigetir(Request $request)
         {
             return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
         }
+        if(!Auth::guard('satisortakligi')->check()){
+            if(self::personelmi($request))
+            {
+                return redirect()->route('isletmeadmin.randevular');
+            }
+        }
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
@@ -1182,30 +1188,6 @@ public function carkverilerigetir(Request $request)
             default:
                 return [$bugun, $bugun];
         }
-    }
-
-    /**
-     * Dashboard verisi filtresi: personelin sadece kendi verilerini
-     * gorebilmesi icin auth kullaniciya bagli salon_personelleri.id
-     * dondurur.
-     *
-     * @param int $salonId
-     * @param string $bypassYetki 'satis.tum_satis_gor' veya 'randevu.tum_personel_gor'
-     * @return int|null null: kisitlama yok (yetki acik veya Hesap Sahibi),
-     *                  int: bu personel_id ile sinirla,
-     *                  -1: kullaniciya ait personel yok (hicbir satir gozukmesin)
-     */
-    private function dashPersonelKisit($salonId, string $bypassYetki)
-    {
-        $_au = Auth::guard('isletmeyonetim')->user();
-        if (!$_au || !$salonId) return null;
-        if (\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_au->id, $salonId, $bypassYetki)) {
-            return null;
-        }
-        $pid = Personeller::where('salon_id', $salonId)
-            ->where('yetkili_id', $_au->id)
-            ->value('id');
-        return $pid ?: -1;
     }
 
     public function dashboardKasa(Request $request)
@@ -1288,31 +1270,20 @@ public function carkverilerigetir(Request $request)
         $period = $request->input('period','daily');
         list($t1, $t2) = $this->dashPeriodDates($period);
 
-        $personelKisit = $this->dashPersonelKisit($salonId, 'randevu.tum_personel_gor');
-        $cacheKey = 'randevuozet:'.$period.($personelKisit ? ':p'.$personelKisit : '');
-
-        return \Cache::remember($this->dashCacheKey($salonId, $cacheKey), now()->addSeconds(60), function() use ($salonId, $t1, $t2, $personelKisit) {
-            $applyKisit = function($q) use ($personelKisit) {
-                if ($personelKisit !== null) {
-                    $q->whereIn('randevular.id', function($sub) use ($personelKisit) {
-                        $sub->select('randevu_id')->from('randevu_hizmetler')
-                            ->where('personel_id', $personelKisit);
-                    });
-                }
-                return $q;
-            };
-
-            $olusturulan = $applyKisit(DB::table('randevular')
+        return \Cache::remember($this->dashCacheKey($salonId, 'randevuozet:'.$period), now()->addSeconds(60), function() use ($salonId, $t1, $t2) {
+            $olusturulan = DB::table('randevular')
                 ->where('salon_id', $salonId)
-                ->whereBetween('tarih', [$t1, $t2]))
+                ->whereBetween('tarih', [$t1, $t2])
                 ->count();
-            $sonuclanan = $applyKisit(DB::table('randevular')
+            // Sonuclanan = musteri geldi (durum=1 AND randevuya_geldi=true)
+            $sonuclanan = DB::table('randevular')
                 ->where('salon_id', $salonId)
                 ->whereBetween('tarih', [$t1, $t2])
                 ->where('durum', 1)
-                ->where('randevuya_geldi', true))
+                ->where('randevuya_geldi', true)
                 ->count();
-            $sonuclanmayan = $applyKisit(DB::table('randevular')
+            // Sonuclanmayan = iptal (2,3) veya gelmedi (durum=1 AND randevuya_geldi=false)
+            $sonuclanmayan = DB::table('randevular')
                 ->where('salon_id', $salonId)
                 ->whereBetween('tarih', [$t1, $t2])
                 ->where(function($q){
@@ -1320,22 +1291,21 @@ public function carkverilerigetir(Request $request)
                       ->orWhere(function($qq){
                           $qq->where('durum', 1)->where('randevuya_geldi', false);
                       });
-                }))
+                })
                 ->count();
 
             $isletme = Salonlar::where('id', $salonId)->first();
             $randevuSuresi = max(15, (int) ($isletme->randevu_araligi ?? 30));
-            $personelSay = $personelKisit !== null ? 1 :
-                max(1, DB::table('salon_personelleri')->where('salon_id', $salonId)->where('aktif', 1)->count());
+            $personelSay = max(1, DB::table('salon_personelleri')->where('salon_id', $salonId)->where('aktif', 1)->count());
 
             $gunler = max(1, (strtotime($t2) - strtotime($t1)) / 86400 + 1);
             $calismaSaat = 10;
             $kapasite = $personelSay * $calismaSaat * (60 / $randevuSuresi) * $gunler;
             $doluluk = $kapasite > 0 ? min(100, round(($olusturulan / $kapasite) * 100)) : 0;
 
-            $kaynak = $applyKisit(DB::table('randevular')
+            $kaynak = DB::table('randevular')
                 ->where('salon_id', $salonId)
-                ->whereBetween('tarih', [$t1, $t2]))
+                ->whereBetween('tarih', [$t1, $t2])
                 ->selectRaw('SUM(CASE WHEN salon=1 THEN 1 ELSE 0 END) as isletme_say, SUM(CASE WHEN web=1 THEN 1 ELSE 0 END) as web_say, SUM(CASE WHEN uygulama=1 THEN 1 ELSE 0 END) as uygulama_say')
                 ->first();
 
@@ -1937,21 +1907,15 @@ public function carkverilerigetir(Request $request)
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
         if($r = self::dashYetkiYoksa403($salonId, 'randevu.takvim_gor')) return $r;
 
-        $personelKisit = $this->dashPersonelKisit($salonId, 'randevu.tum_personel_gor');
-        $cacheKey = 'bugun'.($personelKisit ? ':p'.$personelKisit : '');
-
-        return \Cache::remember($this->dashCacheKey($salonId, $cacheKey), 30, function() use ($salonId, $personelKisit) {
-            $q = DB::table('randevular')
+        return \Cache::remember($this->dashCacheKey($salonId, 'bugun'), 30, function() use ($salonId) {
+            $rows = DB::table('randevular')
                 ->leftJoin('users','randevular.user_id','=','users.id')
                 ->leftJoin('randevu_hizmetler','randevu_hizmetler.randevu_id','=','randevular.id')
                 ->leftJoin('hizmetler','randevu_hizmetler.hizmet_id','=','hizmetler.id')
                 ->leftJoin('salon_personelleri','randevu_hizmetler.personel_id','=','salon_personelleri.id')
                 ->where('randevular.salon_id', $salonId)
-                ->where('randevular.tarih', date('Y-m-d'));
-            if ($personelKisit !== null) {
-                $q->where('randevu_hizmetler.personel_id', $personelKisit);
-            }
-            $rows = $q->select(
+                ->where('randevular.tarih', date('Y-m-d'))
+                ->select(
                     'randevular.id as randevu_id',
                     'randevular.saat',
                     'randevular.durum',
@@ -1985,15 +1949,11 @@ public function carkverilerigetir(Request $request)
             return $r;
         }
 
-        $rndKisit = $this->dashPersonelKisit($salonId, 'randevu.tum_personel_gor');
-        $satKisit = $this->dashPersonelKisit($salonId, 'satis.tum_satis_gor');
-        $cacheSuffix = ($rndKisit ? ':pr'.$rndKisit : '').($satKisit ? ':ps'.$satKisit : '');
-
-        return \Cache::remember($this->dashCacheKey($salonId, 'sekme:'.$tab.$cacheSuffix), 30, function() use ($salonId, $tab, $rndKisit, $satKisit) {
+        return \Cache::remember($this->dashCacheKey($salonId, 'sekme:'.$tab), 30, function() use ($salonId, $tab) {
             $data = [];
             switch($tab){
                 case 'online-talep':
-                    $q = DB::table('randevular')
+                    $data = DB::table('randevular')
                         ->leftJoin('users','randevular.user_id','=','users.id')
                         ->leftJoin('randevu_hizmetler','randevu_hizmetler.randevu_id','=','randevular.id')
                         ->leftJoin('hizmetler','randevu_hizmetler.hizmet_id','=','hizmetler.id')
@@ -2002,27 +1962,19 @@ public function carkverilerigetir(Request $request)
                         ->where(function($q){
                             $q->where('randevular.web', 1)->orWhere('randevular.uygulama', 1);
                         })
-                        ->where('randevular.tarih','>=', date('Y-m-d'));
-                    if ($rndKisit !== null) $q->where('randevu_hizmetler.personel_id', $rndKisit);
-                    $data = $q->select('randevular.id','randevular.tarih','randevular.saat','users.name as musteri','users.cep_telefon as telefon','hizmetler.hizmet_adi as hizmet')
+                        ->where('randevular.tarih','>=', date('Y-m-d'))
+                        ->select('randevular.id','randevular.tarih','randevular.saat','users.name as musteri','users.cep_telefon as telefon','hizmetler.hizmet_adi as hizmet')
                         ->orderBy('randevular.tarih')
                         ->limit(30)
                         ->get();
                     break;
                 case 'acik-adisyon':
                     $sonOtuzGun = date('Y-m-d 00:00:00', strtotime('-30 days'));
-                    $q = DB::table('adisyonlar')
+                    $data = DB::table('adisyonlar')
                         ->leftJoin('users','adisyonlar.user_id','=','users.id')
                         ->where('adisyonlar.salon_id', $salonId)
-                        ->where('adisyonlar.created_at', '>=', $sonOtuzGun);
-                    if ($satKisit !== null) {
-                        $q->whereIn('adisyonlar.id', function($sub) use ($satKisit) {
-                            $sub->select('adisyon_id')->from('adisyon_hizmetler')->where('personel_id', $satKisit)
-                                ->union(DB::table('adisyon_urunler')->select('adisyon_id')->where('personel_id', $satKisit))
-                                ->union(DB::table('adisyon_paketler')->select('adisyon_id')->where('personel_id', $satKisit));
-                        });
-                    }
-                    $data = $q->select(
+                        ->where('adisyonlar.created_at', '>=', $sonOtuzGun)
+                        ->select(
                             'adisyonlar.id',
                             'adisyonlar.adisyon_no',
                             'adisyonlar.created_at',
@@ -2066,15 +2018,14 @@ public function carkverilerigetir(Request $request)
                         ->get();
                     break;
                 case 'bugunku-randevu':
-                    $q = DB::table('randevular')
+                    $data = DB::table('randevular')
                         ->leftJoin('users','randevular.user_id','=','users.id')
                         ->leftJoin('randevu_hizmetler','randevu_hizmetler.randevu_id','=','randevular.id')
                         ->leftJoin('hizmetler','randevu_hizmetler.hizmet_id','=','hizmetler.id')
                         ->leftJoin('salon_personelleri','randevu_hizmetler.personel_id','=','salon_personelleri.id')
                         ->where('randevular.salon_id', $salonId)
-                        ->where('randevular.tarih', date('Y-m-d'));
-                    if ($rndKisit !== null) $q->where('randevu_hizmetler.personel_id', $rndKisit);
-                    $data = $q->select('randevular.id','randevular.saat','randevular.durum','users.name as musteri','users.cep_telefon as telefon','hizmetler.hizmet_adi as hizmet','salon_personelleri.personel_adi as personel')
+                        ->where('randevular.tarih', date('Y-m-d'))
+                        ->select('randevular.id','randevular.saat','randevular.durum','users.name as musteri','users.cep_telefon as telefon','hizmetler.hizmet_adi as hizmet','salon_personelleri.personel_adi as personel')
                         ->orderBy('randevular.saat')
                         ->limit(50)
                         ->get();
