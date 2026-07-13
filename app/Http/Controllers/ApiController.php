@@ -26882,9 +26882,19 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 })
                 ->values();
 
+            $carkGun = Schema::hasColumn('carkifelek_sistemi', 'kupon_cark_gecerlilik_gun')
+                ? (int) ($cark->kupon_cark_gecerlilik_gun ?? 0) : 0;
+            $puanGun = Schema::hasColumn('carkifelek_sistemi', 'kupon_puan_gecerlilik_gun')
+                ? (int) ($cark->kupon_puan_gecerlilik_gun ?? 0) : 0;
+
             return response()->json([
                 'basarili' => true,
-                'sistem' => ['id' => $cark->id, 'aktifmi' => (int) $cark->aktifmi],
+                'sistem' => [
+                    'id'                        => $cark->id,
+                    'aktifmi'                   => (int) $cark->aktifmi,
+                    'kupon_cark_gecerlilik_gun' => $carkGun,
+                    'kupon_puan_gecerlilik_gun' => $puanGun,
+                ],
                 'dilimler' => $dilimler,
             ]);
         } catch (\Exception $e) {
@@ -26931,14 +26941,26 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 return response()->json(['basarili' => false, 'mesaj' => 'Tam olarak bir dilimi kazanan secin (100), digerleri 0'], 422);
             }
 
+            $hasCarkGun = Schema::hasColumn('carkifelek_sistemi', 'kupon_cark_gecerlilik_gun');
+            $hasPuanGun = Schema::hasColumn('carkifelek_sistemi', 'kupon_puan_gecerlilik_gun');
+            $carkGun = $request->has('kupon_cark_gecerlilik_gun')
+                ? max(0, (int) $request->input('kupon_cark_gecerlilik_gun')) : null;
+            $puanGun = $request->has('kupon_puan_gecerlilik_gun')
+                ? max(0, (int) $request->input('kupon_puan_gecerlilik_gun')) : null;
+
             $cark = CarkifelekSistemi::where('salon_id', $salonId)->first();
             if (!$cark) {
-                $cark = CarkifelekSistemi::create([
+                $payload = [
                     'salon_id' => $salonId,
                     'aktifmi' => (int) $request->input('aktifmi', 1),
-                ]);
+                ];
+                if ($hasCarkGun && $carkGun !== null) $payload['kupon_cark_gecerlilik_gun'] = $carkGun ?: null;
+                if ($hasPuanGun && $puanGun !== null) $payload['kupon_puan_gecerlilik_gun'] = $puanGun ?: null;
+                $cark = CarkifelekSistemi::create($payload);
             } else {
                 $cark->aktifmi = (int) $request->input('aktifmi', $cark->aktifmi);
+                if ($hasCarkGun && $carkGun !== null) $cark->kupon_cark_gecerlilik_gun = $carkGun ?: null;
+                if ($hasPuanGun && $puanGun !== null) $cark->kupon_puan_gecerlilik_gun = $puanGun ?: null;
                 $cark->save();
             }
 
