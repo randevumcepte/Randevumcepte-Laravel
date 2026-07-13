@@ -51,6 +51,21 @@ class CarkifelekMusteriController extends Controller
      * Müşterinin bu salondaki çevirme hakkı:
      *   Onaylanmış (durum=1) randevu sayısı – bu randevulardan log'a yazılmış olanlar
      */
+    /**
+     * Kupon bitiş tarihini işletmenin çark ayarına göre hesaplar.
+     * $tur: 'cark' = çark ödülü, 'puan' = puan biriktirilerek talep edilen ödül.
+     * 0 / null / kayıt yoksa → null (süresiz kupon).
+     */
+    private function kuponBitisTarihi($salonId, $tur = 'cark')
+    {
+        $ayar = CarkifelekSistemi::where('salon_id', $salonId)->first();
+        if (!$ayar) return null;
+        $gun = $tur === 'puan'
+            ? (int) $ayar->kupon_puan_gecerlilik_gun
+            : (int) $ayar->kupon_cark_gecerlilik_gun;
+        return $gun > 0 ? Carbon::now()->addDays($gun)->toDateString() : null;
+    }
+
     private function kalanHak($salonId, $userId)
     {
         $onaylanmisRandevuIds = Randevular::where('salon_id', $salonId)
@@ -280,7 +295,7 @@ class CarkifelekMusteriController extends Controller
                         'tip'               => $secilen->tip,
                         'deger'             => $secilen->deger,
                         'baslik'            => $this->baslikUret($secilen),
-                        'gecerlilik_tarihi' => Carbon::now()->addDays(30)->toDateString(),
+                        'gecerlilik_tarihi' => $this->kuponBitisTarihi($salonId, 'cark'),
                     ]);
                 }
                 return compact('log', 'odul');
@@ -555,7 +570,7 @@ class CarkifelekMusteriController extends Controller
                     'tip'               => $pending['tip'],
                     'deger'             => $pending['deger'],
                     'baslik'            => $pending['baslik'],
-                    'gecerlilik_tarihi' => Carbon::now()->addDays(30)->toDateString(),
+                    'gecerlilik_tarihi' => $this->kuponBitisTarihi($pending['salon_id'], 'cark'),
                 ]);
                 $odulKodu = $kupon->kod;
             }
@@ -702,7 +717,7 @@ class CarkifelekMusteriController extends Controller
                 'tip'               => $kuponTip,
                 'deger'             => $odul->deger ?: 0,
                 'baslik'            => $odul->baslik,
-                'gecerlilik_tarihi' => \Carbon\Carbon::now()->addDays(60)->toDateString(),
+                'gecerlilik_tarihi' => $this->kuponBitisTarihi($salonId, 'puan'),
             ]);
 
             return $kupon;

@@ -35,6 +35,8 @@ class CarkifelekSistemi extends Model
     protected $fillable = [
         'aktifmi',
         'kullanim_kurallari',
+        'kupon_cark_gecerlilik_gun',
+        'kupon_puan_gecerlilik_gun',
         'created_at',
         'updated_at',
         'salon_id',

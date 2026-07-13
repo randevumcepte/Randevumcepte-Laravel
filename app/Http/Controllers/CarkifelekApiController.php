@@ -22,6 +22,20 @@ class CarkifelekApiController extends Controller
      * Müşterinin bu salonda kalan çevirme hakkı:
      * Onaylanmış (durum=1) randevu sayısı – bu randevulardan log'a yazılmış olanlar.
      */
+    /**
+     * Kupon bitiş tarihini işletmenin çark ayarına göre hesaplar.
+     * $tur: 'cark' | 'puan'. 0 / null / kayıt yoksa → null (süresiz).
+     */
+    private function kuponBitisTarihi($salonId, $tur = 'cark')
+    {
+        $ayar = CarkifelekSistemi::where('salon_id', $salonId)->first();
+        if (!$ayar) return null;
+        $gun = $tur === 'puan'
+            ? (int) $ayar->kupon_puan_gecerlilik_gun
+            : (int) $ayar->kupon_cark_gecerlilik_gun;
+        return $gun > 0 ? Carbon::now()->addDays($gun)->toDateString() : null;
+    }
+
     private function kalanHak($salonId, $userId)
     {
         $onaylanmisRandevuIds = Randevular::where('salon_id', $salonId)
@@ -186,7 +200,7 @@ class CarkifelekApiController extends Controller
                     'tip'               => $secilen->tip,
                     'deger'             => $secilen->deger,
                     'baslik'            => $this->baslikUret($secilen),
-                    'gecerlilik_tarihi' => Carbon::now()->addDays(30)->toDateString(),
+                    'gecerlilik_tarihi' => $this->kuponBitisTarihi($salonId, 'cark'),
                 ]);
             }
 
@@ -394,7 +408,7 @@ class CarkifelekApiController extends Controller
                 'tip'               => $kuponTip,
                 'deger'             => $odul->deger ?: 0,
                 'baslik'            => $odul->baslik,
-                'gecerlilik_tarihi' => Carbon::now()->addDays(60)->toDateString(),
+                'gecerlilik_tarihi' => $this->kuponBitisTarihi($salonId, 'puan'),
             ]);
         });
 

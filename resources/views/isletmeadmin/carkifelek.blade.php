@@ -618,6 +618,34 @@
             <button class="rules-save-btn" id="rules-save-btn" onclick="saveKurallar()">📋 Kuralları Kaydet</button>
         </div>
     </div>
+
+    {{-- Kupon Geçerlilik Süreleri --}}
+    <div class="rules-card" style="margin-top:16px;">
+        <div class="rules-head">
+            <div class="rules-head-icon">⏳</div>
+            <div>
+                <h2>Kupon Geçerlilik Süreleri</h2>
+                <p>Müşteriye verilen kuponların kaç gün geçerli olacağını siz belirleyin. <b>0</b> veya boş bırakılırsa kupon <b>süresiz</b> olur.</p>
+            </div>
+        </div>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; padding:6px 0;">
+            <div style="flex:1; min-width:220px;">
+                <label style="display:block; font-weight:600; margin-bottom:6px;">Çark ödülü kuponu (gün)</label>
+                <input type="number" min="0" step="1" id="kupon-cark-gun" placeholder="0 = süresiz"
+                       style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px;" />
+                <small style="color:#6b7280;">Örn. 30 → çark döndürünce kazanılan kupon 30 gün geçerli.</small>
+            </div>
+            <div style="flex:1; min-width:220px;">
+                <label style="display:block; font-weight:600; margin-bottom:6px;">Puan ödülü kuponu (gün)</label>
+                <input type="number" min="0" step="1" id="kupon-puan-gun" placeholder="0 = süresiz"
+                       style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px;" />
+                <small style="color:#6b7280;">Örn. 60 → puan biriktirip talep edilen ödül 60 gün geçerli.</small>
+            </div>
+        </div>
+        <div class="rules-foot" style="margin-top:10px;">
+            <span class="rules-hint">Değişikliği kaydetmek için <b>"Kuralları Kaydet"</b> veya <b>"Çarkı Kaydet"</b> butonunu kullanabilirsiniz.</span>
+        </div>
+    </div>
 </div>
 
 {{-- Result Modal --}}
@@ -745,6 +773,14 @@
                 isActive = data.data.aktifmi == 1;
                 kurallar = data.data.kurallar || '';
                 if (rulesText) rulesText.value = kurallar;
+
+                // Kupon geçerlilik süreleri (0 → placeholder süresiz kalır)
+                const _carkGun = parseInt(data.data.kupon_cark_gecerlilik_gun) || 0;
+                const _puanGun = parseInt(data.data.kupon_puan_gecerlilik_gun) || 0;
+                const _carkEl = document.getElementById('kupon-cark-gun');
+                const _puanEl = document.getElementById('kupon-puan-gun');
+                if (_carkEl) _carkEl.value = _carkGun > 0 ? _carkGun : '';
+                if (_puanEl) _puanEl.value = _puanGun > 0 ? _puanGun : '';
                 if (data.data.dilimler && data.data.dilimler.length > 0) {
                     slices = data.data.dilimler.map(d => ({
                         name:        d.name,
@@ -1403,10 +1439,21 @@
             // FIX: URL'deki ?sube=X parametresini POST body'sine taşı.
             // Çoklu şube senaryosunda backend yanlış salon_id alıyordu (mevcutsube fallback).
             const _sube = new URLSearchParams(window.location.search).get('sube');
+            const _carkGunEl = document.getElementById('kupon-cark-gun');
+            const _puanGunEl = document.getElementById('kupon-puan-gun');
+            const _carkGunVal = _carkGunEl ? Math.max(0, parseInt(_carkGunEl.value) || 0) : 0;
+            const _puanGunVal = _puanGunEl ? Math.max(0, parseInt(_puanGunEl.value) || 0) : 0;
             const res  = await fetch('{{ route("isletmeadmin.carkdilimekle") }}' + (_sube ? ('?sube=' + encodeURIComponent(_sube)) : ''), {
                 method: 'POST',
                 headers: HEADERS,
-                body: JSON.stringify({ sube: _sube, dilimler: payload, aktifmi: isActive ? 1 : 0, kurallar: kurallar })
+                body: JSON.stringify({
+                    sube: _sube,
+                    dilimler: payload,
+                    aktifmi: isActive ? 1 : 0,
+                    kurallar: kurallar,
+                    kupon_cark_gecerlilik_gun: _carkGunVal,
+                    kupon_puan_gecerlilik_gun: _puanGunVal
+                })
             });
             const data = await res.json();
             console.log('[Çark kaydet] yanıt:', data);

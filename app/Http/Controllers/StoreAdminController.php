@@ -389,6 +389,16 @@ public function carkdilimekle(Request $request)
         $hasKurallar = \Schema::hasColumn('carkifelek_sistemi', 'kullanim_kurallari');
         $kurallar    = $request->has('kurallar') ? trim((string) $request->input('kurallar')) : null;
 
+        // Kupon geçerlilik süreleri (işletme insiyatifinde). 0/null → süresiz kupon.
+        $hasCarkGun = \Schema::hasColumn('carkifelek_sistemi', 'kupon_cark_gecerlilik_gun');
+        $hasPuanGun = \Schema::hasColumn('carkifelek_sistemi', 'kupon_puan_gecerlilik_gun');
+        $carkGun = $request->has('kupon_cark_gecerlilik_gun')
+            ? (int) $request->input('kupon_cark_gecerlilik_gun') : null;
+        $puanGun = $request->has('kupon_puan_gecerlilik_gun')
+            ? (int) $request->input('kupon_puan_gecerlilik_gun') : null;
+        if ($carkGun !== null && $carkGun < 0) $carkGun = 0;
+        if ($puanGun !== null && $puanGun < 0) $puanGun = 0;
+
         // Çarkıfelek sistemini kontrol et veya oluştur
         $carkifelek = CarkifelekSistemi::where('salon_id', $salon_id)->first();
 
@@ -400,6 +410,8 @@ public function carkdilimekle(Request $request)
                 'updated_at' => now()
             ];
             if ($hasKurallar && $request->has('kurallar')) $payload['kullanim_kurallari'] = $kurallar;
+            if ($hasCarkGun && $carkGun !== null) $payload['kupon_cark_gecerlilik_gun'] = $carkGun ?: null;
+            if ($hasPuanGun && $puanGun !== null) $payload['kupon_puan_gecerlilik_gun'] = $puanGun ?: null;
             $carkifelek = CarkifelekSistemi::create($payload);
 
             Log::info('Yeni çark oluşturuldu. ID: ' . $carkifelek->id);
@@ -407,6 +419,8 @@ public function carkdilimekle(Request $request)
             // Çark aktif/pasif durumunu güncelle
             $carkifelek->aktifmi = $request->input('aktifmi', $carkifelek->aktifmi);
             if ($hasKurallar && $request->has('kurallar')) $carkifelek->kullanim_kurallari = $kurallar;
+            if ($hasCarkGun && $carkGun !== null) $carkifelek->kupon_cark_gecerlilik_gun = $carkGun ?: null;
+            if ($hasPuanGun && $puanGun !== null) $carkifelek->kupon_puan_gecerlilik_gun = $puanGun ?: null;
             $carkifelek->updated_at = now();
             $carkifelek->save();
 
@@ -535,12 +549,19 @@ public function carkverilerigetir(Request $request)
             $kurallar = CarkifelekSistemi::VARSAYILAN_KURALLAR;
         }
 
+        $carkGun = \Schema::hasColumn('carkifelek_sistemi', 'kupon_cark_gecerlilik_gun')
+            ? (int) ($carkifelek->kupon_cark_gecerlilik_gun ?? 0) : 0;
+        $puanGun = \Schema::hasColumn('carkifelek_sistemi', 'kupon_puan_gecerlilik_gun')
+            ? (int) ($carkifelek->kupon_puan_gecerlilik_gun ?? 0) : 0;
+
         return response()->json([
             'success' => true,
             'data' => [
-                'aktifmi'  => $carkifelek->aktifmi,
-                'kurallar' => $kurallar,
-                'dilimler' => $dilimler
+                'aktifmi'                     => $carkifelek->aktifmi,
+                'kurallar'                    => $kurallar,
+                'kupon_cark_gecerlilik_gun'   => $carkGun,
+                'kupon_puan_gecerlilik_gun'   => $puanGun,
+                'dilimler'                    => $dilimler
             ]
         ]);
 
