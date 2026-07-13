@@ -354,6 +354,36 @@
 }
 
 /* Footer */
+/* Kupon geçerlilik süreleri — Dilim Yönetimi paneli içi alt bölüm */
+.mgmt-coupon {
+    padding: 18px 28px;
+    border-top: 1px solid #f0f2f8;
+    background: rgba(108,92,231,.035);
+}
+.mgmt-coupon-head {
+    display: flex; align-items: flex-start; gap: 10px;
+    margin-bottom: 14px;
+}
+.mgmt-coupon-icon { font-size: 20px; line-height: 1.2; }
+.mgmt-coupon-head h3 { font-size: 15px; font-weight: 800; color: var(--dark); margin-bottom: 2px; }
+.mgmt-coupon-head p  { font-size: 12.5px; color: var(--mid); line-height: 1.45; }
+.mgmt-coupon-grid {
+    display: flex; gap: 16px; flex-wrap: wrap;
+}
+.mgmt-coupon-field { flex: 1; min-width: 200px; }
+.mgmt-coupon-field label {
+    display: block; font-size: 13px; font-weight: 600; color: var(--dark); margin-bottom: 6px;
+}
+.mgmt-coupon-field input {
+    width: 100%; padding: 10px 12px;
+    background: white;
+    border: 1.5px solid #e9ecef; border-radius: 8px;
+    font-size: 14px; color: var(--dark);
+    transition: border-color .2s;
+}
+.mgmt-coupon-field input:focus { outline: none; border-color: var(--purple); }
+.mgmt-coupon-field small { display: block; margin-top: 5px; font-size: 11.5px; color: var(--mid); }
+
 .mgmt-foot {
     padding: 16px 28px 24px;
     border-top: 1px solid #f0f2f8;
@@ -588,6 +618,29 @@
 
             <div class="slices-body" id="slices-list"></div>
 
+            {{-- Kupon Geçerlilik Süreleri (Dilim Yönetimi ile bütünleşik) --}}
+            <div class="mgmt-coupon">
+                <div class="mgmt-coupon-head">
+                    <span class="mgmt-coupon-icon">⏳</span>
+                    <div>
+                        <h3>Kupon Geçerlilik Süreleri</h3>
+                        <p>Müşteriye verilen kuponların kaç gün geçerli olacağını siz belirleyin. <b>0</b> veya boş bırakılırsa kupon <b>süresiz</b> olur.</p>
+                    </div>
+                </div>
+                <div class="mgmt-coupon-grid">
+                    <div class="mgmt-coupon-field">
+                        <label>Çark ödülü kuponu (gün)</label>
+                        <input type="number" min="0" step="1" id="kupon-cark-gun" placeholder="0 = süresiz" />
+                        <small>Örn. 30 → çark döndürünce kazanılan kupon 30 gün geçerli.</small>
+                    </div>
+                    <div class="mgmt-coupon-field">
+                        <label>Puan ödülü kuponu (gün)</label>
+                        <input type="number" min="0" step="1" id="kupon-puan-gun" placeholder="0 = süresiz" />
+                        <small>Örn. 60 → puan biriktirip talep edilen ödül 60 gün geçerli.</small>
+                    </div>
+                </div>
+            </div>
+
             <div class="mgmt-foot">
                 <div class="winner-info" id="winner-info">
                     <span class="winner-icon">🏆</span>
@@ -619,33 +672,6 @@
         </div>
     </div>
 
-    {{-- Kupon Geçerlilik Süreleri --}}
-    <div class="rules-card" style="margin-top:16px;">
-        <div class="rules-head">
-            <div class="rules-head-icon">⏳</div>
-            <div>
-                <h2>Kupon Geçerlilik Süreleri</h2>
-                <p>Müşteriye verilen kuponların kaç gün geçerli olacağını siz belirleyin. <b>0</b> veya boş bırakılırsa kupon <b>süresiz</b> olur.</p>
-            </div>
-        </div>
-        <div style="display:flex; gap:16px; flex-wrap:wrap; padding:6px 0;">
-            <div style="flex:1; min-width:220px;">
-                <label style="display:block; font-weight:600; margin-bottom:6px;">Çark ödülü kuponu (gün)</label>
-                <input type="number" min="0" step="1" id="kupon-cark-gun" placeholder="0 = süresiz"
-                       style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px;" />
-                <small style="color:#6b7280;">Örn. 30 → çark döndürünce kazanılan kupon 30 gün geçerli.</small>
-            </div>
-            <div style="flex:1; min-width:220px;">
-                <label style="display:block; font-weight:600; margin-bottom:6px;">Puan ödülü kuponu (gün)</label>
-                <input type="number" min="0" step="1" id="kupon-puan-gun" placeholder="0 = süresiz"
-                       style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px;" />
-                <small style="color:#6b7280;">Örn. 60 → puan biriktirip talep edilen ödül 60 gün geçerli.</small>
-            </div>
-        </div>
-        <div class="rules-foot" style="margin-top:10px;">
-            <span class="rules-hint">Değişikliği kaydetmek için <b>"Kuralları Kaydet"</b> veya <b>"Çarkı Kaydet"</b> butonunu kullanabilirsiniz.</span>
-        </div>
-    </div>
 </div>
 
 {{-- Result Modal --}}
