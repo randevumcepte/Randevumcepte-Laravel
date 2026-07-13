@@ -277,7 +277,7 @@ class StoreAdminController extends Controller
         }
         $paketler = self::paket_liste_getir('',true,$request);
         $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
-        return view('isletmeadmin.carkifelek',['bildirimler'=>self::bildirimgetir($request), 'paketler'=>$paketler,'sayfa_baslik'=>'Ajanda','pageindex' => 500,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'urun_drop'=>self::urundropliste($request),
+        return view('isletmeadmin.carkifelek',['bildirimler'=>self::bildirimgetir($request), 'paketler'=>$paketler,'sayfa_baslik'=>'Çarkıfelek','pageindex' => 500,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
 
