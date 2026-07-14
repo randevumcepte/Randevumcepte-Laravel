@@ -738,34 +738,18 @@
 
 <script>
 // Musteri listesi actions dropdown'undan tek-tik anket gonderim
-// (backend: WA-first + SMS fallback). Swal (SweetAlert2) yuklu degilse
-// native confirm/alert'a duser (defansif).
-function _anketListeConfirm(cb){
-   if (typeof Swal !== 'undefined' && Swal.fire) {
-      Swal.fire({
-         title: 'Memnuniyet anketi gönderilsin mi?',
-         text: 'Müşteriye anket linki WhatsApp veya SMS ile gönderilecek.',
-         icon: 'question',
-         showCancelButton: true,
-         confirmButtonText: 'Evet, gönder',
-         cancelButtonText: 'Vazgeç',
-         confirmButtonColor: '#25D366',
-      }).then(function(r){ if (r && r.value) cb(); });
-   } else {
-      if (confirm('Bu müşteriye memnuniyet anketi gönderilsin mi?')) cb();
-   }
-}
-function _anketListeNotify(icon, title, text){
-   if (typeof Swal !== 'undefined' && Swal.fire) {
-      var opts = { icon: icon, title: title, text: text };
-      if (icon === 'success') { opts.timer = 2500; opts.showConfirmButton = false; }
-      Swal.fire(opts);
-   } else {
-      alert(title + (text ? '\n' + text : ''));
-   }
-}
+// (backend: WA-first + SMS fallback)
 function anketHizliGonderListe(userId, el){
-   _anketListeConfirm(function(){
+   Swal.fire({
+      title: 'Memnuniyet anketi gönderilsin mi?',
+      text: 'Müşteriye anket linki WhatsApp veya SMS ile gönderilecek.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Evet, gönder',
+      cancelButtonText: 'Vazgeç',
+      confirmButtonColor: '#25D366',
+   }).then(function(r){
+      if (!r || !r.value) return;
       var $el = $(el);
       var eskiHtml = $el.html();
       $el.html('<i class="fa fa-spinner fa-spin"></i> Gönderiliyor...');
@@ -779,9 +763,9 @@ function anketHizliGonderListe(userId, el){
       }).done(function(res){
          if (res && res.basarili) {
             var kanal = res.kanal === 'whatsapp' ? 'WhatsApp' : 'SMS';
-            _anketListeNotify('success', 'Gönderildi', 'Anket ' + kanal + ' ile iletildi.');
+            Swal.fire({ icon: 'success', title: 'Gönderildi', text: 'Anket ' + kanal + ' ile iletildi.', timer: 2500, showConfirmButton: false });
          } else {
-            _anketListeNotify('error', 'Gönderilemedi', (res && res.mesaj) ? res.mesaj : 'Bilinmeyen hata.');
+            Swal.fire({ icon: 'error', title: 'Gönderilemedi', text: (res && res.mesaj) ? res.mesaj : 'Bilinmeyen hata.' });
          }
       }).fail(function(xhr, status, err){
          var msg = 'İstek başarısız.';
@@ -790,7 +774,7 @@ function anketHizliGonderListe(userId, el){
          }
          if (xhr && xhr.status) msg += ' (HTTP ' + xhr.status + ')';
          if (status === 'timeout') msg = 'Sunucu 20 saniye içinde cevap vermedi.';
-         _anketListeNotify('error', 'Hata', msg);
+         Swal.fire({ icon: 'error', title: 'Hata', text: msg });
       }).always(function(){
          $el.html(eskiHtml);
       });
