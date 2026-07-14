@@ -21,7 +21,7 @@ import { AriService } from './asterisk/ari-client.js';
 import { Conversation } from './dialog/state.js';
 import { tts } from './tts/edge-tts.js';
 import { stt } from './stt/groq-stt.js';
-import { salonBilgiGetir } from './api/laravel.js';
+import { salonBilgiGetir, musteriBilgiGetir, cagriLogGonder } from './api/laravel.js';
 import { config } from './config.js';
 
 const SOUNDS_DIR = process.env.ASTERISK_SOUNDS_DIR || '/var/lib/asterisk/sounds';
@@ -55,10 +55,18 @@ const WHISPER_HALLUCINATIONS = [
   'iyi izlemeler',
   'teşekkürler',
 ];
+// Kısa ama GEÇERLİ yanıtlar — bunları "çok kısa" diye sessizlik sayma!
+// (Eski kod t.length < 4 ile "ok", "he", "hı" gibi onayları atıyordu — müşteri
+//  "onaylıyor musunuz?" sorusuna "ok" deyince sistem duymuyordu. Kritik bug.)
+const GECERLI_KISA = new Set([
+  'ok', 'okey', 'oki', 'he', 'hı', 'hi', 'hıhı', 'hı hı', 'ha', 'yo',
+  'evet', 'olur', 'yok', 'yok yok', 'peki', 'tabi', 'hayır', 'hayir', 'iptal', 'aynen', 'tamam',
+]);
 function isWhisperHallucination(text) {
   if (!text) return false;
   const t = text.toLowerCase().trim().replace(/[.,!?]/g, '').trim();
-  if (t.length < 4) return true;
+  if (GECERLI_KISA.has(t)) return false;          // geçerli kısa yanıt → sessizlik DEĞİL
+  if (t.length < 2) return true;                   // gerçekten boş/tek harf → sessizlik
   return WHISPER_HALLUCINATIONS.some((h) => t === h || t.includes(h));
 }
 
@@ -122,12 +130,13 @@ async function speak(client, channel, text, tag) {
   for (const p of [mp3Path, wavPath]) {
     try { fs.unlinkSync(p); } catch {}
   }
+  return ttsMs;
 }
 
 /**
  * Musteriyi dinle (sessizlik tespiti ile durur), STT yap, metni dondur.
  */
-async function listen(client, channel, tag) {
+async function listen(client, channel, tag, sttPrompt) {
   const recName = `rec_${tag}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const format = 'wav';
 
@@ -173,14 +182,15 @@ async function listen(client, channel, tag) {
 
   try {
     const t0 = Date.now();
-    const result = await stt.transcribeFile(wavPath);
-    console.log(`[STT ${tag}] ${Date.now() - t0}ms "${result.text}"`);
+    const result = await stt.transcribeFile(wavPath, { prompt: sttPrompt });
+    const ms = Date.now() - t0;
+    console.log(`[STT ${tag}] ${ms}ms "${result.text}"`);
     // Whisper sessiz/dusuk kaliteli sese verdigi bilinen halusinasyonlar — sessizlik say
     if (isWhisperHallucination(result.text)) {
       console.log(`[STT ${tag}] halusinasyon tespit edildi, sessizlik kabul ediliyor`);
-      return '';
+      return { text: '', ms };
     }
-    return result.text;
+    return { text: result.text, ms };
   } finally {
     try { fs.unlinkSync(wavPath); } catch {}
   }
@@ -194,6 +204,7 @@ async function handleCall(ctx, ari) {
   const callId = channel.id.slice(-8);
   const log = (msg) => console.log(`[CALL ${callId}] ${msg}`);
 
+  const startedAt = Date.now();
   log(`basladi caller=${callerNum} did=${fromDid} salon=${salonId}`);
 
   // Hangup bayragi — client seviyesinde dinle (channel objesi tum eventleri yaymaz)
@@ -204,6 +215,13 @@ async function handleCall(ctx, ari) {
   ari.client.on('StasisEnd', onChannelGone);
   ari.client.on('ChannelDestroyed', onChannelGone);
   ari.client.on('ChannelHangupRequest', onChannelGone);
+
+  // ── Çağrı logu biriktirici (Faz 0: görünürlük) ──
+  const turnLoglari = [];
+  let sttToplam = 0, llmToplam = 0, ttsToplam = 0;
+  let cagriDurum = 'tamamlandi';
+  let cagriSonuc = '';
+  let randevuId = null;
 
   // Salon adini Laravel'den cek (Mock modunda fallback'e duser)
   let salonAdi = resolveSalonAdi(salonId);
@@ -221,13 +239,28 @@ async function handleCall(ctx, ari) {
     log(`salon bilgi cekilemedi (fallback "${salonAdi}"): ${e.message}`);
   }
 
+  // Arayani tani (kisisellestirme + paket). Basarisiz olsa cagri devam eder.
+  let musteriAdi = null;
+  let paketler = [];
+  try {
+    const m = await musteriBilgiGetir({ salonId, telefon: callerNum });
+    if (m?.ad) musteriAdi = m.ad;
+    if (Array.isArray(m?.paketler)) paketler = m.paketler;
+    log(`musteri="${musteriAdi || 'taninmiyor'}" paket=${paketler.length}`);
+  } catch (e) {
+    log(`musteri bilgi cekilemedi: ${e.message}`);
+  }
+
   const conversation = new Conversation({
     salonId,
     salonAdi,
     callerPhone: callerNum,
     hizmetler,
     karsilamaTelaffuz,
+    musteriAdi,
+    paketler,
   });
+  const sttPrompt = conversation.sttPrompt();
 
   let turn = 0;
   let firstTurn = true;
@@ -238,7 +271,15 @@ async function handleCall(ctx, ari) {
     // Sonra normal akis (listen + LLM turn) devam eder.
     if (karsilamaTelaffuz && !hungUp) {
       try {
-        await speak(ari.client, channel, karsilamaTelaffuz, `${callId}_greet`);
+        const ttsMs = await speak(ari.client, channel, karsilamaTelaffuz, `${callId}_greet`);
+        ttsToplam += ttsMs || 0;
+        turnLoglari.push({
+          tur_no: 0,
+          kullanici_metni: null,
+          asistan_metni: karsilamaTelaffuz,
+          tool_cagrilari: null,
+          stt_ms: 0, llm_ms: 0, tts_ms: ttsMs || 0,
+        });
         firstTurn = false; // greeting yapildi, sonraki tur listen ile basliyor
       } catch (e) {
         if (hungUp) {
@@ -252,24 +293,30 @@ async function handleCall(ctx, ari) {
     while (!hungUp && turn < MAX_TURNS) {
       turn++;
       let userText = null;
+      let sttMs = 0;
 
       if (!firstTurn) {
         try {
-          userText = await listen(ari.client, channel, `${callId}_${turn}`);
+          const heard = await listen(ari.client, channel, `${callId}_${turn}`, sttPrompt);
+          userText = heard.text;
+          sttMs = heard.ms || 0;
+          sttToplam += sttMs;
         } catch (e) {
           if (hungUp) break;
           log(`listen hatasi: ${e.message}`);
-          await speak(ari.client, channel, 'Sizi duyamadım, tekrar söyler misiniz?', `${callId}_${turn}_lerr`);
+          ttsToplam += (await speak(ari.client, channel, 'Sizi duyamadım, tekrar söyler misiniz?', `${callId}_${turn}_lerr`)) || 0;
           continue;
         }
         if (!userText || userText.trim().length < 2) {
           consecutiveSilent++;
           if (consecutiveSilent >= 2) {
             log(`art arda 2 sessizlik, kapatiliyor`);
-            await speak(ari.client, channel, 'Sizi duyamadığım için kapatıyorum. İyi günler.', `${callId}_${turn}_bye`);
+            cagriDurum = 'sessizlik';
+            cagriSonuc = 'Müşteri duyulamadı';
+            ttsToplam += (await speak(ari.client, channel, 'Sizi duyamadığım için kapatıyorum. İyi günler.', `${callId}_${turn}_bye`)) || 0;
             break;
           }
-          await speak(ari.client, channel, 'Sizi duyamadım, tekrar söyler misiniz?', `${callId}_${turn}_re`);
+          ttsToplam += (await speak(ari.client, channel, 'Sizi duyamadım, tekrar söyler misiniz?', `${callId}_${turn}_re`)) || 0;
           continue;
         }
         consecutiveSilent = 0;
@@ -281,23 +328,39 @@ async function handleCall(ctx, ari) {
         result = await conversation.turn(userText);
       } catch (e) {
         log(`LLM hatasi: ${e.message}`);
-        await speak(ari.client, channel, 'Sistemde bir aksilik oldu. Sizi canlı operatöre bağlıyorum.', `${callId}_${turn}_llmerr`);
-        result = { reply: '', action: 'transfer' };
+        ttsToplam += (await speak(ari.client, channel, 'Sistemde bir aksilik oldu. Sizi canlı operatöre bağlıyorum.', `${callId}_${turn}_llmerr`)) || 0;
+        result = { reply: '', action: 'transfer', durations: {}, tools: [] };
       }
+      llmToplam += result.durations?.llm || 0;
+      if (conversation.sonRandevuId) randevuId = conversation.sonRandevuId;
 
-      if (hungUp) break;
-
-      if (result.reply) {
+      let replyTtsMs = 0;
+      if (!hungUp && result.reply) {
         try {
-          await speak(ari.client, channel, result.reply, `${callId}_${turn}`);
+          replyTtsMs = (await speak(ari.client, channel, result.reply, `${callId}_${turn}`)) || 0;
+          ttsToplam += replyTtsMs;
         } catch (e) {
-          if (hungUp) break;
-          log(`speak hatasi: ${e.message}`);
+          if (!hungUp) log(`speak hatasi: ${e.message}`);
         }
       }
 
+      // Tur logu
+      turnLoglari.push({
+        tur_no: turn,
+        kullanici_metni: userText,
+        asistan_metni: result.reply || '',
+        tool_cagrilari: result.tools && result.tools.length ? result.tools : null,
+        stt_ms: sttMs,
+        llm_ms: result.durations?.llm || 0,
+        tts_ms: replyTtsMs,
+      });
+
+      if (hungUp) break;
+
       if (result.action === 'transfer') {
         log(`operatore aktariliyor`);
+        cagriDurum = 'transfer';
+        cagriSonuc = cagriSonuc || 'Canlı operatöre aktarıldı';
         try {
           await channel.continueInDialplan({
             context: TRANSFER_CONTEXT,
@@ -314,8 +377,10 @@ async function handleCall(ctx, ari) {
 
     if (turn >= MAX_TURNS && !hungUp) {
       log(`MAX_TURNS asildi, kapatiliyor`);
+      cagriDurum = 'max_tur';
+      cagriSonuc = cagriSonuc || 'Görüşme uzadı, kapatıldı';
       try {
-        await speak(ari.client, channel, 'Görüşmemiz uzun sürdü, kapatıyorum. İyi günler.', `${callId}_max`);
+        ttsToplam += (await speak(ari.client, channel, 'Görüşmemiz uzun sürdü, kapatıyorum. İyi günler.', `${callId}_max`)) || 0;
       } catch {}
     }
   } finally {
@@ -326,7 +391,35 @@ async function handleCall(ctx, ari) {
     if (!hungUp) {
       try { await channel.hangup(); } catch {}
     }
-    log(`bitti turns=${turn}`);
+
+    // Sonuç durumunu sonlandır: randevu oluştuysa öncelik onda
+    if (randevuId) {
+      cagriDurum = 'randevu';
+      cagriSonuc = cagriSonuc || `Randevu oluşturuldu (#${randevuId})`;
+    }
+
+    // Çağrı dökümünü Laravel'e yolla (fire-and-forget, akışı bloklamaz)
+    try {
+      cagriLogGonder({
+        salon_id: salonId,
+        caller_telefon: callerNum,
+        did: fromDid,
+        channel_id: channel.id,
+        durum: cagriDurum,
+        sonuc: cagriSonuc,
+        randevu_id: randevuId,
+        tur_sayisi: turn,
+        toplam_sure_sn: Math.round((Date.now() - startedAt) / 1000),
+        stt_ms_toplam: sttToplam,
+        llm_ms_toplam: llmToplam,
+        tts_ms_toplam: ttsToplam,
+        turlar: turnLoglari,
+      }).catch((e) => log(`cagri log gonderilemedi: ${e.message}`));
+    } catch (e) {
+      log(`cagri log hatasi: ${e.message}`);
+    }
+
+    log(`bitti turns=${turn} durum=${cagriDurum}`);
   }
 }
 

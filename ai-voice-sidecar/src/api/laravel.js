@@ -57,14 +57,63 @@ export async function salonBilgiGetir({ salonId }) {
   return data;
 }
 
-export async function musaitSaatleriGetir({ salonId, tarih, hizmetId }) {
+export async function musaitSaatleriGetir({ salonId, tarih, hizmetId, zamanDilimi }) {
   if (USE_MOCK) return mockMusait(tarih);
   const { data } = await http.post('/v1/ai/musait-saatler', {
     salon_id: salonId,
     tarih,
     hizmet_id: hizmetId,
+    zaman_dilimi: zamanDilimi,
   });
   return data;
+}
+
+/**
+ * Musterinin soyledigi hizmet ifadesini backend'de kuralli eslestir.
+ * Donus: { eslesme: 'tek'|'coklu'|'yok', hizmet?, secenekler?, oneriler? }
+ */
+export async function hizmetEslestir({ salonId, metin }) {
+  if (USE_MOCK) {
+    return { ok: true, eslesme: 'tek', hizmet: { id: 1, ad: metin } };
+  }
+  const { data } = await http.post('/v1/ai/hizmet-eslestir', {
+    salon_id: salonId,
+    metin,
+  });
+  return data;
+}
+
+/**
+ * Arayan numaradan musteriyi tani — selamlamayi kisisellestirmek ve paket
+ * bilgisini soyleyebilmek icin cagri basinda cagrilir.
+ * Donus: { ad, paketler: [{ad, kalan}] } (taninmiyorsa bos alanlar).
+ */
+export async function musteriBilgiGetir({ salonId, telefon }) {
+  if (USE_MOCK || !telefon) return { ok: true, ad: null, paketler: [] };
+  try {
+    const { data } = await http.post('/v1/ai/musteri-bilgi', {
+      salon_id: salonId,
+      telefon,
+    });
+    return data;
+  } catch (e) {
+    // Tanima basarisiz olursa cagri yine de devam etsin
+    return { ok: false, ad: null, paketler: [] };
+  }
+}
+
+/**
+ * Cagri bitiminde tum konusma dokumunu tek POST ile loglar (fire-and-forget).
+ * Teshis icindir; hata olsa da cagri akisini etkilemez.
+ */
+export async function cagriLogGonder(payload) {
+  if (USE_MOCK) return { ok: true, mock: true };
+  try {
+    const { data } = await http.post('/v1/ai/cagri-log', payload);
+    return data;
+  } catch (e) {
+    return { ok: false, mesaj: e.message };
+  }
 }
 
 export async function randevuOlustur({
@@ -147,11 +196,14 @@ function toInt(v) {
  */
 export function makeToolHandlers({ salonId, callerPhone }) {
   return {
+    hizmet_eslestir: async (args) =>
+      hizmetEslestir({ salonId, metin: String(args.metin || '').trim() }),
     musait_saatleri_getir: async (args) =>
       musaitSaatleriGetir({
         salonId,
         tarih: args.tarih,
         hizmetId: toInt(args.hizmet_id),
+        zamanDilimi: args.zaman_dilimi,
       }),
     randevu_olustur: async (args) =>
       randevuOlustur({

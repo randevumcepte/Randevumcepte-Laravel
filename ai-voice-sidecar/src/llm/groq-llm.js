@@ -31,6 +31,8 @@ export class GroqLLM {
         salonAdi: context.salonAdi ?? 'Salon',
         callerPhone: context.callerPhone ?? null,
         hizmetler: context.hizmetler ?? [],
+        musteriAdi: context.musteriAdi ?? null,
+        paketler: context.paketler ?? [],
       }),
     };
 

@@ -19,21 +19,30 @@ export class GroqSTT {
   /**
    * Ses dosyasını Türkçe metne çevir.
    * @param {string} filePath - mp3/wav/m4a/ogg/flac/webm
+   * @param {Object} [opts]
+   * @param {string} [opts.prompt] - Whisper'a bağlam/hotword (salon adı, hizmet
+   *        adları, onay kelimeleri). Domain kelimelerinin doğru yazılmasını
+   *        ciddi ölçüde artırır — en büyük "anlama" kazancı burada.
    * @returns {Promise<{text: string, durationMs: number}>}
    */
-  async transcribeFile(filePath) {
+  async transcribeFile(filePath, opts = {}) {
     if (!fs.existsSync(filePath)) {
       throw new Error(`Ses dosyası yok: ${filePath}`);
     }
     const t0 = Date.now();
-    const result = await this.client.audio.transcriptions.create({
+    const params = {
       file: fs.createReadStream(filePath),
       model: this.model,
       language: 'tr',
       // temperature: 0 → deterministic, randevu için doğru tercih
       temperature: 0,
       response_format: 'verbose_json',
-    });
+    };
+    if (opts.prompt && String(opts.prompt).trim()) {
+      // Whisper prompt sınırı ~224 token; kısa tutuyoruz.
+      params.prompt = String(opts.prompt).slice(0, 800);
+    }
+    const result = await this.client.audio.transcriptions.create(params);
     return {
       text: (result.text || '').trim(),
       durationMs: Date.now() - t0,

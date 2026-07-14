@@ -422,11 +422,14 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     /* ───────── AI Sesli Asistan (sidecar erisir) ───────── */
     Route::middleware('ai.sidecar')->prefix('ai')->group(function () {
         Route::post('/salon-bilgi',       'Api\AiAsistanController@salonBilgi');
+        Route::post('/musteri-bilgi',     'Api\AiAsistanController@musteriBilgi');
+        Route::post('/hizmet-eslestir',   'Api\AiAsistanController@hizmetEslestir');
         Route::post('/musait-saatler',    'Api\AiAsistanController@musaitSaatler');
         Route::post('/randevu-olustur',   'Api\AiAsistanController@randevuOlustur');
         Route::post('/mevcut-randevular', 'Api\AiAsistanController@mevcutRandevular');
         Route::post('/randevu-iptal',     'Api\AiAsistanController@randevuIptal');
         Route::post('/randevu-guncelle',  'Api\AiAsistanController@randevuGuncelle');
+        Route::post('/cagri-log',         'Api\AiAsistanController@cagriLog');
     });
 
     /* ───────── Stok Yonetimi v2 ───────── */

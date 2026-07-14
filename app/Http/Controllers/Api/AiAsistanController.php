@@ -10,10 +10,15 @@ use App\Salonlar;
 use App\SalonHizmetler;
 use App\User;
 use App\MusteriPortfoy;
+use App\Personeller;
 use App\Helpers\CinsiyetTahmin;
+use App\Services\NotificationService;
+use App\Services\NotificationTypes;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * AI sesli asistan sidecar'ı için API uçları.
@@ -62,12 +67,50 @@ class AiAsistanController extends Controller
     }
 
     /* ─────────────────────────────────────────────────────────────
+     * 0b. Müşteri bilgi — arayan numaradan müşteriyi tanı (kişiselleştirme +
+     *     paket bilgisi). Selamlarken adıyla hitap etmek ve "paketinizden
+     *     düşelim mi?" diyebilmek için çağrı başında çağrılır.
+     * ───────────────────────────────────────────────────────────── */
+    public function musteriBilgi(Request $request)
+    {
+        $salonId = (int) $request->input('salon_id');
+        $telefon = self::telefonNormalize($request->input('telefon'));
+
+        if (!$telefon) {
+            return response()->json(['ok' => true, 'ad' => null, 'paketler' => []]);
+        }
+
+        $user = User::where('cep_telefon', $telefon)->first();
+        if (!$user) {
+            return response()->json(['ok' => true, 'ad' => null, 'paketler' => []]);
+        }
+
+        // NOT (paket bilgisi): adisyon_paket_seanslar her satırı TEK seans tutuyor
+        // (adisyon_paket_id + geldi/dusulen_miktar üzerinden). Doğru "kalan seans"
+        // sayımı paket-satış şemasının dikkatli incelenmesini gerektiriyor; yanlış
+        // sayı söylemek müşteriyi yanıltır. Bu yüzden şimdilik boş dönüyoruz ve
+        // ayrı bir adımda doğru sorgu ile dolduracağız. Kişiselleştirme (isim)
+        // bu turda aktif.
+        $paketler = [];
+
+        return response()->json([
+            'ok' => true,
+            'ad' => $user->name ?: null,
+            'cinsiyet' => $user->cinsiyet,
+            'paketler' => $paketler,
+        ]);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
      * 1. Müsait saatleri getir
      * ───────────────────────────────────────────────────────────── */
     public function musaitSaatler(Request $request)
     {
         $salonId = (int) $request->input('salon_id');
         $tarih = $request->input('tarih'); // YYYY-MM-DD
+        // Opsiyonel: musteri "ogleden sonra" gibi bir dilim soylediyse LLM bunu
+        // gonderir. Bos ise tum gun dondurulur.
+        $zamanDilimi = strtolower(trim((string) $request->input('zaman_dilimi', '')));
 
         $salon = Salonlar::find($salonId);
         if (!$salon) {
@@ -116,6 +159,17 @@ class AiAsistanController extends Controller
         $bugun = Carbon::today()->format('Y-m-d');
         $simdi = Carbon::now()->format('H:i');
 
+        // Zaman dilimi -> saat araligi (HH*60+MM cinsinden dk). LLM "sabah",
+        // "ogle", "ogleden_sonra"/"ogleden sonra", "aksam" gonderebilir.
+        $dilimAralik = null;
+        $z = str_replace([' ', '-', '_'], '', $zamanDilimi); // normalize
+        if ($z !== '') {
+            if (strpos($z, 'sabah') !== false)                                        $dilimAralik = [0, 12 * 60 - 1];       // < 12:00
+            elseif (strpos($z, 'ogleden') !== false || strpos($z, 'oglenden') !== false) $dilimAralik = [12 * 60, 18 * 60 - 1];  // 12:00-18:00
+            elseif (strpos($z, 'aksam') !== false || strpos($z, 'gece') !== false)     $dilimAralik = [18 * 60, 24 * 60];      // >= 18:00
+            elseif (strpos($z, 'ogle') !== false || strpos($z, 'oglen') !== false)     $dilimAralik = [11 * 60, 14 * 60];      // ogle civari
+        }
+
         $musait = [];
         $start = strtotime($calisma->baslangic_saati);
         $end = strtotime($calisma->bitis_saati);
@@ -125,13 +179,25 @@ class AiAsistanController extends Controller
             if ($tarih === $bugun && $hhmm <= $simdi) continue;
             // Dolu mu?
             if (isset($doluSet[$hhmm])) continue;
+            // Zaman dilimi filtresi
+            if ($dilimAralik) {
+                $dk = ((int) date('H', $t)) * 60 + ((int) date('i', $t));
+                if ($dk < $dilimAralik[0] || $dk > $dilimAralik[1]) continue;
+            }
             $musait[] = $hhmm;
         }
+
+        // ONEMLI: eskiden array_slice(0,12) vardi; bu "ogleden sonra" slotlarini
+        // kesip atiyordu (09:00-14:30 gosterip 15:00+ hic donmuyordu). Artik tum
+        // gunu donuyoruz; sesli asistan zaten 2 tane onerecek. Cok uzun listeyi
+        // (nadiren) 24 ile sinirla ki payload sismesin.
+        $saatler = array_slice($musait, 0, 24);
 
         return response()->json([
             'ok' => true,
             'tarih' => $tarih,
-            'saatler' => array_slice($musait, 0, 12), // sesli için ilk 12 yeter
+            'saatler' => $saatler,
+            'zaman_dilimi' => $zamanDilimi ?: null,
             'aralik_dk' => $aralikDk,
         ]);
     }
@@ -253,12 +319,62 @@ class AiAsistanController extends Controller
             ], 500);
         }
 
+        // Salona bildirim (push + panel popup). Randevu olustu, salon calisani
+        // popup'a tiklayinca randevu detayina gider. Asla booking'i bozmasin.
+        try {
+            $hizmetAdi = null;
+            if ($hizmetId) {
+                $hizmetAdi = DB::table('hizmetler')->where('id', $hizmetId)->value('hizmet_adi');
+            }
+            $mesaj = ($user->name ?: 'Telefon müşterisi') . ' için '
+                . $tarih . ' saat ' . substr($saat, 0, 5)
+                . ($hizmetAdi ? " ({$hizmetAdi})" : '')
+                . ' randevusu AI santral üzerinden oluşturuldu.';
+            self::salonaBildir($salonId, $randevu->id, $user, $mesaj);
+        } catch (\Throwable $e) {
+            Log::warning('[AI] salon bildirim hatasi: ' . $e->getMessage());
+        }
+
         return response()->json([
             'ok' => true,
             'randevu_id' => $randevu->id,
             'tarih_saat' => $tarih . 'T' . substr($saat, 0, 5) . ':00',
             'mesaj' => "Randevunuz {$tarih} saat " . substr($saat, 0, 5) . " için oluşturuldu"
         ]);
+    }
+
+    /**
+     * Salon yoneticilerine yeni AI randevusu bildirimi gonder.
+     * RandevuSMSHatirlatma'daki yonetici-hedefleme desenini birebir izler:
+     * salon_personelleri JOIN model_has_roles, role_id < 5 = yonetici.
+     * NotificationService::send() hem FCM push atar hem bildirimler tablosuna
+     * panel satirini yazar (popup).
+     */
+    private static function salonaBildir($salonId, $randevuId, $user, $mesaj)
+    {
+        $yoneticiIdleri = Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
+            ->where('salon_personelleri.salon_id', $salonId)
+            ->where('model_has_roles.role_id', '<', 5)
+            ->distinct()
+            ->pluck('salon_personelleri.id')
+            ->toArray();
+        $yoneticiIdleri = array_values(array_unique($yoneticiIdleri));
+
+        foreach ($yoneticiIdleri as $pid) {
+            try {
+                NotificationService::toStaff((int) $pid, (int) $salonId)
+                    ->type(NotificationTypes::APPOINTMENT_CREATED)
+                    ->title('Yeni Randevu (AI Santral)')
+                    ->body($mesaj)
+                    ->popup(true)
+                    ->randevu((int) $randevuId)
+                    ->image($user->profil_resim ?? null)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevuId])
+                    ->send();
+            } catch (\Throwable $e) {
+                Log::warning('[AI] yonetici push fail', ['salon' => $salonId, 'pid' => $pid, 'err' => $e->getMessage()]);
+            }
+        }
     }
 
     /* ─────────────────────────────────────────────────────────────
@@ -382,8 +498,199 @@ class AiAsistanController extends Controller
     }
 
     /* ─────────────────────────────────────────────────────────────
+     * 6. Hizmet eşleştirme — müşterinin söylediği hizmeti çöz.
+     *
+     * En kritik düzeltme: LLM'in listeden "ilk yakın olanı" seçmesi
+     * ("lazer epilasyon" → "Lazer Epilasyon Kol") yerine, eşleştirme
+     * KURALLI biçimde burada yapılır:
+     *   - tek net eşleşme  → hizmeti döndür
+     *   - genel terim çok hizmete uyuyor (kol/bacak/tüm vücut) → SEÇME,
+     *     seçenekleri döndür; asistan müşteriye "hangisi?" diye sorar
+     *   - hiç eşleşme yok → en yakın öneriler
+     * ───────────────────────────────────────────────────────────── */
+    public function hizmetEslestir(Request $request)
+    {
+        $salonId = (int) $request->input('salon_id');
+        $metin = trim((string) $request->input('metin', ''));
+        if (!$salonId || $metin === '') {
+            return response()->json(['ok' => false, 'mesaj' => 'salon_id ve metin zorunlu'], 422);
+        }
+
+        $hizmetler = DB::table('salon_sunulan_hizmetler as sh')
+            ->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
+            ->where('sh.salon_id', $salonId)
+            ->select('sh.hizmet_id as id', 'h.hizmet_adi as ad')
+            ->orderBy('h.hizmet_adi')
+            ->get();
+
+        if ($hizmetler->isEmpty()) {
+            return response()->json(['ok' => true, 'eslesme' => 'yok', 'oneriler' => []]);
+        }
+
+        $normMetin = self::normalizeTr($metin);
+        $metinKelime = array_values(array_filter(explode(' ', $normMetin), function ($w) {
+            return mb_strlen($w) >= 2; // "ve", "de" gibi çok kısa parçaları atma dışında filtre
+        }));
+
+        $tamListe = [];      // normSvc === normMetin
+        $iceren = [];        // müşterinin tüm kelimeleri hizmet adında geçiyor (genel terim)
+        $skorlu = [];        // kelime örtüşmesine göre puanlı fallback
+
+        foreach ($hizmetler as $h) {
+            $normSvc = self::normalizeTr($h->ad);
+            $svcKelime = array_values(array_filter(explode(' ', $normSvc), function ($w) {
+                return $w !== '';
+            }));
+
+            if ($normSvc === $normMetin) {
+                $tamListe[] = ['id' => (int) $h->id, 'ad' => $h->ad];
+                continue;
+            }
+
+            // Müşterinin söylediği TÜM kelimeler hizmet adında var mı?
+            // ("lazer epilasyon" → "Lazer Epilasyon Kol" ✓)
+            $hepsiVar = count($metinKelime) > 0;
+            foreach ($metinKelime as $mk) {
+                if (!in_array($mk, $svcKelime, true) && mb_strpos($normSvc, $mk) === false) {
+                    $hepsiVar = false;
+                    break;
+                }
+            }
+            if ($hepsiVar) {
+                $iceren[] = ['id' => (int) $h->id, 'ad' => $h->ad, 'ek' => trim(str_ireplace($normMetin, '', $normSvc))];
+            }
+
+            // Kelime örtüşme skoru (fallback için)
+            $ortak = count(array_intersect($metinKelime, $svcKelime));
+            if ($ortak > 0) {
+                $skorlu[] = [
+                    'id' => (int) $h->id,
+                    'ad' => $h->ad,
+                    'skor' => $ortak / max(1, count($svcKelime)),
+                    'ortak' => $ortak,
+                ];
+            }
+        }
+
+        // 1) Tam eşleşme
+        if (count($tamListe) === 1) {
+            return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => $tamListe[0]]);
+        }
+        if (count($tamListe) > 1) {
+            return response()->json(['ok' => true, 'eslesme' => 'coklu', 'ortak' => $metin, 'secenekler' => $tamListe]);
+        }
+
+        // 2) Genel terim: tüm kelimeler eşleşiyor
+        if (count($iceren) === 1) {
+            return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $iceren[0]['id'], 'ad' => $iceren[0]['ad']]]);
+        }
+        if (count($iceren) > 1) {
+            $secenekler = array_map(function ($x) {
+                return ['id' => $x['id'], 'ad' => $x['ad']];
+            }, $iceren);
+            return response()->json(['ok' => true, 'eslesme' => 'coklu', 'ortak' => $metin, 'secenekler' => $secenekler]);
+        }
+
+        // 3) Fallback: en yüksek kelime örtüşmesi
+        usort($skorlu, function ($a, $b) {
+            if ($b['ortak'] === $a['ortak']) return $b['skor'] <=> $a['skor'];
+            return $b['ortak'] <=> $a['ortak'];
+        });
+
+        // Tek belirgin kazanan (skoru yüksek ve ikinciyle arası açık) → kabul
+        if (count($skorlu) >= 1 && $skorlu[0]['skor'] >= 0.6) {
+            $ikinciFarkli = !isset($skorlu[1]) || ($skorlu[0]['ortak'] > $skorlu[1]['ortak']);
+            if ($ikinciFarkli) {
+                return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $skorlu[0]['id'], 'ad' => $skorlu[0]['ad']]]);
+            }
+        }
+
+        // Öneri listesi (en yakın 3)
+        $oneriler = array_map(function ($x) {
+            return ['id' => $x['id'], 'ad' => $x['ad']];
+        }, array_slice($skorlu, 0, 3));
+
+        return response()->json(['ok' => true, 'eslesme' => 'yok', 'oneriler' => $oneriler]);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+     * 7. Çağrı logu — sidecar çağrı bitiminde tüm dökümü tek POST ile yollar.
+     *    Teşhis içindir; asla ana akışı bozmaz (her hata yutulur, ok döner).
+     * ───────────────────────────────────────────────────────────── */
+    public function cagriLog(Request $request)
+    {
+        try {
+            $turlar = $request->input('turlar', []);
+            if (is_string($turlar)) {
+                $turlar = json_decode($turlar, true) ?: [];
+            }
+
+            $logId = DB::table('ai_cagri_loglari')->insertGetId([
+                'salon_id'       => $request->input('salon_id') ? (int) $request->input('salon_id') : null,
+                'caller_telefon' => self::telefonNormalize($request->input('caller_telefon')) ?: null,
+                'did'            => $request->input('did'),
+                'channel_id'     => $request->input('channel_id'),
+                'durum'          => $request->input('durum'),
+                'sonuc'          => mb_substr((string) $request->input('sonuc', ''), 0, 500),
+                'randevu_id'     => $request->input('randevu_id') ? (int) $request->input('randevu_id') : null,
+                'tur_sayisi'     => (int) ($request->input('tur_sayisi') ?? count($turlar)),
+                'toplam_sure_sn' => $request->input('toplam_sure_sn') ? (int) $request->input('toplam_sure_sn') : null,
+                'stt_ms_toplam'  => $request->input('stt_ms_toplam') ? (int) $request->input('stt_ms_toplam') : null,
+                'llm_ms_toplam'  => $request->input('llm_ms_toplam') ? (int) $request->input('llm_ms_toplam') : null,
+                'tts_ms_toplam'  => $request->input('tts_ms_toplam') ? (int) $request->input('tts_ms_toplam') : null,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
+
+            $rows = [];
+            foreach ($turlar as $i => $t) {
+                $rows[] = [
+                    'cagri_log_id'    => $logId,
+                    'tur_no'          => (int) ($t['tur_no'] ?? ($i + 1)),
+                    'kullanici_metni' => isset($t['kullanici_metni']) ? mb_substr((string) $t['kullanici_metni'], 0, 2000) : null,
+                    'asistan_metni'   => isset($t['asistan_metni']) ? mb_substr((string) $t['asistan_metni'], 0, 2000) : null,
+                    'tool_cagrilari'  => isset($t['tool_cagrilari'])
+                        ? (is_string($t['tool_cagrilari']) ? $t['tool_cagrilari'] : json_encode($t['tool_cagrilari'], JSON_UNESCAPED_UNICODE))
+                        : null,
+                    'stt_ms'          => isset($t['stt_ms']) ? (int) $t['stt_ms'] : null,
+                    'llm_ms'          => isset($t['llm_ms']) ? (int) $t['llm_ms'] : null,
+                    'tts_ms'          => isset($t['tts_ms']) ? (int) $t['tts_ms'] : null,
+                    'created_at'      => now(),
+                ];
+            }
+            if ($rows) {
+                DB::table('ai_cagri_turlari')->insert($rows);
+            }
+
+            return response()->json(['ok' => true, 'log_id' => $logId]);
+        } catch (\Throwable $e) {
+            Log::warning('[AI] cagri log yazilamadi: ' . $e->getMessage());
+            return response()->json(['ok' => false, 'mesaj' => $e->getMessage()]);
+        }
+    }
+
+    /* ─────────────────────────────────────────────────────────────
      * Helpers
      * ───────────────────────────────────────────────────────────── */
+
+    /**
+     * Türkçe metni eşleştirme için normalize et: küçült, aksanları sadeleştir,
+     * noktalama/fazla boşlukları temizle. ("Lazer Epilasyon (Kol)" → "lazer epilasyon kol")
+     */
+    private static function normalizeTr($s)
+    {
+        $s = (string) $s;
+        // Türkçe küçültme
+        $s = str_replace(['İ', 'I', 'Ş', 'Ğ', 'Ü', 'Ö', 'Ç'], ['i', 'i', 's', 'g', 'u', 'o', 'c'], $s);
+        $s = mb_strtolower($s, 'UTF-8');
+        // Aksanlı harfleri sadeleştir
+        $s = str_replace(['ı', 'ş', 'ğ', 'ü', 'ö', 'ç', 'â', 'î', 'û'], ['i', 's', 'g', 'u', 'o', 'c', 'a', 'i', 'u'], $s);
+        // Alfa-numerik ve boşluk dışını boşluğa çevir
+        $s = preg_replace('/[^a-z0-9 ]+/u', ' ', $s);
+        // Fazla boşlukları tekille
+        $s = trim(preg_replace('/\s+/', ' ', $s));
+        return $s;
+    }
 
     private static function haftaninGunu($tarih)
     {
