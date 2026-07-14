@@ -1472,34 +1472,44 @@ $(function(){
 
 // Tek-tik memnuniyet anketi gonderim (WA-first + SMS fallback backend'de)
 function anketHizliGonder(userId, btn){
-   if (!confirm('Bu müşteriye memnuniyet anketi gönderilsin mi?')) return;
-   var $btn = $(btn);
-   var eskiHtml = $btn.html();
-   $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Gönderiliyor...');
-   $.ajax({
-      url: '/isletmeyonetim/anket-hizli-gonder',
-      method: 'POST',
-      timeout: 20000, // 20sn — backend WA bridge cevabini beklemek zorunda kalabilir
-      data: { user_id: userId, sube: (new URLSearchParams(location.search)).get('sube') || '' },
-      dataType: 'json',
-      headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-   }).done(function(res){
-      if (res && res.basarili) {
-         var kanal = res.kanal === 'whatsapp' ? 'WhatsApp' : 'SMS';
-         window.toastr && toastr.success ? toastr.success('Anket ' + kanal + ' ile gönderildi.') : alert('Anket ' + kanal + ' ile gönderildi.');
-      } else {
-         var msg = res && res.mesaj ? res.mesaj : 'Anket gönderilemedi.';
-         window.toastr && toastr.error ? toastr.error(msg) : alert(msg);
-      }
-   }).fail(function(xhr, status, err){
-      var msg = 'İstek başarısız: ' + status + (err ? ' — ' + err : '');
-      if (xhr && xhr.status) msg += ' (HTTP ' + xhr.status + ')';
-      if (xhr && xhr.responseText) {
-         try { var j = JSON.parse(xhr.responseText); if (j.mesaj) msg = j.mesaj; } catch(e){}
-      }
-      alert(msg);
-   }).always(function(){
-      $btn.prop('disabled', false).html(eskiHtml);
+   Swal.fire({
+      title: 'Memnuniyet anketi gönderilsin mi?',
+      text: 'Müşteriye anket linki WhatsApp veya SMS ile gönderilecek.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Evet, gönder',
+      cancelButtonText: 'Vazgeç',
+      confirmButtonColor: '#25D366',
+   }).then(function(r){
+      if (!r.value) return;
+      var $btn = $(btn);
+      var eskiHtml = $btn.html();
+      $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Gönderiliyor...');
+      $.ajax({
+         url: '/isletmeyonetim/anket-hizli-gonder',
+         method: 'POST',
+         timeout: 20000,
+         data: { user_id: userId, sube: (new URLSearchParams(location.search)).get('sube') || '' },
+         dataType: 'json',
+         headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+      }).done(function(res){
+         if (res && res.basarili) {
+            var kanal = res.kanal === 'whatsapp' ? 'WhatsApp' : 'SMS';
+            Swal.fire({ icon: 'success', title: 'Gönderildi', text: 'Anket ' + kanal + ' ile iletildi.', timer: 2500, showConfirmButton: false });
+         } else {
+            Swal.fire({ icon: 'error', title: 'Gönderilemedi', text: (res && res.mesaj) ? res.mesaj : 'Bilinmeyen hata.' });
+         }
+      }).fail(function(xhr, status, err){
+         var msg = 'İstek başarısız.';
+         if (xhr && xhr.responseText) {
+            try { var j = JSON.parse(xhr.responseText); if (j && j.mesaj) msg = j.mesaj; } catch(e){}
+         }
+         if (xhr && xhr.status) msg += ' (HTTP ' + xhr.status + ')';
+         if (status === 'timeout') msg = 'Sunucu 20 saniye içinde cevap vermedi.';
+         Swal.fire({ icon: 'error', title: 'Hata', text: msg });
+      }).always(function(){
+         $btn.prop('disabled', false).html(eskiHtml);
+      });
    });
 }
 </script>
