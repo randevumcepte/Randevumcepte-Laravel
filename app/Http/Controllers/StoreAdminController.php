@@ -8334,7 +8334,7 @@ private function ayAdiCevir($ingilizceAy)
                     ? '<a class="dropdown-item" href="#" name="musteri_sil" data-value="'.$item->portfoy_id.'"><i class="fa fa-minus"></i> Sil</a>'
                     : '';
                 $anketItem = $anketVar
-                    ? '<a class="dropdown-item" href="#" onclick="anketHizliGonderListe('.$item->id.', this); return false;" style="color:#25D366;"><i class="fa fa-comments"></i> Anket Gönder</a>'
+                    ? '<a class="dropdown-item" href="#" onclick="anketHizliGonderListe('.$item->id.', this); return false;" style="color:#25D366;"><i class="fa fa-comments"></i> Memnuniyet Anketi Gönder</a>'
                     : '';
 
                 // Hicbir aksiyon yoksa dropdown gosterme

@@ -288,7 +288,7 @@
                   class="btn tab-mini"
                   style="background:#25D366;color:#fff"
                   onclick="anketHizliGonder({{ $musteri_bilgi->id }}, this)"
-                  ><i class="fa fa-comments"></i> Anket Gönder</button>
+                  ><i class="fa fa-comments"></i> Memnuniyet Anketi Gönder</button>
             </li>
             @endyetki
          </ul>
