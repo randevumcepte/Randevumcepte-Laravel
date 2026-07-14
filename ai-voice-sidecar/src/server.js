@@ -154,6 +154,7 @@ async function listen(client, channel, tag, sttPrompt) {
   });
 
   const actualName = liveRecording?.name || recName;
+  console.log(`[REC ${tag}] dinleniyor (max ${MAX_RECORD_SECONDS}s, sessizlik ${MAX_SILENCE_SECONDS}s)...`);
 
   const finished = new Promise((resolve, reject) => {
     let done = false;
@@ -168,6 +169,7 @@ async function listen(client, channel, tag, sttPrompt) {
   });
 
   await finished;
+  console.log(`[REC ${tag}] kayit bitti, dosya araniyor...`);
 
   // Asterisk dosyayi {RECORDINGS_DIR}/{name}.{format} olarak yazar.
   // Bazen extension yok (UUID isimde) — ikisini de dene.
@@ -266,6 +268,28 @@ async function handleCall(ctx, ari) {
   let firstTurn = true;
   let consecutiveSilent = 0;
 
+  // Anlık log gönderici — çağrı boyunca defalarca çağrılır (upsert). Donmuş
+  // çağrıda bile o ana kadarki döküm DB'ye yazılır, böylece nerede takıldığı görülür.
+  const flushLog = (durum, sonuc) => {
+    try {
+      cagriLogGonder({
+        salon_id: salonId,
+        caller_telefon: callerNum,
+        did: fromDid,
+        channel_id: channel.id,
+        durum: durum || cagriDurum,
+        sonuc: (sonuc != null ? sonuc : cagriSonuc),
+        randevu_id: randevuId,
+        tur_sayisi: turn,
+        toplam_sure_sn: Math.round((Date.now() - startedAt) / 1000),
+        stt_ms_toplam: sttToplam,
+        llm_ms_toplam: llmToplam,
+        tts_ms_toplam: ttsToplam,
+        turlar: turnLoglari,
+      }).catch(() => {});
+    } catch {}
+  };
+
   try {
     // Karsilama telaffuzu DB'de tanimliysa LLM'i bypass et, direkt cal.
     // Sonra normal akis (listen + LLM turn) devam eder.
@@ -280,6 +304,7 @@ async function handleCall(ctx, ari) {
           tool_cagrilari: null,
           stt_ms: 0, llm_ms: 0, tts_ms: ttsMs || 0,
         });
+        flushLog('devam', 'Karşılama çalındı, müşteri bekleniyor');
         firstTurn = false; // greeting yapildi, sonraki tur listen ile basliyor
       } catch (e) {
         if (hungUp) {
@@ -296,6 +321,9 @@ async function handleCall(ctx, ari) {
       let sttMs = 0;
 
       if (!firstTurn) {
+        // "dinliyor" durumunu ANLIK yaz — burada donarsa (kayıt/STT takılırsa)
+        // DB'de durum=dinliyor tur=N görünür, takıldığı yer belli olur.
+        flushLog('dinliyor', `Tur ${turn}: müşteri dinleniyor`);
         try {
           const heard = await listen(ari.client, channel, `${callId}_${turn}`, sttPrompt);
           userText = heard.text;
@@ -354,6 +382,7 @@ async function handleCall(ctx, ari) {
         llm_ms: result.durations?.llm || 0,
         tts_ms: replyTtsMs,
       });
+      flushLog('devam');
 
       if (hungUp) break;
 
@@ -398,26 +427,8 @@ async function handleCall(ctx, ari) {
       cagriSonuc = cagriSonuc || `Randevu oluşturuldu (#${randevuId})`;
     }
 
-    // Çağrı dökümünü Laravel'e yolla (fire-and-forget, akışı bloklamaz)
-    try {
-      cagriLogGonder({
-        salon_id: salonId,
-        caller_telefon: callerNum,
-        did: fromDid,
-        channel_id: channel.id,
-        durum: cagriDurum,
-        sonuc: cagriSonuc,
-        randevu_id: randevuId,
-        tur_sayisi: turn,
-        toplam_sure_sn: Math.round((Date.now() - startedAt) / 1000),
-        stt_ms_toplam: sttToplam,
-        llm_ms_toplam: llmToplam,
-        tts_ms_toplam: ttsToplam,
-        turlar: turnLoglari,
-      }).catch((e) => log(`cagri log gonderilemedi: ${e.message}`));
-    } catch (e) {
-      log(`cagri log hatasi: ${e.message}`);
-    }
+    // Çağrı dökümünü son durumuyla yaz (fire-and-forget, akışı bloklamaz)
+    flushLog(cagriDurum, cagriSonuc);
 
     log(`bitti turns=${turn} durum=${cagriDurum}`);
   }

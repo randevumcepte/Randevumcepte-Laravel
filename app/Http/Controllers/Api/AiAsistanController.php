@@ -614,8 +614,10 @@ class AiAsistanController extends Controller
     }
 
     /* ─────────────────────────────────────────────────────────────
-     * 7. Çağrı logu — sidecar çağrı bitiminde tüm dökümü tek POST ile yollar.
-     *    Teşhis içindir; asla ana akışı bozmaz (her hata yutulur, ok döner).
+     * 7. Çağrı logu — sidecar çağrı boyunca HER TUR bunu çağırır (anlık).
+     *    channel_id ile UPSERT: aynı çağrı için tek satır tutulur, turlar
+     *    her seferinde yeniden yazılır. Böylece DONMUŞ (hâlâ açık) çağrıda bile
+     *    o ana kadarki döküm DB'de görünür. Teşhis içindir; akışı bozmaz.
      * ───────────────────────────────────────────────────────────── */
     public function cagriLog(Request $request)
     {
@@ -625,11 +627,12 @@ class AiAsistanController extends Controller
                 $turlar = json_decode($turlar, true) ?: [];
             }
 
-            $logId = DB::table('ai_cagri_loglari')->insertGetId([
+            $channelId = $request->input('channel_id');
+            $veri = [
                 'salon_id'       => $request->input('salon_id') ? (int) $request->input('salon_id') : null,
                 'caller_telefon' => self::telefonNormalize($request->input('caller_telefon')) ?: null,
                 'did'            => $request->input('did'),
-                'channel_id'     => $request->input('channel_id'),
+                'channel_id'     => $channelId,
                 'durum'          => $request->input('durum'),
                 'sonuc'          => mb_substr((string) $request->input('sonuc', ''), 0, 500),
                 'randevu_id'     => $request->input('randevu_id') ? (int) $request->input('randevu_id') : null,
@@ -638,9 +641,23 @@ class AiAsistanController extends Controller
                 'stt_ms_toplam'  => $request->input('stt_ms_toplam') ? (int) $request->input('stt_ms_toplam') : null,
                 'llm_ms_toplam'  => $request->input('llm_ms_toplam') ? (int) $request->input('llm_ms_toplam') : null,
                 'tts_ms_toplam'  => $request->input('tts_ms_toplam') ? (int) $request->input('tts_ms_toplam') : null,
-                'created_at'     => now(),
                 'updated_at'     => now(),
-            ]);
+            ];
+
+            // Aynı channel için satır var mı? (anlık upsert)
+            $mevcut = $channelId
+                ? DB::table('ai_cagri_loglari')->where('channel_id', $channelId)->orderByDesc('id')->first()
+                : null;
+
+            if ($mevcut) {
+                DB::table('ai_cagri_loglari')->where('id', $mevcut->id)->update($veri);
+                $logId = $mevcut->id;
+                // Turları tazele (silip yeniden yaz — her POST tam durumu taşır)
+                DB::table('ai_cagri_turlari')->where('cagri_log_id', $logId)->delete();
+            } else {
+                $veri['created_at'] = now();
+                $logId = DB::table('ai_cagri_loglari')->insertGetId($veri);
+            }
 
             $rows = [];
             foreach ($turlar as $i => $t) {
