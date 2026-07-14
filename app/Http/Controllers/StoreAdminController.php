@@ -8302,9 +8302,12 @@ private function ayAdiCevir($ingilizceAy)
             $silVar     = $u && $salonId
                 ? \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonId, 'musteri.sil')
                 : true;
+            $anketVar   = $u && $salonId
+                ? \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonId, 'pazarlama.anket_yonet')
+                : true;
 
             // Verileri birleştir
-            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId,$telGor,$detayGor,$duzenleVar,$silVar) {
+            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId,$telGor,$detayGor,$duzenleVar,$silVar,$anketVar) {
                 $randevu = $randevuBilgileri[$item->id] ?? null;
                 $odeme = $odemeBilgileri[$item->id] ?? null;
 
@@ -8330,9 +8333,12 @@ private function ayAdiCevir($ingilizceAy)
                 $silItem = $silVar
                     ? '<a class="dropdown-item" href="#" name="musteri_sil" data-value="'.$item->portfoy_id.'"><i class="fa fa-minus"></i> Sil</a>'
                     : '';
+                $anketItem = $anketVar
+                    ? '<a class="dropdown-item" href="#" onclick="anketHizliGonderListe('.$item->id.', this); return false;" style="color:#25D366;"><i class="fa fa-comments"></i> Anket Gönder</a>'
+                    : '';
 
                 // Hicbir aksiyon yoksa dropdown gosterme
-                if ($detayItem === '' && $duzenleItem === '' && $silItem === '') {
+                if ($detayItem === '' && $duzenleItem === '' && $silItem === '' && $anketItem === '') {
                     $item->islemler = '';
                 } else {
                     $item->islemler = '<div class="dropdown">
@@ -8340,7 +8346,7 @@ private function ayAdiCevir($ingilizceAy)
                             <i class="dw dw-more"></i>
                         </a>
                         <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">'
-                        .$detayItem.$duzenleItem.$silItem.
+                        .$detayItem.$duzenleItem.$anketItem.$silItem.
                         '</div></div>';
                 }
 
@@ -31649,6 +31655,59 @@ DB::raw('
             return response()->json(['basarili'=>true,'gonderim_id'=>$gonderim->id]);
         } catch(\Exception $e){
             \Log::error('anketManuelGonder hata: '.$e->getMessage());
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
+    /**
+     * Hizli anket gonderimi — musteri detay ve musteriler listesinden
+     * tek-tik ile manuel anket linki gonderir. Sadece user_id ister,
+     * salon'un ilk aktif sablonunu ve musteri'nin kayitli cep telefonunu
+     * DB'den kendisi cozer.
+     *
+     * WA-first (whatsmeow/baileys otomatik) + SMS fallback zaten
+     * anketSmsGonder icinde. Bu endpoint sadece wrapper.
+     */
+    public function anketHizliGonder(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.anket_yonet')) return $r;
+        try {
+            $sube = self::mevcutsube($request);
+            $userId = (int) $request->user_id;
+            if(!$userId) return response()->json(['basarili'=>false,'mesaj'=>'Musteri ID zorunlu.']);
+
+            // Musteri kaydi + telefon
+            $musteri = User::where('id', $userId)->first();
+            if(!$musteri) return response()->json(['basarili'=>false,'mesaj'=>'Musteri bulunamadi.']);
+            if(empty($musteri->cep_telefon)) {
+                return response()->json(['basarili'=>false,'mesaj'=>'Musterinin telefon numarasi kayitli degil.']);
+            }
+
+            // Salonun ilk aktif anket sablonu
+            $sablon = AnketSablon::where('salon_id',$sube)->where('aktif',1)->orderBy('id')->first();
+            if(!$sablon){
+                return response()->json(['basarili'=>false,'mesaj'=>'Bu isletme icin aktif anket sablonu tanimlanmamis. Anket sablonlari sayfasindan olusturun.']);
+            }
+
+            $gonderim = self::anketGonderimOlustur($sube, $sablon, $musteri, $musteri->cep_telefon, [
+                'kanal' => 'manuel',
+            ]);
+
+            self::anketSmsGonder($request, $gonderim, $sablon, $musteri);
+
+            // Audit
+            SalonAudit::log($sube, 'anket_hizli_gonder', 'anket_gonderim', $gonderim->id,
+                ($musteri->name ?: 'Musteri').' — '.$musteri->cep_telefon,
+                'Musteri kartindan hizli anket gonderimi',
+                ['sablon_id'=>$sablon->id, 'sablon_adi'=>$sablon->ad, 'user_id'=>$userId]);
+
+            return response()->json([
+                'basarili'=>true,
+                'mesaj'=>'Anket gonderildi.',
+                'gonderim_id'=>$gonderim->id,
+                'kanal'=>$gonderim->gonderim_kanali ?: 'sms',
+            ]);
+        } catch(\Exception $e){
+            \Log::error('anketHizliGonder hata: '.$e->getMessage());
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
     }

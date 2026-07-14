@@ -281,6 +281,16 @@
                   ><i class="fa fa-cloud-download"></i> Harici Tahsilat</button>
             </li>
             @endyetki
+            @yetki('pazarlama.anket_yonet')
+            <li class="nav-item" style="margin:5px">
+               <button
+                  type="button"
+                  class="btn tab-mini"
+                  style="background:#25D366;color:#fff"
+                  onclick="anketHizliGonder({{ $musteri_bilgi->id }}, this)"
+                  ><i class="fa fa-comments"></i> Anket Gönder</button>
+            </li>
+            @endyetki
          </ul>
          <div class="tab-content">
             <div
@@ -1459,5 +1469,31 @@ $(function(){
       if ($t.length){ setTimeout(function(){ $t.tab('show'); $t[0].scrollIntoView({block:'start'}); }, 300); }
    }
 });
+
+// Tek-tik memnuniyet anketi gonderim (WA-first + SMS fallback backend'de)
+function anketHizliGonder(userId, btn){
+   if (!confirm('Bu müşteriye memnuniyet anketi gönderilsin mi?')) return;
+   var $btn = $(btn);
+   var eskiHtml = $btn.html();
+   $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Gönderiliyor...');
+   $.ajax({
+      url: '/isletmeyonetim/anket-hizli-gonder',
+      method: 'POST',
+      data: { user_id: userId, sube: (new URLSearchParams(location.search)).get('sube') || '' },
+      dataType: 'json',
+      headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+   }).done(function(res){
+      if (res && res.basarili) {
+         var kanal = res.kanal === 'whatsapp' ? 'WhatsApp' : 'SMS';
+         toastr && toastr.success ? toastr.success('Anket ' + kanal + ' ile gönderildi.') : alert('Anket ' + kanal + ' ile gönderildi.');
+      } else {
+         toastr && toastr.error ? toastr.error(res && res.mesaj ? res.mesaj : 'Anket gönderilemedi.') : alert(res && res.mesaj ? res.mesaj : 'Anket gönderilemedi.');
+      }
+   }).fail(function(){
+      alert('İstek başarısız. Ağ hatası olabilir.');
+   }).always(function(){
+      $btn.prop('disabled', false).html(eskiHtml);
+   });
+}
 </script>
 @endsection

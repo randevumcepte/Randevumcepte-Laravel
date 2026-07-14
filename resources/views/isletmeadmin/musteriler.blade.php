@@ -736,4 +736,36 @@
 })();
 </script>
 
+<script>
+// Musteri listesi actions dropdown'undan tek-tik anket gonderim
+// (backend: WA-first + SMS fallback)
+function anketHizliGonderListe(userId, el){
+   if (!confirm('Bu müşteriye memnuniyet anketi gönderilsin mi?')) return;
+   var $el = $(el);
+   var eskiHtml = $el.html();
+   $el.html('<i class="fa fa-spinner fa-spin"></i> Gönderiliyor...');
+   $.ajax({
+      url: '/isletmeyonetim/anket-hizli-gonder',
+      method: 'POST',
+      data: { user_id: userId, sube: (new URLSearchParams(location.search)).get('sube') || '' },
+      dataType: 'json',
+      headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+   }).done(function(res){
+      if (res && res.basarili) {
+         var kanal = res.kanal === 'whatsapp' ? 'WhatsApp' : 'SMS';
+         if (window.toastr && toastr.success) { toastr.success('Anket ' + kanal + ' ile gönderildi.'); }
+         else { alert('Anket ' + kanal + ' ile gönderildi.'); }
+      } else {
+         var msg = res && res.mesaj ? res.mesaj : 'Anket gönderilemedi.';
+         if (window.toastr && toastr.error) { toastr.error(msg); }
+         else { alert(msg); }
+      }
+   }).fail(function(){
+      alert('İstek başarısız. Ağ hatası olabilir.');
+   }).always(function(){
+      $el.html(eskiHtml);
+   });
+}
+</script>
+
 @endsection()

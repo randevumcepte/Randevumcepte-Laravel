@@ -1135,6 +1135,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/anket-sablon-guncelle','StoreAdminController@anketSablonGuncelle');
 	Route::post('/anket-sablon-sil','StoreAdminController@anketSablonSil');
 	Route::post('/anket-manuel-gonder','StoreAdminController@anketManuelGonder');
+	// Musteri kartindan/listesinden tek-tik anket gonderim
+	Route::post('/anket-hizli-gonder','StoreAdminController@anketHizliGonder');
 	Route::get('/anket-sonuclari','StoreAdminController@anketSonuclari')->name('isletmeadmin.anketSonuclari');
 	Route::get('/anket-gonderim-detay','StoreAdminController@anketGonderimDetay');
 	Route::post('/google-review-kaydet','StoreAdminController@googleReviewKaydet');
