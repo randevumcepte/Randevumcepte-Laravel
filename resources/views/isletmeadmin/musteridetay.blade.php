@@ -1472,6 +1472,14 @@ $(function(){
 
 // Tek-tik memnuniyet anketi gonderim (WA-first + SMS fallback backend'de)
 function anketHizliGonder(userId, btn){
+   if (typeof Swal === 'undefined') {
+      // Layout Swal script'i bazen yuklenmiyor; ilk clickte async yukle, sonra devam
+      var s = document.createElement('script');
+      s.src = '{{ secure_asset("public/yeni_panel/src/plugins/sweetalert2/sweetalert2.all.js") }}';
+      s.onload = function(){ anketHizliGonder(userId, btn); };
+      document.head.appendChild(s);
+      return;
+   }
    Swal.fire({
       title: 'Memnuniyet anketi gönderilsin mi?',
       text: 'Müşteriye anket linki WhatsApp veya SMS ile gönderilecek.',

@@ -740,6 +740,15 @@
 // Musteri listesi actions dropdown'undan tek-tik anket gonderim
 // (backend: WA-first + SMS fallback)
 function anketHizliGonderListe(userId, el){
+   if (typeof Swal === 'undefined') {
+      // Musteriler sayfasinda layout Swal script'i bazen yuklenmiyor;
+      // ilk clickte async yukleyip sonra devam et.
+      var s = document.createElement('script');
+      s.src = '{{ secure_asset("public/yeni_panel/src/plugins/sweetalert2/sweetalert2.all.js") }}';
+      s.onload = function(){ anketHizliGonderListe(userId, el); };
+      document.head.appendChild(s);
+      return;
+   }
    Swal.fire({
       title: 'Memnuniyet anketi gönderilsin mi?',
       text: 'Müşteriye anket linki WhatsApp veya SMS ile gönderilecek.',
