@@ -738,27 +738,19 @@
 
 <script>
 // Musteri listesi actions dropdown'undan tek-tik anket gonderim
-// (backend: WA-first + SMS fallback)
+// (backend: WA-first + SMS fallback). Sistem SweetAlert v1 kullaniyor.
 function anketHizliGonderListe(userId, el){
-   if (typeof Swal === 'undefined') {
-      // Musteriler sayfasinda layout Swal script'i bazen yuklenmiyor;
-      // ilk clickte async yukleyip sonra devam et.
-      var s = document.createElement('script');
-      s.src = '{{ secure_asset("public/yeni_panel/src/plugins/sweetalert2/sweetalert2.all.js") }}';
-      s.onload = function(){ anketHizliGonderListe(userId, el); };
-      document.head.appendChild(s);
-      return;
-   }
-   Swal.fire({
+   swal({
       title: 'Memnuniyet anketi gönderilsin mi?',
       text: 'Müşteriye anket linki WhatsApp veya SMS ile gönderilecek.',
-      icon: 'question',
+      type: 'info',
       showCancelButton: true,
+      confirmButtonColor: '#25D366',
       confirmButtonText: 'Evet, gönder',
       cancelButtonText: 'Vazgeç',
-      confirmButtonColor: '#25D366',
-   }).then(function(r){
-      if (!r || !r.value) return;
+      closeOnConfirm: true,
+   }, function(isConfirm){
+      if (!isConfirm) return;
       var $el = $(el);
       var eskiHtml = $el.html();
       $el.html('<i class="fa fa-spinner fa-spin"></i> Gönderiliyor...');
@@ -772,9 +764,9 @@ function anketHizliGonderListe(userId, el){
       }).done(function(res){
          if (res && res.basarili) {
             var kanal = res.kanal === 'whatsapp' ? 'WhatsApp' : 'SMS';
-            Swal.fire({ icon: 'success', title: 'Gönderildi', text: 'Anket ' + kanal + ' ile iletildi.', timer: 2500, showConfirmButton: false });
+            swal('Gönderildi', 'Anket ' + kanal + ' ile iletildi.', 'success');
          } else {
-            Swal.fire({ icon: 'error', title: 'Gönderilemedi', text: (res && res.mesaj) ? res.mesaj : 'Bilinmeyen hata.' });
+            swal('Gönderilemedi', (res && res.mesaj) ? res.mesaj : 'Bilinmeyen hata.', 'error');
          }
       }).fail(function(xhr, status, err){
          var msg = 'İstek başarısız.';
@@ -783,7 +775,7 @@ function anketHizliGonderListe(userId, el){
          }
          if (xhr && xhr.status) msg += ' (HTTP ' + xhr.status + ')';
          if (status === 'timeout') msg = 'Sunucu 20 saniye içinde cevap vermedi.';
-         Swal.fire({ icon: 'error', title: 'Hata', text: msg });
+         swal('Hata', msg, 'error');
       }).always(function(){
          $el.html(eskiHtml);
       });
