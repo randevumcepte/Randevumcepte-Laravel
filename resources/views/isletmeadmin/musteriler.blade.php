@@ -747,6 +747,7 @@ function anketHizliGonderListe(userId, el){
    $.ajax({
       url: '/isletmeyonetim/anket-hizli-gonder',
       method: 'POST',
+      timeout: 20000,
       data: { user_id: userId, sube: (new URLSearchParams(location.search)).get('sube') || '' },
       dataType: 'json',
       headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
@@ -760,8 +761,13 @@ function anketHizliGonderListe(userId, el){
          if (window.toastr && toastr.error) { toastr.error(msg); }
          else { alert(msg); }
       }
-   }).fail(function(){
-      alert('İstek başarısız. Ağ hatası olabilir.');
+   }).fail(function(xhr, status, err){
+      var msg = 'İstek başarısız: ' + status + (err ? ' — ' + err : '');
+      if (xhr && xhr.status) msg += ' (HTTP ' + xhr.status + ')';
+      if (xhr && xhr.responseText) {
+         try { var j = JSON.parse(xhr.responseText); if (j.mesaj) msg = j.mesaj; } catch(e){}
+      }
+      alert(msg);
    }).always(function(){
       $el.html(eskiHtml);
    });
