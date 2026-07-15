@@ -171,6 +171,26 @@ class Controller extends BaseController
 
         return $dt->toDateTimeString();
     }
+    // Personel hicbir odaya bagli degilse, hizmete uygun odalardan (oda_sunulan_hizmetler)
+    // cakismasiz ilk odayi dondurur. Uygun oda yoksa '' (salon o hizmette oda kullanmiyor).
+    protected function hizmeteUygunOdaBul($salonHizmet, $salon_id, $startSlot, $endSlot, $randevuid)
+    {
+        if (!$salonHizmet) return '';
+        $odaIds = \App\OdaHizmetler::where('salon_id', $salon_id)
+            ->where('hizmet_id', $salonHizmet->hizmet_id)
+            ->pluck('oda_id')->unique()->all();
+        if (empty($odaIds)) return '';
+        $odalar = Odalar::whereIn('id', $odaIds)
+            ->where('salon_id', $salon_id)->where('aktifmi', 1)
+            ->orderBy('takvim_sirasi', 'asc')->pluck('id');
+        foreach ($odalar as $odaId) {
+            if (!$this->hasAppointmentConflict($odaId, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
+                return $odaId;
+            }
+        }
+        return '';
+    }
+
     protected function randevuEkle(Request $request)
     {
         $randevu = new Randevular();
@@ -201,12 +221,18 @@ class Controller extends BaseController
             $randevuHizmet->randevu_id = $randevu->id;
 
 
-            if(Personeller::where('id',$request->randevuPersonelleri[$key2])->where('salon_id',$randevu->salon_id)->count()!=0)
-                $randevuHizmet->personel_id = $request->randevuPersonelleri[$key2];
+            // Cok-hizmet/paket: santral tek-elemanli dizi gonderir; 2.+ hizmette indeks yoksa
+            // [0]'a dus (eskiden personel_id/oda_id NULL kaliyordu). Web tam dizi gonderdiginde
+            // indeks zaten var, fallback devreye girmez -> web akisi etkilenmez.
+            $perAday = $request->randevuPersonelleri[$key2] ?? ($request->randevuPersonelleri[0] ?? null);
+            if($perAday !== null && Personeller::where('id',$perAday)->where('salon_id',$randevu->salon_id)->count()!=0)
+                $randevuHizmet->personel_id = $perAday;
             if(isset($request->randevuOdalari)){
-                $randevuHizmet->oda_id = $request->randevuOdalari[$key2];
-                if(Odalar::where('id',$request->randevuOdalari[$key2])->where('salon_id',$randevu->salon_id)->count()!=0)
-                    $randevuHizmet->oda_id = $request->randevuOdalari[$key2];
+                $odaAday = $request->randevuOdalari[$key2] ?? ($request->randevuOdalari[0] ?? null);
+                // Yalnizca salona ait GECERLI odayi yaz; gecersiz/null ise oda_id null kalir
+                // (eski kodda kosulsuz atama + etkisiz if vardi, gecersiz oda_id temizlenmiyordu).
+                if($odaAday !== null && Odalar::where('id',$odaAday)->where('salon_id',$randevu->salon_id)->count()!=0)
+                    $randevuHizmet->oda_id = $odaAday;
             }
             if(isset($request->randevuCihazlari))
                 $randevuHizmet->cihaz_id = $request->randevuCihazlari[$key2];
@@ -224,7 +250,7 @@ class Controller extends BaseController
             /*if($oda)
                 $randevuHizmet->oda_id = $oda->id;*/
             
-            $randevuHizmet->fiyat = $request->hizmetFiyati[$key2];
+            $randevuHizmet->fiyat = $request->hizmetFiyati[$key2] ?? ($request->hizmetFiyati[0] ?? null);
             $sure_dk = 60;
             if($request->paketBilgi != null)
             {
@@ -1441,7 +1467,10 @@ class Controller extends BaseController
                             }
                         } else {
                             if (!$this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
-                                Log::info("✅ EXACT UYGUN (odasız)! Personel: " . $personel->id);
+                                // Personel hicbir odaya bagli degil -> hizmete uygun odalardan (OdaHizmetler)
+                                // cakismasiz bir tane ata. Boyle oda yoksa (salon odasiz calisiyor) '' kalir.
+                                $fallbackOda = $this->hizmeteUygunOdaBul($salonHizmet, $salon_id, $startSlot, $endSlot, $randevuid);
+                                Log::info("✅ EXACT UYGUN (odasız personel)! Personel: " . $personel->id . ", Oda(fallback): " . $fallbackOda);
                                 $exactResult = [
                                     'success' => true,
                                     'tarihsaat' => $startSlot->format('Y-m-d H:i'),
@@ -1450,7 +1479,7 @@ class Controller extends BaseController
                                     'sure' => $sureDk,
                                     'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
                                     'randevuid' => $randevuid,
-                                    'odaid' => '',
+                                    'odaid' => $fallbackOda,
                                     "hizmetbulunamadi" => false,
                                     'personelSecimiGerekli' => false,
                                     'alternatifOneri' => false,
@@ -1674,7 +1703,10 @@ class Controller extends BaseController
                             if ($this->hasAppointmentConflict($personel->id, $startSlot, $endSlot, $salon_id, $randevuid ?: null)) {
                                 continue;
                             }
-                            else
+                            else {
+                                // Personel odasiz -> hizmete uygun odadan fallback (eskiden burada
+                                // $odaId TANIMSIZ dondurulyordu; artik gecerli oda ya da '').
+                                $fallbackOda = $this->hizmeteUygunOdaBul($salonHizmet, $salon_id, $startSlot, $endSlot, $randevuid);
                                 return response()->json([
                                     'success' => true,
                                     'tarihsaat' => $startSlot->format('Y-m-d H:i'),
@@ -1684,12 +1716,13 @@ class Controller extends BaseController
                                     'fiyat' => $salonHizmet ? $salonHizmet->baslangic_fiyat : "",
                                     'metin' => $randevuid !="" ?  base64_encode(self::convertToBugunYarin($randevu->tarih)." saat ".$randevu->saat ." randevunuzu " . self::convertToBugunYarin($startSlot->format('Y-m-d')) . " saat " . $startSlot->format('H:i') . " olarak güncelleyebiliriz. Randevunuzu güncellemek için biri, operatöre bağlanmak için ikiyi tuşlayınız")  : base64_encode($salonHizmet->hizmetler->hizmet_adi. " için " . self::convertToBugunYarin($startSlot->format('Y-m-d')) . " ". $startSlot->format('H:i') . " saatinde uygun randevu bulunmaktadır. Randevunuzu  oluşturmak istiyor musunuz?"),
                                     'randevuid'=>$randevuid,
-                                    'odaid'=>$odaId,
+                                    'odaid'=>$fallbackOda,
                                     "hizmetbulunamadi"=>false,
                                     'personelSecimiGerekli'=>false,
                                     'alternatifOneri' => $alternatifMode,
                                     'orijinalTarihSaat' => $orijinalTarihSaat,
                                 ]);
+                            }
                         }
                     }
                 }
