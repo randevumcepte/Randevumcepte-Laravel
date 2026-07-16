@@ -99,8 +99,11 @@ class SistemBildirim
      */
     protected static function smsGonder($numara, $mesaj)
     {
+        // efetech YEREL format bekler (5xxxxxxxxx) — WA icin 90'li tutulan numaradan
+        // ulke kodunu soy. (WhatsApp 90..., SMS 5... — farkli format.)
+        $yerel = preg_replace('/^90/', '', (string) $numara);
         (new \App\Http\Controllers\Controller())->sms_gonder('', [
-            ['to' => $numara, 'message' => $mesaj],
+            ['to' => $yerel, 'message' => $mesaj],
         ]);
         return ['ok' => true];
     }

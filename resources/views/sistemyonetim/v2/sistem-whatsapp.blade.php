@@ -47,6 +47,9 @@
             <div class="sy-alert sy-alert-success">
                 <span class="mdi mdi-check-circle"></span> WhatsApp bağlı: <b id="wa-telefon">—</b>
             </div>
+            <div id="wa-self-uyari" class="sy-alert sy-alert-danger" style="display:none">
+                <span class="mdi mdi-alert"></span> <b>Dikkat:</b> Bildirim numarası bağlı WhatsApp numarasıyla <b>aynı</b>. WhatsApp kendine mesaj göndermez — bu yüzden WA bildirimi <b>gelmez</b>. Bildirim numarasını <b>farklı</b> bir numara yap (SMS yine bu numaraya gider).
+            </div>
             <form method="post" action="/sistemyonetim/v2/sistem-whatsapp/cikis" onsubmit="return confirm('Sistem WhatsApp oturumu kapatılsın mı?')">
                 @csrf
                 <button type="submit" class="sy-btn sy-btn-sm"><span class="mdi mdi-logout"></span> Oturumu Kapat</button>
@@ -81,11 +84,15 @@
         durumEl.className = 'sy-badge sy-badge-' + renk;
     }
 
+    var AYAR_NUMARA = '{{ preg_replace('/[^0-9]/', '', $ayar['numara']) }}';
     function bagli(phone) {
         setDurum('Bağlı', 'success');
         telEl.textContent = phone || '—';
         bagliKutu.style.display = 'block';
         baglanKutu.style.display = 'none';
+        // Alici == gonderen ise WA kendine gonderemez -> uyari
+        var self = document.getElementById('wa-self-uyari');
+        if (self) self.style.display = (phone && AYAR_NUMARA && String(phone) === String(AYAR_NUMARA)) ? 'block' : 'none';
     }
 
     function bagliDegil() {
