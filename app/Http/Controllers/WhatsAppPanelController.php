@@ -138,7 +138,7 @@ class WhatsAppPanelController extends Controller
                 'aktif' => (int) $s->whatsapp_aktif,
                 'durum' => $s->whatsapp_durum,
                 'saglayici' => $s->whatsapp_saglayici ?: 'baileys',
-                'bridge' => $bridgeVar ? ($s->whatsapp_bridge_tipi ?: 'baileys') : 'baileys',
+                'bridge' => ($bridgeVar && $s->whatsapp_bridge_tipi === 'baileys') ? 'baileys' : 'whatsmeow',
                 'numara' => $s->whatsapp_numara,
                 'baglanti_tarihi' => optional($s->whatsapp_baglanti_tarihi)->format('Y-m-d H:i'),
                 'warmup_baslangic' => optional($s->whatsapp_warmup_baslangic)->format('Y-m-d'),

@@ -44,12 +44,14 @@ class WhatsAppRouterService extends WhatsAppService
      */
     protected function tipFor($salonId)
     {
-        if (!$salonId) return 'baileys';
+        // CUTOVER (whatsmeow-only): artik VARSAYILAN whatsmeow. Sadece acikca 'baileys'
+        // olarak isaretli salonlar Baileys'e gider; NULL / bos / 'whatsmeow' hepsi whatsmeow (3002).
+        if (!$salonId) return 'whatsmeow';
         try {
             $t = DB::table('salonlar')->where('id', $salonId)->value('whatsapp_bridge_tipi');
-            return $t === 'whatsmeow' ? 'whatsmeow' : 'baileys';
+            return $t === 'baileys' ? 'baileys' : 'whatsmeow';
         } catch (\Throwable $e) {
-            return 'baileys';
+            return 'whatsmeow';
         }
     }
 
@@ -83,8 +85,34 @@ class WhatsAppRouterService extends WhatsAppService
     public function status($salonId)
     {
         return $this->withRouting($salonId, function () use ($salonId) {
-            return parent::status($salonId);
+            $res = parent::status($salonId);
+            // whatsmeow bridge farkli sekilde cevap veriyor; Baileys-uyumlu hale getir
+            // ki whatsapp.blade UI ve whatsappDurum() DB guncellemesi dogru calissin.
+            if ($this->tipFor($salonId) === 'whatsmeow') {
+                $res['body'] = $this->normalizeWhatsmeowStatus($res['body'] ?? []);
+            }
+            return $res;
         });
+    }
+
+    /**
+     * whatsmeow bridge status yanitini Baileys-uyumlu sekle cevirir.
+     * whatsmeow: {connected:true,phone} | {status:'qr-pending'} | {connected:false,status:'no-session'} | {status:'disconnected'}
+     * Baileys UI bekliyor: {status:'connected'|'qr-pending'|'disconnected', phone, hasQr}
+     */
+    protected function normalizeWhatsmeowStatus($body)
+    {
+        if (!is_array($body)) return ['status' => 'disconnected'];
+        $out = $body;
+        if (!empty($body['connected'])) {
+            $out['status'] = 'connected';
+        } elseif (empty($body['status']) || $body['status'] === 'no-session') {
+            $out['status'] = 'disconnected';
+        }
+        if (($out['status'] ?? '') === 'qr-pending') {
+            $out['hasQr'] = true;
+        }
+        return $out;
     }
 
     public function qr($salonId)

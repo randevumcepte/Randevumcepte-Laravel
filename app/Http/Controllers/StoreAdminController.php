@@ -24209,7 +24209,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return view('isletmeadmin.whatsapp', [
             'bildirimler' => self::bildirimgetir($request),
             'paketler' => $paketler,
-            'sayfa_baslik' => 'WhatsApp',
+            'sayfa_baslik' => 'WhatsApp Yönetimi',
             'pageindex' => 65,
             'isletme' => $isletme,
             'kalan_uyelik_suresi' => $kalan_uyelik_suresi,
@@ -24233,6 +24233,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             Salonlar::where('id', $salonId)->update([
                 'whatsapp_aktif' => 1,
                 'whatsapp_durum' => $res['body']['status'] ?? 'connecting',
+                'whatsapp_bridge_tipi' => 'whatsmeow', // whatsmeow-only: bağlantılar yeni köprüden
             ]);
             // Audit
             SalonAudit::log($salonId, 'whatsapp_baglanti_baslat', 'whatsapp', $salonId,

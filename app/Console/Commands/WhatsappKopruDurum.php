@@ -68,12 +68,13 @@ class WhatsappKopruDurum extends Command
             if ($saglayici === 'cloud_api') {
                 $kopru = '☁️  Cloud API (RESMİ)';
                 $sayac['cloud_api']++;
-            } elseif ($bridge === 'whatsmeow') {
-                $kopru = '🟢 whatsmeow (YENİ · 3002)';
-                $sayac['whatsmeow']++;
-            } else {
+            } elseif ($bridge === 'baileys') {
                 $kopru = '🟡 Baileys (ESKİ · 3001)';
                 $sayac['baileys']++;
+            } else {
+                // whatsmeow-only cutover: NULL/whatsmeow -> whatsmeow
+                $kopru = '🟢 whatsmeow (3002)';
+                $sayac['whatsmeow']++;
             }
 
             $durum = $s->whatsapp_durum ?: '—';

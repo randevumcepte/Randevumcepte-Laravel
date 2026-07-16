@@ -751,6 +751,16 @@
                </div>
             </div>
             @endif
+            @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
+            <div class="header-right" style="display:inline-block;margin-right:12px;">
+                <a href="#" id="faturasizGizleTopbarBtn"
+                   data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
+                   title="Faturasiz Gizle"
+                   style="font-size:22px;cursor:pointer;color:{{ (int)($isletme->faturasiz_gizle ?? 0) === 1 ? '#f0ad4e' : '#888' }}">
+                    <i class="fa fa-file-text-o"></i>
+                </a>
+            </div>
+            @endif
             <div class="user-info-dropdown">
                <div class="dropdown">
                   <

@@ -323,7 +323,13 @@
     function loadQr(){
         fetchJson('/isletmeyonetim/whatsapp/qr' + qs).then(function(res){
             if(res.status === 200 && res.body.qr){
-                qrImg.src = res.body.qr;
+                var q = res.body.qr;
+                // Baileys hazir resim (data:) veya URL -> dogrudan; whatsmeow ham QR metni -> resme cevir
+                if(/^data:image\//.test(q) || /^https?:\/\//.test(q)){
+                    qrImg.src = q;
+                } else {
+                    qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=1&data=' + encodeURIComponent(q);
+                }
             }
         });
     }

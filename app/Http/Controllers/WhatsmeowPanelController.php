@@ -33,32 +33,10 @@ class WhatsmeowPanelController extends Controller
 
     public function index(Request $request)
     {
-        $admin = $this->admin();
-        $isletmeler = '';
-        $isletme = '';
-
-        if (Auth::guard('satisortakligi')->check()) {
-            $isletmeler = [15];
-            $isletme = Salonlar::where('id', 15)->first();
-        } else {
-            $isletmeler = Auth::guard('isletmeyonetim')->user()
-                ->yetkili_olunan_isletmeler->where('aktif', 1)
-                ->pluck('salon_id')->toArray();
-            $isletme = Salonlar::where('id', $admin->mevcutsube($request))->first();
-        }
-
-        if (!in_array($admin->mevcutsube($request), $isletmeler)) {
-            return view('isletmeadmin.yetkisizerisim');
-        }
-
-        return view('isletmeadmin.whatsmeow', [
-            'bildirimler' => $admin->bildirimgetir($request),
-            'sayfa_baslik' => 'whatsmeow Pilot',
-            'pageindex' => 651, // 65 mevcut WhatsApp menusu, 651 pilot menu icin
-            'isletme' => $isletme,
-            'kalan_uyelik_suresi' => $admin->lisans_sure_kontrol($request),
-            'yetkiliolunanisletmeler' => $isletmeler,
-        ]);
+        // Birleştirildi: "WhatsApp Yeni Test" ayrı sayfası kaldırıldı; tek "WhatsApp Yönetimi"
+        // sayfası (/isletmeyonetim/whatsapp) artık bağlantıyı whatsmeow üzerinden yapıyor.
+        $sube = $request->has('sube') ? ('?sube=' . $request->query('sube')) : '';
+        return redirect('/isletmeyonetim/whatsapp' . $sube);
     }
 
     public function baslat(Request $request)
@@ -112,14 +90,15 @@ class WhatsmeowPanelController extends Controller
         $svc = app(WhatsmeowService::class);
         $res = $svc->logout($salonId);
 
-        // Cikista DB temizligi: salon Baileys'e geri donsun, aktif=0
+        // Cikista DB temizligi: aktif=0. Kopru whatsmeow kalir (whatsmeow-only cutover;
+        // Baileys'e geri pinleme yok, tekrar baglaninca yine whatsmeow'dan baglanir).
         Salonlar::where('id', $salonId)->update([
             'whatsapp_aktif' => 0,
             'whatsapp_durum' => 'cikis-yapildi',
             'whatsapp_numara' => null,
             'whatsapp_baglanti_tarihi' => null,
             'whatsapp_warmup_baslangic' => null,
-            'whatsapp_bridge_tipi' => 'baileys',
+            'whatsapp_bridge_tipi' => 'whatsmeow',
         ]);
 
         return response()->json($res['body'] ?? ['ok' => false], $res['status'] ?: 502);

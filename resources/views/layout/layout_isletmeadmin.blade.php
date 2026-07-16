@@ -2036,30 +2036,18 @@
                   </li>
                   @endif
 
-                  {{-- 19) WhatsApp (sadece uyelik_turu == 3) --}}
+                  {{-- 19) WhatsApp Yönetimi (sadece uyelik_turu == 3) — Baileys+whatsmeow tek sayfada birleşti --}}
                   @if($isletme->uyelik_turu == 3)
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.whatsapp_gonder'))
                   <li>
-                     @if($pageindex==65)
+                     @if($pageindex==65 || $pageindex==651)
                      <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
                      <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
                      @endif
                      <span class="micon bi bi-whatsapp" style="color:#25D366;"></span>
-                     <span class="mtext">WhatsApp</span>
-                     </a>
-                  </li>
-
-                  {{-- 19.1) WhatsApp Yeni Test (whatsmeow pilot bridge) — sadece uyelik_turu == 3 --}}
-                  <li>
-                     @if($pageindex==651)
-                     <a href="/isletmeyonetim/whatsmeow{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/whatsmeow{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-whatsapp" style="color:#f0ad4e;"></span>
-                     <span class="mtext">WhatsApp Yeni Test</span>
+                     <span class="mtext">WhatsApp Yönetimi</span>
                      </a>
                   </li>
                   @endif
