@@ -3059,17 +3059,14 @@ class SalonappyImport extends Command
 
         if (empty($excelRows)) { $this->warn('Excel\'de karsilastirilacak satir yok.'); return 0; }
 
-        // 2) DB tahsilatlari cek (salon + tarih araligi + salonappy marker)
+        // 2) DB'de salonun TUM tahsilatlarini cek (Salonappy markerli + manuel eklenmis dahil)
         $dbQuery = \DB::table('tahsilatlar as t')
             ->join('users as u', 't.user_id', '=', 'u.id')
-            ->where('t.salon_id', $salonId)
-            ->where(function ($q) {
-                $q->where('t.notlar', 'LIKE', '%[salonappy%');
-            });
+            ->where('t.salon_id', $salonId);
         if ($from) $dbQuery->where('t.odeme_tarihi', '>=', $from);
         if ($to)   $dbQuery->where('t.odeme_tarihi', '<=', $to);
         $dbRows = $dbQuery->select('t.id', 't.odeme_tarihi', 't.tutar', 'u.name', 't.notlar')->get();
-        $this->line("DB Salonappy markerli tahsilat sayisi: " . $dbRows->count());
+        $this->line("DB salon $salonId tahsilat sayisi (tum kaynaklar): " . $dbRows->count());
 
         // 3) Karsilastirma: DB'yi user_key + tarih + tutar bazli index'e al
         $dbIndex = []; // key => [tahsilat_id, ...]
