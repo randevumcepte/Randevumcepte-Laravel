@@ -58,7 +58,8 @@
    }
    #modal-view-event #duzenle_butonu_bolumu:empty { display: none; }
    #modal-view-event #duzenle_butonu_bolumu .btn {
-      border-radius: 7px; font-weight: 600; padding: 5px 11px; font-size: 12px; line-height: 1.15;
+      border-radius: 7px; font-weight: 600; padding: 9px 14px; font-size: 12.5px; line-height: 1.2;
+      display: inline-flex; align-items: center; gap: 5px;
    }
    #modal-view-event .modal-body { padding: 18px 18px 14px; background:#fff; }
    #modal-view-event .modal-footer.event-buttons {
