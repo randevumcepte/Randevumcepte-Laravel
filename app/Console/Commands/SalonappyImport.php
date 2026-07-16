@@ -3039,7 +3039,16 @@ class SalonappyImport extends Command
         };
         $ymMap = ['ocak' => 1, 'subat' => 2, 'mart' => 3, 'nisan' => 4];
 
-        $excelRows = []; // [user_key, tarih, tutar, yontem, kaynak, hizmet, orig_row]
+        // Odeme yontemi normalize: Excel "Nakit "/"Kredi karti "/"Havale " -> odeme_yontemi_id
+        $yontemMap = function ($s) use ($trKey) {
+            $k = $trKey($s);
+            if (strpos($k, 'nakit') !== false) return 1;
+            if (strpos($k, 'kredi') !== false || strpos($k, 'kart') !== false) return 2;
+            if (strpos($k, 'havale') !== false || strpos($k, 'eft') !== false) return 3;
+            return 4; // Diger
+        };
+
+        $excelRows = [];
         $header = null;
         $totalRow = 0;
         foreach ($ws->getRowIterator() as $rowIt) {
@@ -3061,6 +3070,7 @@ class SalonappyImport extends Command
                 'tarih'    => $tarih,
                 'tutar'    => round($tutar, 2),
                 'yontem'   => trim((string) ($vals[2] ?? '')),
+                'yontem_id' => $yontemMap($vals[2] ?? ''),
                 'kaynak'   => trim((string) ($vals[4] ?? '')),
                 'hizmet'   => trim((string) ($vals[5] ?? '')),
             ];
@@ -3075,14 +3085,18 @@ class SalonappyImport extends Command
             ->where('t.salon_id', $salonId);
         if ($from) $dbQuery->where('t.odeme_tarihi', '>=', $from);
         if ($to)   $dbQuery->where('t.odeme_tarihi', '<=', $to);
-        $dbRows = $dbQuery->select('t.id', 't.odeme_tarihi', 't.tutar', 'u.name', 't.notlar')->get();
+        $dbRows = $dbQuery->select('t.id', 't.odeme_tarihi', 't.tutar', 't.odeme_yontemi_id', 'u.name', 't.notlar')->get();
         $this->line("DB salon $salonId tahsilat sayisi (tum kaynaklar): " . $dbRows->count());
 
-        // 3) Karsilastirma: DB'yi SADECE tarih + tutar bazli index'e al
-        // (musteri adi kontrolu yapmayiz — ayni user farkli DB kayitlarinda olabilir)
+        // 3) Karsilastirma: DB'yi trKey(isim) + tarih + tutar + odeme_yontemi_id bazli index'e al
+        // (satis icerigini karistirmamak icin ödeme yontemini de key'e ekliyoruz;
+        // ayni gun ayni tutar ayni yontem = ayni tahsilat kabul)
         $dbIndex = []; // key => [tahsilat_id, ...]
         foreach ($dbRows as $r) {
-            $k = substr((string) $r->odeme_tarihi, 0, 10) . '|' . number_format((float) $r->tutar, 2, '.', '');
+            $k = $trKey($r->name)
+                . '|' . substr((string) $r->odeme_tarihi, 0, 10)
+                . '|' . number_format((float) $r->tutar, 2, '.', '')
+                . '|' . (int) ($r->odeme_yontemi_id ?? 0);
             if (!isset($dbIndex[$k])) $dbIndex[$k] = [];
             $dbIndex[$k][] = $r->id;
         }
@@ -3092,9 +3106,10 @@ class SalonappyImport extends Command
         // 2-PASS matching: once EXACT tarih match'i tuket, sonra kalan Excel satirlari
         // icin ±1 gun tolerance. Bu sayede shift'e giden Excel satirlari, tam eslesecek
         // olan bir DB kaydini erken tuketmez.
-        $tryMatch = function ($tarih, $tutar) use ($dbIndex, &$dbKullanildi) {
+        // Key = user_key|tarih|tutar|yontem_id
+        $tryMatch = function ($userKey, $tarih, $tutar, $yontemId) use ($dbIndex, &$dbKullanildi) {
             $tt = number_format($tutar, 2, '.', '');
-            $k = $tarih . '|' . $tt;
+            $k = $userKey . '|' . $tarih . '|' . $tt . '|' . (int) $yontemId;
             if (isset($dbIndex[$k])) {
                 foreach ($dbIndex[$k] as $dbId) {
                     if (!isset($dbKullanildi[$dbId])) {
@@ -3105,10 +3120,10 @@ class SalonappyImport extends Command
             }
             return false;
         };
-        $tryMatchShift = function ($tarih, $tutar) use ($dbIndex, &$dbKullanildi) {
+        $tryMatchShift = function ($userKey, $tarih, $tutar, $yontemId) use ($dbIndex, &$dbKullanildi) {
             $tt = number_format($tutar, 2, '.', '');
             foreach ([date('Y-m-d', strtotime($tarih . ' -1 day')), date('Y-m-d', strtotime($tarih . ' +1 day'))] as $t) {
-                $k = $t . '|' . $tt;
+                $k = $userKey . '|' . $t . '|' . $tt . '|' . (int) $yontemId;
                 if (isset($dbIndex[$k])) {
                     foreach ($dbIndex[$k] as $dbId) {
                         if (!isset($dbKullanildi[$dbId])) {
@@ -3120,15 +3135,15 @@ class SalonappyImport extends Command
             }
             return false;
         };
-        // Pass 1: exact tarih
+        // Pass 1: exact tarih + isim + tutar + yontem
         $kalan = [];
         foreach ($excelRows as $ex) {
-            if ($tryMatch($ex['tarih'], $ex['tutar'])) { $eslesen++; }
+            if ($tryMatch($ex['user_key'], $ex['tarih'], $ex['tutar'], $ex['yontem_id'])) { $eslesen++; }
             else { $kalan[] = $ex; }
         }
-        // Pass 2: ±1 gun shift (sadece kalan Excel satirlari icin)
+        // Pass 2: ±1 gun shift (isim + tutar + yontem korunur)
         foreach ($kalan as $ex) {
-            if ($tryMatchShift($ex['tarih'], $ex['tutar'])) { $eslesen++; }
+            if ($tryMatchShift($ex['user_key'], $ex['tarih'], $ex['tutar'], $ex['yontem_id'])) { $eslesen++; }
             else { $eksik[] = $ex; }
         }
 
