@@ -507,7 +507,8 @@ Route::prefix('sistemyonetim')->group(function() {
 	Route::get('/aciklamaguncelle' ,'AdminController@aciklamaguncelle');
 	Route::post('/calismasaatiguncelle','AdminController@calismasaatiguncelle');
 	Route::get('/personeldetay/{id}','AdminController@personeldetay');
-	Route::get('/yeniisletme','AdminController@yeniisletme');
+	// ESKI avantajbu "Yeni Isletme Ekle" ekrani kaldirildi — yeni: /sistemyonetim/v2/salon-ekle
+	Route::get('/yeniisletme', function () { abort(404); });
 
 	// WhatsApp Yönetim Paneli
 	Route::get('/whatsapp-panel', 'WhatsAppPanelController@index')->name('superadmin.whatsapp.panel');
@@ -537,7 +538,7 @@ Route::prefix('sistemyonetim')->group(function() {
 	Route::get('/yeniisletmeturuekle','AdminController@yeniisletmeturuekle');
 	Route::post('/personelprofilresmiyukle/{id}','AdminController@personelprofilresmiyukle');
 	Route::get('/yenipersonelgir','AdminController@yenipersonelgir');
-	Route::post('/yeniisletmeekle','AdminController@yeniisletmeekle');
+	Route::post('/yeniisletmeekle', function () { abort(404); }); // ESKI form kaldirildi -> v2/salon-ekle
 	Route::get('/gorselsil','AdminController@gorselsil');
 	Route::get('/kayitlisalongorselisayisi','AdminController@kayitlisalongorselisayisi');
 	Route::post('/mevcutisletmeduzenleme','AdminController@mevcutisletmeduzenleme');
@@ -562,11 +563,14 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
 
     // Salonlar
     Route::get('/salonlar', 'PanelController@salonlar')->name('sistemyonetim.v2.salonlar');
+    Route::get('/salon-ekle', 'PanelController@salonEkleForm')->name('sistemyonetim.v2.salon.ekle');
+    Route::post('/salon-ekle', 'PanelController@salonEkleKaydet');
     Route::get('/salon/{id}', 'PanelController@salonDetay')->name('sistemyonetim.v2.salon');
     Route::post('/salon/{id}/bilgi-guncelle', 'PanelController@salonBilgiGuncelle');
     Route::post('/salon/{id}/askiya-al', 'PanelController@salonAskiyaAl');
     Route::post('/salon/{id}/aktif-et', 'PanelController@salonAktifEt');
     Route::post('/salon/{id}/sure-uzat', 'PanelController@salonSureUzat');
+    Route::post('/salon/{id}/lisans-aktif', 'PanelController@salonLisansAktif');
     Route::post('/salon/{id}/mt-ata', 'PanelController@salonMusteriTemsilcisiAta');
     Route::post('/salon/{id}/hesabina-gir', 'PanelController@salonHesabinaGir');
     Route::get('/impersonation-bitir', 'PanelController@impersonationBitir')->name('sistemyonetim.v2.impersonation.bitir');

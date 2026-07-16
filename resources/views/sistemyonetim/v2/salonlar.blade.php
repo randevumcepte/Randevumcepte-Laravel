@@ -23,7 +23,7 @@
     </div>
     <div class="sy-flex-row">
         <a href="/sistemyonetim/v2/salonlar/csv?{{ http_build_query(request()->all()) }}" class="sy-btn"><span class="mdi mdi-file-download"></span> CSV</a>
-        <a href="/sistemyonetim/yeniisletme" class="sy-btn sy-btn-primary"><span class="mdi mdi-plus"></span> Yeni Salon</a>
+        <a href="/sistemyonetim/v2/salon-ekle" class="sy-btn sy-btn-primary"><span class="mdi mdi-plus"></span> Yeni Salon</a>
     </div>
 </div>
 

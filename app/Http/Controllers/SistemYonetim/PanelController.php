@@ -461,6 +461,167 @@ class PanelController extends Controller
     }
 
     /* ============================================================
+     * YENI SALON (DEMO) OLUSTUR
+     * ============================================================ */
+    public function salonEkleForm()
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        return view('sistemyonetim.v2.salon-ekle', [
+            'title'        => 'Yeni Salon (Demo)',
+            'aktifMenu'    => 'salonlar',
+            'iller'        => DB::table('il')->orderBy('il_adi')->get(['id', 'il_adi']),
+            'ilceler'      => DB::table('ilce')->orderBy('ilce_adi')->get(['id', 'il_id', 'ilce_adi']),
+            'salonTurleri' => DB::table('salon_turu')->orderBy('salon_turu_adi')->get(['id', 'salon_turu_adi']),
+        ]);
+    }
+
+    /**
+     * Yeni DEMO salon olusturur — site kaydiyla ayni iskelet:
+     * yetkili (giris hesabi) + salon (demo_hesabi=1, uyelik_turu=3) + calisma/mola
+     * saatleri + rol (hesap sahibi) + personel. Demo hesabi hemen giris yapabilir.
+     */
+    public function salonEkleKaydet(Request $request)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $this->validate($request, [
+            'salon_adi'       => 'required|min:2',
+            'salon_turu_id'   => 'required',
+            'yetkili_ad'      => 'required|min:2',
+            'yetkili_telefon' => 'required',
+            'yetkili_email'   => 'required|email|unique:isletmeyetkilileri,email',
+            'demo_gun'        => 'nullable|integer|min:1|max:3650',
+        ]);
+
+        $demoGun = (int) ($request->get('demo_gun') ?: 7);
+
+        // Sifre: verildiyse onu kullan, yoksa 6 haneli uret
+        $sifre = trim((string) $request->get('yetkili_sifre'));
+        if ($sifre === '') {
+            $sifre = substr(str_shuffle('abcdefghjkmnpqrstuvwxyz23456789'), 0, 6);
+        }
+        $telefon = preg_replace('/[^0-9]/', '', (string) $request->get('yetkili_telefon'));
+
+        DB::beginTransaction();
+        try {
+            // 1) Yetkili (giris hesabi)
+            $yetkili = new IsletmeYetkilileri();
+            $yetkili->name     = $request->get('yetkili_ad');
+            $yetkili->email    = trim((string) $request->get('yetkili_email'));
+            $yetkili->gsm1     = $telefon;
+            $yetkili->password = Hash::make($sifre);
+            $yetkili->save();
+
+            // 2) Salon (DEMO)
+            $salon = new Salonlar();
+            $salon->salon_adi           = $request->get('salon_adi');
+            $salon->salon_turu_id       = $request->get('salon_turu_id');
+            $salon->il_id               = $request->get('il_id') ?: null;
+            $salon->ilce_id             = $request->get('ilce_id') ?: null;
+            $salon->adres               = $request->get('adres') ?: null;
+            $salon->yetkili_adi         = $request->get('yetkili_ad');
+            $salon->yetkili_telefon     = $telefon;
+            $salon->randevu_saat_araligi = 15;
+            $salon->randevu_takvim_turu = 1;
+            $salon->uyelik_turu         = 3;   // demo
+            $salon->demo_hesabi         = 1;
+            $salon->uyelik_bitis_tarihi = date('Y-m-d', strtotime('+' . $demoGun . ' days'));
+            $salon->save();
+
+            // 3) Calisma saatleri (Pzt-Cmt acik 09-19, Paz kapali)
+            $cs = [];
+            for ($g = 1; $g <= 7; $g++) {
+                $acik = $g <= 6 ? 1 : 0;
+                $cs[] = [
+                    'salon_id' => $salon->id, 'haftanin_gunu' => $g, 'calisiyor' => $acik,
+                    'baslangic_saati' => $acik ? '09:00:00' : '00:00:00',
+                    'bitis_saati'     => $acik ? '19:00:00' : '00:00:00',
+                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                ];
+            }
+            \App\SalonCalismaSaatleri::insert($cs);
+
+            // 4) Mola saatleri (kapali)
+            $ms = [];
+            for ($g = 1; $g <= 7; $g++) {
+                $ms[] = [
+                    'salon_id' => $salon->id, 'haftanin_gunu' => $g, 'mola_var' => 0,
+                    'baslangic_saati' => '00:00:00', 'bitis_saati' => '00:00:00',
+                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                ];
+            }
+            \App\SalonMolaSaatleri::insert($ms);
+
+            // 5) Rol: hesap sahibi (role_id=1)
+            DB::table('model_has_roles')->insert([
+                'role_id'    => 1,
+                'model_type' => 'App\\IsletmeYetkilileri',
+                'model_id'   => $yetkili->id,
+                'salon_id'   => $salon->id,
+            ]);
+
+            // 6) Personel (yetkili = takvimde gorunen personel; kanonik yetkili-salon baglantisi)
+            $personel = new Personeller();
+            $personel->salon_id          = $salon->id;
+            $personel->personel_adi      = $yetkili->name;
+            $personel->cep_telefon       = $telefon;
+            $personel->yetkili_id        = $yetkili->id;
+            $personel->takvimde_gorunsun = 1;
+            $personel->takvim_sirasi     = 1;
+            $personel->renk              = 1;
+            $personel->aktif             = 1;
+            $personel->save();
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return redirect()->back()->withInput()
+                ->with('hata', 'Demo salon oluşturulamadı: ' . $e->getMessage());
+        }
+
+        Audit::log('salon_demo_olustur', 'salon', $salon->id, $salon->salon_adi,
+            'Demo salon oluşturuldu (' . $demoGun . ' gün)', ['yetkili_email' => $yetkili->email]);
+
+        return redirect('/sistemyonetim/v2/salon/' . $salon->id)->with('basari',
+            'Demo salon oluşturuldu ✓  Giriş e-postası: ' . $yetkili->email
+            . '  ·  Şifre: ' . $sifre
+            . '  ·  Demo bitiş: ' . date('d.m.Y', strtotime($salon->uyelik_bitis_tarihi)));
+    }
+
+    /**
+     * Demo salonun lisansini aktif eder: demo_hesabi=0, uyelik_turu=1 (paketli),
+     * uyelik_bitis_tarihi secilen sure kadar uzatilir. Listede 'Lisanslı' olur.
+     */
+    public function salonLisansAktif(Request $request, $id)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $salon = Salonlar::findOrFail($id);
+
+        $gun = (int) ($request->get('gun') ?: 365);
+        $eski = [
+            'demo_hesabi'         => $salon->demo_hesabi,
+            'uyelik_turu'         => $salon->uyelik_turu,
+            'uyelik_bitis_tarihi' => $salon->uyelik_bitis_tarihi,
+        ];
+
+        // Mevcut bitis gelecekteyse onun uzerine ekle; degilse bugunden
+        $ub = $salon->uyelik_bitis_tarihi;
+        $bazTs = ($ub && substr((string) $ub, 0, 4) !== '0000' && strtotime((string) $ub) > strtotime(date('Y-m-d')))
+            ? strtotime((string) $ub)
+            : strtotime(date('Y-m-d'));
+
+        $salon->demo_hesabi         = 0;
+        $salon->uyelik_turu         = 1;   // paketli (lisanslı)
+        $salon->uyelik_bitis_tarihi = date('Y-m-d', strtotime('+' . $gun . ' days', $bazTs));
+        $salon->save();
+
+        Audit::log('salon_lisans_aktif', 'salon', $salon->id, $salon->salon_adi,
+            '+' . $gun . ' gün lisans', ['eski' => $eski, 'yeni_bitis' => $salon->uyelik_bitis_tarihi]);
+
+        return redirect()->back()->with('basari',
+            'Lisans aktif edildi ✓  Bitiş tarihi: ' . date('d.m.Y', strtotime($salon->uyelik_bitis_tarihi)));
+    }
+
+    /* ============================================================
      * SALON HESABINA GIRIS (IMPERSONATION)
      * ============================================================ */
     public function salonHesabinaGir(Request $request, $salonId)

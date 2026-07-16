@@ -82,6 +82,7 @@
     $ubGecerli = $ub && substr((string) $ub, 0, 4) !== '0000';
     $kalanGun = $ubGecerli ? (int) floor((strtotime($ub . ' 23:59:59') - time()) / 86400) : null;
     $ubRenk = !$ubGecerli ? 'muted' : ($kalanGun < 0 ? 'danger' : ($kalanGun <= 7 ? 'warning' : 'success'));
+    $demo = (int) ($salon->demo_hesabi ?? 0) === 1 || (int) ($salon->uyelik_turu ?? 0) === 3;
 @endphp
 <div class="sy-card sy-mt-12" style="border-left:4px solid var(--sy-{{ $ubRenk }})">
     <div class="sy-card-body">
@@ -118,6 +119,27 @@
                     <button type="submit" class="sy-btn sy-btn-sm sy-btn-success">Ayarla</button>
                 </form>
             </div>
+        </div>
+
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--sy-border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            @if($demo)
+                <span class="sy-badge sy-badge-warning">DEMO HESAP</span>
+                <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/lisans-aktif" style="display:flex;gap:6px;align-items:center;margin:0"
+                      onsubmit="return confirm('Bu demo salonun lisansı aktif edilecek (Lisanslı olacak). Devam?');">
+                    @csrf
+                    <span class="sy-text-muted sy-fs-12">Lisans süresi:</span>
+                    <select name="gun" class="sy-select" style="width:auto">
+                        <option value="30">1 ay</option>
+                        <option value="90">3 ay</option>
+                        <option value="180">6 ay</option>
+                        <option value="365" selected>1 yıl</option>
+                    </select>
+                    <button type="submit" class="sy-btn sy-btn-sm sy-btn-success"><span class="mdi mdi-check-decagram"></span> Lisansı Aktif Et</button>
+                </form>
+            @else
+                <span class="sy-badge sy-badge-success">LİSANSLI</span>
+                <span class="sy-text-muted sy-fs-12">Bu salon lisanslı — süreyi yukarıdan uzatabilirsiniz.</span>
+            @endif
         </div>
     </div>
 </div>
