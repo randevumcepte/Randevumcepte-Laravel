@@ -20,50 +20,6 @@ use Illuminate\Support\Facades\Storage;
 */
 Auth::routes();
 
-// === GECICI TESHIS UCU (impersonation kick-out) — sorun cozulunce KALDIR ===
-Route::get('/_rcdbg/{k}', function ($k) {
-    if ($k !== 'rc9k3mx7qz') abort(404);
-    $file = storage_path('logs/impdbg.log');
-    $body = is_file($file) ? implode('', array_slice(file($file), -200)) : '(impdbg.log henuz yok — once bir salona giris denemesi yap)';
-    $vt = function_exists('opcache_get_configuration')
-        ? var_export(opcache_get_configuration()['directives']['opcache.validate_timestamps'] ?? '?', true)
-        : 'n/a';
-
-    // Sunucu yapisi kesfi: bu projenin yolu + kardes proje dizinleri (canli dir'i bulmak icin)
-    $bp = base_path();
-    $parent = dirname($bp);
-    $siblings = @scandir($parent) ?: [];
-    $dirs = [];
-    foreach ($siblings as $s) {
-        if ($s === '.' || $s === '..') continue;
-        $full = $parent . '/' . $s;
-        if (is_dir($full)) {
-            $isGit = is_dir($full . '/.git') ? ' [git]' : '';
-            $isLaravel = is_file($full . '/artisan') ? ' [laravel]' : '';
-            $dirs[] = $s . $isGit . $isLaravel;
-        }
-    }
-
-    $srv = 'base_path=' . $bp . "\n" . 'parent=' . $parent . "\n"
-        . 'HTTP_HOST=' . ($_SERVER['HTTP_HOST'] ?? '?') . "\n"
-        . "kardes dizinler:\n  - " . implode("\n  - ", $dirs) . "\n";
-
-    // Canli (randevumcepte) git bilgisi — reset'ten once dogrulama (salt-okunur)
-    $prod = $parent . '/randevumcepte';
-    if (is_dir($prod . '/.git')) {
-        $cfg = @file_get_contents($prod . '/.git/config');
-        if ($cfg && preg_match('/url\s*=\s*(.+)/', $cfg, $m)) $srv .= "\nprod remote=" . trim($m[1]);
-        $srv .= "\nprod HEAD=" . trim((string) @file_get_contents($prod . '/.git/HEAD'));
-        $lh = @file($prod . '/.git/logs/HEAD');
-        if ($lh) $srv .= "\nprod son commit: " . trim((string) end($lh));
-        $srv .= "\nprod .env: " . (is_file($prod . '/.env') ? 'VAR' : 'YOK!');
-        $srv .= "\n";
-    }
-
-    return response('<pre>opcache.validate_timestamps=' . $vt . "\n\n"
-        . htmlspecialchars($srv) . "\n" . htmlspecialchars($body) . '</pre>');
-})->where('k', '.*');
-
 // Akilli uygulama indirme yonlendirmesi (QR hedefi) — cihaza gore magazaya atar (public)
 Route::get('/indir/{salon}', 'StoreAdminController@uygulamaIndir');
 

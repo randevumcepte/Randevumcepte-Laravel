@@ -73,6 +73,45 @@ else
     log "opcache-reset: GITHUB_WEBHOOK_SECRET bulunamadi, atlandi"
 fi
 
+# 4c) CANLI (app.randevumcepte.com.tr) — ayni sunucuda, kullanici onayiyla her
+# push'ta otomatik senkron edilir. GUVENLIK: yalnizca ayni GitHub repo'yu takip
+# eden gercek bir git checkout ise reset uygulanir; aksi halde dokunulmaz.
+PROD_DIR="/var/www/www-root/data/www/randevumcepte"
+EXPECTED_REPO="randevumcepte/Randevumcepte-Laravel"
+if [ -d "$PROD_DIR/.git" ]; then
+    PROD_REMOTE=$(git -C "$PROD_DIR" config --get remote.origin.url 2>/dev/null)
+    case "$PROD_REMOTE" in
+        *"$EXPECTED_REPO"*)
+            log "--- CANLI (app) deploy basliyor: $PROD_DIR (remote=$PROD_REMOTE) ---"
+            git -C "$PROD_DIR" fetch origin main >/dev/null 2>&1
+            PROD_RESET=$(git -C "$PROD_DIR" reset --hard origin/main 2>&1)
+            log "prod reset: $PROD_RESET"
+            # DIKKAT: Canlida OTOMATIK migration YOK. Kod + cache senkronu yapilir;
+            # DB sema degisikligi (migrate) bilincli olarak ELLE calistirilir (mevcut
+            # prod davranisiyla ayni, riskli otomatik DB degisikligi olmasin diye).
+            if [ -x "$PHP" ]; then
+                log "prod view:clear: $($PHP "$PROD_DIR/artisan" view:clear 2>&1)"
+                log "prod route:clear: $($PHP "$PROD_DIR/artisan" route:clear 2>&1)"
+                log "prod config:clear: $($PHP "$PROD_DIR/artisan" config:clear 2>&1)"
+                log "prod cache:clear: $($PHP "$PROD_DIR/artisan" cache:clear 2>&1)"
+                log "prod queue:restart: $($PHP "$PROD_DIR/artisan" queue:restart 2>&1)"
+            fi
+            PROD_TOKEN=$(grep '^GITHUB_WEBHOOK_SECRET=' "$PROD_DIR/.env" 2>/dev/null | cut -d= -f2- | tr -d '\r')
+            if [ -n "$PROD_TOKEN" ]; then
+                POUT=$(curl -s -k -m 10 -H "Host: app.randevumcepte.com.tr" \
+                    "https://127.0.0.1/public/opcache-reset.php?token=$PROD_TOKEN" 2>&1)
+                log "prod opcache-reset: $POUT"
+            fi
+            log "--- CANLI (app) deploy tamamlandi ---"
+            ;;
+        *)
+            log "CANLI deploy ATLANDI: remote beklenenle uyusmuyor (remote=$PROD_REMOTE)"
+            ;;
+    esac
+else
+    log "CANLI deploy atlandi: $PROD_DIR git checkout degil"
+fi
+
 # 5) Son commit'i kaydet (bir sonraki cron tetiklenmesin)
 echo "$REMOTE" > "$HASH_FILE"
 
