@@ -194,29 +194,48 @@
 </div>
 
 <div class="wa-card" style="margin-top:18px;">
-    <h3 style="margin-bottom:8px">📍 İşletme Konumu</h3>
-    <p style="color:#555; margin-bottom:12px; font-size:13.5px; line-height:1.5;">
-        Google Maps'te işletmenizi bulun, <b>Paylaş → Bağlantıyı kopyala</b> ile linki alıp buraya yapıştırın.
-        Müşteriye WhatsApp mesajı yazarken <b>"📍 Konum Ekle"</b> butonuyla bu linki tek tıkla mesaja ekleyebilirsiniz;
-        müşteri tıklayınca harita ve yol tarifi açılır.
+    <h3 style="margin-bottom:8px">🔗 İşletme Bağlantıları</h3>
+    <p style="color:#555; margin-bottom:14px; font-size:13.5px; line-height:1.5;">
+        Buraya girdiğiniz bağlantıları, müşteriye WhatsApp mesajı yazarken <b>tek tıkla</b> mesaja ekleyebilirsiniz
+        (mesaj ekranındaki <b>📍 Konum</b>, <b>📷 Instagram</b>, <b>🌐 Web</b> butonları). Boş bıraktığınız butonlar görünmez.
     </p>
-    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <input type="url" id="wa-konum-link"
-               style="flex:1; min-width:260px; padding:9px 11px; border:1px solid #ced4da; border-radius:6px; font-size:13px;"
-               value="{{ $isletme->konum_linki ?? '' }}" placeholder="https://maps.app.goo.gl/...  veya  https://maps.google.com/...">
-        <button type="button" class="btn-wa" id="wa-konum-kaydet">Kaydet</button>
+
+    <div style="display:grid; gap:12px; max-width:640px;">
+        <div>
+            <label class="wa-link-label">📍 Konum (Google Maps → Paylaş → Bağlantıyı kopyala)</label>
+            <input type="url" id="wa-konum-link" class="wa-link-input" value="{{ $isletme->konum_linki ?? '' }}" placeholder="https://maps.app.goo.gl/...">
+        </div>
+        <div>
+            <label class="wa-link-label">📷 Instagram</label>
+            <input type="url" id="wa-instagram-link" class="wa-link-input" value="{{ $isletme->instagram_linki ?? '' }}" placeholder="https://instagram.com/kullaniciadi">
+        </div>
+        <div>
+            <label class="wa-link-label">🌐 Web Sitesi / Diğer Link</label>
+            <input type="url" id="wa-web-link" class="wa-link-input" value="{{ $isletme->web_linki ?? '' }}" placeholder="https://...">
+        </div>
     </div>
-    <div id="wa-konum-status" style="margin-top:8px; font-size:13px; display:none;"></div>
+
+    <div style="margin-top:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <button type="button" class="btn-wa" id="wa-konum-kaydet">Bağlantıları Kaydet</button>
+        <span id="wa-konum-status" style="font-size:13px; display:none;"></span>
+    </div>
     <input type="hidden" id="wa-konum-sube" value="{{ $isletme->id }}">
     <input type="hidden" id="wa-konum-token" value="{{ csrf_token() }}">
 </div>
+<style>
+.wa-link-label { display:block; font-size:12.5px; font-weight:600; color:#333; margin-bottom:4px; }
+.wa-link-input { width:100%; padding:9px 11px; border:1px solid #ced4da; border-radius:6px; font-size:13px; box-sizing:border-box; }
+.wa-link-input:focus { border-color:#25D366; outline:none; box-shadow:0 0 0 3px rgba(37,211,102,.12); }
+</style>
 
 <script>
 (function(){
     var kBtn = document.getElementById('wa-konum-kaydet');
     if(kBtn){
         kBtn.addEventListener('click', function(){
-            var link  = document.getElementById('wa-konum-link').value.trim();
+            var konum = document.getElementById('wa-konum-link').value.trim();
+            var insta = document.getElementById('wa-instagram-link').value.trim();
+            var web   = document.getElementById('wa-web-link').value.trim();
             var sube  = document.getElementById('wa-konum-sube').value;
             var token = document.getElementById('wa-konum-token').value;
             var st    = document.getElementById('wa-konum-status');
@@ -224,7 +243,10 @@
             fetch('/isletmeyonetim/whatsapp/konum-kaydet', {
                 method: 'POST',
                 headers: { 'Content-Type':'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': token, 'Accept':'application/json' },
-                body: 'konum_linki=' + encodeURIComponent(link) + '&sube=' + encodeURIComponent(sube) + '&_token=' + encodeURIComponent(token)
+                body: 'konum_linki=' + encodeURIComponent(konum)
+                    + '&instagram_linki=' + encodeURIComponent(insta)
+                    + '&web_linki=' + encodeURIComponent(web)
+                    + '&sube=' + encodeURIComponent(sube) + '&_token=' + encodeURIComponent(token)
             }).then(function(r){
                 // Sunucu JSON yerine HTML donerse (404/419/500) once durum kodunu yakala
                 return r.text().then(function(t){
@@ -237,7 +259,7 @@
                 st.style.display = 'block';
                 if(d.res && d.res.ok){
                     st.style.color = '#1a7f3e';
-                    st.textContent = '✓ Konum kaydedildi. Artık mesaj ekranında "Konum Ekle" ile gönderebilirsiniz.';
+                    st.textContent = '✓ Bağlantılar kaydedildi. Artık mesaj ekranında tek tıkla ekleyebilirsiniz.';
                     setTimeout(function(){ st.style.display='none'; }, 4000);
                 } else if(d.res && d.res.mesaj){
                     st.style.color = '#dc3545';

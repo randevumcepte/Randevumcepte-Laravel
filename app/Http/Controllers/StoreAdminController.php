@@ -22203,16 +22203,29 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 return response()->json(['ok'=>false,'mesaj'=>'Salon bulunamadi (sube: '.$subeId.').'],404);
             }
 
-            $link = trim((string)$request->input('konum_linki',''));
-            if($link !== '' && !preg_match('~^https?://~i', $link)){
-                return response()->json(['ok'=>false,'mesaj'=>'Geçerli bir bağlantı girin (https:// ile başlamalı).'],422);
-            }
-            if(mb_strlen($link) > 500){
-                return response()->json(['ok'=>false,'mesaj'=>'Bağlantı çok uzun (en fazla 500 karakter).'],422);
+            // Konum + Instagram + Web linkleri — hepsi ayni mantik, kismi kayit desteklenir
+            $alanlar = ['konum_linki', 'instagram_linki', 'web_linki'];
+            $guncelle = [];
+            foreach($alanlar as $kolon){
+                if(!$request->has($kolon)) continue;
+                $link = trim((string)$request->input($kolon, ''));
+                if($link !== '' && !preg_match('~^https?://~i', $link)){
+                    return response()->json(['ok'=>false,'mesaj'=>'Geçerli bir bağlantı girin (https:// ile başlamalı).'],422);
+                }
+                if(mb_strlen($link) > 500){
+                    return response()->json(['ok'=>false,'mesaj'=>'Bağlantı çok uzun (en fazla 500 karakter).'],422);
+                }
+                // self-heal: kolon yoksa ekle (migrate calismamis sunucular icin)
+                if(!\Schema::hasColumn('salonlar', $kolon)){
+                    try { DB::statement("ALTER TABLE salonlar ADD COLUMN {$kolon} VARCHAR(500) NULL"); } catch(\Throwable $e){}
+                }
+                $guncelle[$kolon] = ($link !== '' ? $link : null);
             }
 
             // Eloquent save() yerine direkt UPDATE — model event/cast/timestamps risklerini bypass eder
-            DB::table('salonlar')->where('id', $isletme->id)->update(['konum_linki' => ($link !== '' ? $link : null)]);
+            if(!empty($guncelle)){
+                DB::table('salonlar')->where('id', $isletme->id)->update($guncelle);
+            }
 
             return response()->json(['ok'=>true]);
         } catch(\Throwable $e){

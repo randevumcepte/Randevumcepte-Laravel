@@ -2,7 +2,7 @@
 /* Takvim detay modali z-index 100001 — compose modal onun da ustunde kalsin */
 #whatsapp-mesaj-modal { z-index:100060 !important; }
 #whatsapp-mesaj-modal .modal-dialog { max-width:520px; }
-.wam-modal { border-radius:12px; border:0; overflow:hidden; box-shadow:0 20px 50px rgba(92,0,142,.18); }
+.wam-modal { border-radius:14px; border:0; overflow:hidden; box-shadow:0 24px 60px rgba(92,0,142,.22); }
 .wam-header {
    display:flex; align-items:center; gap:10px;
    padding:12px 18px;
@@ -34,9 +34,10 @@
    background:#fbfafd; border:1px solid #ece6f3; border-radius:9px;
 }
 .wam-musteri .wam-av {
-   width:36px; height:36px; border-radius:50%;
-   background:#5C008E; color:#fff; flex-shrink:0;
-   display:inline-flex; align-items:center; justify-content:center; font-size:15px;
+   width:38px; height:38px; border-radius:50%;
+   background:linear-gradient(135deg,#7B2FB8,#5C008E); color:#fff; flex-shrink:0;
+   display:inline-flex; align-items:center; justify-content:center; font-size:16px;
+   box-shadow:0 3px 8px rgba(92,0,142,.28);
 }
 .wam-musteri .wam-ad { font-size:13px; font-weight:700; color:#3a2e57; }
 .wam-musteri .wam-tel { font-size:12px; color:#7c6c8a; margin-top:1px; }
@@ -64,11 +65,26 @@
    border-color:#5C008E; box-shadow:0 0 0 3px rgba(92,0,142,.1);
 }
 .wam-sayac { display:block; text-align:right; color:#9d8ba8; font-size:10.5px; margin-top:3px; }
-.wam-konum-btn {
-   margin-top:6px; background:#eef6ff; color:#0b6bcb !important; border:1px solid #cfe3fb;
-   border-radius:7px; font-size:12px; font-weight:600; padding:5px 11px;
+
+/* Hazir baglanti butonlari (Konum / Instagram / Web) */
+.wam-hizli-baslik {
+   font-size:10.5px; font-weight:700; color:#9d8ba8;
+   text-transform:uppercase; letter-spacing:.4px; margin-top:13px; margin-bottom:6px;
 }
-.wam-konum-btn:hover { background:#dcecfb; color:#084e96 !important; }
+.wam-linkler { display:flex; flex-wrap:wrap; gap:7px; }
+.wam-link-chip {
+   display:inline-flex; align-items:center; gap:5px;
+   border-radius:20px; font-size:12px; font-weight:600; padding:6px 13px;
+   border:1px solid transparent; cursor:pointer; transition:background .15s, transform .05s;
+   line-height:1;
+}
+.wam-link-chip:active { transform:scale(.97); }
+.wam-link-chip.konum { background:#eef6ff; color:#0b6bcb; border-color:#cfe3fb; }
+.wam-link-chip.konum:hover { background:#dcecfb; }
+.wam-link-chip.insta { background:#fdf0f7; color:#c1358a; border-color:#f6d4e8; }
+.wam-link-chip.insta:hover { background:#fbe3f1; }
+.wam-link-chip.web { background:#eefaf3; color:#12805a; border-color:#c9efd9; }
+.wam-link-chip.web:hover { background:#dcf5e8; }
 
 .wam-footer {
    display:flex; justify-content:flex-end; gap:8px;
@@ -132,11 +148,25 @@
             <textarea id="wam_mesaj" class="form-control" maxlength="1000" placeholder="Müşterinize göndermek istediğiniz mesajı buraya yazın..."></textarea>
             <small class="wam-sayac"><span id="wam_sayac">0</span> / 1000</small>
 
-            @if(!empty($isletme->konum_linki))
-            <input type="hidden" id="wam_konum_link" value="{{ $isletme->konum_linki }}">
-            <button type="button" class="btn wam-konum-btn" id="wam_konum_ekle">
-               <i class="fa fa-map-marker"></i> Konum Ekle
-            </button>
+            @php
+               $_wamLinkVar = !empty($isletme->konum_linki) || !empty($isletme->instagram_linki) || !empty($isletme->web_linki);
+            @endphp
+            @if($_wamLinkVar)
+            <div class="wam-hizli-baslik">Hızlı ekle</div>
+            <div class="wam-linkler">
+               @if(!empty($isletme->konum_linki))
+               <input type="hidden" id="wam_konum_link" value="{{ $isletme->konum_linki }}">
+               <button type="button" class="wam-link-chip konum" data-link="#wam_konum_link" data-emoji="📍" data-etiket="Konumumuz">📍 Konum Ekle</button>
+               @endif
+               @if(!empty($isletme->instagram_linki))
+               <input type="hidden" id="wam_instagram_link" value="{{ $isletme->instagram_linki }}">
+               <button type="button" class="wam-link-chip insta" data-link="#wam_instagram_link" data-emoji="📷" data-etiket="Instagram">📷 Instagram Ekle</button>
+               @endif
+               @if(!empty($isletme->web_linki))
+               <input type="hidden" id="wam_web_link" value="{{ $isletme->web_linki }}">
+               <button type="button" class="wam-link-chip web" data-link="#wam_web_link" data-emoji="🌐" data-etiket="Web">🌐 Web Ekle</button>
+               @endif
+            </div>
             @endif
 
          </div>
@@ -213,16 +243,18 @@
       $('#wam_sayac').text($(this).val().length);
    });
 
-   // Konum Ekle — salonun Google Maps linkini mesaja ekler
-   $(document).on('click', '#wam_konum_ekle', function(){
-      var link = $('#wam_konum_link').val();
+   // Hazir baglanti ekle (Konum / Instagram / Web) — chip'ten emoji, etiket ve link okunur
+   $(document).on('click', '.wam-link-chip', function(){
+      var link = $($(this).data('link')).val();
       if(!link){ return; }
+      var emoji  = $(this).data('emoji')  || '🔗';
+      var etiket = $(this).data('etiket') || 'Bağlantı';
       var ta = $('#wam_mesaj');
       var cur = ta.val();
       // Ayni link zaten eklenmisse tekrar ekleme
       if(cur.indexOf(link) !== -1){ return; }
       var prefix = (cur && cur.slice(-1) !== '\n') ? '\n' : '';
-      var next = cur + prefix + '📍 Konumumuz: ' + link;
+      var next = cur + prefix + emoji + ' ' + etiket + ': ' + link;
       if(next.length > 1000){ next = next.slice(0, 1000); }
       ta.val(next);
       $('#wam_sayac').text(ta.val().length);
