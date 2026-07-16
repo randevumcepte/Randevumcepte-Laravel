@@ -30,17 +30,49 @@ class SistemBildirim
         if (is_file($f)) {
             $d = json_decode((string) file_get_contents($f), true);
             if (is_array($d)) {
-                return ['numara' => $d['numara'] ?? '', 'aktif' => !empty($d['aktif'])];
+                return [
+                    'numara' => $d['numara'] ?? '',
+                    'aktif' => !empty($d['aktif']),
+                    'gonderen_salon_id' => $d['gonderen_salon_id'] ?? null,
+                ];
             }
         }
-        return ['numara' => '', 'aktif' => false];
+        return ['numara' => '', 'aktif' => false, 'gonderen_salon_id' => null];
     }
 
-    public static function ayarYaz($numara, $aktif)
+    public static function ayarYaz($numara, $aktif, $gonderenSalonId = null)
     {
-        $data = ['numara' => self::normalizeTel($numara), 'aktif' => (bool) $aktif];
+        $data = [
+            'numara' => self::normalizeTel($numara),
+            'aktif' => (bool) $aktif,
+            'gonderen_salon_id' => $gonderenSalonId ? (int) $gonderenSalonId : null,
+        ];
         @file_put_contents(self::ayarDosyasi(), json_encode($data));
         return $data;
+    }
+
+    /**
+     * WhatsApp gonderiminde kullanilacak "gonderen" salon — hatirlatmalarin kullandigi
+     * yolun aynisi (bagli bir salonun WA hatti). Once ayardaki tercih, yoksa ilk bagli salon.
+     */
+    public static function gonderenSalon($tercihId = null)
+    {
+        if ($tercihId) {
+            $s = \App\Salonlar::find($tercihId);
+            if ($s && $s->whatsapp_aktif && $s->whatsapp_durum === 'connected') return $s;
+        }
+        return \App\Salonlar::where('whatsapp_aktif', 1)
+            ->where('whatsapp_durum', 'connected')
+            ->orderBy('id')->first();
+    }
+
+    /** Panel dropdown'u icin: WhatsApp'i bagli salonlar. */
+    public static function bagliSalonlar()
+    {
+        return \App\Salonlar::where('whatsapp_aktif', 1)
+            ->where('whatsapp_durum', 'connected')
+            ->orderBy('salon_adi')
+            ->get(['id', 'salon_adi', 'whatsapp_numara']);
     }
 
     /** 05xx / 5xx / +90... -> 90xxxxxxxxxx (WhatsApp/SMS icin) */
@@ -53,7 +85,7 @@ class SistemBildirim
         return $t;
     }
 
-    /** Yapilandirilmis numaraya WhatsApp (sistem oturumu) + SMS gonderir. */
+    /** Yapilandirilmis numaraya WhatsApp (bagli salon hatti, hatirlatma metodu) + SMS gonderir. */
     public static function gonder($mesaj)
     {
         $ayar = self::ayarOku();
@@ -63,9 +95,17 @@ class SistemBildirim
         $numara = $ayar['numara'];
         $detay = ['wa' => null, 'sms' => null];
 
+        // WhatsApp: hatirlatmalarin kullandigi PROVEN yol — bagli bir salonun hattindan
+        // sendUrgent ile gonder. (Ayri 'sistem' oturumu kendine gonderemiyordu; bu yol
+        // farkli bir salondan gonderdigi icin o sorun da yok.)
         try {
-            $wa = app(WhatsAppService::class);
-            $detay['wa'] = $wa->sendRaw(self::SESSION, $numara, $mesaj);
+            $salon = self::gonderenSalon($ayar['gonderen_salon_id'] ?? null);
+            if ($salon) {
+                $detay['wa'] = app(WhatsAppService::class)
+                    ->sendUrgent($salon, $numara, $mesaj, null, 'sistem_bildirim');
+            } else {
+                $detay['wa'] = ['ok' => false, 'error' => 'bagli-salon-yok'];
+            }
         } catch (\Throwable $e) {
             $detay['wa'] = ['ok' => false, 'error' => $e->getMessage()];
             Log::warning('[SistemBildirim] WA hata', ['e' => $e->getMessage()]);

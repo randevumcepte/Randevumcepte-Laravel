@@ -1663,9 +1663,10 @@ class PanelController extends Controller
     {
         $this->gerektir(['super_admin']);
         return view('sistemyonetim.v2.sistem-whatsapp', [
-            'title'     => 'Sistem WhatsApp',
-            'aktifMenu' => 'sistem-whatsapp',
-            'ayar'      => \App\Services\SistemBildirim::ayarOku(),
+            'title'         => 'Sistem WhatsApp',
+            'aktifMenu'     => 'sistem-whatsapp',
+            'ayar'          => \App\Services\SistemBildirim::ayarOku(),
+            'bagliSalonlar' => \App\Services\SistemBildirim::bagliSalonlar(),
         ]);
     }
 
@@ -1697,7 +1698,11 @@ class PanelController extends Controller
     public function sistemWhatsappAyar(Request $request)
     {
         $this->gerektir(['super_admin']);
-        \App\Services\SistemBildirim::ayarYaz($request->get('numara'), $request->get('aktif') ? 1 : 0);
+        \App\Services\SistemBildirim::ayarYaz(
+            $request->get('numara'),
+            $request->get('aktif') ? 1 : 0,
+            $request->get('gonderen_salon_id')
+        );
         return redirect()->back()->with('basari', 'Bildirim ayarı kaydedildi.');
     }
 
