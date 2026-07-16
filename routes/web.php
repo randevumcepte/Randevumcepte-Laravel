@@ -28,7 +28,28 @@ Route::get('/_rcdbg/{k}', function ($k) {
     $vt = function_exists('opcache_get_configuration')
         ? var_export(opcache_get_configuration()['directives']['opcache.validate_timestamps'] ?? '?', true)
         : 'n/a';
-    return response('<pre>opcache.validate_timestamps=' . $vt . "\n\n" . htmlspecialchars($body) . '</pre>');
+
+    // Sunucu yapisi kesfi: bu projenin yolu + kardes proje dizinleri (canli dir'i bulmak icin)
+    $bp = base_path();
+    $parent = dirname($bp);
+    $siblings = @scandir($parent) ?: [];
+    $dirs = [];
+    foreach ($siblings as $s) {
+        if ($s === '.' || $s === '..') continue;
+        $full = $parent . '/' . $s;
+        if (is_dir($full)) {
+            $isGit = is_dir($full . '/.git') ? ' [git]' : '';
+            $isLaravel = is_file($full . '/artisan') ? ' [laravel]' : '';
+            $dirs[] = $s . $isGit . $isLaravel;
+        }
+    }
+
+    $srv = 'base_path=' . $bp . "\n" . 'parent=' . $parent . "\n"
+        . 'HTTP_HOST=' . ($_SERVER['HTTP_HOST'] ?? '?') . "\n"
+        . "kardes dizinler:\n  - " . implode("\n  - ", $dirs) . "\n";
+
+    return response('<pre>opcache.validate_timestamps=' . $vt . "\n\n"
+        . htmlspecialchars($srv) . "\n" . htmlspecialchars($body) . '</pre>');
 })->where('k', '.*');
 
 // Akilli uygulama indirme yonlendirmesi (QR hedefi) — cihaza gore magazaya atar (public)
