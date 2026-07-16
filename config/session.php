@@ -29,7 +29,9 @@ return [
     |
     */
 
-    'lifetime' => 120,
+    // Oturum suresi DAKIKA. Kullanici talebi: zaman asimiyla disari atmasin, sadece
+    // elle cikista cikis olsun. 1 yil (525600 dk) = pratikte suresiz. .env ile ezilebilir.
+    'lifetime' => env('SESSION_LIFETIME', 525600),
 
     'expire_on_close' => false,
 

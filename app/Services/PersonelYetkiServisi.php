@@ -86,6 +86,9 @@ class PersonelYetkiServisi
         self::tabloyuHazirla();
         if (!$personelId || !$salonId) return true; // bilinmiyorsa engelleme
 
+        // Impersonation (sistem yoneticisi salona girdi) — tam yetki, kisitlama yok.
+        if (session()->has('sysadmin_impersonation_id')) return true;
+
         $roluKey = $personelId.'|'.$salonId;
 
         // Ozel yetki kaydi (personel+salon basina tek query, request boyunca cache'li).
@@ -165,6 +168,11 @@ class PersonelYetkiServisi
     public static function yetkiliYetkiVar($yetkiliId, $salonId, string $key): bool
     {
         if (!$yetkiliId || !$salonId) return true;
+
+        // Sistem yoneticisi "Hesabina Gir" (impersonation) ile girdiyse salon rol
+        // kisitlamalarina TAKILMASIN — tam yetkili gibi davran (403 yetkisiz-erisim
+        // sayfasi cikmasin). Impersonation session'da sysadmin_impersonation_id ile isaretli.
+        if (session()->has('sysadmin_impersonation_id')) return true;
 
         $cacheKey = $yetkiliId.'|'.$salonId.'|'.$key;
         if (array_key_exists($cacheKey, self::$_yetkiliYetkiVarCache)) {
