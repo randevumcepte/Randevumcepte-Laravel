@@ -1673,26 +1673,29 @@ class PanelController extends Controller
     public function sistemWhatsappBaglat()
     {
         $this->gerektir(['super_admin']);
-        return response()->json($this->waService()->startSession(\App\Services\SistemBildirim::SESSION));
+        return response()->json($this->waService()->startSession(\App\Services\SistemBildirim::sessionId()));
     }
 
     public function sistemWhatsappQr()
     {
         $this->gerektir(['super_admin']);
-        return response()->json($this->waService()->qr(\App\Services\SistemBildirim::SESSION));
+        return response()->json($this->waService()->qr(\App\Services\SistemBildirim::sessionId()));
     }
 
     public function sistemWhatsappStatus()
     {
         $this->gerektir(['super_admin']);
-        return response()->json($this->waService()->status(\App\Services\SistemBildirim::SESSION));
+        return response()->json($this->waService()->status(\App\Services\SistemBildirim::sessionId()));
     }
 
     public function sistemWhatsappCikis()
     {
         $this->gerektir(['super_admin']);
-        $this->waService()->logout(\App\Services\SistemBildirim::SESSION);
-        return redirect()->back()->with('basari', 'Sistem WhatsApp oturumu kapatıldı.');
+        // Once mevcut oturumu kapat, sonra TAZE bir oturum id'sine gec — boylece sidecar
+        // eski kimligi korusa bile yeni baglantida mutlaka yeni QR cikar (eski numara geri gelmez).
+        $this->waService()->logout(\App\Services\SistemBildirim::sessionId());
+        $yeni = \App\Services\SistemBildirim::yeniOturumId();
+        return redirect()->back()->with('basari', 'Oturum sıfırlandı — şimdi "Bağlan / QR Göster" ile yeni numarayı bağla.');
     }
 
     public function sistemWhatsappAyar(Request $request)
@@ -1712,7 +1715,7 @@ class PanelController extends Controller
         $ayar = \App\Services\SistemBildirim::ayarOku();
 
         // Gonderen oturum durumu (bagli numara) — teshis icin
-        $st = $this->waService()->status(\App\Services\SistemBildirim::SESSION);
+        $st = $this->waService()->status(\App\Services\SistemBildirim::sessionId());
         $gPhone = $st['body']['phone'] ?? null;
         $gDurum = $st['body']['status'] ?? ($st['ok'] ? 'bilinmiyor' : 'servise-ulasilamiyor');
         $aliciYerel = preg_replace('/^90/', '', (string) $ayar['numara']);

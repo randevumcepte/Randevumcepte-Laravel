@@ -125,9 +125,8 @@
             if (s === 'connected') { bagli(b.phone); qrKutu.style.display = 'none'; }
             else {
                 bagliDegil();
-                if (s === 'qr' || b.hasQr) { setDurum('QR bekliyor', 'warning'); qrCek(); }
-                else if (s === 'connecting') setDurum('Bağlanıyor…', 'info');
-                else setDurum('Bağlı değil', 'muted');
+                setDurum(s === 'connecting' ? 'Bağlanıyor / QR bekleniyor…' : (b.hasQr || s === 'qr' ? 'QR hazır — okut' : 'Bağlı değil'), 'warning');
+                qrCek(); // status ne olursa olsun QR'i dene (connecting sirasinda da QR gelebilir)
             }
         }).catch(function () { setDurum('Servise ulaşılamadı', 'danger'); });
     }
@@ -140,7 +139,8 @@
     baglanBtn.addEventListener('click', function () {
         baglanBtn.disabled = true; baglanBtn.textContent = 'Başlatılıyor…';
         fetch('/sistemyonetim/v2/sistem-whatsapp/baglat', { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } })
-            .then(function () { setDurum('QR hazırlanıyor…', 'info'); if (pollTimer) clearInterval(pollTimer); pollTimer = setInterval(statusCek, 3000); setTimeout(statusCek, 1200); })
+            .then(function () { setDurum('QR hazırlanıyor…', 'info'); if (pollTimer) clearInterval(pollTimer); pollTimer = setInterval(statusCek, 2000); setTimeout(statusCek, 600); setTimeout(qrCek, 900); })
+            .catch(function () { setDurum('Servise ulaşılamadı', 'danger'); })
             .finally(function () { baglanBtn.disabled = false; baglanBtn.innerHTML = '<span class="mdi mdi-whatsapp"></span> Bağlan / QR Göster'; });
     });
 

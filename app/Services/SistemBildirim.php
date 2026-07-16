@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
  */
 class SistemBildirim
 {
-    /** Sidecar oturum id'si — salonlardan tamamen bagimsiz */
+    /** Sidecar oturum id'si — salonlardan tamamen bagimsiz (varsayilan) */
     const SESSION = 'sistem';
 
     public static function ayarDosyasi()
@@ -34,21 +34,47 @@ class SistemBildirim
                     'numara' => $d['numara'] ?? '',                   // ALICI (bildirim gelecek)
                     'gonderen_numara' => $d['gonderen_numara'] ?? '', // GONDEREN (QR ile baglanan)
                     'aktif' => !empty($d['aktif']),
+                    'session_id' => $d['session_id'] ?? self::SESSION,
                 ];
             }
         }
-        return ['numara' => '', 'gonderen_numara' => '', 'aktif' => false];
+        return ['numara' => '', 'gonderen_numara' => '', 'aktif' => false, 'session_id' => self::SESSION];
+    }
+
+    /** Ayar dosyasini mevcut degerleri koruyarak gunceller. */
+    public static function ayarGuncelle(array $yeni)
+    {
+        $data = array_merge(self::ayarOku(), $yeni);
+        @file_put_contents(self::ayarDosyasi(), json_encode($data));
+        return $data;
     }
 
     public static function ayarYaz($numara, $aktif, $gonderenNumara = null)
     {
-        $data = [
+        return self::ayarGuncelle([
             'numara' => self::normalizeTel($numara),
             'gonderen_numara' => self::normalizeTel($gonderenNumara),
             'aktif' => (bool) $aktif,
-        ];
-        @file_put_contents(self::ayarDosyasi(), json_encode($data));
-        return $data;
+        ]);
+    }
+
+    /** Aktif WhatsApp oturum id'si (taze baglanti icin degistirilebilir). */
+    public static function sessionId()
+    {
+        $a = self::ayarOku();
+        return !empty($a['session_id']) ? $a['session_id'] : self::SESSION;
+    }
+
+    /**
+     * TAZE oturum id uretir ve kaydeder — "Oturumu Kapat"ta cagrilir ki sidecar eski
+     * kimligi (auth) korusa bile yeni baglantida MUTLAKA yeni QR ciksin (eski numara
+     * geri baglanmasin).
+     */
+    public static function yeniOturumId()
+    {
+        $yeni = self::SESSION . '-' . substr((string) time(), -6);
+        self::ayarGuncelle(['session_id' => $yeni]);
+        return $yeni;
     }
 
     /**
@@ -99,7 +125,7 @@ class SistemBildirim
         // AYRI bir numara QR ile baglanir; alici (senin numaran) gonderenden FARKLI oldugu
         // icin "kendine gonderme" sorunu olmaz. Baglı degilse WA atlanir, SMS yine gider.
         try {
-            $detay['wa'] = app(WhatsAppService::class)->sendRaw(self::SESSION, $numara, $mesaj);
+            $detay['wa'] = app(WhatsAppService::class)->sendRaw(self::sessionId(), $numara, $mesaj);
         } catch (\Throwable $e) {
             $detay['wa'] = ['ok' => false, 'error' => $e->getMessage()];
             Log::warning('[SistemBildirim] WA hata', ['e' => $e->getMessage()]);
