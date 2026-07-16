@@ -1709,11 +1709,25 @@ class PanelController extends Controller
     public function sistemWhatsappTest()
     {
         $this->gerektir(['super_admin']);
+        $ayar = \App\Services\SistemBildirim::ayarOku();
+
+        // Gonderen oturum durumu (bagli numara) — teshis icin
+        $st = $this->waService()->status(\App\Services\SistemBildirim::SESSION);
+        $gPhone = $st['body']['phone'] ?? null;
+        $gDurum = $st['body']['status'] ?? ($st['ok'] ? 'bilinmiyor' : 'servise-ulasilamiyor');
+        $aliciYerel = preg_replace('/^90/', '', (string) $ayar['numara']);
+
+        // Gonderen == alici ise WA kendine gonderemez — net uyari
+        if ($gPhone && preg_replace('/[^0-9]/', '', (string) $gPhone) === preg_replace('/[^0-9]/', '', (string) $ayar['numara'])) {
+            return redirect()->back()->with('hata',
+                'Bağlı GÖNDEREN (' . $gPhone . ') ile ALICI aynı! WhatsApp kendine mesaj göndermez. '
+                . '"Oturumu Kapat" → farklı bir numarayla (gönderen) QR okut.');
+        }
+
         $r = \App\Services\SistemBildirim::gonder('✅ Test: Sistem bildirimi. ' . date('d.m.Y H:i'));
         if (empty($r['ok'])) {
             return redirect()->back()->with('hata', 'Gönderilmedi — önce numara girip "Bildirimler açık" işaretleyip Kaydet.');
         }
-        // Gercek sonuclari goster (teshis icin)
         $wa  = $r['detay']['wa'] ?? [];
         $sms = $r['detay']['sms'] ?? [];
         $waMsg  = ($wa['ok'] ?? false)
@@ -1722,8 +1736,9 @@ class PanelController extends Controller
         $smsMsg = ($sms['ok'] ?? false)
             ? 'SMS gönderildi ✓'
             : 'SMS gitmedi (' . ($sms['durum'] ?? 'hata') . ')';
+        $gonderenBilgi = 'Gönderen oturum: ' . $gDurum . ($gPhone ? ' (' . $gPhone . ')' : ' — NUMARA YOK/bağlı değil');
         return redirect()->back()->with('basari',
-            'Test denendi → ' . $waMsg . '  |  ' . $smsMsg . '  · alıcı: ' . ($sms['to'] ?? '?'));
+            $gonderenBilgi . ' → ' . $waMsg . ' | ' . $smsMsg . ' · alıcı: ' . $aliciYerel);
     }
 
     /* ============================================================
