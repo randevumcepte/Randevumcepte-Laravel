@@ -3694,7 +3694,7 @@ public function carkverilerigetir(Request $request)
             if($_anketYetki && $rh->randevu->on_gorusme_id === null && !empty($rh->randevu->user_id)){
                 $duzenleButon .= '<a href="#" class="btn btn-sm anket-hizli-gonder-btn" style="background:#17a589;color:#fff;"'
                     .' data-userid="'.($rh->randevu->user_id ?? '').'"'
-                    .' data-sube="'.($rh->randevu->salon_id ?? '').'"><i class="fa fa-comments"></i> Memnuniyet Anketi Gönder</a>';
+                    .' data-sube="'.($rh->randevu->salon_id ?? '').'"><i class="fa fa-comments"></i> Anket Gönder</a>';
             }
 
             if($seansVar->count() > 0){
@@ -8347,7 +8347,7 @@ private function ayAdiCevir($ingilizceAy)
                     ? '<a class="dropdown-item" href="#" name="musteri_sil" data-value="'.$item->portfoy_id.'"><i class="fa fa-minus"></i> Sil</a>'
                     : '';
                 $anketItem = $anketVar
-                    ? '<a class="dropdown-item" href="#" onclick="anketHizliGonderListe('.$item->id.', this); return false;" style="color:#25D366;"><i class="fa fa-comments"></i> Memnuniyet Anketi Gönder</a>'
+                    ? '<a class="dropdown-item" href="#" onclick="anketHizliGonderListe('.$item->id.', this); return false;" style="color:#25D366;"><i class="fa fa-comments"></i> Anket Gönder</a>'
                     : '';
 
                 // Hicbir aksiyon yoksa dropdown gosterme

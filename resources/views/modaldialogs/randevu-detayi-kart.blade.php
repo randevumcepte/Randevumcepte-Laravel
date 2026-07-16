@@ -104,7 +104,7 @@
    });
 
    // Tek-tik memnuniyet anketi gonderim (musteri kartindaki anketHizliGonder ile ayni akis).
-   // Randevu detay kartinin header'indaki "Memnuniyet Anketi Gönder" butonu.
+   // Randevu detay kartinin header'indaki "Anket Gönder" butonu.
    $(document).on('click', '.anket-hizli-gonder-btn', function (e) {
       e.preventDefault();
       var userId = $(this).data('userid');
