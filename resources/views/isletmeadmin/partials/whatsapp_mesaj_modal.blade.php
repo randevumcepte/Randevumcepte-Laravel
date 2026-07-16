@@ -1,115 +1,134 @@
 <style>
 /* Takvim detay modali z-index 100001 — compose modal onun da ustunde kalsin */
 #whatsapp-mesaj-modal { z-index:100060 !important; }
-#whatsapp-mesaj-modal .modal-dialog { max-width:520px; }
-.wam-modal { border-radius:14px; border:0; overflow:hidden; box-shadow:0 24px 60px rgba(92,0,142,.22); }
+#whatsapp-mesaj-modal .modal-dialog { max-width:600px; }
+#whatsapp-mesaj-modal .wam-modal * { box-sizing:border-box; }
+.wam-modal {
+   border-radius:20px; border:0; overflow:hidden;
+   box-shadow:0 30px 80px rgba(17,24,39,.28);
+   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+}
+
+/* Header */
 .wam-header {
-   display:flex; align-items:center; gap:10px;
-   padding:12px 18px;
-   background:#faf5ff;
-   border-bottom:1px solid #ede1f7;
-   position:relative;
+   display:flex; align-items:center; gap:13px;
+   padding:20px 24px; background:#fff;
+   border-bottom:1px solid #eef0f4; position:relative;
 }
 .wam-header .wam-icon {
-   width:34px; height:34px; border-radius:9px;
-   background:#25D366; color:#fff;
+   width:46px; height:46px; border-radius:14px;
+   background:linear-gradient(135deg,#25D366,#128C7E); color:#fff;
    display:inline-flex; align-items:center; justify-content:center;
-   font-size:17px; flex-shrink:0;
+   font-size:23px; flex-shrink:0; box-shadow:0 6px 16px rgba(37,211,102,.35);
 }
-.wam-header h2 { margin:0; font-size:15px; color:#3a1a52; font-weight:700; }
-.wam-header p { margin:1px 0 0; font-size:11.5px; color:#7c6c8a; }
+.wam-header h2 { margin:0; font-size:18px; color:#111827; font-weight:700; letter-spacing:-.2px; }
+.wam-header p { margin:2px 0 0; font-size:12.5px; color:#8a94a6; }
 .wam-close {
-   position:absolute; top:8px; right:10px;
-   background:transparent; border:0; font-size:20px; line-height:1;
-   color:#9d8ba8; cursor:pointer; transition:color .15s, background .15s;
-   width:26px; height:26px; border-radius:6px;
+   position:absolute; top:16px; right:16px;
+   background:#f3f4f6; border:0; font-size:18px; line-height:1;
+   color:#6b7280; cursor:pointer; transition:all .15s;
+   width:32px; height:32px; border-radius:50%;
+   display:inline-flex; align-items:center; justify-content:center;
 }
-.wam-close:hover { color:#ef4444; background:#fdecec; }
+.wam-close:hover { color:#ef4444; background:#fee2e2; }
 
-.wam-body { padding:12px 18px 4px; max-height:62vh; overflow-y:auto; background:#fff; }
+/* Body */
+.wam-body { padding:20px 24px 8px; max-height:64vh; overflow-y:auto; background:#fff; }
 
+/* Musteri karti */
 .wam-musteri {
-   display:flex; align-items:center; gap:10px;
-   padding:10px 12px; margin-bottom:10px;
-   background:#fbfafd; border:1px solid #ece6f3; border-radius:9px;
+   display:flex; align-items:center; gap:13px;
+   padding:14px 16px; margin-bottom:18px;
+   background:#f9fafb; border:1px solid #eef0f4; border-radius:14px;
 }
 .wam-musteri .wam-av {
-   width:38px; height:38px; border-radius:50%;
+   width:48px; height:48px; border-radius:50%;
    background:linear-gradient(135deg,#7B2FB8,#5C008E); color:#fff; flex-shrink:0;
-   display:inline-flex; align-items:center; justify-content:center; font-size:16px;
-   box-shadow:0 3px 8px rgba(92,0,142,.28);
+   display:inline-flex; align-items:center; justify-content:center; font-size:20px;
+   box-shadow:0 4px 12px rgba(92,0,142,.30);
 }
-.wam-musteri .wam-ad { font-size:13px; font-weight:700; color:#3a2e57; }
-.wam-musteri .wam-tel { font-size:12px; color:#7c6c8a; margin-top:1px; }
+.wam-musteri .wam-ad { font-size:15.5px; font-weight:700; color:#1f2937; line-height:1.2; }
+.wam-musteri .wam-tel { font-size:13px; color:#6b7280; margin-top:3px; display:flex; align-items:center; gap:5px; }
+.wam-musteri .wam-tel i { font-size:11px; opacity:.7; }
+.wam-musteri .wam-wa-tag {
+   margin-left:auto; align-self:center;
+   font-size:11px; font-weight:600; color:#128C7E;
+   background:#e7f8ef; border:1px solid #c9efd9; border-radius:20px; padding:4px 10px;
+   display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+}
 
+/* Uyari */
 .wam-uyari {
-   display:none;
-   align-items:flex-start; gap:8px;
-   padding:9px 11px; margin-bottom:10px;
-   background:#fef2f2; border:1px solid #fecaca; border-radius:8px;
-   color:#b91c1c; font-size:11.5px; line-height:1.4;
+   display:none; align-items:flex-start; gap:9px;
+   padding:11px 13px; margin-bottom:16px;
+   background:#fef2f2; border:1px solid #fecaca; border-radius:12px;
+   color:#b91c1c; font-size:12px; line-height:1.45;
 }
-.wam-uyari i { margin-top:1px; }
+.wam-uyari i { margin-top:2px; font-size:13px; }
 
+/* Mesaj */
 .wam-section__title {
-   font-size:10.5px; font-weight:700;
-   color:#5C008E;
-   text-transform:uppercase; letter-spacing:.4px;
-   margin-bottom:6px; display:flex; align-items:center; gap:5px;
+   font-size:11px; font-weight:700; color:#6b7280;
+   text-transform:uppercase; letter-spacing:.5px;
+   margin-bottom:8px; display:flex; align-items:center; gap:6px;
 }
 .wam-body textarea.form-control {
-   border-radius:7px; border:1px solid #dfd6ea; min-height:120px;
-   font-size:13px; padding:8px 10px; resize:vertical;
+   width:100%; border-radius:14px; border:1.5px solid #e5e7eb; min-height:150px;
+   font-size:14px; padding:13px 15px; resize:vertical; color:#1f2937; line-height:1.5;
+   transition:border-color .15s, box-shadow .15s;
 }
+.wam-body textarea.form-control::placeholder { color:#9ca3af; }
 .wam-body textarea.form-control:focus {
-   border-color:#5C008E; box-shadow:0 0 0 3px rgba(92,0,142,.1);
+   outline:none; border-color:#25D366; box-shadow:0 0 0 4px rgba(37,211,102,.13);
 }
-.wam-sayac { display:block; text-align:right; color:#9d8ba8; font-size:10.5px; margin-top:3px; }
+.wam-sayac { display:block; text-align:right; color:#9ca3af; font-size:11.5px; margin-top:5px; }
 
 /* Hazir baglanti butonlari (Konum / Instagram / Web) */
 .wam-hizli-baslik {
-   font-size:10.5px; font-weight:700; color:#9d8ba8;
-   text-transform:uppercase; letter-spacing:.4px; margin-top:13px; margin-bottom:6px;
+   font-size:11px; font-weight:700; color:#9ca3af;
+   text-transform:uppercase; letter-spacing:.5px; margin-top:18px; margin-bottom:9px;
 }
-.wam-linkler { display:flex; flex-wrap:wrap; gap:7px; }
+.wam-linkler { display:flex; flex-wrap:wrap; gap:9px; }
 .wam-link-chip {
-   display:inline-flex; align-items:center; gap:5px;
-   border-radius:20px; font-size:12px; font-weight:600; padding:6px 13px;
-   border:1px solid transparent; cursor:pointer; transition:background .15s, transform .05s;
-   line-height:1;
+   display:inline-flex; align-items:center; gap:6px;
+   border-radius:24px; font-size:13px; font-weight:600; padding:9px 16px;
+   border:1.5px solid transparent; cursor:pointer; transition:all .15s; line-height:1;
 }
-.wam-link-chip:active { transform:scale(.97); }
-.wam-link-chip.konum { background:#eef6ff; color:#0b6bcb; border-color:#cfe3fb; }
-.wam-link-chip.konum:hover { background:#dcecfb; }
-.wam-link-chip.insta { background:#fdf0f7; color:#c1358a; border-color:#f6d4e8; }
-.wam-link-chip.insta:hover { background:#fbe3f1; }
-.wam-link-chip.web { background:#eefaf3; color:#12805a; border-color:#c9efd9; }
-.wam-link-chip.web:hover { background:#dcf5e8; }
+.wam-link-chip:hover { transform:translateY(-1px); }
+.wam-link-chip:active { transform:translateY(0) scale(.98); }
+.wam-link-chip.konum { background:#eff6ff; color:#1d4ed8; border-color:#dbeafe; }
+.wam-link-chip.konum:hover { background:#dbeafe; }
+.wam-link-chip.insta { background:#fdf2f8; color:#be185d; border-color:#fce7f3; }
+.wam-link-chip.insta:hover { background:#fce7f3; }
+.wam-link-chip.web { background:#ecfdf5; color:#047857; border-color:#d1fae5; }
+.wam-link-chip.web:hover { background:#d1fae5; }
 
+/* Footer */
 .wam-footer {
-   display:flex; justify-content:flex-end; gap:8px;
-   padding:10px 18px; border-top:1px solid #ece6f3;
-   background:#fbfafd;
+   display:flex; justify-content:flex-end; gap:10px; align-items:center;
+   padding:16px 24px; border-top:1px solid #eef0f4; background:#fafbfc;
 }
 .wam-btn-send {
-   background:#25D366; color:#fff !important;
-   padding:7px 18px; border-radius:8px; font-weight:700; font-size:13px;
-   border:0; box-shadow:0 4px 10px rgba(37,211,102,.25);
-   transition:background .15s;
+   background:linear-gradient(135deg,#25D366,#12b455); color:#fff !important;
+   padding:11px 24px; border-radius:12px; font-weight:700; font-size:14px;
+   border:0; box-shadow:0 8px 20px rgba(37,211,102,.35);
+   transition:all .15s; display:inline-flex; align-items:center; gap:8px;
 }
-.wam-btn-send:hover { background:#1da851; }
-.wam-btn-send:disabled { opacity:.6; cursor:not-allowed; }
+.wam-btn-send:hover { box-shadow:0 10px 26px rgba(37,211,102,.45); transform:translateY(-1px); }
+.wam-btn-send:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; transform:none; }
 .wam-btn-cancel {
-   background:#fff; color:#7c6c8a !important;
-   padding:7px 16px; border-radius:8px; font-weight:600; font-size:13px;
-   border:1px solid #dfd6ea;
+   background:#fff; color:#6b7280 !important;
+   padding:11px 20px; border-radius:12px; font-weight:600; font-size:14px;
+   border:1.5px solid #e5e7eb; transition:all .15s;
 }
-.wam-btn-cancel:hover { background:#f5f0fa; color:#3a2e57 !important; }
+.wam-btn-cancel:hover { background:#f3f4f6; color:#374151 !important; }
 
-@media (max-width:600px) {
-   #whatsapp-mesaj-modal .modal-dialog { max-width:96%; margin:10px auto; }
-   .wam-body { padding:10px 12px; }
-   .wam-header { padding:10px 14px; gap:8px; }
+@media (max-width:640px) {
+   #whatsapp-mesaj-modal .modal-dialog { max-width:96%; margin:12px auto; }
+   .wam-header { padding:16px 18px; }
+   .wam-body { padding:16px 18px 6px; }
+   .wam-footer { padding:14px 18px; }
+   .wam-btn-send, .wam-btn-cancel { flex:1; justify-content:center; }
 }
 </style>
 
@@ -123,8 +142,8 @@
          <div class="wam-header">
             <div class="wam-icon"><i class="fa fa-whatsapp"></i></div>
             <div>
-               <h2>WhatsApp Mesaj Gönder</h2>
-               <p>Müşterinize doğrudan WhatsApp üzerinden mesaj yazın.</p>
+               <h2>WhatsApp Mesajı</h2>
+               <p>Müşterinize doğrudan WhatsApp üzerinden yazın.</p>
             </div>
             <button type="button" class="wam-close" data-dismiss="modal" aria-label="Kapat">&times;</button>
          </div>
@@ -135,8 +154,9 @@
                <div class="wam-av"><i class="fa fa-user"></i></div>
                <div>
                   <div class="wam-ad" id="wam_musteri_ad">—</div>
-                  <div class="wam-tel" id="wam_musteri_tel">—</div>
+                  <div class="wam-tel"><i class="fa fa-phone"></i> <span id="wam_musteri_tel">—</span></div>
                </div>
+               <span class="wam-wa-tag"><i class="fa fa-whatsapp"></i> WhatsApp</span>
             </div>
 
             <div class="wam-uyari" id="wam_onay_uyari">
