@@ -162,14 +162,19 @@
                         </td>
                         <td>
                             @php
-                                $demo = (int) ($s->demo_hesabi ?? 0) === 1 || (int) ($s->uyelik_turu ?? 0) === 3;
+                                // Demo: uyelik_turu=3 VE lisansi kisa (<=90 gun). Uzun lisansi olan
+                                // (Sirius gibi lisans almis ama demo_hesabi bayragi bayat kalmis) = Aktif.
+                                $demo = (int) ($s->uyelik_turu ?? 0) === 3 && ($kalan === null || $kalan <= 90);
+                                $lisansGecerli = $ubGecerli && $kalan !== null && $kalan >= 0;
                             @endphp
                             @if($s->askiya_alindi)
                                 <span class="sy-badge sy-badge-danger">Askıda</span>
                             @elseif($demo)
                                 <span class="sy-badge sy-badge-warning">Demo</span>
+                            @elseif($lisansGecerli)
+                                <span class="sy-badge sy-badge-success">Aktif</span>
                             @else
-                                <span class="sy-badge sy-badge-success">Lisanslı</span>
+                                <span class="sy-badge sy-badge-muted">Süresi Doldu</span>
                             @endif
                         </td>
                         <td class="sy-text-right nowrap">

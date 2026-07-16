@@ -82,7 +82,8 @@
     $ubGecerli = $ub && substr((string) $ub, 0, 4) !== '0000';
     $kalanGun = $ubGecerli ? (int) floor((strtotime($ub . ' 23:59:59') - time()) / 86400) : null;
     $ubRenk = !$ubGecerli ? 'muted' : ($kalanGun < 0 ? 'danger' : ($kalanGun <= 7 ? 'warning' : 'success'));
-    $demo = (int) ($salon->demo_hesabi ?? 0) === 1 || (int) ($salon->uyelik_turu ?? 0) === 3;
+    // Demo: uyelik_turu=3 VE lisansi kisa (<=90 gun). Uzun lisansi olan = Aktif (bayat demo_hesabi hesaba katilmaz).
+    $demo = (int) ($salon->uyelik_turu ?? 0) === 3 && ($kalanGun === null || $kalanGun <= 90);
 @endphp
 <div class="sy-card sy-mt-12" style="border-left:4px solid var(--sy-{{ $ubRenk }})">
     <div class="sy-card-body">
@@ -137,8 +138,8 @@
                     <button type="submit" class="sy-btn sy-btn-sm sy-btn-success"><span class="mdi mdi-check-decagram"></span> Lisansı Aktif Et</button>
                 </form>
             @else
-                <span class="sy-badge sy-badge-success">LİSANSLI</span>
-                <span class="sy-text-muted sy-fs-12">Bu salon lisanslı — süreyi yukarıdan uzatabilirsiniz.</span>
+                <span class="sy-badge sy-badge-success">AKTİF</span>
+                <span class="sy-text-muted sy-fs-12">Bu salon aktif/lisanslı — süreyi yukarıdan uzatabilirsiniz.</span>
             @endif
         </div>
     </div>
