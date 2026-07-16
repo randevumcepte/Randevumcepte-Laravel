@@ -397,6 +397,51 @@ class PanelController extends Controller
         return redirect()->back()->with('basari', 'Müşteri temsilcisi güncellendi.');
     }
 
+    /**
+     * Salon demo/uyelik suresini uzatir (sistem yonetimi).
+     * - gun: hizli uzatma (+7/+15/+30/... ). Mevcut bitis GELECEKteyse onun uzerine
+     *   eklenir (kalan sure kaybolmaz); bos/gecmis ise BUGUNden itibaren eklenir.
+     * - tarih: dogrudan belirli bir bitis tarihine ayarlar (Y-m-d).
+     * uyelik_bitis_tarihi 'Y-m-d' formatinda tutulur (bkz. lisans_sure_kontrol).
+     */
+    public function salonSureUzat(Request $request, $id)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $salon = Salonlar::findOrFail($id);
+
+        $gun   = (int) $request->get('gun', 0);
+        $tarih = trim((string) $request->get('tarih', ''));
+
+        $eski = $salon->uyelik_bitis_tarihi;
+        $eskiGecerli = $eski && substr((string) $eski, 0, 4) !== '0000' && strtotime((string) $eski) !== false;
+
+        if ($tarih !== '') {
+            $ts = strtotime($tarih);
+            if ($ts === false) {
+                return redirect()->back()->with('hata', 'Geçersiz tarih girdiniz.');
+            }
+            $yeni = date('Y-m-d', $ts);
+        } elseif ($gun > 0) {
+            // Mevcut bitis bugunden ileriyse onun uzerine ekle; degilse bugunden
+            $bazTs = ($eskiGecerli && strtotime((string) $eski) > strtotime(date('Y-m-d')))
+                ? strtotime((string) $eski)
+                : strtotime(date('Y-m-d'));
+            $yeni = date('Y-m-d', strtotime('+' . $gun . ' days', $bazTs));
+        } else {
+            return redirect()->back()->with('hata', 'Uzatma için bir gün seçin ya da tarih girin.');
+        }
+
+        $salon->uyelik_bitis_tarihi = $yeni;
+        $salon->save();
+
+        Audit::log('salon_sure_uzat', 'salon', $salon->id, $salon->salon_adi,
+            $tarih !== '' ? ('Tarihe ayarlandı: ' . $yeni) : ('+' . $gun . ' gün'),
+            ['eski' => $eski, 'yeni' => $yeni]);
+
+        return redirect()->back()->with('basari',
+            'Demo/üyelik süresi güncellendi. Yeni bitiş tarihi: ' . date('d.m.Y', strtotime($yeni)));
+    }
+
     /* ============================================================
      * SALON HESABINA GIRIS (IMPERSONATION)
      * ============================================================ */

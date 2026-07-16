@@ -577,6 +577,7 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/salon/{id}/bilgi-guncelle', 'PanelController@salonBilgiGuncelle');
     Route::post('/salon/{id}/askiya-al', 'PanelController@salonAskiyaAl');
     Route::post('/salon/{id}/aktif-et', 'PanelController@salonAktifEt');
+    Route::post('/salon/{id}/sure-uzat', 'PanelController@salonSureUzat');
     Route::post('/salon/{id}/mt-ata', 'PanelController@salonMusteriTemsilcisiAta');
     Route::post('/salon/{id}/hesabina-gir', 'PanelController@salonHesabinaGir');
     Route::get('/impersonation-bitir', 'PanelController@impersonationBitir')->name('sistemyonetim.v2.impersonation.bitir');
