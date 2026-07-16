@@ -35,6 +35,8 @@ class SalonappyImport extends Command
         {--tel= : --inspect-musteri icin telefon (sadece rakam)}
         {--ad= : --inspect-musteri icin ad (LIKE match)}
         {--musteri-id= : --inspect-musteri icin DB user_id direkt}
+        {--reconcile-tahsilat : Salonappy tahsilat xlsx export (Musteri/Tarih/Odeme/Tutar/Kaynak/Urun) ile DB tahsilatlari karsilastir. Eksik olanlar CSV\'ye yazilir. --file --salon zorunlu, --from/--to opsiyonel.}
+        {--file= : --reconcile-tahsilat icin xlsx dosya yolu}
         {--dry-run : Reset/import oncesi sadece sayim}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
@@ -58,8 +60,9 @@ class SalonappyImport extends Command
         $resetMode = (bool) $this->option('reset-salonappy');
         $fixRhSaat = (bool) $this->option('fix-rh-saat');
         $inspectMus = (bool) $this->option('inspect-musteri');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && (!$username || !$password)) {
-            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri verin).');
+        $reconcileT = (bool) $this->option('reconcile-tahsilat');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && (!$username || !$password)) {
+            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat verin).');
             return 1;
         }
         if (!$probe && !$analyze && !$salonId) {
@@ -112,6 +115,15 @@ class SalonappyImport extends Command
                 $this->option('tel'),
                 $this->option('ad'),
                 $this->option('musteri-id')
+            );
+        }
+        if ((bool) $this->option('reconcile-tahsilat')) {
+            if (!$salonId) { $this->error('--reconcile-tahsilat icin --salon zorunlu.'); return 1; }
+            $file = $this->option('file');
+            if (!$file) { $this->error('--reconcile-tahsilat icin --file zorunlu.'); return 1; }
+            return $this->reconcileTahsilat(
+                (int) $salonId, $file,
+                $this->option('from'), $this->option('to')
             );
         }
         if ($dumpFile = $this->option('dump-file')) {
@@ -2965,6 +2977,161 @@ class SalonappyImport extends Command
      * Default --dump-file akisindaki controller (salonAppyAdisyonRandevuEkle)
      * RH.saat/saat_bitis yazmiyordu — bu komut tek seferlik tamir.
      */
+    /**
+     * Salonappy tahsilat xlsx export'unu DB Salonappy tahsilatlariyla karsilastir.
+     * Excel: Musteri | Satis tarihi | Odeme yontemi | Tutar | Kaynak | Urun/Hizmet | Olusturan | Olusturulma
+     * Match: user_id (users.name trKey LIKE) + tarih + tutar.
+     * Eksik olanlar CSV'ye yazilir.
+     */
+    private function reconcileTahsilat($salonId, $file, $from = null, $to = null)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: $file"); return 1; }
+
+        // 1) Excel oku
+        $this->info("Excel okunuyor: $file");
+        try {
+            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($file);
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($file);
+            $ws = $spreadsheet->getActiveSheet();
+        } catch (\Throwable $e) {
+            $this->error('Excel okunamadi: ' . $e->getMessage());
+            return 1;
+        }
+
+        // TR ay isimleri -> ay no
+        $trAy = [
+            'ocak' => 1, 'şubat' => 2, 'subat' => 2, 'mart' => 3, 'nisan' => 4,
+            'mayıs' => 5, 'mayis' => 5, 'haziran' => 6, 'temmuz' => 7,
+            'ağustos' => 8, 'agustos' => 8, 'eylül' => 9, 'eylul' => 9,
+            'ekim' => 10, 'kasım' => 11, 'kasim' => 11, 'aralık' => 12, 'aralik' => 12,
+        ];
+        $parseDate = function ($s) use ($trAy) {
+            $s = mb_strtolower(trim((string) $s), 'UTF-8');
+            if (preg_match('/^(\d{1,2})\s+([a-zçğıöşü]+)\s+(\d{4})/u', $s, $m)) {
+                $ay = $trAy[$m[2]] ?? null;
+                if ($ay) return sprintf('%04d-%02d-%02d', (int) $m[3], $ay, (int) $m[1]);
+            }
+            return null;
+        };
+        $parseTutar = function ($s) {
+            $s = str_replace(['.', ' ', 'TL', 'tl', ','], ['', '', '', '', '.'], (string) $s);
+            return (float) preg_replace('/[^0-9.]/', '', $s);
+        };
+        $trKey = function ($s) {
+            $s = mb_strtolower((string) $s, 'UTF-8');
+            $s = strtr($s, [
+                'ı' => 'i', 'İ' => 'i', 'ş' => 's', 'ğ' => 'g',
+                'ü' => 'u', 'ö' => 'o', 'ç' => 'c',
+            ]);
+            $s = preg_replace('/[^a-z0-9]+/', ' ', $s);
+            return trim($s);
+        };
+        $ymMap = ['ocak' => 1, 'subat' => 2, 'mart' => 3, 'nisan' => 4];
+
+        $excelRows = []; // [user_key, tarih, tutar, yontem, kaynak, hizmet, orig_row]
+        $header = null;
+        $totalRow = 0;
+        foreach ($ws->getRowIterator() as $rowIt) {
+            $vals = [];
+            foreach ($rowIt->getCellIterator() as $cell) {
+                $vals[] = $cell->getValue();
+            }
+            if ($header === null) { $header = $vals; continue; }
+            $totalRow++;
+            if (empty($vals[0])) continue;
+            $tarih = $parseDate($vals[1] ?? '');
+            $tutar = $parseTutar($vals[3] ?? '');
+            if (!$tarih || $tutar <= 0) continue;
+            if ($from && $tarih < $from) continue;
+            if ($to && $tarih > $to) continue;
+            $excelRows[] = [
+                'user_key' => $trKey((string) $vals[0]),
+                'user_ad'  => trim((string) $vals[0]),
+                'tarih'    => $tarih,
+                'tutar'    => round($tutar, 2),
+                'yontem'   => trim((string) ($vals[2] ?? '')),
+                'kaynak'   => trim((string) ($vals[4] ?? '')),
+                'hizmet'   => trim((string) ($vals[5] ?? '')),
+            ];
+        }
+        $this->line("Excel toplam satir: $totalRow, filtreli tahsilat: " . count($excelRows));
+
+        if (empty($excelRows)) { $this->warn('Excel\'de karsilastirilacak satir yok.'); return 0; }
+
+        // 2) DB tahsilatlari cek (salon + tarih araligi + salonappy marker)
+        $dbQuery = \DB::table('tahsilatlar as t')
+            ->join('users as u', 't.user_id', '=', 'u.id')
+            ->where('t.salon_id', $salonId)
+            ->where(function ($q) {
+                $q->where('t.notlar', 'LIKE', '%[salonappy%');
+            });
+        if ($from) $dbQuery->where('t.odeme_tarihi', '>=', $from);
+        if ($to)   $dbQuery->where('t.odeme_tarihi', '<=', $to);
+        $dbRows = $dbQuery->select('t.id', 't.odeme_tarihi', 't.tutar', 'u.name', 't.notlar')->get();
+        $this->line("DB Salonappy markerli tahsilat sayisi: " . $dbRows->count());
+
+        // 3) Karsilastirma: DB'yi user_key + tarih + tutar bazli index'e al
+        $dbIndex = []; // key => [tahsilat_id, ...]
+        foreach ($dbRows as $r) {
+            $k = $trKey($r->name) . '|' . substr((string) $r->odeme_tarihi, 0, 10) . '|' . number_format((float) $r->tutar, 2, '.', '');
+            if (!isset($dbIndex[$k])) $dbIndex[$k] = [];
+            $dbIndex[$k][] = $r->id;
+        }
+
+        $eslesen = 0; $eksik = [];
+        $dbKullanildi = []; // ayni DB satirini iki kez saymamak icin
+        foreach ($excelRows as $ex) {
+            $k = $ex['user_key'] . '|' . $ex['tarih'] . '|' . number_format($ex['tutar'], 2, '.', '');
+            $bulundu = false;
+            if (isset($dbIndex[$k])) {
+                foreach ($dbIndex[$k] as $dbId) {
+                    if (!isset($dbKullanildi[$dbId])) {
+                        $dbKullanildi[$dbId] = true;
+                        $bulundu = true; break;
+                    }
+                }
+            }
+            if ($bulundu) { $eslesen++; }
+            else { $eksik[] = $ex; }
+        }
+
+        $this->info("Eslesen: $eslesen, EKSIK (Excel'de var, DB'de yok): " . count($eksik));
+
+        // 4) CSV'ye yaz
+        $csv = storage_path("app/reconcile_tahsilat_{$salonId}_" . date('Ymd_His') . '.csv');
+        $fp = fopen($csv, 'w');
+        fputcsv($fp, ['musteri', 'tarih', 'tutar', 'yontem', 'kaynak', 'hizmet']);
+        foreach ($eksik as $ex) {
+            fputcsv($fp, [$ex['user_ad'], $ex['tarih'], $ex['tutar'], $ex['yontem'], $ex['kaynak'], $ex['hizmet']]);
+        }
+        fclose($fp);
+        $this->info("Eksik CSV: $csv");
+
+        // 5) Ozet: kaynak bazli eksik dagilim + aylik
+        $kaynakEksik = []; $aylikEksik = [];
+        foreach ($eksik as $ex) {
+            $kaynakEksik[$ex['kaynak']] = ($kaynakEksik[$ex['kaynak']] ?? 0) + 1;
+            $ay = substr($ex['tarih'], 0, 7);
+            $aylikEksik[$ay] = ($aylikEksik[$ay] ?? 0) + 1;
+        }
+        $this->line("\n=== Kaynak bazli eksik ===");
+        foreach ($kaynakEksik as $k => $n) $this->line(sprintf('  %-30s %d', $k ?: '(bos)', $n));
+        $this->line("\n=== Aylik eksik ===");
+        ksort($aylikEksik);
+        foreach ($aylikEksik as $ay => $n) $this->line(sprintf('  %s  %d', $ay, $n));
+
+        // Eksik ilk 20 satir onizleme
+        if (!empty($eksik)) {
+            $this->line("\n=== Ilk 20 eksik ===");
+            foreach (array_slice($eksik, 0, 20) as $ex) {
+                $this->line(sprintf('  %s | %s | %s TL | %s | %s',
+                    $ex['tarih'], $ex['user_ad'], $ex['tutar'], $ex['kaynak'], $ex['hizmet']));
+            }
+        }
+        return 0;
+    }
+
     private function fixRandevuHizmetSaat($salonId, $dryRun)
     {
         $this->info("Salon {$salonId}: RH.saat NULL kayitlari tamir ediliyor" . ($dryRun ? ' (DRY-RUN)' : '') . '...');
