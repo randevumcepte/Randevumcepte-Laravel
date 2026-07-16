@@ -100,6 +100,7 @@
                     <th>Yetkili</th>
                     <th>Müşteri Temsilcisi</th>
                     <th>Kayıt</th>
+                    <th>Üyelik Bitiş</th>
                     <th>Durum</th>
                     <th class="sy-text-right">İşlemler</th>
                 </tr>
@@ -141,11 +142,34 @@
                             {{ $mtMap[$s->musteri_yetkili_id] ?? '—' }}
                         </td>
                         <td class="sy-text-muted sy-fs-12 nowrap">{{ \Carbon\Carbon::parse($s->created_at)->format('d.m.Y') }}</td>
+                        <td class="sy-fs-12 nowrap">
+                            @php
+                                $ub = $s->uyelik_bitis_tarihi;
+                                $ubGecerli = $ub && substr((string) $ub, 0, 4) !== '0000';
+                                $kalan = $ubGecerli ? (int) floor((strtotime($ub . ' 23:59:59') - time()) / 86400) : null;
+                                $ubRenk = !$ubGecerli ? 'muted' : ($kalan < 0 ? 'danger' : ($kalan <= 7 ? 'warning' : 'success'));
+                            @endphp
+                            @if($ubGecerli)
+                                <span style="color:var(--sy-{{ $ubRenk }});font-weight:700">{{ \Carbon\Carbon::parse($ub)->format('d.m.Y') }}</span>
+                                <div class="sy-text-muted" style="font-size:11px">
+                                    @if($kalan < 0) {{ abs($kalan) }} gün önce doldu
+                                    @elseif($kalan === 0) bugün doluyor
+                                    @else {{ $kalan }} gün kaldı @endif
+                                </div>
+                            @else
+                                <span class="sy-text-muted">—</span>
+                            @endif
+                        </td>
                         <td>
+                            @php
+                                $demo = (int) ($s->demo_hesabi ?? 0) === 1 || (int) ($s->uyelik_turu ?? 0) === 3;
+                            @endphp
                             @if($s->askiya_alindi)
                                 <span class="sy-badge sy-badge-danger">Askıda</span>
+                            @elseif($demo)
+                                <span class="sy-badge sy-badge-warning">Demo</span>
                             @else
-                                <span class="sy-badge sy-badge-success">Aktif</span>
+                                <span class="sy-badge sy-badge-success">Lisanslı</span>
                             @endif
                         </td>
                         <td class="sy-text-right nowrap">
@@ -162,7 +186,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8"><div class="sy-empty"><div class="icon mdi mdi-store-off"></div><div class="baslik">Salon bulunamadı</div></div></td></tr>
+                    <tr><td colspan="9"><div class="sy-empty"><div class="icon mdi mdi-store-off"></div><div class="baslik">Salon bulunamadı</div></div></td></tr>
                 @endforelse
             </tbody>
         </table>
